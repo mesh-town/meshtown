@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep_until, Instant};
 
 use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
-use crate::exit::address_guard::{first_allowed, is_forbidden, is_own_address};
+use crate::exit::outbound::{first_allowed, is_forbidden, is_own_address};
 use crate::exit::server::ExitConfig;
 use crate::net::{BoxRecv, BoxSend, PeerId};
 use crate::output::{say, short_peer_id};

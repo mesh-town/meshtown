@@ -5,7 +5,7 @@
 //! with an embedded IPv4 are judged by it. Separately, a "the node's own address" probe with a socket, without packets.
 //! What it does not do: it does not touch `doh::is_unusable` — it is called by the direct proxy path, the reachability probe
 //! and geoip, where the client goes on its own behalf; it does not look at the test `host_overrides` table.
-//! Links: called by `super::server` (`resolve_address`).
+//! Links: called by `super::dial` and `super::target`.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, UdpSocket};
 
@@ -39,7 +39,7 @@ const CLOSED_V6: [(Ipv6Addr, u8); 4] = [
 ];
 
 /// Whether the address is closed for the exit.
-pub(super) fn is_forbidden(ip: IpAddr) -> bool {
+pub(in crate::exit) fn is_forbidden(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => is_forbidden_v4(v4),
         IpAddr::V6(v6) => is_forbidden_v6(v6),
@@ -47,7 +47,7 @@ pub(super) fn is_forbidden(ip: IpAddr) -> bool {
 }
 
 /// The first open address from the DoH answer in answer order; all closed or an empty list — `None`.
-pub(super) fn first_allowed(addrs: &[Ipv4Addr]) -> Option<Ipv4Addr> {
+pub(in crate::exit) fn first_allowed(addrs: &[Ipv4Addr]) -> Option<Ipv4Addr> {
     addrs.iter().copied().find(|ip| !is_forbidden_v4(*ip))
 }
 
@@ -71,7 +71,7 @@ const FOREIGN: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1));
 /// The node's own address (the router's public WAN, a VPS address): a socket binds to its own address, and
 /// the route to it picks it as the outgoing one; or an IPv6 neighbour in the exit's /64. Sends no packets; a probe
 /// error means "not own".
-pub(super) fn is_own_address(ip: IpAddr) -> bool {
+pub(in crate::exit) fn is_own_address(ip: IpAddr) -> bool {
     if let IpAddr::V6(v6) = ip {
         return own_or_local(ip) || on_exit_link_v6(v6);
     }

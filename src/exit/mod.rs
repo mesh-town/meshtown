@@ -11,8 +11,8 @@
 //! Links: permission comes from `crate::membership`, the list from `crate::domains`, the address from `crate::doh`;
 //! this protocol is called by `crate::proxy`.
 //!
-//! Files: `address_guard` — filtering of destination addresses (the tables are pure functions, the probe of the node's own
-//! address uses a socket without packets), `clients` — the registry of exit clients (who is currently going through
+//! Files: `outbound` — where and how the exit connects outward (the address guard: its tables are pure functions, the probe
+//! of the node's own address uses a socket without packets; address choice, refusals, dialing), `clients` — the registry of exit clients (who is currently going through
 //! the node), `frame` — the request/reply frame, codes and their parsing (pure functions, no networking);
 //! `server` — the handler of incoming connections (`ExitConfig`, `exit_service`, `serve_exit_stream`);
 //! `pool` — connections to members and the `ask_exit_to_connect` request; `splice` — shuttling bytes between
@@ -21,10 +21,10 @@
 //! `udpgw` — UDP datagrams over one exit stream (the conventional target 240.0.0.1:7300);
 //! `traffic` — exit traffic speed per peer (a registry of samples for `/api/state`).
 
-mod address_guard;
 mod clients;
 mod frame;
 mod gateway_memo;
+mod outbound;
 mod pool;
 mod report;
 mod server;

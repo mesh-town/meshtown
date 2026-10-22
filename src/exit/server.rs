@@ -2,15 +2,13 @@
 //! the domain and byte shuttling (`super::splice`).
 
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 
 use crate::net::{BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, ServiceHandler};
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
-use tokio::time::timeout;
 
 use crate::doh::Resolver;
 use crate::domains::DomainList;
@@ -18,12 +16,9 @@ use crate::membership::Members;
 use crate::output::{say, short_peer_id};
 use crate::tcp_tune::disable_nagle;
 
-use super::address_guard::{first_allowed, is_forbidden, is_own_address};
 use super::clients::{Clients, ConnRef};
-use super::frame::{
-    parse_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_BAD_REQUEST, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS,
-    EXIT_CODE_OK, EXIT_CODE_REFUSED, EXIT_TCP_CONNECT_TIMEOUT, EXIT_PROTOCOL_VERSION,
-};
+use super::frame::{parse_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED, EXIT_PROTOCOL_VERSION};
+use super::outbound::{open_tcp, resolve_address, Refusal};
 use super::report;
 use super::udpgw;
 use super::splice::splice;
@@ -99,91 +94,6 @@ async fn read_request_raw(recv: &mut BoxRecv) -> std::result::Result<Vec<u8>, ()
     Ok(raw)
 }
 
-/// Destination address: the test table as is; an IP literal goes through the filter (the client
-/// sends the address in the request frame as a name); otherwise the resolver cache, on a miss
-/// DoH, and the same filter on every address of the answer. The chosen address must not be the node's own.
-async fn resolve_address(
-    cfg: &ExitConfig,
-    target_host: &str,
-    port: u16,
-) -> std::result::Result<SocketAddr, Refusal> {
-    if let Some(addr) = cfg.host_overrides.get(target_host) {
-        return Ok(*addr);
-    }
-    if let Ok(ip) = target_host.parse::<IpAddr>() {
-        return literal_address(ip, target_host, port).and_then(|addr| reject_own_address(addr, target_host));
-    }
-    let addrs = cfg
-        .resolver
-        .resolve_cached(target_host)
-        .await
-        .map_err(|e| Refusal::no_address(format!("{target_host} — DNS: {e:#}")))?;
-    first_allowed_resolved_address(&addrs, target_host, port).and_then(|addr| reject_own_address(addr, target_host))
-}
-
-/// Exit refusal: the reply code for the member and the tail of the log line (`refuse` adds the short id).
-#[derive(Debug)]
-struct Refusal {
-    code: u8,
-    line: String,
-}
-
-impl Refusal {
-    fn no_address(line: String) -> Refusal {
-        Refusal {
-            code: EXIT_CODE_NO_ADDRESS,
-            line,
-        }
-    }
-
-    /// There is one reason and no address: an address from DoH is given out neither to the member nor to the log.
-    fn forbidden(target_host: &str) -> Refusal {
-        Refusal {
-            code: EXIT_CODE_ADDRESS_FORBIDDEN,
-            line: format!("{target_host} — address closed to exit"),
-        }
-    }
-}
-
-/// An IP literal from the frame: a closed one is refused. IPv4-mapped IPv6 is judged and opened as plain IPv4;
-/// a public IPv6 literal is opened as is (a host without IPv6 connectivity fails later with a connect error).
-fn literal_address(
-    ip: IpAddr,
-    target_host: &str,
-    port: u16,
-) -> std::result::Result<SocketAddr, Refusal> {
-    let ip = ip.to_canonical();
-    if is_forbidden(ip) {
-        return Err(Refusal::forbidden(target_host));
-    }
-    Ok(SocketAddr::new(ip, port))
-}
-
-/// Addresses of a name from DoH: the first open one; an empty answer means "no address", all closed means "closed".
-fn first_allowed_resolved_address(
-    addrs: &[Ipv4Addr],
-    target_host: &str,
-    port: u16,
-) -> std::result::Result<SocketAddr, Refusal> {
-    if addrs.is_empty() {
-        return Err(Refusal::no_address(format!(
-            "{target_host} — no usable address"
-        )));
-    }
-    first_allowed(addrs)
-        .map(|ip| SocketAddr::from((ip, port)))
-        .ok_or_else(|| Refusal::forbidden(target_host))
-}
-
-/// The node's own address — the same owner services as the loopback. Checked before connecting: a refusal
-/// doesn't reveal whether the port is listening.
-fn reject_own_address(addr: SocketAddr, target_host: &str) -> std::result::Result<SocketAddr, Refusal> {
-    if is_own_address(addr.ip()) {
-        return Err(Refusal::forbidden(target_host));
-    }
-    Ok(addr)
-}
-
 /// Answers one request and, if everything matches, shuttles bytes.
 async fn serve_exit_stream(
     cfg: ExitConfig,
@@ -238,22 +148,6 @@ async fn serve_exit_stream(
     // Byte counts are needed only by the requesting side, the exit doesn't print them.
     let _ = splice(send, recv, tcp).await;
     Ok(())
-}
-
-/// Connection to an address. If it didn't open, the address may be stale in the cache — drop it.
-async fn open_tcp(
-    cfg: &ExitConfig,
-    target_host: &str,
-    addr: SocketAddr,
-) -> std::result::Result<TcpStream, Refusal> {
-    let Ok(Ok(tcp)) = timeout(EXIT_TCP_CONNECT_TIMEOUT, TcpStream::connect(addr)).await else {
-        cfg.resolver.forget(target_host);
-        return Err(Refusal {
-            code: EXIT_CODE_CONNECT_FAILED,
-            line: format!("{target_host} ({addr}) — connection didn't open"),
-        });
-    };
-    Ok(tcp)
 }
 
 /// One log line and the refusal code for the member.
