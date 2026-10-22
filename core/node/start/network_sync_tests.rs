@@ -208,7 +208,7 @@ struct Pair {
 impl Pair {
     async fn sync_a_with_b(&self) {
         self.a
-            .sync_with(self.b.me())
+            .sync_shared_with(self.b.me())
             .await
             .expect("A's reconciliation with B starts");
     }

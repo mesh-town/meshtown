@@ -73,7 +73,7 @@ through the network it runs in.
 Stopping (`node::run`): the node waits for Ctrl-C or SIGTERM, prints a line about it, closes the
 router (up to 10 s) and prints "stopped".
 
-Shared records (the domain list, port publications, membership votes): a replica of signed records lives in the
+Shared records (site check results, port publications, membership votes): a replica of signed records lives in the
 node (`sync::replica`). The replica identifier and its topic are derived from the network key. Members
 reconcile the replica over the `meshtown/replica/1` service after the handshake, and topic membership spreads by
 flooding over the `meshtown/sync/1` service. The author of a record is the node key, and every entry carries the
@@ -174,7 +174,7 @@ Reply, 2 bytes:
 | 1 | 1 | code |
 
 The exit checks a request in four steps: permission (whether the requester is a member), frame parsing,
-the domain's address, the connection. The check of the domain against the shared list and of the port is gone: the exit
+the domain's address, the connection. The check of the domain against the list and of the port is gone: the exit
 owner serves any domain on any port and controls only `exit.enabled`; a separate
 switch for the exit owner (which domains and ports they are ready to serve) is not part of this
 task. There is no personal data in the frame: no client string, no request path — the exit sees

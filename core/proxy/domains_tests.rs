@@ -186,4 +186,23 @@ mod shared_replica {
             .unwrap();
         assert_eq!(e.value, Bytes::from_static(b"old"));
     }
+
+    #[tokio::test]
+    async fn shared_list_entries_are_not_migrated() {
+        let net = MemSyncNet::new();
+        let ctx = SyncCtx {
+            secret: NodeSecret::from_bytes(&[3; 32]),
+            network_seed: [9; 32],
+            store_dir: None,
+        };
+        let backend = net.backend(ctx);
+        let shared = backend.open_replica(REPLICA_NET).await.unwrap();
+        let own = backend.open_replica(REPLICA_DOMAINS).await.unwrap();
+        shared
+            .set_own(&entry_key("x.com"), Bytes::from_static(ENTRY_VALUE))
+            .await
+            .unwrap();
+        let list = DomainList::open(shared, own).await.unwrap();
+        assert!(list.list().await.unwrap().is_empty());
+    }
 }
