@@ -44,8 +44,8 @@ jobs:
       # armv7 is the console build for the OpenWrt package feed; a failed armv7 build does not fail the run.
       targets: |
         [
-          {"target": "aarch64-apple-darwin", "os": "macos-15", "zig": false},
-          {"target": "x86_64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "aarch64-apple-darwin", "os": "macos-26", "zig": false},
+          {"target": "x86_64-apple-darwin", "os": "macos-26", "zig": false},
           {"target": "x86_64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true, "cli_only": true},
           {"target": "aarch64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true, "cli_only": true},
           {"target": "armv7-unknown-linux-musleabi", "os": "ubuntu-24.04", "zig": true, "cli_only": true, "optional": true},

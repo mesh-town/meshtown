@@ -43,8 +43,8 @@ jobs:
       # A failed armv7 build must not stop the release; the feed job reports the missing archive.
       targets: |
         [
-          {"target": "aarch64-apple-darwin", "os": "macos-15", "zig": false},
-          {"target": "x86_64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "aarch64-apple-darwin", "os": "macos-26", "zig": false},
+          {"target": "x86_64-apple-darwin", "os": "macos-26", "zig": false},
           {"target": "x86_64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true},
           {"target": "aarch64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true},
           {"target": "armv7-unknown-linux-musleabi", "os": "ubuntu-24.04", "zig": true, "cli_only": true, "optional": true},
