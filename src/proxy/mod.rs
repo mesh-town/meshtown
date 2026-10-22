@@ -8,11 +8,12 @@
 //! Links: frames — `crate::socks5`, path choice — `crate::route`, exit — `crate::exit`,
 //! addresses — `crate::doh`; started from `crate::node::start_node`.
 //!
-//! Files: `admit` — client admission by address; `serve` — the listening socket and SOCKS5 serving; `path` — the shared path (direct or through
+//! Files: `admit` — client admission by address; `serve` — the listening socket and SOCKS5 serving; `assoc` — UDP ASSOCIATE; `path` — the shared path (direct or through
 //! a member); `http` and `http_head` — the HTTP face and head parsing; `pac` and `pac.js` — the proxy autoconfiguration file; `outcome` — the serving outcome for the log line; `get` — the `get` command
 //! (an HTTP client over our own SOCKS5); `console` — console commands.
 
 mod admit;
+mod assoc;
 mod console;
 mod get;
 mod http;
@@ -23,6 +24,7 @@ mod path;
 mod serve;
 
 pub use admit::Admission;
+pub use assoc::udp_slots;
 pub use console::{execute_proxy_command, parse_proxy_line, ProxyCommand, ProxyConsole};
 pub use get::get_via_socks;
 pub use outcome::{outcome_line, ProxyOutcome};

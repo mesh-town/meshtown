@@ -31,6 +31,7 @@ async fn config(hosts: HashMap<String, SocketAddr>) -> ProxyConfig {
         pool: PeerConnPool::default(),
         resolver: Arc::new(resolver),
         host_overrides: Arc::new(hosts),
+        udp_slots: crate::proxy::udp_slots(),
     }
 }
 

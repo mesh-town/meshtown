@@ -1,11 +1,14 @@
 //! The SOCKS5 server's I/O: the greeting, reading the request, the reply. The frames and their parsing are in
 //! `super::frame`.
 
+use std::net::SocketAddrV4;
+
 use anyhow::{bail, Context, Result};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use super::frame::{
-    encode_socks5_reply, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6, METHOD_NO_ACCEPTABLE, METHOD_NO_AUTH, VERSION,
+    encode_socks5_reply, encode_socks5_reply_bound, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6,
+    METHOD_NO_ACCEPTABLE, METHOD_NO_AUTH, VERSION,
 };
 
 /// Reads the client's greeting and replies "no authentication".
@@ -50,7 +53,10 @@ where
     match head[3] {
         ATYP_IPV4 => {
             let mut rest = [0u8; 6];
-            stream.read_exact(&mut rest).await.context("address and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("address and port")?;
             raw.extend_from_slice(&rest);
         }
         ATYP_DOMAIN => {
@@ -58,12 +64,18 @@ where
             stream.read_exact(&mut len).await.context("name length")?;
             raw.push(len[0]);
             let mut rest = vec![0u8; usize::from(len[0]) + 2];
-            stream.read_exact(&mut rest).await.context("name and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("name and port")?;
             raw.extend_from_slice(&rest);
         }
         ATYP_IPV6 => {
             let mut rest = [0u8; 18];
-            stream.read_exact(&mut rest).await.context("address and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("address and port")?;
             raw.extend_from_slice(&rest);
         }
         _ => {}
@@ -78,6 +90,19 @@ where
 {
     stream
         .write_all(&encode_socks5_reply(code))
+        .await
+        .context("SOCKS5 reply")?;
+    stream.flush().await.context("SOCKS5 reply")?;
+    Ok(())
+}
+
+/// Writes the server reply with the bound address and port (the answer to `UDP ASSOCIATE`).
+pub async fn write_reply_bound<S>(stream: &mut S, code: u8, bound: SocketAddrV4) -> Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
+    stream
+        .write_all(&encode_socks5_reply_bound(code, bound))
         .await
         .context("SOCKS5 reply")?;
     stream.flush().await.context("SOCKS5 reply")?;

@@ -42,6 +42,8 @@ pub use frame::{
 };
 pub use gateway_memo::{GatewayMemo, GATEWAY_REFUSAL_TTL};
 pub use udpgw::{is_gateway_target, UDPGW_HOST, UDPGW_PORT};
+// Consumed by the node-side UDP bridge.
+pub(crate) use udpgw::codec as udpgw_codec;
 pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOUT};
 pub use server::{exit_service, ExitConfig};
 pub use splice::{splice, HALF_CLOSE_GRACE};

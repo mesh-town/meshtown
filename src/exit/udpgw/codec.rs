@@ -6,10 +6,10 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-pub(super) const FLAG_KEEPALIVE: u8 = 0x01;
-pub(super) const FLAG_DATA: u8 = 0x02;
-pub(super) const FLAG_CLOSE: u8 = 0x04;
-pub(super) const FLAG_ERR: u8 = 0x20;
+pub(crate) const FLAG_KEEPALIVE: u8 = 0x01;
+pub(crate) const FLAG_DATA: u8 = 0x02;
+pub(crate) const FLAG_CLOSE: u8 = 0x04;
+pub(crate) const FLAG_ERR: u8 = 0x20;
 
 const ATYP_IPV4: u8 = 1;
 const ATYP_DOMAIN: u8 = 3;
@@ -19,13 +19,13 @@ const HEADER_LEN: usize = 3;
 
 /// Where a datagram goes (or where a reply came from).
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum Target {
+pub(crate) enum Target {
     Ip(SocketAddr),
     Domain(String, u16),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct Frame {
+pub(crate) struct Frame {
     pub flags: u8,
     pub conn_id: u16,
     pub target: Option<Target>,
@@ -87,7 +87,7 @@ fn parse_target(buf: &mut &[u8]) -> Result<Target> {
 }
 
 /// Parses the frame body (everything after the length field).
-pub(super) fn parse_body(body: &[u8]) -> Result<Frame> {
+pub(crate) fn parse_body(body: &[u8]) -> Result<Frame> {
     let mut rest = body;
     let head = take(&mut rest, HEADER_LEN)?;
     let (flags, conn_id) = (head[0], u16::from_be_bytes([head[1], head[2]]));
@@ -96,7 +96,7 @@ pub(super) fn parse_body(body: &[u8]) -> Result<Frame> {
 }
 
 /// Reads one whole frame; an end of stream before the first byte is `UnexpectedEof`.
-pub(super) async fn read_frame<R: AsyncRead + Unpin>(recv: &mut R) -> Result<Frame> {
+pub(crate) async fn read_frame<R: AsyncRead + Unpin>(recv: &mut R) -> Result<Frame> {
     let mut len = [0u8; 2];
     recv.read_exact(&mut len).await?;
     let mut body = vec![0u8; usize::from(u16::from_be_bytes(len))];
@@ -126,7 +126,7 @@ fn push_target(out: &mut Vec<u8>, target: &Target) {
 }
 
 /// Builds the wire bytes of a frame; `None` if the body does not fit the 16-bit length field.
-pub(super) fn encode(frame: &Frame) -> Option<Vec<u8>> {
+pub(crate) fn encode(frame: &Frame) -> Option<Vec<u8>> {
     let mut body = vec![frame.flags];
     body.extend_from_slice(&frame.conn_id.to_be_bytes());
     if let Some(target) = &frame.target {

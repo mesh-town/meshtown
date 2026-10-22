@@ -36,11 +36,17 @@ enum Upstream {
 pub(super) struct OpenRefused {
     pub outcome: ProxyOutcome,
     pub timed_out: bool,
+    /// The exit has no UDP gateway (refused the gateway target with code 7, or is remembered as such).
+    pub gateway_refused: bool,
 }
 
 impl OpenRefused {
     fn new(outcome: ProxyOutcome) -> Self {
-        Self { outcome, timed_out: false }
+        Self { outcome, timed_out: false, gateway_refused: false }
+    }
+
+    fn no_gateway(outcome: ProxyOutcome) -> Self {
+        Self { outcome, timed_out: false, gateway_refused: true }
     }
 }
 
@@ -113,9 +119,9 @@ pub(super) async fn relay_bytes(
 
 /// The target address for the direct route: an IP address as is, a domain via the test table, then the own resolver
 /// over HTTPS (with a cache: a repeated name goes without contacting DoH).
-async fn address_of(cfg: &ProxyConfig, target: &Target, port: u16) -> Result<SocketAddr> {
+pub(in crate::proxy) async fn address_of(cfg: &ProxyConfig, target: &Target, port: u16) -> Result<SocketAddr> {
     let domain = match target {
-        Target::Ip(ip) => return Ok(SocketAddr::from((*ip, port))),
+        Target::Ip(ip) => return Ok(SocketAddr::new(*ip, port)),
         Target::Domain(domain) => domain,
     };
     if let Some(addr) = cfg.host_overrides.get(domain) {
@@ -171,13 +177,15 @@ async fn open_direct_tcp(
             Err(OpenRefused {
                 outcome: ProxyOutcome::refused("direct", "connection did not open"),
                 timed_out: true,
+                gateway_refused: false,
             })
         }
     }
 }
 
 /// The route through one of the chosen exits: tries the candidates in order, moving to the
-/// next one only on a transport error — any exit reply code is final.
+/// next one on a transport error and, for the UDP gateway target, on a refusal of the gateway; any other
+/// exit reply code is final. When every candidate lacks the gateway, the last such refusal is returned.
 async fn open_through_exits(
     cfg: &ProxyConfig,
     candidates: &[PeerId],
@@ -185,11 +193,13 @@ async fn open_through_exits(
     port: u16,
 ) -> Result<OpenedUpstream, OpenRefused> {
     let mut any_exit_stream_busy = false;
+    let mut no_gateway = None;
     let gateway = exit::is_gateway_target(target_text, port);
     for &peer in candidates {
         let route_label = format!("exit {}", short_peer_id(&peer));
         if gateway && cfg.pool.gateway_refused_recently(peer) {
-            return Err(remembered_gateway_refusal(peer, route_label));
+            no_gateway = Some(remembered_gateway_refusal(peer, route_label));
+            continue;
         }
         let (send, recv, code) = match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
             Ok(answer) => answer,
@@ -200,7 +210,8 @@ async fn open_through_exits(
             }
         };
         if code != exit::EXIT_CODE_OK {
-            if gateway && code == exit::EXIT_CODE_ADDRESS_FORBIDDEN {
+            let gateway_refusal = gateway && code == exit::EXIT_CODE_ADDRESS_FORBIDDEN;
+            if gateway_refusal {
                 cfg.pool.note_gateway_refused(peer);
             }
             say(
@@ -208,11 +219,18 @@ async fn open_through_exits(
                 format!("{}: refused, code {code} — {}", short_peer_id(&peer), exit::exit_code_text(code)),
             );
             let reason = format!("code {code} — {}", exit::exit_code_text(code));
-            return Err(OpenRefused::new(ProxyOutcome::refused(route_label, reason)));
+            let outcome = ProxyOutcome::refused(route_label, reason);
+            if gateway_refusal {
+                no_gateway = Some(OpenRefused::no_gateway(outcome));
+                continue;
+            }
+            return Err(OpenRefused::new(outcome));
         }
         return Ok(OpenedUpstream { route_label, upstream: Upstream::Exit { peer, send, recv } });
     }
-    Err(OpenRefused::new(ProxyOutcome::refused("no route", no_answer_reason(any_exit_stream_busy))))
+    Err(no_gateway.unwrap_or_else(|| {
+        OpenRefused::new(ProxyOutcome::refused("no route", no_answer_reason(any_exit_stream_busy)))
+    }))
 }
 
 /// The refusal for the UDP gateway target on an exit that already refused it: the exit is not asked again.
@@ -220,7 +238,7 @@ fn remembered_gateway_refusal(peer: PeerId, route_label: String) -> OpenRefused 
     let code = exit::EXIT_CODE_ADDRESS_FORBIDDEN;
     say("exit", format!("{}: no UDP gateway (refused earlier)", short_peer_id(&peer)));
     let reason = format!("code {code} — {}", exit::exit_code_text(code));
-    OpenRefused::new(ProxyOutcome::refused(route_label, reason))
+    OpenRefused::no_gateway(ProxyOutcome::refused(route_label, reason))
 }
 
 /// The refusal reason when no exit answered: `any_exit_stream_busy` — at least one `open_bi` timed out
@@ -248,6 +266,10 @@ async fn splice_while_chosen(
         () = route.wait_until_exit_dropped(peer) => None,
     }
 }
+
+#[path = "path_udp.rs"]
+mod udp;
+pub(super) use udp::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};
 
 #[cfg(test)]
 #[path = "path_tests.rs"]

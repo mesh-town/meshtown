@@ -54,27 +54,25 @@ async fn closed_v6_literal_is_forbidden_without_dns() {
 }
 
 #[tokio::test]
-async fn open_v6_literal_is_no_address_without_dns() {
+async fn public_ipv6_literal_is_allowed() {
     let cfg = exit_config_with_dead_resolver();
 
-    for literal in ["2606:4700:4700::1111", "::ffff:8.8.8.8"] {
-        let refusal = refusal_of(resolve_address(&cfg, literal, 80).await, literal);
+    let addr = resolve_address(&cfg, "2606:4700:4700::1111", 80)
+        .await
+        .expect("a public IPv6 literal is opened without touching the resolver");
 
-        assert_eq!(
-            refusal.code, EXIT_CODE_NO_ADDRESS,
-            "{literal}: the exit doesn't open a public IPv6 literal — no address, not \"closed\""
-        );
-        assert!(
-            refusal.line.contains("IPv6"),
-            "{literal}: the reason is named in the log line: {}",
-            refusal.line
-        );
-        assert!(
-            !refusal.line.contains("DNS"),
-            "{literal}: an address string doesn't go to DoH: {}",
-            refusal.line
-        );
-    }
+    assert_eq!(addr, SocketAddr::from(("2606:4700:4700::1111".parse::<std::net::Ipv6Addr>().unwrap(), 80)));
+}
+
+#[tokio::test]
+async fn mapped_ipv4_literal_becomes_ipv4() {
+    let cfg = exit_config_with_dead_resolver();
+
+    let addr = resolve_address(&cfg, "::ffff:8.8.8.8", 53)
+        .await
+        .expect("a mapped IPv4 literal is judged as IPv4");
+
+    assert_eq!(addr, SocketAddr::from(([8, 8, 8, 8], 53)));
 }
 
 #[tokio::test]

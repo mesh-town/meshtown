@@ -10,7 +10,6 @@ use anyhow::Result;
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::config_file::ListenAccess;
-use crate::web::auth::iface_os::current_view;
 use crate::doh::Resolver;
 use crate::exit::PeerConnPool;
 use crate::net::NetStack;
@@ -19,10 +18,11 @@ use crate::route::RouteCtx;
 use crate::socks5;
 use crate::tcp_tune::disable_nagle;
 use crate::web::auth::access::bind_ip;
+use crate::web::auth::iface_os::current_view;
 
 use super::admit::{admit_conn, iface_deny_text, is_proxy_client_allowed, Admission, DenyLog};
 use super::outcome::{outcome_line, ProxyOutcome};
-use super::{http, path};
+use super::{assoc, http, path};
 
 /// The default port of the local SOCKS5 server.
 pub const DEFAULT_SOCKS_PORT: u16 = 1080;
@@ -37,6 +37,8 @@ pub struct ProxyConfig {
     pub resolver: Arc<Resolver>,
     /// Domain addresses that bypass DNS: always empty in the node, filled only by tests.
     pub host_overrides: Arc<HashMap<String, SocketAddr>>,
+    /// Free places for UDP associations on this node (`udp_slots()`).
+    pub udp_slots: Arc<tokio::sync::Semaphore>,
 }
 
 /// Why the proxy port could not be taken: the port, the kind of error and the OS text. It is printed for a human:
@@ -82,7 +84,10 @@ impl BindError {
         } else {
             self.port + 1
         };
-        let cmd = format!("{} run --socks-port {other}", crate::program_name::program_name());
+        let cmd = format!(
+            "{} run --socks-port {other}",
+            crate::program_name::program_name()
+        );
         match self.io_error_kind {
             std::io::ErrorKind::AddrInUse => {
                 format!("Close it or start the node on another port: {cmd}")
@@ -173,6 +178,19 @@ async fn serve_socks5_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Res
             return Ok(());
         }
     };
+    match request.command {
+        socks5::Command::Connect => serve_connect(stream, cfg, request, started).await,
+        socks5::Command::UdpAssociate => assoc::serve_associate(stream, cfg, started).await,
+    }
+}
+
+/// A `CONNECT` request: one route decision, the reply and the transfer to the end.
+async fn serve_connect(
+    mut stream: TcpStream,
+    cfg: ProxyConfig,
+    request: socks5::Request,
+    started: Instant,
+) -> Result<()> {
     let target_text = request.target.to_string();
     let opening = tokio::select! {
         opened = path::open_chosen_route(&cfg, &request.target, request.port, "socks") => Some(opened),
@@ -198,7 +216,7 @@ async fn serve_socks5_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Res
 
 /// Completes when the client has closed the connection (`peek` gave `Ok(0)` or an error). If data arrived it
 /// never completes: it waits for `relay_bytes` in the socket, such a client has not "left".
-async fn client_gone(client: &TcpStream) {
+pub(in crate::proxy) async fn client_gone(client: &TcpStream) {
     let mut byte = [0u8; 1];
     match client.peek(&mut byte).await {
         Ok(n) if n > 0 => std::future::pending::<()>().await,
