@@ -23,7 +23,6 @@ use crate::proxy::domains::DomainList;
 use crate::proxy::route::RouteCtx;
 use crate::site_checks::checks::Checks;
 
-use super::guard::GuardHandle;
 use super::identity::IdentityState;
 use super::socks_task::SocksTask;
 
@@ -94,8 +93,6 @@ pub struct RunningNode {
     pub(super) background_abort_handles: Arc<Vec<tokio::task::AbortHandle>>,
     /// The SOCKS5 accept task: `shutdown` waits for it to end, so the port is free on return.
     pub(super) socks_task: SocksTask,
-    /// The handle of the `mem-guard` OS thread (`None` — the guard is off by thresholds); `shutdown` stops it.
-    pub(super) memory_guard: Option<GuardHandle>,
 }
 
 impl RunningNode {
@@ -167,8 +164,6 @@ impl RunningNode {
         }
         self.socks_task.close().await;
         flush_replicas(&self.domains).await;
-        // the guard protects memory while the stack closes, so it is stopped last
-        self.memory_guard.iter().for_each(GuardHandle::stop);
         say("node", "stopped");
     }
 

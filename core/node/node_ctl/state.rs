@@ -79,6 +79,8 @@ pub struct NodeCtl {
     /// The receiver is used only under `next_command`, which only `run_node_with_ctl` calls;
     /// holding the lock across `.await` is legal here (it is not a `std::sync::Mutex`).
     cmd_rx: tokio::sync::Mutex<mpsc::UnboundedReceiver<Cmd>>,
+    /// Where the process memory guard reads the live node from; unset when there is no process host.
+    guard_sources: std::sync::OnceLock<crate::node::guard::GuardSources>,
 }
 
 impl NodeCtl {
@@ -117,7 +119,24 @@ impl NodeCtl {
             }),
             cmd_tx,
             cmd_rx: tokio::sync::Mutex::new(cmd_rx),
+            guard_sources: std::sync::OnceLock::new(),
         })
+    }
+
+    /// The process host gives the controller the guard's sources; the first call wins.
+    pub(crate) fn set_guard_sources(&self, sources: crate::node::guard::GuardSources) {
+        let _ = self.guard_sources.set(sources);
+    }
+
+    /// The guard's sources given by the host (tests only).
+    #[cfg(test)]
+    pub(crate) fn guard_sources(&self) -> Option<crate::node::guard::GuardSources> {
+        self.guard_sources.get().cloned()
+    }
+
+    /// The node has stopped: the guard's summary no longer reads it.
+    pub(crate) fn release_guard_sources(&self) {
+        self.guard_sources.get().iter().for_each(|s| s.clear());
     }
 
     /// Remembers the `mem` test network for the temporary invite-join transport.
@@ -159,6 +178,10 @@ impl NodeCtl {
             (st.snapshot_gen, pending, st.effective_settings.clone())
         };
         apply_pending_handles(&node, &pending, &effective_settings);
+        self.guard_sources
+            .get()
+            .iter()
+            .for_each(|s| s.set(node.members.clone(), node.checks.clone()));
         let task = self
             .rt
             .spawn(snapshot_task(self.ctl_shared.clone(), task_gen, node));
@@ -220,7 +243,7 @@ impl NodeCtl {
     }
 
     /// The same transition as `stop()`, but without the log line about a page request — called by the signal
-    /// task of `run_node_with_ctl` on Ctrl-C/SIGTERM.
+    /// task of the process host on Ctrl-C/SIGTERM.
     pub(crate) fn stop_on_os_signal(&self) {
         self.request_stop();
     }

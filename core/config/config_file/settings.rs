@@ -1,7 +1,7 @@
 //! The whole `config` document (`Settings` = process and network blocks), `TransportMode`, `ListenAccess`.
 //! Not here: JSON parsing (`parse.rs`/`parse_fields.rs`) and writing (`render.rs`).
 
-use crate::node::{MemoryLimits, SocksListen};
+use crate::node::SocksListen;
 use crate::transport::net::NodeSecret;
 
 use super::net_settings::NetSettings;
@@ -67,7 +67,7 @@ impl ListenAccess {
 /// and a failed `assert_eq!` or a future `{:?}` in the log would otherwise print the whole network key.
 #[derive(Clone, PartialEq, Default)]
 pub struct Settings {
-    pub process: ProcessSettings, // SOCKS, page, log, memory guard — the node does not read them
+    pub process: ProcessSettings, // SOCKS, page, log, memory guard — the node reads only SOCKS
     pub net: NetSettings,         // everything the running node reads
 }
 
@@ -78,7 +78,7 @@ impl std::fmt::Debug for Settings {
 }
 
 impl Settings {
-    /// Turns the effective settings into node settings: the network block, identity, SOCKS and memory guard thresholds
+    /// Turns the effective settings into node settings: the network block, identity and SOCKS
     /// from the process block. The production start path goes only through this function.
     pub fn node_config(
         &self,
@@ -92,10 +92,6 @@ impl Settings {
             port: self.process.socks_port,
             access: self.process.socks_access,
             ifaces: self.process.socks_ifaces.clone(),
-        };
-        cfg.memory = MemoryLimits {
-            warn_mib: self.process.node_memory_warn_mib,
-            exit_mib: self.process.node_memory_exit_mib,
         };
         cfg
     }

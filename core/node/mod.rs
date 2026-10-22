@@ -13,11 +13,11 @@
 //! - `start` — assembling and starting the node (`start_node`, `bind_ephemeral`), split into start phases.
 //! - `event_loop` — the node's main loop: discovered addresses, member events, dial failures,
 //!   retry deadlines and periodic tasks.
-//! - `guard` — the node's memory guard: a separate OS thread measures RSS once a second, prints `[guard]` and exits before swap.
+//! - `guard` — the process memory guard: a separate OS thread measures RSS once a second, prints `[guard]` and exits before swap.
 //! - `alloc` — the jemalloc allocator with a heap profile (`heap-prof` feature, Linux only) for the memory guard.
 //! - `dial` — dialing a discovered member and the handshake as the initiator (`PeerDialer`).
 //! - `redial` — the redial state of a not-yet-connected member, with no network (`Redial`).
-//! - `lifecycle` — the stop signal and the "start → run → stop or restart" loops
+//! - `lifecycle` — the "start → run → stop or restart" loops
 //!   (`run`, `run_node_with_ctl`, `run_node_awaiting_key`).
 
 #[cfg(feature = "net-hyper")]
@@ -74,7 +74,7 @@ mod socks_task;
 mod start;
 
 #[cfg(feature = "net-hyper")]
-pub use config::{MemoryLimits, NodeConfig, SocksListen};
+pub use config::{NodeConfig, SocksListen};
 #[cfg(feature = "net-hyper")]
 pub use doc_changes::DocChanges;
 #[cfg(feature = "net-hyper")]

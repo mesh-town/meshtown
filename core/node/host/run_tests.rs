@@ -173,3 +173,29 @@ async fn entry_role_runs_body_when_page_is_up() {
     assert!(res.is_ok());
     assert!(ran.load(Ordering::SeqCst));
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn host_gives_the_controller_the_guard_sources() {
+    use crate::members::network_key::NetworkKey;
+    use crate::node::{start::start_node, NodeConfig};
+    let mut run = run_config(0);
+    run.effective_settings.process.node_memory_warn_mib = 1_000_000;
+    run.effective_settings.process.node_memory_exit_mib = 0;
+    let ctl = ctl_of(&run);
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, ctl| async move {
+        let sources = ctl.guard_sources().expect("the host must set the sources");
+        assert!(sources.snapshot().is_none(), "no node yet");
+        let node = start_node(NodeConfig::for_loopback_test(NetworkKey::generate()?)).await?;
+        ctl.attach(&node);
+        assert!(sources.snapshot().is_some(), "attach must fill the sources");
+        node.shutdown().await;
+        ctl.release_guard_sources();
+        assert!(
+            sources.snapshot().is_none(),
+            "release must clear the sources"
+        );
+        Ok(())
+    })
+    .await;
+    assert!(res.is_ok(), "{res:?}");
+}

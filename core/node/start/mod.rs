@@ -93,7 +93,6 @@ fn assemble_running(
         network_label: boot.network_label,
         telemetry: boot.telemetry,
         cached_peers: entry_points.cached_peers,
-        memory_guard: entry_points.memory_guard,
         probe_interval_secs: net.probe_interval_secs,
         exit_announce_wakeup: net.exit_announce_wakeup,
         ports: net.ports,
@@ -114,7 +113,7 @@ async fn wire_up(
 ) -> Result<(serving::Serving, entry::EntryPoints)> {
     let access = access_wiring::access_start(cfg, boot.id, &inbound.cache);
     let serving = setup_serving(cfg, boot, net, access).await?;
-    let entry_points = wire_entry_points(cfg, boot, net, &serving, inbound).await?;
+    let entry_points = wire_entry_points(boot, net, &serving, inbound).await?;
     Ok((serving, entry_points))
 }
 
