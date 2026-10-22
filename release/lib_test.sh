@@ -86,13 +86,29 @@ farm_rerun_drops_stale_entries() {
   [ -f "$root/core/node/x.rs" ] || fail "farm_rerun: source damaged"
 }
 
+farm_layout_with_platforms() {
+  local tree="$tmp/ptree" farm="$tmp/farm4"
+  make_tree "$tree"
+  printf '[workspace]\nmembers = ["core", "platforms/macos"]\n\n[workspace.package]\nversion = "1.2.3"\n' > "$tree/Cargo.toml"
+  mkdir -p "$tree/platforms/macos/gui" "$tree/platforms/android/build"
+  printf '[package]\nname = "meshtown-macos"\nversion.workspace = true\n' > "$tree/platforms/macos/Cargo.toml"
+  printf 'pub fn g() {}\n' > "$tree/platforms/macos/gui/lib.rs"
+  in_lib "$tree" "build_farm_no_dylib '$farm' >/dev/null"
+  [ -d "$farm/platforms/macos" ] && [ ! -L "$farm/platforms/macos" ] || fail "farm_platforms: platform dir is not a real directory"
+  [ -f "$farm/platforms/macos/Cargo.toml" ] && [ ! -L "$farm/platforms/macos/Cargo.toml" ] || fail "farm_platforms: manifest is not a plain file"
+  cmp "$tree/platforms/macos/Cargo.toml" "$farm/platforms/macos/Cargo.toml" || fail "farm_platforms: manifest differs"
+  [ -L "$farm/platforms/macos/gui" ] || fail "farm_platforms: gui is not a link"
+  [ ! -e "$farm/platforms/android" ] || fail "farm_platforms: platform without a manifest was copied"
+  ! grep -q 'crate-type' "$farm/core/Cargo.toml" || fail "farm_platforms: crate-type kept"
+}
+
 farm_needs_core() {
   mkdir -p "$tmp/nocore"
   printf '[workspace]\n[workspace.package]\nversion = "1.0.0"\n' > "$tmp/nocore/Cargo.toml"
   if in_lib "$tmp/nocore" "build_farm_no_dylib '$tmp/farm3'" 2>/dev/null; then fail "farm_needs_core: passed without core"; fi
 }
 
-for t in version_from_workspace_package root_is_required manifest_copy_has_no_crate_type farm_layout \
+for t in version_from_workspace_package root_is_required manifest_copy_has_no_crate_type farm_layout farm_layout_with_platforms \
   farm_rerun_drops_stale_entries farm_needs_core; do
   "$t"
   echo "ok: $t"

@@ -222,17 +222,17 @@ pub(crate) fn proxy_on_host_port_text(host: &str, port: &str) -> String {
 
 /// Dialog title: the icon is hidden in the menu bar.
 #[cfg(target_os = "macos")]
-pub(crate) fn hidden_icon_title_text() -> String {
+pub fn hidden_icon_title_text() -> String {
     format!("The {APP_NAME} icon is hidden in the menu bar")
 }
 /// Dialog explanation: which switch to turn on in System Settings.
 #[cfg(target_os = "macos")]
-pub(crate) fn hidden_icon_hint_text() -> String {
+pub fn hidden_icon_hint_text() -> String {
     format!("Turn on {APP_NAME} in System Settings: Menu Bar → Allow in the Menu Bar.")
 }
 /// First dialog button: open System Settings.
 #[cfg(target_os = "macos")]
-pub(crate) const HIDDEN_ICON_OPEN_SETTINGS_TEXT: &str = "Open System Settings";
+pub const HIDDEN_ICON_OPEN_SETTINGS_TEXT: &str = "Open System Settings";
 /// Second dialog button: close without going there.
 #[cfg(target_os = "macos")]
-pub(crate) const HIDDEN_ICON_LATER_TEXT: &str = "Not now";
+pub const HIDDEN_ICON_LATER_TEXT: &str = "Not now";

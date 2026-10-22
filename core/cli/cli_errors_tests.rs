@@ -81,7 +81,7 @@ fn classify_other_is_clap() {
 #[test]
 fn unknown_text_lists_commands() {
     let names = command_names(&Cli::command());
-    #[cfg(feature = "tray")]
+    #[cfg(feature = "gui")]
     assert_eq!(
         names,
         [
@@ -94,7 +94,7 @@ fn unknown_text_lists_commands() {
             "ifaces"
         ]
     );
-    #[cfg(not(feature = "tray"))]
+    #[cfg(not(feature = "gui"))]
     assert_eq!(
         names,
         [

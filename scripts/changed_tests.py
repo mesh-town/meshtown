@@ -11,6 +11,8 @@ Run: `python3 scripts/changed_tests.py --base main [--dry-run]`.
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 import re
 import subprocess
 import sys
@@ -190,6 +192,27 @@ def _apply_lib_module(module: str, src: Sources, sel: Selection) -> None:
     if users_of(module, src.examples) or module.split("::")[0] == "web_gui":
         sel.web_check = True
 
+PLATFORM_OSES = ("macos", "windows", "linux")
+
+def _host_os() -> str:
+    override = os.environ.get("CHANGED_TESTS_HOST_OS")
+    if override:
+        return override
+    return {"Darwin": "macos", "Linux": "linux", "Windows": "windows"}.get(platform.system(), "")
+
+def _platform_crate_os(path: str) -> str | None:
+    """The OS of a platform crate whose manifest or gui/ tree holds `path`, else None."""
+    for name in PLATFORM_OSES:
+        if path == f"platforms/{name}/Cargo.toml" or path.startswith(f"platforms/{name}/gui/"):
+            return name
+    return None
+
+def _select_platform_crate(name: str, sel: Selection) -> str:
+    if name == _host_os():
+        sel.full = True
+        return "full (host platform crate)"
+    return "no-op (foreign platform crate)"
+
 def _select_one(path: str, src: Sources, sel: Selection) -> str:
     if path == BIN_MAIN:
         sel.whole_bin = True
@@ -229,6 +252,9 @@ def _select_one(path: str, src: Sources, sel: Selection) -> str:
     if path.startswith("platforms/android/"):
         sel.android = True
         return "android"
+    crate_os = _platform_crate_os(path)
+    if crate_os is not None:
+        return _select_platform_crate(crate_os, sel)
     if path.startswith(f"{CORE}/web_gui/e2e/"):
         sel.web_check = sel.web_lint = True
         return "web_check + web_lint"

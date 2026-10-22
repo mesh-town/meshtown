@@ -42,7 +42,7 @@ use env::{build_poll_env, spawn_poller};
 /// Node port and the path to `web-token` — for `page_url()` (set once in `run_tray`).
 static PAGE_PORT_AND_TOKEN_PATH: OnceLock<(u16, PathBuf)> = OnceLock::new();
 
-pub fn run_tray(args: TrayArgs) -> ! {
+pub fn run_tray(args: TrayArgs, tray: &'static dyn crate::gui::tray::TrayBackend) -> ! {
     preflight();
     let (settings, token_path) = read_config_or_exit(args.config.as_deref());
     let port = args.web_port.unwrap_or(settings.process.web_port);
@@ -50,7 +50,7 @@ pub fn run_tray(args: TrayArgs) -> ! {
 
     let quit = QuitSignal::new();
     let (node_tx, node_rx) = tokio::sync::mpsc::unbounded_channel::<NodeCmd>();
-    let (tx, core) = crate::gui::tray::channel(quit.clone(), page_url, node_tx);
+    let (tx, core) = crate::gui::tray::channel(quit.clone(), page_url, node_tx, tray);
     let send = tx.clone();
     let env = build_poll_env(
         (port, token_path),
@@ -58,6 +58,7 @@ pub fn run_tray(args: TrayArgs) -> ! {
         node_rx,
         quit,
         move |cmd| send.send(cmd),
+        tray,
     );
     spawn_poller(env, move |cmd| tx.send(cmd));
     crate::gui::tray::run(core)

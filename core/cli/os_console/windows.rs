@@ -11,7 +11,7 @@ use super::log;
 
 /// Windows, any build: under the `tray` role, if the console is the process's own or absent, release it and send
 /// stdout/stderr to the log; for another role or a launch from a terminal, leave the parent's handles alone.
-pub fn init() {
+pub fn init(has_tray: bool) {
     use std::os::windows::io::IntoRawHandle;
 
     use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
@@ -22,7 +22,7 @@ pub fn init() {
 
     const IDS: [STD_HANDLE; 2] = [STD_OUTPUT_HANDLE, STD_ERROR_HANDLE];
 
-    let role = log::process_role();
+    let role = log::process_role(has_tray);
     let mut buf = [0u32; 1];
     // SAFETY: the buffer holds one element; if the console has more than one process, the function just
     // returns the required size without writing to the buffer (the usual Win32 "ask for the size" behaviour).

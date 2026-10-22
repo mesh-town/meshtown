@@ -6,20 +6,22 @@ use std::ffi::OsString;
 use clap::error::ErrorKind;
 use clap::FromArgMatches;
 
-use crate::cli::args::{with_default_subcommand, Cli, CliCommand};
+use crate::cli::args::{after_help_text, with_default_subcommand, Cli, CliCommand};
+
+/// The tray flag for tests that only check that the default does not interfere: the build's own.
+const HAS_TRAY: bool = cfg!(feature = "gui");
 
 /// `&str` → `OsString`, shorter at the call site.
 fn to_os(args: &[&str]) -> Vec<OsString> {
     args.iter().map(OsString::from).collect()
 }
 
-#[cfg(not(feature = "tray"))]
 #[test]
 fn no_args_is_run_without_tray() {
     use crate::cli::args::is_flag_typed;
 
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"])))
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"]), false))
         .expect("no subcommand and no tray — run");
     let run_m = m
         .subcommand_matches("run")
@@ -34,11 +36,11 @@ fn no_args_is_run_without_tray() {
     ));
 }
 
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 #[test]
 fn no_args_is_tray_with_tray() {
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"])))
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"]), true))
         .expect("no subcommand and with tray — tray");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
@@ -49,7 +51,10 @@ fn no_args_is_tray_with_tray() {
 #[test]
 fn explicit_subcommand_kept() {
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown", "keygen"])))
+        .try_get_matches_from(with_default_subcommand(
+            to_os(&["meshtown", "keygen"]),
+            HAS_TRAY,
+        ))
         .expect("keygen parses");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
@@ -57,7 +62,10 @@ fn explicit_subcommand_kept() {
     ));
 
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown", "config-path"])))
+        .try_get_matches_from(with_default_subcommand(
+            to_os(&["meshtown", "config-path"]),
+            HAS_TRAY,
+        ))
         .expect("config-path parses");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
@@ -65,9 +73,10 @@ fn explicit_subcommand_kept() {
     ));
 
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&[
-            "meshtown", "run", "--port", "7000",
-        ])))
+        .try_get_matches_from(with_default_subcommand(
+            to_os(&["meshtown", "run", "--port", "7000"]),
+            HAS_TRAY,
+        ))
         .expect("run --port 7000 parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
         CliCommand::Run(args) => assert_eq!(args.port, Some(7000)),
@@ -78,14 +87,17 @@ fn explicit_subcommand_kept() {
 #[test]
 fn flags_without_subcommand_still_error() {
     let err = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown", "--port", "1"])))
+        .try_get_matches_from(with_default_subcommand(
+            to_os(&["meshtown", "--port", "1"]),
+            HAS_TRAY,
+        ))
         .expect_err("a flag without a subcommand must not silently become run");
     assert_ne!(err.kind(), ErrorKind::DisplayHelp);
 }
 
 #[test]
 fn empty_argv_untouched() {
-    assert!(with_default_subcommand(Vec::<OsString>::new()).is_empty());
+    assert!(with_default_subcommand(Vec::<OsString>::new(), HAS_TRAY).is_empty());
 }
 
 #[test]
@@ -175,4 +187,52 @@ fn password_needs_the_reset_word() {
     assert!(Cli::command()
         .try_get_matches_from(to_os(&["meshtown", "password", "forget"]))
         .is_err());
+}
+
+mod default_subcommand {
+    use super::*;
+
+    #[test]
+    fn default_subcommand_without_tray_is_run() {
+        // given
+        let args = to_os(&["meshtown"]);
+
+        // when
+        let got = with_default_subcommand(args, false);
+
+        // then
+        assert_eq!(got.get(1), Some(&OsString::from("run")));
+    }
+
+    #[test]
+    fn default_subcommand_with_tray_is_tray() {
+        let args = to_os(&["meshtown"]);
+
+        let got = with_default_subcommand(args, true);
+
+        assert_eq!(got.get(1), Some(&OsString::from("tray")));
+    }
+
+    #[test]
+    fn explicit_subcommand_is_kept_with_tray() {
+        let args = to_os(&["meshtown", "keygen"]);
+
+        let got = with_default_subcommand(args.clone(), true);
+
+        assert_eq!(got, args, "an explicit subcommand gets no insertion");
+    }
+}
+
+mod after_help {
+    use super::*;
+
+    #[test]
+    fn after_help_names_the_icon_with_tray() {
+        assert!(after_help_text(true).contains("icon starts next to the clock"));
+    }
+
+    #[test]
+    fn after_help_names_the_node_without_tray() {
+        assert!(after_help_text(false).contains("the node starts"));
+    }
 }

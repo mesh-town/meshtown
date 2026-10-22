@@ -13,11 +13,11 @@ use std::ffi::OsStr;
 #[cfg(any(windows, target_os = "macos"))]
 use std::ffi::OsString;
 
-/// The process role after the default subcommand is substituted (the second argv element): `tray` in
-/// a build with the tray, `run` without it. Both platforms call it.
+/// The process role after the default subcommand is substituted (the second argv element): `tray` when
+/// a tray backend is present (`has_tray`), `run` without it. Both platforms call it.
 #[cfg(any(windows, target_os = "macos"))]
-pub(super) fn process_role() -> Option<OsString> {
-    crate::cli::args::with_default_subcommand(std::env::args_os())
+pub(super) fn process_role(has_tray: bool) -> Option<OsString> {
+    crate::cli::args::with_default_subcommand(std::env::args_os(), has_tray)
         .into_iter()
         .nth(1)
 }
@@ -69,7 +69,7 @@ pub(super) fn open_log(dir: &Path, name: &str) -> std::io::Result<std::fs::File>
 
 /// The node log `meshtown.log` (the same rotation in the standard config directory) that the
 /// `tray` process opens for its `run` child.
-#[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
+#[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 pub fn open_node_log() -> std::io::Result<std::fs::File> {
     open_log(
         &log_dir()?,
@@ -77,11 +77,11 @@ pub fn open_node_log() -> std::io::Result<std::fs::File> {
     )
 }
 
-#[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
+#[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 const NODE_LOG_TAIL_BYTES: u64 = 8192;
 
 /// The last `max_bytes` bytes of the file (`from_utf8_lossy`); `None` if the file is missing or reading fails.
-#[cfg(any(test, all(feature = "tray", any(windows, target_os = "macos"))))]
+#[cfg(any(test, all(feature = "gui", any(windows, target_os = "macos"))))]
 pub(super) fn read_tail(path: &Path, max_bytes: u64) -> Option<String> {
     use std::io::{Read as _, Seek as _, SeekFrom};
     let mut file = std::fs::File::open(path).ok()?;
@@ -95,7 +95,7 @@ pub(super) fn read_tail(path: &Path, max_bytes: u64) -> Option<String> {
 
 /// The tail of the node log `meshtown.log`; `None` means there is no log (Linux, where the tray's stderr is a terminal
 /// and the file is not read).
-#[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
+#[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 pub fn node_log_tail() -> Option<String> {
     child_needs_node_log().then_some(())?;
     let path = log_dir()
@@ -105,7 +105,7 @@ pub fn node_log_tail() -> Option<String> {
 }
 
 /// Outside Windows/macOS there is no node log.
-#[cfg(all(feature = "tray", not(any(windows, target_os = "macos"))))]
+#[cfg(all(feature = "gui", not(any(windows, target_os = "macos"))))]
 pub fn node_log_tail() -> Option<String> {
     None
 }
@@ -114,7 +114,7 @@ pub fn node_log_tail() -> Option<String> {
 /// `FreeConsole` no inherited parent handles remain), on macOS only if the tray's stderr
 /// is not a terminal (the same check that decides the redirect in `init`). The only caller is
 /// `tray_role::run::spawn_child`.
-#[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
+#[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 pub fn child_needs_node_log() -> bool {
     #[cfg(windows)]
     {
@@ -129,7 +129,7 @@ pub fn child_needs_node_log() -> bool {
 
 /// Outside Windows/macOS: the console is either the process's own or does not exist (Linux) — nothing to do.
 #[cfg(not(any(windows, target_os = "macos")))]
-pub fn init() {}
+pub fn init(_has_tray: bool) {}
 
 #[cfg(test)]
 #[path = "log_tests.rs"]

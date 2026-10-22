@@ -45,7 +45,7 @@ jobs:
         run: sed -i '/^crate-type = /d' core/Cargo.toml
       # `cargo fmt --all --check` is not enabled yet: the tree is not rustfmt-clean.
       - name: Clippy
-        run: cargo clippy --all-targets --locked -- -D warnings
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Clippy (no tray)
         if: runner.os == 'Linux'
         run: cargo clippy --all-targets --locked --no-default-features --features net-hyper -- -D warnings
@@ -54,7 +54,7 @@ jobs:
         with:
           tool: cargo-nextest
       - name: Test
-        run: cargo nextest run --locked
+        run: cargo nextest run --workspace --locked
 
   web:
     name: web (page, browser battery)
@@ -112,7 +112,7 @@ jobs:
         with:
           key: msrv-${{ env.MSRV }}
       - name: Check
-        run: cargo "+$MSRV" check --all-targets --locked
+        run: cargo "+$MSRV" check --workspace --all-targets --locked
 
   openwrt-feed:
     name: openwrt-feed (builder tests, smoke build)

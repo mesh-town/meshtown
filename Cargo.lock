@@ -2027,7 +2027,6 @@ dependencies = [
  "anyhow",
  "axum",
  "blake3",
- "block2",
  "bytes",
  "clap",
  "concurrent-queue",
@@ -2047,10 +2046,6 @@ dependencies = [
  "linux-raw-sys",
  "n0-watcher",
  "netwatch",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-foundation",
  "peeroxide-dht",
  "portable-atomic",
  "postcard",
@@ -2078,6 +2073,33 @@ dependencies = [
  "webpki-roots",
  "windows-sys 0.61.2",
  "zeroize",
+]
+
+[[package]]
+name = "meshtown-linux"
+version = "0.3.50"
+dependencies = [
+ "meshtown-core",
+]
+
+[[package]]
+name = "meshtown-macos"
+version = "0.3.50"
+dependencies = [
+ "block2",
+ "meshtown-core",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation",
+]
+
+[[package]]
+name = "meshtown-windows"
+version = "0.3.50"
+dependencies = [
+ "meshtown-core",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

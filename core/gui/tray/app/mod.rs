@@ -17,39 +17,39 @@
 //! Links: `view`, `view_picture`, `view_disk`, `view_ring`, `view_ring_paint` and `quit` are `pub(crate)`, `tray` reads them (a neighbor
 //! at the binary root, not a descendant of `app`); `mode` is private, only `tray_role` calls it;
 //! `mode`, `quit`, `view`, `view_picture`, `view_ring`, `view_ring_paint`, `tray_role` are under the build feature
-//! `tray` (on by default).
+//! `gui` (on by default).
 
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod exit_menu;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 mod local_api;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod members_note;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 mod mode;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod proxy_state;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod quit;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod snapshot;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod start_note;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod tray_actions;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod tray_role;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod tray_texts;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view_alert;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view_disk;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view_picture;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view_ring;
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub(crate) mod view_ring_paint;

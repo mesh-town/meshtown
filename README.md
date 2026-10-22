@@ -145,7 +145,7 @@ the node page (`core/web_gui/ui/bundle/app.js` is committed). The code depends o
 first build needs network access to GitHub.
 
 ```sh
-cargo build --release --locked          # the binary: target/release/meshtown (with the tray)
+cargo build --release --locked -p meshtown-<os>   # the binary: target/release/meshtown-<os> (with the tray); <os> is macos, linux or windows
 cargo build --release --locked --no-default-features --features net-hyper   # no tray, for servers
 ```
 

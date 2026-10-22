@@ -77,6 +77,7 @@ help:
 	@echo "make build_linux_armv7_cli      — Linux ARMv7 binary (OpenWrt router, soft-float) without tray: dist/meshtown-linux-armv7-cli-<version>"
 	@echo "make build_windows_cli          — Windows binary without tray: dist/meshtown-windows-cli-<version>.exe"
 	@echo "make build_windows_gui          — Windows binary with tray: dist/meshtown-windows-gui-<version>.exe"
+	@echo "make <os>-build|test|run|package — commands of the platform crate (os: macos, linux, windows); package takes KIND=<kind>, run takes ARGS=<args>"
 	@echo "make test                       — cargo nextest run (no nextest — cargo test)"
 	@echo "make test-cargo                 — cargo test (old path, no nextest)"
 	@echo "make test-one T=<name> [TARGET_DIR=…] — one Rust test with the same flags and cache as make test"
@@ -119,16 +120,26 @@ build_windows: $(addprefix build_windows_,$(WINDOWS_KINDS))
 # Debug .app for manual checks: no --release, the name in dist/ has a -dev suffix. The explicit target
 # overrides the build_macos_% pattern.
 build_macos_app_dev:
-	PROFILE=dev ./platforms/macos/build/build.sh app
+	$(MAKE) -C platforms/macos package KIND=app PROFILE=dev
 
 build_macos_%:
-	./platforms/macos/build/build.sh $*
+	$(MAKE) -C platforms/macos package KIND=$*
 
 build_linux_%:
-	./platforms/linux/build/build.sh $*
+	$(MAKE) -C platforms/linux package KIND=$*
 
 build_windows_%:
-	./platforms/windows/build/build.sh $*
+	$(MAKE) -C platforms/windows package KIND=$*
+
+# Platform crate commands: `make macos-build`, `make linux-test`, `make windows-package KIND=cli`, ...
+macos-%:
+	$(MAKE) -C platforms/macos $*
+
+linux-%:
+	$(MAKE) -C platforms/linux $*
+
+windows-%:
+	$(MAKE) -C platforms/windows $*
 
 ifeq ($(HOST_OS),darwin)
 build_all: build_macos build_linux build_windows
@@ -137,16 +148,16 @@ build_all: build_linux build_windows
 endif
 
 test:
-	@if ($(CARGO) nextest --version >/dev/null 2>&1); then $(CARGO) nextest run; else $(CARGO) test; fi
+	@if ($(CARGO) nextest --version >/dev/null 2>&1); then $(CARGO) nextest run --workspace; else $(CARGO) test --workspace; fi
 
 # One Rust test with the same RUSTFLAGS, CARGO_TARGET_DIR and runner as `make test` (the shared cache stays intact).
 test-one:
 	@test -n "$(T)" || { echo "make test-one: give the full test name: make test-one T=module::test [TARGET_DIR=…]"; exit 2; }
 	@$(CARGO) nextest --version >/dev/null 2>&1 || { echo "make test-one: cargo nextest is required"; exit 2; }
-	$(CARGO) nextest run -E 'test(=$(T))'
+	$(CARGO) nextest run --workspace -E 'test(=$(T))'
 
 test-cargo:
-	$(CARGO) test
+	$(CARGO) test --workspace
 
 test-py:
 	python3 -m unittest discover -s scripts -t scripts -p 'test_*.py'
@@ -202,7 +213,7 @@ android-test:
 
 # Fast loop — one pass (default); acceptance (check, battery) — clippy-full, both feature sets.
 clippy:
-	$(CARGO) clippy --all-targets -- -D warnings
+	$(CARGO) clippy --workspace --all-targets -- -D warnings
 
 clippy-full: clippy
 	$(CARGO) clippy --all-targets --no-default-features --features $(NODE_FEATURES) -- -D warnings

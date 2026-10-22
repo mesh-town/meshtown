@@ -15,10 +15,32 @@ fn should_free_console_by_role_and_count() {
 /// subcommand is substituted, and a build with the tray releases the console, a build without the tray does not.
 #[test]
 fn bare_exe_role_follows_default_subcommand() {
-    let args =
-        crate::cli::args::with_default_subcommand([std::ffi::OsString::from("meshtown.exe")]);
+    let args = crate::cli::args::with_default_subcommand(
+        [std::ffi::OsString::from("meshtown.exe")],
+        cfg!(feature = "gui"),
+    );
     let role = args.get(1).map(|r| r.as_os_str());
-    assert_eq!(should_free_console(role, 1), cfg!(feature = "tray"));
+    assert_eq!(should_free_console(role, 1), cfg!(feature = "gui"));
+}
+
+/// A bare launch of a build without a tray backend takes the `run` role: neither the console is freed nor
+/// stdio redirected. (`process_role` itself reads the real argv, which the test runner fills, so the role is
+/// derived here from the same substitution it uses.)
+#[test]
+fn role_is_run_when_no_tray() {
+    let args =
+        crate::cli::args::with_default_subcommand([std::ffi::OsString::from("meshtown")], false);
+    let role = args.get(1).map(|r| r.as_os_str());
+
+    assert_eq!(role, Some(OsStr::new("run")));
+    assert!(
+        !should_free_console(role, 1),
+        "a run role keeps the console"
+    );
+    assert!(
+        !should_redirect_stdio(role, false),
+        "a run role keeps stdio"
+    );
 }
 
 #[test]
@@ -53,11 +75,14 @@ fn should_redirect_stdio_by_role_and_terminal() {
 /// subcommand is `tray` (a build with the tray).
 #[test]
 fn bundle_argv_role_follows_default_subcommand() {
-    let args = crate::cli::args::with_default_subcommand([std::ffi::OsString::from(
-        "/Applications/MeshTown.app/Contents/MacOS/meshtown",
-    )]);
+    let args = crate::cli::args::with_default_subcommand(
+        [std::ffi::OsString::from(
+            "/Applications/MeshTown.app/Contents/MacOS/meshtown",
+        )],
+        cfg!(feature = "gui"),
+    );
     let role = args.get(1).map(|r| r.as_os_str());
-    assert_eq!(should_redirect_stdio(role, false), cfg!(feature = "tray"));
+    assert_eq!(should_redirect_stdio(role, false), cfg!(feature = "gui"));
 }
 
 #[test]

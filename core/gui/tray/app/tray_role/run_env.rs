@@ -16,6 +16,7 @@ pub(super) fn build_poll_env(
     cmds: tokio::sync::mpsc::UnboundedReceiver<NodeCmd>,
     quit: QuitSignal,
     send: impl Fn(TrayCmd) + Clone + Send + 'static,
+    tray: &'static dyn crate::gui::tray::TrayBackend,
 ) -> PollEnv {
     let (port, token_path) = target;
     let argv = child_args(args);
@@ -37,7 +38,7 @@ pub(super) fn build_poll_env(
         spawn: Box::new(move || spawn_child(&argv)),
         send_view: super::super::first_run::view_sender(show_tx),
         send_exit_menu: Box::new(move |m| show_exits_tx(TrayCmd::ExitMenu(m))),
-        copy_to_clipboard_fn: std::sync::Arc::new(crate::gui::tray::copy_to_clipboard),
+        copy_to_clipboard_fn: std::sync::Arc::new(move |text: &str| tray.copy_to_clipboard(text)),
         send_invite_note: Box::new(move |n| show_invite_tx(TrayCmd::Invite(n))),
         send_serve_note: Box::new(move |n| show_serve_tx(TrayCmd::Serve(n))),
         start_fail: StartFail::new(

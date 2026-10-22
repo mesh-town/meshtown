@@ -3,8 +3,8 @@
 
 use super::super::vote_item::MENU_VOTE;
 use super::{
-    log_tray, open_url, start_enabled, stop_enabled, Core, NodeCmd, MENU_EXIT_PREFIX, MENU_INVITE,
-    MENU_NODE, MENU_OPEN, MENU_QUIT, MENU_SERVE,
+    log_tray, start_enabled, stop_enabled, Core, NodeCmd, MENU_EXIT_PREFIX, MENU_INVITE, MENU_NODE,
+    MENU_OPEN, MENU_QUIT, MENU_SERVE,
 };
 use crate::gui::tray::app::members_note;
 
@@ -36,7 +36,7 @@ impl Core {
         let Some(url) = (self.page_url_fn)() else {
             return;
         };
-        if let Err(e) = open_url::open(&url) {
+        if let Err(e) = self.tray.open_url(&url) {
             log_tray(&format!("browser did not open: {e}"));
         }
     }
@@ -46,7 +46,10 @@ impl Core {
         let Some(url) = (self.page_url_fn)() else {
             return;
         };
-        if let Err(e) = open_url::open(&members_note::with_anchor(&url, "peers")) {
+        if let Err(e) = self
+            .tray
+            .open_url(&members_note::with_anchor(&url, "peers"))
+        {
             log_tray(&format!("browser did not open: {e}"));
         }
     }

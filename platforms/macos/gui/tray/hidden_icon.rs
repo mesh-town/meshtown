@@ -8,14 +8,14 @@ use objc2_app_kit::{
 };
 use objc2_foundation::NSString;
 
-use crate::gui::tray::app::tray_texts::{
-    hidden_icon_hint_text, hidden_icon_title_text, HIDDEN_ICON_LATER_TEXT,
+use meshtown_core::gui::tray::{
+    hidden_icon_hint_text, hidden_icon_title_text, log_tray, HIDDEN_ICON_LATER_TEXT,
     HIDDEN_ICON_OPEN_SETTINGS_TEXT,
 };
 
 /// Delay before the single check after `attach_ui`.
-pub(super) const CHECK_DELAY_SECS: f64 = 2.0;
-pub(super) const MENU_BAR_SETTINGS_URL: &str =
+pub(crate) const CHECK_DELAY_SECS: f64 = 2.0;
+pub(crate) const MENU_BAR_SETTINGS_URL: &str =
     "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension";
 /// The top edge of the window frame (`maxY`) is no higher than this (in points) — the window is wholly below the bottom edge of the
 /// screen. A hidden icon on macOS 26 keeps the window at `(0, -22)` with height 22, i.e. `maxY` is exactly 0;
@@ -55,10 +55,10 @@ fn icon_window(item: &NSStatusItem, mtm: MainThreadMarker) -> Option<IconWindow>
 
 /// The "hidden" check exactly once: writes a line to the acceptance log, a hidden icon
 /// opens `show_hidden_icon_alert`.
-pub(super) fn check(item: &NSStatusItem, mtm: MainThreadMarker) {
+pub(crate) fn check(item: &NSStatusItem, mtm: MainThreadMarker) {
     let window = icon_window(item, mtm);
     let hidden = looks_hidden(window);
-    super::log_tray(&format!("icon: window {window:?}, hidden: {hidden}"));
+    log_tray(&format!("icon: window {window:?}, hidden: {hidden}"));
     if !hidden {
         return;
     }
@@ -82,11 +82,11 @@ fn show_hidden_icon_alert(mtm: MainThreadMarker) {
     if alert.runModal() != NSAlertFirstButtonReturn {
         return;
     }
-    if let Err(e) = super::open_url::open(MENU_BAR_SETTINGS_URL) {
-        super::log_tray(&format!("settings did not open: {e}"));
+    if let Err(e) = crate::open_url::open(MENU_BAR_SETTINGS_URL) {
+        log_tray(&format!("settings did not open: {e}"));
     }
 }
 
 #[cfg(test)]
-#[path = "macos_hidden_tests.rs"]
+#[path = "hidden_icon_tests.rs"]
 mod tests;

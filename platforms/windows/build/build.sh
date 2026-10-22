@@ -4,7 +4,7 @@
 # The dist/ file name carries the version from Cargo.toml (<v>); after copying the two
 # newest versions of each name stay (build_keep_two, release/lib.sh).
 #   cli — without tray (--no-default-features --features net-hyper): dist/meshtown-windows-cli-<v>.exe
-#   gui — with tray (default features): dist/meshtown-windows-gui-<v>.exe
+#   gui — with tray (package meshtown-windows): dist/meshtown-windows-gui-<v>.exe
 # One shared build directory for both kinds ($BUILD_ROOT/make-windows/out), the binary
 # is copied to dist/ right after its own build, there are no prerequisites between kinds.
 # The target manifest is a copy without `crate-type` (see below), laid over /src/core/Cargo.toml in the container.
@@ -26,10 +26,12 @@ WINDOWS_DIR="$BUILD_ROOT/make-windows"
 case "$KIND" in
   cli)
     FEATURE_FLAG="--no-default-features --features net-hyper"
+    BIN_NAME="meshtown"
     OUT_NAME="meshtown-windows-cli"
     ;;
   gui)
-    FEATURE_FLAG=""
+    FEATURE_FLAG="-p meshtown-windows"
+    BIN_NAME="meshtown-windows"
     OUT_NAME="meshtown-windows-gui"
     ;;
   *)
@@ -57,6 +59,6 @@ WIN_MANIFEST="$(build_manifest_no_dylib "$WINDOWS_DIR")"
   ghcr.io/rust-cross/cargo-zigbuild:latest \
   sh -c "rustup toolchain install stable --profile minimal && rustup default stable && rustup target add x86_64-pc-windows-gnu && cargo zigbuild --locked --release --target x86_64-pc-windows-gnu $FEATURE_FLAG"
 mkdir -p "$DIST"
-cp "$WINDOWS_DIR/out/x86_64-pc-windows-gnu/release/meshtown.exe" "$DIST/$OUT_NAME-$VERSION.exe"
+cp "$WINDOWS_DIR/out/x86_64-pc-windows-gnu/release/$BIN_NAME.exe" "$DIST/$OUT_NAME-$VERSION.exe"
 echo "binary: $DIST/$OUT_NAME-$VERSION.exe"
 build_keep_two "$DIST" "$OUT_NAME" .exe

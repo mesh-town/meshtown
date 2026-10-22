@@ -112,3 +112,35 @@ fn invite_and_key_parse_together() {
         Some("mesh-invite2-aa")
     );
 }
+
+#[cfg(feature = "gui")]
+mod require_tray {
+    use super::super::{require_tray, TrayRef};
+
+    #[test]
+    fn tray_without_backend_is_an_error() {
+        // given no tray backend, when it is required
+        let err = require_tray(None)
+            .err()
+            .expect("a build without a tray must fail");
+
+        // then the error says there is no tray icon
+        assert!(
+            err.to_string().contains("has no tray icon"),
+            "unexpected text: {err}"
+        );
+    }
+
+    #[cfg(all(
+        feature = "net-hyper",
+        any(target_os = "macos", target_os = "windows", target_os = "linux")
+    ))]
+    #[test]
+    fn tray_with_backend_is_returned() {
+        let tray: TrayRef = &crate::gui::tray::test_tray::TEST_TRAY;
+
+        let got = require_tray(Some(tray)).expect("a present backend is returned");
+
+        assert!(std::ptr::addr_eq(got, tray), "the same backend comes back");
+    }
+}

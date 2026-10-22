@@ -6,6 +6,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use super::super::spin::Spin;
+use super::super::test_tray::TEST_TRAY;
+use super::super::TrayBackend;
 
 fn no_link() -> Option<String> {
     None
@@ -18,6 +20,7 @@ fn test_core() -> (CmdTx, Core, tokio::sync::mpsc::UnboundedReceiver<NodeCmd>) {
         crate::gui::tray::app::quit::QuitSignal::new(),
         no_link,
         node_tx,
+        &TEST_TRAY,
     );
     // No real ticks in tests: a ticker thread started by a `Starting` view sleeps for an hour; ticks are sent by hand.
     core.spin = Spin::with_period(Duration::from_secs(3600));
@@ -27,14 +30,28 @@ fn test_core() -> (CmdTx, Core, tokio::sync::mpsc::UnboundedReceiver<NodeCmd>) {
 #[test]
 fn cmd_tx_wakes_after_send() {
     static WAKES: AtomicUsize = AtomicUsize::new(0);
-    fn count_wake() {
-        WAKES.fetch_add(1, Ordering::SeqCst);
+    /// A backend whose `wake` only counts calls.
+    struct CountingTray;
+    impl TrayBackend for CountingTray {
+        fn run(&self, _core: Core) -> ! {
+            unreachable!("tests never start the event loop")
+        }
+        fn wake(&self) {
+            WAKES.fetch_add(1, Ordering::SeqCst);
+        }
+        fn open_url(&self, _url: &str) -> Result<(), String> {
+            Ok(())
+        }
+        fn copy_to_clipboard(&self, _text: &str) -> Result<(), &'static str> {
+            Ok(())
+        }
     }
+    static COUNTING: CountingTray = CountingTray;
 
     let (sender, rx) = std::sync::mpsc::channel();
     let tx = CmdTx {
         tx: Arc::new(Mutex::new(sender)),
-        wake: count_wake,
+        tray: &COUNTING,
     };
 
     tx.send(TrayCmd::QuitWithCode(0));

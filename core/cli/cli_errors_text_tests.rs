@@ -127,7 +127,7 @@ mod bad_value_message {
         );
     }
 
-    #[cfg(feature = "tray")]
+    #[cfg(feature = "gui")]
     #[test]
     fn tail_follows_the_typed_command() {
         assert_eq!(

@@ -14,7 +14,7 @@ pub use macos::init;
 #[cfg(windows)]
 pub use windows::init;
 
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 pub use log::node_log_tail;
-#[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
+#[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 pub use log::{child_needs_node_log, open_node_log};

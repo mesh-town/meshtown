@@ -93,9 +93,9 @@ case "$KIND" in
     build_keep_two "$DIST" meshtown-macos-cli
     ;;
   app)
-    (cd "$PROTO" && CARGO_TARGET_DIR="$TARGET_DIR" cargo build $CARGO_REL --manifest-path "$FARM" --locked)
+    (cd "$PROTO" && CARGO_TARGET_DIR="$TARGET_DIR" cargo build $CARGO_REL --manifest-path "$FARM" --locked -p meshtown-macos)
     mkdir -p "$DIST"
-    cp "$TARGET_DIR/$PROFILE_DIR/meshtown" "$DIST/meshtown-macos-gui-$VERSION$SUF"
+    cp "$TARGET_DIR/$PROFILE_DIR/meshtown-macos" "$DIST/meshtown-macos-gui-$VERSION$SUF"
     echo "binary: $DIST/meshtown-macos-gui-$VERSION$SUF"
     build_keep_two "$DIST" meshtown-macos-gui
     build_publish_app "$DIST/meshtown-macos-gui-$VERSION$SUF" arm64
@@ -103,9 +103,9 @@ case "$KIND" in
   app_x86)
     rustup target add x86_64-apple-darwin
     APP_UNIVERSAL_DIR="$BUILD_ROOT/app-universal"
-    (cd "$PROTO" && CARGO_TARGET_DIR="$APP_UNIVERSAL_DIR" cargo build --release --manifest-path "$FARM" --locked --target x86_64-apple-darwin)
+    (cd "$PROTO" && CARGO_TARGET_DIR="$APP_UNIVERSAL_DIR" cargo build --release --manifest-path "$FARM" --locked -p meshtown-macos --target x86_64-apple-darwin)
     mkdir -p "$DIST"
-    cp "$APP_UNIVERSAL_DIR/x86_64-apple-darwin/release/meshtown" "$DIST/meshtown-macos-gui-x86_64-$VERSION"
+    cp "$APP_UNIVERSAL_DIR/x86_64-apple-darwin/release/meshtown-macos" "$DIST/meshtown-macos-gui-x86_64-$VERSION"
     echo "binary: $DIST/meshtown-macos-gui-x86_64-$VERSION"
     build_keep_two "$DIST" meshtown-macos-gui-x86_64
     build_publish_app "$DIST/meshtown-macos-gui-x86_64-$VERSION" x86_64
@@ -113,12 +113,12 @@ case "$KIND" in
   app_universal)
     rustup target add x86_64-apple-darwin
     APP_UNIVERSAL_DIR="$BUILD_ROOT/app-universal"
-    (cd "$PROTO" && CARGO_TARGET_DIR="$TARGET_DIR" cargo build --release --manifest-path "$FARM" --locked)
-    (cd "$PROTO" && CARGO_TARGET_DIR="$APP_UNIVERSAL_DIR" cargo build --release --manifest-path "$FARM" --locked --target x86_64-apple-darwin)
+    (cd "$PROTO" && CARGO_TARGET_DIR="$TARGET_DIR" cargo build --release --manifest-path "$FARM" --locked -p meshtown-macos)
+    (cd "$PROTO" && CARGO_TARGET_DIR="$APP_UNIVERSAL_DIR" cargo build --release --manifest-path "$FARM" --locked -p meshtown-macos --target x86_64-apple-darwin)
     mkdir -p "$DIST"
     lipo -create -output "$DIST/meshtown-macos-gui-universal-$VERSION" \
-      "$TARGET_DIR/release/meshtown" \
-      "$APP_UNIVERSAL_DIR/x86_64-apple-darwin/release/meshtown"
+      "$TARGET_DIR/release/meshtown-macos" \
+      "$APP_UNIVERSAL_DIR/x86_64-apple-darwin/release/meshtown-macos"
     echo "binary: $DIST/meshtown-macos-gui-universal-$VERSION"
     lipo -info "$DIST/meshtown-macos-gui-universal-$VERSION"
     build_keep_two "$DIST" meshtown-macos-gui-universal

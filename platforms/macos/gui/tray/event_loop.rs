@@ -5,9 +5,9 @@
 //! `NSApplication::run()`; the delegate sets the `Accessory` policy, calls `attach_ui`, installs the wakeup
 //! block and drains the queue; `wake` from any thread puts this block onto the main
 //! `CFRunLoop` and wakes it.
-//! What it does not do: it does not build the menu or print itself (that is `Core` and `super::log_tray`), does not end the
+//! What it does not do: it does not build the menu or print itself (that is `Core` and `log_tray`), does not end the
 //! process by anything other than `exit_now` on `TrayCmd::QuitWithCode`, and does not know about the node or the page.
-//! Links: `super::Core`, `crate::gui::tray::app::quit::exit_now`; the model is
+//! Links: `Core`, `exit_now`; the model is
 //! a separate repaint probe.
 
 use std::cell::{Cell, RefCell};
@@ -23,8 +23,7 @@ use objc2_app_kit::{
 use objc2_core_foundation::{kCFRunLoopCommonModes, CFRunLoop, CFType};
 use objc2_foundation::NSNotification;
 
-use super::Core;
-use crate::gui::tray::app::quit::exit_now;
+use meshtown_core::gui::tray::{exit_now, log_tray, Core};
 
 thread_local! {
     /// The main thread's `Core`: after `attach_ui` it holds a `TrayIcon` (`!Send`), so the storage is
@@ -74,11 +73,11 @@ define_class!(
             app.setActivationPolicy(NSApplicationActivationPolicy::Accessory);
 
             let (attached, item) = CORE.with(|cell| match cell.borrow_mut().as_mut() {
-                Some(core) => (core.attach_ui(), core.status_item()),
+                Some(core) => (core.attach_ui(), status_item(core)),
                 None => (Err("no tray state".to_string()), None),
             });
             if let Err(e) = attached {
-                super::log_tray(&format!("no tray icon: {e}"));
+                log_tray(&format!("no tray icon: {e}"));
             }
             self.schedule_check(item);
 
@@ -95,7 +94,7 @@ define_class!(
         // SAFETY: the signature is correct.
         #[unsafe(method(checkStatusItem:))]
         fn check_status_item(&self, item: &NSStatusItem) {
-            super::macos_hidden::check(item, self.mtm());
+            super::hidden_icon::check(item, self.mtm());
         }
     }
 );
@@ -107,7 +106,7 @@ impl Delegate {
         unsafe { msg_send![super(this), init] }
     }
 
-    /// Schedules the single "hidden" check via `macos_hidden::CHECK_DELAY_SECS`; without
+    /// Schedules the single "hidden" check via `hidden_icon::CHECK_DELAY_SECS`; without
     /// an icon (`attach_ui` failed or has not built one yet) — it does not schedule.
     fn schedule_check(&self, item: Option<Retained<NSStatusItem>>) {
         let Some(item) = item else { return };
@@ -118,14 +117,14 @@ impl Delegate {
                 self,
                 performSelector: sel!(checkStatusItem:),
                 withObject: &*item,
-                afterDelay: super::macos_hidden::CHECK_DELAY_SECS
+                afterDelay: super::hidden_icon::CHECK_DELAY_SECS
             ]
         };
     }
 }
 
 /// The tray loop on the main thread; exits only through `exit_now` on `TrayCmd::QuitWithCode`.
-pub(super) fn run(core: Core) -> ! {
+pub(crate) fn run(core: Core) -> ! {
     let Some(mtm) = MainThreadMarker::new() else {
         fallback(core, "not the main thread");
     };
@@ -144,15 +143,20 @@ pub(super) fn run(core: Core) -> ! {
     }
 }
 
+/// The native status item of the raised icon, for the "hidden" check; `None` until `attach_ui`.
+fn status_item(core: &Core) -> Option<Retained<NSStatusItem>> {
+    core.tray_icon()?.ns_status_item()
+}
+
 /// The fallback path without an icon: a line, then wait for `QuitWithCode` in a blocking way. The node keeps running.
 fn fallback(mut core: Core, reason: &str) -> ! {
-    super::log_tray(&format!("no tray icon: {reason}"));
+    log_tray(&format!("no tray icon: {reason}"));
     exit_now(core.recv_blocking())
 }
 
 /// Wakes the main loop and schedules a pass over the queue on it. Any thread; before the block is installed or
 /// without a main `CFRunLoop` — nothing.
-pub(super) fn wake() {
+pub(crate) fn wake() {
     let Some(block) = WAKE_BLOCK.get() else {
         return;
     };
@@ -194,5 +198,5 @@ fn drain_on_main() {
 }
 
 #[cfg(test)]
-#[path = "macos_tests.rs"]
+#[path = "event_loop_tests.rs"]
 mod tests;

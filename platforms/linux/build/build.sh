@@ -4,7 +4,7 @@
 # The dist/ file name carries the version from Cargo.toml (<v>); after copying the two
 # newest versions of each name stay (build_keep_two, release/lib.sh).
 #   cli       — without tray (--no-default-features --features net-hyper): dist/meshtown-linux-cli-<v>
-#   gui       — with tray (default features): dist/meshtown-linux-gui-<v>
+#   gui       — with tray (package meshtown-linux): dist/meshtown-linux-gui-<v>
 #   arm64_cli — Linux arm64 (OpenWrt router, static musl) without tray, image
 #               messense/rust-musl-cross:aarch64-musl: dist/meshtown-linux-arm64-cli-<v>
 #   armv7_cli — Linux ARMv7 (OpenWrt router, static musl, soft-float musleabi: no FPU instructions, runs on cores with
@@ -37,10 +37,12 @@ LINUX_DIR="$BUILD_ROOT/make-linux"
 case "$KIND" in
   cli)
     FEATURE_FLAG="--no-default-features --features net-hyper"
+    BIN_NAME="meshtown"
     OUT_NAME="meshtown-linux-cli"
     ;;
   gui)
-    FEATURE_FLAG=""
+    FEATURE_FLAG="-p meshtown-linux"
+    BIN_NAME="meshtown-linux"
     OUT_NAME="meshtown-linux-gui"
     ;;
   arm64_cli)
@@ -48,6 +50,7 @@ case "$KIND" in
     TRIPLE="aarch64-unknown-linux-musl"
     LINUX_DIR="$BUILD_ROOT/make-linux-arm64"
     FEATURE_FLAG="--no-default-features --features net-hyper"
+    BIN_NAME="meshtown"
     OUT_NAME="meshtown-linux-arm64-cli"
     ;;
   armv7_cli)
@@ -55,6 +58,7 @@ case "$KIND" in
     TRIPLE="armv7-unknown-linux-musleabi"
     LINUX_DIR="$BUILD_ROOT/make-linux-armv7"
     FEATURE_FLAG="--no-default-features --features net-hyper"
+    BIN_NAME="meshtown"
     OUT_NAME="meshtown-linux-armv7-cli"
     ;;
   *)
@@ -67,6 +71,10 @@ PROF_FLAGS=""
 if [ "${HEAP_PROF:-}" = "1" ]; then
   PROFILE="release-sym"
   PROF_FLAGS="--features heap-prof --profile release-sym"
+  # With the platform package selected (-p), the feature belongs to the core crate.
+  if [ "$KIND" = "gui" ]; then
+    PROF_FLAGS="--features meshtown-core/heap-prof --profile release-sym"
+  fi
 else
   PROF_FLAGS="--release"
 fi
@@ -82,6 +90,6 @@ MANIFEST="$(build_manifest_no_dylib "$LINUX_DIR")"
   "$IMAGE" \
   cargo build --locked $PROF_FLAGS --target "$TRIPLE" $FEATURE_FLAG
 mkdir -p "$DIST"
-cp "$LINUX_DIR/out/$TRIPLE/$PROFILE/meshtown" "$DIST/$OUT_NAME-$VERSION"
+cp "$LINUX_DIR/out/$TRIPLE/$PROFILE/$BIN_NAME" "$DIST/$OUT_NAME-$VERSION"
 echo "binary: $DIST/$OUT_NAME-$VERSION"
 build_keep_two "$DIST" "$OUT_NAME"

@@ -81,15 +81,10 @@ n0-watcher = { version = "=1.0.0", optional = true }
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
 tray-icon = { version = "0.25.1", optional = true }
-objc2 = "0.6.4"
-block2 = "0.6"
-objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSRunningApplication", "NSWorkspace", "NSAlert", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSView", "NSResponder", "NSWindow", "NSGraphics", "objc2-core-foundation"], optional = true }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSURL"], optional = true }
-objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFCGTypes", "CFRunLoop", "CFString", "block2"], optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 tray-icon = { version = "0.25.1", optional = true }
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Console", "Win32_System_ProcessStatus", "Win32_System_RemoteDesktop", "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_Controls", "Win32_UI_HiDpi", "Win32_UI_Input", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console", "Win32_System_ProcessStatus", "Win32_System_Threading"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 libc = "0.2"
@@ -106,12 +101,12 @@ tikv-jemallocator = { version = "0.7", features = ["profiling"], optional = true
 tikv-jemalloc-ctl = { version = "0.7", optional = true }
 
 [features]
-default = ["tray", "net-hyper"]
+default = ["gui", "net-hyper"]
 # The node layer (all lib.rs modules except the core) on the hyper transport: lookup through HyperDHT, joining for members (net_hyper/, net_hyperdht/).
 net-hyper = ["dep:townjump-dht", "dep:townjump-dht-peeroxide", "dep:townjump-keys", "dep:netwatch", "dep:n0-watcher"]
 # Heap profile on the watchdog's signal (node/alloc.rs): Linux only, off by default.
 heap-prof = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-ctl"]
-tray = ["dep:tray-icon", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:objc2-core-foundation"]
+gui = ["dep:tray-icon"]
 
 [dev-dependencies]
 # Test network of the loop (tests only).
