@@ -2,7 +2,7 @@
 //! no network, they are checked by `frame_tests.rs`.
 
 use std::fmt;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddrV4};
 
 use anyhow::{bail, Result};
 
@@ -13,6 +13,8 @@ pub const METHOD_NO_AUTH: u8 = 0x00;
 pub const METHOD_NO_ACCEPTABLE: u8 = 0xFF;
 /// The "connect" command.
 pub const CMD_CONNECT: u8 = 1;
+/// The "UDP associate" command.
+pub const CMD_UDP_ASSOCIATE: u8 = 3;
 /// Address type: IPv4.
 pub const ATYP_IPV4: u8 = 1;
 /// Address type: domain name.
@@ -75,6 +77,7 @@ impl Target {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     Connect,
+    UdpAssociate,
 }
 
 /// A parsed request.
@@ -92,7 +95,7 @@ pub enum RequestError {
     Short,
     /// The version is not 5.
     Version(u8),
-    /// The command is not `CONNECT`.
+    /// The command is neither `CONNECT` nor `UDP ASSOCIATE`.
     Command(u8),
     /// The address type is not supported.
     AddressKind(u8),
@@ -118,7 +121,10 @@ impl fmt::Display for RequestError {
         match self {
             RequestError::Short => write!(f, "request shorter than a SOCKS5 frame"),
             RequestError::Version(v) => write!(f, "version {v}, but 5 is required"),
-            RequestError::Command(c) => write!(f, "command {c}: only CONNECT is supported"),
+            RequestError::Command(c) => write!(
+                f,
+                "command {c}: only CONNECT and UDP ASSOCIATE are supported"
+            ),
             RequestError::AddressKind(a) => write!(f, "address type {a} is not supported"),
             RequestError::EmptyName => write!(f, "empty domain name"),
             RequestError::BadName => write!(f, "domain name is not UTF-8"),
@@ -136,12 +142,14 @@ pub fn parse_socks5_request(buf: &[u8]) -> std::result::Result<Request, RequestE
     if buf[0] != VERSION {
         return Err(RequestError::Version(buf[0]));
     }
-    if buf[1] != CMD_CONNECT {
-        return Err(RequestError::Command(buf[1]));
-    }
+    let command = match buf[1] {
+        CMD_CONNECT => Command::Connect,
+        CMD_UDP_ASSOCIATE => Command::UdpAssociate,
+        other => return Err(RequestError::Command(other)),
+    };
     let (target, port, _) = parse_address(&buf[3..])?;
     Ok(Request {
-        command: Command::Connect,
+        command,
         target,
         port,
     })
@@ -183,6 +191,17 @@ fn domain_name(buf: &[u8]) -> std::result::Result<(Target, usize), RequestError>
 /// Builds a connect request — needed by the client (`client_connect`) and by tests.
 pub fn encode_socks5_request(target: &Target, port: u16) -> Result<Vec<u8>> {
     let mut out = vec![VERSION, CMD_CONNECT, 0];
+    encode_address(&mut out, target, port)?;
+    Ok(out)
+}
+
+/// Builds the `UDP ASSOCIATE` request with an unknown source address (`0.0.0.0:0`), as clients send it.
+pub fn encode_udp_associate_request() -> Vec<u8> {
+    vec![VERSION, CMD_UDP_ASSOCIATE, 0, ATYP_IPV4, 0, 0, 0, 0, 0, 0]
+}
+
+/// Appends `ATYP ADDR PORT`; a domain name must fit in one length byte and not be empty.
+pub(super) fn encode_address(out: &mut Vec<u8>, target: &Target, port: u16) -> Result<()> {
     match target {
         Target::Ip(IpAddr::V4(ip)) => {
             out.push(ATYP_IPV4);
@@ -206,12 +225,19 @@ pub fn encode_socks5_request(target: &Target, port: u16) -> Result<Vec<u8>> {
         }
     }
     out.extend_from_slice(&port.to_be_bytes());
-    Ok(out)
+    Ok(())
 }
 
-/// Builds the server reply: the address in the reply is always zero, clients do not read it.
+/// Builds the server reply with a zero bound address: clients do not read it after `CONNECT`.
 pub fn encode_socks5_reply(code: u8) -> [u8; 10] {
-    [VERSION, code, 0, ATYP_IPV4, 0, 0, 0, 0, 0, 0]
+    encode_socks5_reply_bound(code, SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0))
+}
+
+/// Builds the server reply carrying the bound address (the UDP relay of `UDP ASSOCIATE`).
+pub fn encode_socks5_reply_bound(code: u8, bound: SocketAddrV4) -> [u8; 10] {
+    let [a, b, c, d] = bound.ip().octets();
+    let [p, q] = bound.port().to_be_bytes();
+    [VERSION, code, 0, ATYP_IPV4, a, b, c, d, p, q]
 }
 
 #[cfg(test)]

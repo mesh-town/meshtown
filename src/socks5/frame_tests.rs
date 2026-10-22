@@ -58,6 +58,31 @@ fn ipv6_connect_request_round_trips() {
 }
 
 #[test]
+fn udp_associate_request_is_parsed() {
+    let req = parse_socks5_request(&encode_udp_associate_request()).unwrap();
+    assert_eq!(req.command, Command::UdpAssociate);
+    assert_eq!(req.target, Target::Ip(Ipv4Addr::UNSPECIFIED.into()));
+    assert_eq!(req.port, 0);
+}
+
+#[test]
+fn bind_is_still_refused_with_code_7() {
+    let mut bind = encode_socks5_request(&Target::Domain("example.com".to_string()), 80).unwrap();
+    bind[1] = 2;
+    let err = parse_socks5_request(&bind).unwrap_err();
+    assert_eq!(err, RequestError::Command(2));
+    assert_eq!(err.reply_code(), REP_CMD_NOT_SUPPORTED);
+}
+
+#[test]
+fn bound_reply_carries_address_and_port() {
+    let reply = encode_socks5_reply_bound(REP_OK, "127.0.0.1:40000".parse().unwrap());
+    assert_eq!(&reply[..4], &[VERSION, REP_OK, 0, ATYP_IPV4]);
+    assert_eq!(&reply[4..8], &[127, 0, 0, 1]);
+    assert_eq!(&reply[8..], &40000u16.to_be_bytes());
+}
+
+#[test]
 fn short_ipv6_request_is_rejected() {
     let raw = [VERSION, CMD_CONNECT, 0, ATYP_IPV6, 0, 0, 0, 0];
     assert_eq!(parse_socks5_request(&raw), Err(RequestError::Short));

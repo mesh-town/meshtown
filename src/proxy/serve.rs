@@ -10,7 +10,6 @@ use anyhow::Result;
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::config_file::ListenAccess;
-use crate::web::auth::iface_os::current_view;
 use crate::doh::Resolver;
 use crate::exit::PeerConnPool;
 use crate::net::NetStack;
@@ -19,6 +18,7 @@ use crate::route::RouteCtx;
 use crate::socks5;
 use crate::tcp_tune::disable_nagle;
 use crate::web::auth::access::bind_ip;
+use crate::web::auth::iface_os::current_view;
 
 use super::admit::{admit_conn, iface_deny_text, is_proxy_client_allowed, Admission, DenyLog};
 use super::outcome::{outcome_line, ProxyOutcome};
@@ -82,7 +82,10 @@ impl BindError {
         } else {
             self.port + 1
         };
-        let cmd = format!("{} run --socks-port {other}", crate::program_name::program_name());
+        let cmd = format!(
+            "{} run --socks-port {other}",
+            crate::program_name::program_name()
+        );
         match self.io_error_kind {
             std::io::ErrorKind::AddrInUse => {
                 format!("Close it or start the node on another port: {cmd}")
@@ -173,6 +176,26 @@ async fn serve_socks5_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Res
             return Ok(());
         }
     };
+    match request.command {
+        socks5::Command::Connect => serve_connect(stream, cfg, request, started).await,
+        socks5::Command::UdpAssociate => refuse_associate(stream).await,
+    }
+}
+
+/// `UDP ASSOCIATE` is not served yet: the client gets "command not supported".
+async fn refuse_associate(mut stream: TcpStream) -> Result<()> {
+    say("socks", "udp associate: not supported".to_string());
+    socks5::write_reply(&mut stream, socks5::REP_CMD_NOT_SUPPORTED).await?;
+    Ok(())
+}
+
+/// A `CONNECT` request: one route decision, the reply and the transfer to the end.
+async fn serve_connect(
+    mut stream: TcpStream,
+    cfg: ProxyConfig,
+    request: socks5::Request,
+    started: Instant,
+) -> Result<()> {
     let target_text = request.target.to_string();
     let opening = tokio::select! {
         opened = path::open_chosen_route(&cfg, &request.target, request.port, "socks") => Some(opened),
