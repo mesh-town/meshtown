@@ -1,16 +1,6 @@
-//! Own resolver for the checks: DNS over HTTPS and a separate query to the ISP's resolver.
-//!
-//! What it does: builds and parses DNS packets, asks a DoH server given by IP address for a domain's address,
-//! and — only as a spoofing signal — asks the ISP's resolver over UDP-53;
-//! drops addresses that must not be used (own fake-ip pool, loopback, "zero", link-local).
-//! Caches addresses only for the exit (`resolve_cached`, answer TTL within 30–120 s, up to
-//! 1024 names); reachability checks query around the cache (`resolve`).
-//! What it doesn't do: doesn't use the system resolver, doesn't remember failures and empty answers,
-//! doesn't query AAAA records, doesn't verify DNSSEC signatures.
-//! Related: transport is `crate::http_min` over TLS; used by `crate::reachability` and
-//! `crate::exit`; the cache is in `doh/cache.rs`.
+//! The resolver: DoH queries, the address cache for the exit, and the separate query to the ISP's resolver.
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -18,8 +8,6 @@ use anyhow::{bail, Context, Result};
 use data_encoding::BASE64URL_NOPAD;
 use rustls::pki_types::ServerName;
 use rustls::ClientConfig;
-use simple_dns::rdata::RData;
-use simple_dns::{Name, Packet, PacketFlag, Question, CLASS, QCLASS, QTYPE, RCODE, TYPE};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
@@ -27,44 +15,15 @@ use tokio_rustls::TlsConnector;
 use crate::http_min::{self, HttpLimits, HttpGetRequest};
 use crate::tcp_tune::disable_nagle;
 
-mod cache;
-
-use cache::{cache_key, clamp_ttl, DnsCache, CACHE_ENTRIES};
-
-/// Default DoH server: Cloudflare, given by address — no name needs to be resolved.
-pub const DEFAULT_DOH: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 443);
-/// DoH request path (RFC 8484).
-pub const DOH_PATH: &str = "/dns-query";
-/// Content type of the DoH request and response.
-pub const DNS_MESSAGE: &str = "application/dns-message";
+use super::cache::{cache_key, clamp_ttl, DnsCache, CACHE_ENTRIES};
+use super::packet::{build_query, parse_answer, Records};
+use super::{DNS_MESSAGE, DOH_PATH};
 
 /// A resolver answer.
 #[derive(Debug, Clone)]
 pub struct DnsAnswer {
     pub addrs: Vec<Ipv4Addr>,
     pub elapsed: Duration,
-}
-
-/// A parsed answer: the A addresses and the minimum TTL of the answer section (`None` if there is no A).
-struct Records {
-    addrs: Vec<Ipv4Addr>,
-    ttl: Option<u32>,
-}
-
-/// An address from the fake-ip pool (RFC 2544, `198.18.0.0/15`): issued by our own TUN.
-pub fn is_fake_ip(ip: Ipv4Addr) -> bool {
-    let o = ip.octets();
-    o[0] == 198 && (o[1] == 18 || o[1] == 19)
-}
-
-/// An address a check must not use: our own TUN, loopback, "zero", link-local, broadcast.
-pub fn is_unusable(ip: Ipv4Addr) -> bool {
-    is_fake_ip(ip)
-        || ip.is_loopback()
-        || ip.is_unspecified()
-        || ip.is_link_local()
-        || ip.is_broadcast()
-        || ip.is_multicast()
 }
 
 /// The checks resolver.
@@ -224,51 +183,6 @@ impl Resolver {
     }
 }
 
-/// Builds an A-record query with the "recursion desired" flag, id 0 (RFC 8484).
-fn build_query(domain: &str) -> Result<Vec<u8>> {
-    let mut packet = Packet::new_query(0);
-    packet.set_flags(PacketFlag::RECURSION_DESIRED);
-    let name = Name::new(domain).with_context(|| format!("name \"{domain}\" couldn't be parsed"))?;
-    packet.questions.push(Question::new(
-        name,
-        QTYPE::TYPE(TYPE::A),
-        QCLASS::CLASS(CLASS::IN),
-        false,
-    ));
-    packet.build_bytes_vec().context("building the DNS query")
-}
-
-/// Extracts the addresses and the minimum TTL of the answer section (CNAME and A together — a "name → addresses"
-/// binding lives no longer than the shortest-lived record of the chain; `None` if there are no addresses). An empty
-/// list is a complete "no addresses" answer: the name doesn't exist (`NameError`) or the name
-/// has no A records. Such a domain gets the "unreachable" class, so this is not
-/// treated as an error. It is an error only when the answer can't be parsed or the resolver itself refused
-/// (`ServerFailure`, `Refused` and other codes).
-fn parse_answer(bytes: &[u8], domain: &str) -> Result<Records> {
-    let packet = Packet::parse(bytes).context("couldn't parse the DNS answer")?;
-    match packet.rcode() {
-        RCODE::NoError => {}
-        RCODE::NameError => {
-            return Ok(Records {
-                addrs: Vec::new(),
-                ttl: None,
-            })
-        }
-        other => bail!("DNS answered {other:?} for \"{domain}\""),
-    }
-    let mut addrs = Vec::new();
-    for answer in &packet.answers {
-        if let RData::A(a) = &answer.rdata {
-            addrs.push(Ipv4Addr::from(a.address));
-        }
-    }
-    let ttl = packet.answers.iter().map(|answer| answer.ttl).min();
-    Ok(Records {
-        ttl: ttl.filter(|_| !addrs.is_empty()),
-        addrs,
-    })
-}
-
 #[cfg(test)]
-#[path = "doh_tests.rs"]
+#[path = "resolver_tests.rs"]
 mod tests;
