@@ -115,7 +115,7 @@ pub(super) async fn relay_bytes(
 /// over HTTPS (with a cache: a repeated name goes without contacting DoH).
 async fn address_of(cfg: &ProxyConfig, target: &Target, port: u16) -> Result<SocketAddr> {
     let domain = match target {
-        Target::Ip(ip) => return Ok(SocketAddr::from((*ip, port))),
+        Target::Ip(ip) => return Ok(SocketAddr::new(*ip, port)),
         Target::Domain(domain) => domain,
     };
     if let Some(addr) = cfg.host_overrides.get(domain) {

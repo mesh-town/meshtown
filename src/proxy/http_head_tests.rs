@@ -3,7 +3,7 @@
 use super::*;
 use crate::proxy::pac::PacRequest;
 use crate::socks5::Target;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 
 mod connect {
     use super::*;
@@ -31,7 +31,7 @@ mod connect {
         #[test]
         fn targets_ip_and_port_443() {
             let ask = parse_ok(b"CONNECT 10.0.0.1 HTTP/1.1\r\n\r\n");
-            assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(10, 0, 0, 1)));
+            assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(10, 0, 0, 1).into()));
             assert_eq!(ask.port, 443);
         }
     }
@@ -40,8 +40,46 @@ mod connect {
         use super::*;
 
         #[test]
-        fn is_rejected() {
-            assert!(parse_err(b"CONNECT [::1]:443 HTTP/1.1\r\n\r\n"));
+        fn connect_to_bracketed_literal_is_parsed() {
+            let ask = parse_ok(b"CONNECT [::1]:443 HTTP/1.1\r\n\r\n");
+            assert_eq!(ask.target, Target::Ip(Ipv6Addr::LOCALHOST.into()));
+            assert_eq!(ask.port, 443);
+        }
+
+        #[test]
+        fn absolute_uri_with_bracketed_literal_keeps_host_header() {
+            let ask = parse_ok(b"GET http://[2001:db8::1]:8080/x HTTP/1.1\r\nHost: other\r\n\r\n");
+            assert_eq!(
+                ask.target,
+                Target::Ip("2001:db8::1".parse::<Ipv6Addr>().unwrap().into())
+            );
+            assert_eq!(ask.port, 8080);
+            assert!(
+                head_text(&ask).contains("Host: [2001:db8::1]:8080\r\n"),
+                "upstream head: {}",
+                head_text(&ask)
+            );
+        }
+
+        #[test]
+        fn bracketed_literal_without_port_uses_default() {
+            let ask = parse_ok(b"GET http://[2001:db8::1]/ HTTP/1.1\r\n\r\n");
+            assert_eq!(ask.port, 80);
+            assert!(
+                head_text(&ask).contains("Host: [2001:db8::1]\r\n"),
+                "upstream head: {}",
+                head_text(&ask)
+            );
+        }
+
+        #[test]
+        fn unclosed_bracket_is_rejected() {
+            assert!(parse_err(b"CONNECT [::1:443 HTTP/1.1\r\n\r\n"));
+        }
+
+        #[test]
+        fn unbracketed_ipv6_is_rejected() {
+            assert!(parse_err(b"CONNECT ::1:443 HTTP/1.1\r\n\r\n"));
         }
     }
 
@@ -84,11 +122,20 @@ mod forward {
         fn head_is_rewritten_to_origin_form_with_host_from_uri() {
             let ask = parse_ok(b"GET http://Site.test:8080/a?b=1 HTTP/1.1\r\nHost: x\r\n\r\n");
             let head = head_text(&ask);
-            assert!(head.starts_with("GET /a?b=1 HTTP/1.1\r\n"), "head: {head:?}");
-            assert!(head.contains("\r\nHost: site.test:8080\r\n"), "head: {head:?}");
+            assert!(
+                head.starts_with("GET /a?b=1 HTTP/1.1\r\n"),
+                "head: {head:?}"
+            );
+            assert!(
+                head.contains("\r\nHost: site.test:8080\r\n"),
+                "head: {head:?}"
+            );
             assert_eq!(ask.target, Target::Domain("site.test".to_string()));
             assert_eq!(ask.port, 8080);
-            assert!(ask.reply.is_empty(), "forwarding has no reply to the client");
+            assert!(
+                ask.reply.is_empty(),
+                "forwarding has no reply to the client"
+            );
         }
     }
 
@@ -119,7 +166,10 @@ Host: old.test\r\nX-A: 1\r\nX-B: 2\r\n\r\n";
             assert!(!lower.contains("proxy-connection"), "head: {head:?}");
             assert!(!lower.contains("proxy-authorization"), "head: {head:?}");
             assert!(!lower.contains("keep-alive"), "head: {head:?}");
-            assert!(!lower.contains("old.test"), "the old Host remained: {head:?}");
+            assert!(
+                !lower.contains("old.test"),
+                "the old Host remained: {head:?}"
+            );
             assert!(!lower.contains("connection: keep"), "head: {head:?}");
             let a = head.find("X-A: 1").expect("X-A lost");
             let b = head.find("X-B: 2").expect("X-B lost");
@@ -227,7 +277,10 @@ mod pac_file {
     #[test]
     fn other_origin_path_is_still_origin_form_error() {
         let res = parse_head(b"GET / HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n\r\n");
-        assert!(matches!(res, Err(HeadError::OriginForm)), "expected Err(OriginForm)");
+        assert!(
+            matches!(res, Err(HeadError::OriginForm)),
+            "expected Err(OriginForm)"
+        );
     }
 
     #[test]
@@ -243,9 +296,13 @@ mod pac_file {
         // when
         let ask = parse_ok(raw);
         // then
-        assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(127, 0, 0, 1)));
+        assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(127, 0, 0, 1).into()));
         assert_eq!(ask.port, 1080);
-        assert!(head_text(&ask).starts_with("GET /proxy.pac HTTP/1.1\r\n"), "upstream head: {}", head_text(&ask));
+        assert!(
+            head_text(&ask).starts_with("GET /proxy.pac HTTP/1.1\r\n"),
+            "upstream head: {}",
+            head_text(&ask)
+        );
     }
 }
 
@@ -259,14 +316,20 @@ mod status_reply {
         // when
         let reply = String::from_utf8(status_reply(502, body)).unwrap();
         // then
-        assert!(reply.starts_with("HTTP/1.1 502 Bad Gateway\r\n"), "reply: {reply:?}");
+        assert!(
+            reply.starts_with("HTTP/1.1 502 Bad Gateway\r\n"),
+            "reply: {reply:?}"
+        );
         let (head, tail) = reply.split_once("\r\n\r\n").expect("no end of head");
         assert!(
             head.contains(&format!("Content-Length: {}", tail.len())),
             "Content-Length is the body length in UTF-8 bytes ({} bytes): {reply:?}",
             tail.len()
         );
-        assert!(tail.len() > body.chars().count(), "multibyte text: more bytes than characters");
+        assert!(
+            tail.len() > body.chars().count(),
+            "multibyte text: more bytes than characters"
+        );
         assert!(head.contains("Connection: close"), "reply: {reply:?}");
         assert!(tail.starts_with(body), "the body is the reason: {reply:?}");
     }
@@ -275,7 +338,10 @@ mod status_reply {
     fn reason_phrases_match_codes() {
         for (code, phrase) in [(400, "Bad Request"), (504, "Gateway Timeout")] {
             let reply = String::from_utf8(status_reply(code, "x")).unwrap();
-            assert!(reply.starts_with(&format!("HTTP/1.1 {code} {phrase}\r\n")), "{reply:?}");
+            assert!(
+                reply.starts_with(&format!("HTTP/1.1 {code} {phrase}\r\n")),
+                "{reply:?}"
+            );
         }
     }
 }
@@ -283,8 +349,14 @@ mod status_reply {
 fn parse_ok(raw: &[u8]) -> HttpProxyRequest {
     match parse_head(raw) {
         Ok(Some(HttpRequestKind::Proxy(ask))) => ask,
-        Ok(Some(HttpRequestKind::Pac(_))) => panic!("expected proxying, got PAC: {:?}", String::from_utf8_lossy(raw)),
-        Ok(None) => panic!("head considered incomplete: {:?}", String::from_utf8_lossy(raw)),
+        Ok(Some(HttpRequestKind::Pac(_))) => panic!(
+            "expected proxying, got PAC: {:?}",
+            String::from_utf8_lossy(raw)
+        ),
+        Ok(None) => panic!(
+            "head considered incomplete: {:?}",
+            String::from_utf8_lossy(raw)
+        ),
         Err(e) => panic!("unexpected parse refusal: {e}"),
     }
 }
@@ -292,8 +364,14 @@ fn parse_ok(raw: &[u8]) -> HttpProxyRequest {
 fn parse_pac(raw: &[u8]) -> PacRequest {
     match parse_head(raw) {
         Ok(Some(HttpRequestKind::Pac(ask))) => ask,
-        Ok(Some(HttpRequestKind::Proxy(_))) => panic!("expected PAC, got proxying: {:?}", String::from_utf8_lossy(raw)),
-        Ok(None) => panic!("head considered incomplete: {:?}", String::from_utf8_lossy(raw)),
+        Ok(Some(HttpRequestKind::Proxy(_))) => panic!(
+            "expected PAC, got proxying: {:?}",
+            String::from_utf8_lossy(raw)
+        ),
+        Ok(None) => panic!(
+            "head considered incomplete: {:?}",
+            String::from_utf8_lossy(raw)
+        ),
         Err(e) => panic!("unexpected parse refusal: {e}"),
     }
 }

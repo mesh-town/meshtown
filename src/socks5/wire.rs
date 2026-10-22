@@ -5,7 +5,8 @@ use anyhow::{bail, Context, Result};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use super::frame::{
-    encode_socks5_reply, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6, METHOD_NO_ACCEPTABLE, METHOD_NO_AUTH, VERSION,
+    encode_socks5_reply, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6, METHOD_NO_ACCEPTABLE, METHOD_NO_AUTH,
+    VERSION,
 };
 
 /// Reads the client's greeting and replies "no authentication".
@@ -50,7 +51,10 @@ where
     match head[3] {
         ATYP_IPV4 => {
             let mut rest = [0u8; 6];
-            stream.read_exact(&mut rest).await.context("address and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("address and port")?;
             raw.extend_from_slice(&rest);
         }
         ATYP_DOMAIN => {
@@ -58,12 +62,18 @@ where
             stream.read_exact(&mut len).await.context("name length")?;
             raw.push(len[0]);
             let mut rest = vec![0u8; usize::from(len[0]) + 2];
-            stream.read_exact(&mut rest).await.context("name and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("name and port")?;
             raw.extend_from_slice(&rest);
         }
         ATYP_IPV6 => {
             let mut rest = [0u8; 18];
-            stream.read_exact(&mut rest).await.context("address and port")?;
+            stream
+                .read_exact(&mut rest)
+                .await
+                .context("address and port")?;
             raw.extend_from_slice(&rest);
         }
         _ => {}

@@ -2,7 +2,7 @@
 //! no network, they are checked by `frame_tests.rs`.
 
 use std::fmt;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use anyhow::{bail, Result};
 
@@ -38,7 +38,7 @@ pub const MAX_NAME_LEN: usize = 255;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {
     Domain(String),
-    Ip(Ipv4Addr),
+    Ip(IpAddr),
 }
 
 impl fmt::Display for Target {
@@ -51,22 +51,36 @@ impl fmt::Display for Target {
 }
 
 impl Target {
-    /// A target from a text node name (HTTP proxy): an IPv4 literal is `Ip`, a name is `Domain` in lower
-    /// case. Empty, longer than `MAX_NAME_LEN`, or IPv6 (`[..]` or with `:`) is `None`.
+    /// A target from a text node name (HTTP proxy): an IP literal (IPv4, or IPv6 without brackets) is `Ip`,
+    /// a name is `Domain` in lower case. Empty, longer than `MAX_NAME_LEN`, bracketed, or with a `:` that is
+    /// not an IPv6 literal is `None`.
     pub fn from_host(host: &str) -> Option<Target> {
-        if host.is_empty() || host.len() > MAX_NAME_LEN || host.contains(':') || host.starts_with('[') {
+        if host.is_empty() || host.len() > MAX_NAME_LEN || host.starts_with('[') {
             return None;
         }
+        if host.contains(':') {
+            return host
+                .parse::<Ipv6Addr>()
+                .ok()
+                .map(|ip| Target::Ip(IpAddr::V6(ip)));
+        }
         Some(match host.parse::<Ipv4Addr>() {
-            Ok(ip) => Target::Ip(ip),
+            Ok(ip) => Target::Ip(IpAddr::V4(ip)),
             Err(_) => Target::Domain(host.to_lowercase()),
         })
     }
 }
 
-/// A parsed connect request.
+/// The command of a request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Command {
+    Connect,
+}
+
+/// A parsed request.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ConnectRequest {
+pub struct Request {
+    pub command: Command,
     pub target: Target,
     pub port: u16,
 }
@@ -80,7 +94,7 @@ pub enum RequestError {
     Version(u8),
     /// The command is not `CONNECT`.
     Command(u8),
-    /// The address type is not supported (including IPv6).
+    /// The address type is not supported.
     AddressKind(u8),
     /// The domain name length is zero.
     EmptyName,
@@ -114,8 +128,8 @@ impl fmt::Display for RequestError {
 
 impl std::error::Error for RequestError {}
 
-/// Parses a connect request. A pure function: there is no network inside.
-pub fn parse_socks5_request(buf: &[u8]) -> std::result::Result<ConnectRequest, RequestError> {
+/// Parses a request. A pure function: there is no network inside.
+pub fn parse_socks5_request(buf: &[u8]) -> std::result::Result<Request, RequestError> {
     if buf.len() < 4 {
         return Err(RequestError::Short);
     }
@@ -125,52 +139,66 @@ pub fn parse_socks5_request(buf: &[u8]) -> std::result::Result<ConnectRequest, R
     if buf[1] != CMD_CONNECT {
         return Err(RequestError::Command(buf[1]));
     }
-    let (target, rest) = match buf[3] {
-        ATYP_IPV4 => {
-            if buf.len() < 10 {
-                return Err(RequestError::Short);
-            }
-            let ip = Ipv4Addr::new(buf[4], buf[5], buf[6], buf[7]);
-            (Target::Ip(ip), &buf[8..10])
-        }
-        ATYP_DOMAIN => {
-            if buf.len() < 5 {
-                return Err(RequestError::Short);
-            }
-            let len = usize::from(buf[4]);
-            if len == 0 {
-                return Err(RequestError::EmptyName);
-            }
-            if buf.len() < 5 + len + 2 {
-                return Err(RequestError::Short);
-            }
-            let name =
-                std::str::from_utf8(&buf[5..5 + len]).map_err(|_| RequestError::BadName)?;
-            (
-                Target::Domain(name.to_ascii_lowercase()),
-                &buf[5 + len..5 + len + 2],
-            )
-        }
+    let (target, port, _) = parse_address(&buf[3..])?;
+    Ok(Request {
+        command: Command::Connect,
+        target,
+        port,
+    })
+}
+
+/// Parses `ATYP ADDR PORT` at the start of `buf`: the target, the port and the number of bytes used.
+pub(super) fn parse_address(buf: &[u8]) -> std::result::Result<(Target, u16, usize), RequestError> {
+    let Some(&kind) = buf.first() else {
+        return Err(RequestError::Short);
+    };
+    let (target, end) = match kind {
+        ATYP_IPV4 => (Target::Ip(IpAddr::from(fixed::<4>(buf)?)), 5),
+        ATYP_IPV6 => (Target::Ip(IpAddr::from(fixed::<16>(buf)?)), 17),
+        ATYP_DOMAIN => domain_name(buf)?,
         other => return Err(RequestError::AddressKind(other)),
     };
-    Ok(ConnectRequest {
-        target,
-        port: u16::from_be_bytes([rest[0], rest[1]]),
-    })
+    let port = buf.get(end..end + 2).ok_or(RequestError::Short)?;
+    Ok((target, u16::from_be_bytes([port[0], port[1]]), end + 2))
+}
+
+/// A fixed-size address after the type byte.
+fn fixed<const N: usize>(buf: &[u8]) -> std::result::Result<[u8; N], RequestError> {
+    buf.get(1..1 + N)
+        .and_then(|b| b.try_into().ok())
+        .ok_or(RequestError::Short)
+}
+
+/// A length-prefixed domain name after the type byte; the offset past it.
+fn domain_name(buf: &[u8]) -> std::result::Result<(Target, usize), RequestError> {
+    let len = usize::from(*buf.get(1).ok_or(RequestError::Short)?);
+    if len == 0 {
+        return Err(RequestError::EmptyName);
+    }
+    let raw = buf.get(2..2 + len).ok_or(RequestError::Short)?;
+    let name = std::str::from_utf8(raw).map_err(|_| RequestError::BadName)?;
+    Ok((Target::Domain(name.to_ascii_lowercase()), 2 + len))
 }
 
 /// Builds a connect request — needed by the client (`client_connect`) and by tests.
 pub fn encode_socks5_request(target: &Target, port: u16) -> Result<Vec<u8>> {
     let mut out = vec![VERSION, CMD_CONNECT, 0];
     match target {
-        Target::Ip(ip) => {
+        Target::Ip(IpAddr::V4(ip)) => {
             out.push(ATYP_IPV4);
+            out.extend_from_slice(&ip.octets());
+        }
+        Target::Ip(IpAddr::V6(ip)) => {
+            out.push(ATYP_IPV6);
             out.extend_from_slice(&ip.octets());
         }
         Target::Domain(domain) => {
             let bytes = domain.as_bytes();
             if bytes.is_empty() || bytes.len() > MAX_NAME_LEN {
-                bail!("the domain name does not fit in a SOCKS5 frame: {} bytes", bytes.len());
+                bail!(
+                    "the domain name does not fit in a SOCKS5 frame: {} bytes",
+                    bytes.len()
+                );
             }
             out.push(ATYP_DOMAIN);
             out.push(bytes.len() as u8);
