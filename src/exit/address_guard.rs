@@ -69,9 +69,38 @@ fn is_forbidden_v6(ip: Ipv6Addr) -> bool {
 const FOREIGN: IpAddr = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1));
 
 /// The node's own address (the router's public WAN, a VPS address): a socket binds to its own address, and
-/// the route to it picks it as the outgoing one. Sends no packets; a probe error means "not own".
+/// the route to it picks it as the outgoing one; or an IPv6 neighbour in the exit's /64. Sends no packets; a probe
+/// error means "not own".
 pub(super) fn is_own_address(ip: IpAddr) -> bool {
+    if let IpAddr::V6(v6) = ip {
+        return own_or_local(ip) || on_exit_link_v6(v6);
+    }
+    own_or_local(ip)
+}
+
+fn own_or_local(ip: IpAddr) -> bool {
     (binds_to(ip) && !binds_to(FOREIGN)) || routes_to_self(ip)
+}
+
+/// Whether the first 64 bits of two IPv6 addresses are equal.
+fn same_v6_64(a: Ipv6Addr, b: Ipv6Addr) -> bool {
+    u128::from(a) >> 64 == u128::from(b) >> 64
+}
+
+/// Whether the address shares a /64 with the source address the kernel picks for reaching it. An IPv4-mapped
+/// address is never a neighbour; a socket or route failure means "no" (such a request cannot be delivered anyway).
+fn on_exit_link_v6(ip: Ipv6Addr) -> bool {
+    if ip.to_ipv4_mapped().is_some() {
+        return false;
+    }
+    let source = UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 0)).and_then(|sock| {
+        sock.connect((ip, 9))?;
+        sock.local_addr()
+    });
+    match source {
+        Ok(local) => matches!(local.ip(), IpAddr::V6(src) if same_v6_64(src, ip)),
+        Err(_) => false,
+    }
 }
 
 fn binds_to(ip: IpAddr) -> bool {
@@ -101,3 +130,6 @@ fn in_v6(ip: Ipv6Addr, net: Ipv6Addr, len: u8) -> bool {
 #[cfg(test)]
 #[path = "address_guard_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "address_guard_link_tests.rs"]
+mod link_tests;
