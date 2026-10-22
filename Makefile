@@ -32,6 +32,9 @@ BASE ?= main
 APP_NAME ?= MeshTown
 APP_TITLE ?= Mesh Town
 BUNDLE_ID ?= local.meshtown
+# Result directory of the e2e battery: one per tree, so worktrees do not write into the same .tmp/e2e
+# (see e2e/fixtures/orphans.ts); a value from the environment or the command line wins.
+export E2E_RUN_TAG ?= $(notdir $(CURDIR))
 export BUILD_ROOT TARGET_DIR APP_NAME APP_TITLE BUNDLE_ID
 
 # CONTAINER is export only, with no default here: the build/ scripts choose container/docker themselves
