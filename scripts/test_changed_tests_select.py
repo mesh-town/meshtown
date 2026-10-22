@@ -174,6 +174,20 @@ class SelectWebAndScripts(unittest.TestCase):
         )
         self.assertEqual(sel.reasons, ["e2e/README.md → no-op (md)"])
 
+    def test_android_source_selects_android_tests_only(self):
+        sel = changed_tests.select(["android/app/src/main/java/A.java"], _sources())
+
+        self.assertTrue(sel.android)
+        self.assertEqual(
+            (sel.full, sel.py, sel.js, sel.web_check), (False, False, False, False)
+        )
+        self.assertEqual(sel.reasons, ["android/app/src/main/java/A.java → android"])
+
+    def test_android_readme_selects_nothing(self):
+        sel = changed_tests.select(["android/README.md"], _sources())
+
+        self.assertFalse(sel.android)
+
 
 class SelectFullAndEmpty(unittest.TestCase):
     """select() — build files give full, documentation and foreign trees give nothing."""

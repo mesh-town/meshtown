@@ -3,7 +3,7 @@
 
 From `git diff` against `merge-base(BASE, HEAD)` plus untracked files and the path-to-test selection
 rules it decides the `cargo nextest` slices,
-`make test-py`/`test-js`/`web-typecheck`/`web-check` and runs them in order. It does not parse Rust — only
+`make test-py`/`test-js`/`web-typecheck`/`web-check`/`android-test` and runs them in order. It does not parse Rust — only
 a text search for `meshtown::<module>` as a whole word (`users_of`), without an AST.
 Run: `python3 scripts/changed_tests.py --base main [--dry-run]`.
 """
@@ -153,6 +153,7 @@ class Selection:
     js: bool = False
     web_typecheck: bool = False
     bundle_check: bool = False
+    android: bool = False
     lib_modules: set[str] = field(default_factory=set)
     bin_modules: set[str] = field(default_factory=set)
     integration: set[str] = field(default_factory=set)
@@ -222,6 +223,9 @@ def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) ->
         return "py"
     if path.endswith(".md"):
         return "no-op (md)"
+    if path.startswith("android/"):
+        sel.android = True
+        return "android"
     if path.startswith("e2e/"):
         sel.web_check = sel.web_lint = True
         return "web_check + web_lint"
@@ -281,6 +285,8 @@ def commands(sel: Selection) -> list[list[str]]:
         cmds.append(["make", "web-check"])
     if sel.web_lint:
         cmds.append(["make", "web-check-lint"])
+    if sel.android:
+        cmds.append(["make", "android-test"])
     return cmds
 
 def _execute(cmd: list[str]) -> int:
