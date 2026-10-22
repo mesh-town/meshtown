@@ -1,4 +1,4 @@
-//! Helpers for the end-to-end sign-in tests (`tests/web_auth.rs`): token exchange, requests with a cookie, a password
+//! Helpers for the end-to-end sign-in tests (`core/tests/web_auth.rs`): token exchange, requests with a cookie, a password
 //! file in the on-disk format with a small number of iterations. Included next to
 //! `common/web_listener.rs`, takes `http` and `Resp` from it.
 #![allow(dead_code)] // each test crate takes its own subset

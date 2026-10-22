@@ -1,6 +1,6 @@
-//! Helpers for end-to-end tests of the one-time invite (`tests/invite_once_loopback.rs`): loopback
+//! Helpers for end-to-end tests of the one-time invite (`core/tests/invite_once_loopback.rs`): loopback
 //! nodes, issuing a record, joining by a client with short pauses, polling waits with a ceiling.
-//! Included via `#[path]`, like the rest of `tests/common/*`.
+//! Included via `#[path]`, like the rest of `core/tests/common/*`.
 #![allow(dead_code)] // each test crate takes its own subset
 
 use std::time::Duration;

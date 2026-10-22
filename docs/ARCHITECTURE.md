@@ -180,7 +180,7 @@ switch for the exit owner (which domains and ports they are ready to serve) is n
 task. There is no personal data in the frame: no client string, no request path — the exit sees
 only the domain name and the port.
 
-Path choice on the requesting side (`route::choose_route`, `src/route.rs`) does not look at the request's domain
+Path choice on the requesting side (`route::choose_route`, `core/route.rs`) does not look at the request's domain
 at all — one decision for the whole connection at once. The candidates are set by the config field
 `route.exits` (node order = priority, the default is an empty list, edited by `PUT /api/config`
 on the fly): the list is empty → the node connects by itself; not empty → the candidates are tried in list order —

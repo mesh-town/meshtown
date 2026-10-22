@@ -1,6 +1,6 @@
-//! Self-check of the `tests/lossy_link/` proxy: the pure `Direction` model without sockets (determinism, burst statistics, the queue).
+//! Self-check of the `core/tests/lossy_link/` proxy: the pure `Direction` model without sockets (determinism, burst statistics, the queue).
 //!
-//! The shared harness is `tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
+//! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
 mod lossy_link;

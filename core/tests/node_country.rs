@@ -3,7 +3,7 @@
 //! What it does: checks real live iroh-docs synchronization between two nodes on
 //! loopback — a peer sees the announced country, the own cache is read with its write time, a tombstone
 //! and an invalid value are indistinguishable from a missing record, and the old key is not confused with
-//! `list/`/`chk/`/`node/exit/` (modeled on `tests/exit_flag.rs`).
+//! `list/`/`chk/`/`node/exit/` (modeled on `core/tests/exit_flag.rs`).
 //! What it doesn't do: it doesn't check the poll schedule (`geoip::task`) and the node snapshot — those are
 //! `geoip::task_tests` and `node_ctl::snapshot::collect_country_tests`.
 
@@ -18,7 +18,7 @@ use meshtown::node::{self, NodeConfig, RunningNode};
 use meshtown::node_state;
 use tokio::time::{sleep, Instant};
 
-/// A copy of the helper from `tests/exit_flag.rs`: introduces the address of `b` into `a` over loopback.
+/// A copy of the helper from `core/tests/exit_flag.rs`: introduces the address of `b` into `a` over loopback.
 async fn introduce(a: &RunningNode, b: &RunningNode) {
     a.introduce(PeerAddr::new(b.id)).await;
 }

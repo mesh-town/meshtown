@@ -2,7 +2,7 @@
 //!
 //! No network here: the outcome of a round of polling members (`round_outcome`), the growth of the
 //! pause between rounds (`next_pause`) and checking the other side's id (`peer_is`). The end-to-end join over a
-//! loop is checked by `tests/invite_once_loopback.rs`.
+//! loop is checked by `core/tests/invite_once_loopback.rs`.
 
 use std::time::Duration;
 

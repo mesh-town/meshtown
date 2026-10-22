@@ -36,7 +36,7 @@ pub(crate) fn default_exit_enabled(android: bool) -> bool {
 }
 
 impl Default for NetSettings {
-    /// Defaults per `CONFIG-FILE.md`, section 3, and `WEB-API-config.md`, section 2.
+    /// Defaults per `docs/CONFIG-FILE.md`, section 3, and `docs/WEB-API-config.md`, section 2.
     fn default() -> Self {
         NetSettings {
             network_key: None,

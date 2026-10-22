@@ -1,7 +1,7 @@
 //! Tests of the invite verdict and the issue record (`store.rs`).
 //!
 //! These are pure functions: `decide` and `issue_record`. The storage in the document
-//! (`Ledger`) and the sweeper are covered by end-to-end loopback tests (`tests/invite_once_loopback.rs`).
+//! (`Ledger`) and the sweeper are covered by end-to-end loopback tests (`core/tests/invite_once_loopback.rs`).
 
 use super::*;
 use crate::invite::INVITE_TTL_SECS;

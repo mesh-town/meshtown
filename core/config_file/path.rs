@@ -1,4 +1,4 @@
-//! Finding the settings file on disk (`CONFIG-FILE.md`, section 1) and the real process environment.
+//! Finding the settings file on disk (`docs/CONFIG-FILE.md`, section 1) and the real process environment.
 //! What isn't here: parsing and writing the file itself (`parse.rs`, `render.rs`, `save.rs`).
 
 use std::ffi::OsString;
@@ -40,7 +40,7 @@ pub enum ConfigSource {
     Nowhere(String),
 }
 
-/// Which rule of CONFIG-FILE.md section 1 fired.
+/// Which rule of docs/CONFIG-FILE.md section 1 fired.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PathRule {
     Explicit,
@@ -53,7 +53,7 @@ fn env_var(env: &PathEnv, name: &str) -> Option<OsString> {
     (env.var)(name).filter(|v| !v.is_empty())
 }
 
-/// The order of CONFIG-FILE.md section 1: `explicit` (the `--config` flag or `MESHTOWN_CONFIG`, clap has already merged them)
+/// The order of docs/CONFIG-FILE.md section 1: `explicit` (the `--config` flag or `MESHTOWN_CONFIG`, clap has already merged them)
 /// → `<binary directory>/config.json` if that file exists → the standard location.
 pub fn resolve_config_source(explicit: Option<&Path>, env: &PathEnv) -> ConfigSource {
     if let Some(p) = explicit {

@@ -1,7 +1,7 @@
 //! Integration test: a node brings up a connection to a known but not connected member by itself —
 //! without DHT and the address cache (`NodeConfig::for_loopback_test`: the `mem` network, `peers_cache_path: None`).
 //! With the old code a node has no way to learn a member's address again from anywhere — after `Down`
-//! the dialing is not repeated. The node sample and `wait_until` are from `tests/invite_loopback.rs`.
+//! the dialing is not repeated. The node sample and `wait_until` are from `core/tests/invite_loopback.rs`.
 //!
 //! What it does: (1) A learns B's address (`PeerAddr::new(id)`) while the A-B line is cut
 //!   (`MemNet::cut`: no paths, new ones forbidden); after a few seconds the line is repaired

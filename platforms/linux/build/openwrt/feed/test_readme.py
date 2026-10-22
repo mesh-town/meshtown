@@ -1,9 +1,11 @@
 """Tests of the feed README text and of build_feed.py writing it to the feed root.
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
+import re
 import unittest
+from pathlib import Path
 
 from readme import render_readme
 from test_build_feed import BASE, FIVE_LABELS, setup
@@ -57,6 +59,19 @@ class FeedRoot(unittest.TestCase):
         self.assertIn(BASE, text)
         for label in FIVE_LABELS:
             self.assertIn(label, text)
+
+
+    def test_links_point_at_existing_paths(self):
+        # given
+        root = Path(__file__).parents[5]
+        text = render_readme(BASE, FIVE_LABELS)
+        # when
+        paths = re.findall(r"/(?:tree|blob)/main/(\S+?)\)", text)
+        # then
+        self.assertTrue(paths)
+        for rel in paths:
+            self.assertTrue((root / rel).exists(), rel)
+            self.assertFalse(rel.startswith("build/"), rel)
 
 
 if __name__ == "__main__":

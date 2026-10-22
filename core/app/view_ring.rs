@@ -1,6 +1,6 @@
 //! The tray icon as a ring of sectors, one per network member.
 //!
-//! What it does: from the node snapshot selection (`TraySnapshot`, `GET /api/state`, `WEB-API.md` §1.3) it computes a `Ring` — how many
+//! What it does: from the node snapshot selection (`TraySnapshot`, `GET /api/state`, `docs/WEB-API.md` §1.3) it computes a `Ring` — how many
 //! members are in each role (all but the node itself, with no limit). Roles run clockwise from
 //! 12 o'clock: the selected exit is unavailable (red), the exit we go through (blue), exiting
 //! through us (violet), online (green), offline (grey); identical neighbours

@@ -2,8 +2,8 @@
 //! the member's key is written to `save` before the network change, the node moves on to starting, the member's refusals are seen
 //! as `Refused` and don't touch the node.
 //! What it doesn't do: it doesn't check waiting without members, cancellation and shutdown (the unit tests
-//! `node_ctl/invite_wait_tests.rs`), the page and the settings file (`tests/node_web_bootstrap.rs`).
-//! Links: `meshtown::node_ctl::NodeCtl`, the node harness is `tests/common/invite_nodes.rs`.
+//! `node_ctl/invite_wait_tests.rs`), the page and the settings file (`core/tests/node_web_bootstrap.rs`).
+//! Links: `meshtown::node_ctl::NodeCtl`, the node harness is `core/tests/common/invite_nodes.rs`.
 
 #[path = "common/invite_nodes.rs"]
 mod common;

@@ -5,7 +5,7 @@
 //! unpublishing, a slash in the key (remove 80 without touching 8080), a `Nodes` refusal, the
 //! "not responding" status on the publisher and closing an opened port.
 //! What it does not do: does not check the page and the config file.
-//! Links: `meshtown::ports`, `meshtown::node`; the harness is `tests/common/socks_pair.rs`.
+//! Links: `meshtown::ports`, `meshtown::node`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

@@ -9,7 +9,7 @@
 //! What it does not do: does not check the switch to the next candidate, the TUN path and reopening the
 //! connection after the exit is removed — outside the task's boundary.
 //! Links: `meshtown::route::RouteCtx::wait_until_exit_dropped`, `meshtown::proxy::path::splice_while_chosen`,
-//! `meshtown::exit::splice`; the harness is `tests/common/socks_pair.rs`.
+//! `meshtown::exit::splice`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

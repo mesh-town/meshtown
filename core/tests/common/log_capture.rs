@@ -10,7 +10,7 @@
 //! `mark()` cuts off only the old ones by time, but not other parallel tests. `nextest` runs
 //! each test in its own process, so nothing mixes there. It is plugged in with the line
 //! `#[path = "common/log_capture.rs"] mod log_capture;`. The file has no test of its own — the layer is
-//! checked by `tests/log_capture_check.rs`.
+//! checked by `core/tests/log_capture_check.rs`.
 
 #![allow(dead_code)]
 

@@ -14,7 +14,7 @@
 //! (`trim_and_validate_node_name`).
 //!
 //! Word list: EFF Large Wordlist for Passphrases, © Electronic Frontier Foundation,
-//! CC BY 3.0 US, https://www.eff.org/dice — see `src/wordlist/NOTICE.md`.
+//! CC BY 3.0 US, https://www.eff.org/dice — see `core/wordlist/NOTICE.md`.
 
 use std::collections::HashSet;
 use std::sync::OnceLock;

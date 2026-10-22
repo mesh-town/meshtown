@@ -6,7 +6,7 @@
 //! comes from the document, and the handshake carries the current name, not the startup name.
 //! What it doesn't do: it doesn't parse the name (`node_name_tests`), doesn't go through the web page and the snapshot
 //! (`node_ctl::state_tests`, a manual run). The helpers are copies from `exit_flag.rs`,
-//! `node_program_version.rs` and `handshake_compat.rs`: we don't pull in the shared `tests/common/`.
+//! `node_program_version.rs` and `handshake_compat.rs`: we don't pull in the shared `core/tests/common/`.
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -203,13 +203,13 @@ async fn shutdown_pair(a: RunningNode, b: RunningNode) {
     b.shutdown().await;
 }
 
-/// A copy of the helper from `tests/exit_flag.rs`: introduces the address of `b` into `a` (in the `mem` network — by key).
+/// A copy of the helper from `core/tests/exit_flag.rs`: introduces the address of `b` into `a` (in the `mem` network — by key).
 async fn introduce(a: &RunningNode, b: &RunningNode) {
     a.introduce(PeerAddr::new(b.id)).await;
 }
 
 /// Polls every 50 ms up to `limit`: the last value read, as soon as `done` returns true
-/// or the time runs out (a copy from `tests/node_program_version.rs`).
+/// or the time runs out (a copy from `core/tests/node_program_version.rs`).
 async fn poll<T, F: Future<Output = T>>(
     limit: Duration,
     mut read: impl FnMut() -> F,

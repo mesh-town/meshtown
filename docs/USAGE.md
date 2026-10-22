@@ -1,7 +1,7 @@
 # Mesh Town usage reference
 
 This is the reference for running a node: command-line options, the settings file, joining a network, the proxy and
-exit, site checks, the node page and the log. For a short introduction see [README.md](README.md).
+exit, site checks, the node page and the log. For a short introduction see [README.md](../README.md).
 
 ## Running the node
 
@@ -57,7 +57,7 @@ invite; in the current code that flag is passed along but never read. Leave them
 In a build with the tray (the macOS `.app` and the `gui` builds for Linux and Windows) `meshtown` without a subcommand
 starts the tray icon (the `meshtown-cli` build has no tray: `meshtown-cli run …` keeps the node in the terminal). The tray runs the node and opens the node page from its menu. On macOS and Windows the node's
 log goes to `meshtown.log` and the tray's to `meshtown-tray.log` in the settings directory; Linux does not write
-these files. For the macOS package itself see [build/macos/README.md](build/macos/README.md).
+these files. For the macOS package itself see [platforms/macos/build/README.md](../platforms/macos/build/README.md).
 
 ## Settings file
 
@@ -250,7 +250,7 @@ hint, node name, permission to be an exit for other members) and six more tabs: 
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
 the tabs become a horizontal strip.
 
-The page is a Vue application. Its sources are in `web/vue`, and the built result is one file, `web/bundle/app.js`,
+The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
 which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo
 build` does not need Node. The listener is built into the binary (`src/web.rs`, HTTP/1.1 on axum) and starts with the
 node. The port is `--web-port N` (default 7777, the settings field `web.port`). To turn the page off entirely, set
@@ -282,7 +282,7 @@ temporary token instead.
 - **Limits.** The page is served over HTTP without TLS: on a local network the password, token and cookie travel in
   clear text, so on an untrusted network keep `localhost`. A known limitation: a page port published to the network
   through `ports.published` reaches the page from `127.0.0.1` and bypasses the access mode, so do not publish the page
-  port. On a router, `localnet` relies on the WAN firewall (see [build/openwrt/README.md](build/openwrt/README.md)).
+  port. On a router, `localnet` relies on the WAN firewall (see [platforms/linux/build/openwrt/README.md](../platforms/linux/build/openwrt/README.md)).
 
 ### API and demo node
 
@@ -290,7 +290,7 @@ The HTTP API contract is [WEB-API.md](WEB-API.md): addresses, formats, error cod
 [WEB-API-config.md](WEB-API-config.md), and [WEB-API-embedding.md](WEB-API-embedding.md) (section 3.1) describes where
 the listener lives inside the program. The page, the demo node and the built-in listener must match it exactly.
 
-The demo node (`examples/web_demo/`) is a light way to try the page without starting a real node:
+The demo node (`core/examples/web_demo/`) is a light way to try the page without starting a real node:
 
     make web-demo
     # http://127.0.0.1:7777/?token=dev

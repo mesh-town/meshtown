@@ -4,7 +4,7 @@ Refusals (exit 2) and tool lookup run anywhere with stub tools. Building a signe
 openssl; adding the apk half needs apk-tools and root (or fakeroot). Without them those tests are
 skipped, unless MESHTOWN_FEED_REQUIRE_TOOLS=1 turns a skip into a failure.
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import os

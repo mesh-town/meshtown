@@ -1,7 +1,7 @@
 //! The wiring of `Inputs.cached_seen` through `collect()` is checked by
 //! a real node on loopback: the merge rule in `peers[]` is the job of `build_cache_tests.rs`,
 //! here only the wire "cache file on disk → node snapshot".
-//! The recipe for the node and the cache file is like `tests/peers_cache_loopback.rs::b_finds_a_from_cache_without_dht`,
+//! The recipe for the node and the cache file is like `core/tests/peers_cache_loopback.rs::b_finds_a_from_cache_without_dht`,
 //! but through the `pub(crate)` API of this library (an integration test outside cannot see it).
 
 use super::*;

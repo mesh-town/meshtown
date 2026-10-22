@@ -59,7 +59,7 @@ settings are kept. The lines added to `/etc/sysupgrade.conf` by step 4 of the ma
 Not in the feed yet: MIPS, ARMv5/v6, 32-bit x86. For these (or if the feed is unreachable) use the manual way below.
 
 **Keys.** The feed is signed: `opkg` indexes with `usign` (`meshtown-usign.pub`), `apk` indexes with an EC P-256 key
-(`meshtown-apk.pem`). Both public keys are in the feed root and in `build/openwrt/keys/` of the repository; compare the
+(`meshtown-apk.pem`). Both public keys are in the feed root and in `platforms/linux/build/openwrt/keys/` of the repository; compare the
 key your router has with the repository copy before trusting a mirror. Key fingerprints:
 
 - `meshtown-usign.pub` (`usign -F`): `56bb3849e4234cf7` — on a 24.10 router the key is `/etc/opkg/keys/56bb3849e4234cf7`.
@@ -109,7 +109,7 @@ The step 0 check: `netstat` shows `127.0.0.1:1080` and `:7777` on a running node
 Steps 1–3: copying and starting.
 
     cat dist/meshtown-linux-arm64-cli-<version> | ssh $ROUTER 'cat > /usr/bin/meshtown && chmod 0755 /usr/bin/meshtown'
-    cat build/openwrt/init.d-meshtown   | ssh $ROUTER 'cat > /etc/init.d/meshtown && chmod 0755 /etc/init.d/meshtown'
+    cat platforms/linux/build/openwrt/init.d-meshtown   | ssh $ROUTER 'cat > /etc/init.d/meshtown && chmod 0755 /etc/init.d/meshtown'
     ssh $ROUTER '/etc/init.d/meshtown enable && /etc/init.d/meshtown start'
 
 Step 3a, networks for the proxy and the page: seeding works on a fresh install too. The file `/etc/meshtown/config.json` does not exist yet —

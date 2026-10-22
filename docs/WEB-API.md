@@ -2,8 +2,8 @@
 
 This document describes the HTTP API of the node's web page and the schema of its config — the canonical source;
 the contract is edited here directly.
-The demo node of the page (`examples/web_demo/`, the `make web-check` suite — Playwright, `e2e/`) and
-the frontend (`web/vue/src/`) must match this document character for character: field names,
+The demo node of the page (`core/examples/web_demo/`, the `make web-check` suite — Playwright, `core/web_gui/e2e/`) and
+the frontend (`core/web_gui/ui/vue/src/`) must match this document character for character: field names,
 error codes, enum values.
 
 How the `config` document (section 2, `WEB-API-config.md`) is laid out on disk — where the file lives, how it survives a crash of the
@@ -114,7 +114,7 @@ The full list of codes:
 | Method | Address | Content type |
 |---|---|---|
 | GET | `/` | `text/html; charset=utf-8` |
-| GET | `/css/NN-*.css` (8 files, see `web/css/`) | `text/css; charset=utf-8` |
+| GET | `/css/NN-*.css` (8 files, see `core/web_gui/ui/css/`) | `text/css; charset=utf-8` |
 | GET | `/bundle/app.js` (built Vue, committed, `make web-build`) | `text/javascript; charset=utf-8` |
 
 These addresses do not require credentials (rationale in 1.1); the peer address, `Host` and `Origin` are checked.
@@ -345,7 +345,7 @@ Exact enum values:
 - `boot_id` — random 8 hexadecimal characters, new on every process start.
   A change of `boot_id` means the node restarted: the page clears the log and rereads the config.
 - `now` — seconds since node start with one decimal place, the same scale as the log lines
-  (`src/output.rs:22`).
+  (`core/output.rs:22`).
 - `network` — `null` on the very first run, while there is no network yet: the person has not created one and has not joined
   any. Page behavior in this case: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network itself.
 
@@ -377,7 +377,7 @@ the `after` cursor stops being continuous. The `tag` parameter is not introduced
 - `gap: true` — the requested `after` is older than `first_seq`, some lines have already been evicted from the ring;
   the page clears the window and draws what arrived.
 - `text` is a ready-made string **without** the timestamp and tag: the page assembles them by the format
-  `src/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
+  `core/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
   This way the node does not spend bytes repeating what is already in the fields.
 
 ### 1.5 `GET /api/log/download` — log download

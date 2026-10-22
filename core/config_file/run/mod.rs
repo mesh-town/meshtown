@@ -1,5 +1,5 @@
 //! Prepares the node start from the settings file and flags (`prepare`): assembles everything for the start.
-//! (`CONFIG-FILE.md`, section 5). Not here: parsing and writing the file as such (`parse.rs`,
+//! (`docs/CONFIG-FILE.md`, section 5). Not here: parsing and writing the file as such (`parse.rs`,
 //! `save.rs`) — this module decides whether to read/write, and prints the outcome to the log.
 //!
 //! Split by file: this `mod.rs` is the entry (`RunConfig`, `prepare`, `PrepareOutcome`);
@@ -87,7 +87,7 @@ fn base_report(path: Option<PathBuf>) -> FileReport {
 /// Prepares the start: finds, reads and, if necessary, writes the settings file, decides which
 /// secret to live with, and prints the outcome to the log. Returns an error only if
 /// `fill_random` failed (then the node won't start even without a file). A corrupted, unreadable file and
-/// a failed write are a `RunConfig` with a filled-in report (`CONFIG-FILE.md`, section 5).
+/// a failed write are a `RunConfig` with a filled-in report (`docs/CONFIG-FILE.md`, section 5).
 pub fn prepare(
     source: &ConfigSource,
     cli: &CliOverrides,

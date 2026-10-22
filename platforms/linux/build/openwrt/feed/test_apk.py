@@ -4,7 +4,7 @@ Building a package needs apk-tools and root (or fakeroot): without them those te
 unless MESHTOWN_FEED_REQUIRE_TOOLS=1, which turns every skip into a failure. Checking the index
 signature needs apk-tools only. The root check itself needs nothing.
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import re

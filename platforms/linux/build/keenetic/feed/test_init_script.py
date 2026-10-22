@@ -1,6 +1,6 @@
 """Tests of the S99meshtown init script against a stub rc.func that records what the script sets up.
 
-Run from the tree root: python3 -m unittest discover -s build/keenetic/feed -t build/keenetic/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed
 """
 
 import os

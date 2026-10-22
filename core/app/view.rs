@@ -1,6 +1,6 @@
 //! What the tray icon shows: the color and the menu texts.
 //!
-//! What it does: turns the node snapshot selection (`TraySnapshot` from `GET /api/state`, `WEB-API.md` §1.3) into plain facts
+//! What it does: turns the node snapshot selection (`TraySnapshot` from `GET /api/state`, `docs/WEB-API.md` §1.3) into plain facts
 //! (`ColorFacts`), the facts into a color (`TrayColor`) and draws it as a circle (`icon_rgba`); the page
 //! state (`PageState`) into the text and availability of the "Open" menu item; the node state
 //! (`NodeState`) into the text and availability of the single node item `node_item_text` (it used to be
@@ -149,7 +149,7 @@ pub fn node_state_phrase(node: NodeState) -> &'static str {
     }
 }
 
-/// Extracts the facts from the node snapshot selection (`TraySnapshot`, the shape of `WEB-API.md` §1.3).
+/// Extracts the facts from the node snapshot selection (`TraySnapshot`, the shape of `docs/WEB-API.md` §1.3).
 ///
 /// `None` only when there is no `node` or `node.status` is not a string (the single failure). Otherwise:
 /// `network` counts **only** when it is `null` — a missing key is not the same as `null`

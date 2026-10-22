@@ -1,6 +1,6 @@
 """Tests of targets.py: the label table and the ELF check (no external tools).
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import unittest

@@ -54,7 +54,7 @@ impl TestNode {
     }
 }
 
-/// The last 6 lines of the internal 8 (`WEB-API.md` §1.3 gives exactly 6 in `log.tail`). `TestNode` builds
+/// The last 6 lines of the internal 8 (`docs/WEB-API.md` §1.3 gives exactly 6 in `log.tail`). `TestNode` builds
 /// 8, gives out the last 6, rounding `t` to one decimal place.
 fn log_tail_6() -> Vec<LogLine> {
     let all: Vec<LogLine> = (1u64..=8)

@@ -1,11 +1,10 @@
-# Shared part of the build/<system>/build.sh and build/dev.sh scripts: sourced with `.`,
-# not run directly. Expects the calling script to have already set ROOT (the repository root) —
-# the depth of the script itself differs between build/dev.sh (one level) and
-# build/<system>/build.sh (two levels), so each caller computes it itself.
+# Shared part of the platform build scripts (platforms/<system>/build/*.sh): sourced with `.`, not run
+# directly. Expects the calling script to have already set ROOT (the repository root); each caller
+# computes it itself, since the scripts sit at different depths.
 #
 # Provides:
 #   PROTO, DIST         — from ROOT.
-#   VERSION             — version from Cargo.toml; part of the dist/ file names.
+#   VERSION             — `version` of [workspace.package] in the root Cargo.toml; part of the dist/ file names.
 #   build_keep_two      — dist/ cleanup: the two newest versions of one name stay.
 #   BUILD_ROOT, TARGET_DIR — defaults (shared by host builds of main).
 #   CONTAINER           — `container` on Darwin, `docker` on other OSes; the default lives only
@@ -22,7 +21,7 @@
 # Defaults use `${VAR:-default}` (empty or unset → default): an empty value
 # that arrived through `export` in the root Makefile must not override the OS-based choice or the substituted
 # default.
-: "${ROOT:?build/common/lib.sh: the calling script must set ROOT before sourcing}"
+: "${ROOT:?release/lib.sh: the calling script must set ROOT before sourcing}"
 
 PROTO="$ROOT"
 DIST="${DIST:-$ROOT/dist}"
@@ -72,32 +71,47 @@ build_die_unknown_kind() {
 }
 
 # build_manifest_no_dylib <directory> — creates the directory and puts a Cargo.toml in it: a copy
-# of $PROTO/Cargo.toml without the `crate-type = ` line (the dylib is needed only by the fast make loop on macOS,
-# for a rollout it adds an extra ~40 MB and link time). Prints the file path; over /src/Cargo.toml
-# in the container the copy is mounted with a second -v, after the directory.
+# of $PROTO/core/Cargo.toml without the `crate-type = ` line (the dylib is needed only by the fast make loop on macOS,
+# for a rollout it adds an extra ~40 MB and link time). Prints the file path; over /src/core/Cargo.toml
+# in the container the copy is mounted with a second -v, after the $PROTO directory.
 build_manifest_no_dylib() {
+  if [ ! -f "$PROTO/core/Cargo.toml" ]; then
+    echo "core manifest not found: $PROTO/core/Cargo.toml" >&2
+    exit 1
+  fi
   mkdir -p "$1"
-  sed '/^crate-type = /d' "$PROTO/Cargo.toml" > "$1/Cargo.toml"
+  sed '/^crate-type = /d' "$PROTO/core/Cargo.toml" > "$1/Cargo.toml"
   echo "$1/Cargo.toml"
 }
 
-# build_farm_no_dylib <directory> — for a build on the host without a container: a directory with a manifest without
-# dylib and symlinks to $PROTO/src, web, vendor, Cargo.lock (nothing else is needed for `cargo build --release`).
-# Earlier links are removed with `rm -f` (the links themselves, not their targets). Prints the path to Cargo.toml;
-# call with `--manifest-path` from the $PROTO directory.
+# build_farm_no_dylib <directory> — for a build on the host without a container: a directory with the root
+# manifest (copied), Cargo.lock (a link) and core/ whose manifest has no dylib and whose other entries are
+# links to $PROTO/core/* (nothing else is needed for `cargo build --release`). The directory is rebuilt
+# on each call: stale entries of core/ are removed (`rm -rf` runs inside the farm, which holds only links
+# and the manifest copy). Prints the path to Cargo.toml; call with `--manifest-path` from the $PROTO directory.
 build_farm_no_dylib() {
-  farm_manifest="$(build_manifest_no_dylib "$1")"
-  for farm_item in src web vendor Cargo.lock; do
-    rm -f "$1/$farm_item"
-    ln -s "$PROTO/$farm_item" "$1/$farm_item"
+  if [ ! -d "$PROTO/core" ]; then
+    echo "core directory not found: $PROTO/core" >&2
+    exit 1
+  fi
+  mkdir -p "$1"
+  cp "$PROTO/Cargo.toml" "$1/Cargo.toml"
+  rm -f "$1/Cargo.lock"
+  ln -s "$PROTO/Cargo.lock" "$1/Cargo.lock"
+  rm -rf "${1:?}/core"
+  build_manifest_no_dylib "$1/core" > /dev/null || exit 1
+  for farm_item in "$PROTO"/core/*; do
+    farm_name="$(basename "$farm_item")"
+    [ "$farm_name" = Cargo.toml ] && continue
+    ln -s "$farm_item" "$1/core/$farm_name"
   done
-  echo "$farm_manifest"
+  echo "$1/Cargo.toml"
 }
 
-# VERSION — `version` from the [package] section of $PROTO/Cargo.toml: it goes into the dist/ file names.
-VERSION="$(sed -n '/^\[package\]/,/^\[/{s/^version = "\(.*\)"/\1/p;}' "$PROTO/Cargo.toml" | head -1)"
+# VERSION — `version` from the [workspace.package] section of $PROTO/Cargo.toml: it goes into the dist/ file names.
+VERSION="$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^version = "\(.*\)"/\1/p;}' "$PROTO/Cargo.toml" | head -1)"
 if [ -z "$VERSION" ]; then
-  echo "version not found in [package] $PROTO/Cargo.toml" >&2
+  echo "version not found in [workspace.package] $PROTO/Cargo.toml" >&2
   exit 1
 fi
 

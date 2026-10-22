@@ -24,7 +24,7 @@ const walk = (dir) =>
     return e.isDirectory() ? walk(full) : [full];
   });
 
-/** Lines of the `web/vue/src/**` sources (without test files) labeled "file:line". */
+/** Lines of the `core/web_gui/ui/vue/src/**` sources (without test files) labeled "file:line". */
 function vueSourceLines() {
   return walk(SRC_DIR)
     .filter((f) => SOURCE_FILE.test(f) && !TEST_FILE.test(path.basename(f)))

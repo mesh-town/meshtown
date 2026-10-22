@@ -22,7 +22,7 @@ mod bundle_app_js {
         // given
         let entry = page_entry("/bundle/app.js");
         // then
-        assert_eq!(entry.2, bundle_on_disk(), "the entry body differs from web/bundle/app.js");
+        assert_eq!(entry.2, bundle_on_disk(), "the entry body differs from web_gui/ui/bundle/app.js");
         assert!(!entry.2.is_empty(), "the built file is empty");
     }
 
@@ -83,6 +83,6 @@ fn page_entry(path: &str) -> (&'static str, &'static str, &'static str) {
 }
 
 fn bundle_on_disk() -> String {
-    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/web/bundle/app.js");
+    let path = concat!(env!("CARGO_MANIFEST_DIR"), "/web_gui/ui/bundle/app.js");
     std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"))
 }

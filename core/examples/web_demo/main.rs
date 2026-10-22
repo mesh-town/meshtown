@@ -5,9 +5,9 @@
 //! `make web-check` run all need a real binary with a real HTTP stack, not
 //! tests inside the cargo process.
 //! Non-goals: does not touch a real node — the whole node here is a stage prop.
-//! Related: `WEB-API.md` is the specification of the flags, the settings-file
+//! Related: `docs/WEB-API.md` is the specification of the flags, the settings-file
 //! preparation procedures and the `DemoNode` behavior.
-//! `WEB-API.md`.
+//! `docs/WEB-API.md`.
 //!
 //! Files: `args.rs` — CLI flags; `overrides.rs` — parsing of `--cli-override`; `config.rs` —
 //! preparation of the settings file; `rng.rs` — deterministic generator; `node.rs` — the state of

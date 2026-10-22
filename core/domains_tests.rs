@@ -1,4 +1,4 @@
-//! Tests of domain parsing and the node's list (`domains.rs`); the shared document and reconciliation are in `tests/domains_loopback.rs`.
+//! Tests of domain parsing and the node's list (`domains.rs`); the shared document and reconciliation are in `core/tests/domains_loopback.rs`.
 
 use super::*;
 

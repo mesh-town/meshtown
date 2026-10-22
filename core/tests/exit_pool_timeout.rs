@@ -6,9 +6,9 @@
 //! `STREAMS_LIMIT` per connection; the test fills this limit with open streams and asks for one more through
 //! `PeerConnPool::default().with_open_timeout(..)`. Requests run under the outer timeout `NET_LIMIT`: code without
 //! a timeout fails the test instead of hanging the run.
-//! What it doesn't do: it doesn't go through SOCKS (that is `tests/socks_stream_wait.rs`) and doesn't send exit
+//! What it doesn't do: it doesn't go through SOCKS (that is `core/tests/socks_stream_wait.rs`) and doesn't send exit
 //! request frames — the streams are empty, and B doesn't see them until they are closed.
-//! Links: `meshtown::exit::PeerConnPool`; scaffolding in `tests/common/socks_pair.rs`.
+//! Links: `meshtown::exit::PeerConnPool`; scaffolding in `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

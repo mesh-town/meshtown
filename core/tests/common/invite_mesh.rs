@@ -1,4 +1,4 @@
-//! Helpers for the tests of handing an invite to holders (`tests/invite_holders.rs`): several nodes
+//! Helpers for the tests of handing an invite to holders (`core/tests/invite_holders.rs`): several nodes
 //! in one `mem` network, a source for `invite::make`, an issue "like the console". Included via
 //! `#[path]` next to `invite_nodes.rs`.
 #![allow(dead_code)] // each test crate takes its own subset

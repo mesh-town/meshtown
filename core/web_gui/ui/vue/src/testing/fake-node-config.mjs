@@ -1,6 +1,6 @@
 /* Config writes and restart of the fake node (part of `fake-node.mjs`): the fields that need a restart
  * (`socks.ifaces`, `socks.access`) and the `web.ifaces` field, which takes effect at once. The contract is the node snapshot shape
- * of the network selection and `WEB-API-config.md`. The functions return `{ status, body }`, `fake-node.mjs` builds the response.
+ * of the network selection and `docs/WEB-API-config.md`. The functions return `{ status, body }`, `fake-node.mjs` builds the response.
  *
  * The running values (`node.running`) are remembered at the first PUT from the config that lay there before it: a test
  * may adjust `node.config` before mounting, and that is not "pending a restart". Returning a value clears the pending state. */

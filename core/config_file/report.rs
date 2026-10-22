@@ -1,4 +1,4 @@
-//! The file report for the node (CONFIG-FILE.md section 5.1) and the on-disk state.
+//! The file report for the node (docs/CONFIG-FILE.md section 5.1) and the on-disk state.
 
 use std::path::PathBuf;
 

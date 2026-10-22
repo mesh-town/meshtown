@@ -1,8 +1,8 @@
 #!/bin/sh
 # Cross-build of meshtown for Linux x86_64 (static, musl), in a container.
-# Usage: build/linux/build.sh cli|gui|arm64_cli|armv7_cli
+# Usage: platforms/linux/build/build.sh cli|gui|arm64_cli|armv7_cli
 # The dist/ file name carries the version from Cargo.toml (<v>); after copying the two
-# newest versions of each name stay (build_keep_two, build/common/lib.sh).
+# newest versions of each name stay (build_keep_two, release/lib.sh).
 #   cli       — without tray (--no-default-features --features net-hyper): dist/meshtown-linux-cli-<v>
 #   gui       — with tray (default features): dist/meshtown-linux-gui-<v>
 #   arm64_cli — Linux arm64 (OpenWrt router, static musl) without tray, image
@@ -11,7 +11,7 @@
 #               and without an FPU) without tray, image messense/rust-musl-cross:armv7-musleabi:
 #               dist/meshtown-linux-armv7-cli-<v>
 # townjump (hyper transport, the net-hyper feature in default) is a git dependency: it is fetched on the host
-# (build_cargo_git_prefetch, build/common/lib.sh) into $BUILD_ROOT/make-linux*/git, mounted at /root/.cargo/git.
+# (build_cargo_git_prefetch, release/lib.sh) into $BUILD_ROOT/make-linux*/git, mounted at /root/.cargo/git.
 # One shared build directory for cli and gui ($BUILD_ROOT/make-linux/out) — cargo keeps dependencies with
 # different features side by side, only the crate itself is rebuilt; the binary is copied to
 # dist/ right after its own build, there are no prerequisites between kinds. arm64_cli has its own directory
@@ -20,14 +20,14 @@
 # `make build_linux_arm64_cli` / `make build_linux_armv7_cli`.
 # HEAP_PROF=1 (cli, gui) — heap profile for the memory watchdog: --features heap-prof --profile release-sym
 #   (jemalloc with profiling, symbols for jeprof; the binary comes from <triple>/release-sym/); by default — the usual build.
-# Environment variables (defaults in build/common/lib.sh): BUILD_ROOT, CONTAINER.
+# Environment variables (defaults in release/lib.sh): BUILD_ROOT, CONTAINER.
 # Build rules: --memory 8g -c 4 are mandatory, emulation is for running only.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-# shellcheck source=../common/lib.sh
-. "$SCRIPT_DIR/../common/lib.sh"
+ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+# shellcheck source=../../../release/lib.sh
+. "$SCRIPT_DIR/../../../release/lib.sh"
 
 KIND="$1"
 IMAGE="messense/rust-musl-cross:x86_64-musl"
@@ -73,11 +73,11 @@ fi
 
 mkdir -p "$LINUX_DIR/out" "$LINUX_DIR/registry"
 build_cargo_git_prefetch "$LINUX_DIR"
-# Manifest without `crate-type` (no dylib), over /src/Cargo.toml only in the container; the order
+# Manifest without `crate-type` (no dylib), over /src/core/Cargo.toml only in the container; the order
 # of the mounts matters — the directory first, then the file.
 MANIFEST="$(build_manifest_no_dylib "$LINUX_DIR")"
 "$CONTAINER" run $CONTAINER_RUN_FLAGS \
-  -v "$PROTO:/src" -v "$MANIFEST:/src/Cargo.toml" -w /src -e CARGO_TARGET_DIR=/target \
+  -v "$PROTO:/src" -v "$MANIFEST:/src/core/Cargo.toml" -w /src -e CARGO_TARGET_DIR=/target \
   -v "$LINUX_DIR/out:/target" -v "$LINUX_DIR/registry:/root/.cargo/registry" -v "$LINUX_DIR/git:/root/.cargo/git" \
   "$IMAGE" \
   cargo build --locked $PROF_FLAGS --target "$TRIPLE" $FEATURE_FLAG

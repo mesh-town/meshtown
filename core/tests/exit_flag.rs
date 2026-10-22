@@ -16,14 +16,14 @@ use meshtown::node::{self, NodeConfig, RunningNode};
 use meshtown::node_state;
 use tokio::time::{sleep, Instant};
 
-/// A copy of the helper from `tests/checks_loopback.rs`: introduces the address of `b` to `a` over loopback.
+/// A copy of the helper from `core/tests/checks_loopback.rs`: introduces the address of `b` to `a` over loopback.
 async fn introduce(a: &RunningNode, b: &RunningNode) {
     a.introduce(PeerAddr::new(b.id)).await;
 }
 
 /// Polls every 200 ms up to `limit`: reads the exit flags of `node` and returns the last map
 /// as soon as `want` returns true or the deadline passes (the same technique as `wait_views` in
-/// `tests/checks_loopback.rs`).
+/// `core/tests/checks_loopback.rs`).
 async fn wait_exits(
     node: &RunningNode,
     limit: Duration,

@@ -8,7 +8,7 @@
 //! What it doesn't do: it doesn't check DHT, relay, the console and the page; the protocol scenarios (repeat,
 //! expiry, a second admitter, a foreign id, a foreign network) are in `invite_once_loopback.rs`. The address in
 //! the string is the admitter's id without hints: in the `mem` network a peer is found by key.
-//! Links: `meshtown::invite::{make, parse, redeem, store}`, `node::start_node`, `tests/common/invite_nodes.rs`.
+//! Links: `meshtown::invite::{make, parse, redeem, store}`, `node::start_node`, `core/tests/common/invite_nodes.rs`.
 
 use std::time::Duration;
 

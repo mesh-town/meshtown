@@ -4,7 +4,7 @@ import type { ConfigFileState, TransportMode } from "./api-types-state.ts";
 
 // ---------------------------------------------------------------- config
 
-/** The `config` document in the `GET`/`PUT /api/config` responses and in 409 — WEB-API-config.md §2.
+/** The `config` document in the `GET`/`PUT /api/config` responses and in 409 — docs/WEB-API-config.md §2.
  * Always the values from the file, not the effective ones (launch flags are not mixed in). */
 export interface ConfigDocument {
   version: number;
@@ -67,7 +67,7 @@ export interface FieldError {
   message: string;
 }
 
-/** The `file` block — the state of the settings file (`ConfigState::file_block`) — WEB-API-config.md §1.6. */
+/** The `file` block — the state of the settings file (`ConfigState::file_block`) — docs/WEB-API-config.md §1.6. */
 export interface ConfigFileInfo {
   path: string | null; // null — the node runs without a file (--no-config)
   state: ConfigFileState;
@@ -76,7 +76,7 @@ export interface ConfigFileInfo {
   field_errors: FieldError[];
 }
 
-/** `GET /api/config` — WEB-API-config.md §1.6. */
+/** `GET /api/config` — docs/WEB-API-config.md §1.6. */
 export interface ConfigResponse {
   rev: number;
   config: ConfigDocument;
@@ -87,7 +87,7 @@ export interface ConfigResponse {
   file: ConfigFileInfo;
 }
 
-/** Successful `PUT /api/config`, 200 — WEB-API-config.md §1.7. */
+/** Successful `PUT /api/config`, 200 — docs/WEB-API-config.md §1.7. */
 export interface ConfigPutResponse extends ConfigResponse {
   changed: ConfigPath[];
 }
@@ -99,7 +99,7 @@ export type DeepPartial<T> = T extends readonly unknown[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 
-/** Body of `PUT /api/config` — WEB-API-config.md §1.7. The node overlays `config` on the current
+/** Body of `PUT /api/config` — docs/WEB-API-config.md §1.7. The node overlays `config` on the current
  * document (objects merge, lists are replaced); it ignores `read_only` fields. */
 export interface ConfigPutRequest {
   rev: number;
@@ -109,7 +109,7 @@ export interface ConfigPutRequest {
 /** Config meta lists in the page store (`store.configMeta`, `core/save-config.js`). */
 export type ConfigMeta = Pick<ConfigResponse, "read_only" | "restart_fields" | "restart_pending" | "cli_overrides">;
 
-/** Backup — WEB-API-config.md §1.9: not implemented in the node, no addresses; the type follows the prose. */
+/** Backup — docs/WEB-API-config.md §1.9: not implemented in the node, no addresses; the type follows the prose. */
 export type ConfigExportResponse = ConfigResponse; // GET /api/config/export — not confirmed by the code
 export interface ConfigImportRequest {
   // POST /api/config/import — not confirmed by the code

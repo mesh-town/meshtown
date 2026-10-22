@@ -1,6 +1,6 @@
 #!/bin/sh
 # Console build of meshtown for 32-bit MIPS routers (static musl, soft-float), on Linux x86_64.
-# Usage: build/mips/build.sh mipsel-unknown-linux-musl|mips-unknown-linux-musl
+# Usage: platforms/linux/build/mips/build.sh mipsel-unknown-linux-musl|mips-unknown-linux-musl
 # Both targets are tier 3: there is no prebuilt std, so the standard library is built from source
 # (nightly + rust-src, -Zbuild-std). musl and the C compiler (needed by `ring`) come from a
 # soft-float musl cross toolchain (cross-tools/musl-cross release, pinned by version and sha256), which is
@@ -24,7 +24,7 @@ case "$TARGET" in
   *) echo "usage: $0 mipsel-unknown-linux-musl|mips-unknown-linux-musl" >&2; exit 2 ;;
 esac
 
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 cd "$ROOT"
 TC_DIR="${MIPS_TOOLCHAIN_DIR:-$ROOT/.tmp/mips-toolchain}"
 NIGHTLY="${RUST_NIGHTLY:-nightly-2026-10-18}"

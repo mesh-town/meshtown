@@ -6,8 +6,8 @@
 //! datagram round trip, the filter on the source of client datagrams, the end of the association with its
 //! control connection, and that `CONNECT` keeps working beside an association.
 //! What it does not do: does not reach real addresses (the exit closes loopback and private ranges).
-//! Links: `meshtown::socks5`, `meshtown::proxy`; the harnesses are `tests/common/socks_pair.rs` and
-//! `tests/common/socks_udp.rs`.
+//! Links: `meshtown::socks5`, `meshtown::proxy`; the harnesses are `core/tests/common/socks_pair.rs` and
+//! `core/tests/common/socks_udp.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

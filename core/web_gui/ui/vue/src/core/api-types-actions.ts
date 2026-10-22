@@ -4,7 +4,7 @@ import type { ConfigDocument, ConfigFileInfo, FieldError } from "./api-types-con
 
 // ---------------------------------------------------------------- actions and network
 
-/** Actions — WEB-API-config.md §1.8. Bodies with a single domain. */
+/** Actions — docs/WEB-API-config.md §1.8. Bodies with a single domain. */
 export interface DomainRequest {
   domain: string;
 }
@@ -101,7 +101,7 @@ export interface TokenRotateResponse {
 
 // ---------------------------------------------------------------- errors
 
-/** Error codes — WEB-API.md §1.1, the code table. */
+/** Error codes — docs/WEB-API.md §1.1, the code table. */
 export type ApiErrorCode =
   | "bad_json"
   | "bad_request"
@@ -121,13 +121,13 @@ export type ApiErrorCode =
   | "config_write_failed"
   | "internal";
 
-/** Body of any error — WEB-API.md §1.1. Flat: `error` is a code string, not an object. */
+/** Body of any error — docs/WEB-API.md §1.1. Flat: `error` is a code string, not an object. */
 export interface ApiErrorBody {
   error: ApiErrorCode;
   message: string;
 }
 
-/** 409 `stale_rev` on `PUT /api/config` — WEB-API-config.md §1.7: the current revision and document. */
+/** 409 `stale_rev` on `PUT /api/config` — docs/WEB-API-config.md §1.7: the current revision and document. */
 export interface StaleRevError extends ApiErrorBody {
   error: "stale_rev";
   rev: number;
@@ -141,7 +141,7 @@ export interface InvalidError extends ApiErrorBody {
   fields: FieldError[];
 }
 
-/** 422 `not_available`: turning on autostart or full tunnel — WEB-API-config.md §1.7. */
+/** 422 `not_available`: turning on autostart or full tunnel — docs/WEB-API-config.md §1.7. */
 export interface NotAvailableError extends ApiErrorBody {
   error: "not_available";
   fields: FieldError[];

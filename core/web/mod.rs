@@ -1,7 +1,7 @@
 //! Listener for the node page: an embedded HTTP server (the bind address depends on the `web.access` mode) that serves the page
 //! for controlling the node and its API. The stack is HTTP/1.1 on axum 0.8 + tower-http.
 //! The contract is described in
-//! `WEB-API.md`; the listener sees the node only through the `NodeControl` trait.
+//! `docs/WEB-API.md`; the listener sees the node only through the `NodeControl` trait.
 //!
 //! Module files: `options.rs` — settings and handles (`WebOptions`, `WebHandle`, `WebShared`);
 //! `control.rs` — the `NodeControl` trait and errors (`ActionError`, `WebStartError`); `snapshot.rs` —

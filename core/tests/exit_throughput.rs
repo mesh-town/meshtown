@@ -6,7 +6,7 @@
 //! seed, repeated). The client reads the body and checks every chunk against the reference by offset
 //! (stricter than a hash: it catches ordering too), and prints one line `throughput_mbit=<MiB·8/s>` based on the time
 //! from the first byte of the body to the last.
-//! What it doesn't do: it doesn't measure the network between machines, there is no RTT on loopback. Links: `tests/common/socks_pair.rs`.
+//! What it doesn't do: it doesn't measure the network between machines, there is no RTT on loopback. Links: `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

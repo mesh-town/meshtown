@@ -4,7 +4,7 @@ Besides reading the text, the script is run against a fake router: the paths und
 redirected into a temporary root, and wget, apk, opkg and opkg-key are small stubs that
 log their calls and imitate what the real package managers do to the files.
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import os

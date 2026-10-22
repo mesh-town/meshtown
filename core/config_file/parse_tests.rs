@@ -5,7 +5,7 @@ use crate::config_file::test_support::{parsed, scratch, secret_of, zero_secret_b
 use crate::config_file::FILE_NAME;
 use crate::net::NodeSecret;
 
-/// The example from CONFIG-FILE.md section 4 with a real secret of 32 zero bytes.
+/// The example from docs/CONFIG-FILE.md section 4 with a real secret of 32 zero bytes.
 const EXAMPLE: &str = r#"{
   "rev": 8,
   "saved_at": "2026-09-24T19:41:07Z",
@@ -30,7 +30,7 @@ fn full_example_parses() {
     let secret_b64 = zero_secret_b64();
     assert_eq!(secret_b64.len(), 44);
     let text = EXAMPLE.replace("SECRET", &secret_b64);
-    let p = parse_text(&text).expect("the CONFIG-FILE.md example should parse");
+    let p = parse_text(&text).expect("the docs/CONFIG-FILE.md example should parse");
     assert_eq!(p.rev, 8);
     match &p.secret {
         SecretRead::Valid(k) => assert_eq!(k.to_bytes(), [0u8; 32]),

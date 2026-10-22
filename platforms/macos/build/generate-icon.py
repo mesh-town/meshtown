@@ -1,20 +1,21 @@
 #!/usr/bin/env python3
 """Generator of the source bundle icon, no external dependencies — stdlib only (`zlib` for
 IDAT compression, `struct` for PNG chunk headers, `binascii.crc32` for checksums). Writes a
-1024x1024 RGBA PNG on a transparent background; `build/macos/app.sh` grows an .iconset from it with
+1024x1024 RGBA PNG on a transparent background; `platforms/macos/build/app.sh` grows an .iconset from it with
 `sips` and assembles `iconutil -c icns`.
 
 By default it draws the LOGO: a dark rounded plate on the macOS icon grid (824 of 1024, margin 100),
 a ring of 8 sectors with gaps and flat radial cuts, clockwise from 12 o'clock — blue (the color of the
 exit sector in the tray), purple, five light grey, and green as the last one (just left of 12 o'clock) —
-and a white house (gable roof with eaves, plain wall) in the center; outside the plate it is transparent. The same numbers are also written as `build/logo.svg`.
+and a white house (gable roof with eaves, plain wall) in the center; outside the plate it is transparent. The same numbers are also written as `logo.svg` beside the script.
 With `R G B` arguments it draws the old solid circle of that color (no SVG). The logo is static
 (Finder/Info), while the tray icon is recolored at runtime by network status.
 
-Run: `python3 build/macos/generate-icon.py [output .png] [R G B] [--svg path.svg]`.
+Run: `python3 platforms/macos/build/generate-icon.py [output .png] [R G B] [--svg path.svg]`.
 """
 
 import math
+import os
 import struct
 import sys
 import zlib
@@ -217,14 +218,20 @@ def write_png(path: str, size: int, rgb: tuple[int, int, int] | None) -> None:
         f.write(png)
 
 
+def default_paths() -> tuple[str, str]:
+    """Default output paths (png, svg): `icon.png` and `logo.svg` beside this script, whatever the cwd."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, "icon.png"), os.path.join(here, "logo.svg")
+
+
 def main(argv: list[str]) -> int:
     args = argv[1:]
-    svg_path = "build/logo.svg"
+    default_png, svg_path = default_paths()
     if "--svg" in args:
         at = args.index("--svg")
         svg_path = args[at + 1]
         del args[at : at + 2]
-    out_path = args[0] if args else "build/macos/icon.png"
+    out_path = args[0] if args else default_png
     rgb = tuple(int(v) for v in args[1:4]) if len(args) > 3 else None
     write_png(out_path, SIZE, rgb)
     print(f"icon: {out_path} ({SIZE}x{SIZE}, {'logo' if rgb is None else f'circle rgb={rgb}'})")

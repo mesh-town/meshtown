@@ -1,6 +1,6 @@
 """Tests of ipk.py: the .ipk package and the opkg index (no external tools, runs anywhere).
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import gzip

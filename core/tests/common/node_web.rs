@@ -59,7 +59,7 @@ pub(crate) async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) 
     }
 }
 
-/// The first IPv4 port among the addresses `Endpoint` listens on (as in `tests/loopback.rs`).
+/// The first IPv4 port among the addresses `Endpoint` listens on (as in `core/tests/loopback.rs`).
 pub(crate) fn first_ipv4_port(addrs: &[SocketAddr]) -> u16 {
     addrs
         .iter()

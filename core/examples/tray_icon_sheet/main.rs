@@ -6,7 +6,7 @@
 //! factor: 7× for 36 px, 11× for 22 px, centered on a transparent canvas), then two contact sheets:
 //! `sheet-light.png` and `sheet-dark.png` (a light and a dark menu bar). All PNGs are transparent,
 //! except the sheets.
-//! What it doesn't do: it doesn't change the drawing code and doesn't copy it: the files `src/app/{view_ring,
+//! What it doesn't do: it doesn't change the drawing code and doesn't copy it: the files `core/app/{view_ring,
 //! view_ring_paint,view,exit_menu}.rs` are included in the example as is (`#[path]`), because
 //! they live in the binary, not in a library. This is an example, not a test: it is not part of the `cargo test`
 //! run and is run by hand.
@@ -137,7 +137,7 @@ fn write_case(dir: &Path, index: usize, case: &Case) -> io::Result<Entry> {
 fn out_dir() -> PathBuf {
     match env::args().nth(1) {
         Some(dir) => PathBuf::from(dir),
-        None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../.tmp/tray-sheets"),
+        None => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.tmp/tray-sheets"),
     }
 }
 

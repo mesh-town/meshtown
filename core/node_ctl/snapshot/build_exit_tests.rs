@@ -1,6 +1,6 @@
 //! Test of the rule for `build_peers` (another member's snapshot row): the exit flag is taken from the map
 //! of announcements `Inputs.exits` only for an online member, offline is always `None`. It does not check
-//! reading the document (`node_state::read_exit_flags`) — that is `tests/exit_flag.rs` and `tests/node_web.rs`.
+//! reading the document (`node_state::read_exit_flags`) — that is `core/tests/exit_flag.rs` and `tests/node_web.rs`.
 //! The helpers `base`/`pair` come from `super::tests` (`pub(super)`); this module is a sibling of `mod tests`,
 //! not its descendant.
 

@@ -1,9 +1,9 @@
-//! `Reply` and `ApiError`: the outcome of an exchange with the node page, before and after classification (`WEB-API.md`).
+//! `Reply` and `ApiError`: the outcome of an exchange with the node page, before and after classification (`docs/WEB-API.md`).
 //! Classification `(status, body) → Reply` is in `classify.rs`; parsing of raw bytes is in `response.rs`.
 
 use serde_json::Value;
 
-/// The page's reply, classified per the contract (`WEB-API.md`).
+/// The page's reply, classified per the contract (`docs/WEB-API.md`).
 #[derive(Debug)]
 pub(crate) enum Reply {
     Ok(Value),

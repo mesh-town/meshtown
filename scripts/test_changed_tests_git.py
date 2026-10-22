@@ -26,7 +26,7 @@ class ChangedFiles(unittest.TestCase):
             repo.write("src/committed.rs", "v1")
             repo.commit_all("change on branch")
             repo.write("src/modified.rs", "v1")  # not committed
-            repo.write("outside/new_file.txt", "new")  # untracked outside src/
+            repo.write("outside/new_file.txt", "new")  # untracked outside core/
 
             with repo.cd_root():
                 changed = changed_tests.changed_files("main")
@@ -34,7 +34,7 @@ class ChangedFiles(unittest.TestCase):
             self.assertEqual(
                 changed,
                 ["outside/new_file.txt", "src/committed.rs", "src/modified.rs"],
-                "a commit on the branch + uncommitted + untracked outside src/ — all three",
+                "a commit on the branch + uncommitted + untracked outside core/ — all three",
             )
 
     def test_unknown_base_exits_with_code_2(self):
@@ -56,10 +56,10 @@ class MainDryRun(unittest.TestCase):
     def test_dry_run_prints_commands_returns_zero_and_does_not_execute(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = _GitRepo(Path(tmp))
-            repo.write("src/lib.rs", "// v0\n")
+            repo.write("core/lib.rs", "// v0\n")
             repo.commit_all("baseline")
             repo.checkout_branch("feature")
-            repo.write("src/lib.rs", "// v1\n")
+            repo.write("core/lib.rs", "// v1\n")
             repo.commit_all("touch lib")
 
             with repo.cd_root():
@@ -71,6 +71,7 @@ class MainDryRun(unittest.TestCase):
             self.assertEqual(code, 0)
             execute.assert_not_called()
             printed = out.getvalue()
+            self.assertIn("core/lib.rs → full\n", printed)
             self.assertIn("make", printed)
             self.assertIn("test", printed)
 

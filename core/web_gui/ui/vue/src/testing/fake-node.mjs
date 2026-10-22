@@ -1,5 +1,5 @@
 /* A fake node for page tests: `node.fetch` answers `/api/state`, `/api/config`, `/api/log`,
- * `POST /api/actions/restart` per the contract in `WEB-API.md` / `WEB-API-config.md`; `GET /api/members` answers 404 (an older node)
+ * `POST /api/actions/restart` per the contract in `docs/WEB-API.md` / `docs/WEB-API-config.md`; `GET /api/members` answers 404 (an older node)
  * until a test sets `node.routes["GET /api/members"]`. It is plugged in with
  * `vi.stubGlobal("fetch", node.fetch)`: the real `api.js`, token, `ApiError` and poller work as in the browser.
  * Writing a config that needs a restart (`socks.ifaces`, `socks.access`) and `web.ifaces` — in `fake-node-config.mjs`. */

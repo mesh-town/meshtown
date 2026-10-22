@@ -173,7 +173,7 @@ export function demoToken(): string {
 }
 
 export function treeTag(): string {
-  const root = path.resolve(__dirname, '..', '..', '..');
+  const root = path.resolve(__dirname, '..', '..', '..', '..', '..');
   return createHash('sha256').update(root).digest('hex').slice(0, 8);
 }
 

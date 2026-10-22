@@ -60,7 +60,7 @@ fn identity_codes() {
     assert_eq!(problem.kind_word(), "temporary");
 }
 
-/// The page (`web/vue/src/shell/shell-texts.ts`) describes a temporary identity in its own words
+/// The page (`web_gui/ui/vue/src/shell/shell-texts.ts`) describes a temporary identity in its own words
 /// for people, while the node in `identity.rs` uses its own, for the log. The test holds
 /// the page strictly: each reason and the shared consequence (the `CONSEQUENCE` template) must appear in
 /// the source verbatim; editing any page phrase breaks the test until the expectation is updated.
@@ -70,9 +70,9 @@ fn identity_codes() {
 /// The node texts are checked only for being non-empty for each reason.
 #[test]
 fn identity_texts_match_page() {
-    let path = format!("{}/web/vue/src/shell/shell-texts.ts", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/web_gui/ui/vue/src/shell/shell-texts.ts", env!("CARGO_MANIFEST_DIR"));
     let page = std::fs::read_to_string(&path)
-        .expect("web/vue/src/shell/shell-texts.ts is readable")
+        .expect("web_gui/ui/vue/src/shell/shell-texts.ts is readable")
         .replace("\" + NET_NAME + \"", crate::output::NET_NAME);
     let consequence = "After a restart, other members will see \" + who + \" as a new member.";
     assert!(

@@ -1,6 +1,6 @@
 //! Tests of reading the exit flag and a value by key (`node_state`) on an in-memory replica: the filters
 //! by exact key and by tombstones live in the consumer, not in the storage. Live reconciliation between
-//! nodes is checked by `tests/exit_flag.rs` and its neighbors.
+//! nodes is checked by `core/tests/exit_flag.rs` and its neighbors.
 
 use crate::net::mem::{MemReplica, MemSyncNet};
 use crate::net::sync_backend::{SyncCtx, REPLICA_NET};

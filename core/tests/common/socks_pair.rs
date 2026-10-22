@@ -2,8 +2,8 @@
 //! with a tweak of B's settings, `pair_with_static_exit`), the handshake (`introduce`, `wait_member`),
 //! waiting for the route through an exit (`wait_exit_route`) and local target servers (`serve`, `echo_site`,
 //! `silent_site`). Plugged in as `#[path = "common/socks_pair.rs"] mod common;` from the
-//! SOCKS5 and exit tests (`tests/socks_*.rs`, `tests/exit_*.rs`, `tests/ports_loopback.rs`,
-//! `tests/http_proxy_loopback.rs`). Each scenario uses only part of this module — the rest is not
+//! SOCKS5 and exit tests (`tests/socks_*.rs`, `tests/exit_*.rs`, `core/tests/ports_loopback.rs`,
+//! `core/tests/http_proxy_loopback.rs`). Each scenario uses only part of this module — the rest is not
 //! dead code of the project but functions for a neighboring file: `#![allow(dead_code)]` below is about that, not
 //! about tolerating real garbage.
 #![allow(dead_code)]

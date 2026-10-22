@@ -1,5 +1,5 @@
 """Tests of the icon generator (stdlib). Run from the tree root:
-`python3 -I -m unittest discover -s build/macos -p 'test_generate_icon.py' -v`."""
+`python3 -I -m unittest discover -s platforms/macos/build -p 'test_generate_icon.py' -v`."""
 
 import importlib.util
 import math
@@ -113,6 +113,11 @@ class LogoTests(unittest.TestCase):
         _, _, rows = decode(self.circle)
         self.assertEqual(at(rows, 512, 512), (10, 20, 30, 255))
         self.assertEqual(at(rows, 0, 0)[3], 0)
+
+    def test_default_paths_are_beside_the_script(self):
+        for path in gen.default_paths():
+            self.assertEqual(os.path.dirname(path), HERE)
+            self.assertTrue(os.path.isfile(path), path)
 
 
 if __name__ == "__main__":

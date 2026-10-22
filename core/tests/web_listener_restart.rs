@@ -1,7 +1,7 @@
 //! Integration tests of the node page listener: `POST /api/actions/restart` (the "Restart
 //! node" button) — the `NodeControl::restart` call, the shared router layers (Origin, token, method) and 503
-//! after a stop. The scaffolding is `tests/common/web_listener.rs` (`#[path]`, shared with the other
-//! `tests/web_listener_*.rs`). What it doesn't do: it doesn't edit `src/web/*.rs` — it only calls their
+//! after a stop. The scaffolding is `core/tests/common/web_listener.rs` (`#[path]`, shared with the other
+//! `tests/web_listener_*.rs`). What it doesn't do: it doesn't edit `core/web/*.rs` — it only calls their
 //! public interface. It never prints the token.
 
 #[path = "common/web_listener.rs"]

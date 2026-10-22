@@ -23,8 +23,8 @@
 //! its own domain check, only on whether `route.exits` is empty.
 //!
 //! The helpers (`DOMAIN`, `serve`, `introduce`, `wait_member`, `wait_exit_route`,
-//! `pair`, `pair_with_static_exit`) moved to `tests/common/socks_pair.rs` — shared with
-//! `tests/socks_exit_reset.rs`.
+//! `pair`, `pair_with_static_exit`) moved to `core/tests/common/socks_pair.rs` — shared with
+//! `core/tests/socks_exit_reset.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

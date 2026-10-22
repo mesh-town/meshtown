@@ -1,7 +1,7 @@
 //! The speed disk in the centre of the tray icon: its size follows the total exit traffic, its two sectors follow the share.
 //!
 //! What it does: `disk_of` turns the `through_peer_bps` / `through_us_bps` fields of the `peers[]` rows
-//! (bytes/s, `WEB-API.md` §1.3) into a `Disk` — a step 1..=6 and the blue share in twelfths; `paint_disk`
+//! (bytes/s, `docs/WEB-API.md` §1.3) into a `Disk` — a step 1..=6 and the blue share in twelfths; `paint_disk`
 //! draws it over the ring raster: from 12 o'clock clockwise, first the blue sector (our traffic via a
 //! peer), then the lilac one (peers' traffic via us) — the same order and colors as the ring.
 //! What it does not do: it does not decide whether to draw a disk without a ring (`view_picture`) and does not know the ring's roles.

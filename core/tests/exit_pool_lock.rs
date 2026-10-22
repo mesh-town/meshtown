@@ -7,7 +7,7 @@
 //! handshake.
 //! The second test checks that a repeated request to a live member still goes through.
 //! What it doesn't do: doesn't check reopening of a closed connection and doesn't go to the internet.
-//! Links: `meshtown::exit::PeerConnPool` through `tests/common/socks_pair.rs` (`pair`).
+//! Links: `meshtown::exit::PeerConnPool` through `core/tests/common/socks_pair.rs` (`pair`).
 
 #[path = "common/socks_pair.rs"]
 mod common;

@@ -6,7 +6,7 @@
 //! a foreign claim and the coverage flag with one member and with none.
 //! What it doesn't do: it doesn't check DHT, relay, the console and the page; frames and the server are in the unit tests of
 //! `invite::*`. A foreign outdated admitter (with no claims) is not modeled here.
-//! Links: `meshtown::invite::{make, Issued::commit, store}`, `tests/common/invite_{nodes,mesh}.rs`.
+//! Links: `meshtown::invite::{make, Issued::commit, store}`, `core/tests/common/invite_{nodes,mesh}.rs`.
 
 use std::time::Duration;
 

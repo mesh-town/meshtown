@@ -1,6 +1,6 @@
 #!/bin/sh /etc/rc.common
 # Autostart of a Mesh Town node under procd (OpenWrt 24.10, aarch64).
-# Tested in an emulator; installation — build/openwrt/README.md.
+# Tested in an emulator; installation — platforms/linux/build/openwrt/README.md.
 START=99
 STOP=01
 USE_PROCD=1

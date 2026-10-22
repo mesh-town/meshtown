@@ -1,4 +1,4 @@
-//! Command-line flags on top of the settings file (CONFIG-FILE.md section 5.1, `CliOverrides::apply`).
+//! Command-line flags on top of the settings file (docs/CONFIG-FILE.md section 5.1, `CliOverrides::apply`).
 
 use std::net::SocketAddr;
 
@@ -44,7 +44,7 @@ impl std::fmt::Debug for CliOverrides {
 }
 
 impl CliOverrides {
-    /// Puts what was typed on top of `s`. Returns the paths of the overridden fields in the order of the CONFIG-FILE.md table,
+    /// Puts what was typed on top of `s`. Returns the paths of the overridden fields in the order of the docs/CONFIG-FILE.md table,
     /// section 3: "network.key", "transport.mode",
     /// "exit.enabled", "socks.enabled", "socks.port", "socks.access", "checks.enabled", "checks.interval_sec",
     /// "checks.doh_server", "checks.provider_dns", "probe.interval_sec", "web.port".

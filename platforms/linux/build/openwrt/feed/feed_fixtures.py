@@ -24,7 +24,7 @@ from collections import namedtuple
 from pathlib import Path
 
 FEED_DIR = Path(__file__).resolve().parent
-OPENWRT_DIR = FEED_DIR.parent  # build/openwrt: init.d-meshtown
+OPENWRT_DIR = FEED_DIR.parent  # platforms/linux/build/openwrt: init.d-meshtown
 BUILD_FEED = FEED_DIR / "build_feed.py"
 
 AARCH64 = "aarch64-unknown-linux-musl"

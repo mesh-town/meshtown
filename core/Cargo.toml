@@ -1,0 +1,119 @@
+[package]
+name = "meshtown"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+description = "Mesh Town: open sites through the computers of your private peer-to-peer network, with a local SOCKS5/HTTP proxy, a node page and a tray app"
+
+[lints]
+workspace = true
+
+[lib]
+name = "meshtown"
+path = "lib.rs"
+# dylib is needed for dynamic linking of tests (`make` on macOS adds `-C prefer-dynamic`, see the Makefile, variable DYN);
+# without the flag dylib is not linked into the binaries and the rollout stays static;
+# rollout builds for macOS, Linux (platforms/linux/build) and Windows are made without dylib: the scripts overlay a copy of the manifest
+# without `crate-type` (on Windows dylib is not linked anyway — the PE export table ceiling);
+# a bare `cargo build` still builds dylib;
+# the measurement, numbers and limits are not kept in the repository.
+crate-type = ["rlib", "dylib"]
+
+[[bin]]
+name = "meshtown"
+path = "main.rs"
+required-features = ["net-hyper"]
+
+[[example]]
+name = "web_demo"
+path = "examples/web_demo/main.rs"
+required-features = ["net-hyper"]
+
+[dependencies]
+# 64-bit atomics for targets without native ones (32-bit MIPS).
+portable-atomic = { version = "1", features = ["fallback"] }
+rand = "0.10"
+rand_pcg = "0.10"
+rustls = { version = "=0.23.45", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+tokio-rustls = { version = "=0.26.5", default-features = false, features = ["ring", "tls12", "logging"] }
+webpki-roots = "=1.0.9"
+simple-dns = "=0.12.0"
+blake3 = "1.8"
+ring = "0.17"
+postcard = { version = "1.1", features = ["use-std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", default-features = false, features = ["std"] }
+data-encoding = "2.11"
+ed25519-dalek = "3"
+zeroize = "1"
+bytes = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "sync", "io-util"] }
+clap = { version = "4.6", features = ["derive", "env"] }
+anyhow = "1"
+if-addrs = "0.13.4"
+httparse = "1.10"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+icu_normalizer = { version = "2.3", default-features = false, features = ["compiled_data"] }
+axum = { version = "=0.8.9", default-features = false, features = ["tokio", "http1", "json", "query"] }
+hyper = { version = "=1.11.1", default-features = false, features = ["http1", "server"] }
+hyper-util = { version = "=0.1.20", default-features = false, features = ["tokio", "http1", "server", "server-graceful", "service"] }
+http-body-util = "=0.1.5"
+tower = { version = "=0.5.3", default-features = false, features = ["util"] }
+tower-http = { version = "=0.6.11", default-features = false, features = ["set-header"] }
+url = "=2.5.8"
+# Pinning the features of shared packages: both feature configurations ask them for the same features,
+# so the build hashes match and the builds are shared.
+crossbeam-utils = { version = "0.8", features = ["std"] }
+# hyper transport (townjump, pinned by revision): the `net-hyper` feature.
+townjump-dht = { git = "https://github.com/mesh-town/townjump", rev = "361cb73d2e49af50c4ea647e9dd679ebf016aa38", optional = true }
+townjump-dht-peeroxide = { git = "https://github.com/mesh-town/townjump", rev = "361cb73d2e49af50c4ea647e9dd679ebf016aa38", optional = true }
+townjump-keys = { git = "https://github.com/mesh-town/townjump", rev = "361cb73d2e49af50c4ea647e9dd679ebf016aa38", optional = true }
+# Network change watcher: versions are pinned.
+netwatch = { version = "=0.19.3", optional = true }
+n0-watcher = { version = "=1.0.0", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+libc = "0.2"
+tray-icon = { version = "0.25.1", optional = true }
+objc2 = "0.6.4"
+block2 = "0.6"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSRunningApplication", "NSWorkspace", "NSAlert", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSView", "NSResponder", "NSWindow", "NSGraphics", "objc2-core-foundation"], optional = true }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSURL"], optional = true }
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFCGTypes", "CFRunLoop", "CFString", "block2"], optional = true }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+tray-icon = { version = "0.25.1", optional = true }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Globalization", "Win32_Graphics", "Win32_Graphics_Gdi", "Win32_System_Com", "Win32_System_Console", "Win32_System_ProcessStatus", "Win32_System_RemoteDesktop", "Win32_System_Threading", "Win32_UI_Accessibility", "Win32_UI_Controls", "Win32_UI_HiDpi", "Win32_UI_Input", "Win32_UI_Input_KeyboardAndMouse", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+tray-icon = { version = "0.25.1", default-features = false, features = ["ksni"], optional = true }
+concurrent-queue = "2"
+event-listener = "5"
+event-listener-strategy = "0.5"
+linux-raw-sys = { version = "0.12", default-features = false, features = ["if_ether", "net", "netlink", "prctl", "xdp"] }
+rustix = { version = "1", default-features = false, features = ["event", "net", "pipe", "process", "time"] }
+tikv-jemallocator = { version = "0.7", features = ["profiling"], optional = true }
+tikv-jemalloc-ctl = { version = "0.7", optional = true }
+
+[features]
+default = ["tray", "net-hyper"]
+# The node layer (all lib.rs modules except the core) on the hyper transport: lookup through HyperDHT, joining for members (net_hyper/, net_hyperdht/).
+net-hyper = ["dep:townjump-dht", "dep:townjump-dht-peeroxide", "dep:townjump-keys", "dep:netwatch", "dep:n0-watcher"]
+# Heap profile on the watchdog's signal (node/alloc.rs): Linux only, off by default.
+heap-prof = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-ctl"]
+tray = ["dep:tray-icon", "dep:objc2-app-kit", "dep:objc2-foundation", "dep:objc2-core-foundation"]
+
+[dev-dependencies]
+# Test network of the loop (tests only).
+peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "361cb73d2e49af50c4ea647e9dd679ebf016aa38" }
+libudx = { git = "https://github.com/mesh-town/townjump", rev = "361cb73d2e49af50c4ea647e9dd679ebf016aa38" }

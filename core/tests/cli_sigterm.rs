@@ -1,12 +1,12 @@
 //! Stopping a real `meshtown run` process on SIGTERM (unix only): the process prints
 //! "received stop signal" (to stdout, through `say`) and exits with code 0 within `EXIT_LIMIT`.
 //!
-//! What it does: starts the binary as in `tests/run_first_start.rs` (no settings file, no relay,
+//! What it does: starts the binary as in `core/tests/run_first_start.rs` (no settings file, no relay,
 //! no checks and no SOCKS, `TOWNJUMP_BOOTSTRAP` pointing at a closed port), waits for the line with the web page address,
 //! sends `kill -TERM <pid>` (there is no `libc` in the dev-dependencies).
 //! What it doesn't do: it doesn't check the tray or SIGINT. a known open issue is "does not stop within 8 s";
 //! the shutdown takes about 4 s on a normal build, the limit is 5 s.
-//! Links: `src/node/lifecycle.rs` (`spawn_stop_signal`).
+//! Links: `core/node/lifecycle.rs` (`spawn_stop_signal`).
 #![cfg(unix)]
 
 use std::io::{BufRead, BufReader, Read};

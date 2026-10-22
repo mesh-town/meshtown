@@ -3,12 +3,12 @@
 //! write of the config file. The "validation and recovery" part (checking `PUT /api/config`, a directory
 //! without write permission, recovery after a broken file, the shape of `/api/state` and `/api/log`) is
 //! in `web_listener_config_validation.rs` (the file went over the 400-line ceiling).
-//! What it doesn't do: it doesn't edit `src/web.rs` and `src/web/*.rs` — it only calls their public interface.
+//! What it doesn't do: it doesn't edit `src/web.rs` and `core/web/*.rs` — it only calls their public interface.
 //! It never prints the token and never puts it in the text of `assert!`/`assert_eq!`: tokens are compared only with
 //! `assert!(a == b, "…")` without values in the text (the same rule is kept for the network key).
 //! Links:
-//! `WEB-API.md`; scaffolding in `tests/common/web_listener.rs` (`#[path]`, shared with
-//! `tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_network.rs`,
+//! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
+//! `core/tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_network.rs`,
 //! `_config_validation.rs`).
 
 #[path = "common/web_listener.rs"]

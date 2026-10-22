@@ -1,9 +1,9 @@
 //! Integration tests of a real node behind the web listener: a node without a network key,
 //! first start and an invite — over bare TCP through `meshtown::*`.
-//! What it doesn't do: it doesn't edit `src/web.rs`/`src/web/*.rs`/`tests/web_listener_*.rs` — it only calls
+//! What it doesn't do: it doesn't edit `src/web.rs`/`core/web/*.rs`/`tests/web_listener_*.rs` — it only calls
 //! their public interface. It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
 //! Links: the web listener (`meshtown::web`);
-//! scaffolding in `tests/common/node_web.rs` (`#[path]`, shared with `tests/node_web_actions.rs`).
+//! scaffolding in `core/tests/common/node_web.rs` (`#[path]`, shared with `core/tests/node_web_actions.rs`).
 
 #[path = "common/node_web.rs"]
 mod common;

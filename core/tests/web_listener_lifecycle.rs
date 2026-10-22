@@ -3,11 +3,11 @@
 //! Plus the "stop racing the loop's wake-up" group: `shutdown_true_when_loop_wakes_late`,
 //! `shutdown_short_deadline_is_bounded`.
 //! The scaffolding works at the socket level — it doesn't depend on a change of the HTTP stack inside the listener.
-//! What it doesn't do: it doesn't edit `src/web.rs` and `src/web/*.rs` — it only calls their public interface.
+//! What it doesn't do: it doesn't edit `src/web.rs` and `core/web/*.rs` — it only calls their public interface.
 //! It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
 //! Links:
-//! `WEB-API.md`; scaffolding in `tests/common/web_listener.rs` (`#[path]`, shared with
-//! `tests/web_listener_protocol.rs`, `_config_api.rs`, `_network.rs`).
+//! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
+//! `core/tests/web_listener_protocol.rs`, `_config_api.rs`, `_network.rs`).
 
 #[path = "common/web_listener.rs"]
 mod common;

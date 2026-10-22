@@ -1,12 +1,12 @@
 //! Stopping a node under load: while a long stream goes through exit B (A's SOCKS client writes without
 //! stopping to `echo_site` behind B), `RunningNode::shutdown` of each node fits into `STOP_LIMIT`,
-//! and the `tracing` log has no `ERROR` since the start of the test (the layer is `tests/common/log_capture.rs`; events of
+//! and the `tracing` log has no `ERROR` since the start of the test (the layer is `core/tests/common/log_capture.rs`; events of
 //! `tracing` are rare, this is insurance).
 //!
 //! What it does: a pair of loopback nodes (`socks_pair::pair`), A picks B as the only exit,
 //! SOCKS CONNECT to `DOMAIN`, two background jobs — a writer (no pauses) and an echo reader.
 //! What it doesn't do: it doesn't check that the stream closed at the client, and doesn't run a stop under packet
-//! loss (`tests/lossy_link*.rs`).
+//! loss (`core/tests/lossy_link*.rs`).
 //! Links: `meshtown::node::RunningNode::shutdown`, `meshtown::socks5::client_connect`.
 
 #[path = "common/socks_pair.rs"]

@@ -24,7 +24,7 @@ pub struct ProcessSettings {
 }
 
 impl Default for ProcessSettings {
-    /// Defaults per `CONFIG-FILE.md`, section 3, and `WEB-API-config.md`, section 2.
+    /// Defaults per `docs/CONFIG-FILE.md`, section 3, and `docs/WEB-API-config.md`, section 2.
     fn default() -> Self {
         ProcessSettings {
             socks_enabled: true,

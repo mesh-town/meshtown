@@ -7,7 +7,7 @@ the Python suite `scripts/web-check.py` (removed); `make web-check` runs this su
 
 From the repository root:
 
-- `make web-check` — the `demo` target (the example server `examples/web_demo/`); builds it itself
+- `make web-check` — the `demo` target (the example server `core/examples/web_demo/`); builds it itself
   (cargo), 4 workers.
 - `make web-check-node` — the `node` target (the real `meshtown`); builds it itself, 1 worker (its own target
   per test).
@@ -38,7 +38,7 @@ in one tree, set different `E2E_RUN_TAG` values.
 ## Report and traces
 
 Results, the HTML report, and failure traces are in `.tmp/e2e/` at the tree root (`results/`, `report/`), not in
-`e2e/`. For passed tests, `preserveOutput: 'failures-only'` deletes them.
+`core/web_gui/e2e/`. For passed tests, `preserveOutput: 'failures-only'` deletes them.
 
 ## Layout
 
@@ -64,8 +64,8 @@ specs/     specs: a file per section or feature; the test name carries the case 
 
 0. First ask whether a browser is needed: a case that needs no binary, HTTP response, layout (geometry,
    computed CSS, "Back" history) or server decision is written not here but as `*.flows.vtest.mjs` next to the
-   `.vue` file in `web/vue/src/` (vitest, the fake node `src/testing/fake-node.mjs`); the static
-   size check is `src/static-limits.test.mjs` (vitest, node project). Only what cannot be checked without a browser goes here.
+   `.vue` file in `core/web_gui/ui/vue/src/` (vitest, the fake node `vue/src/testing/fake-node.mjs`); the static
+   size check is `vue/src/static-limits.test.mjs` (vitest, node project). Only what cannot be checked without a browser goes here.
 1. Take the next free number: `rg -o "^test\('[0-9]+-" specs` shows the taken ones. The test name is
    `N-slug: what is checked`; the spec is `specs/<section>.spec.ts` (a new file if the section does not exist).
 2. Selectors live only in the page object of their section (`pages/`), never in the spec; name a method

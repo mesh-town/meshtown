@@ -6,7 +6,12 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$HERE/.." && pwd)"
+ROOT="$(cd "$HERE/../../.." && pwd)"
+GUI="$HERE/../gui"
+if [ ! -x "$GUI/gradlew" ] || [ ! -f "$ROOT/Cargo.toml" ]; then
+  echo "Android project not found: $GUI" >&2
+  exit 1
+fi
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/28.2.13676358}"
 if [ -z "${JAVA_HOME:-}" ] && [ -d "/Applications/Android Studio.app/Contents/jbr/Contents/Home" ]; then
@@ -16,7 +21,7 @@ BUILD="${ANDROID_BUILD_DIR:-$ROOT/.tmp/build}"
 DIST="${ANDROID_DIST_DIR:-$ROOT/dist/android}"
 T2P_REF="${TUN2PROXY_REF:-657a263ecc1fe11be7ebb2ba9b360456df74b77d}" # tun2proxy 0.8.6
 T2P_SRC="$BUILD/tun2proxy-src"
-JNI="$HERE/app/src/main/jniLibs/arm64-v8a"
+JNI="$GUI/app/src/main/jniLibs/arm64-v8a"
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/Cargo.toml" | head -1)"
 
 mkdir -p "$BUILD" "$JNI" "$DIST"
@@ -53,10 +58,10 @@ check_no_home "$JNI/libtun2proxy.so"
 
 echo "== apk"
 if [ -n "${MESHTOWN_ANDROID_KEYSTORE:-}" ] && [ -n "${MESHTOWN_ANDROID_KEYSTORE_PASS:-}" ] && [ -n "${MESHTOWN_ANDROID_KEY_ALIAS:-}" ]; then
-  TASK=assembleRelease; OUT="$HERE/app/build/outputs/apk/release/app-release.apk"
+  TASK=assembleRelease; OUT="$GUI/app/build/outputs/apk/release/app-release.apk"
 else
-  TASK=assembleDebug; OUT="$HERE/app/build/outputs/apk/debug/app-debug.apk"
+  TASK=assembleDebug; OUT="$GUI/app/build/outputs/apk/debug/app-debug.apk"
 fi
-(cd "$HERE" && ./gradlew --no-daemon -q -PnodeVersion="$VERSION" "$TASK")
+(cd "$GUI" && ./gradlew --no-daemon -q -PnodeVersion="$VERSION" "$TASK")
 cp "$OUT" "$DIST/meshtown-$VERSION.apk"
 echo "built $DIST/meshtown-$VERSION.apk"

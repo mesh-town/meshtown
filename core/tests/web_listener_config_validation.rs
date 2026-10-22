@@ -3,11 +3,11 @@
 //! `read_only`), a directory without write permission, recovery after a broken file, the shape of `/api/state`
 //! and `/api/log`. The "network and rev" part is in `web_listener_config_api.rs` (the file went over the 400-line
 //! ceiling, so it is split by scenarios).
-//! What it doesn't do: it doesn't edit `src/web.rs` and `src/web/*.rs` — it only calls their public interface.
+//! What it doesn't do: it doesn't edit `src/web.rs` and `core/web/*.rs` — it only calls their public interface.
 //! It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
 //! Links:
-//! `WEB-API.md`; scaffolding in `tests/common/web_listener.rs` (`#[path]`, shared with
-//! `tests/web_listener_config_api.rs`, `_lifecycle.rs`, `_protocol.rs`, `_network.rs`).
+//! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
+//! `core/tests/web_listener_config_api.rs`, `_lifecycle.rs`, `_protocol.rs`, `_network.rs`).
 
 #[path = "common/web_listener.rs"]
 mod common;

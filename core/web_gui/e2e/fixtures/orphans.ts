@@ -13,7 +13,7 @@ export interface Probe {
 
 // E2E_RUN_TAG separates the result directories of parallel runs in one tree.
 export function e2eOutDir(): string {
-  const root = path.resolve(__dirname, '..', '..', '..');
+  const root = path.resolve(__dirname, '..', '..', '..', '..', '..');
   const tag = process.env.E2E_RUN_TAG;
   return path.join(root, '.tmp', tag ? `e2e-${tag}` : 'e2e');
 }

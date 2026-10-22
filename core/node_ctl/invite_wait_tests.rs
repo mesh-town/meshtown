@@ -1,6 +1,6 @@
 //! Tests of the invite-join wait on `NodeCtl` without a network: what the page sees, what clears
 //! the wait, what it does not change. Joining with a live member (key, order of `save` and network switch, member
-//! refusals) — `tests/node_invite_join.rs`.
+//! refusals) — `core/tests/node_invite_join.rs`.
 
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

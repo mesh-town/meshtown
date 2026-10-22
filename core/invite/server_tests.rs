@@ -2,7 +2,7 @@
 //! busy slots, returning a slot after the answer, waiting for the client to close, a cut-off request.
 //!
 //! The server here is a real `InviteServer` with an empty domain list: verdicts by the document
-//! (`Ok`, `Used`, `Expired`, `Unknown`) are checked by `tests/invite_once_loopback.rs`, here they
+//! (`Ok`, `Used`, `Expired`, `Unknown`) are checked by `core/tests/invite_once_loopback.rs`, here they
 //! are not needed. The client is a second `mem` node that assembles frames itself; the handler
 //! `ServiceHandler::handle` is run in the test's task, to see when it finished.
 //!

@@ -58,11 +58,11 @@ After removal the node state in `/etc/meshtown/` stays on the router.
 ## Keys
 
 The public keys are `meshtown-usign.pub` and `meshtown-apk.pem` in this feed; the same files are kept in
-[build/openwrt/keys]({code}/tree/main/build/openwrt/keys) of the code repository, compare them before trusting the feed.
+[platforms/linux/build/openwrt/keys]({code}/tree/main/platforms/linux/build/openwrt/keys) of the code repository, compare them before trusting the feed.
 
 ## More
 
-Details and the fully manual install: [build/openwrt/README.md]({code}/blob/main/build/openwrt/README.md).
+Details and the fully manual install: [platforms/linux/build/openwrt/README.md]({code}/blob/main/platforms/linux/build/openwrt/README.md).
 """
 
 

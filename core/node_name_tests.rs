@@ -1,7 +1,7 @@
 //! Tests of `node_name`: parsing a name from a document record, the node's effective name and the pure rule
 //! "which names to put into `Members`" (`names_to_apply`). The network part
 //! (publishing, a name change at a peer, refusal of an unfit one, an author that is offline) is checked by
-//! `tests/node_live_name.rs`.
+//! `core/tests/node_live_name.rs`.
 
 use std::collections::HashMap;
 

@@ -212,7 +212,7 @@ fn error_without_colon_gives_code() {
 
 #[test]
 fn panic_line_gives_code_101() {
-    let log = "thread 'main' panicked at src/main.rs:1:1:\nsomething\n";
+    let log = "thread 'main' panicked at core/main.rs:1:1:\nsomething\n";
     assert_eq!(
         start_note_from(Some(101), Some(log)),
         failed(Some(101), true)

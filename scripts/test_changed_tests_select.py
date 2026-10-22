@@ -9,12 +9,12 @@ from changed_tests_fixtures import _sources, changed_tests
 
 
 class SelectLibAndBinModules(unittest.TestCase):
-    """select() — a path inside src/, an ordinary lib module and its users."""
+    """select() — a path inside core/, an ordinary lib module and its users."""
 
     def test_use_line_in_test_selects_lib_module_and_its_integration_test(self):
         src = _sources(tests={"identity_restart": "use meshtown::{node, words};\n"})
 
-        sel = changed_tests.select(["src/words.rs"], src)
+        sel = changed_tests.select(["core/words.rs"], src)
 
         self.assertEqual(sel.lib_modules, {"words"})
         self.assertEqual(sel.integration, {"identity_restart"})
@@ -25,15 +25,15 @@ class SelectLibAndBinModules(unittest.TestCase):
         src = _sources()
 
         for path in (
-            "src/config_file/save.rs",
-            "src/config_file/save_tests.rs",
+            "core/config_file/save.rs",
+            "core/config_file/save_tests.rs",
         ):
             with self.subTest(path=path):
                 sel = changed_tests.select([path], src)
                 self.assertEqual(sel.lib_modules, {"config_file"})
 
     def test_web_mod_rs_selects_web_module_and_web_check(self):
-        sel = changed_tests.select(["src/web/mod.rs"], _sources())
+        sel = changed_tests.select(["core/web/mod.rs"], _sources())
 
         self.assertEqual(sel.lib_modules, {"web"})
         self.assertTrue(sel.web_check)
@@ -47,7 +47,7 @@ class SelectLibAndBinModules(unittest.TestCase):
             examples={"web_demo": "use meshtown::words;\n"},
         )
 
-        sel = changed_tests.select(["src/words.rs"], src)
+        sel = changed_tests.select(["core/words.rs"], src)
 
         self.assertEqual(sel.lib_modules, {"words"})
         self.assertEqual(sel.bin_modules, {"app"}, "main is a special case, goes to whole_bin")
@@ -57,21 +57,21 @@ class SelectLibAndBinModules(unittest.TestCase):
     def test_binary_module_file_selects_its_own_bin_module_without_lib_or_integration(self):
         src = _sources(main_rs="mod app;\n")
 
-        sel = changed_tests.select(["src/app/view.rs"], src)
+        sel = changed_tests.select(["core/app/view.rs"], src)
 
         self.assertEqual(sel.bin_modules, {"app"})
         self.assertEqual(sel.lib_modules, set())
         self.assertEqual(sel.integration, set())
 
     def test_main_rs_and_main_tests_rs_select_whole_bin_not_lib_module(self):
-        for path in ("src/main.rs", "src/main_tests.rs"):
+        for path in ("core/main.rs", "core/main_tests.rs"):
             with self.subTest(path=path):
                 sel = changed_tests.select([path], _sources())
                 self.assertTrue(sel.whole_bin)
                 self.assertEqual(sel.lib_modules, set(), "not lib_modules={main_tests}")
 
     def test_lib_rs_selects_full(self):
-        sel = changed_tests.select(["src/lib.rs"], _sources())
+        sel = changed_tests.select(["core/lib.rs"], _sources())
 
         self.assertTrue(sel.full)
 
@@ -82,9 +82,10 @@ class SelectIntegrationTests(unittest.TestCase):
     def test_tests_file_selects_its_own_name(self):
         src = _sources(tests={"loopback": "fn it_works() {}\n"})
 
-        sel = changed_tests.select(["tests/loopback.rs"], src)
+        sel = changed_tests.select(["core/tests/loopback.rs"], src)
 
         self.assertEqual(sel.integration, {"loopback"})
+        self.assertEqual(sel.lib_modules, set())
 
     def test_common_file_selects_every_test_that_includes_it(self):
         src = _sources(
@@ -97,9 +98,10 @@ class SelectIntegrationTests(unittest.TestCase):
             }
         )
 
-        sel = changed_tests.select(["tests/common/node_web.rs"], src)
+        sel = changed_tests.select(["core/tests/common/node_web.rs"], src)
 
         self.assertEqual(sel.integration, {"node_web_bootstrap"})
+        self.assertEqual(sel.lib_modules, set())
 
     def test_lib_module_used_inside_included_common_file_selects_that_integration_test(self):
         src = _sources(
@@ -111,23 +113,24 @@ class SelectIntegrationTests(unittest.TestCase):
             }
         )
 
-        sel = changed_tests.select(["src/node/x.rs"], src)
+        sel = changed_tests.select(["core/node/x.rs"], src)
 
         self.assertEqual(sel.integration, {"node_web_bootstrap"})
 
     def test_deleted_tests_file_not_in_sources_is_dropped_from_integration(self):
         src = _sources(tests={})
 
-        sel = changed_tests.select(["tests/removed_test.rs"], src)
+        sel = changed_tests.select(["core/tests/removed_test.rs"], src)
 
         self.assertEqual(sel.integration, set())
+        self.assertEqual(sel.lib_modules, set())
 
 
 class SelectWebAndScripts(unittest.TestCase):
-    """select() — web/, examples/ and e2e/ give web_check; web/vue/ and web/bundle/ additionally js (web/vue/ also web_typecheck), e2e also web_lint."""
+    """select() — core/web_gui/ui/, core/examples/ and core/web_gui/e2e/ give web_check; core/web_gui/ui/vue/ and core/web_gui/ui/bundle/ additionally js (core/web_gui/ui/vue/ also web_typecheck), e2e also web_lint."""
 
     def test_js_file_under_web_selects_web_check_js_and_lib_modules(self):
-        sel = changed_tests.select(["web/vue/src/shell/status-line.ts"], _sources())
+        sel = changed_tests.select(["core/web_gui/ui/vue/src/shell/status-line.ts"], _sources())
 
         self.assertTrue(sel.web_check)
         self.assertTrue(sel.js)
@@ -135,56 +138,57 @@ class SelectWebAndScripts(unittest.TestCase):
         self.assertEqual(sel.lib_modules, {"web", "node::identity"})
 
     def test_bundle_file_selects_js_but_not_web_typecheck(self):
-        sel = changed_tests.select(["web/bundle/app.js"], _sources())
+        sel = changed_tests.select(["core/web_gui/ui/bundle/app.js"], _sources())
 
         self.assertTrue(sel.js)
         self.assertFalse(sel.web_typecheck)
 
     def test_js_file_under_web_does_not_select_web_lint(self):
-        sel = changed_tests.select(["web/vue/src/shell/status-line.ts"], _sources())
+        sel = changed_tests.select(["core/web_gui/ui/vue/src/shell/status-line.ts"], _sources())
 
         self.assertFalse(sel.web_lint)
 
     def test_web_demo_example_selects_web_check_not_py(self):
-        sel = changed_tests.select(["examples/web_demo/main.rs"], _sources())
+        sel = changed_tests.select(["core/examples/web_demo/main.rs"], _sources())
 
         self.assertTrue(sel.web_check)
         self.assertFalse(sel.py)
 
     def test_e2e_spec_selects_web_check_and_web_lint_only(self):
-        sel = changed_tests.select(["e2e/specs/basic.spec.ts"], _sources())
+        sel = changed_tests.select(["core/web_gui/e2e/specs/basic.spec.ts"], _sources())
 
         self.assertTrue(sel.web_check)
         self.assertTrue(sel.web_lint)
+        self.assertEqual(sel.lib_modules, set())
         self.assertFalse(sel.full)
         self.assertFalse(sel.py)
 
     def test_e2e_package_json_selects_web_check_and_web_lint(self):
-        sel = changed_tests.select(["e2e/package.json"], _sources())
+        sel = changed_tests.select(["core/web_gui/e2e/package.json"], _sources())
 
         self.assertTrue(sel.web_check)
         self.assertTrue(sel.web_lint)
 
     def test_e2e_readme_selects_nothing(self):
-        sel = changed_tests.select(["e2e/README.md"], _sources())
+        sel = changed_tests.select(["core/web_gui/e2e/README.md"], _sources())
 
         self.assertEqual(
             (sel.full, sel.web_check, sel.web_lint, sel.py, sel.js),
             (False, False, False, False, False),
         )
-        self.assertEqual(sel.reasons, ["e2e/README.md → no-op (md)"])
+        self.assertEqual(sel.reasons, ["core/web_gui/e2e/README.md → no-op (md)"])
 
     def test_android_source_selects_android_tests_only(self):
-        sel = changed_tests.select(["android/app/src/main/java/A.java"], _sources())
+        sel = changed_tests.select(["platforms/android/gui/app/src/main/java/A.java"], _sources())
 
         self.assertTrue(sel.android)
         self.assertEqual(
             (sel.full, sel.py, sel.js, sel.web_check), (False, False, False, False)
         )
-        self.assertEqual(sel.reasons, ["android/app/src/main/java/A.java → android"])
+        self.assertEqual(sel.reasons, ["platforms/android/gui/app/src/main/java/A.java → android"])
 
     def test_android_readme_selects_nothing(self):
-        sel = changed_tests.select(["android/README.md"], _sources())
+        sel = changed_tests.select(["platforms/android/gui/README.md"], _sources())
 
         self.assertFalse(sel.android)
 
@@ -196,6 +200,8 @@ class SelectFullAndEmpty(unittest.TestCase):
         for path in (
             "Makefile",
             "Cargo.toml",
+            "core/Cargo.toml",
+            "src/node/x.rs",
             ".cargo/config.toml",
             "foo.txt",
         ):
@@ -224,7 +230,7 @@ class SelectFullAndEmpty(unittest.TestCase):
 
     def test_multiple_paths_union_their_selections(self):
         sel = changed_tests.select(
-            ["src/words.rs", "e2e/specs/basic.spec.ts"],
+            ["core/words.rs", "core/web_gui/e2e/specs/basic.spec.ts"],
             _sources(),
         )
 

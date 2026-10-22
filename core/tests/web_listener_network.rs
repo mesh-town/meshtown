@@ -1,12 +1,12 @@
 //! Integration tests of the node page listener, the group "invite and joining a network":
 //! the invite route without a network (404 at a fake node), parsing a `key`/`invite` string in
 //! `/api/network/join` — a bad word, a real invite, a damaged invite.
-//! What it doesn't do: it doesn't change `src/web.rs` and `src/web/*.rs` — it only calls their public interface.
+//! What it doesn't do: it doesn't change `src/web.rs` and `core/web/*.rs` — it only calls their public interface.
 //! The token is never printed or put into the text of `assert!`/`assert_eq!`: the same rule is kept
 //! for the network key — it is not a token, but it is the same shared secret of the network.
 //! Links: the node page listener module, which these tests cover,
-//! `WEB-API.md`; the harness is `tests/common/web_listener.rs` (`#[path]`, shared with
-//! `tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_config_api.rs`).
+//! `docs/WEB-API.md`; the harness is `core/tests/common/web_listener.rs` (`#[path]`, shared with
+//! `core/tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_config_api.rs`).
 
 #[path = "common/web_listener.rs"]
 mod common;

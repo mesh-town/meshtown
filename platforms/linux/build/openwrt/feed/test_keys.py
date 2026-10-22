@@ -3,7 +3,7 @@
 They need the usign tool (and openssl for the apk key); without them they are skipped, unless
 MESHTOWN_FEED_REQUIRE_TOOLS=1 turns a skip into a failure.
 
-Run from the tree root: python3 -m unittest discover -s build/openwrt/feed -t build/openwrt/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
 """
 
 import subprocess

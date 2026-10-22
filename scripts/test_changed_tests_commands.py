@@ -101,7 +101,7 @@ class Commands(unittest.TestCase):
 
     def test_commands_do_not_depend_on_the_order_of_changed_paths(self):
         src = _sources()
-        paths = ["src/words.rs", "e2e/specs/basic.spec.ts"]
+        paths = ["core/words.rs", "core/web_gui/e2e/specs/basic.spec.ts"]
 
         sel_forward = changed_tests.select(paths, src)
         sel_reversed = changed_tests.select(list(reversed(paths)), src)

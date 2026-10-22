@@ -2,11 +2,11 @@
 //! TCP" group: body limits, chunked, head buffer overflow, keep-alive/close, an idle
 //! connection at shutdown, guard order, HEAD without a body, static files and headers. Three tests
 //! and one note are written specifically for today's HTTP stack.
-//! What it doesn't do: it doesn't edit `src/web.rs` and `src/web/*.rs` — it only calls their public interface.
+//! What it doesn't do: it doesn't edit `src/web.rs` and `core/web/*.rs` — it only calls their public interface.
 //! It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
 //! Links:
-//! `WEB-API.md`; scaffolding in `tests/common/web_listener.rs` (`#[path]`, shared with
-//! `tests/web_listener_lifecycle.rs`, `_config_api.rs`, `_network.rs`).
+//! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
+//! `core/tests/web_listener_lifecycle.rs`, `_config_api.rs`, `_network.rs`).
 
 #[path = "common/web_listener.rs"]
 mod common;

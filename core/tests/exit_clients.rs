@@ -13,7 +13,7 @@
 //! the `host_overrides` table bypasses the filter, so a connection failure is the name `CLOSED_DOMAIN`.
 //! What it doesn't do: doesn't check the member filter and sorting (that is `build`, the tests
 //! `node_ctl/snapshot/build_exit_tests.rs`), doesn't wait the real 30 s of `EXIT_CLIENT_LINGER` — shifts `now`.
-//! Links: `meshtown::exit::{ask_exit_to_connect, Clients, EXIT_CLIENT_LINGER}`; plumbing — `tests/common/socks_pair.rs`.
+//! Links: `meshtown::exit::{ask_exit_to_connect, Clients, EXIT_CLIENT_LINGER}`; plumbing — `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

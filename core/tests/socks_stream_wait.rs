@@ -10,10 +10,10 @@
 //! `meshtown::output::log_page`. Two tests are slow real-time tests (`#[ignore]`: they wait 5–10 s of real time),
 //! they are run with `cargo nextest run --run-ignored only -E 'binary(socks_stream_wait)'`; network calls
 //! run under an external deadline (`NET_LIMIT` 5 s, `DRY_LIMIT` 30 s for the dry ones).
-//! What it does not do: does not check `PeerConnPool::open_peer_stream` alone (that is `tests/exit_pool_timeout.rs`) and does not
+//! What it does not do: does not check `PeerConnPool::open_peer_stream` alone (that is `core/tests/exit_pool_timeout.rs`) and does not
 //! touch the HTTP proxy — cancelling the wait there is outside the task's boundary.
 //! Links: `meshtown::{socks5, exit::OPEN_STREAM_TIMEOUT, output}`; the harness is
-//! `tests/common/socks_pair.rs`.
+//! `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
@@ -32,7 +32,7 @@ use tokio::time::{sleep, timeout};
 
 use common::{echo_site, pair_with, silent_site, wait_exit_route, DOMAIN};
 
-/// How many streams B allows A on the exit connection (as in `tests/exit_pool_timeout.rs`): if
+/// How many streams B allows A on the exit connection (as in `core/tests/exit_pool_timeout.rs`): if
 /// the pair does not converge with 1, here it is 2 and `when_slots_taken` holds two SOCKS connections.
 const STREAMS_LIMIT: u16 = 1;
 /// The external deadline of a regular test's network step: code without a deadline fails the test instead of hanging the run.

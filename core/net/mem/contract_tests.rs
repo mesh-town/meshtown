@@ -1,4 +1,4 @@
-//! Contract suites of `src/net/contract/` on `mem`: one line per suite and an environment on `MemNet`
+//! Contract suites of `core/net/contract/` on `mem`: one line per suite and an environment on `MemNet`
 //! (sync — on `MemSyncNet`). Each test takes a fresh environment: the networks of different tests do not overlap.
 
 use crate::net::addr::{PeerAddr, RelayRef};

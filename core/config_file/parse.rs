@@ -1,4 +1,4 @@
-//! Parsing the file text into `ParsedConfigFile` (CONFIG-FILE.md section 8: a damaged field gets the default, not a rejection) and reading
+//! Parsing the file text into `ParsedConfigFile` (docs/CONFIG-FILE.md section 8: a damaged field gets the default, not a rejection) and reading
 //! the file from disk (`load_config_file`). Checking individual fields is in `parse_fields.rs`.
 
 use crate::net::NodeSecret;
@@ -103,7 +103,7 @@ fn check_version(cfg: &Value) -> Result<u64, String> {
     Ok(version)
 }
 
-/// `rev`: absent — 0 with no error (like any missing field, CONFIG-FILE.md section 8); wrong type — 0 and an error.
+/// `rev`: absent — 0 with no error (like any missing field, docs/CONFIG-FILE.md section 8); wrong type — 0 and an error.
 fn read_rev(root_obj: &serde_json::Map<String, Value>, errs: &mut Vec<FieldError>) -> u64 {
     match root_obj.get("rev") {
         None => 0,

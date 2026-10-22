@@ -1,5 +1,5 @@
 /* DemoNode data without the binary: a snapshot, a config and a log "like the demo node's" for the cases moved over from e2e.
- * The source of the numbers is `examples/web_demo/` (`node.rs`, `snapshot.rs`, `ports.rs`, `config.rs`): if you change
+ * The source of the numbers is `core/examples/web_demo/` (`node.rs`, `snapshot.rs`, `ports.rs`, `config.rs`): if you change
  * DemoNode, change this too; they do not sync silently. */
 
 import { PEER2_FULL, PEER_FULL, SELF_FULL, baseConfig, baseState } from "./section.mjs";

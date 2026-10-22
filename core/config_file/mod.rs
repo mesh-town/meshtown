@@ -1,4 +1,4 @@
-//! The node's settings file on disk (`CONFIG-FILE.md`).
+//! The node's settings file on disk (`docs/CONFIG-FILE.md`).
 //!
 //! What it does: finds `config.json`, reads it field by field (a damaged field gets the default), merges it with
 //! command-line flags, writes the file atomically, keeps the node secret in the file envelope.
@@ -11,7 +11,7 @@
 //! `settings` — the `Settings` document (two blocks) and the `TransportMode`/`ListenAccess` enums;
 //! `process_settings`/`net_settings` — the `ProcessSettings` (process host) and `NetSettings` blocks
 //! (what the node reads); `path` — finding the file on disk; `time` —
-//! time in the CONFIG-FILE.md format; `report` — what the settings module hands out; `parse_fields`/`parse` — reading
+//! time in the docs/CONFIG-FILE.md format; `report` — what the settings module hands out; `parse_fields`/`parse` — reading
 //! JSON into `Settings`; `render_config_file` — the inverse, `Settings` to JSON; `save_config_file` — writing the file to disk and its
 //! relocation; `overrides` — command-line flags over the file; `run` — `prepare()`, assembling
 //! everything together for node start.

@@ -187,7 +187,7 @@ async fn shutdown_pair(a: RunningNode, b: RunningNode) {
     b.shutdown().await;
 }
 
-/// A copy of the helper from `tests/node_country.rs`: enters `b`'s address into `a` over loopback.
+/// A copy of the helper from `core/tests/node_country.rs`: enters `b`'s address into `a` over loopback.
 async fn introduce(a: &RunningNode, b: &RunningNode) {
     a.introduce(PeerAddr::new(b.id)).await;
 }

@@ -1,6 +1,6 @@
 //! Tests for `program_version`: parsing the program version value from the network's shared document
 //! and the entry format. The network part (publishing, a peer reading it, overwriting)
-//! is checked by `tests/node_program_version.rs`.
+//! is checked by `core/tests/node_program_version.rs`.
 
 use super::*;
 

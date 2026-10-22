@@ -3,7 +3,7 @@
 Paths under /opt are redirected into a temporary root; wget and opkg are small stubs that log their calls and
 imitate what the real tools do to the files.
 
-Run from the tree root: python3 -m unittest discover -s build/keenetic/feed -t build/keenetic/feed
+Run from the tree root: python3 -m unittest discover -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed
 """
 
 import os

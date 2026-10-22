@@ -11,8 +11,8 @@
 //! the filter and is not set from working paths, so only `boot_with_exit_hosts` sets it).
 //! A's streams stay open until the end of the test.
 //! What it doesn't do: doesn't check the member filter and sorting (unit tests
-//! `node_ctl/snapshot/build_exit_tests.rs`) and doesn't wait for the client to be forgotten (`tests/exit_clients.rs`).
-//! Links: plumbing — `tests/common/node_web.rs`; `id_full` of the node is `id.to_string()`, as in
+//! `node_ctl/snapshot/build_exit_tests.rs`) and doesn't wait for the client to be forgotten (`core/tests/exit_clients.rs`).
+//! Links: plumbing — `core/tests/common/node_web.rs`; `id_full` of the node is `id.to_string()`, as in
 //! `NodeCtl::snapshot`.
 
 #[path = "common/node_web.rs"]

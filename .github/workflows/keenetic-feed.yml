@@ -53,17 +53,17 @@ jobs:
             exit 1
           fi
       - name: Tests of the feed builder
-        run: python3 -m unittest discover -v -s build/keenetic/feed -t build/keenetic/feed
+        run: python3 -m unittest discover -v -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed
       - name: Download the release binaries
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
-          mkdir -p release
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir release \
+          mkdir -p fetched
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir fetched \
             --pattern 'meshtown-cli-*-linux-musl.tar.gz' --pattern SHA256SUMS
-          (cd release && sha256sum -c --ignore-missing SHA256SUMS)
+          (cd fetched && sha256sum -c --ignore-missing SHA256SUMS)
       - name: Unpack the binaries
         env:
           TAG: ${{ inputs.tag }}
@@ -74,12 +74,12 @@ jobs:
           args=()
           for triple in mipsel-unknown-linux-musl mips-unknown-linux-musl aarch64-unknown-linux-musl; do
             base="meshtown-cli-${version}-${triple}"
-            if [ ! -f "release/${base}.tar.gz" ]; then
+            if [ ! -f "fetched/${base}.tar.gz" ]; then
               echo "::notice::release ${TAG} has no ${base}.tar.gz; that architecture is skipped"
               continue
             fi
             mkdir -p "bins/${triple}"
-            tar -xzf "release/${base}.tar.gz" -C "bins/${triple}"
+            tar -xzf "fetched/${base}.tar.gz" -C "bins/${triple}"
             args+=(--bin "${triple}=bins/${triple}/${base}/meshtown-cli")
           done
           if [ "${#args[@]}" -eq 0 ]; then
@@ -95,7 +95,7 @@ jobs:
           set -euo pipefail
           args=()
           while IFS= read -r line; do args+=("$line"); done < bin-args.txt
-          python3 build/keenetic/feed/build_feed.py --out feed --version "${TAG#v}" \
+          python3 platforms/linux/build/keenetic/feed/build_feed.py --out feed --version "${TAG#v}" \
             --pkg-release "$PKG_RELEASE" --base-url https://mesh-town.github.io/meshtown-keenetic "${args[@]}"
       - uses: actions/upload-artifact@v4
         with:
@@ -118,5 +118,5 @@ jobs:
           key="$RUNNER_TEMP/deploy-key"
           printf '%s\n' "$KEENETIC_DEPLOY_KEY" > "$key"
           export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-          build/openwrt/feed/publish.sh feed git@github.com:mesh-town/meshtown-keenetic.git "${TAG#v}-r${PKG_RELEASE}"
+          platforms/linux/build/openwrt/feed/publish.sh feed git@github.com:mesh-town/meshtown-keenetic.git "${TAG#v}-r${PKG_RELEASE}"
           rm -f "$key"

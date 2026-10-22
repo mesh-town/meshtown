@@ -1,4 +1,4 @@
-//! Response → `Reply` per the contract (`WEB-API.md`): 200 with a JSON object body → `Ok`; any other 200 →
+//! Response → `Reply` per the contract (`docs/WEB-API.md`): 200 with a JSON object body → `Ok`; any other 200 →
 //! `OtherStatus(200)`; 202 → `Accepted`; 401 → `Unauthorized`; 503 with `error == "stopping"` in the body →
 //! `Stopping`; anything else, including 403 `bad_host`/`bad_origin`, → `OtherStatus(code)`.
 

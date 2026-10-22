@@ -5,7 +5,7 @@
 //! `exit_hosts` table and leads it to an echo server, so no IPv6 connectivity is needed. The route of the first
 //! node leads through the exit.
 //! What it does not do: does not open a real IPv6 connection and does not resolve AAAA records.
-//! Links: `meshtown::socks5`, `meshtown::proxy`; the harness is `tests/common/socks_pair.rs`.
+//! Links: `meshtown::socks5`, `meshtown::proxy`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;

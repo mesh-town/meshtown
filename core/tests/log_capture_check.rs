@@ -1,4 +1,4 @@
-//! Check of the layer `tests/common/log_capture.rs` itself: `info` is not counted, `warn` and `error`
+//! Check of the layer `core/tests/common/log_capture.rs` itself: `info` is not counted, `warn` and `error`
 //! are counted, `mark` cuts off the old ones. Exact counts hold under `nextest` (a process per test); under
 //! `cargo test` the file's two tests share a process and their events mix.
 

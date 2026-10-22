@@ -1,4 +1,4 @@
-//! Contract suites of the `src/net/contract/` transport on `hyper`: a loopback cluster from `test_cluster`,
+//! Contract suites of the `core/net/contract/` transport on `hyper`: a loopback cluster from `test_cluster`,
 //! real DHT connections and UDX. The harness starts the cluster lazily (`$harness()` is called without `await`),
 //! `restart` closes the previous node and starts a new one with the same key.
 

@@ -62,7 +62,7 @@ fn route_exits_rejects_bad_values() {
     assert_eq!(p.field_errors[0].field_path, "route.exits");
 }
 
-/// The old key `route.all_traffic` in the file is an unknown field (CONFIG-FILE.md section 8), not an error.
+/// The old key `route.all_traffic` in the file is an unknown field (docs/CONFIG-FILE.md section 8), not an error.
 #[test]
 fn route_all_traffic_key_becomes_unknown() {
     let text = r#"{"config":{"version":1, "route": {"all_traffic": true}}}"#;

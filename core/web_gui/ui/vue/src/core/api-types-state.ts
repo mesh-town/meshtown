@@ -26,7 +26,7 @@ export type ConfigFileState = "ok" | "created" | "unreadable" | "invalid";
 
 // ---------------------------------------------------------------- GET /api/state
 
-/** The whole node snapshot, `GET /api/state` — WEB-API.md §1.3. */
+/** The whole node snapshot, `GET /api/state` — docs/WEB-API.md §1.3. */
 export interface NodeState {
   boot_id: string; // 8 hex characters, new on every process start
   now: number; // seconds since the node started, one decimal place
@@ -261,7 +261,7 @@ export interface LogLine {
 
 // ---------------------------------------------------------------- GET /api/log
 
-/** Log page, `GET /api/log?after=&limit=` — WEB-API.md §1.4.
+/** Log page, `GET /api/log?after=&limit=` — docs/WEB-API.md §1.4.
  * `GET /api/log/download` returns `text/plain`, not JSON (§1.5). */
 export interface LogResponse {
   boot_id: string;

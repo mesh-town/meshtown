@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 import { e2eOutDir } from './fixtures/orphans';
 import type { TargetWorkerOptions } from './fixtures/target';
 
-const ROOT = path.resolve(__dirname, '..', '..');
+const ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const DEFAULT_DEMO_BIN = path.join(ROOT, '.tmp', 'build', 'host', 'debug', 'examples', 'web_demo');
 const DEFAULT_NODE_BIN = path.join(ROOT, '.tmp', 'build', 'host', 'debug', 'meshtown');
 
