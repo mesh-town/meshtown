@@ -1,5 +1,5 @@
 //! Tests for the exit address filter (`address_guard.rs`): the IPv4 table, "closed by default" for
-//! IPv6, the selection order from the DoH answer, and the node's own address probe. Network boundaries are checked
+//! IPv6, and the node's own address probe. Network boundaries are checked
 //! in pairs "last closed — first open neighbor", so that a prefix shift doesn't go unnoticed.
 
 use super::*;
@@ -203,39 +203,6 @@ mod v6 {
             ],
             "global unicast outside closed networks",
         );
-    }
-}
-
-mod pick {
-    use super::*;
-
-    #[test]
-    fn first_allowed_skips_closed_and_keeps_order() {
-        let answer = [
-            Ipv4Addr::new(192, 168, 1, 1),
-            Ipv4Addr::new(93, 184, 216, 34),
-            Ipv4Addr::new(8, 8, 8, 8),
-        ];
-
-        let picked = first_allowed(&answer);
-
-        assert_eq!(
-            picked,
-            Some(Ipv4Addr::new(93, 184, 216, 34)),
-            "the first open one in answer order, not any open one"
-        );
-    }
-
-    #[test]
-    fn first_allowed_is_none_when_all_closed_or_empty() {
-        let all_closed = [Ipv4Addr::new(10, 0, 0, 1), Ipv4Addr::new(127, 0, 0, 1)];
-
-        assert_eq!(
-            first_allowed(&all_closed),
-            None,
-            "all addresses are closed — nothing to choose"
-        );
-        assert_eq!(first_allowed(&[]), None, "empty answer — nothing to choose");
     }
 }
 

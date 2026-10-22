@@ -5,6 +5,11 @@ use crate::proxy::pac::PacRequest;
 use crate::socks5::Target;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
+#[path = "http_head_ipv6_tests.rs"]
+mod connect_ipv6;
+#[path = "http_head_pac_tests.rs"]
+mod pac_file;
+
 mod connect {
     use super::*;
 
@@ -33,53 +38,6 @@ mod connect {
             let ask = parse_ok(b"CONNECT 10.0.0.1 HTTP/1.1\r\n\r\n");
             assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(10, 0, 0, 1).into()));
             assert_eq!(ask.port, 443);
-        }
-    }
-
-    mod ipv6 {
-        use super::*;
-
-        #[test]
-        fn connect_to_bracketed_literal_is_parsed() {
-            let ask = parse_ok(b"CONNECT [::1]:443 HTTP/1.1\r\n\r\n");
-            assert_eq!(ask.target, Target::Ip(Ipv6Addr::LOCALHOST.into()));
-            assert_eq!(ask.port, 443);
-        }
-
-        #[test]
-        fn absolute_uri_with_bracketed_literal_keeps_host_header() {
-            let ask = parse_ok(b"GET http://[2001:db8::1]:8080/x HTTP/1.1\r\nHost: other\r\n\r\n");
-            assert_eq!(
-                ask.target,
-                Target::Ip("2001:db8::1".parse::<Ipv6Addr>().unwrap().into())
-            );
-            assert_eq!(ask.port, 8080);
-            assert!(
-                head_text(&ask).contains("Host: [2001:db8::1]:8080\r\n"),
-                "upstream head: {}",
-                head_text(&ask)
-            );
-        }
-
-        #[test]
-        fn bracketed_literal_without_port_uses_default() {
-            let ask = parse_ok(b"GET http://[2001:db8::1]/ HTTP/1.1\r\n\r\n");
-            assert_eq!(ask.port, 80);
-            assert!(
-                head_text(&ask).contains("Host: [2001:db8::1]\r\n"),
-                "upstream head: {}",
-                head_text(&ask)
-            );
-        }
-
-        #[test]
-        fn unclosed_bracket_is_rejected() {
-            assert!(parse_err(b"CONNECT [::1:443 HTTP/1.1\r\n\r\n"));
-        }
-
-        #[test]
-        fn unbracketed_ipv6_is_rejected() {
-            assert!(parse_err(b"CONNECT ::1:443 HTTP/1.1\r\n\r\n"));
         }
     }
 
@@ -252,57 +210,6 @@ mod incomplete_or_oversized {
         }
         raw.extend_from_slice(b"\r\n");
         assert!(parse_err(&raw));
-    }
-}
-
-mod pac_file {
-    use super::*;
-
-    #[test]
-    fn get_proxy_pac_is_pac_not_proxy() {
-        // given
-        let raw = b"GET /proxy.pac HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n\r\n";
-        // when
-        let ask = parse_pac(raw);
-        // then
-        assert_eq!(ask, PacRequest { head_only: false });
-    }
-
-    #[test]
-    fn head_proxy_pac_is_head_only() {
-        let ask = parse_pac(b"HEAD /proxy.pac HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n\r\n");
-        assert_eq!(ask, PacRequest { head_only: true });
-    }
-
-    #[test]
-    fn other_origin_path_is_still_origin_form_error() {
-        let res = parse_head(b"GET / HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n\r\n");
-        assert!(
-            matches!(res, Err(HeadError::OriginForm)),
-            "expected Err(OriginForm)"
-        );
-    }
-
-    #[test]
-    fn unfinished_pac_head_needs_more_bytes() {
-        let res = parse_head(b"GET /proxy.pac HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n");
-        assert!(matches!(res, Ok(None)), "expected Ok(None)");
-    }
-
-    #[test]
-    fn absolute_form_pac_is_proxied() {
-        // given: browsers fetch the PAC bypassing the proxy, so an absolute URI is ordinary proxying.
-        let raw = b"GET http://127.0.0.1:1080/proxy.pac HTTP/1.1\r\nHost: 127.0.0.1:1080\r\n\r\n";
-        // when
-        let ask = parse_ok(raw);
-        // then
-        assert_eq!(ask.target, Target::Ip(Ipv4Addr::new(127, 0, 0, 1).into()));
-        assert_eq!(ask.port, 1080);
-        assert!(
-            head_text(&ask).starts_with("GET /proxy.pac HTTP/1.1\r\n"),
-            "upstream head: {}",
-            head_text(&ask)
-        );
     }
 }
 

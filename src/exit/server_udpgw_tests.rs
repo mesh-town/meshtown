@@ -2,7 +2,7 @@
 //! ordinary targets keep their behavior.
 
 use super::*;
-use crate::exit::frame::encode_exit_request;
+use crate::exit::frame::{encode_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN};
 use crate::exit::udpgw::{UDPGW_HOST, UDPGW_PORT};
 use crate::net::facade::test_support::pid;
 use std::time::Duration;
