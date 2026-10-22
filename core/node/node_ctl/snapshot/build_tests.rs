@@ -108,6 +108,7 @@ fn check_info_extends_fields_and_saturates_future_at() {
     assert_eq!(info.verdict, VerdictKind::Ok);
 }
 
+/// A live-state entry for a peer that is offline.
 fn offline_live(
     path: Option<PathKindView>,
     rtt_ms: Option<u64>,

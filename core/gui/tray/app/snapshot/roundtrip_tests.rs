@@ -21,6 +21,7 @@ fn over_the_wire(snapshot: &NodeSnapshot, network: Option<serde_json::Value>) ->
     TraySnapshot::from_value(&value)
 }
 
+/// The self row and an exit peer, as in a full snapshot.
 fn full_peers() -> Vec<PeerInfo> {
     vec![
         PeerInfo {

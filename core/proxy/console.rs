@@ -47,7 +47,7 @@ pub struct ProxyConsole {
     pub user_agent: String,
 }
 
-/// Executes a console command.
+/// Prints the SOCKS listening address and whether the exit is on for others.
 fn say_socks(console: &ProxyConsole) {
     let listening = match console.socks {
         Some(addr) => addr.to_string(),
@@ -64,6 +64,7 @@ fn say_socks(console: &ProxyConsole) {
     );
 }
 
+/// Executes a console command.
 pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
     match cmd {
         ProxyCommand::Socks => say_socks(console),

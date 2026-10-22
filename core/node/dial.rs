@@ -219,9 +219,7 @@ fn success_suffix(attempt: u32) -> String {
     format!(", attempt {attempt}")
 }
 
-/// Dials the discovered member and runs the handshake as the initiator. A failure goes
-/// not as a log line but through the `failed` channel with the same text (`report_failure`) —
-/// `PeerDialer::on_dial_failed` decides, loudly or quietly.
+/// Logs a successful handshake in which this node was the initiator.
 fn say_initiator_success(peer: &PeerId, attempt: u32) {
     say(
         "auth",
@@ -233,6 +231,9 @@ fn say_initiator_success(peer: &PeerId, attempt: u32) {
     );
 }
 
+/// Dials the discovered member and runs the handshake as the initiator. A failure goes
+/// not as a log line but through the `failed` channel with the same text (`report_failure`) —
+/// `PeerDialer::on_dial_failed` decides, loudly or quietly.
 async fn dial_peer(
     stack: NetStack,
     addr: PeerAddr,

@@ -35,6 +35,7 @@ fn bad_copies(names: &[String]) -> Vec<String> {
         .collect()
 }
 
+/// The permission bits of the file at `path`.
 #[cfg(unix)]
 fn file_mode(path: &std::path::Path) -> u32 {
     use std::os::unix::fs::PermissionsExt;
