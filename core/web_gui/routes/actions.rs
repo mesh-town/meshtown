@@ -17,6 +17,7 @@ pub(super) async fn action_find_exit_handler(
     State(app): State<Arc<App>>,
     bytes: Bytes,
 ) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -25,7 +26,7 @@ pub(super) async fn action_find_exit_handler(
         Ok(d) => d,
         Err(resp) => return resp,
     };
-    match app.node.find_exit(&domain) {
+    match slot.node.find_exit(&domain) {
         Ok(()) => (
             StatusCode::ACCEPTED,
             axum::Json(json!({"domain": domain, "added": true})),
@@ -39,6 +40,7 @@ pub(super) async fn action_check_domain_handler(
     State(app): State<Arc<App>>,
     bytes: Bytes,
 ) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -47,14 +49,15 @@ pub(super) async fn action_check_domain_handler(
         Ok(d) => d,
         Err(resp) => return resp,
     };
-    match app.node.check_domain(&domain) {
+    match slot.node.check_domain(&domain) {
         Ok(()) => (StatusCode::ACCEPTED, axum::Json(json!({"domain": domain}))).into_response(),
         Err(e) => action_error(e),
     }
 }
 
 pub(super) async fn action_check_all_handler(State(app): State<Arc<App>>) -> Response {
-    match app.node.check_all() {
+    let slot = app.host.main_slot();
+    match slot.node.check_all() {
         Ok(n) => (StatusCode::ACCEPTED, axum::Json(json!({"queued": n}))).into_response(),
         Err(e) => action_error(e),
     }
@@ -62,12 +65,13 @@ pub(super) async fn action_check_all_handler(State(app): State<Arc<App>>) -> Res
 
 pub(super) async fn action_stop_handler(State(app): State<Arc<App>>) -> Response {
     app.stopping.store(true, Ordering::SeqCst);
-    app.node.stop();
+    app.host.stop_all();
     (StatusCode::ACCEPTED, axum::Json(json!({"stopping": true}))).into_response()
 }
 
 pub(super) async fn action_restart_handler(State(app): State<Arc<App>>) -> Response {
-    match app.node.restart() {
+    let slot = app.host.main_slot();
+    match slot.node.restart() {
         Ok(()) => (StatusCode::ACCEPTED, axum::Json(json!({"restart": true}))).into_response(),
         Err(e) => action_error(e),
     }

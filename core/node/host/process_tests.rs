@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use super::{heap_dump_dir, ProcessServices};
-use crate::config::config_file::ProcessSettings;
+use crate::config::config_file::{NetSlotId, ProcessSettings};
 use crate::members::network_key::NetworkKey;
 use crate::node::guard::GuardHandle;
 use crate::node::start::start_node;
@@ -55,11 +55,19 @@ async fn register_and_unregister_move_the_sources() {
     .await
     .unwrap();
     let services = ProcessServices::start(&settings(0, 0), PathBuf::from("."));
-    assert!(services.sources().snapshot().is_none());
-    services.register(node.members.clone(), node.checks.clone());
-    assert!(services.sources().snapshot().is_some());
-    services.unregister();
-    assert!(services.sources().snapshot().is_none());
+    let other = NetSlotId::parse("ab2c3d").unwrap();
+    assert!(services.sources().snapshot().is_empty());
+    services.register(NetSlotId::main(), node.members.clone(), node.checks.clone());
+    services.register(other.clone(), node.members.clone(), node.checks.clone());
+    assert_eq!(
+        services.sources().snapshot().len(),
+        2,
+        "both slots are seen"
+    );
+    services.unregister(&other);
+    assert_eq!(services.sources().snapshot().len(), 1, "one slot is gone");
+    services.unregister(&NetSlotId::main());
+    assert!(services.sources().snapshot().is_empty());
     services.stop();
     node.shutdown().await;
 }

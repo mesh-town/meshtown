@@ -59,7 +59,8 @@ fn reply(result: Result<MembersReply, MemberError>) -> Response {
 }
 
 async fn members_handler(State(app): State<Arc<App>>) -> Response {
-    reply(app.node.members().await)
+    let slot = app.host.main_slot();
+    reply(slot.node.members().await)
 }
 
 /// The body as a JSON object; anything else (including non-JSON) is 400 `bad_request`.
@@ -75,13 +76,14 @@ fn object_body(bytes: &[u8]) -> Result<Map<String, Value>, Response> {
 
 /// Runs an action that takes the target `id` from the body, built by `make`.
 async fn id_action(app: &App, bytes: &Bytes, make: fn(String) -> MemberActionReq) -> Response {
+    let slot = app.host.main_slot();
     let map = match object_body(bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
     };
     match map.get("id") {
         Some(Value::String(id)) if !id.trim().is_empty() => {
-            reply(app.node.member_action(make(id.trim().to_string())).await)
+            reply(slot.node.member_action(make(id.trim().to_string())).await)
         }
         _ => json_err(
             StatusCode::BAD_REQUEST,
@@ -119,6 +121,7 @@ fn bad_reason(message: &str) -> Response {
 }
 
 async fn exclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let slot = app.host.main_slot();
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -135,7 +138,7 @@ async fn exclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response 
     };
     match reason_of(&map) {
         Ok(reason) => reply(
-            app.node
+            slot.node
                 .member_action(MemberActionReq::Exclude { id, reason })
                 .await,
         ),
@@ -168,6 +171,7 @@ fn confirmed(map: &Map<String, Value>) -> bool {
 }
 
 async fn leave_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let slot = app.host.main_slot();
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -179,7 +183,7 @@ async fn leave_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
             "field confirm must be true",
         );
     }
-    reply(app.node.member_action(MemberActionReq::Leave).await)
+    reply(slot.node.member_action(MemberActionReq::Leave).await)
 }
 
 #[cfg(test)]

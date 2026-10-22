@@ -23,6 +23,7 @@ fn wants_keep_ports(map: &serde_json::Map<String, serde_json::Value>) -> bool {
 /// Sign-in by an invite string: the response is immediate, waiting for members happens on the node (`node.invite_join`).
 /// The node writes the received key to the settings file with the `save` closure and joins the network itself.
 fn join_by_invite_response(app: &Arc<App>, text: &str, keep_ports: bool) -> Response {
+    let slot = app.host.main_slot();
     let parsed = match crate::invite::parse(text) {
         Ok(p) => p,
         Err(e) => return invalid_key_response(&e, &format!("{e:#}")),
@@ -31,13 +32,13 @@ fn join_by_invite_response(app: &Arc<App>, text: &str, keep_ports: bool) -> Resp
         return invalid_key_response(&e, &format!("{e:#}"));
     }
     let label = parsed.head.label.clone();
-    let owner = app.clone();
+    let config = slot.config.clone();
     let save: SaveKey = Box::new(move |key| {
-        let mut cfg = owner.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cfg = config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.save_network_key(key, keep_ports)
             .map_err(|_| "settings file not written".to_string())
     });
-    if let Err(e) = app.node.join_by_invite(parsed.head, parsed.peers, save) {
+    if let Err(e) = slot.node.join_by_invite(parsed.head, parsed.peers, save) {
         return action_error(e);
     }
     (
@@ -48,6 +49,7 @@ fn join_by_invite_response(app: &Arc<App>, text: &str, keep_ports: bool) -> Resp
 }
 
 pub(super) async fn network_join_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -70,13 +72,13 @@ pub(super) async fn network_join_handler(State(app): State<Arc<App>>, bytes: Byt
         }
     };
     let label = {
-        let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         if let Err(resp) = cfg.save_network_key(&key_or_invite, keep_ports) {
             return resp;
         }
         input.label.clone()
     };
-    app.node.switch_network(&key_or_invite);
+    slot.node.switch_network(&key_or_invite);
     (
         StatusCode::ACCEPTED,
         axum::Json(json!({"label": label, "restart": true})),
@@ -85,6 +87,7 @@ pub(super) async fn network_join_handler(State(app): State<Arc<App>>, bytes: Byt
 }
 
 pub(super) async fn network_create_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -117,12 +120,12 @@ pub(super) async fn network_create_handler(State(app): State<Arc<App>>, bytes: B
     };
     let key = crate::members::network_key::format_key_string(Some(&label), &tail);
     {
-        let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         if let Err(resp) = cfg.save_network_key(&key, keep_ports) {
             return resp;
         }
     }
-    app.node.switch_network(&key);
+    slot.node.switch_network(&key);
     (
         StatusCode::OK,
         axum::Json(json!({"key": key, "label": label, "restart": true})),

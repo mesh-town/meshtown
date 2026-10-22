@@ -13,6 +13,7 @@ use crate::web_gui::auth::state::AuthState;
 use crate::web_gui::config_api::ConfigState;
 use crate::web_gui::control::{ActionError, NodeControl, PendingInvite};
 use crate::web_gui::http::ConnInfo;
+use crate::web_gui::single_slot_host;
 use crate::web_gui::{App, LogPage, NodeSnapshot, WebShared};
 
 const PORT: u16 = 18767;
@@ -74,8 +75,7 @@ async fn get(node: &Arc<InviteNode>, path: &str) -> (StatusCode, Value) {
         .expect("prepare without a file");
     let app = Arc::new(App {
         shared: Arc::new(WebShared::new(PORT, TOKEN.to_string(), auth)),
-        node: node.clone(),
-        config: Mutex::new(ConfigState::from_run(&run)),
+        host: single_slot_host(node.clone(), ConfigState::from_run(&run)),
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
     });

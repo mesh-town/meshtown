@@ -17,7 +17,8 @@ pub(super) async fn token_rotate_handler(
     State(app): State<Arc<App>>,
     cred: Option<Extension<Credential>>,
 ) -> Response {
-    let _cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+    let slot = app.host.main_slot();
+    let _cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     let new_token = match token::generate() {
         Ok(t) => t,
         Err(e) => {
