@@ -9,6 +9,7 @@ mod dial;
 mod refusal;
 mod target;
 
-pub(in crate::exit) use address_guard::{first_allowed, is_forbidden, is_own_address};
+pub(in crate::exit) use address_guard::{is_forbidden, is_own_address};
 pub(in crate::exit) use dial::open_target;
 pub(in crate::exit) use refusal::Refusal;
+pub(in crate::exit) use target::udp_address;

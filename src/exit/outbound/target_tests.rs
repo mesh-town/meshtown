@@ -130,6 +130,43 @@ mod answers {
     }
 }
 
+mod udp {
+    use super::*;
+    use crate::exit::test_support::exit_config_with_dead_resolver;
+
+    fn seeded(v4: Vec<Ipv4Addr>, v6: Vec<&str>) -> crate::exit::server::ExitConfig {
+        let cfg = exit_config_with_dead_resolver();
+        let v6 = v6.into_iter().map(|t| t.parse().expect("an IPv6 address")).collect();
+        cfg.resolver.seed_cache_dual_for_tests("udp.test", v4, v6);
+        cfg
+    }
+
+    #[tokio::test]
+    async fn udp_address_prefers_ipv4() {
+        let cfg = seeded(vec![Ipv4Addr::new(93, 184, 216, 34)], vec!["2606:4700::1111"]);
+
+        let addr = udp_address(&cfg.resolver, "udp.test", 53).await;
+
+        assert_eq!(addr, Some(SocketAddr::from(([93, 184, 216, 34], 53))));
+    }
+
+    #[tokio::test]
+    async fn udp_address_falls_back_to_ipv6_for_aaaa_only_name() {
+        let cfg = seeded(vec![], vec!["2606:4700::1111"]);
+
+        let addr = udp_address(&cfg.resolver, "udp.test", 53).await;
+
+        assert_eq!(addr, Some(SocketAddr::new(ip("2606:4700::1111"), 53)));
+    }
+
+    #[tokio::test]
+    async fn udp_address_is_none_when_all_closed() {
+        let cfg = seeded(vec![Ipv4Addr::new(10, 0, 0, 1)], vec!["fe80::1"]);
+
+        assert_eq!(udp_address(&cfg.resolver, "udp.test", 53).await, None);
+    }
+}
+
 /// The address this host uses to go outside: a UDP `connect` only picks a route and sends
 /// no packets. An error (no default route) gives `None`.
 fn outgoing_source() -> Option<IpAddr> {

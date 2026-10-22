@@ -46,11 +46,6 @@ pub(in crate::exit) fn is_forbidden(ip: IpAddr) -> bool {
     }
 }
 
-/// The first open address from the DoH answer in answer order; all closed or an empty list — `None`.
-pub(in crate::exit) fn first_allowed(addrs: &[Ipv4Addr]) -> Option<Ipv4Addr> {
-    addrs.iter().copied().find(|ip| !is_forbidden_v4(*ip))
-}
-
 fn is_forbidden_v4(ip: Ipv4Addr) -> bool {
     CLOSED_V4.iter().any(|&(net, len)| in_v4(ip, net, len))
 }

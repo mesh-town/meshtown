@@ -83,6 +83,19 @@ pub(in crate::exit) async fn v6_answer(resolver: &Resolver, name: &str, port: u1
     }
 }
 
+/// Where a UDP datagram for a name goes: the first open IPv4 address, otherwise the first open IPv6 one. No
+/// retries; a DoH error, a name that does not exist and an all-closed answer give `None`.
+pub(in crate::exit) async fn udp_address(resolver: &Resolver, name: &str, port: u16) -> Option<SocketAddr> {
+    let v4 = v4_answer(resolver, name, port).await.ok()?;
+    if let Some(first) = v4.open.first() {
+        return Some(*first);
+    }
+    if v4.nx {
+        return None;
+    }
+    v6_answer(resolver, name, port, AAAA_LOOKUP_TIMEOUT).await.open.first().copied()
+}
+
 #[cfg(test)]
 #[path = "target_tests.rs"]
 mod tests;

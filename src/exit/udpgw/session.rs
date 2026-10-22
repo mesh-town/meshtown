@@ -12,7 +12,7 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep_until, Instant};
 
 use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
-use crate::exit::outbound::{first_allowed, is_forbidden, is_own_address};
+use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
 use crate::exit::server::ExitConfig;
 use crate::net::{BoxRecv, BoxSend, PeerId};
 use crate::output::{say, short_peer_id};
@@ -150,8 +150,7 @@ impl Gateway {
         if let Ok(ip) = name.parse::<IpAddr>() {
             return Some((SocketAddr::new(ip, port), false));
         }
-        let addrs = self.cfg.resolver.resolve_cached(name).await.ok()?;
-        Some((SocketAddr::new(IpAddr::V4(first_allowed(&addrs)?), port), false))
+        Some((udp_address(&self.cfg.resolver, name, port).await?, false))
     }
 
     fn report_refused(&mut self, conn_id: u16) {
