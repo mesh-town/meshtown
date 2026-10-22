@@ -223,6 +223,7 @@ fn serve_socks(
         pool: PeerConnPool::default().with_traffic(net.exit_traffic.clone()),
         resolver: net.resolver.clone(),
         host_overrides: net.exit_hosts.clone(),
+        udp_slots: proxy::udp_slots(),
     };
     let (access, lan) = (adm.access, lan_line(&adm, bound.port()));
     let task = SocksTask::new(tokio::spawn(proxy::serve_proxy(listener, proxy_cfg, adm)));

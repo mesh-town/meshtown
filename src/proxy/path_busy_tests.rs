@@ -121,6 +121,7 @@ pub(super) async fn config_with(stuck: &[u8], exit: impl Fn() -> Arc<dyn Service
         pool: PeerConnPool::default().with_open_timeout(Duration::from_millis(100)),
         resolver: Arc::new(resolver),
         host_overrides: Arc::new(HashMap::new()),
+        udp_slots: crate::proxy::udp_slots(),
     }
 }
 

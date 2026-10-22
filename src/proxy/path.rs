@@ -269,7 +269,6 @@ async fn splice_while_chosen(
 
 #[path = "path_udp.rs"]
 mod udp;
-#[allow(unused_imports)] // used by the association server
 pub(super) use udp::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};
 
 #[cfg(test)]
