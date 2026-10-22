@@ -145,19 +145,16 @@ impl Refusal {
     }
 }
 
-/// An IP literal from the frame: a closed one is refused; the exit doesn't open IPv6 (DoH asks only for A).
+/// An IP literal from the frame: a closed one is refused. IPv4-mapped IPv6 is judged and opened as plain IPv4;
+/// a public IPv6 literal is opened as is (a host without IPv6 connectivity fails later with a connect error).
 fn literal_address(
     ip: IpAddr,
     target_host: &str,
     port: u16,
 ) -> std::result::Result<SocketAddr, Refusal> {
+    let ip = ip.to_canonical();
     if is_forbidden(ip) {
         return Err(Refusal::forbidden(target_host));
-    }
-    if ip.is_ipv6() {
-        return Err(Refusal::no_address(format!(
-            "{target_host} — exit doesn't open IPv6"
-        )));
     }
     Ok(SocketAddr::new(ip, port))
 }
