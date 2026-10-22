@@ -55,6 +55,8 @@ mod event_loop;
 #[cfg(feature = "net-hyper")]
 mod guard;
 #[cfg(feature = "net-hyper")]
+mod guard_sources;
+#[cfg(feature = "net-hyper")]
 mod identity;
 #[cfg(feature = "net-hyper")]
 mod lifecycle;

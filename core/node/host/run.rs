@@ -1,18 +1,18 @@
 //! The assembly point "log capacity → process services → stop signal → page → body → page shutdown".
 //! What isn't here: flag parsing, `Relaunch` and `NodeConfig` are in `commands`; the node itself is in `node`.
 //! The memory guard and the stop signal exist once per process, so they live here and not in the node.
-//! Related: `web` (the node page), `node_ctl` (the shared `NodeCtl`), `output` (the log). Later a list
-//! of slots (several networks in one process) will go here.
+//! Related: `web` (the node page), `node_ctl` (the shared `NodeCtl`), `output` (the log).
 
 use std::future::Future;
 use std::sync::Arc;
 
 use super::process::{heap_dump_dir, ProcessServices};
 use super::signal::spawn_stop_signal;
-use crate::config::config_file::RunConfig;
+use super::slots::HostSlots;
+use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::node_ctl::NodeCtl;
 use crate::node::output::{say, NET_NAME};
-use crate::web_gui::{WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::web_gui::{ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
 
 /// The role of the node page in a launch: what to do if it didn't start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -27,8 +27,8 @@ pub enum PageRole {
 pub struct Host;
 
 impl Host {
-    /// Sets the log capacity, starts the process services and the stop signal, starts the page, runs
-    /// `body`, then stops the page, the signal and the services.
+    /// Sets the log capacity, starts the process services, the slot map and the stop signal, starts the
+    /// page, runs `body` as the main slot's cycle, then stops the page, the signal and the services.
     /// `body` receives the `RunConfig` and the same `NodeCtl` that went to the page.
     pub async fn run_with_web_page<B, F>(
         run_config: RunConfig,
@@ -37,65 +37,77 @@ impl Host {
         body: B,
     ) -> anyhow::Result<()>
     where
-        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F,
-        F: Future<Output = anyhow::Result<()>>,
+        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
+        F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
         crate::node::output::set_log_capacity(
             run_config.effective_settings.process.log_ring_lines as usize,
         );
         let dump_dir = heap_dump_dir(run_config.file_report.path.as_deref());
         let services = ProcessServices::start(&run_config.effective_settings.process, dump_dir);
-        ctl.set_guard_sources(services.sources());
-        let signal_task = spawn_stop_signal(ctl.clone());
-        let result = Host::with_page(run_config, ctl, role, body).await;
+        ctl.set_guard_sources(NetSlotId::main(), services.sources());
+        let config = ConfigState::from_run(&run_config);
+        let host = HostSlots::with_main(ctl.clone(), config);
+        let on_signal = host.clone();
+        let signal_task = spawn_stop_signal(move || on_signal.stop_all_on_signal());
+        let result = Host::with_page(run_config, ctl, role, body, host).await;
         signal_task.abort();
         services.stop();
         result
     }
 
-    /// Starts the page and runs `body` around it; the page is stopped after `body`.
+    /// Starts the page and runs the main slot's cycle around it; the page is stopped after the slots.
     async fn with_page<B, F>(
         run_config: RunConfig,
         ctl: Arc<NodeCtl>,
         role: PageRole,
         body: B,
+        host: Arc<HostSlots>,
     ) -> anyhow::Result<()>
     where
-        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F,
-        F: Future<Output = anyhow::Result<()>>,
+        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
+        F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
         let options = WebOptions::for_run(&run_config);
-        match crate::web_gui::start_web_page(options, &run_config, ctl.clone()).await {
-            Ok(handle) => {
-                let result = body(run_config, ctl).await;
-                handle.shutdown(DEFAULT_DRAIN).await;
-                result
+        let started = crate::web_gui::start_web_page(options, &run_config, host.clone()).await;
+        let handle = match started {
+            Ok(handle) => Some(handle),
+            Err(e) => Host::page_failed(role, &e)?,
+        };
+        let task = tokio::spawn(body(run_config, ctl));
+        host.set_task(&NetSlotId::main(), task);
+        let result = Host::wait_slots(&host).await;
+        if let Some(handle) = handle {
+            handle.shutdown(DEFAULT_DRAIN).await;
+        }
+        result
+    }
+
+    /// The page didn't start: by role — a launch error, or a log line and the cycle without the page.
+    fn page_failed(role: PageRole, e: &WebStartError) -> anyhow::Result<Option<WebHandle>> {
+        match role {
+            PageRole::OnlyEntry => Err(entry_error(e)),
+            PageRole::Optional => {
+                e.continue_without_page_log_line()
+                    .into_iter()
+                    .for_each(|line| say("web", line));
+                Ok(None)
             }
-            Err(e) => Host::without_page(run_config, ctl, role, e, body).await,
         }
     }
 
-    /// The page didn't start: by role — a launch error, or a log line and the body without the page.
-    async fn without_page<B, F>(
-        run: RunConfig,
-        ctl: Arc<NodeCtl>,
-        role: PageRole,
-        e: WebStartError,
-        body: B,
-    ) -> anyhow::Result<()>
-    where
-        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F,
-        F: Future<Output = anyhow::Result<()>>,
-    {
-        match role {
-            PageRole::OnlyEntry => Err(entry_error(&e)),
-            PageRole::Optional => {
-                if let Some(line) = e.continue_without_page_log_line() {
-                    say("web", line);
-                }
-                body(run, ctl).await
+    /// Waits for every slot's task; the outcome is the main slot's, a panicked task is an error.
+    async fn wait_slots(host: &HostSlots) -> anyhow::Result<()> {
+        let mut main = Ok(());
+        for (id, task) in host.take_tasks() {
+            let outcome = task
+                .await
+                .unwrap_or_else(|e| Err(anyhow::anyhow!("the node task of slot {id} failed: {e}")));
+            if id == NetSlotId::main() {
+                main = outcome;
             }
         }
+        main
     }
 }
 

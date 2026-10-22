@@ -84,7 +84,13 @@ async fn start_web_if_enabled(
     let mut opts = WebOptions::for_run(run);
     opts.port = args.port;
     opts.fixed_token = args.token.clone();
-    match web_gui::start_web_page(opts, run, demo).await {
+    match web_gui::start_web_page(
+        opts,
+        run,
+        web_gui::single_slot_host(demo, web_gui::ConfigState::from_run(run)),
+    )
+    .await
+    {
         Ok(h) => {
             println!("page: http://127.0.0.1:{}/", h.shared.port());
             Some(h)

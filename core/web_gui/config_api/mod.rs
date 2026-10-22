@@ -15,7 +15,7 @@ mod save_key;
 mod state;
 mod support;
 
-pub(crate) use state::ConfigState;
+pub use state::ConfigState;
 
 #[cfg(test)]
 #[path = "mod_tests.rs"]

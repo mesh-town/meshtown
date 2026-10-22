@@ -16,7 +16,8 @@ use crate::web_gui::{ActionError, App};
 use super::helpers::{action_error, body_obj};
 
 pub(super) async fn peer_addresses_get_handler(State(app): State<Arc<App>>) -> Response {
-    let snap = app.node.snapshot();
+    let slot = app.host.main_slot();
+    let snap = slot.node.snapshot();
     let body = json!({"lines": snap.transport.self_addresses});
     (StatusCode::OK, axum::Json(body)).into_response()
 }
@@ -25,6 +26,7 @@ pub(super) async fn peer_addresses_post_handler(
     State(app): State<Arc<App>>,
     bytes: Bytes,
 ) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -47,7 +49,7 @@ pub(super) async fn peer_addresses_post_handler(
         if line.is_empty() {
             continue;
         }
-        match app.node.add_peer_address(line) {
+        match slot.node.add_peer_address(line) {
             Ok(()) => added += 1,
             Err(message) => rejected.push(json!({"line": line, "message": message})),
         }
@@ -57,7 +59,8 @@ pub(super) async fn peer_addresses_post_handler(
 }
 
 pub(super) async fn network_key_handler(State(app): State<Arc<App>>) -> Response {
-    let cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+    let slot = app.host.main_slot();
+    let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     let body = json!({"key": cfg.current_network_key});
     (StatusCode::OK, axum::Json(body)).into_response()
 }
@@ -83,11 +86,12 @@ fn invite_label(uri: &Uri) -> Result<Option<String>, ActionError> {
 }
 
 pub(super) async fn network_invite_handler(State(app): State<Arc<App>>, uri: Uri) -> Response {
+    let slot = app.host.main_slot();
     let label = match invite_label(&uri) {
         Ok(label) => label,
         Err(e) => return action_error(e),
     };
-    let pending = match app.node.invite_pending(label.as_deref()) {
+    let pending = match slot.node.invite_pending(label.as_deref()) {
         Ok(p) => p,
         Err(e) => return action_error(e),
     };

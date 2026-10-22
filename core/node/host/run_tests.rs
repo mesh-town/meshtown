@@ -73,7 +73,7 @@ async fn body_runs_between_page_up_and_page_down() {
     let order: Arc<Mutex<Vec<&'static str>>> = Arc::default();
     let inner = order.clone();
     let ctl = ctl_of(&run);
-    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, _| async move {
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, move |_, _| async move {
         assert_eq!(log_summary(0).ring_lines, TEST_RING);
         assert!(port_open(port).await, "the page must be up in the body");
         say("host-test", format!("body {port}"));
@@ -184,18 +184,55 @@ async fn host_gives_the_controller_the_guard_sources() {
     let ctl = ctl_of(&run);
     let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, ctl| async move {
         let sources = ctl.guard_sources().expect("the host must set the sources");
-        assert!(sources.snapshot().is_none(), "no node yet");
+        assert!(sources.snapshot().is_empty(), "no node yet");
         let node = start_node(NodeConfig::for_loopback_test(NetworkKey::generate()?)).await?;
         ctl.attach(&node);
-        assert!(sources.snapshot().is_some(), "attach must fill the sources");
+        assert_eq!(sources.snapshot().len(), 1, "attach must fill the sources");
         node.shutdown().await;
         ctl.release_guard_sources();
         assert!(
-            sources.snapshot().is_none(),
+            sources.snapshot().is_empty(),
             "release must clear the sources"
         );
         Ok(())
     })
     .await;
     assert!(res.is_ok(), "{res:?}");
+}
+
+#[tokio::test]
+async fn panicked_body_is_an_error() {
+    let run = run_config(free_port());
+    let ctl = ctl_of(&run);
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, _| async move {
+        panic!("body panicked");
+        #[allow(unreachable_code)]
+        Ok(())
+    })
+    .await;
+    assert!(res
+        .unwrap_err()
+        .to_string()
+        .contains("node task of slot main"));
+}
+
+#[tokio::test]
+async fn page_is_up_until_the_body_ends() {
+    let port = free_port();
+    let run = run_config(port);
+    let ctl = ctl_of(&run);
+    let seen = Arc::new(AtomicBool::new(false));
+    let flag = seen.clone();
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, move |_, _| async move {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        flag.store(port_open(port).await, Ordering::SeqCst);
+        Ok(())
+    })
+    .await;
+    assert!(res.is_ok());
+    assert!(
+        seen.load(Ordering::SeqCst),
+        "the page outlives the slot task"
+    );
+    assert!(!port_open(port).await, "and goes down after it");
 }

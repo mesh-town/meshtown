@@ -253,6 +253,7 @@ mod handle {
 /// Summary sources: the node's handles come and go, the summary does not fail without them.
 mod sources {
     use super::*;
+    use crate::config::config_file::NetSlotId;
     use crate::members::network_key::NetworkKey;
     use crate::node::config::NodeConfig;
     use crate::node::start::start_node;
@@ -260,9 +261,9 @@ mod sources {
     #[test]
     fn empty_by_default_and_after_clear() {
         let sources = GuardSources::default();
-        assert!(sources.snapshot().is_none());
-        sources.clear();
-        assert!(sources.snapshot().is_none());
+        assert!(sources.snapshot().is_empty());
+        sources.clear(&NetSlotId::main());
+        assert!(sources.snapshot().is_empty());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -274,10 +275,10 @@ mod sources {
         .unwrap();
         let sources = GuardSources::default();
         let copy = sources.clone();
-        sources.set(node.members.clone(), node.checks.clone());
-        assert!(copy.snapshot().is_some(), "a copy must see the handles");
-        copy.clear();
-        assert!(sources.snapshot().is_none());
+        sources.set(NetSlotId::main(), node.members.clone(), node.checks.clone());
+        assert_eq!(copy.snapshot().len(), 1, "a copy must see the handles");
+        copy.clear(&NetSlotId::main());
+        assert!(sources.snapshot().is_empty());
         node.shutdown().await;
     }
 
@@ -307,7 +308,7 @@ mod sources {
         .await
         .unwrap();
         let sources = GuardSources::default();
-        sources.set(node.members.clone(), node.checks.clone());
+        sources.set(NetSlotId::main(), node.members.clone(), node.checks.clone());
         let before = crate::node::output::log_summary(0).last_seq;
         print_summary(1234, 1000, &sources, &tokio::runtime::Handle::current());
         let page = crate::node::output::log_page(before, 10_000);

@@ -7,6 +7,8 @@ use crate::node::host::{Host, PageRole};
 use crate::node::output::{say, NET_NAME};
 use crate::node::IdentityState;
 
+use super::run_key::build_relaunch;
+
 /// Two hint lines after the page starts successfully: how to join the network.
 fn hint_lines() {
     say(
@@ -32,14 +34,7 @@ pub(super) async fn run_without_key(
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
 ) -> anyhow::Result<()> {
-    let relaunch = crate::node::node_ctl::Relaunch {
-        path: run.file_report.path.clone(),
-        cli: overrides,
-        secret: run.secret.clone(),
-        initial_domains,
-        blocked_domains,
-        test_net: None,
-    };
+    let relaunch = build_relaunch(&run, overrides, initial_domains, blocked_domains);
     let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&run.effective_settings);
     Host::run_with_web_page(run, ctl, PageRole::OnlyEntry, |run, ctl| async move {
         hint_lines();

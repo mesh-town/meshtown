@@ -43,6 +43,23 @@ pub(super) fn log_key_ready(started: std::time::Instant, from_words: bool, label
     }
 }
 
+/// `Relaunch` for a launch: the file, the flags, the identity secret and the task domains.
+pub(super) fn build_relaunch(
+    run: &RunConfig,
+    overrides: CliOverrides,
+    initial_domains: Vec<String>,
+    blocked_domains: Vec<String>,
+) -> crate::node::node_ctl::Relaunch {
+    crate::node::node_ctl::Relaunch {
+        path: run.file_report.path.clone(),
+        cli: overrides,
+        secret: run.secret.clone(),
+        initial_domains,
+        blocked_domains,
+        test_net: None,
+    }
+}
+
 /// Building `Relaunch` and `NodeConfig` for the first run (the label and addresses come from the invite, if there is one).
 pub(super) fn launch_parts(
     run: &RunConfig,
@@ -53,14 +70,7 @@ pub(super) fn launch_parts(
     label: Option<String>,
     invited: Option<crate::invite::ParsedInvite>,
 ) -> (crate::node::node_ctl::Relaunch, crate::node::NodeConfig) {
-    let relaunch = crate::node::node_ctl::Relaunch {
-        path: run.file_report.path.clone(),
-        cli: overrides,
-        secret: run.secret.clone(),
-        initial_domains,
-        blocked_domains,
-        test_net: None,
-    };
+    let relaunch = build_relaunch(run, overrides, initial_domains, blocked_domains);
     let mut cfg = relaunch.node_config(&run.effective_settings, network_key);
     cfg.identity = IdentityState::from_report(&run.file_report);
     let (invite_label, invite_peers) = match invited {

@@ -19,6 +19,7 @@ use crate::web_gui::http::ConnInfo;
 use crate::web_gui::members::dto::{
     Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
 };
+use crate::web_gui::single_slot_host;
 use crate::web_gui::{App, LogPage, NodeSnapshot, WebShared};
 
 const PORT: u16 = 18766;
@@ -183,8 +184,7 @@ fn fixture(node: Arc<dyn NodeControl>, seen: Seen) -> Fixture {
         .expect("prepare without a file");
     let app = Arc::new(App {
         shared: Arc::new(WebShared::new(PORT, TOKEN.to_string(), auth)),
-        node,
-        config: Mutex::new(ConfigState::from_run(&run)),
+        host: single_slot_host(node, ConfigState::from_run(&run)),
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
     });

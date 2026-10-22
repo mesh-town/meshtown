@@ -80,7 +80,10 @@ pub struct NodeCtl {
     /// holding the lock across `.await` is legal here (it is not a `std::sync::Mutex`).
     cmd_rx: tokio::sync::Mutex<mpsc::UnboundedReceiver<Cmd>>,
     /// Where the process memory guard reads the live node from; unset when there is no process host.
-    guard_sources: std::sync::OnceLock<crate::node::guard::GuardSources>,
+    pub(super) guard_sources: std::sync::OnceLock<(
+        crate::config::config_file::NetSlotId,
+        crate::node::guard_sources::GuardSources,
+    )>,
 }
 
 impl NodeCtl {
@@ -123,22 +126,6 @@ impl NodeCtl {
         })
     }
 
-    /// The process host gives the controller the guard's sources; the first call wins.
-    pub(crate) fn set_guard_sources(&self, sources: crate::node::guard::GuardSources) {
-        let _ = self.guard_sources.set(sources);
-    }
-
-    /// The guard's sources given by the host (tests only).
-    #[cfg(test)]
-    pub(crate) fn guard_sources(&self) -> Option<crate::node::guard::GuardSources> {
-        self.guard_sources.get().cloned()
-    }
-
-    /// The node has stopped: the guard's summary no longer reads it.
-    pub(crate) fn release_guard_sources(&self) {
-        self.guard_sources.get().iter().for_each(|s| s.clear());
-    }
-
     /// Remembers the `mem` test network for the temporary invite-join transport.
     #[doc(hidden)]
     pub fn set_test_net(&self, net: Option<Arc<crate::transport::net::mem::MemNet>>) {
@@ -178,10 +165,7 @@ impl NodeCtl {
             (st.snapshot_gen, pending, st.effective_settings.clone())
         };
         apply_pending_handles(&node, &pending, &effective_settings);
-        self.guard_sources
-            .get()
-            .iter()
-            .for_each(|s| s.set(node.members.clone(), node.checks.clone()));
+        self.publish_guard_sources(node.members.clone(), node.checks.clone());
         let task = self
             .rt
             .spawn(snapshot_task(self.ctl_shared.clone(), task_gen, node));

@@ -14,6 +14,7 @@ use crate::web_gui::App;
 use super::helpers::{action_error, body_obj, map_string_field};
 
 pub(super) async fn domains_post_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -22,7 +23,7 @@ pub(super) async fn domains_post_handler(State(app): State<Arc<App>>, bytes: Byt
         Ok(d) => d,
         Err(resp) => return resp,
     };
-    match app.node.add_domain(&domain) {
+    match slot.node.add_domain(&domain) {
         Ok(name) => (StatusCode::OK, axum::Json(json!({"domain": name}))).into_response(),
         Err(e) => action_error(e),
     }
@@ -32,6 +33,7 @@ pub(super) async fn domains_delete_handler(
     State(app): State<Arc<App>>,
     uri: axum::http::Uri,
 ) -> Response {
+    let slot = app.host.main_slot();
     let name = match query_param(&uri, "name") {
         Some(n) if !n.is_empty() => n,
         _ => {
@@ -42,7 +44,7 @@ pub(super) async fn domains_delete_handler(
             )
         }
     };
-    match app.node.remove_domain(&name) {
+    match slot.node.remove_domain(&name) {
         Ok(name) => (StatusCode::OK, axum::Json(json!({"domain": name}))).into_response(),
         Err(e) => action_error(e),
     }

@@ -25,7 +25,8 @@ pub(super) async fn state_handler(
     State(app): State<Arc<App>>,
     conn: Option<Extension<ConnInfo>>,
 ) -> Response {
-    let snap = app.node.snapshot();
+    let slot = app.host.main_slot();
+    let snap = slot.node.snapshot();
     let mut value = match serde_json::to_value(&snap) {
         Ok(v) => v,
         Err(_) => {
@@ -38,7 +39,7 @@ pub(super) async fn state_handler(
     };
 
     let (config_rev, identity, identity_reason, network, restart_pending) = {
-        let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.sync_boot_baseline(&snap.boot_id);
         let (identity, identity_reason) = cfg.identity_kind_and_reason();
         (
@@ -58,7 +59,7 @@ pub(super) async fn state_handler(
             identity,
             identity_reason,
             network,
-            invite_join: app.node.invite_join(),
+            invite_join: slot.node.invite_join(),
         },
     );
     let conn = conn.map(|Extension(c)| c);
@@ -120,6 +121,7 @@ fn round1(x: f64) -> f64 {
 }
 
 pub(super) async fn log_handler(State(app): State<Arc<App>>, uri: axum::http::Uri) -> Response {
+    let slot = app.host.main_slot();
     let after = query_param(&uri, "after")
         .and_then(|s| s.parse::<u64>().ok())
         .unwrap_or(0);
@@ -127,7 +129,7 @@ pub(super) async fn log_handler(State(app): State<Arc<App>>, uri: axum::http::Ur
         .and_then(|s| s.parse::<usize>().ok())
         .unwrap_or(500)
         .clamp(1, 2000);
-    let page = app.node.log_after(after, limit);
+    let page = slot.node.log_after(after, limit);
     let gap = page.first_seq > 0 && after + 1 < page.first_seq;
     let lines: Vec<Value> = page
         .lines
@@ -152,7 +154,8 @@ pub(super) async fn log_handler(State(app): State<Arc<App>>, uri: axum::http::Ur
 }
 
 pub(super) async fn log_download_handler(State(app): State<Arc<App>>) -> Response {
-    let page = app.node.log_after(0, usize::MAX);
+    let slot = app.host.main_slot();
+    let page = slot.node.log_after(0, usize::MAX);
     let mut body = String::new();
     for line in &page.lines {
         body.push_str(&format!("+{:>7.1}s [{}] {}\n", line.t, line.tag, line.text));
