@@ -5,7 +5,7 @@ import org.json.JSONObject;
 
 /** The part of the node's {@code /api/state} snapshot the app cares about. */
 final class NodeState {
-    static final String EXCLUDED_TEXT = "Removed from the network \u2014 use Start over";
+    static final String EXCLUDED_TEXT = "Removed from the network \u2014 tap \u22EE \u2192 Leave network and reset";
     static final NodeState UNREACHABLE = new NodeState(false, false, false, "direct", null, true, false, false, false);
 
     final boolean reachable;
@@ -24,9 +24,16 @@ final class NodeState {
     final boolean exitOffered;
     /** {@code route.exits} is not empty: an exit was chosen. */
     final boolean exitChosen;
+    /** Name of the network the node belongs to (also when removed from it); null when unknown or none. */
+    final String networkName;
 
     NodeState(boolean reachable, boolean inNetwork, boolean excluded, String route, String exitName, boolean exitOnline,
               boolean peersKnown, boolean exitOffered, boolean exitChosen) {
+        this(reachable, inNetwork, excluded, route, exitName, exitOnline, peersKnown, exitOffered, exitChosen, null);
+    }
+
+    NodeState(boolean reachable, boolean inNetwork, boolean excluded, String route, String exitName, boolean exitOnline,
+              boolean peersKnown, boolean exitOffered, boolean exitChosen, String networkName) {
         this.reachable = reachable;
         this.inNetwork = inNetwork;
         this.excluded = excluded;
@@ -36,6 +43,7 @@ final class NodeState {
         this.peersKnown = peersKnown;
         this.exitOffered = exitOffered;
         this.exitChosen = exitChosen;
+        this.networkName = networkName;
     }
 
     boolean exitLost() {
@@ -50,8 +58,9 @@ final class NodeState {
             JSONObject route = o.optJSONObject("route");
             boolean known = inNetwork && hasOthers(o.optJSONArray("peers"), false);
             boolean offered = inNetwork && hasOthers(o.optJSONArray("peers"), true);
+            String netName = networkName(o.optJSONObject("network"));
             if (route == null) {
-                return new NodeState(true, inNetwork, excluded, "direct", null, true, known, offered, false);
+                return new NodeState(true, inNetwork, excluded, "direct", null, true, known, offered, false, netName);
             }
             JSONArray exits = route.optJSONArray("exits");
             JSONObject exit = pickExit(exits);
@@ -59,10 +68,15 @@ final class NodeState {
             boolean online = exit == null || exit.optBoolean("online", true);
             boolean chosen = inNetwork && exits != null && exits.length() > 0;
             return new NodeState(true, inNetwork, excluded, route.optString("state", "direct"), name, online,
-                    known, offered, chosen);
+                    known, offered, chosen, netName);
         } catch (Exception e) {
             return UNREACHABLE;
         }
+    }
+
+    private static String networkName(JSONObject network) {
+        String name = network == null || network.isNull("name") ? "" : network.optString("name", "").trim();
+        return name.isEmpty() ? null : name;
     }
 
     /** Any peer without {@code self: true}; with {@code exitOnly}, only online peers that offer an exit. */
@@ -107,22 +121,27 @@ final class NodeState {
         return name.isEmpty() ? exit.optString("id", "?") : name;
     }
 
-    /** One-line status for the notification. */
+    /** Name of the chosen exit for display; a placeholder when it is unknown. */
+    String exitLabel() {
+        return exitName == null ? "exit" : exitName;
+    }
+
+    /** One-line status: the notification text when no tunnel detail applies. */
     String describe(boolean vpnOn) {
         if (!reachable) {
-            return "Node is starting";
+            return "Mesh Town is starting\u2026";
         }
         if (excluded) {
             return EXCLUDED_TEXT;
         }
         if (!inNetwork) {
-            return "Not in a network";
+            return "Join a network in the app";
         }
         if (!vpnOn) {
-            return "VPN off";
+            return "Not connected";
         }
         if ("exit".equals(route)) {
-            return "Connected via " + (exitName == null ? "exit" : exitName);
+            return "Connected via " + exitLabel();
         }
         if ("unavailable".equals(route)) {
             return exitName == null ? "Chosen exits are offline" : "Exit " + exitName + " is offline";

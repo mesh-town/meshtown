@@ -45,7 +45,11 @@ public class TunnelTile extends TileService {
         if (tile == null) {
             return;
         }
-        tile.setState(TunnelService.running ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        boolean on = TunnelService.running;
+        tile.setState(on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        if (Build.VERSION.SDK_INT >= 29) {
+            tile.setSubtitle(StatusText.tileSubtitle(NodeService.state, on));
+        }
         tile.updateTile();
     }
 

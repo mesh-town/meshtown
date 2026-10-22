@@ -53,15 +53,4 @@ final class ConnectGate {
     private static boolean elapsed(long since, long nowMs, long limit) {
         return nowMs - since >= limit;
     }
-
-    /** Text under the button; empty when nothing needs saying. */
-    static String hint(NodeState s, boolean canConnect) {
-        if (s.excluded) {
-            return NodeState.EXCLUDED_TEXT;
-        }
-        if (!s.inNetwork) {
-            return "Join a network first";
-        }
-        return canConnect ? "" : "Looking for other members…";
-    }
 }

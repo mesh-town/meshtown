@@ -99,25 +99,4 @@ public class ConnectGateTest {
         assertFalse(gate.update(OFFERED, 200 + ConnectGate.PICK_GRACE_MS - 1));
         assertTrue(gate.update(OFFERED, 200 + ConnectGate.PICK_GRACE_MS));
     }
-
-    @Test
-    public void hintForExcluded() {
-        NodeState s = NodeState.parse("{\"network\":{},\"members\":{\"me_excluded\":true}}");
-        assertEquals(NodeState.EXCLUDED_TEXT, ConnectGate.hint(s, false));
-    }
-
-    @Test
-    public void hintForNoNetwork() {
-        assertEquals("Join a network first", ConnectGate.hint(OUT, false));
-    }
-
-    @Test
-    public void hintWhileSearching() {
-        assertEquals("Looking for other members…", ConnectGate.hint(ALONE, false));
-    }
-
-    @Test
-    public void hintIsEmptyWhenConnectable() {
-        assertEquals("", ConnectGate.hint(WITH_PEER, true));
-    }
 }

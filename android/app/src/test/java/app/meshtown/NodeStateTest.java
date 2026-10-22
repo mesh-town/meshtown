@@ -136,9 +136,9 @@ public class NodeStateTest {
 
     @Test
     public void describeCoversEveryBranch() {
-        assertEquals("Node is starting", NodeState.UNREACHABLE.describe(true));
-        assertEquals("Not in a network", NodeState.parse("{}").describe(true));
-        assertEquals("VPN off", NodeState.parse(state(null, null)).describe(false));
+        assertEquals("Mesh Town is starting\u2026", NodeState.UNREACHABLE.describe(true));
+        assertEquals("Join a network in the app", NodeState.parse("{}").describe(true));
+        assertEquals("Not connected", NodeState.parse(state(null, null)).describe(false));
         assertEquals("Direct (no exit)", NodeState.parse(state(null, null)).describe(true));
         assertEquals("Direct (no exit)",
                 NodeState.parse(state(null, "{\"state\":\"direct\"}")).describe(true));

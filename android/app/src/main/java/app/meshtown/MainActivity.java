@@ -9,6 +9,9 @@ import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -30,8 +33,10 @@ public class MainActivity extends Activity {
     private static final int MENU_START_OVER = 2;
     /** The page asks for the start-over dialog by navigating here. */
     private static final String START_OVER_URL = "meshtown-app://start-over";
+    private static final int KEYBOARD_MIN_DP = 120;
     private static final long WIPE_DELAY_MS = 1500;
     private Button button;
+    private LinearLayout bar;
     private TextView hint;
     private WebView web;
     private boolean loaded;
@@ -49,8 +54,9 @@ public class MainActivity extends Activity {
         button = new Button(this);
         button.setOnClickListener(v -> toggle());
         hint = new TextView(this);
-        hint.setText("Join a network first");
+        hint.setText("Join or create a network first");
         hint.setGravity(android.view.Gravity.CENTER);
+        hint.setMinHeight(Math.round(28 * getResources().getDisplayMetrics().density));
         web = new WebView(this);
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -78,12 +84,20 @@ public class MainActivity extends Activity {
         web.getSettings().setUserAgentString(web.getSettings().getUserAgentString() + " MeshTownApp/Android");
         root.addView(web, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-        root.addView(hint, new LinearLayout.LayoutParams(
+        bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.VERTICAL);
+        bar.addView(hint, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(button, new LinearLayout.LayoutParams(
+        bar.addView(button, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(bar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.setOnApplyWindowInsetsListener((v, insets) -> {
-            v.setPadding(0, 0, 0, insets.getSystemWindowInsetBottom());
+            int bottom = insets.getSystemWindowInsetBottom();
+            v.setPadding(0, 0, 0, bottom);
+            // Navigation bars are below this height; only an on-screen keyboard is taller.
+            bar.setVisibility(bottom > KEYBOARD_MIN_DP * getResources().getDisplayMetrics().density
+                    ? View.GONE : View.VISIBLE);
             return insets;
         });
         setContentView(root);
@@ -97,9 +111,15 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(Menu.NONE, MENU_QUIT, Menu.NONE, "Quit");
-        menu.add(Menu.NONE, MENU_START_OVER, Menu.NONE, "Start over");
+        menu.add(Menu.NONE, MENU_QUIT, Menu.NONE, "Quit Mesh Town");
+        menu.add(Menu.NONE, MENU_START_OVER, Menu.NONE, StatusText.resetMenuTitle(NodeService.state));
         return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        menu.findItem(MENU_START_OVER).setTitle(StatusText.resetMenuTitle(NodeService.state));
+        return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
@@ -132,12 +152,15 @@ public class MainActivity extends Activity {
     }
 
     private void confirmStartOver() {
-        new AlertDialog.Builder(this)
-                .setMessage("Start over? This node leaves its network and gets a new key. "
-                        + "You will need a new invite.")
+        NodeState s = NodeService.state;
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(StatusText.resetTitle(s))
+                .setMessage(StatusText.resetMessage(s))
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Start over", (d, w) -> startOver())
-                .show();
+                .setPositiveButton(s.inNetwork || s.excluded ? "Leave and reset" : "Reset", (d, w) -> startOver())
+                .create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFFC62828);
     }
 
     /** Stops the tunnel and the node like Quit, then erases the app data; the system closes the process. */
@@ -193,10 +216,19 @@ public class MainActivity extends Activity {
     }
 
     /** Connect is green, Disconnect is grey, so the two states are told apart at a glance. */
-    private void tintButton(boolean on) {
-        int color = on ? 0xFF616161 : 0xFF2E7D32;
+    private void tintButton(boolean on, boolean enabled) {
+        int color = !enabled ? 0xFFBDBDBD : on ? 0xFF616161 : 0xFF2E7D32;
         button.setBackgroundTintList(android.content.res.ColorStateList.valueOf(color));
         button.setTextColor(0xFFFFFFFF);
+    }
+
+    /** The line above the button; the dot, when there is one, is a coloured span, not a view. */
+    private void showStrip(StatusText.Line line) {
+        SpannableString text = new SpannableString(line.text);
+        if (line.dotColor != 0) {
+            text.setSpan(new ForegroundColorSpan(line.dotColor), 0, 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        hint.setText(text);
     }
 
     private void refresh() {
@@ -207,11 +239,10 @@ public class MainActivity extends Activity {
         NodeState s = NodeService.state;
         boolean on = TunnelService.running;
         button.setText(on ? "Disconnect" : "Connect");
-        button.setEnabled(on || NodeService.canConnect);
-        tintButton(on);
-        String text = ConnectGate.hint(s, NodeService.canConnect);
-        hint.setText(text);
-        hint.setVisibility(on || text.isEmpty() ? View.GONE : View.VISIBLE);
+        boolean enabled = on || NodeService.canConnect;
+        button.setEnabled(enabled);
+        tintButton(on, enabled);
+        showStrip(StatusText.strip(s, NodeService.canConnect, on));
         if (!s.reachable) {
             loaded = false;
             showSplash(Splash.message(SystemClock.elapsedRealtime() - waitingSince));

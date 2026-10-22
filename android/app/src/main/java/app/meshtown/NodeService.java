@@ -44,7 +44,7 @@ public class NodeService extends Service {
         if (notifier == null) {
             notifier = new StatusNotifier(this);
         }
-        startForeground(StatusNotifier.ID, notifier.status("Node is starting", false, false));
+        startForeground(StatusNotifier.ID, notifier.status(StatusText.notice(NodeState.UNREACHABLE, false), false, false));
         if (ACTION_QUIT.equals(action)) {
             quit();
             return START_NOT_STICKY;
@@ -167,22 +167,22 @@ public class NodeService extends Service {
         }
         boolean vpnOn = TunnelService.running;
         announceExit(s, vpnOn);
-        show(s.describe(vpnOn), vpnOn, canConnect);
+        show(StatusText.notice(s, vpnOn), vpnOn, canConnect);
     }
 
     /** One alert on the online -> offline transition of the chosen exit, not on every poll. */
     private void announceExit(NodeState s, boolean vpnOn) {
         boolean lost = vpnOn && s.exitLost();
         if (lost && !exitWasLost) {
-            notifier.alertExitLost(s.describe(true));
+            notifier.alertExitLost(StatusText.exitOffline(s));
         } else if (!lost && exitWasLost) {
             notifier.clearAlert();
         }
         exitWasLost = lost;
     }
 
-    private void show(String text, boolean vpnOn, boolean canConnect) {
-        String key = text + vpnOn + canConnect;
+    private void show(StatusText.Notice text, boolean vpnOn, boolean canConnect) {
+        String key = text.title + "|" + text.text + vpnOn + canConnect;
         if (key.equals(shown)) {
             return;
         }

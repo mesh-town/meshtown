@@ -20,15 +20,15 @@ final class StatusNotifier {
     StatusNotifier(Context ctx) {
         this.ctx = ctx;
         this.nm = ctx.getSystemService(NotificationManager.class);
-        nm.createNotificationChannel(new NotificationChannel(CHANNEL, "MeshTown", NotificationManager.IMPORTANCE_LOW));
+        nm.createNotificationChannel(new NotificationChannel(CHANNEL, "Connection status", NotificationManager.IMPORTANCE_LOW));
         nm.createNotificationChannel(
                 new NotificationChannel(ALERT_CHANNEL, "Exit offline", NotificationManager.IMPORTANCE_HIGH));
     }
 
-    Notification status(String text, boolean vpnOn, boolean canConnect) {
+    Notification status(StatusText.Notice text, boolean vpnOn, boolean canConnect) {
         Notification.Builder b = new Notification.Builder(ctx, CHANNEL)
-                .setContentTitle("MeshTown")
-                .setContentText(text)
+                .setContentTitle(text.title)
+                .setContentText(text.text)
                 .setSmallIcon(R.drawable.ic_stat_mesh)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(openApp());
@@ -41,14 +41,14 @@ final class StatusNotifier {
         return b.build();
     }
 
-    void update(String text, boolean vpnOn, boolean canConnect) {
+    void update(StatusText.Notice text, boolean vpnOn, boolean canConnect) {
         nm.notify(ID, status(text, vpnOn, canConnect));
     }
 
-    void alertExitLost(String text) {
+    void alertExitLost(StatusText.Notice text) {
         nm.notify(ALERT_ID, new Notification.Builder(ctx, ALERT_CHANNEL)
-                .setContentTitle("MeshTown")
-                .setContentText(text)
+                .setContentTitle(text.title)
+                .setContentText(text.text)
                 .setSmallIcon(R.drawable.ic_stat_mesh)
                 .setAutoCancel(true)
                 .setContentIntent(openApp())
