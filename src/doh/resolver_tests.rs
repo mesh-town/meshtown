@@ -50,3 +50,64 @@ async fn failed_lookup_leaves_cache_empty() {
     assert!(resolver.resolve_cached("example.com").await.is_err());
     assert_eq!(resolver.cache().get("example.com", Instant::now()), None);
 }
+
+const CACHED_V6: Ipv6Addr = Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 0x1111);
+
+/// Puts `v6only.test` → no IPv4, `CACHED_V6` into the cache for 60 s.
+fn resolver_with_cached_v6_only() -> Resolver {
+    let resolver = dead_resolver();
+    let ttl = Duration::from_secs(60);
+    let mut cache = resolver.cache();
+    cache.insert_v6(
+        cache_key("v6only.test"),
+        vec![CACHED_V6],
+        ttl,
+        Instant::now(),
+    );
+    cache.note_empty_v4(&cache_key("v6only.test"), Instant::now());
+    drop(cache);
+    resolver
+}
+
+#[tokio::test]
+async fn cached_v6_answer_is_served_without_network() {
+    let resolver = resolver_with_cached_v6_only();
+    assert_eq!(
+        resolver.resolve_cached_v6("v6only.test").await.unwrap(),
+        vec![CACHED_V6]
+    );
+    assert_eq!(
+        resolver.resolve_cached("v6only.test").await.unwrap(),
+        Vec::<Ipv4Addr>::new()
+    );
+}
+
+#[tokio::test]
+async fn v6_miss_failure_is_an_error_and_not_cached() {
+    let resolver = dead_resolver();
+    assert!(resolver.resolve_cached_v6("example.com").await.is_err());
+    assert_eq!(resolver.cache().get_v6("example.com", Instant::now()), None);
+}
+
+#[tokio::test]
+async fn forget_drops_both_families() {
+    let resolver = resolver_with_cached_v6_only();
+    resolver.forget("v6only.test");
+    assert!(resolver.resolve_cached("v6only.test").await.is_err());
+    assert!(resolver.resolve_cached_v6("v6only.test").await.is_err());
+}
+
+#[cfg(feature = "net-hyper")]
+#[tokio::test]
+async fn dual_seed_makes_a_v6_only_name() {
+    let resolver = dead_resolver();
+    resolver.seed_cache_dual_for_tests("v6only.test", Vec::new(), vec![CACHED_V6]);
+    assert_eq!(
+        resolver.resolve_cached("v6only.test").await.unwrap(),
+        Vec::<Ipv4Addr>::new()
+    );
+    assert_eq!(
+        resolver.resolve_cached_v6("v6only.test").await.unwrap(),
+        vec![CACHED_V6]
+    );
+}

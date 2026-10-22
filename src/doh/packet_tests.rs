@@ -2,8 +2,9 @@
 
 use super::*;
 use data_encoding::BASE64URL_NOPAD;
-use simple_dns::rdata::{A, CNAME};
+use simple_dns::rdata::{A, AAAA, CNAME};
 use simple_dns::ResourceRecord;
+use std::net::Ipv6Addr;
 
 fn reply(domain: &str, addrs: &[Ipv4Addr], rcode: RCODE) -> Vec<u8> {
     let mut packet = Packet::new_query(0);
@@ -47,9 +48,18 @@ fn a_record(name: &'static str, ip: Ipv4Addr, ttl: u32) -> ResourceRecord<'stati
     ResourceRecord::new(Name::new(name).unwrap(), CLASS::IN, ttl, RData::A(a))
 }
 
+fn aaaa_record(name: &'static str, ip: Ipv6Addr, ttl: u32) -> ResourceRecord<'static> {
+    let aaaa = AAAA {
+        address: u128::from(ip),
+    };
+    ResourceRecord::new(Name::new(name).unwrap(), CLASS::IN, ttl, RData::AAAA(aaaa))
+}
+
+const V6: Ipv6Addr = Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 0x1111);
+
 #[test]
 fn query_asks_a_record_with_recursion() {
-    let bytes = build_query("example.com").unwrap();
+    let bytes = build_query("example.com", TYPE::A).unwrap();
     let packet = Packet::parse(&bytes).unwrap();
     assert!(packet.has_flags(PacketFlag::RECURSION_DESIRED));
     assert_eq!(packet.questions.len(), 1);
@@ -68,7 +78,7 @@ fn answer_gives_addresses() {
     let ip = Ipv4Addr::new(93, 184, 216, 34);
     let bytes = reply("example.com", &[ip], RCODE::NoError);
     let parsed = parse_answer(&bytes, "example.com").unwrap();
-    assert_eq!(parsed.addrs, vec![ip]);
+    assert_eq!(parsed.v4, vec![ip]);
     assert_eq!(parsed.ttl, Some(60));
 }
 
@@ -76,11 +86,11 @@ fn answer_gives_addresses() {
 fn missing_name_gives_no_addresses_and_failure_is_an_error() {
     let none = reply("example.com", &[], RCODE::NameError);
     let parsed = parse_answer(&none, "example.com").unwrap();
-    assert_eq!(parsed.addrs, Vec::<Ipv4Addr>::new());
+    assert_eq!(parsed.v4, Vec::<Ipv4Addr>::new());
     assert_eq!(parsed.ttl, None);
     let empty = reply("example.com", &[], RCODE::NoError);
     let parsed = parse_answer(&empty, "example.com").unwrap();
-    assert_eq!(parsed.addrs, Vec::<Ipv4Addr>::new());
+    assert_eq!(parsed.v4, Vec::<Ipv4Addr>::new());
     assert_eq!(parsed.ttl, None);
     let broken = reply("example.com", &[], RCODE::ServerFailure);
     assert!(parse_answer(&broken, "example.com").is_err());
@@ -97,7 +107,7 @@ fn ttl_is_minimum_over_whole_chain() {
         a_record("cdn.example.net", second, 30),
     ]);
     let parsed = parse_answer(&bytes, "www.example.com").unwrap();
-    assert_eq!(parsed.addrs, vec![first, second]);
+    assert_eq!(parsed.v4, vec![first, second]);
     assert_eq!(parsed.ttl, Some(10));
 }
 
@@ -105,6 +115,52 @@ fn ttl_is_minimum_over_whole_chain() {
 fn cname_without_a_gives_no_ttl() {
     let bytes = reply_records(vec![cname_record("www.example.com", "a.example.net", 60)]);
     let parsed = parse_answer(&bytes, "www.example.com").unwrap();
-    assert!(parsed.addrs.is_empty());
+    assert!(parsed.v4.is_empty());
     assert_eq!(parsed.ttl, None);
+}
+
+#[test]
+fn query_asks_aaaa_record_with_recursion() {
+    let bytes = build_query("example.com", TYPE::AAAA).unwrap();
+    let packet = Packet::parse(&bytes).unwrap();
+    assert!(packet.has_flags(PacketFlag::RECURSION_DESIRED));
+    assert_eq!(packet.questions.len(), 1);
+    assert_eq!(packet.questions[0].qtype, QTYPE::TYPE(TYPE::AAAA));
+}
+
+#[test]
+fn answer_gives_ipv6_addresses() {
+    let bytes = reply_records(vec![aaaa_record("example.com", V6, 300)]);
+    let parsed = parse_answer(&bytes, "example.com").unwrap();
+    assert_eq!(parsed.v6, vec![V6]);
+    assert!(parsed.v4.is_empty());
+    assert_eq!(parsed.ttl, Some(300));
+    assert!(!parsed.nx);
+}
+
+#[test]
+fn aaaa_ttl_is_minimum_over_cname_chain() {
+    let bytes = reply_records(vec![
+        cname_record("www.example.com", "cdn.example.net", 50),
+        aaaa_record("cdn.example.net", V6, 300),
+    ]);
+    let parsed = parse_answer(&bytes, "www.example.com").unwrap();
+    assert_eq!(parsed.v6, vec![V6]);
+    assert_eq!(parsed.ttl, Some(50));
+}
+
+#[test]
+fn empty_aaaa_answer_gives_no_ttl() {
+    let bytes = reply_records(Vec::new());
+    let parsed = parse_answer(&bytes, "example.com").unwrap();
+    assert!(parsed.v4.is_empty() && parsed.v6.is_empty());
+    assert_eq!(parsed.ttl, None);
+}
+
+#[test]
+fn nxdomain_sets_nx_and_skips_aaaa() {
+    let missing = reply("example.com", &[], RCODE::NameError);
+    assert!(parse_answer(&missing, "example.com").unwrap().nx);
+    let no_data = reply("example.com", &[], RCODE::NoError);
+    assert!(!parse_answer(&no_data, "example.com").unwrap().nx);
 }

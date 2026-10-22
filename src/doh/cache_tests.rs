@@ -4,6 +4,7 @@ use super::*;
 
 const A: Ipv4Addr = Ipv4Addr::new(1, 1, 1, 1);
 const B: Ipv4Addr = Ipv4Addr::new(2, 2, 2, 2);
+const V6: Ipv6Addr = Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 0x1111);
 
 fn secs(n: u64) -> Duration {
     Duration::from_secs(n)
@@ -109,4 +110,70 @@ fn remove_forgets_entry() {
     cache.insert("a.com".into(), vec![A], secs(60), now);
     cache.remove("a.com");
     assert_eq!(cache.get("a.com", now), None);
+}
+
+#[test]
+fn v6_attaches_to_live_v4_entry() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.insert("a.com".into(), vec![A], secs(100), now);
+    cache.insert_v6("a.com".into(), vec![V6], secs(60), now);
+    assert_eq!(cache.get("a.com", now), Some(vec![A]));
+    assert_eq!(cache.get_v6("a.com", now), Some(vec![V6]));
+    assert_eq!(cache.get("a.com", now + secs(70)), None);
+    assert_eq!(cache.get_v6("a.com", now + secs(70)), None);
+}
+
+#[test]
+fn v6_without_live_entry_leaves_v4_unknown() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.insert_v6("a.com".into(), vec![V6], secs(60), now);
+    assert_eq!(cache.get_v6("a.com", now), Some(vec![V6]));
+    assert_eq!(cache.get("a.com", now), None);
+}
+
+#[test]
+fn empty_v6_is_stored_only_next_to_live_entry() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.insert_v6("a.com".into(), Vec::new(), secs(60), now);
+    assert_eq!(cache.get_v6("a.com", now), None);
+    cache.insert("a.com".into(), vec![A], secs(100), now);
+    cache.insert_v6("a.com".into(), Vec::new(), secs(500), now);
+    assert_eq!(cache.get_v6("a.com", now), Some(Vec::new()));
+    assert_eq!(cache.get("a.com", now + secs(99)), Some(vec![A]));
+    assert_eq!(cache.get("a.com", now + secs(100)), None);
+}
+
+#[test]
+fn empty_v4_is_noted_only_next_to_v6() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.note_empty_v4("a.com", now);
+    assert_eq!(cache.get("a.com", now), None);
+    cache.insert_v6("a.com".into(), vec![V6], secs(60), now);
+    cache.note_empty_v4("a.com", now);
+    assert_eq!(cache.get("a.com", now), Some(Vec::new()));
+}
+
+#[test]
+fn v4_insert_resets_v6() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.insert("a.com".into(), vec![A], secs(60), now);
+    cache.insert_v6("a.com".into(), vec![V6], secs(60), now);
+    cache.insert("a.com".into(), vec![B], secs(60), now);
+    assert_eq!(cache.get_v6("a.com", now), None);
+}
+
+#[test]
+fn remove_forgets_both_families() {
+    let now = Instant::now();
+    let mut cache = DnsCache::new(4);
+    cache.insert("a.com".into(), vec![A], secs(60), now);
+    cache.insert_v6("a.com".into(), vec![V6], secs(60), now);
+    cache.remove("a.com");
+    assert_eq!(cache.get("a.com", now), None);
+    assert_eq!(cache.get_v6("a.com", now), None);
 }

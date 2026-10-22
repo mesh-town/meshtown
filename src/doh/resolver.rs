@@ -1,6 +1,6 @@
 //! The resolver: DoH queries, the address cache for the exit, and the separate query to the ISP's resolver.
 
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -8,14 +8,15 @@ use anyhow::{bail, Context, Result};
 use data_encoding::BASE64URL_NOPAD;
 use rustls::pki_types::ServerName;
 use rustls::ClientConfig;
+use simple_dns::TYPE;
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
 
-use crate::http_min::{self, HttpLimits, HttpGetRequest};
+use crate::http_min::{self, HttpGetRequest, HttpLimits};
 use crate::tcp_tune::disable_nagle;
 
-use super::cache::{cache_key, clamp_ttl, DnsCache, CACHE_ENTRIES};
+use super::cache::{cache_key, clamp_ttl, DnsCache, CACHE_ENTRIES, MIN_TTL};
 use super::packet::{build_query, parse_answer, Records};
 use super::{DNS_MESSAGE, DOH_PATH};
 
@@ -59,27 +60,48 @@ impl Resolver {
     /// is the same address, so no SNI is sent and there is nothing to resolve.
     pub async fn resolve(&self, domain: &str) -> Result<DnsAnswer> {
         let started = Instant::now();
-        let records = self.query_doh(domain).await?;
+        let records = self.query_doh(domain, TYPE::A).await?;
         Ok(DnsAnswer {
-            addrs: records.addrs,
+            addrs: records.v4,
             elapsed: started.elapsed(),
         })
     }
 
-    /// A domain's addresses for the exit: a live cache entry — no network; a miss — a trip to DoH and a write for
+    /// A domain's IPv4 addresses for the exit: a live cache entry — no network; a miss — a trip to DoH and a write for
     /// the answer's TTL. A DoH error goes up as is and is not written to the cache.
     pub async fn resolve_cached(&self, domain: &str) -> Result<Vec<Ipv4Addr>> {
+        Ok(self.resolve_cached_nx(domain).await?.0)
+    }
+
+    /// Like `resolve_cached`, and also says whether DoH answered "the name does not exist" (then there is nothing to
+    /// ask for any other record type). A cache hit never reports it: the cache doesn't keep empty answers.
+    pub async fn resolve_cached_nx(&self, domain: &str) -> Result<(Vec<Ipv4Addr>, bool)> {
         let key = cache_key(domain);
         let hit = self.cache().get(&key, Instant::now());
         if let Some(addrs) = hit {
-            return Ok(addrs);
+            return Ok((addrs, false));
         }
-        let records = self.query_doh(domain).await?;
+        let records = self.query_doh(domain, TYPE::A).await?;
         self.remember(key, &records);
-        Ok(records.addrs)
+        Ok((records.v4, records.nx))
     }
 
-    /// Forgets a domain's addresses: the next `resolve_cached` will ask DoH again.
+    /// A domain's IPv6 addresses for the exit: a live cache entry that knows the family — no network; otherwise a
+    /// trip to DoH for AAAA and a write next to the live entry. A DoH error goes up and is not written to the cache.
+    pub async fn resolve_cached_v6(&self, domain: &str) -> Result<Vec<Ipv6Addr>> {
+        let key = cache_key(domain);
+        let hit = self.cache().get_v6(&key, Instant::now());
+        if let Some(addrs) = hit {
+            return Ok(addrs);
+        }
+        let records = self.query_doh(domain, TYPE::AAAA).await?;
+        let ttl = records.ttl.map_or(MIN_TTL, clamp_ttl);
+        let addrs = records.v6.clone();
+        self.cache().insert_v6(key, addrs, ttl, Instant::now());
+        Ok(records.v6)
+    }
+
+    /// Forgets a domain's addresses of both families: the next `resolve_cached` will ask DoH again.
     pub fn forget(&self, domain: &str) {
         self.cache().remove(&cache_key(domain));
     }
@@ -96,18 +118,36 @@ impl Resolver {
         );
     }
 
+    /// Puts both families of a domain into the cache for 60 s (an empty `v4` next to a non-empty `v6` is a "v6-only name") —
+    /// only for tests of neighboring modules.
+    #[cfg(all(test, feature = "net-hyper"))]
+    pub(crate) fn seed_cache_dual_for_tests(
+        &self,
+        domain: &str,
+        v4: Vec<Ipv4Addr>,
+        v6: Vec<Ipv6Addr>,
+    ) {
+        let (key, ttl, now) = (cache_key(domain), Duration::from_secs(60), Instant::now());
+        let mut cache = self.cache();
+        cache.insert(key.clone(), v4, ttl, now);
+        cache.insert_v6(key.clone(), v6, ttl, now);
+        cache.note_empty_v4(&key, now);
+    }
+
     /// A live cache entry for a domain — only for tests of neighboring modules (removed through `forget`).
     #[cfg(all(test, feature = "net-hyper"))]
     pub(crate) fn cached_for_tests(&self, domain: &str) -> Option<Vec<Ipv4Addr>> {
         self.cache().get(&cache_key(domain), Instant::now())
     }
 
-    /// Puts an answer into the cache for its TTL; an answer with no addresses (no TTL) is not cached.
+    /// Puts an A answer into the cache for its TTL; an answer with no addresses (no TTL) is only noted as an empty
+    /// IPv4 next to a live IPv6 entry.
     fn remember(&self, key: String, records: &Records) {
         let Some(ttl) = records.ttl else {
+            self.cache().note_empty_v4(&key, Instant::now());
             return;
         };
-        let addrs = records.addrs.clone();
+        let addrs = records.v4.clone();
         self.cache()
             .insert(key, addrs, clamp_ttl(ttl), Instant::now());
     }
@@ -118,9 +158,9 @@ impl Resolver {
         self.cache.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    /// One trip to the DoH server: connection, TLS, GET, parsing the answer.
-    async fn query_doh(&self, domain: &str) -> Result<Records> {
-        let query = build_query(domain)?;
+    /// One trip to the DoH server for a record type: connection, TLS, GET, parsing the answer.
+    async fn query_doh(&self, domain: &str, qtype: TYPE) -> Result<Records> {
+        let query = build_query(domain, qtype)?;
         let path = format!("{DOH_PATH}?dns={}", BASE64URL_NOPAD.encode(&query));
         let mut tls = self.open_tls().await?;
         let host = self.server.ip().to_string();
@@ -156,7 +196,7 @@ impl Resolver {
     /// a spoofing signal: the addresses from here go nowhere, so a zero request id is acceptable.
     pub async fn resolve_udp(&self, server: SocketAddr, domain: &str) -> Result<DnsAnswer> {
         let started = Instant::now();
-        let query = build_query(domain)?;
+        let query = build_query(domain, TYPE::A)?;
         let bind: SocketAddr = if server.is_ipv4() {
             SocketAddr::from(([0, 0, 0, 0], 0))
         } else {
@@ -175,7 +215,7 @@ impl Resolver {
         if from.ip() != server.ip() {
             bail!("DNS answer came from a foreign address {}", from.ip());
         }
-        let addrs = parse_answer(&buf[..n], domain)?.addrs;
+        let addrs = parse_answer(&buf[..n], domain)?.v4;
         Ok(DnsAnswer {
             addrs,
             elapsed: started.elapsed(),

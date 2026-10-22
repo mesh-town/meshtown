@@ -3,10 +3,11 @@
 //! What it does: builds and parses DNS packets, asks a DoH server given by IP address for a domain's address,
 //! and — only as a spoofing signal — asks the ISP's resolver over UDP-53;
 //! drops addresses that must not be used (own fake-ip pool, loopback, "zero", link-local).
-//! Caches addresses only for the exit (`resolve_cached`, answer TTL within 30–120 s, up to
-//! 1024 names); reachability checks query around the cache (`resolve`).
-//! What it doesn't do: doesn't use the system resolver, doesn't remember failures and empty answers,
-//! doesn't query AAAA records, doesn't verify DNSSEC signatures.
+//! Caches addresses only for the exit (`resolve_cached` for IPv4, `resolve_cached_v6` for IPv6, one entry per name,
+//! answer TTL within 30–120 s, up to 1024 names); reachability checks query around the cache (`resolve`).
+//! What it doesn't do: doesn't use the system resolver, doesn't remember failures, remembers an empty
+//! answer only next to a non-empty one of the other family, queries AAAA only on request of `resolve_cached_v6`
+//! (the checks and the ISP query ask A only), doesn't verify DNSSEC signatures.
 //! Related: transport is `crate::http_min` over TLS; used by `crate::reachability` and
 //! `crate::exit`.
 //!
