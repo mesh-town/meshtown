@@ -6,7 +6,7 @@
 //! sends `kill -TERM <pid>` (there is no `libc` in the dev-dependencies).
 //! What it doesn't do: it doesn't check the tray or SIGINT. a known open issue is "does not stop within 8 s";
 //! the shutdown takes about 4 s on a normal build, the limit is 5 s.
-//! Links: `core/node/lifecycle.rs` (`spawn_stop_signal`).
+//! Links: `core/node/host/signal.rs` (`spawn_stop_signal`).
 #![cfg(unix)]
 
 use std::io::{BufRead, BufReader, Read};

@@ -34,23 +34,6 @@ impl SocksListen {
     };
 }
 
-/// Memory guard thresholds, MiB (from `node.memory_*` of the settings file).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MemoryLimits {
-    /// Summary threshold; 0 — off.
-    pub warn_mib: u64,
-    /// Exit threshold; 0 — off.
-    pub exit_mib: u64,
-}
-
-impl MemoryLimits {
-    /// The guard is off.
-    pub const OFF: MemoryLimits = MemoryLimits {
-        warn_mib: 0,
-        exit_mib: 0,
-    };
-}
-
 /// Node settings for assembly.
 #[derive(Clone, Debug)]
 pub struct NodeConfig {
@@ -59,8 +42,6 @@ pub struct NodeConfig {
     pub settings: NetSettings,
     /// SOCKS listener: the process part of the settings that the node still holds.
     pub socks: SocksListen,
-    /// Memory guard thresholds: the process part of the settings that the node still holds.
-    pub memory: MemoryLimits,
     pub probe_first_delay: Duration,
     /// Domains the node adds to its list at startup.
     pub initial_domains: Vec<String>,
@@ -100,13 +81,12 @@ pub struct NodeConfig {
 
 impl NodeConfig {
     /// Node settings for the CLI: `settings` are cloned, the rest are the live node's defaults.
-    /// The live path goes through `Settings::node_config`, here SOCKS and the guard are off.
+    /// The live path goes through `Settings::node_config`, here SOCKS is off.
     pub fn for_cli(key: NetworkKey, settings: &NetSettings) -> NodeConfig {
         NodeConfig {
             network_key: key,
             settings: settings.clone(),
             socks: SocksListen::OFF,
-            memory: MemoryLimits::OFF,
             probe_first_delay: Duration::from_secs(10),
             initial_domains: vec![],
             geoip: true,
@@ -136,7 +116,6 @@ impl NodeConfig {
             access: crate::config::config_file::ListenAccess::Localhost,
             ifaces: crate::config::config_file::IfaceFilter::Auto,
         };
-        cfg.memory = MemoryLimits::OFF;
         cfg.test_net = Some(crate::transport::net::mem::process_net());
         cfg.open_list = true;
         cfg

@@ -196,13 +196,6 @@ fn fills_process_part_from_process_block() {
             ifaces: crate::config::config_file::IfaceFilter::Auto
         }
     );
-    assert_eq!(
-        cfg.memory,
-        crate::node::MemoryLimits {
-            warn_mib: 300,
-            exit_mib: 800
-        }
-    );
     assert_eq!(cfg.settings, s.net);
     assert_eq!(
         cfg.identity_secret.map(|k| k.peer_id()),

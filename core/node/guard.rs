@@ -4,14 +4,15 @@
 //! is printed every 60 s and doesn't catch this. An OS thread, not a tokio task: when the runtime chokes it
 //! keeps working. Above threshold 1 it prints a `[guard]` summary (what holds the memory), above
 //! threshold 2 — the summary once and `exit(3)`, before the computer goes into swap.
-//! The `GuardHandle` handle lives in `RunningNode`: `shutdown` stops the thread, the tick wait is interrupted at once.
+//! The `GuardHandle` handle lives in `ProcessServices` (one guard per process): `stop` ends the thread, the tick wait is interrupted at once.
+//! The summary reads the live node's `Members` and `Checks` through `GuardSources`; between nodes there are none.
 //! Links: `Members` (connections and paths), `Checks` (running checks), `telemetry::rss_kib`.
 
 use portable_atomic::AtomicU64;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tokio::runtime::Handle;
@@ -119,11 +120,36 @@ pub(crate) fn stalled_text(rss_kib: u64, prev_rss_kib: u64, hanging_secs: u64) -
     format!("memory {rss_kib} KiB ({growth:+} KiB/s), the previous summary didn't finish in {hanging_secs} s")
 }
 
+/// What the summary reads from the live node: its `Members` and `Checks`. The process keeps one
+/// guard, nodes come and go, so the node's controller puts its handles here and takes them away.
+#[derive(Clone, Default)]
+pub(crate) struct GuardSources(Arc<Mutex<Option<(Members, Checks)>>>);
+
+impl GuardSources {
+    /// The node is up: the summary reads these handles.
+    pub(crate) fn set(&self, members: Members, checks: Checks) {
+        *self.lock() = Some((members, checks));
+    }
+
+    /// The node is gone: the summary has nothing to read.
+    pub(crate) fn clear(&self) {
+        *self.lock() = None;
+    }
+
+    /// The handles of the live node; `None` — no node.
+    pub(crate) fn snapshot(&self) -> Option<(Members, Checks)> {
+        self.lock().clone()
+    }
+
+    fn lock(&self) -> std::sync::MutexGuard<'_, Option<(Members, Checks)>> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 /// Everything the summary needs; the `mem-guard` thread doesn't get it — it holds only the measurement.
 #[derive(Clone)]
 struct SummaryJob {
-    members: Members,
-    checks: Checks,
+    sources: GuardSources,
     runtime: Handle,
     is_summary_running: Arc<AtomicBool>,
     /// Directory of heap profile dumps.
@@ -151,7 +177,7 @@ impl SummaryJob {
             if dump {
                 me.heap_dump(rss_kib);
             }
-            print_summary(rss_kib, prev_rss_kib, &me.members, &me.checks, &me.runtime);
+            print_summary(rss_kib, prev_rss_kib, &me.sources, &me.runtime);
             me.is_summary_running.store(false, Ordering::SeqCst);
             let _ = tx.send(());
         };
@@ -250,8 +276,7 @@ fn start_thread(run: impl FnOnce(Stopper) + Send + 'static) -> Option<GuardHandl
 /// Starts the `mem-guard` thread; both thresholds `0` — doesn't start it (`None`).
 pub(crate) fn start_memory_guard(
     limits: MemoryLimitsKib,
-    members: Members,
-    checks: Checks,
+    sources: GuardSources,
     handle: Handle,
     dump_dir: PathBuf,
 ) -> Option<GuardHandle> {
@@ -261,8 +286,7 @@ pub(crate) fn start_memory_guard(
     say("guard", format!("heap profile: {}", heap_prof_state()));
     let last_dump_rss_kib = Arc::new(AtomicU64::new(0));
     let sum = SummaryJob {
-        members,
-        checks,
+        sources,
         runtime: handle,
         is_summary_running: Arc::new(AtomicBool::new(false)),
         dump_dir,
@@ -314,25 +338,28 @@ fn watch(limits: MemoryLimitsKib, sum: &SummaryJob, stop: &Stopper) {
     }
 }
 
-/// Summary: the header and a line for every path of every member connection.
-fn print_summary(
-    rss_kib: u64,
-    prev_rss_kib: u64,
-    members: &Members,
-    checks: &Checks,
-    handle: &Handle,
-) {
+/// Summary: the header and a line for every path of every member connection. Without a node
+/// the header counts no checks and no connections.
+fn print_summary(rss_kib: u64, prev_rss_kib: u64, sources: &GuardSources, handle: &Handle) {
+    let node = sources.snapshot();
     let metrics = handle.metrics();
     let head = header_text(
         rss_kib,
         prev_rss_kib,
         metrics.num_alive_tasks(),
         metrics.num_workers(),
-        checks.domains_in_progress().len(),
-        &members.conns_text(),
+        node.as_ref()
+            .map_or(0, |(_, checks)| checks.domains_in_progress().len()),
+        &node.as_ref().map_or_else(
+            || "no node".to_string(),
+            |(members, _)| members.conns_text(),
+        ),
     );
     say("guard", head);
-    for conn in members.conns_snapshot() {
+    for conn in node
+        .iter()
+        .flat_map(|(members, _)| members.conns_snapshot())
+    {
         peer_lines(&*conn);
     }
 }

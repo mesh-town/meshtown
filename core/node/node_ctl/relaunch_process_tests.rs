@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::config::config_file::{NetSettings, ProcessSettings};
-use crate::node::{MemoryLimits, SocksListen};
+use crate::node::SocksListen;
 
 fn secret() -> NodeSecret {
     NodeSecret::from_bytes(&[40u8; 32])
@@ -46,13 +46,6 @@ fn process_part_from_block() {
     let cfg = relaunch(None).node_config(&s, key());
     // then: port and thresholds — from the process block, the off flag is not raised
     assert_eq!(cfg.socks.port, 1091);
-    assert_eq!(
-        cfg.memory,
-        MemoryLimits {
-            warn_mib: 350,
-            exit_mib: 850
-        }
-    );
     assert!(!cfg.socks_off_by_flag);
 }
 

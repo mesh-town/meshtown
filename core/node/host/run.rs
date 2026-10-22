@@ -1,11 +1,14 @@
-//! Process host: a single assembly point for "log capacity → page → body → page shutdown".
+//! The assembly point "log capacity → process services → stop signal → page → body → page shutdown".
 //! What isn't here: flag parsing, `Relaunch` and `NodeConfig` are in `commands`; the node itself is in `node`.
+//! The memory guard and the stop signal exist once per process, so they live here and not in the node.
 //! Related: `web` (the node page), `node_ctl` (the shared `NodeCtl`), `output` (the log). Later a list
 //! of slots (several networks in one process) will go here.
 
 use std::future::Future;
 use std::sync::Arc;
 
+use super::process::{heap_dump_dir, ProcessServices};
+use super::signal::spawn_stop_signal;
 use crate::config::config_file::RunConfig;
 use crate::node::node_ctl::NodeCtl;
 use crate::node::output::{say, NET_NAME};
@@ -20,11 +23,12 @@ pub enum PageRole {
     OnlyEntry,
 }
 
-/// The process host. It has no state yet: a single function `run_with_web_page`.
+/// The process host. It has no state: a single function `run_with_web_page`.
 pub struct Host;
 
 impl Host {
-    /// Sets the log capacity, starts the page, runs `body` and stops the page.
+    /// Sets the log capacity, starts the process services and the stop signal, starts the page, runs
+    /// `body`, then stops the page, the signal and the services.
     /// `body` receives the `RunConfig` and the same `NodeCtl` that went to the page.
     pub async fn run_with_web_page<B, F>(
         run_config: RunConfig,
@@ -39,13 +43,29 @@ impl Host {
         crate::node::output::set_log_capacity(
             run_config.effective_settings.process.log_ring_lines as usize,
         );
-        match crate::web_gui::start_web_page(
-            WebOptions::for_run(&run_config),
-            &run_config,
-            ctl.clone(),
-        )
-        .await
-        {
+        let dump_dir = heap_dump_dir(run_config.file_report.path.as_deref());
+        let services = ProcessServices::start(&run_config.effective_settings.process, dump_dir);
+        ctl.set_guard_sources(services.sources());
+        let signal_task = spawn_stop_signal(ctl.clone());
+        let result = Host::with_page(run_config, ctl, role, body).await;
+        signal_task.abort();
+        services.stop();
+        result
+    }
+
+    /// Starts the page and runs `body` around it; the page is stopped after `body`.
+    async fn with_page<B, F>(
+        run_config: RunConfig,
+        ctl: Arc<NodeCtl>,
+        role: PageRole,
+        body: B,
+    ) -> anyhow::Result<()>
+    where
+        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F,
+        F: Future<Output = anyhow::Result<()>>,
+    {
+        let options = WebOptions::for_run(&run_config);
+        match crate::web_gui::start_web_page(options, &run_config, ctl.clone()).await {
             Ok(handle) => {
                 let result = body(run_config, ctl).await;
                 handle.shutdown(DEFAULT_DRAIN).await;
@@ -92,5 +112,5 @@ fn entry_error(e: &WebStartError) -> anyhow::Error {
 }
 
 #[cfg(test)]
-#[path = "host_tests.rs"]
+#[path = "run_tests.rs"]
 mod tests;

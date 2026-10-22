@@ -191,9 +191,6 @@ mod peer_lines_of_conn {
 /// Thread handle: stopping without a node and without `Members`.
 mod handle {
     use super::*;
-    use crate::members::network_key::NetworkKey;
-    use crate::node::config::NodeConfig;
-    use crate::node::start::start_node;
 
     const DEADLINE: Duration = Duration::from_secs(3);
 
@@ -251,45 +248,75 @@ mod handle {
             "the thread didn't exit after the handles were dropped"
         );
     }
+}
 
-    async fn node_with_guard(warn_mib: u64) -> crate::node::RunningNode {
-        let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-        cfg.memory.warn_mib = warn_mib;
-        start_node(cfg).await.unwrap()
+/// Summary sources: the node's handles come and go, the summary does not fail without them.
+mod sources {
+    use super::*;
+    use crate::members::network_key::NetworkKey;
+    use crate::node::config::NodeConfig;
+    use crate::node::start::start_node;
+
+    #[test]
+    fn empty_by_default_and_after_clear() {
+        let sources = GuardSources::default();
+        assert!(sources.snapshot().is_none());
+        sources.clear();
+        assert!(sources.snapshot().is_none());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn shutdown_stops_mem_guard_thread() {
-        let node = node_with_guard(1_000_000).await;
-        let h = node.memory_guard.clone().expect("the guard must start");
-        assert!(!h.is_finished());
+    async fn set_then_clear_through_a_copy() {
+        let node = start_node(NodeConfig::for_loopback_test(
+            NetworkKey::generate().unwrap(),
+        ))
+        .await
+        .unwrap();
+        let sources = GuardSources::default();
+        let copy = sources.clone();
+        sources.set(node.members.clone(), node.checks.clone());
+        assert!(copy.snapshot().is_some(), "a copy must see the handles");
+        copy.clear();
+        assert!(sources.snapshot().is_none());
         node.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn summary_without_a_node_prints_a_header() {
+        let before = crate::node::output::log_summary(0).last_seq;
+        print_summary(
+            1234,
+            1000,
+            &GuardSources::default(),
+            &tokio::runtime::Handle::current(),
+        );
+        let page = crate::node::output::log_page(before, 10_000);
         assert!(
-            wait_finished(&h, DEADLINE),
-            "the mem-guard thread is alive after shutdown"
+            page.lines
+                .iter()
+                .any(|l| l.tag == "guard" && l.text.contains("checks 0, no node")),
+            "no header for the empty sources"
         );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn two_starts_in_a_row_leave_at_most_one_guard() {
-        let a = node_with_guard(1_000_000).await;
-        let ha = a.memory_guard.clone().unwrap();
-        a.shutdown().await;
-        let b = node_with_guard(1_000_000).await;
-        let hb = b.memory_guard.clone().unwrap();
-        assert!(wait_finished(&ha, DEADLINE), "guard A is alive");
-        assert!(!hb.is_finished(), "guard B must be alive");
-        b.shutdown().await;
+    async fn summary_with_a_node_counts_its_connections() {
+        let node = start_node(NodeConfig::for_loopback_test(
+            NetworkKey::generate().unwrap(),
+        ))
+        .await
+        .unwrap();
+        let sources = GuardSources::default();
+        sources.set(node.members.clone(), node.checks.clone());
+        let before = crate::node::output::log_summary(0).last_seq;
+        print_summary(1234, 1000, &sources, &tokio::runtime::Handle::current());
+        let page = crate::node::output::log_page(before, 10_000);
         assert!(
-            wait_finished(&hb, DEADLINE),
-            "guard B is alive after shutdown"
+            page.lines
+                .iter()
+                .any(|l| l.tag == "guard" && l.text.contains("connections 0, paths 0")),
+            "no header with the node's connections"
         );
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn default_loopback_has_no_guard() {
-        let node = node_with_guard(0).await;
-        assert!(node.memory_guard.is_none());
         node.shutdown().await;
     }
 }
