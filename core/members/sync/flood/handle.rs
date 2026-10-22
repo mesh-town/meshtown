@@ -2,10 +2,10 @@
 
 use super::topic::TopicCmd;
 use super::wire::MAX_BODY_BYTES;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
-use crate::net::{Membership, SwarmEvent, WeakStack};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::{Membership, SwarmEvent, WeakStack};
 use bytes::Bytes;
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, OnceLock};
@@ -31,7 +31,9 @@ impl Membership for TopicHandle {
                 return Ok(());
             }
             if self.stack.get().is_none() {
-                return Err(NetError::Config("network stack is not attached to the sync".into()));
+                return Err(NetError::Config(
+                    "network stack is not attached to the sync".into(),
+                ));
             }
             self.send(TopicCmd::Join(peers)).await
         })

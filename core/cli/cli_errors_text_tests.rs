@@ -4,7 +4,7 @@
 //! `parse_err` is a short copy from there.
 
 use super::*;
-use crate::cli::Cli;
+use crate::cli::args::Cli;
 
 /// The text about a wrong option: `bad_flag_text`.
 mod bad_flag_message {
@@ -162,7 +162,13 @@ mod no_english {
         ];
         for text in &texts {
             for bad in [
-                "error", "invalid value '", "Usage", "expected", "found", "digit", "parse",
+                "error",
+                "invalid value '",
+                "Usage",
+                "expected",
+                "found",
+                "digit",
+                "parse",
             ] {
                 assert!(!text.contains(bad), "\"{bad}\" in the text: {text}");
             }

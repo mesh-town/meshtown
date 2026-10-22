@@ -4,11 +4,11 @@
 
 use super::test_cluster::{cluster, Cluster};
 use super::{HyperOpts, HyperTransport};
-use crate::net::contract::transport::transport_contract;
-use crate::net::contract::transport_diag::transport_diag_contract;
-use crate::net::contract::{secret, Harness};
-use crate::net::stream::BoxFuture;
-use crate::net::{Transport, AUTH, PORT};
+use crate::transport::net::contract::transport::transport_contract;
+use crate::transport::net::contract::transport_diag::transport_diag_contract;
+use crate::transport::net::contract::{secret, Harness};
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::{Transport, AUTH, PORT};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
@@ -30,8 +30,13 @@ impl HyperHarness {
 
     /// New node: `serve([AUTH, PORT])`, then waiting for the `listen` outcome.
     async fn start(&self, seed: u8) -> Arc<dyn Transport> {
-        let opts = HyperOpts { bootstrap: Some(self.bootstrap().await), ..Default::default() };
-        let node = HyperTransport::bind(secret(seed), opts).await.expect("node came up");
+        let opts = HyperOpts {
+            bootstrap: Some(self.bootstrap().await),
+            ..Default::default()
+        };
+        let node = HyperTransport::bind(secret(seed), opts)
+            .await
+            .expect("node came up");
         node.serve(&[AUTH, PORT]);
         node.wait_listen_outcome().await.expect("listen succeeded");
         self.remember(seed, node.clone());
@@ -39,11 +44,17 @@ impl HyperHarness {
     }
 
     fn remember(&self, seed: u8, node: Arc<HyperTransport>) {
-        self.nodes.lock().unwrap_or_else(PoisonError::into_inner).insert(seed, node);
+        self.nodes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(seed, node);
     }
 
     fn forget(&self, seed: u8) -> Option<Arc<HyperTransport>> {
-        self.nodes.lock().unwrap_or_else(PoisonError::into_inner).remove(&seed)
+        self.nodes
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .remove(&seed)
     }
 }
 
@@ -69,5 +80,8 @@ impl Harness for HyperHarness {
 }
 
 fn hyper_harness() -> HyperHarness {
-    HyperHarness { cluster: OnceCell::new(), nodes: Mutex::new(HashMap::new()) }
+    HyperHarness {
+        cluster: OnceCell::new(),
+        nodes: Mutex::new(HashMap::new()),
+    }
 }

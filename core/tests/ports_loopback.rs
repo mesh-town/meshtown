@@ -5,16 +5,16 @@
 //! unpublishing, a slash in the key (remove 80 without touching 8080), a `Nodes` refusal, the
 //! "not responding" status on the publisher and closing an opened port.
 //! What it does not do: does not check the page and the config file.
-//! Links: `meshtown::ports`, `meshtown::node`; the harness is `core/tests/common/socks_pair.rs`.
+//! Links: `meshtown_core::ports_sharing`, `meshtown_core::node`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
 
 use std::time::Duration;
 
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::ports::{Audience, LocalState, Opened, Published};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::ports_sharing::{Audience, LocalState, Opened, Published};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, timeout, Instant};

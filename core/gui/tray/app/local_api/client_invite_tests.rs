@@ -13,7 +13,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 
 use super::super::transport::{exchange_within, INVITE_EXCHANGE_TIMEOUT};
-use crate::app::local_api::tests::FAKE_TOKEN;
+use crate::gui::tray::app::local_api::tests::FAKE_TOKEN;
 
 /// The node's response body for `GET /api/network/invite`.
 const BODY: &str = r#"{"invite":"mesh-invite2-FAKE","holders":2,"reach":"spread"}"#;

@@ -13,18 +13,22 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
 
-use crate::doh::{self, Resolver};
-use crate::http_min::{self, HttpLimits, HttpGetRequest, HttpResponse};
+use crate::site_checks::doh::{self, DnsAnswer, Resolver};
+use crate::site_checks::http_min::{self, HttpGetRequest, HttpLimits, HttpResponse};
 
 use super::classify::classify;
-use super::config::{CheckConfig, ANTIBOT_MARKERS, GEO_MARKERS, CHECK_RECORD_VERSION};
+use super::config::{CheckConfig, ANTIBOT_MARKERS, CHECK_RECORD_VERSION, GEO_MARKERS};
 use super::record::CheckRecord;
 use super::steps::{BodyMark, Steps, TcpStep, TlsStep};
 
 /// Checks one domain. An error is returned only if DoH itself failed — no connection,
 /// wrong HTTP code, response not parsed, the resolver answered with an error code: then there is nothing to check and
 /// nothing to publish. An "no addresses" answer is not an error: that is the "down" result.
-pub async fn check_domain(config: &CheckConfig, resolver: &Resolver, domain: &str) -> Result<CheckRecord> {
+pub async fn check_domain(
+    config: &CheckConfig,
+    resolver: &Resolver,
+    domain: &str,
+) -> Result<CheckRecord> {
     let mut steps = Steps::default();
     // The domain is marked --block-domain: we don't touch the network at all, the class is preset.
     if config.blocked_domains.contains(domain) {
@@ -37,11 +41,7 @@ pub async fn check_domain(config: &CheckConfig, resolver: &Resolver, domain: &st
     let dns_ms = saturating_millis_u16(doh_answer.elapsed);
     steps.dns_ok = !doh_answer.addrs.is_empty();
 
-    if let Some(provider) = config.provider_dns {
-        if let Ok(provider_answer) = resolver.resolve_udp(provider, domain).await {
-            steps.dns_mismatch = !provider_answer.addrs.iter().any(|a| doh_answer.addrs.contains(a));
-        }
-    }
+    steps.dns_mismatch = provider_mismatch(config, resolver, domain, &doh_answer).await;
 
     // An empty DNS answer is "down", not "unusable address": without this branch rule 1
     // (`unusable_addr`) would fire before rule 2 (`dns_ok`) and return
@@ -50,7 +50,11 @@ pub async fn check_domain(config: &CheckConfig, resolver: &Resolver, domain: &st
         return Ok(build_record(&steps, dns_ms, 0, 0, 0));
     }
 
-    let addr = doh_answer.addrs.iter().copied().find(|a| !doh::is_unusable(*a));
+    let addr = doh_answer
+        .addrs
+        .iter()
+        .copied()
+        .find(|a| !doh::is_unusable(*a));
     let Some(addr) = addr else {
         steps.unusable_addr = true;
         return Ok(build_record(&steps, dns_ms, 0, 0, 0));
@@ -63,9 +67,7 @@ pub async fn check_domain(config: &CheckConfig, resolver: &Resolver, domain: &st
     };
 
     // The read timeout adapts to latency: min(max(RTT×3, 1.5 s), 12 s).
-    let rtt = Duration::from_millis(u64::from(tcp_ms));
-    let read_timeout = (rtt * 3).clamp(Duration::from_millis(1500), Duration::from_secs(12));
-    let limits = HttpLimits { read: read_timeout, ..config.limits };
+    let limits = adaptive_limits(config.limits, tcp_ms);
 
     let tls_started = Instant::now();
     let tls = connect_tls(stream, domain, limits).await;
@@ -81,8 +83,35 @@ pub async fn check_domain(config: &CheckConfig, resolver: &Resolver, domain: &st
         }
     };
 
-    let timings = Timings { dns_ms, tcp_ms, tls_ms };
+    let timings = Timings {
+        dns_ms,
+        tcp_ms,
+        tls_ms,
+    };
     finish_http(config, domain, stream, &mut steps, timings, limits).await
+}
+
+/// Whether the provider's own DNS answers with addresses the DoH answer does not contain.
+async fn provider_mismatch(
+    config: &CheckConfig,
+    resolver: &Resolver,
+    domain: &str,
+    doh_answer: &DnsAnswer,
+) -> bool {
+    let Some(provider) = config.provider_dns else {
+        return false;
+    };
+    match resolver.resolve_udp(provider, domain).await {
+        Ok(answer) => !answer.addrs.iter().any(|a| doh_answer.addrs.contains(a)),
+        Err(_) => false,
+    }
+}
+
+/// The read timeout adapts to latency: min(max(RTT×3, 1.5 s), 12 s).
+fn adaptive_limits(limits: HttpLimits, tcp_ms: u16) -> HttpLimits {
+    let rtt = Duration::from_millis(u64::from(tcp_ms));
+    let read = (rtt * 3).clamp(Duration::from_millis(1500), Duration::from_secs(12));
+    HttpLimits { read, ..limits }
 }
 
 /// A short exit for a domain marked `--block-domain`: we don't touch the network at all.
@@ -131,22 +160,33 @@ async fn finish_http(
             steps.http_status = 0;
         }
     }
-    Ok(build_record(steps, timings.dns_ms, timings.tcp_ms, timings.tls_ms, http_ms))
+    Ok(build_record(
+        steps,
+        timings.dns_ms,
+        timings.tcp_ms,
+        timings.tls_ms,
+        http_ms,
+    ))
 }
 
 /// Opens TCP to an address from the DoH answer.
 ///
 /// Here and only here the check goes to the network with its own socket. When TUN appears, marking the
 /// socket to bypass the tunnel (`SO_MARK` on Linux, `IP_BOUND_IF` on macOS) will go into this function.
-async fn connect_tcp(
-    addr: Ipv4Addr,
-    limits: HttpLimits,
-) -> (TcpStep, u16, Option<TcpStream>) {
+async fn connect_tcp(addr: Ipv4Addr, limits: HttpLimits) -> (TcpStep, u16, Option<TcpStream>) {
     let started = Instant::now();
     let target = SocketAddr::from((addr, 443));
     match timeout(limits.connect, TcpStream::connect(target)).await {
-        Err(_) => (TcpStep::Timeout, saturating_millis_u16(started.elapsed()), None),
-        Ok(Ok(s)) => (TcpStep::Ok, saturating_millis_u16(started.elapsed()), Some(s)),
+        Err(_) => (
+            TcpStep::Timeout,
+            saturating_millis_u16(started.elapsed()),
+            None,
+        ),
+        Ok(Ok(s)) => (
+            TcpStep::Ok,
+            saturating_millis_u16(started.elapsed()),
+            Some(s),
+        ),
         Ok(Err(e)) => {
             let step = match e.kind() {
                 std::io::ErrorKind::ConnectionRefused => TcpStep::Refused,
@@ -209,7 +249,9 @@ fn body_mark(resp: &HttpResponse, extra: &[String]) -> BodyMark {
     if ANTIBOT_MARKERS.iter().any(|m| text.contains(m)) {
         return BodyMark::Antibot;
     }
-    if GEO_MARKERS.iter().any(|m| text.contains(m)) || extra.iter().any(|m| text.contains(m.as_str())) {
+    if GEO_MARKERS.iter().any(|m| text.contains(m))
+        || extra.iter().any(|m| text.contains(m.as_str()))
+    {
         return BodyMark::Geo;
     }
     BodyMark::Clean

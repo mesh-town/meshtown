@@ -63,7 +63,10 @@ fn uptime_counts_from_new() {
     let j = Journal::new(1);
     std::thread::sleep(std::time::Duration::from_millis(50));
     let first = j.uptime_secs();
-    assert!(first >= 0.05, "the clock must run from new, not lazily: {first}");
+    assert!(
+        first >= 0.05,
+        "the clock must run from new, not lazily: {first}"
+    );
     assert!(j.uptime_secs() >= first);
 }
 
@@ -77,5 +80,8 @@ fn free_functions_share_one_journal() {
     let mine: Vec<_> = page.lines.iter().filter(|l| l.tag == "t03").collect();
     assert_eq!(mine.len(), 1);
     assert_eq!(page.boot_id, "");
-    assert_eq!(log_page_for("abc", before, DEFAULT_RING_CAPACITY).boot_id, "abc");
+    assert_eq!(
+        log_page_for("abc", before, DEFAULT_RING_CAPACITY).boot_id,
+        "abc"
+    );
 }

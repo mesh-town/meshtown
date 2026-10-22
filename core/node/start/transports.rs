@@ -8,11 +8,11 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 
-use crate::net::mem::MemNet;
-use crate::net::{NodeSecret, Transport};
 use crate::node::config::NodeConfig;
 use crate::node::net_names;
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::{NodeSecret, Transport};
 
 use super::transports_mem::KeyedMem;
 
@@ -20,21 +20,18 @@ use super::transports_mem::KeyedMem;
 #[derive(Clone, Debug, Default)]
 pub(super) struct BindOpts {
     #[cfg(feature = "net-hyper")]
-    pub(super) hyper: crate::net_hyper::HyperOpts,
+    pub(super) hyper: crate::transport::net_hyper::HyperOpts,
 }
 
 /// The transports brought up: a list for the stack and a typed `hyper` handle (for admission and DHT records).
 pub(super) struct Bound {
     pub list: Vec<Arc<dyn Transport>>,
     #[cfg(feature = "net-hyper")]
-    pub hyper: Option<Arc<crate::net_hyper::HyperTransport>>,
+    pub hyper: Option<Arc<crate::transport::net_hyper::HyperTransport>>,
 }
 
 /// The node's transports in `net.transports` order; the default is `["hyper"]`.
-pub(super) async fn bind_transports(
-    cfg: &NodeConfig,
-    secret: &NodeSecret,
-) -> Result<Bound> {
+pub(super) async fn bind_transports(cfg: &NodeConfig, secret: &NodeSecret) -> Result<Bound> {
     bind_with(cfg, secret, &BindOpts::default()).await
 }
 
@@ -69,7 +66,10 @@ fn check_transport_names(names: &[String], allow_mem: bool) -> Result<()> {
         bail!("transport \"mem\" is for tests only");
     }
     if let Some(bad) = names.iter().find(|n| !known(n)) {
-        bail!("transport \"{bad}\" is not built; available: {}", have.join(", "));
+        bail!(
+            "transport \"{bad}\" is not built; available: {}",
+            have.join(", ")
+        );
     }
     Ok(())
 }
@@ -106,7 +106,7 @@ pub async fn bind_ephemeral(test_net: Option<&Arc<MemNet>>) -> Result<Arc<dyn Tr
 }
 
 async fn open_ephemeral(test_net: Option<&Arc<MemNet>>) -> Result<Arc<dyn Transport>> {
-    let secret = crate::config_file::new_secret()?;
+    let secret = crate::config::config_file::new_secret()?;
     if let Some(net) = test_net {
         return Ok(KeyedMem::new(net, &secret));
     }
@@ -115,8 +115,11 @@ async fn open_ephemeral(test_net: Option<&Arc<MemNet>>) -> Result<Arc<dyn Transp
 
 #[cfg(feature = "net-hyper")]
 async fn ephemeral_hyper(secret: NodeSecret) -> Result<Arc<dyn Transport>> {
-    let opts = crate::net_hyper::HyperOpts { watch_net: false, ..Default::default() };
-    let hyper = crate::net_hyper::HyperTransport::bind(secret, opts).await?;
+    let opts = crate::transport::net_hyper::HyperOpts {
+        watch_net: false,
+        ..Default::default()
+    };
+    let hyper = crate::transport::net_hyper::HyperTransport::bind(secret, opts).await?;
     hyper.wait_listen_outcome().await?;
     Ok(hyper)
 }
@@ -128,10 +131,19 @@ async fn ephemeral_hyper(_secret: NodeSecret) -> Result<Arc<dyn Transport>> {
 
 /// `hyper` is listed in the config explicitly, so a bind or announce refusal is a startup error.
 #[cfg(feature = "net-hyper")]
-async fn open_hyper(secret: &NodeSecret, opts: &BindOpts) -> Result<Arc<crate::net_hyper::HyperTransport>> {
-    let hyper = crate::net_hyper::HyperTransport::bind(secret.clone(), crate::net_hyper::HyperOpts { watch_net: !cfg!(test), ..opts.hyper.clone() })
-        .await
-        .map_err(|e| anyhow::anyhow!("transport hyper did not come up: {e}"))?;
+async fn open_hyper(
+    secret: &NodeSecret,
+    opts: &BindOpts,
+) -> Result<Arc<crate::transport::net_hyper::HyperTransport>> {
+    let hyper = crate::transport::net_hyper::HyperTransport::bind(
+        secret.clone(),
+        crate::transport::net_hyper::HyperOpts {
+            watch_net: !cfg!(test),
+            ..opts.hyper.clone()
+        },
+    )
+    .await
+    .map_err(|e| anyhow::anyhow!("transport hyper did not come up: {e}"))?;
     hyper.set_admit(Some(super::transports_hyper::auth_invite_only()));
     hyper
         .wait_listen_outcome()

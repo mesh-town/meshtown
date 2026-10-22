@@ -36,7 +36,9 @@ pub struct PendingInvite(Pin<Box<dyn Future<Output = anyhow::Result<Dealt>> + Se
 impl PendingInvite {
     /// An invite with nothing left to complete (stubs): no holders.
     pub fn ready(text: String) -> Self {
-        PendingInvite(Box::pin(std::future::ready(Ok(Dealt::without_holders(text)))))
+        PendingInvite(Box::pin(std::future::ready(Ok(Dealt::without_holders(
+            text,
+        )))))
     }
 
     /// An invite ready after `fut` runs.
@@ -66,7 +68,7 @@ pub trait NodeControl: Send + Sync {
     fn add_domain(&self, domain: &str) -> Result<String, ActionError>;
     fn remove_domain(&self, domain: &str) -> Result<String, ActionError>;
     fn add_peer_address(&self, line: &str) -> Result<(), String>;
-    fn apply_config(&self, settings: &crate::config_file::Settings, paths: &[&'static str]);
+    fn apply_config(&self, settings: &crate::config::config_file::Settings, paths: &[&'static str]);
     fn switch_network(&self, key: &str);
     fn stop(&self);
     fn invite(&self) -> Result<String, ActionError> {
@@ -80,7 +82,7 @@ pub trait NodeControl: Send + Sync {
     fn restart(&self) -> Result<(), ActionError> {
         Err(ActionError::NotFound("action not implemented".to_string()))
     }
-    fn join_with_peers(&self, key: &str, peers: Vec<crate::net::PeerAddr>) {
+    fn join_with_peers(&self, key: &str, peers: Vec<crate::transport::net::PeerAddr>) {
         let _ = peers;
         self.switch_network(key)
     }
@@ -88,7 +90,7 @@ pub trait NodeControl: Send + Sync {
     fn join_by_invite(
         &self,
         head: crate::invite::InviteHead,
-        peers: Vec<crate::net::PeerAddr>,
+        peers: Vec<crate::transport::net::PeerAddr>,
         save: SaveKey,
     ) -> Result<(), ActionError> {
         let _ = (head, peers, save);
@@ -113,7 +115,11 @@ pub trait NodeControl: Send + Sync {
 pub type MemberFuture = Pin<Box<dyn Future<Output = Result<MembersReply, MemberError>> + Send>>;
 
 fn not_implemented() -> MemberFuture {
-    Box::pin(async { Err(MemberError::Action(ActionError::NotFound("action not implemented".to_string()))) })
+    Box::pin(async {
+        Err(MemberError::Action(ActionError::NotFound(
+            "action not implemented".to_string(),
+        )))
+    })
 }
 
 /// A member-list failure: a common action error, or a refusal with its own code (HTTP 409).
@@ -181,7 +187,10 @@ fn port_phrase(port: u16, kind: std::io::ErrorKind) -> String {
 /// A hint about another port: `--web-port` with the next port (at 65535, the previous one).
 fn other_port_hint(port: u16) -> String {
     let other = if port == u16::MAX { port - 1 } else { port + 1 };
-    format!("{} run --web-port {other}", crate::program_name::program_name())
+    format!(
+        "{} run --web-port {other}",
+        crate::cli::program_name::program_name()
+    )
 }
 
 impl WebStartError {
@@ -199,9 +208,9 @@ impl WebStartError {
     /// Advice for a start error without a key: depends on the cause, mentions the port only if the cause is the port.
     pub fn start_failure_advice(&self) -> Option<String> {
         match self {
-            WebStartError::Disabled => {
-                Some("The page is enabled by the web.enabled field in the settings file.".to_string())
-            }
+            WebStartError::Disabled => Some(
+                "The page is enabled by the web.enabled field in the settings file.".to_string(),
+            ),
             WebStartError::Bind { port, kind, .. } => Some(bind_advice(*port, *kind)),
             WebStartError::Random(_) => None,
         }

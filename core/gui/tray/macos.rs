@@ -7,7 +7,7 @@
 //! `CFRunLoop` and wakes it.
 //! What it does not do: it does not build the menu or print itself (that is `Core` and `super::log_tray`), does not end the
 //! process by anything other than `exit_now` on `TrayCmd::QuitWithCode`, and does not know about the node or the page.
-//! Links: `super::Core`, `crate::app::quit::exit_now`; the model is
+//! Links: `super::Core`, `crate::gui::tray::app::quit::exit_now`; the model is
 //! a separate repaint probe.
 
 use std::cell::{Cell, RefCell};
@@ -24,7 +24,7 @@ use objc2_core_foundation::{kCFRunLoopCommonModes, CFRunLoop, CFType};
 use objc2_foundation::NSNotification;
 
 use super::Core;
-use crate::app::quit::exit_now;
+use crate::gui::tray::app::quit::exit_now;
 
 thread_local! {
     /// The main thread's `Core`: after `attach_ui` it holds a `TrayIcon` (`!Send`), so the storage is

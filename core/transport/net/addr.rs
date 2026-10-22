@@ -1,7 +1,7 @@
 //! Node address: an id plus hints on how to reach it, and a link to the relay.
 //! There is no parsing or printing of addresses here.
 
-use crate::net::id::PeerId;
+use crate::transport::net::id::PeerId;
 use std::net::SocketAddr;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

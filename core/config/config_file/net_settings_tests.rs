@@ -1,5 +1,5 @@
 use super::*;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use crate::node::NodeConfig;
 use std::time::Duration;
 

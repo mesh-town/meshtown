@@ -1,7 +1,7 @@
 //! Tests for discovery merging, continued: the `found` tap (every source message) and `state` cleanup.
 
 use super::*;
-use crate::net::discovery_mux::lock;
+use crate::transport::net::discovery_mux::lock;
 use tokio::sync::mpsc;
 
 /// A mux with a `tx` tap and `scripts` sources; before `start` the caller can subscribe to news.
@@ -140,7 +140,10 @@ mod sweep {
 
         sleep(Duration::from_millis(150)).await;
 
-        assert!(state_ids(&mux).is_empty(), "state is cleaned without lookup");
+        assert!(
+            state_ids(&mux).is_empty(),
+            "state is cleaned without lookup"
+        );
     }
 
     #[tokio::test]

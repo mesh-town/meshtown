@@ -5,17 +5,17 @@
 use std::path::Path;
 
 use super::*;
-use crate::config_file::overrides::CliOverrides;
-use crate::config_file::parse::{load_config_file, LoadedConfigFile};
-use crate::config_file::path::{ConfigSource, PathRule};
-use crate::config_file::report::FileState;
-use crate::config_file::save::save_config_file;
-use crate::config_file::settings::Settings;
-use crate::config_file::ProcessSettings;
-use crate::config_file::test_support::{
+use crate::config::config_file::overrides::CliOverrides;
+use crate::config::config_file::parse::{load_config_file, LoadedConfigFile};
+use crate::config::config_file::path::{ConfigSource, PathRule};
+use crate::config::config_file::report::FileState;
+use crate::config::config_file::save::save_config_file;
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{
     names_in, parsed, sample_settings, scratch, secret_of, test_secret,
 };
-use crate::config_file::FILE_NAME;
+use crate::config::config_file::ProcessSettings;
+use crate::config::config_file::FILE_NAME;
 
 const NOW: u64 = 1_790_278_867;
 
@@ -48,7 +48,10 @@ fn first_run_creates_defaults_not_flags() {
     assert_eq!(run.file_report.rev, 1);
     assert!(run.file_report.persistent_identity);
     assert!(!run.file_report.identity_declined);
-    assert_eq!(on_disk.settings.process.socks_port, 1080, "the flags landed in the file");
+    assert_eq!(
+        on_disk.settings.process.socks_port, 1080,
+        "the flags landed in the file"
+    );
     assert_eq!(run.file_settings.process.socks_port, 1080);
     assert_eq!(run.effective_settings.process.socks_port, 2000);
     assert_eq!(run.cli_override_paths, vec!["socks.port"]);
@@ -184,7 +187,10 @@ fn invalid_with_save_config_sets_aside() {
     let _ = std::fs::remove_dir_all(&dir);
     assert!(aside.is_some(), "no config.json.bad-*: {names:?}");
     assert_eq!(aside_bytes.as_deref(), Some(&b"{"[..]));
-    assert!(matches!(after, LoadedConfigFile::Parsed(_)), "new file: {after:?}");
+    assert!(
+        matches!(after, LoadedConfigFile::Parsed(_)),
+        "new file: {after:?}"
+    );
     assert_eq!(run.file_report.state, FileState::Ok);
     assert!(run.file_report.persistent_identity);
     assert!(!run.file_report.identity_declined);
@@ -235,7 +241,8 @@ fn absent_file_is_created_with_two_word_name() {
     assert_eq!(run.file_report.state, FileState::Created);
     let name = run
         .effective_settings
-        .net.node_name
+        .net
+        .node_name
         .clone()
         .expect("node_name in Settings");
     assert_two_pool_words(&name);
@@ -276,7 +283,8 @@ fn uncreatable_file_still_names_node() {
     assert!(!file_exists, "the file must not have been created");
     let name = run
         .effective_settings
-        .net.node_name
+        .net
+        .node_name
         .clone()
         .expect("node_name in Settings");
     assert_two_pool_words(&name);
@@ -313,7 +321,7 @@ fn readonly_dir_still_starts() {
 fn assert_two_pool_words(name: &str) {
     let parts: Vec<&str> = name.split('-').collect();
     assert_eq!(parts.len(), 2, "{name}");
-    assert!(crate::words::is_tail_word(parts[0]), "{name}");
-    assert!(crate::words::is_tail_word(parts[1]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[0]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[1]), "{name}");
     assert_ne!(parts[0], parts[1], "{name}");
 }

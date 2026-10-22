@@ -8,12 +8,14 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use meshtown::handshake::{initiator_tag, name_frame, parse_name_tail, responder_tag};
-use meshtown::net::mem::process_net;
-use meshtown::net::{
+use meshtown_core::members::handshake::{
+    initiator_tag, name_frame, parse_name_tail, responder_tag,
+};
+use meshtown_core::members::network_key::{fill_random, NetworkKey};
+use meshtown_core::transport::net::mem::process_net;
+use meshtown_core::transport::net::{
     read_to_end_limited, NodeSecret, PeerConn, PeerId, SplitTransport, StreamPair, Transport, AUTH,
 };
-use meshtown::network_key::{fill_random, NetworkKey};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
@@ -28,7 +30,9 @@ fn raw_transport() -> (PeerId, Arc<SplitTransport>) {
 pub(crate) async fn raw_initiate_to(target: PeerId, key: &NetworkKey) -> Option<String> {
     let (me, transport) = raw_transport();
     let hk = key.subkeys().handshake_key;
-    let addr = process_net().addr_of(target).expect("the node is not in the mem network");
+    let addr = process_net()
+        .addr_of(target)
+        .expect("the node is not in the mem network");
     let conn = transport.connect(&addr, AUTH).await.unwrap();
     let StreamPair { mut send, mut recv } = conn.open().await.unwrap();
     let mut nonce_a = [0u8; 32];

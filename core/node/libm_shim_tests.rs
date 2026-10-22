@@ -39,7 +39,10 @@ fn negative_zero_is_below_positive_zero() {
 #[test]
 fn infinities_are_ordered() {
     assert_eq!(maximum_num(f64::NEG_INFINITY, f64::INFINITY), f64::INFINITY);
-    assert_eq!(minimum_num(f64::NEG_INFINITY, f64::INFINITY), f64::NEG_INFINITY);
+    assert_eq!(
+        minimum_num(f64::NEG_INFINITY, f64::INFINITY),
+        f64::NEG_INFINITY
+    );
 }
 
 #[test]

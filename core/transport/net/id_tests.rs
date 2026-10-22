@@ -224,7 +224,11 @@ mod equality_and_order {
             for b in &ids {
                 let want = a.as_bytes().cmp(b.as_bytes());
                 assert_eq!(a.cmp(b), want, "Ord by bytes: {a} versus {b}");
-                assert_eq!(a.partial_cmp(b), Some(want), "PartialOrd is consistent with Ord");
+                assert_eq!(
+                    a.partial_cmp(b),
+                    Some(want),
+                    "PartialOrd is consistent with Ord"
+                );
             }
         }
     }
@@ -282,7 +286,8 @@ fn first_off_curve_pattern() -> Option<[u8; 32]> {
 }
 
 fn off_curve_bytes() -> [u8; 32] {
-    first_off_curve_pattern().expect("a point off the curve is needed, see some_repeated_byte_pattern_*")
+    first_off_curve_pattern()
+        .expect("a point off the curve is needed, see some_repeated_byte_pattern_*")
 }
 
 fn to_hex(bytes: &[u8]) -> String {

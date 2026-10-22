@@ -5,11 +5,11 @@
 //! The helpers `base`/`pair`/`view`/`record_at` come from `super::tests` (`pub(super)`); this module is
 //! a sibling of `mod tests` and `mod exit_tests`, not their descendant.
 
-use super::*;
 use super::tests::{base, pair, record_at, view};
+use super::*;
 use std::time::Duration;
 
-use crate::telemetry::PeerLive;
+use crate::node::telemetry::PeerLive;
 
 mod peers_iz_kesha_zhivoe_chlenstvo_telemetriya_i_proverki_pusty {
     use super::*;
@@ -29,8 +29,14 @@ mod peers_iz_kesha_zhivoe_chlenstvo_telemetriya_i_proverki_pusty {
             .iter()
             .find(|p| p.id == output::short_peer_id(&b))
             .expect("B should appear in peers from the cache");
-        assert!(!b_peer.online, "a member known only from the cache is offline");
-        assert_eq!(b_peer.name, None, "the cache has no name, and Members does not know it either");
+        assert!(
+            !b_peer.online,
+            "a member known only from the cache is offline"
+        );
+        assert_eq!(
+            b_peer.name, None,
+            "the cache has no name, and Members does not know it either"
+        );
         assert_eq!(
             b_peer.last_seen_sec, 600,
             "now_unix (1000) - cache seen_unix (400)"
@@ -117,9 +123,16 @@ mod peers_iz_kesha_id_uzhe_est_u_drugogo_istochnika {
             .iter()
             .filter(|p| p.id == output::short_peer_id(&b))
             .collect();
-        assert_eq!(rows.len(), 1, "an id from the cache and from members is one row, not duplicated");
+        assert_eq!(
+            rows.len(),
+            1,
+            "an id from the cache and from members is one row, not duplicated"
+        );
         assert!(rows[0].online, "B is a live member");
-        assert_eq!(rows[0].last_seen_sec, 0, "online — last_seen_sec is always 0");
+        assert_eq!(
+            rows[0].last_seen_sec, 0,
+            "online — last_seen_sec is always 0"
+        );
     }
 
     #[test]
@@ -146,7 +159,11 @@ mod peers_iz_kesha_id_uzhe_est_u_drugogo_istochnika {
             .iter()
             .filter(|p| p.id == output::short_peer_id(&b))
             .collect();
-        assert_eq!(rows.len(), 1, "telemetry and cache are the same member, one row");
+        assert_eq!(
+            rows.len(),
+            1,
+            "telemetry and cache are the same member, one row"
+        );
         assert_eq!(
             rows[0].last_seen_sec, 30,
             "telemetry takes priority over the cache, not the cache seen_unix"

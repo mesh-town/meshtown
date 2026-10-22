@@ -10,8 +10,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::core::{CmdTx, TrayCmd};
-use crate::app::view::{NodeState, View};
-use crate::app::view_picture::{spinning, IdleRing};
+use crate::gui::tray::app::view::{NodeState, View};
+use crate::gui::tray::app::view_picture::{spinning, IdleRing};
 
 /// The period between spinner frames: the only place of the tempo.
 pub(super) const SPIN_TICK: Duration = Duration::from_millis(100);
@@ -41,13 +41,22 @@ pub(super) struct Ticker {
 
 impl Spin {
     pub(super) fn new() -> Spin {
-        Spin { remembered: 0, frame: 0, generation: 0, ticker: None, period: SPIN_TICK }
+        Spin {
+            remembered: 0,
+            frame: 0,
+            generation: 0,
+            ticker: None,
+            period: SPIN_TICK,
+        }
     }
 
     /// A spinner with a custom tick period (for tests).
     #[cfg(test)]
     pub(super) fn with_period(period: Duration) -> Spin {
-        Spin { period, ..Spin::new() }
+        Spin {
+            period,
+            ..Spin::new()
+        }
     }
 
     /// Follows the view: remembers the running ring size; a spinning view (`spinning`) returns a new ticker
@@ -66,7 +75,9 @@ impl Spin {
 
     /// Takes a tick: `true` (and the next frame) only for a live ticker of the current generation.
     pub(super) fn tick(&mut self, generation: u64) -> bool {
-        let Some(flags) = &self.ticker else { return false };
+        let Some(flags) = &self.ticker else {
+            return false;
+        };
         if generation != self.generation {
             return false;
         }
@@ -77,7 +88,10 @@ impl Spin {
 
     /// The memory for `IconPicture::with_idle`.
     pub(super) fn idle(&self) -> IdleRing {
-        IdleRing { remembered: self.remembered, frame: self.frame }
+        IdleRing {
+            remembered: self.remembered,
+            frame: self.frame,
+        }
     }
 
     #[cfg(test)]
@@ -95,9 +109,16 @@ impl Spin {
     fn start_ticker(&mut self) -> Ticker {
         self.generation += 1;
         self.frame = 0;
-        let flags = Arc::new(TickerFlags { alive: AtomicBool::new(true), pending: AtomicBool::new(false) });
+        let flags = Arc::new(TickerFlags {
+            alive: AtomicBool::new(true),
+            pending: AtomicBool::new(false),
+        });
         self.ticker = Some(flags.clone());
-        Ticker { flags, generation: self.generation, period: self.period }
+        Ticker {
+            flags,
+            generation: self.generation,
+            period: self.period,
+        }
     }
 
     fn stop_ticker(&mut self) {
@@ -111,7 +132,11 @@ impl Ticker {
     /// Starts the thread `tray-spin`: wait a period, then send one tick, until `alive` is cleared. A failed
     /// spawn is logged; the ring then stands on its first frame.
     pub(super) fn spawn(self, tx: CmdTx) {
-        let Ticker { flags, generation, period } = self;
+        let Ticker {
+            flags,
+            generation,
+            period,
+        } = self;
         let run = move || loop {
             std::thread::sleep(period);
             let mut send = |g| tx.send(TrayCmd::SpinTick(g));
@@ -119,7 +144,10 @@ impl Ticker {
                 break;
             }
         };
-        if let Err(e) = std::thread::Builder::new().name("tray-spin".into()).spawn(run) {
+        if let Err(e) = std::thread::Builder::new()
+            .name("tray-spin".into())
+            .spawn(run)
+        {
             super::log_tray(&format!("spinner thread did not start: {e}"));
         }
     }

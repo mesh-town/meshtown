@@ -5,9 +5,9 @@
 
 use std::time::Instant;
 
-use crate::web::NodeStatus;
-use crate::net::endpoint_shim::from_endpoint_addr;
-use crate::net::endpoint_shim::{EndpointAddr, RelayUrl, TransportAddr};
+use crate::transport::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::endpoint_shim::{EndpointAddr, RelayUrl, TransportAddr};
+use crate::web_gui::NodeStatus;
 
 use super::tests::{base, pair};
 use super::*;
@@ -79,7 +79,7 @@ fn self_path_direct_or_none() {
     inputs.members = [friend_id].into_iter().collect();
     inputs.telemetry.peers.insert(
         friend_id,
-        crate::telemetry::PeerLive {
+        crate::node::telemetry::PeerLive {
             online: true,
             path: Some(PathKindView::Direct),
             rtt_ms: Some(5),
@@ -87,13 +87,16 @@ fn self_path_direct_or_none() {
         },
     );
     let collected = build(inputs);
-    assert_eq!(collected.snap.transport.self_path, Some(PathKindView::Direct));
+    assert_eq!(
+        collected.snap.transport.self_path,
+        Some(PathKindView::Direct)
+    );
 
     let mut inputs2 = base(my_id);
     inputs2.members = [friend_id].into_iter().collect();
     inputs2.telemetry.peers.insert(
         friend_id,
-        crate::telemetry::PeerLive {
+        crate::node::telemetry::PeerLive {
             online: true,
             path: Some(PathKindView::Relay),
             rtt_ms: Some(80),
@@ -101,7 +104,10 @@ fn self_path_direct_or_none() {
         },
     );
     let collected2 = build(inputs2);
-    assert_eq!(collected2.snap.transport.self_path, None, "the node's own relay path does not count");
+    assert_eq!(
+        collected2.snap.transport.self_path, None,
+        "the node's own relay path does not count"
+    );
 
     let inputs4 = base(my_id);
     let collected4 = build(inputs4);

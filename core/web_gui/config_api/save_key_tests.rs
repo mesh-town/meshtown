@@ -1,10 +1,12 @@
 //! Tests for `ConfigState::save_network_key`: what stays in the file after a network change.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 
-use crate::config_file::{self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings};
-use crate::ports::{Audience, Opened, Published};
+use crate::config::config_file::{
+    self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings,
+};
+use crate::ports_sharing::{Audience, Opened, Published};
 
 use super::ConfigState;
 
@@ -18,8 +20,8 @@ fn temp_dir() -> PathBuf {
 }
 
 fn fresh_key(label: &str) -> String {
-    let tail = crate::words::generate_tail().unwrap();
-    crate::network_key::format_key_string(Some(label), &tail)
+    let tail = crate::members::words::generate_tail().unwrap();
+    crate::members::network_key::format_key_string(Some(label), &tail)
 }
 
 fn published() -> Vec<Published> {
@@ -54,7 +56,9 @@ fn state_with_file(dir: &Path, key_a: &str) -> ConfigState {
     s.net.ports_published = published();
     s.net.ports_opened = opened();
     s.net.route_exits = vec![NodeSecret::from_bytes(&[4u8; 32]).peer_id()];
-    let rev = config_file::save_config_file(&path, Some(state.file_report.rev), 1, &state.secret, &s).unwrap();
+    let rev =
+        config_file::save_config_file(&path, Some(state.file_report.rev), 1, &state.secret, &s)
+            .unwrap();
     state.file_settings = s;
     state.file_report.rev = rev;
     state.current_network_key = Some(key_a.to_string());
@@ -74,7 +78,10 @@ fn no_clears_published_keeps_opened() {
     let (a, b) = (fresh_key("a"), fresh_key("b"));
     let mut state = state_with_file(&dir, &a);
     assert!(state.save_network_key(&b, false).is_ok());
-    assert_eq!(state.file_settings.net.network_key.as_deref(), Some(b.as_str()));
+    assert_eq!(
+        state.file_settings.net.network_key.as_deref(),
+        Some(b.as_str())
+    );
     assert!(state.file_settings.net.ports_published.is_empty());
     assert_eq!(state.file_settings.net.ports_opened, opened());
     let on_disk = file_settings(&dir);
@@ -104,7 +111,10 @@ fn yes_keeps_published() {
     let (a, b) = (fresh_key("a"), fresh_key("b"));
     let mut state = state_with_file(&dir, &a);
     assert!(state.save_network_key(&b, true).is_ok());
-    assert_eq!(state.file_settings.net.network_key.as_deref(), Some(b.as_str()));
+    assert_eq!(
+        state.file_settings.net.network_key.as_deref(),
+        Some(b.as_str())
+    );
     assert_eq!(state.file_settings.net.ports_published, published());
     assert_eq!(file_settings(&dir).net.ports_published, published());
     let _ = std::fs::remove_dir_all(&dir);

@@ -2,11 +2,11 @@
 
 use super::test_support::mesh_node;
 use super::NAME;
-use crate::net::contract::{must_finish, SEED_A};
-use crate::net::mem::MemNet;
-use crate::net::sync_backend::SyncBackend;
-use crate::net::{NetError, REPLICA, SYNC};
-use crate::sync::flood::test_support::NETWORK;
+use crate::members::sync::flood::test_support::NETWORK;
+use crate::transport::net::contract::{must_finish, SEED_A};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::sync_backend::SyncBackend;
+use crate::transport::net::{NetError, REPLICA, SYNC};
 
 #[tokio::test]
 async fn name_is_mesh() {
@@ -36,18 +36,27 @@ async fn unknown_replica_is_config() {
 #[tokio::test]
 async fn domains_not_served() {
     // given: two nodes → when: a REPLICA dial with the topic "domains" → then: the handshake is rejected, the link is closed
-    use crate::net::contract::{pid, SEED_B};
-    use crate::sync::flood::admit::{admission_key, dial_handshake};
-    use crate::sync::replica::ids::domains_id;
-    use crate::sync::replica::test_support::introduce;
+    use crate::members::sync::flood::admit::{admission_key, dial_handshake};
+    use crate::members::sync::replica::ids::domains_id;
+    use crate::members::sync::replica::test_support::introduce;
+    use crate::transport::net::contract::{pid, SEED_B};
     let net = MemNet::new();
     let a = mesh_node(&net, SEED_A, NETWORK, None).await;
     let b = mesh_node(&net, SEED_B, NETWORK, None).await;
     introduce(&a, &b);
-    let conn = must_finish(a.stack.connect(pid(SEED_B), REPLICA)).await.expect("link");
+    let conn = must_finish(a.stack.connect(pid(SEED_B), REPLICA))
+        .await
+        .expect("link");
     let mut pair = must_finish(conn.open()).await.expect("stream");
     let key = admission_key(&NETWORK);
-    let res = dial_handshake(&mut pair, &key, pid(SEED_A), pid(SEED_B), domains_id().as_bytes()).await;
+    let res = dial_handshake(
+        &mut pair,
+        &key,
+        pid(SEED_A),
+        pid(SEED_B),
+        domains_id().as_bytes(),
+    )
+    .await;
     assert!(res.is_err(), "domains was accepted by the service");
     must_finish(conn.closed()).await;
 }

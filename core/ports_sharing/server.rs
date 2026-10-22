@@ -10,22 +10,24 @@ use std::time::Duration;
 
 use std::sync::Arc;
 
-use crate::net::{BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, ServiceHandler, StreamPair};
+use crate::transport::net::{
+    BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, ServiceHandler, StreamPair,
+};
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::frame::{
-    encode_port_reply, parse_port_request, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
-    PORT_CODE_OK, PORT_CODE_REFUSED,
+    encode_port_reply, parse_port_request, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED,
+    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
 };
 use super::table::{LocalState, PublishedPortsTable};
 use super::types::Audience;
 use crate::exit::splice;
-use crate::membership::Members;
-use crate::output::say;
-use crate::tcp_tune::disable_nagle;
+use crate::members::membership::Members;
+use crate::node::output::say;
+use crate::node::tcp_tune::disable_nagle;
 
 /// Overall deadline of the local connection (both addresses together).
 pub const LOCAL_CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -63,7 +65,13 @@ fn spawn_stream(server: &PortServer, peer: PeerId, pair: StreamPair) {
     let server = server.clone();
     tokio::spawn(async move {
         if let Err(e) = serve_stream(server, peer, pair.send, pair.recv).await {
-            say("port", format!("{}: stream closed: {e:#}", crate::output::short_peer_id(&peer)));
+            say(
+                "port",
+                format!(
+                    "{}: stream closed: {e:#}",
+                    crate::node::output::short_peer_id(&peer)
+                ),
+            );
         }
     });
 }
@@ -148,14 +156,22 @@ async fn serve_stream(
         .await;
     };
     let audience = server.table.audience_of(port);
-    if let Err(code) = admit_port_request(server.members.is_member(peer), audience.as_ref(), &peer) {
+    if let Err(code) = admit_port_request(server.members.is_member(peer), audience.as_ref(), &peer)
+    {
         let why = format!("port {port}: {}", super::frame::port_code_text(code));
         return refuse(&mut send, &peer, &server.members, &why, code).await;
     }
     let Some(tcp) = connect_loopback_port(port).await else {
         server.table.set_local_state(port, LocalState::Refused);
         let why = format!("port {port} does not respond");
-        return refuse(&mut send, &peer, &server.members, &why, PORT_CODE_CONNECT_FAILED).await;
+        return refuse(
+            &mut send,
+            &peer,
+            &server.members,
+            &why,
+            PORT_CODE_CONNECT_FAILED,
+        )
+        .await;
     };
     send_reply_code(&mut send, PORT_CODE_OK).await?;
     server.table.set_local_state(port, LocalState::Ok);

@@ -1,10 +1,10 @@
 //! Tests for `SYNC` admission: the tag is bound to the direction, topic and key; the handshake over a stream.
 
 use super::{accept_handshake, admission_key, dial_handshake, tag, welcome};
-use crate::sync::flood::wire::{write_frame, Frame, VERSION};
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::test_support::pid;
-use crate::net::stream::StreamPair;
+use crate::members::sync::flood::wire::{write_frame, Frame, VERSION};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::test_support::pid;
+use crate::transport::net::stream::StreamPair;
 use tokio::io::{duplex, split};
 
 const TOPIC: [u8; 32] = [9; 32];
@@ -41,7 +41,11 @@ mod tag {
         assert_ne!(base, tag(&key(1), b, a, &TOPIC), "direction");
         assert_ne!(base, tag(&key(1), a, b, &[8; 32]), "topic");
         assert_ne!(base, tag(&key(2), a, b, &TOPIC), "key");
-        assert_eq!(base, tag(&key(1), a, b, &TOPIC), "the same triple — the same tag");
+        assert_eq!(
+            base,
+            tag(&key(1), a, b, &TOPIC),
+            "the same triple — the same tag"
+        );
     }
 }
 
@@ -49,11 +53,7 @@ mod handshake {
     use super::*;
 
     /// `dialer` (key `kd`) dials, `acceptor` (key `ka`) accepts; the acceptor sends `Welcome` after admission.
-    async fn run(
-        kd: [u8; 32],
-        ka: [u8; 32],
-        known: bool,
-    ) -> (NetResult<()>, NetResult<[u8; 32]>) {
+    async fn run(kd: [u8; 32], ka: [u8; 32], known: bool) -> (NetResult<()>, NetResult<[u8; 32]>) {
         let (caller, callee) = (pid(1), pid(2));
         let (mut a, mut b) = streams();
         let dial = dial_handshake(&mut a, &kd, caller, callee, &TOPIC);
@@ -122,5 +122,8 @@ fn admission_key_golden() {
 fn context_is_meshtown_v1() {
     assert!(super::CONTEXT.starts_with("meshtown "));
     assert!(super::CONTEXT.ends_with(" v1"));
-    assert!(!super::CONTEXT.as_bytes().windows(4).any(|w| w.iter().all(u8::is_ascii_digit)));
+    assert!(!super::CONTEXT
+        .as_bytes()
+        .windows(4)
+        .any(|w| w.iter().all(u8::is_ascii_digit)));
 }

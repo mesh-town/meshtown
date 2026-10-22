@@ -1,6 +1,6 @@
 //! The common stream frame: u32 BE length + postcard. Used by `flood::wire` and `replica::session`.
 
-use crate::net::error::{NetError, NetResult};
+use crate::transport::net::error::{NetError, NetResult};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::io::{Error, ErrorKind};

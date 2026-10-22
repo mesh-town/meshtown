@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use super::*;
-use crate::web::auth::iface_os::view_from;
+use crate::web_gui::auth::iface_os::view_from;
 
 fn ip(s: &str) -> Ipv4Addr {
     s.parse().unwrap()
@@ -18,7 +18,11 @@ fn wan() -> (String, Ipv4Addr, Ipv4Addr, bool) {
 }
 
 fn router_with(second: (String, Ipv4Addr, Ipv4Addr, bool)) -> bool {
-    is_router(&view_from(vec![wan(), second], Some(ip("192.168.1.100")), true))
+    is_router(&view_from(
+        vec![wan(), second],
+        Some(ip("192.168.1.100")),
+        true,
+    ))
 }
 
 #[test]
@@ -30,14 +34,31 @@ fn kind_of_tunnels() {
 
 #[test]
 fn kind_of_virtual() {
-    for n in ["docker0", "Docker0", "br-0123456789ab", "veth1a2b", "virbr0", "vnic0", "bridge100"] {
+    for n in [
+        "docker0",
+        "Docker0",
+        "br-0123456789ab",
+        "veth1a2b",
+        "virbr0",
+        "vnic0",
+        "bridge100",
+    ] {
         assert_eq!(kind_of(n), Some(IfaceKind::Virtual), "{n}");
     }
 }
 
 #[test]
 fn kind_of_ordinary() {
-    for n in ["br-lan", "br-guest", "br-0123", "eth0", "en0", "wlan0", "phy0-sta0", "pppoe-wan"] {
+    for n in [
+        "br-lan",
+        "br-guest",
+        "br-0123",
+        "eth0",
+        "en0",
+        "wlan0",
+        "phy0-sta0",
+        "pppoe-wan",
+    ] {
         assert_eq!(kind_of(n), None, "{n}");
     }
 }
@@ -69,7 +90,11 @@ fn router_rejects_bad_second_interfaces() {
 #[test]
 fn travel_router_with_guest() {
     let v = view_from(
-        vec![wan(), row("br-lan", "192.168.88.1", M24), row("br-guest", "192.168.9.1", M24)],
+        vec![
+            wan(),
+            row("br-lan", "192.168.88.1", M24),
+            row("br-guest", "192.168.9.1", M24),
+        ],
         Some(ip("192.168.1.100")),
         true,
     );

@@ -1,12 +1,12 @@
 //! Registry of transports and discovery sources by the names from the `[net]` settings.
 //! Builds a `NetStackBuilder` from a `NetChoice`; an unknown name gives `Config`.
 
-use crate::net::discovery::Discovery;
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::NetStackBuilder;
-use crate::net::id::NodeSecret;
-use crate::net::sync_backend::{SyncBackend, SyncCtor, SyncCtx};
-use crate::net::transport::Transport;
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::NetStackBuilder;
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtor, SyncCtx};
+use crate::transport::net::transport::Transport;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
@@ -57,7 +57,10 @@ impl Registry {
     /// A taken name is a code error: `panic!`.
     pub fn add_discovery(&mut self, name: &'static str, ctor: DiscoveryCtor) {
         let old = self.discovery.insert(name, ctor);
-        assert!(old.is_none(), "discovery source \"{name}\" is already added");
+        assert!(
+            old.is_none(),
+            "discovery source \"{name}\" is already added"
+        );
     }
 
     /// A taken name is a code error: `panic!`.
@@ -74,7 +77,10 @@ impl Registry {
     ) -> NetResult<Arc<dyn SyncBackend>> {
         let name = choice.sync.as_str();
         let Some(ctor) = self.sync.get(name) else {
-            let msg = format!("sync \"{name}\" is not registered; available: {}", joined_names(&self.sync));
+            let msg = format!(
+                "sync \"{name}\" is not registered; available: {}",
+                joined_names(&self.sync)
+            );
             return Err(NetError::Config(msg));
         };
         ctor(ctx).await
@@ -113,11 +119,16 @@ fn resolve<V>(
     let mut found = Vec::new();
     for name in want {
         let Some((key, _)) = m.get_key_value(name.as_str()) else {
-            let msg = format!("{what} \"{name}\" is not registered; available: {}", joined_names(m));
+            let msg = format!(
+                "{what} \"{name}\" is not registered; available: {}",
+                joined_names(m)
+            );
             return Err(NetError::Config(msg));
         };
         if !seen.insert(*key) {
-            return Err(NetError::Config(format!("{what} \"{name}\" is specified twice")));
+            return Err(NetError::Config(format!(
+                "{what} \"{name}\" is specified twice"
+            )));
         }
         found.push(*key);
     }

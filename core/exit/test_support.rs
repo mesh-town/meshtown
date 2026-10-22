@@ -9,10 +9,10 @@ use super::clients::Clients;
 use super::outbound::Refusal;
 use super::traffic::ExitTraffic;
 use super::ExitConfig;
-use crate::doh::Resolver;
-use crate::http_min::HttpLimits;
-use crate::membership::Members;
-use crate::net::{BoxFuture, PeerConn, ServiceHandler};
+use crate::members::membership::Members;
+use crate::site_checks::doh::Resolver;
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::{BoxFuture, PeerConn, ServiceHandler};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// A scripted exit: reads the whole request frame, writes `reply` and closes the stream.
@@ -24,7 +24,10 @@ pub(crate) struct Scripted {
 
 impl Scripted {
     pub fn new(reply: &'static [u8]) -> Scripted {
-        Scripted { reply, hits: Arc::default() }
+        Scripted {
+            reply,
+            hits: Arc::default(),
+        }
     }
 }
 
@@ -85,7 +88,10 @@ fn exit_config_at(server: SocketAddr, hosts: HashMap<String, SocketAddr>) -> Exi
 }
 
 /// A refusal from the result; success panics with the name of what was asked.
-pub(in crate::exit) fn refusal_of<T>(result: std::result::Result<T, Refusal>, what: &str) -> Refusal {
+pub(in crate::exit) fn refusal_of<T>(
+    result: std::result::Result<T, Refusal>,
+    what: &str,
+) -> Refusal {
     match result {
         Ok(_) => panic!("{what}: a refusal was expected, but an address was given"),
         Err(refusal) => refusal,

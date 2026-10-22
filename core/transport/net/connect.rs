@@ -1,11 +1,11 @@
 //! Connectivity: how to find and punch a path to a node (`Connector`) and the datagram path itself (`PacketPath`).
 //! There is no data stream or encryption over the path here — that is `carrier`.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::link::{NetInfo, PathKind};
-use crate::net::stream::BoxFuture;
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::{NetInfo, PathKind};
+use crate::transport::net::stream::BoxFuture;
 use bytes::Bytes;
 use std::any::Any;
 use std::net::SocketAddr;

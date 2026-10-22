@@ -1,5 +1,5 @@
 use super::*;
-use crate::app::tray_texts::hidden_icon_hint_text as hint_text;
+use crate::gui::tray::app::tray_texts::hidden_icon_hint_text as hint_text;
 
 fn window(visible: bool, max_y: f64) -> Option<IconWindow> {
     Some(IconWindow { visible, max_y })
@@ -49,7 +49,7 @@ fn settings_url_scheme() {
 fn hint_text_names_the_product() {
     let expected = format!(
         "Turn on {} in System Settings: Menu Bar → Allow in the Menu Bar.",
-        meshtown::output::APP_NAME
+        crate::node::output::APP_NAME
     );
     assert_eq!(hint_text(), expected);
 }

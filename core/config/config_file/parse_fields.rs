@@ -16,10 +16,14 @@ pub(super) fn file_value_at<'v>(cfg: &'v Value, section: &str, key: &str) -> Opt
 /// neither whole nor truncated — only the type.
 fn file_value_for_message(field_path: &str, v: &Value) -> String {
     match field_path {
-        _ if field_path == "identity.secret" || fields::field_by_path(field_path).is_some_and(|f| f.redacted) => match v {
-            Value::String(_) => "empty string".to_string(),
-            _ => "not a string".to_string(),
-        },
+        _ if field_path == "identity.secret"
+            || fields::field_by_path(field_path).is_some_and(|f| f.redacted) =>
+        {
+            match v {
+                Value::String(_) => "empty string".to_string(),
+                _ => "not a string".to_string(),
+            }
+        }
         "network" | "identity" => "not an object".to_string(),
         // Slicing by characters: `&s[..40]` would `panic` in the middle of a multi-byte character such as CJK.
         _ => v.to_string().chars().take(40).collect::<String>(),
@@ -38,7 +42,10 @@ pub(super) fn push_field_error(
         "file has {}, expected {expected}; using default {default}",
         file_value_for_message(&field_path, file_value)
     );
-    errs.push(FieldError { field_path, message });
+    errs.push(FieldError {
+        field_path,
+        message,
+    });
 }
 
 /// All `Settings` fields from the file: defaults, then by the table rows. The error order is the table
@@ -46,7 +53,12 @@ pub(super) fn push_field_error(
 pub(super) fn build_settings(cfg: &Value, errs: &mut Vec<FieldError>) -> Settings {
     let mut s = Settings::default();
     for f in fields::FIELDS {
-        f.value.read_from_file(f.field_path, file_value_at(cfg, f.section(), f.key()), &mut s, errs);
+        f.value.read_from_file(
+            f.field_path,
+            file_value_at(cfg, f.section(), f.key()),
+            &mut s,
+            errs,
+        );
     }
     s
 }

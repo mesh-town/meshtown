@@ -15,6 +15,10 @@ pub struct Probed {
 impl Actor {
     pub(super) fn probe(&self, reply: oneshot::Sender<Probed>) {
         let (links, dials, tasks) = (self.links.len(), self.dials, self.tasks.len());
-        let _ = reply.send(Probed { links, dials, tasks });
+        let _ = reply.send(Probed {
+            links,
+            dials,
+            tasks,
+        });
     }
 }

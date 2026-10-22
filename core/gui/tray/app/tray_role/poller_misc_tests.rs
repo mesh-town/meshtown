@@ -1,15 +1,15 @@
 //! Poller tests: individual cases — a busy port, a foreign token, a disabled web page, a blocked main thread (`poller.rs`).
 
-use super::*;
 use super::test_support::*;
+use super::*;
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::app::exit_menu::disabled_exit_menu;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::local_api::tests::{start_fake, temp_dir};
+use crate::gui::tray::app::exit_menu::disabled_exit_menu;
+use crate::gui::tray::app::local_api::tests::{start_fake, temp_dir};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 
 #[tokio::test(flavor = "multi_thread")]
 async fn poller_port_busy() {
@@ -83,10 +83,7 @@ async fn poller_disabled() {
         .filter_map(Seen::clone_view)
         .collect();
     assert_eq!(views.last(), Some(&disabled), "the view did not change");
-    assert!(
-        !rig.probe.logged("node started"),
-        "Start starts nothing"
-    );
+    assert!(!rig.probe.logged("node started"), "Start starts nothing");
     assert_eq!(accepts.load(Ordering::SeqCst), 0, "no requests");
     rig.quit();
     assert_eq!(rig.code().await, 0);
@@ -98,7 +95,11 @@ impl Seen {
     fn clone_view(&self) -> Option<View> {
         match self {
             Seen::View(v) => Some(*v),
-            Seen::Log(_) | Seen::Exits(_) | Seen::Invite(_) | Seen::Serve(_) | Seen::StartFail(_) => None,
+            Seen::Log(_)
+            | Seen::Exits(_)
+            | Seen::Invite(_)
+            | Seen::Serve(_)
+            | Seen::StartFail(_) => None,
         }
     }
 }
@@ -142,9 +143,16 @@ async fn grey_view_with_proxy_disabled_has_no_address() {
             let _ = listener.accept().await;
         }
     });
-    let mut rig = Rig::start_with_proxy(port, dir.join("web-token"), false, spawn_panics(), ProxyState::Off(ProxyOff::DisabledInSettings));
-    rig.probe
-        .exits("turned off, no proxy", |m| *m == disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings)));
+    let mut rig = Rig::start_with_proxy(
+        port,
+        dir.join("web-token"),
+        false,
+        spawn_panics(),
+        ProxyState::Off(ProxyOff::DisabledInSettings),
+    );
+    rig.probe.exits("turned off, no proxy", |m| {
+        *m == disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings))
+    });
     rig.quit();
     assert_eq!(rig.code().await, 0);
     server.abort();
@@ -176,7 +184,10 @@ async fn repeated_same_exit_menu_sent_once() {
         .iter()
         .filter(|s| matches!(s, Seen::Exits(m) if *m == disabled_exit_menu(test_proxy())))
         .count();
-    assert_eq!(off_count, 1, "a repeat of the same ExitMenu must not go into the channel a second time");
+    assert_eq!(
+        off_count, 1,
+        "a repeat of the same ExitMenu must not go into the channel a second time"
+    );
     rig.quit();
     assert_eq!(rig.code().await, 0);
     server.abort();

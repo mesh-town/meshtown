@@ -3,14 +3,14 @@
 use super::replica::MeshReplica;
 use super::replica_sync::SessionGuard;
 use super::session::{run_acceptor, run_dialer, SessionTally};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::replica::{ReplicaEvent, SyncCount};
-use crate::net::stream::StreamPair;
-use crate::net::transport::PeerConn;
-use crate::net::REPLICA;
-use crate::sync::flood::admit::dial_handshake;
-use crate::sync::flood::wire::{CLOSE_BAD_FRAME, CLOSE_REJECTED, CLOSE_SHUTDOWN};
+use crate::members::sync::flood::admit::dial_handshake;
+use crate::members::sync::flood::wire::{CLOSE_BAD_FRAME, CLOSE_REJECTED, CLOSE_SHUTDOWN};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::{ReplicaEvent, SyncCount};
+use crate::transport::net::stream::StreamPair;
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::REPLICA;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
@@ -32,7 +32,12 @@ impl MeshReplica {
 
     /// The dial: `REPLICA` connection → stream → handshake → reconciliation → close.
     async fn dial(&self, peer: PeerId) -> NetResult<SessionTally> {
-        let stack = self.wiring.stack.get().and_then(|s| s.upgrade()).ok_or(NetError::Closed)?;
+        let stack = self
+            .wiring
+            .stack
+            .get()
+            .and_then(|s| s.upgrade())
+            .ok_or(NetError::Closed)?;
         let conn = stack.connect(peer, REPLICA).await?;
         let handshake = timeout(HANDSHAKE, self.open_session(&conn, peer));
         let opened = handshake.await.unwrap_or(Err(NetError::Timeout));
@@ -45,7 +50,14 @@ impl MeshReplica {
 
     async fn open_session(&self, conn: &Arc<dyn PeerConn>, peer: PeerId) -> NetResult<StreamPair> {
         let mut pair = conn.open().await?;
-        dial_handshake(&mut pair, &self.wiring.admission_key, self.wiring.me, peer, self.id.as_bytes()).await?;
+        dial_handshake(
+            &mut pair,
+            &self.wiring.admission_key,
+            self.wiring.me,
+            peer,
+            self.id.as_bytes(),
+        )
+        .await?;
         Ok(pair)
     }
 
@@ -54,41 +66,70 @@ impl MeshReplica {
         if clean {
             let _ = timeout(CLOSE_WAIT, conn.closed()).await;
         }
-        let code = if clean { CLOSE_SHUTDOWN } else { CLOSE_BAD_FRAME };
+        let code = if clean {
+            CLOSE_SHUTDOWN
+        } else {
+            CLOSE_BAD_FRAME
+        };
         conn.close(code, b"sync done");
     }
 
     /// The accepting side: the handshake has already been done by the service.
-    pub(super) async fn accept(self: Arc<Self>, peer: PeerId, conn: Arc<dyn PeerConn>, mut pair: StreamPair) {
+    pub(super) async fn accept(
+        self: Arc<Self>,
+        peer: PeerId,
+        conn: Arc<dyn PeerConn>,
+        mut pair: StreamPair,
+    ) {
         let before = self.lock().generation();
         let res = run_acceptor(&mut pair, &self.state).await;
-        let code = if res.is_ok() { CLOSE_SHUTDOWN } else { CLOSE_BAD_FRAME };
+        let code = if res.is_ok() {
+            CLOSE_SHUTDOWN
+        } else {
+            CLOSE_BAD_FRAME
+        };
         conn.close(code, b"sync done");
         self.finish(peer, before, res);
     }
 
     /// End of session: saving, `RemoteChange` if the map changed, `Synced`. `generation_before` is the map generation before the session:
     /// a session that broke off after merging some of the batches is also saved.
-    pub(super) fn finish(&self, peer: PeerId, generation_before: u64, session_result: NetResult<SessionTally>) {
+    pub(super) fn finish(
+        &self,
+        peer: PeerId,
+        generation_before: u64,
+        session_result: NetResult<SessionTally>,
+    ) {
         if session_result.is_err() && self.lock().generation() > generation_before {
             self.emit(ReplicaEvent::RemoteChange);
             self.saver.save_debounced(self.state.clone());
         }
-        let outcome = session_result.map(|x| self.apply_exchange(peer, x)).map_err(|e| e.to_string());
+        let outcome = session_result
+            .map(|x| self.apply_exchange(peer, x))
+            .map_err(|e| e.to_string());
         if let Err(text) = &outcome {
-            tracing::warn!("[sync] reconciliation of {} with {peer} failed: {text}", self.id.fmt_short());
+            tracing::warn!(
+                "[sync] reconciliation of {} with {peer} failed: {text}",
+                self.id.fmt_short()
+            );
         }
         self.emit(ReplicaEvent::Synced { peer, outcome });
     }
 
     fn apply_exchange(&self, peer: PeerId, tally: SessionTally) -> SyncCount {
         if tally.rejected > 0 {
-            tracing::warn!("[sync] dropped {} entries from {peer}: bad signature or limit", tally.rejected);
+            tracing::warn!(
+                "[sync] dropped {} entries from {peer}: bad signature or limit",
+                tally.rejected
+            );
         }
         if tally.changed {
             self.emit(ReplicaEvent::RemoteChange);
             self.saver.save_debounced(self.state.clone());
         }
-        SyncCount { received: tally.received, sent: tally.sent }
+        SyncCount {
+            received: tally.received,
+            sent: tally.sent,
+        }
     }
 }

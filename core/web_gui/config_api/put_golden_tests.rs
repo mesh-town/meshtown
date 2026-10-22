@@ -4,15 +4,17 @@
 
 use std::collections::BTreeSet;
 
-use crate::config_file::fields;
 use super::*;
-use crate::net::NodeSecret;
+use crate::config::config_file::fields;
+use crate::transport::net::NodeSecret;
 
 /// 17 editable paths: a bad value and the 422 text in `fields[0].message`.
 fn invalid_cases() -> Vec<(&'static str, Value, String)> {
     let published = "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
-    let opened = "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
-    const IFACES: &str = "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
+    let opened =
+        "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
+    const IFACES: &str =
+        "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
     let flag = "true or false";
     let off = "false (enabling is unavailable in this build)";
     let case = |path, bad, text: &str| (path, bad, text.to_string());
@@ -24,7 +26,11 @@ fn invalid_cases() -> Vec<(&'static str, Value, String)> {
         ),
         case("web.access", json!("public"), "localhost or localnet"),
         case("web.ifaces", json!("br-lan"), IFACES),
-        case("transport.mode", json!("bogus"), "direct_and_relay, relay_only or no_relay"),
+        case(
+            "transport.mode",
+            json!("bogus"),
+            "direct_and_relay, relay_only or no_relay",
+        ),
         case("exit.enabled", json!("x"), flag),
         case("socks.enabled", json!("x"), flag),
         case("socks.port", json!(80), "a port 1024…65535"),
@@ -32,10 +38,22 @@ fn invalid_cases() -> Vec<(&'static str, Value, String)> {
         case("socks.ifaces", json!("br-lan"), IFACES),
         case("checks.enabled", json!("x"), flag),
         case("checks.interval_sec", json!(1), "an integer 30…86400"),
-        case("checks.doh_server", json!("nope"), "a string like address:port"),
-        case("checks.provider_dns", json!(5), "a string like address:port or null"),
+        case(
+            "checks.doh_server",
+            json!("nope"),
+            "a string like address:port",
+        ),
+        case(
+            "checks.provider_dns",
+            json!(5),
+            "a string like address:port or null",
+        ),
         case("probe.interval_sec", json!(1), "an integer 5…86400"),
-        case("route.exits", json!(["bad"]), "a list of node ids without repeats, up to 64"),
+        case(
+            "route.exits",
+            json!(["bad"]),
+            "a list of node ids without repeats, up to 64",
+        ),
         case("ports.published", json!(5), published),
         case("ports.opened", json!(5), opened),
         case("log.ring_lines", json!(1), "an integer 200…20000"),
@@ -52,7 +70,11 @@ mod put_with_invalid_value {
         // given: a literal of 17 triples covers the whole list of editable paths
         let cases = invalid_cases();
         let covered: BTreeSet<String> = cases.iter().map(|c| c.0.to_string()).collect();
-        assert_eq!(covered, set_of(&fields::editable_paths()), "the literal does not cover EDITABLE");
+        assert_eq!(
+            covered,
+            set_of(&fields::editable_paths()),
+            "the literal does not cover EDITABLE"
+        );
         for (path, bad, text) in cases {
             // when: a PUT with an invalid value of one path
             let (status, v) = put_one(config_with(path, bad));
@@ -77,13 +99,23 @@ mod get_body_lists {
         cleanup(&dir);
         // then: read_only (8) and restart_fields (7) as sets equal the literals
         let read_only = [
-            "network.label", "network.masked", "web.port", "web.enabled",
-            "autostart.available", "autostart.reason",
-            "full_tunnel.available", "full_tunnel.reason",
+            "network.label",
+            "network.masked",
+            "web.port",
+            "web.enabled",
+            "autostart.available",
+            "autostart.reason",
+            "full_tunnel.available",
+            "full_tunnel.reason",
         ];
         let restart_fields = [
-            "socks.enabled", "socks.port", "socks.access", "socks.ifaces", "transport.mode",
-            "checks.doh_server", "checks.provider_dns",
+            "socks.enabled",
+            "socks.port",
+            "socks.access",
+            "socks.ifaces",
+            "transport.mode",
+            "checks.doh_server",
+            "checks.provider_dns",
         ];
         assert_eq!(strings_at(&body, "read_only"), set_of(&read_only));
         assert_eq!(strings_at(&body, "restart_fields"), set_of(&restart_fields));
@@ -120,13 +152,27 @@ mod put_all_editable_at_once {
         // then: `changed` — all 15, `restart_pending` — exactly the 5 paths that need a restart
         assert_eq!(status, StatusCode::OK, "{v}");
         let changed = [
-            "node.name", "web.access", "transport.mode", "exit.enabled", "socks.enabled",
-            "socks.port", "checks.enabled", "checks.interval_sec", "checks.doh_server",
-            "checks.provider_dns", "probe.interval_sec", "route.exits", "ports.published",
-            "ports.opened", "log.ring_lines",
+            "node.name",
+            "web.access",
+            "transport.mode",
+            "exit.enabled",
+            "socks.enabled",
+            "socks.port",
+            "checks.enabled",
+            "checks.interval_sec",
+            "checks.doh_server",
+            "checks.provider_dns",
+            "probe.interval_sec",
+            "route.exits",
+            "ports.published",
+            "ports.opened",
+            "log.ring_lines",
         ];
         let pending = [
-            "socks.enabled", "socks.port", "transport.mode", "checks.doh_server",
+            "socks.enabled",
+            "socks.port",
+            "transport.mode",
+            "checks.doh_server",
             "checks.provider_dns",
         ];
         assert_eq!(strings_at(&v, "changed"), set_of(&changed));
@@ -141,15 +187,35 @@ mod internal_lists {
     fn internal_lists_golden() {
         // given: the former constants `EDITABLE` (17) and `NEEDS_RESTART` (5)
         let editable = [
-            "node.name", "web.access", "web.ifaces", "transport.mode", "exit.enabled", "socks.enabled",
-            "socks.port", "socks.access", "socks.ifaces", "checks.enabled", "checks.interval_sec",
-            "checks.doh_server", "checks.provider_dns", "probe.interval_sec", "route.exits",
-            "ports.published", "ports.opened", "log.ring_lines", "autostart.enabled",
+            "node.name",
+            "web.access",
+            "web.ifaces",
+            "transport.mode",
+            "exit.enabled",
+            "socks.enabled",
+            "socks.port",
+            "socks.access",
+            "socks.ifaces",
+            "checks.enabled",
+            "checks.interval_sec",
+            "checks.doh_server",
+            "checks.provider_dns",
+            "probe.interval_sec",
+            "route.exits",
+            "ports.published",
+            "ports.opened",
+            "log.ring_lines",
+            "autostart.enabled",
             "full_tunnel.enabled",
         ];
         let restart_paths = [
-            "socks.enabled", "socks.port", "socks.access", "socks.ifaces", "transport.mode",
-            "checks.doh_server", "checks.provider_dns",
+            "socks.enabled",
+            "socks.port",
+            "socks.access",
+            "socks.ifaces",
+            "transport.mode",
+            "checks.doh_server",
+            "checks.provider_dns",
         ];
         // then: the sets equal the literals
         assert_eq!(set_of(&fields::editable_paths()), set_of(&editable));

@@ -1,7 +1,7 @@
 //! Tests for `put_keeping`: protecting the page from self-lockout with a `web.ifaces` value.
 
 use super::*;
-use crate::web::http::ConnInfo;
+use crate::web_gui::http::ConnInfo;
 
 fn conn(peer: &str, local: &str) -> ConnInfo {
     ConnInfo {
@@ -15,7 +15,10 @@ fn lan_conn() -> ConnInfo {
 }
 
 fn put_ifaces(state: &mut ConfigState, value: Value, c: Option<ConnInfo>) -> (StatusCode, Value) {
-    let body = put_body(state.file_report.rev, serde_json::json!({"web": {"ifaces": value}}));
+    let body = put_body(
+        state.file_report.rev,
+        serde_json::json!({"web": {"ifaces": value}}),
+    );
     body_json(state.put_keeping(&body, &StubNode::new(), c))
 }
 
@@ -24,11 +27,18 @@ fn unknown_iface_from_lan_is_422_and_file_untouched() {
     let dir = temp_dir();
     let mut state = new_state(&dir);
     let before = std::fs::read(dir.join("config.json")).unwrap();
-    let (status, v) = put_ifaces(&mut state, serde_json::json!(["no-such0"]), Some(lan_conn()));
+    let (status, v) = put_ifaces(
+        &mut state,
+        serde_json::json!(["no-such0"]),
+        Some(lan_conn()),
+    );
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{v:?}");
     let fields = v["fields"].as_array().unwrap();
     assert!(fields.iter().any(|f| f["path"] == "web.ifaces"
-        && f["message"].as_str().unwrap().starts_with("this list would close the page for you")));
+        && f["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("this list would close the page for you")));
     assert_eq!(std::fs::read(dir.join("config.json")).unwrap(), before);
     cleanup(&dir);
 }

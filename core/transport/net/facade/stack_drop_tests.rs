@@ -43,17 +43,11 @@ async fn o2_dropped_stack_aborts_tasks_and_releases_transport() {
     drop(b);
 
     // then: tasks are aborted, the transport is released, but not closed via close()
-    until("transport released", || {
-        spy.strong_count() == 0
+    until("transport released", || spy.strong_count() == 0).await;
+    until("discovery and handler aborted", || {
+        let seen = journal.entries();
+        seen.contains(&"discovery") && seen.contains(&"handler")
     })
-    .await;
-    until(
-        "discovery and handler aborted",
-        || {
-            let seen = journal.entries();
-            seen.contains(&"discovery") && seen.contains(&"handler")
-        },
-    )
     .await;
     assert!(
         !journal.entries().contains(&"transport"),
@@ -79,10 +73,7 @@ async fn o2_close_then_drop_is_quiet() {
     // then: the transport is closed once, the log has nothing extra, everything is released
     assert_eq!(closes, 1, "transport close — exactly one");
     assert_eq!(journal.entries(), vec!["discovery", "handler", "transport"]);
-    until("transport released", || {
-        spy.strong_count() == 0
-    })
-    .await;
+    until("transport released", || spy.strong_count() == 0).await;
 }
 
 #[tokio::test]
@@ -106,7 +97,10 @@ async fn o2_dropping_a_clone_keeps_the_stack() {
     let _conn = a.connect(2, AUTH).await.expect("connect succeeded");
     drop(b.probe.next().await);
     sleep(Duration::from_millis(50)).await;
-    assert!(!script.dropped(), "discovery is alive while the stack is alive");
+    assert!(
+        !script.dropped(),
+        "discovery is alive while the stack is alive"
+    );
     within("close", b.stack.close()).await;
     assert_eq!(b.spies[0].closes(), 1);
 }

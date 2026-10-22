@@ -18,19 +18,19 @@ pub use backend::{sync_ctor, FloodSync, NAME};
 pub use tuning::Tuning;
 
 #[cfg(test)]
-pub(crate) mod test_support;
-#[cfg(test)]
 #[path = "backend_tests.rs"]
 mod backend_tests;
 #[cfg(test)]
 #[path = "contract_tests.rs"]
 mod contract_tests;
 #[cfg(test)]
-#[path = "topic_tests.rs"]
-mod topic_tests;
+pub(crate) mod test_support;
+#[cfg(test)]
+#[path = "topic_down_tests.rs"]
+mod topic_down_tests;
 #[cfg(test)]
 #[path = "topic_edge_tests.rs"]
 mod topic_edge_tests;
 #[cfg(test)]
-#[path = "topic_down_tests.rs"]
-mod topic_down_tests;
+#[path = "topic_tests.rs"]
+mod topic_tests;

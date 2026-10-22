@@ -10,7 +10,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket};
 
-use crate::doh::is_fake_ip;
+use crate::site_checks::doh::is_fake_ip;
 
 /// Global IPv4 target used to pick a route (no packet is sent).
 const PROBE_V4: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);

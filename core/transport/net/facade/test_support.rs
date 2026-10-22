@@ -1,16 +1,16 @@
 //! Helpers for the tests of the facade, the registry and discovery merging: the scripted source `Script`,
 //! the spy transport `Spy`, the probe handler `Probe`, the shared order journal `Journal`.
 
-use crate::net::addr::{AddrHint, PeerAddr, RelayRef};
-use crate::net::discovery::Discovery;
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::ServiceHandler;
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::link::NetInfo;
-use crate::net::mem::MemNet;
-use crate::net::service::{ServiceId, AUTH, EXIT, PORT};
-use crate::net::stream::BoxFuture;
-use crate::net::transport::{PeerConn, Transport};
+use crate::transport::net::addr::{AddrHint, PeerAddr, RelayRef};
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::ServiceHandler;
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::{ServiceId, AUTH, EXIT, PORT};
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::{PeerConn, Transport};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -93,7 +93,7 @@ impl Drop for Mark {
 
 #[path = "test_support_script.rs"]
 mod script;
-pub(crate) use script::{ScriptReply, Script};
+pub(crate) use script::{Script, ScriptReply};
 
 #[path = "test_support_spy.rs"]
 mod spy;
@@ -141,10 +141,9 @@ impl Probe {
 
     /// The next connection that reached the handler (up to `STEP`).
     pub(crate) async fn next(&self) -> Arc<dyn PeerConn> {
-        let got = within(
-            "the connection reached the handler",
-            async { self.rx.lock().await.recv().await },
-        );
+        let got = within("the connection reached the handler", async {
+            self.rx.lock().await.recv().await
+        });
         got.await.expect("the Probe channel is closed")
     }
 

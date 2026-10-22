@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config_file::{self, fields, ParsedConfigFile, Settings};
+use crate::config::config_file::{self, fields, ParsedConfigFile, Settings};
 
 use super::state::ConfigState;
 use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
@@ -97,10 +97,9 @@ pub(super) fn parse_merged_settings(
     let text = serde_json::json!({ "config": merged }).to_string();
     let p: ParsedConfigFile = match config_file::parse_text(&text) {
         Err(_) => {
-            return Err(state.invalid_response(vec![field_entry(
-                "version",
-                "only version 1 is supported",
-            )]));
+            return Err(
+                state.invalid_response(vec![field_entry("version", "only version 1 is supported")])
+            );
         }
         Ok(p) => p,
     };

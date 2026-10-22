@@ -7,7 +7,7 @@
 #[path = "common/web_listener.rs"]
 mod common;
 
-use meshtown::web::DEFAULT_DRAIN;
+use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
 use common::{api, cleanup, http, run_config, scratch, start_web};
@@ -103,7 +103,10 @@ mod post_restart {
 
             assert_eq!(status, 503);
             assert_eq!(body["error"], json!("stopping"));
-            assert!(!s.node.got_call("restart"), "restart is not called after stop");
+            assert!(
+                !s.node.got_call("restart"),
+                "restart is not called after stop"
+            );
             s.teardown().await;
         }
     }
@@ -111,7 +114,7 @@ mod post_restart {
 
 struct Fixture {
     dir: std::path::PathBuf,
-    handle: meshtown::web::WebHandle,
+    handle: meshtown_core::web_gui::WebHandle,
     node: std::sync::Arc<common::TestNode>,
     port: u16,
     token: String,

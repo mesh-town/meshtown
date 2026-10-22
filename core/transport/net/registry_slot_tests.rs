@@ -1,13 +1,13 @@
 //! Tests for the sync slot in the registry (`registry.rs`): `add_sync` and `open_sync` — choice by name from `NetChoice`.
 //! In a separate file: `registry_tests.rs` is already at the line ceiling.
 
-use crate::net::contract::secret;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::registry::{NetChoice, Registry};
-use crate::net::replica::Replica;
-use crate::net::stream::BoxFuture;
-use crate::net::sync_backend::{Swarm, SyncBackend, SyncCtor, SyncCtx};
+use crate::transport::net::contract::secret;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::registry::{NetChoice, Registry};
+use crate::transport::net::replica::Replica;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync_backend::{Swarm, SyncBackend, SyncCtor, SyncCtx};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
@@ -22,7 +22,11 @@ async fn open_sync_unknown_name_is_config_error() {
     // then: Config, the text names "x" and lists what is registered
     let msg = config_msg(result);
     assert_eq!(msg, "sync \"x\" is not registered; available: mem");
-    assert_eq!(count(&calls), 0, "the \"mem\" constructor must not be called");
+    assert_eq!(
+        count(&calls),
+        0,
+        "the \"mem\" constructor must not be called"
+    );
 }
 
 #[tokio::test]
@@ -40,7 +44,11 @@ async fn open_sync_picks_by_name() {
     // then: we got exactly "b", the constructor of "a" was not called
     assert_eq!(backend.name(), "b");
     assert_eq!(count(&calls_b), 1, "the \"b\" constructor is called once");
-    assert_eq!(count(&calls_a), 0, "the \"a\" constructor must not be called");
+    assert_eq!(
+        count(&calls_a),
+        0,
+        "the \"a\" constructor must not be called"
+    );
 }
 
 /// Minimal sync: remembers only its name, provides no network or replicas.
@@ -58,15 +66,11 @@ impl SyncBackend for StubSync {
         _topic: [u8; 32],
         _bootstrap: &[PeerId],
     ) -> BoxFuture<'_, NetResult<Swarm>> {
-        Box::pin(async {
-            Err(NetError::Config("the stub does not join topics".into()))
-        })
+        Box::pin(async { Err(NetError::Config("the stub does not join topics".into())) })
     }
 
     fn open_replica(&self, _name: &str) -> BoxFuture<'_, NetResult<Arc<dyn Replica>>> {
-        Box::pin(async {
-            Err(NetError::Config("the stub does not open replicas".into()))
-        })
+        Box::pin(async { Err(NetError::Config("the stub does not open replicas".into())) })
     }
 }
 

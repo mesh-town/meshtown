@@ -1,8 +1,8 @@
 //! Peer admission on the server: open (default) or by a "peer, service" predicate.
 //! The policy is set by the node, the adapter does not know it; the check runs in `accept` after the service is chosen.
 
-use crate::net::id::PeerId;
-use crate::net::service::ServiceId;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::service::ServiceId;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::{Arc, RwLock};
 
@@ -16,7 +16,9 @@ pub struct PeerGate {
 impl PeerGate {
     /// Lets everyone in until a predicate is set.
     pub fn open() -> Self {
-        Self { admit: RwLock::new(None) }
+        Self {
+            admit: RwLock::new(None),
+        }
     }
 
     /// `Some(predicate)` — it decides; `None` — everyone again.

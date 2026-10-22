@@ -15,11 +15,11 @@
 
 use std::time::Duration;
 
-use meshtown::net::mem::process_net;
-use meshtown::net::PeerAddr;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::output;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::output;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::transport::net::mem::process_net;
+use meshtown_core::transport::net::PeerAddr;
 use tokio::time::{sleep, Instant};
 
 /// Polls the condition every 50 ms until it becomes true or the limit expires — the same
@@ -42,15 +42,22 @@ async fn redials_peer_that_came_up_later() {
     let key = NetworkKey::generate().unwrap();
 
     // given: A and B are in one `mem` network, the line between them is cut
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     process_net().cut(a.id, b.id);
 
     // when: A learns B's address (`introduce`), and the dialing runs into the cut
     let before = output::log_summary(0).last_seq;
     a.introduce(PeerAddr::new(b.id)).await;
     sleep(Duration::from_secs(3)).await;
-    assert!(!a.members.is_member(b.id), "members can't be made over a cut line");
+    assert!(
+        !a.members.is_member(b.id),
+        "members can't be made over a cut line"
+    );
 
     // when: the line is repaired
     process_net().heal(a.id, b.id);
@@ -71,7 +78,11 @@ async fn redials_peer_that_came_up_later() {
         .lines
         .iter()
         .any(|l| l.text.contains(&short_b) && l.text.contains("attempt 1"));
-    assert!(redial_attempted, "the log must have a redial line (attempt 1) for B: {:?}", page.lines);
+    assert!(
+        redial_attempted,
+        "the log must have a redial line (attempt 1) for B: {:?}",
+        page.lines
+    );
 
     a.shutdown().await;
     b.shutdown().await;
@@ -82,14 +93,21 @@ async fn no_redial_while_connected() {
     let key = NetworkKey::generate().unwrap();
 
     // given: A and B are members of each other
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     a.introduce(PeerAddr::new(b.id)).await;
     let connected = wait_until(Duration::from_secs(20), || {
         a.members.is_member(b.id) && b.members.is_member(a.id)
     })
     .await;
-    assert!(connected, "A and B did not become members of each other within 20 s");
+    assert!(
+        connected,
+        "A and B did not become members of each other within 20 s"
+    );
     let before = output::log_summary(0).last_seq;
 
     // when: A finds the address of the already connected B three times, then a 7 s pause
@@ -103,7 +121,9 @@ async fn no_redial_while_connected() {
     let handshake_marker = format!("handshake with {}", output::short_peer_id(&b.id));
     let short_b = output::short_peer_id(&b.id);
     assert!(
-        page.lines.iter().all(|l| !l.text.contains(&handshake_marker)),
+        page.lines
+            .iter()
+            .all(|l| !l.text.contains(&handshake_marker)),
         "an already connected member must not be redialed: {:?}",
         page.lines
     );

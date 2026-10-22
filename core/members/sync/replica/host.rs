@@ -6,13 +6,13 @@ use super::import::{self, LegacyRead};
 use super::replica::MeshReplica;
 use super::saver::{BakPolicy, Saver};
 use super::state::State;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::replica::ReplicaId;
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::WeakStack;
-use crate::sync::flood::admit::admission_key;
-use crate::sync::flood::FloodSync;
+use crate::members::sync::flood::admit::admission_key;
+use crate::members::sync::flood::FloodSync;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::replica::ReplicaId;
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::WeakStack;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, Weak};
 
@@ -57,7 +57,13 @@ fn quarantine_both(main: &Path) -> std::io::Result<PathBuf> {
 /// (`"net"` — `error!`, the domain list for the availability check — `warn!`, it can be lost).
 fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> NetResult<Opened> {
     let mirror = name == REPLICA_DOMAINS;
-    let policy = |main_ok| if mirror { BakPolicy::Mirror } else { BakPolicy::FirstSave { main_ok } };
+    let policy = |main_ok| {
+        if mirror {
+            BakPolicy::Mirror
+        } else {
+            BakPolicy::FirstSave { main_ok }
+        }
+    };
     let loaded = match file::load(path, &id) {
         Err(FileError::Broken { main, .. }) => {
             let moved = quarantine_both(&main).map_err(NetError::Io)?;
@@ -73,7 +79,10 @@ fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> Net
         Loaded::Fresh => (None, vec![], false),
         Loaded::Main(m, e) => (m, e, true),
         Loaded::Backup(m, e) => {
-            tracing::warn!("[sync] replica file {name} is damaged, using .bak: {}", path.display());
+            tracing::warn!(
+                "[sync] replica file {name} is damaged, using .bak: {}",
+                path.display()
+            );
             (m, e, false)
         }
     };
@@ -81,23 +90,52 @@ fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> Net
     if rejected > 0 {
         tracing::warn!("[sync] replica {name}: entries with a bad signature were dropped while reading the file: {rejected}");
     }
-    Ok(Opened { state, mark, policy: policy(main_ok) })
+    Ok(Opened {
+        state,
+        mark,
+        policy: policy(main_ok),
+    })
 }
 
-fn open_one(ctx: &SyncCtx, wiring: &Arc<Wiring>, name: &'static str, id: ReplicaId, dir: Option<&PathBuf>) -> NetResult<Arc<MeshReplica>> {
+fn open_one(
+    ctx: &SyncCtx,
+    wiring: &Arc<Wiring>,
+    name: &'static str,
+    id: ReplicaId,
+    dir: Option<&PathBuf>,
+) -> NetResult<Arc<MeshReplica>> {
     let path = dir.map(|d| file::path_for(d, name, &id));
     let opened = match &path {
         Some(p) => read_file(p, id, &ctx.secret, name)?,
-        None => Opened { state: State::new(id, ctx.secret.peer_id()), mark: None, policy: BakPolicy::Mirror },
+        None => Opened {
+            state: State::new(id, ctx.secret.peer_id()),
+            mark: None,
+            policy: BakPolicy::Mirror,
+        },
     };
     let saver = Saver::new(path, id, opened.mark, opened.policy);
-    Ok(MeshReplica::new(name, ctx.secret.clone(), opened.state, saver, wiring.clone()))
+    Ok(MeshReplica::new(
+        name,
+        ctx.secret.clone(),
+        opened.state,
+        saver,
+        wiring.clone(),
+    ))
 }
 
 impl ReplicaHost {
     /// The `docs-store/` import (if needed) → reading the files → both replicas.
-    pub(crate) async fn load(ctx: &SyncCtx, legacy: Option<LegacyRead>) -> NetResult<Arc<ReplicaHost>> {
-        import::import_docs_store(ctx.store_dir.as_deref(), &ctx.secret, &ctx.network_seed, legacy.as_ref()).await?;
+    pub(crate) async fn load(
+        ctx: &SyncCtx,
+        legacy: Option<LegacyRead>,
+    ) -> NetResult<Arc<ReplicaHost>> {
+        import::import_docs_store(
+            ctx.store_dir.as_deref(),
+            &ctx.secret,
+            &ctx.network_seed,
+            legacy.as_ref(),
+        )
+        .await?;
         let dir = ctx.store_dir.as_deref().and_then(file::replica_dir);
         let wiring = Arc::new(Wiring {
             stack: OnceLock::new(),
@@ -106,7 +144,13 @@ impl ReplicaHost {
             me: ctx.secret.peer_id(),
         });
         Ok(Arc::new(ReplicaHost {
-            net: open_one(ctx, &wiring, REPLICA_NET, net_id(&ctx.network_seed), dir.as_ref())?,
+            net: open_one(
+                ctx,
+                &wiring,
+                REPLICA_NET,
+                net_id(&ctx.network_seed),
+                dir.as_ref(),
+            )?,
             domains: open_one(ctx, &wiring, REPLICA_DOMAINS, domains_id(), dir.as_ref())?,
             wiring,
         }))

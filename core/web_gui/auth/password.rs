@@ -38,7 +38,9 @@ pub(crate) enum PasswordVerdict {
 
 /// Password in NFC: "é" from macOS (NFD) and from a phone (NFC) is one password.
 fn normalized(pw: &str) -> String {
-    ComposingNormalizerBorrowed::new_nfc().normalize(pw).into_owned()
+    ComposingNormalizerBorrowed::new_nfc()
+        .normalize(pw)
+        .into_owned()
 }
 
 pub(crate) fn check_format(pw: &str) -> Result<(), String> {
@@ -57,7 +59,7 @@ pub(crate) fn hash(pw: &str) -> Result<PasswordRecord, String> {
 /// Err — only from the random number generator.
 pub(crate) fn hash_with(pw: &str, iterations: NonZeroU32) -> Result<PasswordRecord, String> {
     let mut salt = [0u8; 16];
-    crate::network_key::fill_random(&mut salt).map_err(|e| e.to_string())?;
+    crate::members::network_key::fill_random(&mut salt).map_err(|e| e.to_string())?;
     let mut out = [0u8; 32];
     derive(
         PBKDF2_HMAC_SHA256,
@@ -70,7 +72,7 @@ pub(crate) fn hash_with(pw: &str, iterations: NonZeroU32) -> Result<PasswordReco
         iterations,
         salt,
         hash: out,
-        set_at: crate::web::now_unix(),
+        set_at: crate::web_gui::now_unix(),
     })
 }
 

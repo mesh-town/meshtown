@@ -48,8 +48,15 @@ fn parts_and_to_state() {
 fn from_state_cases_and_roundtrip() {
     assert_eq!(IfaceFilter::from_state(None), IfaceFilter::Auto);
     assert_eq!(IfaceFilter::from_state(Some(v(&[]))), IfaceFilter::Auto);
-    assert_eq!(IfaceFilter::from_state(Some(v(&["*", "x"]))), IfaceFilter::Auto);
-    for f in [IfaceFilter::Auto, IfaceFilter::Any, IfaceFilter::Only(v(&["a", "b"]))] {
+    assert_eq!(
+        IfaceFilter::from_state(Some(v(&["*", "x"]))),
+        IfaceFilter::Auto
+    );
+    for f in [
+        IfaceFilter::Auto,
+        IfaceFilter::Any,
+        IfaceFilter::Only(v(&["a", "b"])),
+    ] {
         assert_eq!(IfaceFilter::from_state(f.to_state()), f);
     }
 }

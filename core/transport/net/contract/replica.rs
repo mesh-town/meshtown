@@ -7,8 +7,8 @@ macro_rules! replica_contract {
     ($harness:path) => {
         mod replica {
             use super::*;
-            use $crate::net::contract::replica_cases as one;
-            use $crate::net::contract::replica_sync_cases as two;
+            use $crate::transport::net::contract::replica_cases as one;
+            use $crate::transport::net::contract::replica_sync_cases as two;
 
             mod writing {
                 use super::*;

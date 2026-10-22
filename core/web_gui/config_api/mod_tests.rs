@@ -7,8 +7,10 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config_file::{self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings};
-use crate::web::{ActionError, LogPage, NodeControl, NodeSnapshot};
+use crate::config::config_file::{
+    self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings,
+};
+use crate::web_gui::{ActionError, LogPage, NodeControl, NodeSnapshot};
 
 use super::put_write::{stale_outcome, StaleOutcome};
 use super::ConfigState;
@@ -127,11 +129,13 @@ fn document_without_key() {
     );
     // `prepare_absent` puts a random name into the file it creates — it goes straight into `GET
     // /api/config`, so here it is not `Null` but two words from the pool.
-    let name = doc["node"]["name"].as_str().expect("node name in the document");
+    let name = doc["node"]["name"]
+        .as_str()
+        .expect("node name in the document");
     let parts: Vec<&str> = name.split('-').collect();
     assert_eq!(parts.len(), 2, "{name}");
-    assert!(crate::words::is_tail_word(parts[0]), "{name}");
-    assert!(crate::words::is_tail_word(parts[1]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[0]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[1]), "{name}");
     assert_eq!(doc["autostart"]["available"], Value::Bool(false));
     cleanup(&dir);
 }

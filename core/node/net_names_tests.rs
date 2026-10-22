@@ -1,5 +1,5 @@
 use super::*;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use crate::node::config::NodeConfig;
 
 #[test]
@@ -8,7 +8,7 @@ fn default_choice_equals_net_choice_default() {
     // when: the node asks for its build's default
     let choice = default_choice();
     // then: it matches the core default: hyper, invite+cache+hyperdht, mesh
-    assert_eq!(choice, crate::net::NetChoice::default());
+    assert_eq!(choice, crate::transport::net::NetChoice::default());
     assert_eq!(choice.transports, vec!["hyper"]);
     assert_eq!(choice.discovery, vec!["invite", "cache", "hyperdht"]);
     assert_eq!(choice.sync, "mesh");

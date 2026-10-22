@@ -1,5 +1,5 @@
 use super::*;
-use crate::config_file::{DIR_NAME, FILE_NAME};
+use crate::config::config_file::{DIR_NAME, FILE_NAME};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 

@@ -5,7 +5,7 @@
 use serde_json::Value;
 
 use super::types::Reply;
-use crate::app::snapshot::lenient;
+use crate::gui::tray::app::snapshot::lenient;
 
 pub(crate) fn reply_from_response(status: u16, body: &[u8]) -> Reply {
     match status {

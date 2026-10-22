@@ -5,13 +5,16 @@ use std::process::Child;
 
 use tokio::time::Instant;
 
-use crate::app::exit_menu::{disabled_exit_menu, ExitMenu};
-use crate::app::local_api::{ApiError, Reply};
-use crate::app::start_note::StartNote;
-use crate::app::view::{self, NodeState, PageState, TrayColor, View};
+use crate::gui::tray::app::exit_menu::{disabled_exit_menu, ExitMenu};
+use crate::gui::tray::app::local_api::{ApiError, Reply};
+use crate::gui::tray::app::start_note::StartNote;
+use crate::gui::tray::app::view::{self, NodeState, PageState, TrayColor, View};
 
-use super::api::{child_status_text, reply_summary, fetch_reply, start_policy, NodeRequest, StartDecision, KILLED_BY_SIGNAL_TEXT};
-use super::poller::{QuitCause, QuitTriggers, Poller};
+use super::api::{
+    child_status_text, fetch_reply, reply_summary, start_policy, NodeRequest, StartDecision,
+    KILLED_BY_SIGNAL_TEXT,
+};
+use super::poller::{Poller, QuitCause, QuitTriggers};
 use super::views::{grey_view, views_from_state_json, ABSENT_VIEW, RUNNING_UNAVAILABLE_VIEW};
 
 /// The poller phase.
@@ -98,7 +101,9 @@ impl Poller {
                     self.show_exits(menu);
                     self.show(view);
                 }
-                Phase::ForeignNode { failed_poll_count: 0 }
+                Phase::ForeignNode {
+                    failed_poll_count: 0,
+                }
             }
             StartDecision::PortBusy => {
                 if !was_busy {
@@ -108,7 +113,10 @@ impl Poller {
                         reply_summary(&reply)
                     ));
                 }
-                self.show(grey_view(PageState::PortBusy(self.port), NodeState::Unknown));
+                self.show(grey_view(
+                    PageState::PortBusy(self.port),
+                    NodeState::Unknown,
+                ));
                 Phase::PortBusy
             }
         }
@@ -149,7 +157,12 @@ impl Poller {
             Phase::Absent | Phase::PortBusy => {
                 let was_busy = matches!(phase, Phase::PortBusy);
                 let reply = quit_triggers
-                    .race_with_quit(fetch_reply(self.port, &self.token_path, NodeRequest::State, None))
+                    .race_with_quit(fetch_reply(
+                        self.port,
+                        &self.token_path,
+                        NodeRequest::State,
+                        None,
+                    ))
                     .await?;
                 *phase = self.enter(reply, false, was_busy);
                 Ok(())
@@ -159,7 +172,11 @@ impl Poller {
     }
 
     /// `Phase::OwnNode` on a tick: the child exited — "Absent"; otherwise a request and a view by patience/200.
-    async fn tick_own(&mut self, phase: &mut Phase, quit_triggers: &mut QuitTriggers) -> Result<(), QuitCause> {
+    async fn tick_own(
+        &mut self,
+        phase: &mut Phase,
+        quit_triggers: &mut QuitTriggers,
+    ) -> Result<(), QuitCause> {
         let Phase::OwnNode {
             child,
             started_at,
@@ -181,7 +198,12 @@ impl Poller {
             return Ok(());
         }
         let reply = quit_triggers
-            .race_with_quit(fetch_reply(self.port, &self.token_path, NodeRequest::State, None))
+            .race_with_quit(fetch_reply(
+                self.port,
+                &self.token_path,
+                NodeRequest::State,
+                None,
+            ))
             .await?;
         let v = match &reply {
             Ok(Reply::Ok(state)) => {
@@ -201,12 +223,21 @@ impl Poller {
     }
 
     /// `Phase::ForeignNode` on a tick: a request and a counter of consecutive failures.
-    async fn tick_foreign(&mut self, phase: &mut Phase, quit_triggers: &mut QuitTriggers) -> Result<(), QuitCause> {
+    async fn tick_foreign(
+        &mut self,
+        phase: &mut Phase,
+        quit_triggers: &mut QuitTriggers,
+    ) -> Result<(), QuitCause> {
         let Phase::ForeignNode { failed_poll_count } = phase else {
             unreachable!("tick_foreign is only for Phase::Foreign")
         };
         let reply = quit_triggers
-            .race_with_quit(fetch_reply(self.port, &self.token_path, NodeRequest::State, None))
+            .race_with_quit(fetch_reply(
+                self.port,
+                &self.token_path,
+                NodeRequest::State,
+                None,
+            ))
             .await?;
         match &reply {
             Ok(Reply::Ok(state)) => {

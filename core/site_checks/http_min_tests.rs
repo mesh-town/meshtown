@@ -42,7 +42,11 @@ async fn round(reply: &'static [u8], close: bool) -> (HttpResponse, Vec<u8>) {
 
 #[tokio::test]
 async fn request_has_host_and_close() {
-    let (_, sent) = round(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n", true).await;
+    let (_, sent) = round(
+        b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n\r\n",
+        true,
+    )
+    .await;
     let text = String::from_utf8_lossy(&sent).to_string();
     assert!(text.starts_with("GET / HTTP/1.1\r\n"), "{text}");
     assert!(text.contains("Host: example.com\r\n"), "{text}");

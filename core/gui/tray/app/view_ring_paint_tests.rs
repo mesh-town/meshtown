@@ -1,11 +1,16 @@
 //! Tests of the ring-of-sectors raster: colors, thickness, gaps, symmetry, sizes 36/22/16.
 
 use super::*;
-use crate::app::view::{icon_rgba, TrayColor, View, ICON_SIDE_PX};
-use crate::app::view_ring::{ring_to_draw, RingRole, RING_ROLES};
+use crate::gui::tray::app::view::{icon_rgba, TrayColor, View, ICON_SIDE_PX};
+use crate::gui::tray::app::view_ring::{ring_to_draw, RingRole, RING_ROLES};
 use std::f64::consts::{PI, TAU};
 
-const ALL_ROLES: [RingRole; 4] = [RingRole::ActiveExit, RingRole::ExitClient, RingRole::Online, RingRole::Offline];
+const ALL_ROLES: [RingRole; 4] = [
+    RingRole::ActiveExit,
+    RingRole::ExitClient,
+    RingRole::Online,
+    RingRole::Offline,
+];
 const SIDES: [u32; 3] = [36, 22, 16];
 
 /// Rings of 1, 2, 4 and 8 sectors: the 4-sector one has one role each, the 8-sector one has two each.
@@ -113,7 +118,11 @@ mod paint {
     fn centre_and_corner_are_transparent() {
         for side in SIDES {
             let data = ring_rgba(&ring_of(&ALL_ROLES), side);
-            assert_eq!(pixel(&data, side, side / 2, side / 2)[3], 0, "centre {side}");
+            assert_eq!(
+                pixel(&data, side, side / 2, side / 2)[3],
+                0,
+                "centre {side}"
+            );
             assert_eq!(pixel(&data, side, 0, 0)[3], 0, "corner {side}");
         }
     }
@@ -138,7 +147,10 @@ mod paint {
     fn sectors_differ_from_solid_circle() {
         let ring = ring_of(&ALL_ROLES);
         assert_ne!(ring_rgba(&ring, ICON_SIDE_PX), icon_rgba(TrayColor::Green));
-        assert_ne!(ring_rgba(&ring, ICON_SIDE_PX), icon_rgba(TrayColor::GreenOutline));
+        assert_ne!(
+            ring_rgba(&ring, ICON_SIDE_PX),
+            icon_rgba(TrayColor::GreenOutline)
+        );
         assert_eq!(ring_to_draw(View::initial()), None);
     }
 }
@@ -237,7 +249,10 @@ mod lit_sector {
                 for n in COUNTS {
                     for k in [0, 1, n - 1] {
                         let [r, g, b, a] = middle_pixel(&lit_grey(n, k, side), side, n, k);
-                        assert!([r, g, b].iter().all(|&c| c >= 100), "{side} n={n} k={k}: {r} {g} {b}");
+                        assert!(
+                            [r, g, b].iter().all(|&c| c >= 100),
+                            "{side} n={n} k={k}: {r} {g} {b}"
+                        );
                         assert!(a >= opaque(side), "{side} n={n} k={k}: alpha {a}");
                     }
                 }
@@ -252,7 +267,11 @@ mod lit_sector {
                         let data = lit_grey(n, k, side);
                         for j in (0..n).filter(|&j| j != k) {
                             let [r, g, b, a] = middle_pixel(&data, side, n, j);
-                            assert_eq!([r, g, b], role_rgb(RingRole::Offline), "{side} n={n} lit={k} j={j}");
+                            assert_eq!(
+                                [r, g, b],
+                                role_rgb(RingRole::Offline),
+                                "{side} n={n} lit={k} j={j}"
+                            );
                             assert!(a >= opaque(side), "{side} n={n} lit={k} j={j}: alpha {a}");
                         }
                     }
@@ -295,7 +314,11 @@ mod lit_sector {
         fn none_equals_the_plain_raster() {
             for side in SIDES {
                 for ring in rings() {
-                    assert_eq!(ring_rgba_lit(&ring, None, side), ring_rgba(&ring, side), "{side} {ring:?}");
+                    assert_eq!(
+                        ring_rgba_lit(&ring, None, side),
+                        ring_rgba(&ring, side),
+                        "{side} {ring:?}"
+                    );
                 }
             }
         }
@@ -306,7 +329,11 @@ mod lit_sector {
                 for ring in rings() {
                     let plain = ring_rgba(&ring, side);
                     for k in [ring.len(), ring.len() + 1, usize::MAX] {
-                        assert_eq!(ring_rgba_lit(&ring, Some(k), side), plain, "{side} {ring:?} lit={k}");
+                        assert_eq!(
+                            ring_rgba_lit(&ring, Some(k), side),
+                            plain,
+                            "{side} {ring:?} lit={k}"
+                        );
                     }
                 }
             }
@@ -334,7 +361,11 @@ mod lit_sector {
             let step = TAU / 8.0;
             let ring = Ring::uniform(RingRole::Offline, 8);
             let d = (Shape::new(&ring, Some(3), side).half_gap_px + 0.25) / rm(side);
-            if from_end { step - d } else { d }
+            if from_end {
+                step - d
+            } else {
+                d
+            }
         }
 
         #[test]
@@ -356,12 +387,24 @@ mod lit_sector {
             for side in [36, 22] {
                 let outer = f64::from(side) * 16.0 / 36.0 - 0.3;
                 let start = TAU * 3.0 / 8.0;
-                assert_eq!(slot_at_polar(side, start + TAU / 16.0, outer), Some(OUTLINE_SLOT), "{side}");
+                assert_eq!(
+                    slot_at_polar(side, start + TAU / 16.0, outer),
+                    Some(OUTLINE_SLOT),
+                    "{side}"
+                );
                 for from_end in [false, true] {
                     let angle = start + near_border(side, from_end);
-                    assert_eq!(slot_at_polar(side, angle, rm(side)), Some(OUTLINE_SLOT), "{side} {from_end}");
+                    assert_eq!(
+                        slot_at_polar(side, angle, rm(side)),
+                        Some(OUTLINE_SLOT),
+                        "{side} {from_end}"
+                    );
                 }
-                assert_eq!(slot_at_polar(side, start + TAU / 16.0, rm(side)), Some(LIT_SLOT), "{side}");
+                assert_eq!(
+                    slot_at_polar(side, start + TAU / 16.0, rm(side)),
+                    Some(LIT_SLOT),
+                    "{side}"
+                );
             }
         }
 
@@ -378,7 +421,12 @@ mod lit_sector {
         fn neighbours_are_plain_grey() {
             for side in [36, 22] {
                 let data = lit_grey(8, 3, side);
-                let grey = rgb(middle_pixel(&ring_rgba(&Ring::uniform(RingRole::Offline, 8), side), side, 8, 2));
+                let grey = rgb(middle_pixel(
+                    &ring_rgba(&Ring::uniform(RingRole::Offline, 8), side),
+                    side,
+                    8,
+                    2,
+                ));
                 for k in [2, 4] {
                     assert_eq!(rgb(middle_pixel(&data, side, 8, k)), grey, "{side} {k}");
                 }
@@ -412,7 +460,11 @@ mod lit_sector {
 
     /// The least alpha of a sector-middle pixel at this size (as in `sector_middles_have_role_colour_and_are_opaque`).
     fn opaque(side: u32) -> u8 {
-        if side == 36 { 255 } else { 200 }
+        if side == 36 {
+            255
+        } else {
+            200
+        }
     }
 
     fn alpha_of(data: &[u8]) -> Vec<u8> {
@@ -422,6 +474,8 @@ mod lit_sector {
     /// All-grey rings of `COUNTS` sectors and the mixed-role rings of `CASES` (with same-role neighbours).
     fn rings() -> Vec<Ring> {
         let grey = COUNTS.map(|n| Ring::uniform(RingRole::Offline, n as u16));
-        grey.into_iter().chain(CASES.map(|(_, roles)| ring_of(roles))).collect()
+        grey.into_iter()
+            .chain(CASES.map(|(_, roles)| ring_of(roles)))
+            .collect()
     }
 }

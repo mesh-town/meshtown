@@ -1,10 +1,10 @@
-//! What to say in the log after `prepare` (`crate::output::say`, category `"config"`).
+//! What to say in the log after `prepare` (`crate::node::output::say`, category `"config"`).
 //! The network secret is never printed; in path lists only the field name.
 
 use std::path::PathBuf;
 
 use super::super::report::FileReport;
-use crate::output::{say, NET_NAME};
+use crate::node::output::{say, NET_NAME};
 
 /// Inputs of one summary line: assembled in `mod.rs` from `PrepareOutcome` and the applied
 /// flags, only printing happens here.

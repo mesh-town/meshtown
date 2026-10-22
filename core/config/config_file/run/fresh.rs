@@ -1,13 +1,13 @@
 //! Creating a settings file "from scratch": the shared path for the first `run` and for `ifaces --if-unset`
 //! on a fresh install. Permissions and directory (0700/0600) come from `save_config_file`.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::Path;
 
 use super::super::save::{save_config_file, SaveError};
 use super::super::settings::Settings;
 use super::helpers::new_secret;
-use crate::words::random_node_name;
+use crate::members::words::random_node_name;
 
 /// What came of creation: the settings and secret that were tried to write, and the write outcome
 /// (a revision or a refusal).

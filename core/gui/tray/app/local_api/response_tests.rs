@@ -15,7 +15,8 @@ fn parse_200_with_length_ok() {
 #[test]
 fn parse_200_read_until_close_without_length() {
     let raw = b"HTTP/1.0 200 OK\r\n\r\nhello world";
-    let (status, body) = parse_response(raw).expect("without Content-Length the whole rest is the body");
+    let (status, body) =
+        parse_response(raw).expect("without Content-Length the whole rest is the body");
     assert_eq!(status, 200);
     assert_eq!(body, b"hello world");
 }

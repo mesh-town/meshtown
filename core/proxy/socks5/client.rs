@@ -7,7 +7,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use super::frame::{
-    encode_socks5_request, Target, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6, METHOD_NO_AUTH, REP_OK, VERSION,
+    encode_socks5_request, Target, ATYP_DOMAIN, ATYP_IPV4, ATYP_IPV6, METHOD_NO_AUTH, REP_OK,
+    VERSION,
 };
 
 /// The SOCKS5 client: negotiates with the proxy and hands over a stream ready for data transfer.
@@ -32,7 +33,10 @@ pub async fn client_connect(proxy: SocketAddr, domain: &str, port: u16) -> Resul
         );
     }
     let request = encode_socks5_request(&Target::Domain(domain.to_string()), port)?;
-    stream.write_all(&request).await.context("connect request")?;
+    stream
+        .write_all(&request)
+        .await
+        .context("connect request")?;
     let mut head = [0u8; 4];
     stream.read_exact(&mut head).await.context("proxy reply")?;
     if head[1] != REP_OK {

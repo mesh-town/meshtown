@@ -5,9 +5,9 @@ use std::time::Duration;
 
 use tokio::time::Instant;
 
-use crate::config_file::Settings;
-use crate::output::{self, say};
-use crate::web::NodeSnapshot;
+use crate::config::config_file::Settings;
+use crate::node::output::{self, say};
+use crate::web_gui::NodeSnapshot;
 
 use super::live_paths::{apply_log_capacity, apply_pending_handles, copy_live_paths};
 use super::peer_addr::parse_peer_line;
@@ -17,13 +17,21 @@ use super::state::{NodeCtl, Phase};
 impl NodeCtl {
     /// `boot_id` of the slot's current lap.
     pub(super) fn boot_id(&self) -> String {
-        let st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.boot.id().to_string()
     }
 
     pub(super) fn snapshot_impl(&self) -> NodeSnapshot {
         let (status, mut snap, node, was_stale, boot_id, uptime) = {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let status = snapshot::status_of(&st.phase, st.cache.as_ref());
             let snap = st
                 .cache
@@ -33,7 +41,14 @@ impl NodeCtl {
             let node = st.node.clone();
             let stale = st.last_read.elapsed() > Duration::from_secs(5);
             st.last_read = Instant::now();
-            (status, snap, node, stale, st.boot.id().to_string(), st.boot.uptime_sec())
+            (
+                status,
+                snap,
+                node,
+                stale,
+                st.boot.id().to_string(),
+                st.boot.uptime_sec(),
+            )
         };
         if was_stale {
             self.ctl_shared.kick.notify_one();
@@ -52,7 +67,11 @@ impl NodeCtl {
 
     pub(super) fn add_peer_address_impl(&self, line: &str) -> Result<(), String> {
         let node = {
-            let st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             match st.phase {
                 Phase::Stopping => return Err("node is stopping".to_string()),
                 _ => match &st.node {
@@ -75,7 +94,11 @@ impl NodeCtl {
 
     pub(super) fn apply_config_impl(&self, settings: &Settings, paths: &[&'static str]) {
         let (live, deferred, node, effective_settings) = {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let (live, deferred) = copy_live_paths(&mut st.effective_settings, settings, paths);
             if st.node.is_none() {
                 for p in &live {
@@ -84,7 +107,12 @@ impl NodeCtl {
                     }
                 }
             }
-            (live, deferred, st.node.clone(), st.effective_settings.clone())
+            (
+                live,
+                deferred,
+                st.node.clone(),
+                st.effective_settings.clone(),
+            )
         };
         if live.contains(&"log.ring_lines") {
             apply_log_capacity(&effective_settings);

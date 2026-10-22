@@ -11,7 +11,7 @@
 //! (it is still a stub): `dead_code` on `get_state`/`post_stop` in a normal build is expected and allowed here
 //! until the poller uses them.
 //! Links: the page contract is `docs/WEB-API.md`; the node-side checks are `web/guard.rs`,
-//! `web/routes.rs`; `fixtures::start_fake` starts a real `meshtown::web::start_web_page` with
+//! `web/routes.rs`; `fixtures::start_fake` starts a real `crate::web_gui::start_web_page` with
 //! the fake node `FakeNode`.
 
 mod classify;

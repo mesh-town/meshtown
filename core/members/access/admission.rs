@@ -7,10 +7,10 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
 use super::record::Via;
-use super::tally::{AdmitIn, Admission, Exclusion};
+use super::tally::{Admission, AdmitIn, Exclusion};
 
 type Excluded = BTreeMap<PeerId, Exclusion>;
 
@@ -33,9 +33,17 @@ struct Rows {
 }
 
 fn rows(admits: &[AdmitIn]) -> Rows {
-    let mut out = Rows { by_subject: BTreeMap::new(), by_author: BTreeMap::new() };
+    let mut out = Rows {
+        by_subject: BTreeMap::new(),
+        by_author: BTreeMap::new(),
+    };
     for a in admits.iter().filter(|a| a.author != a.subject) {
-        let counts = out.by_subject.entry(a.subject).or_default().entry(a.author).or_insert(false);
+        let counts = out
+            .by_subject
+            .entry(a.subject)
+            .or_default()
+            .entry(a.author)
+            .or_insert(false);
         *counts |= counts_elsewhere(a.via);
         out.by_author.entry(a.author).or_default().insert(a.subject);
     }
@@ -52,11 +60,18 @@ fn open(me: PeerId, excluded: &Excluded, author: &PeerId) -> bool {
 const ADMIT_NEED: u8 = 1;
 
 /// Authors from `set` whose vote for `x` counts, ascending.
-fn voters(me: PeerId, rows: &Rows, set: &BTreeSet<PeerId>, excluded: &Excluded, x: &PeerId) -> Vec<PeerId> {
+fn voters(
+    me: PeerId,
+    rows: &Rows,
+    set: &BTreeSet<PeerId>,
+    excluded: &Excluded,
+    x: &PeerId,
+) -> Vec<PeerId> {
     let Some(authors) = rows.by_subject.get(x) else {
         return Vec::new();
     };
-    let counted = |(a, counts): &(&PeerId, &bool)| **counts && set.contains(*a) && open(me, excluded, a);
+    let counted =
+        |(a, counts): &(&PeerId, &bool)| **counts && set.contains(*a) && open(me, excluded, a);
     authors.iter().filter(counted).map(|(a, _)| *a).collect()
 }
 
@@ -65,7 +80,10 @@ fn grow(me: PeerId, rows: &Rows, excluded: &Excluded) -> BTreeSet<PeerId> {
     let mut set = BTreeSet::from([me]);
     set.extend(rows.by_author.get(&me).into_iter().flatten().copied());
     loop {
-        let enters = |x: &&PeerId| !set.contains(*x) && voters(me, rows, &set, excluded, x).len() >= usize::from(ADMIT_NEED);
+        let enters = |x: &&PeerId| {
+            !set.contains(*x)
+                && voters(me, rows, &set, excluded, x).len() >= usize::from(ADMIT_NEED)
+        };
         let added: Vec<PeerId> = rows.by_subject.keys().filter(enters).copied().collect();
         if added.is_empty() {
             return set;
@@ -75,22 +93,52 @@ fn grow(me: PeerId, rows: &Rows, excluded: &Excluded) -> BTreeSet<PeerId> {
 }
 
 /// A record on `x` by an open author from the set, whatever its kind.
-fn has_backer(me: PeerId, rows: &Rows, set: &BTreeSet<PeerId>, excluded: &Excluded, x: &PeerId) -> bool {
+fn has_backer(
+    me: PeerId,
+    rows: &Rows,
+    set: &BTreeSet<PeerId>,
+    excluded: &Excluded,
+    x: &PeerId,
+) -> bool {
     let authors = rows.by_subject.get(x).into_iter().flatten();
-    authors.into_iter().any(|(a, _)| set.contains(a) && open(me, excluded, a))
+    authors
+        .into_iter()
+        .any(|(a, _)| set.contains(a) && open(me, excluded, a))
 }
 
 /// Subjects with a backer and too few votes: outside `set`, held only by my own vote, or me.
-fn requests(me: PeerId, rows: &Rows, set: &BTreeSet<PeerId>, excluded: &Excluded) -> BTreeMap<PeerId, Admission> {
-    let mine_counts = |x: &PeerId| rows.by_subject.get(x).and_then(|a| a.get(&me)).copied().unwrap_or(false);
+fn requests(
+    me: PeerId,
+    rows: &Rows,
+    set: &BTreeSet<PeerId>,
+    excluded: &Excluded,
+) -> BTreeMap<PeerId, Admission> {
+    let mine_counts = |x: &PeerId| {
+        rows.by_subject
+            .get(x)
+            .and_then(|a| a.get(&me))
+            .copied()
+            .unwrap_or(false)
+    };
     let mut out = BTreeMap::new();
     for x in rows.by_subject.keys().chain([&me]) {
         let inside = set.contains(x);
         let relevant = !inside || *x == me || mine_counts(x);
         let need = ADMIT_NEED;
         let found = voters(me, rows, set, excluded, x);
-        if relevant && !excluded.contains_key(x) && has_backer(me, rows, set, excluded, x) && found.len() < usize::from(need) {
-            out.insert(*x, Admission { voters: found, need, label: None });
+        if relevant
+            && !excluded.contains_key(x)
+            && has_backer(me, rows, set, excluded, x)
+            && found.len() < usize::from(need)
+        {
+            out.insert(
+                *x,
+                Admission {
+                    voters: found,
+                    need,
+                    label: None,
+                },
+            );
         }
     }
     out

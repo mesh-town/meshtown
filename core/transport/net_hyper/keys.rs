@@ -1,8 +1,8 @@
 //! Node keys for townjump: one seed — one identity in the mesh and in the DHT.
 //! The ed25519-dalek 2 (townjump) and 3 (mesh) types do not mix: only `[u8; 32]` crosses the boundary.
 
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
 use townjump_keys::KeyPair;
 
 /// Townjump key pair from the node secret: the public key matches `secret.peer_id()`.

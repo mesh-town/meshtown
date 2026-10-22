@@ -3,15 +3,15 @@
 //! `core` — it sees the private fields of `Core`. The invite line does not go here: the notes are constants.
 
 use super::{Core, InviteNote, ServeNote};
-use crate::app::members_note;
-use crate::app::start_note::{start_note_hint, StartNote};
-use crate::app::tray_actions;
-use crate::app::view::{
+use crate::gui::tray::app::members_note;
+use crate::gui::tray::app::start_note::{start_note_hint, StartNote};
+use crate::gui::tray::app::tray_actions;
+use crate::gui::tray::app::view::{
     node_item_text, page_enabled, page_text, start_enabled, stop_enabled, NodeState,
 };
 
 use super::super::menu_build::{picture_for, proxy_item_text};
-use crate::app::view_picture::IconPicture;
+use crate::gui::tray::app::view_picture::IconPicture;
 
 impl Core {
     /// The key of the picture the tray should show now: the view, the membership facts and the spinner frame.
@@ -33,7 +33,13 @@ impl Core {
     /// The first menu line and the icon tooltip: action notes, otherwise the node state.
     pub(super) fn menu_first_line(&self) -> String {
         let start = self.shown_start_note();
-        let usual = tray_actions::menu_first_line(self.view, &self.route, self.invite_note, self.serve_note, start);
+        let usual = tray_actions::menu_first_line(
+            self.view,
+            &self.route,
+            self.invite_note,
+            self.serve_note,
+            start,
+        );
         members_note::excluded_line(self.members, self.view.node).unwrap_or(usual)
     }
 
@@ -75,8 +81,8 @@ impl Core {
         let tooltip = members_note::tooltip_text(&status_text, self.members);
         let vote_text = members_note::members_item_text(self.members);
         let proxy_text = proxy_item_text(&self.proxy);
-        let open_text = start_note_hint(self.shown_start_note())
-            .unwrap_or_else(|| page_text(self.view));
+        let open_text =
+            start_note_hint(self.shown_start_note()).unwrap_or_else(|| page_text(self.view));
         let key = self.icon_key();
         let Some(ui) = &mut self.ui else { return };
 

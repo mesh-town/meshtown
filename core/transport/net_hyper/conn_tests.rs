@@ -2,10 +2,12 @@
 //! No DHT: the control stream is `tokio::io::duplex`, the "network" is a fake `StreamDialer`.
 
 use super::*;
-use crate::net::id::NodeSecret;
-use crate::net_hyper::wire::{read_ctrl, read_header, read_reply, write_ctrl, write_reply};
-use crate::net_hyper::wire::{Ctrl, Header, Owner, Reply};
-use crate::net_hyper::wire::{REFUSE_NO_SESSION, REFUSE_UNSERVED};
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net_hyper::wire::{
+    read_ctrl, read_header, read_reply, write_ctrl, write_reply,
+};
+use crate::transport::net_hyper::wire::{Ctrl, Header, Owner, Reply};
+use crate::transport::net_hyper::wire::{REFUSE_NO_SESSION, REFUSE_UNSERVED};
 use std::io::ErrorKind;
 use std::sync::Mutex;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
@@ -28,11 +30,21 @@ struct PairDialer {
 
 impl PairDialer {
     fn new(me: PeerId, remote: Arc<Sessions>) -> Arc<Self> {
-        Arc::new(Self { me, remote, refuse: None, seen: Arc::default() })
+        Arc::new(Self {
+            me,
+            remote,
+            refuse: None,
+            seen: Arc::default(),
+        })
     }
 
     fn refusing(me: PeerId, remote: Arc<Sessions>, code: u32) -> Arc<Self> {
-        Arc::new(Self { me, remote, refuse: Some(code), seen: Arc::default() })
+        Arc::new(Self {
+            me,
+            remote,
+            refuse: Some(code),
+            seen: Arc::default(),
+        })
     }
 
     fn headers(&self) -> Vec<Header> {
@@ -44,25 +56,59 @@ impl StreamDialer for PairDialer {
     fn dial(&self, _to: PeerId) -> BoxFuture<'_, NetResult<Box<dyn Duplex>>> {
         Box::pin(async move {
             let (near, far) = duplex(64 * 1024);
-            tokio::spawn(far_side(far, self.me, self.remote.clone(), self.refuse, self.seen.clone()));
+            tokio::spawn(far_side(
+                far,
+                self.me,
+                self.remote.clone(),
+                self.refuse,
+                self.seen.clone(),
+            ));
             Ok(Box::new(near) as Box<dyn Duplex>)
         })
     }
 }
 
 /// The role of the accepting transport: header, reply, route into the table.
-async fn far_side(mut far: tokio::io::DuplexStream, from: PeerId, table: Arc<Sessions>, refuse: Option<u32>, seen: Arc<Mutex<Vec<Header>>>) {
-    let Ok(header) = read_header(&mut far).await else { return };
+async fn far_side(
+    mut far: tokio::io::DuplexStream,
+    from: PeerId,
+    table: Arc<Sessions>,
+    refuse: Option<u32>,
+    seen: Arc<Mutex<Vec<Header>>>,
+) {
+    let Ok(header) = read_header(&mut far).await else {
+        return;
+    };
     seen.lock().unwrap().push(header.clone());
-    let Header::Stream { session, owner } = header else { return };
+    let Header::Stream { session, owner } = header else {
+        return;
+    };
     if let Some(code) = refuse {
-        let _ = write_reply(&mut far, &Reply::Refuse { code, reason: b"no".to_vec() }).await;
+        let _ = write_reply(
+            &mut far,
+            &Reply::Refuse {
+                code,
+                reason: b"no".to_vec(),
+            },
+        )
+        .await;
         return;
     }
     let _ = write_reply(&mut far, &Reply::Ack).await;
     let (r, w) = tokio::io::split(far);
-    let key = SessionKey { peer: from, session, numbered_by_us: owner == Owner::Acceptor };
-    let _ = route(&table, key, StreamPair { send: Box::new(w), recv: Box::new(r) });
+    let key = SessionKey {
+        peer: from,
+        session,
+        numbered_by_us: owner == Owner::Acceptor,
+    };
+    let _ = route(
+        &table,
+        key,
+        StreamPair {
+            send: Box::new(w),
+            recv: Box::new(r),
+        },
+    );
 }
 
 /// A helper in place of the removed `Sessions::route`: a queue slot, then sending the stream.
@@ -88,16 +134,37 @@ async fn two() -> Two {
     let (ca, mut cb) = duplex(8192);
     let accept = async {
         let header = read_header(&mut cb).await.unwrap();
-        assert_eq!(header, Header::Open { session: SESSION, service_name: b"svc".to_vec() });
-        establish_accepted_session(id_a, SESSION, Box::new(cb), dial_b.clone(), table_b.clone()).await
+        assert_eq!(
+            header,
+            Header::Open {
+                session: SESSION,
+                service_name: b"svc".to_vec()
+            }
+        );
+        establish_accepted_session(id_a, SESSION, Box::new(cb), dial_b.clone(), table_b.clone())
+            .await
     };
-    let dial = establish_dialed_session(id_b, SESSION, b"svc", Box::new(ca), dial_a.clone(), table_a.clone());
+    let dial = establish_dialed_session(
+        id_b,
+        SESSION,
+        b"svc",
+        Box::new(ca),
+        dial_a.clone(),
+        table_a.clone(),
+    );
     let (a, b) = tokio::join!(dial, accept);
-    Two { a: a.unwrap(), b: b.unwrap(), dial_a, dial_b }
+    Two {
+        a: a.unwrap(),
+        b: b.unwrap(),
+        dial_a,
+        dial_b,
+    }
 }
 
 async fn within<T>(fut: impl std::future::Future<Output = T>) -> T {
-    timeout(WITHIN, fut).await.expect("did not finish within 2 s")
+    timeout(WITHIN, fut)
+        .await
+        .expect("did not finish within 2 s")
 }
 
 #[tokio::test]
@@ -109,7 +176,13 @@ async fn open_sends_stream_header_and_returns_after_ack() {
     let mut got = [0u8; 5];
     theirs.recv.read_exact(&mut got).await.unwrap();
     assert_eq!(&got, b"hello");
-    assert_eq!(t.dial_a.headers(), vec![Header::Stream { session: SESSION, owner: Owner::Dialer }]);
+    assert_eq!(
+        t.dial_a.headers(),
+        vec![Header::Stream {
+            session: SESSION,
+            owner: Owner::Dialer
+        }]
+    );
     assert_eq!(t.a.stable_id(), SESSION);
     assert_eq!(t.b.stable_id(), SESSION);
 }
@@ -125,7 +198,9 @@ async fn open_refused_by_peer_is_an_error() {
         write_reply(&mut cb, &Reply::Ack).await.unwrap();
         cb
     });
-    let a = establish_dialed_session(id_b, SESSION, b"svc", Box::new(ca), refusing, table_a).await.unwrap();
+    let a = establish_dialed_session(id_b, SESSION, b"svc", Box::new(ca), refusing, table_a)
+        .await
+        .unwrap();
     let _keep = far.await.unwrap();
     assert!(matches!(within(a.open()).await, Err(NetError::Closed)));
 }
@@ -136,10 +211,26 @@ async fn unserved_refusal_maps_to_refused() {
     let (ca, mut cb) = duplex(8192);
     let far = tokio::spawn(async move {
         read_header(&mut cb).await.unwrap();
-        write_reply(&mut cb, &Reply::Refuse { code: REFUSE_UNSERVED, reason: b"x".to_vec() }).await.unwrap();
+        write_reply(
+            &mut cb,
+            &Reply::Refuse {
+                code: REFUSE_UNSERVED,
+                reason: b"x".to_vec(),
+            },
+        )
+        .await
+        .unwrap();
     });
     let dial = PairDialer::new(id_a, Arc::new(Sessions::new()));
-    let res = establish_dialed_session(id_b, SESSION, b"svc", Box::new(ca), dial, Arc::new(Sessions::new())).await;
+    let res = establish_dialed_session(
+        id_b,
+        SESSION,
+        b"svc",
+        Box::new(ca),
+        dial,
+        Arc::new(Sessions::new()),
+    )
+    .await;
     far.await.unwrap();
     assert!(matches!(res, Err(NetError::Refused)));
 }
@@ -153,7 +244,13 @@ async fn acceptor_side_open_reaches_dialer_accept() {
     let mut got = [0u8; 4];
     at_a.recv.read_exact(&mut got).await.unwrap();
     assert_eq!(&got, b"back");
-    assert_eq!(t.dial_b.headers(), vec![Header::Stream { session: SESSION, owner: Owner::Acceptor }]);
+    assert_eq!(
+        t.dial_b.headers(),
+        vec![Header::Stream {
+            session: SESSION,
+            owner: Owner::Acceptor
+        }]
+    );
 }
 
 #[tokio::test]
@@ -161,12 +258,32 @@ async fn stream_right_after_ack_finds_the_session() {
     let table = Arc::new(Sessions::new());
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(2), Arc::new(Sessions::new()));
-    let acc = tokio::spawn(establish_accepted_session(peer(1), SESSION, Box::new(ca), dial, table.clone()));
+    let acc = tokio::spawn(establish_accepted_session(
+        peer(1),
+        SESSION,
+        Box::new(ca),
+        dial,
+        table.clone(),
+    ));
     assert_eq!(read_reply(&mut cb).await.unwrap(), Reply::Ack);
     let (x, _y) = duplex(64);
     let (r, w) = tokio::io::split(x);
-    let key = SessionKey { peer: peer(1), session: SESSION, numbered_by_us: false };
-    assert_eq!(route(&table, key, StreamPair { send: Box::new(w), recv: Box::new(r) }), Ok(()));
+    let key = SessionKey {
+        peer: peer(1),
+        session: SESSION,
+        numbered_by_us: false,
+    };
+    assert_eq!(
+        route(
+            &table,
+            key,
+            StreamPair {
+                send: Box::new(w),
+                recv: Box::new(r)
+            }
+        ),
+        Ok(())
+    );
     let _conn = acc.await.unwrap().unwrap();
 }
 
@@ -175,12 +292,33 @@ async fn dialer_registers_before_it_sends_open() {
     let table = Arc::new(Sessions::new());
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(1), Arc::new(Sessions::new()));
-    let task = tokio::spawn(establish_dialed_session(peer(2), SESSION, b"svc", Box::new(ca), dial, table.clone()));
+    let task = tokio::spawn(establish_dialed_session(
+        peer(2),
+        SESSION,
+        b"svc",
+        Box::new(ca),
+        dial,
+        table.clone(),
+    ));
     read_header(&mut cb).await.unwrap();
     let (x, _y) = duplex(64);
     let (r, w) = tokio::io::split(x);
-    let key = SessionKey { peer: peer(2), session: SESSION, numbered_by_us: true };
-    assert_eq!(route(&table, key, StreamPair { send: Box::new(w), recv: Box::new(r) }), Ok(()));
+    let key = SessionKey {
+        peer: peer(2),
+        session: SESSION,
+        numbered_by_us: true,
+    };
+    assert_eq!(
+        route(
+            &table,
+            key,
+            StreamPair {
+                send: Box::new(w),
+                recv: Box::new(r)
+            }
+        ),
+        Ok(())
+    );
     write_reply(&mut cb, &Reply::Ack).await.unwrap();
     let _conn = task.await.unwrap().unwrap();
 }
@@ -210,14 +348,25 @@ async fn dropping_last_handle_closes_with_code_zero() {
     let t = two().await;
     drop(t.a);
     within(t.b.closed()).await;
-    assert!(t.b.close_reason().starts_with("code 0"), "{}", t.b.close_reason());
+    assert!(
+        t.b.close_reason().starts_with("code 0"),
+        "{}",
+        t.b.close_reason()
+    );
 }
 
 /// A peer that answered `Ack` and hands the control stream to the test.
 async fn dialed_against_raw_peer() -> (Arc<HyperConn>, tokio::io::DuplexStream) {
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(1), Arc::new(Sessions::new()));
-    let task = tokio::spawn(establish_dialed_session(peer(2), SESSION, b"svc", Box::new(ca), dial, Arc::new(Sessions::new())));
+    let task = tokio::spawn(establish_dialed_session(
+        peer(2),
+        SESSION,
+        b"svc",
+        Box::new(ca),
+        dial,
+        Arc::new(Sessions::new()),
+    ));
     read_header(&mut cb).await.unwrap();
     write_reply(&mut cb, &Reply::Ack).await.unwrap();
     (task.await.unwrap().unwrap(), cb)
@@ -235,9 +384,15 @@ async fn peer_hangup_reason_is_read_ended() {
 async fn silence_longer_than_dead_after_closes() {
     let (conn, _far) = dialed_against_raw_peer().await;
     sleep(DEAD_AFTER - Duration::from_secs(1)).await;
-    assert!(!conn.is_closed(), "too early: silence is shorter than DEAD_AFTER");
+    assert!(
+        !conn.is_closed(),
+        "too early: silence is shorter than DEAD_AFTER"
+    );
     sleep(Duration::from_secs(2)).await;
-    assert!(conn.is_closed(), "silence longer than DEAD_AFTER did not close the session");
+    assert!(
+        conn.is_closed(),
+        "silence longer than DEAD_AFTER did not close the session"
+    );
 }
 
 #[tokio::test(start_paused = true)]

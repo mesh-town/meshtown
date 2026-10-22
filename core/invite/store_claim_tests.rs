@@ -2,7 +2,7 @@
 //! `live_rivals`. Writing claims into the document and the race of two admitting nodes are covered by end-to-end tests.
 
 use super::*;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use bytes::Bytes;
 
 const NOW: u64 = 1_790_000_000;
@@ -25,7 +25,12 @@ fn claim_entry(author: PeerId, written_unix: u64, live: bool) -> ReplicaEntry {
         true => Bytes::from_static(b"x"),
         false => Bytes::new(),
     };
-    ReplicaEntry { author, key: b"invite-claim/h".to_vec(), value, ts_micros: written_unix * 1_000_000 }
+    ReplicaEntry {
+        author,
+        key: b"invite-claim/h".to_vec(),
+        value,
+        ts_micros: written_unix * 1_000_000,
+    }
 }
 
 mod settle_by_peer_id {

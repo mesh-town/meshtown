@@ -4,7 +4,9 @@ use super::*;
 
 /// A shim with the old name: tests supply JSON, the code reads the selection.
 fn facts_from_json(value: &serde_json::Value) -> Option<ColorFacts> {
-    color_facts(&crate::app::snapshot::TraySnapshot::from_value(value))
+    color_facts(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 mod facts_from_json {
@@ -131,7 +133,11 @@ mod icon_rgba_green_ring {
     #[test]
     fn filled_green_centre_is_opaque() {
         let data = icon_rgba(TrayColor::Green);
-        assert_eq!(pixel(&data, 18, 18)[3], 255, "the circle didn't become a ring");
+        assert_eq!(
+            pixel(&data, 18, 18)[3],
+            255,
+            "the circle didn't become a ring"
+        );
     }
 }
 
@@ -146,8 +152,16 @@ mod icon_rgba_symmetry {
         for y in 0..ICON_SIDE_PX {
             for x in 0..ICON_SIDE_PX {
                 let here = pixel(&data, x, y)[3];
-                assert_eq!(here, pixel(&data, last - x, y)[3], "{color:?} ({x},{y}) by x");
-                assert_eq!(here, pixel(&data, x, last - y)[3], "{color:?} ({x},{y}) by y");
+                assert_eq!(
+                    here,
+                    pixel(&data, last - x, y)[3],
+                    "{color:?} ({x},{y}) by x"
+                );
+                assert_eq!(
+                    here,
+                    pixel(&data, x, last - y)[3],
+                    "{color:?} ({x},{y}) by y"
+                );
             }
         }
     }

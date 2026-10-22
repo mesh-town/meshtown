@@ -19,7 +19,7 @@ R = TypeVar("R")
 
 # Phase 2 is two consecutive "epochs"; within an epoch the lanes run simultaneously (cargo is not called),
 # within a lane — in turn. Why epochs: with `-C prefer-dynamic` cargo puts the dylib under the
-# unhashed name `deps/libmeshtown.dylib`, one for both feature sets, and each build
+# unhashed name `deps/libmeshtown_core.dylib`, one for both feature sets, and each build
 # relinks it for its own features; binaries of the other set crash in dyld. Only one set is alive at any moment:
 # epoch B is `--no-default-features --features net-hyper`, epoch A (last, so that debug/ keeps
 # the binary with the tray) is default. The layout is tuned by measurement.

@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::task::Poll;
 use std::time::Duration;
 
-use crate::net::{NetStack, PeerId, PORT};
+use crate::transport::net::{NetStack, PeerId, PORT};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
 use tokio::task::{AbortHandle, JoinSet};
@@ -19,8 +19,8 @@ use tokio::task::{AbortHandle, JoinSet};
 use super::dial::forward_to_peer_port;
 use super::types::Opened;
 use crate::exit::PeerConnPool;
-use crate::membership::Members;
-use crate::output::say;
+use crate::members::membership::Members;
+use crate::node::output::say;
 
 /// Result of binding one `Opened` entry.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -156,7 +156,9 @@ impl Opener {
         move |tcp| {
             let (stack, members, pool, target) =
                 (stack.clone(), members.clone(), pool.clone(), target.clone());
-            Box::pin(async move { forward_to_peer_port(&stack, &pool, &members, &target, tcp).await })
+            Box::pin(
+                async move { forward_to_peer_port(&stack, &pool, &members, &target, tcp).await },
+            )
         }
     }
 
@@ -216,7 +218,10 @@ fn dedup(v: &[Opened]) -> Vec<Opened> {
 }
 
 /// What to close (listening but not needed) and what to bind (needed but not listening); duplicates are collapsed.
-pub(crate) fn listener_changes(listening: &[Opened], wanted: &[Opened]) -> (Vec<Opened>, Vec<Opened>) {
+pub(crate) fn listener_changes(
+    listening: &[Opened],
+    wanted: &[Opened],
+) -> (Vec<Opened>, Vec<Opened>) {
     let wanted = dedup(wanted);
     let to_close = listening
         .iter()

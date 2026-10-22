@@ -5,9 +5,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use super::{Host, PageRole};
-use crate::config_file::{self, CliOverrides, ConfigSource, RunConfig, ListenAccess};
-use crate::node_ctl::NodeCtl;
-use crate::output::{log_page, log_summary, say, set_log_capacity};
+use crate::config::config_file::{self, CliOverrides, ConfigSource, ListenAccess, RunConfig};
+use crate::node::node_ctl::NodeCtl;
+use crate::node::output::{log_page, log_summary, say, set_log_capacity};
 
 /// Log capacity in tests: larger than the default (2000), so other lines are not cut.
 const TEST_RING: u64 = 2001;
@@ -93,7 +93,10 @@ async fn body_runs_between_page_up_and_page_down() {
     };
     let up = seq_of(&format!("127.0.0.1:{port}")).expect("page start line");
     let body = seq_of(&format!("body {port}")).expect("body line");
-    assert!(up < body, "the page announcement comes before the body line");
+    assert!(
+        up < body,
+        "the page announcement comes before the body line"
+    );
     set_log_capacity(2000);
 }
 

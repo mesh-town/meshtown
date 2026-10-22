@@ -6,11 +6,11 @@
 
 use std::time::Duration;
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
 use crate::invite::wire::{RedeemCode, RedeemReply};
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 
 mod round_outcome_cases {
     use super::*;
@@ -26,7 +26,12 @@ mod round_outcome_cases {
 
         #[test]
         fn after_silence_and_refusals_gives_the_key() {
-            let answers = [SILENT, refused(RedeemCode::Unknown), refused(RedeemCode::Busy), key(own_key())];
+            let answers = [
+                SILENT,
+                refused(RedeemCode::Unknown),
+                refused(RedeemCode::Busy),
+                key(own_key()),
+            ];
             let got = key_of(round(&answers));
             assert_eq!(got.map(|k| k.encode()), Some(own_key().encode()));
         }
@@ -57,7 +62,10 @@ mod round_outcome_cases {
         #[test]
         fn is_never_handed_out_as_the_key() {
             let got = key_of(round(&[key(foreign_key())]));
-            assert!(got.is_none(), "a key of a foreign network was accepted as its own: {got:?}");
+            assert!(
+                got.is_none(),
+                "a key of a foreign network was accepted as its own: {got:?}"
+            );
         }
     }
 
@@ -78,7 +86,11 @@ mod round_outcome_cases {
 
         #[test]
         fn used_is_final_even_when_others_are_silent_or_unknown() {
-            let answers = [SILENT, refused(RedeemCode::Unknown), refused(RedeemCode::Used)];
+            let answers = [
+                SILENT,
+                refused(RedeemCode::Unknown),
+                refused(RedeemCode::Used),
+            ];
             let got = error_of(round(&answers));
             assert!(matches!(got, Some(RedeemError::Used)), "{got:?}");
         }
@@ -88,24 +100,40 @@ mod round_outcome_cases {
             // given: the older frame was sent, so a bad request really is the final word
             let got = error_of(round_in(&[refused(RedeemCode::BadRequest)], Mode::Legacy));
             // then: not a retry
-            assert!(got.is_some(), "BadRequest must not lead to a retry in the legacy mode");
+            assert!(
+                got.is_some(),
+                "BadRequest must not lead to a retry in the legacy mode"
+            );
         }
 
         #[test]
         fn excluded_is_final_in_both_modes() {
             for mode in [Mode::Owner, Mode::Legacy] {
                 // given / when: one member says the node is excluded, the others are silent or unknown
-                let answers = [SILENT, refused(RedeemCode::Unknown), refused(RedeemCode::Excluded)];
+                let answers = [
+                    SILENT,
+                    refused(RedeemCode::Unknown),
+                    refused(RedeemCode::Excluded),
+                ];
                 let got = error_of(round_in(&answers, mode));
                 // then
-                assert!(matches!(got, Some(RedeemError::Excluded)), "{mode:?}: {got:?}");
+                assert!(
+                    matches!(got, Some(RedeemError::Excluded)),
+                    "{mode:?}: {got:?}"
+                );
             }
         }
 
         #[test]
         fn used_and_expired_stay_final_in_owner_mode() {
-            assert!(matches!(error_of(round(&[refused(RedeemCode::Used)])), Some(RedeemError::Used)));
-            assert!(matches!(error_of(round(&[refused(RedeemCode::Expired)])), Some(RedeemError::Expired)));
+            assert!(matches!(
+                error_of(round(&[refused(RedeemCode::Used)])),
+                Some(RedeemError::Used)
+            ));
+            assert!(matches!(
+                error_of(round(&[refused(RedeemCode::Expired)])),
+                Some(RedeemError::Expired)
+            ));
         }
     }
 
@@ -115,7 +143,10 @@ mod round_outcome_cases {
         #[test]
         fn all_bad_request_in_owner_mode_falls_back() {
             // given: every member answered BadRequest to the owner frame: they run an older version
-            let got = round(&[refused(RedeemCode::BadRequest), refused(RedeemCode::BadRequest)]);
+            let got = round(&[
+                refused(RedeemCode::BadRequest),
+                refused(RedeemCode::BadRequest),
+            ]);
             // then
             assert!(is_fallback(&got), "{got:?}");
         }
@@ -137,8 +168,14 @@ mod round_outcome_cases {
         #[test]
         fn unknown_and_bad_request_count_as_all_unknown() {
             // given: nobody knows the invite or understands the frame, in either order of the answers
-            let bad_first = round(&[refused(RedeemCode::BadRequest), refused(RedeemCode::Unknown)]);
-            let unknown_first = round(&[refused(RedeemCode::Unknown), refused(RedeemCode::BadRequest)]);
+            let bad_first = round(&[
+                refused(RedeemCode::BadRequest),
+                refused(RedeemCode::Unknown),
+            ]);
+            let unknown_first = round(&[
+                refused(RedeemCode::Unknown),
+                refused(RedeemCode::BadRequest),
+            ]);
             // then: neither a fallback nor a refusal
             assert!(is_all_unknown(&bad_first), "{bad_first:?}");
             assert!(is_all_unknown(&unknown_first), "{unknown_first:?}");
@@ -148,7 +185,10 @@ mod round_outcome_cases {
         fn legacy_mode_never_yields_fallback() {
             let cases: [&[Option<RedeemReply>]; 4] = [
                 &[refused(RedeemCode::BadRequest)],
-                &[refused(RedeemCode::BadRequest), refused(RedeemCode::BadRequest)],
+                &[
+                    refused(RedeemCode::BadRequest),
+                    refused(RedeemCode::BadRequest),
+                ],
                 &[refused(RedeemCode::Unknown), refused(RedeemCode::Busy)],
                 &[SILENT],
             ];
@@ -209,7 +249,10 @@ mod round_outcome_cases {
         fn retryable_codes_alone_retry() {
             for code in [RedeemCode::NotReady, RedeemCode::Busy, RedeemCode::Internal] {
                 let got = round(&[refused(code)]);
-                assert!(is_retry(&got), "{code:?} must lead to a retry, but gave {got:?}");
+                assert!(
+                    is_retry(&got),
+                    "{code:?} must lead to a retry, but gave {got:?}"
+                );
             }
         }
     }
@@ -258,7 +301,10 @@ mod peer_is_cases {
 
     #[test]
     fn other_id_is_rejected() {
-        assert!(!peer_is(id(1), id(2)), "a peer with a foreign id was accepted");
+        assert!(
+            !peer_is(id(1), id(2)),
+            "a peer with a foreign id was accepted"
+        );
     }
 }
 

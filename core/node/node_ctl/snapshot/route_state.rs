@@ -8,11 +8,11 @@
 //! Links: called from `build.rs::build`; the exit list is `Inputs.chosen_exits`, read in
 //! `collect.rs` from `node.route.chosen_exits()`.
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::output;
-use crate::route::{self, Route};
-use crate::web::{ChosenExit, PeerInfo, RouteMode, RouteState};
+use crate::node::output;
+use crate::proxy::route::{self, Route};
+use crate::web_gui::{ChosenExit, PeerInfo, RouteMode, RouteState};
 
 use super::build::Inputs;
 

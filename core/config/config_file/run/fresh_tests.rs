@@ -1,8 +1,8 @@
 use super::*;
-use crate::config_file::overrides::CliOverrides;
-use crate::config_file::path::{ConfigSource, PathRule};
-use crate::config_file::test_support::scratch;
-use crate::config_file::FILE_NAME;
+use crate::config::config_file::overrides::CliOverrides;
+use crate::config::config_file::path::{ConfigSource, PathRule};
+use crate::config::config_file::test_support::scratch;
+use crate::config::config_file::FILE_NAME;
 
 const NOW: u64 = 1_790_278_867;
 
@@ -17,10 +17,13 @@ fn created_file_is_taken_by_prepare_like_run_file() {
         may_create: true,
         rule: PathRule::Explicit,
     };
-    let run = crate::config_file::prepare(&source, &CliOverrides::default(), false, NOW)
+    let run = crate::config::config_file::prepare(&source, &CliOverrides::default(), false, NOW)
         .expect("prepare");
     assert!(run.file_report.persistent_identity);
-    assert_eq!(run.file_report.state, crate::config_file::FileState::Ok);
+    assert_eq!(
+        run.file_report.state,
+        crate::config::config_file::FileState::Ok
+    );
     // The secret was not recreated: the revision stayed the first.
     assert_eq!(run.file_report.rev, 1);
     assert!(run.effective_settings.net.network_key.is_none());

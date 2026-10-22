@@ -5,7 +5,7 @@ use super::*;
 
 use std::time::Duration;
 
-use crate::app::local_api::tests::temp_dir;
+use crate::gui::tray::app::local_api::tests::temp_dir;
 
 use super::super::views::STOPPING_VIEW;
 
@@ -23,7 +23,11 @@ async fn poller_own_exit_keeps_icon() {
     rig.probe.view("Absent", is_absent);
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(!rig.task.is_finished(), "the task is alive");
-    assert_eq!(kids.pids().len(), 1, "no spawn while polling without a node");
+    assert_eq!(
+        kids.pids().len(),
+        1,
+        "no spawn while polling without a node"
+    );
     rig.quit();
     assert_eq!(rig.code().await, 0);
 }
@@ -127,7 +131,11 @@ async fn poller_stop_drops_cmds() {
     rig.probe.log("via \"Stop Mesh Town\"");
     rig.probe.view("Absent", is_absent);
     tokio::time::sleep(Duration::from_millis(300)).await;
-    assert_eq!(kids.pids().len(), 1, "Start during the procedure was dropped");
+    assert_eq!(
+        kids.pids().len(),
+        1,
+        "Start during the procedure was dropped"
+    );
     rig.quit();
     assert_eq!(rig.code().await, 0);
 }

@@ -2,10 +2,10 @@
 //! Connections run over `tokio::io::duplex`; the dial "network" is never called.
 
 use super::*;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::NodeSecret;
-use crate::net::stream::BoxFuture;
-use crate::net_hyper::conn::establish_dialed_session;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net_hyper::conn::establish_dialed_session;
 use tokio::io::duplex;
 
 const SESSION: u64 = 0xABCD_0002;
@@ -36,7 +36,14 @@ async fn pair(session: u64) -> (Arc<HyperConn>, Arc<HyperConn>) {
         read_header(&mut cb).await.unwrap();
         establish_accepted_session(peer(1), session, Box::new(cb), Arc::new(NoDial), table_b).await
     };
-    let dial = establish_dialed_session(peer(2), session, b"svc", Box::new(ca), Arc::new(NoDial), table_a);
+    let dial = establish_dialed_session(
+        peer(2),
+        session,
+        b"svc",
+        Box::new(ca),
+        Arc::new(NoDial),
+        table_a,
+    );
     let (a, b) = tokio::join!(dial, accept);
     (a.unwrap(), b.unwrap())
 }
@@ -87,11 +94,18 @@ async fn close_sessions_empties_live_list_and_session_table() {
     let ctx = ctx();
     let (a, _b) = pair(SESSION).await;
     ctx.track(&a);
-    let key = SessionKey { peer: peer(1), session: 9, numbered_by_us: true };
+    let key = SessionKey {
+        peer: peer(1),
+        session: 9,
+        numbered_by_us: true,
+    };
     let (tx, mut rx) = mpsc::channel(1);
     ctx.sessions.insert(key, tx);
     ctx.close_sessions(7, b"stop");
     assert_eq!(live_len(&ctx), 0);
-    assert_eq!(ctx.sessions.reserve(key).err(), Some(crate::net_hyper::wire::REFUSE_NO_SESSION));
+    assert_eq!(
+        ctx.sessions.reserve(key).err(),
+        Some(crate::transport::net_hyper::wire::REFUSE_NO_SESSION)
+    );
     assert!(rx.recv().await.is_none());
 }

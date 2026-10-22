@@ -1,14 +1,14 @@
 //! The `mem` carrier: the `Hello`/`Accept`/`Refuse` handshake over a lossless path and the start of `MemConn`.
 //! Streams and closing are in `conn`.
 
-use crate::net::carrier::{Carrier, CarrierRole};
-use crate::net::connect::{PacketPath, PathInfo};
-use crate::net::error::{NetError, NetResult};
-use crate::net::mem::conn::MemConn;
-use crate::net::mem::frame::Frame;
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::PeerConn;
+use crate::transport::net::carrier::{Carrier, CarrierRole};
+use crate::transport::net::connect::{PacketPath, PathInfo};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::mem::conn::MemConn;
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::PeerConn;
 use bytes::Bytes;
 use std::io;
 use std::sync::Arc;
@@ -64,11 +64,18 @@ async fn handshake_as_dialer(path: Arc<dyn PacketPath>, svc: ServiceId) -> NetRe
     }
 }
 
-async fn handshake_as_acceptor(path: Arc<dyn PacketPath>, served_service_ids: Arc<[ServiceId]>) -> NetResult<Started> {
+async fn handshake_as_acceptor(
+    path: Arc<dyn PacketPath>,
+    served_service_ids: Arc<[ServiceId]>,
+) -> NetResult<Started> {
     let Some(Frame::Hello(name)) = first_frame(path.as_ref()).await? else {
         return Err(net_other_error("the first frame must be Hello"));
     };
-    let Some(svc) = served_service_ids.iter().find(|s| s.as_bytes() == name.as_ref()).copied() else {
+    let Some(svc) = served_service_ids
+        .iter()
+        .find(|s| s.as_bytes() == name.as_ref())
+        .copied()
+    else {
         let _ = path.send(Frame::Refuse.encode()).await;
         return Err(NetError::Refused);
     };
@@ -81,7 +88,9 @@ async fn handshake_as_acceptor(path: Arc<dyn PacketPath>, served_service_ids: Ar
 async fn handshake(path: Arc<dyn PacketPath>, role: CarrierRole) -> NetResult<Started> {
     match role {
         CarrierRole::Dial(svc) => handshake_as_dialer(path, svc).await,
-        CarrierRole::Accept(served_service_ids) => handshake_as_acceptor(path, served_service_ids).await,
+        CarrierRole::Accept(served_service_ids) => {
+            handshake_as_acceptor(path, served_service_ids).await
+        }
     }
 }
 
@@ -107,7 +116,11 @@ impl Carrier for MemCarrier {
         info.family == "mem"
     }
 
-    fn start(&self, path: Box<dyn PacketPath>, role: CarrierRole) -> BoxFuture<'_, NetResult<Started>> {
+    fn start(
+        &self,
+        path: Box<dyn PacketPath>,
+        role: CarrierRole,
+    ) -> BoxFuture<'_, NetResult<Started>> {
         Box::pin(start_timed(self.timeout, Arc::from(path), role))
     }
 }

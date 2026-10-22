@@ -6,14 +6,14 @@ use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
 
-use crate::net::stream::BoxFuture;
-use crate::net::{Discovery, NetResult, PeerAddr, PeerId};
-use crate::net_hyperdht::{DhtRoundOutcome, RecordStore, RoundOutcomeFn};
-use crate::network_key::SubKeys;
+use crate::members::network_key::SubKeys;
 use crate::node::config::NodeConfig;
-use crate::output::{say, short_peer_id};
-use crate::peers_cache::PeersCache;
-use crate::telemetry::Telemetry;
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry::Telemetry;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::{Discovery, NetResult, PeerAddr, PeerId};
+use crate::transport::net_hyperdht::{DhtRoundOutcome, RecordStore, RoundOutcomeFn};
+use crate::transport::peers_cache::PeersCache;
 
 /// Node discovery sources in the order of names from `cfg.settings.net_choice.discovery`: each only if it
 /// has input (an invite, a non-empty cache, `hyper` DHT records); a name without a source is skipped.
@@ -26,7 +26,12 @@ pub(crate) fn node_sources(
     records: Option<Arc<dyn RecordStore>>,
 ) -> Vec<Arc<dyn Discovery>> {
     let from = |name: &String| source_named(name, cfg, cache, me, (subkeys, tel), &records);
-    cfg.settings.net_choice.discovery.iter().filter_map(from).collect()
+    cfg.settings
+        .net_choice
+        .discovery
+        .iter()
+        .filter_map(from)
+        .collect()
 }
 
 /// The source by config name; `None` — the name isn't in the node or it has no input.
@@ -60,7 +65,12 @@ fn hyperdht_source(
         say("hyperdht", "hyperdht without the hyper transport — skipped");
         return None;
     };
-    Some(crate::net_hyperdht::node_source(subkeys, me, store.clone(), Some(seen_handler(tel.clone()))))
+    Some(crate::transport::net_hyperdht::node_source(
+        subkeys,
+        me,
+        store.clone(),
+        Some(seen_handler(tel.clone())),
+    ))
 }
 
 /// Handler of a `hyperdht` round result: telemetry (read, publish, directory join) and a log line
@@ -73,7 +83,10 @@ pub(crate) fn seen_handler(tel: Arc<Telemetry>) -> RoundOutcomeFn {
             let mut prev = last.lock().unwrap_or_else(|e| e.into_inner());
             if *prev != Some(s.members) {
                 *prev = Some(s.members);
-                say("hyperdht", format!("record read from DHT: peers {}", s.members));
+                say(
+                    "hyperdht",
+                    format!("record read from DHT: peers {}", s.members),
+                );
             }
         }
         if s.published {
@@ -99,12 +112,20 @@ async fn hand_over(list: Vec<PeerAddr>, me: PeerId, out: mpsc::Sender<PeerAddr>,
     out.closed().await;
 }
 
-fn send_addrs_except_own(list: &[PeerAddr], me: PeerId, out: &mpsc::Sender<PeerAddr>, tag: &str) -> usize {
+fn send_addrs_except_own(
+    list: &[PeerAddr],
+    me: PeerId,
+    out: &mpsc::Sender<PeerAddr>,
+    tag: &str,
+) -> usize {
     let mut taken = 0usize;
     for addr in list.iter().filter(|a| a.id != me) {
         match out.try_send(addr.clone()) {
             Ok(()) => taken += 1,
-            Err(e) => say(tag, format!("address {} not accepted: {e}", short_peer_id(&addr.id))),
+            Err(e) => say(
+                tag,
+                format!("address {} not accepted: {e}", short_peer_id(&addr.id)),
+            ),
         }
     }
     taken

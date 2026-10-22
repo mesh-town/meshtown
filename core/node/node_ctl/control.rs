@@ -1,18 +1,19 @@
-//! Page actions: `impl web::NodeControl for NodeCtl` — snapshot, domain search/check,
+//! Page actions: `impl web_gui::NodeControl for NodeCtl` — snapshot, domain search/check,
 //! adding a member address, applying settings, joining/leaving a network, invite. State
 //! and gates (`running_node_for_action`, `known_domains`) live in `state.rs`; live paths in `live_paths.rs`.
 
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::config_file::Settings;
+use crate::config::config_file::Settings;
 use crate::invite::InviteHead;
-use crate::output::{self, say};
-use crate::web::{
-    ActionError, InviteJoinView, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot, PendingInvite, SaveKey,
+use crate::node::output::{self, say};
+use crate::web_gui::{
+    ActionError, InviteJoinView, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot,
+    PendingInvite, SaveKey,
 };
 
 use super::invite_wait;
-use super::state::{Cmd, NodeCtlShared, NodeCtl, Phase};
+use super::state::{Cmd, NodeCtl, NodeCtlShared, Phase};
 
 impl NodeControl for NodeCtl {
     fn snapshot(&self) -> NodeSnapshot {
@@ -67,9 +68,13 @@ impl NodeControl for NodeCtl {
     }
 
     /// Joining or switching a network: cancels the invite wait and sends the command (`begin_network_switch`).
-    fn join_with_peers(&self, key: &str, peers: Vec<crate::net::PeerAddr>) {
+    fn join_with_peers(&self, key: &str, peers: Vec<crate::transport::net::PeerAddr>) {
         {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             invite_wait::cancel(&mut st);
         }
         begin_network_switch(&self.ctl_shared, &self.cmd_tx, key, peers);
@@ -78,7 +83,7 @@ impl NodeControl for NodeCtl {
     fn join_by_invite(
         &self,
         head: InviteHead,
-        peers: Vec<crate::net::PeerAddr>,
+        peers: Vec<crate::transport::net::PeerAddr>,
         save: SaveKey,
     ) -> Result<(), ActionError> {
         invite_wait::start(self, head, peers, save)
@@ -93,7 +98,11 @@ impl NodeControl for NodeCtl {
     }
 
     fn invite_join(&self) -> Option<InviteJoinView> {
-        let st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         invite_wait::view(&st)
     }
 
@@ -111,16 +120,19 @@ pub(super) fn begin_network_switch(
     ctl_shared: &NodeCtlShared,
     cmd_tx: &UnboundedSender<Cmd>,
     key: &str,
-    peers: Vec<crate::net::PeerAddr>,
+    peers: Vec<crate::transport::net::PeerAddr>,
 ) {
-    let mut st = ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+    let mut st = ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if matches!(st.phase, Phase::Stopping) {
         drop(st);
         say(
             "node",
             format!(
                 "stop already in progress, network switch {} skipped",
-                crate::output::NET_NAME
+                crate::node::output::NET_NAME
             ),
         );
         return;
@@ -134,9 +146,15 @@ pub(super) fn begin_network_switch(
         peers,
     });
     let mut msg = if from_no_network {
-        format!("joining the {} network: starting the node", crate::output::NET_NAME)
+        format!(
+            "joining the {} network: starting the node",
+            crate::node::output::NET_NAME
+        )
     } else {
-        format!("switching the {} network: restarting the node", crate::output::NET_NAME)
+        format!(
+            "switching the {} network: restarting the node",
+            crate::node::output::NET_NAME
+        )
     };
     if peers_count > 0 {
         msg.push_str(&format!(" (addresses from the invite: {peers_count})"));

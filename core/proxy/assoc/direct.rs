@@ -10,8 +10,8 @@ use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 
-use crate::doh::is_fake_ip;
-use crate::socks5::{Target, UdpPacket};
+use crate::proxy::socks5::{Target, UdpPacket};
+use crate::site_checks::doh::is_fake_ip;
 
 use super::super::path::address_of;
 use super::super::serve::ProxyConfig;
@@ -38,7 +38,13 @@ pub(super) fn open_direct(cfg: &ProxyConfig) -> io::Result<(DirectTx, DirectRx)>
     let v4 = bind(IpAddr::V4(Ipv4Addr::UNSPECIFIED))?;
     let v6 = bind(IpAddr::V6(Ipv6Addr::UNSPECIFIED)).ok();
     let sockets = Arc::new(Sockets { v4, v6 });
-    Ok((DirectTx { cfg: cfg.clone(), sockets: sockets.clone() }, DirectRx { sockets }))
+    Ok((
+        DirectTx {
+            cfg: cfg.clone(),
+            sockets: sockets.clone(),
+        },
+        DirectRx { sockets },
+    ))
 }
 
 fn bind(ip: IpAddr) -> io::Result<UdpSocket> {
@@ -56,7 +62,11 @@ impl UpstreamTx for DirectTx {
             return Ok(Delivery::Unroutable);
         };
         let sent = socket.send_to(&packet.data, addr).await;
-        Ok(if sent.is_ok() { Delivery::Sent } else { Delivery::Unroutable })
+        Ok(if sent.is_ok() {
+            Delivery::Sent
+        } else {
+            Delivery::Unroutable
+        })
     }
 }
 
@@ -112,7 +122,10 @@ async fn recv_v6(socket: Option<&UdpSocket>, buf: &mut [u8]) -> io::Result<(usiz
 
 /// An error caused by the other end of an earlier send (some systems report it on the next read): not the end.
 fn is_peer_error(e: &io::Error) -> bool {
-    matches!(e.kind(), io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionRefused)
+    matches!(
+        e.kind(),
+        io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionRefused
+    )
 }
 
 #[cfg(test)]

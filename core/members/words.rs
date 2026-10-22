@@ -21,7 +21,7 @@ use std::sync::OnceLock;
 
 use anyhow::{anyhow, Result};
 
-use crate::network_key::fill_random;
+use crate::members::network_key::fill_random;
 
 /// The built-in EFF list as is: lines "number<TAB>word".
 const EFF_LARGE_WORDLIST: &str = include_str!("wordlist/eff_large_wordlist.txt");
@@ -131,7 +131,9 @@ pub fn generate_tail() -> Result<String> {
         ));
     }
     if TAIL_ALPHABET.chars().count() != 32 {
-        return Err(anyhow!("the character group alphabet must have 32 characters"));
+        return Err(anyhow!(
+            "the character group alphabet must have 32 characters"
+        ));
     }
     let mut out = String::new();
     for i in distinct_word_indices(TAIL_WORDS)? {

@@ -81,7 +81,14 @@ mod paint {
 
     fn painted(step: u8, blue_twelfths: u8) -> Vec<u8> {
         let mut rgba = vec![0u8; (SIDE * SIDE * 4) as usize];
-        paint_disk(&mut rgba, SIDE, Disk { step, blue_twelfths });
+        paint_disk(
+            &mut rgba,
+            SIDE,
+            Disk {
+                step,
+                blue_twelfths,
+            },
+        );
         rgba
     }
 
@@ -114,7 +121,11 @@ mod paint {
         let rgba = painted(6, 12);
         for y in 0..SIDE {
             for x in 0..SIDE {
-                assert_eq!(pixel(&rgba, x, y), pixel(&rgba, x, SIDE - 1 - y), "({x},{y})");
+                assert_eq!(
+                    pixel(&rgba, x, y),
+                    pixel(&rgba, x, SIDE - 1 - y),
+                    "({x},{y})"
+                );
             }
         }
     }

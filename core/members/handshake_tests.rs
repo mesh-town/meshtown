@@ -1,7 +1,7 @@
 //! Tests of the handshake on the network secret (`handshake.rs`).
 
 use super::*;
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 fn ids() -> (PeerId, PeerId) {
     let a = NodeSecret::from_bytes(&[1u8; 32]).peer_id();

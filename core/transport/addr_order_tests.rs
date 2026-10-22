@@ -205,7 +205,10 @@ mod is_foreign_tunnel {
     #[test]
     fn boundaries_and_lan_are_not_tunnel() {
         for s in ["100.63.255.255", "100.128.0.0", "192.168.1.2"] {
-            assert!(!is_foreign_tunnel(ip(s)), "{s} is outside 100.64/10, not a tunnel");
+            assert!(
+                !is_foreign_tunnel(ip(s)),
+                "{s} is outside 100.64/10, not a tunnel"
+            );
         }
     }
 }

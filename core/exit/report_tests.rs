@@ -1,9 +1,9 @@
 use super::*;
-use crate::net::facade::test_support::{pid, secret, within, Probe, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::EXIT;
-use crate::net::{NetStack, NetStackBuilder};
-use crate::output::log_page;
+use crate::node::output::log_page;
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{NetStack, NetStackBuilder};
 
 #[test]
 fn exit_line_silent_without_traffic() {
@@ -23,7 +23,10 @@ fn exit_line_lists_bytes_and_congestion() {
 #[test]
 fn exit_line_hyper_path_without_congestion_has_no_tail() {
     let line = exit_line("node", 10, 1, "hyper: direct UDX, rtt unknown", "").unwrap();
-    assert!(line.ends_with("path: hyper: direct UDX, rtt unknown"), "got: {line}");
+    assert!(
+        line.ends_with("path: hyper: direct UDX, rtt unknown"),
+        "got: {line}"
+    );
 }
 
 mod watch {
@@ -41,14 +44,20 @@ mod watch {
         conn.close(0, b"done");
 
         // when: `log_link_stats_while_open` runs through a period
-        let done = tokio::time::timeout(PERIOD + Duration::from_secs(5), log_link_stats_while_open(conn, pid(2), TAG));
+        let done = tokio::time::timeout(
+            PERIOD + Duration::from_secs(5),
+            log_link_stats_while_open(conn, pid(2), TAG),
+        );
 
         // then: the task finished on its own, there are no lines with its tag in the log
         done.await
             .expect("watch did not stop after the connection closed");
         let lines = log_page(0, 10_000).lines;
         let ours = lines.iter().filter(|line| line.tag == TAG).count();
-        assert_eq!(ours, 0, "there should be no lines on a closed mem connection");
+        assert_eq!(
+            ours, 0,
+            "there should be no lines on a closed mem connection"
+        );
     }
 }
 

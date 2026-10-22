@@ -1,8 +1,8 @@
 //! Tests of the texts of the "Invite a member" tray items (`tray_actions.rs`).
 
 use super::*;
-use crate::app::start_note::StartNote;
-use crate::app::tray_texts::{
+use crate::gui::tray::app::start_note::StartNote;
+use crate::gui::tray::app::tray_texts::{
     INVITE_COPIED_ISSUER_AND_ONE_LINE, INVITE_COPIED_ISSUER_ONLY_LINE, REASON_JOINING,
     REASON_NO_TOOL, REASON_SERVE_REFUSED,
 };
@@ -32,10 +32,7 @@ fn failed_text_names_reason() {
 fn copied_line_warns_not_to_share() {
     assert_eq!(
         invite_status_line(InviteNote::Copied(InviteReach::Spread)),
-        Some(
-            "Invite copied — single use, valid for 24 h; send it privately"
-                .to_string()
-        )
+        Some("Invite copied — single use, valid for 24 h; send it privately".to_string())
     );
 }
 
@@ -43,9 +40,7 @@ fn copied_line_warns_not_to_share() {
 fn failed_line_names_reason() {
     assert_eq!(
         invite_status_line(InviteNote::Failed(REASON_NO_TOOL)),
-        Some(format!(
-            "Couldn't copy the invite: {REASON_NO_TOOL}"
-        ))
+        Some(format!("Couldn't copy the invite: {REASON_NO_TOOL}"))
     );
 }
 
@@ -77,7 +72,7 @@ fn serve_failed_line_on_and_off() {
 
 #[test]
 fn first_line_prefers_notes_over_status() {
-    use crate::app::view::{node_status_menu_line, RouteLine, View};
+    use crate::gui::tray::app::view::{node_status_menu_line, RouteLine, View};
     let view = View::initial();
     let route = RouteLine::Direct;
     let failed = ServeNote::Failed {
@@ -85,19 +80,28 @@ fn first_line_prefers_notes_over_status() {
         reason: REASON_SERVE_REFUSED,
     };
 
-    let plain = menu_first_line(view, &route, InviteNote::Idle, ServeNote::Idle, &StartNote::Idle);
+    let plain = menu_first_line(
+        view,
+        &route,
+        InviteNote::Idle,
+        ServeNote::Idle,
+        &StartNote::Idle,
+    );
     let copied = InviteNote::Copied(InviteReach::Spread);
     let invite = menu_first_line(view, &route, copied, failed, &StartNote::Idle);
     let serve = menu_first_line(view, &route, InviteNote::Idle, failed, &StartNote::Idle);
 
     assert_eq!(plain, node_status_menu_line(view, &route));
     assert_eq!(invite, INVITE_COPIED_LINE);
-    assert_eq!(serve, "Couldn't turn on sharing: Mesh Town didn't accept the change");
+    assert_eq!(
+        serve,
+        "Couldn't turn on sharing: Mesh Town didn't accept the change"
+    );
 }
 
 #[test]
 fn start_note_below_click_notes() {
-    use crate::app::start_note::{start_note_line, StartNote};
+    use crate::gui::tray::app::start_note::{start_note_line, StartNote};
     let view = View::initial();
     let route = RouteLine::Direct;
     let busy = StartNote::ProxyBusy(1080);
@@ -116,8 +120,7 @@ mod invite_reach {
     use super::*;
 
     const ISSUER_ONLY_LINE: &str = "Invite copied — only this computer can let them in; keep it on";
-    const ISSUER_AND_ONE_LINE: &str =
-        "Invite copied — keep this computer on until they join";
+    const ISSUER_AND_ONE_LINE: &str = "Invite copied — keep this computer on until they join";
     const SPREAD_LINE: &str = "Invite copied — single use, valid for 24 h; send it privately";
 
     mod from_wire {
@@ -265,10 +268,7 @@ mod invite_reach {
         fn failed_copy_has_no_reach_warning() {
             let line = first_line_with(InviteNote::Failed(REASON_NO_TOOL), ServeNote::Idle);
 
-            assert_eq!(
-                line,
-                format!("Couldn't copy the invite: {REASON_NO_TOOL}")
-            );
+            assert_eq!(line, format!("Couldn't copy the invite: {REASON_NO_TOOL}"));
         }
     }
 

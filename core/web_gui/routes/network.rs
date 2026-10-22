@@ -8,9 +8,9 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::output::NET_NAME;
-use crate::web::http::json_err;
-use crate::web::{App, SaveKey};
+use crate::node::output::NET_NAME;
+use crate::web_gui::http::json_err;
+use crate::web_gui::{App, SaveKey};
 
 use super::helpers::{action_error, body_obj, invalid_key_response, map_string_field};
 
@@ -27,7 +27,7 @@ fn join_by_invite_response(app: &Arc<App>, text: &str, keep_ports: bool) -> Resp
         Ok(p) => p,
         Err(e) => return invalid_key_response(&e, &format!("{e:#}")),
     };
-    if let Err(e) = crate::invite::check_fresh(&parsed.head, crate::web::now_unix()) {
+    if let Err(e) = crate::invite::check_fresh(&parsed.head, crate::web_gui::now_unix()) {
         return invalid_key_response(&e, &format!("{e:#}"));
     }
     let label = parsed.head.label.clone();
@@ -60,7 +60,7 @@ pub(super) async fn network_join_handler(State(app): State<Arc<App>>, bytes: Byt
     if crate::invite::looks_like_invite(&key_or_invite) {
         return join_by_invite_response(&app, &key_or_invite, keep_ports);
     }
-    let input = match crate::network_key::parse_user_input(&key_or_invite) {
+    let input = match crate::members::network_key::parse_user_input(&key_or_invite) {
         Ok(i) => i,
         Err(e) => {
             return invalid_key_response(
@@ -84,10 +84,7 @@ pub(super) async fn network_join_handler(State(app): State<Arc<App>>, bytes: Byt
         .into_response()
 }
 
-pub(super) async fn network_create_handler(
-    State(app): State<Arc<App>>,
-    bytes: Bytes,
-) -> Response {
+pub(super) async fn network_create_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -97,7 +94,7 @@ pub(super) async fn network_create_handler(
         Err(resp) => return resp,
     };
     let keep_ports = wants_keep_ports(&map);
-    let label = match crate::network_key::normalize_label(&label_input) {
+    let label = match crate::members::network_key::normalize_label(&label_input) {
         Ok(l) => l,
         Err(e) => {
             let body = json!({
@@ -108,7 +105,7 @@ pub(super) async fn network_create_handler(
             return (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(body)).into_response();
         }
     };
-    let tail = match crate::words::generate_tail() {
+    let tail = match crate::members::words::generate_tail() {
         Ok(t) => t,
         Err(e) => {
             return json_err(
@@ -118,7 +115,7 @@ pub(super) async fn network_create_handler(
             )
         }
     };
-    let key = crate::network_key::format_key_string(Some(&label), &tail);
+    let key = crate::members::network_key::format_key_string(Some(&label), &tail);
     {
         let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
         if let Err(resp) = cfg.save_network_key(&key, keep_ports) {

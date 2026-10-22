@@ -8,10 +8,10 @@ use tokio::runtime::Handle;
 use tokio::sync::{mpsc, Notify};
 use tokio::time::Instant;
 
-use crate::config_file::Settings;
-use crate::net::PeerAddr;
+use crate::config::config_file::Settings;
 use crate::node::RunningNode;
-use crate::web::{ActionError, NodeStatus};
+use crate::transport::net::PeerAddr;
+use crate::web_gui::{ActionError, NodeStatus};
 
 use super::invite_wait::InviteWait;
 use super::live_paths::apply_pending_handles;
@@ -59,9 +59,9 @@ pub(super) struct NodeCtlState {
     /// Wait generation: `+1` for every new join by invite.
     pub(super) invite_gen: u64,
     /// The `mem` test network (from `Relaunch.test_net`): a temporary transport for joining by invite.
-    pub(super) test_net: Option<Arc<crate::net::mem::MemNet>>,
+    pub(super) test_net: Option<Arc<crate::transport::net::mem::MemNet>>,
     /// The node's permanent key (from `Relaunch.secret`): proves ownership when joining by invite.
-    pub(super) owner: Option<crate::net::NodeSecret>,
+    pub(super) owner: Option<crate::transport::net::NodeSecret>,
 }
 
 pub(super) struct NodeCtlShared {
@@ -122,14 +122,22 @@ impl NodeCtl {
 
     /// Remembers the `mem` test network for the temporary invite-join transport.
     #[doc(hidden)]
-    pub fn set_test_net(&self, net: Option<Arc<crate::net::mem::MemNet>>) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+    pub fn set_test_net(&self, net: Option<Arc<crate::transport::net::mem::MemNet>>) {
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.test_net = net;
     }
 
     /// Remembers the node's permanent key for joining by invite.
-    pub fn set_owner_secret(&self, secret: crate::net::NodeSecret) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+    pub fn set_owner_secret(&self, secret: crate::transport::net::NodeSecret) {
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.owner = Some(secret);
     }
 
@@ -138,7 +146,11 @@ impl NodeCtl {
     pub(crate) fn attach(&self, node: &RunningNode) {
         let node = Arc::new(node.clone());
         let (task_gen, pending, effective_settings) = {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             st.snapshot_gen += 1;
             st.node = Some(node.clone());
             st.cache = None;
@@ -147,15 +159,25 @@ impl NodeCtl {
             (st.snapshot_gen, pending, st.effective_settings.clone())
         };
         apply_pending_handles(&node, &pending, &effective_settings);
-        let task = self.rt.spawn(snapshot_task(self.ctl_shared.clone(), task_gen, node));
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let task = self
+            .rt
+            .spawn(snapshot_task(self.ctl_shared.clone(), task_gen, node));
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.task = Some(task);
     }
 
     /// The node goes away: the snapshot task is aborted, the state is cleared, the phase follows `next`
     /// (`Starting` — a new restart cycle, otherwise `Stopping`).
     pub(crate) fn detach(&self, next: NodeStatus) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.snapshot_gen += 1;
         if let Some(task) = st.task.take() {
             task.abort();
@@ -188,7 +210,11 @@ impl NodeCtl {
     /// After a successful `reload`: the effective settings are replaced with the new ones, deferred live
     /// paths are dropped (the new node is not up yet — there is nothing to apply them to).
     pub(crate) fn replace_effective_settings(&self, settings: &Settings) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.effective_settings = settings.clone();
         st.pending.clear();
     }
@@ -200,7 +226,11 @@ impl NodeCtl {
     }
 
     pub(super) fn request_stop(&self) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         st.phase = Phase::Stopping;
         super::invite_wait::cancel(&mut st);
         drop(st);
@@ -211,13 +241,17 @@ impl NodeCtl {
     /// rereads the config file and applies the CLI flags). Other phases — `Busy`.
     pub(super) fn request_restart(&self) -> Result<(), ActionError> {
         let key = {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             match st.phase {
                 Phase::Up => {}
                 Phase::NoNetwork => {
                     return Err(ActionError::Busy(format!(
                         "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
-                        crate::output::NET_NAME
+                        crate::node::output::NET_NAME
                     )))
                 }
                 Phase::Starting => return Err(ActionError::Busy("node is starting".to_string())),
@@ -240,14 +274,22 @@ impl NodeCtl {
     /// before the stamp moved out of `output`; do not make the first call conditional.
     pub(crate) fn renew_boot_stamp(&self) {
         let stamp = super::boot_stamp::BootStamp::new();
-        self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner()).boot = stamp;
+        self.ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .boot = stamp;
     }
 
     /// `NoNetwork → Starting`, leaves other phases alone. Called by `run_node_awaiting_key` before parsing
     /// the next `Switch` — "two joins in a row, the first did not parse" must not roll the phase
     /// back to `NoNetwork` in the middle of parsing the second.
     pub(crate) fn mark_starting(&self) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if matches!(st.phase, Phase::NoNetwork) {
             st.phase = Phase::Starting;
         }
@@ -256,7 +298,11 @@ impl NodeCtl {
     /// `Starting → NoNetwork`, leaves `Stopping` and `Up` alone (if behind a failed `Switch` in the
     /// queue a `Stop` already sits, the "stopping" display must not change to "waiting for a network").
     pub(crate) fn mark_no_network(&self) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if matches!(st.phase, Phase::Starting) {
             st.phase = Phase::NoNetwork;
         }
@@ -265,11 +311,15 @@ impl NodeCtl {
     /// Action gates: `NoNetwork` → the node is not on a network yet; `Starting`, or `Up` without a ready
     /// snapshot → busy "starting"; `Stopping` → busy "stopping"; otherwise a clone of the node.
     pub(super) fn running_node_for_action(&self) -> Result<Arc<RunningNode>, ActionError> {
-        let st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         match st.phase {
             Phase::NoNetwork => Err(ActionError::Busy(format!(
                 "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
-                crate::output::NET_NAME
+                crate::node::output::NET_NAME
             ))),
             Phase::Starting => Err(ActionError::Busy("node is starting".to_string())),
             Phase::Stopping => Err(ActionError::Busy("node is stopping".to_string())),
@@ -285,8 +335,15 @@ impl NodeCtl {
 
     /// Known domain names from the last collection — only for the `check_domain`/`check_all` gates.
     pub(super) fn known_domains(&self) -> Vec<String> {
-        let st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
-        st.cache.as_ref().map(|c| c.domains.clone()).unwrap_or_default()
+        let st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        st.cache
+            .as_ref()
+            .map(|c| c.domains.clone())
+            .unwrap_or_default()
     }
 }
 

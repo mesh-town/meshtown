@@ -3,12 +3,12 @@
 
 use std::sync::Arc;
 
-use crate::access::actions::{apply, ActionRefusal, MemberAction};
-use crate::access::report::members_reply;
-use crate::access::view::Verdicts;
-use crate::net::PeerId;
+use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
+use crate::members::access::report::members_reply;
+use crate::members::access::view::Verdicts;
 use crate::node::RunningNode;
-use crate::web::{ActionError, MemberActionReq, MemberError, MemberFuture, MembersReply};
+use crate::transport::net::PeerId;
+use crate::web_gui::{ActionError, MemberActionReq, MemberError, MemberFuture, MembersReply};
 
 use super::state::NodeCtl;
 
@@ -37,7 +37,9 @@ fn failed(e: MemberError) -> MemberFuture {
 }
 
 fn invalid(what: &str) -> MemberError {
-    MemberError::Action(ActionError::Invalid(format!("{what}: a full node id (64 hex digits) is needed")))
+    MemberError::Action(ActionError::Invalid(format!(
+        "{what}: a full node id (64 hex digits) is needed"
+    )))
 }
 
 fn parse_id(id: &str) -> Result<PeerId, MemberError> {
@@ -47,7 +49,9 @@ fn parse_id(id: &str) -> Result<PeerId, MemberError> {
 /// The page request as a list action; a bad id is `Invalid`.
 pub(super) fn parse_action(req: MemberActionReq) -> Result<MemberAction, MemberError> {
     match req {
-        MemberActionReq::Exclude { id, reason } => Ok(MemberAction::Exclude(parse_id(&id)?, reason)),
+        MemberActionReq::Exclude { id, reason } => {
+            Ok(MemberAction::Exclude(parse_id(&id)?, reason))
+        }
         MemberActionReq::Unexclude(id) => Ok(MemberAction::Unexclude(parse_id(&id)?)),
         MemberActionReq::Admit(id) => Ok(MemberAction::Admit(parse_id(&id)?)),
         MemberActionReq::Unadmit(id) => Ok(MemberAction::Unadmit(parse_id(&id)?)),
@@ -58,7 +62,10 @@ pub(super) fn parse_action(req: MemberActionReq) -> Result<MemberAction, MemberE
 }
 
 fn refused(code: &'static str, message: &str) -> MemberError {
-    MemberError::Refused { code, message: message.to_string() }
+    MemberError::Refused {
+        code,
+        message: message.to_string(),
+    }
 }
 
 /// A refusal of the action as the page error: a code with a message, or an internal failure.
@@ -67,10 +74,13 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
         ActionRefusal::SelfTarget => refused("self_target", "this is your own node"),
         ActionRefusal::NotMember => refused("not_member", "the node is not in the list"),
         ActionRefusal::Left => refused("left", "this node has left the network"),
-        ActionRefusal::NotPending => refused("not_pending", "This node isn't waiting for confirmation"),
-        ActionRefusal::NotConfirmed => {
-            refused("not_confirmed", "You haven't confirmed this node, or it has already joined")
+        ActionRefusal::NotPending => {
+            refused("not_pending", "This node isn't waiting for confirmation")
         }
+        ActionRefusal::NotConfirmed => refused(
+            "not_confirmed",
+            "You haven't confirmed this node, or it has already joined",
+        ),
         ActionRefusal::Write(m) => MemberError::Action(ActionError::Internal(m)),
     }
 }
@@ -82,14 +92,23 @@ async fn run_action(node: &RunningNode, act: MemberAction) -> Result<MembersRepl
 
 async fn reply_of(node: &RunningNode, changed: Option<bool>) -> Result<MembersReply, MemberError> {
     let v = verdicts_of(node).await?;
-    Ok(members_reply(&v, &node.members, &node.access.view.refusals(), changed))
+    Ok(members_reply(
+        &v,
+        &node.members,
+        &node.access.view.refusals(),
+        changed,
+    ))
 }
 
 /// The published verdicts, or a fresh recompute when nothing is published yet.
 async fn verdicts_of(node: &RunningNode) -> Result<Arc<Verdicts>, MemberError> {
     match node.access.view.verdicts() {
         Some(v) => Ok(v),
-        None => node.access.refresh().await.map_err(|e| MemberError::Action(ActionError::Internal(e.to_string()))),
+        None => node
+            .access
+            .refresh()
+            .await
+            .map_err(|e| MemberError::Action(ActionError::Internal(e.to_string()))),
     }
 }
 

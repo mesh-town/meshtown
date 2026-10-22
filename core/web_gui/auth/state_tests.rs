@@ -16,7 +16,10 @@ fn temp_dir() -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!("mesh-auth-state-{}-{nanos}-{seq}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-auth-state-{}-{nanos}-{seq}",
+        std::process::id()
+    ));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -133,7 +136,10 @@ mod port_80 {
         let dir = temp_dir();
         write_password(&dir, 0o600);
         let st = state(Some(dir));
-        assert_eq!(st.issue_entry_urls(80), vec!["http://127.0.0.1/".to_string()]);
+        assert_eq!(
+            st.issue_entry_urls(80),
+            vec!["http://127.0.0.1/".to_string()]
+        );
     }
 }
 
@@ -185,8 +191,8 @@ mod set_access {
 
 mod ifaces {
     use super::*;
-    use crate::web::auth::iface_os::view_from;
-    use crate::web::http::ConnInfo;
+    use crate::web_gui::auth::iface_os::view_from;
+    use crate::web_gui::http::ConnInfo;
 
     fn ip(s: &str) -> Ipv4Addr {
         s.parse().unwrap()
@@ -202,7 +208,10 @@ mod ifaces {
     }
 
     fn conn(peer: &str, local: &str) -> ConnInfo {
-        ConnInfo { client_addr: peer.parse().unwrap(), local: local.parse().unwrap() }
+        ConnInfo {
+            client_addr: peer.parse().unwrap(),
+            local: local.parse().unwrap(),
+        }
     }
 
     fn state(mode: ListenAccess) -> AuthState {

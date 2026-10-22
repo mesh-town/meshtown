@@ -15,7 +15,7 @@ pub struct WebOptions {
 }
 
 impl WebOptions {
-    pub fn for_run(run_config: &crate::config_file::RunConfig) -> WebOptions {
+    pub fn for_run(run_config: &crate::config::config_file::RunConfig) -> WebOptions {
         WebOptions {
             enabled: run_config.effective_settings.process.web_enabled,
             port: run_config.effective_settings.process.web_port,
@@ -64,12 +64,12 @@ impl WebShared {
     }
 
     /// Stores the new `web.access`; narrowing takes effect immediately, widening after a restart.
-    pub(crate) fn set_access(&self, mode: crate::config_file::ListenAccess) {
+    pub(crate) fn set_access(&self, mode: crate::config::config_file::ListenAccess) {
         self.auth.set_access(mode);
     }
 
     /// Stores the new `web.ifaces`; takes effect immediately.
-    pub(crate) fn set_ifaces(&self, filter: crate::config_file::IfaceFilter) {
+    pub(crate) fn set_ifaces(&self, filter: crate::config::config_file::IfaceFilter) {
         self.auth.set_ifaces(filter);
     }
 

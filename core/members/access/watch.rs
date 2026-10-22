@@ -11,8 +11,8 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::task::AbortHandle;
 
-use crate::net::ReplicaEvent;
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::ReplicaEvent;
 
 use super::runtime::Access;
 
@@ -52,7 +52,11 @@ async fn refresh_logged(access: &Access) {
 }
 
 /// Waits for the next reason to recompute; `false` — a replica is gone, stop.
-async fn next_wake(shared: &mut Receiver<ReplicaEvent>, own: &mut Receiver<ReplicaEvent>, tick: &mut tokio::time::Interval) -> bool {
+async fn next_wake(
+    shared: &mut Receiver<ReplicaEvent>,
+    own: &mut Receiver<ReplicaEvent>,
+    tick: &mut tokio::time::Interval,
+) -> bool {
     loop {
         let wake = tokio::select! {
             e = shared.recv() => wake_of(e),

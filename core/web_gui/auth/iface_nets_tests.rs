@@ -1,7 +1,7 @@
 use std::net::Ipv4Addr;
 
 use super::*;
-use crate::web::auth::iface_os::view_from;
+use crate::web_gui::auth::iface_os::view_from;
 
 fn ip(s: &str) -> Ipv4Addr {
     s.parse().unwrap()
@@ -30,7 +30,9 @@ fn only(names: &[&str]) -> IfaceFilter {
 const NET: ListenAccess = ListenAccess::Localnet;
 
 fn flags(list: &[NetEntry]) -> Vec<(&str, bool, By)> {
-    list.iter().map(|e| (e.name.as_str(), e.open, e.by)).collect()
+    list.iter()
+        .map(|e| (e.name.as_str(), e.open, e.by))
+        .collect()
 }
 
 #[test]
@@ -71,7 +73,11 @@ fn missing_name_is_absent_entry() {
 fn any_and_localhost() {
     let any = networks(NET, &IfaceFilter::Any, &travel_router());
     assert!(any.iter().all(|e| e.open && e.by == By::List));
-    let none = networks(ListenAccess::Localhost, &IfaceFilter::Auto, &travel_router());
+    let none = networks(
+        ListenAccess::Localhost,
+        &IfaceFilter::Auto,
+        &travel_router(),
+    );
     assert!(none.iter().all(|e| !e.open && e.by == By::None));
 }
 
@@ -107,7 +113,16 @@ fn admitted_lan_cases() {
     assert_eq!(names(auto), ["br-guest", "br-lan"]);
     let one = admitted_lan(NET, &only(&["br-lan"]), &travel_router(), lan());
     assert_eq!(names(one), ["br-lan"]);
-    assert!(admitted_lan(ListenAccess::Localhost, &IfaceFilter::Auto, &travel_router(), lan()).is_empty());
+    assert!(admitted_lan(
+        ListenAccess::Localhost,
+        &IfaceFilter::Auto,
+        &travel_router(),
+        lan()
+    )
+    .is_empty());
     let plain = view_from(travel_router_rows(), Some(ip("192.168.1.100")), false);
-    assert_eq!(admitted_lan(NET, &IfaceFilter::Auto, &plain, lan()).len(), 3);
+    assert_eq!(
+        admitted_lan(NET, &IfaceFilter::Auto, &plain, lan()).len(),
+        3
+    );
 }

@@ -4,8 +4,10 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::net::facade::test_support::{pid, secret, within, Probe};
-use crate::net::{MemNet, NetStack, NetStackBuilder, PeerConn, PeerId, ServiceHandler, PORT};
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe};
+use crate::transport::net::{
+    MemNet, NetStack, NetStackBuilder, PeerConn, PeerId, ServiceHandler, PORT,
+};
 use tokio::net::TcpListener;
 use tokio::time::timeout;
 
@@ -17,12 +19,18 @@ fn me() -> PeerId {
 
 #[test]
 fn admit_refuses_non_member() {
-    assert_eq!(admit_port_request(false, Some(&Audience::All), &me()), Err(PORT_CODE_REFUSED));
+    assert_eq!(
+        admit_port_request(false, Some(&Audience::All), &me()),
+        Err(PORT_CODE_REFUSED)
+    );
 }
 
 #[test]
 fn admit_not_published() {
-    assert_eq!(admit_port_request(true, None, &me()), Err(PORT_CODE_NOT_PUBLISHED));
+    assert_eq!(
+        admit_port_request(true, None, &me()),
+        Err(PORT_CODE_NOT_PUBLISHED)
+    );
 }
 
 #[test]
@@ -34,13 +42,19 @@ fn admit_nodes_lets_listed_peer() {
 #[test]
 fn admit_nodes_refuses_unlisted_peer() {
     let a = Audience::Nodes(vec![pid(8)]);
-    assert_eq!(admit_port_request(true, Some(&a), &me()), Err(PORT_CODE_REFUSED));
+    assert_eq!(
+        admit_port_request(true, Some(&a), &me()),
+        Err(PORT_CODE_REFUSED)
+    );
 }
 
 #[test]
 fn admit_empty_nodes_refuses() {
     let a = Audience::Nodes(vec![]);
-    assert_eq!(admit_port_request(true, Some(&a), &me()), Err(PORT_CODE_REFUSED));
+    assert_eq!(
+        admit_port_request(true, Some(&a), &me()),
+        Err(PORT_CODE_REFUSED)
+    );
 }
 
 #[test]
@@ -52,17 +66,26 @@ fn admit_nodes_with_repeats_lets_listed() {
 #[test]
 fn admit_listed_non_member_refused() {
     let a = Audience::Nodes(vec![me()]);
-    assert_eq!(admit_port_request(false, Some(&a), &me()), Err(PORT_CODE_REFUSED));
+    assert_eq!(
+        admit_port_request(false, Some(&a), &me()),
+        Err(PORT_CODE_REFUSED)
+    );
 }
 
 #[test]
 fn admit_non_member_unpublished_refused() {
-    assert_eq!(admit_port_request(false, None, &me()), Err(PORT_CODE_REFUSED));
+    assert_eq!(
+        admit_port_request(false, None, &me()),
+        Err(PORT_CODE_REFUSED)
+    );
 }
 
 #[test]
 fn admit_all_is_ok() {
-    assert_eq!(admit_port_request(true, Some(&Audience::All), &me()), Ok(()));
+    assert_eq!(
+        admit_port_request(true, Some(&Audience::All), &me()),
+        Ok(())
+    );
 }
 
 #[tokio::test]

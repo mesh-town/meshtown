@@ -9,11 +9,11 @@
 
 use std::collections::HashMap;
 
-use crate::net::{NetError, PeerId, Replica};
+use crate::transport::net::{NetError, PeerId, Replica};
 use anyhow::Result;
 use bytes::Bytes;
 
-use crate::node_state::{own_value, read_values};
+use crate::node::node_state::{own_value, read_values};
 
 use super::country::Country;
 

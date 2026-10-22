@@ -11,9 +11,9 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::tray_actions::InviteReach;
-use crate::app::tray_role::start_fail::StartFail;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::tray_actions::InviteReach;
+use crate::gui::tray::app::tray_role::start_fail::StartFail;
 
 // Invite reach: the node puts `reach` in the reply, the poller turns it into `InviteReach`
 // and shows it together with the "copied" note. Anything that is not `issuer_only` or `issuer_and_one`
@@ -79,7 +79,10 @@ mod reach_from_reply {
 
         #[test]
         fn busy_409_is_spread() {
-            assert_eq!(reach_from(&Ok(Reply::OtherStatus(409))), InviteReach::Spread);
+            assert_eq!(
+                reach_from(&Ok(Reply::OtherStatus(409))),
+                InviteReach::Spread
+            );
         }
 
         #[test]
@@ -142,7 +145,10 @@ mod click_by_reach {
             let click = setup(node_says("issuer_only"), Clipboard::Refuses).await;
 
             assert_eq!(click.notes, vec![InviteNote::Failed(REASON_CLIP_FAILED)]);
-            assert!(click.copied.is_empty(), "a refusing clipboard accepted nothing");
+            assert!(
+                click.copied.is_empty(),
+                "a refusing clipboard accepted nothing"
+            );
         }
     }
 

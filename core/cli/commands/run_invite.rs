@@ -1,15 +1,15 @@
 //! Joining by invite in the `run` command: decides whether to spend the invite, waits for the network key from
 //! members and writes the received key to the settings file.
-//! What it does not do: start the node or parse the invite string (that is `meshtown::invite`).
+//! What it does not do: start the node or parse the invite string (that is `crate::invite`).
 
+use portable_atomic::AtomicU64;
 use std::path::Path;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 
-use meshtown::config_file::{self, LoadedConfigFile, RunConfig, SaveError, Settings};
-use meshtown::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
-use meshtown::invite::{check_fresh, same_network, ParsedInvite};
-use meshtown::output::{say, NET_NAME};
+use crate::config::config_file::{self, LoadedConfigFile, RunConfig, SaveError, Settings};
+use crate::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
+use crate::invite::{check_fresh, same_network, ParsedInvite};
+use crate::node::output::{say, NET_NAME};
 
 /// What to do with the invite in this run.
 pub(crate) enum InviteStep {
@@ -21,7 +21,8 @@ pub(crate) enum InviteStep {
     Redeem(ParsedInvite),
 }
 
-const TEXT_WAITING: &str = "Waiting for network members: as soon as anyone from the invite is online, \
+const TEXT_WAITING: &str =
+    "Waiting for network members: as soon as anyone from the invite is online, \
 the node will join the network.";
 
 /// Decides the fate of the invite before any trip to the network. A refusal does not spend the invite.
@@ -92,7 +93,10 @@ pub(crate) async fn settle_invite(
     }
     match step {
         InviteStep::None => {}
-        InviteStep::KeepKey => say("invite", "this network's key is already known; the invite was not spent"),
+        InviteStep::KeepKey => say(
+            "invite",
+            "this network's key is already known; the invite was not spent",
+        ),
         InviteStep::Redeem(p) => redeem_for_run(&p, run, now).await?,
     }
     Ok(inv)
@@ -108,7 +112,7 @@ pub(crate) async fn redeem_for_run(
     let opts = RedeemOpts::for_head(&p.head, run.effective_settings.net.uses_relay());
     let last = AtomicU64::new(0);
     let note = move |pr: Progress| report_progress(&last, pr);
-    let transport = meshtown::node::bind_ephemeral(None)
+    let transport = crate::node::bind_ephemeral(None)
         .await
         .map_err(|e| RedeemError::Bind(format!("{e:#}")))?;
     let key = redeem(&p.head, &p.peers, &opts, &note, transport, &run.secret).await?;
@@ -128,7 +132,10 @@ fn report_progress(last: &AtomicU64, pr: Progress) {
     }
     say(
         "invite",
-        format!("members haven't answered yet; next attempt in {} s", pause.as_secs()),
+        format!(
+            "members haven't answered yet; next attempt in {} s",
+            pause.as_secs()
+        ),
     );
 }
 
@@ -178,7 +185,9 @@ fn write_key(
             let floor = run.file_report.rev;
             config_file::save_with_floor(path, None, floor, now, &run.secret, &s).map(|r| (r, s))
         }
-        LoadedConfigFile::Unreadable(m) | LoadedConfigFile::Invalid(m) => return Err(format!("file is unreadable: {m}")),
+        LoadedConfigFile::Unreadable(m) | LoadedConfigFile::Invalid(m) => {
+            return Err(format!("file is unreadable: {m}"))
+        }
     };
     saved.map_err(save_text)
 }

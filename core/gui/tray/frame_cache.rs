@@ -5,8 +5,8 @@
 //! highlighted sector, and forgets everything when the ring changes. What it does not do: it builds nothing
 //! itself (the caller passes the builder) and knows nothing about the tray.
 
-use crate::app::view_picture::IconPicture;
-use crate::app::view_ring::Ring;
+use crate::gui::tray::app::view_picture::IconPicture;
+use crate::gui::tray::app::view_ring::Ring;
 
 /// Built frames by picture; `ring` is the ring they were built for.
 pub(super) struct FrameCache<T> {
@@ -16,7 +16,10 @@ pub(super) struct FrameCache<T> {
 
 impl<T: Clone> FrameCache<T> {
     pub(super) fn new() -> Self {
-        FrameCache { ring: None, frames: Vec::new() }
+        FrameCache {
+            ring: None,
+            frames: Vec::new(),
+        }
     }
 
     /// The value for `key`: a picture without a highlight is built without caching; a new ring clears the cache;

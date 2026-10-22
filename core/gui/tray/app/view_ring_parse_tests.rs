@@ -5,10 +5,17 @@ use serde_json::json;
 
 /// A shim with the old name: tests supply JSON, the code reads the selection.
 fn ring_from_json(value: &serde_json::Value) -> Ring {
-    ring_of(&crate::app::snapshot::TraySnapshot::from_value(value))
+    ring_of(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
-const ALL_ROLES: [RingRole; 4] = [RingRole::ActiveExit, RingRole::ExitClient, RingRole::Online, RingRole::Offline];
+const ALL_ROLES: [RingRole; 4] = [
+    RingRole::ActiveExit,
+    RingRole::ExitClient,
+    RingRole::Online,
+    RingRole::Offline,
+];
 
 /// Roles in sector order.
 fn roles_of(ring: Ring) -> Vec<RingRole> {
@@ -61,7 +68,10 @@ mod ring_from_json_parse {
         ];
         let exits = json!([chosen("idA", Some(false)), chosen("idB", Some(true))]);
         let ring = ring_from_json(&state(peers, exit_route(exits)));
-        assert_eq!(roles_of(ring), [RingRole::ActiveExit, RingRole::Online, RingRole::Offline]);
+        assert_eq!(
+            roles_of(ring),
+            [RingRole::ActiveExit, RingRole::Online, RingRole::Offline]
+        );
     }
 
     #[test]
@@ -102,7 +112,10 @@ mod ring_from_json_parse {
         let peers = vec![peer("idA", true), peer("idB", true)];
         let exits = json!([chosen("idZ", Some(true))]);
         let ring = ring_from_json(&state(peers, exit_route(exits)));
-        assert_eq!(roles_of(ring), [RingRole::ActiveExit, RingRole::Online, RingRole::Online]);
+        assert_eq!(
+            roles_of(ring),
+            [RingRole::ActiveExit, RingRole::Online, RingRole::Online]
+        );
     }
 
     #[test]
@@ -233,7 +246,7 @@ mod exit_clients_parse {
 /// `exit.clients`, `peers[].id_full`, `peers[].self`, `peers[].online` in the snapshot breaks these tests.
 mod ring_from_real_snapshot {
     use super::*;
-    use meshtown::web::{ExitInfo, NodeSnapshot, PeerInfo};
+    use crate::web_gui::{ExitInfo, NodeSnapshot, PeerInfo};
 
     const ME: &str = "aa00bb11cc22dd33";
     const A: &str = "a1a1a1a1a1a1a1a1";
@@ -259,7 +272,12 @@ mod ring_from_real_snapshot {
                 domains: 2,
                 clients: clients.iter().map(|id| id.to_string()).collect(),
             },
-            peers: vec![member(ME, true), member(A, false), member(B, false), member(C, false)],
+            peers: vec![
+                member(ME, true),
+                member(A, false),
+                member(B, false),
+                member(C, false),
+            ],
             ..Default::default()
         }
     }
@@ -273,26 +291,56 @@ mod ring_from_real_snapshot {
     #[test]
     fn serialized_clients_become_purple_sectors() {
         let state = over_the_wire(&snapshot_with(&[A, C]));
-        assert!(state["exit"]["clients"].is_array(), "the snapshot lost exit.clients as an array");
+        assert!(
+            state["exit"]["clients"].is_array(),
+            "the snapshot lost exit.clients as an array"
+        );
         let ring = ring_from_json(&state);
-        assert_eq!(ring.len(), 3, "the node itself is not in the ring, the other three are");
-        assert_eq!(ring.count(RingRole::ExitClient), 2, "A and C from exit.clients are violet");
-        assert_eq!(ring.count(RingRole::Online), 1, "B is outside the list — just online");
-        assert_eq!(roles_of(ring), [RingRole::ExitClient, RingRole::ExitClient, RingRole::Online]);
+        assert_eq!(
+            ring.len(),
+            3,
+            "the node itself is not in the ring, the other three are"
+        );
+        assert_eq!(
+            ring.count(RingRole::ExitClient),
+            2,
+            "A and C from exit.clients are violet"
+        );
+        assert_eq!(
+            ring.count(RingRole::Online),
+            1,
+            "B is outside the list — just online"
+        );
+        assert_eq!(
+            roles_of(ring),
+            [RingRole::ExitClient, RingRole::ExitClient, RingRole::Online]
+        );
     }
 
     #[test]
     fn serialized_peer_outside_clients_is_not_purple() {
         let state = over_the_wire(&snapshot_with(&[B]));
         let ring = ring_from_json(&state);
-        assert_eq!(ring.count(RingRole::ExitClient), 1, "only B from exit.clients");
-        assert_eq!(ring.count(RingRole::Online), 2, "A and C are outside the list — online");
+        assert_eq!(
+            ring.count(RingRole::ExitClient),
+            1,
+            "only B from exit.clients"
+        );
+        assert_eq!(
+            ring.count(RingRole::Online),
+            2,
+            "A and C are outside the list — online"
+        );
     }
 
     #[test]
     fn serialized_empty_clients_have_no_purple() {
         let state = over_the_wire(&snapshot_with(&[]));
-        assert_eq!(state["exit"]["clients"], json!([]), "the field is always there, an empty array");
+        assert_eq!(
+            state["exit"]["clients"],
+            json!([]),
+            "the field is always there, an empty array"
+        );
         let ring = ring_from_json(&state);
         assert_eq!(ring.count(RingRole::ExitClient), 0);
         assert_eq!(ring.count(RingRole::Online), 3);

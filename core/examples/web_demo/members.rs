@@ -1,7 +1,7 @@
 //! Member list of the demo node: five fixed members and the rules of the member actions
 //! (exclusion votes, blocks, leaving). The JSON shape is built in `members_reply.rs`.
 
-use meshtown::web::{ActionError, MemberActionReq, MemberError};
+use meshtown_core::web_gui::{ActionError, MemberActionReq, MemberError};
 
 use crate::node::{DemoNetworkOptions, DemoPeer};
 
@@ -52,7 +52,17 @@ fn fake_id(byte: &str) -> String {
 }
 
 fn entry(id_full: String, id: String, name: &str, online: bool, standing: Standing) -> Entry {
-    Entry { id_full, id, name: Some(name.to_string()), online, standing, voters: Vec::new(), blocked: false, reason: None, label: None }
+    Entry {
+        id_full,
+        id,
+        name: Some(name.to_string()),
+        online,
+        standing,
+        voters: Vec::new(),
+        blocked: false,
+        reason: None,
+        label: None,
+    }
 }
 
 fn is_full_id(s: &str) -> bool {
@@ -60,7 +70,10 @@ fn is_full_id(s: &str) -> bool {
 }
 
 fn refused(code: &'static str, message: &str) -> MemberError {
-    MemberError::Refused { code, message: message.to_string() }
+    MemberError::Refused {
+        code,
+        message: message.to_string(),
+    }
 }
 
 fn target_of(act: &MemberActionReq) -> Option<&str> {
@@ -75,59 +88,124 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
     }
 }
 
+/// Appends the removed member, the node that is not in the list and, if asked, the pending one.
+fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
+    let id3 = fake_id("a3");
+    entries.push(entry(
+        id3.clone(),
+        id3[..8].to_string(),
+        "peer-three",
+        false,
+        Standing::Excluded(gone),
+    ));
+    let id4 = fake_id("b4");
+    entries.push(entry(
+        id4.clone(),
+        id4[..8].to_string(),
+        "stray-laptop",
+        false,
+        Standing::Unlisted,
+    ));
+    if with_pending {
+        let mut anna = entry(
+            fake_id("c5"),
+            "c5c5c5c5".to_string(),
+            "anna-laptop",
+            true,
+            Standing::Pending,
+        );
+        anna.label = Some("Anna's laptop".to_string());
+        entries.push(anna);
+    }
+}
+
 impl DemoMembers {
     /// You, `peer-one` (ordinary), `peer-two` (somebody else's removal proposal waits for a second voter),
     /// `peer-three` (removed by votes) and `stray-laptop` (not in the list); with `--members-pending` also
     /// `anna-laptop`, which `peer-one` has confirmed.
     pub(crate) fn new(peers: &[DemoPeer], opts: &DemoNetworkOptions) -> Self {
         let (second_vote, me_excluded) = (opts.members_second_vote, opts.me_excluded);
-        let mut entries = vec![entry(ME.to_string(), "".to_string(), "finch-unwary", true, Standing::Member)];
+        let mut entries = vec![entry(
+            ME.to_string(),
+            "".to_string(),
+            "finch-unwary",
+            true,
+            Standing::Member,
+        )];
         entries.extend(peers.iter().map(|p| {
             let name = p.name.clone().unwrap_or_default();
-            entry(p.id_full.to_string(), p.id.clone(), &name, p.online, Standing::Member)
+            entry(
+                p.id_full.to_string(),
+                p.id.clone(),
+                &name,
+                p.online,
+                Standing::Member,
+            )
         }));
         let ids: Vec<String> = entries.iter().skip(1).map(|e| e.id_full.clone()).collect();
         if let [one, _] = ids.as_slice() {
             entries[2].voters = vec![one.clone()];
             entries[2].reason = Some("lost laptop".to_string());
         }
-        let gone = Exit { how: "votes", voters: ids.clone() };
-        let id3 = fake_id("a3");
-        entries.push(entry(id3.clone(), id3[..8].to_string(), "peer-three", false, Standing::Excluded(gone)));
-        let id4 = fake_id("b4");
-        entries.push(entry(id4.clone(), id4[..8].to_string(), "stray-laptop", false, Standing::Unlisted));
-        if opts.members_pending {
-            let mut anna = entry(fake_id("c5"), "c5c5c5c5".to_string(), "anna-laptop", true, Standing::Pending);
-            anna.label = Some("Anna's laptop".to_string());
-            entries.push(anna);
-        }
-        let mut members = DemoMembers { me_excluded: false, me_pending: opts.me_pending, second_vote, entries };
+        let gone = Exit {
+            how: "votes",
+            voters: ids.clone(),
+        };
+        push_outsiders(&mut entries, gone, opts.members_pending);
+        let mut members = DemoMembers {
+            me_excluded: false,
+            me_pending: opts.me_pending,
+            second_vote,
+            entries,
+        };
         if me_excluded {
-            members.remove_me(Exit { how: "votes", voters: ids.into_iter().take(1).collect() });
+            members.remove_me(Exit {
+                how: "votes",
+                voters: ids.into_iter().take(1).collect(),
+            });
         }
         members
     }
 
     /// Votes needed now: 1 while at most two members are in the list, otherwise 2.
     pub(crate) fn need(&self) -> u8 {
-        let n = self.entries.iter().filter(|e| matches!(e.standing, Standing::Member)).count();
-        if n <= 2 { 1 } else { 2 }
+        let n = self
+            .entries
+            .iter()
+            .filter(|e| matches!(e.standing, Standing::Member))
+            .count();
+        if n <= 2 {
+            1
+        } else {
+            2
+        }
     }
 
     /// Applies an action; `Ok(changed)`.
     pub(crate) fn apply(&mut self, act: &MemberActionReq) -> Result<bool, MemberError> {
-        let Some(id) = target_of(act) else { return Ok(self.leave()) };
+        let Some(id) = target_of(act) else {
+            return Ok(self.leave());
+        };
         if self.me_excluded {
             return Err(refused("left", LOST_MSG));
         }
         if !is_full_id(id) {
-            return Err(MemberError::Action(ActionError::Invalid("id must be 64 hex digits".to_string())));
+            return Err(MemberError::Action(ActionError::Invalid(
+                "id must be 64 hex digits".to_string(),
+            )));
         }
-        let at = self.entries.iter().position(|e| e.id_full == id.to_ascii_lowercase());
+        let at = self
+            .entries
+            .iter()
+            .position(|e| e.id_full == id.to_ascii_lowercase());
         match (act, at) {
             (MemberActionReq::Unblock(_), None) => Ok(false),
-            (_, None) => Err(MemberError::Action(ActionError::NotFound("no such member".to_string()))),
-            (_, Some(i)) if self.entries[i].id_full == ME => Err(refused("self_target", "use Leave for this computer")),
+            (_, None) => Err(MemberError::Action(ActionError::NotFound(
+                "no such member".to_string(),
+            ))),
+            (_, Some(i)) if self.entries[i].id_full == ME => {
+                Err(refused("self_target", "use Leave for this computer"))
+            }
             (MemberActionReq::Exclude { reason, .. }, Some(i)) => self.exclude(i, reason.clone()),
             (MemberActionReq::Unexclude(_), Some(i)) => Ok(self.unexclude(i)),
             (MemberActionReq::Admit(_), Some(i)) => self.admit(i),
@@ -141,7 +219,10 @@ impl DemoMembers {
     fn admit(&mut self, i: usize) -> Result<bool, MemberError> {
         let e = &mut self.entries[i];
         if !matches!(e.standing, Standing::Pending) || e.voters.iter().any(|v| v == ME) {
-            return Err(refused("not_pending", "This node isn't waiting for confirmation"));
+            return Err(refused(
+                "not_pending",
+                "This node isn't waiting for confirmation",
+            ));
         }
         e.voters.push(ME.to_string());
         e.standing = Standing::Member;
@@ -153,7 +234,10 @@ impl DemoMembers {
         let e = &mut self.entries[i];
         let mine = matches!(e.standing, Standing::Pending) && e.voters.iter().any(|v| v == ME);
         if !mine {
-            return Err(refused("not_confirmed", "You haven't confirmed this node, or it has already joined"));
+            return Err(refused(
+                "not_confirmed",
+                "You haven't confirmed this node, or it has already joined",
+            ));
         }
         e.voters.retain(|v| v != ME);
         Ok(true)
@@ -161,7 +245,10 @@ impl DemoMembers {
 
     fn leave(&mut self) -> bool {
         let done = !self.me_excluded;
-        self.remove_me(Exit { how: "left", voters: vec![ME.to_string()] });
+        self.remove_me(Exit {
+            how: "left",
+            voters: vec![ME.to_string()],
+        });
         done
     }
 
@@ -200,7 +287,10 @@ impl DemoMembers {
         }
         let have = self.entries[i].voters.clone();
         let other = self.entries.iter().enumerate().find(|(j, e)| {
-            *j != i && e.id_full != ME && matches!(e.standing, Standing::Member) && !have.contains(&e.id_full)
+            *j != i
+                && e.id_full != ME
+                && matches!(e.standing, Standing::Member)
+                && !have.contains(&e.id_full)
         });
         if let Some((_, e)) = other {
             let id = e.id_full.clone();
@@ -216,7 +306,10 @@ impl DemoMembers {
         });
         let Some(i) = hit else { return };
         let voters = std::mem::take(&mut self.entries[i].voters);
-        self.entries[i].standing = Standing::Excluded(Exit { how: "votes", voters });
+        self.entries[i].standing = Standing::Excluded(Exit {
+            how: "votes",
+            voters,
+        });
         self.settle();
     }
 

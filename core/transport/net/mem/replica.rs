@@ -2,11 +2,13 @@
 //! Peers are weak references: replicas do not keep each other alive.
 
 use super::sync_hub::MemSyncNet;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::replica::{ReplicaEntry, Replica, ReplicaEvent, ReplicaId, SyncCount, MAX_VALUE_BYTES};
-use crate::net::stream::BoxFuture;
-use crate::net::sync_backend::REPLICA_DOMAINS;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::{
+    Replica, ReplicaEntry, ReplicaEvent, ReplicaId, SyncCount, MAX_VALUE_BYTES,
+};
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync_backend::REPLICA_DOMAINS;
 use bytes::Bytes;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};

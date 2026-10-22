@@ -2,9 +2,9 @@
 
 use super::entry::WireEntry;
 use super::state::WriterSum;
-use crate::net::error::{NetError, NetResult};
-use crate::net::replica::ReplicaId;
-use crate::sync::flood::wire::MAX_BODY_BYTES;
+use crate::members::sync::flood::wire::MAX_BODY_BYTES;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::replica::ReplicaId;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 use std::io::{Error, ErrorKind};

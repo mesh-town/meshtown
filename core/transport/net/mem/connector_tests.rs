@@ -1,8 +1,8 @@
 //! Tests of the `mem` connector (`connector.rs`): address, `dial`/`listen`, a foreign key, closing.
 
-use crate::net::mem::hub::{decode_hint, encode_hint};
-use crate::net::mem::{MemConnector, MemNet, MEM_HINT_KIND};
-use crate::net::{
+use crate::transport::net::mem::hub::{decode_hint, encode_hint};
+use crate::transport::net::mem::{MemConnector, MemNet, MEM_HINT_KIND};
+use crate::transport::net::{
     AddrHint, Connector, NetError, NetInfo, NodeSecret, PacketPath, PathKind, PeerAddr, PeerId,
     RelayRef,
 };
@@ -111,7 +111,10 @@ mod can_reach {
             hints: vec![encode_hint(net_id, 9_999)],
         };
 
-        assert!(a.can_reach(&to), "can_reach does not check the liveness of the slot");
+        assert!(
+            a.can_reach(&to),
+            "can_reach does not check the liveness of the slot"
+        );
     }
 
     #[test]
@@ -226,7 +229,7 @@ mod dial_to_a_wrong_address {
 
 mod transport_net_info {
     use super::*;
-    use crate::net::Transport;
+    use crate::transport::net::Transport;
 
     #[tokio::test]
     async fn mem_net_info_is_unknown_and_ready() {
@@ -236,7 +239,10 @@ mod transport_net_info {
         let ready = timeout(Duration::from_millis(100), t.wait_net_info()).await;
         let info = t.net_info();
         // then: the wait ended at once, and the transport knows nothing about the network
-        assert!(ready.is_ok(), "wait_net_info of mem did not finish within 100 ms");
+        assert!(
+            ready.is_ok(),
+            "wait_net_info of mem did not finish within 100 ms"
+        );
         assert_eq!(info.net_seen, None, "net_seen of mem: {info:?}");
     }
 }

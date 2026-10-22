@@ -5,16 +5,16 @@
 use std::path::Path;
 
 use super::*;
-use crate::config_file::overrides::CliOverrides;
-use crate::config_file::path::{ConfigSource, PathRule};
-use crate::config_file::save::save_config_file;
-use crate::config_file::settings::Settings;
-use crate::config_file::test_support::{
+use crate::config::config_file::overrides::CliOverrides;
+use crate::config::config_file::path::{ConfigSource, PathRule};
+use crate::config::config_file::save::save_config_file;
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{
     clear_readonly, names_in, parsed, scratch, secret_of, test_secret, zero_secret_b64,
 };
-use crate::config_file::time::stamp_utc;
-use crate::config_file::FILE_NAME;
-use crate::network_key::NetworkKey;
+use crate::config::config_file::time::stamp_utc;
+use crate::config::config_file::FILE_NAME;
+use crate::members::network_key::NetworkKey;
 
 const NOW: u64 = 1_790_278_867;
 
@@ -35,6 +35,12 @@ fn bad_copies(names: &[String]) -> Vec<String> {
         .collect()
 }
 
+#[cfg(unix)]
+fn file_mode(path: &std::path::Path) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path).expect("copy").permissions().mode() & 0o777
+}
+
 /// The node secret is corrupted: before the start write that replaces it, the original file (with
 /// the network key) is copied to `config.json.bad-<stamp>`.
 #[test]
@@ -50,25 +56,38 @@ fn bad_secret_startup_write_keeps_copy() {
     let run = prepare(&explicit(&file), &CliOverrides::default(), false, NOW).expect("prepare");
     let names = names_in(&dir);
     let copies = bad_copies(&names);
-    let copy_bytes = copies.first().map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
+    let copy_bytes = copies
+        .first()
+        .map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
     #[cfg(unix)]
-    let copy_mode = copies.first().map(|n| {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::metadata(dir.join(n)).expect("copy").permissions().mode() & 0o777
-    });
+    let copy_mode = copies.first().map(|n| file_mode(&dir.join(n)));
     let after = parsed(&file);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(copies.len(), 1, "files in the directory: {names:?}");
     assert_eq!(names.len(), 2, "files in the directory: {names:?}");
     assert_eq!(copies[0], format!("{FILE_NAME}.bad-{}", stamp_utc(NOW)));
-    assert_eq!(copy_bytes.as_deref(), Some(text.as_bytes()), "the copy differs from the original file");
+    assert_eq!(
+        copy_bytes.as_deref(),
+        Some(text.as_bytes()),
+        "the copy differs from the original file"
+    );
     #[cfg(unix)]
     assert_eq!(copy_mode, Some(0o600), "copy mode {copy_mode:?}");
-    assert_eq!(secret_of(&after), run.secret.to_bytes(), "the new file has the wrong secret");
-    assert_eq!(after.settings.net.network_key.as_deref(), Some(key.as_str()));
+    assert_eq!(
+        secret_of(&after),
+        run.secret.to_bytes(),
+        "the new file has the wrong secret"
+    );
+    assert_eq!(
+        after.settings.net.network_key.as_deref(),
+        Some(key.as_str())
+    );
     assert_eq!(after.rev, 4);
     assert!(
-        !run.file_report.field_errors.iter().any(|e| e.field_path == "network.key"),
+        !run.file_report
+            .field_errors
+            .iter()
+            .any(|e| e.field_path == "network.key"),
         "the network key did not parse: {:?}",
         run.file_report.field_errors
     );
@@ -87,12 +106,21 @@ fn field_error_startup_write_keeps_copy() {
     let run = prepare(&explicit(&file), &CliOverrides::default(), false, NOW).expect("prepare");
     let names = names_in(&dir);
     let copies = bad_copies(&names);
-    let copy_bytes = copies.first().map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
+    let copy_bytes = copies
+        .first()
+        .map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
     let after = parsed(&file);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(copies.len(), 1, "files in the directory: {names:?}");
-    assert_eq!(copy_bytes.as_deref(), Some(text.as_bytes()), "the copy differs from the original file");
-    assert_eq!(after.settings.process.socks_port, 1080, "the corrupted field was not replaced by its default");
+    assert_eq!(
+        copy_bytes.as_deref(),
+        Some(text.as_bytes()),
+        "the copy differs from the original file"
+    );
+    assert_eq!(
+        after.settings.process.socks_port, 1080,
+        "the corrupted field was not replaced by its default"
+    );
     assert_eq!(after.rev, 3);
     assert!(run.file_report.persistent_identity);
     assert!(!run.file_report.overwrite_refused);
@@ -112,15 +140,25 @@ fn save_config_with_field_error_keeps_copy() {
     let run = prepare(&explicit(&file), &CliOverrides::default(), true, NOW).expect("prepare");
     let names = names_in(&dir);
     let copies = bad_copies(&names);
-    let copy_bytes = copies.first().map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
+    let copy_bytes = copies
+        .first()
+        .map(|n| std::fs::read(dir.join(n)).expect("reading the copy"));
     let after = parsed(&file);
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(copies.len(), 1, "files in the directory: {names:?}");
-    assert_eq!(copy_bytes.as_deref(), Some(text.as_bytes()), "the copy differs from the original file");
+    assert_eq!(
+        copy_bytes.as_deref(),
+        Some(text.as_bytes()),
+        "the copy differs from the original file"
+    );
     assert_eq!(after.rev, 3);
     assert_eq!(run.file_report.rev, 3);
     assert_eq!(after.settings.process.socks_port, 1080);
-    assert_eq!(secret_of(&after), [0u8; 32], "the secret from the file must survive");
+    assert_eq!(
+        secret_of(&after),
+        [0u8; 32],
+        "the secret from the file must survive"
+    );
     assert_eq!(run.secret.to_bytes(), [0u8; 32]);
     assert!(!run.file_report.overwrite_refused);
 }
@@ -134,8 +172,7 @@ fn clean_file_makes_no_copy() {
     let file = dir.join(FILE_NAME);
     save_config_file(&file, None, 1, &test_secret(), &Settings::default()).expect("save");
     let before = std::fs::read(&file).expect("reading before");
-    let first =
-        prepare(&explicit(&file), &CliOverrides::default(), false, NOW).expect("prepare");
+    let first = prepare(&explicit(&file), &CliOverrides::default(), false, NOW).expect("prepare");
     let after = std::fs::read(&file).expect("reading after");
     let names = names_in(&dir);
     let _ = std::fs::remove_dir_all(&dir);
@@ -178,7 +215,11 @@ fn copy_failure_keeps_original() {
     let mut names = names_in(&dir);
     names.sort();
     let _ = std::fs::remove_dir_all(&dir);
-    assert_eq!(after, text.as_bytes(), "the original file was overwritten without a copy");
+    assert_eq!(
+        after,
+        text.as_bytes(),
+        "the original file was overwritten without a copy"
+    );
     let mut want = vec![FILE_NAME.to_string(), taken];
     want.sort();
     assert_eq!(names, want, "extra files appeared in the directory");
@@ -187,7 +228,10 @@ fn copy_failure_keeps_original() {
     assert!(run.file_report.overwrite_refused);
     assert_eq!(run.file_report.rev, 3, "the revision must not grow");
     let message = run.file_report.message.as_deref().unwrap_or("");
-    assert!(message.contains("original file not overwritten"), "message: {message}");
+    assert!(
+        message.contains("original file not overwritten"),
+        "message: {message}"
+    );
 }
 
 /// A file without `identity.secret`, marked readonly: `prepare` does not write it,
@@ -208,11 +252,7 @@ fn missing_secret_readonly_file_preserved() {
     let _ = std::fs::remove_dir_all(&dir);
     let run = run.expect("prepare");
     assert_eq!(after, text, "the file changed");
-    assert_eq!(
-        names,
-        vec![FILE_NAME.to_string()],
-        "extra files: {names:?}"
-    );
+    assert_eq!(names, vec![FILE_NAME.to_string()], "extra files: {names:?}");
     assert!(run.file_report.overwrite_refused);
     assert!(!run.file_report.persistent_identity);
     let message = run.file_report.message.as_deref().unwrap_or("");
@@ -225,7 +265,8 @@ fn missing_secret_readonly_file_preserved() {
 fn save_config_readonly_file_refused() {
     let dir = scratch("save-config-readonly");
     let file = dir.join(FILE_NAME);
-    save_config_file(&file, None, 1, &test_secret(), &Settings::default()).expect("saving the original file");
+    save_config_file(&file, None, 1, &test_secret(), &Settings::default())
+        .expect("saving the original file");
     let before = std::fs::read(&file).expect("reading before");
     let mut perms = std::fs::metadata(&file).expect("metadata").permissions();
     perms.set_readonly(true);

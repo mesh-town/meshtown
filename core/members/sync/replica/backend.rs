@@ -3,16 +3,16 @@
 use super::host::ReplicaHost;
 use super::import::LegacyRead;
 use super::service::ReplicaService;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::replica::Replica;
-use crate::net::stream::BoxFuture;
-use crate::net::sync_backend::{Swarm, SyncCtor, SyncCtx};
-use crate::net::{ServiceHandler, ServiceId, SyncBackend, WeakStack, REPLICA};
-use crate::sync::flood::{FloodSync, Tuning};
+use crate::members::sync::flood::{FloodSync, Tuning};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::Replica;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync_backend::{Swarm, SyncCtor, SyncCtx};
+use crate::transport::net::{ServiceHandler, ServiceId, SyncBackend, WeakStack, REPLICA};
 use std::sync::Arc;
 
-pub use crate::sync::flood::NAME;
+pub use crate::members::sync::flood::NAME;
 
 /// The flooding delegate: it has no replicas, `MeshSync` holds them.
 pub(super) struct NoReplicas;
@@ -22,7 +22,11 @@ impl SyncBackend for NoReplicas {
         NAME
     }
 
-    fn join_swarm(&self, _topic: [u8; 32], _bootstrap: &[PeerId]) -> BoxFuture<'_, NetResult<Swarm>> {
+    fn join_swarm(
+        &self,
+        _topic: [u8; 32],
+        _bootstrap: &[PeerId],
+    ) -> BoxFuture<'_, NetResult<Swarm>> {
         Box::pin(async { Err(NetError::Config("topics are opened by MeshSync".into())) })
     }
 

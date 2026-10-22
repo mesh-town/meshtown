@@ -3,12 +3,12 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use crate::net::{ReplicaEntry, NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId, ReplicaEntry};
 use bytes::Bytes;
 
 use super::*;
-use crate::reachability::{CheckRecord, CheckVerdict, CHECK_RECORD_VERSION};
-use crate::telemetry::TelemetryView;
+use crate::node::telemetry::TelemetryView;
+use crate::site_checks::reachability::{CheckRecord, CheckVerdict, CHECK_RECORD_VERSION};
 
 const T: u64 = 1_000_000_000;
 const D: u64 = 86_400;

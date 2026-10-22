@@ -4,10 +4,16 @@ use super::*;
 
 #[tokio::test]
 async fn bind_refuses_busy_port() {
-    let first = bind_proxy_listener(0, ListenAccess::Localhost).await.unwrap();
+    let first = bind_proxy_listener(0, ListenAccess::Localhost)
+        .await
+        .unwrap();
     let port = first.local_addr().unwrap().port();
-    let e = bind_proxy_listener(port, ListenAccess::Localhost).await.unwrap_err();
-    let bind_error = e.downcast_ref::<BindError>().expect("the error is a BindError");
+    let e = bind_proxy_listener(port, ListenAccess::Localhost)
+        .await
+        .unwrap_err();
+    let bind_error = e
+        .downcast_ref::<BindError>()
+        .expect("the error is a BindError");
     assert_eq!(bind_error.port, port);
     assert_eq!(bind_error.io_error_kind, std::io::ErrorKind::AddrInUse);
     drop(first);
@@ -97,7 +103,10 @@ mod client_watch {
             let finished = timeout(Duration::from_millis(500), client_gone(&accepted)).await;
 
             // then: it finished within 500 ms
-            assert!(finished.is_ok(), "client_gone did not notice the socket closing within 500 ms");
+            assert!(
+                finished.is_ok(),
+                "client_gone did not notice the socket closing within 500 ms"
+            );
         }
     }
 
@@ -114,10 +123,17 @@ mod client_watch {
             let finished = timeout(Duration::from_millis(200), client_gone(&accepted)).await;
 
             // then: it did not finish, and the byte is still visible to `peek` (the data waits for `relay_bytes`)
-            assert!(finished.is_err(), "a client with data in the socket has not \"left\"");
+            assert!(
+                finished.is_err(),
+                "a client with data in the socket has not \"left\""
+            );
             let mut byte = [0u8; 1];
             let seen = accepted.peek(&mut byte).await.unwrap();
-            assert_eq!((seen, byte[0]), (1, b'x'), "client_gone must not take the byte");
+            assert_eq!(
+                (seen, byte[0]),
+                (1, b'x'),
+                "client_gone must not take the byte"
+            );
         }
     }
 

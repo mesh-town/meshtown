@@ -2,7 +2,7 @@
 //! `RouteCtx.chosen_exits`.
 
 use super::*;
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 use std::time::Duration;
 
 /// A member made from one secret key.
@@ -81,7 +81,11 @@ mod choose {
 
         let route = choose_route(&[a, b], me, &online, &serving);
 
-        assert_eq!(route, Route::Exits(vec![b]), "a node without an entry in serving is not a candidate");
+        assert_eq!(
+            route,
+            Route::Exits(vec![b]),
+            "a node without an entry in serving is not a candidate"
+        );
     }
 
     #[test]
@@ -217,7 +221,7 @@ mod exit_dropped {
 /// way to get real `Members`/`DomainList` for `RouteCtx::new`: these types have no
 /// lightweight test constructor, only `DomainList::open` on top of a real `Docs`.
 async fn running_node() -> crate::node::RunningNode {
-    let key = crate::network_key::NetworkKey::generate().unwrap();
+    let key = crate::members::network_key::NetworkKey::generate().unwrap();
     crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key))
         .await
         .unwrap()

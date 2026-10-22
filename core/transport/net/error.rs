@@ -1,7 +1,7 @@
 //! Network errors: `NetError` with hand-written `Display`/`Error` (no thiserror).
 //! Only the error type and `NetResult` are here.
 
-use crate::net::id::PeerId;
+use crate::transport::net::id::PeerId;
 use std::fmt;
 
 #[derive(Debug)]

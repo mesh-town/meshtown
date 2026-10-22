@@ -3,7 +3,7 @@
 //! (`render.rs`); the copy made before overwriting loses data lives in `run.rs` (its only
 //! caller is `prepare`).
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -13,7 +13,7 @@ use super::settings::Settings;
 use super::time::stamp_utc;
 use super::FILE_NAME;
 #[cfg(unix)]
-use crate::output::{say, NET_NAME};
+use crate::node::output::{say, NET_NAME};
 
 /// Why the file was not written.
 #[derive(Debug)]
@@ -134,7 +134,9 @@ fn compute_new_rev(
     match expected_rev {
         Some(r) => {
             match load_config_file(path) {
-                LoadedConfigFile::Parsed(p) if p.rev != r => return Err(SaveError::StaleRev(p.rev)),
+                LoadedConfigFile::Parsed(p) if p.rev != r => {
+                    return Err(SaveError::StaleRev(p.rev))
+                }
                 LoadedConfigFile::Parsed(_) => {}
                 LoadedConfigFile::Absent => return Err(SaveError::StaleRev(0)),
                 LoadedConfigFile::Unreadable(m) | LoadedConfigFile::Invalid(m) => {
@@ -183,7 +185,10 @@ pub fn save_with_floor(
     let written = ensure_dir(&dir).and_then(|()| write_tmp_and_rename(&tmp, path, &text));
     if let Err(e) = written {
         let _ = std::fs::remove_file(&tmp);
-        return Err(SaveError::Io(format!("couldn't write {}: {e}", path.display())));
+        return Err(SaveError::Io(format!(
+            "couldn't write {}: {e}",
+            path.display()
+        )));
     }
 
     // Step 5: `fsync` of the directory. The rename has already happened, so an error here is only

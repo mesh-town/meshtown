@@ -13,7 +13,10 @@ mod leave {
         let changed = world.apply(MemberAction::Leave).await;
         // then: my self-exclusion is written, I am excluded as "left", and nobody passes
         assert_eq!(changed, Ok(true));
-        assert!(world.mine(&world.shared, &exclude_key(&world.me)).await.is_some_and(|e| !e.is_tombstone()));
+        assert!(world
+            .mine(&world.shared, &exclude_key(&world.me))
+            .await
+            .is_some_and(|e| !e.is_tombstone()));
         assert_eq!(world.ledger().excluded[&world.me].how, How::Left);
         assert_eq!(world.verdict(pid(2)), Err(Deny::Left));
         assert_eq!(world.verdict(pid(3)), Err(Deny::Left));
@@ -48,7 +51,11 @@ mod leave {
             // then: refused as "left", also where another reason would apply
             assert_eq!(result, Err(ActionRefusal::Left), "{act:?}");
         }
-        assert_eq!((world.shared_entries().await, world.own_entries().await), before, "nothing is written");
+        assert_eq!(
+            (world.shared_entries().await, world.own_entries().await),
+            before,
+            "nothing is written"
+        );
     }
 }
 
@@ -64,7 +71,10 @@ mod write_failure {
         // when: I vote to exclude a
         let result = world.apply(MemberAction::Exclude(pid(2), None)).await;
         // then: the refusal carries the error text, and nothing was stored
-        assert!(matches!(&result, Err(ActionRefusal::Write(text)) if !text.is_empty()), "{result:?}");
+        assert!(
+            matches!(&result, Err(ActionRefusal::Write(text)) if !text.is_empty()),
+            "{result:?}"
+        );
         assert_eq!(world.shared_entries().await, before);
     }
 }

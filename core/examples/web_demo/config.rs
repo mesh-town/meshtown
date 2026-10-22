@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use meshtown::config_file::{self, CliOverrides, ConfigSource, PathRule};
-use meshtown::network_key::format_key_string;
-use meshtown::words;
+use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
+use meshtown_core::members::network_key::format_key_string;
+use meshtown_core::members::words;
 
 use crate::args::{Args, FileState, IdentityMode};
 use crate::overrides::parse_cli_overrides;

@@ -9,13 +9,13 @@ use std::sync::OnceLock;
 
 use clap::{Args as _, FromArgMatches as _};
 
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::quit::{exit_now, QuitSignal};
-use crate::cli::toggle_from_flag_pair;
-use crate::commands::RunArgs;
-use crate::tray::{NodeCmd, TrayCmd};
+use crate::cli::args::toggle_from_flag_pair;
+use crate::cli::commands::RunArgs;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::quit::{exit_now, QuitSignal};
+use crate::gui::tray::{NodeCmd, TrayCmd};
 
-use meshtown::config_file::ListenAccess;
+use crate::config::config_file::ListenAccess;
 
 use super::poll_types::{PollEnv, PollTiming};
 use super::poller::poll_node;
@@ -37,7 +37,7 @@ pub struct TrayArgs {
 
 #[path = "run_env.rs"]
 mod env;
-use env::{spawn_poller, build_poll_env};
+use env::{build_poll_env, spawn_poller};
 
 /// Node port and the path to `web-token` — for `page_url()` (set once in `run_tray`).
 static PAGE_PORT_AND_TOKEN_PATH: OnceLock<(u16, PathBuf)> = OnceLock::new();
@@ -50,7 +50,7 @@ pub fn run_tray(args: TrayArgs) -> ! {
 
     let quit = QuitSignal::new();
     let (node_tx, node_rx) = tokio::sync::mpsc::unbounded_channel::<NodeCmd>();
-    let (tx, core) = crate::tray::channel(quit.clone(), page_url, node_tx);
+    let (tx, core) = crate::gui::tray::channel(quit.clone(), page_url, node_tx);
     let send = tx.clone();
     let env = build_poll_env(
         (port, token_path),
@@ -60,7 +60,7 @@ pub fn run_tray(args: TrayArgs) -> ! {
         move |cmd| send.send(cmd),
     );
     spawn_poller(env, move |cmd| tx.send(cmd));
-    crate::tray::run(core)
+    crate::gui::tray::run(core)
 }
 
 /// A headless environment: without a multi-threaded runtime or graphics the tray does not start.
@@ -69,7 +69,7 @@ fn preflight() {
         say("a multi-threaded tokio runtime is required");
         exit_now(1);
     }
-    if let Some(why) = crate::app::mode::headless_reason() {
+    if let Some(why) = crate::gui::tray::app::mode::headless_reason() {
         say(format!("no tray icon: {why}"));
         exit_now(1);
     }
@@ -77,7 +77,7 @@ fn preflight() {
 
 /// A `[tray] …` line in the process log.
 fn say(line: impl std::fmt::Display) {
-    meshtown::output::say("tray", line);
+    crate::node::output::say("tray", line);
 }
 
 /// On a single-threaded runtime the poller would stall together with the main thread (the tray loop).
@@ -87,8 +87,8 @@ fn is_multi_thread_runtime(handle: &tokio::runtime::Handle) -> bool {
 
 /// The config is only read, never written. Returns the settings and the path to
 /// `web-token` next to the config.
-fn read_config_or_exit(explicit: Option<&Path>) -> (meshtown::config_file::Settings, PathBuf) {
-    use meshtown::config_file::{self as cf, ConfigSource, LoadedConfigFile, Settings};
+fn read_config_or_exit(explicit: Option<&Path>) -> (crate::config::config_file::Settings, PathBuf) {
+    use crate::config::config_file::{self as cf, ConfigSource, LoadedConfigFile, Settings};
     let env = cf::current_env();
     let source = cf::resolve_config_source(explicit, &env.as_path_env());
     match source {
@@ -122,7 +122,7 @@ fn token_path_for(config: &Path) -> PathBuf {
         Some(d) if !d.as_os_str().is_empty() => d.to_path_buf(),
         _ => PathBuf::from("."),
     };
-    dir.join(meshtown::web::TOKEN_FILE_NAME)
+    dir.join(crate::web_gui::TOKEN_FILE_NAME)
 }
 
 /// The token from the file right now: `trim`med; no file or an error gives an empty string. Needed by `page_url()` here and
@@ -178,7 +178,9 @@ fn proxy_plan_for(
         .as_ref()
         .and_then(|r| r.socks_port)
         .unwrap_or(settings_port);
-    let enabled = run.as_ref().and_then(|r| toggle_from_flag_pair(r.socks, r.no_socks));
+    let enabled = run
+        .as_ref()
+        .and_then(|r| toggle_from_flag_pair(r.socks, r.no_socks));
     proxy_enabled_or_reason(enabled, settings_enabled).map(|()| port)
 }
 
@@ -219,8 +221,8 @@ fn spawn_child(argv: &[OsString]) -> std::io::Result<Child> {
         cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
     }
     #[cfg(any(windows, target_os = "macos"))]
-    if crate::app::console::child_needs_node_log() {
-        let log = crate::app::console::open_node_log().and_then(|out| {
+    if crate::cli::os_console::child_needs_node_log() {
+        let log = crate::cli::os_console::open_node_log().and_then(|out| {
             let err = out.try_clone()?;
             Ok((out, err))
         });

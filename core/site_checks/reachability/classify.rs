@@ -22,7 +22,9 @@ fn classify_dns(steps: &Steps) -> Option<(CheckVerdict, String)> {
 /// TCP and TLS: the network may have refused before the site did. `None` — both steps passed, classification continues.
 fn classify_transport(steps: &Steps) -> Option<(CheckVerdict, String)> {
     match steps.tcp {
-        TcpStep::Refused => return Some((CheckVerdict::NetworkBlocked, "TCP: refused".to_string())),
+        TcpStep::Refused => {
+            return Some((CheckVerdict::NetworkBlocked, "TCP: refused".to_string()))
+        }
         TcpStep::Reset => return Some((CheckVerdict::NetworkBlocked, "TCP: reset".to_string())),
         TcpStep::Timeout => return Some((CheckVerdict::Down, "TCP: timeout".to_string())),
         TcpStep::NotTried => return Some((CheckVerdict::Down, "TCP not tried".to_string())),
@@ -61,7 +63,10 @@ fn classify_transport(steps: &Steps) -> Option<(CheckVerdict, String)> {
 
 /// The response body: national DPI filter freeze, read cutoff, robot check or geoblock. `None` — nothing matched.
 fn classify_response(steps: &Steps) -> Option<(CheckVerdict, String)> {
-    if steps.stalled && steps.bytes_received >= FREEZE_MIN_BYTES && steps.bytes_received <= FREEZE_MAX_BYTES {
+    if steps.stalled
+        && steps.bytes_received >= FREEZE_MIN_BYTES
+        && steps.bytes_received <= FREEZE_MAX_BYTES
+    {
         return Some((
             CheckVerdict::NetworkBlocked,
             format!("freeze at {} KB", steps.bytes_received / 1024),
@@ -77,7 +82,10 @@ fn classify_response(steps: &Steps) -> Option<(CheckVerdict, String)> {
         ));
     }
     if steps.body_mark == BodyMark::Antibot {
-        return Some((CheckVerdict::Antibot, format!("robot check, code {}", steps.http_status)));
+        return Some((
+            CheckVerdict::Antibot,
+            format!("robot check, code {}", steps.http_status),
+        ));
     }
     if steps.http_status == 451 {
         return Some((CheckVerdict::SiteGeoblock, "code 451".to_string()));

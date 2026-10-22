@@ -6,8 +6,8 @@
 //! reads stdin and runs the commands `domains …`, `check <domain>`, `checks`.
 //! What it doesn't do: doesn't combine node results into one verdict, doesn't build a route, doesn't keep
 //! a check history and doesn't restrain an author who writes garbage.
-//! Related: the domain list is `crate::domains`, measuring is `crate::reachability`,
-//! record values live in `iroh-blobs` blobs, output is `crate::output`.
+//! Related: the domain list is `crate::proxy::domains`, measuring is `crate::site_checks::reachability`,
+//! record values live in `iroh-blobs` blobs, output is `crate::node::output`.
 //!
 //! Files: `keys.rs` — the record key and the node snapshot (`CheckView`); `schedule.rs` — the schedule
 //! (`Schedule`, "due" / "busy now"); `state.rs` — the `Checks` type and its constructor with live
@@ -24,7 +24,7 @@ mod store;
 
 /// The client string in check requests; defined in `reachability` (see there for why),
 /// here so that `node.rs` takes it from the same module as the schedule.
-pub use crate::reachability::DEFAULT_USER_AGENT;
+pub use crate::site_checks::reachability::DEFAULT_USER_AGENT;
 
 pub use console::{parse_check_line, spawn_console, CheckCommand};
 pub use describe::{describe, describe_steps};

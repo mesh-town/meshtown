@@ -3,7 +3,12 @@
 
 /// The request bytes verbatim. A `token` that is empty or has a character outside `[0-9A-Za-z]` does not go into the
 /// headers — there is no `X-Meshtown-Token` line.
-pub(crate) fn request_bytes_without_body(method: &str, path: &str, port: u16, token: &str) -> Vec<u8> {
+pub(crate) fn request_bytes_without_body(
+    method: &str,
+    path: &str,
+    port: u16,
+    token: &str,
+) -> Vec<u8> {
     let host = host_header(port);
     let mut out = format!("{method} {path} HTTP/1.0\r\nHost: {host}\r\n");
     if method == "POST" {

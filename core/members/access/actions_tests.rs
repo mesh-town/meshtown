@@ -7,16 +7,18 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::access::actions::{apply, ActionRefusal, MemberAction};
-use crate::access::record::{admit_key, block_key, encode, exclude_key, parse_entry, AclKind, AclValue, Parsed, Via};
-use crate::access::runtime::Access;
-use crate::access::tally::{How, Ledger};
-use crate::access::view::{AccessView, Deny};
-use crate::membership::Members;
-use crate::net::contract::{pid, secret};
-use crate::net::mem::{MemReplica, MemSync, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::{
+use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
+use crate::members::access::record::{
+    admit_key, block_key, encode, exclude_key, parse_entry, AclKind, AclValue, Parsed, Via,
+};
+use crate::members::access::runtime::Access;
+use crate::members::access::tally::{How, Ledger};
+use crate::members::access::view::{AccessView, Deny};
+use crate::members::membership::Members;
+use crate::transport::net::contract::{pid, secret};
+use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{
     BoxFuture, NetError, NetResult, PeerId, Replica, ReplicaEntry, ReplicaEvent, ReplicaId,
 };
 
@@ -34,9 +36,20 @@ mod exclude {
         assert_eq!(changed, Ok(true));
         assert_eq!(world.vote_subjects().await, vec![a], "my votes");
         assert_eq!(world.verdict(a), Err(Deny::VotedByMe));
-        assert_eq!(world.ledger().pending[&a].voters, vec![world.me], "the proposal is mine");
-        assert!(!world.ledger().excluded.contains_key(&a), "one vote is not enough yet");
-        assert_eq!(world.verdict(pid(3)), Ok(()), "the other neighbour is untouched");
+        assert_eq!(
+            world.ledger().pending[&a].voters,
+            vec![world.me],
+            "the proposal is mine"
+        );
+        assert!(
+            !world.ledger().excluded.contains_key(&a),
+            "one vote is not enough yet"
+        );
+        assert_eq!(
+            world.verdict(pid(3)),
+            Ok(()),
+            "the other neighbour is untouched"
+        );
     }
 
     #[tokio::test]
@@ -50,7 +63,11 @@ mod exclude {
         let again = world.apply(MemberAction::Exclude(a, None)).await;
         // then: nothing changed, the record is the same one
         assert_eq!(again, Ok(false));
-        assert_eq!(world.mine(&world.shared, &exclude_key(&a)).await, stored, "the vote was rewritten");
+        assert_eq!(
+            world.mine(&world.shared, &exclude_key(&a)).await,
+            stored,
+            "the vote was rewritten"
+        );
     }
 
     #[tokio::test]
@@ -60,7 +77,11 @@ mod exclude {
         let (a, b) = (pid(2), pid(3));
         world.given_vote(b, a, 100);
         world.refresh().await;
-        assert_eq!(world.verdict(a), Ok(()), "one vote of four is a proposal only");
+        assert_eq!(
+            world.verdict(a),
+            Ok(()),
+            "one vote of four is a proposal only"
+        );
         // when: I confirm
         let changed = world.apply(MemberAction::Exclude(a, None)).await;
         // then: a is excluded by the two votes, in time order
@@ -109,8 +130,14 @@ mod unexclude {
         let changed = world.apply(MemberAction::Unexclude(a)).await;
         // then: the vote is a tombstone and a passes again
         assert_eq!(changed, Ok(true));
-        let entry = world.mine(&world.shared, &exclude_key(&a)).await.expect("the key must keep a tombstone");
-        assert!(entry.is_tombstone(), "the vote must be withdrawn, not deleted or rewritten");
+        let entry = world
+            .mine(&world.shared, &exclude_key(&a))
+            .await
+            .expect("the key must keep a tombstone");
+        assert!(
+            entry.is_tombstone(),
+            "the vote must be withdrawn, not deleted or rewritten"
+        );
         assert_eq!(world.verdict(a), Ok(()));
     }
 
@@ -156,9 +183,16 @@ mod block {
         let changed = world.apply(MemberAction::Block(a)).await;
         // then: the block is in the own replica, the shared one has not changed, a is refused here
         assert_eq!(changed, Ok(true));
-        let entry = world.mine(&world.own, &block_key(&a)).await.expect("the block must be in the own replica");
+        let entry = world
+            .mine(&world.own, &block_key(&a))
+            .await
+            .expect("the block must be in the own replica");
         assert!(!entry.is_tombstone());
-        assert_eq!(world.shared_entries().await, shared_before, "a block must not go to the network");
+        assert_eq!(
+            world.shared_entries().await,
+            shared_before,
+            "a block must not go to the network"
+        );
         assert_eq!(world.verdict(a), Err(Deny::Blocked));
     }
 
@@ -182,7 +216,10 @@ mod block {
         // then: a passes again, and the own replica holds a tombstone
         assert_eq!(changed, Ok(true));
         assert_eq!(world.verdict(a), Ok(()));
-        assert!(world.mine(&world.own, &block_key(&a)).await.is_some_and(|e| e.is_tombstone()));
+        assert!(world
+            .mine(&world.own, &block_key(&a))
+            .await
+            .is_some_and(|e| e.is_tombstone()));
     }
 
     #[tokio::test]
@@ -226,7 +263,11 @@ mod self_target {
             // then: refused (leaving has its own action)
             assert_eq!(result, Err(ActionRefusal::SelfTarget), "{act:?}");
         }
-        assert_eq!((world.shared_entries().await, world.own_entries().await), before, "nothing is written");
+        assert_eq!(
+            (world.shared_entries().await, world.own_entries().await),
+            before,
+            "nothing is written"
+        );
     }
 }
 
@@ -262,17 +303,34 @@ fn setup_with_failing_shared(listed: &[PeerId]) -> World {
 fn build(listed: &[PeerId], failing: bool) -> World {
     let net = MemSyncNet::new();
     let node = secret(1);
-    let ctx = SyncCtx { secret: node.clone(), network_seed: [9; 32], store_dir: None };
+    let ctx = SyncCtx {
+        secret: node.clone(),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
     let backend = net.backend(ctx);
-    let (shared, own) = (backend.replica_mem(REPLICA_NET).unwrap(), backend.replica_mem(REPLICA_DOMAINS).unwrap());
+    let (shared, own) = (
+        backend.replica_mem(REPLICA_NET).unwrap(),
+        backend.replica_mem(REPLICA_DOMAINS).unwrap(),
+    );
     let fail_writes = Arc::new(AtomicBool::new(false));
     let seen_by_access: Arc<dyn Replica> = match failing {
-        true => Arc::new(FailingWrites { inner: shared.clone(), fail: fail_writes.clone() }),
+        true => Arc::new(FailingWrites {
+            inner: shared.clone(),
+            fail: fail_writes.clone(),
+        }),
         false => shared.clone(),
     };
     let members = Members::with_access(AccessView::pending());
     let access = Access::from_parts(node.peer_id(), seen_by_access, own.clone(), members);
-    let world = World { access, shared, own, me: node.peer_id(), fail_writes, _keep: (net, backend) };
+    let world = World {
+        access,
+        shared,
+        own,
+        me: node.peer_id(),
+        fail_writes,
+        _keep: (net, backend),
+    };
     listed.iter().for_each(|p| world.given_admit(world.me, *p));
     world
 }
@@ -285,13 +343,37 @@ impl World {
 
     /// An exclusion vote of `voter` against `subject` at the given time.
     fn given_vote(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
-        self.given_record(voter, exclude_key(&subject), AclKind::Exclude, subject, ts_micros);
+        self.given_record(
+            voter,
+            exclude_key(&subject),
+            AclKind::Exclude,
+            subject,
+            ts_micros,
+        );
     }
 
-    fn given_record(&self, author: PeerId, key: Vec<u8>, kind: AclKind, subject: PeerId, ts_micros: u64) {
-        let value = AclValue { kind, subject, via: Via::Invite, made_unix: 111, note: String::new() };
+    fn given_record(
+        &self,
+        author: PeerId,
+        key: Vec<u8>,
+        kind: AclKind,
+        subject: PeerId,
+        ts_micros: u64,
+    ) {
+        let value = AclValue {
+            kind,
+            subject,
+            via: Via::Invite,
+            made_unix: 111,
+            note: String::new(),
+        };
         let value = Bytes::from(encode(&value));
-        self.shared.put_raw(ReplicaEntry { author, key, value, ts_micros });
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key,
+            value,
+            ts_micros,
+        });
     }
 
     async fn apply(&self, act: MemberAction) -> Result<bool, ActionRefusal> {
@@ -299,7 +381,10 @@ impl World {
     }
 
     async fn refresh(&self) {
-        self.access.refresh().await.expect("the recompute must work on a healthy replica");
+        self.access
+            .refresh()
+            .await
+            .expect("the recompute must work on a healthy replica");
     }
 
     /// The decision of the published view for one node.
@@ -308,19 +393,27 @@ impl World {
     }
 
     fn ledger(&self) -> Arc<Ledger> {
-        self.access.view.verdicts().expect("the view must be published after an action").ledger.clone()
+        self.access
+            .view
+            .verdicts()
+            .expect("the view must be published after an action")
+            .ledger
+            .clone()
     }
 
     /// My entry under the key, a tombstone included.
     async fn mine(&self, replica: &Arc<MemReplica>, key: &[u8]) -> Option<ReplicaEntry> {
         let all = replica.scan(key).await.unwrap();
-        all.into_iter().find(|e| e.author == self.me && e.key == key)
+        all.into_iter()
+            .find(|e| e.author == self.me && e.key == key)
     }
 
     /// Subjects of my live exclusion votes.
     async fn vote_subjects(&self) -> Vec<PeerId> {
         let all = self.shared.scan(b"acl/exclude/").await.unwrap();
-        let mine = all.iter().filter(|e| e.author == self.me && !e.is_tombstone());
+        let mine = all
+            .iter()
+            .filter(|e| e.author == self.me && !e.is_tombstone());
         mine.filter_map(|e| match parse_entry(e) {
             Parsed::Record { value, .. } => Some(value.subject),
             _ => None,

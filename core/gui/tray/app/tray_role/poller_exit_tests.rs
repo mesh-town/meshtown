@@ -1,8 +1,8 @@
 //! Tests for `poller_exit`: the pure edit of the selected exits list on a command from the tray submenu.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use meshtown::net::NodeSecret;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::transport::net::NodeSecret;
 use serde_json::Value;
 
 mod edit_exits {
@@ -48,10 +48,7 @@ mod edit_exits {
 
         edit_exits(&mut list, &ExitEdit::Clear);
 
-        assert!(
-            list.is_empty(),
-            "Clear must leave an empty list: {list:?}"
-        );
+        assert!(list.is_empty(), "Clear must leave an empty list: {list:?}");
     }
 }
 
@@ -65,8 +62,8 @@ mod send_exit_edit_round_trip {
 
     use std::time::Duration;
 
-    use crate::app::local_api::tests::{start_fake_with_config, temp_dir, FAKE_TOKEN};
-    use crate::app::tray_role::poll_types::PollTiming;
+    use crate::gui::tray::app::local_api::tests::{start_fake_with_config, temp_dir, FAKE_TOKEN};
+    use crate::gui::tray::app::tray_role::poll_types::PollTiming;
 
     const T: PollTiming = PollTiming {
         poll_interval: Duration::from_millis(100),
@@ -78,7 +75,7 @@ mod send_exit_edit_round_trip {
 
     /// Starts a fake node with a real config file and a `Poller` that reads the same token from
     /// the file (`send_exit_edit` takes the token through `read_token(&self.token_path)`).
-    async fn rig() -> (meshtown::web::WebHandle, std::path::PathBuf, Poller) {
+    async fn rig() -> (crate::web_gui::WebHandle, std::path::PathBuf, Poller) {
         let dir = temp_dir("poller-exit-edit");
         let (handle, _node) = start_fake_with_config(0, &dir).await;
         let port = handle.shared.port();
@@ -100,7 +97,7 @@ mod send_exit_edit_round_trip {
             last_view: None,
             last_exit_menu: None,
             notes_visible_until: None,
-            start_fail: crate::app::tray_role::start_fail::StartFail::new(
+            start_fail: crate::gui::tray::app::tray_role::start_fail::StartFail::new(
                 Box::new(|| None),
                 Box::new(|| None),
                 Box::new(|_n| {}),

@@ -72,7 +72,11 @@ async fn read_u8<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<u8> {
     r.read_u8().await
 }
 
-async fn read_len_prefixed<R: AsyncRead + Unpin>(r: &mut R, max: usize, what: &str) -> io::Result<Vec<u8>> {
+async fn read_len_prefixed<R: AsyncRead + Unpin>(
+    r: &mut R,
+    max: usize,
+    what: &str,
+) -> io::Result<Vec<u8>> {
     let len = read_u8(r).await? as usize;
     if len > max {
         return Err(bad(&format!("{what} longer than {max} bytes")));
@@ -82,7 +86,12 @@ async fn read_len_prefixed<R: AsyncRead + Unpin>(r: &mut R, max: usize, what: &s
     Ok(buf)
 }
 
-async fn write_len_prefixed<W: AsyncWrite + Unpin>(w: &mut W, bytes: &[u8], max: usize, what: &str) -> io::Result<()> {
+async fn write_len_prefixed<W: AsyncWrite + Unpin>(
+    w: &mut W,
+    bytes: &[u8],
+    max: usize,
+    what: &str,
+) -> io::Result<()> {
     let len = len_as_u8_checked(bytes, max, what)?;
     w.write_u8(len).await?;
     w.write_all(bytes).await
@@ -92,7 +101,10 @@ pub async fn write_header<W: AsyncWrite + Unpin>(w: &mut W, h: &Header) -> io::R
     let mut buf = Vec::with_capacity(16);
     buf.extend_from_slice(&MAGIC);
     match h {
-        Header::Open { session, service_name } => {
+        Header::Open {
+            session,
+            service_name,
+        } => {
             let len = len_as_u8_checked(service_name, SERVICE_NAME_MAX_BYTES, "service name")?;
             buf.push(KIND_OPEN);
             buf.extend_from_slice(&session.to_be_bytes());
@@ -124,7 +136,10 @@ pub async fn read_header<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<Header> 
 async fn read_open<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<Header> {
     let session = r.read_u64().await?;
     let service_name = read_len_prefixed(r, SERVICE_NAME_MAX_BYTES, "service name").await?;
-    Ok(Header::Open { session, service_name })
+    Ok(Header::Open {
+        session,
+        service_name,
+    })
 }
 
 async fn read_stream<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<Header> {
@@ -155,7 +170,12 @@ pub async fn read_reply<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<Reply> {
     }
 }
 
-async fn write_coded<W: AsyncWrite + Unpin>(w: &mut W, kind: u8, code: u32, reason: &[u8]) -> io::Result<()> {
+async fn write_coded<W: AsyncWrite + Unpin>(
+    w: &mut W,
+    kind: u8,
+    code: u32,
+    reason: &[u8],
+) -> io::Result<()> {
     len_as_u8_checked(reason, REASON_MAX_BYTES, "reason")?;
     w.write_u8(kind).await?;
     w.write_u32(code).await?;
@@ -164,7 +184,10 @@ async fn write_coded<W: AsyncWrite + Unpin>(w: &mut W, kind: u8, code: u32, reas
 
 async fn read_coded<R: AsyncRead + Unpin>(r: &mut R) -> io::Result<(u32, Vec<u8>)> {
     let code = r.read_u32().await?;
-    Ok((code, read_len_prefixed(r, REASON_MAX_BYTES, "reason").await?))
+    Ok((
+        code,
+        read_len_prefixed(r, REASON_MAX_BYTES, "reason").await?,
+    ))
 }
 
 pub async fn write_ctrl<W: AsyncWrite + Unpin>(w: &mut W, frame: &Ctrl) -> io::Result<()> {

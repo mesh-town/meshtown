@@ -2,8 +2,8 @@
 //! the witness that is no vote at other nodes, requests that wait. Nodes: `m` is the own node.
 
 use super::*;
-use crate::access::tally::{tally, How, Ledger, TallyInput, VoteIn};
-use crate::net::contract::pid;
+use crate::members::access::tally::{tally, How, Ledger, TallyInput, VoteIn};
+use crate::transport::net::contract::pid;
 
 const N: Via = Via::None;
 const I: Via = Via::Invite;
@@ -12,14 +12,25 @@ const W: Via = Via::Witness;
 type Row = (PeerId, PeerId, Via);
 
 fn input(me: PeerId, rows: &[Row]) -> TallyInput {
-    let admits = rows.iter().map(|&(author, subject, via)| AdmitIn { author, subject, via });
-    TallyInput { me, admits: admits.collect(), votes: Vec::new() }
+    let admits = rows.iter().map(|&(author, subject, via)| AdmitIn {
+        author,
+        subject,
+        via,
+    });
+    TallyInput {
+        me,
+        admits: admits.collect(),
+        votes: Vec::new(),
+    }
 }
 
 /// Every one of `ids` admits every other one.
 fn full(ids: &[PeerId]) -> Vec<Row> {
     let pairs = ids.iter().flat_map(|a| ids.iter().map(move |b| (*a, *b)));
-    pairs.filter(|(a, b)| a != b).map(|(a, b)| (a, b, N)).collect()
+    pairs
+        .filter(|(a, b)| a != b)
+        .map(|(a, b)| (a, b, N))
+        .collect()
 }
 
 fn with(mut rows: Vec<Row>, more: &[Row]) -> Vec<Row> {
@@ -32,11 +43,19 @@ fn ledger_of(me: PeerId, rows: &[Row]) -> Ledger {
 }
 
 fn vote(voter: PeerId, subject: PeerId, ts_micros: u64) -> VoteIn {
-    VoteIn { voter, subject, ts_micros }
+    VoteIn {
+        voter,
+        subject,
+        ts_micros,
+    }
 }
 
 fn short(voters: &[PeerId], need: u8) -> Admission {
-    Admission { voters: voters.to_vec(), need, label: None }
+    Admission {
+        voters: voters.to_vec(),
+        need,
+        label: None,
+    }
 }
 
 fn ids() -> (PeerId, PeerId, PeerId, PeerId, PeerId, PeerId) {
@@ -194,7 +213,11 @@ fn my_witness_keeps_member_after_cascade() {
     // given: the same cascade and my own witness for x
     let (m, _, _, _, x, _) = ids();
     let (_, mut inp) = cascade_rows();
-    inp.admits.push(AdmitIn { author: m, subject: x, via: W });
+    inp.admits.push(AdmitIn {
+        author: m,
+        subject: x,
+        via: W,
+    });
     // when: tallied
     let ledger = tally(&inp);
     // then: x stays a member and is no request
@@ -229,7 +252,17 @@ fn newcomer_sees_its_own_request() {
 
 fn two_roots_rows(extra: &[Row]) -> Vec<Row> {
     let (_, a, b, c, d, _) = ids();
-    with(vec![(a, b, N), (b, a, N), (a, c, N), (b, c, N), (a, d, N), (b, d, N)], extra)
+    with(
+        vec![
+            (a, b, N),
+            (b, a, N),
+            (a, c, N),
+            (b, c, N),
+            (a, d, N),
+            (b, d, N),
+        ],
+        extra,
+    )
 }
 
 fn two_roots_ledger(me: PeerId, rows: &[Row]) -> Ledger {
@@ -255,7 +288,10 @@ fn two_roots_agree_when_every_member_has_two_votes() {
 fn two_roots_agree_on_a_single_vote() {
     // given: as above, but c is vouched for by a alone and e by both
     let (_, a, b, c, d, e) = (pid(1), pid(2), pid(3), pid(4), pid(5), pid(6));
-    let rows = with(vec![(a, b, N), (b, a, N), (a, c, N), (a, d, N), (b, d, N)], &[(a, e, N), (b, e, N)]);
+    let rows = with(
+        vec![(a, b, N), (b, a, N), (a, c, N), (a, d, N), (b, d, N)],
+        &[(a, e, N), (b, e, N)],
+    );
     let vote_out = |me| {
         let mut inp = input(me, &rows);
         inp.votes = vec![vote(a, d, 10), vote(b, d, 20)];

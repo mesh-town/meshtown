@@ -4,7 +4,7 @@ use super::*;
 use std::path::PathBuf;
 
 fn cfg() -> NodeConfig {
-    NodeConfig::for_loopback_test(crate::network_key::NetworkKey::generate().unwrap())
+    NodeConfig::for_loopback_test(crate::members::network_key::NetworkKey::generate().unwrap())
 }
 
 #[test]

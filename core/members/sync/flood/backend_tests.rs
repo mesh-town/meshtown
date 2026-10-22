@@ -2,10 +2,10 @@
 
 use super::test_support::{fast, mem_node, NETWORK};
 use super::{sync_ctor, NAME};
-use crate::net::contract::{pid, secret, must_finish, SEED_A};
-use crate::net::mem::{sync_ctor as mem_ctor, MemNet, MemSyncNet};
-use crate::net::sync_backend::{SyncBackend, SyncCtx, REPLICA_NET};
-use crate::net::{NetError, SYNC};
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A};
+use crate::transport::net::mem::{sync_ctor as mem_ctor, MemNet, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtx, REPLICA_NET};
+use crate::transport::net::{NetError, SYNC};
 
 fn ctx() -> SyncCtx {
     SyncCtx {
@@ -36,9 +36,15 @@ async fn open_replica_delegates() {
     // given: a MemSync delegate → when: we open "net" and an unknown name → then: "net" is Ok, the error is the same as the delegate's
     let hub = MemSyncNet::new();
     let node = mem_node(&MemNet::new(), &hub, SEED_A, NETWORK, fast());
-    assert!(must_finish(node.sync.open_replica(REPLICA_NET)).await.is_ok());
-    let own = must_finish(node.sync.open_replica("no-such-one")).await.err();
-    let theirs = must_finish(hub.backend(ctx()).open_replica("no-such-one")).await.err();
+    assert!(must_finish(node.sync.open_replica(REPLICA_NET))
+        .await
+        .is_ok());
+    let own = must_finish(node.sync.open_replica("no-such-one"))
+        .await
+        .err();
+    let theirs = must_finish(hub.backend(ctx()).open_replica("no-such-one"))
+        .await
+        .err();
     assert_eq!(own.map(|e| e.to_string()), theirs.map(|e| e.to_string()));
 }
 
@@ -68,7 +74,9 @@ async fn attached_sync_does_not_hold_stack() {
 async fn sync_ctor_wraps_inner() {
     // given: a constructor over mem → when: we create the sync → then: the name is mesh, the "net" replica opens
     let wrapped = sync_ctor(mem_ctor(MemSyncNet::new()));
-    let sync = must_finish(wrapped(ctx())).await.expect("the sync was created");
+    let sync = must_finish(wrapped(ctx()))
+        .await
+        .expect("the sync was created");
     assert_eq!(sync.name(), "mesh");
     assert!(must_finish(sync.open_replica(REPLICA_NET)).await.is_ok());
 }

@@ -17,7 +17,9 @@ pub fn has_field(text: &str, path: &str) -> bool {
     let Ok(cfg) = config_section(&root) else {
         return false;
     };
-    cfg.get(section).and_then(Value::as_object).is_some_and(|s| s.contains_key(key))
+    cfg.get(section)
+        .and_then(Value::as_object)
+        .is_some_and(|s| s.contains_key(key))
 }
 
 #[cfg(test)]

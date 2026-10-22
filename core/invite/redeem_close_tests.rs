@@ -11,17 +11,19 @@
 //! the node seed in `Responder::start` matches the key of the transport passed to it.
 
 use super::super::{ask, redeem_with, Progress, RedeemError, RedeemOpts};
-use crate::net_mainline::unix_now;
-use crate::invite::wire::{encode_invite_reply, encode_invite_request, RedeemCode, RedeemReply, REPLY_LEN, REQUEST_LEN};
+use crate::invite::wire::{
+    encode_invite_reply, encode_invite_request, RedeemCode, RedeemReply, REPLY_LEN, REQUEST_LEN,
+};
 use crate::invite::{InviteHead, InviteSecret};
-use crate::net::facade::test_support::{addr, pid, secret, within, Spy};
-use crate::net::NodeSecret;
-use crate::net::mem::conn::MemConn;
-use crate::net::{
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::facade::test_support::{addr, pid, secret, within, Spy};
+use crate::transport::net::mem::conn::MemConn;
+use crate::transport::net::NodeSecret;
+use crate::transport::net::{
     BoxFuture, MemNet, NetStack, NetStackBuilder, PeerAddr, PeerConn, ServiceHandler, StreamPair,
     Transport, INVITE,
 };
-use crate::network_key::NetworkKey;
+use crate::transport::net_mainline::unix_now;
 use bytes::Bytes;
 use std::io;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -37,7 +39,11 @@ async fn key_closes_once() {
     // then: the key is received, the transport is closed once, exactly B was asked over INVITE
     assert_key(got, &own_key());
     rig.then_closed_once();
-    assert_eq!(rig.spy.connects(), vec![(pid(2), INVITE)], "the wrong node or the wrong service was asked");
+    assert_eq!(
+        rig.spy.connects(),
+        vec![(pid(2), INVITE)],
+        "the wrong node or the wrong service was asked"
+    );
 }
 
 #[tokio::test]
@@ -66,12 +72,19 @@ async fn unknown_closes_once() {
 async fn expired_before_first_round_closes_once() {
     // given: the invite's deadline passed before the first round
     let rig = setup(key_frame());
-    let expired = RedeemOpts { deadline_unix: unix_now().saturating_sub(10), ..opts() };
+    let expired = RedeemOpts {
+        deadline_unix: unix_now().saturating_sub(10),
+        ..opts()
+    };
     // when
     let got = rig.when_redeems(&rig.peers(), &expired).await;
     // then: Expired, no connections, but the transport is closed all the same
     assert!(matches!(got, Err(RedeemError::Expired)), "{got:?}");
-    assert!(rig.spy.connects().is_empty(), "a connection was opened after the deadline: {:?}", rig.spy.connects());
+    assert!(
+        rig.spy.connects().is_empty(),
+        "a connection was opened after the deadline: {:?}",
+        rig.spy.connects()
+    );
     rig.then_closed_once();
 }
 
@@ -109,14 +122,26 @@ async fn asked_conn_is_closed() {
 async fn ephemeral_mem_is_closed_on_exit() {
     // given: a temporary `mem` transport, the invite's deadline has already passed, no addresses
     let net = MemNet::new();
-    let t = crate::node::bind_ephemeral(Some(&net)).await.expect("the temporary transport came up");
+    let t = crate::node::bind_ephemeral(Some(&net))
+        .await
+        .expect("the temporary transport came up");
     let me = t.me();
-    let expired = RedeemOpts { deadline_unix: unix_now().saturating_sub(10), ..opts() };
+    let expired = RedeemOpts {
+        deadline_unix: unix_now().saturating_sub(10),
+        ..opts()
+    };
     // when
-    let got = within("redeem_with", redeem_with(t, &head(), &[], &expired, &ignore, &owner())).await;
+    let got = within(
+        "redeem_with",
+        redeem_with(t, &head(), &[], &expired, &ignore, &owner()),
+    )
+    .await;
     // then: Expired, the slot is closed by redeem_with itself
     assert!(matches!(got, Err(RedeemError::Expired)), "{got:?}");
-    assert!(net.addr_of(me).is_none(), "the slot was not closed on the exit of redeem_with");
+    assert!(
+        net.addr_of(me).is_none(),
+        "the slot was not closed on the exit of redeem_with"
+    );
 }
 
 /// The spy client A, the stub server B and the invite head of the network `own_key()`.
@@ -132,7 +157,12 @@ fn setup(reply: [u8; REPLY_LEN]) -> Rig {
     let net = MemNet::new();
     let spy = Spy::on(&net, &secret(1)).shared();
     let server = Responder::start(net.transport(&secret(2)), 2, reply);
-    Rig { spy, server, head: head(), _net: net }
+    Rig {
+        spy,
+        server,
+        head: head(),
+        _net: net,
+    }
 }
 
 impl Rig {
@@ -141,7 +171,11 @@ impl Rig {
         vec![self.server.addr()]
     }
 
-    async fn when_redeems(&self, peers: &[PeerAddr], opts: &RedeemOpts) -> Result<NetworkKey, RedeemError> {
+    async fn when_redeems(
+        &self,
+        peers: &[PeerAddr],
+        opts: &RedeemOpts,
+    ) -> Result<NetworkKey, RedeemError> {
         let owner = owner();
         let done = redeem_with(self.spy.clone(), &self.head, peers, opts, &ignore, &owner);
         within("redeem_with", done).await
@@ -156,18 +190,36 @@ impl Rig {
     }
 
     fn then_closed_once(&self) {
-        assert_eq!(self.spy.closes(), 1, "the client's transport was not closed exactly once");
+        assert_eq!(
+            self.spy.closes(),
+            1,
+            "the client's transport was not closed exactly once"
+        );
     }
 
     async fn then_server_conn_closed_by_client(&self) {
         let conns = self.server.conns();
-        assert_eq!(conns.len(), 1, "the server must have exactly one connection");
+        assert_eq!(
+            conns.len(),
+            1,
+            "the server must have exactly one connection"
+        );
         let at_server = &conns[0];
         within("closed() on the server side", at_server.closed()).await;
-        assert!(at_server.is_closed(), "the connection on the server side is not closed after the exchange");
+        assert!(
+            at_server.is_closed(),
+            "the connection on the server side is not closed after the exchange"
+        );
         // assumption: the server on mem is `MemConn`; `close_info()` is its test handle
-        let info = at_server.as_any().downcast_ref::<MemConn>().and_then(MemConn::close_info);
-        assert_eq!(info, Some((0, Bytes::from_static(b"done"))), "the close code and reason are not the previous ones");
+        let info = at_server
+            .as_any()
+            .downcast_ref::<MemConn>()
+            .and_then(MemConn::close_info);
+        assert_eq!(
+            info,
+            Some((0, Bytes::from_static(b"done"))),
+            "the close code and reason are not the previous ones"
+        );
     }
 }
 
@@ -185,9 +237,19 @@ impl Responder {
     /// A stub on the transport `node`; `seed` is the seed of this node's key.
     pub(super) fn start(node: Arc<dyn Transport>, seed: u8, reply: [u8; REPLY_LEN]) -> Responder {
         let seen = Seen::default();
-        let handler = Arc::new(Answering { reply, seen: seen.clone() });
-        let built = NetStackBuilder::new(secret(seed)).transport(node.clone()).serve(INVITE, handler).build();
-        Responder { _stack: built.expect("the stub stack was built"), node, seen }
+        let handler = Arc::new(Answering {
+            reply,
+            seen: seen.clone(),
+        });
+        let built = NetStackBuilder::new(secret(seed))
+            .transport(node.clone())
+            .serve(INVITE, handler)
+            .build();
+        Responder {
+            _stack: built.expect("the stub stack was built"),
+            node,
+            seen,
+        }
     }
 
     pub(super) fn addr(&self) -> PeerAddr {
@@ -196,7 +258,10 @@ impl Responder {
 
     /// Connections that reached the handler.
     pub(super) fn conns(&self) -> Vec<Arc<dyn PeerConn>> {
-        self.seen.lock().unwrap_or_else(PoisonError::into_inner).clone()
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 }
 
@@ -207,7 +272,10 @@ struct Answering {
 
 impl ServiceHandler for Answering {
     fn handle(&self, conn: Arc<dyn PeerConn>) -> BoxFuture<'static, ()> {
-        self.seen.lock().unwrap_or_else(PoisonError::into_inner).push(conn.clone());
+        self.seen
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .push(conn.clone());
         let reply = self.reply;
         Box::pin(async move {
             let _ = answer(conn.as_ref(), reply).await;
@@ -218,7 +286,8 @@ impl ServiceHandler for Answering {
 
 async fn answer(conn: &dyn PeerConn, reply: [u8; REPLY_LEN]) -> io::Result<()> {
     let accepted = conn.accept().await;
-    let StreamPair { mut send, mut recv } = accepted.map_err(|e| io::Error::other(e.to_string()))?;
+    let StreamPair { mut send, mut recv } =
+        accepted.map_err(|e| io::Error::other(e.to_string()))?;
     let mut request = [0u8; REQUEST_LEN];
     recv.read_exact(&mut request).await?;
     send.write_all(&reply).await?;
@@ -274,7 +343,11 @@ fn ms(n: u64) -> Duration {
 
 fn assert_key(got: Result<NetworkKey, RedeemError>, want: &NetworkKey) {
     match got {
-        Ok(key) => assert_eq!(key.encode(), want.encode(), "got a key of the wrong network"),
+        Ok(key) => assert_eq!(
+            key.encode(),
+            want.encode(),
+            "got a key of the wrong network"
+        ),
         Err(e) => panic!("expected a key, but joining ended with an error: {e:?}"),
     }
 }

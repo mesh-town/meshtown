@@ -2,11 +2,18 @@
 //! The reply is built by hand; `me` is the node with seed 1.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::web::{Counts, MemberRow, MembersReply, VoteInfo};
+use crate::transport::net::contract::pid;
+use crate::web_gui::{Counts, MemberRow, MembersReply, VoteInfo};
 
 fn vote(proposed_by: PeerId, mine: bool) -> VoteInfo {
-    VoteInfo { votes: 1, need: 2, proposed_by: proposed_by.to_string(), voters: vec![], mine, reason: None }
+    VoteInfo {
+        votes: 1,
+        need: 2,
+        proposed_by: proposed_by.to_string(),
+        voters: vec![],
+        mine,
+        reason: None,
+    }
 }
 
 fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
@@ -27,8 +34,23 @@ fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
 }
 
 fn reply(rows: Vec<MemberRow>, me_excluded: bool) -> MembersReply {
-    let counts = Counts { members: 0, voting: 0, excluded: 0, unlisted: 0, pending: 0 };
-    MembersReply { me: pid(1).to_string(), me_excluded, me_pending: false, me_admission: None, need: 2, counts, members: rows, changed: None }
+    let counts = Counts {
+        members: 0,
+        voting: 0,
+        excluded: 0,
+        unlisted: 0,
+        pending: 0,
+    };
+    MembersReply {
+        me: pid(1).to_string(),
+        me_excluded,
+        me_pending: false,
+        me_admission: None,
+        need: 2,
+        counts,
+        members: rows,
+        changed: None,
+    }
 }
 
 fn voting(rows: Vec<MemberRow>) -> u64 {
@@ -45,12 +67,18 @@ fn counts_a_pending_vote_of_another_node() {
 
 #[test]
 fn skips_a_vote_that_is_mine() {
-    assert_eq!(voting(vec![row(pid(2), "member", Some(vote(pid(3), true)))]), 0);
+    assert_eq!(
+        voting(vec![row(pid(2), "member", Some(vote(pid(3), true)))]),
+        0
+    );
 }
 
 #[test]
 fn skips_a_vote_proposed_by_me() {
-    assert_eq!(voting(vec![row(pid(2), "member", Some(vote(pid(1), false)))]), 0);
+    assert_eq!(
+        voting(vec![row(pid(2), "member", Some(vote(pid(1), false)))]),
+        0
+    );
 }
 
 #[test]
@@ -64,11 +92,30 @@ fn skips_excluded_and_unlisted_rows() {
 
 #[test]
 fn skips_my_own_row() {
-    assert_eq!(voting(vec![row(pid(1), "member", Some(vote(pid(3), false)))]), 0);
+    assert_eq!(
+        voting(vec![row(pid(1), "member", Some(vote(pid(3), false)))]),
+        0
+    );
 }
 
 #[test]
 fn empty_list_counts_nothing_and_carries_the_exclusion_flag() {
-    assert_eq!(vote_summary(&reply(vec![], false)), VoteSummary { voting: 0, me_excluded: false, admitting: 0, me_pending: false });
-    assert_eq!(vote_summary(&reply(vec![], true)), VoteSummary { voting: 0, me_excluded: true, admitting: 0, me_pending: false });
+    assert_eq!(
+        vote_summary(&reply(vec![], false)),
+        VoteSummary {
+            voting: 0,
+            me_excluded: false,
+            admitting: 0,
+            me_pending: false
+        }
+    );
+    assert_eq!(
+        vote_summary(&reply(vec![], true)),
+        VoteSummary {
+            voting: 0,
+            me_excluded: true,
+            admitting: 0,
+            me_pending: false
+        }
+    );
 }

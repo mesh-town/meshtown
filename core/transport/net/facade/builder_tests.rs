@@ -1,11 +1,11 @@
 //! Tests of the facade builder (`builder.rs`): settings errors, what is called during the build.
 
 use super::NetStackBuilder;
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::test_support::{secret, Probe, Script, Spy};
-use crate::net::facade::NetStack;
-use crate::net::mem::MemNet;
-use crate::net::service::{AUTH, EXIT};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::test_support::{secret, Probe, Script, Spy};
+use crate::transport::net::facade::NetStack;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::{AUTH, EXIT};
 
 mod config_errors {
     use super::*;
@@ -100,7 +100,8 @@ mod accepted_setups {
             .discovery_priority(vec!["nowhere", "mainline"])
             .build();
 
-        let stack = res.unwrap_or_else(|e| panic!("an extra name in priority is not an error: {e}"));
+        let stack =
+            res.unwrap_or_else(|e| panic!("an extra name in priority is not an error: {e}"));
         assert_eq!(stack.snapshot().discovery_names, vec!["mainline"]);
     }
 
@@ -162,12 +163,12 @@ mod serving {
 
 mod found_tap {
     use super::*;
-    use crate::net::facade::test_support::{addr, within};
+    use crate::transport::net::facade::test_support::{addr, within};
     use tokio::sync::mpsc;
 
     fn stack_with(
         script: std::sync::Arc<Script>,
-        tx: mpsc::Sender<crate::net::addr::PeerAddr>,
+        tx: mpsc::Sender<crate::transport::net::addr::PeerAddr>,
     ) -> NetStack {
         let net = MemNet::new();
         let mine = Spy::on(&net, &secret(1)).shared();

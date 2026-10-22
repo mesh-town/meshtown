@@ -38,7 +38,10 @@ fn no_change_reads_after_sixty_seconds() {
 #[test]
 fn no_change_within_a_minute_comes_from_cache() {
     let b = Instant::now();
-    assert!(!should_read(Some(&stamp(2, 2, b)), &stamp(2, 2, secs(b, 1))));
+    assert!(!should_read(
+        Some(&stamp(2, 2, b)),
+        &stamp(2, 2, secs(b, 1))
+    ));
 }
 
 #[test]
@@ -47,7 +50,10 @@ fn change_during_read_triggers_reread_next_tick() {
     // comparing with the captured value triggers a re-read.
     let b = Instant::now();
     let taken_before_read = stamp(5, 0, b);
-    assert!(should_read(Some(&taken_before_read), &stamp(6, 0, secs(b, 1))));
+    assert!(should_read(
+        Some(&taken_before_read),
+        &stamp(6, 0, secs(b, 1))
+    ));
 }
 
 #[test]
@@ -55,15 +61,20 @@ fn partial_read_is_not_cached() {
     let mut cache = DocCache::default();
     let at = stamp(0, 0, Instant::now());
     cache.store(at, &DocParts::default(), true);
-    assert!(cache.held.is_some(), "a complete read is stored in the cache");
+    assert!(
+        cache.held.is_some(),
+        "a complete read is stored in the cache"
+    );
     cache.store(at, &DocParts::default(), false);
     assert!(cache.held.is_none(), "a partial read clears the cache");
 }
 
 #[tokio::test]
 async fn fetch_caches_full_read_of_live_node() {
-    let key = crate::network_key::NetworkKey::generate().unwrap();
-    let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key)).await.unwrap();
+    let key = crate::members::network_key::NetworkKey::generate().unwrap();
+    let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     let mut cache = DocCache::default();
     let (_, partial) = cache.read_doc_parts_cached(&node, 0).await;
     assert!(!partial && cache.held.is_some());
@@ -80,16 +91,26 @@ async fn fetch_caches_full_read_of_live_node() {
     }
     let (_, partial) = cache.read_doc_parts_cached(&node, 0).await;
     assert!(!partial);
-    assert_eq!(cache.held.as_ref().map(|(s, _)| s.at), first, "a tick without changes took it from the cache");
+    assert_eq!(
+        cache.held.as_ref().map(|(s, _)| s.at),
+        first,
+        "a tick without changes took it from the cache"
+    );
     node.doc_changes.bump_local();
     cache.read_doc_parts_cached(&node, 0).await;
-    assert_ne!(cache.held.as_ref().map(|(s, _)| s.at), first, "own change — re-read");
+    assert_ne!(
+        cache.held.as_ref().map(|(s, _)| s.at),
+        first,
+        "own change — re-read"
+    );
 }
 
 #[tokio::test]
 async fn own_insert_bumps_local_counter() {
-    let key = crate::network_key::NetworkKey::generate().unwrap();
-    let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key)).await.unwrap();
+    let key = crate::members::network_key::NetworkKey::generate().unwrap();
+    let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     let before = node.doc_changes.local_and_remote_counts().0;
     node.domains.add("example.com").await.unwrap();
     for _ in 0..40 {

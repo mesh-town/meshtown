@@ -7,7 +7,7 @@ macro_rules! membership_contract {
     ($harness:path) => {
         mod membership {
             use super::*;
-            use $crate::net::contract::membership::cases;
+            use $crate::transport::net::contract::membership::cases;
 
             mod two_nodes {
                 use super::*;
@@ -49,10 +49,10 @@ pub(crate) use membership_contract;
 
 /// Membership cases: plain functions, so that the compiler checks them without the macro plugged in.
 pub(crate) mod cases {
-    use crate::net::contract::{pid, must_finish, SyncPair, SEED_A, SEED_B, STEP};
-    use crate::net::id::PeerId;
-    use crate::net::sync::SwarmEvent;
-    use crate::net::sync_backend::{Swarm, SyncBackend};
+    use crate::transport::net::contract::{must_finish, pid, SyncPair, SEED_A, SEED_B, STEP};
+    use crate::transport::net::id::PeerId;
+    use crate::transport::net::sync::SwarmEvent;
+    use crate::transport::net::sync_backend::{Swarm, SyncBackend};
     use bytes::Bytes;
     use std::sync::Arc;
     use std::time::Duration;

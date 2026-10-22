@@ -6,7 +6,9 @@ use std::net::Ipv4Addr;
 use std::sync::Mutex;
 
 use super::*;
-use crate::exit::frame::{EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS};
+use crate::exit::frame::{
+    EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS,
+};
 use crate::exit::test_support::{exit_config, exit_config_with_dead_resolver, refusal_of};
 
 #[path = "dial_fallback_tests.rs"]
@@ -33,11 +35,16 @@ struct Script {
 
 impl Script {
     fn all(rest: Act) -> Script {
-        Script { acts: HashMap::new(), rest, calls: Mutex::default() }
+        Script {
+            acts: HashMap::new(),
+            rest,
+            calls: Mutex::default(),
+        }
     }
 
     fn with(mut self, addr: &str, act: Act) -> Script {
-        self.acts.insert(addr.parse().expect("a socket address"), act);
+        self.acts
+            .insert(addr.parse().expect("a socket address"), act);
         self
     }
 

@@ -1,13 +1,13 @@
 //! The flood test scaffold on `mem`: a node with a stack and a sync, address exchange, fast timeouts,
 //! waiting for topic events. Shared by the `flood` and `node::start` tests; independent of `net-hyper`.
 
+use super::topic::{Probed, TopicCmd};
 use super::{FloodSync, Tuning};
-use super::topic::{TopicCmd, Probed};
-use crate::net::contract::{secret, must_finish, SyncPair, SEED_A, SEED_B, STEP};
-use crate::net::id::PeerId;
-use crate::net::mem::{MemNet, MemSyncNet};
-use crate::net::sync_backend::{SyncBackend, SyncCtx};
-use crate::net::{NetStack, NetStackBuilder, SwarmEvent, SYNC};
+use crate::transport::net::contract::{must_finish, secret, SyncPair, SEED_A, SEED_B, STEP};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::mem::{MemNet, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtx};
+use crate::transport::net::{NetStack, NetStackBuilder, SwarmEvent, SYNC};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, oneshot};
@@ -66,7 +66,9 @@ pub(crate) fn introduce(a: &FloodNode, b: &FloodNode) {
 pub(crate) async fn probe(node: &FloodNode, topic: [u8; 32]) -> Probed {
     let cmd = node.sync.shared.topic(&topic).expect("the topic is open");
     let (reply, answer) = oneshot::channel();
-    cmd.send(TopicCmd::Probe(reply)).await.expect("the actor is alive");
+    cmd.send(TopicCmd::Probe(reply))
+        .await
+        .expect("the actor is alive");
     must_finish(answer).await.expect("the actor answered")
 }
 

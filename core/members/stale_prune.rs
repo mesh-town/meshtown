@@ -13,17 +13,17 @@ use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::time::{Duration, Instant};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::checks::Checks;
-use crate::domains::DomainList;
-use crate::membership::Members;
-use crate::output::{say, short_peer_id};
-use crate::peer_names::PeerNames;
-use crate::peers_cache::PeersCache;
-use crate::route::RouteCtx;
-use crate::stale_peers::{self, Evidence};
-use crate::telemetry::{Telemetry, TelemetryView};
+use crate::members::membership::Members;
+use crate::members::peer_names::PeerNames;
+use crate::members::stale_peers::{self, Evidence};
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry::{Telemetry, TelemetryView};
+use crate::proxy::domains::DomainList;
+use crate::proxy::route::RouteCtx;
+use crate::site_checks::checks::Checks;
+use crate::transport::peers_cache::PeersCache;
 
 /// The first sweep is 10 minutes after start.
 pub const FIRST_PRUNE_AFTER: Duration = Duration::from_secs(600);
@@ -139,15 +139,32 @@ async fn read_docs(src: &PruneSources<'_>, now_unix: u64) -> Result<DocEvidence,
     let list = bounded("domain list", src.domains.list()).await?;
     let views = bounded("checks", src.checks.check_views()).await?;
     let r = src.domains.shared_replica();
-    let doc_seen_unix = bounded("entry stamps", stale_peers::read_doc_seen(r.as_ref(), now_unix)).await?;
-    Ok(DocEvidence { check_seen_unix: stale_peers::latest_check_unix_by_author(&views, &list), doc_seen_unix })
+    let doc_seen_unix = bounded(
+        "entry stamps",
+        stale_peers::read_doc_seen(r.as_ref(), now_unix),
+    )
+    .await?;
+    Ok(DocEvidence {
+        check_seen_unix: stale_peers::latest_check_unix_by_author(&views, &list),
+        doc_seen_unix,
+    })
 }
 
 /// A log line about a cut member.
 fn say_pruned(id: &PeerId, age: Option<u64>) {
     match age {
-        Some(a) => say("cache", format!("{} removed from cache: not seen for {} d", short_peer_id(id), a / 86_400)),
-        None => say("cache", format!("{} removed from cache: no signs of life", short_peer_id(id))),
+        Some(a) => say(
+            "cache",
+            format!(
+                "{} removed from cache: not seen for {} d",
+                short_peer_id(id),
+                a / 86_400
+            ),
+        ),
+        None => say(
+            "cache",
+            format!("{} removed from cache: no signs of life", short_peer_id(id)),
+        ),
     }
 }
 
@@ -169,7 +186,14 @@ pub async fn prune_tick(
         now: Instant::now(),
         chosen_exits: src.route.chosen_exits(),
     };
-    match prune_from(read, &live, prune_candidates_prev_tick, cache, names, now_unix) {
+    match prune_from(
+        read,
+        &live,
+        prune_candidates_prev_tick,
+        cache,
+        names,
+        now_unix,
+    ) {
         Ok(pruned) => {
             pruned.iter().for_each(|(id, age)| say_pruned(id, *age));
             pruned.into_iter().map(|(id, _)| id).collect()

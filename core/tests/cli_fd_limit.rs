@@ -3,8 +3,8 @@
 //! The child starts with a low soft `RLIMIT_NOFILE`, so the limit is always raised at its startup.
 #![cfg(unix)]
 
-use std::os::unix::process::CommandExt;
 use std::io::{BufRead, BufReader};
+use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::mpsc::{channel, RecvTimeoutError};
 use std::time::{Duration, Instant};
@@ -14,7 +14,10 @@ fn lower_nofile(cmd: &mut Command) {
     // SAFETY: only async-signal-safe libc calls between fork and exec.
     unsafe {
         cmd.pre_exec(|| {
-            let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+            let mut lim = libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            };
             if libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) != 0 {
                 return Err(std::io::Error::last_os_error());
             }
@@ -29,7 +32,9 @@ fn lower_nofile(cmd: &mut Command) {
 
 fn mesh_low_limit(args: &[&str]) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
-    cmd.args(args).env_remove("MESHTOWN_KEY").env_remove("MESHTOWN_INVITE");
+    cmd.args(args)
+        .env_remove("MESHTOWN_KEY")
+        .env_remove("MESHTOWN_INVITE");
     lower_nofile(&mut cmd);
     cmd.output().expect("start meshtown")
 }
@@ -70,7 +75,9 @@ impl Drop for Reaper {
 
 #[test]
 fn run_reports_open_files_limit() {
-    let key = meshtown::network_key::NetworkKey::generate().unwrap().encode();
+    let key = meshtown_core::members::network_key::NetworkKey::generate()
+        .unwrap()
+        .encode();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
     cmd.args(["run", "--no-config", "--key", &key, "--web-port", "0"])
         .args(["--no-relay", "--no-checks", "--no-socks"])

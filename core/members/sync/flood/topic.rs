@@ -8,18 +8,18 @@ use super::peer::spawn_link;
 use super::seen::{msg_id, Seen};
 use super::tuning::Tuning;
 use super::wire::{Frame, CLOSE_DUPLICATE, CLOSE_SLOW, MAX_BODY_BYTES};
-use crate::net::error::NetError;
-use crate::net::id::PeerId;
-use crate::net::stream::StreamPair;
-use crate::net::transport::PeerConn;
-use crate::net::{SwarmEvent, WeakStack};
+use crate::transport::net::error::NetError;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::StreamPair;
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::{SwarmEvent, WeakStack};
 use bytes::Bytes;
 use std::collections::HashSet;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
-use tokio::sync::{broadcast, mpsc};
 #[cfg(test)]
 use tokio::sync::oneshot;
+use tokio::sync::{broadcast, mpsc};
 use tokio::task::{AbortHandle, JoinSet};
 
 pub enum TopicCmd {
@@ -72,7 +72,11 @@ pub struct TopicCtx {
 /// Starts the topic actor: the command channel, the event channel and the stop handle.
 pub fn spawn_topic(
     ctx: TopicCtx,
-) -> (mpsc::Sender<TopicCmd>, broadcast::Sender<SwarmEvent>, AbortHandle) {
+) -> (
+    mpsc::Sender<TopicCmd>,
+    broadcast::Sender<SwarmEvent>,
+    AbortHandle,
+) {
     let (tx, rx) = mpsc::channel(CMD_QUEUE);
     let (events, _) = broadcast::channel(ctx.tuning.event_channel_len);
     let seen = Seen::new(ctx.tuning.seen_cap, ctx.tuning.seen_life);
@@ -135,7 +139,11 @@ impl Actor {
                 conn,
                 pair,
             } => self.linked(peer, dialer, conn, pair),
-            TopicCmd::Frame { peer, link_no, frame } => self.frame(peer, link_no, frame),
+            TopicCmd::Frame {
+                peer,
+                link_no,
+                frame,
+            } => self.frame(peer, link_no, frame),
             TopicCmd::Gone { peer, link_no } => self.gone(peer, link_no),
             TopicCmd::DialFailed { peer, err } => return self.dial_failed(peer, err),
             #[cfg(test)]
@@ -158,13 +166,20 @@ impl Actor {
         {
             self.dials += 1;
         }
-        self.tasks.spawn(dial_task(self.ctx.clone(), peer, self.tx.clone()));
+        self.tasks
+            .spawn(dial_task(self.ctx.clone(), peer, self.tx.clone()));
     }
 
     fn broadcast(&mut self, body: Bytes) {
         self.seen.remember_if_new(msg_id(&body), Instant::now());
         let ttl = self.ctx.tuning.ttl_hops;
-        self.send_all(None, Frame::Msg { ttl, body: body.to_vec() });
+        self.send_all(
+            None,
+            Frame::Msg {
+                ttl,
+                body: body.to_vec(),
+            },
+        );
     }
 
     /// Puts the frame in the queues of all peers except `except`; a full queue means the peer is too slow.
@@ -189,7 +204,8 @@ impl Actor {
     fn incoming(&mut self, peer: PeerId, ttl: u8, body: Vec<u8>) {
         // we do not trust the ttl from the wire: we do not forward beyond our own limit
         let ttl = ttl.min(self.ctx.tuning.ttl_hops);
-        let fresh = body.len() <= MAX_BODY_BYTES && self.seen.remember_if_new(msg_id(&body), Instant::now());
+        let fresh = body.len() <= MAX_BODY_BYTES
+            && self.seen.remember_if_new(msg_id(&body), Instant::now());
         if !fresh {
             return;
         }
@@ -204,7 +220,15 @@ impl Actor {
         self.next_link_no += 1;
         let link_no = self.next_link_no;
         let cmd = self.tx.clone();
-        let out = spawn_link(&mut self.tasks, peer, link_no, conn.clone(), pair, cmd, &self.ctx.tuning);
+        let out = spawn_link(
+            &mut self.tasks,
+            peer,
+            link_no,
+            conn.clone(),
+            pair,
+            cmd,
+            &self.ctx.tuning,
+        );
         self.finish_dial(peer, dialer);
         let link = Link {
             link_no,

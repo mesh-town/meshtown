@@ -2,15 +2,15 @@
 
 use super::host::ReplicaHost;
 use super::MeshSync;
-use crate::net::contract::{secret, SyncPair, SEED_A, SEED_B};
-use crate::net::mem::MemNet;
-use crate::net::replica::ReplicaEntry;
-use crate::net::sync_backend::{SyncBackend, SyncCtx};
-use crate::net::{NetStack, NetStackBuilder};
-use crate::sync::flood::test_support::{fast, NETWORK};
+use crate::members::sync::flood::test_support::{fast, NETWORK};
+use crate::transport::net::contract::{secret, SyncPair, SEED_A, SEED_B};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::replica::ReplicaEntry;
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtx};
+use crate::transport::net::{NetStack, NetStackBuilder};
+use portable_atomic::AtomicU64;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::Arc;
 
 pub(crate) struct MeshNode {
@@ -19,9 +19,20 @@ pub(crate) struct MeshNode {
 }
 
 /// Node `seed` on network `net`: a sync over directory `dir` (`None` — memory), the stack serves `services()`.
-pub(crate) async fn mesh_node(net: &MemNet, seed: u8, network_seed: [u8; 32], dir: Option<PathBuf>) -> MeshNode {
-    let ctx = SyncCtx { secret: secret(seed), network_seed, store_dir: dir };
-    let host = ReplicaHost::load(&ctx, None).await.expect("the replicas came up");
+pub(crate) async fn mesh_node(
+    net: &MemNet,
+    seed: u8,
+    network_seed: [u8; 32],
+    dir: Option<PathBuf>,
+) -> MeshNode {
+    let ctx = SyncCtx {
+        secret: secret(seed),
+        network_seed,
+        store_dir: dir,
+    };
+    let host = ReplicaHost::load(&ctx, None)
+        .await
+        .expect("the replicas came up");
     let sync = MeshSync::assemble(&ctx, host, fast());
     let mut builder = NetStackBuilder::new(secret(seed)).transport(net.transport(&secret(seed)));
     for (id, handler) in sync.services() {
@@ -46,7 +57,12 @@ pub(crate) async fn mesh_mem_pair() -> SyncPair {
     introduce(&a, &b);
     let target = a.sync.host.open("net").expect("the net replica exists");
     let raw: Arc<dyn Fn(ReplicaEntry) + Send + Sync> = Arc::new(move |e| target.put_raw(e));
-    SyncPair { a: a.sync.clone(), b: b.sync.clone(), _keep: Box::new((net, a, b)), raw: Some(raw) }
+    SyncPair {
+        a: a.sync.clone(),
+        b: b.sync.clone(),
+        _keep: Box::new((net, a, b)),
+        raw: Some(raw),
+    }
 }
 
 /// A fresh empty test directory.

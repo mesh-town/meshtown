@@ -105,7 +105,11 @@ impl Limiter {
         if self.map.len() < MAX_TRACKED_IPS {
             return;
         }
-        let oldest = self.map.iter().min_by_key(|(_, e)| e.last_fail).map(|(k, _)| *k);
+        let oldest = self
+            .map
+            .iter()
+            .min_by_key(|(_, e)| e.last_fail)
+            .map(|(k, _)| *k);
         if let Some(k) = oldest {
             self.map.remove(&k);
         }

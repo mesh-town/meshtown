@@ -2,31 +2,32 @@
 
 use super::codec::{encode, read_frame, Frame};
 use super::session::{run, Limits};
+use crate::exit::clients::Clients;
 use crate::exit::server::ExitConfig;
+use crate::exit::traffic::ExitTraffic;
+use crate::members::membership::Members;
+use crate::proxy::domains::DomainList;
+use crate::site_checks::doh::Resolver;
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::facade::test_support::pid;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
-use tokio::task::JoinHandle;
-use crate::doh::Resolver;
-use crate::domains::DomainList;
-use crate::exit::clients::Clients;
-use crate::exit::traffic::ExitTraffic;
-use crate::http_min::HttpLimits;
-use crate::membership::Members;
-use crate::net::facade::test_support::pid;
-use std::sync::atomic::AtomicBool;
-use std::sync::OnceLock;
 use tokio::io::{split, AsyncReadExt, DuplexStream, ReadHalf, WriteHalf};
 use tokio::net::UdpSocket;
+use tokio::task::JoinHandle;
 use tokio::time::timeout;
 
 pub(super) const WAIT: Duration = Duration::from_secs(5);
 
 pub(super) fn cfg_with(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
     let stub = SocketAddr::from(([127, 0, 0, 1], 1));
-    let resolver = Resolver::new(stub, HttpLimits::default(), "meshtown-test".to_string()).expect("resolver");
+    let resolver =
+        Resolver::new(stub, HttpLimits::default(), "meshtown-test".to_string()).expect("resolver");
     ExitConfig {
         enabled: Arc::new(AtomicBool::new(true)),
         members: Members::default(),
@@ -58,11 +59,17 @@ pub(super) struct Client {
 
 impl Client {
     pub async fn send(&mut self, frame: &Frame) {
-        self.to.write_all(&encode(frame).expect("fits")).await.expect("frame sent");
+        self.to
+            .write_all(&encode(frame).expect("fits"))
+            .await
+            .expect("frame sent");
     }
 
     pub async fn next(&mut self) -> Frame {
-        timeout(WAIT, read_frame(&mut self.from)).await.expect("in time").expect("frame")
+        timeout(WAIT, read_frame(&mut self.from))
+            .await
+            .expect("in time")
+            .expect("frame")
     }
 
     pub async fn send_raw(&mut self, bytes: &[u8]) {
@@ -84,15 +91,22 @@ impl Client {
 
     /// No frame within a short while.
     pub async fn silent(&mut self) -> bool {
-        timeout(Duration::from_millis(300), self.from.read_u8()).await.is_err()
+        timeout(Duration::from_millis(300), self.from.read_u8())
+            .await
+            .is_err()
     }
 }
 
 pub(super) fn start(cfg: ExitConfig, limits: Limits) -> (Client, JoinHandle<()>) {
     let (client_end, server_end) = tokio::io::duplex(1 << 20);
     let (server_read, server_write) = split(server_end);
-    let task = tokio::spawn(run(cfg, pid(1), Box::new(server_write), Box::new(server_read), limits));
+    let task = tokio::spawn(run(
+        cfg,
+        pid(1),
+        Box::new(server_write),
+        Box::new(server_read),
+        limits,
+    ));
     let (from, to) = split(client_end);
     (Client { to, from }, task)
 }
-

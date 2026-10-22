@@ -1,8 +1,8 @@
 use super::*;
-use crate::net::NodeSecret;
-use crate::net::{AddrHint, PeerAddr, RelayRef};
-use crate::net::endpoint_shim::from_endpoint_addr;
-use crate::net::endpoint_shim::{EndpointAddr, RelayUrl, TransportAddr};
+use crate::transport::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::endpoint_shim::{EndpointAddr, RelayUrl, TransportAddr};
+use crate::transport::net::NodeSecret;
+use crate::transport::net::{AddrHint, PeerAddr, RelayRef};
 use std::net::SocketAddr;
 
 #[test]
@@ -87,13 +87,18 @@ fn parse_peer_line_results_are_literal() {
         relay,
         PeerAddr {
             id,
-            hints: vec![AddrHint::Relay(RelayRef::Url("https://relay.example.com/".to_string()))],
+            hints: vec![AddrHint::Relay(RelayRef::Url(
+                "https://relay.example.com/".to_string()
+            ))],
         }
     );
     let ip = parse_peer_line(&format!("  {ID7}@203.0.113.5:4433 ")).unwrap();
     assert_eq!(
         ip,
-        PeerAddr { id, hints: vec![AddrHint::Ip("203.0.113.5:4433".parse().unwrap())] }
+        PeerAddr {
+            id,
+            hints: vec![AddrHint::Ip("203.0.113.5:4433".parse().unwrap())]
+        }
     );
 }
 
@@ -110,7 +115,10 @@ fn peer_lines_of_unsorted_hand_made_addr_equals_literal() {
             AddrHint::Ip(v4),
             AddrHint::Ip(v4),
             AddrHint::Relay(RelayRef::Peer(id)),
-            AddrHint::Opaque { kind: 1, bytes: vec![1, 2] },
+            AddrHint::Opaque {
+                kind: 1,
+                bytes: vec![1, 2],
+            },
         ],
     };
     assert_eq!(

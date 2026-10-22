@@ -10,8 +10,8 @@ use anyhow::Result;
 use bytes::Bytes;
 
 use super::{domain_from_key, entry_key, ENTRY_VALUE, LIST_PREFIX};
-use crate::net::{live, NetError, Replica};
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::{live, NetError, Replica};
 
 /// The marker "the list was migrated from the shared document" (the value is non-empty: an empty one is a tombstone).
 pub(crate) const MIGRATED_KEY: &[u8] = b"meta/own-list-from-shared/";

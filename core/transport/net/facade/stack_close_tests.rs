@@ -1,8 +1,8 @@
 //! Tests of the running facade, continued: closing (order, repeat, after close) and the snapshot.
 
 use super::*;
-use crate::net::link::NetInfo;
-use crate::net::transport::Transport;
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::transport::Transport;
 
 mod close {
     use super::*;
@@ -80,7 +80,10 @@ mod close {
         within("close of the copy", copy.close()).await;
 
         let res = a.connect(2, AUTH).await;
-        assert!(matches!(res, Err(NetError::Closed)), "the original is closed too");
+        assert!(
+            matches!(res, Err(NetError::Closed)),
+            "the original is closed too"
+        );
     }
 
     #[tokio::test]

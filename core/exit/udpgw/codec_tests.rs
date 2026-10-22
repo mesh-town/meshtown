@@ -36,7 +36,10 @@ fn keepalive_and_close_have_no_address() {
     let bytes = encode(&Frame::keepalive(3)).expect("fits");
     assert_eq!(bytes, [0, 3, FLAG_KEEPALIVE, 0, 3]);
     let close = parse_body(&[FLAG_CLOSE, 0, 9]).expect("parses");
-    assert_eq!((close.flags, close.conn_id, close.target), (FLAG_CLOSE, 9, None));
+    assert_eq!(
+        (close.flags, close.conn_id, close.target),
+        (FLAG_CLOSE, 9, None)
+    );
 }
 
 #[test]
@@ -69,5 +72,8 @@ async fn read_frame_reports_cut_stream() {
 
 #[test]
 fn error_frame_has_the_error_flag_and_no_address() {
-    assert_eq!(encode(&Frame::error(9)).expect("fits"), vec![0, 3, FLAG_ERR, 0, 9]);
+    assert_eq!(
+        encode(&Frame::error(9)).expect("fits"),
+        vec![0, 3, FLAG_ERR, 0, 9]
+    );
 }

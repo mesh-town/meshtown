@@ -12,11 +12,11 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use crate::net::{ReplicaEntry, NetError, PeerId, Replica};
+use crate::transport::net::{NetError, PeerId, Replica, ReplicaEntry};
 use anyhow::Result;
 
-use crate::checks::CheckView;
-use crate::telemetry::TelemetryView;
+use crate::node::telemetry::TelemetryView;
+use crate::site_checks::checks::CheckView;
 
 /// A member with no news for longer than this period is "gone": 7 days.
 pub const GONE_AFTER_SECS: u64 = 7 * 24 * 3600;
@@ -63,7 +63,10 @@ pub fn is_gone(age: Option<u64>) -> bool {
 
 /// The time of the freshest check entry of each author, only over the domains in `domain_names`; an entry without
 /// parsed content is skipped (as in `author_stats`).
-pub fn latest_check_unix_by_author(views: &[CheckView], domain_names: &[String]) -> HashMap<PeerId, u64> {
+pub fn latest_check_unix_by_author(
+    views: &[CheckView],
+    domain_names: &[String],
+) -> HashMap<PeerId, u64> {
     let mut out: HashMap<PeerId, u64> = HashMap::new();
     for v in views {
         let Some(r) = &v.record else { continue };

@@ -26,9 +26,18 @@ impl RelayStats {
             ("oversize", self.oversize),
             ("unroutable", self.unroutable),
         ];
-        let parts: Vec<String> = reasons.iter().filter(|(_, n)| *n > 0).map(|(what, n)| format!("{n} {what}")).collect();
+        let parts: Vec<String> = reasons
+            .iter()
+            .filter(|(_, n)| *n > 0)
+            .map(|(what, n)| format!("{n} {what}"))
+            .collect();
         let total: u64 = reasons.iter().map(|(_, n)| n).sum();
-        (total > 0).then(|| format!("udp associate: dropped {total} datagrams ({})", parts.join(", ")))
+        (total > 0).then(|| {
+            format!(
+                "udp associate: dropped {total} datagrams ({})",
+                parts.join(", ")
+            )
+        })
     }
 }
 
@@ -41,7 +50,11 @@ pub(super) struct Shared {
 
 impl Shared {
     pub fn new() -> Self {
-        Self { stats: Mutex::default(), last_activity: Mutex::new(Instant::now()), client: Mutex::new(None) }
+        Self {
+            stats: Mutex::default(),
+            last_activity: Mutex::new(Instant::now()),
+            client: Mutex::new(None),
+        }
     }
 
     pub fn count(&self, change: impl FnOnce(&mut RelayStats)) {

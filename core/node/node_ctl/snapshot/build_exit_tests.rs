@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use super::tests::{base, pair};
 use super::*;
-use crate::telemetry::PeerLive;
+use crate::node::telemetry::PeerLive;
 
 fn offline_peer() -> PeerLive {
     PeerLive {
@@ -175,21 +175,27 @@ mod exit_rates {
     use super::*;
     use crate::exit::PeerRate;
 
-    fn peer_rows(rates: &[(PeerId, PeerRate)]) -> Vec<crate::web::PeerInfo> {
+    fn peer_rows(rates: &[(PeerId, PeerRate)]) -> Vec<crate::web_gui::PeerInfo> {
         let mut inputs = base(pair(1));
         inputs.members = [pair(2)].into_iter().collect();
         inputs.exit_rates = rates.iter().copied().collect();
         build_peers(&inputs)
     }
 
-    fn row(peers: &[crate::web::PeerInfo], id: PeerId) -> &crate::web::PeerInfo {
+    fn row(peers: &[crate::web_gui::PeerInfo], id: PeerId) -> &crate::web_gui::PeerInfo {
         let short = output::short_peer_id(&id);
-        peers.iter().find(|p| p.id == short).expect("the row exists")
+        peers
+            .iter()
+            .find(|p| p.id == short)
+            .expect("the row exists")
     }
 
     #[test]
     fn peer_row_carries_exit_rates() {
-        let rate = PeerRate { through_peer_bps: 7, through_us_bps: 9 };
+        let rate = PeerRate {
+            through_peer_bps: 7,
+            through_us_bps: 9,
+        };
 
         let peers = peer_rows(&[(pair(2), rate)]);
 
@@ -207,7 +213,10 @@ mod exit_rates {
 
     #[test]
     fn self_row_is_always_zero() {
-        let rate = PeerRate { through_peer_bps: 7, through_us_bps: 9 };
+        let rate = PeerRate {
+            through_peer_bps: 7,
+            through_us_bps: 9,
+        };
 
         let peers = peer_rows(&[(pair(1), rate)]);
 

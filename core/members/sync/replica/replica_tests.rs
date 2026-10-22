@@ -5,18 +5,22 @@ use super::file::{self, Bak, ImportMark, MarkSource};
 use super::ids::{domains_id, net_id};
 use super::sync_ctor;
 use super::test_support::temp_dir;
-use crate::net::contract::{secret, must_finish, SEED_A, SEED_B, STEP};
-use crate::net::replica::{ReplicaEntry, Replica};
-use crate::net::sync_backend::{SyncBackend, SyncCtx};
-use crate::net::NetResult;
-use crate::sync::flood::test_support::NETWORK;
+use crate::members::sync::flood::test_support::NETWORK;
+use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B, STEP};
+use crate::transport::net::replica::{Replica, ReplicaEntry};
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtx};
+use crate::transport::net::NetResult;
 use bytes::Bytes;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 fn ctx(base: &Path) -> SyncCtx {
-    SyncCtx { secret: secret(SEED_A), network_seed: NETWORK, store_dir: Some(base.join("docs-store")) }
+    SyncCtx {
+        secret: secret(SEED_A),
+        network_seed: NETWORK,
+        store_dir: Some(base.join("docs-store")),
+    }
 }
 
 async fn try_start(base: &Path) -> NetResult<Arc<dyn SyncBackend>> {
@@ -24,11 +28,15 @@ async fn try_start(base: &Path) -> NetResult<Arc<dyn SyncBackend>> {
 }
 
 async fn start(base: &Path) -> Arc<dyn SyncBackend> {
-    try_start(base).await.unwrap_or_else(|e| panic!("start failed: {e}"))
+    try_start(base)
+        .await
+        .unwrap_or_else(|e| panic!("start failed: {e}"))
 }
 
 async fn open(sync: &Arc<dyn SyncBackend>, name: &str) -> Arc<dyn Replica> {
-    must_finish(sync.open_replica(name)).await.expect("the replica opened")
+    must_finish(sync.open_replica(name))
+        .await
+        .expect("the replica opened")
 }
 
 fn domains_path(base: &Path) -> PathBuf {
@@ -45,7 +53,10 @@ fn bak_of(path: &Path) -> PathBuf {
     path.with_file_name(name)
 }
 
-fn read_entries(path: &Path, id: &crate::net::ReplicaId) -> (Option<ImportMark>, Vec<WireEntry>) {
+fn read_entries(
+    path: &Path,
+    id: &crate::transport::net::ReplicaId,
+) -> (Option<ImportMark>, Vec<WireEntry>) {
     file::decode(id, &std::fs::read(path).expect("the file exists")).expect("the file is intact")
 }
 
@@ -57,14 +68,18 @@ fn val(s: &str) -> Bytes {
 async fn wait_net_file(base: &Path, n: usize) {
     let polling = async {
         loop {
-            let ok = std::fs::read(net_path(base)).ok().and_then(|b| file::decode(&net_id(&NETWORK), &b).ok());
+            let ok = std::fs::read(net_path(base))
+                .ok()
+                .and_then(|b| file::decode(&net_id(&NETWORK), &b).ok());
             if ok.is_some_and(|(_, e)| e.len() == n) {
                 return;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     };
-    tokio::time::timeout(STEP, polling).await.expect("the net file was not completed");
+    tokio::time::timeout(STEP, polling)
+        .await
+        .expect("the net file was not completed");
 }
 
 mod persist {
@@ -77,7 +92,9 @@ mod persist {
         let d = open(&start(&base).await, "domains").await;
         must_finish(d.set_own(b"list/a", val("x"))).await.unwrap();
         let (_, entries) = read_entries(&domains_path(&base), &domains_id());
-        assert!(entries.iter().any(|w| w.key == b"list/a" && w.value == b"x"));
+        assert!(entries
+            .iter()
+            .any(|w| w.key == b"list/a" && w.value == b"x"));
     }
 
     #[tokio::test]
@@ -111,9 +128,18 @@ mod persist {
     async fn mark_survives_save() {
         // given: the "domains" file with an import mark → when: set_own → then: the mark is in place in the new file
         let base = temp_dir("mark");
-        let mark = ImportMark { at_micros: 5, source: MarkSource::DocsStore, entries: 3 };
+        let mark = ImportMark {
+            at_micros: 5,
+            source: MarkSource::DocsStore,
+            entries: 3,
+        };
         std::fs::create_dir_all(base.join("replica")).unwrap();
-        file::save(&domains_path(&base), &file::encode(&domains_id(), Some(&mark), &[]), Bak::Keep).unwrap();
+        file::save(
+            &domains_path(&base),
+            &file::encode(&domains_id(), Some(&mark), &[]),
+            Bak::Keep,
+        )
+        .unwrap();
         let d = open(&start(&base).await, "domains").await;
         must_finish(d.set_own(b"list/a", val("x"))).await.unwrap();
         let (got, entries) = read_entries(&domains_path(&base), &domains_id());
@@ -125,7 +151,11 @@ mod persist {
     async fn bak_kept_when_started_from_bak() {
         // given: "net": the main file is corrupt, .bak is intact (with a mark) → when: start and write → then: .bak is unchanged
         let base = temp_dir("bak");
-        let mark = ImportMark { at_micros: 5, source: MarkSource::Absent, entries: 0 };
+        let mark = ImportMark {
+            at_micros: 5,
+            source: MarkSource::Absent,
+            entries: 0,
+        };
         let old = seal(&secret(SEED_A), &net_id(&NETWORK), b"old/", b"1", 10);
         let good = file::encode(&net_id(&NETWORK), Some(&mark), &[old]);
         std::fs::create_dir_all(base.join("replica")).unwrap();
@@ -134,7 +164,11 @@ mod persist {
         let n = open(&start(&base).await, "net").await;
         must_finish(n.set_own(b"new/", val("2"))).await.unwrap();
         wait_net_file(&base, 2).await;
-        assert_eq!(std::fs::read(bak_of(&net_path(&base))).unwrap(), good, ".bak was changed");
+        assert_eq!(
+            std::fs::read(bak_of(&net_path(&base))).unwrap(),
+            good,
+            ".bak was changed"
+        );
     }
 
     #[tokio::test]
@@ -147,7 +181,13 @@ mod persist {
         let bytes = std::fs::read(domains_path(&base)).unwrap();
         std::fs::write(domains_path(&base), &bytes[..10]).unwrap();
         let again = open(&start(&base).await, "domains").await;
-        assert_eq!(must_finish(again.latest_per_key(b"list/")).await.unwrap().len(), 2);
+        assert_eq!(
+            must_finish(again.latest_per_key(b"list/"))
+                .await
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[tokio::test]
@@ -156,7 +196,12 @@ mod persist {
         let base = temp_dir("author");
         let foreign = seal(&secret(SEED_B), &domains_id(), b"list/x", b"v", 1_000);
         std::fs::create_dir_all(base.join("replica")).unwrap();
-        file::save(&domains_path(&base), &file::encode(&domains_id(), None, &[foreign]), Bak::Mirror).unwrap();
+        file::save(
+            &domains_path(&base),
+            &file::encode(&domains_id(), None, &[foreign]),
+            Bak::Mirror,
+        )
+        .unwrap();
         let d = open(&start(&base).await, "domains").await;
         let seen = must_finish(d.latest_per_key(b"list/")).await.unwrap();
         assert_eq!((seen.len(), seen[0].value.as_ref()), (1, &b"v"[..]));
@@ -181,7 +226,13 @@ mod corrupt {
         assert!(must_finish(d.scan(b"")).await.unwrap().is_empty());
         let broken = std::fs::read_dir(base.join("replica"))
             .unwrap()
-            .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().contains(".broken-"))
+            .filter(|e| {
+                e.as_ref()
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".broken-")
+            })
             .count();
         assert!(broken >= 1, "no *.broken-* file");
         drop(d);

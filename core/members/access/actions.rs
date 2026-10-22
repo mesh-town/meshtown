@@ -4,9 +4,9 @@
 //! leave in the shared replica, block in the own one) and recomputes.
 //! What it doesn't do: no parsing of ids or HTTP (the node control layer does).
 
-use crate::net::{NetResult, PeerId};
-use crate::net_mainline::unix_now;
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::{NetResult, PeerId};
+use crate::transport::net_mainline::unix_now;
 
 use super::record::{self, AclKind, AclValue, Via};
 use super::runtime::Access;
@@ -43,7 +43,13 @@ fn value(kind: AclKind, subject: PeerId) -> AclValue {
 }
 
 fn noted(kind: AclKind, subject: PeerId, note: String) -> AclValue {
-    AclValue { kind, subject, via: Via::None, made_unix: unix_now(), note }
+    AclValue {
+        kind,
+        subject,
+        via: Via::None,
+        made_unix: unix_now(),
+        note,
+    }
 }
 
 /// Whether the request of `p` has the vote of `me` counted.
@@ -65,15 +71,18 @@ fn check(me: PeerId, v: &Verdicts, act: &MemberAction) -> Result<(), ActionRefus
             | MemberAction::Block(p)
             | MemberAction::Unblock(p),
             _,
-        ) if p == me =>
+        ) if p == me => Err(ActionRefusal::SelfTarget),
+        (MemberAction::Exclude(p, _), _)
+            if !v.ledger.admitted.contains(&p) && !v.ledger.excluded.contains_key(&p) =>
         {
-            Err(ActionRefusal::SelfTarget)
-        }
-        (MemberAction::Exclude(p, _), _) if !v.ledger.admitted.contains(&p) && !v.ledger.excluded.contains_key(&p) => {
             Err(ActionRefusal::NotMember)
         }
-        (MemberAction::Admit(p), _) if confirmed_by(me, v, &p) != Some(false) => Err(ActionRefusal::NotPending),
-        (MemberAction::Unadmit(p), _) if confirmed_by(me, v, &p) != Some(true) => Err(ActionRefusal::NotConfirmed),
+        (MemberAction::Admit(p), _) if confirmed_by(me, v, &p) != Some(false) => {
+            Err(ActionRefusal::NotPending)
+        }
+        (MemberAction::Unadmit(p), _) if confirmed_by(me, v, &p) != Some(true) => {
+            Err(ActionRefusal::NotConfirmed)
+        }
         _ => Ok(()),
     }
 }
@@ -85,7 +94,11 @@ async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
     match act {
         MemberAction::Exclude(p, _) if v.ledger.excluded.contains_key(&p) => Ok(false),
         MemberAction::Exclude(p, note) => {
-            record::ensure(shared, &noted(AclKind::Exclude, p, note.unwrap_or_default())).await
+            record::ensure(
+                shared,
+                &noted(AclKind::Exclude, p, note.unwrap_or_default()),
+            )
+            .await
         }
         MemberAction::Unexclude(p) => record::withdraw(shared, AclKind::Exclude, p).await,
         MemberAction::Admit(p) => record::ensure(shared, &value(AclKind::Admit, p)).await,
@@ -99,9 +112,14 @@ async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
 
 /// Applies the action and recomputes the verdicts. `Ok(true)` — the lists changed.
 pub async fn apply(a: &Access, act: MemberAction) -> Result<bool, ActionRefusal> {
-    let verdicts = a.refresh().await.map_err(|e| ActionRefusal::Write(e.to_string()))?;
+    let verdicts = a
+        .refresh()
+        .await
+        .map_err(|e| ActionRefusal::Write(e.to_string()))?;
     check(a.me, &verdicts, &act)?;
-    let changed = write(a, &verdicts, act).await.map_err(|e| ActionRefusal::Write(e.to_string()))?;
+    let changed = write(a, &verdicts, act)
+        .await
+        .map_err(|e| ActionRefusal::Write(e.to_string()))?;
     refresh_after(a, changed).await;
     Ok(changed)
 }
@@ -111,7 +129,10 @@ async fn refresh_after(a: &Access, changed: bool) {
         return;
     }
     if let Err(e) = a.refresh().await {
-        say("access", format!("acl recompute after an action failed: {e}"));
+        say(
+            "access",
+            format!("acl recompute after an action failed: {e}"),
+        );
     }
 }
 

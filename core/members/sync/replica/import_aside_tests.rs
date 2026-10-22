@@ -53,7 +53,9 @@ async fn second_network_after_aside_ok() {
     assert!(!dir.exists());
     let id = net_id(&seed);
     let path = file::path_for(&file::replica_dir(&dir).unwrap(), "net", &id);
-    let Loaded::Main(mark, _) = file::load(&path, &id).unwrap() else { panic!("the file of network 9 was not written") };
+    let Loaded::Main(mark, _) = file::load(&path, &id).unwrap() else {
+        panic!("the file of network 9 was not written")
+    };
     assert_eq!(mark.unwrap().source, MarkSource::Absent);
 }
 
@@ -87,7 +89,9 @@ async fn marked_keeps_docs_store() {
 #[tokio::test]
 async fn reader_error_keeps_docs_store() {
     let dir = node(true);
-    let err = super::tests::run_with(&dir, &Fake::new(None)).await.unwrap_err();
+    let err = super::tests::run_with(&dir, &Fake::new(None))
+        .await
+        .unwrap_err();
     assert!(err.to_string().contains("docs.redb"), "{err}");
     assert!(dir.join("docs").exists());
     assert!(!parent(&dir).join("docs-store.old").exists());

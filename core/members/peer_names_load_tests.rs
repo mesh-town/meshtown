@@ -227,7 +227,11 @@ fn load_keeps_first_of_duplicate_ids() {
 
     let names = PeerNames::load(Some(&file), "net");
 
-    assert_eq!(names.len(), 1, "a repeated id must collapse into one record");
+    assert_eq!(
+        names.len(),
+        1,
+        "a repeated id must collapse into one record"
+    );
     assert_eq!(
         names.get(endpoint_id(1)),
         Some("A"),

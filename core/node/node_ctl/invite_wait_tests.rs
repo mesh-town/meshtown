@@ -5,10 +5,12 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::config_file::{Settings, TransportMode};
+use crate::config::config_file::{Settings, TransportMode};
 use crate::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
-use crate::node_ctl::NodeCtl;
-use crate::web::{ActionError, InviteJoinState, InviteJoinView, NodeControl, NodeStatus, SaveKey};
+use crate::node::node_ctl::NodeCtl;
+use crate::web_gui::{
+    ActionError, InviteJoinState, InviteJoinView, NodeControl, NodeStatus, SaveKey,
+};
 
 const TEXT_WAITING: &str =
     "Waiting for network members: as soon as anyone from the invite is online, the node will join the network.";
@@ -224,10 +226,7 @@ mod expired_invite {
 
         // then
         assert!(matches!(result, Err(ActionError::Invalid(_))));
-        let view = fx
-            .ctl
-            .invite_join()
-            .expect("the previous wait should stay");
+        let view = fx.ctl.invite_join().expect("the previous wait should stay");
         assert_eq!(view.state, InviteJoinState::Waiting);
         assert_eq!(view.label.as_deref(), Some("Live"));
     }
@@ -296,26 +295,31 @@ impl Fixture {
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
-        panic!("refusal did not appear within 10 s: {:?}", self.ctl.invite_join());
+        panic!(
+            "refusal did not appear within 10 s: {:?}",
+            self.ctl.invite_join()
+        );
     }
 }
 
 /// A node without a network, without a relay (the invite client does not go outside).
 fn setup() -> Fixture {
-    setup_with(Some(crate::net::NodeSecret::from_bytes(&[5; 32])))
+    setup_with(Some(crate::transport::net::NodeSecret::from_bytes(
+        &[5; 32],
+    )))
 }
 
 /// The same node; `owner` is its permanent key (the one the invite proof is signed with), if it is known.
-fn setup_with(owner: Option<crate::net::NodeSecret>) -> Fixture {
+fn setup_with(owner: Option<crate::transport::net::NodeSecret>) -> Fixture {
     let settings = Settings {
-        net: crate::config_file::NetSettings {
+        net: crate::config::config_file::NetSettings {
             transport_mode: TransportMode::NoRelay,
-            ..crate::config_file::NetSettings::default()
+            ..crate::config::config_file::NetSettings::default()
         },
         ..Settings::default()
     };
     let ctl = NodeCtl::new_without_network(&settings);
-    ctl.set_test_net(Some(crate::net::mem::MemNet::new()));
+    ctl.set_test_net(Some(crate::transport::net::mem::MemNet::new()));
     if let Some(owner) = owner {
         ctl.set_owner_secret(owner);
     }
@@ -329,7 +333,10 @@ fn setup_with(owner: Option<crate::net::NodeSecret>) -> Fixture {
 fn setup_waiting() -> Fixture {
     let fx = setup();
     fx.join(head(Some("Alice"), now())).unwrap();
-    assert!(fx.ctl.invite_join().is_some(), "given: the wait should be running");
+    assert!(
+        fx.ctl.invite_join().is_some(),
+        "given: the wait should be running"
+    );
     fx
 }
 

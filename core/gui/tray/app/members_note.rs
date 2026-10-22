@@ -5,11 +5,12 @@
 //! What it does not do: it touches no menu (that is `tray::vote_item`) and reads no JSON (that is `app::snapshot`).
 //! Links: `tray::core_line` and `tray::core_menu` call these functions.
 
-use crate::app::snapshot::TrayMembers;
-use crate::app::tray_texts::{
-    status_excluded_text, ADMIT_ITEM_TEXT, ADMIT_TOOLTIP_TAIL, PENDING_TOOLTIP_TAIL, VOTE_ITEM_TEXT, VOTE_TOOLTIP_TAIL,
+use crate::gui::tray::app::snapshot::TrayMembers;
+use crate::gui::tray::app::tray_texts::{
+    status_excluded_text, ADMIT_ITEM_TEXT, ADMIT_TOOLTIP_TAIL, PENDING_TOOLTIP_TAIL,
+    VOTE_ITEM_TEXT, VOTE_TOOLTIP_TAIL,
 };
-use crate::app::view::NodeState;
+use crate::gui::tray::app::view::NodeState;
 
 /// The first menu line when this computer was removed from the network; `None` — the usual line.
 /// It matters only for a running node: a stopped one says "stopped" itself.
@@ -50,7 +51,10 @@ pub(crate) fn tooltip_text(line: &str, members: TrayMembers) -> String {
         (members.admitting > 0 && open, ADMIT_TOOLTIP_TAIL),
         (members.me_pending && open, PENDING_TOOLTIP_TAIL),
     ];
-    tails.iter().filter(|(shown, _)| *shown).fold(line.to_string(), |text, (_, tail)| format!("{text}{tail}"))
+    tails
+        .iter()
+        .filter(|(shown, _)| *shown)
+        .fold(line.to_string(), |text, (_, tail)| format!("{text}{tail}"))
 }
 
 /// The page address pointing at a section: an existing anchor is replaced.

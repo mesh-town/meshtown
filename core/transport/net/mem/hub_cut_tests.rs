@@ -32,7 +32,9 @@ mod cut {
             t.cut_b_a();
         });
 
-        let err = got.expect("the waiting recv did not wake up on cut").unwrap_err();
+        let err = got
+            .expect("the waiting recv did not wake up on cut")
+            .unwrap_err();
         assert_eq!(err.kind(), ErrorKind::UnexpectedEof);
     }
 

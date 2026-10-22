@@ -49,7 +49,8 @@ async fn send_request_read_response(
     stream: &mut TcpStream,
     request: &[u8],
 ) -> Result<(u16, Vec<u8>), ApiError> {
-    let closed_without_reply = || ApiError::NotHttp("connection closed without a reply".to_string());
+    let closed_without_reply =
+        || ApiError::NotHttp("connection closed without a reply".to_string());
 
     if stream.write_all(request).await.is_err() {
         return Err(closed_without_reply());

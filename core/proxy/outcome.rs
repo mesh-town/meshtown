@@ -14,8 +14,17 @@ pub struct ProxyOutcome {
 
 impl ProxyOutcome {
     /// The route worked and bytes passed.
-    pub fn success(route_label: impl Into<String>, bytes_to_client: u64, bytes_from_client: u64) -> Self {
-        Self { route_label: route_label.into(), result: "success".to_string(), bytes_to_client, bytes_from_client }
+    pub fn success(
+        route_label: impl Into<String>,
+        bytes_to_client: u64,
+        bytes_from_client: u64,
+    ) -> Self {
+        Self {
+            route_label: route_label.into(),
+            result: "success".to_string(),
+            bytes_to_client,
+            bytes_from_client,
+        }
     }
 
     /// The route failed or was not found: no bytes passed.

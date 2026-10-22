@@ -2,8 +2,8 @@
 //! the event stream. No network — a `broadcast` channel and the task itself; waits are up to `STEP`, no blind pauses.
 
 use super::run_swarm_events;
-use crate::net::contract::{pid, STEP};
-use crate::net::SwarmEvent;
+use crate::transport::net::contract::{pid, STEP};
+use crate::transport::net::SwarmEvent;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -134,7 +134,8 @@ struct Swarm {
 fn setup(opts: Opts) -> Swarm {
     let (tx, rx) = broadcast::channel::<SwarmEvent>(opts.capacity);
     for event in opts.queued {
-        tx.send(event).expect("receiver is alive until handed to the task");
+        tx.send(event)
+            .expect("receiver is alive until handed to the task");
     }
     let neighbors = Arc::new(AtomicUsize::new(0));
     let task = tokio::spawn(run_swarm_events(rx, neighbors.clone()));

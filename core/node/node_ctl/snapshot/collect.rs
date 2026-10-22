@@ -1,23 +1,24 @@
 //! Reads the running node and telemetry in one pass (`Inputs`), without the pure assembly logic —
 //! that lives in `build.rs`.
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::access::report::{members_reply, vote_summary, VoteSummary};
-use crate::config_file::{IfaceFilter, ListenAccess};
-use crate::geoip;
+use crate::config::config_file::{IfaceFilter, ListenAccess};
+use crate::members::access::report::{members_reply, vote_summary, VoteSummary};
+use crate::members::stale_peers;
+use crate::node::node_state;
+use crate::node::program_version;
 use crate::node::RunningNode;
-use crate::node_state;
-use crate::program_version;
-use crate::stale_peers;
-use crate::web::auth::access::{lan_addrs, IfaceAddr};
-use crate::web::auth::iface_nets::admitted_lan;
-use crate::web::auth::iface_os::current_view;
-use crate::web::{MembersInfo, NodeSnapshot};
-use crate::web::NodeStatus;
+use crate::ports_sharing::PortView;
+use crate::site_checks::geoip;
+use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
+use crate::web_gui::auth::iface_nets::admitted_lan;
+use crate::web_gui::auth::iface_os::current_view;
+use crate::web_gui::NodeStatus;
+use crate::web_gui::{MembersInfo, NodeSnapshot, PortsInfo};
 
 use super::build::{build, Inputs};
 use super::doc_cache::{DocCache, DocParts};
@@ -63,7 +64,11 @@ async fn program_versions_of(node: &RunningNode) -> (HashMap<PeerId, String>, bo
 /// Time of each author's last write in the document and the read-success flag.
 async fn doc_seen_of(node: &RunningNode, now_unix: u64) -> (HashMap<PeerId, u64>, bool) {
     let r = node.domains.shared_replica();
-    read_or(stale_peers::read_doc_seen(r.as_ref(), now_unix), HashMap::new()).await
+    read_or(
+        stale_peers::read_doc_seen(r.as_ref(), now_unix),
+        HashMap::new(),
+    )
+    .await
 }
 
 /// Seven document reads under a timeout (`domains.list()`, `checks.check_views()`,
@@ -79,17 +84,32 @@ pub(super) async fn read_doc_parts(node: &RunningNode, now_unix: u64) -> (DocPar
     let (program_versions, versions_ok) = program_versions_of(node).await;
     let (port_views, ports_ok) = read_or(node.ports_doc.read_all(), Vec::new()).await;
     let (doc_seen, doc_seen_ok) = doc_seen_of(node, now_unix).await;
-    let read_complete = list_ok && views_ok && exits_ok && countries_ok && ports_ok && versions_ok && doc_seen_ok;
-    let parts = DocParts { list, views, exits, countries, program_versions, port_views, doc_seen };
+    let read_complete =
+        list_ok && views_ok && exits_ok && countries_ok && ports_ok && versions_ok && doc_seen_ok;
+    let parts = DocParts {
+        list,
+        views,
+        exits,
+        countries,
+        program_versions,
+        port_views,
+        doc_seen,
+    };
     (parts, read_complete)
 }
 
 fn unix_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 fn country_texts(countries: HashMap<PeerId, geoip::Country>) -> HashMap<PeerId, String> {
-    countries.into_iter().map(|(id, c)| (id, c.as_str().to_string())).collect()
+    countries
+        .into_iter()
+        .map(|(id, c)| (id, c.as_str().to_string()))
+        .collect()
 }
 
 /// Collects the node snapshot: document parts go through the `cache` (`DocCache`), the rest is
@@ -105,9 +125,19 @@ pub(crate) async fn collect(
 ) -> Collected {
     let now_unix = unix_now();
     let (parts, partial) = cache.read_doc_parts_cached(node, now_unix).await;
-    let DocParts { list, views, exits, countries, mut program_versions, port_views, doc_seen } =
-        parts;
-    program_versions.insert(node.id, program_version::current_program_version().to_string());
+    let DocParts {
+        list,
+        views,
+        exits,
+        countries,
+        mut program_versions,
+        port_views,
+        doc_seen,
+    } = parts;
+    program_versions.insert(
+        node.id,
+        program_version::current_program_version().to_string(),
+    );
 
     let inputs = Inputs {
         id: node.id,
@@ -119,10 +149,7 @@ pub(crate) async fn collect(
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
         votes: votes_of(node),
         socks: node.socks_addr,
-        socks_access: (
-            node.socks_access,
-            socks_lan_addrs(node.socks_access, &node.socks_ifaces),
-        ),
+        socks_access: socks_access_of(node),
         socks_ifaces: node.socks_ifaces.clone(),
         exit_on: node.exit_on.load(Ordering::Relaxed),
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
@@ -143,27 +170,47 @@ pub(crate) async fn collect(
     };
 
     let mut collected = build(inputs);
-    collected.snap.ports = build_ports(
-        &port_views,
+    collected.snap.ports = ports_of(node, &port_views);
+    collected.partial = partial;
+    collected
+}
+
+/// The published ports with their live state on this node.
+fn ports_of(node: &RunningNode, port_views: &[PortView]) -> PortsInfo {
+    build_ports(
+        port_views,
         node.id,
         &node.members.names(),
         &node.members.ids(),
         node.ports.published_with_state(),
         node.opener.bind_states(),
-    );
-    collected.partial = partial;
-    collected
+    )
+}
+
+/// The SOCKS access mode together with the LAN addresses it is reachable on.
+fn socks_access_of(node: &RunningNode) -> (ListenAccess, Vec<IfaceAddr>) {
+    (
+        node.socks_access,
+        socks_lan_addrs(node.socks_access, &node.socks_ifaces),
+    )
 }
 
 /// The published verdicts as a summary for the page; nothing published yet — an empty one. Never recomputes.
 fn votes_of(node: &RunningNode) -> VoteSummary {
-    let Some(v) = node.access.view.verdicts() else { return VoteSummary::default() };
-    vote_summary(&members_reply(&v, &node.members, &node.access.view.refusals(), None))
+    let Some(v) = node.access.view.verdicts() else {
+        return VoteSummary::default();
+    };
+    vote_summary(&members_reply(
+        &v,
+        &node.members,
+        &node.access.view.refusals(),
+        None,
+    ))
 }
 
 /// Rewrites the members block of a snapshot from the live node: the count, the gossip neighbours and the
 /// votes are read at every call, so a page opened after a pause does not show a stale block.
-pub(in crate::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: &RunningNode) {
+pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: &RunningNode) {
     let votes = votes_of(node);
     snap.members = MembersInfo {
         count: node.members.count() as u64,

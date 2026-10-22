@@ -3,10 +3,12 @@
 
 use std::collections::HashSet;
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use serde_json::Value;
 
-use crate::ports::types::{Audience, Opened, Published, MAX_PORT_LIST_ENTRIES, MAX_NAME_CHARS};
+use crate::ports_sharing::types::{
+    Audience, Opened, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES,
+};
 
 fn port_of(v: &Value, key: &str) -> Option<u16> {
     let n = v.get(key)?.as_u64()?;

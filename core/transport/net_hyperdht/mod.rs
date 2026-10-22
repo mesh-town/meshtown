@@ -15,5 +15,5 @@ mod mem;
 
 pub use keys::RosterKeys;
 pub use pace::Pace;
-pub use store::{Record, RecordKey, RecordStore};
 pub use source::{node_source, DhtRoundOutcome, HyperDhtDiscovery, RoundOutcomeFn};
+pub use store::{Record, RecordKey, RecordStore};

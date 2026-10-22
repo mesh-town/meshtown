@@ -1,7 +1,7 @@
 //! Tests for `net/addr.rs`: `PeerAddr::new` and `PeerAddr::merge` (skeleton — `tests.md`).
 
 use super::*;
-use crate::net::id::{NodeSecret, PeerId};
+use crate::transport::net::id::{NodeSecret, PeerId};
 use std::net::SocketAddr;
 
 mod new {
@@ -165,7 +165,10 @@ fn merged(mine: &[AddrHint], other: &[AddrHint]) -> Vec<AddrHint> {
 }
 
 fn ip(text: &str) -> AddrHint {
-    AddrHint::Ip(text.parse::<SocketAddr>().expect("the address in the test is valid"))
+    AddrHint::Ip(
+        text.parse::<SocketAddr>()
+            .expect("the address in the test is valid"),
+    )
 }
 
 fn ip_a() -> AddrHint {

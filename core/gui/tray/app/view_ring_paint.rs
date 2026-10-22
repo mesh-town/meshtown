@@ -118,7 +118,8 @@ impl<'a> Shape<'a> {
             inner_radius_px: outer_radius_px - f64::from(spec.thickness_px),
             sector_angle_rad,
             half_gap_px: half_gap_px(spec.gap_px, sector_count, sector_angle_rad * mid),
-            outline_px: (f64::from(side_px) / f64::from(FULL_SIDE_PX) * OUTLINE_PX_AT_FULL).max(0.5),
+            outline_px: (f64::from(side_px) / f64::from(FULL_SIDE_PX) * OUTLINE_PX_AT_FULL)
+                .max(0.5),
         }
     }
 
@@ -231,9 +232,12 @@ fn blend(hits: [u32; SLOT_COUNT]) -> [u8; 4] {
     if total == 0 {
         return [0; 4];
     }
-    let sums = slot_colors().into_iter().zip(hits).fold([0u32; 3], |acc, (rgb, n)| {
-        [0, 1, 2].map(|c| acc[c] + n * u32::from(rgb[c]))
-    });
+    let sums = slot_colors()
+        .into_iter()
+        .zip(hits)
+        .fold([0u32; 3], |acc, (rgb, n)| {
+            [0, 1, 2].map(|c| acc[c] + n * u32::from(rgb[c]))
+        });
     let [r, g, b] = sums.map(|sum| ((sum + total / 2) / total) as u8);
     let share = f64::from(total) / f64::from(SUBSAMPLES * SUBSAMPLES);
     [r, g, b, (share.min(1.0) * 255.0).round() as u8]

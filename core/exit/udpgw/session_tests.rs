@@ -3,7 +3,12 @@ use crate::exit::udpgw::test_support::{cfg_with, spawn_echo, start, Client, WAIT
 use tokio::time::timeout;
 
 fn to_domain(conn_id: u16, name: &str, data: &[u8]) -> Frame {
-    Frame { flags: FLAG_DATA, conn_id, target: Some(Target::Domain(name.into(), 9)), data: data.to_vec() }
+    Frame {
+        flags: FLAG_DATA,
+        conn_id,
+        target: Some(Target::Domain(name.into(), 9)),
+        data: data.to_vec(),
+    }
 }
 
 async fn fixture(limits: Limits) -> (Client, JoinHandle<()>, SocketAddr) {
@@ -53,7 +58,14 @@ async fn keepalive_is_answered_with_keepalive() {
 async fn frame_with_only_unknown_flags_is_answered_with_an_error_frame() {
     let (mut client, _task, _echo) = fixture(PLAIN).await;
     for (flags, conn_id) in [(0x40, 1), (0x00, 2), (0x08, 3), (0x20, 4)] {
-        client.send(&Frame { flags, conn_id, target: None, data: vec![] }).await;
+        client
+            .send(&Frame {
+                flags,
+                conn_id,
+                target: None,
+                data: vec![],
+            })
+            .await;
         assert_eq!(client.next().await, Frame::error(conn_id));
     }
     client.send(&Frame::keepalive(1)).await;
@@ -62,7 +74,10 @@ async fn frame_with_only_unknown_flags_is_answered_with_an_error_frame() {
 
 #[tokio::test]
 async fn sessions_over_the_limit_are_dropped_until_one_is_closed() {
-    let limits = Limits { idle: Duration::from_secs(60), max_sessions: 2 };
+    let limits = Limits {
+        idle: Duration::from_secs(60),
+        max_sessions: 2,
+    };
     let (mut client, _task, _echo) = fixture(limits).await;
     client.send(&to_domain(1, "echo.test", b"a")).await;
     client.send(&to_domain(2, "echo.test", b"b")).await;
@@ -70,14 +85,24 @@ async fn sessions_over_the_limit_are_dropped_until_one_is_closed() {
     client.next().await;
     client.send(&to_domain(3, "echo.test", b"c")).await;
     assert!(client.silent().await);
-    client.send(&Frame { flags: FLAG_CLOSE, conn_id: 1, target: None, data: vec![] }).await;
+    client
+        .send(&Frame {
+            flags: FLAG_CLOSE,
+            conn_id: 1,
+            target: None,
+            data: vec![],
+        })
+        .await;
     client.send(&to_domain(3, "echo.test", b"c")).await;
     assert_eq!(client.next().await.conn_id, 3);
 }
 
 #[tokio::test]
 async fn idle_session_is_released() {
-    let limits = Limits { idle: Duration::from_millis(200), max_sessions: 1 };
+    let limits = Limits {
+        idle: Duration::from_millis(200),
+        max_sessions: 1,
+    };
     let (mut client, _task, _echo) = fixture(limits).await;
     client.send(&to_domain(1, "echo.test", b"a")).await;
     client.next().await;
@@ -90,5 +115,8 @@ async fn idle_session_is_released() {
 async fn closing_the_stream_ends_the_loop() {
     let (client, task, _echo) = fixture(PLAIN).await;
     drop(client);
-    timeout(WAIT, task).await.expect("loop ended").expect("no panic");
+    timeout(WAIT, task)
+        .await
+        .expect("loop ended")
+        .expect("no panic");
 }

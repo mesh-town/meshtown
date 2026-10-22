@@ -4,10 +4,10 @@
 //! other helpers are there.
 
 use super::*;
-use crate::access::tally::{Exclusion, How, Ledger};
-use crate::access::view::{AccessView, Deny, Verdicts, ACCESS_CLOSE_CODE};
-use crate::net::contract::{pid, SEED_C};
-use crate::net::mem::conn::MemConn;
+use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::view::{AccessView, Deny, Verdicts, ACCESS_CLOSE_CODE};
+use crate::transport::net::contract::{pid, SEED_C};
+use crate::transport::net::mem::conn::MemConn;
 use bytes::Bytes;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -16,7 +16,7 @@ const SETTLE: Duration = Duration::from_millis(100);
 
 mod refusal_log {
     use super::*;
-    use crate::access::view::Side;
+    use crate::members::access::view::Side;
 
     #[test]
     fn first_verified_conn_clears_the_refusal_of_that_peer() {
@@ -55,7 +55,10 @@ mod is_member {
         members.add_verified_conn(a);
         members.add_verified_conn(b);
         // when / then: only the listed neighbour is a member
-        assert!(!members.is_member(a), "an excluded neighbour must not be a member");
+        assert!(
+            !members.is_member(a),
+            "an excluded neighbour must not be a member"
+        );
         assert!(members.is_member(b), "a listed neighbour must be a member");
     }
 
@@ -66,7 +69,10 @@ mod is_member {
         let view = AccessView::pending();
         let members = Members::with_access(view.clone());
         members.add_verified_conn(a);
-        assert!(members.is_member(a), "a pending view must not hide connected neighbours");
+        assert!(
+            members.is_member(a),
+            "a pending view must not hide connected neighbours"
+        );
         // when: the list excludes A
         view.publish(verdicts_with(me, &[], &[a]));
         // then: A stops being a member
@@ -74,7 +80,10 @@ mod is_member {
         // when: the list takes A back
         view.publish(verdicts_with(me, &[a], &[]));
         // then: A is a member again
-        assert!(members.is_member(a), "a relisted neighbour must be a member again");
+        assert!(
+            members.is_member(a),
+            "a relisted neighbour must be a member again"
+        );
     }
 
     #[test]
@@ -86,7 +95,10 @@ mod is_member {
         // when: a verdict is published through the handle that `access()` returns
         members.access().publish(verdicts_with(me, &[], &[a]));
         // then: the members see it
-        assert!(!members.is_member(a), "access() must return the very view in use");
+        assert!(
+            !members.is_member(a),
+            "access() must return the very view in use"
+        );
     }
 
     #[test]
@@ -108,9 +120,18 @@ mod dial {
         let (me, a, b, x) = (pid(1), pid(2), pid(3), pid(4));
         let members = Members::with_access(view_with(me, &[b], &[a]));
         // when / then: no dial to the excluded or the unlisted, a dial to the listed
-        assert!(!members.try_begin_dial(a), "dial to an excluded node must be refused");
-        assert!(!members.try_begin_dial(x), "dial to an unlisted node must be refused");
-        assert!(members.try_begin_dial(b), "dial to a listed node must start");
+        assert!(
+            !members.try_begin_dial(a),
+            "dial to an excluded node must be refused"
+        );
+        assert!(
+            !members.try_begin_dial(x),
+            "dial to an unlisted node must be refused"
+        );
+        assert!(
+            members.try_begin_dial(b),
+            "dial to a listed node must start"
+        );
     }
 
     #[test]
@@ -119,7 +140,10 @@ mod dial {
         let a = pid(2);
         let members = Members::with_access(AccessView::pending());
         // when / then: the dial starts
-        assert!(members.try_begin_dial(a), "a pending view must not block dials");
+        assert!(
+            members.try_begin_dial(a),
+            "a pending view must not block dials"
+        );
     }
 
     #[test]
@@ -132,7 +156,10 @@ mod dial {
         // when: the list takes A back
         view.publish(verdicts_with(me, &[a], &[]));
         // then: the refused attempt left no trace, the dial starts
-        assert!(members.try_begin_dial(a), "a refused attempt must not stay in the dialing set");
+        assert!(
+            members.try_begin_dial(a),
+            "a refused attempt must not stay in the dialing set"
+        );
     }
 }
 
@@ -144,7 +171,10 @@ mod cut {
         // given: three tracked connections: two to B and one to C
         let dialed = dial_nodes(&[SEED_B, SEED_B, SEED_C]).await;
         let members = Members::default();
-        dialed.conns.iter().for_each(|conn| members.track_conn(conn));
+        dialed
+            .conns
+            .iter()
+            .for_each(|conn| members.track_conn(conn));
         // when: B is cut
         let closed = members.cut(pid(SEED_B), Deny::Excluded);
         // then: both connections of B are closed with code 403 and the reason of the denial
@@ -159,11 +189,17 @@ mod cut {
         // given: the same three connections
         let dialed = dial_nodes(&[SEED_B, SEED_B, SEED_C]).await;
         let members = Members::default();
-        dialed.conns.iter().for_each(|conn| members.track_conn(conn));
+        dialed
+            .conns
+            .iter()
+            .for_each(|conn| members.track_conn(conn));
         // when: B is cut
         members.cut(pid(SEED_B), Deny::Excluded);
         // then: the connection to C is untouched
-        assert!(!dialed.conns[2].is_closed(), "the connection to another peer was closed");
+        assert!(
+            !dialed.conns[2].is_closed(),
+            "the connection to another peer was closed"
+        );
     }
 
     #[tokio::test]
@@ -176,7 +212,10 @@ mod cut {
         let closed = members.cut(pid(SEED_C), Deny::Unlisted);
         // then: nothing is closed
         assert_eq!(closed, 0);
-        assert!(!dialed.conns[0].is_closed(), "the connection to B was closed");
+        assert!(
+            !dialed.conns[0].is_closed(),
+            "the connection to B was closed"
+        );
     }
 
     #[tokio::test]
@@ -212,7 +251,10 @@ mod hold_conn {
         must_finish(mem.near.closed()).await;
         assert_eq!(close_info(&mem.near), want, "remote end");
         down_reason(&mut events).await;
-        assert!(ctx.members.conns_snapshot().is_empty(), "the closed connection stayed registered");
+        assert!(
+            ctx.members.conns_snapshot().is_empty(),
+            "the closed connection stayed registered"
+        );
     }
 
     #[tokio::test]
@@ -227,8 +269,14 @@ mod hold_conn {
         tracked(&ctx.members, 1).await;
         tokio::time::sleep(SETTLE).await;
         // then: the connection stays open and held
-        assert!(!mem.far.is_closed(), "a listed peer's connection was closed");
-        assert!(!holding.is_finished(), "the holder ended though nothing closed");
+        assert!(
+            !mem.far.is_closed(),
+            "a listed peer's connection was closed"
+        );
+        assert!(
+            !holding.is_finished(),
+            "the holder ended though nothing closed"
+        );
         mem.near.close(0, b"done");
         must_finish(holding).await.expect("hold");
     }
@@ -255,7 +303,11 @@ fn view_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> AccessView {
 
 /// Verdicts of `me`: `listed` are admitted, `excluded` are admitted and then excluded by votes; no votes, no blocks.
 fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts {
-    let by_votes = || Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() };
+    let by_votes = || Exclusion {
+        how: How::Votes,
+        at_micros: 10,
+        voters: Vec::new(),
+    };
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
@@ -285,7 +337,9 @@ async fn dial_nodes(seeds: &[u8]) -> Dialed {
     let a = net.transport(&secret(SEED_A));
     let mut nodes: BTreeMap<u8, Arc<SplitTransport>> = BTreeMap::new();
     for seed in seeds {
-        nodes.entry(*seed).or_insert_with(|| served_node(&net, *seed));
+        nodes
+            .entry(*seed)
+            .or_insert_with(|| served_node(&net, *seed));
     }
     let (mut conns, mut accepted) = (Vec::new(), Vec::new());
     for seed in seeds {
@@ -296,7 +350,11 @@ async fn dial_nodes(seeds: &[u8]) -> Dialed {
     }
     let mut all: Vec<Arc<SplitTransport>> = nodes.into_values().collect();
     all.push(a);
-    Dialed { conns, _accepted: accepted, _nodes: all }
+    Dialed {
+        conns,
+        _accepted: accepted,
+        _nodes: all,
+    }
 }
 
 fn served_node(net: &MemNet, seed: u8) -> Arc<SplitTransport> {

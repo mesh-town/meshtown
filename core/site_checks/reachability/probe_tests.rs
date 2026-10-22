@@ -1,7 +1,7 @@
 //! Tests of the step-by-step domain check without the network (`probe.rs`).
 
 use super::*;
-use crate::reachability::CheckVerdict;
+use crate::site_checks::reachability::CheckVerdict;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -71,7 +71,8 @@ mod region_stub_marks {
         #[test]
         fn are_matched_inside_a_longer_page() {
             let extra = phrases(&["blocked for your region"]);
-            let resp = response("<html><body><p>This site is Blocked For Your Region.</p></body></html>");
+            let resp =
+                response("<html><body><p>This site is Blocked For Your Region.</p></body></html>");
             assert_eq!(body_mark(&resp, &extra), BodyMark::Geo);
         }
 

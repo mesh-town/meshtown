@@ -13,7 +13,7 @@ mod temp {
     fn issued_is_well_formed() {
         let mut t = Tickets::new();
         let tok = t.issue_temp(Instant::now()).unwrap();
-        assert!(crate::web::token::is_well_formed(&tok));
+        assert!(crate::web_gui::token::is_well_formed(&tok));
     }
 
     #[test]
@@ -95,7 +95,10 @@ mod session {
         let t0 = Instant::now();
         let mut t = Tickets::new();
         let id = t.open_session(Via::PermanentToken, t0).unwrap();
-        assert_eq!(t.session(&id, t0 + secs(604_799)), Some(Via::PermanentToken));
+        assert_eq!(
+            t.session(&id, t0 + secs(604_799)),
+            Some(Via::PermanentToken)
+        );
     }
 
     #[test]

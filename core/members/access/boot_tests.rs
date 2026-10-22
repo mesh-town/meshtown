@@ -9,11 +9,13 @@ use std::sync::Arc;
 use bytes::Bytes;
 
 use super::*;
-use crate::access::record::{admit_key, parse_entry, put, AclKind, AclValue, Parsed, Via, BOOT_KEY};
-use crate::net::contract::{pid, secret};
-use crate::net::mem::{MemReplica, MemSync, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::{PeerId, Replica, ReplicaEntry};
+use crate::members::access::record::{
+    admit_key, parse_entry, put, AclKind, AclValue, Parsed, Via, BOOT_KEY,
+};
+use crate::transport::net::contract::{pid, secret};
+use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{PeerId, Replica, ReplicaEntry};
 
 #[path = "boot_rules_tests.rs"]
 mod rules;
@@ -53,7 +55,11 @@ mod first_start {
             rig.when_boot(&[], &[], NOW).await;
             // then: the marker says "long-time node, made now", and is the node's own
             let marker = rig.marker().await.expect("the boot marker must be written");
-            assert_eq!(marker.via, Via::Migration, "the class is kept in the marker");
+            assert_eq!(
+                marker.via,
+                Via::Migration,
+                "the class is kept in the marker"
+            );
             assert_eq!(marker.made_unix, NOW);
             assert_eq!(marker.subject, rig.me, "the marker names the node itself");
         }
@@ -86,7 +92,10 @@ mod first_start {
             // when: the first boot
             rig.when_boot(&[], &[], NOW).await;
             // then: the lower edge is in, the upper edge is out
-            let want = admits_of(&[(oldest_in, Via::Migration), (just_before_made, Via::Migration)]);
+            let want = admits_of(&[
+                (oldest_in, Via::Migration),
+                (just_before_made, Via::Migration),
+            ]);
             assert_eq!(rig.admits().await, want);
         }
 
@@ -157,7 +166,10 @@ mod first_start {
             // when: the first boot
             rig.when_boot(&[], &[], NOW).await;
             // then: it is a newcomer: nothing is migrated
-            assert_eq!(rig.admits().await, admits_of(&[(admitted_before, Via::Invite)]));
+            assert_eq!(
+                rig.admits().await,
+                admits_of(&[(admitted_before, Via::Invite)])
+            );
             assert_eq!(rig.marker().await.map(|m| m.via), Some(Via::None));
         }
 
@@ -192,7 +204,11 @@ mod marker {
         let out = rig.when_boot(&[], &[], NOW + 3600).await;
         // then: nothing is written
         assert_eq!(out, 0);
-        assert_eq!(rig.admits().await, admits_of(&[(a, Via::Migration)]), "B is not migrated");
+        assert_eq!(
+            rig.admits().await,
+            admits_of(&[(a, Via::Migration)]),
+            "B is not migrated"
+        );
     }
 
     #[tokio::test]
@@ -218,7 +234,11 @@ mod marker {
         rig.when_boot(&[], &[cached], NOW).await;
         // then: no migration; the neighbour is still witnessed; the marker is untouched
         assert_eq!(rig.admits().await, admits_of(&[(cached, Via::Witness)]));
-        assert_eq!(rig.shared.get(rig.me, BOOT_KEY).await.unwrap(), Some(unknown), "the marker was rewritten");
+        assert_eq!(
+            rig.shared.get(rig.me, BOOT_KEY).await.unwrap(),
+            Some(unknown),
+            "the marker was rewritten"
+        );
     }
 }
 
@@ -244,58 +264,115 @@ struct Rig {
 fn setup() -> Rig {
     let net = MemSyncNet::new();
     let node = secret(1);
-    let ctx = SyncCtx { secret: node.clone(), network_seed: [9; 32], store_dir: None };
+    let ctx = SyncCtx {
+        secret: node.clone(),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
     let backend = net.backend(ctx);
-    let (shared, own) = (backend.replica_mem(REPLICA_NET).unwrap(), backend.replica_mem(REPLICA_DOMAINS).unwrap());
-    Rig { shared, own, me: node.peer_id(), _keep: (net, backend) }
+    let (shared, own) = (
+        backend.replica_mem(REPLICA_NET).unwrap(),
+        backend.replica_mem(REPLICA_DOMAINS).unwrap(),
+    );
+    Rig {
+        shared,
+        own,
+        me: node.peer_id(),
+        _keep: (net, backend),
+    }
 }
 
 /// A time `secs` before `NOW`, in microseconds.
-fn ago(secs: u64) -> u64 { (NOW - secs) * MICROS }
+fn ago(secs: u64) -> u64 {
+    (NOW - secs) * MICROS
+}
 
-fn admits_of(rows: &[(PeerId, Via)]) -> BTreeMap<PeerId, Via> { rows.iter().copied().collect() }
+fn admits_of(rows: &[(PeerId, Via)]) -> BTreeMap<PeerId, Via> {
+    rows.iter().copied().collect()
+}
 
 impl Rig {
     /// The previous version wrote the exit record of this node.
-    async fn given_prior_life(&self) { self.shared.set_own(PRIOR_KEY, Bytes::from_static(b"on")).await.unwrap(); }
+    async fn given_prior_life(&self) {
+        self.shared
+            .set_own(PRIOR_KEY, Bytes::from_static(b"on"))
+            .await
+            .unwrap();
+    }
 
     /// A record of another author with the time of his clock.
     fn given_record_of(&self, author: PeerId, key: &[u8], ts_micros: u64) {
         let value = Bytes::from_static(b"x");
-        self.shared.put_raw(ReplicaEntry { author, key: key.to_vec(), value, ts_micros });
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key: key.to_vec(),
+            value,
+            ts_micros,
+        });
     }
 
     /// A tombstone of another author.
     fn given_tombstone_of(&self, author: PeerId, key: &[u8], ts_micros: u64) {
-        self.shared.put_raw(ReplicaEntry { author, key: key.to_vec(), value: Bytes::new(), ts_micros });
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key: key.to_vec(),
+            value: Bytes::new(),
+            ts_micros,
+        });
     }
 
     async fn given_own_admit(&self, subject: PeerId, via: Via) {
-        let value = AclValue { kind: AclKind::Admit, subject, via, made_unix: 111, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Admit,
+            subject,
+            via,
+            made_unix: 111,
+            note: String::new(),
+        };
         put(&*self.shared, &value).await.unwrap();
     }
 
     async fn given_marker(&self, via: Via, made_unix: u64) {
-        let value = AclValue { kind: AclKind::Boot, subject: self.me, via, made_unix, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Boot,
+            subject: self.me,
+            via,
+            made_unix,
+            note: String::new(),
+        };
         put(&*self.shared, &value).await.unwrap();
     }
 
     /// An own marker with arbitrary bytes; returns the entry as stored.
     fn given_raw_marker(&self, bytes: &'static [u8]) -> ReplicaEntry {
-        let entry = ReplicaEntry { author: self.me, key: BOOT_KEY.to_vec(), value: Bytes::from_static(bytes), ts_micros: 5 };
+        let entry = ReplicaEntry {
+            author: self.me,
+            key: BOOT_KEY.to_vec(),
+            value: Bytes::from_static(bytes),
+            ts_micros: 5,
+        };
         self.shared.put_raw(entry.clone());
         entry
     }
 
     async fn when_boot(&self, initial: &[PeerId], cached: &[PeerId], now_unix: u64) -> usize {
-        let boot = AccessBoot { me: self.me, initial: initial.to_vec(), cached: cached.to_vec(), now_unix };
-        run_boot(&*self.shared, &*self.own, &boot).await.expect("the boot must not fail on a healthy replica")
+        let boot = AccessBoot {
+            me: self.me,
+            initial: initial.to_vec(),
+            cached: cached.to_vec(),
+            now_unix,
+        };
+        run_boot(&*self.shared, &*self.own, &boot)
+            .await
+            .expect("the boot must not fail on a healthy replica")
     }
 
     /// Subject and `via` of every live admit the node wrote.
     async fn admits(&self) -> BTreeMap<PeerId, Via> {
         let all = self.shared.scan(b"acl/admit/").await.unwrap();
-        let mine = all.iter().filter(|e| e.author == self.me && !e.is_tombstone());
+        let mine = all
+            .iter()
+            .filter(|e| e.author == self.me && !e.is_tombstone());
         mine.filter_map(|e| match parse_entry(e) {
             Parsed::Record { value, .. } => Some((value.subject, value.via)),
             _ => None,

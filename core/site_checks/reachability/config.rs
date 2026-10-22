@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use crate::http_min::HttpLimits;
+use crate::site_checks::http_min::HttpLimits;
 
 /// Version of the `chk/` record format.
 pub const CHECK_RECORD_VERSION: u8 = 1;

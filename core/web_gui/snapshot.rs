@@ -104,11 +104,11 @@ pub enum PathKindView {
 
 impl PathKindView {
     /// Path kind for the page from the network layer's path kind; `Unknown` — there is no path yet.
-    pub fn from_net(p: &crate::net::PathKind) -> Option<Self> {
+    pub fn from_net(p: &crate::transport::net::PathKind) -> Option<Self> {
         match p {
-            crate::net::PathKind::Direct => Some(Self::Direct),
-            crate::net::PathKind::Relayed(_) => Some(Self::Relay),
-            crate::net::PathKind::Unknown => None,
+            crate::transport::net::PathKind::Direct => Some(Self::Direct),
+            crate::transport::net::PathKind::Relayed(_) => Some(Self::Relay),
+            crate::transport::net::PathKind::Unknown => None,
         }
     }
 }
@@ -167,7 +167,7 @@ pub struct DomainInfo {
 }
 
 /// Routing decision for the snapshot: the same selection function the proxy uses
-/// (`crate::route::choose_route`) — here only the result is laid out for the page.
+/// (`crate::proxy::route::choose_route`) — here only the result is laid out for the page.
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct RouteState {
     pub state: RouteMode,

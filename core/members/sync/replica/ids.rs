@@ -1,6 +1,6 @@
 //! Replica keys: `"net"` — from the network seed, `"domains"` — permanent, not from the node's secret.
 
-use crate::net::replica::ReplicaId;
+use crate::transport::net::replica::ReplicaId;
 
 /// The id of the `"net"` replica for the given network seed.
 pub(crate) fn net_id(seed: &[u8; 32]) -> ReplicaId {

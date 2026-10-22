@@ -1,6 +1,6 @@
 //! Object-safety check for the core traits: a non-object-safe trait will not compile.
 
-use crate::net::{Carrier, Connector, Discovery, PacketPath, PeerConn, Transport};
+use crate::transport::net::{Carrier, Connector, Discovery, PacketPath, PeerConn, Transport};
 
 fn _p(_: &dyn PacketPath) {}
 fn _c(_: &dyn Connector) {}

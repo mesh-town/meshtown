@@ -10,13 +10,13 @@ use std::time::Duration;
 
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::app::exit_menu::ExitMenu;
-use crate::app::proxy_state::ProxyState;
-use crate::app::tray_actions::{InviteNote, ServeNote};
-use crate::app::view::View;
-use crate::tray::NodeCmd;
+use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::proxy_state::ProxyState;
+use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
+use crate::gui::tray::app::view::View;
+use crate::gui::tray::NodeCmd;
 
-use super::poller::{QuitTriggers, Poller};
+use super::poller::{Poller, QuitTriggers};
 use super::start_fail::StartFail;
 
 /// The poller's timeouts; in production `PollTiming::PROD`, in tests shorter ones.
@@ -61,7 +61,7 @@ pub(super) struct PollEnv {
     pub(super) send_view: Box<dyn Fn(View) + Send>,
     /// Production: `CmdTx::send(TrayCmd::ExitMenu)`.
     pub(super) send_exit_menu: Box<dyn Fn(ExitMenu) + Send>,
-    /// Production: `crate::tray::copy_to_clipboard` (supplied by `run.rs`).
+    /// Production: `crate::gui::tray::copy_to_clipboard` (supplied by `run.rs`).
     pub(super) copy_to_clipboard_fn: CopyFn,
     /// Production: `CmdTx::send(TrayCmd::Invite)`.
     pub(super) send_invite_note: Box<dyn Fn(InviteNote) + Send>,
@@ -80,7 +80,10 @@ pub(super) struct PollEnv {
 
 impl PollEnv {
     /// Environment → poller, the "web enabled" flag, the menu command queue and the exits ("Quit", the signal).
-    pub(super) fn into_poller_parts(self, timing: PollTiming) -> (Poller, bool, UnboundedReceiver<NodeCmd>, QuitTriggers) {
+    pub(super) fn into_poller_parts(
+        self,
+        timing: PollTiming,
+    ) -> (Poller, bool, UnboundedReceiver<NodeCmd>, QuitTriggers) {
         let PollEnv {
             port,
             token_path,

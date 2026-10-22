@@ -3,9 +3,9 @@
 //! What it does: atomic counters written by the proxy tasks, and their snapshot for the test.
 //! What it does not have: decisions on a packet's fate — they are in `model.rs`.
 
+use portable_atomic::AtomicU64;
 use std::fmt;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 
 /// A snapshot of one direction's counters.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

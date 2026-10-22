@@ -2,15 +2,15 @@
 //! `redial_tests.rs`; here only the decision "whether to start a dial" and the failure text.
 
 use super::*;
-use crate::membership::{MemberContext, MemberEvent, Members};
-use crate::net::contract::{pid, must_finish, must_finish_within, SEED_A, SEED_B};
-use crate::net::mem::MemNet;
-use crate::net::{NetStack, NetStackBuilder, NodeSecret, Transport, AUTH};
+use crate::members::membership::{MemberContext, MemberEvent, Members};
 use crate::node::start::transports_mem::KeyedMem;
-use crate::transfer_probe::ProbeSettings;
-use crate::net::PeerAddr;
-use std::sync::atomic::AtomicUsize;
+use crate::transport::net::contract::{must_finish, must_finish_within, pid, SEED_A, SEED_B};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::PeerAddr;
+use crate::transport::net::{NetStack, NetStackBuilder, NodeSecret, Transport, AUTH};
+use crate::transport::transfer_probe::ProbeSettings;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
@@ -75,18 +75,28 @@ mod down_reason {
     #[tokio::test]
     async fn down_for_net_change_redials_without_pause() {
         let mut fx = setup(Opts::default()).await;
-        fx.dialer.on_peer_down(pid(SEED_B), &format!("code 4294901763: {}", crate::net::NET_CHANGED));
+        fx.dialer.on_peer_down(
+            pid(SEED_B),
+            &format!("code 4294901763: {}", crate::transport::net::NET_CHANGED),
+        );
         let due = fx.dialer.next_redial_at().expect("attempt scheduled");
-        assert!(due <= Instant::now(), "after a network change the retry has no pause");
+        assert!(
+            due <= Instant::now(),
+            "after a network change the retry has no pause"
+        );
         fx.close().await;
     }
 
     #[tokio::test]
     async fn down_for_silence_keeps_first_step() {
         let mut fx = setup(Opts::default()).await;
-        fx.dialer.on_peer_down(pid(SEED_B), "code 4294901762: no frames for too long");
+        fx.dialer
+            .on_peer_down(pid(SEED_B), "code 4294901762: no frames for too long");
         let due = fx.dialer.next_redial_at().expect("attempt scheduled");
-        assert!(due > Instant::now() + Duration::from_secs(1), "silence - the usual first pause");
+        assert!(
+            due > Instant::now() + Duration::from_secs(1),
+            "silence - the usual first pause"
+        );
         fx.close().await;
     }
 }
@@ -115,7 +125,10 @@ async fn setup(opts: Opts) -> Fixture {
     let net = MemNet::new();
     let secret_a = NodeSecret::from_bytes(&[SEED_A; 32]);
     let a: Arc<dyn Transport> = KeyedMem::new(&net, &secret_a);
-    let stack = NetStackBuilder::new(secret_a).transport(a).build().expect("stack built");
+    let stack = NetStackBuilder::new(secret_a)
+        .transport(a)
+        .build()
+        .expect("stack built");
     let peer_b = net.transport(&NodeSecret::from_bytes(&[SEED_B; 32]));
     peer_b.serve(&[AUTH]);
     if opts.transport_closed {
@@ -125,7 +138,14 @@ async fn setup(opts: Opts) -> Fixture {
     let members = ctx.members.clone();
     let (failed_tx, failed_rx) = mpsc::unbounded_channel();
     let dialer = PeerDialer::new(pid(SEED_A), stack.clone(), ctx, failed_tx);
-    Fixture { dialer, stack, peer_b, members, failed_rx, _events_rx: events_rx }
+    Fixture {
+        dialer,
+        stack,
+        peer_b,
+        members,
+        failed_rx,
+        _events_rx: events_rx,
+    }
 }
 
 fn member_context(me: PeerId) -> (MemberContext, mpsc::UnboundedReceiver<MemberEvent>) {

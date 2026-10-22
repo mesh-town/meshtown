@@ -6,16 +6,16 @@
 //! peer id and for a foreign network's key.
 //! What it doesn't do: it doesn't build the `mesh-invite2-` string (the head and addresses are assembled in the test), doesn't
 //! check DHT, relay, the console and the page; server overload (`Busy`) is in `wire_tests`.
-//! Links: `meshtown::invite::{redeem, store}`, `node::start_node`, `NodeConfig::initial_peers`.
+//! Links: `meshtown_core::invite::{redeem, store}`, `node::start_node`, `NodeConfig::initial_peers`.
 
 use std::time::Duration;
 
-use meshtown::net_mainline::unix_now;
-use meshtown::invite::redeem::RedeemError;
-use meshtown::invite::store::IssueVerdict;
-use meshtown::invite::INVITE_TTL_SECS;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
+use meshtown_core::invite::redeem::RedeemError;
+use meshtown_core::invite::store::IssueVerdict;
+use meshtown_core::invite::INVITE_TTL_SECS;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::transport::net_mainline::unix_now;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
@@ -51,7 +51,10 @@ mod entry {
             let rig = setup().await;
             let head = rig.issue(unix_now()).await;
             // when
-            let got = rig.redeem(&head).await.expect("a fresh secret must yield the network key");
+            let got = rig
+                .redeem(&head)
+                .await
+                .expect("a fresh secret must yield the network key");
             let mut cfg = NodeConfig::for_loopback_test(got);
             cfg.initial_peers = vec![rig.addr.clone()];
             let newcomer = node::start_node(cfg).await.unwrap();
@@ -60,7 +63,10 @@ mod entry {
                 rig.a.members.is_member(newcomer.id) && newcomer.members.is_member(rig.a.id)
             })
             .await;
-            assert!(joined, "the nodes did not become members of each other within 20 s after joining");
+            assert!(
+                joined,
+                "the nodes did not become members of each other within 20 s after joining"
+            );
         }
     }
 }
@@ -76,11 +82,16 @@ mod repeat_of_spent_secret {
             // given
             let rig = setup().await;
             let head = rig.issue(unix_now()).await;
-            rig.redeem(&head).await.expect("the first join must succeed");
+            rig.redeem(&head)
+                .await
+                .expect("the first join must succeed");
             // when
             let second = rig.redeem(&head).await;
             // then
-            assert!(matches!(second, Err(RedeemError::Used)), "the repeat gave {second:?}");
+            assert!(
+                matches!(second, Err(RedeemError::Used)),
+                "the repeat gave {second:?}"
+            );
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -89,7 +100,9 @@ mod repeat_of_spent_secret {
             let rig = setup().await;
             let head = rig.issue(unix_now()).await;
             // when
-            rig.redeem(&head).await.expect("the first join must succeed");
+            rig.redeem(&head)
+                .await
+                .expect("the first join must succeed");
             // then
             assert_eq!(rig.verdict(&head).await, IssueVerdict::Used);
         }
@@ -112,7 +125,11 @@ mod repeat_of_spent_secret {
                     .iter()
                     .filter(|r| matches!(r, Err(RedeemError::Used)))
                     .count();
-                assert_eq!((keys, used), (1, 1), "round {round}: {first:?} and {second:?}");
+                assert_eq!(
+                    (keys, used),
+                    (1, 1),
+                    "round {round}: {first:?} and {second:?}"
+                );
             }
         }
     }
@@ -138,9 +155,13 @@ mod repeat_of_spent_secret {
                 "the redemption label from A did not reach B within 15 s"
             );
             // when: N2 comes to the second admitter, the only address in the head is B
-            let second = redeem_via(&head, &[addr_of(&b)], quick_opts(&head, ENTRY_LIMIT_SECS)).await;
+            let second =
+                redeem_via(&head, &[addr_of(&b)], quick_opts(&head, ENTRY_LIMIT_SECS)).await;
             // then
-            assert!(matches!(second, Err(RedeemError::Used)), "N2 at B got {second:?}");
+            assert!(
+                matches!(second, Err(RedeemError::Used)),
+                "N2 at B got {second:?}"
+            );
         }
     }
 }
@@ -159,7 +180,10 @@ mod expired_issue {
             // when
             let got = rig.redeem(&head).await;
             // then
-            assert!(matches!(got, Err(RedeemError::Expired)), "expiry gave {got:?}");
+            assert!(
+                matches!(got, Err(RedeemError::Expired)),
+                "expiry gave {got:?}"
+            );
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -167,14 +191,21 @@ mod expired_issue {
             // given
             let rig = setup().await;
             let head = rig.issue(unix_now() - 25 * HOUR).await;
-            assert_eq!(rig.verdict(&head).await, IssueVerdict::Expired, "before cleanup the issue is expired");
+            assert_eq!(
+                rig.verdict(&head).await,
+                IssueVerdict::Expired,
+                "before cleanup the issue is expired"
+            );
             // when
             let later = unix_now() + INVITE_TTL_SECS + 1;
             let removed = rig.ledger().sweep(later).await.unwrap();
             // then
             assert!(removed >= 1, "the cleanup removed no records");
             let hash = head.secret.hash_hex();
-            assert_eq!(rig.ledger().verdict(&hash, later).await, IssueVerdict::Unknown);
+            assert_eq!(
+                rig.ledger().verdict(&hash, later).await,
+                IssueVerdict::Unknown
+            );
         }
     }
 }
@@ -194,7 +225,10 @@ mod wrong_peer_id {
             // when
             let got = redeem_via(&head, &[wrong], short_opts(&head, 3)).await;
             // then
-            assert!(matches!(got, Err(RedeemError::Expired)), "under a foreign id it gave {got:?}");
+            assert!(
+                matches!(got, Err(RedeemError::Expired)),
+                "under a foreign id it gave {got:?}"
+            );
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -206,7 +240,11 @@ mod wrong_peer_id {
             // when
             let _ = redeem_via(&head, &[wrong], short_opts(&head, 3)).await;
             // then
-            assert_eq!(rig.verdict(&head).await, IssueVerdict::Grant, "the secret went to the wrong node");
+            assert_eq!(
+                rig.verdict(&head).await,
+                IssueVerdict::Grant,
+                "the secret went to the wrong node"
+            );
         }
     }
 }
@@ -229,7 +267,10 @@ mod impostor_of_other_network {
             // when
             let got = redeem_via(&head, &[addr_of(&d)], quick_opts(&head, ENTRY_LIMIT_SECS)).await;
             // then
-            assert!(matches!(got, Err(RedeemError::WrongNetwork)), "the impostor gave {got:?}");
+            assert!(
+                matches!(got, Err(RedeemError::WrongNetwork)),
+                "the impostor gave {got:?}"
+            );
         }
     }
 }

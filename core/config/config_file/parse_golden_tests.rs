@@ -1,6 +1,6 @@
 use super::*;
-use crate::config_file::test_support::secret_of;
-use crate::net::{NodeSecret, PeerId};
+use crate::config::config_file::test_support::secret_of;
+use crate::transport::net::{NodeSecret, PeerId};
 
 fn id_of(seed_hex: &str) -> PeerId {
     let seed: [u8; 32] = data_encoding::HEXLOWER
@@ -28,8 +28,7 @@ fn golden_parse_reads_seed_and_exits_from_literals() {
     assert_eq!(a.to_string(), KEY1);
     assert_eq!(b.to_string(), KEY2);
 
-    let p =
-        parse_text(&file_with_exits(&format!(r#"["{KEY1}","{KEY2_BASE32}"]"#))).expect("parse");
+    let p = parse_text(&file_with_exits(&format!(r#"["{KEY1}","{KEY2_BASE32}"]"#))).expect("parse");
     assert_eq!(secret_of(&p), [7u8; 32]);
     assert_eq!(p.field_errors, vec![]);
     assert_eq!(p.settings.net.route_exits, vec![a, b]);
@@ -37,5 +36,8 @@ fn golden_parse_reads_seed_and_exits_from_literals() {
     // uppercase hex is not accepted — the default stays
     let upper = KEY1.to_uppercase();
     let p = parse_text(&file_with_exits(&format!(r#"["{upper}"]"#))).expect("parse");
-    assert!(p.settings.net.route_exits.is_empty(), "uppercase hex was accepted");
+    assert!(
+        p.settings.net.route_exits.is_empty(),
+        "uppercase hex was accepted"
+    );
 }

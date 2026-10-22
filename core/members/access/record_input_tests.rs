@@ -3,14 +3,17 @@
 
 use super::tests::{admit_of, entry, raw, Raw};
 use super::*;
-use crate::net::contract::pid;
-use crate::net::PeerId;
+use crate::transport::net::contract::pid;
+use crate::transport::net::PeerId;
 
 #[test]
 fn live_records_become_admits_and_votes() {
     // given: A admits B (live) and A votes against B at 200
     let (me, a, b) = (pid(1), pid(2), pid(3));
-    let vote = AclValue { kind: AclKind::Exclude, ..admit_of(b) };
+    let vote = AclValue {
+        kind: AclKind::Exclude,
+        ..admit_of(b)
+    };
     let entries = [
         entry(a, admit_key(&b), encode(&admit_of(b)), 100),
         entry(a, exclude_key(&b), encode(&vote), 200),
@@ -40,7 +43,10 @@ fn withdrawn_self_exclusion_stays_left() {
 fn withdrawn_vote_on_other_is_dropped() {
     // given: A's tombstones under the vote key and the admit key of B
     let (me, a, b) = (pid(1), pid(2), pid(3));
-    let entries = [entry(a, exclude_key(&b), vec![], 300), entry(a, admit_key(&b), vec![], 310)];
+    let entries = [
+        entry(a, exclude_key(&b), vec![], 300),
+        entry(a, admit_key(&b), vec![], 310),
+    ];
     // when: the input is built
     let (input, ignored) = tally_input(me, &entries);
     // then: a withdrawn vote on someone else is gone, and so is a withdrawn admit; neither is garbage
@@ -56,7 +62,15 @@ fn garbage_counts_as_ignored() {
     cut.pop();
     let entries = [
         entry(a, admit_key(&b), encode(&admit_of(b)), 100),
-        entry(a, admit_key(&c), raw(Raw { version: 9, ..Raw::default() }), 110),
+        entry(
+            a,
+            admit_key(&c),
+            raw(Raw {
+                version: 9,
+                ..Raw::default()
+            }),
+            110,
+        ),
         entry(a, admit_key(&d), cut, 120),
         entry(a, admit_key(&e), encode(&admit_of(b)), 130),
     ];
@@ -74,5 +88,9 @@ fn admit_rows(input: &TallyInput) -> Vec<(PeerId, PeerId)> {
 }
 
 fn vote_rows(input: &TallyInput) -> Vec<(PeerId, PeerId, u64)> {
-    input.votes.iter().map(|v| (v.voter, v.subject, v.ts_micros)).collect()
+    input
+        .votes
+        .iter()
+        .map(|v| (v.voter, v.subject, v.ts_micros))
+        .collect()
 }

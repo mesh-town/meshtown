@@ -31,10 +31,13 @@ mod token;
 
 pub use auth::password_file::{remove_password_file, PASSWORD_FILE_NAME};
 pub use control::{
-    ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture, NodeControl, PendingInvite, SaveKey, WebStartError,
+    ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
+    NodeControl, PendingInvite, SaveKey, WebStartError,
 };
 pub use listener::start_web_page;
-pub use members::dto::{AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo};
+pub use members::dto::{
+    AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
+};
 pub use options::{WebHandle, WebOptions, WebShared, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 pub use ring::LogRing;
 pub use snapshot::*;

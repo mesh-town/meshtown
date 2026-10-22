@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use super::tests::{base, pair};
 use super::*;
-use crate::telemetry::PeerLive;
+use crate::node::telemetry::PeerLive;
 
 mod self_row {
     use super::*;
@@ -87,11 +87,7 @@ mod other_row {
             Some("0.2.0".to_string()),
             "a record exists — Some"
         );
-        assert_eq!(
-            version_of(&peers, without_record),
-            None,
-            "no record — None"
-        );
+        assert_eq!(version_of(&peers, without_record), None, "no record — None");
     }
 }
 

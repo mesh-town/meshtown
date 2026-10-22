@@ -1,7 +1,7 @@
 //! Tests of `mem` discovery (`discovery.rs`): a board by name, publishing, subscription, end of work.
 
-use crate::net::mem::{MemDiscovery, MemNet};
-use crate::net::{AddrHint, Discovery, NodeSecret, PeerAddr, PeerId};
+use crate::transport::net::mem::{MemDiscovery, MemNet};
+use crate::transport::net::{AddrHint, Discovery, NodeSecret, PeerAddr, PeerId};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
@@ -155,7 +155,10 @@ mod boards_by_name {
         writer.publish(&addr(1, 1000)).await.unwrap();
 
         let got = collect_for(&mut rx_stranger, Duration::from_millis(300)).await;
-        assert!(got.is_empty(), "the board of another network saw an entry: {got:?}");
+        assert!(
+            got.is_empty(),
+            "the board of another network saw an entry: {got:?}"
+        );
     }
 
     #[tokio::test]
@@ -192,7 +195,10 @@ mod publishing_an_id_again {
         let (mut rx, _run) = spawn_run(&reader, 16);
 
         let got = collect_for(&mut rx, Duration::from_millis(300)).await;
-        assert!(got.contains(&addr(1, 2000)), "the new address is not in {got:?}");
+        assert!(
+            got.contains(&addr(1, 2000)),
+            "the new address is not in {got:?}"
+        );
         assert!(
             !got.contains(&addr(1, 1000)),
             "the old address stayed on the board: {got:?}"
@@ -248,7 +254,11 @@ mod a_reader_that_fell_behind {
         }
 
         let seen = ids_until(&mut rx, 600).await;
-        assert_eq!(seen.len(), 600, "not all entries of the board arrived after Lagged");
+        assert_eq!(
+            seen.len(),
+            600,
+            "not all entries of the board arrived after Lagged"
+        );
     }
 }
 

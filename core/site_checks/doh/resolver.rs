@@ -13,8 +13,8 @@ use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
 
-use crate::http_min::{self, HttpGetRequest, HttpLimits};
-use crate::tcp_tune::disable_nagle;
+use crate::node::tcp_tune::disable_nagle;
+use crate::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
 
 use super::cache::{cache_key, clamp_ttl, DnsCache, CACHE_ENTRIES, MIN_TTL};
 use super::packet::{build_query, parse_answer, Records};

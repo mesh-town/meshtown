@@ -27,7 +27,10 @@ mod invite_line_cases {
 
         #[test]
         fn carries_the_text_after_the_command() {
-            assert_eq!(parse_invite_line("invite Alice"), Some(Some("Alice".to_string())));
+            assert_eq!(
+                parse_invite_line("invite Alice"),
+                Some(Some("Alice".to_string()))
+            );
         }
 
         #[test]

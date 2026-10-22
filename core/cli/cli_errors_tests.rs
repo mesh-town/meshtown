@@ -1,8 +1,8 @@
 //! Tests of the command line error texts (`cli_errors.rs`): the error report and the handling of a wrong command.
 
 use super::*;
-use crate::cli::Cli;
-use meshtown::proxy::BindError;
+use crate::cli::args::Cli;
+use crate::proxy::BindError;
 
 fn parse_err(args: &[&str]) -> clap::Error {
     let mut all = vec!["meshtown"];
@@ -82,9 +82,30 @@ fn classify_other_is_clap() {
 fn unknown_text_lists_commands() {
     let names = command_names(&Cli::command());
     #[cfg(feature = "tray")]
-    assert_eq!(names, ["tray", "run", "keygen", "config-path", "password", "access", "ifaces"]);
+    assert_eq!(
+        names,
+        [
+            "tray",
+            "run",
+            "keygen",
+            "config-path",
+            "password",
+            "access",
+            "ifaces"
+        ]
+    );
     #[cfg(not(feature = "tray"))]
-    assert_eq!(names, ["run", "keygen", "config-path", "password", "access", "ifaces"]);
+    assert_eq!(
+        names,
+        [
+            "run",
+            "keygen",
+            "config-path",
+            "password",
+            "access",
+            "ifaces"
+        ]
+    );
     assert_eq!(
         unknown_command_text("bogus", &names),
         format!(
@@ -165,7 +186,10 @@ mod classify_kind {
 
         #[test]
         fn subcommand_help_stays_clap() {
-            assert_eq!(classify(&parse_err(&["run", "--help"])), ParseFail::LeaveToClap);
+            assert_eq!(
+                classify(&parse_err(&["run", "--help"])),
+                ParseFail::LeaveToClap
+            );
         }
 
         #[test]
@@ -239,10 +263,7 @@ mod typed_command_word {
     #[test]
     fn hidden_command_is_not_found() {
         let visible = strings(&["run", "config-path"]);
-        assert_eq!(
-            typed_command(&os(&["meshtown", "keygen"]), &visible),
-            None
-        );
+        assert_eq!(typed_command(&os(&["meshtown", "keygen"]), &visible), None);
     }
 
     #[test]
@@ -267,6 +288,13 @@ fn strings(names: &[&str]) -> Vec<String> {
 
 /// The subcommand `typed_command` found among the three visible ones.
 fn typed(args: &[&str]) -> Option<String> {
-    let visible = strings(&["run", "keygen", "config-path", "password", "access", "ifaces"]);
+    let visible = strings(&[
+        "run",
+        "keygen",
+        "config-path",
+        "password",
+        "access",
+        "ifaces",
+    ]);
     typed_command(&os(args), &visible)
 }

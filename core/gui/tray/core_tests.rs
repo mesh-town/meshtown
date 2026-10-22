@@ -1,7 +1,7 @@
 //! Tests of the tray command channel and dispatcher: wakeup, exit code, menu commands (`core.rs`).
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
@@ -14,7 +14,11 @@ fn no_link() -> Option<String> {
 /// A command channel with a third argument; the test holds the receiver of commands to the node poller.
 fn test_core() -> (CmdTx, Core, tokio::sync::mpsc::UnboundedReceiver<NodeCmd>) {
     let (node_tx, node_rx) = tokio::sync::mpsc::unbounded_channel();
-    let (tx, mut core) = channel(crate::app::quit::QuitSignal::new(), no_link, node_tx);
+    let (tx, mut core) = channel(
+        crate::gui::tray::app::quit::QuitSignal::new(),
+        no_link,
+        node_tx,
+    );
     // No real ticks in tests: a ticker thread started by a `Starting` view sleeps for an hour; ticks are sent by hand.
     core.spin = Spin::with_period(Duration::from_secs(3600));
     (tx, core, node_rx)
@@ -49,7 +53,7 @@ fn drain_returns_exit_code() {
 #[test]
 fn update_without_ui_is_ignored() {
     let (tx, mut core, _node_rx) = test_core();
-    tx.send(TrayCmd::Update(crate::app::view::View::initial()));
+    tx.send(TrayCmd::Update(crate::gui::tray::app::view::View::initial()));
     assert_eq!(core.drain_commands(), None);
 }
 
@@ -76,7 +80,7 @@ mod menu_node {
     #[test]
     fn absent_node_starts_it() {
         assert_eq!(
-            menu_click_after_update(crate::app::view::NodeState::Absent, MENU_NODE),
+            menu_click_after_update(crate::gui::tray::app::view::NodeState::Absent, MENU_NODE),
             Some(NodeCmd::Start)
         );
     }
@@ -84,7 +88,7 @@ mod menu_node {
     #[test]
     fn running_node_stops_it() {
         assert_eq!(
-            menu_click_after_update(crate::app::view::NodeState::Running, MENU_NODE),
+            menu_click_after_update(crate::gui::tray::app::view::NodeState::Running, MENU_NODE),
             Some(NodeCmd::Stop)
         );
     }
@@ -92,7 +96,7 @@ mod menu_node {
     #[test]
     fn stopping_node_sends_nothing() {
         assert_eq!(
-            menu_click_after_update(crate::app::view::NodeState::Stopping, MENU_NODE),
+            menu_click_after_update(crate::gui::tray::app::view::NodeState::Stopping, MENU_NODE),
             None,
             "the node is already stopping — the command is not sent again"
         );
@@ -114,7 +118,7 @@ mod menu_node {
         let (tx, mut core, node_rx) = test_core();
         drop(node_rx);
         tx.send(TrayCmd::Update(view_with_node(
-            crate::app::view::NodeState::Absent,
+            crate::gui::tray::app::view::NodeState::Absent,
         )));
         tx.send(TrayCmd::Menu(MENU_NODE.to_string()));
         assert_eq!(core.drain_commands(), None);
@@ -129,7 +133,7 @@ mod menu_status_and_proxy {
     #[test]
     fn menu_status_click_sends_nothing() {
         assert_eq!(
-            menu_click_after_update(crate::app::view::NodeState::Running, MENU_STATUS),
+            menu_click_after_update(crate::gui::tray::app::view::NodeState::Running, MENU_STATUS),
             None
         );
     }
@@ -137,7 +141,7 @@ mod menu_status_and_proxy {
     #[test]
     fn menu_proxy_click_sends_nothing() {
         assert_eq!(
-            menu_click_after_update(crate::app::view::NodeState::Running, MENU_PROXY),
+            menu_click_after_update(crate::gui::tray::app::view::NodeState::Running, MENU_PROXY),
             None
         );
     }
@@ -172,7 +176,7 @@ fn menu_invite_sends_copy_invite() {
 
 #[test]
 fn invite_note_without_ui_is_ignored() {
-    use crate::app::tray_actions::{InviteNote, InviteReach};
+    use crate::gui::tray::app::tray_actions::{InviteNote, InviteReach};
     let (tx, mut core, _node_rx) = test_core();
     tx.send(TrayCmd::Invite(InviteNote::Copied(InviteReach::Spread)));
     assert_eq!(core.drain_commands(), None);
@@ -182,7 +186,9 @@ fn invite_note_without_ui_is_ignored() {
 fn menu_serve_asks_opposite_of_snapshot() {
     for serves in [false, true] {
         let (tx, mut core, mut node_rx) = test_core();
-        let mut menu = crate::app::exit_menu::disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings));
+        let mut menu = crate::gui::tray::app::exit_menu::disabled_exit_menu(ProxyState::Off(
+            ProxyOff::DisabledInSettings,
+        ));
         menu.serves_exit = serves;
         tx.send(TrayCmd::ExitMenu(menu));
         tx.send(TrayCmd::Menu(MENU_SERVE.to_string()));
@@ -193,20 +199,25 @@ fn menu_serve_asks_opposite_of_snapshot() {
 
 /// A view with the given node state; the color and the page are plausible values, `handle_menu`
 /// looks only at `node`.
-fn view_with_node(node: crate::app::view::NodeState) -> crate::app::view::View {
-    crate::app::view::View {
-        color: crate::app::view::TrayColor::Grey,
-        page: crate::app::view::PageState::Ready,
+fn view_with_node(
+    node: crate::gui::tray::app::view::NodeState,
+) -> crate::gui::tray::app::view::View {
+    crate::gui::tray::app::view::View {
+        color: crate::gui::tray::app::view::TrayColor::Grey,
+        page: crate::gui::tray::app::view::PageState::Ready,
         node,
-        ring: crate::app::view_ring::Ring::EMPTY,
+        ring: crate::gui::tray::app::view_ring::Ring::EMPTY,
         disk: None,
-        net: crate::app::view::NetLink::NoNetwork,
+        net: crate::gui::tray::app::view::NetLink::NoNetwork,
     }
 }
 
 /// Sends `TrayCmd::Update(a view with this node)`, then a click on `id`; returns the first command
 /// to the node poller, if one was sent.
-fn menu_click_after_update(node: crate::app::view::NodeState, id: &str) -> Option<NodeCmd> {
+fn menu_click_after_update(
+    node: crate::gui::tray::app::view::NodeState,
+    id: &str,
+) -> Option<NodeCmd> {
     let (tx, mut core, mut node_rx) = test_core();
     tx.send(TrayCmd::Update(view_with_node(node)));
     tx.send(TrayCmd::Menu(id.to_string()));
@@ -227,8 +238,8 @@ fn serve_note_without_ui_is_ignored() {
 }
 
 /// The gray "no node" view, as the poller sends it (`tray_role::views::ABSENT_VIEW` is not visible from here).
-fn absent_view() -> crate::app::view::View {
-    use crate::app::view::{NodeState, PageState, TrayColor, View};
+fn absent_view() -> crate::gui::tray::app::view::View {
+    use crate::gui::tray::app::view::{NodeState, PageState, TrayColor, View};
     View {
         color: TrayColor::Grey,
         page: PageState::Unavailable,
@@ -238,7 +249,7 @@ fn absent_view() -> crate::app::view::View {
 }
 
 fn busy_line() -> String {
-    crate::app::start_note::start_note_line(&StartNote::ProxyBusy(1080)).unwrap()
+    crate::gui::tray::app::start_note::start_note_line(&StartNote::ProxyBusy(1080)).unwrap()
 }
 
 #[test]
@@ -265,9 +276,9 @@ fn idle_note_restores_stopped_line() {
 
 #[test]
 fn start_note_hidden_until_absent() {
-    use crate::app::view::NodeState;
+    use crate::gui::tray::app::view::NodeState;
     let (tx, mut core, _node_rx) = test_core();
-    let starting = crate::app::view::View {
+    let starting = crate::gui::tray::app::view::View {
         node: NodeState::Starting,
         ..absent_view()
     };
@@ -288,15 +299,18 @@ fn start_fail_reason_shows_in_first_line() {
     tx.send(TrayCmd::StartFail(note.clone()));
     tx.send(TrayCmd::Update(absent_view()));
     assert_eq!(core.drain_commands(), None);
-    assert_eq!(core.menu_first_line(), crate::app::start_note::start_note_line(&note).unwrap());
+    assert_eq!(
+        core.menu_first_line(),
+        crate::gui::tray::app::start_note::start_note_line(&note).unwrap()
+    );
 }
 
 /// The spinner of a starting node and the grey ring of a stopped one, as the tray icon sees them
 /// (`Core::icon_key`): the white sector moves on `SpinTick`, only while `Starting` lasts.
 mod spinner {
     use super::*;
-    use crate::app::view::NodeState;
-    use crate::app::view_ring::{Ring, RingRole};
+    use crate::gui::tray::app::view::NodeState;
+    use crate::gui::tray::app::view_ring::{Ring, RingRole};
 
     #[test]
     fn starting_tick_moves_white_sector() {
@@ -313,8 +327,8 @@ mod spinner {
     #[test]
     fn stuck_start_with_unavailable_page_does_not_spin() {
         let (tx, mut core, _node_rx) = test_core();
-        let stuck = crate::app::view::View {
-            page: crate::app::view::PageState::Unavailable,
+        let stuck = crate::gui::tray::app::view::View {
+            page: crate::gui::tray::app::view::PageState::Unavailable,
             ..view_with_node(NodeState::Starting)
         };
         update(&tx, &mut core, view_with_node(NodeState::Starting));
@@ -324,10 +338,18 @@ mod spinner {
         tx.send(TrayCmd::SpinTick(generation));
         assert_eq!(core.drain_commands(), None);
 
-        assert_eq!(core.icon_key().lit, None, "no white sector on a stuck start");
+        assert_eq!(
+            core.icon_key().lit,
+            None,
+            "no white sector on a stuck start"
+        );
         assert_eq!(core.icon_key().ring, None, "the icon is solid");
         update(&tx, &mut core, view_with_node(NodeState::Starting));
-        assert_ne!(core.spin.generation(), generation, "the ticker starts again when the page returns");
+        assert_ne!(
+            core.spin.generation(),
+            generation,
+            "the ticker starts again when the page returns"
+        );
     }
 
     #[test]
@@ -338,13 +360,20 @@ mod spinner {
 
         update(&tx, &mut core, view_with_node(NodeState::Starting));
 
-        assert_eq!(core.icon_key().ring, Some(Ring::uniform(RingRole::Offline, 5)));
+        assert_eq!(
+            core.icon_key().ring,
+            Some(Ring::uniform(RingRole::Offline, 5))
+        );
         for _ in 0..4 {
             tick(&tx, &mut core);
         }
         assert_eq!(core.icon_key().lit, Some(4), "the last of five sectors");
         tick(&tx, &mut core);
-        assert_eq!(core.icon_key().lit, Some(0), "the white sector wraps around the ring");
+        assert_eq!(
+            core.icon_key().lit,
+            Some(0),
+            "the white sector wraps around the ring"
+        );
     }
 
     #[test]
@@ -356,8 +385,16 @@ mod spinner {
 
         tick(&tx, &mut core);
 
-        assert_eq!(core.spin.idle(), before, "a late tick does not move the spinner");
-        assert_eq!(core.icon_key().lit, None, "a running icon has no white sector");
+        assert_eq!(
+            core.spin.idle(),
+            before,
+            "a late tick does not move the spinner"
+        );
+        assert_eq!(
+            core.icon_key().lit,
+            None,
+            "a running icon has no white sector"
+        );
     }
 
     #[test]
@@ -371,7 +408,11 @@ mod spinner {
         tx.send(TrayCmd::SpinTick(old_generation));
         assert_eq!(core.drain_commands(), None);
 
-        assert_eq!(core.icon_key().lit, Some(0), "the new start is still at its first frame");
+        assert_eq!(
+            core.icon_key().lit,
+            Some(0),
+            "the new start is still at its first frame"
+        );
     }
 
     #[test]
@@ -388,7 +429,7 @@ mod spinner {
 }
 
 /// Sends a view to the core and handles it.
-fn update(tx: &CmdTx, core: &mut Core, view: crate::app::view::View) {
+fn update(tx: &CmdTx, core: &mut Core, view: crate::gui::tray::app::view::View) {
     tx.send(TrayCmd::Update(view));
     assert_eq!(core.drain_commands(), None);
 }
@@ -400,13 +441,16 @@ fn tick(tx: &CmdTx, core: &mut Core) {
 }
 
 /// A running view whose ring has five members of different roles.
-fn running_with_five_members() -> crate::app::view::View {
-    use crate::app::view_ring::{Ring, RingRole};
+fn running_with_five_members() -> crate::gui::tray::app::view::View {
+    use crate::gui::tray::app::view_ring::{Ring, RingRole};
     let ring = Ring::EMPTY
         .add(RingRole::Online)
         .add(RingRole::Online)
         .add(RingRole::ActiveExit)
         .add(RingRole::ExitClient)
         .add(RingRole::Offline);
-    crate::app::view::View { ring, ..view_with_node(crate::app::view::NodeState::Running) }
+    crate::gui::tray::app::view::View {
+        ring,
+        ..view_with_node(crate::gui::tray::app::view::NodeState::Running)
+    }
 }

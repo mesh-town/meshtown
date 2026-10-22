@@ -1,12 +1,12 @@
 use super::*;
-use crate::net::service::{AUTH, EXIT, INVITE, PORT, REPLICA, SYNC};
-use crate::net::PeerId;
+use crate::transport::net::service::{AUTH, EXIT, INVITE, PORT, REPLICA, SYNC};
+use crate::transport::net::PeerId;
 
 fn pid(n: u8) -> PeerId {
     PeerId::from_bytes(&[n; 32]).unwrap()
 }
 
-const OTHERS: [crate::net::service::ServiceId; 4] = [EXIT, PORT, SYNC, REPLICA];
+const OTHERS: [crate::transport::net::service::ServiceId; 4] = [EXIT, PORT, SYNC, REPLICA];
 
 /// A foreign key: AUTH and INVITE pass.
 #[test]
@@ -26,7 +26,10 @@ fn window_before_wire_admits_only_auth_invite() {
     // then: AUTH and INVITE — yes, the others — no
     assert!(admit(pid(1), &AUTH) && admit(pid(1), &INVITE));
     for svc in OTHERS {
-        assert!(!admit(pid(1), &svc), "service {svc:?} let in during the window");
+        assert!(
+            !admit(pid(1), &svc),
+            "service {svc:?} let in during the window"
+        );
     }
 }
 
@@ -35,7 +38,10 @@ fn window_before_wire_admits_only_auth_invite() {
 fn stranger_other_services_refused() {
     let admit = member_admit(Members::default());
     for svc in OTHERS {
-        assert!(!admit(pid(1), &svc), "service {svc:?} let in for a foreign key");
+        assert!(
+            !admit(pid(1), &svc),
+            "service {svc:?} let in for a foreign key"
+        );
     }
 }
 

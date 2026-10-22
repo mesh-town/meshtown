@@ -1,7 +1,7 @@
 //! A signed replica entry: the wire form, the bytes to sign, verification and the win order on merge.
 
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::replica::{ReplicaEntry, ReplicaId, MAX_VALUE_BYTES};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::replica::{ReplicaEntry, ReplicaId, MAX_VALUE_BYTES};
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 

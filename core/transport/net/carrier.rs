@@ -1,11 +1,11 @@
 //! Data stream over a ready path: `Carrier` builds a `PeerConn` from a `PacketPath`.
 //! There is no path search or punching here — that is `connect`.
 
-use crate::net::connect::{PacketPath, PathInfo};
-use crate::net::error::NetResult;
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::PeerConn;
+use crate::transport::net::connect::{PacketPath, PathInfo};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::PeerConn;
 use std::sync::Arc;
 
 /// Role of a side when a connection is started on a path.

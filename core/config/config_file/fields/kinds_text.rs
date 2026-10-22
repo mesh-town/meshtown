@@ -35,7 +35,10 @@ impl Kind<Vec<String>> for TextList {
     }
 
     fn expected(&self) -> String {
-        format!("a list of up to {} phrases, up to {} characters each", self.max_items, self.max_chars)
+        format!(
+            "a list of up to {} phrases, up to {} characters each",
+            self.max_items, self.max_chars
+        )
     }
 
     fn default_text(&self, _: &Vec<String>) -> String {

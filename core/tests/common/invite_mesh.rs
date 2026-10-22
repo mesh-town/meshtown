@@ -3,9 +3,9 @@
 //! `#[path]` next to `invite_nodes.rs`.
 #![allow(dead_code)] // each test crate takes its own subset
 
-use meshtown::invite::{self, Dealt, ParsedInvite, Source};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::RunningNode;
+use meshtown_core::invite::{self, Dealt, ParsedInvite, Source};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::RunningNode;
 
 use super::common::{addr_of, start, wait_members};
 

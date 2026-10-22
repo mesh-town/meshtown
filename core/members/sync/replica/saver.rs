@@ -3,11 +3,11 @@
 use super::entry::WireEntry;
 use super::file::{self, Bak, ImportMark};
 use super::state::State;
-use crate::net::error::{NetError, NetResult};
-use crate::net::replica::ReplicaId;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::replica::ReplicaId;
+use portable_atomic::AtomicU64;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -38,9 +38,21 @@ struct SaverState {
 pub(crate) struct Saver(Arc<SaverState>);
 
 impl Saver {
-    pub(crate) fn new(path: Option<PathBuf>, id: ReplicaId, mark: Option<ImportMark>, policy: BakPolicy) -> Saver {
+    pub(crate) fn new(
+        path: Option<PathBuf>,
+        id: ReplicaId,
+        mark: Option<ImportMark>,
+        policy: BakPolicy,
+    ) -> Saver {
         let lock = tokio::sync::Mutex::new(false);
-        Saver(Arc::new(SaverState { path, id, mark, policy, lock, pending: AtomicU64::new(0) }))
+        Saver(Arc::new(SaverState {
+            path,
+            id,
+            mark,
+            policy,
+            lock,
+            pending: AtomicU64::new(0),
+        }))
     }
 
     /// Writes a state snapshot and returns when the file is already on disk. Without a path (memory) — nothing.
@@ -77,13 +89,17 @@ impl SaverState {
     }
 
     async fn save(&self, state: &Mutex<State>) -> NetResult<()> {
-        let Some(path) = self.path.clone() else { return Ok(()) };
+        let Some(path) = self.path.clone() else {
+            return Ok(());
+        };
         let mut first_done = self.lock.lock().await;
         let entries: Vec<WireEntry> = state.lock().unwrap_or_else(|e| e.into_inner()).entries();
         let bytes = file::encode(&self.id, self.mark.as_ref(), &entries);
         let bak = self.bak_for(*first_done);
         let written = tokio::task::spawn_blocking(move || file::save(&path, &bytes, bak)).await;
-        written.map_err(|e| NetError::Io(std::io::Error::other(e.to_string())))?.map_err(NetError::Io)?;
+        written
+            .map_err(|e| NetError::Io(std::io::Error::other(e.to_string())))?
+            .map_err(NetError::Io)?;
         *first_done = true;
         Ok(())
     }

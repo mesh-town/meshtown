@@ -1,9 +1,9 @@
 //! Halves of a `mem` stream: receive buffer, write credit, `Fin` and window return.
 //! The connection, the stream table and closing are in `conn`.
 
-use crate::net::mem::conn::STREAM_WINDOW_BYTES;
-use crate::net::mem::frame::Frame;
-use crate::net::mem::shared::ConnHandle;
+use crate::transport::net::mem::conn::STREAM_WINDOW_BYTES;
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::shared::ConnHandle;
 use bytes::Bytes;
 use std::collections::VecDeque;
 use std::io;

@@ -21,7 +21,10 @@ mod localhost {
 
     #[test]
     fn private_refused() {
-        assert!(!is_client_allowed(ListenAccess::Localhost, v4("192.168.1.5")));
+        assert!(!is_client_allowed(
+            ListenAccess::Localhost,
+            v4("192.168.1.5")
+        ));
         assert!(!is_client_allowed(ListenAccess::Localhost, v4("10.0.0.1")));
     }
 }
@@ -57,9 +60,18 @@ mod localnet {
 
     #[test]
     fn mapped_v6_judged_as_v4() {
-        assert!(is_client_allowed(ListenAccess::Localnet, v6("::ffff:192.168.0.1")));
-        assert!(!is_client_allowed(ListenAccess::Localnet, v6("::ffff:8.8.8.8")));
-        assert!(is_client_allowed(ListenAccess::Localhost, v6("::ffff:127.0.0.1")));
+        assert!(is_client_allowed(
+            ListenAccess::Localnet,
+            v6("::ffff:192.168.0.1")
+        ));
+        assert!(!is_client_allowed(
+            ListenAccess::Localnet,
+            v6("::ffff:8.8.8.8")
+        ));
+        assert!(is_client_allowed(
+            ListenAccess::Localhost,
+            v6("::ffff:127.0.0.1")
+        ));
     }
 
     #[test]
@@ -127,8 +139,18 @@ fn lan_pick_filters_and_orders_default_first() {
         ("br-lan".to_string(), ip(192, 168, 8, 1)),
     ];
     let names = |v: Vec<IfaceAddr>| v.into_iter().map(|(n, _)| n).collect::<Vec<_>>();
-    assert_eq!(names(lan_addrs_pick(all.clone(), None)), ["br-guest", "br-lan", "eth1"]);
-    assert_eq!(names(lan_addrs_pick(all.clone(), Some(ip(10, 0, 0, 5)))), ["eth1", "br-guest", "br-lan"]);
-    assert_eq!(names(lan_addrs_pick(all, Some(ip(8, 8, 8, 8)))), ["br-guest", "br-lan", "eth1"], "a public default is not included");
+    assert_eq!(
+        names(lan_addrs_pick(all.clone(), None)),
+        ["br-guest", "br-lan", "eth1"]
+    );
+    assert_eq!(
+        names(lan_addrs_pick(all.clone(), Some(ip(10, 0, 0, 5)))),
+        ["eth1", "br-guest", "br-lan"]
+    );
+    assert_eq!(
+        names(lan_addrs_pick(all, Some(ip(8, 8, 8, 8)))),
+        ["br-guest", "br-lan", "eth1"],
+        "a public default is not included"
+    );
     assert!(lan_addrs_pick(vec![], None).is_empty());
 }

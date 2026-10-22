@@ -13,7 +13,11 @@ mod from_up_with_key {
         let res = ctl.request_restart();
         // then
         assert_eq!(res, Ok(()));
-        assert_eq!(phase_name(&ctl), "Starting", "the phase must become Starting");
+        assert_eq!(
+            phase_name(&ctl),
+            "Starting",
+            "the phase must become Starting"
+        );
         assert_eq!(
             ctl.next_command().await,
             Cmd::Switch {
@@ -55,10 +59,7 @@ mod refused {
 
         let res = ctl.request_restart();
 
-        assert_eq!(
-            res,
-            Err(ActionError::Busy("node is stopping".to_string()))
-        );
+        assert_eq!(res, Err(ActionError::Busy("node is stopping".to_string())));
         assert_eq!(ctl.next_command().await, Cmd::Stop);
     }
 
@@ -68,10 +69,7 @@ mod refused {
 
         let res = ctl.request_restart();
 
-        assert!(
-            matches!(res, Err(ActionError::Internal(_))),
-            "got {res:?}"
-        );
+        assert!(matches!(res, Err(ActionError::Internal(_))), "got {res:?}");
         assert_eq!(phase_name(&ctl), "Up", "the phase must not change");
         assert_channel_empty(&ctl).await;
     }
@@ -80,7 +78,10 @@ mod refused {
 /// `NodeCtl::new` with the network key `key` in the settings; the phase is set directly (there is no node).
 fn setup(phase: Phase, key: Option<&str>) -> Arc<NodeCtl> {
     let settings = Settings {
-        net: crate::config_file::NetSettings { network_key: key.map(str::to_string), ..crate::config_file::NetSettings::default() },
+        net: crate::config::config_file::NetSettings {
+            network_key: key.map(str::to_string),
+            ..crate::config::config_file::NetSettings::default()
+        },
         ..Settings::default()
     };
     let ctl = NodeCtl::new(&settings);

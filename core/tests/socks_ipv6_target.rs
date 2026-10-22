@@ -5,7 +5,7 @@
 //! `exit_hosts` table and leads it to an echo server, so no IPv6 connectivity is needed. The route of the first
 //! node leads through the exit.
 //! What it does not do: does not open a real IPv6 connection and does not resolve AAAA records.
-//! Links: `meshtown::socks5`, `meshtown::proxy`; the harness is `core/tests/common/socks_pair.rs`.
+//! Links: `meshtown_core::proxy::socks5`, `meshtown_core::proxy`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
@@ -13,8 +13,8 @@ mod common;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 
-use meshtown::route::Route;
-use meshtown::socks5::{self, Target};
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5::{self, Target};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -27,7 +27,10 @@ const LITERAL: &str = "2001:db8::1";
 const NET_LIMIT: Duration = Duration::from_secs(10);
 
 struct Fixture {
-    _nodes: (meshtown::node::RunningNode, meshtown::node::RunningNode),
+    _nodes: (
+        meshtown_core::node::RunningNode,
+        meshtown_core::node::RunningNode,
+    ),
     proxy: SocketAddr,
 }
 

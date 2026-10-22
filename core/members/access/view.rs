@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::access::tally::Ledger;
-use crate::net::PeerId;
+use crate::members::access::tally::Ledger;
+use crate::transport::net::PeerId;
 
 /// Close code of a connection refused by the membership list.
 pub const ACCESS_CLOSE_CODE: u32 = 403;
@@ -91,7 +91,10 @@ pub struct Verdicts {
 }
 
 fn unix_now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 impl Verdicts {
@@ -146,7 +149,9 @@ pub struct AccessView {
 
 impl std::fmt::Debug for AccessView {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AccessView").field("ready", &*self.inner.ready.borrow()).finish()
+        f.debug_struct("AccessView")
+            .field("ready", &*self.inner.ready.borrow())
+            .finish()
     }
 }
 
@@ -220,20 +225,36 @@ impl AccessView {
     pub fn note_refusal(&self, peer: PeerId, side: Side, deny: Deny) {
         let mut list = self.inner.refusals.lock().unwrap();
         list.retain(|(p, _)| *p != peer);
-        list.push((peer, Refusal { side, deny, at_unix: unix_now() }));
+        list.push((
+            peer,
+            Refusal {
+                side,
+                deny,
+                at_unix: unix_now(),
+            },
+        ));
         let extra = list.len().saturating_sub(MAX_REFUSALS);
         list.drain(..extra);
     }
 
     /// Forgets that a refusal was noted for the node.
     pub fn clear_refusal(&self, peer: PeerId) {
-        self.inner.refusals.lock().unwrap().retain(|(p, _)| *p != peer);
+        self.inner
+            .refusals
+            .lock()
+            .unwrap()
+            .retain(|(p, _)| *p != peer);
     }
 
     /// Drops my own refusals whose denial no longer holds (lifted or replaced by another reason).
     fn drop_stale_refusals(&self, new: &Verdicts) {
-        let holds = |peer: &PeerId, r: &Refusal| r.side == Side::Them || new.check(*peer) == Err(r.deny);
-        self.inner.refusals.lock().unwrap().retain(|(p, r)| holds(p, r));
+        let holds =
+            |peer: &PeerId, r: &Refusal| r.side == Side::Them || new.check(*peer) == Err(r.deny);
+        self.inner
+            .refusals
+            .lock()
+            .unwrap()
+            .retain(|(p, r)| holds(p, r));
     }
 
     pub fn refusals(&self) -> Vec<(PeerId, Refusal)> {

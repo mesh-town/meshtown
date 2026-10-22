@@ -2,22 +2,23 @@
 //! a connection without `Hello` and `Hello` into an unopened topic.
 
 use super::admit::{accept_handshake, admission_key, dial_handshake, welcome};
-use super::test_support::{probe, FloodNode, NETWORK};
 use super::test_support::{is_down, is_up, next, quiet, Rig, TOPIC};
+use super::test_support::{probe, FloodNode, NETWORK};
 use super::topic_tests::{assert_one_link, open};
 use super::wire::write_frame;
 use super::Tuning;
-use crate::net::contract::{pid, secret, must_finish, SEED_A, SEED_C};
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::PeerConn;
-use crate::net::{NetStack, NetStackBuilder, ServiceHandler, SwarmEvent, SYNC};
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A, SEED_C};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::{NetStack, NetStackBuilder, ServiceHandler, SwarmEvent, SYNC};
 use std::sync::Arc;
 use std::time::Duration;
 
 /// A raw counterpart: a stack without flooding, which can be called and can be kept mute.
 fn raw_stack(rig: &Rig, seed: u8, handler: Option<Arc<dyn ServiceHandler>>) -> NetStack {
-    let mut builder = NetStackBuilder::new(secret(seed)).transport(rig.net.transport(&secret(seed)));
+    let mut builder =
+        NetStackBuilder::new(secret(seed)).transport(rig.net.transport(&secret(seed)));
     if let Some(h) = handler {
         builder = builder.serve(SYNC, h);
     }
@@ -28,7 +29,9 @@ fn raw_stack(rig: &Rig, seed: u8, handler: Option<Arc<dyn ServiceHandler>>) -> N
 async fn raw_conn(rig: &Rig, a: &FloodNode, seed: u8) -> (NetStack, Arc<dyn PeerConn>) {
     let raw = raw_stack(rig, seed, None);
     raw.add_hints(a.stack.invite_addrs()[0].clone());
-    let conn = must_finish(raw.connect(pid(SEED_A), SYNC)).await.expect("connect");
+    let conn = must_finish(raw.connect(pid(SEED_A), SYNC))
+        .await
+        .expect("connect");
     (raw, conn)
 }
 
@@ -57,16 +60,25 @@ impl ServiceHandler for Answerer {
 
 /// A calls the mute C (the dial hangs), and meanwhile C itself joins the topic and breaks the link.
 /// Returns A's events after the break within `QUIET`.
-async fn lost_while_dialing(delay: Option<Duration>) -> (FloodNode, super::test_support::Events, Vec<SwarmEvent>) {
+async fn lost_while_dialing(
+    delay: Option<Duration>,
+) -> (FloodNode, super::test_support::Events, Vec<SwarmEvent>) {
     let rig = Rig::new();
     let a = rig.node(SEED_A);
-    let handler = Arc::new(Answerer { me: pid(SEED_C), delay });
+    let handler = Arc::new(Answerer {
+        me: pid(SEED_C),
+        delay,
+    });
     let raw = raw_stack(&rig, SEED_C, Some(handler));
     a.stack.add_hints(raw.invite_addrs()[0].clone());
     raw.add_hints(a.stack.invite_addrs()[0].clone());
     let mut sa = open(&a, &[]).await;
-    must_finish(sa.membership.join(&[pid(SEED_C)])).await.expect("join");
-    let conn = must_finish(raw.connect(pid(SEED_A), SYNC)).await.expect("connect");
+    must_finish(sa.membership.join(&[pid(SEED_C)]))
+        .await
+        .expect("join");
+    let conn = must_finish(raw.connect(pid(SEED_A), SYNC))
+        .await
+        .expect("connect");
     let mut pair = must_finish(conn.open()).await.expect("stream");
     let key = admission_key(&NETWORK);
     let shake = dial_handshake(&mut pair, &key, pid(SEED_C), pid(SEED_A), &TOPIC);
@@ -98,7 +110,10 @@ mod deferred {
         let (a, mut events, seen) = lost_while_dialing(Some(Duration::from_millis(500))).await;
         assert!(seen.is_empty(), "Down before the dial outcome: {seen:?}");
         // then: the dial succeeded — neither Down nor Up; there is a single link
-        assert!(quiet(&mut events).await.is_empty(), "there is an event after the successful dial");
+        assert!(
+            quiet(&mut events).await.is_empty(),
+            "there is an event after the successful dial"
+        );
         assert_one_link(&a).await;
     }
 }
@@ -107,8 +122,12 @@ mod restart {
     use super::*;
 
     /// A raw C's dial into A's topic: the stream and the handshake.
-    async fn ring(raw: &NetStack) -> (Arc<dyn PeerConn>, crate::net::stream::StreamPair) {
-        let conn = must_finish(raw.connect(pid(SEED_A), SYNC)).await.expect("connect");
+    async fn ring(
+        raw: &NetStack,
+    ) -> (Arc<dyn PeerConn>, crate::transport::net::stream::StreamPair) {
+        let conn = must_finish(raw.connect(pid(SEED_A), SYNC))
+            .await
+            .expect("connect");
         let mut pair = must_finish(conn.open()).await.expect("stream");
         let key = admission_key(&NETWORK);
         let shake = dial_handshake(&mut pair, &key, pid(SEED_C), pid(SEED_A), &TOPIC);
@@ -132,7 +151,10 @@ mod restart {
         assert!(seen.is_empty(), "events at A {seen:?}");
         assert_one_link(&a).await;
         assert_ne!(old.stable_id(), new.stable_id(), "the same connection");
-        assert!(old.is_closed() && !new.is_closed(), "the old link was not the one closed");
+        assert!(
+            old.is_closed() && !new.is_closed(),
+            "the old link was not the one closed"
+        );
     }
 }
 
@@ -160,7 +182,9 @@ mod edges {
         // when: A sends many messages in a row
         for i in 0..64 {
             let body = vec![i as u8; 1000];
-            must_finish(sa.membership.broadcast(body.into())).await.expect("broadcast");
+            must_finish(sa.membership.broadcast(body.into()))
+                .await
+                .expect("broadcast");
         }
         // then: C is disconnected as slow (idle is far away)
         next(&mut sa.events, is_down(pid(SEED_C))).await;

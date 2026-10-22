@@ -1,15 +1,15 @@
 //! Execution of the console subcommands: `keygen`, `config-path`, `run`. Flag parsing is in `cli.rs`.
 //! Here: building `CliOverrides` from flags, preparing the start of the config file and choosing the branch;
-//! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `meshtown::host`.
+//! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `crate::node::host`.
 
+use crate::config::config_file::{self, CliOverrides, ConfigSource, TransportMode};
+use crate::members::network_key::{format_key_string, normalize_label, NetworkKey};
+use crate::members::words::generate_tail;
+use crate::node::output::{say, NET_NAME};
 use clap::parser::ValueSource;
 use clap::ArgMatches;
-use meshtown::config_file::{self, CliOverrides, ConfigSource, TransportMode};
-use meshtown::network_key::{format_key_string, normalize_label, NetworkKey};
-use meshtown::output::{say, NET_NAME};
-use meshtown::words::generate_tail;
 
-use crate::cli::{toggle_from_flag_pair, is_flag_typed};
+use crate::cli::args::{is_flag_typed, toggle_from_flag_pair};
 
 pub(crate) mod access;
 pub(crate) mod ifaces;
@@ -41,7 +41,10 @@ pub(crate) fn keygen(label: Vec<String>, raw: bool) -> anyhow::Result<()> {
 
 /// The `config-path` command: prints the path to the config file and starts nothing.
 pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<()> {
-    match config_file::resolve_config_source(config.as_deref(), &config_file::current_env().as_path_env()) {
+    match config_file::resolve_config_source(
+        config.as_deref(),
+        &config_file::current_env().as_path_env(),
+    ) {
         ConfigSource::File { path, .. } => {
             println!("{}", path.display());
             Ok(())
@@ -63,7 +66,11 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
     if args.no_config && is_flag_typed(m, "config") {
         anyhow::bail!("--no-config and --config together make no sense: remove one of the flags");
     }
-    let invited = args.invite.as_deref().map(meshtown::invite::parse).transpose()?;
+    let invited = args
+        .invite
+        .as_deref()
+        .map(crate::invite::parse)
+        .transpose()?;
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
     let mut run = config_file::prepare(&source, &overrides, args.save_config, now)?;
@@ -73,13 +80,21 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
             .await?;
     match run.effective_settings.net.network_key.clone() {
         Some(key_text) => {
-            run_with_key(key_text, overrides, run, args.initial_domains, args.blocked_domains, invited).await
+            run_with_key(
+                key_text,
+                overrides,
+                run,
+                args.initial_domains,
+                args.blocked_domains,
+                invited,
+            )
+            .await
         }
         None if args.no_config => {
             anyhow::bail!(
                 "the {NET_NAME} network key is not set: provide it with --key, the MESHTOWN_KEY variable or the network.key field of {}, or join with an invite: --invite \"<invite>\". A new key is printed by: {cmd} keygen <label>, for example {cmd} keygen our network",
                 file_hint(&run.file_report),
-                cmd = meshtown::program_name::program_name()
+                cmd = crate::cli::program_name::program_name()
             )
         }
         None => run_without_key(overrides, run, args.initial_domains, args.blocked_domains).await,
@@ -113,12 +128,20 @@ fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
         exit_enabled: toggle_from_flag_pair(args.exit, args.no_exit),
         socks_enabled: toggle_from_flag_pair(args.socks, args.no_socks),
         socks_port: args.socks_port.filter(|_| is_flag_typed(m, "socks_port")),
-        socks_access: args.socks_access.filter(|_| is_flag_typed(m, "socks_access")),
+        socks_access: args
+            .socks_access
+            .filter(|_| is_flag_typed(m, "socks_access")),
         checks_enabled: toggle_from_flag_pair(args.checks, args.no_checks),
-        check_interval_sec: args.check_interval.filter(|_| is_flag_typed(m, "check_interval")),
+        check_interval_sec: args
+            .check_interval
+            .filter(|_| is_flag_typed(m, "check_interval")),
         doh_server: args.check_doh.filter(|_| is_flag_typed(m, "check_doh")),
-        provider_dns: args.provider_dns.filter(|_| is_flag_typed(m, "provider_dns")),
-        probe_interval_sec: args.probe_interval.filter(|_| is_flag_typed(m, "probe_interval")),
+        provider_dns: args
+            .provider_dns
+            .filter(|_| is_flag_typed(m, "provider_dns")),
+        probe_interval_sec: args
+            .probe_interval
+            .filter(|_| is_flag_typed(m, "probe_interval")),
         probe_full_cycle: args.probe_full_cycle.then_some(true),
         web_port: args.web_port.filter(|_| is_flag_typed(m, "web_port")),
     }

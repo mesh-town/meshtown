@@ -19,8 +19,7 @@ class Commands(unittest.TestCase):
             web_lint=False,
             py=False,
             js=False,
-            lib_modules={"words"},
-            bin_modules=set(),
+            lib_modules={"members::words"},
             integration={"identity_restart"},
             reasons=[],
         )
@@ -39,7 +38,7 @@ class Commands(unittest.TestCase):
                     "--test",
                     "identity_restart",
                     "-E",
-                    "(kind(lib) & test(/^words::/)) | binary(identity_restart)",
+                    "(kind(lib) & test(/^members::words::/)) | binary(identity_restart)",
                 ]
             ],
         )
@@ -53,7 +52,6 @@ class Commands(unittest.TestCase):
             py=False,
             js=False,
             lib_modules=set(),
-            bin_modules=set(),
             integration=set(),
             reasons=[],
         )
@@ -74,7 +72,6 @@ class Commands(unittest.TestCase):
             py=False,
             js=False,
             lib_modules=set(),
-            bin_modules=set(),
             integration=set(),
             reasons=[],
         )
@@ -92,7 +89,6 @@ class Commands(unittest.TestCase):
             py=False,
             js=False,
             lib_modules=set(),
-            bin_modules=set(),
             integration=set(),
             reasons=[],
         )
@@ -101,13 +97,12 @@ class Commands(unittest.TestCase):
 
     def test_commands_do_not_depend_on_the_order_of_changed_paths(self):
         src = _sources()
-        paths = ["core/words.rs", "core/web_gui/e2e/specs/basic.spec.ts"]
+        paths = ["core/members/words.rs", "core/web_gui/e2e/specs/basic.spec.ts"]
 
         sel_forward = changed_tests.select(paths, src)
         sel_reversed = changed_tests.select(list(reversed(paths)), src)
 
         self.assertEqual(sel_forward.lib_modules, sel_reversed.lib_modules)
-        self.assertEqual(sel_forward.bin_modules, sel_reversed.bin_modules)
         self.assertEqual(sel_forward.integration, sel_reversed.integration)
         self.assertEqual(
             changed_tests.commands(sel_forward), changed_tests.commands(sel_reversed)

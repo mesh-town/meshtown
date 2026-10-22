@@ -1,10 +1,10 @@
 //! The `SYNC` wire: frame kinds, link close codes, writing and reading a frame (u32 BE length + postcard).
 //! There is no admission or peer state here.
 
-use crate::net::error::NetResult;
-use crate::net::stream::{BoxRecv, BoxSend};
+use crate::members::sync::framing::{read_framed, write_framed};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::stream::{BoxRecv, BoxSend};
 use serde::{Deserialize, Serialize};
-use crate::sync::framing::{read_framed, write_framed};
 
 pub const VERSION: u16 = 1;
 pub const MAX_FRAME_BYTES: usize = 64 * 1024;

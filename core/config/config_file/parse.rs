@@ -1,18 +1,18 @@
 //! Parsing the file text into `ParsedConfigFile` (docs/CONFIG-FILE.md section 8: a damaged field gets the default, not a rejection) and reading
 //! the file from disk (`load_config_file`). Checking individual fields is in `parse_fields.rs`.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::Path;
 
 use serde_json::Value;
 
-use super::parse_fields::{build_settings, push_field_error};
 use super::fields;
+use super::parse_fields::{build_settings, push_field_error};
 use super::report::FieldError;
 use super::retired;
 use super::settings::Settings;
 use super::CONFIG_VERSION;
-use crate::output::NET_NAME;
+use crate::node::output::NET_NAME;
 
 /// What is up with the node secret in the file envelope.
 #[derive(Clone, Debug)]

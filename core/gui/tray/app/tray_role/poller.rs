@@ -10,11 +10,11 @@ use std::task::Poll;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::time::{sleep_until, Instant, MissedTickBehavior};
 
-use crate::app::exit_menu::ExitMenu;
-use crate::app::proxy_state::ProxyState;
-use crate::app::tray_actions::{InviteNote, ServeNote};
-use crate::app::view::{NodeState, PageState, View};
-use crate::tray::NodeCmd;
+use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::proxy_state::ProxyState;
+use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
+use crate::gui::tray::app::view::{NodeState, PageState, View};
+use crate::gui::tray::NodeCmd;
 
 use super::api::{fetch_reply, NodeRequest};
 use super::poll_types::{CopyFn, Once, PollEnv, PollTiming};
@@ -85,7 +85,10 @@ impl QuitTriggers {
     }
 
     /// Races a request against quit: if quit fires, the request is dropped.
-    pub(super) async fn race_with_quit<T>(&mut self, fut: impl Future<Output = T>) -> Result<T, QuitCause> {
+    pub(super) async fn race_with_quit<T>(
+        &mut self,
+        fut: impl Future<Output = T>,
+    ) -> Result<T, QuitCause> {
         tokio::select! {
             biased;
             by = self.next_quit_cause() => Err(by),
@@ -124,7 +127,8 @@ pub(super) struct Poller {
 
 /// Poll timer: the first tick comes after `timing.poll_interval`, missed ticks are delayed.
 fn poll_ticker(timing: PollTiming) -> tokio::time::Interval {
-    let mut ticker = tokio::time::interval_at(Instant::now() + timing.poll_interval, timing.poll_interval);
+    let mut ticker =
+        tokio::time::interval_at(Instant::now() + timing.poll_interval, timing.poll_interval);
     ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
     ticker
 }
@@ -171,7 +175,12 @@ async fn decide_initial_phase(
         return Ok(Phase::Disabled);
     }
     match quit_triggers
-        .race_with_quit(fetch_reply(poller.port, &poller.token_path, NodeRequest::State, None))
+        .race_with_quit(fetch_reply(
+            poller.port,
+            &poller.token_path,
+            NodeRequest::State,
+            None,
+        ))
         .await
     {
         Ok(reply) => Ok(poller.enter(reply, true, false)),
@@ -245,7 +254,12 @@ async fn on_cmd(
     match cmd {
         NodeCmd::Start if matches!(phase, Phase::Absent) => {
             match quit_triggers
-                .race_with_quit(fetch_reply(poller.port, &poller.token_path, NodeRequest::State, None))
+                .race_with_quit(fetch_reply(
+                    poller.port,
+                    &poller.token_path,
+                    NodeRequest::State,
+                    None,
+                ))
                 .await
             {
                 Ok(reply) => Ok(poller.enter(reply, true, false)),

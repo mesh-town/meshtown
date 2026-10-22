@@ -1,7 +1,7 @@
 //! Tests for `entry.rs`: the bytes to sign, `seal`/`check`, the `wins` order.
 
 use super::*;
-use crate::net::id::NodeSecret;
+use crate::transport::net::id::NodeSecret;
 
 fn secret(n: u8) -> NodeSecret {
     NodeSecret::from_bytes(&[n; 32])

@@ -8,11 +8,13 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::time::Instant;
 
-use crate::app::local_api::{ApiError, Reply};
-use crate::tray::NodeCmd;
+use crate::gui::tray::app::local_api::{ApiError, Reply};
+use crate::gui::tray::NodeCmd;
 
-use super::api::{child_status_text, reply_summary, fetch_reply, NodeRequest, KILLED_BY_SIGNAL_TEXT};
-use super::poller::{QuitCause, Poller};
+use super::api::{
+    child_status_text, fetch_reply, reply_summary, NodeRequest, KILLED_BY_SIGNAL_TEXT,
+};
+use super::poller::{Poller, QuitCause};
 use super::poller_phase::Phase;
 use super::views::{ABSENT_VIEW, RUNNING_UNAVAILABLE_VIEW, STOPPING_VIEW};
 
@@ -73,7 +75,9 @@ impl Poller {
                     Phase::Absent
                 } else {
                     self.show(RUNNING_UNAVAILABLE_VIEW);
-                    Phase::ForeignNode { failed_poll_count: 0 }
+                    Phase::ForeignNode {
+                        failed_poll_count: 0,
+                    }
                 }
             }
             other => other,
@@ -95,10 +99,12 @@ impl Poller {
             if now >= deadline {
                 break;
             }
-            if !accepted && last_post.is_none_or(|at| now.duration_since(at) >= STOP_POST_INTERVAL) {
+            if !accepted && last_post.is_none_or(|at| now.duration_since(at) >= STOP_POST_INTERVAL)
+            {
                 last_post = Some(now);
                 let limit = (deadline - now).min(STOP_REQUEST_TIMEOUT_MAX);
-                let reply = fetch_reply(self.port, &self.token_path, NodeRequest::Stop, Some(limit)).await;
+                let reply =
+                    fetch_reply(self.port, &self.token_path, NodeRequest::Stop, Some(limit)).await;
                 // `Refused` before the first 200 — the page is not up yet: keep trying.
                 accepted = matches!(reply, Ok(Reply::Accepted | Reply::Stopping));
             }
@@ -132,7 +138,10 @@ impl Poller {
             Err(ApiError::Refused) => return true,
             Ok(Reply::Accepted | Reply::Stopping) => {}
             other => {
-                self.say(format!("node did not accept the stop: {}", reply_summary(&other)));
+                self.say(format!(
+                    "node did not accept the stop: {}",
+                    reply_summary(&other)
+                ));
                 return false;
             }
         }
@@ -141,8 +150,11 @@ impl Poller {
             tokio::time::sleep(FOREIGN_STOP_POLL_INTERVAL.min(left)).await;
             // The last check, right at the deadline: a rejected connection arrives within the request limit.
             let left = deadline.saturating_duration_since(Instant::now());
-            let limit = left.max(OWN_STOP_POLL_INTERVAL).min(STOP_REQUEST_TIMEOUT_MAX);
-            let reply = fetch_reply(self.port, &self.token_path, NodeRequest::State, Some(limit)).await;
+            let limit = left
+                .max(OWN_STOP_POLL_INTERVAL)
+                .min(STOP_REQUEST_TIMEOUT_MAX);
+            let reply =
+                fetch_reply(self.port, &self.token_path, NodeRequest::State, Some(limit)).await;
             if matches!(reply, Err(ApiError::Refused)) {
                 return true;
             }
@@ -167,7 +179,9 @@ impl Poller {
                         0
                     }
                     OwnStopOutcome::Killed => {
-                        self.say(format!("node stopped via \"Quit\", code {KILLED_BY_SIGNAL_TEXT}"));
+                        self.say(format!(
+                            "node stopped via \"Quit\", code {KILLED_BY_SIGNAL_TEXT}"
+                        ));
                         1
                     }
                 }

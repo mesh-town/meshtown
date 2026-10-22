@@ -3,8 +3,8 @@
 use std::sync::{Arc, Mutex};
 
 use super::*;
-use crate::app::tray_role::views::grey_view;
-use crate::app::view::NodeState;
+use crate::gui::tray::app::tray_role::views::grey_view;
+use crate::gui::tray::app::view::NodeState;
 
 type Log = Arc<Mutex<Vec<String>>>;
 
@@ -23,7 +23,10 @@ fn sender() -> (Box<dyn Fn(View) + Send>, Log) {
 }
 
 fn ready(net: NetLink) -> View {
-    View { net, ..grey_view(PageState::Ready, NodeState::Running) }
+    View {
+        net,
+        ..grey_view(PageState::Ready, NodeState::Running)
+    }
 }
 
 fn lines(log: &Log) -> Vec<String> {
@@ -50,7 +53,12 @@ fn joined_view_never_triggers() {
 #[test]
 fn grey_startup_views_do_not_trigger() {
     let (send, log) = sender();
-    for page in [PageState::Starting, PageState::Unavailable, PageState::Disabled, PageState::PortBusy(7777)] {
+    for page in [
+        PageState::Starting,
+        PageState::Unavailable,
+        PageState::Disabled,
+        PageState::PortBusy(7777),
+    ] {
         send(grey_view(page, NodeState::Starting));
     }
     assert_eq!(lines(&log), ["update"; 4]);

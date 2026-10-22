@@ -4,11 +4,11 @@
 
 use std::net::SocketAddr;
 
-use crate::net::{NodeSecret, PeerId};
-use crate::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
-use crate::addr_order::PrimaryIps;
+use crate::transport::addr_order::PrimaryIps;
 
 const NOW: u64 = 1_790_000_000;
 
@@ -39,7 +39,9 @@ fn golden_invite_string_is_literal_and_parses_vector_id() {
     // RFC 8032 §7.1 anchor
     assert_eq!(id.to_string(), KEY1);
     let addr: SocketAddr = "127.0.0.1:4000".parse().expect("address");
-    let me = from_endpoint_addr(&crate::net::endpoint_shim::EndpointAddr::new(id).with_ip_addr(addr));
+    let me = from_endpoint_addr(
+        &crate::transport::net::endpoint_shim::EndpointAddr::new(id).with_ip_addr(addr),
+    );
 
     let s = build(&head(), &me, &[], &PrimaryIps::NONE).expect("build");
     assert_eq!(s, INVITE);
@@ -51,16 +53,16 @@ fn golden_invite_string_is_literal_and_parses_vector_id() {
 
 #[test]
 fn golden_invite_with_relay_and_others_is_literal() {
-    use crate::net::{AddrHint, PeerAddr, RelayRef};
+    use crate::transport::net::{AddrHint, PeerAddr, RelayRef};
     let id_me = id_of("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
     let id_other = id_of("4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb");
     let ip = |s: &str| s.parse::<SocketAddr>().expect("address");
-    let me = crate::net::endpoint_shim::EndpointAddr::new(id_me)
+    let me = crate::transport::net::endpoint_shim::EndpointAddr::new(id_me)
         .with_relay_url("https://relay.example/".parse().expect("url"))
         .with_ip_addr(ip("203.0.113.5:4000"))
         .with_ip_addr(ip("[2001:db8::5]:4000"));
     let me = from_endpoint_addr(&me);
-    let other = crate::net::endpoint_shim::EndpointAddr::new(id_other)
+    let other = crate::transport::net::endpoint_shim::EndpointAddr::new(id_other)
         .with_ip_addr(ip("10.0.0.2:1"))
         .with_ip_addr(ip("203.0.113.9:1"))
         .with_ip_addr(ip("[2001:db8::9]:1"));
@@ -74,11 +76,16 @@ fn golden_invite_with_relay_and_others_is_literal() {
     let want = vec![
         PeerAddr {
             id: id_me,
-            hints: vec![AddrHint::Relay(RelayRef::Url("https://relay.example/".to_string()))],
+            hints: vec![AddrHint::Relay(RelayRef::Url(
+                "https://relay.example/".to_string(),
+            ))],
         },
         PeerAddr {
             id: id_other,
-            hints: vec![AddrHint::Ip(ip("203.0.113.9:1")), AddrHint::Ip(ip("[2001:db8::9]:1"))],
+            hints: vec![
+                AddrHint::Ip(ip("203.0.113.9:1")),
+                AddrHint::Ip(ip("[2001:db8::9]:1")),
+            ],
         },
     ];
     assert_eq!(parsed.peers, want);

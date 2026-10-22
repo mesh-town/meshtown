@@ -39,8 +39,8 @@ pub async fn read_to_end_limited(recv: &mut BoxRecv, limit: usize) -> std::io::R
 }
 
 #[cfg(test)]
-#[path = "traits_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "stream_tests.rs"]
 mod limited_tests;
+#[cfg(test)]
+#[path = "traits_tests.rs"]
+mod tests;

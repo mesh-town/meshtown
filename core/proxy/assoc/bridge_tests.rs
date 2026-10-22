@@ -1,10 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use super::*;
-use crate::socks5::{Target, UdpPacket};
+use crate::proxy::socks5::{Target, UdpPacket};
 
 fn packet(target: Target, port: u16) -> UdpPacket {
-    UdpPacket { target, port, data: b"hello".to_vec() }
+    UdpPacket {
+        target,
+        port,
+        data: b"hello".to_vec(),
+    }
 }
 
 fn frame_of(packet: UdpPacket) -> Frame {
@@ -20,12 +24,18 @@ mod conn_id {
         let v4 = frame_of(packet(Target::Ip(Ipv4Addr::new(192, 0, 2, 1).into()), 53));
         let name = frame_of(packet(Target::Domain("example.com".into()), 53));
         assert_eq!((v4.conn_id, name.conn_id), (0, 0));
-        assert_eq!(name.target, Some(codec::Target::Domain("example.com".into(), 53)));
+        assert_eq!(
+            name.target,
+            Some(codec::Target::Domain("example.com".into(), 53))
+        );
     }
 
     #[test]
     fn ipv6_uses_1() {
-        let frame = frame_of(packet(Target::Ip(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1).into()), 53));
+        let frame = frame_of(packet(
+            Target::Ip(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1).into()),
+            53,
+        ));
         assert_eq!(frame.conn_id, 1);
         assert_eq!(frame.flags, codec::FLAG_DATA);
         assert_eq!(frame.data, b"hello");
@@ -36,14 +46,20 @@ mod conn_id {
         let mapped = Ipv4Addr::new(192, 0, 2, 7).to_ipv6_mapped();
         let frame = frame_of(packet(Target::Ip(IpAddr::V6(mapped)), 9));
         assert_eq!(frame.conn_id, 0);
-        assert_eq!(frame.target, Some(codec::Target::Ip(SocketAddr::from(([192, 0, 2, 7], 9)))));
+        assert_eq!(
+            frame.target,
+            Some(codec::Target::Ip(SocketAddr::from(([192, 0, 2, 7], 9))))
+        );
     }
 
     #[test]
     fn domain_holding_ipv6_literal_becomes_ip_on_1() {
         let frame = frame_of(packet(Target::Domain("2001:db8::1".into()), 9));
         assert_eq!(frame.conn_id, 1);
-        assert_eq!(frame.target, Some(codec::Target::Ip("[2001:db8::1]:9".parse().unwrap())));
+        assert_eq!(
+            frame.target,
+            Some(codec::Target::Ip("[2001:db8::1]:9".parse().unwrap()))
+        );
     }
 }
 
@@ -70,7 +86,11 @@ mod replies {
 
     #[test]
     fn oversize_packet_gives_none() {
-        let big = UdpPacket { target: Target::Ip(Ipv4Addr::new(192, 0, 2, 1).into()), port: 1, data: vec![0; 70_000] };
+        let big = UdpPacket {
+            target: Target::Ip(Ipv4Addr::new(192, 0, 2, 1).into()),
+            port: 1,
+            data: vec![0; 70_000],
+        };
         assert!(to_gateway_frame(big).is_none());
     }
 }

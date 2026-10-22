@@ -1,7 +1,7 @@
 //! Tests for `poller_exit`: the "Allow sites to open through this computer" checkbox.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use serde_json::Value;
 
 // The "Allow sites to open through this computer" checkbox: the edit body, the write through the
@@ -12,13 +12,15 @@ mod serve_checkbox {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use crate::app::exit_menu::disabled_exit_menu;
-    use crate::app::local_api::tests::{start_fake, start_fake_with_config, temp_dir, FAKE_TOKEN};
-    use crate::app::tray_actions::ServeNote;
-    use crate::app::tray_texts::REASON_SERVE_REFUSED;
-    use crate::app::tray_role::poll_types::PollTiming;
-    use crate::app::tray_role::poller::test_support::*;
-    use crate::tray::NodeCmd;
+    use crate::gui::tray::app::exit_menu::disabled_exit_menu;
+    use crate::gui::tray::app::local_api::tests::{
+        start_fake, start_fake_with_config, temp_dir, FAKE_TOKEN,
+    };
+    use crate::gui::tray::app::tray_actions::ServeNote;
+    use crate::gui::tray::app::tray_role::poll_types::PollTiming;
+    use crate::gui::tray::app::tray_role::poller::test_support::*;
+    use crate::gui::tray::app::tray_texts::REASON_SERVE_REFUSED;
+    use crate::gui::tray::NodeCmd;
 
     const LOG_LINE: &str = "permission to open sites: edit was not applied";
 
@@ -35,9 +37,11 @@ mod serve_checkbox {
             log: Box::new(move |s| log.lock().unwrap().push(s)),
             last_view: None,
             proxy: ProxyState::Off(ProxyOff::DisabledInSettings),
-            last_exit_menu: Some(disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings))),
+            last_exit_menu: Some(disabled_exit_menu(ProxyState::Off(
+                ProxyOff::DisabledInSettings,
+            ))),
             notes_visible_until: None,
-            start_fail: crate::app::tray_role::start_fail::StartFail::new(
+            start_fail: crate::gui::tray::app::tray_role::start_fail::StartFail::new(
                 Box::new(|| None),
                 Box::new(|| None),
                 Box::new(|_n| {}),
@@ -132,7 +136,10 @@ mod serve_checkbox {
         rig.probe.log(LOG_LINE);
         let again = rig.probe.exits("model sent again", |m| m.enabled);
 
-        assert_eq!(again, before, "the snapshot did not change — the model is the same");
+        assert_eq!(
+            again, before,
+            "the snapshot did not change — the model is the same"
+        );
         rig.quit();
         assert_eq!(rig.code().await, 0);
         handle.shutdown(Duration::from_secs(2)).await;
@@ -177,9 +184,8 @@ mod serve_checkbox {
         rig.probe.exits("checkbox is on", |m| m.serves_exit);
 
         rig.cmd(NodeCmd::SetExitServer(false));
-        rig.probe.serve("rest after success", |n| {
-            *n == ServeNote::Idle
-        });
+        rig.probe
+            .serve("rest after success", |n| *n == ServeNote::Idle);
         rig.probe.exits("checkbox cleared by the snapshot", |m| {
             m.enabled && !m.serves_exit
         });
@@ -204,9 +210,9 @@ mod serve_checkbox {
     async fn serve_click_outside_online_phase_is_dropped() {
         let dir = temp_dir("poller-serve-dropped");
         let mut rig = Rig::start(1, dir.join("web-token"), false, spawn_panics());
-        let disabled = crate::app::tray_role::views::grey_view(
-            crate::app::view::PageState::Disabled,
-            crate::app::view::NodeState::Unknown,
+        let disabled = crate::gui::tray::app::tray_role::views::grey_view(
+            crate::gui::tray::app::view::PageState::Disabled,
+            crate::gui::tray::app::view::NodeState::Unknown,
         );
         rig.probe.view("Disabled", |v| *v == disabled);
 

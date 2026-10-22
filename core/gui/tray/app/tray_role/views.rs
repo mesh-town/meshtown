@@ -1,12 +1,12 @@
 //! Ready-made and assembled tray views: grey by default and three common ones per phase. Shared between
 //! `poller.rs` and `poller_phase.rs`/`poller_stop.rs` — hence `pub(super)`.
 
-use crate::app::exit_menu::{exit_menu_from_snapshot, ExitMenu};
-use crate::app::proxy_state::ProxyState;
-use crate::app::snapshot::TraySnapshot;
-use crate::app::view::{self, NetLink, NodeState, PageState, TrayColor, View};
-use crate::app::view_disk;
-use crate::app::view_ring::{self, Ring};
+use crate::gui::tray::app::exit_menu::{exit_menu_from_snapshot, ExitMenu};
+use crate::gui::tray::app::proxy_state::ProxyState;
+use crate::gui::tray::app::snapshot::TraySnapshot;
+use crate::gui::tray::app::view::{self, NetLink, NodeState, PageState, TrayColor, View};
+use crate::gui::tray::app::view_disk;
+use crate::gui::tray::app::view_ring::{self, Ring};
 
 pub(super) fn grey_view(page: PageState, node: NodeState) -> View {
     View {

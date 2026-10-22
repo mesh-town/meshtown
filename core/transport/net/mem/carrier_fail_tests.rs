@@ -34,10 +34,11 @@ mod bad_first_frame {
         let (a, b) = setup();
         let carrier = MemCarrier::new();
 
-        let (started, ()) = tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(AUTH)), async {
-            recv_frame(&b).await;
-            send_frame(&b, Frame::Open(1)).await;
-        });
+        let (started, ()) =
+            tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(AUTH)), async {
+                recv_frame(&b).await;
+                send_frame(&b, Frame::Open(1)).await;
+            });
 
         let err = error_of(started);
         assert!(matches!(err, NetError::Other(_)), "error: {err:?}");
@@ -78,14 +79,15 @@ mod silence {
         let (a, b) = setup();
         let carrier = MemCarrier::with_timeout(Duration::from_millis(100));
 
-        let (started, ()) = tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(AUTH)), async {
-            recv_frame(&b).await;
-            assert_eq!(
-                recv_err(&b).await,
-                ErrorKind::UnexpectedEof,
-                "after the time limit the path must be closed"
-            );
-        });
+        let (started, ()) =
+            tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(AUTH)), async {
+                recv_frame(&b).await;
+                assert_eq!(
+                    recv_err(&b).await,
+                    ErrorKind::UnexpectedEof,
+                    "after the time limit the path must be closed"
+                );
+            });
 
         assert!(matches!(error_of(started), NetError::Timeout));
     }

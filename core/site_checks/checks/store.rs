@@ -1,14 +1,14 @@
 //! Publishing a check record to the document and reading the results of all nodes: `Checks::publish` writes,
 //! another reads the results of all nodes and prints them by the domains of its own list
 //! (`Checks::check_views`/`print_table`/`print_new_foreign`). When to check is
-//! decided by `schedule.rs`, the check itself is `crate::reachability`.
+//! decided by `schedule.rs`, the check itself is `crate::site_checks::reachability`.
 
 use anyhow::{Context, Result};
 use bytes::Bytes;
 
-use crate::net::{ReplicaEntry, NetError};
-use crate::output::say;
-use crate::reachability::{self, CheckRecord, CHECK_RECORD_VERSION};
+use crate::node::output::say;
+use crate::site_checks::reachability::{self, CheckRecord, CHECK_RECORD_VERSION};
+use crate::transport::net::{NetError, ReplicaEntry};
 
 use super::describe::{describe, describe_steps};
 use super::keys::{domain_from_check_key, only_listed, CheckView, CHECK_PREFIX};
@@ -17,8 +17,9 @@ use super::state::Checks;
 impl Checks {
     /// Checks a domain right now and publishes the result.
     pub async fn check_now(&self, domain: &str) -> Result<CheckRecord> {
-        let domain = crate::domains::normalize_domain(domain)?;
-        let record = reachability::check_domain(&self.check_config, &self.resolver, &domain).await?;
+        let domain = crate::proxy::domains::normalize_domain(domain)?;
+        let record =
+            reachability::check_domain(&self.check_config, &self.resolver, &domain).await?;
         say("check", format!("{domain}: {}", describe_steps(&record)));
         self.publish(&domain, &record).await?;
         Ok(record)
@@ -134,7 +135,12 @@ impl Checks {
             };
             say(
                 "check",
-                format!("{}: {} reports {}", view.domain, view.author.fmt_short(), what),
+                format!(
+                    "{}: {} reports {}",
+                    view.domain,
+                    view.author.fmt_short(),
+                    what
+                ),
             );
         }
     }

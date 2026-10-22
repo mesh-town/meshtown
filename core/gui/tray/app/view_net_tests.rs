@@ -1,14 +1,18 @@
 //! Tests of `view_net`: the reason for a grey icon when the page is ready — snapshot parsing and menu texts.
 
 use super::*;
-use crate::app::view::{page_text, node_status_menu_line, NodeState, PageState, RouteLine, TrayColor, View};
-use crate::app::view_ring::Ring;
-use meshtown::output::NET_NAME;
+use crate::gui::tray::app::view::{
+    node_status_menu_line, page_text, NodeState, PageState, RouteLine, TrayColor, View,
+};
+use crate::gui::tray::app::view_ring::Ring;
+use crate::node::output::NET_NAME;
 use serde_json::json;
 
 /// A shim with the old name: tests supply JSON, the code reads the selection.
 fn net_link(value: &serde_json::Value) -> NetLink {
-    super::net_link(&crate::app::snapshot::TraySnapshot::from_value(value))
+    super::net_link(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 const LINKS: [NetLink; 4] = [
@@ -66,7 +70,8 @@ mod net_link {
 
     #[test]
     fn offline_just_after_start_is_connecting() {
-        let state = json!({ "node": { "status": "offline", "uptime_sec": 5 }, "network": { "name": "x" } });
+        let state =
+            json!({ "node": { "status": "offline", "uptime_sec": 5 }, "network": { "name": "x" } });
         assert_eq!(net_link(&state), NetLink::Connecting);
         let zero = json!({ "node": { "status": "offline", "uptime_sec": 0 } });
         assert_eq!(net_link(&zero), NetLink::Connecting);
@@ -148,12 +153,19 @@ mod grey_texts {
                 format!("You haven't joined a {NET_NAME} network yet"),
             ),
             (NetLink::Connecting, connecting.clone()),
-            (NetLink::Lost, format!("No connection to the {NET_NAME} network")),
+            (
+                NetLink::Lost,
+                format!("No connection to the {NET_NAME} network"),
+            ),
             (NetLink::Joined, connecting),
         ];
         for route in routes() {
             for (net, expected) in &cases {
-                assert_eq!(&node_status_menu_line(grey_ready(*net), &route), expected, "{net:?}");
+                assert_eq!(
+                    &node_status_menu_line(grey_ready(*net), &route),
+                    expected,
+                    "{net:?}"
+                );
             }
         }
     }
@@ -211,7 +223,11 @@ mod grey_texts {
         let base = view(c, o, n, NetLink::NoNetwork);
         for net in LINKS {
             let v = view(c, o, n, net);
-            assert_eq!(node_status_menu_line(v, r), node_status_menu_line(base, r), "{v:?}");
+            assert_eq!(
+                node_status_menu_line(v, r),
+                node_status_menu_line(base, r),
+                "{v:?}"
+            );
             assert_eq!(page_text(v), page_text(base), "{v:?}");
         }
     }

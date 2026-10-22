@@ -2,8 +2,8 @@
 //! function before any trip to the network. The output reads as a phrase: `key_from_flag::of_another_network::…`.
 
 use super::*;
-use meshtown::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
-use meshtown::network_key::{key_with_label, NetworkKey};
+use crate::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
+use crate::members::network_key::{key_with_label, NetworkKey};
 
 const NOW: u64 = 1_790_000_000;
 const HOUR: u64 = 3_600;
@@ -243,7 +243,11 @@ fn plan(opts: Opts) -> Outcome {
 fn then_redeems_the_same_invite(out: Outcome) {
     match out {
         Outcome::Redeem(p) => {
-            assert_eq!(p.head.secret, secret(), "a different invite went into Redeem");
+            assert_eq!(
+                p.head.secret,
+                secret(),
+                "a different invite went into Redeem"
+            );
             assert_eq!(p.head.made_unix, NOW);
         }
         other => panic!("expected Redeem, got {other:?}"),

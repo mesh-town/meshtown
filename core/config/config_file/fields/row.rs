@@ -51,7 +51,9 @@ impl std::fmt::Debug for Field {
 impl Field {
     /// Returns the part of the path before the dot.
     pub(crate) fn section(&self) -> &'static str {
-        self.field_path.split_once('.').map_or(self.field_path, |(s, _)| s)
+        self.field_path
+            .split_once('.')
+            .map_or(self.field_path, |(s, _)| s)
     }
 
     /// Returns the part of the path after the dot.
@@ -63,10 +65,20 @@ impl Field {
 /// A table row: `row!("path", Mode, value)`, with a secret — `row!(redacted "path", …)`.
 macro_rules! row {
     (redacted $path:literal, $mode:ident, $value:expr) => {
-        Field { field_path: $path, mode: Mode::$mode, redacted: true, value: $value }
+        Field {
+            field_path: $path,
+            mode: Mode::$mode,
+            redacted: true,
+            value: $value,
+        }
     };
     ($path:literal, $mode:ident, $value:expr) => {
-        Field { field_path: $path, mode: Mode::$mode, redacted: false, value: $value }
+        Field {
+            field_path: $path,
+            mode: Mode::$mode,
+            redacted: false,
+            value: $value,
+        }
     };
 }
 pub(crate) use row;

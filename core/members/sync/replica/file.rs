@@ -2,7 +2,7 @@
 //! Entry signatures are not checked here: `load` returns raw `WireEntry`, the check is done by `State::from_entries`.
 
 use super::entry::WireEntry;
-use crate::net::replica::ReplicaId;
+use crate::transport::net::replica::ReplicaId;
 use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
@@ -43,7 +43,11 @@ pub(crate) enum FileError {
     Body(String),
     Io(io::Error),
     /// The main file and `.bak` are unusable (or there is no main file and the `.bak` is bad).
-    Broken { main: PathBuf, bak: PathBuf, reason: String },
+    Broken {
+        main: PathBuf,
+        bak: PathBuf,
+        reason: String,
+    },
 }
 
 impl std::fmt::Display for FileError {
@@ -107,8 +111,16 @@ pub(super) fn suffixed(path: &Path, suffix: &str) -> PathBuf {
 }
 
 /// The file: magic, version, blake3 of the body, the postcard body.
-pub(crate) fn encode(id: &ReplicaId, import: Option<&ImportMark>, entries: &[WireEntry]) -> Vec<u8> {
-    let body = FileBody { replica: *id.as_bytes(), import: import.copied(), entries: entries.to_vec() };
+pub(crate) fn encode(
+    id: &ReplicaId,
+    import: Option<&ImportMark>,
+    entries: &[WireEntry],
+) -> Vec<u8> {
+    let body = FileBody {
+        replica: *id.as_bytes(),
+        import: import.copied(),
+        entries: entries.to_vec(),
+    };
     let body = postcard::to_allocvec(&body).expect("postcard writes to a Vec");
     let mut out = Vec::with_capacity(HEADER + body.len());
     out.extend_from_slice(MAGIC);
@@ -167,7 +179,11 @@ pub(crate) fn load(path: &Path, id: &ReplicaId) -> Result<Loaded, FileError> {
                 .map(|e| e.to_string())
                 .collect::<Vec<_>>()
                 .join("; ");
-            Err(FileError::Broken { main: path.to_path_buf(), bak, reason })
+            Err(FileError::Broken {
+                main: path.to_path_buf(),
+                bak,
+                reason,
+            })
         }
     }
 }

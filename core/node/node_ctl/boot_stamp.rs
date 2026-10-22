@@ -40,7 +40,7 @@ impl BootStamp {
 /// does not panic but yields zero bytes.
 fn gen_boot_id() -> String {
     let mut bytes = [0u8; 4];
-    let _ = crate::network_key::fill_random(&mut bytes);
+    let _ = crate::members::network_key::fill_random(&mut bytes);
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 

@@ -1,5 +1,5 @@
 use super::*;
-use crate::config_file::settings::ListenAccess;
+use crate::config::config_file::settings::ListenAccess;
 
 /// A file with sections `cfg` and version 1 → `web.access` and the field errors.
 fn take(cfg: serde_json::Value) -> (ListenAccess, Vec<FieldError>) {
@@ -54,7 +54,10 @@ fn socks_access_default_is_localhost() {
 
 #[test]
 fn socks_access_both_values_parsed() {
-    for (text, want) in [("localhost", ListenAccess::Localhost), ("localnet", ListenAccess::Localnet)] {
+    for (text, want) in [
+        ("localhost", ListenAccess::Localhost),
+        ("localnet", ListenAccess::Localnet),
+    ] {
         let (a, errs) = take_socks(serde_json::json!({"socks": {"access": text}}));
         assert_eq!(a, want);
         assert!(errs.is_empty(), "extra errors: {errs:?}");
@@ -67,5 +70,9 @@ fn socks_access_third_value_is_field_error() {
     assert_eq!(a, ListenAccess::Localhost, "on error — the default");
     assert_eq!(errs.len(), 1);
     assert_eq!(errs[0].field_path, "socks.access");
-    assert!(errs[0].message.contains("localhost or localnet"), "message: {}", errs[0].message);
+    assert!(
+        errs[0].message.contains("localhost or localnet"),
+        "message: {}",
+        errs[0].message
+    );
 }

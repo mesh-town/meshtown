@@ -1,9 +1,9 @@
 //! Replica: a shared store of "author, key, value" records, each author with its own key space.
 //! Only data and a trait here; implementations live behind the sync seam (`sync_backend`).
 
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
 use bytes::Bytes;
 use data_encoding::HEXLOWER;
 

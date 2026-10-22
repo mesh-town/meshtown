@@ -13,12 +13,12 @@ use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
-use crate::web::auth::password::{self, PasswordVerdict};
-use crate::web::auth::password_file::{self, PasswordFileState};
-use crate::web::auth::tickets::Via;
-use crate::web::guard::{ct_eq, Credential};
-use crate::web::http::{json_err, ConnInfo};
-use crate::web::{cookie, App};
+use crate::web_gui::auth::password::{self, PasswordVerdict};
+use crate::web_gui::auth::password_file::{self, PasswordFileState};
+use crate::web_gui::auth::tickets::Via;
+use crate::web_gui::guard::{ct_eq, Credential};
+use crate::web_gui::http::{json_err, ConnInfo};
+use crate::web_gui::{cookie, App};
 
 /// How long a temporary token issued by `reset` lives (seconds, like `TEMP_TTL`).
 const RESET_EXPIRES_SEC: u64 = 600;
@@ -40,18 +40,31 @@ fn too_many(wait: Duration) -> Response {
         "too_many_attempts",
         "too many failed attempts, wait",
     );
-    resp.headers_mut().insert(header::RETRY_AFTER, HeaderValue::from(secs));
+    resp.headers_mut()
+        .insert(header::RETRY_AFTER, HeaderValue::from(secs));
     resp
 }
 
 /// The limiter: `Err` is a ready 429, the check does not start.
 fn reject_if_blocked(app: &App, ip: IpAddr) -> Result<(), Response> {
-    let limiter = app.shared.auth.limiter.lock().unwrap_or_else(|e| e.into_inner());
-    limiter.check_not_blocked(ip, Instant::now()).map_err(too_many)
+    let limiter = app
+        .shared
+        .auth
+        .limiter
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    limiter
+        .check_not_blocked(ip, Instant::now())
+        .map_err(too_many)
 }
 
 fn record_attempt(app: &App, ip: IpAddr, success: bool) {
-    let mut limiter = app.shared.auth.limiter.lock().unwrap_or_else(|e| e.into_inner());
+    let mut limiter = app
+        .shared
+        .auth
+        .limiter
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     match success {
         true => limiter.clear_fails(ip),
         false => limiter.record_fail(ip, Instant::now()),
@@ -63,15 +76,22 @@ fn internal_error_response(text: &str) -> Response {
 }
 
 /// Permit for one heavy hash job.
-pub(super) async fn acquire_hash_permit(app: &App) -> Result<tokio::sync::SemaphorePermit<'_>, String> {
+pub(super) async fn acquire_hash_permit(
+    app: &App,
+) -> Result<tokio::sync::SemaphorePermit<'_>, String> {
     let permit = app.shared.auth.hash_gate.acquire().await;
     permit.map_err(|_| "check unavailable".to_string())
 }
 
 /// Permit for one check, and a repeated limiter check already under it.
-async fn acquire_attempt_permit(app: &App, ip: IpAddr) -> Result<tokio::sync::SemaphorePermit<'_>, Response> {
+async fn acquire_attempt_permit(
+    app: &App,
+    ip: IpAddr,
+) -> Result<tokio::sync::SemaphorePermit<'_>, Response> {
     reject_if_blocked(app, ip)?;
-    let permit = acquire_hash_permit(app).await.map_err(|e| internal_error_response(&e))?;
+    let permit = acquire_hash_permit(app)
+        .await
+        .map_err(|e| internal_error_response(&e))?;
     reject_if_blocked(app, ip)?;
     Ok(permit)
 }
@@ -79,7 +99,12 @@ async fn acquire_attempt_permit(app: &App, ip: IpAddr) -> Result<tokio::sync::Se
 /// Opens a session and returns `{"via"}` with `Set-Cookie`.
 fn open_session_response(app: &App, via: Via) -> Response {
     let opened = {
-        let mut tickets = app.shared.auth.tickets.lock().unwrap_or_else(|e| e.into_inner());
+        let mut tickets = app
+            .shared
+            .auth
+            .tickets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         tickets.open_session(via, Instant::now())
     };
     match opened {
@@ -110,7 +135,12 @@ pub(super) async fn status_handler(
 /// A temporary token is invalidated on first presentation; otherwise it is the permanent one.
 fn redeem_token(app: &App, candidate: &str) -> Option<Via> {
     let temp = {
-        let mut tickets = app.shared.auth.tickets.lock().unwrap_or_else(|e| e.into_inner());
+        let mut tickets = app
+            .shared
+            .auth
+            .tickets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         tickets.take_temp(candidate, Instant::now())
     };
     if temp {
@@ -162,11 +192,14 @@ async fn rehash(app: &App, pw: String) {
     let Some(dir) = app.shared.auth.password_dir.clone() else {
         return;
     };
-    let work = move || password::hash(&pw).and_then(|r| password_file::write_password_file(&dir, &r).map_err(|e| e.to_string()));
+    let work = move || {
+        password::hash(&pw)
+            .and_then(|r| password_file::write_password_file(&dir, &r).map_err(|e| e.to_string()))
+    };
     let done = tokio::task::spawn_blocking(work).await;
     let failed = done.map_err(|e| e.to_string()).and_then(|r| r);
     if let Err(e) = failed {
-        crate::output::say("web", format!("password not rehashed: {e}"));
+        crate::node::output::say("web", format!("password not rehashed: {e}"));
     }
 }
 
@@ -199,7 +232,11 @@ pub(super) async fn login_handler(
 
 async fn finish_login(app: &App, verdict: PasswordVerdict, pw: String) -> Response {
     if verdict == PasswordVerdict::Mismatch {
-        return json_err(StatusCode::UNAUTHORIZED, "bad_password", "password not accepted");
+        return json_err(
+            StatusCode::UNAUTHORIZED,
+            "bad_password",
+            "password not accepted",
+        );
     }
     if verdict == PasswordVerdict::MatchNeedsRehash {
         rehash(app, pw).await;
@@ -213,7 +250,12 @@ pub(super) async fn logout_handler(
 ) -> Response {
     let session = cred.and_then(|Extension(c)| c.session_id);
     if let Some(id) = session {
-        let mut tickets = app.shared.auth.tickets.lock().unwrap_or_else(|e| e.into_inner());
+        let mut tickets = app
+            .shared
+            .auth
+            .tickets
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         tickets.close_session(&id);
     }
     let cleared = cookie::expired_session_cookie_header(&app.shared.auth.cookie_name);
@@ -222,7 +264,9 @@ pub(super) async fn logout_handler(
 
 /// Only the `X-Meshtown-Token` header with the permanent token: a session cookie and `?token=` don't qualify.
 fn header_token_matches(app: &App, headers: &HeaderMap) -> bool {
-    let sent = headers.get("x-meshtown-token").and_then(|v| v.to_str().ok());
+    let sent = headers
+        .get("x-meshtown-token")
+        .and_then(|v| v.to_str().ok());
     let real = app.shared.token();
     sent.is_some_and(|s| ct_eq(s.as_bytes(), real.as_bytes()))
 }
@@ -237,7 +281,12 @@ pub(super) async fn reset_handler(State(app): State<Arc<App>>, headers: HeaderMa
             return internal_error_response(&format!("password file not deleted: {e}"));
         }
     }
-    let mut tickets = app.shared.auth.tickets.lock().unwrap_or_else(|e| e.into_inner());
+    let mut tickets = app
+        .shared
+        .auth
+        .tickets
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     tickets.close_sessions_except(None);
     tickets.drop_temp_tokens();
     drop(tickets);

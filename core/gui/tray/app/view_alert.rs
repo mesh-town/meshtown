@@ -41,8 +41,12 @@ pub fn paint_alert(rgba: &mut [u8], side: u32) {
 /// The number of subsampling points of a pixel on the dark mark and on the bare amber disc.
 fn sample_hits(x: u32, y: u32, center: f64, scale: f64) -> (u32, u32) {
     (0..SUBSAMPLES * SUBSAMPLES).fold((0, 0), |(mark, disc), i| {
-        let px = (f64::from(x) + (f64::from(i % SUBSAMPLES) + 0.5) / f64::from(SUBSAMPLES) - center) / scale;
-        let py = (f64::from(y) + (f64::from(i / SUBSAMPLES) + 0.5) / f64::from(SUBSAMPLES) - center) / scale;
+        let px = (f64::from(x) + (f64::from(i % SUBSAMPLES) + 0.5) / f64::from(SUBSAMPLES)
+            - center)
+            / scale;
+        let py = (f64::from(y) + (f64::from(i / SUBSAMPLES) + 0.5) / f64::from(SUBSAMPLES)
+            - center)
+            / scale;
         if px.hypot(py) > DISC_RADIUS_PX {
             return (mark, disc);
         }
@@ -69,7 +73,9 @@ fn blend(dst: &mut [u8], (mark, disc): (u32, u32)) {
     let below = f64::from(dst[3]) / 255.0 * (1.0 - cover);
     let alpha = cover + below;
     for c in 0..3 {
-        let top = (f64::from(mark) * f64::from(MARK_RGB[c]) + f64::from(disc) * f64::from(DISC_RGB[c])) / f64::from(hits);
+        let top = (f64::from(mark) * f64::from(MARK_RGB[c])
+            + f64::from(disc) * f64::from(DISC_RGB[c]))
+            / f64::from(hits);
         dst[c] = ((top * cover + f64::from(dst[c]) * below) / alpha).round() as u8;
     }
     dst[3] = (alpha * 255.0).round() as u8;

@@ -8,7 +8,7 @@ Two modes. By default — two phases: phase 1 builds everything in turn (steps a
 `battery_phases.py`; step logs live there too, `<step>.log`, service files in `meta/`), phase 2 runs
 the built binaries in lanes in parallel (one thread per lane) in two consecutive epochs.
 Why epochs: with `-C prefer-dynamic` cargo puts the dylib under the unhashed name
-`deps/libmeshtown.dylib`, one for both feature sets, and each build relinks it for its own
+`deps/libmeshtown_core.dylib`, one for both feature sets, and each build relinks it for its own
 set — binaries of the other set crash in dyld. So only one set is alive at any moment:
 epoch B (`--no-default-features --features net-hyper`), then epoch A (default, with the tray; last, so that debug/ keeps
 the binary with the tray); before each one comes a relink step (a repeat of the build command, seconds). `--serial` is the old mode:

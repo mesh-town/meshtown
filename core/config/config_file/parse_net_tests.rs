@@ -1,6 +1,6 @@
-use crate::config_file::{parse_text, ParsedConfigFile};
-use crate::net::NetChoice;
+use crate::config::config_file::{parse_text, ParsedConfigFile};
 use crate::node::net_names;
+use crate::transport::net::NetChoice;
 
 #[test]
 fn missing_section_is_default() {
@@ -48,7 +48,11 @@ fn sync_mesh_is_accepted() {
     // then: sync is taken with no warnings or unknown keys
     assert_eq!(p.settings.net.net_choice.sync, "mesh");
     assert_eq!(p.field_errors, vec![]);
-    assert!(p.unknown_paths.is_empty(), "sync is a known key: {:?}", p.unknown_paths);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "sync is a known key: {:?}",
+        p.unknown_paths
+    );
 }
 
 #[test]
@@ -60,7 +64,10 @@ fn unknown_sync_lists_mesh() {
     assert_eq!(p.settings.net.net_choice.sync, "mesh");
     assert_eq!(p.field_errors.len(), 1, "{:?}", p.field_errors);
     let message = &p.field_errors[0].message;
-    assert!(message.contains("mem, mesh"), "no list of built-in ones: {message}");
+    assert!(
+        message.contains("mem, mesh"),
+        "no list of built-in ones: {message}"
+    );
 }
 
 #[test]

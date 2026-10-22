@@ -4,11 +4,12 @@
 
 use std::sync::Arc;
 
-use crate::net::error::NetResult;
-use crate::net::mem::MemNet;
-use crate::net::split::SplitTransport;
-use crate::net::{
-    AddrHint, BoxFuture, NetInfo, NodeSecret, PeerAddr, PeerConn, PeerId, RelayRef, ServiceId, Transport,
+use crate::transport::net::error::NetResult;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::split::SplitTransport;
+use crate::transport::net::{
+    AddrHint, BoxFuture, NetInfo, NodeSecret, PeerAddr, PeerConn, PeerId, RelayRef, ServiceId,
+    Transport,
 };
 
 /// The node's `mem` transport that dials a peer by key.
@@ -20,14 +21,20 @@ pub(crate) struct KeyedMem {
 impl KeyedMem {
     /// A new node slot with the key `secret` in the network `net`.
     pub(crate) fn new(net: &Arc<MemNet>, secret: &NodeSecret) -> Arc<Self> {
-        Arc::new(KeyedMem { net: net.clone(), slot: net.transport(secret) })
+        Arc::new(KeyedMem {
+            net: net.clone(),
+            slot: net.transport(secret),
+        })
     }
 
     /// An address without a `mem` hint gets the hint of the target's live slot; no slot — the address as it was.
     fn addr_with_mem_hint(&self, to: &PeerAddr) -> PeerAddr {
-        let has_mem_hint = to.hints.iter().any(|h| matches!(h, AddrHint::Opaque { kind, .. } if *kind == crate::net::mem::MEM_HINT_KIND));
+        let has_mem_hint = to.hints.iter().any(|h| matches!(h, AddrHint::Opaque { kind, .. } if *kind == crate::transport::net::mem::MEM_HINT_KIND));
         match (has_mem_hint, self.net.addr_of(to.id)) {
-            (false, Some(live)) => PeerAddr { id: to.id, hints: [to.hints.clone(), live.hints].concat() },
+            (false, Some(live)) => PeerAddr {
+                id: to.id,
+                hints: [to.hints.clone(), live.hints].concat(),
+            },
             _ => to.clone(),
         }
     }
@@ -62,7 +69,11 @@ impl Transport for KeyedMem {
         self.slot.serve(svcs)
     }
 
-    fn connect(&self, to: &PeerAddr, svc: ServiceId) -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>> {
+    fn connect(
+        &self,
+        to: &PeerAddr,
+        svc: ServiceId,
+    ) -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>> {
         let filled = self.addr_with_mem_hint(to);
         Box::pin(async move { self.slot.connect(&filled, svc).await })
     }

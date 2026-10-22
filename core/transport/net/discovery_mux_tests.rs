@@ -1,11 +1,11 @@
 //! Tests for discovery merging (`discovery_mux.rs`): source rank, hint lifetime, broadcast of new ones.
 //! Start, stop and publishing are in `discovery_mux_run_tests.rs`.
 
-use crate::net::addr::{AddrHint, PeerAddr};
-use crate::net::discovery::Discovery;
-use crate::net::discovery_mux::{DiscoveryMux, DiscoveryTiming};
-use crate::net::facade::test_support::{addr, hint, pid, within, Script};
-use crate::net::id::PeerId;
+use crate::transport::net::addr::{AddrHint, PeerAddr};
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::discovery_mux::{DiscoveryMux, DiscoveryTiming};
+use crate::transport::net::facade::test_support::{addr, hint, pid, within, Script};
+use crate::transport::net::id::PeerId;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::error::TryRecvError;
@@ -203,11 +203,19 @@ mod hint_lifetime {
         let mux = setup(&["invite"]);
         mux.note("invite", addr(1, &[1]));
         mux.note("invite", addr(2, &[2]));
-        assert_eq!(mux.known_peer_count(&pid(1)), 1, "we do not count ourselves");
+        assert_eq!(
+            mux.known_peer_count(&pid(1)),
+            1,
+            "we do not count ourselves"
+        );
 
         sleep(Duration::from_millis(300)).await;
 
-        assert_eq!(mux.known_peer_count(&pid(1)), 0, "after the lifetime, nobody");
+        assert_eq!(
+            mux.known_peer_count(&pid(1)),
+            0,
+            "after the lifetime, nobody"
+        );
     }
 }
 

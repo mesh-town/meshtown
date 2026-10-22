@@ -2,28 +2,26 @@
 //! the `stale_rev`/`invalid`/`config_write_failed` responses. Editing fields is in `put.rs`/`save_key.rs`
 //! of this same folder, shared constants and small helpers are in `support.rs`.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 
 use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config_file::{self, fields, FileReport, RunConfig, Settings};
+use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings};
 
-use super::support::{
-    field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON,
-};
+use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
 
 pub(crate) struct ConfigState {
-    pub config_file_path: Option<PathBuf>,   // settings file; None — the node runs without a file
-    pub secret: NodeSecret,                  // node secret, written to the file on every save
-    pub file_settings: Settings,             // what is in the file now (by the listener's latest knowledge)
-    pub boot_file_settings: Settings,        // what was in the file when the node last started
-    pub file_report: FileReport,             // file state; rev — the file revision
+    pub config_file_path: Option<PathBuf>, // settings file; None — the node runs without a file
+    pub secret: NodeSecret,                // node secret, written to the file on every save
+    pub file_settings: Settings, // what is in the file now (by the listener's latest knowledge)
+    pub boot_file_settings: Settings, // what was in the file when the node last started
+    pub file_report: FileReport, // file state; rev — the file revision
     pub cli_override_paths: Vec<&'static str>, // fields set by launch flags
     pub current_network_key: Option<String>, // network key the node works with now
-    pub last_boot_id: Option<String>,        // boot_id from the node's last snapshot
+    pub last_boot_id: Option<String>, // boot_id from the node's last snapshot
 }
 
 impl ConfigState {
@@ -164,7 +162,7 @@ impl ConfigState {
         let Some(key) = &self.current_network_key else {
             return Value::Null;
         };
-        let Ok(input) = crate::network_key::parse_user_input(key) else {
+        let Ok(input) = crate::members::network_key::parse_user_input(key) else {
             return Value::Null;
         };
         serde_json::json!({
@@ -282,7 +280,7 @@ fn network_view(current_network_key: Option<&str>) -> Value {
     let Some(key) = current_network_key else {
         return serde_json::json!({"label": "", "masked": ""});
     };
-    let label = crate::network_key::parse_user_input(key)
+    let label = crate::members::network_key::parse_user_input(key)
         .ok()
         .and_then(|i| i.label)
         .unwrap_or_default();

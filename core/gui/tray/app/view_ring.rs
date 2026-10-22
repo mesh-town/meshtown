@@ -12,7 +12,7 @@
 //! (`tray_role/views.rs`) calls `ring_of`; the tray calls `ring_to_draw` and
 //! `ring_rgba_lit`.
 
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 
 use super::snapshot::{TrayPeer, TraySnapshot};
 use super::view::View;
@@ -67,7 +67,9 @@ pub struct Ring {
 
 impl Ring {
     /// An empty ring: the icon stays solid.
-    pub const EMPTY: Ring = Ring { counts: [0; RING_ROLE_COUNT] };
+    pub const EMPTY: Ring = Ring {
+        counts: [0; RING_ROLE_COUNT],
+    };
 
     /// A ring of `count` sectors of one role; `count == 0` gives `EMPTY`.
     pub fn uniform(role: RingRole, count: u16) -> Ring {
@@ -167,7 +169,11 @@ fn down_exit_ids_full(snap: &TraySnapshot) -> Vec<&str> {
     if snap.route.state != RouteMode::Unavailable {
         return Vec::new();
     }
-    snap.route.exits.iter().filter_map(|e| e.id_full.as_deref()).collect()
+    snap.route
+        .exits
+        .iter()
+        .filter_map(|e| e.id_full.as_deref())
+        .collect()
 }
 
 /// A member's role; `None` means the node itself. A missing `id_full`/`online` does not panic: no `online`

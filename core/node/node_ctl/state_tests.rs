@@ -1,17 +1,17 @@
 use super::*;
-use crate::net::endpoint_shim::{EndpointAddr, TransportAddr};
-use crate::net::NodeSecret;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use crate::node::NodeConfig;
-use crate::web::NodeControl;
+use crate::transport::net::endpoint_shim::{EndpointAddr, TransportAddr};
+use crate::transport::net::NodeSecret;
+use crate::web_gui::NodeControl;
 use std::net::SocketAddr;
 use std::time::Duration;
 
 /// A test member address: the same approach as in `peer_lines_and_parse_peer_line_roundtrip`.
-fn test_addr(byte: u8) -> crate::net::PeerAddr {
+fn test_addr(byte: u8) -> crate::transport::net::PeerAddr {
     let id = NodeSecret::from_bytes(&[byte; 32]).peer_id();
     let addr: SocketAddr = format!("203.0.113.{byte}:4433").parse().unwrap();
-    crate::net::endpoint_shim::from_endpoint_addr(&EndpointAddr::from_parts(
+    crate::transport::net::endpoint_shim::from_endpoint_addr(&EndpointAddr::from_parts(
         id,
         [TransportAddr::Ip(addr)],
     ))
@@ -98,14 +98,14 @@ async fn no_network_is_offline_and_busy() {
         ctl.invite_pending(None).err(),
         Some(ActionError::Busy(format!(
             "the node has not joined the {0} network yet",
-            crate::output::NET_NAME
+            crate::node::output::NET_NAME
         )))
     );
     assert_eq!(
         ctl.find_exit("example.com"),
         Err(ActionError::Busy(format!(
             "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
-            crate::output::NET_NAME
+            crate::node::output::NET_NAME
         )))
     );
 }
@@ -145,7 +145,10 @@ async fn mark_no_network_keeps_stopping() {
 async fn apply_config_before_attach_becomes_pending() {
     let ctl = NodeCtl::new(&Settings::default());
     let settings = Settings {
-        net: crate::config_file::NetSettings { exit_enabled: true, ..crate::config_file::NetSettings::default() },
+        net: crate::config::config_file::NetSettings {
+            exit_enabled: true,
+            ..crate::config::config_file::NetSettings::default()
+        },
         ..Settings::default()
     };
     ctl.apply_config(&settings, &["exit.enabled"]);
@@ -230,9 +233,9 @@ mod node_name_path {
 
     fn settings_with_name(name: &str) -> Settings {
         Settings {
-            net: crate::config_file::NetSettings {
+            net: crate::config::config_file::NetSettings {
                 node_name: Some(name.to_string()),
-                ..crate::config_file::NetSettings::default()
+                ..crate::config::config_file::NetSettings::default()
             },
             ..Settings::default()
         }

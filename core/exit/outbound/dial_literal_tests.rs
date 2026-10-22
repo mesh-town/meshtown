@@ -23,7 +23,11 @@ async fn loopback_v4_literal_is_forbidden_without_dns() {
         let refusal = refusal_of(dial(&cfg, literal, 80).await, literal);
 
         // then: refusal with code 7 without going to DNS
-        then_forbidden_without_dns(&refusal, literal, "the loopback — the exit's own services are closed");
+        then_forbidden_without_dns(
+            &refusal,
+            literal,
+            "the loopback — the exit's own services are closed",
+        );
     }
 }
 
@@ -34,7 +38,11 @@ async fn private_v4_literal_is_forbidden_without_dns() {
     for literal in ["192.168.1.1", "10.0.0.1", "172.16.0.1", "100.64.0.1"] {
         let refusal = refusal_of(dial(&cfg, literal, 80).await, literal);
 
-        then_forbidden_without_dns(&refusal, literal, "the exit owner's private network is closed");
+        then_forbidden_without_dns(
+            &refusal,
+            literal,
+            "the exit owner's private network is closed",
+        );
     }
 }
 
@@ -61,7 +69,15 @@ async fn public_ipv6_literal_is_allowed() {
         .await
         .expect("a public IPv6 literal is opened without touching the resolver");
 
-    assert_eq!(addr, SocketAddr::from(("2606:4700:4700::1111".parse::<std::net::Ipv6Addr>().unwrap(), 80)));
+    assert_eq!(
+        addr,
+        SocketAddr::from((
+            "2606:4700:4700::1111"
+                .parse::<std::net::Ipv6Addr>()
+                .unwrap(),
+            80
+        ))
+    );
 }
 
 #[tokio::test]
@@ -113,6 +129,9 @@ async fn hosts_entry_bypasses_guard() {
     // then: the table value is returned as is — bypassing the closed-network table and the own-address probe
     let by_literal = by_literal.expect("the table entry bypasses the filter");
     let by_name = by_name.expect("the table entry bypasses the filter");
-    assert_eq!(by_literal, loopback, "the table replaces both address and port");
+    assert_eq!(
+        by_literal, loopback,
+        "the table replaces both address and port"
+    );
     assert_eq!(by_name, private, "the table replaces both address and port");
 }

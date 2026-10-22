@@ -10,8 +10,8 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use crate::invite::store::FOR_WHOM_MAX_CHARS;
-use crate::web::http::{json_err, query_param};
-use crate::web::{ActionError, App};
+use crate::web_gui::http::{json_err, query_param};
+use crate::web_gui::{ActionError, App};
 
 use super::helpers::{action_error, body_obj};
 
@@ -32,7 +32,13 @@ pub(super) async fn peer_addresses_post_handler(
     let text = match map.get("text") {
         None => String::new(),
         Some(Value::String(s)) => s.clone(),
-        Some(_) => return json_err(StatusCode::BAD_REQUEST, "bad_request", "field text is required"),
+        Some(_) => {
+            return json_err(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "field text is required",
+            )
+        }
     };
     let mut added: u64 = 0;
     let mut rejected = Vec::new();
@@ -59,13 +65,19 @@ pub(super) async fn network_key_handler(State(app): State<Arc<App>>) -> Response
 /// The optional `for` note of an invite: trimmed; blank or absent is none; too long or with a control character
 /// is invalid.
 fn invite_label(uri: &Uri) -> Result<Option<String>, ActionError> {
-    let Some(raw) = query_param(uri, "for") else { return Ok(None) };
+    let Some(raw) = query_param(uri, "for") else {
+        return Ok(None);
+    };
     let text = raw.trim();
     if text.chars().count() > FOR_WHOM_MAX_CHARS {
-        return Err(ActionError::Invalid(format!("for: at most {FOR_WHOM_MAX_CHARS} characters")));
+        return Err(ActionError::Invalid(format!(
+            "for: at most {FOR_WHOM_MAX_CHARS} characters"
+        )));
     }
     if text.chars().any(char::is_control) {
-        return Err(ActionError::Invalid("for: must not contain control characters".to_string()));
+        return Err(ActionError::Invalid(
+            "for: must not contain control characters".to_string(),
+        ));
     }
     Ok(Some(text.to_string()).filter(|s| !s.is_empty()))
 }
@@ -80,9 +92,7 @@ pub(super) async fn network_invite_handler(State(app): State<Arc<App>>, uri: Uri
         Err(e) => return action_error(e),
     };
     match pending.finish_dealt().await {
-        Ok(dealt) => {
-            (StatusCode::OK, axum::Json(dealt.api_body())).into_response()
-        }
+        Ok(dealt) => (StatusCode::OK, axum::Json(dealt.api_body())).into_response(),
         Err(e) => action_error(e),
     }
 }

@@ -8,16 +8,16 @@ use std::sync::Arc;
 
 use tokio::task::AbortHandle;
 
-use crate::access::boot::{run_boot, AccessBoot};
-use crate::access::runtime::Access;
-use crate::access::watch::spawn_access;
-use crate::domains::DomainList;
-use crate::membership::Members;
-use crate::net::PeerId;
-use crate::net_mainline::unix_now;
+use crate::members::access::boot::{run_boot, AccessBoot};
+use crate::members::access::runtime::Access;
+use crate::members::access::watch::spawn_access;
+use crate::members::membership::Members;
 use crate::node::config::NodeConfig;
-use crate::output::say;
-use crate::peers_cache::PeersCache;
+use crate::node::output::say;
+use crate::proxy::domains::DomainList;
+use crate::transport::net::PeerId;
+use crate::transport::net_mainline::unix_now;
+use crate::transport::peers_cache::PeersCache;
 
 /// What `start_access` needs, collected before the address cache goes to the main loop.
 pub(super) struct AccessStart {
@@ -44,8 +44,16 @@ fn cached_ids(cache: &PeersCache) -> Vec<PeerId> {
 }
 
 pub(super) fn access_start(cfg: &NodeConfig, me: PeerId, cache: &PeersCache) -> AccessStart {
-    let boot = AccessBoot { me, initial: initial_ids(cfg), cached: cached_ids(cache), now_unix: unix_now() };
-    AccessStart { boot, open_list: cfg.open_list }
+    let boot = AccessBoot {
+        me,
+        initial: initial_ids(cfg),
+        cached: cached_ids(cache),
+        now_unix: unix_now(),
+    };
+    AccessStart {
+        boot,
+        open_list: cfg.open_list,
+    }
 }
 
 /// Runs the boot and starts the watcher; with `open_list` only creates the `Access` (the view stays open).
@@ -66,7 +74,13 @@ pub(super) async fn start_access(
 
 /// A failed boot is logged and the node goes on: the watcher still publishes the view.
 async fn boot_or_say(list: &DomainList, boot: &AccessBoot) {
-    if let Err(e) = run_boot(list.shared_replica().as_ref(), list.own_replica().as_ref(), boot).await {
+    if let Err(e) = run_boot(
+        list.shared_replica().as_ref(),
+        list.own_replica().as_ref(),
+        boot,
+    )
+    .await
+    {
         say("access", format!("boot failed: {e}"));
     }
 }

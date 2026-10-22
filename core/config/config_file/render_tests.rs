@@ -1,13 +1,16 @@
 use super::*;
-use crate::config_file::settings::Settings;
-use crate::config_file::{NetSettings, ProcessSettings};
-use crate::config_file::test_support::test_secret;
-use crate::net::{NetChoice, NodeSecret, PeerId};
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::test_secret;
+use crate::config::config_file::{NetSettings, ProcessSettings};
+use crate::transport::net::{NetChoice, NodeSecret, PeerId};
 
 #[test]
 fn name_absent_not_written() {
     let text = render_config_file(1, 0, &test_secret(), &Settings::default());
-    assert!(!text.contains("\"name\""), "name was written for an unnamed entry: {text}");
+    assert!(
+        !text.contains("\"name\""),
+        "name was written for an unnamed entry: {text}"
+    );
     assert!(
         text.contains("\"memory_warn_mib\": 400") && text.contains("\"memory_exit_mib\": 900"),
         "the node section has no memory guard thresholds: {text}"
@@ -48,14 +51,15 @@ fn route_exits_roundtrip_keeps_order() {
     };
 
     let text = render_config_file(1, 0, &test_secret(), &settings);
-    let parsed = crate::config_file::parse_text(&text).expect("parsing render's own output");
+    let parsed =
+        crate::config::config_file::parse_text(&text).expect("parsing render's own output");
 
     assert_eq!(parsed.settings.net.route_exits, vec![b, a]);
 }
 
 #[test]
 fn ports_roundtrip_and_for_always_written() {
-    use crate::ports::types::{Audience, Opened, Published};
+    use crate::ports_sharing::types::{Audience, Opened, Published};
     let a = NodeSecret::from_bytes(&[3u8; 32]).peer_id();
     let settings = Settings {
         net: NetSettings {
@@ -88,16 +92,20 @@ fn ports_roundtrip_and_for_always_written() {
         doc["config"]["ports"]["published"][1]["for"],
         serde_json::json!([a.to_string()])
     );
-    let parsed = crate::config_file::parse_text(&text).expect("parsing render's own output");
+    let parsed =
+        crate::config::config_file::parse_text(&text).expect("parsing render's own output");
 
     assert!(parsed.field_errors.is_empty(), "{:?}", parsed.field_errors);
-    assert_eq!(parsed.settings.net.ports_published, settings.net.ports_published);
+    assert_eq!(
+        parsed.settings.net.ports_published,
+        settings.net.ports_published
+    );
     assert_eq!(parsed.settings.net.ports_opened, settings.net.ports_opened);
 }
 
 #[test]
 fn access_rendered() {
-    use crate::config_file::settings::ListenAccess;
+    use crate::config::config_file::settings::ListenAccess;
     let settings = Settings {
         process: ProcessSettings {
             web_access: ListenAccess::Localhost,
@@ -194,7 +202,8 @@ fn net_roundtrip() {
     });
     // when: render_config_file, then parsing its own output
     let text = render_config_file(1, 0, &test_secret(), &settings);
-    let parsed = crate::config_file::parse_text(&text).expect("parsing render's own output");
+    let parsed =
+        crate::config::config_file::parse_text(&text).expect("parsing render's own output");
     // then: the network choice is the same, no field errors
     assert_eq!(parsed.settings.net, settings.net);
     assert!(parsed.field_errors.is_empty(), "{:?}", parsed.field_errors);
@@ -203,7 +212,8 @@ fn net_roundtrip() {
 #[test]
 fn explicit_default_dropped_on_write() {
     // given: a file where net is written explicitly with default values
-    let parsed = crate::config_file::parse_text(&file_with_default_net()).expect("parsing the file");
+    let parsed =
+        crate::config::config_file::parse_text(&file_with_default_net()).expect("parsing the file");
     assert_eq!(
         parsed.settings.net.net_choice,
         Settings::default().net.net_choice,

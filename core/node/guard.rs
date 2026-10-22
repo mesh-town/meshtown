@@ -7,21 +7,21 @@
 //! The `GuardHandle` handle lives in `RunningNode`: `shutdown` stops the thread, the tick wait is interrupted at once.
 //! Links: `Members` (connections and paths), `Checks` (running checks), `telemetry::rss_kib`.
 
+use portable_atomic::AtomicU64;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use portable_atomic::AtomicU64;
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 use tokio::runtime::Handle;
 
-use crate::checks::Checks;
+use crate::members::membership::Members;
 use crate::node::alloc::{heap_prof_dump, heap_prof_state};
-use crate::membership::Members;
-use crate::net::PeerConn;
-use crate::output::{say, short_peer_id};
-use crate::telemetry;
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry;
+use crate::site_checks::checks::Checks;
+use crate::transport::net::PeerConn;
 
 /// Measurement period.
 const TICK: Duration = Duration::from_secs(1);
@@ -44,7 +44,10 @@ pub(crate) struct MemoryLimitsKib {
 impl MemoryLimitsKib {
     /// Thresholds from the settings in MiB.
     pub fn from_mib(warn_mib: u64, exit_mib: u64) -> MemoryLimitsKib {
-        MemoryLimitsKib { warn_kib: warn_mib * 1024, exit_kib: exit_mib * 1024 }
+        MemoryLimitsKib {
+            warn_kib: warn_mib * 1024,
+            exit_kib: exit_mib * 1024,
+        }
     }
 }
 
@@ -58,7 +61,12 @@ pub(crate) enum MemoryAction {
 
 /// Decision for the current RSS. `prev_rss_kib` is the previous measurement (0 — none), `since_report` is how much
 /// time has passed since the previous summary (`Duration::MAX` — no summaries yet). RSS `0` — no data.
-pub(crate) fn decide_memory_action(rss_kib: u64, prev_rss_kib: u64, limits: MemoryLimitsKib, since_report: Duration) -> MemoryAction {
+pub(crate) fn decide_memory_action(
+    rss_kib: u64,
+    prev_rss_kib: u64,
+    limits: MemoryLimitsKib,
+    since_report: Duration,
+) -> MemoryAction {
     if rss_kib == 0 {
         return MemoryAction::Quiet;
     }
@@ -85,14 +93,24 @@ pub(crate) fn dump_path(dir: &std::path::Path, unix_secs: u64, rss_kib: u64) -> 
 }
 
 /// Summary header: memory, growth per second, runtime load, checks, connections.
-pub(crate) fn header_text(rss_kib: u64, prev_rss_kib: u64, tasks: usize, workers: usize, checks: usize, conns: &str) -> String {
+pub(crate) fn header_text(
+    rss_kib: u64,
+    prev_rss_kib: u64,
+    tasks: usize,
+    workers: usize,
+    checks: usize,
+    conns: &str,
+) -> String {
     let growth = rss_kib as i64 - prev_rss_kib as i64;
     format!("memory {rss_kib} KiB ({growth:+} KiB/s), runtime tasks {tasks}, runtime threads {workers}, checks {checks}, {conns}")
 }
 
 /// Exit line.
 pub(crate) fn exit_text(rss_kib: u64, limits: MemoryLimitsKib) -> String {
-    format!("memory {rss_kib} KiB ≥ {} MiB — exit (code {EXIT_CODE})", limits.exit_kib / 1024)
+    format!(
+        "memory {rss_kib} KiB ≥ {} MiB — exit (code {EXIT_CODE})",
+        limits.exit_kib / 1024
+    )
 }
 
 /// Line instead of the summary when the previous one is still hanging (no locks: written from the guard thread).
@@ -117,7 +135,12 @@ struct SummaryJob {
 impl SummaryJob {
     /// Starts the summary in the `mem-guard-report` thread; `None` — the previous one is still running (or the thread
     /// didn't start). The receiver comes alive when the summary is printed.
-    fn start_summary_thread(&self, rss_kib: u64, prev_rss_kib: u64, dump: bool) -> Option<mpsc::Receiver<()>> {
+    fn start_summary_thread(
+        &self,
+        rss_kib: u64,
+        prev_rss_kib: u64,
+        dump: bool,
+    ) -> Option<mpsc::Receiver<()>> {
         if self.is_summary_running.swap(true, Ordering::SeqCst) {
             return None;
         }
@@ -132,7 +155,10 @@ impl SummaryJob {
             me.is_summary_running.store(false, Ordering::SeqCst);
             let _ = tx.send(());
         };
-        match std::thread::Builder::new().name("mem-guard-report".into()).spawn(run) {
+        match std::thread::Builder::new()
+            .name("mem-guard-report".into())
+            .spawn(run)
+        {
             Ok(_) => Some(rx),
             Err(e) => {
                 self.is_summary_running.store(false, Ordering::SeqCst);
@@ -205,7 +231,10 @@ fn start_thread(run: impl FnOnce(Stopper) + Send + 'static) -> Option<GuardHandl
         let _alive = token;
         run(Stopper(rx));
     };
-    match std::thread::Builder::new().name("mem-guard".into()).spawn(body) {
+    match std::thread::Builder::new()
+        .name("mem-guard".into())
+        .spawn(body)
+    {
         Ok(_) => Some(GuardHandle {
             stop: tx,
             #[cfg(test)]
@@ -219,13 +248,26 @@ fn start_thread(run: impl FnOnce(Stopper) + Send + 'static) -> Option<GuardHandl
 }
 
 /// Starts the `mem-guard` thread; both thresholds `0` — doesn't start it (`None`).
-pub(crate) fn start_memory_guard(limits: MemoryLimitsKib, members: Members, checks: Checks, handle: Handle, dump_dir: PathBuf) -> Option<GuardHandle> {
+pub(crate) fn start_memory_guard(
+    limits: MemoryLimitsKib,
+    members: Members,
+    checks: Checks,
+    handle: Handle,
+    dump_dir: PathBuf,
+) -> Option<GuardHandle> {
     if limits.warn_kib == 0 && limits.exit_kib == 0 {
         return None;
     }
     say("guard", format!("heap profile: {}", heap_prof_state()));
     let last_dump_rss_kib = Arc::new(AtomicU64::new(0));
-    let sum = SummaryJob { members, checks, runtime: handle, is_summary_running: Arc::new(AtomicBool::new(false)), dump_dir, last_dump_rss_kib };
+    let sum = SummaryJob {
+        members,
+        checks,
+        runtime: handle,
+        is_summary_running: Arc::new(AtomicBool::new(false)),
+        dump_dir,
+        last_dump_rss_kib,
+    };
     start_thread(move |stop| watch(limits, &sum, &stop))
 }
 
@@ -252,7 +294,14 @@ fn watch(limits: MemoryLimitsKib, sum: &SummaryJob, stop: &Stopper) {
         if summary_done_rx.is_some() {
             summary_started_at = Instant::now();
         } else if action != MemoryAction::Quiet {
-            say("guard", stalled_text(rss_kib, prev_rss_kib, summary_started_at.elapsed().as_secs()));
+            say(
+                "guard",
+                stalled_text(
+                    rss_kib,
+                    prev_rss_kib,
+                    summary_started_at.elapsed().as_secs(),
+                ),
+            );
         }
         if action == MemoryAction::Exit {
             if let Some(rx) = summary_done_rx {
@@ -266,7 +315,13 @@ fn watch(limits: MemoryLimitsKib, sum: &SummaryJob, stop: &Stopper) {
 }
 
 /// Summary: the header and a line for every path of every member connection.
-fn print_summary(rss_kib: u64, prev_rss_kib: u64, members: &Members, checks: &Checks, handle: &Handle) {
+fn print_summary(
+    rss_kib: u64,
+    prev_rss_kib: u64,
+    members: &Members,
+    checks: &Checks,
+    handle: &Handle,
+) {
     let metrics = handle.metrics();
     let head = header_text(
         rss_kib,

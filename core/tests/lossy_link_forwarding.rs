@@ -3,17 +3,17 @@
 //! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
-mod lossy_link;
 #[path = "common/lossy_link.rs"]
 mod common;
+mod lossy_link;
 
 #[cfg(target_os = "macos")]
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use common::{collect, packet, rig};
 #[cfg(target_os = "macos")]
 use common::collect_raw;
+use common::{collect, packet, rig};
 #[cfg(target_os = "macos")]
 use lossy_link::lan::{lan_delivery_works, local_lan_ip, wait_blocked};
 #[cfg(target_os = "macos")]

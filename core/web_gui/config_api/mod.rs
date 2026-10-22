@@ -1,4 +1,4 @@
-//! `GET`/`PUT /api/config`: the page's config state on top of `crate::config_file`.
+//! `GET`/`PUT /api/config`: the page's config state on top of `crate::config::config_file`.
 //!
 //! Files: `support.rs` — shared constants and small helpers (`get_path`, `field_entry`,
 //! `json_response`); `state.rs` — `ConfigState` itself: reading (`page_config_document`, `config_get_body`, directory write

@@ -20,26 +20,68 @@
 //! - `lifecycle` — the stop signal and the "start → run → stop or restart" loops
 //!   (`run`, `run_node_with_ctl`, `run_node_awaiting_key`).
 
+#[cfg(feature = "net-hyper")]
+pub(crate) mod fd_limit;
+#[cfg(feature = "net-hyper")]
+pub mod host;
+#[cfg(any(test, all(target_arch = "arm", target_env = "musl")))]
+pub mod libm_shim;
+#[cfg(feature = "net-hyper")]
+pub mod node_ctl;
+#[cfg(feature = "net-hyper")]
+pub mod node_name;
+#[cfg(feature = "net-hyper")]
+pub mod node_state;
+#[cfg(feature = "net-hyper")]
+pub mod output;
+#[cfg(feature = "net-hyper")]
+pub mod program_version;
+pub mod tcp_tune;
+#[cfg(feature = "net-hyper")]
+pub mod telemetry;
+
+#[cfg(feature = "net-hyper")]
 mod alloc;
+#[cfg(feature = "net-hyper")]
 mod config;
+#[cfg(feature = "net-hyper")]
 mod dial;
-mod event_loop;
-mod guard;
-mod identity;
-mod lifecycle;
-mod peer_path;
-mod redial;
+#[cfg(feature = "net-hyper")]
 mod discovery_sources;
-pub(crate) mod net_names;
-mod rejoin;
+#[cfg(feature = "net-hyper")]
 mod doc_changes;
+#[cfg(feature = "net-hyper")]
+mod event_loop;
+#[cfg(feature = "net-hyper")]
+mod guard;
+#[cfg(feature = "net-hyper")]
+mod identity;
+#[cfg(feature = "net-hyper")]
+mod lifecycle;
+#[cfg(feature = "net-hyper")]
+pub(crate) mod net_names;
+#[cfg(feature = "net-hyper")]
+mod peer_path;
+#[cfg(feature = "net-hyper")]
+mod redial;
+#[cfg(feature = "net-hyper")]
+mod rejoin;
+#[cfg(feature = "net-hyper")]
 mod running;
+#[cfg(feature = "net-hyper")]
 mod socks_task;
+#[cfg(feature = "net-hyper")]
 mod start;
 
+#[cfg(feature = "net-hyper")]
 pub use config::{MemoryLimits, NodeConfig, SocksListen};
-pub use identity::{IdentityState, TemporaryReason};
-pub use lifecycle::{run, run_node_awaiting_key, run_node_with_ctl};
+#[cfg(feature = "net-hyper")]
 pub use doc_changes::DocChanges;
+#[cfg(feature = "net-hyper")]
+pub use identity::{IdentityState, TemporaryReason};
+#[cfg(feature = "net-hyper")]
+pub use lifecycle::{run, run_node_awaiting_key, run_node_with_ctl};
+#[cfg(feature = "net-hyper")]
 pub use running::RunningNode;
+#[cfg(feature = "net-hyper")]
 pub use start::{bind_ephemeral, start_node};

@@ -4,8 +4,8 @@ use std::collections::HashSet;
 
 use super::*;
 
-use crate::net::{NodeSecret, PeerId};
-use crate::net::AddrHint;
+use crate::transport::net::AddrHint;
+use crate::transport::net::{NodeSecret, PeerId};
 use std::net::SocketAddr;
 
 fn endpoint_id(n: u8) -> PeerId {

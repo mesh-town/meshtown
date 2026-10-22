@@ -9,10 +9,7 @@ mod connect {
     async fn starts_the_carrier_as_the_dialer_for_the_service() {
         let fx = setup(Opts::default());
 
-        let conn = fx
-            .when_connecting(SVC)
-            .await
-            .expect("connect must succeed");
+        let conn = fx.when_connecting(SVC).await.expect("connect must succeed");
 
         assert_eq!(conn.peer(), peer(2));
         let started = fx.carrier.started();
@@ -183,7 +180,10 @@ mod close {
 
         let done = timeout(Duration::from_secs(2), fx.transport.close()).await;
 
-        assert!(done.is_ok(), "close did not wait for the end of the accept loop");
+        assert!(
+            done.is_ok(),
+            "close did not wait for the end of the accept loop"
+        );
     }
 }
 

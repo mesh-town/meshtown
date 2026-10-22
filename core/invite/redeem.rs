@@ -8,7 +8,7 @@
 
 use std::time::Duration;
 
-use crate::net::{NetError, PeerAddr, PeerConn, PeerId, Transport, INVITE};
+use crate::transport::net::{NetError, PeerAddr, PeerConn, PeerId, Transport, INVITE};
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -17,10 +17,10 @@ use tokio::time::{sleep, timeout};
 use super::redeem_round::{round_outcome, Frames, Mode, Outcome};
 use super::wire::{parse_invite_reply, RedeemReply, REPLY_LEN};
 use super::{InviteHead, INVITE_TTL_SECS};
-use crate::net::NodeSecret;
-use crate::net_mainline;
-use crate::network_key::NetworkKey;
-use crate::output::say;
+use crate::members::network_key::NetworkKey;
+use crate::node::output::say;
+use crate::transport::net::NodeSecret;
+use crate::transport::net_mainline;
 
 /// The log line when the members turn out to run a version without member records.
 const MEMBERS_OLD: &str = "members run an older version: joining without a member record; updated nodes will refuse this node until it joins by an invite from an updated node";
@@ -171,7 +171,10 @@ async fn run_round(
     for addr in peers {
         progress(Progress::Asking(addr.id));
         let left = remaining(opts.deadline_unix);
-        let answer = timeout(left, ask(t, addr, frames.of(mode))).await.ok().flatten();
+        let answer = timeout(left, ask(t, addr, frames.of(mode)))
+            .await
+            .ok()
+            .flatten();
         answers.push(answer);
         if round_outcome(&answers, head.network_id, mode).decisive() {
             break;
@@ -182,7 +185,10 @@ async fn run_round(
 
 /// One attempt: a connection, checking the other side's id, a frame there and back; any failure is `None`.
 async fn ask(t: &dyn Transport, addr: &PeerAddr, frame: &[u8]) -> Option<RedeemReply> {
-    let conn = timeout(CONNECT_LIMIT, t.connect(addr, INVITE)).await.ok()?.ok()?;
+    let conn = timeout(CONNECT_LIMIT, t.connect(addr, INVITE))
+        .await
+        .ok()?
+        .ok()?;
     let reply = ask_on(&*conn, addr.id, frame).await;
     conn.close(0, b"done");
     reply
@@ -192,7 +198,10 @@ async fn ask_on(conn: &dyn PeerConn, expected: PeerId, frame: &[u8]) -> Option<R
     if !peer_is(expected, conn.peer()) {
         return None;
     }
-    timeout(EXCHANGE_LIMIT, redeem_round_trip(conn, frame)).await.ok()?.ok()
+    timeout(EXCHANGE_LIMIT, redeem_round_trip(conn, frame))
+        .await
+        .ok()?
+        .ok()
 }
 
 async fn redeem_round_trip(conn: &dyn PeerConn, frame: &[u8]) -> Result<RedeemReply> {

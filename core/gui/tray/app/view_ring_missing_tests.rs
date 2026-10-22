@@ -5,7 +5,9 @@ use serde_json::json;
 
 /// A shim with the old name: tests supply JSON, the code reads the selection.
 fn ring_from_json(value: &serde_json::Value) -> Ring {
-    ring_of(&crate::app::snapshot::TraySnapshot::from_value(value))
+    ring_of(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 fn peer(id: &str, online: bool) -> serde_json::Value {
@@ -35,7 +37,10 @@ fn lost_exit_is_added_as_first_blue_sector() {
     let ring = ring_from_json(&exit_state(peers, vec![exit_entry("idZ", true)]));
     assert_eq!(ring.role_at(0), RingRole::ActiveExit);
     assert_eq!(ring.len(), 3, "peers except itself (2) and the lost exit");
-    assert_eq!(roles_of(ring), [RingRole::ActiveExit, RingRole::Online, RingRole::Online]);
+    assert_eq!(
+        roles_of(ring),
+        [RingRole::ActiveExit, RingRole::Online, RingRole::Online]
+    );
 }
 
 #[test]
@@ -124,14 +129,20 @@ fn exit_off(id: &str) -> serde_json::Value {
 fn unavailable_exit_in_peers_offline_is_exit_down() {
     let peers = vec![me("idM"), peer("idA", true), peer("idX", false)];
     let state = route_state("unavailable", peers, vec![exit_off("idX")]);
-    assert_eq!(roles_of(ring_from_json(&state)), [RingRole::ExitDown, RingRole::Online]);
+    assert_eq!(
+        roles_of(ring_from_json(&state)),
+        [RingRole::ExitDown, RingRole::Online]
+    );
 }
 
 #[test]
 fn unavailable_exit_missing_in_peers_is_one_exit_down() {
     let peers = vec![me("idM"), peer("idA", true)];
     let state = route_state("unavailable", peers, vec![exit_off("idX")]);
-    assert_eq!(roles_of(ring_from_json(&state)), [RingRole::ExitDown, RingRole::Online]);
+    assert_eq!(
+        roles_of(ring_from_json(&state)),
+        [RingRole::ExitDown, RingRole::Online]
+    );
 }
 
 #[test]
@@ -139,7 +150,10 @@ fn two_unavailable_exits_missing_in_peers_are_two_exit_down() {
     let peers = vec![me("idM")];
     let exits = vec![exit_off("idX"), exit_off("idY")];
     let state = route_state("unavailable", peers, exits);
-    assert_eq!(roles_of(ring_from_json(&state)), [RingRole::ExitDown, RingRole::ExitDown]);
+    assert_eq!(
+        roles_of(ring_from_json(&state)),
+        [RingRole::ExitDown, RingRole::ExitDown]
+    );
 }
 
 #[test]
@@ -147,7 +161,10 @@ fn exit_state_backup_exit_offline_stays_grey() {
     let peers = vec![me("idM"), peer("idA", true), peer("idB", false)];
     let exits = vec![exit_entry("idA", true), exit_off("idB")];
     let state = route_state("exit", peers, exits);
-    assert_eq!(roles_of(ring_from_json(&state)), [RingRole::ActiveExit, RingRole::Offline]);
+    assert_eq!(
+        roles_of(ring_from_json(&state)),
+        [RingRole::ActiveExit, RingRole::Offline]
+    );
 }
 
 #[test]

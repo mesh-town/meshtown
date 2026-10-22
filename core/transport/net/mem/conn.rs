@@ -1,18 +1,18 @@
 //! The `mem` connection: `MemConn` as a `PeerConn` on top of shared state.
 //! The stream table, closing and tasks are in `shared`; the stream halves are in `stream`.
 
-use crate::net::connect::PacketPath;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::link::LinkInfo;
-use crate::net::mem::shared::{start, ConnHandle, MemConnState};
-use crate::net::mem::stream::{halves, Stream};
-use crate::net::mem::tasks::wait_until_closed;
-use crate::net::stream::{BoxFuture, StreamPair};
-use crate::net::transport::PeerConn;
+use crate::transport::net::connect::PacketPath;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::LinkInfo;
+use crate::transport::net::mem::shared::{start, ConnHandle, MemConnState};
+use crate::transport::net::mem::stream::{halves, Stream};
+use crate::transport::net::mem::tasks::wait_until_closed;
+use crate::transport::net::stream::{BoxFuture, StreamPair};
+use crate::transport::net::transport::PeerConn;
 use bytes::Bytes;
-use std::sync::atomic::Ordering;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use crate::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
+use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
 use tokio::time::Instant;
 
 use super::*;
@@ -16,7 +16,10 @@ fn id(byte: u8) -> PeerId {
 
 fn addr(byte: u8) -> PeerAddr {
     let socket: SocketAddr = format!("203.0.113.{byte}:4001").parse().unwrap();
-    PeerAddr { id: id(byte), hints: vec![AddrHint::Ip(socket)] }
+    PeerAddr {
+        id: id(byte),
+        hints: vec![AddrHint::Ip(socket)],
+    }
 }
 
 /// A `Redial` where two ids, 1 and 2, wait for the first pause (rnd 0).
@@ -46,17 +49,31 @@ mod pause {
     #[test]
     fn long_pause_from_attempt_9() {
         for attempt in [9, 10, 50, u32::MAX] {
-            assert_eq!(redial_pause(attempt, 0), Duration::from_secs(600), "attempt {attempt}, rnd 0");
-            assert_eq!(redial_pause(attempt, u32::MAX), Duration::from_secs(750), "attempt {attempt}, rnd max");
+            assert_eq!(
+                redial_pause(attempt, 0),
+                Duration::from_secs(600),
+                "attempt {attempt}, rnd 0"
+            );
+            assert_eq!(
+                redial_pause(attempt, u32::MAX),
+                Duration::from_secs(750),
+                "attempt {attempt}, rnd max"
+            );
         }
     }
 
     #[test]
     fn down_restarts_series_with_short_pause() {
         let mut redial = Redial::default();
-        let (_, long) = (0..9).map(|_| redial.failed(id(1), Instant::now(), 0, false)).last().unwrap();
+        let (_, long) = (0..9)
+            .map(|_| redial.failed(id(1), Instant::now(), 0, false))
+            .last()
+            .unwrap();
         assert_eq!(long, Duration::from_secs(600));
-        assert_eq!(redial.down(id(1), Instant::now(), 0), Duration::from_secs(5));
+        assert_eq!(
+            redial.down(id(1), Instant::now(), 0),
+            Duration::from_secs(5)
+        );
     }
 }
 
@@ -69,10 +86,7 @@ mod forget {
         let mut redial = two_waiting(now);
         redial.forget(&set(&[1]));
         let due = redial.take_due(now + Duration::from_secs(10));
-        assert_eq!(
-            due.iter().map(|d| d.0.id).collect::<Vec<_>>(),
-            vec![id(2)]
-        );
+        assert_eq!(due.iter().map(|d| d.0.id).collect::<Vec<_>>(), vec![id(2)]);
     }
 
     #[test]
@@ -120,14 +134,20 @@ mod unlisted {
 
     fn pause_after(failures: u32, unlisted: bool) -> Duration {
         let mut redial = Redial::default();
-        let last = (0..failures).map(|_| redial.failed(id(1), Instant::now(), 0, unlisted)).last();
+        let last = (0..failures)
+            .map(|_| redial.failed(id(1), Instant::now(), 0, unlisted))
+            .last();
         last.unwrap().1
     }
 
     #[test]
     fn unlisted_refusal_keeps_pause_at_cap() {
         for failures in [9, 20] {
-            assert_eq!(pause_after(failures, true), REDIAL_CAP, "{failures} refusals as not admitted");
+            assert_eq!(
+                pause_after(failures, true),
+                REDIAL_CAP,
+                "{failures} refusals as not admitted"
+            );
         }
     }
 

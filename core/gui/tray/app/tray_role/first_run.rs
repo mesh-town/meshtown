@@ -5,8 +5,8 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use crate::app::view::{NetLink, PageState, View};
-use crate::tray::{TrayCmd, MENU_OPEN};
+use crate::gui::tray::app::view::{NetLink, PageState, View};
+use crate::gui::tray::{TrayCmd, MENU_OPEN};
 
 /// A ready page whose node has no network: the setup wizard is what the user needs.
 fn wants_wizard(view: &View) -> bool {

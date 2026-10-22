@@ -58,8 +58,14 @@ fn step_maps_transitions() {
     let a = fp(vec![v4(10, 0, 0, 1)], Some("en0"), None);
     let b = fp(vec![v4(10, 0, 0, 2)], Some("en0"), None);
     let row = [a.clone(), a, b.clone(), None, None, b];
-    let got: Vec<NetEvent> = row.windows(2).filter_map(|w| net_event_between(&w[0], &w[1])).collect();
-    assert_eq!(got, vec![NetEvent::Changed, NetEvent::Lost, NetEvent::Changed]);
+    let got: Vec<NetEvent> = row
+        .windows(2)
+        .filter_map(|w| net_event_between(&w[0], &w[1]))
+        .collect();
+    assert_eq!(
+        got,
+        vec![NetEvent::Changed, NetEvent::Lost, NetEvent::Changed]
+    );
 }
 
 #[test]

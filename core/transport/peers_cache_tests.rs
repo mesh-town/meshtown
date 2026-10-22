@@ -3,10 +3,10 @@
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use crate::net::{AddrHint, NodeSecret, PeerAddr, PeerId, RelayRef};
+use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId, RelayRef};
 
 use super::*;
-use crate::net_mainline::record::RosterEntry;
+use crate::transport::net_mainline::record::RosterEntry;
 
 #[path = "peers_cache_load_tests.rs"]
 mod load;

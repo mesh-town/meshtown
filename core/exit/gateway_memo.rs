@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
 /// How long a refusal of the gateway target is trusted before the exit is asked again.
 pub const GATEWAY_REFUSAL_TTL: Duration = Duration::from_secs(10 * 60);
@@ -23,7 +23,8 @@ impl GatewayMemo {
     /// Whether `peer` refused the gateway target less than `GATEWAY_REFUSAL_TTL` before `now`.
     pub fn refused_recently(&self, peer: PeerId, now: Instant) -> bool {
         let map = self.refused.lock().expect("gateway memo");
-        map.get(&peer).is_some_and(|at| now.saturating_duration_since(*at) < GATEWAY_REFUSAL_TTL)
+        map.get(&peer)
+            .is_some_and(|at| now.saturating_duration_since(*at) < GATEWAY_REFUSAL_TTL)
     }
 }
 

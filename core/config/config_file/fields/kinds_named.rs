@@ -13,7 +13,9 @@ pub(crate) struct Choice<T> {
 }
 
 impl<T: Copy + Sync> Kind<T> for Choice<T> {
-    fn to_json(&self, v: &T) -> Option<Value> { Some(Value::from((self.name)(*v))) }
+    fn to_json(&self, v: &T) -> Option<Value> {
+        Some(Value::from((self.name)(*v)))
+    }
 
     fn parse(&self, v: &Value) -> Option<T> {
         (self.parse)(v.as_str()?)
@@ -30,10 +32,14 @@ impl<T: Copy + Sync> Kind<T> for Choice<T> {
 pub(crate) struct NodeName;
 
 impl Kind<Option<String>> for NodeName {
-    fn to_json(&self, v: &Option<String>) -> Option<Value> { v.clone().map(Value::from) }
+    fn to_json(&self, v: &Option<String>) -> Option<Value> {
+        v.clone().map(Value::from)
+    }
 
     fn parse(&self, v: &Value) -> Option<Option<String>> {
-        let s = v.as_str().filter(|s| !s.trim().is_empty() && s.chars().count() <= 64)?;
+        let s = v
+            .as_str()
+            .filter(|s| !s.trim().is_empty() && s.chars().count() <= 64)?;
         Some(Some(s.to_string()))
     }
     fn expected(&self) -> String {
@@ -48,7 +54,9 @@ impl Kind<Option<String>> for NodeName {
 pub(crate) struct NetKey;
 
 impl Kind<Option<String>> for NetKey {
-    fn to_json(&self, v: &Option<String>) -> Option<Value> { v.clone().map(Value::from) }
+    fn to_json(&self, v: &Option<String>) -> Option<Value> {
+        v.clone().map(Value::from)
+    }
 
     fn parse(&self, v: &Value) -> Option<Option<String>> {
         let s = v.as_str().map(str::trim).filter(|s| !s.is_empty())?;

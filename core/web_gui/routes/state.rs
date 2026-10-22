@@ -8,9 +8,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use super::state_net::{apply_net, net_state};
-use crate::web::auth::iface_os::current_view;
-use crate::web::http::{json_err, query_param, ConnInfo};
-use crate::web::{App, InviteJoinView};
+use crate::web_gui::auth::iface_os::current_view;
+use crate::web_gui::http::{json_err, query_param, ConnInfo};
+use crate::web_gui::{App, InviteJoinView};
 
 struct StateExtras {
     port: u16,
@@ -41,7 +41,13 @@ pub(super) async fn state_handler(
         let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.sync_boot_baseline(&snap.boot_id);
         let (identity, identity_reason) = cfg.identity_kind_and_reason();
-        (cfg.file_report.rev, identity, identity_reason, cfg.network_block(), cfg.pending_restart_paths())
+        (
+            cfg.file_report.rev,
+            identity,
+            identity_reason,
+            cfg.network_block(),
+            cfg.pending_restart_paths(),
+        )
     };
 
     apply_state_extras(
@@ -56,7 +62,13 @@ pub(super) async fn state_handler(
         },
     );
     let conn = conn.map(|Extension(c)| c);
-    let net = net_state(&snap, &app.shared.auth, &current_view(), conn.as_ref(), restart_pending);
+    let net = net_state(
+        &snap,
+        &app.shared.auth,
+        &current_view(),
+        conn.as_ref(),
+        restart_pending,
+    );
     apply_net(&mut value, net);
 
     (StatusCode::OK, axum::Json(value)).into_response()

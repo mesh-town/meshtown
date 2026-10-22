@@ -1,8 +1,8 @@
 //! Round-trip tests: the server's real types → JSON → `TraySnapshot`. Renaming a field or changing its type
-//! in `meshtown::web` that the tray reads breaks them instead of silently giving a default.
+//! in `crate::web_gui` that the tray reads breaks them instead of silently giving a default.
 
 use super::*;
-use meshtown::web::{
+use crate::web_gui::{
     ChosenExit, ExitInfo, NodeRuntime, NodeSnapshot, NodeStatus, PeerInfo, RouteMode, RouteState,
     SocksInfo,
 };
@@ -21,6 +21,29 @@ fn over_the_wire(snapshot: &NodeSnapshot, network: Option<serde_json::Value>) ->
     TraySnapshot::from_value(&value)
 }
 
+fn full_peers() -> Vec<PeerInfo> {
+    vec![
+        PeerInfo {
+            id: "aa00".into(),
+            id_full: ME.into(),
+            is_self: true,
+            online: true,
+            ..Default::default()
+        },
+        PeerInfo {
+            id: "e1e1".into(),
+            id_full: EXIT.into(),
+            name: Some("Berlin".into()),
+            online: true,
+            exit: Some(true),
+            country: Some("DE".into()),
+            through_peer_bps: 7,
+            through_us_bps: 9,
+            ..Default::default()
+        },
+    ]
+}
+
 fn full_snapshot() -> NodeSnapshot {
     NodeSnapshot {
         node: NodeRuntime {
@@ -29,22 +52,18 @@ fn full_snapshot() -> NodeSnapshot {
             uptime_sec: 42,
             ..Default::default()
         },
-        socks: SocksInfo { enabled: true, listen: Some("127.0.0.1:1080".into()), pac_url: None, ..Default::default() },
-        exit: ExitInfo { enabled: true, domains: 1, clients: vec!["c1".into(), "c2".into()] },
-        peers: vec![
-            PeerInfo { id: "aa00".into(), id_full: ME.into(), is_self: true, online: true, ..Default::default() },
-            PeerInfo {
-                id: "e1e1".into(),
-                id_full: EXIT.into(),
-                name: Some("Berlin".into()),
-                online: true,
-                exit: Some(true),
-                country: Some("DE".into()),
-                through_peer_bps: 7,
-                through_us_bps: 9,
-                ..Default::default()
-            },
-        ],
+        socks: SocksInfo {
+            enabled: true,
+            listen: Some("127.0.0.1:1080".into()),
+            pac_url: None,
+            ..Default::default()
+        },
+        exit: ExitInfo {
+            enabled: true,
+            domains: 1,
+            clients: vec!["c1".into(), "c2".into()],
+        },
+        peers: full_peers(),
         route: RouteState {
             state: RouteMode::Exit,
             exits: vec![ChosenExit {
@@ -87,7 +106,10 @@ fn roundtrip_reads_every_tray_field() {
     assert_eq!(peers[1].name.as_deref(), Some("Berlin"));
     assert_eq!(peers[1].country.as_deref(), Some("DE"));
     assert!(peers[1].online && peers[1].exit && !peers[1].is_self);
-    assert_eq!((peers[1].through_peer_bps, peers[1].through_us_bps), (Some(7), Some(9)));
+    assert_eq!(
+        (peers[1].through_peer_bps, peers[1].through_us_bps),
+        (Some(7), Some(9))
+    );
 }
 
 #[test]
@@ -102,7 +124,13 @@ fn roundtrip_none_options_stay_none() {
     let snap = over_the_wire(&snapshot, None);
     assert!(!snap.network_is_null);
     assert_eq!(snap.socks.listen, None);
-    assert_eq!((snap.route.exits[0].name.clone(), snap.route.exits[0].country.clone()), (None, None));
+    assert_eq!(
+        (
+            snap.route.exits[0].name.clone(),
+            snap.route.exits[0].country.clone()
+        ),
+        (None, None)
+    );
     let peer = &snap.peers.expect("peers")[1];
     assert_eq!((peer.name.clone(), peer.country.clone()), (None, None));
     assert!(!peer.exit);
@@ -110,7 +138,12 @@ fn roundtrip_none_options_stay_none() {
 
 #[test]
 fn roundtrip_status_words_match_server() {
-    for status in [NodeStatus::Starting, NodeStatus::Online, NodeStatus::Offline, NodeStatus::Stopping] {
+    for status in [
+        NodeStatus::Starting,
+        NodeStatus::Online,
+        NodeStatus::Offline,
+        NodeStatus::Stopping,
+    ] {
         let mut snapshot = NodeSnapshot::default();
         snapshot.node.status = status;
         let word = over_the_wire(&snapshot, None).node.and_then(|n| n.status);

@@ -83,7 +83,10 @@ fn remember_without_addrs_is_ignored() {
     let mut cache = PeersCache::load(None, "net", 1000);
     let empty_entry = entry_for(None, endpoint_id(1), None, 1000);
     let changed = cache.remember(empty_entry, 1000);
-    assert!(!changed, "an entry with no addresses must not require a write");
+    assert!(
+        !changed,
+        "an entry with no addresses must not require a write"
+    );
     assert!(
         cache.is_empty(),
         "an entry with no addresses must not get into the cache"
@@ -158,7 +161,10 @@ fn touch_ignores_entry_fresher_than_hour() {
     cache.remember(entry, 1000);
 
     let changed = cache.touch(endpoint_id(1), 1000 + 100);
-    assert!(!changed, "an entry fresher than an hour must not be refreshed");
+    assert!(
+        !changed,
+        "an entry fresher than an hour must not be refreshed"
+    );
     assert_eq!(
         entry_in(&cache, 1).seen_unix,
         1000,

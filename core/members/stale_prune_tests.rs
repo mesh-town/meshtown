@@ -6,13 +6,13 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Instant;
 
-use crate::net::{NodeSecret, PeerId};
-use crate::net::AddrHint;
+use crate::transport::net::AddrHint;
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
-use crate::peer_names::PeerNames;
-use crate::peers_cache::{entry_for, PeersCache};
-use crate::telemetry::TelemetryView;
+use crate::members::peer_names::PeerNames;
+use crate::node::telemetry::TelemetryView;
+use crate::transport::peers_cache::{entry_for, PeersCache};
 
 const T: u64 = 1_000_000_000;
 const D: u64 = 86_400;
@@ -26,7 +26,8 @@ fn scratch(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("mesh-stale-{name}-{}-{nanos}", std::process::id()));
+    let dir =
+        std::env::temp_dir().join(format!("mesh-stale-{name}-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("cannot create the test directory");
     dir
 }
@@ -66,23 +67,46 @@ impl Rig {
             now: Instant::now(),
             chosen_exits: Vec::new(),
         };
-        Rig { dir, cache, names, prune_candidates_prev_tick: HashSet::new(), live }
+        Rig {
+            dir,
+            cache,
+            names,
+            prune_candidates_prev_tick: HashSet::new(),
+            live,
+        }
     }
 
-    fn tick(&mut self, doc_seen: &[(u8, u64)], now_unix: u64) -> Result<Vec<(PeerId, Option<u64>)>, String> {
+    fn tick(
+        &mut self,
+        doc_seen: &[(u8, u64)],
+        now_unix: u64,
+    ) -> Result<Vec<(PeerId, Option<u64>)>, String> {
         let read = DocEvidence {
             check_seen_unix: HashMap::new(),
             doc_seen_unix: doc_seen.iter().map(|&(n, t)| (id(n), t)).collect(),
         };
-        prune_from(Ok(read), &self.live, &mut self.prune_candidates_prev_tick, &mut self.cache, &mut self.names, now_unix)
+        prune_from(
+            Ok(read),
+            &self.live,
+            &mut self.prune_candidates_prev_tick,
+            &mut self.cache,
+            &mut self.names,
+            now_unix,
+        )
     }
 
     fn disk_cache(&self) -> HashSet<PeerId> {
-        PeersCache::load(Some(&self.dir.join("c.json")), "net", T).seen().into_keys().collect()
+        PeersCache::load(Some(&self.dir.join("c.json")), "net", T)
+            .seen()
+            .into_keys()
+            .collect()
     }
 
     fn disk_names(&self) -> HashSet<PeerId> {
-        PeerNames::load(Some(&self.dir.join("n.json")), "net").ids().into_iter().collect()
+        PeerNames::load(Some(&self.dir.join("n.json")), "net")
+            .ids()
+            .into_iter()
+            .collect()
     }
 }
 
@@ -110,7 +134,11 @@ fn fresh_doc_between_ticks_saves_peer() {
 
 #[test]
 fn self_and_chosen_exit_kept() {
-    let mut r = Rig::new("keep", &[(1, T - 8 * D), (3, T - 8 * D), (2, T - 8 * D)], &[]);
+    let mut r = Rig::new(
+        "keep",
+        &[(1, T - 8 * D), (3, T - 8 * D), (2, T - 8 * D)],
+        &[],
+    );
     r.live.chosen_exits = vec![id(3)];
     r.tick(&[], T).unwrap();
     r.tick(&[], T).unwrap();

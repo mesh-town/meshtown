@@ -6,8 +6,10 @@ use std::path::Path;
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::config_file::{self, fields, FileState, LoadedConfigFile, ParsedConfigFile, SaveError, Settings};
-use crate::web::{now_unix, NodeControl};
+use crate::config::config_file::{
+    self, fields, FileState, LoadedConfigFile, ParsedConfigFile, SaveError, Settings,
+};
+use crate::web_gui::{now_unix, NodeControl};
 
 use super::state::ConfigState;
 use super::support::{get_path, json_response};
@@ -50,7 +52,9 @@ fn perform_write(
     new: &Settings,
 ) -> Result<u64, SaveError> {
     match loaded {
-        LoadedConfigFile::Parsed(_) => config_file::save_config_file(path, Some(rev_in), now_unix(), &state.secret, new),
+        LoadedConfigFile::Parsed(_) => {
+            config_file::save_config_file(path, Some(rev_in), now_unix(), &state.secret, new)
+        }
         LoadedConfigFile::Absent => config_file::save_with_floor(
             path,
             None,
@@ -63,7 +67,7 @@ fn perform_write(
             match config_file::set_aside_bad(path, now_unix()) {
                 Err(t) => Err(SaveError::Io(t)),
                 Ok(dest) => {
-                    crate::output::say(
+                    crate::node::output::say(
                         "web",
                         format!(
                             "page: broken settings file moved aside to {}",
@@ -132,9 +136,8 @@ fn respond_to_stale_write(state: &mut ConfigState, path: &Path) -> Response {
             state.file_report.rev = new_rev;
             state.stale_rev_response(new_rev)
         }
-        StaleOutcome::Failed => {
-            state.config_write_failed("the settings file changed during the write and can't be read")
-        }
+        StaleOutcome::Failed => state
+            .config_write_failed("the settings file changed during the write and can't be read"),
     }
 }
 

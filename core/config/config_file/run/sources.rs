@@ -1,7 +1,7 @@
 //! File sources other than a successfully parsed one (`parsed.rs`): disabled (`--no-config`),
 //! no place for a file, no file, or it is unreadable/did not parse.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 
 use super::super::overrides::CliOverrides;
@@ -9,9 +9,9 @@ use super::super::parse::{load_config_file, LoadedConfigFile};
 use super::super::report::{FileReport, FileState};
 use super::super::save::{save_config_file, set_aside_bad};
 use super::super::settings::Settings;
+use super::fresh::create_fresh;
 use super::helpers::{is_probably_writable, new_secret, save_error_text};
 use super::{base_report, PrepareOutcome};
-use super::fresh::create_fresh;
 
 /// `ConfigSource::Disabled` (`--no-config`): a new secret for this run, the file is not touched.
 pub(super) fn prepare_disabled() -> anyhow::Result<PrepareOutcome> {
@@ -54,7 +54,9 @@ pub(super) fn prepare_file(
 ) -> anyhow::Result<PrepareOutcome> {
     let report = base_report(Some(path.to_path_buf()));
     let loaded = match load_config_file(path) {
-        LoadedConfigFile::Absent if !may_create => LoadedConfigFile::Unreadable("the file disappeared".to_string()),
+        LoadedConfigFile::Absent if !may_create => {
+            LoadedConfigFile::Unreadable("the file disappeared".to_string())
+        }
         other => other,
     };
     match loaded {
@@ -112,10 +114,7 @@ fn prepare_absent(
             format!("{} (created with defaults)", path.display())
         }
         Err(e) => {
-            let text = format!(
-                "no file, and couldn't create it: {}",
-                save_error_text(&e)
-            );
+            let text = format!("no file, and couldn't create it: {}", save_error_text(&e));
             report.state = FileState::Unreadable;
             report.message = Some(text.clone());
             format!(

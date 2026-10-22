@@ -1,7 +1,7 @@
 //! Test DHT network on loopback: several nodes on 127.0.0.1, the first one is the bootstrap for the rest.
 //! Modeled on the cluster from the peeroxide-dht fork tests (host = 127.0.0.1, firewalled = false).
 use libudx::UdxRuntime;
-use peeroxide_dht::hyperdht::{HyperDhtConfig, HyperDhtError, HyperDhtHandle, ServerEvent, spawn};
+use peeroxide_dht::hyperdht::{spawn, HyperDhtConfig, HyperDhtError, HyperDhtHandle, ServerEvent};
 use peeroxide_dht::rpc::DhtConfig;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinHandle;

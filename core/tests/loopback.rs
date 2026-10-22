@@ -5,14 +5,14 @@
 //! (the `[probe]` log line carries the path of the chosen connection), that after the
 //! handshake each one knows the peer's name.
 //! What it does not do: does not check the DHT or real sockets — only the node logic on `mem`.
-//! Links: checks `meshtown::node` as a whole (and through it almost all other modules).
+//! Links: checks `meshtown_core::node` as a whole (and through it almost all other modules).
 
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use meshtown::net::PeerAddr;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::transport::net::PeerAddr;
 use tokio::time::{sleep, Instant};
 
 /// Polls the condition every 50 ms until it becomes true or the limit expires.
@@ -32,12 +32,22 @@ async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
 /// Polls the log every 50 ms until the lines tagged `auth` contain both refusal marks
 /// of the handshake — from the initiator (`a`) and from the responder (`b`) — or the limit expires.
 async fn wait_rejected(a: &node::RunningNode, b: &node::RunningNode, limit: Duration) -> bool {
-    let want_a = format!("handshake with {}: refused", meshtown::output::short_peer_id(&b.id));
-    let want_b = format!("incoming from {}: refused", meshtown::output::short_peer_id(&a.id));
+    let want_a = format!(
+        "handshake with {}: refused",
+        meshtown_core::node::output::short_peer_id(&b.id)
+    );
+    let want_b = format!(
+        "incoming from {}: refused",
+        meshtown_core::node::output::short_peer_id(&a.id)
+    );
     let deadline = Instant::now() + limit;
     loop {
-        let lines = meshtown::output::log_page(0, usize::MAX).lines;
-        let seen = |want: &str| lines.iter().any(|l| l.tag == "auth" && l.text.starts_with(want));
+        let lines = meshtown_core::node::output::log_page(0, usize::MAX).lines;
+        let seen = |want: &str| {
+            lines
+                .iter()
+                .any(|l| l.tag == "auth" && l.text.starts_with(want))
+        };
         if seen(&want_a) && seen(&want_b) {
             return true;
         }
@@ -56,20 +66,30 @@ async fn introduce(a: &node::RunningNode, b: &node::RunningNode) {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn node_runs_on_mem() {
     let key = NetworkKey::generate().unwrap();
-    let running = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let running = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     let snap = running.stack.snapshot();
     assert_eq!(snap.transport_names, vec!["mem"]);
     // the `invite`/`cache` names from the config become sources only on an invite or a cache;
     // a fresh node has no sources, and certainly no `hyperdht`: it does not go to the DHT
-    assert!(snap.discovery_names.is_empty(), "discovery sources: {:?}", snap.discovery_names);
+    assert!(
+        snap.discovery_names.is_empty(),
+        "discovery sources: {:?}",
+        snap.discovery_names
+    );
     running.shutdown().await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn same_key_peers_become_members() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     introduce(&a, &b).await;
 
@@ -77,15 +97,22 @@ async fn same_key_peers_become_members() {
         a.members.is_member(b.id) && b.members.is_member(a.id)
     })
     .await;
-    assert!(ok, "the nodes did not become members of each other within 10 s");
+    assert!(
+        ok,
+        "the nodes did not become members of each other within 10 s"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn wrong_key_peers_are_rejected() {
     let key_a = NetworkKey::generate().unwrap();
     let key_b = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key_a)).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key_b)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key_a))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key_b))
+        .await
+        .unwrap();
 
     introduce(&a, &b).await;
 
@@ -98,13 +125,18 @@ async fn wrong_key_peers_are_rejected() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gossip_neighbors_after_handshake() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     introduce(&a, &b).await;
 
     let ok = wait_until(Duration::from_secs(15), || {
-        a.gossip_neighbor_count.load(Ordering::Relaxed) >= 1 && b.gossip_neighbor_count.load(Ordering::Relaxed) >= 1
+        a.gossip_neighbor_count.load(Ordering::Relaxed) >= 1
+            && b.gossip_neighbor_count.load(Ordering::Relaxed) >= 1
     })
     .await;
     assert!(ok, "gossip peers did not appear within 15 s");
@@ -113,25 +145,33 @@ async fn gossip_neighbors_after_handshake() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn transfer_probe_over_loopback() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     introduce(&a, &b).await;
 
     let ok = wait_until(Duration::from_secs(20), || {
-        a.ok_probe_count.load(Ordering::Relaxed) >= 1 && b.ok_probe_count.load(Ordering::Relaxed) >= 1
+        a.ok_probe_count.load(Ordering::Relaxed) >= 1
+            && b.ok_probe_count.load(Ordering::Relaxed) >= 1
     })
     .await;
     assert!(ok, "the volume probe did not pass within 20 s");
 
     // The counter grows before the `[probe]` line is printed to the log — wait separately.
     let logged = wait_until(Duration::from_secs(2), || {
-        meshtown::output::log_page(0, usize::MAX).lines.iter().any(|l| {
-            l.tag == "probe"
-                && l.text.starts_with("-> ")
-                && l.text.contains("acknowledged in")
-                && l.text.contains("path: ")
-        })
+        meshtown_core::node::output::log_page(0, usize::MAX)
+            .lines
+            .iter()
+            .any(|l| {
+                l.tag == "probe"
+                    && l.text.starts_with("-> ")
+                    && l.text.contains("acknowledged in")
+                    && l.text.contains("path: ")
+            })
     })
     .await;
     assert!(
@@ -156,7 +196,10 @@ async fn peers_learn_each_others_names() {
         a.members.is_member(b.id) && b.members.is_member(a.id)
     })
     .await;
-    assert!(ok, "the nodes did not become members of each other within 10 s");
+    assert!(
+        ok,
+        "the nodes did not become members of each other within 10 s"
+    );
 
     assert_eq!(a.members.name_of(b.id).as_deref(), Some("Bedroom"));
     assert_eq!(b.members.name_of(a.id).as_deref(), Some("厨房🍳"));

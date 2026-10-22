@@ -1,9 +1,9 @@
 //! Reaction to a network change: close sessions → `suspend` → `resume`.
 
 use super::source::{NetEvent, NetEvents};
-use crate::net::stream::BoxFuture;
-use crate::net::transport::{NET_CHANGED, NET_LOST};
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::{NET_CHANGED, NET_LOST};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
@@ -23,7 +23,10 @@ pub(crate) trait NetReact: Send + Sync {
 }
 
 /// Waits for an event; `None` — time to exit (stop, or the source ran dry).
-async fn wait_event(events: &mut dyn NetEvents, stop: &mut watch::Receiver<bool>) -> Option<NetEvent> {
+async fn wait_event(
+    events: &mut dyn NetEvents,
+    stop: &mut watch::Receiver<bool>,
+) -> Option<NetEvent> {
     if *stop.borrow() {
         return None;
     }
@@ -77,7 +80,10 @@ async fn changed(react: &dyn NetReact, asleep: &mut bool) {
     }
     *asleep = false;
     let ms = t0.elapsed().as_millis();
-    say("hyper", format!("network changed: closed {n} sessions, resuming in {ms} ms"));
+    say(
+        "hyper",
+        format!("network changed: closed {n} sessions, resuming in {ms} ms"),
+    );
 }
 
 /// The reaction loop; exits on `stop`, on a dropped sender, or when the source ran dry.

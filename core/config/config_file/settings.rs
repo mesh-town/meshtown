@@ -1,8 +1,8 @@
 //! The whole `config` document (`Settings` = process and network blocks), `TransportMode`, `ListenAccess`.
 //! Not here: JSON parsing (`parse.rs`/`parse_fields.rs`) and writing (`render.rs`).
 
-use crate::net::NodeSecret;
 use crate::node::{MemoryLimits, SocksListen};
+use crate::transport::net::NodeSecret;
 
 use super::net_settings::NetSettings;
 use super::process_settings::ProcessSettings;
@@ -82,7 +82,7 @@ impl Settings {
     /// from the process block. The production start path goes only through this function.
     pub fn node_config(
         &self,
-        network_key: crate::network_key::NetworkKey,
+        network_key: crate::members::network_key::NetworkKey,
         node_secret: NodeSecret,
     ) -> crate::node::NodeConfig {
         let mut cfg = crate::node::NodeConfig::for_cli(network_key, &self.net);

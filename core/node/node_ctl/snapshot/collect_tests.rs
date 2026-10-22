@@ -9,14 +9,14 @@ use super::*;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use crate::net::NodeSecret;
-use crate::net::AddrHint;
+use crate::transport::net::AddrHint;
+use crate::transport::net::NodeSecret;
 
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::members::peer_names::PeerNames;
+use crate::node::output;
 use crate::node::NodeConfig;
-use crate::output;
-use crate::peer_names::PeerNames;
-use crate::peers_cache::{entry_for, PeersCache};
+use crate::transport::peers_cache::{entry_for, PeersCache};
 
 /// Path to a cache file in the test's temporary directory, unique for every call.
 fn scratch_cache_path(suffix: &str) -> PathBuf {
@@ -36,7 +36,7 @@ fn scratch_cache_path(suffix: &str) -> PathBuf {
 async fn collect_shows_cached_peer_offline_after_restart() {
     let key = NetworkKey::generate().unwrap();
     let network_id = key.subkeys().network_id_hex();
-    let now = crate::net_mainline::unix_now();
+    let now = crate::transport::net_mainline::unix_now();
 
     // B never connected to this node — only a record in the cache file with an address nobody
     // listens on.
@@ -101,7 +101,7 @@ fn scratch_names_path(suffix: &str) -> PathBuf {
 async fn collect_takes_cached_peer_name_from_peer_names_file() {
     let key = NetworkKey::generate().unwrap();
     let network_id = key.subkeys().network_id_hex();
-    let now = crate::net_mainline::unix_now();
+    let now = crate::transport::net_mainline::unix_now();
 
     // B never connected — known only by an address from the cache (nobody listens) and by the
     // saved name from the names file.
@@ -155,7 +155,7 @@ async fn collect_takes_cached_peer_name_from_peer_names_file() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn collect_shows_own_published_port() {
-    use crate::ports::{Audience, Published};
+    use crate::ports_sharing::{Audience, Published};
     let key = NetworkKey::generate().unwrap();
     let mut cfg = NodeConfig::for_loopback_test(key);
     cfg.settings.ports_published = vec![Published {
@@ -174,7 +174,7 @@ async fn collect_shows_own_published_port() {
     node.shutdown().await;
 }
 
-// assumption (08i): the node address is `invite::own_addr(&node.stack, node.id)`; `crate::node_ctl::peer_lines` is a `pub use` in `node_ctl.rs`;
+// assumption (08i): the node address is `invite::own_addr(&node.stack, node.id)`; `crate::node::node_ctl::peer_lines` is a `pub use` in `node_ctl.rs`;
 // `NodeSnapshot.transport.self_addresses: Vec<String>` (`web/snapshot.rs`).
 
 /// The node address in the snapshot: `collect` takes it from the transport, not from the `Endpoint`.
@@ -191,7 +191,7 @@ mod own_address {
         let self_addresses = &collected.snap.transport.self_addresses;
         assert_eq!(
             self_addresses,
-            &crate::node_ctl::peer_lines(&crate::invite::own_addr(&node.stack, node.id)),
+            &crate::node::node_ctl::peer_lines(&crate::invite::own_addr(&node.stack, node.id)),
             "self_addresses should come from the node's transport address"
         );
         node.shutdown().await;
@@ -201,5 +201,7 @@ mod own_address {
 /// A node on loopback (the `mem` transport); the address is taken from the stack without waiting for an IP.
 async fn loopback_node_with_address() -> crate::node::RunningNode {
     let key = NetworkKey::generate().unwrap();
-    crate::node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap()
+    crate::node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap()
 }

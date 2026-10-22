@@ -3,7 +3,7 @@
 use std::net::{IpAddr, SocketAddr};
 
 use crate::exit::udpgw_codec::{self as codec, Frame};
-use crate::socks5::{Target, UdpPacket};
+use crate::proxy::socks5::{Target, UdpPacket};
 
 /// The connection id of the gateway session for a destination: one per address family, because the exit binds
 /// the socket of a session to the family of its first destination.
@@ -28,7 +28,12 @@ fn gateway_target(target: Target, port: u16) -> codec::Target {
 pub(super) fn to_gateway_frame(packet: UdpPacket) -> Option<Vec<u8>> {
     let target = gateway_target(packet.target, packet.port);
     let conn_id = conn_id_for(&target);
-    let frame = Frame { flags: codec::FLAG_DATA, conn_id, target: Some(target), data: packet.data };
+    let frame = Frame {
+        flags: codec::FLAG_DATA,
+        conn_id,
+        target: Some(target),
+        data: packet.data,
+    };
     codec::encode(&frame)
 }
 

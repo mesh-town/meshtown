@@ -1,5 +1,5 @@
 use super::*;
-use crate::config_file::{NetSettings, TransportMode};
+use crate::config::config_file::{NetSettings, TransportMode};
 use crate::node::identity::TemporaryReason;
 
 fn pid(n: u8) -> PeerId {
@@ -30,7 +30,7 @@ fn lines_start_with_banner_and_end_with_mode() {
     let want = format!(
         "meshtown {}, network {} abcd1234, node {} \"tree\" ({}), identity persistent",
         env!("CARGO_PKG_VERSION"),
-        crate::output::NET_NAME,
+        crate::node::output::NET_NAME,
         id.fmt_short(),
         HEXLOWER.encode(id.as_bytes()),
     );

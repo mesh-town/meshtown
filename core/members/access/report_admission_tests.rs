@@ -5,13 +5,17 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use super::*;
-use crate::access::tally::{Admission, How, Ledger};
-use crate::net::contract::pid;
+use crate::members::access::tally::{Admission, How, Ledger};
+use crate::transport::net::contract::pid;
 
 const AT_UNIX: u64 = 1_792_400_000;
 
 fn request(voters: &[PeerId], label: Option<&str>) -> Admission {
-    Admission { voters: voters.to_vec(), need: 2, label: label.map(str::to_string) }
+    Admission {
+        voters: voters.to_vec(),
+        need: 2,
+        label: label.map(str::to_string),
+    }
 }
 
 /// Me and `members` are admitted; `asks` are requests that wait.
@@ -24,19 +28,36 @@ fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
         need: 2,
         admissions: asks.into_iter().collect(),
     };
-    Verdicts { me: pid(1), ledger: Arc::new(ledger), my_votes: BTreeSet::new(), blocks: BTreeSet::new(), reasons: Default::default() }
+    Verdicts {
+        me: pid(1),
+        ledger: Arc::new(ledger),
+        my_votes: BTreeSet::new(),
+        blocks: BTreeSet::new(),
+        reasons: Default::default(),
+    }
 }
 
-fn reply(v: &Verdicts, refusals: &[(PeerId, Refusal)]) -> crate::web::MembersReply {
+fn reply(v: &Verdicts, refusals: &[(PeerId, Refusal)]) -> crate::web_gui::MembersReply {
     members_reply(v, &Members::default(), refusals, None)
 }
 
-fn row_of(r: &crate::web::MembersReply, p: PeerId) -> MemberRow {
-    r.members.iter().find(|row| row.id_full == p.to_string()).cloned().expect("the row must exist")
+fn row_of(r: &crate::web_gui::MembersReply, p: PeerId) -> MemberRow {
+    r.members
+        .iter()
+        .find(|row| row.id_full == p.to_string())
+        .cloned()
+        .expect("the row must exist")
 }
 
 fn unlisted_by_them() -> Vec<(PeerId, Refusal)> {
-    vec![(pid(2), Refusal { side: Side::Them, deny: Deny::Unlisted, at_unix: AT_UNIX })]
+    vec![(
+        pid(2),
+        Refusal {
+            side: Side::Them,
+            deny: Deny::Unlisted,
+            at_unix: AT_UNIX,
+        },
+    )]
 }
 
 #[test]
@@ -62,7 +83,9 @@ fn member_held_by_my_vote_shows_admission() {
     // when / then: the row stays a member and carries the request with my vote
     let row = row_of(&reply(&v, &[]), a);
     assert_eq!(row.status, "member");
-    let info = row.admission.expect("a short member carries the admission object");
+    let info = row
+        .admission
+        .expect("a short member carries the admission object");
     assert!(info.mine);
 }
 
@@ -79,9 +102,19 @@ fn me_pending_needs_a_refusal_from_them() {
     let refused = reply(&v, &unlisted_by_them());
     // then: I wait, with my request shown
     assert!(refused.me_pending);
-    assert_eq!(refused.me_admission.map(|i| (i.votes, i.need)), Some((0, 2)));
+    assert_eq!(
+        refused.me_admission.map(|i| (i.votes, i.need)),
+        Some((0, 2))
+    );
     // and a refusal of another reason does not count
-    let other = vec![(pid(2), Refusal { side: Side::Them, deny: Deny::Refused, at_unix: AT_UNIX })];
+    let other = vec![(
+        pid(2),
+        Refusal {
+            side: Side::Them,
+            deny: Deny::Refused,
+            at_unix: AT_UNIX,
+        },
+    )];
     assert!(!reply(&v, &other).me_pending);
 }
 
@@ -89,7 +122,14 @@ fn me_pending_needs_a_refusal_from_them() {
 fn founder_is_not_pending() {
     // given: me alone, my own request on the list, and a refusal of mine against another node
     let v = verdicts(&[], vec![(pid(1), request(&[], None))]);
-    let mine = vec![(pid(2), Refusal { side: Side::Me, deny: Deny::Unlisted, at_unix: AT_UNIX })];
+    let mine = vec![(
+        pid(2),
+        Refusal {
+            side: Side::Me,
+            deny: Deny::Unlisted,
+            at_unix: AT_UNIX,
+        },
+    )];
     // when / then: my row is a member without a request
     let r = reply(&v, &mine);
     let own = row_of(&r, pid(1));
@@ -103,7 +143,14 @@ fn counts_pending_apart_from_unlisted() {
     // given: one request and one node known only from a refusal
     let (x, ghost) = (pid(9), pid(8));
     let v = verdicts(&[pid(2)], vec![(x, request(&[pid(2)], None))]);
-    let refusals = vec![(ghost, Refusal { side: Side::Me, deny: Deny::Unlisted, at_unix: AT_UNIX })];
+    let refusals = vec![(
+        ghost,
+        Refusal {
+            side: Side::Me,
+            deny: Deny::Unlisted,
+            at_unix: AT_UNIX,
+        },
+    )];
     // when / then
     let c = reply(&v, &refusals).counts;
     assert_eq!((c.members, c.pending, c.unlisted), (2, 1, 1));
@@ -113,7 +160,14 @@ fn counts_pending_apart_from_unlisted() {
 fn vote_summary_counts_admitting_and_me_pending() {
     // given: two requests, one of them already confirmed by me, and me waiting too
     let (x, y) = (pid(9), pid(8));
-    let v = verdicts(&[pid(2)], vec![(x, request(&[pid(2)], None)), (y, request(&[pid(1)], None)), (pid(1), request(&[], None))]);
+    let v = verdicts(
+        &[pid(2)],
+        vec![
+            (x, request(&[pid(2)], None)),
+            (y, request(&[pid(1)], None)),
+            (pid(1), request(&[], None)),
+        ],
+    );
     // when
     let s = vote_summary(&reply(&v, &unlisted_by_them()));
     // then: only x awaits my confirmation
@@ -126,10 +180,31 @@ fn pending_sorts_after_members() {
     let (a, x, ghost) = (pid(2), pid(9), pid(8));
     let mut v = verdicts(&[a], vec![(x, request(&[a], None))]);
     let mut ledger = (*v.ledger).clone();
-    ledger.excluded.insert(pid(7), crate::access::tally::Exclusion { how: How::Votes, at_micros: 1, voters: vec![a] });
+    ledger.excluded.insert(
+        pid(7),
+        crate::members::access::tally::Exclusion {
+            how: How::Votes,
+            at_micros: 1,
+            voters: vec![a],
+        },
+    );
     v.ledger = Arc::new(ledger);
-    let refusals = vec![(ghost, Refusal { side: Side::Me, deny: Deny::Unlisted, at_unix: AT_UNIX })];
+    let refusals = vec![(
+        ghost,
+        Refusal {
+            side: Side::Me,
+            deny: Deny::Unlisted,
+            at_unix: AT_UNIX,
+        },
+    )];
     // when / then
-    let order: Vec<&str> = reply(&v, &refusals).members.iter().map(|r| r.status).collect::<Vec<_>>();
-    assert_eq!(order, ["member", "member", "pending", "unlisted", "excluded"]);
+    let order: Vec<&str> = reply(&v, &refusals)
+        .members
+        .iter()
+        .map(|r| r.status)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        order,
+        ["member", "member", "pending", "unlisted", "excluded"]
+    );
 }

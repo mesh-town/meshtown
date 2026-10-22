@@ -68,6 +68,8 @@ async fn name_with_mixed_a_records_takes_the_public_one() {
 #[tokio::test]
 async fn name_with_public_a_record_resolves_from_cache() {
     let result = resolve_named("site.example.test", &[[93, 184, 216, 34]], 8443);
-    let addr = result.await.expect("an open address from the cache without network");
+    let addr = result
+        .await
+        .expect("an open address from the cache without network");
     assert_eq!(addr, SocketAddr::from(([93, 184, 216, 34], 8443)));
 }

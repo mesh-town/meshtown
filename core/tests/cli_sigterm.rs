@@ -14,7 +14,7 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
-use meshtown::network_key::NetworkKey;
+use meshtown_core::members::network_key::NetworkKey;
 
 /// The time from SIGTERM to the process exit.
 const EXIT_LIMIT: Duration = Duration::from_secs(5);
@@ -131,14 +131,16 @@ fn sigterm_stops_node_with_zero_exit_and_message() {
     node.drain();
 
     // then: exit with code 0 in time and a line in stdout
-    let (code, took) =
-        exit.unwrap_or_else(|| panic!("did not exit within {EXIT_LIMIT:?}; output: {:#?}", node.seen));
+    let (code, took) = exit.unwrap_or_else(|| {
+        panic!(
+            "did not exit within {EXIT_LIMIT:?}; output: {:#?}",
+            node.seen
+        )
+    });
     eprintln!("stop on SIGTERM: code {code}, {took:?}");
     assert_eq!(code, 0, "exit code; output: {:#?}", node.seen);
     assert!(
-        node.seen
-            .iter()
-            .any(|l| l.contains("received stop signal")),
+        node.seen.iter().any(|l| l.contains("received stop signal")),
         "no stop line: {:#?}",
         node.seen
     );

@@ -1,8 +1,8 @@
 //! Tests for discovery merging, continued: starting and stopping sources, publishing to all publishing sources.
 
 use super::*;
-use crate::net::error::NetError;
-use crate::net::facade::test_support::{ScriptReply, STEP};
+use crate::transport::net::error::NetError;
+use crate::transport::net::facade::test_support::{ScriptReply, STEP};
 use std::time::Instant;
 
 mod start {
@@ -57,10 +57,7 @@ mod start {
 
         let _mux = started(&["invite", "cache"], &[&one, &two]);
 
-        wait_until("both runs called", || {
-            one.runs() == 1 && two.runs() == 1
-        })
-        .await;
+        wait_until("both runs called", || one.runs() == 1 && two.runs() == 1).await;
     }
 }
 
@@ -141,7 +138,11 @@ mod publish {
             vec![me],
             "the publishing source received its own address"
         );
-        assert_eq!(reader.publish_calls(), 0, "publish is not called on a reader");
+        assert_eq!(
+            reader.publish_calls(),
+            0,
+            "publish is not called on a reader"
+        );
     }
 
     #[tokio::test]
@@ -168,12 +169,18 @@ mod publish {
             matches!(res, Err(NetError::Refused)),
             "the error of the first by add (not by time) goes up: {res:?}"
         );
-        assert_eq!(third.publish_calls(), 1, "the refusal of earlier ones does not stop the third");
+        assert_eq!(
+            third.publish_calls(),
+            1,
+            "the refusal of earlier ones does not stop the third"
+        );
     }
 
     #[tokio::test]
     async fn publish_timeout() {
-        let stuck = Script::new("mainline").publisher(ScriptReply::Forever).shared();
+        let stuck = Script::new("mainline")
+            .publisher(ScriptReply::Forever)
+            .shared();
         let timing = DiscoveryTiming {
             ttl: Duration::from_millis(TTL_MS),
             publish_timeout: Duration::from_millis(200),
@@ -191,7 +198,9 @@ mod publish {
 
     #[tokio::test]
     async fn publisher_panic_is_other() {
-        let broken = Script::new("mainline").publisher(ScriptReply::Panic).shared();
+        let broken = Script::new("mainline")
+            .publisher(ScriptReply::Panic)
+            .shared();
         let mux = started(&["mainline"], &[&broken]);
 
         let res = within("publish", mux.publish(&addr(1, &[1]))).await;

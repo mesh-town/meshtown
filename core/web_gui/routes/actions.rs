@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::web::App;
+use crate::web_gui::App;
 
 use super::helpers::{action_error, body_obj, map_string_field};
 

@@ -6,7 +6,7 @@ use std::ffi::OsString;
 use clap::error::ErrorKind;
 use clap::FromArgMatches;
 
-use crate::cli::{with_default_subcommand, Cli, CliCommand};
+use crate::cli::args::{with_default_subcommand, Cli, CliCommand};
 
 /// `&str` → `OsString`, shorter at the call site.
 fn to_os(args: &[&str]) -> Vec<OsString> {
@@ -16,7 +16,7 @@ fn to_os(args: &[&str]) -> Vec<OsString> {
 #[cfg(not(feature = "tray"))]
 #[test]
 fn no_args_is_run_without_tray() {
-    use crate::cli::is_flag_typed;
+    use crate::cli::args::is_flag_typed;
 
     let m = Cli::command()
         .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"])))
@@ -57,10 +57,7 @@ fn explicit_subcommand_kept() {
     ));
 
     let m = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&[
-            "meshtown",
-            "config-path",
-        ])))
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown", "config-path"])))
         .expect("config-path parses");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
@@ -69,10 +66,7 @@ fn explicit_subcommand_kept() {
 
     let m = Cli::command()
         .try_get_matches_from(with_default_subcommand(to_os(&[
-            "meshtown",
-            "run",
-            "--port",
-            "7000",
+            "meshtown", "run", "--port", "7000",
         ])))
         .expect("run --port 7000 parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
@@ -84,11 +78,7 @@ fn explicit_subcommand_kept() {
 #[test]
 fn flags_without_subcommand_still_error() {
     let err = Cli::command()
-        .try_get_matches_from(with_default_subcommand(to_os(&[
-            "meshtown",
-            "--port",
-            "1",
-        ])))
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown", "--port", "1"])))
         .expect_err("a flag without a subcommand must not silently become run");
     assert_ne!(err.kind(), ErrorKind::DisplayHelp);
 }
@@ -101,7 +91,13 @@ fn empty_argv_untouched() {
 #[test]
 fn password_reset_and_access_parse() {
     let m = Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "password", "reset", "--web-port", "7001"]))
+        .try_get_matches_from(to_os(&[
+            "meshtown",
+            "password",
+            "reset",
+            "--web-port",
+            "7001",
+        ]))
         .expect("password reset parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
         CliCommand::Password { web_port, .. } => assert_eq!(web_port, Some(7001)),
@@ -112,7 +108,7 @@ fn password_reset_and_access_parse() {
         .expect("access parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
         CliCommand::Access { mode, .. } => {
-            assert_eq!(mode, meshtown::config_file::ListenAccess::Localhost)
+            assert_eq!(mode, crate::config::config_file::ListenAccess::Localhost)
         }
         _ => panic!("expected access"),
     }
@@ -121,10 +117,22 @@ fn password_reset_and_access_parse() {
 #[test]
 fn ifaces_parses_names_and_flags() {
     let m = Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "ifaces", "br-lan", "--if-unset", "--config", "/x"]))
+        .try_get_matches_from(to_os(&[
+            "meshtown",
+            "ifaces",
+            "br-lan",
+            "--if-unset",
+            "--config",
+            "/x",
+        ]))
         .expect("ifaces parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Ifaces { names, if_unset, config, .. } => {
+        CliCommand::Ifaces {
+            names,
+            if_unset,
+            config,
+            ..
+        } => {
             assert_eq!(names, ["br-lan"]);
             assert!(if_unset);
             assert_eq!(config, Some(std::path::PathBuf::from("/x")));
@@ -135,14 +143,18 @@ fn ifaces_parses_names_and_flags() {
         .try_get_matches_from(to_os(&["meshtown", "ifaces", "auto"]))
         .expect("ifaces auto parses");
     match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Ifaces { names, if_unset, .. } => assert_eq!((names, if_unset), (vec!["auto".to_string()], false)),
+        CliCommand::Ifaces {
+            names, if_unset, ..
+        } => assert_eq!((names, if_unset), (vec!["auto".to_string()], false)),
         _ => panic!("expected ifaces"),
     }
 }
 
 #[test]
 fn ifaces_without_names_is_error() {
-    assert!(Cli::command().try_get_matches_from(to_os(&["meshtown", "ifaces"])).is_err());
+    assert!(Cli::command()
+        .try_get_matches_from(to_os(&["meshtown", "ifaces"]))
+        .is_err());
 }
 
 #[test]
@@ -151,8 +163,11 @@ fn access_bogus_mode_is_bad_value_with_choices() {
         .try_get_matches_from(to_os(&["meshtown", "access", "everyone"]))
         .expect_err("invalid mode");
     assert_eq!(e.kind(), ErrorKind::ValueValidation);
-    let text = crate::cli_errors::bad_value_text(&e, Some("access"));
-    assert!(text.contains("localhost") && text.contains("localnet"), "{text}");
+    let text = crate::cli::cli_errors::bad_value_text(&e, Some("access"));
+    assert!(
+        text.contains("localhost") && text.contains("localnet"),
+        "{text}"
+    );
 }
 
 #[test]

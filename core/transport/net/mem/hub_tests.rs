@@ -1,8 +1,8 @@
 //! Tests of the `mem` hub (`hub.rs`): hint, separate networks, node restart, `cut`/`heal`, delay.
 
 use super::*;
-use crate::net::mem::{MemConnector, MEM_HINT_KIND};
-use crate::net::{
+use crate::transport::net::mem::{MemConnector, MEM_HINT_KIND};
+use crate::transport::net::{
     AddrHint, Connector, NetError, NodeSecret, PacketPath, PeerAddr, PeerId, RelayRef,
 };
 use bytes::Bytes;
@@ -140,7 +140,7 @@ mod delay;
 
 mod addr_of {
     use super::*;
-    use crate::net::Connector;
+    use crate::transport::net::Connector;
 
     #[test]
     fn addr_of_live_slot() {

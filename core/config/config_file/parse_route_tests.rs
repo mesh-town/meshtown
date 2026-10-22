@@ -37,7 +37,10 @@ fn route_exits_rejects_bad_values() {
     let a = NodeSecret::from_bytes(&[1u8; 32]).peer_id();
     let text = format!(r#"{{"config":{{"version":1, "route": {{"exits": ["{a}", "{a}"]}}}}}}"#);
     let p = parse_text(&text).expect("parse");
-    assert!(p.settings.net.route_exits.is_empty(), "a duplicate — the default []");
+    assert!(
+        p.settings.net.route_exits.is_empty(),
+        "a duplicate — the default []"
+    );
     assert_eq!(p.field_errors.len(), 1);
     assert_eq!(p.field_errors[0].field_path, "route.exits");
 

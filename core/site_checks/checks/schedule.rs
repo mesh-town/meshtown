@@ -2,15 +2,15 @@
 //! `DomainState`), the "being checked right now" mark (`InProgress`) and the decision of who is due
 //! (`Checks::due`/`schedule_after_verdict`/`postpone`, called from `run.rs`).
 
+use portable_atomic::AtomicU64;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::time::Instant;
 
-use crate::reachability::CheckVerdict;
+use crate::site_checks::reachability::CheckVerdict;
 
 use super::state::Checks;
 
@@ -56,7 +56,8 @@ impl Schedule {
     }
 
     pub(super) fn set_base_interval(&self, d: Duration) {
-        self.base_interval_secs.store(d.as_secs().max(1), Ordering::Relaxed);
+        self.base_interval_secs
+            .store(d.as_secs().max(1), Ordering::Relaxed);
     }
 }
 
@@ -82,7 +83,10 @@ impl InProgress {
     }
 
     pub(super) fn end(&self, domain: &str) {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).remove(domain);
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(domain);
     }
 
     pub(super) fn domains_in_progress(&self) -> HashSet<String> {
@@ -91,19 +95,21 @@ impl InProgress {
 }
 
 /// The node's constant offset within the interval: each author has its own, and it doesn't change between rounds.
-fn offset_for(author: crate::net::PeerId, domain: &str, interval: Duration) -> Duration {
+fn offset_for(author: crate::transport::net::PeerId, domain: &str, interval: Duration) -> Duration {
     let mut hasher = blake3::Hasher::new();
     hasher.update(author.as_bytes());
     hasher.update(domain.as_bytes());
     let digest = hasher.finalize();
-    let bytes: [u8; 4] = digest.as_bytes()[..4].try_into().expect("4 bytes of the hash");
+    let bytes: [u8; 4] = digest.as_bytes()[..4]
+        .try_into()
+        .expect("4 bytes of the hash");
     let seconds = interval.as_secs().max(1);
     Duration::from_secs(u64::from(u32::from_le_bytes(bytes)) % seconds)
 }
 
 /// How long after a domain appears it is first checked: `FIRST_DELAY` and the constant
 /// node offset within `FIRST_SPREAD`; it doesn't depend on the base interval.
-fn first_check_delay(author: crate::net::PeerId, domain: &str) -> Duration {
+fn first_check_delay(author: crate::transport::net::PeerId, domain: &str) -> Duration {
     FIRST_DELAY + offset_for(author, domain, FIRST_SPREAD)
 }
 
@@ -112,21 +118,25 @@ impl Checks {
     pub(super) async fn due(&self, domain: &str) -> bool {
         let now = Instant::now();
         let mut state = self.domain_states.lock().await;
-        let entry = state.entry(domain.to_string()).or_insert_with(|| DomainState {
-            next_at: now + first_check_delay(self.shared_replica.me(), domain),
-            last_verdict: None,
-            same_verdict_streak: 0,
-        });
+        let entry = state
+            .entry(domain.to_string())
+            .or_insert_with(|| DomainState {
+                next_at: now + first_check_delay(self.shared_replica.me(), domain),
+                last_verdict: None,
+                same_verdict_streak: 0,
+            });
         entry.next_at <= now
     }
 
     pub(super) async fn schedule_after_verdict(&self, domain: &str, verdict: CheckVerdict) {
         let mut state = self.domain_states.lock().await;
-        let entry = state.entry(domain.to_string()).or_insert_with(|| DomainState {
-            next_at: Instant::now(),
-            last_verdict: None,
-            same_verdict_streak: 0,
-        });
+        let entry = state
+            .entry(domain.to_string())
+            .or_insert_with(|| DomainState {
+                next_at: Instant::now(),
+                last_verdict: None,
+                same_verdict_streak: 0,
+            });
         if entry.last_verdict == Some(verdict) {
             entry.same_verdict_streak = (entry.same_verdict_streak + 1).min(MAX_BACKOFF_EXPONENT);
         } else {
@@ -135,7 +145,8 @@ impl Checks {
         entry.last_verdict = Some(verdict);
         let factor = 1u32 << entry.same_verdict_streak;
         let interval = (self.schedule.base_interval() * factor).min(self.schedule.max);
-        entry.next_at = Instant::now() + interval + offset_for(self.shared_replica.me(), domain, interval);
+        entry.next_at =
+            Instant::now() + interval + offset_for(self.shared_replica.me(), domain, interval);
     }
 
     /// Postpones the domain by one base interval, remembering nothing.

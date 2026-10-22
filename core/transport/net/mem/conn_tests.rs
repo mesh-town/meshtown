@@ -1,10 +1,12 @@
 //! Tests of the `mem` connection (`conn.rs`, `stream.rs`): windows, half-close, packet size, parallel streams.
 //! Closing, accounting and protocol violations are in `conn_close_tests.rs`.
 
-use crate::net::mem::conn::{MemConn, STREAM_WINDOW_BYTES};
-use crate::net::mem::frame::Frame;
-use crate::net::mem::{MemNet, MemPath, MEM_MAX_PACKET};
-use crate::net::{BoxRecv, BoxSend, NodeSecret, PacketPath, PeerConn, PeerId, StreamPair};
+use crate::transport::net::mem::conn::{MemConn, STREAM_WINDOW_BYTES};
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::{MemNet, MemPath, MEM_MAX_PACKET};
+use crate::transport::net::{
+    BoxRecv, BoxSend, NodeSecret, PacketPath, PeerConn, PeerId, StreamPair,
+};
 use bytes::Bytes;
 use std::future::Future;
 use std::io::ErrorKind;
@@ -25,7 +27,10 @@ mod window {
 
         let written = fill_until_stalled(&mut out.send).await;
 
-        assert_eq!(written, STREAM_WINDOW_BYTES, "the write must stop exactly at the window");
+        assert_eq!(
+            written, STREAM_WINDOW_BYTES,
+            "the write must stop exactly at the window"
+        );
     }
 
     #[tokio::test]
@@ -211,7 +216,10 @@ mod half_close {
         let mut inc = accept(&b).await;
         out.send.shutdown().await.expect("shutdown");
 
-        inc.send.write_all(b"reply").await.expect("write of the reply");
+        inc.send
+            .write_all(b"reply")
+            .await
+            .expect("write of the reply");
 
         assert_eq!(read_exactly(&mut out.recv, 5).await, b"reply");
     }
@@ -301,7 +309,10 @@ async fn fill_until_stalled(send: &mut BoxSend) -> usize {
     let mut total = 0;
     while let Ok(n) = timeout(Duration::from_millis(200), send.write(&chunk)).await {
         total += n.expect("write");
-        assert!(total <= 8 * STREAM_WINDOW_BYTES, "the write did not stop after {total} bytes");
+        assert!(
+            total <= 8 * STREAM_WINDOW_BYTES,
+            "the write did not stop after {total} bytes"
+        );
     }
     total
 }

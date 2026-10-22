@@ -1,5 +1,5 @@
 use super::*;
-use crate::invite::store::{Ledger, IssueVerdict};
+use crate::invite::store::{IssueVerdict, Ledger};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn string_does_not_carry_the_network_key() {
@@ -25,9 +25,13 @@ async fn issue_is_written_to_the_network_document_before_the_string_is_given() {
         .secret
         .hash_hex();
     let verdict = Ledger::of(&rig.node.domains)
-        .verdict(&hash, crate::net_mainline::unix_now())
+        .verdict(&hash, crate::transport::net_mainline::unix_now())
         .await;
-    assert_eq!(verdict, IssueVerdict::Grant, "the issue is not in the network document");
+    assert_eq!(
+        verdict,
+        IssueVerdict::Grant,
+        "the issue is not in the network document"
+    );
     rig.shutdown().await;
 }
 
@@ -40,11 +44,7 @@ async fn two_invites_have_different_secrets() {
     let second = rig.when_invite_is_finished().await;
     // then
     let secret = |s: &str| crate::invite::parse(s).unwrap().head.secret;
-    assert_ne!(
-        secret(&first),
-        secret(&second),
-        "one-time secrets matched"
-    );
+    assert_ne!(secret(&first), secret(&second), "one-time secrets matched");
     rig.shutdown().await;
 }
 

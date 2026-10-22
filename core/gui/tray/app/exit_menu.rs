@@ -10,12 +10,14 @@
 //! Links: builds `ExitMenu`/`ExitItem`; `tray_role::poller` calls `exit_menu_from_snapshot` (through `views_from_state_json`) on every
 //! snapshot and `disabled_exit_menu` on grey views (the node is not running — the submenu is unavailable).
 
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::snapshot::{TrayChosenExit, TrayMembers, TrayPeer, TrayRoute, TraySnapshot};
-use crate::app::tray_texts::{peer_offline_text, peer_unnamed_text, EMPTY_HINT};
-use crate::app::view::RouteLine;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::snapshot::{
+    TrayChosenExit, TrayMembers, TrayPeer, TrayRoute, TraySnapshot,
+};
+use crate::gui::tray::app::tray_texts::{peer_offline_text, peer_unnamed_text, EMPTY_HINT};
+use crate::gui::tray::app::view::RouteLine;
 
 /// A ready "Exit via…" submenu list: availability, items, the status line (`route`)
 /// and the browser proxy address (`proxy`) for the `MENU_PROXY` item.
@@ -150,7 +152,12 @@ fn advertises_exit(peer: &TrayPeer) -> bool {
 fn chosen_exit_item(exit: &TrayChosenExit) -> Option<ExitItem> {
     let id_full = exit.id_full.clone()?;
     let id = exit.id.as_deref().unwrap_or(&id_full);
-    let caption = peer_exit_caption(exit.name.as_deref(), id, exit.online, exit.country.as_deref());
+    let caption = peer_exit_caption(
+        exit.name.as_deref(),
+        id,
+        exit.online,
+        exit.country.as_deref(),
+    );
     Some(ExitItem {
         id_full,
         label: caption,
@@ -162,7 +169,12 @@ fn chosen_exit_item(exit: &TrayChosenExit) -> Option<ExitItem> {
 fn peer_item(peer: &TrayPeer) -> Option<ExitItem> {
     let id_full = peer.id_full.clone()?;
     let id = peer.id.as_deref().unwrap_or(&id_full);
-    let caption = peer_exit_caption(peer.name.as_deref(), id, peer.online, peer.country.as_deref());
+    let caption = peer_exit_caption(
+        peer.name.as_deref(),
+        id,
+        peer.online,
+        peer.country.as_deref(),
+    );
     Some(ExitItem {
         id_full,
         label: caption,

@@ -6,7 +6,8 @@ use super::*;
 /// An `ipwho.is` answer in the service's format, every value replaced with a placeholder.
 const IPWHO_OK: &str = r#"{"ip":"203.0.113.7","success":true,"type":"IPv4","continent":"Europe","continent_code":"EU","country":"Testland","country_code":"DE","region":"Testville","region_code":"BE","city":"Testville","latitude":52.52,"longitude":13.405,"is_eu":true,"postal":"10115","calling_code":"49","capital":"Testville","borders":"AT,BE,CH,CZ,DK,FR,LU,NL,PL","flag":{"img":"...","emoji":"🇩🇪","emoji_unicode":"U+1F1E9 U+1F1EA"},"connection":{"asn":64496,"org":"Example ISP","isp":"...","domain":"example.net"},"timezone":{"id":"Europe/Testville","abbr":"CET","is_dst":false,"offset":3600,"utc":"+01:00"},"readme":"https://ipwhois.io/docs"}"#;
 /// `ipwho.is` answers 200 with `success: false` for an invalid IP — this is a refusal.
-const IPWHO_INVALID_IP: &str = r#"{"ip":"999.1.1.1","success":false,"message":"Invalid IP address"}"#;
+const IPWHO_INVALID_IP: &str =
+    r#"{"ip":"999.1.1.1","success":false,"message":"Invalid IP address"}"#;
 /// `ipwho.is` on `GET /bogus`: status 404.
 const IPWHO_404: &str = r#"{"success":false,"message":"404 not found"}"#;
 /// An `api.country.is` answer in the service's format, with placeholder values.
@@ -64,7 +65,10 @@ fn read_answer_classifies() {
 
 #[test]
 fn order_and_cf_trace_spec() {
-    assert_eq!(SOURCE_ORDER, [Source::IpWhoIs, Source::CountryIs, Source::CfTrace]);
+    assert_eq!(
+        SOURCE_ORDER,
+        [Source::IpWhoIs, Source::CountryIs, Source::CfTrace]
+    );
     let spec = Source::CfTrace.spec();
     assert_eq!(spec.host, "1.1.1.1");
     assert_eq!(spec.path, "/cdn-cgi/trace");

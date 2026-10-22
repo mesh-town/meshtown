@@ -88,7 +88,9 @@ mod stream_over_the_limit {
         // when: we read with a limit of 10 under a deadline
         let got = tokio::time::timeout(Duration::from_secs(2), read_to_end_limited(&mut recv, 10))
             .await
-            .expect("the read waited for the end of the stream although the limit is already exceeded");
+            .expect(
+                "the read waited for the end of the stream although the limit is already exceeded",
+            );
 
         // then: an InvalidData error
         assert_invalid_data(got);
@@ -107,7 +109,10 @@ mod empty_stream {
         let got = read_to_end_limited(&mut recv, 10).await;
 
         // then: an empty vector
-        assert_eq!(got.expect("an empty stream is not an error"), Vec::<u8>::new());
+        assert_eq!(
+            got.expect("an empty stream is not an error"),
+            Vec::<u8>::new()
+        );
     }
 
     #[tokio::test]
@@ -119,7 +124,10 @@ mod empty_stream {
         let got = read_to_end_limited(&mut recv, 0).await;
 
         // then: an empty vector
-        assert_eq!(got.expect("an empty stream is not an error"), Vec::<u8>::new());
+        assert_eq!(
+            got.expect("an empty stream is not an error"),
+            Vec::<u8>::new()
+        );
     }
 }
 

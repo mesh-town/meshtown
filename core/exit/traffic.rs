@@ -14,7 +14,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::net::{PeerConn, PeerId};
+use crate::transport::net::{PeerConn, PeerId};
 use tokio::time::sleep;
 
 /// The window over which speed is computed.
@@ -52,13 +52,17 @@ impl ExitTraffic {
     /// Watches a connection: once per `TICK` puts in the byte delta, on close the last one, and exits.
     pub fn watch(&self, conn: Arc<dyn PeerConn>, dir: Direction) {
         let (traffic, peer, mut prev) = (self.clone(), conn.peer(), total_bytes(&*conn));
-        tokio::spawn(async move {
-            while traffic.tick(&*conn, peer, dir, &mut prev).await {}
-        });
+        tokio::spawn(async move { while traffic.tick(&*conn, peer, dir, &mut prev).await {} });
     }
 
     /// One task step: waits for `TICK`, writes a delta; `false` — the connection is closed, the task is done.
-    async fn tick(&self, conn: &dyn PeerConn, peer: PeerId, dir: Direction, prev: &mut u64) -> bool {
+    async fn tick(
+        &self,
+        conn: &dyn PeerConn,
+        peer: PeerId,
+        dir: Direction,
+        prev: &mut u64,
+    ) -> bool {
         sleep(TICK).await;
         let closed = conn.is_closed();
         let now = total_bytes(conn);

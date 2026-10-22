@@ -224,8 +224,14 @@ fn path_kinds_serialize_lowercase() {
     let mut snapshot = NodeSnapshot::default();
     snapshot.transport.self_path = Some(PathKindView::Direct);
     snapshot.peers = vec![
-        PeerInfo { path: Some(PathKindView::Relay), ..Default::default() },
-        PeerInfo { path: None, ..Default::default() },
+        PeerInfo {
+            path: Some(PathKindView::Relay),
+            ..Default::default()
+        },
+        PeerInfo {
+            path: None,
+            ..Default::default()
+        },
     ];
 
     // when
@@ -234,7 +240,10 @@ fn path_kinds_serialize_lowercase() {
     // then
     assert_eq!(json["transport"]["self_path"], "direct");
     assert_eq!(json["peers"][0]["path"], "relay");
-    assert!(json["peers"][1]["path"].is_null(), "path is not determined — `null`, not a missing key");
+    assert!(
+        json["peers"][1]["path"].is_null(),
+        "path is not determined — `null`, not a missing key"
+    );
 }
 
 fn to_json(snapshot: &NodeSnapshot) -> Value {
@@ -252,14 +261,20 @@ fn key_paths(json: &Value) -> Vec<String> {
 fn collect_paths(value: &Value, prefix: &str, out: &mut BTreeSet<String>) {
     match value {
         Value::Object(map) if DICT_PATHS.contains(&prefix) => {
-            let Some(first) = map.values().next() else { return };
+            let Some(first) = map.values().next() else {
+                return;
+            };
             let path = format!("{prefix}.{{}}");
             out.insert(path.clone());
             collect_paths(first, &path, out);
         }
         Value::Object(map) => {
             for (key, child) in map {
-                let path = if prefix.is_empty() { key.clone() } else { format!("{prefix}.{key}") };
+                let path = if prefix.is_empty() {
+                    key.clone()
+                } else {
+                    format!("{prefix}.{key}")
+                };
                 out.insert(path.clone());
                 collect_paths(child, &path, out);
             }
@@ -274,13 +289,23 @@ fn collect_paths(value: &Value, prefix: &str, out: &mut BTreeSet<String>) {
 }
 
 fn assert_same_keys(actual: &[String], golden: &[&str]) {
-    let extra: Vec<&String> = actual.iter().filter(|k| !golden.contains(&k.as_str())).collect();
-    let missing: Vec<&&str> = golden.iter().filter(|k| !actual.iter().any(|a| a == **k)).collect();
+    let extra: Vec<&String> = actual
+        .iter()
+        .filter(|k| !golden.contains(&k.as_str()))
+        .collect();
+    let missing: Vec<&&str> = golden
+        .iter()
+        .filter(|k| !actual.iter().any(|a| a == **k))
+        .collect();
     assert!(
         extra.is_empty() && missing.is_empty(),
         "the /api/state key set diverged from the golden set\nextra keys: {extra:#?}\nmissing keys: {missing:#?}"
     );
-    assert_eq!(actual.len(), golden.len(), "the golden set has repeated paths");
+    assert_eq!(
+        actual.len(),
+        golden.len(),
+        "the golden set has repeated paths"
+    );
 }
 
 fn text(s: &str) -> String {
@@ -297,13 +322,21 @@ fn filled_snapshot() -> NodeSnapshot {
             ifaces: Some(vec![text("br-lan")]),
             ..Default::default()
         },
-        exit: ExitInfo { enabled: true, domains: 1, clients: vec![text("client")] },
+        exit: ExitInfo {
+            enabled: true,
+            domains: 1,
+            clients: vec![text("client")],
+        },
         transport: filled_transport(),
         peers: vec![filled_peer()],
         domains: vec![filled_domain()],
         route: filled_route(),
         ports: filled_ports(),
-        log: LogSummary { tags: vec![text("web")], tail: vec![LogLine::default()], ..Default::default() },
+        log: LogSummary {
+            tags: vec![text("web")],
+            tail: vec![LogLine::default()],
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
@@ -311,10 +344,20 @@ fn filled_snapshot() -> NodeSnapshot {
 fn filled_transport() -> TransportInfo {
     TransportInfo {
         self_path: Some(PathKindView::Direct),
-        relay: RelayInfo { connected: true, url: Some(text("https://relay.example")) },
+        relay: RelayInfo {
+            connected: true,
+            url: Some(text("https://relay.example")),
+        },
         listen_udp: vec![text("0.0.0.0:1")],
-        dht: DhtInfo { joined: true, nodes: 1, last_publish_sec: Some(1) },
-        record: RecordInfo { read_sec: Some(1), ..Default::default() },
+        dht: DhtInfo {
+            joined: true,
+            nodes: 1,
+            last_publish_sec: Some(1),
+        },
+        record: RecordInfo {
+            read_sec: Some(1),
+            ..Default::default()
+        },
         self_addresses: vec![text("192.0.2.1:1")],
         ..Default::default()
     }
@@ -340,12 +383,24 @@ fn filled_domain() -> DomainInfo {
 }
 
 fn filled_route() -> RouteState {
-    let exit = ChosenExit { name: Some(text("exit")), exit: Some(true), country: Some(text("RU")), ..Default::default() };
-    RouteState { state: RouteMode::Exit, exits: vec![exit] }
+    let exit = ChosenExit {
+        name: Some(text("exit")),
+        exit: Some(true),
+        country: Some(text("RU")),
+        ..Default::default()
+    };
+    RouteState {
+        state: RouteMode::Exit,
+        exits: vec![exit],
+    }
 }
 
 fn filled_ports() -> PortsInfo {
-    let opened = OpenedInfo { local: 1, state: text("bind_failed"), error: Some(text("busy")) };
+    let opened = OpenedInfo {
+        local: 1,
+        state: text("bind_failed"),
+        error: Some(text("busy")),
+    };
     let network = NetPort {
         node: text("node"),
         node_name: Some(text("peer")),
@@ -355,5 +410,12 @@ fn filled_ports() -> PortsInfo {
         published: true,
         opened: Some(opened),
     };
-    PortsInfo { published: vec![OwnPort { port: 1, name: text("web"), local: text("ok") }], network: vec![network] }
+    PortsInfo {
+        published: vec![OwnPort {
+            port: 1,
+            name: text("web"),
+            local: text("ok"),
+        }],
+        network: vec![network],
+    }
 }

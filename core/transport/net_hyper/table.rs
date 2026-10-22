@@ -2,9 +2,9 @@
 //! The key includes the other side and whose number names the session, so a foreign peer with the same
 //! number does not end up in somebody else's session.
 
-use crate::net::id::PeerId;
-use crate::net::stream::StreamPair;
-use crate::net_hyper::wire::{REFUSE_SESSION_CLOSED, REFUSE_NO_SESSION};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::StreamPair;
+use crate::transport::net_hyper::wire::{REFUSE_NO_SESSION, REFUSE_SESSION_CLOSED};
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 use tokio::sync::mpsc;
@@ -40,7 +40,11 @@ impl Sessions {
     /// Takes a slot in the session queue before `Ack` is written: the stream is handed over only once the reply has gone out.
     /// `Err` — the refusal code; a closed queue is forgotten.
     pub fn reserve(&self, key: SessionKey) -> Result<mpsc::OwnedPermit<StreamPair>, u32> {
-        let tx = self.lock_stream_queues().get(&key).cloned().ok_or(REFUSE_NO_SESSION)?;
+        let tx = self
+            .lock_stream_queues()
+            .get(&key)
+            .cloned()
+            .ok_or(REFUSE_NO_SESSION)?;
         tx.try_reserve_owned().map_err(|e| {
             if matches!(e, TrySendError::Closed(_)) {
                 self.remove(key);

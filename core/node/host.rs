@@ -6,10 +6,10 @@
 use std::future::Future;
 use std::sync::Arc;
 
-use crate::config_file::RunConfig;
-use crate::node_ctl::NodeCtl;
-use crate::output::{say, NET_NAME};
-use crate::web::{WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::config::config_file::RunConfig;
+use crate::node::node_ctl::NodeCtl;
+use crate::node::output::{say, NET_NAME};
+use crate::web_gui::{WebOptions, WebStartError, DEFAULT_DRAIN};
 
 /// The role of the node page in a launch: what to do if it didn't start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,8 +36,16 @@ impl Host {
         B: FnOnce(RunConfig, Arc<NodeCtl>) -> F,
         F: Future<Output = anyhow::Result<()>>,
     {
-        crate::output::set_log_capacity(run_config.effective_settings.process.log_ring_lines as usize);
-        match crate::web::start_web_page(WebOptions::for_run(&run_config), &run_config, ctl.clone()).await {
+        crate::node::output::set_log_capacity(
+            run_config.effective_settings.process.log_ring_lines as usize,
+        );
+        match crate::web_gui::start_web_page(
+            WebOptions::for_run(&run_config),
+            &run_config,
+            ctl.clone(),
+        )
+        .await
+        {
             Ok(handle) => {
                 let result = body(run_config, ctl).await;
                 handle.shutdown(DEFAULT_DRAIN).await;
@@ -73,10 +81,13 @@ impl Host {
 
 /// A launch error without a key: the page is the only way in, and it is unavailable.
 fn entry_error(e: &WebStartError) -> anyhow::Error {
-    let advice = e.start_failure_advice().map(|a| format!(" {a}")).unwrap_or_default();
+    let advice = e
+        .start_failure_advice()
+        .map(|a| format!(" {a}"))
+        .unwrap_or_default();
     anyhow::anyhow!(
         "{NET_NAME}: the node page is unavailable, and without a network key you can join the network only through it. Reason: {e}.{advice} Or join the network by starting with an invite: {cmd} run --invite \"<invite>\" (network key — --key or MESHTOWN_KEY)",
-        cmd = crate::program_name::program_name()
+        cmd = crate::cli::program_name::program_name()
     )
 }
 

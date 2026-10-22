@@ -21,7 +21,11 @@ fn sections_contiguous() {
         // when: the section changed
         if seen.last() != Some(&f.section()) {
             // then: it was not visited before
-            assert!(!seen.contains(&f.section()), "section {} is split", f.section());
+            assert!(
+                !seen.contains(&f.section()),
+                "section {} is split",
+                f.section()
+            );
             seen.push(f.section());
         }
     }
@@ -31,7 +35,11 @@ fn sections_contiguous() {
 #[test]
 fn secret_only_network_key() {
     // given: rows with the secret flag
-    let secret: Vec<&str> = FIELDS.iter().filter(|f| f.redacted).map(|f| f.field_path).collect();
+    let secret: Vec<&str> = FIELDS
+        .iter()
+        .filter(|f| f.redacted)
+        .map(|f| f.field_path)
+        .collect();
     // then: there is exactly one
     assert_eq!(secret, vec!["network.key"]);
 }
@@ -67,8 +75,8 @@ fn mode_editable_by_mode() {
 #[test]
 fn every_settings_field_has_row() {
     // given: defaults and `all_changed()`; when copying all rows; then the result equals `all_changed()`
-    let full = crate::config_file::test_support::all_changed();
-    let mut got = crate::config_file::Settings::default();
+    let full = crate::config::config_file::test_support::all_changed();
+    let mut got = crate::config::config_file::Settings::default();
     for f in FIELDS {
         f.value.copy_value_between(&full, &mut got);
     }
@@ -78,22 +86,33 @@ fn every_settings_field_has_row() {
 #[test]
 fn all_changed_differs_in_every_row() {
     // given: defaults and `all_changed()`; when `render` of every stored row; then the values differ
-    let (d, full) = (crate::config_file::Settings::default(), crate::config_file::test_support::all_changed());
-    for f in FIELDS.iter().filter(|f| f.value.is_stored_in_settings() && f.field_path != "net.transports") {
-        assert_ne!(f.value.render_for_file(&d), f.value.render_for_file(&full), "{}: the output does not tell them apart", f.field_path);
+    let (d, full) = (
+        crate::config::config_file::Settings::default(),
+        crate::config::config_file::test_support::all_changed(),
+    );
+    for f in FIELDS
+        .iter()
+        .filter(|f| f.value.is_stored_in_settings() && f.field_path != "net.transports")
+    {
+        assert_ne!(
+            f.value.render_for_file(&d),
+            f.value.render_for_file(&full),
+            "{}: the output does not tell them apart",
+            f.field_path
+        );
     }
 }
 
 #[test]
 fn render_read_roundtrip() {
     // given: `all_changed()` with flags turned off (parsing rejects `true`)
-    let mut s = crate::config_file::test_support::all_changed();
+    let mut s = crate::config::config_file::test_support::all_changed();
     s.process.autostart_enabled = false;
     s.process.full_tunnel_enabled = false;
     // when: render and parse
-    let secret = crate::net::NodeSecret::from_bytes(&[7; 32]);
-    let text = crate::config_file::render_config_file(1, 0, &secret, &s);
-    let p = crate::config_file::parse_text(&text).expect("parsing");
+    let secret = crate::transport::net::NodeSecret::from_bytes(&[7; 32]);
+    let text = crate::config::config_file::render_config_file(1, 0, &secret, &s);
+    let p = crate::config::config_file::parse_text(&text).expect("parsing");
     // then: the same settings and zero errors
     assert_eq!(p.field_errors, vec![]);
     assert_eq!(p.settings, s);
@@ -102,12 +121,19 @@ fn render_read_roundtrip() {
 #[test]
 fn debug_lists_every_stored_row() {
     // given: settings with their own network key
-    let mut s = crate::config_file::test_support::all_changed();
+    let mut s = crate::config::config_file::test_support::all_changed();
     s.net.network_key = Some("label--secret-probe-x".into());
     // when: Debug; then every stored path is named, the key value is not
     let text = format!("{s:?}");
     for f in FIELDS.iter().filter(|f| f.value.is_stored_in_settings()) {
-        assert!(text.contains(&format!("{}:", f.field_path)), "missing {}", f.field_path);
+        assert!(
+            text.contains(&format!("{}:", f.field_path)),
+            "missing {}",
+            f.field_path
+        );
     }
-    assert!(!text.contains("secret"), "the key leaked into Debug: {text}");
+    assert!(
+        !text.contains("secret"),
+        "the key leaked into Debug: {text}"
+    );
 }

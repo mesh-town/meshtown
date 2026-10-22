@@ -48,7 +48,11 @@ pub(crate) fn view_from(
             broadcast,
         })
         .collect();
-    IfaceView { addrs, default_ip, forwarding }
+    IfaceView {
+        addrs,
+        default_ip,
+        forwarding,
+    }
 }
 
 /// Local address of a UDP socket "connected" to `192.0.2.1:9` (sends no packets), without a filter.

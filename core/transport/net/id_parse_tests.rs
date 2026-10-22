@@ -59,7 +59,11 @@ mod parse {
         #[test]
         fn uppercase_without_padding_gives_the_same_id() {
             let text = base32_nopad_upper(&hex32(RFC_PUBLIC_HEX));
-            assert_eq!(text.len(), 52, "32 bytes = 52 base32 digits without padding");
+            assert_eq!(
+                text.len(),
+                52,
+                "32 bytes = 52 base32 digits without padding"
+            );
             assert_eq!(
                 text.parse::<PeerId>().ok(),
                 Some(id_from_hex(RFC_PUBLIC_HEX))

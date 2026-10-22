@@ -7,12 +7,12 @@
 //! `STREAMS_LIMIT` per connection, A has exit B chosen as the only one (`route.exits`), so
 //! `DOMAIN` and `outside.test` go through B. The target behind B is `echo_site` (closes the socket after EOF,
 //! otherwise the stream is held by the `splice` grace period) or `silent_site`. The log is read from the ring
-//! `meshtown::output::log_page`. Two tests are slow real-time tests (`#[ignore]`: they wait 5–10 s of real time),
+//! `meshtown_core::node::output::log_page`. Two tests are slow real-time tests (`#[ignore]`: they wait 5–10 s of real time),
 //! they are run with `cargo nextest run --run-ignored only -E 'binary(socks_stream_wait)'`; network calls
 //! run under an external deadline (`NET_LIMIT` 5 s, `DRY_LIMIT` 30 s for the dry ones).
 //! What it does not do: does not check `PeerConnPool::open_peer_stream` alone (that is `core/tests/exit_pool_timeout.rs`) and does not
 //! touch the HTTP proxy — cancelling the wait there is outside the task's boundary.
-//! Links: `meshtown::{socks5, exit::OPEN_STREAM_TIMEOUT, output}`; the harness is
+//! Links: `meshtown_core::{proxy::socks5, exit::OPEN_STREAM_TIMEOUT, node::output}`; the harness is
 //! `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
@@ -21,11 +21,11 @@ mod common;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use meshtown::exit::OPEN_STREAM_TIMEOUT;
-use meshtown::node::RunningNode;
-use meshtown::output;
-use meshtown::route::Route;
-use meshtown::socks5::{self, Target};
+use meshtown_core::exit::OPEN_STREAM_TIMEOUT;
+use meshtown_core::node::output;
+use meshtown_core::node::RunningNode;
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5::{self, Target};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
@@ -44,7 +44,6 @@ mod abandoned_request {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-
     #[ignore = "the max_bidi_streams stream limit has no effect on mem: a limiter in MemConn is needed"]
     async fn abandoned_socks_request_does_not_take_a_stream_later() {
         // given: SOCKS #1 to DOMAIN holds the only exit stream
@@ -103,7 +102,13 @@ mod stream_wait_expired {
             "the refusal came in {took:?}, expected {OPEN_STREAM_TIMEOUT:?}…+3 s"
         );
         then_ring_gets(mark, "route", &["waiting for a stream: 1"], Duration::ZERO).await;
-        then_ring_gets(mark, "socks", &["exit is busy (stream limit)"], Duration::ZERO).await;
+        then_ring_gets(
+            mark,
+            "socks",
+            &["exit is busy (stream limit)"],
+            Duration::ZERO,
+        )
+        .await;
     }
 }
 
@@ -170,7 +175,8 @@ impl Fixture {
         let connected = timeout(limit, socks5::client_connect(self.proxy, domain, 80))
             .await
             .unwrap_or_else(|_| panic!("SOCKS to {domain} did not reach a reply within {limit:?}"));
-        connected.unwrap_or_else(|e| panic!("SOCKS to {domain} without REP_OK within {limit:?}: {e:#}"))
+        connected
+            .unwrap_or_else(|e| panic!("SOCKS to {domain} without REP_OK within {limit:?}: {e:#}"))
     }
 
     /// A SOCKS connection to `domain` that must end with a refusal within `limit`; returns the text
@@ -178,7 +184,9 @@ impl Fixture {
     async fn when_socks_refused(&self, domain: &str, limit: Duration) -> String {
         let connected = timeout(limit, socks5::client_connect(self.proxy, domain, 80))
             .await
-            .unwrap_or_else(|_| panic!("SOCKS to {domain} did not return within {limit:?}: no deadline"));
+            .unwrap_or_else(|_| {
+                panic!("SOCKS to {domain} did not return within {limit:?}: no deadline")
+            });
         match connected {
             Ok(_) => panic!("SOCKS to {domain} went through, but a refusal was expected"),
             Err(e) => format!("{e:#}"),
@@ -193,7 +201,8 @@ impl Fixture {
         stream.write_all(&hello).await.unwrap();
         let mut answer = [0u8; 2];
         stream.read_exact(&mut answer).await.unwrap();
-        let request = socks5::encode_socks5_request(&Target::Domain(domain.to_string()), 80).unwrap();
+        let request =
+            socks5::encode_socks5_request(&Target::Domain(domain.to_string()), 80).unwrap();
         stream.write_all(&request).await.unwrap();
         stream
     }

@@ -6,15 +6,15 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{BoxRecv, BoxSend, NetStack, PeerConn, PeerId, ServiceId, StreamPair};
+use crate::transport::net::{BoxRecv, BoxSend, NetStack, PeerConn, PeerId, ServiceId, StreamPair};
 use anyhow::{anyhow, bail, Result};
 use tokio::sync::{Mutex as AsyncMutex, OnceCell};
 use tokio::time::timeout;
 
-use crate::output::short_peer_id;
+use crate::node::output::short_peer_id;
 
-use super::gateway_memo::GatewayMemo;
 use super::frame::{encode_exit_request, EXIT_PROTOCOL_VERSION};
+use super::gateway_memo::GatewayMemo;
 use super::traffic::{Direction, ExitTraffic};
 
 /// A connection cell for one member: empty until the connection is open; whoever
@@ -84,7 +84,7 @@ impl Drop for OpenBiWaiterGuard {
 impl Default for PeerConnPool {
     /// The exit protocol pool.
     fn default() -> PeerConnPool {
-        PeerConnPool::new(crate::net::service::EXIT)
+        PeerConnPool::new(crate::transport::net::service::EXIT)
     }
 }
 
@@ -103,12 +103,14 @@ impl PeerConnPool {
 
     /// Whether `peer` refused the UDP gateway target recently (then it is not asked again for a while).
     pub fn gateway_refused_recently(&self, peer: PeerId) -> bool {
-        self.gateway.refused_recently(peer, std::time::Instant::now())
+        self.gateway
+            .refused_recently(peer, std::time::Instant::now())
     }
 
     /// Notes that `peer` refused the UDP gateway target.
     pub fn note_gateway_refused(&self, peer: PeerId) {
-        self.gateway.remember_refused(peer, std::time::Instant::now());
+        self.gateway
+            .remember_refused(peer, std::time::Instant::now());
     }
 
     /// Turns on speed counting of the pool's outgoing connections in the `traffic` registry.
@@ -134,7 +136,9 @@ impl PeerConnPool {
         let conn = slot.get_or_try_init(|| self.connect(stack, peer)).await?;
         let _open_bi_waiter = OpenBiWaiterGuard::enter(&self.open_bi_waiter_count);
         match timeout(self.open_timeout, conn.open()).await {
-            Ok(opened) => opened.map_err(|e| anyhow!("stream to {} didn't open: {e}", short_peer_id(&peer))),
+            Ok(opened) => {
+                opened.map_err(|e| anyhow!("stream to {} didn't open: {e}", short_peer_id(&peer)))
+            }
             Err(_) => Err(StreamBusy {
                 peer: short_peer_id(&peer),
                 secs: self.open_timeout.as_secs(),
@@ -172,7 +176,7 @@ impl PeerConnPool {
 
 /// Overload line tag for a pool by service: the `[exit-client]` line exists only for the exit pool.
 fn link_stats_tag(svc: ServiceId) -> Option<&'static str> {
-    (svc == crate::net::service::EXIT).then_some("exit-client")
+    (svc == crate::transport::net::service::EXIT).then_some("exit-client")
 }
 
 /// Starts a watcher for a new connection if this service's pool has a line.
@@ -207,8 +211,8 @@ pub async fn ask_exit_to_connect(
 }
 
 #[cfg(test)]
-#[path = "pool_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "pool_ask_tests.rs"]
 mod ask_tests;
+#[cfg(test)]
+#[path = "pool_tests.rs"]
+mod tests;

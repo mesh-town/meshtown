@@ -4,8 +4,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::*;
-use crate::net::stream::BoxFuture;
-use crate::net::{NetError, NetResult, ReplicaId};
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::{NetError, NetResult, ReplicaId};
 
 /// A replica over a memory one whose `scan` fails while the flag is on.
 struct FlakyScan {
@@ -15,7 +15,10 @@ struct FlakyScan {
 
 impl FlakyScan {
     fn new(inner: Arc<MemReplica>, failing: bool) -> Arc<FlakyScan> {
-        Arc::new(FlakyScan { inner, failing: AtomicBool::new(failing) })
+        Arc::new(FlakyScan {
+            inner,
+            failing: AtomicBool::new(failing),
+        })
     }
 
     fn set_failing(&self, on: bool) {
@@ -80,7 +83,12 @@ fn flaky_setup(failing: bool) -> Flaky {
     rig.given_admit(rig.me, pid(2));
     let flaky = FlakyScan::new(rig.shared.clone(), failing);
     let own = rig.access.own.clone();
-    let access = Arc::new(Access::from_parts(rig.me, flaky.clone(), own, rig.members.clone()));
+    let access = Arc::new(Access::from_parts(
+        rig.me,
+        flaky.clone(),
+        own,
+        rig.members.clone(),
+    ));
     Flaky { rig, flaky, access }
 }
 
@@ -92,8 +100,15 @@ async fn failed_first_recompute_leaves_the_view_pending() {
     let result = f.access.refresh().await;
     // then: it reports the failure and publishes nothing
     assert!(result.is_err(), "the recompute must report the failed scan");
-    assert!(f.rig.view().verdicts().is_none(), "a failed recompute must not publish a view");
-    assert!(tokio::time::timeout(Duration::from_millis(100), f.rig.view().ready()).await.is_err());
+    assert!(
+        f.rig.view().verdicts().is_none(),
+        "a failed recompute must not publish a view"
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), f.rig.view().ready())
+            .await
+            .is_err()
+    );
 }
 
 #[tokio::test]
@@ -103,7 +118,10 @@ async fn next_tick_publishes_the_view_after_a_failed_first_recompute() {
     let task = tokio::spawn(watch_every(f.access.clone(), Duration::from_millis(50)));
     // the first recompute has failed, and the view is still pending
     tokio::time::sleep(Duration::from_millis(450)).await;
-    assert!(f.rig.view().verdicts().is_none(), "nothing may be published while the scan fails");
+    assert!(
+        f.rig.view().verdicts().is_none(),
+        "nothing may be published while the scan fails"
+    );
     // when: the scan works again
     f.flaky.set_failing(false);
     // then: a later tick publishes the view and lets the handshakes continue
@@ -117,12 +135,18 @@ async fn next_tick_publishes_the_view_after_a_failed_first_recompute() {
 async fn failed_recompute_keeps_the_previous_view() {
     // given: a published view
     let f = flaky_setup(false);
-    f.access.refresh().await.expect("the first recompute must work");
+    f.access
+        .refresh()
+        .await
+        .expect("the first recompute must work");
     assert_eq!(f.rig.view().check(pid(2)), Ok(()));
     // when: the scan fails and the recompute runs again
     f.flaky.set_failing(true);
     assert!(f.access.refresh().await.is_err());
     // then: the previous view stays
-    assert!(f.rig.view().verdicts().is_some(), "a failed recompute must not erase the view");
+    assert!(
+        f.rig.view().verdicts().is_some(),
+        "a failed recompute must not erase the view"
+    );
     assert_eq!(f.rig.view().check(pid(2)), Ok(()));
 }

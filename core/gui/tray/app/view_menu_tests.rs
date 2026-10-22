@@ -1,8 +1,8 @@
 //! Tests of `view`: the second menu item (`page_text`, `page_enabled`), the `icon_rgba` raster and the node item (`node_item_text`).
 
 use super::*;
-use crate::app::tray_texts::{START_TEXT, STOP_TEXT};
-use meshtown::output::APP_NAME;
+use crate::gui::tray::app::tray_texts::{START_TEXT, STOP_TEXT};
+use crate::node::output::APP_NAME;
 
 #[test]
 fn open_text_matches_state() {
@@ -107,10 +107,7 @@ mod node_item_text {
 
     #[test]
     fn stopping_shows_progress_and_is_inactive() {
-        assert_eq!(
-            item(NodeState::Stopping),
-            ("Stopping…", false)
-        );
+        assert_eq!(item(NodeState::Stopping), ("Stopping…", false));
     }
 
     #[test]

@@ -4,8 +4,8 @@
 //! `setup_with_views` and the other helpers are there.
 
 use super::*;
-use crate::access::tally::{Exclusion, How, Ledger};
-use crate::access::view::{AccessView, Deny, Side as Refuser, Verdicts};
+use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::view::{AccessView, Deny, Side as Refuser, Verdicts};
 use std::collections::{BTreeMap, BTreeSet};
 
 mod responder {
@@ -35,7 +35,10 @@ mod responder {
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: both fail, the close text says "excluded"
-        assert!(responded.is_err() && initiated.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            responded.is_err() && initiated.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.res.then_closed_with(403, b"excluded");
         then_refusal(&fx.res.ctx, a, Refuser::Me, Deny::Excluded);
         fx.then_nobody_is_member();
@@ -45,12 +48,18 @@ mod responder {
     async fn responder_that_voted_against_initiator_says_only_refused() {
         // given: B voted against A, A is still listed
         let (a, b) = ids();
-        let voted = Verdicts { my_votes: set(&[a]), ..verdicts_with(b, &[a], &[]) };
+        let voted = Verdicts {
+            my_votes: set(&[a]),
+            ..verdicts_with(b, &[a], &[])
+        };
         let fx = setup_with_views(AccessView::open(), view_of(voted)).await;
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: the wire reason does not reveal the vote, B's own record does
-        assert!(responded.is_err() && initiated.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            responded.is_err() && initiated.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.res.then_closed_with(403, b"refused");
         then_refusal(&fx.res.ctx, a, Refuser::Me, Deny::VotedByMe);
     }
@@ -63,7 +72,10 @@ mod responder {
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: B closes with "left"
-        assert!(responded.is_err() && initiated.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            responded.is_err() && initiated.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.res.then_closed_with(403, b"left");
         then_refusal(&fx.res.ctx, a, Refuser::Me, Deny::Left);
     }
@@ -108,7 +120,10 @@ mod initiator {
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: A refuses with "not admitted"
-        assert!(initiated.is_err() && responded.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_err() && responded.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.ini.then_closed_with(403, b"not admitted");
         then_refusal(&fx.ini.ctx, b, Refuser::Me, Deny::Unlisted);
         fx.then_nobody_is_member();
@@ -122,7 +137,10 @@ mod initiator {
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: A closes with "left"
-        assert!(initiated.is_err() && responded.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_err() && responded.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.ini.then_closed_with(403, b"left");
         then_refusal(&fx.ini.ctx, b, Refuser::Me, Deny::Left);
     }
@@ -146,8 +164,14 @@ mod listed {
         fx.ini.then_up_for(b);
         fx.res.then_up_for(a);
         // then: no refusal was noted anywhere
-        assert!(fx.ini.ctx.members.access().refusals().is_empty(), "A noted a refusal");
-        assert!(fx.res.ctx.members.access().refusals().is_empty(), "B noted a refusal");
+        assert!(
+            fx.ini.ctx.members.access().refusals().is_empty(),
+            "A noted a refusal"
+        );
+        assert!(
+            fx.res.ctx.members.access().refusals().is_empty(),
+            "B noted a refusal"
+        );
     }
 }
 
@@ -167,7 +191,11 @@ fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {
 
 /// Verdicts of `me`: `listed` are admitted, `excluded` are admitted and then excluded by votes; no votes, no blocks.
 fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts {
-    let by_votes = || Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() };
+    let by_votes = || Exclusion {
+        how: How::Votes,
+        at_micros: 10,
+        voters: Vec::new(),
+    };
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
@@ -175,7 +203,13 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
         need: 1,
         admissions: BTreeMap::new(),
     };
-    Verdicts { me, ledger: Arc::new(ledger), my_votes: BTreeSet::new(), blocks: BTreeSet::new(), reasons: Default::default() }
+    Verdicts {
+        me,
+        ledger: Arc::new(ledger),
+        my_votes: BTreeSet::new(),
+        blocks: BTreeSet::new(),
+        reasons: Default::default(),
+    }
 }
 
 /// A view that already holds `v`.
@@ -210,7 +244,10 @@ impl Fixture {
     }
 
     /// A initiates over `ini_conn` (a wrapper of A's connection), B responds on its own — simultaneously.
-    async fn when_handshaking_over(&self, ini_conn: &Arc<dyn PeerConn>) -> (anyhow::Result<()>, anyhow::Result<()>) {
+    async fn when_handshaking_over(
+        &self,
+        ini_conn: &Arc<dyn PeerConn>,
+    ) -> (anyhow::Result<()>, anyhow::Result<()>) {
         tokio::join!(
             must_finish(initiate(ini_conn, &self.ini.ctx)),
             must_finish(respond(&self.res.conn, &self.res.ctx)),

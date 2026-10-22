@@ -3,8 +3,8 @@
 //! `#[cfg(test)] #[path = "sources_tests.rs"] mod tests;`.
 
 use super::*;
-use crate::config_file::test_support::{scratch, zero_secret_b64};
-use crate::config_file::FILE_NAME;
+use crate::config::config_file::test_support::{scratch, zero_secret_b64};
+use crate::config::config_file::FILE_NAME;
 
 const NOW: u64 = 1_790_278_867;
 const PATH: &str = "/tmp/x.json";
@@ -90,7 +90,8 @@ mod moved_aside {
     fn says_created_anew() {
         let report = report_with(FileState::Invalid, "anything");
         let aside = PathBuf::from("/tmp/x.json.bad-1");
-        let file_summary = broken_file_summary(Path::new(PATH), FileState::Invalid, &report, Some(&aside));
+        let file_summary =
+            broken_file_summary(Path::new(PATH), FileState::Invalid, &report, Some(&aside));
         assert_eq!(
             file_summary,
             "/tmp/x.json (created anew; the previous file was set aside as /tmp/x.json.bad-1)"
@@ -119,9 +120,16 @@ mod retired_keys_in_file {
         let outcome = outcome.expect("prepare_file");
         assert_eq!(
             outcome.retired_paths,
-            vec!["config.transport.udp_port", "config.transport.loss_time_threshold"]
+            vec![
+                "config.transport.udp_port",
+                "config.transport.loss_time_threshold"
+            ]
         );
-        assert!(outcome.unknown_paths.is_empty(), "unknown fields: {:?}", outcome.unknown_paths);
+        assert!(
+            outcome.unknown_paths.is_empty(),
+            "unknown fields: {:?}",
+            outcome.unknown_paths
+        );
     }
 }
 

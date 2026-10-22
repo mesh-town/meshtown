@@ -4,12 +4,12 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::checks::CheckView;
-use crate::geoip::Country;
 use crate::node::RunningNode;
-use crate::ports::PortView;
+use crate::ports_sharing::PortView;
+use crate::site_checks::checks::CheckView;
+use crate::site_checks::geoip::Country;
 
 use super::collect::read_doc_parts;
 
@@ -43,9 +43,7 @@ pub(super) struct Stamp {
 pub(super) fn should_read(prev: Option<&Stamp>, now: &Stamp) -> bool {
     let Some(p) = prev else { return true };
     let age = now.at.saturating_duration_since(p.at);
-    now.local != p.local
-        || (now.remote != p.remote && age >= REMOTE_MIN_AGE)
-        || age >= MAX_AGE
+    now.local != p.local || (now.remote != p.remote && age >= REMOTE_MIN_AGE) || age >= MAX_AGE
 }
 
 /// Cache of one `attach`: a complete read is stored here, a partial one (`partial`) is not.
@@ -56,12 +54,26 @@ pub(crate) struct DocCache {
 
 impl DocCache {
     /// Document parts and the `partial` flag; the counters are captured before the document is read.
-    pub(super) async fn read_doc_parts_cached(&mut self, node: &RunningNode, now_unix: u64) -> (DocParts, bool) {
+    pub(super) async fn read_doc_parts_cached(
+        &mut self,
+        node: &RunningNode,
+        now_unix: u64,
+    ) -> (DocParts, bool) {
         let (local, remote) = node.doc_changes.local_and_remote_counts();
-        let now = Stamp { local, remote, at: Instant::now() };
+        let now = Stamp {
+            local,
+            remote,
+            at: Instant::now(),
+        };
         let prev = self.held.as_ref().map(|(s, _)| s);
         if !should_read(prev, &now) {
-            return (self.held.as_ref().map(|(_, p)| p.clone()).unwrap_or_default(), false);
+            return (
+                self.held
+                    .as_ref()
+                    .map(|(_, p)| p.clone())
+                    .unwrap_or_default(),
+                false,
+            );
         }
         let (parts, read_complete) = read_doc_parts(node, now_unix).await;
         self.store(now, &parts, read_complete);

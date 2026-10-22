@@ -9,8 +9,8 @@
 //! classification, `probe.rs` — network steps and building the record.
 //! What it doesn't do: it doesn't use the system resolver, doesn't merge results of different nodes, doesn't build
 //! a route, doesn't parse a spoofed certificate, doesn't check AAAA records.
-//! Links: the resolver is `crate::doh`, the transport is `crate::http_min`; the record is published by
-//! `crate::checks`.
+//! Links: the resolver is `crate::site_checks::doh`, the transport is `crate::site_checks::http_min`; the record is published by
+//! `crate::site_checks::checks`.
 
 mod classify;
 mod config;
@@ -21,7 +21,8 @@ mod verdict;
 
 pub use classify::classify;
 pub use config::{
-    CheckConfig, DEFAULT_USER_AGENT, FREEZE_MAX_BYTES, FREEZE_MIN_BYTES, MAX_BODY_BYTES, CHECK_RECORD_VERSION,
+    CheckConfig, CHECK_RECORD_VERSION, DEFAULT_USER_AGENT, FREEZE_MAX_BYTES, FREEZE_MIN_BYTES,
+    MAX_BODY_BYTES,
 };
 pub use probe::check_domain;
 pub use record::CheckRecord;

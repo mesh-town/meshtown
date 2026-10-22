@@ -12,8 +12,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use meshtown::config_file::{self, CliOverrides, ConfigSource, PathRule, RunConfig};
-use meshtown::web::{self, DEFAULT_DRAIN, WebHandle, WebOptions};
+use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule, RunConfig};
+use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
 use serde_json::Value;
 
 #[path = "test_node.rs"]
@@ -30,11 +30,7 @@ pub(crate) fn scratch(tag: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .subsec_nanos();
-    let dir = std::env::temp_dir().join(format!(
-        "mesh-web-{tag}-{}-{}",
-        std::process::id(),
-        nanos
-    ));
+    let dir = std::env::temp_dir().join(format!("mesh-web-{tag}-{}-{}", std::process::id(), nanos));
     std::fs::create_dir_all(&dir).expect("scratch: creating the temporary directory");
     dir
 }
@@ -48,7 +44,8 @@ pub(crate) fn cleanup(dir: &Path) {
         let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o755));
         if let Ok(entries) = std::fs::read_dir(dir) {
             for entry in entries.flatten() {
-                let _ = std::fs::set_permissions(entry.path(), std::fs::Permissions::from_mode(0o644));
+                let _ =
+                    std::fs::set_permissions(entry.path(), std::fs::Permissions::from_mode(0o644));
             }
         }
     }
@@ -84,9 +81,9 @@ pub(crate) async fn start_web(dir: &Path, run: &RunConfig) -> (WebHandle, Arc<Te
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let handle = web::start_web_page(opts, run, node.clone())
+    let handle = web_gui::start_web_page(opts, run, node.clone())
         .await
-        .expect("start_web: web::start must come up");
+        .expect("start_web: web_gui::start must come up");
     (handle, node)
 }
 
@@ -99,7 +96,10 @@ pub(crate) struct Resp {
 
 /// The index of the byte right after `\r\n\r\n`, if there is one.
 fn find_header_end(bytes: &[u8]) -> Option<usize> {
-    bytes.windows(4).position(|w| w == b"\r\n\r\n").map(|i| i + 4)
+    bytes
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|i| i + 4)
 }
 
 pub(crate) fn parse_response(raw_bytes: &[u8]) -> Resp {
@@ -135,7 +135,9 @@ pub(crate) fn raw(port: u16, bytes: &[u8]) -> Vec<u8> {
 /// `raw` with an explicit timeout: requests with a password hash under load don't fit in 5 s.
 pub(crate) fn raw_within(port: u16, bytes: &[u8], limit: Duration) -> Vec<u8> {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("raw: connect");
-    stream.set_read_timeout(Some(Duration::from_millis(300))).ok();
+    stream
+        .set_read_timeout(Some(Duration::from_millis(300)))
+        .ok();
     let _ = stream.write_all(bytes);
     let deadline = Instant::now() + limit;
     let mut out = Vec::new();
@@ -196,12 +198,34 @@ pub(crate) fn read_one_response(stream: &mut TcpStream) -> Resp {
 /// Headers with an empty value ("Host", "") / ("Origin", "") are a signal to "not send this
 /// header at all", suppressing the auto-add (used to really omit
 /// `Origin`, rather than substitute its value).
-pub(crate) fn http(port: u16, method: &str, path: &str, extra_headers: &[(&str, &str)], body: &[u8]) -> Resp {
-    http_within(port, method, path, extra_headers, body, Duration::from_secs(5))
+pub(crate) fn http(
+    port: u16,
+    method: &str,
+    path: &str,
+    extra_headers: &[(&str, &str)],
+    body: &[u8],
+) -> Resp {
+    http_within(
+        port,
+        method,
+        path,
+        extra_headers,
+        body,
+        Duration::from_secs(5),
+    )
 }
 
-pub(crate) fn http_within(port: u16, method: &str, path: &str, extra_headers: &[(&str, &str)], body: &[u8], limit: Duration) -> Resp {
-    let has_host = extra_headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("host"));
+pub(crate) fn http_within(
+    port: u16,
+    method: &str,
+    path: &str,
+    extra_headers: &[(&str, &str)],
+    body: &[u8],
+    limit: Duration,
+) -> Resp {
+    let has_host = extra_headers
+        .iter()
+        .any(|(k, _)| k.eq_ignore_ascii_case("host"));
     let has_origin = extra_headers
         .iter()
         .any(|(k, _)| k.eq_ignore_ascii_case("origin"));
@@ -234,7 +258,13 @@ pub(crate) fn http_within(port: u16, method: &str, path: &str, extra_headers: &[
 
 /// A wrapper over `http` for the JSON API: the token in `X-Meshtown-Token`, the body and the response are JSON (an empty response body
 /// → `Value::Null`).
-pub(crate) fn api(port: u16, token: &str, method: &str, path: &str, json: Option<Value>) -> (u16, Value) {
+pub(crate) fn api(
+    port: u16,
+    token: &str,
+    method: &str,
+    path: &str,
+    json: Option<Value>,
+) -> (u16, Value) {
     let body = json
         .as_ref()
         .map(|v| serde_json::to_vec(v).expect("api: serializing the body"))

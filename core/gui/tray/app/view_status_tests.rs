@@ -1,7 +1,7 @@
 //! Tests of `view`: the tray status line / tooltip — `node_status_menu_line` by `NodeState`, `page`, color and route.
 
 use super::*;
-use meshtown::output::NET_NAME;
+use crate::node::output::NET_NAME;
 
 // `tooltip()` was removed (the tooltip = `node_status_menu_line`) — its replacement is below, `mod status_line`.
 
@@ -253,7 +253,10 @@ mod status_line {
     }
 
     fn assert_names_network(text: &str) {
-        let text = text.replace(&format!("{NET_NAME} network"), &format!("network {NET_NAME}"));
+        let text = text.replace(
+            &format!("{NET_NAME} network"),
+            &format!("network {NET_NAME}"),
+        );
         for word in ["network"] {
             for (at, _) in text.match_indices(word) {
                 let rest = &text[at + word.len()..];

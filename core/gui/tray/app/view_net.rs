@@ -1,8 +1,8 @@
 //! The reason for a grey icon when the page is ready: what the snapshot says about the node's network, and the menu words.
 
 use super::NetLink;
-use crate::app::snapshot::{TrayNodeStatus, TraySnapshot};
-use crate::app::tray_texts::{
+use crate::gui::tray::app::snapshot::{TrayNodeStatus, TraySnapshot};
+use crate::gui::tray::app::tray_texts::{
     net_connecting_status_text, net_lost_status_text, net_none_status_text, page_join_text,
     page_open_text,
 };

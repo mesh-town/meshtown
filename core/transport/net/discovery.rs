@@ -1,9 +1,9 @@
 //! Source of node information (discovery plugin): publishes its own address and returns foreign ones.
 //! Merging of sources is in `discovery_mux`, only the trait is here.
 
-use crate::net::addr::PeerAddr;
-use crate::net::error::NetResult;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::addr::PeerAddr;
+use crate::transport::net::error::NetResult;
+use crate::transport::net::stream::BoxFuture;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 

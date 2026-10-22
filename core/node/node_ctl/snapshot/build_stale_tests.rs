@@ -21,7 +21,11 @@ fn has(peers: &[PeerInfo], id: PeerId) -> bool {
 }
 
 fn row(peers: &[PeerInfo], id: PeerId) -> PeerInfo {
-    peers.iter().find(|p| p.id_full == id.to_string()).unwrap().clone()
+    peers
+        .iter()
+        .find(|p| p.id_full == id.to_string())
+        .unwrap()
+        .clone()
 }
 
 #[test]
@@ -46,7 +50,12 @@ fn exactly_seven_days_shown() {
 fn returned_by_fresh_check_shown() {
     let (mut inputs, x) = inputs_with_cache(8 * D);
     inputs.domain_names = vec!["a.example".to_string()];
-    inputs.check_views = vec![view("a.example", x, T, Some(record_at(CheckVerdict::Ok, T - 60)))];
+    inputs.check_views = vec![view(
+        "a.example",
+        x,
+        T,
+        Some(record_at(CheckVerdict::Ok, T - 60)),
+    )];
     assert!(has(&build_peers(&inputs), x));
 }
 

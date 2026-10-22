@@ -6,10 +6,12 @@
 
 use std::collections::BTreeSet;
 
-use crate::membership::Members;
-use crate::net::PeerId;
-use crate::output::short_peer_id;
-use crate::web::{AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo};
+use crate::members::membership::Members;
+use crate::node::output::short_peer_id;
+use crate::transport::net::PeerId;
+use crate::web_gui::{
+    AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
+};
 
 use super::tally::How;
 use super::view::{Deny, Refusal, Side, Verdicts};
@@ -30,7 +32,11 @@ fn all_ids(v: &Verdicts, members: &Members, refusals: &[(PeerId, Refusal)]) -> B
 
 fn status_of(v: &Verdicts, p: &PeerId) -> &'static str {
     let waiting = v.ledger.admissions.contains_key(p);
-    match (v.ledger.excluded.contains_key(p), v.ledger.admitted.contains(p), waiting) {
+    match (
+        v.ledger.excluded.contains_key(p),
+        v.ledger.admitted.contains(p),
+        waiting,
+    ) {
         (true, _, _) => "excluded",
         (false, true, _) => "member",
         (false, false, true) => "pending",
@@ -43,7 +49,11 @@ fn full(ids: &[PeerId]) -> Vec<String> {
 }
 
 fn vote_of(v: &Verdicts, p: &PeerId) -> Option<VoteInfo> {
-    let pending = v.ledger.pending.get(p).filter(|_| status_of(v, p) == "member")?;
+    let pending = v
+        .ledger
+        .pending
+        .get(p)
+        .filter(|_| status_of(v, p) == "member")?;
     let proposed_by = pending.voters.first()?.to_string();
     Some(VoteInfo {
         votes: pending.voters.len(),
@@ -68,7 +78,9 @@ fn admission_of(v: &Verdicts, p: &PeerId) -> Option<AdmissionInfo> {
 
 /// True when another node turned this one away as not admitted.
 fn refused_as_unlisted(refusals: &[(PeerId, Refusal)]) -> bool {
-    refusals.iter().any(|(_, r)| r.side == Side::Them && r.deny == Deny::Unlisted)
+    refusals
+        .iter()
+        .any(|(_, r)| r.side == Side::Them && r.deny == Deny::Unlisted)
 }
 
 /// This node's own request, shown while it waits and others have turned it away.
@@ -82,7 +94,11 @@ fn excluded_of(v: &Verdicts, p: &PeerId) -> Option<ExcludedInfo> {
         How::Votes => "votes",
         How::Left => "left",
     };
-    Some(ExcludedInfo { how, at_unix: e.at_micros / 1_000_000, voters: full(&e.voters) })
+    Some(ExcludedInfo {
+        how,
+        at_unix: e.at_micros / 1_000_000,
+        voters: full(&e.voters),
+    })
 }
 
 fn refusal_of(refusals: &[(PeerId, Refusal)], p: &PeerId) -> Option<RefusalInfo> {
@@ -91,10 +107,20 @@ fn refusal_of(refusals: &[(PeerId, Refusal)], p: &PeerId) -> Option<RefusalInfo>
         Side::Me => "me",
         Side::Them => "them",
     };
-    Some(RefusalInfo { side, reason: r.deny.code(), at_unix: r.at_unix })
+    Some(RefusalInfo {
+        side,
+        reason: r.deny.code(),
+        at_unix: r.at_unix,
+    })
 }
 
-fn row(v: &Verdicts, members: &Members, refusals: &[(PeerId, Refusal)], online: &BTreeSet<PeerId>, p: PeerId) -> MemberRow {
+fn row(
+    v: &Verdicts,
+    members: &Members,
+    refusals: &[(PeerId, Refusal)],
+    online: &BTreeSet<PeerId>,
+    p: PeerId,
+) -> MemberRow {
     MemberRow {
         id: short_peer_id(&p),
         id_full: p.to_string(),
@@ -120,7 +146,13 @@ fn order_key(r: &MemberRow) -> (u8, u8, bool, String, String) {
         (_, "unlisted") => 3,
         _ => 4,
     };
-    (rank, 0, r.name.is_none(), r.name.clone().unwrap_or_default(), r.id_full.clone())
+    (
+        rank,
+        0,
+        r.name.is_none(),
+        r.name.clone().unwrap_or_default(),
+        r.id_full.clone(),
+    )
 }
 
 fn count_status(rows: &[MemberRow], status: &str) -> usize {
@@ -145,7 +177,10 @@ pub fn members_reply(
     changed: Option<bool>,
 ) -> MembersReply {
     let online: BTreeSet<PeerId> = members.ids().into_iter().collect();
-    let mut rows: Vec<MemberRow> = all_ids(v, members, refusals).into_iter().map(|p| row(v, members, refusals, &online, p)).collect();
+    let mut rows: Vec<MemberRow> = all_ids(v, members, refusals)
+        .into_iter()
+        .map(|p| row(v, members, refusals, &online, p))
+        .collect();
     rows.sort_by_key(order_key);
     let me_admission = me_admission_of(v, refusals);
     MembersReply {
@@ -173,7 +208,9 @@ pub struct VoteSummary {
 /// True for a row whose confirmation this node can still add: a listed node with a pending vote that is
 /// neither mine nor proposed by me, and not my own row.
 fn awaits_my_vote(r: &MemberRow, me: &str) -> bool {
-    let Some(vote) = r.vote.as_ref().filter(|_| r.status == "member") else { return false };
+    let Some(vote) = r.vote.as_ref().filter(|_| r.status == "member") else {
+        return false;
+    };
     !vote.mine && vote.proposed_by != me && r.id_full != me
 }
 
@@ -185,9 +222,22 @@ fn awaits_my_confirmation(r: &MemberRow) -> bool {
 
 /// Counts the rows that wait for this node's confirmation.
 pub fn vote_summary(r: &MembersReply) -> VoteSummary {
-    let voting = r.members.iter().filter(|row| awaits_my_vote(row, &r.me)).count() as u64;
-    let admitting = r.members.iter().filter(|row| awaits_my_confirmation(row)).count() as u64;
-    VoteSummary { voting, me_excluded: r.me_excluded, admitting, me_pending: r.me_pending }
+    let voting = r
+        .members
+        .iter()
+        .filter(|row| awaits_my_vote(row, &r.me))
+        .count() as u64;
+    let admitting = r
+        .members
+        .iter()
+        .filter(|row| awaits_my_confirmation(row))
+        .count() as u64;
+    VoteSummary {
+        voting,
+        me_excluded: r.me_excluded,
+        admitting,
+        me_pending: r.me_pending,
+    }
 }
 
 #[cfg(test)]

@@ -3,9 +3,9 @@
 //! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
-mod lossy_link;
 #[path = "common/lossy_link.rs"]
 mod common;
+mod lossy_link;
 
 use std::time::Duration;
 
@@ -126,10 +126,7 @@ async fn bottleneck_passes_about_rate_and_tail_drops_excess() {
     let (first, last) = (got.first().unwrap(), got.last().unwrap());
     let bytes: usize = got.iter().skip(1).map(|a| a.len).sum();
     let mbit = bytes as f64 * 8.0 / last.at.duration_since(first.at).as_secs_f64() / 1e6;
-    assert!(
-        (8.5..=11.5).contains(&mbit),
-        "throughput {mbit:.2} Mbit/s"
-    );
+    assert!((8.5..=11.5).contains(&mbit), "throughput {mbit:.2} Mbit/s");
     assert!(
         got.windows(2).all(|w| w[0].seq < w[1].seq),
         "order violated"

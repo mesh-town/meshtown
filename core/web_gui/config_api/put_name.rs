@@ -5,7 +5,7 @@
 
 use serde_json::Value;
 
-use crate::words::random_node_name;
+use crate::members::words::random_node_name;
 
 /// `node.name` in the merged document: `null` is removed (as it was before); a string empty after `trim`
 /// is replaced with [`random_node_name`]; a non-empty string and a generator failure are left alone.

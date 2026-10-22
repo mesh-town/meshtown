@@ -1,12 +1,12 @@
 //! Poller tests: a foreign node already running on the port — "Quit", the signal, "Stop Mesh Town", a node change (`poller.rs`).
 
-use super::*;
 use super::test_support::*;
+use super::*;
 
 use std::time::Duration;
 
-use crate::app::local_api::{self, Reply};
-use crate::app::local_api::tests::{start_fake, temp_dir, FAKE_TOKEN};
+use crate::gui::tray::app::local_api::tests::{start_fake, temp_dir, FAKE_TOKEN};
+use crate::gui::tray::app::local_api::{self, Reply};
 
 use super::super::run::read_token;
 use super::super::views::STOPPING_VIEW;

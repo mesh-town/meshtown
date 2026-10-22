@@ -40,7 +40,7 @@ pub struct FileReport {
     pub field_errors: Vec<FieldError>,
     pub rev: u64,                  // 0 — there is no file on disk
     pub persistent_identity: bool, // the secret is stored in the file
-    pub identity_declined: bool,   // true only with `--no-config`: a temporary identity by request, not a failure
+    pub identity_declined: bool, // true only with `--no-config`: a temporary identity by request, not a failure
     /// The file was deliberately not overwritten: it parsed, but overwriting would lose data, and
     /// a `.bad-…` copy could not be made (or its name is taken). Unlike an ordinary write failure,
     /// the file is intact here and may hold the network key, so it must not be deleted.

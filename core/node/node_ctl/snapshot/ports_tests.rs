@@ -2,9 +2,9 @@
 
 use super::*;
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
-use crate::ports::{Audience, PortRecord};
+use crate::ports_sharing::{Audience, PortRecord};
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()

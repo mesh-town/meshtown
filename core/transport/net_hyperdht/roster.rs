@@ -2,9 +2,11 @@
 
 use super::keys::RosterKeys;
 use super::store::RecordStore;
-use crate::net::{NetError, NetResult, PeerId};
-use crate::net_mainline::record::{merge_keys, open_as, seal, Roster, RECORD_VERSION_KEYS};
-use crate::network_key::fill_random;
+use crate::members::network_key::fill_random;
+use crate::transport::net::{NetError, NetResult, PeerId};
+use crate::transport::net_mainline::record::{
+    merge_keys, open_as, seal, Roster, RECORD_VERSION_KEYS,
+};
 
 /// Next `seq`: greater than the previous one and not less than the current milliseconds.
 pub(super) fn next_seq(prev: Option<u64>, now_ms: u64) -> u64 {

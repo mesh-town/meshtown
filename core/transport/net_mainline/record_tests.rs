@@ -1,9 +1,9 @@
 //! Tests of the format and encryption of the DHT member record (`peer_record.rs`).
 
 use super::*;
-use crate::addr_order::PrimaryIps;
-use crate::net::NodeSecret;
-use crate::net::endpoint_shim::{EndpointAddr, TransportAddr};
+use crate::transport::addr_order::PrimaryIps;
+use crate::transport::net::endpoint_shim::{EndpointAddr, TransportAddr};
+use crate::transport::net::NodeSecret;
 
 #[test]
 fn seal_open_roundtrip() {
@@ -100,10 +100,7 @@ fn build_merge_prune_and_cap_input() -> (RosterEntry, Roster) {
 /// Checks the result of `merge()`: our own entry is first and the only one, the TTL-expired one is gone,
 /// the number of entries and addresses is within limits, the order by `seen_unix` is descending.
 fn assert_merge_dropped_self_stale_and_capped(merged: &Roster, me: &RosterEntry) {
-    assert_eq!(
-        merged.entries[0].id, me.id,
-        "our own entry must be first"
-    );
+    assert_eq!(merged.entries[0].id, me.id, "our own entry must be first");
     assert!(merged.entries.len() <= MAX_ADDR_ROSTER_ENTRIES);
     assert!(merged
         .entries
@@ -224,12 +221,7 @@ mod entry_from_addr_with_route {
         let entry = entry_from_addr(&from_endpoint_addr(&addr), 42, &PrimaryIps::NONE);
         // then
         assert_eq!(entry.addrs.len(), 4, "{:?}", entry.addrs);
-        assert_eq!(
-            entry.addrs[3],
-            sa("100.64.0.7:7000"),
-            "{:?}",
-            entry.addrs
-        );
+        assert_eq!(entry.addrs[3], sa("100.64.0.7:7000"), "{:?}", entry.addrs);
     }
 
     #[test]
@@ -261,10 +253,10 @@ mod entry_from_addr_with_route {
 
 // --- converters over PeerAddr ---
 
-use crate::net::{AddrHint, PeerAddr, RelayRef};
-use crate::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::{AddrHint, PeerAddr, RelayRef};
 
-fn pid(n: u8) -> crate::net::PeerId {
+fn pid(n: u8) -> crate::transport::net::PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()
 }
 
@@ -310,7 +302,7 @@ fn entry_to_peer_bad_relay_keeps_text() {
 fn entry_to_peer_bad_id_is_error() {
     let bad = (0..=255u8)
         .map(|n| [n; 32])
-        .find(|b| crate::net::PeerId::from_bytes(b).is_err())
+        .find(|b| crate::transport::net::PeerId::from_bytes(b).is_err())
         .expect("there is an id off the curve");
     let mut e = sample_entry();
     e.id = bad;

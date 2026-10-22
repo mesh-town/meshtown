@@ -1,8 +1,8 @@
 //! Tests for the replica wire: slicing into batches and the broadcast body.
 
 use super::*;
-use crate::net::id::NodeSecret;
-use crate::sync::replica::entry::seal;
+use crate::members::sync::replica::entry::seal;
+use crate::transport::net::id::NodeSecret;
 
 fn rid() -> ReplicaId {
     ReplicaId([1; 32])

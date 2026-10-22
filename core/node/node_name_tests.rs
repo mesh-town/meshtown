@@ -5,11 +5,11 @@
 
 use std::collections::HashMap;
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
-use crate::membership::Members;
-use crate::words::{default_node_name, MAX_NAME_BYTES};
+use crate::members::membership::Members;
+use crate::members::words::{default_node_name, MAX_NAME_BYTES};
 
 mod parse_node_name {
     use super::*;
@@ -48,7 +48,11 @@ mod parse_node_name {
         fn exactly_max_name_bytes_is_accepted() {
             // given 64 four-byte characters: exactly `MAX_NAME_BYTES` bytes, 64 characters
             let name = "😀".repeat(64);
-            assert_eq!(name.len(), MAX_NAME_BYTES, "fixture: exactly the byte limit");
+            assert_eq!(
+                name.len(),
+                MAX_NAME_BYTES,
+                "fixture: exactly the byte limit"
+            );
 
             // when / then
             assert_eq!(parse_node_name(name.as_bytes()), Some(name));
@@ -244,7 +248,10 @@ mod names_to_apply {
             let applied = fx.when_read(&[(a, "name")]);
 
             // then there is nothing to apply
-            assert!(applied.is_empty(), "the same name is applied again: {applied:?}");
+            assert!(
+                applied.is_empty(),
+                "the same name is applied again: {applied:?}"
+            );
         }
 
         #[test]
@@ -293,7 +300,10 @@ mod names_to_apply {
             let applied = fx.when_read(&[]);
 
             // then nothing is applied, the name in `Members` stays the same
-            assert!(applied.is_empty(), "a vanished author is touched: {applied:?}");
+            assert!(
+                applied.is_empty(),
+                "a vanished author is touched: {applied:?}"
+            );
             assert_eq!(fx.members.name_of(a), Some("name".to_string()));
         }
 
@@ -309,7 +319,10 @@ mod names_to_apply {
             let applied = fx.when_read(&[(a, "name")]);
 
             // then `seen` did not forget the vanishing — there is nothing to apply
-            assert!(applied.is_empty(), "the name was applied again: {applied:?}");
+            assert!(
+                applied.is_empty(),
+                "the name was applied again: {applied:?}"
+            );
         }
     }
 }
@@ -332,7 +345,7 @@ fn setup() -> Fixture {
 }
 
 impl Fixture {
-/// One watcher tick: `names_to_apply` over the read `(author, name)` pairs.
+    /// One watcher tick: `names_to_apply` over the read `(author, name)` pairs.
     fn when_read(&mut self, read: &[(PeerId, &str)]) -> Vec<(PeerId, String)> {
         let read = read.iter().map(|(id, n)| (*id, n.to_string())).collect();
         names_to_apply(&mut self.seen, read, self.me, &self.members)

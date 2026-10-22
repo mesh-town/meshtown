@@ -48,7 +48,7 @@ fn generated_tail_has_two_pool_words_and_a_chunk() {
         assert!(is_tail_word(parts[0]), "{t}");
         assert!(is_tail_word(parts[1]), "{t}");
         assert!(is_tail_chunk(parts[TAIL_WORDS]), "{t}");
-        assert_eq!(crate::network_key::normalize_dashed(&t), t);
+        assert_eq!(crate::members::network_key::normalize_dashed(&t), t);
     }
 }
 

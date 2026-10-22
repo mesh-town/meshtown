@@ -1,9 +1,9 @@
 //! Tests for starting the `tray` subcommand: the child's arguments, the token path, the link, the runtime check (`run.rs`).
 
 use super::*;
-use crate::app::proxy_state::ProxyOff;
+use crate::gui::tray::app::proxy_state::ProxyOff;
 
-use crate::app::local_api::tests::temp_dir;
+use crate::gui::tray::app::local_api::tests::temp_dir;
 
 #[derive(clap::Parser)]
 struct Cli {
@@ -58,7 +58,9 @@ fn child_args_order() {
 
 #[test]
 fn web_port_zero_rejected() {
-    let err = parse(&["--web-port", "0"]).err().expect("0 is not accepted");
+    let err = parse(&["--web-port", "0"])
+        .err()
+        .expect("0 is not accepted");
     assert_eq!(err.exit_code(), 2);
     assert!(parse(&["--web-port", "65535"]).is_ok());
 }
@@ -82,7 +84,10 @@ fn link_for_reads_token_file() {
     std::fs::write(&path, "TOKEN\n").unwrap();
     let want = format!("http://127.0.0.1:7070/?token={}", "TOKEN");
     let got = page_url_for(7070, &path);
-    assert!(got.as_deref() == Some(want.as_str()), "the link did not match");
+    assert!(
+        got.as_deref() == Some(want.as_str()),
+        "the link did not match"
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -121,8 +126,14 @@ fn socks_without_flags_follows_settings() {
     assert_eq!(proxy_plan_for(1080, true, &[]), Ok(1080));
     let other = os(&["--key", "K", "--no-checks"]);
     assert_eq!(proxy_plan_for(1090, true, &other), Ok(1090));
-    assert_eq!(proxy_plan_for(1080, false, &[]), Err(ProxyOff::DisabledInSettings));
-    assert_eq!(proxy_plan_for(1090, false, &other), Err(ProxyOff::DisabledInSettings));
+    assert_eq!(
+        proxy_plan_for(1080, false, &[]),
+        Err(ProxyOff::DisabledInSettings)
+    );
+    assert_eq!(
+        proxy_plan_for(1090, false, &other),
+        Err(ProxyOff::DisabledInSettings)
+    );
 }
 
 #[test]
@@ -142,15 +153,24 @@ fn socks_port_flag_beats_settings_port() {
 #[test]
 fn socks_port_flag_does_not_enable_the_proxy() {
     // Without `--socks` the settings file decides: the port is named, but the proxy stays off as it was.
-    assert_eq!(proxy_plan_for(1080, false, &os(&["--socks-port", "1081"])), Err(ProxyOff::DisabledInSettings));
+    assert_eq!(
+        proxy_plan_for(1080, false, &os(&["--socks-port", "1081"])),
+        Err(ProxyOff::DisabledInSettings)
+    );
 }
 
 #[test]
 fn no_socks_flag_beats_enabled_settings() {
-    assert_eq!(proxy_plan_for(1080, true, &os(&["--no-socks"])), Err(ProxyOff::NoSocksFlag));
+    assert_eq!(
+        proxy_plan_for(1080, true, &os(&["--no-socks"])),
+        Err(ProxyOff::NoSocksFlag)
+    );
     // A proxy that is off does not need a port, even a named one.
     let with_port = os(&["--no-socks", "--socks-port", "1081"]);
-    assert_eq!(proxy_plan_for(1080, true, &with_port), Err(ProxyOff::NoSocksFlag));
+    assert_eq!(
+        proxy_plan_for(1080, true, &with_port),
+        Err(ProxyOff::NoSocksFlag)
+    );
 }
 
 #[test]
@@ -163,7 +183,10 @@ fn socks_flag_beats_disabled_settings() {
 #[test]
 fn last_of_socks_and_no_socks_wins() {
     // `clap` settles the dispute (`overrides_with`), as in `run`: the one typed last wins.
-    assert_eq!(proxy_plan_for(1080, true, &os(&["--socks", "--no-socks"])), Err(ProxyOff::NoSocksFlag));
+    assert_eq!(
+        proxy_plan_for(1080, true, &os(&["--socks", "--no-socks"])),
+        Err(ProxyOff::NoSocksFlag)
+    );
     assert_eq!(
         proxy_plan_for(1080, false, &os(&["--no-socks", "--socks"])),
         Ok(1080)
@@ -177,7 +200,10 @@ fn socks_flags_are_what_the_child_gets() {
     assert_eq!(proxy_plan_for(1080, true, &port.run_args), Ok(1081));
     assert!(child_args(&port).contains(&OsString::from("1081")));
     let off = parse(&["--", "--no-socks"]).expect("parse");
-    assert_eq!(proxy_plan_for(1080, true, &off.run_args), Err(ProxyOff::NoSocksFlag));
+    assert_eq!(
+        proxy_plan_for(1080, true, &off.run_args),
+        Err(ProxyOff::NoSocksFlag)
+    );
     assert!(child_args(&off).contains(&OsString::from("--no-socks")));
 }
 
@@ -193,16 +219,33 @@ fn unparsable_flags_fall_back_to_settings() {
         &["--no-socks", "--no-such-flag"],
     ] {
         assert_eq!(proxy_plan_for(1080, true, &os(bad)), Ok(1080), "{bad:?}");
-        assert_eq!(proxy_plan_for(1080, false, &os(bad)), Err(ProxyOff::DisabledInSettings), "{bad:?}");
+        assert_eq!(
+            proxy_plan_for(1080, false, &os(bad)),
+            Err(ProxyOff::DisabledInSettings),
+            "{bad:?}"
+        );
     }
 }
 
 #[test]
 fn access_flag_after_dashes_beats_settings() {
-    assert_eq!(proxy_access_for(ListenAccess::Localhost, &[]), ListenAccess::Localhost);
-    assert_eq!(proxy_access_for(ListenAccess::Localnet, &[]), ListenAccess::Localnet);
+    assert_eq!(
+        proxy_access_for(ListenAccess::Localhost, &[]),
+        ListenAccess::Localhost
+    );
+    assert_eq!(
+        proxy_access_for(ListenAccess::Localnet, &[]),
+        ListenAccess::Localnet
+    );
     let flag = os(&["--socks-access", "localnet"]);
-    assert_eq!(proxy_access_for(ListenAccess::Localhost, &flag), ListenAccess::Localnet);
+    assert_eq!(
+        proxy_access_for(ListenAccess::Localhost, &flag),
+        ListenAccess::Localnet
+    );
     let bad = os(&["--socks-access", "anywhere"]);
-    assert_eq!(proxy_access_for(ListenAccess::Localnet, &bad), ListenAccess::Localnet, "parsing failed — taken from the file");
+    assert_eq!(
+        proxy_access_for(ListenAccess::Localnet, &bad),
+        ListenAccess::Localnet,
+        "parsing failed — taken from the file"
+    );
 }

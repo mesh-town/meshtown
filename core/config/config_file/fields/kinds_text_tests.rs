@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use super::super::value::Kind;
 use super::TextList;
 
-use crate::config_file::{parse_text, Settings};
+use crate::config::config_file::{parse_text, Settings};
 
 mod parsing_a_list {
     use super::*;
@@ -142,9 +142,15 @@ mod limits {
         #[test]
         fn follow_the_struct_fields() {
             // given: a kind with two phrases of three characters
-            let small = TextList { max_items: 2, max_chars: 3 };
+            let small = TextList {
+                max_items: 2,
+                max_chars: 3,
+            };
             // then: the bounds are the fields, not constants
-            assert_eq!(small.parse(&json!(["abc", "def"])), Some(strings(&["abc", "def"])));
+            assert_eq!(
+                small.parse(&json!(["abc", "def"])),
+                Some(strings(&["abc", "def"]))
+            );
             assert_eq!(small.parse(&json!(["abc", "def", "ghi"])), None);
             assert_eq!(small.parse(&json!(["abcd"])), None);
         }
@@ -159,7 +165,13 @@ mod rejections {
 
         #[test]
         fn gives_none() {
-            for bad in [json!("not here"), json!(5), json!(true), json!(null), json!({ "a": "b" })] {
+            for bad in [
+                json!("not here"),
+                json!(5),
+                json!(true),
+                json!(null),
+                json!({ "a": "b" }),
+            ] {
                 assert_eq!(parse(bad.clone()), None, "value {bad}");
             }
         }
@@ -170,7 +182,13 @@ mod rejections {
 
         #[test]
         fn gives_none() {
-            for bad in [json!(5), json!(null), json!(false), json!(["nested"]), json!({ "a": "b" })] {
+            for bad in [
+                json!(5),
+                json!(null),
+                json!(false),
+                json!(["nested"]),
+                json!({ "a": "b" }),
+            ] {
                 assert_eq!(parse(json!(["fine", bad.clone()])), None, "element {bad}");
             }
         }
@@ -234,7 +252,10 @@ mod row_read_from_a_file {
             let (settings, errs) = read_geo_markers(key);
             // then
             assert_eq!(errs, vec![]);
-            assert_eq!(settings.net.geo_markers, strings(&["not here", "other phrase"]));
+            assert_eq!(
+                settings.net.geo_markers,
+                strings(&["not here", "other phrase"])
+            );
         }
     }
 
@@ -256,7 +277,10 @@ mod row_read_from_a_file {
         fn gives_one_error_with_the_expectation_and_an_empty_list() {
             let (settings, errs) = read_geo_markers(Some(json!(5)));
             let want = "file has 5, expected a list of up to 32 phrases, up to 64 characters each; using default []";
-            assert_eq!(errs, vec![("checks.geo_markers".to_string(), want.to_string())]);
+            assert_eq!(
+                errs,
+                vec![("checks.geo_markers".to_string(), want.to_string())]
+            );
             assert!(settings.net.geo_markers.is_empty());
         }
     }
@@ -269,13 +293,19 @@ mod row_read_from_a_file {
             let (settings, errs) = read_geo_markers(Some(distinct_phrases(33)));
             assert_eq!(errs.len(), 1, "{errs:?}");
             assert_eq!(errs[0].0, "checks.geo_markers");
-            assert!(settings.net.geo_markers.is_empty(), "no partial list is kept");
+            assert!(
+                settings.net.geo_markers.is_empty(),
+                "no partial list is kept"
+            );
         }
     }
 }
 
 fn list() -> TextList {
-    TextList { max_items: 32, max_chars: 64 }
+    TextList {
+        max_items: 32,
+        max_chars: 64,
+    }
 }
 
 fn parse(file_value: Value) -> Option<Vec<String>> {
@@ -297,6 +327,10 @@ fn read_geo_markers(file_value: Option<Value>) -> (Settings, Vec<(String, String
     let checks = file_value.map_or_else(|| json!({}), |v| json!({ "geo_markers": v }));
     let text = json!({ "config": { "version": 1, "checks": checks } }).to_string();
     let parsed = parse_text(&text).expect("the document parsed");
-    let errs = parsed.field_errors.into_iter().map(|e| (e.field_path, e.message)).collect();
+    let errs = parsed
+        .field_errors
+        .into_iter()
+        .map(|e| (e.field_path, e.message))
+        .collect();
     (parsed.settings, errs)
 }

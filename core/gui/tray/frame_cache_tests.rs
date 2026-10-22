@@ -3,10 +3,10 @@
 //! from a rebuilt one.
 
 use super::*;
-use crate::app::view::TrayColor;
-use crate::app::view_disk::Disk;
-use crate::app::view_picture::IconPicture;
-use crate::app::view_ring::{Ring, RingRole};
+use crate::gui::tray::app::view::TrayColor;
+use crate::gui::tray::app::view_disk::Disk;
+use crate::gui::tray::app::view_picture::IconPicture;
+use crate::gui::tray::app::view_ring::{Ring, RingRole};
 use std::cell::Cell;
 
 /// A frame with no white sector is a plain ring or a solid icon — it is built in place every time.
@@ -23,7 +23,10 @@ mod unlit_key {
 
     #[test]
     fn is_not_cached_without_a_ring_either() {
-        let solid = IconPicture { ring: None, ..key(8, None) };
+        let solid = IconPicture {
+            ring: None,
+            ..key(8, None)
+        };
         let mut f = setup();
         f.get(solid).unwrap();
         f.get(solid).unwrap();
@@ -38,7 +41,11 @@ mod lit_key {
     fn same_key_is_built_once() {
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(3))), Ok(1));
-        assert_eq!(f.get(key(8, Some(3))), Ok(1), "the second call gets the first frame");
+        assert_eq!(
+            f.get(key(8, Some(3))),
+            Ok(1),
+            "the second call gets the first frame"
+        );
         assert_eq!(f.builds(), 1);
     }
 
@@ -47,7 +54,11 @@ mod lit_key {
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(0))), Ok(1));
         assert_eq!(f.get(key(8, Some(1))), Ok(2));
-        assert_eq!(f.get(key(8, Some(0))), Ok(1), "the first frame is still there");
+        assert_eq!(
+            f.get(key(8, Some(0))),
+            Ok(1),
+            "the first frame is still there"
+        );
         assert_eq!(f.get(key(8, Some(1))), Ok(2));
         assert_eq!(f.builds(), 2);
     }
@@ -65,18 +76,36 @@ mod lit_key {
 
     #[test]
     fn alert_mark_is_part_of_the_key() {
-        let marked = IconPicture { alert: true, disk: None, ..key(8, Some(2)) };
+        let marked = IconPicture {
+            alert: true,
+            disk: None,
+            ..key(8, Some(2))
+        };
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(2))), Ok(1));
-        assert_eq!(f.get(marked), Ok(2), "the same ring and sector with the mark is another picture");
+        assert_eq!(
+            f.get(marked),
+            Ok(2),
+            "the same ring and sector with the mark is another picture"
+        );
     }
 
     #[test]
     fn disk_is_part_of_the_key() {
-        let with_disk = IconPicture { disk: Some(Disk { step: 3, blue_twelfths: 6 }), ..key(8, Some(2)) };
+        let with_disk = IconPicture {
+            disk: Some(Disk {
+                step: 3,
+                blue_twelfths: 6,
+            }),
+            ..key(8, Some(2))
+        };
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(2))), Ok(1));
-        assert_eq!(f.get(with_disk), Ok(2), "the same ring and sector with a disk is another picture");
+        assert_eq!(
+            f.get(with_disk),
+            Ok(2),
+            "the same ring and sector with a disk is another picture"
+        );
     }
 
     #[test]
@@ -101,7 +130,11 @@ mod ring_change {
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(0))), Ok(1));
         assert_eq!(f.get(key(5, Some(0))), Ok(2), "another ring size");
-        assert_eq!(f.get(key(8, Some(0))), Ok(3), "the frame of the old ring was dropped");
+        assert_eq!(
+            f.get(key(8, Some(0))),
+            Ok(3),
+            "the frame of the old ring was dropped"
+        );
     }
 
     #[test]
@@ -109,17 +142,28 @@ mod ring_change {
         let mut f = setup();
         f.get(key(8, Some(0))).unwrap();
         assert_eq!(f.get(key(5, Some(0))), Ok(2));
-        assert_eq!(f.get(key(5, Some(0))), Ok(2), "the new ring is cached from its first frame");
+        assert_eq!(
+            f.get(key(5, Some(0))),
+            Ok(2),
+            "the new ring is cached from its first frame"
+        );
         assert_eq!(f.builds(), 2);
     }
 
     #[test]
     fn other_role_of_the_same_size_is_another_ring() {
-        let online = IconPicture { ring: Some(Ring::uniform(RingRole::Online, 8)), ..key(8, Some(0)) };
+        let online = IconPicture {
+            ring: Some(Ring::uniform(RingRole::Online, 8)),
+            ..key(8, Some(0))
+        };
         let mut f = setup();
         assert_eq!(f.get(key(8, Some(0))), Ok(1));
         assert_eq!(f.get(online), Ok(2));
-        assert_eq!(f.get(key(8, Some(0))), Ok(3), "the grey frame is not served for the green ring");
+        assert_eq!(
+            f.get(key(8, Some(0))),
+            Ok(3),
+            "the grey frame is not served for the green ring"
+        );
     }
 }
 
@@ -129,7 +173,10 @@ mod build_error {
     #[test]
     fn is_returned_as_is() {
         let mut f = setup();
-        assert_eq!(f.get_failing(key(8, Some(0)), "bad raster"), Err("bad raster".to_string()));
+        assert_eq!(
+            f.get_failing(key(8, Some(0)), "bad raster"),
+            Err("bad raster".to_string())
+        );
     }
 
     #[test]
@@ -137,7 +184,11 @@ mod build_error {
         let mut f = setup();
         f.get_failing(key(8, Some(0)), "bad raster").unwrap_err();
 
-        assert_eq!(f.get(key(8, Some(0))), Ok(2), "the next call tries to build again");
+        assert_eq!(
+            f.get(key(8, Some(0))),
+            Ok(2),
+            "the next call tries to build again"
+        );
         assert_eq!(f.get(key(8, Some(0))), Ok(2), "and the success is cached");
         assert_eq!(f.builds(), 2);
     }
@@ -175,7 +226,10 @@ impl Fixture {
 }
 
 fn setup() -> Fixture {
-    Fixture { cache: FrameCache::new(), calls: Cell::new(0) }
+    Fixture {
+        cache: FrameCache::new(),
+        calls: Cell::new(0),
+    }
 }
 
 /// A grey idle ring of `sectors` sectors with the white sector `lit`.

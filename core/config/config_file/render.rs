@@ -4,7 +4,7 @@
 use super::fields::ConfigDoc;
 use super::settings::Settings;
 use super::time::iso_utc;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 #[derive(serde::Serialize)]
 struct FileOut<'a> {

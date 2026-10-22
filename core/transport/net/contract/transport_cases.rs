@@ -1,12 +1,14 @@
 //! Helpers of the "Transport → …" cases: nodes, connection A→B, stream echo, bulk exchange.
 //! Each step runs under the `must_finish` limit; the bulk exchange under `must_finish_within`.
 
-use crate::net::contract::{must_finish, must_finish_within, Harness, SEED_A, SEED_B, STEP};
-use crate::net::error::{NetError, NetResult};
-use crate::net::link::LinkInfo;
-use crate::net::service::{ServiceId, AUTH};
-use crate::net::stream::{BoxRecv, BoxSend, StreamPair};
-use crate::net::transport::{PeerConn, Transport};
+use crate::transport::net::contract::{
+    must_finish, must_finish_within, Harness, SEED_A, SEED_B, STEP,
+};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::link::LinkInfo;
+use crate::transport::net::service::{ServiceId, AUTH};
+use crate::transport::net::stream::{BoxRecv, BoxSend, StreamPair};
+use crate::transport::net::transport::{PeerConn, Transport};
 use rand::{Rng, SeedableRng};
 use rand_pcg::Pcg64Mcg;
 use std::sync::Arc;
@@ -61,7 +63,10 @@ pub(crate) async fn connect_between(
     svc: ServiceId,
 ) -> (ServiceId, ConnPair) {
     let addr = to.local_addr();
-    let (dialed, accepted) = tokio::join!(must_finish(from.connect(&addr, svc)), must_finish(to.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(from.connect(&addr, svc)),
+        must_finish(to.accept())
+    );
     let a = dialed.unwrap_or_else(|e| panic!("connect gave no connection: {e}"));
     let (got, b) = accepted.expect("accept is closed, but a connection was expected");
     (got, ConnPair { a, b })
@@ -148,7 +153,9 @@ async fn round_trip(conn: Arc<dyn PeerConn>, seed: u64, len: usize) -> bool {
     };
     let read = async {
         let mut got = Vec::new();
-        recv.read_to_end(&mut got).await.expect("read from the stream");
+        recv.read_to_end(&mut got)
+            .await
+            .expect("read from the stream");
         got
     };
     let ((), echoed) = tokio::join!(write, read);
@@ -186,7 +193,9 @@ async fn send_volume(mut send: BoxSend) -> Digest {
     for _ in 0..VOLUME_BYTES / CHUNK {
         rng.fill_bytes(&mut chunk);
         hasher.update(&chunk);
-        send.write_all(&chunk).await.expect("write of the bulk data");
+        send.write_all(&chunk)
+            .await
+            .expect("write of the bulk data");
     }
     send.shutdown().await.expect("shutdown of the bulk stream");
     Digest {

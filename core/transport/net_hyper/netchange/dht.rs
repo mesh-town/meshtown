@@ -2,13 +2,13 @@
 
 use super::react::{react_loop, NetReact};
 use super::source::NetwatchSource;
-use crate::net::stream::BoxFuture;
-use crate::net_hyper::accept::AcceptCtx;
-use crate::output::say;
-use townjump_dht::Dht;
-use townjump_dht_peeroxide::PeeroxideDht;
+use crate::node::output::say;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net_hyper::accept::AcceptCtx;
 use std::sync::Arc;
 use tokio::sync::watch;
+use townjump_dht::Dht;
+use townjump_dht_peeroxide::PeeroxideDht;
 
 /// Executor of the reaction over a DHT node: sessions are closed by `AcceptCtx`, `suspend`/`resume` by the node.
 pub(crate) struct DhtReact {

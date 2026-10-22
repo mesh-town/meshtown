@@ -5,28 +5,38 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use crate::access::tally::{Exclusion, How, Ledger, PendingVote};
-use crate::access::view::Verdicts;
-use crate::config_file::Settings;
-use crate::net::contract::pid;
-use crate::net::PeerId;
-use crate::network_key::NetworkKey;
-use crate::node_ctl::NodeCtl;
-use crate::web::NodeControl;
+use crate::config::config_file::Settings;
+use crate::members::access::tally::{Exclusion, How, Ledger, PendingVote};
+use crate::members::access::view::Verdicts;
+use crate::members::network_key::NetworkKey;
+use crate::node::node_ctl::snapshot::DocCache;
+use crate::node::node_ctl::NodeCtl;
 use crate::node::NodeConfig;
-use crate::node_ctl::snapshot::DocCache;
+use crate::transport::net::contract::pid;
+use crate::transport::net::PeerId;
+use crate::web_gui::NodeControl;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn no_verdicts_means_no_votes() {
     // given: a node whose list was never recomputed (the loopback preset leaves the view open)
-    let node = crate::node::start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap())).await.unwrap();
-    assert!(node.access.view.verdicts().is_none(), "precondition: nothing is published");
+    let node = crate::node::start_node(NodeConfig::for_loopback_test(
+        NetworkKey::generate().unwrap(),
+    ))
+    .await
+    .unwrap();
+    assert!(
+        node.access.view.verdicts().is_none(),
+        "precondition: nothing is published"
+    );
     // when: the snapshot is collected
     let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
     // then: both counters are empty and the snapshot published nothing
     assert_eq!(collected.snap.members.voting, 0);
     assert!(!collected.snap.members.me_excluded);
-    assert!(node.access.view.verdicts().is_none(), "collect must not recompute");
+    assert!(
+        node.access.view.verdicts().is_none(),
+        "collect must not recompute"
+    );
     node.shutdown().await;
 }
 
@@ -50,13 +60,44 @@ fn verdicts_of(me: PeerId, ledger: Ledger) -> Verdicts {
 fn one_vote_waiting(me: PeerId) -> Verdicts {
     let (proposer, subject) = (pid(2), pid(3));
     let admitted = BTreeSet::from([me, proposer, subject]);
-    let pending = BTreeMap::from([(subject, PendingVote { voters: vec![proposer], need: 2 })]);
-    verdicts_of(me, Ledger { admitted, excluded: BTreeMap::new(), pending, need: 2, admissions: BTreeMap::new() })
+    let pending = BTreeMap::from([(
+        subject,
+        PendingVote {
+            voters: vec![proposer],
+            need: 2,
+        },
+    )]);
+    verdicts_of(
+        me,
+        Ledger {
+            admitted,
+            excluded: BTreeMap::new(),
+            pending,
+            need: 2,
+            admissions: BTreeMap::new(),
+        },
+    )
 }
 
 fn excluding(me: PeerId) -> Verdicts {
-    let excluded = BTreeMap::from([(me, Exclusion { how: How::Votes, at_micros: 1, voters: vec![pid(2)] })]);
-    verdicts_of(me, Ledger { admitted: BTreeSet::from([me, pid(2)]), excluded, pending: BTreeMap::new(), need: 1, admissions: BTreeMap::new() })
+    let excluded = BTreeMap::from([(
+        me,
+        Exclusion {
+            how: How::Votes,
+            at_micros: 1,
+            voters: vec![pid(2)],
+        },
+    )]);
+    verdicts_of(
+        me,
+        Ledger {
+            admitted: BTreeSet::from([me, pid(2)]),
+            excluded,
+            pending: BTreeMap::new(),
+            need: 1,
+            admissions: BTreeMap::new(),
+        },
+    )
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -88,7 +129,9 @@ async fn collect_flags_this_node_as_excluded() {
 async fn overlay_members_shows_votes_newer_than_the_collected_snapshot() {
     // given: a snapshot collected before any list was published
     let node = loopback_node().await;
-    let mut snap = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await.snap;
+    let mut snap = collect(&node, None, "direct_and_relay", &mut DocCache::default())
+        .await
+        .snap;
     assert_eq!(snap.members.voting, 0);
     // when: a vote appears and the old snapshot is overlaid with the live block
     node.access.view.publish(one_vote_waiting(node.id));
@@ -115,13 +158,26 @@ async fn snapshot_right_after_attach_already_shows_the_vote() {
 /// Me and a voter are admitted; `x` asks to join with the voter's confirmation, `me_asks` adds my own request.
 fn requests_waiting(me: PeerId, me_asks: bool) -> Verdicts {
     let (voter, x) = (pid(2), pid(9));
-    let request = |voters: Vec<PeerId>| crate::access::tally::Admission { voters, need: 2, label: None };
+    let request = |voters: Vec<PeerId>| crate::members::access::tally::Admission {
+        voters,
+        need: 2,
+        label: None,
+    };
     let mut admissions = BTreeMap::from([(x, request(vec![voter]))]);
     if me_asks {
         admissions.insert(me, request(vec![]));
     }
     let admitted = BTreeSet::from([me, voter]);
-    verdicts_of(me, Ledger { admitted, excluded: BTreeMap::new(), pending: BTreeMap::new(), need: 2, admissions })
+    verdicts_of(
+        me,
+        Ledger {
+            admitted,
+            excluded: BTreeMap::new(),
+            pending: BTreeMap::new(),
+            need: 2,
+            admissions,
+        },
+    )
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -142,7 +198,11 @@ async fn collect_flags_me_pending() {
     // given: my own request is on the list and another node has refused me as not admitted
     let node = loopback_node().await;
     node.access.view.publish(requests_waiting(node.id, true));
-    node.access.view.note_refusal(pid(2), crate::access::view::Side::Them, crate::access::view::Deny::Unlisted);
+    node.access.view.note_refusal(
+        pid(2),
+        crate::members::access::view::Side::Them,
+        crate::members::access::view::Deny::Unlisted,
+    );
     // when: the snapshot is collected
     let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
     // then: the flag is up

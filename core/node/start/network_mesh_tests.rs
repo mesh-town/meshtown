@@ -2,13 +2,17 @@
 //! three `mem` nodes flood messages, two started `start_node()` on a shared `mem` network become topic peers.
 //! Sync opens before the stack is built: `add_protocol` after `serve` gives `Config`.
 
-use crate::net::contract::{pid, must_finish, SEED_A, SEED_B, SEED_C};
-use crate::net::sync_backend::{Swarm, SyncCtx, REPLICA_NET};
-use crate::net::{NetChoice, NetStack, NetStackBuilder, NodeSecret, PeerId, SwarmEvent, SyncBackend, Transport};
-use crate::net::mem::MemNet;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::members::sync::flood::test_support::{
+    is_down, is_received, next, quiet, received_count, wait_ups, TOPIC,
+};
 use crate::node::{self, NodeConfig};
-use crate::sync::flood::test_support::{is_down, is_received, next, quiet, received_count, wait_ups, TOPIC};
+use crate::transport::net::contract::{must_finish, pid, SEED_A, SEED_B, SEED_C};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::sync_backend::{Swarm, SyncCtx, REPLICA_NET};
+use crate::transport::net::{
+    NetChoice, NetStack, NetStackBuilder, NodeSecret, PeerId, SwarmEvent, SyncBackend, Transport,
+};
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -68,7 +72,8 @@ async fn mesh_node(net: &Arc<MemNet>, seed: u8) -> Mesh {
 
 /// `who` knows the address of `whom`.
 fn know(who: &Mesh, whom: &Mesh) {
-    who.stack.add_hints(who.net.addr_of(whom.id()).expect("peer slot is alive"));
+    who.stack
+        .add_hints(who.net.addr_of(whom.id()).expect("peer slot is alive"));
 }
 
 async fn enter(node: &Mesh, peers: &[PeerId]) -> Swarm {
@@ -81,7 +86,11 @@ async fn enter(node: &Mesh, peers: &[PeerId]) -> Swarm {
 /// A line A–B–C: B dials A, C dials B; A and C don't know each other.
 async fn line() -> (Mesh, Mesh, Mesh, [Swarm; 3]) {
     let net = MemNet::new();
-    let (a, b, c) = (mesh_node(&net, SEED_A).await, mesh_node(&net, SEED_B).await, mesh_node(&net, SEED_C).await);
+    let (a, b, c) = (
+        mesh_node(&net, SEED_A).await,
+        mesh_node(&net, SEED_B).await,
+        mesh_node(&net, SEED_C).await,
+    );
     know(&b, &a);
     know(&c, &b);
     let mut sa = enter(&a, &[]).await;
@@ -113,10 +122,14 @@ async fn line_forwards_on_mem() {
     // given: a line A–B–C on mem
     let (a, _b, c, [sa, sb, mut sc]) = line().await;
     // when: A sends a message
-    must_finish(sa.membership.broadcast(Bytes::from("hello from a #1"))).await.expect("broadcast");
+    must_finish(sa.membership.broadcast(Bytes::from("hello from a #1")))
+        .await
+        .expect("broadcast");
     // then: C received it from B with the same bytes
     let got = next(&mut sc.events, is_received).await;
-    let SwarmEvent::Received { from, msg } = got else { panic!("not Received") };
+    let SwarmEvent::Received { from, msg } = got else {
+        panic!("not Received")
+    };
     assert_eq!((from, msg), (pid(SEED_B), Bytes::from("hello from a #1")));
     drop((a, c, sb));
 }
@@ -125,7 +138,11 @@ async fn line_forwards_on_mem() {
 async fn triangle_delivers_once_on_mem() {
     // given: a triangle A, B, C on mem
     let net = MemNet::new();
-    let (a, b, c) = (mesh_node(&net, SEED_A).await, mesh_node(&net, SEED_B).await, mesh_node(&net, SEED_C).await);
+    let (a, b, c) = (
+        mesh_node(&net, SEED_A).await,
+        mesh_node(&net, SEED_B).await,
+        mesh_node(&net, SEED_C).await,
+    );
     know(&b, &a);
     know(&c, &a);
     know(&c, &b);
@@ -135,10 +152,16 @@ async fn triangle_delivers_once_on_mem() {
     wait_ups(&mut sb.events, &[a.id()]).await;
     wait_ups(&mut sc.events, &[a.id(), b.id()]).await;
     // when: A sends a message
-    must_finish(sa.membership.broadcast(Bytes::from("hello from a #1"))).await.expect("broadcast");
+    must_finish(sa.membership.broadcast(Bytes::from("hello from a #1")))
+        .await
+        .expect("broadcast");
     // then: C has exactly one Received
     next(&mut sc.events, is_received).await;
-    assert_eq!(received_count(&quiet(&mut sc.events).await), 0, "C received it twice");
+    assert_eq!(
+        received_count(&quiet(&mut sc.events).await),
+        0,
+        "C received it twice"
+    );
 }
 
 #[tokio::test]
@@ -161,12 +184,16 @@ async fn started_nodes_become_mesh_neighbors() {
     let a = node::start_node(cfg.clone()).await.unwrap();
     let b = node::start_node(cfg).await.unwrap();
     // when: A learns B's address
-    a.introduce(crate::net::PeerAddr::new(b.id)).await;
+    a.introduce(crate::transport::net::PeerAddr::new(b.id))
+        .await;
     // then: both are members and within 20 s each has one topic peer
     let limit = tokio::time::Instant::now() + Duration::from_secs(20);
     let ready = loop {
         let members = a.members.is_member(b.id) && b.members.is_member(a.id);
-        let n = (a.gossip_neighbor_count.load(Ordering::Relaxed), b.gossip_neighbor_count.load(Ordering::Relaxed));
+        let n = (
+            a.gossip_neighbor_count.load(Ordering::Relaxed),
+            b.gossip_neighbor_count.load(Ordering::Relaxed),
+        );
         if members && n == (1, 1) || tokio::time::Instant::now() >= limit {
             break (members, n);
         }
@@ -202,15 +229,21 @@ async fn started_nodes_share_net_records_on_mesh() {
     let a = node::start_node(cfg.clone()).await.unwrap();
     let b = node::start_node(cfg).await.unwrap();
     // when: A learns B's address
-    a.introduce(crate::net::PeerAddr::new(b.id)).await;
+    a.introduce(crate::transport::net::PeerAddr::new(b.id))
+        .await;
     // then: within 20 s the `node/name/` record of node A is in node B's "net" replica (it arrives only through the REPLICA reconciliation)
     let net = b.domains.shared_replica();
     let seen = within_20s(|| async {
-        let names = crate::node_name::read_node_names(net.as_ref()).await.unwrap_or_default();
+        let names = crate::node::node_name::read_node_names(net.as_ref())
+            .await
+            .unwrap_or_default();
         names.contains_key(&a.id)
     })
     .await;
-    assert!(seen, "node A's name did not reach node B's replica within 20 s");
+    assert!(
+        seen,
+        "node A's name did not reach node B's replica within 20 s"
+    );
     a.shutdown().await;
     b.shutdown().await;
 }

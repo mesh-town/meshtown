@@ -2,11 +2,11 @@
 //! one replica of one node. The two-node cases (reconciliation) are in `replica_sync_cases`.
 //! The cases are plain functions: the compiler checks their types even without a plugged-in suite.
 
-use crate::net::contract::{pid, must_finish, SyncPair, SEED_A, SEED_B, STEP};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::replica::{live, ReplicaEntry, Replica, ReplicaEvent, MAX_VALUE_BYTES};
-use crate::net::sync_backend::{SyncBackend, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::contract::{must_finish, pid, SyncPair, SEED_A, SEED_B, STEP};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::{live, Replica, ReplicaEntry, ReplicaEvent, MAX_VALUE_BYTES};
+use crate::transport::net::sync_backend::{SyncBackend, REPLICA_DOMAINS, REPLICA_NET};
 use bytes::Bytes;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -30,7 +30,11 @@ pub(crate) async fn set_get_roundtrip(pair: SyncPair) {
     // when: A writes its own entry
     put(&r, K1, "v1").await;
     // then: get(me, key) returns it: the author is A, the key and value are the same
-    assert_eq!(r.me(), pid(SEED_A), "me() is not the id of the environment key");
+    assert_eq!(
+        r.me(),
+        pid(SEED_A),
+        "me() is not the id of the environment key"
+    );
     let got = get(&r, r.me(), K1).await.expect("no entry");
     assert_eq!(
         (got.author, got.key, got.value),
@@ -91,7 +95,10 @@ pub(crate) async fn del_own_hides_and_leaves_tombstone(pair: SyncPair) {
     // when: A deletes K1
     expect_ok("del_own", must_finish(r.del_own(K1)).await);
     // then: get does not see the entry, scan shows a tombstone, live filters it out
-    assert!(get(&r, r.me(), K1).await.is_none(), "get sees the deleted entry");
+    assert!(
+        get(&r, r.me(), K1).await.is_none(),
+        "get sees the deleted entry"
+    );
     let all = scan(&r, b"").await;
     assert_eq!(all.len(), 1, "expected one tombstone: {all:?}");
     assert_eq!((all[0].author, all[0].key.as_slice()), (r.me(), K1));

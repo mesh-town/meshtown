@@ -7,11 +7,11 @@ Part 3 of 3. Continuation — section "3. How it gets into the binary". Part 1 (
 
 ## 3. How it gets into the binary
 
-The 10 embedded files live in `core/web_gui/ui/`, next to the server in `core/web/`: `index.html` (only
+The 10 embedded files live in `core/web_gui/ui/`, next to the server in `core/web_gui/`: `index.html` (only
 the `#app` root and links to the styles and the script), 8 stylesheets `css/NN-*.css` and one built page
 script `bundle/app.js` (the Vue shell; sources are in `core/web_gui/ui/vue/src/`, built with `make web-build`).
 Each file is one `include_str!` in the node source (for example,
-`include_str!("../../web_gui/ui/index.html")` in `core/web/routes/pages.rs`), one HTTP route
+`include_str!("../../web_gui/ui/index.html")` in `core/web_gui/routes/pages.rs`), one HTTP route
 and one entry in the shared "path → content type" table (`PAGES` in the same file):
 
 | `include_str!` | Route | Content type (table 1.2) |
@@ -38,8 +38,8 @@ fixed once, so the requirements are recorded here before the loop is written.
 tower/tower-http — rather than an own listener without
 a web framework". Rationale: hyper and tower are already in the binary transitively via iroh→reqwest
 (`cargo tree` confirms it), so the decision adds no extra HTTP parser weight — the new
-weight comes only from axum itself and its direct companions (below). The module is `core/web.rs` and
-`core/web/`, next to `http_min.rs` (that one is a client; there was no server in the tree before).
+weight comes only from axum itself and its direct companions (below). The module is `core/web_gui/mod.rs` and
+`core/web_gui/`, next to `core/site_checks/http_min.rs` (that one is a client; there was no server in the tree before).
 
 What the server must do: a single limit on the head size — not separate 8 KiB for the request line and
 16 KiB for headers, as was recorded here before, but one shared `max_buf_size` = 24 KiB for the
@@ -101,7 +101,7 @@ survives that on its own — the poll catches the network error and shows "Mesh 
 
 ### 3.2 What the web listener takes from the config module
 
-The config module (`core/config_file.rs`) has a public interface that
+The config module (`core/config/config_file/mod.rs`) has a public interface that
 is fixed and covers most of sections 1.6–1.7 (`WEB-API-config.md`). The mapping is literal:
 
 | contract field | where it comes from |

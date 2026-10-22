@@ -63,7 +63,13 @@ impl<T: Clone + std::fmt::Debug + 'static, K: Kind<T> + 'static> FieldValue for 
             Some(x) => (self.set)(s, x),
             None => {
                 let default = self.kind.default_text((self.get)(&Settings::default()));
-                push_field_error(errs, field_path.to_string(), v, &self.kind.expected(), default);
+                push_field_error(
+                    errs,
+                    field_path.to_string(),
+                    v,
+                    &self.kind.expected(),
+                    default,
+                );
             }
         }
     }
@@ -93,7 +99,14 @@ impl<T: Clone + std::fmt::Debug + 'static, K: Kind<T> + 'static> FieldValue for 
 pub(crate) struct Computed;
 
 impl FieldValue for Computed {
-    fn read_from_file(&self, _: &'static str, _: Option<&Value>, _: &mut Settings, _: &mut Vec<FieldError>) {}
+    fn read_from_file(
+        &self,
+        _: &'static str,
+        _: Option<&Value>,
+        _: &mut Settings,
+        _: &mut Vec<FieldError>,
+    ) {
+    }
 
     fn expected(&self) -> String {
         String::new()

@@ -1,12 +1,12 @@
 //! Session counters and path and network information for display. For now the path is always "direct UDX",
 //! rtt and window are unknown: `WireStats` of live streams will supply them once townjump exposes statistics.
 
-use crate::net::link::{LinkInfo, NetInfo, PathKind};
+use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
+use portable_atomic::AtomicU64;
 use std::io;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use portable_atomic::AtomicU64;
+use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
@@ -69,7 +69,10 @@ fn path_of(meter: &LinkMeter) -> PathKind {
 
 /// Network information of the node: `seen` is the `listen` outcome (`None` — not known yet).
 pub fn net_info(seen: Option<bool>) -> NetInfo {
-    NetInfo { net_seen: seen, ..NetInfo::default() }
+    NetInfo {
+        net_seen: seen,
+        ..NetInfo::default()
+    }
 }
 
 /// A stream with byte counting; after the session closes it cannot be read or written.
@@ -89,19 +92,29 @@ fn aborted() -> io::Error {
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Metered<S> {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
         if self.meter.is_closed() {
             return Poll::Ready(Err(aborted()));
         }
         let before = buf.filled().len();
         let res = Pin::new(&mut self.inner).poll_read(cx, buf);
-        self.meter.recv.fetch_add((buf.filled().len() - before) as u64, Relaxed);
+        self.meter
+            .recv
+            .fetch_add((buf.filled().len() - before) as u64, Relaxed);
         res
     }
 }
 
 impl<S: AsyncWrite + Unpin> AsyncWrite for Metered<S> {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        data: &[u8],
+    ) -> Poll<io::Result<usize>> {
         if self.meter.is_closed() {
             return Poll::Ready(Err(aborted()));
         }

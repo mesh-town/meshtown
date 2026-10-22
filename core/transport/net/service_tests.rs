@@ -9,7 +9,7 @@ mod constants_match_the_alpn_of_the_protocols {
 
     #[test]
     fn auth_is_the_handshake_alpn() {
-        assert_eq!(AUTH.as_bytes(), crate::handshake::AUTH_ALPN);
+        assert_eq!(AUTH.as_bytes(), crate::members::handshake::AUTH_ALPN);
     }
 
     #[test]
@@ -25,7 +25,7 @@ mod constants_match_the_alpn_of_the_protocols {
 
     #[test]
     fn port_is_the_ports_alpn() {
-        assert_eq!(PORT.as_bytes(), crate::ports::frame::PORT_ALPN);
+        assert_eq!(PORT.as_bytes(), crate::ports_sharing::frame::PORT_ALPN);
     }
 }
 
@@ -50,8 +50,8 @@ mod constants_text {
         }
         let set: HashSet<ServiceId> = all.into_iter().collect();
         assert_eq!(set.len(), 6);
-        assert_eq!(AUTH.as_bytes(), crate::handshake::AUTH_ALPN);
-        assert_eq!(PORT.as_bytes(), crate::ports::frame::PORT_ALPN);
+        assert_eq!(AUTH.as_bytes(), crate::members::handshake::AUTH_ALPN);
+        assert_eq!(PORT.as_bytes(), crate::ports_sharing::frame::PORT_ALPN);
         assert_eq!(EXIT.as_bytes(), crate::exit::EXIT_ALPN);
         assert_eq!(INVITE.as_bytes(), crate::invite::wire::INVITE_ALPN);
     }
@@ -83,11 +83,7 @@ mod service_id {
         let b = ServiceId::new(b"test/svc/1");
         assert_eq!(a, b);
         let set: HashSet<ServiceId> = [a, b].into_iter().collect();
-        assert_eq!(
-            set.len(),
-            1,
-            "equal identifiers collapse in the set"
-        );
+        assert_eq!(set.len(), 1, "equal identifiers collapse in the set");
     }
 
     #[test]

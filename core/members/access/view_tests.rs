@@ -6,10 +6,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::access::tally::{Exclusion, How, Ledger};
-use crate::access::view::{AccessView, Deny, Side, Verdicts, ACCESS_CLOSE_CODE};
-use crate::net::contract::{must_finish, pid};
-use crate::net::PeerId;
+use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::view::{AccessView, Deny, Side, Verdicts, ACCESS_CLOSE_CODE};
+use crate::transport::net::contract::{must_finish, pid};
+use crate::transport::net::PeerId;
 
 /// How long a task that must stay blocked is given to (wrongly) finish.
 const SETTLE: Duration = Duration::from_millis(100);
@@ -26,7 +26,10 @@ mod open_view {
         let got = outcomes(&view, &[m, a, b, x]);
         // then: all pass, `ready` returns at once, no verdicts were ever published
         assert_eq!(got, vec![Ok(()); 4]);
-        assert!([m, a, b, x].iter().all(|p| view.allows(*p)), "allows() must agree with check()");
+        assert!(
+            [m, a, b, x].iter().all(|p| view.allows(*p)),
+            "allows() must agree with check()"
+        );
         must_finish(view.ready()).await;
         assert!(view.verdicts().is_none(), "an open view holds no verdicts");
     }
@@ -58,7 +61,10 @@ mod pending_view {
         // then: until the first publication everybody is allowed, and `ready` has not returned
         assert!(view.allows(x), "a pending view must allow everyone");
         assert_eq!(view.check(x), Ok(()));
-        assert!(!waiter.is_finished(), "ready returned before the first publication");
+        assert!(
+            !waiter.is_finished(),
+            "ready returned before the first publication"
+        );
         // when: the first publication arrives
         view.publish(verdicts(m, ledger(&[m, a], &[])));
         // then: the waiter is released
@@ -85,7 +91,10 @@ mod pending_view {
         // then: the view now follows them and exposes them
         assert_eq!(view.check(b), Err(Deny::Excluded));
         assert_eq!(view.check(a), Ok(()));
-        assert!(view.verdicts().is_some(), "published verdicts must be readable");
+        assert!(
+            view.verdicts().is_some(),
+            "published verdicts must be readable"
+        );
     }
 }
 
@@ -175,10 +184,21 @@ mod unlisted {
     fn excluded_voted_or_blocked_keep_their_own_reason() {
         // given: B is excluded, C is voted against by me, D is blocked by me
         let Cast { m, a, b, c, d, .. } = cast();
-        let view = view_of(Verdicts { my_votes: set(&[c]), blocks: set(&[d]), ..verdicts(m, ledger(&[m, a], &[b])) });
+        let view = view_of(Verdicts {
+            my_votes: set(&[c]),
+            blocks: set(&[d]),
+            ..verdicts(m, ledger(&[m, a], &[b]))
+        });
         // when / then
         let got = outcomes(&view, &[b, c, d]);
-        assert_eq!(got, vec![Err(Deny::Excluded), Err(Deny::VotedByMe), Err(Deny::Blocked)]);
+        assert_eq!(
+            got,
+            vec![
+                Err(Deny::Excluded),
+                Err(Deny::VotedByMe),
+                Err(Deny::Blocked)
+            ]
+        );
     }
 
     #[test]
@@ -206,7 +226,14 @@ struct Cast {
 }
 
 fn cast() -> Cast {
-    Cast { m: pid(1), a: pid(2), b: pid(3), c: pid(4), d: pid(5), x: pid(6) }
+    Cast {
+        m: pid(1),
+        a: pid(2),
+        b: pid(3),
+        c: pid(4),
+        d: pid(5),
+        x: pid(6),
+    }
 }
 
 fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {
@@ -223,7 +250,11 @@ fn denied(rows: Vec<(PeerId, Deny)>) -> BTreeMap<PeerId, Deny> {
 
 /// A ledger where `listed` are admitted and `out` are admitted and excluded by votes.
 fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
-    let by_votes = || Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() };
+    let by_votes = || Exclusion {
+        how: How::Votes,
+        at_micros: 10,
+        voters: Vec::new(),
+    };
     Ledger {
         admitted: listed.iter().chain(out).copied().collect(),
         excluded: out.iter().map(|p| (*p, by_votes())).collect(),
@@ -256,7 +287,10 @@ fn outcomes(view: &AccessView, peers: &[PeerId]) -> Vec<Result<(), Deny>> {
 }
 
 fn now_unix() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).expect("clock before 1970").as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock before 1970")
+        .as_secs()
 }
 
 /// The close text a neighbour sees for `deny`, as `PeerConn::close_reason` reports it.

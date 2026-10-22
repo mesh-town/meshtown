@@ -109,14 +109,23 @@ mod pac_script {
         // when
         let script = pac_script(route);
         // then
-        assert!(script.contains(&format!("return \"{route}\";")), "no route string in return:\n{script}");
-        assert!(!script.contains("__ROUTE__"), "the marker is left in the script:\n{script}");
+        assert!(
+            script.contains(&format!("return \"{route}\";")),
+            "no route string in return:\n{script}"
+        );
+        assert!(
+            !script.contains("__ROUTE__"),
+            "the marker is left in the script:\n{script}"
+        );
     }
 
     #[test]
     fn defines_find_proxy_for_url() {
         let script = pac_script("DIRECT");
-        assert!(script.contains("function FindProxyForURL(url, host)"), "script:\n{script}");
+        assert!(
+            script.contains("function FindProxyForURL(url, host)"),
+            "script:\n{script}"
+        );
     }
 
     #[test]
@@ -133,14 +142,20 @@ mod pac_script {
     fn is_plain_es5() {
         let code = code_without_comments(&pac_script("DIRECT"));
         for syntax in ["const ", "let ", "=>", "`"] {
-            assert!(!code.contains(syntax), "the script has {syntax:?} (not ES5):\n{code}");
+            assert!(
+                !code.contains(syntax),
+                "the script has {syntax:?} (not ES5):\n{code}"
+            );
         }
     }
 
     #[test]
     fn is_ascii_only() {
         let script = pac_script("DIRECT");
-        assert!(script.is_ascii(), "without a charset the body is read as Latin-1:\n{script}");
+        assert!(
+            script.is_ascii(),
+            "without a charset the body is read as Latin-1:\n{script}"
+        );
     }
 }
 
@@ -204,7 +219,11 @@ fn addr(text: &str) -> SocketAddr {
 
 /// The script lines without `//` comments.
 fn code_without_comments(script: &str) -> String {
-    script.lines().filter(|line| !line.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n")
+    script
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("//"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Splits the reply into the head (without `\r\n\r\n`) and the body.
@@ -215,6 +234,9 @@ fn split_reply(reply: &[u8]) -> (String, String) {
 }
 
 fn content_length(head: &str) -> usize {
-    let line = head.lines().find_map(|l| l.strip_prefix("Content-Length: ")).expect("no Content-Length");
+    let line = head
+        .lines()
+        .find_map(|l| l.strip_prefix("Content-Length: "))
+        .expect("no Content-Length");
     line.parse().expect("Content-Length is a number")
 }

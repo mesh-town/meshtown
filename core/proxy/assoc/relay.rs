@@ -8,7 +8,7 @@ use std::time::Duration;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpStream, UdpSocket};
 
-use crate::socks5::{encode_udp_reply, parse_udp_datagram, UdpHeaderError};
+use crate::proxy::socks5::{encode_udp_reply, parse_udp_datagram, UdpHeaderError};
 
 use super::stats::{RelayStats, Shared};
 use super::upstream::{Closed, Delivery, UpstreamRx, UpstreamTx};
@@ -76,7 +76,9 @@ async fn pump_up(udp: &UdpSocket, client_ip: IpAddr, shared: &Shared, mut tx: im
 
 /// Whether the datagram comes from the client: its IP, and once a port is pinned, that port.
 fn from_client(source: SocketAddr, client_ip: IpAddr, shared: &Shared) -> bool {
-    let pinned = shared.client().is_none_or(|pinned| pinned.port() == source.port());
+    let pinned = shared
+        .client()
+        .is_none_or(|pinned| pinned.port() == source.port());
     pinned && source.ip().to_canonical() == client_ip.to_canonical()
 }
 
@@ -96,7 +98,11 @@ async fn pump_down(udp: &UdpSocket, shared: &Shared, mut rx: impl UpstreamRx) {
             continue;
         };
         shared.touch();
-        if udp.send_to(&encode_udp_reply(from, &data), client).await.is_ok() {
+        if udp
+            .send_to(&encode_udp_reply(from, &data), client)
+            .await
+            .is_ok()
+        {
             shared.count(|s| s.down_bytes += data.len() as u64);
         }
     }

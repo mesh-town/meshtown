@@ -19,8 +19,15 @@ pub struct RelayUrl(String);
 impl FromStr for RelayUrl {
     type Err = BadRelayUrl;
     fn from_str(s: &str) -> Result<Self, BadRelayUrl> {
-        let rest = s.strip_prefix("https://").or_else(|| s.strip_prefix("http://")).ok_or(BadRelayUrl)?;
-        Ok(RelayUrl(if rest.contains('/') { s.to_string() } else { format!("{s}/") }))
+        let rest = s
+            .strip_prefix("https://")
+            .or_else(|| s.strip_prefix("http://"))
+            .ok_or(BadRelayUrl)?;
+        Ok(RelayUrl(if rest.contains('/') {
+            s.to_string()
+        } else {
+            format!("{s}/")
+        }))
     }
 }
 
@@ -45,11 +52,17 @@ pub struct EndpointAddr {
 
 impl EndpointAddr {
     pub fn new(id: PeerId) -> Self {
-        EndpointAddr { id, addrs: BTreeSet::new() }
+        EndpointAddr {
+            id,
+            addrs: BTreeSet::new(),
+        }
     }
 
     pub fn from_parts(id: PeerId, addrs: impl IntoIterator<Item = TransportAddr>) -> Self {
-        EndpointAddr { id, addrs: addrs.into_iter().collect() }
+        EndpointAddr {
+            id,
+            addrs: addrs.into_iter().collect(),
+        }
     }
 
     pub fn with_ip_addr(mut self, a: SocketAddr) -> Self {
@@ -82,7 +95,10 @@ pub fn from_endpoint_addr(addr: &EndpointAddr) -> PeerAddr {
         TransportAddr::Ip(sa) => AddrHint::Ip(*sa),
         TransportAddr::Relay(u) => AddrHint::Relay(RelayRef::Url(u.to_string())),
     });
-    PeerAddr { id: addr.id, hints: hints.collect() }
+    PeerAddr {
+        id: addr.id,
+        hints: hints.collect(),
+    }
 }
 
 pub fn to_endpoint_addr(addr: &PeerAddr) -> EndpointAddr {

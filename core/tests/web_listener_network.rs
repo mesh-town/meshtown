@@ -13,14 +13,14 @@ mod common;
 
 use std::net::SocketAddr;
 
-use meshtown::addr_order::PrimaryIps;
-use meshtown::config_file::{self, LoadedConfigFile, NetSettings, Settings};
-use meshtown::net_mainline::unix_now;
-use meshtown::invite::{self, InviteHead, InviteSecret};
-use meshtown::net::{AddrHint, NodeSecret, PeerAddr};
-use meshtown::network_key::NetworkKey;
-use meshtown::ports::{Audience, Published};
-use meshtown::web::DEFAULT_DRAIN;
+use meshtown_core::config::config_file::{self, LoadedConfigFile, NetSettings, Settings};
+use meshtown_core::invite::{self, InviteHead, InviteSecret};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::ports_sharing::{Audience, Published};
+use meshtown_core::transport::addr_order::PrimaryIps;
+use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
+use meshtown_core::transport::net_mainline::unix_now;
+use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
 use common::{api, cleanup, run_config, scratch, start_web};
@@ -57,11 +57,29 @@ async fn network_join_bad_word_reports_word_field() {
         Some(json!({"key": "finch-zzqq-k7m2q9x4rb8vhn3tz01g5"})),
     );
     assert_eq!(status, 422);
-    assert_eq!(body.get("error").and_then(Value::as_str), Some("invalid_key"));
+    assert_eq!(
+        body.get("error").and_then(Value::as_str),
+        Some("invalid_key")
+    );
     assert_eq!(body.get("word").and_then(Value::as_str), Some("zzqq"));
 
     handle.shutdown(DEFAULT_DRAIN).await;
     cleanup(&dir);
+}
+
+/// The config file in `dir` holds the key of the joined `island` network.
+fn assert_stored_island_key(dir: &std::path::Path) {
+    let loaded = config_file::load_config_file(&dir.join("config.json"));
+    match loaded {
+        LoadedConfigFile::Parsed(p) => {
+            let stored = p.settings.net.network_key.unwrap_or_default();
+            assert!(
+                stored.starts_with("island--mesh1-"),
+                "the key in the file must start with \"island--mesh1-\""
+            );
+        }
+        other => panic!("expected Loaded::Parsed, got {other:?}"),
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -91,22 +109,26 @@ async fn network_join_accepts_invite_string() {
     );
     assert_eq!(status, 202);
     assert_eq!(body.get("label").and_then(Value::as_str), Some("island"));
-    assert_eq!(body.get("waiting"), Some(&json!(true)), "reply: the node is waiting for network members");
-    assert_eq!(body.get("restart"), Some(&json!(false)), "reply: no restart is needed");
-    assert!(node.got_call("join_by_invite"), "the string must go to the node's join_by_invite");
-    assert!(!node.got_call("switch"), "the network is not switched at once by the string: joining goes after the key");
+    assert_eq!(
+        body.get("waiting"),
+        Some(&json!(true)),
+        "reply: the node is waiting for network members"
+    );
+    assert_eq!(
+        body.get("restart"),
+        Some(&json!(false)),
+        "reply: no restart is needed"
+    );
+    assert!(
+        node.got_call("join_by_invite"),
+        "the string must go to the node's join_by_invite"
+    );
+    assert!(
+        !node.got_call("switch"),
+        "the network is not switched at once by the string: joining goes after the key"
+    );
 
-    let loaded = config_file::load_config_file(&dir.join("config.json"));
-    match loaded {
-        LoadedConfigFile::Parsed(p) => {
-            let stored = p.settings.net.network_key.unwrap_or_default();
-            assert!(
-                stored.starts_with("island--mesh1-"),
-                "the key in the file must start with \"island--mesh1-\""
-            );
-        }
-        other => panic!("expected Loaded::Parsed, got {other:?}"),
-    }
+    assert_stored_island_key(&dir);
 
     let (status1, cfg1) = api(port, &token, "GET", "/api/config", None);
     assert_eq!(status1, 200);
@@ -133,9 +155,15 @@ async fn network_join_rejects_broken_invite() {
         Some(json!({"key": "mesh-invite2-!!!!"})),
     );
     assert_eq!(status, 422);
-    assert_eq!(body.get("error").and_then(Value::as_str), Some("invalid_key"));
+    assert_eq!(
+        body.get("error").and_then(Value::as_str),
+        Some("invalid_key")
+    );
     assert!(body.get("word").is_none(), "there must be no word field");
-    let message = body.get("message").and_then(Value::as_str).unwrap_or_default();
+    let message = body
+        .get("message")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     assert!(message.contains("foreign characters"), "message: {message}");
 
     handle.shutdown(DEFAULT_DRAIN).await;
@@ -146,8 +174,8 @@ async fn network_join_rejects_broken_invite() {
 
 /// A key of the form "label--words", the way the page sends it.
 fn words_key(label: &str) -> String {
-    let tail = meshtown::words::generate_tail().unwrap();
-    meshtown::network_key::format_key_string(Some(label), &tail)
+    let tail = meshtown_core::members::words::generate_tail().unwrap();
+    meshtown_core::members::network_key::format_key_string(Some(label), &tail)
 }
 
 /// Writes into `dir/config.json` the key of network A and `ports.published = [8080 All "web"]` — before `run_config`.
@@ -166,12 +194,19 @@ fn write_file_with_ports(dir: &std::path::Path) {
         ..Settings::default()
     };
     let secret = NodeSecret::from_bytes(&[9u8; 32]);
-    config_file::save_config_file(&dir.join("config.json"), None, 1, &secret, &settings).expect("save");
+    config_file::save_config_file(&dir.join("config.json"), None, 1, &secret, &settings)
+        .expect("save");
 }
 
 fn published_in_file(dir: &std::path::Path) -> Vec<u16> {
     match config_file::load_config_file(&dir.join("config.json")) {
-        LoadedConfigFile::Parsed(p) => p.settings.net.ports_published.iter().map(|x| x.port).collect(),
+        LoadedConfigFile::Parsed(p) => p
+            .settings
+            .net
+            .ports_published
+            .iter()
+            .map(|x| x.port)
+            .collect(),
         other => panic!("expected Loaded::Parsed, got {other:?}"),
     }
 }
@@ -181,7 +216,13 @@ async fn post_network(dir_tag: &str, path: &str, body: Value) -> (u16, Value, Ve
     write_file_with_ports(&dir);
     let run = run_config(&dir);
     let (handle, _node) = start_web(&dir, &run).await;
-    let (status, resp) = api(handle.shared.port(), &handle.shared.token(), "POST", path, Some(body));
+    let (status, resp) = api(
+        handle.shared.port(),
+        &handle.shared.token(),
+        "POST",
+        path,
+        Some(body),
+    );
     let ports = published_in_file(&dir);
     handle.shutdown(DEFAULT_DRAIN).await;
     cleanup(&dir);
@@ -190,7 +231,8 @@ async fn post_network(dir_tag: &str, path: &str, body: Value) -> (u16, Value, Ve
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn network_create_without_keep_ports_drops_published() {
-    let (status, _, ports) = post_network("keep-none", "/api/network/create", json!({"label": "new"})).await;
+    let (status, _, ports) =
+        post_network("keep-none", "/api/network/create", json!({"label": "new"})).await;
     assert_eq!(status, 200);
     assert!(ports.is_empty(), "none by default: {ports:?}");
 }
@@ -221,7 +263,8 @@ async fn network_join_invite_without_field_drops_published() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn network_join_invite_with_keep_ports_keeps_published() {
-    let (status, _, ports) = post_invite_network("join-invite-keep", json!({"keep_ports": true})).await;
+    let (status, _, ports) =
+        post_invite_network("join-invite-keep", json!({"keep_ports": true})).await;
     assert_eq!(status, 202);
     assert_eq!(ports, vec![8080]);
 }
@@ -232,13 +275,21 @@ async fn post_invite_network(dir_tag: &str, extra: Value) -> (u16, Value, Vec<u1
     let key = NetworkKey::generate().unwrap();
     let head = invite_head(&key, unix_now());
     let mut body = json!({"key": invite_string(&head)});
-    body.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+    body.as_object_mut()
+        .unwrap()
+        .extend(extra.as_object().unwrap().clone());
     let dir = scratch(dir_tag);
     write_file_with_ports(&dir);
     let run = run_config(&dir);
     let (handle, node) = start_web(&dir, &run).await;
     node.save_key_on_join(&head.key_text(&key));
-    let (status, resp) = api(handle.shared.port(), &handle.shared.token(), "POST", "/api/network/join", Some(body));
+    let (status, resp) = api(
+        handle.shared.port(),
+        &handle.shared.token(),
+        "POST",
+        "/api/network/join",
+        Some(body),
+    );
     let ports = published_in_file(&dir);
     handle.shutdown(DEFAULT_DRAIN).await;
     cleanup(&dir);
@@ -250,7 +301,8 @@ async fn post_invite_network(dir_tag: &str, extra: Value) -> (u16, Value, Vec<u1
 /// The refusal texts of the invite module — verbatim.
 const TEXT_OLD_INVITE: &str = "This invite is of the old format (mesh-invite1-): it contained the network key, \
     such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
-const TEXT_EXPIRED: &str = "The invite was issued more than a day ago and is no longer valid. Ask a \
+const TEXT_EXPIRED: &str =
+    "The invite was issued more than a day ago and is no longer valid. Ask a \
     network member for a new one.";
 const HOUR: u64 = 3600;
 
@@ -265,8 +317,14 @@ mod old_invite_string {
         let (status, body) = web.when_join_with("mesh-invite1-abcdefghij");
         // then
         assert_eq!(status, 422);
-        assert_eq!(body.get("error").and_then(Value::as_str), Some("invalid_key"));
-        assert_eq!(body.get("message").and_then(Value::as_str), Some(TEXT_OLD_INVITE));
+        assert_eq!(
+            body.get("error").and_then(Value::as_str),
+            Some("invalid_key")
+        );
+        assert_eq!(
+            body.get("message").and_then(Value::as_str),
+            Some(TEXT_OLD_INVITE)
+        );
         web.finish().await;
     }
 
@@ -289,12 +347,18 @@ mod expired_invite_string {
     async fn is_refused_with_the_expired_text() {
         // given: issued 25 hours ago
         let web = setup("expired-invite").await;
-        let text = invite_string(&invite_head(&NetworkKey::generate().unwrap(), unix_now() - 25 * HOUR));
+        let text = invite_string(&invite_head(
+            &NetworkKey::generate().unwrap(),
+            unix_now() - 25 * HOUR,
+        ));
         // when
         let (status, body) = web.when_join_with(&text);
         // then
         assert_eq!(status, 422);
-        assert_eq!(body.get("message").and_then(Value::as_str), Some(TEXT_EXPIRED));
+        assert_eq!(
+            body.get("message").and_then(Value::as_str),
+            Some(TEXT_EXPIRED)
+        );
         web.finish().await;
     }
 
@@ -302,7 +366,10 @@ mod expired_invite_string {
     async fn is_not_given_to_the_node() {
         // given
         let web = setup("expired-invite-node").await;
-        let text = invite_string(&invite_head(&NetworkKey::generate().unwrap(), unix_now() - 25 * HOUR));
+        let text = invite_string(&invite_head(
+            &NetworkKey::generate().unwrap(),
+            unix_now() - 25 * HOUR,
+        ));
         // when
         web.when_join_with(&text);
         // then
@@ -318,7 +385,10 @@ mod invite_string_made_23_hours_ago {
     async fn is_still_accepted() {
         // given
         let web = setup("fresh-23h").await;
-        let text = invite_string(&invite_head(&NetworkKey::generate().unwrap(), unix_now() - 23 * HOUR));
+        let text = invite_string(&invite_head(
+            &NetworkKey::generate().unwrap(),
+            unix_now() - 23 * HOUR,
+        ));
         // when
         let (status, _) = web.when_join_with(&text);
         // then
@@ -335,7 +405,7 @@ mod invite_string_made_23_hours_ago {
 /// The listener of the page with a node stub and a settings directory.
 struct Web {
     dir: std::path::PathBuf,
-    handle: meshtown::web::WebHandle,
+    handle: meshtown_core::web_gui::WebHandle,
     node: std::sync::Arc<common::TestNode>,
 }
 
@@ -350,12 +420,24 @@ impl Web {
     /// `POST /api/network/join` with the entered string: (status, body).
     fn when_join_with(&self, text: &str) -> (u16, Value) {
         let (port, token) = (self.handle.shared.port(), self.handle.shared.token());
-        api(port, &token, "POST", "/api/network/join", Some(json!({"key": text})))
+        api(
+            port,
+            &token,
+            "POST",
+            "/api/network/join",
+            Some(json!({"key": text})),
+        )
     }
 
     fn then_node_got_no_join(&self) {
-        assert!(!self.node.got_call("join_by_invite"), "the refused string reached the node");
-        assert!(!self.node.got_call("switch"), "the refused string switched the network");
+        assert!(
+            !self.node.got_call("join_by_invite"),
+            "the refused string reached the node"
+        );
+        assert!(
+            !self.node.got_call("switch"),
+            "the refused string switched the network"
+        );
     }
 
     async fn finish(self) {

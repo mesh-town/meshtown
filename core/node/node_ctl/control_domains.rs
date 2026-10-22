@@ -1,9 +1,9 @@
 //! Page actions on domains: exit search, checking one/all, adding and removing.
 //! Bodies of the `NodeControl for NodeCtl` methods; the trait block in `control.rs` only delegates here.
 
-use crate::domains;
-use crate::output::say;
-use crate::web::ActionError;
+use crate::node::output::say;
+use crate::proxy::domains;
+use crate::web_gui::ActionError;
 
 use super::state::NodeCtl;
 
@@ -89,7 +89,11 @@ impl NodeCtl {
         let name = domains::normalize_domain(domain)
             .map_err(|e| ActionError::Invalid(format!("couldn't parse the domain name: {e:#}")))?;
         {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(c) = &mut st.cache {
                 if !c.domains.contains(&name) {
                     c.domains.push(name.clone());
@@ -123,7 +127,11 @@ impl NodeCtl {
         let name = domains::normalize_domain(domain)
             .map_err(|e| ActionError::Invalid(format!("couldn't parse the domain name: {e:#}")))?;
         {
-            let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut st = self
+                .ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if let Some(c) = &mut st.cache {
                 c.domains.retain(|d| d != &name);
             }
@@ -131,7 +139,10 @@ impl NodeCtl {
         let task_name = name.clone();
         self.rt.spawn(async move {
             if let Err(e) = node.domains.remove(&task_name).await {
-                say("node", format!("{task_name}: couldn't remove from the list — {e:#}"));
+                say(
+                    "node",
+                    format!("{task_name}: couldn't remove from the list — {e:#}"),
+                );
             }
         });
         Ok(name)

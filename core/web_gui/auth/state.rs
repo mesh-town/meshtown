@@ -8,15 +8,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
 
-use super::access::{lan_addrs, is_client_allowed};
+use super::access::{is_client_allowed, lan_addrs};
 use super::iface_gate::{judge, IfaceView, Verdict};
 use super::iface_nets::admitted_lan;
 use super::iface_os::current_view;
 use super::limiter::Limiter;
 use super::password_file::{read_password_file, PasswordFileState};
 use super::tickets::Tickets;
-use crate::config_file::{IfaceFilter, ListenAccess};
-use crate::web::http::{host_of, ConnInfo};
+use crate::config::config_file::{IfaceFilter, ListenAccess};
+use crate::web_gui::http::{host_of, ConnInfo};
 
 static UNREADABLE_LOGGED: AtomicBool = AtomicBool::new(false);
 
@@ -33,17 +33,22 @@ pub(crate) struct AuthState {
 }
 
 /// Hosts to print: loopback always, the network address only if it will open.
-fn url_hosts(bound_access: ListenAccess, access: ListenAccess, lan: Option<Ipv4Addr>) -> Vec<Ipv4Addr> {
+fn url_hosts(
+    bound_access: ListenAccess,
+    access: ListenAccess,
+    lan: Option<Ipv4Addr>,
+) -> Vec<Ipv4Addr> {
     let mut hosts = vec![Ipv4Addr::LOCALHOST];
     let both_net = bound_access == ListenAccess::Localnet && access == ListenAccess::Localnet;
-    let usable = lan.filter(|ip| both_net && is_client_allowed(ListenAccess::Localnet, (*ip).into()));
+    let usable =
+        lan.filter(|ip| both_net && is_client_allowed(ListenAccess::Localnet, (*ip).into()));
     hosts.extend(usable);
     hosts
 }
 
 fn log_unreadable_once(why: &str) {
     if !UNREADABLE_LOGGED.swap(true, Ordering::Relaxed) {
-        crate::output::say(
+        crate::node::output::say(
             "web",
             format!("password file can't be read ({why}): sign-in by token only"),
         );
@@ -83,7 +88,10 @@ impl AuthState {
 
     /// The effective interface filter of the page.
     pub(crate) fn ifaces(&self) -> IfaceFilter {
-        self.ifaces.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.ifaces
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Takes effect immediately, both narrowing and widening (the listener is on all addresses anyway).
@@ -102,7 +110,13 @@ impl AuthState {
     /// The interface verdict for an accepted connection (on top of `is_client_allowed`).
     pub(crate) fn iface_verdict(&self, view: &IfaceView, conn: &ConnInfo) -> Verdict {
         let local = Some(conn.local.ip());
-        judge(self.mode(), &self.ifaces(), view, conn.client_addr.ip(), local)
+        judge(
+            self.mode(),
+            &self.ifaces(),
+            view,
+            conn.client_addr.ip(),
+            local,
+        )
     }
 
     /// The first address in a network open to the page.
@@ -147,7 +161,7 @@ impl AuthState {
         match issued {
             Ok(t) => format!("?token={t}"),
             Err(e) => {
-                crate::output::say("web", format!("temporary token not issued: {e}"));
+                crate::node::output::say("web", format!("temporary token not issued: {e}"));
                 String::new()
             }
         }

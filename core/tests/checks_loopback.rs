@@ -5,19 +5,21 @@
 //! nodes about one domain don't overwrite each other.
 //! What it doesn't do: doesn't go to the internet, doesn't start a TLS server (the TLS step is checked by a live
 //! run), doesn't check the time-based schedule.
-//! Links: tests `meshtown::http_min`, `meshtown::reachability` and `meshtown::checks`
-//! through `meshtown::node`.
+//! Links: tests `meshtown_core::site_checks::http_min`, `meshtown_core::site_checks::reachability` and `meshtown_core::site_checks::checks`
+//! through `meshtown_core::node`.
 
 use std::net::SocketAddr;
 use std::time::Duration;
 
 use bytes::Bytes;
-use meshtown::checks::{check_key, CheckView};
-use meshtown::http_min::{self, HttpLimits, HttpGetRequest};
-use meshtown::net::PeerAddr;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::reachability::{self, CheckRecord, Steps, TcpStep, TlsStep, CheckVerdict, CHECK_RECORD_VERSION};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::site_checks::checks::{check_key, CheckView};
+use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
+use meshtown_core::site_checks::reachability::{
+    self, CheckRecord, CheckVerdict, Steps, TcpStep, TlsStep, CHECK_RECORD_VERSION,
+};
+use meshtown_core::transport::net::PeerAddr;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, Instant};
@@ -161,14 +163,20 @@ async fn check_record_syncs_between_peers() {
     let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
         .await
         .unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     a.domains.add("example.com").await.unwrap();
-    a.checks.publish("example.com", &sample(4096)).await.unwrap();
+    a.checks
+        .publish("example.com", &sample(4096))
+        .await
+        .unwrap();
 
     let views = wait_views(&b, Duration::from_secs(20), |v| {
-        v.iter().any(|x| x.domain == "example.com" && x.record.is_some())
+        v.iter()
+            .any(|x| x.domain == "example.com" && x.record.is_some())
     })
     .await;
     let got = views
@@ -185,26 +193,40 @@ async fn two_authors_keep_own_records() {
     let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
         .await
         .unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     a.domains.add("example.com").await.unwrap();
-    a.checks.publish("example.com", &sample(4096)).await.unwrap();
-    b.checks.publish("example.com", &sample(8192)).await.unwrap();
+    a.checks
+        .publish("example.com", &sample(4096))
+        .await
+        .unwrap();
+    b.checks
+        .publish("example.com", &sample(8192))
+        .await
+        .unwrap();
 
     let views = wait_views(&a, Duration::from_secs(20), |v| {
         v.iter().filter(|x| x.domain == "example.com").count() >= 2
     })
     .await;
     let mine: Vec<&CheckView> = views.iter().filter(|x| x.domain == "example.com").collect();
-    assert_eq!(mine.len(), 2, "the records of two nodes must not overwrite each other");
+    assert_eq!(
+        mine.len(),
+        2,
+        "the records of two nodes must not overwrite each other"
+    );
     assert_ne!(mine[0].author, mine[1].author);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn try_begin_end_and_in_progress_mark_domain_busy() {
     let key = NetworkKey::generate().unwrap();
-    let node = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let node = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     assert!(node.checks.try_begin_check("example.com"));
     assert!(

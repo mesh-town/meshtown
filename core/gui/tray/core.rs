@@ -8,10 +8,10 @@ use super::frame_cache::FrameCache;
 use super::menu_build::{build_icons, build_menu, install_menu_handler, TrayUi};
 use super::open_url;
 use super::spin::Spin;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::start_note::StartNote;
-use crate::app::tray_actions::{InviteNote, ServeNote};
-use crate::app::view::{start_enabled, stop_enabled};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::start_note::StartNote;
+use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
+use crate::gui::tray::app::view::{start_enabled, stop_enabled};
 
 /// Identifier of the "Open" menu item.
 pub(crate) const MENU_OPEN: &str = "open";
@@ -54,15 +54,15 @@ pub type NodeCmdTx = tokio::sync::mpsc::UnboundedSender<NodeCmd>;
 /// A command to the tray: update the icon/menu from the node snapshot, update the "Exit via…" submenu, a click on a
 /// menu item, a spinner tick, end the process with a code.
 pub enum TrayCmd {
-    Update(crate::app::view::View),
-    ExitMenu(crate::app::exit_menu::ExitMenu),
+    Update(crate::gui::tray::app::view::View),
+    ExitMenu(crate::gui::tray::app::exit_menu::ExitMenu),
     Menu(String),
     /// What the invite item shows (the "copied" label, a refusal reason, or idle).
     Invite(InviteNote),
     /// Note on the "Allow sites to open via this computer" checkbox (edit failure or idle).
     Serve(ServeNote),
     /// Why the node did not start (or `Idle`).
-    StartFail(crate::app::start_note::StartNote),
+    StartFail(crate::gui::tray::app::start_note::StartNote),
     /// A spinner tick of the ticker of the given generation; stale ones are ignored.
     SpinTick(u64),
     QuitWithCode(i32),
@@ -100,18 +100,18 @@ pub type LinkFn = fn() -> Option<String>;
 pub struct Core {
     rx: std::sync::mpsc::Receiver<TrayCmd>,
     tx: CmdTx,
-    quit: crate::app::quit::QuitSignal,
+    quit: crate::gui::tray::app::quit::QuitSignal,
     page_url_fn: LinkFn,
     node_cmd_tx: NodeCmdTx,
     ui: Option<TrayUi>,
-    view: crate::app::view::View,
-    route: crate::app::view::RouteLine,
+    view: crate::gui::tray::app::view::View,
+    route: crate::gui::tray::app::view::RouteLine,
     proxy: ProxyState,
     invite_note: InviteNote,
     serve_note: ServeNote,
     start_note: StartNote,
     serves_exit: bool,
-    members: crate::app::snapshot::TrayMembers,
+    members: crate::gui::tray::app::snapshot::TrayMembers,
     spin: Spin,
 }
 
@@ -122,8 +122,13 @@ impl Core {
         let icons = build_icons()?;
         let exit = super::exit_menu::ExitUi::build()?;
         let actions = ActionsUi::build(self.invite_note);
-        let (menu, status_item, open_item, node_item, proxy_item) =
-            build_menu(self.view, &self.route, &self.proxy, exit.submenu(), &actions)?;
+        let (menu, status_item, open_item, node_item, proxy_item) = build_menu(
+            self.view,
+            &self.route,
+            &self.proxy,
+            exit.submenu(),
+            &actions,
+        )?;
 
         let vote = super::vote_item::VoteUi::new(menu.clone());
         let icon = super::menu_build::view_icon(&icons, self.icon_key())?;
@@ -221,7 +226,7 @@ impl Core {
     }
 
     /// `TrayCmd::Update`: remembers the view and updates the icon/menu from it.
-    fn apply_update(&mut self, view: crate::app::view::View) {
+    fn apply_update(&mut self, view: crate::gui::tray::app::view::View) {
         self.view = view;
         if let Some(ticker) = self.spin.follow(view) {
             ticker.spawn(self.tx.clone());
@@ -231,7 +236,7 @@ impl Core {
 
     /// `TrayCmd::ExitMenu`: remembers the chosen exit and proxy, rebuilds the
     /// "Exit via…" submenu and updates the status line/proxy item.
-    fn apply_exits(&mut self, menu: crate::app::exit_menu::ExitMenu) {
+    fn apply_exits(&mut self, menu: crate::gui::tray::app::exit_menu::ExitMenu) {
         self.route = menu.route.clone();
         self.proxy = menu.proxy.clone();
         self.serves_exit = menu.serves_exit;
@@ -252,7 +257,11 @@ impl Core {
 
 /// Builds the command channel and the platform loop state. `wake` is chosen by OS — the only
 /// `cfg(target_os)` branch in this file.
-pub fn channel(quit: crate::app::quit::QuitSignal, page_url_fn: LinkFn, node_cmd_tx: NodeCmdTx) -> (CmdTx, Core) {
+pub fn channel(
+    quit: crate::gui::tray::app::quit::QuitSignal,
+    page_url_fn: LinkFn,
+    node_cmd_tx: NodeCmdTx,
+) -> (CmdTx, Core) {
     let (sender, rx) = std::sync::mpsc::channel();
 
     #[cfg(target_os = "macos")]
@@ -273,8 +282,8 @@ pub fn channel(quit: crate::app::quit::QuitSignal, page_url_fn: LinkFn, node_cmd
         page_url_fn,
         node_cmd_tx,
         ui: None,
-        view: crate::app::view::View::initial(),
-        route: crate::app::view::RouteLine::Direct,
+        view: crate::gui::tray::app::view::View::initial(),
+        route: crate::gui::tray::app::view::RouteLine::Direct,
         proxy: ProxyState::Off(ProxyOff::DisabledInSettings),
         invite_note: InviteNote::Idle,
         serve_note: ServeNote::Idle,

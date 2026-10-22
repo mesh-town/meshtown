@@ -26,5 +26,8 @@ fn closed_port_is_not_running() {
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = l.local_addr().unwrap().port();
     drop(l);
-    assert!(matches!(call(port, "T", "GET", "/", None), Err(LinkError::NotRunning)));
+    assert!(matches!(
+        call(port, "T", "GET", "/", None),
+        Err(LinkError::NotRunning)
+    ));
 }

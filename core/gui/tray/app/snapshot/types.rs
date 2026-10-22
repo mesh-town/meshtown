@@ -4,10 +4,10 @@
 //! function from `lenient` — a missing key and a foreign type both give the same default, extra keys are ignored.
 //! What it does not do: it does not parse a non-object with a derived `Deserialize` (an array would be read
 //! positionally) — outside code uses only `TraySnapshot::from_value`; it does not store the invite string.
-//! Links: `lenient.rs` (field readers), `meshtown::web::RouteMode` (the route as on the server);
+//! Links: `lenient.rs` (field readers), `crate::web_gui::RouteMode` (the route as on the server);
 //! the node status is its own `TrayNodeStatus`, so that an unknown string does not turn into `Starting`.
 
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 use serde_json::Value;
 
 use super::lenient;

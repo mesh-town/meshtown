@@ -1,10 +1,10 @@
 //! Membership of a `mem` topic: the nodes of one topic of the hub connect pairwise on an invite from either side.
 
 use super::sync_hub::MemSyncNet;
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
-use crate::net::sync::{Membership, SwarmEvent};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync::{Membership, SwarmEvent};
 use bytes::Bytes;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use tokio::sync::broadcast;

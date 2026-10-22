@@ -1,7 +1,7 @@
 //! Tests of the ring model: counting in `Ring`, equality, the choice of a solid icon (`ring_to_draw`).
 
 use super::*;
-use crate::app::view::{NetLink, NodeState, PageState, TrayColor};
+use crate::gui::tray::app::view::{NetLink, NodeState, PageState, TrayColor};
 
 const COLORS: [TrayColor; 4] = [
     TrayColor::Grey,
@@ -10,7 +10,12 @@ const COLORS: [TrayColor; 4] = [
     TrayColor::GreenOutline,
 ];
 
-const ALL_ROLES: [RingRole; 4] = [RingRole::ActiveExit, RingRole::ExitClient, RingRole::Online, RingRole::Offline];
+const ALL_ROLES: [RingRole; 4] = [
+    RingRole::ActiveExit,
+    RingRole::ExitClient,
+    RingRole::Online,
+    RingRole::Offline,
+];
 
 fn ring_of(roles: &[RingRole]) -> Ring {
     roles.iter().fold(Ring::EMPTY, |ring, &role| ring.add(role))
@@ -39,15 +44,18 @@ mod role_colours {
     fn exit_down_is_the_solid_red_icon_colour() {
         let (r, g, b) = (225, 60, 50);
         assert_eq!(role_rgb(RingRole::ExitDown), [r, g, b]);
-        let icon = crate::app::view::icon_rgba(TrayColor::Red);
-        let centre = ((18 * crate::app::view::ICON_SIDE_PX + 18) * 4) as usize;
+        let icon = crate::gui::tray::app::view::icon_rgba(TrayColor::Red);
+        let centre = ((18 * crate::gui::tray::app::view::ICON_SIDE_PX + 18) * 4) as usize;
         assert_eq!(icon[centre..centre + 3], [r, g, b]);
     }
 
     #[test]
     fn exit_down_is_the_first_sector() {
         let ring = ring_of(&[RingRole::Offline, RingRole::ExitDown, RingRole::ActiveExit]);
-        assert_eq!(roles_of(ring), [RingRole::ExitDown, RingRole::ActiveExit, RingRole::Offline]);
+        assert_eq!(
+            roles_of(ring),
+            [RingRole::ExitDown, RingRole::ActiveExit, RingRole::Offline]
+        );
         assert_eq!(RING_ROLES.len(), RING_ROLE_COUNT);
     }
 
@@ -70,14 +78,22 @@ mod ring_counts {
 
     #[test]
     fn roles_come_out_in_rank_order() {
-        let ring = ring_of(&[RingRole::Offline, RingRole::Online, RingRole::ExitClient, RingRole::ActiveExit]);
+        let ring = ring_of(&[
+            RingRole::Offline,
+            RingRole::Online,
+            RingRole::ExitClient,
+            RingRole::ActiveExit,
+        ]);
         assert_eq!(roles_of(ring), ALL_ROLES);
     }
 
     #[test]
     fn equal_neighbours_form_an_arc() {
         let ring = ring_of(&[RingRole::Online, RingRole::ActiveExit, RingRole::Online]);
-        assert_eq!(roles_of(ring), [RingRole::ActiveExit, RingRole::Online, RingRole::Online]);
+        assert_eq!(
+            roles_of(ring),
+            [RingRole::ActiveExit, RingRole::Online, RingRole::Online]
+        );
     }
 
     #[test]
@@ -138,9 +154,15 @@ mod ring_equality {
     #[test]
     fn view_with_different_ring_is_not_equal() {
         let one = view_with(TrayColor::Green, ring_of(&[RingRole::Online]));
-        let two = view_with(TrayColor::Green, ring_of(&[RingRole::Online, RingRole::Online]));
+        let two = view_with(
+            TrayColor::Green,
+            ring_of(&[RingRole::Online, RingRole::Online]),
+        );
         assert_ne!(one, two);
-        assert_eq!(one, view_with(TrayColor::Green, ring_of(&[RingRole::Online])));
+        assert_eq!(
+            one,
+            view_with(TrayColor::Green, ring_of(&[RingRole::Online]))
+        );
     }
 }
 
@@ -150,7 +172,11 @@ mod icon_ring_choice {
     #[test]
     fn every_colour_with_empty_ring_stays_solid() {
         for color in COLORS {
-            assert_eq!(ring_to_draw(view_with(color, Ring::EMPTY)), None, "{color:?}");
+            assert_eq!(
+                ring_to_draw(view_with(color, Ring::EMPTY)),
+                None,
+                "{color:?}"
+            );
         }
     }
 
@@ -158,7 +184,11 @@ mod icon_ring_choice {
     fn every_colour_with_ring_gets_sectors() {
         let ring = ring_of(&ALL_ROLES);
         for color in COLORS {
-            assert_eq!(ring_to_draw(view_with(color, ring)), Some(ring), "{color:?}");
+            assert_eq!(
+                ring_to_draw(view_with(color, ring)),
+                Some(ring),
+                "{color:?}"
+            );
         }
     }
 }

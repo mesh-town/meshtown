@@ -3,7 +3,7 @@
 //! `Fixture`, `setup` and the other helpers are there.
 
 use super::*;
-use crate::net::StreamPair;
+use crate::transport::net::StreamPair;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 /// Handshake tail limit on the wire (bytes) — a number from the format, not from the code under test.
@@ -49,7 +49,11 @@ async fn mem_tail_at_limit_keeps_name() {
     // then: Ok and the name from the start of the tail is recorded
     assert!(responded.is_ok(), "respond: {responded:?}");
     let name = fx.res.ctx.members.name_of(fx.ini.ctx.own_id);
-    assert_eq!(name, Some(NAME_A.to_string()), "name from a tail at the limit");
+    assert_eq!(
+        name,
+        Some(NAME_A.to_string()),
+        "name from a tail at the limit"
+    );
 }
 
 #[tokio::test]
@@ -85,7 +89,11 @@ async fn mem_responder_without_name_tail_is_accepted() {
     assert!(initiated.is_ok(), "initiate: {initiated:?}");
     let b = fx.res.ctx.own_id;
     assert!(fx.ini.ctx.members.is_member(b), "A did not add B");
-    assert_eq!(fx.ini.ctx.members.name_of(b), None, "name from an empty tail");
+    assert_eq!(
+        fx.ini.ctx.members.name_of(b),
+        None,
+        "name from an empty tail"
+    );
 }
 
 // ---- helpers ----
@@ -102,7 +110,9 @@ impl Fixture {
         send.write_all(&nonce_b).await.expect("nonce_b");
         send.write_all(tag.as_bytes()).await.expect("tag");
         let mut rest = Vec::new();
-        recv.read_to_end(&mut rest).await.expect("the initiator's tag and tail");
+        recv.read_to_end(&mut rest)
+            .await
+            .expect("the initiator's tag and tail");
         send.write_all(&[1u8]).await.expect("ok");
         send.shutdown().await.expect("shutdown");
     }
@@ -117,14 +127,20 @@ impl Fixture {
             send.write_all(&vec![4u8; len]).await.expect("write");
             send.shutdown().await.expect("shutdown");
         };
-        let (_, responded) = tokio::join!(must_finish(raw), must_finish(respond(&self.res.conn, &self.res.ctx)));
+        let (_, responded) = tokio::join!(
+            must_finish(raw),
+            must_finish(respond(&self.res.conn, &self.res.ctx))
+        );
         responded
     }
 
     /// A raw initiator goes through the protocol with the right tag and a tail of `tail_len` bytes.
     async fn when_raw_initiator_sends_tail(&self, tail_len: usize) -> anyhow::Result<()> {
         let raw = self.raw_initiator(tail_for(tail_len));
-        let (_, responded) = tokio::join!(must_finish(raw), must_finish(respond(&self.res.conn, &self.res.ctx)));
+        let (_, responded) = tokio::join!(
+            must_finish(raw),
+            must_finish(respond(&self.res.conn, &self.res.ctx))
+        );
         responded
     }
 

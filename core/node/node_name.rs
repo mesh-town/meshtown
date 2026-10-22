@@ -14,18 +14,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{NetError, PeerId, Replica};
+use crate::transport::net::{NetError, PeerId, Replica};
 use anyhow::Result;
 use bytes::Bytes;
 use tokio::sync::watch;
 use tokio::task::AbortHandle;
 use tokio::time::{sleep, timeout};
 
-use crate::domains::DomainList;
-use crate::membership::{MemberContext, Members};
-use crate::node_state::{own_value, read_values};
-use crate::output::{say, short_peer_id};
-use crate::words::{trim_and_validate_node_name, default_node_name, MAX_NAME_BYTES};
+use crate::members::membership::{MemberContext, Members};
+use crate::members::words::{default_node_name, trim_and_validate_node_name, MAX_NAME_BYTES};
+use crate::node::node_state::{own_value, read_values};
+use crate::node::output::{say, short_peer_id};
+use crate::proxy::domains::DomainList;
 
 /// Key of the node name in the network's shared document.
 pub const NODE_NAME_KEY: &[u8] = b"node/name/";
@@ -100,11 +100,19 @@ pub(crate) fn names_to_apply(
 async fn announce_once(r: &dyn Replica, name: &str) -> bool {
     match ensure_node_name(r, name).await {
         Ok(written) => {
-            written.then(|| say("docs", format!("name \"{name}\" written to the network document")));
+            written.then(|| {
+                say(
+                    "docs",
+                    format!("name \"{name}\" written to the network document"),
+                )
+            });
             true
         }
         Err(e) => {
-            say("docs", format!("name not written to the network document: {e:#}"));
+            say(
+                "docs",
+                format!("name not written to the network document: {e:#}"),
+            );
             false
         }
     }
@@ -163,8 +171,15 @@ pub async fn run_name_watch(r: Arc<dyn Replica>, me: PeerId, members: Members) {
 
 /// Starts the publisher and the watcher as background tasks; puts the handles into `boot.tasks`.
 pub fn spawn_node_name(list: &DomainList, ctx: &MemberContext) -> [AbortHandle; 2] {
-    let announce = tokio::spawn(run_name_announce(list.shared_replica(), ctx.own_name_tx.subscribe()));
-    let watch = tokio::spawn(run_name_watch(list.shared_replica(), ctx.own_id, ctx.members.clone()));
+    let announce = tokio::spawn(run_name_announce(
+        list.shared_replica(),
+        ctx.own_name_tx.subscribe(),
+    ));
+    let watch = tokio::spawn(run_name_watch(
+        list.shared_replica(),
+        ctx.own_id,
+        ctx.members.clone(),
+    ));
     [announce.abort_handle(), watch.abort_handle()]
 }
 

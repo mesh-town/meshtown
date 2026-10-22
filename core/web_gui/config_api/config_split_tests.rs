@@ -3,7 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::config_file::{self, CliOverrides, ConfigSource, PathRule};
+use crate::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
 
 use super::ConfigState;
 

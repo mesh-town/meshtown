@@ -15,12 +15,19 @@ pub struct Held<S> {
 
 impl<S> Held<S> {
     pub fn new(inner: S, slot: OwnedSemaphorePermit) -> Self {
-        Self { inner, slot: Some(slot) }
+        Self {
+            inner,
+            slot: Some(slot),
+        }
     }
 }
 
 impl<S: AsyncRead + Unpin> AsyncRead for Held<S> {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
         let res = Pin::new(&mut self.inner).poll_read(cx, buf);
         if res.is_ready() {
             self.slot = None;
@@ -30,7 +37,11 @@ impl<S: AsyncRead + Unpin> AsyncRead for Held<S> {
 }
 
 impl<S: AsyncWrite + Unpin> AsyncWrite for Held<S> {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        data: &[u8],
+    ) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.inner).poll_write(cx, data)
     }
 

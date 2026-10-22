@@ -27,6 +27,9 @@ mod announce_text {
     #[test]
     fn two_urls_joined() {
         let text = announce_text(&[url(1), url(2)], true);
-        assert!(text.contains(&format!("{} or {}", url(1), url(2))), "{text}");
+        assert!(
+            text.contains(&format!("{} or {}", url(1), url(2))),
+            "{text}"
+        );
     }
 }

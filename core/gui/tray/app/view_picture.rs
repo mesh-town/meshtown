@@ -44,7 +44,11 @@ pub struct IdleRing {
 
 /// The sector count of the idle ring: the remembered one or `IDLE_SECTORS`; clamped for `Starting`.
 pub fn idle_sectors(node: NodeState, remembered: u16) -> u16 {
-    let n = if remembered == 0 { IDLE_SECTORS } else { remembered };
+    let n = if remembered == 0 {
+        IDLE_SECTORS
+    } else {
+        remembered
+    };
     match node {
         NodeState::Starting => n.clamp(SPIN_MIN_SECTORS, SPIN_MAX_SECTORS),
         _ => n,
@@ -68,13 +72,21 @@ impl IconPicture {
         }
         let n = idle_sectors(node, idle.remembered);
         let lit = (node == NodeState::Starting).then(|| (idle.frame % u32::from(n)) as u16);
-        Self { ring: Some(Ring::uniform(RingRole::Offline, n)), lit, ..self }
+        Self {
+            ring: Some(Ring::uniform(RingRole::Offline, n)),
+            lit,
+            ..self
+        }
     }
 
     /// The picture with the "vote waiting" mark when `alert` is true (the disk is dropped); otherwise unchanged.
     pub fn with_alert(self, alert: bool) -> Self {
         match alert {
-            true => Self { alert, disk: None, ..self },
+            true => Self {
+                alert,
+                disk: None,
+                ..self
+            },
             false => self,
         }
     }
@@ -84,7 +96,13 @@ impl IconPicture {
 pub fn icon_picture(view: View) -> IconPicture {
     let ring = ring_to_draw(view);
     let disk = view.disk.filter(|_| ring.is_some());
-    IconPicture { color: view.color, ring, disk, alert: false, lit: None }
+    IconPicture {
+        color: view.color,
+        ring,
+        disk,
+        alert: false,
+        lit: None,
+    }
 }
 
 /// The `side`×`side` RGBA raster; `None` without a ring and without the mark — the icon is solid and comes

@@ -8,12 +8,12 @@
 //! the replica file (`sync/replica/file_tests.rs`); the "directory occupied by a file" and "directory occupied
 //! by a second node" branches existed only in the iroh-docs adapter, the replica has no analogue (a broken file is the test
 //! `domains_broken_starts_empty` in `replica_tests`).
-//! Links: `meshtown::node::NodeConfig::docs_store_dir`, `meshtown::node`.
+//! Links: `meshtown_core::node::NodeConfig::docs_store_dir`, `meshtown_core::node`.
 
 use std::path::{Path, PathBuf};
 
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
 
 /// The store root in the test's temporary directory, its own for every call (by process name,
 /// time and suffix, so cases don't interfere with each other); it doesn't create the `docs-store` directory itself —
@@ -71,8 +71,14 @@ async fn domains_survive_restart_without_peers() {
         root.join("replica").join("domains.bin").is_file(),
         "the replica must land on disk in replica/domains.bin next to docs-store/"
     );
-    assert!(!dir.join("docs").exists(), "the iroh-docs store (docs/) must not exist");
-    assert!(!dir.join("blobs").exists(), "the blob store (blobs/) must not exist");
+    assert!(
+        !dir.join("docs").exists(),
+        "the iroh-docs store (docs/) must not exist"
+    );
+    assert!(
+        !dir.join("blobs").exists(),
+        "the blob store (blobs/) must not exist"
+    );
 
     node.shutdown().await;
 }

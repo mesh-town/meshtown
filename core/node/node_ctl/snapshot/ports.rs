@@ -3,11 +3,11 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::ports::open::OpenState;
-use crate::ports::{LocalState, Opened, PortView, Published};
-use crate::web::{NetPort, OpenedInfo, OwnPort, PortsInfo};
+use crate::ports_sharing::open::OpenState;
+use crate::ports_sharing::{LocalState, Opened, PortView, Published};
+use crate::web_gui::{NetPort, OpenedInfo, OwnPort, PortsInfo};
 
 type Own = Vec<(Published, LocalState)>;
 type OpenedNow = Vec<(Opened, OpenState)>;

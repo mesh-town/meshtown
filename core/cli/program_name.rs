@@ -20,7 +20,9 @@ pub fn set_program_name(argv0: &OsStr) {
 
 /// The name of the command for hints; `meshtown` until `set_program_name` is called.
 pub fn program_name() -> &'static str {
-    PROGRAM_NAME.get().map_or(DEFAULT_PROGRAM_NAME, String::as_str)
+    PROGRAM_NAME
+        .get()
+        .map_or(DEFAULT_PROGRAM_NAME, String::as_str)
 }
 
 /// The file stem of the first argument, or `meshtown` if there is none.

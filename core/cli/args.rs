@@ -7,9 +7,9 @@
 
 use std::ffi::OsString;
 
+use crate::cli::program_name::{program_name, DEFAULT_PROGRAM_NAME};
 use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
-use meshtown::program_name::{program_name, DEFAULT_PROGRAM_NAME};
 
 /// The subcommand used if the user named none.
 #[cfg(feature = "tray")]
@@ -76,7 +76,10 @@ impl Cli {
     /// the method of the same name on `CommandFactory`, so `Cli::command()` gives this layout everywhere.
     pub(crate) fn command() -> clap::Command {
         let cmd = <Self as CommandFactory>::command()
-            .mut_arg("help", |a| a.display_order(HELP_ORDER).help(with_program_name(HELP_HINT, program_name())))
+            .mut_arg("help", |a| {
+                a.display_order(HELP_ORDER)
+                    .help(with_program_name(HELP_HINT, program_name()))
+            })
             .mut_arg("version", |a| a.display_order(HELP_ORDER + 1));
         let cmd = rename_commands(cmd, program_name());
         let names: Vec<String> = cmd
@@ -97,15 +100,24 @@ fn rename_commands(cmd: clap::Command, name: &str) -> clap::Command {
     if name == DEFAULT_PROGRAM_NAME {
         return cmd;
     }
-    let names: Vec<String> = cmd.get_subcommands().map(|c| c.get_name().to_string()).collect();
+    let names: Vec<String> = cmd
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .collect();
     let cmd = rename_texts(cmd, name);
-    names.iter().fold(cmd, |cmd, sub| cmd.mut_subcommand(sub, |c| rename_texts(c, name)))
+    names.iter().fold(cmd, |cmd, sub| {
+        cmd.mut_subcommand(sub, |c| rename_texts(c, name))
+    })
 }
 
 /// Replaces the command name in one command's `override_usage` and `after_help`.
 fn rename_texts(cmd: clap::Command, name: &str) -> clap::Command {
-    let usage = cmd.get_overridden_usage().map(|u| with_program_name(&u.to_string(), name));
-    let after = cmd.get_after_help().map(|u| with_program_name(&u.to_string(), name));
+    let usage = cmd
+        .get_overridden_usage()
+        .map(|u| with_program_name(&u.to_string(), name));
+    let after = cmd
+        .get_after_help()
+        .map(|u| with_program_name(&u.to_string(), name));
     let cmd = usage.into_iter().fold(cmd, |c, u| c.override_usage(u));
     after.into_iter().fold(cmd, |c, a| c.after_help(a))
 }
@@ -127,10 +139,10 @@ pub(crate) enum CliCommand {
     /// Show the Mesh Town icon next to the clock and start the node
     #[cfg(feature = "tray")]
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown tray [OPTIONS] [-- RUN_OPTIONS…]")]
-    Tray(crate::app::tray_role::TrayArgs),
+    Tray(crate::gui::tray::app::tray_role::TrayArgs),
     /// Run the node in this window, without an icon
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown run [OPTIONS]")]
-    Run(crate::commands::RunArgs),
+    Run(crate::cli::commands::RunArgs),
     /// Print a new network key (advanced; most people join with an invite)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown keygen [--raw] [LABEL]…")]
     Keygen {
@@ -153,7 +165,12 @@ pub(crate) enum CliCommand {
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown password reset [--config <PATH>] [--web-port <PORT>]")]
     Password {
         /// What to do with the password: for now only reset.
-        #[arg(value_name = "ACTION", value_enum, hide_possible_values = true, help_heading = "Options")]
+        #[arg(
+            value_name = "ACTION",
+            value_enum,
+            hide_possible_values = true,
+            help_heading = "Options"
+        )]
         action: PasswordAction,
         /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
@@ -167,7 +184,7 @@ pub(crate) enum CliCommand {
     Access {
         /// Mode: localhost or localnet.
         #[arg(value_name = "MODE", value_parser = parse_access, help_heading = "Options")]
-        mode: meshtown::config_file::ListenAccess,
+        mode: crate::config::config_file::ListenAccess,
         /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
         config: Option<std::path::PathBuf>,
@@ -200,8 +217,8 @@ pub(crate) enum PasswordAction {
 }
 
 /// Parses the `access` mode: the error names the allowed values.
-pub(crate) fn parse_access(s: &str) -> Result<meshtown::config_file::ListenAccess, String> {
-    meshtown::config_file::ListenAccess::parse(s)
+pub(crate) fn parse_access(s: &str) -> Result<crate::config::config_file::ListenAccess, String> {
+    crate::config::config_file::ListenAccess::parse(s)
         .ok_or_else(|| "allowed: localhost, localnet".to_string())
 }
 
@@ -235,13 +252,13 @@ pub(crate) fn with_default_subcommand(args: impl IntoIterator<Item = OsString>) 
 }
 
 #[cfg(test)]
-#[path = "cli_tests.rs"]
+#[path = "args_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "cli_help_tests.rs"]
+#[path = "args_help_tests.rs"]
 mod help_tests;
 
 #[cfg(test)]
-#[path = "cli_help_layout_tests.rs"]
+#[path = "args_help_layout_tests.rs"]
 mod help_layout_tests;

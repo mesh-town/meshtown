@@ -1,10 +1,10 @@
 //! Tests of the "vote waiting" mark: the centre, the untouched rim, no disk colors.
 
 use super::*;
-use crate::app::view::{icon_rgba, TrayColor, ICON_SIDE_PX};
-use crate::app::view_picture::{picture_rgba, IconPicture};
-use crate::app::view_disk::Disk;
-use crate::app::view_ring::{role_rgb, Ring, RingRole};
+use crate::gui::tray::app::view::{icon_rgba, TrayColor, ICON_SIDE_PX};
+use crate::gui::tray::app::view_disk::Disk;
+use crate::gui::tray::app::view_picture::{picture_rgba, IconPicture};
+use crate::gui::tray::app::view_ring::{role_rgb, Ring, RingRole};
 
 fn pixel(rgba: &[u8], x: u32, y: u32) -> [u8; 4] {
     let at = ((y * ICON_SIDE_PX + x) * 4) as usize;
@@ -12,12 +12,24 @@ fn pixel(rgba: &[u8], x: u32, y: u32) -> [u8; 4] {
 }
 
 fn ring() -> Ring {
-    Ring::EMPTY.add(RingRole::ActiveExit).add(RingRole::ExitClient)
+    Ring::EMPTY
+        .add(RingRole::ActiveExit)
+        .add(RingRole::ExitClient)
 }
 
 fn picture(color: TrayColor, ring: Option<Ring>) -> IconPicture {
-    let disk = Some(Disk { step: 6, blue_twelfths: 6 });
-    IconPicture { color, ring, disk, alert: false, lit: None }.with_alert(true)
+    let disk = Some(Disk {
+        step: 6,
+        blue_twelfths: 6,
+    });
+    IconPicture {
+        color,
+        ring,
+        disk,
+        alert: false,
+        lit: None,
+    }
+    .with_alert(true)
 }
 
 #[test]
@@ -30,20 +42,30 @@ fn with_alert_drops_the_disk_and_sets_the_flag() {
 
 #[test]
 fn alert_differs_from_no_alert() {
-    let base = IconPicture { color: TrayColor::Green, ring: None, disk: None, alert: false, lit: None };
+    let base = IconPicture {
+        color: TrayColor::Green,
+        ring: None,
+        disk: None,
+        alert: false,
+        lit: None,
+    };
     assert_ne!(base.with_alert(true), base.with_alert(false));
     assert_eq!(base.with_alert(false), base);
 }
 
 #[test]
 fn centre_is_the_mark_and_has_no_disk_colours_over_a_ring() {
-    let rgba = picture_rgba(&picture(TrayColor::Green, Some(ring())), ICON_SIDE_PX).expect("raster");
+    let rgba =
+        picture_rgba(&picture(TrayColor::Green, Some(ring())), ICON_SIDE_PX).expect("raster");
     // The ring may reach the corners of a bigger square; the disc itself is inside 12..24.
     // The bar is dark, the dot is dark, the disc beside the bar is amber.
     assert_eq!(pixel(&rgba, 18, 14), [40, 30, 20, 255]);
     assert_eq!(pixel(&rgba, 18, 23), [40, 30, 20, 255]);
     assert_eq!(pixel(&rgba, 22, 14), [245, 166, 35, 255]);
-    for (role, name) in [(RingRole::ActiveExit, "blue"), (RingRole::ExitClient, "lilac")] {
+    for (role, name) in [
+        (RingRole::ActiveExit, "blue"),
+        (RingRole::ExitClient, "lilac"),
+    ] {
         let rgb = role_rgb(role);
         for y in 12..24 {
             for x in 12..24 {

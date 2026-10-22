@@ -2,11 +2,11 @@
 //! A child module of `core` — it sees the private fields of `Core`.
 
 use super::super::vote_item::MENU_VOTE;
-use crate::app::members_note;
 use super::{
     log_tray, open_url, start_enabled, stop_enabled, Core, NodeCmd, MENU_EXIT_PREFIX, MENU_INVITE,
     MENU_NODE, MENU_OPEN, MENU_QUIT, MENU_SERVE,
 };
+use crate::gui::tray::app::members_note;
 
 impl Core {
     /// `TrayCmd::Menu`: a click by item identifier.
@@ -20,7 +20,9 @@ impl Core {
         } else if id == MENU_INVITE {
             let _ = self.node_cmd_tx.send(NodeCmd::CopyInvite);
         } else if id == MENU_SERVE {
-            let _ = self.node_cmd_tx.send(NodeCmd::SetExitServer(!self.serves_exit));
+            let _ = self
+                .node_cmd_tx
+                .send(NodeCmd::SetExitServer(!self.serves_exit));
         } else if id == MENU_QUIT {
             self.quit.request();
         } else if let Some(rest) = id.strip_prefix(MENU_EXIT_PREFIX) {
@@ -31,7 +33,9 @@ impl Core {
 
     fn click_open(&self) {
         // `None` — a race with the menu item state, not an error: silently.
-        let Some(url) = (self.page_url_fn)() else { return };
+        let Some(url) = (self.page_url_fn)() else {
+            return;
+        };
         if let Err(e) = open_url::open(&url) {
             log_tray(&format!("browser did not open: {e}"));
         }
@@ -39,7 +43,9 @@ impl Core {
 
     /// The vote item opens the same page at the members section.
     fn click_vote(&self) {
-        let Some(url) = (self.page_url_fn)() else { return };
+        let Some(url) = (self.page_url_fn)() else {
+            return;
+        };
         if let Err(e) = open_url::open(&members_note::with_anchor(&url, "peers")) {
             log_tray(&format!("browser did not open: {e}"));
         }

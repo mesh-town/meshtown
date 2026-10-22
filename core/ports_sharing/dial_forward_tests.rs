@@ -4,12 +4,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::facade::test_support::{pid, secret, within, Probe, STEP};
-use crate::net::{
+use crate::node::output::{log_page, log_summary};
+use crate::ports_sharing::{
+    port_code_text, port_service, Audience, Published, PublishedPortsTable,
+    PORT_CODE_NOT_PUBLISHED, PORT_FRAME_VERSION,
+};
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
+use crate::transport::net::{
     BoxFuture, MemNet, NetStack, NetStackBuilder, PeerConn, ServiceHandler, StreamPair, PORT,
 };
-use crate::output::{log_page, log_summary};
-use crate::ports::{port_code_text, port_service, Audience, Published, PublishedPortsTable, PORT_CODE_NOT_PUBLISHED, PORT_FRAME_VERSION};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;

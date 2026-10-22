@@ -8,10 +8,10 @@ use std::time::Duration;
 use tokio::sync::oneshot;
 
 use super::super::views::ABSENT_VIEW;
-use crate::app::exit_menu::ExitMenu;
-use crate::app::proxy_state::ProxyState;
-use crate::app::start_note::StartNote;
-use crate::app::tray_actions::{InviteNote, ServeNote};
+use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::proxy_state::ProxyState;
+use crate::gui::tray::app::start_note::StartNote;
+use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
 
 pub(crate) const T: PollTiming = PollTiming {
     poll_interval: Duration::from_millis(100),

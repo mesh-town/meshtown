@@ -3,7 +3,7 @@
 //! a normal build is expected and allowed here until the poller uses them.
 
 use super::classify::reply_from_response;
-use super::request::{request_bytes_without_body, request_bytes_put};
+use super::request::{request_bytes_put, request_bytes_without_body};
 use super::transport::{exchange, exchange_within, INVITE_EXCHANGE_TIMEOUT};
 use super::types::{ApiError, Reply};
 

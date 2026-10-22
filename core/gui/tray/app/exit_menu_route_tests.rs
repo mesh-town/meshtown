@@ -1,12 +1,14 @@
 //! Tests of `exit_menu`: the route line, the proxy and the "serves as an exit" flag.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use serde_json::json;
 
 /// A shim with the old name: the tests supply JSON, the code reads the selection.
 fn exit_menu_from_json(value: &serde_json::Value) -> ExitMenu {
-    exit_menu_from_snapshot(&crate::app::snapshot::TraySnapshot::from_value(value))
+    exit_menu_from_snapshot(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 /// `ExitMenu.route`: `route.state`/`route.exits[]` of the snapshot →
@@ -180,7 +182,8 @@ mod proxy {
             "node": { "status": "online", "id_full": "me00" },
             "socks": { "enabled": false, "listen": "127.0.0.1:1080" }
         });
-        assert_eq!(exit_menu_from_json(&state).proxy,
+        assert_eq!(
+            exit_menu_from_json(&state).proxy,
             ProxyState::Off(ProxyOff::DisabledInSettings)
         );
     }
@@ -188,7 +191,8 @@ mod proxy {
     #[test]
     fn no_socks_field_is_off() {
         let state = json!({ "node": { "status": "online", "id_full": "me00" } });
-        assert_eq!(exit_menu_from_json(&state).proxy,
+        assert_eq!(
+            exit_menu_from_json(&state).proxy,
             ProxyState::Off(ProxyOff::DisabledInSettings)
         );
     }

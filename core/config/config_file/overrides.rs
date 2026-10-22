@@ -2,7 +2,7 @@
 
 use std::net::SocketAddr;
 
-use super::settings::{Settings, TransportMode, ListenAccess};
+use super::settings::{ListenAccess, Settings, TransportMode};
 
 /// What was typed on the command line. `Some` — the flag was given, `None` — it was not.
 /// `Debug` is hand-written, `network_key` prints as `<hidden>` (like `Settings`).
@@ -13,7 +13,7 @@ pub struct CliOverrides {
     pub exit_enabled: Option<bool>,            // --exit / --no-exit
     pub socks_enabled: Option<bool>,           // --socks / --no-socks
     pub socks_port: Option<u16>,               // --socks-port
-    pub socks_access: Option<ListenAccess>,       // --socks-access
+    pub socks_access: Option<ListenAccess>,    // --socks-access
     pub checks_enabled: Option<bool>,          // --checks / --no-checks
     pub check_interval_sec: Option<u64>,       // --check-interval
     pub doh_server: Option<SocketAddr>,        // --check-doh
@@ -26,7 +26,10 @@ pub struct CliOverrides {
 impl std::fmt::Debug for CliOverrides {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CliOverrides")
-            .field("network_key", &self.network_key.as_ref().map(|_| "<hidden>"))
+            .field(
+                "network_key",
+                &self.network_key.as_ref().map(|_| "<hidden>"),
+            )
             .field("transport_mode", &self.transport_mode)
             .field("exit_enabled", &self.exit_enabled)
             .field("socks_enabled", &self.socks_enabled)

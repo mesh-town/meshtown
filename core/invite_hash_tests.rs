@@ -43,7 +43,11 @@ fn hash_follows_the_documented_derivation() {
 #[test]
 fn hash_is_not_the_plain_blake3_of_the_secret() {
     let plain = hex(*blake3::hash(a_secret().as_bytes()).as_bytes());
-    assert_ne!(a_secret().hash_hex(), plain, "hash without domain separation");
+    assert_ne!(
+        a_secret().hash_hex(),
+        plain,
+        "hash without domain separation"
+    );
 }
 
 #[test]
@@ -59,7 +63,7 @@ fn hash_is_not_any_network_subkey_made_of_the_same_bytes() {
         ("docs_namespace_seed", sub.docs_namespace_seed),
         ("dht_signing_seed", sub.dht_signing_seed),
     ] {
-    assert_ne!(hash, hex(derived), "hash matched subkey {name}");
+        assert_ne!(hash, hex(derived), "hash matched subkey {name}");
     }
 }
 

@@ -3,12 +3,12 @@
 use super::replica::MemReplica;
 use super::swarm::MemSwarm;
 use super::sync_hub::MemSyncNet;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::replica::Replica;
-use crate::net::stream::BoxFuture;
-use crate::net::sync::Membership;
-use crate::net::sync_backend::{Swarm, SyncBackend, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::Replica;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync::Membership;
+use crate::transport::net::sync_backend::{Swarm, SyncBackend, REPLICA_DOMAINS, REPLICA_NET};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

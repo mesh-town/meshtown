@@ -1,7 +1,7 @@
 //! Information about the path to a node and about the node's own network (for display and choice).
 //! Only data here, no behavior.
 
-use crate::net::addr::{AddrHint, RelayRef};
+use crate::transport::net::addr::{AddrHint, RelayRef};
 use std::net::SocketAddr;
 use std::time::Duration;
 

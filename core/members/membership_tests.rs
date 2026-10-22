@@ -1,7 +1,7 @@
 //! Tests of network members and gossip events (`membership.rs`).
 
 use super::*;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 #[test]
 fn ids_lists_current_members() {
@@ -45,11 +45,11 @@ fn names_copies_known_names() {
 
 // ---- connection bookkeeping and the drop reason on PeerConn ----
 
-use crate::net::contract::{secret, must_finish, SEED_A, SEED_B, STEP};
-use crate::net::{MemNet, PeerAddr, PeerConn, SplitTransport, Transport, AUTH};
-use crate::transfer_probe::ProbeSettings;
-use std::sync::atomic::AtomicUsize;
+use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B, STEP};
+use crate::transport::net::{MemNet, PeerAddr, PeerConn, SplitTransport, Transport, AUTH};
+use crate::transport::transfer_probe::ProbeSettings;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 
@@ -76,7 +76,8 @@ mod two_conns_to_one_peer {
         let rest = text
             .strip_prefix("connections 2, paths ")
             .unwrap_or_else(|| panic!("line: {text}"));
-        rest.parse::<usize>().unwrap_or_else(|_| panic!("line: {text}"));
+        rest.parse::<usize>()
+            .unwrap_or_else(|_| panic!("line: {text}"));
         pair.close().await;
     }
 
@@ -210,7 +211,8 @@ async fn dial_once(
     b: &SplitTransport,
     addr: &PeerAddr,
 ) -> (Arc<dyn PeerConn>, Arc<dyn PeerConn>) {
-    let (dialed, accepted) = tokio::join!(must_finish(a.connect(addr, AUTH)), must_finish(b.accept()));
+    let (dialed, accepted) =
+        tokio::join!(must_finish(a.connect(addr, AUTH)), must_finish(b.accept()));
     let (_, far) = accepted.expect("accept B is closed, though a connection was awaited");
     (dialed.expect("connect A→B gave no connection"), far)
 }
@@ -237,7 +239,10 @@ async fn mem_pair() -> MemPair {
     let a = net.transport(&secret(SEED_A));
     let b = net.transport(&secret(SEED_B));
     b.serve(&[AUTH]);
-    let (dialed, accepted) = tokio::join!(must_finish(a.connect(&b.local_addr(), AUTH)), must_finish(b.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(a.connect(&b.local_addr(), AUTH)),
+        must_finish(b.accept())
+    );
     let (_, far) = accepted.expect("accept mem is closed");
     MemPair {
         near: dialed.expect("connect mem gave no connection"),

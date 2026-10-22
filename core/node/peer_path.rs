@@ -8,10 +8,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{AddrHint, NetStack, PathWatch, PeerAddr, PeerConn, PeerId};
-use crate::output::{say, short_peer_id};
-use crate::telemetry::Telemetry;
-use crate::web::PathKindView;
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry::Telemetry;
+use crate::transport::net::{AddrHint, NetStack, PathWatch, PeerAddr, PeerConn, PeerId};
+use crate::web_gui::PathKindView;
 
 fn rtt_ms(rtt: Option<Duration>) -> Option<u64> {
     rtt.map(|d| d.as_millis() as u64)
@@ -28,7 +28,10 @@ pub(crate) fn record_peer_up(
     let link = conn.link();
     let hint = link.hint();
     if let Some(h) = &hint {
-        stack.add_hints(PeerAddr { id: peer, hints: vec![h.clone()] });
+        stack.add_hints(PeerAddr {
+            id: peer,
+            hints: vec![h.clone()],
+        });
     }
     tel.peer_up(peer, PathKindView::from_net(&link.path), rtt_ms(link.rtt));
     hint

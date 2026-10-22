@@ -123,8 +123,8 @@ fn in_v6(ip: Ipv6Addr, net: Ipv6Addr, len: u8) -> bool {
 }
 
 #[cfg(test)]
-#[path = "address_guard_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "address_guard_link_tests.rs"]
 mod link_tests;
+#[cfg(test)]
+#[path = "address_guard_tests.rs"]
+mod tests;

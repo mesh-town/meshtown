@@ -1,15 +1,18 @@
 //! Session counters and path/network information.
 
 use super::*;
-use crate::net::link::{NatKind, PathKind};
+use crate::transport::net::link::{NatKind, PathKind};
 use std::io::ErrorKind;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, duplex};
+use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
 
 #[test]
 fn fresh_meter_reports_unknown_path() {
     let info = link_info(&LinkMeter::new(), &[]);
     assert!(matches!(info.path, PathKind::Unknown));
-    assert_eq!((info.sent_bytes, info.recv_bytes, info.lost_packets), (0, 0, 0));
+    assert_eq!(
+        (info.sent_bytes, info.recv_bytes, info.lost_packets),
+        (0, 0, 0)
+    );
     assert_eq!((info.stream_frames, info.path_count), (0, 0));
     assert!(info.rtt.is_none() && info.cwnd.is_none() && info.remote.is_none());
 }

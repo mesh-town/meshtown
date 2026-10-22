@@ -4,18 +4,18 @@
 
 use std::sync::Arc;
 
-use crate::net::{NodeSecret, PeerId, Transport};
+use crate::transport::net::{NodeSecret, PeerId, Transport};
 use anyhow::Result;
 use data_encoding::HEXLOWER;
 use tokio::net::TcpListener;
 
-use crate::config_file::NetSettings;
-use crate::network_key::{NetworkKey, SubKeys};
-use crate::output::{say, short_peer_id};
+use crate::config::config_file::NetSettings;
+use crate::members::network_key::{NetworkKey, SubKeys};
+use crate::members::words::trim_and_validate_node_name;
+use crate::node::node_name::effective_node_name;
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry::Telemetry;
 use crate::proxy;
-use crate::telemetry::Telemetry;
-use crate::node_name::effective_node_name;
-use crate::words::trim_and_validate_node_name;
 
 use crate::node::config::NodeConfig;
 use crate::node::identity::IdentityState;
@@ -33,7 +33,7 @@ pub(super) struct Boot {
     pub(super) transports: Vec<Arc<dyn Transport>>,
     /// The typed `hyper` handle, if it is in `net.transports`.
     #[cfg(feature = "net-hyper")]
-    pub(super) hyper: Option<Arc<crate::net_hyper::HyperTransport>>,
+    pub(super) hyper: Option<Arc<crate::transport::net_hyper::HyperTransport>>,
     pub(super) id: PeerId,
     pub(super) name: String,
     pub(super) identity: IdentityState,
@@ -84,14 +84,18 @@ async fn bind_socks_listener(cfg: &NodeConfig) -> Result<Option<TcpListener>> {
 fn resolve_secret(cfg: &NodeConfig) -> Result<NodeSecret> {
     Ok(match &cfg.identity_secret {
         Some(s) => s.clone(),
-        None => crate::config_file::new_secret()?,
+        None => crate::config::config_file::new_secret()?,
     })
 }
 
 /// The node name: from the settings file if it passes the check, otherwise the default from the key. The second
 /// element is the check result (for the line about an unsuitable name in the banner).
 fn pick_node_name(cfg: &NodeConfig, id: PeerId) -> (String, Option<Result<&str, &'static str>>) {
-    let name_check = cfg.settings.node_name.as_deref().map(trim_and_validate_node_name);
+    let name_check = cfg
+        .settings
+        .node_name
+        .as_deref()
+        .map(trim_and_validate_node_name);
     let name = effective_node_name(cfg.settings.node_name.as_deref(), id);
     (name, name_check)
 }
@@ -135,7 +139,7 @@ fn banner_line(net_id_hex: &str, id: PeerId, name: &str, identity: IdentityState
     format!(
         "meshtown {}, network {} {}, node {} \"{}\" ({}), identity {}",
         env!("CARGO_PKG_VERSION"),
-        crate::output::NET_NAME,
+        crate::node::output::NET_NAME,
         net_id_hex,
         short_peer_id(&id),
         name,

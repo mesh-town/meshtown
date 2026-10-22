@@ -3,8 +3,8 @@
 
 use super::*;
 #[cfg(unix)]
-use crate::app::tray_texts::REASON_CLIP_FAILED;
-use crate::app::tray_texts::REASON_NO_TOOL;
+use crate::gui::tray::app::tray_texts::REASON_CLIP_FAILED;
+use crate::gui::tray::app::tray_texts::REASON_NO_TOOL;
 
 #[test]
 fn host_candidates_match_os() {

@@ -21,7 +21,7 @@ fn domain_from_check_key_rejects_foreign() {
 fn view(domain: &str, author_seed: u8) -> CheckView {
     CheckView {
         domain: domain.to_string(),
-        author: crate::net::NodeSecret::from_bytes(&[author_seed; 32]).peer_id(),
+        author: crate::transport::net::NodeSecret::from_bytes(&[author_seed; 32]).peer_id(),
         entry_ts_micros: 0,
         record: None,
     }

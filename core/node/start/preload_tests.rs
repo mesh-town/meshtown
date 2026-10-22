@@ -1,7 +1,7 @@
 use super::*;
-use crate::net::PeerAddr;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use crate::node::start::boot::boot_endpoint;
+use crate::transport::net::PeerAddr;
 
 fn names(sources: &[Arc<dyn Discovery>]) -> Vec<&'static str> {
     sources.iter().map(|d| d.name()).collect()
@@ -23,7 +23,7 @@ async fn no_cache_no_peers_gives_no_sources() {
 async fn initial_peer_gives_invite_source() {
     // given: one initial peer
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-    let peer = crate::net::PeerId::from_bytes(&[9; 32]).unwrap();
+    let peer = crate::transport::net::PeerId::from_bytes(&[9; 32]).unwrap();
     cfg.initial_peers = vec![PeerAddr::new(peer)];
     let boot = boot_endpoint(&cfg).await.unwrap();
     // when: reading the sources

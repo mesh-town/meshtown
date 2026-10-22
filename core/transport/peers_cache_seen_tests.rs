@@ -4,8 +4,8 @@
 
 use super::*;
 
-use crate::net::{NodeSecret, PeerId};
-use crate::net::AddrHint;
+use crate::transport::net::AddrHint;
+use crate::transport::net::{NodeSecret, PeerId};
 use std::net::SocketAddr;
 
 /// The `PeerId` of member `n` — our own copy of the `peers_cache_tests.rs` helper (that one is private to

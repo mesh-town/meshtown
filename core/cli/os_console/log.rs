@@ -17,7 +17,7 @@ use std::ffi::OsString;
 /// a build with the tray, `run` without it. Both platforms call it.
 #[cfg(any(windows, target_os = "macos"))]
 pub(super) fn process_role() -> Option<OsString> {
-    crate::cli::with_default_subcommand(std::env::args_os())
+    crate::cli::args::with_default_subcommand(std::env::args_os())
         .into_iter()
         .nth(1)
 }
@@ -40,8 +40,8 @@ pub(super) fn should_redirect_stdio(role: Option<&OsStr>, stderr_is_terminal: bo
 /// The log directory: the parent of the standard config file.
 #[cfg(any(windows, target_os = "macos"))]
 pub(super) fn log_dir() -> std::io::Result<PathBuf> {
-    let env = meshtown::config_file::current_env();
-    let config = meshtown::config_file::standard_path(&env.as_path_env())
+    let env = crate::config::config_file::current_env();
+    let config = crate::config::config_file::standard_path(&env.as_path_env())
         .map_err(std::io::Error::other)?;
     config
         .parent()
@@ -71,7 +71,10 @@ pub(super) fn open_log(dir: &Path, name: &str) -> std::io::Result<std::fs::File>
 /// `tray` process opens for its `run` child.
 #[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
 pub fn open_node_log() -> std::io::Result<std::fs::File> {
-    open_log(&log_dir()?, crate::app::start_note::NODE_LOG_NAME)
+    open_log(
+        &log_dir()?,
+        crate::gui::tray::app::start_note::NODE_LOG_NAME,
+    )
 }
 
 #[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
@@ -83,7 +86,8 @@ pub(super) fn read_tail(path: &Path, max_bytes: u64) -> Option<String> {
     use std::io::{Read as _, Seek as _, SeekFrom};
     let mut file = std::fs::File::open(path).ok()?;
     let len = file.metadata().ok()?.len();
-    file.seek(SeekFrom::Start(len.saturating_sub(max_bytes))).ok()?;
+    file.seek(SeekFrom::Start(len.saturating_sub(max_bytes)))
+        .ok()?;
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).ok()?;
     Some(String::from_utf8_lossy(&bytes).into_owned())
@@ -94,7 +98,9 @@ pub(super) fn read_tail(path: &Path, max_bytes: u64) -> Option<String> {
 #[cfg(all(feature = "tray", any(windows, target_os = "macos")))]
 pub fn node_log_tail() -> Option<String> {
     child_needs_node_log().then_some(())?;
-    let path = log_dir().ok()?.join(crate::app::start_note::NODE_LOG_NAME);
+    let path = log_dir()
+        .ok()?
+        .join(crate::gui::tray::app::start_note::NODE_LOG_NAME);
     read_tail(&path, NODE_LOG_TAIL_BYTES)
 }
 

@@ -4,11 +4,11 @@ use std::sync::Mutex;
 
 use tokio::sync::Notify;
 
-use meshtown::net::{NodeSecret, PeerId};
+use meshtown_core::transport::net::{NodeSecret, PeerId};
 
-use meshtown::config_file::Settings;
-use meshtown::output;
-use meshtown::web::{DhtInfo, LogRing, NodeStatus, PathKindView, VerdictKind};
+use meshtown_core::config::config_file::Settings;
+use meshtown_core::node::output;
+use meshtown_core::web_gui::{DhtInfo, LogRing, NodeStatus, PathKindView, VerdictKind};
 
 use crate::members::DemoMembers;
 use crate::rng::gen_hex8;

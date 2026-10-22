@@ -37,10 +37,12 @@ pub use id::{IdError, NodeSecret, PeerId};
 pub use link::{LinkInfo, NatKind, NetInfo, PathChange, PathKind};
 pub use mem::{MemConnector, MemDiscovery, MemNet};
 pub use registry::{DiscoveryCtor, NetChoice, NetCtx, Registry, TransportCtor};
+pub use replica::{
+    live, Replica, ReplicaEntry, ReplicaEvent, ReplicaId, SyncCount, MAX_VALUE_BYTES,
+};
 pub use service::{ServiceId, AUTH, EXIT, INVITE, PORT, REPLICA, SYNC};
 pub use split::SplitTransport;
 pub use stream::{read_to_end_limited, BoxFuture, BoxRecv, BoxSend, StreamPair};
-pub use replica::{live, ReplicaEntry, Replica, ReplicaEvent, ReplicaId, SyncCount, MAX_VALUE_BYTES};
 pub use sync::{Membership, SwarmEvent};
 pub use sync_backend::{Swarm, SyncBackend, SyncCtor, SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
 pub use transport::{NoPathWatch, PathWatch, PeerConn, Transport, NET_CHANGED, NET_LOST};

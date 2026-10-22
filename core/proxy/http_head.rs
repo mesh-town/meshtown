@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use crate::socks5::Target;
+use crate::proxy::socks5::Target;
 
 use super::pac::{pac_request, PacRequest};
 

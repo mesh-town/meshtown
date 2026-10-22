@@ -1,9 +1,9 @@
 //! Tests of parsing the `run` subcommand flags (see `main.rs`, `cli.rs`, `commands.rs`).
 
-use clap::{ArgMatches, FromArgMatches};
 use clap::error::ErrorKind;
+use clap::{ArgMatches, FromArgMatches};
 
-use crate::cli::{toggle_from_flag_pair, is_flag_typed, Cli, CliCommand};
+use crate::cli::args::{is_flag_typed, toggle_from_flag_pair, Cli, CliCommand};
 
 /// The identifiers `run` checks through `is_flag_typed`.
 const TYPED_IDS: [&str; 8] = [
@@ -52,7 +52,10 @@ fn default_flags_not_typed() {
     }
     let m = run_matches(&[]).expect("parse");
     for id in TYPED_IDS {
-        assert!(!is_flag_typed(&m, id), "{id} was not typed, but typed says yes");
+        assert!(
+            !is_flag_typed(&m, id),
+            "{id} was not typed, but typed says yes"
+        );
     }
 }
 

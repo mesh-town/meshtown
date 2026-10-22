@@ -5,7 +5,7 @@
 //! What it doesn't do: doesn't build the stack and doesn't read the config — that is `start/network.rs` and `config_file`.
 //! Links: `config_file::parse_net` checks the `net` section of the settings file against these lists.
 
-use crate::net::NetChoice;
+use crate::transport::net::NetChoice;
 
 /// Transports (how packets travel between nodes); `mem` isn't in the list — only `NodeConfig.test_net` chooses it.
 pub(crate) fn transports() -> Vec<&'static str> {

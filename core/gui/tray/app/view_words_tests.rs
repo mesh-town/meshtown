@@ -111,7 +111,10 @@ mod status_line {
         fn outside_network_ignores_route() {
             let view = view(NodeState::Running, TrayColor::Grey, PageState::Ready);
             let route = RouteLine::Via("peer-one".to_string());
-            assert_eq!(node_status_menu_line(view, &route), "You haven't joined a Mesh Town network yet");
+            assert_eq!(
+                node_status_menu_line(view, &route),
+                "You haven't joined a Mesh Town network yet"
+            );
         }
     }
 }

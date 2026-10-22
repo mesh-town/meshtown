@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use super::store::{Record, RecordKey, RecordStore};
-use crate::net::{BoxFuture, NetError, NetResult};
+use crate::transport::net::{BoxFuture, NetError, NetResult};
 
 #[derive(Default)]
 pub(crate) struct MemRecords {
@@ -47,7 +47,9 @@ impl MemRecords {
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
         match self.take_failure() {
-            true => Err(NetError::Other(anyhow::anyhow!("MemRecords: injected failure"))),
+            true => Err(NetError::Other(anyhow::anyhow!(
+                "MemRecords: injected failure"
+            ))),
             false => Ok(()),
         }
     }

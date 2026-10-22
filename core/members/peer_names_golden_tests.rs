@@ -1,7 +1,7 @@
 //! Golden test of the `peer-names.json` format (member id is a string of 64 lowercase hex): the expectations are
 //! literals that survive a replacement of the id type. A separate neighbor file: `peer_names_tests.rs` is at the ceiling.
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
 

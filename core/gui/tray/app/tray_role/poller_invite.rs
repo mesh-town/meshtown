@@ -8,10 +8,10 @@ use std::time::Duration;
 use serde_json::Value;
 use tokio::time::Instant;
 
-use crate::app::local_api::{ApiError, Reply};
-use crate::app::snapshot::lenient;
-use crate::app::tray_actions::{InviteNote, InviteReach, ServeNote};
-use crate::app::tray_texts::{REASON_CLIP_FAILED, REASON_JOINING, REASON_NO_ANSWER};
+use crate::gui::tray::app::local_api::{ApiError, Reply};
+use crate::gui::tray::app::snapshot::lenient;
+use crate::gui::tray::app::tray_actions::{InviteNote, InviteReach, ServeNote};
+use crate::gui::tray::app::tray_texts::{REASON_CLIP_FAILED, REASON_JOINING, REASON_NO_ANSWER};
 
 use super::api::{fetch_reply, NodeRequest};
 use super::poll_types::CopyFn;

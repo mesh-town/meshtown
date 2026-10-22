@@ -2,8 +2,8 @@
 
 use std::time::Duration;
 
-use crate::net::facade::test_support::{pid, secret};
-use crate::net::{MemNet, NetStackBuilder, PeerId};
+use crate::transport::net::facade::test_support::{pid, secret};
+use crate::transport::net::{MemNet, NetStackBuilder, PeerId};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 

@@ -10,9 +10,9 @@ use std::time::Duration;
 
 use tokio::sync::Mutex;
 
-use crate::domains::DomainList;
-use crate::net::{PeerId, Replica};
-use crate::reachability::CheckConfig;
+use crate::proxy::domains::DomainList;
+use crate::site_checks::reachability::CheckConfig;
+use crate::transport::net::{PeerId, Replica};
 
 use super::schedule::{DomainState, InProgress, Schedule};
 
@@ -20,7 +20,7 @@ use super::schedule::{DomainState, InProgress, Schedule};
 mod doh_resolver {
     use std::sync::Arc;
 
-    pub type Shared = Arc<crate::doh::Resolver>;
+    pub type Shared = Arc<crate::site_checks::doh::Resolver>;
 }
 
 /// A node's checks: the replica, the resolver and the schedule.
@@ -41,7 +41,7 @@ impl Checks {
     /// Assembles the checks on top of an opened domain list.
     pub fn new(
         domain_list: DomainList,
-        resolver: Arc<crate::doh::Resolver>,
+        resolver: Arc<crate::site_checks::doh::Resolver>,
         check_config: CheckConfig,
         schedule: Schedule,
         enabled: bool,
@@ -77,13 +77,15 @@ impl Checks {
     /// Marks a domain "being checked now"; `false` means it is already being checked (by the scheduled loop or
     /// by another manual call).
     pub fn try_begin_check(&self, domain: &str) -> bool {
-        let domain = crate::domains::normalize_domain(domain).unwrap_or_else(|_| domain.to_string());
+        let domain =
+            crate::proxy::domains::normalize_domain(domain).unwrap_or_else(|_| domain.to_string());
         self.in_progress.try_begin(&domain)
     }
 
     /// Clears the "being checked" mark from a domain.
     pub fn end_check(&self, domain: &str) {
-        let domain = crate::domains::normalize_domain(domain).unwrap_or_else(|_| domain.to_string());
+        let domain =
+            crate::proxy::domains::normalize_domain(domain).unwrap_or_else(|_| domain.to_string());
         self.in_progress.end(&domain);
     }
 

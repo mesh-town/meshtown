@@ -12,14 +12,18 @@ const EXIT_GRACE: Duration = Duration::from_secs(5);
 /// The poller environment: port and token, child launch, showing in the tray via `send`, quit signals.
 pub(super) fn build_poll_env(
     target: (u16, PathBuf),
-    (settings, args): (&meshtown::config_file::Settings, &TrayArgs),
+    (settings, args): (&crate::config::config_file::Settings, &TrayArgs),
     cmds: tokio::sync::mpsc::UnboundedReceiver<NodeCmd>,
     quit: QuitSignal,
     send: impl Fn(TrayCmd) + Clone + Send + 'static,
 ) -> PollEnv {
     let (port, token_path) = target;
     let argv = child_args(args);
-    let proxy_plan = proxy_plan_for(settings.process.socks_port, settings.process.socks_enabled, &args.run_args);
+    let proxy_plan = proxy_plan_for(
+        settings.process.socks_port,
+        settings.process.socks_enabled,
+        &args.run_args,
+    );
     let access = proxy_access_for(settings.process.socks_access, &args.run_args);
     let (show_tx, show_exits_tx, show_invite_tx) = (send.clone(), send.clone(), send.clone());
     let (show_serve_tx, start_tx) = (send.clone(), send);
@@ -33,12 +37,12 @@ pub(super) fn build_poll_env(
         spawn: Box::new(move || spawn_child(&argv)),
         send_view: super::super::first_run::view_sender(show_tx),
         send_exit_menu: Box::new(move |m| show_exits_tx(TrayCmd::ExitMenu(m))),
-        copy_to_clipboard_fn: std::sync::Arc::new(crate::tray::copy_to_clipboard),
+        copy_to_clipboard_fn: std::sync::Arc::new(crate::gui::tray::copy_to_clipboard),
         send_invite_note: Box::new(move |n| show_invite_tx(TrayCmd::Invite(n))),
         send_serve_note: Box::new(move |n| show_serve_tx(TrayCmd::Serve(n))),
         start_fail: StartFail::new(
             Box::new(move || busy_proxy_port(proxy_plan.ok(), access)),
-            Box::new(crate::app::console::node_log_tail),
+            Box::new(crate::cli::os_console::node_log_tail),
             Box::new(move |n| start_tx(TrayCmd::StartFail(n))),
         ),
         log: Box::new(say),

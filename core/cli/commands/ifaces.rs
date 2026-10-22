@@ -3,7 +3,9 @@
 //! the settings file itself. `--if-unset` is a one-time seed (an OpenWrt init script): if there is no file, it creates
 //! it with the names; if the key is already there or the file is unreadable, it changes nothing and exits with code 0.
 
-use meshtown::config_file::{self, IfaceFilter, LoadedConfigFile, ParsedConfigFile, SecretRead};
+use crate::config::config_file::{
+    self, IfaceFilter, LoadedConfigFile, ParsedConfigFile, SecretRead,
+};
 use serde_json::{json, Value};
 
 use super::node_link::{LinkError, Target};
@@ -65,8 +67,14 @@ pub(super) fn create_seeded(t: &Target, filter: &IfaceFilter) -> Result<(), Stri
         s.process.web_ifaces = filter.clone();
     })
     .map_err(|e| e.to_string())?;
-    fresh.saved.map_err(|e| format!("settings file was not created: {e:?}"))?;
-    println!("Settings file created: {}; interfaces for the proxy and the page: {}.", t.path.display(), describe(filter));
+    fresh
+        .saved
+        .map_err(|e| format!("settings file was not created: {e:?}"))?;
+    println!(
+        "Settings file created: {}; interfaces for the proxy and the page: {}.",
+        t.path.display(),
+        describe(filter)
+    );
     Ok(())
 }
 
@@ -94,7 +102,8 @@ pub(super) fn seed_decision(if_unset: bool, file: &FileRead) -> Seed {
 }
 
 fn seed_for_text(text: &str) -> Seed {
-    let set = config_file::has_field(text, "socks.ifaces") || config_file::has_field(text, "web.ifaces");
+    let set =
+        config_file::has_field(text, "socks.ifaces") || config_file::has_field(text, "web.ifaces");
     if set {
         return Seed::Skip("the interface list is already set in the file");
     }
@@ -106,7 +115,10 @@ fn set(t: &Target, filter: &IfaceFilter) -> Result<(), String> {
         Err(LinkError::NotRunning) => offline(t, filter),
         Err(LinkError::Other(e)) => Err(e),
         Ok(()) => {
-            println!("Interface list saved: {} (the proxy picks it up after the node restarts).", describe(filter));
+            println!(
+                "Interface list saved: {} (the proxy picks it up after the node restarts).",
+                describe(filter)
+            );
             Ok(())
         }
     }
@@ -120,27 +132,38 @@ fn describe(filter: &IfaceFilter) -> String {
 fn json_of(call: Result<(u16, String), LinkError>, what: &str) -> Result<Value, LinkError> {
     let (code, body) = call?;
     if code != 200 {
-        return Err(LinkError::Other(format!("node refused ({what}, code {code}): {body}")));
+        return Err(LinkError::Other(format!(
+            "node refused ({what}, code {code}): {body}"
+        )));
     }
-    serde_json::from_str(&body).map_err(|_| LinkError::Other(format!("node did not reply with JSON ({what})")))
+    serde_json::from_str(&body)
+        .map_err(|_| LinkError::Other(format!("node did not reply with JSON ({what})")))
 }
 
 /// The node is running: writes both fields with one PUT carrying the revision.
 fn live(t: &Target, filter: &IfaceFilter) -> Result<(), LinkError> {
     let rev = json_of(t.call("GET", "/api/config", None), "reading settings")?["rev"].as_u64();
-    let rev = rev.ok_or_else(|| LinkError::Other("the node reply has no settings revision".into()))?;
+    let rev =
+        rev.ok_or_else(|| LinkError::Other("the node reply has no settings revision".into()))?;
     let names = filter.parts().1;
     let config = json!({"socks": {"ifaces": names}, "web": {"ifaces": names}});
     let body = json!({"rev": rev, "config": config}).to_string();
-    json_of(t.call("PUT", "/api/config", Some(&body)), "writing settings")?;
+    json_of(
+        t.call("PUT", "/api/config", Some(&body)),
+        "writing settings",
+    )?;
     Ok(())
 }
 
 /// The node is not running: reads the file, changes the fields, writes with a revision check. If there is no file, it does not create one.
 pub(super) fn offline(t: &Target, filter: &IfaceFilter) -> Result<(), String> {
     match config_file::load_config_file(&t.path) {
-        LoadedConfigFile::Absent => Err("no settings file: start the node once, then change the interface list".into()),
-        LoadedConfigFile::Unreadable(why) | LoadedConfigFile::Invalid(why) => Err(format!("settings file is unusable: {why}")),
+        LoadedConfigFile::Absent => {
+            Err("no settings file: start the node once, then change the interface list".into())
+        }
+        LoadedConfigFile::Unreadable(why) | LoadedConfigFile::Invalid(why) => {
+            Err(format!("settings file is unusable: {why}"))
+        }
         LoadedConfigFile::Parsed(p) => write_fields(t, p, filter),
     }
 }
@@ -154,7 +177,10 @@ fn write_fields(t: &Target, p: ParsedConfigFile, filter: &IfaceFilter) -> Result
     settings.process.web_ifaces = filter.clone();
     config_file::save_config_file(&t.path, Some(p.rev), super::now_unix(), &secret, &settings)
         .map_err(|e| format!("settings file was not saved: {e:?}"))?;
-    println!("Interface list saved: {} (node is not running: applies at startup).", describe(filter));
+    println!(
+        "Interface list saved: {} (node is not running: applies at startup).",
+        describe(filter)
+    );
     Ok(())
 }
 

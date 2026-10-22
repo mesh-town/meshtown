@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
-use crate::net::{Membership, NetError, PeerId};
-use crate::network_key::SubKeys;
-use anyhow::Result;
+use crate::members::network_key::SubKeys;
 use crate::node::config::NodeConfig;
 use crate::node::event_loop::{run_node_loop, LoopCtx, LoopInputs};
+use crate::transport::net::{Membership, NetError, PeerId};
+use anyhow::Result;
 
 use crate::node::guard::GuardHandle;
 
@@ -35,7 +35,13 @@ pub(super) async fn wire_entry_points(
     inbound: Inbound,
 ) -> Result<EntryPoints> {
     let gossip_neighbor_count = Arc::new(AtomicUsize::new(0));
-    let swarm = subscribe_gossip_topic(net, &boot.subkeys, &gossip_neighbor_count, &mut boot.background_abort_handles).await?;
+    let swarm = subscribe_gossip_topic(
+        net,
+        &boot.subkeys,
+        &gossip_neighbor_count,
+        &mut boot.background_abort_handles,
+    )
+    .await?;
 
     let cached_peers = Arc::new(inbound.cache.seen());
 
@@ -65,7 +71,13 @@ fn spawn_memory_guard(cfg: &NodeConfig, net: &Net, serving: &Serving) -> Option<
 }
 
 /// Shared handles of the node's main loop.
-fn loop_ctx(boot: &Boot, net: &Net, serving: &Serving, swarm: Arc<dyn Membership>, gossip_neighbor_count: Arc<AtomicUsize>) -> LoopCtx {
+fn loop_ctx(
+    boot: &Boot,
+    net: &Net,
+    serving: &Serving,
+    swarm: Arc<dyn Membership>,
+    gossip_neighbor_count: Arc<AtomicUsize>,
+) -> LoopCtx {
     LoopCtx {
         id: boot.id,
         stack: net.stack.clone(),
@@ -104,7 +116,7 @@ async fn subscribe_gossip_topic(
         .map_err(NetError::into_anyhow)?;
     background_abort_handles.extend(swarm.pump);
     background_abort_handles.push(
-        tokio::spawn(crate::membership::run_swarm_events(
+        tokio::spawn(crate::members::membership::run_swarm_events(
             swarm.events,
             gossip_neighbor_count.clone(),
         ))
@@ -116,7 +128,11 @@ async fn subscribe_gossip_topic(
 /// The node data directory for heap-profile dumps: next to the address cache or the peer names,
 /// otherwise the current directory.
 fn heap_dump_dir(cfg: &NodeConfig) -> std::path::PathBuf {
-    let beside = |p: &Option<std::path::PathBuf>| p.as_deref().and_then(|f| f.parent()).map(|d| d.to_path_buf());
+    let beside = |p: &Option<std::path::PathBuf>| {
+        p.as_deref()
+            .and_then(|f| f.parent())
+            .map(|d| d.to_path_buf())
+    };
     beside(&cfg.peers_cache_path)
         .or_else(|| beside(&cfg.peer_names_path))
         .unwrap_or_else(|| std::path::PathBuf::from("."))

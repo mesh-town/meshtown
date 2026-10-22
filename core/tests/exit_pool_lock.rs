@@ -7,16 +7,16 @@
 //! handshake.
 //! The second test checks that a repeated request to a live member still goes through.
 //! What it doesn't do: doesn't check reopening of a closed connection and doesn't go to the internet.
-//! Links: `meshtown::exit::PeerConnPool` through `core/tests/common/socks_pair.rs` (`pair`).
+//! Links: `meshtown_core::exit::PeerConnPool` through `core/tests/common/socks_pair.rs` (`pair`).
 
 #[path = "common/socks_pair.rs"]
 mod common;
 
 use std::time::{Duration, Instant};
 
-use meshtown::exit::PeerConnPool;
-use meshtown::net::mem::process_net;
-use meshtown::net::NodeSecret;
+use meshtown_core::exit::PeerConnPool;
+use meshtown_core::transport::net::mem::process_net;
+use meshtown_core::transport::net::NodeSecret;
 use tokio::time::timeout;
 
 use common::{pair, serve};
@@ -44,16 +44,22 @@ async fn unreachable_peer_does_not_block_live_peer() {
 
     // then: the stream to the live member opens quickly.
     let started = Instant::now();
-    let opened = timeout(Duration::from_secs(3), pool.open_peer_stream(&a.stack, b.id))
-        .await
-        .expect("the stream to the live member waited for someone else's handshake longer than 3 s");
+    let opened = timeout(
+        Duration::from_secs(3),
+        pool.open_peer_stream(&a.stack, b.id),
+    )
+    .await
+    .expect("the stream to the live member waited for someone else's handshake longer than 3 s");
     assert!(
         opened.is_ok(),
         "the stream to the live one did not open: {:?}",
         opened.err()
     );
     let took = started.elapsed();
-    assert!(took < Duration::from_secs(2), "the stream opened in {took:?}");
+    assert!(
+        took < Duration::from_secs(2),
+        "the stream opened in {took:?}"
+    );
     stuck.abort();
     drop(hole);
 }
@@ -67,7 +73,11 @@ async fn live_peer_connection_is_reused() {
     let first = pool.open_peer_stream(&a.stack, b.id).await;
     let second = pool.open_peer_stream(&a.stack, b.id).await;
 
-    assert!(first.is_ok(), "the first stream did not open: {:?}", first.err());
+    assert!(
+        first.is_ok(),
+        "the first stream did not open: {:?}",
+        first.err()
+    );
     assert!(
         second.is_ok(),
         "the second stream did not open: {:?}",

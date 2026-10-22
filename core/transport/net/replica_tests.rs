@@ -1,7 +1,7 @@
 //! Tests for the replica core (`replica.rs`): tombstones, `live`, the short replica id.
 
-use crate::net::contract::{pid, SEED_A};
-use crate::net::replica::{live, ReplicaEntry, ReplicaId};
+use crate::transport::net::contract::{pid, SEED_A};
+use crate::transport::net::replica::{live, ReplicaEntry, ReplicaId};
 use bytes::Bytes;
 
 mod tombstone {
@@ -36,7 +36,10 @@ mod live_filter {
         // then: no tombstones, the order of the rest is unchanged
         let keys: Vec<Vec<u8>> = kept.iter().map(|e| e.key.clone()).collect();
         assert_eq!(keys, vec![b"a".to_vec(), b"c".to_vec(), b"e".to_vec()]);
-        assert!(kept.iter().all(|e| !e.is_tombstone()), "a tombstone in the result");
+        assert!(
+            kept.iter().all(|e| !e.is_tombstone()),
+            "a tombstone in the result"
+        );
     }
 }
 

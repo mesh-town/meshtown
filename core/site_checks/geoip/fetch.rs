@@ -18,8 +18,8 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
 
-use crate::doh;
-use crate::http_min::{self, HttpLimits, HttpGetRequest};
+use crate::site_checks::doh;
+use crate::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
 
 use super::country::Country;
 use super::sources::{self, read_answer, Source};

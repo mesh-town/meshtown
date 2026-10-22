@@ -1,28 +1,30 @@
 //! The `hyper` transport: a townjump DHT node, a server with an announcement, and dialing by key.
 //! One node both listens and dials. The session is built by `conn`, incoming ones are parsed by `accept`.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::link::NetInfo;
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::{PeerConn, Transport};
-use crate::net_hyper::accept::{accept_loop, AcceptCtx, Accepted};
-use crate::net_hyper::conn::{establish_dialed_session, StreamDialer};
-use crate::net_hyper::gate::{Admit, PeerGate};
-use crate::net_hyper::keys::{key_pair, peer_of};
-use crate::net_hyper::link::net_info;
-use crate::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
-use crate::net_hyper::records::HyperRecords;
-use crate::net_hyperdht::RecordStore;
-use townjump_dht::{ConnectOpts, Dht, DhtError, DhtFactory, DhtServer, Duplex, KeyPair, ServerOpts};
-use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::{PeerConn, Transport};
+use crate::transport::net_hyper::accept::{accept_loop, AcceptCtx, Accepted};
+use crate::transport::net_hyper::conn::{establish_dialed_session, StreamDialer};
+use crate::transport::net_hyper::gate::{Admit, PeerGate};
+use crate::transport::net_hyper::keys::{key_pair, peer_of};
+use crate::transport::net_hyper::link::net_info;
+use crate::transport::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
+use crate::transport::net_hyper::records::HyperRecords;
+use crate::transport::net_hyperdht::RecordStore;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch, Semaphore};
 use tokio::time::timeout;
+use townjump_dht::{
+    ConnectOpts, Dht, DhtError, DhtFactory, DhtServer, Duplex, KeyPair, ServerOpts,
+};
+use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
 
 mod held;
 
@@ -77,9 +79,22 @@ pub fn dht_error_to_net_error(e: DhtError) -> NetError {
 
 impl NodeDialer {
     async fn dial_checked(&self, to: PeerId) -> NetResult<Box<dyn Duplex>> {
-        let slot = self.slots.clone().acquire_owned().await.map_err(|_| NetError::Closed)?;
+        let slot = self
+            .slots
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| NetError::Closed)?;
         // reusable_socket: after the first hole punch the fork remembers the route, the next connect goes without it.
-        let conn = self.node.connect(*to.as_bytes(), ConnectOpts { reusable_socket: true, ..Default::default() })
+        let conn = self
+            .node
+            .connect(
+                *to.as_bytes(),
+                ConnectOpts {
+                    reusable_socket: true,
+                    ..Default::default()
+                },
+            )
             .await
             .map_err(dht_error_to_net_error)?;
         let got = peer_of(&conn.remote_public_key)?;
@@ -92,13 +107,17 @@ impl NodeDialer {
 
 impl StreamDialer for NodeDialer {
     fn dial(&self, to: PeerId) -> BoxFuture<'_, NetResult<Box<dyn Duplex>>> {
-        Box::pin(async move { timeout(CONNECT_LIMIT, self.dial_checked(to)).await.map_err(|_| NetError::Timeout)? })
+        Box::pin(async move {
+            timeout(CONNECT_LIMIT, self.dial_checked(to))
+                .await
+                .map_err(|_| NetError::Timeout)?
+        })
     }
 }
 
 fn new_session() -> NetResult<u64> {
     let mut bytes = [0u8; 8];
-    crate::network_key::fill_random(&mut bytes).map_err(NetError::Other)?;
+    crate::members::network_key::fill_random(&mut bytes).map_err(NetError::Other)?;
     Ok(u64::from_be_bytes(bytes))
 }
 
@@ -108,21 +127,47 @@ async fn run_listen(state: watch::Sender<ListenOutcome>, server: PeeroxideServer
     state.send_replace(Some(res));
 }
 
+/// The DHT factory: the given bootstrap list, or the environment's defaults when there is none.
+fn factory_for(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
+    match bootstrap {
+        Some(list) => PeeroxideFactory {
+            bootstrap: Some(list),
+            ..Default::default()
+        },
+        None => PeeroxideFactory::from_env(),
+    }
+}
+
 impl HyperTransport {
     /// Starts the node and the server; `listen` runs as a task (wait for its outcome with `wait_listen_outcome`).
     pub async fn bind(secret: NodeSecret, opts: HyperOpts) -> NetResult<Arc<Self>> {
         let kp = key_pair(&secret);
-        let factory = match opts.bootstrap {
-            Some(list) => PeeroxideFactory { bootstrap: Some(list), ..Default::default() },
-            None => PeeroxideFactory::from_env(),
-        };
-        let node = Arc::new(factory.create(Some(kp.clone())).await.map_err(dht_error_to_net_error)?);
+        let factory = factory_for(opts.bootstrap);
+        let node = Arc::new(
+            factory
+                .create(Some(kp.clone()))
+                .await
+                .map_err(dht_error_to_net_error)?,
+        );
         let gate = Arc::new(PeerGate::open());
         // reusable_socket: same as townjump-server, so that clients follow the remembered route.
-        let server_opts = ServerOpts { firewall: None, reusable_socket: true, ..Default::default() };
-        let (server, incoming) = node.create_server(server_opts).map_err(dht_error_to_net_error)?;
+        let server_opts = ServerOpts {
+            firewall: None,
+            reusable_socket: true,
+            ..Default::default()
+        };
+        let (server, incoming) = node
+            .create_server(server_opts)
+            .map_err(dht_error_to_net_error)?;
         let (accepted_tx, out) = mpsc::channel(ACCEPT_QUEUE);
-        let ctx = Arc::new(AcceptCtx::new(Arc::new(NodeDialer { node: node.clone(), slots: Arc::new(Semaphore::new(DIAL_SLOTS)) }), accepted_tx, gate.clone()));
+        let ctx = Arc::new(AcceptCtx::new(
+            Arc::new(NodeDialer {
+                node: node.clone(),
+                slots: Arc::new(Semaphore::new(DIAL_SLOTS)),
+            }),
+            accepted_tx,
+            gate.clone(),
+        ));
         let this = Arc::new(Self {
             me: secret.peer_id(),
             node,
@@ -136,7 +181,13 @@ impl HyperTransport {
         });
         tokio::spawn(accept_loop(incoming, ctx));
         tokio::spawn(run_listen(this.listen_outcome.clone(), server, kp));
-        if opts.watch_net { spawn_netchange(Arc::new(DhtReact::new(this.node.clone(), this.ctx.clone())), this.closed.subscribe()).await }
+        if opts.watch_net {
+            spawn_netchange(
+                Arc::new(DhtReact::new(this.node.clone(), this.ctx.clone())),
+                this.closed.subscribe(),
+            )
+            .await
+        }
         Ok(this)
     }
 
@@ -145,7 +196,9 @@ impl HyperTransport {
         let mut rx = self.listen_outcome.subscribe();
         let done = rx.wait_for(|state| state.is_some()).await;
         let state = done.map_err(|_| NetError::Closed)?.clone();
-        state.unwrap_or(Ok(())).map_err(|e| NetError::Other(anyhow::anyhow!(e)))
+        state
+            .unwrap_or(Ok(()))
+            .map_err(|e| NetError::Other(anyhow::anyhow!(e)))
     }
 
     /// `Some(predicate)` — admit to services by it; `None` — everyone.
@@ -155,7 +208,9 @@ impl HyperTransport {
 
     /// Record store of the DHT on the same node that listens and dials.
     pub fn records(&self) -> Arc<dyn RecordStore> {
-        Arc::new(HyperRecords { node: self.node.clone() })
+        Arc::new(HyperRecords {
+            node: self.node.clone(),
+        })
     }
 
     async fn connect_inner(&self, to: PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
@@ -169,7 +224,15 @@ impl HyperTransport {
         let ctrl = self.ctx.dialer.dial(to.id).await?;
         let session = new_session()?;
         let stream_dialer = self.ctx.dialer.clone();
-        let conn = establish_dialed_session(to.id, session, svc.as_bytes(), ctrl, stream_dialer, self.ctx.sessions.clone()).await?;
+        let conn = establish_dialed_session(
+            to.id,
+            session,
+            svc.as_bytes(),
+            ctrl,
+            stream_dialer,
+            self.ctx.sessions.clone(),
+        )
+        .await?;
         self.ctx.track(&conn);
         Ok(conn)
     }
@@ -210,7 +273,10 @@ impl Transport for HyperTransport {
     }
 
     fn local_addr(&self) -> PeerAddr {
-        PeerAddr { id: self.me, hints: vec![] }
+        PeerAddr {
+            id: self.me,
+            hints: vec![],
+        }
     }
 
     fn can_reach(&self, _to: &PeerAddr) -> bool {
@@ -225,10 +291,16 @@ impl Transport for HyperTransport {
         self.ctx.serve(svcs);
     }
 
-    fn connect(&self, to: &PeerAddr, svc: ServiceId) -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>> {
+    fn connect(
+        &self,
+        to: &PeerAddr,
+        svc: ServiceId,
+    ) -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>> {
         let to = to.clone();
         Box::pin(async move {
-            timeout(CONNECT_LIMIT, self.connect_inner(to, svc)).await.map_err(|_| NetError::Timeout)?
+            timeout(CONNECT_LIMIT, self.connect_inner(to, svc))
+                .await
+                .map_err(|_| NetError::Timeout)?
         })
     }
 

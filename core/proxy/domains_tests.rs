@@ -33,7 +33,10 @@ fn normalize_rejects_bad() {
         too_long.as_str(),
         long_label.as_str(),
     ] {
-        assert!(normalize_domain(bad).is_err(), "should be rejected: \"{bad}\"");
+        assert!(
+            normalize_domain(bad).is_err(),
+            "should be rejected: \"{bad}\""
+        );
     }
 }
 
@@ -42,7 +45,10 @@ fn entry_key_has_terminator() {
     assert_eq!(entry_key("a.com"), b"list/a.com/".to_vec());
     assert!(!entry_key("a.com.org").starts_with(&entry_key("a.com")));
     assert!(!entry_key("a.com").starts_with(&entry_key("a.co")));
-    assert_eq!(domain_from_key(&entry_key("a.com")), Some("a.com".to_string()));
+    assert_eq!(
+        domain_from_key(&entry_key("a.com")),
+        Some("a.com".to_string())
+    );
 }
 
 #[test]
@@ -73,8 +79,17 @@ fn console_parse() {
         Some(DomainConsoleCommand::List)
     );
     assert_eq!(parse_domain_console_line("   ").unwrap(), None);
-    for bad in ["domains", "domains add", "domains add a.com b.com", "list", "add a.com"] {
-        assert!(parse_domain_console_line(bad).is_err(), "should be rejected: \"{bad}\"");
+    for bad in [
+        "domains",
+        "domains add",
+        "domains add a.com b.com",
+        "list",
+        "add a.com",
+    ] {
+        assert!(
+            parse_domain_console_line(bad).is_err(),
+            "should be rejected: \"{bad}\""
+        );
     }
 }
 
@@ -97,9 +112,9 @@ fn normalize_extracts_host_from_url() {
 mod shared_replica {
     //! The shared list replica on the `mem` sync: the list is assembled from `open_replica` of both replicas.
     use super::*;
-    use crate::net::mem::{MemReplica, MemSync, MemSyncNet};
-    use crate::net::sync_backend::{SyncBackend, SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-    use crate::net::{ReplicaEntry, NodeSecret};
+    use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
+    use crate::transport::net::sync_backend::{SyncBackend, SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+    use crate::transport::net::{NodeSecret, ReplicaEntry};
     use bytes::Bytes;
 
     struct Rig {

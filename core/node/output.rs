@@ -9,22 +9,22 @@
 use std::sync::{LazyLock, Mutex};
 use std::time::Instant;
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::web::{LogPage, LogRing, LogSummary};
+use crate::web_gui::{LogPage, LogRing, LogSummary};
 
 /// The name of our node network in texts for people (tray, page, CLI, API error texts).
 /// The final product name hasn't been chosen yet — the final name
 /// must not contain the word VPN. If the name changes, only this constant is edited. It lives here, not in
 /// `app::view` (the tray texts), because almost all places that use it are in the library crate
 /// `meshtown`, while `app` exists only in the binary crate `meshtown`; the binary crate sees the
-/// constant as `meshtown::output::NET_NAME` (in `commands.rs` — by the import
-/// `use meshtown::output::{say, NET_NAME};`).
+/// constant as `crate::node::output::NET_NAME` (in `commands.rs` — by the import
+/// `use crate::node::output::{say, NET_NAME};`).
 pub const NET_NAME: &str = "Mesh Town";
 
 /// The app name in texts for people (tray). It is separate from `NET_NAME`:
 /// this is the program name, not the name of the node network. The binary crate sees the constant as
-/// `meshtown::output::APP_NAME` (like `NET_NAME` in `app/view.rs`).
+/// `crate::node::output::APP_NAME` (like `NET_NAME` in `app/view.rs`).
 pub const APP_NAME: &str = "Mesh Town";
 
 /// The capacity of the log ring before settings are applied (`config_file.rs`, `log.ring_lines`).

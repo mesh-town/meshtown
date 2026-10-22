@@ -13,14 +13,14 @@ use std::future::Future;
 use std::time::Duration;
 
 use bytes::Bytes;
-use meshtown::handshake::parse_name_tail;
-use meshtown::net::{PeerAddr, PeerId};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::node_name::{self, NODE_NAME_KEY};
-use meshtown::node_state;
-use meshtown::program_version;
-use meshtown::words::default_node_name;
+use meshtown_core::members::handshake::parse_name_tail;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::words::default_node_name;
+use meshtown_core::node::node_name::{self, NODE_NAME_KEY};
+use meshtown_core::node::node_state;
+use meshtown_core::node::program_version;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use tokio::time::{sleep, timeout, Instant};
 
 #[path = "common/raw_handshake.rs"]
@@ -51,7 +51,10 @@ async fn publication() {
     let extra = extra_authors(&b, &[a.id, b.id]).await;
     assert!(extra.is_empty(), "extra authors: {extra:?}");
     let list = b.domains.list().await.unwrap();
-    assert!(list.is_empty(), "the name landed in the domain list: {list:?}");
+    assert!(
+        list.is_empty(),
+        "the name landed in the domain list: {list:?}"
+    );
     shutdown_pair(a, b).await;
 }
 
@@ -67,7 +70,11 @@ async fn live_change() {
 
     // then B calls A by the new name within 10 s
     let name = wait_member_name(&b, a.id, LIVE_LIMIT, "new-name").await;
-    assert_name(name.as_ref(), "new-name", "B did not learn A's new name within 10 s");
+    assert_name(
+        name.as_ref(),
+        "new-name",
+        "B did not learn A's new name within 10 s",
+    );
     let own = a.current_name();
     assert_name(Some(&own), "new-name", "A's own name");
     shutdown_pair(a, b).await;
@@ -83,7 +90,11 @@ async fn rejected_name() {
     wait_name_seen(&b, a.id).await;
     a.set_node_name(Some("name-1"));
     let first = wait_member_name(&b, a.id, LIVE_LIMIT, "name-1").await;
-    assert_name(first.as_ref(), "name-1", "precondition: B did not see name-1");
+    assert_name(
+        first.as_ref(),
+        "name-1",
+        "precondition: B did not see name-1",
+    );
 
     // when A saves a name with a control character
     a.set_node_name(Some("a\u{7}b"));
@@ -93,7 +104,11 @@ async fn rejected_name() {
     let name = wait_member_name(&b, a.id, LIVE_LIMIT, &default).await;
     let names = wait_names(&b, LIVE_LIMIT, |m| m.get(&a.id) == Some(&default)).await;
     assert_name(name.as_ref(), &default, "A's invalid name in B's Members");
-    assert_name(names.get(&a.id), &default, "A's invalid name in B's document");
+    assert_name(
+        names.get(&a.id),
+        &default,
+        "A's invalid name in B's document",
+    );
     let own = a.current_name();
     assert_name(Some(&own), &default, "A's own name");
     shutdown_pair(a, b).await;
@@ -120,7 +135,10 @@ async fn garbage_dropped() {
     // without a blob — then the reader skipped it for a different reason)
     sleep(WATCH_MARGIN).await;
     let names = read_names(&a).await;
-    assert!(!names.contains_key(&b.id), "junk in the map later: {names:?}");
+    assert!(
+        !names.contains_key(&b.id),
+        "junk in the map later: {names:?}"
+    );
     assert_eq!(a.members.name_of(b.id), before, "B's name changed");
     shutdown_pair(a, b).await;
 }
@@ -135,7 +153,11 @@ async fn offline_author() {
     let names = wait_names(&b, SYNC_LIMIT, |m| {
         m.get(&a.id).map(String::as_str) == Some("name-a")
     });
-    assert_name(names.await.get(&a.id), "name-a", "A's record did not reach B");
+    assert_name(
+        names.await.get(&a.id),
+        "name-a",
+        "A's record did not reach B",
+    );
     let (a_id, key) = (a.id, a.network_key.clone());
     a.shutdown().await;
 
@@ -145,8 +167,15 @@ async fn offline_author() {
 
     // then C learns A's name from the document, though there is no connection to A
     let name = wait_member_name(&c, a_id, SYNC_LIMIT, "name-a").await;
-    assert_name(name.as_ref(), "name-a", "C did not get A's name from the document");
-    assert!(!c.members.is_member(a_id), "C is online with the shut-down A");
+    assert_name(
+        name.as_ref(),
+        "name-a",
+        "C did not get A's name from the document",
+    );
+    assert!(
+        !c.members.is_member(a_id),
+        "C is online with the shut-down A"
+    );
     b.shutdown().await;
     c.shutdown().await;
 }

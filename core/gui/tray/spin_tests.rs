@@ -3,8 +3,8 @@
 //! spawned, `ticker_step` is called by hand.
 
 use super::*;
-use crate::app::view::{NodeState, View};
-use crate::app::view_ring::{Ring, RingRole};
+use crate::gui::tray::app::view::{NodeState, View};
+use crate::gui::tray::app::view_ring::{Ring, RingRole};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -40,7 +40,10 @@ mod memory {
             .add(RingRole::ActiveExit)
             .add(RingRole::ExitClient)
             .add(RingRole::Offline);
-        spin.follow(View { ring: mixed, ..view_in(NodeState::Running) });
+        spin.follow(View {
+            ring: mixed,
+            ..view_in(NodeState::Running)
+        });
         assert_eq!(spin.idle().remembered, 5);
     }
 
@@ -49,7 +52,11 @@ mod memory {
         let mut spin = Spin::new();
         spin.follow(running_with(5));
         spin.follow(view_in(NodeState::Running));
-        assert_eq!(spin.idle().remembered, 5, "a running view without members does not erase the memory");
+        assert_eq!(
+            spin.idle().remembered,
+            5,
+            "a running view without members does not erase the memory"
+        );
     }
 
     #[test]
@@ -73,8 +80,16 @@ mod memory {
     fn only_running_ring_is_remembered() {
         // Only a running view with members sets the memory; a ring in any other state is not remembered.
         let mut spin = Spin::new();
-        for node in [NodeState::Unknown, NodeState::Absent, NodeState::Starting, NodeState::Stopping] {
-            spin.follow(View { ring: Ring::uniform(RingRole::Online, 7), ..view_in(node) });
+        for node in [
+            NodeState::Unknown,
+            NodeState::Absent,
+            NodeState::Starting,
+            NodeState::Stopping,
+        ] {
+            spin.follow(View {
+                ring: Ring::uniform(RingRole::Online, 7),
+                ..view_in(node)
+            });
             assert_eq!(spin.idle().remembered, 0, "{node:?}");
         }
     }
@@ -87,8 +102,14 @@ mod ticker_life {
     #[test]
     fn starting_entry_returns_ticker_once() {
         let mut spin = Spin::new();
-        assert!(spin.follow(view_in(NodeState::Starting)).is_some(), "the first Starting view");
-        assert!(spin.follow(view_in(NodeState::Starting)).is_none(), "a repeated Starting view");
+        assert!(
+            spin.follow(view_in(NodeState::Starting)).is_some(),
+            "the first Starting view"
+        );
+        assert!(
+            spin.follow(view_in(NodeState::Starting)).is_none(),
+            "a repeated Starting view"
+        );
     }
 
     #[test]
@@ -100,7 +121,12 @@ mod ticker_life {
 
     #[test]
     fn leaving_starting_kills_ticker() {
-        for next in [NodeState::Unknown, NodeState::Absent, NodeState::Running, NodeState::Stopping] {
+        for next in [
+            NodeState::Unknown,
+            NodeState::Absent,
+            NodeState::Running,
+            NodeState::Stopping,
+        ] {
             let (mut spin, ticker) = started();
             spin.follow(view_in(next));
             assert!(!ticker.is_alive(), "after Starting -> {next:?}");
@@ -113,7 +139,9 @@ mod ticker_life {
         let before = spin.generation();
         spin.follow(view_in(NodeState::Absent));
 
-        let second = spin.follow(view_in(NodeState::Starting)).expect("a new ticker on re-entry");
+        let second = spin
+            .follow(view_in(NodeState::Starting))
+            .expect("a new ticker on re-entry");
 
         assert_eq!(spin.generation(), before + 1);
         assert_eq!(second.generation, before + 1);
@@ -131,7 +159,12 @@ mod ticker_life {
 
     #[test]
     fn no_ticker_outside_starting() {
-        for node in [NodeState::Unknown, NodeState::Absent, NodeState::Running, NodeState::Stopping] {
+        for node in [
+            NodeState::Unknown,
+            NodeState::Absent,
+            NodeState::Running,
+            NodeState::Stopping,
+        ] {
             let mut spin = Spin::new();
             assert!(spin.follow(view_in(node)).is_none(), "{node:?}");
         }
@@ -168,7 +201,10 @@ mod ticks {
         spin.follow(view_in(NodeState::Running));
         let frame = spin.idle().frame;
 
-        assert!(!spin.tick(generation), "a tick that arrives after Starting is over");
+        assert!(
+            !spin.tick(generation),
+            "a tick that arrives after Starting is over"
+        );
         assert_eq!(spin.idle().frame, frame);
     }
 
@@ -197,7 +233,11 @@ mod ticks {
         let (mut spin, _ticker) = started();
         spin.tick(spin.generation());
         spin.follow(view_in(NodeState::Starting));
-        assert_eq!(spin.idle().frame, 1, "a second Starting view does not restart the spinner");
+        assert_eq!(
+            spin.idle().frame,
+            1,
+            "a second Starting view does not restart the spinner"
+        );
     }
 
     #[test]
@@ -205,19 +245,32 @@ mod ticks {
         // Reads `Ticker.flags` and `Ticker.generation`: the step is what the ticker thread runs with them.
         let (mut spin, ticker) = started();
         let generation = ticker.generation;
-        assert_eq!(one_step(&ticker.flags, generation), (true, vec![generation]));
-        assert_eq!(one_step(&ticker.flags, generation), (true, vec![]), "one tick is already queued");
+        assert_eq!(
+            one_step(&ticker.flags, generation),
+            (true, vec![generation])
+        );
+        assert_eq!(
+            one_step(&ticker.flags, generation),
+            (true, vec![]),
+            "one tick is already queued"
+        );
 
         assert!(spin.tick(generation));
 
-        assert_eq!(one_step(&ticker.flags, generation), (true, vec![generation]), "the core took the tick");
+        assert_eq!(
+            one_step(&ticker.flags, generation),
+            (true, vec![generation]),
+            "the core took the tick"
+        );
     }
 
     #[test]
     fn ignored_tick_keeps_pending() {
         let (mut spin, old) = started();
         spin.follow(view_in(NodeState::Absent));
-        let current = spin.follow(view_in(NodeState::Starting)).expect("a new ticker");
+        let current = spin
+            .follow(view_in(NodeState::Starting))
+            .expect("a new ticker");
         one_step(&current.flags, current.generation);
 
         assert!(!spin.tick(old.generation));
@@ -258,7 +311,11 @@ mod step {
 
     #[test]
     fn step_coalesces_while_pending() {
-        assert_eq!(one_step(&flags(true, true), 42), (true, vec![]), "go on, but send nothing");
+        assert_eq!(
+            one_step(&flags(true, true), 42),
+            (true, vec![]),
+            "go on, but send nothing"
+        );
     }
 
     #[test]
@@ -271,25 +328,36 @@ mod step {
 
 /// A view in the given node state with no ring, as the poller sends before the first snapshot.
 fn view_in(node: NodeState) -> View {
-    View { node, ..View::initial() }
+    View {
+        node,
+        ..View::initial()
+    }
 }
 
 /// A running view whose ring has `sectors` online members.
 fn running_with(sectors: u16) -> View {
-    View { ring: Ring::uniform(RingRole::Online, sectors), ..view_in(NodeState::Running) }
+    View {
+        ring: Ring::uniform(RingRole::Online, sectors),
+        ..view_in(NodeState::Running)
+    }
 }
 
 /// A fresh `Spin` that has just seen the first `Starting` view, and the ticker it returned.
 fn started() -> (Spin, Ticker) {
     let mut spin = Spin::new();
-    let ticker = spin.follow(view_in(NodeState::Starting)).expect("entering Starting gives a ticker");
+    let ticker = spin
+        .follow(view_in(NodeState::Starting))
+        .expect("entering Starting gives a ticker");
     (spin, ticker)
 }
 
 /// Ticker flags in the given state.
 fn flags(alive: bool, pending: bool) -> TickerFlags {
     // A struct literal: `TickerFlags` has no constructor, only the two flags.
-    TickerFlags { alive: AtomicBool::new(alive), pending: AtomicBool::new(pending) }
+    TickerFlags {
+        alive: AtomicBool::new(alive),
+        pending: AtomicBool::new(pending),
+    }
 }
 
 /// One `ticker_step`: whether the thread goes on, and the generations it sent to the core.

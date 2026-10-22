@@ -1,8 +1,8 @@
 //! The replica's in-memory state: the map "(author, key) → entry", merging, the author's clock, summaries for reconciliation.
 
 use super::entry::{check, to_entry, wins, WireEntry};
-use crate::net::id::PeerId;
-use crate::net::replica::{ReplicaEntry, ReplicaId};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::{ReplicaEntry, ReplicaId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -61,7 +61,11 @@ impl State {
     /// Merges an already verified entry; `true` if the map changed.
     pub(crate) fn merge(&mut self, w: WireEntry) -> bool {
         let slot = (w.author, w.key.clone());
-        if self.entry_by_author_key.get(&slot).is_some_and(|old| !wins(&w, old)) {
+        if self
+            .entry_by_author_key
+            .get(&slot)
+            .is_some_and(|old| !wins(&w, old))
+        {
             return false;
         }
         if w.author == *self.me.as_bytes() {
@@ -79,14 +83,19 @@ impl State {
 
     /// A live entry of an author by exact key; a tombstone is `None`, as in `MemSync`.
     pub(crate) fn get(&self, author: PeerId, key: &[u8]) -> Option<ReplicaEntry> {
-        let w = self.entry_by_author_key.get(&(*author.as_bytes(), key.to_vec()))?;
+        let w = self
+            .entry_by_author_key
+            .get(&(*author.as_bytes(), key.to_vec()))?;
         let entry = to_entry(author, w);
         (!entry.is_tombstone()).then_some(entry)
     }
 
     /// All entries with a key prefix (tombstones too), in "author, key" order.
     pub(crate) fn scan(&self, prefix: &[u8]) -> Vec<ReplicaEntry> {
-        let with_prefix = self.entry_by_author_key.values().filter(|w| w.key.starts_with(prefix));
+        let with_prefix = self
+            .entry_by_author_key
+            .values()
+            .filter(|w| w.key.starts_with(prefix));
         with_prefix.filter_map(|w| self.entry_of(w)).collect()
     }
 

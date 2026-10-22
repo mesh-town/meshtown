@@ -4,9 +4,11 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::facade::test_support::{pid, secret, within, Probe, STEP};
-use crate::net::{MemNet, NetStack, NetStackBuilder, PeerConn, ServiceHandler, StreamPair, PORT};
-use crate::ports::{encode_port_request, Published, PORT_FRAME_VERSION};
+use crate::ports_sharing::{encode_port_request, Published, PORT_FRAME_VERSION};
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
+use crate::transport::net::{
+    MemNet, NetStack, NetStackBuilder, PeerConn, ServiceHandler, StreamPair, PORT,
+};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::time::timeout;
@@ -32,7 +34,10 @@ mod non_member {
 
         // then: refusal, and nobody connected to the port
         assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_REFUSED]);
-        assert!(nobody_connected(&listener).await, "connected before the refusal");
+        assert!(
+            nobody_connected(&listener).await,
+            "connected before the refusal"
+        );
     }
 }
 
@@ -49,7 +54,10 @@ mod unpublished_port {
         ask.says(&encode_port_request(8080)).await;
 
         // then: "not published"
-        assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_NOT_PUBLISHED]);
+        assert_eq!(
+            ask.hears(2).await,
+            [PORT_FRAME_VERSION, PORT_CODE_NOT_PUBLISHED]
+        );
     }
 }
 
@@ -92,7 +100,10 @@ mod nodes_audience {
 
         // then: refusal, nobody connected to the port
         assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_REFUSED]);
-        assert!(nobody_connected(&listener).await, "connected before the refusal");
+        assert!(
+            nobody_connected(&listener).await,
+            "connected before the refusal"
+        );
     }
 }
 
@@ -109,7 +120,10 @@ mod malformed_request {
         ask.says(&[9, 0, 80]).await;
 
         // then: "request could not be parsed"
-        assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_BAD_REQUEST]);
+        assert_eq!(
+            ask.hears(2).await,
+            [PORT_FRAME_VERSION, PORT_CODE_BAD_REQUEST]
+        );
     }
 
     #[tokio::test]
@@ -168,7 +182,10 @@ mod published_port {
         ask.says(&encode_port_request(port)).await;
 
         // then: "port does not respond", Refused in the table
-        assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_CONNECT_FAILED]);
+        assert_eq!(
+            ask.hears(2).await,
+            [PORT_FRAME_VERSION, PORT_CODE_CONNECT_FAILED]
+        );
         assert_eq!(fx.local_state(port), LocalState::Refused);
     }
 
@@ -190,7 +207,11 @@ mod published_port {
         second.says(&encode_port_request(second_port)).await;
 
         // then: the second is answered and works, without waiting for the first to end
-        assert_eq!(second.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_OK], "the accept loop is alive");
+        assert_eq!(
+            second.hears(2).await,
+            [PORT_FRAME_VERSION, PORT_CODE_OK],
+            "the accept loop is alive"
+        );
         second.says(b"ping").await;
         assert_eq!(second.hears(4).await, b"ping");
     }
@@ -239,7 +260,12 @@ async fn setup(opts: Opts) -> Fixture {
     if opts.member {
         members.add_verified_conn(pid(1));
     }
-    let table = PublishedPortsTable::new(opts.published.iter().map(|p| published(*p, opts.audience.clone())).collect());
+    let table = PublishedPortsTable::new(
+        opts.published
+            .iter()
+            .map(|p| published(*p, opts.audience.clone()))
+            .collect(),
+    );
     let net = MemNet::new();
     let handler = port_service(members, table.clone());
     let (a, b) = (node(&net, 1, Probe::new()), node(&net, 2, handler));
@@ -269,11 +295,19 @@ impl Fixture {
 
 impl Client {
     async fn says(&mut self, bytes: &[u8]) {
-        self.0.send.write_all(bytes).await.expect("write to the stream");
+        self.0
+            .send
+            .write_all(bytes)
+            .await
+            .expect("write to the stream");
     }
 
     async fn finishes(&mut self) {
-        self.0.send.shutdown().await.expect("half-close of the send side");
+        self.0
+            .send
+            .shutdown()
+            .await
+            .expect("half-close of the send side");
     }
 
     async fn hears(&mut self, n: usize) -> Vec<u8> {

@@ -2,9 +2,9 @@
 //! There is no peer or message state here.
 
 use super::wire::{read_frame, write_frame, Frame, VERSION};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::stream::StreamPair;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::StreamPair;
 use blake3::Hash;
 
 const CONTEXT: &str = "meshtown sync admission v1";

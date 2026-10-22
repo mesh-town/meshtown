@@ -1,7 +1,7 @@
 //! Tests of the pure part of the announcer: `diff_published` (what to write, what to remove).
 
 use super::*;
-use crate::ports::types::Audience;
+use crate::ports_sharing::types::Audience;
 
 fn p(port: u16, name: &str) -> Published {
     Published {

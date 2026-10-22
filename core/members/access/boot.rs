@@ -7,11 +7,13 @@
 
 use std::collections::BTreeSet;
 
-use crate::net::{NetResult, PeerId, Replica, ReplicaEntry};
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
 
 use super::boot_plan::{is_legacy, plan_admits, BootPlan};
-use super::record::{self, parse_entry, AclKind, AclValue, Parsed, Via, BLOCK_PREFIX, BOOT_KEY, BOOT_NOTE_ADMISSION};
+use super::record::{
+    self, parse_entry, AclKind, AclValue, Parsed, Via, BLOCK_PREFIX, BOOT_KEY, BOOT_NOTE_ADMISSION,
+};
 use super::subjects::live_subjects;
 
 pub(super) const MIGRATION_LOOKBACK_SECS: u64 = 30 * 24 * 3600;
@@ -65,20 +67,36 @@ fn mark_of(first: bool, legacy: bool, entry: Option<&ReplicaEntry>) -> Mark {
 
 fn veteran_of(entry: &ReplicaEntry) -> Mark {
     match parse_entry(entry) {
-        Parsed::Record { value, .. } if value.kind == AclKind::Boot && value.note != BOOT_NOTE_ADMISSION => Mark::Veteran(value),
+        Parsed::Record { value, .. }
+            if value.kind == AclKind::Boot && value.note != BOOT_NOTE_ADMISSION =>
+        {
+            Mark::Veteran(value)
+        }
         _ => Mark::Settled,
     }
 }
 
 fn value(kind: AclKind, subject: PeerId, via: Via, now_unix: u64) -> AclValue {
-    AclValue { kind, subject, via, made_unix: now_unix, note: String::new() }
+    AclValue {
+        kind,
+        subject,
+        via,
+        made_unix: now_unix,
+        note: String::new(),
+    }
 }
 
 /// Writes the admissions one after another; the first error stops the rest.
-async fn write_admits(shared: &dyn Replica, ids: &[PeerId], via: Via, now_unix: u64) -> NetResult<usize> {
+async fn write_admits(
+    shared: &dyn Replica,
+    ids: &[PeerId],
+    via: Via,
+    now_unix: u64,
+) -> NetResult<usize> {
     let mut written = 0;
     for id in ids {
-        written += usize::from(record::ensure(shared, &value(AclKind::Admit, *id, via, now_unix)).await?);
+        written +=
+            usize::from(record::ensure(shared, &value(AclKind::Admit, *id, via, now_unix)).await?);
     }
     Ok(written)
 }
@@ -114,7 +132,11 @@ async fn read_all(shared: &dyn Replica, own: &dyn Replica, me: PeerId) -> NetRes
     let snap = shared.scan(b"").await?;
     let marker_entry = shared.get(me, BOOT_KEY).await?;
     let blocks = live_subjects(&own.scan(BLOCK_PREFIX).await?, me, AclKind::Block);
-    Ok(Reads { snap, marker_entry, blocks })
+    Ok(Reads {
+        snap,
+        marker_entry,
+        blocks,
+    })
 }
 
 /// Runs the boot: the marker of a newcomer first, then the witnesses, then the migration (first start of a
@@ -132,7 +154,11 @@ pub async fn run_boot(shared: &dyn Replica, own: &dyn Replica, b: &AccessBoot) -
 
 /// One pass of the boot. `None` — the marker of a newcomer was already there (it arrived by sync after the
 /// read), nothing else was written and no line was logged: the caller reads again and decides anew.
-async fn run_once(shared: &dyn Replica, own: &dyn Replica, b: &AccessBoot) -> NetResult<Option<usize>> {
+async fn run_once(
+    shared: &dyn Replica,
+    own: &dyn Replica,
+    b: &AccessBoot,
+) -> NetResult<Option<usize>> {
     let reads = read_all(shared, own, b.me).await?;
     let first = reads.marker_entry.is_none();
     let legacy = first && is_legacy(&reads.snap, b.me);
@@ -148,12 +174,24 @@ async fn run_once(shared: &dyn Replica, own: &dyn Replica, b: &AccessBoot) -> Ne
     finish_marker(shared, &mark, b).await?;
     let written = witnessed + migrated;
     let line = boot_line(class_of(first, legacy, &plan), &plan, written);
-    say("access", if promoted > 0 { format!("{line}, promoted {promoted}") } else { line });
+    say(
+        "access",
+        if promoted > 0 {
+            format!("{line}, promoted {promoted}")
+        } else {
+            line
+        },
+    );
     Ok(Some(written))
 }
 
 /// Turns the own witnesses of the plan into votes, when the mark says a promotion is due.
-async fn promote(shared: &dyn Replica, mark: &Mark, plan: &BootPlan, b: &AccessBoot) -> NetResult<usize> {
+async fn promote(
+    shared: &dyn Replica,
+    mark: &Mark,
+    plan: &BootPlan,
+    b: &AccessBoot,
+) -> NetResult<usize> {
     if !matches!(mark, Mark::Legacy | Mark::Veteran(_)) {
         return Ok(0);
     }
@@ -161,7 +199,12 @@ async fn promote(shared: &dyn Replica, mark: &Mark, plan: &BootPlan, b: &AccessB
 }
 
 /// Writes the marker when due; `false` — not due, or a live marker of the node was already there.
-async fn write_marker(shared: &dyn Replica, due: bool, via: Via, b: &AccessBoot) -> NetResult<bool> {
+async fn write_marker(
+    shared: &dyn Replica,
+    due: bool,
+    via: Via,
+    b: &AccessBoot,
+) -> NetResult<bool> {
     if !due {
         return Ok(false);
     }
@@ -173,8 +216,19 @@ async fn write_marker(shared: &dyn Replica, due: bool, via: Via, b: &AccessBoot)
 /// The flag goes last: a failed promotion leaves the marker as it was and the next start repeats it.
 async fn finish_marker(shared: &dyn Replica, mark: &Mark, b: &AccessBoot) -> NetResult<()> {
     match mark {
-        Mark::Legacy => write_marker(shared, true, Via::Migration, b).await.map(|_| ()),
-        Mark::Veteran(old) => record::rewrite(shared, &AclValue { note: BOOT_NOTE_ADMISSION.to_string(), ..old.clone() }).await,
+        Mark::Legacy => write_marker(shared, true, Via::Migration, b)
+            .await
+            .map(|_| ()),
+        Mark::Veteran(old) => {
+            record::rewrite(
+                shared,
+                &AclValue {
+                    note: BOOT_NOTE_ADMISSION.to_string(),
+                    ..old.clone()
+                },
+            )
+            .await
+        }
         _ => Ok(()),
     }
 }

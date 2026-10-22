@@ -1,16 +1,18 @@
 //! Tests of mem sync outside the contract suites (those are in `contract_tests`): reconciliation bounds, `put_raw` merge,
 //! `replica_mem`, joining a topic later than a neighbor, selection by name from the registry.
 
-use crate::net::contract::replica_cases::{
-    assert_no_change, get, is_remote, next_event, expect_ok, put, scan, val, Rep, K1, K2, QUIET,
+use crate::transport::net::contract::replica_cases::{
+    assert_no_change, expect_ok, get, is_remote, next_event, put, scan, val, Rep, K1, K2, QUIET,
 };
-use crate::net::contract::{pid, secret, must_finish, SEED_A, SEED_B, STEP};
-use crate::net::id::PeerId;
-use crate::net::mem::{sync_ctor, MemReplica, MemSync, MemSyncNet};
-use crate::net::registry::{NetChoice, Registry};
-use crate::net::replica::{ReplicaEntry, Replica, ReplicaEvent};
-use crate::net::sync::SwarmEvent;
-use crate::net::sync_backend::{Swarm, SyncBackend, SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A, SEED_B, STEP};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::mem::{sync_ctor, MemReplica, MemSync, MemSyncNet};
+use crate::transport::net::registry::{NetChoice, Registry};
+use crate::transport::net::replica::{Replica, ReplicaEntry, ReplicaEvent};
+use crate::transport::net::sync::SwarmEvent;
+use crate::transport::net::sync_backend::{
+    Swarm, SyncBackend, SyncCtx, REPLICA_DOMAINS, REPLICA_NET,
+};
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
@@ -91,7 +93,12 @@ mod put_raw {
         // when: an entry of the same pair arrives with time 2000
         raw.mem.put_raw(foreign("new", 2_000));
         // then: the entry is replaced, the subscriber got RemoteChange
-        next_event(&mut raw.events, "RemoteChange from the new entry", is_remote).await;
+        next_event(
+            &mut raw.events,
+            "RemoteChange from the new entry",
+            is_remote,
+        )
+        .await;
         assert_foreign(&raw.rep, "new", 2_000).await;
     }
 
@@ -116,7 +123,10 @@ mod replica_mem {
         let (_net, a, _b) = pair(NETWORK);
         // when: replica "net" is taken through replica_mem and through open_replica
         let mem = open_net(&a);
-        let opened = expect_ok("open_replica", must_finish(a.open_replica(REPLICA_NET)).await);
+        let opened = expect_ok(
+            "open_replica",
+            must_finish(a.open_replica(REPLICA_NET)).await,
+        );
         // then: it is one object with one id, an entry written through one handle is visible through the other
         assert!(
             Arc::ptr_eq(&(mem.clone() as Rep), &opened),
@@ -125,7 +135,10 @@ mod replica_mem {
         assert_eq!(mem.id(), opened.id(), "different ids of one replica");
         put(&opened, K1, "v1").await;
         let seen = get(&(mem as Rep), pid(SEED_A), K1).await;
-        assert!(seen.is_some(), "the entry is not visible through the second handle");
+        assert!(
+            seen.is_some(),
+            "the entry is not visible through the second handle"
+        );
     }
 
     #[tokio::test]
@@ -221,7 +234,10 @@ async fn started(node: &MemSync) -> Rep {
 }
 
 async fn join(node: &MemSync, bootstrap: &[PeerId]) -> Swarm {
-    expect_ok("join_swarm", must_finish(node.join_swarm(TOPIC, bootstrap)).await)
+    expect_ok(
+        "join_swarm",
+        must_finish(node.join_swarm(TOPIC, bootstrap)).await,
+    )
 }
 
 struct Raw {
@@ -270,7 +286,10 @@ async fn expect_synced_err(events: &mut broadcast::Receiver<ReplicaEvent>, peer:
     let ReplicaEvent::Synced { outcome, .. } = synced else {
         unreachable!()
     };
-    assert!(outcome.is_err(), "expected Synced with Err, got {outcome:?}");
+    assert!(
+        outcome.is_err(),
+        "expected Synced with Err, got {outcome:?}"
+    );
 }
 
 /// Waits up to `STEP` for the `NeighborUp(peer)` event; skips the others; a closed or lagging channel is also a failure.

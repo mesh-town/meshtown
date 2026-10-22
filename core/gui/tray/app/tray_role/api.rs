@@ -5,7 +5,7 @@ use std::path::Path;
 use std::process::ExitStatus;
 use std::time::Duration;
 
-use crate::app::local_api::{self, ApiError, Reply};
+use crate::gui::tray::app::local_api::{self, ApiError, Reply};
 
 pub(super) const KILLED_BY_SIGNAL_TEXT: &str = "signal";
 

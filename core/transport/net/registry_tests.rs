@@ -1,13 +1,13 @@
 //! Tests for the registry (`registry.rs`): default choice, name checks, constructor order, discovery priority.
 
-use crate::net::discovery::Discovery;
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::test_support::{pid, secret};
-use crate::net::facade::NetStackBuilder;
-use crate::net::id::PeerId;
-use crate::net::mem::MemNet;
-use crate::net::registry::{DiscoveryCtor, NetChoice, NetCtx, Registry, TransportCtor};
-use crate::net::transport::Transport;
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::test_support::{pid, secret};
+use crate::transport::net::facade::NetStackBuilder;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::registry::{DiscoveryCtor, NetChoice, NetCtx, Registry, TransportCtor};
+use crate::transport::net::transport::Transport;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -49,7 +49,10 @@ mod unknown_names {
 
         let msg = config_msg(reg.builder(&choice(&["iroh"], &[]), &ctx(1)));
 
-        assert_eq!(msg, "transport \"iroh\" is not registered; available: alpha, zeta");
+        assert_eq!(
+            msg,
+            "transport \"iroh\" is not registered; available: alpha, zeta"
+        );
     }
 
     #[test]
@@ -60,7 +63,10 @@ mod unknown_names {
 
         let msg = config_msg(reg.builder(&choice(&[], &["nope"]), &ctx(1)));
 
-        assert_eq!(msg, "discovery source \"nope\" is not registered; available: a, b");
+        assert_eq!(
+            msg,
+            "discovery source \"nope\" is not registered; available: a, b"
+        );
     }
 
     #[test]
@@ -78,7 +84,10 @@ mod unknown_names {
 
         let msg = config_msg(reg.builder(&choice(&[], &["invite"]), &ctx(1)));
 
-        assert_eq!(msg, "discovery source \"invite\" is not registered; available: none");
+        assert_eq!(
+            msg,
+            "discovery source \"invite\" is not registered; available: none"
+        );
     }
 
     #[tokio::test]
@@ -113,7 +122,11 @@ mod duplicates_in_choice {
             msg.contains("\"mem\"") && msg.contains("is specified twice"),
             "text: {msg}"
         );
-        assert_eq!(count(&calls), 0, "the constructors have not been called yet");
+        assert_eq!(
+            count(&calls),
+            0,
+            "the constructors have not been called yet"
+        );
     }
 
     #[test]
@@ -390,7 +403,7 @@ fn config_msg(res: NetResult<NetStackBuilder>) -> String {
     }
 }
 
-fn built(reg: &Registry, wanted: &NetChoice) -> crate::net::facade::NetStack {
+fn built(reg: &Registry, wanted: &NetChoice) -> crate::transport::net::facade::NetStack {
     let builder = reg.builder(wanted, &ctx(1)).expect("the builder succeeded");
     builder
         .build()

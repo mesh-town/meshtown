@@ -8,10 +8,10 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::web::guard::Credential;
-use crate::web::http::json_err;
-use crate::web::token;
-use crate::web::App;
+use crate::web_gui::guard::Credential;
+use crate::web_gui::http::json_err;
+use crate::web_gui::token;
+use crate::web_gui::App;
 
 pub(super) async fn token_rotate_handler(
     State(app): State<Arc<App>>,
@@ -39,7 +39,12 @@ pub(super) async fn token_rotate_handler(
     }
     app.shared.set_token(new_token.clone());
     let own = cred.and_then(|Extension(c)| c.session_id);
-    let mut tickets = app.shared.auth.tickets.lock().unwrap_or_else(|e| e.into_inner());
+    let mut tickets = app
+        .shared
+        .auth
+        .tickets
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     tickets.close_sessions_except(own.as_deref());
     drop(tickets);
     let body = json!({"token": new_token, "url": app.shared.open_url()});

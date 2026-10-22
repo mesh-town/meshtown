@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::web::PathKindView;
+use crate::web_gui::PathKindView;
 
 /// Live record of one network member.
 #[derive(Clone, Debug)]
@@ -106,7 +106,12 @@ impl Telemetry {
         });
     }
 
-    pub(crate) fn record_peer_path(&self, id: PeerId, path: Option<PathKindView>, rtt_ms: Option<u64>) {
+    pub(crate) fn record_peer_path(
+        &self,
+        id: PeerId,
+        path: Option<PathKindView>,
+        rtt_ms: Option<u64>,
+    ) {
         self.with_mut(|v| {
             let entry = v.peers.entry(id).or_insert_with(PeerLive::blank);
             entry.path = path;
@@ -196,11 +201,19 @@ pub fn rss_kib() -> (u64, u64) {
         if GetProcessMemoryInfo(GetCurrentProcess(), &mut c, size) == 0 {
             return (0, 0);
         }
-        (c.WorkingSetSize as u64 / 1024, c.PeakWorkingSetSize as u64 / 1024)
+        (
+            c.WorkingSetSize as u64 / 1024,
+            c.PeakWorkingSetSize as u64 / 1024,
+        )
     }
 }
 
-#[cfg(not(any(target_os = "linux", target_os = "android", target_os = "macos", windows)))]
+#[cfg(not(any(
+    target_os = "linux",
+    target_os = "android",
+    target_os = "macos",
+    windows
+)))]
 pub fn rss_kib() -> (u64, u64) {
     (0, 0)
 }

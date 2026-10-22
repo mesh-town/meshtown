@@ -4,8 +4,8 @@
 use super::down_line;
 use super::up_line;
 use super::wake::{failed_wake, found_wake, member_wake, Wake};
-use crate::membership::MemberEvent;
-use crate::net::contract::pid;
+use crate::members::membership::MemberEvent;
+use crate::transport::net::contract::pid;
 
 #[test]
 fn closed_found_channel_stops_loop() {
@@ -14,7 +14,7 @@ fn closed_found_channel_stops_loop() {
 
 #[test]
 fn found_addr_goes_to_dialer() {
-    let addr = crate::net::PeerAddr::new(pid(1));
+    let addr = crate::transport::net::PeerAddr::new(pid(1));
     assert!(matches!(found_wake(Some(addr)), Wake::Found(a) if a.id == pid(1)));
 }
 

@@ -1,7 +1,7 @@
 //! Reaction to a network change: events from a channel, calls are recorded by `Recorder`; time is paused.
 
 use super::*;
-use crate::net::transport::{NET_CHANGED, NET_LOST};
+use crate::transport::net::transport::{NET_CHANGED, NET_LOST};
 use std::sync::Mutex;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -41,7 +41,10 @@ impl Recorder {
 
 impl NetReact for Recorder {
     fn close_sessions(&self, code: u32, reason: &[u8]) -> usize {
-        self.push(Call::Close(code, String::from_utf8_lossy(reason).into_owned()));
+        self.push(Call::Close(
+            code,
+            String::from_utf8_lossy(reason).into_owned(),
+        ));
         1
     }
     fn suspend(&self) -> BoxFuture<'_, Result<(), String>> {
@@ -73,8 +76,17 @@ struct Rig {
 fn rig(rec: Recorder) -> Rig {
     let (tx, rx) = mpsc::unbounded_channel();
     let (stop, stop_rx) = watch::channel(false);
-    let task = tokio::spawn(react_loop(Box::new(ChanEvents(rx)), Arc::new(rec.clone()), stop_rx));
-    Rig { tx, stop, rec, task }
+    let task = tokio::spawn(react_loop(
+        Box::new(ChanEvents(rx)),
+        Arc::new(rec.clone()),
+        stop_rx,
+    ));
+    Rig {
+        tx,
+        stop,
+        rec,
+        task,
+    }
 }
 
 fn closed(code: u32, reason: &str) -> Call {
@@ -82,7 +94,11 @@ fn closed(code: u32, reason: &str) -> Call {
 }
 
 fn triple() -> Vec<Call> {
-    vec![closed(CODE_NET_CHANGED, NET_CHANGED), Call::Suspend, Call::Resume]
+    vec![
+        closed(CODE_NET_CHANGED, NET_CHANGED),
+        Call::Suspend,
+        Call::Resume,
+    ]
 }
 
 #[tokio::test(start_paused = true)]
@@ -106,7 +122,10 @@ async fn burst_inside_settle_reacts_once() {
 
 #[tokio::test(start_paused = true)]
 async fn change_during_reaction_reacts_once_more() {
-    let rec = Recorder { suspend_hold: Duration::from_secs(1), ..Default::default() };
+    let rec = Recorder {
+        suspend_hold: Duration::from_secs(1),
+        ..Default::default()
+    };
     let r = rig(rec);
     r.tx.send(NetEvent::Changed).unwrap();
     sleep(SETTLE_WINDOW + Duration::from_millis(300)).await;
@@ -124,7 +143,11 @@ async fn reaction_ends_within_settle_plus_margin() {
     r.tx.send(NetEvent::Changed).unwrap();
     sleep(Duration::from_secs(3)).await;
     let at = r.rec.resume_at.lock().unwrap().expect("resume happened");
-    assert!(at <= t0 + SETTLE_WINDOW + Duration::from_millis(50), "resume too late: {:?}", at - t0);
+    assert!(
+        at <= t0 + SETTLE_WINDOW + Duration::from_millis(50),
+        "resume too late: {:?}",
+        at - t0
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -132,7 +155,10 @@ async fn lost_closes_and_suspends_without_resume() {
     let r = rig(Recorder::default());
     r.tx.send(NetEvent::Lost).unwrap();
     sleep(Duration::from_secs(60)).await;
-    assert_eq!(r.rec.calls(), vec![closed(CODE_NET_CHANGED, NET_LOST), Call::Suspend]);
+    assert_eq!(
+        r.rec.calls(),
+        vec![closed(CODE_NET_CHANGED, NET_LOST), Call::Suspend]
+    );
 }
 
 #[tokio::test(start_paused = true)]
@@ -142,7 +168,12 @@ async fn lost_twice_suspends_once() {
     sleep(Duration::from_secs(2)).await;
     r.tx.send(NetEvent::Lost).unwrap();
     sleep(Duration::from_secs(2)).await;
-    let suspends = r.rec.calls().iter().filter(|c| **c == Call::Suspend).count();
+    let suspends = r
+        .rec
+        .calls()
+        .iter()
+        .filter(|c| **c == Call::Suspend)
+        .count();
     assert_eq!(suspends, 1);
 }
 
@@ -169,12 +200,18 @@ async fn lost_inside_settle_after_changed_wins() {
     sleep(Duration::from_millis(100)).await;
     r.tx.send(NetEvent::Lost).unwrap();
     sleep(Duration::from_secs(5)).await;
-    assert_eq!(r.rec.calls(), vec![closed(CODE_NET_CHANGED, NET_LOST), Call::Suspend]);
+    assert_eq!(
+        r.rec.calls(),
+        vec![closed(CODE_NET_CHANGED, NET_LOST), Call::Suspend]
+    );
 }
 
 #[tokio::test(start_paused = true)]
 async fn resume_error_keeps_loop_alive() {
-    let r = rig(Recorder { resume_fails: true, ..Default::default() });
+    let r = rig(Recorder {
+        resume_fails: true,
+        ..Default::default()
+    });
     r.tx.send(NetEvent::Changed).unwrap();
     sleep(Duration::from_secs(2)).await;
     r.tx.send(NetEvent::Changed).unwrap();

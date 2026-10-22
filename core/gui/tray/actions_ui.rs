@@ -6,9 +6,9 @@
 use tray_icon::menu::{CheckMenuItem, Menu, MenuItem};
 
 use super::core::{MENU_INVITE, MENU_SERVE};
-use crate::app::exit_menu::ExitMenu;
-use crate::app::tray_actions::{invite_item_text, InviteNote};
-use crate::app::tray_texts::SERVE_TEXT;
+use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::tray_actions::{invite_item_text, InviteNote};
+use crate::gui::tray::app::tray_texts::SERVE_TEXT;
 
 /// Live items of the actions block.
 pub(super) struct ActionsUi {

@@ -12,14 +12,14 @@
 
 use std::sync::Arc;
 
-use crate::net::{NetError, PeerId, Replica, ReplicaEvent, ReplicaId};
+use crate::transport::net::{NetError, PeerId, Replica, ReplicaEvent, ReplicaId};
 use anyhow::{bail, Result};
 use bytes::Bytes;
 use tokio::sync::broadcast::error::RecvError;
 
 mod own;
 
-use crate::output::say;
+use crate::node::output::say;
 
 /// Key prefix of the domain list in the document.
 pub const LIST_PREFIX: &str = "list/";
@@ -38,7 +38,11 @@ fn host_from_input(input: &str) -> Result<String> {
     if s.is_empty() {
         return Ok(String::new());
     }
-    let full = if s.contains("://") { s.to_string() } else { format!("http://{s}") };
+    let full = if s.contains("://") {
+        s.to_string()
+    } else {
+        format!("http://{s}")
+    };
     let url = url::Url::parse(&full).map_err(|_| {
         anyhow::anyhow!("couldn't parse \"{s}\" as a domain; you can paste the full page address — the domain will be taken from it")
     })?;

@@ -1,5 +1,5 @@
 use super::*;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 fn test_secret(byte: u8) -> NodeSecret {
     NodeSecret::from_bytes(&[byte; 32])
@@ -12,11 +12,11 @@ fn assert_reload_with_file_merges_cli_and_key(dir: &std::path::Path, new_key_tex
     let old_key = NetworkKey::from_bytes([1u8; 32]);
 
     let file_settings = Settings {
-        net: crate::config_file::NetSettings {
+        net: crate::config::config_file::NetSettings {
             network_key: Some(old_key.encode()),
             exit_enabled: true,
             node_name: Some("from-file".to_string()),
-            ..crate::config_file::NetSettings::default()
+            ..crate::config::config_file::NetSettings::default()
         },
         ..Settings::default()
     };
@@ -63,9 +63,9 @@ fn assert_reload_with_file_merges_cli_and_key(dir: &std::path::Path, new_key_tex
 /// an error.
 fn assert_reload_without_path_keeps_prev_and_rejects_garbage(new_key_text: &str) {
     let prev2 = Settings {
-        net: crate::config_file::NetSettings {
+        net: crate::config::config_file::NetSettings {
             node_name: Some("prev-name".to_string()),
-            ..crate::config_file::NetSettings::default()
+            ..crate::config::config_file::NetSettings::default()
         },
         ..Settings::default()
     };
@@ -92,10 +92,8 @@ fn relaunch_reload_merges_file_cli_and_new_key() {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!(
-        "mesh-node-ctl-test-{}-{nanos}",
-        std::process::id()
-    ));
+    let dir =
+        std::env::temp_dir().join(format!("mesh-node-ctl-test-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temporary test directory");
     let new_key_text = NetworkKey::from_bytes([2u8; 32]).encode();
 
@@ -149,7 +147,10 @@ fn node_config_leaves_peers_cache_none_without_path() {
     };
     let key = NetworkKey::from_bytes([9u8; 32]);
     let cfg = relaunch.node_config(&Settings::default(), key);
-    assert_eq!(cfg.peers_cache_path, None, "no config path — the cache is off");
+    assert_eq!(
+        cfg.peers_cache_path, None,
+        "no config path — the cache is off"
+    );
 }
 
 #[test]
@@ -196,7 +197,10 @@ fn node_config_leaves_peer_names_none_without_path() {
     };
     let key = NetworkKey::from_bytes([17u8; 32]);
     let cfg = relaunch.node_config(&Settings::default(), key);
-    assert_eq!(cfg.peer_names_path, None, "no config path — the names file is off");
+    assert_eq!(
+        cfg.peer_names_path, None,
+        "no config path — the names file is off"
+    );
 }
 
 #[test]
@@ -243,7 +247,10 @@ fn node_config_leaves_docs_store_none_without_path() {
     };
     let key = NetworkKey::from_bytes([13u8; 32]);
     let cfg = relaunch.node_config(&Settings::default(), key);
-    assert_eq!(cfg.docs_store_dir, None, "no config path — the store is off");
+    assert_eq!(
+        cfg.docs_store_dir, None,
+        "no config path — the store is off"
+    );
 }
 
 #[test]
@@ -260,7 +267,9 @@ fn relaunch_reload_keeps_label() {
     let prev = Settings::default();
 
     let with_label = network_key::key_with_label(Some("our-game"), &key);
-    let (_, cfg) = relaunch.reload(&with_label, &prev).expect("reload with a label");
+    let (_, cfg) = relaunch
+        .reload(&with_label, &prev)
+        .expect("reload with a label");
     assert_eq!(cfg.network_label, Some("our-game".to_string()));
 
     let without_label = network_key::key_with_label(None, &key);
@@ -284,9 +293,9 @@ fn socks_off_by_flag_for(socks_enabled: Option<bool>) -> bool {
         test_net: None,
     };
     let s = Settings {
-        process: crate::config_file::ProcessSettings {
+        process: crate::config::config_file::ProcessSettings {
             socks_enabled: false,
-            ..crate::config_file::ProcessSettings::default()
+            ..crate::config::config_file::ProcessSettings::default()
         },
         ..Settings::default()
     };
@@ -299,13 +308,16 @@ fn socks_off_by_flag_for(socks_enabled: Option<bool>) -> bool {
 fn node_config_marks_socks_off_by_flag_only_for_no_socks() {
     assert!(socks_off_by_flag_for(Some(false)), "--no-socks — a flag");
     assert!(!socks_off_by_flag_for(Some(true)), "--socks — not a flag");
-    assert!(!socks_off_by_flag_for(None), "no flag — turned off by settings");
+    assert!(
+        !socks_off_by_flag_for(None),
+        "no flag — turned off by settings"
+    );
 }
 
 #[test]
 fn node_config_with_test_net_runs_on_mem() {
     // given: Relaunch with the tests' mem network
-    let net = crate::net::mem::process_net();
+    let net = crate::transport::net::mem::process_net();
     let relaunch = Relaunch {
         path: None,
         cli: CliOverrides::default(),

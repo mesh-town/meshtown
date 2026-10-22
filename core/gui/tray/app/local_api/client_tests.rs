@@ -1,12 +1,14 @@
 use super::*;
-use meshtown::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 use std::time::{Duration, Instant};
 
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
-use crate::app::local_api::tests::{start_fake, start_fake_with_config, temp_dir, FAKE_TOKEN};
+use crate::gui::tray::app::local_api::tests::{
+    start_fake, start_fake_with_config, temp_dir, FAKE_TOKEN,
+};
 
 // ==============================================================================================
 // web_* — against start_fake (5)
@@ -102,7 +104,10 @@ async fn web_get_config_returns_current_document() {
         .await
         .expect("get_config: the exchange must not fail");
     match reply {
-        Reply::Ok(value) => assert!(value.get("rev").is_some(), "the response contains rev: {value}"),
+        Reply::Ok(value) => assert!(
+            value.get("rev").is_some(),
+            "the response contains rev: {value}"
+        ),
         other => panic!("expected Reply::Ok, got {other:?}"),
     }
 
@@ -200,9 +205,7 @@ async fn raw_listener_ssh_banner_is_not_http() {
         .expect_err("an SSH banner is not an HTTP response");
     assert!(matches!(err, ApiError::NotHttp(_)));
 
-    accept_task
-        .await
-        .expect("the stub server must not panic");
+    accept_task.await.expect("the stub server must not panic");
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -233,7 +236,10 @@ async fn get_invite_returns_invite_with_token() {
         .expect("get_invite: the exchange must not fail");
     match reply {
         Reply::Ok(value) => assert_eq!(value["invite"], "mesh-invite2-FAKE"),
-        other => panic!("expected Reply::Ok, got a different reply ({})", tag(&other)),
+        other => panic!(
+            "expected Reply::Ok, got a different reply ({})",
+            tag(&other)
+        ),
     }
 
     handle.shutdown(Duration::from_secs(2)).await;

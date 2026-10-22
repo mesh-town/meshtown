@@ -9,14 +9,14 @@
 
 use std::net::SocketAddr;
 
-use crate::net::PeerId;
-use crate::net::{AddrHint, PeerAddr, RelayRef};
+use crate::transport::net::PeerId;
+use crate::transport::net::{AddrHint, PeerAddr, RelayRef};
 use anyhow::{anyhow, bail, Context, Result};
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
 use serde::{Deserialize, Serialize};
 
-use crate::addr_order::{order_direct, truncate_ranked, PrimaryIps};
-use crate::output::NET_NAME;
+use crate::node::output::NET_NAME;
+use crate::transport::addr_order::{order_direct, truncate_ranked, PrimaryIps};
 
 /// Record format version.
 const RECORD_VERSION: u8 = 1;

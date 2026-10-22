@@ -5,13 +5,13 @@ use std::net::SocketAddr;
 
 use serde_json::{json, Value};
 
-use crate::config_file::{IfaceFilter, ListenAccess};
-use crate::web::auth::iface_gate::{judge, IfaceView};
-use crate::web::auth::iface_kind::is_router;
-use crate::web::auth::iface_nets::{networks, NetEntry};
-use crate::web::auth::state::AuthState;
-use crate::web::http::ConnInfo;
-use crate::web::{NodeSnapshot, SocksLan};
+use crate::config::config_file::{IfaceFilter, ListenAccess};
+use crate::web_gui::auth::iface_gate::{judge, IfaceView};
+use crate::web_gui::auth::iface_kind::is_router;
+use crate::web_gui::auth::iface_nets::{networks, NetEntry};
+use crate::web_gui::auth::state::AuthState;
+use crate::web_gui::http::ConnInfo;
+use crate::web_gui::{NodeSnapshot, SocksLan};
 
 #[derive(serde::Serialize)]
 pub(super) struct WebState {
@@ -33,7 +33,11 @@ pub(super) struct NetState {
 /// The side the network list judges, and that side's filter.
 fn side_of(snap: &NodeSnapshot, auth: &AuthState) -> (&'static str, ListenAccess, IfaceFilter) {
     if snap.socks.enabled && snap.socks.access == ListenAccess::Localnet.as_str() {
-        return ("socks", ListenAccess::Localnet, IfaceFilter::from_state(snap.socks.ifaces.clone()));
+        return (
+            "socks",
+            ListenAccess::Localnet,
+            IfaceFilter::from_state(snap.socks.ifaces.clone()),
+        );
     }
     if auth.mode() == ListenAccess::Localnet {
         return ("web", ListenAccess::Localnet, auth.ifaces());
@@ -44,7 +48,13 @@ fn side_of(snap: &NodeSnapshot, auth: &AuthState) -> (&'static str, ListenAccess
 /// The network of this request; `None` — loopback, the machine's own address, no connection.
 fn via_of(view: &IfaceView, conn: Option<&ConnInfo>) -> Option<String> {
     let c = conn?;
-    let v = judge(ListenAccess::Localnet, &IfaceFilter::Any, view, c.client_addr.ip(), Some(c.local.ip()));
+    let v = judge(
+        ListenAccess::Localnet,
+        &IfaceFilter::Any,
+        view,
+        c.client_addr.ip(),
+        Some(c.local.ip()),
+    );
     v.iface
 }
 
@@ -57,7 +67,12 @@ pub(super) fn net_state(
 ) -> NetState {
     let (side, mode, filter) = side_of(snap, auth);
     let via_iface = via_of(view, conn);
-    let pac_url = pac_for(snap.socks.pac_url.as_deref(), &snap.socks.access, via_iface.as_deref(), &snap.socks.lan);
+    let pac_url = pac_for(
+        snap.socks.pac_url.as_deref(),
+        &snap.socks.access,
+        via_iface.as_deref(),
+        &snap.socks.lan,
+    );
     NetState {
         router: is_router(view),
         via_iface,

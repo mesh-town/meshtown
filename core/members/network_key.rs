@@ -16,16 +16,16 @@ use data_encoding::{BASE32_NOPAD, BASE32_NOPAD_NOCASE, HEXLOWER};
 use icu_normalizer::ComposingNormalizerBorrowed;
 use ring::rand::{SecureRandom, SystemRandom};
 
-use crate::output::NET_NAME;
+use crate::node::output::NET_NAME;
 
 mod input;
 pub use input::{key_from_tail, parse_user_input, BadWord, NetworkKeyInput};
 // Only for the reference test `derive_tail_is_deterministic_and_input_sensitive` in
 // `network_key_tests.rs`: the function itself remained a detail of `input` and is not exposed.
 #[cfg(test)]
-use input::derive_tail_bytes;
+use crate::members::words::is_tail_word;
 #[cfg(test)]
-use crate::words::is_tail_word;
+use input::derive_tail_bytes;
 
 /// Prefix of the encoded network key.
 pub const KEY_PREFIX: &str = "mesh1-";
@@ -133,10 +133,7 @@ impl NetworkKey {
             .decode(body.as_bytes())
             .map_err(|e| anyhow!("the key does not decode from base32: {e}"))?;
         if decoded.len() != 32 {
-            return Err(anyhow!(
-                "the key must be 32 bytes, got {}",
-                decoded.len()
-            ));
+            return Err(anyhow!("the key must be 32 bytes, got {}", decoded.len()));
         }
         let mut bytes = [0u8; 32];
         bytes.copy_from_slice(&decoded);

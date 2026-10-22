@@ -1,12 +1,12 @@
 //! Tests of the help layout: the `-h, --help` line of subcommands, the order of `-h`/`-V`,
 //! the length of `run --help` lines and the verbatim texts of `--invite`, `--key`, `--config`.
-//! Included from `cli.rs`: `#[cfg(test)] #[path = "cli_help_layout_tests.rs"] mod help_layout_tests;`.
+//! Included from `cli.rs`: `#[cfg(test)] #[path = "args_help_layout_tests.rs"] mod help_layout_tests;`.
 //! It takes nothing from the neighboring test files: `help_of` and `sub_names` are short copies from
-//! `cli_help_tests.rs` (they are private there), `Cli` comes from `crate::cli`.
+//! `cli_help_tests.rs` (they are private there), `Cli` comes from `crate::cli::args`.
 
 use clap::error::ErrorKind;
 
-use crate::cli::Cli;
+use crate::cli::args::Cli;
 
 const HELP_FLAG: &str = "-h, --help";
 const VERSION_FLAG: &str = "-V, --version";
@@ -22,7 +22,8 @@ const LINE_LIMIT: usize = 160;
 const INVITE: &str = "Invite to a network: a single-use string mesh-invite2-… from a running member (can be set with the MESHTOWN_INVITE variable).";
 const KEY: &str = "Network key: \"label--word-word-group\" or mesh1-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).";
 const RUN_CONFIG: &str = "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable (default: next to the program or in the standard location).";
-const CONFIG_PATH_CONFIG: &str = "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.";
+const CONFIG_PATH_CONFIG: &str =
+    "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.";
 
 /// Subcommand help: each has its own `-h, --help` line, with no reference to another command's help.
 mod subcommand_help {
@@ -105,7 +106,10 @@ mod top_help {
             let help = top();
             let section = options_section(&help);
             let n = section.len();
-            assert!(n >= 2, "the \"Options:\" section has fewer than two lines:\n{help}");
+            assert!(
+                n >= 2,
+                "the \"Options:\" section has fewer than two lines:\n{help}"
+            );
             let (before_last, last) = (section[n - 2].trim_start(), section[n - 1].trim_start());
             assert!(
                 before_last.starts_with(HELP_FLAG),

@@ -8,7 +8,7 @@
 //! What it doesn't do: doesn't use the system resolver, doesn't remember failures, remembers an empty
 //! answer only next to a non-empty one of the other family, queries AAAA only on request of `resolve_cached_v6`
 //! (the checks and the ISP query ask A only), doesn't verify DNSSEC signatures.
-//! Related: transport is `crate::http_min` over TLS; used by `crate::reachability` and
+//! Related: transport is `crate::site_checks::http_min` over TLS; used by `crate::site_checks::reachability` and
 //! `crate::exit`.
 //!
 //! Files: `resolver` — `Resolver` (DoH and UDP queries, the cache owner); `packet` — building queries and parsing

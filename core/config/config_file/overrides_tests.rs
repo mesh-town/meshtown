@@ -1,7 +1,7 @@
 use super::*;
-use crate::config_file::settings::{Settings, TransportMode, ListenAccess};
-use crate::config_file::{NetSettings, ProcessSettings};
-use crate::config_file::test_support::sample_settings;
+use crate::config::config_file::settings::{ListenAccess, Settings, TransportMode};
+use crate::config::config_file::test_support::sample_settings;
+use crate::config::config_file::{NetSettings, ProcessSettings};
 
 #[test]
 fn apply_is_per_field() {
@@ -80,7 +80,10 @@ fn override_paths_are_in_table() {
     let paths = cli.apply(&mut Settings::default());
     assert_eq!(paths.len(), 13);
     for p in paths {
-        assert!(crate::config_file::fields::field_by_path(p).is_some(), "{p} is not in the table");
+        assert!(
+            crate::config::config_file::fields::field_by_path(p).is_some(),
+            "{p} is not in the table"
+        );
     }
 }
 
@@ -89,7 +92,10 @@ fn socks_access_flag_overrides_file() {
     // given: the file says localhost; --socks-access localnet is given
     let mut s = Settings::default();
     assert_eq!(s.process.socks_access, ListenAccess::Localhost);
-    let cli = CliOverrides { socks_access: Some(ListenAccess::Localnet), ..CliOverrides::default() };
+    let cli = CliOverrides {
+        socks_access: Some(ListenAccess::Localnet),
+        ..CliOverrides::default()
+    };
     // when: flags over the file; then: localnet mode and the path socks.access
     let paths = cli.apply(&mut s);
     assert_eq!(s.process.socks_access, ListenAccess::Localnet);

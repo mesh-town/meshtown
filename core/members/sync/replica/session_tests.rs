@@ -1,9 +1,9 @@
 //! Tests for the reconciliation session: two `State`s of one replica on `tokio::io::duplex`, the handshake skipped.
 
 use super::*;
-use crate::net::id::NodeSecret;
-use crate::net::replica::ReplicaId;
-use crate::sync::replica::entry::seal;
+use crate::members::sync::replica::entry::seal;
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::replica::ReplicaId;
 use tokio::io::{duplex, split};
 
 fn rid() -> ReplicaId {
@@ -140,7 +140,9 @@ async fn entry_limit_aborts() {
         version: PROTO_VERSION,
         writers: vec![],
     };
-    write_framed(&mut xw, &summary, MAX_FRAME_BYTES).await.unwrap();
+    write_framed(&mut xw, &summary, MAX_FRAME_BYTES)
+        .await
+        .unwrap();
     let pump = async {
         let batch = vec![junk; 50];
         for _ in 0..=(MAX_SESSION_ENTRIES / 50) {

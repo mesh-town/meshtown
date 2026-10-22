@@ -15,7 +15,8 @@ fn should_free_console_by_role_and_count() {
 /// subcommand is substituted, and a build with the tray releases the console, a build without the tray does not.
 #[test]
 fn bare_exe_role_follows_default_subcommand() {
-    let args = crate::cli::with_default_subcommand([std::ffi::OsString::from("meshtown.exe")]);
+    let args =
+        crate::cli::args::with_default_subcommand([std::ffi::OsString::from("meshtown.exe")]);
     let role = args.get(1).map(|r| r.as_os_str());
     assert_eq!(should_free_console(role, 1), cfg!(feature = "tray"));
 }
@@ -52,7 +53,7 @@ fn should_redirect_stdio_by_role_and_terminal() {
 /// subcommand is `tray` (a build with the tray).
 #[test]
 fn bundle_argv_role_follows_default_subcommand() {
-    let args = crate::cli::with_default_subcommand([std::ffi::OsString::from(
+    let args = crate::cli::args::with_default_subcommand([std::ffi::OsString::from(
         "/Applications/MeshTown.app/Contents/MacOS/meshtown",
     )]);
     let role = args.get(1).map(|r| r.as_os_str());

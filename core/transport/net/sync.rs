@@ -3,9 +3,9 @@
 //! `Membership` is the peers of a broadcast topic (gossip), not the `Members` (handshaken
 //! connections of a node): the first are seen from topic events, the second from verified connections.
 
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
 use bytes::Bytes;
 use tokio::sync::broadcast;
 

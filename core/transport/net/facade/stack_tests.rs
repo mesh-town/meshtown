@@ -2,17 +2,17 @@
 //! Closing and the snapshot are in `stack_close_tests.rs`.
 
 use super::NetStack;
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::discovery::Discovery;
-use crate::net::error::{NetError, NetResult};
-use crate::net::facade::test_support::{
-    addr, pid, secret, within, Journal, Probe, ScriptReply, Script, Spy,
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::facade::test_support::{
+    addr, pid, secret, within, Journal, Probe, Script, ScriptReply, Spy,
 };
-use crate::net::facade::NetStackBuilder;
-use crate::net::id::PeerId;
-use crate::net::mem::MemNet;
-use crate::net::service::{ServiceId, AUTH, EXIT};
-use crate::net::transport::PeerConn;
+use crate::transport::net::facade::NetStackBuilder;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::{ServiceId, AUTH, EXIT};
+use crate::transport::net::transport::PeerConn;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -69,10 +69,7 @@ mod routing {
 
         let res = a.connect(1, AUTH).await;
 
-        assert!(
-            matches!(res, Err(NetError::NoRoute)),
-            "to itself — NoRoute"
-        );
+        assert!(matches!(res, Err(NetError::NoRoute)), "to itself — NoRoute");
     }
 
     #[tokio::test]
@@ -102,7 +99,11 @@ mod routing {
 
         a.connect(2, AUTH).await.expect("connect succeeded");
 
-        assert_eq!(a.spies[0].connects().len(), 1, "the first one that reaches is X");
+        assert_eq!(
+            a.spies[0].connects().len(),
+            1,
+            "the first one that reaches is X"
+        );
         assert_eq!(a.spies[1].connects().len(), 0, "the second is not needed");
     }
 
@@ -164,11 +165,7 @@ mod handlers {
         if let Ok(conn) = res {
             within("closed at A", conn.closed()).await;
         }
-        assert_eq!(
-            b.probe.calls(),
-            0,
-            "the AUTH handler must not receive EXIT"
-        );
+        assert_eq!(b.probe.calls(), 0, "the AUTH handler must not receive EXIT");
         assert!(b.probe.try_next().is_none());
     }
 
@@ -187,7 +184,10 @@ mod handlers {
         a.stack.add_hints(b.invite());
 
         // the spy of B holds the accepted connection: dropped, it would have closed with code 0 even without the facade
-        let conn = a.connect(2, EXIT).await.expect("transport of B accepted EXIT");
+        let conn = a
+            .connect(2, EXIT)
+            .await
+            .expect("transport of B accepted EXIT");
 
         within("closed at A: facade of B closed it", conn.closed()).await;
         assert_eq!(b.probe.calls(), 0, "it did not reach the handler");
@@ -210,7 +210,11 @@ mod handlers {
         for _ in 0..3 {
             b.probe.next().await;
         }
-        assert_eq!(b.probe.calls(), 3, "the eternal handler does not hold up the acceptor");
+        assert_eq!(
+            b.probe.calls(),
+            3,
+            "the eternal handler does not hold up the acceptor"
+        );
     }
 
     #[tokio::test]
@@ -229,10 +233,15 @@ mod handlers {
             ),
         );
         a.stack.add_hints(b.invite());
-        a.connect(2, AUTH).await.expect("the first connect succeeded");
+        a.connect(2, AUTH)
+            .await
+            .expect("the first connect succeeded");
         sleep(Duration::from_millis(100)).await; // the handler has already crashed
 
-        let second = a.connect(2, AUTH).await.expect("the acceptor is alive after the panic");
+        let second = a
+            .connect(2, AUTH)
+            .await
+            .expect("the acceptor is alive after the panic");
 
         assert_eq!(
             b.probe.next().await.peer(),
@@ -268,7 +277,10 @@ mod weak {
 
         drop(a);
 
-        assert!(weak.upgrade().is_none(), "the handle does not hold the stack");
+        assert!(
+            weak.upgrade().is_none(),
+            "the handle does not hold the stack"
+        );
     }
 }
 

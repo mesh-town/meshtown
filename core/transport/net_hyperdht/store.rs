@@ -1,6 +1,6 @@
 //! A narrow DHT record store trait: the record key, the record, and reading/writing the value.
 
-use crate::net::{BoxFuture, NetResult};
+use crate::transport::net::{BoxFuture, NetResult};
 
 /// Record key: the signing seed (the key pair is built on the transport side).
 #[derive(Clone, PartialEq, Eq)]

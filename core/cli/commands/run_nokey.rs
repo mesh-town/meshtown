@@ -1,11 +1,11 @@
 //! Starting the node without a network key: the node page is the only way into the network.
 //! What is not here: choosing the launch branch and parsing flags — that is in `commands.rs`; the branch with a key is in
-//! `run_key.rs`. The page and its shutdown are handled by `meshtown::host`.
+//! `run_key.rs`. The page and its shutdown are handled by `crate::node::host`.
 
-use meshtown::config_file::{CliOverrides, RunConfig};
-use meshtown::host::{Host, PageRole};
-use meshtown::node::IdentityState;
-use meshtown::output::{say, NET_NAME};
+use crate::config::config_file::{CliOverrides, RunConfig};
+use crate::node::host::{Host, PageRole};
+use crate::node::output::{say, NET_NAME};
+use crate::node::IdentityState;
 
 /// Two hint lines after the page starts successfully: how to join the network.
 fn hint_lines() {
@@ -19,7 +19,7 @@ fn hint_lines() {
         "node",
         format!(
             "Got an invite? You can also join from the terminal: press Ctrl+C, then run {} run --invite \"<invite>\"",
-            meshtown::program_name::program_name()
+            crate::cli::program_name::program_name()
         ),
     );
 }
@@ -32,7 +32,7 @@ pub(super) async fn run_without_key(
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
 ) -> anyhow::Result<()> {
-    let relaunch = meshtown::node_ctl::Relaunch {
+    let relaunch = crate::node::node_ctl::Relaunch {
         path: run.file_report.path.clone(),
         cli: overrides,
         secret: run.secret.clone(),
@@ -40,11 +40,11 @@ pub(super) async fn run_without_key(
         blocked_domains,
         test_net: None,
     };
-    let ctl = meshtown::node_ctl::NodeCtl::new_without_network(&run.effective_settings);
+    let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&run.effective_settings);
     Host::run_with_web_page(run, ctl, PageRole::OnlyEntry, |run, ctl| async move {
         hint_lines();
         let identity = IdentityState::from_report(&run.file_report);
-        meshtown::node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await
+        crate::node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await
     })
     .await
 }

@@ -5,10 +5,10 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::config_file::{NetSettings, TransportMode};
-use crate::net::{NodeSecret, PeerAddr};
+use crate::config::config_file::{NetSettings, TransportMode};
+use crate::transport::net::{NodeSecret, PeerAddr};
 
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 
 use super::identity::{IdentityState, TemporaryReason};
 
@@ -19,14 +19,19 @@ pub struct SocksListen {
     /// Port 0 — any free one (tests).
     pub port: u16,
     /// Who may connect: `localhost` — listen on `127.0.0.1`, `localnet` — on `0.0.0.0`.
-    pub access: crate::config_file::ListenAccess,
+    pub access: crate::config::config_file::ListenAccess,
     /// Over which networks to accept (`socks.ifaces`); `Auto` — automatic.
-    pub ifaces: crate::config_file::IfaceFilter,
+    pub ifaces: crate::config::config_file::IfaceFilter,
 }
 
 impl SocksListen {
     /// The listener is off.
-    pub const OFF: SocksListen = SocksListen { enabled: false, port: 0, access: crate::config_file::ListenAccess::Localhost, ifaces: crate::config_file::IfaceFilter::Auto };
+    pub const OFF: SocksListen = SocksListen {
+        enabled: false,
+        port: 0,
+        access: crate::config::config_file::ListenAccess::Localhost,
+        ifaces: crate::config::config_file::IfaceFilter::Auto,
+    };
 }
 
 /// Memory guard thresholds, MiB (from `node.memory_*` of the settings file).
@@ -40,7 +45,10 @@ pub struct MemoryLimits {
 
 impl MemoryLimits {
     /// The guard is off.
-    pub const OFF: MemoryLimits = MemoryLimits { warn_mib: 0, exit_mib: 0 };
+    pub const OFF: MemoryLimits = MemoryLimits {
+        warn_mib: 0,
+        exit_mib: 0,
+    };
 }
 
 /// Node settings for assembly.
@@ -83,7 +91,7 @@ pub struct NodeConfig {
     /// The `mem` network in process memory: tests only. `Some` allows the `mem` transport in `net.transports`
     /// (it can't be chosen from the settings file), `None` — a live node.
     #[doc(hidden)]
-    pub test_net: Option<std::sync::Arc<crate::net::mem::MemNet>>,
+    pub test_net: Option<std::sync::Arc<crate::transport::net::mem::MemNet>>,
     /// Test knob: the membership list is not consulted, every peer that passes the handshake is let in;
     /// set by the loopback preset.
     #[doc(hidden)]
@@ -122,9 +130,14 @@ impl NodeConfig {
         let mut cfg = NodeConfig::for_cli(key, &loopback_settings());
         cfg.probe_first_delay = Duration::from_secs(0);
         cfg.geoip = false;
-        cfg.socks = SocksListen { enabled: true, port: 0, access: crate::config_file::ListenAccess::Localhost, ifaces: crate::config_file::IfaceFilter::Auto };
+        cfg.socks = SocksListen {
+            enabled: true,
+            port: 0,
+            access: crate::config::config_file::ListenAccess::Localhost,
+            ifaces: crate::config::config_file::IfaceFilter::Auto,
+        };
         cfg.memory = MemoryLimits::OFF;
-        cfg.test_net = Some(crate::net::mem::process_net());
+        cfg.test_net = Some(crate::transport::net::mem::process_net());
         cfg.open_list = true;
         cfg
     }
@@ -136,7 +149,7 @@ fn loopback_settings() -> NetSettings {
         transport_mode: TransportMode::NoRelay,
         probe_interval_sec: 3600,
         checks_enabled: false,
-        net_choice: crate::net::NetChoice {
+        net_choice: crate::transport::net::NetChoice {
             transports: vec!["mem".to_string()],
             discovery: vec!["invite".to_string(), "cache".to_string()],
             sync: "mesh".to_string(),

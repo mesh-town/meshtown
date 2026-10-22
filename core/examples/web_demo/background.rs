@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use meshtown::web::{NodeStatus, VerdictKind};
+use meshtown_core::web_gui::{NodeStatus, VerdictKind};
 
 use crate::node::{DemoNode, DemoState};
 use crate::rng::xorshift64;

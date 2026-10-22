@@ -5,22 +5,27 @@ use super::super::entry::seal;
 use super::super::ids::net_id;
 use super::super::replica_sync::resync_delay;
 use super::super::test_support::{introduce, mesh_node, MeshNode};
-use crate::net::contract::replica_cases::{is_remote, next_event};
-use crate::net::contract::{must_finish, pid, secret, SEED_A, SEED_B};
-use crate::net::mem::MemNet;
-use crate::net::replica::{Replica, ReplicaEvent};
-use crate::net::sync_backend::SyncBackend;
-use crate::sync::flood::test_support::NETWORK;
+use crate::members::sync::flood::test_support::NETWORK;
+use crate::transport::net::contract::replica_cases::{is_remote, next_event};
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A, SEED_B};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::replica::{Replica, ReplicaEvent};
+use crate::transport::net::sync_backend::SyncBackend;
 use std::sync::Arc;
 use std::time::Duration;
 
 async fn net_replica(node: &MeshNode) -> Arc<dyn Replica> {
-    must_finish(node.sync.open_replica("net")).await.expect("the net replica")
+    must_finish(node.sync.open_replica("net"))
+        .await
+        .expect("the net replica")
 }
 
 /// Two nodes that are topic neighbors after one explicit reconciliation; returns `(low, high)` by `PeerId`.
 async fn neighbors(net: &Arc<MemNet>) -> (MeshNode, MeshNode) {
-    let (a, b) = (mesh_node(net, SEED_A, NETWORK, None).await, mesh_node(net, SEED_B, NETWORK, None).await);
+    let (a, b) = (
+        mesh_node(net, SEED_A, NETWORK, None).await,
+        mesh_node(net, SEED_B, NETWORK, None).await,
+    );
     introduce(&a, &b);
     let (low, high) = match pid(SEED_A).as_bytes() < pid(SEED_B).as_bytes() {
         true => (a, b),
@@ -36,7 +41,7 @@ async fn neighbors(net: &Arc<MemNet>) -> (MeshNode, MeshNode) {
     (low, high)
 }
 
-fn pid_of(node: &MeshNode) -> crate::net::id::PeerId {
+fn pid_of(node: &MeshNode) -> crate::transport::net::id::PeerId {
     node.sync.host.open("net").unwrap().me()
 }
 
@@ -57,7 +62,11 @@ async fn timer_brings_entry_the_broadcast_missed() {
     // given: neighbors; the larger node holds an entry nobody broadcast → when: the period passes → then: the smaller one has it
     let net = MemNet::new();
     let (low, high) = neighbors(&net).await;
-    let author = if pid(SEED_A) == pid_of(&high) { SEED_A } else { SEED_B };
+    let author = if pid(SEED_A) == pid_of(&high) {
+        SEED_A
+    } else {
+        SEED_B
+    };
     quiet_entry(&high, author, b"k/");
     let rl = net_replica(&low).await;
     assert!(must_finish(rl.scan(b"k/")).await.unwrap().is_empty());
@@ -72,9 +81,18 @@ async fn only_smaller_peer_starts_reconciliation() {
     // given: neighbors → when: the larger node runs its periodic step → then: it starts no session, the smaller one does
     let net = MemNet::new();
     let (low, high) = neighbors(&net).await;
-    let (rl, rh) = (low.sync.host.open("net").unwrap(), high.sync.host.open("net").unwrap());
+    let (rl, rh) = (
+        low.sync.host.open("net").unwrap(),
+        high.sync.host.open("net").unwrap(),
+    );
     rh.resync_smaller();
-    assert!(rh.claim(rl.me()).is_some(), "the larger node started a session");
+    assert!(
+        rh.claim(rl.me()).is_some(),
+        "the larger node started a session"
+    );
     rl.resync_smaller();
-    assert!(rl.claim(rh.me()).is_none(), "the smaller node started no session");
+    assert!(
+        rl.claim(rh.me()).is_none(),
+        "the smaller node started no session"
+    );
 }

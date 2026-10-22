@@ -2,11 +2,11 @@
 //! No live iroh is needed here: the probe talks to `PeerConn`.
 
 use super::*;
-use crate::net::contract::{secret, must_finish, SEED_A, SEED_B};
-use crate::net::NodeSecret;
-use crate::net::{MemNet, PeerConn, SplitTransport, Transport, AUTH};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B};
+use crate::transport::net::NodeSecret;
+use crate::transport::net::{MemNet, PeerConn, SplitTransport, Transport, AUTH};
 use portable_atomic::AtomicU64;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
@@ -30,7 +30,10 @@ fn non_exit_never_gets_one_mib() {
 #[test]
 fn full_cycle_acts_like_exit() {
     for turn in 0..9 {
-        assert_eq!(probe_size_bytes(turn, false, true), probe_size_bytes(turn, true, false));
+        assert_eq!(
+            probe_size_bytes(turn, false, true),
+            probe_size_bytes(turn, true, false)
+        );
     }
     assert_eq!(probe_size_bytes(2, false, true), 1048576);
 }
@@ -41,9 +44,15 @@ fn exit_list_change_flips_to_exit() {
     let tx = tokio::sync::watch::Sender::new(Vec::<PeerId>::new());
     let rx = tx.subscribe();
     assert!(!rx.borrow().contains(&peer));
-    assert_ne!(probe_size_bytes(2, rx.borrow().contains(&peer), false), 1048576);
+    assert_ne!(
+        probe_size_bytes(2, rx.borrow().contains(&peer), false),
+        1048576
+    );
     tx.send_replace(vec![peer]);
-    assert_eq!(probe_size_bytes(2, rx.borrow().contains(&peer), false), 1048576);
+    assert_eq!(
+        probe_size_bytes(2, rx.borrow().contains(&peer), false),
+        1048576
+    );
 }
 
 mod size_within_limit {
@@ -56,7 +65,10 @@ mod size_within_limit {
         // when: A sends a 16 KiB probe
         let sent = must_finish(send_probe(&*fx.a, 16 * 1024)).await;
         // then: an acknowledgment of the same length arrived
-        assert!(sent.is_ok(), "16 KiB probe without acknowledgment: {sent:?}");
+        assert!(
+            sent.is_ok(),
+            "16 KiB probe without acknowledgment: {sent:?}"
+        );
     }
 
     #[tokio::test]
@@ -96,7 +108,10 @@ mod size_over_limit {
         // when: A sends an ordinary probe on the same connection
         let sent = must_finish(send_probe(&*fx.a, 16 * 1024)).await;
         // then: `answer_probes` is alive and acknowledges
-        assert!(sent.is_ok(), "probe not acknowledged after the refusal: {sent:?}");
+        assert!(
+            sent.is_ok(),
+            "probe not acknowledged after the refusal: {sent:?}"
+        );
     }
 }
 
@@ -169,7 +184,10 @@ async fn setup() -> Fixture {
     let a = net.transport(&secret(SEED_A));
     let b = net.transport(&secret(SEED_B));
     b.serve(&[AUTH]);
-    let (dialed, accepted) = tokio::join!(must_finish(a.connect(&b.local_addr(), AUTH)), must_finish(b.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(a.connect(&b.local_addr(), AUTH)),
+        must_finish(b.accept())
+    );
     let dialed = dialed.expect("connect A→B gave no connection");
     let (_, accepted) = accepted.expect("accept B is closed, yet a connection was awaited");
     // assumption: `answer_probes(conn: Arc<dyn PeerConn>, peer: PeerId)` — the "volume probe" contract

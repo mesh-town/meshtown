@@ -1,10 +1,10 @@
 //! A fake node and shared helpers for the `local_api` tests. The file is called `fixtures.rs`, but
 //! `mod.rs` declares it as the module `tests` (`#[path = "fixtures.rs"] pub(crate) mod tests;`), so that
-//! the path `crate::app::local_api::tests::…` does not change — the `tray_role` module reads it too (
+//! the path `crate::gui::tray::app::local_api::tests::…` does not change — the `tray_role` module reads it too (
 //! `poller_own_tests.rs`, `poller_misc_tests.rs`, `poller_foreign_tests.rs`, `run_tests.rs`).
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use portable_atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// A token that is clearly not a real one, for tests and the fake node: 52 characters `[0-9A-Za-z]`.
@@ -59,14 +59,14 @@ impl FakeNode {
     }
 }
 
-impl meshtown::web::NodeControl for FakeNode {
-    fn snapshot(&self) -> meshtown::web::NodeSnapshot {
-        meshtown::web::NodeSnapshot {
-            node: meshtown::web::NodeRuntime {
-                status: meshtown::web::NodeStatus::Online,
+impl crate::web_gui::NodeControl for FakeNode {
+    fn snapshot(&self) -> crate::web_gui::NodeSnapshot {
+        crate::web_gui::NodeSnapshot {
+            node: crate::web_gui::NodeRuntime {
+                status: crate::web_gui::NodeStatus::Online,
                 ..Default::default()
             },
-            exit: meshtown::web::ExitInfo {
+            exit: crate::web_gui::ExitInfo {
                 enabled: self.exit_enabled.load(Ordering::SeqCst),
                 ..Default::default()
             },
@@ -74,27 +74,27 @@ impl meshtown::web::NodeControl for FakeNode {
         }
     }
 
-    fn log_after(&self, _after: u64, _limit: usize) -> meshtown::web::LogPage {
-        meshtown::web::LogPage::default()
+    fn log_after(&self, _after: u64, _limit: usize) -> crate::web_gui::LogPage {
+        crate::web_gui::LogPage::default()
     }
 
-    fn find_exit(&self, _domain: &str) -> Result<(), meshtown::web::ActionError> {
+    fn find_exit(&self, _domain: &str) -> Result<(), crate::web_gui::ActionError> {
         Ok(())
     }
 
-    fn check_domain(&self, _domain: &str) -> Result<(), meshtown::web::ActionError> {
+    fn check_domain(&self, _domain: &str) -> Result<(), crate::web_gui::ActionError> {
         Ok(())
     }
 
-    fn check_all(&self) -> Result<u64, meshtown::web::ActionError> {
+    fn check_all(&self) -> Result<u64, crate::web_gui::ActionError> {
         Ok(0)
     }
 
-    fn add_domain(&self, domain: &str) -> Result<String, meshtown::web::ActionError> {
+    fn add_domain(&self, domain: &str) -> Result<String, crate::web_gui::ActionError> {
         Ok(domain.to_string())
     }
 
-    fn remove_domain(&self, domain: &str) -> Result<String, meshtown::web::ActionError> {
+    fn remove_domain(&self, domain: &str) -> Result<String, crate::web_gui::ActionError> {
         Ok(domain.to_string())
     }
 
@@ -102,8 +102,13 @@ impl meshtown::web::NodeControl for FakeNode {
         Ok(())
     }
 
-    fn apply_config(&self, settings: &meshtown::config_file::Settings, _paths: &[&'static str]) {
-        self.exit_enabled.store(settings.net.exit_enabled, Ordering::SeqCst);
+    fn apply_config(
+        &self,
+        settings: &crate::config::config_file::Settings,
+        _paths: &[&'static str],
+    ) {
+        self.exit_enabled
+            .store(settings.net.exit_enabled, Ordering::SeqCst);
     }
 
     fn switch_network(&self, _key: &str) {}
@@ -112,10 +117,10 @@ impl meshtown::web::NodeControl for FakeNode {
         self.stopped.store(true, Ordering::SeqCst);
     }
 
-    fn invite(&self) -> Result<String, meshtown::web::ActionError> {
+    fn invite(&self) -> Result<String, crate::web_gui::ActionError> {
         match self.invite.lock().unwrap().clone() {
             Some(text) => Ok(text),
-            None => Err(meshtown::web::ActionError::Busy(
+            None => Err(crate::web_gui::ActionError::Busy(
                 "the node is still joining the network".to_string(),
             )),
         }
@@ -127,25 +132,25 @@ impl meshtown::web::NodeControl for FakeNode {
 pub(crate) async fn start_fake(
     port: u16,
     token_dir: &std::path::Path,
-) -> (meshtown::web::WebHandle, Arc<FakeNode>) {
+) -> (crate::web_gui::WebHandle, Arc<FakeNode>) {
     let node = Arc::new(FakeNode::new());
-    let run = meshtown::config_file::prepare(
-        &meshtown::config_file::ConfigSource::Disabled,
-        &meshtown::config_file::CliOverrides::default(),
+    let run = crate::config::config_file::prepare(
+        &crate::config::config_file::ConfigSource::Disabled,
+        &crate::config::config_file::CliOverrides::default(),
         false,
         0,
     )
     .expect("start_fake: prepare with ConfigSource::Disabled doesn't fail");
-    let opts = meshtown::web::WebOptions {
+    let opts = crate::web_gui::WebOptions {
         enabled: true,
         port,
         token_dir: Some(token_dir.to_path_buf()),
         fixed_token: Some(FAKE_TOKEN.to_string()),
-        drain: meshtown::web::DEFAULT_DRAIN,
+        drain: crate::web_gui::DEFAULT_DRAIN,
     };
-    let handle = meshtown::web::start_web_page(opts, &run, node.clone())
+    let handle = crate::web_gui::start_web_page(opts, &run, node.clone())
         .await
-        .unwrap_or_else(|e| panic!("start_fake: web::start must come up: {e}"));
+        .unwrap_or_else(|e| panic!("start_fake: web_gui::start must come up: {e}"));
     (handle, node)
 }
 
@@ -156,29 +161,29 @@ pub(crate) async fn start_fake(
 pub(crate) async fn start_fake_with_config(
     port: u16,
     token_dir: &std::path::Path,
-) -> (meshtown::web::WebHandle, Arc<FakeNode>) {
+) -> (crate::web_gui::WebHandle, Arc<FakeNode>) {
     let node = Arc::new(FakeNode::new());
-    let source = meshtown::config_file::ConfigSource::File {
+    let source = crate::config::config_file::ConfigSource::File {
         path: token_dir.join("config.json"),
         may_create: true,
-        rule: meshtown::config_file::PathRule::Explicit,
+        rule: crate::config::config_file::PathRule::Explicit,
     };
-    let run = meshtown::config_file::prepare(
+    let run = crate::config::config_file::prepare(
         &source,
-        &meshtown::config_file::CliOverrides::default(),
+        &crate::config::config_file::CliOverrides::default(),
         false,
         0,
     )
     .expect("start_fake_with_config: prepare with ConfigSource::File doesn't fail");
-    let opts = meshtown::web::WebOptions {
+    let opts = crate::web_gui::WebOptions {
         enabled: true,
         port,
         token_dir: Some(token_dir.to_path_buf()),
         fixed_token: Some(FAKE_TOKEN.to_string()),
-        drain: meshtown::web::DEFAULT_DRAIN,
+        drain: crate::web_gui::DEFAULT_DRAIN,
     };
-    let handle = meshtown::web::start_web_page(opts, &run, node.clone())
+    let handle = crate::web_gui::start_web_page(opts, &run, node.clone())
         .await
-        .unwrap_or_else(|e| panic!("start_fake_with_config: web::start must come up: {e}"));
+        .unwrap_or_else(|e| panic!("start_fake_with_config: web_gui::start must come up: {e}"));
     (handle, node)
 }

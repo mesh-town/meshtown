@@ -11,7 +11,7 @@
 //! `start_enabled`/`stop_enabled` on receiving `TrayCmd::Update`; `View` is assembled by the poller of
 //! `tray_role` from the `GET /api/state` response and its own phase.
 
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 
 use super::exit_menu::OFFLINE_EXIT_MARK;
 use super::snapshot::{TrayNodeStatus, TraySnapshot};
@@ -24,10 +24,10 @@ use super::tray_texts::{
 use super::view_disk::Disk;
 use super::view_ring::Ring;
 
-// The name of our node network in texts for people is `meshtown::output::NET_NAME` (its doc comment
+// The name of our node network in texts for people is `crate::node::output::NET_NAME` (its doc comment
 // is there). Not here: almost all places that use it are in the library crate `meshtown`, and
 // `app` exists only in the binary crate `meshtown`, so a constant in `app` would not be visible
-// from there unless it were `pub`; the binary crate sees it through `meshtown::output::NET_NAME`
+// from there unless it were `pub`; the binary crate sees it through `crate::node::output::NET_NAME`
 // (like `commands.rs`).
 
 pub const ICON_SIDE_PX: u32 = 36;

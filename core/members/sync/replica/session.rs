@@ -5,10 +5,10 @@
 use super::entry::{check, WireEntry};
 use super::state::{State, WriterSum};
 use super::wire::{batches, Frame, MAX_SESSION_ENTRIES, PROTO_VERSION, SESSION_TIMEOUT};
-use crate::net::error::{NetError, NetResult};
-use crate::net::stream::StreamPair;
-use crate::sync::flood::wire::MAX_FRAME_BYTES;
-use crate::sync::framing::{read_framed, write_framed};
+use crate::members::sync::flood::wire::MAX_FRAME_BYTES;
+use crate::members::sync::framing::{read_framed, write_framed};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::stream::StreamPair;
 use std::future::Future;
 use std::io::{Error, ErrorKind};
 use std::sync::{Mutex, MutexGuard};
@@ -23,7 +23,10 @@ pub(crate) struct SessionTally {
     pub changed: bool,
 }
 
-pub(crate) async fn run_dialer(pair: &mut StreamPair, state: &Mutex<State>) -> NetResult<SessionTally> {
+pub(crate) async fn run_dialer(
+    pair: &mut StreamPair,
+    state: &Mutex<State>,
+) -> NetResult<SessionTally> {
     dial(&mut pair.recv, &mut pair.send, state).await
 }
 
@@ -74,7 +77,9 @@ where
     .await
 }
 
-async fn within_timeout<F: Future<Output = NetResult<SessionTally>>>(run: F) -> NetResult<SessionTally> {
+async fn within_timeout<F: Future<Output = NetResult<SessionTally>>>(
+    run: F,
+) -> NetResult<SessionTally> {
     tokio::time::timeout(SESSION_TIMEOUT, run)
         .await
         .map_err(|_| NetError::Timeout)?
@@ -131,7 +136,12 @@ impl<'a, R: AsyncRead + Unpin, W: AsyncWrite + Unpin> Side<'a, R, W> {
         for batch in batches(missing) {
             write_framed(self.send, &Frame::Entries(batch), MAX_FRAME_BYTES).await?;
         }
-        write_framed(self.send, &Frame::Done { sent: total as u32 }, MAX_FRAME_BYTES).await?;
+        write_framed(
+            self.send,
+            &Frame::Done { sent: total as u32 },
+            MAX_FRAME_BYTES,
+        )
+        .await?;
         self.tally.sent = total as u64;
         Ok(())
     }

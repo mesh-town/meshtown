@@ -47,9 +47,18 @@ fn wait_before_check_future_write_time_is_zero() {
 
 #[test]
 fn next_wait_matches_outcome() {
-    assert_eq!(pause_after_outcome(Outcome::Found), Duration::from_secs(2 * 60 * 60));
-    assert_eq!(pause_after_outcome(Outcome::Failed), Duration::from_secs(10 * 60));
-    assert_eq!(pause_after_outcome(Outcome::Offline), Duration::from_secs(60));
+    assert_eq!(
+        pause_after_outcome(Outcome::Found),
+        Duration::from_secs(2 * 60 * 60)
+    );
+    assert_eq!(
+        pause_after_outcome(Outcome::Failed),
+        Duration::from_secs(10 * 60)
+    );
+    assert_eq!(
+        pause_after_outcome(Outcome::Offline),
+        Duration::from_secs(60)
+    );
 }
 
 /// The decision "postpone the country lookup": postpone only when the transport itself said "network not seen".
@@ -59,9 +68,17 @@ mod net_absent_decision {
     #[test]
     fn country_check_defers_only_when_net_not_seen() {
         // given: three transport answers about the network — "not seen", "seen", "don't know"
-        let (not_seen, seen, unknown) = (info_with(Some(false)), info_with(Some(true)), info_with(None));
+        let (not_seen, seen, unknown) = (
+            info_with(Some(false)),
+            info_with(Some(true)),
+            info_with(None),
+        );
         // when: we decide whether to postpone the lookup
-        let verdicts = [net_absent(&not_seen), net_absent(&seen), net_absent(&unknown)];
+        let verdicts = [
+            net_absent(&not_seen),
+            net_absent(&seen),
+            net_absent(&unknown),
+        ];
         // then: postpone only on `Some(false)`; "don't know" (None) does not stop the lookup
         assert_eq!(
             verdicts,
@@ -72,5 +89,8 @@ mod net_absent_decision {
 }
 
 fn info_with(net_seen: Option<bool>) -> NetInfo {
-    NetInfo { net_seen, ..NetInfo::default() }
+    NetInfo {
+        net_seen,
+        ..NetInfo::default()
+    }
 }

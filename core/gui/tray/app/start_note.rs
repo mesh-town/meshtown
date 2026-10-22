@@ -4,7 +4,7 @@
 //! `Error: …` line of the node log (the node's text is shown as is, truncated to the menu length); without it —
 //! its own lines with the exit code.
 
-use crate::app::tray_texts::{
+use crate::gui::tray::app::tray_texts::{
     node_log_hint_text, start_failed_code_text, start_failed_text, start_failed_with_text,
     start_proxy_busy_hint_text, start_proxy_busy_text, start_proxy_was_busy_hint_text,
     start_proxy_was_busy_text,
@@ -22,7 +22,10 @@ pub(crate) enum StartNote {
     /// According to the node log: the port was in use when the node started (it may be free now).
     ProxyWasBusy(u16),
     /// The node exited with an error.
-    Failed { code: Option<i32>, has_node_log: bool },
+    Failed {
+        code: Option<i32>,
+        has_node_log: bool,
+    },
     /// The node exited with an error, the reason is the text after `Error: ` from the node log.
     FailedWith(String),
 }
@@ -54,7 +57,10 @@ fn busy_port(rest: &str) -> Option<u16> {
 
 /// The rest of the last log line that starts with `Error: `.
 fn last_error_rest(log_tail: Option<&str>) -> Option<&str> {
-    log_tail?.lines().rev().find_map(|l| l.strip_prefix("Error: "))
+    log_tail?
+        .lines()
+        .rev()
+        .find_map(|l| l.strip_prefix("Error: "))
 }
 
 /// The reason by the exit code and the node log tail: the last line `Error: ` is taken.
@@ -65,7 +71,10 @@ pub(crate) fn start_note_from(code: Option<i32>, log_tail: Option<&str>) -> Star
     }
     match rest.map(str::trim).filter(|r| !r.is_empty()) {
         Some(reason) => StartNote::FailedWith(reason.to_owned()),
-        None => StartNote::Failed { code, has_node_log: log_tail.is_some() },
+        None => StartNote::Failed {
+            code,
+            has_node_log: log_tail.is_some(),
+        },
     }
 }
 
@@ -92,8 +101,13 @@ pub(crate) fn start_note_hint(note: &StartNote) -> Option<String> {
         StartNote::Idle => None,
         StartNote::ProxyBusy(_) => Some(start_proxy_busy_hint_text()),
         StartNote::ProxyWasBusy(_) => Some(start_proxy_was_busy_hint_text()),
-        StartNote::Failed { has_node_log: true, .. } => Some(node_log_hint_text(NODE_LOG_NAME)),
-        StartNote::Failed { has_node_log: false, .. } => None,
+        StartNote::Failed {
+            has_node_log: true, ..
+        } => Some(node_log_hint_text(NODE_LOG_NAME)),
+        StartNote::Failed {
+            has_node_log: false,
+            ..
+        } => None,
         StartNote::FailedWith(_) => Some(node_log_hint_text(NODE_LOG_NAME)),
     }
 }

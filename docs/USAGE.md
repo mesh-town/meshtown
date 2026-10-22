@@ -252,7 +252,7 @@ the tabs become a horizontal strip.
 
 The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
 which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo
-build` does not need Node. The listener is built into the binary (`src/web.rs`, HTTP/1.1 on axum) and starts with the
+build` does not need Node. The listener is built into the binary (`core/web_gui/mod.rs`, HTTP/1.1 on axum) and starts with the
 node. The port is `--web-port N` (default 7777, the settings field `web.port`). To turn the page off entirely, set
 `web.enabled: false` in the file; there is no flag for this. The node keeps a permanent access token in the `web-token`
 file next to the settings file (the tray and scripts read it), but does not print it; at start it prints a link with a

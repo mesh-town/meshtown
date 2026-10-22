@@ -2,8 +2,8 @@
 //! There is no reading of frames, messages or dials here.
 
 use super::wire::{Frame, CLOSE_SHUTDOWN};
-use crate::net::id::PeerId;
-use crate::net::transport::PeerConn;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::transport::PeerConn;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
@@ -60,13 +60,17 @@ impl Links {
     pub fn remove_if(&mut self, peer: PeerId, link_no: u64) -> bool {
         let current = self.is_current(peer, link_no);
         let removed = current.then(|| self.by_peer.remove(&peer)).flatten();
-        removed.iter().for_each(|l| l.conn.close(CLOSE_SHUTDOWN, b"gone"));
+        removed
+            .iter()
+            .for_each(|l| l.conn.close(CLOSE_SHUTDOWN, b"gone"));
         current
     }
 
     /// The link `link_no` is the current one for this peer.
     pub fn is_current(&self, peer: PeerId, link_no: u64) -> bool {
-        self.by_peer.get(&peer).is_some_and(|l| l.link_no == link_no)
+        self.by_peer
+            .get(&peer)
+            .is_some_and(|l| l.link_no == link_no)
     }
 
     /// Tests only: the number of links.

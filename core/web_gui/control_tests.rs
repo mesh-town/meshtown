@@ -39,12 +39,16 @@ fn other_bind_line() {
 
 #[test]
 fn disabled_has_no_line() {
-    assert!(WebStartError::Disabled.continue_without_page_log_line().is_none());
+    assert!(WebStartError::Disabled
+        .continue_without_page_log_line()
+        .is_none());
 }
 
 #[test]
 fn advice_only_for_port_causes() {
-    let busy = bind(7777, ErrorKind::AddrInUse, "x").start_failure_advice().unwrap();
+    let busy = bind(7777, ErrorKind::AddrInUse, "x")
+        .start_failure_advice()
+        .unwrap();
     assert!(busy.contains("--web-port 7778"), "{busy}");
     let other = bind(7777, ErrorKind::PermissionDenied, "x")
         .start_failure_advice()

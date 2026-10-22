@@ -1,8 +1,8 @@
 //! Connector contract suite: the `connector_contract!` macro and helpers for "Connector → path" cases.
 //! Plugging in an adapter: `connector_contract!(fn_without_arguments_returning_impl_ConnectorHarness);`.
 
-use crate::net::connect::{Connector, PacketPath};
-use crate::net::contract::{must_finish, ConnectorHarness, SEED_A, SEED_B};
+use crate::transport::net::connect::{Connector, PacketPath};
+use crate::transport::net::contract::{must_finish, ConnectorHarness, SEED_A, SEED_B};
 use bytes::Bytes;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -20,7 +20,9 @@ pub(crate) struct PathPair {
 }
 
 /// Two nodes of one environment: A and B.
-pub(crate) async fn connector_pair(h: &impl ConnectorHarness) -> (Arc<dyn Connector>, Arc<dyn Connector>) {
+pub(crate) async fn connector_pair(
+    h: &impl ConnectorHarness,
+) -> (Arc<dyn Connector>, Arc<dyn Connector>) {
     let a = must_finish(h.node(SEED_A)).await;
     let b = must_finish(h.node(SEED_B)).await;
     (a, b)
@@ -64,14 +66,16 @@ macro_rules! connector_contract {
     ($harness:path) => {
         mod connector {
             use super::*;
-            use $crate::net::contract::connector::{
-                burst, dial_between, next_packet, connector_pair, recv_error_kind, MIN_PACKET_BYTES,
+            use $crate::transport::net::contract::connector::{
+                burst, connector_pair, dial_between, next_packet, recv_error_kind, MIN_PACKET_BYTES,
             };
-            use $crate::net::contract::{pid, must_finish, ConnectorHarness, SEED_A, SEED_B, SEED_C};
+            use $crate::transport::net::contract::{
+                must_finish, pid, ConnectorHarness, SEED_A, SEED_B, SEED_C,
+            };
 
             mod dial {
                 use super::*;
-                use $crate::net::addr::PeerAddr;
+                use $crate::transport::net::addr::PeerAddr;
 
                 #[tokio::test]
                 async fn dialer_path_names_the_dialed_peer() {

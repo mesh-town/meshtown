@@ -15,12 +15,19 @@ use super::state::NodeCtlShared;
 /// settings, or otherwise the name the node was started under), calls `collect`, and puts the result into `cache`
 /// only if the generation has not changed (otherwise the task is outdated — `detach`/a new `attach`
 /// overtakes it).
-pub(super) async fn snapshot_task(ctl_shared: Arc<NodeCtlShared>, task_gen: u64, node: Arc<RunningNode>) {
+pub(super) async fn snapshot_task(
+    ctl_shared: Arc<NodeCtlShared>,
+    task_gen: u64,
+    node: Arc<RunningNode>,
+) {
     let mut is_first_tick = true;
     let mut doc_cache = snapshot::DocCache::default();
     loop {
         let (should_collect, name, mode) = {
-            let st = ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let st = ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if st.snapshot_gen != task_gen {
                 return;
             }
@@ -33,8 +40,12 @@ pub(super) async fn snapshot_task(ctl_shared: Arc<NodeCtlShared>, task_gen: u64,
         };
         if should_collect {
             let self_name = snapshot_self_name(name.as_deref(), &node.name_at_start);
-            let mut collected = snapshot::collect(&node, Some(self_name.as_str()), mode, &mut doc_cache).await;
-            let mut st = ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+            let mut collected =
+                snapshot::collect(&node, Some(self_name.as_str()), mode, &mut doc_cache).await;
+            let mut st = ctl_shared
+                .ctl_state
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             if st.snapshot_gen == task_gen {
                 if collected.partial {
                     if let Some(prev) = &st.cache {

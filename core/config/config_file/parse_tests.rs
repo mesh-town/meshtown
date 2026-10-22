@@ -1,9 +1,9 @@
 use super::*;
-use crate::config_file::settings::Settings;
-use crate::config_file::NetSettings;
-use crate::config_file::test_support::{parsed, scratch, secret_of, zero_secret_b64};
-use crate::config_file::FILE_NAME;
-use crate::net::NodeSecret;
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{parsed, scratch, secret_of, zero_secret_b64};
+use crate::config::config_file::NetSettings;
+use crate::config::config_file::FILE_NAME;
+use crate::transport::net::NodeSecret;
 
 /// The example from docs/CONFIG-FILE.md section 4 with a real secret of 32 zero bytes.
 const EXAMPLE: &str = r#"{
@@ -37,7 +37,11 @@ fn full_example_parses() {
         other => panic!("expected Valid, got {other:?}"),
     }
     assert_eq!(p.field_errors, vec![]);
-    assert!(p.unknown_paths.is_empty(), "unknown fields: {:?}", p.unknown_paths);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "unknown fields: {:?}",
+        p.unknown_paths
+    );
     let want = Settings {
         net: NetSettings {
             node_name: Some("finch-unwary-4c7d9".to_string()),
@@ -76,7 +80,11 @@ fn bad_field_only_that_field() {
         "the other fields of the section are taken from the file"
     );
     assert_eq!(p.settings.net.probe_interval_sec, 120);
-    let paths: Vec<&str> = p.field_errors.iter().map(|e| e.field_path.as_str()).collect();
+    let paths: Vec<&str> = p
+        .field_errors
+        .iter()
+        .map(|e| e.field_path.as_str())
+        .collect();
     assert_eq!(paths, vec!["socks.port", "checks.interval_sec"]);
 }
 
@@ -152,7 +160,11 @@ fn computed_fields_ignored_silently() {
         "full_tunnel": {"available": false, "reason": "later"}}}"#;
     let p = parse_text(text).expect("parse");
     assert_eq!(p.field_errors, vec![]);
-    assert!(p.unknown_paths.is_empty(), "unknown fields: {:?}", p.unknown_paths);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "unknown fields: {:?}",
+        p.unknown_paths
+    );
 }
 
 #[test]
@@ -194,7 +206,10 @@ mod route;
 #[test]
 fn load_absent() {
     let dir = scratch("absent");
-    assert!(matches!(load_config_file(&dir.join(FILE_NAME)), LoadedConfigFile::Absent));
+    assert!(matches!(
+        load_config_file(&dir.join(FILE_NAME)),
+        LoadedConfigFile::Absent
+    ));
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -215,7 +230,10 @@ fn load_unreadable() {
     let got = load_config_file(&file);
     let _ = std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o600));
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(matches!(got, LoadedConfigFile::Unreadable(_)), "got {got:?}");
+    assert!(
+        matches!(got, LoadedConfigFile::Unreadable(_)),
+        "got {got:?}"
+    );
 }
 
 /// UTF-8 with a BOM (how Windows Notepad and some editors save) parses the same as without one.
@@ -259,7 +277,11 @@ fn identity_secret_non_string_is_bad() {
             p.settings.process.socks_port, 2000,
             "identity = {identity}: the rest of the document was not read"
         );
-        let paths: Vec<&str> = p.field_errors.iter().map(|e| e.field_path.as_str()).collect();
+        let paths: Vec<&str> = p
+            .field_errors
+            .iter()
+            .map(|e| e.field_path.as_str())
+            .collect();
         assert_eq!(paths, vec!["identity.secret"], "identity = {identity}");
     }
 }
@@ -280,7 +302,11 @@ mod geo_markers_field {
             // when
             let p = parse_text(text).expect("parse");
             // then: one error that names the field, and the list stays empty
-            let paths: Vec<&str> = p.field_errors.iter().map(|e| e.field_path.as_str()).collect();
+            let paths: Vec<&str> = p
+                .field_errors
+                .iter()
+                .map(|e| e.field_path.as_str())
+                .collect();
             assert_eq!(paths, vec!["checks.geo_markers"]);
             assert!(p.settings.net.geo_markers.is_empty());
         }

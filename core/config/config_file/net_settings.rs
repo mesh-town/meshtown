@@ -4,8 +4,8 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use crate::net::{NetChoice, PeerId};
-use crate::ports::types::{Opened, Published};
+use crate::ports_sharing::types::{Opened, Published};
+use crate::transport::net::{NetChoice, PeerId};
 
 use super::settings::TransportMode;
 
@@ -27,7 +27,7 @@ pub struct NetSettings {
     pub geo_markers: Vec<String>,  // checks.geo_markers — extra region-stub phrases, lowercase
     pub probe_interval_sec: u64,   // probe.interval_sec
     pub probe_full_cycle: bool,    // probe.full_cycle — 1 MiB to all peers, not only to the exit
-    pub net_choice: NetChoice,         // net.{transports,discovery,sync} — choice of the network stack
+    pub net_choice: NetChoice,     // net.{transports,discovery,sync} — choice of the network stack
 }
 
 /// A phone does not serve as an exit unless the user turns it on; every other platform does.
@@ -48,7 +48,7 @@ impl Default for NetSettings {
             ports_opened: vec![],
             checks_enabled: true,
             check_interval_sec: 900,
-            doh_server: crate::doh::DEFAULT_DOH,
+            doh_server: crate::site_checks::doh::DEFAULT_DOH,
             provider_dns: None,
             geo_markers: vec![],
             probe_interval_sec: 300,

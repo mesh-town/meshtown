@@ -2,8 +2,8 @@
 //! Separate from `snapshot_tests.rs`: that one holds the golden set of `/api/state` keys and is not edited after the golden set was recorded.
 
 use super::PathKindView;
-use crate::net::addr::RelayRef;
-use crate::net::link::PathKind as NetPath;
+use crate::transport::net::addr::RelayRef;
+use crate::transport::net::link::PathKind as NetPath;
 
 #[test]
 fn from_net_maps_direct_relayed_unknown() {
@@ -18,5 +18,8 @@ fn from_net_maps_direct_relayed_unknown() {
         PathKindView::from_net(&unknown),
     );
     // then: direct — Direct, via relay — Relay, unknown — empty
-    assert_eq!(got, (Some(PathKindView::Direct), Some(PathKindView::Relay), None));
+    assert_eq!(
+        got,
+        (Some(PathKindView::Direct), Some(PathKindView::Relay), None)
+    );
 }

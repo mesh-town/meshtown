@@ -3,8 +3,8 @@
 use serde_json::{json, Value};
 
 use super::IfaceNames;
-use crate::config_file::fields::value::Kind;
-use crate::config_file::IfaceFilter;
+use crate::config::config_file::fields::value::Kind;
+use crate::config::config_file::IfaceFilter;
 
 #[test]
 fn parse_three_states() {
@@ -26,7 +26,11 @@ fn parse_rejects_wrong_shapes() {
 
 #[test]
 fn to_json_round_trips() {
-    for f in [IfaceFilter::Auto, IfaceFilter::Any, IfaceFilter::Only(vec!["a".into(), "b c".into()])] {
+    for f in [
+        IfaceFilter::Auto,
+        IfaceFilter::Any,
+        IfaceFilter::Only(vec!["a".into(), "b c".into()]),
+    ] {
         let j = IfaceNames.to_json(&f).expect("the key is written");
         assert_eq!(IfaceNames.parse(&j), Some(f));
     }

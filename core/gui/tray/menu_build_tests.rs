@@ -1,7 +1,7 @@
 //! Tests of the proxy menu item text (`proxy_item_text`).
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 
 fn on(addr: &str) -> ProxyState {
     ProxyState::On(addr.to_string())
@@ -16,7 +16,10 @@ fn proxy_item_text_off_by_settings() {
 #[test]
 fn proxy_item_text_off_by_flag() {
     let off = ProxyState::Off(ProxyOff::NoSocksFlag);
-    assert_eq!(proxy_item_text(&off), "Proxy is off until Mesh Town restarts");
+    assert_eq!(
+        proxy_item_text(&off),
+        "Proxy is off until Mesh Town restarts"
+    );
 }
 
 #[test]

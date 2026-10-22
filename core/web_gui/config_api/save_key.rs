@@ -5,16 +5,16 @@ use std::path::Path;
 
 use axum::response::Response;
 
-use crate::config_file::{self, FileState, LoadedConfigFile, SaveError, Settings};
-use crate::output::NET_NAME;
-use crate::web::now_unix;
+use crate::config::config_file::{self, FileState, LoadedConfigFile, SaveError, Settings};
+use crate::node::output::NET_NAME;
+use crate::web_gui::now_unix;
 
 use super::state::ConfigState;
 
 impl ConfigState {
     pub(crate) fn save_network_key(&mut self, key: &str, keep_ports: bool) -> Result<(), Response> {
         let Some(path) = self.config_file_path.clone() else {
-            crate::output::say(
+            crate::node::output::say(
                 "web",
                 format!("page: there is no settings file, the new network key {NET_NAME} lives until the end of this run"),
             );
@@ -40,9 +40,10 @@ impl ConfigState {
                 self.current_network_key = Some(key.to_string());
                 Ok(())
             }
-            Err(SaveError::StaleRev(_)) => Err(self.config_write_failed(
-                "the settings file changed during the write, try again",
-            )),
+            Err(SaveError::StaleRev(_)) => {
+                Err(self
+                    .config_write_failed("the settings file changed during the write, try again"))
+            }
             Err(SaveError::Io(t)) => Err(self.config_write_failed(&t)),
         }
     }
@@ -88,7 +89,7 @@ fn write_network_key_after_bad_file(
     keep_ports: bool,
 ) -> Result<(u64, Settings), SaveError> {
     let dest = config_file::set_aside_bad(path, now_unix()).map_err(SaveError::Io)?;
-    crate::output::say(
+    crate::node::output::say(
         "web",
         format!(
             "page: broken settings file moved aside to {}",
@@ -121,7 +122,7 @@ fn clear_published(settings: &mut Settings, keep_ports: bool) {
     if keep_ports || settings.net.ports_published.is_empty() {
         return;
     }
-    crate::output::say(
+    crate::node::output::say(
         "web",
         format!(
             "page: network changed without publications, ports removed: {}",
@@ -135,7 +136,7 @@ fn clear_route_exits(settings: &mut Settings) {
     if settings.net.route_exits.is_empty() {
         return;
     }
-    crate::output::say(
+    crate::node::output::say(
         "web",
         format!(
             "page: network changed, route exits removed: {}",

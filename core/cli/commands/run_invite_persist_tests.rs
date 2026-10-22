@@ -1,5 +1,5 @@
 use super::*;
-use meshtown::config_file::{CliOverrides, ConfigSource, PathRule};
+use crate::config::config_file::{CliOverrides, ConfigSource, PathRule};
 use std::path::PathBuf;
 
 const KEY: &str = "mesh1-key-for-the-test";
@@ -85,7 +85,11 @@ fn without_a_file_path_writes_nothing_and_does_not_fail() {
 
     // then
     assert!(out.is_ok(), "the run goes on");
-    assert_eq!(std::fs::read(dir.file()).unwrap(), before, "the file is untouched");
+    assert_eq!(
+        std::fs::read(dir.file()).unwrap(),
+        before,
+        "the file is untouched"
+    );
     assert_eq!(run.file_settings.net.network_key, None);
 }
 

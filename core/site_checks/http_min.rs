@@ -6,7 +6,7 @@
 //! and flags a stalled read — a sign of throttling by a national DPI filter.
 //! What it does not do: it does not open connections, resolve names or keep a connection pool,
 //! and does not support HTTP/2, redirects, compression or request retries.
-//! Links: used by `crate::doh` (DoH request) and `crate::reachability` (domain check).
+//! Links: used by `crate::site_checks::doh` (DoH request) and `crate::site_checks::reachability` (domain check).
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -89,8 +89,12 @@ pub fn tls_client_config() -> Result<ClientConfig> {
 }
 
 /// Sends GET and reads the response. An error is returned only if the stream failed before the first
-/// response byte; everything else is `HttpResponse` fields, on which `crate::reachability` decides.
-pub async fn http_get<S>(stream: &mut S, req: HttpGetRequest<'_>, limits: HttpLimits) -> Result<HttpResponse>
+/// response byte; everything else is `HttpResponse` fields, on which `crate::site_checks::reachability` decides.
+pub async fn http_get<S>(
+    stream: &mut S,
+    req: HttpGetRequest<'_>,
+    limits: HttpLimits,
+) -> Result<HttpResponse>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {

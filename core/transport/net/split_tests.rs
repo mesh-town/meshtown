@@ -3,10 +3,10 @@
 //! refuses or accepts, and records the role it was started with.
 
 use super::*;
-use crate::net::mem::{MemConnector, MemNet};
-use crate::net::{
-    AddrHint, BoxFuture, Carrier, Connector, LinkInfo, NetError, NetInfo, NetResult, NodeSecret,
-    PacketPath, PathInfo, PeerAddr, PeerConn, PeerId, CarrierRole, ServiceId, StreamPair, Transport,
+use crate::transport::net::mem::{MemConnector, MemNet};
+use crate::transport::net::{
+    AddrHint, BoxFuture, Carrier, CarrierRole, Connector, LinkInfo, NetError, NetInfo, NetResult,
+    NodeSecret, PacketPath, PathInfo, PeerAddr, PeerConn, PeerId, ServiceId, StreamPair, Transport,
 };
 use std::collections::VecDeque;
 use std::io::ErrorKind;

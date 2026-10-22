@@ -1,7 +1,7 @@
 //! Tests for `guard.rs`: peer → target → `Host` → `Origin` → credentials, sessions and open handlers.
 
 use super::*;
-use crate::web::auth::state::AuthState;
+use crate::web_gui::auth::state::AuthState;
 use axum::http::Request as HttpRequest;
 
 pub(super) const PORT: u16 = 18765;
@@ -69,7 +69,10 @@ fn wrong_host_without_token_is_403_not_401() {
 
 #[test]
 fn duplicate_host_header_is_403() {
-    let p = get("/api/state", &[("host", &lo_host()), ("host", "evil.example")]);
+    let p = get(
+        "/api/state",
+        &[("host", &lo_host()), ("host", "evil.example")],
+    );
     let err = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap_err();
     assert_eq!(code_of(&err), StatusCode::FORBIDDEN);
 }
@@ -83,14 +86,20 @@ fn post_without_origin_is_403_bad_origin() {
 
 #[test]
 fn get_without_origin_with_valid_token_is_ok() {
-    let p = get("/api/state", &[("host", &lo_host()), ("x-meshtown-token", TOKEN)]);
+    let p = get(
+        "/api/state",
+        &[("host", &lo_host()), ("x-meshtown-token", TOKEN)],
+    );
     let ok = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap();
     assert!(ok.is_some());
 }
 
 #[test]
 fn get_with_wrong_origin_is_403_bad_origin() {
-    let p = get("/api/state", &[("host", &lo_host()), ("origin", "http://evil.example")]);
+    let p = get(
+        "/api/state",
+        &[("host", &lo_host()), ("origin", "http://evil.example")],
+    );
     let err = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap_err();
     assert_eq!(code_of(&err), StatusCode::FORBIDDEN);
 }
@@ -104,22 +113,33 @@ fn static_asset_without_token_is_ok() {
 
 #[test]
 fn token_in_header_is_ok() {
-    let p = get("/api/state", &[("host", &lo_host()), ("x-meshtown-token", TOKEN)]);
-    let cred = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap().unwrap();
+    let p = get(
+        "/api/state",
+        &[("host", &lo_host()), ("x-meshtown-token", TOKEN)],
+    );
+    let cred = check_request(&p, &lo(), &shared(ListenAccess::Localhost))
+        .unwrap()
+        .unwrap();
     assert_eq!(cred.via, Via::PermanentToken);
     assert!(cred.session_id.is_none());
 }
 
 #[test]
 fn token_in_query_is_ok() {
-    let p = get(&format!("/api/state?token={TOKEN}"), &[("host", &lo_host())]);
+    let p = get(
+        &format!("/api/state?token={TOKEN}"),
+        &[("host", &lo_host())],
+    );
     let ok = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap();
     assert!(ok.is_some());
 }
 
 #[test]
 fn wrong_token_is_401() {
-    let p = get("/api/state", &[("host", &lo_host()), ("x-meshtown-token", "wrong")]);
+    let p = get(
+        "/api/state",
+        &[("host", &lo_host()), ("x-meshtown-token", "wrong")],
+    );
     let err = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap_err();
     assert_eq!(code_of(&err), StatusCode::UNAUTHORIZED);
 }
@@ -237,9 +257,17 @@ mod origin {
     fn port_80_expects_origin_without_port() {
         let s = shared(ListenAccess::Localhost);
         let c = ConnInfo::loopback(80);
-        let ok = parts("POST", "/api/auth/login", &[("host", "127.0.0.1"), ("origin", "http://127.0.0.1")]);
+        let ok = parts(
+            "POST",
+            "/api/auth/login",
+            &[("host", "127.0.0.1"), ("origin", "http://127.0.0.1")],
+        );
         assert!(check_request(&ok, &c, &s).is_ok());
-        let with_port = parts("POST", "/api/auth/login", &[("host", "127.0.0.1"), ("origin", "http://127.0.0.1:80")]);
+        let with_port = parts(
+            "POST",
+            "/api/auth/login",
+            &[("host", "127.0.0.1"), ("origin", "http://127.0.0.1:80")],
+        );
         assert!(check_request(&with_port, &c, &s).is_err());
     }
 
@@ -248,13 +276,21 @@ mod origin {
         let host = format!("192.168.1.5:{PORT}");
         let c = conn("192.168.1.9:50000", &host);
         let origin = format!("http://{host}");
-        let p = parts("POST", "/api/auth/login", &[("host", &host), ("origin", &origin)]);
+        let p = parts(
+            "POST",
+            "/api/auth/login",
+            &[("host", &host), ("origin", &origin)],
+        );
         assert!(check_request(&p, &c, &shared(ListenAccess::Localnet)).is_ok());
     }
 
     #[tokio::test]
     async fn patch_without_origin_is_403_bad_origin() {
-        let p = parts("PATCH", "/api/config", &[("host", &lo_host()), ("x-meshtown-token", TOKEN)]);
+        let p = parts(
+            "PATCH",
+            "/api/config",
+            &[("host", &lo_host()), ("x-meshtown-token", TOKEN)],
+        );
         let err = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap_err();
         assert_eq!(error_code(err).await, "bad_origin");
     }
@@ -262,7 +298,7 @@ mod origin {
 
 mod iface_gate {
     use super::*;
-    use crate::config_file::IfaceFilter;
+    use crate::config::config_file::IfaceFilter;
 
     #[tokio::test]
     async fn unlisted_iface_is_403_bad_peer() {

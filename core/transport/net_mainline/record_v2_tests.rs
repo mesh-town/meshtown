@@ -37,7 +37,10 @@ fn sealed_key_roster_golden() {
     let sealed = seal(&[0x11; 32], &roster, [0x22; 12]).unwrap();
     assert_eq!(data_encoding::HEXLOWER.encode(&sealed), SEALED);
     let literal = data_encoding::HEXLOWER.decode(SEALED.as_bytes()).unwrap();
-    assert_eq!(open_as(&[0x11; 32], &literal, RECORD_VERSION_KEYS).unwrap(), roster);
+    assert_eq!(
+        open_as(&[0x11; 32], &literal, RECORD_VERSION_KEYS).unwrap(),
+        roster
+    );
 }
 
 #[test]
@@ -60,7 +63,10 @@ fn merge_keys_strips_addresses_and_sets_v2() {
     let got = merge_keys(Some(prev), [9; 32], T);
     assert_eq!(got.version, 2);
     assert_eq!(got.entries.len(), 2);
-    assert!(got.entries.iter().all(|e| e.relay.is_none() && e.addrs.is_empty()));
+    assert!(got
+        .entries
+        .iter()
+        .all(|e| e.relay.is_none() && e.addrs.is_empty()));
 }
 
 #[test]

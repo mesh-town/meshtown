@@ -11,7 +11,7 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
-use crate::net::{PeerAddr, PeerId};
+use crate::transport::net::{PeerAddr, PeerId};
 use tokio::time::Instant;
 
 /// Pause before the first retry attempt.
@@ -123,11 +123,24 @@ impl Redial {
     /// of the failed attempt and the pause computed from it.
     /// `unlisted` — the other side refused us as not admitted yet: the pause never reaches `REDIAL_LONG`, since the
     /// admission record may arrive at any moment.
-    pub(super) fn failed(&mut self, id: PeerId, now: Instant, rnd: u32, unlisted: bool) -> (u32, Duration) {
+    pub(super) fn failed(
+        &mut self,
+        id: PeerId,
+        now: Instant,
+        rnd: u32,
+        unlisted: bool,
+    ) -> (u32, Duration) {
         let peer = self.peers.entry(id).or_default();
         peer.attempts += 1;
         let attempt = peer.attempts;
-        let pause = redial_pause(if unlisted { attempt.min(REDIAL_LONG_AFTER) } else { attempt }, rnd);
+        let pause = redial_pause(
+            if unlisted {
+                attempt.min(REDIAL_LONG_AFTER)
+            } else {
+                attempt
+            },
+            rnd,
+        );
         peer.state = State::Waiting(now + pause);
         (attempt, pause)
     }
@@ -175,10 +188,7 @@ impl Redial {
                 continue;
             }
             let attempt = peer.attempts + 1;
-            let addr = peer
-                .addr
-                .clone()
-                .unwrap_or_else(|| PeerAddr::new(id));
+            let addr = peer.addr.clone().unwrap_or_else(|| PeerAddr::new(id));
             peer.state = State::Dialing;
             due.push((addr, attempt));
         }

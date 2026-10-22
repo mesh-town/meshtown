@@ -4,10 +4,10 @@ use super::admit::accept_handshake;
 use super::backend::FloodShared;
 use super::topic::TopicCmd;
 use super::wire::CLOSE_REJECTED;
-use crate::net::error::{NetError, NetResult};
-use crate::net::stream::{BoxFuture, StreamPair};
-use crate::net::transport::PeerConn;
-use crate::net::ServiceHandler;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::stream::{BoxFuture, StreamPair};
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::ServiceHandler;
 use std::sync::Arc;
 use tokio::time::timeout;
 
@@ -42,11 +42,21 @@ async fn serve(shared: Arc<FloodShared>, conn: Arc<dyn PeerConn>) {
 }
 
 /// The first stream and `Hello` within the handshake timeout; a refusal, timeout or break is `Err`.
-async fn admit(shared: &FloodShared, conn: &Arc<dyn PeerConn>) -> NetResult<(StreamPair, [u8; 32])> {
+async fn admit(
+    shared: &FloodShared,
+    conn: &Arc<dyn PeerConn>,
+) -> NetResult<(StreamPair, [u8; 32])> {
     let handshake = async {
         let mut pair = conn.accept().await?;
         let known = |t: &[u8; 32]| shared.topic(t).is_some();
-        let topic = accept_handshake(&mut pair, &shared.admission_key, shared.me, conn.peer(), known).await?;
+        let topic = accept_handshake(
+            &mut pair,
+            &shared.admission_key,
+            shared.me,
+            conn.peer(),
+            known,
+        )
+        .await?;
         Ok((pair, topic))
     };
     timeout(shared.tuning.handshake, handshake)

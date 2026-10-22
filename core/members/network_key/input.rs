@@ -4,8 +4,10 @@
 use anyhow::{anyhow, Result};
 use ring::digest;
 
-use crate::output::NET_NAME;
-use crate::words::{canonical_chunk, is_tail_chunk, is_tail_word, TAIL_CHUNK_CHARS, TAIL_PARTS, TAIL_WORDS};
+use crate::members::words::{
+    canonical_chunk, is_tail_chunk, is_tail_word, TAIL_CHUNK_CHARS, TAIL_PARTS, TAIL_WORDS,
+};
+use crate::node::output::NET_NAME;
 
 use super::{normalize_dashed, normalize_label, NetworkKey, CTX_TAIL_SALT, LABEL_SEPARATOR};
 
@@ -49,13 +51,16 @@ pub fn key_from_tail(tail: &str) -> Result<NetworkKey> {
         return Err(anyhow!(
             "the random part of the key has {TAIL_WORDS} words and a group of characters, joined by hyphens ({TAIL_PARTS} parts in all), but got {}. The key is split at the first \"--\": the label is on the left, the random part on the right. Make a new key with: {cmd} keygen <label>",
             parts.len(),
-            cmd = crate::program_name::program_name()
+            cmd = crate::cli::program_name::program_name()
         ));
     }
     for w in &parts[..TAIL_WORDS] {
         if !is_tail_word(w) {
             let message = format!("Looks like a typo in the word \"{w}\" — check it against what the network member sent.");
-            return Err(anyhow::Error::new(BadWord { word: w.to_string(), message }));
+            return Err(anyhow::Error::new(BadWord {
+                word: w.to_string(),
+                message,
+            }));
         }
     }
     let chunk = canonical_chunk(parts[TAIL_WORDS]);
@@ -88,60 +93,81 @@ fn looks_like_tail(parts: &[&str]) -> bool {
             || parts[..TAIL_WORDS].iter().all(|w| is_tail_word(w)))
 }
 
+/// Input with the label separator: `label--tail`, where the tail is an encoded key or key words.
+fn parse_labelled(raw_label: &str, raw_tail: &str) -> Result<NetworkKeyInput> {
+    let label = if normalize_dashed(raw_label).is_empty() {
+        None
+    } else {
+        Some(normalize_label(raw_label)?)
+    };
+    // The right part is an encoded key (`label--mesh1-…`: this is how a key from an invite
+    // lands in the settings — its words can't be restored from its bytes, and the label mustn't be lost).
+    let tail_trimmed = raw_tail.trim();
+    if NetworkKey::looks_like_encoded_key(tail_trimmed) {
+        let key = NetworkKey::parse(tail_trimmed)?;
+        return Ok(NetworkKeyInput {
+            label,
+            key,
+            from_words: false,
+        });
+    }
+    let tail = normalize_dashed(raw_tail);
+    if tail.is_empty() {
+        return Err(anyhow!(
+            "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
+            cmd = crate::cli::program_name::program_name()
+        ));
+    }
+    let key = key_from_tail(&tail)?;
+    Ok(NetworkKeyInput {
+        label,
+        key,
+        from_words: true,
+    })
+}
+
 /// Parses human input: "label--random-part", "random-part" or the machine `mesh1-…`.
 pub fn parse_user_input(input: &str) -> Result<NetworkKeyInput> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Err(anyhow!(
             "{NET_NAME} network key is not set: pass it with --key or the MESHTOWN_KEY variable. Make a new key with: {cmd} keygen <label>, for example {cmd} keygen my network",
-            cmd = crate::program_name::program_name()
+            cmd = crate::cli::program_name::program_name()
         ));
     }
     // The check for "--" goes before the check for "mesh1-": otherwise the label "mesh1 test" would give
     // the key "mesh1-test--…", it would go to parse and the person would get an error about base32.
     if let Some((raw_label, raw_tail)) = trimmed.split_once(LABEL_SEPARATOR) {
-        let label = if normalize_dashed(raw_label).is_empty() {
-            None
-        } else {
-            Some(normalize_label(raw_label)?)
-        };
-        // The right part is an encoded key (`label--mesh1-…`: this is how a key from an invite
-        // lands in the settings — its words can't be restored from its bytes, and the label mustn't be lost).
-        let tail_trimmed = raw_tail.trim();
-        if NetworkKey::looks_like_encoded_key(tail_trimmed) {
-            let key = NetworkKey::parse(tail_trimmed)?;
-            return Ok(NetworkKeyInput { label, key, from_words: false });
-        }
-        let tail = normalize_dashed(raw_tail);
-        if tail.is_empty() {
-            return Err(anyhow!(
-                "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
-                cmd = crate::program_name::program_name()
-            ));
-        }
-        let key = key_from_tail(&tail)?;
-        return Ok(NetworkKeyInput { label, key, from_words: true });
+        return parse_labelled(raw_label, raw_tail);
     }
     if NetworkKey::looks_like_encoded_key(trimmed) {
         let key = NetworkKey::parse(trimmed)?;
-        return Ok(NetworkKeyInput { label: None, key, from_words: false });
+        return Ok(NetworkKeyInput {
+            label: None,
+            key,
+            from_words: false,
+        });
     }
     let tail = normalize_dashed(trimmed);
     if tail.is_empty() {
         return Err(anyhow!(
             "{NET_NAME} network key has no letters or digits left. The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
-            cmd = crate::program_name::program_name()
+            cmd = crate::cli::program_name::program_name()
         ));
     }
     let parts: Vec<&str> = tail.split('-').filter(|p| !p.is_empty()).collect();
     if !looks_like_tail(&parts) {
         return Err(anyhow!(
             "the key has no random part: it looks like only the label \"{tail}\" was given. The whole key looks like this: {tail}--word-word-group-of-characters. Make a new key with: {cmd} keygen {tail}",
-            cmd = crate::program_name::program_name()
+            cmd = crate::cli::program_name::program_name()
         ));
     }
     let key = key_from_tail(&tail)?;
-    Ok(NetworkKeyInput { label: None, key, from_words: true })
+    Ok(NetworkKeyInput {
+        label: None,
+        key,
+        from_words: true,
+    })
 }
 
 impl NetworkKey {

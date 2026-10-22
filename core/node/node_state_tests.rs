@@ -2,9 +2,9 @@
 //! by exact key and by tombstones live in the consumer, not in the storage. Live reconciliation between
 //! nodes is checked by `core/tests/exit_flag.rs` and its neighbors.
 
-use crate::net::mem::{MemReplica, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::{ReplicaEntry, NodeSecret, PeerId};
+use crate::transport::net::mem::{MemReplica, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::{NodeSecret, PeerId, ReplicaEntry};
 use bytes::Bytes;
 use std::sync::Arc;
 
@@ -48,7 +48,10 @@ mod exits {
         // when: we read the exit flags
         let exits = read_exit_flags(&*r.rep).await.unwrap();
         // then: no flag
-        assert!(exits.is_empty(), "a foreign key was taken for the flag: {exits:?}");
+        assert!(
+            exits.is_empty(),
+            "a foreign key was taken for the flag: {exits:?}"
+        );
     }
 }
 

@@ -17,7 +17,7 @@ use super::server::connect_loopback_port;
 use super::store::PortsDoc;
 use super::table::{LocalState, PublishedPortsTable};
 use super::types::Published;
-use crate::output::say;
+use crate::node::output::say;
 
 /// Retry after a document error and the ceiling of waiting for the signal.
 const RETRY_AFTER: Duration = Duration::from_secs(30);
@@ -60,7 +60,11 @@ async fn cycle(
     announced: &mut HashMap<u16, PortRecord>,
     has_cleaned_stale: &mut bool,
 ) -> Result<()> {
-    let published: Vec<Published> = table.published_with_state().into_iter().map(|(p, _)| p).collect();
+    let published: Vec<Published> = table
+        .published_with_state()
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect();
     if !*has_cleaned_stale {
         remove_unlisted_records(store, &published).await?;
         *has_cleaned_stale = true;

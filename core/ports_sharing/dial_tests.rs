@@ -4,8 +4,8 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::net::facade::test_support::{pid, secret, Probe};
-use crate::net::{MemNet, NetStack, NetStackBuilder, PeerId, ServiceHandler, PORT};
+use crate::transport::net::facade::test_support::{pid, secret, Probe};
+use crate::transport::net::{MemNet, NetStack, NetStackBuilder, PeerId, ServiceHandler, PORT};
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 

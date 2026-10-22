@@ -8,7 +8,7 @@
 //! Links: `tray_role::run::proxy_plan_for` supplies the plan, `exit_menu` puts the state into `ExitMenu`,
 //! `tray_role::views::views_from_state_json` sets the flag on top of the snapshot.
 
-use crate::app::snapshot::TraySocks;
+use crate::gui::tray::app::snapshot::TraySocks;
 
 /// Why the proxy is off.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

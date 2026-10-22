@@ -1,6 +1,6 @@
 //! Small functions shared by `sources.rs` and `parsed.rs`.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 
 use super::super::save::SaveError;
@@ -10,7 +10,7 @@ use super::super::FILE_NAME;
 /// Returns a new node secret: 32 random bytes, as before in `node.rs`.
 pub fn new_secret() -> anyhow::Result<NodeSecret> {
     let mut bytes = [0u8; 32];
-    crate::network_key::fill_random(&mut bytes)?;
+    crate::members::network_key::fill_random(&mut bytes)?;
     Ok(NodeSecret::from_bytes(&bytes))
 }
 

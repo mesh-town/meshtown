@@ -1,13 +1,15 @@
 //! Tests of `ExitItem::menu_text`: the red sign next to a chosen offline exit.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::tray_texts::{direct_text, SUBMENU_TITLE};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::tray_texts::{direct_text, SUBMENU_TITLE};
 use serde_json::json;
 
 /// A shim with the old name: the tests supply JSON, the code reads the selection.
 fn exit_menu_from_json(value: &serde_json::Value) -> ExitMenu {
-    exit_menu_from_snapshot(&crate::app::snapshot::TraySnapshot::from_value(value))
+    exit_menu_from_snapshot(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 fn snapshot(peers: serde_json::Value, route: serde_json::Value) -> serde_json::Value {
@@ -165,7 +167,10 @@ mod empty_hint {
 
         // then
         assert_eq!(hint, Some(EMPTY_HINT));
-        assert_eq!(EMPTY_HINT, "No member lets sites open via their computer yet");
+        assert_eq!(
+            EMPTY_HINT,
+            "No member lets sites open via their computer yet"
+        );
     }
 
     #[test]
@@ -188,16 +193,16 @@ mod empty_hint {
             }),
         );
         let menu = exit_menu_from_json(&state);
-        assert!(
-            !menu.items.is_empty(),
-            "the chosen exit must be an item"
-        );
+        assert!(!menu.items.is_empty(), "the chosen exit must be an item");
         assert_eq!(menu.empty_hint(), None);
     }
 
     #[test]
     fn off_menu_gives_hint() {
-        assert_eq!(disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings)).empty_hint(), Some(EMPTY_HINT));
+        assert_eq!(
+            disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings)).empty_hint(),
+            Some(EMPTY_HINT)
+        );
     }
 }
 

@@ -45,7 +45,11 @@ mod protocol_violation {
         send_frame(&raw, Frame::Fin(2)).await;
         let mut stream = accept(&conn).await;
         stream.send.shutdown().await.expect("shutdown");
-        assert_eq!(recv_frame(&raw).await, Frame::Fin(2), "Fin of the connection");
+        assert_eq!(
+            recv_frame(&raw).await,
+            Frame::Fin(2),
+            "Fin of the connection"
+        );
 
         send_frame(&raw, Frame::Data(2, Bytes::from_static(b"late"))).await;
         send_frame(&raw, Frame::Open(4)).await;
@@ -116,10 +120,9 @@ mod link_counters {
 
         out.send.write_all(&[1u8; 10_000]).await.expect("write");
 
-        eventually(
-            "sent_bytes grew by the size of the write",
-            || a.link().sent_bytes >= before + 10_000,
-        )
+        eventually("sent_bytes grew by the size of the write", || {
+            a.link().sent_bytes >= before + 10_000
+        })
         .await;
     }
 
@@ -131,10 +134,9 @@ mod link_counters {
 
         out.send.write_all(&[1u8; 10_000]).await.expect("write");
 
-        eventually(
-            "recv_bytes grew by the size of the write",
-            || b.link().recv_bytes >= before + 10_000,
-        )
+        eventually("recv_bytes grew by the size of the write", || {
+            b.link().recv_bytes >= before + 10_000
+        })
         .await;
     }
 
@@ -174,7 +176,8 @@ async fn send_frame(raw: &MemPath, frame: Frame) {
 
 async fn recv_frame(raw: &MemPath) -> Frame {
     let pkt = within("recv of the raw path", raw.recv()).await;
-    Frame::decode(pkt.expect("recv of the raw path returned an error")).expect("what arrived is not a frame")
+    Frame::decode(pkt.expect("recv of the raw path returned an error"))
+        .expect("what arrived is not a frame")
 }
 
 /// Code of the first `Close` that arrived on the raw path (other frames are skipped).

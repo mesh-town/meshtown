@@ -5,7 +5,9 @@ use serde_json::json;
 
 /// A shim with the old name: the tests supply JSON, the code reads the selection.
 fn exit_menu_from_json(value: &serde_json::Value) -> ExitMenu {
-    exit_menu_from_snapshot(&crate::app::snapshot::TraySnapshot::from_value(value))
+    exit_menu_from_snapshot(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 fn peer_state(country: serde_json::Value, online: bool) -> serde_json::Value {

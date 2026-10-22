@@ -3,9 +3,9 @@
 //! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
-mod lossy_link;
 #[path = "common/lossy_link.rs"]
 mod common;
+mod lossy_link;
 
 use std::time::{Duration, Instant};
 
@@ -66,7 +66,10 @@ fn model_queue_drops_only_when_wait_exceeds_limit() {
         .iter()
         .filter(|v| matches!(v, Verdict::Deliver(_)))
         .count();
-    assert_eq!(accepted, 11, "waiting 0..10 ms is fine, 11 ms is already more than 10.5");
+    assert_eq!(
+        accepted, 11,
+        "waiting 0..10 ms is fine, 11 ms is already more than 10.5"
+    );
     let Verdict::Deliver(second) = verdicts[1] else {
         panic!("the second packet must pass")
     };

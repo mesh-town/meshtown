@@ -3,8 +3,8 @@
 use super::replica::MemReplica;
 use super::swarm::MemSwarm;
 use super::sync::MemSync;
-use crate::net::id::PeerId;
-use crate::net::sync_backend::{SyncBackend, SyncCtor, SyncCtx};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::sync_backend::{SyncBackend, SyncCtor, SyncCtx};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 

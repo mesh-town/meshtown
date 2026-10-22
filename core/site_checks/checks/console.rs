@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 
-use crate::domains::{self, DomainList};
-use crate::output::say;
+use crate::node::output::say;
+use crate::proxy::domains::{self, DomainList};
 
 use super::state::Checks;
 
@@ -21,9 +21,9 @@ pub fn parse_check_line(line: &str) -> Option<Result<CheckCommand>> {
     match words.as_slice() {
         ["checks"] => Some(Ok(CheckCommand::Table)),
         ["check", d] => Some(Ok(CheckCommand::Check((*d).to_string()))),
-        ["check"] | ["check", _, ..] | ["checks", _, ..] => Some(Err(anyhow::anyhow!(
-            "available: check <domain>, checks"
-        ))),
+        ["check"] | ["check", _, ..] | ["checks", _, ..] => {
+            Some(Err(anyhow::anyhow!("available: check <domain>, checks")))
+        }
         _ => None,
     }
 }

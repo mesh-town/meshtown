@@ -3,8 +3,8 @@
 //! `tally_cascade_tests.rs`. Nodes: `m` is the own node, `a`..`d` are members, `x` is a stranger.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::net::PeerId;
+use crate::transport::net::contract::pid;
+use crate::transport::net::PeerId;
 use std::collections::{BTreeMap, BTreeSet};
 
 // --- admits ---
@@ -26,7 +26,9 @@ fn me_alone_is_member_and_need_is_one() {
 fn one_vote_admits_two_newcomers_at_once() {
     // given: M and A invited each other, then A invites X and Y at once
     let Cast { m, a, x, d: y, .. } = cast();
-    let s = scene(m).admit_via(m, a, Via::Invite).admit_via(a, m, Via::Invite);
+    let s = scene(m)
+        .admit_via(m, a, Via::Invite)
+        .admit_via(a, m, Via::Invite);
     let s = s.admit_via(a, x, Via::Invite).admit_via(a, y, Via::Invite);
     // when: tallied
     let ledger = s.ledger();
@@ -178,12 +180,19 @@ fn mutual_votes_in_pair_first_wins() {
 fn pending_votes_of_excluded_voter_drop() {
     // given: four members; A votes against C at 10, then M and B exclude A at 20 and 30
     let Cast { m, a, b, c, .. } = cast();
-    let s = members(m, &[a, b, c]).vote(a, c, 10).vote(m, a, 20).vote(b, a, 30);
+    let s = members(m, &[a, b, c])
+        .vote(a, c, 10)
+        .vote(m, a, 20)
+        .vote(b, a, 30);
     // when: tallied
     let ledger = s.ledger();
     // then: A is out and takes its waiting vote against C with it
     assert_eq!(ledger.excluded, excluded(&[(a, by_votes(30, &[m, b]))]));
-    assert!(ledger.pending.is_empty(), "no vote on C is left: {:?}", ledger.pending);
+    assert!(
+        ledger.pending.is_empty(),
+        "no vote on C is left: {:?}",
+        ledger.pending
+    );
     assert!(ledger.is_member(&c));
 }
 
@@ -204,7 +213,10 @@ fn need_drops_to_one_when_network_shrinks_to_two() {
 fn mutual_votes_before_shrink_exclude_the_earlier_target() {
     // given: M, A, B; A votes against B at 10, B against A at 20, then M leaves at 30
     let Cast { m, a, b, .. } = cast();
-    let s = members(m, &[a, b]).vote(a, b, 10).vote(b, a, 20).vote(m, m, 30);
+    let s = members(m, &[a, b])
+        .vote(a, b, 10)
+        .vote(b, a, 20)
+        .vote(m, m, 30);
     // when: tallied
     let ledger = s.ledger();
     // then: B, who was voted against first, goes; B's vote against A goes with it
@@ -226,7 +238,14 @@ pub(super) struct Cast {
 }
 
 pub(super) fn cast() -> Cast {
-    Cast { m: pid(1), a: pid(2), b: pid(3), c: pid(4), d: pid(5), x: pid(9) }
+    Cast {
+        m: pid(1),
+        a: pid(2),
+        b: pid(3),
+        c: pid(4),
+        d: pid(5),
+        x: pid(9),
+    }
 }
 
 /// Input of the tally built record by record.
@@ -235,12 +254,20 @@ pub(super) struct Scene {
 }
 
 pub(super) fn scene(me: PeerId) -> Scene {
-    Scene { input: TallyInput { me, admits: vec![], votes: vec![] } }
+    Scene {
+        input: TallyInput {
+            me,
+            admits: vec![],
+            votes: vec![],
+        },
+    }
 }
 
 /// `me` admits every one of `others`.
 pub(super) fn members(me: PeerId, others: &[PeerId]) -> Scene {
-    others.iter().fold(scene(me), |s, other| s.admit(me, *other))
+    others
+        .iter()
+        .fold(scene(me), |s, other| s.admit(me, *other))
 }
 
 impl Scene {
@@ -249,7 +276,11 @@ impl Scene {
     }
 
     pub(super) fn admit_via(mut self, author: PeerId, subject: PeerId, via: Via) -> Scene {
-        self.input.admits.push(AdmitIn { author, subject, via });
+        self.input.admits.push(AdmitIn {
+            author,
+            subject,
+            via,
+        });
         self
     }
 
@@ -264,7 +295,11 @@ impl Scene {
 }
 
 fn vote_in(voter: PeerId, subject: PeerId, ts_micros: u64) -> VoteIn {
-    VoteIn { voter, subject, ts_micros }
+    VoteIn {
+        voter,
+        subject,
+        ts_micros,
+    }
 }
 
 pub(super) fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {
@@ -276,13 +311,24 @@ pub(super) fn excluded(rows: &[(PeerId, Exclusion)]) -> BTreeMap<PeerId, Exclusi
 }
 
 pub(super) fn by_votes(at_micros: u64, voters: &[PeerId]) -> Exclusion {
-    Exclusion { how: How::Votes, at_micros, voters: voters.to_vec() }
+    Exclusion {
+        how: How::Votes,
+        at_micros,
+        voters: voters.to_vec(),
+    }
 }
 
 pub(super) fn left(at_micros: u64, who: PeerId) -> Exclusion {
-    Exclusion { how: How::Left, at_micros, voters: vec![who] }
+    Exclusion {
+        how: How::Left,
+        at_micros,
+        voters: vec![who],
+    }
 }
 
 pub(super) fn waiting(voters: &[PeerId], need: u8) -> PendingVote {
-    PendingVote { voters: voters.to_vec(), need }
+    PendingVote {
+        voters: voters.to_vec(),
+        need,
+    }
 }

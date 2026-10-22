@@ -13,16 +13,16 @@
 //! the `host_overrides` table bypasses the filter, so a connection failure is the name `CLOSED_DOMAIN`.
 //! What it doesn't do: doesn't check the member filter and sorting (that is `build`, the tests
 //! `node_ctl/snapshot/build_exit_tests.rs`), doesn't wait the real 30 s of `EXIT_CLIENT_LINGER` — shifts `now`.
-//! Links: `meshtown::exit::{ask_exit_to_connect, Clients, EXIT_CLIENT_LINGER}`; plumbing — `core/tests/common/socks_pair.rs`.
+//! Links: `meshtown_core::exit::{ask_exit_to_connect, Clients, EXIT_CLIENT_LINGER}`; plumbing — `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
 
 use std::time::{Duration, Instant};
 
-use meshtown::exit::{self, PeerConnPool, EXIT_CLIENT_LINGER};
-use meshtown::net::{BoxRecv, BoxSend, PeerId};
-use meshtown::node::RunningNode;
+use meshtown_core::exit::{self, PeerConnPool, EXIT_CLIENT_LINGER};
+use meshtown_core::node::RunningNode;
+use meshtown_core::transport::net::{BoxRecv, BoxSend, PeerId};
 use tokio::net::TcpListener;
 use tokio::time::{sleep, timeout};
 
@@ -60,8 +60,12 @@ async fn exit_forgets_client_after_connection_close() {
 
     // then: within ≤2 s after EXIT_CLIENT_LINGER A is gone from B's list — the record is held by the connection, not by the `splice` tail
     // (a stream with no bytes is held by `HALF_CLOSE_GRACE_SILENT`, 5 s)
-    fx.then_listed(EXIT_CLIENT_LINGER + Duration::from_secs(1), false, FORGOTTEN_WITHIN)
-        .await;
+    fx.then_listed(
+        EXIT_CLIENT_LINGER + Duration::from_secs(1),
+        false,
+        FORGOTTEN_WITHIN,
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -153,9 +157,10 @@ async fn setup() -> Fixture {
 impl Fixture {
     /// A asks B to open a connection to `domain:port`; returns the stream ends and the response code.
     async fn when_ask(&self, domain: &str, port: u16) -> (Held, u8) {
-        let (send, recv, code) = exit::ask_exit_to_connect(&self.a.stack, &self.pool, self.b.id, domain, port)
-            .await
-            .expect("the request to the exit must reach a response");
+        let (send, recv, code) =
+            exit::ask_exit_to_connect(&self.a.stack, &self.pool, self.b.id, domain, port)
+                .await
+                .expect("the request to the exit must reach a response");
         ((send, recv), code)
     }
 

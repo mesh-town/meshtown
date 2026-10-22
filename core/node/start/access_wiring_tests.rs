@@ -5,11 +5,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use super::*;
-use crate::access::record::BOOT_KEY;
-use crate::net::contract::pid;
-use crate::net::{AddrHint, PeerAddr};
-use crate::network_key::NetworkKey;
-use crate::peers_cache::entry_for;
+use crate::members::access::record::BOOT_KEY;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::contract::pid;
+use crate::transport::net::{AddrHint, PeerAddr};
+use crate::transport::peers_cache::entry_for;
 
 const LIMIT: Duration = Duration::from_secs(5);
 
@@ -70,7 +70,9 @@ async fn open_list_leaves_the_boot_alone_and_the_view_ready() {
     let node = crate::node::start_node(cfg_with_invite(&[])).await.unwrap();
     // then: no boot marker and the view is ready at once
     assert!(!has_boot_marker(&node).await, "the boot must not run");
-    tokio::time::timeout(Duration::from_millis(200), node.members.access().ready()).await.expect("ready at once");
+    tokio::time::timeout(Duration::from_millis(200), node.members.access().ready())
+        .await
+        .expect("ready at once");
     node.shutdown().await;
 }
 
@@ -81,7 +83,12 @@ async fn a_live_list_runs_the_boot_and_publishes_the_view() {
     cfg.open_list = false;
     let node = crate::node::start_node(cfg).await.unwrap();
     // then: the view is ready within the limit and the boot marker is in the shared replica
-    tokio::time::timeout(LIMIT, node.members.access().ready()).await.expect("the view must become ready");
-    assert!(has_boot_marker(&node).await, "the boot marker must be written");
+    tokio::time::timeout(LIMIT, node.members.access().ready())
+        .await
+        .expect("the view must become ready");
+    assert!(
+        has_boot_marker(&node).await,
+        "the boot marker must be written"
+    );
     node.shutdown().await;
 }

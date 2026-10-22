@@ -83,7 +83,8 @@ fn user_input_routes_mesh1_prefix_to_parse() {
     let key = NetworkKey::generate().unwrap();
     let padded = format!("  {}  ", key.encode().to_uppercase());
     assert_eq!(NetworkKey::from_user_input(&padded).unwrap().0, key.0);
-    let err = NetworkKey::from_user_input("Mesh1-this is not a key, but a long phrase").unwrap_err();
+    let err =
+        NetworkKey::from_user_input("Mesh1-this is not a key, but a long phrase").unwrap_err();
     assert!(err.to_string().contains("base32"), "{err}");
     let err = NetworkKey::from_user_input("   ").unwrap_err();
     assert!(err.to_string().contains("meshtown keygen"), "{err}");
@@ -140,10 +141,15 @@ fn derive_tail_is_deterministic_and_input_sensitive() {
 
 #[test]
 fn splits_on_first_double_dash() {
-    let err = parse_user_input(&format!("a--b--{KAT_TAIL}")).unwrap_err().to_string();
+    let err = parse_user_input(&format!("a--b--{KAT_TAIL}"))
+        .unwrap_err()
+        .to_string();
     assert!(err.contains('4') && err.contains('3'), "{err}"); // 4 parts: "b" landed in the random one
     assert_eq!(
-        parse_user_input(&format!("our--{KAT_TAIL}")).unwrap().label.as_deref(),
+        parse_user_input(&format!("our--{KAT_TAIL}"))
+            .unwrap()
+            .label
+            .as_deref(),
         Some("our")
     );
 }
@@ -155,8 +161,14 @@ fn label_does_not_change_key() {
     let c = parse_user_input(KAT_TAIL).unwrap();
     assert_eq!(a.key.0, b.key.0);
     assert_eq!(a.key.0, c.key.0);
-    assert_eq!(a.key.subkeys().network_id_hex(), b.key.subkeys().network_id_hex());
-    assert_eq!(a.key.subkeys().network_id_hex(), c.key.subkeys().network_id_hex());
+    assert_eq!(
+        a.key.subkeys().network_id_hex(),
+        b.key.subkeys().network_id_hex()
+    );
+    assert_eq!(
+        a.key.subkeys().network_id_hex(),
+        c.key.subkeys().network_id_hex()
+    );
     assert_ne!(a.label, b.label);
 }
 
@@ -205,7 +217,11 @@ fn tail_with_wrong_part_count_rejected() {
 #[test]
 fn key_from_tail_known_answer() {
     let k = key_from_tail(KAT_TAIL).unwrap();
-    assert_eq!(HEXLOWER.encode(&k.0), KAT_HEX, "the reference changed — this breaks all networks");
+    assert_eq!(
+        HEXLOWER.encode(&k.0),
+        KAT_HEX,
+        "the reference changed — this breaks all networks"
+    );
     assert_eq!(k.encode(), KAT_ENCODED);
 }
 
@@ -223,7 +239,7 @@ fn key_from_tail_normalizes_input() {
 #[test]
 fn generated_key_roundtrips() {
     for _ in 0..50 {
-        let tail = crate::words::generate_tail().unwrap();
+        let tail = crate::members::words::generate_tail().unwrap();
         let s = format_key_string(Some("our network"), &tail);
         let parsed = parse_user_input(&s).unwrap();
         assert_eq!(parsed.label.as_deref(), Some("our-network"));
@@ -246,7 +262,9 @@ fn bad_word_downcasts_from_question_mark_and_context() {
     let err = key_from_tail(&bad)
         .context("context around BadWord")
         .unwrap_err();
-    let bad_word = err.downcast_ref::<BadWord>().expect("BadWord through .context()");
+    let bad_word = err
+        .downcast_ref::<BadWord>()
+        .expect("BadWord through .context()");
     assert_eq!(bad_word.word, "zzqq");
     assert!(format!("{err:#}").contains("context around BadWord"));
 }
@@ -302,7 +320,12 @@ fn protocol_strings_are_meshtown_v1() {
     for ctx in all {
         assert!(ctx.starts_with("meshtown "), "{ctx}");
         assert!(ctx.ends_with(" v1"), "{ctx}");
-        assert!(!ctx.as_bytes().windows(4).any(|w| w.iter().all(u8::is_ascii_digit)), "{ctx}");
+        assert!(
+            !ctx.as_bytes()
+                .windows(4)
+                .any(|w| w.iter().all(u8::is_ascii_digit)),
+            "{ctx}"
+        );
     }
     let set: std::collections::HashSet<&str> = all.into_iter().collect();
     assert_eq!(set.len(), all.len());

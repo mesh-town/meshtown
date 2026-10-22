@@ -8,8 +8,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::web::http::{json_err, query_param};
-use crate::web::App;
+use crate::web_gui::http::{json_err, query_param};
+use crate::web_gui::App;
 
 use super::helpers::{action_error, body_obj, map_string_field};
 
@@ -34,7 +34,13 @@ pub(super) async fn domains_delete_handler(
 ) -> Response {
     let name = match query_param(&uri, "name") {
         Some(n) if !n.is_empty() => n,
-        _ => return json_err(StatusCode::BAD_REQUEST, "bad_request", "parameter name is required"),
+        _ => {
+            return json_err(
+                StatusCode::BAD_REQUEST,
+                "bad_request",
+                "parameter name is required",
+            )
+        }
     };
     match app.node.remove_domain(&name) {
         Ok(name) => (StatusCode::OK, axum::Json(json!({"domain": name}))).into_response(),

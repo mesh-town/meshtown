@@ -61,7 +61,9 @@ pub(crate) fn retired_key_warnings(retired: &[String]) -> Vec<String> {
 /// Returns a warning about the `--port` flag if it was given.
 pub fn port_flag_warning(port: Option<u16>) -> Option<String> {
     port.map(|_| {
-        format!("flag --port has no effect since {RETIRED_SINCE} (iroh transport removed) — skipped")
+        format!(
+            "flag --port has no effect since {RETIRED_SINCE} (iroh transport removed) — skipped"
+        )
     })
 }
 

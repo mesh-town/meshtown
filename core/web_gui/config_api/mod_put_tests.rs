@@ -3,7 +3,7 @@
 //! the parent and comes here through `use super::*;`.
 
 use super::*;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 #[test]
 fn put_socks_port_out_of_range_is_invalid() {
@@ -162,15 +162,19 @@ fn put_blank_name_gets_random_name() {
     let body = put_body(rev, serde_json::json!({"node": {"name": "  "}}));
     let resp = state.put(&body, &node);
     let (status, _v) = body_json(resp);
-    assert_eq!(status, StatusCode::OK, "an empty name is not a refusal but a replacement");
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "an empty name is not a refusal but a replacement"
+    );
     let name = state.page_config_document()["node"]["name"]
         .as_str()
         .expect("node name in GET")
         .to_string();
     let parts: Vec<&str> = name.split('-').collect();
     assert_eq!(parts.len(), 2, "{name}");
-    assert!(crate::words::is_tail_word(parts[0]), "{name}");
-    assert!(crate::words::is_tail_word(parts[1]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[0]), "{name}");
+    assert!(crate::members::words::is_tail_word(parts[1]), "{name}");
     assert_eq!(
         state.file_settings.net.node_name.as_deref(),
         Some(name.as_str()),
@@ -214,8 +218,7 @@ fn put_route_exits_bad_id_is_invalid() {
     assert_eq!(v["error"], "invalid");
     let fields = v["fields"].as_array().unwrap();
     assert!(fields.iter().any(|f| {
-        f["path"] == "route.exits"
-            && f["message"] == "a list of node ids without repeats, up to 64"
+        f["path"] == "route.exits" && f["message"] == "a list of node ids without repeats, up to 64"
     }));
     cleanup(&dir);
 }
@@ -235,7 +238,7 @@ fn put_web_access_is_written_and_not_restart_pending() {
     );
     assert_eq!(
         state.file_settings.process.web_access,
-        crate::config_file::ListenAccess::Localhost
+        crate::config::config_file::ListenAccess::Localhost
     );
     assert!(state.pending_restart_paths().is_empty());
     cleanup(&dir);
@@ -254,7 +257,7 @@ fn put_without_web_access_keeps_file_value() {
     assert_eq!(body_json(state.put(&body, &node)).0, StatusCode::OK);
     assert_eq!(
         state.file_settings.process.web_access,
-        crate::config_file::ListenAccess::Localhost
+        crate::config::config_file::ListenAccess::Localhost
     );
     cleanup(&dir);
 }
@@ -331,20 +334,23 @@ mod retired_key {
         assert_eq!(status, StatusCode::OK, "{v}");
         assert_eq!(v["changed"], serde_json::json!(["node.name"]), "{v}");
         assert!(text.contains("alpha"), "name not written: {text}");
-        assert!(!text.contains("udp_port"), "the removed key ended up in the file: {text}");
+        assert!(
+            !text.contains("udp_port"),
+            "the removed key ended up in the file: {text}"
+        );
     }
 }
 
 /// Page state over a file in which `net.sync` is already written with the value `sync`.
 fn new_state_with_net_sync(dir: &Path, sync: &str) -> ConfigState {
-    let net = crate::net::NetChoice {
+    let net = crate::transport::net::NetChoice {
         sync: sync.to_string(),
         ..Settings::default().net.net_choice
     };
     let settings = Settings {
-        net: crate::config_file::NetSettings {
+        net: crate::config::config_file::NetSettings {
             net_choice: net,
-            ..crate::config_file::NetSettings::default()
+            ..crate::config::config_file::NetSettings::default()
         },
         ..Settings::default()
     };

@@ -1,7 +1,7 @@
 //! Tests for `net/link.rs`: `LinkInfo::hint` — which address hint comes out of the connection's chosen path.
 
 use super::*;
-use crate::net::addr::{AddrHint, RelayRef};
+use crate::transport::net::addr::{AddrHint, RelayRef};
 use std::net::SocketAddr;
 
 const REMOTE: &str = "203.0.113.9:4433";

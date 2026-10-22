@@ -14,12 +14,26 @@
 #[path = "common/web_listener.rs"]
 mod common;
 
-use meshtown::config_file::{self, LoadedConfigFile, RunConfig};
-use meshtown::network_key::parse_user_input;
-use meshtown::web::DEFAULT_DRAIN;
+use meshtown_core::config::config_file::{self, LoadedConfigFile, RunConfig};
+use meshtown_core::members::network_key::parse_user_input;
+use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
 use common::{api, cleanup, run_config, scratch, start_web, TestNode};
+
+/// The config file in `dir` holds exactly `key`, in full.
+fn assert_file_holds_key(dir: &std::path::Path, key: &str) {
+    let loaded = config_file::load_config_file(&dir.join("config.json"));
+    match loaded {
+        LoadedConfigFile::Parsed(p) => {
+            assert!(
+                p.settings.net.network_key.as_deref() == Some(key),
+                "the config file must hold the just-created key in full"
+            );
+        }
+        other => panic!("expected Loaded::Parsed, got {other:?}"),
+    }
+}
 
 /// Creates a network through `/api/network/create`, checks the label, the key prefix, the growth of `rev`, the key being written
 /// to the config file, the `switch` call on the node, the same key being returned by `/api/network/key`, and
@@ -39,7 +53,10 @@ fn assert_network_create_ok(
         Some(json!({"label": "our gaming room"})),
     );
     assert_eq!(status, 200);
-    assert_eq!(body.get("label").and_then(Value::as_str), Some("our-gaming-room"));
+    assert_eq!(
+        body.get("label").and_then(Value::as_str),
+        Some("our-gaming-room")
+    );
     let key = body
         .get("key")
         .and_then(Value::as_str)
@@ -55,18 +72,12 @@ fn assert_network_create_ok(
     let rev1 = cfg1.get("rev").and_then(Value::as_u64).expect("rev1");
     assert_eq!(rev1, rev0 + 1, "rev must grow by 1 after create");
 
-    let loaded = config_file::load_config_file(&dir.join("config.json"));
-    match loaded {
-        LoadedConfigFile::Parsed(p) => {
-            assert!(
-                p.settings.net.network_key.as_deref() == Some(key.as_str()),
-                "the config file must hold the just-created key in full"
-            );
-        }
-        other => panic!("expected Loaded::Parsed, got {other:?}"),
-    }
+    assert_file_holds_key(dir, &key);
 
-    assert!(node.got_call("switch"), "TestNode must get switch after create");
+    assert!(
+        node.got_call("switch"),
+        "TestNode must get switch after create"
+    );
 
     let (status_key, key_body) = api(port, token, "GET", "/api/network/key", None);
     assert_eq!(status_key, 200);
@@ -76,7 +87,10 @@ fn assert_network_create_ok(
     );
 
     let cfg1_text = serde_json::to_string(&cfg1).unwrap();
-    let tail_part = key.split_once("--").map(|x| x.1).expect("key tail after --");
+    let tail_part = key
+        .split_once("--")
+        .map(|x| x.1)
+        .expect("key tail after --");
     assert!(
         !cfg1_text.contains(tail_part),
         "the body of GET /api/config must not contain the key tail after --"
@@ -114,8 +128,14 @@ fn assert_join_valid_then_rejects_garbage(port: u16, token: &str, key: &str, rev
         Some(json!({"key": "not a key"})),
     );
     assert_eq!(status_bad, 422);
-    assert_eq!(bad_body.get("error").and_then(Value::as_str), Some("invalid_key"));
-    assert!(bad_body.get("word").is_none(), "there must be no word field");
+    assert_eq!(
+        bad_body.get("error").and_then(Value::as_str),
+        Some("invalid_key")
+    );
+    assert!(
+        bad_body.get("word").is_none(),
+        "there must be no word field"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -156,7 +176,8 @@ fn save_outside_and_assert_stale(
         other => panic!("expected Loaded::Parsed, got {other:?}"),
     };
     settings.net.check_interval_sec = 900;
-    config_file::save_config_file(config_path, Some(r), 0, &run.secret, &settings).expect("external save");
+    config_file::save_config_file(config_path, Some(r), 0, &run.secret, &settings)
+        .expect("external save");
 
     let (status_stale, stale_body) = api(
         port,
@@ -166,8 +187,14 @@ fn save_outside_and_assert_stale(
         Some(json!({"rev": r, "config": cfg0.get("config").cloned().unwrap_or(Value::Null)})),
     );
     assert_eq!(status_stale, 409);
-    assert_eq!(stale_body.get("error").and_then(Value::as_str), Some("stale_rev"));
-    let rev_after = stale_body.get("rev").and_then(Value::as_u64).expect("rev in the 409");
+    assert_eq!(
+        stale_body.get("error").and_then(Value::as_str),
+        Some("stale_rev")
+    );
+    let rev_after = stale_body
+        .get("rev")
+        .and_then(Value::as_u64)
+        .expect("rev in the 409");
     assert_eq!(rev_after, r + 1);
     let interval = stale_body
         .pointer("/config/checks/interval_sec")
@@ -194,7 +221,9 @@ fn assert_retry_succeeds_and_no_tmp_left(
         token,
         "PUT",
         "/api/config",
-        Some(json!({"rev": r + 1, "config": stale_body.get("config").cloned().unwrap_or(Value::Null)})),
+        Some(
+            json!({"rev": r + 1, "config": stale_body.get("config").cloned().unwrap_or(Value::Null)}),
+        ),
     );
     assert_eq!(status_ok, 200);
     let _ = ok_body;
@@ -203,7 +232,10 @@ fn assert_retry_succeeds_and_no_tmp_left(
     {
         use std::os::unix::fs::PermissionsExt;
         let mode = std::fs::metadata(config_path).unwrap().permissions().mode() & 0o777;
-        assert_eq!(mode, 0o600, "config.json must have permissions 0600 after writing");
+        assert_eq!(
+            mode, 0o600,
+            "config.json must have permissions 0600 after writing"
+        );
     }
     for entry in std::fs::read_dir(dir).unwrap() {
         let name = entry.unwrap().file_name();

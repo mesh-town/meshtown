@@ -2,10 +2,10 @@
 //! in-memory replica. The format itself is covered by `record_tests.rs`.
 
 use super::*;
-use crate::net::contract::{pid, secret};
-use crate::net::mem::{MemReplica, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::{NetError, NetResult, PeerId, Replica, ReplicaEntry};
+use crate::transport::net::contract::{pid, secret};
+use crate::transport::net::mem::{MemReplica, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::{NetError, NetResult, PeerId, Replica, ReplicaEntry};
 use bytes::Bytes;
 use data_encoding::HEXLOWER;
 use std::sync::Arc;
@@ -19,9 +19,21 @@ async fn put_writes_key_by_kind() {
     let other = pid(7);
     let hex = HEXLOWER.encode(other.as_bytes());
     let cases = [
-        (AclKind::Admit, other, format!("acl/admit/{hex}").into_bytes()),
-        (AclKind::Exclude, other, format!("acl/exclude/{hex}").into_bytes()),
-        (AclKind::Block, other, format!("acl-block/{hex}").into_bytes()),
+        (
+            AclKind::Admit,
+            other,
+            format!("acl/admit/{hex}").into_bytes(),
+        ),
+        (
+            AclKind::Exclude,
+            other,
+            format!("acl/exclude/{hex}").into_bytes(),
+        ),
+        (
+            AclKind::Block,
+            other,
+            format!("acl-block/{hex}").into_bytes(),
+        ),
         (AclKind::Boot, r.me, b"acl/boot".to_vec()),
     ];
     for (kind, subject, key) in cases {
@@ -29,8 +41,15 @@ async fn put_writes_key_by_kind() {
         let value = value_of(kind, subject);
         r.put(&value).await.unwrap();
         // then: it lies under the key of its kind and parses back
-        let stored = r.own(&key).await.unwrap_or_else(|| panic!("nothing under the {kind:?} key"));
-        let want = Parsed::Record { author: r.me, ts_micros: stored.ts_micros, value };
+        let stored = r
+            .own(&key)
+            .await
+            .unwrap_or_else(|| panic!("nothing under the {kind:?} key"));
+        let want = Parsed::Record {
+            author: r.me,
+            ts_micros: stored.ts_micros,
+            value,
+        };
         assert_eq!(parse_entry(&stored), want, "{kind:?}");
     }
 }
@@ -42,9 +61,20 @@ async fn ensure_upgrades_my_witness_to_a_vote() {
     // given: my witness for S
     let r = setup();
     let s = pid(7);
-    r.ensure(&AclValue { via: Via::Witness, ..value_of(AclKind::Admit, s) }).await.unwrap();
+    r.ensure(&AclValue {
+        via: Via::Witness,
+        ..value_of(AclKind::Admit, s)
+    })
+    .await
+    .unwrap();
     // when: a vote of the same subject is ensured
-    let changed = r.ensure(&AclValue { via: Via::None, ..value_of(AclKind::Admit, s) }).await.unwrap();
+    let changed = r
+        .ensure(&AclValue {
+            via: Via::None,
+            ..value_of(AclKind::Admit, s)
+        })
+        .await
+        .unwrap();
     // then: it replaced the witness
     assert!(changed);
     let stored = decode(&r.own(&admit_key(&s)).await.unwrap().value).unwrap();
@@ -56,9 +86,20 @@ async fn ensure_never_downgrades_a_vote_to_a_witness() {
     // given: my vote for S
     let r = setup();
     let s = pid(7);
-    r.ensure(&AclValue { via: Via::None, ..value_of(AclKind::Admit, s) }).await.unwrap();
+    r.ensure(&AclValue {
+        via: Via::None,
+        ..value_of(AclKind::Admit, s)
+    })
+    .await
+    .unwrap();
     // when: a witness of the same subject is ensured
-    let changed = r.ensure(&AclValue { via: Via::Witness, ..value_of(AclKind::Admit, s) }).await.unwrap();
+    let changed = r
+        .ensure(&AclValue {
+            via: Via::Witness,
+            ..value_of(AclKind::Admit, s)
+        })
+        .await
+        .unwrap();
     // then: nothing is written
     assert!(!changed);
     let stored = decode(&r.own(&admit_key(&s)).await.unwrap().value).unwrap();
@@ -70,11 +111,20 @@ async fn ensure_keeps_equal_record() {
     // given: my witness for S
     let r = setup();
     let s = pid(7);
-    let witness = AclValue { via: Via::Witness, ..value_of(AclKind::Admit, s) };
+    let witness = AclValue {
+        via: Via::Witness,
+        ..value_of(AclKind::Admit, s)
+    };
     r.ensure(&witness).await.unwrap();
     let stored = r.own(&admit_key(&s)).await.unwrap();
     // when: the same witness is ensured later
-    let changed = r.ensure(&AclValue { made_unix: 1_800_000_000, ..witness }).await.unwrap();
+    let changed = r
+        .ensure(&AclValue {
+            made_unix: 1_800_000_000,
+            ..witness
+        })
+        .await
+        .unwrap();
     // then: nothing is written
     assert!(!changed);
     assert_eq!(r.own(&admit_key(&s)).await.unwrap(), stored);
@@ -84,10 +134,21 @@ async fn ensure_keeps_equal_record() {
 async fn rewrite_replaces_a_live_record_of_the_same_kind() {
     // given: a boot marker without a note
     let r = setup();
-    let marker = AclValue { note: String::new(), ..value_of(AclKind::Boot, r.me) };
+    let marker = AclValue {
+        note: String::new(),
+        ..value_of(AclKind::Boot, r.me)
+    };
     r.put(&marker).await.unwrap();
     // when: it is rewritten with a note
-    rewrite(r.rep.as_ref(), &AclValue { note: "flag".into(), ..marker }).await.unwrap();
+    rewrite(
+        r.rep.as_ref(),
+        &AclValue {
+            note: "flag".into(),
+            ..marker
+        },
+    )
+    .await
+    .unwrap();
     // then: the stored marker carries the new note
     let stored = decode(&r.own(b"acl/boot").await.unwrap().value).unwrap();
     assert_eq!(stored.note, "flag");
@@ -98,11 +159,19 @@ async fn ensure_keeps_first_record_of_same_subject() {
     // given: an admit of S already written
     let r = setup();
     let s = pid(7);
-    let first = AclValue { note: "first".into(), ..value_of(AclKind::Admit, s) };
+    let first = AclValue {
+        note: "first".into(),
+        ..value_of(AclKind::Admit, s)
+    };
     assert!(r.ensure(&first).await.unwrap(), "a new record is a change");
     let stored = r.own(&admit_key(&s)).await.unwrap();
     // when: ensure again with another via, note and time
-    let again = AclValue { via: Via::Witness, note: "second".into(), made_unix: 1_800_000_000, ..first };
+    let again = AclValue {
+        via: Via::Witness,
+        note: "second".into(),
+        made_unix: 1_800_000_000,
+        ..first
+    };
     let changed = r.ensure(&again).await.unwrap();
     // then: nothing changed: same time, same value
     assert!(!changed, "the first record wins");
@@ -113,14 +182,26 @@ async fn ensure_keeps_first_record_of_same_subject() {
 async fn ensure_rejects_long_note_and_foreign_boot() {
     // given: values the node itself would reject on reading
     let r = setup();
-    let long = AclValue { note: "a".repeat(81), ..value_of(AclKind::Admit, pid(7)) };
+    let long = AclValue {
+        note: "a".repeat(81),
+        ..value_of(AclKind::Admit, pid(7))
+    };
     let foreign_boot = value_of(AclKind::Boot, pid(7));
-    for (name, value) in [("note of 81 chars", long), ("boot for another subject", foreign_boot)] {
+    for (name, value) in [
+        ("note of 81 chars", long),
+        ("boot for another subject", foreign_boot),
+    ] {
         // when: ensure is asked to write them
         let result = r.ensure(&value).await;
         // then: a config error, and nothing lies under the key
-        assert!(matches!(result, Err(NetError::Config(_))), "{name}: {result:?}");
-        assert!(r.own(&key_for(value.kind, &value.subject)).await.is_none(), "{name}");
+        assert!(
+            matches!(result, Err(NetError::Config(_))),
+            "{name}: {result:?}"
+        );
+        assert!(
+            r.own(&key_for(value.kind, &value.subject)).await.is_none(),
+            "{name}"
+        );
     }
     assert!(r.scan_list().await.is_empty(), "nothing written at all");
 }
@@ -140,7 +221,11 @@ async fn ensure_overwrites_tombstone_and_garbage() {
         // then: it is a change, and the stored record is good
         assert!(changed, "{subject:?}");
         let stored = r.own(&admit_key(&subject)).await.unwrap();
-        let want = Parsed::Record { author: r.me, ts_micros: stored.ts_micros, value };
+        let want = Parsed::Record {
+            author: r.me,
+            ts_micros: stored.ts_micros,
+            value,
+        };
         assert_eq!(parse_entry(&stored), want, "{subject:?}");
     }
 }
@@ -176,7 +261,10 @@ async fn withdraw_tombstones_own_record_once() {
     let first = withdraw(r.rep.as_ref(), AclKind::Admit, s).await.unwrap();
     // then: true, and a tombstone lies under the key
     assert!(first);
-    let tomb = r.tombstone(&admit_key(&s)).await.expect("a tombstone must lie under the key");
+    let tomb = r
+        .tombstone(&admit_key(&s))
+        .await
+        .expect("a tombstone must lie under the key");
     // when: withdrawn again
     let second = withdraw(r.rep.as_ref(), AclKind::Admit, s).await.unwrap();
     // then: false, and the tombstone is not rewritten
@@ -220,10 +308,17 @@ struct Rig {
 /// A node with a secret from seed 3 and its in-memory replica (the shared one).
 fn setup() -> Rig {
     let node = secret(3);
-    let ctx = SyncCtx { secret: node.clone(), network_seed: [9; 32], store_dir: None };
+    let ctx = SyncCtx {
+        secret: node.clone(),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
     let backend = MemSyncNet::new().backend(ctx);
     let rep = backend.replica_mem(REPLICA_NET).unwrap();
-    Rig { rep, me: node.peer_id() }
+    Rig {
+        rep,
+        me: node.peer_id(),
+    }
 }
 
 impl Rig {
@@ -248,12 +343,16 @@ impl Rig {
     /// Our own tombstone under the key (`get` of the in-memory replica hides tombstones, `scan` shows them).
     async fn tombstone(&self, key: &[u8]) -> Option<ReplicaEntry> {
         let all = self.scan_list().await;
-        all.into_iter().find(|e| e.author == self.me && e.key == key && e.is_tombstone())
+        all.into_iter()
+            .find(|e| e.author == self.me && e.key == key && e.is_tombstone())
     }
 
     /// An own entry that is not a record.
     async fn put_garbage(&self, key: &[u8]) {
-        self.rep.set_own(key, Bytes::from_static(&[0xFF, 0xFF])).await.unwrap();
+        self.rep
+            .set_own(key, Bytes::from_static(&[0xFF, 0xFF]))
+            .await
+            .unwrap();
     }
 }
 

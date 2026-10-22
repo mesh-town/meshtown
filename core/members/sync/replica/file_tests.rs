@@ -6,7 +6,8 @@ use std::path::PathBuf;
 fn temp_dir() -> PathBuf {
     static COUNTER: portable_atomic::AtomicU64 = portable_atomic::AtomicU64::new(0);
     let seq = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let dir = std::env::temp_dir().join(format!("mesh-replica-file-{}-{}", std::process::id(), seq));
+    let dir =
+        std::env::temp_dir().join(format!("mesh-replica-file-{}-{}", std::process::id(), seq));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     dir
@@ -27,7 +28,11 @@ fn entry(n: u8) -> WireEntry {
 }
 
 fn mark() -> ImportMark {
-    ImportMark { at_micros: 77, source: MarkSource::DocsStore, entries: 3 }
+    ImportMark {
+        at_micros: 77,
+        source: MarkSource::DocsStore,
+        entries: 3,
+    }
 }
 
 fn bytes_of(n: u8) -> Vec<u8> {
@@ -53,23 +58,35 @@ fn decode_checksum_flip_is_broken() {
     let mut bytes = bytes_of(1);
     let last = bytes.len() - 1;
     bytes[last] ^= 1;
-    assert!(matches!(decode(&rid(1), &bytes), Err(FileError::BadChecksum)));
+    assert!(matches!(
+        decode(&rid(1), &bytes),
+        Err(FileError::BadChecksum)
+    ));
 }
 
 #[test]
 fn decode_other_replica_is_error() {
     let bytes = bytes_of(1);
-    assert!(matches!(decode(&rid(2), &bytes), Err(FileError::OtherReplica)));
+    assert!(matches!(
+        decode(&rid(2), &bytes),
+        Err(FileError::OtherReplica)
+    ));
 }
 
 #[test]
 fn decode_bad_magic_or_version_is_error() {
     let mut bad_magic = bytes_of(1);
     bad_magic[0] = b'X';
-    assert!(matches!(decode(&rid(1), &bad_magic), Err(FileError::BadMagic)));
+    assert!(matches!(
+        decode(&rid(1), &bad_magic),
+        Err(FileError::BadMagic)
+    ));
     let mut bad_ver = bytes_of(1);
     bad_ver[5] = 2;
-    assert!(matches!(decode(&rid(1), &bad_ver), Err(FileError::BadVersion(2))));
+    assert!(matches!(
+        decode(&rid(1), &bad_ver),
+        Err(FileError::BadVersion(2))
+    ));
     assert!(matches!(decode(&rid(1), b"MV"), Err(FileError::BadMagic)));
 }
 
@@ -78,7 +95,10 @@ fn path_for_names() {
     let d = Path::new("/x/replica");
     assert_eq!(path_for(d, "domains", &rid(0xab)), d.join("domains.bin"));
     assert_eq!(path_for(d, "net", &rid(0xab)), d.join("net-ababababab.bin"));
-    assert_eq!(replica_dir(Path::new("/c/docs-store")), Some(PathBuf::from("/c/replica")));
+    assert_eq!(
+        replica_dir(Path::new("/c/docs-store")),
+        Some(PathBuf::from("/c/replica"))
+    );
 }
 
 #[test]

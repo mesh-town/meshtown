@@ -3,8 +3,8 @@
 use std::net::SocketAddr;
 
 use super::*;
-use crate::addr_order::PrimaryIps;
-use crate::net::{AddrHint, NodeSecret};
+use crate::transport::addr_order::PrimaryIps;
+use crate::transport::net::{AddrHint, NodeSecret};
 
 const T: u64 = 1_760_000_000;
 

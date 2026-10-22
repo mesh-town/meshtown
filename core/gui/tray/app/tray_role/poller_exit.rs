@@ -5,9 +5,9 @@
 
 use tokio::time::Instant;
 
-use crate::app::local_api::{self, Reply};
-use crate::app::tray_actions::ServeNote;
-use crate::app::tray_texts::REASON_SERVE_REFUSED;
+use crate::gui::tray::app::local_api::{self, Reply};
+use crate::gui::tray::app::tray_actions::ServeNote;
+use crate::gui::tray::app::tray_texts::REASON_SERVE_REFUSED;
 
 use super::config_doc::ConfigDoc;
 use super::poller::Poller;
@@ -53,7 +53,10 @@ impl Poller {
         }
         self.say("permission to open sites: edit was not applied".to_string());
         let reason = REASON_SERVE_REFUSED;
-        (self.send_serve_note)(ServeNote::Failed { was_enabling: enable, reason });
+        (self.send_serve_note)(ServeNote::Failed {
+            was_enabling: enable,
+            reason,
+        });
         self.notes_visible_until = Some(Instant::now() + self.timing.note_visible_for);
     }
 

@@ -10,12 +10,11 @@
 
 use super::*;
 
-
 use tokio::time::{sleep, Instant};
 
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::node::program_version::{self, current_program_version};
 use crate::node::NodeConfig;
-use crate::program_version::{self, current_program_version};
 
 /// The time within which the node writes its own version after startup (the write is local).
 const OWN_WRITE_LIMIT: Duration = Duration::from_secs(10);
@@ -87,7 +86,8 @@ async fn start_test_node(key: NetworkKey) -> RunningNode {
 
 /// Introduces `b` to `a` by one key: `mem` dials by id.
 async fn introduce(a: &RunningNode, b: &RunningNode) {
-    a.introduce(crate::net::PeerAddr::new(b.id)).await;
+    a.introduce(crate::transport::net::PeerAddr::new(b.id))
+        .await;
 }
 
 /// Writes the version `version` as the own record of node `node`.

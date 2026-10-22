@@ -5,7 +5,7 @@
 //! string with substitutions is a function `*_text(..)` with the same `format!`. There is no logic here:
 //! only the wording of this table changes when the text is edited.
 
-use meshtown::output::{APP_NAME, NET_NAME};
+use crate::node::output::{APP_NAME, NET_NAME};
 
 // ---- Node and invite items ----
 
@@ -42,9 +42,11 @@ pub(crate) const REASON_SERVE_REFUSED: &str = "Mesh Town didn't accept the chang
 // ---- First menu line: invite and checkbox notes ----
 
 /// First menu line after a successful copy: the invite is single-use, it must not go to a group chat.
-pub(crate) const INVITE_COPIED_LINE: &str = "Invite copied — single use, valid for 24 h; send it privately";
+pub(crate) const INVITE_COPIED_LINE: &str =
+    "Invite copied — single use, valid for 24 h; send it privately";
 /// First menu line when only the issuing computer can let the invite in.
-pub(crate) const INVITE_COPIED_ISSUER_ONLY_LINE: &str = "Invite copied — only this computer can let them in; keep it on";
+pub(crate) const INVITE_COPIED_ISSUER_ONLY_LINE: &str =
+    "Invite copied — only this computer can let them in; keep it on";
 /// First menu line when the invite can be accepted by the issuer and one more node.
 pub(crate) const INVITE_COPIED_ISSUER_AND_ONE_LINE: &str =
     "Invite copied — keep this computer on until they join";
@@ -111,8 +113,7 @@ pub(crate) fn route_exit_offline_text(mark: &str, name: &str) -> String {
     format!("{mark} {name} is offline — sites won't open until it's back")
 }
 /// Several exits are selected and none is online.
-pub(crate) const ROUTE_ALL_OFFLINE_TEXT: &str =
-    "Chosen members are offline — sites won't open";
+pub(crate) const ROUTE_ALL_OFFLINE_TEXT: &str = "Chosen members are offline — sites won't open";
 /// Grey icon: not joined to a network yet.
 pub(crate) fn net_none_status_text() -> String {
     format!("You haven't joined a {NET_NAME} network yet")
@@ -188,8 +189,7 @@ pub(crate) fn node_log_hint_text(log_name: &str) -> String {
 /// Title of the tray submenu.
 pub(crate) const SUBMENU_TITLE: &str = "Exit via…";
 /// Hint of the empty submenu: no member offers itself as an exit.
-pub(crate) const EMPTY_HINT: &str =
-    "No member lets sites open via their computer yet";
+pub(crate) const EMPTY_HINT: &str = "No member lets sites open via their computer yet";
 /// Text of the first submenu item — sites open as usual.
 pub(crate) fn direct_text() -> String {
     "Directly, without an exit".to_owned()

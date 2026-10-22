@@ -16,13 +16,13 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use serde::{Deserialize, Serialize};
 
-use crate::config_file::write_tmp_and_rename;
-use crate::membership::Members;
-use crate::output::say;
-use crate::words::trim_and_validate_node_name;
+use crate::config::config_file::write_tmp_and_rename;
+use crate::members::membership::Members;
+use crate::members::words::trim_and_validate_node_name;
+use crate::node::output::say;
 
 /// File name; the file is kept next to the settings file.
 pub const PEER_NAMES_FILE_NAME: &str = "peer-names.json";
@@ -72,7 +72,10 @@ fn read_valid(path: &Path, network_id: &str) -> Result<Vec<(PeerId, String)>, St
     };
     let file: NamesFile = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     if file.version != PEER_NAMES_FORMAT_VERSION {
-        return Err(format!("version {}, expected {PEER_NAMES_FORMAT_VERSION}", file.version));
+        return Err(format!(
+            "version {}, expected {PEER_NAMES_FORMAT_VERSION}",
+            file.version
+        ));
     }
     if file.network_id != network_id {
         return Err("file is for another network".to_string());
@@ -149,7 +152,10 @@ impl PeerNames {
         if !self.entries.is_empty() {
             say(
                 "cache",
-                format!("member names from {PEER_NAMES_FILE_NAME}: {}", self.entries.len()),
+                format!(
+                    "member names from {PEER_NAMES_FILE_NAME}: {}",
+                    self.entries.len()
+                ),
             );
         }
     }

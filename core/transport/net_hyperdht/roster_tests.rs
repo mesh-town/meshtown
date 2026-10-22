@@ -1,10 +1,10 @@
 //! Tests of the roster round on `MemRecords`: writer merge, a foreign version, a race, a store error.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::net_hyperdht::mem::MemRecords;
-use crate::net_mainline::record::{merge_keys, seal, Roster, RosterEntry};
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::contract::pid;
+use crate::transport::net_hyperdht::mem::MemRecords;
+use crate::transport::net_mainline::record::{merge_keys, seal, Roster, RosterEntry};
 
 const NOW: u64 = 1_760_000_000;
 const MS: u64 = NOW * 1000;
@@ -22,7 +22,10 @@ fn id(seed: u8) -> [u8; 32] {
 }
 
 async fn stored_ids(store: &MemRecords) -> Vec<[u8; 32]> {
-    let (r, _) = read(store, &keys()).await.expect("read").expect("record exists");
+    let (r, _) = read(store, &keys())
+        .await
+        .expect("read")
+        .expect("record exists");
     ids(&r)
 }
 
@@ -35,15 +38,21 @@ fn next_seq_takes_max_of_prev_plus_one_and_now() {
 #[tokio::test]
 async fn publish_round_on_empty_store_writes_self() {
     let store = MemRecords::new();
-    publish_round(&store, &keys(), pid(1), NOW, MS).await.expect("round");
+    publish_round(&store, &keys(), pid(1), NOW, MS)
+        .await
+        .expect("round");
     assert_eq!(stored_ids(&store).await, vec![id(1)]);
 }
 
 #[tokio::test]
 async fn second_writer_merges_first() {
     let store = MemRecords::new();
-    publish_round(&store, &keys(), pid(1), NOW, MS).await.expect("A");
-    publish_round(&store, &keys(), pid(2), NOW + 1, MS + 1000).await.expect("B");
+    publish_round(&store, &keys(), pid(1), NOW, MS)
+        .await
+        .expect("A");
+    publish_round(&store, &keys(), pid(2), NOW + 1, MS + 1000)
+        .await
+        .expect("B");
     assert_eq!(stored_ids(&store).await, vec![id(2), id(1)]);
 }
 
@@ -52,11 +61,18 @@ async fn foreign_version_is_treated_as_empty() {
     let store = MemRecords::new();
     let old = Roster {
         version: 1,
-        entries: vec![RosterEntry { id: id(9), relay: None, addrs: vec![], seen_unix: NOW }],
+        entries: vec![RosterEntry {
+            id: id(9),
+            relay: None,
+            addrs: vec![],
+            seen_unix: NOW,
+        }],
     };
     let sealed = seal(&keys().seal_key, &old, [7; 12]).expect("seal");
     store.put(&keys().record_key, sealed, 1).await.expect("put");
-    publish_round(&store, &keys(), pid(1), NOW, MS).await.expect("round");
+    publish_round(&store, &keys(), pid(1), NOW, MS)
+        .await
+        .expect("round");
     assert_eq!(stored_ids(&store).await, vec![id(1)]);
 }
 
@@ -66,7 +82,9 @@ async fn undecryptable_record_is_overwritten() {
     let other = merge_keys(None, id(9), NOW);
     let sealed = seal(&[0x99; 32], &other, [7; 12]).expect("seal");
     store.put(&keys().record_key, sealed, 1).await.expect("put");
-    publish_round(&store, &keys(), pid(1), NOW, MS).await.expect("round");
+    publish_round(&store, &keys(), pid(1), NOW, MS)
+        .await
+        .expect("round");
     assert_eq!(stored_ids(&store).await, vec![id(1)]);
 }
 
@@ -83,8 +101,12 @@ async fn concurrent_writers_converge() {
         store.put(&k.record_key, sealed, ms).await.expect("put");
     }
     assert_eq!(stored_ids(&store).await, vec![id(2), id(3)]);
-    publish_round(&store, &k, pid(1), NOW + 2, MS + 2000).await.expect("A");
-    publish_round(&store, &k, pid(2), NOW + 3, MS + 3000).await.expect("B");
+    publish_round(&store, &k, pid(1), NOW + 2, MS + 2000)
+        .await
+        .expect("A");
+    publish_round(&store, &k, pid(2), NOW + 3, MS + 3000)
+        .await
+        .expect("B");
     let got = stored_ids(&store).await;
     for seed in [1, 2, 3] {
         assert!(got.contains(&id(seed)), "{seed} is not in the record");

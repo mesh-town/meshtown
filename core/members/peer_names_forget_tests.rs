@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
 

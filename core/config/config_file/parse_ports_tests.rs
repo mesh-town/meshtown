@@ -1,6 +1,6 @@
-use crate::config_file::parse_text;
-use crate::net::{NodeSecret, PeerId};
-use crate::ports::types::Audience;
+use crate::config::config_file::parse_text;
+use crate::ports_sharing::types::Audience;
+use crate::transport::net::{NodeSecret, PeerId};
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()
@@ -11,7 +11,7 @@ fn doc(ports: &str) -> String {
 }
 
 /// Parses `ports.published`/`ports.opened` from `body` (the section object).
-fn parse(body: &str) -> crate::config_file::ParsedConfigFile {
+fn parse(body: &str) -> crate::config::config_file::ParsedConfigFile {
     parse_text(&doc(body)).expect("the document parsed")
 }
 
@@ -41,13 +41,19 @@ fn valid_lists_are_read() {
     assert_eq!(s.net.ports_published[0].name, "web");
     assert_eq!(s.net.ports_published[1].audience, Audience::Nodes(vec![a]));
     assert_eq!(s.net.ports_opened.len(), 1);
-    assert_eq!((s.net.ports_opened[0].node, s.net.ports_opened[0].port), (a, 8080));
+    assert_eq!(
+        (s.net.ports_opened[0].node, s.net.ports_opened[0].port),
+        (a, 8080)
+    );
     assert_eq!(s.net.ports_opened[0].local, 9090);
 }
 
 fn assert_rejected(body: &str, path: &str, why: &str) {
     let p = parse(body);
-    assert!(p.settings.net.ports_published.is_empty(), "{why}: published");
+    assert!(
+        p.settings.net.ports_published.is_empty(),
+        "{why}: published"
+    );
     assert!(p.settings.net.ports_opened.is_empty(), "{why}: opened");
     assert_eq!(p.field_errors.len(), 1, "{why}: {:?}", p.field_errors);
     assert_eq!(p.field_errors[0].field_path, path, "{why}");

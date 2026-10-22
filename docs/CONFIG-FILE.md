@@ -52,7 +52,7 @@ Notes:
 ```
 <state directory>/
   config.json                    settings, network key and node secret, mode 0600 — this document
-  web-token                      permanent token of the web page, mode 0600 (`core/web`); read by the tray and scripts
+  web-token                      permanent token of the web page, mode 0600 (`core/web_gui`); read by the tray and scripts
   web-password                   hash of the page password, mode 0600; no file — no password (section 8.2)
   peers-cache.json               last working addresses of network members, mode 0600; auxiliary, can be deleted
   peer-names.json                last known names of network members, mode 0600; auxiliary, can be deleted
@@ -79,7 +79,7 @@ per document: `--socks-port 1081` overrides only `socks.port`, the other fields 
 force.
 
 - **"Set on the command line" literally means "the flag was typed by a person"**, not "the flag has a
-  value". Today half the flags have `default_value_t` (`core/main.rs`),
+  value". Today half the flags have `default_value_t` (`core/cli/args.rs`),
   and what was typed cannot be told from the default. When the file is connected, all such
   flags become `Option<T>` without `default_value_t`, and the defaults move to one place — the table in section 3.
   The "was the flag typed" check is `ArgMatches::value_source(..) == Some(ValueSource::CommandLine)`.
@@ -91,7 +91,7 @@ force.
   next start without the flag. Silently accepting an edit that affects nothing is not allowed;
   forbidding it is not either: a person configures the node for the future.
 - **There are no environment variables for each setting.** There are exactly two, and both are about paths and the key:
-  `MESHTOWN_CONFIG` and `MESHTOWN_KEY` (`core/main.rs`). We do not introduce a third layer of priorities per
+  `MESHTOWN_CONFIG` and `MESHTOWN_KEY` (`core/config/config_file/overrides.rs`). We do not introduce a third layer of priorities per
   field: it cannot be shown on the page in an understandable way. `MESHTOWN_KEY` counts as
   set explicitly, on a par with a flag: it overrides the key from the file and is written to the file at
   `--save-config`.
@@ -111,7 +111,7 @@ force.
 
 ## 3. Config field ↔ command-line flag
 
-The source of fields is the table `config_file::fields::FIELDS` (`core/config_file/fields/table.rs`):
+The source of fields is the table `config_file::fields::FIELDS` (`core/config/config_file/fields/table.rs`):
 a row per path, the `Mode` (live, restart with or without a prompt, edit only, read only,
 file only) and the value kind. From it come the lists `read_only` and `restart_fields`, the live paths,
 the known section keys, file parsing, file output and the settings' `Debug`; the row order is the order of
@@ -120,24 +120,24 @@ keys in the written file. The column "Read in the node" below is where the node 
 | Config path | Flag | Default | Read in the node |
 |---|---|---|---|
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
-| `transport.mode` | `--relay-only` / `--no-relay` | `direct_and_relay` | `settings.uses_relay()`, `settings.is_relay_only()` (`config_file/net_settings.rs`) |
-| `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`config_file/net_settings.rs`) |
+| `transport.mode` | `--relay-only` / `--no-relay` | `direct_and_relay` | `settings.uses_relay()`, `settings.is_relay_only()` (`core/config/config_file/net_settings.rs`) |
+| `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
-| `checks.enabled` | `--checks` / `--no-checks` | `true` | `settings.checks_enabled` (`config_file/net_settings.rs`) |
-| `checks.interval_sec` | `--check-interval` | 900 | `settings.check_interval()` (`config_file/net_settings.rs`) |
-| `checks.doh_server` | `--check-doh` | `1.1.1.1:443` | `settings.doh_server` (`config_file/net_settings.rs`) |
-| `checks.provider_dns` | `--provider-dns` | `null` | `settings.provider_dns` (`config_file/net_settings.rs`) |
+| `checks.enabled` | `--checks` / `--no-checks` | `true` | `settings.checks_enabled` (`core/config/config_file/net_settings.rs`) |
+| `checks.interval_sec` | `--check-interval` | 900 | `settings.check_interval()` (`core/config/config_file/net_settings.rs`) |
+| `checks.doh_server` | `--check-doh` | `1.1.1.1:443` | `settings.doh_server` (`core/config/config_file/net_settings.rs`) |
+| `checks.provider_dns` | `--provider-dns` | `null` | `settings.provider_dns` (`core/config/config_file/net_settings.rs`) |
 | `checks.geo_markers` | no flag (file only) | `[]` | the domain check, see the section below |
-| `probe.interval_sec` | `--probe-interval` | 300 | `settings.probe_interval()` (`config_file/net_settings.rs`) |
+| `probe.interval_sec` | `--probe-interval` | 300 | `settings.probe_interval()` (`core/config/config_file/net_settings.rs`) |
 | `probe.full_cycle` | `--probe-full-cycle` | `false` | 1 MiB in the probe round to all peers; without the flag — only to the chosen exit (`route.exits`) |
-| `route.exits` | no flag | `[]` | `settings.route_exits` (`config_file/net_settings.rs`) |
-| `ports.published` | no flag | `[]` | `settings.ports_published` (`config_file/net_settings.rs`) |
-| `ports.opened` | no flag | `[]` | `settings.ports_opened` (`config_file/net_settings.rs`) |
-| `web.enabled` | no flag | `true` | `core/web` |
-| `web.port` | `--web-port` | 7777 | `core/web` |
-| `web.access` | no flag (command `meshtown access localhost\|localnet`) | `"localnet"` | `core/web/auth/access.rs` (section 8.1) |
-| `log.ring_lines` | no flag | 2000 | `core/web` |
+| `route.exits` | no flag | `[]` | `settings.route_exits` (`core/config/config_file/net_settings.rs`) |
+| `ports.published` | no flag | `[]` | `settings.ports_published` (`core/config/config_file/net_settings.rs`) |
+| `ports.opened` | no flag | `[]` | `settings.ports_opened` (`core/config/config_file/net_settings.rs`) |
+| `web.enabled` | no flag | `true` | `core/web_gui` |
+| `web.port` | `--web-port` | 7777 | `core/web_gui` |
+| `web.access` | no flag (command `meshtown access localhost\|localnet`) | `"localnet"` | `core/web_gui/auth/access.rs` (section 8.1) |
+| `log.ring_lines` | no flag | 2000 | `core/web_gui` |
 | `node.name` | no flag | a name from a pair of pool words (`words.rs`) | node identity |
 | `net.transports`, `net.discovery`, `net.sync` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"` | section 8.3 |
 
@@ -169,8 +169,8 @@ What is **not** stored in the file even though a flag exists:
 
 Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
 a positive form it is impossible to start once with SOCKS on when it is off in the file.
-Today the code has only the negative ones (`core/main.rs`). The `no_relay` mode
-(`NetSettings::uses_relay`/`is_relay_only` in `core/config_file/net_settings.rs`) is entirely unreachable from the command line today — the `--no-relay` flag is added
+Today the code has only the negative ones (`core/cli/args.rs`). The `no_relay` mode
+(`NetSettings::uses_relay`/`is_relay_only` in `core/config/config_file/net_settings.rs`) is entirely unreachable from the command line today — the `--no-relay` flag is added
 together with the `transport.mode` field.
 
 ---
@@ -379,7 +379,7 @@ the settings of a running node is the page.
 
 **The network key is stored in the config** (there is no separate
 `network-key` file). It is taken the same way as settings: `--key` or `MESHTOWN_KEY` is stronger than the file
-(`core/main.rs`). If there is neither, and the file has no key, the node comes up without a network and
+(`core/config/config_file/overrides.rs`). If there is neither, and the file has no key, the node comes up without a network and
 shows the page: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network by itself.
 
 The open question ("does the network key get into the backup file") stays open

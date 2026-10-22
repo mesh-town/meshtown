@@ -2,8 +2,8 @@
 //! and the behavior with an empty network and a broadcast error. Its own `Membership` records the broadcast bodies.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::net::{BoxFuture, Membership, NetError, NetResult, SwarmEvent};
+use crate::transport::net::contract::pid;
+use crate::transport::net::{BoxFuture, Membership, NetError, NetResult, SwarmEvent};
 use bytes::Bytes;
 use std::sync::Mutex;
 use tokio::sync::broadcast;
@@ -15,7 +15,10 @@ struct Recorder {
 
 impl Recorder {
     fn new(fail: bool) -> Self {
-        Self { bodies: Mutex::new(Vec::new()), fail }
+        Self {
+            bodies: Mutex::new(Vec::new()),
+            fail,
+        }
     }
     fn bodies(&self) -> Vec<String> {
         self.bodies.lock().unwrap().clone()
@@ -27,9 +30,18 @@ impl Membership for Recorder {
         Box::pin(async { Ok(()) })
     }
     fn broadcast(&self, msg: Bytes) -> BoxFuture<'_, NetResult<()>> {
-        self.bodies.lock().unwrap().push(String::from_utf8(msg.to_vec()).unwrap());
+        self.bodies
+            .lock()
+            .unwrap()
+            .push(String::from_utf8(msg.to_vec()).unwrap());
         let fail = self.fail;
-        Box::pin(async move { if fail { Err(NetError::Closed) } else { Ok(()) } })
+        Box::pin(async move {
+            if fail {
+                Err(NetError::Closed)
+            } else {
+                Ok(())
+            }
+        })
     }
     fn subscribe(&self) -> broadcast::Receiver<SwarmEvent> {
         broadcast::channel(1).1
@@ -43,7 +55,10 @@ fn members_with_one() -> Members {
 }
 
 fn hello_text(n: u64) -> String {
-    format!("hello from {} #{n}", crate::output::short_peer_id(&pid(1)))
+    format!(
+        "hello from {} #{n}",
+        crate::node::output::short_peer_id(&pid(1))
+    )
 }
 
 #[tokio::test]
@@ -68,7 +83,13 @@ async fn hello_text_is_ten_lowercase_hex_and_counter_grows() {
     assert_eq!((first, second), (1, 2));
     assert_eq!(swarm.bodies(), vec![hello_text(1), hello_text(2)]);
     let hex = swarm.bodies()[0].split(' ').nth(2).unwrap().to_string();
-    assert!(hex.len() == 10 && hex.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)), "id: {hex}");
+    assert!(
+        hex.len() == 10
+            && hex
+                .chars()
+                .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)),
+        "id: {hex}"
+    );
 }
 
 #[tokio::test]

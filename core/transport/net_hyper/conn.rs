@@ -9,21 +9,21 @@ mod hs;
 
 use hs::{expect_ack, send_header};
 
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::link::LinkInfo;
-use crate::net::stream::{BoxFuture, StreamPair};
-use crate::net::transport::PeerConn;
-use crate::net_hyper::link::{link_info, LinkMeter, Metered};
-use crate::net_hyper::table::{SessionKey, Sessions};
-use crate::net_hyper::wire::{write_reply, Header, Owner, Reply};
-use crate::net_hyper::wire::REASON_MAX_BYTES;
-use crate::net_hyper::wire::Ctrl;
-use townjump_dht::Duplex;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::LinkInfo;
+use crate::transport::net::stream::{BoxFuture, StreamPair};
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net_hyper::link::{link_info, LinkMeter, Metered};
+use crate::transport::net_hyper::table::{SessionKey, Sessions};
+use crate::transport::net_hyper::wire::Ctrl;
+use crate::transport::net_hyper::wire::REASON_MAX_BYTES;
+use crate::transport::net_hyper::wire::{write_reply, Header, Owner, Reply};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::sync::{mpsc, watch};
+use townjump_dht::Duplex;
 
 /// How often the control stream sends `Ping`.
 pub const PING_EVERY: Duration = Duration::from_secs(5);
@@ -59,7 +59,11 @@ pub(super) async fn wait_until_closed(rx: &mut watch::Receiver<bool>) {
 
 impl HyperSessionState {
     fn key(&self) -> SessionKey {
-        SessionKey { peer: self.peer, session: self.session, numbered_by_us: self.numbered_by_us }
+        SessionKey {
+            peer: self.peer,
+            session: self.session,
+            numbered_by_us: self.numbered_by_us,
+        }
     }
 
     fn subscribe(&self) -> watch::Receiver<bool> {
@@ -90,7 +94,13 @@ impl HyperSessionState {
     /// Closes the session on a frame or on the other side dropping; always `false`.
     pub(super) fn close_remote(&self, code: u32, reason: &[u8]) -> bool {
         if self.close.set((code, reason.to_vec())).is_ok() {
-            close_log::say_close(&self.peer, self.session, close_log::Side::Peer, code, reason);
+            close_log::say_close(
+                &self.peer,
+                self.session,
+                close_log::Side::Peer,
+                code,
+                reason,
+            );
             self.announce();
         }
         false
@@ -109,14 +119,24 @@ impl HyperSessionState {
 
     async fn open_stream(&self) -> NetResult<StreamPair> {
         let mut stream = self.dialer.dial(self.peer).await?;
-        send_header(&mut stream, &Header::Stream { session: self.session, owner: self.owner() }).await?;
+        send_header(
+            &mut stream,
+            &Header::Stream {
+                session: self.session,
+                owner: self.owner(),
+            },
+        )
+        .await?;
         expect_ack(&mut stream).await?;
         Ok(self.metered(stream))
     }
 
     fn metered(&self, stream: Box<dyn Duplex>) -> StreamPair {
         let (r, w) = tokio::io::split(stream);
-        self.meter_pair(StreamPair { send: Box::new(w), recv: Box::new(r) })
+        self.meter_pair(StreamPair {
+            send: Box::new(w),
+            recv: Box::new(r),
+        })
     }
 
     /// Wraps both halves of the stream with the session counter (for accepted streams too).
@@ -141,25 +161,43 @@ impl Drop for HyperConn {
 }
 
 /// Creates the session and the table entry; the control stream is not started yet.
-fn register(peer: PeerId, session: u64, numbered_by_us: bool, dialer: Arc<dyn StreamDialer>, table: Arc<Sessions>)
-    -> (Arc<HyperConn>, mpsc::UnboundedReceiver<Ctrl>)
-{
+fn register(
+    peer: PeerId,
+    session: u64,
+    numbered_by_us: bool,
+    dialer: Arc<dyn StreamDialer>,
+    table: Arc<Sessions>,
+) -> (Arc<HyperConn>, mpsc::UnboundedReceiver<Ctrl>) {
     let (out, out_rx) = mpsc::unbounded_channel();
     let (tx, rx) = mpsc::channel(STREAM_QUEUE);
     let core = Arc::new(HyperSessionState {
-        peer, session, numbered_by_us, dialer, table, out,
+        peer,
+        session,
+        numbered_by_us,
+        dialer,
+        table,
+        out,
         meter: Arc::new(LinkMeter::new()),
         close: OnceLock::new(),
         closed_tx: watch::channel(false).0,
     });
     core.table.insert(core.key(), tx);
-    (Arc::new(HyperConn { core, accept_rx: tokio::sync::Mutex::new(rx) }), out_rx)
+    (
+        Arc::new(HyperConn {
+            core,
+            accept_rx: tokio::sync::Mutex::new(rx),
+        }),
+        out_rx,
+    )
 }
 
 /// Result of the exchange: `Ack` received (sent) — the loops are running, otherwise the session is forgotten.
-fn start_loops_or_forget_session(conn: Arc<HyperConn>, ctrl: Box<dyn Duplex>, out: mpsc::UnboundedReceiver<Ctrl>, res: NetResult<()>)
-    -> NetResult<Arc<HyperConn>>
-{
+fn start_loops_or_forget_session(
+    conn: Arc<HyperConn>,
+    ctrl: Box<dyn Duplex>,
+    out: mpsc::UnboundedReceiver<Ctrl>,
+    res: NetResult<()>,
+) -> NetResult<Arc<HyperConn>> {
     match res {
         Ok(()) => {
             conn.core.meter.mark_established();
@@ -183,7 +221,10 @@ pub async fn establish_dialed_session(
     table: Arc<Sessions>,
 ) -> NetResult<Arc<HyperConn>> {
     let (conn, out) = register(peer, session, true, dialer, table);
-    let open = Header::Open { session, service_name: service_name.to_vec() };
+    let open = Header::Open {
+        session,
+        service_name: service_name.to_vec(),
+    };
     let res = match send_header(&mut ctrl, &open).await {
         Ok(()) => expect_ack(&mut ctrl).await,
         Err(e) => Err(e),
@@ -277,7 +318,9 @@ impl PeerConn for HyperConn {
     }
 
     fn close_reason(&self) -> String {
-        let text = |(code, reason): &(u32, Vec<u8>)| format!("code {code}: {}", String::from_utf8_lossy(reason));
+        let text = |(code, reason): &(u32, Vec<u8>)| {
+            format!("code {code}: {}", String::from_utf8_lossy(reason))
+        };
         self.core.close.get().map(text).unwrap_or_default()
     }
 }

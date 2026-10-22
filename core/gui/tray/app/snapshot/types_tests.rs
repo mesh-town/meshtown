@@ -1,7 +1,7 @@
 //! Tests of the snapshot selection: malformed input shapes do not break parsing and give the same field default.
 
 use super::*;
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 use serde_json::json;
 
 fn snap(value: serde_json::Value) -> TraySnapshot {
@@ -65,7 +65,10 @@ fn peers_not_array_is_none_empty_is_some() {
 #[test]
 fn peer_not_object_is_default_peer() {
     let s = snap(json!({"peers": [5, [true, true, true]]}));
-    assert_eq!(s.peers, Some(vec![TrayPeer::default(), TrayPeer::default()]));
+    assert_eq!(
+        s.peers,
+        Some(vec![TrayPeer::default(), TrayPeer::default()])
+    );
 }
 
 #[test]
@@ -90,7 +93,10 @@ fn peer_self_absent_is_foreign() {
 
 #[test]
 fn exit_clients_bad_shapes() {
-    assert!(snap(json!({"exit": {"clients": "a"}})).exit.clients.is_empty());
+    assert!(snap(json!({"exit": {"clients": "a"}}))
+        .exit
+        .clients
+        .is_empty());
     let s = snap(json!({"exit": {"clients": ["a", 5, "b"]}}));
     assert_eq!(s.exit.clients, vec!["a".to_string(), "b".to_string()]);
 }
@@ -139,14 +145,24 @@ fn rates_of_wrong_type_are_none() {
 #[test]
 fn members_read_voting_and_exclusion() {
     let s = snap(json!({"members": {"voting": 3, "me_excluded": true, "count": 5}}));
-    assert_eq!(s.members, TrayMembers { voting: 3, me_excluded: true, ..TrayMembers::default() });
+    assert_eq!(
+        s.members,
+        TrayMembers {
+            voting: 3,
+            me_excluded: true,
+            ..TrayMembers::default()
+        }
+    );
 }
 
 #[test]
 fn members_missing_or_foreign_types_give_defaults() {
     assert_eq!(snap(json!({})).members, TrayMembers::default());
     for members in [json!(5), json!(null), json!([1]), json!("x")] {
-        assert_eq!(snap(json!({"members": members})).members, TrayMembers::default());
+        assert_eq!(
+            snap(json!({"members": members})).members,
+            TrayMembers::default()
+        );
     }
     let s = snap(json!({"members": {"voting": "2", "me_excluded": "yes"}}));
     assert_eq!(s.members, TrayMembers::default());

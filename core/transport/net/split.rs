@@ -1,15 +1,15 @@
 //! `SplitTransport`: a transport made of a "connector + carrier" pair.
 //! The connector finds a path, the carrier builds a data stream on it; there is no protocol of its own here.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::carrier::{Carrier, CarrierRole};
-use crate::net::connect::{Connector, PacketPath};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::link::NetInfo;
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::{PeerConn, Transport};
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::carrier::{Carrier, CarrierRole};
+use crate::transport::net::connect::{Connector, PacketPath};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::{PeerConn, Transport};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::sync::mpsc;
@@ -37,7 +37,10 @@ async fn accept_one(
     served_service_ids: Arc<[ServiceId]>,
     out: mpsc::Sender<Incoming>,
 ) {
-    let Ok(done) = carrier.start(path, CarrierRole::Accept(served_service_ids)).await else {
+    let Ok(done) = carrier
+        .start(path, CarrierRole::Accept(served_service_ids))
+        .await
+    else {
         return;
     };
     let _ = out.send(done).await;
@@ -53,8 +56,16 @@ async fn accept_loop(
     let mut set = JoinSet::new();
     while let Some(path) = connector.listen().await {
         while set.try_join_next().is_some() {}
-        let served_service_ids = served_service_ids.read().unwrap_or_else(|e| e.into_inner()).clone();
-        set.spawn(accept_one(carrier.clone(), path, served_service_ids, out.clone()));
+        let served_service_ids = served_service_ids
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        set.spawn(accept_one(
+            carrier.clone(),
+            path,
+            served_service_ids,
+            out.clone(),
+        ));
     }
 }
 
@@ -62,7 +73,8 @@ impl SplitTransport {
     /// Requires a tokio runtime: spawns the accept loop.
     pub fn new(me: PeerId, connector: Arc<dyn Connector>, carrier: Arc<dyn Carrier>) -> Self {
         debug_assert!(me == connector.local_addr().id);
-        let served_service_ids: Arc<RwLock<Arc<[ServiceId]>>> = Arc::new(RwLock::new(Arc::from([])));
+        let served_service_ids: Arc<RwLock<Arc<[ServiceId]>>> =
+            Arc::new(RwLock::new(Arc::from([])));
         let (out, rx) = mpsc::channel(ACCEPT_QUEUE);
         let task = tokio::spawn(accept_loop(
             connector.clone(),
@@ -139,7 +151,10 @@ impl Transport for SplitTransport {
     }
 
     fn serve(&self, svcs: &[ServiceId]) {
-        let mut cur = self.served_service_ids.write().unwrap_or_else(|e| e.into_inner());
+        let mut cur = self
+            .served_service_ids
+            .write()
+            .unwrap_or_else(|e| e.into_inner());
         *cur = Arc::from(svcs);
     }
 

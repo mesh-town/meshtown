@@ -6,7 +6,7 @@
 //! factor: 7× for 36 px, 11× for 22 px, centered on a transparent canvas), then two contact sheets:
 //! `sheet-light.png` and `sheet-dark.png` (a light and a dark menu bar). All PNGs are transparent,
 //! except the sheets.
-//! What it doesn't do: it doesn't change the drawing code and doesn't copy it: the files `core/app/{view_ring,
+//! What it doesn't do: it doesn't change the drawing code and doesn't copy it: the files `core/gui/tray/app/{view_ring,
 //! view_ring_paint,view,exit_menu}.rs` are included in the example as is (`#[path]`), because
 //! they live in the binary, not in a library. This is an example, not a test: it is not part of the `cargo test`
 //! run and is run by hand.
@@ -25,6 +25,15 @@ mod png;
 mod sheet;
 
 mod app;
+
+// The included tray files address each other and the library as `crate::...`;
+// these lines provide those paths in the example crate.
+mod gui {
+    pub(crate) mod tray {
+        pub(crate) use crate::app;
+    }
+}
+use meshtown_core::{node, web_gui};
 
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
@@ -106,7 +115,11 @@ fn cases() -> Vec<Case> {
         lit: None,
     });
     for (slug, k) in [("spin-lit0", 0), ("spin-lit3", 3)] {
-        all.push(Case { slug, ring: ring_of(&[(RingRole::Offline, 8)]), lit: Some(k) });
+        all.push(Case {
+            slug,
+            ring: ring_of(&[(RingRole::Offline, 8)]),
+            lit: Some(k),
+        });
     }
     all
 }

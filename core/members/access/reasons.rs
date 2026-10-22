@@ -6,16 +6,20 @@
 
 use std::collections::BTreeMap;
 
-use crate::net::{PeerId, ReplicaEntry};
+use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::record::{admit_key, exclude_key, parse_entry, AclKind, AclValue, Parsed, MAX_NOTE_CHARS};
+use super::record::{
+    admit_key, exclude_key, parse_entry, AclKind, AclValue, Parsed, MAX_NOTE_CHARS,
+};
 use super::tally::Ledger;
 
 /// Per pending subject, the shown reason of its proposer.
 pub(super) fn reasons_of(ledger: &Ledger, entries: &[ReplicaEntry]) -> BTreeMap<PeerId, String> {
     let reason = |(subject, pending): (&PeerId, &super::tally::PendingVote)| {
         let proposer = pending.voters.first()?;
-        let entry = entries.iter().find(|e| e.author == *proposer && e.key == exclude_key(subject))?;
+        let entry = entries
+            .iter()
+            .find(|e| e.author == *proposer && e.key == exclude_key(subject))?;
         Some((*subject, shown(note_of(entry)?)?))
     };
     ledger.pending.iter().filter_map(reason).collect()
@@ -36,9 +40,16 @@ pub(super) fn label_admissions(ledger: &mut Ledger, entries: &[ReplicaEntry]) {
     }
 }
 
-fn label_of(subject: &PeerId, admitted: &std::collections::BTreeSet<PeerId>, entries: &[ReplicaEntry]) -> Option<String> {
+fn label_of(
+    subject: &PeerId,
+    admitted: &std::collections::BTreeSet<PeerId>,
+    entries: &[ReplicaEntry],
+) -> Option<String> {
     let key = admit_key(subject);
-    let notes = entries.iter().filter(|e| e.key == key && admitted.contains(&e.author)).filter_map(admit_note);
+    let notes = entries
+        .iter()
+        .filter(|e| e.key == key && admitted.contains(&e.author))
+        .filter_map(admit_note);
     let newest = notes.max_by_key(|(made, _)| *made)?;
     shown(newest.1)
 }
@@ -46,9 +57,16 @@ fn label_of(subject: &PeerId, admitted: &std::collections::BTreeSet<PeerId>, ent
 /// `(made_unix, note)` of a readable admit record with a non-blank note.
 fn admit_note(entry: &ReplicaEntry) -> Option<(u64, String)> {
     match parse_entry(entry) {
-        Parsed::Record { value: AclValue { kind: AclKind::Admit, made_unix, note, .. }, .. } if !note.trim().is_empty() => {
-            Some((made_unix, note))
-        }
+        Parsed::Record {
+            value:
+                AclValue {
+                    kind: AclKind::Admit,
+                    made_unix,
+                    note,
+                    ..
+                },
+            ..
+        } if !note.trim().is_empty() => Some((made_unix, note)),
         _ => None,
     }
 }
@@ -63,7 +81,9 @@ fn note_of(entry: &ReplicaEntry) -> Option<String> {
 /// The trimmed note when it may be shown.
 fn shown(note: String) -> Option<String> {
     let text = note.trim();
-    let fit = !text.is_empty() && text.chars().count() <= MAX_NOTE_CHARS && !text.chars().any(char::is_control);
+    let fit = !text.is_empty()
+        && text.chars().count() <= MAX_NOTE_CHARS
+        && !text.chars().any(char::is_control);
     fit.then(|| text.to_string())
 }
 

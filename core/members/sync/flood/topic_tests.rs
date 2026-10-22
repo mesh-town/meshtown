@@ -1,16 +1,16 @@
 //! Tests for the topic actor on `mem`: joining a topic, admission, flooding. Breaks and silence are in `topic_down_tests.rs`.
 
 use super::test_support::{
-    fast, introduce, is_received, is_up, mem_node, next, probe, quiet, received_count, wait_ups, FloodNode,
-    Rig, NETWORK, TOPIC,
+    fast, introduce, is_received, is_up, mem_node, next, probe, quiet, received_count, wait_ups,
+    FloodNode, Rig, NETWORK, TOPIC,
 };
 use super::wire::MAX_BODY_BYTES;
 use super::Tuning;
-use crate::net::contract::secret;
-use crate::net::contract::{pid, must_finish, SEED_A, SEED_B, SEED_C};
-use crate::net::id::PeerId;
-use crate::net::sync_backend::{Swarm, SyncBackend, SyncCtx};
-use crate::net::{NetError, SwarmEvent};
+use crate::transport::net::contract::secret;
+use crate::transport::net::contract::{must_finish, pid, SEED_A, SEED_B, SEED_C};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::sync_backend::{Swarm, SyncBackend, SyncCtx};
+use crate::transport::net::{NetError, SwarmEvent};
 use bytes::Bytes;
 use std::sync::Arc;
 
@@ -76,7 +76,11 @@ mod join {
         // then: Ok, no events
         assert!(joined.is_ok(), "join of itself returned {joined:?}");
         assert!(quiet(&mut sa.events).await.is_empty(), "an event appeared");
-        assert_eq!(probe(&a, TOPIC).await.dials, 0, "a dial to itself was created");
+        assert_eq!(
+            probe(&a, TOPIC).await.dials,
+            0,
+            "a dial to itself was created"
+        );
     }
 
     #[tokio::test]
@@ -93,13 +97,20 @@ mod join {
         // when: we join a topic with peer B
         let joined = must_finish(sync.join_swarm(TOPIC, &[pid(SEED_B)])).await;
         // then: Config
-        assert!(matches!(joined, Err(NetError::Config(_))), "expected Config");
+        assert!(
+            matches!(joined, Err(NetError::Config(_))),
+            "expected Config"
+        );
         // and after the stack is attached the same topic opens: the actor of the failed join does not hold it
         let rig2 = Rig::new();
         let stack = rig2.node(SEED_A).stack;
         sync.attach_stack(stack.downgrade());
         let again = must_finish(sync.join_swarm(TOPIC, &[pid(SEED_B)])).await;
-        assert!(again.is_ok(), "the repeated join returned {:?}", again.err());
+        assert!(
+            again.is_ok(),
+            "the repeated join returned {:?}",
+            again.err()
+        );
     }
 
     #[tokio::test]
@@ -154,8 +165,14 @@ mod admit {
         let _sb = open(&b, &[pid(SEED_A)]).await;
         // then: A has an Up only from B (control: the dials arrive), C has no events
         let (seen_a, seen_c) = (quiet(&mut sa.events).await, quiet(&mut sc.events).await);
-        assert!(seen_a.iter().any(is_up(pid(SEED_B))), "control: no Up(B) {seen_a:?}");
-        assert!(!seen_a.iter().any(is_up(pid(SEED_C))), "Up(C) at A {seen_a:?}");
+        assert!(
+            seen_a.iter().any(is_up(pid(SEED_B))),
+            "control: no Up(B) {seen_a:?}"
+        );
+        assert!(
+            !seen_a.iter().any(is_up(pid(SEED_C))),
+            "Up(C) at A {seen_a:?}"
+        );
         assert!(seen_c.is_empty(), "events at C {seen_c:?}");
     }
 }
@@ -165,7 +182,10 @@ mod flood {
 
     /// Line A–B–C: A and C do not know each other's addresses. `ttl` is A's.
     async fn line(rig: &Rig, ttl: u8) -> ([FloodNode; 3], Swarm, Swarm, Swarm) {
-        let t = Tuning { ttl_hops: ttl, ..fast() };
+        let t = Tuning {
+            ttl_hops: ttl,
+            ..fast()
+        };
         let a = mem_node(&rig.net, &rig.hub, SEED_A, NETWORK, t);
         let (b, c) = (rig.node(SEED_B), rig.node(SEED_C));
         introduce(&a, &b);

@@ -6,7 +6,9 @@ use serde_json::Value;
 
 /// A shim with the old name: tests supply JSON, the code reads the selection.
 fn facts_from_json(value: &serde_json::Value) -> Option<ColorFacts> {
-    color_facts(&crate::app::snapshot::TraySnapshot::from_value(value))
+    color_facts(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 const API_EXAMPLE: &str = r#"{

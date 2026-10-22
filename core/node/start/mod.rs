@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 
-use crate::net::NetStack;
+use crate::transport::net::NetStack;
 
 use super::config::NodeConfig;
 use super::running::RunningNode;
@@ -38,7 +38,13 @@ pub async fn start_node(cfg: NodeConfig) -> Result<RunningNode> {
     let (net, inbound) = spawn_network(&cfg, &boot).await?;
     let (serving, entry_points) =
         close_on_err(&net.stack, wire_up(&cfg, &mut boot, &net, inbound)).await?;
-    Ok(assemble_running(boot, net, serving, entry_points, (cfg.socks.access, cfg.socks.ifaces.clone())))
+    Ok(assemble_running(
+        boot,
+        net,
+        serving,
+        entry_points,
+        (cfg.socks.access, cfg.socks.ifaces.clone()),
+    ))
 }
 
 /// Awaits a phase; a phase error closes the stack and is returned as is, success leaves the stack alone.
@@ -57,7 +63,10 @@ fn assemble_running(
     net: network::Net,
     serving: serving::Serving,
     entry_points: entry::EntryPoints,
-    (socks_access, socks_ifaces): (crate::config_file::ListenAccess, crate::config_file::IfaceFilter),
+    (socks_access, socks_ifaces): (
+        crate::config::config_file::ListenAccess,
+        crate::config::config_file::IfaceFilter,
+    ),
 ) -> RunningNode {
     RunningNode {
         id: boot.id,

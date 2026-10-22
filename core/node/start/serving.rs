@@ -5,29 +5,29 @@ use std::collections::HashSet;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-use crate::net::{NetError, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{NetError, REPLICA_DOMAINS, REPLICA_NET};
 use anyhow::Result;
 use tokio::net::TcpListener;
 
-use crate::access::runtime::Access;
-use crate::checks::{self, Checks, Schedule};
-use crate::domains::{self, DomainList};
 use crate::exit::PeerConnPool;
-use crate::geoip;
 use crate::invite::store::Ledger;
-use crate::node_state;
-use crate::output::say;
-use crate::ports::announce::run_announce;
-use crate::ports::open::Opener;
-use crate::ports::PortsDoc;
-use crate::node_name;
-use crate::program_version;
+use crate::members::access::runtime::Access;
+use crate::node::node_name;
+use crate::node::node_state;
+use crate::node::output::say;
+use crate::node::program_version;
+use crate::ports_sharing::announce::run_announce;
+use crate::ports_sharing::open::Opener;
+use crate::ports_sharing::PortsDoc;
+use crate::proxy::domains::{self, DomainList};
+use crate::proxy::route::RouteCtx;
 use crate::proxy::{self, ProxyConfig};
-use crate::route::RouteCtx;
-use crate::web::auth::iface_nets::admitted_lan;
-use crate::web::auth::iface_os::current_view;
+use crate::site_checks::checks::{self, Checks, Schedule};
+use crate::site_checks::geoip;
+use crate::web_gui::auth::iface_nets::admitted_lan;
+use crate::web_gui::auth::iface_os::current_view;
 
-use crate::config_file::ListenAccess;
+use crate::config::config_file::ListenAccess;
 use crate::node::config::NodeConfig;
 use crate::node::socks_task::SocksTask;
 use crate::node::DocChanges;
@@ -62,7 +62,9 @@ fn spawn_announcements(boot: &mut Boot, domain_list: &DomainList, net: &Net) {
 
 /// The node's country poll goes through the first transport (the list is non-empty after `check_transport_names`).
 fn spawn_country_check(cfg: &NodeConfig, boot: &mut Boot, domain_list: &DomainList) {
-    let Some(transport) = boot.transports.first().filter(|_| cfg.geoip) else { return };
+    let Some(transport) = boot.transports.first().filter(|_| cfg.geoip) else {
+        return;
+    };
     let task = geoip::spawn_country_check(transport.clone(), domain_list);
     boot.background_abort_handles.push(task);
 }
@@ -88,7 +90,9 @@ pub(super) async fn setup_serving(
         net.route_exits.clone(),
     );
     let (socks_addr, socks_task) = spawn_socks_server(cfg, boot, net, &route)?
-        .map_or((None, SocksTask::default()), |(addr, task)| (Some(addr), task));
+        .map_or((None, SocksTask::default()), |(addr, task)| {
+            (Some(addr), task)
+        });
 
     let (ports_doc, opener) = setup_ports(cfg, boot, net, &domain_list);
 
@@ -113,9 +117,8 @@ fn setup_ports(
     domain_list: &DomainList,
 ) -> (PortsDoc, Opener) {
     let ports_doc = PortsDoc::new(domain_list.shared_replica());
-    boot.background_abort_handles.push(
-        tokio::spawn(run_announce(ports_doc.clone(), net.ports.clone())).abort_handle(),
-    );
+    boot.background_abort_handles
+        .push(tokio::spawn(run_announce(ports_doc.clone(), net.ports.clone())).abort_handle());
     let opener = Opener::new(net.stack.clone(), net.members.clone());
     opener.reconcile_listeners(cfg.settings.ports_opened.clone());
     (ports_doc, opener)
@@ -130,8 +133,14 @@ async fn open_domain_list(
 ) -> Result<(DomainList, Arc<DocChanges>, Arc<Access>)> {
     let sync = net.sync_backend.as_ref();
     let doc_changes = Arc::new(DocChanges::default());
-    let shared = sync.open_replica(REPLICA_NET).await.map_err(NetError::into_anyhow)?;
-    let own = sync.open_replica(REPLICA_DOMAINS).await.map_err(NetError::into_anyhow)?;
+    let shared = sync
+        .open_replica(REPLICA_NET)
+        .await
+        .map_err(NetError::into_anyhow)?;
+    let own = sync
+        .open_replica(REPLICA_DOMAINS)
+        .await
+        .map_err(NetError::into_anyhow)?;
     let domain_list = DomainList::open(shared, own).await?;
     say(
         "docs",
@@ -199,9 +208,22 @@ fn spawn_socks_server(
     route: &RouteCtx,
 ) -> Result<Option<(SocketAddr, SocksTask)>> {
     let socks_off = socks_off_line(cfg.socks_off_by_flag);
-    let socks = serve_socks(boot.socks_listener.take(), route, net, (socks_off, proxy::Admission { access: cfg.socks.access, ifaces: cfg.socks.ifaces.clone() }))?;
+    let socks = serve_socks(
+        boot.socks_listener.take(),
+        route,
+        net,
+        (
+            socks_off,
+            proxy::Admission {
+                access: cfg.socks.access,
+                ifaces: cfg.socks.ifaces.clone(),
+            },
+        ),
+    )?;
     say("exit", exit_line(cfg.settings.exit_enabled));
-    blocked_line(&net.blocked_domains).into_iter().for_each(|line| say("route", line));
+    blocked_line(&net.blocked_domains)
+        .into_iter()
+        .for_each(|line| say("route", line));
     Ok(socks)
 }
 
@@ -227,9 +249,15 @@ fn serve_socks(
     };
     let (access, lan) = (adm.access, lan_line(&adm, bound.port()));
     let task = SocksTask::new(tokio::spawn(proxy::serve_proxy(listener, proxy_cfg, adm)));
-    say("socks", format!("accepting connections on {bound}{}", access_note(access)));
+    say(
+        "socks",
+        format!("accepting connections on {bound}{}", access_note(access)),
+    );
     lan.into_iter().for_each(|line| say("socks", line));
-    Ok(Some((SocketAddr::from((Ipv4Addr::LOCALHOST, bound.port())), task)))
+    Ok(Some((
+        SocketAddr::from((Ipv4Addr::LOCALHOST, bound.port())),
+        task,
+    )))
 }
 
 /// A note for the log line: in local-network mode the proxy has no password.
@@ -243,7 +271,7 @@ fn access_note(access: ListenAccess) -> &'static str {
 /// A log line with addresses for the network's devices; only in `localnet` mode.
 fn lan_line(adm: &proxy::Admission, port: u16) -> Option<String> {
     (adm.access == ListenAccess::Localnet).then(|| {
-        let all = crate::web::auth::access::lan_addrs();
+        let all = crate::web_gui::auth::access::lan_addrs();
         let open = admitted_lan(adm.access, &adm.ifaces, &current_view(), all);
         let list: Vec<String> = open
             .into_iter()
@@ -259,7 +287,10 @@ fn lan_line(adm: &proxy::Admission, port: u16) -> Option<String> {
 /// A log line about exit work.
 fn exit_line(exit_enabled: bool) -> String {
     match exit_enabled {
-        true => format!("serving as exit for members of network {}", crate::output::NET_NAME),
+        true => format!(
+            "serving as exit for members of network {}",
+            crate::node::output::NET_NAME
+        ),
         false => "not serving as exit (--no-exit)".to_string(),
     }
 }

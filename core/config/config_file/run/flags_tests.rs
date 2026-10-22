@@ -5,14 +5,14 @@
 use std::path::Path;
 
 use super::*;
-use crate::config_file::overrides::CliOverrides;
-use crate::config_file::parse::{load_config_file, LoadedConfigFile, SecretRead};
-use crate::config_file::path::{ConfigSource, PathRule};
-use crate::config_file::report::FileState;
-use crate::config_file::save::save_config_file;
-use crate::config_file::settings::Settings;
-use crate::config_file::test_support::{parsed, scratch, secret_of, test_secret};
-use crate::config_file::FILE_NAME;
+use crate::config::config_file::overrides::CliOverrides;
+use crate::config::config_file::parse::{load_config_file, LoadedConfigFile, SecretRead};
+use crate::config::config_file::path::{ConfigSource, PathRule};
+use crate::config::config_file::report::FileState;
+use crate::config::config_file::save::save_config_file;
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{parsed, scratch, secret_of, test_secret};
+use crate::config::config_file::FILE_NAME;
 
 const NOW: u64 = 1_790_278_867;
 
@@ -45,10 +45,17 @@ fn save_config_without_file_writes_flags() {
     assert_eq!(run.file_report.state, FileState::Created);
     assert_eq!(run.file_report.rev, 1);
     assert_eq!(on_disk.rev, 1);
-    assert_eq!(on_disk.settings.process.socks_port, 2000, "the flag did not land in the file");
+    assert_eq!(
+        on_disk.settings.process.socks_port, 2000,
+        "the flag did not land in the file"
+    );
     assert_eq!(run.file_settings.process.socks_port, 2000);
     assert_eq!(run.effective_settings.process.socks_port, 2000);
-    assert!(run.cli_override_paths.is_empty(), "list: {:?}", run.cli_override_paths);
+    assert!(
+        run.cli_override_paths.is_empty(),
+        "list: {:?}",
+        run.cli_override_paths
+    );
     assert_eq!(secret_of(&on_disk), run.secret.to_bytes());
 }
 
@@ -76,6 +83,18 @@ fn flags_not_written_without_save_config() {
     assert_eq!(run.file_report.rev, 1);
 }
 
+/// Fails when a marker value of the network key or the node secret shows up in `text`.
+fn assert_clean(what: &str, text: &str) {
+    assert!(
+        !text.contains("MARKER-NETKEY"),
+        "{what}: the network key is in the text: {text}"
+    );
+    assert!(
+        !text.contains("MARKER-SECRET"),
+        "{what}: the node secret is in the text: {text}"
+    );
+}
+
 /// Neither the network key nor the node secret gets into error texts or report `Debug`. Reading
 /// the file accepts `network.key` as a non-empty string, and `prepare` parses the key,
 /// so the message about the key is checked there.
@@ -83,10 +102,6 @@ fn flags_not_written_without_save_config() {
 fn secrets_not_in_messages() {
     const NETKEY: &str = "MARKER-NETKEY-1234567890";
     const SECRET: &str = "MARKER-SECRET-1234567890";
-    fn clean(what: &str, text: &str) {
-        assert!(!text.contains("MARKER-NETKEY"), "{what}: the network key is in the text: {text}");
-        assert!(!text.contains("MARKER-SECRET"), "{what}: the node secret is in the text: {text}");
-    }
     let dir = scratch("no-leak");
     let file = dir.join(FILE_NAME);
     let text = format!(
@@ -96,31 +111,45 @@ fn secrets_not_in_messages() {
     std::fs::write(&file, &text).expect("writing the test file");
 
     let loaded = load_config_file(&file);
-    clean("Debug Loaded", &format!("{loaded:?}"));
+    assert_clean("Debug Loaded", &format!("{loaded:?}"));
     let LoadedConfigFile::Parsed(p) = loaded else {
         panic!("expected Parsed");
     };
     assert!(matches!(&p.secret, SecretRead::Bad(_)), "{:?}", p.secret);
-    clean("Debug Parsed", &format!("{p:?}"));
+    assert_clean("Debug Parsed", &format!("{p:?}"));
     for fe in &p.field_errors {
-        clean(&format!("Parsed.field_errors[{}]", fe.field_path), &fe.message);
+        assert_clean(
+            &format!("Parsed.field_errors[{}]", fe.field_path),
+            &fe.message,
+        );
     }
 
     let run = prepare(&explicit(&file), &CliOverrides::default(), false, NOW).expect("prepare");
     let _ = std::fs::remove_dir_all(&dir);
-    let paths: Vec<&str> = run.file_report.field_errors.iter().map(|e| e.field_path.as_str()).collect();
+    let paths: Vec<&str> = run
+        .file_report
+        .field_errors
+        .iter()
+        .map(|e| e.field_path.as_str())
+        .collect();
     assert!(paths.contains(&"network.key"), "field_errors: {paths:?}");
-    assert!(paths.contains(&"identity.secret"), "field_errors: {paths:?}");
+    assert!(
+        paths.contains(&"identity.secret"),
+        "field_errors: {paths:?}"
+    );
     for fe in &run.file_report.field_errors {
-        clean(&format!("report.field_errors[{}]", fe.field_path), &fe.message);
+        assert_clean(
+            &format!("report.field_errors[{}]", fe.field_path),
+            &fe.message,
+        );
     }
-    clean("Debug FileReport", &format!("{:?}", run.file_report));
-    clean("Debug Settings", &format!("{:?}", run.effective_settings));
-    clean("Debug file Settings", &format!("{:?}", run.file_settings));
+    assert_clean("Debug FileReport", &format!("{:?}", run.file_report));
+    assert_clean("Debug Settings", &format!("{:?}", run.effective_settings));
+    assert_clean("Debug file Settings", &format!("{:?}", run.file_settings));
 
     let cli = CliOverrides {
         network_key: Some(NETKEY.to_string()),
         ..CliOverrides::default()
     };
-    clean("Debug CliOverrides", &format!("{cli:?}"));
+    assert_clean("Debug CliOverrides", &format!("{cli:?}"));
 }

@@ -1,9 +1,9 @@
 use super::*;
-use crate::config_file::settings::Settings;
-use crate::config_file::test_support::{
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{
     clear_readonly, names_in, parsed, sample_settings, scratch, test_secret, zero_secret_b64,
 };
-use crate::config_file::{SecretRead, FILE_NAME};
+use crate::config::config_file::{SecretRead, FILE_NAME};
 
 #[test]
 fn save_then_load_roundtrip() {
@@ -20,7 +20,11 @@ fn save_then_load_roundtrip() {
     }
     assert_eq!(p.settings, s);
     assert_eq!(p.field_errors, vec![]);
-    assert!(p.unknown_paths.is_empty(), "unknown fields: {:?}", p.unknown_paths);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "unknown fields: {:?}",
+        p.unknown_paths
+    );
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -29,8 +33,14 @@ fn save_bumps_rev() {
     let dir = scratch("bumps");
     let file = dir.join(FILE_NAME);
     let s = Settings::default();
-    assert_eq!(save_config_file(&file, None, 1, &test_secret(), &s).expect("save"), 1);
-    assert_eq!(save_config_file(&file, Some(1), 2, &test_secret(), &s).expect("save"), 2);
+    assert_eq!(
+        save_config_file(&file, None, 1, &test_secret(), &s).expect("save"),
+        1
+    );
+    assert_eq!(
+        save_config_file(&file, Some(1), 2, &test_secret(), &s).expect("save"),
+        2
+    );
     assert_eq!(parsed(&file).rev, 2);
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -40,7 +50,10 @@ fn save_stale_rev() {
     let dir = scratch("stale");
     let file = dir.join(FILE_NAME);
     let s = Settings::default();
-    assert_eq!(save_config_file(&file, None, 1, &test_secret(), &s).expect("save"), 1);
+    assert_eq!(
+        save_config_file(&file, None, 1, &test_secret(), &s).expect("save"),
+        1
+    );
     let got = save_config_file(&file, Some(5), 2, &test_secret(), &s);
     assert!(matches!(got, Err(SaveError::StaleRev(1))), "got {got:?}");
     assert_eq!(parsed(&file).rev, 1);
@@ -61,13 +74,23 @@ fn rev_overflow_is_error_not_panic() {
     std::fs::write(&file, &text).expect("writing the test file");
     assert_eq!(parsed(&file).rev, u64::MAX);
     let before = std::fs::read(&file).expect("reading before");
-    let got = save_config_file(&file, Some(u64::MAX), 1, &test_secret(), &Settings::default());
+    let got = save_config_file(
+        &file,
+        Some(u64::MAX),
+        1,
+        &test_secret(),
+        &Settings::default(),
+    );
     let after = std::fs::read(&file).expect("reading after");
     let names = names_in(&dir);
     let _ = std::fs::remove_dir_all(&dir);
     assert!(matches!(got, Err(SaveError::Io(_))), "got {got:?}");
     assert_eq!(after, before, "the file on disk changed");
-    assert_eq!(names, vec![FILE_NAME.to_string()], "the directory has extra files");
+    assert_eq!(
+        names,
+        vec![FILE_NAME.to_string()],
+        "the directory has extra files"
+    );
 }
 
 /// The file vanished or got corrupted between reading and writing: `save_config_file` with an expected revision does not write.
@@ -89,7 +112,11 @@ fn save_stale_when_file_vanished_or_corrupt() {
     let _ = std::fs::remove_dir_all(&dir);
     assert!(matches!(got, Err(SaveError::Io(_))), "got {got:?}");
     assert_eq!(bytes, b"{", "the file on disk changed");
-    assert_eq!(names, vec![FILE_NAME.to_string()], "the directory has extra files");
+    assert_eq!(
+        names,
+        vec![FILE_NAME.to_string()],
+        "the directory has extra files"
+    );
 }
 
 #[cfg(unix)]
@@ -152,7 +179,10 @@ fn save_readonly_dir_fails() {
     let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
     let _ = std::fs::remove_dir_all(&dir);
     assert!(matches!(got, Err(SaveError::Io(_))), "got {got:?}");
-    assert!(names.is_empty(), "files are left in the directory: {names:?}");
+    assert!(
+        names.is_empty(),
+        "files are left in the directory: {names:?}"
+    );
 }
 
 #[test]
@@ -169,7 +199,10 @@ fn unknown_fields_dropped_on_write() {
     save_config_file(&file, Some(p.rev), 1, &test_secret(), &p.settings).expect("save");
     let after = std::fs::read_to_string(&file).expect("reading");
     let _ = std::fs::remove_dir_all(&dir);
-    assert!(!after.contains("zzz"), "the unknown field survived: {after}");
+    assert!(
+        !after.contains("zzz"),
+        "the unknown field survived: {after}"
+    );
 }
 
 #[test]
@@ -193,7 +226,10 @@ fn passthrough_fields_survive() {
     assert_eq!(second.settings.process.web_port, 8080);
     assert!(!second.settings.process.web_enabled);
     assert_eq!(second.settings.process.log_ring_lines, 500);
-    assert_eq!(second.settings.net.node_name.as_deref(), Some("ginger-pool"));
+    assert_eq!(
+        second.settings.net.node_name.as_deref(),
+        Some("ginger-pool")
+    );
 }
 
 #[test]
@@ -218,7 +254,8 @@ fn set_aside_bad_renames() {
 fn save_readonly_file_fails() {
     let dir = scratch("readonly-file");
     let file = dir.join(FILE_NAME);
-    save_config_file(&file, None, 1, &test_secret(), &Settings::default()).expect("saving the original file");
+    save_config_file(&file, None, 1, &test_secret(), &Settings::default())
+        .expect("saving the original file");
     let mut perms = std::fs::metadata(&file).expect("metadata").permissions();
     perms.set_readonly(true);
     std::fs::set_permissions(&file, perms).expect("readonly");

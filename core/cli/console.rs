@@ -6,9 +6,9 @@
 //! Links: started from `node::run_cycles` on the first cycle; repeats `checks::spawn_console`,
 //! which stays in the code until the owner of `checks.rs` edits it.
 
-use crate::checks::{parse_check_line, CheckCommand, Checks};
-use crate::domains::{self, DomainList};
-use crate::output::say;
+use crate::node::output::say;
+use crate::proxy::domains::{self, DomainList};
+use crate::site_checks::checks::{parse_check_line, CheckCommand, Checks};
 
 /// Starts the stdin console of a running node: a thread reading lines plus their dispatch to commands.
 pub fn spawn(

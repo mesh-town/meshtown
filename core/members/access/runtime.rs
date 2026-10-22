@@ -8,14 +8,14 @@ use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use crate::domains::DomainList;
-use crate::membership::Members;
-use crate::net::{NetResult, PeerId, Replica, ReplicaEntry};
-use crate::net_mainline::unix_now;
-use crate::output::say;
+use crate::members::membership::Members;
+use crate::node::output::say;
+use crate::proxy::domains::DomainList;
+use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
+use crate::transport::net_mainline::unix_now;
 
-use super::record::{self, tally_input, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
 use super::reasons::{label_admissions, reasons_of};
+use super::record::{self, tally_input, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
 use super::subjects::live_subjects;
 use super::tally::tally;
 use super::view::{AccessView, Verdicts};
@@ -38,11 +38,28 @@ struct Scan {
 
 impl Access {
     pub fn new(list: &DomainList, members: &Members) -> Access {
-        Access::from_parts(list.me(), list.shared_replica(), list.own_replica(), members.clone())
+        Access::from_parts(
+            list.me(),
+            list.shared_replica(),
+            list.own_replica(),
+            members.clone(),
+        )
     }
 
-    pub fn from_parts(me: PeerId, shared: Arc<dyn Replica>, own: Arc<dyn Replica>, members: Members) -> Access {
-        Access { view: members.access(), shared, own, me, members, ignored_logged: AtomicUsize::new(0) }
+    pub fn from_parts(
+        me: PeerId,
+        shared: Arc<dyn Replica>,
+        own: Arc<dyn Replica>,
+        members: Members,
+    ) -> Access {
+        Access {
+            view: members.access(),
+            shared,
+            own,
+            me,
+            members,
+            ignored_logged: AtomicUsize::new(0),
+        }
     }
 
     /// Recomputes and publishes the verdicts, then writes the missing witnesses. A failed scan leaves
@@ -73,7 +90,13 @@ impl Access {
         let mut ledger = tally(&input);
         label_admissions(&mut ledger, &scan.acl);
         let reasons = reasons_of(&ledger, &scan.acl);
-        let verdicts = Verdicts { me: self.me, ledger: Arc::new(ledger), my_votes, blocks, reasons };
+        let verdicts = Verdicts {
+            me: self.me,
+            ledger: Arc::new(ledger),
+            my_votes,
+            blocks,
+            reasons,
+        };
         let denied = self.view.publish(verdicts.clone());
         self.cut_denied(denied.into_iter().map(|(p, _)| p).collect());
         Ok(Arc::new(verdicts))
@@ -84,13 +107,21 @@ impl Access {
         if self.ignored_logged.swap(ignored, Ordering::Relaxed) == ignored || ignored == 0 {
             return;
         }
-        say("access", format!("acl: {ignored} list records ignored (unreadable or foreign)"));
+        say(
+            "access",
+            format!("acl: {ignored} list records ignored (unreadable or foreign)"),
+        );
     }
 
     /// Closes the connections of the newly denied nodes and of every connected node that is denied now.
     fn cut_denied(&self, newly: Vec<PeerId>) {
         let mut targets: BTreeSet<PeerId> = newly.into_iter().collect();
-        targets.extend(self.members.ids().into_iter().filter(|p| self.view.check(*p).is_err()));
+        targets.extend(
+            self.members
+                .ids()
+                .into_iter()
+                .filter(|p| self.view.check(*p).is_err()),
+        );
         for peer in targets {
             self.cut_one(peer);
         }
@@ -102,7 +133,13 @@ impl Access {
         };
         let closed = self.members.cut(peer, deny);
         if closed > 0 {
-            say("access", format!("acl: closed {closed} connection(s) of a denied node ({})", deny.code()));
+            say(
+                "access",
+                format!(
+                    "acl: closed {closed} connection(s) of a denied node ({})",
+                    deny.code()
+                ),
+            );
         }
     }
 
@@ -119,8 +156,13 @@ impl Access {
         if peer == self.me || v.check(peer).is_err() {
             return Ok(0);
         }
-        let admit = AclValue { kind: AclKind::Admit, subject: peer, via: Via::Witness, made_unix: unix_now(), note: String::new() };
+        let admit = AclValue {
+            kind: AclKind::Admit,
+            subject: peer,
+            via: Via::Witness,
+            made_unix: unix_now(),
+            note: String::new(),
+        };
         Ok(usize::from(record::ensure(&*self.shared, &admit).await?))
     }
 }
-

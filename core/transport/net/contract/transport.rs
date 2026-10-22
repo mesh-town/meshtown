@@ -5,13 +5,17 @@ macro_rules! transport_contract {
     ($harness:path) => {
         mod transport {
             use super::*;
-            use $crate::net::contract::transport_cases::{connect_between, transport_pair};
-            use $crate::net::contract::{pid, must_finish, Harness, SEED_A, SEED_B, SEED_C};
-            use $crate::net::service::AUTH;
+            use $crate::transport::net::contract::transport_cases::{
+                connect_between, transport_pair,
+            };
+            use $crate::transport::net::contract::{
+                must_finish, pid, Harness, SEED_A, SEED_B, SEED_C,
+            };
+            use $crate::transport::net::service::AUTH;
 
             mod connect {
                 use super::*;
-                use $crate::net::addr::PeerAddr;
+                use $crate::transport::net::addr::PeerAddr;
 
                 #[tokio::test]
                 async fn accept_yields_the_dialed_service() {
@@ -73,14 +77,20 @@ macro_rules! transport_contract {
                     // when: A connects to the new address of B
                     let (_, pair) = connect_between(&a, &b, AUTH).await;
                     // then: there is a connection, the counterpart is the same B
-                    assert_eq!(pair.a.peer(), pid(SEED_B), "the key is the same after the restart");
+                    assert_eq!(
+                        pair.a.peer(),
+                        pid(SEED_B),
+                        "the key is the same after the restart"
+                    );
                 }
             }
 
             mod unserved_service {
                 use super::*;
-                use $crate::net::contract::transport_cases::{assert_not_accepted, rejected};
-                use $crate::net::service::EXIT;
+                use $crate::transport::net::contract::transport_cases::{
+                    assert_not_accepted, rejected,
+                };
+                use $crate::transport::net::service::EXIT;
 
                 #[tokio::test]
                 async fn dialer_is_refused_or_closed_within_two_seconds() {
@@ -110,7 +120,7 @@ macro_rules! transport_contract {
 
             mod streams {
                 use super::*;
-                use $crate::net::contract::transport_cases::{
+                use $crate::transport::net::contract::transport_cases::{
                     echo_mismatches, ping_pong, spawn_echo, transfer_volume, PING, PONG, STREAMS,
                     STREAM_BYTES,
                 };
@@ -123,7 +133,9 @@ macro_rules! transport_contract {
                     let (_, pair) = connect_between(&a, &b, AUTH).await;
                     let _echo = spawn_echo(pair.b.clone());
                     // when: A opens 100 streams at once and sends 64 KiB into each
-                    let bad = echo_mismatches(&pair.a, STREAMS, STREAM_BYTES, h.hundred_streams_limit()).await;
+                    let bad =
+                        echo_mismatches(&pair.a, STREAMS, STREAM_BYTES, h.hundred_streams_limit())
+                            .await;
                     // then: the echo of every stream matches what was sent
                     assert!(bad.is_empty(), "echo of streams {bad:?} did not match");
                 }
@@ -137,7 +149,10 @@ macro_rules! transport_contract {
                     // when: A writes "ping" and half-closes, B reads and answers "pong"
                     let (heard, answer) = ping_pong(&pair).await;
                     // then: B read "ping" to the end of the stream, and "pong" reached A
-                    assert_eq!(heard, PING, "B did not hear \"ping\" to the end of the stream");
+                    assert_eq!(
+                        heard, PING,
+                        "B did not hear \"ping\" to the end of the stream"
+                    );
                     assert_eq!(answer, PONG, "what reached A is not \"pong\"");
                 }
 
@@ -151,14 +166,17 @@ macro_rules! transport_contract {
                     let (sent, got) = transfer_volume(&pair).await;
                     // then: the length and blake3 of what was received match what was sent
                     assert_eq!(got.len, sent.len, "received not as much as was sent");
-                    assert_eq!(got.hash, sent.hash, "blake3 of the received data did not match");
+                    assert_eq!(
+                        got.hash, sent.hash,
+                        "blake3 of the received data did not match"
+                    );
                 }
             }
 
             mod close {
                 use super::*;
-                use $crate::net::contract::must_finish_within;
-                use $crate::net::contract::transport_cases::{
+                use $crate::transport::net::contract::must_finish_within;
+                use $crate::transport::net::contract::transport_cases::{
                     becomes_closed, is_closed_error, ConnPair, CLOSE_WITHIN,
                 };
 
@@ -222,7 +240,10 @@ macro_rules! transport_contract {
                     // when: A closes the connection with code 7
                     pair.a.close(7, b"x");
                     // then: is_closed() at A is true at once, at B within STEP
-                    assert!(pair.a.is_closed(), "is_closed() of the closing side is not true at once");
+                    assert!(
+                        pair.a.is_closed(),
+                        "is_closed() of the closing side is not true at once"
+                    );
                     assert!(
                         becomes_closed(&pair.b).await,
                         "is_closed() of the counterpart did not become true within STEP"
@@ -232,8 +253,8 @@ macro_rules! transport_contract {
 
             mod info {
                 use super::*;
-                use $crate::net::contract::transport_cases::link_after_exchange;
-                use $crate::net::link::PathKind;
+                use $crate::transport::net::contract::transport_cases::link_after_exchange;
+                use $crate::transport::net::link::PathKind;
 
                 #[tokio::test]
                 async fn link_path_is_known_after_an_exchange() {
@@ -276,7 +297,11 @@ macro_rules! transport_contract {
                     let (a, _b) = transport_pair(&h).await;
                     // when: we ask me()
                     // then: it is the id of the key from the seed
-                    assert_eq!(a.me(), pid(SEED_A), "me() is not the id of the environment key");
+                    assert_eq!(
+                        a.me(),
+                        pid(SEED_A),
+                        "me() is not the id of the environment key"
+                    );
                 }
             }
         }

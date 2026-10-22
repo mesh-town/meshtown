@@ -4,10 +4,10 @@
 use super::topic::TopicCmd;
 use super::tuning::Tuning;
 use super::wire::{read_frame, write_frame, Frame, CLOSE_BAD_FRAME, CLOSE_IDLE, CLOSE_SHUTDOWN};
-use crate::net::error::NetError;
-use crate::net::id::PeerId;
-use crate::net::stream::{BoxRecv, BoxSend, StreamPair};
-use crate::net::transport::PeerConn;
+use crate::transport::net::error::NetError;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::{BoxRecv, BoxSend, StreamPair};
+use crate::transport::net::transport::PeerConn;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -61,7 +61,13 @@ async fn read_frames(
             Ok(Err(NetError::Closed)) => return CLOSE_SHUTDOWN,
             Ok(Err(_)) => return CLOSE_BAD_FRAME,
             Ok(Ok(frame)) => {
-                let sent = cmd.send(TopicCmd::Frame { peer, link_no, frame }).await;
+                let sent = cmd
+                    .send(TopicCmd::Frame {
+                        peer,
+                        link_no,
+                        frame,
+                    })
+                    .await;
                 if sent.is_err() {
                     return CLOSE_SHUTDOWN;
                 }

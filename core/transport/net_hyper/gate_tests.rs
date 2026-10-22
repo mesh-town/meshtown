@@ -1,8 +1,8 @@
 //! Peer admission on the server: open or by a "peer, service" predicate.
 
 use super::*;
-use crate::net::id::NodeSecret;
-use crate::net::service::{AUTH, EXIT};
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::service::{AUTH, EXIT};
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()
@@ -23,9 +23,15 @@ fn open_gate_admits_all() {
 fn admit_predicate_decides() {
     let gate = PeerGate::open();
     gate.set_admit(admit(|peer, svc| peer == id(1) || *svc == AUTH));
-    assert!(gate.admits(id(1), &EXIT), "a member is admitted to any service");
+    assert!(
+        gate.admits(id(1), &EXIT),
+        "a member is admitted to any service"
+    );
     assert!(gate.admits(id(3), &AUTH), "an outsider is admitted to AUTH");
-    assert!(!gate.admits(id(3), &EXIT), "an outsider is not admitted to EXIT");
+    assert!(
+        !gate.admits(id(3), &EXIT),
+        "an outsider is not admitted to EXIT"
+    );
 }
 
 #[test]

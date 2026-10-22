@@ -6,12 +6,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::checks;
-use crate::config_file::Settings;
-use crate::net::PeerAddr;
-use crate::node_ctl::{Cmd, NodeCtl, Relaunch};
-use crate::output::say;
+use crate::config::config_file::Settings;
+use crate::node::node_ctl::{Cmd, NodeCtl, Relaunch};
+use crate::node::output::say;
 use crate::proxy::ProxyConsole;
+use crate::site_checks::checks;
+use crate::transport::net::PeerAddr;
 
 use super::config::NodeConfig;
 use super::identity::IdentityState;
@@ -42,7 +42,7 @@ async fn wait_for_stop_signal() {
 /// Stop signal task: waits for Ctrl-C/SIGTERM, calls `ctl.stop_on_os_signal()`. One for the whole call of
 /// `run_node_with_ctl`/`run_node_awaiting_key` — otherwise either two signal tasks (a double line and two `Stop`s),
 /// or a gap between waiting and the node's work in which Ctrl-C would be lost.
-fn spawn_stop_signal(ctl: Arc<crate::node_ctl::NodeCtl>) -> tokio::task::JoinHandle<()> {
+fn spawn_stop_signal(ctl: Arc<crate::node::node_ctl::NodeCtl>) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         wait_for_stop_signal().await;
         say("node", "received stop signal");
@@ -56,9 +56,9 @@ fn spawn_stop_signal(ctl: Arc<crate::node_ctl::NodeCtl>) -> tokio::task::JoinHan
 /// after a network switch it is unavailable until the process restarts.
 pub async fn run_node_with_ctl(
     mut cfg: NodeConfig,
-    mut settings: crate::config_file::Settings,
-    ctl: Arc<crate::node_ctl::NodeCtl>,
-    relaunch: crate::node_ctl::Relaunch,
+    mut settings: crate::config::config_file::Settings,
+    ctl: Arc<crate::node::node_ctl::NodeCtl>,
+    relaunch: crate::node::node_ctl::Relaunch,
 ) -> Result<()> {
     ctl.set_test_net(relaunch.test_net.clone());
     ctl.set_owner_secret(relaunch.secret.clone());
@@ -72,10 +72,10 @@ pub async fn run_node_with_ctl(
 /// same `run_cycles` loop as a start with a key, under one signal task
 /// (`run_cycles` is called directly, not `run_node_with_ctl`).
 pub async fn run_node_awaiting_key(
-    settings: crate::config_file::Settings,
+    settings: crate::config::config_file::Settings,
     identity: IdentityState,
-    ctl: Arc<crate::node_ctl::NodeCtl>,
-    relaunch: crate::node_ctl::Relaunch,
+    ctl: Arc<crate::node::node_ctl::NodeCtl>,
+    relaunch: crate::node::node_ctl::Relaunch,
 ) -> Result<()> {
     ctl.set_test_net(relaunch.test_net.clone());
     ctl.set_owner_secret(relaunch.secret.clone());
@@ -104,7 +104,10 @@ async fn wait_then_run(
                 match apply_switch(&key, peers, identity, &mut settings, ctl, relaunch) {
                     Ok(mut cfg) => return run_cycles(&mut cfg, &mut settings, ctl, relaunch).await,
                     Err(e) => {
-                        say("node", format!("{e:#}; the node is still waiting for a network"));
+                        say(
+                            "node",
+                            format!("{e:#}; the node is still waiting for a network"),
+                        );
                         ctl.mark_no_network();
                     }
                 }
@@ -128,7 +131,7 @@ fn apply_switch(
     cfg.identity = identity;
     cfg.initial_peers = peers;
     ctl.replace_effective_settings(settings);
-    crate::node_ctl::apply_log_capacity(settings);
+    crate::node::node_ctl::apply_log_capacity(settings);
     Ok(cfg)
 }
 
@@ -141,7 +144,7 @@ fn spawn_console_on_first_cycle(node: &super::running::RunningNode) {
         route: node.route.clone(),
         user_agent: checks::DEFAULT_USER_AGENT.to_string(),
     };
-    crate::console::spawn(
+    crate::cli::console::spawn(
         node.domains.clone(),
         node.checks.clone(),
         console,
@@ -176,7 +179,7 @@ async fn boot_cycle(cfg: &NodeConfig, ctl: &NodeCtl, first_cycle: bool) -> Resul
     let node = match start_node(cfg.clone()).await {
         Ok(node) => node,
         Err(e) => {
-            ctl.detach(crate::web::NodeStatus::Stopping);
+            ctl.detach(crate::web_gui::NodeStatus::Stopping);
             if !first_cycle {
                 say("node", format!("restart failed: {e:#}"));
             }
@@ -194,8 +197,8 @@ async fn boot_cycle(cfg: &NodeConfig, ctl: &NodeCtl, first_cycle: bool) -> Resul
 async fn serve_until_command(node: RunningNode, ctl: &NodeCtl) -> Cmd {
     let cmd = ctl.next_command().await;
     ctl.detach(match &cmd {
-        Cmd::Stop => crate::web::NodeStatus::Stopping,
-        Cmd::Switch { .. } => crate::web::NodeStatus::Starting,
+        Cmd::Stop => crate::web_gui::NodeStatus::Stopping,
+        Cmd::Switch { .. } => crate::web_gui::NodeStatus::Starting,
     });
     node.shutdown().await;
     cmd
@@ -223,15 +226,15 @@ fn after_command(
 /// Starts the node and runs until the stop signal (Ctrl-C or SIGTERM), then stops it.
 /// A thin wrapper around `run_node_with_ctl` without a network switch — this is how the node started before network switching existed.
 pub async fn run(cfg: NodeConfig) -> Result<()> {
-    let settings = crate::config_file::Settings::default();
-    let ctl = crate::node_ctl::NodeCtl::new(&settings);
+    let settings = crate::config::config_file::Settings::default();
+    let ctl = crate::node::node_ctl::NodeCtl::new(&settings);
     let secret = match &cfg.identity_secret {
         Some(s) => s.clone(),
-        None => crate::config_file::new_secret()?,
+        None => crate::config::config_file::new_secret()?,
     };
-    let relaunch = crate::node_ctl::Relaunch {
+    let relaunch = crate::node::node_ctl::Relaunch {
         path: None,
-        cli: crate::config_file::CliOverrides::default(),
+        cli: crate::config::config_file::CliOverrides::default(),
         secret,
         initial_domains: cfg.initial_domains.clone(),
         blocked_domains: cfg.blocked_domains.clone(),

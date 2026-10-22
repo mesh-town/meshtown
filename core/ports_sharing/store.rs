@@ -1,11 +1,13 @@
 //! Reading and writing publications in the shared document: `publish`/`unpublish`/`own_ports` for the announcer,
 //! `read_all` for the page. The read deadline is set by the caller.
 
-use crate::net::{live, ReplicaEntry, NetError, PeerId, Replica};
+use crate::transport::net::{live, NetError, PeerId, Replica, ReplicaEntry};
 use anyhow::Result;
 use std::sync::Arc;
 
-use super::record::{decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX};
+use super::record::{
+    decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX,
+};
 use super::types::Published;
 
 /// The publications document over a replica (our own author is `r.me()`).

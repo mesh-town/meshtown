@@ -14,7 +14,9 @@ use super::value::{FieldValue, Kind};
 pub(crate) struct BoolKind;
 
 impl Kind<bool> for BoolKind {
-    fn to_json(&self, v: &bool) -> Option<Value> { Some(Value::from(*v)) }
+    fn to_json(&self, v: &bool) -> Option<Value> {
+        Some(Value::from(*v))
+    }
 
     fn parse(&self, v: &Value) -> Option<bool> {
         v.as_bool()
@@ -34,7 +36,9 @@ pub(crate) struct Int {
 }
 
 impl Kind<u64> for Int {
-    fn to_json(&self, v: &u64) -> Option<Value> { Some(Value::from(*v)) }
+    fn to_json(&self, v: &u64) -> Option<Value> {
+        Some(Value::from(*v))
+    }
 
     fn parse(&self, v: &Value) -> Option<u64> {
         v.as_u64().filter(|n| (self.min..=self.max).contains(n))
@@ -54,7 +58,9 @@ pub(crate) struct Port {
 }
 
 impl Kind<u16> for Port {
-    fn to_json(&self, v: &u16) -> Option<Value> { Some(Value::from(*v)) }
+    fn to_json(&self, v: &u16) -> Option<Value> {
+        Some(Value::from(*v))
+    }
 
     fn parse(&self, v: &Value) -> Option<u16> {
         number_in(v, &self.min, &self.max)
@@ -78,7 +84,9 @@ fn number_in<T: TryFrom<u64> + PartialOrd>(v: &Value, min: &T, max: &T) -> Optio
 pub(crate) struct OffOnly;
 
 impl Kind<bool> for OffOnly {
-    fn to_json(&self, v: &bool) -> Option<Value> { Some(Value::from(*v)) }
+    fn to_json(&self, v: &bool) -> Option<Value> {
+        Some(Value::from(*v))
+    }
 
     fn parse(&self, v: &Value) -> Option<bool> {
         (v.as_bool() == Some(false)).then_some(false)
@@ -95,7 +103,9 @@ impl Kind<bool> for OffOnly {
 pub(crate) struct Addr;
 
 impl Kind<SocketAddr> for Addr {
-    fn to_json(&self, v: &SocketAddr) -> Option<Value> { Some(Value::from(v.to_string())) }
+    fn to_json(&self, v: &SocketAddr) -> Option<Value> {
+        Some(Value::from(v.to_string()))
+    }
 
     fn parse(&self, v: &Value) -> Option<SocketAddr> {
         v.as_str()?.parse().ok()
@@ -136,7 +146,10 @@ pub(crate) use super::kinds_named::{Choice, NetKey, NodeName};
 /// both are non-zero (otherwise the memory guard would exit before printing its summary). Works without the key too.
 pub(crate) struct MemoryExit;
 
-const EXIT_RANGE: Int = Int { min: 0, max: 1_048_576 };
+const EXIT_RANGE: Int = Int {
+    min: 0,
+    max: 1_048_576,
+};
 
 impl FieldValue for MemoryExit {
     fn read_from_file(
@@ -151,7 +164,13 @@ impl FieldValue for MemoryExit {
         let exit = match file_value {
             None => default,
             Some(v) => EXIT_RANGE.parse(v).unwrap_or_else(|| {
-                push_field_error(errs, field_path.to_string(), v, &EXIT_RANGE.expected(), default);
+                push_field_error(
+                    errs,
+                    field_path.to_string(),
+                    v,
+                    &EXIT_RANGE.expected(),
+                    default,
+                );
                 default
             }),
         };
@@ -162,7 +181,13 @@ impl FieldValue for MemoryExit {
         s.process.node_memory_exit_mib = default.max(warn);
         if file_value.is_some() {
             let expected = format!("at least node.memory_warn_mib ({warn}) or 0");
-            push_field_error(errs, field_path.to_string(), &Value::from(exit), &expected, default.max(warn));
+            push_field_error(
+                errs,
+                field_path.to_string(),
+                &Value::from(exit),
+                &expected,
+                default.max(warn),
+            );
         }
     }
 
@@ -174,9 +199,15 @@ impl FieldValue for MemoryExit {
         to.process.node_memory_exit_mib = from.process.node_memory_exit_mib;
     }
 
-    fn render_for_file(&self, s: &Settings) -> Option<Value> { Some(Value::from(s.process.node_memory_exit_mib)) }
-    fn debug_text(&self, s: &Settings) -> String { s.process.node_memory_exit_mib.to_string() }
-    fn is_stored_in_settings(&self) -> bool { true }
+    fn render_for_file(&self, s: &Settings) -> Option<Value> {
+        Some(Value::from(s.process.node_memory_exit_mib))
+    }
+    fn debug_text(&self, s: &Settings) -> String {
+        s.process.node_memory_exit_mib.to_string()
+    }
+    fn is_stored_in_settings(&self) -> bool {
+        true
+    }
 }
 
 #[cfg(test)]

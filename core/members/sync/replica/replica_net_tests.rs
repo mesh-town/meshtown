@@ -5,20 +5,25 @@ use super::file;
 use super::ids::net_id;
 use super::test_support::{introduce, mesh_node, temp_dir, MeshNode};
 use super::wire::encode_push;
-use crate::net::contract::{pid, replica_cases::{assert_no_change, is_remote, next_event, QUIET}};
-use crate::net::contract::{secret, must_finish, SEED_A, SEED_B, STEP};
-use crate::net::error::NetError;
-use crate::net::mem::MemNet;
-use crate::net::replica::{Replica, ReplicaEvent};
-use crate::net::sync_backend::SyncBackend;
-use crate::sync::flood::test_support::NETWORK;
+use crate::members::sync::flood::test_support::NETWORK;
+use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B, STEP};
+use crate::transport::net::contract::{
+    pid,
+    replica_cases::{assert_no_change, is_remote, next_event, QUIET},
+};
+use crate::transport::net::error::NetError;
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::replica::{Replica, ReplicaEvent};
+use crate::transport::net::sync_backend::SyncBackend;
 use bytes::Bytes;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 async fn net_replica(node: &MeshNode) -> Arc<dyn Replica> {
-    must_finish(node.sync.open_replica("net")).await.expect("the net replica")
+    must_finish(node.sync.open_replica("net"))
+        .await
+        .expect("the net replica")
 }
 
 fn store(base: &Path, who: &str) -> PathBuf {
@@ -41,22 +46,33 @@ fn val(s: &str) -> Bytes {
 async fn wait_file(path: &Path, n: usize, limit: Duration) {
     let polling = async {
         loop {
-            let got = std::fs::read(path).ok().and_then(|b| file::decode(&net_id(&NETWORK), &b).ok());
+            let got = std::fs::read(path)
+                .ok()
+                .and_then(|b| file::decode(&net_id(&NETWORK), &b).ok());
             if got.is_some_and(|(_, e)| e.len() == n) {
                 return;
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     };
-    tokio::time::timeout(limit, polling).await.expect("the net file was not completed");
+    tokio::time::timeout(limit, polling)
+        .await
+        .expect("the net file was not completed");
 }
 
 /// Two network nodes, both with `"net"` reconciliation enabled; `low` is the node with the smaller `PeerId`.
 async fn started(net: &Arc<MemNet>) -> (MeshNode, MeshNode) {
-    let (a, b) = (mesh_node(net, SEED_A, NETWORK, None).await, mesh_node(net, SEED_B, NETWORK, None).await);
+    let (a, b) = (
+        mesh_node(net, SEED_A, NETWORK, None).await,
+        mesh_node(net, SEED_B, NETWORK, None).await,
+    );
     introduce(&a, &b);
-    must_finish(net_replica(&a).await.start_sync()).await.expect("start A");
-    must_finish(net_replica(&b).await.start_sync()).await.expect("start B");
+    must_finish(net_replica(&a).await.start_sync())
+        .await
+        .expect("start A");
+    must_finish(net_replica(&b).await.start_sync())
+        .await
+        .expect("start B");
     match pid(SEED_A).as_bytes() < pid(SEED_B).as_bytes() {
         true => (a, b),
         false => (b, a),
@@ -88,7 +104,9 @@ mod persist {
         let replica = b.sync.host.open("net").unwrap();
         let mut events = replica.subscribe();
         let before = replica.lock().generation();
-        replica.lock().merge(seal(&secret(SEED_A), &net_id(&NETWORK), b"k/", b"v", 5));
+        replica
+            .lock()
+            .merge(seal(&secret(SEED_A), &net_id(&NETWORK), b"k/", b"v", 5));
         replica.finish(pid(SEED_A), before, Err(NetError::Timeout));
         next_event(&mut events, "RemoteChange", is_remote).await;
         wait_file(&net_file(&base, "b"), 1, Duration::from_secs(1) + STEP).await;
@@ -105,16 +123,30 @@ mod push {
         let (a, b) = started(&net).await;
         let (ra, rb) = (net_replica(&a).await, net_replica(&b).await);
         let mut synced = ra.subscribe();
-        must_finish(ra.sync_with(b.sync.host.open("net").unwrap().me())).await.unwrap();
+        must_finish(ra.sync_with(b.sync.host.open("net").unwrap().me()))
+            .await
+            .unwrap();
         next_event(&mut synced, "reconciliation result", is_synced).await;
         let mut events = rb.subscribe();
         let mut bad: WireEntry = seal(&secret(SEED_A), &net_id(&NETWORK), b"k/", b"v", 5);
         bad.sig[0][0] ^= 1;
         let body = encode_push(&net_id(&NETWORK), vec![bad]).unwrap();
-        let swarm = a.sync.host.open("net").unwrap().net.topic_membership.get().cloned().expect("the topic is up");
+        let swarm = a
+            .sync
+            .host
+            .open("net")
+            .unwrap()
+            .net
+            .topic_membership
+            .get()
+            .cloned()
+            .expect("the topic is up");
         must_finish(swarm.broadcast(body)).await.unwrap();
         assert_no_change(&mut events).await;
-        assert!(must_finish(rb.scan(b"")).await.unwrap().is_empty(), "a corrupt entry got into the map");
+        assert!(
+            must_finish(rb.scan(b"")).await.unwrap().is_empty(),
+            "a corrupt entry got into the map"
+        );
     }
 }
 
@@ -149,11 +181,15 @@ mod sync_with {
         let peer = high.sync.host.open("net").unwrap().me();
         let r = net_replica(&low).await;
         let mut events = r.subscribe();
-        let (first, second) = tokio::join!(must_finish(r.sync_with(peer)), must_finish(r.sync_with(peer)));
+        let (first, second) = tokio::join!(
+            must_finish(r.sync_with(peer)),
+            must_finish(r.sync_with(peer))
+        );
         first.unwrap();
         second.unwrap();
         next_event(&mut events, "Synced", is_synced).await;
-        let more = tokio::time::timeout(QUIET, next_event(&mut events, "second Synced", is_synced)).await;
+        let more =
+            tokio::time::timeout(QUIET, next_event(&mut events, "second Synced", is_synced)).await;
         assert!(more.is_err(), "extra session: {more:?}");
     }
 
@@ -161,7 +197,10 @@ mod sync_with {
     async fn starts_sync_itself() {
         // given: A has no start_sync → when: sync_with → then: Synced arrives and the entry arrived
         let net = MemNet::new();
-        let (a, b) = (mesh_node(&net, SEED_A, NETWORK, None).await, mesh_node(&net, SEED_B, NETWORK, None).await);
+        let (a, b) = (
+            mesh_node(&net, SEED_A, NETWORK, None).await,
+            mesh_node(&net, SEED_B, NETWORK, None).await,
+        );
         introduce(&a, &b);
         let (ra, rb) = (net_replica(&a).await, net_replica(&b).await);
         must_finish(rb.start_sync()).await.unwrap();
@@ -200,9 +239,17 @@ mod corrupt {
         let b = mesh_node(&net2, SEED_B, NETWORK, Some(store(&base, "b"))).await;
         introduce(&a, &b);
         let (ra, rb) = (net_replica(&a).await, net_replica(&b).await);
-        assert!(must_finish(ra.scan(b"")).await.unwrap().is_empty(), "A did not start empty");
+        assert!(
+            must_finish(ra.scan(b"")).await.unwrap().is_empty(),
+            "A did not start empty"
+        );
         let names = std::fs::read_dir(base.join("a").join("replica")).unwrap();
-        assert!(names.flatten().any(|e| e.file_name().to_string_lossy().contains(".broken-")), "no .broken-*");
+        assert!(
+            names
+                .flatten()
+                .any(|e| e.file_name().to_string_lossy().contains(".broken-")),
+            "no .broken-*"
+        );
         must_finish(rb.start_sync()).await.unwrap();
         must_finish(ra.sync_with(pid(SEED_B))).await.unwrap();
         let polling = async {
@@ -210,6 +257,8 @@ mod corrupt {
                 tokio::time::sleep(Duration::from_millis(20)).await;
             }
         };
-        tokio::time::timeout(STEP, polling).await.expect("the own entries did not return");
+        tokio::time::timeout(STEP, polling)
+            .await
+            .expect("the own entries did not return");
     }
 }

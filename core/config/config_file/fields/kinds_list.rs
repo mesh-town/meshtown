@@ -4,9 +4,9 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
-use crate::net::{NetChoice, PeerId};
 use crate::node::net_names;
-use crate::ports::types::{Audience, Opened, Published};
+use crate::ports_sharing::types::{Audience, Opened, Published};
+use crate::transport::net::{NetChoice, PeerId};
 
 use super::super::parse_fields::push_field_error;
 use super::super::parse_ports::{parse_opened_list, parse_published_list};
@@ -18,7 +18,8 @@ const MAX_PEERS: usize = 64;
 const EXPECTED_PEERS: &str = "a list of node ids without repeats, up to 64";
 const EXPECTED_PUBLISHED: &str =
     "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
-const EXPECTED_OPENED: &str = "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
+const EXPECTED_OPENED: &str =
+    "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
 
 /// A list of node ids without repeats, up to 64; order is kept.
 pub(crate) struct PeerList;
@@ -99,12 +100,20 @@ struct OpenedOut {
 }
 
 fn published_json(p: &Published) -> Value {
-    let out = PublishedOut { port: p.port, name: p.name.clone(), audience: audience_json(&p.audience) };
+    let out = PublishedOut {
+        port: p.port,
+        name: p.name.clone(),
+        audience: audience_json(&p.audience),
+    };
     serde_json::to_value(out).unwrap_or(Value::Null)
 }
 
 fn opened_json(o: &Opened) -> Value {
-    let out = OpenedOut { node: o.node.to_string(), port: o.port, local: o.local };
+    let out = OpenedOut {
+        node: o.node.to_string(),
+        port: o.port,
+        local: o.local,
+    };
     serde_json::to_value(out).unwrap_or(Value::Null)
 }
 
@@ -137,11 +146,20 @@ impl FieldValue for NetNames {
             return;
         }
         let mut d = net_names::default_choice();
-        push_field_error(errs, field_path.to_string(), v, &self.expected(), (self.names_in_choice)(&mut d).join(", "));
+        push_field_error(
+            errs,
+            field_path.to_string(),
+            v,
+            &self.expected(),
+            (self.names_in_choice)(&mut d).join(", "),
+        );
     }
 
     fn expected(&self) -> String {
-        format!("a non-empty list without repeats from: {}", (self.allowed)().join(", "))
+        format!(
+            "a non-empty list without repeats from: {}",
+            (self.allowed)().join(", ")
+        )
     }
 
     fn copy_value_between(&self, from: &Settings, to: &mut Settings) {
@@ -158,7 +176,10 @@ impl FieldValue for NetNames {
     }
 
     fn debug_text(&self, s: &Settings) -> String {
-        format!("{:?}", (self.names_in_choice)(&mut s.net.net_choice.clone()))
+        format!(
+            "{:?}",
+            (self.names_in_choice)(&mut s.net.net_choice.clone())
+        )
     }
 
     fn is_stored_in_settings(&self) -> bool {
@@ -193,7 +214,13 @@ impl FieldValue for NetSync {
             s.net.net_choice.sync = name.to_string();
             return;
         }
-        push_field_error(errs, field_path.to_string(), v, &self.expected(), net_names::default_choice().sync);
+        push_field_error(
+            errs,
+            field_path.to_string(),
+            v,
+            &self.expected(),
+            net_names::default_choice().sync,
+        );
     }
 
     fn expected(&self) -> String {
@@ -206,7 +233,8 @@ impl FieldValue for NetSync {
 
     /// Written only when it differs from the build default.
     fn render_for_file(&self, s: &Settings) -> Option<Value> {
-        (s.net.net_choice.sync != net_names::default_choice().sync).then(|| Value::from(s.net.net_choice.sync.as_str()))
+        (s.net.net_choice.sync != net_names::default_choice().sync)
+            .then(|| Value::from(s.net.net_choice.sync.as_str()))
     }
 
     fn debug_text(&self, s: &Settings) -> String {

@@ -1,14 +1,14 @@
 //! Signing in to the node page: the `/api/auth/*` endpoints through a real listener on loopback.
 //! Tokens don't get into `assert!` texts.
 
-#[path = "common/web_listener.rs"]
-mod common;
 #[path = "common/web_auth.rs"]
 mod auth_common;
+#[path = "common/web_listener.rs"]
+mod common;
 
 use std::path::PathBuf;
 
-use meshtown::web::{WebHandle, DEFAULT_DRAIN};
+use meshtown_core::web_gui::{WebHandle, DEFAULT_DRAIN};
 use serde_json::json;
 
 use auth_common::*;
@@ -30,7 +30,12 @@ async fn rig(tag: &str, password: bool) -> Rig {
     let (handle, _node) = start_web(&dir, &run).await;
     let port = handle.shared.port();
     let perm = file_token(&dir);
-    Rig { dir, handle, port, perm }
+    Rig {
+        dir,
+        handle,
+        port,
+        perm,
+    }
 }
 
 async fn finish(rig: Rig) {
@@ -93,9 +98,14 @@ rig_test!(sixth_failure_is_429_with_retry_after, true, |r| {
         assert_eq!(login(r.port, "wrong password").0.status, 401);
     }
     let (sixth, cookie) = login(r.port, PASSWORD_OK);
-    assert_eq!(sixth.status, 429, "even the correct password isn't checked during a block");
+    assert_eq!(
+        sixth.status, 429,
+        "even the correct password isn't checked during a block"
+    );
     assert!(cookie.is_none());
-    let wait: u64 = sixth.headers["retry-after"].parse().expect("Retry-After is a number");
+    let wait: u64 = sixth.headers["retry-after"]
+        .parse()
+        .expect("Retry-After is a number");
     assert!(wait > 0);
 });
 
@@ -104,11 +114,18 @@ rig_test!(parallel_failures_count_each, true, |r| {
     let workers: Vec<_> = (0..8)
         .map(|_| std::thread::spawn(move || login(port, "wrong password").0.status))
         .collect();
-    let codes: Vec<u16> = workers.into_iter().map(|w| w.join().expect("thread")).collect();
+    let codes: Vec<u16> = workers
+        .into_iter()
+        .map(|w| w.join().expect("thread"))
+        .collect();
     let wrong = codes.iter().filter(|c| **c == 401).count();
     let limited = codes.iter().filter(|c| **c == 429).count();
     assert!(wrong <= 5, "more than five checks: {codes:?}");
-    assert_eq!(wrong + limited, 8, "the other responses are only 429: {codes:?}");
+    assert_eq!(
+        wrong + limited,
+        8,
+        "the other responses are only 429: {codes:?}"
+    );
 });
 
 rig_test!(login_without_password_is_409, false, |r| {
@@ -128,19 +145,27 @@ rig_test!(session_cookie_opens_api_and_logout_closes, false, |r| {
     assert_eq!(state_status(&r, &cookie), 401);
 });
 
-rig_test!(password_change_closes_other_sessions_and_temps, false, |r| {
-    let first = exchange(r.port, &r.perm).1.expect("cookie 1");
-    let second = exchange(r.port, &r.perm).1.expect("cookie 2");
-    let temp = temp_token(&r.handle.shared.issue_entry_urls()[0]);
-    let body = json!({"password": PASSWORD_OK});
-    let put = with_cookie(r.port, &first, "PUT", "/api/auth/password", Some(body));
-    assert_eq!(put.status, 200);
-    assert_eq!(body_json(&put)["password_set"], true);
-    assert_eq!(state_status(&r, &first), 200);
-    assert_eq!(state_status(&r, &second), 401);
-    assert_eq!(exchange(r.port, &temp).0, 401);
-    assert_eq!(login(r.port, PASSWORD_OK).0.status, 200, "the new password works");
-});
+rig_test!(
+    password_change_closes_other_sessions_and_temps,
+    false,
+    |r| {
+        let first = exchange(r.port, &r.perm).1.expect("cookie 1");
+        let second = exchange(r.port, &r.perm).1.expect("cookie 2");
+        let temp = temp_token(&r.handle.shared.issue_entry_urls()[0]);
+        let body = json!({"password": PASSWORD_OK});
+        let put = with_cookie(r.port, &first, "PUT", "/api/auth/password", Some(body));
+        assert_eq!(put.status, 200);
+        assert_eq!(body_json(&put)["password_set"], true);
+        assert_eq!(state_status(&r, &first), 200);
+        assert_eq!(state_status(&r, &second), 401);
+        assert_eq!(exchange(r.port, &temp).0, 401);
+        assert_eq!(
+            login(r.port, PASSWORD_OK).0.status,
+            200,
+            "the new password works"
+        );
+    }
+);
 
 rig_test!(reset_requires_header, true, |r| {
     let by_token = exchange(r.port, &r.perm).1.expect("token cookie");
@@ -150,12 +175,24 @@ rig_test!(reset_requires_header, true, |r| {
     assert_eq!(body_json(&denied)["error"], "token_only");
     let query = format!("/api/auth/reset?token={}", r.perm);
     assert_eq!(http(r.port, "POST", &query, &[], b"").status, 403);
-    assert!(r.dir.join("web-password").exists(), "the refusal must not touch the file");
+    assert!(
+        r.dir.join("web-password").exists(),
+        "the refusal must not touch the file"
+    );
 
-    let ok = http(r.port, "POST", "/api/auth/reset", &[("X-Meshtown-Token", &r.perm)], b"");
+    let ok = http(
+        r.port,
+        "POST",
+        "/api/auth/reset",
+        &[("X-Meshtown-Token", &r.perm)],
+        b"",
+    );
     assert_eq!(ok.status, 200);
     let body = body_json(&ok);
-    assert!(body["urls"][0].as_str().expect("urls[0]").contains("?token="));
+    assert!(body["urls"][0]
+        .as_str()
+        .expect("urls[0]")
+        .contains("?token="));
     assert_eq!(body["expires_sec"], 600);
     assert!(!r.dir.join("web-password").exists());
     assert_eq!(state_status(&r, &by_token), 401);
@@ -207,9 +244,23 @@ rig_test!(patch_without_origin_is_403, false, |r| {
 
 rig_test!(reset_drops_old_temp_tokens, false, |r| {
     let old = temp_token(&r.handle.shared.issue_entry_urls()[0]);
-    let ok = http(r.port, "POST", "/api/auth/reset", &[("X-Meshtown-Token", &r.perm)], b"");
+    let ok = http(
+        r.port,
+        "POST",
+        "/api/auth/reset",
+        &[("X-Meshtown-Token", &r.perm)],
+        b"",
+    );
     assert_eq!(ok.status, 200);
     let fresh = temp_token(body_json(&ok)["urls"][0].as_str().expect("urls[0]"));
-    assert_eq!(exchange(r.port, &old).0, 401, "the old temporary token survived the reset");
-    assert_eq!(exchange(r.port, &fresh).0, 200, "the new temporary token must work");
+    assert_eq!(
+        exchange(r.port, &old).0,
+        401,
+        "the old temporary token survived the reset"
+    );
+    assert_eq!(
+        exchange(r.port, &fresh).0,
+        200,
+        "the new temporary token must work"
+    );
 });

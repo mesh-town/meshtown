@@ -87,6 +87,10 @@ async fn missing_owner_secret_refuses_without_network() {
     let refused = fx.wait_refused().await;
 
     // then: the wait is refused up front and no key is saved
-    assert!(refused.message.contains("the node's own key is not known"), "{}", refused.message);
+    assert!(
+        refused.message.contains("the node's own key is not known"),
+        "{}",
+        refused.message
+    );
     assert_eq!(fx.saved(), Vec::<String>::new());
 }

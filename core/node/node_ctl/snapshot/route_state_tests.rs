@@ -9,13 +9,13 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use crate::net::{NodeSecret, PeerId};
-use crate::net::PeerAddr;
+use crate::transport::net::PeerAddr;
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
-use crate::output;
-use crate::telemetry::TelemetryView;
-use crate::web::{ChosenExit, PeerInfo, RouteMode};
+use crate::node::output;
+use crate::node::telemetry::TelemetryView;
+use crate::web_gui::{ChosenExit, PeerInfo, RouteMode};
 
 /// A member made from one secret key — as in `route_tests.rs`.
 fn pair(seed: u8) -> PeerId {
@@ -33,7 +33,10 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         neighbors: 0,
         votes: Default::default(),
         socks: None,
-        socks_access: (crate::config_file::ListenAccess::Localhost, Vec::new()),
+        socks_access: (
+            crate::config::config_file::ListenAccess::Localhost,
+            Vec::new(),
+        ),
         socks_ifaces: Default::default(),
         exit_on: false,
         exit_clients: Vec::new(),
@@ -179,10 +182,7 @@ mod when_only_candidate_is_offline {
         let state = route_state(&[a], &i, &peers);
 
         assert_eq!(state.state, RouteMode::Unavailable);
-        assert!(
-            active_exit(&state.exits).is_none(),
-            "no exit is active"
-        );
+        assert!(active_exit(&state.exits).is_none(), "no exit is active");
     }
 }
 

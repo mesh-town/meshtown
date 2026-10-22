@@ -7,15 +7,15 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use super::*;
-use crate::doh::Resolver;
 use crate::exit::PeerConnPool;
-use crate::http_min::HttpLimits;
+use crate::site_checks::doh::Resolver;
+use crate::site_checks::http_min::HttpLimits;
 
 const DOMAIN: &str = "site.test";
 
 /// A proxy config with a dead resolver and a `host_overrides` table; the node is real, on loopback.
 async fn config(hosts: HashMap<String, SocketAddr>) -> ProxyConfig {
-    let key = crate::network_key::NetworkKey::generate().unwrap();
+    let key = crate::members::network_key::NetworkKey::generate().unwrap();
     let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key))
         .await
         .unwrap();

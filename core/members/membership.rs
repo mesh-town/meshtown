@@ -11,13 +11,13 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use crate::access::view::{AccessView, Deny, ACCESS_CLOSE_CODE};
-use crate::net::{PeerConn, PeerId, SwarmEvent};
+use crate::members::access::view::{AccessView, Deny, ACCESS_CLOSE_CODE};
+use crate::transport::net::{PeerConn, PeerId, SwarmEvent};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::output::{say, short_peer_id};
-use crate::transfer_probe::{self, ProbeSettings};
+use crate::node::output::{say, short_peer_id};
+use crate::transport::transfer_probe::{self, ProbeSettings};
 
 /// State under a lock: member connection counters, dials in progress and member names.
 #[derive(Default)]
@@ -78,12 +78,21 @@ impl Members {
     }
 
     pub fn is_member(&self, id: PeerId) -> bool {
-        self.access.allows(id) && self.state.lock().unwrap().conn_count_by_peer.contains_key(&id)
+        self.access.allows(id)
+            && self
+                .state
+                .lock()
+                .unwrap()
+                .conn_count_by_peer
+                .contains_key(&id)
     }
 
     /// Members whose list verdicts come from `view`.
     pub fn with_access(view: AccessView) -> Members {
-        Members { state: Arc::default(), access: view }
+        Members {
+            state: Arc::default(),
+            access: view,
+        }
     }
 
     pub fn access(&self) -> AccessView {
@@ -94,12 +103,20 @@ impl Members {
     pub fn cut(&self, peer: PeerId, deny: Deny) -> usize {
         let conns = self.conns_snapshot();
         let of_peer = conns.iter().filter(|c| c.peer() == peer);
-        of_peer.map(|c| c.close(ACCESS_CLOSE_CODE, deny.wire_reason())).count()
+        of_peer
+            .map(|c| c.close(ACCESS_CLOSE_CODE, deny.wire_reason()))
+            .count()
     }
 
     /// List of members right now — path choice needs it to avoid calling someone with no connection.
     pub fn ids(&self) -> HashSet<PeerId> {
-        self.state.lock().unwrap().conn_count_by_peer.keys().copied().collect()
+        self.state
+            .lock()
+            .unwrap()
+            .conn_count_by_peer
+            .keys()
+            .copied()
+            .collect()
     }
 
     pub fn count(&self) -> usize {
@@ -108,13 +125,19 @@ impl Members {
 
     /// Remembers a member's live connection (`hold_conn_until_closed` holds it).
     pub fn track_conn(&self, conn: &Arc<dyn PeerConn>) {
-        self.state.lock().unwrap().conns.insert(conn.stable_id(), conn.clone());
+        self.state
+            .lock()
+            .unwrap()
+            .conns
+            .insert(conn.stable_id(), conn.clone());
     }
 
     /// Closes the connection if the list denies the peer (a race with `cut`: the list changed before tracking).
     fn refuse_if_denied(&self, conn: &Arc<dyn PeerConn>, peer: PeerId) {
         let denied = self.access.check(peer).err();
-        denied.iter().for_each(|deny| conn.close(ACCESS_CLOSE_CODE, deny.wire_reason()));
+        denied
+            .iter()
+            .for_each(|deny| conn.close(ACCESS_CLOSE_CODE, deny.wire_reason()));
     }
 
     /// Forgets a closed connection.
@@ -138,7 +161,10 @@ impl Members {
     /// Returns `false` if the member is already present or a dial attempt is already in progress; otherwise remembers the attempt.
     pub fn try_begin_dial(&self, id: PeerId) -> bool {
         let mut guard = self.state.lock().unwrap();
-        if !self.access.allows(id) || guard.conn_count_by_peer.contains_key(&id) || guard.dialing.contains(&id) {
+        if !self.access.allows(id)
+            || guard.conn_count_by_peer.contains_key(&id)
+            || guard.dialing.contains(&id)
+        {
             return false;
         }
         guard.dialing.insert(id);
@@ -177,8 +203,14 @@ impl Members {
 
 /// Event of a change in the set of members.
 pub enum MemberEvent {
-    Up { peer: PeerId, conn: Arc<dyn PeerConn> },
-    Down { peer: PeerId, reason: String },
+    Up {
+        peer: PeerId,
+        conn: Arc<dyn PeerConn>,
+    },
+    Down {
+        peer: PeerId,
+        reason: String,
+    },
 }
 
 /// Shared member context: own id, handshake key, member bookkeeping, event channel,
@@ -210,7 +242,11 @@ impl std::fmt::Debug for MemberContext {
 /// removal of the member and a `Down` event on close.
 pub async fn hold_conn_until_closed(conn: Arc<dyn PeerConn>, peer: PeerId, ctx: MemberContext) {
     let serve_handle = tokio::spawn(transfer_probe::answer_probes(conn.clone(), peer));
-    let drive_handle = tokio::spawn(transfer_probe::send_probes_while_open(conn.clone(), peer, ctx.probe.clone()));
+    let drive_handle = tokio::spawn(transfer_probe::send_probes_while_open(
+        conn.clone(),
+        peer,
+        ctx.probe.clone(),
+    ));
     ctx.members.track_conn(&conn);
     ctx.members.refuse_if_denied(&conn, peer);
     conn.closed().await;
@@ -245,7 +281,11 @@ pub async fn run_swarm_events(
 }
 
 /// Parses one topic event; `false` — the topic is closed, the loop ends.
-fn on_swarm_event(event: SwarmEvent, peers: &mut HashSet<PeerId>, gossip_neighbor_count: &AtomicUsize) -> bool {
+fn on_swarm_event(
+    event: SwarmEvent,
+    peers: &mut HashSet<PeerId>,
+    gossip_neighbor_count: &AtomicUsize,
+) -> bool {
     match event {
         SwarmEvent::NeighborUp(id) => {
             peers.insert(id);

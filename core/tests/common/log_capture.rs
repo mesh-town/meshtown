@@ -101,5 +101,8 @@ pub(crate) fn assert_no_errors_since(mark: Mark) {
         .into_iter()
         .filter(|e| e.level == Level::ERROR)
         .collect();
-    assert!(errors.is_empty(), "ERROR in the log since the mark: {errors:#?}");
+    assert!(
+        errors.is_empty(),
+        "ERROR in the log since the mark: {errors:#?}"
+    );
 }

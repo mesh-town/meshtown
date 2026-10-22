@@ -9,8 +9,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Map, Value};
 
-use crate::web::http::json_err;
-use crate::web::{ActionError, App};
+use crate::web_gui::http::json_err;
+use crate::web_gui::{ActionError, App};
 
 /// The request body as a JSON object: an empty body is an empty map; non-JSON is 400 `bad_json`; JSON
 /// that is not an object is also an empty map (fields are looked up via `map_string_field`/`map.get`, and their absence is
@@ -22,7 +22,11 @@ pub(crate) fn body_obj(bytes: &[u8]) -> Result<Map<String, Value>, Response> {
     match serde_json::from_slice::<Value>(bytes) {
         Ok(Value::Object(map)) => Ok(map),
         Ok(_) => Ok(Map::new()),
-        Err(_) => Err(json_err(StatusCode::BAD_REQUEST, "bad_json", "body is not JSON")),
+        Err(_) => Err(json_err(
+            StatusCode::BAD_REQUEST,
+            "bad_json",
+            "body is not JSON",
+        )),
     }
 }
 
@@ -51,7 +55,7 @@ pub(super) fn map_string_field(map: &Map<String, Value>, name: &str) -> Result<S
 /// 422 `invalid_key`: `word` only when `err` wraps `BadWord` (`err.downcast_ref`),
 /// otherwise there is no field at all (not `null`); `message` comes from `BadWord`, otherwise `fallback_message`.
 pub(super) fn invalid_key_response(err: &anyhow::Error, fallback_message: &str) -> Response {
-    let body = match err.downcast_ref::<crate::network_key::BadWord>() {
+    let body = match err.downcast_ref::<crate::members::network_key::BadWord>() {
         Some(bad) => json!({"error": "invalid_key", "message": bad.message, "word": bad.word}),
         None => json!({"error": "invalid_key", "message": fallback_message}),
     };

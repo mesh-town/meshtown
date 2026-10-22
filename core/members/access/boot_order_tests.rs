@@ -5,7 +5,7 @@ use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
-use crate::net::{BoxFuture, NetError, ReplicaEvent, ReplicaId};
+use crate::transport::net::{BoxFuture, NetError, ReplicaEvent, ReplicaId};
 
 #[tokio::test]
 async fn marker_is_written_after_the_admits() {
@@ -20,7 +20,10 @@ async fn marker_is_written_after_the_admits() {
     // then: the witness, the migration and the promotion come first, the marker is the last write
     let keys = spy.written.lock().unwrap().clone();
     assert_eq!(keys.len(), 4, "{keys:?}");
-    assert!(keys[..3].iter().all(|k| k.starts_with(b"acl/admit/")), "{keys:?}");
+    assert!(
+        keys[..3].iter().all(|k| k.starts_with(b"acl/admit/")),
+        "{keys:?}"
+    );
     assert_eq!(keys[3], BOOT_KEY);
 }
 
@@ -36,7 +39,10 @@ async fn failed_admit_leaves_no_marker_and_next_boot_retries() {
     // when: the first boot breaks off
     assert!(boot_over(&rig, &spy, &[cached]).await.is_err());
     // then: there is no marker
-    assert!(rig.marker().await.is_none(), "an interrupted boot must leave no marker");
+    assert!(
+        rig.marker().await.is_none(),
+        "an interrupted boot must leave no marker"
+    );
     // and when: the next start runs over a healthy replica
     let written = rig.when_boot(&[], &[cached], NOW + 60).await;
     // then: the same admissions and the marker are written, the migration is whole, the witness is promoted
@@ -64,7 +70,10 @@ async fn failed_promotion_leaves_the_marker_without_the_flag() {
     rig.when_boot(&[], &[], NOW + 60).await;
     // then: the witness is a vote and the flag is set
     assert_eq!(rig.admits().await, admits_of(&[(x, Via::None)]));
-    assert_eq!(rig.marker().await.map(|m| m.note), Some(crate::access::record::BOOT_NOTE_ADMISSION.to_string()));
+    assert_eq!(
+        rig.marker().await.map(|m| m.note),
+        Some(crate::members::access::record::BOOT_NOTE_ADMISSION.to_string())
+    );
 }
 
 #[tokio::test]
@@ -111,12 +120,20 @@ async fn marker_synced_in_after_the_read_makes_the_run_start_over() {
     rig.given_marker(Via::Migration, NOW - DAY).await;
     rig.given_own_admit(x, Via::Witness).await;
     let late = LateMarker::new(&rig);
-    let boot = AccessBoot { me: rig.me, initial: vec![], cached: vec![], now_unix: NOW };
+    let boot = AccessBoot {
+        me: rig.me,
+        initial: vec![],
+        cached: vec![],
+        now_unix: NOW,
+    };
     // when: one boot
     run_boot(&late, &*rig.own, &boot).await.unwrap();
     // then: within this run the witness became a vote and the marker carries the flag
     assert_eq!(rig.admits().await, admits_of(&[(x, Via::None)]));
-    assert_eq!(rig.marker().await.map(|m| m.note), Some(crate::access::record::BOOT_NOTE_ADMISSION.to_string()));
+    assert_eq!(
+        rig.marker().await.map(|m| m.note),
+        Some(crate::members::access::record::BOOT_NOTE_ADMISSION.to_string())
+    );
 }
 
 #[tokio::test]
@@ -128,11 +145,20 @@ async fn real_newcomer_writes_its_marker_once() {
     boot_over(&rig, &spy, &[pid(3)]).await.unwrap();
     // then: one marker write, no second pass
     let keys = spy.written.lock().unwrap().clone();
-    assert_eq!(keys.iter().filter(|k| k.as_slice() == BOOT_KEY).count(), 1, "{keys:?}");
+    assert_eq!(
+        keys.iter().filter(|k| k.as_slice() == BOOT_KEY).count(),
+        1,
+        "{keys:?}"
+    );
 }
 
 async fn boot_over(rig: &Rig, spy: &Spy, cached: &[PeerId]) -> NetResult<usize> {
-    let boot = AccessBoot { me: rig.me, initial: vec![], cached: cached.to_vec(), now_unix: NOW };
+    let boot = AccessBoot {
+        me: rig.me,
+        initial: vec![],
+        cached: cached.to_vec(),
+        now_unix: NOW,
+    };
     run_boot(spy, &*rig.own, &boot).await
 }
 
@@ -145,7 +171,11 @@ struct Spy {
 
 impl Spy {
     fn new(rig: &Rig) -> Spy {
-        Spy { inner: rig.shared.clone(), written: Mutex::new(Vec::new()), fail_admits: AtomicBool::new(false) }
+        Spy {
+            inner: rig.shared.clone(),
+            written: Mutex::new(Vec::new()),
+            fail_admits: AtomicBool::new(false),
+        }
     }
 }
 
@@ -203,7 +233,10 @@ struct LateMarker {
 
 impl LateMarker {
     fn new(rig: &Rig) -> LateMarker {
-        LateMarker { inner: rig.shared.clone(), missed: AtomicBool::new(false) }
+        LateMarker {
+            inner: rig.shared.clone(),
+            missed: AtomicBool::new(false),
+        }
     }
 }
 

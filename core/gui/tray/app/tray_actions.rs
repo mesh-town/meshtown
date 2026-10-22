@@ -2,13 +2,13 @@
 //! strings without muda and without HTTP — read by `tray::actions_ui` (the item label) and the `tray_role` poller
 //! (the reasons). The invite string never gets here: the reason is only a ready constant.
 
-use crate::app::start_note::{start_note_line, StartNote};
-use crate::app::tray_texts::{
+use crate::gui::tray::app::start_note::{start_note_line, StartNote};
+use crate::gui::tray::app::tray_texts::{
     invite_copy_failed_text, serve_disable_failed_text, serve_enable_failed_text,
     INVITE_COPIED_ISSUER_AND_ONE_LINE, INVITE_COPIED_ISSUER_ONLY_LINE, INVITE_COPIED_LINE,
     INVITE_COPIED_TEXT, INVITE_TEXT,
 };
-use crate::app::view::{node_status_menu_line, RouteLine, View};
+use crate::gui::tray::app::view::{node_status_menu_line, RouteLine, View};
 
 /// How many nodes will let a newcomer in with this invite (the `reach` field of the node's reply).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,7 +49,10 @@ pub(crate) enum InviteNote {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ServeNote {
     Idle,
-    Failed { was_enabling: bool, reason: &'static str },
+    Failed {
+        was_enabling: bool,
+        reason: &'static str,
+    },
 }
 
 /// The item label by state.
@@ -74,8 +77,14 @@ pub(crate) fn invite_status_line(note: InviteNote) -> Option<String> {
 pub(crate) fn serve_status_line(note: ServeNote) -> Option<String> {
     match note {
         ServeNote::Idle => None,
-        ServeNote::Failed { was_enabling: true, reason } => Some(serve_enable_failed_text(reason)),
-        ServeNote::Failed { was_enabling: false, reason } => Some(serve_disable_failed_text(reason)),
+        ServeNote::Failed {
+            was_enabling: true,
+            reason,
+        } => Some(serve_enable_failed_text(reason)),
+        ServeNote::Failed {
+            was_enabling: false,
+            reason,
+        } => Some(serve_disable_failed_text(reason)),
     }
 }
 

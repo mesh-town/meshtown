@@ -6,17 +6,17 @@ use std::net::SocketAddr;
 use std::time::Instant;
 
 use crate::exit::PeerRate;
-use crate::net::{PeerAddr, PeerId};
+use crate::transport::net::{PeerAddr, PeerId};
 
-use crate::access::report::VoteSummary;
-use crate::checks::CheckView;
-use crate::config_file::ListenAccess;
-use crate::output;
-use crate::net_mainline::record::ENTRY_TTL_SECS;
-use crate::reachability::{CheckRecord, CheckVerdict};
-use crate::telemetry::TelemetryView;
-use crate::web::auth::access::IfaceAddr;
-use crate::web::{
+use crate::config::config_file::ListenAccess;
+use crate::members::access::report::VoteSummary;
+use crate::node::output;
+use crate::node::telemetry::TelemetryView;
+use crate::site_checks::checks::CheckView;
+use crate::site_checks::reachability::{CheckRecord, CheckVerdict};
+use crate::transport::net_mainline::record::ENTRY_TTL_SECS;
+use crate::web_gui::auth::access::IfaceAddr;
+use crate::web_gui::{
     CheckInfo, DhtInfo, DomainInfo, ExitInfo, MembersInfo, NodeRuntime, NodeSnapshot, PathKindView,
     PeerInfo, RecordInfo, RelayInfo, SocksInfo, SocksLan, TransportInfo, VerdictKind,
 };
@@ -45,7 +45,7 @@ pub(super) struct Inputs<'a> {
     /// Proxy access mode and this machine's address on the local network (only with `localnet`).
     pub socks_access: (ListenAccess, Vec<IfaceAddr>),
     /// Network filter the proxy was started with (`socks.ifaces`).
-    pub socks_ifaces: crate::config_file::IfaceFilter,
+    pub socks_ifaces: crate::config::config_file::IfaceFilter,
     pub exit_on: bool,
     /// Raw list of exit clients from the `exit::Clients` registry: unordered, may include non-members.
     pub exit_clients: Vec<PeerId>,
@@ -125,7 +125,10 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
 /// or in `localhost` mode (then the address list is empty too).
 fn socks_lan(socks: Option<SocketAddr>, lan: Vec<IfaceAddr>) -> Vec<SocksLan> {
     let Some(addr) = socks else { return Vec::new() };
-    let one = |(iface, ip): IfaceAddr| SocksLan { addr: SocketAddr::from((ip, addr.port())).to_string(), iface };
+    let one = |(iface, ip): IfaceAddr| SocksLan {
+        addr: SocketAddr::from((ip, addr.port())).to_string(),
+        iface,
+    };
     lan.into_iter().map(one).collect()
 }
 
@@ -148,12 +151,19 @@ fn exit_clients(i: &Inputs<'_>) -> Vec<String> {
 fn build_transport(i: &Inputs<'_>) -> TransportInfo {
     let dht_joined = i.telemetry.dht_joined && i.telemetry.last_publish.is_some();
     let secs_ago = |t: Instant| i.now_instant.saturating_duration_since(t).as_secs();
-    let last_publish_sec = i.telemetry.last_publish.filter(|_| dht_joined).map(secs_ago);
+    let last_publish_sec = i
+        .telemetry
+        .last_publish
+        .filter(|_| dht_joined)
+        .map(secs_ago);
 
     TransportInfo {
         mode: i.mode.to_string(),
         self_path: compute_self_path(i),
-        relay: RelayInfo { connected: false, url: None },
+        relay: RelayInfo {
+            connected: false,
+            url: None,
+        },
         nat: String::new(),
         listen_udp: Vec::new(),
         dht: DhtInfo {
@@ -172,7 +182,12 @@ fn build_transport(i: &Inputs<'_>) -> TransportInfo {
 
 /// Path to itself: `Direct` if at least one member has a `Direct` path (established by `hyper`); otherwise `None`.
 fn compute_self_path(i: &Inputs<'_>) -> Option<PathKindView> {
-    let direct = |id: &PeerId| i.telemetry.peers.get(id).is_some_and(|l| l.path == Some(PathKindView::Direct));
+    let direct = |id: &PeerId| {
+        i.telemetry
+            .peers
+            .get(id)
+            .is_some_and(|l| l.path == Some(PathKindView::Direct))
+    };
     i.members.iter().any(direct).then_some(PathKindView::Direct)
 }
 

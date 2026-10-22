@@ -1,8 +1,6 @@
 """Shared helpers for test_changed_tests_*.py — not test_*, so that discover does not treat it as a test.
 
-changed_tests.py is written in parallel by another executor; here the module is loaded via
-sys.path rather than imported as a package, so that the test builds independently of whether the
-code is ready at run time.
+The module under test is loaded via sys.path rather than imported as a package.
 """
 
 import contextlib
@@ -15,15 +13,14 @@ _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
 
-import changed_tests  # noqa: E402,F401  (the module is written by a parallel executor)
+import changed_tests  # noqa: E402,F401
 
 
-def _sources(main_rs="", tests=None, bin_files=None, examples=None):
+def _sources(main_rs="", tests=None, examples=None):
     """Sources with empty dictionaries by default — Sources is assembled by hand, not from disk."""
     return changed_tests.Sources(
         main_rs=main_rs,
         tests=dict(tests or {}),
-        bin=dict(bin_files or {}),
         examples=dict(examples or {}),
     )
 

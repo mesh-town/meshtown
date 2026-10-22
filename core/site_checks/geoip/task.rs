@@ -14,9 +14,9 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::domains::DomainList;
-use crate::net::{NetInfo, Replica, Transport};
-use crate::output::say;
+use crate::node::output::say;
+use crate::proxy::domains::DomainList;
+use crate::transport::net::{NetInfo, Replica, Transport};
 
 use super::board::{announce_country, own_country_record};
 use super::fetch::lookup_country;

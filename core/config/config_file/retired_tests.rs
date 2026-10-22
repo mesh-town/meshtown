@@ -3,9 +3,9 @@
 //! `#[cfg(test)] #[path = "retired_tests.rs"] mod tests;`.
 
 use super::*;
-use crate::config_file::parse::parse_text;
-use crate::config_file::test_support::{sample_settings, test_secret};
-use crate::config_file::{ParsedConfigFile, TransportMode};
+use crate::config::config_file::parse::parse_text;
+use crate::config::config_file::test_support::{sample_settings, test_secret};
+use crate::config::config_file::{ParsedConfigFile, TransportMode};
 
 /// The `transport` section of a 0.1.37 file with all eight keys and a value for each, plus `socks`.
 const ALL_EIGHT_WITH_VALUES: &str = r#""transport":{"mode":"relay_only","udp_port":70000,
@@ -35,10 +35,19 @@ mod list_of_retired_paths {
 
     #[test]
     fn is_retired_only_in_transport_section() {
-        assert!(is_retired("transport", "udp_port"), "transport.udp_port is retired");
-        assert!(!is_retired("socks", "udp_port"), "socks.udp_port is not retired");
+        assert!(
+            is_retired("transport", "udp_port"),
+            "transport.udp_port is retired"
+        );
+        assert!(
+            !is_retired("socks", "udp_port"),
+            "socks.udp_port is not retired"
+        );
         assert!(!is_retired("transport", "mode"), "transport.mode is live");
-        assert!(!is_retired("transport", "zzz"), "an unknown key is not retired");
+        assert!(
+            !is_retired("transport", "zzz"),
+            "an unknown key is not retired"
+        );
     }
 }
 
@@ -51,8 +60,16 @@ mod old_file_with_all_eight_keys {
         // when: parse_text
         let p = parse_with(ALL_EIGHT_WITH_VALUES);
         // then: no errors and no unknown fields, the keys are in retired in list order, the rest was read
-        assert_eq!(p.field_errors, vec![], "values of retired keys are not checked");
-        assert!(p.unknown_paths.is_empty(), "retired keys are not unknown: {:?}", p.unknown_paths);
+        assert_eq!(
+            p.field_errors,
+            vec![],
+            "values of retired keys are not checked"
+        );
+        assert!(
+            p.unknown_paths.is_empty(),
+            "retired keys are not unknown: {:?}",
+            p.unknown_paths
+        );
         assert_eq!(p.retired_paths, all_retired_paths());
         assert_eq!(p.settings.net.transport_mode, TransportMode::RelayOnly);
         assert_eq!(p.settings.process.socks_port, 2000);
@@ -67,8 +84,14 @@ mod old_file_with_all_eight_keys {
         // then: eight lines, the i-th names the i-th path and the version since which the key is retired
         assert_eq!(lines.len(), 8);
         for (line, path) in lines.iter().zip(RETIRED_PATHS) {
-            assert!(line.contains(&format!("config.{path}")), "path {path} is missing: {line}");
-            assert!(line.contains(RETIRED_SINCE), "version {RETIRED_SINCE} is missing: {line}");
+            assert!(
+                line.contains(&format!("config.{path}")),
+                "path {path} is missing: {line}"
+            );
+            assert!(
+                line.contains(RETIRED_SINCE),
+                "version {RETIRED_SINCE} is missing: {line}"
+            );
         }
     }
 
@@ -80,7 +103,11 @@ mod old_file_with_all_eight_keys {
         // then: nothing to warn about, no unknown fields
         assert!(p.retired_paths.is_empty(), "retired: {:?}", p.retired_paths);
         assert!(retired_key_warnings(&p.retired_paths).is_empty());
-        assert!(p.unknown_paths.is_empty(), "unknown fields: {:?}", p.unknown_paths);
+        assert!(
+            p.unknown_paths.is_empty(),
+            "unknown fields: {:?}",
+            p.unknown_paths
+        );
     }
 
     #[test]
@@ -92,7 +119,10 @@ mod old_file_with_all_eight_keys {
         // then: the list holds only keys with a value, in list order
         assert_eq!(
             p.retired_paths,
-            vec!["config.transport.udp_port", "config.transport.loss_time_threshold"]
+            vec![
+                "config.transport.udp_port",
+                "config.transport.loss_time_threshold"
+            ]
         );
     }
 }
@@ -126,7 +156,11 @@ mod nothing_to_report {
     fn no_retired_keys_when_transport_is_absent_or_not_an_object() {
         for sections in ["", r#""transport":5"#, r#""transport":null"#] {
             let p = parse_with(sections);
-            assert!(p.retired_paths.is_empty(), "{sections:?}: retired {:?}", p.retired_paths);
+            assert!(
+                p.retired_paths.is_empty(),
+                "{sections:?}: retired {:?}",
+                p.retired_paths
+            );
         }
     }
 
@@ -151,7 +185,10 @@ mod port_flag {
         let line = port_flag_warning(Some(4000)).expect("the flag was given, so there is a line");
         // then: it holds the flag and the version since which it has no effect
         assert!(line.contains("--port"), "flag name is missing: {line}");
-        assert!(line.contains(RETIRED_SINCE), "version {RETIRED_SINCE} is missing: {line}");
+        assert!(
+            line.contains(RETIRED_SINCE),
+            "version {RETIRED_SINCE} is missing: {line}"
+        );
     }
 }
 
@@ -162,11 +199,21 @@ mod written_file {
     fn carries_none_of_the_eight_keys() {
         // given: settings where no field has its default value
         // when: render_config_file
-        let text = crate::config_file::render_config_file(1, 0, &test_secret(), &sample_settings());
+        let text = crate::config::config_file::render_config_file(
+            1,
+            0,
+            &test_secret(),
+            &sample_settings(),
+        );
         // then: no retired key appears in quotes in the text
         for path in RETIRED_PATHS {
-            let key = path.strip_prefix("transport.").expect("path is in the transport section");
-            assert!(!text.contains(&format!("\"{key}\"")), "retired key {key} is in the file");
+            let key = path
+                .strip_prefix("transport.")
+                .expect("path is in the transport section");
+            assert!(
+                !text.contains(&format!("\"{key}\"")),
+                "retired key {key} is in the file"
+            );
         }
     }
 }
@@ -182,14 +229,20 @@ fn parse_with(sections: &str) -> ParsedConfigFile {
 
 /// Returns `config.<path>` for each of the eight paths, in list order.
 fn all_retired_paths() -> Vec<String> {
-    RETIRED_PATHS.iter().map(|p| format!("config.{p}")).collect()
+    RETIRED_PATHS
+        .iter()
+        .map(|p| format!("config.{p}"))
+        .collect()
 }
 
 /// Returns the `transport` section with eight retired keys, each with the value `value` (JSON text).
 fn transport_with_all_values(value: &str) -> String {
     let pairs: Vec<String> = RETIRED_PATHS
         .iter()
-        .map(|p| p.strip_prefix("transport.").expect("path is in the transport section"))
+        .map(|p| {
+            p.strip_prefix("transport.")
+                .expect("path is in the transport section")
+        })
         .map(|key| format!("\"{key}\":{value}"))
         .collect();
     format!(r#""transport":{{{}}}"#, pairs.join(","))

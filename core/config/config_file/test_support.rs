@@ -2,12 +2,12 @@
 //! reading the resulting file. Visibility `pub(super)` — as before within one file, now
 //! within all of `config_file/`, no wider.
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 use std::path::{Path, PathBuf};
 
 use super::settings::{Settings, TransportMode};
-use super::{NetSettings, ProcessSettings};
 use super::{LoadedConfigFile, ParsedConfigFile, SecretRead};
+use super::{NetSettings, ProcessSettings};
 
 /// A temporary test directory; removed with `remove_dir_all` at the end of the test.
 pub(super) fn scratch(name: &str) -> PathBuf {
@@ -59,10 +59,10 @@ pub(super) fn sample_settings() -> Settings {
             probe_interval_sec: 120,
             probe_full_cycle: false,
             route_exits: vec![NodeSecret::from_bytes(&[9u8; 32]).peer_id()],
-            ports_published: vec![crate::ports::types::Published {
+            ports_published: vec![crate::ports_sharing::types::Published {
                 port: 8080,
                 name: "網".to_string(),
-                audience: crate::ports::types::Audience::All,
+                audience: crate::ports_sharing::types::Audience::All,
             }],
             ports_opened: vec![],
             net_choice: crate::node::net_names::default_choice(),
@@ -74,18 +74,18 @@ fn peer_of(b: u8) -> PeerId {
     NodeSecret::from_bytes(&[b; 32]).peer_id()
 }
 
-fn changed_published() -> Vec<crate::ports::types::Published> {
+fn changed_published() -> Vec<crate::ports_sharing::types::Published> {
     let peer = peer_of;
     vec![
-        crate::ports::types::Published {
+        crate::ports_sharing::types::Published {
             port: 8080,
             name: "網".to_string(),
-            audience: crate::ports::types::Audience::All,
+            audience: crate::ports_sharing::types::Audience::All,
         },
-        crate::ports::types::Published {
+        crate::ports_sharing::types::Published {
             port: 9090,
             name: "二番".to_string(),
-            audience: crate::ports::types::Audience::Nodes(vec![peer(11)]),
+            audience: crate::ports_sharing::types::Audience::Nodes(vec![peer(11)]),
         },
     ]
 }
@@ -125,12 +125,12 @@ pub(crate) fn all_changed() -> Settings {
             probe_full_cycle: true,
             route_exits: vec![peer(9), peer(10)],
             ports_published: changed_published(),
-            ports_opened: vec![crate::ports::types::Opened {
+            ports_opened: vec![crate::ports_sharing::types::Opened {
                 node: peer(12),
                 port: 80,
                 local: 8081,
             }],
-            net_choice: crate::net::NetChoice {
+            net_choice: crate::transport::net::NetChoice {
                 transports: vec!["hyper".to_string()],
                 discovery: vec!["cache".to_string(), "invite".to_string()],
                 sync: "mem".to_string(),

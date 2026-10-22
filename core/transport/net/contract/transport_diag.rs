@@ -3,11 +3,13 @@
 //! and the text methods of `PeerConn` and `link()` do not fail on a closed connection.
 //! Plugging in an adapter: `transport_diag_contract!(fn_without_arguments_returning_impl_Harness);`.
 
-use crate::net::contract::transport_cases::{connect_between, transport_pair, ping_pong};
-use crate::net::contract::{Harness, STEP};
-use crate::net::link::PathChange;
-use crate::net::service::AUTH;
-use crate::net::transport::{PathWatch, PeerConn, Transport};
+use crate::transport::net::contract::transport_cases::{
+    connect_between, ping_pong, transport_pair,
+};
+use crate::transport::net::contract::{Harness, STEP};
+use crate::transport::net::link::PathChange;
+use crate::transport::net::service::AUTH;
+use crate::transport::net::transport::{PathWatch, PeerConn, Transport};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -61,8 +63,8 @@ macro_rules! transport_diag_contract {
     ($harness:path) => {
         mod transport_diag {
             use super::*;
-            use $crate::net::contract::must_finish;
-            use $crate::net::contract::transport_diag::{
+            use $crate::transport::net::contract::must_finish;
+            use $crate::transport::net::contract::transport_diag::{
                 drain_until_none, event_while_alive, exchanged_pair,
             };
 

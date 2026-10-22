@@ -1,14 +1,14 @@
 //! The `mem` connector: finding a slot by hint, handing out and accepting paths through the hub.
 //! The path itself is in `path`, the network state is in `hub`.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::connect::{Connector, PacketPath};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::link::NetInfo;
-use crate::net::mem::hub::{decode_hint, encode_hint, Hub};
-use crate::net::mem::path::MemPath;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::connect::{Connector, PacketPath};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::mem::hub::{decode_hint, encode_hint, Hub};
+use crate::transport::net::mem::path::MemPath;
+use crate::transport::net::stream::BoxFuture;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 

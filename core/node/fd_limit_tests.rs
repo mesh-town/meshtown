@@ -22,7 +22,7 @@ fn soft_at_or_above_target_is_none() {
 }
 
 fn journal_text() -> String {
-    format!("{:?}", meshtown::output::log_page(0, 100_000).lines)
+    format!("{:?}", crate::node::output::log_page(0, 100_000).lines)
 }
 
 #[test]
@@ -30,6 +30,9 @@ fn report_writes_only_some() {
     super::report(Some("fd-limit-test-marker-some".to_string()));
     super::report(None);
     let text = journal_text();
-    assert!(text.contains("fd-limit-test-marker-some"), "journal: {text}");
+    assert!(
+        text.contains("fd-limit-test-marker-some"),
+        "journal: {text}"
+    );
     assert_eq!(text.matches("fd-limit-test-marker-some").count(), 1);
 }

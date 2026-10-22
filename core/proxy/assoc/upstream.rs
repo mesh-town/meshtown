@@ -5,8 +5,8 @@ use std::future::Future;
 use std::net::SocketAddr;
 
 use crate::exit::udpgw_codec as codec;
-use crate::net::{BoxRecv, BoxSend};
-use crate::socks5::UdpPacket;
+use crate::proxy::socks5::UdpPacket;
+use crate::transport::net::{BoxRecv, BoxSend};
 use tokio::io::AsyncWriteExt;
 
 use super::bridge::{from_gateway_frame, to_gateway_frame};

@@ -8,7 +8,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use super::password::{PasswordRecord, MAX_FILE_ITERATIONS};
-use crate::config_file::write_tmp_and_rename;
+use crate::config::config_file::write_tmp_and_rename;
 
 pub const PASSWORD_FILE_NAME: &str = "web-password";
 const MAX_FILE_BYTES: u64 = 4096;
@@ -35,9 +35,7 @@ fn decode_exact<const N: usize>(text: &str, what: &str) -> Result<[u8; N], Strin
     let bytes = data_encoding::BASE64
         .decode(text.as_bytes())
         .map_err(|_| format!("{what} not base64"))?;
-    bytes
-        .try_into()
-        .map_err(|_| format!("{what} wrong size"))
+    bytes.try_into().map_err(|_| format!("{what} wrong size"))
 }
 
 fn into_record(d: OnDisk) -> Result<PasswordRecord, String> {
@@ -65,11 +63,12 @@ fn parse(path: &Path) -> Result<PasswordRecord, String> {
     if meta.len() > MAX_FILE_BYTES {
         return Err("file is larger than 4 KiB".to_string());
     }
-    if !crate::web::token::owner_only(&meta) {
+    if !crate::web_gui::token::owner_only(&meta) {
         return Err("permissions wider than 0600".to_string());
     }
     let text = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
-    let d: OnDisk = serde_json::from_str(&text).map_err(|e| format!("not JSON of the expected format: {e}"))?;
+    let d: OnDisk =
+        serde_json::from_str(&text).map_err(|e| format!("not JSON of the expected format: {e}"))?;
     into_record(d)
 }
 

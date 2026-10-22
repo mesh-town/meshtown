@@ -1,7 +1,7 @@
 use super::*;
 use std::time::Duration;
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 /// A network member made from one secret key: its id, which is also the author of document records.
 pub(super) fn pair(seed: u8) -> PeerId {
@@ -10,7 +10,7 @@ pub(super) fn pair(seed: u8) -> PeerId {
 
 pub(super) fn record_at(verdict: CheckVerdict, at: u64) -> CheckRecord {
     CheckRecord {
-        v: crate::reachability::CHECK_RECORD_VERSION,
+        v: crate::site_checks::reachability::CHECK_RECORD_VERSION,
         verdict,
         dns_ms: 1,
         tcp_ms: 2,
@@ -49,7 +49,10 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         neighbors: 0,
         votes: Default::default(),
         socks: None,
-        socks_access: (crate::config_file::ListenAccess::Localhost, Vec::new()),
+        socks_access: (
+            crate::config::config_file::ListenAccess::Localhost,
+            Vec::new(),
+        ),
         socks_ifaces: Default::default(),
         exit_on: false,
         exit_clients: Vec::new(),
@@ -74,7 +77,10 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
 #[test]
 fn verdict_kind_covers_all_six_pairs() {
     assert_eq!(verdict_kind(CheckVerdict::Ok), VerdictKind::Ok);
-    assert_eq!(verdict_kind(CheckVerdict::DnsMismatch), VerdictKind::DnsMismatch);
+    assert_eq!(
+        verdict_kind(CheckVerdict::DnsMismatch),
+        VerdictKind::DnsMismatch
+    );
     assert_eq!(
         verdict_kind(CheckVerdict::NetworkBlocked),
         VerdictKind::NetworkBlocked
@@ -102,6 +108,19 @@ fn check_info_extends_fields_and_saturates_future_at() {
     assert_eq!(info.verdict, VerdictKind::Ok);
 }
 
+fn offline_live(
+    path: Option<PathKindView>,
+    rtt_ms: Option<u64>,
+    last_seen: Instant,
+) -> crate::node::telemetry::PeerLive {
+    crate::node::telemetry::PeerLive {
+        online: false,
+        path,
+        rtt_ms,
+        last_seen,
+    }
+}
+
 // 4. build: own row first, is_self, name, exit = Some(flag); other members ascending by
 //    short id; offline from tel.peers → online:false, path:None, last_seen_sec by Instant;
 //    other members: exit unknown (None).
@@ -114,24 +133,16 @@ fn build_orders_self_first_and_others_offline_from_telemetry() {
     inputs.self_name = Some("my-node");
     inputs.exit_on = true;
     let seen_at = Instant::now() - Duration::from_secs(42);
-    inputs.telemetry.peers.insert(
-        other_a,
-        crate::telemetry::PeerLive {
-            online: false,
-            path: None,
-            rtt_ms: None,
-            last_seen: seen_at,
-        },
+    let (live_a, live_b) = (
+        offline_live(None, None, seen_at),
+        offline_live(
+            Some(PathKindView::Relay),
+            Some(50),
+            Instant::now() - Duration::from_secs(5),
+        ),
     );
-    inputs.telemetry.peers.insert(
-        other_b,
-        crate::telemetry::PeerLive {
-            online: false,
-            path: Some(PathKindView::Relay),
-            rtt_ms: Some(50),
-            last_seen: Instant::now() - Duration::from_secs(5),
-        },
-    );
+    inputs.telemetry.peers.insert(other_a, live_a);
+    inputs.telemetry.peers.insert(other_b, live_b);
 
     let collected = build(inputs);
     let peers = collected.snap.peers;
@@ -140,7 +151,10 @@ fn build_orders_self_first_and_others_offline_from_telemetry() {
     assert_eq!(peers[0].name.as_deref(), Some("my-node"));
     assert_eq!(peers[0].exit, Some(true));
 
-    let mut expected_order = [output::short_peer_id(&other_a), output::short_peer_id(&other_b)];
+    let mut expected_order = [
+        output::short_peer_id(&other_a),
+        output::short_peer_id(&other_b),
+    ];
     expected_order.sort();
     let actual_order: Vec<&str> = peers[1..].iter().map(|p| p.id.as_str()).collect();
     assert_eq!(
@@ -155,7 +169,10 @@ fn build_orders_self_first_and_others_offline_from_telemetry() {
         assert!(!p.online, "not network members — offline");
         assert_eq!(p.exit, None, "another member's exit is unknown");
         assert_eq!(p.path, None, "path only when online");
-        assert!(p.last_seen_sec > 0, "last visit comes from PeerLive.last_seen");
+        assert!(
+            p.last_seen_sec > 0,
+            "last visit comes from PeerLive.last_seen"
+        );
     }
 }
 
@@ -169,7 +186,12 @@ fn build_domain_checks_keyed_by_peer_short_id() {
     inputs.members = [friend_id].into_iter().collect();
     inputs.domain_names = vec!["example.com".to_string(), "other.com".to_string()];
     inputs.check_views = vec![
-        view("example.com", my_id, 10, Some(record_at(CheckVerdict::Ok, 10))),
+        view(
+            "example.com",
+            my_id,
+            10,
+            Some(record_at(CheckVerdict::Ok, 10)),
+        ),
         view("example.com", friend_id, 10, None),
     ];
 
@@ -350,7 +372,10 @@ mod check_authors {
 
         // then
         let found = peers.iter().any(|p| p.id_full == stranger.to_string());
-        assert!(!found, "the author of a record for a foreign domain is not a snapshot member");
+        assert!(
+            !found,
+            "the author of a record for a foreign domain is not a snapshot member"
+        );
     }
 
     #[test]
@@ -361,8 +386,18 @@ mod check_authors {
         inputs.members = [member].into_iter().collect();
         inputs.domain_names = vec!["listed.com".to_string()];
         inputs.check_views = vec![
-            view("listed.com", member, 1, Some(record_at(CheckVerdict::Ok, 900))),
-            view("other.com", member, 1, Some(record_at(CheckVerdict::Ok, 950))),
+            view(
+                "listed.com",
+                member,
+                1,
+                Some(record_at(CheckVerdict::Ok, 900)),
+            ),
+            view(
+                "other.com",
+                member,
+                1,
+                Some(record_at(CheckVerdict::Ok, 950)),
+            ),
         ];
 
         // when
@@ -381,12 +416,18 @@ mod check_authors {
 fn socks_lan_lists_every_address_with_port_and_iface() {
     let sock: Option<SocketAddr> = Some("127.0.0.1:1080".parse().unwrap());
     let lan = vec![
-        ("br-lan".to_string(), std::net::Ipv4Addr::new(192, 168, 8, 1)),
+        (
+            "br-lan".to_string(),
+            std::net::Ipv4Addr::new(192, 168, 8, 1),
+        ),
         ("eth1".to_string(), std::net::Ipv4Addr::new(10, 0, 0, 5)),
     ];
     let got = socks_lan(sock, lan.clone());
     assert_eq!(got.len(), 2);
-    assert_eq!((got[0].addr.as_str(), got[0].iface.as_str()), ("192.168.8.1:1080", "br-lan"));
+    assert_eq!(
+        (got[0].addr.as_str(), got[0].iface.as_str()),
+        ("192.168.8.1:1080", "br-lan")
+    );
     assert_eq!(got[1].addr, "10.0.0.5:1080");
     assert!(socks_lan(None, lan).is_empty());
     assert!(socks_lan(sock, Vec::new()).is_empty());
@@ -394,8 +435,14 @@ fn socks_lan_lists_every_address_with_port_and_iface() {
 
 #[test]
 fn socks_info_listen_stays_loopback_in_both_modes() {
-    use crate::config_file::ListenAccess::{Localhost, Localnet};
-    for (mode, lan) in [(Localhost, vec![]), (Localnet, vec![("br-lan".to_string(), std::net::Ipv4Addr::new(10, 0, 0, 2))])] {
+    use crate::config::config_file::ListenAccess::{Localhost, Localnet};
+    for (mode, lan) in [
+        (Localhost, vec![]),
+        (
+            Localnet,
+            vec![("br-lan".to_string(), std::net::Ipv4Addr::new(10, 0, 0, 2))],
+        ),
+    ] {
         let mut i = base(pair(1));
         i.socks = Some("127.0.0.1:1080".parse().unwrap());
         i.socks_access = (mode, lan);
@@ -408,7 +455,7 @@ fn socks_info_listen_stays_loopback_in_both_modes() {
 
 #[test]
 fn socks_ifaces_comes_from_the_filter() {
-    use crate::config_file::IfaceFilter;
+    use crate::config::config_file::IfaceFilter;
     let mut i = base(pair(1));
     i.socks_ifaces = IfaceFilter::Only(vec!["br-lan".to_string()]);
     assert_eq!(build(i).snap.socks.ifaces, Some(vec!["br-lan".to_string()]));

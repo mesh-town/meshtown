@@ -1,11 +1,12 @@
 //! The check result line for output: a summary one (`describe`) and one with per-step times
 //! (`describe_steps`, only for `[check]` lines about a single domain).
 
-use crate::reachability::CheckRecord;
+use crate::site_checks::reachability::CheckRecord;
 
 /// The result line for output.
 pub fn describe(record: &CheckRecord) -> String {
-    let total = record.dns_ms as u32 + record.tcp_ms as u32 + record.tls_ms as u32 + record.http_ms as u32;
+    let total =
+        record.dns_ms as u32 + record.tcp_ms as u32 + record.tls_ms as u32 + record.http_ms as u32;
     format!(
         "{} ({}), {} ms",
         record.verdict.text(),

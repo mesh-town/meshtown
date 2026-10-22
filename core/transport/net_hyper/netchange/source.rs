@@ -1,9 +1,9 @@
 //! Source of network change events: the network fingerprint and a wrapper over `netwatch`.
 
-use crate::net::stream::BoxFuture;
+use crate::transport::net::stream::BoxFuture;
+use n0_watcher::{Direct, Watcher};
 use netwatch::interfaces::State;
 use netwatch::netmon::Monitor;
-use n0_watcher::{Direct, Watcher};
 use std::net::{IpAddr, Ipv4Addr};
 use tokio::time::Instant;
 
@@ -52,7 +52,10 @@ pub(crate) fn fingerprint(
     Some(Fingerprint { addrs, route, woke })
 }
 
-pub(crate) fn net_event_between(prev: &Option<Fingerprint>, next: &Option<Fingerprint>) -> Option<NetEvent> {
+pub(crate) fn net_event_between(
+    prev: &Option<Fingerprint>,
+    next: &Option<Fingerprint>,
+) -> Option<NetEvent> {
     match (prev, next) {
         (Some(_), None) => Some(NetEvent::Lost),
         (None, Some(_)) => Some(NetEvent::Changed),
@@ -67,7 +70,11 @@ fn fingerprint_of_state(state: &State) -> Option<Fingerprint> {
         .values()
         .filter(|i| i.is_up())
         .flat_map(|i| i.addrs().map(|n| n.addr()).collect::<Vec<_>>());
-    fingerprint(addrs, state.default_route_interface.as_deref(), state.last_unsuspend)
+    fingerprint(
+        addrs,
+        state.default_route_interface.as_deref(),
+        state.last_unsuspend,
+    )
 }
 
 /// The real source: the `netwatch` interface monitor.
@@ -82,7 +89,11 @@ impl NetwatchSource {
         let monitor = Monitor::new().await.map_err(|e| e.to_string())?;
         let mut watcher = monitor.interface_state();
         let prev = fingerprint_of_state(&watcher.get());
-        Ok(Self { _monitor: monitor, watcher, prev })
+        Ok(Self {
+            _monitor: monitor,
+            watcher,
+            prev,
+        })
     }
 
     async fn next_event(&mut self) -> Option<NetEvent> {

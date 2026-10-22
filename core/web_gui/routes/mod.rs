@@ -47,7 +47,7 @@ pub(crate) fn router(app: Arc<App>) -> Router {
     let router = register_network(router);
     let router = register_auth(router);
     let router = register_token(router);
-    let router = crate::web::members::register_members(router);
+    let router = crate::web_gui::members::register_members(router);
     router
         .fallback(fallback_404)
         .layer(
@@ -64,10 +64,16 @@ pub(crate) fn router(app: Arc<App>) -> Router {
                     HeaderName::from_static("content-security-policy"),
                     HeaderValue::from_static(CSP),
                 ))
-                .layer(middleware::from_fn_with_state(app.clone(), guard::guard_middleware))
+                .layer(middleware::from_fn_with_state(
+                    app.clone(),
+                    guard::guard_middleware,
+                ))
                 .layer(middleware::from_fn(reject_chunked))
                 .layer(middleware::from_fn(body_limit))
-                .layer(middleware::from_fn_with_state(app.clone(), reject_mutations_while_stopping)),
+                .layer(middleware::from_fn_with_state(
+                    app.clone(),
+                    reject_mutations_while_stopping,
+                )),
         )
         .with_state(app)
 }
@@ -160,11 +166,26 @@ fn register_network(router: Router<Arc<App>>) -> Router<Arc<App>> {
 
 fn register_auth(router: Router<Arc<App>>) -> Router<Arc<App>> {
     router
-        .route("/api/auth/status", get(auth::status_handler).fallback(bad_method))
-        .route("/api/auth/token", post(auth::token_handler).fallback(bad_method))
-        .route("/api/auth/login", post(auth::login_handler).fallback(bad_method))
-        .route("/api/auth/logout", post(auth::logout_handler).fallback(bad_method))
-        .route("/api/auth/reset", post(auth::reset_handler).fallback(bad_method))
+        .route(
+            "/api/auth/status",
+            get(auth::status_handler).fallback(bad_method),
+        )
+        .route(
+            "/api/auth/token",
+            post(auth::token_handler).fallback(bad_method),
+        )
+        .route(
+            "/api/auth/login",
+            post(auth::login_handler).fallback(bad_method),
+        )
+        .route(
+            "/api/auth/logout",
+            post(auth::logout_handler).fallback(bad_method),
+        )
+        .route(
+            "/api/auth/reset",
+            post(auth::reset_handler).fallback(bad_method),
+        )
         .route(
             "/api/auth/password",
             put(auth_password::password_put_handler).fallback(bad_method),

@@ -14,12 +14,12 @@ use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
-use crate::net::{AddrHint, PeerAddr, PeerId, RelayRef};
+use crate::transport::net::{AddrHint, PeerAddr, PeerId, RelayRef};
 use serde::{Deserialize, Serialize};
 
-use crate::config_file::write_tmp_and_rename;
-use crate::output::say;
-use crate::net_mainline::record::{entry_to_addr, RosterEntry};
+use crate::config::config_file::write_tmp_and_rename;
+use crate::node::output::say;
+use crate::transport::net_mainline::record::{entry_to_addr, RosterEntry};
 
 /// File name of the cache; the file is kept next to the settings file.
 pub const PEERS_CACHE_FILE_NAME: &str = "peers-cache.json";
@@ -66,7 +66,10 @@ fn read_valid(path: &Path, network_id: &str) -> Result<Vec<RosterEntry>, String>
     };
     let file: CacheFile = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     if file.version != PEERS_CACHE_FORMAT_VERSION {
-        return Err(format!("version {}, expected {PEERS_CACHE_FORMAT_VERSION}", file.version));
+        return Err(format!(
+            "version {}, expected {PEERS_CACHE_FORMAT_VERSION}",
+            file.version
+        ));
     }
     if file.network_id != network_id {
         return Err("file is for another network".to_string());
@@ -106,7 +109,8 @@ pub fn entry_for(
         if relay.is_none() {
             relay = known.hints.iter().find_map(relay_url_of_hint);
         }
-        let known_ips: Vec<SocketAddr> = known.hints.iter().filter_map(direct_addr_of_hint).collect();
+        let known_ips: Vec<SocketAddr> =
+            known.hints.iter().filter_map(direct_addr_of_hint).collect();
         let ordered = known_ips
             .iter()
             .filter(|a| a.is_ipv4())
@@ -153,7 +157,10 @@ impl PeersCache {
     /// Addresses of all cache members, from fresh to old; a corrupt record (a bad relay URL)
     /// is skipped silently.
     pub fn addrs(&self) -> Vec<PeerAddr> {
-        self.peers.iter().filter_map(|e| entry_to_addr(e).ok()).collect()
+        self.peers
+            .iter()
+            .filter_map(|e| entry_to_addr(e).ok())
+            .collect()
     }
 
     /// Map "member id → its `seen_unix`" for all cache records; a record with an id that
@@ -201,7 +208,8 @@ impl PeersCache {
             }
         }
         self.peers.sort_by_key(|e| std::cmp::Reverse(e.seen_unix));
-        self.peers.retain(|e| e.seen_unix.saturating_add(TTL_SECS) >= now_unix);
+        self.peers
+            .retain(|e| e.seen_unix.saturating_add(TTL_SECS) >= now_unix);
         self.peers.truncate(MAX_PEERS);
         true
     }
@@ -244,7 +252,10 @@ impl PeersCache {
         let text = serde_json::to_string_pretty(&file)
             .map_err(|e| format!("cache {} not serialized: {e}", path.display()))?;
         let dir = path.parent().unwrap_or_else(|| Path::new("."));
-        let tmp = dir.join(format!("{PEERS_CACHE_FILE_NAME}.tmp-{}", std::process::id()));
+        let tmp = dir.join(format!(
+            "{PEERS_CACHE_FILE_NAME}.tmp-{}",
+            std::process::id()
+        ));
         write_tmp_and_rename(&tmp, path, &text)
             .map_err(|e| format!("cache {} not written: {e}", path.display()))
     }

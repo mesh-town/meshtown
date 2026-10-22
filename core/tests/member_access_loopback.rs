@@ -11,13 +11,13 @@ mod common;
 
 use std::time::Duration;
 
-use meshtown::access::actions::{apply, MemberAction};
-use meshtown::access::record::{ensure, AclKind, AclValue, Via};
-use meshtown::access::report::members_reply;
-use meshtown::access::view::Deny;
-use meshtown::net_mainline::unix_now;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::members::access::actions::{apply, MemberAction};
+use meshtown_core::members::access::record::{ensure, AclKind, AclValue, Via};
+use meshtown_core::members::access::report::members_reply;
+use meshtown_core::members::access::view::Deny;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net_mainline::unix_now;
 use tokio::time::{sleep, timeout};
 
 use common::{introduce, wait_member};
@@ -44,23 +44,41 @@ async fn eventually(what: &str, cond: impl Fn() -> bool) {
             sleep(Duration::from_millis(50)).await;
         }
     };
-    timeout(LIMIT, wait).await.unwrap_or_else(|_| panic!("did not happen within {LIMIT:?}: {what}"));
+    timeout(LIMIT, wait)
+        .await
+        .unwrap_or_else(|_| panic!("did not happen within {LIMIT:?}: {what}"));
 }
 
 /// `a` writes its admission of `b` into its own copy of the shared list.
 async fn admit(a: &RunningNode, b: &RunningNode) {
-    let value = AclValue { kind: AclKind::Admit, subject: b.id, via: Via::None, made_unix: unix_now(), note: String::new() };
-    ensure(a.domains.shared_replica().as_ref(), &value).await.unwrap();
+    let value = AclValue {
+        kind: AclKind::Admit,
+        subject: b.id,
+        via: Via::None,
+        made_unix: unix_now(),
+        note: String::new(),
+    };
+    ensure(a.domains.shared_replica().as_ref(), &value)
+        .await
+        .unwrap();
 }
 
 async fn refresh(a: &RunningNode) {
-    timeout(LIMIT, a.access.refresh()).await.expect("recompute in time").unwrap();
+    timeout(LIMIT, a.access.refresh())
+        .await
+        .expect("recompute in time")
+        .unwrap();
 }
 
 fn status_of(a: &RunningNode, who: &RunningNode) -> String {
     let v = a.members.access().verdicts().expect("published");
     let reply = members_reply(&v, &a.members, &a.members.access().refusals(), None);
-    reply.members.iter().find(|r| r.id_full == who.id.to_string()).map(|r| r.status.to_string()).unwrap_or_default()
+    reply
+        .members
+        .iter()
+        .find(|r| r.id_full == who.id.to_string())
+        .map(|r| r.status.to_string())
+        .unwrap_or_default()
 }
 
 async fn shut(a: RunningNode, b: RunningNode) {
@@ -75,7 +93,13 @@ async fn unlisted_neighbours_are_refused_and_listed_ones_connect() {
     // when: they are introduced
     introduce(&a, &b).await;
     // then: a records the refusal of b as unlisted and does not count b as a member
-    let refused = || a.members.access().refusals().iter().any(|(p, r)| *p == b.id && r.deny == Deny::Unlisted);
+    let refused = || {
+        a.members
+            .access()
+            .refusals()
+            .iter()
+            .any(|(p, r)| *p == b.id && r.deny == Deny::Unlisted)
+    };
     eventually("a refuses b as unlisted", refused).await;
     assert!(!a.members.is_member(b.id));
     // when: both write their admissions and recompute
@@ -102,7 +126,14 @@ async fn an_exclusion_vote_removes_a_member_and_withdrawing_it_restores() {
     introduce(&a, &b).await;
     wait_member(&a, b.id, LIMIT).await;
     // when: a votes to exclude b
-    let changed = timeout(LIMIT, apply(&a.access, MemberAction::Exclude(b.id, Some("test".to_string())))).await;
+    let changed = timeout(
+        LIMIT,
+        apply(
+            &a.access,
+            MemberAction::Exclude(b.id, Some("test".to_string())),
+        ),
+    )
+    .await;
     assert_eq!(changed.expect("the vote in time"), Ok(true));
     // then: b is no longer a member of a and the list shows it as excluded
     eventually("b is out", || !a.members.is_member(b.id)).await;

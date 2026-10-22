@@ -5,15 +5,15 @@
 //! node, foreign `list/` records of the shared document aren't shown); that the shared document is
 //! still reconciled (a label written into it arrives); that a node of another network doesn't get the shared document.
 //! What it doesn't do: doesn't check the DHT or the stdin console.
-//! Links: tests `meshtown::domains` through `meshtown::node`.
+//! Links: tests `meshtown_core::proxy::domains` through `meshtown_core::node`.
 
 use std::time::Duration;
 
 use bytes::Bytes;
-use meshtown::domains::entry_key;
-use meshtown::net::{live, PeerAddr};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::proxy::domains::entry_key;
+use meshtown_core::transport::net::{live, PeerAddr};
 use tokio::time::{sleep, Instant};
 
 fn names(xs: &[&str]) -> Vec<String> {
@@ -27,12 +27,22 @@ async fn introduce(a: &RunningNode, b: &RunningNode) {
 /// Polls the log every 50 ms until, in lines with the `auth` tag, both handshake refusal
 /// markers appear — from the initiator (`a`) and from the responder (`b`) — or the limit expires.
 async fn wait_rejected(a: &RunningNode, b: &RunningNode, limit: Duration) -> bool {
-    let want_a = format!("handshake with {}: refused", meshtown::output::short_peer_id(&b.id));
-    let want_b = format!("incoming from {}: refused", meshtown::output::short_peer_id(&a.id));
+    let want_a = format!(
+        "handshake with {}: refused",
+        meshtown_core::node::output::short_peer_id(&b.id)
+    );
+    let want_b = format!(
+        "incoming from {}: refused",
+        meshtown_core::node::output::short_peer_id(&a.id)
+    );
     let deadline = Instant::now() + limit;
     loop {
-        let lines = meshtown::output::log_page(0, usize::MAX).lines;
-        let seen = |want: &str| lines.iter().any(|l| l.tag == "auth" && l.text.starts_with(want));
+        let lines = meshtown_core::node::output::log_page(0, usize::MAX).lines;
+        let seen = |want: &str| {
+            lines
+                .iter()
+                .any(|l| l.tag == "auth" && l.text.starts_with(want))
+        };
         if seen(&want_a) && seen(&want_b) {
             return true;
         }
@@ -46,7 +56,9 @@ async fn wait_rejected(a: &RunningNode, b: &RunningNode, limit: Duration) -> boo
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn local_add_list_remove() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     assert_eq!(a.domains.list().await.unwrap(), Vec::<String>::new());
     assert_eq!(a.domains.add("Example.COM").await.unwrap(), "example.com");
@@ -74,7 +86,10 @@ async fn local_add_list_remove() {
 async fn wait_members(a: &RunningNode, b: &RunningNode) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !(a.members.is_member(b.id) && b.members.is_member(a.id)) {
-        assert!(Instant::now() < deadline, "the nodes did not become members of each other within 10 s");
+        assert!(
+            Instant::now() < deadline,
+            "the nodes did not become members of each other within 10 s"
+        );
         sleep(Duration::from_millis(50)).await;
     }
 }
@@ -107,8 +122,12 @@ async fn wait_shared_key(node: &RunningNode, key: &[u8], limit: Duration) -> boo
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn domain_stays_on_own_node() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
     wait_members(&a, &b).await;
 
@@ -124,8 +143,12 @@ async fn domain_stays_on_own_node() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn remove_on_other_peer_keeps_own() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     a.domains.add("example.com").await.unwrap();
     b.domains.add("example.com").await.unwrap();
     b.domains.remove("example.com").await.unwrap();
@@ -142,11 +165,15 @@ async fn remove_on_other_peer_keeps_own() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn late_joiner_gets_shared_not_domains() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
     a.domains.add("one.example").await.unwrap();
     put_shared(&a, b"test/late/").await;
 
-    let c = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let c = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &c).await;
     assert!(
         wait_shared_key(&c, b"test/late/", Duration::from_secs(15)).await,
@@ -158,8 +185,12 @@ async fn late_joiner_gets_shared_not_domains() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn old_node_domain_not_shown() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
     wait_members(&a, &b).await;
 
@@ -170,18 +201,25 @@ async fn old_node_domain_not_shown() {
         "the `list/` record from A did not reach B within 15 s"
     );
     assert_eq!(b.domains.list().await.unwrap(), Vec::<String>::new());
-    let shown = meshtown::output::log_page(0, usize::MAX)
+    let shown = meshtown_core::node::output::log_page(0, usize::MAX)
         .lines
         .iter()
         .any(|l| l.tag == "docs" && l.text.contains("old.example"));
-    assert!(!shown, "a foreign domain from the shared document ended up in the `docs` log");
+    assert!(
+        !shown,
+        "a foreign domain from the shared document ended up in the `docs` log"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn own_namespace_is_private() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     // `mesh` has its own list replica — the fixed id `domains` (shared by all nodes, but it is not
     // handed out to the network: `domain_stays_on_own_node`); it differs from the network's shared replica
     assert_eq!(a.domains.own_replica_id(), b.domains.own_replica_id());
@@ -191,17 +229,24 @@ async fn own_namespace_is_private() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn other_network_does_not_get_domains() {
-    let a = node::start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap()))
-        .await
-        .unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap()))
-        .await
-        .unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(
+        NetworkKey::generate().unwrap(),
+    ))
+    .await
+    .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(
+        NetworkKey::generate().unwrap(),
+    ))
+    .await
+    .unwrap();
     a.domains.add("example.com").await.unwrap();
     assert_ne!(a.domains.shared_replica_id(), b.domains.shared_replica_id());
     introduce(&a, &b).await;
 
     let ok = wait_rejected(&a, &b, Duration::from_secs(10)).await;
-    assert!(ok, "the handshake refusal was not written to the log within 10 s");
+    assert!(
+        ok,
+        "the handshake refusal was not written to the log within 10 s"
+    );
     assert_eq!(b.domains.list().await.unwrap(), Vec::<String>::new());
 }

@@ -6,7 +6,7 @@
 //! What it does not do: it knows no snapshot field by name and writes nothing to the log.
 //! Links: `types.rs` plugs them into `#[serde(deserialize_with = …)]`.
 
-use meshtown::web::RouteMode;
+use crate::web_gui::RouteMode;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
@@ -55,7 +55,10 @@ pub(crate) fn opt_list<'de, D: Deserializer<'de>, T: DeserializeOwned + Default>
 pub(crate) fn strings<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
     let value = Value::deserialize(d)?;
     let items = value.as_array().map(Vec::as_slice).unwrap_or_default();
-    Ok(items.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+    Ok(items
+        .iter()
+        .filter_map(|v| v.as_str().map(str::to_string))
+        .collect())
 }
 
 pub(crate) fn bool_or_false<'de, D: Deserializer<'de>>(d: D) -> Result<bool, D::Error> {
@@ -96,10 +99,14 @@ pub(crate) fn route_mode<'de, D: Deserializer<'de>>(d: D) -> Result<RouteMode, D
 }
 
 /// Node status: a non-string gives `None`, an unknown string gives `Unknown`.
-pub(crate) fn node_word<'de, D: Deserializer<'de>>(d: D) -> Result<Option<TrayNodeStatus>, D::Error> {
+pub(crate) fn node_word<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<Option<TrayNodeStatus>, D::Error> {
     let value = Value::deserialize(d)?;
     match value.is_string() {
-        true => Ok(Some(TrayNodeStatus::deserialize(value).unwrap_or(TrayNodeStatus::Unknown))),
+        true => Ok(Some(
+            TrayNodeStatus::deserialize(value).unwrap_or(TrayNodeStatus::Unknown),
+        )),
         false => Ok(None),
     }
 }

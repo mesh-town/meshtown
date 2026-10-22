@@ -16,7 +16,11 @@ fn first_four_rounds_are_fast() {
 fn steady_pause_within_120_135() {
     let p = Pace::production();
     for spread in 0..2000u64 {
-        let d = p.pause(4 + (spread % 7) as u32, 0, spread.wrapping_mul(0x9E37_79B9_7F4A_7C15));
+        let d = p.pause(
+            4 + (spread % 7) as u32,
+            0,
+            spread.wrapping_mul(0x9E37_79B9_7F4A_7C15),
+        );
         assert!(d >= secs(120) && d <= secs(135), "{d:?}");
     }
 }

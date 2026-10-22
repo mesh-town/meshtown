@@ -2,7 +2,7 @@
 
 use clap::error::ErrorKind;
 
-use crate::cli::Cli;
+use crate::cli::args::Cli;
 
 const ABOUT: &str = "Mesh Town — open sites through the computers of your network's members.";
 
@@ -24,7 +24,14 @@ fn sub_help(name: &str) -> String {
 }
 
 fn sub_names() -> Vec<&'static str> {
-    let mut v = vec!["run", "keygen", "config-path", "password", "access", "ifaces"];
+    let mut v = vec![
+        "run",
+        "keygen",
+        "config-path",
+        "password",
+        "access",
+        "ifaces",
+    ];
     if cfg!(feature = "tray") {
         v.push("tray");
     }
@@ -57,7 +64,13 @@ fn top_help_speaks_english() {
 #[test]
 fn top_help_has_no_clap_defaults() {
     for help in [top(), top_long()] {
-        for bad in ["Print help", "Print version", "[env:", "<COMMAND>", "  help "] {
+        for bad in [
+            "Print help",
+            "Print version",
+            "[env:",
+            "<COMMAND>",
+            "  help ",
+        ] {
             assert!(!help.contains(bad), "\"{bad}\" in the help:\n{help}");
         }
     }
@@ -79,13 +92,23 @@ fn top_help_headings_appear_once() {
 #[test]
 fn commands_in_order() {
     let help = top();
-    let mut names = vec!["  run ", "  keygen ", "  config-path ", "  password ", "  access ", "  ifaces "];
+    let mut names = vec![
+        "  run ",
+        "  keygen ",
+        "  config-path ",
+        "  password ",
+        "  access ",
+        "  ifaces ",
+    ];
     if cfg!(feature = "tray") {
         names.insert(0, "  tray ");
     }
     let pos: Vec<usize> = names
         .iter()
-        .map(|n| help.find(n).unwrap_or_else(|| panic!("no \"{n}\":\n{help}")))
+        .map(|n| {
+            help.find(n)
+                .unwrap_or_else(|| panic!("no \"{n}\":\n{help}"))
+        })
         .collect();
     assert!(
         pos.windows(2).all(|w| w[0] < w[1]),
@@ -132,7 +155,11 @@ fn sub_help_speaks_english() {
             "{name}:\n{help}"
         );
         for heading in ["Usage:", "Options:"] {
-            assert_eq!(help.matches(heading).count(), 1, "{name}: \"{heading}\":\n{help}");
+            assert_eq!(
+                help.matches(heading).count(),
+                1,
+                "{name}: \"{heading}\":\n{help}"
+            );
         }
         for bad in ["Arguments:", "Print help"] {
             assert!(!help.contains(bad), "{name}: \"{bad}\":\n{help}");
@@ -141,7 +168,16 @@ fn sub_help_speaks_english() {
 }
 
 /// Value names allowed in the help: from the dictionary (`<KEY>`, `<SECONDS>`…).
-const LABELS: [&str; 8] = ["TEXT", "KEY", "PATH", "SECONDS", "SITE", "ADDR:PORT", "PORT", "MODE"];
+const LABELS: [&str; 8] = [
+    "TEXT",
+    "KEY",
+    "PATH",
+    "SECONDS",
+    "SITE",
+    "ADDR:PORT",
+    "PORT",
+    "MODE",
+];
 
 /// Labels in angle brackets in the text that are not among the allowed value names.
 fn unknown_labels(s: &str) -> Vec<&str> {
@@ -189,7 +225,10 @@ fn run_help_hides_port_flag() {
         .lines()
         .filter(|l| l.trim_start().starts_with("--port"))
         .collect();
-    assert!(listed.is_empty(), "the --port flag is visible in the help: {listed:?}\n{help}");
+    assert!(
+        listed.is_empty(),
+        "the --port flag is visible in the help: {listed:?}\n{help}"
+    );
 }
 
 #[test]

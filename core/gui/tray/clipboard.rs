@@ -5,7 +5,7 @@
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
 
-use crate::app::tray_texts::{REASON_CLIP_FAILED, REASON_NO_TOOL};
+use crate::gui::tray::app::tray_texts::{REASON_CLIP_FAILED, REASON_NO_TOOL};
 
 /// A program and its arguments.
 pub(super) type ClipboardTool = (&'static str, &'static [&'static str]);

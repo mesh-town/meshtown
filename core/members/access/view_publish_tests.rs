@@ -13,14 +13,22 @@ mod publish {
         let Cast { m, a, b, c, .. } = cast();
         let view = AccessView::pending();
         let first = view.publish(verdicts(m, ledger(&[m, a, c], &[b])));
-        assert_eq!(denied(first), map(&[(b, Deny::Excluded)]), "first publication");
+        assert_eq!(
+            denied(first),
+            map(&[(b, Deny::Excluded)]),
+            "first publication"
+        );
         // when: C gets blocked as well while B stays excluded
         let second = view.publish(Verdicts {
             blocks: set(&[c]),
             ..verdicts(m, ledger(&[m, a, c], &[b]))
         });
         // then: only C is new
-        assert_eq!(denied(second), map(&[(c, Deny::Blocked)]), "second publication");
+        assert_eq!(
+            denied(second),
+            map(&[(c, Deny::Blocked)]),
+            "second publication"
+        );
         // when: the very same verdicts are published again
         let third = view.publish(Verdicts {
             blocks: set(&[c]),
@@ -48,7 +56,10 @@ mod publish {
         let view = AccessView::pending();
         view.publish(verdicts(m, ledger(&[m, a], &[b])));
         let relisted = view.publish(verdicts(m, ledger(&[m, a, b], &[])));
-        assert!(relisted.is_empty(), "relisting denies nobody, got {relisted:?}");
+        assert!(
+            relisted.is_empty(),
+            "relisting denies nobody, got {relisted:?}"
+        );
         // when: B is excluded once more
         let again = view.publish(verdicts(m, ledger(&[m, a], &[b])));
         // then: it counts as newly denied
@@ -181,16 +192,25 @@ mod refusals {
         assert_eq!(*peer, a);
         assert_eq!(refusal.side, Side::Them);
         assert_eq!(refusal.deny, Deny::Excluded);
-        assert!(refusal.at_unix >= before && refusal.at_unix <= now_unix() + 1, "at_unix {}", refusal.at_unix);
+        assert!(
+            refusal.at_unix >= before && refusal.at_unix <= now_unix() + 1,
+            "at_unix {}",
+            refusal.at_unix
+        );
         // when: 100 other nodes are refused
         let others: Vec<PeerId> = (10..=109u8).map(pid).collect();
-        others.iter().for_each(|p| view.note_refusal(*p, Side::Me, Deny::Unlisted));
+        others
+            .iter()
+            .for_each(|p| view.note_refusal(*p, Side::Me, Deny::Unlisted));
         // then: no more than 64 entries remain, one per node, and the latest node is among them
         let list = view.refusals();
         let distinct: BTreeSet<PeerId> = list.iter().map(|(p, _)| *p).collect();
         assert_eq!(list.len(), 64, "the log is capped at 64");
         assert_eq!(distinct.len(), 64, "one entry per node");
-        assert!(distinct.contains(others.last().unwrap()), "the latest refusal must be kept");
+        assert!(
+            distinct.contains(others.last().unwrap()),
+            "the latest refusal must be kept"
+        );
     }
 
     #[test]

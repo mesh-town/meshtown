@@ -4,12 +4,12 @@
 
 use std::collections::HashSet;
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use crate::checks::CheckView;
-use crate::output;
-use crate::stale_peers::{self, Evidence};
-use crate::web::PeerInfo;
+use crate::members::stale_peers::{self, Evidence};
+use crate::node::output;
+use crate::site_checks::checks::CheckView;
+use crate::web_gui::PeerInfo;
 
 use super::build::Inputs;
 
@@ -52,7 +52,9 @@ fn other_peer_ids(i: &Inputs<'_>, ev: &Evidence<'_>) -> Vec<PeerId> {
     }
     ids.extend(i.cached_seen.keys().copied());
     ids.remove(&i.id);
-    ids.retain(|id| i.chosen_exits.contains(id) || !stale_peers::is_gone(stale_peers::age_sec(ev, *id)));
+    ids.retain(|id| {
+        i.chosen_exits.contains(id) || !stale_peers::is_gone(stale_peers::age_sec(ev, *id))
+    });
     let mut others: Vec<PeerId> = ids.into_iter().collect();
     others.sort_by_key(output::short_peer_id);
     others
@@ -61,7 +63,8 @@ fn other_peer_ids(i: &Inputs<'_>, ev: &Evidence<'_>) -> Vec<PeerId> {
 /// The snapshot's own row: always `online`, the path is not computed (`None`), the exit flag is the direct flag
 /// `exit_on`.
 fn self_peer_info(i: &Inputs<'_>) -> PeerInfo {
-    let (self_checked, self_freshest) = author_stats(&i.check_views, &i.domain_names, |a| *a == i.me);
+    let (self_checked, self_freshest) =
+        author_stats(&i.check_views, &i.domain_names, |a| *a == i.me);
     PeerInfo {
         id: output::short_peer_id(&i.id),
         id_full: i.id.to_string(),
@@ -92,8 +95,9 @@ fn other_peer_info(i: &Inputs<'_>, ev: &Evidence<'_>, id: PeerId) -> PeerInfo {
     } else {
         (None, None)
     };
-    let (checked, freshest) =
-        author_stats(&i.check_views, &i.domain_names, |a| a.as_bytes() == id.as_bytes());
+    let (checked, freshest) = author_stats(&i.check_views, &i.domain_names, |a| {
+        a.as_bytes() == id.as_bytes()
+    });
     let last_seen_sec = stale_peers::age_sec(ev, id).unwrap_or(0);
     let rate = i.exit_rates.get(&id).copied().unwrap_or_default();
     PeerInfo {

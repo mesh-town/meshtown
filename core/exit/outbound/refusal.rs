@@ -2,7 +2,9 @@
 
 use std::net::SocketAddr;
 
-use crate::exit::frame::{EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS};
+use crate::exit::frame::{
+    EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS,
+};
 
 /// The reply code for the member and the tail of the log line (`refuse` adds the short id).
 #[derive(Debug)]

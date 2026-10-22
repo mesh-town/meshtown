@@ -144,12 +144,17 @@ mod serve_connection {
 
     #[tokio::test]
     async fn puts_conn_info_into_extensions() {
-        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+        let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+            .await
+            .unwrap();
         let addr = listener.local_addr().unwrap();
         let router = axum::Router::new().route("/", axum::routing::get(peer_of));
         let server = tokio::spawn(async move {
             let (stream, peer) = listener.accept().await.unwrap();
-            let conn = ConnInfo { client_addr: peer, local: stream.local_addr().unwrap() };
+            let conn = ConnInfo {
+                client_addr: peer,
+                local: stream.local_addr().unwrap(),
+            };
             serve_connection(stream, conn, router).await;
         });
         let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();

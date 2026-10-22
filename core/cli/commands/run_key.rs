@@ -1,12 +1,12 @@
 //! Starting the node with a network key: parsing the key, building `Relaunch` and `NodeConfig`, the page and the node.
 //! What is not here: choosing the launch branch and parsing flags — that is in `commands.rs`.
 
+use crate::config::config_file::{CliOverrides, RunConfig};
+use crate::members::network_key::{parse_user_input, NetworkKey};
+use crate::node::host::{Host, PageRole};
+use crate::node::output::NET_NAME;
+use crate::node::IdentityState;
 use anyhow::Context;
-use meshtown::config_file::{CliOverrides, RunConfig};
-use meshtown::host::{Host, PageRole};
-use meshtown::network_key::{parse_user_input, NetworkKey};
-use meshtown::node::IdentityState;
-use meshtown::output::NET_NAME;
 
 use super::file_hint;
 
@@ -16,7 +16,7 @@ pub(super) fn parse_run_key(
     key_text: &str,
     overrides: &CliOverrides,
     run: &RunConfig,
-) -> anyhow::Result<meshtown::network_key::NetworkKeyInput> {
+) -> anyhow::Result<crate::members::network_key::NetworkKeyInput> {
     Ok(if overrides.network_key.is_none() {
         parse_user_input(key_text).with_context(|| {
             format!(
@@ -51,9 +51,9 @@ pub(super) fn launch_parts(
     blocked_domains: Vec<String>,
     network_key: NetworkKey,
     label: Option<String>,
-    invited: Option<meshtown::invite::ParsedInvite>,
-) -> (meshtown::node_ctl::Relaunch, meshtown::node::NodeConfig) {
-    let relaunch = meshtown::node_ctl::Relaunch {
+    invited: Option<crate::invite::ParsedInvite>,
+) -> (crate::node::node_ctl::Relaunch, crate::node::NodeConfig) {
+    let relaunch = crate::node::node_ctl::Relaunch {
         path: run.file_report.path.clone(),
         cli: overrides,
         secret: run.secret.clone(),
@@ -74,13 +74,13 @@ pub(super) fn launch_parts(
 
 /// The node page and the node itself: if the page failed to come up, the node runs without it.
 async fn serve_node(
-    cfg: meshtown::node::NodeConfig,
+    cfg: crate::node::NodeConfig,
     run: RunConfig,
-    relaunch: meshtown::node_ctl::Relaunch,
+    relaunch: crate::node::node_ctl::Relaunch,
 ) -> anyhow::Result<()> {
-    let ctl = meshtown::node_ctl::NodeCtl::new(&run.effective_settings);
+    let ctl = crate::node::node_ctl::NodeCtl::new(&run.effective_settings);
     Host::run_with_web_page(run, ctl, PageRole::Optional, |run, ctl| {
-        meshtown::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch)
+        crate::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch)
     })
     .await
 }
@@ -93,7 +93,7 @@ pub(super) async fn run_with_key(
     run: RunConfig,
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
-    invited: Option<meshtown::invite::ParsedInvite>,
+    invited: Option<crate::invite::ParsedInvite>,
 ) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
     let parsed = parse_run_key(&key_text, &overrides, &run)?;

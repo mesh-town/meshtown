@@ -1,12 +1,12 @@
 //! Sync as a swappable part: topic membership and named replicas behind one trait.
 
-use crate::net::error::NetResult;
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::replica::Replica;
-use crate::net::facade::{ServiceHandler, WeakStack};
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::sync::{Membership, SwarmEvent};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::facade::{ServiceHandler, WeakStack};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::replica::Replica;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync::{Membership, SwarmEvent};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;

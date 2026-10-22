@@ -1,8 +1,8 @@
 //! Counters of changes to the network's shared document: `log_events` increments them on replica
 //! events, and the snapshot cache (`node_ctl/snapshot/doc_cache.rs`) uses them to decide whether to re-read the document.
 
-use std::sync::atomic::Ordering;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 /// How many times the document was changed by us (`local`) and by others or their content (`remote`).
 #[derive(Debug, Default)]
@@ -24,6 +24,9 @@ impl DocChanges {
 
     /// Current values of `(local, remote)`.
     pub fn local_and_remote_counts(&self) -> (u64, u64) {
-        (self.local.load(Ordering::Relaxed), self.remote.load(Ordering::Relaxed))
+        (
+            self.local.load(Ordering::Relaxed),
+            self.remote.load(Ordering::Relaxed),
+        )
     }
 }

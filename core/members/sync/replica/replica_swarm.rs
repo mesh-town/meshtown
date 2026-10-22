@@ -3,9 +3,9 @@
 use super::entry::check;
 use super::replica::{now_micros, MeshReplica};
 use super::wire::{decode_push, PROTO_VERSION};
-use crate::net::id::PeerId;
-use crate::net::replica::ReplicaEvent;
-use crate::net::SwarmEvent;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::ReplicaEvent;
+use crate::transport::net::SwarmEvent;
 use std::sync::Arc;
 
 /// An entry with `ts_micros` further ahead than this limit is a reason for a log line, but not for refusal.
@@ -18,7 +18,10 @@ impl MeshReplica {
             SwarmEvent::NeighborDown(peer) => self.neighbor(peer, false),
             SwarmEvent::Received { from, msg } => self.received(from, &msg),
             SwarmEvent::Lagged => self.resync_all(),
-            SwarmEvent::Closed(text) => tracing::warn!("[sync] replica topic {} closed: {text}", self.id.fmt_short()),
+            SwarmEvent::Closed(text) => tracing::warn!(
+                "[sync] replica topic {} closed: {text}",
+                self.id.fmt_short()
+            ),
         }
     }
 
@@ -41,7 +44,11 @@ impl MeshReplica {
     /// Periodic reconciliation: only towards neighbors with a larger `PeerId`, so each pair is reconciled by one side.
     pub(super) fn resync_smaller(self: &Arc<Self>) {
         let me = self.wiring.me;
-        for peer in self.neighbor_list().into_iter().filter(|p| me.as_bytes() < p.as_bytes()) {
+        for peer in self
+            .neighbor_list()
+            .into_iter()
+            .filter(|p| me.as_bytes() < p.as_bytes())
+        {
             self.spawn_dial(peer);
         }
     }
@@ -69,7 +76,10 @@ impl MeshReplica {
                 continue;
             };
             if w.ts_micros > far && self.first_warning(author) {
-                tracing::warn!("[sync] author {author}'s clock is far ahead (entry {} µs)", w.ts_micros);
+                tracing::warn!(
+                    "[sync] author {author}'s clock is far ahead (entry {} µs)",
+                    w.ts_micros
+                );
             }
             changed |= state.merge(w);
         }

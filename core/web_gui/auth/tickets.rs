@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use crate::web::guard::ct_eq;
+use crate::web_gui::guard::ct_eq;
 
 pub(crate) const TEMP_TTL: Duration = Duration::from_secs(600);
 pub(crate) const TEMP_MAX: usize = 8;
@@ -53,7 +53,7 @@ impl Tickets {
     }
 
     pub(crate) fn issue_temp(&mut self, now: Instant) -> Result<String, String> {
-        let token = crate::web::token::generate()?;
+        let token = crate::web_gui::token::generate()?;
         self.sweep(now);
         if self.temps.len() >= TEMP_MAX {
             self.evict_oldest_temp();
@@ -87,7 +87,7 @@ impl Tickets {
     }
 
     pub(crate) fn open_session(&mut self, via: Via, now: Instant) -> Result<String, String> {
-        let id = crate::web::token::generate()?;
+        let id = crate::web_gui::token::generate()?;
         self.sweep(now);
         if self.sessions.len() >= SESSION_MAX {
             self.evict_oldest_session();

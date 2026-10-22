@@ -1,15 +1,15 @@
 use super::*;
-use crate::net::NodeSecret;
+use crate::members::network_key::NetworkKey;
 use crate::node::identity::TemporaryReason;
-use crate::network_key::NetworkKey;
-use crate::web::NodeControl;
+use crate::transport::net::NodeSecret;
+use crate::web_gui::NodeControl;
 use std::time::Duration;
 use tokio::time::timeout;
 
-fn test_relaunch() -> crate::node_ctl::Relaunch {
-    crate::node_ctl::Relaunch {
+fn test_relaunch() -> crate::node::node_ctl::Relaunch {
+    crate::node::node_ctl::Relaunch {
         path: None,
-        cli: crate::config_file::CliOverrides::default(),
+        cli: crate::config::config_file::CliOverrides::default(),
         secret: NodeSecret::from_bytes(&[11u8; 32]),
         initial_domains: Vec::new(),
         blocked_domains: Vec::new(),
@@ -21,10 +21,10 @@ fn test_relaunch() -> crate::node_ctl::Relaunch {
 /// `Ok(())` within a `timeout` of 2 s.
 #[tokio::test]
 async fn run_after_key_stop_before_and_during_wait() {
-    use crate::web::NodeControl;
+    use crate::web_gui::NodeControl;
 
-    let settings = crate::config_file::Settings::default();
-    let ctl = crate::node_ctl::NodeCtl::new_without_network(&settings);
+    let settings = crate::config::config_file::Settings::default();
+    let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&settings);
     ctl.stop();
     let res = timeout(
         Duration::from_secs(2),
@@ -36,9 +36,12 @@ async fn run_after_key_stop_before_and_during_wait() {
         ),
     )
     .await;
-    assert!(matches!(res, Ok(Ok(()))), "(a) stop() before the call: {res:?}");
+    assert!(
+        matches!(res, Ok(Ok(()))),
+        "(a) stop() before the call: {res:?}"
+    );
 
-    let ctl = crate::node_ctl::NodeCtl::new_without_network(&settings);
+    let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&settings);
     let ctl2 = ctl.clone();
     let task = tokio::spawn(run_node_awaiting_key(
         settings,
@@ -59,10 +62,10 @@ async fn run_after_key_stop_before_and_during_wait() {
 /// ends it with `Ok(())`.
 #[tokio::test]
 async fn run_after_key_bad_key_keeps_waiting() {
-    use crate::web::NodeControl;
+    use crate::web_gui::NodeControl;
 
-    let settings = crate::config_file::Settings::default();
-    let ctl = crate::node_ctl::NodeCtl::new_without_network(&settings);
+    let settings = crate::config::config_file::Settings::default();
+    let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&settings);
     ctl.join_with_peers("not a key at all", vec![]);
     let ctl2 = ctl.clone();
     let task = tokio::spawn(run_node_awaiting_key(
@@ -72,11 +75,11 @@ async fn run_after_key_bad_key_keeps_waiting() {
         test_relaunch(),
     ));
     tokio::time::sleep(Duration::from_millis(100)).await;
-    assert_eq!(ctl2.snapshot().node.status, crate::web::NodeStatus::Offline);
-    assert!(
-        !task.is_finished(),
-        "the task must not finish on a bad key"
+    assert_eq!(
+        ctl2.snapshot().node.status,
+        crate::web_gui::NodeStatus::Offline
     );
+    assert!(!task.is_finished(), "the task must not finish on a bad key");
     ctl2.stop();
     let res = timeout(Duration::from_secs(2), task).await;
     assert!(
@@ -94,14 +97,21 @@ fn key_text(b: u8) -> String {
 }
 
 fn old_cfg() -> NodeConfig {
-    let mut cfg = test_relaunch().node_config(&Settings::default(), NetworkKey::from_bytes([1; 32]));
+    let mut cfg =
+        test_relaunch().node_config(&Settings::default(), NetworkKey::from_bytes([1; 32]));
     cfg.identity = IdentityState::Persistent;
     cfg.initial_peers = vec![peer(1)];
     cfg
 }
 
 fn old_settings() -> Settings {
-    Settings { net: crate::config_file::NetSettings { network_key: Some(key_text(1)), ..crate::config_file::NetSettings::default() }, ..Settings::default() }
+    Settings {
+        net: crate::config::config_file::NetSettings {
+            network_key: Some(key_text(1)),
+            ..crate::config::config_file::NetSettings::default()
+        },
+        ..Settings::default()
+    }
 }
 
 #[tokio::test]
@@ -162,14 +172,20 @@ async fn after_command_stop_breaks() {
 
 #[tokio::test]
 async fn after_command_bad_key_keeps_old_cfg() {
-    let (flow, cfg) = run_after(Cmd::Switch { key: "not a key at all".into(), peers: vec![peer(2)] });
+    let (flow, cfg) = run_after(Cmd::Switch {
+        key: "not a key at all".into(),
+        peers: vec![peer(2)],
+    });
     assert!(flow.is_continue());
     assert_old(&cfg);
 }
 
 #[tokio::test]
 async fn after_command_good_key_replaces_cfg_keeps_identity() {
-    let (flow, cfg) = run_after(Cmd::Switch { key: key_text(2), peers: vec![peer(2)] });
+    let (flow, cfg) = run_after(Cmd::Switch {
+        key: key_text(2),
+        peers: vec![peer(2)],
+    });
     assert!(flow.is_continue());
     assert_eq!(cfg.network_key.encode(), key_text(2));
     assert_eq!(cfg.identity, IdentityState::Persistent);
@@ -207,6 +223,9 @@ async fn boot_cycles_reuse_fixed_socks_port() {
             .await
             .unwrap_or_else(|e| panic!("round {round}, port {port}: {e:#}"));
         ctl.stop_on_os_signal();
-        assert!(matches!(serve_until_command(node, &ctl).await, Cmd::Stop), "round {round}");
+        assert!(
+            matches!(serve_until_command(node, &ctl).await, Cmd::Stop),
+            "round {round}"
+        );
     }
 }

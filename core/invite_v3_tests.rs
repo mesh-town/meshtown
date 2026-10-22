@@ -2,11 +2,11 @@
 
 use std::net::SocketAddr;
 
-use crate::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
+use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
 use data_encoding::BASE32_NOPAD;
 
 use super::*;
-use crate::addr_order::PrimaryIps;
+use crate::transport::addr_order::PrimaryIps;
 
 const T: u64 = 1_760_000_000;
 /// `T` as postcard varint.
@@ -37,12 +37,19 @@ fn head() -> InviteHead {
 }
 
 fn body_of(text: &str) -> Vec<u8> {
-    let body = text.strip_prefix(INVITE_PREFIX).expect("prefix mesh-invite2-");
-    BASE32_NOPAD.decode(body.to_ascii_uppercase().as_bytes()).unwrap()
+    let body = text
+        .strip_prefix(INVITE_PREFIX)
+        .expect("prefix mesh-invite2-");
+    BASE32_NOPAD
+        .decode(body.to_ascii_uppercase().as_bytes())
+        .unwrap()
 }
 
 fn invite_string(body: &[u8]) -> String {
-    format!("{INVITE_PREFIX}{}", BASE32_NOPAD.encode(body).to_ascii_lowercase())
+    format!(
+        "{INVITE_PREFIX}{}",
+        BASE32_NOPAD.encode(body).to_ascii_lowercase()
+    )
 }
 
 #[test]
@@ -80,7 +87,9 @@ fn plain_build_still_drops_key_only() {
 #[tokio::test]
 async fn make_on_mem_is_v3() {
     // given: a node on `mem`, with no hints at its own address
-    let cfg = crate::node::NodeConfig::for_loopback_test(crate::network_key::NetworkKey::generate().unwrap());
+    let cfg = crate::node::NodeConfig::for_loopback_test(
+        crate::members::network_key::NetworkKey::generate().unwrap(),
+    );
     let node = crate::node::start_node(cfg).await.unwrap();
     // when: the node builds an invite
     let issued = make(&node.invite_source(), None).unwrap();
@@ -94,14 +103,20 @@ async fn make_on_mem_is_v3() {
 
 #[tokio::test]
 async fn make_names_listed_members_without_a_connection() {
-    use crate::access::tally::{Exclusion, How, Ledger};
-    use crate::access::view::Verdicts;
+    use crate::members::access::tally::{Exclusion, How, Ledger};
+    use crate::members::access::view::Verdicts;
     use std::collections::{BTreeMap, BTreeSet};
     // given: a node with no connections, whose list admits B and C and has excluded D
-    let cfg = crate::node::NodeConfig::for_loopback_test(crate::network_key::NetworkKey::generate().unwrap());
+    let cfg = crate::node::NodeConfig::for_loopback_test(
+        crate::members::network_key::NetworkKey::generate().unwrap(),
+    );
     let node = crate::node::start_node(cfg).await.unwrap();
     let src = node.invite_source();
-    let excluded = Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() };
+    let excluded = Exclusion {
+        how: How::Votes,
+        at_micros: 10,
+        voters: Vec::new(),
+    };
     let ledger = Ledger {
         admitted: [node.id, id(2), id(3), id(4)].into_iter().collect(),
         excluded: BTreeMap::from([(id(4), excluded)]),

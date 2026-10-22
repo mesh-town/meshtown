@@ -2,8 +2,8 @@
 //! The literals were captured by running the original code; `net` is written only as differences from the defaults.
 
 use super::*;
-use crate::config_file::settings::Settings;
-use crate::config_file::test_support::{all_changed, test_secret};
+use crate::config::config_file::settings::Settings;
+use crate::config::config_file::test_support::{all_changed, test_secret};
 
 const NOW: u64 = 1_800_000_000;
 

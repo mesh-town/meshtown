@@ -13,14 +13,15 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::AbortHandle;
 
 use super::control::begin_network_switch;
-use super::state::{Cmd, NodeCtlShared, NodeCtl, Phase, NodeCtlState};
+use super::state::{Cmd, NodeCtl, NodeCtlShared, NodeCtlState, Phase};
 use crate::invite::redeem::{redeem, RedeemError, RedeemOpts};
-use crate::net::{NodeSecret, PeerAddr};
 use crate::invite::{check_fresh, InviteHead, INVITE_TTL_SECS};
-use crate::output::say;
-use crate::web::{ActionError, InviteJoinState, InviteJoinView, PendingInvite, SaveKey};
+use crate::node::output::say;
+use crate::transport::net::{NodeSecret, PeerAddr};
+use crate::web_gui::{ActionError, InviteJoinState, InviteJoinView, PendingInvite, SaveKey};
 
-const TEXT_WAITING: &str = "Waiting for network members: as soon as anyone from the invite is online, \
+const TEXT_WAITING: &str =
+    "Waiting for network members: as soon as anyone from the invite is online, \
 the node will join the network.";
 
 /// Slot in `NodeCtlState`: the generation the page sees, and the task handle (`Refused` no longer has one).
@@ -32,20 +33,25 @@ pub(super) struct InviteWait {
 
 /// Invite of a live node. Under the lock — only choosing and cloning the node; the string is built without
 /// the lock, recording the issue in the network document — in the returned `PendingInvite`.
-pub(super) fn make_invite(ctl: &NodeCtl, for_whom: Option<&str>) -> Result<PendingInvite, ActionError> {
+pub(super) fn make_invite(
+    ctl: &NodeCtl,
+    for_whom: Option<&str>,
+) -> Result<PendingInvite, ActionError> {
     let node = {
-        let st = ctl.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+        let st = ctl
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         match (&st.phase, &st.node) {
             (Phase::Up, Some(n)) => n.clone(),
             (Phase::NoNetwork, _) => {
                 return Err(ActionError::Busy(format!(
                     "the node has not joined the {} network yet",
-                    crate::output::NET_NAME
+                    crate::node::output::NET_NAME
                 )))
             }
-            (Phase::Stopping, _) => {
-                return Err(ActionError::Busy("node is stopping".to_string()))
-            }
+            (Phase::Stopping, _) => return Err(ActionError::Busy("node is stopping".to_string())),
             _ => return Err(ActionError::Busy("node is starting".to_string())),
         }
     };
@@ -64,7 +70,11 @@ pub(super) fn start(
     peers: Vec<PeerAddr>,
     save: SaveKey,
 ) -> Result<(), ActionError> {
-    let mut st = ctl.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
+    let mut st = ctl
+        .ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if matches!(st.phase, Phase::Stopping) {
         return Err(ActionError::Busy("node is stopping".to_string()));
     }
@@ -138,14 +148,16 @@ struct Job {
     peers: Vec<PeerAddr>,
     save: SaveKey,
     relay: bool,
-    test_net: Option<Arc<crate::net::mem::MemNet>>,
+    test_net: Option<Arc<crate::transport::net::mem::MemNet>>,
     owner: Option<NodeSecret>,
 }
 
 impl Job {
     async fn run(self) {
         let Some(owner) = self.owner.clone() else {
-            return self.refuse(RedeemError::Bind("the node's own key is not known".to_string()));
+            return self.refuse(RedeemError::Bind(
+                "the node's own key is not known".to_string(),
+            ));
         };
         let opts = RedeemOpts::for_head(&self.head, self.relay);
         let transport = match crate::node::bind_ephemeral(self.test_net.as_ref()).await {
@@ -170,15 +182,26 @@ impl Job {
             return;
         }
         if let Err(e) = (self.save)(&key_text) {
-            say("node", format!("network key was not saved to the settings file: {e}"));
+            say(
+                "node",
+                format!("network key was not saved to the settings file: {e}"),
+            );
         }
         begin_network_switch(&self.ctl_shared, &self.cmd_tx, &key_text, self.peers);
     }
 
     /// Final refusal: if the generation matches, the slot becomes `Refused` without a task.
     fn refuse(self, why: RedeemError) {
-        let mut st = self.ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
-        let Some(wait) = st.invite_wait.as_mut().filter(|w| w.invite_gen == self.invite_gen) else {
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let Some(wait) = st
+            .invite_wait
+            .as_mut()
+            .filter(|w| w.invite_gen == self.invite_gen)
+        else {
             return;
         };
         wait.view.state = InviteJoinState::Refused;
@@ -191,8 +214,14 @@ impl Job {
 
 /// Clears the slot of this generation; `false` — it has already been replaced or cancelled.
 fn release(ctl_shared: &NodeCtlShared, invite_gen: u64) -> bool {
-    let mut st = ctl_shared.ctl_state.lock().unwrap_or_else(|e| e.into_inner());
-    let mine = st.invite_wait.as_ref().is_some_and(|w| w.invite_gen == invite_gen);
+    let mut st = ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mine = st
+        .invite_wait
+        .as_ref()
+        .is_some_and(|w| w.invite_gen == invite_gen);
     if mine {
         st.invite_wait = None;
     }

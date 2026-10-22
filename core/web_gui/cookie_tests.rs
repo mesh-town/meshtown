@@ -1,7 +1,7 @@
 //! Tests for `cookie.rs`: attributes, parsing `Cookie` headers, the name from the node key.
 
 use super::*;
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 use axum::http::{header, HeaderMap, HeaderValue};
 
 const ID: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789ABCDEFGHJK";

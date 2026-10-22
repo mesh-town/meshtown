@@ -8,7 +8,7 @@ use objc2_app_kit::{
 };
 use objc2_foundation::NSString;
 
-use crate::app::tray_texts::{
+use crate::gui::tray::app::tray_texts::{
     hidden_icon_hint_text, hidden_icon_title_text, HIDDEN_ICON_LATER_TEXT,
     HIDDEN_ICON_OPEN_SETTINGS_TEXT,
 };
@@ -46,7 +46,9 @@ fn icon_window(item: &NSStatusItem, mtm: MainThreadMarker) -> Option<IconWindow>
     let window = item.button(mtm)?.window()?;
     let frame = window.frame();
     Some(IconWindow {
-        visible: window.occlusionState().contains(NSWindowOcclusionState::Visible),
+        visible: window
+            .occlusionState()
+            .contains(NSWindowOcclusionState::Visible),
         max_y: frame.origin.y + frame.size.height,
     })
 }

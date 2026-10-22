@@ -5,19 +5,24 @@
 
 use super::*;
 
-use crate::geoip::{self, Country};
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::node::output;
 use crate::node::NodeConfig;
-use crate::output;
+use crate::site_checks::geoip::{self, Country};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn collect_reads_own_country_from_document() {
     let key = NetworkKey::generate().unwrap();
-    let node = crate::node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
-
-    geoip::announce_country(&*node.domains.shared_replica(), Country::parse("RU").unwrap())
+    let node = crate::node::start_node(NodeConfig::for_loopback_test(key))
         .await
-        .expect("the country should be written to the network document");
+        .unwrap();
+
+    geoip::announce_country(
+        &*node.domains.shared_replica(),
+        Country::parse("RU").unwrap(),
+    )
+    .await
+    .expect("the country should be written to the network document");
 
     let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
     let own = collected

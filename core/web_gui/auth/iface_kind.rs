@@ -12,7 +12,17 @@ pub(crate) enum IfaceKind {
 }
 
 const TUNNEL_PREFIXES: &[&str] = &[
-    "utun", "tun", "tap", "wg", "tailscale", "zt", "nordlynx", "proton", "ipsec", "gpd", "cscotun",
+    "utun",
+    "tun",
+    "tap",
+    "wg",
+    "tailscale",
+    "zt",
+    "nordlynx",
+    "proton",
+    "ipsec",
+    "gpd",
+    "cscotun",
     "nebula",
 ];
 
@@ -69,7 +79,10 @@ pub(crate) fn is_router(view: &IfaceView) -> bool {
     let wan: Vec<_> = view.addrs.iter().filter(|a| a.name == default).collect();
     view.addrs.iter().any(|a| {
         let other = a.name != default && private_non_virtual(a);
-        other && !wan.iter().any(|w| same_subnet(w.ip, w.prefix, a.ip, a.prefix))
+        other
+            && !wan
+                .iter()
+                .any(|w| same_subnet(w.ip, w.prefix, a.ip, a.prefix))
     })
 }
 

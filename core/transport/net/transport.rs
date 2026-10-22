@@ -1,12 +1,12 @@
 //! Connection to a node (`PeerConn`) and a whole transport (`Transport`).
 //! Assembling a transport from a connector and a carrier is in `split`, only traits are here.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::link::{LinkInfo, NetInfo, PathChange};
-use crate::net::service::ServiceId;
-use crate::net::stream::{BoxFuture, StreamPair};
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::{LinkInfo, NetInfo, PathChange};
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::{BoxFuture, StreamPair};
 use std::sync::Arc;
 
 /// Stream of chosen-path changes of one connection.

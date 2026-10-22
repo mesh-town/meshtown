@@ -19,10 +19,7 @@ async fn the_old_connector_stops_listening() {
 
     let got = timeout(Duration::from_secs(2), r.old.listen()).await;
 
-    assert!(
-        matches!(got, Ok(None)),
-        "the old listen must end with None"
-    );
+    assert!(matches!(got, Ok(None)), "the old listen must end with None");
 }
 
 #[tokio::test]

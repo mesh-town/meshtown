@@ -1,8 +1,8 @@
 //! Node key: one seed gives the same id in the mesh and in townjump.
 
 use super::{key_pair, peer_of};
-use crate::net::error::NetError;
-use crate::net::id::NodeSecret;
+use crate::transport::net::error::NetError;
+use crate::transport::net::id::NodeSecret;
 
 fn assert_same_id(seed: [u8; 32]) {
     let secret = NodeSecret::from_bytes(&seed);

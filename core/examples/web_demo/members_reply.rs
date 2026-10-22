@@ -1,10 +1,11 @@
 //! `GET /api/members` of the demo node: the list as the page sees it, and the `NodeControl` entry points.
 
-use meshtown::web::{
-    AdmissionInfo, Counts, ExcludedInfo, MemberActionReq, MemberError, MemberRow, MembersReply, NodeStatus, VoteInfo,
+use meshtown_core::web_gui::{
+    AdmissionInfo, Counts, ExcludedInfo, MemberActionReq, MemberError, MemberRow, MembersReply,
+    NodeStatus, VoteInfo,
 };
 
-use meshtown::web::ActionError;
+use meshtown_core::web_gui::ActionError;
 
 use crate::members::{DemoMembers, Entry, Standing, ME};
 use crate::node::{DemoNode, DemoState};
@@ -20,7 +21,11 @@ pub(crate) fn demo_self_id_full(boot_id: &str) -> String {
 }
 
 fn resolve(id: &str, me: &str) -> String {
-    if id == ME { me.to_string() } else { id.to_string() }
+    if id == ME {
+        me.to_string()
+    } else {
+        id.to_string()
+    }
 }
 
 fn resolve_all(ids: &[String], me: &str) -> Vec<String> {
@@ -74,12 +79,22 @@ fn admission_of(e: &Entry, me: &str) -> Option<AdmissionInfo> {
 
 /// The own request of a computer that waits for a confirmation: no member has confirmed it yet.
 fn own_admission(m: &DemoMembers) -> Option<AdmissionInfo> {
-    m.me_pending.then(|| AdmissionInfo { votes: 0, need: ADMIT_NEED, voters: Vec::new(), mine: false, label: None })
+    m.me_pending.then(|| AdmissionInfo {
+        votes: 0,
+        need: ADMIT_NEED,
+        voters: Vec::new(),
+        mine: false,
+        label: None,
+    })
 }
 
 fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
     match &e.standing {
-        Standing::Excluded(x) => Some(ExcludedInfo { how: x.how, at_unix: AT_UNIX, voters: resolve_all(&x.voters, me) }),
+        Standing::Excluded(x) => Some(ExcludedInfo {
+            how: x.how,
+            at_unix: AT_UNIX,
+            voters: resolve_all(&x.voters, me),
+        }),
         _ => None,
     }
 }
@@ -87,7 +102,11 @@ fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
 fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
     let is_self = e.id_full == ME;
     MemberRow {
-        id: if is_self { me_short.to_string() } else { e.id.clone() },
+        id: if is_self {
+            me_short.to_string()
+        } else {
+            e.id.clone()
+        },
         id_full: resolve(&e.id_full, me),
         name: e.name.clone(),
         is_self,
@@ -111,7 +130,12 @@ fn order_key(e: &Entry) -> (u8, u8, String, String) {
         Standing::Excluded(_) => 3,
     };
     let nameless = u8::from(e.name.is_none());
-    (u8::from(e.id_full != ME) * (1 + group), nameless, e.name.clone().unwrap_or_default(), e.id_full.clone())
+    (
+        u8::from(e.id_full != ME) * (1 + group),
+        nameless,
+        e.name.clone().unwrap_or_default(),
+        e.id_full.clone(),
+    )
 }
 
 fn counts(rows: &[MemberRow]) -> Counts {
@@ -129,14 +153,28 @@ fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> Members
     let me = demo_self_id_full(boot_id);
     let mut sorted: Vec<&Entry> = m.entries.iter().collect();
     sorted.sort_by_key(|e| order_key(e));
-    let members: Vec<MemberRow> = sorted.into_iter().map(|e| row(m, e, &me, boot_id)).collect();
+    let members: Vec<MemberRow> = sorted
+        .into_iter()
+        .map(|e| row(m, e, &me, boot_id))
+        .collect();
     let (counts, me_admission) = (counts(&members), own_admission(m));
-    MembersReply { me, me_excluded: m.me_excluded, me_pending: m.me_pending, me_admission, need: m.need(), counts, members, changed }
+    MembersReply {
+        me,
+        me_excluded: m.me_excluded,
+        me_pending: m.me_pending,
+        me_admission,
+        need: m.need(),
+        counts,
+        members,
+        changed,
+    }
 }
 
 fn ensure_online(demo: &DemoNode, st: &DemoState) -> Result<(), MemberError> {
     if demo.no_network || st.status != NodeStatus::Online {
-        return Err(MemberError::Action(ActionError::Busy("the node is not in a network".to_string())));
+        return Err(MemberError::Action(ActionError::Busy(
+            "the node is not in a network".to_string(),
+        )));
     }
     Ok(())
 }

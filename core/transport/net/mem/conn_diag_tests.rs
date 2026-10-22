@@ -19,5 +19,8 @@ async fn mem_conn_diag_defaults_are_empty() {
     assert!(lines.is_empty(), "path_lines of mem: {lines:?}");
     assert_eq!(link.path_count, 0, "path_count of mem");
     assert_eq!(link.stream_frames, 0, "stream_frames of mem");
-    assert!(event.is_none(), "path_watch of mem returned an event: {event:?}");
+    assert!(
+        event.is_none(),
+        "path_watch of mem returned an event: {event:?}"
+    );
 }

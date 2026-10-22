@@ -157,7 +157,7 @@ fn e(path: &str, message: &str) -> (String, String) {
 /// keys computed by the node (`network.label|masked`, `autostart|full_tunnel.available|reason`).
 fn with_extras(base: Value) -> Value {
     let mut config = base;
-    for section in crate::config_file::fields::section_names() {
+    for section in crate::config::config_file::fields::section_names() {
         config[section] = json!({ "zzz": 1 });
     }
     config["extra_section"] = json!({ "a": 1 });
@@ -171,7 +171,10 @@ fn with_extras(base: Value) -> Value {
 }
 
 fn expected_unknown() -> Vec<String> {
-    let mut list: Vec<String> = crate::config_file::fields::section_names().iter().map(|s| format!("config.{s}.zzz")).collect();
+    let mut list: Vec<String> = crate::config::config_file::fields::section_names()
+        .iter()
+        .map(|s| format!("config.{s}.zzz"))
+        .collect();
     list.push("config.extra_section".to_string());
     list.sort();
     list
@@ -231,8 +234,12 @@ mod errors_order {
         let config = json!({ "version": 1, "node": { "name": "  ", "memory_exit_mib": "x" } });
         let text = json!({ "config": config }).to_string();
         // when: parse_text; then: the error order is the table order, memory_exit_mib before name
-        let paths: Vec<String> =
-            parse_text(&text).unwrap().field_errors.into_iter().map(|e| e.field_path).collect();
+        let paths: Vec<String> = parse_text(&text)
+            .unwrap()
+            .field_errors
+            .into_iter()
+            .map(|e| e.field_path)
+            .collect();
         assert_eq!(paths, vec!["node.memory_exit_mib", "node.name"]);
     }
 }

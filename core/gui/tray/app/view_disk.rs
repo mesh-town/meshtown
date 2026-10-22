@@ -32,14 +32,20 @@ pub struct Disk {
 /// The disk from a snapshot; `None` — no `peers` or the sum is below the first threshold. Our own row is not counted.
 pub fn disk_of(snap: &TraySnapshot) -> Option<Disk> {
     let peers = snap.peers.as_deref()?;
-    let (blue, lilac) = peers.iter().filter(|p| !p.is_self).fold((0u64, 0u64), |(b, l), p| {
-        (
-            b.saturating_add(p.through_peer_bps.unwrap_or(0)),
-            l.saturating_add(p.through_us_bps.unwrap_or(0)),
-        )
-    });
+    let (blue, lilac) = peers
+        .iter()
+        .filter(|p| !p.is_self)
+        .fold((0u64, 0u64), |(b, l), p| {
+            (
+                b.saturating_add(p.through_peer_bps.unwrap_or(0)),
+                l.saturating_add(p.through_us_bps.unwrap_or(0)),
+            )
+        });
     let step = step_of(blue.saturating_add(lilac));
-    (step > 0).then(|| Disk { step, blue_twelfths: twelfths(blue, lilac) })
+    (step > 0).then(|| Disk {
+        step,
+        blue_twelfths: twelfths(blue, lilac),
+    })
 }
 
 fn step_of(sum: u64) -> u8 {
@@ -58,7 +64,8 @@ fn twelfths(blue: u64, lilac: u64) -> u8 {
 
 /// Draws the disk in the centre of `rgba` (`side×side`) over what is there; does not touch anything outside the circle.
 pub fn paint_disk(rgba: &mut [u8], side: u32, disk: Disk) {
-    let radius = DISK_RADII_PX[usize::from(disk.step.clamp(1, 6)) - 1] * f64::from(side) / BASE_SIDE_PX;
+    let radius =
+        DISK_RADII_PX[usize::from(disk.step.clamp(1, 6)) - 1] * f64::from(side) / BASE_SIDE_PX;
     let center = f64::from(side) / 2.0;
     for y in 0..side {
         for x in 0..side {
@@ -91,12 +98,16 @@ fn over(dst: &mut [u8], (blue, lilac): (u32, u32)) {
     if hits == 0 {
         return;
     }
-    let (b, l) = (role_rgb(RingRole::ActiveExit), role_rgb(RingRole::ExitClient));
+    let (b, l) = (
+        role_rgb(RingRole::ActiveExit),
+        role_rgb(RingRole::ExitClient),
+    );
     let cover = f64::from(hits) / f64::from(SUBSAMPLES * SUBSAMPLES);
     let below = f64::from(dst[3]) / 255.0 * (1.0 - cover);
     let alpha = cover + below;
     for c in 0..3 {
-        let disk = (f64::from(blue) * f64::from(b[c]) + f64::from(lilac) * f64::from(l[c])) / f64::from(hits);
+        let disk = (f64::from(blue) * f64::from(b[c]) + f64::from(lilac) * f64::from(l[c]))
+            / f64::from(hits);
         dst[c] = ((disk * cover + f64::from(dst[c]) * below) / alpha).round() as u8;
     }
     dst[3] = (alpha * 255.0).round() as u8;

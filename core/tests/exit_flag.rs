@@ -5,15 +5,15 @@
 //! `false` (not absence), and the key itself is invisible to old readers (`list/`, `chk/`).
 //! What it doesn't do: doesn't check the HTTP page or the node snapshot — that is `tests/node_web.rs` and
 //! `node_ctl::snapshot::exit_tests`.
-//! Links: `meshtown::node_state`, `meshtown::node::RunningNode`.
+//! Links: `meshtown_core::node::node_state`, `meshtown_core::node::RunningNode`.
 
 use std::collections::HashMap;
 use std::time::Duration;
 
-use meshtown::net::{PeerAddr, PeerId};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::node_state;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::node_state;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use tokio::time::{sleep, Instant};
 
 /// A copy of the helper from `core/tests/checks_loopback.rs`: introduces the address of `b` to `a` over loopback.
@@ -31,7 +31,9 @@ async fn wait_exits(
 ) -> HashMap<PeerId, bool> {
     let deadline = Instant::now() + limit;
     loop {
-        let exits = node_state::read_exit_flags(&*node.domains.shared_replica()).await.unwrap();
+        let exits = node_state::read_exit_flags(&*node.domains.shared_replica())
+            .await
+            .unwrap();
         if want(&exits) || Instant::now() >= deadline {
             return exits;
         }

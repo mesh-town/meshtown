@@ -4,7 +4,7 @@
 use serde_json::{json, Value};
 
 use super::{apply_state_extras, StateExtras};
-use crate::web::{InviteJoinState, InviteJoinView};
+use crate::web_gui::{InviteJoinState, InviteJoinView};
 
 mod node_not_waiting_for_an_invite {
     use super::*;
@@ -31,7 +31,10 @@ mod node_waiting_for_participants {
         let mut value = snapshot_json();
 
         // when
-        apply_state_extras(&mut value, extras(Some(view(InviteJoinState::Waiting, Some("Anna")))));
+        apply_state_extras(
+            &mut value,
+            extras(Some(view(InviteJoinState::Waiting, Some("Anna")))),
+        );
 
         // then
         assert_eq!(
@@ -46,10 +49,16 @@ mod node_waiting_for_participants {
         let mut value = snapshot_json();
 
         // when
-        apply_state_extras(&mut value, extras(Some(view(InviteJoinState::Waiting, None))));
+        apply_state_extras(
+            &mut value,
+            extras(Some(view(InviteJoinState::Waiting, None))),
+        );
 
         // then
-        assert_eq!(value["node"]["invite_join"].get("label"), Some(&Value::Null));
+        assert_eq!(
+            value["node"]["invite_join"].get("label"),
+            Some(&Value::Null)
+        );
     }
 }
 
@@ -62,7 +71,10 @@ mod invite_refused_by_participants {
         let mut value = snapshot_json();
 
         // when
-        apply_state_extras(&mut value, extras(Some(view(InviteJoinState::Refused, None))));
+        apply_state_extras(
+            &mut value,
+            extras(Some(view(InviteJoinState::Refused, None))),
+        );
 
         // then
         assert_eq!(value["node"]["invite_join"]["state"], json!("refused"));
@@ -85,5 +97,10 @@ fn extras(invite_join: Option<InviteJoinView>) -> StateExtras {
 }
 
 fn view(state: InviteJoinState, label: Option<&str>) -> InviteJoinView {
-    InviteJoinView { state, message: "text".to_string(), label: label.map(str::to_string), expires_unix: 1_800_000_000 }
+    InviteJoinView {
+        state,
+        message: "text".to_string(),
+        label: label.map(str::to_string),
+        expires_unix: 1_800_000_000,
+    }
 }

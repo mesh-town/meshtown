@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use serde_json::json;
 
 use super::fixture::*;
-use crate::web::members::dto::MembersReply;
+use crate::web_gui::members::dto::MembersReply;
 
 mod action_body {
     use super::*;
@@ -28,7 +28,10 @@ mod action_body {
         let fx = setup(Answer::List(sample_reply()));
         for action in ["exclude", "unexclude", "block", "unblock"] {
             // when
-            let reply = line(fx.post(&format!("/api/members/{action}"), r#"{"confirm":true}"#).await);
+            let reply = line(
+                fx.post(&format!("/api/members/{action}"), r#"{"confirm":true}"#)
+                    .await,
+            );
             // then
             assert_eq!(reply, "400 bad_request", "{action}");
         }
@@ -76,7 +79,11 @@ mod action_body {
     async fn leave_with_confirm_that_is_not_true_is_400() {
         // given
         let fx = setup(Answer::List(sample_reply()));
-        for text in [r#"{"confirm":false}"#, r#"{"confirm":"true"}"#, r#"{"confirm":1}"#] {
+        for text in [
+            r#"{"confirm":false}"#,
+            r#"{"confirm":"true"}"#,
+            r#"{"confirm":1}"#,
+        ] {
             // when
             let reply = line(fx.post("/api/members/leave", text).await);
             // then
@@ -132,9 +139,17 @@ mod reason {
 
     #[tokio::test]
     async fn blank_missing_or_null_reason_is_none() {
-        for body in [json!({"id": target(), "reason": "  "}), json!({"id": target()}), json!({"id": target(), "reason": null})] {
+        for body in [
+            json!({"id": target(), "reason": "  "}),
+            json!({"id": target()}),
+            json!({"id": target(), "reason": null}),
+        ] {
             let (reply, seen) = seen_for(body.clone()).await;
-            assert_eq!((reply.as_str(), seen), ("200 -", vec![format!("exclude:{}", target())]), "{body}");
+            assert_eq!(
+                (reply.as_str(), seen),
+                ("200 -", vec![format!("exclude:{}", target())]),
+                "{body}"
+            );
         }
     }
 
@@ -179,21 +194,38 @@ mod actions {
         }
         // then
         let id = target();
-        let want = ACTIONS.map(|a| if a == "leave" { a.to_string() } else { format!("{a}:{id}") });
-        assert_eq!(fx.seen(), want, "each path must reach the node as its own action, in order");
+        let want = ACTIONS.map(|a| {
+            if a == "leave" {
+                a.to_string()
+            } else {
+                format!("{a}:{id}")
+            }
+        });
+        assert_eq!(
+            fx.seen(),
+            want,
+            "each path must reach the node as its own action, in order"
+        );
     }
 
     #[tokio::test]
     async fn reply_is_the_list_with_the_changed_flag_from_node() {
         for changed in [true, false] {
             // given
-            let fx = setup(Answer::List(MembersReply { changed: Some(changed), ..sample_reply() }));
+            let fx = setup(Answer::List(MembersReply {
+                changed: Some(changed),
+                ..sample_reply()
+            }));
             // when
             let (status, body) = fx.post("/api/members/block", &id_body()).await;
             // then
             let mut want = golden();
             want["changed"] = json!(changed);
-            assert_eq!((status, body), (StatusCode::OK, want), "changed = {changed}");
+            assert_eq!(
+                (status, body),
+                (StatusCode::OK, want),
+                "changed = {changed}"
+            );
         }
     }
 

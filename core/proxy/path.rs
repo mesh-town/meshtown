@@ -3,18 +3,18 @@
 
 use std::net::SocketAddr;
 
-use crate::net::{BoxRecv, BoxSend, PeerId};
+use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 use anyhow::{anyhow, Context, Result};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use crate::doh;
 use crate::exit;
-use crate::output::{say, short_peer_id};
-use crate::route::{self, Route, RouteCtx};
-use crate::socks5::Target;
-use crate::tcp_tune::disable_nagle;
+use crate::node::output::{say, short_peer_id};
+use crate::node::tcp_tune::disable_nagle;
+use crate::proxy::route::{self, Route, RouteCtx};
+use crate::proxy::socks5::Target;
+use crate::site_checks::doh;
 
 use super::outcome::ProxyOutcome;
 use super::serve::{ProxyConfig, DIRECT_TCP_CONNECT_TIMEOUT};
@@ -29,7 +29,11 @@ pub(super) struct OpenedUpstream {
 /// Where the open connection leads.
 enum Upstream {
     Tcp(TcpStream),
-    Exit { peer: PeerId, send: BoxSend, recv: BoxRecv },
+    Exit {
+        peer: PeerId,
+        send: BoxSend,
+        recv: BoxRecv,
+    },
 }
 
 /// A refusal: the ready outcome and a flag "the direct connection did not open within `DIRECT_TCP_CONNECT_TIMEOUT`".
@@ -42,11 +46,19 @@ pub(super) struct OpenRefused {
 
 impl OpenRefused {
     fn new(outcome: ProxyOutcome) -> Self {
-        Self { outcome, timed_out: false, gateway_refused: false }
+        Self {
+            outcome,
+            timed_out: false,
+            gateway_refused: false,
+        }
     }
 
     fn no_gateway(outcome: ProxyOutcome) -> Self {
-        Self { outcome, timed_out: false, gateway_refused: true }
+        Self {
+            outcome,
+            timed_out: false,
+            gateway_refused: true,
+        }
     }
 }
 
@@ -61,7 +73,10 @@ pub(super) async fn open_chosen_route(
         Ok(route) => route,
         Err(e) => {
             say(tag, format!("{e:#}"));
-            return Err(OpenRefused::new(ProxyOutcome::refused("no route", "the list of exits could not be read")));
+            return Err(OpenRefused::new(ProxyOutcome::refused(
+                "no route",
+                "the list of exits could not be read",
+            )));
         }
     };
     let target_text = target.to_string();
@@ -72,7 +87,10 @@ pub(super) async fn open_chosen_route(
         }
         Route::Exits(candidates) => {
             let first = route::first_exit(&candidates);
-            say("route", format!("{target_text}:{port} → exit {}", short_peer_id(&first)));
+            say(
+                "route",
+                format!("{target_text}:{port} → exit {}", short_peer_id(&first)),
+            );
             open_through_exits(cfg, &candidates, &target_text, port).await
         }
         Route::Refuse(reason) => {
@@ -97,19 +115,38 @@ pub(super) async fn relay_bytes(
                 return ProxyOutcome::refused(route_label, "request not forwarded");
             }
             let mut client = client;
-            let (bytes_from_client, bytes_to_client) = tokio::io::copy_bidirectional(&mut client, &mut target_tcp)
-                .await
-                .unwrap_or((0, 0));
-            ProxyOutcome::success(route_label, bytes_to_client, bytes_from_client + prefix.len() as u64)
+            let (bytes_from_client, bytes_to_client) =
+                tokio::io::copy_bidirectional(&mut client, &mut target_tcp)
+                    .await
+                    .unwrap_or((0, 0));
+            ProxyOutcome::success(
+                route_label,
+                bytes_to_client,
+                bytes_from_client + prefix.len() as u64,
+            )
         }
-        Upstream::Exit { peer, mut send, recv } => {
+        Upstream::Exit {
+            peer,
+            mut send,
+            recv,
+        } => {
             if !prefix.is_empty() && send.write_all(prefix).await.is_err() {
                 return ProxyOutcome::refused(route_label, "request not forwarded");
             }
             match splice_while_chosen(route, peer, send, recv, client).await {
-                Some((bytes_to_client, bytes_from_client)) => ProxyOutcome::success(route_label, bytes_to_client, bytes_from_client + prefix.len() as u64),
+                Some((bytes_to_client, bytes_from_client)) => ProxyOutcome::success(
+                    route_label,
+                    bytes_to_client,
+                    bytes_from_client + prefix.len() as u64,
+                ),
                 None => {
-                    say("route", format!("exit {} is no longer selected — connection closed", short_peer_id(&peer)));
+                    say(
+                        "route",
+                        format!(
+                            "exit {} is no longer selected — connection closed",
+                            short_peer_id(&peer)
+                        ),
+                    );
                     ProxyOutcome::interrupted(route_label)
                 }
             }
@@ -119,7 +156,11 @@ pub(super) async fn relay_bytes(
 
 /// The target address for the direct route: an IP address as is, a domain via the test table, then the own resolver
 /// over HTTPS (with a cache: a repeated name goes without contacting DoH).
-pub(in crate::proxy) async fn address_of(cfg: &ProxyConfig, target: &Target, port: u16) -> Result<SocketAddr> {
+pub(in crate::proxy) async fn address_of(
+    cfg: &ProxyConfig,
+    target: &Target,
+    port: u16,
+) -> Result<SocketAddr> {
     let domain = match target {
         Target::Ip(ip) => return Ok(SocketAddr::new(*ip, port)),
         Target::Domain(domain) => domain,
@@ -158,18 +199,27 @@ async fn open_direct_tcp(
         Ok(addr) => addr,
         Err(e) => {
             say(tag, format!("{e:#}"));
-            return Err(OpenRefused::new(ProxyOutcome::refused("direct", "address not found")));
+            return Err(OpenRefused::new(ProxyOutcome::refused(
+                "direct",
+                "address not found",
+            )));
         }
     };
     match timeout(DIRECT_TCP_CONNECT_TIMEOUT, TcpStream::connect(addr)).await {
         Ok(Ok(tcp)) => {
             disable_nagle(&tcp);
-            Ok(OpenedUpstream { route_label: "direct".to_string(), upstream: Upstream::Tcp(tcp) })
+            Ok(OpenedUpstream {
+                route_label: "direct".to_string(),
+                upstream: Upstream::Tcp(tcp),
+            })
         }
         Ok(Err(_)) => {
             forget_address(cfg, target);
             say(tag, format!("{addr}: connection did not open"));
-            Err(OpenRefused::new(ProxyOutcome::refused("direct", "connection did not open")))
+            Err(OpenRefused::new(ProxyOutcome::refused(
+                "direct",
+                "connection did not open",
+            )))
         }
         Err(_) => {
             forget_address(cfg, target);
@@ -181,6 +231,20 @@ async fn open_direct_tcp(
             })
         }
     }
+}
+
+/// Logs an exit's refusal code and turns it into the outcome shown to the user.
+fn exit_refusal(peer: PeerId, code: u8, route_label: String) -> ProxyOutcome {
+    say(
+        "exit",
+        format!(
+            "{}: refused, code {code} — {}",
+            short_peer_id(&peer),
+            exit::exit_code_text(code)
+        ),
+    );
+    let reason = format!("code {code} — {}", exit::exit_code_text(code));
+    ProxyOutcome::refused(route_label, reason)
 }
 
 /// The route through one of the chosen exits: tries the candidates in order, moving to the
@@ -201,42 +265,50 @@ async fn open_through_exits(
             no_gateway = Some(remembered_gateway_refusal(peer, route_label));
             continue;
         }
-        let (send, recv, code) = match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
-            Ok(answer) => answer,
-            Err(e) => {
-                any_exit_stream_busy |= e.downcast_ref::<exit::StreamBusy>().is_some();
-                say("route", format!("exit {} did not answer: {e:#}", short_peer_id(&peer)));
-                continue;
-            }
-        };
+        let (send, recv, code) =
+            match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
+                Ok(answer) => answer,
+                Err(e) => {
+                    any_exit_stream_busy |= e.downcast_ref::<exit::StreamBusy>().is_some();
+                    say(
+                        "route",
+                        format!("exit {} did not answer: {e:#}", short_peer_id(&peer)),
+                    );
+                    continue;
+                }
+            };
         if code != exit::EXIT_CODE_OK {
             let gateway_refusal = gateway && code == exit::EXIT_CODE_ADDRESS_FORBIDDEN;
             if gateway_refusal {
                 cfg.pool.note_gateway_refused(peer);
             }
-            say(
-                "exit",
-                format!("{}: refused, code {code} — {}", short_peer_id(&peer), exit::exit_code_text(code)),
-            );
-            let reason = format!("code {code} — {}", exit::exit_code_text(code));
-            let outcome = ProxyOutcome::refused(route_label, reason);
+            let outcome = exit_refusal(peer, code, route_label);
             if gateway_refusal {
                 no_gateway = Some(OpenRefused::no_gateway(outcome));
                 continue;
             }
             return Err(OpenRefused::new(outcome));
         }
-        return Ok(OpenedUpstream { route_label, upstream: Upstream::Exit { peer, send, recv } });
+        return Ok(OpenedUpstream {
+            route_label,
+            upstream: Upstream::Exit { peer, send, recv },
+        });
     }
     Err(no_gateway.unwrap_or_else(|| {
-        OpenRefused::new(ProxyOutcome::refused("no route", no_answer_reason(any_exit_stream_busy)))
+        OpenRefused::new(ProxyOutcome::refused(
+            "no route",
+            no_answer_reason(any_exit_stream_busy),
+        ))
     }))
 }
 
 /// The refusal for the UDP gateway target on an exit that already refused it: the exit is not asked again.
 fn remembered_gateway_refusal(peer: PeerId, route_label: String) -> OpenRefused {
     let code = exit::EXIT_CODE_ADDRESS_FORBIDDEN;
-    say("exit", format!("{}: no UDP gateway (refused earlier)", short_peer_id(&peer)));
+    say(
+        "exit",
+        format!("{}: no UDP gateway (refused earlier)", short_peer_id(&peer)),
+    );
     let reason = format!("code {code} — {}", exit::exit_code_text(code));
     OpenRefused::no_gateway(ProxyOutcome::refused(route_label, reason))
 }
@@ -272,11 +344,11 @@ mod udp;
 pub(super) use udp::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};
 
 #[cfg(test)]
-#[path = "path_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "path_busy_tests.rs"]
 mod busy_tests;
 #[cfg(test)]
 #[path = "path_gateway_tests.rs"]
 mod gateway_tests;
+#[cfg(test)]
+#[path = "path_tests.rs"]
+mod tests;

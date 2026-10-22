@@ -1,7 +1,7 @@
 //! Close log of a `hyper` session: one line per session, from the side that won the close.
 
-use crate::net::id::PeerId;
-use crate::output::say;
+use crate::node::output::say;
+use crate::transport::net::id::PeerId;
 
 /// Who closed the session: `Us` — `close_local`, `Peer` — `close_remote` (peer's Close, a break, a write failure).
 #[derive(Clone, Copy)]
@@ -20,10 +20,19 @@ impl Side {
 }
 
 /// Builds the log line; the reason is taken as is, unreadable bytes are replaced.
-pub(crate) fn close_line(peer: &PeerId, session: u64, side: Side, code: u32, reason: &[u8]) -> String {
+pub(crate) fn close_line(
+    peer: &PeerId,
+    session: u64,
+    side: Side,
+    code: u32,
+    reason: &[u8],
+) -> String {
     let head = &peer.to_string()[..8];
     let reason = String::from_utf8_lossy(reason);
-    format!("session {head} #{session:x} closed {}: code {code}: {reason}", side.text())
+    format!(
+        "session {head} #{session:x} closed {}: code {code}: {reason}",
+        side.text()
+    )
 }
 
 /// Writes the close line to the log.

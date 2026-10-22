@@ -11,7 +11,7 @@
 //! `first_run.rs` — opens the node page once per tray process when the node has no network yet (the setup wizard).
 //! `start_fail.rs` — the reason the node refused, for the menu (proxy port, node log).
 //! Links: `run_tray()` is the only call from outside (`app::mod`/`main.rs`), it passes the poller
-//! `poller::poll_node` and gets the exit code back from it; the poller itself knows nothing of `crate::tray`.
+//! `poller::poll_node` and gets the exit code back from it; the poller itself knows nothing of `crate::gui::tray`.
 
 mod api;
 mod config_doc;

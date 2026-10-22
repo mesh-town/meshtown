@@ -5,7 +5,7 @@
 use serde_json::{json, Value};
 
 use super::{apply_state_extras, StateExtras};
-use crate::web::NodeSnapshot;
+use crate::web_gui::NodeSnapshot;
 
 /// Top-level key paths and those nested in `node`, sorted.
 fn paths(value: &Value) -> Vec<String> {
@@ -35,7 +35,10 @@ fn extras_add_exactly_the_listed_paths_to_default_snapshot() {
     // when
     apply_state_extras(&mut value, extras());
     // then: exactly these paths were added and nothing else
-    let added: Vec<String> = paths(&value).into_iter().filter(|p| !before.contains(p)).collect();
+    let added: Vec<String> = paths(&value)
+        .into_iter()
+        .filter(|p| !before.contains(p))
+        .collect();
     let want = [
         "config_rev",
         "network",
@@ -46,7 +49,11 @@ fn extras_add_exactly_the_listed_paths_to_default_snapshot() {
         "node.web_addr",
     ];
     assert_eq!(added, want);
-    assert_eq!(paths(&value).len(), before.len() + want.len(), "something that was added was already in the snapshot");
+    assert_eq!(
+        paths(&value).len(),
+        before.len() + want.len(),
+        "something that was added was already in the snapshot"
+    );
 }
 
 #[test]

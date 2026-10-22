@@ -1,7 +1,7 @@
 //! Tests for the node's live state (`telemetry.rs`).
 
 use super::*;
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 #[test]
 fn rss_kib_on_current_os_is_not_zero() {
@@ -33,6 +33,10 @@ fn view_defaults_then_reflects_writes() {
     assert_eq!(view.dht_nodes, 42);
     assert!(view.record_published);
     assert!(view.last_publish.is_some());
-    assert_eq!(view.peers.len(), 1, "a repeated peer_up does not create a second record");
+    assert_eq!(
+        view.peers.len(),
+        1,
+        "a repeated peer_up does not create a second record"
+    );
     assert_eq!(view.peers[&id].rtt_ms, Some(20));
 }

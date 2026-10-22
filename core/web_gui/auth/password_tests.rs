@@ -8,7 +8,10 @@ fn n(v: u32) -> NonZeroU32 {
 
 /// 1000 iterations is fewer than in production, so the right password gives `MatchNeedsRehash`; what matters here is "accepted".
 fn accepted(v: PasswordVerdict) -> bool {
-    matches!(v, PasswordVerdict::Match | PasswordVerdict::MatchNeedsRehash)
+    matches!(
+        v,
+        PasswordVerdict::Match | PasswordVerdict::MatchNeedsRehash
+    )
 }
 
 mod fast {
@@ -59,7 +62,10 @@ mod old_iterations {
 
     #[test]
     fn right_password_is_ok_rehash() {
-        assert_eq!(verify(&rec(), "correct horse"), PasswordVerdict::MatchNeedsRehash);
+        assert_eq!(
+            verify(&rec(), "correct horse"),
+            PasswordVerdict::MatchNeedsRehash
+        );
     }
 
     #[test]

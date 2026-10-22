@@ -1,11 +1,11 @@
 //! Tests of the `mem` carrier (`carrier.rs`): the handshake on a `MemPath` pair directly, refusals, the time limit.
 
-use crate::net::mem::carrier::MemCarrier;
-use crate::net::mem::frame::Frame;
-use crate::net::mem::{MemNet, MemPath};
-use crate::net::{
-    Carrier, NetError, NetResult, NodeSecret, PacketPath, PathInfo, PathKind, PeerConn, PeerId,
-    CarrierRole, ServiceId, StreamPair, AUTH, EXIT, PORT,
+use crate::transport::net::mem::carrier::MemCarrier;
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::{MemNet, MemPath};
+use crate::transport::net::{
+    Carrier, CarrierRole, NetError, NetResult, NodeSecret, PacketPath, PathInfo, PathKind,
+    PeerConn, PeerId, ServiceId, StreamPair, AUTH, EXIT, PORT,
 };
 use bytes::Bytes;
 use std::io::ErrorKind;
@@ -57,7 +57,10 @@ mod accepting {
         let (a, b) = setup();
         let carrier = MemCarrier::with_timeout(Duration::from_millis(300));
 
-        let (_, first) = tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(EXIT)), recv_frame(&b));
+        let (_, first) = tokio::join!(
+            carrier.start(Box::new(a), CarrierRole::Dial(EXIT)),
+            recv_frame(&b)
+        );
 
         assert_eq!(first, Frame::Hello(Bytes::from_static(EXIT.as_bytes())));
     }
@@ -123,10 +126,11 @@ mod refusing {
         let (a, b) = setup();
         let carrier = MemCarrier::new();
 
-        let (started, ()) = tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(EXIT)), async {
-            recv_frame(&b).await;
-            send_frame(&b, Frame::Refuse).await;
-        });
+        let (started, ()) =
+            tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(EXIT)), async {
+                recv_frame(&b).await;
+                send_frame(&b, Frame::Refuse).await;
+            });
 
         assert_refused(started, "dialer");
         assert_eq!(recv_err(&b).await, ErrorKind::UnexpectedEof);
@@ -137,10 +141,11 @@ mod refusing {
         let (a, b) = setup();
         let carrier = MemCarrier::new();
 
-        let (started, ()) = tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(EXIT)), async {
-            recv_frame(&b).await;
-            b.close();
-        });
+        let (started, ()) =
+            tokio::join!(carrier.start(Box::new(a), CarrierRole::Dial(EXIT)), async {
+                recv_frame(&b).await;
+                b.close();
+            });
 
         assert_refused(started, "dialer");
     }
@@ -197,7 +202,10 @@ mod after_the_handshake {
     async fn a_stream_opened_by_the_dialer_carries_bytes_to_the_acceptor() {
         let (dialer, acceptor) = connected().await;
         let mut out = open_stream(&dialer).await;
-        out.send.write_all(b"ping").await.expect("write to the stream");
+        out.send
+            .write_all(b"ping")
+            .await
+            .expect("write to the stream");
 
         let mut inc = accept_stream(&acceptor).await;
 
@@ -208,7 +216,10 @@ mod after_the_handshake {
     async fn a_stream_opened_by_the_acceptor_carries_bytes_to_the_dialer() {
         let (dialer, acceptor) = connected().await;
         let mut out = open_stream(&acceptor).await;
-        out.send.write_all(b"pong").await.expect("write to the stream");
+        out.send
+            .write_all(b"pong")
+            .await
+            .expect("write to the stream");
 
         let mut inc = accept_stream(&dialer).await;
 
@@ -343,7 +354,6 @@ async fn read_n(stream: &mut StreamPair, n: usize) -> Vec<u8> {
 async fn read_all(mut stream: StreamPair) -> Vec<u8> {
     let mut buf = Vec::new();
     let read = timeout(Duration::from_secs(5), stream.recv.read_to_end(&mut buf)).await;
-    read.expect("read to the end hung")
-        .expect("read failed");
+    read.expect("read to the end hung").expect("read failed");
     buf
 }

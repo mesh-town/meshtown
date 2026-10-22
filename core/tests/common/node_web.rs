@@ -11,12 +11,14 @@ use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use meshtown::config_file::{self, CliOverrides, ConfigSource, PathRule, TransportMode};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, IdentityState};
-use meshtown::node_ctl::{NodeCtl, Relaunch};
-use meshtown::output;
-use meshtown::web::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
+use meshtown_core::config::config_file::{
+    self, CliOverrides, ConfigSource, PathRule, TransportMode,
+};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
+use meshtown_core::node::output;
+use meshtown_core::node::{self, IdentityState};
+use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
 use serde_json::{json, Value};
 use tokio::time::sleep;
 
@@ -149,7 +151,13 @@ fn http(port: u16, method: &str, path: &str, extra_headers: &[(&str, &str)], bod
 }
 
 /// A wrapper over `http` for the JSON API: the token in `X-Meshtown-Token`, the body and the response are JSON.
-pub(crate) fn api(port: u16, token: &str, method: &str, path: &str, json: Option<Value>) -> (u16, Value) {
+pub(crate) fn api(
+    port: u16,
+    token: &str,
+    method: &str,
+    path: &str,
+    json: Option<Value>,
+) -> (u16, Value) {
     let body = json
         .as_ref()
         .map(|v| serde_json::to_vec(v).expect("api: serializing the body"))
@@ -217,7 +225,7 @@ pub(crate) async fn boot_with_exit_hosts(
     run.effective_settings.process.web_access = config_file::ListenAccess::Localhost;
     output::set_log_capacity(run.effective_settings.process.log_ring_lines as usize);
     let relaunch = Relaunch {
-        test_net: Some(meshtown::net::mem::process_net()),
+        test_net: Some(meshtown_core::transport::net::mem::process_net()),
         path: run.file_report.path.clone(),
         cli: overrides,
         secret: run.secret.clone(),
@@ -228,12 +236,17 @@ pub(crate) async fn boot_with_exit_hosts(
     cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
     cfg.exit_hosts = hosts;
     let ctl = NodeCtl::new(&run.effective_settings);
-    let handle = web::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
+    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
         .await
-        .expect("boot: web::start must come up");
+        .expect("boot: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
-    let task = tokio::spawn(node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch));
+    let task = tokio::spawn(node::run_node_with_ctl(
+        cfg,
+        run.effective_settings,
+        ctl,
+        relaunch,
+    ));
     Booted {
         dir,
         handle,
@@ -266,7 +279,7 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
     run.effective_settings.process.web_access = config_file::ListenAccess::Localhost;
     output::set_log_capacity(run.effective_settings.process.log_ring_lines as usize);
     let relaunch = Relaunch {
-        test_net: Some(meshtown::net::mem::process_net()),
+        test_net: Some(meshtown_core::transport::net::mem::process_net()),
         path: run.file_report.path.clone(),
         cli: overrides,
         secret: run.secret.clone(),
@@ -274,13 +287,18 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
         blocked_domains: Vec::new(),
     };
     let ctl = NodeCtl::new_without_network(&run.effective_settings);
-    let handle = web::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
+    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
         .await
-        .expect("boot_without_key: web::start must come up");
+        .expect("boot_without_key: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
     let identity = IdentityState::from_report(&run.file_report);
-    let task = tokio::spawn(node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch));
+    let task = tokio::spawn(node::run_node_awaiting_key(
+        run.effective_settings,
+        identity,
+        ctl,
+        relaunch,
+    ));
     Booted {
         dir,
         handle,

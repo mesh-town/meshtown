@@ -5,10 +5,10 @@ use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 
-use crate::config_file::{IfaceFilter, ListenAccess};
-use crate::output::say;
-use crate::web::auth::access::is_client_allowed;
-use crate::web::auth::iface_gate::{judge, IfaceView, Verdict};
+use crate::config::config_file::{IfaceFilter, ListenAccess};
+use crate::node::output::say;
+use crate::web_gui::auth::access::is_client_allowed;
+use crate::web_gui::auth::iface_gate::{judge, IfaceView, Verdict};
 
 /// How long we stay quiet about repeated refusals to one address.
 const DENY_LOG_PERIOD: Duration = Duration::from_secs(300);
@@ -29,8 +29,19 @@ pub struct Admission {
 }
 
 /// Verdict on an accepted connection: the client `client_addr`, the accepting address `local` (if the OS named it).
-pub(super) fn admit_conn(adm: &Admission, view: &IfaceView, client_addr: SocketAddr, local: Option<SocketAddr>) -> Verdict {
-    judge(adm.access, &adm.ifaces, view, client_addr.ip(), local.map(|a| a.ip()))
+pub(super) fn admit_conn(
+    adm: &Admission,
+    view: &IfaceView,
+    client_addr: SocketAddr,
+    local: Option<SocketAddr>,
+) -> Verdict {
+    judge(
+        adm.access,
+        &adm.ifaces,
+        view,
+        client_addr.ip(),
+        local.map(|a| a.ip()),
+    )
 }
 
 /// Refusal log line: address, interface, reason and how to change it.
@@ -43,7 +54,7 @@ pub(super) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admiss
     };
     format!(
         "{client_addr}: refused, interface \"{iface}\": {why} (socks.ifaces: {list}); change: node page or `{} ifaces`",
-        crate::program_name::program_name()
+        crate::cli::program_name::program_name()
     )
 }
 
@@ -54,7 +65,8 @@ pub(super) struct DenyLog(HashMap<IpAddr, Instant>);
 impl DenyLog {
     /// `true` — it is time to write about a refusal for this address (the first in the period), and it remembers it.
     pub(super) fn remember_if_first_in_period(&mut self, ip: IpAddr, now: Instant) -> bool {
-        self.0.retain(|_, at| now.duration_since(*at) < DENY_LOG_PERIOD);
+        self.0
+            .retain(|_, at| now.duration_since(*at) < DENY_LOG_PERIOD);
         if self.0.contains_key(&ip) || self.0.len() >= DENY_LOG_CAP {
             return false;
         }

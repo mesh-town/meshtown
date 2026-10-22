@@ -1,8 +1,8 @@
 //! Tests of the node refusal reason (`start_note.rs`): log parsing and menu lines.
 
 use super::*;
-use crate::app::tray_texts::START_TEXT;
-use crate::app::view::{node_status_menu_line, PageState, RouteLine, View};
+use crate::gui::tray::app::tray_texts::START_TEXT;
+use crate::gui::tray::app::view::{node_status_menu_line, PageState, RouteLine, View};
 
 fn failed(code: Option<i32>, has_node_log: bool) -> StartNote {
     StartNote::Failed { code, has_node_log }
@@ -12,10 +12,15 @@ fn failed(code: Option<i32>, has_node_log: bool) -> StartNote {
 async fn real_bind_error_is_proxy_was_busy() {
     let holder = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = holder.local_addr().unwrap().port();
-    let e = meshtown::proxy::bind_proxy_listener(port, meshtown::config_file::ListenAccess::Localhost).await.unwrap_err();
+    let e = crate::proxy::bind_proxy_listener(
+        port,
+        crate::config::config_file::ListenAccess::Localhost,
+    )
+    .await
+    .unwrap_err();
     let log = format!(
         "+ 0.1s [node] start\n{}\n",
-        crate::cli_errors::error_report(&e)
+        crate::cli::cli_errors::error_report(&e)
     );
     assert_eq!(
         start_note_from(Some(1), Some(&log)),
@@ -188,7 +193,9 @@ fn old_port_phrase_gives_reason() {
     let log = "Error: port 1080 for the proxy (SOCKS5 and HTTP) is in use or unavailable\n";
     assert_eq!(
         start_note_from(Some(1), Some(log)),
-        StartNote::FailedWith("port 1080 for the proxy (SOCKS5 and HTTP) is in use or unavailable".into())
+        StartNote::FailedWith(
+            "port 1080 for the proxy (SOCKS5 and HTTP) is in use or unavailable".into()
+        )
     );
 }
 
@@ -222,7 +229,10 @@ fn panic_line_gives_code_101() {
 #[test]
 fn reason_line_and_hint() {
     let note = StartNote::FailedWith("bad key".into());
-    assert_eq!(start_note_line(&note).unwrap(), "Mesh Town stopped: bad key");
+    assert_eq!(
+        start_note_line(&note).unwrap(),
+        "Mesh Town stopped: bad key"
+    );
     assert_eq!(
         start_note_hint(&note).unwrap(),
         format!("Details: {NODE_LOG_NAME}, next to the settings file")
@@ -249,7 +259,10 @@ fn reason_at_limit_not_cut() {
 
 #[test]
 fn blank_reason_gives_code() {
-    assert_eq!(start_note_from(Some(1), Some("Error:   \n")), failed(Some(1), true));
+    assert_eq!(
+        start_note_from(Some(1), Some("Error:   \n")),
+        failed(Some(1), true)
+    );
 }
 
 #[test]

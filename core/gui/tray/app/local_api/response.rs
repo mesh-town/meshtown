@@ -25,7 +25,9 @@ pub(crate) fn parse_response(bytes: &[u8]) -> Result<(u16, Vec<u8>), ApiError> {
     let body = match content_length(header) {
         Some(len) => {
             if len > MAX_BODY_BYTES {
-                return Err(ApiError::NotHttp("response body is larger than 1 MiB".to_string()));
+                return Err(ApiError::NotHttp(
+                    "response body is larger than 1 MiB".to_string(),
+                ));
             }
             if rest.len() < len {
                 return Err(ApiError::NotHttp("response was cut off".to_string()));
@@ -34,7 +36,9 @@ pub(crate) fn parse_response(bytes: &[u8]) -> Result<(u16, Vec<u8>), ApiError> {
         }
         None => {
             if rest.len() > MAX_BODY_BYTES {
-                return Err(ApiError::NotHttp("response body is larger than 1 MiB".to_string()));
+                return Err(ApiError::NotHttp(
+                    "response body is larger than 1 MiB".to_string(),
+                ));
             }
             rest.to_vec()
         }

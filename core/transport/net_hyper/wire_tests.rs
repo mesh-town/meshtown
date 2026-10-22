@@ -16,7 +16,10 @@ async fn header_round(h: Header) -> Header {
 
 #[tokio::test]
 async fn open_round_trips() {
-    let h = Header::Open { session: 0x0102_0304_0506_0708, service_name: b"auth".to_vec() };
+    let h = Header::Open {
+        session: 0x0102_0304_0506_0708,
+        service_name: b"auth".to_vec(),
+    };
     assert_eq!(header_round(h.clone()).await, h);
 }
 
@@ -30,7 +33,11 @@ async fn stream_round_trips() {
 
 #[tokio::test]
 async fn header_starts_with_magic_and_is_big_endian() {
-    let buf = header_bytes(&Header::Stream { session: 1, owner: Owner::Acceptor }).await;
+    let buf = header_bytes(&Header::Stream {
+        session: 1,
+        owner: Owner::Acceptor,
+    })
+    .await;
     assert_eq!(&buf[..4], b"mvh1");
     assert_eq!(&buf[buf.len() - 9..buf.len() - 1], &1u64.to_be_bytes());
     assert_eq!(buf[buf.len() - 1], 1);
@@ -38,7 +45,13 @@ async fn header_starts_with_magic_and_is_big_endian() {
 
 #[tokio::test]
 async fn ack_and_refuse_round_trip() {
-    let replies = [Reply::Ack, Reply::Refuse { code: REFUSE_UNSERVED, reason: b"no such service".to_vec() }];
+    let replies = [
+        Reply::Ack,
+        Reply::Refuse {
+            code: REFUSE_UNSERVED,
+            reason: b"no such service".to_vec(),
+        },
+    ];
     for r in replies {
         let mut buf = Vec::new();
         write_reply(&mut buf, &r).await.unwrap();
@@ -48,7 +61,10 @@ async fn ack_and_refuse_round_trip() {
 
 #[tokio::test]
 async fn refuse_round_trips() {
-    let r = Reply::Refuse { code: REFUSE_NO_SESSION, reason: Vec::new() };
+    let r = Reply::Refuse {
+        code: REFUSE_NO_SESSION,
+        reason: Vec::new(),
+    };
     let mut buf = Vec::new();
     write_reply(&mut buf, &r).await.unwrap();
     assert_eq!(read_reply(&mut buf.as_slice()).await.unwrap(), r);
@@ -57,7 +73,10 @@ async fn refuse_round_trips() {
 #[tokio::test]
 async fn close_frame_round_trips() {
     let frames = [
-        Ctrl::Close { code: REFUSE_SESSION_CLOSED, reason: "bye".as_bytes().to_vec() },
+        Ctrl::Close {
+            code: REFUSE_SESSION_CLOSED,
+            reason: "bye".as_bytes().to_vec(),
+        },
         Ctrl::Ping,
         Ctrl::Pong,
     ];
@@ -73,7 +92,11 @@ async fn close_frame_round_trips() {
 
 #[tokio::test]
 async fn foreign_magic_is_invalid_data() {
-    let mut buf = header_bytes(&Header::Stream { session: 1, owner: Owner::Dialer }).await;
+    let mut buf = header_bytes(&Header::Stream {
+        session: 1,
+        owner: Owner::Dialer,
+    })
+    .await;
     buf[0] = b'X';
     let err = read_header(&mut buf.as_slice()).await.unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
@@ -93,7 +116,11 @@ async fn unknown_kind_is_invalid_data() {
 
 #[tokio::test]
 async fn unknown_owner_is_invalid_data() {
-    let mut buf = header_bytes(&Header::Stream { session: 1, owner: Owner::Dialer }).await;
+    let mut buf = header_bytes(&Header::Stream {
+        session: 1,
+        owner: Owner::Dialer,
+    })
+    .await;
     *buf.last_mut().unwrap() = 7;
     let err = read_header(&mut buf.as_slice()).await.unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
@@ -101,7 +128,10 @@ async fn unknown_owner_is_invalid_data() {
 
 #[tokio::test]
 async fn service_longer_than_64_is_rejected() {
-    let h = Header::Open { session: 1, service_name: vec![b'a'; 65] };
+    let h = Header::Open {
+        session: 1,
+        service_name: vec![b'a'; 65],
+    };
     let err = write_header(&mut Vec::new(), &h).await.unwrap_err();
     assert_eq!(err.kind(), ErrorKind::InvalidData);
     let mut buf = b"mvh1".to_vec();
@@ -115,22 +145,43 @@ async fn service_longer_than_64_is_rejected() {
 
 #[tokio::test]
 async fn service_of_exactly_64_is_accepted() {
-    let h = Header::Open { session: 1, service_name: vec![b'a'; 64] };
+    let h = Header::Open {
+        session: 1,
+        service_name: vec![b'a'; 64],
+    };
     assert_eq!(header_round(h.clone()).await, h);
 }
 
 #[tokio::test]
 async fn reason_longer_than_255_is_rejected_on_write() {
     let long = vec![b'r'; 256];
-    let err = write_reply(&mut Vec::new(), &Reply::Refuse { code: 1, reason: long.clone() }).await;
+    let err = write_reply(
+        &mut Vec::new(),
+        &Reply::Refuse {
+            code: 1,
+            reason: long.clone(),
+        },
+    )
+    .await;
     assert_eq!(err.unwrap_err().kind(), ErrorKind::InvalidData);
-    let err = write_ctrl(&mut Vec::new(), &Ctrl::Close { code: 1, reason: long }).await;
+    let err = write_ctrl(
+        &mut Vec::new(),
+        &Ctrl::Close {
+            code: 1,
+            reason: long,
+        },
+    )
+    .await;
     assert_eq!(err.unwrap_err().kind(), ErrorKind::InvalidData);
 }
 
 #[tokio::test]
 async fn eof_inside_header_is_unexpected_eof() {
-    let buf = header_bytes(&Header::Open { session: 5, service_name: b"auth".to_vec() }).await;
+    let buf = header_bytes(&Header::Open {
+        session: 5,
+        service_name: b"auth".to_vec(),
+    })
+    .await;
     for cut in [0, 2, 6, buf.len() - 1] {
         let err = read_header(&mut &buf[..cut]).await.unwrap_err();
         assert_eq!(err.kind(), ErrorKind::UnexpectedEof, "break at {cut}");
@@ -141,5 +192,8 @@ async fn eof_inside_header_is_unexpected_eof() {
 fn constants_match_the_plan() {
     assert_eq!(MAGIC, *b"mvh1");
     assert_eq!(HEADER_LIMIT, std::time::Duration::from_secs(5));
-    assert_eq!((REFUSE_UNSERVED, REFUSE_NO_SESSION, REFUSE_SESSION_CLOSED), (1, 2, 3));
+    assert_eq!(
+        (REFUSE_UNSERVED, REFUSE_NO_SESSION, REFUSE_SESSION_CLOSED),
+        (1, 2, 3)
+    );
 }

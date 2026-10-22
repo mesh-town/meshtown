@@ -2,12 +2,12 @@
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::network_key;
-use crate::output::NET_NAME;
+use crate::members::network_key;
+use crate::node::output::NET_NAME;
 
 use super::{
-    Invite, InviteHead, InviteSecret, ParsedInvite, INVITE_KEYED_VERSION, INVITE_PREFIX, INVITE_VERSION,
-    MAX_INVITE_BYTES, MAX_INVITE_CHARS, OLD_INVITE_PREFIX,
+    Invite, InviteHead, InviteSecret, ParsedInvite, INVITE_KEYED_VERSION, INVITE_PREFIX,
+    INVITE_VERSION, MAX_INVITE_BYTES, MAX_INVITE_CHARS, OLD_INVITE_PREFIX,
 };
 
 /// The refusal text for an invite of the old format (with the network key inside).
@@ -23,7 +23,8 @@ pub fn looks_like_invite(text: &str) -> bool {
 }
 
 fn has_prefix(text: &str, prefix: &str) -> bool {
-    text.len() >= prefix.len() && text.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
+    text.len() >= prefix.len()
+        && text.as_bytes()[..prefix.len()].eq_ignore_ascii_case(prefix.as_bytes())
 }
 
 /// Parses an invite string. The first check that fires, in order, gives the error;
@@ -74,12 +75,14 @@ fn decode_invite_body(text: &str) -> Result<Vec<u8>> {
             once more"
         );
     }
-    let bytes = data_encoding::BASE32_NOPAD_NOCASE.decode(body.as_bytes()).map_err(|_| {
-        anyhow!(
-            "invite is damaged: the string has foreign characters or is cut off — copy it in \
+    let bytes = data_encoding::BASE32_NOPAD_NOCASE
+        .decode(body.as_bytes())
+        .map_err(|_| {
+            anyhow!(
+                "invite is damaged: the string has foreign characters or is cut off — copy it in \
             full once more"
-        )
-    })?;
+            )
+        })?;
     if bytes.len() > MAX_INVITE_BYTES {
         bail!("the invite is longer than {MAX_INVITE_BYTES} bytes — this is not an invite");
     }
@@ -101,12 +104,12 @@ fn decode_invite_body(text: &str) -> Result<Vec<u8>> {
 /// Parses member entries into addresses; a broken entry becomes a note, not an error —
 /// an error only if no address is left after parsing.
 fn peers_from_roster(
-    entries: &[crate::net_mainline::record::RosterEntry],
-) -> Result<(Vec<crate::net::PeerAddr>, Vec<String>)> {
+    entries: &[crate::transport::net_mainline::record::RosterEntry],
+) -> Result<(Vec<crate::transport::net::PeerAddr>, Vec<String>)> {
     let mut warnings = Vec::new();
     let mut peers = Vec::new();
     for entry in entries {
-        match crate::net_mainline::record::entry_to_addr(entry) {
+        match crate::transport::net_mainline::record::entry_to_addr(entry) {
             Ok(addr) => peers.push(addr),
             Err(e) => warnings.push(format!("member entry skipped: {e:#}")),
         }
@@ -123,7 +126,9 @@ fn normalize_label_or_warn(raw: Option<String>, warnings: &mut Vec<String>) -> O
         Some(raw) => match network_key::normalize_label(&raw) {
             Ok(normalized) => Some(normalized),
             Err(e) => {
-                warnings.push(format!("network label {NET_NAME} from the invite skipped: {e:#}"));
+                warnings.push(format!(
+                    "network label {NET_NAME} from the invite skipped: {e:#}"
+                ));
                 None
             }
         },

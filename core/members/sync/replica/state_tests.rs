@@ -1,9 +1,9 @@
 //! Tests for `state.rs`: merging, the author's clock, selections and summaries.
 
 use super::*;
-use crate::net::id::NodeSecret;
-use crate::net::replica::live;
-use crate::sync::replica::entry::seal;
+use crate::members::sync::replica::entry::seal;
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::replica::live;
 
 const T: u64 = 1_000_000_000;
 
@@ -129,7 +129,11 @@ mod summary {
         assert_eq!(a.summary(), b.summary());
         assert_eq!(a.summary().len(), 2);
         b.merge(put(4, b"j", b"w", 5));
-        assert_ne!(a.summary(), b.summary(), "equal ts, a different value is visible");
+        assert_ne!(
+            a.summary(),
+            b.summary(),
+            "equal ts, a different value is visible"
+        );
     }
 }
 

@@ -1,11 +1,11 @@
 //! Tests of the check record: serialization and the absence of the domain inside it (`store.rs`).
 
 use super::*;
-use crate::checks::check_key;
-use crate::net::mem::{MemReplica, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::{ReplicaEntry, NodeSecret, Replica};
-use crate::reachability::Steps;
+use crate::site_checks::checks::check_key;
+use crate::site_checks::reachability::Steps;
+use crate::transport::net::mem::{MemReplica, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::{NodeSecret, Replica, ReplicaEntry};
 use bytes::Bytes;
 use std::sync::Arc;
 
@@ -141,7 +141,11 @@ impl Rig {
 
     async fn only_entry(&self) -> ReplicaEntry {
         let mut all = self.rep.scan(CHECK_PREFIX.as_bytes()).await.unwrap();
-        assert_eq!(all.len(), 1, "the replica should hold exactly one entry: {all:?}");
+        assert_eq!(
+            all.len(),
+            1,
+            "the replica should hold exactly one entry: {all:?}"
+        );
         all.remove(0)
     }
 }

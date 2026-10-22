@@ -1,12 +1,14 @@
 //! Tests of `exit_menu`: the tray submenu "exit choice" — building the node list from a snapshot.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use serde_json::json;
 
 /// A shim with the old name: the tests supply JSON, the code reads the selection.
 fn exit_menu_from_json(value: &serde_json::Value) -> ExitMenu {
-    exit_menu_from_snapshot(&crate::app::snapshot::TraySnapshot::from_value(value))
+    exit_menu_from_snapshot(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 mod exit_menu_from_json {
@@ -27,7 +29,10 @@ mod exit_menu_from_json {
             let menu = exit_menu_from_json(&state);
 
             // then
-            assert!(menu.enabled, "the node is online — the submenu is available");
+            assert!(
+                menu.enabled,
+                "the node is online — the submenu is available"
+            );
             assert!(
                 menu.items.is_empty(),
                 "no route.exits and no other peers with exit"
@@ -141,7 +146,10 @@ mod exit_menu_from_json {
         #[test]
         fn menu_is_disabled() {
             let menu = exit_menu_from_json(&json!("not a node snapshot"));
-            assert!(!menu.enabled, "garbage instead of a snapshot — the submenu is unavailable");
+            assert!(
+                !menu.enabled,
+                "garbage instead of a snapshot — the submenu is unavailable"
+            );
             assert!(menu.items.is_empty());
         }
     }

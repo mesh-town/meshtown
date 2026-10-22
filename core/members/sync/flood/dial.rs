@@ -3,11 +3,11 @@
 use super::admit::dial_handshake;
 use super::topic::{TopicCmd, TopicCtx};
 use super::wire::CLOSE_REJECTED;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::stream::StreamPair;
-use crate::net::transport::PeerConn;
-use crate::net::{WeakStack, SYNC};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::StreamPair;
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::{WeakStack, SYNC};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
@@ -34,9 +34,11 @@ async fn dial_once(ctx: &TopicCtx, peer: PeerId) -> NetResult<(Arc<dyn PeerConn>
     let done = done.unwrap_or(Err(NetError::Timeout));
     let close = |_: &NetError| {
         let conn = slot.get();
-        conn.iter().for_each(|c| c.close(CLOSE_REJECTED, b"dial failed"));
+        conn.iter()
+            .for_each(|c| c.close(CLOSE_REJECTED, b"dial failed"));
     };
-    done.inspect_err(close).map_err(|e| neighbor_closed(e, slot.get().is_some()))
+    done.inspect_err(close)
+        .map_err(|e| neighbor_closed(e, slot.get().is_some()))
 }
 
 /// `Closed` on a live link means the peer closed it, not the stack: it does not end topics.

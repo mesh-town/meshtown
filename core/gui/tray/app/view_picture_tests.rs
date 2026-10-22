@@ -1,10 +1,10 @@
 //! Tests of the icon picture: carrying the ring over from `View`, the raster, equality.
 
 use super::*;
-use crate::app::view_disk::Disk;
-use crate::app::view::{NetLink, NodeState, PageState};
-use crate::app::view_ring::RingRole;
-use crate::app::view_ring_paint::ring_rgba;
+use crate::gui::tray::app::view::{NetLink, NodeState, PageState};
+use crate::gui::tray::app::view_disk::Disk;
+use crate::gui::tray::app::view_ring::RingRole;
+use crate::gui::tray::app::view_ring_paint::ring_rgba;
 
 const COLORS: [TrayColor; 4] = [
     TrayColor::Grey,
@@ -14,7 +14,10 @@ const COLORS: [TrayColor; 4] = [
 ];
 
 fn ring3() -> Ring {
-    Ring::EMPTY.add(RingRole::ActiveExit).add(RingRole::ExitClient).add(RingRole::Online)
+    Ring::EMPTY
+        .add(RingRole::ActiveExit)
+        .add(RingRole::ExitClient)
+        .add(RingRole::Online)
 }
 
 fn view_with(color: TrayColor, ring: Ring) -> View {
@@ -75,11 +78,17 @@ mod with_disk {
     use super::*;
 
     fn disk6() -> Disk {
-        Disk { step: 6, blue_twelfths: 6 }
+        Disk {
+            step: 6,
+            blue_twelfths: 6,
+        }
     }
 
     fn disk_view(ring: Ring) -> View {
-        View { disk: Some(disk6()), ..view_with(TrayColor::Green, ring) }
+        View {
+            disk: Some(disk6()),
+            ..view_with(TrayColor::Green, ring)
+        }
     }
 
     #[test]

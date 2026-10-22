@@ -4,7 +4,7 @@
 //! What it does: the publication vocabulary (types, entry key and value, protocol frame, table
 //! of our own publications, reading and writing the document); the other modules build on this vocabulary.
 //! What it does not do: it does not decide who is a member and does not copy bytes itself; `mod.rs` has no logic.
-//! Links: the right — `crate::membership`, the document — `crate::domains::DomainList`, byte copying
+//! Links: the right — `crate::members::membership`, the document — `crate::proxy::domains::DomainList`, byte copying
 //! — `crate::exit`.
 //!
 //! Files: `types` — types; `record` — entry key and value; `frame` — protocol frame;
@@ -22,11 +22,15 @@ pub mod table;
 pub mod types;
 
 pub use frame::{
-    port_code_text, encode_port_reply, encode_port_request, parse_port_reply, parse_port_request, PORT_CODE_BAD_REQUEST,
-    PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED, PORT_ALPN, PORT_FRAME_VERSION,
+    encode_port_reply, encode_port_request, parse_port_reply, parse_port_request, port_code_text,
+    PORT_ALPN, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
+    PORT_CODE_OK, PORT_CODE_REFUSED, PORT_FRAME_VERSION,
+};
+pub use record::{
+    decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX,
+    PORT_RECORD_VERSION,
 };
 pub use server::port_service;
-pub use record::{decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX, PORT_RECORD_VERSION};
 pub use store::{PortView, PortsDoc};
 pub use table::{LocalState, PublishedPortsTable};
-pub use types::{Audience, Opened, Published, MAX_PORT_LIST_ENTRIES, MAX_NAME_CHARS};
+pub use types::{Audience, Opened, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};

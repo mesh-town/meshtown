@@ -8,7 +8,7 @@
 //! (only domains from the list) have been removed — the exit owner serves any domain on any
 //! port, except addresses of local and service networks and its own (`address_guard`,
 //! code 7), and controls only `exit.enabled`.
-//! Links: permission comes from `crate::membership`, the list from `crate::domains`, the address from `crate::doh`;
+//! Links: permission comes from `crate::members::membership`, the list from `crate::proxy::domains`, the address from `crate::site_checks::doh`;
 //! this protocol is called by `crate::proxy`.
 //!
 //! Files: `outbound` — where and how the exit connects outward (the address guard: its tables are pure functions, the probe
@@ -36,15 +36,16 @@ mod udpgw;
 
 pub use clients::{Clients, EXIT_CLIENT_LINGER};
 pub use frame::{
-    exit_code_text, encode_exit_request, parse_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_BAD_REQUEST,
-    EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NOT_IN_LIST, EXIT_CODE_NO_ADDRESS, EXIT_CODE_OK, EXIT_CODE_PORT_NOT_ALLOWED,
-    EXIT_CODE_REFUSED, EXIT_TCP_CONNECT_TIMEOUT, EXIT_ALPN, EXIT_PROTOCOL_VERSION,
+    encode_exit_request, exit_code_text, parse_exit_request, EXIT_ALPN,
+    EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_BAD_REQUEST, EXIT_CODE_CONNECT_FAILED,
+    EXIT_CODE_NOT_IN_LIST, EXIT_CODE_NO_ADDRESS, EXIT_CODE_OK, EXIT_CODE_PORT_NOT_ALLOWED,
+    EXIT_CODE_REFUSED, EXIT_PROTOCOL_VERSION, EXIT_TCP_CONNECT_TIMEOUT,
 };
 pub use gateway_memo::{GatewayMemo, GATEWAY_REFUSAL_TTL};
 pub use udpgw::{is_gateway_target, UDPGW_HOST, UDPGW_PORT};
 // Consumed by the node-side UDP bridge.
-pub(crate) use udpgw::codec as udpgw_codec;
 pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOUT};
 pub use server::{exit_service, ExitConfig};
 pub use splice::{splice, HALF_CLOSE_GRACE};
 pub use traffic::{Direction, ExitTraffic, PeerRate};
+pub(crate) use udpgw::codec as udpgw_codec;

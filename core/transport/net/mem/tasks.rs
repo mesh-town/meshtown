@@ -1,9 +1,9 @@
 //! Connection tasks of `mem`: the writer (frame queue → path) and the reader (path → frame parsing).
 //! The reader does not wait for the user: data goes into the stream buffer.
 
-use crate::net::mem::conn::CODE_PATH_LOST;
-use crate::net::mem::frame::Frame;
-use crate::net::mem::shared::MemConnState;
+use crate::transport::net::mem::conn::CODE_PATH_LOST;
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::shared::MemConnState;
 use bytes::Bytes;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -53,7 +53,9 @@ pub(super) async fn read_loop(shared: Arc<MemConnState>) {
         let Ok(pkt) = shared.path.recv().await else {
             break;
         };
-        shared.recv_bytes_total.fetch_add(pkt.len() as u64, Ordering::Relaxed);
+        shared
+            .recv_bytes_total
+            .fetch_add(pkt.len() as u64, Ordering::Relaxed);
         let Ok(frame) = Frame::decode(pkt) else {
             shared.violation("bad frame");
             return;

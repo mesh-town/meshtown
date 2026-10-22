@@ -2,12 +2,12 @@
 
 use super::admit::{admission_key, dial_handshake};
 use super::test_support::NETWORK;
-use super::Tuning;
 use super::test_support::{is_down, is_up, next, quiet, wait_ups, Rig, TOPIC};
 use super::topic_tests::open;
-use crate::net::contract::secret;
-use crate::net::contract::{pid, must_finish, SEED_A, SEED_B, SEED_C};
-use crate::net::{NetError, NetStackBuilder, SwarmEvent, SYNC};
+use super::Tuning;
+use crate::transport::net::contract::secret;
+use crate::transport::net::contract::{must_finish, pid, SEED_A, SEED_B, SEED_C};
+use crate::transport::net::{NetError, NetStackBuilder, SwarmEvent, SYNC};
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 
@@ -27,7 +27,10 @@ mod down {
     async fn cut_brings_neighbor_down() {
         // given: A and B are peers
         let rig = Rig::new();
-        let (a, b) = (rig.node_with(SEED_A, patient()), rig.node_with(SEED_B, patient()));
+        let (a, b) = (
+            rig.node_with(SEED_A, patient()),
+            rig.node_with(SEED_B, patient()),
+        );
         super::super::test_support::introduce(&a, &b);
         let mut sa = open(&a, &[]).await;
         let mut sb = open(&b, &[pid(SEED_A)]).await;
@@ -51,7 +54,9 @@ mod down {
             .expect("raw stack");
         raw.add_hints(a.stack.invite_addrs()[0].clone());
         let mut sa = open(&a, &[]).await;
-        let conn = must_finish(raw.connect(pid(SEED_A), SYNC)).await.expect("connect");
+        let conn = must_finish(raw.connect(pid(SEED_A), SYNC))
+            .await
+            .expect("connect");
         let mut pair = must_finish(conn.open()).await.expect("stream");
         let key = admission_key(&NETWORK);
         must_finish(dial_handshake(
@@ -120,6 +125,9 @@ mod down {
             .all(|e| !matches!(e, SwarmEvent::NeighborUp(_))));
         // the actor ended: the next join of the topic is Closed
         let again = must_finish(sa.membership.join(&[pid(SEED_B)])).await;
-        assert!(matches!(again, Err(NetError::Closed)), "expected Closed, got {again:?}");
+        assert!(
+            matches!(again, Err(NetError::Closed)),
+            "expected Closed, got {again:?}"
+        );
     }
 }

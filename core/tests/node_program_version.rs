@@ -12,12 +12,12 @@ use std::future::Future;
 use std::time::Duration;
 
 use bytes::Bytes;
-use meshtown::geoip;
-use meshtown::net::{PeerAddr, PeerId};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::node_state;
-use meshtown::program_version::{self, current_program_version, PROGRAM_VERSION_KEY};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::node_state;
+use meshtown_core::node::program_version::{self, current_program_version, PROGRAM_VERSION_KEY};
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::site_checks::geoip;
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use tokio::time::{sleep, Instant};
 
 /// How long a node takes to write its own version after start (the write is local).
@@ -38,7 +38,11 @@ mod publication_on_start {
         // when: we wait for its own record
         let own = wait_own_version(&a).await;
         // then: the node wrote its build version
-        assert_eq!(own.as_deref(), current(), "node did not announce its version");
+        assert_eq!(
+            own.as_deref(),
+            current(),
+            "node did not announce its version"
+        );
         a.shutdown().await;
     }
 
@@ -84,9 +88,17 @@ mod rewrite {
         let second = ensure(&a, "0.0.2").await;
         // then: the first time it is written, the second time it isn't, the peer eventually sees the new version
         assert!(first, "another version must be written");
-        assert!(!second, "a repeated ensure with the same version doesn't write");
+        assert!(
+            !second,
+            "a repeated ensure with the same version doesn't write"
+        );
         let versions = wait_versions(&b, |m| is_version(m, a.id, "0.0.2")).await;
-        assert_version(&versions, a.id, Some("0.0.2"), "B did not see A's new version");
+        assert_version(
+            &versions,
+            a.id,
+            Some("0.0.2"),
+            "B did not see A's new version",
+        );
         shutdown_pair(a, b).await;
     }
 
@@ -129,11 +141,24 @@ mod reading_foreign_value {
         let (a, b) = start_pair().await;
         wait_version_seen(&b, a.id).await;
         // when: A deletes the record
-        a.domains.shared_replica().del_own(PROGRAM_VERSION_KEY).await.unwrap();
+        a.domains
+            .shared_replica()
+            .del_own(PROGRAM_VERSION_KEY)
+            .await
+            .unwrap();
         let versions = wait_versions(&b, |m| !m.contains_key(&a.id)).await;
         // then: B has no A, A's own record is `None`
-        assert_version(&versions, a.id, None, "tombstone did not remove A's version at B");
-        assert_eq!(own_version(&a).await, None, "tombstone did not remove the version");
+        assert_version(
+            &versions,
+            a.id,
+            None,
+            "tombstone did not remove A's version at B",
+        );
+        assert_eq!(
+            own_version(&a).await,
+            None,
+            "tombstone did not remove the version"
+        );
         shutdown_pair(a, b).await;
     }
 }
@@ -154,7 +179,10 @@ mod old_readers {
         let checks = b.checks.check_views().await.unwrap();
         let exits = node_state::read_exit_flags(&*rep).await.unwrap();
         let countries = geoip::read_countries(&*rep).await.unwrap();
-        assert!(list.is_empty(), "version got into the domain list: {list:?}");
+        assert!(
+            list.is_empty(),
+            "version got into the domain list: {list:?}"
+        );
         assert!(checks.is_empty(), "version got into the checks: {checks:?}");
         assert_eq!(exits, exits_before, "version changed the exit flags");
         assert!(countries.is_empty(), "version got into the countries");
@@ -223,7 +251,11 @@ async fn wait_own_version(node: &RunningNode) -> Option<String> {
 /// Precondition of the write tests: the node's background task has written the current version and finished.
 async fn wait_own_current(node: &RunningNode) {
     let own = wait_own_version(node).await;
-    assert_eq!(own.as_deref(), current(), "node did not write its version in time");
+    assert_eq!(
+        own.as_deref(),
+        current(),
+        "node did not write its version in time"
+    );
 }
 
 /// This build's version in the form readers return it (`Option<&str>`).
@@ -262,14 +294,21 @@ fn assert_version(map: &Versions, id: PeerId, want: Option<&str>, why: &str) {
 
 /// Waits up to 20 s for `node` to see `other`'s exit flag (by default a node enables the exit).
 async fn wait_exits_of(node: &RunningNode, other: PeerId) -> HashMap<PeerId, bool> {
-    let read = || async { node_state::read_exit_flags(&*node.domains.shared_replica()).await.unwrap() };
+    let read = || async {
+        node_state::read_exit_flags(&*node.domains.shared_replica())
+            .await
+            .unwrap()
+    };
     poll(SYNC_LIMIT, read, |exits| exits.get(&other) == Some(&true)).await
 }
 
 /// The time of its own version record in microseconds.
 async fn own_record_time(node: &RunningNode) -> u64 {
     let record = node_state::own_value(&*node.domains.shared_replica(), PROGRAM_VERSION_KEY).await;
-    record.unwrap().expect("its own version record must exist").1
+    record
+        .unwrap()
+        .expect("its own version record must exist")
+        .1
 }
 
 /// `ensure_program_version` of its own node; returns whether a write happened.

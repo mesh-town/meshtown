@@ -57,14 +57,22 @@ mod temp_token {
     use super::*;
 
     fn issue(s: &WebShared) -> String {
-        s.auth.tickets.lock().unwrap().issue_temp(Instant::now()).unwrap()
+        s.auth
+            .tickets
+            .lock()
+            .unwrap()
+            .issue_temp(Instant::now())
+            .unwrap()
     }
 
     #[test]
     fn in_header_is_401() {
         let s = shared(ListenAccess::Localhost);
         let t = issue(&s);
-        let p = get("/api/state", &[("host", &lo_host()), ("x-meshtown-token", &t)]);
+        let p = get(
+            "/api/state",
+            &[("host", &lo_host()), ("x-meshtown-token", &t)],
+        );
         let err = check_request(&p, &lo(), &s).unwrap_err();
         assert_eq!(code_of(&err), StatusCode::UNAUTHORIZED);
     }
@@ -114,7 +122,10 @@ mod open_api {
         let s = shared(ListenAccess::Localhost);
         let id = open_session(&s);
         let line = format!("{COOKIE}={id}");
-        let p = get("/api/auth/status", &[("host", &lo_host()), ("cookie", &line)]);
+        let p = get(
+            "/api/auth/status",
+            &[("host", &lo_host()), ("cookie", &line)],
+        );
         let cred = check_request(&p, &lo(), &s).unwrap().unwrap();
         assert_eq!(cred.session_id.as_deref(), Some(id.as_str()));
     }

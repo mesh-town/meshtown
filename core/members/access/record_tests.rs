@@ -3,8 +3,8 @@
 //! own records in `record_write_tests.rs`.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::net::{PeerId, ReplicaEntry};
+use crate::transport::net::contract::pid;
+use crate::transport::net::{PeerId, ReplicaEntry};
 use bytes::Bytes;
 use data_encoding::HEXLOWER;
 
@@ -44,7 +44,10 @@ fn golden_bytes_of_admit_v1() {
     // when: encoded
     let bytes = encode(&value);
     // then: the bytes equal the hand-laid constant, and the key is prefix plus lowercase hex
-    assert_eq!(bytes, GOLDEN_ADMIT_V1, "any shift of a field, width or version shows here");
+    assert_eq!(
+        bytes, GOLDEN_ADMIT_V1,
+        "any shift of a field, width or version shows here"
+    );
     let want_key = format!("acl/admit/58{}", "66".repeat(31));
     assert_eq!(admit_key(&base()), want_key.into_bytes());
 }
@@ -65,7 +68,13 @@ fn roundtrips_every_kind() {
     // given: every kind with every via, and an empty note and a note of 80 two-byte characters
     let notes = [String::new(), "é".repeat(80)];
     for (kind, via, note) in combinations(&notes) {
-        let value = AclValue { kind, subject: base(), via, made_unix: 1_792_400_000, note };
+        let value = AclValue {
+            kind,
+            subject: base(),
+            via,
+            made_unix: 1_792_400_000,
+            note,
+        };
         // when: encoded and decoded
         let back = decode(&encode(&value));
         // then: the same value (the note limit counts characters, not bytes)
@@ -77,7 +86,10 @@ fn roundtrips_every_kind() {
 fn roundtrips_extreme_timestamps() {
     for made_unix in [0, 127, 128, u64::MAX] {
         // given: a value with the timestamp at a varint width edge
-        let value = AclValue { made_unix, ..admit_of(base()) };
+        let value = AclValue {
+            made_unix,
+            ..admit_of(base())
+        };
         // when / then: it survives encoding
         assert_eq!(decode(&encode(&value)), Ok(value), "made_unix {made_unix}");
     }
@@ -100,8 +112,15 @@ fn ignores_unknown_version() {
     // when / then: empty is told apart from a wrong version
     assert_eq!(decode(&[]), Err(Ignored::Empty));
     for version in [0, 2, 255] {
-        let bytes = raw(Raw { version, ..Raw::default() });
-        assert_eq!(decode(&bytes), Err(Ignored::BadVersion), "version {version}");
+        let bytes = raw(Raw {
+            version,
+            ..Raw::default()
+        });
+        assert_eq!(
+            decode(&bytes),
+            Err(Ignored::BadVersion),
+            "version {version}"
+        );
     }
 }
 
@@ -110,10 +129,16 @@ fn ignores_unknown_kind() {
     // given: kinds outside 1..=4 and a via outside 0..=3 in otherwise good bodies
     // when / then: the kind and the via are told apart
     for kind in [0, 5, 255] {
-        let bytes = raw(Raw { kind, ..Raw::default() });
+        let bytes = raw(Raw {
+            kind,
+            ..Raw::default()
+        });
         assert_eq!(decode(&bytes), Err(Ignored::UnknownKind), "kind {kind}");
     }
-    let bytes = raw(Raw { via: 4, ..Raw::default() });
+    let bytes = raw(Raw {
+        via: 4,
+        ..Raw::default()
+    });
     assert_eq!(decode(&bytes), Err(Ignored::UnknownVia));
 }
 
@@ -139,7 +164,10 @@ fn ignores_truncated_body() {
 #[test]
 fn ignores_non_utf8_note() {
     // given: a body whose note bytes are not UTF-8
-    let bytes = raw(Raw { note: vec![0xFF, 0xFE], ..Raw::default() });
+    let bytes = raw(Raw {
+        note: vec![0xFF, 0xFE],
+        ..Raw::default()
+    });
     // when / then: it is malformed
     assert_eq!(decode(&bytes), Err(Ignored::Malformed));
 }
@@ -147,11 +175,19 @@ fn ignores_non_utf8_note() {
 #[test]
 fn ignores_note_over_80_chars() {
     // given: notes of 80 and 81 characters, and 81 two-byte characters
-    let note = |s: String| raw(Raw { note: s.into_bytes(), ..Raw::default() });
+    let note = |s: String| {
+        raw(Raw {
+            note: s.into_bytes(),
+            ..Raw::default()
+        })
+    };
     // when / then: 80 is fine, 81 is too long whatever the byte width
     assert!(decode(&note("a".repeat(80))).is_ok());
     assert!(decode(&note("é".repeat(80))).is_ok());
-    assert!(decode(&note("a".repeat(64))).is_ok(), "an old note of 64 characters must still read");
+    assert!(
+        decode(&note("a".repeat(64))).is_ok(),
+        "an old note of 64 characters must still read"
+    );
     assert_eq!(decode(&note("a".repeat(81))), Err(Ignored::NoteTooLong));
     assert_eq!(decode(&note("é".repeat(81))), Err(Ignored::NoteTooLong));
 }
@@ -159,7 +195,10 @@ fn ignores_note_over_80_chars() {
 #[test]
 fn ignores_subject_off_curve() {
     // given: a body whose subject bytes are not a point of the curve
-    let bytes = raw(Raw { subject: off_curve(), ..Raw::default() });
+    let bytes = raw(Raw {
+        subject: off_curve(),
+        ..Raw::default()
+    });
     // when / then: the subject is rejected as such, not as a generic postcard error
     assert_eq!(decode(&bytes), Err(Ignored::BadSubject));
 }
@@ -174,7 +213,11 @@ fn record_carries_author_and_ts() {
     // when: parsed
     let parsed = parse_entry(&e);
     // then: the record carries the author, the time and the value
-    let want = Parsed::Record { author: a, ts_micros: 123_456, value: admit_of(s) };
+    let want = Parsed::Record {
+        author: a,
+        ts_micros: 123_456,
+        value: admit_of(s),
+    };
     assert_eq!(parsed, want);
 }
 
@@ -184,7 +227,13 @@ fn tombstone_is_withdrawn() {
     let (a, s) = (pid(2), pid(5));
     let e = entry(a, admit_key(&s), vec![], 10);
     // when / then: the entry is a withdrawn record with the key
-    assert_eq!(parse_entry(&e), Parsed::Withdrawn { author: a, key: admit_key(&s) });
+    assert_eq!(
+        parse_entry(&e),
+        Parsed::Withdrawn {
+            author: a,
+            key: admit_key(&s)
+        }
+    );
 }
 
 #[test]
@@ -201,8 +250,22 @@ fn subject_mismatch_with_key_is_ignored() {
     let (a, s, t) = (pid(2), pid(5), pid(6));
     let cases = [
         ("subject differs from key", admit_key(&t), admit_of(s)),
-        ("kind differs from key", admit_key(&s), AclValue { kind: AclKind::Exclude, ..admit_of(s) }),
-        ("boot marker for another subject", BOOT_KEY.to_vec(), AclValue { kind: AclKind::Boot, ..admit_of(s) }),
+        (
+            "kind differs from key",
+            admit_key(&s),
+            AclValue {
+                kind: AclKind::Exclude,
+                ..admit_of(s)
+            },
+        ),
+        (
+            "boot marker for another subject",
+            BOOT_KEY.to_vec(),
+            AclValue {
+                kind: AclKind::Boot,
+                ..admit_of(s)
+            },
+        ),
     ];
     for (name, key, value) in cases {
         // when / then: every one is a key mismatch
@@ -215,34 +278,78 @@ fn subject_mismatch_with_key_is_ignored() {
 fn self_exclusion_is_an_ordinary_record() {
     // given: A votes to exclude A
     let a = pid(2);
-    let value = AclValue { kind: AclKind::Exclude, ..admit_of(a) };
+    let value = AclValue {
+        kind: AclKind::Exclude,
+        ..admit_of(a)
+    };
     // when: parsed
     let parsed = parse_entry(&entry(a, exclude_key(&a), encode(&value), 10));
     // then: it is a record like any other vote
-    assert_eq!(parsed, Parsed::Record { author: a, ts_micros: 10, value });
+    assert_eq!(
+        parsed,
+        Parsed::Record {
+            author: a,
+            ts_micros: 10,
+            value
+        }
+    );
 }
 
 #[test]
 fn boot_marker_of_its_author_is_a_record() {
     // given: A's boot marker naming A
     let a = pid(2);
-    let value = AclValue { kind: AclKind::Boot, via: Via::Migration, ..admit_of(a) };
+    let value = AclValue {
+        kind: AclKind::Boot,
+        via: Via::Migration,
+        ..admit_of(a)
+    };
     // when: parsed
     let parsed = parse_entry(&entry(a, BOOT_KEY.to_vec(), encode(&value), 10));
     // then: it is accepted
-    assert_eq!(parsed, Parsed::Record { author: a, ts_micros: 10, value });
+    assert_eq!(
+        parsed,
+        Parsed::Record {
+            author: a,
+            ts_micros: 10,
+            value
+        }
+    );
 }
 
 #[test]
 fn tagged_boot_marker_parses_as_a_boot_record() {
     // given: A's boot marker with the flag of the second admission stage
     let a = pid(2);
-    let value = AclValue { kind: AclKind::Boot, via: Via::Migration, note: BOOT_NOTE_ADMISSION.to_string(), ..admit_of(a) };
+    let value = AclValue {
+        kind: AclKind::Boot,
+        via: Via::Migration,
+        note: BOOT_NOTE_ADMISSION.to_string(),
+        ..admit_of(a)
+    };
     // when: parsed
     let parsed = parse_entry(&entry(a, BOOT_KEY.to_vec(), encode(&value), 10));
     // then: it is a boot record, which the tally does not count
-    assert_eq!(parsed, Parsed::Record { author: a, ts_micros: 10, value });
-    let (input, ignored) = tally_input(a, &[entry(a, BOOT_KEY.to_vec(), encode(&AclValue { kind: AclKind::Boot, ..admit_of(a) }), 10)]);
+    assert_eq!(
+        parsed,
+        Parsed::Record {
+            author: a,
+            ts_micros: 10,
+            value
+        }
+    );
+    let (input, ignored) = tally_input(
+        a,
+        &[entry(
+            a,
+            BOOT_KEY.to_vec(),
+            encode(&AclValue {
+                kind: AclKind::Boot,
+                ..admit_of(a)
+            }),
+            10,
+        )],
+    );
     assert!(input.admits.is_empty() && input.votes.is_empty() && ignored == 0);
 }
 
@@ -254,12 +361,21 @@ fn foreign_prefix_is_ignored() {
     let value = encode(&admit_of(s));
     let keys = [
         ("other namespace", b"node/name/x".to_vec()),
-        ("upper-case hex", format!("acl/admit/{}", hex.to_uppercase()).into_bytes()),
-        ("63 digits", format!("acl/admit/{}", &hex[..63]).into_bytes()),
+        (
+            "upper-case hex",
+            format!("acl/admit/{}", hex.to_uppercase()).into_bytes(),
+        ),
+        (
+            "63 digits",
+            format!("acl/admit/{}", &hex[..63]).into_bytes(),
+        ),
         ("trailing slash", format!("acl/admit/{hex}/").into_bytes()),
         ("boot with a suffix", b"acl/bootx".to_vec()),
         ("admit prefix alone", b"acl/admit/".to_vec()),
-        ("unknown kind in key", format!("acl/other/{hex}").into_bytes()),
+        (
+            "unknown kind in key",
+            format!("acl/other/{hex}").into_bytes(),
+        ),
     ];
     for (name, key) in keys {
         // when / then: the key alone makes the entry foreign
@@ -320,7 +436,9 @@ fn base() -> PeerId {
 
 /// The first `[i; 32]` that is not a point of the curve.
 fn off_curve() -> [u8; 32] {
-    let bytes = (0..=255u8).map(|i| [i; 32]).find(|b| PeerId::from_bytes(b).is_err());
+    let bytes = (0..=255u8)
+        .map(|i| [i; 32])
+        .find(|b| PeerId::from_bytes(b).is_err());
     bytes.expect("some [i; 32] must be off the curve")
 }
 
@@ -336,12 +454,22 @@ pub(super) fn admit_of(subject: PeerId) -> AclValue {
 }
 
 pub(super) fn entry(author: PeerId, key: Vec<u8>, value: Vec<u8>, ts_micros: u64) -> ReplicaEntry {
-    ReplicaEntry { author, key, value: Bytes::from(value), ts_micros }
+    ReplicaEntry {
+        author,
+        key,
+        value: Bytes::from(value),
+        ts_micros,
+    }
 }
 
 /// All kinds times all vias times the given notes.
 fn combinations(notes: &[String]) -> Vec<(AclKind, Via, String)> {
-    let kinds = [AclKind::Admit, AclKind::Exclude, AclKind::Block, AclKind::Boot];
+    let kinds = [
+        AclKind::Admit,
+        AclKind::Exclude,
+        AclKind::Block,
+        AclKind::Boot,
+    ];
     let vias = [Via::None, Via::Invite, Via::Migration, Via::Witness];
     let mut out = vec![];
     for kind in kinds {
@@ -351,7 +479,6 @@ fn combinations(notes: &[String]) -> Vec<(AclKind, Via, String)> {
     }
     out
 }
-
 
 /// Bytes of a version 1 value assembled by hand; every field can be broken on its own.
 pub(super) struct Raw {
@@ -364,7 +491,13 @@ pub(super) struct Raw {
 
 impl Default for Raw {
     fn default() -> Raw {
-        Raw { version: 1, kind: 1, subject: base_bytes(), via: 1, note: b"laptop".to_vec() }
+        Raw {
+            version: 1,
+            kind: 1,
+            subject: base_bytes(),
+            via: 1,
+            note: b"laptop".to_vec(),
+        }
     }
 }
 

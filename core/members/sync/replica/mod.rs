@@ -21,16 +21,16 @@ pub use backend::{sync_ctor, MeshSync, NAME};
 pub use import::{Legacy, LegacyRead};
 
 #[cfg(test)]
-pub(crate) mod test_support;
-#[cfg(test)]
 #[path = "backend_tests.rs"]
 mod backend_tests;
 #[cfg(test)]
 #[path = "contract_tests.rs"]
 mod contract_tests;
 #[cfg(test)]
+#[path = "replica_net_tests.rs"]
+mod replica_net_tests;
+#[cfg(test)]
 #[path = "replica_tests.rs"]
 mod replica_tests;
 #[cfg(test)]
-#[path = "replica_net_tests.rs"]
-mod replica_net_tests;
+pub(crate) mod test_support;

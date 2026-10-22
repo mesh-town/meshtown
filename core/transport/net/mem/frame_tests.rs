@@ -140,15 +140,16 @@ mod minimal_frames {
 
     #[test]
     fn data_with_no_payload_bytes_decodes_to_an_empty_payload() {
-        let got = Frame::decode(bytes(&[0x11, 0, 0, 0, 5])).expect("an empty Data is a valid frame");
+        let got =
+            Frame::decode(bytes(&[0x11, 0, 0, 0, 5])).expect("an empty Data is a valid frame");
 
         assert_eq!(got, Frame::Data(5, Bytes::new()));
     }
 
     #[test]
     fn close_with_no_reason_bytes_decodes_to_an_empty_reason() {
-        let got =
-            Frame::decode(bytes(&[0x20, 0, 0, 0, 7])).expect("Close without a reason is a valid frame");
+        let got = Frame::decode(bytes(&[0x20, 0, 0, 0, 7]))
+            .expect("Close without a reason is a valid frame");
 
         assert_eq!(
             got,
@@ -165,7 +166,10 @@ mod malformed_input {
 
     #[test]
     fn an_empty_packet_is_an_error() {
-        assert!(Frame::decode(Bytes::new()).is_err(), "an empty packet was accepted");
+        assert!(
+            Frame::decode(Bytes::new()).is_err(),
+            "an empty packet was accepted"
+        );
     }
 
     #[test]
@@ -282,7 +286,11 @@ mod udx_mark {
         ];
 
         for frame in &frames {
-            assert_ne!(frame.encode()[0], 0xFF, "{frame:?} took the UDX marker 0xFF");
+            assert_ne!(
+                frame.encode()[0],
+                0xFF,
+                "{frame:?} took the UDX marker 0xFF"
+            );
         }
     }
 

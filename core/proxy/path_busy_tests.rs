@@ -9,13 +9,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::*;
-use crate::doh::Resolver;
 use crate::exit::{PeerConnPool, EXIT_CODE_OK, EXIT_PROTOCOL_VERSION};
-use crate::http_min::HttpLimits;
-use crate::net::facade::test_support::{pid, secret, within, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::EXIT;
-use crate::net::{
+use crate::site_checks::doh::Resolver;
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{
     BoxFuture, LinkInfo, NetInfo, NetResult, NetStack, NetStackBuilder, PeerAddr, PeerConn,
     RelayRef, ServiceHandler, ServiceId, StreamPair, Transport,
 };
@@ -38,7 +38,10 @@ mod skipping {
         .await;
 
         let opened = res.ok().expect("the second exit answers");
-        assert_eq!(opened.route_label, format!("exit {}", short_peer_id(&pid(3))));
+        assert_eq!(
+            opened.route_label,
+            format!("exit {}", short_peer_id(&pid(3)))
+        );
     }
 
     /// given: the only candidate is busy; when `open_through_exits`, then a refusal with the reason "busy".
@@ -75,8 +78,15 @@ mod remembered_gateway {
         .await;
 
         let refused = res.err().expect("refused from memory");
-        assert_eq!(refused.outcome.route_label, format!("exit {}", short_peer_id(&pid(2))));
-        assert!(refused.outcome.result.contains("code 7"), "{}", refused.outcome.result);
+        assert_eq!(
+            refused.outcome.route_label,
+            format!("exit {}", short_peer_id(&pid(2)))
+        );
+        assert!(
+            refused.outcome.result.contains("code 7"),
+            "{}",
+            refused.outcome.result
+        );
     }
 
     /// given: the same remembered exit; when an ordinary target is requested, then the exit is still asked.
@@ -85,7 +95,11 @@ mod remembered_gateway {
         let cfg = config(&[2]).await;
         cfg.pool.note_gateway_refused(pid(2));
 
-        let res = within("open_through_exits", open_through_exits(&cfg, &[pid(2)], "example.com", 443)).await;
+        let res = within(
+            "open_through_exits",
+            open_through_exits(&cfg, &[pid(2)], "example.com", 443),
+        )
+        .await;
 
         assert_eq!(res.err().expect("busy").outcome.result, BUSY_TEXT);
     }
@@ -97,7 +111,10 @@ async fn config(stuck: &[u8]) -> ProxyConfig {
 }
 
 /// Like `config`, with the handler `exit` makes for each of the exits 2 and 3.
-pub(super) async fn config_with(stuck: &[u8], exit: impl Fn() -> Arc<dyn ServiceHandler>) -> ProxyConfig {
+pub(super) async fn config_with(
+    stuck: &[u8],
+    exit: impl Fn() -> Arc<dyn ServiceHandler>,
+) -> ProxyConfig {
     let net = MemNet::new();
     let client = client_stack(&net, stuck);
     for seed in [2u8, 3] {
@@ -105,7 +122,7 @@ pub(super) async fn config_with(stuck: &[u8], exit: impl Fn() -> Arc<dyn Service
         client.add_hints(server.invite_addrs()[0].clone());
         std::mem::forget(server);
     }
-    let key = crate::network_key::NetworkKey::generate().unwrap();
+    let key = crate::members::network_key::NetworkKey::generate().unwrap();
     let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(key))
         .await
         .unwrap();
@@ -146,14 +163,14 @@ fn exit_stack(net: &Arc<MemNet>, seed: u8, handler: Arc<dyn ServiceHandler>) -> 
 /// A wrapper transport: connections to peers from `stuck` are returned with a hung `open()`.
 struct Stucking {
     inner: Arc<dyn Transport>,
-    stuck: Vec<crate::net::PeerId>,
+    stuck: Vec<crate::transport::net::PeerId>,
 }
 
 impl Transport for Stucking {
     fn kind(&self) -> &'static str {
         self.inner.kind()
     }
-    fn me(&self) -> crate::net::PeerId {
+    fn me(&self) -> crate::transport::net::PeerId {
         self.inner.me()
     }
     fn local_addr(&self) -> PeerAddr {
@@ -203,7 +220,7 @@ struct StuckConn {
 }
 
 impl PeerConn for StuckConn {
-    fn peer(&self) -> crate::net::PeerId {
+    fn peer(&self) -> crate::transport::net::PeerId {
         self.inner.peer()
     }
     fn stable_id(&self) -> u64 {
@@ -242,7 +259,10 @@ impl ServiceHandler for AlwaysOk {
                 }
                 let mut tail = vec![0u8; usize::from(head[1]) + 2];
                 let _ = pair.recv.read_exact(&mut tail).await;
-                let _ = pair.send.write_all(&[EXIT_PROTOCOL_VERSION, EXIT_CODE_OK]).await;
+                let _ = pair
+                    .send
+                    .write_all(&[EXIT_PROTOCOL_VERSION, EXIT_CODE_OK])
+                    .await;
                 let _ = pair.send.shutdown().await;
             }
         })

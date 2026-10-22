@@ -8,11 +8,11 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config_file::{self, LoadedConfigFile, Settings, ListenAccess};
-use crate::web::auth::iface_gate::judge;
-use crate::web::auth::iface_os::current_view;
-use crate::web::http::{json_err, ConnInfo};
-use crate::web::NodeControl;
+use crate::config::config_file::{self, ListenAccess, LoadedConfigFile, Settings};
+use crate::web_gui::auth::iface_gate::judge;
+use crate::web_gui::auth::iface_os::current_view;
+use crate::web_gui::http::{json_err, ConnInfo};
+use crate::web_gui::NodeControl;
 
 use super::put_merge::{merge_with_config, parse_merged_settings, reject_unavailable_fields};
 use super::put_write::write_new_settings;
@@ -106,7 +106,11 @@ fn writable_path(state: &ConfigState) -> Result<PathBuf, Response> {
 /// Step 5: the file revision on disk matches `rev_in` from the request; otherwise 409 and syncing
 /// the state with what is actually in the file. Returns the loaded file — it is also needed at step 9 to
 /// choose the write method.
-fn load_file_or_reject_stale_rev(state: &mut ConfigState, path: &Path, rev_in: u64) -> Result<LoadedConfigFile, Response> {
+fn load_file_or_reject_stale_rev(
+    state: &mut ConfigState,
+    path: &Path,
+    rev_in: u64,
+) -> Result<LoadedConfigFile, Response> {
     let loaded = config_file::load_config_file(path);
     if let LoadedConfigFile::Parsed(p) = &loaded {
         if p.rev != rev_in {
@@ -132,11 +136,18 @@ fn reject_web_lockout(
     let filter = &new.process.web_ifaces;
     let view = current_view();
     let local = Some(conn.local.ip());
-    let verdict = judge(ListenAccess::Localnet, filter, &view, conn.client_addr.ip(), local);
+    let verdict = judge(
+        ListenAccess::Localnet,
+        filter,
+        &view,
+        conn.client_addr.ip(),
+        local,
+    );
     if verdict.allows() {
         return Ok(());
     }
     let name = verdict.iface.as_deref().unwrap_or("?");
-    let text = format!("this list would close the page for you: the connection came through \"{name}\"");
+    let text =
+        format!("this list would close the page for you: the connection came through \"{name}\"");
     Err(state.invalid_response(vec![field_entry("web.ifaces", &text)]))
 }

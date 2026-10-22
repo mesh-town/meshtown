@@ -1,6 +1,6 @@
 //! Page session cookie: name from the node key, session value, request parsing.
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use axum::http::{header, HeaderMap, HeaderValue};
 
 use super::auth::tickets::SESSION_TTL;

@@ -104,7 +104,8 @@ pub fn standard_path(env: &PathEnv) -> Result<PathBuf, String> {
             match xdg {
                 Some(p) => p,
                 None => PathBuf::from(
-                    env_var(env, "HOME").ok_or_else(|| "the HOME variable is not set".to_string())?,
+                    env_var(env, "HOME")
+                        .ok_or_else(|| "the HOME variable is not set".to_string())?,
                 )
                 .join(".config"),
             }

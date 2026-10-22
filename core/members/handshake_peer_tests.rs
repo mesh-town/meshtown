@@ -3,15 +3,15 @@
 //! in the child `handshake_peer_wire_tests.rs`. Pure functions are in `handshake_tests.rs`.
 
 use super::*;
-use crate::access::view::AccessView;
-use crate::membership::{MemberContext, MemberEvent, Members};
-use crate::net::contract::{pid, secret, must_finish, SEED_A, SEED_B, STEP};
-use crate::net::mem::conn::MemConn;
-use crate::net::{MemNet, PeerConn, PeerId, SplitTransport, Transport, AUTH};
-use crate::transfer_probe::ProbeSettings;
+use crate::members::access::view::AccessView;
+use crate::members::membership::{MemberContext, MemberEvent, Members};
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A, SEED_B, STEP};
+use crate::transport::net::mem::conn::MemConn;
+use crate::transport::net::{MemNet, PeerConn, PeerId, SplitTransport, Transport, AUTH};
+use crate::transport::transfer_probe::ProbeSettings;
 use bytes::Bytes;
-use std::sync::atomic::AtomicUsize;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
@@ -70,8 +70,14 @@ mod wrong_key {
             "close code on the rejecting side"
         );
         // then: nobody became a member, no Up events
-        assert!(!fx.ini.ctx.members.is_member(fx.res.ctx.own_id), "A added B");
-        assert!(!fx.res.ctx.members.is_member(fx.ini.ctx.own_id), "B added A");
+        assert!(
+            !fx.ini.ctx.members.is_member(fx.res.ctx.own_id),
+            "A added B"
+        );
+        assert!(
+            !fx.res.ctx.members.is_member(fx.ini.ctx.own_id),
+            "B added A"
+        );
         assert!(fx.ini.events.try_recv().is_err(), "A has an event");
         assert!(fx.res.events.try_recv().is_err(), "B has an event");
     }
@@ -90,7 +96,8 @@ mod as_service {
     async fn service_hold_until_close() {
         // given: B serves the incoming connection with the AUTH service, A initiates
         let mut fx = setup(Opts::default()).await;
-        let serving = tokio::spawn(handshake_service(fx.res.ctx.clone()).handle(fx.res.conn.clone()));
+        let serving =
+            tokio::spawn(handshake_service(fx.res.ctx.clone()).handle(fx.res.conn.clone()));
         must_finish(initiate(&fx.ini.conn, &fx.ini.ctx))
             .await
             .expect("initiate");
@@ -99,7 +106,9 @@ mod as_service {
         // when: A closes the connection
         fx.ini.conn.close(0, b"bye");
         // then: the record is gone, B got Up and then Down of peer A, the service finished
-        fx.res.then_conn_untracked_after_down(fx.ini.ctx.own_id).await;
+        fx.res
+            .then_conn_untracked_after_down(fx.ini.ctx.own_id)
+            .await;
         let ended = must_finish(serving).await;
         assert!(ended.is_ok(), "service task failed: {ended:?}");
     }
@@ -133,7 +142,10 @@ async fn setup(opts: Opts) -> Fixture {
     let a = net.transport(&secret(SEED_A));
     let b = net.transport(&secret(SEED_B));
     b.serve(&[AUTH]);
-    let (dialed, accepted) = tokio::join!(must_finish(a.connect(&b.local_addr(), AUTH)), must_finish(b.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(a.connect(&b.local_addr(), AUTH)),
+        must_finish(b.accept())
+    );
     let dialed = dialed.expect("connect A→B gave no connection");
     let (_, accepted) = accepted.expect("accept B is closed, though a connection was awaited");
     let key_b = if opts.wrong_key { OTHER_KEY } else { KEY };
@@ -195,8 +207,14 @@ fn member_context_with(
 async fn setup_with_views(ini_view: AccessView, res_view: AccessView) -> Fixture {
     let fx = setup(Opts::default()).await;
     Fixture {
-        ini: side(fx.ini.conn.clone(), member_context_with(pid(SEED_A), KEY, NAME_A, ini_view)),
-        res: side(fx.res.conn.clone(), member_context_with(pid(SEED_B), KEY, NAME_B, res_view)),
+        ini: side(
+            fx.ini.conn.clone(),
+            member_context_with(pid(SEED_A), KEY, NAME_A, ini_view),
+        ),
+        res: side(
+            fx.res.conn.clone(),
+            member_context_with(pid(SEED_B), KEY, NAME_B, res_view),
+        ),
         _nodes: fx._nodes,
     }
 }

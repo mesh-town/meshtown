@@ -5,11 +5,11 @@
 use std::net::TcpListener;
 use std::process::ExitStatus;
 
-use meshtown::config_file::ListenAccess;
-use meshtown::proxy::listen_ip;
+use crate::config::config_file::ListenAccess;
+use crate::proxy::listen_ip;
 
-use crate::app::start_note::{start_note_from, start_note_line, StartNote};
-use crate::app::view::NodeState;
+use crate::gui::tray::app::start_note::{start_note_from, start_note_line, StartNote};
+use crate::gui::tray::app::view::NodeState;
 
 use super::poller::Poller;
 use super::poller_phase::Phase;

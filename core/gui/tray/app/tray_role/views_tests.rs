@@ -1,14 +1,16 @@
 //! Tests for `snapshot_view`: the member ring is counted for any icon color.
 
 use super::*;
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::view::NetLink;
-use crate::app::view_ring::RingRole;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::view::NetLink;
+use crate::gui::tray::app::view_ring::RingRole;
 use serde_json::json;
 
 /// A shim with the old name: the tests supply JSON, and the code reads a sample.
 fn snapshot_view(value: &serde_json::Value) -> View {
-    super::snapshot_view(&crate::app::snapshot::TraySnapshot::from_value(value))
+    super::snapshot_view(&crate::gui::tray::app::snapshot::TraySnapshot::from_value(
+        value,
+    ))
 }
 
 fn peer(id: &str, online: bool) -> serde_json::Value {
@@ -59,7 +61,10 @@ fn peers_change_changes_grey_view() {
         "starting",
         vec![peer("b", false), peer("c", true)],
     ));
-    assert_ne!(one, other, "network membership with a grey icon is visible in the ring");
+    assert_ne!(
+        one, other,
+        "network membership with a grey icon is visible in the ring"
+    );
 }
 
 #[test]
@@ -85,7 +90,10 @@ fn red_snapshots_with_different_peer_online_differ() {
     assert_eq!(up.color, TrayColor::Red);
     assert_eq!(up.ring.count(RingRole::Online), 1);
     assert_eq!(down.ring.count(RingRole::Offline), 1);
-    assert_ne!(up, down, "network membership with a red icon is visible in the ring");
+    assert_ne!(
+        up, down,
+        "network membership with a red icon is visible in the ring"
+    );
 }
 
 #[test]
@@ -139,9 +147,15 @@ fn live_node_with_proxy_on_ignores_own_flag() {
 
 #[test]
 fn view_carries_disk_from_snapshot() {
-    use crate::app::view_disk::Disk;
+    use crate::gui::tray::app::view_disk::Disk;
     let mut busy = peer("a", true);
     busy["through_peer_bps"] = json!(1_000_000);
     let view = snapshot_view(&snapshot("online", "direct", vec![busy]));
-    assert_eq!(view.disk, Some(Disk { step: 4, blue_twelfths: 12 }));
+    assert_eq!(
+        view.disk,
+        Some(Disk {
+            step: 4,
+            blue_twelfths: 12
+        })
+    );
 }

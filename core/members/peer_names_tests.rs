@@ -2,10 +2,10 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
-use crate::membership::Members;
+use crate::members::membership::Members;
 
 #[path = "peer_names_load_tests.rs"]
 mod load;
@@ -49,11 +49,7 @@ fn remember_new_name_replaces_and_moves_first() {
     let changed = names.remember(a, "New");
 
     assert!(changed, "another name must count as a change");
-    assert_eq!(
-        names.ids(),
-        vec![a, b],
-        "a changed record must go first"
-    );
+    assert_eq!(names.ids(), vec![a, b], "a changed record must go first");
     assert_eq!(names.get(a), Some("New"));
 }
 
@@ -198,7 +194,11 @@ fn apply_to_sets_names_without_membership() {
         !members.is_member(b),
         "apply_to must not make the member live"
     );
-    assert_eq!(members.count(), 0, "apply_to must not call Members::add_verified_conn");
+    assert_eq!(
+        members.count(),
+        0,
+        "apply_to must not call Members::add_verified_conn"
+    );
 }
 
 #[test]

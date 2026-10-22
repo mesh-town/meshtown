@@ -1,11 +1,11 @@
 //! A `mem` path: a pair of line halves with lossless queues, delay and a shared close flag.
 //! The hub and the connector that hand out paths are in `hub` and `connector`.
 
-use crate::net::connect::{PacketPath, PathInfo};
-use crate::net::id::PeerId;
-use crate::net::link::PathKind;
-use crate::net::mem::hub::Hub;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::connect::{PacketPath, PathInfo};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::PathKind;
+use crate::transport::net::mem::hub::Hub;
+use crate::transport::net::stream::BoxFuture;
 use bytes::Bytes;
 use std::any::Any;
 use std::io;

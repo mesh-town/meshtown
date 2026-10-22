@@ -1,17 +1,17 @@
 //! Hub of the substitute `mem` network: node slots, cuts, delay, discovery boards; `MemNet` is the hub's handle.
 //! Paths are in `path`, the connector in `connector`, discovery in `discovery`.
 
-use crate::net::addr::{AddrHint, PeerAddr};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::mem::connector::MemConnector;
-use crate::net::mem::discovery::{Board, MemDiscovery};
-use crate::net::mem::path::{Line, MemPath};
-use crate::net::mem::MEM_HINT_KIND;
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::Ordering;
+use crate::transport::net::addr::{AddrHint, PeerAddr};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::mem::connector::MemConnector;
+use crate::transport::net::mem::discovery::{Board, MemDiscovery};
+use crate::transport::net::mem::path::{Line, MemPath};
+use crate::transport::net::mem::MEM_HINT_KIND;
 use portable_atomic::AtomicU64;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock, Weak};
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};

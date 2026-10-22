@@ -2,14 +2,14 @@
 //! Settings errors are `NetError::Config`, the first one found.
 
 use super::services::{accept_loop, forward_hints, HandlerSet, ServiceHandler, ServiceTable};
-use super::stack::{NetStackShared, NetStack};
-use crate::net::addr::PeerAddr;
-use crate::net::discovery::Discovery;
-use crate::net::discovery_mux::DiscoveryMux;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::NodeSecret;
-use crate::net::service::ServiceId;
-use crate::net::transport::Transport;
+use super::stack::{NetStack, NetStackShared};
+use crate::transport::net::addr::PeerAddr;
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::discovery_mux::DiscoveryMux;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::transport::Transport;
 use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};

@@ -2,7 +2,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::net::NetError;
+use crate::transport::net::NetError;
 
 pub(crate) struct Tally {
     rounds: u64,

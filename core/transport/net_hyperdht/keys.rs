@@ -1,7 +1,7 @@
 //! Roster keys: the record key (signature) and the value sealing key.
 
 use super::store::RecordKey;
-use crate::network_key::SubKeys;
+use crate::members::network_key::SubKeys;
 
 const CTX_RECORD: &str = "meshtown hyperdht roster signing v1";
 

@@ -10,7 +10,7 @@ use axum::routing::get;
 use axum::Router;
 
 use super::helpers::bad_method;
-use crate::web::App;
+use crate::web_gui::App;
 
 #[cfg(test)]
 #[path = "pages_tests.rs"]
@@ -25,26 +25,57 @@ const JS: &str = "text/javascript; charset=utf-8";
 /// `/bundle/app.js`, which comes last. The build is committed (`make web-build`), so
 /// `cargo build` does without Node.
 const PAGES: &[(&str, &str, &str)] = &[
-    ("/", HTML, include_str!("../../web_gui/ui/index.html")),
-    ("/css/00-base.css", CSS, include_str!("../../web_gui/ui/css/00-base.css")),
-    ("/css/10-shell.css", CSS, include_str!("../../web_gui/ui/css/10-shell.css")),
-    ("/css/20-home.css", CSS, include_str!("../../web_gui/ui/css/20-home.css")),
-    ("/css/30-layout.css", CSS, include_str!("../../web_gui/ui/css/30-layout.css")),
-    ("/css/40-forms.css", CSS, include_str!("../../web_gui/ui/css/40-forms.css")),
-    ("/css/50-sections.css", CSS, include_str!("../../web_gui/ui/css/50-sections.css")),
-    ("/css/60-narrow.css", CSS, include_str!("../../web_gui/ui/css/60-narrow.css")),
-    ("/css/70-extras.css", CSS, include_str!("../../web_gui/ui/css/70-extras.css")),
-    ("/css/80-nets.css", CSS, include_str!("../../web_gui/ui/css/80-nets.css")),
-    ("/bundle/app.js", JS, include_str!("../../web_gui/ui/bundle/app.js")),
+    ("/", HTML, include_str!("../ui/index.html")),
+    (
+        "/css/00-base.css",
+        CSS,
+        include_str!("../ui/css/00-base.css"),
+    ),
+    (
+        "/css/10-shell.css",
+        CSS,
+        include_str!("../ui/css/10-shell.css"),
+    ),
+    (
+        "/css/20-home.css",
+        CSS,
+        include_str!("../ui/css/20-home.css"),
+    ),
+    (
+        "/css/30-layout.css",
+        CSS,
+        include_str!("../ui/css/30-layout.css"),
+    ),
+    (
+        "/css/40-forms.css",
+        CSS,
+        include_str!("../ui/css/40-forms.css"),
+    ),
+    (
+        "/css/50-sections.css",
+        CSS,
+        include_str!("../ui/css/50-sections.css"),
+    ),
+    (
+        "/css/60-narrow.css",
+        CSS,
+        include_str!("../ui/css/60-narrow.css"),
+    ),
+    (
+        "/css/70-extras.css",
+        CSS,
+        include_str!("../ui/css/70-extras.css"),
+    ),
+    (
+        "/css/80-nets.css",
+        CSS,
+        include_str!("../ui/css/80-nets.css"),
+    ),
+    ("/bundle/app.js", JS, include_str!("../ui/bundle/app.js")),
 ];
 
 async fn serve_page(content_type: &'static str, body: &'static str) -> Response {
-    (
-        StatusCode::OK,
-        [(header::CONTENT_TYPE, content_type)],
-        body,
-    )
-        .into_response()
+    (StatusCode::OK, [(header::CONTENT_TYPE, content_type)], body).into_response()
 }
 
 /// Registers the routes of all `PAGES` entries (called from `register_pages`

@@ -45,7 +45,9 @@ fn load_corrupted_json_is_empty_without_panic() {
         1000,
     );
     assert!(cache.remember(entry, 1000));
-    cache.save().expect("save after file corruption must succeed");
+    cache
+        .save()
+        .expect("save after file corruption must succeed");
 
     let reloaded = PeersCache::load(Some(&file), "net", 1000);
     assert_eq!(reloaded.len(), 1);
@@ -106,11 +108,7 @@ fn load_drops_entries_older_than_ttl() {
         "an entry stale by TTL must be dropped on read"
     );
     let ids = ids_in(&cache);
-    assert_eq!(
-        ids,
-        vec![id_bytes(2)],
-        "only the fresh entry must remain"
-    );
+    assert_eq!(ids, vec![id_bytes(2)], "only the fresh entry must remain");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -155,7 +153,11 @@ fn addrs_skips_entry_with_bad_relay_url() {
     write_cache_file(&file, PEERS_CACHE_FORMAT_VERSION, "net", vec![broken, good]);
 
     let cache = PeersCache::load(Some(&file), "net", now);
-    assert_eq!(cache.len(), 2, "load keeps both entries, even the corrupted one");
+    assert_eq!(
+        cache.len(),
+        2,
+        "load keeps both entries, even the corrupted one"
+    );
     let addrs = cache.addrs();
     assert_eq!(
         addrs.len(),

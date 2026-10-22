@@ -16,7 +16,13 @@ use super::common::{http_within, Resp};
 const SLOW: Duration = Duration::from_secs(60);
 
 /// `common::http` with a 60 s timeout instead of 5: the end-to-end sign-in tests call the hashing endpoints.
-pub(crate) fn http(port: u16, method: &str, path: &str, headers: &[(&str, &str)], body: &[u8]) -> Resp {
+pub(crate) fn http(
+    port: u16,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &[u8],
+) -> Resp {
     http_within(port, method, path, headers, body, SLOW)
 }
 
@@ -37,7 +43,13 @@ fn cookie_pair(resp: &Resp) -> Option<String> {
 
 fn post_json(port: u16, path: &str, body: &Value) -> Resp {
     let bytes = serde_json::to_vec(body).expect("body");
-    http(port, "POST", path, &[("Content-Type", "application/json")], &bytes)
+    http(
+        port,
+        "POST",
+        path,
+        &[("Content-Type", "application/json")],
+        &bytes,
+    )
 }
 
 /// `POST /api/auth/token`: the status and the session cookie (if issued).
@@ -54,8 +66,16 @@ pub(crate) fn login(port: u16, password: &str) -> (Resp, Option<String>) {
 }
 
 /// A request with the session cookie instead of the token.
-pub(crate) fn with_cookie(port: u16, cookie: &str, method: &str, path: &str, json: Option<Value>) -> Resp {
-    let body = json.map(|v| serde_json::to_vec(&v).expect("body")).unwrap_or_default();
+pub(crate) fn with_cookie(
+    port: u16,
+    cookie: &str,
+    method: &str,
+    path: &str,
+    json: Option<Value>,
+) -> Resp {
+    let body = json
+        .map(|v| serde_json::to_vec(&v).expect("body"))
+        .unwrap_or_default();
     let mut headers = vec![("Cookie", cookie)];
     if !body.is_empty() {
         headers.push(("Content-Type", "application/json"));
@@ -71,7 +91,10 @@ pub(crate) fn file_token(dir: &Path) -> String {
 
 /// A temporary token from the entry URL (`…/?token=T`).
 pub(crate) fn temp_token(url: &str) -> String {
-    url.split_once("?token=").expect("no token in the URL").1.to_string()
+    url.split_once("?token=")
+        .expect("no token in the URL")
+        .1
+        .to_string()
 }
 
 /// The `web-password` file in the on-disk format (0600); the hash is computed by `ring` right here.
@@ -79,7 +102,13 @@ pub(crate) fn write_password(dir: &Path, password: &str, iterations: u32) {
     let salt = [7u8; 16];
     let mut hash = [0u8; 32];
     let n = NonZeroU32::new(iterations).expect("iterations");
-    ring::pbkdf2::derive(ring::pbkdf2::PBKDF2_HMAC_SHA256, n, &salt, password.as_bytes(), &mut hash);
+    ring::pbkdf2::derive(
+        ring::pbkdf2::PBKDF2_HMAC_SHA256,
+        n,
+        &salt,
+        password.as_bytes(),
+        &mut hash,
+    );
     let b64 = |b: &[u8]| data_encoding::BASE64.encode(b);
     let doc = json!({
         "version": 1, "alg": "pbkdf2-sha256", "iterations": iterations,
@@ -90,6 +119,7 @@ pub(crate) fn write_password(dir: &Path, password: &str, iterations: u32) {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("permissions");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))
+            .expect("permissions");
     }
 }

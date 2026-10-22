@@ -3,9 +3,9 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
-use super::types::{Audience, Published, MAX_PORT_LIST_ENTRIES, MAX_NAME_CHARS};
+use super::types::{Audience, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};
 
 /// Prefix of publication keys in the document.
 pub const PORT_PREFIX: &str = "port/tcp/";

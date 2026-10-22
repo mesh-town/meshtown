@@ -3,21 +3,21 @@
 //! `Core::refresh_ui` (module `core`).
 
 use super::actions_ui::ActionsUi;
-use super::frame_cache::FrameCache;
 use super::core::{CmdTx, TrayCmd, MENU_NODE, MENU_OPEN, MENU_PROXY, MENU_QUIT, MENU_STATUS};
-use crate::app::proxy_state::{ProxyOff, ProxyState};
-use crate::app::tray_texts::{
+use super::frame_cache::FrameCache;
+use crate::gui::tray::app::members_note::alert_wanted;
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+use crate::gui::tray::app::snapshot::TrayMembers;
+use crate::gui::tray::app::tray_texts::{
     proxy_on_addr_text, proxy_on_host_port_text, quit_text, PROXY_OFF_FLAG_TEXT,
     PROXY_OFF_SETTINGS_TEXT,
 };
-use crate::app::members_note::alert_wanted;
-use crate::app::snapshot::TrayMembers;
-use crate::app::view::{View, ICON_SIDE_PX};
-use crate::app::view_picture::{icon_picture, picture_rgba, IconPicture, IdleRing};
+use crate::gui::tray::app::view::{View, ICON_SIDE_PX};
+use crate::gui::tray::app::view_picture::{icon_picture, picture_rgba, IconPicture, IdleRing};
 
 /// The four tray icons by color (the index is `TrayColor as usize`, the order is `TRAY_COLORS`).
 pub(super) fn build_icons() -> Result<[tray_icon::Icon; 4], String> {
-    use crate::app::view::{icon_rgba, TRAY_COLORS};
+    use crate::gui::tray::app::view::{icon_rgba, TRAY_COLORS};
     let icons = TRAY_COLORS
         .iter()
         .map(|&color| {
@@ -45,7 +45,9 @@ pub(super) fn view_icon(
 /// The picture for a view, the membership facts and the idle ring memory: the grey ring of a node that is not
 /// running; the "vote waiting" mark replaces the disk.
 pub(super) fn picture_for(view: View, members: TrayMembers, idle: IdleRing) -> IconPicture {
-    icon_picture(view).with_idle(view, idle).with_alert(alert_wanted(members))
+    icon_picture(view)
+        .with_idle(view, idle)
+        .with_alert(alert_wanted(members))
 }
 
 /// The text of the proxy menu item: address and port separately — in the browser
@@ -77,8 +79,8 @@ fn on_text(addr: &str) -> String {
 /// of the status and proxy items come from `view`/`route`/`proxy`; the submenu has its own `ExitUi::apply_exit_menu`;
 /// "Quit" is always enabled.
 pub(super) fn build_menu(
-    view: crate::app::view::View,
-    route: &crate::app::view::RouteLine,
+    view: crate::gui::tray::app::view::View,
+    route: &crate::gui::tray::app::view::RouteLine,
     proxy: &ProxyState,
     exit_submenu: &tray_icon::menu::Submenu,
     actions: &ActionsUi,
@@ -92,12 +94,13 @@ pub(super) fn build_menu(
     ),
     String,
 > {
-    use crate::app::view::{
-        node_item_text, page_enabled, page_text, start_enabled, node_status_menu_line, stop_enabled,
+    use crate::gui::tray::app::view::{
+        node_item_text, node_status_menu_line, page_enabled, page_text, start_enabled, stop_enabled,
     };
     use tray_icon::menu::{Menu, MenuItem, PredefinedMenuItem};
 
-    let status_item = MenuItem::with_id(MENU_STATUS, node_status_menu_line(view, route), false, None);
+    let status_item =
+        MenuItem::with_id(MENU_STATUS, node_status_menu_line(view, route), false, None);
     let open_item = MenuItem::with_id(MENU_OPEN, page_text(view), page_enabled(view.page), None);
     let proxy_item = MenuItem::with_id(MENU_PROXY, proxy_item_text(proxy), false, None);
     let node_item = MenuItem::with_id(
@@ -171,7 +174,9 @@ impl TrayUi {
     fn install(&mut self, picture: IconPicture) -> Result<(), String> {
         let icons = &self.icons;
         let icon = self.frames.get_or_build(picture, |p| view_icon(icons, p))?;
-        self.tray_icon_handle.set_icon(Some(icon)).map_err(|e| e.to_string())
+        self.tray_icon_handle
+            .set_icon(Some(icon))
+            .map_err(|e| e.to_string())
     }
 }
 

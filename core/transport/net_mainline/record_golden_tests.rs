@@ -2,9 +2,9 @@
 //! (`b3sum --derive-key` for the keys, ChaCha20-Poly1305 per RFC 8439 for the sealed bytes).
 
 use super::*;
-use crate::net::NodeSecret;
-use crate::net::endpoint_shim::EndpointAddr;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::endpoint_shim::EndpointAddr;
+use crate::transport::net::NodeSecret;
 use ed25519_dalek::SigningKey;
 
 fn roster_0_1_20() -> Roster {
@@ -67,7 +67,7 @@ fn entry_of(relay: Option<&str>, ips: &[&str]) -> RosterEntry {
         addr = addr.with_ip_addr(ip.parse().unwrap());
     }
     entry_from_addr(
-        &crate::net::endpoint_shim::from_endpoint_addr(&addr),
+        &crate::transport::net::endpoint_shim::from_endpoint_addr(&addr),
         1_700_000_000,
         &PrimaryIps::NONE,
     )

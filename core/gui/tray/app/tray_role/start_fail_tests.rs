@@ -8,18 +8,18 @@ use super::*;
 
 use std::time::Duration;
 
-use crate::app::local_api::tests::temp_dir;
-use crate::app::start_note::StartNote;
+use crate::gui::tray::app::local_api::tests::temp_dir;
+use crate::gui::tray::app::start_note::StartNote;
 #[cfg(unix)]
-use crate::app::view::{NodeState, PageState};
-use crate::tray::NodeCmd;
+use crate::gui::tray::app::view::{NodeState, PageState};
+use crate::gui::tray::NodeCmd;
 
 #[cfg(unix)]
 const PORT_ERROR_LOG: &str =
     "Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\nClose it or start the node on another port: meshtown run --socks-port 1081\n";
 
 #[cfg(unix)]
-fn is_starting(v: &crate::app::view::View) -> bool {
+fn is_starting(v: &crate::gui::tray::app::view::View) -> bool {
     v.page == PageState::Starting && v.node == NodeState::Starting
 }
 
@@ -36,7 +36,10 @@ fn last_note(rig: &mut Rig) -> Option<StartNote> {
 async fn busy_proxy_port_sees_listener() {
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = l.local_addr().unwrap().port();
-    assert_eq!(busy_proxy_port(Some(port), ListenAccess::Localhost), Some(port));
+    assert_eq!(
+        busy_proxy_port(Some(port), ListenAccess::Localhost),
+        Some(port)
+    );
     drop(l);
     assert_eq!(busy_proxy_port(Some(port), ListenAccess::Localhost), None);
     assert_eq!(busy_proxy_port(None, ListenAccess::Localhost), None);
@@ -59,9 +62,8 @@ async fn exit_1_with_port_error_shows_reason() {
         stub,
     );
     rig.probe.log("node stopped, code 1");
-    rig.probe.start_note("port busy", |n| {
-        *n == StartNote::ProxyWasBusy(1080)
-    });
+    rig.probe
+        .start_note("port busy", |n| *n == StartNote::ProxyWasBusy(1080));
     rig.probe.view("Absent", is_absent);
     rig.quit();
     assert_eq!(rig.code().await, 0);
@@ -184,16 +186,14 @@ async fn start_after_failure_clears_then_fails_again() {
         spawn,
         stub,
     );
-    rig.probe.start_note("first refusal", |n| {
-        *n == StartNote::ProxyWasBusy(1080)
-    });
+    rig.probe
+        .start_note("first refusal", |n| *n == StartNote::ProxyWasBusy(1080));
     rig.probe.view("Absent", is_absent);
     rig.cmd(NodeCmd::Start);
     rig.probe.start_note("erased", |n| *n == StartNote::Idle);
     rig.probe.view("Starting", is_starting);
-    rig.probe.start_note("second refusal", |n| {
-        *n == StartNote::ProxyWasBusy(1080)
-    });
+    rig.probe
+        .start_note("second refusal", |n| *n == StartNote::ProxyWasBusy(1080));
     assert_eq!(kids.pids().len(), 2, "two launches");
     rig.quit();
     assert_eq!(rig.code().await, 0);
@@ -219,7 +219,11 @@ async fn busy_proxy_blocks_first_spawn() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(last_note(&mut rig), Some(StartNote::ProxyBusy(1080)));
     rig.quit();
-    assert_eq!(rig.code().await, 0, "spawn was not called, the poller is alive");
+    assert_eq!(
+        rig.code().await,
+        0,
+        "spawn was not called, the poller is alive"
+    );
 }
 
 #[cfg(unix)]
@@ -256,7 +260,10 @@ async fn freed_port_start_runs_and_clears() {
 async fn busy_proxy_port_localnet_probes_wildcard() {
     let l = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
     let port = l.local_addr().unwrap().port();
-    assert_eq!(busy_proxy_port(Some(port), ListenAccess::Localnet), Some(port));
+    assert_eq!(
+        busy_proxy_port(Some(port), ListenAccess::Localnet),
+        Some(port)
+    );
 }
 
 #[cfg(unix)]
@@ -268,7 +275,13 @@ async fn error_line_in_log_gives_reason() {
     let stub = StartStub::default();
     stub.set_log(Some("Error: x\n"));
     let spawn = spawn_cmd(&kids, "sh", &["-c", "exit 1"]);
-    let mut rig = Rig::start_with(refused_port().await, dir.join("web-token"), true, spawn, stub);
+    let mut rig = Rig::start_with(
+        refused_port().await,
+        dir.join("web-token"),
+        true,
+        spawn,
+        stub,
+    );
     let note = rig.probe.start_note("reason", |_| true);
     assert_eq!(note, StartNote::FailedWith("x".into()));
     rig.quit();

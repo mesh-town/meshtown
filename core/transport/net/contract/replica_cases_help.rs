@@ -51,7 +51,11 @@ pub(crate) async fn latest_per_key(r: &Rep, prefix: &[u8]) -> Vec<ReplicaEntry> 
 }
 
 /// Polls `scan(b"")` every `POLL` until `done` becomes true; panics if it has not happened within `STEP`.
-pub(crate) async fn wait_scan(r: &Rep, what: &str, done: impl Fn(&[ReplicaEntry]) -> bool) -> Vec<ReplicaEntry> {
+pub(crate) async fn wait_scan(
+    r: &Rep,
+    what: &str,
+    done: impl Fn(&[ReplicaEntry]) -> bool,
+) -> Vec<ReplicaEntry> {
     let polling = async {
         loop {
             let entries = scan(r, b"").await;

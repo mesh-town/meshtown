@@ -6,17 +6,17 @@
 //! ready-made from `PeerConn` (`path_text`, `congestion_text`); it does not work with a raw transport connection.
 //! Links: `membership::hold_conn_until_closed` starts `answer_probes` and `send_probes_while_open` on every verified connection.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use portable_atomic::AtomicU64;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::net::{NetError, PeerConn, PeerId, StreamPair};
+use crate::transport::net::{NetError, PeerConn, PeerId, StreamPair};
 use anyhow::{ensure, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{sleep, timeout};
 
-use crate::output::{say, short_peer_id};
+use crate::node::output::{say, short_peer_id};
 
 /// Probe sizes in turn: 16 KiB, 256 KiB, 1 MiB.
 pub const PROBE_SIZES_BYTES: [usize; 3] = [16384, 262144, 1048576];
@@ -61,7 +61,10 @@ pub async fn send_probe(conn: &dyn PeerConn, size: usize) -> Result<Duration> {
     let mut ack = [0u8; 4];
     recv.read_exact(&mut ack).await?;
     let acked = u32::from_le_bytes(ack) as usize;
-    ensure!(acked == size, "acknowledged length {acked} instead of {size}");
+    ensure!(
+        acked == size,
+        "acknowledged length {acked} instead of {size}"
+    );
     Ok(started.elapsed())
 }
 
@@ -113,7 +116,13 @@ type ProbeOutcome = Result<Result<Duration, anyhow::Error>, tokio::time::error::
 
 /// `[probe]` line for one turn: path and congestion statistics are the common tail, the outcome is
 /// per branch.
-fn probe_line(peer: &str, size: usize, path: &str, congestion: &str, outcome: ProbeOutcome) -> String {
+fn probe_line(
+    peer: &str,
+    size: usize,
+    path: &str,
+    congestion: &str,
+    outcome: ProbeOutcome,
+) -> String {
     match outcome {
         Ok(Ok(elapsed)) => format!(
             "-> {peer}: {size} bytes, acknowledged in {} ms, path: {path}; {congestion}",
@@ -127,7 +136,11 @@ fn probe_line(peer: &str, size: usize, path: &str, congestion: &str, outcome: Pr
 }
 
 /// Sends the peer probes of growing size in a loop once per interval while the connection is alive.
-pub async fn send_probes_while_open(conn: Arc<dyn PeerConn>, peer: PeerId, settings: ProbeSettings) {
+pub async fn send_probes_while_open(
+    conn: Arc<dyn PeerConn>,
+    peer: PeerId,
+    settings: ProbeSettings,
+) {
     sleep(settings.first_delay).await;
     for turn in 0usize.. {
         if conn.is_closed() {
@@ -141,8 +154,14 @@ pub async fn send_probes_while_open(conn: Arc<dyn PeerConn>, peer: PeerId, setti
             settings.ok_probe_count.fetch_add(1, Ordering::Relaxed);
         }
         let congestion = conn.congestion_text();
-        say("probe", probe_line(&short_peer_id(&peer), size, &path, &congestion, outcome));
-        sleep(Duration::from_secs(settings.interval_secs.load(Ordering::Relaxed))).await;
+        say(
+            "probe",
+            probe_line(&short_peer_id(&peer), size, &path, &congestion, outcome),
+        );
+        sleep(Duration::from_secs(
+            settings.interval_secs.load(Ordering::Relaxed),
+        ))
+        .await;
     }
 }
 

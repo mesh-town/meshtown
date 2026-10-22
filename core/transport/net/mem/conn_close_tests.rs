@@ -1,10 +1,10 @@
 //! Tests of the `mem` connection (`conn.rs`): closing, path break, the last handle, violations, stream ids, accounting.
 //! Windows, half-close and parallel streams are in `conn_tests.rs`.
 
-use crate::net::mem::conn::{MemConn, CODE_PROTOCOL, STREAM_WINDOW_BYTES};
-use crate::net::mem::frame::Frame;
-use crate::net::mem::{MemNet, MemPath, MEM_MAX_PACKET};
-use crate::net::{
+use crate::transport::net::mem::conn::{MemConn, CODE_PROTOCOL, STREAM_WINDOW_BYTES};
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::{MemNet, MemPath, MEM_MAX_PACKET};
+use crate::transport::net::{
     BoxRecv, BoxSend, NetError, NetResult, NodeSecret, PacketPath, PathKind, PeerConn, PeerId,
     StreamPair,
 };
@@ -153,9 +153,7 @@ mod streams_when_closed {
 
         a.close(1, b"");
 
-        let res = within("waiting read", waiting)
-            .await
-            .expect("read task");
+        let res = within("waiting read", waiting).await.expect("read task");
         assert_eq!(
             res.expect_err("read without Fin").kind(),
             ErrorKind::ConnectionAborted
@@ -201,9 +199,7 @@ mod streams_when_closed {
 
         b.close(1, b"");
 
-        let res = within("stalled write", stalled)
-            .await
-            .expect("write task");
+        let res = within("stalled write", stalled).await.expect("write task");
         assert_eq!(
             res.expect_err("write after close").kind(),
             ErrorKind::BrokenPipe
@@ -351,6 +347,9 @@ async fn fill_until_stalled(send: &mut BoxSend) {
     let mut total = 0;
     while let Ok(n) = timeout(Duration::from_millis(200), send.write(&chunk)).await {
         total += n.expect("write");
-        assert!(total <= 8 * STREAM_WINDOW_BYTES, "the write did not stop after {total} bytes");
+        assert!(
+            total <= 8 * STREAM_WINDOW_BYTES,
+            "the write did not stop after {total} bytes"
+        );
     }
 }

@@ -1,7 +1,7 @@
 //! Common port publication types: who can see a port, our own publication, somebody else's port opened here.
 //! No logic.
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use serde::{Deserialize, Serialize};
 
 /// Who can see a published port. The order of variants is the variant number in the document entry;

@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use super::tests::{base, pair};
 use super::*;
-use crate::telemetry::PeerLive;
+use crate::node::telemetry::PeerLive;
 
 fn offline_peer() -> PeerLive {
     PeerLive {
@@ -49,7 +49,10 @@ fn other_peer_country_shown_online_and_offline_alike() {
     inputs.members = [online_with_record, online_without_record]
         .into_iter()
         .collect();
-    inputs.telemetry.peers.insert(offline_with_record, offline_peer());
+    inputs
+        .telemetry
+        .peers
+        .insert(offline_with_record, offline_peer());
     inputs.countries = [
         (online_with_record, "RU".to_string()),
         (offline_with_record, "DE".to_string()),

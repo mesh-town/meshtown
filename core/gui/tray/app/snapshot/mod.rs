@@ -5,12 +5,15 @@
 //! Links: the boundary is built by `tray_role::views::views_from_state_json`; the color, network, ring and exit submenu
 //! (`view`, `view_net`, `view_ring`, `exit_menu`) read fields, not paths into a `Value`.
 
-mod types;
 pub(crate) mod lenient;
+mod types;
 
 // The whole public set of selection types; `TrayNode`/`TrayOwnExit` are read only through the snapshot fields.
 #[allow(unused_imports)]
-pub use types::{TrayNodeStatus, TrayChosenExit, TrayOwnExit, TrayNode, TrayPeer, TrayRoute, TrayMembers, TraySnapshot, TraySocks};
+pub use types::{
+    TrayChosenExit, TrayMembers, TrayNode, TrayNodeStatus, TrayOwnExit, TrayPeer, TrayRoute,
+    TraySnapshot, TraySocks,
+};
 
 #[cfg(test)]
 #[path = "roundtrip_tests.rs"]

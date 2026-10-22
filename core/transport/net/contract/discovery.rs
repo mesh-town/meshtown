@@ -1,10 +1,10 @@
 //! Discovery contract suite: the `discovery_contract!` macro and helpers for the "what is published is found" case.
 //! Plugging in an adapter: `discovery_contract!(fn_without_arguments_returning_impl_DiscoveryHarness);`.
 
-use crate::net::addr::{AddrHint, PeerAddr};
-use crate::net::contract::{pid, STEP};
-use crate::net::discovery::Discovery;
-use crate::net::id::PeerId;
+use crate::transport::net::addr::{AddrHint, PeerAddr};
+use crate::transport::net::contract::{pid, STEP};
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::id::PeerId;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -59,8 +59,8 @@ macro_rules! discovery_contract {
     ($harness:path) => {
         mod discovery {
             use super::*;
-            use $crate::net::contract::discovery::{addr_of, feed};
-            use $crate::net::contract::{pid, must_finish, DiscoveryHarness, SEED_A};
+            use $crate::transport::net::contract::discovery::{addr_of, feed};
+            use $crate::transport::net::contract::{must_finish, pid, DiscoveryHarness, SEED_A};
 
             mod publisher {
                 use super::*;
@@ -96,7 +96,9 @@ macro_rules! discovery_contract {
                     let (a, b) = (h.source(true), h.source(true));
                     let mut found = feed(&b);
                     // when: A publishes its own address
-                    must_finish(a.publish(&addr_of(SEED_A))).await.expect("publish A");
+                    must_finish(a.publish(&addr_of(SEED_A)))
+                        .await
+                        .expect("publish A");
                     // then: B's run_source returns an address with A's id
                     assert!(
                         found.sees(pid(SEED_A)).await,
@@ -109,7 +111,9 @@ macro_rules! discovery_contract {
                     // given: A has already published its own address
                     let h = $harness();
                     let (a, b) = (h.source(true), h.source(true));
-                    must_finish(a.publish(&addr_of(SEED_A))).await.expect("publish A");
+                    must_finish(a.publish(&addr_of(SEED_A)))
+                        .await
+                        .expect("publish A");
                     // when: B's run_source only starts now
                     let mut found = feed(&b);
                     // then: B's run_source returns an address with A's id
@@ -144,7 +148,10 @@ macro_rules! discovery_contract {
                     // when: it is told to publish an address
                     let result = must_finish(source.publish(&addr_of(SEED_A))).await;
                     // then: Ok(()), no error
-                    assert!(result.is_ok(), "publish of a reading source returned an error");
+                    assert!(
+                        result.is_ok(),
+                        "publish of a reading source returned an error"
+                    );
                 }
 
                 #[tokio::test]
@@ -154,7 +161,9 @@ macro_rules! discovery_contract {
                     let (a, b) = (h.source(true), h.source(false));
                     let mut found = feed(&b);
                     // when: A publishes its own address
-                    must_finish(a.publish(&addr_of(SEED_A))).await.expect("publish A");
+                    must_finish(a.publish(&addr_of(SEED_A)))
+                        .await
+                        .expect("publish A");
                     // then: reading B sees an address with A's id
                     assert!(
                         found.sees(pid(SEED_A)).await,

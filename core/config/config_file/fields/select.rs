@@ -4,7 +4,11 @@ use super::row::{Field, Mode};
 use super::table::FIELDS;
 
 fn paths(keep: impl Fn(&Field) -> bool) -> Vec<&'static str> {
-    FIELDS.iter().filter(|f| keep(f)).map(|f| f.field_path).collect()
+    FIELDS
+        .iter()
+        .filter(|f| keep(f))
+        .map(|f| f.field_path)
+        .collect()
 }
 
 /// Returns the paths the page can change.
@@ -29,7 +33,11 @@ pub(crate) fn live_paths() -> Vec<&'static str> {
 
 /// Returns the known keys of a section, including computed ones.
 pub(crate) fn known_keys(section: &str) -> Vec<&'static str> {
-    FIELDS.iter().filter(|f| f.section() == section).map(Field::key).collect()
+    FIELDS
+        .iter()
+        .filter(|f| f.section() == section)
+        .map(Field::key)
+        .collect()
 }
 
 /// Returns the sections by first appearance in the table.

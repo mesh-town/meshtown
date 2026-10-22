@@ -2,7 +2,7 @@
 //! a corrupted secret and fields that failed their bounds are lost on reassembly, so before such
 //! a write a copy of the file is made (`keep_copy_before_lossy_write`).
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 
 use super::super::overrides::CliOverrides;
@@ -12,7 +12,7 @@ use super::super::save::{is_readonly_file, readonly_refusal_text, save_config_fi
 use super::super::settings::Settings;
 use super::helpers::{keep_copy_before_lossy_write, new_secret, save_error_text};
 use super::PrepareOutcome;
-use crate::output::NET_NAME;
+use crate::node::output::NET_NAME;
 
 /// The file parsed: the file's network key is checked before flags are applied (the parse error text is not
 /// taken — it may contain a word from the key), then a rewrite, if one is needed.
@@ -36,7 +36,7 @@ pub(super) fn prepare_parsed(
     let mut file_settings = settings;
     report.field_errors = field_errors;
     if let Some(k) = &file_settings.net.network_key {
-        if crate::network_key::parse_user_input(k).is_err() {
+        if crate::members::network_key::parse_user_input(k).is_err() {
             report.field_errors.push(FieldError {
                 field_path: "network.key".to_string(),
                 message: format!("the {NET_NAME} network key in the file did not parse"),
@@ -118,7 +118,12 @@ impl RewriteResult {
         }
     }
 
-    fn written(rev: u64, kept_copy_path: Option<PathBuf>, secret_is_new: bool, save_config: bool) -> Self {
+    fn written(
+        rev: u64,
+        kept_copy_path: Option<PathBuf>,
+        secret_is_new: bool,
+        save_config: bool,
+    ) -> Self {
         RewriteResult {
             rev: Some(rev),
             kept_copy_path,
@@ -155,8 +160,16 @@ fn rewrite_parsed_file(ctx: RewriteCtx) -> RewriteResult {
         }
         Ok(kept) => kept,
     };
-    match save_config_file(ctx.path, Some(ctx.rev), ctx.now_unix, ctx.secret, ctx.file_settings) {
-        Ok(new_rev) => RewriteResult::written(new_rev, kept_copy_path, ctx.secret_is_new, ctx.save_config),
+    match save_config_file(
+        ctx.path,
+        Some(ctx.rev),
+        ctx.now_unix,
+        ctx.secret,
+        ctx.file_settings,
+    ) {
+        Ok(new_rev) => {
+            RewriteResult::written(new_rev, kept_copy_path, ctx.secret_is_new, ctx.save_config)
+        }
         Err(e) => RewriteResult::save_failed(save_error_text(&e), kept_copy_path),
     }
 }

@@ -6,11 +6,13 @@ use super::host::Wiring;
 use super::replica_sync::NetState;
 use super::saver::Saver;
 use super::state::State;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::replica::{ReplicaEntry, Replica, ReplicaEvent, ReplicaId, MAX_VALUE_BYTES};
-use crate::net::stream::BoxFuture;
-use crate::net::sync_backend::REPLICA_DOMAINS;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::replica::{
+    Replica, ReplicaEntry, ReplicaEvent, ReplicaId, MAX_VALUE_BYTES,
+};
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync_backend::REPLICA_DOMAINS;
 use bytes::Bytes;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use tokio::sync::broadcast;
@@ -78,7 +80,13 @@ impl MeshReplica {
     async fn write_own(&self, key: &[u8], value: Bytes) -> NetResult<()> {
         let w = {
             let mut state = self.lock();
-            let w = seal(&self.secret, &self.id, key, &value, state.next_ts_micros(now_micros()));
+            let w = seal(
+                &self.secret,
+                &self.id,
+                key,
+                &value,
+                state.next_ts_micros(now_micros()),
+            );
             state.merge(w.clone());
             w
         };
@@ -111,14 +119,20 @@ fn bad_input(what: &str) -> NetError {
 
 fn check_limits(key: &[u8], value: &[u8]) -> NetResult<()> {
     if value.is_empty() || value.len() > MAX_VALUE_BYTES {
-        return Err(bad_input(&format!("entry value: {} bytes, must be from 1 to {MAX_VALUE_BYTES}", value.len())));
+        return Err(bad_input(&format!(
+            "entry value: {} bytes, must be from 1 to {MAX_VALUE_BYTES}",
+            value.len()
+        )));
     }
     check_key(key)
 }
 
 fn check_key(key: &[u8]) -> NetResult<()> {
     match key.len() > MAX_KEY_BYTES {
-        true => Err(bad_input(&format!("entry key: {} bytes, at most {MAX_KEY_BYTES}", key.len()))),
+        true => Err(bad_input(&format!(
+            "entry key: {} bytes, at most {MAX_KEY_BYTES}",
+            key.len()
+        ))),
         false => Ok(()),
     }
 }

@@ -7,7 +7,7 @@
 
 use serde_json::Value;
 
-use crate::app::snapshot::lenient;
+use crate::gui::tray::app::snapshot::lenient;
 
 /// The config response: `rev` and the settings document under the key `config`.
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]

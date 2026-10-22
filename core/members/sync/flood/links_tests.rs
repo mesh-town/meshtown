@@ -1,7 +1,7 @@
 //! Tests for choosing a link on simultaneous dials: both sides decide the same way.
 
 use super::keeps_new;
-use crate::net::facade::test_support::pid;
+use crate::transport::net::facade::test_support::pid;
 
 mod keeps_new {
     use super::*;

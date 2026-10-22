@@ -3,12 +3,12 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use townjump_dht::{ConnectOpts, Dht, DhtConnection, DhtFactory, DhtServer, Incoming, ServerOpts};
 use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
-use townjump_keys::{KeyPair, key_pair_from_seed};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use townjump_keys::{key_pair_from_seed, KeyPair};
 
-use super::test_cluster::{Cluster, cluster};
+use super::test_cluster::{cluster, Cluster};
 
 type Handle = PeeroxideServer;
 
@@ -72,8 +72,14 @@ async fn one_node_listens_and_dials() {
     println!("PROBE1 A(server)->B: {:?}", started.elapsed());
     ping(&mut dial(&b, &ka).await).await;
     println!("PROBE1 B(server)->A: {:?}", started.elapsed());
-    let me = tokio::time::timeout(Duration::from_secs(10), a.connect(ka.public_key, Default::default()));
-    println!("PROBE1 dialing itself: {:?}", me.await.map(|r| r.map(|_| ())));
+    let me = tokio::time::timeout(
+        Duration::from_secs(10),
+        a.connect(ka.public_key, Default::default()),
+    );
+    println!(
+        "PROBE1 dialing itself: {:?}",
+        me.await.map(|r| r.map(|_| ()))
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -84,8 +90,15 @@ async fn dial_unknown_key_fails_within_five_seconds() {
     let limit = Duration::from_secs(5);
     let attempt = client.connect(key(99).public_key, ConnectOpts::default());
     let got = tokio::time::timeout(limit, attempt).await;
-    println!("PROBE2 error: {:?} in {:?}", got.as_ref().map(|r| r.as_ref().err()), started.elapsed());
-    assert!(matches!(got, Ok(Err(_))), "expected an error faster than 5 s");
+    println!(
+        "PROBE2 error: {:?} in {:?}",
+        got.as_ref().map(|r| r.as_ref().err()),
+        started.elapsed()
+    );
+    assert!(
+        matches!(got, Ok(Err(_))),
+        "expected an error faster than 5 s"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -112,7 +125,10 @@ async fn restarted_server_with_same_key_is_reachable() {
         assert!(attempts < 6, "server not found within 6 attempts");
     };
     ping(&mut conn).await;
-    println!("PROBE3 found in {:?}, attempts {attempts}", started.elapsed());
+    println!(
+        "PROBE3 found in {:?}, attempts {attempts}",
+        started.elapsed()
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -122,14 +138,19 @@ async fn hundred_parallel_dials_finish() {
     let (srv, client) = (node(&cl, &ks).await, node(&cl, &kc).await);
     let _server = serve(&srv, &ks).await;
     let started = Instant::now();
-    let tasks: Vec<_> = (0..100).map(|_| tokio::spawn(timed_dial(client.clone(), ks.clone()))).collect();
+    let tasks: Vec<_> = (0..100)
+        .map(|_| tokio::spawn(timed_dial(client.clone(), ks.clone())))
+        .collect();
     let mut times = Vec::new();
     for task in tasks {
         times.push(task.await.expect("task"));
     }
     times.sort();
     let (p50, p95, max) = (times[49], times[94], times[99]);
-    println!("PROBE4 open p50={p50:?} p95={p95:?} max={max:?}, total {:?}", started.elapsed());
+    println!(
+        "PROBE4 open p50={p50:?} p95={p95:?} max={max:?}, total {:?}",
+        started.elapsed()
+    );
     assert!(max < Duration::from_secs(10), "slowest open {max:?}");
 }
 

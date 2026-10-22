@@ -3,13 +3,11 @@
 
 use crate::node::net_names;
 
-use super::super::settings::{TransportMode, ListenAccess};
+use super::super::settings::{ListenAccess, TransportMode};
 use super::kinds_ifaces::IfaceNames;
-use super::kinds_list::{
-    NetNames, NetSync, OpenedList, PeerList, PublishedList,
-};
+use super::kinds_list::{NetNames, NetSync, OpenedList, PeerList, PublishedList};
 use super::kinds_scalar::{
-    Addr, Choice, BoolKind, Int, MemoryExit, NetKey, NodeName, OffOnly, OptAddr, Port,
+    Addr, BoolKind, Choice, Int, MemoryExit, NetKey, NodeName, OffOnly, OptAddr, Port,
 };
 use super::kinds_text::TextList;
 use super::row::{row, Field, Mode};
@@ -19,7 +17,11 @@ use super::value::{Computed, SettingsSlot};
 /// the expression is extended to `'static`.
 macro_rules! slot {
     ($block:ident . $field:ident, $kind:expr) => {
-        &SettingsSlot { get: |s| &s.$block.$field, set: |s, v| s.$block.$field = v, kind: $kind }
+        &SettingsSlot {
+            get: |s| &s.$block.$field,
+            set: |s, v| s.$block.$field = v,
+            kind: $kind,
+        }
     };
 }
 

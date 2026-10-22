@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
 use super::admission::admit_closure;
 use super::record::Via;
@@ -127,7 +127,15 @@ impl Pass {
         let first = admit_closure(input.me, &input.admits, &Excluded::new());
         let need = need_for(first.set.len());
         let (admits, excluded) = (input.admits.clone(), Excluded::new());
-        Pass { me: input.me, admits, admitted: first.set, excluded, pending: BTreeMap::new(), short: first.short, need }
+        Pass {
+            me: input.me,
+            admits,
+            admitted: first.set,
+            excluded,
+            pending: BTreeMap::new(),
+            short: first.short,
+            need,
+        }
     }
 
     /// In the closure and not excluded.
@@ -156,7 +164,11 @@ impl Pass {
 
     fn exclude(&mut self, subject: PeerId, how: How, at: u64, voters: Vec<PeerId>) {
         self.pending.remove(&subject);
-        self.excluded.entry(subject).or_insert(Exclusion { how, at_micros: at, voters });
+        self.excluded.entry(subject).or_insert(Exclusion {
+            how,
+            at_micros: at,
+            voters,
+        });
     }
 
     /// Recomputes the admitted set, drops votes that no longer count and updates the threshold.
@@ -170,13 +182,20 @@ impl Pass {
             list.retain(|(_, voter)| counts(voter));
         }
         self.pending.retain(|_, list| !list.is_empty());
-        let active = self.admitted.iter().filter(|p| !self.excluded.contains_key(*p)).count();
+        let active = self
+            .admitted
+            .iter()
+            .filter(|p| !self.excluded.contains_key(*p))
+            .count();
         self.need = need_for(active);
     }
 
     /// The subject with enough votes whose first vote is the earliest.
     fn candidate(&self) -> Option<PeerId> {
-        let enough = self.pending.iter().filter(|(_, l)| l.len() >= usize::from(self.need));
+        let enough = self
+            .pending
+            .iter()
+            .filter(|(_, l)| l.len() >= usize::from(self.need));
         enough.min_by_key(|(_, l)| l[0].0).map(|(s, _)| *s)
     }
 
@@ -198,9 +217,22 @@ impl Pass {
     fn finish(mut self) -> Ledger {
         self.refresh();
         let need = self.need;
-        let to_pending = |l: Vec<(VoteKey, PeerId)>| PendingVote { voters: l.into_iter().map(|(_, v)| v).collect(), need };
-        let pending = self.pending.into_iter().map(|(s, l)| (s, to_pending(l))).collect();
-        Ledger { admitted: self.admitted, excluded: self.excluded, pending, need, admissions: self.short }
+        let to_pending = |l: Vec<(VoteKey, PeerId)>| PendingVote {
+            voters: l.into_iter().map(|(_, v)| v).collect(),
+            need,
+        };
+        let pending = self
+            .pending
+            .into_iter()
+            .map(|(s, l)| (s, to_pending(l)))
+            .collect();
+        Ledger {
+            admitted: self.admitted,
+            excluded: self.excluded,
+            pending,
+            need,
+            admissions: self.short,
+        }
     }
 }
 

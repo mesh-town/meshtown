@@ -6,7 +6,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use crate::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
+use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
 use tokio::time::Instant;
 
 use super::*;
@@ -24,7 +24,11 @@ mod first_address {
         let result = redial.found(a.clone());
 
         // then: dial right away, attempt 1
-        assert_eq!(result, Some((a, 1)), "a new id must be dialed at once, attempt 1");
+        assert_eq!(
+            result,
+            Some((a, 1)),
+            "a new id must be dialed at once, attempt 1"
+        );
     }
 }
 
@@ -98,8 +102,7 @@ mod after_failure {
         let b = addr(1, 4002);
         let during_dial = redial.found(b.clone());
         assert_eq!(
-            during_dial,
-            None,
+            during_dial, None,
             "an address found during a dial in progress must not start a second dial"
         );
 
@@ -129,7 +132,11 @@ mod member {
         redial.up(a.id);
 
         // then: the retry schedule is cleared
-        assert_eq!(redial.next_due(), None, "after up there must be no retry wait");
+        assert_eq!(
+            redial.next_due(),
+            None,
+            "after up there must be no retry wait"
+        );
         assert!(
             redial.take_due(now + Duration::from_secs(120)).is_empty(),
             "after up the retry must not start, however much time passes"
@@ -149,9 +156,17 @@ mod member {
         let pause = redial.down(a.id, now, 0);
 
         // then: the first retry pause is 5 s, the retry is attempt 1 at the last known address
-        assert_eq!(pause, Duration::from_secs(5), "the first retry after losing the member is in 5 s");
+        assert_eq!(
+            pause,
+            Duration::from_secs(5),
+            "the first retry after losing the member is in 5 s"
+        );
         let due = redial.take_due(now + Duration::from_secs(5));
-        assert_eq!(due, vec![(a, 1)], "the retry after losing the member must be attempt number 1");
+        assert_eq!(
+            due,
+            vec![(a, 1)],
+            "the retry after losing the member must be attempt number 1"
+        );
     }
 
     #[test]
@@ -212,7 +227,10 @@ mod redial_pause_fn {
     fn does_not_overflow_on_large_attempt() {
         // given / when: attempt u32::MAX / then: doesn't panic, hits the long pause of 600 s
         let pause = redial_pause(u32::MAX, 0);
-        assert_eq!(pause, REDIAL_LONG, "a huge attempt must hit the cap without overflow");
+        assert_eq!(
+            pause, REDIAL_LONG,
+            "a huge attempt must hit the cap without overflow"
+        );
     }
 }
 
@@ -225,10 +243,10 @@ mod is_loud_fn {
         let loud = [1u32, 2, 3, 4, 8, 16];
         let quiet = [5u32, 6, 7, 9, 17];
         for attempt in loud {
-        assert!(is_loud(attempt), "attempt {attempt} must be loud");
+            assert!(is_loud(attempt), "attempt {attempt} must be loud");
         }
         for attempt in quiet {
-        assert!(!is_loud(attempt), "attempt {attempt} must not be loud");
+            assert!(!is_loud(attempt), "attempt {attempt} must not be loud");
         }
     }
 }
@@ -242,8 +260,16 @@ mod down_now_fn {
         let now = Instant::now();
         let mut redial = Redial::default();
         let pause = redial.down_now(id(1), now);
-        assert_eq!(pause, Duration::ZERO, "the pause after a network change is zero");
-        assert_eq!(redial.next_due(), Some(now), "the attempt is scheduled for now");
+        assert_eq!(
+            pause,
+            Duration::ZERO,
+            "the pause after a network change is zero"
+        );
+        assert_eq!(
+            redial.next_due(),
+            Some(now),
+            "the attempt is scheduled for now"
+        );
     }
 
     #[test]
@@ -254,7 +280,11 @@ mod down_now_fn {
         redial.down_now(id(1), now);
         assert_eq!(redial.take_due(now).len(), 1, "the attempt matured at once");
         let (attempt, pause) = redial.failed(id(1), now, 0, false);
-        assert_eq!((attempt, pause), (1, REDIAL_FIRST), "a failure after down_now - the ordinary first step");
+        assert_eq!(
+            (attempt, pause),
+            (1, REDIAL_FIRST),
+            "a failure after down_now - the ordinary first step"
+        );
     }
 }
 
@@ -267,7 +297,10 @@ fn id(byte: u8) -> PeerId {
 /// differ from each other in the "a new address was found" tests.
 fn addr(byte: u8, port: u16) -> PeerAddr {
     let socket: SocketAddr = format!("203.0.113.{byte}:{port}").parse().unwrap();
-    PeerAddr { id: id(byte), hints: vec![AddrHint::Ip(socket)] }
+    PeerAddr {
+        id: id(byte),
+        hints: vec![AddrHint::Ip(socket)],
+    }
 }
 
 /// A `Redial` after the first failure: address A found, dial started and failed at once (rnd 0) — we wait

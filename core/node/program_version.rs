@@ -12,14 +12,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{NetError, PeerId, Replica};
+use crate::transport::net::{NetError, PeerId, Replica};
 use anyhow::Result;
 use bytes::Bytes;
 use tokio::time::sleep;
 
-use crate::domains::DomainList;
-use crate::node_state::{own_value, read_values};
-use crate::output::say;
+use crate::node::node_state::{own_value, read_values};
+use crate::node::output::say;
+use crate::proxy::domains::DomainList;
 
 /// The program version key in the network's shared document.
 pub const PROGRAM_VERSION_KEY: &[u8] = b"node/version/";

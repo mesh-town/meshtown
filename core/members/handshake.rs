@@ -11,18 +11,18 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{
+use crate::transport::net::{
     read_to_end_limited, BoxFuture, NetError, PeerConn, PeerId, ServiceHandler, StreamPair,
 };
 use anyhow::{bail, ensure, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-use crate::access::view::{Deny, Side, ACCESS_CLOSE_CODE};
-use crate::membership::{self, MemberContext, MemberEvent};
-use crate::network_key::fill_random;
-use crate::output::{say, short_peer_id, NET_NAME};
-use crate::words::{trim_and_validate_node_name, MAX_NAME_BYTES};
+use crate::members::access::view::{Deny, Side, ACCESS_CLOSE_CODE};
+use crate::members::membership::{self, MemberContext, MemberEvent};
+use crate::members::network_key::fill_random;
+use crate::members::words::{trim_and_validate_node_name, MAX_NAME_BYTES};
+use crate::node::output::{say, short_peer_id, NET_NAME};
 
 /// ALPN of the handshake protocol.
 pub const AUTH_ALPN: &[u8] = b"meshtown/auth/1";
@@ -120,7 +120,9 @@ async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<
     let _ = timeout(Duration::from_secs(1), conn.closed()).await;
     let reason = Deny::from_wire(&conn.close_reason());
     let access = ctx.members.access();
-    reason.iter().for_each(|deny| access.note_refusal(conn.peer(), Side::Them, *deny));
+    reason
+        .iter()
+        .for_each(|deny| access.note_refusal(conn.peer(), Side::Them, *deny));
     reason
 }
 
@@ -138,7 +140,11 @@ async fn read_reply(
 }
 
 /// A failed exchange: if the responder's refusal is not attached yet, learns it from the close frame.
-async fn typed_refusal(err: anyhow::Error, conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> anyhow::Error {
+async fn typed_refusal(
+    err: anyhow::Error,
+    conn: &Arc<dyn PeerConn>,
+    ctx: &MemberContext,
+) -> anyhow::Error {
     match err.downcast_ref::<RefusedByPeer>() {
         Some(_) => err,
         None => with_refusal(err, learn_refusal(conn, ctx).await),
@@ -153,6 +159,46 @@ fn with_refusal(err: anyhow::Error, refusal: Option<Deny>) -> anyhow::Error {
     }
 }
 
+/// The initiator's and the responder's nonces of one handshake.
+type Nonces<'a> = (&'a [u8; 32], &'a [u8; 32]);
+
+/// The tag the responder must send when it is `ctx.own_id` talking to `peer` (the initiator side check).
+fn responder_tag_for(ctx: &MemberContext, nonces: Nonces, peer: &PeerId) -> blake3::Hash {
+    responder_tag(&ctx.handshake_key, nonces.0, nonces.1, &ctx.own_id, peer)
+}
+
+/// The tag the initiator `peer` must send to the responder `ctx.own_id`.
+fn initiator_tag_for(ctx: &MemberContext, nonces: Nonces, peer: &PeerId) -> blake3::Hash {
+    initiator_tag(&ctx.handshake_key, nonces.0, nonces.1, peer, &ctx.own_id)
+}
+
+/// The responder's reply: its nonce followed by its tag.
+fn reply_frame(ctx: &MemberContext, nonces: Nonces, peer: &PeerId) -> [u8; 64] {
+    let mut reply = [0u8; 64];
+    reply[..32].copy_from_slice(nonces.1);
+    let tag = responder_tag(&ctx.handshake_key, nonces.0, nonces.1, peer, &ctx.own_id);
+    reply[32..].copy_from_slice(tag.as_bytes());
+    reply
+}
+
+/// The responder's closing frame: the ack byte followed by its own name.
+fn ack_frame(ctx: &MemberContext) -> Vec<u8> {
+    let own_name = ctx.own_name_tx.borrow().clone();
+    let mut frame = vec![1u8];
+    frame.extend_from_slice(&name_frame(&own_name));
+    frame
+}
+
+/// The initiator's closing frame: its tag followed by its own name.
+fn initiator_frame(ctx: &MemberContext, nonces: Nonces, peer: &PeerId) -> Vec<u8> {
+    let own_name = ctx.own_name_tx.borrow().clone();
+    let tag = initiator_tag(&ctx.handshake_key, nonces.0, nonces.1, &ctx.own_id, peer);
+    let mut frame = Vec::with_capacity(32 + 258);
+    frame.extend_from_slice(tag.as_bytes());
+    frame.extend_from_slice(&name_frame(&own_name));
+    frame
+}
+
 /// Starts the handshake on an already open connection. The initiator is always the one who dials.
 pub async fn initiate(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()> {
     let peer = conn.peer();
@@ -164,22 +210,24 @@ pub async fn initiate(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<(
         let reply = read_reply(conn, ctx, &mut recv).await?;
         let responder_nonce: [u8; 32] = reply[..32].try_into().unwrap();
         let received_tag = blake3::Hash::from_bytes(reply[32..].try_into().unwrap());
-        if received_tag != responder_tag(&ctx.handshake_key, &initiator_nonce, &responder_nonce, &ctx.own_id, &peer) {
+        let nonces = (&initiator_nonce, &responder_nonce);
+        if received_tag != responder_tag_for(ctx, nonces, &peer) {
             conn.close(401, b"bad secret");
             bail!("peer's tag did not match — the key of another network {NET_NAME}");
         }
-        let own_name = ctx.own_name_tx.borrow().clone();
-        let mut tag_and_name_frame = Vec::with_capacity(32 + 258);
-        tag_and_name_frame.extend_from_slice(
-            initiator_tag(&ctx.handshake_key, &initiator_nonce, &responder_nonce, &ctx.own_id, &peer).as_bytes(),
-        );
-        tag_and_name_frame.extend_from_slice(&name_frame(&own_name));
+        let tag_and_name_frame = initiator_frame(ctx, (&initiator_nonce, &responder_nonce), &peer);
         send.write_all(&tag_and_name_frame).await?;
         send.shutdown().await?;
         let mut ack_byte = [0u8; 1];
         recv.read_exact(&mut ack_byte).await?;
-        ensure!(ack_byte[0] == 1, "peer answered {} instead of 1", ack_byte[0]);
-        let tail = read_to_end_limited(&mut recv, MAX_TAIL_BYTES).await.unwrap_or_default();
+        ensure!(
+            ack_byte[0] == 1,
+            "peer answered {} instead of 1",
+            ack_byte[0]
+        );
+        let tail = read_to_end_limited(&mut recv, MAX_TAIL_BYTES)
+            .await
+            .unwrap_or_default();
         anyhow::Ok(tail)
     };
     let exchange = async {
@@ -207,7 +255,10 @@ fn announce_up(conn: &Arc<dyn PeerConn>, ctx: &MemberContext, tail: &[u8]) {
         ctx.members.set_name(peer, name);
     }
     if ctx.members.add_verified_conn(peer) {
-        let _ = ctx.events.send(MemberEvent::Up { peer, conn: conn.clone() });
+        let _ = ctx.events.send(MemberEvent::Up {
+            peer,
+            conn: conn.clone(),
+        });
     }
 }
 
@@ -222,20 +273,19 @@ pub async fn respond(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()
         recv.read_exact(&mut initiator_nonce).await?;
         let mut responder_nonce = [0u8; 32];
         fill_random(&mut responder_nonce)?;
-        let mut reply = [0u8; 64];
-        reply[..32].copy_from_slice(&responder_nonce);
-        reply[32..].copy_from_slice(
-            responder_tag(&ctx.handshake_key, &initiator_nonce, &responder_nonce, &peer, &ctx.own_id).as_bytes(),
-        );
+        let nonces = (&initiator_nonce, &responder_nonce);
+        let reply = reply_frame(ctx, nonces, &peer);
         send.write_all(&reply).await?;
         let mut tag = [0u8; 32];
         recv.read_exact(&mut tag).await?;
         let received_tag = blake3::Hash::from_bytes(tag);
-        if received_tag != initiator_tag(&ctx.handshake_key, &initiator_nonce, &responder_nonce, &peer, &ctx.own_id) {
+        if received_tag != initiator_tag_for(ctx, nonces, &peer) {
             conn.close(401, b"bad secret");
             bail!("initiator's tag did not match — the key of another network {NET_NAME}");
         }
-        let tail = read_to_end_limited(&mut recv, MAX_TAIL_BYTES).await.unwrap_or_default();
+        let tail = read_to_end_limited(&mut recv, MAX_TAIL_BYTES)
+            .await
+            .unwrap_or_default();
         anyhow::Ok((send, tail))
     };
     let (mut send, tail) = match timeout(HANDSHAKE_TIMEOUT, exchange).await {
@@ -255,9 +305,7 @@ pub async fn respond(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()
         });
     }
     // a write error is not counted as a failure here — membership::hold_conn_until_closed will see the connection close
-    let own_name = ctx.own_name_tx.borrow().clone();
-    let mut ack_and_name_frame = vec![1u8];
-    ack_and_name_frame.extend_from_slice(&name_frame(&own_name));
+    let ack_and_name_frame = ack_frame(ctx);
     let _ = send.write_all(&ack_and_name_frame).await;
     let _ = send.shutdown().await;
     Ok(())
@@ -281,11 +329,17 @@ impl ServiceHandler for AuthService {
             let peer = conn.peer();
             match respond(&conn, &ctx).await {
                 Ok(()) => {
-                    say("auth", format!("incoming from {}: success", short_peer_id(&peer)));
+                    say(
+                        "auth",
+                        format!("incoming from {}: success", short_peer_id(&peer)),
+                    );
                     membership::hold_conn_until_closed(conn, peer, ctx).await;
                 }
                 Err(e) => {
-                    say("auth", format!("incoming from {}: refused — {e:#}", short_peer_id(&peer)));
+                    say(
+                        "auth",
+                        format!("incoming from {}: refused — {e:#}", short_peer_id(&peer)),
+                    );
                     tracing::warn!("Handling incoming connection ended with error: {e}");
                 }
             }

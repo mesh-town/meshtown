@@ -1,11 +1,11 @@
 //! `mem` discovery: a board of entries per (hub, name) and the `MemDiscovery` source on top of it.
 //! Merging of sources is in the core (`discovery_mux`).
 
-use crate::net::addr::PeerAddr;
-use crate::net::discovery::Discovery;
-use crate::net::error::NetResult;
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::addr::PeerAddr;
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::NetResult;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 use tokio::sync::{broadcast, mpsc};

@@ -1,16 +1,16 @@
 //! Shared state of a `mem` connection: the stream table, frame parsing, closing.
 //! The user handle and `PeerConn` are in `conn`; the stream halves are in `stream`.
 
-use crate::net::connect::{PacketPath, PathInfo};
-use crate::net::error::{NetError, NetResult};
-use crate::net::mem::conn::CODE_PROTOCOL;
-use crate::net::mem::frame::Frame;
-use crate::net::mem::stream::{Stream, DATA_FRAME_HEADER_BYTES};
-use crate::net::mem::tasks;
+use crate::transport::net::connect::{PacketPath, PathInfo};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::mem::conn::CODE_PROTOCOL;
+use crate::transport::net::mem::frame::Frame;
+use crate::transport::net::mem::stream::{Stream, DATA_FRAME_HEADER_BYTES};
+use crate::transport::net::mem::tasks;
 use bytes::Bytes;
+use portable_atomic::AtomicU64;
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use tokio::sync::{mpsc, watch};
 
@@ -75,7 +75,9 @@ impl MemConnState {
     }
 
     pub(super) fn max_packet_bytes(&self) -> usize {
-        self.path.max_packet_bytes().max(DATA_FRAME_HEADER_BYTES + 1)
+        self.path
+            .max_packet_bytes()
+            .max(DATA_FRAME_HEADER_BYTES + 1)
     }
 
     pub(super) fn send(&self, frame: Frame) {
@@ -109,7 +111,9 @@ impl MemConnState {
             true => t.next_local.is_none_or(|next| id < next),
             false => id <= t.max_peer_stream_id,
         };
-        known.then_some(()).ok_or("frame for a stream that is not open")
+        known
+            .then_some(())
+            .ok_or("frame for a stream that is not open")
     }
 
     fn mark_closed(&self, code: u32, reason: Bytes) -> bool {
@@ -210,7 +214,9 @@ impl MemConnState {
                 self.close_remote(code, reason);
                 return false;
             }
-            Frame::Hello(_) | Frame::Accept | Frame::Refuse => Err("handshake frame inside a connection"),
+            Frame::Hello(_) | Frame::Accept | Frame::Refuse => {
+                Err("handshake frame inside a connection")
+            }
         };
         let Err(why) = verdict else {
             return true;

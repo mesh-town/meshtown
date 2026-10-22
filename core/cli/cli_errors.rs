@@ -6,11 +6,11 @@
 
 use std::ffi::OsString;
 
+use crate::proxy::BindError;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{ArgMatches, Command};
-use meshtown::proxy::BindError;
 
-use crate::cli::Cli;
+use crate::cli::args::Cli;
 
 /// The word error texts start with: a text that already begins with it gets no prefix.
 const PREFIX: &str = "Error";
@@ -74,7 +74,7 @@ pub(crate) fn unknown_command_text(name: &str, commands: &[String]) -> String {
     format!(
         "{PREFIX}: unknown command \"{name}\".\nCommands: {}. Help: {} --help",
         commands.join(", "),
-        meshtown::program_name::program_name()
+        crate::cli::program_name::program_name()
     )
 }
 
@@ -90,8 +90,14 @@ pub(crate) fn typed_command(args: &[OsString], commands: &[String]) -> Option<St
 /// The tail of the error text: where to look for the list of options.
 fn tail_text(command: Option<&str>) -> String {
     match command {
-        Some(name) => format!("See all options: {} {name} --help", meshtown::program_name::program_name()),
-        None => format!("See all options: {} --help", meshtown::program_name::program_name()),
+        Some(name) => format!(
+            "See all options: {} {name} --help",
+            crate::cli::program_name::program_name()
+        ),
+        None => format!(
+            "See all options: {} --help",
+            crate::cli::program_name::program_name()
+        ),
     }
 }
 
@@ -205,7 +211,9 @@ pub(crate) fn parse_or_exit(args: Vec<OsString>) -> ArgMatches {
     let typed = typed_command(&args, &commands);
     match classify(&err) {
         ParseFail::HelpWord => print_help_word(&args, &commands),
-        ParseFail::UnknownCommand(name) => exit_with_error_text(&unknown_command_text(&name, &commands)),
+        ParseFail::UnknownCommand(name) => {
+            exit_with_error_text(&unknown_command_text(&name, &commands))
+        }
         ParseFail::BadFlag => exit_with_error_text(&bad_flag_text(&err, typed.as_deref())),
         ParseFail::BadValue => exit_with_error_text(&bad_value_text(&err, typed.as_deref())),
         ParseFail::LeaveToClap => err.exit(),

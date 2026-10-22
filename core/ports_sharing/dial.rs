@@ -6,17 +6,17 @@
 
 use std::time::Duration;
 
-use crate::net::{BoxRecv, BoxSend, NetStack, PeerId};
+use crate::transport::net::{BoxRecv, BoxSend, NetStack, PeerId};
 use anyhow::{anyhow, bail, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use super::frame::{port_code_text, encode_port_request, parse_port_reply, PORT_CODE_OK};
+use super::frame::{encode_port_request, parse_port_reply, port_code_text, PORT_CODE_OK};
 use super::types::Opened;
 use crate::exit::{splice, PeerConnPool};
-use crate::membership::Members;
-use crate::output::say;
+use crate::members::membership::Members;
+use crate::node::output::say;
 
 /// Deadline for the dial, the request and the reply; when it expires, the TCP connection is closed.
 pub const DIAL_TIMEOUT: Duration = Duration::from_secs(10);
@@ -51,7 +51,11 @@ pub(crate) async fn forward_to_peer_port_within(
         say("port", format!("{log_prefix}: node is offline"));
         return;
     }
-    let reply_in_time = timeout(deadline, request_port_stream(stack, pool, target.node, target.port)).await;
+    let reply_in_time = timeout(
+        deadline,
+        request_port_stream(stack, pool, target.node, target.port),
+    )
+    .await;
     match reply_in_time {
         Err(_) => say(
             "port",
@@ -74,7 +78,8 @@ async fn request_port_stream(
     node: PeerId,
     port: u16,
 ) -> Result<(BoxSend, BoxRecv, u8)> {
-    let crate::net::StreamPair { mut send, mut recv } = pool.open_peer_stream(stack, node).await?;
+    let crate::transport::net::StreamPair { mut send, mut recv } =
+        pool.open_peer_stream(stack, node).await?;
     send.write_all(&encode_port_request(port))
         .await
         .map_err(|e| anyhow!("request not sent: {e}"))?;

@@ -2,7 +2,7 @@
 
 use std::net::SocketAddr;
 
-use crate::net::{AddrHint, PeerAddr, PeerId, RelayRef};
+use crate::transport::net::{AddrHint, PeerAddr, PeerId, RelayRef};
 
 /// Member address strings for display on the page: id — `Display` (64 hex), first
 /// `<id>@<ip:port>` in ascending order without repeats, then `<id>@<url>` for relay hints with a URL;
@@ -50,8 +50,9 @@ pub(crate) fn parse_peer_line(line: &str) -> Result<PeerAddr, String> {
         return Ok(addr);
     }
     if addr_part.starts_with("http://") || addr_part.starts_with("https://") {
-        let url = url::Url::parse(addr_part)
-            .map_err(|_| "couldn't parse the address: an ip:port or a relay url is needed".to_string())?;
+        let url = url::Url::parse(addr_part).map_err(|_| {
+            "couldn't parse the address: an ip:port or a relay url is needed".to_string()
+        })?;
         addr.hints
             .push(AddrHint::Relay(RelayRef::Url(url.to_string())));
         return Ok(addr);

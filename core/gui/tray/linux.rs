@@ -4,7 +4,7 @@
 //! handles commands in a blocking way until `QuitWithCode` and ends the process.
 //! What it does not do: it does not call `Core::drop_ui` — on Linux the icon's `Drop` waits for the ksni thread, and
 //! `process::exit` does not run destructors, so there is no need to remove the icon explicitly.
-//! Links: `super::Core`, `super::log_tray`, `crate::app::quit::exit_now`.
+//! Links: `super::Core`, `super::log_tray`, `crate::gui::tray::app::quit::exit_now`.
 
 use super::Core;
 
@@ -13,7 +13,7 @@ pub(super) fn run(mut core: Core) -> ! {
         super::log_tray(&format!("no tray icon: {e}"));
     }
     let code = core.recv_blocking();
-    crate::app::quit::exit_now(code);
+    crate::gui::tray::app::quit::exit_now(code);
 }
 
 /// No wakeup is needed: `recv()` is woken by `send()` itself — ksni keeps its own D-Bus thread,

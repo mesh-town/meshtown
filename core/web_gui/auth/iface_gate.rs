@@ -3,7 +3,7 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use super::iface_kind::is_router;
-use crate::config_file::{IfaceFilter, ListenAccess};
+use crate::config::config_file::{IfaceFilter, ListenAccess};
 
 /// One IPv4 address of an interface.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -66,7 +66,11 @@ impl Why {
             Why::Any => (true, By::List, "list \"*\" — no restrictions"),
             Why::Listed => (true, By::List, "the interface is in the list"),
             Why::NotListed => (false, By::List, "the interface is not in the list"),
-            Why::AutoWan => (false, By::Auto, "automatic: the router's ISP network is closed"),
+            Why::AutoWan => (
+                false,
+                By::Auto,
+                "automatic: the router's ISP network is closed",
+            ),
             Why::Open => (true, By::Auto, "automatic: the network is open"),
         }
     }
@@ -90,11 +94,7 @@ fn in_subnet(a: &ViewAddr, ip: Ipv4Addr) -> bool {
 }
 
 /// The entry interface: by the client's subnet, else by the receiving address, else `None`.
-pub(crate) fn ingress(
-    view: &IfaceView,
-    peer: Ipv4Addr,
-    local: Option<Ipv4Addr>,
-) -> Option<&str> {
+pub(crate) fn ingress(view: &IfaceView, peer: Ipv4Addr, local: Option<Ipv4Addr>) -> Option<&str> {
     let local_iface = local.and_then(|l| view.name_of(l));
     let hits: Vec<&ViewAddr> = view.addrs.iter().filter(|a| in_subnet(a, peer)).collect();
     let same = hits.iter().find(|a| Some(a.name.as_str()) == local_iface);
@@ -145,7 +145,10 @@ fn canonical_v4(ip: IpAddr) -> Option<Ipv4Addr> {
 }
 
 fn verdict(why: Why, iface: Option<&str>) -> Verdict {
-    Verdict { why, iface: iface.map(str::to_string) }
+    Verdict {
+        why,
+        iface: iface.map(str::to_string),
+    }
 }
 
 /// The full verdict for a connection.

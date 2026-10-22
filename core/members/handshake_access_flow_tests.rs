@@ -3,7 +3,7 @@
 //! `view_with`, `then_refusal` and the other helpers are there.
 
 use super::*;
-use crate::net::{BoxFuture, LinkInfo, NetResult, StreamPair};
+use crate::transport::net::{BoxFuture, LinkInfo, NetResult, StreamPair};
 use tokio::task::JoinHandle;
 
 /// How long a handshake that must stay blocked is given to (wrongly) finish.
@@ -21,14 +21,30 @@ mod pending_view {
         let responding = spawn_respond(&fx.res);
         tokio::time::sleep(SETTLE).await;
         // then: neither side has finished and B has not taken A in
-        assert!(!responding.is_finished(), "respond did not wait for the list");
-        assert!(!initiating.is_finished(), "initiate finished without an answer");
-        assert!(!fx.res.ctx.members.is_member(a), "B took A in before the list was ready");
+        assert!(
+            !responding.is_finished(),
+            "respond did not wait for the list"
+        );
+        assert!(
+            !initiating.is_finished(),
+            "initiate finished without an answer"
+        );
+        assert!(
+            !fx.res.ctx.members.is_member(a),
+            "B took A in before the list was ready"
+        );
         // when: the list is published and contains A
-        fx.res.ctx.members.access().publish(verdicts_with(b, &[a], &[]));
+        fx.res
+            .ctx
+            .members
+            .access()
+            .publish(verdicts_with(b, &[a], &[]));
         // then: the handshake completes
         let (initiated, responded) = (joined(initiating).await, joined(responding).await);
-        assert!(initiated.is_ok() && responded.is_ok(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_ok() && responded.is_ok(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.res.then_up_for(a);
     }
 
@@ -40,12 +56,22 @@ mod pending_view {
         let initiating = spawn_initiate(&fx.ini);
         let responding = spawn_respond(&fx.res);
         tokio::time::sleep(SETTLE).await;
-        assert!(!responding.is_finished(), "respond did not wait for the list");
+        assert!(
+            !responding.is_finished(),
+            "respond did not wait for the list"
+        );
         // when: the list is published and does not contain A
-        fx.res.ctx.members.access().publish(verdicts_with(b, &[], &[]));
+        fx.res
+            .ctx
+            .members
+            .access()
+            .publish(verdicts_with(b, &[], &[]));
         // then: B refuses with 403
         let (initiated, responded) = (joined(initiating).await, joined(responding).await);
-        assert!(initiated.is_err() && responded.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_err() && responded.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         fx.res.then_closed_with(403, b"not admitted");
         then_refusal(&fx.res.ctx, a, Refuser::Me, Deny::Unlisted);
     }
@@ -59,13 +85,26 @@ mod pending_view {
         let responding = spawn_respond(&fx.res);
         tokio::time::sleep(SETTLE).await;
         // then: nothing has been exchanged yet
-        assert!(!initiating.is_finished(), "initiate did not wait for the list");
-        assert!(!fx.ini.ctx.members.is_member(b), "A took B in before the list was ready");
+        assert!(
+            !initiating.is_finished(),
+            "initiate did not wait for the list"
+        );
+        assert!(
+            !fx.ini.ctx.members.is_member(b),
+            "A took B in before the list was ready"
+        );
         // when: the list is published and contains B
-        fx.ini.ctx.members.access().publish(verdicts_with(a, &[b], &[]));
+        fx.ini
+            .ctx
+            .members
+            .access()
+            .publish(verdicts_with(a, &[b], &[]));
         // then: the handshake completes
         let (initiated, responded) = (joined(initiating).await, joined(responding).await);
-        assert!(initiated.is_ok() && responded.is_ok(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_ok() && responded.is_ok(),
+            "{initiated:?} / {responded:?}"
+        );
     }
 }
 
@@ -81,7 +120,10 @@ mod refusal_reported_by_responder {
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking_over(&conn).await;
         // then: both fail, and A noted that the other side refused it
-        assert!(initiated.is_err() && responded.is_err(), "{initiated:?} / {responded:?}");
+        assert!(
+            initiated.is_err() && responded.is_err(),
+            "{initiated:?} / {responded:?}"
+        );
         then_refusal(&fx.ini.ctx, b, Refuser::Them, Deny::Excluded);
     }
 
@@ -104,7 +146,10 @@ mod refusal_reported_by_responder {
             assert!(initiated.is_err(), "initiate with {text:?}: {initiated:?}");
             then_refusal(&fx.ini.ctx, b, Refuser::Them, deny);
             // then: the error carries the same reason as a type
-            let typed = initiated.unwrap_err().downcast_ref::<crate::handshake::RefusedByPeer>().map(|r| r.0);
+            let typed = initiated
+                .unwrap_err()
+                .downcast_ref::<crate::members::handshake::RefusedByPeer>()
+                .map(|r| r.0);
             assert_eq!(typed, Some(deny), "typed refusal for {text:?}");
         }
     }
@@ -120,7 +165,10 @@ mod refusal_reported_by_responder {
             let (initiated, _) = fx.when_handshaking_over(&conn).await;
             // then: it fails, but no refusal is recorded
             assert!(initiated.is_err(), "initiate with {text:?}: {initiated:?}");
-            assert!(fx.ini.ctx.members.access().refusals().is_empty(), "refusal noted for {text:?}");
+            assert!(
+                fx.ini.ctx.members.access().refusals().is_empty(),
+                "refusal noted for {text:?}"
+            );
         }
     }
 }
@@ -149,7 +197,10 @@ struct ReportingConn {
 }
 
 fn reporting(inner: &Arc<dyn PeerConn>, text: &str) -> Arc<dyn PeerConn> {
-    Arc::new(ReportingConn { inner: inner.clone(), text: text.to_string() })
+    Arc::new(ReportingConn {
+        inner: inner.clone(),
+        text: text.to_string(),
+    })
 }
 
 impl PeerConn for ReportingConn {

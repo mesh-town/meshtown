@@ -1,16 +1,25 @@
 //! Tests of the membership-driven tray decisions.
 
 use super::*;
-use crate::app::exit_menu::exit_menu_from_snapshot;
-use crate::app::snapshot::TraySnapshot;
+use crate::gui::tray::app::exit_menu::exit_menu_from_snapshot;
+use crate::gui::tray::app::snapshot::TraySnapshot;
 use serde_json::json;
 
 fn members(voting: u64, me_excluded: bool) -> TrayMembers {
-    TrayMembers { voting, me_excluded, ..TrayMembers::default() }
+    TrayMembers {
+        voting,
+        me_excluded,
+        ..TrayMembers::default()
+    }
 }
 
 fn asking(admitting: u64, me_pending: bool, me_excluded: bool) -> TrayMembers {
-    TrayMembers { admitting, me_pending, me_excluded, ..TrayMembers::default() }
+    TrayMembers {
+        admitting,
+        me_pending,
+        me_excluded,
+        ..TrayMembers::default()
+    }
 }
 
 #[test]
@@ -41,12 +50,18 @@ fn vote_item_only_with_vote_and_not_excluded() {
 #[test]
 fn tooltip_gets_tail_only_during_a_vote() {
     assert_eq!(tooltip_text("Mesh Town", members(0, false)), "Mesh Town");
-    assert_eq!(tooltip_text("Mesh Town", members(1, false)), "Mesh Town · a removal vote is in progress");
+    assert_eq!(
+        tooltip_text("Mesh Town", members(1, false)),
+        "Mesh Town · a removal vote is in progress"
+    );
 }
 
 #[test]
 fn anchor_is_appended_to_plain_and_token_urls() {
-    assert_eq!(with_anchor("http://127.0.0.1:7070/", "peers"), "http://127.0.0.1:7070/#peers");
+    assert_eq!(
+        with_anchor("http://127.0.0.1:7070/", "peers"),
+        "http://127.0.0.1:7070/#peers"
+    );
     assert_eq!(
         with_anchor("http://127.0.0.1:7070/?token=abc", "peers"),
         "http://127.0.0.1:7070/?token=abc#peers"
@@ -87,7 +102,10 @@ fn alert_wanted_with_vote_or_request_and_not_excluded() {
     assert!(!alert_wanted(members(2, true)));
     assert!(alert_wanted(asking(1, false, false)));
     assert!(!alert_wanted(asking(1, false, true)));
-    assert!(!alert_wanted(asking(0, true, false)), "waiting for others needs no action from this computer");
+    assert!(
+        !alert_wanted(asking(0, true, false)),
+        "waiting for others needs no action from this computer"
+    );
 }
 
 #[test]
@@ -97,18 +115,33 @@ fn admit_item_shown_only_with_requests() {
     assert_eq!(admit_item_text(0, false), None);
     assert_eq!(admit_item_text(1, true), None);
     // one menu slot: a removal vote wins over a request
-    assert_eq!(members_item_text(TrayMembers { voting: 1, admitting: 1, ..TrayMembers::default() }), vote_item_text(1, false));
+    assert_eq!(
+        members_item_text(TrayMembers {
+            voting: 1,
+            admitting: 1,
+            ..TrayMembers::default()
+        }),
+        vote_item_text(1, false)
+    );
     assert_eq!(members_item_text(asking(2, false, false)), text);
 }
 
 #[test]
 fn tooltip_tails_for_vote_request_and_pending() {
-    assert_eq!(tooltip_text("Mesh Town", asking(1, false, false)), "Mesh Town · a node is waiting to join");
+    assert_eq!(
+        tooltip_text("Mesh Town", asking(1, false, false)),
+        "Mesh Town · a node is waiting to join"
+    );
     assert_eq!(
         tooltip_text("Mesh Town", asking(0, true, false)),
         "Mesh Town · waiting for members to confirm this computer"
     );
-    let all = TrayMembers { voting: 1, admitting: 1, me_pending: true, me_excluded: false };
+    let all = TrayMembers {
+        voting: 1,
+        admitting: 1,
+        me_pending: true,
+        me_excluded: false,
+    };
     assert_eq!(
         tooltip_text("Mesh Town", all),
         "Mesh Town · a removal vote is in progress · a node is waiting to join · waiting for members to confirm this computer"
@@ -120,5 +153,12 @@ fn tray_members_reads_an_old_state() {
     let snap = TraySnapshot::from_value(&json!({"members": {"voting": 2, "me_excluded": false}}));
     assert_eq!(snap.members, members(2, false));
     let new = TraySnapshot::from_value(&json!({"members": {"admitting": 3, "me_pending": true}}));
-    assert_eq!(new.members, TrayMembers { admitting: 3, me_pending: true, ..TrayMembers::default() });
+    assert_eq!(
+        new.members,
+        TrayMembers {
+            admitting: 3,
+            me_pending: true,
+            ..TrayMembers::default()
+        }
+    );
 }

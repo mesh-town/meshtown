@@ -1,7 +1,7 @@
 //! Words for the "node unknown" view (`NodeState::Unknown`): why the icon cannot see the node.
 
 use super::PageState;
-use crate::app::tray_texts::{
+use crate::gui::tray::app::tray_texts::{
     status_page_port_busy_text, status_unresponsive_text, STATUS_PAGE_DISABLED_TEXT,
 };
 

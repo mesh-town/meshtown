@@ -6,10 +6,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use super::*;
-use crate::access::tally::{Exclusion, Ledger, PendingVote};
-use crate::access::view::Deny;
-use crate::net::contract::pid;
-use crate::web::MemberRow;
+use crate::members::access::tally::{Exclusion, Ledger, PendingVote};
+use crate::members::access::view::Deny;
+use crate::transport::net::contract::pid;
+use crate::web_gui::MemberRow;
 
 const AT_UNIX: u64 = 1_792_400_000;
 
@@ -19,7 +19,8 @@ mod order {
     #[test]
     fn self_row_first_then_members_by_name() {
         // given: me, two named members, a nameless member, an unlisted named node and an excluded one
-        let (me, zeta, alpha, nameless, ghost, gone) = (pid(1), pid(2), pid(3), pid(4), pid(5), pid(6));
+        let (me, zeta, alpha, nameless, ghost, gone) =
+            (pid(1), pid(2), pid(3), pid(4), pid(5), pid(6));
         let w = world(&[zeta, alpha, nameless], &[gone]);
         w.members.set_name(zeta, "zeta".into());
         w.members.set_name(alpha, "alpha".into());
@@ -29,9 +30,15 @@ mod order {
         let reply = w.reply();
         // then: me, members by name (nameless last), unlisted, excluded
         let ids: Vec<&str> = reply.members.iter().map(|r| r.id_full.as_str()).collect();
-        let want: Vec<String> = [me, alpha, zeta, nameless, ghost, gone].iter().map(|p| p.to_string()).collect();
+        let want: Vec<String> = [me, alpha, zeta, nameless, ghost, gone]
+            .iter()
+            .map(|p| p.to_string())
+            .collect();
         assert_eq!(ids, want.iter().map(String::as_str).collect::<Vec<_>>());
-        assert_eq!(reply.members.iter().map(|r| r.status).collect::<Vec<_>>(), ["member", "member", "member", "member", "unlisted", "excluded"]);
+        assert_eq!(
+            reply.members.iter().map(|r| r.status).collect::<Vec<_>>(),
+            ["member", "member", "member", "member", "unlisted", "excluded"]
+        );
     }
 
     #[test]
@@ -40,7 +47,13 @@ mod order {
         let (b, c) = (pid(3), pid(2));
         let w = world(&[b, c], &[]);
         // when / then: after my row they are ordered by the full id
-        let ids: Vec<String> = w.reply().members.iter().skip(1).map(|r| r.id_full.clone()).collect();
+        let ids: Vec<String> = w
+            .reply()
+            .members
+            .iter()
+            .skip(1)
+            .map(|r| r.id_full.clone())
+            .collect();
         let mut want = vec![b.to_string(), c.to_string()];
         want.sort();
         assert_eq!(ids, want);
@@ -77,7 +90,10 @@ mod fields {
         assert_eq!(vote.proposed_by, b.to_string());
         assert_eq!(vote.voters, vec![b.to_string()]);
         assert!(!vote.mine, "my vote is not among them");
-        assert_eq!(row.status, "member", "a pending vote does not change the status");
+        assert_eq!(
+            row.status, "member",
+            "a pending vote does not change the status"
+        );
     }
 
     #[test]
@@ -89,10 +105,16 @@ mod fields {
         w.pending(c, vec![b], 2);
         w.verdicts.reasons.insert(a, "noisy link".to_string());
         // when / then: the reason shows for a only
-        assert_eq!(w.row(a).vote.expect("a vote in progress").reason.as_deref(), Some("noisy link"));
+        assert_eq!(
+            w.row(a).vote.expect("a vote in progress").reason.as_deref(),
+            Some("noisy link")
+        );
         assert_eq!(w.row(c).vote.expect("a vote in progress").reason, None);
         let json = serde_json::to_value(w.row(c).vote).unwrap();
-        assert!(json.get("reason").is_some_and(|r| r.is_null()), "the key must be present as null: {json}");
+        assert!(
+            json.get("reason").is_some_and(|r| r.is_null()),
+            "the key must be present as null: {json}"
+        );
     }
 
     #[test]
@@ -166,7 +188,11 @@ mod fields {
         let w = world(&[pid(2)], &[]);
         let row = w.row(pid(2));
         assert_eq!(row.id_full, pid(2).to_string());
-        assert!(row.id_full.starts_with(&row.id) && row.id.len() < row.id_full.len(), "short id: {}", row.id);
+        assert!(
+            row.id_full.starts_with(&row.id) && row.id.len() < row.id_full.len(),
+            "short id: {}",
+            row.id
+        );
     }
 }
 
@@ -182,8 +208,22 @@ mod denied_by_me_codes {
         w.verdicts.my_votes.insert(e);
         w.members.set_name(d, "stranger".into());
         // when / then: the codes follow the order of the check
-        let codes: Vec<_> = [pid(1), a, b, c, d, e, f].iter().map(|p| w.row(*p).denied_by_me).collect();
-        assert_eq!(codes, [None, None, Some("excluded"), Some("blocked"), Some("unlisted"), Some("voted_by_me"), Some("excluded")]);
+        let codes: Vec<_> = [pid(1), a, b, c, d, e, f]
+            .iter()
+            .map(|p| w.row(*p).denied_by_me)
+            .collect();
+        assert_eq!(
+            codes,
+            [
+                None,
+                None,
+                Some("excluded"),
+                Some("blocked"),
+                Some("unlisted"),
+                Some("voted_by_me"),
+                Some("excluded")
+            ]
+        );
     }
 
     #[test]
@@ -204,7 +244,10 @@ mod denied_by_me_codes {
         w.members.set_name(x, "newcomer".into());
         // when / then
         let row = w.row(x);
-        assert_eq!((row.status, row.denied_by_me), ("unlisted", Some("unlisted")));
+        assert_eq!(
+            (row.status, row.denied_by_me),
+            ("unlisted", Some("unlisted"))
+        );
     }
 }
 
@@ -220,7 +263,10 @@ mod refusals {
         // when
         let info = w.row(a).last_refusal.expect("a refusal");
         // then
-        assert_eq!((info.side, info.reason, info.at_unix), ("them", "refused", AT_UNIX + 100));
+        assert_eq!(
+            (info.side, info.reason, info.at_unix),
+            ("them", "refused", AT_UNIX + 100)
+        );
     }
 
     #[test]
@@ -240,7 +286,10 @@ mod refusals {
         w.refusal(x, Side::Me, Deny::Unlisted);
         // when / then: the page shows it as unlisted, and it is counted
         let reply = w.reply();
-        assert!(reply.members.iter().any(|r| r.id_full == x.to_string() && r.status == "unlisted"));
+        assert!(reply
+            .members
+            .iter()
+            .any(|r| r.id_full == x.to_string() && r.status == "unlisted"));
         assert_eq!(reply.counts.unlisted, 1);
     }
 }
@@ -258,7 +307,15 @@ mod totals {
         // when
         let counts = w.reply().counts;
         // then: members include me
-        assert_eq!((counts.members, counts.voting, counts.excluded, counts.unlisted), (4, 1, 1, 1));
+        assert_eq!(
+            (
+                counts.members,
+                counts.voting,
+                counts.excluded,
+                counts.unlisted
+            ),
+            (4, 1, 1, 1)
+        );
     }
 
     #[test]
@@ -269,8 +326,14 @@ mod totals {
         // when / then
         assert_eq!(w.reply().need, 1);
         assert_eq!(w.reply().changed, None);
-        assert_eq!(members_reply(&w.verdicts(), &w.members, &[], Some(false)).changed, Some(false));
-        assert_eq!(members_reply(&w.verdicts(), &w.members, &[], Some(true)).changed, Some(true));
+        assert_eq!(
+            members_reply(&w.verdicts(), &w.members, &[], Some(false)).changed,
+            Some(false)
+        );
+        assert_eq!(
+            members_reply(&w.verdicts(), &w.members, &[], Some(true)).changed,
+            Some(true)
+        );
     }
 
     #[test]
@@ -293,36 +356,76 @@ struct World {
 fn world(listed: &[PeerId], excluded: &[PeerId]) -> World {
     let me = pid(1);
     let admitted: BTreeSet<PeerId> = [&[me][..], listed, excluded].concat().into_iter().collect();
-    let ledger = Ledger { admitted, excluded: BTreeMap::new(), pending: BTreeMap::new(), need: 2, admissions: BTreeMap::new() };
-    let verdicts = Verdicts { me, ledger: Arc::new(ledger.clone()), my_votes: BTreeSet::new(), blocks: BTreeSet::new(), reasons: Default::default() };
-    let mut w = World { ledger, verdicts, members: Members::default(), refusals: Vec::new() };
-    excluded.iter().for_each(|p| w.exclude(*p, How::Votes, vec![pid(2)]));
+    let ledger = Ledger {
+        admitted,
+        excluded: BTreeMap::new(),
+        pending: BTreeMap::new(),
+        need: 2,
+        admissions: BTreeMap::new(),
+    };
+    let verdicts = Verdicts {
+        me,
+        ledger: Arc::new(ledger.clone()),
+        my_votes: BTreeSet::new(),
+        blocks: BTreeSet::new(),
+        reasons: Default::default(),
+    };
+    let mut w = World {
+        ledger,
+        verdicts,
+        members: Members::default(),
+        refusals: Vec::new(),
+    };
+    excluded
+        .iter()
+        .for_each(|p| w.exclude(*p, How::Votes, vec![pid(2)]));
     w
 }
 
 impl World {
     fn exclude(&mut self, peer: PeerId, how: How, voters: Vec<PeerId>) {
-        self.ledger.excluded.insert(peer, Exclusion { how, at_micros: AT_UNIX * 1_000_000 + 5, voters });
+        self.ledger.excluded.insert(
+            peer,
+            Exclusion {
+                how,
+                at_micros: AT_UNIX * 1_000_000 + 5,
+                voters,
+            },
+        );
     }
 
     fn pending(&mut self, peer: PeerId, voters: Vec<PeerId>, need: u8) {
-        self.ledger.pending.insert(peer, PendingVote { voters, need });
+        self.ledger
+            .pending
+            .insert(peer, PendingVote { voters, need });
     }
 
     fn refusal(&mut self, peer: PeerId, side: Side, deny: Deny) {
-        self.refusals.push((peer, Refusal { side, deny, at_unix: AT_UNIX + 100 }));
+        self.refusals.push((
+            peer,
+            Refusal {
+                side,
+                deny,
+                at_unix: AT_UNIX + 100,
+            },
+        ));
     }
 
     fn verdicts(&self) -> Verdicts {
-        Verdicts { ledger: Arc::new(self.ledger.clone()), ..self.verdicts.clone() }
+        Verdicts {
+            ledger: Arc::new(self.ledger.clone()),
+            ..self.verdicts.clone()
+        }
     }
 
-    fn reply(&self) -> crate::web::MembersReply {
+    fn reply(&self) -> crate::web_gui::MembersReply {
         members_reply(&self.verdicts(), &self.members, &self.refusals, None)
     }
 
     fn row(&self, peer: PeerId) -> MemberRow {
         let rows = self.reply().members;
-        rows.into_iter().find(|r| r.id_full == peer.to_string()).expect("the row must exist")
+        rows.into_iter()
+            .find(|r| r.id_full == peer.to_string())
+            .expect("the row must exist")
     }
 }

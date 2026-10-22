@@ -3,12 +3,12 @@
 
 use super::host::ReplicaHost;
 use super::replica::MeshReplica;
-use crate::net::error::{NetError, NetResult};
-use crate::net::stream::{BoxFuture, StreamPair};
-use crate::net::transport::PeerConn;
-use crate::net::ServiceHandler;
-use crate::sync::flood::admit::{accept_handshake, welcome};
-use crate::sync::flood::wire::{write_frame, CLOSE_REJECTED};
+use crate::members::sync::flood::admit::{accept_handshake, welcome};
+use crate::members::sync::flood::wire::{write_frame, CLOSE_REJECTED};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::stream::{BoxFuture, StreamPair};
+use crate::transport::net::transport::PeerConn;
+use crate::transport::net::ServiceHandler;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
@@ -41,15 +41,31 @@ async fn serve(host: Arc<ReplicaHost>, conn: Arc<dyn PeerConn>) {
 }
 
 /// The first stream and `Hello` within the timeout; the topic is the id of the replica being reconciled; a refusal, timeout or break is `Err`.
-async fn admit(host: &ReplicaHost, conn: &Arc<dyn PeerConn>) -> NetResult<(StreamPair, Arc<MeshReplica>)> {
+async fn admit(
+    host: &ReplicaHost,
+    conn: &Arc<dyn PeerConn>,
+) -> NetResult<(StreamPair, Arc<MeshReplica>)> {
     let handshake = async {
         let wiring = &host.wiring;
         let mut pair = conn.accept().await?;
         let known = |t: &[u8; 32]| host.syncing(t).is_some();
-        let topic = accept_handshake(&mut pair, &wiring.admission_key, wiring.me, conn.peer(), known).await?;
+        let topic = accept_handshake(
+            &mut pair,
+            &wiring.admission_key,
+            wiring.me,
+            conn.peer(),
+            known,
+        )
+        .await?;
         let replica = host.syncing(&topic).ok_or(NetError::Refused)?;
-        write_frame(&mut pair.send, &welcome(&wiring.admission_key, wiring.me, conn.peer(), &topic)).await?;
+        write_frame(
+            &mut pair.send,
+            &welcome(&wiring.admission_key, wiring.me, conn.peer(), &topic),
+        )
+        .await?;
         Ok((pair, replica))
     };
-    timeout(HANDSHAKE, handshake).await.unwrap_or(Err(NetError::Timeout))
+    timeout(HANDSHAKE, handshake)
+        .await
+        .unwrap_or(Err(NetError::Timeout))
 }

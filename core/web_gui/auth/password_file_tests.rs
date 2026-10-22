@@ -65,7 +65,10 @@ mod written {
         use std::os::unix::fs::PermissionsExt;
         let dir = temp_dir();
         write_password_file(&dir, &record(5)).unwrap();
-        let mode = std::fs::metadata(file_in(&dir)).unwrap().permissions().mode();
+        let mode = std::fs::metadata(file_in(&dir))
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o600);
     }
 
@@ -137,7 +140,10 @@ mod bad_file {
     fn garbage_is_unreadable() {
         let dir = temp_dir();
         put(&dir, "not json");
-        assert!(matches!(read_password_file(&dir), PasswordFileState::Unreadable(_)));
+        assert!(matches!(
+            read_password_file(&dir),
+            PasswordFileState::Unreadable(_)
+        ));
     }
 
     #[test]
@@ -183,7 +189,10 @@ mod bad_file {
         write_password_file(&dir, &record(1)).unwrap();
         let perms = std::fs::Permissions::from_mode(0o644);
         std::fs::set_permissions(file_in(&dir), perms).unwrap();
-        assert!(matches!(read_password_file(&dir), PasswordFileState::Unreadable(_)));
+        assert!(matches!(
+            read_password_file(&dir),
+            PasswordFileState::Unreadable(_)
+        ));
     }
 
     #[test]
@@ -192,6 +201,9 @@ mod bad_file {
         v["note"] = "extra".into();
         let dir = temp_dir();
         put(&dir, &v.to_string());
-        assert!(matches!(read_password_file(&dir), PasswordFileState::Set(_)));
+        assert!(matches!(
+            read_password_file(&dir),
+            PasswordFileState::Set(_)
+        ));
     }
 }

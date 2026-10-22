@@ -22,7 +22,11 @@ mod bundle_app_js {
         // given
         let entry = page_entry("/bundle/app.js");
         // then
-        assert_eq!(entry.2, bundle_on_disk(), "the entry body differs from web_gui/ui/bundle/app.js");
+        assert_eq!(
+            entry.2,
+            bundle_on_disk(),
+            "the entry body differs from web_gui/ui/bundle/app.js"
+        );
         assert!(!entry.2.is_empty(), "the built file is empty");
     }
 
@@ -51,7 +55,11 @@ mod pages_table {
         // given: the page is one Vue module, there are no classic scripts
         let classic: Vec<_> = PAGES.iter().filter(|e| e.0.starts_with("/js/")).collect();
         // then
-        assert!(classic.is_empty(), "classic scripts remain: {:?}", classic.iter().map(|e| e.0).collect::<Vec<_>>());
+        assert!(
+            classic.is_empty(),
+            "classic scripts remain: {:?}",
+            classic.iter().map(|e| e.0).collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -71,7 +79,10 @@ mod pages_table {
             .collect();
         // then: the order matches too (cascade)
         assert!(!linked.is_empty(), "index.html has no links to css/");
-        assert_eq!(linked, served, "the links in index.html and the PAGES entries diverge");
+        assert_eq!(
+            linked, served,
+            "the links in index.html and the PAGES entries diverge"
+        );
     }
 }
 

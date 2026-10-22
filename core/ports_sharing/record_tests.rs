@@ -1,7 +1,7 @@
 //! Tests of the publication entry key and value (`record.rs`).
 
 use super::*;
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 fn id() -> PeerId {
     NodeSecret::from_bytes(&[7; 32]).peer_id()
@@ -25,7 +25,11 @@ fn rec(name: &str, audience: Audience) -> PortRecord {
 fn public_key_layout_in_postcard() {
     let key = id();
     let bytes = postcard::to_stdvec(&key).unwrap();
-    assert_eq!(bytes, key.as_bytes().to_vec(), "key = 32 bytes without a length");
+    assert_eq!(
+        bytes,
+        key.as_bytes().to_vec(),
+        "key = 32 bytes without a length"
+    );
     let back: PeerId = postcard::from_bytes(&bytes).unwrap();
     assert_eq!(back, key);
     let bad = [0x02u8; 32];
@@ -80,7 +84,10 @@ fn record_layout_is_pinned() {
     assert_eq!(web, [0x01, 0x06, 0xC3, 0xA9, 0xC3, 0xB8, 0xC3, 0xBC, 0x00]);
     let mut want = vec![0x01, 0x00, 0x01, 0x01];
     want.extend_from_slice(id().as_bytes());
-    assert_eq!(encode_port_record(&rec("", Audience::Nodes(vec![id()]))), want);
+    assert_eq!(
+        encode_port_record(&rec("", Audience::Nodes(vec![id()]))),
+        want
+    );
 }
 
 #[test]
@@ -121,7 +128,10 @@ fn nodes_record_with_tail_decodes() {
     let mut bytes = vec![0x01, 0x00, 0x01, 0x01];
     bytes.extend_from_slice(id().as_bytes());
     bytes.extend_from_slice(&[9, 9]);
-    assert_eq!(decode_port_record(&bytes), Some(rec("", Audience::Nodes(vec![id()]))));
+    assert_eq!(
+        decode_port_record(&bytes),
+        Some(rec("", Audience::Nodes(vec![id()])))
+    );
 }
 
 #[test]

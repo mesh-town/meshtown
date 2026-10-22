@@ -5,16 +5,16 @@
 //! and its serving by the `cache` source (`PeersCacheSource`) through the stack's `DiscoveryMux`.
 //! What it doesn't do: it doesn't check the file format and the `PeersCache` bounds (ceilings, TTL,
 //! `entry_for`/`touch`) — that is `peers_cache_tests.rs`; it doesn't touch DHT or a real network.
-//! Links: `meshtown::peers_cache::PeersCache`, `node::start_node`, `NodeConfig::peers_cache_path`.
+//! Links: `meshtown_core::transport::peers_cache::PeersCache`, `node::start_node`, `NodeConfig::peers_cache_path`.
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use meshtown::net::{AddrHint, PeerAddr};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::peers_cache::{self, PeersCache};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::transport::net::{AddrHint, PeerAddr};
+use meshtown_core::transport::peers_cache::{self, PeersCache};
 use tokio::time::{sleep, Instant};
 
 /// Polls the condition every 50 ms until it becomes true or the limit expires.
@@ -68,13 +68,24 @@ async fn b_has_nothing_to_remember_about_a_on_mem() {
         a.members.is_member(b.id) && b.members.is_member(a.id)
     })
     .await;
-    assert!(ok, "the nodes did not become members of each other within 20 s");
+    assert!(
+        ok,
+        "the nodes did not become members of each other within 20 s"
+    );
 
     // control "the phenomenon was in the window": the member events are up, now let them reach the cache
     sleep(Duration::from_secs(2)).await;
     let network_id = key.subkeys().network_id_hex();
-    let cache = PeersCache::load(Some(&cache_path_b), &network_id, meshtown::net_mainline::unix_now());
-    assert!(cache.addrs().is_empty(), "a `mem` path has no address, so the cache must be empty: {:?}", cache.addrs());
+    let cache = PeersCache::load(
+        Some(&cache_path_b),
+        &network_id,
+        meshtown_core::transport::net_mainline::unix_now(),
+    );
+    assert!(
+        cache.addrs().is_empty(),
+        "a `mem` path has no address, so the cache must be empty: {:?}",
+        cache.addrs()
+    );
 
     a.shutdown().await;
     b.shutdown().await;
@@ -95,7 +106,7 @@ async fn b_finds_a_from_cache_without_dht() {
     };
 
     let network_id = key.subkeys().network_id_hex();
-    let now = meshtown::net_mainline::unix_now();
+    let now = meshtown_core::transport::net_mainline::unix_now();
     let cache_path_b2 = scratch_cache_path("b2");
     let mut cache = PeersCache::load(Some(&cache_path_b2), &network_id, now);
     let entry = peers_cache::entry_for(Some(&addr_a), a.id, None, now);

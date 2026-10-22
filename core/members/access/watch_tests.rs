@@ -10,16 +10,20 @@ use std::time::Duration;
 use bytes::Bytes;
 
 use super::*;
-use crate::access::record::{admit_key, decode, encode, exclude_key, AclKind, AclValue, Via};
-use crate::access::view::{AccessView, Deny};
-use crate::membership::Members;
-use crate::net::contract::{pid, secret};
-use crate::net_mainline::unix_now;
+use crate::members::access::record::{
+    admit_key, decode, encode, exclude_key, AclKind, AclValue, Via,
+};
+use crate::members::access::view::{AccessView, Deny};
+use crate::members::membership::Members;
+use crate::transport::net::contract::{pid, secret};
+use crate::transport::net::mem::conn::MemConn;
+use crate::transport::net::mem::{MemNet, MemReplica, MemSync, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{
+    PeerConn, PeerId, Replica, ReplicaEntry, SplitTransport, Transport, AUTH,
+};
+use crate::transport::net_mainline::unix_now;
 use std::collections::BTreeMap;
-use crate::net::mem::conn::MemConn;
-use crate::net::mem::{MemNet, MemReplica, MemSync, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::{PeerConn, PeerId, Replica, ReplicaEntry, SplitTransport, Transport, AUTH};
 
 /// How long a condition is given to become true.
 const LIMIT: Duration = Duration::from_secs(5);
@@ -32,7 +36,10 @@ mod watcher {
         // given: a view that is still pending and a list with one neighbour
         let mut rig = setup();
         rig.given_admit(rig.me, pid(2));
-        assert!(rig.view().verdicts().is_none(), "the view must start pending");
+        assert!(
+            rig.view().verdicts().is_none(),
+            "the view must start pending"
+        );
         // when: the watcher starts
         rig.when_watching();
         // then: the first recompute publishes it, and the handshakes may go on
@@ -50,14 +57,20 @@ mod watcher {
         let link = rig.given_connection(2).await;
         rig.when_watching();
         eventually("a published view", || rig.view().verdicts().is_some()).await;
-        assert!(!link.conn.is_closed(), "a listed neighbour must stay connected");
+        assert!(
+            !link.conn.is_closed(),
+            "a listed neighbour must stay connected"
+        );
         // when: b and c vote against a through the synchronization
         rig.given_vote(b, a, 100);
         rig.given_vote(c, a, 200);
         // then: a is denied and its connection is closed with the reason of the denial
         eventually("the connection of a is cut", || link.conn.is_closed()).await;
         assert_eq!(rig.view().check(a), Err(Deny::Excluded));
-        assert_eq!(close_info(&link.conn), Some((403, Bytes::from_static(b"excluded"))));
+        assert_eq!(
+            close_info(&link.conn),
+            Some((403, Bytes::from_static(b"excluded")))
+        );
     }
 
     #[tokio::test]
@@ -72,9 +85,18 @@ mod watcher {
         // when: I write the exclusion of myself
         rig.when_leaving().await;
         // then: every connection is closed with "left", and nobody passes
-        eventually("both connections cut", || first.conn.is_closed() && second.conn.is_closed()).await;
-        assert_eq!(close_info(&first.conn), Some((403, Bytes::from_static(b"left"))));
-        assert_eq!(close_info(&second.conn), Some((403, Bytes::from_static(b"left"))));
+        eventually("both connections cut", || {
+            first.conn.is_closed() && second.conn.is_closed()
+        })
+        .await;
+        assert_eq!(
+            close_info(&first.conn),
+            Some((403, Bytes::from_static(b"left")))
+        );
+        assert_eq!(
+            close_info(&second.conn),
+            Some((403, Bytes::from_static(b"left")))
+        );
         assert_eq!(rig.view().check(pid(2)), Err(Deny::Left));
     }
 }
@@ -98,7 +120,12 @@ mod witnesses {
         // when: the verdicts are recomputed
         rig.refresh().await;
         // then: I have written a witness for a, and nothing for c (not connected) or x (not listed)
-        assert_eq!(rig.my_admits().await, [(a, Via::Witness), (b, Via::Invite), (d, Via::Invite)].into_iter().collect());
+        assert_eq!(
+            rig.my_admits().await,
+            [(a, Via::Witness), (b, Via::Invite), (d, Via::Invite)]
+                .into_iter()
+                .collect()
+        );
     }
 
     #[tokio::test]
@@ -114,7 +141,11 @@ mod witnesses {
         // when: the recompute runs again
         rig.refresh().await;
         // then: the record is the same one
-        assert_eq!(rig.my_admit_entry(a).await, first, "the witness was rewritten");
+        assert_eq!(
+            rig.my_admit_entry(a).await,
+            first,
+            "the witness was rewritten"
+        );
     }
 
     #[tokio::test]
@@ -126,7 +157,10 @@ mod witnesses {
         // when / then: it is denied, and no record is written for it
         rig.refresh().await;
         assert_eq!(rig.view().check(x), Err(Deny::Unlisted));
-        assert!(rig.my_admits().await.is_empty(), "a record for an unlisted node");
+        assert!(
+            rig.my_admits().await.is_empty(),
+            "a record for an unlisted node"
+        );
     }
 
     #[tokio::test]
@@ -144,7 +178,10 @@ mod witnesses {
         rig.refresh().await;
         // then: no witness for the excluded node
         assert_eq!(rig.view().check(a), Err(Deny::Excluded));
-        assert!(!rig.my_admits().await.contains_key(&a), "a witness for an excluded node");
+        assert!(
+            !rig.my_admits().await.contains_key(&a),
+            "a witness for an excluded node"
+        );
     }
 }
 
@@ -170,13 +207,24 @@ struct Link {
 fn setup() -> Rig {
     let net = MemSyncNet::new();
     let node = secret(1);
-    let ctx = SyncCtx { secret: node.clone(), network_seed: [9; 32], store_dir: None };
+    let ctx = SyncCtx {
+        secret: node.clone(),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
     let backend = net.backend(ctx);
     let shared = backend.replica_mem(REPLICA_NET).unwrap();
     let own = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let members = Members::with_access(AccessView::pending());
     let access = Access::from_parts(node.peer_id(), shared.clone(), own, members.clone());
-    Rig { access: Arc::new(access), shared, members, me: node.peer_id(), watching: Vec::new(), _keep: (net, backend) }
+    Rig {
+        access: Arc::new(access),
+        shared,
+        members,
+        me: node.peer_id(),
+        watching: Vec::new(),
+        _keep: (net, backend),
+    }
 }
 
 impl Drop for Rig {
@@ -196,26 +244,71 @@ impl Rig {
     }
 
     async fn refresh(&self) {
-        self.access.refresh().await.expect("the recompute must work on a healthy replica");
+        self.access
+            .refresh()
+            .await
+            .expect("the recompute must work on a healthy replica");
     }
 
     /// A record of the list as if it arrived from `author` by synchronization.
-    fn given_record(&self, author: PeerId, key: Vec<u8>, kind: AclKind, subject: PeerId, via: Via, ts_micros: u64) {
-        let value = AclValue { kind, subject, via, made_unix: 111, note: String::new() };
-        self.shared.put_raw(ReplicaEntry { author, key, value: Bytes::from(encode(&value)), ts_micros });
+    fn given_record(
+        &self,
+        author: PeerId,
+        key: Vec<u8>,
+        kind: AclKind,
+        subject: PeerId,
+        via: Via,
+        ts_micros: u64,
+    ) {
+        let value = AclValue {
+            kind,
+            subject,
+            via,
+            made_unix: 111,
+            note: String::new(),
+        };
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key,
+            value: Bytes::from(encode(&value)),
+            ts_micros,
+        });
     }
 
     fn given_admit(&self, author: PeerId, subject: PeerId) {
-        self.given_record(author, admit_key(&subject), AclKind::Admit, subject, Via::Invite, 1);
+        self.given_record(
+            author,
+            admit_key(&subject),
+            AclKind::Admit,
+            subject,
+            Via::Invite,
+            1,
+        );
     }
 
     fn given_vote(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
-        self.given_record(voter, exclude_key(&subject), AclKind::Exclude, subject, Via::None, ts_micros);
+        self.given_record(
+            voter,
+            exclude_key(&subject),
+            AclKind::Exclude,
+            subject,
+            Via::None,
+            ts_micros,
+        );
     }
 
     async fn when_leaving(&self) {
-        let value = AclValue { kind: AclKind::Exclude, subject: self.me, via: Via::None, made_unix: unix_now(), note: String::new() };
-        self.shared.set_own(&exclude_key(&self.me), Bytes::from(encode(&value))).await.unwrap();
+        let value = AclValue {
+            kind: AclKind::Exclude,
+            subject: self.me,
+            via: Via::None,
+            made_unix: unix_now(),
+            note: String::new(),
+        };
+        self.shared
+            .set_own(&exclude_key(&self.me), Bytes::from(encode(&value)))
+            .await
+            .unwrap();
     }
 
     /// A tracked connection to the node with the seed, which the members also count as connected.
@@ -223,23 +316,36 @@ impl Rig {
         let net = MemNet::new();
         let (near, far) = (net.transport(&secret(1)), net.transport(&secret(seed)));
         far.serve(&[AUTH]);
-        let (dialed, accepted) = within(async { tokio::join!(near.connect(&far.local_addr(), AUTH), far.accept()) }).await;
+        let (dialed, accepted) =
+            within(async { tokio::join!(near.connect(&far.local_addr(), AUTH), far.accept()) })
+                .await;
         let (_, far_conn) = accepted.expect("the far node must accept");
         let conn = dialed.expect("the connection must open");
         self.members.track_conn(&conn);
         self.members.add_verified_conn(pid(seed));
-        Link { conn, _far: far_conn, _nodes: [near, far] }
+        Link {
+            conn,
+            _far: far_conn,
+            _nodes: [near, far],
+        }
     }
 
     /// My live admits with their `via`, by subject.
     async fn my_admits(&self) -> BTreeMap<PeerId, Via> {
         let all = self.shared.scan(b"acl/admit/").await.unwrap();
-        let mine = all.iter().filter(|e| e.author == self.me && !e.is_tombstone());
-        mine.filter_map(|e| decode(&e.value).ok()).map(|v| (v.subject, v.via)).collect()
+        let mine = all
+            .iter()
+            .filter(|e| e.author == self.me && !e.is_tombstone());
+        mine.filter_map(|e| decode(&e.value).ok())
+            .map(|v| (v.subject, v.via))
+            .collect()
     }
 
     async fn my_admit_entry(&self, subject: PeerId) -> Option<ReplicaEntry> {
-        self.shared.get(self.me, &admit_key(&subject)).await.unwrap()
+        self.shared
+            .get(self.me, &admit_key(&subject))
+            .await
+            .unwrap()
     }
 }
 
@@ -250,15 +356,23 @@ async fn eventually(what: &str, cond: impl Fn() -> bool) {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
     };
-    assert!(tokio::time::timeout(LIMIT, poll).await.is_ok(), "{what} did not happen within {LIMIT:?}");
+    assert!(
+        tokio::time::timeout(LIMIT, poll).await.is_ok(),
+        "{what} did not happen within {LIMIT:?}"
+    );
 }
 
 async fn within<T>(fut: impl Future<Output = T>) -> T {
-    tokio::time::timeout(LIMIT, fut).await.expect("the step took too long")
+    tokio::time::timeout(LIMIT, fut)
+        .await
+        .expect("the step took too long")
 }
 
 fn close_info(conn: &Arc<dyn PeerConn>) -> Option<(u32, Bytes)> {
-    conn.as_any().downcast_ref::<MemConn>().expect("the connection must be mem").close_info()
+    conn.as_any()
+        .downcast_ref::<MemConn>()
+        .expect("the connection must be mem")
+        .close_info()
 }
 
 #[cfg(test)]

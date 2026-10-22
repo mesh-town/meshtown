@@ -1,8 +1,8 @@
 //! Test of reading entry stamps from an in-memory replica (`read_doc_seen`).
 
-use crate::net::mem::{MemReplica, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::{ReplicaEntry, NodeSecret, PeerId, Replica};
+use crate::transport::net::mem::{MemReplica, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::{NodeSecret, PeerId, Replica, ReplicaEntry};
 use bytes::Bytes;
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ mod foreign_author {
         let seen = read_doc_seen(&*r.rep, NOW).await.unwrap();
         // then: the author has a stamp of 1000 s, there is no own entry, no phantom keys
         assert_eq!(seen.get(&x), Some(&1_000));
-    assert_eq!(seen.len(), 1, "extra authors: {seen:?}");
+        assert_eq!(seen.len(), 1, "extra authors: {seen:?}");
     }
 
     #[tokio::test]

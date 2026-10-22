@@ -5,10 +5,10 @@ use super::entry::WireEntry;
 use super::ids::topic_of;
 use super::replica::MeshReplica;
 use super::wire::encode_push;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::sync_backend::{SyncBackend, REPLICA_DOMAINS};
-use crate::net::{Membership, SwarmEvent};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::sync_backend::{SyncBackend, REPLICA_DOMAINS};
+use crate::transport::net::{Membership, SwarmEvent};
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use std::time::Duration;
@@ -51,12 +51,21 @@ impl MeshReplica {
         if self.name == REPLICA_DOMAINS {
             return Err(NetError::Refused);
         }
-        self.net.topic_membership.get_or_try_init(|| self.open_topic()).await.map(|_| ())
+        self.net
+            .topic_membership
+            .get_or_try_init(|| self.open_topic())
+            .await
+            .map(|_| ())
     }
 
     /// Joins the replica's broadcast topic and starts the pump of its events.
     async fn open_topic(&self) -> NetResult<Arc<dyn Membership>> {
-        let flood = self.wiring.flood.get().and_then(Weak::upgrade).ok_or(NetError::Closed)?;
+        let flood = self
+            .wiring
+            .flood
+            .get()
+            .and_then(Weak::upgrade)
+            .ok_or(NetError::Closed)?;
         let swarm = flood.join_swarm(topic_of(&self.id), &[]).await?;
         tokio::spawn(pump(self.this.clone(), swarm.events));
         Ok(swarm.membership)
@@ -68,9 +77,16 @@ impl MeshReplica {
             return Err(NetError::Refused);
         }
         let owner = self.this.upgrade().ok_or(NetError::Closed)?;
-        let Some(slot) = owner.claim(peer) else { return Ok(()) };
+        let Some(slot) = owner.claim(peer) else {
+            return Ok(());
+        };
         self.start_sync_impl().await?;
-        let membership = self.net.topic_membership.get().cloned().ok_or(NetError::Closed)?;
+        let membership = self
+            .net
+            .topic_membership
+            .get()
+            .cloned()
+            .ok_or(NetError::Closed)?;
         let mut events = membership.subscribe();
         membership.join(&[peer]).await?;
         tokio::spawn(async move {
@@ -82,7 +98,12 @@ impl MeshReplica {
 
     /// Takes the session slot with `peer`; `None` — it is already taken.
     pub(super) fn claim(self: &Arc<Self>, peer: PeerId) -> Option<SessionGuard> {
-        lock(&self.net.peers_in_session).insert(peer).then(|| SessionGuard { owner: self.clone(), peer })
+        lock(&self.net.peers_in_session)
+            .insert(peer)
+            .then(|| SessionGuard {
+                owner: self.clone(),
+                peer,
+            })
     }
 
     /// Waits for `NeighborUp(peer)` for no longer than `NEIGHBOR_WAIT`: then the broadcast after reconciliation already arrives.
@@ -107,7 +128,11 @@ impl MeshReplica {
 
     pub(super) fn set_neighbor(&self, peer: PeerId, up: bool) {
         let mut set = lock(&self.net.neighbors);
-        let _ = if up { set.insert(peer) } else { set.remove(&peer) };
+        let _ = if up {
+            set.insert(peer)
+        } else {
+            set.remove(&peer)
+        };
     }
 
     pub(super) fn neighbor_list(&self) -> Vec<PeerId> {
@@ -121,8 +146,12 @@ impl MeshReplica {
 
     /// A live broadcast of a new entry to the topic's peers; no topic — nothing.
     pub(super) fn push_entry(&self, w: WireEntry) {
-        let Some(membership) = self.net.topic_membership.get().cloned() else { return };
-        let Ok(body) = encode_push(&self.id, vec![w]) else { return };
+        let Some(membership) = self.net.topic_membership.get().cloned() else {
+            return;
+        };
+        let Ok(body) = encode_push(&self.id, vec![w]) else {
+            return;
+        };
         tokio::spawn(async move {
             let _ = membership.broadcast(body).await;
         });
@@ -146,7 +175,9 @@ async fn pump(replica: Weak<MeshReplica>, mut events: broadcast::Receiver<SwarmE
                 continue;
             }
         };
-        let Some(owner) = replica.upgrade() else { return };
+        let Some(owner) = replica.upgrade() else {
+            return;
+        };
         owner.on_swarm(ev);
     }
 }

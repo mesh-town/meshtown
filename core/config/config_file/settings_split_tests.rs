@@ -1,9 +1,9 @@
 //! Reference split of `Settings` into blocks: only the text API — `parse_text`, `render_config_file`,
 //! `{:?}`, the `FIELDS` table; no access to a `Settings` field. The file does not change after the split.
 
-use crate::config_file::fields::FIELDS;
-use crate::config_file::test_support::test_secret;
-use crate::config_file::{parse_text, render_config_file, ParsedConfigFile, Settings};
+use crate::config::config_file::fields::FIELDS;
+use crate::config::config_file::test_support::test_secret;
+use crate::config::config_file::{parse_text, render_config_file, ParsedConfigFile, Settings};
 
 const NOW: u64 = 1_700_000_000;
 const REV: u64 = 7;
@@ -178,7 +178,11 @@ fn render_of(s: &Settings) -> String {
 fn parsed_input() -> ParsedConfigFile {
     let p = parse_text(INPUT).expect("parsing INPUT");
     assert_eq!(p.field_errors, vec![]);
-    assert!(p.unknown_paths.is_empty(), "extra keys: {:?}", p.unknown_paths);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "extra keys: {:?}",
+        p.unknown_paths
+    );
     p
 }
 

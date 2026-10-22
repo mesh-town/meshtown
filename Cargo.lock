@@ -2021,7 +2021,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "meshtown"
+name = "meshtown-core"
 version = "0.3.47"
 dependencies = [
  "anyhow",

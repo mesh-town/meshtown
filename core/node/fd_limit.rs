@@ -32,7 +32,7 @@ pub fn raise() -> Option<String> {
 /// Writes the line from `raise` as a `[node]` log entry (called by `run` and `tray` only).
 pub fn report(note: Option<String>) {
     if let Some(text) = note {
-        meshtown::output::say("node", text);
+        crate::node::output::say("node", text);
     }
 }
 
@@ -42,7 +42,10 @@ mod unix {
 
     /// Reads the limit; `None` means it failed.
     fn current() -> Option<libc::rlimit> {
-        let mut lim = libc::rlimit { rlim_cur: 0, rlim_max: 0 };
+        let mut lim = libc::rlimit {
+            rlim_cur: 0,
+            rlim_max: 0,
+        };
         // SAFETY: `lim` is a valid pointer to a local struct.
         let rc = unsafe { libc::getrlimit(libc::RLIMIT_NOFILE, &mut lim) };
         (rc == 0).then_some(lim)
@@ -58,7 +61,10 @@ mod unix {
         let rc = unsafe { libc::setrlimit(libc::RLIMIT_NOFILE, &lim) };
         Some(match rc {
             0 => format!("open files limit: {soft} → {target}"),
-            _ => format!("open files limit {soft} not raised: {}", std::io::Error::last_os_error()),
+            _ => format!(
+                "open files limit {soft} not raised: {}",
+                std::io::Error::last_os_error()
+            ),
         })
     }
 }

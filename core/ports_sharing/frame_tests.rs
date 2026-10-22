@@ -13,7 +13,10 @@ const CODES: [u8; 5] = [
 #[test]
 fn request_roundtrip_and_layout() {
     assert_eq!(encode_port_request(8080), [1, 0x1F, 0x90]);
-    assert_eq!(parse_port_request(&encode_port_request(8080)).unwrap(), 8080);
+    assert_eq!(
+        parse_port_request(&encode_port_request(8080)).unwrap(),
+        8080
+    );
 }
 
 #[test]

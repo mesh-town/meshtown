@@ -1,11 +1,11 @@
 //! Merging of hints from several discovery sources: keeps live hints per node and source.
 //! Rank: `"manual"` first, then the `order` sequence, the rest by name.
 
-use crate::net::addr::{AddrHint, PeerAddr};
-use crate::net::discovery::Discovery;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::stream::BoxFuture;
+use crate::transport::net::addr::{AddrHint, PeerAddr};
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::stream::BoxFuture;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
@@ -233,7 +233,11 @@ impl DiscoveryMux {
         })
     }
 
-    async fn publish_one(src: Arc<dyn Discovery>, own_addr: PeerAddr, limit: Duration) -> NetResult<()> {
+    async fn publish_one(
+        src: Arc<dyn Discovery>,
+        own_addr: PeerAddr,
+        limit: Duration,
+    ) -> NetResult<()> {
         let sent = tokio::time::timeout(limit, src.publish(&own_addr)).await;
         sent.unwrap_or(Err(NetError::Timeout))
     }

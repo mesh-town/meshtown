@@ -5,18 +5,18 @@
 //! directly or to ask someone from the list; there is no auto-routing by domain checks any more.
 //! What it does not do: it does not open connections, does not consider the request's domain (one decision for all
 //! connections at once), and does not move to the next candidate if the chosen one answered with a refusal code.
-//! Links: the node's exit list comes from `crate::node_state::read_exit_flags` through the document
-//! `crate::domains::DomainList`; members from `crate::membership::Members`; the decision is carried out by
+//! Links: the node's exit list comes from `crate::node::node_state::read_exit_flags` through the document
+//! `crate::proxy::domains::DomainList`; members from `crate::members::membership::Members`; the decision is carried out by
 //! `crate::proxy` and the console; the same `choose_route` is called by the state snapshot.
 
 use std::collections::{HashMap, HashSet};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 use anyhow::Result;
 
-use crate::domains::DomainList;
-use crate::membership::Members;
-use crate::node_state;
+use crate::members::membership::Members;
+use crate::node::node_state;
+use crate::proxy::domains::DomainList;
 
 /// Route decision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,7 +83,12 @@ pub struct RouteCtx {
 }
 
 impl RouteCtx {
-    pub fn new(members: Members, doc_source: DomainList, me: PeerId, chosen_exits: Vec<PeerId>) -> RouteCtx {
+    pub fn new(
+        members: Members,
+        doc_source: DomainList,
+        me: PeerId,
+        chosen_exits: Vec<PeerId>,
+    ) -> RouteCtx {
         let chosen_exits = std::sync::Arc::new(tokio::sync::watch::Sender::new(chosen_exits));
         RouteCtx::with_shared_exits(members, doc_source, me, chosen_exits)
     }
@@ -123,7 +128,9 @@ impl RouteCtx {
         let mut rx = self.chosen_exits.subscribe();
         // `wait_for` looks at the current value first — if `peer` is already absent, it returns
         // immediately. An error (the sender was dropped together with the node) is also a reason to finish.
-        let _ = rx.wait_for(|chosen_exits| !chosen_exits.contains(&peer)).await;
+        let _ = rx
+            .wait_for(|chosen_exits| !chosen_exits.contains(&peer))
+            .await;
     }
 
     /// Chooses a route now. The domain is not involved — one decision for all connections; the same decision
@@ -134,7 +141,8 @@ impl RouteCtx {
             return Ok(Route::Direct);
         }
         let online = self.members.ids();
-        let serving = node_state::read_exit_flags(self.doc_source.shared_replica().as_ref()).await?;
+        let serving =
+            node_state::read_exit_flags(self.doc_source.shared_replica().as_ref()).await?;
         Ok(choose_route(&chosen, self.me, &online, &serving))
     }
 }

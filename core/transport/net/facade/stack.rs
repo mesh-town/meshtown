@@ -2,13 +2,13 @@
 //! Closing goes in one order: discovery, acceptor, handlers, transports.
 
 use super::services::HandlerSet;
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::discovery_mux::{DiscoveryMux, MANUAL_SOURCE};
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::PeerId;
-use crate::net::link::NetInfo;
-use crate::net::service::ServiceId;
-use crate::net::transport::{PeerConn, Transport};
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::discovery_mux::{DiscoveryMux, MANUAL_SOURCE};
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::transport::{PeerConn, Transport};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError, Weak};
 use tokio::task::JoinHandle;
@@ -94,7 +94,11 @@ impl NetStack {
 
     /// Connection to a ready address: the first transport in order with `can_reach` gets its hints and
     /// dials; no suitable transport — `NoRoute`, stack closed — `Closed`, own id — `NoRoute`.
-    pub async fn connect_addr(&self, addr: &PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
+    pub async fn connect_addr(
+        &self,
+        addr: &PeerAddr,
+        svc: ServiceId,
+    ) -> NetResult<Arc<dyn PeerConn>> {
         if self.0.closed.load(Ordering::SeqCst) {
             return Err(NetError::Closed);
         }

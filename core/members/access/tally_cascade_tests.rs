@@ -2,12 +2,10 @@
 //! determinism (order of input, ties, the round cap) and attack scenarios on 2, 3 and 5 nodes.
 //! Helpers (`cast`, `scene`, `members`, ...) come from `tally_tests.rs`.
 
-use super::tests::{
-    by_votes, cast, excluded, left, members, scene, set, waiting, Cast, Scene,
-};
+use super::tests::{by_votes, cast, excluded, left, members, scene, set, waiting, Cast, Scene};
 use super::*;
-use crate::net::contract::pid;
-use crate::net::PeerId;
+use crate::transport::net::contract::pid;
+use crate::transport::net::PeerId;
 use std::collections::BTreeMap;
 
 // --- cascade ---
@@ -16,7 +14,10 @@ use std::collections::BTreeMap;
 fn admits_by_excluded_author_stop_counting() {
     // given: M admits A and B, A admits D; M and B vote against A
     let Cast { m, a, b, d, .. } = cast();
-    let s = members(m, &[a, b]).admit(a, d).vote(m, a, 10).vote(b, a, 20);
+    let s = members(m, &[a, b])
+        .admit(a, d)
+        .vote(m, a, 10)
+        .vote(b, a, 20);
     // when: tallied
     let ledger = s.ledger();
     // then: A is out, and D, admitted by A alone, is neither listed nor excluded
@@ -54,8 +55,19 @@ fn exclusion_survives_admitter_exclusion() {
 #[test]
 fn voter_dropped_by_cascade_keeps_past_exclusion() {
     // given: Y admitted X, M admitted W; X and Z vote against Y (an input that makes a naive fixed point flip)
-    let Cast { m, a: y, b: x, c: z, d: w, .. } = cast();
-    let s = members(m, &[y, z]).admit(y, x).admit(m, w).vote(x, y, 10).vote(z, y, 20);
+    let Cast {
+        m,
+        a: y,
+        b: x,
+        c: z,
+        d: w,
+        ..
+    } = cast();
+    let s = members(m, &[y, z])
+        .admit(y, x)
+        .admit(m, w)
+        .vote(x, y, 10)
+        .vote(z, y, 20);
     // when: tallied
     let ledger = s.ledger();
     // then: the vote of X was lawful when cast, so Y is excluded though X dropped out afterwards
@@ -83,12 +95,19 @@ fn shuffled_input_gives_same_ledger() {
     // given: ten nodes, eleven admits, thirty votes with ties in time and repeated pairs
     let (admits, votes) = crowd();
     let base = crowd_scene(&admits, &votes).ledger();
-    assert!(!base.excluded.is_empty() && !base.pending.is_empty(), "scenario must exercise both");
+    assert!(
+        !base.excluded.is_empty() && !base.pending.is_empty(),
+        "scenario must exercise both"
+    );
     for seed in 1..=20 {
         // when: both record lists are shuffled
         let (admits, votes) = (shuffled(&admits, seed), shuffled(&votes, seed + 100));
         // then: the ledger is the same
-        assert_eq!(crowd_scene(&admits, &votes).ledger(), base, "shuffle {seed}");
+        assert_eq!(
+            crowd_scene(&admits, &votes).ledger(),
+            base,
+            "shuffle {seed}"
+        );
     }
 }
 
@@ -99,9 +118,16 @@ fn equal_timestamps_ordered_by_author_bytes() {
     let (lo, hi) = (p.min(q), p.max(q));
     for (me, other) in [(p, q), (q, p)] {
         // when: tallied from either side
-        let ledger = members(me, &[other]).vote(lo, hi, 5).vote(hi, lo, 5).ledger();
+        let ledger = members(me, &[other])
+            .vote(lo, hi, 5)
+            .vote(hi, lo, 5)
+            .ledger();
         // then: the voter with smaller bytes went first, so the one it targeted is excluded
-        assert_eq!(ledger.excluded, excluded(&[(hi, by_votes(5, &[lo]))]), "me = {me:?}");
+        assert_eq!(
+            ledger.excluded,
+            excluded(&[(hi, by_votes(5, &[lo]))]),
+            "me = {me:?}"
+        );
         assert!(ledger.is_member(&lo));
     }
 }
@@ -128,7 +154,10 @@ fn stops_at_round_cap() {
     // then: the cap is reported, the earlier candidate B is excluded, D still waits
     assert!(!finished, "settling must report that it ran into the cap");
     assert_eq!(pass.excluded, excluded(&[(b, by_votes(30, &[a, c]))]));
-    assert!(pass.pending.contains_key(&d), "the second candidate stays in pending");
+    assert!(
+        pass.pending.contains_key(&d),
+        "the second candidate stays in pending"
+    );
 }
 
 #[test]
@@ -150,7 +179,10 @@ fn settle_with_enough_rounds_excludes_both_candidates() {
 fn witness_keeps_invitee_of_excluded_admitter() {
     // given: me = A; A admits M, B and X (a witness record), M admits X; A and B vote against M
     let Cast { m, a, b, x, .. } = cast();
-    let s = members(a, &[m, b, x]).admit(m, x).vote(a, m, 10).vote(b, m, 20);
+    let s = members(a, &[m, b, x])
+        .admit(m, x)
+        .vote(a, m, 10)
+        .vote(b, m, 20);
     // when: tallied
     let ledger = s.ledger();
     // then: M is out, X stays a member through A's own record
@@ -175,7 +207,11 @@ fn colluding_pair_backdates_against_proposer_in_five() {
     // given: me = B admits A, C, M, X; M and X exclude A at 20; A votes against M at 100 (backdated); B at 200
     let Cast { m, a, b, c, x, .. } = cast();
     let s = members(b, &[a, c, m, x]);
-    let s = s.vote(m, a, 10).vote(x, a, 20).vote(a, m, 100).vote(b, m, 200);
+    let s = s
+        .vote(m, a, 10)
+        .vote(x, a, 20)
+        .vote(a, m, 100)
+        .vote(b, m, 200);
     // when: tallied
     let ledger = s.ledger();
     // then: A is out at 20, its vote against M is void, and M waits with the single vote of B
@@ -188,7 +224,12 @@ fn honest_second_vote_still_excludes_colluder_in_five() {
     // given: the same, and C votes against M at 300
     let Cast { m, a, b, c, x, .. } = cast();
     let s = members(b, &[a, c, m, x]);
-    let s = s.vote(m, a, 10).vote(x, a, 20).vote(a, m, 100).vote(b, m, 200).vote(c, m, 300);
+    let s = s
+        .vote(m, a, 10)
+        .vote(x, a, 20)
+        .vote(a, m, 100)
+        .vote(b, m, 200)
+        .vote(c, m, 300);
     // when: tallied
     let ledger = s.ledger();
     // then: M is excluded by B and C, in order of time
@@ -219,7 +260,9 @@ fn pass_with_two_candidates() -> Pass {
     let mut pass = Pass::new(&input);
     for (subject, first_ts) in [(b, 10), (d, 20)] {
         let votes = [(first_ts, a), (first_ts + 1, c)];
-        let rows = votes.iter().map(|&(ts, voter)| ((ts, voter, subject), voter));
+        let rows = votes
+            .iter()
+            .map(|&(ts, voter)| ((ts, voter, subject), voter));
         pass.pending.insert(subject, rows.collect());
     }
     pass
@@ -231,7 +274,19 @@ type Rows = (Vec<(PeerId, PeerId)>, Vec<(PeerId, PeerId, u64)>);
 
 fn crowd() -> Rows {
     let node = |i: usize| pid(1 + (i % 10) as u8);
-    let edges = [(0, 1), (0, 2), (1, 3), (2, 4), (3, 5), (4, 6), (5, 7), (6, 8), (7, 9), (1, 4), (2, 5)];
+    let edges = [
+        (0, 1),
+        (0, 2),
+        (1, 3),
+        (2, 4),
+        (3, 5),
+        (4, 6),
+        (5, 7),
+        (6, 8),
+        (7, 9),
+        (1, 4),
+        (2, 5),
+    ];
     let edges = [&edges[..], &[(0, 3), (0, 6), (0, 7), (1, 8), (2, 9)]].concat();
     let admits = edges.iter().map(|&(x, y)| (node(x), node(y))).collect();
     let votes = (0..30).map(|i| crowd_vote(i, node)).collect();
@@ -247,7 +302,9 @@ fn crowd_vote(i: usize, node: impl Fn(usize) -> PeerId) -> (PeerId, PeerId, u64)
 fn crowd_scene(admits: &[(PeerId, PeerId)], votes: &[(PeerId, PeerId, u64)]) -> Scene {
     let first = pid(1);
     let s = admits.iter().fold(scene(first), |s, &(x, y)| s.admit(x, y));
-    votes.iter().fold(s, |s, &(voter, subject, ts)| s.vote(voter, subject, ts))
+    votes
+        .iter()
+        .fold(s, |s, &(voter, subject, ts)| s.vote(voter, subject, ts))
 }
 
 /// Deterministic Fisher-Yates shuffle (xorshift), so a failure repeats.

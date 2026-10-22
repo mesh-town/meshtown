@@ -1,7 +1,7 @@
 //! Tests of the check schedule: interval offset and the "already being checked" lock (`schedule.rs`).
 
 use super::*;
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 #[test]
 fn offset_is_stable_and_inside_interval() {
@@ -20,7 +20,10 @@ fn first_check_is_within_a_minute_regardless_of_interval() {
     for seed in 1..=20 {
         for domain in ["example.com", "dom.example.net", "a.b.c.d.example.org"] {
             let d = first_check_delay(peer(seed), domain);
-            assert!(d >= FIRST_DELAY && d < FIRST_DELAY + FIRST_SPREAD, "{seed} {domain}: {d:?}");
+            assert!(
+                d >= FIRST_DELAY && d < FIRST_DELAY + FIRST_SPREAD,
+                "{seed} {domain}: {d:?}"
+            );
         }
     }
 }

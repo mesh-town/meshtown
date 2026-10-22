@@ -1,9 +1,9 @@
 //! `MemNet::transport`: the full `mem` transport — the hub link plus the `MemCarrier` carrier.
 
-use crate::net::id::NodeSecret;
-use crate::net::mem::carrier::MemCarrier;
-use crate::net::mem::hub::MemNet;
-use crate::net::split::SplitTransport;
+use crate::transport::net::id::NodeSecret;
+use crate::transport::net::mem::carrier::MemCarrier;
+use crate::transport::net::mem::hub::MemNet;
+use crate::transport::net::split::SplitTransport;
 use std::sync::Arc;
 
 impl MemNet {

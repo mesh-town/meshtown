@@ -5,8 +5,8 @@
 use super::*;
 use std::collections::BTreeSet;
 
-use crate::access::record::{block_key, encode, exclude_key, withdraw};
-use crate::net::NodeSecret;
+use crate::members::access::record::{block_key, encode, exclude_key, withdraw};
+use crate::transport::net::NodeSecret;
 
 mod restart {
     use super::*;
@@ -22,8 +22,15 @@ mod restart {
         // when: it starts again, and the cache now holds a new neighbour too
         let out = rig.when_boot(&[], &[x, newcomer], NOW + 3600).await;
         // then: the new one is written, the old record stays as it was (same time, still `Invite`)
-        assert_eq!(rig.admits().await, admits_of(&[(x, Via::Invite), (newcomer, Via::Witness)]));
-        assert_eq!(rig.shared.get(rig.me, &admit_key(&x)).await.unwrap(), stored, "the record of X was rewritten");
+        assert_eq!(
+            rig.admits().await,
+            admits_of(&[(x, Via::Invite), (newcomer, Via::Witness)])
+        );
+        assert_eq!(
+            rig.shared.get(rig.me, &admit_key(&x)).await.unwrap(),
+            stored,
+            "the record of X was rewritten"
+        );
         assert_eq!(out, 1);
     }
 
@@ -109,7 +116,10 @@ mod never_admits {
         // when: the first boot
         let out = rig.when_boot(&[initial], &[cached], NOW).await;
         // then: no admits, the marker is written all the same
-        assert!(rig.admits().await.is_empty(), "a node that left admits nobody");
+        assert!(
+            rig.admits().await.is_empty(),
+            "a node that left admits nobody"
+        );
         assert_eq!(out, 0);
         assert!(rig.marker().await.is_some(), "the marker must be written");
     }
@@ -131,9 +141,20 @@ mod ceiling {
         let written = rig.admits().await;
         assert_eq!(written.len(), 256);
         assert_eq!(out, 256);
-        assert!(cached.iter().all(|c| written.get(c) == Some(&Via::None)), "every witness must be written and promoted");
-        assert!(authors[44..].iter().all(|a| written.get(a) == Some(&Via::Migration)), "the newest 156 authors");
-        assert!(authors[..44].iter().all(|a| !written.contains_key(a)), "the oldest 44 authors");
+        assert!(
+            cached.iter().all(|c| written.get(c) == Some(&Via::None)),
+            "every witness must be written and promoted"
+        );
+        assert!(
+            authors[44..]
+                .iter()
+                .all(|a| written.get(a) == Some(&Via::Migration)),
+            "the newest 156 authors"
+        );
+        assert!(
+            authors[..44].iter().all(|a| !written.contains_key(a)),
+            "the oldest 44 authors"
+        );
     }
 
     #[tokio::test]
@@ -143,7 +164,12 @@ mod ceiling {
         let (cached, authors) = (many_ids(1, 100), many_ids(2, 200));
         rig.given_authors_by_age(&authors);
         let snap = rig.shared.scan(b"").await.unwrap();
-        let boot = AccessBoot { me: rig.me, initial: vec![], cached: cached.clone(), now_unix: NOW };
+        let boot = AccessBoot {
+            me: rig.me,
+            initial: vec![],
+            cached: cached.clone(),
+            now_unix: NOW,
+        };
         // when: the plan is made with the migration on
         let plan = plan_admits(&snap, &BTreeSet::new(), &boot, Some(NOW));
         // then: the witnesses first, 156 authors, 44 skipped, and the order is newest first
@@ -151,7 +177,10 @@ mod ceiling {
         assert_eq!(plan.migration.len(), 156);
         assert_eq!(plan.skipped, 44);
         let newest_first: Vec<PeerId> = authors[44..].iter().rev().copied().collect();
-        assert_eq!(plan.migration, newest_first, "authors by their last record, newest first");
+        assert_eq!(
+            plan.migration, newest_first,
+            "authors by their last record, newest first"
+        );
     }
 
     #[tokio::test]
@@ -178,7 +207,10 @@ mod log_line {
         // given: plans that carry real node ids, for every class of a boot
         let ids = [pid(2), pid(3), pid(4)];
         let plan = plan_of(&ids[..2], &ids[2..], 7, 3);
-        let left = BootPlan { me_left: true, ..plan_of(&[], &[], 0, 0) };
+        let left = BootPlan {
+            me_left: true,
+            ..plan_of(&[], &[], 0, 0)
+        };
         // when: the lines are made
         let lines = [
             boot_line(Class::Legacy, &plan, 3),
@@ -190,9 +222,19 @@ mod log_line {
         // then: ASCII, no id in any spelling, no long run of hex letters and digits
         for line in &lines {
             assert!(line.is_ascii(), "not ASCII: {line}");
-            assert!(line.starts_with("acl boot: "), "the prefix the manual run looks for: {line}");
-            assert!(ids.iter().all(|id| !line.contains(&id.to_string())), "full id in: {line}");
-            assert!(ids.iter().all(|id| !line.contains(&id.fmt_short().to_string())), "short id in: {line}");
+            assert!(
+                line.starts_with("acl boot: "),
+                "the prefix the manual run looks for: {line}"
+            );
+            assert!(
+                ids.iter().all(|id| !line.contains(&id.to_string())),
+                "full id in: {line}"
+            );
+            assert!(
+                ids.iter()
+                    .all(|id| !line.contains(&id.fmt_short().to_string())),
+                "short id in: {line}"
+            );
             assert!(!has_hex_word(line), "a hex-looking word in: {line}");
         }
     }
@@ -207,11 +249,26 @@ mod log_line {
             boot_line(Class::Legacy, &plan, 3),
             "acl boot: legacy, admitted 3 (witness 2, migration 1)"
         );
-        assert_eq!(boot_line(Class::Fresh, &plan, 2), "acl boot: fresh, admitted 2");
-        assert_eq!(boot_line(Class::Done, &plan, 1), "acl boot: done earlier, admitted 1");
-        assert_eq!(boot_line(Class::Done, &plan, 0), "acl boot: done earlier, admitted 0");
-        let left = BootPlan { me_left: true, ..plan_of(&[], &[], 0, 0) };
-        assert_eq!(boot_line(Class::Left, &left, 0), "acl boot: left the network, nothing admitted");
+        assert_eq!(
+            boot_line(Class::Fresh, &plan, 2),
+            "acl boot: fresh, admitted 2"
+        );
+        assert_eq!(
+            boot_line(Class::Done, &plan, 1),
+            "acl boot: done earlier, admitted 1"
+        );
+        assert_eq!(
+            boot_line(Class::Done, &plan, 0),
+            "acl boot: done earlier, admitted 0"
+        );
+        let left = BootPlan {
+            me_left: true,
+            ..plan_of(&[], &[], 0, 0)
+        };
+        assert_eq!(
+            boot_line(Class::Left, &left, 0),
+            "acl boot: left the network, nothing admitted"
+        );
     }
 
     #[test]
@@ -220,8 +277,14 @@ mod log_line {
         let plan = plan_of(&[pid(2)], &[], 44, 3);
         let only_skipped = plan_of(&[pid(2)], &[], 44, 0);
         // when / then: the tail names the counts, in this order, and is absent for zero
-        assert_eq!(boot_line(Class::Fresh, &plan, 1), "acl boot: fresh, admitted 1, skipped 44, ignored 3");
-        assert_eq!(boot_line(Class::Fresh, &only_skipped, 1), "acl boot: fresh, admitted 1, skipped 44");
+        assert_eq!(
+            boot_line(Class::Fresh, &plan, 1),
+            "acl boot: fresh, admitted 1, skipped 44, ignored 3"
+        );
+        assert_eq!(
+            boot_line(Class::Fresh, &only_skipped, 1),
+            "acl boot: fresh, admitted 1, skipped 44"
+        );
     }
 }
 
@@ -230,32 +293,68 @@ mod log_line {
 impl Rig {
     /// An admit record written by another author.
     fn given_admit_by(&self, author: PeerId, subject: PeerId) {
-        let value = AclValue { kind: AclKind::Admit, subject, via: Via::Invite, made_unix: 111, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Admit,
+            subject,
+            via: Via::Invite,
+            made_unix: 111,
+            note: String::new(),
+        };
         self.given_list_record(author, admit_key(&subject), &value, 1_000);
     }
 
     /// An exclusion vote written by another author at the given time.
     fn given_vote_by(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
-        let value = AclValue { kind: AclKind::Exclude, subject, via: Via::None, made_unix: 111, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Exclude,
+            subject,
+            via: Via::None,
+            made_unix: 111,
+            note: String::new(),
+        };
         self.given_list_record(voter, exclude_key(&subject), &value, ts_micros);
     }
 
     fn given_list_record(&self, author: PeerId, key: Vec<u8>, value: &AclValue, ts_micros: u64) {
         let value = Bytes::from(encode(value));
-        self.shared.put_raw(ReplicaEntry { author, key, value, ts_micros });
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key,
+            value,
+            ts_micros,
+        });
     }
 
     /// My own vote to exclude the subject (the subject may be the node itself: leaving).
     async fn given_own_vote(&self, subject: PeerId) {
-        let value = AclValue { kind: AclKind::Exclude, subject, via: Via::None, made_unix: 111, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Exclude,
+            subject,
+            via: Via::None,
+            made_unix: 111,
+            note: String::new(),
+        };
         put(&*self.shared, &value).await.unwrap();
     }
 
     /// A block of the subject in the own (local) replica.
     pub(super) async fn given_block(&self, subject: PeerId) {
-        let value = AclValue { kind: AclKind::Block, subject, via: Via::None, made_unix: 111, note: String::new() };
+        let value = AclValue {
+            kind: AclKind::Block,
+            subject,
+            via: Via::None,
+            made_unix: 111,
+            note: String::new(),
+        };
         put(&*self.own, &value).await.unwrap();
-        assert!(self.own.get(self.me, &block_key(&subject)).await.unwrap().is_some(), "the block must be stored");
+        assert!(
+            self.own
+                .get(self.me, &block_key(&subject))
+                .await
+                .unwrap()
+                .is_some(),
+            "the block must be stored"
+        );
     }
 
     /// One record per author; the later in the list, the newer (an hour apart, all within 9 days).
@@ -278,11 +377,19 @@ fn many_ids(tag: u8, n: usize) -> Vec<PeerId> {
 }
 
 fn plan_of(witness: &[PeerId], migration: &[PeerId], skipped: usize, ignored: usize) -> BootPlan {
-    BootPlan { witness: witness.to_vec(), migration: migration.to_vec(), skipped, ignored, me_left: false, promote: Vec::new() }
+    BootPlan {
+        witness: witness.to_vec(),
+        migration: migration.to_vec(),
+        skipped,
+        ignored,
+        me_left: false,
+        promote: Vec::new(),
+    }
 }
 
 /// A run of 8 or more hex characters that contains a letter: the look of an id (a plain number is no id).
 fn has_hex_word(line: &str) -> bool {
     let is_hex = |c: char| c.is_ascii_hexdigit() && !c.is_ascii_uppercase();
-    line.split(|c: char| !is_hex(c)).any(|run| run.len() >= 8 && run.chars().any(|c| c.is_ascii_alphabetic()))
+    line.split(|c: char| !is_hex(c))
+        .any(|run| run.len() >= 8 && run.chars().any(|c| c.is_ascii_alphabetic()))
 }

@@ -10,19 +10,15 @@
 //! to the node page: the request, response parsing and classification into `Reply`/`ApiError`;
 //! `proxy_state` (the proxy menu item: the address or the reason it is "off" — the settings or a run flag), `start_note` (the reason the node didn't start and its menu lines), `tray_texts` (the dictionary: all the user-facing strings of the tray screen — menu, hints, the macOS dialog; log and error lines stay with the code), `tray_actions` (the texts of the "Invite a member" tray items),
 //! `tray_role` — the `tray` subcommand: finds or starts the node over HTTP (through `local_api`) and
-//! drives the icon; `console` — Windows output without a console by process
-//! role.
+//! drives the icon.
 //! What it doesn't do: it doesn't parse command line flags — that is `main.rs`, which calls
 //! `tray_role::run_tray` from the `CliCommand::Tray` branch; the node itself (the `CliCommand::Run` branch) this module
 //! doesn't touch at all (the node page is the code of `main.rs`/`web`/`node`, not the `page` stub).
 //! Links: `view`, `view_picture`, `view_disk`, `view_ring`, `view_ring_paint` and `quit` are `pub(crate)`, `tray` reads them (a neighbor
 //! at the binary root, not a descendant of `app`); `mode` is private, only `tray_role` calls it;
 //! `mode`, `quit`, `view`, `view_picture`, `view_ring`, `view_ring_paint`, `tray_role` are under the build feature
-//! `tray` (on by default), in a thin build `app` consists of `console` only;
-//! `console` has no feature, every role needs it, `main` calls its `init()` on the first line, before any
-//! printing.
+//! `tray` (on by default).
 
-pub(crate) mod console;
 #[cfg(feature = "tray")]
 pub(crate) mod exit_menu;
 #[cfg(feature = "tray")]
@@ -30,9 +26,9 @@ mod local_api;
 #[cfg(feature = "tray")]
 pub(crate) mod members_note;
 #[cfg(feature = "tray")]
-pub(crate) mod proxy_state;
-#[cfg(feature = "tray")]
 mod mode;
+#[cfg(feature = "tray")]
+pub(crate) mod proxy_state;
 #[cfg(feature = "tray")]
 pub(crate) mod quit;
 #[cfg(feature = "tray")]

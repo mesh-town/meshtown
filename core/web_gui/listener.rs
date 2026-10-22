@@ -7,27 +7,29 @@ use super::auth::iface_os::current_view;
 use super::auth::state::AuthState;
 use super::http::ConnInfo;
 use super::{cookie, token, App, NodeControl, WebHandle, WebOptions, WebShared, WebStartError};
-use crate::config_file::ListenAccess;
+use crate::config::config_file::ListenAccess;
 
 /// Starts the node page: binds the listener, prints the announce line and spawns the accept loop.
 /// The token is never printed anywhere —
 /// the log line at the final step doesn't contain it.
 pub async fn start_web_page(
     opts: WebOptions,
-    run_config: &crate::config_file::RunConfig,
+    run_config: &crate::config::config_file::RunConfig,
     node: Arc<dyn NodeControl>,
 ) -> Result<WebHandle, WebStartError> {
     if !opts.enabled {
         return Err(WebStartError::Disabled);
     }
 
-    let (listener, port) = bind_listener(run_config.effective_settings.process.web_access, opts.port).await?;
+    let (listener, port) =
+        bind_listener(run_config.effective_settings.process.web_access, opts.port).await?;
 
-    let token = match token::resolve_web_token(opts.token_dir.as_deref(), opts.fixed_token.clone()) {
+    let token = match token::resolve_web_token(opts.token_dir.as_deref(), opts.fixed_token.clone())
+    {
         Ok(token) => token,
         Err(reason) => {
             let err = WebStartError::Random(reason);
-            crate::output::say("web", err.to_string());
+            crate::node::output::say("web", err.to_string());
             return Err(err);
         }
     };
@@ -53,7 +55,13 @@ pub async fn start_web_page(
 
     announce_start(&shared);
 
-    let task = tokio::spawn(accept_loop(listener, router, shared.clone(), stop_rx, opts.drain));
+    let task = tokio::spawn(accept_loop(
+        listener,
+        router,
+        shared.clone(),
+        stop_rx,
+        opts.drain,
+    ));
 
     Ok(WebHandle {
         shared: app.shared.clone(),
@@ -85,7 +93,7 @@ async fn bind_listener(
 fn announce_start(shared: &WebShared) {
     let urls = shared.issue_entry_urls();
     let text = announce_text(&urls, shared.auth.password_set());
-    crate::output::say("web", text);
+    crate::node::output::say("web", text);
 }
 
 /// The announce text: no password — a link with a one-time token, with a password — sign-in by password.
@@ -148,7 +156,7 @@ async fn accept_loop(
                         }
                     }
                     Err(e) => {
-                        crate::output::say("web", format!("page: connection not accepted ({e})"));
+                        crate::node::output::say("web", format!("page: connection not accepted ({e})"));
                     }
                 }
             }
@@ -159,22 +167,17 @@ async fn accept_loop(
 
     drop(listener);
 
-    let drained = tokio::time::timeout(drain, async {
-        while conns.join_next().await.is_some() {}
-    })
-    .await;
+    let drained =
+        tokio::time::timeout(drain, async { while conns.join_next().await.is_some() {} }).await;
 
     if drained.is_err() {
         let n = conns.len();
         conns.abort_all();
         while conns.join_next().await.is_some() {}
-        crate::output::say(
-            "web",
-            format!("page: {n} connections aborted on stop"),
-        );
+        crate::node::output::say("web", format!("page: {n} connections aborted on stop"));
     }
 
-    crate::output::say("web", "page stopped");
+    crate::node::output::say("web", "page stopped");
 }
 
 /// Margin on top of `deadline` for the shutdown tail: covers a late wake-up of `accept_loop`
@@ -194,7 +197,9 @@ impl WebHandle {
     /// `WebHandle` drops `stop`, `changed()` in the loop returns `Err`, and shutdown follows the same path.
     pub async fn shutdown(self, deadline: std::time::Duration) -> bool {
         let _ = self.stop.send_replace(true);
-        tokio::time::timeout(deadline.saturating_add(SHUTDOWN_GRACE), self.task).await.is_ok()
+        tokio::time::timeout(deadline.saturating_add(SHUTDOWN_GRACE), self.task)
+            .await
+            .is_ok()
     }
 }
 

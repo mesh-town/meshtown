@@ -7,7 +7,7 @@
 //! (`Disabled`/`Nowhere`/`Absent`/broken); `parsed` — the file parsed, a rewrite when data is
 //! lost; `journal` — what to say in the log after the outcome.
 
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 use std::path::PathBuf;
 
 use super::overrides::CliOverrides;
@@ -53,7 +53,12 @@ struct PrepareOutcome {
 
 impl PrepareOutcome {
     /// An outcome without a file write: the other fields are defaults, filled in by `..` in the constructor.
-    fn new(file_settings: Settings, report: FileReport, file_summary: String, secret: NodeSecret) -> Self {
+    fn new(
+        file_settings: Settings,
+        report: FileReport,
+        file_summary: String,
+        secret: NodeSecret,
+    ) -> Self {
         PrepareOutcome {
             file_settings,
             report,
@@ -97,9 +102,9 @@ pub fn prepare(
     let outcome = match source {
         ConfigSource::Disabled => sources::prepare_disabled()?,
         ConfigSource::Nowhere(why) => sources::prepare_nowhere(why)?,
-        ConfigSource::File { path, may_create, .. } => {
-            sources::prepare_file(path, *may_create, cli, save_config, now_unix)?
-        }
+        ConfigSource::File {
+            path, may_create, ..
+        } => sources::prepare_file(path, *may_create, cli, save_config, now_unix)?,
     };
     let PrepareOutcome {
         file_settings,

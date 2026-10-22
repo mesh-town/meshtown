@@ -1,11 +1,11 @@
 //! Service handlers: the table, accepting incoming connections, handing out hints to the transports.
 //! An incoming connection to an unserved service is closed before the handler.
 
-use crate::net::addr::PeerAddr;
-use crate::net::id::PeerId;
-use crate::net::service::ServiceId;
-use crate::net::stream::BoxFuture;
-use crate::net::transport::{PeerConn, Transport};
+use crate::transport::net::addr::PeerAddr;
+use crate::transport::net::id::PeerId;
+use crate::transport::net::service::ServiceId;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::transport::{PeerConn, Transport};
 use std::sync::{Arc, Mutex, PoisonError};
 use tokio::sync::broadcast::{self, error::RecvError};
 use tokio::task::JoinSet;
@@ -68,7 +68,12 @@ pub(super) async fn accept_loop(
     }
 }
 
-fn dispatch(table: &ServiceTable, handler_tasks: &HandlerSet, svc: ServiceId, conn: Arc<dyn PeerConn>) {
+fn dispatch(
+    table: &ServiceTable,
+    handler_tasks: &HandlerSet,
+    svc: ServiceId,
+    conn: Arc<dyn PeerConn>,
+) {
     let Some(handler) = table.get(svc) else {
         tracing::warn!(peer = %conn.peer(), "incoming connection to an unserved service closed");
         conn.close(UNSERVED_CODE, b"unserved");

@@ -52,24 +52,30 @@ impl Fx {
             .await
             .expect("stream opened");
         pair.send.write_all(frame).await.expect("frame sent");
-        pair.send
-            .shutdown()
-            .await
-            .expect("client side closed");
+        pair.send.shutdown().await.expect("client side closed");
         let reply = read_reply(&mut pair.recv).await;
         (pair, reply)
     }
 
     /// Waits until the exit registers the client (registration happens after `EXIT_CODE_OK`).
     pub(super) async fn wait_client_listed(&self) {
-        while !self.cfg.clients.active_peers_at(Instant::now()).contains(&pid(1)) {
+        while !self
+            .cfg
+            .clients
+            .active_peers_at(Instant::now())
+            .contains(&pid(1))
+        {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }
 
     /// End of `handle`'s work (its future returned).
     pub(super) async fn handle_ended(&self) {
-        self.ended.acquire().await.expect("semaphore alive").forget();
+        self.ended
+            .acquire()
+            .await
+            .expect("semaphore alive")
+            .forget();
     }
 }
 

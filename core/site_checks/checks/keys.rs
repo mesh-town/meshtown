@@ -1,9 +1,9 @@
 //! The check record key in the shared document (`chk/<domain>/`) and a snapshot of one node for one
 //! domain (`CheckView`), which `store.rs` assembles from here.
 
-use crate::domains;
-use crate::net::PeerId;
-use crate::reachability::CheckRecord;
+use crate::proxy::domains;
+use crate::site_checks::reachability::CheckRecord;
+use crate::transport::net::PeerId;
 
 /// Key prefix of check results in the document.
 pub const CHECK_PREFIX: &str = "chk/";

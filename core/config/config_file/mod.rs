@@ -7,7 +7,7 @@
 //! Related: `main.rs` calls `resolve_config_source` and `prepare`; the result goes to `node::NodeConfig`.
 //!
 //! Parsing by file (this entry point only declares them and re-exports the public path
-//! `crate::config_file::*`, so callers don't notice the move into a folder):
+//! `crate::config::config_file::*`, so callers don't notice the move into a folder):
 //! `settings` — the `Settings` document (two blocks) and the `TransportMode`/`ListenAccess` enums;
 //! `process_settings`/`net_settings` — the `ProcessSettings` (process host) and `NetSettings` blocks
 //! (what the node reads); `path` — finding the file on disk; `time` —
@@ -18,13 +18,13 @@
 
 pub(crate) mod fields;
 mod iface_filter;
+mod net_settings;
 mod overrides;
 mod parse;
 mod parse_fields;
 mod parse_ports;
-mod presence;
-mod net_settings;
 mod path;
+mod presence;
 mod process_settings;
 mod render;
 mod report;
@@ -38,22 +38,22 @@ mod time;
 pub(crate) mod test_support;
 
 pub use iface_filter::IfaceFilter;
-pub use presence::has_field;
+pub use net_settings::NetSettings;
 pub use overrides::CliOverrides;
 pub use parse::{load_config_file, parse_text, LoadedConfigFile, ParsedConfigFile, SecretRead};
 pub use path::{
     current_env, is_root_linux, resolve_config_source, standard_path, ConfigSource, CurrentEnv, Os,
     PathEnv, PathRule,
 };
-pub use render::render_config_file;
-pub use retired::port_flag_warning;
-pub use report::{FieldError, FileReport, FileState};
-pub use run::{create_fresh, new_secret, prepare, Fresh, RunConfig};
-pub use save::{save_config_file, save_with_floor, set_aside_bad, SaveError};
-pub(crate) use save::write_tmp_and_rename;
-pub use net_settings::NetSettings;
+pub use presence::has_field;
 pub use process_settings::ProcessSettings;
-pub use settings::{Settings, TransportMode, ListenAccess};
+pub use render::render_config_file;
+pub use report::{FieldError, FileReport, FileState};
+pub use retired::port_flag_warning;
+pub use run::{create_fresh, new_secret, prepare, Fresh, RunConfig};
+pub(crate) use save::write_tmp_and_rename;
+pub use save::{save_config_file, save_with_floor, set_aside_bad, SaveError};
+pub use settings::{ListenAccess, Settings, TransportMode};
 pub use time::{iso_utc, stamp_utc, utc_parts};
 
 pub const FILE_NAME: &str = "config.json";

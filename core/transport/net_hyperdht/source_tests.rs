@@ -3,12 +3,12 @@
 //! is verified by reading. Pacing in milliseconds.
 
 use super::*;
-use crate::net::contract::discovery::{addr_of, discovery_contract, feed};
-use crate::net::contract::{pid, must_finish, DiscoveryHarness, SEED_A, SEED_B, SEED_C};
-use crate::net::{BoxFuture, Discovery, NetResult, PeerAddr};
-use crate::net_hyperdht::mem::MemRecords;
-use crate::net_hyperdht::store::{Record, RecordKey, RecordStore};
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::contract::discovery::{addr_of, discovery_contract, feed};
+use crate::transport::net::contract::{must_finish, pid, DiscoveryHarness, SEED_A, SEED_B, SEED_C};
+use crate::transport::net::{BoxFuture, Discovery, NetResult, PeerAddr};
+use crate::transport::net_hyperdht::mem::MemRecords;
+use crate::transport::net_hyperdht::store::{Record, RecordKey, RecordStore};
 use std::sync::atomic::{AtomicU8, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,7 +48,10 @@ impl DiscoveryHarness for HyperDhtHarness {
 }
 
 fn hyperdht_harness() -> HyperDhtHarness {
-    HyperDhtHarness { store: Arc::new(MemRecords::new()), next: AtomicU8::new(100) }
+    HyperDhtHarness {
+        store: Arc::new(MemRecords::new()),
+        next: AtomicU8::new(100),
+    }
 }
 
 fn source_over(store: Arc<dyn RecordStore>, me: Option<u8>) -> Arc<HyperDhtDiscovery> {
@@ -64,7 +67,11 @@ struct Lossy {
 
 impl Lossy {
     fn new(drop: usize) -> Arc<Self> {
-        Arc::new(Self { inner: MemRecords::new(), drop: AtomicUsize::new(drop), puts: AtomicUsize::new(0) })
+        Arc::new(Self {
+            inner: MemRecords::new(),
+            drop: AtomicUsize::new(drop),
+            puts: AtomicUsize::new(0),
+        })
     }
 }
 
@@ -77,7 +84,9 @@ impl RecordStore for Lossy {
         self.puts.fetch_add(1, Ordering::SeqCst);
         // `try_update` needs Rust 1.95, above the MSRV (1.94).
         #[allow(deprecated)]
-        let lost = self.drop.fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
+        let lost = self
+            .drop
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1));
         match lost {
             Ok(_) => Box::pin(async { Ok(()) }),
             Err(_) => self.inner.put(key, value, seq),
@@ -85,12 +94,20 @@ impl RecordStore for Lossy {
     }
 }
 
-async fn stored(store: &dyn RecordStore) -> Vec<crate::net_mainline::record::RosterEntry> {
-    let (r, _) = roster::read(store, &keys()).await.expect("read").expect("record exists");
+async fn stored(
+    store: &dyn RecordStore,
+) -> Vec<crate::transport::net_mainline::record::RosterEntry> {
+    let (r, _) = roster::read(store, &keys())
+        .await
+        .expect("read")
+        .expect("record exists");
     r.entries
 }
 
-async fn collect(rx: &mut tokio::sync::mpsc::Receiver<PeerAddr>, window: Duration) -> Vec<PeerAddr> {
+async fn collect(
+    rx: &mut tokio::sync::mpsc::Receiver<PeerAddr>,
+    window: Duration,
+) -> Vec<PeerAddr> {
     let mut got = Vec::new();
     let _ = tokio::time::timeout(window, async {
         while let Some(a) = rx.recv().await {
@@ -104,7 +121,10 @@ async fn collect(rx: &mut tokio::sync::mpsc::Receiver<PeerAddr>, window: Duratio
 #[tokio::test]
 async fn run_reports_each_key_once() {
     let store = Arc::new(MemRecords::new());
-    let (a, b) = (source_over(store.clone(), Some(SEED_A)), source_over(store.clone(), Some(SEED_B)));
+    let (a, b) = (
+        source_over(store.clone(), Some(SEED_A)),
+        source_over(store.clone(), Some(SEED_B)),
+    );
     must_finish(a.publish(&addr_of(SEED_A))).await.expect("A");
     must_finish(b.publish(&addr_of(SEED_B))).await.expect("B");
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
@@ -128,7 +148,10 @@ async fn run_skips_own_key() {
     let task = tokio::spawn(a.run_source(tx));
     let got = collect(&mut rx, Duration::from_millis(300)).await;
     task.abort();
-    assert!(got.iter().all(|x| x.id != pid(SEED_A)), "own key handed out: {got:?}");
+    assert!(
+        got.iter().all(|x| x.id != pid(SEED_A)),
+        "own key handed out: {got:?}"
+    );
     assert!(got.iter().any(|x| x.id == pid(SEED_B)));
 }
 
@@ -140,7 +163,10 @@ async fn run_backs_off_on_errors_then_recovers() {
     store.fail_next(3);
     let reader = source_over(store, None);
     let mut found = feed(&(reader as Arc<dyn Discovery>));
-    assert!(found.sees(pid(SEED_A)).await, "key not found after three errors");
+    assert!(
+        found.sees(pid(SEED_A)).await,
+        "key not found after three errors"
+    );
 }
 
 #[tokio::test]
@@ -156,9 +182,14 @@ async fn stalled_store_hits_call_limit() {
 async fn publish_retries_when_record_lost() {
     let store = Lossy::new(1);
     let a = source_over(store.clone(), Some(SEED_A));
-    must_finish(a.publish(&addr_of(SEED_A))).await.expect("publish");
+    must_finish(a.publish(&addr_of(SEED_A)))
+        .await
+        .expect("publish");
     assert_eq!(store.puts.load(Ordering::SeqCst), 2);
-    assert!(stored(&*store).await.iter().any(|e| e.id == *pid(SEED_A).as_bytes()));
+    assert!(stored(&*store)
+        .await
+        .iter()
+        .any(|e| e.id == *pid(SEED_A).as_bytes()));
 }
 
 #[tokio::test]
@@ -174,10 +205,14 @@ async fn publish_gives_up_after_three_tries() {
 async fn publish_ignores_hints() {
     let store = Arc::new(MemRecords::new());
     let a = source_over(store.clone(), Some(SEED_A));
-    must_finish(a.publish(&addr_of(SEED_A))).await.expect("publish");
+    must_finish(a.publish(&addr_of(SEED_A)))
+        .await
+        .expect("publish");
     let entries = stored(&*store).await;
     assert_eq!(store.puts(), 1, "one write per publish");
-    assert!(entries.iter().all(|e| e.relay.is_none() && e.addrs.is_empty()));
+    assert!(entries
+        .iter()
+        .all(|e| e.relay.is_none() && e.addrs.is_empty()));
 }
 
 #[test]
@@ -197,16 +232,31 @@ fn recorder() -> (RoundOutcomeFn, Arc<std::sync::Mutex<Vec<DhtRoundOutcome>>>) {
 #[tokio::test]
 async fn reader_reports_read_with_member_count() {
     let store = Arc::new(MemRecords::new());
-    must_finish(source_over(store.clone(), Some(SEED_A)).publish(&addr_of(SEED_A))).await.expect("A");
-    must_finish(source_over(store.clone(), Some(SEED_B)).publish(&addr_of(SEED_B))).await.expect("B");
+    must_finish(source_over(store.clone(), Some(SEED_A)).publish(&addr_of(SEED_A)))
+        .await
+        .expect("A");
+    must_finish(source_over(store.clone(), Some(SEED_B)).publish(&addr_of(SEED_B)))
+        .await
+        .expect("B");
     let (f, log) = recorder();
-    let reader = Arc::new(HyperDhtDiscovery::new(store, keys(), None).with_pace(test_pace()).with_round_outcome(f));
+    let reader = Arc::new(
+        HyperDhtDiscovery::new(store, keys(), None)
+            .with_pace(test_pace())
+            .with_round_outcome(f),
+    );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
     let task = tokio::spawn(reader.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(150)).await;
     task.abort();
     let first = log.lock().unwrap()[0];
-    assert_eq!(first, DhtRoundOutcome { read: true, members: 2, published: false });
+    assert_eq!(
+        first,
+        DhtRoundOutcome {
+            read: true,
+            members: 2,
+            published: false
+        }
+    );
 }
 
 #[tokio::test]
@@ -214,23 +264,45 @@ async fn get_error_reports_not_read() {
     let store = Arc::new(MemRecords::new());
     store.fail_next(2);
     let (f, log) = recorder();
-    let reader = Arc::new(HyperDhtDiscovery::new(store, keys(), None).with_pace(test_pace()).with_round_outcome(f));
+    let reader = Arc::new(
+        HyperDhtDiscovery::new(store, keys(), None)
+            .with_pace(test_pace())
+            .with_round_outcome(f),
+    );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
     let task = tokio::spawn(reader.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(15)).await;
     task.abort();
     let seen = log.lock().unwrap().clone();
     assert!(!seen.is_empty());
-    assert_eq!(seen[0], DhtRoundOutcome { read: false, members: 0, published: false });
+    assert_eq!(
+        seen[0],
+        DhtRoundOutcome {
+            read: false,
+            members: 0,
+            published: false
+        }
+    );
 }
 
 #[tokio::test]
 async fn publisher_reports_published() {
     let (f, log) = recorder();
-    let a = Arc::new(HyperDhtDiscovery::new(Arc::new(MemRecords::new()), keys(), Some(pid(SEED_A))).with_pace(test_pace()).with_round_outcome(f));
+    let a = Arc::new(
+        HyperDhtDiscovery::new(Arc::new(MemRecords::new()), keys(), Some(pid(SEED_A)))
+            .with_pace(test_pace())
+            .with_round_outcome(f),
+    );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
     let task = tokio::spawn(a.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(100)).await;
     task.abort();
-    assert_eq!(log.lock().unwrap()[0], DhtRoundOutcome { read: true, members: 1, published: true });
+    assert_eq!(
+        log.lock().unwrap()[0],
+        DhtRoundOutcome {
+            read: true,
+            members: 1,
+            published: true
+        }
+    );
 }

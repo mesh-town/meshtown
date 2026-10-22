@@ -19,6 +19,7 @@
 //! — only `TrayCmd`, `QuitSignal`, `LinkFn`, `NodeCmdTx`; it looks at `app::view`/`app::quit`.
 
 mod actions_ui;
+pub mod app;
 mod clipboard;
 mod core;
 mod exit_menu;
@@ -36,7 +37,7 @@ mod vote_item;
 #[cfg(target_os = "windows")]
 mod windows;
 
-use core::log_tray;
 pub(crate) use clipboard::copy_to_clipboard;
-pub use core::{channel, run, Core, NodeCmd, TrayCmd};
+use core::log_tray;
 pub(crate) use core::MENU_OPEN;
+pub use core::{channel, run, Core, NodeCmd, TrayCmd};

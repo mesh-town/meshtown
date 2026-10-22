@@ -3,7 +3,7 @@
 use super::access::IfaceAddr;
 use super::iface_gate::{judge_iface, By, IfaceView};
 use super::iface_kind::{kind_of, IfaceKind};
-use crate::config_file::{IfaceFilter, ListenAccess};
+use crate::config::config_file::{IfaceFilter, ListenAccess};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct NetEntry {
@@ -17,12 +17,7 @@ pub(crate) struct NetEntry {
     pub by: By,
 }
 
-fn entry(
-    mode: ListenAccess,
-    filter: &IfaceFilter,
-    view: &IfaceView,
-    name: &str,
-) -> NetEntry {
+fn entry(mode: ListenAccess, filter: &IfaceFilter, view: &IfaceView, name: &str) -> NetEntry {
     let (open, by, _) = judge_iface(mode, filter, view, Some(name)).meta();
     let addrs = view.addrs.iter().filter(|a| a.name == name);
     NetEntry {
@@ -57,7 +52,11 @@ fn view_names(view: &IfaceView) -> Vec<&str> {
 }
 
 /// The machine's networks: default route first, then by name; then the names from the list that are absent.
-pub(crate) fn networks(mode: ListenAccess, filter: &IfaceFilter, view: &IfaceView) -> Vec<NetEntry> {
+pub(crate) fn networks(
+    mode: ListenAccess,
+    filter: &IfaceFilter,
+    view: &IfaceView,
+) -> Vec<NetEntry> {
     let names = view_names(view);
     let mut out: Vec<NetEntry> = names.iter().map(|n| entry(mode, filter, view, n)).collect();
     if let IfaceFilter::Only(listed) = filter {

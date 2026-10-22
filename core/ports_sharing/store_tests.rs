@@ -1,13 +1,13 @@
 //! Tests of reading and writing publications in an in-memory replica (`store.rs`).
 
-use crate::net::mem::{MemReplica, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::{ReplicaEntry, NodeSecret, PeerId, Replica};
+use crate::transport::net::mem::{MemReplica, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::{NodeSecret, PeerId, Replica, ReplicaEntry};
 use bytes::Bytes;
 use std::sync::Arc;
 
 use super::*;
-use crate::ports::types::Audience;
+use crate::ports_sharing::types::Audience;
 
 mod own_port {
     use super::*;

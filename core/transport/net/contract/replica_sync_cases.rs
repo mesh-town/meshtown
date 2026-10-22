@@ -2,14 +2,14 @@
 //! Data on the other side is awaited by polling up to `STEP` (`wait_scan`); `Synced` is used only as an event for the log
 //! and as "reconciliation finished" where the data has already converged. Entries of different authors are separated by `PAUSE`.
 
-use crate::net::contract::replica_cases::{
-    get, is_remote, latest_per_key, next_event, expect_ok, open, open_net, put, scan, val, wait_scan, Rep, K1, K2,
-    K3, PAUSE, QUIET,
+use crate::transport::net::contract::replica_cases::{
+    expect_ok, get, is_remote, latest_per_key, next_event, open, open_net, put, scan, val,
+    wait_scan, Rep, K1, K2, K3, PAUSE, QUIET,
 };
-use crate::net::contract::{pid, must_finish, SyncPair, SEED_A, SEED_B};
-use crate::net::id::PeerId;
-use crate::net::replica::{live, ReplicaEntry, ReplicaEvent};
-use crate::net::sync_backend::REPLICA_DOMAINS;
+use crate::transport::net::contract::{must_finish, pid, SyncPair, SEED_A, SEED_B};
+use crate::transport::net::id::PeerId;
+use crate::transport::net::replica::{live, ReplicaEntry, ReplicaEvent};
+use crate::transport::net::sync_backend::REPLICA_DOMAINS;
 
 /// Time of the entries of the "tie" case (Unix microseconds): one for both entries.
 const TIE_TS: u64 = 1_700_000_000_000_000;
@@ -57,14 +57,8 @@ pub(crate) async fn sync_delivers_and_reports_synced(pair: SyncPair) {
         "reconciliation result: {synced:?}"
     );
     // and the entries arrive in both directions (by polling, not by Synced)
-    wait_scan(&ra, "entry of B at A", |es| {
-        has(es, pid(SEED_B), K2, "b2")
-    })
-    .await;
-    wait_scan(&rb, "entry of A at B", |es| {
-        has(es, pid(SEED_A), K1, "a1")
-    })
-    .await;
+    wait_scan(&ra, "entry of B at A", |es| has(es, pid(SEED_B), K2, "b2")).await;
+    wait_scan(&rb, "entry of A at B", |es| has(es, pid(SEED_A), K1, "a1")).await;
 }
 
 pub(crate) async fn repeat_sync_no_duplicates(pair: SyncPair) {
@@ -80,7 +74,12 @@ pub(crate) async fn repeat_sync_no_duplicates(pair: SyncPair) {
     for _ in 0..2 {
         let mut events = ra.subscribe();
         sync_from_a(&ra).await;
-        next_event(&mut events, "result of the repeated reconciliation", is_synced_with_b).await;
+        next_event(
+            &mut events,
+            "result of the repeated reconciliation",
+            is_synced_with_b,
+        )
+        .await;
     }
     tokio::time::sleep(QUIET / 3).await;
     // then: the same number of entries and they are unchanged — on both sides
@@ -93,16 +92,18 @@ pub(crate) async fn live_push_after_sync_emits_remote_change(pair: SyncPair) {
     let (ra, rb) = started_pair(&pair).await;
     let mut events_a = ra.subscribe();
     sync_from_a(&ra).await;
-    next_event(&mut events_a, "result of the first reconciliation", is_synced_with_b).await;
+    next_event(
+        &mut events_a,
+        "result of the first reconciliation",
+        is_synced_with_b,
+    )
+    .await;
     let mut events_b = rb.subscribe();
     // when: A writes a new entry, there is no second reconciliation
     put(&ra, K1, "a1").await;
     // then: B gets RemoteChange and sees the entry of A
     next_event(&mut events_b, "RemoteChange at B", is_remote).await;
-    wait_scan(&rb, "entry of A at B", |es| {
-        has(es, pid(SEED_A), K1, "a1")
-    })
-    .await;
+    wait_scan(&rb, "entry of A at B", |es| has(es, pid(SEED_A), K1, "a1")).await;
 }
 
 pub(crate) async fn tombstone_travels(pair: SyncPair) {
@@ -112,10 +113,7 @@ pub(crate) async fn tombstone_travels(pair: SyncPair) {
     tokio::time::sleep(PAUSE).await;
     put(&ra, K1, "a1").await;
     sync_from_a(&ra).await;
-    wait_scan(&rb, "entry of A at B", |es| {
-        has(es, pid(SEED_A), K1, "a1")
-    })
-    .await;
+    wait_scan(&rb, "entry of A at B", |es| has(es, pid(SEED_A), K1, "a1")).await;
     tokio::time::sleep(PAUSE).await;
     let mut events_b = rb.subscribe();
     // when: A deletes K1 and reconciles once more
@@ -235,7 +233,10 @@ pub(crate) async fn domains_stays_private(pair: SyncPair) {
     .await;
     tokio::time::sleep(QUIET / 3).await;
     // then: "domains" of B is empty, "net" of B has one marker entry, "net" of A has no entry from "domains"
-    assert!(scan(&db, b"").await.is_empty(), "the \"domains\" replica of B sees foreign data");
+    assert!(
+        scan(&db, b"").await.is_empty(),
+        "the \"domains\" replica of B sees foreign data"
+    );
     assert!(
         get(&db, pid(SEED_A), K1).await.is_none(),
         "B's \"domains\" replica sees A's entry"

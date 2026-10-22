@@ -2,13 +2,13 @@
 //! gives which hint, what the spy transport gets and whether telemetry sees the member online.
 //! `link()` is replaced by a wrapper over a real `mem` connection. The neighboring `peer_path_tests.rs` is not edited.
 
-use crate::net::contract::{secret, must_finish, SEED_A, SEED_B};
-use crate::net::facade::test_support::Spy;
-use crate::net::{
-    AddrHint, BoxFuture, LinkInfo, MemNet, NetResult, NetStackBuilder, PathKind, PeerAddr, PeerConn,
-    PeerId, RelayRef, SplitTransport, StreamPair, Transport, AUTH,
+use crate::node::telemetry::Telemetry;
+use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B};
+use crate::transport::net::facade::test_support::Spy;
+use crate::transport::net::{
+    AddrHint, BoxFuture, LinkInfo, MemNet, NetResult, NetStackBuilder, PathKind, PeerAddr,
+    PeerConn, PeerId, RelayRef, SplitTransport, StreamPair, Transport, AUTH,
 };
-use crate::telemetry::Telemetry;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -56,26 +56,43 @@ async fn setup() -> Fixture {
     let spy = Spy::on(&net, &secret(SEED_A)).shared();
     let far = net.transport(&secret(SEED_B));
     far.serve(&[AUTH]);
-    let (dialed, accepted) = tokio::join!(must_finish(spy.connect(&far.local_addr(), AUTH)), must_finish(far.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(spy.connect(&far.local_addr(), AUTH)),
+        must_finish(far.accept())
+    );
     let real = dialed.expect("connect mem gave no connection");
     let (_, accepted) = accepted.expect("accept mem closed");
-    Fixture { spy, far, real, _accepted: accepted }
+    Fixture {
+        spy,
+        far,
+        real,
+        _accepted: accepted,
+    }
 }
 
 impl Fixture {
     fn conn(&self, link: LinkInfo) -> FakeLink {
-        FakeLink { inner: self.real.clone(), link }
+        FakeLink {
+            inner: self.real.clone(),
+            link,
+        }
     }
 
     /// Calls `record_peer_up` and returns the hint; telemetry is checked here too.
     async fn record(&self, conn: &FakeLink) -> Option<AddrHint> {
         let tel = Telemetry::new();
-        let stack = NetStackBuilder::new(secret(SEED_A)).transport(self.spy.clone()).build().unwrap();
+        let stack = NetStackBuilder::new(secret(SEED_A))
+            .transport(self.spy.clone())
+            .build()
+            .unwrap();
         let hint = record_peer_up(conn, &stack, &tel);
         // the hint reaches the transport through the discovery handout — asynchronously
         tokio::time::sleep(SETTLE).await;
         let view = tel.view();
-        let live = view.peers.get(&conn.peer()).expect("the member is not recorded in telemetry");
+        let live = view
+            .peers
+            .get(&conn.peer())
+            .expect("the member is not recorded in telemetry");
         assert!(live.online, "the member is not marked online");
         hint
     }
@@ -100,12 +117,19 @@ mod direct_path {
     async fn with_remote_gives_ip_hint_and_passes_it_to_transport() {
         // given: a direct path with a socket address
         let fx = setup().await;
-        let conn = fx.conn(LinkInfo { path: PathKind::Direct, remote: Some(sock()), ..LinkInfo::default() });
+        let conn = fx.conn(LinkInfo {
+            path: PathKind::Direct,
+            remote: Some(sock()),
+            ..LinkInfo::default()
+        });
         // when
         let hint = fx.record(&conn).await;
         // then: the hint is Ip, and exactly it went to the transport for this peer
         assert_eq!(hint, Some(AddrHint::Ip(sock())));
-        let want = PeerAddr { id: conn.peer(), hints: vec![AddrHint::Ip(sock())] };
+        let want = PeerAddr {
+            id: conn.peer(),
+            hints: vec![AddrHint::Ip(sock())],
+        };
         assert_eq!(fx.spy.hints(), vec![want]);
         fx.close().await;
     }
@@ -114,12 +138,20 @@ mod direct_path {
     async fn without_remote_gives_no_hint() {
         // given: a direct path without a socket address — this is how hyper answers today (net_hyper/link_tests.rs: remote.is_none())
         let fx = setup().await;
-        let conn = fx.conn(LinkInfo { path: PathKind::Direct, remote: None, ..LinkInfo::default() });
+        let conn = fx.conn(LinkInfo {
+            path: PathKind::Direct,
+            remote: None,
+            ..LinkInfo::default()
+        });
         // when
         let hint = fx.record(&conn).await;
         // then: no hint, nothing passed to the transport
         assert_eq!(hint, None);
-        assert!(fx.spy.hints().is_empty(), "the transport got: {:?}", fx.spy.hints());
+        assert!(
+            fx.spy.hints().is_empty(),
+            "the transport got: {:?}",
+            fx.spy.hints()
+        );
         fx.close().await;
     }
 }
@@ -132,12 +164,18 @@ mod relayed_path {
         // given: a path through a relay
         let fx = setup().await;
         let relay = RelayRef::Url("https://relay.example".into());
-        let conn = fx.conn(LinkInfo { path: PathKind::Relayed(relay.clone()), ..LinkInfo::default() });
+        let conn = fx.conn(LinkInfo {
+            path: PathKind::Relayed(relay.clone()),
+            ..LinkInfo::default()
+        });
         // when
         let hint = fx.record(&conn).await;
         // then
         assert_eq!(hint, Some(AddrHint::Relay(relay.clone())));
-        let want = PeerAddr { id: conn.peer(), hints: vec![AddrHint::Relay(relay)] };
+        let want = PeerAddr {
+            id: conn.peer(),
+            hints: vec![AddrHint::Relay(relay)],
+        };
         assert_eq!(fx.spy.hints(), vec![want]);
         fx.close().await;
     }

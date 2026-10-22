@@ -1,8 +1,8 @@
 //! Tests for `SYNC` frames: write-read round trip, length limit, garbage, end of stream.
 
 use super::{read_frame, write_frame, Frame, MAX_FRAME_BYTES, VERSION};
-use crate::net::error::NetError;
-use crate::net::stream::{BoxRecv, BoxSend};
+use crate::transport::net::error::NetError;
+use crate::transport::net::stream::{BoxRecv, BoxSend};
 use tokio::io::{duplex, split, AsyncWriteExt};
 
 /// A pipe: what is written to `BoxSend` is read from `BoxRecv`.
@@ -72,7 +72,10 @@ mod frame {
         let (send, mut recv) = pipe();
         drop(send);
         let before = read_frame(&mut recv).await.expect_err("end of stream");
-        assert!(matches!(before, NetError::Closed), "before the frame: {before}");
+        assert!(
+            matches!(before, NetError::Closed),
+            "before the frame: {before}"
+        );
 
         let (mut send, mut recv) = pipe();
         send.write_all(&10u32.to_be_bytes()).await.expect("length");

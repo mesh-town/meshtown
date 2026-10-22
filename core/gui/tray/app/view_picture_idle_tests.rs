@@ -2,9 +2,9 @@
 //! starting one, the sector count and the raster.
 
 use super::*;
-use crate::app::view::{NodeState, PageState, TrayColor, View, ICON_SIDE_PX};
-use crate::app::view_ring::{role_rgb, Ring, RingRole};
-use crate::app::view_ring_paint::ring_rgba_lit;
+use crate::gui::tray::app::view::{NodeState, PageState, TrayColor, View, ICON_SIDE_PX};
+use crate::gui::tray::app::view_ring::{role_rgb, Ring, RingRole};
+use crate::gui::tray::app::view_ring_paint::ring_rgba_lit;
 use std::f64::consts::TAU;
 
 const SIDE: u32 = ICON_SIDE_PX;
@@ -46,15 +46,25 @@ mod stopped_node {
         for node in [NodeState::Absent, NodeState::Stopping] {
             for remembered in [5, 40] {
                 let picture = after(node, remembered, 3);
-                assert_eq!(picture.ring, Some(grey(remembered)), "{node:?} {remembered}");
-                assert_eq!(picture.lit, None, "{node:?} {remembered}: no spinner while stopped");
+                assert_eq!(
+                    picture.ring,
+                    Some(grey(remembered)),
+                    "{node:?} {remembered}"
+                );
+                assert_eq!(
+                    picture.lit, None,
+                    "{node:?} {remembered}: no spinner while stopped"
+                );
             }
         }
     }
 
     #[test]
     fn keeps_the_icon_colour() {
-        let red = IconPicture { color: TrayColor::Red, ..solid() };
+        let red = IconPicture {
+            color: TrayColor::Red,
+            ..solid()
+        };
         let picture = red.with_idle(view_of(NodeState::Absent), IdleRing::default());
         assert_eq!(picture.color, TrayColor::Red);
     }
@@ -81,7 +91,16 @@ mod starting_node {
 
     #[test]
     fn clamps_the_sector_count_to_four_and_sixteen() {
-        let table = [(1, 4), (2, 4), (3, 4), (4, 4), (0, 8), (16, 16), (17, 16), (40, 16)];
+        let table = [
+            (1, 4),
+            (2, 4),
+            (3, 4),
+            (4, 4),
+            (0, 8),
+            (16, 16),
+            (17, 16),
+            (40, 16),
+        ];
         for (remembered, want) in table {
             let picture = after(NodeState::Starting, remembered, 0);
             assert_eq!(picture.ring, Some(grey(want)), "remembered {remembered}");
@@ -97,8 +116,14 @@ mod starting_node {
 
     #[test]
     fn same_sector_one_turn_later_is_the_same_picture() {
-        assert_eq!(after(NodeState::Starting, 5, 2), after(NodeState::Starting, 5, 7));
-        assert_ne!(after(NodeState::Starting, 5, 2), after(NodeState::Starting, 5, 3));
+        assert_eq!(
+            after(NodeState::Starting, 5, 2),
+            after(NodeState::Starting, 5, 7)
+        );
+        assert_ne!(
+            after(NodeState::Starting, 5, 2),
+            after(NodeState::Starting, 5, 3)
+        );
     }
 
     #[test]
@@ -112,7 +137,11 @@ mod starting_node {
     fn raster_has_exactly_the_lit_sector_white() {
         let rgba = picture_rgba(&after(NodeState::Starting, 5, 7), SIDE).expect("a ring raster");
         for k in 0..5 {
-            let want = if k == 2 { WHITE } else { role_rgb(RingRole::Offline) };
+            let want = if k == 2 {
+                WHITE
+            } else {
+                role_rgb(RingRole::Offline)
+            };
             assert_eq!(middle_rgb(&rgba, 5, k), want, "sector {k}");
         }
     }
@@ -130,9 +159,18 @@ mod other_states {
 
     #[test]
     fn a_ring_of_its_own_is_kept_in_every_state() {
-        let own = IconPicture { ring: Some(own_ring()), ..solid() };
+        let own = IconPicture {
+            ring: Some(own_ring()),
+            ..solid()
+        };
         for node in NODES {
-            let picture = own.with_idle(view_of(node), IdleRing { remembered: 5, frame: 3 });
+            let picture = own.with_idle(
+                view_of(node),
+                IdleRing {
+                    remembered: 5,
+                    frame: 3,
+                },
+            );
             assert_eq!(picture, own, "{node:?}");
         }
     }
@@ -162,12 +200,21 @@ mod sector_count {
 
     #[test]
     fn limits_are_four_eight_sixteen() {
-        assert_eq!((SPIN_MIN_SECTORS, IDLE_SECTORS, SPIN_MAX_SECTORS), (4, 8, 16));
+        assert_eq!(
+            (SPIN_MIN_SECTORS, IDLE_SECTORS, SPIN_MAX_SECTORS),
+            (4, 8, 16)
+        );
     }
 
     #[test]
     fn default_idle_ring_knows_nothing() {
-        assert_eq!(IdleRing::default(), IdleRing { remembered: 0, frame: 0 });
+        assert_eq!(
+            IdleRing::default(),
+            IdleRing {
+                remembered: 0,
+                frame: 0
+            }
+        );
     }
 
     #[test]
@@ -190,14 +237,24 @@ mod sector_count {
     fn starting_is_clamped_to_four_and_sixteen() {
         let table = [(1, 4), (3, 4), (4, 4), (5, 5), (16, 16), (17, 16), (40, 16)];
         for (remembered, want) in table {
-            assert_eq!(idle_sectors(NodeState::Starting, remembered), want, "remembered {remembered}");
+            assert_eq!(
+                idle_sectors(NodeState::Starting, remembered),
+                want,
+                "remembered {remembered}"
+            );
         }
     }
 }
 
 /// A solid icon picture: no ring, no disk, no mark.
 fn solid() -> IconPicture {
-    IconPicture { color: TrayColor::Grey, ring: None, disk: None, alert: false, lit: None }
+    IconPicture {
+        color: TrayColor::Grey,
+        ring: None,
+        disk: None,
+        alert: false,
+        lit: None,
+    }
 }
 
 /// A ring of `n` grey (offline) sectors.
@@ -207,7 +264,10 @@ fn grey(n: u16) -> Ring {
 
 /// A ring of three members in three different roles.
 fn own_ring() -> Ring {
-    Ring::EMPTY.add(RingRole::ActiveExit).add(RingRole::ExitClient).add(RingRole::Online)
+    Ring::EMPTY
+        .add(RingRole::ActiveExit)
+        .add(RingRole::ExitClient)
+        .add(RingRole::Online)
 }
 
 /// A solid picture after `with_idle` for `node`, with `remembered` sectors in memory and spinner frame `frame`.
@@ -217,7 +277,10 @@ fn after(node: NodeState, remembered: u16, frame: u32) -> IconPicture {
 
 /// A view in `node` state with a page that is still starting and no ring.
 fn view_of(node: NodeState) -> View {
-    View { node, ..View::initial() }
+    View {
+        node,
+        ..View::initial()
+    }
 }
 
 mod stuck_start {
@@ -225,8 +288,17 @@ mod stuck_start {
 
     #[test]
     fn unavailable_page_keeps_the_icon_solid() {
-        let view = View { page: PageState::Unavailable, ..view_of(NodeState::Starting) };
-        let picture = solid().with_idle(view, IdleRing { remembered: 5, frame: 3 });
+        let view = View {
+            page: PageState::Unavailable,
+            ..view_of(NodeState::Starting)
+        };
+        let picture = solid().with_idle(
+            view,
+            IdleRing {
+                remembered: 5,
+                frame: 3,
+            },
+        );
         assert_eq!((picture.ring, picture.lit), (None, None));
     }
 
@@ -236,7 +308,10 @@ mod stuck_start {
         for page in [PageState::Starting, PageState::Ready] {
             assert!(spinning(View { page, ..starting }), "{page:?}");
         }
-        assert!(!spinning(View { page: PageState::Unavailable, ..starting }));
+        assert!(!spinning(View {
+            page: PageState::Unavailable,
+            ..starting
+        }));
         assert!(!spinning(view_of(NodeState::Running)));
     }
 }

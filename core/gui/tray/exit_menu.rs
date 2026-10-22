@@ -8,8 +8,8 @@
 
 use tray_icon::menu::{CheckMenuItem, MenuItem, PredefinedMenuItem, Submenu, TextStyle};
 
-use crate::app::exit_menu::{ExitItem, ExitMenu};
-use crate::app::tray_texts::{direct_text, SUBMENU_TITLE};
+use crate::gui::tray::app::exit_menu::{ExitItem, ExitMenu};
+use crate::gui::tray::app::tray_texts::{direct_text, SUBMENU_TITLE};
 
 use super::core::MENU_EXIT_PREFIX;
 

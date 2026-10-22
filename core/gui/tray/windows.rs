@@ -9,7 +9,7 @@
 //! What it does not do: it prints nothing except the no-icon line through `super::log_tray`; it knows no window
 //! procedure or crate window of its own; `TaskbarCreated` (an Explorer restart) is up to tray-icon;
 //! it does not send `WM_QUIT` itself.
-//! Relations: `super::Core`, `super::log_tray`, `crate::app::quit::exit_now`; `wake` calls `CmdTx::send`
+//! Relations: `super::Core`, `super::log_tray`, `crate::gui::tray::app::quit::exit_now`; `wake` calls `CmdTx::send`
 //! from any thread.
 
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -98,7 +98,7 @@ fn drain_or_exit(core: &mut Core) {
 /// Removes the icon (on Windows `Drop` is fast: `NIM_DELETE` + `DestroyWindow`), then exits.
 fn finish(core: &mut Core, code: i32) -> ! {
     core.drop_ui();
-    crate::app::quit::exit_now(code)
+    crate::gui::tray::app::quit::exit_now(code)
 }
 
 /// Wakes the loop with a thread message. Before the id is published it does nothing: the initial `drain_commands` picks the commands up.

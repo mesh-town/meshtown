@@ -11,11 +11,11 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use bytes::Bytes;
-use meshtown::geoip::{self, Country};
-use meshtown::net::{PeerAddr, PeerId};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::node_state;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::node_state;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::site_checks::geoip::{self, Country};
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use tokio::time::{sleep, Instant};
 
 /// A copy of the helper from `core/tests/exit_flag.rs`: introduces the address of `b` into `a` over loopback.
@@ -32,7 +32,9 @@ async fn wait_exits_ready(
 ) -> HashMap<PeerId, bool> {
     let deadline = Instant::now() + limit;
     loop {
-        let exits = node_state::read_exit_flags(&*node.domains.shared_replica()).await.unwrap();
+        let exits = node_state::read_exit_flags(&*node.domains.shared_replica())
+            .await
+            .unwrap();
         if exits.get(&other) == Some(&true) || Instant::now() >= deadline {
             return exits;
         }
@@ -49,7 +51,9 @@ async fn wait_countries(
 ) -> HashMap<PeerId, Country> {
     let deadline = Instant::now() + limit;
     loop {
-        let countries = geoip::read_countries(&*node.domains.shared_replica()).await.unwrap();
+        let countries = geoip::read_countries(&*node.domains.shared_replica())
+            .await
+            .unwrap();
         if want(&countries) || Instant::now() >= deadline {
             return countries;
         }
@@ -60,8 +64,12 @@ async fn wait_countries(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn neighbor_sees_announced_country() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     geoip::announce_country(&*a.domains.shared_replica(), Country::parse("RU").unwrap())
@@ -82,7 +90,9 @@ async fn neighbor_sees_announced_country() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn own_cache_reads_country_and_write_time() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
 
     let before_us = now_micros();
     geoip::announce_country(&*a.domains.shared_replica(), Country::parse("RU").unwrap())
@@ -106,8 +116,12 @@ async fn own_cache_reads_country_and_write_time() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tombstone_clears_country_for_everyone() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     geoip::announce_country(&*a.domains.shared_replica(), Country::parse("RU").unwrap())
@@ -141,8 +155,12 @@ async fn tombstone_clears_country_for_everyone() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn garbage_value_is_dropped_by_reader() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     a.domains
@@ -152,7 +170,9 @@ async fn garbage_value_is_dropped_by_reader() {
         .unwrap();
 
     sleep(Duration::from_secs(2)).await;
-    let countries = geoip::read_countries(&*b.domains.shared_replica()).await.unwrap();
+    let countries = geoip::read_countries(&*b.domains.shared_replica())
+        .await
+        .unwrap();
     assert!(
         !countries.contains_key(&a.id),
         "an invalid country code must not appear at the peer"
@@ -165,8 +185,12 @@ async fn garbage_value_is_dropped_by_reader() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn old_readers_unaffected_by_country_key() {
     let key = NetworkKey::generate().unwrap();
-    let a = node::start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
-    let b = node::start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let a = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+        .await
+        .unwrap();
+    let b = node::start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     introduce(&a, &b).await;
 
     // A's exit flag arrives at B asynchronously (`run_exit_announce`) — we wait until B sees
@@ -191,7 +215,9 @@ async fn old_readers_unaffected_by_country_key() {
         "announcing a country must not change the number of check results"
     );
     assert_eq!(
-        node_state::read_exit_flags(&*b.domains.shared_replica()).await.unwrap(),
+        node_state::read_exit_flags(&*b.domains.shared_replica())
+            .await
+            .unwrap(),
         exits_before,
         "announcing a country must not change the exit flags"
     );

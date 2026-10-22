@@ -1,5 +1,5 @@
 use super::*;
-use meshtown::config_file::Settings;
+use crate::config::config_file::Settings;
 
 fn names(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
@@ -13,20 +13,31 @@ fn scratch(name: &str) -> std::path::PathBuf {
 }
 
 fn target(dir: &std::path::Path) -> Target {
-    Target { path: dir.join("config.json"), dir: dir.to_path_buf(), port: 1 }
+    Target {
+        path: dir.join("config.json"),
+        dir: dir.to_path_buf(),
+        port: 1,
+    }
 }
 
 #[test]
 fn names_parse_to_filters() {
     assert_eq!(parse_names(&names(&["auto"])), Ok(IfaceFilter::Auto));
     assert_eq!(parse_names(&names(&["*"])), Ok(IfaceFilter::Any));
-    assert_eq!(parse_names(&names(&["br-lan"])), Ok(IfaceFilter::Only(names(&["br-lan"]))));
+    assert_eq!(
+        parse_names(&names(&["br-lan"])),
+        Ok(IfaceFilter::Only(names(&["br-lan"])))
+    );
 }
 
 #[test]
 fn bad_names_are_refused_with_expected_text() {
     for bad in [&["auto", "x"][..], &["br-lan", "br-lan"], &["*", "x"]] {
-        assert_eq!(parse_names(&names(bad)), Err(EXPECTED.to_string()), "{bad:?}");
+        assert_eq!(
+            parse_names(&names(bad)),
+            Err(EXPECTED.to_string()),
+            "{bad:?}"
+        );
     }
 }
 
@@ -39,7 +50,10 @@ fn seed_skips_with_any_key() {
     let socks = r#"{"config":{"version":1,"socks":{"ifaces":[]}}}"#;
     let web = r#"{"config":{"version":1,"web":{"ifaces":["x"]}}}"#;
     for t in [socks, web] {
-        assert!(matches!(seed_decision(true, &text(t)), Seed::Skip(_)), "{t}");
+        assert!(
+            matches!(seed_decision(true, &text(t)), Seed::Skip(_)),
+            "{t}"
+        );
     }
 }
 
@@ -50,7 +64,10 @@ fn seed_creates_when_file_absent() {
 
 #[test]
 fn seed_skips_unreadable() {
-    assert_eq!(seed_decision(true, &FileRead::Unreadable), Seed::Skip("settings file is unreadable"));
+    assert_eq!(
+        seed_decision(true, &FileRead::Unreadable),
+        Seed::Skip("settings file is unreadable")
+    );
 }
 
 #[test]
@@ -58,16 +75,25 @@ fn seed_writes_when_no_keys_and_always_without_flag() {
     let bare = r#"{"config":{"version":1,"socks":{"port":1080}}}"#;
     assert_eq!(seed_decision(true, &text(bare)), Seed::Write);
     assert_eq!(seed_decision(false, &FileRead::Absent), Seed::Write);
-    assert_eq!(seed_decision(false, &text(r#"{"config":{"socks":{"ifaces":[]}}}"#)), Seed::Write);
+    assert_eq!(
+        seed_decision(false, &text(r#"{"config":{"socks":{"ifaces":[]}}}"#)),
+        Seed::Write
+    );
 }
 
 #[test]
 fn create_writes_file_with_names_and_defaults() {
     let dir = scratch("create");
-    let t = Target { path: dir.join("sub").join("config.json"), dir: dir.clone(), port: 1 };
+    let t = Target {
+        path: dir.join("sub").join("config.json"),
+        dir: dir.clone(),
+        port: 1,
+    };
     let filter = IfaceFilter::Only(names(&["br-lan"]));
     create_seeded(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else { panic!("the file did not parse") };
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+        panic!("the file did not parse")
+    };
     assert_eq!(p.rev, 1);
     assert!(matches!(p.secret, SecretRead::Valid(_)));
     let mut settings = p.settings;
@@ -119,13 +145,18 @@ fn create_seeds_existing_file_without_keys() {
     config_file::save_config_file(&t.path, None, 1, &secret, &Settings::default()).unwrap();
     let mut doc: Value = serde_json::from_str(&std::fs::read_to_string(&t.path).unwrap()).unwrap();
     for section in ["socks", "web"] {
-        doc["config"][section].as_object_mut().unwrap().remove("ifaces");
+        doc["config"][section]
+            .as_object_mut()
+            .unwrap()
+            .remove("ifaces");
     }
     std::fs::write(&t.path, doc.to_string()).unwrap();
     let filter = IfaceFilter::Only(names(&["br-lan"]));
     assert_eq!(seed_decision(true, &read_file(&t.path)), Seed::Write);
     offline(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else { panic!("the file did not parse") };
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+        panic!("the file did not parse")
+    };
     assert_eq!(p.settings.process.socks_ifaces, filter);
     assert_eq!(p.settings.process.web_ifaces, filter);
     let _ = std::fs::remove_dir_all(&dir);
@@ -139,7 +170,9 @@ fn offline_writes_both_fields_and_bumps_rev() {
     config_file::save_config_file(&t.path, None, 1, &secret, &Settings::default()).unwrap();
     let filter = IfaceFilter::Only(names(&["br-lan"]));
     offline(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else { panic!("the file did not parse") };
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+        panic!("the file did not parse")
+    };
     assert_eq!(p.rev, 2);
     assert_eq!(p.settings.process.socks_ifaces, filter);
     assert_eq!(p.settings.process.web_ifaces, filter);

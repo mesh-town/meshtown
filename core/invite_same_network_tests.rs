@@ -1,7 +1,7 @@
 //! Tests of `invite.rs`: same network cases.
 
 use super::*;
-use crate::network_key::key_with_label;
+use crate::members::network_key::key_with_label;
 
 #[test]
 fn same_key_is_the_same_network() {

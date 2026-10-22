@@ -13,7 +13,7 @@ use super::auth::iface_os::current_view;
 use super::auth::tickets::Via;
 use super::http::{host_of, json_err, query_param, ConnInfo};
 use super::{cookie, App, WebShared};
-use crate::config_file::ListenAccess;
+use crate::config::config_file::ListenAccess;
 
 /// What the request used to prove the right to enter; put into the request extensions.
 #[derive(Clone, Debug)]
@@ -127,7 +127,10 @@ fn session_credential(req: &Parts, shared: &WebShared) -> Option<Credential> {
 }
 
 fn token_credential(req: &Parts, shared: &WebShared) -> Option<Credential> {
-    let from_header = req.headers.get("x-meshtown-token").and_then(|v| v.to_str().ok());
+    let from_header = req
+        .headers
+        .get("x-meshtown-token")
+        .and_then(|v| v.to_str().ok());
     let candidate = from_header
         .map(str::to_string)
         .or_else(|| query_param(&req.uri, "token"))?;

@@ -22,12 +22,12 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use meshtown::net::{BoxRecv, BoxSend};
-use meshtown::exit::{self, PeerConnPool};
-use meshtown::invite;
-use meshtown::net::PeerId;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::exit::{self, PeerConnPool};
+use meshtown_core::invite;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net::PeerId;
+use meshtown_core::transport::net::{BoxRecv, BoxSend};
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 
@@ -78,9 +78,10 @@ fn then_exit_on_without_clients(b: &Booted) {
 /// of the table); the response must be `EXIT_CODE_OK`. The stream ends are returned to the caller: while they are
 /// held, the stream on A's side is not closed.
 async fn when_ask_ok(a: &RunningNode, id_b: PeerId) -> (BoxSend, BoxRecv) {
-    let (send, recv, code) = exit::ask_exit_to_connect(&a.stack, &PeerConnPool::default(), id_b, SITE_NAME, 80)
-        .await
-        .expect("the request to the exit must reach a response");
+    let (send, recv, code) =
+        exit::ask_exit_to_connect(&a.stack, &PeerConnPool::default(), id_b, SITE_NAME, 80)
+            .await
+            .expect("the request to the exit must reach a response");
     assert_eq!(
         code,
         exit::EXIT_CODE_OK,
@@ -122,7 +123,10 @@ async fn join_client(b: &Booted, key: &NetworkKey) -> (RunningNode, PeerId) {
     let a = node::start_node(cfg).await.expect("A must start");
     a.introduce(addr_b).await;
     let ok = wait_until(MEMBER_WITHIN, || a.members.is_member(id_b)).await;
-    assert!(ok, "A did not recognize B as a member within {MEMBER_WITHIN:?}");
+    assert!(
+        ok,
+        "A did not recognize B as a member within {MEMBER_WITHIN:?}"
+    );
     (a, id_b)
 }
 
@@ -136,7 +140,10 @@ async fn wait_b_sees_member(b: &Booted, id_a: &str) {
             .any(|p| p["id_full"] == json!(id_a) && p["online"] == json!(true))
     })
     .await;
-    assert!(ok, "B did not see A online among peers within {MEMBER_WITHIN:?}");
+    assert!(
+        ok,
+        "B did not see A online among peers within {MEMBER_WITHIN:?}"
+    );
 }
 
 /// A "silent" site: accepts connections, holds the sockets, writes and closes nothing.

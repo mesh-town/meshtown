@@ -3,16 +3,17 @@
 //! (`consumer_suite!(mem)`, `consumer_suite!(mesh)`). We wait for a peer's data by polling up to `STEP`;
 //! the `Synced` event does not do as "the data arrived".
 
-use crate::domains::{DomainList, LIST_PREFIX};
-use crate::invite::store::{issue_record, Ledger, IssueVerdict};
-use crate::net::contract::{SEED_A, SEED_B, STEP};
-use crate::net::mem::{sync_ctor as mem_ctor, MemNet, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::{
-    NetChoice, NetError, NetResult, NetStack, NetStackBuilder, NodeSecret, Registry, SyncBackend, Transport,
+use crate::invite::store::{issue_record, IssueVerdict, Ledger};
+use crate::node::node_state::{announce_exit, own_value, read_exit_flags, read_values};
+use crate::ports_sharing::{Audience, PortsDoc, Published};
+use crate::proxy::domains::{DomainList, LIST_PREFIX};
+use crate::transport::net::contract::{SEED_A, SEED_B, STEP};
+use crate::transport::net::mem::{sync_ctor as mem_ctor, MemNet, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{
+    NetChoice, NetError, NetResult, NetStack, NetStackBuilder, NodeSecret, Registry, SyncBackend,
+    Transport,
 };
-use crate::node_state::{announce_exit, own_value, read_exit_flags, read_values};
-use crate::ports::{Audience, PortsDoc, Published};
 use bytes::Bytes;
 use std::any::Any;
 use std::future::Future;
@@ -113,8 +114,15 @@ macro_rules! consumer_suite {
                 })
                 .await;
                 // then: B's list is empty, and A's domain did not land in the shared replica
-                assert!(p.b.list().await.unwrap().is_empty(), "B's list is not empty");
-                let leaked = p.b.shared_replica().scan(LIST_PREFIX.as_bytes()).await.unwrap();
+                assert!(
+                    p.b.list().await.unwrap().is_empty(),
+                    "B's list is not empty"
+                );
+                let leaked =
+                    p.b.shared_replica()
+                        .scan(LIST_PREFIX.as_bytes())
+                        .await
+                        .unwrap();
                 assert!(
                     leaked.is_empty(),
                     "the domain list leaked into the shared replica: {leaked:?}"
@@ -125,13 +133,16 @@ macro_rules! consumer_suite {
             async fn invite_ledger_verdict() {
                 // given: A issued an invite; B doesn't know about it yet
                 let p = setup(stringify!($name)).await;
-                let now = crate::net_mainline::unix_now();
+                let now = crate::transport::net_mainline::unix_now();
                 let (ledger_a, ledger_b) = (Ledger::of(&p.a), Ledger::of(&p.b));
                 ledger_a
                     .issue(INVITE_HASH, &issue_record(now, None))
                     .await
                     .unwrap();
-                assert_eq!(ledger_b.verdict(INVITE_HASH, now).await, IssueVerdict::Unknown);
+                assert_eq!(
+                    ledger_b.verdict(INVITE_HASH, now).await,
+                    IssueVerdict::Unknown
+                );
                 // when: A reconciles with B
                 p.sync_a_with_b().await;
                 // then: B, by polling, reaches the verdict "grant"
@@ -157,7 +168,11 @@ async fn node_registry_opens_every_compiled_sync() {
         // when: the sync is opened by a name from the collected list
         let sync = open_sync(&registry, &choice_with_sync(name), SEED_A).await;
         // then: the name of the opened sync equals the requested one
-        assert_eq!(sync.name(), name, "the node registry opened a different sync");
+        assert_eq!(
+            sync.name(),
+            name,
+            "the node registry opened a different sync"
+        );
     }
 }
 
@@ -229,17 +244,21 @@ async fn setup(sync: &str) -> Pair {
 fn join_mesh(syncs: [&Arc<dyn SyncBackend>; 2]) -> Vec<NetStack> {
     let net = MemNet::new();
     let seeds = [SEED_A, SEED_B];
-    let stacks: Vec<_> = syncs.iter().zip(seeds).map(|(sync, seed)| {
-        let secret = NodeSecret::from_bytes(&[seed; 32]);
-        let transport: Arc<dyn Transport> = net.transport(&secret);
-        let mut builder = NetStackBuilder::new(secret).transport(transport);
-        for (id, handler) in sync.services() {
-            builder = builder.serve(id, handler);
-        }
-        let stack = builder.build().expect("stack built");
-        sync.attach_stack(stack.downgrade());
-        stack
-    }).collect();
+    let stacks: Vec<_> = syncs
+        .iter()
+        .zip(seeds)
+        .map(|(sync, seed)| {
+            let secret = NodeSecret::from_bytes(&[seed; 32]);
+            let transport: Arc<dyn Transport> = net.transport(&secret);
+            let mut builder = NetStackBuilder::new(secret).transport(transport);
+            for (id, handler) in sync.services() {
+                builder = builder.serve(id, handler);
+            }
+            let stack = builder.build().expect("stack built");
+            sync.attach_stack(stack.downgrade());
+            stack
+        })
+        .collect();
     for (stack, other) in [(&stacks[0], SEED_B), (&stacks[1], SEED_A)] {
         let id = NodeSecret::from_bytes(&[other; 32]).peer_id();
         stack.add_hints(net.addr_of(id).expect("peer slot is alive"));
@@ -251,7 +270,10 @@ fn join_mesh(syncs: [&Arc<dyn SyncBackend>; 2]) -> Vec<NetStack> {
 fn registry(net: &Arc<MemSyncNet>) -> Registry {
     let mut registry = Registry::new();
     registry.add_sync("mem", mem_ctor(net.clone()));
-    registry.add_sync(crate::sync::replica::NAME, crate::sync::replica::sync_ctor(None));
+    registry.add_sync(
+        crate::members::sync::replica::NAME,
+        crate::members::sync::replica::sync_ctor(None),
+    );
     registry
 }
 
@@ -268,7 +290,10 @@ async fn open_sync(registry: &Registry, choice: &NetChoice, seed: u8) -> Arc<dyn
 }
 
 async fn open_list(sync: &dyn SyncBackend) -> DomainList {
-    let shared = sync.open_replica(REPLICA_NET).await.expect("shared replica");
+    let shared = sync
+        .open_replica(REPLICA_NET)
+        .await
+        .expect("shared replica");
     let own = sync
         .open_replica(REPLICA_DOMAINS)
         .await

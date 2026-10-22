@@ -17,13 +17,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{live, NetError, PeerId, Replica};
+use crate::transport::net::{live, NetError, PeerId, Replica};
 use anyhow::Result;
 use bytes::Bytes;
 use tokio::sync::Notify;
 use tokio::time::timeout;
 
-use crate::output::say;
+use crate::node::output::say;
 
 /// Key of the exit flag in the network's shared document.
 pub const EXIT_KEY: &[u8] = b"node/exit/";
@@ -90,14 +90,7 @@ pub async fn run_exit_announce(
                     last_announced = Some(on);
                     say(
                         "exit",
-                        format!(
-                            "announced to peers: exit {}",
-                            if on {
-                                "on"
-                            } else {
-                                "off"
-                            }
-                        ),
+                        format!("announced to peers: exit {}", if on { "on" } else { "off" }),
                     );
                 }
                 Err(e) => say("exit", format!("exit announcement not written: {e:#}")),

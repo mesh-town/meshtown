@@ -1,26 +1,26 @@
 //! Contract suites of `core/net/contract/` on `mem`: one line per suite and an environment on `MemNet`
 //! (sync — on `MemSyncNet`). Each test takes a fresh environment: the networks of different tests do not overlap.
 
-use crate::net::addr::{PeerAddr, RelayRef};
-use crate::net::connect::{Connector, PacketPath, PathInfo};
-use crate::net::contract::connector::connector_contract;
-use crate::net::contract::discovery::discovery_contract;
-use crate::net::contract::membership::membership_contract;
-use crate::net::contract::replica::replica_contract;
-use crate::net::contract::transport::transport_contract;
-use crate::net::contract::transport_diag::transport_diag_contract;
-use crate::net::contract::{
+use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::connect::{Connector, PacketPath, PathInfo};
+use crate::transport::net::contract::connector::connector_contract;
+use crate::transport::net::contract::discovery::discovery_contract;
+use crate::transport::net::contract::membership::membership_contract;
+use crate::transport::net::contract::replica::replica_contract;
+use crate::transport::net::contract::transport::transport_contract;
+use crate::transport::net::contract::transport_diag::transport_diag_contract;
+use crate::transport::net::contract::{
     pid, secret, ConnectorHarness, DiscoveryHarness, Harness, RawPut, SyncPair,
 };
-use crate::net::discovery::Discovery;
-use crate::net::error::NetResult;
-use crate::net::link::NetInfo;
-use crate::net::mem::{MemCarrier, MemConnector, MemNet, MemSyncNet};
-use crate::net::service::{AUTH, PORT};
-use crate::net::split::SplitTransport;
-use crate::net::stream::BoxFuture;
-use crate::net::sync_backend::{SyncCtx, REPLICA_NET};
-use crate::net::transport::Transport;
+use crate::transport::net::discovery::Discovery;
+use crate::transport::net::error::NetResult;
+use crate::transport::net::link::NetInfo;
+use crate::transport::net::mem::{MemCarrier, MemConnector, MemNet, MemSyncNet};
+use crate::transport::net::service::{AUTH, PORT};
+use crate::transport::net::split::SplitTransport;
+use crate::transport::net::stream::BoxFuture;
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use crate::transport::net::transport::Transport;
 use bytes::Bytes;
 use std::any::Any;
 use std::io;
@@ -35,9 +35,9 @@ membership_contract!(mem_sync_harness);
 
 mod carrier {
     use super::*;
-    use crate::net::contract::{must_finish, SEED_A, SEED_B};
-    use crate::net::error::NetError;
-    use crate::net::transport::PeerConn;
+    use crate::transport::net::contract::{must_finish, SEED_A, SEED_B};
+    use crate::transport::net::error::NetError;
+    use crate::transport::net::transport::PeerConn;
 
     #[tokio::test]
     async fn path_of_a_foreign_family_has_no_route() {
@@ -135,7 +135,7 @@ fn transport_harness() -> MemTransportHarness {
 /// Environment of the sync suites: a fresh `MemSyncNet`, nodes `a` and `b` with keys `SEED_A`/`SEED_B` in one
 /// network (`network_seed` `[9; 32]`), in-memory storage. `raw` puts a foreign entry into "net" of node `a`.
 async fn mem_sync_harness() -> SyncPair {
-    use crate::net::contract::{SEED_A, SEED_B};
+    use crate::transport::net::contract::{SEED_A, SEED_B};
     let net = MemSyncNet::new();
     let ctx = |seed: u8| SyncCtx {
         secret: secret(seed),

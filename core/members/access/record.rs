@@ -7,7 +7,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::net::{PeerId, ReplicaEntry};
+use crate::transport::net::{PeerId, ReplicaEntry};
 
 use super::tally::{AdmitIn, TallyInput, VoteIn};
 
@@ -40,9 +40,14 @@ pub enum AclKind {
 
 impl AclKind {
     pub fn from_u8(b: u8) -> Option<AclKind> {
-        [AclKind::Admit, AclKind::Exclude, AclKind::Block, AclKind::Boot]
-            .into_iter()
-            .find(|k| *k as u8 == b)
+        [
+            AclKind::Admit,
+            AclKind::Exclude,
+            AclKind::Block,
+            AclKind::Boot,
+        ]
+        .into_iter()
+        .find(|k| *k as u8 == b)
     }
 }
 
@@ -119,8 +124,15 @@ impl Ignored {
 /// A replica entry classified.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Parsed {
-    Record { author: PeerId, ts_micros: u64, value: AclValue },
-    Withdrawn { author: PeerId, key: Vec<u8> },
+    Record {
+        author: PeerId,
+        ts_micros: u64,
+        value: AclValue,
+    },
+    Withdrawn {
+        author: PeerId,
+        key: Vec<u8>,
+    },
     Ignored(Ignored),
 }
 
@@ -167,7 +179,8 @@ pub(super) fn parse_key(key: &[u8]) -> Option<(AclKind, Option<PeerId>)> {
     }
     let admit = subject_of(key, ADMIT_PREFIX).map(|s| (AclKind::Admit, s));
     let found = admit.or_else(|| subject_of(key, EXCLUDE_PREFIX).map(|s| (AclKind::Exclude, s)));
-    let (kind, subject) = found.or_else(|| subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s)))?;
+    let (kind, subject) =
+        found.or_else(|| subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s)))?;
     (key_for(kind, &subject) == key).then_some((kind, Some(subject)))
 }
 
@@ -205,7 +218,13 @@ fn from_body(body: Body) -> Result<AclValue, Ignored> {
     if body.note.chars().count() > MAX_NOTE_CHARS {
         return Err(Ignored::NoteTooLong);
     }
-    Ok(AclValue { kind, subject, via, made_unix: body.made_unix, note: body.note })
+    Ok(AclValue {
+        kind,
+        subject,
+        via,
+        made_unix: body.made_unix,
+        note: body.note,
+    })
 }
 
 fn matches_key(kind: AclKind, key_subject: Option<PeerId>, v: &AclValue, author: PeerId) -> bool {
@@ -222,19 +241,32 @@ pub fn parse_entry(e: &ReplicaEntry) -> Parsed {
         return Parsed::Ignored(Ignored::ForeignKey);
     };
     if e.is_tombstone() {
-        return Parsed::Withdrawn { author: e.author, key: e.key.clone() };
+        return Parsed::Withdrawn {
+            author: e.author,
+            key: e.key.clone(),
+        };
     }
     match decode(&e.value) {
         Err(why) => Parsed::Ignored(why),
-        Ok(v) if !matches_key(kind, key_subject, &v, e.author) => Parsed::Ignored(Ignored::KeyMismatch),
-        Ok(value) => Parsed::Record { author: e.author, ts_micros: e.ts_micros, value },
+        Ok(v) if !matches_key(kind, key_subject, &v, e.author) => {
+            Parsed::Ignored(Ignored::KeyMismatch)
+        }
+        Ok(value) => Parsed::Record {
+            author: e.author,
+            ts_micros: e.ts_micros,
+            value,
+        },
     }
 }
 
 /// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
 /// tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored entries.
 pub fn tally_input(me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) {
-    let mut input = TallyInput { me, admits: Vec::new(), votes: Vec::new() };
+    let mut input = TallyInput {
+        me,
+        admits: Vec::new(),
+        votes: Vec::new(),
+    };
     let mut ignored = 0;
     for e in entries {
         ignored += absorb(&mut input, e);
@@ -247,15 +279,31 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
     match parse_entry(e) {
         Parsed::Ignored(_) => 1,
         Parsed::Record { author, value, .. } if value.kind == AclKind::Admit => {
-            input.admits.push(AdmitIn { author, subject: value.subject, via: value.via });
+            input.admits.push(AdmitIn {
+                author,
+                subject: value.subject,
+                via: value.via,
+            });
             0
         }
-        Parsed::Record { author, ts_micros, value } if value.kind == AclKind::Exclude => {
-            input.votes.push(VoteIn { voter: author, subject: value.subject, ts_micros });
+        Parsed::Record {
+            author,
+            ts_micros,
+            value,
+        } if value.kind == AclKind::Exclude => {
+            input.votes.push(VoteIn {
+                voter: author,
+                subject: value.subject,
+                ts_micros,
+            });
             0
         }
         Parsed::Withdrawn { author, key } if key == exclude_key(&author) => {
-            input.votes.push(VoteIn { voter: author, subject: author, ts_micros: e.ts_micros });
+            input.votes.push(VoteIn {
+                voter: author,
+                subject: author,
+                ts_micros: e.ts_micros,
+            });
             0
         }
         _ => 0,

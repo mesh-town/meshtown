@@ -5,10 +5,10 @@ use super::entry::{seal, WireEntry, MAX_KEY_BYTES};
 use super::file::{self, Bak, FileError, ImportMark, Loaded, MarkSource};
 use super::ids::{domains_id, net_id};
 use super::state::State;
-use crate::net::error::{NetError, NetResult};
-use crate::net::id::{NodeSecret, PeerId};
-use crate::net::replica::{ReplicaEntry, ReplicaId, MAX_VALUE_BYTES};
-use crate::net::stream::BoxFuture;
+use crate::transport::net::error::{NetError, NetResult};
+use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::replica::{ReplicaEntry, ReplicaId, MAX_VALUE_BYTES};
+use crate::transport::net::stream::BoxFuture;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -46,7 +46,11 @@ fn fits(e: &ReplicaEntry) -> bool {
 }
 
 /// `"net"`: only "my" entries, re-signed with the original `ts_micros`; the second number is how many foreign and unusable ones were skipped.
-fn own_entries(secret: &NodeSecret, id: &ReplicaId, all: Vec<ReplicaEntry>) -> (Vec<WireEntry>, u32) {
+fn own_entries(
+    secret: &NodeSecret,
+    id: &ReplicaId,
+    all: Vec<ReplicaEntry>,
+) -> (Vec<WireEntry>, u32) {
     let me = secret.peer_id();
     let total = all.len();
     let kept: Vec<WireEntry> = all
@@ -93,18 +97,34 @@ fn config_err(e: FileError) -> NetError {
 
 /// Reads a replica file. Corrupt together with its `.bak`: with `tolerant` (both replicas) it goes to quarantine ("no mark",
 /// the import will repeat), otherwise — `Err`.
-fn load_slot(dir: &Path, name: &'static str, id: ReplicaId, bak: Bak, tolerant: bool) -> NetResult<ImportSlot> {
+fn load_slot(
+    dir: &Path,
+    name: &'static str,
+    id: ReplicaId,
+    bak: Bak,
+    tolerant: bool,
+) -> NetResult<ImportSlot> {
     let path = file::path_for(dir, name, &id);
     let loaded = match file::load(&path, &id) {
         Err(FileError::Broken { main, .. }) if tolerant => {
             let moved = file::quarantine(&main).map_err(NetError::Io)?;
-            tracing::warn!("[sync] replica file {name} is damaged, moved to {}; the import will repeat", moved.display());
+            tracing::warn!(
+                "[sync] replica file {name} is damaged, moved to {}; the import will repeat",
+                moved.display()
+            );
             Loaded::Fresh
         }
         other => other.map_err(config_err)?,
     };
     let (mark, existing) = parts(loaded);
-    Ok(ImportSlot { name, id, path, mark, existing, bak })
+    Ok(ImportSlot {
+        name,
+        id,
+        path,
+        mark,
+        existing,
+        bak,
+    })
 }
 
 /// A free name for the directory being moved aside: `.old` → `.old-<secs>` → `.old-<secs>-<n>`, n = 2..=99.
@@ -112,7 +132,10 @@ fn aside_name(sync_dir: &Path, now_secs: u64) -> Option<PathBuf> {
     let first = file::suffixed(sync_dir, ".old");
     let stamped = file::suffixed(sync_dir, &format!(".old-{now_secs}"));
     let counted = (2..=99).map(|n| file::suffixed(sync_dir, &format!(".old-{now_secs}-{n}")));
-    [first, stamped].into_iter().chain(counted).find(|p| !p.exists())
+    [first, stamped]
+        .into_iter()
+        .chain(counted)
+        .find(|p| !p.exists())
 }
 
 /// Moves `docs-store/` aside to the first free name next to it and returns the new path.
@@ -125,7 +148,10 @@ fn set_aside(sync_dir: &Path, now_secs: u64) -> NetResult<PathBuf> {
         )));
     };
     std::fs::rename(sync_dir, &to).map_err(|e| {
-        NetError::Config(format!("docs-store/ could not be moved aside to {}: {e}; {hint}", to.display()))
+        NetError::Config(format!(
+            "docs-store/ could not be moved aside to {}: {e}; {hint}",
+            to.display()
+        ))
     })?;
     Ok(to)
 }
@@ -156,9 +182,12 @@ async fn fetch(
     if !needs.iter().any(|n| matches!(n, Need::Read(_))) {
         return Ok(None);
     }
-    let Some(read) = legacy else { return set_aside_logged(sync_dir) };
+    let Some(read) = legacy else {
+        return set_aside_logged(sync_dir);
+    };
     let got = read(sync_dir.to_path_buf(), *seed, secret.peer_id()).await;
-    got.map(Some).map_err(|e| NetError::Config(format!("docs-store/ was not read: {e}")))
+    got.map(Some)
+        .map_err(|e| NetError::Config(format!("docs-store/ was not read: {e}")))
 }
 
 fn now_micros() -> u64 {
@@ -167,7 +196,11 @@ fn now_micros() -> u64 {
 }
 
 /// The entries to import and the skipped count; without `Legacy` — empty.
-fn incoming(slot: &ImportSlot, secret: &NodeSecret, legacy: Option<&Legacy>) -> (Vec<WireEntry>, u32) {
+fn incoming(
+    slot: &ImportSlot,
+    secret: &NodeSecret,
+    legacy: Option<&Legacy>,
+) -> (Vec<WireEntry>, u32) {
     let Some(l) = legacy else { return (vec![], 0) };
     if slot.name == "net" {
         return own_entries(secret, &slot.id, l.net.clone());
@@ -176,21 +209,38 @@ fn incoming(slot: &ImportSlot, secret: &NodeSecret, legacy: Option<&Legacy>) -> 
 }
 
 /// Merges with what is already in the file and writes the file together with the mark. Returns the transferred entries.
-fn write_slot(slot: ImportSlot, secret: &NodeSecret, legacy: Option<&Legacy>) -> NetResult<(Vec<WireEntry>, u32)> {
+fn write_slot(
+    slot: ImportSlot,
+    secret: &NodeSecret,
+    legacy: Option<&Legacy>,
+) -> NetResult<(Vec<WireEntry>, u32)> {
     let (fresh, skipped) = incoming(&slot, secret, legacy);
     let (mut state, _) = State::from_entries(slot.id, secret.peer_id(), slot.existing);
     fresh.iter().cloned().for_each(|w| {
         state.merge(w);
     });
-    let source = if legacy.is_some() { MarkSource::DocsStore } else { MarkSource::Absent };
-    let mark = ImportMark { at_micros: now_micros(), source, entries: fresh.len() as u32 };
+    let source = if legacy.is_some() {
+        MarkSource::DocsStore
+    } else {
+        MarkSource::Absent
+    };
+    let mark = ImportMark {
+        at_micros: now_micros(),
+        source,
+        entries: fresh.len() as u32,
+    };
     let bytes = file::encode(&slot.id, Some(&mark), &state.entries());
     file::save(&slot.path, &bytes, slot.bak).map_err(NetError::Io)?;
     Ok((fresh, skipped))
 }
 
 fn log_summary(domains: &[WireEntry], net: &[WireEntry], skipped: u32) {
-    let list = |tomb: bool| domains.iter().filter(|w| w.key.starts_with(b"list/") && w.value.is_empty() == tomb).count();
+    let list = |tomb: bool| {
+        domains
+            .iter()
+            .filter(|w| w.key.starts_with(b"list/") && w.value.is_empty() == tomb)
+            .count()
+    };
     let (live, dead) = (list(false), list(true));
     tracing::info!(
         "[sync] migrated from docs-store: domains {live} (tombstones {dead}), the network's own entries {}, foreign skipped {skipped}",
@@ -209,11 +259,23 @@ pub(crate) async fn import_docs_store(
     network_seed: &[u8; 32],
     legacy: Option<&LegacyRead>,
 ) -> NetResult<()> {
-    let Some(dir) = sync_dir.and_then(file::replica_dir) else { return Ok(()) };
+    let Some(dir) = sync_dir.and_then(file::replica_dir) else {
+        return Ok(());
+    };
     let net = load_slot(&dir, "net", net_id(network_seed), Bak::Keep, true)?;
     let domains = load_slot(&dir, "domains", domains_id(), Bak::Mirror, true)?;
-    let needs = [need(sync_dir, net.mark.as_ref()), need(sync_dir, domains.mark.as_ref())];
-    let data = fetch(sync_dir.unwrap_or(Path::new("")), secret, network_seed, legacy, &needs).await?;
+    let needs = [
+        need(sync_dir, net.mark.as_ref()),
+        need(sync_dir, domains.mark.as_ref()),
+    ];
+    let data = fetch(
+        sync_dir.unwrap_or(Path::new("")),
+        secret,
+        network_seed,
+        legacy,
+        &needs,
+    )
+    .await?;
     let [need_net, need_domains] = needs;
     let (mut net_in, mut domains_in, mut skipped) = (vec![], vec![], 0);
     if need_net != Need::Marked {

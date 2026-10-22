@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use crate::net::{BoxRecv, BoxSend};
+use crate::transport::net::{BoxRecv, BoxSend};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 

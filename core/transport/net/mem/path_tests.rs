@@ -1,8 +1,8 @@
 //! Tests of the `mem` path (`path.rs`): order, size, closing, queue pressure.
 
 use super::*;
-use crate::net::mem::MemNet;
-use crate::net::{NodeSecret, PacketPath, PathKind, PeerId};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::{NodeSecret, PacketPath, PathKind, PeerId};
 use bytes::Bytes;
 use std::io::ErrorKind;
 use std::sync::Arc;
@@ -304,7 +304,10 @@ mod description {
             .downcast_ref::<MemPath>()
             .expect("as_any must return MemPath");
 
-        assert!(std::ptr::eq(any, &line.a), "as_any returned not the path itself");
+        assert!(
+            std::ptr::eq(any, &line.a),
+            "as_any returned not the path itself"
+        );
     }
 }
 

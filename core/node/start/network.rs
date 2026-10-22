@@ -2,34 +2,36 @@
 //! that ties the transports to the rest of the network. Discovery is built here too: the `invite`, `cache`
 //! and `hyperdht` sources go into the stack, the `found` tap leads to the main loop.
 
+use portable_atomic::AtomicU64;
 use std::collections::{HashMap, HashSet};
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicUsize};
-use portable_atomic::AtomicU64;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use crate::net::{NetChoice, NetError, NetStack, PeerAddr, PeerId, Registry, SyncBackend, SyncCtx};
+use crate::transport::net::{
+    NetChoice, NetError, NetStack, PeerAddr, PeerId, Registry, SyncBackend, SyncCtx,
+};
 use anyhow::{Context, Result};
 use tokio::sync::{mpsc, watch, Notify};
 
-use crate::access::view::AccessView;
-use crate::checks;
-use crate::domains::DomainList;
 use crate::exit::{Clients, ExitTraffic};
-use crate::membership::{MemberContext, MemberEvent, Members};
-use crate::network_key::SubKeys;
-use crate::peers_cache::PeersCache;
-use crate::peer_names::PeerNames;
-use crate::output::say;
-use crate::ports::PublishedPortsTable;
-use crate::reachability::CheckConfig;
-use crate::transfer_probe::ProbeSettings;
+use crate::members::access::view::AccessView;
+use crate::members::membership::{MemberContext, MemberEvent, Members};
+use crate::members::network_key::SubKeys;
+use crate::members::peer_names::PeerNames;
+use crate::node::output::say;
+use crate::ports_sharing::PublishedPortsTable;
+use crate::proxy::domains::DomainList;
+use crate::site_checks::checks;
+use crate::site_checks::reachability::CheckConfig;
+use crate::transport::peers_cache::PeersCache;
+use crate::transport::transfer_probe::ProbeSettings;
 
 use crate::node::config::NodeConfig;
 
 use super::boot::Boot;
-use super::preload::{preload_peer_names_into_members, load_sources};
+use super::preload::{load_sources, preload_peer_names_into_members};
 use super::stack::{build_stack, Built};
 
 /// What `spawn_network` hands to the main loop: discovery reports, member events and the address cache.
@@ -51,7 +53,7 @@ pub(super) struct Net {
     pub(super) ctx: MemberContext,
     pub(super) blocked_domains: Arc<HashSet<String>>,
     pub(super) check_cfg: CheckConfig,
-    pub(super) resolver: Arc<crate::doh::Resolver>,
+    pub(super) resolver: Arc<crate::site_checks::doh::Resolver>,
     pub(super) exit_hosts: Arc<HashMap<String, SocketAddr>>,
     pub(super) exit_on: Arc<AtomicBool>,
     pub(super) exit_announce_wakeup: Arc<Notify>,
@@ -79,7 +81,7 @@ pub(super) struct Wired {
 pub(super) struct ServeParts {
     pub(super) blocked_domains: Arc<HashSet<String>>,
     pub(super) check_cfg: CheckConfig,
-    pub(super) resolver: Arc<crate::doh::Resolver>,
+    pub(super) resolver: Arc<crate::site_checks::doh::Resolver>,
     pub(super) exit_hosts: Arc<HashMap<String, SocketAddr>>,
     pub(super) ports: PublishedPortsTable,
     pub(super) exit_clients: Clients,
@@ -96,10 +98,24 @@ pub(super) async fn spawn_network(cfg: &NodeConfig, boot: &Boot) -> Result<(Net,
     let (found_tx, found_rx) = mpsc::channel::<PeerAddr>(64);
     let (cache, sources) = load_sources(cfg, boot);
     let serve = serve_parts(cfg)?;
-    let built = build_stack(cfg, boot, &wired, &serve, (sources, found_tx.clone()), sync_backend.services())?;
+    let built = build_stack(
+        cfg,
+        boot,
+        &wired,
+        &serve,
+        (sources, found_tx.clone()),
+        sync_backend.services(),
+    )?;
     sync_backend.attach_stack(built.stack.downgrade());
     let net = assemble_net(sync_backend, wired, serve, built, found_tx);
-    Ok((net, Inbound { found: found_rx, events: event_rx, cache }))
+    Ok((
+        net,
+        Inbound {
+            found: found_rx,
+            events: event_rx,
+            cache,
+        },
+    ))
 }
 
 /// Opens sync (swarm and replicas) and writes a line about a non-default network choice.
@@ -133,7 +149,17 @@ fn wire_members(cfg: &NodeConfig, boot: &Boot) -> (Wired, mpsc::UnboundedReceive
     );
     super::transports_hyper::admit_members_on_hyper(boot, &members);
     let peer_names = preload_peer_names_into_members(cfg, boot, &members);
-    (Wired { members, ok_probe_count, probe_interval_secs, ctx, route_exits, peer_names }, event_rx)
+    (
+        Wired {
+            members,
+            ok_probe_count,
+            probe_interval_secs,
+            ctx,
+            route_exits,
+            peer_names,
+        },
+        event_rx,
+    )
 }
 
 /// The block list, resolver, port table and exit clients.
@@ -143,7 +169,15 @@ fn serve_parts(cfg: &NodeConfig) -> Result<ServeParts> {
     let ports = PublishedPortsTable::new(cfg.settings.ports_published.clone());
     let exit_clients = Clients::default();
     let exit_traffic = ExitTraffic::default();
-    Ok(ServeParts { blocked_domains, check_cfg, resolver, exit_hosts, ports, exit_clients, exit_traffic })
+    Ok(ServeParts {
+        blocked_domains,
+        check_cfg,
+        resolver,
+        exit_hosts,
+        ports,
+        exit_clients,
+        exit_traffic,
+    })
 }
 
 /// Puts the assembled pieces into `Net`.
@@ -181,8 +215,14 @@ fn assemble_net(
 /// by flooding and its own replicas; the `docs-store/` of the old version is moved over or set aside by `sync::replica::import`).
 pub(super) fn sync_registry() -> Registry {
     let mut registry = Registry::new();
-    registry.add_sync(crate::sync::replica::NAME, crate::sync::replica::sync_ctor(None));
-    registry.add_sync("mem", crate::net::mem::sync_ctor(crate::net::mem::MemSyncNet::new()));
+    registry.add_sync(
+        crate::members::sync::replica::NAME,
+        crate::members::sync::replica::sync_ctor(None),
+    );
+    registry.add_sync(
+        "mem",
+        crate::transport::net::mem::sync_ctor(crate::transport::net::mem::MemSyncNet::new()),
+    );
     registry
 }
 
@@ -191,7 +231,10 @@ fn say_custom_net(net: &NetChoice) {
     if *net != crate::node::net_names::default_choice() {
         let (t, d) = (net.transports.join(", "), net.discovery.join(", "));
         let s = &net.sync;
-        say("net", format!("non-default network choice: transport {t}; discovery {d}; sync {s}"));
+        say(
+            "net",
+            format!("non-default network choice: transport {t}; discovery {d}; sync {s}"),
+        );
     }
 }
 
@@ -246,8 +289,13 @@ fn build_member_context(
 /// resolver for checks, for the exit and for the direct proxy path).
 fn build_resolver_context(
     cfg: &NodeConfig,
-) -> Result<(Arc<HashSet<String>>, CheckConfig, Arc<crate::doh::Resolver>)> {
-    let blocked_domains: Arc<HashSet<String>> = Arc::new(cfg.blocked_domains.iter().cloned().collect());
+) -> Result<(
+    Arc<HashSet<String>>,
+    CheckConfig,
+    Arc<crate::site_checks::doh::Resolver>,
+)> {
+    let blocked_domains: Arc<HashSet<String>> =
+        Arc::new(cfg.blocked_domains.iter().cloned().collect());
     let check_cfg = CheckConfig {
         user_agent: checks::DEFAULT_USER_AGENT.to_string(),
         provider_dns: cfg.settings.provider_dns,
@@ -256,8 +304,12 @@ fn build_resolver_context(
         ..CheckConfig::default()
     };
     let resolver = Arc::new(
-        crate::doh::Resolver::new(cfg.settings.doh_server, check_cfg.limits, check_cfg.user_agent.clone())
-            .context("node resolver")?,
+        crate::site_checks::doh::Resolver::new(
+            cfg.settings.doh_server,
+            check_cfg.limits,
+            check_cfg.user_agent.clone(),
+        )
+        .context("node resolver")?,
     );
     Ok((blocked_domains, check_cfg, resolver))
 }

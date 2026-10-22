@@ -23,7 +23,7 @@ pub(crate) fn is_well_formed(t: &str) -> bool {
 
 pub(crate) fn generate() -> Result<String, String> {
     let mut bytes = [0u8; 32];
-    crate::network_key::fill_random(&mut bytes).map_err(|e| e.to_string())?;
+    crate::members::network_key::fill_random(&mut bytes).map_err(|e| e.to_string())?;
     Ok(encoding().encode(&bytes))
 }
 
@@ -60,13 +60,16 @@ pub(crate) fn write_atomic(dir: &Path, token: &str) -> std::io::Result<()> {
 }
 
 /// The log order and texts are fixed.
-pub(crate) fn resolve_web_token(dir: Option<&Path>, fixed_token: Option<String>) -> Result<String, String> {
+pub(crate) fn resolve_web_token(
+    dir: Option<&Path>,
+    fixed_token: Option<String>,
+) -> Result<String, String> {
     if let Some(token) = fixed_token {
         return Ok(persist_fixed_token(dir, token));
     }
 
     let Some(dir) = dir else {
-        crate::output::say(
+        crate::node::output::say(
             "web",
             "page: there is no settings file, the page token lives only in memory for this run",
         );
@@ -87,7 +90,7 @@ fn persist_fixed_token(dir: Option<&Path>, token: String) -> String {
     if let Some(dir) = dir {
         if let Err(e) = write_atomic(dir, &token) {
             let path = dir.join(super::TOKEN_FILE_NAME);
-            crate::output::say(
+            crate::node::output::say(
                 "web",
                 format!(
                     "page: token not written to {} ({e}); it is valid until the end of this run",
@@ -112,7 +115,7 @@ fn read_existing_token(path: &Path) -> Option<String> {
     if perms_ok {
         return Some(candidate.to_string());
     }
-    crate::output::say(
+    crate::node::output::say(
         "web",
         format!(
             "page: file {} was accessible to more than its owner, the token was replaced",
@@ -126,7 +129,7 @@ fn read_existing_token(path: &Path) -> Option<String> {
 fn write_new_token(dir: &Path, path: &Path) -> Result<String, String> {
     let token = generate()?;
     if let Err(e) = write_atomic(dir, &token) {
-        crate::output::say(
+        crate::node::output::say(
             "web",
             format!(
                 "page: token not written to {} ({e}); it is valid until the end of this run",

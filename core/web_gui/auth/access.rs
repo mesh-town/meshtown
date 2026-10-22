@@ -2,7 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 
-use crate::config_file::ListenAccess;
+use crate::config::config_file::ListenAccess;
 
 fn v4_of(ip: IpAddr) -> Option<Ipv4Addr> {
     match ip {
@@ -58,9 +58,17 @@ pub(crate) type IfaceAddr = (String, Ipv4Addr);
 pub(crate) fn lan_addrs_pick(all: Vec<IfaceAddr>, default: Option<Ipv4Addr>) -> Vec<IfaceAddr> {
     let mut kept: Vec<IfaceAddr> = all
         .into_iter()
-        .filter(|(_, ip)| !ip.is_loopback() && is_client_allowed(ListenAccess::Localnet, IpAddr::V4(*ip)))
+        .filter(|(_, ip)| {
+            !ip.is_loopback() && is_client_allowed(ListenAccess::Localnet, IpAddr::V4(*ip))
+        })
         .collect();
-    kept.sort_by(|a, b| (a.1 != default.unwrap_or(Ipv4Addr::BROADCAST), &a.0, a.1).cmp(&(b.1 != default.unwrap_or(Ipv4Addr::BROADCAST), &b.0, b.1)));
+    kept.sort_by(|a, b| {
+        (a.1 != default.unwrap_or(Ipv4Addr::BROADCAST), &a.0, a.1).cmp(&(
+            b.1 != default.unwrap_or(Ipv4Addr::BROADCAST),
+            &b.0,
+            b.1,
+        ))
+    });
     kept.dedup();
     kept
 }
