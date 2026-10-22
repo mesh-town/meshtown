@@ -47,7 +47,7 @@ jobs:
       - name: Install toolchain
         shell: bash
         run: |
-          # The MIPS targets have no prebuilt std: build/mips/build.sh installs nightly with rust-src itself.
+          # The MIPS targets have no prebuilt std: platforms/linux/build/mips/build.sh installs nightly with rust-src itself.
           if [ "$MIPS" = true ]; then
             rustup toolchain install stable --profile minimal
           else
@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tmp/mips-toolchain-dl
-          key: mips-toolchain-${{ matrix.target }}-${{ hashFiles('build/mips/build.sh') }}
+          key: mips-toolchain-${{ matrix.target }}-${{ hashFiles('platforms/linux/build/mips/build.sh') }}
       - name: Install zig
         if: matrix.zig && !matrix.mips
         run: pip3 install --user ziglang
@@ -77,8 +77,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -i.bak '/^crate-type = /d' Cargo.toml
-          rm -f Cargo.toml.bak
+          sed -i.bak '/^crate-type = /d' core/Cargo.toml
+          rm -f core/Cargo.toml.bak
           if [ "$RUNNER_OS" = Windows ]; then
             cargo_home="${CARGO_HOME:-$USERPROFILE\\.cargo}"
           else
@@ -95,7 +95,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
           mkdir stage
           if [ "$MIPS" = true ]; then
-            MIPS_TOOLCHAIN_CACHE="$PWD/.tmp/mips-toolchain-dl" build/mips/build.sh "$TARGET"
+            MIPS_TOOLCHAIN_CACHE="$PWD/.tmp/mips-toolchain-dl" platforms/linux/build/mips/build.sh "$TARGET"
           else
             cargo "$sub" --release --locked --target "$TARGET" --no-default-features --features net-hyper
           fi
@@ -128,7 +128,7 @@ jobs:
             # macOS: the build with the tray goes into MeshTown.app (ad hoc signature, no Developer ID).
             arch="${TARGET%%-*}"
             if [ "$arch" = aarch64 ]; then arch=arm64; fi
-            build/macos/app.sh stage/meshtown stage/app "$arch"
+            platforms/macos/build/app.sh stage/meshtown stage/app "$arch"
             cp "stage/app/MeshTown-macos-${arch}.zip" "out/MeshTown-macos-${arch}-${VERSION}.zip"
             # The Homebrew formula unpacks this archive: no AppleDouble entries and a single top-level MeshTown.app/.
             if unzip -Z1 "out/MeshTown-macos-${arch}-${VERSION}.zip" | grep -Eq '(^|/)\._|__MACOSX'; then

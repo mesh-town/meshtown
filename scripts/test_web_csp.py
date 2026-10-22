@@ -1,4 +1,4 @@
-"""The node page under CSP `style-src 'self'; script-src 'self'` (`src/web/routes/mod.rs`):
+"""The node page under CSP `style-src 'self'; script-src 'self'` (`core/web/routes/mod.rs`):
 an inline `style=`, `<style>`, an inline `<script>` and `on…=` handlers are
 blocked by the browser, and the Playwright `web-check` battery fails on a console error in every case. JS unit tests
 do not see this — we catch it here, without a build or a browser."""
@@ -7,7 +7,7 @@ import re
 import unittest
 from pathlib import Path
 
-WEB = Path(__file__).resolve().parent.parent / "web"
+WEB = Path(__file__).resolve().parent.parent / "core" / "web_gui" / "ui"
 
 FORBIDDEN = [
     (re.compile(r"""\sstyle\s*=\s*["']"""), "style= attribute"),
@@ -39,7 +39,9 @@ class WebCspTest(unittest.TestCase):
         self.assertEqual(violations((WEB / "index.html").read_text(encoding="utf-8")), [])
 
     def test_vue_templates_have_no_inline_code(self):
-        for path in sorted((WEB / "vue" / "src").rglob("*.vue")):
+        templates = sorted((WEB / "vue" / "src").rglob("*.vue"))
+        self.assertTrue(templates)
+        for path in templates:
             with self.subTest(file=path.relative_to(WEB).as_posix()):
                 self.assertEqual(violations(path.read_text(encoding="utf-8"), VUE_FORBIDDEN), [])
 

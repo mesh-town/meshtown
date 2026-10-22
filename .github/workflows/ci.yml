@@ -42,7 +42,7 @@ jobs:
       - name: Build without dylib (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        run: sed -i '/^crate-type = /d' Cargo.toml
+        run: sed -i '/^crate-type = /d' core/Cargo.toml
       # `cargo fmt --all --check` is not enabled yet: the tree is not rustfmt-clean.
       - name: Clippy
         run: cargo clippy --all-targets --locked -- -D warnings
@@ -67,12 +67,12 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            web/vue/package-lock.json
-            e2e/package-lock.json
+            core/web_gui/ui/vue/package-lock.json
+            core/web_gui/e2e/package-lock.json
       - name: Install toolchain
         run: rustup toolchain install stable --profile minimal
       - uses: Swatinem/rust-cache@v2
-      # The committed bundle web/bundle/app.js must be what web/vue builds.
+      # The committed bundle core/web_gui/ui/bundle/app.js must be what core/web_gui/ui/vue builds.
       - name: Bundle is fresh
         run: make web-bundle-check
       - name: Page tests and types
@@ -80,7 +80,7 @@ jobs:
       - name: Browser dependencies
         run: |
           make web-deps
-          cd e2e && node_modules/.bin/playwright install-deps chromium
+          cd core/web_gui/e2e && node_modules/.bin/playwright install-deps chromium
       - name: Browser battery
         run: make web-check
       - name: Lint and types of the battery
@@ -132,16 +132,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .tools
-          key: openwrt-feed-tools-${{ runner.os }}-${{ hashFiles('build/openwrt/feed/tools.sh') }}
+          key: openwrt-feed-tools-${{ runner.os }}-${{ hashFiles('platforms/linux/build/openwrt/feed/tools.sh') }}
       - name: Build apk and usign
-        run: build/openwrt/feed/tools.sh "$GITHUB_WORKSPACE/.tools"
+        run: platforms/linux/build/openwrt/feed/tools.sh "$GITHUB_WORKSPACE/.tools"
       - name: Tests of the feed builder
-        run: fakeroot python3 -m unittest discover -v -s build/openwrt/feed -t build/openwrt/feed
+        run: fakeroot python3 -m unittest discover -v -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed
       - name: Smoke build of a feed
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/fake"
-          (cd build/openwrt/feed && python3 -c "
+          (cd platforms/linux/build/openwrt/feed && python3 -c "
           import sys
           from pathlib import Path
           from feed_fixtures import fake_elf
@@ -149,7 +149,7 @@ jobs:
           fake_elf(d / 'aarch64', 'aarch64')
           fake_elf(d / 'x86_64', 'x86_64')
           " "$RUNNER_TEMP/fake")
-          fakeroot python3 build/openwrt/feed/build_feed.py --out "$RUNNER_TEMP/feed" --version 0.0.1 \
+          fakeroot python3 platforms/linux/build/openwrt/feed/build_feed.py --out "$RUNNER_TEMP/feed" --version 0.0.1 \
             --base-url https://feed.example.invalid \
             --bin "aarch64-unknown-linux-musl=$RUNNER_TEMP/fake/aarch64" \
             --bin "x86_64-unknown-linux-musl=$RUNNER_TEMP/fake/x86_64" \

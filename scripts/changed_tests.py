@@ -17,6 +17,9 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+CORE = "core"
+# Entries of `core/` that are not library or binary modules and have their own rules.
+NON_MODULE_TOPS = {"tests", "examples", "web_gui", "Cargo.toml"}
 STEP_COMMENT_RE = re.compile(r"//.*")
 MOD_DECL_RE = re.compile(
     r'(?:^|\n)\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;')
@@ -80,9 +83,9 @@ def _load_tests(tests_dir: Path) -> dict[str, str]:
     return tests
 
 def _load_bin_module(proto: Path, name: str) -> str:
-    files = [proto / "src" / f"{name}.rs", proto / "src" / f"{name}_tests.rs"]
+    files = [proto / CORE / f"{name}.rs", proto / CORE / f"{name}_tests.rs"]
     files = [f for f in files if f.is_file()]
-    module_dir = proto / "src" / name
+    module_dir = proto / CORE / name
     if module_dir.is_dir():
         files += sorted(module_dir.rglob("*.rs"))
     return "\n".join(_read_text(f) for f in files)
@@ -102,15 +105,15 @@ def _load_examples(examples_dir: Path) -> dict[str, str]:
     return examples
 
 def load_sources(proto: Path) -> Sources:
-    main_rs = _read_text(proto / "src" / "main.rs")
+    main_rs = _read_text(proto / CORE / "main.rs")
     bin_dict = {"main": main_rs}
     for name in sorted(bin_modules(main_rs)):
         bin_dict[name] = _load_bin_module(proto, name)
     return Sources(
         main_rs=main_rs,
-        tests=_load_tests(proto / "tests"),
+        tests=_load_tests(proto / CORE / "tests"),
         bin=bin_dict,
-        examples=_load_examples(proto / "examples"),
+        examples=_load_examples(proto / CORE / "examples"),
     )
 
 def _group_bodies(text: str) -> list[str]:
@@ -160,10 +163,12 @@ class Selection:
     reasons: list[str] = field(default_factory=list)
 
 def _src_top(path: str, restrict_to: set[str] | None) -> str | None:
-    prefix = "src/"
+    prefix = f"{CORE}/"
     if not path.startswith(prefix):
         return None
     top = path[len(prefix) :].split("/", 1)[0]
+    if top in NON_MODULE_TOPS:
+        return None
     for suffix in ("_tests.rs", ".rs"):
         if top.endswith(suffix):
             top = top[: -len(suffix)]
@@ -184,10 +189,10 @@ def _apply_lib_module(top: str, src: Sources, sel: Selection) -> None:
         sel.web_check = True
 
 def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) -> str:
-    if path in ("src/main.rs", "src/main_tests.rs"):
+    if path in (f"{CORE}/main.rs", f"{CORE}/main_tests.rs"):
         sel.whole_bin = True
         return "whole_bin"
-    if path == "src/lib.rs":
+    if path == f"{CORE}/lib.rs":
         sel.full = True
         return "full"
     top = _src_top(path, bin_names)
@@ -198,24 +203,24 @@ def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) ->
     if top is not None:
         _apply_lib_module(top, src, sel)
         return f"lib_modules += {top}"
-    if path.startswith("tests/common/") and path.endswith(".rs"):
-        common_file = path[len("tests/common/") : -len(".rs")]
+    if path.startswith(f"{CORE}/tests/common/") and path.endswith(".rs"):
+        common_file = path[len(f"{CORE}/tests/common/") : -len(".rs")]
         sel.integration |= common_users(common_file, src.tests)
         return f"common_users({common_file})"
-    if path.startswith("tests/") and path.endswith(".rs"):
-        name = path[len("tests/") : -len(".rs")]
+    if path.startswith(f"{CORE}/tests/") and path.endswith(".rs"):
+        name = path[len(f"{CORE}/tests/") : -len(".rs")]
         if name in src.tests:
             sel.integration.add(name)
         return f"integration += {name}"
-    if path.startswith("web/"):
+    if path.startswith(f"{CORE}/web_gui/ui/"):
         sel.web_check = True
         sel.lib_modules |= {"web", "node::identity"}
-        if path.startswith(("web/vue/", "web/bundle/")):
+        if path.startswith(f"{CORE}/web_gui/ui/vue/") or path.startswith(f"{CORE}/web_gui/ui/bundle/"):
             sel.js = sel.bundle_check = True
-        if path.startswith("web/vue/"):
+        if path.startswith(f"{CORE}/web_gui/ui/vue/"):
             sel.web_typecheck = True
         return "web"
-    if path.startswith("examples/"):
+    if path.startswith(f"{CORE}/examples/"):
         sel.web_check = True
         return "web_check"
     if path.startswith("scripts/") and path.endswith(".py"):
@@ -223,10 +228,10 @@ def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) ->
         return "py"
     if path.endswith(".md"):
         return "no-op (md)"
-    if path.startswith("android/"):
+    if path.startswith("platforms/android/"):
         sel.android = True
         return "android"
-    if path.startswith("e2e/"):
+    if path.startswith(f"{CORE}/web_gui/e2e/"):
         sel.web_check = sel.web_lint = True
         return "web_check + web_lint"
     sel.full = sel.py = sel.js = True

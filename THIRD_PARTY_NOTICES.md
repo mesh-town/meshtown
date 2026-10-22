@@ -7,7 +7,7 @@ material.
 
 - Upstream: https://github.com/mesh-town/townjump (a Rust port of Holesail 2.4.4)
 - License: AGPL-3.0-only
-- Used as a git dependency, pinned by revision in `Cargo.toml` (crates `townjump-dht`, `townjump-dht-peeroxide`,
+- Used as a git dependency, pinned by revision in `core/Cargo.toml` (crates `townjump-dht`, `townjump-dht-peeroxide`,
   `townjump-keys`, `peeroxide-dht`, `libudx`). Its own notices are in that repository.
 
 ## peeroxide-dht and libudx (through townjump)
@@ -20,13 +20,13 @@ material.
 
 - Source: https://www.eff.org/dice, © Electronic Frontier Foundation
 - License: Creative Commons Attribution 3.0 United States (CC BY 3.0 US), https://creativecommons.org/licenses/by/3.0/us/
-- Embedded unchanged as `src/wordlist/eff_large_wordlist.txt`; details are in `src/wordlist/NOTICE.md`.
+- Embedded unchanged as `core/wordlist/eff_large_wordlist.txt`; details are in `core/wordlist/NOTICE.md`.
 
 ## Vue 3.5.43
 
 - Upstream: https://github.com/vuejs/core
 - License: MIT
-- Built into the management page bundle `web/bundle/app.js` (sources in `web/vue`; the Vue runtime is the only runtime
+- Built into the management page bundle `core/web_gui/ui/bundle/app.js` (sources in `core/web_gui/ui/vue`; the Vue runtime is the only runtime
   dependency of the page).
 
 ## Rust dependencies
@@ -38,5 +38,5 @@ binary releases is planned after 0.2.0.
 
 - Upstream: https://github.com/tun2proxy/tun2proxy
 - License: MIT, Copyright (c) tun2proxy contributors
-- The frame layout and flags of the UDP gateway served by the exit (`src/exit/udpgw/`) follow the `udpgw` client and
+- The frame layout and flags of the UDP gateway served by the exit (`core/exit/udpgw/`) follow the `udpgw` client and
   server of tun2proxy 0.8.6. The Android build also links the tun2proxy library as a whole.

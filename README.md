@@ -31,7 +31,7 @@ release.
    chosen as an exit) and moves the bytes. An exit serves only verified members and only public addresses.
 5. New members join with a single-use invite (valid for a day) or with the key itself.
 
-Modules and protocols are described in [ARCHITECTURE.md](ARCHITECTURE.md).
+Modules and protocols are described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Quick start
 
@@ -46,7 +46,7 @@ Modules and protocols are described in [ARCHITECTURE.md](ARCHITECTURE.md).
 6. Point a browser or a program at the proxy `127.0.0.1:1080` (SOCKS5; use `socks5h://` so the node resolves names),
    for example `curl -x socks5h://127.0.0.1:1080 https://example.com/`.
 
-Every option, the settings file, the node page and the log format are described in [USAGE.md](USAGE.md).
+Every option, the settings file, the node page and the log format are described in [docs/USAGE.md](docs/USAGE.md).
 
 ## Safety
 
@@ -126,7 +126,7 @@ SmartScreen may warn on the first launch.
   - OpenWrt 24.10 (`opkg`): `opkg update && opkg upgrade meshtown`
   - OpenWrt 25.12 (`apk`): `apk update && apk upgrade meshtown`
 
-  Manual installation and details: [build/openwrt/README.md](build/openwrt/README.md).
+  Manual installation and details: [platforms/linux/build/openwrt/README.md](platforms/linux/build/openwrt/README.md).
 
 - **Keenetic** (router with Entware installed; MIPS and aarch64 models). Over SSH on the router:
 
@@ -141,7 +141,7 @@ SmartScreen may warn on the first launch.
 ## Building
 
 Requirements: Rust 1.94 or newer (see `rust-version` in `Cargo.toml`). Node 22.18 or newer is needed only to rebuild
-the node page (`web/bundle/app.js` is committed). The code depends on townjump by a pinned git revision, so the
+the node page (`core/web_gui/ui/bundle/app.js` is committed). The code depends on townjump by a pinned git revision, so the
 first build needs network access to GitHub.
 
 ```sh
@@ -150,7 +150,7 @@ cargo build --release --locked --no-default-features --features net-hyper   # no
 ```
 
 `make` without arguments prints the list of project commands. The build logic for release packages is in
-`build/<system>/build.sh`, and the macOS app bundle is described in [build/macos/README.md](build/macos/README.md).
+`platforms/<system>/build/build.sh`, and the macOS app bundle is described in [platforms/macos/build/README.md](platforms/macos/build/README.md).
 
 | Command | Target | Result in `dist/` |
 |---|---|---|
@@ -165,11 +165,11 @@ tests together with `clippy`; the same checks run in CI.
 
 ## Documentation
 
-- [USAGE.md](USAGE.md): running the node, the settings file, invites, proxy and exit, site checks, the node page and
+- [docs/USAGE.md](docs/USAGE.md): running the node, the settings file, invites, proxy and exit, site checks, the node page and
   the log format.
-- [ARCHITECTURE.md](ARCHITECTURE.md): modules, protocols, data flow.
-- [CONFIG-FILE.md](CONFIG-FILE.md): the settings file, its fields and versions.
-- [WEB-API.md](WEB-API.md), [WEB-API-config.md](WEB-API-config.md), [WEB-API-embedding.md](WEB-API-embedding.md): the
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): modules, protocols, data flow.
+- [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md): the settings file, its fields and versions.
+- [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md), [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md): the
   HTTP API of the node page.
 - [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
@@ -206,7 +206,7 @@ scope and how to report a problem.
   that provides the DHT and the transport (via the forked `peeroxide-dht` and `libudx`).
 - The word list for the random part of the key is the EFF Large Wordlist for Passphrases, © Electronic Frontier
   Foundation, https://www.eff.org/dice, license CC BY 3.0 US. It is embedded unchanged; see
-  `src/wordlist/NOTICE.md`.
+  `core/wordlist/NOTICE.md`.
 - The page is built with [Vue](https://vuejs.org/) (MIT).
 
 The full list is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

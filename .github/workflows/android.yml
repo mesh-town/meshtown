@@ -93,7 +93,7 @@ jobs:
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
           export ANDROID_BUILD_DIR="$GITHUB_WORKSPACE/.tmp/build"
           export ANDROID_DIST_DIR="$GITHUB_WORKSPACE/dist/android"
-          android/build.sh
+          platforms/android/build/build.sh
           (cd "$ANDROID_DIST_DIR" && sha256sum -- *.apk > SHA256SUMS && cat SHA256SUMS)
           if [ "${{ steps.sign.outputs.signed }}" = true ]; then
             echo signed > "$ANDROID_DIST_DIR/signed.txt"
@@ -134,5 +134,5 @@ jobs:
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
           mkdir -p dist-src/android
           cp "apk/meshtown-${version}.apk" dist-src/android/
-          build/dist/publish.sh dist-src "$version"
+          release/dist/publish.sh dist-src "$version"
           rm -f "$key"

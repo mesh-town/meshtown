@@ -49,5 +49,35 @@ class LoadExamplesTest(unittest.TestCase):
             self.assertNotIn("notes", loaded)
 
 
+class LoadSourcesTest(unittest.TestCase):
+    """load_sources() — reads the binary, its modules, the tests and the examples from `core/`."""
+
+    def test_core_dir_is_read_for_main_bin_modules_tests_and_examples(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {
+                "core/main.rs": "mod app;\n",
+                "core/app/view.rs": "fn view() {}\n",
+                "core/app_tests.rs": "fn app_test() {}\n",
+                "core/tests/a.rs": '#[path = "common/c.rs"]\nmod c;\n',
+                "core/tests/common/c.rs": "fn from_common() {}\n",
+                "core/examples/web_demo/main.rs": "fn main() {}\n",
+                "src/main.rs": "mod old;\n",
+            }
+            for rel, text in files.items():
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text)
+
+            loaded = changed_tests.load_sources(root)
+
+            self.assertEqual(set(loaded.bin), {"main", "app"})
+            self.assertIn("app_test", loaded.bin["app"])
+            self.assertIn("fn view", loaded.bin["app"])
+            self.assertIn("from_common", loaded.tests["a"])
+            self.assertIn("web_demo", loaded.examples)
+            self.assertNotIn("old", loaded.bin)
+
+
 if __name__ == "__main__":
     unittest.main()
