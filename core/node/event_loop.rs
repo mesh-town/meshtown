@@ -41,10 +41,10 @@ async fn invite_and_sync(peer: PeerId, swarm: &dyn Membership, domains: &DomainL
             format!("couldn't invite {}: {e}", short_peer_id(&peer)),
         ),
     }
-    match domains.sync_with(peer).await {
+    match domains.sync_shared_with(peer).await {
         Ok(()) => say(
             "docs",
-            format!("syncing the domain list with {}", short_peer_id(&peer)),
+            format!("syncing the network document with {}", short_peer_id(&peer)),
         ),
         Err(e) => say(
             "docs",

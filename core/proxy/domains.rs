@@ -1,13 +1,13 @@
 //! The node's own domain list (its own replica, never reconciled) and the shared network replica.
 //!
 //! What it does: holds the shared network replica (`REPLICA_NET`) and its own (`REPLICA_DOMAINS`, `own.rs`); adds, removes and reads domains only
-//! in its own; on first start copies the former list from the shared replica into it; starts reconciliation
+//! in its own; starts reconciliation
 //! of the shared replica with a member, prints its events and parses the console commands
 //! `domains add|remove|list`. The shared document carries `chk/`, `node/exit/`, `node/country/`, `node/version/`.
 //! What it doesn't do: doesn't check domain reachability (the `chk/` records are the next stage),
 //! doesn't limit the number of records; it is not the module that stores to disk — the sync opens
 //! the store, and without a directory it lives in memory.
-//! Related: `node.rs` opens the list at start and calls `sync_with` on each new member;
+//! Related: `node.rs` opens the list at start and calls `sync_shared_with` on each new member;
 //! `output` is the output; keys come from `network_key::SubKeys`.
 
 use std::sync::Arc;
@@ -133,9 +133,8 @@ pub struct DomainList {
 }
 
 impl DomainList {
-    /// Moves the former list from the shared replica into its own (before reconciliation), then enables reconciliation of the shared one.
+    /// Enables reconciliation of the shared replica; the own list replica is used as is.
     pub async fn open(shared: Arc<dyn Replica>, own: Arc<dyn Replica>) -> Result<DomainList> {
-        own::migrate_shared_list(&*shared, &*own).await?;
         shared.start_sync().await.map_err(NetError::into_anyhow)?;
         Ok(DomainList { shared, own })
     }
@@ -196,8 +195,8 @@ impl DomainList {
         Ok(self.list().await?.len())
     }
 
-    /// Starts a one-off reconciliation of the shared replica with a member.
-    pub async fn sync_with(&self, peer: PeerId) -> Result<()> {
+    /// Starts a one-off reconciliation of the shared network replica (not the domain list) with a member.
+    pub async fn sync_shared_with(&self, peer: PeerId) -> Result<()> {
         self.shared
             .sync_with(peer)
             .await
