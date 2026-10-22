@@ -36,6 +36,12 @@ public class NodeStateTest {
     }
 
     @Test
+    public void networkNameComesFromTheLabel() {
+        assertEquals("probe", NodeState.parse("{\"network\":{\"label\":\" probe \",\"masked\":\"x\",\"id_hex\":\"ab\"}}").networkName);
+        assertNull(NodeState.parse("{\"network\":{\"label\":null,\"id_hex\":\"ab\"}}").networkName);
+    }
+
+    @Test
     public void noNetworkMeansNotInNetwork() {
         NodeState s = NodeState.parse("{}");
         assertTrue(s.reachable);

@@ -75,7 +75,10 @@ final class NodeState {
     }
 
     private static String networkName(JSONObject network) {
-        String name = network == null || network.isNull("name") ? "" : network.optString("name", "").trim();
+        if (network == null) {
+            return null;
+        }
+        String name = network.isNull("label") ? "" : network.optString("label", "").trim();
         return name.isEmpty() ? null : name;
     }
 

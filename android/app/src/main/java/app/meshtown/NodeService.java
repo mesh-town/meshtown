@@ -133,8 +133,9 @@ public class NodeService extends Service {
 
     private void stopNode() {
         if (node != null) {
-            node.destroy();
+            Process dying = node;
             node = null;
+            new Thread(() -> NodeStopper.stop(new ProcessTarget(dying), NodeStopper.GRACE_MS), "mesh-node-stop").start();
         }
     }
 

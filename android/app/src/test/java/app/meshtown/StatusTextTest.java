@@ -8,11 +8,11 @@ import org.junit.Test;
 public class StatusTextTest {
     private static final NodeState OUT = NodeState.parse("{}");
     private static final NodeState EXCLUDED =
-            NodeState.parse("{\"network\":{\"name\":\"probe\"},\"members\":{\"me_excluded\":true}}");
-    private static final NodeState DIRECT = NodeState.parse("{\"network\":{\"name\":\"probe\"}}");
-    private static final NodeState VIA = NodeState.parse("{\"network\":{\"name\":\"probe\"},\"route\":"
+            NodeState.parse("{\"network\":{\"label\":\"probe\",\"masked\":\"mt1-...\",\"id_hex\":\"ab\"},\"members\":{\"me_excluded\":true}}");
+    private static final NodeState DIRECT = NodeState.parse("{\"network\":{\"label\":\"probe\",\"masked\":\"mt1-...\",\"id_hex\":\"ab\"}}");
+    private static final NodeState VIA = NodeState.parse("{\"network\":{\"label\":\"probe\",\"masked\":\"mt1-...\",\"id_hex\":\"ab\"},\"route\":"
             + "{\"state\":\"exit\",\"exits\":[{\"id\":\"a\",\"name\":\"peer-one\"}]}}");
-    private static final NodeState LOST = NodeState.parse("{\"network\":{\"name\":\"probe\"},\"route\":"
+    private static final NodeState LOST = NodeState.parse("{\"network\":{\"label\":\"probe\",\"masked\":\"mt1-...\",\"id_hex\":\"ab\"},\"route\":"
             + "{\"state\":\"unavailable\",\"exits\":[{\"id\":\"a\",\"name\":\"peer-one\",\"online\":false}]}}");
 
     private static void line(String text, int dot, StatusText.Line l) {
