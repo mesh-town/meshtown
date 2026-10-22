@@ -160,6 +160,14 @@ mod udp {
     }
 
     #[tokio::test]
+    async fn udp_address_skips_aaaa_for_nonexistent_name() {
+        let cfg = seeded(vec![], vec!["2606:4700::1111"]);
+        let v4 = NameAnswer { open: vec![], any: false, nx: true };
+
+        assert_eq!(udp_address_from(&cfg.resolver, "udp.test", 53, v4).await, None);
+    }
+
+    #[tokio::test]
     async fn udp_address_is_none_when_all_closed() {
         let cfg = seeded(vec![Ipv4Addr::new(10, 0, 0, 1)], vec!["fe80::1"]);
 

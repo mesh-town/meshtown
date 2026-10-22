@@ -87,6 +87,11 @@ pub(in crate::exit) async fn v6_answer(resolver: &Resolver, name: &str, port: u1
 /// retries; a DoH error, a name that does not exist and an all-closed answer give `None`.
 pub(in crate::exit) async fn udp_address(resolver: &Resolver, name: &str, port: u16) -> Option<SocketAddr> {
     let v4 = v4_answer(resolver, name, port).await.ok()?;
+    udp_address_from(resolver, name, port, v4).await
+}
+
+/// The choice of `udp_address` once the IPv4 answer is known.
+async fn udp_address_from(resolver: &Resolver, name: &str, port: u16, v4: NameAnswer) -> Option<SocketAddr> {
     if let Some(first) = v4.open.first() {
         return Some(*first);
     }
