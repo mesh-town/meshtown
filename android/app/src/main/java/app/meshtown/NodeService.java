@@ -3,6 +3,7 @@ package app.meshtown;
 import android.app.Service;
 import android.content.Intent;
 import android.net.VpnService;
+import android.os.SystemClock;
 import android.os.IBinder;
 import android.util.Log;
 import java.io.File;
@@ -20,6 +21,8 @@ public class NodeService extends Service {
     static volatile NodeState state = NodeState.UNREACHABLE;
     /** Set by Quit; the activity closes itself when it sees it. */
     static volatile boolean quitRequested;
+    /** Whether Connect is offered (see {@link ConnectGate}); read by the activity and the tile. */
+    static volatile boolean canConnect;
 
     private Process node;
     private StatusNotifier notifier;
@@ -27,6 +30,7 @@ public class NodeService extends Service {
     private volatile boolean stopping;
     private volatile boolean restoreTunnel;
     private boolean exitWasLost;
+    private final ConnectGate gate = new ConnectGate();
     private String shown = "";
 
     @Override
@@ -40,7 +44,7 @@ public class NodeService extends Service {
         if (notifier == null) {
             notifier = new StatusNotifier(this);
         }
-        startForeground(StatusNotifier.ID, notifier.status("Node is starting", false, false));
+        startForeground(StatusNotifier.ID, notifier.status(StatusText.notice(NodeState.UNREACHABLE, false), false, false));
         if (ACTION_QUIT.equals(action)) {
             quit();
             return START_NOT_STICKY;
@@ -86,11 +90,14 @@ public class NodeService extends Service {
     }
 
     private void quit() {
+        Log.i(TAG, "quit requested, node " + (node != null ? "present" : "absent"));
         quitRequested = true;
         stopping = true;
         stopTunnel(true);
         stopNode();
         state = NodeState.UNREACHABLE;
+        gate.update(state, 0);
+        canConnect = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
@@ -127,8 +134,18 @@ public class NodeService extends Service {
 
     private void stopNode() {
         if (node != null) {
-            node.destroy();
+            Process dying = node;
             node = null;
+            new Thread(() -> stopQuietly(dying), "mesh-node-stop").start();
+        }
+    }
+
+    private static void stopQuietly(Process dying) {
+        try {
+            boolean forced = NodeStopper.stop(new ProcessTarget(dying), NodeStopper.GRACE_MS);
+            Log.i(TAG, "node stopped, forced=" + forced);
+        } catch (Throwable e) {
+            Log.e(TAG, "node stop failed", e);
         }
     }
 
@@ -151,6 +168,7 @@ public class NodeService extends Service {
         }
         NodeState s = NodeApi.fetchState(this);
         state = s;
+        canConnect = gate.update(s, SystemClock.elapsedRealtime());
         if (s.reachable && Prefs.namePending(this)) {
             applyPhoneName();
         }
@@ -160,22 +178,22 @@ public class NodeService extends Service {
         }
         boolean vpnOn = TunnelService.running;
         announceExit(s, vpnOn);
-        show(s.describe(vpnOn), vpnOn, s.inNetwork);
+        show(StatusText.notice(s, vpnOn), vpnOn, canConnect);
     }
 
     /** One alert on the online -> offline transition of the chosen exit, not on every poll. */
     private void announceExit(NodeState s, boolean vpnOn) {
         boolean lost = vpnOn && s.exitLost();
         if (lost && !exitWasLost) {
-            notifier.alertExitLost(s.describe(true));
+            notifier.alertExitLost(StatusText.exitOffline(s));
         } else if (!lost && exitWasLost) {
             notifier.clearAlert();
         }
         exitWasLost = lost;
     }
 
-    private void show(String text, boolean vpnOn, boolean canConnect) {
-        String key = text + vpnOn + canConnect;
+    private void show(StatusText.Notice text, boolean vpnOn, boolean canConnect) {
+        String key = text.title + "|" + text.text + vpnOn + canConnect;
         if (key.equals(shown)) {
             return;
         }

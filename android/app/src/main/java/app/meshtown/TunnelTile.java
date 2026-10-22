@@ -6,13 +6,22 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.VpnService;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
 /** Quick Settings tile: lit while the VPN is up; a tap connects or disconnects like the notification action. */
 public class TunnelTile extends TileService {
-    /** Asks the system to redraw the tile when the tunnel state changed. */
+    /** The instance while the panel is open; a listening tile never gets a second onStartListening. */
+    private static volatile TunnelTile listening;
+
+    /** Redraws the tile at once when the panel is open, and asks the system to listen otherwise. */
     static void refresh(Context ctx) {
+        TunnelTile open = listening;
+        if (open != null) {
+            new Handler(Looper.getMainLooper()).post(() -> open.draw(TunnelService.running));
+        }
         try {
             TileService.requestListeningState(ctx, new ComponentName(ctx, TunnelTile.class));
         } catch (RuntimeException ignored) {
@@ -22,14 +31,23 @@ public class TunnelTile extends TileService {
 
     @Override
     public void onStartListening() {
-        draw();
+        listening = this;
+        draw(TunnelService.running);
+    }
+
+    @Override
+    public void onStopListening() {
+        listening = null;
     }
 
     @Override
     public void onClick() {
-        if (TunnelService.running) {
+        boolean on = TunnelService.running;
+        if (on) {
+            draw(false);
             startForegroundService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_DISCONNECT));
         } else if (canConnect()) {
+            draw(true);
             startForegroundService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_CONNECT));
         } else {
             openApp();
@@ -37,15 +55,19 @@ public class TunnelTile extends TileService {
     }
 
     private boolean canConnect() {
-        return NodeService.state.inNetwork && VpnService.prepare(this) == null;
+        return NodeService.canConnect && VpnService.prepare(this) == null;
     }
 
-    private void draw() {
+    /** Draws the given state; a tap draws the expected one at once, the service's refresh corrects it. */
+    private void draw(boolean on) {
         Tile tile = getQsTile();
         if (tile == null) {
             return;
         }
-        tile.setState(TunnelService.running ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        tile.setState(on ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
+        if (Build.VERSION.SDK_INT >= 29) {
+            tile.setSubtitle(StatusText.tileSubtitle(NodeService.state, on));
+        }
         tile.updateTile();
     }
 

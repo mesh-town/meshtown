@@ -11,6 +11,9 @@ public class TunnelService extends VpnService {
     static final String ACTION_STOP = "app.meshtown.STOP";
     private static final String TAG = "MeshTown";
     private static final int SOCKS_PORT = 1080;
+    /** The DNS server given to the system; the pool of made-up answer addresses must not contain it. */
+    private static final String DNS_SERVER = "198.18.0.1";
+    private static final String FAKE_IP_POOL = "198.19.0.0/16";
 
     static volatile boolean running;
 
@@ -44,7 +47,7 @@ public class TunnelService extends VpnService {
                     .addRoute("0.0.0.0", 0)
                     .addAddress("fd00:6d74::2", 64)
                     .addRoute("::", 0)
-                    .addDnsServer("198.18.0.1")
+                    .addDnsServer(DNS_SERVER)
                     .setMtu(1500);
             b.addDisallowedApplication(getPackageName());
             tun = b.establish();
@@ -54,7 +57,8 @@ public class TunnelService extends VpnService {
             final int fd = tun.getFd();
             bridge = new Thread(() -> {
                 String args = "tun2proxy --proxy socks5://127.0.0.1:" + SOCKS_PORT
-                        + " --tun-fd " + fd + " --close-fd-on-drop false --dns virtual --udpgw-server 240.0.0.1:7300"
+                        + " --tun-fd " + fd + " --close-fd-on-drop false --dns virtual --virtual-dns-pool " + FAKE_IP_POOL
+                        + " --udpgw-server 240.0.0.1:7300"
                         + " --verbosity info";
                 Log.i(TAG, "tun2proxy exited with " + Tun2proxy.run(args, (char) 1500));
             }, "tun2proxy");
