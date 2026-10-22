@@ -1,4 +1,4 @@
-.PHONY: help build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed clippy clippy-full core-check features-check net-boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
+.PHONY: help build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test clippy clippy-full core-check features-check net-boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
 
 # One cargo build per host at a time — make -j does not break that.
 .NOTPARALLEL:
@@ -32,6 +32,9 @@ BASE ?= main
 APP_NAME ?= MeshTown
 APP_TITLE ?= Mesh Town
 BUNDLE_ID ?= local.meshtown
+# Result directory of the e2e battery: one per tree, so worktrees do not write into the same .tmp/e2e
+# (see e2e/fixtures/orphans.ts); a value from the environment or the command line wins.
+export E2E_RUN_TAG ?= $(notdir $(CURDIR))
 export BUILD_ROOT TARGET_DIR APP_NAME APP_TITLE BUNDLE_ID
 
 # CONTAINER is export only, with no default here: the build/ scripts choose container/docker themselves
@@ -83,6 +86,7 @@ help:
 	@echo "make web-build                  — build the page (Vite): web/vue → web/bundle/app.js (committed)"
 	@echo "make web-bundle-check           — bundle/app.js is fresh: a build into a temp directory matches the commit"
 	@echo "make test-page                  — before committing a page stage: test-js + Rust tests that read web/vue and web/bundle (identity_texts_match_page, bundle_app_js)"
+	@echo "make android-test                — JVM unit tests of the Android shell (android/test.sh)"
 	@echo "make test-changed               — tests affected by the change relative to BASE (main by default); DRY=1 — list only"
 	@echo "make clippy                     — fast loop: clippy over all targets, default feature set only, warnings = errors"
 	@echo "make clippy-full                — acceptance: clippy in two passes (default and --no-default-features --features $(NODE_FEATURES), i.e. without tray)"
@@ -188,6 +192,10 @@ web-bundle-check: $(VUE_DEPS)
 
 test-changed:
 	CARGO_TARGET_DIR=$(TARGET_DIR) $(DYN_ENV) python3 scripts/changed_tests.py --base $(BASE) $(if $(DRY),--dry-run)
+
+# JVM unit tests of the Android shell (no emulator, NDK or Rust needed; needs the Android SDK and JDK 17+).
+android-test:
+	bash android/test.sh
 
 # Fast loop — one pass (default); acceptance (check, battery) — clippy-full, both feature sets.
 clippy:

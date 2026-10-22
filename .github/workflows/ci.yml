@@ -86,6 +86,21 @@ jobs:
       - name: Lint and types of the battery
         run: make web-check-lint
 
+  android-unit:
+    name: android (JVM unit tests)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # The runner image ships the Android SDK ($ANDROID_HOME); the tests need only android.jar from it,
+      # no emulator, NDK or Rust.
+      - name: JVM unit tests
+        run: make android-test
+
   msrv:
     name: msrv
     runs-on: ubuntu-latest

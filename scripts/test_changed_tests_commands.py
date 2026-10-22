@@ -134,6 +134,13 @@ class Commands(unittest.TestCase):
         self.assertEqual(cmds[-1], ["make", "web-check-lint"])
         self.assertEqual(cmds[-2], ["make", "web-check"])
 
+    def test_android_runs_android_test_target_last(self):
+        sel = changed_tests.Selection(android=True, py=True)
+
+        cmds = changed_tests.commands(sel)
+
+        self.assertEqual(cmds, [["make", "test-py"], ["make", "android-test"]])
+
 
 if __name__ == "__main__":
     unittest.main()
