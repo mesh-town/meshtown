@@ -10,7 +10,7 @@
 //! loop with one UDP socket per `conn_id`.
 //! The frame layout follows the tun2proxy udpgw protocol (MIT), see `THIRD_PARTY_NOTICES.md`.
 
-mod codec;
+pub(crate) mod codec;
 mod session;
 #[cfg(test)]
 mod test_support;
