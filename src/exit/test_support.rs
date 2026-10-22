@@ -57,12 +57,21 @@ pub(in crate::exit) fn exit_config_with_dead_resolver() -> ExitConfig {
 
 /// The same with the test table `host_overrides`: entries bypass the address filter and the own-address probe.
 pub(in crate::exit) fn exit_config(hosts: HashMap<String, SocketAddr>) -> ExitConfig {
-    let resolver = Resolver::new(
-        SocketAddr::from(([127, 0, 0, 1], 1)),
-        HttpLimits::default(),
-        "meshtown-test".to_string(),
-    )
-    .expect("resolver with a stub address");
+    exit_config_at(SocketAddr::from(([127, 0, 0, 1], 1)), hosts)
+}
+
+/// `ExitConfig` whose resolver talks to a "silent" server: the listener accepts connections into its backlog and
+/// never answers, so a DoH query hangs until its caller gives up. The listener must live as long as the test, or
+/// the resolver would see a closed port instead.
+pub(in crate::exit) fn exit_config_with_silent_resolver() -> (ExitConfig, std::net::TcpListener) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("silent DoH listener");
+    let server = listener.local_addr().expect("silent DoH address");
+    (exit_config_at(server, HashMap::new()), listener)
+}
+
+fn exit_config_at(server: SocketAddr, hosts: HashMap<String, SocketAddr>) -> ExitConfig {
+    let resolver = Resolver::new(server, HttpLimits::default(), "meshtown-test".to_string())
+        .expect("resolver with a stub address");
 
     ExitConfig {
         enabled: Arc::new(AtomicBool::new(true)),

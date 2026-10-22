@@ -1,4 +1,4 @@
-//! Tests for `dial.rs`: names answered from the resolver cache (`resolve_address`).
+//! Tests for `dial.rs`: names answered from the resolver cache (`open_target_with`).
 
 use super::*;
 
@@ -10,7 +10,7 @@ async fn resolve_named(
     let cfg = exit_config_with_dead_resolver();
     let addrs = addrs.iter().map(|a| Ipv4Addr::from(*a)).collect();
     cfg.resolver.seed_cache_for_tests(domain, addrs);
-    resolve_address(&cfg, domain, port).await
+    dial(&cfg, domain, port).await
 }
 
 fn then_name_forbidden(refusal: &Refusal, domain: &str, hidden: &str) {

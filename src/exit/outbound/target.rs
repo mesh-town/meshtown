@@ -1,9 +1,41 @@
-//! Choosing the destination address: an IP literal from the request frame or an answer of the resolver.
+//! Choosing the destination addresses: an IP literal from the request frame or the answers of the resolver.
 
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
+use std::time::Duration;
 
-use super::address_guard::{first_allowed, is_forbidden, is_own_address};
+use tokio::time::timeout;
+
+use super::address_guard::{is_forbidden, is_own_address};
 use super::refusal::Refusal;
+use crate::doh::Resolver;
+
+/// The most addresses of one family tried for a name.
+pub(in crate::exit) const MAX_CANDIDATES: usize = 4;
+/// How long the exit waits for an AAAA answer at most.
+pub(in crate::exit) const AAAA_LOOKUP_TIMEOUT: Duration = Duration::from_secs(3);
+
+/// What a resolver answered for one family: the open addresses in answer order, whether the answer had any address
+/// at all (closed ones included), and whether the name does not exist.
+#[derive(Debug)]
+pub(in crate::exit) struct NameAnswer {
+    pub open: Vec<SocketAddr>,
+    pub any: bool,
+    pub nx: bool,
+}
+
+impl NameAnswer {
+    fn of(ips: Vec<IpAddr>, port: u16, nx: bool) -> NameAnswer {
+        NameAnswer {
+            any: !ips.is_empty(),
+            open: allowed_addresses(ips, port),
+            nx,
+        }
+    }
+
+    fn empty() -> NameAnswer {
+        NameAnswer::of(Vec::new(), 0, false)
+    }
+}
 
 /// An IP literal from the frame: a closed one is refused. IPv4-mapped IPv6 is judged and opened as plain IPv4;
 /// a public IPv6 literal is opened as is (a host without IPv6 connectivity fails later with a connect error).
@@ -19,29 +51,36 @@ pub(super) fn literal_address(
     Ok(SocketAddr::new(ip, port))
 }
 
-/// Addresses of a name from DoH: the first open one; an empty answer means "no address", all closed means "closed".
-pub(super) fn first_allowed_resolved_address(
-    addrs: &[Ipv4Addr],
-    target_host: &str,
-    port: u16,
-) -> std::result::Result<SocketAddr, Refusal> {
-    if addrs.is_empty() {
-        return Err(Refusal::no_address(format!(
-            "{target_host} — no usable address"
-        )));
-    }
-    first_allowed(addrs)
-        .map(|ip| SocketAddr::from((ip, port)))
-        .ok_or_else(|| Refusal::forbidden(target_host))
+/// The addresses of an answer worth connecting to: each one in its canonical form (an IPv4-mapped IPv6 address is
+/// judged and used as IPv4), closed and the node's own ones dropped, answer order kept, at most `MAX_CANDIDATES`.
+pub(in crate::exit) fn allowed_addresses(ips: impl IntoIterator<Item = IpAddr>, port: u16) -> Vec<SocketAddr> {
+    ips.into_iter()
+        .map(|ip| ip.to_canonical())
+        .filter(|ip| !is_forbidden(*ip) && !is_own_address(*ip))
+        .take(MAX_CANDIDATES)
+        .map(|ip| SocketAddr::new(ip, port))
+        .collect()
 }
 
-/// The node's own address — the same owner services as the loopback. Checked before connecting: a refusal
-/// doesn't reveal whether the port is listening.
-pub(super) fn reject_own_address(addr: SocketAddr, target_host: &str) -> std::result::Result<SocketAddr, Refusal> {
-    if is_own_address(addr.ip()) {
-        return Err(Refusal::forbidden(target_host));
+/// The IPv4 answer for a name. A DoH error is "no address" right away: a second query would only double the wait.
+pub(in crate::exit) async fn v4_answer(
+    resolver: &Resolver,
+    name: &str,
+    port: u16,
+) -> std::result::Result<NameAnswer, Refusal> {
+    let (addrs, nx) = resolver
+        .resolve_cached_nx(name)
+        .await
+        .map_err(|e| Refusal::no_address(format!("{name} — DNS: {e:#}")))?;
+    Ok(NameAnswer::of(addrs.into_iter().map(IpAddr::V4).collect(), port, nx))
+}
+
+/// The IPv6 answer for a name within `wait`; an error or a timeout is an empty answer.
+pub(in crate::exit) async fn v6_answer(resolver: &Resolver, name: &str, port: u16, wait: Duration) -> NameAnswer {
+    match timeout(wait, resolver.resolve_cached_v6(name)).await {
+        Ok(Ok(addrs)) => NameAnswer::of(addrs.into_iter().map(IpAddr::V6).collect(), port, false),
+        _ => NameAnswer::empty(),
     }
-    Ok(addr)
 }
 
 #[cfg(test)]

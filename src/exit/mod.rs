@@ -12,7 +12,7 @@
 //! this protocol is called by `crate::proxy`.
 //!
 //! Files: `outbound` — where and how the exit connects outward (the address guard: its tables are pure functions, the probe
-//! of the node's own address uses a socket without packets; address choice, refusals, dialing), `clients` — the registry of exit clients (who is currently going through
+//! of the node's own address uses a socket without packets; address choice, refusals, dialing: IPv4 first, then IPv6 from AAAA records), `clients` — the registry of exit clients (who is currently going through
 //! the node), `frame` — the request/reply frame, codes and their parsing (pure functions, no networking);
 //! `server` — the handler of incoming connections (`ExitConfig`, `exit_service`, `serve_exit_stream`);
 //! `pool` — connections to members and the `ask_exit_to_connect` request; `splice` — shuttling bytes between

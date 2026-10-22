@@ -18,7 +18,7 @@ use crate::tcp_tune::disable_nagle;
 
 use super::clients::{Clients, ConnRef};
 use super::frame::{parse_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED, EXIT_PROTOCOL_VERSION};
-use super::outbound::{open_tcp, resolve_address, Refusal};
+use super::outbound::{open_target, Refusal};
 use super::report;
 use super::udpgw;
 use super::splice::splice;
@@ -129,14 +129,10 @@ async fn serve_exit_stream(
         udpgw::serve(cfg, peer, send, recv).await;
         return Ok(());
     }
-    // 3. Address: the test table, otherwise a literal or the own resolver over HTTPS; closed networks are
-    // refused (`address_guard`). Neither domain nor port is checked (those rules were removed).
-    let addr = match resolve_address(&cfg, &target_host, port).await {
-        Ok(addr) => addr,
-        Err(refusal) => return refuse(&mut send, &peer, refusal).await,
-    };
-    // 4. Connection to the address.
-    let tcp = match open_tcp(&cfg, &target_host, addr).await {
+    // 3. Address and connection: the test table, otherwise a literal or the own resolver over HTTPS (IPv4 first,
+    // then IPv6); closed networks are refused (`address_guard`). Neither domain nor port is checked (those rules
+    // were removed).
+    let tcp = match open_target(&cfg, &target_host, port).await {
         Ok(tcp) => tcp,
         Err(refusal) => return refuse(&mut send, &peer, refusal).await,
     };

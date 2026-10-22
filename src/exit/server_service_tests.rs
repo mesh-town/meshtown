@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::exit::clients::EXIT_CLIENT_LINGER;
-use crate::exit::frame::encode_exit_request;
+use crate::exit::frame::{encode_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN};
 use crate::http_min::HttpLimits;
 use crate::net::facade::test_support::{pid, secret, within, Spy};
 use crate::net::mem::MemNet;
@@ -50,6 +50,24 @@ mod refuses {
 
         // then: the same reply
         assert_eq!(reply, [EXIT_PROTOCOL_VERSION, EXIT_CODE_REFUSED]);
+    }
+}
+
+mod refuses_aaaa {
+    use super::*;
+
+    #[tokio::test]
+    async fn aaaa_only_name_with_mapped_loopback_gets_code_7() {
+        // given: the name has no A and its only AAAA is a mapped loopback
+        let fx = setup(Opts::default()).await;
+        let mapped = "::ffff:127.0.0.1".parse().expect("an IPv6 address");
+        fx.cfg.resolver.seed_cache_dual_for_tests("v6only.test", vec![], vec![mapped]);
+
+        // when: a member asks for the name
+        let (_pair, reply) = fx.ask(&request("v6only.test", 80)).await;
+
+        // then: the exit refuses with "address closed" (code 7)
+        assert_eq!(reply, [EXIT_PROTOCOL_VERSION, EXIT_CODE_ADDRESS_FORBIDDEN]);
     }
 }
 

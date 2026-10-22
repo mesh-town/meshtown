@@ -1,6 +1,8 @@
 //! Exit refusal: the reply code for the member and the tail of the log line.
 
-use crate::exit::frame::{EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_NO_ADDRESS};
+use std::net::SocketAddr;
+
+use crate::exit::frame::{EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS};
 
 /// The reply code for the member and the tail of the log line (`refuse` adds the short id).
 #[derive(Debug)]
@@ -22,6 +24,14 @@ impl Refusal {
         Refusal {
             code: EXIT_CODE_ADDRESS_FORBIDDEN,
             line: format!("{target_host} — address closed to exit"),
+        }
+    }
+
+    /// No connection opened: the log line has the last address tried and how many attempts there were.
+    pub(super) fn connect_failed(target_host: &str, last: SocketAddr, tried: usize) -> Refusal {
+        Refusal {
+            code: EXIT_CODE_CONNECT_FAILED,
+            line: format!("{target_host} ({last}) — connection didn't open ({tried} tried)"),
         }
     }
 }
