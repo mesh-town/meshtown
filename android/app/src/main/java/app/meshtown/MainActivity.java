@@ -33,7 +33,6 @@ public class MainActivity extends Activity {
     private static final int MENU_START_OVER = 2;
     /** The page asks for the start-over dialog by navigating here. */
     private static final String START_OVER_URL = "meshtown-app://start-over";
-    private static final int KEYBOARD_MIN_DP = 120;
     private static final long WIPE_DELAY_MS = 1500;
     private Button button;
     private LinearLayout bar;
@@ -93,12 +92,15 @@ public class MainActivity extends Activity {
         root.addView(bar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.setOnApplyWindowInsetsListener((v, insets) -> {
-            int bottom = insets.getSystemWindowInsetBottom();
-            v.setPadding(0, 0, 0, bottom);
-            // Navigation bars are below this height; only an on-screen keyboard is taller.
-            bar.setVisibility(bottom > KEYBOARD_MIN_DP * getResources().getDisplayMetrics().density
-                    ? View.GONE : View.VISIBLE);
+            v.setPadding(0, 0, 0, insets.getSystemWindowInsetBottom());
             return insets;
+        });
+        // The root shrinks under adjustResize, so the visible frame is compared with the screen height.
+        root.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
+            android.graphics.Rect frame = new android.graphics.Rect();
+            root.getWindowVisibleDisplayFrame(frame);
+            int screen = getResources().getDisplayMetrics().heightPixels;
+            bar.setVisibility(KeyboardGuard.isOpen(screen, frame.height()) ? View.GONE : View.VISIBLE);
         });
         setContentView(root);
         waitingSince = SystemClock.elapsedRealtime();
