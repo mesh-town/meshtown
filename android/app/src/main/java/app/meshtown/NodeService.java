@@ -90,6 +90,7 @@ public class NodeService extends Service {
     }
 
     private void quit() {
+        Log.i(TAG, "quit requested, node " + (node != null ? "present" : "absent"));
         quitRequested = true;
         stopping = true;
         stopTunnel(true);
@@ -135,7 +136,16 @@ public class NodeService extends Service {
         if (node != null) {
             Process dying = node;
             node = null;
-            new Thread(() -> NodeStopper.stop(new ProcessTarget(dying), NodeStopper.GRACE_MS), "mesh-node-stop").start();
+            new Thread(() -> stopQuietly(dying), "mesh-node-stop").start();
+        }
+    }
+
+    private static void stopQuietly(Process dying) {
+        try {
+            boolean forced = NodeStopper.stop(new ProcessTarget(dying), NodeStopper.GRACE_MS);
+            Log.i(TAG, "node stopped, forced=" + forced);
+        } catch (Throwable e) {
+            Log.e(TAG, "node stop failed", e);
         }
     }
 

@@ -42,16 +42,20 @@ final class ProcessTarget implements NodeStopper.Target {
 
     @Override
     public void kill() {
-        if (Build.VERSION.SDK_INT >= 26) {
-            process.destroyForcibly();
-            return;
+        int pid = pidOf();
+        if (pid > 0) {
+            android.os.Process.killProcess(pid);
         }
+        process.destroyForcibly();
+    }
+
+    private int pidOf() {
         try {
             java.lang.reflect.Field f = process.getClass().getDeclaredField("pid");
             f.setAccessible(true);
-            android.os.Process.killProcess(f.getInt(process));
+            return f.getInt(process);
         } catch (ReflectiveOperationException | RuntimeException e) {
-            process.destroy();
+            return -1;
         }
     }
 }
