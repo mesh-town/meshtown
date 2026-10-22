@@ -1,0 +1,4 @@
+#!/bin/sh
+[ "${IPKG_NO_SCRIPT}" = "1" ] && exit 0
+/opt/etc/init.d/S99meshtown restart
+exit 0

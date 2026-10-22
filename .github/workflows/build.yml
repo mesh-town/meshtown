@@ -1,0 +1,75 @@
+name: build
+
+# Builds macOS (arm64, Intel) and OpenWrt (x86_64, aarch64, armv7) binaries and the Android APK on every push to main
+# and on demand.
+# The archives and a dry-run OpenWrt feed (throw-away keys, nothing published) are kept as artifacts of the run.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version:
+    name: read version from Cargo.toml
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read package version
+        id: v
+        run: |
+          set -euo pipefail
+          version=$(sed -n '/^\[package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p;}' Cargo.toml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "cannot read version from Cargo.toml" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build
+    needs: version
+    uses: ./.github/workflows/build-targets.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      # armv7 is the console build for the OpenWrt package feed; a failed armv7 build does not fail the run.
+      targets: |
+        [
+          {"target": "aarch64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "x86_64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "x86_64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true, "cli_only": true},
+          {"target": "aarch64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true, "cli_only": true},
+          {"target": "armv7-unknown-linux-musleabi", "os": "ubuntu-24.04", "zig": true, "cli_only": true, "optional": true},
+          {"target": "mipsel-unknown-linux-musl", "os": "ubuntu-24.04", "zig": false, "mips": true, "cli_only": true, "optional": true},
+          {"target": "mips-unknown-linux-musl", "os": "ubuntu-24.04", "zig": false, "mips": true, "cli_only": true, "optional": true}
+        ]
+
+  openwrt:
+    name: OpenWrt package feed
+    needs: [version, build]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/openwrt-feed.yml
+    with:
+      tag: v${{ needs.version.outputs.version }}
+      pkg_release: "1"
+      strict: false
+      from_artifacts: true
+
+  android:
+    name: Android APK (trial build)
+    permissions:
+      contents: read
+    uses: ./.github/workflows/android.yml
+    with:
+      publish: false
+    secrets: inherit

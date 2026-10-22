@@ -1,0 +1,99 @@
+//! Console commands: proxy status, route selection, `get`, `exit on/off`.
+
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+use anyhow::{anyhow, Result};
+
+use crate::output::{say, short_peer_id};
+use crate::route::{self, Route, RouteCtx};
+
+use super::get::get_via_socks;
+
+/// Console commands.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ProxyCommand {
+    Socks,
+    Route(String),
+    Get(String),
+    Exit(bool),
+}
+
+/// Parses a console line if it is about the proxy; otherwise `None`.
+pub fn parse_proxy_line(line: &str) -> Option<Result<ProxyCommand>> {
+    let words: Vec<&str> = line.split_whitespace().collect();
+    match words.as_slice() {
+        ["socks"] => Some(Ok(ProxyCommand::Socks)),
+        ["route", d] => Some(Ok(ProxyCommand::Route((*d).to_string()))),
+        ["get", d] => Some(Ok(ProxyCommand::Get((*d).to_string()))),
+        ["exit", "on"] => Some(Ok(ProxyCommand::Exit(true))),
+        ["exit", "off"] => Some(Ok(ProxyCommand::Exit(false))),
+        ["socks", ..] | ["route", ..] | ["get", ..] | ["exit", ..] => Some(Err(anyhow!(
+            "available: socks, route <domain>, get <domain>, exit on, exit off"
+        ))),
+        _ => None,
+    }
+}
+
+/// What the console knows about this node's proxy.
+#[derive(Clone)]
+pub struct ProxyConsole {
+    /// Where the SOCKS5 server listens; `None` — disabled by the `--no-socks` flag or the `socks.enabled: false` setting.
+    pub socks: Option<SocketAddr>,
+    /// Whether the node works as an exit for others.
+    pub exit_on: Arc<AtomicBool>,
+    pub route: RouteCtx,
+    pub user_agent: String,
+}
+
+/// Executes a console command.
+pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
+    match cmd {
+        ProxyCommand::Socks => {
+            let listening = match console.socks {
+                Some(addr) => addr.to_string(),
+                None => "off".to_string(),
+            };
+            let exit_status_word = if console.exit_on.load(Ordering::Relaxed) {
+                "on"
+            } else {
+                "off"
+            };
+            say("socks", format!("listening: {listening}; exit for others: {exit_status_word}"));
+        }
+        ProxyCommand::Route(domain) => match console.route.choose_now().await {
+            Ok(Route::Direct) => say("route", format!("{domain} → direct")),
+            Ok(Route::Exits(candidates)) => {
+                let first = route::first_exit(&candidates);
+                say("route", format!("{domain} → exit {}", short_peer_id(&first)));
+            }
+            Ok(Route::Refuse(reason)) => say("route", format!("{domain} → refused: {reason}")),
+            Err(e) => say("route", format!("{domain}: {e:#}")),
+        },
+        ProxyCommand::Get(domain) => {
+            let Some(proxy) = console.socks else {
+                say("get", "SOCKS5 server is off, the command is unavailable");
+                return;
+            };
+            if let Err(e) = get_via_socks(proxy, &domain, &console.user_agent).await {
+                say("get", format!("{domain}: {e:#}"));
+            }
+        }
+        ProxyCommand::Exit(on) => {
+            console.exit_on.store(on, Ordering::Relaxed);
+            say(
+                "exit",
+                if on {
+                    format!("serving as exit for members of network {}", crate::output::NET_NAME)
+                } else {
+                    "no longer serving as exit".to_string()
+                },
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "console_tests.rs"]
+mod tests;

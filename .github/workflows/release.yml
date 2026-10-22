@@ -1,0 +1,202 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-tag:
+    name: check tag matches Cargo.toml
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare tag and package version
+        id: v
+        run: |
+          set -euo pipefail
+          version=$(sed -n '/^\[package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p;}' Cargo.toml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "cannot read version from Cargo.toml" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build
+    needs: check-tag
+    uses: ./.github/workflows/build-targets.yml
+    with:
+      version: ${{ needs.check-tag.outputs.version }}
+      # armv7 is the console build for the OpenWrt package feed (arm_cortex-* labels); soft-float, no tray build.
+      # A failed armv7 build must not stop the release; the feed job reports the missing archive.
+      targets: |
+        [
+          {"target": "aarch64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "x86_64-apple-darwin", "os": "macos-15", "zig": false},
+          {"target": "x86_64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true},
+          {"target": "aarch64-unknown-linux-musl", "os": "ubuntu-24.04", "zig": true},
+          {"target": "armv7-unknown-linux-musleabi", "os": "ubuntu-24.04", "zig": true, "cli_only": true, "optional": true},
+          {"target": "mipsel-unknown-linux-musl", "os": "ubuntu-24.04", "zig": false, "mips": true, "cli_only": true, "optional": true},
+          {"target": "mips-unknown-linux-musl", "os": "ubuntu-24.04", "zig": false, "mips": true, "cli_only": true, "optional": true},
+          {"target": "x86_64-pc-windows-msvc", "os": "windows-latest", "zig": false}
+        ]
+
+  publish:
+    name: publish release
+    needs: [check-tag, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          merge-multiple: true
+          path: dist
+      - name: Checksums
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum -- *.tar.gz *.zip > SHA256SUMS
+          # The Homebrew tap reads exactly these lines: "<sha256>  <name>".
+          grep -q "  MeshTown-macos-arm64-${VERSION}.zip$" SHA256SUMS
+          cat SHA256SUMS
+      - name: Create release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --generate-notes
+
+  openwrt-feed:
+    name: OpenWrt package feed
+    needs: [check-tag, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/openwrt-feed.yml
+    with:
+      tag: ${{ github.ref_name }}
+      pkg_release: "1"
+      strict: true
+    secrets: inherit
+
+  keenetic-feed:
+    name: Keenetic (Entware) package feed
+    needs: [check-tag, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/keenetic-feed.yml
+    with:
+      tag: ${{ github.ref_name }}
+      pkg_release: "1"
+    secrets: inherit
+
+  android:
+    name: Android APK
+    needs: [check-tag, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/android.yml
+    with:
+      ref: ${{ github.ref_name }}
+      publish: false
+    secrets: inherit
+
+  dist:
+    name: Distribution repository
+    needs: [check-tag, publish, android]
+    # A failed Android build must not stop the other systems: android/ is then left as it is.
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    concurrency: meshtown-dist
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      DIST_DEPLOY_KEY: ${{ secrets.DIST_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          merge-multiple: true
+          path: assets
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: android-apk
+          path: apk
+      - name: Publish to mesh-town/meshtown-dist
+        run: |
+          set -euo pipefail
+          if [ -z "$DIST_DEPLOY_KEY" ]; then
+            echo "::notice::DIST_DEPLOY_KEY is not set; nothing is published"
+            exit 0
+          fi
+          win=x86_64-pc-windows-msvc
+          mkdir -p dist-src/macos dist-src/windows dist-src/linux unpacked
+          for arch in arm64 x86_64; do
+            cp "assets/MeshTown-macos-${arch}-${VERSION}.zip" dist-src/macos/
+          done
+          unzip -q "assets/meshtown-${VERSION}-${win}.zip" -d unpacked
+          unzip -q "assets/meshtown-cli-${VERSION}-${win}.zip" -d unpacked
+          cp "unpacked/meshtown-${VERSION}-${win}/meshtown.exe" "dist-src/windows/meshtown-${VERSION}.exe"
+          cp "unpacked/meshtown-cli-${VERSION}-${win}/meshtown-cli.exe" "dist-src/windows/meshtown-cli-${VERSION}.exe"
+          for arch in x86_64 aarch64; do
+            cp "assets/meshtown-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-linux-${arch}-${VERSION}.tar.gz"
+            cp "assets/meshtown-cli-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-cli-linux-${arch}-${VERSION}.tar.gz"
+          done
+          if [ -f "apk/meshtown-${VERSION}.apk" ] && [ -f apk/signed.txt ]; then
+            mkdir dist-src/android
+            cp "apk/meshtown-${VERSION}.apk" dist-src/android/
+          else
+            echo "::notice::no signed APK: android/ is not updated"
+          fi
+          umask 077
+          key="$RUNNER_TEMP/deploy-key"
+          printf '%s\n' "$DIST_DEPLOY_KEY" > "$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          build/dist/publish.sh dist-src "$VERSION"
+          rm -f "$key"
+
+  tap:
+    name: notify Homebrew tap
+    needs: [check-tag, publish]
+    runs-on: ubuntu-24.04
+    permissions: {}
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+    steps:
+      - name: Dispatch release event to the tap
+        run: |
+          set -euo pipefail
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "::notice::TAP_TOKEN is not set; the Homebrew tap is not notified"
+            exit 0
+          fi
+          curl -fsS -X POST \
+            -H "Authorization: Bearer ${TAP_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/mesh-town/homebrew-meshtown/dispatches \
+            -d "{\"event_type\":\"release\",\"client_payload\":{\"version\":\"${VERSION}\"}}"

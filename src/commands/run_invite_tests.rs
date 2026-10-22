@@ -1,0 +1,283 @@
+//! Tests for `plan_invite`: whether to spend the invite in `run` — everything is decided by a pure
+//! function before any trip to the network. The output reads as a phrase: `key_from_flag::of_another_network::…`.
+
+use super::*;
+use meshtown::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
+use meshtown::network_key::{key_with_label, NetworkKey};
+
+const NOW: u64 = 1_790_000_000;
+const HOUR: u64 = 3_600;
+
+/// The expired-invite text, verbatim from the invite module.
+const EXPIRED_TEXT: &str =
+    "The invite was issued more than a day ago and is no longer valid. Ask a network member for a new one.";
+
+mod without_invite {
+    use super::*;
+
+    #[test]
+    fn plans_nothing_whatever_the_keys() {
+        // given
+        let opts = Opts {
+            with_invite: false,
+            cli_key: Some(net_b().encode()),
+            file_key: Some(net_b().encode()),
+            ..Opts::default()
+        };
+        // when
+        let out = plan(opts);
+        // then
+        assert!(matches!(out, Outcome::NoInvite), "{out:?}");
+    }
+
+    #[test]
+    fn plans_nothing_without_keys_too() {
+        let out = plan(Opts {
+            with_invite: false,
+            ..Opts::default()
+        });
+        assert!(matches!(out, Outcome::NoInvite), "{out:?}");
+    }
+}
+
+mod without_any_key {
+    use super::*;
+
+    #[test]
+    fn redeems_the_invite() {
+        // given / when
+        let out = plan(Opts::default());
+        // then
+        then_redeems_the_same_invite(out);
+    }
+}
+
+mod key_from_flag {
+    use super::*;
+
+    mod of_the_same_network {
+        use super::*;
+
+        #[test]
+        fn keeps_the_key_and_does_not_spend_the_invite() {
+            // given
+            let opts = Opts {
+                cli_key: Some(net_a().encode()),
+                ..Opts::default()
+            };
+            // when
+            let out = plan(opts);
+            // then
+            assert!(matches!(out, Outcome::KeepKey), "{out:?}");
+        }
+
+        #[test]
+        fn keeps_the_key_written_with_a_label() {
+            // given
+            let opts = Opts {
+                cli_key: Some(key_with_label(Some("our-game"), &net_a())),
+                ..Opts::default()
+            };
+            // when
+            let out = plan(opts);
+            // then
+            assert!(matches!(out, Outcome::KeepKey), "{out:?}");
+        }
+    }
+
+    mod of_another_network {
+        use super::*;
+
+        #[test]
+        fn refuses_and_says_the_invite_is_not_spent() {
+            // given
+            let opts = Opts {
+                cli_key: Some(net_b().encode()),
+                ..Opts::default()
+            };
+            // when
+            let text = plan(opts).refusal();
+            // then
+            assert!(text.contains("from different"), "{text}");
+            assert!(text.contains("--key"), "{text}");
+            assert!(text.contains("was not spent"), "{text}");
+        }
+
+        #[test]
+        fn refuses_even_with_save_config() {
+            // given: --save-config replaces the key in the file, not the key from --key
+            let opts = Opts {
+                cli_key: Some(net_b().encode()),
+                save_config: true,
+                ..Opts::default()
+            };
+            // when
+            let text = plan(opts).refusal();
+            // then
+            assert!(text.contains("was not spent"), "{text}");
+        }
+    }
+}
+
+#[path = "run_invite_file_key_tests.rs"]
+mod key_in_settings_file;
+
+mod expired_invite {
+    use super::*;
+
+    #[test]
+    fn refuses_with_the_expired_text_instead_of_redeeming() {
+        // given
+        let opts = Opts {
+            now: NOW + 25 * HOUR,
+            ..Opts::default()
+        };
+        // when
+        let text = plan(opts).refusal();
+        // then
+        assert!(text.contains(EXPIRED_TEXT), "{text}");
+    }
+
+    #[test]
+    fn refuses_at_exactly_the_ttl() {
+        // given
+        let opts = Opts {
+            now: NOW + INVITE_TTL_SECS,
+            ..Opts::default()
+        };
+        // when
+        let text = plan(opts).refusal();
+        // then
+        assert!(text.contains(EXPIRED_TEXT), "{text}");
+    }
+
+    #[test]
+    fn refuses_even_when_save_config_allows_replacing_the_file_key() {
+        // given: without the expiry this would be a join that replaces the key in the file
+        let opts = Opts {
+            file_key: Some(net_b().encode()),
+            save_config: true,
+            now: NOW + 25 * HOUR,
+            ..Opts::default()
+        };
+        // when
+        let text = plan(opts).refusal();
+        // then
+        assert!(text.contains(EXPIRED_TEXT), "{text}");
+    }
+
+    #[test]
+    fn made_twenty_three_hours_ago_still_redeems() {
+        // given
+        let opts = Opts {
+            now: NOW + 23 * HOUR,
+            ..Opts::default()
+        };
+        // when
+        let out = plan(opts);
+        // then
+        then_redeems_the_same_invite(out);
+    }
+}
+
+// ---- helpers ----
+
+/// Run preconditions: an invite of network `net_a()` issued at `NOW`, and what is in the keys.
+struct Opts {
+    with_invite: bool,
+    cli_key: Option<String>,
+    file_key: Option<String>,
+    save_config: bool,
+    now: u64,
+}
+
+impl Default for Opts {
+    fn default() -> Self {
+        Opts {
+            with_invite: true,
+            cli_key: None,
+            file_key: None,
+            save_config: false,
+            now: NOW,
+        }
+    }
+}
+
+/// The `plan_invite` decision in a form that can be printed in a check message.
+#[derive(Debug)]
+enum Outcome {
+    NoInvite,
+    KeepKey,
+    Redeem(ParsedInvite),
+    Refused(String),
+}
+
+impl Outcome {
+    /// The refusal text; anything but a refusal fails the check.
+    fn refusal(self) -> String {
+        match self {
+            Outcome::Refused(text) => text,
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+}
+
+fn plan(opts: Opts) -> Outcome {
+    let inv = opts.with_invite.then(invite_of_net_a);
+    let step = plan_invite(
+        inv,
+        opts.cli_key.as_deref(),
+        opts.file_key.as_deref(),
+        opts.save_config,
+        opts.now,
+    );
+    match step {
+        Ok(InviteStep::None) => Outcome::NoInvite,
+        Ok(InviteStep::KeepKey) => Outcome::KeepKey,
+        Ok(InviteStep::Redeem(p)) => Outcome::Redeem(p),
+        Err(e) => Outcome::Refused(format!("{e:#}")),
+    }
+}
+
+/// The invite is spent, and it is exactly the one that was passed in.
+fn then_redeems_the_same_invite(out: Outcome) {
+    match out {
+        Outcome::Redeem(p) => {
+            assert_eq!(p.head.secret, secret(), "a different invite went into Redeem");
+            assert_eq!(p.head.made_unix, NOW);
+        }
+        other => panic!("expected Redeem, got {other:?}"),
+    }
+}
+
+fn secret() -> InviteSecret {
+    InviteSecret::from_bytes([0xC7; 32])
+}
+
+fn net_a() -> NetworkKey {
+    NetworkKey::from_bytes([9u8; 32])
+}
+
+fn net_b() -> NetworkKey {
+    NetworkKey::from_bytes([8u8; 32])
+}
+
+fn invite_of_net_a() -> ParsedInvite {
+    ParsedInvite {
+        head: InviteHead {
+            secret: secret(),
+            network_id: net_a().subkeys().network_id,
+            label: None,
+            made_unix: NOW,
+        },
+        peers: vec![],
+        warnings: vec![],
+    }
+}
+
+// ============================================================================================
+// Writing the received key to the settings file (`persist_key`, `write_key`)
+// ============================================================================================
+
+#[path = "run_invite_persist_tests.rs"]
+mod persisting_the_key;

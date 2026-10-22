@@ -1,0 +1,24 @@
+#!/bin/sh
+# Mesh Town node for Entware: an rc.func service, started by rc.unslung at boot.
+# Entware has no process supervisor: a crashed node stays down until the next start.
+
+ENABLED=yes
+PROCS=meshtown
+CONF_DIR=/opt/etc/meshtown
+CONF="$CONF_DIR/config.json"
+ARGS="run --config $CONF"
+PRECMD=meshtown_prepare
+DESC=$PROCS
+PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+NO_COLOR=1
+export NO_COLOR
+
+# Runs before the node starts (rc.func calls $PRECMD as a command; a shell function qualifies).
+# The state directory is private. The list of interfaces allowed to the proxy and the web page is seeded once, only
+# when the config has neither key, with the LAN bridge of Keenetic ("Home network", br0).
+meshtown_prepare() {
+	mkdir -p "$CONF_DIR" && chmod 0700 "$CONF_DIR"
+	/opt/bin/meshtown ifaces --config "$CONF" --if-unset br0
+}
+
+. /opt/etc/init.d/rc.func

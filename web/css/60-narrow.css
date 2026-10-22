@@ -1,0 +1,43 @@
+  @media (max-width:720px){
+    .page{padding:14px 14px 40px;margin:0;min-width:0;}
+    .two-col{grid-template-columns:1fr;}
+    .setting-row{flex-direction:column;align-items:stretch;}
+    .setting-text{max-width:100%;}
+    .setting-control{justify-content:flex-start;}
+    /* The tab strip: five items share the width; "More" opens a list below it. */
+    .layout{grid-template-columns:minmax(0,1fr);max-width:none;}
+    #tabs{
+      position:sticky;
+      top:0;
+      flex-direction:row;
+      align-self:auto;
+      align-items:stretch;
+      max-height:none;
+      overflow:visible;
+      height:44px;
+      padding:0 6px;
+      gap:2px;
+      background:var(--bg-elev);
+      border-bottom:1px solid var(--border);
+      z-index:20;
+      min-width:0;
+    }
+    .tab{flex:1 1 0;min-width:0;white-space:nowrap;text-align:center;padding:0 4px;display:flex;align-items:center;justify-content:center;font-size:13px;border-radius:0;}
+    .tab-more{flex:1 1 0;min-width:0;position:relative;display:flex;}
+    .tab-more-btn{flex:1 1 auto;border:none;background:none;font-family:inherit;cursor:pointer;}
+    .tab.active{background:var(--accent-soft);color:var(--accent);}
+    .tab-menu{position:absolute;top:100%;right:0;min-width:150px;background:var(--bg-elev);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.15);z-index:30;display:flex;flex-direction:column;padding:4px;}
+    .tab-menu-item{display:block;padding:10px 12px;border-radius:6px;font-size:14px;color:var(--fg);text-decoration:none;}
+    .tab-menu-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
+    .domain-cards{display:flex;flex-direction:column;gap:10px;margin:10px 0;min-width:0;}
+    .domain-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0;}
+    .domain-card-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+    .domain-card-name{flex:1 1 auto;min-width:0;font-weight:700;overflow-wrap:anywhere;}
+    .btn-x.btn-text{font-size:13px;color:var(--accent);padding:4px 6px;white-space:nowrap;}
+    .domain-card-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:4px 0;}
+    .domain-card-who{flex:0 0 96px;color:var(--fg-muted);font-size:13px;}
+    .domain-card .peer-chosen{color:var(--green);font-size:13px;}
+    /* narrow screen: the previous look */
+    .btn-x{border:none;background:none;color:var(--fg-muted);font-size:16px;line-height:1;padding:2px 8px;}
+  }
+

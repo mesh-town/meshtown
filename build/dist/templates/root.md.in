@@ -1,0 +1,24 @@
+# Mesh Town builds
+
+Builds of [Mesh Town](https://github.com/mesh-town/meshtown) for every system. The files without a version in the
+name are always the latest version (@VERSION@ at the last publication); each folder also keeps the four latest versions
+of every file under their version numbers.
+
+| System | Download |
+|---|---|
+| macOS, Apple silicon | https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-arm64.zip |
+| macOS, Intel | https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-x86_64.zip |
+| Windows, with the tray icon | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe |
+| Windows, console only | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe |
+| Linux, x86_64 | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz |
+| Linux, aarch64 | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz |
+| Linux, x86_64, console only | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-cli-linux-x86_64.tar.gz |
+| Linux, aarch64, console only | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-cli-linux-aarch64.tar.gz |
+| Android | https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk |
+| Routers (OpenWrt) | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh`, run on the router as root |
+| Keenetic routers (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh`, run on the router over SSH |
+| Homebrew (macOS) | `brew install mesh-town/meshtown/meshtown` |
+
+Other builds (armv7, MIPS) are attached to the [releases](https://github.com/mesh-town/meshtown/releases) of the main
+repository. Every folder has a `SHA256SUMS` file and a README with the install notes and the list of versions. The
+source code and the build workflows are in the [main repository](https://github.com/mesh-town/meshtown).

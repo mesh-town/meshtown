@@ -1,0 +1,3 @@
+# Threshold for clippy::too_many_lines. A ratchet: it is only ever lowered; no functions longer than 50 remain. To regenerate the list: cargo clippy --all-targets
+# with this threshold.
+too-many-lines-threshold = 50

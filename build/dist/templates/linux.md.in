@@ -1,0 +1,17 @@
+# Mesh Town for Linux
+
+Static (musl) builds of [Mesh Town](https://github.com/mesh-town/meshtown) for x86_64 and aarch64:
+`meshtown-linux-<arch>.tar.gz` (with the tray icon) and `meshtown-cli-linux-<arch>.tar.gz` (console only). The files
+without a version are the latest version (@VERSION@ at the last publication); the four latest versions of each are
+also kept under their version numbers.
+
+## Install
+
+Unpack an archive with `tar xzf <file>` and run the program from the folder it creates. Run only one of the two builds
+at a time: they share their settings.
+
+Check the download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missing`) before running it.
+
+## Versions
+
+@TABLE@

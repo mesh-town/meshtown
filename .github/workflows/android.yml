@@ -1,0 +1,138 @@
+name: android
+
+# Builds the Android APK. With the signing secrets the APK is signed with the release key, otherwise it is a debug
+# build. With `publish` set, a signed build and the deploy key, the APK is pushed to android/ of
+# mesh-town/meshtown-dist. The release workflow sets `publish: false` and publishes all systems to
+# mesh-town/meshtown-dist itself.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Tag or branch to build (default - the ref of the caller)
+        required: false
+        type: string
+        default: ""
+      publish:
+        description: Publish the signed APK to android/ of mesh-town/meshtown-dist
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag or branch to build (default - the selected ref)
+        required: false
+        type: string
+        default: ""
+      publish:
+        description: Publish the signed APK to android/ of mesh-town/meshtown-dist
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  NDK_VERSION: "28.2.13676358"
+  CARGO_NDK_VERSION: "4.1.2"
+  CARGO_TERM_COLOR: always
+
+jobs:
+  apk:
+    name: build the APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Install the NDK
+        run: |
+          set -euo pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;${NDK_VERSION}"
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --target aarch64-linux-android
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk --version "$CARGO_NDK_VERSION"
+      - name: Prepare signing
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEYSTORE_PASS" ] || [ -z "$KEY_ALIAS" ]; then
+            echo "::notice::signing secrets are not set: debug build, nothing will be published"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          umask 077
+          keystore="$RUNNER_TEMP/release.keystore"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          {
+            echo "MESHTOWN_ANDROID_KEYSTORE=$keystore"
+            echo "MESHTOWN_ANDROID_KEYSTORE_PASS=$KEYSTORE_PASS"
+            echo "MESHTOWN_ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "MESHTOWN_ANDROID_KEY_PASS=$KEYSTORE_PASS"
+          } >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: |
+          set -euo pipefail
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$NDK_VERSION"
+          export ANDROID_BUILD_DIR="$GITHUB_WORKSPACE/.tmp/build"
+          export ANDROID_DIST_DIR="$GITHUB_WORKSPACE/dist/android"
+          android/build.sh
+          (cd "$ANDROID_DIST_DIR" && sha256sum -- *.apk > SHA256SUMS && cat SHA256SUMS)
+          if [ "${{ steps.sign.outputs.signed }}" = true ]; then
+            echo signed > "$ANDROID_DIST_DIR/signed.txt"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: dist/android
+          if-no-files-found: error
+
+  dist:
+    name: publish to meshtown-dist
+    needs: apk
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-24.04
+    concurrency: meshtown-dist
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: apk
+      - name: Publish to mesh-town/meshtown-dist
+        env:
+          DIST_DEPLOY_KEY: ${{ secrets.DIST_DEPLOY_KEY }}
+        run: |
+          set -euo pipefail
+          if [ ! -f apk/signed.txt ] || [ -z "$DIST_DEPLOY_KEY" ]; then
+            echo "::notice::signed build or deploy key is missing: nothing is published"
+            exit 0
+          fi
+          umask 077
+          key="$RUNNER_TEMP/dist-deploy-key"
+          printf '%s\n' "$DIST_DEPLOY_KEY" > "$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          mkdir -p dist-src/android
+          cp "apk/meshtown-${version}.apk" dist-src/android/
+          build/dist/publish.sh dist-src "$version"
+          rm -f "$key"

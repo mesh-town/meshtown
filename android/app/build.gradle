@@ -1,0 +1,50 @@
+plugins {
+    id "com.android.application"
+}
+
+// Set by build.sh; defaults to the Cargo.toml version.
+def nodeVersion = providers.gradleProperty("nodeVersion").orElse("0.0.0").get()
+
+// A release key is used only when all of these are set in the environment; otherwise the debug key signs the APK.
+def releaseStore = System.getenv("MESHTOWN_ANDROID_KEYSTORE")
+def releaseStorePass = System.getenv("MESHTOWN_ANDROID_KEYSTORE_PASS")
+def releaseAlias = System.getenv("MESHTOWN_ANDROID_KEY_ALIAS")
+def releaseKeyPass = System.getenv("MESHTOWN_ANDROID_KEY_PASS") ?: releaseStorePass
+def haveReleaseKey = releaseStore && releaseStorePass && releaseAlias
+
+android {
+    namespace "app.meshtown"
+    compileSdk 35
+    defaultConfig {
+        applicationId "app.meshtown"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName nodeVersion
+        ndk { abiFilters "arm64-v8a" }
+    }
+    signingConfigs {
+        if (haveReleaseKey) {
+            release {
+                storeFile file(releaseStore)
+                storePassword releaseStorePass
+                keyAlias releaseAlias
+                keyPassword releaseKeyPass
+            }
+        }
+    }
+    buildTypes {
+        if (haveReleaseKey) {
+            release {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+    packagingOptions {
+        jniLibs { useLegacyPackaging = true }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

@@ -1,0 +1,158 @@
+name: build-targets
+
+# Builds the release archives for the given targets and uploads each one as an asset-<target> artifact.
+# Called by the release and build workflows. targets is a JSON array of matrix elements: target, os, zig,
+# and optionally cli_only (no tray build) and optional (a failed build does not fail the run).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Package version, for example 0.2.7
+        required: true
+        type: string
+      targets:
+        description: JSON array of matrix elements to build
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    # A failed armv7 build must not stop the release; the feed job reports the missing archive.
+    continue-on-error: ${{ matrix.optional == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(inputs.targets) }}
+    env:
+      VERSION: ${{ inputs.version }}
+      TARGET: ${{ matrix.target }}
+      ZIG: ${{ matrix.zig }}
+      MIPS: ${{ matrix.mips == true }}
+      CLI_ONLY: ${{ matrix.cli_only == true }}
+    steps:
+      - name: Keep LF line endings
+        if: runner.os == 'Windows'
+        run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        shell: bash
+        run: |
+          # The MIPS targets have no prebuilt std: build/mips/build.sh installs nightly with rust-src itself.
+          if [ "$MIPS" = true ]; then
+            rustup toolchain install stable --profile minimal
+          else
+            rustup toolchain install stable --profile minimal --target "$TARGET"
+          fi
+          rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Cache MIPS cross toolchain
+        if: matrix.mips
+        uses: actions/cache@v4
+        with:
+          path: .tmp/mips-toolchain-dl
+          key: mips-toolchain-${{ matrix.target }}-${{ hashFiles('build/mips/build.sh') }}
+      - name: Install zig
+        if: matrix.zig && !matrix.mips
+        run: pip3 install --user ziglang
+      - name: Install cargo-zigbuild
+        if: matrix.zig && !matrix.mips
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-zigbuild
+      # Release binaries are built without the dylib crate type (it is only for the fast local loop) and with source
+      # paths remapped, so that the checkout and cargo cache directories of the runner do not end up in the binary.
+      - name: Prepare manifest and flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i.bak '/^crate-type = /d' Cargo.toml
+          rm -f Cargo.toml.bak
+          if [ "$RUNNER_OS" = Windows ]; then
+            cargo_home="${CARGO_HOME:-$USERPROFILE\\.cargo}"
+          else
+            cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+          fi
+          echo "RUSTFLAGS=--remap-path-prefix=${cargo_home}=/cargo --remap-path-prefix=${GITHUB_WORKSPACE}=/src" >> "$GITHUB_ENV"
+      - name: Build (without tray, then with tray)
+        shell: bash
+        run: |
+          set -euo pipefail
+          sub=build
+          if [ "$ZIG" = true ]; then sub=zigbuild; fi
+          exe=""
+          if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
+          mkdir stage
+          if [ "$MIPS" = true ]; then
+            MIPS_TOOLCHAIN_CACHE="$PWD/.tmp/mips-toolchain-dl" build/mips/build.sh "$TARGET"
+          else
+            cargo "$sub" --release --locked --target "$TARGET" --no-default-features --features net-hyper
+          fi
+          cp "target/$TARGET/release/meshtown$exe" "stage/meshtown-cli$exe"
+          if [ "$CLI_ONLY" != true ]; then
+            cargo "$sub" --release --locked --target "$TARGET"
+            cp "target/$TARGET/release/meshtown$exe" "stage/meshtown$exe"
+          fi
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir out
+          exe=""
+          if [ "$RUNNER_OS" = Windows ]; then exe=.exe; fi
+          pack() { # <archive base name> <staged binary> <binary name inside the archive>
+            mkdir "$1"
+            cp "stage/$2" "$1/$3"
+            cp LICENSE README.md "$1/"
+            if [ "$RUNNER_OS" = Windows ]; then
+              7z a -tzip "out/$1.zip" "$1" > /dev/null
+            else
+              tar -czf "out/$1.tar.gz" "$1"
+            fi
+          }
+          pack "meshtown-cli-${VERSION}-${TARGET}" "meshtown-cli$exe" "meshtown-cli$exe"
+          if [ "$CLI_ONLY" = true ]; then
+            : # console build only, no archive with the tray build
+          elif [ "$RUNNER_OS" = macOS ]; then
+            # macOS: the build with the tray goes into MeshTown.app (ad hoc signature, no Developer ID).
+            arch="${TARGET%%-*}"
+            if [ "$arch" = aarch64 ]; then arch=arm64; fi
+            build/macos/app.sh stage/meshtown stage/app "$arch"
+            cp "stage/app/MeshTown-macos-${arch}.zip" "out/MeshTown-macos-${arch}-${VERSION}.zip"
+            # The Homebrew formula unpacks this archive: no AppleDouble entries and a single top-level MeshTown.app/.
+            if unzip -Z1 "out/MeshTown-macos-${arch}-${VERSION}.zip" | grep -Eq '(^|/)\._|__MACOSX'; then
+              echo "AppleDouble entries in the macOS archive" >&2
+              exit 1
+            fi
+            test "$(unzip -Z1 "out/MeshTown-macos-${arch}-${VERSION}.zip" | cut -d/ -f1 | sort -u)" = "MeshTown.app"
+          else
+            pack "meshtown-${VERSION}-${TARGET}" "meshtown$exe" "meshtown$exe"
+          fi
+          # The console archive holds the binary under the name meshtown-cli, the one the hints print.
+          cli="meshtown-cli-${VERSION}-${TARGET}"
+          if [ "$RUNNER_OS" = Windows ]; then
+            listing="$(unzip -Z1 "out/$cli.zip")"
+          else
+            listing="$(tar -tzf "out/$cli.tar.gz")"
+          fi
+          if ! printf '%s\n' "$listing" | grep -Fxq "$cli/meshtown-cli$exe"; then
+            echo "no meshtown-cli$exe in $cli" >&2
+            exit 1
+          fi
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error

@@ -1,0 +1,190 @@
+name: openwrt-feed
+
+# Builds the signed OpenWrt package feed (.ipk for 24.10, .apk for 25.12) from the binaries of a published release
+# and, when the signing keys and the deploy key are set up, publishes it to https://mesh-town.github.io/meshtown-openwrt.
+# Without the secrets the run is dry: the feed is built with throw-away keys and only uploaded as an artifact.
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, for example v0.2.7
+        required: true
+        type: string
+      pkg_release:
+        description: Package release number (-rN); 1 for a new version
+        required: false
+        type: string
+        default: "1"
+      strict:
+        description: Fail when a target archive is missing from the release
+        required: false
+        type: boolean
+        default: false
+      from_artifacts:
+        description: Take the binaries from the asset-* artifacts of this run instead of a release; the feed is a dry run
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.2.7
+        required: true
+        type: string
+      pkg_release:
+        description: Package release number (-rN); 1 for a new version
+        required: false
+        type: string
+        default: "1"
+      strict:
+        description: Fail when a target archive is missing from the release
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  feed:
+    name: build and publish the feed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      TOOLS: ${{ github.workspace }}/.tools
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inputs
+        env:
+          TAG: ${{ inputs.tag }}
+          PKG_RELEASE: ${{ inputs.pkg_release }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "tag must look like v1.2.3" >&2
+            exit 1
+          fi
+          if ! printf '%s' "$PKG_RELEASE" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "pkg_release must be a positive integer" >&2
+            exit 1
+          fi
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build pkg-config libssl-dev zlib1g-dev libzstd-dev fakeroot
+      - name: Cache tools
+        id: tools-cache
+        uses: actions/cache@v4
+        with:
+          path: .tools
+          key: openwrt-feed-tools-${{ runner.os }}-${{ hashFiles('build/openwrt/feed/tools.sh') }}
+      - name: Build apk and usign
+        run: build/openwrt/feed/tools.sh "$TOOLS"
+      - name: Tests of the feed builder
+        env:
+          MESHTOWN_APK: ${{ github.workspace }}/.tools/bin/apk
+          MESHTOWN_USIGN: ${{ github.workspace }}/.tools/bin/usign
+          MESHTOWN_FEED_REQUIRE_TOOLS: "1"
+        run: fakeroot python3 -m unittest discover -v -s build/openwrt/feed -t build/openwrt/feed
+      - name: Download the release binaries
+        if: ${{ !inputs.from_artifacts }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir release \
+            --pattern 'meshtown-cli-*-linux-musl*.tar.gz' --pattern SHA256SUMS
+          (cd release && sha256sum -c --ignore-missing SHA256SUMS)
+      - name: Download the binaries built in this run
+        if: ${{ inputs.from_artifacts }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          merge-multiple: true
+          path: release
+      - name: Unpack the binaries
+        env:
+          TAG: ${{ inputs.tag }}
+          STRICT: ${{ inputs.strict }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          mkdir -p bins
+          args=()
+          for triple in aarch64-unknown-linux-musl x86_64-unknown-linux-musl armv7-unknown-linux-musleabi; do
+            base="meshtown-cli-${version}-${triple}"
+            if [ ! -f "release/${base}.tar.gz" ]; then
+              if [ "$STRICT" = true ]; then
+                echo "::error::release ${TAG} has no ${base}.tar.gz"
+                exit 1
+              fi
+              echo "::warning::release ${TAG} has no ${base}.tar.gz; its labels are skipped"
+              continue
+            fi
+            mkdir -p "bins/${triple}"
+            tar -xzf "release/${base}.tar.gz" -C "bins/${triple}"
+            args+=(--bin "${triple}=bins/${triple}/${base}/meshtown-cli")
+          done
+          if [ "${#args[@]}" -eq 0 ]; then
+            echo "::error::no target archives found"
+            exit 1
+          fi
+          printf '%s\n' "${args[@]}" > bin-args.txt
+      - name: Build the feed
+        env:
+          TAG: ${{ inputs.tag }}
+          PKG_RELEASE: ${{ inputs.pkg_release }}
+          FROM_ARTIFACTS: ${{ inputs.from_artifacts }}
+          OPENWRT_USIGN_KEY: ${{ secrets.OPENWRT_USIGN_KEY }}
+          OPENWRT_APK_KEY: ${{ secrets.OPENWRT_APK_KEY }}
+          MESHTOWN_APK: ${{ github.workspace }}/.tools/bin/apk
+          MESHTOWN_USIGN: ${{ github.workspace }}/.tools/bin/usign
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          args=()
+          while IFS= read -r line; do args+=("$line"); done < bin-args.txt
+          if [ "$FROM_ARTIFACTS" != true ] && [ -n "$OPENWRT_USIGN_KEY" ] && [ -n "$OPENWRT_APK_KEY" ]; then
+            umask 077
+            keys="$RUNNER_TEMP/feed-keys"
+            mkdir -p "$keys"
+            printf '%s\n' "$OPENWRT_USIGN_KEY" > "$keys/usign.sec"
+            printf '%s\n' "$OPENWRT_APK_KEY" > "$keys/apk.sec.pem"
+            umask 022
+            echo "REAL_KEYS=1" >> "$GITHUB_ENV"
+            keyargs=(--usign-key "$keys/usign.sec" --apk-key "$keys/apk.sec.pem" --pubkeys build/openwrt/keys)
+          else
+            echo "::warning::signing keys are not set: dry run with throw-away keys, nothing will be published"
+            keyargs=(--ephemeral-keys)
+          fi
+          fakeroot python3 build/openwrt/feed/build_feed.py --out feed --version "$version" \
+            --pkg-release "$PKG_RELEASE" --base-url https://mesh-town.github.io/meshtown-openwrt \
+            "${args[@]}" "${keyargs[@]}"
+          rm -rf "$RUNNER_TEMP/feed-keys"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-feed
+          path: feed
+          if-no-files-found: error
+          include-hidden-files: true
+      - name: Publish to mesh-town/meshtown-openwrt
+        if: ${{ !inputs.from_artifacts }}
+        env:
+          OPENWRT_DEPLOY_KEY: ${{ secrets.OPENWRT_DEPLOY_KEY }}
+          TAG: ${{ inputs.tag }}
+          PKG_RELEASE: ${{ inputs.pkg_release }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OPENWRT_DEPLOY_KEY" ] || [ "${REAL_KEYS:-}" != 1 ]; then
+            echo "Deploy key or signing keys are not set: nothing is published."
+            exit 0
+          fi
+          umask 077
+          key="$RUNNER_TEMP/deploy-key"
+          printf '%s\n' "$OPENWRT_DEPLOY_KEY" > "$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          build/openwrt/feed/publish.sh feed git@github.com:mesh-town/meshtown-openwrt.git "${TAG#v}-r${PKG_RELEASE}"
+          rm -f "$key"

@@ -1,0 +1,93 @@
+  .card{
+    background:var(--bg-elev);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:14px 16px;
+    box-shadow:var(--shadow);
+    margin-bottom:14px;
+  }
+  .input-port{width:96px;}
+  .input-token{width:280px;}
+  .row-inline .input.input-port{flex:0 0 96px;min-width:96px;}
+  .card-muted{background:var(--bg-sunken);}
+  .card-danger{border-color:var(--red);}
+  .card h2{font-size:14px;font-weight:600;margin-bottom:10px;}
+
+  .hint{color:var(--fg-muted);font-size:12.5px;margin-top:8px;}
+
+  .btn{
+    border:1px solid var(--border);
+    background:var(--bg-elev);
+    color:var(--fg);
+    padding:7px 14px;
+    border-radius:7px;
+    font:inherit;
+    font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent);}
+  .btn-primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);}
+  .btn-danger{border-color:var(--red);color:var(--red);}
+  .btn-sm{padding:4px 10px;font-size:12px;}
+  .btn-x{border:1px solid var(--border);background:var(--bg-elev);color:var(--fg);padding:7px 14px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
+  .btn-x:hover{border-color:var(--red);color:var(--red);}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+
+  .input,textarea,select{
+    border:1px solid var(--border);
+    background:var(--bg-elev);
+    color:var(--fg);
+    border-radius:7px;
+    padding:7px 10px;
+    font:inherit;
+    font-size:13.5px;
+  }
+  textarea{resize:vertical;width:100%;}
+
+  .hero-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .hero-row .input{flex:1;min-width:200px;}
+
+  /* Browser switch and numbered steps; a step value comes with a copy button. */
+  #browser-seg,#os-seg{display:flex;flex-wrap:wrap;gap:0;margin-top:10px;}
+  #os-seg{flex-wrap:nowrap;} #os-seg .btn{flex:1 1 auto;min-width:0;padding-left:6px;padding-right:6px;}
+  #browser-seg .btn,#os-seg .btn{border-radius:0;margin-left:-1px;} #browser-seg .btn:first-child,#os-seg .btn:first-child{border-radius:7px 0 0 7px;margin-left:0;} #browser-seg .btn:last-child,#os-seg .btn:last-child{border-radius:0 7px 7px 0;}
+  #browser-seg .btn[aria-pressed="true"],#os-seg .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);position:relative;}
+  #proxy-steps,#pac-steps{margin:10px 0 0;padding-left:20px;} #proxy-steps li,#pac-steps li{margin-top:6px;} #proxy-steps .btn{margin-left:4px;}
+  /* PAC address: label, code block and button in one row; on a narrow screen the button wraps under the address. */
+  #pac-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 0;}
+  #pac-url-text{font-size:12px;overflow-wrap:anywhere;font-family:ui-monospace,Menlo,Consolas,monospace;}
+  #os-label{display:block;margin-top:14px;font-size:13px;}
+  .pac-small{font-size:12px;margin:6px 0 0;}
+  #manual-toggle{display:block;margin-top:14px;}
+  #proxy-setup[hidden]{display:none;}
+
+  .link-more{font-size:13px;text-decoration:none;}
+  .link-more:hover{text-decoration:underline;}
+  button.link-more{background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--accent);cursor:pointer;}
+  @media (max-width:480px){#pac-copy-btn{min-height:40px;}}
+
+  .key-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .key-mask{
+    flex:1;
+    min-width:220px;
+    background:var(--bg-sunken);
+    border:1px solid var(--border);
+    border-radius:7px;
+    padding:7px 10px;
+    font-size:12.5px;
+    overflow-x:auto;
+    white-space:nowrap;
+  }
+
+  .field-label{display:block;font-size:12.5px;color:var(--fg-muted);margin-bottom:5px;}
+
+
+  /* Sign-in and first-password screens (`login/`). */
+  .auth-screen{max-width:420px;margin:48px auto;}
+  .auth-input{display:block;width:100%;margin-bottom:12px;}
+  .no-password-steps{padding-left:20px;margin:0;font-size:14px;}
+  .no-password-steps li{margin-bottom:10px;}
+  .no-password-cmd{display:flex;gap:8px;align-items:center;margin:6px 0;}
+  .no-password-cmd code{flex:1;word-break:break-all;user-select:all;}
+  .auth-error{color:var(--red);font-size:13px;margin:0 0 10px;}

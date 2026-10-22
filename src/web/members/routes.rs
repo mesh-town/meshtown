@@ -1,0 +1,154 @@
+//! Handlers of `/api/members*`: the list and the member actions. Id checks, busy/left/self/not-member
+//! decisions belong to the node; here only the body shape is checked.
+
+use std::sync::Arc;
+
+use axum::body::Bytes;
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::Router;
+use serde_json::{Map, Value};
+
+use crate::web::http::json_err;
+use crate::web::routes::helpers::{action_error, bad_method, body_obj};
+use crate::web::{App, MemberActionReq, MemberError, MembersReply};
+
+pub(crate) fn register_members(router: Router<Arc<App>>) -> Router<Arc<App>> {
+    router
+        .route("/api/members", get(members_handler).fallback(bad_method))
+        .route("/api/members/exclude", post(exclude_handler).fallback(bad_method))
+        .route("/api/members/unexclude", post(unexclude_handler).fallback(bad_method))
+        .route("/api/members/admit", post(admit_handler).fallback(bad_method))
+        .route("/api/members/unadmit", post(unadmit_handler).fallback(bad_method))
+        .route("/api/members/block", post(block_handler).fallback(bad_method))
+        .route("/api/members/unblock", post(unblock_handler).fallback(bad_method))
+        .route("/api/members/leave", post(leave_handler).fallback(bad_method))
+}
+
+fn reply(result: Result<MembersReply, MemberError>) -> Response {
+    match result {
+        Ok(body) => (StatusCode::OK, axum::Json(body)).into_response(),
+        Err(MemberError::Action(e)) => action_error(e),
+        Err(MemberError::Refused { code, message }) => {
+            json_err(StatusCode::CONFLICT, code, &message)
+        }
+    }
+}
+
+async fn members_handler(State(app): State<Arc<App>>) -> Response {
+    reply(app.node.members().await)
+}
+
+/// The body as a JSON object; anything else (including non-JSON) is 400 `bad_request`.
+fn object_body(bytes: &[u8]) -> Result<Map<String, Value>, Response> {
+    body_obj(bytes).map_err(|_| {
+        json_err(StatusCode::BAD_REQUEST, "bad_request", "body must be a JSON object")
+    })
+}
+
+/// Runs an action that takes the target `id` from the body, built by `make`.
+async fn id_action(app: &App, bytes: &Bytes, make: fn(String) -> MemberActionReq) -> Response {
+    let map = match object_body(bytes) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
+    match map.get("id") {
+        Some(Value::String(id)) if !id.trim().is_empty() => {
+            reply(app.node.member_action(make(id.trim().to_string())).await)
+        }
+        _ => json_err(StatusCode::BAD_REQUEST, "bad_request", "field id is required"),
+    }
+}
+
+/// Longest reason of an exclusion vote, in characters.
+const MAX_REASON_CHARS: usize = 80;
+
+/// The optional `reason`: absent or `null` is none; a blank string is none; a non-string, a long one or
+/// one with a control character (a line break included, also at the ends) is a `bad_request`.
+fn reason_of(map: &Map<String, Value>) -> Result<Option<String>, Response> {
+    let text = match map.get("reason") {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::String(s)) => s,
+        Some(_) => return Err(bad_reason("field reason must be a string")),
+    };
+    if text.chars().any(char::is_control) {
+        return Err(bad_reason("field reason must not contain control characters"));
+    }
+    let text = text.trim();
+    if text.chars().count() > MAX_REASON_CHARS {
+        return Err(bad_reason("field reason must be at most 80 characters"));
+    }
+    Ok(Some(text.to_string()).filter(|s| !s.is_empty()))
+}
+
+fn bad_reason(message: &str) -> Response {
+    json_err(StatusCode::BAD_REQUEST, "bad_request", message)
+}
+
+async fn exclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let map = match object_body(&bytes) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
+    let id = match map.get("id") {
+        Some(Value::String(id)) if !id.trim().is_empty() => id.trim().to_string(),
+        _ => return json_err(StatusCode::BAD_REQUEST, "bad_request", "field id is required"),
+    };
+    match reason_of(&map) {
+        Ok(reason) => reply(app.node.member_action(MemberActionReq::Exclude { id, reason }).await),
+        Err(resp) => resp,
+    }
+}
+
+async fn unexclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    id_action(&app, &bytes, MemberActionReq::Unexclude).await
+}
+
+async fn admit_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    id_action(&app, &bytes, MemberActionReq::Admit).await
+}
+
+async fn unadmit_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    id_action(&app, &bytes, MemberActionReq::Unadmit).await
+}
+
+async fn block_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    id_action(&app, &bytes, MemberActionReq::Block).await
+}
+
+async fn unblock_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    id_action(&app, &bytes, MemberActionReq::Unblock).await
+}
+
+fn confirmed(map: &Map<String, Value>) -> bool {
+    matches!(map.get("confirm"), Some(Value::Bool(true)))
+}
+
+async fn leave_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
+    let map = match object_body(&bytes) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
+    if !confirmed(&map) {
+        return json_err(StatusCode::BAD_REQUEST, "bad_request", "field confirm must be true");
+    }
+    reply(app.node.member_action(MemberActionReq::Leave).await)
+}
+
+#[cfg(test)]
+#[path = "routes_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "routes_actions_tests.rs"]
+mod action_tests;
+
+#[cfg(test)]
+#[path = "routes_fixture_tests.rs"]
+mod fixture;
+
+#[cfg(test)]
+#[path = "routes_admit_tests.rs"]
+mod admit_tests;

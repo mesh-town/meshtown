@@ -1,0 +1,195 @@
+//! A running node (`RunningNode`) and its live handles: enabling the exit, intervals, shutdown.
+
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use portable_atomic::AtomicU64;
+use std::sync::Arc;
+use std::time::Duration;
+
+use crate::net::{PeerAddr, PeerId};
+use crate::net::NetStack;
+use tokio::sync::{mpsc, watch, Notify};
+
+use crate::checks::Checks;
+use crate::domains::DomainList;
+use crate::exit::{Clients, ExitTraffic};
+use crate::membership::Members;
+use crate::node_name::effective_node_name;
+use crate::network_key::NetworkKey;
+use crate::output::say;
+use crate::ports::open::Opener;
+use crate::ports::{Opened, Published, PortsDoc, PublishedPortsTable};
+use crate::route::RouteCtx;
+use crate::telemetry::Telemetry;
+
+use super::guard::GuardHandle;
+use super::socks_task::SocksTask;
+use super::identity::IdentityState;
+
+/// A running node: holds everything needed to introduce new addresses and to shut down.
+///
+/// `Clone`: the node lives while at least one holder of a copy is alive (`NodeCtl` holds its own while the node
+/// is up); only the owner in `run_node_with_ctl` calls `shutdown(self)` — a clone must not call it
+/// at all.
+#[derive(Clone)]
+pub struct RunningNode {
+    pub id: PeerId,
+    pub stack: NetStack,
+    pub members: Members,
+    pub found_tx: mpsc::Sender<PeerAddr>,
+    pub gossip_neighbor_count: Arc<AtomicUsize>,
+    pub ok_probe_count: Arc<AtomicUsize>,
+    pub domains: DomainList,
+    pub checks: Checks,
+    /// The SOCKS5 server address, if it is up. Tests read the real port from here.
+    pub socks_addr: Option<SocketAddr>,
+    /// Who can reach the proxy (`socks.access`): `socks_addr` is always the address for this computer.
+    pub socks_access: crate::config_file::ListenAccess,
+    /// The proxy's interface filter (`socks.ifaces`) it was started with.
+    pub socks_ifaces: crate::config_file::IfaceFilter,
+    /// The switch for exit work: the console flips it without restarting the node.
+    pub exit_on: Arc<AtomicBool>,
+    /// The registry of exit clients: who is going online through this node right now; read by `collect`.
+    pub exit_clients: Clients,
+    /// The registry of exit traffic speed per peer; read by `collect`.
+    pub exit_traffic: ExitTraffic,
+    /// Path choice (direct or via the selected exit) — the same one the SOCKS5 server uses.
+    pub route: RouteCtx,
+    /// The node name (by default from the key or from the settings file); the current one is
+    /// `current_name()`.
+    pub name_at_start: String,
+    /// the same channel as in `MemberContext.own_name_tx`.
+    pub(crate) own_name_tx: watch::Sender<String>,
+    /// Whether the node identity is saved between runs.
+    pub identity: IdentityState,
+    /// The network key the node was started with.
+    pub network_key: NetworkKey,
+    /// The network label from the invite or the settings file.
+    pub network_label: Option<String>,
+    /// The node's live state for the page (relay, NAT, DHT, RSS, members).
+    pub telemetry: Arc<Telemetry>,
+    /// A snapshot of the address cache at startup (id → `seen_unix`), never updated — members connected in this
+    /// run are in telemetry.
+    pub cached_peers: Arc<HashMap<PeerId, u64>>,
+    /// The live volume-probe interval; the same `Arc` that sits in the `ProbeSettings`
+    /// of all connections. Reachable from outside only through `set_probe_interval`.
+    pub(super) probe_interval_secs: Arc<AtomicU64>,
+    /// The alarm of the exit-flag announcer (`node_state::run_exit_announce`):
+    /// `set_exit_enabled` calls `notify_one` so the announcement goes out without waiting for the timer.
+    pub(super) exit_announce_wakeup: Arc<Notify>,
+    /// The table of own port publications: read by the `PortServer`, the announcer and the page.
+    pub ports: PublishedPortsTable,
+    /// The port publication document (the `port/tcp/…` records of the shared network document).
+    pub ports_doc: PortsDoc,
+    /// Change counters of the shared document: the snapshot cache uses them to decide whether to re-read the document.
+    pub doc_changes: Arc<crate::node::DocChanges>,
+    /// The opener of others' ports: listeners on `127.0.0.1:<local>`.
+    pub opener: Opener,
+    /// The membership list: verdicts, member actions and the watcher's state.
+    pub access: Arc<crate::access::runtime::Access>,
+    /// Handles of background tasks started in `start_node()` (except those spawned by
+    /// `run_node_loop` itself — they end when connections close). `shutdown` aborts them
+    /// after the stack stops. Except the SOCKS5 accept task — that one is in `socks_task`.
+    pub(super) background_abort_handles: Arc<Vec<tokio::task::AbortHandle>>,
+    /// The SOCKS5 accept task: `shutdown` waits for it to end, so the port is free on return.
+    pub(super) socks_task: SocksTask,
+    /// The handle of the `mem-guard` OS thread (`None` — the guard is off by thresholds); `shutdown` stops it.
+    pub(super) memory_guard: Option<GuardHandle>,
+}
+
+impl RunningNode {
+    /// Introduces the address of a member found from outside (for example, by a test).
+    pub async fn introduce(&self, addr: PeerAddr) {
+        let _ = self.found_tx.send(addr).await;
+    }
+
+    /// A live handle: the new node name (`None` or invalid — the default name); handshakes pick up
+    /// it right away, the publisher updates the network document. The same name as before — no noise.
+    pub fn set_node_name(&self, configured: Option<&str>) {
+        let name = effective_node_name(configured, self.id);
+        self.own_name_tx.send_if_modified(|cur| {
+            let changed = *cur != name;
+            changed.then(|| *cur = name);
+            changed
+        });
+    }
+
+    /// The current node name (taking `set_node_name` into account).
+    pub fn current_name(&self) -> String {
+        self.own_name_tx.borrow().clone()
+    }
+
+    /// A live handle: turns exit work on or off without restarting the node.
+    pub fn set_exit_enabled(&self, on: bool) {
+        self.exit_on.store(on, Ordering::Relaxed);
+        self.exit_announce_wakeup.notify_one();
+    }
+
+    /// A live handle: turns scheduled checks on or off without restarting the node.
+    pub fn set_checks_enabled(&self, on: bool) {
+        self.checks.set_enabled(on);
+    }
+
+    /// A live handle: changes the base interval of scheduled checks.
+    pub fn set_check_interval(&self, d: Duration) {
+        self.checks.set_interval(d);
+    }
+
+    /// A live handle: replaces the list of selected exits without restarting the node.
+    pub fn set_route_exits(&self, exits: Vec<PeerId>) {
+        self.route.set_chosen_exits(exits);
+    }
+
+    /// A live handle: replaces the list of own port publications; the announcer wakes up on its own.
+    pub fn set_ports_published(&self, v: Vec<Published>) {
+        self.ports.set_published(v);
+    }
+
+    /// A live handle: replaces the list of others' ports opened here (call inside the tokio runtime).
+    pub fn set_ports_opened(&self, v: Vec<Opened>) {
+        self.opener.reconcile_listeners(v);
+    }
+
+    /// A live handle: changes the volume-probe interval for all live and new connections.
+    pub fn set_probe_interval(&self, d: Duration) {
+        self.probe_interval_secs
+            .store(d.as_secs().max(1), Ordering::Relaxed);
+    }
+
+    /// Stops the node: closes the port opener and the network stack (the transport
+    /// itself enforces the time limit for closing), then aborts the background tasks. On return the SOCKS5 port is free.
+    pub async fn shutdown(self) {
+        self.opener.close_all();
+        self.stack.close().await;
+        for handle in self.background_abort_handles.iter() {
+            handle.abort();
+        }
+        self.socks_task.close().await;
+        flush_replicas(&self.domains).await;
+        // the guard protects memory while the stack closes, so it is stopped last
+        self.memory_guard.iter().for_each(GuardHandle::stop);
+        say("node", "stopped");
+    }
+
+    /// Everything `invite::make` needs to build an invite for a live node. Called by both
+    /// `run_cycles` (the first cycle, the console) and `NodeCtl::invite`.
+    pub(crate) fn invite_source(&self) -> crate::invite::Source {
+        crate::invite::Source {
+            stack: self.stack.clone(),
+            members: self.members.clone(),
+            key: self.network_key.clone(),
+            label: self.network_label.clone(),
+            domains: self.domains.clone(),
+        }
+    }
+}
+
+/// Writes the delayed state of both replicas to disk; a failure is a warning and does not stop the shutdown.
+async fn flush_replicas(domains: &crate::domains::DomainList) {
+    for replica in [domains.shared_replica(), domains.own_replica()] {
+        if let Err(e) = replica.flush().await {
+            say("node", format!("warning: saving a replica on shutdown failed: {e}"));
+        }
+    }
+}

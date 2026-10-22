@@ -1,0 +1,53 @@
+/* --- added beyond the mockup --- */
+
+.tag-auth{color:#e39bd6;}
+.tag-checks{color:#e3c25b;}
+.tag-console{color:#8fca7a;}
+.tag-get{color:#59c3bb;}
+.tag-member{color:#7aa2f7;}
+.tag-path{color:#a48ee0;}
+.tag-probe{color:#f0a95b;}
+
+.field-error{border-color:var(--red)!important;}
+.field-error-text{color:var(--red);font-size:12px;margin-top:4px;}
+.key-error-word{font-weight:700;text-decoration:underline;}
+
+.saved{color:var(--green);font-size:12px;}
+
+.mini-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;margin-left:6px;vertical-align:middle;white-space:nowrap;}
+.mini-badge-restart{background:var(--grey-bg);color:var(--grey);}
+.cli-note{color:var(--orange);}
+.hint-warn{color:var(--orange);}
+.readonly-note{color:var(--fg-muted);font-style:italic;}
+.value-box{display:inline-block;background:var(--bg-sunken);border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;color:var(--fg);min-width:150px;max-width:100%;overflow-x:auto;white-space:nowrap;}
+.invite-value{word-break:break-all;user-select:all;color:var(--fg);}
+.lines-input{width:220px;height:64px;font-size:12.5px;}
+.file-errors-list{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--fg-muted);}
+.setting-control input.input[type="text"]{width:200px;}
+
+.identity-strip{text-align:center;font-size:12.5px;padding:6px 10px;}
+.identity-strip-declined{background:var(--grey-bg);color:var(--fg-muted);}
+.identity-strip-problem{background:var(--red-bg);color:var(--red);}
+/* Not a failure (it would be red) and not the normal case (it would be grey) — a warning. */
+.identity-strip-preserved{background:var(--warn-bg);color:var(--warn-fg);}
+
+@media (max-width:400px){
+  .topbar{padding:10px 14px;}
+  .page{padding:12px 12px 32px;}
+  .hero-row .input{min-width:0;}
+  .row-inline .input{min-width:0;}
+  /* The site address field takes its whole row, "Add" and "Check all" go under it (at 360px it shrank to 43px). */
+  #domain-add-input{flex:1 1 100%;}
+  .key-mask{min-width:0;}
+  .setting-control select,.setting-control .input{min-width:0;}
+  /* At 390px the label squeezed the "Check site" field — it moves to its own line. */
+  .hero-row{flex-direction:column;align-items:stretch;}
+  .hero-row .field-label-inline{white-space:normal;}
+}
+.ports-keep-dialog{border:1px solid var(--border,#c9d1d5);border-radius:8px;padding:18px 20px;max-width:420px;background:var(--bg-elev);color:var(--fg);}.ports-keep-dialog::backdrop{background:rgba(0,0,0,.35);}.ports-keep-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+.member-dialog{border:1px solid var(--border,#c9d1d5);border-radius:8px;padding:18px 20px;max-width:440px;background:var(--bg-elev);color:var(--fg);}.member-dialog::backdrop{background:rgba(0,0,0,.35);}.member-dialog-title{margin:0 0 8px;font-size:16px;}
+.tab .chip{display:inline-block;margin-left:6px;padding:0 7px;border-radius:10px;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:700;}
+#strip-vote{flex:0 0 auto;white-space:nowrap;color:var(--warn-fg);background:var(--warn-bg);padding:2px 8px;border-radius:10px;font-weight:600;text-decoration:none;}
+.alert{color:var(--red);font-size:14px;margin:0 0 8px;}
+#settings-leave-row{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);}#stop-node-btn{margin-top:16px;}
+.member-dialog #confirm-body p + p{margin-top:8px;}

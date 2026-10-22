@@ -1,0 +1,76 @@
+#!/bin/sh
+# Mesh Town for OpenWrt: adds the signed package feed and installs (or upgrades) the node.
+# Usage: wget -O- @BASE@/install.sh | sh
+# MESHTOWN_FEED overrides the feed address (mirrors, testing).
+set -e
+BASE="${MESHTOWN_FEED:-@BASE@}"
+[ -r /etc/openwrt_release ] || { echo "meshtown: not an OpenWrt system" >&2; exit 1; }
+. /etc/openwrt_release
+ARCH="$DISTRIB_ARCH"
+[ -n "$ARCH" ] || { echo "meshtown: no DISTRIB_ARCH in /etc/openwrt_release" >&2; exit 1; }
+TMPD="$(mktemp -d)"
+trap 'rm -rf "$TMPD"' EXIT
+
+if command -v apk >/dev/null 2>&1; then
+	PM=apk; INDEX="apk/$ARCH/packages.adb"
+elif command -v opkg >/dev/null 2>&1; then
+	PM=opkg; INDEX="opkg/$ARCH/Packages.gz"
+else
+	echo "meshtown: neither apk nor opkg found" >&2; exit 1
+fi
+
+# The feed has to carry this architecture before any configuration is touched.
+if ! wget -q -O "$TMPD/index" "$BASE/$INDEX"; then
+	echo "meshtown: no packages for $ARCH ($BASE/$INDEX)" >&2
+	echo "meshtown: see the manual install steps in the project README" >&2
+	exit 2
+fi
+echo "meshtown: $PM, arch $ARCH"
+
+installed() {
+	if [ "$PM" = apk ]; then apk info -e meshtown >/dev/null 2>&1
+	else opkg list-installed meshtown 2>/dev/null | grep -q '^meshtown '; fi
+}
+
+MANUAL=0
+if [ -e /usr/bin/meshtown ] && ! installed; then
+	MANUAL=1
+	echo "meshtown: replacing the manually installed /usr/bin/meshtown with the package (/etc/meshtown is kept)"
+fi
+
+# Finish files that apk parked as .apk-new because they differ from a manual install.
+adopt_apk_new() {
+	MOVED=0
+	for f in /etc/init.d/meshtown.apk-new; do
+		[ -e "$f" ] || continue
+		mv -f "$f" "${f%.apk-new}"
+		MOVED=1
+	done
+	[ "$MOVED" = 1 ] || return 0
+	chmod 755 /etc/init.d/meshtown
+	/etc/init.d/meshtown enable
+	/etc/init.d/meshtown restart
+}
+
+if [ "$PM" = apk ]; then
+	wget -q -O "$TMPD/meshtown-apk.pem" "$BASE/meshtown-apk.pem"
+	mkdir -p /etc/apk/keys /etc/apk/repositories.d
+	cp "$TMPD/meshtown-apk.pem" /etc/apk/keys/meshtown.pem
+	touch /etc/apk/repositories.d/customfeeds.list
+	sed -i "\#/apk/$ARCH/packages.adb\$#d" /etc/apk/repositories.d/customfeeds.list
+	echo "$BASE/$INDEX" >> /etc/apk/repositories.d/customfeeds.list
+	apk update || echo "meshtown: apk update reported errors (other feeds?), continuing" >&2
+	if installed; then apk upgrade meshtown; else apk add meshtown; fi
+	adopt_apk_new
+else
+	wget -q -O "$TMPD/meshtown-usign.pub" "$BASE/meshtown-usign.pub"
+	opkg-key add "$TMPD/meshtown-usign.pub"
+	touch /etc/opkg/customfeeds.conf
+	sed -i '/meshtown/d' /etc/opkg/customfeeds.conf
+	echo "src/gz meshtown $BASE/opkg/$ARCH" >> /etc/opkg/customfeeds.conf
+	opkg update || echo "meshtown: opkg update reported errors (other feeds?), continuing" >&2
+	if installed; then opkg upgrade meshtown
+	elif [ "$MANUAL" = 1 ]; then opkg install --force-overwrite meshtown
+	else opkg install meshtown; fi
+fi
+echo "meshtown: installed"
