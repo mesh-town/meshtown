@@ -25,7 +25,7 @@ use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::{sleep, timeout, Instant};
 
 use common::{echo_site, pair_with, wait_exit_route, DOMAIN};
-use udp::{associate, reply_within, request_associate, send_to_relay, spawn_udp_echo, UDP_LIMIT};
+use udp::{associate, reply_within, send_to_relay, spawn_udp_echo, UDP_LIMIT};
 
 /// The name the exit maps to the UDP echo server.
 const UDP_NAME: &str = "udp.test";
@@ -145,15 +145,39 @@ async fn connect_still_works_beside_an_association() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn associate_without_exits_is_refused_with_7() {
-    // given: a node whose route has no exits
+async fn associate_without_exits_relays_directly() {
+    // given: a node whose route has no exits, and a UDP echo server on the loopback
+    let echo = spawn_udp_echo(IpAddr::from([127, 0, 0, 1])).await.expect("the loopback is up");
     let site = echo_site().await;
     let (a, _b) = pair_with(site, true, |_| {}).await;
     let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let (_control, client, bound) = associate(proxy).await;
 
-    // when: UDP ASSOCIATE
-    let associated = request_associate(proxy).await;
+    // when: a datagram for the echo server
+    send_to_relay(&client, bound, &Target::Ip(echo.ip()), echo.port(), b"direct").await;
 
-    // then: command not supported
-    assert_eq!(associated.reply_code, socks5::REP_CMD_NOT_SUPPORTED);
+    // then: the reply comes from the node itself, with the source of the echo server
+    let reply = reply_within(&client, UDP_LIMIT).await.expect("an echo in time");
+    assert_eq!(reply.data, b"direct");
+    assert_eq!((reply.target, reply.port), (Target::Ip(echo.ip()), echo.port()));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn direct_association_reaches_an_ipv6_target() {
+    // given: no exits and an IPv6 echo server (the test ends early on a host without IPv6 loopback)
+    let Some(echo) = spawn_udp_echo(IpAddr::from([0, 0, 0, 0, 0, 0, 0, 1])).await else {
+        eprintln!("no IPv6 loopback on this host: skipped");
+        return;
+    };
+    let site = echo_site().await;
+    let (a, _b) = pair_with(site, true, |_| {}).await;
+    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let (_control, client, bound) = associate(proxy).await;
+
+    // when: a datagram with an IPv6 address
+    send_to_relay(&client, bound, &Target::Ip(echo.ip()), echo.port(), b"six").await;
+
+    // then: the echo comes back with the IPv6 source
+    let reply = reply_within(&client, UDP_LIMIT).await.expect("an echo in time");
+    assert_eq!((reply.data.as_slice(), reply.target, reply.port), (&b"six"[..], Target::Ip(echo.ip()), echo.port()));
 }

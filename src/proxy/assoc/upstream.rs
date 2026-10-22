@@ -17,7 +17,6 @@ pub(super) enum Delivery {
     /// Does not fit the frame of the gateway.
     Oversize,
     /// No address to send to.
-    #[allow(dead_code)] // produced by the direct upstream
     Unroutable,
 }
 

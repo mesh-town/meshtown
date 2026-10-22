@@ -14,7 +14,7 @@ use super::stats::{RelayStats, Shared};
 use super::upstream::{Closed, Delivery, UpstreamRx, UpstreamTx};
 
 /// The UDP datagram buffer: the largest datagram there can be.
-const RECV_BUFFER: usize = 65_535;
+pub(super) const RECV_BUFFER: usize = 65_535;
 
 pub(super) struct RelayLimits {
     /// How long an association may carry no datagram in either direction.

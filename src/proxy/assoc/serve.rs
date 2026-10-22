@@ -1,5 +1,6 @@
 //! The `UDP ASSOCIATE` command: a slot, the local datagram socket, the route, the reply and the journal.
 
+use std::future::{pending, Future};
 use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -14,9 +15,10 @@ use crate::socks5;
 use super::super::outcome::{outcome_line, ProxyOutcome};
 use super::super::path::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};
 use super::super::serve::{client_gone, ProxyConfig};
+use super::direct::open_direct;
 use super::relay::{relay, RelayLimits};
 use super::stats::RelayStats;
-use super::upstream::{ExitRx, ExitTx};
+use super::upstream::{ExitRx, ExitTx, UpstreamRx, UpstreamTx};
 
 /// Associations at once on one node.
 const MAX_UDP_ASSOCIATIONS: usize = 128;
@@ -56,13 +58,10 @@ pub(in crate::proxy) async fn serve_associate(mut stream: TcpStream, cfg: ProxyC
         Some(Err(refusal)) => return refuse(stream, refusal, started).await,
         Some(Ok(route)) => route,
     };
+    let assoc = Assoc { stream, udp, client_ip, bound };
     match route {
-        UdpRoute::Exit(link) => serve_exit(stream, udp, (client_ip, bound), link, &cfg, started).await,
-        UdpRoute::Direct => {
-            let outcome = ProxyOutcome::refused("direct", "no UDP route without an exit");
-            socks5::write_reply(&mut stream, socks5::REP_CMD_NOT_SUPPORTED).await?;
-            finish(started, &outcome, None)
-        }
+        UdpRoute::Exit(link) => serve_exit(assoc, link, &cfg, started).await,
+        UdpRoute::Direct => serve_direct(assoc, &cfg, started).await,
     }
 }
 
@@ -88,21 +87,43 @@ async fn refuse(mut stream: TcpStream, refusal: UdpRefusal, started: Instant) ->
     finish(started, &refusal.outcome, None)
 }
 
-/// The association through the UDP gateway of an exit.
-async fn serve_exit(
-    mut stream: TcpStream,
+/// What an association holds besides its upstream: the control connection and the client-facing socket.
+struct Assoc {
+    stream: TcpStream,
     udp: UdpSocket,
-    (client_ip, bound): (IpAddr, SocketAddrV4),
-    link: ExitLink,
-    cfg: &ProxyConfig,
-    started: Instant,
-) -> Result<()> {
-    socks5::write_reply_bound(&mut stream, socks5::REP_OK, bound).await?;
-    let (tx, rx) = (ExitTx(link.send), ExitRx(link.recv));
+    client_ip: IpAddr,
+    bound: SocketAddrV4,
+}
+
+impl Assoc {
+    /// Grants the association and relays until it ends.
+    async fn run(
+        mut self,
+        (tx, rx): (impl UpstreamTx, impl UpstreamRx),
+        stop: impl Future<Output = ()> + Send,
+        label: String,
+        started: Instant,
+    ) -> Result<()> {
+        socks5::write_reply_bound(&mut self.stream, socks5::REP_OK, self.bound).await?;
+        let stats = relay(self.stream, self.udp, self.client_ip, tx, rx, stop, RelayLimits { idle: ASSOC_IDLE }).await;
+        let outcome = ProxyOutcome::success(label, stats.down_bytes, stats.up_bytes);
+        finish(started, &outcome, Some(&stats))
+    }
+}
+
+/// The association through the UDP gateway of an exit.
+async fn serve_exit(assoc: Assoc, link: ExitLink, cfg: &ProxyConfig, started: Instant) -> Result<()> {
     let stop = cfg.route.wait_until_exit_dropped(link.peer);
-    let stats = relay(stream, udp, client_ip, tx, rx, stop, RelayLimits { idle: ASSOC_IDLE }).await;
-    let outcome = ProxyOutcome::success(link.route_label, stats.down_bytes, stats.up_bytes);
-    finish(started, &outcome, Some(&stats))
+    assoc.run((ExitTx(link.send), ExitRx(link.recv)), stop, link.route_label, started).await
+}
+
+/// The association with datagrams sent from the node itself; a change of route does not end it.
+async fn serve_direct(mut assoc: Assoc, cfg: &ProxyConfig, started: Instant) -> Result<()> {
+    let Ok(ends) = open_direct(cfg) else {
+        say("socks", format!("{JOURNAL_TARGET}: cannot open a UDP socket"));
+        return reply_and_stop(&mut assoc.stream, socks5::REP_GENERAL).await;
+    };
+    assoc.run(ends, pending(), "direct".to_string(), started).await
 }
 
 /// The journal: the drop line (if any datagram was dropped) and the summary.
