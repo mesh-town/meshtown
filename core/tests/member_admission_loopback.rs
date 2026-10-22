@@ -11,11 +11,11 @@ mod common;
 
 use std::time::Duration;
 
-use meshtown::access::record::{ensure, withdraw, AclKind, AclValue, Via};
-use meshtown::net::{NodeSecret, PeerAddr, PeerId};
-use meshtown::net_mainline::unix_now;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::members::access::record::{ensure, withdraw, AclKind, AclValue, Via};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net::{NodeSecret, PeerAddr, PeerId};
+use meshtown_core::transport::net_mainline::unix_now;
 use tokio::time::{sleep, timeout};
 
 use common::{introduce, wait_member};
@@ -23,7 +23,11 @@ use common::{introduce, wait_member};
 /// The external deadline of one wait.
 const LIMIT: Duration = Duration::from_secs(20);
 
-async fn start_with(key: &NetworkKey, secret: Option<NodeSecret>, peers: Vec<PeerAddr>) -> RunningNode {
+async fn start_with(
+    key: &NetworkKey,
+    secret: Option<NodeSecret>,
+    peers: Vec<PeerAddr>,
+) -> RunningNode {
     let mut cfg = NodeConfig::for_loopback_test(key.clone());
     cfg.open_list = false;
     cfg.socks.enabled = false;
@@ -43,17 +47,30 @@ async fn eventually(what: &str, cond: impl Fn() -> bool) {
             sleep(Duration::from_millis(50)).await;
         }
     };
-    timeout(LIMIT, wait).await.unwrap_or_else(|_| panic!("did not happen within {LIMIT:?}: {what}"));
+    timeout(LIMIT, wait)
+        .await
+        .unwrap_or_else(|_| panic!("did not happen within {LIMIT:?}: {what}"));
 }
 
 /// `a` writes its admission of `b`, with the given origin, into its own copy of the shared list.
 async fn write(a: &RunningNode, b: PeerId, via: Via) {
-    let value = AclValue { kind: AclKind::Admit, subject: b, via, made_unix: unix_now(), note: String::new() };
-    ensure(a.domains.shared_replica().as_ref(), &value).await.unwrap();
+    let value = AclValue {
+        kind: AclKind::Admit,
+        subject: b,
+        via,
+        made_unix: unix_now(),
+        note: String::new(),
+    };
+    ensure(a.domains.shared_replica().as_ref(), &value)
+        .await
+        .unwrap();
 }
 
 async fn refresh(a: &RunningNode) {
-    timeout(LIMIT, a.access.refresh()).await.expect("recompute in time").unwrap();
+    timeout(LIMIT, a.access.refresh())
+        .await
+        .expect("recompute in time")
+        .unwrap();
 }
 
 /// Every pair of the nodes admits each other and meets.
@@ -134,7 +151,11 @@ async fn withdrawn_invite_cuts_the_newcomer_at_the_issuer() {
     let n = start_with(&key, Some(secret), peers_of(&[&a, &b])).await;
     wait_member(&a, n.id, LIMIT).await;
     // when: a withdraws the invitation
-    assert!(withdraw(a.domains.shared_replica().as_ref(), AclKind::Admit, n_id).await.unwrap());
+    assert!(
+        withdraw(a.domains.shared_replica().as_ref(), AclKind::Admit, n_id)
+            .await
+            .unwrap()
+    );
     refresh(&a).await;
     // then: a no longer lists the newcomer
     eventually("a drops the newcomer", || !a.members.is_member(n.id)).await;

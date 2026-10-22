@@ -106,15 +106,30 @@ where
     if v4.nx || left.is_zero() {
         return Err(refusal(cfg, target_host, &first, v4.any));
     }
-    let v6 = v6_answer(&cfg.resolver, target_host, port, left.min(AAAA_LOOKUP_TIMEOUT)).await;
+    let v6 = v6_answer(
+        &cfg.resolver,
+        target_host,
+        port,
+        left.min(AAAA_LOOKUP_TIMEOUT),
+    )
+    .await;
     match connect_in_order(&v6.open, deadline, budget.attempt, connect).await {
         Ok(stream) => Ok(stream),
-        Err(more) => Err(refusal(cfg, target_host, &first.then(more), v4.any || v6.any)),
+        Err(more) => Err(refusal(
+            cfg,
+            target_host,
+            &first.then(more),
+            v4.any || v6.any,
+        )),
     }
 }
 
 /// A literal checked against the guard and the node's own addresses.
-fn literal_target(ip: IpAddr, target_host: &str, port: u16) -> std::result::Result<SocketAddr, Refusal> {
+fn literal_target(
+    ip: IpAddr,
+    target_host: &str,
+    port: u16,
+) -> std::result::Result<SocketAddr, Refusal> {
     let addr = literal_address(ip, target_host, port)?;
     if is_own_address(addr.ip()) {
         return Err(Refusal::forbidden(target_host));
@@ -158,8 +173,15 @@ where
         if left.is_zero() {
             break;
         }
-        let cap = if i + 1 == addrs.len() { left } else { left.min(attempt) };
-        done = Attempts { count: done.count + 1, last: Some(*addr) };
+        let cap = if i + 1 == addrs.len() {
+            left
+        } else {
+            left.min(attempt)
+        };
+        done = Attempts {
+            count: done.count + 1,
+            last: Some(*addr),
+        };
         if let Ok(Ok(stream)) = timeout(cap, connect(*addr)).await {
             return Ok(stream);
         }

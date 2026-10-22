@@ -7,7 +7,7 @@
 //! SOCKS CONNECT to `DOMAIN`, two background jobs — a writer (no pauses) and an echo reader.
 //! What it doesn't do: it doesn't check that the stream closed at the client, and doesn't run a stop under packet
 //! loss (`core/tests/lossy_link*.rs`).
-//! Links: `meshtown::node::RunningNode::shutdown`, `meshtown::socks5::client_connect`.
+//! Links: `meshtown_core::node::RunningNode::shutdown`, `meshtown_core::proxy::socks5::client_connect`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
@@ -18,9 +18,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use meshtown::node::RunningNode;
-use meshtown::route::Route;
-use meshtown::socks5;
+use meshtown_core::node::RunningNode;
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::time::{sleep, timeout};

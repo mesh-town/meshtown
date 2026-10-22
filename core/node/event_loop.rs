@@ -6,21 +6,21 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{AddrHint, Membership, NetStack, PeerAddr, PeerConn, PeerId};
+use crate::transport::net::{AddrHint, Membership, NetStack, PeerAddr, PeerConn, PeerId};
 use bytes::Bytes;
 use tokio::sync::mpsc;
 use tokio::time::{interval_at, Instant, Interval, MissedTickBehavior};
 
-use crate::checks::Checks;
-use crate::domains::DomainList;
-use crate::membership::{MemberContext, MemberEvent, Members};
-use crate::net_mainline;
-use crate::output::{say, short_peer_id};
-use crate::peer_names::PeerNames;
-use crate::peers_cache::{self, PeersCache};
-use crate::route::RouteCtx;
-use crate::stale_prune::{self, PruneSources};
-use crate::telemetry::{self, Telemetry};
+use crate::members::membership::{MemberContext, MemberEvent, Members};
+use crate::members::peer_names::PeerNames;
+use crate::members::stale_prune::{self, PruneSources};
+use crate::node::output::{say, short_peer_id};
+use crate::node::telemetry::{self, Telemetry};
+use crate::proxy::domains::DomainList;
+use crate::proxy::route::RouteCtx;
+use crate::site_checks::checks::Checks;
+use crate::transport::net_mainline;
+use crate::transport::peers_cache::{self, PeersCache};
 
 use super::dial::{DialFailed, PeerDialer};
 use super::peer_path;
@@ -32,17 +32,26 @@ use super::rejoin::{rejoin_if_alone, Rejoin};
 /// respond, and "only the initiator invites" would leave the topic empty.
 async fn invite_and_sync(peer: PeerId, swarm: &dyn Membership, domains: &DomainList) {
     match swarm.join(&[peer]).await {
-        Ok(()) => say("gossip", format!("inviting {} to the topic", short_peer_id(&peer))),
+        Ok(()) => say(
+            "gossip",
+            format!("inviting {} to the topic", short_peer_id(&peer)),
+        ),
         Err(e) => say(
             "gossip",
             format!("couldn't invite {}: {e}", short_peer_id(&peer)),
         ),
     }
     match domains.sync_with(peer).await {
-        Ok(()) => say("docs", format!("syncing the domain list with {}", short_peer_id(&peer))),
+        Ok(()) => say(
+            "docs",
+            format!("syncing the domain list with {}", short_peer_id(&peer)),
+        ),
         Err(e) => say(
             "docs",
-            format!("couldn't start syncing with {}: {e:#}", short_peer_id(&peer)),
+            format!(
+                "couldn't start syncing with {}: {e:#}",
+                short_peer_id(&peer)
+            ),
         ),
     }
 }
@@ -75,7 +84,12 @@ fn down_line(who: impl std::fmt::Display, reason: &str, count: usize) -> String 
 }
 
 /// Broadcasts the periodic `hello` into the gossip topic if the network has at least one member.
-async fn broadcast_hello(swarm: &dyn Membership, id: PeerId, members: &Members, hello_count: u64) -> u64 {
+async fn broadcast_hello(
+    swarm: &dyn Membership,
+    id: PeerId,
+    members: &Members,
+    hello_count: u64,
+) -> u64 {
     if members.count() == 0 {
         return hello_count;
     }
@@ -180,7 +194,13 @@ impl LoopState {
             Wake::RedialDue => self.dialer.dial_due_peers(),
             Wake::HelloTick => self.hello(loop_ctx).await,
             Wake::StatusTick => {
-                log_periodic_status(&loop_ctx.members, &loop_ctx.gossip_neighbor_count, &loop_ctx.domains, &loop_ctx.checks).await
+                log_periodic_status(
+                    &loop_ctx.members,
+                    &loop_ctx.gossip_neighbor_count,
+                    &loop_ctx.domains,
+                    &loop_ctx.checks,
+                )
+                .await
             }
             Wake::PruneTick => self.prune(loop_ctx).await,
             Wake::Idle => {}
@@ -191,15 +211,42 @@ impl LoopState {
 
     /// Broadcasts `hello` and, when alone, calls back into the swarm.
     async fn hello(&mut self, loop_ctx: &LoopCtx) {
-        self.hello_count = broadcast_hello(&*loop_ctx.swarm, loop_ctx.id, &loop_ctx.members, self.hello_count).await;
+        self.hello_count = broadcast_hello(
+            &*loop_ctx.swarm,
+            loop_ctx.id,
+            &loop_ctx.members,
+            self.hello_count,
+        )
+        .await;
         let gossip_neighbor_count = loop_ctx.gossip_neighbor_count.load(Ordering::Relaxed);
-        rejoin_if_alone(&*loop_ctx.swarm, &mut self.rejoin, gossip_neighbor_count, &loop_ctx.members, Instant::now()).await;
+        rejoin_if_alone(
+            &*loop_ctx.swarm,
+            &mut self.rejoin,
+            gossip_neighbor_count,
+            &loop_ctx.members,
+            Instant::now(),
+        )
+        .await;
     }
 
     /// Cleans up stale entries and makes the dialer forget members that left.
     async fn prune(&mut self, loop_ctx: &LoopCtx) {
-        let src = PruneSources { id: loop_ctx.id, members: &loop_ctx.members, telemetry: &loop_ctx.telemetry, domains: &loop_ctx.domains, checks: &loop_ctx.checks, route: &loop_ctx.route };
-        let pruned = stale_prune::prune_tick(&src, &mut self.prune_candidates_prev_tick, &mut self.cache, &mut self.names, net_mainline::unix_now()).await;
+        let src = PruneSources {
+            id: loop_ctx.id,
+            members: &loop_ctx.members,
+            telemetry: &loop_ctx.telemetry,
+            domains: &loop_ctx.domains,
+            checks: &loop_ctx.checks,
+            route: &loop_ctx.route,
+        };
+        let pruned = stale_prune::prune_tick(
+            &src,
+            &mut self.prune_candidates_prev_tick,
+            &mut self.cache,
+            &mut self.names,
+            net_mainline::unix_now(),
+        )
+        .await;
         self.dialer.forget_pruned_peers(&pruned);
     }
 
@@ -214,7 +261,10 @@ impl LoopState {
     }
 
     async fn on_up(&mut self, loop_ctx: &LoopCtx, peer: PeerId, conn: Arc<dyn PeerConn>) {
-        say("member", up_line(loop_ctx.members.peer_label(peer), loop_ctx.members.count()));
+        say(
+            "member",
+            up_line(loop_ctx.members.peer_label(peer), loop_ctx.members.count()),
+        );
         self.dialer.on_peer_up(peer);
         let selected = peer_path::record_peer_up(&*conn, &loop_ctx.stack, &loop_ctx.telemetry);
         remember_peer_and_save(&mut self.cache, peer, selected);
@@ -228,7 +278,14 @@ impl LoopState {
     }
 
     fn on_down(&mut self, loop_ctx: &LoopCtx, peer: PeerId, reason: &str) {
-        say("member", down_line(loop_ctx.members.peer_label(peer), reason, loop_ctx.members.count()));
+        say(
+            "member",
+            down_line(
+                loop_ctx.members.peer_label(peer),
+                reason,
+                loop_ctx.members.count(),
+            ),
+        );
         self.dialer.on_peer_down(peer, reason);
         loop_ctx.telemetry.peer_down(peer);
         if self.cache.touch(peer, net_mainline::unix_now()) {
@@ -247,7 +304,14 @@ pub(super) async fn run_node_loop(loop_ctx: LoopCtx, inputs: LoopInputs) {
     let hello_count = 0u64;
     let (failed_tx, failed) = mpsc::unbounded_channel::<DialFailed>();
     let dialer = PeerDialer::new(loop_ctx.id, loop_ctx.stack.clone(), inputs.ctx, failed_tx);
-    let mut state = LoopState { dialer, cache: inputs.cache, names: inputs.names, rejoin, prune_candidates_prev_tick, hello_count };
+    let mut state = LoopState {
+        dialer,
+        cache: inputs.cache,
+        names: inputs.names,
+        rejoin,
+        prune_candidates_prev_tick,
+        hello_count,
+    };
     let mut wakers = Wakers {
         found_rx: inputs.found,
         events_rx: inputs.events,

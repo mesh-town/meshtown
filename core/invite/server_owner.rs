@@ -14,14 +14,15 @@ use super::proof::{admit_owner, owner_proven};
 use super::server::{log_refused, InviteServer, ANSWER_TIMEOUT, CLAIM_SETTLE};
 use super::store::{settle, IssueVerdict, Ledger, Settle};
 use super::wire::{
-    code_from, encode_invite_reply, parse_owner_request, OwnerRequest, RedeemCode, OWNER_REQUEST_LEN, REPLY_LEN,
+    code_from, encode_invite_reply, parse_owner_request, OwnerRequest, RedeemCode,
+    OWNER_REQUEST_LEN, REPLY_LEN,
 };
-use crate::access::view::Deny;
-use crate::domains::DomainList;
-use crate::net::PeerId;
-use crate::net_mainline;
-use crate::network_key::NetworkKey;
-use crate::output::{say, short_peer_id};
+use crate::members::access::view::Deny;
+use crate::members::network_key::NetworkKey;
+use crate::node::output::{say, short_peer_id};
+use crate::proxy::domains::DomainList;
+use crate::transport::net::PeerId;
+use crate::transport::net_mainline;
 
 /// How long to wait for the membership view to be ready before answering "not ready".
 const READY_WAIT: Duration = Duration::from_secs(1);
@@ -35,7 +36,13 @@ fn owner_code(r: Result<(), Deny>) -> Option<RedeemCode> {
         Ok(()) | Err(Deny::Unlisted) => None,
         Err(Deny::Excluded) => Some(RedeemCode::Excluded),
         Err(why) => {
-            say("invite", format!("invite not given: this node refuses the newcomer ({})", why.code()));
+            say(
+                "invite",
+                format!(
+                    "invite not given: this node refuses the newcomer ({})",
+                    why.code()
+                ),
+            );
             Some(RedeemCode::NotReady)
         }
     }
@@ -43,7 +50,12 @@ fn owner_code(r: Result<(), Deny>) -> Option<RedeemCode> {
 
 impl InviteServer {
     /// The answer to an owner request. Nothing is claimed until the proof and the membership verdict pass.
-    pub(super) async fn owner_reply(&self, raw: &[u8; OWNER_REQUEST_LEN], transport: PeerId, who: &str) -> [u8; REPLY_LEN] {
+    pub(super) async fn owner_reply(
+        &self,
+        raw: &[u8; OWNER_REQUEST_LEN],
+        transport: PeerId,
+        who: &str,
+    ) -> [u8; REPLY_LEN] {
         let Some(req) = parse_owner_request(raw).filter(|r| owner_proven(r, transport)) else {
             log_refused(who, RedeemCode::BadRequest);
             return encode_invite_reply(RedeemCode::BadRequest, None);
@@ -90,12 +102,21 @@ impl InviteServer {
         if verdict != IssueVerdict::Grant {
             return Err(code_from(verdict));
         }
-        ledger.claim(hash, now_unix).await.map_err(|_| RedeemCode::Internal)
+        ledger
+            .claim(hash, now_unix)
+            .await
+            .map_err(|_| RedeemCode::Internal)
     }
 
     /// Phase 2: a fresh verdict, comparing claims (the one who yields gets `Busy`), the owner's record, the mark,
     /// the key. A failed record write leaves the invite unspent: the claim goes stale and the client retries.
-    async fn settle_and_grant(&self, list: &DomainList, ledger: &Ledger, hash: &str, owner: PeerId) -> Verdict {
+    async fn settle_and_grant(
+        &self,
+        list: &DomainList,
+        ledger: &Ledger,
+        hash: &str,
+        owner: PeerId,
+    ) -> Verdict {
         let _guard = self.gate.lock().await;
         let now_unix = net_mainline::unix_now();
         let verdict = ledger.verdict(hash, now_unix).await;
@@ -121,7 +142,10 @@ impl InviteServer {
 
 fn log_owner(who: &str, owner: PeerId, code: RedeemCode) {
     if code == RedeemCode::Ok {
-        say("invite", format!("node {who} let in by invite as {}", short_peer_id(&owner)));
+        say(
+            "invite",
+            format!("node {who} let in by invite as {}", short_peer_id(&owner)),
+        );
         return;
     }
     log_refused(who, code);

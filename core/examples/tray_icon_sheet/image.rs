@@ -127,6 +127,7 @@ impl Image {
 /// Pixel `top` over the opaque `bottom`: `top·a + bottom·(1 − a)`, the result alpha is 255.
 fn mix(top: [u8; 4], bottom: [u8; 4]) -> [u8; 4] {
     let a = u32::from(top[3]);
-    let c = |i: usize| ((u32::from(top[i]) * a + u32::from(bottom[i]) * (255 - a) + 127) / 255) as u8;
+    let c =
+        |i: usize| ((u32::from(top[i]) * a + u32::from(bottom[i]) * (255 - a) + 127) / 255) as u8;
     [c(0), c(1), c(2), 255]
 }

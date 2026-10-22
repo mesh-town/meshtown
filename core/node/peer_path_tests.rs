@@ -3,15 +3,15 @@
 //! change event). A connection without paths comes from `mem`,
 //! the path change events come from a fake `PathWatch` with a preset list.
 
-use crate::net::contract::{pid, secret, must_finish, SEED_A, SEED_B};
-use crate::net::facade::test_support::Spy;
-use crate::net::{
+use crate::node::output::{log_page, log_summary, short_peer_id};
+use crate::node::telemetry::Telemetry;
+use crate::transport::net::contract::{must_finish, pid, secret, SEED_A, SEED_B};
+use crate::transport::net::facade::test_support::Spy;
+use crate::transport::net::{
     BoxFuture, MemNet, PathChange, PathKind as NetPath, PathWatch, PeerConn, PeerId,
     SplitTransport, Transport, AUTH,
 };
-use crate::output::{log_page, log_summary, short_peer_id};
-use crate::telemetry::Telemetry;
-use crate::web::PathKindView;
+use crate::web_gui::PathKindView;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
@@ -34,14 +34,24 @@ mod new_connection {
         let peer = fx.conn.peer();
         let tel = Telemetry::new();
         // when
-        let stack = crate::net::NetStackBuilder::new(secret(SEED_A)).transport(fx.spy.clone()).build().unwrap();
+        let stack = crate::transport::net::NetStackBuilder::new(secret(SEED_A))
+            .transport(fx.spy.clone())
+            .build()
+            .unwrap();
         let hint = record_peer_up(&*fx.conn, &stack, &tel);
         // then: no hint, none was passed to the transport
         assert!(hint.is_none(), "a hint for mem: {hint:?}");
-        assert!(fx.spy.hints().is_empty(), "the transport got hints: {:?}", fx.spy.hints());
+        assert!(
+            fx.spy.hints().is_empty(),
+            "the transport got hints: {:?}",
+            fx.spy.hints()
+        );
         // then: the member is still recorded as "online"
         let view = tel.view();
-        let live = view.peers.get(&peer).expect("the member is not recorded in telemetry");
+        let live = view
+            .peers
+            .get(&peer)
+            .expect("the member is not recorded in telemetry");
         assert!(live.online, "the member is not marked online");
         fx.close().await;
     }
@@ -69,7 +79,11 @@ mod path_events {
             ],
         );
         // then: telemetry repeats the last event — no path and no rtt
-        assert_eq!(path_and_rtt(&tel, peer), (None, None), "telemetry after the second event");
+        assert_eq!(
+            path_and_rtt(&tel, peer),
+            (None, None),
+            "telemetry after the second event"
+        );
     }
 
     #[tokio::test]
@@ -99,7 +113,10 @@ mod path_events {
         // then: it returned; the log and telemetry are untouched
         let lines = path_lines_about(before, peer);
         assert!(lines.is_empty(), "log lines without events: {lines:?}");
-        assert!(tel.view().peers.is_empty(), "telemetry got a record without events");
+        assert!(
+            tel.view().peers.is_empty(),
+            "telemetry got a record without events"
+        );
     }
 }
 
@@ -140,7 +157,10 @@ fn no_path() -> PathChange {
 /// A member's path and rtt in telemetry; no such member — panic.
 fn path_and_rtt(tel: &Telemetry, peer: PeerId) -> (Option<PathKindView>, Option<u64>) {
     let view = tel.view();
-    let live = view.peers.get(&peer).expect("the member is not recorded in telemetry");
+    let live = view
+        .peers
+        .get(&peer)
+        .expect("the member is not recorded in telemetry");
     (live.path, live.rtt_ms)
 }
 
@@ -170,10 +190,18 @@ async fn setup_mem() -> MemFixture {
     let spy = Spy::on(&net, &secret(SEED_A)).shared();
     let far = net.transport(&secret(SEED_B));
     far.serve(&[AUTH]);
-    let (dialed, accepted) = tokio::join!(must_finish(spy.connect(&far.local_addr(), AUTH)), must_finish(far.accept()));
+    let (dialed, accepted) = tokio::join!(
+        must_finish(spy.connect(&far.local_addr(), AUTH)),
+        must_finish(far.accept())
+    );
     let conn = dialed.expect("connect mem gave no connection");
     let (_, accepted) = accepted.expect("accept mem closed");
-    MemFixture { spy, conn, far, _accepted: accepted }
+    MemFixture {
+        spy,
+        conn,
+        far,
+        _accepted: accepted,
+    }
 }
 
 impl MemFixture {

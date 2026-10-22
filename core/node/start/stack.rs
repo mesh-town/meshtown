@@ -3,14 +3,14 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, OnceLock};
 
-use crate::net::{
+use crate::transport::net::{
     service as svc, Discovery, NetError, NetStack, NetStackBuilder, PeerAddr, ServiceHandler,
 };
 use anyhow::Result;
 use tokio::sync::{mpsc, Notify};
 
-use crate::domains::DomainList;
 use crate::exit::ExitConfig;
+use crate::proxy::domains::DomainList;
 
 use super::boot::Boot;
 use super::network::{ServeParts, Wired};
@@ -80,11 +80,14 @@ fn served_builder(
         .fold(NetStackBuilder::new(boot.secret.clone()), |b, t| {
             b.transport(t.clone())
         })
-        .serve(svc::AUTH, crate::handshake::handshake_service(wired.ctx.clone()))
+        .serve(
+            svc::AUTH,
+            crate::members::handshake::handshake_service(wired.ctx.clone()),
+        )
         .serve(svc::EXIT, crate::exit::exit_service(exit_cfg))
         .serve(
             svc::PORT,
-            crate::ports::port_service(wired.members.clone(), serve.ports.clone()),
+            crate::ports_sharing::port_service(wired.members.clone(), serve.ports.clone()),
         )
         .serve(
             svc::INVITE,

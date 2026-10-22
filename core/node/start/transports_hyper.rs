@@ -3,15 +3,15 @@
 
 use std::sync::Arc;
 
-use crate::membership::Members;
-use crate::net_hyperdht::RecordStore;
+use crate::members::membership::Members;
+use crate::transport::net_hyperdht::RecordStore;
 
 use super::boot::Boot;
 
 #[cfg(feature = "net-hyper")]
-use crate::net::service::{AUTH, INVITE};
+use crate::transport::net::service::{AUTH, INVITE};
 #[cfg(feature = "net-hyper")]
-use crate::net_hyper::gate::Admit;
+use crate::transport::net_hyper::gate::Admit;
 
 /// Member admission: AUTH and INVITE — for everyone, the other services — for those with a live connection
 /// after AUTH. The predicate reads `Members` on every inbound connection.

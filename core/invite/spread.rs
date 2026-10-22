@@ -17,7 +17,7 @@ use tokio::time::{timeout_at, Instant};
 use super::hold_wire::{parse_hold_reply, HOLD_LEN};
 use super::wire::{RedeemCode, REPLY_LEN};
 use super::MAX_INVITE_PEERS;
-use crate::net::{NetStack, PeerAddr, PeerId, INVITE};
+use crate::transport::net::{NetStack, PeerAddr, PeerId, INVITE};
 
 /// How many confirmations are enough: we don't wait for more.
 pub const HOLDERS_WANTED: usize = 2;
@@ -43,7 +43,13 @@ pub fn rest(connected: &[PeerId], admitted: &BTreeSet<PeerId>, me: PeerId) -> Ve
         ids
     };
     let linked = by_key(connected.iter().copied().filter(|p| *p != me).collect());
-    let offline = by_key(admitted.iter().copied().filter(|p| *p != me && !linked.contains(p)).collect());
+    let offline = by_key(
+        admitted
+            .iter()
+            .copied()
+            .filter(|p| *p != me && !linked.contains(p))
+            .collect(),
+    );
     let mut out = linked;
     out.extend(offline);
     out.dedup();
@@ -52,7 +58,11 @@ pub fn rest(connected: &[PeerId], admitted: &BTreeSet<PeerId>, me: PeerId) -> Ve
 
 /// Asks everyone in parallel; exits on `HOLDERS_WANTED` confirmations, running out of
 /// candidates or `HOLD_WAIT`; holders gathered before the deadline are kept.
-pub async fn gather(stack: &NetStack, frame: [u8; HOLD_LEN], candidates: Vec<PeerId>) -> Vec<PeerId> {
+pub async fn gather(
+    stack: &NetStack,
+    frame: [u8; HOLD_LEN],
+    candidates: Vec<PeerId>,
+) -> Vec<PeerId> {
     let deadline = Instant::now() + HOLD_WAIT;
     let mut set = JoinSet::new();
     for peer in candidates {
@@ -80,8 +90,14 @@ async fn ask_hold(stack: NetStack, peer: PeerId, frame: [u8; HOLD_LEN]) -> bool 
     ok
 }
 
-async fn hold_round_trip(conn: &dyn crate::net::PeerConn, frame: &[u8; HOLD_LEN]) -> anyhow::Result<bool> {
-    let pair = conn.open().await.map_err(crate::net::NetError::into_anyhow)?;
+async fn hold_round_trip(
+    conn: &dyn crate::transport::net::PeerConn,
+    frame: &[u8; HOLD_LEN],
+) -> anyhow::Result<bool> {
+    let pair = conn
+        .open()
+        .await
+        .map_err(crate::transport::net::NetError::into_anyhow)?;
     let (mut send, mut recv) = (pair.send, pair.recv);
     send.write_all(frame).await?;
     send.shutdown().await?;
@@ -95,7 +111,10 @@ async fn hold_round_trip(conn: &dyn crate::net::PeerConn, frame: &[u8; HOLD_LEN]
 pub fn ordered(holders: &[PeerId], me: &PeerAddr, rest: &[PeerId]) -> Vec<PeerAddr> {
     let first = holders.iter().copied().map(PeerAddr::new);
     let rest = rest.iter().copied().map(PeerAddr::new);
-    first.chain(std::iter::once(me.clone())).chain(rest).collect()
+    first
+        .chain(std::iter::once(me.clone()))
+        .chain(rest)
+        .collect()
 }
 
 #[cfg(test)]

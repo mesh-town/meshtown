@@ -2,10 +2,10 @@
 //! cell lifecycle on the mem stack. The `ask_exit_to_connect` request and a hung `open` are in `pool_ask_tests.rs`.
 
 use super::*;
-use crate::net::facade::test_support::{pid, secret, within, Probe, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::{ServiceId, EXIT};
-use crate::net::{NetStack, NetStackBuilder};
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::{ServiceId, EXIT};
+use crate::transport::net::{NetStack, NetStackBuilder};
 
 #[test]
 fn default_uses_exit_service() {
@@ -78,11 +78,17 @@ mod traffic {
         let mut pair = within("stream", fx.pool.open_peer_stream(&fx.client, pid(2)))
             .await
             .expect("stream opened");
-        tokio::io::AsyncWriteExt::write_all(&mut pair.send, &[7u8; 10_000]).await.expect("write");
+        tokio::io::AsyncWriteExt::write_all(&mut pair.send, &[7u8; 10_000])
+            .await
+            .expect("write");
 
         // when: we wait at most three seconds
         let seen = tokio::time::timeout(Duration::from_secs(3), async {
-            while traffic.rates_at(std::time::Instant::now()).get(&pid(2)).is_none_or(|r| r.through_peer_bps == 0) {
+            while traffic
+                .rates_at(std::time::Instant::now())
+                .get(&pid(2))
+                .is_none_or(|r| r.through_peer_bps == 0)
+            {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
@@ -115,7 +121,11 @@ mod waiting_counter {
         pool.open_bi_waiter_count.fetch_add(1, Ordering::SeqCst);
 
         // then: the clone sees the same number
-        assert_eq!(clone.open_bi_waiter_count(), 1, "the waiter counter is shared between clones");
+        assert_eq!(
+            clone.open_bi_waiter_count(),
+            1,
+            "the waiter counter is shared between clones"
+        );
     }
 }
 
@@ -131,9 +141,12 @@ mod stream {
         within("first stream", fx.pool.open_peer_stream(&fx.client, pid(2)))
             .await
             .expect("first stream opened");
-        within("second stream", fx.pool.open_peer_stream(&fx.client, pid(2)))
-            .await
-            .expect("second stream opened");
+        within(
+            "second stream",
+            fx.pool.open_peer_stream(&fx.client, pid(2)),
+        )
+        .await
+        .expect("second stream opened");
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // then: one connection — the exit accepted it once
@@ -166,12 +179,20 @@ mod stream {
     async fn failed_connect_leaves_slot_empty() {
         // given: the client doesn't know the peer's address, `connect` gives NoRoute
         let fx = setup(Opts { linked: false });
-        let first = within("stream without a route", fx.pool.open_peer_stream(&fx.client, pid(2))).await;
+        let first = within(
+            "stream without a route",
+            fx.pool.open_peer_stream(&fx.client, pid(2)),
+        )
+        .await;
         assert!(first.is_err(), "no such peer: the stream didn't open");
 
         // when: the peer's address became known and the request was repeated
         fx.link();
-        let second = within("stream after add_hints", fx.pool.open_peer_stream(&fx.client, pid(2))).await;
+        let second = within(
+            "stream after add_hints",
+            fx.pool.open_peer_stream(&fx.client, pid(2)),
+        )
+        .await;
 
         // then: the retry succeeds — the failed connect didn't fill the cell
         assert!(second.is_ok(), "the retry after add_hints should succeed");
@@ -184,7 +205,11 @@ mod stream {
         fx.client.close().await;
 
         // when: the pool is asked for a stream
-        let res = within("stream after close", fx.pool.open_peer_stream(&fx.client, pid(2))).await;
+        let res = within(
+            "stream after close",
+            fx.pool.open_peer_stream(&fx.client, pid(2)),
+        )
+        .await;
 
         // then: an error, not a panic
         assert!(res.is_err(), "a closed stack opens no streams");

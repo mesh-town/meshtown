@@ -14,7 +14,13 @@ const MADE: u64 = 1_790_000_000;
 fn round_trip_gives_the_same_hash_and_time() {
     let frame = hold_frame(&key(), &HASH, MADE);
     let req = parse_hold(&key(), &frame).expect("the frame parses");
-    assert_eq!(req, HoldReq { hash: HASH, made_unix: MADE });
+    assert_eq!(
+        req,
+        HoldReq {
+            hash: HASH,
+            made_unix: MADE
+        }
+    );
 }
 
 #[test]

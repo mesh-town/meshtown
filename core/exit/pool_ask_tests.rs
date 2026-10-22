@@ -3,12 +3,12 @@
 //! A "tricky" connection is planted directly into the pool cell (`PeerConnPool.conns`, `Slot`).
 
 use super::*;
-use crate::exit::test_support::Scripted;
 use crate::exit::frame::{EXIT_CODE_OK, EXIT_PROTOCOL_VERSION};
-use crate::net::facade::test_support::{pid, secret, within, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::EXIT;
-use crate::net::{
+use crate::exit::test_support::Scripted;
+use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{
     BoxFuture, LinkInfo, NetResult, NetStack, NetStackBuilder, PeerConn, StreamPair,
 };
 use tokio::io::duplex;
@@ -63,7 +63,11 @@ mod reply {
         let fx = setup(&[EXIT_PROTOCOL_VERSION, EXIT_CODE_OK]);
 
         // when: the client asks for a stream
-        let res = within("ask", ask_exit_to_connect(&fx.client, &fx.pool, pid(2), "example.com", 443)).await;
+        let res = within(
+            "ask",
+            ask_exit_to_connect(&fx.client, &fx.pool, pid(2), "example.com", 443),
+        )
+        .await;
 
         // then: the reply code is returned together with the stream halves
         let (_send, _recv, code) = res.expect("reply accepted");
@@ -108,10 +112,7 @@ mod busy {
 
         // then: the error is `StreamBusy`
         let err = res.err().expect("stream did not open");
-        assert!(
-            err.downcast_ref::<StreamBusy>().is_some(),
-            "got: {err:#}"
-        );
+        assert!(err.downcast_ref::<StreamBusy>().is_some(), "got: {err:#}");
     }
 }
 

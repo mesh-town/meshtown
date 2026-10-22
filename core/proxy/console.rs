@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 
-use crate::output::{say, short_peer_id};
-use crate::route::{self, Route, RouteCtx};
+use crate::node::output::{say, short_peer_id};
+use crate::proxy::route::{self, Route, RouteCtx};
 
 use super::get::get_via_socks;
 
@@ -47,26 +47,35 @@ pub struct ProxyConsole {
     pub user_agent: String,
 }
 
+/// Prints the SOCKS listening address and whether the exit is on for others.
+fn say_socks(console: &ProxyConsole) {
+    let listening = match console.socks {
+        Some(addr) => addr.to_string(),
+        None => "off".to_string(),
+    };
+    let exit_status_word = if console.exit_on.load(Ordering::Relaxed) {
+        "on"
+    } else {
+        "off"
+    };
+    say(
+        "socks",
+        format!("listening: {listening}; exit for others: {exit_status_word}"),
+    );
+}
+
 /// Executes a console command.
 pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
     match cmd {
-        ProxyCommand::Socks => {
-            let listening = match console.socks {
-                Some(addr) => addr.to_string(),
-                None => "off".to_string(),
-            };
-            let exit_status_word = if console.exit_on.load(Ordering::Relaxed) {
-                "on"
-            } else {
-                "off"
-            };
-            say("socks", format!("listening: {listening}; exit for others: {exit_status_word}"));
-        }
+        ProxyCommand::Socks => say_socks(console),
         ProxyCommand::Route(domain) => match console.route.choose_now().await {
             Ok(Route::Direct) => say("route", format!("{domain} → direct")),
             Ok(Route::Exits(candidates)) => {
                 let first = route::first_exit(&candidates);
-                say("route", format!("{domain} → exit {}", short_peer_id(&first)));
+                say(
+                    "route",
+                    format!("{domain} → exit {}", short_peer_id(&first)),
+                );
             }
             Ok(Route::Refuse(reason)) => say("route", format!("{domain} → refused: {reason}")),
             Err(e) => say("route", format!("{domain}: {e:#}")),
@@ -85,7 +94,10 @@ pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
             say(
                 "exit",
                 if on {
-                    format!("serving as exit for members of network {}", crate::output::NET_NAME)
+                    format!(
+                        "serving as exit for members of network {}",
+                        crate::node::output::NET_NAME
+                    )
                 } else {
                     "no longer serving as exit".to_string()
                 },

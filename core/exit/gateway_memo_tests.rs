@@ -1,5 +1,5 @@
 use super::*;
-use crate::net::facade::test_support::pid;
+use crate::transport::net::facade::test_support::pid;
 
 #[test]
 fn refusal_is_remembered_until_the_ttl_passes() {

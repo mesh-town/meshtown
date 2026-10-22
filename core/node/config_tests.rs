@@ -2,11 +2,11 @@
 //! Read the `cargo test` output as a phrase: `for_loopback_test::keeps_old_preset_values`.
 
 use super::*;
-use crate::config_file::{NetSettings, TransportMode};
+use crate::config::config_file::{NetSettings, TransportMode};
+use crate::members::network_key::NetworkKey;
 use crate::node::{MemoryLimits, SocksListen};
-use crate::doh::DEFAULT_DOH;
-use crate::net::NetChoice;
-use crate::network_key::NetworkKey;
+use crate::site_checks::doh::DEFAULT_DOH;
+use crate::transport::net::NetChoice;
 use std::time::Duration;
 
 mod for_loopback_test {
@@ -64,7 +64,15 @@ mod for_loopback_test {
         // when: the preset for loopback tests is built
         let cfg = NodeConfig::for_loopback_test(key);
         // then: SOCKS is on at any port, the memory guard is off, the network is mem
-        assert_eq!(cfg.socks, SocksListen { enabled: true, port: 0, access: crate::config_file::ListenAccess::Localhost, ifaces: crate::config_file::IfaceFilter::Auto });
+        assert_eq!(
+            cfg.socks,
+            SocksListen {
+                enabled: true,
+                port: 0,
+                access: crate::config::config_file::ListenAccess::Localhost,
+                ifaces: crate::config::config_file::IfaceFilter::Auto
+            }
+        );
         assert_eq!(cfg.memory, MemoryLimits::OFF);
         assert_eq!(cfg.settings.net_choice.transports, ["mem"]);
     }
@@ -76,7 +84,11 @@ mod for_loopback_test {
         // when: the preset for loopback tests is built
         let cfg = NodeConfig::for_loopback_test(key);
         // then: the fields not moved into `settings` stayed the same
-        assert_eq!(cfg.probe_first_delay, Duration::ZERO, "first probe right away");
+        assert_eq!(
+            cfg.probe_first_delay,
+            Duration::ZERO,
+            "first probe right away"
+        );
         assert!(!cfg.geoip, "we don't ask external sources for the country");
         assert!(cfg.test_net.is_some(), "the mem network must be set");
         assert!(
@@ -126,8 +138,15 @@ mod for_cli {
         // when: the CLI preset is built by reference
         let cfg = NodeConfig::for_cli(key(), &n);
         // then: the config holds an equal copy, and the original settings stay with the caller
-        assert_eq!(cfg.settings, n, "the copy of settings must equal the original");
-        assert_eq!(n.node_name.as_deref(), Some("x"), "the original settings are available");
+        assert_eq!(
+            cfg.settings, n,
+            "the copy of settings must equal the original"
+        );
+        assert_eq!(
+            n.node_name.as_deref(),
+            Some("x"),
+            "the original settings are available"
+        );
     }
 
     #[test]

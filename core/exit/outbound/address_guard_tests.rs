@@ -110,7 +110,10 @@ mod v6 {
 
     #[test]
     fn v6_loopback_and_unspecified_are_forbidden() {
-        assert_all_forbidden(&["::1", "::"], "loopback and unspecified — the exit's own services");
+        assert_all_forbidden(
+            &["::1", "::"],
+            "loopback and unspecified — the exit's own services",
+        );
     }
 
     #[test]
@@ -152,7 +155,10 @@ mod v6 {
 
     #[test]
     fn v4_compatible_follows_embedded_v4() {
-        assert_all_forbidden(&["::192.168.1.1"], "the owner's private network in the ::a.b.c.d form");
+        assert_all_forbidden(
+            &["::192.168.1.1"],
+            "the owner's private network in the ::a.b.c.d form",
+        );
         assert_all_open(&["::8.8.8.8"], "a public IPv4 in the ::a.b.c.d form");
     }
 
@@ -211,7 +217,10 @@ mod own {
 
     #[test]
     fn loopback_is_own_address() {
-        assert!(is_own_address(ip("127.0.0.1")), "loopback is the node's own address");
+        assert!(
+            is_own_address(ip("127.0.0.1")),
+            "loopback is the node's own address"
+        );
         assert!(
             !is_own_address(ip("192.0.2.1")),
             "192.0.2.1 (TEST-NET-1) is not held by the node — a foreign address"

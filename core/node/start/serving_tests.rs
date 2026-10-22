@@ -1,9 +1,9 @@
 use super::*;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use crate::node::discovery_sources::tests::LOG_LOCK;
+use crate::node::output::log_page;
 use crate::node::start::boot::boot_endpoint;
 use crate::node::start::network::spawn_network;
-use crate::output::log_page;
 
 #[test]
 fn socks_off_line_names_flag() {
@@ -24,7 +24,7 @@ fn exit_line_names_both_modes() {
         exit_line(true),
         format!(
             "serving as exit for members of network {}",
-            crate::output::NET_NAME
+            crate::node::output::NET_NAME
         )
     );
     assert_eq!(exit_line(false), "not serving as exit (--no-exit)");

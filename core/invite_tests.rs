@@ -2,13 +2,13 @@
 
 use std::net::{Ipv6Addr, SocketAddr};
 
-use crate::net::endpoint_shim::from_endpoint_addr;
-use crate::net::endpoint_shim::{EndpointAddr, RelayUrl};
-use crate::net::{AddrHint, NodeSecret, PeerAddr, PeerId, RelayRef};
+use crate::transport::net::endpoint_shim::from_endpoint_addr;
+use crate::transport::net::endpoint_shim::{EndpointAddr, RelayUrl};
+use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId, RelayRef};
 use data_encoding::{BASE32_NOPAD, BASE32_NOPAD_NOCASE};
 
 use super::*;
-use crate::addr_order::PrimaryIps;
+use crate::transport::addr_order::PrimaryIps;
 
 const NOW: u64 = 1_790_000_000;
 
@@ -126,25 +126,25 @@ fn relay_drops_direct_addrs() {
     let parsed = parse(&s).unwrap();
     assert_eq!(parsed.peers.len(), 2);
     assert_eq!(
-        crate::net::endpoint_shim::to_endpoint_addr(&parsed.peers[0])
+        crate::transport::net::endpoint_shim::to_endpoint_addr(&parsed.peers[0])
             .relay_urls()
             .count(),
         1
     );
     assert_eq!(
-        crate::net::endpoint_shim::to_endpoint_addr(&parsed.peers[0])
+        crate::transport::net::endpoint_shim::to_endpoint_addr(&parsed.peers[0])
             .ip_addrs()
             .count(),
         0
     );
     assert_eq!(
-        crate::net::endpoint_shim::to_endpoint_addr(&parsed.peers[1])
+        crate::transport::net::endpoint_shim::to_endpoint_addr(&parsed.peers[1])
             .relay_urls()
             .count(),
         0
     );
     assert_eq!(
-        crate::net::endpoint_shim::to_endpoint_addr(&parsed.peers[1])
+        crate::transport::net::endpoint_shim::to_endpoint_addr(&parsed.peers[1])
             .ip_addrs()
             .count(),
         2

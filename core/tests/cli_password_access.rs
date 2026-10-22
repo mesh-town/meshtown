@@ -2,15 +2,15 @@
 //! (`web::start_web_page` on loopback). The listener's token directory is the settings file directory, as for the node.
 //! Tokens do not get into the `assert!` texts.
 
-#[path = "common/web_listener.rs"]
-mod common;
 #[path = "common/web_auth.rs"]
 mod auth_common;
+#[path = "common/web_listener.rs"]
+mod common;
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use meshtown::web::{WebHandle, DEFAULT_DRAIN};
+use meshtown_core::web_gui::{WebHandle, DEFAULT_DRAIN};
 use serde_json::Value;
 
 use auth_common::{file_token, write_password, PASSWORD_OK};
@@ -78,10 +78,19 @@ async fn reset_live_prints_temp_url_and_removes_file() {
     let o = mesh(&["password", "reset"], &rig.dir, rig.port);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     let text = out(&o);
-    assert!(text.contains("?token="), "no address with a temporary token");
+    assert!(
+        text.contains("?token="),
+        "no address with a temporary token"
+    );
     assert!(text.contains("10 minutes"), "no validity period: {text}");
-    assert!(!password_file(&rig.dir).exists(), "password file is still there");
-    assert!(!text.contains(&file_token(&rig.dir)), "permanent token in the output");
+    assert!(
+        !password_file(&rig.dir).exists(),
+        "password file is still there"
+    );
+    assert!(
+        !text.contains(&file_token(&rig.dir)),
+        "permanent token in the output"
+    );
     finish(rig).await;
 }
 
@@ -91,8 +100,15 @@ async fn reset_without_node_removes_file_exit_0() {
     write_password(&dir, PASSWORD_OK, 1000);
     let o = mesh(&["password", "reset"], &dir, free_port());
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(out(&o).contains("The node isn't running"), "stdout: {}", out(&o));
-    assert!(!password_file(&dir).exists(), "password file is still there");
+    assert!(
+        out(&o).contains("The node isn't running"),
+        "stdout: {}",
+        out(&o)
+    );
+    assert!(
+        !password_file(&dir).exists(),
+        "password file is still there"
+    );
     cleanup(&dir);
 }
 
@@ -103,7 +119,10 @@ async fn reset_with_wrong_token_exit_1_file_kept() {
     let o = mesh(&["password", "reset"], &rig.dir, rig.port);
     assert_eq!(o.status.code(), Some(1), "stdout: {}", out(&o));
     assert!(err(&o).starts_with("Error"), "stderr: {}", err(&o));
-    assert!(password_file(&rig.dir).exists(), "password file was deleted");
+    assert!(
+        password_file(&rig.dir).exists(),
+        "password file was deleted"
+    );
     finish(rig).await;
 }
 
@@ -112,7 +131,11 @@ async fn access_live_localhost_is_immediate() {
     let rig = rig("cli-access-now").await;
     let o = mesh(&["access", "localhost"], &rig.dir, rig.port);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(out(&o).contains("takes effect immediately"), "stdout: {}", out(&o));
+    assert!(
+        out(&o).contains("takes effect immediately"),
+        "stdout: {}",
+        out(&o)
+    );
     let token = file_token(&rig.dir);
     let (_, st) = api(rig.port, &token, "GET", "/api/auth/status", None);
     assert_eq!(st["access"], "localhost", "{st}");
@@ -124,7 +147,11 @@ async fn access_live_localnet_needs_restart() {
     let rig = rig("cli-access-later").await;
     let o = mesh(&["access", "localnet"], &rig.dir, rig.port);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(out(&o).contains("after the node restarts"), "stdout: {}", out(&o));
+    assert!(
+        out(&o).contains("after the node restarts"),
+        "stdout: {}",
+        out(&o)
+    );
     let token = file_token(&rig.dir);
     let (_, st) = api(rig.port, &token, "GET", "/api/auth/status", None);
     assert_eq!(st["access"], "localnet", "{st}");
@@ -139,10 +166,17 @@ async fn access_without_node_writes_field() {
     let before = config_json(&dir);
     let o = mesh(&["access", "localhost"], &dir, free_port());
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(out(&o).contains("applies at startup"), "stdout: {}", out(&o));
+    assert!(
+        out(&o).contains("applies at startup"),
+        "stdout: {}",
+        out(&o)
+    );
     let after = config_json(&dir);
     assert_eq!(after["config"]["web"]["access"], "localhost", "{after}");
-    assert!(after["rev"].as_u64() > before["rev"].as_u64(), "rev did not grow: {before} -> {after}");
+    assert!(
+        after["rev"].as_u64() > before["rev"].as_u64(),
+        "rev did not grow: {before} -> {after}"
+    );
     cleanup(&dir);
 }
 
@@ -161,6 +195,9 @@ fn access_bogus_value_is_cli_error() {
     let o = mesh(&["access", "everyone"], &dir, free_port());
     assert_eq!(o.status.code(), Some(2), "stdout: {}", out(&o));
     let text = err(&o);
-    assert!(text.contains("localhost") && text.contains("localnet"), "stderr: {text}");
+    assert!(
+        text.contains("localhost") && text.contains("localnet"),
+        "stderr: {text}"
+    );
     cleanup(&dir);
 }

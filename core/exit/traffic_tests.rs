@@ -2,10 +2,10 @@
 //! real time (the project's `tokio` has no `test-util`).
 
 use super::*;
-use crate::net::facade::test_support::{pid, secret, within, Probe, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::EXIT;
-use crate::net::{NetStack, NetStackBuilder};
+use crate::transport::net::facade::test_support::{pid, secret, within, Probe, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{NetStack, NetStackBuilder};
 use tokio::io::AsyncWriteExt;
 
 mod window {
@@ -41,7 +41,10 @@ mod window {
 
         let rates = traffic.rates_at(t0 + SEC);
 
-        let want = PeerRate { through_peer_bps: 5_000, through_us_bps: 2_000 };
+        let want = PeerRate {
+            through_peer_bps: 5_000,
+            through_us_bps: 2_000,
+        };
         assert_eq!(rates[&pid(2)], want);
     }
 
@@ -81,7 +84,11 @@ mod watch {
 
         // when: we wait at most three seconds
         let seen = tokio::time::timeout(Duration::from_secs(3), async {
-            while traffic.rates_at(Instant::now()).get(&conn.peer()).is_none_or(|r| r.through_us_bps == 0) {
+            while traffic
+                .rates_at(Instant::now())
+                .get(&conn.peer())
+                .is_none_or(|r| r.through_us_bps == 0)
+            {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })
@@ -109,7 +116,10 @@ mod watch {
         .await;
 
         // then: the task released the `Arc`, the sum no longer grows
-        assert!(released.is_ok(), "the task did not release the connection within 3 s");
+        assert!(
+            released.is_ok(),
+            "the task did not release the connection within 3 s"
+        );
         let first = traffic.rates_at(Instant::now());
         tokio::time::sleep(Duration::from_millis(1200)).await;
         assert_eq!(traffic.rates_at(Instant::now()), first);

@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
 /// How long a member stays in the list after its last stream closes: the page polls
 /// the snapshot once a second, and between page loads a browser holds zero streams for 5–20 s — a shorter window
@@ -39,13 +39,15 @@ struct ClientsState {
 impl ClientsState {
     fn open_conn(&mut self, peer: PeerId) -> u64 {
         self.next_token += 1;
-        self.conns.insert(self.next_token, Conn { peer, streams: 0 });
+        self.conns
+            .insert(self.next_token, Conn { peer, streams: 0 });
         self.next_token
     }
 
     /// Removes expired "last activity" entries.
     fn purge(&mut self, now: Instant) {
-        self.last_active.retain(|_, at| *at + EXIT_CLIENT_LINGER > now);
+        self.last_active
+            .retain(|_, at| *at + EXIT_CLIENT_LINGER > now);
     }
 
     /// `false` if the connection no longer exists.
@@ -100,7 +102,13 @@ impl Clients {
         let mut guard = self.0.lock().unwrap();
         guard.purge(now);
         let mut peers: HashSet<PeerId> = guard.last_active.keys().copied().collect();
-        peers.extend(guard.conns.values().filter(|c| c.streams > 0).map(|c| c.peer));
+        peers.extend(
+            guard
+                .conns
+                .values()
+                .filter(|c| c.streams > 0)
+                .map(|c| c.peer),
+        );
         peers.into_iter().collect()
     }
 }

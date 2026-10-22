@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::invite::{Reach, MAX_INVITE_PEERS};
-use crate::net::NodeSecret;
+use crate::transport::net::NodeSecret;
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()

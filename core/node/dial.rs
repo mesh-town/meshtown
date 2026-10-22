@@ -12,15 +12,15 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use crate::net::{self, NetStack, PeerAddr, PeerId, AUTH};
+use crate::transport::net::{self, NetStack, PeerAddr, PeerId, AUTH};
 use tokio::sync::mpsc;
 use tokio::time::{timeout, Instant};
 
-use crate::access::view::Deny;
-use crate::handshake::{self, RefusedByPeer};
-use crate::membership::{self, MemberContext};
-use crate::network_key::fill_random;
-use crate::output::{say, short_peer_id};
+use crate::members::access::view::Deny;
+use crate::members::handshake::{self, RefusedByPeer};
+use crate::members::membership::{self, MemberContext};
+use crate::members::network_key::fill_random;
+use crate::node::output::{say, short_peer_id};
 
 use super::redial::{is_loud, Redial};
 
@@ -106,7 +106,12 @@ impl PeerDialer {
             self.redial.up(f.peer);
             return;
         }
-        let (attempt, pause) = self.redial.failed(f.peer, Instant::now(), random_u32(), f.refusal == Some(Deny::Unlisted));
+        let (attempt, pause) = self.redial.failed(
+            f.peer,
+            Instant::now(),
+            random_u32(),
+            f.refusal == Some(Deny::Unlisted),
+        );
         if is_loud(attempt) {
             say(
                 "auth",
@@ -199,7 +204,11 @@ fn report_failure(
     refusal: Option<Deny>,
 ) {
     ctx.members.end_dial(peer);
-    let _ = failed.send(DialFailed { peer, reason, refusal });
+    let _ = failed.send(DialFailed {
+        peer,
+        reason,
+        refusal,
+    });
 }
 
 /// Suffix for the handshake success line: empty on the first attempt, otherwise the attempt number.
@@ -208,6 +217,18 @@ fn success_suffix(attempt: u32) -> String {
         return String::new();
     }
     format!(", attempt {attempt}")
+}
+
+/// Logs a successful handshake in which this node was the initiator.
+fn say_initiator_success(peer: &PeerId, attempt: u32) {
+    say(
+        "auth",
+        format!(
+            "handshake with {}: success (I am the initiator{})",
+            short_peer_id(peer),
+            success_suffix(attempt)
+        ),
+    );
 }
 
 /// Dials the discovered member and runs the handshake as the initiator. A failure goes
@@ -226,7 +247,13 @@ async fn dial_peer(
         Ok(Ok(conn)) => conn,
         Ok(Err(e)) => {
             let e = e.into_anyhow();
-            report_failure(&ctx, &failed, peer, format!("no connection to {}: {e}", short_peer_id(&peer)), None);
+            report_failure(
+                &ctx,
+                &failed,
+                peer,
+                format!("no connection to {}: {e}", short_peer_id(&peer)),
+                None,
+            );
             return;
         }
         Err(_) => {
@@ -234,7 +261,10 @@ async fn dial_peer(
                 &ctx,
                 &failed,
                 peer,
-                format!("no connection to {}: didn't finish within 15 s", short_peer_id(&peer)),
+                format!(
+                    "no connection to {}: didn't finish within 15 s",
+                    short_peer_id(&peer)
+                ),
                 None,
             );
             return;
@@ -244,14 +274,7 @@ async fn dial_peer(
     match result {
         Ok(()) => {
             ctx.members.end_dial(peer);
-            say(
-                "auth",
-                format!(
-                    "handshake with {}: success (I am the initiator{})",
-                    short_peer_id(&peer),
-                    success_suffix(attempt)
-                ),
-            );
+            say_initiator_success(&peer, attempt);
             membership::hold_conn_until_closed(conn, peer, ctx).await;
         }
         Err(e) => {

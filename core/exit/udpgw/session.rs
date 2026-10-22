@@ -14,8 +14,8 @@ use tokio::time::{sleep_until, Instant};
 use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
 use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
 use crate::exit::server::ExitConfig;
-use crate::net::{BoxRecv, BoxSend, PeerId};
-use crate::output::{say, short_peer_id};
+use crate::node::output::{say, short_peer_id};
+use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
 /// A session without traffic in either direction lives this long.
 const SESSION_IDLE: Duration = Duration::from_secs(60);
@@ -30,7 +30,10 @@ pub(super) struct Limits {
     pub max_sessions: usize,
 }
 
-const LIMITS: Limits = Limits { idle: SESSION_IDLE, max_sessions: MAX_SESSIONS };
+const LIMITS: Limits = Limits {
+    idle: SESSION_IDLE,
+    max_sessions: MAX_SESSIONS,
+};
 
 struct Session {
     sock: Arc<UdpSocket>,
@@ -67,7 +70,13 @@ pub(in crate::exit) async fn serve(cfg: ExitConfig, peer: PeerId, send: BoxSend,
     run(cfg, peer, send, recv, LIMITS).await;
 }
 
-pub(super) async fn run(cfg: ExitConfig, peer: PeerId, send: BoxSend, mut recv: BoxRecv, limits: Limits) {
+pub(super) async fn run(
+    cfg: ExitConfig,
+    peer: PeerId,
+    send: BoxSend,
+    mut recv: BoxRecv,
+    limits: Limits,
+) {
     let (replies, queue) = mpsc::channel(REPLY_QUEUE);
     let writer = tokio::spawn(write_replies(send, queue));
     let mut gateway = Gateway {
@@ -115,8 +124,12 @@ impl Gateway {
 
     async fn datagram(&mut self, frame: Frame) {
         let Some(target) = frame.target else { return };
-        let Some(dest) = self.destination(frame.conn_id, &target).await else { return };
-        let Some(session) = self.session(frame.conn_id, dest) else { return };
+        let Some(dest) = self.destination(frame.conn_id, &target).await else {
+            return;
+        };
+        let Some(session) = self.session(frame.conn_id, dest) else {
+            return;
+        };
         session.touch();
         let _ = session.sock.send_to(&frame.data, dest).await;
     }
@@ -155,7 +168,13 @@ impl Gateway {
 
     fn report_refused(&mut self, conn_id: u16) {
         if self.refused.insert(conn_id) {
-            say("exit", format!("{}: udpgw {conn_id}: destination closed to exit", short_peer_id(&self.peer)));
+            say(
+                "exit",
+                format!(
+                    "{}: udpgw {conn_id}: destination closed to exit",
+                    short_peer_id(&self.peer)
+                ),
+            );
         }
     }
 
@@ -173,13 +192,28 @@ impl Gateway {
     }
 }
 
-fn open_session(conn_id: u16, dest: SocketAddr, idle: Duration, replies: mpsc::Sender<Vec<u8>>) -> Option<Session> {
-    let local: SocketAddr = if dest.is_ipv4() { ([0, 0, 0, 0], 0).into() } else { ([0u16; 8], 0).into() };
+fn open_session(
+    conn_id: u16,
+    dest: SocketAddr,
+    idle: Duration,
+    replies: mpsc::Sender<Vec<u8>>,
+) -> Option<Session> {
+    let local: SocketAddr = if dest.is_ipv4() {
+        ([0, 0, 0, 0], 0).into()
+    } else {
+        ([0u16; 8], 0).into()
+    };
     let std_sock = std::net::UdpSocket::bind(local).ok()?;
     std_sock.set_nonblocking(true).ok()?;
     let sock = Arc::new(UdpSocket::from_std(std_sock).ok()?);
     let last = Arc::new(Mutex::new(Instant::now()));
-    let task = tokio::spawn(pump_replies(conn_id, sock.clone(), last.clone(), idle, replies));
+    let task = tokio::spawn(pump_replies(
+        conn_id,
+        sock.clone(),
+        last.clone(),
+        idle,
+        replies,
+    ));
     Some(Session { sock, last, task })
 }
 

@@ -12,20 +12,32 @@ use std::time::Duration;
 
 use std::sync::Arc;
 
-use crate::net::{PeerConn, PeerId};
+use crate::transport::net::{PeerConn, PeerId};
 use tokio::time::sleep;
 
-use crate::output::{say, short_peer_id};
+use crate::node::output::{say, short_peer_id};
 
 const PERIOD: Duration = Duration::from_secs(5);
 
 /// A line for the period: without STREAM frames (idle) there is no line.
-fn exit_line(peer: &str, bytes: u64, stream_frames: u64, path: &str, congestion: &str) -> Option<String> {
+fn exit_line(
+    peer: &str,
+    bytes: u64,
+    stream_frames: u64,
+    path: &str,
+    congestion: &str,
+) -> Option<String> {
     if stream_frames == 0 {
         return None;
     }
-    let tail = if congestion.is_empty() { String::new() } else { format!("; {congestion}") };
-    Some(format!("{peer}: sent {bytes} bytes in 5 s; path: {path}{tail}"))
+    let tail = if congestion.is_empty() {
+        String::new()
+    } else {
+        format!("; {congestion}")
+    };
+    Some(format!(
+        "{peer}: sent {bytes} bytes in 5 s; path: {path}{tail}"
+    ))
 }
 
 fn sent_bytes_and_stream_frames(conn: &dyn PeerConn) -> (u64, u64) {
@@ -34,7 +46,11 @@ fn sent_bytes_and_stream_frames(conn: &dyn PeerConn) -> (u64, u64) {
 }
 
 /// Prints a line with the tag `tag` once per `PERIOD` while the connection is alive.
-pub(super) async fn log_link_stats_while_open(conn: Arc<dyn PeerConn>, peer: PeerId, tag: &'static str) {
+pub(super) async fn log_link_stats_while_open(
+    conn: Arc<dyn PeerConn>,
+    peer: PeerId,
+    tag: &'static str,
+) {
     let peer_text = short_peer_id(&peer);
     let mut prev = sent_bytes_and_stream_frames(&*conn);
     loop {

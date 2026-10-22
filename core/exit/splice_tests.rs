@@ -2,7 +2,7 @@
 //! Stream boxes are `tokio::io::duplex`, `tcp` is a paired `TcpListener` on `127.0.0.1:0`.
 
 use super::*;
-use crate::net::facade::test_support::within;
+use crate::transport::net::facade::test_support::within;
 use tokio::io::{duplex, AsyncRead, AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;

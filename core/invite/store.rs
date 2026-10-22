@@ -16,10 +16,10 @@ use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
 use super::INVITE_TTL_SECS;
-use crate::domains::DomainList;
-use crate::net::{live, ReplicaEntry, NetError, PeerId, Replica};
-use crate::net_mainline;
-use crate::output::say;
+use crate::node::output::say;
+use crate::proxy::domains::DomainList;
+use crate::transport::net::{live, NetError, PeerId, Replica, ReplicaEntry};
+use crate::transport::net_mainline;
 
 /// Key of the issue record; followed by the 64 hex characters of the secret's hash.
 pub const ISSUE_PREFIX: &str = "invite/";
@@ -61,7 +61,11 @@ pub struct ClaimRecord {
 /// Builds the issue record; "for whom" longer than `FOR_WHOM_MAX_CHARS` is cut by characters.
 pub fn issue_record(made_unix: u64, for_whom: Option<&str>) -> IssueRecord {
     let cut = for_whom.map(|s| s.chars().take(FOR_WHOM_MAX_CHARS).collect::<String>());
-    IssueRecord { v: 1, made_unix, for_whom: cut }
+    IssueRecord {
+        v: 1,
+        made_unix,
+        for_whom: cut,
+    }
 }
 
 /// Verdict on a presented secret.
@@ -110,9 +114,15 @@ pub fn settle(me: PeerId, rivals: &[PeerId]) -> Settle {
 
 /// Live foreign claims: without our own, tombstones and ones older than `CLAIM_STALE_SECS` (a claim "from the future" is live).
 pub fn live_rivals(entries: &[ReplicaEntry], me: PeerId, now_unix: u64) -> Vec<PeerId> {
-    let fresh = |e: &&ReplicaEntry| now_unix.saturating_sub(e.ts_micros / 1_000_000) <= CLAIM_STALE_SECS;
+    let fresh =
+        |e: &&ReplicaEntry| now_unix.saturating_sub(e.ts_micros / 1_000_000) <= CLAIM_STALE_SECS;
     let theirs = |e: &&ReplicaEntry| e.author != me && !e.is_tombstone();
-    entries.iter().filter(theirs).filter(fresh).map(|e| e.author).collect()
+    entries
+        .iter()
+        .filter(theirs)
+        .filter(fresh)
+        .map(|e| e.author)
+        .collect()
 }
 
 fn claim_key(hash: &str) -> Vec<u8> {
@@ -136,19 +146,27 @@ pub struct Ledger {
 impl Ledger {
     /// Log on the replica of the node's domain list.
     pub fn of(list: &DomainList) -> Self {
-        Ledger { replica: list.shared_replica() }
+        Ledger {
+            replica: list.shared_replica(),
+        }
     }
 
     /// Writes the issue record under the secret's hash.
     pub async fn issue(&self, hash: &str, rec: &IssueRecord) -> Result<()> {
         let bytes = postcard::to_stdvec(rec)?;
-        self.replica.set_own(&issue_key(hash), Bytes::from(bytes)).await.map_err(NetError::into_anyhow)
+        self.replica
+            .set_own(&issue_key(hash), Bytes::from(bytes))
+            .await
+            .map_err(NetError::into_anyhow)
     }
 
     /// Writes the redemption mark under the secret's hash.
     pub async fn mark_used(&self, hash: &str, used_unix: u64) -> Result<()> {
         let bytes = postcard::to_stdvec(&UsedRecord { v: 1, used_unix })?;
-        self.replica.set_own(&used_key(hash), Bytes::from(bytes)).await.map_err(NetError::into_anyhow)
+        self.replica
+            .set_own(&used_key(hash), Bytes::from(bytes))
+            .await
+            .map_err(NetError::into_anyhow)
     }
 
     /// Author of our own replica.
@@ -158,8 +176,14 @@ impl Ledger {
 
     /// Writes our own redemption claim under the secret's hash.
     pub async fn claim(&self, hash: &str, now_unix: u64) -> Result<()> {
-        let bytes = postcard::to_stdvec(&ClaimRecord { v: 1, claimed_unix: now_unix })?;
-        self.replica.set_own(&claim_key(hash), Bytes::from(bytes)).await.map_err(NetError::into_anyhow)
+        let bytes = postcard::to_stdvec(&ClaimRecord {
+            v: 1,
+            claimed_unix: now_unix,
+        })?;
+        self.replica
+            .set_own(&claim_key(hash), Bytes::from(bytes))
+            .await
+            .map_err(NetError::into_anyhow)
     }
 
     /// Authors of live foreign claims on this hash.
@@ -189,7 +213,11 @@ impl Ledger {
             (CLAIM_PREFIX, INVITE_TTL_SECS),
         ];
         for (prefix, keep) in groups {
-            let all = self.replica.scan(prefix.as_bytes()).await.map_err(NetError::into_anyhow)?;
+            let all = self
+                .replica
+                .scan(prefix.as_bytes())
+                .await
+                .map_err(NetError::into_anyhow)?;
             for entry in live(all).iter().filter(|e| e.author == self.replica.me()) {
                 removed += self.drop_if_old(entry, now_unix, keep).await?;
             }
@@ -202,13 +230,20 @@ impl Ledger {
         if now_unix.saturating_sub(written) <= keep {
             return Ok(0);
         }
-        self.replica.del_own(&entry.key).await.map_err(NetError::into_anyhow)?;
+        self.replica
+            .del_own(&entry.key)
+            .await
+            .map_err(NetError::into_anyhow)?;
         Ok(1)
     }
 
     /// Live records exactly under this key.
     async fn exact(&self, key: Vec<u8>) -> Result<Vec<ReplicaEntry>> {
-        let all = self.replica.scan(&key).await.map_err(NetError::into_anyhow)?;
+        let all = self
+            .replica
+            .scan(&key)
+            .await
+            .map_err(NetError::into_anyhow)?;
         Ok(live(all).into_iter().filter(|e| e.key == key).collect())
     }
 }

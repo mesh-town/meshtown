@@ -9,9 +9,9 @@
 use super::store::{IssueRecord, FOR_WHOM_MAX_CHARS, ISSUE_PREFIX};
 use super::wire::OwnerRequest;
 use super::InviteSecret;
-use crate::access::record::{put, AclKind, AclValue, Via};
-use crate::domains::DomainList;
-use crate::net::{live, NetError, NodeSecret, PeerId, ReplicaEntry};
+use crate::members::access::record::{put, AclKind, AclValue, Via};
+use crate::proxy::domains::DomainList;
+use crate::transport::net::{live, NetError, NodeSecret, PeerId, ReplicaEntry};
 
 /// Domain separation of the owner proof; a changed byte here is a changed protocol.
 pub const CTX_INVITE_OWNER: &[u8] = b"meshtown invite owner proof v1\0";
@@ -40,21 +40,37 @@ pub fn owner_proven(req: &OwnerRequest, transport: PeerId) -> bool {
 /// The "for whom" label of an invite: the newest readable issue record that has one, cut to 64 characters.
 /// Copies kept by holders carry no label, so they are skipped.
 pub fn issue_note(entries: &[ReplicaEntry]) -> String {
-    let labelled = entries.iter().filter(|e| !e.is_tombstone()).filter_map(|e| {
-        let rec: IssueRecord = postcard::from_bytes(&e.value).ok()?;
-        Some((rec.made_unix, rec.for_whom?))
-    });
+    let labelled = entries
+        .iter()
+        .filter(|e| !e.is_tombstone())
+        .filter_map(|e| {
+            let rec: IssueRecord = postcard::from_bytes(&e.value).ok()?;
+            Some((rec.made_unix, rec.for_whom?))
+        });
     let newest = labelled.max_by_key(|(made, _)| *made);
-    newest.map(|(_, who)| who.chars().take(FOR_WHOM_MAX_CHARS).collect()).unwrap_or_default()
+    newest
+        .map(|(_, who)| who.chars().take(FOR_WHOM_MAX_CHARS).collect())
+        .unwrap_or_default()
 }
 
 /// Writes the owner's `admit` record (via the invite) into the shared document, with the invite's label.
-pub async fn admit_owner(list: &DomainList, hash: &str, owner: PeerId, now_unix: u64) -> anyhow::Result<()> {
+pub async fn admit_owner(
+    list: &DomainList,
+    hash: &str,
+    owner: PeerId,
+    now_unix: u64,
+) -> anyhow::Result<()> {
     let shared = list.shared_replica();
     let key = format!("{ISSUE_PREFIX}{hash}").into_bytes();
     let found = shared.scan(&key).await.map_err(NetError::into_anyhow)?;
     let issued: Vec<ReplicaEntry> = live(found).into_iter().filter(|e| e.key == key).collect();
-    let value = AclValue { kind: AclKind::Admit, subject: owner, via: Via::Invite, made_unix: now_unix, note: issue_note(&issued) };
+    let value = AclValue {
+        kind: AclKind::Admit,
+        subject: owner,
+        via: Via::Invite,
+        made_unix: now_unix,
+        note: issue_note(&issued),
+    };
     put(&*shared, &value).await.map_err(NetError::into_anyhow)
 }
 

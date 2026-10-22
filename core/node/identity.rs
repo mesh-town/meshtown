@@ -1,6 +1,6 @@
 //! Node identity state: whether the secret is kept between runs, and the text for the node and the page.
 
-use crate::config_file::FileReport;
+use crate::config::config_file::FileReport;
 
 /// Why the node identity is not kept between runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -66,7 +66,7 @@ After a restart, peers will see a new node."
                 "The file on disk is not broken and was left as is on purpose: rewriting it would mean losing \
 the person's data, and a backup copy could not be made. There is no need to delete this file — it may contain the \
 {} network key. After a restart, peers will see a new node.",
-                crate::output::NET_NAME
+                crate::node::output::NET_NAME
             )),
             Self::Temporary(TemporaryReason::FileProblem) => Some(
                 "Node identity is not saved because of a problem with the config file. \

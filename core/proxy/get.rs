@@ -8,9 +8,9 @@ use anyhow::{Context, Result};
 use rustls::pki_types::ServerName;
 use tokio_rustls::TlsConnector;
 
-use crate::http_min::{self, HttpLimits};
-use crate::output::say;
-use crate::socks5;
+use crate::node::output::say;
+use crate::proxy::socks5;
+use crate::site_checks::http_min::{self, HttpLimits};
 
 /// Downloads a domain's home page through our own SOCKS5 server (the `get` console command).
 pub async fn get_via_socks(proxy: SocketAddr, domain: &str, user_agent: &str) -> Result<()> {

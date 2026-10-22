@@ -19,12 +19,12 @@ class LoadExamplesTest(unittest.TestCase):
             demo = examples / "web_demo"
             demo.mkdir(parents=True)
             (demo / "main.rs").write_text("mod node;\n")
-            (demo / "node.rs").write_text("use meshtown::words;\n")
+            (demo / "node.rs").write_text("use meshtown_core::members::words;\n")
 
             loaded = changed_tests._load_examples(examples)
 
             self.assertIn("web_demo", loaded)
-            self.assertIn("meshtown::words", loaded["web_demo"])
+            self.assertIn("meshtown_core::members::words", loaded["web_demo"])
 
     def test_example_file_is_read_by_its_stem(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -50,19 +50,16 @@ class LoadExamplesTest(unittest.TestCase):
 
 
 class LoadSourcesTest(unittest.TestCase):
-    """load_sources() — reads the binary, its modules, the tests and the examples from `core/`."""
+    """load_sources() — reads the binary entry point, the tests and the examples from `core/`."""
 
-    def test_core_dir_is_read_for_main_bin_modules_tests_and_examples(self):
+    def test_core_dir_is_read_for_main_tests_and_examples(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             files = {
-                "core/main.rs": "mod app;\n",
-                "core/app/view.rs": "fn view() {}\n",
-                "core/app_tests.rs": "fn app_test() {}\n",
+                "core/cli/main.rs": "fn main() { meshtown_core::cli::run(); }\n",
                 "core/tests/a.rs": '#[path = "common/c.rs"]\nmod c;\n',
                 "core/tests/common/c.rs": "fn from_common() {}\n",
                 "core/examples/web_demo/main.rs": "fn main() {}\n",
-                "src/main.rs": "mod old;\n",
             }
             for rel, text in files.items():
                 path = root / rel
@@ -71,12 +68,9 @@ class LoadSourcesTest(unittest.TestCase):
 
             loaded = changed_tests.load_sources(root)
 
-            self.assertEqual(set(loaded.bin), {"main", "app"})
-            self.assertIn("app_test", loaded.bin["app"])
-            self.assertIn("fn view", loaded.bin["app"])
+            self.assertIn("cli::run", loaded.main_rs)
             self.assertIn("from_common", loaded.tests["a"])
             self.assertIn("web_demo", loaded.examples)
-            self.assertNotIn("old", loaded.bin)
 
 
 if __name__ == "__main__":

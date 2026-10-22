@@ -272,7 +272,7 @@ Exact enum values:
   as **structured fields, not by parsing the text** of `message`: the text is written for a person and
   changes freely, and a behavior branch must not depend on it.
 - `transport.mode`: `"direct_and_relay"`, `"relay_only"`, `"no_relay"`. The display texts are taken
-  from `src/node.rs:231-236`: "direct + relay", "relay only", "no relay".
+  from `core/node/start/boot.rs`: "direct + relay", "relay only", "no relay".
 - `peers[].name` — the node name (`config.node.name`, section 2, `WEB-API-config.md`): its own or one changed by the person,
   including non-Latin scripts. **The field is optional**: the name may be absent or empty —
   then the page shows `id`. The own name is always there, while others' names arrive through the shared network
@@ -323,7 +323,7 @@ Exact enum values:
   other rows — only the own row gets a `title`.
 - `domains[].checks[<id>].verdict`: `"ok"`, `"dns_mismatch"`, `"network_blocked"`,
   `"site_geoblock"`, `"antibot"`, `"down"` — exactly six values from
-  `src/reachability.rs:87-94`. `null` instead of an object — there is no record from this member.
+  `core/site_checks/reachability/verdict.rs`. `null` instead of an object — there is no record from this member.
   The connection path no longer depends on these checks — there is no `domains[].route` in the snapshot at all.
 - `route.state`: `"direct"` (`route.exits` is empty — the node goes out itself), `"exit"` (the list is not empty and
   there is at least one suitable candidate — connections go through the first one in the list), `"unavailable"`
@@ -345,7 +345,7 @@ Exact enum values:
 - `boot_id` — random 8 hexadecimal characters, new on every process start.
   A change of `boot_id` means the node restarted: the page clears the log and rereads the config.
 - `now` — seconds since node start with one decimal place, the same scale as the log lines
-  (`core/output.rs:22`).
+  (`core/node/output.rs:22`).
 - `network` — `null` on the very first run, while there is no network yet: the person has not created one and has not joined
   any. Page behavior in this case: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network itself.
 
@@ -377,7 +377,7 @@ the `after` cursor stops being continuous. The `tag` parameter is not introduced
 - `gap: true` — the requested `after` is older than `first_seq`, some lines have already been evicted from the ring;
   the page clears the window and draws what arrived.
 - `text` is a ready-made string **without** the timestamp and tag: the page assembles them by the format
-  `core/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
+  `core/node/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
   This way the node does not spend bytes repeating what is already in the fields.
 
 ### 1.5 `GET /api/log/download` — log download

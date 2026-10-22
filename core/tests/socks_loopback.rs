@@ -8,8 +8,8 @@
 //! What it does not do: does not go to the internet, does not start TLS (the live run does that via `curl`),
 //! does not check two hops in a row — there are none in the node, does not check the switch to the next
 //! candidate by the exit's reply code (the decision is final).
-//! Links: checks `meshtown::socks5`, `meshtown::route`, `meshtown::exit` and
-//! `meshtown::proxy` through `meshtown::node`.
+//! Links: checks `meshtown_core::proxy::socks5`, `meshtown_core::proxy::route`, `meshtown_core::exit` and
+//! `meshtown_core::proxy` through `meshtown_core::node`.
 //!
 //! This file was not part of the original test skeleton — it
 //! broke the build on the old API `route::choose_for`/`Route::Peer`/`set_route_all_traffic`
@@ -31,12 +31,12 @@ mod common;
 
 use std::time::Duration;
 
-use meshtown::exit::{self, PeerConnPool};
-use meshtown::http_min::{self, HttpLimits, HttpGetRequest};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::route::Route;
-use meshtown::socks5;
+use meshtown_core::exit::{self, PeerConnPool};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5;
+use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
 
 use common::{pair, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
 

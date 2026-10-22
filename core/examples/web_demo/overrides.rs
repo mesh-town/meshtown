@@ -1,6 +1,6 @@
 //! Parsing of the demo node's `--cli-override path[=value]` into `CliOverrides`.
 
-use meshtown::config_file::{CliOverrides, TransportMode};
+use meshtown_core::config::config_file::{CliOverrides, TransportMode};
 
 fn parse_bool_override(value: Option<&str>, default_no_value: bool, path: &str) -> bool {
     match value {

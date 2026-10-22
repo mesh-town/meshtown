@@ -1,4 +1,4 @@
-"""The node page under CSP `style-src 'self'; script-src 'self'` (`core/web/routes/mod.rs`):
+"""The node page under CSP `style-src 'self'; script-src 'self'` (`core/web_gui/routes/mod.rs`):
 an inline `style=`, `<style>`, an inline `<script>` and `on…=` handlers are
 blocked by the browser, and the Playwright `web-check` battery fails on a console error in every case. JS unit tests
 do not see this — we catch it here, without a build or a browser."""

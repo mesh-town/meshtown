@@ -52,7 +52,7 @@ fn every_code_has_text() {
 
 #[test]
 fn not_in_list_names_the_network() {
-    assert!(exit_code_text(EXIT_CODE_NOT_IN_LIST).contains(crate::output::NET_NAME));
+    assert!(exit_code_text(EXIT_CODE_NOT_IN_LIST).contains(crate::node::output::NET_NAME));
 }
 
 #[test]

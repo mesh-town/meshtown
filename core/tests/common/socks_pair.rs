@@ -8,14 +8,14 @@
 //! about tolerating real garbage.
 #![allow(dead_code)]
 
-use meshtown::net::{PeerAddr, PeerId};
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::route::Route;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::proxy::route::Route;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::time::{sleep, Instant};

@@ -1,4 +1,4 @@
-//! Page demo node: the real `meshtown::web::start_web_page` on top of a fake node
+//! Page demo node: the real `meshtown_core::web_gui::start_web_page` on top of a fake node
 //! `DemoNode`, which drives model time on its own and fakes plausible snapshot data.
 //!
 //! Why: manual checking of the page in a browser, and the
@@ -32,8 +32,8 @@ use std::sync::Arc;
 
 use clap::Parser;
 
-use meshtown::config_file;
-use meshtown::web::{self, WebOptions, DEFAULT_DRAIN};
+use meshtown_core::config::config_file;
+use meshtown_core::web_gui::{self, WebOptions, DEFAULT_DRAIN};
 
 use crate::args::Args;
 use crate::background::run_background;
@@ -76,7 +76,7 @@ async fn start_web_if_enabled(
     args: &Args,
     run: &config_file::RunConfig,
     demo: Arc<DemoNode>,
-) -> Option<web::WebHandle> {
+) -> Option<web_gui::WebHandle> {
     if args.no_web {
         println!("page: not started (--no-web)");
         return None;
@@ -84,7 +84,7 @@ async fn start_web_if_enabled(
     let mut opts = WebOptions::for_run(run);
     opts.port = args.port;
     opts.fixed_token = args.token.clone();
-    match web::start_web_page(opts, run, demo).await {
+    match web_gui::start_web_page(opts, run, demo).await {
         Ok(h) => {
             println!("page: http://127.0.0.1:{}/", h.shared.port());
             Some(h)
@@ -106,7 +106,7 @@ async fn wait_for_shutdown(demo: &DemoNode) {
 
 async fn shutdown_demo(
     bg: tokio::task::JoinHandle<()>,
-    handle: Option<web::WebHandle>,
+    handle: Option<web_gui::WebHandle>,
     dir: Option<PathBuf>,
 ) {
     bg.abort();

@@ -8,9 +8,9 @@
 
 use std::time::Duration;
 
-use meshtown::net::NodeSecret;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::transport::net::NodeSecret;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
@@ -25,7 +25,11 @@ const LIMIT: Duration = Duration::from_secs(20);
 const WATCH: Duration = Duration::from_secs(3);
 
 /// A node that consults the membership list, with no SOCKS listener.
-async fn start_listed(key: &NetworkKey, owner: Option<NodeSecret>, peers: Vec<meshtown::net::PeerAddr>) -> RunningNode {
+async fn start_listed(
+    key: &NetworkKey,
+    owner: Option<NodeSecret>,
+    peers: Vec<meshtown_core::transport::net::PeerAddr>,
+) -> RunningNode {
     let mut cfg = NodeConfig::for_loopback_test(key.clone());
     cfg.open_list = false;
     cfg.socks.enabled = false;
@@ -34,9 +38,12 @@ async fn start_listed(key: &NetworkKey, owner: Option<NodeSecret>, peers: Vec<me
     node::start_node(cfg).await.unwrap()
 }
 
-async fn wait_member(node: &RunningNode, who: meshtown::net::PeerId, what: &str) {
+async fn wait_member(node: &RunningNode, who: meshtown_core::transport::net::PeerId, what: &str) {
     let seen = || node.members.is_member(who);
-    assert!(wait_until(LIMIT, seen).await, "{what}: not a member within {LIMIT:?}");
+    assert!(
+        wait_until(LIMIT, seen).await,
+        "{what}: not a member within {LIMIT:?}"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -50,17 +57,32 @@ async fn invite_v2_admits_the_newcomer_while_the_list_is_on() {
     let owner_id = owner.peer_id();
 
     // when: the invitation is redeemed with the permanent key
-    let got = redeem_via(&parsed.head, &parsed.peers, quick_opts(&parsed.head, ENTRY_LIMIT_SECS)).await;
+    let got = redeem_via(
+        &parsed.head,
+        &parsed.peers,
+        quick_opts(&parsed.head, ENTRY_LIMIT_SECS),
+    )
+    .await;
     let granted = got.expect("the invitation must be redeemed while the list is on");
-    assert_eq!(granted.subkeys().network_id, key.subkeys().network_id, "the granted key must be the network's");
+    assert_eq!(
+        granted.subkeys().network_id,
+        key.subkeys().network_id,
+        "the granted key must be the network's"
+    );
 
     // then: the issuer lets the redeemer in by the invitation record
     let allowed = || a.members.access().allows(owner_id);
-    assert!(wait_until(LIMIT, allowed).await, "the issuer must admit the redeemer within {LIMIT:?}");
+    assert!(
+        wait_until(LIMIT, allowed).await,
+        "the issuer must admit the redeemer within {LIMIT:?}"
+    );
 
     // when: the redeemer starts as a node with the granted key and the peers of the invitation
     let newcomer = start_listed(&granted, Some(owner), parsed.peers.clone()).await;
-    assert_eq!(newcomer.id, owner_id, "the node must run under the redeemer's permanent key");
+    assert_eq!(
+        newcomer.id, owner_id,
+        "the node must run under the redeemer's permanent key"
+    );
 
     // then: both sides see each other as members
     wait_member(&newcomer, a.id, "newcomer sees issuer").await;
@@ -68,8 +90,14 @@ async fn invite_v2_admits_the_newcomer_while_the_list_is_on() {
 
     // control: the outsider, started before the newcomer joined, is still not let in
     wait_until(WATCH, || a.members.is_member(outsider.id)).await;
-    assert!(!a.members.is_member(outsider.id), "an outsider must not become a member");
-    assert!(!a.members.access().allows(outsider.id), "an outsider must not be allowed by the list");
+    assert!(
+        !a.members.is_member(outsider.id),
+        "an outsider must not become a member"
+    );
+    assert!(
+        !a.members.access().allows(outsider.id),
+        "an outsider must not be allowed by the list"
+    );
 
     newcomer.shutdown().await;
     outsider.shutdown().await;

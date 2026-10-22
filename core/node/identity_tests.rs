@@ -1,5 +1,5 @@
 use super::*;
-use crate::config_file::FileState;
+use crate::config::config_file::FileState;
 
 fn report(persistent: bool, declined: bool, refused: bool) -> FileReport {
     FileReport {
@@ -70,10 +70,13 @@ fn identity_codes() {
 /// The node texts are checked only for being non-empty for each reason.
 #[test]
 fn identity_texts_match_page() {
-    let path = format!("{}/web_gui/ui/vue/src/shell/shell-texts.ts", env!("CARGO_MANIFEST_DIR"));
+    let path = format!(
+        "{}/web_gui/ui/vue/src/shell/shell-texts.ts",
+        env!("CARGO_MANIFEST_DIR")
+    );
     let page = std::fs::read_to_string(&path)
         .expect("web_gui/ui/vue/src/shell/shell-texts.ts is readable")
-        .replace("\" + NET_NAME + \"", crate::output::NET_NAME);
+        .replace("\" + NET_NAME + \"", crate::node::output::NET_NAME);
     let consequence = "After a restart, other members will see \" + who + \" as a new member.";
     assert!(
         page.contains(consequence),
@@ -81,7 +84,7 @@ fn identity_texts_match_page() {
     );
     let page_texts = [
         (TemporaryReason::Declined, "NET_NAME + \" was started in a mode that doesn't remember this computer. \"".to_string()),
-        (TemporaryReason::FilePreserved, format!("The settings file couldn't be updated, and the node left it as is so that nothing is lost. Don't delete this file: it may contain access to your {} network. ", crate::output::NET_NAME)),
+        (TemporaryReason::FilePreserved, format!("The settings file couldn't be updated, and the node left it as is so that nothing is lost. Don't delete this file: it may contain access to your {} network. ", crate::node::output::NET_NAME)),
         (TemporaryReason::FileProblem, "NET_NAME + \" couldn't remember this computer: there is an error in the settings file. \"".to_string()),
     ];
     for (reason, expected) in page_texts {
@@ -89,6 +92,8 @@ fn identity_texts_match_page() {
             page.contains(&expected),
             "text {reason:?} was not found verbatim in shell/shell-texts.ts: {expected}"
         );
-        assert!(IdentityState::Temporary(reason).warning_text().is_some_and(|t| !t.is_empty()));
+        assert!(IdentityState::Temporary(reason)
+            .warning_text()
+            .is_some_and(|t| !t.is_empty()));
     }
 }

@@ -1,10 +1,10 @@
 //! `impl NodeControl for DemoNode`: the snapshot (one line through `snapshot.rs`) and the page actions.
 
-use meshtown::net::{AddrHint, NodeSecret, PeerAddr};
+use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
 
-use meshtown::config_file::Settings;
-use meshtown::network_key::NetworkKey;
-use meshtown::web::{
+use meshtown_core::config::config_file::Settings;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::web_gui::{
     ActionError, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot, NodeStatus,
 };
 
@@ -56,9 +56,9 @@ impl NodeControl for DemoNode {
         let t = st.t;
         let gap = 2.0 + (xorshift64(&mut st.gen) % 3000) as f64 / 1000.0;
         match st.domains.iter_mut().find(|d| d.name == domain) {
-            Some(d) if d.checking_until.is_some() => {
-                Err(ActionError::Busy(format!("{domain}: check already running")))
-            }
+            Some(d) if d.checking_until.is_some() => Err(ActionError::Busy(format!(
+                "{domain}: check already running"
+            ))),
             Some(d) => {
                 d.checking_until = Some(t + gap);
                 Ok(())
@@ -138,11 +138,7 @@ impl NodeControl for DemoNode {
             st.settings = settings.clone();
             (st.t, settings.process.log_ring_lines)
         };
-        self.push_log(
-            t,
-            "node",
-            format!("settings applied: {}", paths.join(", ")),
-        );
+        self.push_log(t, "node", format!("settings applied: {}", paths.join(", ")));
         if paths.contains(&"log.ring_lines") {
             self.log
                 .lock()
@@ -182,23 +178,25 @@ impl NodeControl for DemoNode {
     fn invite(&self) -> Result<String, ActionError> {
         let key = NetworkKey::from_bytes([0x42; 32]);
         let mut me = PeerAddr::new(NodeSecret::from_bytes(&[0x01u8; 32]).peer_id());
-        me.hints
-            .push(AddrHint::Ip(std::net::SocketAddr::from(([127, 0, 0, 1], 4000))));
+        me.hints.push(AddrHint::Ip(std::net::SocketAddr::from((
+            [127, 0, 0, 1],
+            4000,
+        ))));
         let made_unix = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let head = meshtown::invite::InviteHead {
-            secret: meshtown::invite::InviteSecret::from_bytes([0x42; 32]),
+        let head = meshtown_core::invite::InviteHead {
+            secret: meshtown_core::invite::InviteSecret::from_bytes([0x42; 32]),
             network_id: key.subkeys().network_id,
             label: None,
             made_unix,
         };
-        meshtown::invite::build(
+        meshtown_core::invite::build(
             &head,
             &me,
             &[],
-            &meshtown::addr_order::PrimaryIps::NONE,
+            &meshtown_core::transport::addr_order::PrimaryIps::NONE,
         )
         .map_err(|e| ActionError::Internal(e.to_string()))
     }

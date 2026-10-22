@@ -10,9 +10,9 @@ use std::time::Duration;
 
 use tokio::time::Instant;
 
-use crate::membership::Members;
-use crate::net::Membership;
-use crate::output::say;
+use crate::members::membership::Members;
+use crate::node::output::say;
+use crate::transport::net::Membership;
 
 /// The pause before the first retry and after peers appear.
 pub(super) const REJOIN_FIRST: Duration = Duration::from_secs(30);
@@ -70,10 +70,7 @@ pub(super) async fn rejoin_if_alone(
     let ids: Vec<_> = members.ids().into_iter().collect();
     say(
         "gossip",
-        format!(
-            "0 peers — re-inviting {} members to the topic",
-            ids.len()
-        ),
+        format!("0 peers — re-inviting {} members to the topic", ids.len()),
     );
     if let Err(e) = swarm.join(&ids).await {
         say("gossip", format!("couldn't re-invite: {e}"));

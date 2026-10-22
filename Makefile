@@ -8,7 +8,7 @@
 # make test TARGET_DIR=/other/dir
 BUILD_ROOT ?= $(CURDIR)/.tmp/build
 TARGET_DIR ?= $(BUILD_ROOT)/host
-# Dynamic linking for dev/test: tests and target binaries pull code from libmeshtown.dylib
+# Dynamic linking for dev/test: tests and target binaries pull code from libmeshtown_core.dylib
 # and libstd.dylib instead of copying it into each of ~40 executables — the "edit lib → build tests" loop is ~40 % shorter.
 # macOS only (Linux/Windows untested) and only for calls through make: the release scripts build/*/build.sh
 # and bare cargo stay static. DYN=0 turns it off.
@@ -222,15 +222,15 @@ features-check:
 check:
 	$(MAKE) -k test test-py test-dist test-js web-typecheck web-bundle-check clippy-full core-check net-boundary
 
-# Network core boundary: core/net has no foreign network crates and no paths outside the core;
+# Network core boundary: core/transport/net has no foreign network crates and no paths outside the core;
 # no path within the core boundary names foreign network crates; townjump crates live only in net_hyper/.
 # H4: townjump crates (townjump_*, peeroxide_*, libudx) live only in net_hyper/; `net_hyper::` outside net_hyper/ only in node/start/.
 # H5: net_hyperdht does not name net_hyper, mainline, townjump or peeroxide — only the RecordStore trait and common types.
 net-boundary:
-	@test -d core/net || { echo "net-boundary: core/net is missing" >&2; exit 1; }
-	@! rg -n -g '!*_tests.rs' -e '\b(mainline|rustls|tokio_rustls|simple_dns|n0_future|axum|hyper\w*|tower\w*|url)::' -e '\bcrate::(\{|\w+)' -e '\bsuper::super\b' core/net | rg -v 'crate::net\b'
-	@test -d core/net_hyperdht || { echo "net-boundary: core/net_hyperdht is missing" >&2; exit 1; }
-	@! rg -n -g '!*_tests.rs' '\b(net_hyper|mainline|townjump_\w+|peeroxide_\w+)::' core/net_hyperdht
+	@test -d core/transport/net || { echo "net-boundary: core/transport/net is missing" >&2; exit 1; }
+	@! rg -n -g '!*_tests.rs' -e '\b(mainline|rustls|tokio_rustls|simple_dns|n0_future|axum|hyper\w*|tower\w*|url)::' -e '\bcrate::(\{|\w+)' -e '\bsuper::super\b' core/transport/net | rg -v 'crate::transport::net\b'
+	@test -d core/transport/net_hyperdht || { echo "net-boundary: core/transport/net_hyperdht is missing" >&2; exit 1; }
+	@! rg -n -g '!*_tests.rs' '\b(net_hyper|mainline|townjump_\w+|peeroxide_\w+)::' core/transport/net_hyperdht
 	@test -d core || { echo "net-boundary: core is missing" >&2; exit 1; }
 	@! rg -n -e '\b(townjump_\w+|peeroxide_\w+|libudx)::' core -g '!**/net_hyper/**'
 	@test -d core || { echo "net-boundary: core is missing" >&2; exit 1; }

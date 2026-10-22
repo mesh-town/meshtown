@@ -4,12 +4,12 @@
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 
-use meshtown::net::{NodeSecret, PeerId};
+use meshtown_core::transport::net::{NodeSecret, PeerId};
 
-use meshtown::output;
-use meshtown::program_version::current_program_version;
-use meshtown::route::{self, Route};
-use meshtown::web::{
+use meshtown_core::node::output;
+use meshtown_core::node::program_version::current_program_version;
+use meshtown_core::proxy::route::{self, Route};
+use meshtown_core::web_gui::{
     CheckInfo, ChosenExit, DomainInfo, ExitInfo, LogSummary, MembersInfo, NodeRuntime,
     NodeSnapshot, PathKindView, PeerInfo, RecordInfo, RelayInfo, RouteMode, RouteState, SocksInfo,
     TransportInfo,
@@ -84,27 +84,26 @@ fn demo_self_peer_info(st: &DemoState) -> PeerInfo {
 }
 
 fn build_demo_peer_infos(st: &DemoState) -> Vec<PeerInfo> {
-    let others = st
-        .peers
-        .iter()
-        .map(|p| PeerInfo {
-            id: p.id.clone(),
-            id_full: p.id_full.to_string(),
-            name: p.name.clone(),
-            is_self: false,
-            online: p.online,
-            path: p.path,
-            rtt_ms: Some(30),
-            exit: Some(true),
-            country: (p.name.as_deref() == Some("peer-one")).then(|| "RU".to_string()),
-            program_version: (p.name.as_deref() == Some("peer-one")).then(|| "0.0.9".to_string()),
-            checked: 0,
-            stale: false,
-            last_seen_sec: 1,
-            through_peer_bps: 0,
-            through_us_bps: 0,
-        });
-    std::iter::once(demo_self_peer_info(st)).chain(others).collect()
+    let others = st.peers.iter().map(|p| PeerInfo {
+        id: p.id.clone(),
+        id_full: p.id_full.to_string(),
+        name: p.name.clone(),
+        is_self: false,
+        online: p.online,
+        path: p.path,
+        rtt_ms: Some(30),
+        exit: Some(true),
+        country: (p.name.as_deref() == Some("peer-one")).then(|| "RU".to_string()),
+        program_version: (p.name.as_deref() == Some("peer-one")).then(|| "0.0.9".to_string()),
+        checked: 0,
+        stale: false,
+        last_seen_sec: 1,
+        through_peer_bps: 0,
+        through_us_bps: 0,
+    });
+    std::iter::once(demo_self_peer_info(st))
+        .chain(others)
+        .collect()
 }
 
 /// The verdict of the last domain check, shown for "self" and for the first demo peer (if any).
@@ -174,7 +173,10 @@ fn build_socks_info(st: &DemoState) -> SocksInfo {
             None
         },
         pac_url: if st.settings.process.socks_enabled {
-            Some(meshtown::proxy::pac_url(SocketAddr::from(([127, 0, 0, 1], st.settings.process.socks_port))))
+            Some(meshtown_core::proxy::pac_url(SocketAddr::from((
+                [127, 0, 0, 1],
+                st.settings.process.socks_port,
+            ))))
         } else {
             None
         },
@@ -205,10 +207,7 @@ fn build_transport_info(demo: &DemoNode, st: &DemoState) -> TransportInfo {
         listen_udp: Vec::new(),
         dht: demo.dht_info(),
         record: RecordInfo::default(),
-        self_addresses: vec![format!(
-            "{}@192.168.1.14:47821",
-            st.boot_id
-        )],
+        self_addresses: vec![format!("{}@192.168.1.14:47821", st.boot_id)],
     }
 }
 

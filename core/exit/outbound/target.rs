@@ -7,7 +7,7 @@ use tokio::time::timeout;
 
 use super::address_guard::{is_forbidden, is_own_address};
 use super::refusal::Refusal;
-use crate::doh::Resolver;
+use crate::site_checks::doh::Resolver;
 
 /// The most addresses of one family tried for a name.
 pub(in crate::exit) const MAX_CANDIDATES: usize = 4;
@@ -53,7 +53,10 @@ pub(super) fn literal_address(
 
 /// The addresses of an answer worth connecting to: each one in its canonical form (an IPv4-mapped IPv6 address is
 /// judged and used as IPv4), closed and the node's own ones dropped, answer order kept, at most `MAX_CANDIDATES`.
-pub(in crate::exit) fn allowed_addresses(ips: impl IntoIterator<Item = IpAddr>, port: u16) -> Vec<SocketAddr> {
+pub(in crate::exit) fn allowed_addresses(
+    ips: impl IntoIterator<Item = IpAddr>,
+    port: u16,
+) -> Vec<SocketAddr> {
     ips.into_iter()
         .map(|ip| ip.to_canonical())
         .filter(|ip| !is_forbidden(*ip) && !is_own_address(*ip))
@@ -72,11 +75,20 @@ pub(in crate::exit) async fn v4_answer(
         .resolve_cached_nx(name)
         .await
         .map_err(|e| Refusal::no_address(format!("{name} — DNS: {e:#}")))?;
-    Ok(NameAnswer::of(addrs.into_iter().map(IpAddr::V4).collect(), port, nx))
+    Ok(NameAnswer::of(
+        addrs.into_iter().map(IpAddr::V4).collect(),
+        port,
+        nx,
+    ))
 }
 
 /// The IPv6 answer for a name within `wait`; an error or a timeout is an empty answer.
-pub(in crate::exit) async fn v6_answer(resolver: &Resolver, name: &str, port: u16, wait: Duration) -> NameAnswer {
+pub(in crate::exit) async fn v6_answer(
+    resolver: &Resolver,
+    name: &str,
+    port: u16,
+    wait: Duration,
+) -> NameAnswer {
     match timeout(wait, resolver.resolve_cached_v6(name)).await {
         Ok(Ok(addrs)) => NameAnswer::of(addrs.into_iter().map(IpAddr::V6).collect(), port, false),
         _ => NameAnswer::empty(),
@@ -85,20 +97,33 @@ pub(in crate::exit) async fn v6_answer(resolver: &Resolver, name: &str, port: u1
 
 /// Where a UDP datagram for a name goes: the first open IPv4 address, otherwise the first open IPv6 one. No
 /// retries; a DoH error, a name that does not exist and an all-closed answer give `None`.
-pub(in crate::exit) async fn udp_address(resolver: &Resolver, name: &str, port: u16) -> Option<SocketAddr> {
+pub(in crate::exit) async fn udp_address(
+    resolver: &Resolver,
+    name: &str,
+    port: u16,
+) -> Option<SocketAddr> {
     let v4 = v4_answer(resolver, name, port).await.ok()?;
     udp_address_from(resolver, name, port, v4).await
 }
 
 /// The choice of `udp_address` once the IPv4 answer is known.
-async fn udp_address_from(resolver: &Resolver, name: &str, port: u16, v4: NameAnswer) -> Option<SocketAddr> {
+async fn udp_address_from(
+    resolver: &Resolver,
+    name: &str,
+    port: u16,
+    v4: NameAnswer,
+) -> Option<SocketAddr> {
     if let Some(first) = v4.open.first() {
         return Some(*first);
     }
     if v4.nx {
         return None;
     }
-    v6_answer(resolver, name, port, AAAA_LOOKUP_TIMEOUT).await.open.first().copied()
+    v6_answer(resolver, name, port, AAAA_LOOKUP_TIMEOUT)
+        .await
+        .open
+        .first()
+        .copied()
 }
 
 #[cfg(test)]

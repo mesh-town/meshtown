@@ -6,7 +6,7 @@
 use super::*;
 use crate::invite::store::IssueVerdict;
 use crate::invite::InviteSecret;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 
 mod constants {
     use super::*;
@@ -37,7 +37,10 @@ mod request {
         #[test]
         fn different_secrets_give_different_frames() {
             let other = InviteSecret::from_bytes([0x11; 32]);
-            assert_ne!(encode_invite_request(&a_secret()), encode_invite_request(&other));
+            assert_ne!(
+                encode_invite_request(&a_secret()),
+                encode_invite_request(&other)
+            );
         }
     }
 
@@ -93,7 +96,11 @@ mod legacy_request {
     #[test]
     fn legacy_parser_rejects_the_first_bytes_of_an_owner_frame() {
         // given: the first 33 bytes of an owner frame (what an old server reads)
-        let owner = encode_owner_request(&a_secret(), crate::net::contract::pid(7), &[0xC3; 64]);
+        let owner = encode_owner_request(
+            &a_secret(),
+            crate::transport::net::contract::pid(7),
+            &[0xC3; 64],
+        );
         let mut head = [0u8; REQUEST_LEN];
         head.copy_from_slice(&owner[..REQUEST_LEN]);
         // when / then: the old parser answers None, so an old server says BadRequest
@@ -157,7 +164,11 @@ mod reply {
         fn every_refusal_survives_a_round_trip() {
             for (code, number) in refusal_codes() {
                 let frame = encode_invite_reply(code, None);
-                assert_eq!(refusal_in(parse_invite_reply(&frame)), Some(code), "code {number}");
+                assert_eq!(
+                    refusal_in(parse_invite_reply(&frame)),
+                    Some(code),
+                    "code {number}"
+                );
             }
         }
     }
@@ -228,7 +239,10 @@ mod code_numbers {
     fn excluded_is_code_8_and_not_retryable() {
         assert_eq!(RedeemCode::Excluded as u8, 8);
         assert_eq!(RedeemCode::from_u8(8), Some(RedeemCode::Excluded));
-        assert!(!RedeemCode::Excluded.is_retryable(), "an excluded key stays excluded: no point in retrying");
+        assert!(
+            !RedeemCode::Excluded.is_retryable(),
+            "an excluded key stays excluded: no point in retrying"
+        );
     }
 
     #[test]
@@ -258,7 +272,11 @@ mod retry_flag {
     fn true_exactly_for_not_ready_busy_and_internal() {
         for (code, number) in all_codes() {
             let must_retry = matches!(number, 1 | 2 | 7);
-            assert_eq!(code.is_retryable(), must_retry, "{code:?} (number {number})");
+            assert_eq!(
+                code.is_retryable(),
+                must_retry,
+                "{code:?} (number {number})"
+            );
         }
     }
 }

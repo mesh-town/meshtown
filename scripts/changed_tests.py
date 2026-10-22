@@ -4,7 +4,7 @@
 From `git diff` against `merge-base(BASE, HEAD)` plus untracked files and the path-to-test selection
 rules it decides the `cargo nextest` slices,
 `make test-py`/`test-js`/`web-typecheck`/`web-check`/`android-test` and runs them in order. It does not parse Rust — only
-a text search for `meshtown::<module>` as a whole word (`users_of`), without an AST.
+a text search for `meshtown_core::<module>` as a whole word (`users_of`), without an AST.
 Run: `python3 scripts/changed_tests.py --base main [--dry-run]`.
 """
 
@@ -18,11 +18,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 CORE = "core"
-# Entries of `core/` that are not library or binary modules and have their own rules.
-NON_MODULE_TOPS = {"tests", "examples", "web_gui", "Cargo.toml"}
+# Entries of `core/` that are not library modules and have their own rules.
+NON_MODULE_TOPS = {"tests", "examples", "Cargo.toml"}
+# Subdirectories of `core/web_gui/` that are not Rust modules (web UI sources and browser tests).
+WEB_GUI_DATA_DIRS = {"ui", "e2e"}
+BIN_MAIN = f"{CORE}/cli/main.rs"
 STEP_COMMENT_RE = re.compile(r"//.*")
-MOD_DECL_RE = re.compile(
-    r'(?:^|\n)\s*(?:#\[[^\]]*\]\s*)*(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;')
 COMMON_PATH_RE = re.compile(r'#\[path\s*=\s*"common/([^"]+\.rs)"\]')
 
 def _strip_comments(text: str) -> str:
@@ -55,7 +56,6 @@ def changed_files(base: str) -> list[str]:
 class Sources:
     main_rs: str
     tests: dict[str, str]
-    bin: dict[str, str]
     examples: dict[str, str]
 
 def _read_text(path: Path) -> str:
@@ -63,12 +63,6 @@ def _read_text(path: Path) -> str:
         return path.read_text(encoding="utf-8")
     except OSError:
         return ""
-
-def bin_modules(main_rs: str) -> set[str]:
-    """Names from the `mod x;` lines in main.rs (including with `#[cfg]` and `pub`), without the service `tests`."""
-    mods = {m.group(1) for m in MOD_DECL_RE.finditer(main_rs)}
-    mods.discard("tests")
-    return mods
 
 def _load_tests(tests_dir: Path) -> dict[str, str]:
     tests: dict[str, str] = {}
@@ -82,17 +76,9 @@ def _load_tests(tests_dir: Path) -> dict[str, str]:
         tests[f.stem] = "\n".join(merged)
     return tests
 
-def _load_bin_module(proto: Path, name: str) -> str:
-    files = [proto / CORE / f"{name}.rs", proto / CORE / f"{name}_tests.rs"]
-    files = [f for f in files if f.is_file()]
-    module_dir = proto / CORE / name
-    if module_dir.is_dir():
-        files += sorted(module_dir.rglob("*.rs"))
-    return "\n".join(_read_text(f) for f in files)
-
 def _load_examples(examples_dir: Path) -> dict[str, str]:
     """Example file `examples/x.rs` → key `x`; example folder `examples/x/main.rs` → key `x`,
-    text — all `*.rs` of the folder in a row (like `_load_bin_module`). A folder without `main.rs` is skipped."""
+    text — all `*.rs` of the folder in a row (all files of the example). A folder without `main.rs` is skipped."""
     if not examples_dir.is_dir():
         return {}
     examples: dict[str, str] = {}
@@ -105,21 +91,17 @@ def _load_examples(examples_dir: Path) -> dict[str, str]:
     return examples
 
 def load_sources(proto: Path) -> Sources:
-    main_rs = _read_text(proto / CORE / "main.rs")
-    bin_dict = {"main": main_rs}
-    for name in sorted(bin_modules(main_rs)):
-        bin_dict[name] = _load_bin_module(proto, name)
     return Sources(
-        main_rs=main_rs,
+        main_rs=_read_text(proto / BIN_MAIN),
         tests=_load_tests(proto / CORE / "tests"),
-        bin=bin_dict,
         examples=_load_examples(proto / CORE / "examples"),
     )
 
-def _group_bodies(text: str) -> list[str]:
-    """The content of each `meshtown::{ ... }` (balanced braces, may be multiline)."""
+def _group_bodies(text: str) -> list[tuple[str, str]]:
+    """`(prefix, content)` of each `meshtown_core::[a::b::]{ ... }` (balanced braces, may be multiline);
+    the prefix is `a::b` or an empty string."""
     bodies = []
-    for m in re.finditer(r"meshtown::\{", text):
+    for m in re.finditer(r"meshtown_core::((?:\w+::)*)\{", text):
         depth = 1
         i = m.end()
         while i < len(text) and depth > 0:
@@ -128,19 +110,34 @@ def _group_bodies(text: str) -> list[str]:
             elif text[i] == "}":
                 depth -= 1
             i += 1
-        bodies.append(text[m.end() : i - 1])
+        bodies.append((m.group(1).rstrip(":"), text[m.end() : i - 1]))
     return bodies
 
+def _rest_after(prefix: str, module: str) -> str | None:
+    """The part of `module` below the group prefix, or `None` if the module is not under it."""
+    if not prefix:
+        return module
+    return module[len(prefix) + 2 :] if module.startswith(prefix + "::") else None
+
+def _uses_module(module: str, clean: str) -> bool:
+    segs = module.split("::")
+    direct = re.compile(r"\bmeshtown_core::" + "::".join(map(re.escape, segs)) + r"\b")
+    parents = [
+        re.compile(r"\bmeshtown_core::" + "::".join(map(re.escape, segs[:k])) + r"\b(?!::)")
+        for k in range(1, len(segs))
+    ]
+    if direct.search(clean) or any(p.search(clean) for p in parents):
+        return True
+    for prefix, body in _group_bodies(clean):
+        rest = _rest_after(prefix, module)
+        if rest is not None and re.search(r"\b" + re.escape(rest.split("::")[0]) + r"\b", body):
+            return True
+    return False
+
 def users_of(module: str, sources: dict[str, str]) -> set[str]:
-    """Keys of `sources` where `meshtown::<module>` (directly or in a `{…}` group) is a whole word, not in `//`."""
-    direct = re.compile(r"\bmeshtown::" + re.escape(module) + r"\b")
-    word = re.compile(r"\b" + re.escape(module) + r"\b")
-    result = set()
-    for key, text in sources.items():
-        clean = _strip_comments(text)
-        if direct.search(clean) or any(word.search(body) for body in _group_bodies(clean)):
-            result.add(key)
-    return result
+    """Keys of `sources` where `meshtown_core::<module>` (`a::b`; directly, via a parent module import or in
+    a `{…}` group) is a whole word, not in `//`."""
+    return {key for key, text in sources.items() if _uses_module(module, _strip_comments(text))}
 
 def common_users(common_file: str, tests: dict[str, str]) -> set[str]:
     needle = f"common/{common_file}.rs"
@@ -158,51 +155,52 @@ class Selection:
     bundle_check: bool = False
     android: bool = False
     lib_modules: set[str] = field(default_factory=set)
-    bin_modules: set[str] = field(default_factory=set)
     integration: set[str] = field(default_factory=set)
     reasons: list[str] = field(default_factory=list)
 
-def _src_top(path: str, restrict_to: set[str] | None) -> str | None:
+def _module_of(path: str) -> str | None:
+    """`core/<group>/<module>/…` → `<group>::<module>`; `core/<group>/mod.rs` → `<group>`; `core/<name>.rs`
+    → `<name>`. `None` — not a Rust module (data, tests directory, web UI sources)."""
     prefix = f"{CORE}/"
     if not path.startswith(prefix):
         return None
-    top = path[len(prefix) :].split("/", 1)[0]
-    if top in NON_MODULE_TOPS:
+    parts = path[len(prefix) :].split("/")
+    if parts[0] in NON_MODULE_TOPS or (parts[0] == "web_gui" and parts[1:2] and parts[1] in WEB_GUI_DATA_DIRS):
         return None
-    for suffix in ("_tests.rs", ".rs"):
-        if top.endswith(suffix):
-            top = top[: -len(suffix)]
-            break
-    if not top or (restrict_to is not None and top not in restrict_to):
+    if len(parts) > 2:
+        return f"{parts[0]}::{parts[1]}"
+    stem = _rs_stem(parts[-1])
+    if stem is None:
         return None
-    return top
+    if len(parts) == 1:
+        return stem
+    return parts[0] if stem == "mod" else f"{parts[0]}::{stem}"
 
-def _apply_lib_module(top: str, src: Sources, sel: Selection) -> None:
-    sel.lib_modules.add(top)
-    sel.integration |= users_of(top, src.tests)
-    for user in users_of(top, src.bin):
-        if user == "main":
-            sel.whole_bin = True
-        else:
-            sel.bin_modules.add(user)
-    if users_of(top, src.examples) or top == "web":
+def _rs_stem(name: str) -> str | None:
+    """`x.rs` and `x_tests.rs` → `x`; not a Rust file → `None`."""
+    if name.endswith("_tests.rs"):
+        return name[: -len("_tests.rs")] or None
+    return name[: -len(".rs")] if name.endswith(".rs") else None
+
+def _apply_lib_module(module: str, src: Sources, sel: Selection) -> None:
+    sel.lib_modules.add(module)
+    sel.integration |= users_of(module, src.tests)
+    if users_of(module, {"main": src.main_rs}):
+        sel.whole_bin = True
+    if users_of(module, src.examples) or module.split("::")[0] == "web_gui":
         sel.web_check = True
 
-def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) -> str:
-    if path in (f"{CORE}/main.rs", f"{CORE}/main_tests.rs"):
+def _select_one(path: str, src: Sources, sel: Selection) -> str:
+    if path == BIN_MAIN:
         sel.whole_bin = True
         return "whole_bin"
     if path == f"{CORE}/lib.rs":
         sel.full = True
         return "full"
-    top = _src_top(path, bin_names)
-    if top is not None:
-        sel.bin_modules.add(top)
-        return f"bin_modules += {top}"
-    top = _src_top(path, None)
-    if top is not None:
-        _apply_lib_module(top, src, sel)
-        return f"lib_modules += {top}"
+    module = _module_of(path)
+    if module is not None:
+        _apply_lib_module(module, src, sel)
+        return f"lib_modules += {module}"
     if path.startswith(f"{CORE}/tests/common/") and path.endswith(".rs"):
         common_file = path[len(f"{CORE}/tests/common/") : -len(".rs")]
         sel.integration |= common_users(common_file, src.tests)
@@ -214,7 +212,7 @@ def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) ->
         return f"integration += {name}"
     if path.startswith(f"{CORE}/web_gui/ui/"):
         sel.web_check = True
-        sel.lib_modules |= {"web", "node::identity"}
+        sel.lib_modules |= {"web_gui", "node::identity"}
         if path.startswith(f"{CORE}/web_gui/ui/vue/") or path.startswith(f"{CORE}/web_gui/ui/bundle/"):
             sel.js = sel.bundle_check = True
         if path.startswith(f"{CORE}/web_gui/ui/vue/"):
@@ -238,10 +236,9 @@ def _select_one(path: str, src: Sources, bin_names: set[str], sel: Selection) ->
     return "full + py + js (catch-all)"
 
 def select(paths: list[str], src: Sources) -> Selection:
-    bin_names = bin_modules(src.main_rs)
     sel = Selection()
     for path in paths:
-        what = _select_one(path, src, bin_names, sel)
+        what = _select_one(path, src, sel)
         sel.reasons.append(f"{path} → {what}")
     return sel
 
@@ -249,8 +246,6 @@ def _rust_parts(sel: Selection) -> list[str]:
     parts = [f"(kind(lib) & test(/^{m}::/))" for m in sel.lib_modules]
     if sel.whole_bin:
         parts.append("kind(bin)")
-    elif sel.bin_modules:
-        parts += [f"(kind(bin) & test(/^{m}::/))" for m in sel.bin_modules]
     parts += [f"binary({x})" for x in sel.integration]
     parts.sort()
     return parts
@@ -262,7 +257,7 @@ def _rust_command(sel: Selection) -> list[str] | None:
     argv = ["cargo", "nextest", "run", "--no-tests=warn"]
     if sel.lib_modules:
         argv.append("--lib")
-    if sel.whole_bin or sel.bin_modules:
+    if sel.whole_bin:
         argv += ["--bin", "meshtown"]
     for x in sorted(sel.integration):
         argv += ["--test", x]

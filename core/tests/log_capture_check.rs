@@ -42,5 +42,8 @@ fn assert_no_errors_since_panics_on_error_after_mark() {
     let outcome = std::panic::catch_unwind(|| log_capture::assert_no_errors_since(mark));
 
     // then: it fails
-    assert!(outcome.is_err(), "an ERROR after the mark must fail the check");
+    assert!(
+        outcome.is_err(),
+        "an ERROR after the mark must fail the check"
+    );
 }

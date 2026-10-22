@@ -6,7 +6,7 @@
 //! Links: provided by `invite::Issued::commit`; read by `web::control::PendingInvite`, the handler of
 //! `/api/network/invite` and `console::print_invite`.
 
-use crate::net::PeerId;
+use crate::transport::net::PeerId;
 
 /// An issued invite: the string and the members who confirmed the entry (holders).
 #[derive(Clone)]
@@ -38,7 +38,10 @@ impl Dealt {
 
     /// An invite without holders (stubs and the "nobody online" case).
     pub fn without_holders(text: String) -> Dealt {
-        Dealt { text, holders: Vec::new() }
+        Dealt {
+            text,
+            holders: Vec::new(),
+        }
     }
 
     /// The reach flag by the number of holders.

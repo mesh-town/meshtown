@@ -6,8 +6,8 @@
 
 use super::store::IssueVerdict;
 use super::InviteSecret;
-use crate::net::PeerId;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::PeerId;
 
 /// ALPN of the protocol that issues a key by invite.
 pub const INVITE_ALPN: &[u8] = b"meshtown/invite/1";
@@ -99,7 +99,11 @@ pub struct OwnerRequest {
 }
 
 /// Owner request frame: kind, secret, owner id, signature.
-pub fn encode_owner_request(s: &InviteSecret, owner: PeerId, sig: &[u8; 64]) -> [u8; OWNER_REQUEST_LEN] {
+pub fn encode_owner_request(
+    s: &InviteSecret,
+    owner: PeerId,
+    sig: &[u8; 64],
+) -> [u8; OWNER_REQUEST_LEN] {
     let mut out = [0u8; OWNER_REQUEST_LEN];
     out[0] = OWNER_FRAME_KIND;
     out[1..33].copy_from_slice(s.as_bytes());
@@ -120,7 +124,11 @@ pub fn parse_owner_request(b: &[u8; OWNER_REQUEST_LEN]) -> Option<OwnerRequest> 
     let mut sig = [0u8; 64];
     sig.copy_from_slice(&b[65..]);
     let owner = PeerId::from_bytes(&owner).ok()?;
-    Some(OwnerRequest { secret: InviteSecret::from_bytes(secret), owner, sig })
+    Some(OwnerRequest {
+        secret: InviteSecret::from_bytes(secret),
+        owner,
+        sig,
+    })
 }
 
 /// Builds a response frame; the key is put in only for `RedeemCode::Ok`, otherwise zeros.

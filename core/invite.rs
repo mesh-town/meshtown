@@ -15,24 +15,24 @@ use anyhow::{bail, Context, Result};
 use data_encoding::BASE32_NOPAD;
 use serde::{Deserialize, Serialize};
 
-use crate::addr_order::{truncate_ranked, PrimaryIps};
-use crate::net_mainline;
-use crate::membership::Members;
-use crate::network_key::NetworkKey;
-use crate::output::NET_NAME;
-use crate::net::{NetStack, PeerAddr, PeerId};
-use crate::net_mainline::record::{entry_from_addr, RosterEntry};
+use crate::members::membership::Members;
+use crate::members::network_key::NetworkKey;
+use crate::node::output::NET_NAME;
+use crate::transport::addr_order::{truncate_ranked, PrimaryIps};
+use crate::transport::net::{NetStack, PeerAddr, PeerId};
+use crate::transport::net_mainline;
+use crate::transport::net_mainline::record::{entry_from_addr, RosterEntry};
 
 mod dealt;
 mod head;
-mod parse;
-mod spread;
 pub mod hold_wire;
+mod parse;
 pub mod proof;
 pub mod redeem;
 mod redeem_round;
 pub mod server;
 mod server_owner;
+mod spread;
 pub mod store;
 pub mod wire;
 pub use dealt::{Dealt, Reach};
@@ -85,7 +85,7 @@ pub struct Source {
     pub key: NetworkKey,
     pub label: Option<String>,
     /// The node's domain list: provides the network's shared document and the author for issue records.
-    pub domains: crate::domains::DomainList,
+    pub domains: crate::proxy::domains::DomainList,
 }
 
 /// With relay direct addresses are not needed, without relay — at most `MAX_DIRECT_ADDRS`;
@@ -155,7 +155,11 @@ fn build_as(
             peers.push(entry);
         }
     }
-    if !key_ok && peers.iter().all(|e| e.relay.is_none() && e.addrs.is_empty()) {
+    if !key_ok
+        && peers
+            .iter()
+            .all(|e| e.relay.is_none() && e.addrs.is_empty())
+    {
         bail!(
             "the node has no address of its own and no members yet — nothing to invite with; wait a \
             minute after start"
@@ -207,7 +211,11 @@ impl Issued {
             .issue(&self.hash, &self.record)
             .await
             .context("writing the invite into the network document failed")?;
-        let frame = hold_wire::hold_frame(&self.key, &self.head.secret.hash_bytes(), self.head.made_unix);
+        let frame = hold_wire::hold_frame(
+            &self.key,
+            &self.head.secret.hash_bytes(),
+            self.head.made_unix,
+        );
         let asked = spread::candidates(&self.others, self.own_addr.id);
         let holders = spread::gather(&self.stack, frame, asked).await;
         let list = spread::ordered(&holders, &self.own_addr, &self.rest);
@@ -229,7 +237,13 @@ fn listed_members(src: &Source) -> std::collections::BTreeSet<PeerId> {
         return Default::default();
     };
     let allowed = |p: &&PeerId| verdicts.check(**p).is_ok();
-    verdicts.ledger.admitted.iter().filter(allowed).copied().collect()
+    verdicts
+        .ledger
+        .admitted
+        .iter()
+        .filter(allowed)
+        .copied()
+        .collect()
 }
 
 /// Builds the invite of a live node: own address plus the listed members (keys only; v3 dials by key).

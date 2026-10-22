@@ -1,5 +1,5 @@
 [package]
-name = "meshtown"
+name = "meshtown-core"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,7 +14,7 @@ description = "Mesh Town: open sites through the computers of your private peer-
 workspace = true
 
 [lib]
-name = "meshtown"
+name = "meshtown_core"
 path = "lib.rs"
 # dylib is needed for dynamic linking of tests (`make` on macOS adds `-C prefer-dynamic`, see the Makefile, variable DYN);
 # without the flag dylib is not linked into the binaries and the rollout stays static;
@@ -26,7 +26,7 @@ crate-type = ["rlib", "dylib"]
 
 [[bin]]
 name = "meshtown"
-path = "main.rs"
+path = "cli/main.rs"
 required-features = ["net-hyper"]
 
 [[example]]

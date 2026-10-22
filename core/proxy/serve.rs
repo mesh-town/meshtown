@@ -9,16 +9,16 @@ use std::time::{Duration, Instant};
 use anyhow::Result;
 use tokio::net::{TcpListener, TcpStream};
 
-use crate::config_file::ListenAccess;
-use crate::doh::Resolver;
+use crate::config::config_file::ListenAccess;
 use crate::exit::PeerConnPool;
-use crate::net::NetStack;
-use crate::output::say;
-use crate::route::RouteCtx;
-use crate::socks5;
-use crate::tcp_tune::disable_nagle;
-use crate::web::auth::access::bind_ip;
-use crate::web::auth::iface_os::current_view;
+use crate::node::output::say;
+use crate::node::tcp_tune::disable_nagle;
+use crate::proxy::route::RouteCtx;
+use crate::proxy::socks5;
+use crate::site_checks::doh::Resolver;
+use crate::transport::net::NetStack;
+use crate::web_gui::auth::access::bind_ip;
+use crate::web_gui::auth::iface_os::current_view;
 
 use super::admit::{admit_conn, iface_deny_text, is_proxy_client_allowed, Admission, DenyLog};
 use super::outcome::{outcome_line, ProxyOutcome};
@@ -86,7 +86,7 @@ impl BindError {
         };
         let cmd = format!(
             "{} run --socks-port {other}",
-            crate::program_name::program_name()
+            crate::cli::program_name::program_name()
         );
         match self.io_error_kind {
             std::io::ErrorKind::AddrInUse => {

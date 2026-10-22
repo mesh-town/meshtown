@@ -4,8 +4,8 @@
 //! 34-byte frame. The signature itself is checked by `proof_tests.rs`; here only bytes and parsing.
 
 use super::*;
-use crate::net::contract::pid;
-use crate::net::PeerId;
+use crate::transport::net::contract::pid;
+use crate::transport::net::PeerId;
 
 mod layout {
     use super::*;
@@ -56,7 +56,10 @@ mod parsing {
             let mut frame = encode_owner_request(&a_secret(), pid(7), &a_sig());
             frame[0] = kind;
             // when / then
-            assert!(parse_owner_request(&frame).is_none(), "kind {kind} was accepted as an owner frame");
+            assert!(
+                parse_owner_request(&frame).is_none(),
+                "kind {kind} was accepted as an owner frame"
+            );
         }
     }
 
@@ -66,7 +69,10 @@ mod parsing {
         let mut frame = encode_owner_request(&a_secret(), pid(7), &a_sig());
         frame[33..65].copy_from_slice(&off_curve());
         // when / then
-        assert!(parse_owner_request(&frame).is_none(), "an owner that is not an ed25519 key was accepted");
+        assert!(
+            parse_owner_request(&frame).is_none(),
+            "an owner that is not an ed25519 key was accepted"
+        );
     }
 
     #[test]
@@ -84,6 +90,8 @@ fn a_sig() -> [u8; 64] {
 
 /// The first `[i; 32]` that is not a point of the curve.
 fn off_curve() -> [u8; 32] {
-    let bytes = (0..=255u8).map(|i| [i; 32]).find(|b| PeerId::from_bytes(b).is_err());
+    let bytes = (0..=255u8)
+        .map(|i| [i; 32])
+        .find(|b| PeerId::from_bytes(b).is_err());
     bytes.expect("some [i; 32] must be off the curve")
 }

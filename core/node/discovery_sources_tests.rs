@@ -1,8 +1,8 @@
 use super::*;
-use crate::net::facade::test_support::{addr, pid, within};
-use crate::output::{log_page, short_peer_id};
-use tokio::sync::{Mutex, MutexGuard};
+use crate::node::output::{log_page, short_peer_id};
+use crate::transport::net::facade::test_support::{addr, pid, within};
 use std::time::Duration;
+use tokio::sync::{Mutex, MutexGuard};
 
 /// The log is shared per process: line tests run one at a time.
 pub(in crate::node) static LOG_LOCK: Mutex<()> = Mutex::const_new(());
@@ -18,7 +18,11 @@ fn last_seq() -> u64 {
 /// Texts of log lines with tag `tag` that appeared after `after`.
 fn lines(tag: &str, after: u64) -> Vec<String> {
     let page = log_page(after, 10_000);
-    page.lines.into_iter().filter(|l| l.tag == tag).map(|l| l.text).collect()
+    page.lines
+        .into_iter()
+        .filter(|l| l.tag == tag)
+        .map(|l| l.text)
+        .collect()
 }
 
 fn cache(list: Vec<PeerAddr>, me: PeerId) -> Arc<dyn Discovery> {
@@ -30,7 +34,9 @@ fn invite(list: Vec<PeerAddr>, me: PeerId) -> Arc<dyn Discovery> {
 }
 
 async fn take(rx: &mut mpsc::Receiver<PeerAddr>) -> PeerAddr {
-    within("receiving an address", rx.recv()).await.expect("address")
+    within("receiving an address", rx.recv())
+        .await
+        .expect("address")
 }
 
 #[tokio::test]
@@ -38,13 +44,18 @@ async fn cache_hands_list_in_order() {
     let _g = lock().await;
     let after = last_seq();
     let (tx, mut rx) = mpsc::channel(8);
-    let task = tokio::spawn(cache(vec![addr(11, &[]), addr(12, &[]), addr(13, &[])], pid(1)).run_source(tx));
+    let task = tokio::spawn(
+        cache(vec![addr(11, &[]), addr(12, &[]), addr(13, &[])], pid(1)).run_source(tx),
+    );
     for n in [11, 12, 13] {
         assert_eq!(take(&mut rx).await.id, pid(n));
     }
     drop(rx);
     within("end of run", task).await.unwrap();
-    assert_eq!(lines("cache", after), ["peer addresses taken from cache: 3"]);
+    assert_eq!(
+        lines("cache", after),
+        ["peer addresses taken from cache: 3"]
+    );
 }
 
 #[tokio::test]
@@ -56,7 +67,10 @@ async fn own_id_skipped() {
     assert_eq!(take(&mut rx).await.id, pid(21));
     drop(rx);
     within("end of run", task).await.unwrap();
-    assert_eq!(lines("cache", after), ["peer addresses taken from cache: 1"]);
+    assert_eq!(
+        lines("cache", after),
+        ["peer addresses taken from cache: 1"]
+    );
 
     let after = last_seq();
     let (tx, mut rx) = mpsc::channel(8);
@@ -76,7 +90,13 @@ async fn full_out_logs_not_accepted() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     let got = lines("invite", after);
     assert_eq!(got.len(), 2, "{got:?}");
-    assert!(got[0].starts_with(&format!("address {} not accepted: ", short_peer_id(&pid(32)))), "{got:?}");
+    assert!(
+        got[0].starts_with(&format!(
+            "address {} not accepted: ",
+            short_peer_id(&pid(32))
+        )),
+        "{got:?}"
+    );
     assert_eq!(got[1], "addresses taken from invite: 1");
     drop(rx);
     within("end of run", task).await.unwrap();
@@ -88,7 +108,9 @@ async fn run_waits_until_out_closed() {
     let (tx, mut rx) = mpsc::channel(8);
     let mut task = tokio::spawn(cache(vec![addr(41, &[])], pid(1)).run_source(tx));
     assert_eq!(take(&mut rx).await.id, pid(41));
-    assert!(tokio::time::timeout(Duration::from_millis(300), &mut task).await.is_err());
+    assert!(tokio::time::timeout(Duration::from_millis(300), &mut task)
+        .await
+        .is_err());
     drop(rx);
     within("end of run", task).await.unwrap();
 }
@@ -104,8 +126,12 @@ async fn empty_list_says_nothing() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(lines("cache", after).is_empty());
     assert!(lines("invite", after).is_empty());
-    assert!(tokio::time::timeout(Duration::from_millis(100), &mut a).await.is_err());
-    assert!(tokio::time::timeout(Duration::from_millis(100), &mut b).await.is_err());
+    assert!(tokio::time::timeout(Duration::from_millis(100), &mut a)
+        .await
+        .is_err());
+    assert!(tokio::time::timeout(Duration::from_millis(100), &mut b)
+        .await
+        .is_err());
     drop((rx, rx2));
     within("end of cache", a).await.unwrap();
     within("end of invite", b).await.unwrap();
@@ -120,7 +146,13 @@ async fn closed_out_returns_at_once() {
     within("run", cache(vec![addr(51, &[])], pid(1)).run_source(tx)).await;
     let got = lines("cache", after);
     assert_eq!(got.len(), 2, "{got:?}");
-    assert!(got[0].starts_with(&format!("address {} not accepted: ", short_peer_id(&pid(51)))), "{got:?}");
+    assert!(
+        got[0].starts_with(&format!(
+            "address {} not accepted: ",
+            short_peer_id(&pid(51))
+        )),
+        "{got:?}"
+    );
     assert_eq!(got[1], "peer addresses taken from cache: 0");
 }
 
@@ -137,11 +169,11 @@ async fn names_and_publish() {
 /// The node's source list from the config (6b): order `invite`, `cache`.
 mod node_list {
     use super::*;
-    use crate::net_mainline::record::RosterEntry;
-    use crate::network_key::NetworkKey;
+    use crate::members::network_key::NetworkKey;
     use crate::node::config::NodeConfig;
-    use crate::peers_cache::PeersCache;
-    use crate::telemetry::Telemetry;
+    use crate::node::telemetry::Telemetry;
+    use crate::transport::net_mainline::record::RosterEntry;
+    use crate::transport::peers_cache::PeersCache;
 
     fn filled_cache() -> PeersCache {
         let mut cache = PeersCache::load(None, "net", 1000);
@@ -156,7 +188,10 @@ mod node_list {
     }
 
     fn names(cfg: &NodeConfig, cache: &PeersCache, subkeys: &SubKeys) -> Vec<&'static str> {
-        node_sources(cfg, cache, pid(1), subkeys, &Telemetry::new(), None).iter().map(|d| d.name()).collect()
+        node_sources(cfg, cache, pid(1), subkeys, &Telemetry::new(), None)
+            .iter()
+            .map(|d| d.name())
+            .collect()
     }
 
     /// A node config with a non-empty invite and everything `node_sources` needs; the discovery order is the build default.
@@ -254,15 +289,32 @@ mod node_list {
         let tel = Telemetry::new();
         let h = seen_handler(tel.clone());
         // when: a record with 3 members is read and published, then 3 again and then 4
-        h(DhtRoundOutcome { read: true, members: 3, published: true });
+        h(DhtRoundOutcome {
+            read: true,
+            members: 3,
+            published: true,
+        });
         let v = tel.view();
         // then: read, publish and join are marked
         assert_eq!(v.dht_read.map(|r| r.1), Some(3));
         assert!(v.dht_joined && v.last_publish.is_some() && v.record_published);
-        h(DhtRoundOutcome { read: true, members: 3, published: true });
-        h(DhtRoundOutcome { read: true, members: 4, published: true });
-        let lines = crate::output::log_page(0, 10_000).lines;
-        let n = |m: &str| lines.iter().filter(|l| l.tag == "hyperdht" && l.text.contains(m)).count();
+        h(DhtRoundOutcome {
+            read: true,
+            members: 3,
+            published: true,
+        });
+        h(DhtRoundOutcome {
+            read: true,
+            members: 4,
+            published: true,
+        });
+        let lines = crate::node::output::log_page(0, 10_000).lines;
+        let n = |m: &str| {
+            lines
+                .iter()
+                .filter(|l| l.tag == "hyperdht" && l.text.contains(m))
+                .count()
+        };
         assert_eq!(n("peers 3"), 1, "a repeat of the same N isn't written");
         assert_eq!(n("peers 4"), 1);
     }
@@ -270,7 +322,11 @@ mod node_list {
     #[test]
     fn seen_handler_unread_leaves_no_read_time() {
         let tel = Telemetry::new();
-        seen_handler(tel.clone())(DhtRoundOutcome { read: false, members: 0, published: false });
+        seen_handler(tel.clone())(DhtRoundOutcome {
+            read: false,
+            members: 0,
+            published: false,
+        });
         let v = tel.view();
         assert!(v.dht_read.is_none() && !v.dht_joined);
     }

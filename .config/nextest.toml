@@ -18,7 +18,7 @@ test-group = 'heavy-net'
 # marks the test FLAKY rather than red; a real breakage is red in all three attempts. The filter is by full
 # name: the `mem` variant gets no retries.
 [[profile.default.overrides]]
-filter = 'test(=net_hyper::contract_tests::transport::streams::hundred_streams_echo_every_byte)'
+filter = 'test(=transport::net_hyper::contract_tests::transport::streams::hundred_streams_echo_every_byte)'
 # A retry immediately hits the same load peak, so there is a pause before each retry.
 retries = { backoff = "fixed", count = 2, delay = "30s" }
 

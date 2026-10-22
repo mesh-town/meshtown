@@ -17,8 +17,8 @@ use std::net::TcpStream;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use meshtown::config_file::{self, CliOverrides, ConfigSource};
-use meshtown::web::{self, WebOptions, WebStartError, DEFAULT_DRAIN, TOKEN_FILE_NAME};
+use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource};
+use meshtown_core::web_gui::{self, WebOptions, WebStartError, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 use serde_json::{json, Value};
 
 use common::{api, cleanup, read_one_response, run_config, scratch, start_web, TestNode};
@@ -38,7 +38,11 @@ fn assert_token_file_matches(token_path: &std::path::Path, shared_token: &str) -
         .trim()
         .to_string();
     const ALPHABET: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-    assert_eq!(file_token.chars().count(), 52, "the token must be 52 characters");
+    assert_eq!(
+        file_token.chars().count(),
+        52,
+        "the token must be 52 characters"
+    );
     assert!(
         file_token.chars().all(|c| ALPHABET.contains(c)),
         "the token must be from the alphabet without i,l,o,u"
@@ -127,7 +131,7 @@ async fn disabled_does_not_start() {
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let result = web::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
+    let result = web_gui::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
     assert!(
         matches!(result, Err(WebStartError::Disabled)),
         "enabled: false must give Err(Disabled)"
@@ -153,7 +157,7 @@ async fn busy_port_is_error() {
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let result = web::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
+    let result = web_gui::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
     match result {
         Err(WebStartError::Bind { port, .. }) => {
             assert_eq!(port, busy_port, "the error must name the same port");
@@ -182,12 +186,18 @@ async fn stop_then_503() {
     );
     assert_eq!(status_busy, 409);
     assert_eq!(busy_body.get("error").and_then(Value::as_str), Some("busy"));
-    let message = busy_body.get("message").and_then(Value::as_str).unwrap_or_default();
+    let message = busy_body
+        .get("message")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     assert!(!message.is_empty(), "message must contain the node's text");
 
     let (status_stop, stop_body) = api(port, &token, "POST", "/api/actions/stop", None);
     assert_eq!(status_stop, 202);
-    assert_eq!(stop_body.get("stopping").and_then(Value::as_bool), Some(true));
+    assert_eq!(
+        stop_body.get("stopping").and_then(Value::as_bool),
+        Some(true)
+    );
     assert!(node.got_call("stop"), "TestNode must get stop");
 
     let (status0, cfg0) = api(port, &token, "GET", "/api/config", None);
@@ -202,7 +212,10 @@ async fn stop_then_503() {
         Some(json!({"rev": rev0, "config": doc})),
     );
     assert_eq!(status_put, 503);
-    assert_eq!(put_body.get("error").and_then(Value::as_str), Some("stopping"));
+    assert_eq!(
+        put_body.get("error").and_then(Value::as_str),
+        Some("stopping")
+    );
 
     let (status_state, _) = api(port, &token, "GET", "/api/state", None);
     assert_eq!(status_state, 200);
@@ -218,15 +231,29 @@ fn assert_config_and_state_without_file(port: u16, token: &str) -> Value {
     let (status_cfg, cfg) = api(port, token, "GET", "/api/config", None);
     assert_eq!(status_cfg, 200);
     assert_eq!(cfg.pointer("/file/path"), Some(&Value::Null));
-    assert_eq!(cfg.pointer("/file/writable").and_then(Value::as_bool), Some(false));
-    let message = cfg.pointer("/file/message").and_then(Value::as_str).unwrap_or_default();
+    assert_eq!(
+        cfg.pointer("/file/writable").and_then(Value::as_bool),
+        Some(false)
+    );
+    let message = cfg
+        .pointer("/file/message")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     assert_eq!(message, "the settings file is not used (--no-config)");
     assert_eq!(cfg.get("rev").and_then(Value::as_u64), Some(0));
 
     let (status_state, state) = api(port, token, "GET", "/api/state", None);
     assert_eq!(status_state, 200);
-    assert_eq!(state.pointer("/node/identity").and_then(Value::as_str), Some("temporary"));
-    assert_eq!(state.pointer("/node/identity_reason").and_then(Value::as_str), Some("declined"));
+    assert_eq!(
+        state.pointer("/node/identity").and_then(Value::as_str),
+        Some("temporary")
+    );
+    assert_eq!(
+        state
+            .pointer("/node/identity_reason")
+            .and_then(Value::as_str),
+        Some("declined")
+    );
 
     cfg
 }
@@ -256,11 +283,18 @@ fn assert_create_network_without_file(port: u16, token: &str, concrete: &TestNod
         .and_then(Value::as_str)
         .unwrap_or_default()
         .to_string();
-    assert!(concrete.got_call("switch"), "TestNode must get switch after create without a file");
+    assert!(
+        concrete.got_call("switch"),
+        "TestNode must get switch after create without a file"
+    );
 
     let (status_rev_after, cfg_after) = api(port, token, "GET", "/api/config", None);
     assert_eq!(status_rev_after, 200);
-    assert_eq!(cfg_after.get("rev").and_then(Value::as_u64), Some(0), "rev must stay 0 without a file");
+    assert_eq!(
+        cfg_after.get("rev").and_then(Value::as_u64),
+        Some(0),
+        "rev must stay 0 without a file"
+    );
 
     let (status_key, key_body) = api(port, token, "GET", "/api/network/key", None);
     assert_eq!(status_key, 200);
@@ -276,11 +310,14 @@ async fn no_config_file() {
         .expect("prepare");
     run.effective_settings.process.web_access = config_file::ListenAccess::Localhost;
     let mut opts = WebOptions::for_run(&run);
-    assert!(opts.token_dir.is_none(), "without a config file token_dir must be None");
+    assert!(
+        opts.token_dir.is_none(),
+        "without a config file token_dir must be None"
+    );
     opts.port = 0;
 
     let concrete = Arc::new(TestNode::new());
-    let handle = web::start_web_page(opts, &run, concrete.clone())
+    let handle = web_gui::start_web_page(opts, &run, concrete.clone())
         .await
         .expect("start without a config must come up");
     let port = handle.shared.port();
@@ -288,7 +325,10 @@ async fn no_config_file() {
 
     assert_eq!(token.chars().count(), 52, "the token must be 52 characters");
     let cwd_token = std::env::current_dir().unwrap().join(TOKEN_FILE_NAME);
-    assert!(!cwd_token.exists(), "web-token must not appear in the process's current directory");
+    assert!(
+        !cwd_token.exists(),
+        "web-token must not appear in the process's current directory"
+    );
 
     let cfg = assert_config_and_state_without_file(port, &token);
     assert_create_network_without_file(port, &token, &concrete, &cfg);
@@ -302,7 +342,9 @@ async fn no_config_file() {
 fn served_keep_alive_stream(port: u16, token: &str) -> TcpStream {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("connect");
     stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
-    let req = format!("GET /api/state HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Meshtown-Token: {token}\r\n\r\n");
+    let req = format!(
+        "GET /api/state HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nX-Meshtown-Token: {token}\r\n\r\n"
+    );
     stream.write_all(req.as_bytes()).expect("write");
     let resp = read_one_response(&mut stream);
     assert_eq!(resp.status, 200);
@@ -326,7 +368,7 @@ async fn shutdown_true_when_loop_wakes_late() {
         drain: Duration::from_millis(100),
     };
     let node = Arc::new(TestNode::new());
-    let handle = web::start_web_page(opts, &run, node)
+    let handle = web_gui::start_web_page(opts, &run, node)
         .await
         .expect("start with drain=100 ms must come up");
     let port = handle.shared.port();
@@ -339,7 +381,9 @@ async fn shutdown_true_when_loop_wakes_late() {
         let _ = started_tx.send(());
         std::thread::sleep(Duration::from_millis(50));
     });
-    started_rx.await.expect("the busy thread must report that it started");
+    started_rx
+        .await
+        .expect("the busy thread must report that it started");
 
     let began = Instant::now();
     let ok = handle.shutdown(Duration::from_millis(100)).await;
@@ -349,7 +393,10 @@ async fn shutdown_true_when_loop_wakes_late() {
         ok,
         "shutdown must return true: the loop woke late but fit within the tail reserve"
     );
-    assert!(elapsed < Duration::from_secs(1), "shutdown took too long: {elapsed:?}");
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "shutdown took too long: {elapsed:?}"
+    );
 
     drop(stream);
     cleanup(&dir);
@@ -372,7 +419,10 @@ async fn shutdown_short_deadline_is_bounded() {
     let ok = handle.shutdown(Duration::from_millis(100)).await;
     let elapsed = began.elapsed();
 
-    assert!(!ok, "with a short deadline and a live connection shutdown must return false");
+    assert!(
+        !ok,
+        "with a short deadline and a live connection shutdown must return false"
+    );
     assert!(
         elapsed < Duration::from_secs(1),
         "shutdown must not wait for the whole drain (2 s): took {elapsed:?}"
@@ -380,7 +430,10 @@ async fn shutdown_short_deadline_is_bounded() {
 
     drop(stream);
     let err = TcpStream::connect(("127.0.0.1", port));
-    assert!(err.is_err(), "after the stop the port must not accept connections");
+    assert!(
+        err.is_err(),
+        "after the stop the port must not accept connections"
+    );
 
     cleanup(&dir);
 }

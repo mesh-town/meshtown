@@ -4,7 +4,10 @@ use super::*;
 
 #[test]
 fn parse_proxy_line_reads_four_commands() {
-    assert_eq!(parse_proxy_line("socks").unwrap().unwrap(), ProxyCommand::Socks);
+    assert_eq!(
+        parse_proxy_line("socks").unwrap().unwrap(),
+        ProxyCommand::Socks
+    );
     assert_eq!(
         parse_proxy_line("route example.com").unwrap().unwrap(),
         ProxyCommand::Route("example.com".to_string())
@@ -13,8 +16,14 @@ fn parse_proxy_line_reads_four_commands() {
         parse_proxy_line("get example.com").unwrap().unwrap(),
         ProxyCommand::Get("example.com".to_string())
     );
-    assert_eq!(parse_proxy_line("exit on").unwrap().unwrap(), ProxyCommand::Exit(true));
-    assert_eq!(parse_proxy_line("exit off").unwrap().unwrap(), ProxyCommand::Exit(false));
+    assert_eq!(
+        parse_proxy_line("exit on").unwrap().unwrap(),
+        ProxyCommand::Exit(true)
+    );
+    assert_eq!(
+        parse_proxy_line("exit off").unwrap().unwrap(),
+        ProxyCommand::Exit(false)
+    );
 }
 
 #[test]

@@ -43,8 +43,14 @@ fn string_has_no_key_base32() {
     let key_base32 = BASE32_NOPAD
         .encode(&net_key.to_bytes())
         .to_ascii_lowercase();
-    assert!(!s.contains(&key_base32), "the string has the network key in base32");
-    assert!(!s.contains(&net_key.encode()), "the string has the network key mesh1-…");
+    assert!(
+        !s.contains(&key_base32),
+        "the string has the network key in base32"
+    );
+    assert!(
+        !s.contains(&net_key.encode()),
+        "the string has the network key mesh1-…"
+    );
 }
 
 #[test]

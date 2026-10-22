@@ -8,16 +8,16 @@
 //! that the connection through B closed and the direct one did not.
 //! What it does not do: does not check the switch to the next candidate, the TUN path and reopening the
 //! connection after the exit is removed — outside the task's boundary.
-//! Links: `meshtown::route::RouteCtx::wait_until_exit_dropped`, `meshtown::proxy::path::splice_while_chosen`,
-//! `meshtown::exit::splice`; the harness is `core/tests/common/socks_pair.rs`.
+//! Links: `meshtown_core::proxy::route::RouteCtx::wait_until_exit_dropped`, `meshtown_core::proxy::path::splice_while_chosen`,
+//! `meshtown_core::exit::splice`; the harness is `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
 
 use std::time::Duration;
 
-use meshtown::route::Route;
-use meshtown::socks5;
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
@@ -41,7 +41,11 @@ async fn exit_connection_closes_when_exit_unchosen_direct_survives() {
     // goes through B.
     a.set_route_exits(vec![b.id]);
     let route = wait_exit_route(&a, Duration::from_secs(20)).await;
-    assert_eq!(route, Route::Exits(vec![b.id]), "the route must lead through B");
+    assert_eq!(
+        route,
+        Route::Exits(vec![b.id]),
+        "the route must lead through B"
+    );
     let mut e = socks5::client_connect(proxy, "outside.test", 80)
         .await
         .unwrap();

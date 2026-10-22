@@ -1,8 +1,8 @@
 use super::*;
-use crate::net::{PeerAddr, AUTH};
+use crate::transport::net::{PeerAddr, AUTH};
 
 fn secret() -> NodeSecret {
-    crate::config_file::new_secret().unwrap()
+    crate::config::config_file::new_secret().unwrap()
 }
 
 /// A peer dialed by id alone, with no hint in the address.
@@ -45,5 +45,8 @@ async fn restarted_peer_new_slot() {
     b2.serve(&[AUTH]);
     let to = PeerAddr::new(sb.peer_id());
     assert!(a.can_reach(&to));
-    assert!(a.connect(&to, AUTH).await.is_ok(), "expected a connection to the new slot");
+    assert!(
+        a.connect(&to, AUTH).await.is_ok(),
+        "expected a connection to the new slot"
+    );
 }

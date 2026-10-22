@@ -34,15 +34,30 @@ pub(crate) struct Frame {
 
 impl Frame {
     pub fn keepalive(conn_id: u16) -> Frame {
-        Frame { flags: FLAG_KEEPALIVE, conn_id, target: None, data: Vec::new() }
+        Frame {
+            flags: FLAG_KEEPALIVE,
+            conn_id,
+            target: None,
+            data: Vec::new(),
+        }
     }
 
     pub fn error(conn_id: u16) -> Frame {
-        Frame { flags: FLAG_ERR, conn_id, target: None, data: Vec::new() }
+        Frame {
+            flags: FLAG_ERR,
+            conn_id,
+            target: None,
+            data: Vec::new(),
+        }
     }
 
     pub fn data(conn_id: u16, from: SocketAddr, data: Vec<u8>) -> Frame {
-        Frame { flags: FLAG_DATA, conn_id, target: Some(Target::Ip(from)), data }
+        Frame {
+            flags: FLAG_DATA,
+            conn_id,
+            target: Some(Target::Ip(from)),
+            data,
+        }
     }
 }
 
@@ -91,8 +106,17 @@ pub(crate) fn parse_body(body: &[u8]) -> Result<Frame> {
     let mut rest = body;
     let head = take(&mut rest, HEADER_LEN)?;
     let (flags, conn_id) = (head[0], u16::from_be_bytes([head[1], head[2]]));
-    let target = if flags & FLAG_DATA == FLAG_DATA { Some(parse_target(&mut rest)?) } else { None };
-    Ok(Frame { flags, conn_id, target, data: rest.to_vec() })
+    let target = if flags & FLAG_DATA == FLAG_DATA {
+        Some(parse_target(&mut rest)?)
+    } else {
+        None
+    };
+    Ok(Frame {
+        flags,
+        conn_id,
+        target,
+        data: rest.to_vec(),
+    })
 }
 
 /// Reads one whole frame; an end of stream before the first byte is `UnexpectedEof`.

@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::network_key::{self, NetworkKey};
+use crate::members::network_key::{self, NetworkKey};
 
 /// How many seconds an invite is valid from the moment of issue (a day).
 pub const INVITE_TTL_SECS: u64 = 86_400;
@@ -16,7 +16,8 @@ pub const INVITE_TTL_SECS: u64 = 86_400;
 const CTX_INVITE_SECRET: &str = "meshtown invite secret v1";
 
 /// The refusal text for an expired invite.
-const TEXT_EXPIRED: &str = "The invite was issued more than a day ago and is no longer valid. Ask a \
+const TEXT_EXPIRED: &str =
+    "The invite was issued more than a day ago and is no longer valid. Ask a \
     network member for a new one.";
 
 /// The one-time invite secret (32 bytes); it does not get into the log or `Debug`.

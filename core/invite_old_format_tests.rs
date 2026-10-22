@@ -38,7 +38,10 @@ mod parse_of_it {
             !text.contains("unreadable"),
             "damage text instead of T1: {text}"
         );
-        assert!(!text.contains("more than a day ago"), "T2 text instead of T1: {text}");
+        assert!(
+            !text.contains("more than a day ago"),
+            "T2 text instead of T1: {text}"
+        );
     }
 }
 

@@ -8,7 +8,7 @@
 //! a timeout fails the test instead of hanging the run.
 //! What it doesn't do: it doesn't go through SOCKS (that is `core/tests/socks_stream_wait.rs`) and doesn't send exit
 //! request frames — the streams are empty, and B doesn't see them until they are closed.
-//! Links: `meshtown::exit::PeerConnPool`; scaffolding in `core/tests/common/socks_pair.rs`.
+//! Links: `meshtown_core::exit::PeerConnPool`; scaffolding in `core/tests/common/socks_pair.rs`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
@@ -16,9 +16,9 @@ mod common;
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
-use meshtown::exit::{PeerConnPool, StreamBusy};
-use meshtown::net::StreamPair;
-use meshtown::node::RunningNode;
+use meshtown_core::exit::{PeerConnPool, StreamBusy};
+use meshtown_core::node::RunningNode;
+use meshtown_core::transport::net::StreamPair;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 
@@ -43,7 +43,6 @@ mod limit_reached {
         use super::*;
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-
         #[ignore = "the max_bidi_streams stream limit has no effect on mem: MemConn needs a limiter"]
         async fn second_stream_times_out_with_waiting_count() {
             // given: B's limit is taken by a held stream
@@ -72,7 +71,6 @@ mod limit_reached {
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-
         #[ignore = "the max_bidi_streams stream limit has no effect on mem: MemConn needs a limiter"]
         async fn timeout_error_is_typed_stream_busy() {
             // given: B's limit is taken by a held stream
@@ -84,12 +82,15 @@ mod limit_reached {
 
             // then: the error contains `StreamBusy` with the number of waiters
             let busy = error.downcast_ref::<StreamBusy>();
-            assert_eq!(busy.map(|b| b.open_bi_waiter_count), Some(1), "no StreamBusy: {error:#}");
+            assert_eq!(
+                busy.map(|b| b.open_bi_waiter_count),
+                Some(1),
+                "no StreamBusy: {error:#}"
+            );
             fx.then_nobody_waiting();
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-
         #[ignore = "the max_bidi_streams stream limit has no effect on mem: MemConn needs a limiter"]
         async fn two_waiters_count_each_other() {
             // given: B's limit is taken by a held stream
@@ -101,7 +102,8 @@ mod limit_reached {
 
             // then: both are refused, at least one error shows both waiters, the counter is clean
             assert!(
-                first.contains("waiting for a stream: 2") || second.contains("waiting for a stream: 2"),
+                first.contains("waiting for a stream: 2")
+                    || second.contains("waiting for a stream: 2"),
                 "neither error has 'waiting for a stream: 2': [{first}] [{second}]"
             );
             fx.then_nobody_waiting();
@@ -112,7 +114,6 @@ mod limit_reached {
         use super::*;
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-
         #[ignore = "the max_bidi_streams stream limit has no effect on mem: MemConn needs a limiter"]
         async fn dropped_wait_releases_counter() {
             // given: B's limit is taken by a held stream, a second stream waits for a slot
@@ -120,7 +121,11 @@ mod limit_reached {
             let _held = fx.when_slots_taken().await;
             let waiter = fx.when_stream_wait_starts();
             sleep(Duration::from_millis(100)).await;
-            assert_eq!(fx.pool.open_bi_waiter_count(), 1, "the waiter didn't get into the counter");
+            assert_eq!(
+                fx.pool.open_bi_waiter_count(),
+                1,
+                "the waiter didn't get into the counter"
+            );
 
             // when: the waiting future is dropped
             waiter.abort();
@@ -189,7 +194,10 @@ impl Fixture {
         let mut held = Vec::new();
         for n in 1..=STREAMS_LIMIT {
             let opened = within(self.pool.open_peer_stream(&self.a.stack, self.b.id)).await;
-            held.push(opened.unwrap_or_else(|e| panic!("stream #{n} within the limit didn't open: {e:#}")));
+            held.push(
+                opened
+                    .unwrap_or_else(|e| panic!("stream #{n} within the limit didn't open: {e:#}")),
+            );
         }
         held
     }
@@ -235,9 +243,9 @@ impl Fixture {
 
 /// Waits for a request no longer than `NET_LIMIT`: code without a timeout makes the test panic instead of hanging.
 async fn within<T>(request: impl std::future::Future<Output = T>) -> T {
-    timeout(NET_LIMIT, request)
-        .await
-        .unwrap_or_else(|_| panic!("the stream request didn't return within {NET_LIMIT:?}: there is no timeout"))
+    timeout(NET_LIMIT, request).await.unwrap_or_else(|_| {
+        panic!("the stream request didn't return within {NET_LIMIT:?}: there is no timeout")
+    })
 }
 
 fn refusal_text(opened: Result<Held>) -> String {

@@ -68,7 +68,10 @@ pub fn encode_exit_request(target_host: &str, port: u16) -> Result<Vec<u8>> {
 /// Parses a request frame. A pure function: no networking inside.
 pub fn parse_exit_request(buf: &[u8]) -> Result<(String, u16)> {
     if buf.len() < 4 {
-        bail!("the request frame is shorter than four bytes: {}", buf.len());
+        bail!(
+            "the request frame is shorter than four bytes: {}",
+            buf.len()
+        );
     }
     if buf[0] != EXIT_PROTOCOL_VERSION {
         bail!("unsupported request frame version: {}", buf[0]);

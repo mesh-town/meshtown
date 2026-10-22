@@ -10,8 +10,10 @@ use bytes::Bytes;
 use tokio::sync::broadcast;
 use tokio::time::Instant;
 
-use crate::membership::Members;
-use crate::net::{BoxFuture, Membership, NetError, NetResult, NodeSecret, PeerId, SwarmEvent};
+use crate::members::membership::Members;
+use crate::transport::net::{
+    BoxFuture, Membership, NetError, NetResult, NodeSecret, PeerId, SwarmEvent,
+};
 
 use super::{rejoin_if_alone, Rejoin};
 
@@ -118,11 +120,7 @@ mod tick_alone_with_members {
         // then: exactly one invite, and it holds both members without duplicates
         let joins = f.then_joins();
         assert_eq!(joins.len(), 1, "invites: {joins:?}");
-        assert_eq!(
-            joins[0].len(),
-            2,
-            "the list must hold exactly two members"
-        );
+        assert_eq!(joins[0].len(), 2, "the list must hold exactly two members");
         let invited: HashSet<PeerId> = joins[0].iter().copied().collect();
         assert_eq!(
             invited,
@@ -145,7 +143,10 @@ mod tick_with_neighbors {
 
         // then: no invites
         let joins = f.then_joins();
-        assert!(joins.is_empty(), "no need to call with a peer present: {joins:?}");
+        assert!(
+            joins.is_empty(),
+            "no need to call with a peer present: {joins:?}"
+        );
     }
 }
 

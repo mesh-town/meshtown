@@ -32,7 +32,10 @@ fn made_twenty_five_hours_ago_is_refused_with_the_expired_text() {
     let err = check_fresh(&head_made_at(NOW), NOW + 25 * HOUR).unwrap_err();
     let text = format!("{err:#}");
     assert!(text.contains("more than a day ago"), "{text}");
-    assert!(!text.contains("old format"), "T1 text instead of T2: {text}");
+    assert!(
+        !text.contains("old format"),
+        "T1 text instead of T2: {text}"
+    );
 }
 
 #[test]

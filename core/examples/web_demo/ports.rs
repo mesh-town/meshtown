@@ -2,7 +2,7 @@
 //! `apply_config` puts the new list there), while "Network ports" is one fixture: the first demo member
 //! publishes port 9000. A port opened here (`ports.opened`) is shown as listening.
 
-use meshtown::web::{NetPort, OpenedInfo, OwnPort, PortsInfo};
+use meshtown_core::web_gui::{NetPort, OpenedInfo, OwnPort, PortsInfo};
 
 use crate::node::DemoState;
 
@@ -11,7 +11,8 @@ const FIXTURE_NAME: &str = "demo-web";
 
 fn own_rows(st: &DemoState) -> Vec<OwnPort> {
     st.settings
-        .net.ports_published
+        .net
+        .ports_published
         .iter()
         .map(|p| OwnPort {
             port: p.port,
@@ -23,7 +24,8 @@ fn own_rows(st: &DemoState) -> Vec<OwnPort> {
 
 fn opened_info(st: &DemoState, node: &str, port: u16) -> Option<OpenedInfo> {
     st.settings
-        .net.ports_opened
+        .net
+        .ports_opened
         .iter()
         .find(|o| o.node.to_string() == node && o.port == port)
         .map(|o| OpenedInfo {

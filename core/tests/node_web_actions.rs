@@ -1,8 +1,8 @@
 //! Integration tests of a real node behind the web listener (the page listener): status, stop,
-//! network change, a second member, a domain — over bare TCP through `meshtown::*`.
+//! network change, a second member, a domain — over bare TCP through `meshtown_core::*`.
 //! What it doesn't do: it doesn't edit `src/web.rs`/`core/web/*.rs`/`tests/web_listener_*.rs` — it only calls
 //! their public interface. It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
-//! Links: the web listener (`meshtown::web`);
+//! Links: the web listener (`meshtown_core::web_gui`);
 //! scaffolding in `core/tests/common/node_web.rs` (`#[path]`, shared with `core/tests/node_web_bootstrap.rs`).
 
 #[path = "common/node_web.rs"]
@@ -10,10 +10,10 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::output;
-use meshtown::web::DEFAULT_DRAIN;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::output;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
 use common::{api, boot, cleanup, teardown, wait_ready, wait_until};
@@ -109,7 +109,10 @@ async fn switch_network_gets_new_boot_id_without_shrinking_log() {
             && v["node"]["status"] != json!("starting")
     })
     .await;
-    assert!(ok, "the node's new cycle didn't come up with a new boot_id within 10 s");
+    assert!(
+        ok,
+        "the node's new cycle didn't come up with a new boot_id within 10 s"
+    );
 
     let (_, after) = api(booted.port, &booted.token, "GET", "/api/state", None);
     let last_seq_after = after["log"]["last_seq"].as_u64().unwrap();

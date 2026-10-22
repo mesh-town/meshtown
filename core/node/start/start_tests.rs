@@ -1,5 +1,5 @@
 use super::*;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 use tokio::time::{timeout, Instant};
 
 /// After `shutdown` all background tasks started in `start_node` must abort —
@@ -7,7 +7,9 @@ use tokio::time::{timeout, Instant};
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shutdown_aborts_background_tasks() {
     let key = NetworkKey::generate().unwrap();
-    let node = start_node(NodeConfig::for_loopback_test(key)).await.unwrap();
+    let node = start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap();
     let tasks = node.background_abort_handles.clone();
     assert!(
         !tasks.is_empty(),
@@ -61,7 +63,10 @@ mod stopped_node {
             returned,
             "two shutdowns did not return within {BOTH_SHUTDOWNS_LIMIT:?}"
         );
-        assert!(stack.is_closed(), "the stack is not closed after two shutdowns");
+        assert!(
+            stack.is_closed(),
+            "the stack is not closed after two shutdowns"
+        );
     }
 }
 
@@ -74,7 +79,11 @@ mod started_node {
         // given: a loopback node
         let node = loopback_node().await;
         // then: the stack is up under the node's key, with a single mem transport
-        assert_eq!(node.stack.me(), node.id, "NetStackBuilder took a foreign key");
+        assert_eq!(
+            node.stack.me(),
+            node.id,
+            "NetStackBuilder took a foreign key"
+        );
         assert_eq!(node.stack.snapshot().transport_names, ["mem"]);
         node.shutdown().await;
     }
@@ -82,7 +91,6 @@ mod started_node {
 
 // assumption: `RunningNode.background_abort_handles: Arc<Vec<AbortHandle>>` (the field is visible from the test — it is already read by
 // `shutdown_aborts_background_tasks`); `NodeConfig.geoip: bool`;
-
 
 /// Background tasks that depend on settings: joining the DHT lives in the stack, the country
 /// poll depends on `geoip`. Every `AbortHandle` must land in `boot.background_abort_handles`, otherwise that guarantee won't hold.
@@ -93,11 +101,11 @@ mod background_tasks {
     async fn start_registers_dht_and_geo_tasks() {
         // given: a node without a geo check and a node with a geo check
         let plain = setup(Opts::default()).await;
-        let with_both = setup(Opts {
-            geoip: true,
-        })
-        .await;
-        let (plain_tasks, both_tasks) = (plain.background_abort_handles.len(), with_both.background_abort_handles.len());
+        let with_both = setup(Opts { geoip: true }).await;
+        let (plain_tasks, both_tasks) = (
+            plain.background_abort_handles.len(),
+            with_both.background_abort_handles.len(),
+        );
         let handles = with_both.background_abort_handles.clone();
         // when: both are up
         // then: the second has exactly one more task — the country poll; the DHT lives in the stack (6b), not in `background_abort_handles`
@@ -150,11 +158,12 @@ async fn all_finished_within(tasks: &[tokio::task::AbortHandle], limit: Duration
     tasks.iter().all(|h| h.is_finished())
 }
 
-
 /// A loopback node without relay and DHT, with a new network key.
 async fn loopback_node() -> RunningNode {
     let key = NetworkKey::generate().unwrap();
-    start_node(NodeConfig::for_loopback_test(key)).await.unwrap()
+    start_node(NodeConfig::for_loopback_test(key))
+        .await
+        .unwrap()
 }
 
 /// Calls `shutdown` on two holders at once; `true` — both returned in time.
@@ -171,13 +180,15 @@ mod discovery_wiring {
         // a node with an invite writes the "invite" summary into the shared log — the source line tests wait their turn
         let _log = crate::node::discovery_sources::tests::LOG_LOCK.lock().await;
         let key = NetworkKey::generate().unwrap();
-        let bare = start_node(NodeConfig::for_loopback_test(key.clone())).await.unwrap();
+        let bare = start_node(NodeConfig::for_loopback_test(key.clone()))
+            .await
+            .unwrap();
         assert!(bare.stack.snapshot().discovery_names.is_empty());
         bare.shutdown().await;
 
         let mut cfg = NodeConfig::for_loopback_test(key);
-        let other = crate::net::facade::test_support::pid(70);
-        cfg.initial_peers = vec![crate::net::PeerAddr::new(other)];
+        let other = crate::transport::net::facade::test_support::pid(70);
+        cfg.initial_peers = vec![crate::transport::net::PeerAddr::new(other)];
         let node = start_node(cfg).await.unwrap();
         assert_eq!(node.stack.snapshot().discovery_names, ["invite"]);
         node.shutdown().await;
@@ -200,7 +211,10 @@ mod close_on_err_seam {
         .unwrap_err();
         // then: the same error, the stack is closed
         assert_eq!(err.to_string(), "phase failed");
-        assert!(node.stack.is_closed(), "a phase error did not close the stack");
+        assert!(
+            node.stack.is_closed(),
+            "a phase error did not close the stack"
+        );
         node.shutdown().await;
     }
 
@@ -212,7 +226,10 @@ mod close_on_err_seam {
         let done = close_on_err(&node.stack, async { Ok(7) }).await.unwrap();
         // then: the same value, the stack is not closed
         assert_eq!(done, 7);
-        assert!(!node.stack.is_closed(), "a successful phase closed the stack");
+        assert!(
+            !node.stack.is_closed(),
+            "a successful phase closed the stack"
+        );
         node.shutdown().await;
     }
 }
@@ -262,9 +279,15 @@ mod socks_port_release {
     async fn foreign_listener_fails_start_with_same_text() {
         let foreign = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = foreign.local_addr().unwrap().port();
-        let err = start_node(socks_cfg(port)).await.err().expect("start on a busy port");
+        let err = start_node(socks_cfg(port))
+            .await
+            .err()
+            .expect("start on a busy port");
         let text = format!("{err:#}");
-        assert!(text.contains(&format!("port {port} {BUSY}")), "port {port}: {text}");
+        assert!(
+            text.contains(&format!("port {port} {BUSY}")),
+            "port {port}: {text}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -273,9 +296,15 @@ mod socks_port_release {
         let node = start_node(socks_cfg(port)).await.unwrap();
         node.shutdown().await;
         let _foreign = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap();
-        let err = start_node(socks_cfg(port)).await.err().expect("start on a busy port");
+        let err = start_node(socks_cfg(port))
+            .await
+            .err()
+            .expect("start on a busy port");
         let text = format!("{err:#}");
-        assert!(text.contains(&format!("port {port} {BUSY}")), "port {port}: {text}");
+        assert!(
+            text.contains(&format!("port {port} {BUSY}")),
+            "port {port}: {text}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

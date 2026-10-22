@@ -8,11 +8,12 @@
 use super::proof::sign_owner;
 use super::redeem::RedeemError;
 use super::wire::{
-    encode_invite_request, encode_owner_request, RedeemCode, RedeemReply, OWNER_REQUEST_LEN, REQUEST_LEN,
+    encode_invite_request, encode_owner_request, RedeemCode, RedeemReply, OWNER_REQUEST_LEN,
+    REQUEST_LEN,
 };
 use super::InviteHead;
-use crate::net::NodeSecret;
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
+use crate::transport::net::NodeSecret;
 
 /// Which request the client sends: the owner frame first; the older one once members turn out to be old.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -29,7 +30,11 @@ pub(super) struct Frames {
 
 impl Frames {
     /// The owner frame is signed for the one-time transport `transport_id`.
-    pub(super) fn new(head: &InviteHead, transport_id: crate::net::PeerId, owner: &NodeSecret) -> Self {
+    pub(super) fn new(
+        head: &InviteHead,
+        transport_id: crate::transport::net::PeerId,
+        owner: &NodeSecret,
+    ) -> Self {
         let sig = sign_owner(owner, &head.secret, transport_id);
         Frames {
             owner: encode_owner_request(&head.secret, owner.peer_id(), &sig),
@@ -63,7 +68,11 @@ impl Outcome {
 }
 
 /// The outcome of a round by the members' answers (a pure function).
-pub(super) fn round_outcome(answers: &[Option<RedeemReply>], network_id: [u8; 4], mode: Mode) -> Outcome {
+pub(super) fn round_outcome(
+    answers: &[Option<RedeemReply>],
+    network_id: [u8; 4],
+    mode: Mode,
+) -> Outcome {
     let replies: Vec<&RedeemReply> = answers.iter().flatten().collect();
     let keys = replies.iter().filter_map(|r| key_of(r));
     if let Some(own) = keys.clone().find(|k| k.subkeys().network_id == network_id) {
@@ -85,7 +94,9 @@ fn key_of(r: &RedeemReply) -> Option<&NetworkKey> {
 }
 
 fn code_of(r: &RedeemReply) -> Option<RedeemCode> {
-    let RedeemReply::Refused(c) = r else { return None };
+    let RedeemReply::Refused(c) = r else {
+        return None;
+    };
     Some(*c)
 }
 
@@ -107,7 +118,10 @@ pub(super) fn final_refusal(c: RedeemCode, mode: Mode) -> Option<RedeemError> {
 fn undecided(codes: &[RedeemCode], asked: usize) -> Outcome {
     let all_answered = !codes.is_empty() && codes.len() == asked;
     let all_bad = all_answered && codes.iter().all(|c| *c == RedeemCode::BadRequest);
-    let none_known = all_answered && codes.iter().all(|c| matches!(c, RedeemCode::Unknown | RedeemCode::BadRequest));
+    let none_known = all_answered
+        && codes
+            .iter()
+            .all(|c| matches!(c, RedeemCode::Unknown | RedeemCode::BadRequest));
     match (all_bad, none_known) {
         (true, _) => Outcome::Legacy,
         (false, true) => Outcome::AllUnknown,

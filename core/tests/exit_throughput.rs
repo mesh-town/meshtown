@@ -14,7 +14,7 @@ mod common;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use meshtown::socks5;
+use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -69,7 +69,12 @@ fn check(expected: &[u8], off: usize, chunk: &[u8]) {
     while pos < chunk.len() {
         let at = (off + pos) % BLOCK;
         let take = (chunk.len() - pos).min(BLOCK - at);
-        assert_eq!(&chunk[pos..pos + take], &expected[at..at + take], "body diverges at {}", off + pos);
+        assert_eq!(
+            &chunk[pos..pos + take],
+            &expected[at..at + take],
+            "body diverges at {}",
+            off + pos
+        );
         pos += take;
     }
 }
@@ -81,7 +86,7 @@ async fn exit_throughput() {
     let site = serve_big().await;
     let (a, b) = pair_with_static_exit(site).await;
     let route = wait_exit_route(&a, Duration::from_secs(20)).await;
-    assert_eq!(route, meshtown::route::Route::Exits(vec![b.id]));
+    assert_eq!(route, meshtown_core::proxy::route::Route::Exits(vec![b.id]));
 
     // when: the client pulls the body through node A's SOCKS5
     let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
@@ -111,5 +116,8 @@ async fn exit_throughput() {
     }
     assert_eq!(got, TOTAL, "body length");
     let secs = end.duration_since(start.unwrap()).as_secs_f64();
-    println!("throughput_mbit={:.1}", (TOTAL as f64 / 1048576.0) * 8.0 / secs);
+    println!(
+        "throughput_mbit={:.1}",
+        (TOTAL as f64 / 1048576.0) * 8.0 / secs
+    );
 }

@@ -6,7 +6,7 @@
 //! the 400/502 codes and that the same port still serves SOCKS5.
 //! Autoconfiguration file: `GET`/`HEAD /proxy.pac` on the same port.
 //! What it does not do: does not call an external `curl`, does not go to the internet, does not start TLS.
-//! Links: `meshtown::proxy` through `meshtown::node`, the client is `meshtown::http_min`.
+//! Links: `meshtown_core::proxy` through `meshtown_core::node`, the client is `meshtown_core::site_checks::http_min`.
 
 #[path = "common/socks_pair.rs"]
 mod common;
@@ -15,10 +15,10 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use meshtown::http_min::{self, HttpLimits, HttpGetRequest, HttpResponse};
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig, RunningNode};
-use meshtown::socks5;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::proxy::socks5;
+use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits, HttpResponse};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, timeout};
@@ -55,10 +55,17 @@ mod direct_path {
                 .await
                 .unwrap();
             sleep(Duration::from_millis(50)).await;
-            stream.write_all(b"Connection: close\r\n\r\n").await.unwrap();
+            stream
+                .write_all(b"Connection: close\r\n\r\n")
+                .await
+                .unwrap();
             let answer = read_all(&mut stream).await;
 
-            assert!(answer.starts_with(b"HTTP/1.1 200"), "reply: {}", lossy(&answer));
+            assert!(
+                answer.starts_with(b"HTTP/1.1 200"),
+                "reply: {}",
+                lossy(&answer)
+            );
             drop(node);
         }
 
@@ -78,8 +85,14 @@ mod direct_path {
             let seen = lossy(&read_until_head_end(&mut stream).await);
 
             // then
-            assert!(seen.starts_with("GET /a?b=1 HTTP/1.1\r\n"), "echo: {seen:?}");
-            assert!(seen.contains(&format!("Host: 127.0.0.1:{}", echo.port())), "echo: {seen:?}");
+            assert!(
+                seen.starts_with("GET /a?b=1 HTTP/1.1\r\n"),
+                "echo: {seen:?}"
+            );
+            assert!(
+                seen.contains(&format!("Host: 127.0.0.1:{}", echo.port())),
+                "echo: {seen:?}"
+            );
             assert!(seen.contains("Connection: close"), "echo: {seen:?}");
             assert!(!seen.contains("Proxy-Connection"), "echo: {seen:?}");
             assert!(!seen.contains("Host: x"), "echo: {seen:?}");
@@ -94,7 +107,11 @@ mod direct_path {
         async fn connect_then_get_returns_200_with_full_body() {
             let (node, proxy) = direct_node().await;
 
-            let (mut stream, status) = connect_via(proxy, b"CONNECT site.test:80 HTTP/1.1\r\nHost: site.test:80\r\n\r\n").await;
+            let (mut stream, status) = connect_via(
+                proxy,
+                b"CONNECT site.test:80 HTTP/1.1\r\nHost: site.test:80\r\n\r\n",
+            )
+            .await;
             let response = get(&mut stream, "/").await;
 
             assert!(status.contains("200"), "CONNECT status: {status:?}");
@@ -117,10 +134,21 @@ mod direct_path {
             let answer = read_all(&mut stream).await;
 
             let text = lossy(&answer);
-            let established = text.find("200 Connection established").expect("no reply to CONNECT");
-            let served = text.find("HTTP/1.1 200 OK").expect("the early request was lost");
-            assert!(established < served, "the site's reply came before the reply to CONNECT: {text:?}");
-            assert!(answer.len() >= BODY, "the body did not arrive in full: {} bytes", answer.len());
+            let established = text
+                .find("200 Connection established")
+                .expect("no reply to CONNECT");
+            let served = text
+                .find("HTTP/1.1 200 OK")
+                .expect("the early request was lost");
+            assert!(
+                established < served,
+                "the site's reply came before the reply to CONNECT: {text:?}"
+            );
+            assert!(
+                answer.len() >= BODY,
+                "the body did not arrive in full: {} bytes",
+                answer.len()
+            );
             drop(node);
         }
     }
@@ -135,8 +163,11 @@ mod direct_path {
             let (node, proxy) = direct_node().await;
 
             // when
-            let (_stream, status) =
-                connect_via(proxy, format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n\r\n").as_bytes()).await;
+            let (_stream, status) = connect_via(
+                proxy,
+                format!("CONNECT 127.0.0.1:{port} HTTP/1.1\r\n\r\n").as_bytes(),
+            )
+            .await;
             let mut stream = TcpStream::connect(proxy).await.unwrap();
             let forwarded = http_min::http_get(
                 &mut stream,
@@ -177,7 +208,8 @@ mod through_exit {
         assert_eq!(forwarded.body.len(), BODY);
 
         // when/then: the tunnel.
-        let (mut tunnel, status) = connect_via(proxy, b"CONNECT site.test:80 HTTP/1.1\r\n\r\n").await;
+        let (mut tunnel, status) =
+            connect_via(proxy, b"CONNECT site.test:80 HTTP/1.1\r\n\r\n").await;
         let tunneled = get(&mut tunnel, "/").await;
         assert!(status.contains("200"), "CONNECT status: {status:?}");
         assert_eq!(tunneled.status, 200);
@@ -209,10 +241,17 @@ mod same_port {
         let (node, proxy) = direct_node().await;
         let mut stream = TcpStream::connect(proxy).await.unwrap();
 
-        stream.write_all(b"GET / HTTP/1.1\r\nHost: x\r\n\r\n").await.unwrap();
+        stream
+            .write_all(b"GET / HTTP/1.1\r\nHost: x\r\n\r\n")
+            .await
+            .unwrap();
         let answer = read_all(&mut stream).await;
 
-        assert!(answer.starts_with(b"HTTP/1.1 400"), "reply: {}", lossy(&answer));
+        assert!(
+            answer.starts_with(b"HTTP/1.1 400"),
+            "reply: {}",
+            lossy(&answer)
+        );
         drop(node);
     }
 }
@@ -231,10 +270,17 @@ mod pac_file {
         // then
         let (head, body) = split_head(&reply);
         assert!(head.starts_with("HTTP/1.1 200"), "reply: {}", lossy(&reply));
-        assert!(head.contains("Content-Type: application/x-ns-proxy-autoconfig"), "reply: {}", lossy(&reply));
+        assert!(
+            head.contains("Content-Type: application/x-ns-proxy-autoconfig"),
+            "reply: {}",
+            lossy(&reply)
+        );
         let port = proxy.port();
         let route = format!("SOCKS5 127.0.0.1:{port}; PROXY 127.0.0.1:{port}");
-        assert!(body.contains(&route), "the body has no path line {route:?}: {body}");
+        assert!(
+            body.contains(&route),
+            "the body has no path line {route:?}: {body}"
+        );
         drop(node);
     }
 
@@ -246,7 +292,10 @@ mod pac_file {
 
         let (head, body) = split_head(&reply);
         assert!(head.starts_with("HTTP/1.1 200"), "reply: {}", lossy(&reply));
-        assert!(head.contains("Content-Length: "), "HEAD has no Content-Length: {head}");
+        assert!(
+            head.contains("Content-Length: "),
+            "HEAD has no Content-Length: {head}"
+        );
         assert_eq!(body, "", "HEAD has no body");
         drop(node);
     }
@@ -257,7 +306,11 @@ mod pac_file {
 
         let reply = pac_reply_of(proxy, "GET", "/proxy.pac?x=1").await;
 
-        assert!(reply.starts_with(b"HTTP/1.1 200"), "reply: {}", lossy(&reply));
+        assert!(
+            reply.starts_with(b"HTTP/1.1 200"),
+            "reply: {}",
+            lossy(&reply)
+        );
         drop(node);
     }
 
@@ -267,7 +320,11 @@ mod pac_file {
 
         let reply = pac_reply_of(proxy, "GET", "/wpad.dat").await;
 
-        assert!(reply.starts_with(b"HTTP/1.1 400"), "reply: {}", lossy(&reply));
+        assert!(
+            reply.starts_with(b"HTTP/1.1 400"),
+            "reply: {}",
+            lossy(&reply)
+        );
         drop(node);
     }
 }
@@ -294,7 +351,12 @@ async fn connect_via(proxy: SocketAddr, head: &[u8]) -> (TcpStream, String) {
             .await
             .expect("no reply to CONNECT")
             .unwrap();
-        assert_eq!(n, 1, "the connection closed before the end of the reply: {}", lossy(&reply));
+        assert_eq!(
+            n,
+            1,
+            "the connection closed before the end of the reply: {}",
+            lossy(&reply)
+        );
         reply.push(byte[0]);
     }
     let text = lossy(&reply);
@@ -306,7 +368,12 @@ async fn connect_via(proxy: SocketAddr, head: &[u8]) -> (TcpStream, String) {
 async fn get(stream: &mut TcpStream, path: &str) -> HttpResponse {
     http_min::http_get(
         stream,
-        HttpGetRequest { host: DOMAIN, path, accept: "*/*", user_agent: "meshtown-test" },
+        HttpGetRequest {
+            host: DOMAIN,
+            path,
+            accept: "*/*",
+            user_agent: "meshtown-test",
+        },
         HttpLimits::default(),
     )
     .await
@@ -333,7 +400,9 @@ async fn pac_reply_of(proxy: SocketAddr, method: &str, path: &str) -> Vec<u8> {
 /// Splits the reply into the head (without `\r\n\r\n`) and the body.
 fn split_head(reply: &[u8]) -> (String, String) {
     let text = lossy(reply);
-    let (head, body) = text.split_once("\r\n\r\n").expect("no end of head in the reply");
+    let (head, body) = text
+        .split_once("\r\n\r\n")
+        .expect("no end of head in the reply");
     (head.to_string(), body.to_string())
 }
 
@@ -345,7 +414,11 @@ async fn read_until_head_end(stream: &mut TcpStream) -> Vec<u8> {
             .await
             .expect("no echo within 10 s")
             .unwrap();
-        assert!(n > 0, "the connection closed before the end of the head: {}", lossy(&out));
+        assert!(
+            n > 0,
+            "the connection closed before the end of the head: {}",
+            lossy(&out)
+        );
         out.extend_from_slice(&buf[..n]);
     }
     out

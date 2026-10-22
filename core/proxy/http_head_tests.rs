@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::proxy::pac::PacRequest;
-use crate::socks5::Target;
+use crate::proxy::socks5::Target;
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 #[path = "http_head_ipv6_tests.rs"]

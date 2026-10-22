@@ -6,15 +6,15 @@
 //! (`remember_member_and_save`).
 //! What it doesn't do: it doesn't check the file format and the `PeerNames` bounds (ceilings, record selection) —
 //! that is `peer_names_tests.rs`; it doesn't touch DHT or a real network.
-//! Links: `meshtown::peer_names::PeerNames`, `node::start_node`, `NodeConfig::peer_names_path`.
+//! Links: `meshtown_core::members::peer_names::PeerNames`, `node::start_node`, `NodeConfig::peer_names_path`.
 
 use std::path::PathBuf;
 use std::time::Duration;
 
-use meshtown::net::PeerAddr;
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::peer_names::PeerNames;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::peer_names::PeerNames;
+use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::transport::net::PeerAddr;
 use tokio::time::{sleep, Instant};
 
 /// Polls the condition every 50 ms until it becomes true or the limit expires.
@@ -60,7 +60,9 @@ async fn saved_name_shows_before_handshake_and_fresh_name_wins() {
         names.remember(a.id, "Old name"),
         "A's name must be accepted by the store before B starts"
     );
-    names.save().expect("B's names file must be written before the node starts");
+    names
+        .save()
+        .expect("B's names file must be written before the node starts");
 
     let cfg_b = NodeConfig {
         peer_names_path: Some(names_path_b.clone()),
@@ -74,7 +76,10 @@ async fn saved_name_shows_before_handshake_and_fresh_name_wins() {
         Some("Old name"),
         "the saved name must be visible before the handshake"
     );
-    assert!(!b.members.is_member(a.id), "before introduce A must not be a member of B");
+    assert!(
+        !b.members.is_member(a.id),
+        "before introduce A must not be a member of B"
+    );
 
     b.introduce(PeerAddr::new(a.id)).await;
 
@@ -91,7 +96,10 @@ async fn saved_name_shows_before_handshake_and_fresh_name_wins() {
         PeerNames::load(Some(&names_path_b), &network_id).get(a.id) == Some("厨房🍳")
     })
     .await;
-    assert!(wrote_fresh, "B's names file must be updated with the fresh name within 10 s");
+    assert!(
+        wrote_fresh,
+        "B's names file must be updated with the fresh name within 10 s"
+    );
 
     a.shutdown().await;
     b.shutdown().await;

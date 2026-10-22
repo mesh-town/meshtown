@@ -6,7 +6,7 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
 
-use meshtown::socks5::{self, Target, UdpPacket};
+use meshtown_core::proxy::socks5::{self, Target, UdpPacket};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
@@ -37,27 +37,50 @@ pub(crate) struct Associated {
 /// Greets the proxy and asks for a `UDP ASSOCIATE`; returns whatever the reply was.
 pub(crate) async fn request_associate(proxy: SocketAddr) -> Associated {
     let mut control = TcpStream::connect(proxy).await.unwrap();
-    control.write_all(&[socks5::VERSION, 1, socks5::METHOD_NO_AUTH]).await.unwrap();
+    control
+        .write_all(&[socks5::VERSION, 1, socks5::METHOD_NO_AUTH])
+        .await
+        .unwrap();
     let mut answer = [0u8; 2];
     control.read_exact(&mut answer).await.unwrap();
-    control.write_all(&socks5::encode_udp_associate_request()).await.unwrap();
+    control
+        .write_all(&socks5::encode_udp_associate_request())
+        .await
+        .unwrap();
     let mut reply = [0u8; 10];
-    timeout(UDP_LIMIT, control.read_exact(&mut reply)).await.expect("no reply in time").unwrap();
+    timeout(UDP_LIMIT, control.read_exact(&mut reply))
+        .await
+        .expect("no reply in time")
+        .unwrap();
     let ip = Ipv4Addr::new(reply[4], reply[5], reply[6], reply[7]);
     let bound = SocketAddr::new(IpAddr::V4(ip), u16::from_be_bytes([reply[8], reply[9]]));
-    Associated { control, reply_code: reply[1], bound }
+    Associated {
+        control,
+        reply_code: reply[1],
+        bound,
+    }
 }
 
 /// A successful association and a client datagram socket on the loopback.
 pub(crate) async fn associate(proxy: SocketAddr) -> (TcpStream, UdpSocket, SocketAddr) {
     let associated = request_associate(proxy).await;
-    assert_eq!(associated.reply_code, socks5::REP_OK, "the association must be granted");
+    assert_eq!(
+        associated.reply_code,
+        socks5::REP_OK,
+        "the association must be granted"
+    );
     let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
     (associated.control, client, associated.bound)
 }
 
 /// Sends `data` for `target:port` to the relay.
-pub(crate) async fn send_to_relay(client: &UdpSocket, relay: SocketAddr, target: &Target, port: u16, data: &[u8]) {
+pub(crate) async fn send_to_relay(
+    client: &UdpSocket,
+    relay: SocketAddr,
+    target: &Target,
+    port: u16,
+    data: &[u8],
+) {
     let bytes = socks5::encode_udp_request(target, port, data).unwrap();
     client.send_to(&bytes, relay).await.unwrap();
 }

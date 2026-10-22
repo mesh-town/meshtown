@@ -4,11 +4,11 @@
 use super::*;
 use crate::exit::clients::EXIT_CLIENT_LINGER;
 use crate::exit::frame::{encode_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN};
-use crate::http_min::HttpLimits;
-use crate::net::facade::test_support::{pid, secret, within, Spy};
-use crate::net::mem::MemNet;
-use crate::net::service::EXIT;
-use crate::net::{NetStack, NetStackBuilder, StreamPair};
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{NetStack, NetStackBuilder, StreamPair};
 use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
@@ -61,7 +61,9 @@ mod refuses_aaaa {
         // given: the name has no A and its only AAAA is a mapped loopback
         let fx = setup(Opts::default()).await;
         let mapped = "::ffff:127.0.0.1".parse().expect("an IPv6 address");
-        fx.cfg.resolver.seed_cache_dual_for_tests("v6only.test", vec![], vec![mapped]);
+        fx.cfg
+            .resolver
+            .seed_cache_dual_for_tests("v6only.test", vec![], vec![mapped]);
 
         // when: a member asks for the name
         let (_pair, reply) = fx.ask(&request("v6only.test", 80)).await;
@@ -126,13 +128,24 @@ mod traffic {
         })
         .await;
         let (mut pair, _reply) = fx.ask(&request("site.test", 80)).await;
-        pair.send.write_all(&[7u8; 10_000]).await.expect("client write");
+        pair.send
+            .write_all(&[7u8; 10_000])
+            .await
+            .expect("client write");
         let mut back = [0u8; 10_000];
-        within("echo", pair.recv.read_exact(&mut back)).await.expect("echo read");
+        within("echo", pair.recv.read_exact(&mut back))
+            .await
+            .expect("echo read");
 
         // when: we wait at most three seconds
         let seen = tokio::time::timeout(Duration::from_secs(3), async {
-            while fx.cfg.traffic.rates_at(Instant::now()).get(&pid(1)).is_none_or(|r| r.through_us_bps == 0) {
+            while fx
+                .cfg
+                .traffic
+                .rates_at(Instant::now())
+                .get(&pid(1))
+                .is_none_or(|r| r.through_us_bps == 0)
+            {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         })

@@ -4,9 +4,9 @@
 //! started by other tests without a lock, so their lines would fall into the window. Here the process has one node.
 //! The test compares tags and the normalized text of lines, without the time field `t`.
 
-use meshtown::network_key::NetworkKey;
-use meshtown::node::{self, NodeConfig};
-use meshtown::output;
+use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::output;
+use meshtown_core::node::{self, NodeConfig};
 
 /// Tags whose lines are part of the reference.
 const TAGS: [&str; 8] = [

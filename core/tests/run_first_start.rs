@@ -152,8 +152,12 @@ fn temp_entry(node: &NodeProc) -> (u16, String) {
         .expect("address with a temporary token was not printed");
     let url = line.split("http://").nth(1).expect("address in the line");
     let url = url.split_whitespace().next().unwrap();
-    let rest = url.strip_prefix("127.0.0.1:").expect("address on 127.0.0.1");
-    let (port, token) = rest.split_once("/?token=").expect("port and token in the address");
+    let rest = url
+        .strip_prefix("127.0.0.1:")
+        .expect("address on 127.0.0.1");
+    let (port, token) = rest
+        .split_once("/?token=")
+        .expect("port and token in the address");
     (port.parse().expect("port"), token.to_string())
 }
 
@@ -175,7 +179,10 @@ fn run_without_key_waits_on_page_and_keeps_file_keyless() {
     let hint = node
         .wait_line("--invite", Duration::from_secs(10))
         .expect("hint about --invite");
-    assert!(hint.contains("[node]"), "second line is from [node]: {hint}");
+    assert!(
+        hint.contains("[node]"),
+        "second line is from [node]: {hint}"
+    );
     let perm = file_token(&node);
     assert_ne!(
         perm, temp,
@@ -257,5 +264,8 @@ fn run_without_key_busy_web_port_advises_port() {
     let err = node.text(true);
     assert!(err.contains("--web-port"), "stderr: {err}");
     assert!(err.contains("--invite"), "stderr: {err}");
-    assert!(!err.contains("the node is running without the page"), "stderr: {err}");
+    assert!(
+        !err.contains("the node is running without the page"),
+        "stderr: {err}"
+    );
 }

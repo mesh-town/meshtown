@@ -6,23 +6,26 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 
-use crate::net::{BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, ServiceHandler};
+use crate::transport::net::{BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, ServiceHandler};
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use crate::doh::Resolver;
-use crate::domains::DomainList;
-use crate::membership::Members;
-use crate::output::{say, short_peer_id};
-use crate::tcp_tune::disable_nagle;
+use crate::members::membership::Members;
+use crate::node::output::{say, short_peer_id};
+use crate::node::tcp_tune::disable_nagle;
+use crate::proxy::domains::DomainList;
+use crate::site_checks::doh::Resolver;
 
 use super::clients::{Clients, ConnRef};
-use super::frame::{parse_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED, EXIT_PROTOCOL_VERSION};
+use super::frame::{
+    parse_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED,
+    EXIT_PROTOCOL_VERSION,
+};
 use super::outbound::{open_target, Refusal};
 use super::report;
-use super::udpgw;
 use super::splice::splice;
 use super::traffic::{Direction, ExitTraffic};
+use super::udpgw;
 
 /// Exit service settings.
 #[derive(Clone)]
@@ -63,7 +66,11 @@ impl ServiceHandler for ExitService {
         let cfg = self.cfg.clone();
         Box::pin(async move {
             let peer = conn.peer();
-            tokio::spawn(report::log_link_stats_while_open(conn.clone(), peer, "exit"));
+            tokio::spawn(report::log_link_stats_while_open(
+                conn.clone(),
+                peer,
+                "exit",
+            ));
             cfg.traffic.watch(conn.clone(), Direction::ThroughUs);
             // The guard lives for the whole loop: once the connection closes or `handle` is dropped, the streams are forgotten at once.
             let conn_guard = cfg.clients.register_conn(peer);
@@ -72,8 +79,13 @@ impl ServiceHandler for ExitService {
                 let cfg = cfg.clone();
                 let conn_ref = conn_guard.conn();
                 tokio::spawn(async move {
-                    if let Err(e) = serve_exit_stream(cfg, peer, conn_ref, pair.send, pair.recv).await {
-                        say("exit", format!("{}: stream closed: {e:#}", short_peer_id(&peer)));
+                    if let Err(e) =
+                        serve_exit_stream(cfg, peer, conn_ref, pair.send, pair.recv).await
+                    {
+                        say(
+                            "exit",
+                            format!("{}: stream closed: {e:#}", short_peer_id(&peer)),
+                        );
                     }
                 });
             }
@@ -116,7 +128,10 @@ async fn serve_exit_stream(
         Err(e) => {
             say(
                 "exit",
-                format!("{}: request could not be parsed: {e:#}", short_peer_id(&peer)),
+                format!(
+                    "{}: request could not be parsed: {e:#}",
+                    short_peer_id(&peer)
+                ),
             );
             return write_exit_reply(&mut send, EXIT_CODE_BAD_REQUEST).await;
         }
@@ -140,7 +155,10 @@ async fn serve_exit_stream(
     write_exit_reply(&mut send, EXIT_CODE_OK).await?;
     // The client is registered only after `EXIT_CODE_OK`; the guard lives until the end of `splice` (including on `abort`).
     let _stream_guard = conn.register_stream();
-    say("exit", format!("{}: {target_host}:{port} opened", short_peer_id(&peer)));
+    say(
+        "exit",
+        format!("{}: {target_host}:{port} opened", short_peer_id(&peer)),
+    );
     // Byte counts are needed only by the requesting side, the exit doesn't print them.
     let _ = splice(send, recv, tcp).await;
     Ok(())
@@ -160,11 +178,11 @@ async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {
 }
 
 #[cfg(test)]
-#[path = "server_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "server_service_tests.rs"]
 mod service_tests;
+#[cfg(test)]
+#[path = "server_tests.rs"]
+mod tests;
 #[cfg(test)]
 #[path = "server_udpgw_tests.rs"]
 mod udpgw_tests;

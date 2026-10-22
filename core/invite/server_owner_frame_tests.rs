@@ -8,13 +8,15 @@ use std::collections::BTreeSet;
 use std::time::{Duration, Instant};
 
 use super::*;
-use crate::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
-use crate::access::tally::{tally, AdmitIn, Exclusion, How, Ledger as Votes, TallyInput, VoteIn};
-use crate::access::view::Verdicts;
 use crate::invite::store::{issue_record, IssueVerdict, Ledger};
-use crate::net::mem::{MemSync, MemSyncNet};
-use crate::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::net::{live, Replica};
+use crate::members::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
+use crate::members::access::tally::{
+    tally, AdmitIn, Exclusion, How, Ledger as Votes, TallyInput, VoteIn,
+};
+use crate::members::access::view::Verdicts;
+use crate::transport::net::mem::{MemSync, MemSyncNet};
+use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
+use crate::transport::net::{live, Replica};
 
 mod legacy_frame {
     use super::*;
@@ -43,10 +45,26 @@ mod owner_frame {
         let reply = node.when_owner_asks(&secret(7)).await;
         // then: the key, the server's own admit of the owner by invite with the note, and the used mark
         assert_key(reply);
-        let want = AclValue { kind: AclKind::Admit, subject: pid(7), via: Via::Invite, made_unix: 0, note: "Masha".into() };
-        let got = node.admit_of(pid(7)).await.expect("the owner was not admitted");
-        assert_eq!((got.kind, got.subject, got.via, got.note), (want.kind, want.subject, want.via, want.note));
-        assert_eq!(node.count("invite-used/").await, 1, "the invite was not burned");
+        let want = AclValue {
+            kind: AclKind::Admit,
+            subject: pid(7),
+            via: Via::Invite,
+            made_unix: 0,
+            note: "Masha".into(),
+        };
+        let got = node
+            .admit_of(pid(7))
+            .await
+            .expect("the owner was not admitted");
+        assert_eq!(
+            (got.kind, got.subject, got.via, got.note),
+            (want.kind, want.subject, want.via, want.note)
+        );
+        assert_eq!(
+            node.count("invite-used/").await,
+            1,
+            "the invite was not burned"
+        );
     }
 
     #[tokio::test]
@@ -69,7 +87,9 @@ mod owner_frame {
         let node = setup_node(AccessView::open()).await;
         let session = node.fx.when_client_connects().await;
         // when: the client replays a frame signed for pid(9)
-        let reply = session.when_asks(&owner_frame(&secret(7), &issued(), pid(9))).await;
+        let reply = session
+            .when_asks(&owner_frame(&secret(7), &issued(), pid(9)))
+            .await;
         // then
         assert_refused(reply, RedeemCode::BadRequest);
         node.then_invite_unspent().await;
@@ -126,7 +146,11 @@ mod owner_frame {
         let reply = node.when_owner_asks(&secret(7)).await;
         // then: NotReady after a short wait, not after the answer timeout
         assert_refused(reply, RedeemCode::NotReady);
-        assert!(started.elapsed() < Duration::from_secs(3), "waited {:?} for the view", started.elapsed());
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "waited {:?} for the view",
+            started.elapsed()
+        );
         node.then_invite_unspent().await;
     }
 
@@ -139,7 +163,10 @@ mod owner_frame {
         // when
         let reply = session.when_asks(&frame[..100]).await;
         // then: no reply, the handler finished, the invite is untouched
-        assert!(reply.is_none(), "a reply came to a cut-off owner frame: {reply:?}");
+        assert!(
+            reply.is_none(),
+            "a reply came to a cut-off owner frame: {reply:?}"
+        );
         session.then_handler_ends().await;
         node.then_invite_unspent().await;
     }
@@ -168,7 +195,11 @@ fn server_id() -> PeerId {
 
 /// A ledger where `admitted` are admitted and `excluded` are excluded by votes.
 fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
-    let by_votes = || Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() };
+    let by_votes = || Exclusion {
+        how: How::Votes,
+        at_micros: 10,
+        voters: Vec::new(),
+    };
     Votes {
         admitted: admitted.iter().copied().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
@@ -179,7 +210,12 @@ fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
 }
 
 /// An open view that has published the server's verdicts over the given facts.
-fn view(admitted: &[PeerId], excluded: &[PeerId], my_votes: &[PeerId], blocks: &[PeerId]) -> AccessView {
+fn view(
+    admitted: &[PeerId],
+    excluded: &[PeerId],
+    my_votes: &[PeerId],
+    blocks: &[PeerId],
+) -> AccessView {
     let verdicts = Verdicts {
         me: server_id(),
         ledger: Arc::new(ledger_of(admitted, excluded)),
@@ -196,8 +232,16 @@ fn view(admitted: &[PeerId], excluded: &[PeerId], my_votes: &[PeerId], blocks: &
 fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
     let input = TallyInput {
         me,
-        admits: vec![AdmitIn { author: me, subject: owner, via: Via::Invite }],
-        votes: vec![VoteIn { voter: me, subject: owner, ts_micros: 10 }],
+        admits: vec![AdmitIn {
+            author: me,
+            subject: owner,
+            via: Via::Invite,
+        }],
+        votes: vec![VoteIn {
+            voter: me,
+            subject: owner,
+            ts_micros: 10,
+        }],
     };
     let verdicts = Verdicts {
         me,
@@ -213,7 +257,9 @@ fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
 
 fn assert_key(reply: Option<RedeemReply>) {
     match reply {
-        Some(RedeemReply::Key(key)) => assert_eq!(key.to_bytes(), KEY, "the key of another network"),
+        Some(RedeemReply::Key(key)) => {
+            assert_eq!(key.to_bytes(), KEY, "the key of another network")
+        }
         other => panic!("expected the network key, got {other:?}"),
     }
 }
@@ -228,22 +274,40 @@ struct Node {
 
 async fn setup_node(access: AccessView) -> Node {
     let net = MemSyncNet::new();
-    let ctx = SyncCtx { secret: secret(2), network_seed: [9; 32], store_dir: None };
+    let ctx = SyncCtx {
+        secret: secret(2),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
     let backend = net.backend(ctx);
     let shared: Arc<dyn Replica> = backend.replica_mem(REPLICA_NET).unwrap();
     let own: Arc<dyn Replica> = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let list = DomainList::open(shared.clone(), own).await.unwrap();
-    let record = issue_record(crate::net_mainline::unix_now(), Some("Masha"));
-    Ledger::of(&list).issue(&issued().hash_hex(), &record).await.unwrap();
-    let fx = setup(Opts { access, list: Some(list.clone()), ..Opts::default() });
-    Node { fx, shared, list, _keep: (net, backend) }
+    let record = issue_record(crate::transport::net_mainline::unix_now(), Some("Masha"));
+    Ledger::of(&list)
+        .issue(&issued().hash_hex(), &record)
+        .await
+        .unwrap();
+    let fx = setup(Opts {
+        access,
+        list: Some(list.clone()),
+        ..Opts::default()
+    });
+    Node {
+        fx,
+        shared,
+        list,
+        _keep: (net, backend),
+    }
 }
 
 impl Node {
     /// A new connection from the client transport `pid(1)` carrying the owner frame of `owner`.
     async fn when_owner_asks(&self, owner: &NodeSecret) -> Option<RedeemReply> {
         let session = self.fx.when_client_connects().await;
-        session.when_asks(&owner_frame(owner, &issued(), pid(1))).await
+        session
+            .when_asks(&owner_frame(owner, &issued(), pid(1)))
+            .await
     }
 
     /// Live entries under the prefix in the shared replica.
@@ -253,7 +317,11 @@ impl Node {
 
     /// The server's own parsed admit record of `subject`.
     async fn admit_of(&self, subject: PeerId) -> Option<AclValue> {
-        let entry = self.shared.get(server_id(), &admit_key(&subject)).await.unwrap()?;
+        let entry = self
+            .shared
+            .get(server_id(), &admit_key(&subject))
+            .await
+            .unwrap()?;
         match parse_entry(&entry) {
             Parsed::Record { value, .. } => Some(value),
             other => panic!("not a record under the admit key: {other:?}"),
@@ -263,9 +331,18 @@ impl Node {
     /// No claim, no used mark, no admit, and the storage still grants the invite.
     async fn then_invite_unspent(&self) {
         for prefix in ["invite-claim/", "invite-used/", "acl/admit/"] {
-            assert_eq!(self.count(prefix).await, 0, "something was written under {prefix}");
+            assert_eq!(
+                self.count(prefix).await,
+                0,
+                "something was written under {prefix}"
+            );
         }
-        let verdict = Ledger::of(&self.list).verdict(&issued().hash_hex(), crate::net_mainline::unix_now()).await;
+        let verdict = Ledger::of(&self.list)
+            .verdict(
+                &issued().hash_hex(),
+                crate::transport::net_mainline::unix_now(),
+            )
+            .await;
         assert_eq!(verdict, IssueVerdict::Grant, "the invite is spent");
     }
 }

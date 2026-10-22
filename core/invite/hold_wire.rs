@@ -6,7 +6,7 @@
 //! Links: the server answers HOLD, the issuing node asks the holders; the codes are in `invite::wire`.
 
 use super::wire::{RedeemCode, REPLY_LEN};
-use crate::network_key::NetworkKey;
+use crate::members::network_key::NetworkKey;
 
 /// The HOLD frame kind: the first byte (for admission — 1).
 pub const HOLD_FRAME_KIND: u8 = 2;
@@ -57,7 +57,10 @@ pub fn parse_hold(key: &NetworkKey, b: &[u8; HOLD_LEN]) -> Option<HoldReq> {
     hash.copy_from_slice(&b[1..33]);
     let mut time = [0u8; 8];
     time.copy_from_slice(&b[33..SIGNED_LEN]);
-    Some(HoldReq { hash, made_unix: u64::from_le_bytes(time) })
+    Some(HoldReq {
+        hash,
+        made_unix: u64::from_le_bytes(time),
+    })
 }
 
 /// The HOLD reply frame: `[2][code][32 zeros]`.

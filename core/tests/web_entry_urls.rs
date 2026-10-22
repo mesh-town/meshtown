@@ -4,7 +4,7 @@
 #[path = "common/web_listener.rs"]
 mod common;
 
-use meshtown::web::{DEFAULT_DRAIN, TOKEN_FILE_NAME};
+use meshtown_core::web_gui::{DEFAULT_DRAIN, TOKEN_FILE_NAME};
 
 use common::{api, cleanup, run_config, scratch, start_web};
 

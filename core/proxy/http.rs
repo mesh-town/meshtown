@@ -6,9 +6,11 @@ use anyhow::Result;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use crate::output::say;
+use crate::node::output::say;
 
-use super::http_head::{parse_head, status_reply, HttpProxyRequest, HttpRequestKind, MAX_HEAD_BYTES};
+use super::http_head::{
+    parse_head, status_reply, HttpProxyRequest, HttpRequestKind, MAX_HEAD_BYTES,
+};
 use super::outcome::outcome_line;
 use super::pac::{pac_proxy_list, pac_reply, pac_script, PacRequest, PAC_PATH};
 use super::path;
@@ -27,7 +29,13 @@ pub(super) async fn serve_http_connection(mut stream: TcpStream, cfg: ProxyConfi
 }
 
 /// Proxying: `CONNECT` or a request with an absolute URI.
-async fn forward(mut stream: TcpStream, cfg: &ProxyConfig, request: HttpProxyRequest, buf: Vec<u8>, started: Instant) -> Result<()> {
+async fn forward(
+    mut stream: TcpStream,
+    cfg: &ProxyConfig,
+    request: HttpProxyRequest,
+    buf: Vec<u8>,
+    started: Instant,
+) -> Result<()> {
     let target_text = request.target.to_string();
     let outcome = match path::open_chosen_route(cfg, &request.target, request.port, "http").await {
         Ok(opened) => {
@@ -38,11 +46,16 @@ async fn forward(mut stream: TcpStream, cfg: &ProxyConfig, request: HttpProxyReq
         }
         Err(refused) => {
             let code = if refused.timed_out { 504 } else { 502 };
-            stream.write_all(&status_reply(code, &refused.outcome.result)).await?;
+            stream
+                .write_all(&status_reply(code, &refused.outcome.result))
+                .await?;
             refused.outcome
         }
     };
-    say("http", outcome_line(&target_text, &outcome, started.elapsed().as_millis()));
+    say(
+        "http",
+        outcome_line(&target_text, &outcome, started.elapsed().as_millis()),
+    );
     Ok(())
 }
 
@@ -50,9 +63,14 @@ async fn forward(mut stream: TcpStream, cfg: &ProxyConfig, request: HttpProxyReq
 async fn serve_pac(mut stream: TcpStream, request: PacRequest) -> Result<()> {
     let proxy_list = pac_proxy_list(stream.local_addr()?, false);
     let script = pac_script(&proxy_list);
-    stream.write_all(&pac_reply(&script, request.head_only)).await?;
+    stream
+        .write_all(&pac_reply(&script, request.head_only))
+        .await?;
     let method = if request.head_only { "HEAD" } else { "GET" };
-    say("http", format!("PAC served: {method} {PAC_PATH} → {proxy_list}"));
+    say(
+        "http",
+        format!("PAC served: {method} {PAC_PATH} → {proxy_list}"),
+    );
     Ok(())
 }
 
@@ -70,7 +88,9 @@ async fn read_head(stream: &mut TcpStream) -> Result<Option<(HttpRequestKind, Ve
             }
         }
         let mut chunk = [0u8; 4096];
-        let want = chunk.len().min(MAX_HEAD_BYTES.saturating_sub(buf.len()).max(1));
+        let want = chunk
+            .len()
+            .min(MAX_HEAD_BYTES.saturating_sub(buf.len()).max(1));
         let n = stream.read(&mut chunk[..want]).await?;
         if n == 0 {
             return Ok(None);

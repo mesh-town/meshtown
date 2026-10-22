@@ -6,7 +6,7 @@
 //! datagram round trip, the filter on the source of client datagrams, the end of the association with its
 //! control connection, and that `CONNECT` keeps working beside an association.
 //! What it does not do: does not reach real addresses (the exit closes loopback and private ranges).
-//! Links: `meshtown::socks5`, `meshtown::proxy`; the harnesses are `core/tests/common/socks_pair.rs` and
+//! Links: `meshtown_core::proxy::socks5`, `meshtown_core::proxy`; the harnesses are `core/tests/common/socks_pair.rs` and
 //! `core/tests/common/socks_udp.rs`.
 
 #[path = "common/socks_pair.rs"]
@@ -17,9 +17,9 @@ mod udp;
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
 
-use meshtown::node::RunningNode;
-use meshtown::route::Route;
-use meshtown::socks5::{self, Target};
+use meshtown_core::node::RunningNode;
+use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::socks5::{self, Target};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::{sleep, timeout, Instant};
@@ -40,7 +40,9 @@ struct Fixture {
 
 /// Two nodes with the route of the first one through the exit.
 async fn setup() -> Fixture {
-    let echo = spawn_udp_echo(IpAddr::from([127, 0, 0, 1])).await.expect("the loopback is up");
+    let echo = spawn_udp_echo(IpAddr::from([127, 0, 0, 1]))
+        .await
+        .expect("the loopback is up");
     let site = echo_site().await;
     let (a, b) = pair_with(site, true, |cfg| {
         cfg.exit_hosts.insert(UDP_NAME.to_string(), echo);
@@ -48,9 +50,17 @@ async fn setup() -> Fixture {
     .await;
     a.set_route_exits(vec![b.id]);
     let route = wait_exit_route(&a, Duration::from_secs(20)).await;
-    assert_eq!(route, Route::Exits(vec![b.id]), "the route must lead through the exit");
+    assert_eq!(
+        route,
+        Route::Exits(vec![b.id]),
+        "the route must lead through the exit"
+    );
     let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
-    Fixture { _nodes: (a, b), proxy, echo }
+    Fixture {
+        _nodes: (a, b),
+        proxy,
+        echo,
+    }
 }
 
 fn name() -> Target {
@@ -70,7 +80,9 @@ async fn datagram_goes_through_exit_and_back() {
         send_to_relay(&client, bound, &name(), fx.echo.port(), payload).await;
 
         // then: each comes back with the source of the echo server
-        let reply = reply_within(&client, UDP_LIMIT).await.expect("an echo in time");
+        let reply = reply_within(&client, UDP_LIMIT)
+            .await
+            .expect("an echo in time");
         assert_eq!(reply.data, payload);
         assert_eq!(reply.target, Target::Ip(fx.echo.ip()));
         assert_eq!(reply.port, fx.echo.port());
@@ -92,7 +104,13 @@ async fn datagram_from_another_port_is_ignored() {
     // then: it gets nothing, and the real client is still served
     assert!(reply_within(&intruder, SILENCE).await.is_none());
     send_to_relay(&client, bound, &name(), fx.echo.port(), b"again").await;
-    assert_eq!(reply_within(&client, UDP_LIMIT).await.expect("an echo in time").data, b"again");
+    assert_eq!(
+        reply_within(&client, UDP_LIMIT)
+            .await
+            .expect("an echo in time")
+            .data,
+        b"again"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -128,38 +146,61 @@ async fn connect_still_works_beside_an_association() {
 
     // when: a CONNECT through the same proxy to a name the exit maps to the TCP echo server
     let mut stream = TcpStream::connect(fx.proxy).await.unwrap();
-    stream.write_all(&[socks5::VERSION, 1, socks5::METHOD_NO_AUTH]).await.unwrap();
+    stream
+        .write_all(&[socks5::VERSION, 1, socks5::METHOD_NO_AUTH])
+        .await
+        .unwrap();
     let mut answer = [0u8; 2];
     stream.read_exact(&mut answer).await.unwrap();
     let request = socks5::encode_socks5_request(&Target::Domain(DOMAIN.to_string()), 80).unwrap();
     stream.write_all(&request).await.unwrap();
     let mut reply = [0u8; 10];
-    timeout(UDP_LIMIT, stream.read_exact(&mut reply)).await.expect("no reply in time").unwrap();
+    timeout(UDP_LIMIT, stream.read_exact(&mut reply))
+        .await
+        .expect("no reply in time")
+        .unwrap();
 
     // then: the tunnel works
     assert_eq!(reply[1], socks5::REP_OK);
     stream.write_all(b"ping").await.unwrap();
     let mut back = [0u8; 4];
-    timeout(UDP_LIMIT, stream.read_exact(&mut back)).await.expect("no echo in time").unwrap();
+    timeout(UDP_LIMIT, stream.read_exact(&mut back))
+        .await
+        .expect("no echo in time")
+        .unwrap();
     assert_eq!(&back, b"ping");
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn associate_without_exits_relays_directly() {
     // given: a node whose route has no exits, and a UDP echo server on the loopback
-    let echo = spawn_udp_echo(IpAddr::from([127, 0, 0, 1])).await.expect("the loopback is up");
+    let echo = spawn_udp_echo(IpAddr::from([127, 0, 0, 1]))
+        .await
+        .expect("the loopback is up");
     let site = echo_site().await;
     let (a, _b) = pair_with(site, true, |_| {}).await;
     let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
     let (_control, client, bound) = associate(proxy).await;
 
     // when: a datagram for the echo server
-    send_to_relay(&client, bound, &Target::Ip(echo.ip()), echo.port(), b"direct").await;
+    send_to_relay(
+        &client,
+        bound,
+        &Target::Ip(echo.ip()),
+        echo.port(),
+        b"direct",
+    )
+    .await;
 
     // then: the reply comes from the node itself, with the source of the echo server
-    let reply = reply_within(&client, UDP_LIMIT).await.expect("an echo in time");
+    let reply = reply_within(&client, UDP_LIMIT)
+        .await
+        .expect("an echo in time");
     assert_eq!(reply.data, b"direct");
-    assert_eq!((reply.target, reply.port), (Target::Ip(echo.ip()), echo.port()));
+    assert_eq!(
+        (reply.target, reply.port),
+        (Target::Ip(echo.ip()), echo.port())
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -178,6 +219,11 @@ async fn direct_association_reaches_an_ipv6_target() {
     send_to_relay(&client, bound, &Target::Ip(echo.ip()), echo.port(), b"six").await;
 
     // then: the echo comes back with the IPv6 source
-    let reply = reply_within(&client, UDP_LIMIT).await.expect("an echo in time");
-    assert_eq!((reply.data.as_slice(), reply.target, reply.port), (&b"six"[..], Target::Ip(echo.ip()), echo.port()));
+    let reply = reply_within(&client, UDP_LIMIT)
+        .await
+        .expect("an echo in time");
+    assert_eq!(
+        (reply.data.as_slice(), reply.target, reply.port),
+        (&b"six"[..], Target::Ip(echo.ip()), echo.port())
+    );
 }

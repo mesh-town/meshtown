@@ -7,10 +7,10 @@
 
 use std::sync::Mutex;
 
-use meshtown::config_file;
-use meshtown::invite::InviteHead;
-use meshtown::net::PeerAddr;
-use meshtown::web::{
+use meshtown_core::config::config_file;
+use meshtown_core::invite::InviteHead;
+use meshtown_core::transport::net::PeerAddr;
+use meshtown_core::web_gui::{
     ActionError, InviteJoinView, LogLine, LogPage, LogSummary, NodeControl, NodeRuntime,
     NodeSnapshot, NodeStatus, SaveKey, TransportInfo,
 };

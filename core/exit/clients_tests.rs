@@ -6,7 +6,7 @@
 use super::*;
 use std::time::{Duration, Instant};
 
-use crate::net::{NodeSecret, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 
 mod stream {
     use super::*;

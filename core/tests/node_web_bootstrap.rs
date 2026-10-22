@@ -1,8 +1,8 @@
 //! Integration tests of a real node behind the web listener: a node without a network key,
-//! first start and an invite — over bare TCP through `meshtown::*`.
+//! first start and an invite — over bare TCP through `meshtown_core::*`.
 //! What it doesn't do: it doesn't edit `src/web.rs`/`core/web/*.rs`/`tests/web_listener_*.rs` — it only calls
 //! their public interface. It never prints the token and never puts it in the text of `assert!`/`assert_eq!`.
-//! Links: the web listener (`meshtown::web`);
+//! Links: the web listener (`meshtown_core::web_gui`);
 //! scaffolding in `core/tests/common/node_web.rs` (`#[path]`, shared with `core/tests/node_web_actions.rs`).
 
 #[path = "common/node_web.rs"]
@@ -10,7 +10,7 @@ mod common;
 
 use std::time::Duration;
 
-use meshtown::network_key::NetworkKey;
+use meshtown_core::members::network_key::NetworkKey;
 use serde_json::{json, Value};
 
 use common::{api, boot, boot_without_key, teardown, wait_ready, wait_until, Booted};
@@ -158,7 +158,12 @@ async fn join_via_invite_and_wait_online(b: &Booted, invite: &str, short_a: &str
 
 /// Checks that B sees A's exit flag and its own, and that B's config file holds A's key
 /// without a label.
-fn assert_peer_a_seen_by_b_and_key_saved(b: &Booted, short_a: &str, exit_a: &Value, key: &NetworkKey) {
+fn assert_peer_a_seen_by_b_and_key_saved(
+    b: &Booted,
+    short_a: &str,
+    exit_a: &Value,
+    key: &NetworkKey,
+) {
     let (_, state_b) = api(b.port, &b.token, "GET", "/api/state", None);
     let peers_b = state_b["peers"]
         .as_array()
@@ -168,10 +173,7 @@ fn assert_peer_a_seen_by_b_and_key_saved(b: &Booted, short_a: &str, exit_a: &Val
         .find(|p| p["id"] == json!(short_a))
         .expect("A's row must be in B's peers");
     assert!(exit_a.is_boolean(), "A's own row must publish exit");
-    assert_eq!(
-        peer_a_entry["exit"], *exit_a,
-        "A's exit flag must reach B"
-    );
+    assert_eq!(peer_a_entry["exit"], *exit_a, "A's exit flag must reach B");
     let self_entry = peers_b
         .iter()
         .find(|p| p["self"] == json!(true))
@@ -242,12 +244,19 @@ mod invite_string_spent_by_another_node {
         let (status, body) = post_invite(&spent.c, &spent.invite);
 
         // then: the response is the same "waiting for members", while C's state shows a refusal
-        assert_eq!(status, 202, "the repeated string is accepted for waiting, the refusal comes in the state");
+        assert_eq!(
+            status, 202,
+            "the repeated string is accepted for waiting, the refusal comes in the state"
+        );
         assert_eq!(body["waiting"], json!(true));
         let view = wait_refused_view(&spent.c).await;
         assert_eq!(view["message"], json!(TEXT_USED));
         let (_, state_c) = api(spent.c.port, &spent.c.token, "GET", "/api/state", None);
-        assert_eq!(state_c["node"]["status"], json!("offline"), "the refused node got no network");
+        assert_eq!(
+            state_c["node"]["status"],
+            json!("offline"),
+            "the refused node got no network"
+        );
         assert_eq!(state_c["network"], Value::Null);
 
         spent.teardown().await;
@@ -291,6 +300,10 @@ async fn wait_refused_view(node: &Booted) -> Value {
     })
     .await;
     let (_, state) = api(node.port, &node.token, "GET", "/api/state", None);
-    assert!(refused, "the refusal didn't appear in node.invite_join within 20 s: {}", state["node"]["invite_join"]);
+    assert!(
+        refused,
+        "the refusal didn't appear in node.invite_join within 20 s: {}",
+        state["node"]["invite_join"]
+    );
     state["node"]["invite_join"].clone()
 }

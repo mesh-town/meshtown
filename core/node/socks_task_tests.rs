@@ -14,14 +14,19 @@ const LIMIT: Duration = Duration::from_secs(1);
 async fn close_frees_listener_port() {
     // given: the task waits in accept on the port
     let port = free_port();
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port)).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
+        .await
+        .unwrap();
     let task = SocksTask::new(tokio::spawn(async move {
         let _ = listener.accept().await;
     }));
     // when: close
     task.close().await;
     // then: the port is free at once
-    assert!(std::net::TcpListener::bind(("127.0.0.1", port)).is_ok(), "port {port} is busy after close");
+    assert!(
+        std::net::TcpListener::bind(("127.0.0.1", port)).is_ok(),
+        "port {port} is busy after close"
+    );
 }
 
 #[tokio::test]

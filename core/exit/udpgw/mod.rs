@@ -11,12 +11,12 @@
 //! The frame layout follows the tun2proxy udpgw protocol (MIT), see `THIRD_PARTY_NOTICES.md`.
 
 pub(crate) mod codec;
-mod session;
-#[cfg(test)]
-mod test_support;
 #[cfg(test)]
 #[path = "golden_tests.rs"]
 mod golden_tests;
+mod session;
+#[cfg(test)]
+mod test_support;
 
 pub(super) use session::serve;
 

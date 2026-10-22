@@ -15,17 +15,19 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::timeout;
 
-use super::hold_wire::{hold_reply, parse_hold, HOLD_LEN, HOLD_SKEW_SECS, HOLD_FRAME_KIND};
-use super::store::{issue_record, Ledger};
-use super::wire::{encode_invite_reply, RedeemCode, OWNER_FRAME_KIND, OWNER_REQUEST_LEN, REPLY_LEN, REQUEST_LEN};
 use super::head::hash_hex_of;
+use super::hold_wire::{hold_reply, parse_hold, HOLD_FRAME_KIND, HOLD_LEN, HOLD_SKEW_SECS};
+use super::store::{issue_record, Ledger};
+use super::wire::{
+    encode_invite_reply, RedeemCode, OWNER_FRAME_KIND, OWNER_REQUEST_LEN, REPLY_LEN, REQUEST_LEN,
+};
 use super::INVITE_TTL_SECS;
-use crate::access::view::AccessView;
-use crate::net_mainline;
-use crate::domains::DomainList;
-use crate::net::{BoxFuture, BoxSend, NetError, PeerConn, PeerId, ServiceHandler};
-use crate::network_key::NetworkKey;
-use crate::output::{say, short_peer_id};
+use crate::members::access::view::AccessView;
+use crate::members::network_key::NetworkKey;
+use crate::node::output::{say, short_peer_id};
+use crate::proxy::domains::DomainList;
+use crate::transport::net::{BoxFuture, BoxSend, NetError, PeerConn, PeerId, ServiceHandler};
+use crate::transport::net_mainline;
 
 /// How many presentations are served at once.
 pub const MAX_REDEEMS: usize = 4;
@@ -142,7 +144,10 @@ async fn read_frame(conn: &dyn PeerConn) -> Result<(BoxSend, Frame)> {
 }
 
 /// A longer frame: the 33 bytes already read and the rest from the stream.
-async fn extend<const N: usize>(head: &[u8; REQUEST_LEN], recv: &mut (impl AsyncReadExt + Unpin)) -> Result<[u8; N]> {
+async fn extend<const N: usize>(
+    head: &[u8; REQUEST_LEN],
+    recv: &mut (impl AsyncReadExt + Unpin),
+) -> Result<[u8; N]> {
     let mut full = [0u8; N];
     full[..REQUEST_LEN].copy_from_slice(head);
     recv.read_exact(&mut full[REQUEST_LEN..]).await?;
@@ -166,10 +171,16 @@ pub(super) fn log_refused(who: &str, code: RedeemCode) {
 
 fn log_hold(who: &str, code: RedeemCode) {
     if code == RedeemCode::Ok {
-        say("invite", format!("invite entry accepted for storage from {who}"));
+        say(
+            "invite",
+            format!("invite entry accepted for storage from {who}"),
+        );
         return;
     }
-    say("invite", format!("request from {who} to save an entry refused: {code:?}"));
+    say(
+        "invite",
+        format!("request from {who} to save an entry refused: {code:?}"),
+    );
 }
 
 /// The invite handler for `NetStack`: `InviteServer` itself as a `ServiceHandler`.
@@ -187,7 +198,13 @@ impl ServiceHandler for InviteServer {
         Box::pin(async move {
             let permit = this.slots.clone().try_acquire_owned().ok();
             if let Err(e) = this.serve(&*conn, permit).await {
-                say("invite", format!("{}: presentation interrupted: {e:#}", short_peer_id(&conn.peer())));
+                say(
+                    "invite",
+                    format!(
+                        "{}: presentation interrupted: {e:#}",
+                        short_peer_id(&conn.peer())
+                    ),
+                );
             }
         })
     }

@@ -1,45 +1,87 @@
 use super::*;
 
-const LIM: MemoryLimitsKib = MemoryLimitsKib { warn_kib: 400 * 1024, exit_kib: 900 * 1024 };
+const LIM: MemoryLimitsKib = MemoryLimitsKib {
+    warn_kib: 400 * 1024,
+    exit_kib: 900 * 1024,
+};
 const FRESH: Duration = Duration::MAX;
 
 #[test]
 fn quiet_below_warn() {
-    assert_eq!(decide_memory_action(100 * 1024, 90 * 1024, LIM, FRESH), MemoryAction::Quiet);
+    assert_eq!(
+        decide_memory_action(100 * 1024, 90 * 1024, LIM, FRESH),
+        MemoryAction::Quiet
+    );
 }
 
 #[test]
 fn first_crossing_reports() {
-    assert_eq!(decide_memory_action(410 * 1024, 390 * 1024, LIM, FRESH), MemoryAction::Report);
+    assert_eq!(
+        decide_memory_action(410 * 1024, 390 * 1024, LIM, FRESH),
+        MemoryAction::Report
+    );
     // a crossing — at once, even if the summary was a second ago
-    assert_eq!(decide_memory_action(410 * 1024, 390 * 1024, LIM, Duration::from_secs(1)), MemoryAction::Report);
+    assert_eq!(
+        decide_memory_action(410 * 1024, 390 * 1024, LIM, Duration::from_secs(1)),
+        MemoryAction::Report
+    );
 }
 
 #[test]
 fn repeat_waits_ten_seconds() {
-    assert_eq!(decide_memory_action(500 * 1024, 490 * 1024, LIM, Duration::from_secs(9)), MemoryAction::Quiet);
-    assert_eq!(decide_memory_action(500 * 1024, 490 * 1024, LIM, Duration::from_secs(10)), MemoryAction::Report);
+    assert_eq!(
+        decide_memory_action(500 * 1024, 490 * 1024, LIM, Duration::from_secs(9)),
+        MemoryAction::Quiet
+    );
+    assert_eq!(
+        decide_memory_action(500 * 1024, 490 * 1024, LIM, Duration::from_secs(10)),
+        MemoryAction::Report
+    );
 }
 
 #[test]
 fn exit_at_second_limit() {
-    assert_eq!(decide_memory_action(900 * 1024, 500 * 1024, LIM, Duration::from_secs(1)), MemoryAction::Exit);
+    assert_eq!(
+        decide_memory_action(900 * 1024, 500 * 1024, LIM, Duration::from_secs(1)),
+        MemoryAction::Exit
+    );
 }
 
 #[test]
 fn no_data_is_quiet() {
-    assert_eq!(decide_memory_action(0, 500 * 1024, LIM, FRESH), MemoryAction::Quiet);
+    assert_eq!(
+        decide_memory_action(0, 500 * 1024, LIM, FRESH),
+        MemoryAction::Quiet
+    );
 }
 
 #[test]
 fn zero_limits_are_off() {
-    let no_warn = MemoryLimitsKib { warn_kib: 0, exit_kib: 900 * 1024 };
-    assert_eq!(decide_memory_action(500 * 1024, 100, no_warn, FRESH), MemoryAction::Quiet);
-    assert_eq!(decide_memory_action(950 * 1024, 100, no_warn, FRESH), MemoryAction::Exit);
-    let no_exit = MemoryLimitsKib { warn_kib: 400 * 1024, exit_kib: 0 };
-    assert_eq!(decide_memory_action(5000 * 1024, 100, no_exit, FRESH), MemoryAction::Report);
+    let no_warn = MemoryLimitsKib {
+        warn_kib: 0,
+        exit_kib: 900 * 1024,
+    };
+    assert_eq!(
+        decide_memory_action(500 * 1024, 100, no_warn, FRESH),
+        MemoryAction::Quiet
+    );
+    assert_eq!(
+        decide_memory_action(950 * 1024, 100, no_warn, FRESH),
+        MemoryAction::Exit
+    );
+    let no_exit = MemoryLimitsKib {
+        warn_kib: 400 * 1024,
+        exit_kib: 0,
+    };
+    assert_eq!(
+        decide_memory_action(5000 * 1024, 100, no_exit, FRESH),
+        MemoryAction::Report
+    );
     let off = MemoryLimitsKib::from_mib(0, 0);
-    assert_eq!(decide_memory_action(5000 * 1024, 100, off, FRESH), MemoryAction::Quiet);
+    assert_eq!(
+        decide_memory_action(5000 * 1024, 100, off, FRESH),
+        MemoryAction::Quiet
+    );
 }
 
 #[test]
@@ -49,7 +91,10 @@ fn guard_lines_read_as_in_log() {
         head,
         "memory 450000 KiB (+50000 KiB/s), runtime tasks 12, runtime threads 8, checks 2, connections 3, paths 5"
     );
-    assert_eq!(exit_text(950_000, LIM), "memory 950000 KiB ≥ 900 MiB — exit (code 3)");
+    assert_eq!(
+        exit_text(950_000, LIM),
+        "memory 950000 KiB ≥ 900 MiB — exit (code 3)"
+    );
 }
 
 #[test]
@@ -76,9 +121,9 @@ fn dump_path_has_secs_and_mib() {
 
 /// Guard lines for a peer's paths (`mem` has no paths — no lines).
 mod peer_lines_of_conn {
-    use crate::net::contract::{secret, must_finish, SEED_A};
-    use crate::net::{MemNet, PeerConn, PeerId, SplitTransport, Transport, AUTH};
-    use crate::output::{log_page, log_summary, short_peer_id};
+    use crate::node::output::{log_page, log_summary, short_peer_id};
+    use crate::transport::net::contract::{must_finish, secret, SEED_A};
+    use crate::transport::net::{MemNet, PeerConn, PeerId, SplitTransport, Transport, AUTH};
     use std::sync::Arc;
 
     use super::peer_lines;
@@ -133,7 +178,10 @@ mod peer_lines_of_conn {
         let a = net.transport(&secret(SEED_A));
         let b = net.transport(&secret(QUIET_PEER_SEED));
         b.serve(&[AUTH]);
-        let (dialed, accepted) = tokio::join!(must_finish(a.connect(&b.local_addr(), AUTH)), must_finish(b.accept()));
+        let (dialed, accepted) = tokio::join!(
+            must_finish(a.connect(&b.local_addr(), AUTH)),
+            must_finish(b.accept())
+        );
         let _ = accepted.expect("accept mem closed");
         let conn = dialed.expect("connect mem gave no connection");
         MemSide { conn, a, b }
@@ -143,7 +191,7 @@ mod peer_lines_of_conn {
 /// Thread handle: stopping without a node and without `Members`.
 mod handle {
     use super::*;
-    use crate::network_key::NetworkKey;
+    use crate::members::network_key::NetworkKey;
     use crate::node::config::NodeConfig;
     use crate::node::start::start_node;
 
@@ -167,8 +215,15 @@ mod handle {
         assert!(!h.is_finished(), "the thread must be alive until stop");
         let t = Instant::now();
         h.stop();
-        assert!(wait_finished(&h, DEADLINE), "the thread didn't exit after stop");
-        assert!(t.elapsed() < Duration::from_millis(900), "exit took longer than a tick: {:?}", t.elapsed());
+        assert!(
+            wait_finished(&h, DEADLINE),
+            "the thread didn't exit after stop"
+        );
+        assert!(
+            t.elapsed() < Duration::from_millis(900),
+            "exit took longer than a tick: {:?}",
+            t.elapsed()
+        );
     }
 
     #[test]
@@ -190,7 +245,11 @@ mod handle {
         while token.strong_count() > 0 && Instant::now() < end {
             std::thread::sleep(Duration::from_millis(20));
         }
-        assert_eq!(token.strong_count(), 0, "the thread didn't exit after the handles were dropped");
+        assert_eq!(
+            token.strong_count(),
+            0,
+            "the thread didn't exit after the handles were dropped"
+        );
     }
 
     async fn node_with_guard(warn_mib: u64) -> crate::node::RunningNode {
@@ -205,7 +264,10 @@ mod handle {
         let h = node.memory_guard.clone().expect("the guard must start");
         assert!(!h.is_finished());
         node.shutdown().await;
-        assert!(wait_finished(&h, DEADLINE), "the mem-guard thread is alive after shutdown");
+        assert!(
+            wait_finished(&h, DEADLINE),
+            "the mem-guard thread is alive after shutdown"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -218,7 +280,10 @@ mod handle {
         assert!(wait_finished(&ha, DEADLINE), "guard A is alive");
         assert!(!hb.is_finished(), "guard B must be alive");
         b.shutdown().await;
-        assert!(wait_finished(&hb, DEADLINE), "guard B is alive after shutdown");
+        assert!(
+            wait_finished(&hb, DEADLINE),
+            "guard B is alive after shutdown"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

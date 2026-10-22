@@ -37,22 +37,38 @@ mod allowed {
         let open = open_of(&["::ffff:127.0.0.1", "::ffff:93.184.216.34"]);
 
         assert_eq!(open, [SocketAddr::from(([93, 184, 216, 34], 443))]);
-        assert!(open[0].is_ipv4(), "the mapped address is opened as plain IPv4");
+        assert!(
+            open[0].is_ipv4(),
+            "the mapped address is opened as plain IPv4"
+        );
     }
 
     #[test]
     fn closed_v6_is_dropped() {
-        let open = open_of(&["::1", "fe80::1", "fc00::1", "2001:db8::1", "::127.0.0.1", "2606:4700::1111"]);
+        let open = open_of(&[
+            "::1",
+            "fe80::1",
+            "fc00::1",
+            "2001:db8::1",
+            "::127.0.0.1",
+            "2606:4700::1111",
+        ]);
 
         assert_eq!(open, [SocketAddr::new(ip("2606:4700::1111"), 443)]);
     }
 
     #[test]
     fn at_most_four_candidates() {
-        let open = open_of(&["1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4", "1.1.1.5", "1.1.1.6"]);
+        let open = open_of(&[
+            "1.1.1.1", "1.1.1.2", "1.1.1.3", "1.1.1.4", "1.1.1.5", "1.1.1.6",
+        ]);
 
         assert_eq!(open.len(), MAX_CANDIDATES);
-        assert_eq!(open[3], SocketAddr::from(([1, 1, 1, 4], 443)), "the first four, in answer order");
+        assert_eq!(
+            open[3],
+            SocketAddr::from(([1, 1, 1, 4], 443)),
+            "the first four, in answer order"
+        );
     }
 
     #[test]
@@ -65,22 +81,35 @@ mod allowed {
 
         let open = allowed_addresses([src, ip("93.184.216.34")], 80);
 
-        assert_eq!(open, [SocketAddr::from(([93, 184, 216, 34], 80))], "{src} is the node's own address");
+        assert_eq!(
+            open,
+            [SocketAddr::from(([93, 184, 216, 34], 80))],
+            "{src} is the node's own address"
+        );
     }
 }
 
 mod answers {
     use super::*;
-    use crate::exit::test_support::{exit_config_with_dead_resolver, exit_config_with_silent_resolver};
+    use crate::exit::test_support::{
+        exit_config_with_dead_resolver, exit_config_with_silent_resolver,
+    };
 
     #[tokio::test]
     async fn v4_dns_error_is_no_address_with_dns_in_line() {
         let cfg = exit_config_with_dead_resolver();
 
-        let refusal = refusal_of(v4_answer(&cfg.resolver, "down.test", 443).await, "down.test");
+        let refusal = refusal_of(
+            v4_answer(&cfg.resolver, "down.test", 443).await,
+            "down.test",
+        );
 
         assert_eq!(refusal.code, EXIT_CODE_NO_ADDRESS);
-        assert!(refusal.line.contains("DNS"), "the log line names the reason: {}", refusal.line);
+        assert!(
+            refusal.line.contains("DNS"),
+            "the log line names the reason: {}",
+            refusal.line
+        );
     }
 
     #[tokio::test]
@@ -101,13 +130,18 @@ mod answers {
         let answer = v6_answer(&cfg.resolver, "slow.test", 443, Duration::from_millis(200)).await;
 
         assert!(answer.open.is_empty());
-        assert!(started.elapsed() < Duration::from_millis(500), "the wait is bounded: {:?}", started.elapsed());
+        assert!(
+            started.elapsed() < Duration::from_millis(500),
+            "the wait is bounded: {:?}",
+            started.elapsed()
+        );
     }
 
     #[tokio::test]
     async fn v6_all_closed_reports_any() {
         let cfg = exit_config_with_dead_resolver();
-        cfg.resolver.seed_cache_dual_for_tests("closed6.test", vec![], vec![ip6("fe80::1")]);
+        cfg.resolver
+            .seed_cache_dual_for_tests("closed6.test", vec![], vec![ip6("fe80::1")]);
 
         let answer = v6_answer(&cfg.resolver, "closed6.test", 443, Duration::from_secs(3)).await;
 
@@ -118,9 +152,12 @@ mod answers {
     #[tokio::test]
     async fn v4_answer_marks_closed_addresses_as_any() {
         let cfg = exit_config_with_dead_resolver();
-        cfg.resolver.seed_cache_for_tests("lan.test", vec![Ipv4Addr::new(10, 0, 0, 1)]);
+        cfg.resolver
+            .seed_cache_for_tests("lan.test", vec![Ipv4Addr::new(10, 0, 0, 1)]);
 
-        let answer = v4_answer(&cfg.resolver, "lan.test", 443).await.expect("answered from the cache");
+        let answer = v4_answer(&cfg.resolver, "lan.test", 443)
+            .await
+            .expect("answered from the cache");
 
         assert!(answer.open.is_empty() && answer.any && !answer.nx);
     }
@@ -136,14 +173,20 @@ mod udp {
 
     fn seeded(v4: Vec<Ipv4Addr>, v6: Vec<&str>) -> crate::exit::server::ExitConfig {
         let cfg = exit_config_with_dead_resolver();
-        let v6 = v6.into_iter().map(|t| t.parse().expect("an IPv6 address")).collect();
+        let v6 = v6
+            .into_iter()
+            .map(|t| t.parse().expect("an IPv6 address"))
+            .collect();
         cfg.resolver.seed_cache_dual_for_tests("udp.test", v4, v6);
         cfg
     }
 
     #[tokio::test]
     async fn udp_address_prefers_ipv4() {
-        let cfg = seeded(vec![Ipv4Addr::new(93, 184, 216, 34)], vec!["2606:4700::1111"]);
+        let cfg = seeded(
+            vec![Ipv4Addr::new(93, 184, 216, 34)],
+            vec!["2606:4700::1111"],
+        );
 
         let addr = udp_address(&cfg.resolver, "udp.test", 53).await;
 
@@ -162,9 +205,16 @@ mod udp {
     #[tokio::test]
     async fn udp_address_skips_aaaa_for_nonexistent_name() {
         let cfg = seeded(vec![], vec!["2606:4700::1111"]);
-        let v4 = NameAnswer { open: vec![], any: false, nx: true };
+        let v4 = NameAnswer {
+            open: vec![],
+            any: false,
+            nx: true,
+        };
 
-        assert_eq!(udp_address_from(&cfg.resolver, "udp.test", 53, v4).await, None);
+        assert_eq!(
+            udp_address_from(&cfg.resolver, "udp.test", 53, v4).await,
+            None
+        );
     }
 
     #[tokio::test]

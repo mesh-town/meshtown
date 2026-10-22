@@ -11,17 +11,22 @@
 //! reads the request from the stream, releases the slot right after the answer and waits for `conn.closed()` (≤ 5 s).
 
 use super::{InviteServer, ANSWER_TIMEOUT, CLAIM_SETTLE, MAX_REDEEMS};
-use crate::access::view::AccessView;
-use crate::domains::DomainList;
 use crate::invite::hold_wire::{hold_frame, parse_hold_reply, HOLD_LEN};
-use crate::invite::redeem::EXCHANGE_LIMIT;
-use crate::invite::wire::{encode_invite_request, parse_invite_reply, RedeemCode, RedeemReply, REPLY_LEN, REQUEST_LEN, REDEEM_FRAME_KIND};
-use crate::invite::InviteSecret;
 use crate::invite::proof::sign_owner;
+use crate::invite::redeem::EXCHANGE_LIMIT;
+use crate::invite::wire::{
+    encode_invite_request, parse_invite_reply, RedeemCode, RedeemReply, REDEEM_FRAME_KIND,
+    REPLY_LEN, REQUEST_LEN,
+};
 use crate::invite::wire::{encode_owner_request, OWNER_REQUEST_LEN};
-use crate::net::facade::test_support::{pid, secret, within};
-use crate::net::{MemNet, NodeSecret, PeerConn, PeerId, ServiceHandler, StreamPair, Transport, INVITE};
-use crate::network_key::NetworkKey;
+use crate::invite::InviteSecret;
+use crate::members::access::view::AccessView;
+use crate::members::network_key::NetworkKey;
+use crate::proxy::domains::DomainList;
+use crate::transport::net::facade::test_support::{pid, secret, within};
+use crate::transport::net::{
+    MemNet, NodeSecret, PeerConn, PeerId, ServiceHandler, StreamPair, Transport, INVITE,
+};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -52,7 +57,13 @@ mod answer_to_the_request_frame {
         let fx = setup(Opts::default());
         let session = fx.when_client_connects().await;
         // when
-        let reply = session.when_asks(&owner_frame(&secret(7), &InviteSecret::from_bytes([7; 32]), pid(1))).await;
+        let reply = session
+            .when_asks(&owner_frame(
+                &secret(7),
+                &InviteSecret::from_bytes([7; 32]),
+                pid(1),
+            ))
+            .await;
         // then
         assert_refused(reply, RedeemCode::NotReady);
     }
@@ -60,7 +71,10 @@ mod answer_to_the_request_frame {
     #[tokio::test]
     async fn full_slots_get_busy() {
         // given: all MAX_REDEEMS server slots are taken
-        let fx = setup(Opts { slots_full: true, ..Opts::default() });
+        let fx = setup(Opts {
+            slots_full: true,
+            ..Opts::default()
+        });
         let session = fx.when_client_connects().await;
         // when: one more valid request arrives
         let reply = session.when_asks(&valid_frame()).await;
@@ -100,7 +114,10 @@ mod handler_lifetime {
         // when: 300 ms pass, the client does not close the connection
         sleep(HOLD).await;
         // then: the handler is still alive (otherwise the connection would drop and the reply would be lost)
-        assert!(session.then_handler_runs(), "handle returned before the client closed");
+        assert!(
+            session.then_handler_runs(),
+            "handle returned before the client closed"
+        );
         // when: the client closes the connection with code 0 and the reason "done"
         session.when_client_closes();
         // then: the handler finishes within STEP
@@ -115,7 +132,10 @@ mod handler_lifetime {
         // when: half a frame and the end of its half of the stream
         let reply = session.when_asks(&valid_frame()[..REQUEST_LEN / 2]).await;
         // then: no reply, the handler finished within STEP
-        assert!(reply.is_none(), "a reply came to a cut-off request: {reply:?}");
+        assert!(
+            reply.is_none(),
+            "a reply came to a cut-off request: {reply:?}"
+        );
         session.then_handler_ends().await;
     }
 }
@@ -131,7 +151,10 @@ mod hold_frame_answers {
         // when
         let raw = session.when_asks_raw(&signed_hold(KEY)).await;
         // then: a kind 2 reply with the code NotReady
-        assert_eq!(raw.and_then(|b| parse_hold_reply(&b)), Some(RedeemCode::NotReady));
+        assert_eq!(
+            raw.and_then(|b| parse_hold_reply(&b)),
+            Some(RedeemCode::NotReady)
+        );
     }
 
     #[tokio::test]
@@ -142,7 +165,10 @@ mod hold_frame_answers {
         // when
         let raw = session.when_asks_raw(&signed_hold([9; 32])).await;
         // then
-        assert_eq!(raw.and_then(|b| parse_hold_reply(&b)), Some(RedeemCode::BadRequest));
+        assert_eq!(
+            raw.and_then(|b| parse_hold_reply(&b)),
+            Some(RedeemCode::BadRequest)
+        );
     }
 
     #[tokio::test]
@@ -171,7 +197,7 @@ const KEY: [u8; 32] = [1; 32];
 
 /// A fresh HOLD signed with the key `key`.
 fn signed_hold(key: [u8; 32]) -> [u8; HOLD_LEN] {
-    let now = crate::net_mainline::unix_now();
+    let now = crate::transport::net_mainline::unix_now();
     hold_frame(&NetworkKey::from_bytes(key), &[5; 32], now)
 }
 
@@ -207,11 +233,23 @@ fn setup(opts: Opts) -> Fixture {
         true => take_all_slots(&server),
         false => Vec::new(),
     };
-    Fixture { server, client, inbox, _held: held, _net: net }
+    Fixture {
+        server,
+        client,
+        inbox,
+        _held: held,
+        _net: net,
+    }
 }
 
 fn take_all_slots(server: &InviteServer) -> Vec<OwnedSemaphorePermit> {
-    let take = |_| server.slots.clone().try_acquire_owned().expect("the slot is free");
+    let take = |_| {
+        server
+            .slots
+            .clone()
+            .try_acquire_owned()
+            .expect("the slot is free")
+    };
     (0..MAX_REDEEMS).map(take).collect()
 }
 
@@ -221,7 +259,9 @@ impl Fixture {
         let to = self.inbox.local_addr();
         let conn = within("connect", self.client.connect(&to, INVITE)).await;
         let conn = conn.expect("connect to the invite server succeeded");
-        let (svc, at_server) = within("accept", self.inbox.accept()).await.expect("B accepted the connection");
+        let (svc, at_server) = within("accept", self.inbox.accept())
+            .await
+            .expect("B accepted the connection");
         assert_eq!(svc, INVITE, "the connection came not to the invite service");
         let handler = tokio::spawn(self.server.handle(at_server));
         Session { conn, handler }
@@ -243,10 +283,14 @@ impl Session {
     async fn when_asks(&self, bytes: &[u8]) -> Option<RedeemReply> {
         let opened = within("open", self.conn.open()).await;
         let StreamPair { mut send, mut recv } = opened.expect("the stream opened");
-        send.write_all(bytes).await.expect("the request was written");
+        send.write_all(bytes)
+            .await
+            .expect("the request was written");
         send.shutdown().await.expect("the half was closed");
         let mut buf = [0u8; REPLY_LEN];
-        within("reading the reply", recv.read_exact(&mut buf)).await.ok()?;
+        within("reading the reply", recv.read_exact(&mut buf))
+            .await
+            .ok()?;
         parse_invite_reply(&buf)
     }
 
@@ -254,10 +298,14 @@ impl Session {
     async fn when_asks_raw(&self, bytes: &[u8]) -> Option<[u8; REPLY_LEN]> {
         let opened = within("open", self.conn.open()).await;
         let StreamPair { mut send, mut recv } = opened.expect("the stream opened");
-        send.write_all(bytes).await.expect("the request was written");
+        send.write_all(bytes)
+            .await
+            .expect("the request was written");
         send.shutdown().await.expect("the half was closed");
         let mut buf = [0u8; REPLY_LEN];
-        within("reading the reply", recv.read_exact(&mut buf)).await.ok()?;
+        within("reading the reply", recv.read_exact(&mut buf))
+            .await
+            .ok()?;
         Some(buf)
     }
 
@@ -294,7 +342,9 @@ fn owner_frame(owner: &NodeSecret, s: &InviteSecret, transport: PeerId) -> [u8; 
 
 fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
     match reply {
-        Some(RedeemReply::Refused(got)) => assert_eq!(got, want, "the refusal code is not the expected one"),
+        Some(RedeemReply::Refused(got)) => {
+            assert_eq!(got, want, "the refusal code is not the expected one")
+        }
         other => panic!("expected the refusal {want:?}, got {other:?}"),
     }
 }

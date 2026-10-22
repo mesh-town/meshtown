@@ -1,8 +1,8 @@
 //! Wake-ups of the node's main loop: which of the seven `select!` branches fired. The branches only
 //! hand out `Wake`; handling is in `LoopState::dispatch_wake` (`event_loop.rs`).
 
-use crate::membership::MemberEvent;
-use crate::net::PeerAddr;
+use crate::members::membership::MemberEvent;
+use crate::transport::net::PeerAddr;
 use tokio::sync::mpsc;
 use tokio::time::{Instant, Interval};
 

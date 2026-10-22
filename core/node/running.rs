@@ -1,31 +1,31 @@
 //! A running node (`RunningNode`) and its live handles: enabling the exit, intervals, shutdown.
 
+use portable_atomic::AtomicU64;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use portable_atomic::AtomicU64;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::net::{PeerAddr, PeerId};
-use crate::net::NetStack;
+use crate::transport::net::NetStack;
+use crate::transport::net::{PeerAddr, PeerId};
 use tokio::sync::{mpsc, watch, Notify};
 
-use crate::checks::Checks;
-use crate::domains::DomainList;
 use crate::exit::{Clients, ExitTraffic};
-use crate::membership::Members;
-use crate::node_name::effective_node_name;
-use crate::network_key::NetworkKey;
-use crate::output::say;
-use crate::ports::open::Opener;
-use crate::ports::{Opened, Published, PortsDoc, PublishedPortsTable};
-use crate::route::RouteCtx;
-use crate::telemetry::Telemetry;
+use crate::members::membership::Members;
+use crate::members::network_key::NetworkKey;
+use crate::node::node_name::effective_node_name;
+use crate::node::output::say;
+use crate::node::telemetry::Telemetry;
+use crate::ports_sharing::open::Opener;
+use crate::ports_sharing::{Opened, PortsDoc, Published, PublishedPortsTable};
+use crate::proxy::domains::DomainList;
+use crate::proxy::route::RouteCtx;
+use crate::site_checks::checks::Checks;
 
 use super::guard::GuardHandle;
-use super::socks_task::SocksTask;
 use super::identity::IdentityState;
+use super::socks_task::SocksTask;
 
 /// A running node: holds everything needed to introduce new addresses and to shut down.
 ///
@@ -45,9 +45,9 @@ pub struct RunningNode {
     /// The SOCKS5 server address, if it is up. Tests read the real port from here.
     pub socks_addr: Option<SocketAddr>,
     /// Who can reach the proxy (`socks.access`): `socks_addr` is always the address for this computer.
-    pub socks_access: crate::config_file::ListenAccess,
+    pub socks_access: crate::config::config_file::ListenAccess,
     /// The proxy's interface filter (`socks.ifaces`) it was started with.
-    pub socks_ifaces: crate::config_file::IfaceFilter,
+    pub socks_ifaces: crate::config::config_file::IfaceFilter,
     /// The switch for exit work: the console flips it without restarting the node.
     pub exit_on: Arc<AtomicBool>,
     /// The registry of exit clients: who is going online through this node right now; read by `collect`.
@@ -87,7 +87,7 @@ pub struct RunningNode {
     /// The opener of others' ports: listeners on `127.0.0.1:<local>`.
     pub opener: Opener,
     /// The membership list: verdicts, member actions and the watcher's state.
-    pub access: Arc<crate::access::runtime::Access>,
+    pub access: Arc<crate::members::access::runtime::Access>,
     /// Handles of background tasks started in `start_node()` (except those spawned by
     /// `run_node_loop` itself — they end when connections close). `shutdown` aborts them
     /// after the stack stops. Except the SOCKS5 accept task — that one is in `socks_task`.
@@ -186,10 +186,13 @@ impl RunningNode {
 }
 
 /// Writes the delayed state of both replicas to disk; a failure is a warning and does not stop the shutdown.
-async fn flush_replicas(domains: &crate::domains::DomainList) {
+async fn flush_replicas(domains: &crate::proxy::domains::DomainList) {
     for replica in [domains.shared_replica(), domains.own_replica()] {
         if let Err(e) = replica.flush().await {
-            say("node", format!("warning: saving a replica on shutdown failed: {e}"));
+            say(
+                "node",
+                format!("warning: saving a replica on shutdown failed: {e}"),
+            );
         }
     }
 }
