@@ -3,6 +3,7 @@ package app.meshtown;
 import android.app.Service;
 import android.content.Intent;
 import android.net.VpnService;
+import android.os.SystemClock;
 import android.os.IBinder;
 import android.util.Log;
 import java.io.File;
@@ -20,6 +21,8 @@ public class NodeService extends Service {
     static volatile NodeState state = NodeState.UNREACHABLE;
     /** Set by Quit; the activity closes itself when it sees it. */
     static volatile boolean quitRequested;
+    /** Whether Connect is offered (see {@link ConnectGate}); read by the activity and the tile. */
+    static volatile boolean canConnect;
 
     private Process node;
     private StatusNotifier notifier;
@@ -27,6 +30,7 @@ public class NodeService extends Service {
     private volatile boolean stopping;
     private volatile boolean restoreTunnel;
     private boolean exitWasLost;
+    private final ConnectGate gate = new ConnectGate();
     private String shown = "";
 
     @Override
@@ -91,6 +95,8 @@ public class NodeService extends Service {
         stopTunnel(true);
         stopNode();
         state = NodeState.UNREACHABLE;
+        gate.update(state, 0);
+        canConnect = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
@@ -151,6 +157,7 @@ public class NodeService extends Service {
         }
         NodeState s = NodeApi.fetchState(this);
         state = s;
+        canConnect = gate.update(s, SystemClock.elapsedRealtime());
         if (s.reachable && Prefs.namePending(this)) {
             applyPhoneName();
         }
@@ -160,7 +167,7 @@ public class NodeService extends Service {
         }
         boolean vpnOn = TunnelService.running;
         announceExit(s, vpnOn);
-        show(s.describe(vpnOn), vpnOn, s.inNetwork);
+        show(s.describe(vpnOn), vpnOn, canConnect);
     }
 
     /** One alert on the online -> offline transition of the chosen exit, not on every poll. */

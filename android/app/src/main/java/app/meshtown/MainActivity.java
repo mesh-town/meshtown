@@ -207,10 +207,11 @@ public class MainActivity extends Activity {
         NodeState s = NodeService.state;
         boolean on = TunnelService.running;
         button.setText(on ? "Disconnect" : "Connect");
-        button.setEnabled(on || s.inNetwork);
+        button.setEnabled(on || NodeService.canConnect);
         tintButton(on);
-        hint.setText(s.excluded ? NodeState.EXCLUDED_TEXT : "Join a network first");
-        hint.setVisibility(on || s.inNetwork ? View.GONE : View.VISIBLE);
+        String text = ConnectGate.hint(s, NodeService.canConnect);
+        hint.setText(text);
+        hint.setVisibility(on || text.isEmpty() ? View.GONE : View.VISIBLE);
         if (!s.reachable) {
             loaded = false;
             showSplash(Splash.message(SystemClock.elapsedRealtime() - waitingSince));

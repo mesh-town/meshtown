@@ -37,7 +37,7 @@ public class TunnelTile extends TileService {
     }
 
     private boolean canConnect() {
-        return NodeService.state.inNetwork && VpnService.prepare(this) == null;
+        return NodeService.canConnect && VpnService.prepare(this) == null;
     }
 
     private void draw() {
