@@ -12,7 +12,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use super::frame::{encode_port_request, parse_port_reply, port_code_text, PORT_CODE_OK};
+use super::frame::{
+    encode_port_request, parse_port_reply, port_code_text, PORT_CODE_CONNECT_FAILED,
+    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
+};
 use super::types::Opened;
 use crate::exit::{splice, PeerConnPool};
 use crate::members::membership::Members;
@@ -47,28 +50,84 @@ pub(crate) async fn forward_to_peer_port_within(
         members.peer_label(target.node),
         target.port
     );
-    if !members.is_member(target.node) {
-        say("port", format!("{log_prefix}: node is offline"));
-        return;
-    }
-    let reply_in_time = timeout(
-        deadline,
-        request_port_stream(stack, pool, target.node, target.port),
-    )
-    .await;
-    match reply_in_time {
-        Err(_) => say(
-            "port",
-            format!("{log_prefix}: deadline expired ({} s)", deadline.as_secs()),
-        ),
-        Ok(Err(e)) => say("port", format!("{log_prefix}: {e}")),
-        Ok(Ok((_, _, code))) if code != PORT_CODE_OK => {
-            say("port", format!("{log_prefix}: {}", port_code_text(code)))
-        }
-        Ok(Ok((send, recv, _))) => {
-            splice(send, recv, tcp).await;
+    match dial_peer_port(stack, pool, members, target.node, target.port, deadline).await {
+        Err(e) => say("port", format!("{log_prefix}: {}", e.text)),
+        Ok(stream) => {
+            splice(stream.send, stream.recv, tcp).await;
         }
     }
+}
+
+/// An open ports stream to a member's port, after a successful reply.
+pub struct PortStream {
+    pub send: BoxSend,
+    pub recv: BoxRecv,
+}
+
+/// Why a port could not be reached.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PortReach {
+    /// The node is not a member.
+    Offline,
+    /// The node does not publish the port or does not open it for us.
+    NotOpened,
+    /// The node is there, but the service behind the port does not respond.
+    NoService,
+    /// No reply within the deadline.
+    TimedOut,
+    /// Any other failure.
+    Failed,
+}
+
+/// A refusal: its class and the human-readable text.
+#[derive(Clone, Debug)]
+pub struct PortDialError {
+    pub reach: PortReach,
+    pub text: String,
+}
+
+impl PortDialError {
+    fn new(reach: PortReach, text: impl Into<String>) -> Self {
+        PortDialError {
+            reach,
+            text: text.into(),
+        }
+    }
+}
+
+/// Opens a ports stream to `node:port` and reads the reply, within `deadline`. Does not retry, does not log.
+pub async fn dial_peer_port(
+    stack: &NetStack,
+    pool: &PeerConnPool,
+    members: &Members,
+    node: PeerId,
+    port: u16,
+    deadline: Duration,
+) -> Result<PortStream, PortDialError> {
+    if !members.is_member(node) {
+        return Err(PortDialError::new(PortReach::Offline, "node is offline"));
+    }
+    let reply = timeout(deadline, request_port_stream(stack, pool, node, port)).await;
+    match reply {
+        Err(_) => Err(timed_out(deadline)),
+        Ok(Err(e)) => Err(PortDialError::new(PortReach::Failed, e.to_string())),
+        Ok(Ok((_, _, code))) if code != PORT_CODE_OK => Err(refusal(code)),
+        Ok(Ok((send, recv, _))) => Ok(PortStream { send, recv }),
+    }
+}
+
+fn timed_out(deadline: Duration) -> PortDialError {
+    let text = format!("deadline expired ({} s)", deadline.as_secs());
+    PortDialError::new(PortReach::TimedOut, text)
+}
+
+fn refusal(code: u8) -> PortDialError {
+    let reach = match code {
+        PORT_CODE_NOT_PUBLISHED | PORT_CODE_REFUSED => PortReach::NotOpened,
+        PORT_CODE_CONNECT_FAILED => PortReach::NoService,
+        _ => PortReach::Failed,
+    };
+    PortDialError::new(reach, port_code_text(code))
 }
 
 /// Opens a stream, sends the request, reads the reply: the stream and the code.
@@ -100,3 +159,7 @@ mod tests;
 #[cfg(test)]
 #[path = "dial_forward_tests.rs"]
 mod forward_tests;
+
+#[cfg(test)]
+#[path = "dial_peer_tests.rs"]
+mod dial_peer_tests;
