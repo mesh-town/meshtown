@@ -10,7 +10,8 @@ Part 2 of 3. A continuation of section "1. HTTP API contract" (subsections 1.6�
 
 For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`socks.*`,
 `web.*`, `log.*`, `node.memory_*`, `autostart.*`, `full_tunnel.*`) show the primary network's values and are
-listed in `read_only`; `cli_overrides` is empty. A `PUT` leaves them as they are without an error, writes only
+listed in `read_only`; `cli_overrides` lists the
+network fields set by launch flags (every flag except `--key` applies to added networks too). A `PUT` leaves them as they are without an error, writes only
 the network fields to the slot's file, and answers 409 `busy` while the slot has no network.
 
 ```json
@@ -160,6 +161,11 @@ Rejection by content, 422 — **the whole document** is validated at once, **all
 }
 ```
 
+A `ports.opened` list that adds a `local` already opened in another network of this node is refused with 422 and
+the text `local port L is already opened in network "<name>"` (`<name>` is the network's label, or `Network` and the
+first four characters of its id when it has none). Only a `local` that is new in the list counts: a conflict already
+written in the file does not block saving other fields.
+
 The order of errors in `fields` is the field order in the file. The error text for an editable field is the `put_text`
 of the table row, if it is set (for `ports.published`, `ports.opened`),
 otherwise the expected value of the form: `node.name` — "a string of at most 64 characters, non-empty after trimming
@@ -279,7 +285,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `probe.interval_sec` | integer | 300 | 5…86400; list on the page: 60, 300, 600, 1800, 3600 | no | `core/cli/commands.rs`, `core/node/config.rs` | "Settings" → "How often to check connection speed" |
 | `route.exits` | list of strings (full node ids) | `[]` | no repeats, up to 64 entries; order = priority; an unparsed id/repeat/overflow — 422 `invalid` | no (on the fly — `RouteCtx::set_chosen_exits`, without reconnects) | `core/proxy/route.rs`, `core/node/config.rs` | "Nodes" — a checkbox/order of the selected exits in the member list |
 | `ports.published` | list of objects `{port, name, for}`: `port` 1…65535, `name` a string up to 64 characters (none — empty), `for` — `"all"` or a list of full node ids (up to 64) | `[]` | `for` is required (missing or another value is not "all" but a refusal); no repeated `port`, up to 64 entries; any corruption makes the whole list invalid: 422 `invalid` on PUT, `[]` and a line in `field_errors` when reading the file | no (on the fly — the node's publication table, without reconnects) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — own publications |
-| `ports.opened` | list of objects `{node, port, local}`: the full node id, its port, the listener's local port (1…65535) | `[]` | no repeated `(node, port)` and `local`, up to 64 entries; any corruption makes the whole list invalid, as above | no (on the fly — the listeners of opened ports) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — other members' ports opened here |
+| `ports.opened` | list of objects `{node, port, local}`: the full node id, its port, the listener's local port (1…65535) | `[]` | no repeated `(node, port)` and `local`, up to 64 entries; a new `local` already opened in another network of this node — 422 `local port L is already opened in network "<name>"` (a conflict already in the file does not block other fields); any corruption makes the whole list invalid, as above | no (on the fly — the listeners of opened ports) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — other members' ports opened here |
 | `web.enabled` | boolean | `true` | read-only (in `read_only`): the page does not turn itself off, otherwise there would be nothing to turn it back on with | — | web listener | not shown |
 | `web.access` | string `"localhost"` or `"localnet"` | `"localnet"` | an unknown value — 422 `invalid`; **not** in `restart_fields`: narrowing (`localnet` → `localhost`) takes effect at once (the node stops admitting peers from the network), widening with a socket on `127.0.0.1` takes effect after the process restarts, and the divergence is visible in `GET /api/auth/status` (`access` ≠ `listening`, `WEB-API.md` 1.10). The "Restart" button (a network restart) does not reopen the page listener | — | `core/web_gui/auth/access.rs` | "Settings" → "Who can access the settings page" (explanation: this is only about access to the node settings, not to the network or traffic) |
 | `web.port` | integer | 7777 | 1024…65535; read-only (in `read_only`, which is why it is not in `restart_fields`) | — | — | page header, no input field |

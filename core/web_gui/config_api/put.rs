@@ -11,6 +11,7 @@ use serde_json::Value;
 use crate::config::config_file::{ListenAccess, LoadedSettings, Settings, SettingsFile};
 use crate::web_gui::auth::iface_gate::judge;
 use crate::web_gui::auth::iface_os::current_view;
+use crate::web_gui::host_control::OpenedLocal;
 use crate::web_gui::http::{json_err, ConnInfo};
 use crate::web_gui::NodeControl;
 
@@ -23,7 +24,7 @@ impl ConfigState {
     /// A write without a connection (self-lockout is not checked): needed by tests.
     #[cfg(test)]
     pub(crate) fn put(&mut self, body: &[u8], node: &dyn NodeControl) -> Response {
-        self.put_keeping(body, node, None).0
+        self.put_keeping(body, node, None, &[]).0
     }
 
     /// `put` with self-lockout protection: `conn` is the connection the request came through.
@@ -32,8 +33,9 @@ impl ConfigState {
         body: &[u8],
         node: &dyn NodeControl,
         conn: Option<ConnInfo>,
+        taken: &[OpenedLocal],
     ) -> (Response, Option<ProxyPick>) {
-        match self.put_checked(body, node, conn) {
+        match self.put_checked(body, node, conn, taken) {
             Ok(done) => done,
             Err(resp) => (resp, None),
         }
@@ -45,6 +47,7 @@ impl ConfigState {
         body: &[u8],
         node: &dyn NodeControl,
         conn: Option<ConnInfo>,
+        taken: &[OpenedLocal],
     ) -> Result<(Response, Option<ProxyPick>), Response> {
         if let Some(resp) = self.refuse_slot_without_network() {
             return Err(resp);
@@ -57,7 +60,15 @@ impl ConfigState {
         reject_unavailable_fields(&merged)?;
         let new = parse_merged_settings(self, &merged)?;
         reject_web_lockout(self, &new, conn)?;
-        Ok(write_new_settings(self, new, loaded, file.as_ref(), rev_in, node))
+        reject_taken_locals(self, &new, taken)?;
+        Ok(write_new_settings(
+            self,
+            new,
+            loaded,
+            file.as_ref(),
+            rev_in,
+            node,
+        ))
     }
 }
 
@@ -151,6 +162,31 @@ fn reject_web_lockout(
     let text =
         format!("this list would close the page for you: the connection came through \"{name}\"");
     Err(state.invalid_response(vec![field_entry("web.ifaces", &text)]))
+}
+
+/// Step 8b: a `local` that is new in this list must not be opened in another network of this node (the old
+/// list of this slot may keep what it already holds): otherwise 422 with a `ports.opened` field error.
+fn reject_taken_locals(
+    state: &ConfigState,
+    new: &Settings,
+    taken: &[OpenedLocal],
+) -> Result<(), Response> {
+    let old = &state.file_settings.net.ports_opened;
+    let fresh = new
+        .net
+        .ports_opened
+        .iter()
+        .filter(|o| !old.iter().any(|p| p.local == o.local));
+    for opened in fresh {
+        if let Some(other) = taken.iter().find(|t| t.local == opened.local) {
+            let text = format!(
+                "local port {} is already opened in network \"{}\"",
+                other.local, other.net
+            );
+            return Err(state.invalid_response(vec![field_entry("ports.opened", &text)]));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

@@ -342,7 +342,9 @@ Exact enum values:
   candidate), with the current status of each node: `id`/`id_full` — identifier, `name` — the same
   value as `peers[].name` for this id (`null` if it has not arrived yet), `online` — whether it is online,
   `exit` — whether its "works as an exit" flag is on (`null` — unknown), `active` — whether this
-  node is currently the first suitable candidate (`true` for at most one list element).
+  node is currently the first suitable candidate (`true` for at most one list element), `removed` — present
+  and `true` when the network's member list holds an exclusion of this node (it is no longer in the network;
+  such an exit is also `online: false`).
 - `ports.published[]` — own publications; `local`: `"unknown"` (not checked), `"ok"` (the port responds),
   `"refused"` (does not respond). `ports.network[]` — ports of other nodes: entries with
   the scope "all" and a readable value while the author is in the network (`online` — the same flag as in
@@ -473,7 +475,7 @@ does not exist is 404 `unknown_net`.
 | `label`, `id_hex` | the network label and its identifier; `null` for an empty or broken slot |
 | `status` | the node status of the slot, or `broken` |
 | `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot — the one named by `proxy.net` of the primary config (`main` by default), whose network the local proxy (SOCKS, HTTP, PAC, system proxy) goes through; `false` for the others and for broken slots. If `proxy.net` names a network that is not loaded, `proxy` is `false` everywhere and the proxy refuses connections. A slot that is the proxy slot but not `online` makes the proxy refuse until it is up. The answer to a `PUT` that changes `route.exits` (non-empty) of a slot, or `proxy.net` of the primary config, is sent after the proxy has been switched; if the switch fails the answer is still 200 and the summary shows the truth, so take it from `proxy`, not from the `PUT` answer |
-| `route_state`, `exits` | how traffic is routed and the exits in use |
+| `route_state`, `exits` | how traffic is routed and the exits in use; `route_state` is `direct`, `exit`, `unavailable` or `removed` (no exit can be used and every exit in `route.exits` is removed from the network) |
 | `members_voting`, `members_admitting` | member counts |
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
@@ -487,7 +489,7 @@ the order the node started them, broken slots last.
 
 **`POST /api/nets`** — adds an empty slot that waits for a key. The body is a JSON object (`{}`). 201
 `{"slot":"<id>","nets":[…]}` for a new slot; 200 with the same body when an empty slot already waited
-(it is handed back, none is added). 409 `too_many_nets` with `limit` (8) at the limit; 409 `busy` when the
+(it is handed back, none is added; a slot that redeems an invite is not empty: a new one is added). 409 `too_many_nets` with `limit` (8) at the limit; 409 `busy` when the
 node cannot add networks (it is stopping, or it runs without a settings file).
 
 **`GET /api/overview`** — 200 `{"api":2,"nets":[…],"slots":[…],"restart_slots":[…]}`. Each element of
