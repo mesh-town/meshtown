@@ -87,7 +87,8 @@ public class MainActivity extends Activity {
         root.addView(bar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         root.setOnApplyWindowInsetsListener((v, insets) -> {
-            v.setPadding(0, 0, 0, insets.getSystemWindowInsetBottom());
+            v.setPadding(insets.getSystemWindowInsetLeft(), insets.getSystemWindowInsetTop(),
+                    insets.getSystemWindowInsetRight(), insets.getSystemWindowInsetBottom());
             return insets;
         });
         // The root shrinks under adjustResize, so the visible frame is compared with the screen height.
@@ -262,6 +263,7 @@ public class MainActivity extends Activity {
         if (req == REQ_VPN && result == RESULT_OK) {
             Prefs.setVpnWanted(this, true);
             startService(new Intent(this, TunnelService.class));
+            BatteryPrompt.askOnce(this);
         }
     }
 }
