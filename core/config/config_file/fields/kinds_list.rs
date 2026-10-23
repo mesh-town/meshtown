@@ -12,6 +12,7 @@ use super::super::parse_fields::push_field_error;
 use super::super::parse_ports::{parse_opened_list, parse_published_list};
 use super::super::report::FieldError;
 use super::super::settings::Settings;
+use super::row::Block;
 use super::value::{FieldValue, Kind};
 
 const MAX_PEERS: usize = 64;
@@ -185,6 +186,10 @@ impl FieldValue for NetNames {
     fn is_stored_in_settings(&self) -> bool {
         true
     }
+
+    fn block(&self) -> Block {
+        Block::Net
+    }
 }
 
 fn parse_allowed_names(v: &Value, allowed: &[&str]) -> Option<Vec<String>> {
@@ -243,6 +248,10 @@ impl FieldValue for NetSync {
 
     fn is_stored_in_settings(&self) -> bool {
         true
+    }
+
+    fn block(&self) -> Block {
+        Block::Net
     }
 }
 

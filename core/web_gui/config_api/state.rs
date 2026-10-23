@@ -4,17 +4,18 @@
 
 use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings};
+use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings, SettingsFile};
 
 use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
 
 pub struct ConfigState {
-    pub config_file_path: Option<PathBuf>, // settings file; None — the node runs without a file
+    pub file: Option<Arc<dyn SettingsFile>>, // settings file; None — the node runs without a file
     pub secret: NodeSecret,                // node secret, written to the file on every save
     pub file_settings: Settings, // what is in the file now (by the listener's latest knowledge)
     pub boot_file_settings: Settings, // what was in the file when the node last started
@@ -27,7 +28,7 @@ pub struct ConfigState {
 impl ConfigState {
     pub fn from_run(run_config: &RunConfig) -> ConfigState {
         ConfigState {
-            config_file_path: run_config.file_report.path.clone(),
+            file: run_config.file.clone(),
             secret: run_config.secret.clone(),
             file_settings: run_config.file_settings.clone(),
             boot_file_settings: run_config.file_settings.clone(),
@@ -76,7 +77,7 @@ impl ConfigState {
 
     /// Probe of the directory for writing.
     fn probe(&self) -> (bool, Option<String>) {
-        let Some(path) = &self.config_file_path else {
+        let Some(path) = self.file.as_ref().map(|f| f.path()) else {
             return (false, None);
         };
         if self.file_report.overwrite_refused {
@@ -100,10 +101,8 @@ impl ConfigState {
 
     pub(super) fn file_block(&self) -> Value {
         let (writable, probe_message) = self.probe();
-        let path_value = match &self.config_file_path {
-            Some(p) => Value::String(p.display().to_string()),
-            None => Value::Null,
-        };
+        let path_of = |f: &Arc<dyn SettingsFile>| Value::String(f.path().display().to_string());
+        let path_value = self.file.as_ref().map_or(Value::Null, path_of);
         let message = self
             .file_report
             .message

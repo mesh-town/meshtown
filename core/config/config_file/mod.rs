@@ -18,6 +18,7 @@
 
 pub(crate) mod fields;
 mod iface_filter;
+mod net_file;
 mod net_settings;
 mod overrides;
 mod parse;
@@ -39,6 +40,9 @@ mod time;
 pub(crate) mod test_support;
 
 pub use iface_filter::IfaceFilter;
+pub use net_file::{
+    load_net_file, parse_net_text, render_net_file, save_net_file, LoadedNetFile, ParsedNetFile,
+};
 pub use net_settings::NetSettings;
 pub use overrides::CliOverrides;
 pub use parse::{load_config_file, parse_text, LoadedConfigFile, ParsedConfigFile, SecretRead};
@@ -51,11 +55,15 @@ pub use process_settings::ProcessSettings;
 pub use render::render_config_file;
 pub use report::{FieldError, FileReport, FileState};
 pub use retired::port_flag_warning;
+pub(crate) use retired::retired_key_warnings;
 pub use run::{create_fresh, new_secret, prepare, Fresh, RunConfig};
 pub(crate) use save::write_tmp_and_rename;
 pub use save::{save_config_file, save_with_floor, set_aside_bad, SaveError};
 pub use settings::{ListenAccess, Settings, TransportMode};
-pub use slot_store::NetSlotId;
+pub use slot_store::{
+    list_net_slots, net_slot_path, new_slot_id, prepare_net_slot, set_aside_main, set_aside_slot,
+    LoadedSettings, MainFile, NetFile, NetSlotId, NetSlotOnDisk, SettingsFile,
+};
 pub use time::{iso_utc, stamp_utc, utc_parts};
 
 pub const FILE_NAME: &str = "config.json";

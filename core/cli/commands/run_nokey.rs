@@ -36,7 +36,8 @@ pub(super) async fn run_without_key(
 ) -> anyhow::Result<()> {
     let relaunch = build_relaunch(&run, overrides, initial_domains, blocked_domains);
     let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&run.effective_settings);
-    Host::run_with_web_page(run, ctl, PageRole::OnlyEntry, |run, ctl| async move {
+    let saved = Some(relaunch.clone());
+    Host::run_with_saved_slots(run, ctl, PageRole::OnlyEntry, saved, |run, ctl| async move {
         hint_lines();
         let identity = IdentityState::from_report(&run.file_report);
         crate::node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await

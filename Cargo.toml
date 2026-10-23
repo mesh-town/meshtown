@@ -6,7 +6,7 @@ default-members = ["core"]
 # Keep this the first table with a version line: release scripts read the first
 # "version =" line of this file.
 [workspace.package]
-version = "0.3.53"
+version = "0.3.54"
 edition = "2021"
 rust-version = "1.94"
 publish = false

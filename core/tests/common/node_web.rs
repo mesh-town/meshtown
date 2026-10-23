@@ -226,7 +226,7 @@ pub(crate) async fn boot_with_exit_hosts(
     output::set_log_capacity(run.effective_settings.process.log_ring_lines as usize);
     let relaunch = Relaunch {
         test_net: Some(meshtown_core::transport::net::mem::process_net()),
-        path: run.file_report.path.clone(),
+        file: run.file.clone(),
         cli: overrides,
         secret: run.secret.clone(),
         initial_domains: Vec::new(),
@@ -281,7 +281,7 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
     output::set_log_capacity(run.effective_settings.process.log_ring_lines as usize);
     let relaunch = Relaunch {
         test_net: Some(meshtown_core::transport::net::mem::process_net()),
-        path: run.file_report.path.clone(),
+        file: run.file.clone(),
         cli: overrides,
         secret: run.secret.clone(),
         initial_domains: Vec::new(),

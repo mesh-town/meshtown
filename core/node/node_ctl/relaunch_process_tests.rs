@@ -10,7 +10,7 @@ fn secret() -> NodeSecret {
 
 fn relaunch(socks_enabled: Option<bool>) -> Relaunch {
     Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides {
             socks_enabled,
             ..CliOverrides::default()

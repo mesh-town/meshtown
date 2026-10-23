@@ -51,7 +51,7 @@ pub(super) fn build_relaunch(
     blocked_domains: Vec<String>,
 ) -> crate::node::node_ctl::Relaunch {
     crate::node::node_ctl::Relaunch {
-        path: run.file_report.path.clone(),
+        file: run.file.clone(),
         cli: overrides,
         secret: run.secret.clone(),
         initial_domains,
@@ -89,7 +89,8 @@ async fn serve_node(
     relaunch: crate::node::node_ctl::Relaunch,
 ) -> anyhow::Result<()> {
     let ctl = crate::node::node_ctl::NodeCtl::new(&run.effective_settings);
-    Host::run_with_web_page(run, ctl, PageRole::Optional, |run, ctl| {
+    let saved = Some(relaunch.clone());
+    Host::run_with_saved_slots(run, ctl, PageRole::Optional, saved, |run, ctl| {
         crate::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch)
     })
     .await

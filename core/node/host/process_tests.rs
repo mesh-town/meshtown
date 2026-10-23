@@ -48,25 +48,26 @@ async fn zero_thresholds_start_no_guard() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn register_and_unregister_move_the_sources() {
+async fn set_and_clear_move_the_sources() {
     let node = start_node(NodeConfig::for_loopback_test(
         NetworkKey::generate().unwrap(),
     ))
     .await
     .unwrap();
     let services = ProcessServices::start(&settings(0, 0), PathBuf::from("."));
+    let sources = services.sources();
     let other = NetSlotId::parse("ab2c3d").unwrap();
     assert!(services.sources().snapshot().is_empty());
-    services.register(NetSlotId::main(), node.members.clone(), node.checks.clone());
-    services.register(other.clone(), node.members.clone(), node.checks.clone());
+    sources.set(NetSlotId::main(), node.members.clone(), node.checks.clone());
+    sources.set(other.clone(), node.members.clone(), node.checks.clone());
     assert_eq!(
         services.sources().snapshot().len(),
         2,
         "both slots are seen"
     );
-    services.unregister(&other);
+    sources.clear(&other);
     assert_eq!(services.sources().snapshot().len(), 1, "one slot is gone");
-    services.unregister(&NetSlotId::main());
+    sources.clear(&NetSlotId::main());
     assert!(services.sources().snapshot().is_empty());
     services.stop();
     node.shutdown().await;

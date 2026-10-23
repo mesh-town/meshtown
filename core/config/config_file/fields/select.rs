@@ -1,6 +1,6 @@
 //! Selections from the table: paths in table order.
 
-use super::row::{Field, Mode};
+use super::row::{Block, Field, Mode};
 use super::table::FIELDS;
 
 fn paths(keep: impl Fn(&Field) -> bool) -> Vec<&'static str> {
@@ -44,6 +44,22 @@ pub(crate) fn known_keys(section: &str) -> Vec<&'static str> {
 pub(crate) fn section_names() -> Vec<&'static str> {
     let mut out: Vec<&'static str> = Vec::new();
     for f in FIELDS {
+        if !out.contains(&f.section()) {
+            out.push(f.section());
+        }
+    }
+    out
+}
+
+/// Returns the rows of one settings block in table order.
+pub(crate) fn rows_of(block: Block) -> impl Iterator<Item = &'static Field> {
+    FIELDS.iter().filter(move |f| f.block() == block)
+}
+
+/// Returns the sections that have a row of the block, by first appearance in the table.
+pub(crate) fn section_names_of(block: Block) -> Vec<&'static str> {
+    let mut out: Vec<&'static str> = Vec::new();
+    for f in rows_of(block) {
         if !out.contains(&f.section()) {
             out.push(f.section());
         }

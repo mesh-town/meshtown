@@ -1,16 +1,13 @@
 //! Steps 9–10 of the `put()` dispatcher (`put.rs`): writing the final settings to disk and answering by the
 //! result; also `stale_outcome` — the outcome of re-reading the file after `SaveError::StaleRev`.
 
-use std::path::Path;
-
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::config::config_file::{
-    self, fields, FileState, LoadedConfigFile, ParsedConfigFile, SaveError, Settings,
-};
-use crate::web_gui::{now_unix, NodeControl};
+use crate::config::config_file::{fields, FileState, LoadedSettings, SaveError, Settings, SettingsFile};
+use crate::web_gui::NodeControl;
 
+use super::settings_access::write_loaded;
 use super::state::ConfigState;
 use super::support::{get_path, json_response};
 
@@ -20,8 +17,8 @@ use super::support::{get_path, json_response};
 pub(super) fn write_new_settings(
     state: &mut ConfigState,
     mut new: Settings,
-    loaded: LoadedConfigFile,
-    path: &Path,
+    loaded: LoadedSettings,
+    file: &dyn SettingsFile,
     rev_in: u64,
     node: &dyn NodeControl,
 ) -> Response {
@@ -36,9 +33,9 @@ pub(super) fn write_new_settings(
         .filter(|&f| get_path(&new_doc, f) != get_path(&old_doc, f))
         .collect();
 
-    match perform_write(state, path, loaded, rev_in, &new) {
+    match perform_write(state, file, &loaded, rev_in, &new) {
         Ok(new_rev) => finish_successful_write(state, node, new, new_rev, changed),
-        Err(SaveError::StaleRev(_)) => respond_to_stale_write(state, path),
+        Err(SaveError::StaleRev(_)) => respond_to_stale_write(state, file),
         Err(SaveError::Io(t)) => state.config_write_failed(&t),
     }
 }
@@ -46,46 +43,13 @@ pub(super) fn write_new_settings(
 /// The write itself; the method depends on what was on disk (see `load_file_or_reject_stale_rev`).
 fn perform_write(
     state: &ConfigState,
-    path: &Path,
-    loaded: LoadedConfigFile,
+    file: &dyn SettingsFile,
+    loaded: &LoadedSettings,
     rev_in: u64,
     new: &Settings,
 ) -> Result<u64, SaveError> {
-    match loaded {
-        LoadedConfigFile::Parsed(_) => {
-            config_file::save_config_file(path, Some(rev_in), now_unix(), &state.secret, new)
-        }
-        LoadedConfigFile::Absent => config_file::save_with_floor(
-            path,
-            None,
-            state.file_report.rev,
-            now_unix(),
-            &state.secret,
-            new,
-        ),
-        LoadedConfigFile::Unreadable(_) | LoadedConfigFile::Invalid(_) => {
-            match config_file::set_aside_bad(path, now_unix()) {
-                Err(t) => Err(SaveError::Io(t)),
-                Ok(dest) => {
-                    crate::node::output::say(
-                        "web",
-                        format!(
-                            "page: broken settings file moved aside to {}",
-                            dest.display()
-                        ),
-                    );
-                    config_file::save_with_floor(
-                        path,
-                        None,
-                        state.file_report.rev,
-                        now_unix(),
-                        &state.secret,
-                        new,
-                    )
-                }
-            }
-        }
-    }
+    let rev_floor = state.file_report.rev;
+    write_loaded(file, loaded, Some(rev_in), rev_floor, &state.secret, new)
 }
 
 fn finish_successful_write(
@@ -128,29 +92,28 @@ fn finish_successful_write(
     )
 }
 
-fn respond_to_stale_write(state: &mut ConfigState, path: &Path) -> Response {
-    match stale_outcome(config_file::load_config_file(path)) {
-        StaleOutcome::Conflict(p) => {
-            let new_rev = p.rev;
-            state.file_settings = p.settings.clone();
-            state.file_report.rev = new_rev;
-            state.stale_rev_response(new_rev)
+fn respond_to_stale_write(state: &mut ConfigState, file: &dyn SettingsFile) -> Response {
+    match stale_outcome(file.load(&state.file_settings)) {
+        StaleOutcome::Conflict { rev, settings } => {
+            state.file_settings = settings;
+            state.file_report.rev = rev;
+            state.stale_rev_response(rev)
         }
         StaleOutcome::Failed => state
             .config_write_failed("the settings file changed during the write and can't be read"),
     }
 }
 
-/// The outcome of `stale_outcome(config_file::load_config_file(path))` after `SaveError::StaleRev` — a separate pure
-/// function of `LoadedConfigFile`, so a unit test can check it without writing to disk.
+/// The outcome of `stale_outcome(file.load(..))` after `SaveError::StaleRev` — a separate pure
+/// function of `LoadedSettings`, so a unit test can check it without writing to disk.
 pub(super) enum StaleOutcome {
-    Conflict(ParsedConfigFile),
+    Conflict { rev: u64, settings: Settings },
     Failed,
 }
 
-pub(super) fn stale_outcome(loaded: LoadedConfigFile) -> StaleOutcome {
+pub(super) fn stale_outcome(loaded: LoadedSettings) -> StaleOutcome {
     match loaded {
-        LoadedConfigFile::Parsed(p) => StaleOutcome::Conflict(p),
+        LoadedSettings::Parsed { rev, settings } => StaleOutcome::Conflict { rev, settings },
         _ => StaleOutcome::Failed,
     }
 }

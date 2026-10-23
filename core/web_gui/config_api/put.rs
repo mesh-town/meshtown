@@ -2,13 +2,13 @@
 //! parsing, path lookup, revision check) and functions of neighboring files — merge and checks (steps
 //! 6–8, `put_merge.rs`) and writing to disk (steps 9–10, `put_write.rs`, also `stale_outcome`).
 
-use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config::config_file::{self, ListenAccess, LoadedConfigFile, Settings};
+use crate::config::config_file::{ListenAccess, LoadedSettings, Settings, SettingsFile};
 use crate::web_gui::auth::iface_gate::judge;
 use crate::web_gui::auth::iface_os::current_view;
 use crate::web_gui::http::{json_err, ConnInfo};
@@ -37,11 +37,11 @@ impl ConfigState {
             Ok(v) => v,
             Err(resp) => return resp,
         };
-        let path = match writable_path(self) {
-            Ok(p) => p,
+        let file = match writable_file(self) {
+            Ok(f) => f,
             Err(resp) => return resp,
         };
-        let loaded = match load_file_or_reject_stale_rev(self, &path, rev_in) {
+        let loaded = match load_file_or_reject_stale_rev(self, file.as_ref(), rev_in) {
             Ok(l) => l,
             Err(resp) => return resp,
         };
@@ -56,7 +56,7 @@ impl ConfigState {
         if let Err(resp) = reject_web_lockout(self, &new, conn) {
             return resp;
         }
-        write_new_settings(self, new, loaded, &path, rev_in, node)
+        write_new_settings(self, new, loaded, file.as_ref(), rev_in, node)
     }
 }
 
@@ -90,8 +90,8 @@ fn parse_put_request(body: &[u8]) -> Result<(u64, Value), Response> {
 }
 
 /// Steps 3–4: the file is in use and can be overwritten without loss.
-fn writable_path(state: &ConfigState) -> Result<PathBuf, Response> {
-    let Some(path) = state.config_file_path.clone() else {
+fn writable_file(state: &ConfigState) -> Result<Arc<dyn SettingsFile>, Response> {
+    let Some(file) = state.file.clone() else {
         return Err(state.config_write_failed("the settings file is not used (--no-config)"));
     };
     if state.file_report.overwrite_refused {
@@ -100,7 +100,7 @@ fn writable_path(state: &ConfigState) -> Result<PathBuf, Response> {
         });
         return Err(state.config_write_failed(&msg));
     }
-    Ok(path)
+    Ok(file)
 }
 
 /// Step 5: the file revision on disk matches `rev_in` from the request; otherwise 409 and syncing
@@ -108,14 +108,14 @@ fn writable_path(state: &ConfigState) -> Result<PathBuf, Response> {
 /// choose the write method.
 fn load_file_or_reject_stale_rev(
     state: &mut ConfigState,
-    path: &Path,
+    file: &dyn SettingsFile,
     rev_in: u64,
-) -> Result<LoadedConfigFile, Response> {
-    let loaded = config_file::load_config_file(path);
-    if let LoadedConfigFile::Parsed(p) = &loaded {
-        if p.rev != rev_in {
-            let new_rev = p.rev;
-            state.file_settings = p.settings.clone();
+) -> Result<LoadedSettings, Response> {
+    let loaded = file.load(&state.file_settings);
+    if let LoadedSettings::Parsed { rev, settings } = &loaded {
+        if *rev != rev_in {
+            let new_rev = *rev;
+            state.file_settings = settings.clone();
             state.file_report.rev = new_rev;
             return Err(state.stale_rev_response(new_rev));
         }

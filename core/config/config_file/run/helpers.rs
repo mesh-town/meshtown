@@ -35,7 +35,10 @@ pub(super) fn is_probably_writable(path: &Path) -> bool {
 /// a write that distorts it (a corrupted secret, fields that failed their bounds). The copy gets
 /// mode `0600` (Unix) and does not overwrite an earlier copy with the same name. `Err` holds text with the
 /// path and reason; then the original file must not be overwritten.
-pub(super) fn keep_copy_before_lossy_write(path: &Path, now_unix: u64) -> Result<PathBuf, String> {
+pub(in super::super) fn keep_copy_before_lossy_write(
+    path: &Path,
+    now_unix: u64,
+) -> Result<PathBuf, String> {
     let target = path.with_file_name(format!("{FILE_NAME}.bad-{}", stamp_utc(now_unix)));
     if target.exists() {
         return Err(format!(

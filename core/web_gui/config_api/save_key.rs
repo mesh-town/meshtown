@@ -1,19 +1,17 @@
 //! `ConfigState::save_network_key` — changing the network key from the page: without a settings file it lives until the
 //! end of the run, with a file it is written to disk the same way as `put` (see `put.rs`).
 
-use std::path::Path;
-
 use axum::response::Response;
 
-use crate::config::config_file::{self, FileState, LoadedConfigFile, SaveError, Settings};
+use crate::config::config_file::{FileState, LoadedSettings, SaveError, Settings, SettingsFile};
 use crate::node::output::NET_NAME;
-use crate::web_gui::now_unix;
 
+use super::settings_access::write_loaded;
 use super::state::ConfigState;
 
 impl ConfigState {
     pub(crate) fn save_network_key(&mut self, key: &str, keep_ports: bool) -> Result<(), Response> {
-        let Some(path) = self.config_file_path.clone() else {
+        let Some(file) = self.file.clone() else {
             crate::node::output::say(
                 "web",
                 format!("page: there is no settings file, the new network key {NET_NAME} lives until the end of this run"),
@@ -28,7 +26,7 @@ impl ConfigState {
             return Err(self.config_write_failed(&msg));
         }
 
-        match write_network_key(self, &path, key, keep_ports) {
+        match write_network_key(self, file.as_ref(), key, keep_ports) {
             Ok((new_rev, settings)) => {
                 self.file_settings = settings;
                 self.file_report.state = FileState::Ok;
@@ -52,60 +50,19 @@ impl ConfigState {
 /// Writing the new network key; the method depends on what lies in the file now.
 fn write_network_key(
     state: &ConfigState,
-    path: &Path,
+    file: &dyn SettingsFile,
     key: &str,
     keep_ports: bool,
 ) -> Result<(u64, Settings), SaveError> {
-    let loaded = config_file::load_config_file(path);
-    match &loaded {
-        LoadedConfigFile::Parsed(p) => {
-            let settings = switched_settings(&p.settings, key, keep_ports);
-            config_file::save_config_file(path, Some(p.rev), now_unix(), &state.secret, &settings)
-                .map(|rev| (rev, settings))
-        }
-        LoadedConfigFile::Absent => {
-            let settings = switched_settings(&state.file_settings, key, keep_ports);
-            config_file::save_with_floor(
-                path,
-                None,
-                state.file_report.rev,
-                now_unix(),
-                &state.secret,
-                &settings,
-            )
-            .map(|rev| (rev, settings))
-        }
-        LoadedConfigFile::Unreadable(_) | LoadedConfigFile::Invalid(_) => {
-            write_network_key_after_bad_file(state, path, key, keep_ports)
-        }
-    }
-}
-
-/// The file is read as damaged: first set aside, then written as new.
-fn write_network_key_after_bad_file(
-    state: &ConfigState,
-    path: &Path,
-    key: &str,
-    keep_ports: bool,
-) -> Result<(u64, Settings), SaveError> {
-    let dest = config_file::set_aside_bad(path, now_unix()).map_err(SaveError::Io)?;
-    crate::node::output::say(
-        "web",
-        format!(
-            "page: broken settings file moved aside to {}",
-            dest.display()
-        ),
-    );
-    let settings = switched_settings(&state.file_settings, key, keep_ports);
-    config_file::save_with_floor(
-        path,
-        None,
-        state.file_report.rev,
-        now_unix(),
-        &state.secret,
-        &settings,
-    )
-    .map(|rev| (rev, settings))
+    let loaded = file.load(&state.file_settings);
+    let (base, expected_rev) = match &loaded {
+        LoadedSettings::Parsed { rev, settings } => (settings, Some(*rev)),
+        _ => (&state.file_settings, None),
+    };
+    let settings = switched_settings(base, key, keep_ports);
+    let rev_floor = state.file_report.rev;
+    write_loaded(file, &loaded, expected_rev, rev_floor, &state.secret, &settings)
+        .map(|rev| (rev, settings))
 }
 
 /// Settings after a network change: the new key; `ports.published` is cleared unless the owner did not
