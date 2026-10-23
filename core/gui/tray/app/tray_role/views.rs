@@ -95,11 +95,10 @@ fn views_from_overview(all: &[SlotView], tray_proxy_plan: &ProxyState) -> (ExitM
     (menu, snapshot_view_nets(&snap, any_online))
 }
 
-/// The state shown when no network is visible: the main slot, otherwise the first slot that has a state.
+/// The state shown when no network is visible: the first slot that has a state (the host lists the main slot first).
 fn fallback_state(all: &[SlotView]) -> serde_json::Value {
-    let main = all.iter().find(|s| s.slot == "main" && s.state.is_object());
     let first = all.iter().find(|s| s.state.is_object());
-    main.or(first).map(|s| s.state.clone()).unwrap_or_default()
+    first.map(|s| s.state.clone()).unwrap_or_default()
 }
 
 /// The proxy line comes from the network that carries the proxy, even a hidden one.
