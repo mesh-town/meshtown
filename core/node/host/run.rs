@@ -70,22 +70,17 @@ impl Host {
         );
         let dump_dir = heap_dump_dir(run_config.file_report.path.as_deref());
         let services = ProcessServices::start(&run_config.effective_settings.process, dump_dir);
-        ctl.set_guard_sources(NetSlotId::main(), services.sources());
-        let front = match Host::bind_front(&run_config).await {
-            Ok(front) => front,
+        let (front, seat) = match Host::seat_proxy(&run_config).await {
+            Ok(seated) => seated,
             Err(e) => {
                 services.stop();
                 return Err(e);
             }
         };
-        let seat = Arc::new(ProxySeat::new(
-            front.clone(),
-            run_config.effective_settings.process.proxy_net.clone(),
-        ));
-        ctl.set_proxy_seat(NetSlotId::main(), seat.clone());
         let config = ConfigState::from_run(&run_config);
         let host = HostSlots::with_main(ctl.clone(), config);
         host.set_proxy_seat(seat);
+        host.seat(&NetSlotId::main(), &ctl, services.sources());
         let on_signal = host.clone();
         let signal_task = spawn_stop_signal(move || on_signal.stop_all_on_signal());
         let saved = SavedSlots {
@@ -99,6 +94,17 @@ impl Host {
         }
         services.stop();
         result
+    }
+
+    /// Takes the process proxy port and makes the seat that chooses the network the proxy serves.
+    #[doc(hidden)]
+    pub async fn seat_proxy(
+        run_config: &RunConfig,
+    ) -> anyhow::Result<(Option<ProxyFront>, Arc<ProxySeat>)> {
+        let front = Host::bind_front(run_config).await?;
+        let process = &run_config.effective_settings.process;
+        let seat = Arc::new(ProxySeat::new(front.clone(), process.proxy_net.clone()));
+        Ok((front, seat))
     }
 
     /// Takes the process proxy port; with the proxy off, takes nothing and logs why.
@@ -133,9 +139,7 @@ impl Host {
         };
         let main_run = saved.relaunch.as_ref().map(|_| run_config.clone());
         output::set_multi_net(has_saved_slots(main_run.as_ref()));
-        let labeled = output::with_net(Some("main".into()), body(run_config, ctl));
-        let task = output::spawn(labeled);
-        host.set_task(&NetSlotId::main(), task);
+        host.spawn_task(&NetSlotId::main(), body(run_config, ctl));
         if let (Some(relaunch), Some(main_run)) = (&saved.relaunch, &main_run) {
             host.set_context(SlotContext {
                 main_run: main_run.clone(),
@@ -179,7 +183,7 @@ impl Host {
                 let outcome = task.await.unwrap_or_else(|e| {
                     Err(anyhow::anyhow!("the node task of slot {id} failed: {e}"))
                 });
-                if id == NetSlotId::main() {
+                if id.carries_process() {
                     main = outcome;
                 }
             }

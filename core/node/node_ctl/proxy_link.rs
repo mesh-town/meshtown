@@ -40,7 +40,7 @@ impl NodeCtl {
         link.iter().for_each(|(id, seat)| seat.node_down(id));
     }
 
-    /// Brings the process listener to the settings; only the `main` slot owns it.
+    /// Brings the process listener to the settings; only the slot that carries the process owns it.
     pub(crate) async fn apply_process_proxy(
         &self,
         settings: &ProcessSettings,
@@ -48,7 +48,7 @@ impl NodeCtl {
         let front = self
             .proxy
             .get()
-            .filter(|(id, _)| *id == NetSlotId::main())
+            .filter(|(id, _)| id.carries_process())
             .and_then(|(_, seat)| seat.front());
         match front {
             Some(front) => front.apply(settings).await,

@@ -9,8 +9,9 @@ use crate::config::config_file::{
     self, net_slot_path, CliOverrides, ConfigSource, NetSettings, PathRule, Settings,
 };
 use crate::node::guard_sources::GuardSources;
+use crate::node::node_ctl::NodeCtl;
 use crate::web_gui::test_host::SnapNode;
-use crate::web_gui::{DomainInfo, NodeSnapshot};
+use crate::web_gui::{ConfigState, DomainInfo, NodeSnapshot};
 
 struct Fixture {
     dir: PathBuf,

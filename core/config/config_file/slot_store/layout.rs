@@ -26,5 +26,5 @@ pub(super) fn nets_dir(main: &Path) -> PathBuf {
 
 /// `<folder of main>/nets/<id>/config.json`; the main slot has no such file — `None`.
 pub fn net_slot_path(main: &Path, id: &NetSlotId) -> Option<PathBuf> {
-    (*id != NetSlotId::main()).then(|| nets_dir(main).join(id.as_str()).join(FILE_NAME))
+    (!id.carries_process()).then(|| nets_dir(main).join(id.as_str()).join(FILE_NAME))
 }

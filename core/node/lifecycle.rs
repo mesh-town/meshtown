@@ -1,12 +1,13 @@
 //! The "start → run → stop or restart" loops: `run` is a thin wrapper for starting without a network
-//! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one. The stop signal belongs to the
+//! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one, and `run_network` picks between
+//! them by whether the first key is already known. The stop signal belongs to the
 //! process host (`host::signal`); `run` starts its own, since it has no host.
 
 use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::config::config_file::Settings;
+use crate::config::config_file::{RunConfig, Settings};
 use crate::node::node_ctl::{Cmd, NodeCtl, Relaunch};
 use crate::node::output::say;
 use crate::proxy::ProxyConsole;
@@ -77,6 +78,23 @@ pub async fn run_node_awaiting_key(
     ctl.set_test_net(relaunch.test_net.clone());
     ctl.set_owner_secret(relaunch.secret.clone());
     wait_then_run(settings, identity, &ctl, &relaunch).await
+}
+
+/// Runs one network's node until it stops: with `Some(cfg)` it starts at once, with `None` it waits for the
+/// first key from the page.
+pub async fn run_network(
+    start: Option<NodeConfig>,
+    run: RunConfig,
+    ctl: Arc<NodeCtl>,
+    relaunch: Relaunch,
+) -> Result<()> {
+    match start {
+        Some(cfg) => run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch).await,
+        None => {
+            let identity = IdentityState::from_report(&run.file_report);
+            run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await
+        }
+    }
 }
 
 /// Wait loop before the first start: `Stop` — exit (from the page or Ctrl-C/SIGTERM, already

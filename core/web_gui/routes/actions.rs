@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::config::config_file::{NetSlotId, ProcessSettings};
+use crate::config::config_file::ProcessSettings;
 use crate::web_gui::{ActionError, App, SlotHandle};
 
 use super::helpers::{action_error, body_obj, map_string_field};
@@ -87,7 +87,7 @@ async fn restart_without_network(
     refusal: String,
 ) -> Result<(), ActionError> {
     let refused = ActionError::NoNetwork(refusal);
-    let Some(front) = app.host.proxy_front().filter(|_| slot.id == NetSlotId::main()) else {
+    let Some(front) = app.host.proxy_front().filter(|_| slot.id.carries_process()) else {
         return Err(refused);
     };
     let Some(process) = pending_socks_process(slot) else {

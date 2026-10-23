@@ -5,8 +5,8 @@
 use std::path::Path;
 
 use crate::config::config_file::{
-    self, fresh_net_slot, list_net_slots, load_net_file, net_slot_path, new_slot_id, save_net_file,
-    ConfigSource, LoadedConfigFile, LoadedNetFile, NetSlotId, RunConfig,
+    self, list_net_slots, load_net_file, net_slot_path, new_net_slot, save_net_file, ConfigSource,
+    LoadedConfigFile, LoadedNetFile, NetSlotId, RunConfig,
 };
 use crate::members::network_key::parse_user_input;
 use crate::members::sync::replica::entry::WireEntry;
@@ -114,10 +114,9 @@ pub(crate) struct PreparedSlot {
 }
 
 /// Picks the id and builds the settings of a new slot, with its own secret. Nothing is written.
-pub(crate) fn prepare_net_slot(main: &RunConfig, now: u64) -> anyhow::Result<PreparedSlot> {
+pub(crate) fn prepare_new_slot(main: &RunConfig, now: u64) -> anyhow::Result<PreparedSlot> {
     let main_path = main_file_path(main)?;
-    let id = new_slot_id(&main_path)?;
-    let run = fresh_net_slot(main, &main.file_settings.net, &id, now)?;
+    let (id, run) = new_net_slot(main, &main_path, &main.file_settings.net, &|_| false, now)?;
     Ok(PreparedSlot { id, run })
 }
 
@@ -136,7 +135,7 @@ pub(crate) fn add_net_slot(
     peers: &[PeerAddr],
     now: u64,
 ) -> anyhow::Result<NetSlotId> {
-    let slot = prepare_net_slot(main, now)?;
+    let slot = prepare_new_slot(main, now)?;
     save_prepared_slot(main, slot, key_text, typed_domains, peers, now)
 }
 
