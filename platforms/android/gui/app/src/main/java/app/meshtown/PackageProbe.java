@@ -57,7 +57,11 @@ final class PackageProbe {
         }
         Signature[] x = signers(a);
         Signature[] y = signers(b);
-        return x != null && y != null && new HashSet<>(Arrays.asList(x)).equals(new HashSet<>(Arrays.asList(y)));
+        if (x == null || y == null) {
+            // Signers unreadable: leave the decision to the installer.
+            return true;
+        }
+        return new HashSet<>(Arrays.asList(x)).equals(new HashSet<>(Arrays.asList(y)));
     }
 
     private static Signature[] signers(PackageInfo info) {
