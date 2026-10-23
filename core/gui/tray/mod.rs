@@ -8,6 +8,8 @@
 //! "Exit via…" on top of muda: `ExitUi::build`/`apply_exit_menu` from the
 //! `app::exit_menu::ExitMenu`;
 //! `actions_ui.rs` — the action items under the submenu ("Invite a member" and the checkbox "Allow sites to open via this computer");
+//! `node_cmd.rs` — `NodeCmd`, the commands to the node poller (re-exported by `core.rs`); `nets_click.rs` — item id →
+//! target → page link or node commands, pure; `nets_ui.rs` — the submenus of several networks and the live rows on top of muda;
 //! `clipboard.rs` — writing a string to the OS clipboard with an external program (`copy_via`);
 //! `backend.rs` — the `TrayBackend` trait: the platform loop, wake-up, opening a link and the clipboard;
 //! `test_tray.rs` — a backend stub for tests;
@@ -26,6 +28,9 @@ mod core;
 mod exit_menu;
 mod frame_cache;
 mod menu_build;
+mod nets_click;
+mod nets_ui;
+mod node_cmd;
 mod spin;
 #[cfg(test)]
 pub(crate) mod test_tray;

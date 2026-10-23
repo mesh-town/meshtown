@@ -171,7 +171,7 @@ fn menu_exit_id_toggles_that_exit() {
     assert_eq!(core.drain_commands(), None);
     assert_eq!(
         node_rx.try_recv(),
-        Ok(NodeCmd::ToggleExit("abcd1234".to_string()))
+        Ok(NodeCmd::ToggleExit { slot: None, id: "abcd1234".to_string() })
     );
 }
 
@@ -180,7 +180,7 @@ fn menu_exit_prefix_alone_clears_exits() {
     let (tx, mut core, mut node_rx) = test_core();
     tx.send(TrayCmd::Menu(MENU_EXIT_PREFIX.to_string()));
     assert_eq!(core.drain_commands(), None);
-    assert_eq!(node_rx.try_recv(), Ok(NodeCmd::ClearExits));
+    assert_eq!(node_rx.try_recv(), Ok(NodeCmd::ClearExits(None)));
 }
 
 #[test]
@@ -188,7 +188,7 @@ fn menu_invite_sends_copy_invite() {
     let (tx, mut core, mut node_rx) = test_core();
     tx.send(TrayCmd::Menu(MENU_INVITE.to_string()));
     assert_eq!(core.drain_commands(), None);
-    assert_eq!(node_rx.try_recv(), Ok(NodeCmd::CopyInvite));
+    assert_eq!(node_rx.try_recv(), Ok(NodeCmd::CopyInvite(None)));
 }
 
 #[test]
@@ -210,7 +210,7 @@ fn menu_serve_asks_opposite_of_snapshot() {
         tx.send(TrayCmd::ExitMenu(menu));
         tx.send(TrayCmd::Menu(MENU_SERVE.to_string()));
         assert_eq!(core.drain_commands(), None);
-        assert_eq!(node_rx.try_recv(), Ok(NodeCmd::SetExitServer(!serves)));
+        assert_eq!(node_rx.try_recv(), Ok(NodeCmd::SetExitServer { slot: None, on: !serves }));
     }
 }
 

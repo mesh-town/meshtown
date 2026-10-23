@@ -5,6 +5,8 @@
 
 use tray_icon::menu::{CheckMenuItem, Menu, MenuItem};
 
+use super::nets_ui::insert_position;
+
 use super::core::{MENU_INVITE, MENU_SERVE};
 use crate::gui::tray::app::exit_menu::ExitMenu;
 use crate::gui::tray::app::tray_actions::{invite_item_text, InviteNote};
@@ -14,6 +16,9 @@ use crate::gui::tray::app::tray_texts::SERVE_TEXT;
 pub(super) struct ActionsUi {
     invite_item: MenuItem,
     serve: CheckMenuItem,
+    /// The menu the items were put into, to hide and show them again.
+    menu: Option<Menu>,
+    flat_visible: bool,
 }
 
 impl ActionsUi {
@@ -22,11 +27,14 @@ impl ActionsUi {
         ActionsUi {
             invite_item: MenuItem::with_id(MENU_INVITE, invite_item_text(note), false, None),
             serve: CheckMenuItem::with_id(MENU_SERVE, SERVE_TEXT, false, false, None),
+            menu: None,
+            flat_visible: true,
         }
     }
 
     /// Puts the items into the menu.
-    pub(super) fn append_to(&self, menu: &Menu) -> Result<(), String> {
+    pub(super) fn append_to(&mut self, menu: &Menu) -> Result<(), String> {
+        self.menu = Some(menu.clone());
         menu.append(&self.invite_item).map_err(|e| e.to_string())?;
         menu.append(&self.serve).map_err(|e| e.to_string())
     }
@@ -36,6 +44,24 @@ impl ActionsUi {
         self.invite_item.set_enabled(menu.enabled);
         self.serve.set_enabled(menu.enabled);
         self.serve.set_checked(menu.serves_exit);
+    }
+
+    /// With two or more networks the invite and the checkbox live in the network submenus, so the flat ones leave the
+    /// menu; they come back at the same place.
+    pub(super) fn set_flat_visible(&mut self, visible: bool) {
+        let Some(menu) = &self.menu else { return };
+        if visible == self.flat_visible {
+            return;
+        }
+        self.flat_visible = visible;
+        if !visible {
+            let _ = menu.remove(&self.invite_item);
+            let _ = menu.remove(&self.serve);
+            return;
+        }
+        let at = insert_position(menu);
+        let _ = menu.insert(&self.invite_item, at);
+        let _ = menu.insert(&self.serve, at + 1);
     }
 
     /// Only the label of the invite item.

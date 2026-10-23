@@ -216,3 +216,6 @@ async fn poller_runs_while_main_blocked() {
     handle.shutdown(Duration::from_secs(2)).await;
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[path = "poller_nets_tests.rs"]
+mod nets;

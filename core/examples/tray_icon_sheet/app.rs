@@ -1,6 +1,6 @@
 //! Tray code files included in the example as is, without copying or edits.
 //!
-//! What it does: assembles under the names `app::{exit_menu, proxy_state, snapshot, tray_texts, view, view_disk, view_ring, view_ring_paint}` the same
+//! What it does: assembles under the names `app::{exit_menu, nets_menu, nets_texts, overview, proxy_state, snapshot, tray_texts, view, view_disk, view_ring, view_ring_paint}` the same
 //! `core/gui/tray/app/` sources that go into the binary; `crate::gui::tray::app::view` in `exit_menu.rs` finds them
 //! here too. Whatever the example doesn't call is silenced with `dead_code`.
 //! What it doesn't do: it doesn't change the sources and doesn't pull in the rest of `app` (`tray_role`, `local_api`).
@@ -10,6 +10,12 @@
 
 #[path = "../../gui/tray/app/exit_menu.rs"]
 pub mod exit_menu;
+#[path = "../../gui/tray/app/nets_menu.rs"]
+pub mod nets_menu;
+#[path = "../../gui/tray/app/nets_texts.rs"]
+pub mod nets_texts;
+#[path = "../../gui/tray/app/overview.rs"]
+pub mod overview;
 #[path = "../../gui/tray/app/proxy_state.rs"]
 pub mod proxy_state;
 #[path = "../../gui/tray/app/snapshot/mod.rs"]
