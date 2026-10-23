@@ -76,7 +76,7 @@ struct Rig {
 fn rig(rec: Recorder) -> Rig {
     let (tx, rx) = mpsc::unbounded_channel();
     let (stop, stop_rx) = watch::channel(false);
-    let task = tokio::spawn(react_loop(
+    let task = crate::node::output::spawn(react_loop(
         Box::new(ChanEvents(rx)),
         Arc::new(rec.clone()),
         stop_rx,

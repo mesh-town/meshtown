@@ -270,7 +270,7 @@ where
     Fut: Future<Output = ()> + Send + 'static,
 {
     let slot: Slot = Arc::new(Mutex::new(Some(listener)));
-    let task = tokio::spawn(accept_loop(slot.clone(), conn)).abort_handle();
+    let task = crate::node::output::spawn(accept_loop(slot.clone(), conn)).abort_handle();
     Listener { slot, task }
 }
 
@@ -288,7 +288,7 @@ where
         match polled.await {
             None => break,
             Some(Ok((tcp, _))) => {
-                set.spawn(conn(tcp));
+                crate::node::output::spawn_in(&mut set, conn(tcp));
             }
             Some(Err(e)) => {
                 say("port", format!("accepting a connection failed: {e}"));

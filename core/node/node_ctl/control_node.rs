@@ -85,7 +85,7 @@ impl NodeCtl {
             return Err("this is the node's own address".to_string());
         }
         let line_owned = line.trim().to_string();
-        self.rt.spawn(async move {
+        crate::node::output::spawn_on(&self.rt, async move {
             node.introduce(addr).await;
             say("member", format!("member address added: {line_owned}"));
         });

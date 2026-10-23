@@ -58,7 +58,7 @@ pub(super) fn build_poll_env(
 
 /// The poller in the background; its code gives the tray a `QuitWithCode`, and the fallback exit finishes off the process.
 pub(super) fn spawn_poller(env: PollEnv, tx: impl Fn(TrayCmd) + Send + 'static) {
-    tokio::runtime::Handle::current().spawn(async move {
+    crate::node::output::spawn_on(&tokio::runtime::Handle::current(), async move {
         let code = poll_node(env, PollTiming::PROD).await;
         tx(TrayCmd::QuitWithCode(code));
         tokio::time::sleep(EXIT_GRACE).await;

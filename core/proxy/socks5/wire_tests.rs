@@ -6,7 +6,7 @@ use crate::proxy::socks5::{encode_socks5_request, Target, REP_OK};
 #[tokio::test]
 async fn greeting_and_request_pass_through_duplex() {
     let (mut client, mut server) = tokio::io::duplex(1024);
-    let client_side = tokio::spawn(async move {
+    let client_side = crate::transport::net::task_label::spawn(async move {
         client
             .write_all(&[VERSION, 1, METHOD_NO_AUTH])
             .await

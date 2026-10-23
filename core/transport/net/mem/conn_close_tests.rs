@@ -70,7 +70,7 @@ mod close_with_a_code {
     #[tokio::test]
     async fn a_waiting_accept_wakes_up_closed() {
         let (a, b) = conns();
-        let waiting = tokio::spawn({
+        let waiting = crate::transport::net::task_label::spawn({
             let b = b.clone();
             async move { b.accept().await.err() }
         });
@@ -148,7 +148,10 @@ mod streams_when_closed {
         let (a, b) = conns();
         let _out = open(&a).await;
         let mut inc = accept(&b).await;
-        let waiting = tokio::spawn(async move { inc.recv.read(&mut [0u8; 1]).await });
+        let waiting =
+            crate::transport::net::task_label::spawn(
+                async move { inc.recv.read(&mut [0u8; 1]).await },
+            );
         sleep(Duration::from_millis(50)).await;
 
         a.close(1, b"");
@@ -194,7 +197,10 @@ mod streams_when_closed {
         let mut out = open(&a).await;
         let _held = accept(&b).await;
         fill_until_stalled(&mut out.send).await;
-        let stalled = tokio::spawn(async move { out.send.write(&[1u8; 1024]).await });
+        let stalled =
+            crate::transport::net::task_label::spawn(
+                async move { out.send.write(&[1u8; 1024]).await },
+            );
         sleep(Duration::from_millis(50)).await;
 
         b.close(1, b"");

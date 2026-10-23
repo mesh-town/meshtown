@@ -42,7 +42,7 @@ fn open(
     let (server_read, server_write) = split(server_end);
     let conn = cfg.clients.register_conn(pid(1)).conn();
     let cfg = cfg.clone();
-    let task = tokio::spawn(async move {
+    let task = crate::node::output::spawn(async move {
         let _ = serve_exit_stream(
             cfg,
             pid(1),
@@ -59,7 +59,7 @@ fn open(
 async fn echo_udp() -> SocketAddr {
     let sock = UdpSocket::bind("127.0.0.1:0").await.expect("echo");
     let addr = sock.local_addr().expect("addr");
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         let mut buf = [0u8; 1024];
         while let Ok((n, from)) = sock.recv_from(&mut buf).await {
             let _ = sock.send_to(&buf[..n], from).await;
@@ -132,7 +132,7 @@ async fn same_host_on_another_port_is_still_a_closed_tcp_target() {
 async fn ordinary_tcp_target_still_connects() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("listener");
     let site = listener.local_addr().expect("addr");
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         let _ = listener.accept().await;
         std::future::pending::<()>().await;
     });

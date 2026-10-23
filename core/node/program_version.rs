@@ -119,7 +119,7 @@ pub async fn run_program_version_announce(r: Arc<dyn Replica>) {
 
 /// Starts the version announcement as a background task; the handle goes into `boot.tasks`.
 pub fn spawn_program_version_announce(list: &DomainList) -> tokio::task::AbortHandle {
-    tokio::spawn(run_program_version_announce(list.shared_replica())).abort_handle()
+    crate::node::output::spawn(run_program_version_announce(list.shared_replica())).abort_handle()
 }
 
 #[cfg(test)]

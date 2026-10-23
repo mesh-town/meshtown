@@ -28,13 +28,13 @@ async fn node(cl: &Cluster, kp: &KeyPair) -> Arc<PeeroxideDht> {
 async fn serve(dht: &PeeroxideDht, kp: &KeyPair) -> Handle {
     let (server, incoming) = dht.create_server(ServerOpts::default()).expect("server");
     server.listen(kp.clone()).await.expect("listen");
-    tokio::spawn(echo_loop(incoming));
+    crate::node::output::spawn(echo_loop(incoming));
     server
 }
 
 async fn echo_loop(mut incoming: Incoming) {
     while let Some(conn) = incoming.accept().await {
-        tokio::spawn(echo_one(conn));
+        crate::node::output::spawn(echo_one(conn));
     }
 }
 
@@ -139,7 +139,7 @@ async fn hundred_parallel_dials_finish() {
     let _server = serve(&srv, &ks).await;
     let started = Instant::now();
     let tasks: Vec<_> = (0..100)
-        .map(|_| tokio::spawn(timed_dial(client.clone(), ks.clone())))
+        .map(|_| crate::node::output::spawn(timed_dial(client.clone(), ks.clone())))
         .collect();
     let mut times = Vec::new();
     for task in tasks {

@@ -242,7 +242,7 @@ pub(crate) async fn boot_with_exit_hosts(
             .expect("boot: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
-    let task = tokio::spawn(node::run_node_with_ctl(
+    let task = meshtown_core::node::output::spawn(node::run_node_with_ctl(
         cfg,
         run.effective_settings,
         ctl,
@@ -295,7 +295,7 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
     let port = handle.shared.port();
     let token = handle.shared.token();
     let identity = IdentityState::from_report(&run.file_report);
-    let task = tokio::spawn(node::run_node_awaiting_key(
+    let task = meshtown_core::node::output::spawn(node::run_node_awaiting_key(
         run.effective_settings,
         identity,
         ctl,

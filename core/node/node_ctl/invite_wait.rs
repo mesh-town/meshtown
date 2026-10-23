@@ -97,7 +97,7 @@ pub(super) fn start(
         test_net,
         owner,
     };
-    let task = ctl.rt.spawn(job.run());
+    let task = crate::node::output::spawn_on(&ctl.rt, job.run());
     st.invite_wait = Some(InviteWait {
         invite_gen,
         view,

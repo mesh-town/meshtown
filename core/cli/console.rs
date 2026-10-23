@@ -31,7 +31,7 @@ pub fn spawn(
             }
         }
     });
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         while let Some(line) = rx.recv().await {
             if let Some(for_whom) = parse_invite_line(&line) {
                 print_invite(&invite, for_whom.as_deref()).await;

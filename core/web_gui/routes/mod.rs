@@ -21,6 +21,7 @@ mod auth_password;
 mod config;
 mod domains;
 pub(crate) mod helpers;
+mod log;
 mod network;
 mod pages;
 mod peers;
@@ -85,10 +86,10 @@ fn register_pages(router: Router<Arc<App>>) -> Router<Arc<App>> {
 fn register_state(router: Router<Arc<App>>) -> Router<Arc<App>> {
     router
         .route("/api/state", get(state::state_handler).fallback(bad_method))
-        .route("/api/log", get(state::log_handler).fallback(bad_method))
+        .route("/api/log", get(log::log_handler).fallback(bad_method))
         .route(
             "/api/log/download",
-            get(state::log_download_handler).fallback(bad_method),
+            get(log::log_download_handler).fallback(bad_method),
         )
 }
 

@@ -39,7 +39,7 @@ impl HandlerSet {
     pub(super) fn spawn(&self, fut: BoxFuture<'static, ()>) {
         let mut set = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         while set.try_join_next().is_some() {}
-        set.spawn(fut);
+        crate::transport::net::task_label::spawn_in(&mut set, fut);
     }
 
     /// Synchronously aborts all tasks of the set without waiting for them (the `Drop` safety net).

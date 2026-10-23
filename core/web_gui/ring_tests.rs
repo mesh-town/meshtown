@@ -8,7 +8,12 @@ fn seq_starts_at_one_and_grows() {
     ring.push(0.0, "web", "a".to_string());
     ring.push(0.0, "web", "b".to_string());
     ring.push(0.0, "web", "c".to_string());
-    let seqs: Vec<u64> = ring.page("x", 0, 10).lines.iter().map(|l| l.seq).collect();
+    let seqs: Vec<u64> = ring
+        .page("x", 0, 10, None)
+        .lines
+        .iter()
+        .map(|l| l.seq)
+        .collect();
     assert_eq!(seqs, vec![1, 2, 3]);
 }
 
@@ -18,7 +23,7 @@ fn overflow_drops_oldest() {
     for i in 0..5 {
         ring.push(0.0, "web", format!("line{i}"));
     }
-    let page = ring.page("x", 0, 10);
+    let page = ring.page("x", 0, 10, None);
     let seqs: Vec<u64> = page.lines.iter().map(|l| l.seq).collect();
     assert_eq!(seqs, vec![3, 4, 5]);
     assert_eq!(page.first_seq, 3);
@@ -31,13 +36,13 @@ fn page_after_and_limit() {
     for _ in 0..10 {
         ring.push(0.0, "web", "x".to_string());
     }
-    let page = ring.page("x", 4, 3);
+    let page = ring.page("x", 4, 3, None);
     let seqs: Vec<u64> = page.lines.iter().map(|l| l.seq).collect();
     assert_eq!(seqs, vec![5, 6, 7]);
     assert_eq!(page.first_seq, 1);
     assert_eq!(page.last_seq, 10);
 
-    let page2 = ring.page("x", 10, 5);
+    let page2 = ring.page("x", 10, 5, None);
     assert!(page2.lines.is_empty());
     assert_eq!(page2.first_seq, 1);
     assert_eq!(page2.last_seq, 10);
@@ -46,7 +51,7 @@ fn page_after_and_limit() {
 #[test]
 fn empty_bounds_are_zero() {
     let ring = LogRing::new(5);
-    let page = ring.page("x", 0, 10);
+    let page = ring.page("x", 0, 10, None);
     assert_eq!(page.first_seq, 0);
     assert_eq!(page.last_seq, 0);
     let summary = ring.summary(5);
@@ -61,7 +66,7 @@ fn shrink_drops_oldest() {
         ring.push(0.0, "web", "x".to_string());
     }
     ring.set_capacity(4);
-    let page = ring.page("x", 0, 10);
+    let page = ring.page("x", 0, 10, None);
     let seqs: Vec<u64> = page.lines.iter().map(|l| l.seq).collect();
     assert_eq!(seqs, vec![7, 8, 9, 10]);
     assert_eq!(ring.summary(10).ring_lines, 4);
@@ -74,7 +79,7 @@ fn clear_keeps_seq_growing() {
     ring.push(0.0, "web", "b".to_string());
     ring.clear();
     ring.push(0.0, "web", "c".to_string());
-    let page = ring.page("x", 0, 10);
+    let page = ring.page("x", 0, 10, None);
     assert_eq!(page.lines.len(), 1);
     assert_eq!(page.lines[0].seq, 3);
     assert_eq!(page.first_seq, 3);
@@ -99,7 +104,7 @@ fn zero_capacity_is_one() {
     let mut ring = LogRing::new(0);
     ring.push(0.0, "web", "a".to_string());
     ring.push(0.0, "web", "b".to_string());
-    let page = ring.page("x", 0, 10);
+    let page = ring.page("x", 0, 10, None);
     assert_eq!(page.lines.len(), 1);
     assert_eq!(ring.summary(10).ring_lines, 1);
 }

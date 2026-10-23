@@ -34,7 +34,9 @@ async fn unreachable_peer_does_not_block_live_peer() {
     // when: a handshake to the unreachable member is under way and doesn't finish.
     let stuck = {
         let (pool, stack) = (pool.clone(), a.stack.clone());
-        tokio::spawn(async move { pool.open_peer_stream(&stack, dead).await.map(|_| ()) })
+        meshtown_core::node::output::spawn(async move {
+            pool.open_peer_stream(&stack, dead).await.map(|_| ())
+        })
     };
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(

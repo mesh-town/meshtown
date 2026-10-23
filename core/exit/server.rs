@@ -66,7 +66,7 @@ impl ServiceHandler for ExitService {
         let cfg = self.cfg.clone();
         Box::pin(async move {
             let peer = conn.peer();
-            tokio::spawn(report::log_link_stats_while_open(
+            crate::node::output::spawn(report::log_link_stats_while_open(
                 conn.clone(),
                 peer,
                 "exit",
@@ -78,7 +78,7 @@ impl ServiceHandler for ExitService {
             while let Ok(pair) = conn.accept().await {
                 let cfg = cfg.clone();
                 let conn_ref = conn_guard.conn();
-                tokio::spawn(async move {
+                crate::node::output::spawn(async move {
                     if let Err(e) =
                         serve_exit_stream(cfg, peer, conn_ref, pair.send, pair.recv).await
                     {

@@ -43,7 +43,7 @@ pub(super) fn cfg_with(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
 pub(super) async fn spawn_echo() -> SocketAddr {
     let sock = UdpSocket::bind("127.0.0.1:0").await.expect("echo socket");
     let addr = sock.local_addr().expect("echo address");
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         let mut buf = [0u8; 2048];
         while let Ok((n, from)) = sock.recv_from(&mut buf).await {
             let _ = sock.send_to(&buf[..n], from).await;
@@ -100,7 +100,7 @@ impl Client {
 pub(super) fn start(cfg: ExitConfig, limits: Limits) -> (Client, JoinHandle<()>) {
     let (client_end, server_end) = tokio::io::duplex(1 << 20);
     let (server_read, server_write) = split(server_end);
-    let task = tokio::spawn(run(
+    let task = crate::node::output::spawn(run(
         cfg,
         pid(1),
         Box::new(server_write),

@@ -196,7 +196,7 @@ async fn rehash(app: &App, pw: String) {
         password::hash(&pw)
             .and_then(|r| password_file::write_password_file(&dir, &r).map_err(|e| e.to_string()))
     };
-    let done = tokio::task::spawn_blocking(work).await;
+    let done = crate::node::output::spawn_blocking(work).await;
     let failed = done.map_err(|e| e.to_string()).and_then(|r| r);
     if let Err(e) = failed {
         crate::node::output::say("web", format!("password not rehashed: {e}"));
@@ -222,7 +222,7 @@ pub(super) async fn login_handler(
         Err(resp) => return resp,
     };
     let again = pw.clone();
-    let verdict = tokio::task::spawn_blocking(move || password::verify(&rec, &again)).await;
+    let verdict = crate::node::output::spawn_blocking(move || password::verify(&rec, &again)).await;
     let Ok(verdict) = verdict else {
         return internal_error_response("password check did not finish");
     };

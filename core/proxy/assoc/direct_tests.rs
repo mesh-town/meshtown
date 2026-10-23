@@ -50,7 +50,7 @@ async fn echo_on(ip: &str) -> Option<SocketAddr> {
         .await
         .ok()?;
     let addr = sock.local_addr().unwrap();
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         let mut buf = [0u8; 2048];
         while let Ok((n, from)) = sock.recv_from(&mut buf).await {
             let _ = sock.send_to(&buf[..n], from).await;
@@ -78,7 +78,7 @@ async fn rig(hosts: HashMap<String, SocketAddr>) -> Rig {
     let relay_addr = udp.local_addr().unwrap();
     let client = UdpSocket::bind("127.0.0.1:0").await.unwrap();
     let ip = "127.0.0.1".parse().unwrap();
-    let task = tokio::spawn(relay(
+    let task = crate::node::output::spawn(relay(
         served,
         udp,
         ip,

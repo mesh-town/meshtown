@@ -55,14 +55,14 @@ pub async fn splice(mut send: BoxSend, mut recv: BoxRecv, tcp: TcpStream) -> (u6
     use tokio::io::AsyncWriteExt;
 
     let (mut tcp_read, mut tcp_write) = tcp.into_split();
-    let mut quic_to_tcp_task = tokio::spawn(async move {
+    let mut quic_to_tcp_task = crate::node::output::spawn(async move {
         let n = tokio::io::copy(&mut recv, &mut tcp_write)
             .await
             .unwrap_or(0);
         let _ = tcp_write.shutdown().await;
         n
     });
-    let mut tcp_to_quic_task = tokio::spawn(async move {
+    let mut tcp_to_quic_task = crate::node::output::spawn(async move {
         let n = tokio::io::copy(&mut tcp_read, &mut send).await.unwrap_or(0);
         let _ = send.shutdown().await;
         n

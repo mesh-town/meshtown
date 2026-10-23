@@ -87,7 +87,7 @@ impl NodeControl for StubNode {
     fn snapshot(&self) -> NodeSnapshot {
         NodeSnapshot::default()
     }
-    fn log_after(&self, _after: u64, _limit: usize) -> LogPage {
+    fn log_after(&self, _after: u64, _limit: usize, _net: Option<&str>) -> LogPage {
         LogPage::default()
     }
     fn find_exit(&self, _domain: &str) -> Result<(), ActionError> {

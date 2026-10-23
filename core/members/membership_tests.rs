@@ -118,7 +118,8 @@ mod down_reason {
         let (ctx, mut events) = member_context(mem.near.peer());
         let peer = mem.far.peer();
         ctx.members.add_verified_conn(peer);
-        let holding = tokio::spawn(hold_conn_until_closed(mem.far.clone(), peer, ctx.clone()));
+        let holding =
+            crate::node::output::spawn(hold_conn_until_closed(mem.far.clone(), peer, ctx.clone()));
         tracked(&ctx.members, 1).await;
         // when: A closes the connection
         mem.near.close(401, b"bad secret");

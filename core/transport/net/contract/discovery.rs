@@ -28,7 +28,7 @@ pub(crate) struct Feed {
 /// Starts a source's `run_source` in a separate task.
 pub(crate) fn feed(source: &Arc<dyn Discovery>) -> Feed {
     let (tx, rx) = mpsc::channel(64);
-    let task = tokio::spawn(source.clone().run_source(tx));
+    let task = crate::transport::net::task_label::spawn(source.clone().run_source(tx));
     Feed { rx, task }
 }
 

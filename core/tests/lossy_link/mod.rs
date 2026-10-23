@@ -115,7 +115,10 @@ impl LossyLink {
     pub fn block_addr(&mut self, addr: SocketAddr) -> io::Result<()> {
         let sock = UdpSocket::from_std(shadow::bind_shared(addr)?)?;
         self.tasks
-            .push(tokio::spawn(pipe::sink(sock, self.sink.clone())));
+            .push(meshtown_core::node::output::spawn(pipe::sink(
+                sock,
+                self.sink.clone(),
+            )));
         Ok(())
     }
 
@@ -154,16 +157,19 @@ impl LossyLink {
         let (rx, from, tx, to) = ends;
         let (queue_tx, queue_rx) = unbounded_channel();
         let dir = Direction::new(cfg, seed);
-        self.tasks.push(tokio::spawn(pipe::ingest(
-            rx,
-            from,
-            dir,
-            counters.clone(),
-            queue_tx,
-            knobs,
-        )));
         self.tasks
-            .push(tokio::spawn(pipe::deliver(tx, to, counters, queue_rx)));
+            .push(meshtown_core::node::output::spawn(pipe::ingest(
+                rx,
+                from,
+                dir,
+                counters.clone(),
+                queue_tx,
+                knobs,
+            )));
+        self.tasks
+            .push(meshtown_core::node::output::spawn(pipe::deliver(
+                tx, to, counters, queue_rx,
+            )));
     }
 }
 

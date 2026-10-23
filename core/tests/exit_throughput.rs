@@ -41,10 +41,10 @@ async fn serve_big() -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let body = std::sync::Arc::new(block());
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         while let Ok((mut socket, _)) = listener.accept().await {
             let body = body.clone();
-            tokio::spawn(async move {
+            meshtown_core::node::output::spawn(async move {
                 let mut buf = vec![0u8; 2048];
                 let _ = socket.read(&mut buf).await;
                 let head = format!("HTTP/1.1 200 OK\r\nContent-Length: {TOTAL}\r\n\r\n");

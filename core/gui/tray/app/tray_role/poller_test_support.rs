@@ -207,7 +207,8 @@ impl Rig {
             quit: waiter(quit_rx),
             signal: waiter(signal_rx),
         };
-        let task = tokio::runtime::Handle::current().spawn(poll_node(env, T));
+        let task =
+            crate::node::output::spawn_on(&tokio::runtime::Handle::current(), poll_node(env, T));
         Rig {
             probe: Probe {
                 rx: ev_rx,

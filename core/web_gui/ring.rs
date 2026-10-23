@@ -3,6 +3,7 @@
 //! There are no locks inside: the owner puts the ring under a `std::sync::Mutex` itself.
 
 use std::collections::{BTreeSet, VecDeque};
+use std::sync::Arc;
 
 use super::{LogLine, LogPage, LogSummary};
 
@@ -31,6 +32,18 @@ impl LogRing {
     }
 
     pub fn push(&mut self, t: f64, tag: &str, text: String) {
+        self.push_labeled(t, tag, text, None, false);
+    }
+
+    /// Adds a line with the network label `net`; `shown` tells whether the label is displayed.
+    pub fn push_labeled(
+        &mut self,
+        t: f64,
+        tag: &str,
+        text: String,
+        net: Option<Arc<str>>,
+        shown: bool,
+    ) {
         let seq = self.next_seq;
         self.next_seq += 1;
         self.tags.insert(tag.to_string());
@@ -39,6 +52,8 @@ impl LogRing {
             t,
             tag: tag.to_string(),
             text,
+            net,
+            shown,
         });
         while self.lines.len() > self.capacity {
             self.lines.pop_front();
@@ -56,12 +71,14 @@ impl LogRing {
         }
     }
 
-    pub fn page(&self, boot_id: &str, after: u64, limit: usize) -> LogPage {
+    /// A page of lines with `seq > after`; with `net` only the lines carrying that label.
+    pub fn page(&self, boot_id: &str, after: u64, limit: usize, net: Option<&str>) -> LogPage {
         let (first_seq, last_seq) = self.bounds();
         let lines: Vec<LogLine> = self
             .lines
             .iter()
             .filter(|line| line.seq > after)
+            .filter(|line| net.is_none_or(|id| line.net.as_deref() == Some(id)))
             .take(limit)
             .cloned()
             .collect();

@@ -182,7 +182,7 @@ fn link_stats_tag(svc: ServiceId) -> Option<&'static str> {
 /// Starts a watcher for a new connection if this service's pool has a line.
 fn spawn_link_stats_log(conn: Arc<dyn PeerConn>, peer: PeerId, svc: ServiceId) {
     if let Some(tag) = link_stats_tag(svc) {
-        tokio::spawn(super::report::log_link_stats_while_open(conn, peer, tag));
+        crate::node::output::spawn(super::report::log_link_stats_while_open(conn, peer, tag));
     }
 }
 

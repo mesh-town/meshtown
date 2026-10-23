@@ -20,8 +20,8 @@ impl NodeControl for NodeCtl {
         self.snapshot_impl()
     }
 
-    fn log_after(&self, after: u64, limit: usize) -> LogPage {
-        output::log_page_for(&self.boot_id(), after, limit.max(1))
+    fn log_after(&self, after: u64, limit: usize, net: Option<&str>) -> LogPage {
+        output::log_page_for(&self.boot_id(), after, limit.max(1), net)
     }
 
     fn find_exit(&self, domain: &str) -> Result<(), ActionError> {

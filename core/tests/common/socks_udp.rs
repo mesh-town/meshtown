@@ -18,7 +18,7 @@ pub(crate) const UDP_LIMIT: Duration = Duration::from_secs(10);
 pub(crate) async fn spawn_udp_echo(ip: IpAddr) -> Option<SocketAddr> {
     let sock = UdpSocket::bind((ip, 0)).await.ok()?;
     let addr = sock.local_addr().ok()?;
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         let mut buf = vec![0u8; 65_535];
         while let Ok((n, from)) = sock.recv_from(&mut buf).await {
             let _ = sock.send_to(&buf[..n], from).await;

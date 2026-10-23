@@ -17,7 +17,7 @@ impl NodeCtl {
         }
         self.ctl_shared.kick.notify_one();
         let ctl_shared = self.ctl_shared.clone();
-        self.rt.spawn(async move {
+        crate::node::output::spawn_on(&self.rt, async move {
             if let Err(e) = node.domains.add(&name).await {
                 say("node", format!("{name}: couldn't add to the list — {e:#}"));
             }
@@ -44,7 +44,7 @@ impl NodeCtl {
         }
         self.ctl_shared.kick.notify_one();
         let ctl_shared = self.ctl_shared.clone();
-        self.rt.spawn(async move {
+        crate::node::output::spawn_on(&self.rt, async move {
             if let Err(e) = node.checks.check_now(&name).await {
                 say("node", format!("{name}: check failed — {e:#}"));
             }
@@ -71,7 +71,7 @@ impl NodeCtl {
         if !taken.is_empty() {
             self.ctl_shared.kick.notify_one();
             let ctl_shared = self.ctl_shared.clone();
-            self.rt.spawn(async move {
+            crate::node::output::spawn_on(&self.rt, async move {
                 for name in taken {
                     if let Err(e) = node.checks.check_now(&name).await {
                         say("node", format!("{name}: check failed — {e:#}"));
@@ -102,7 +102,7 @@ impl NodeCtl {
         }
         let task_name = name.clone();
         let ctl_shared = self.ctl_shared.clone();
-        self.rt.spawn(async move {
+        crate::node::output::spawn_on(&self.rt, async move {
             if let Err(e) = node.domains.add(&task_name).await {
                 say(
                     "node",
@@ -137,7 +137,7 @@ impl NodeCtl {
             }
         }
         let task_name = name.clone();
-        self.rt.spawn(async move {
+        crate::node::output::spawn_on(&self.rt, async move {
             if let Err(e) = node.domains.remove(&task_name).await {
                 say(
                     "node",

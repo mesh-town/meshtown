@@ -269,7 +269,7 @@ impl LoopState {
         let selected = peer_path::record_peer_up(&*conn, &loop_ctx.stack, &loop_ctx.telemetry);
         remember_peer_and_save(&mut self.cache, peer, selected);
         self.names.remember_member_and_save(&loop_ctx.members, peer);
-        tokio::spawn(peer_path::watch_path(
+        crate::node::output::spawn(peer_path::watch_path(
             conn.path_watch(),
             peer,
             loop_ctx.telemetry.clone(),

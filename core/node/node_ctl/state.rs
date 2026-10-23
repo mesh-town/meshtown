@@ -166,9 +166,10 @@ impl NodeCtl {
         };
         apply_pending_handles(&node, &pending, &effective_settings);
         self.publish_guard_sources(node.members.clone(), node.checks.clone());
-        let task = self
-            .rt
-            .spawn(snapshot_task(self.ctl_shared.clone(), task_gen, node));
+        let task = crate::node::output::spawn_on(
+            &self.rt,
+            snapshot_task(self.ctl_shared.clone(), task_gen, node),
+        );
         let mut st = self
             .ctl_shared
             .ctl_state

@@ -141,7 +141,8 @@ mod drive_on_closed_conn {
         let (probe, ok) = settings();
         fx.a.close(0, b"done");
         // when: we start `send_probes_while_open` without delay
-        let driving = tokio::spawn(send_probes_while_open(fx.a.clone(), fx.a.peer(), probe));
+        let driving =
+            crate::node::output::spawn(send_probes_while_open(fx.a.clone(), fx.a.peer(), probe));
         // then: it exited on its own and sent no probe
         let ended = must_finish(driving).await;
         assert!(ended.is_ok(), "the drive task failed: {ended:?}");
@@ -162,7 +163,8 @@ mod drive_on_live_conn {
         let fx = setup().await;
         let (probe, ok) = settings();
         // when: `send_probes_while_open` makes its first turn
-        let driving = tokio::spawn(send_probes_while_open(fx.a.clone(), fx.a.peer(), probe));
+        let driving =
+            crate::node::output::spawn(send_probes_while_open(fx.a.clone(), fx.a.peer(), probe));
         // then: the counter of acknowledged probes grew to one
         must_finish(wait_ok_probes(&ok, 1)).await;
         driving.abort();
@@ -191,7 +193,7 @@ async fn setup() -> Fixture {
     let dialed = dialed.expect("connect A→B gave no connection");
     let (_, accepted) = accepted.expect("accept B is closed, yet a connection was awaited");
     // assumption: `answer_probes(conn: Arc<dyn PeerConn>, peer: PeerId)` — the "volume probe" contract
-    let serving = tokio::spawn(answer_probes(accepted.clone(), accepted.peer()));
+    let serving = crate::node::output::spawn(answer_probes(accepted.clone(), accepted.peer()));
     Fixture {
         a: dialed,
         serving,

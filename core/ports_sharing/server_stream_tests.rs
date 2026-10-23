@@ -343,9 +343,9 @@ fn node(net: &MemNet, seed: u8, handler: Arc<dyn ServiceHandler>) -> NetStack {
 /// TCP echo on loopback; returns the port.
 async fn echo_listener() -> u16 {
     let (listener, port) = silent_listener().await;
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         while let Ok((mut tcp, _)) = listener.accept().await {
-            tokio::spawn(async move {
+            crate::node::output::spawn(async move {
                 let (mut read, mut write) = tcp.split();
                 let _ = tokio::io::copy(&mut read, &mut write).await;
             });

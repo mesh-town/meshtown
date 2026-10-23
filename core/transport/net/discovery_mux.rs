@@ -106,8 +106,8 @@ impl DiscoveryMux {
         let name = src.name();
         let weak: Weak<Self> = Arc::downgrade(self);
         let tap = self.found_tap.clone();
-        let run = tokio::spawn(src.run_source(tx));
-        let pump = tokio::spawn(async move {
+        let run = crate::transport::net::task_label::spawn(src.run_source(tx));
+        let pump = crate::transport::net::task_label::spawn(async move {
             while let Some(addr) = rx.recv().await {
                 let Some(mux) = weak.upgrade() else { return };
                 mux.note(name, addr.clone());
@@ -218,7 +218,10 @@ impl DiscoveryMux {
             let publishers = self.sources.iter().filter(|s| s.publishes());
             for (i, src) in publishers.enumerate() {
                 let job = Self::publish_one(src.clone(), own_addr.clone(), limit);
-                index.insert(set.spawn(job).id(), i);
+                index.insert(
+                    crate::transport::net::task_label::spawn_in(&mut set, job).id(),
+                    i,
+                );
             }
             let mut errors: Vec<(usize, NetError)> = Vec::new();
             while let Some(done) = set.join_next_with_id().await {

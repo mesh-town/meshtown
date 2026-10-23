@@ -138,7 +138,7 @@ async fn spawn_site(kind: Site) -> SocketAddr {
         .await
         .expect("site listener");
     let addr = listener.local_addr().expect("site address");
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         let Ok((mut tcp, _)) = listener.accept().await else {
             return;
         };

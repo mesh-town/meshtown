@@ -379,7 +379,7 @@ async fn shutdown_true_when_loop_wakes_late() {
     let stream = served_keep_alive_stream(port, &token);
 
     let (started_tx, started_rx) = tokio::sync::oneshot::channel();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         let _ = started_tx.send(());
         std::thread::sleep(Duration::from_millis(50));
     });

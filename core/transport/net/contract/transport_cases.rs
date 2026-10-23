@@ -122,9 +122,9 @@ pub(crate) async fn link_after_exchange(h: &impl Harness) -> LinkInfo {
 
 /// Echo server: every incoming stream of the handle is returned to the sender as is, until it is half-closed.
 pub(crate) fn spawn_echo(conn: Arc<dyn PeerConn>) -> JoinHandle<()> {
-    tokio::spawn(async move {
+    crate::transport::net::task_label::spawn(async move {
         while let Ok(stream) = conn.accept().await {
-            tokio::spawn(echo_stream(stream));
+            crate::transport::net::task_label::spawn(echo_stream(stream));
         }
     })
 }
@@ -170,7 +170,7 @@ pub(crate) async fn echo_mismatches(
     limit: Duration,
 ) -> Vec<usize> {
     let tasks: Vec<_> = (0..count)
-        .map(|i| tokio::spawn(round_trip(conn.clone(), i as u64, len)))
+        .map(|i| crate::transport::net::task_label::spawn(round_trip(conn.clone(), i as u64, len)))
         .collect();
     let matched = must_finish_within(limit, join_all(tasks)).await;
     let bad = matched.iter().enumerate().filter(|(_, ok)| !**ok);

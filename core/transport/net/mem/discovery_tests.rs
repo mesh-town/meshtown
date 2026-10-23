@@ -321,7 +321,10 @@ fn addr(n: u8, port: u16) -> PeerAddr {
 /// Starts the source's `run_source`; the `out` receiver has capacity `cap`.
 fn spawn_run(d: &Arc<MemDiscovery>, cap: usize) -> (mpsc::Receiver<PeerAddr>, JoinHandle<()>) {
     let (tx, rx) = mpsc::channel(cap);
-    (rx, tokio::spawn(d.clone().run_source(tx)))
+    (
+        rx,
+        crate::transport::net::task_label::spawn(d.clone().run_source(tx)),
+    )
 }
 
 /// Waits in `rx` for the address `want` for up to 2 s (repeats and foreign addresses are allowed).

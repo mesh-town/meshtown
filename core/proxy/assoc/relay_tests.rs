@@ -47,7 +47,8 @@ async fn rig_with(
     let (exit_read, exit_write) = split(far);
     let (tx, rx) = (ExitTx(Box::new(near_write)), ExitRx(Box::new(near_read)));
     let ip = client_ip.parse().unwrap();
-    let task = tokio::spawn(relay(served, udp, ip, tx, rx, stop, RelayLimits { idle }));
+    let task =
+        crate::node::output::spawn(relay(served, udp, ip, tx, rx, stop, RelayLimits { idle }));
     Rig {
         control,
         client,
