@@ -101,3 +101,61 @@ fn socks_access_flag_overrides_file() {
     assert_eq!(s.process.socks_access, ListenAccess::Localnet);
     assert_eq!(paths, vec!["socks.access"]);
 }
+
+mod for_added_slot {
+    use super::*;
+
+    #[test]
+    fn drops_only_the_network_key() {
+        // given: every flag is set
+        let cli = every_flag();
+        // when: the flags of an added slot are taken
+        let slot = cli.for_added_slot();
+        // then: the key is gone, every other flag is as it was
+        assert_eq!(slot.network_key, None, "the key never goes to a slot");
+        let expected = CliOverrides {
+            network_key: None,
+            ..cli
+        };
+        assert_eq!(format!("{slot:?}"), format!("{expected:?}"));
+    }
+
+    #[test]
+    fn keeps_every_other_flag_applicable() {
+        // given: every flag is set
+        let slot = every_flag().for_added_slot();
+        // when: the slot flags are applied
+        let paths = slot.apply(&mut Settings::default());
+        // then: twelve paths, all but "network.key"
+        assert_eq!(paths.len(), 12, "paths: {paths:?}");
+        assert!(!paths.contains(&"network.key"), "paths: {paths:?}");
+    }
+
+    #[test]
+    fn leaves_the_original_untouched() {
+        // given: every flag is set
+        let cli = every_flag();
+        // when: the slot flags are taken
+        let _ = cli.for_added_slot();
+        // then: the original keeps its key
+        assert_eq!(cli.network_key.as_deref(), Some("k"));
+    }
+}
+
+fn every_flag() -> CliOverrides {
+    CliOverrides {
+        network_key: Some("k".into()),
+        transport_mode: Some(TransportMode::NoRelay),
+        exit_enabled: Some(true),
+        socks_enabled: Some(true),
+        socks_port: Some(2000),
+        socks_access: Some(ListenAccess::Localnet),
+        checks_enabled: Some(true),
+        check_interval_sec: Some(60),
+        doh_server: Some("1.1.1.1:443".parse().unwrap()),
+        provider_dns: Some("1.1.1.1:53".parse().unwrap()),
+        probe_interval_sec: Some(60),
+        probe_full_cycle: Some(true),
+        web_port: Some(2001),
+    }
+}

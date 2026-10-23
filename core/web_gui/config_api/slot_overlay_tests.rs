@@ -60,6 +60,39 @@ fn overlay_shows_the_given_process_block_as_read_only() {
     let _ = std::fs::remove_dir_all(dir);
 }
 
+mod launch_flags {
+    use super::*;
+
+    #[test]
+    fn only_those_of_the_network_block_stay_listed() {
+        // given: a slot state with a process flag and a network flag
+        let dir = temp_dir("flags-mixed");
+        let mut state = state_in(&dir);
+        state.cli_override_paths = vec!["socks.port", "transport.mode"];
+        // when: the process block is overlaid
+        state.overlay_process(&process());
+        // then: the page still reads the network flag as "set by a flag"
+        assert_eq!(
+            state.config_get_body()["cli_overrides"],
+            json!(["transport.mode"])
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn process_flags_alone_leave_the_list_empty() {
+        // given: a slot state with process flags only
+        let dir = temp_dir("flags-process");
+        let mut state = state_in(&dir);
+        state.cli_override_paths = vec!["socks.port", "web.port"];
+        // when: the process block is overlaid
+        state.overlay_process(&process());
+        // then: nothing is listed
+        assert_eq!(state.config_get_body()["cli_overrides"], json!([]));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+}
+
 #[test]
 fn a_plain_state_keeps_the_table_read_only_list() {
     let dir = temp_dir("plain");

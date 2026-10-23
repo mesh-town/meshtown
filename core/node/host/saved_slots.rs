@@ -33,11 +33,12 @@ impl Running {
 /// What starts a prepared slot: its own launch settings and the parsed key.
 fn slot_launch(
     id: NetSlotId,
-    run: RunConfig,
+    mut run: RunConfig,
     parsed: NetworkKeyInput,
     relaunch: &Relaunch,
 ) -> SlotLaunch {
     let relaunch = relaunch.for_net_slot(&run);
+    relaunch.apply_net_flags(&mut run.effective_settings);
     let mut cfg = relaunch.node_config(&run.effective_settings, parsed.key);
     cfg.network_label = parsed.label;
     cfg.identity = IdentityState::from_report(&run.file_report);
