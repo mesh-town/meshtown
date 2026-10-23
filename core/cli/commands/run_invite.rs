@@ -122,7 +122,7 @@ async fn add_redeemed_net(
     now: u64,
 ) -> anyhow::Result<()> {
     let slot = prepare_net_slot(run, now)?;
-    let text = redeem_text(p, run, &slot.run.secret).await?;
+    let text = redeem_text(p, &slot.run.secret).await?;
     say("invite", "network key received, adding the network");
     if let Err(why) = save_prepared_slot(run, slot, &text, typed_domains, &p.peers, now) {
         say(
@@ -139,7 +139,7 @@ pub(crate) async fn redeem_for_run(
     run: &mut RunConfig,
     now: u64,
 ) -> anyhow::Result<()> {
-    let text = redeem_text(p, run, &run.secret).await?;
+    let text = redeem_text(p, &run.secret).await?;
     run.effective_settings.net.network_key = Some(text.clone());
     say("invite", "network key received, joining the network");
     persist_key(run, &text, now)
@@ -148,7 +148,6 @@ pub(crate) async fn redeem_for_run(
 /// Waits for the key from the members, redeeming the invite with `secret`, and returns it as the text a settings file holds.
 async fn redeem_text(
     p: &ParsedInvite,
-    run: &RunConfig,
     secret: &NodeSecret,
 ) -> anyhow::Result<String> {
     say("invite", TEXT_WAITING);
