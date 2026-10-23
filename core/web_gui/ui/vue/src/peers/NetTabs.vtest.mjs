@@ -12,16 +12,16 @@ describe("NetTabs", () => {
   describe("no networks", () => {
     it("shows only the \"+\" tab", () => {
       const row = render({ tabs: [] });
-      expect(row.findAll("[role=tab]")).toHaveLength(1);
+      expect(row.findAll("a")).toHaveLength(1);
       expect(plusTab(row).exists()).toBe(true);
     });
   });
 
   describe("two networks", () => {
-    it("is a tab list with a tab per network and the \"+\"", () => {
+    it("is a labelled nav with a tab per network and the \"+\"", () => {
       const row = render({ tabs: [FRIENDS, DEVICES] });
-      expect(row.find("[role=tablist]").exists()).toBe(true);
-      expect(row.findAll("[role=tab]")).toHaveLength(3);
+      expect(row.find("nav[aria-label=Networks]").exists()).toBe(true);
+      expect(row.findAll("a")).toHaveLength(3);
     });
 
     it("links each tab to its own address", () => {
@@ -33,15 +33,15 @@ describe("NetTabs", () => {
 
     it("marks only the active tab as selected", () => {
       const row = render({ tabs: [FRIENDS, DEVICES], active: "k7q2xa" });
-      expect(tab(row, "friends").attributes("aria-selected")).toBe("false");
-      expect(tab(row, "my devices").attributes("aria-selected")).toBe("true");
-      expect(plusTab(row).attributes("aria-selected")).toBe("false");
+      expect(tab(row, "friends").attributes("aria-current")).toBeUndefined();
+      expect(tab(row, "my devices").attributes("aria-current")).toBe("page");
+      expect(plusTab(row).attributes("aria-current")).toBeUndefined();
     });
 
     it("marks the \"+\" as selected when it is active", () => {
       const row = render({ tabs: [FRIENDS, DEVICES], active: "add" });
-      expect(plusTab(row).attributes("aria-selected")).toBe("true");
-      expect(tab(row, "friends").attributes("aria-selected")).toBe("false");
+      expect(plusTab(row).attributes("aria-current")).toBe("page");
+      expect(tab(row, "friends").attributes("aria-current")).toBeUndefined();
     });
   });
 
@@ -88,7 +88,7 @@ describe("NetTabs", () => {
       const a = { ...FRIENDS, name: "friends · 3f2a" };
       const b = { ...DEVICES, name: "friends · 9c01" };
       const row = render({ tabs: [a, b] });
-      const tabs = row.findAll("[role=tab]");
+      const tabs = row.findAll("a");
       expect(tabs[0].text()).toContain("· 3f2a");
       expect(tabs[1].text()).toContain("· 9c01");
       expect(tabs[0].text()).not.toContain("9c01");
@@ -98,6 +98,11 @@ describe("NetTabs", () => {
   describe("the \"+\" tab", () => {
     it("has the title \"Add network\"", () => {
       expect(plusTab(render({ tabs: [FRIENDS, DEVICES] })).attributes("title")).toBe("Add network");
+    });
+
+    it("has an accessible name, also at the limit", () => {
+      expect(plusTab(render({ tabs: [FRIENDS] })).attributes("aria-label")).toBe("Add network");
+      expect(plusTab(render({ tabs: [FRIENDS], full: true })).attributes("aria-label")).toBe("Mesh Town can be in up to 8 networks at once");
     });
 
     it("at the limit explains why more cannot be added", () => {
@@ -113,6 +118,11 @@ describe("NetTabs", () => {
       expect(joining, "a label for the incoming network").toBeTruthy();
       expect(joining.text()).toContain("· joining…");
       expect(joining.attributes("title") ?? joining.element.closest("[title]")?.getAttribute("title")).toBe("Joining the network…");
+    });
+
+    it("is marked as disabled", () => {
+      const row = render({ tabs: [FRIENDS], joining: [{ name: "New network" }] });
+      expect(row.find("span.ntab.dis").attributes("aria-disabled")).toBe("true");
     });
 
     it("is not a link", () => {
@@ -133,7 +143,7 @@ function render(props) {
 }
 
 function tab(row, name) {
-  const found = row.findAll("[role=tab]").find((t) => t.text().includes(name));
+  const found = row.findAll("a").find((t) => t.text().includes(name));
   expect(found, `a tab named ${name}`).toBeTruthy();
   return found;
 }

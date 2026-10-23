@@ -1,6 +1,6 @@
 /* The "Members" tab on a node with several networks: the whole page on a fake node with two slots.
  * Network A is `main` ("friends", peer-one online, peer-two offline), network B is `k7q2xa` ("my devices", two other members online).
- * Contract: the tab row is `.ntabs [role=tab]` (the last one is the "+"), the header of the current tab is `#peers-tabhead`
+ * Contract: the tab row is `.ntabs a` (the last one is the "+"), the header of the current tab is `#peers-tabhead`
  * (its button asks for an invite), the list and the status line are the ones of the single-network page.
  * One network: no tab row, "Invite a member" above the list, nothing is sent to `/api/net/…`. Two or more: the data and the
  * actions of the current tab go to its own slot address. */
@@ -352,7 +352,7 @@ async function mountOn(node, hash) {
 
 function pageOf(node, wrapper, store) {
   const section = () => wrapper.get("#sec-peers");
-  const tabs = () => wrapper.findAll("#sec-peers .ntabs [role=tab]");
+  const tabs = () => wrapper.findAll("#sec-peers .ntabs a");
   const tabNamed = (name) => tabs().find((t) => compact(t.text()).startsWith(name)) ?? { exists: () => false };
   const click = async (w) => { await w.trigger("click"); await settle(); };
   const hashChanged = async () => {
@@ -366,7 +366,7 @@ function pageOf(node, wrapper, store) {
     tabHead: () => wrapper.get("#peers-tabhead"),
     list: () => wrapper.get("#peers-list"),
     sectionText: () => compact(visibleText(section().element)),
-    selectedName: () => compact(tabs().find((t) => t.attributes("aria-selected") === "true")?.text() ?? ""),
+    selectedName: () => compact(tabs().find((t) => t.attributes("aria-current") === "page")?.text() ?? ""),
     circleOf: (name) => (tabNamed(name).exists() ? tabNamed(name).find('[title$="to confirm"]') : { exists: () => false }),
     codes: () => wrapper.findAll("#sec-peers #peers-list .peer-code").map((c) => c.text()),
     status: () => wrapper.get("#peers-exit-status").text(),

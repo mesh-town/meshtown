@@ -227,7 +227,7 @@ function onRestartFailed(form: SettingsForm, failures: SlotFailure[]): RestartOu
 }
 
 // Restarts every network that waits for it, the main one first; all must accept for "restarted".
-export async function restartNode(form: SettingsForm, deps: Partial<SettingsDeps>, store: Store): Promise<RestartOutcome> {
+export async function restartNode(form: SettingsForm, store: Store, deps: Partial<SettingsDeps>): Promise<RestartOutcome> {
   if (form.busy) return "skipped";
   const d = resolveSettingsDeps(deps);
   form.busy = true;

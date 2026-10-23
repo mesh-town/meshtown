@@ -307,7 +307,7 @@ async function mountOn(node, hash, script) {
 
 function pageOf(node, wrapper, store) {
   const section = () => wrapper.get("#sec-peers");
-  const tabs = () => wrapper.findAll("#sec-peers .ntabs [role=tab]");
+  const tabs = () => wrapper.findAll("#sec-peers .ntabs a");
   const tabNamed = (name) => tabs().find((t) => compact(t.text()).startsWith(name));
   const card = () => wrapper.find("#add-net-card[data-context=\"peers\"]");
   const buttonIn = (root, name) => root.findAll("button, a").find((b) => compact(b.text()) === name);
@@ -348,7 +348,7 @@ function pageOf(node, wrapper, store) {
     joiningTabs: () => tabs().filter((t) => t.text().includes("joining…")),
     fieldValue: () => card().findAll("input").find((i) => shown(i.element)).element.value,
     tabsText: () => compact(wrapper.get("#sec-peers .ntabs").text()),
-    selectedName: () => compact(tabs().find((t) => t.attributes("aria-selected") === "true")?.text() ?? ""),
+    selectedName: () => compact(tabs().find((t) => t.attributes("aria-current") === "page")?.text() ?? ""),
     isAfter: (first, second) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING),
     banner() {
       const ok = bannerOk();

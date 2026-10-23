@@ -194,7 +194,7 @@ function pageOf(node, wrapper) {
     has: (selector) => wrapper.find(selector).exists(),
     focusedId: () => document.activeElement && document.activeElement.id,
     codes: () => wrapper.findAll("#sec-peers #peers-list .peer-code").map((c) => c.text()),
-    tabNames: () => wrapper.findAll("#sec-peers .ntabs [role=tab]").map((t) => t.text().replace(/\s+/g, " ").trim()),
+    tabNames: () => wrapper.findAll("#sec-peers .ntabs a").map((t) => t.text().replace(/\s+/g, " ").trim()),
     status: () => wrapper.get("#peers-exit-status").text(),
     statusIsError: () => wrapper.get("#peers-exit-status").classes().includes("field-error-text"),
     callsOf: (method) => node.calls.filter((c) => c.method === method),

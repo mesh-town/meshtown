@@ -10,7 +10,8 @@ import { POLL_HIDDEN_MS, POLL_STOPPED_MS, classify, onBadOrigin, onBadToken, onF
 import { ApiError } from "../core/api.ts";
 import { acceptOverview, legacyOverview, parseOverview } from "../core/overview.ts";
 import { fetchMembers } from "../members/members-poll.ts";
-import { configMeta, readSlotConfig } from "./slot-config.ts";
+import { configMeta } from "../core/config-meta.ts";
+import { readSlotConfig } from "./slot-config.ts";
 import { defaultShellDeps } from "./shell-deps.ts";
 
 const RESTART_NOTICE_MS = 4000;
@@ -138,7 +139,7 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
       const ov = parseOverviewReply(await deps.api<unknown>("GET", "/api/overview"), born);
       if (!ov) return;
       const main = ov.slots.find((s) => s.slot === "main")?.state ?? null;
-      if (main) await observe(main);
+      if (main) await observe(main); // no main state: observe is skipped on purpose, a boot_id change waits for the next live overview
       if (born !== generation) return;
       store.source = "overview";
       await readSlotConfigs(acceptOverview(store, ov), born);

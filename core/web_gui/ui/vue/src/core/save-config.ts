@@ -6,7 +6,7 @@ import { api as coreApi, ApiError, API_ERROR_TEXT } from "./api.ts";
 import type { ApiErrorLike, ApiFn } from "./api.ts";
 import { notifyChanged } from "./bridge.ts";
 import { errReason } from "../common/words.ts";
-import { storeSlotConfig } from "../shell/slot-config.ts";
+import { configMeta, storeSlotConfig } from "./config-meta.ts";
 import { netName, slotPath, visibleSlots } from "./slots.ts";
 import { CORE_SAVE_FAILED_RETRY, coreSaveFailedText } from "./core-texts.ts";
 import type { Store } from "./store.ts";
@@ -39,12 +39,7 @@ export function setPath(obj: object, path: string, value: unknown): void {
 function storeConfigReply(store: Store, res: ConfigResponse): void {
   store.config = res.config;
   store.configRev = res.rev;
-  store.configMeta = {
-    read_only: res.read_only || [],
-    restart_fields: res.restart_fields || [],
-    restart_pending: res.restart_pending || [],
-    cli_overrides: res.cli_overrides || [],
-  };
+  store.configMeta = configMeta(res);
   store.configFile = res.file || null;
 }
 
@@ -184,7 +179,7 @@ export async function eachSlot(store: Store, ids: string[], write: (slot: string
   return failures;
 }
 
-export const slotFailureText = (f: SlotFailure): string => `"${f.label}": ${f.error.message}`;
+export const slotFailureText = (f: SlotFailure): string => `"${f.label}": ${errReason(f.error) || f.error.message}`;
 
 // Visible slots that hold a network key and are not being joined, the main one first.
 export function targetSlots(store: Store): string[] {

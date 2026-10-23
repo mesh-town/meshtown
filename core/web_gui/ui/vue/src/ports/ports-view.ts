@@ -113,9 +113,9 @@ const LOCAL_MIN = 1024;
 export function defaultLocalPort(port: number, taken: ReadonlySet<number> = new Set()): number {
   const first = port + LOCAL_PORT_SHIFT <= PORT_MAX ? port + LOCAL_PORT_SHIFT : port;
   if (!taken.has(first)) return first;
-  const above = Array.from({ length: PORT_MAX - first }, (_, i) => first + 1 + i);
-  const below = Array.from({ length: Math.max(0, first - LOCAL_MIN) }, (_, i) => LOCAL_MIN + i);
-  return above.concat(below).find((n) => !taken.has(n)) ?? first;
+  for (let n = first + 1; n <= PORT_MAX; n++) if (!taken.has(n)) return n;
+  for (let n = LOCAL_MIN; n < first; n++) if (!taken.has(n)) return n;
+  return first;
 }
 
 // Empty or not an integer — the default number.
