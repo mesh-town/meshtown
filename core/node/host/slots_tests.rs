@@ -66,10 +66,7 @@ async fn stop_on_signal_stops_without_the_page_request_line() {
 #[tokio::test]
 async fn task_is_taken_once_in_slot_order() {
     let (slots, _ctl) = map();
-    slots.set_task(
-        &NetSlotId::main(),
-        crate::node::output::spawn(async { Ok(()) }),
-    );
+    slots.spawn_task(&NetSlotId::main(), async { Ok(()) });
     let tasks = slots.take_tasks();
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].0, NetSlotId::main());

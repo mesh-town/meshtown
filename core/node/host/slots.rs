@@ -1,6 +1,6 @@
 //! The host's map of network slots: for each slot its page-facing handle, its controller and the task
 //! that runs its node cycle. The page reaches the slots through `HostControl`; the stop signal reaches
-//! them through `stop_all_on_signal`.
+//! them through `stop_all_on_signal`. `control` implements `HostControl` over this map.
 
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,18 +15,17 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output;
 use crate::proxy::ProxySeat;
-use crate::proxy::ProxyFront;
-use crate::web_gui::{AddedSlot, ConfigState, HostControl, HostError, SlotHandle};
+use crate::web_gui::{ConfigState, HostError, SlotHandle};
 
 /// One slot of the host.
 pub(super) struct Slot {
-    handle: SlotHandle,
+    pub(super) handle: SlotHandle,
     /// The same controller as `handle.node`, kept concretely to stop it without the page-request line.
     pub(super) ctl: Arc<NodeCtl>,
     /// The task running the slot's node cycle; `None` until it is spawned and after it is taken.
     task: Option<JoinHandle<anyhow::Result<()>>>,
     /// Turns `true` when the slot's node cycle has ended (a closed sender counts as the end too);
-    /// `None` for the main slot, whose task the host waits for itself.
+    /// `None` only for a slot whose cycle was not spawned through the map.
     pub(super) ended: Option<watch::Receiver<bool>>,
 }
 
@@ -42,13 +41,13 @@ pub(crate) struct SlotContext {
 pub(crate) struct HostSlots {
     slots: RwLock<Vec<Slot>>,
     /// Set once the stop began: no slot is added after it.
-    stopping: AtomicBool,
+    pub(super) stopping: AtomicBool,
     /// Set once at the start of a run that keeps a settings file; without it no network is added.
     context: OnceLock<SlotContext>,
     /// Background tasks of the slots being left, awaited together with the slot tasks.
     retiring: Mutex<Vec<JoinHandle<()>>>,
     /// Ids of the saved slots that could not be read or have no usable key, in disk order.
-    broken: RwLock<Vec<NetSlotId>>,
+    pub(super) broken: RwLock<Vec<NetSlotId>>,
     /// The choice of the network the proxy serves; set once by the run that binds the proxy.
     pub(super) proxy: OnceLock<Arc<ProxySeat>>,
     /// Held while the proxy's network is changed or a slot that may hold the choice leaves.
@@ -127,13 +126,13 @@ impl HostSlots {
         std::mem::take(&mut *self.retiring.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
-    /// The main slot's controller, concretely.
-    pub(super) fn main_ctl(&self) -> Arc<NodeCtl> {
+    /// The slot's controller, concretely.
+    pub(super) fn ctl_of(&self, id: &NetSlotId) -> Option<Arc<NodeCtl>> {
         let slots = self.read();
-        let main = slots.iter().find(|s| s.handle.id == NetSlotId::main());
-        main.expect("the main slot is created with the map and never removed")
-            .ctl
-            .clone()
+        slots
+            .iter()
+            .find(|s| s.handle.id == *id)
+            .map(|s| s.ctl.clone())
     }
 
     /// The list of retirement tasks; held while a retirement checks the stop flag and registers its task,
@@ -142,12 +141,12 @@ impl HostSlots {
         self.retiring.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Takes a slot out of the map; the main slot stays.
+    /// Takes a slot out of the map; the slot that carries the process stays.
     pub(super) fn remove_slot(&self, id: &NetSlotId) -> Option<Slot> {
         let removed = {
             let mut slots = self.write();
             let at = slots.iter().position(|s| s.handle.id == *id);
-            at.filter(|_| *id != NetSlotId::main())
+            at.filter(|_| !id.carries_process())
                 .map(|at| slots.remove(at))
         };
         self.sync_multi_net();
@@ -180,11 +179,25 @@ impl HostSlots {
         self.read().len()
     }
 
-    /// Records the task that runs the slot's node cycle.
-    pub(crate) fn set_task(&self, id: &NetSlotId, task: JoinHandle<anyhow::Result<()>>) {
+    /// Spawns the slot's node cycle, labelled with the slot id, and records its task.
+    pub(crate) fn spawn_task(
+        &self,
+        id: &NetSlotId,
+        cycle: impl Future<Output = anyhow::Result<()>> + Send + 'static,
+    ) {
+        let (task, ended) = spawn_cycle(id, cycle);
         let mut slots = self.write();
         if let Some(slot) = slots.iter_mut().find(|s| s.handle.id == *id) {
             slot.task = Some(task);
+            slot.ended = Some(ended);
+        }
+    }
+
+    /// Seats the slot's controller: the memory guard's sources and, when the host has one, the proxy seat.
+    pub(super) fn seat(&self, id: &NetSlotId, ctl: &NodeCtl, sources: GuardSources) {
+        ctl.set_guard_sources(id.clone(), sources);
+        if let Some(seat) = self.proxy.get() {
+            ctl.set_proxy_seat(id.clone(), seat.clone());
         }
     }
 
@@ -204,87 +217,50 @@ impl HostSlots {
         slots.iter().for_each(|s| s.ctl.stop_on_os_signal());
     }
 
-    fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
+    pub(super) fn read_slots(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
         self.slots.read().unwrap_or_else(|e| e.into_inner())
     }
 
-    fn write(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
+    pub(super) fn write_slots(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
         self.slots.write().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
+        self.read_slots()
+    }
+
+    fn write(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
+        self.write_slots()
     }
 }
 
-/// A slot whose node cycle is spawned now; `ended` turns `true` after the cycle returns.
-fn spawned_slot(
-    handle: SlotHandle,
-    ctl: Arc<NodeCtl>,
+/// Spawns a node cycle labelled with the slot id; the receiver turns `true` after the cycle returns.
+fn spawn_cycle(
+    id: &NetSlotId,
     cycle: impl Future<Output = anyhow::Result<()>> + Send + 'static,
-) -> Slot {
+) -> (JoinHandle<anyhow::Result<()>>, watch::Receiver<bool>) {
     let (done, ended) = watch::channel(false);
-    let label = Some(Arc::from(handle.id.to_string()));
+    let label = Some(Arc::from(id.to_string()));
     let run = async move {
         let outcome = cycle.await;
         done.send_replace(true);
         outcome
     };
-    let task = output::spawn(output::with_net(label, run));
+    (output::spawn(output::with_net(label, run)), ended)
+}
+
+/// A slot whose node cycle is spawned now.
+fn spawned_slot(
+    handle: SlotHandle,
+    ctl: Arc<NodeCtl>,
+    cycle: impl Future<Output = anyhow::Result<()>> + Send + 'static,
+) -> Slot {
+    let (task, ended) = spawn_cycle(&handle.id, cycle);
     Slot {
         handle,
         ctl,
         task: Some(task),
         ended: Some(ended),
-    }
-}
-
-impl HostControl for HostSlots {
-    fn slot(&self, id: &NetSlotId) -> Option<SlotHandle> {
-        let slots = self.read();
-        slots
-            .iter()
-            .find(|s| s.handle.id == *id)
-            .map(|s| s.handle.clone())
-    }
-
-    fn main_slot(&self) -> SlotHandle {
-        self.slot(&NetSlotId::main())
-            .expect("the main slot is created with the map and never removed")
-    }
-
-    fn slots(&self) -> Vec<SlotHandle> {
-        self.read().iter().map(|s| s.handle.clone()).collect()
-    }
-
-    fn stop_all(&self) {
-        let slots = self.write();
-        self.stopping.store(true, Ordering::SeqCst);
-        slots.iter().for_each(|s| s.handle.node.stop());
-    }
-
-    fn broken(&self) -> Vec<NetSlotId> {
-        self.broken
-            .read()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
-    }
-
-    fn add_slot(&self) -> Result<AddedSlot, HostError> {
-        self.add_new_slot()
-    }
-
-    fn retire_slot(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
-        self.retire(id, announced)
-    }
-
-    fn claim_proxy(&self, id: &NetSlotId) -> Result<(), HostError> {
-        self.claim(id, true)
-    }
-
-    fn proxy_net(&self) -> NetSlotId {
-        let seat = self.proxy.get();
-        seat.map_or_else(NetSlotId::main, |s| s.chosen())
-    }
-
-    fn proxy_front(&self) -> Option<ProxyFront> {
-        self.proxy.get().and_then(|s| s.front())
     }
 }
 

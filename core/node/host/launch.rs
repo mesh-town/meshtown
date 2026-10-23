@@ -50,10 +50,7 @@ impl HostSlots {
             Some(_) => NodeCtl::new(&run.effective_settings),
             None => NodeCtl::new_without_network(&run.effective_settings),
         };
-        ctl.set_guard_sources(id.clone(), sources.clone());
-        if let Some(seat) = self.proxy.get() {
-            ctl.set_proxy_seat(id.clone(), seat.clone());
-        }
+        self.seat(&id, &ctl, sources.clone());
         let handle = SlotHandle {
             id: id.clone(),
             node: ctl.clone(),

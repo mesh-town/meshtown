@@ -258,13 +258,10 @@ async fn slot_added_while_waiting_is_waited_for() {
     let main_ctl = ctl_of(&run);
     let host = super::HostSlots::with_main(main_ctl.clone(), ConfigState::from_run(&run));
     let waiting = main_ctl.clone();
-    host.set_task(
-        &NetSlotId::main(),
-        crate::node::output::spawn(async move {
-            waiting.next_command().await;
-            Ok(())
-        }),
-    );
+    host.spawn_task(&NetSlotId::main(), async move {
+        waiting.next_command().await;
+        Ok(())
+    });
     let waiter = crate::node::output::spawn({
         let host = host.clone();
         async move { Host::wait_slots(&host).await }

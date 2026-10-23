@@ -30,8 +30,8 @@ const RETURNS: &str = "the network returns on next start";
 impl HostSlots {
     /// Takes the network away from the page; the stop and the files follow in the background.
     pub(super) fn retire(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
-        if *id == NetSlotId::main() {
-            return self.retire_main(announced);
+        if id.carries_process() {
+            return self.leave_in_place(id, announced);
         }
         let mut tasks = self.retiring_tasks();
         if self.is_stopping() {
@@ -57,8 +57,8 @@ impl HostSlots {
         Ok(())
     }
 
-    fn retire_main(&self, announced: bool) -> Result<(), HostError> {
-        let main = self.main_slot();
+    fn leave_in_place(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
+        let main = self.slot(id).ok_or(HostError::UnknownNet)?;
         let (has_key, from_flag) = {
             let state = main.config.lock().unwrap_or_else(|e| e.into_inner());
             (
@@ -77,9 +77,9 @@ impl HostSlots {
         if self.is_stopping() {
             return Err(HostError::Busy("the node is stopping".into()));
         }
-        let ctl = self.main_ctl();
+        let ctl = self.ctl_of(id).ok_or(HostError::UnknownNet)?;
         let task = retire_main_task(main, ctl, secret, announced);
-        tasks.push(leave_task(&NetSlotId::main(), task));
+        tasks.push(leave_task(id, task));
         Ok(())
     }
 
