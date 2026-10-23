@@ -104,11 +104,11 @@ mod key_from_flag {
         }
 
         #[test]
-        fn refuses_even_with_save_config() {
-            // given: --save-config replaces the key in the file, not the key from --key
+        fn refuses_even_when_the_file_holds_another_network() {
+            // given: the key from --key and the invite disagree whatever the file holds
             let opts = Opts {
                 cli_key: Some(net_b().encode()),
-                save_config: true,
+                file_key: Some(net_b().encode()),
                 ..Opts::default()
             };
             // when
@@ -121,6 +121,44 @@ mod key_from_flag {
 
 #[path = "run_invite_file_key_tests.rs"]
 mod key_in_settings_file;
+
+mod network_slots {
+    use super::*;
+
+    #[test]
+    fn keeps_the_key_when_the_network_has_a_slot() {
+        let out = plan(Opts {
+            file_key: Some(net_b().encode()),
+            slot_keys: vec![None, Some(net_a().encode())],
+            ..Opts::default()
+        });
+        assert!(matches!(out, Outcome::KeepKey), "{out:?}");
+    }
+
+    #[test]
+    fn refuses_at_the_limit_and_says_the_invite_is_not_spent() {
+        let full = vec![Some(net_c().encode()); MAX_NETS - 1];
+        let text = plan(Opts {
+            file_key: Some(net_b().encode()),
+            slot_keys: full,
+            ..Opts::default()
+        })
+        .refusal();
+        assert!(text.contains("too many networks"), "{text}");
+        assert!(text.contains("was not spent"), "{text}");
+    }
+
+    #[test]
+    fn adds_a_network_one_below_the_limit() {
+        let almost = vec![Some(net_c().encode()); MAX_NETS - 2];
+        let out = plan(Opts {
+            file_key: Some(net_b().encode()),
+            slot_keys: almost,
+            ..Opts::default()
+        });
+        then_adds_a_network_with_the_same_invite(out);
+    }
+}
 
 mod expired_invite {
     use super::*;
@@ -152,11 +190,10 @@ mod expired_invite {
     }
 
     #[test]
-    fn refuses_even_when_save_config_allows_replacing_the_file_key() {
-        // given: without the expiry this would be a join that replaces the key in the file
+    fn refuses_even_when_the_invite_would_add_a_network() {
+        // given: without the expiry this would be a join as a separate network
         let opts = Opts {
             file_key: Some(net_b().encode()),
-            save_config: true,
             now: NOW + 25 * HOUR,
             ..Opts::default()
         };
@@ -187,7 +224,7 @@ struct Opts {
     with_invite: bool,
     cli_key: Option<String>,
     file_key: Option<String>,
-    save_config: bool,
+    slot_keys: Vec<Option<String>>,
     now: u64,
 }
 
@@ -197,7 +234,7 @@ impl Default for Opts {
             with_invite: true,
             cli_key: None,
             file_key: None,
-            save_config: false,
+            slot_keys: Vec::new(),
             now: NOW,
         }
     }
@@ -209,6 +246,7 @@ enum Outcome {
     NoInvite,
     KeepKey,
     Redeem(ParsedInvite),
+    AddNet(ParsedInvite),
     Refused(String),
 }
 
@@ -228,13 +266,14 @@ fn plan(opts: Opts) -> Outcome {
         inv,
         opts.cli_key.as_deref(),
         opts.file_key.as_deref(),
-        opts.save_config,
+        &opts.slot_keys,
         opts.now,
     );
     match step {
         Ok(InviteStep::None) => Outcome::NoInvite,
         Ok(InviteStep::KeepKey) => Outcome::KeepKey,
         Ok(InviteStep::Redeem(p)) => Outcome::Redeem(p),
+        Ok(InviteStep::AddNet(p)) => Outcome::AddNet(p),
         Err(e) => Outcome::Refused(format!("{e:#}")),
     }
 }
@@ -242,16 +281,22 @@ fn plan(opts: Opts) -> Outcome {
 /// The invite is spent, and it is exactly the one that was passed in.
 fn then_redeems_the_same_invite(out: Outcome) {
     match out {
-        Outcome::Redeem(p) => {
-            assert_eq!(
-                p.head.secret,
-                secret(),
-                "a different invite went into Redeem"
-            );
-            assert_eq!(p.head.made_unix, NOW);
-        }
+        Outcome::Redeem(p) => assert_is_the_invite(&p),
         other => panic!("expected Redeem, got {other:?}"),
     }
+}
+
+/// The invite is spent for a separate network, and it is exactly the one that was passed in.
+fn then_adds_a_network_with_the_same_invite(out: Outcome) {
+    match out {
+        Outcome::AddNet(p) => assert_is_the_invite(&p),
+        other => panic!("expected AddNet, got {other:?}"),
+    }
+}
+
+fn assert_is_the_invite(p: &ParsedInvite) {
+    assert_eq!(p.head.secret, secret(), "a different invite went in");
+    assert_eq!(p.head.made_unix, NOW);
 }
 
 fn secret() -> InviteSecret {
@@ -264,6 +309,10 @@ fn net_a() -> NetworkKey {
 
 fn net_b() -> NetworkKey {
     NetworkKey::from_bytes([8u8; 32])
+}
+
+fn net_c() -> NetworkKey {
+    NetworkKey::from_bytes([7u8; 32])
 }
 
 fn invite_of_net_a() -> ParsedInvite {

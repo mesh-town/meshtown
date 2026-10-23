@@ -9,16 +9,21 @@ use std::sync::atomic::Ordering;
 use crate::config::config_file::{self, LoadedConfigFile, RunConfig, SaveError, Settings};
 use crate::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
 use crate::invite::{check_fresh, same_network, ParsedInvite};
+use crate::node::host::MAX_NETS;
 use crate::node::output::{say, NET_NAME};
+
+use super::run_invite_addnet::{add_net_slot, net_limit_reached, saved_slot_keys};
 
 /// What to do with the invite in this run.
 pub(crate) enum InviteStep {
     /// There is no invite.
     None,
-    /// The key of this network is already there (`--key` or the settings file): the invite is not spent.
+    /// The key of this network is already there (`--key`, the settings file or a network slot): the invite is not spent.
     KeepKey,
-    /// There is no key: get it from the members by the invite.
+    /// There is no key: get it from the members by the invite and save it in the settings file.
     Redeem(ParsedInvite),
+    /// The node has the key of another network: get the key by the invite and keep it as a separate network.
+    AddNet(ParsedInvite),
 }
 
 const TEXT_WAITING: &str =
@@ -30,42 +35,35 @@ pub(crate) fn plan_invite(
     inv: Option<ParsedInvite>,
     cli_key: Option<&str>,
     file_key: Option<&str>,
-    save_config: bool,
+    slot_keys: &[Option<String>],
     now: u64,
 ) -> anyhow::Result<InviteStep> {
     let Some(inv) = inv else {
         return Ok(InviteStep::None);
     };
-    if key_is_known(&inv, cli_key, file_key, save_config)? {
+    if let Some(key) = cli_key {
+        require_cli_key_matches_invite(&inv, key)?;
         return Ok(InviteStep::KeepKey);
     }
+    let Some(file_key) = file_key else {
+        check_fresh(&inv.head, now)?;
+        return Ok(InviteStep::Redeem(inv));
+    };
+    if same_network(&inv.head, file_key).unwrap_or(false) || known_in_slots(&inv, slot_keys) {
+        return Ok(InviteStep::KeepKey);
+    }
+    if net_limit_reached(slot_keys) {
+        anyhow::bail!("too many networks (limit {MAX_NETS}); the invite was not spent");
+    }
     check_fresh(&inv.head, now)?;
-    Ok(InviteStep::Redeem(inv))
+    Ok(InviteStep::AddNet(inv))
 }
 
-/// Whether the key of the same network as in the invite is already known; the key of another network, which cannot be replaced, is a refusal.
-fn key_is_known(
-    inv: &ParsedInvite,
-    cli_key: Option<&str>,
-    file_key: Option<&str>,
-    save_config: bool,
-) -> anyhow::Result<bool> {
-    if let Some(key) = cli_key {
-        return require_cli_key_matches_invite(inv, key);
-    }
-    let Some(key) = file_key else {
-        return Ok(false);
-    };
-    if same_network(&inv.head, key).unwrap_or(false) {
-        return Ok(true);
-    }
-    if save_config {
-        return Ok(false);
-    }
-    anyhow::bail!(
-        "the settings file has the key of another {NET_NAME} network; to join with the invite, add \
-        --save-config (the key in the file will be replaced); the invite was not spent"
-    )
+fn known_in_slots(inv: &ParsedInvite, slot_keys: &[Option<String>]) -> bool {
+    slot_keys
+        .iter()
+        .flatten()
+        .any(|k| same_network(&inv.head, k).unwrap_or(false))
 }
 
 fn require_cli_key_matches_invite(inv: &ParsedInvite, key: &str) -> anyhow::Result<bool> {
@@ -78,16 +76,23 @@ fn require_cli_key_matches_invite(inv: &ParsedInvite, key: &str) -> anyhow::Resu
 }
 
 /// Everything about the invite in `run`: the decision, joining or the "key already known" mark, the log notes.
-/// Returns the parsed string: the label and the members' addresses for the first join are taken from it.
+/// Returns the parsed string: the label and the members' addresses for the first join are taken from it;
+/// `None` when the invite went to another network slot, which the main network has no use for.
 pub(crate) async fn settle_invite(
     inv: Option<ParsedInvite>,
     cli_key: Option<&str>,
     run: &mut RunConfig,
-    save_config: bool,
+    typed_domains: &[String],
     now: u64,
 ) -> anyhow::Result<Option<ParsedInvite>> {
     let file_key = run.file_settings.net.network_key.clone();
-    let step = plan_invite(inv.clone(), cli_key, file_key.as_deref(), save_config, now)?;
+    let slot_keys = run
+        .file_report
+        .path
+        .as_deref()
+        .map(saved_slot_keys)
+        .unwrap_or_default();
+    let step = plan_invite(inv.clone(), cli_key, file_key.as_deref(), &slot_keys, now)?;
     for note in inv.iter().flat_map(|p| p.warnings.iter()) {
         say("invite", note);
     }
@@ -98,8 +103,30 @@ pub(crate) async fn settle_invite(
             "this network's key is already known; the invite was not spent",
         ),
         InviteStep::Redeem(p) => redeem_for_run(&p, run, now).await?,
+        InviteStep::AddNet(p) => {
+            add_redeemed_net(&p, run, typed_domains, now).await?;
+            return Ok(None);
+        }
     }
     Ok(inv)
+}
+
+/// Joins by the invite and keeps the network as a slot; a failed save is a warning, the run goes on without it.
+async fn add_redeemed_net(
+    p: &ParsedInvite,
+    run: &RunConfig,
+    typed_domains: &[String],
+    now: u64,
+) -> anyhow::Result<()> {
+    let text = redeem_text(p, run).await?;
+    say("invite", "network key received, adding the network");
+    if let Err(why) = add_net_slot(run, &text, typed_domains, now) {
+        say(
+            "invite",
+            format!("network key not saved: {why:#}; the next run needs a new invite"),
+        );
+    }
+    Ok(())
 }
 
 /// Waits for the key from the members, puts it into the run settings and into the settings file.
@@ -108,6 +135,14 @@ pub(crate) async fn redeem_for_run(
     run: &mut RunConfig,
     now: u64,
 ) -> anyhow::Result<()> {
+    let text = redeem_text(p, run).await?;
+    run.effective_settings.net.network_key = Some(text.clone());
+    say("invite", "network key received, joining the network");
+    persist_key(run, &text, now)
+}
+
+/// Waits for the key from the members and returns it as the text a settings file holds.
+async fn redeem_text(p: &ParsedInvite, run: &RunConfig) -> anyhow::Result<String> {
     say("invite", TEXT_WAITING);
     let opts = RedeemOpts::for_head(&p.head, run.effective_settings.net.uses_relay());
     let last = AtomicU64::new(0);
@@ -116,10 +151,7 @@ pub(crate) async fn redeem_for_run(
         .await
         .map_err(|e| RedeemError::Bind(format!("{e:#}")))?;
     let key = redeem(&p.head, &p.peers, &opts, &note, transport, &run.secret).await?;
-    let text = p.head.key_text(&key);
-    run.effective_settings.net.network_key = Some(text.clone());
-    say("invite", "network key received, joining the network");
-    persist_key(run, &text, now)
+    Ok(p.head.key_text(&key))
 }
 
 /// A progress line: only when the pause between rounds has changed.
@@ -197,7 +229,7 @@ fn with_key(mut settings: Settings, key_text: &str) -> Settings {
     settings
 }
 
-fn save_text(e: SaveError) -> String {
+pub(super) fn save_text(e: SaveError) -> String {
     match e {
         SaveError::StaleRev(_) => "file changed during the write".to_string(),
         SaveError::Io(t) => t,
