@@ -16,7 +16,7 @@ fn journal_page_numbers_lines_and_carries_given_boot_id() {
     j.say("t", "a");
     j.say("t", "b");
 
-    let first = j.page("b1", 0, 10);
+    let first = j.page("b1", 0, 10, None);
     assert_eq!(first.boot_id, "b1");
     assert_eq!(first.lines.len(), 2);
     assert_eq!(first.lines[0].text, "a");
@@ -24,7 +24,7 @@ fn journal_page_numbers_lines_and_carries_given_boot_id() {
     assert!(first.lines[1].seq > first.lines[0].seq);
 
     let seq_a = first.lines[0].seq;
-    let second = j.page("b2", seq_a, 10);
+    let second = j.page("b2", seq_a, 10, None);
     assert_eq!(second.boot_id, "b2");
     assert_eq!(second.lines.len(), 1);
     assert_eq!(second.lines[0].text, "b");
@@ -54,7 +54,7 @@ fn journal_summary_tail_and_last_seq() {
 
     assert_eq!(j.summary(2).tail.len(), 2);
     assert!(j.summary(0).tail.is_empty());
-    let page = j.page("", 0, 10);
+    let page = j.page("", 0, 10, None);
     assert_eq!(j.summary(0).last_seq, page.lines.last().unwrap().seq);
 }
 
@@ -81,7 +81,7 @@ fn free_functions_share_one_journal() {
     assert_eq!(mine.len(), 1);
     assert_eq!(page.boot_id, "");
     assert_eq!(
-        log_page_for("abc", before, DEFAULT_RING_CAPACITY).boot_id,
+        log_page_for("abc", before, DEFAULT_RING_CAPACITY, None).boot_id,
         "abc"
     );
 }

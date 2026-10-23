@@ -150,7 +150,7 @@ async fn wait_b_sees_member(b: &Booted, id_a: &str) {
 async fn silent_site() -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         let mut held = Vec::new();
         while let Ok((socket, _)) = listener.accept().await {
             held.push(socket);

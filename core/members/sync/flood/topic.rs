@@ -93,7 +93,7 @@ pub fn spawn_topic(
         events: events.clone(),
         ctx,
     };
-    let task = tokio::spawn(actor.run(rx));
+    let task = crate::transport::net::task_label::spawn(actor.run(rx));
     (tx, events, task.abort_handle())
 }
 
@@ -166,8 +166,10 @@ impl Actor {
         {
             self.dials += 1;
         }
-        self.tasks
-            .spawn(dial_task(self.ctx.clone(), peer, self.tx.clone()));
+        crate::transport::net::task_label::spawn_in(
+            &mut self.tasks,
+            dial_task(self.ctx.clone(), peer, self.tx.clone()),
+        );
     }
 
     fn broadcast(&mut self, body: Bytes) {

@@ -52,7 +52,9 @@ impl ExitTraffic {
     /// Watches a connection: once per `TICK` puts in the byte delta, on close the last one, and exits.
     pub fn watch(&self, conn: Arc<dyn PeerConn>, dir: Direction) {
         let (traffic, peer, mut prev) = (self.clone(), conn.peer(), total_bytes(&*conn));
-        tokio::spawn(async move { while traffic.tick(&*conn, peer, dir, &mut prev).await {} });
+        crate::node::output::spawn(async move {
+            while traffic.tick(&*conn, peer, dir, &mut prev).await {}
+        });
     }
 
     /// One task step: waits for `TICK`, writes a delta; `false` — the connection is closed, the task is done.

@@ -60,12 +60,10 @@ async fn accept_loop(
             .read()
             .unwrap_or_else(|e| e.into_inner())
             .clone();
-        set.spawn(accept_one(
-            carrier.clone(),
-            path,
-            served_service_ids,
-            out.clone(),
-        ));
+        crate::transport::net::task_label::spawn_in(
+            &mut set,
+            accept_one(carrier.clone(), path, served_service_ids, out.clone()),
+        );
     }
 }
 
@@ -76,7 +74,7 @@ impl SplitTransport {
         let served_service_ids: Arc<RwLock<Arc<[ServiceId]>>> =
             Arc::new(RwLock::new(Arc::from([])));
         let (out, rx) = mpsc::channel(ACCEPT_QUEUE);
-        let task = tokio::spawn(accept_loop(
+        let task = crate::transport::net::task_label::spawn(accept_loop(
             connector.clone(),
             carrier.clone(),
             served_service_ids.clone(),

@@ -54,7 +54,7 @@ pub async fn start_web_page(
 
     announce_start(&shared);
 
-    let task = tokio::spawn(accept_loop(
+    let task = crate::node::output::spawn(accept_loop(
         listener,
         router,
         shared.clone(),
@@ -151,7 +151,7 @@ async fn accept_loop(
                 match accepted {
                     Ok((stream, peer)) => {
                         if let Some(conn) = conn_info(&stream, peer, &shared) {
-                            conns.spawn(super::http::serve_connection(stream, conn, router.clone()));
+                            crate::node::output::spawn_in(&mut conns, super::http::serve_connection(stream, conn, router.clone()));
                         }
                     }
                     Err(e) => {

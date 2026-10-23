@@ -132,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
 
     let demo = Arc::new(build_demo_node(&args, &run));
     let handle = start_web_if_enabled(&args, &run, demo.clone()).await;
-    let bg = tokio::spawn(run_background(demo.clone()));
+    let bg = meshtown_core::node::output::spawn(run_background(demo.clone()));
 
     wait_for_shutdown(&demo).await;
 

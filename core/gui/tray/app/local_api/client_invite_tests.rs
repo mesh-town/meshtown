@@ -140,9 +140,9 @@ impl Drop for StubNode {
 async fn setup(node: Node) -> StubNode {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("local_addr").port();
-    let accept_loop = tokio::spawn(async move {
+    let accept_loop = crate::node::output::spawn(async move {
         while let Ok((socket, _addr)) = listener.accept().await {
-            tokio::spawn(serve(socket, node));
+            crate::node::output::spawn(serve(socket, node));
         }
     });
     StubNode { port, accept_loop }

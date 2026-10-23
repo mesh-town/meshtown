@@ -263,7 +263,7 @@ impl Fixture {
             .await
             .expect("B accepted the connection");
         assert_eq!(svc, INVITE, "the connection came not to the invite service");
-        let handler = tokio::spawn(self.server.handle(at_server));
+        let handler = crate::node::output::spawn(self.server.handle(at_server));
         Session { conn, handler }
     }
 

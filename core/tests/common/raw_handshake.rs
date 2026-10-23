@@ -69,10 +69,10 @@ impl RawResponder {
         transport.serve(&[AUTH]);
         let (tails, rx) = mpsc::unbounded_channel();
         let (hk, t) = (key.subkeys().handshake_key, transport.clone());
-        tokio::spawn(async move {
+        meshtown_core::node::output::spawn(async move {
             while let Some((_, conn)) = t.accept().await {
                 let tails = tails.clone();
-                tokio::spawn(async move {
+                meshtown_core::node::output::spawn(async move {
                     let _ = respond(&hk, id, &*conn, &tails).await;
                     conn.closed().await;
                 });

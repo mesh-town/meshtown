@@ -65,6 +65,7 @@ fn log_tail_6() -> Vec<LogLine> {
                 t: (t * 10.0).round() / 10.0,
                 tag: "node".to_string(),
                 text: format!("event {i}"),
+                ..Default::default()
             }
         })
         .collect();
@@ -97,7 +98,7 @@ impl NodeControl for TestNode {
         }
     }
 
-    fn log_after(&self, after: u64, limit: usize) -> LogPage {
+    fn log_after(&self, after: u64, limit: usize, _net: Option<&str>) -> LogPage {
         // Defensive clamp: limit=0 must give 1 line,
         // not depending on whether the caller clamps before the call.
         let limit = limit.max(1);
@@ -107,6 +108,7 @@ impl NodeControl for TestNode {
                 t: (seq as f64) / 10.0,
                 tag: "node".to_string(),
                 text: format!("log line {seq}"),
+                ..Default::default()
             })
             .collect();
         let lines: Vec<LogLine> = all

@@ -63,7 +63,7 @@ async fn serve_conn(server: PortServer, conn: Arc<dyn PeerConn>) {
 /// Its own stream for each request — outside the accept loop.
 fn spawn_stream(server: &PortServer, peer: PeerId, pair: StreamPair) {
     let server = server.clone();
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         if let Err(e) = serve_stream(server, peer, pair.send, pair.recv).await {
             say(
                 "port",

@@ -241,8 +241,9 @@ impl std::fmt::Debug for MemberContext {
 /// Holds a verified connection alive: volume probe in the background, waiting for close,
 /// removal of the member and a `Down` event on close.
 pub async fn hold_conn_until_closed(conn: Arc<dyn PeerConn>, peer: PeerId, ctx: MemberContext) {
-    let serve_handle = tokio::spawn(transfer_probe::answer_probes(conn.clone(), peer));
-    let drive_handle = tokio::spawn(transfer_probe::send_probes_while_open(
+    let serve_handle =
+        crate::node::output::spawn(transfer_probe::answer_probes(conn.clone(), peer));
+    let drive_handle = crate::node::output::spawn(transfer_probe::send_probes_while_open(
         conn.clone(),
         peer,
         ctx.probe.clone(),

@@ -239,7 +239,7 @@ impl Rig {
     }
 
     fn when_watching(&mut self) {
-        let task = tokio::spawn(run_watch(self.access.clone()));
+        let task = crate::node::output::spawn(run_watch(self.access.clone()));
         self.watching.push(task.abort_handle());
     }
 

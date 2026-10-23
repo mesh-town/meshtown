@@ -167,7 +167,7 @@ async fn setup(opts: Opts) -> Fixture {
         local: opts.local,
     };
     let (seq_before, deadline, stack) = (log_summary(0).last_seq, opts.deadline, a.clone());
-    let forwarded = tokio::spawn(async move {
+    let forwarded = crate::node::output::spawn(async move {
         let pool = PeerConnPool::new(PORT);
         forward_to_peer_port_within(&stack, &pool, &members, &target, accepted, deadline).await
     });
@@ -272,9 +272,9 @@ impl ServiceHandler for Scripted {
 async fn echo_listener() -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         while let Ok((mut tcp, _)) = listener.accept().await {
-            tokio::spawn(async move {
+            crate::node::output::spawn(async move {
                 let (mut read, mut write) = tcp.split();
                 let _ = tokio::io::copy(&mut read, &mut write).await;
             });

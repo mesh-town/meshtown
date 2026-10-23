@@ -67,7 +67,7 @@ impl MeshReplica {
             .and_then(Weak::upgrade)
             .ok_or(NetError::Closed)?;
         let swarm = flood.join_swarm(topic_of(&self.id), &[]).await?;
-        tokio::spawn(pump(self.this.clone(), swarm.events));
+        crate::transport::net::task_label::spawn(pump(self.this.clone(), swarm.events));
         Ok(swarm.membership)
     }
 
@@ -89,7 +89,7 @@ impl MeshReplica {
             .ok_or(NetError::Closed)?;
         let mut events = membership.subscribe();
         membership.join(&[peer]).await?;
-        tokio::spawn(async move {
+        crate::transport::net::task_label::spawn(async move {
             owner.wait_neighbor(peer, &mut events).await;
             owner.dial_session(peer, slot).await;
         });
@@ -152,7 +152,7 @@ impl MeshReplica {
         let Ok(body) = encode_push(&self.id, vec![w]) else {
             return;
         };
-        tokio::spawn(async move {
+        crate::transport::net::task_label::spawn(async move {
             let _ = membership.broadcast(body).await;
         });
     }

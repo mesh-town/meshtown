@@ -75,7 +75,7 @@ pub async fn answer_probes(conn: Arc<dyn PeerConn>, peer: PeerId) {
             Ok(streams) => streams,
             Err(_) => break,
         };
-        tokio::spawn(async move {
+        crate::node::output::spawn(async move {
             let mut len_buf = [0u8; 4];
             if recv.read_exact(&mut len_buf).await.is_err() {
                 return;

@@ -56,7 +56,7 @@ impl StreamDialer for PairDialer {
     fn dial(&self, _to: PeerId) -> BoxFuture<'_, NetResult<Box<dyn Duplex>>> {
         Box::pin(async move {
             let (near, far) = duplex(64 * 1024);
-            tokio::spawn(far_side(
+            crate::node::output::spawn(far_side(
                 far,
                 self.me,
                 self.remote.clone(),
@@ -193,7 +193,7 @@ async fn open_refused_by_peer_is_an_error() {
     let (table_a, table_b) = (Arc::new(Sessions::new()), Arc::new(Sessions::new()));
     let refusing = PairDialer::refusing(id_a, table_b, REFUSE_NO_SESSION);
     let (ca, mut cb) = duplex(8192);
-    let far = tokio::spawn(async move {
+    let far = crate::node::output::spawn(async move {
         read_header(&mut cb).await.unwrap();
         write_reply(&mut cb, &Reply::Ack).await.unwrap();
         cb
@@ -209,7 +209,7 @@ async fn open_refused_by_peer_is_an_error() {
 async fn unserved_refusal_maps_to_refused() {
     let (id_a, id_b) = (peer(1), peer(2));
     let (ca, mut cb) = duplex(8192);
-    let far = tokio::spawn(async move {
+    let far = crate::node::output::spawn(async move {
         read_header(&mut cb).await.unwrap();
         write_reply(
             &mut cb,
@@ -258,7 +258,7 @@ async fn stream_right_after_ack_finds_the_session() {
     let table = Arc::new(Sessions::new());
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(2), Arc::new(Sessions::new()));
-    let acc = tokio::spawn(establish_accepted_session(
+    let acc = crate::node::output::spawn(establish_accepted_session(
         peer(1),
         SESSION,
         Box::new(ca),
@@ -292,7 +292,7 @@ async fn dialer_registers_before_it_sends_open() {
     let table = Arc::new(Sessions::new());
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(1), Arc::new(Sessions::new()));
-    let task = tokio::spawn(establish_dialed_session(
+    let task = crate::node::output::spawn(establish_dialed_session(
         peer(2),
         SESSION,
         b"svc",
@@ -359,7 +359,7 @@ async fn dropping_last_handle_closes_with_code_zero() {
 async fn dialed_against_raw_peer() -> (Arc<HyperConn>, tokio::io::DuplexStream) {
     let (ca, mut cb) = duplex(8192);
     let dial = PairDialer::new(peer(1), Arc::new(Sessions::new()));
-    let task = tokio::spawn(establish_dialed_session(
+    let task = crate::node::output::spawn(establish_dialed_session(
         peer(2),
         SESSION,
         b"svc",
@@ -398,7 +398,7 @@ async fn silence_longer_than_dead_after_closes() {
 #[tokio::test(start_paused = true)]
 async fn pong_to_every_ping_keeps_the_session_alive() {
     let (conn, mut far) = dialed_against_raw_peer().await;
-    let echo = tokio::spawn(async move {
+    let echo = crate::node::output::spawn(async move {
         while let Ok(Ctrl::Ping) = read_ctrl(&mut far).await {
             write_ctrl(&mut far, &Ctrl::Pong).await.unwrap();
         }

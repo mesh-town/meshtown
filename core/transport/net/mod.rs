@@ -1,7 +1,7 @@
 //! Core of the network stack: types without third-party network libraries (no logic here).
 //! Map: `id` — PeerId/NodeSecret; `addr` — addresses and hints; `service` — ServiceId;
 //! `link` — path and network information; `error` — NetError; `replica` — record and replica trait;
-//! `sync_backend` — sync (membership and replicas) and its slot.
+//! `sync_backend` — sync (membership and replicas) and its slot; `task_label` — per-task network label.
 
 pub mod addr;
 pub mod carrier;
@@ -24,6 +24,7 @@ pub mod split;
 pub mod stream;
 pub mod sync;
 pub mod sync_backend;
+pub mod task_label;
 pub mod transport;
 
 pub use addr::{AddrHint, PeerAddr, RelayRef};

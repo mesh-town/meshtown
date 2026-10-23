@@ -26,7 +26,7 @@ async fn store(app: &App, dir: std::path::PathBuf, pw: String) -> Result<(), Str
         password::hash(&pw)
             .and_then(|r| password_file::write_password_file(&dir, &r).map_err(|e| e.to_string()))
     };
-    tokio::task::spawn_blocking(work)
+    crate::node::output::spawn_blocking(work)
         .await
         .map_err(|e| e.to_string())?
 }

@@ -30,7 +30,7 @@ async fn wait_for_stop_signal() {
 pub(crate) fn spawn_stop_signal(
     stop: impl FnOnce() + Send + 'static,
 ) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         wait_for_stop_signal().await;
         say("node", "received stop signal");
         stop();

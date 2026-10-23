@@ -143,8 +143,8 @@ async fn two_nodes_find_each_other_through_record() {
     let (src_a, src_b) = (source(&a), source(&b));
     let (tx_a, mut out_a) = mpsc::channel(16);
     let (tx_b, mut out_b) = mpsc::channel(16);
-    let run_a = tokio::spawn(src_a.run_source(tx_a));
-    let run_b = tokio::spawn(src_b.run_source(tx_b));
+    let run_a = crate::node::output::spawn(src_a.run_source(tx_a));
+    let run_b = crate::node::output::spawn(src_b.run_source(tx_b));
     timeout(WITHIN, seen(&mut out_a, &PeerAddr::new(b.me())))
         .await
         .expect("A did not see B");

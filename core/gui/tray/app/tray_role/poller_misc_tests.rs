@@ -16,7 +16,7 @@ async fn poller_port_busy() {
     let dir = temp_dir("port-busy");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let server = tokio::spawn(async move {
+    let server = crate::node::output::spawn(async move {
         use tokio::io::AsyncWriteExt as _;
         loop {
             if let Ok((mut s, _)) = listener.accept().await {
@@ -62,7 +62,7 @@ async fn poller_disabled() {
     let port = listener.local_addr().unwrap().port();
     let accepts = Arc::new(AtomicUsize::new(0));
     let counted = accepts.clone();
-    let server = tokio::spawn(async move {
+    let server = crate::node::output::spawn(async move {
         loop {
             if listener.accept().await.is_ok() {
                 counted.fetch_add(1, Ordering::SeqCst);
@@ -111,7 +111,7 @@ async fn grey_view_turns_exit_menu_off() {
     let dir = temp_dir("grey-exit-off");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let server = tokio::spawn(async move {
+    let server = crate::node::output::spawn(async move {
         loop {
             let _ = listener.accept().await;
         }
@@ -138,7 +138,7 @@ async fn grey_view_with_proxy_disabled_has_no_address() {
     let dir = temp_dir("grey-exit-no-proxy");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let server = tokio::spawn(async move {
+    let server = crate::node::output::spawn(async move {
         loop {
             let _ = listener.accept().await;
         }
@@ -166,7 +166,7 @@ async fn repeated_same_exit_menu_sent_once() {
     let dir = temp_dir("grey-exit-dedup");
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
-    let server = tokio::spawn(async move {
+    let server = crate::node::output::spawn(async move {
         loop {
             let _ = listener.accept().await;
         }

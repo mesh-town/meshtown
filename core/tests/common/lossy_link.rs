@@ -63,7 +63,7 @@ pub fn spawn_collect(
     idle: Duration,
 ) -> tokio::task::JoinHandle<Vec<Arrival>> {
     let sock = sock.clone();
-    tokio::spawn(async move { collect(&sock, epoch, idle).await })
+    meshtown_core::node::output::spawn(async move { collect(&sock, epoch, idle).await })
 }
 
 pub struct Rig {

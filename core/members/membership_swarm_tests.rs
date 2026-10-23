@@ -138,7 +138,7 @@ fn setup(opts: Opts) -> Swarm {
             .expect("receiver is alive until handed to the task");
     }
     let neighbors = Arc::new(AtomicUsize::new(0));
-    let task = tokio::spawn(run_swarm_events(rx, neighbors.clone()));
+    let task = crate::node::output::spawn(run_swarm_events(rx, neighbors.clone()));
     Swarm {
         tx: Some(tx),
         neighbors,

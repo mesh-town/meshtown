@@ -17,9 +17,12 @@ impl NodeControl for DemoNode {
         demo_snapshot(self)
     }
 
-    fn log_after(&self, after: u64, limit: usize) -> LogPage {
+    fn log_after(&self, after: u64, limit: usize, net: Option<&str>) -> LogPage {
         let boot_id = self.state.lock().unwrap().boot_id.clone();
-        self.log.lock().unwrap().page(&boot_id, after, limit.max(1))
+        self.log
+            .lock()
+            .unwrap()
+            .page(&boot_id, after, limit.max(1), net)
     }
 
     fn members(&self) -> MemberFuture {

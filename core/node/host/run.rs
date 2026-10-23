@@ -11,7 +11,7 @@ use super::signal::spawn_stop_signal;
 use super::slots::HostSlots;
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::node_ctl::NodeCtl;
-use crate::node::output::{say, NET_NAME};
+use crate::node::output::{self, say, NET_NAME};
 use crate::web_gui::{ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
 
 /// The role of the node page in a launch: what to do if it didn't start.
@@ -74,7 +74,8 @@ impl Host {
             Ok(handle) => Some(handle),
             Err(e) => Host::page_failed(role, &e)?,
         };
-        let task = tokio::spawn(body(run_config, ctl));
+        let labeled = output::with_net(Some("main".into()), body(run_config, ctl));
+        let task = output::spawn(labeled);
         host.set_task(&NetSlotId::main(), task);
         let result = Host::wait_slots(&host).await;
         if let Some(handle) = handle {

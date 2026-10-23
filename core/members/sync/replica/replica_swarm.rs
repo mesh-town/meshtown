@@ -56,7 +56,9 @@ impl MeshReplica {
     fn spawn_dial(self: &Arc<Self>, peer: PeerId) {
         let Some(slot) = self.claim(peer) else { return };
         let owner = self.clone();
-        tokio::spawn(async move { owner.dial_session(peer, slot).await });
+        crate::transport::net::task_label::spawn(
+            async move { owner.dial_session(peer, slot).await },
+        );
     }
 
     /// A foreign live broadcast: signature check, merge, `RemoteChange`, deferred save.

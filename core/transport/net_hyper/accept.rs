@@ -105,7 +105,7 @@ impl AcceptCtx {
 /// Accepts connections until the townjump server is closed.
 pub async fn accept_loop(mut incoming: Incoming, ctx: Arc<AcceptCtx>) {
     while let Some(conn) = incoming.accept().await {
-        tokio::spawn(admit(conn, ctx.clone()));
+        crate::node::output::spawn(admit(conn, ctx.clone()));
     }
 }
 

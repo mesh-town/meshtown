@@ -6,7 +6,7 @@ use tokio::io::duplex;
 /// Runs one request through a pair of in-memory streams: the server returns pre-set bytes.
 async fn round(reply: &'static [u8], close: bool) -> (HttpResponse, Vec<u8>) {
     let (mut client, mut server) = duplex(128 * 1024);
-    let task = tokio::spawn(async move {
+    let task = crate::transport::net::task_label::spawn(async move {
         let mut got = vec![0u8; 2048];
         let n = server.read(&mut got).await.unwrap();
         got.truncate(n);

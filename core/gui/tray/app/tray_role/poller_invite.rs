@@ -98,7 +98,7 @@ impl Poller {
 /// Writes through `spawn_blocking` under `CLIP_TIMEOUT`; a timeout or a panic counts as a clipboard refusal. A free
 /// function: `&Poller` across `.await` is not `Send` (`Poller` is not `Sync`).
 async fn write_clipboard(copy: CopyFn, text: String) -> Result<(), &'static str> {
-    let job = tokio::task::spawn_blocking(move || copy(&text));
+    let job = crate::node::output::spawn_blocking(move || copy(&text));
     match tokio::time::timeout(CLIP_TIMEOUT, job).await {
         Ok(Ok(outcome)) => outcome,
         Ok(Err(_)) | Err(_) => Err(REASON_CLIP_FAILED),

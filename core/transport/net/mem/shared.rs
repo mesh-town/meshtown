@@ -250,7 +250,7 @@ pub(super) fn start(
         sent_bytes_total: AtomicU64::new(0),
         recv_bytes_total: AtomicU64::new(0),
     });
-    tokio::spawn(tasks::write_loop(shared.clone(), rx));
-    tokio::spawn(tasks::read_loop(shared.clone()));
+    crate::transport::net::task_label::spawn(tasks::write_loop(shared.clone(), rx));
+    crate::transport::net::task_label::spawn(tasks::read_loop(shared.clone()));
     (Arc::new(ConnHandle { shared }), accept_rx)
 }

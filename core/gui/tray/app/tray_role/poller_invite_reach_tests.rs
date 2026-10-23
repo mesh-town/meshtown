@@ -359,7 +359,7 @@ fn poller_on(port: u16, taps: &Taps, clipboard: Clipboard) -> Poller {
 async fn node_answering(body: String) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("local_addr").port();
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         while let Ok((mut socket, _addr)) = listener.accept().await {
             let mut request = [0u8; 4096];
             let _ = socket.read(&mut request).await;

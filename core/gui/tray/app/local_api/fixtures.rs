@@ -74,7 +74,7 @@ impl crate::web_gui::NodeControl for FakeNode {
         }
     }
 
-    fn log_after(&self, _after: u64, _limit: usize) -> crate::web_gui::LogPage {
+    fn log_after(&self, _after: u64, _limit: usize, _net: Option<&str>) -> crate::web_gui::LogPage {
         crate::web_gui::LogPage::default()
     }
 
