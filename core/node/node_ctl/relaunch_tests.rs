@@ -1,4 +1,5 @@
 use super::*;
+use crate::config::config_file::{self, MainFile};
 use crate::transport::net::NodeSecret;
 
 fn test_secret(byte: u8) -> NodeSecret {
@@ -30,7 +31,7 @@ fn assert_reload_with_file_merges_cli_and_key(dir: &std::path::Path, new_key_tex
     };
 
     let relaunch = Relaunch {
-        path: Some(file.clone()),
+        file: Some(Arc::new(MainFile(file.clone()))),
         cli,
         secret: test_secret(3),
         initial_domains: Vec::new(),
@@ -70,7 +71,7 @@ fn assert_reload_without_path_keeps_prev_and_rejects_garbage(new_key_text: &str)
         ..Settings::default()
     };
     let relaunch_no_path = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(4),
         initial_domains: Vec::new(),
@@ -117,7 +118,7 @@ fn node_config_sets_peers_cache_beside_config_path() {
     let file = dir.join("config.json");
 
     let relaunch = Relaunch {
-        path: Some(file.clone()),
+        file: Some(Arc::new(MainFile(file.clone()))),
         cli: CliOverrides::default(),
         secret: test_secret(7),
         initial_domains: Vec::new(),
@@ -138,7 +139,7 @@ fn node_config_sets_peers_cache_beside_config_path() {
 #[test]
 fn node_config_leaves_peers_cache_none_without_path() {
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(8),
         initial_domains: Vec::new(),
@@ -167,7 +168,7 @@ fn node_config_sets_peer_names_beside_config_path() {
     let file = dir.join("config.json");
 
     let relaunch = Relaunch {
-        path: Some(file.clone()),
+        file: Some(Arc::new(MainFile(file.clone()))),
         cli: CliOverrides::default(),
         secret: test_secret(14),
         initial_domains: Vec::new(),
@@ -188,7 +189,7 @@ fn node_config_sets_peer_names_beside_config_path() {
 #[test]
 fn node_config_leaves_peer_names_none_without_path() {
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(16),
         initial_domains: Vec::new(),
@@ -217,7 +218,7 @@ fn node_config_sets_docs_store_beside_config_path() {
     let file = dir.join("config.json");
 
     let relaunch = Relaunch {
-        path: Some(file.clone()),
+        file: Some(Arc::new(MainFile(file.clone()))),
         cli: CliOverrides::default(),
         secret: test_secret(10),
         initial_domains: Vec::new(),
@@ -238,7 +239,7 @@ fn node_config_sets_docs_store_beside_config_path() {
 #[test]
 fn node_config_leaves_docs_store_none_without_path() {
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(12),
         initial_domains: Vec::new(),
@@ -257,7 +258,7 @@ fn node_config_leaves_docs_store_none_without_path() {
 fn relaunch_reload_keeps_label() {
     let key = NetworkKey::from_bytes([5u8; 32]);
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(6),
         initial_domains: Vec::new(),
@@ -282,7 +283,7 @@ fn relaunch_reload_keeps_label() {
 /// `Relaunch` without a file and with `--socks`/`--no-socks` set; settings with `socks.enabled: false`.
 fn socks_off_by_flag_for(socks_enabled: Option<bool>) -> bool {
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides {
             socks_enabled,
             ..CliOverrides::default()
@@ -319,7 +320,7 @@ fn node_config_with_test_net_runs_on_mem() {
     // given: Relaunch with the tests' mem network
     let net = crate::transport::net::mem::process_net();
     let relaunch = Relaunch {
-        path: None,
+        file: None,
         cli: CliOverrides::default(),
         secret: test_secret(30),
         initial_domains: Vec::new(),
@@ -332,3 +333,6 @@ fn node_config_with_test_net_runs_on_mem() {
     assert_eq!(cfg.settings.net_choice.transports, vec!["mem"]);
     assert!(std::sync::Arc::ptr_eq(cfg.test_net.as_ref().unwrap(), &net));
 }
+
+#[path = "relaunch_slot_tests.rs"]
+mod net_slot_file;

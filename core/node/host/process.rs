@@ -6,11 +6,9 @@ use std::path::{Path, PathBuf};
 
 use tokio::runtime::Handle;
 
-use crate::config::config_file::{NetSlotId, ProcessSettings};
-use crate::members::membership::Members;
+use crate::config::config_file::ProcessSettings;
 use crate::node::guard::{start_memory_guard, GuardHandle, MemoryLimitsKib};
 use crate::node::guard_sources::GuardSources;
-use crate::site_checks::checks::Checks;
 
 /// The process memory guard and its summary sources.
 pub struct ProcessServices {
@@ -32,16 +30,6 @@ impl ProcessServices {
     /// Stops the guard thread; the wait for its next tick is interrupted at once.
     pub fn stop(self) {
         self.guard.iter().for_each(GuardHandle::stop);
-    }
-
-    /// The handles of a slot's live node for the guard summary.
-    pub fn register(&self, id: NetSlotId, members: Members, checks: Checks) {
-        self.sources.set(id, members, checks);
-    }
-
-    /// The slot's node is gone: the summary reads nothing from it.
-    pub fn unregister(&self, id: &NetSlotId) {
-        self.sources.clear(id);
     }
 
     /// The handle to the summary sources, for the node controller.

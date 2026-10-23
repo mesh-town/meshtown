@@ -464,3 +464,38 @@ An optional section: what the node uses to talk over the network. No section or 
   are equal there is no section either. The reason: a future change of the default must not be frozen by a written
   value. This is an exception to the rule of section 8 "the file is completed on the next write".
   An old binary loses the `net` section on write (section 8, unknown field).
+
+## 9. Network slot files
+
+Besides the main network, the node can run more networks in the same process. Each extra network (a "slot")
+keeps its own settings file in a folder beside the main one:
+
+```
+<state directory>/config.json              the main network and the process settings
+<state directory>/nets/<id>/config.json    one extra network
+```
+
+`<id>` is six characters of `a-z` and `2-7`. A folder whose name is not such an id is skipped, and so is a
+folder without `config.json`. The node reads `nets/` at startup, only when the main settings file is in use
+(`--no-config` reads nothing).
+
+- **Envelope.** The same as the main file (`rev`, `saved_at`, `identity.secret`, `config.version`) plus
+  `created_unix`, the time the slot was created. Slots start in the order of `(created_unix, id)`. A missing
+  `created_unix` reads as 0; a value that is not a number reads as 0 with a field error.
+- **Only network settings.** `config` holds the network rows (network key, node name, transport, exit, routes,
+  ports, checks, domains and the like) and nothing else. Every slot has its own identity secret and its own
+  files beside it (peer cache, peer names, replica).
+- **Process keys are ignored.** `socks.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
+  `full_tunnel.*` always come from the main file. If such keys are found in a slot file (for example a copy of
+  the main file) they are not an error: one log line names them, and they disappear on the next write.
+- **Command-line flags** that belong to a network (`--key`, `--exit` and the like) apply to the main network only;
+  the flags that belong to the process (SOCKS, the page port) are shared by all slots.
+- **A slot that cannot start** gets a log line `net slot <id> not started: <reason>`; its folder is never
+  deleted or rewritten for that. The reasons: the file is missing, unreadable or invalid, its version is newer
+  than this build knows, it has no `network.key`, it holds the same network as a running slot, or the
+  limit of 8 networks per process is reached (the main network always counts).
+- **Left networks.** A network that was left is not deleted: its folder is renamed to
+  `nets/left-<id>-<UTC time>/` (for the main network, `nets/left-main-<UTC time>/` with a copy of its
+  `config.json` and its cache files). Folders named `left-*` are never started or reused as ids.
+- **Rolling back to an older version.** An older build does not look into `nets/` at all: it runs the main
+  network as before and leaves the slot files untouched. After the upgrade the slots start again.

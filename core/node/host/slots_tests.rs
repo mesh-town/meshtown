@@ -75,3 +75,6 @@ async fn task_is_taken_once_in_slot_order() {
     assert_eq!(tasks[0].0, NetSlotId::main());
     assert!(slots.take_tasks().is_empty());
 }
+
+#[path = "saved_slots_tests.rs"]
+mod saved_slots;

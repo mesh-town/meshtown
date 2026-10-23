@@ -27,6 +27,15 @@ impl Mode {
     }
 }
 
+/// Which part of `Settings` a field belongs to: the process-wide block or the per-network block.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum Block {
+    /// Lives in the main settings file only (`Settings.process`).
+    Process,
+    /// Lives in every network's file (`Settings.net`).
+    Net,
+}
+
 /// One settings field.
 pub(crate) struct Field {
     /// The "section.key" path.
@@ -54,6 +63,11 @@ impl Field {
         self.field_path
             .split_once('.')
             .map_or(self.field_path, |(s, _)| s)
+    }
+
+    /// Returns the settings block the field belongs to.
+    pub(crate) fn block(&self) -> Block {
+        self.value.block()
     }
 
     /// Returns the part of the path after the dot.

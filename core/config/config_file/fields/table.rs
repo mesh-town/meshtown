@@ -10,17 +10,24 @@ use super::kinds_scalar::{
     Addr, BoolKind, Choice, Int, MemoryExit, NetKey, NodeName, OffOnly, OptAddr, Port,
 };
 use super::kinds_text::TextList;
-use super::row::{row, Field, Mode};
+use super::row::{row, Block, Field, Mode};
 use super::value::{Computed, SettingsSlot};
 
 /// A field of a `Settings` block (`process.field` or `net.field`) with a kind: access without capturing, so
 /// the expression is extended to `'static`.
 macro_rules! slot {
-    ($block:ident . $field:ident, $kind:expr) => {
+    (process . $field:ident, $kind:expr) => {
+        slot!(@build Block::Process, process . $field, $kind)
+    };
+    (net . $field:ident, $kind:expr) => {
+        slot!(@build Block::Net, net . $field, $kind)
+    };
+    (@build $tag:expr, $block:ident . $field:ident, $kind:expr) => {
         &SettingsSlot {
             get: |s| &s.$block.$field,
             set: |s, v| s.$block.$field = v,
             kind: $kind,
+            block: $tag,
         }
     };
 }
@@ -31,8 +38,8 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("node.memory_exit_mib", FileOnly, &MemoryExit),
     row!("node.name", Live, slot!(net.node_name, NodeName)),
     row!(redacted "network.key", FileOnly, slot!(net.network_key, NetKey)),
-    row!("network.label", ReadOnly, &Computed),
-    row!("network.masked", ReadOnly, &Computed),
+    row!("network.label", ReadOnly, &Computed(Block::Net)),
+    row!("network.masked", ReadOnly, &Computed(Block::Net)),
     row!("transport.mode", RestartShown, slot!(net.transport_mode, Choice { parse: TransportMode::parse, name: TransportMode::as_str, expected: "direct_and_relay, relay_only or no_relay" })),
     row!("net.transports", FileOnly, &NetNames { names_in_choice: |n| &mut n.transports, allowed: net_names::transports }),
     row!("net.discovery", FileOnly, &NetNames { names_in_choice: |n| &mut n.discovery, allowed: net_names::discovery }),
@@ -58,11 +65,11 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("web.ifaces", EditOnly, slot!(process.web_ifaces, IfaceNames)),
     row!("log.ring_lines", Live, slot!(process.log_ring_lines, Int { min: 200, max: 20_000 })),
     row!("autostart.enabled", EditOnly, slot!(process.autostart_enabled, OffOnly)),
-    row!("autostart.available", ReadOnly, &Computed),
-    row!("autostart.reason", ReadOnly, &Computed),
+    row!("autostart.available", ReadOnly, &Computed(Block::Process)),
+    row!("autostart.reason", ReadOnly, &Computed(Block::Process)),
     row!("full_tunnel.enabled", EditOnly, slot!(process.full_tunnel_enabled, OffOnly)),
-    row!("full_tunnel.available", ReadOnly, &Computed),
-    row!("full_tunnel.reason", ReadOnly, &Computed),
+    row!("full_tunnel.available", ReadOnly, &Computed(Block::Process)),
+    row!("full_tunnel.reason", ReadOnly, &Computed(Block::Process)),
 ];
 
 #[cfg(test)]

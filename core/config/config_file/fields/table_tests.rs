@@ -137,3 +137,126 @@ fn debug_lists_every_stored_row() {
         "the key leaked into Debug: {text}"
     );
 }
+
+mod blocks {
+    use super::super::super::row::Block;
+    use super::super::super::{rows_of, section_names_of};
+    use super::FIELDS;
+    use crate::config::config_file::test_support::all_changed;
+    use crate::config::config_file::{NetSettings, ProcessSettings, Settings};
+
+    /// Copies the values of every row of `block` from `all_changed()` into default settings.
+    fn copy_block_into_defaults(block: Block) -> Settings {
+        let full = all_changed();
+        let mut got = Settings::default();
+        for row in rows_of(block) {
+            row.value.copy_value_between(&full, &mut got);
+        }
+        got
+    }
+
+    mod net_rows {
+        use super::*;
+
+        #[test]
+        fn cover_exactly_the_net_settings() {
+            // given: every field differs from the default
+            let full = all_changed();
+            // when: all `Net` rows are copied into default settings
+            let got = copy_block_into_defaults(Block::Net);
+            // then: the net block is complete and the process block is untouched
+            assert_eq!(
+                got,
+                Settings {
+                    process: ProcessSettings::default(),
+                    net: full.net,
+                },
+                "the `Net` rows do not cover `NetSettings` exactly"
+            );
+        }
+
+        #[test]
+        fn have_no_process_section() {
+            // given: the sections of the `Net` block
+            let sections = section_names_of(Block::Net);
+            // then: none of the process-only sections is among them
+            for process_only in ["socks", "web", "log", "autostart", "full_tunnel"] {
+                assert!(
+                    !sections.contains(&process_only),
+                    "section {process_only} leaked into the net block: {sections:?}"
+                );
+            }
+        }
+
+        #[test]
+        fn node_section_holds_only_the_name() {
+            // given: the `Net` rows of the `node` section
+            let keys: Vec<&str> = rows_of(Block::Net)
+                .filter(|f| f.section() == "node")
+                .map(|f| f.key())
+                .collect();
+            // then: only `name`
+            assert_eq!(keys, vec!["name"]);
+        }
+    }
+
+    mod process_rows {
+        use super::*;
+
+        #[test]
+        fn cover_exactly_the_process_settings() {
+            // given: every field differs from the default
+            let full = all_changed();
+            // when: all `Process` rows are copied into default settings
+            let got = copy_block_into_defaults(Block::Process);
+            // then: the process block is complete and the net block is untouched
+            assert_eq!(
+                got,
+                Settings {
+                    process: full.process,
+                    net: NetSettings::default(),
+                },
+                "the `Process` rows do not cover `ProcessSettings` exactly"
+            );
+        }
+
+        #[test]
+        fn memory_limits_belong_to_the_process() {
+            // given: the two memory rows (they use different row kinds)
+            for path in ["node.memory_warn_mib", "node.memory_exit_mib"] {
+                // then: both are process rows
+                let row = FIELDS.iter().find(|f| f.field_path == path).expect(path);
+                assert_eq!(row.block(), Block::Process, "{path}");
+            }
+        }
+    }
+
+    mod computed_rows {
+        use super::*;
+
+        #[test]
+        fn follow_the_block_of_their_section() {
+            // given: one computed row per block
+            let cases = [
+                ("network.label", Block::Net),
+                ("network.masked", Block::Net),
+                ("autostart.available", Block::Process),
+                ("full_tunnel.reason", Block::Process),
+            ];
+            for (path, want) in cases {
+                // then: the row names its block
+                let row = FIELDS.iter().find(|f| f.field_path == path).expect(path);
+                assert_eq!(row.block(), want, "{path}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_blocks_split_the_table_without_remainder() {
+        // given: the whole table
+        // when: the rows of both blocks are counted
+        let total = rows_of(Block::Net).count() + rows_of(Block::Process).count();
+        // then: every row belongs to exactly one block
+        assert_eq!(total, FIELDS.len());
+    }
+}
