@@ -251,7 +251,7 @@ fn retired(
 /// leaves the slot untouched.
 async fn leave_live(app: &App, slot: SlotHandle) -> Response {
     let standing = standing_of(&slot);
-    if slot.id == NetSlotId::main() && standing.key_from_flag {
+    if standing.key_from_flag {
         return json_err(StatusCode::CONFLICT, "busy", KEY_FROM_FLAG);
     }
     if !standing.has_network {
