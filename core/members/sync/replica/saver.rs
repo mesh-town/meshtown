@@ -56,7 +56,9 @@ impl Saver {
     }
 
     /// Writes a state snapshot and returns when the file is already on disk. Without a path (memory) — nothing.
+    /// A deferred save still waiting is cancelled: the snapshot written here is the latest one.
     pub(crate) async fn save_now(&self, state: &Mutex<State>) -> NetResult<()> {
+        self.0.pending.fetch_add(1, Ordering::SeqCst);
         self.0.save(state).await
     }
 
@@ -107,3 +109,7 @@ impl SaverState {
         Ok(())
     }
 }
+
+#[cfg(test)]
+#[path = "saver_tests.rs"]
+mod tests;
