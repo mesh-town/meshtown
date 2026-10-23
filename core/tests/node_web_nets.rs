@@ -47,6 +47,14 @@ fn other_listed(reply: &Value) -> bool {
         .is_some_and(|rows| rows.iter().any(|r| r["self"] == json!(false)))
 }
 
+/// Whether the state page shows another node that is connected right now.
+fn other_online_peer(state: &Value) -> bool {
+    state["peers"].as_array().is_some_and(|rows| {
+        rows.iter()
+            .any(|r| r["self"] == json!(false) && r["online"] == json!(true))
+    })
+}
+
 fn net_ids(a: &HostNode) -> Vec<String> {
     let (_, v) = a.get("/api/nets");
     let nets = v["nets"].as_array().expect("nets array");
@@ -131,16 +139,25 @@ async fn leaving_an_added_slot_drops_it_and_keeps_main() {
     a.teardown().await;
 }
 
-/// The network the slot was in lists the node as a member that left. Needs the slot's link to the other node
-/// to stay up until the leave; on the in-process test network it drops a moment after joining.
+/// The network the slot was in lists the node as a member that left. The leave notice travels over the
+/// slot's link to the other node, so the test must not break that link before the leave. The test nodes run
+/// with an open list and nobody writes the admission records of a live start, so the first page read that
+/// computes the verdicts closes the connection of the node that is not on the list yet.
+/// Ignored until the test nodes write the admission records of a live start (their own list entry for the
+/// invite's peers): every page read that computes verdicts cuts the link, so the leave may find no link.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "the slot node's link to the other node drops on the in-process test network"]
+#[ignore = "test nodes run with an open list and write no admission records, so the first verdict cuts the slot's link"]
 async fn leaving_an_added_slot_is_seen_by_its_network() {
     let a = boot_host("seen-a", &NetworkKey::generate().unwrap()).await;
     let b = boot("seen-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
     let slot = add_slot(&a);
-    join_slot(&a, &slot, &invite_of(&b)).await;
+    let join = format!("/api/net/{slot}/network/join");
+    let (status, body) = a.post(&join, json!({"key": invite_of(&b)}));
+    assert_eq!(status, 202, "join in the slot: {body}");
+    let state = format!("/api/net/{slot}/state");
+    let linked = wait_until(Duration::from_secs(20), || other_online_peer(&a.get(&state).1)).await;
+    assert!(linked, "the slot never connected to the other node: {}", a.get(&state).1["peers"]);
 
     let path = format!("/api/net/{slot}/members/leave");
     let (status, body) = a.post(&path, json!({"confirm": true}));
