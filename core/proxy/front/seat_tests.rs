@@ -50,6 +50,18 @@ mod node_up {
         fx.then_target_is(Some(MAIN_TAG));
     }
 
+    /// given the main slot chosen and not up, when another slot comes up, then the target is still none and
+    /// the front's directory holds the other slot's configuration.
+    #[tokio::test]
+    async fn of_a_foreign_slot_is_recorded_in_the_front_directory() {
+        let fx = setup(NetSlotId::main()).await;
+
+        fx.seat.node_up(&slot_a(), fx.config(A_TAG));
+
+        fx.then_target_is(None);
+        fx.then_directory_has(&slot_a(), Some(A_TAG));
+    }
+
     /// given nothing published, when a foreign slot comes up, then there is still no target.
     #[tokio::test]
     async fn of_a_foreign_slot_does_not_publish_when_there_was_no_target() {
@@ -328,6 +340,20 @@ impl Fixture {
             host_overrides: Arc::new(Default::default()),
             udp_slots: crate::proxy::udp_slots(),
         }
+    }
+
+    /// The configuration the front's directory holds for `slot`, by its mark; `None` — no record.
+    fn then_directory_has(&self, slot: &NetSlotId, tag: Option<u8>) {
+        let want = tag.map(|tag| vec![peer(tag)]);
+        let got = self
+            .front
+            .nets()
+            .get(slot)
+            .map(|cfg| cfg.route.chosen_exits());
+        assert_eq!(
+            got, want,
+            "the directory record of the slot (marked by its exit list)"
+        );
     }
 
     /// The mark of the configuration the front currently serves; `None` — the front has no target.

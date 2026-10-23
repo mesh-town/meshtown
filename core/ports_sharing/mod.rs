@@ -21,6 +21,7 @@ pub mod store;
 pub mod table;
 pub mod types;
 
+pub use dial::{dial_peer_port, PortDialError, PortReach, PortStream};
 pub use frame::{
     encode_port_reply, encode_port_request, parse_port_reply, parse_port_request, port_code_text,
     PORT_ALPN, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
