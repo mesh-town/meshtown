@@ -18,7 +18,7 @@ pub mod stats;
 
 use std::io;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize};
 use std::sync::Arc;
 use std::time::Duration;
 
