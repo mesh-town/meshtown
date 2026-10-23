@@ -24,6 +24,13 @@ impl NetSlotId {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Whether this is the network whose settings are the main file: it carries the process block
+    /// (socks, web, proxy, ...), stays without a key in the same place when it is left, and its cycle
+    /// is the outcome of the process run.
+    pub fn carries_process(&self) -> bool {
+        self.0 == MAIN
+    }
 }
 
 fn is_base32(b: u8) -> bool {

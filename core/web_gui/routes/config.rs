@@ -18,7 +18,7 @@ use super::slot_param::SlotParam;
 
 /// For an added slot: its config state shows the primary slot's process block.
 fn overlay_from_main(app: &App, slot: &SlotHandle) {
-    if slot.id == NetSlotId::main() {
+    if slot.id.carries_process() {
         return;
     }
     let process = {
@@ -48,7 +48,7 @@ fn named_proxy_net(bytes: &[u8]) -> Option<NetSlotId> {
 
 /// A `proxy.net` that names a network this node does not have: 404 before anything is written.
 fn refuse_unknown_proxy_net(app: &App, slot: &SlotHandle, bytes: &[u8]) -> Option<Response> {
-    if slot.id != NetSlotId::main() {
+    if !slot.id.carries_process() {
         return None;
     }
     let id = named_proxy_net(bytes)?;
@@ -84,7 +84,7 @@ pub(super) async fn config_put_handler(
     let (resp, pick) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         let (resp, pick) = cfg.put_keeping(&bytes, &*slot.node, conn.map(|Extension(c)| c));
-        if resp.status() == StatusCode::OK && slot.id == NetSlotId::main() {
+        if resp.status() == StatusCode::OK && slot.id.carries_process() {
             app.shared.set_access(cfg.file_settings.process.web_access);
             if !cfg.cli_override_paths.contains(&"web.ifaces") {
                 app.shared
