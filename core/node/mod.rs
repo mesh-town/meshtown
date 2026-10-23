@@ -75,7 +75,7 @@ mod running;
 mod start;
 
 #[cfg(feature = "net-hyper")]
-pub use config::{NodeConfig, SocksListen};
+pub use config::NodeConfig;
 #[cfg(feature = "net-hyper")]
 pub use doc_changes::DocChanges;
 #[cfg(feature = "net-hyper")]

@@ -105,7 +105,7 @@ pub fn listen_ip(access: ListenAccess) -> std::net::Ipv4Addr {
 }
 
 /// Takes the port: `localhost` on `127.0.0.1`, `localnet` on `0.0.0.0` (the admission by client address
-/// is in `serve_proxy`). A busy port is an error, the node does not start.
+/// is in `serve_front`). A busy port is an error, the node does not start.
 pub async fn bind_proxy_listener(port: u16, access: ListenAccess) -> Result<TcpListener> {
     let addr = SocketAddr::from((listen_ip(access), port));
     TcpListener::bind(addr).await.map_err(|e| {
@@ -115,12 +115,6 @@ pub async fn bind_proxy_listener(port: u16, access: ListenAccess) -> Result<TcpL
             os_message: e.to_string(),
         })
     })
-}
-
-/// Accepts connections while the listening socket is alive, serving them with a fixed configuration.
-pub async fn serve_proxy(listener: TcpListener, cfg: ProxyConfig, adm: Admission) {
-    let (_target, rx) = tokio::sync::watch::channel(Some(cfg));
-    serve_front(listener, rx, adm).await;
 }
 
 /// Accepts connections while the listening socket is alive; foreign ones are closed at once, without a reply, by `access` and `ifaces`.

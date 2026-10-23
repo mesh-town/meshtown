@@ -12,43 +12,17 @@ use crate::members::network_key::NetworkKey;
 
 use super::identity::{IdentityState, TemporaryReason};
 
-/// The node's SOCKS listener (from `socks.*` of the settings file).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SocksListen {
-    pub enabled: bool,
-    /// Port 0 — any free one (tests).
-    pub port: u16,
-    /// Who may connect: `localhost` — listen on `127.0.0.1`, `localnet` — on `0.0.0.0`.
-    pub access: crate::config::config_file::ListenAccess,
-    /// Over which networks to accept (`socks.ifaces`); `Auto` — automatic.
-    pub ifaces: crate::config::config_file::IfaceFilter,
-}
-
-impl SocksListen {
-    /// The listener is off.
-    pub const OFF: SocksListen = SocksListen {
-        enabled: false,
-        port: 0,
-        access: crate::config::config_file::ListenAccess::Localhost,
-        ifaces: crate::config::config_file::IfaceFilter::Auto,
-    };
-}
-
 /// Node settings for assembly.
 #[derive(Clone, Debug)]
 pub struct NodeConfig {
     pub network_key: NetworkKey,
     /// The network part of the settings file; the node reads it only from here.
     pub settings: NetSettings,
-    /// SOCKS listener: the process part of the settings that the node still holds.
-    pub socks: SocksListen,
     pub probe_first_delay: Duration,
     /// Domains the node adds to its list at startup.
     pub initial_domains: Vec<String>,
     /// Whether to ask external sources for our own country and announce it to peers.
     pub geoip: bool,
-    /// The proxy is off by the `--no-socks` flag, not by a setting; the log line needs this.
-    pub socks_off_by_flag: bool,
     /// The published state of the proxy listener when it lives outside the node; `None` — the node's own.
     pub proxy_face: Option<tokio::sync::watch::Receiver<crate::proxy::ProxyFace>>,
     /// Domains the node treats as blocked on its side (the `--block-domain` flag).
@@ -88,11 +62,9 @@ impl NodeConfig {
         NodeConfig {
             network_key: key,
             settings: settings.clone(),
-            socks: SocksListen::OFF,
             probe_first_delay: Duration::from_secs(10),
             initial_domains: vec![],
             geoip: true,
-            socks_off_by_flag: false,
             proxy_face: None,
             blocked_domains: Vec::new(),
             exit_hosts: HashMap::new(),
@@ -113,12 +85,6 @@ impl NodeConfig {
         let mut cfg = NodeConfig::for_cli(key, &loopback_settings());
         cfg.probe_first_delay = Duration::from_secs(0);
         cfg.geoip = false;
-        cfg.socks = SocksListen {
-            enabled: true,
-            port: 0,
-            access: crate::config::config_file::ListenAccess::Localhost,
-            ifaces: crate::config::config_file::IfaceFilter::Auto,
-        };
         cfg.test_net = Some(crate::transport::net::mem::process_net());
         cfg.open_list = true;
         cfg

@@ -156,7 +156,6 @@ async fn apply_config_before_attach_becomes_pending() {
     let key = NetworkKey::generate().unwrap();
     let mut cfg = NodeConfig::for_loopback_test(key);
     cfg.settings.exit_enabled = false;
-    cfg.socks.enabled = false;
     let node = crate::node::start_node(cfg).await.unwrap();
     assert!(!node.exit_on.load(std::sync::atomic::Ordering::Relaxed));
 
@@ -244,8 +243,7 @@ mod node_name_path {
     /// A loopback node without its own name in the config (the default name), without SOCKS.
     async fn start_test_node() -> RunningNode {
         let key = NetworkKey::generate().unwrap();
-        let mut cfg = NodeConfig::for_loopback_test(key);
-        cfg.socks.enabled = false;
+        let cfg = NodeConfig::for_loopback_test(key);
         crate::node::start_node(cfg).await.unwrap()
     }
 }

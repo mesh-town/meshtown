@@ -41,8 +41,7 @@ async fn no_verdicts_means_no_votes() {
 }
 
 async fn loopback_node() -> crate::node::RunningNode {
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-    cfg.socks.enabled = false;
+    let cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
     crate::node::start_node(cfg).await.unwrap()
 }
 

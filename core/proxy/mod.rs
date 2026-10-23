@@ -57,6 +57,6 @@ pub use outcome::{outcome_line, ProxyOutcome};
 pub use pac::pac_url;
 #[cfg(feature = "net-hyper")]
 pub use serve::{
-    bind_proxy_listener, listen_ip, serve_proxy, BindError, ProxyConfig, DEFAULT_SOCKS_PORT,
+    bind_proxy_listener, listen_ip, BindError, ProxyConfig, DEFAULT_SOCKS_PORT,
     DIRECT_TCP_CONNECT_TIMEOUT, NO_PROXY_NETWORK,
 };

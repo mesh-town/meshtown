@@ -154,7 +154,6 @@ pub(crate) async fn pair_with(
     cfg_a.exit_hosts = HashMap::from([(DOMAIN.to_string(), site)]);
     let mut cfg_b = NodeConfig::for_loopback_test(key);
     cfg_b.settings.exit_enabled = exit_enabled;
-    cfg_b.socks.enabled = false;
     cfg_b.exit_hosts = HashMap::from([
         (DOMAIN.to_string(), site),
         ("outside.test".to_string(), site),
@@ -192,7 +191,6 @@ pub(crate) async fn pair_with_static_exit(site: SocketAddr) -> (RunningNode, Run
     let key = NetworkKey::generate().unwrap();
     let mut cfg_b = NodeConfig::for_loopback_test(key.clone());
     cfg_b.settings.exit_enabled = true;
-    cfg_b.socks.enabled = false;
     cfg_b.exit_hosts = HashMap::from([(DOMAIN.to_string(), site)]);
     let b = node::start_node(cfg_b).await.unwrap();
 

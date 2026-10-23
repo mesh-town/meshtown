@@ -143,7 +143,8 @@ mod a_write_fails_halfway {
         assert_eq!(fx.exits_in_file(&fx.a), vec![fx.x], "file of A");
         assert_eq!(fx.exits_in_state(&fx.a), vec![fx.x], "state of A");
         assert_eq!(fx.all_files(), before, "no file may change");
-        assert!(!fx.log_has("route exits removed"), "A was not touched");
+        let unwanted = format!("route exits removed in {}", fx.a);
+        assert!(!fx.log_has(&unwanted), "A was not touched");
     }
 
     #[tokio::test]

@@ -242,10 +242,10 @@ mod proxy_port_held_by_a_front {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn two_nodes_start_while_the_proxy_port_is_held() {
-        // given: a front holds the port and both configs name that same port
+        // given: a front holds a port
         let port = free_port();
         let front = ProxyFront::bind(&settings(port)).await.unwrap();
-        let (first, second) = (cfg_with_port(port), cfg_with_port(port));
+        let (first, second) = (loopback_cfg(), loopback_cfg());
 
         // when: two nodes start
         let first = start_node(first).await;
@@ -269,9 +269,9 @@ mod proxy_face {
         use super::*;
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn is_off_though_the_config_enables_socks() {
-            // given: a config that still enables the old listener settings, without a face
-            let mut cfg = cfg_with_port(free_port());
+        async fn is_off() {
+            // given: a config without a face
+            let mut cfg = loopback_cfg();
             cfg.proxy_face = None;
 
             // when: the node starts
@@ -291,7 +291,7 @@ mod proxy_face {
             // given: a front on a port and a config with its face
             let port = free_port();
             let front = ProxyFront::bind(&settings(port)).await.unwrap();
-            let mut cfg = cfg_with_port(0);
+            let mut cfg = loopback_cfg();
             cfg.proxy_face = Some(front.face());
 
             // when: the node starts
@@ -306,7 +306,7 @@ mod proxy_face {
         async fn follows_the_front_when_its_port_changes() {
             // given: a node reading the face of a front
             let front = ProxyFront::bind(&settings(free_port())).await.unwrap();
-            let mut cfg = cfg_with_port(0);
+            let mut cfg = loopback_cfg();
             cfg.proxy_face = Some(front.face());
             let node = start_node(cfg).await.unwrap();
 
@@ -368,12 +368,8 @@ mod shutdown_with_a_front {
     }
 }
 
-/// A loopback-test config whose old listener settings name `port`.
-fn cfg_with_port(port: u16) -> NodeConfig {
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-    cfg.socks.enabled = true;
-    cfg.socks.port = port;
-    cfg
+fn loopback_cfg() -> NodeConfig {
+    NodeConfig::for_loopback_test(NetworkKey::generate().unwrap())
 }
 
 fn settings(port: u16) -> ProcessSettings {

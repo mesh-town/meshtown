@@ -15,7 +15,12 @@ pub(super) fn scratch(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("mesh-cfg-{name}-{}-{nanos}", std::process::id()));
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-cfg-{name}-{}-{nanos}-{seq}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).expect("couldn't create the test's temporary directory");
     dir
 }

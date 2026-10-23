@@ -123,9 +123,7 @@ async fn wait_then_run(
 fn spawn_console_on_first_cycle(node: &super::running::RunningNode, ctl: &NodeCtl) {
     let console = ProxyConsole {
         front: ctl.proxy_front(),
-        socks: node.proxy_face.borrow().addr,
         exit_on: node.exit_on.clone(),
-        route: node.route.clone(),
         user_agent: checks::DEFAULT_USER_AGENT.to_string(),
     };
     crate::cli::console::spawn(

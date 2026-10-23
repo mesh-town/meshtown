@@ -196,8 +196,7 @@ async fn after_command_good_key_replaces_cfg_keeps_identity() {
 #[tokio::test]
 async fn each_boot_cycle_takes_new_boot_id() {
     let ctl = NodeCtl::new(&Settings::default());
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([3; 32]));
-    cfg.socks.enabled = false;
+    let cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([3; 32]));
     let id0 = ctl.snapshot().boot_id;
     let mut prev = id0;
     for _ in 0..2 {
@@ -214,8 +213,7 @@ async fn each_boot_cycle_takes_new_boot_id() {
 #[tokio::test]
 async fn stop_before_attach_keeps_stopping_status() {
     let ctl = NodeCtl::new(&Settings::default());
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([5; 32]));
-    cfg.socks.enabled = false;
+    let cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([5; 32]));
     ctl.stop_on_os_signal();
     let node = boot_cycle(&cfg, &ctl, true).await.unwrap();
     assert_eq!(
@@ -230,7 +228,6 @@ async fn stop_before_attach_keeps_stopping_status() {
 async fn stop_before_attach_leaves_after_one_boot() {
     let ctl = NodeCtl::new(&Settings::default());
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([6; 32]));
-    cfg.socks.enabled = false;
     let mut settings = Settings::default();
     let id0 = ctl.snapshot().boot_id;
     ctl.stop_on_os_signal();
@@ -253,7 +250,6 @@ async fn leave_net_ends_cycles_and_clears_network_settings() {
     settings.net.route_exits = vec![NodeSecret::from_bytes(&[9u8; 32]).peer_id()];
     let ctl = NodeCtl::new(&settings);
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([7; 32]));
-    cfg.socks.enabled = false;
     let new_secret = NodeSecret::from_bytes(&[33u8; 32]);
     ctl.request_leave_net(new_secret.clone()).unwrap();
     let res = timeout(
@@ -282,8 +278,7 @@ async fn left_node_waits_for_key_until_stop() {
 
     let settings = Settings::default();
     let ctl = NodeCtl::new(&settings);
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([8; 32]));
-    cfg.socks.enabled = false;
+    let cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([8; 32]));
     let task = crate::node::output::spawn(run_node_with_ctl(
         cfg,
         settings,

@@ -56,15 +56,10 @@ mod route {
     mod front_has_a_target {
         use super::*;
 
-        /// The console's own route says "offline exits"; the front's target says "direct": the front wins.
         #[tokio::test]
-        async fn prints_the_path_of_the_front_target_not_the_consoles_own() {
+        async fn prints_the_path_of_the_front_target() {
             // given
-            let fx = setup(
-                Front::Targeting(Path::Direct),
-                Own::Route(Path::OfflineExit),
-            )
-            .await;
+            let fx = setup(Front::Targeting(Path::Direct)).await;
 
             // when
             let said = fx.when_route("direct-target.console-test.example").await;
@@ -75,11 +70,7 @@ mod route {
 
         #[tokio::test]
         async fn prints_a_refusal_of_an_offline_exit_target() {
-            let fx = setup(
-                Front::Targeting(Path::OfflineExit),
-                Own::Route(Path::Direct),
-            )
-            .await;
+            let fx = setup(Front::Targeting(Path::OfflineExit)).await;
 
             let said = fx.when_route("offline-target.console-test.example").await;
 
@@ -92,7 +83,7 @@ mod route {
         /// The target changes under the console: the next command sees the new path.
         #[tokio::test]
         async fn follows_the_target_when_it_is_replaced() {
-            let fx = setup(Front::Targeting(Path::Direct), Own::Route(Path::Direct)).await;
+            let fx = setup(Front::Targeting(Path::Direct)).await;
             fx.front.set_target(Some(fx.config(Path::OfflineExit)));
 
             let said = fx.when_route("replaced-target.console-test.example").await;
@@ -107,10 +98,9 @@ mod route {
     mod front_has_no_target {
         use super::*;
 
-        /// The console's own route is a working direct one; the refusal must still come from the empty target.
         #[tokio::test]
         async fn says_there_is_no_network_for_the_proxy() {
-            let fx = setup(Front::Idle, Own::Route(Path::Direct)).await;
+            let fx = setup(Front::Idle).await;
 
             let said = fx.when_route("no-target.console-test.example").await;
 
@@ -122,7 +112,7 @@ mod route {
 
         #[tokio::test]
         async fn says_it_again_after_the_target_is_taken_away() {
-            let fx = setup(Front::Targeting(Path::Direct), Own::Route(Path::Direct)).await;
+            let fx = setup(Front::Targeting(Path::Direct)).await;
             fx.front.set_target(None);
 
             let said = fx.when_route("taken-away.console-test.example").await;
@@ -138,10 +128,10 @@ mod route {
 mod socks {
     use super::*;
 
-    /// A front on a port; the console's own `socks` address is another one: the front's wins.
+    /// The address shown is the one the front listens on.
     #[tokio::test]
     async fn prints_the_address_of_the_front() {
-        let fx = setup(Front::Idle, Own::Socks("127.0.0.1:9".parse().unwrap())).await;
+        let fx = setup(Front::Idle).await;
         let listening = fx.front.addr().expect("the front listens");
 
         let said = fx.when_socks().await;
@@ -152,10 +142,10 @@ mod socks {
         );
     }
 
-    /// The front is off in the settings (no address), the console's own address is set: it must not be shown.
+    /// The front is off in the settings (no address): the console says `off`.
     #[tokio::test]
     async fn says_off_when_the_front_listens_nowhere() {
-        let fx = setup(Front::Disabled, Own::Socks("127.0.0.1:9".parse().unwrap())).await;
+        let fx = setup(Front::Disabled).await;
         fx.exit_on.store(true, std::sync::atomic::Ordering::Relaxed);
 
         let said = fx.when_socks().await;
@@ -176,12 +166,6 @@ enum Front {
     Targeting(Path),
 }
 
-/// What the console's own (older) fields hold; the front must take precedence over them.
-enum Own {
-    Route(Path),
-    Socks(SocketAddr),
-}
-
 struct Fixture {
     front: ProxyFront,
     console: ProxyConsole,
@@ -189,7 +173,7 @@ struct Fixture {
     node: crate::node::RunningNode,
 }
 
-async fn setup(front: Front, own: Own) -> Fixture {
+async fn setup(front: Front) -> Fixture {
     let node = crate::node::start_node(crate::node::NodeConfig::for_loopback_test(
         crate::members::network_key::NetworkKey::generate().unwrap(),
     ))
@@ -202,15 +186,9 @@ async fn setup(front: Front, own: Own) -> Fixture {
     };
     let bound = ProxyFront::bind(&settings).await.expect("a free port");
     let exit_on = Arc::new(AtomicBool::new(false));
-    let (own_route, own_socks) = match own {
-        Own::Route(path) => (route_of(&node, path), None),
-        Own::Socks(addr) => (route_of(&node, Path::Direct), Some(addr)),
-    };
     let console = ProxyConsole {
         front: Some(bound.clone()),
-        socks: own_socks,
         exit_on: exit_on.clone(),
-        route: own_route,
         user_agent: "meshtown-test".to_string(),
     };
     let fx = Fixture {

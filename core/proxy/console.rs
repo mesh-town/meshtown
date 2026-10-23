@@ -40,31 +40,22 @@ pub fn parse_proxy_line(line: &str) -> Option<Result<ProxyCommand>> {
 /// What the console knows about this node's proxy.
 #[derive(Clone)]
 pub struct ProxyConsole {
-    /// The process proxy entry; when it is `None`, the older `socks` and `route` fields are used.
+    /// The process proxy entry; `None` — there is no proxy, as if it had no network.
     pub front: Option<ProxyFront>,
-    /// Where the SOCKS5 server listens; `None` — disabled by the `--no-socks` flag or the `socks.enabled: false` setting.
-    pub socks: Option<SocketAddr>,
     /// Whether the node works as an exit for others.
     pub exit_on: Arc<AtomicBool>,
-    pub route: RouteCtx,
     pub user_agent: String,
 }
 
 impl ProxyConsole {
-    /// The listening address: from the process entry if there is one, else the node's own.
+    /// The listening address of the process entry.
     fn listen_addr(&self) -> Option<SocketAddr> {
-        match &self.front {
-            Some(front) => front.addr(),
-            None => self.socks,
-        }
+        self.front.as_ref().and_then(|front| front.addr())
     }
 
     /// The route context now; `None` — the proxy has no network to route through.
     fn route_now(&self) -> Option<RouteCtx> {
-        match &self.front {
-            Some(front) => front.current_route(),
-            None => Some(self.route.clone()),
-        }
+        self.front.as_ref().and_then(|front| front.current_route())
     }
 }
 
