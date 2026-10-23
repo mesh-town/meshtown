@@ -30,7 +30,7 @@ mod ring;
 mod routes;
 mod snapshot;
 #[cfg(test)]
-mod test_host;
+pub(crate) mod test_host;
 mod token;
 
 pub use auth::password_file::{remove_password_file, PASSWORD_FILE_NAME};

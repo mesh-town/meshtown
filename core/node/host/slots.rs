@@ -30,7 +30,6 @@ struct Slot {
 }
 
 /// What adding a network at run time needs from the start of the run.
-#[allow(dead_code)] // read by adding a slot
 pub(crate) struct SlotContext {
     /// The main slot's run configuration as it was at the start.
     pub(crate) main_run: RunConfig,
@@ -103,9 +102,13 @@ impl HostSlots {
     }
 
     /// What adding a network needs; `None` when the run keeps one network.
-    #[allow(dead_code)] // read by adding a slot
     pub(crate) fn context(&self) -> Option<&SlotContext> {
         self.context.get()
+    }
+
+    /// Whether the stop has begun.
+    pub(super) fn is_stopping(&self) -> bool {
+        self.stopping.load(Ordering::SeqCst)
     }
 
     /// Takes the background tasks of the slots being left.
@@ -240,7 +243,7 @@ impl HostControl for HostSlots {
     }
 
     fn add_slot(&self) -> Result<AddedSlot, HostError> {
-        Err(HostError::Busy("not yet".into()))
+        self.add_new_slot()
     }
 
     fn retire_slot(&self, _id: &NetSlotId, _announced: bool) -> Result<(), HostError> {

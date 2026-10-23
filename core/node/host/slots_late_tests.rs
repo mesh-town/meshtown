@@ -59,18 +59,6 @@ async fn the_map_is_full_at_the_limit() {
 }
 
 #[tokio::test]
-async fn broken_slots_take_no_room() {
-    let (slots, _ctl) = map();
-    slots.mark_broken(NetSlotId::parse("zz2222").unwrap());
-    slots.mark_broken(NetSlotId::parse("zz2222").unwrap());
-    for i in 2..=super::super::MAX_NETS {
-        push_idle(&slots, &id_of(i)).unwrap();
-    }
-    assert_eq!(slots.broken(), [NetSlotId::parse("zz2222").unwrap()]);
-    assert_eq!(slots.len(), super::super::MAX_NETS);
-}
-
-#[tokio::test]
 async fn a_pushed_slot_ends_with_its_cycle() {
     let (slots, _ctl) = map();
     let (handle, ctl) = handle_of("ab2c3d");

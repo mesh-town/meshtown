@@ -121,7 +121,7 @@ fn settle_identity(path: &Path, p: &ParsedNetFile, now_unix: u64) -> Result<Iden
 }
 
 /// The main run's flag paths that belong to the process block; network flags do not apply to a slot.
-fn process_flag_paths(main: &RunConfig) -> Vec<&'static str> {
+pub(super) fn process_flag_paths(main: &RunConfig) -> Vec<&'static str> {
     let is_process =
         |p: &&'static str| field_by_path(p).is_some_and(|f| f.block() == Block::Process);
     main.cli_override_paths

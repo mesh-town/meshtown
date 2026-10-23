@@ -3,6 +3,7 @@
 //! settings of an added slot.
 
 mod aside;
+mod fresh;
 mod ids;
 mod layout;
 mod list;
@@ -12,6 +13,7 @@ mod settings_file;
 mod slot_id;
 
 pub use aside::{set_aside_main, set_aside_slot};
+pub use fresh::{copy_shared_net, fresh_net_slot};
 pub use ids::new_slot_id;
 pub use layout::net_slot_path;
 pub use list::{list_net_slots, NetSlotOnDisk};
