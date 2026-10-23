@@ -11,7 +11,7 @@ import { menuItems, rowDecor } from "../members/members-view.ts";
 import { PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
 import { countryCell, olderMark, olderTitle, peerAction, peerMetaText, versionText } from "./peers-view.ts";
 
-const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; names?: Record<string, string> }>();
+const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; names?: Record<string, string>; multi?: boolean }>();
 const emit = defineEmits<{ (e: "exit-via", idFull: string): void; (e: "member-pick", key: string, idFull: string): void }>();
 
 const decor = computed(() => rowDecor(props.peer, props.member, props.me || "", props.names || {}));
@@ -28,7 +28,7 @@ const rowTitle = computed(() => (props.peer.self && props.state.node.id_full) ||
     <span class="peer-who"><span class="peer-name">{{ peer.self ? PEERS_YOU_PREFIX : "" }}{{ name }}</span><span v-if="decor.badge" class="peer-badge" :class="'badge-' + decor.badge.tone">{{ decor.badge.text }}</span> <span v-if="countryCell(peer)" class="peer-country">{{ countryCell(peer) }}</span> <span v-if="versionText(peer)" class="peer-version">{{ versionText(peer) }}</span> <span v-if="olderMark(peer, state)" class="peer-older" :title="olderTitle(peer, state)">{{ PEERS_OLDER }}</span><br><span class="peer-code mono">{{ peer.id }}</span></span>
     <span class="peer-meta">{{ meta }}<span v-for="line in decor.lines" :key="line" class="peer-line">{{ line }}</span></span>
     <span class="peer-action">
-      <a v-if="action.kind === 'self'" href="#home" class="peer-note">{{ PEERS_EDIT }}</a>
+      <a v-if="action.kind === 'self'" :href="multi ? '#' : '#home'" class="peer-note" @click="multi && ($event.preventDefault(), emit('member-pick', 'rename', peer.id_full))">{{ PEERS_EDIT }}</a>
       <span v-else-if="action.kind === 'chosen-ok'" class="peer-chosen">{{ PEERS_CHOSEN_OK }}</span>
       <span v-else-if="action.kind === 'chosen-down'" class="peer-chosen">{{ PEERS_CHOSEN_DOWN }}</span>
       <button v-else-if="action.kind === 'button'" type="button" class="btn btn-sm" :data-exit-via="peer.id_full" :aria-label="EXIT_VIA_HIM + ': ' + name" @click="emit('exit-via', peer.id_full)">{{ EXIT_VIA_HIM }}</button>

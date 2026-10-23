@@ -8,7 +8,7 @@ import type { ApiFn } from "../core/api.ts";
 import { notifyChanged } from "../core/bridge.ts";
 import type { ExitSaveStatus } from "../core/exit-via.ts";
 import { dropSlot, putSlotMembers } from "../core/overview.ts";
-import { membersOf, stateOf } from "../core/slots.ts";
+import { isMulti, membersOf, netName as slotNetName, stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import { navigateTo } from "../common/navigate.ts";
@@ -53,14 +53,21 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   const status = ref<ExitSaveStatus>({ text: "", cls: "" });
   const dialog = ref<DialogHandle | null>(null);
   const call: ApiFn = deps.api || coreApi;
-  const net = (): string => stateOf(store, slot())?.network?.label || "";
+  const multi = (): boolean => isMulti(store);
+  const net = (): string => (multi() ? slotNetName(store.nets, slot()) : stateOf(store, slot())?.network?.label || "");
   const nameOf = (idFull: string): string => displayNames(membersOf(store, slot()))[idFull] || idFull.slice(0, 8);
 
   function context(kind: DialogKind, idFull: string) {
     const row = memberById(membersOf(store, slot()), idFull);
     const by = row && row.vote ? nameOf(row.vote.proposed_by) : undefined;
     const label = row && row.admission ? row.admission.label : null;
-    return { name: nameOf(idFull), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(), isMyExit: chosenExitIds(store).includes(idFull) };
+    return { name: nameOf(idFull), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(), isMyExit: chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitInNet() };
+  }
+
+  // My exit, when it is a member of this network.
+  function exitInNet(): string | null {
+    const inNet = chosenExitIds(store).find((id) => memberById(membersOf(store, slot()), id));
+    return multi() && inNet ? nameOf(inNet) : null;
   }
 
   function wake(): void {
@@ -88,7 +95,7 @@ export function useMembersActions(store: Store, slot: () => string = () => store
       const sliced = store.slots[from] !== undefined;
       dropSlot(store, from, reply.nets);
       if (!sliced && from === store.lead) store.members = null;
-      status.value = INFO(leftNetworkStatus(netName));
+      status.value = INFO(leftNetworkStatus(netName, reply.announced));
     } else if (reply.nets.length > 0) {
       store.nets = reply.nets;
     }

@@ -139,6 +139,41 @@ describe("Settings: leaving the network", () => {
       expect(isShown(wrapper, "#settings-leave-row")).toBe(true);
     });
   });
+
+  describe("the node answers with the networks that remain", () => {
+    it("the store takes `nets` from the reply", async () => {
+      api.mockResolvedValue(leaveReply({ nets: [netBrief("k7q2xa", "my devices")] }));
+      const { wrapper, store } = mountSettings();
+      await confirmLeave(wrapper);
+      expect(store.nets).toEqual([netBrief("k7q2xa", "my devices")]);
+    });
+
+    it("the line keeps the sentence it always had", async () => {
+      api.mockResolvedValue(leaveReply({ nets: [netBrief("k7q2xa", "my devices")] }));
+      const { wrapper } = mountSettings();
+      await confirmLeave(wrapper);
+      expect(wrapper.get("#settings-leave-status").text()).toBe("You left the network \"demo-network\".");
+    });
+
+    it("a leave the node announced to nobody: the line adds a second sentence", async () => {
+      api.mockResolvedValue(leaveReply({ announced: false }));
+      const { wrapper } = mountSettings();
+      await confirmLeave(wrapper);
+      const text = wrapper.get("#settings-leave-status").text();
+      expect(text.startsWith("You left the network \"demo-network\". ")).toBe(true);
+      expect(text).toContain("Other members couldn't be told that you left");
+    });
+
+    it("the node did not leave (`left:false`): the store keeps its networks and the line stays empty", async () => {
+      const before = [netBrief("main", "demo-network")];
+      api.mockResolvedValue(leaveReply({ left: false, nets: [] }));
+      const { wrapper, store } = mountSettings();
+      store.nets = before;
+      await confirmLeave(wrapper);
+      expect(store.nets).toEqual(before);
+      expect(wrapper.get("#settings-leave-status").text()).toBe("");
+    });
+  });
 });
 
 function mountSettings(over = {}) {
@@ -154,3 +189,17 @@ async function clickLeave(wrapper) {
 }
 
 const isShown = (wrapper, selector) => wrapper.find(selector).exists() && shown(wrapper.get(selector).element);
+
+async function confirmLeave(wrapper) {
+  await clickLeave(wrapper);
+  await wrapper.get("#member-confirm-yes").trigger("click");
+  await flushPromises();
+}
+
+// The reply of `members/leave`: the member list plus what the node did and the networks that remain.
+const leaveReply = (over = {}) => ({ ...membersReply(), left: true, announced: true, nets: [], ...over });
+
+const netBrief = (id, label) => ({
+  id, label, id_hex: id + "-hex", status: "online", exit_enabled: false, proxy: false, route_state: "direct", exits: [],
+  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2,
+});

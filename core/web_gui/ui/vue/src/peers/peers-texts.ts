@@ -35,7 +35,6 @@ export const PEERS_INVITE_ONE = "Invite a member";
 export const PEERS_INVITE_COPIED = "Invite copied. It works once, for 24 hours — send it to one person in a private message.";
 export const PEERS_TAB_ADD = "Add network";
 export const PEERS_TAB_ADD_FULL = "Mesh Town can be in up to 8 networks at once";
-export const PEERS_MAX_NETS = 8;
 export const PEERS_TAB_ADD_MARK = "+";
 export const PEERS_TAB_JOINING = "Joining the network…";
 export const PEERS_TAB_JOINING_SUB = "· joining…";

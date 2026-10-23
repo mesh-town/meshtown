@@ -93,4 +93,11 @@ export const excludedStatusText = (net?: string | null): string =>
   "Removed from the network" + quotedNet(net) + " \u2014 sites won't open through " + NET_NAME;
 
 // Under the list after leaving: 'You left the network "x".'
-export const leftNetworkStatus = (net?: string | null): string => excludedTitle("left", net) + ".";
+export const NOT_TOLD_LEFT = "Other members couldn't be told that you left, so they may see this computer as offline for a while.";
+export const leftNetworkStatus = (net?: string | null, announced = true): string =>
+  excludedTitle("left", net) + "." + (announced ? "" : " " + NOT_TOLD_LEFT);
+export const leaveMultiTitle = (net: string): string => `Leave "${net}"?`;
+export const leaveMultiBody = (net: string): string =>
+  `Disconnect this computer from "${net}" for good. Your other networks stay. You'll need a new invite to come back.`;
+export const leaveExitLine = (exit: string): string =>
+  `Your exit ${exit} is in this network. After you leave, sites will open directly until you choose another exit.`;

@@ -141,6 +141,35 @@ describe("the status under the list after an action", () => {
   });
 });
 
+describe("the status under the list after leaving", () => {
+  const LEFT = 'You left the network "my devices".';
+  const NOT_TOLD = "Other members couldn't be told that you left, so they may see this computer as offline for a while.";
+
+  it("without the second argument: the sentence it always had", () => {
+    assert.equal(t.leftNetworkStatus("my devices"), LEFT);
+  });
+
+  it("the others were told: the same single sentence", () => {
+    assert.equal(t.leftNetworkStatus("my devices", true), LEFT);
+  });
+
+  it("the others were not told: a second sentence follows", () => {
+    assert.equal(t.leftNetworkStatus("my devices", false), LEFT + " " + NOT_TOLD);
+  });
+
+  it.each([true, false])("announced %j, no network name: no quotes and no \"undefined\"", (announced) => {
+    for (const net of [undefined, null, "", "  "]) {
+      const text = t.leftNetworkStatus(net, announced);
+      assert.ok(text.startsWith("You left the network."), String(net) + ": " + text);
+      assert.ok(!/undefined|null|"/.test(text), String(net) + ": " + text);
+    }
+  });
+
+  it("the plain status is the title of the left card with a full stop", () => {
+    assert.equal(t.leftNetworkStatus("family"), t.excludedTitle("left", "family") + ".");
+  });
+});
+
 describe("taking a proposal back", () => {
   it("the member is no longer blocked here: the status says so", () => {
     assert.equal(

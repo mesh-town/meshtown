@@ -7,9 +7,12 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
-import { excludedInfo, membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
+import { createFakeNode } from "../testing/fake-node.mjs";
+import { EXTRA_FULL, excludedInfo, extraRow, membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
 import { ME, openMembersPage, peerTwoNamed, stateWith } from "../testing/members-page.mjs";
-import { unmountPage } from "../testing/page.mjs";
+import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
+import { mountPage, settle, unmountPage } from "../testing/page.mjs";
+import { baseConfig, baseState } from "../testing/section.mjs";
 
 afterEach(unmountPage);
 
@@ -133,6 +136,67 @@ describe("somebody else left the network", () => {
   });
 });
 
+describe("the leave dialog with several networks", () => {
+  describe("on the tab of the second network", () => {
+    it("names that network in the title and says the others stay", async () => {
+      const dialog = await dialogOnSecond();
+      expect(dialog.title()).toBe('Leave "my devices"?');
+      expect(dialog.body()).toContain('Disconnect this computer from "my devices" for good. Your other networks stay. You\'ll need a new invite to come back.');
+      expect(dialog.yes()).toBe("Leave network");
+      expect(dialog.cancel()).toBe("Cancel");
+      expect(dialog.focusIsOnCancel()).toBe(true);
+    });
+
+    it("does not use the wording of the single network", async () => {
+      const dialog = await dialogOnSecond();
+      expect(dialog.title()).not.toContain("Leave the network");
+      expect(dialog.body()).not.toContain("sites stop opening through Mesh Town");
+    });
+
+    it("Cancel sends nothing", async () => {
+      const dialog = await dialogOnSecond();
+      await dialog.whenCancelled();
+      expect(dialog.leaveRequests()).toEqual([]);
+    });
+  });
+
+  it("on the tab of the first network names that one", async () => {
+    const dialog = await dialogOnSecond({ hash: "peers" });
+    expect(dialog.title()).toBe('Leave "friends"?');
+  });
+
+  describe("your exit is in the network being left", () => {
+    it("says so, with the name of the exit, and what happens to the sites", async () => {
+      const dialog = await dialogOnSecond({ exit: EXTRA_FULL });
+      expect(dialog.body()).toContain("Your exit old-laptop is in this network. After you leave, sites will open directly until you choose another exit.");
+    });
+
+    it("does not add the common tail \"is your exit\"", async () => {
+      const dialog = await dialogOnSecond({ exit: EXTRA_FULL });
+      expect(dialog.body()).not.toContain("is your exit");
+    });
+  });
+
+  describe("your exit is in another network", () => {
+    it("the dialog does not mention the exit", async () => {
+      const dialog = await dialogOnSecond({ exit: PEER_FULL });
+      expect(dialog.body()).not.toContain("Your exit");
+      expect(dialog.body()).not.toContain("is your exit");
+    });
+  });
+});
+
+describe("the leave dialog with one network", () => {
+  it("keeps the wording of the single network and does not talk about other networks", async () => {
+    const page = await openMembersPage();
+    await page.openMenu(SELF_FULL);
+    await page.pick("leave");
+    expect(page.dialogBody()).not.toContain("Your other networks stay");
+    expect(page.dialogBody()).not.toContain("Your exit");
+    page.expectDialog({ title: 'Leave the network "demo-network"?', action: "Leave network" });
+  });
+});
+
 // The leave answer: the node is out of the network now — no network in the state, no member list.
 async function leftPage(changed = true) {
   const page = await openMembersPage();
@@ -157,3 +221,34 @@ const mineExcluded = (how, voters) =>
 const removedMe = () => membersReply({ rows: [mineExcluded("votes", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true, need: 2 });
 const leftMe = () => membersReply({ rows: [mineExcluded("left", []), peerOneRow(), peerTwoNamed()], me_excluded: true });
 
+
+// Two networks: A is `main` ("friends"), B is `k7q2xa` ("my devices", its other member is old-laptop). `exit`: the chosen exit.
+// Opens the page on B (or on `hash`), picks "Leave network…" from your row and returns what the dialog shows.
+async function dialogOnSecond({ hash = "peers/" + NET_B, exit = null } = {}) {
+  const node = createFakeNode(twoNetsWithExit(exit));
+  const { wrapper } = await mountPage(node, { hash });
+  const click = async (w) => { await w.trigger("click"); await settle(); };
+  await click(wrapper.get('#peers-list button[data-member-menu="' + SELF_FULL + '"]'));
+  await click(wrapper.get('[role="menu"] [data-member-item="leave"]'));
+  const text = (selector) => wrapper.get(selector).text();
+  return {
+    title: () => text("#confirm-title"),
+    body: () => text("#confirm-body"),
+    yes: () => text("#member-confirm-yes"),
+    cancel: () => text("#member-confirm-cancel"),
+    focusIsOnCancel: () => document.activeElement === wrapper.get("#member-confirm-cancel").element,
+    whenCancelled: () => click(wrapper.get("#member-confirm-cancel")),
+    leaveRequests: () => node.calls.filter((c) => c.method === "POST" && c.path.endsWith("/members/leave")),
+  };
+}
+
+const selfPeer = () => ({ self: true, online: true, id: "aaaa1111", id_full: SELF_FULL, name: "finch-unwary", country: "RU", version: "0.1.0" });
+const laptopPeer = () => ({ id: "dddd4444", id_full: EXTRA_FULL, name: "old-laptop", country: "NL", version: "0.1.0", online: true, path: "direct", rtt_ms: 20, exit: false });
+
+function twoNetsWithExit(exit) {
+  const base = baseState({ network: { id_hex: "net-bbbb", label: "my devices", masked: "mesh1-••••-••••" }, peers: [selfPeer(), laptopPeer()] });
+  const secondNet = { state: { ...base, members: { count: 1, gossip_neighbors: 0, voting: 0, me_excluded: false } }, members: membersReply({ rows: [selfRow(), extraRow()] }) };
+  const opts = twoNets(secondNet);
+  const route = { exits: exit ? [exit] : [] };
+  return { ...opts, state: { ...opts.state, network: { ...opts.state.network, label: "friends" } }, config: baseConfig({ route, ports: { published: [{ port: 8080, for: "all" }], opened: [] } }) };
+}
