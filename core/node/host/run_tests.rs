@@ -236,3 +236,50 @@ async fn page_is_up_until_the_body_ends() {
     );
     assert!(!port_open(port).await, "and goes down after it");
 }
+
+#[tokio::test]
+async fn slot_added_while_waiting_is_waited_for() {
+    use crate::config::config_file::NetSlotId;
+    use crate::web_gui::{ConfigState, HostControl, SlotHandle};
+
+    let run = run_config(free_port());
+    let main_ctl = ctl_of(&run);
+    let host = super::HostSlots::with_main(main_ctl.clone(), ConfigState::from_run(&run));
+    let waiting = main_ctl.clone();
+    host.set_task(
+        &NetSlotId::main(),
+        crate::node::output::spawn(async move {
+            waiting.next_command().await;
+            Ok(())
+        }),
+    );
+    let waiter = crate::node::output::spawn({
+        let host = host.clone();
+        async move { Host::wait_slots(&host).await }
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    let late_ctl = ctl_of(&run);
+    let handle = SlotHandle {
+        id: NetSlotId::parse("ab2c3d").unwrap(),
+        node: late_ctl.clone(),
+        config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
+    };
+    let finished = Arc::new(AtomicBool::new(false));
+    let flag = finished.clone();
+    let waiting = late_ctl.clone();
+    host.push_slot(handle, late_ctl, async move {
+        waiting.next_command().await;
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        flag.store(true, Ordering::SeqCst);
+        Ok(())
+    })
+    .unwrap();
+    host.stop_all();
+    let outcome = tokio::time::timeout(std::time::Duration::from_secs(10), waiter).await;
+    assert!(outcome.expect("the wait ends").unwrap().is_ok());
+    assert!(
+        finished.load(Ordering::SeqCst),
+        "the late slot was waited for"
+    );
+}

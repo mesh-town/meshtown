@@ -315,8 +315,8 @@ fn setup(seed: u8) -> Fixture {
 }
 
 mod network_label_switch {
-    use crate::node::host::saved_slots::{has_saved_slots, multi_net_for};
     use super::*;
+    use crate::node::host::saved_slots::{has_saved_slots, multi_net_for};
 
     #[tokio::test]
     async fn one_network_keeps_the_label_off() {
@@ -339,8 +339,8 @@ mod network_label_switch {
 }
 
 mod without_a_settings_file {
-    use crate::node::host::saved_slots::has_saved_slots;
     use super::*;
+    use crate::node::host::saved_slots::has_saved_slots;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn no_net_files_are_written_or_read() {
@@ -366,3 +366,6 @@ mod without_a_settings_file {
         assert!(!std::env::current_dir().unwrap().join("nets").exists());
     }
 }
+
+#[path = "saved_slots_broken_tests.rs"]
+mod broken;

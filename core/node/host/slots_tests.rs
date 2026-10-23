@@ -86,7 +86,7 @@ async fn slots_come_in_the_order_of_the_map() {
             node: ctl.clone(),
             config: Arc::new(std::sync::Mutex::new(ConfigState::from_run(&run_config()))),
         };
-        slots.add_slot(handle, ctl, crate::node::output::spawn(async { Ok(()) }));
+        slots.push_slot(handle, ctl, async { Ok(()) }).unwrap();
     }
     let ids: Vec<String> = slots.slots().iter().map(|s| s.id.to_string()).collect();
     assert_eq!(ids, ["main", "zz2222", "ab2c3d"]);
@@ -94,3 +94,6 @@ async fn slots_come_in_the_order_of_the_map() {
 
 #[path = "saved_slots_tests.rs"]
 mod saved_slots;
+
+#[path = "slots_late_tests.rs"]
+mod late;

@@ -8,9 +8,9 @@ use crate::config::config_file::{list_net_slots, prepare_net_slot, NetSlotId, Ru
 use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
-use crate::node::output::{self, say, with_net};
+use crate::node::output::say;
 use crate::node::{IdentityState, NodeConfig};
-use crate::web_gui::{ConfigState, SlotHandle};
+use crate::web_gui::{ConfigState, HostError, SlotHandle};
 
 /// How many networks one process runs; the main slot always counts, even without a key.
 pub const MAX_NETS: usize = 8;
@@ -53,7 +53,10 @@ async fn run_slot(
 ) -> anyhow::Result<()> {
     if let Err(e) = crate::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch).await
     {
-        say("node", format!("net slot {id} stopped with an error: {e:#}"));
+        say(
+            "node",
+            format!("net slot {id} stopped with an error: {e:#}"),
+        );
     }
     Ok(())
 }
@@ -86,7 +89,10 @@ impl HostSlots {
         for slot in list_net_slots(file.path()) {
             let id = slot.id.clone();
             match prepare_net_slot(main, slot, now_unix) {
-                Err(why) => not_started(&id, why),
+                Err(why) => {
+                    not_started(&id, why);
+                    self.mark_broken(id);
+                }
                 Ok(run) => self.start_prepared(id, run, relaunch, sources, &mut running),
             }
         }
@@ -102,7 +108,10 @@ impl HostSlots {
     ) {
         let parsed = match slot_key(&run) {
             Ok(p) => p,
-            Err(why) => return not_started(&id, why),
+            Err(why) => {
+                not_started(&id, why);
+                return self.mark_broken(id);
+            }
         };
         let network = parsed.key.subkeys().network_id_hex();
         if let Some(other) = running.slot_of(&network) {
@@ -114,8 +123,10 @@ impl HostSlots {
                 format!("limit of {MAX_NETS} networks; the folder is kept"),
             );
         }
-        self.spawn_slot(id.clone(), run, parsed, relaunch, sources);
-        running.0.push((network, id));
+        match self.spawn_slot(id.clone(), run, parsed, relaunch, sources) {
+            Ok(()) => running.0.push((network, id)),
+            Err(why) => not_started(&id, format!("{why:?}")),
+        }
     }
 
     fn spawn_slot(
@@ -125,7 +136,7 @@ impl HostSlots {
         parsed: NetworkKeyInput,
         relaunch: &Relaunch,
         sources: &GuardSources,
-    ) {
+    ) -> Result<(), HostError> {
         let ctl = NodeCtl::new(&run.effective_settings);
         ctl.set_guard_sources(id.clone(), sources.clone());
         let slot_relaunch = relaunch.for_net_slot(&run);
@@ -137,9 +148,7 @@ impl HostSlots {
             node: ctl.clone(),
             config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
         };
-        let label = Some(Arc::from(id.to_string()));
         let work = run_slot(id, cfg, run, ctl.clone(), slot_relaunch);
-        let task = output::spawn(with_net(label, work));
-        self.add_slot(handle, ctl, task);
+        self.push_slot(handle, ctl, work)
     }
 }
