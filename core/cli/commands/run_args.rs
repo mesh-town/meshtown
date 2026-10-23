@@ -19,9 +19,6 @@ pub(crate) struct RunArgs {
     /// Write the flags you typed to the settings file and keep running.
     #[arg(long)]
     pub(crate) save_config: bool,
-    /// Has no effect since 0.1.38: accepted for old command lines, hidden in the help.
-    #[arg(long, value_name = "PORT", hide = true)]
-    pub(crate) port: Option<u16>,
     /// Only via a relay server, no direct connections.
     #[arg(long, conflicts_with = "no_relay")]
     pub(crate) relay_only: bool,

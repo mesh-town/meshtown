@@ -18,7 +18,6 @@ pub(crate) mod state;
 pub(crate) mod wire;
 
 pub use backend::{sync_ctor, MeshSync, NAME};
-pub use import::{Legacy, LegacyRead};
 
 #[cfg(test)]
 #[path = "backend_tests.rs"]

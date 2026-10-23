@@ -15,6 +15,8 @@ const HEADER: usize = 4 + 2 + 32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum MarkSource {
     Absent,
+    /// Read from replica files written earlier; no longer constructed.
+    #[allow(dead_code)]
     DocsStore,
 }
 

@@ -6,8 +6,7 @@ use clap::{ArgMatches, FromArgMatches};
 use crate::cli::args::{is_flag_typed, toggle_from_flag_pair, Cli, CliCommand};
 
 /// The identifiers `run` checks through `is_flag_typed`.
-const TYPED_IDS: [&str; 8] = [
-    "port",
+const TYPED_IDS: [&str; 7] = [
     "socks_port",
     "check_interval",
     "check_doh",

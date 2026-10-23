@@ -26,7 +26,6 @@ async fn accept_does_not_call_save_when_the_wait_was_replaced() {
         head: head(None, now()),
         peers: vec![],
         save: fx.recording_save(),
-        relay: false,
         test_net: None,
         owner: None,
     };

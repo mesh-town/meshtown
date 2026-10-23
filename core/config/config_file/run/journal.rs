@@ -12,7 +12,6 @@ pub(super) struct LogInputs<'a> {
     pub(super) file_summary: &'a str,
     pub(super) report: &'a FileReport,
     pub(super) unknown_paths: &'a [String],
-    pub(super) retired_paths: &'a [String],
     pub(super) write_error: &'a Option<String>,
     pub(super) kept_copy_path: &'a Option<PathBuf>,
     pub(super) saved_flags_rev: Option<u64>,
@@ -27,7 +26,6 @@ pub(super) fn log_outcome(inputs: LogInputs) {
         file_summary,
         report,
         unknown_paths,
-        retired_paths,
         write_error,
         kept_copy_path,
         saved_flags_rev,
@@ -38,7 +36,6 @@ pub(super) fn log_outcome(inputs: LogInputs) {
 
     say("config", format!("config: {file_summary}"));
     log_field_errors(report);
-    log_retired_fields(retired_paths);
     log_unknown_fields(unknown_paths);
     log_write_failed(write_error);
     log_copy_kept(kept_copy_path);
@@ -52,13 +49,6 @@ pub(super) fn log_outcome(inputs: LogInputs) {
 fn log_field_errors(report: &FileReport) {
     for fe in &report.field_errors {
         say("config", format!("field {}: {}", fe.field_path, fe.message));
-    }
-}
-
-/// Retired keys have no effect on the node and will disappear on the next write — one line per key.
-fn log_retired_fields(retired_paths: &[String]) {
-    for w in super::super::retired::retired_key_warnings(retired_paths) {
-        say("config", w);
     }
 }
 

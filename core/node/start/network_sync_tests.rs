@@ -272,7 +272,7 @@ fn registry(net: &Arc<MemSyncNet>) -> Registry {
     registry.add_sync("mem", mem_ctor(net.clone()));
     registry.add_sync(
         crate::members::sync::replica::NAME,
-        crate::members::sync::replica::sync_ctor(None),
+        crate::members::sync::replica::sync_ctor(),
     );
     registry
 }

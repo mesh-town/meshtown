@@ -120,7 +120,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | Config path | Flag | Default | Read in the node |
 |---|---|---|---|
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
-| `transport.mode` | `--relay-only` / `--no-relay` | `direct_and_relay` | `settings.uses_relay()`, `settings.is_relay_only()` (`core/config/config_file/net_settings.rs`) |
+| `transport.mode` | `--relay-only` / `--no-relay` | `direct_and_relay` | `settings.uses_relay()`, `settings.is_relay_only()` (`core/config/config_file/net_settings.rs`). Reserved: the transport does not use relays yet; the setting has no effect. |
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
@@ -142,8 +142,6 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `node.name` | no flag | a name from a pair of pool words (`words.rs`) | node identity |
 | `net.transports`, `net.discovery`, `net.sync` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"` | section 8.3 |
 
-Removed keys. Since 0.1.38 the eight keys of the `transport` section — `udp_port`, `congestion_control`, `mtu_upper_bound`, `stream_receive_window`, `receive_window`, `max_concurrent_bidi_streams`, `loss_packet_threshold`, `loss_time_threshold` — have no effect on the node (the iroh transport is removed). An old file with them is read without errors; a key with a set value is skipped with a warning in the log, a key with the value `null` (that is how files of 0.1.37 and older wrote them) — silently. The keys disappear on the next write of the file. A PUT from the page skips such keys silently. The `--port` flag is accepted, hidden from the help, and warns in the log.
-
 `network.key` is the only file field that is not in the page document (section 4). There is never a default key:
 with no flag and no line in the file, the node comes up without a network.
 
@@ -163,16 +161,14 @@ with no flag and no line in the file, the node comes up without a network.
 
 What is **not** stored in the file even though a flag exists:
 
-- `--domain` — the domain is added to the **node's own list**; it lives in the `docs-store/` document (with `net.sync = "mesh"` — in the file `replica/domains.bin`; not in the config) and
+- `--domain` — the domain is added to the **node's own list**; it lives in the file `replica/domains.bin` (not in the config) and
   is not passed to other members.
 - `--block-domain` — a debug flag (`blocked_domains` in `node/config.rs`), not counted as a setting.
 - `--invite` — a one-time join, not state.
 
 Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
-a positive form it is impossible to start once with SOCKS on when it is off in the file.
-Today the code has only the negative ones (`core/cli/args.rs`). The `no_relay` mode
-(`NetSettings::uses_relay`/`is_relay_only` in `core/config/config_file/net_settings.rs`) is entirely unreachable from the command line today — the `--no-relay` flag is added
-together with the `transport.mode` field.
+a positive form it is impossible to start once with SOCKS on when it is off in the file; the last flag
+of a pair wins. `--relay-only` and `--no-relay` set `transport.mode` (reserved, see §3).
 
 ---
 

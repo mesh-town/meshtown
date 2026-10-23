@@ -20,7 +20,6 @@ meshtown keygen --raw                 # machine key mesh1-… for scripts
 meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
-  [--port N] \
   [--relay-only] [--no-relay] [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
   [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
   [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
@@ -48,10 +47,9 @@ from the EFF list plus a group of 21 characters (digits and letters, except `i`,
 
 ### Transport mode
 
-With the HyperDHT stack, `--relay-only` and `--no-relay` (the settings field `transport.mode`: `direct_and_relay`,
-`relay_only` or `no_relay`) do not switch the transport between direct and relayed paths; they have almost no effect. They change only the `mode:`
-word in the start-up log (`direct + relay`, `relay only`, `no relay`) and the relay flag handed to joining by an
-invite; in the current code that flag is passed along but never read. Leave them at the default.
+Reserved: the transport does not use relays yet; the setting has no effect. `--relay-only` and `--no-relay` (the settings field
+`transport.mode`: `direct_and_relay`, `relay_only` or `no_relay`) only change the `mode:` word in the start-up log
+(`direct + relay`, `relay only`, `no relay`). Leave them at the default.
 
 ## Tray
 

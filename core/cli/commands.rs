@@ -5,7 +5,7 @@
 use crate::config::config_file::{self, CliOverrides, ConfigSource, TransportMode};
 use crate::members::network_key::{format_key_string, normalize_label, NetworkKey};
 use crate::members::words::generate_tail;
-use crate::node::output::{say, NET_NAME};
+use crate::node::output::NET_NAME;
 use clap::parser::ValueSource;
 use clap::ArgMatches;
 
@@ -64,7 +64,6 @@ pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {
-    warn_retired_flags(&args);
     let overrides = build_overrides(m, &args);
     if args.no_config && is_flag_typed(m, "config") {
         anyhow::bail!("--no-config and --config together make no sense: remove one of the flags");
@@ -146,13 +145,6 @@ fn add_key_net(
         add_net_slot(run, key, &args.initial_domains, &[], now)?;
     }
     Ok(matches!(key_net, KeyNet::Add | KeyNet::Existing))
-}
-
-/// Flags retired in 0.1.38: if typed — one line in the log, they have no effect.
-fn warn_retired_flags(args: &RunArgs) {
-    if let Some(w) = config_file::port_flag_warning(args.port) {
-        say("config", w);
-    }
 }
 
 /// Collects the `run` subcommand flags into `CliOverrides`: what the person didn't type stays `None`

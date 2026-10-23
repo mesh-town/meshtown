@@ -35,9 +35,6 @@ pub(super) fn log_file_findings(id: &NetSlotId, main: Option<&Path>, p: &ParsedN
             ),
         );
     }
-    for w in crate::config::config_file::retired_key_warnings(&p.retired_paths) {
-        say("config", format!("net slot {id}: {w}"));
-    }
 }
 
 /// Says what happened to the slot's identity: a copy kept, a failed write, a temporary identity.

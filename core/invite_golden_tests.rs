@@ -1,4 +1,4 @@
-//! Golden test of the `mesh-invite2-` invite string: the string is a literal recomputed outside the code
+//! Golden test of the `mesh-invite2-` invite string (format 3): the string is a literal recomputed outside the code
 //! (`network_id` is `b3sum --derive-key 'meshtown network id v1' --length 4` over 32 bytes 0x09);
 //! the RFC 8032 vector id is stored in it as record bytes. A separate neighbor file: `invite_tests.rs` is far over the ceiling.
 
@@ -34,7 +34,7 @@ fn head() -> InviteHead {
 fn golden_invite_string_is_literal_and_parses_vector_id() {
     const KEY1: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
     const INVITE: &str =
-        "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
+        "mesh-invite2-aplk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
     let id = id_of("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
     // RFC 8032 §7.1 anchor
     assert_eq!(id.to_string(), KEY1);
@@ -43,7 +43,7 @@ fn golden_invite_string_is_literal_and_parses_vector_id() {
         &crate::transport::net::endpoint_shim::EndpointAddr::new(id).with_ip_addr(addr),
     );
 
-    let s = build(&head(), &me, &[], &PrimaryIps::NONE).expect("build");
+    let s = build_keyed(&head(), &me, &[], &PrimaryIps::NONE).expect("build");
     assert_eq!(s, INVITE);
 
     let parsed = parse(&s).expect("parse");
@@ -67,9 +67,9 @@ fn golden_invite_with_relay_and_others_is_literal() {
         .with_ip_addr(ip("203.0.113.9:1"))
         .with_ip_addr(ip("[2001:db8::9]:1"));
     let other = from_endpoint_addr(&other);
-    let s = build(&head(), &me, &[me.clone(), other], &PrimaryIps::NONE).expect("build");
+    let s = build_keyed(&head(), &me, &[me.clone(), other], &PrimaryIps::NONE).expect("build");
     const INVITE: &str =
-        "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmawxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiarm2duoryhgorpf5zgk3dbpexgk6dbnvygyzjpacapprgvay6uaf6d5bbyswusw4fkoti3p26jzgbmz4xmjfumydgvl4jk6rtayaacadfqa4ijaeasaainxaaaaaaaaaaaaaaaaaaasama67cnkbq";
+        "mesh-invite2-aplk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmawxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiarm2duoryhgorpf5zgk3dbpexgk6dbnvygyzjpacapprgvay6uaf6d5bbyswusw4fkoti3p26jzgbmz4xmjfumydgvl4jk6rtayaacadfqa4ijaeasaainxaaaaaaaaaaaaaaaaaaasama67cnkbq";
     assert_eq!(s, INVITE);
     let parsed = parse(&s).expect("parse");
     // order and set of hints of the old path: `me` kept a single relay, the foreign one has public IPs

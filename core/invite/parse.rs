@@ -7,12 +7,15 @@ use crate::node::output::NET_NAME;
 
 use super::{
     Invite, InviteHead, InviteSecret, ParsedInvite, INVITE_KEYED_VERSION, INVITE_PREFIX,
-    INVITE_VERSION, MAX_INVITE_BYTES, MAX_INVITE_CHARS, OLD_INVITE_PREFIX,
+    MAX_INVITE_BYTES, MAX_INVITE_CHARS, OLD_INVITE_PREFIX,
 };
 
 /// The refusal text for an invite of the old format (with the network key inside).
 const TEXT_OLD_INVITE: &str = "This invite is of the old format (mesh-invite1-): it contained the network key, \
     such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
+
+/// The refusal text for an invite of format 2 (issued by an older program).
+pub const TEXT_V2_INVITE: &str = "This invite is of an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
 
 /// Whether the string (after trimming whitespace) starts with `INVITE_PREFIX` or `OLD_INVITE_PREFIX` in
 /// any case — without parsing and without checking for broken data, only telling a key from
@@ -92,7 +95,10 @@ fn decode_invite_body(text: &str) -> Result<Vec<u8>> {
             once more"
         );
     }
-    if bytes[0] != INVITE_VERSION && bytes[0] != INVITE_KEYED_VERSION {
+    if bytes[0] == 2 {
+        bail!(TEXT_V2_INVITE);
+    }
+    if bytes[0] != INVITE_KEYED_VERSION {
         bail!(
             "invite of a different format ({}) — update the program",
             bytes[0]

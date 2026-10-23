@@ -32,8 +32,6 @@ pub(crate) const EXCHANGE_LIMIT: Duration = Duration::from_secs(5);
 /// The settings for joining by an invite.
 #[derive(Clone, Debug)]
 pub struct RedeemOpts {
-    /// The relay mode; currently not read.
-    pub use_relay: bool,
     pub first_pause: Duration,
     pub max_pause: Duration,
     pub deadline_unix: u64,
@@ -42,9 +40,8 @@ pub struct RedeemOpts {
 
 impl RedeemOpts {
     /// The usual settings: a pause of 5 s, growing to 60 s, the deadline is the end of the invite's day, two "unknown" rounds.
-    pub fn for_head(head: &InviteHead, use_relay: bool) -> Self {
+    pub fn for_head(head: &InviteHead) -> Self {
         RedeemOpts {
-            use_relay,
             first_pause: Duration::from_secs(5),
             max_pause: Duration::from_secs(60),
             deadline_unix: head.made_unix.saturating_add(INVITE_TTL_SECS),

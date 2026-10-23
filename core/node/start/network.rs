@@ -212,12 +212,12 @@ fn assemble_net(
 }
 
 /// The node's sync registry: `"mem"` (in memory, its own hub per call) and `"mesh"` (its own membership
-/// by flooding and its own replicas; the `docs-store/` of the old version is moved over or set aside by `sync::replica::import`).
+/// by flooding and its own replicas; the `docs-store/` of the old version is set aside by `sync::replica::import`).
 pub(super) fn sync_registry() -> Registry {
     let mut registry = Registry::new();
     registry.add_sync(
         crate::members::sync::replica::NAME,
-        crate::members::sync::replica::sync_ctor(None),
+        crate::members::sync::replica::sync_ctor(),
     );
     registry.add_sync(
         "mem",

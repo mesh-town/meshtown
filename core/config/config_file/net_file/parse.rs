@@ -24,8 +24,6 @@ pub struct ParsedNetFile {
     pub unknown_paths: Vec<String>,
     /// Process keys found in the file; they are ignored and disappear on the next write.
     pub process_paths: Vec<String>,
-    /// Retired keys, one log line each.
-    pub retired_paths: Vec<String>,
 }
 
 /// What is on disk. One value per slot and short-lived, so the large `ParsedNetFile` is not boxed.
@@ -102,7 +100,6 @@ pub fn parse_net_text(text: &str) -> Result<ParsedNetFile, String> {
         field_errors,
         unknown_paths,
         process_paths: collect_process_paths(&cfg),
-        retired_paths: p.retired_paths,
     })
 }
 

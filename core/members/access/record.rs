@@ -59,6 +59,7 @@ impl AclKind {
 pub enum Via {
     None = 0,
     Invite = 1,
+    /// No longer written; records carrying it are still read and counted.
     Migration = 2,
     Witness = 3,
 }
