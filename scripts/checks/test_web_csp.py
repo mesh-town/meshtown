@@ -7,7 +7,7 @@ import re
 import unittest
 from pathlib import Path
 
-WEB = Path(__file__).resolve().parent.parent / "core" / "web_gui" / "ui"
+WEB = Path(__file__).resolve().parents[2] / "core" / "web_gui" / "ui"
 
 FORBIDDEN = [
     (re.compile(r"""\sstyle\s*=\s*["']"""), "style= attribute"),
