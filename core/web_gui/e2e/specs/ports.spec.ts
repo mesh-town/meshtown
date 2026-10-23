@@ -32,6 +32,14 @@ test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', a
       .toEqual([Number(local)]);
   });
 
+  await test.step('the opened address has "Copy" and "Change number"; "Ports shared with you" comes before "My published ports"', async () => {
+    await expect.soft(ports.copyLocalButton(row, local)).toHaveText('Copy');
+    await expect.soft(ports.changeButton(row)).toBeVisible();
+    const titles = await ports.cardTitles().allTextContents();
+    expect.soft(titles.indexOf('Ports shared with you'), 'order of the cards').toBeLessThan(titles.indexOf('My published ports'));
+    expect.soft(titles.indexOf('Ports shared with you'), 'the card exists').toBeGreaterThanOrEqual(0);
+  });
+
   await test.step('"Close": the row has no "open" mark, ports.opened is empty', async () => {
     await ports.closeButton(row).click();
     await expect.soft(row, 'the row has no "open" mark').not.toContainText('open');

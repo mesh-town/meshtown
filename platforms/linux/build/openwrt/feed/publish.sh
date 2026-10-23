@@ -21,8 +21,8 @@ cp -R "$feed/." "$work/"
 cd "$work"
 
 export TZ=UTC
-export GIT_AUTHOR_NAME="Mesh Town" GIT_AUTHOR_EMAIL="meshtown.app@gmail.com"
-export GIT_COMMITTER_NAME="Mesh Town" GIT_COMMITTER_EMAIL="meshtown.app@gmail.com"
+export GIT_AUTHOR_NAME="Mesh Town" GIT_AUTHOR_EMAIL="340663027+mesh-town@users.noreply.github.com"
+export GIT_COMMITTER_NAME="Mesh Town" GIT_COMMITTER_EMAIL="340663027+mesh-town@users.noreply.github.com"
 
 git init -q -b main .
 git add -A -f .

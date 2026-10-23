@@ -105,7 +105,7 @@ describe("PortsSection", () => {
     it("listening: the address and the \"open\" badge as before", () => {
       const { wrapper } = mountNet({ local: 2080, state: "listening", error: null });
       const text = wrapper.get('[data-port-row="ab/80"]').text();
-      expect(text).toContain("127.0.0.1:2080 open");
+      expect(text).toContain("127.0.0.1:2080CopyopenClose");
     });
   });
 });

@@ -4,8 +4,8 @@ import type { NetPort } from "../core/api-types.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openErrorText, peerNetLabel, portStatusText } from "./ports-view.ts";
 import {
-  PORTS_CLOSE, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
-  PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel,
+  PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
+  PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
 } from "./ports-texts.ts";
 
 // With several networks: `slot` and `net` (the network name) tell the rows of different networks apart, `taken` holds the local
@@ -54,6 +54,14 @@ async function copy(text: string): Promise<void> {
 function open(): void {
   emit("open", props.row, draft.value);
   draft.value = defaultLocalPort(props.row.port, props.taken);
+  changing.value = false;
+}
+
+// "Change number" swaps the opened address for the number field; the field starts from the current number.
+const changing = ref(false);
+function startChange(): void {
+  if (props.row.opened) draft.value = props.row.opened.local;
+  changing.value = true;
 }
 </script>
 
@@ -62,32 +70,43 @@ function open(): void {
     <td :title="row.node">{{ label }} <span class="badge" :class="{ 'badge-ok': online }">{{ online ? PORTS_ONLINE : PORTS_OFFLINE }}</span></td>
     <td><span class="mono">{{ row.port }}</span><div v-if="row.name">{{ row.name }}</div></td>
     <td>
-      <span v-if="blocked" class="muted" :title="PORTS_NOT_FOR_BROWSER_TITLE">{{ PORTS_NOT_FOR_BROWSER }}</span>
-      <template v-else-if="row.web_url">
-        <a class="mono" :href="row.web_url" target="_blank" rel="noopener" :title="sameName ? PORTS_SAME_NAME_TITLE : undefined">{{ row.web_url }}</a>
-        <button type="button" class="btn btn-sm" :aria-label="portsCopyAddressLabel(row.web_url)" @click="copy(row.web_url)">{{ copied === row.web_url ? PORTS_COPIED : PORTS_COPY }}</button>
-      </template>
+      <div class="addrcell">
+        <span v-if="blocked" class="muted" :title="PORTS_NOT_FOR_BROWSER_TITLE">{{ PORTS_NOT_FOR_BROWSER }}</span>
+        <template v-else-if="row.web_url">
+          <a class="mono" :href="row.web_url" target="_blank" rel="noopener" :title="sameName ? PORTS_SAME_NAME_TITLE : undefined">{{ row.web_url }}</a>
+          <button type="button" class="btn btn-sm" :aria-label="portsCopyAddressLabel(row.web_url)" @click="copy(row.web_url)">{{ copied === row.web_url ? PORTS_COPIED : PORTS_COPY }}</button>
+        </template>
+      </div>
     </td>
     <td>
-      <div v-if="row.opened && row.opened.state === 'bind_failed'" class="field-error-text">{{ portStatusText(row) }}</div>
-      <template v-if="row.opened && row.opened.state === 'bind_failed'">
-        <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
-        <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :title="PORTS_LOCAL_PORT_TITLE">
-        <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
-        <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
-      </template>
-      <template v-else-if="row.opened">
-        <span class="mono">127.0.0.1:{{ row.opened.local }}</span> <span class="badge badge-ok">{{ PORTS_OPENED }}</span>
-        <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
-        <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
-        <div v-if="openedUsed" class="hint">{{ openedUsed }}</div>
-      </template>
-      <template v-else>
-        <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :title="PORTS_LOCAL_PORT_TITLE">
-        <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
-        <div v-if="draftUsed" class="hint">{{ draftUsed }}</div>
-      </template>
-      <div v-if="error" class="field-error-text" :data-port-error="rowKey">{{ error }}</div>
+      <div class="opencell">
+        <div v-if="row.opened && row.opened.state === 'bind_failed'" class="field-error-text">{{ portStatusText(row) }}</div>
+        <template v-if="row.opened && row.opened.state === 'bind_failed'">
+          <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
+          <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :title="PORTS_LOCAL_PORT_TITLE">
+          <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
+          <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
+        </template>
+        <template v-else-if="row.opened && changing">
+          <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :aria-label="PORTS_LOCAL_PORT_LABEL" :title="PORTS_LOCAL_PORT_TITLE">
+          <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
+        </template>
+        <template v-else-if="row.opened">
+          <span class="mono">{{ portsLocalAddress(row.opened.local) }}</span>
+          <button type="button" class="btn btn-sm" :aria-label="portsCopyAddressLabel(portsLocalAddress(row.opened.local))" @click="copy(portsLocalAddress(row.opened.local))">{{ copied === portsLocalAddress(row.opened.local) ? PORTS_COPIED : PORTS_COPY }}</button>
+          <span class="badge badge-ok">{{ PORTS_OPENED }}</span>
+          <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
+          <button type="button" class="linkbtn" :data-port-change="rowKey" :disabled="busy" @click="startChange">{{ PORTS_CHANGE_NUMBER }}</button>
+          <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
+          <div v-if="openedUsed" class="hint">{{ openedUsed }}</div>
+        </template>
+        <template v-else>
+          <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :title="PORTS_LOCAL_PORT_TITLE">
+          <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
+          <div v-if="draftUsed" class="hint">{{ draftUsed }}</div>
+        </template>
+        <div v-if="error" class="field-error-text" :data-port-error="rowKey">{{ error }}</div>
+      </div>
     </td>
   </tr>
 </template>
