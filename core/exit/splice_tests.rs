@@ -169,7 +169,7 @@ async fn setup() -> Wires {
     let (client_out, recv_side) = duplex(64 * 1024);
     let (send_side, client_in) = duplex(64 * 1024);
     let (send, recv): (BoxSend, BoxRecv) = (Box::new(send_side), Box::new(recv_side));
-    let task = tokio::spawn(splice(send, recv, tcp));
+    let task = crate::node::output::spawn(splice(send, recv, tcp));
     Wires {
         client_out,
         client_in,

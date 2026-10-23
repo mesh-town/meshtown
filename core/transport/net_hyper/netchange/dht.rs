@@ -48,7 +48,7 @@ pub(crate) async fn spawn(react: Arc<dyn NetReact>, stop: watch::Receiver<bool>)
     match NetwatchSource::start().await {
         Ok(source) => {
             say("hyper", "network watcher started");
-            tokio::spawn(react_loop(Box::new(source), react, stop));
+            crate::node::output::spawn(react_loop(Box::new(source), react, stop));
         }
         Err(e) => say("hyper", format!("network watcher did not come up: {e}")),
     }

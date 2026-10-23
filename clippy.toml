@@ -1,3 +1,13 @@
 # Threshold for clippy::too_many_lines. A ratchet: it is only ever lowered; no functions longer than 50 remain. To regenerate the list: cargo clippy --all-targets
 # with this threshold.
 too-many-lines-threshold = 50
+
+disallowed-methods = [
+    { path = "tokio::spawn", reason = "use crate::node::output::spawn*: it carries the network label" },
+    { path = "tokio::runtime::Handle::spawn", reason = "use crate::node::output::spawn_on: it carries the network label" },
+    { path = "tokio::runtime::Runtime::spawn", reason = "use crate::node::output::spawn_on: it carries the network label" },
+    { path = "tokio::task::JoinSet::spawn", reason = "use crate::node::output::spawn_in: it carries the network label" },
+    { path = "tokio::task::spawn_blocking", reason = "use crate::node::output::spawn_blocking: it carries the network label" },
+    { path = "tokio::runtime::Handle::spawn_blocking", reason = "use crate::node::output::spawn_blocking: it carries the network label" },
+    { path = "tokio::runtime::Runtime::spawn_blocking", reason = "use crate::node::output::spawn_blocking: it carries the network label" },
+]

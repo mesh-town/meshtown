@@ -149,7 +149,7 @@ mod serve_connection {
             .unwrap();
         let addr = listener.local_addr().unwrap();
         let router = axum::Router::new().route("/", axum::routing::get(peer_of));
-        let server = tokio::spawn(async move {
+        let server = crate::node::output::spawn(async move {
             let (stream, peer) = listener.accept().await.unwrap();
             let conn = ConnInfo {
                 client_addr: peer,

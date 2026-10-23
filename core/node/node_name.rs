@@ -171,11 +171,11 @@ pub async fn run_name_watch(r: Arc<dyn Replica>, me: PeerId, members: Members) {
 
 /// Starts the publisher and the watcher as background tasks; puts the handles into `boot.tasks`.
 pub fn spawn_node_name(list: &DomainList, ctx: &MemberContext) -> [AbortHandle; 2] {
-    let announce = tokio::spawn(run_name_announce(
+    let announce = crate::node::output::spawn(run_name_announce(
         list.shared_replica(),
         ctx.own_name_tx.subscribe(),
     ));
-    let watch = tokio::spawn(run_name_watch(
+    let watch = crate::node::output::spawn(run_name_watch(
         list.shared_replica(),
         ctx.own_id,
         ctx.members.clone(),

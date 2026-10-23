@@ -74,7 +74,7 @@ impl crate::web_gui::NodeControl for FakeNode {
         }
     }
 
-    fn log_after(&self, _after: u64, _limit: usize) -> crate::web_gui::LogPage {
+    fn log_after(&self, _after: u64, _limit: usize, _net: Option<&str>) -> crate::web_gui::LogPage {
         crate::web_gui::LogPage::default()
     }
 
@@ -148,7 +148,7 @@ pub(crate) async fn start_fake(
         fixed_token: Some(FAKE_TOKEN.to_string()),
         drain: crate::web_gui::DEFAULT_DRAIN,
     };
-    let handle = crate::web_gui::start_web_page(opts, &run, node.clone())
+    let handle = crate::web_gui::start_web_page(opts, &run, host_of(node.clone(), &run))
         .await
         .unwrap_or_else(|e| panic!("start_fake: web_gui::start must come up: {e}"));
     (handle, node)
@@ -182,8 +182,16 @@ pub(crate) async fn start_fake_with_config(
         fixed_token: Some(FAKE_TOKEN.to_string()),
         drain: crate::web_gui::DEFAULT_DRAIN,
     };
-    let handle = crate::web_gui::start_web_page(opts, &run, node.clone())
+    let handle = crate::web_gui::start_web_page(opts, &run, host_of(node.clone(), &run))
         .await
         .unwrap_or_else(|e| panic!("start_fake_with_config: web_gui::start must come up: {e}"));
     (handle, node)
+}
+
+/// A host with one `main` slot around `node`, with the config state of `run`.
+fn host_of(
+    node: Arc<dyn crate::web_gui::NodeControl>,
+    run: &crate::config::config_file::RunConfig,
+) -> Arc<dyn crate::web_gui::HostControl> {
+    crate::web_gui::single_slot_host(node, crate::web_gui::ConfigState::from_run(run))
 }

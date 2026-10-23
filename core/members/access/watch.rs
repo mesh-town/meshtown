@@ -21,7 +21,7 @@ const TICK: Duration = Duration::from_secs(60);
 
 /// Starts the watcher; the first recompute publishes the view and lets the handshakes continue.
 pub fn spawn_access(access: Arc<Access>) -> [AbortHandle; 1] {
-    [tokio::spawn(run_watch(access)).abort_handle()]
+    [crate::node::output::spawn(run_watch(access)).abort_handle()]
 }
 
 /// What a received event means for the loop.

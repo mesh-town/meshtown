@@ -236,6 +236,12 @@ pub struct LogLine {
     pub t: f64,
     pub tag: String,
     pub text: String,
+    /// The label of the network the line belongs to; not part of the JSON of this struct.
+    #[serde(skip)]
+    pub net: Option<std::sync::Arc<str>>,
+    /// Whether the label is displayed (more than one network when the line was written).
+    #[serde(skip)]
+    pub shown: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

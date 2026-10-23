@@ -78,7 +78,7 @@ pub(super) async fn run(
     limits: Limits,
 ) {
     let (replies, queue) = mpsc::channel(REPLY_QUEUE);
-    let writer = tokio::spawn(write_replies(send, queue));
+    let writer = crate::node::output::spawn(write_replies(send, queue));
     let mut gateway = Gateway {
         cfg,
         peer,
@@ -207,7 +207,7 @@ fn open_session(
     std_sock.set_nonblocking(true).ok()?;
     let sock = Arc::new(UdpSocket::from_std(std_sock).ok()?);
     let last = Arc::new(Mutex::new(Instant::now()));
-    let task = tokio::spawn(pump_replies(
+    let task = crate::node::output::spawn(pump_replies(
         conn_id,
         sock.clone(),
         last.clone(),

@@ -6,7 +6,7 @@ use super::auth::access::{bind_ip, is_client_allowed};
 use super::auth::iface_os::current_view;
 use super::auth::state::AuthState;
 use super::http::ConnInfo;
-use super::{cookie, token, App, NodeControl, WebHandle, WebOptions, WebShared, WebStartError};
+use super::{cookie, token, App, HostControl, WebHandle, WebOptions, WebShared, WebStartError};
 use crate::config::config_file::ListenAccess;
 
 /// Starts the node page: binds the listener, prints the announce line and spawns the accept loop.
@@ -15,7 +15,7 @@ use crate::config::config_file::ListenAccess;
 pub async fn start_web_page(
     opts: WebOptions,
     run_config: &crate::config::config_file::RunConfig,
-    node: Arc<dyn NodeControl>,
+    host: Arc<dyn HostControl>,
 ) -> Result<WebHandle, WebStartError> {
     if !opts.enabled {
         return Err(WebStartError::Disabled);
@@ -43,8 +43,7 @@ pub async fn start_web_page(
     let shared = Arc::new(WebShared::new(port, token, auth));
     let app = Arc::new(App {
         shared: shared.clone(),
-        node,
-        config: std::sync::Mutex::new(super::config_api::ConfigState::from_run(run_config)),
+        host,
         token_dir: opts.token_dir.clone(),
         stopping: std::sync::atomic::AtomicBool::new(false),
     });
@@ -55,7 +54,7 @@ pub async fn start_web_page(
 
     announce_start(&shared);
 
-    let task = tokio::spawn(accept_loop(
+    let task = crate::node::output::spawn(accept_loop(
         listener,
         router,
         shared.clone(),
@@ -152,7 +151,7 @@ async fn accept_loop(
                 match accepted {
                     Ok((stream, peer)) => {
                         if let Some(conn) = conn_info(&stream, peer, &shared) {
-                            conns.spawn(super::http::serve_connection(stream, conn, router.clone()));
+                            crate::node::output::spawn_in(&mut conns, super::http::serve_connection(stream, conn, router.clone()));
                         }
                     }
                     Err(e) => {

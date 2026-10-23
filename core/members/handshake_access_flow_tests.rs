@@ -177,12 +177,12 @@ mod refusal_reported_by_responder {
 
 fn spawn_initiate(side: &Side) -> JoinHandle<anyhow::Result<()>> {
     let (conn, ctx) = (side.conn.clone(), side.ctx.clone());
-    tokio::spawn(async move { initiate(&conn, &ctx).await })
+    crate::node::output::spawn(async move { initiate(&conn, &ctx).await })
 }
 
 fn spawn_respond(side: &Side) -> JoinHandle<anyhow::Result<()>> {
     let (conn, ctx) = (side.conn.clone(), side.ctx.clone());
-    tokio::spawn(async move { respond(&conn, &ctx).await })
+    crate::node::output::spawn(async move { respond(&conn, &ctx).await })
 }
 
 async fn joined(task: JoinHandle<anyhow::Result<()>>) -> anyhow::Result<()> {

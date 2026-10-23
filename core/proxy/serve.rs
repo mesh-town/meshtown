@@ -137,7 +137,7 @@ pub async fn serve_proxy(listener: TcpListener, cfg: ProxyConfig, adm: Admission
         }
         disable_nagle(&stream);
         let cfg = cfg.clone();
-        tokio::spawn(dispatch(stream, cfg, client_addr));
+        crate::node::output::spawn(dispatch(stream, cfg, client_addr));
     }
 }
 

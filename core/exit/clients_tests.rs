@@ -243,7 +243,7 @@ impl Fixture {
     async fn spawn_holding_stream(&self, conn: &ConnGuard) -> tokio::task::JoinHandle<()> {
         let conn_ref = conn.conn();
         let (ready_tx, ready_rx) = tokio::sync::oneshot::channel();
-        let handle = tokio::spawn(async move {
+        let handle = crate::node::output::spawn(async move {
             let _stream = conn_ref.register_stream();
             let _ = ready_tx.send(());
             std::future::pending::<()>().await;

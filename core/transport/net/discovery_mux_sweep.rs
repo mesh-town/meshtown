@@ -27,7 +27,7 @@ impl DiscoveryMux {
     pub(super) fn spawn_sweeper(self: &Arc<Self>) -> JoinHandle<()> {
         let weak: Weak<Self> = Arc::downgrade(self);
         let period = self.timing.ttl.max(MIN_PERIOD);
-        tokio::spawn(async move {
+        crate::transport::net::task_label::spawn(async move {
             loop {
                 tokio::time::sleep(period).await;
                 let Some(mux) = weak.upgrade() else { return };

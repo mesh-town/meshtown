@@ -205,7 +205,10 @@ pub async fn run(cfg: NodeConfig) -> Result<()> {
         blocked_domains: cfg.blocked_domains.clone(),
         test_net: cfg.test_net.clone(),
     };
-    let signal_task = super::host::signal::spawn_stop_signal(ctl.clone());
+    let signal_task = super::host::signal::spawn_stop_signal({
+        let ctl = ctl.clone();
+        move || ctl.stop_on_os_signal()
+    });
     let result = run_node_with_ctl(cfg, settings, ctl, relaunch).await;
     signal_task.abort();
     result

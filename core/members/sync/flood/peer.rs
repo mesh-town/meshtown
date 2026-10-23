@@ -26,8 +26,10 @@ pub fn spawn_link(
 ) -> mpsc::Sender<Frame> {
     let (out, queue) = mpsc::channel(t.peer_write_queue_len);
     let StreamPair { send, recv } = pair;
-    set.spawn(read_loop(peer, link_no, conn, recv, cmd.clone(), t.idle));
-    set.spawn(write_loop(peer, link_no, send, queue, cmd, t.keepalive));
+    let read = read_loop(peer, link_no, conn, recv, cmd.clone(), t.idle);
+    crate::transport::net::task_label::spawn_in(set, read);
+    let write = write_loop(peer, link_no, send, queue, cmd, t.keepalive);
+    crate::transport::net::task_label::spawn_in(set, write);
     out
 }
 

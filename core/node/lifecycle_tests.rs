@@ -43,7 +43,7 @@ async fn run_after_key_stop_before_and_during_wait() {
 
     let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&settings);
     let ctl2 = ctl.clone();
-    let task = tokio::spawn(run_node_awaiting_key(
+    let task = crate::node::output::spawn(run_node_awaiting_key(
         settings,
         IdentityState::Temporary(TemporaryReason::Declined),
         ctl,
@@ -68,7 +68,7 @@ async fn run_after_key_bad_key_keeps_waiting() {
     let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&settings);
     ctl.join_with_peers("not a key at all", vec![]);
     let ctl2 = ctl.clone();
-    let task = tokio::spawn(run_node_awaiting_key(
+    let task = crate::node::output::spawn(run_node_awaiting_key(
         settings,
         IdentityState::Temporary(TemporaryReason::Declined),
         ctl,

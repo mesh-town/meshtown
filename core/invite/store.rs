@@ -256,7 +256,7 @@ fn read_made(entry: &ReplicaEntry) -> Option<u64> {
 
 /// Sweeper: right away and every `SWEEP_PERIOD` removes its own expired records.
 pub fn spawn_sweeper(ledger: Ledger) -> tokio::task::AbortHandle {
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         loop {
             report_sweep(ledger.sweep(net_mainline::unix_now()).await);
             tokio::time::sleep(SWEEP_PERIOD).await;

@@ -61,7 +61,7 @@ impl PendingInvite {
 
 pub trait NodeControl: Send + Sync {
     fn snapshot(&self) -> NodeSnapshot;
-    fn log_after(&self, after: u64, limit: usize) -> LogPage;
+    fn log_after(&self, after: u64, limit: usize, net: Option<&str>) -> LogPage;
     fn find_exit(&self, domain: &str) -> Result<(), ActionError>;
     fn check_domain(&self, domain: &str) -> Result<(), ActionError>;
     fn check_all(&self) -> Result<u64, ActionError>;

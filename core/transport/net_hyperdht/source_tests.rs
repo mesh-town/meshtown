@@ -128,7 +128,7 @@ async fn run_reports_each_key_once() {
     must_finish(a.publish(&addr_of(SEED_A))).await.expect("A");
     must_finish(b.publish(&addr_of(SEED_B))).await.expect("B");
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    let task = tokio::spawn(source_over(store, Some(SEED_C)).run_source(tx));
+    let task = crate::node::output::spawn(source_over(store, Some(SEED_C)).run_source(tx));
     let got = collect(&mut rx, Duration::from_millis(400)).await;
     task.abort();
     let mut ids: Vec<_> = got.iter().map(|a| a.id).collect();
@@ -145,7 +145,7 @@ async fn run_skips_own_key() {
     let b = source_over(store, Some(SEED_B));
     must_finish(b.publish(&addr_of(SEED_B))).await.expect("B");
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    let task = tokio::spawn(a.run_source(tx));
+    let task = crate::node::output::spawn(a.run_source(tx));
     let got = collect(&mut rx, Duration::from_millis(300)).await;
     task.abort();
     assert!(
@@ -245,7 +245,7 @@ async fn reader_reports_read_with_member_count() {
             .with_round_outcome(f),
     );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    let task = tokio::spawn(reader.run_source(tx));
+    let task = crate::node::output::spawn(reader.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(150)).await;
     task.abort();
     let first = log.lock().unwrap()[0];
@@ -270,7 +270,7 @@ async fn get_error_reports_not_read() {
             .with_round_outcome(f),
     );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    let task = tokio::spawn(reader.run_source(tx));
+    let task = crate::node::output::spawn(reader.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(15)).await;
     task.abort();
     let seen = log.lock().unwrap().clone();
@@ -294,7 +294,7 @@ async fn publisher_reports_published() {
             .with_round_outcome(f),
     );
     let (tx, mut rx) = tokio::sync::mpsc::channel(64);
-    let task = tokio::spawn(a.run_source(tx));
+    let task = crate::node::output::spawn(a.run_source(tx));
     let _ = collect(&mut rx, Duration::from_millis(100)).await;
     task.abort();
     assert_eq!(

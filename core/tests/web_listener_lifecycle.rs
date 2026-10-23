@@ -21,7 +21,7 @@ use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource};
 use meshtown_core::web_gui::{self, WebOptions, WebStartError, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 use serde_json::{json, Value};
 
-use common::{api, cleanup, read_one_response, run_config, scratch, start_web, TestNode};
+use common::{api, cleanup, host_of, read_one_response, run_config, scratch, start_web, TestNode};
 
 /// Reads the `web-token` file: permissions 0600 (unix), 52 characters from an alphabet without `i,l,o,u`, matching
 /// `handle.shared.token()`. Returns the token from the file.
@@ -131,7 +131,8 @@ async fn disabled_does_not_start() {
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let result = web_gui::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
+    let result =
+        web_gui::start_web_page(opts, &run, host_of(Arc::new(TestNode::new()), &run)).await;
     assert!(
         matches!(result, Err(WebStartError::Disabled)),
         "enabled: false must give Err(Disabled)"
@@ -157,7 +158,8 @@ async fn busy_port_is_error() {
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let result = web_gui::start_web_page(opts, &run, Arc::new(TestNode::new())).await;
+    let result =
+        web_gui::start_web_page(opts, &run, host_of(Arc::new(TestNode::new()), &run)).await;
     match result {
         Err(WebStartError::Bind { port, .. }) => {
             assert_eq!(port, busy_port, "the error must name the same port");
@@ -317,7 +319,7 @@ async fn no_config_file() {
     opts.port = 0;
 
     let concrete = Arc::new(TestNode::new());
-    let handle = web_gui::start_web_page(opts, &run, concrete.clone())
+    let handle = web_gui::start_web_page(opts, &run, host_of(concrete.clone(), &run))
         .await
         .expect("start without a config must come up");
     let port = handle.shared.port();
@@ -368,7 +370,7 @@ async fn shutdown_true_when_loop_wakes_late() {
         drain: Duration::from_millis(100),
     };
     let node = Arc::new(TestNode::new());
-    let handle = web_gui::start_web_page(opts, &run, node)
+    let handle = web_gui::start_web_page(opts, &run, host_of(node, &run))
         .await
         .expect("start with drain=100 ms must come up");
     let port = handle.shared.port();
@@ -377,7 +379,7 @@ async fn shutdown_true_when_loop_wakes_late() {
     let stream = served_keep_alive_stream(port, &token);
 
     let (started_tx, started_rx) = tokio::sync::oneshot::channel();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         let _ = started_tx.send(());
         std::thread::sleep(Duration::from_millis(50));
     });

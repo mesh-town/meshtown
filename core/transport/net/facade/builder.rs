@@ -100,13 +100,13 @@ impl NetStackBuilder {
         let hints = mux.subscribe();
         mux.start();
         let handler_tasks = Arc::new(HandlerSet::default());
-        let mut tasks = vec![tokio::spawn(forward_hints(
+        let mut tasks = vec![crate::transport::net::task_label::spawn(forward_hints(
             hints,
             me,
             self.transports.clone(),
         ))];
         for t in &self.transports {
-            tasks.push(tokio::spawn(accept_loop(
+            tasks.push(crate::transport::net::task_label::spawn(accept_loop(
                 t.clone(),
                 table.clone(),
                 handler_tasks.clone(),

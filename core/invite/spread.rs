@@ -67,7 +67,9 @@ pub async fn gather(
     let mut set = JoinSet::new();
     for peer in candidates {
         let stack = stack.clone();
-        set.spawn(async move { (peer, ask_hold(stack, peer, frame).await) });
+        crate::node::output::spawn_in(&mut set, async move {
+            (peer, ask_hold(stack, peer, frame).await)
+        });
     }
     let mut holders = Vec::new();
     while holders.len() < HOLDERS_WANTED {

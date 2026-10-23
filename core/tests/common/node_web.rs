@@ -236,12 +236,13 @@ pub(crate) async fn boot_with_exit_hosts(
     cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
     cfg.exit_hosts = hosts;
     let ctl = NodeCtl::new(&run.effective_settings);
-    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
-        .await
-        .expect("boot: web_gui::start must come up");
+    let handle =
+        web_gui::start_web_page(WebOptions::for_run(&run), &run, host_of(ctl.clone(), &run))
+            .await
+            .expect("boot: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
-    let task = tokio::spawn(node::run_node_with_ctl(
+    let task = meshtown_core::node::output::spawn(node::run_node_with_ctl(
         cfg,
         run.effective_settings,
         ctl,
@@ -287,13 +288,14 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
         blocked_domains: Vec::new(),
     };
     let ctl = NodeCtl::new_without_network(&run.effective_settings);
-    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, ctl.clone())
-        .await
-        .expect("boot_without_key: web_gui::start must come up");
+    let handle =
+        web_gui::start_web_page(WebOptions::for_run(&run), &run, host_of(ctl.clone(), &run))
+            .await
+            .expect("boot_without_key: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
     let identity = IdentityState::from_report(&run.file_report);
-    let task = tokio::spawn(node::run_node_awaiting_key(
+    let task = meshtown_core::node::output::spawn(node::run_node_awaiting_key(
         run.effective_settings,
         identity,
         ctl,
@@ -340,4 +342,12 @@ pub(crate) async fn teardown(booted: Booted, limit: Duration) {
         matches!(res, Ok(Ok(Ok(())))),
         "teardown: run_with didn't finish in time or finished with an error"
     );
+}
+
+/// A host with one `main` slot around `node`, with the config state of `run`.
+fn host_of(
+    node: std::sync::Arc<dyn web_gui::NodeControl>,
+    run: &config_file::RunConfig,
+) -> std::sync::Arc<dyn web_gui::HostControl> {
+    web_gui::single_slot_host(node, web_gui::ConfigState::from_run(run))
 }

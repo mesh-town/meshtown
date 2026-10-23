@@ -67,7 +67,7 @@ impl Saver {
         }
         let generation = self.0.pending.fetch_add(1, Ordering::SeqCst) + 1;
         let inner = self.0.clone();
-        tokio::spawn(async move {
+        crate::transport::net::task_label::spawn(async move {
             tokio::time::sleep(QUIET_BEFORE_SAVE).await;
             if inner.pending.load(Ordering::SeqCst) != generation {
                 return;
@@ -96,7 +96,10 @@ impl SaverState {
         let entries: Vec<WireEntry> = state.lock().unwrap_or_else(|e| e.into_inner()).entries();
         let bytes = file::encode(&self.id, self.mark.as_ref(), &entries);
         let bak = self.bak_for(*first_done);
-        let written = tokio::task::spawn_blocking(move || file::save(&path, &bytes, bak)).await;
+        let written = crate::transport::net::task_label::spawn_blocking(move || {
+            file::save(&path, &bytes, bak)
+        })
+        .await;
         written
             .map_err(|e| NetError::Io(std::io::Error::other(e.to_string())))?
             .map_err(NetError::Io)?;

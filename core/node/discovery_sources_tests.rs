@@ -44,7 +44,7 @@ async fn cache_hands_list_in_order() {
     let _g = lock().await;
     let after = last_seq();
     let (tx, mut rx) = mpsc::channel(8);
-    let task = tokio::spawn(
+    let task = crate::node::output::spawn(
         cache(vec![addr(11, &[]), addr(12, &[]), addr(13, &[])], pid(1)).run_source(tx),
     );
     for n in [11, 12, 13] {
@@ -63,7 +63,8 @@ async fn own_id_skipped() {
     let _g = lock().await;
     let after = last_seq();
     let (tx, mut rx) = mpsc::channel(8);
-    let task = tokio::spawn(cache(vec![addr(1, &[]), addr(21, &[])], pid(1)).run_source(tx));
+    let task =
+        crate::node::output::spawn(cache(vec![addr(1, &[]), addr(21, &[])], pid(1)).run_source(tx));
     assert_eq!(take(&mut rx).await.id, pid(21));
     drop(rx);
     within("end of run", task).await.unwrap();
@@ -74,7 +75,9 @@ async fn own_id_skipped() {
 
     let after = last_seq();
     let (tx, mut rx) = mpsc::channel(8);
-    let task = tokio::spawn(invite(vec![addr(1, &[]), addr(22, &[])], pid(1)).run_source(tx));
+    let task = crate::node::output::spawn(
+        invite(vec![addr(1, &[]), addr(22, &[])], pid(1)).run_source(tx),
+    );
     assert_eq!(take(&mut rx).await.id, pid(22));
     drop(rx);
     within("end of run", task).await.unwrap();
@@ -86,7 +89,9 @@ async fn full_out_logs_not_accepted() {
     let _g = lock().await;
     let after = last_seq();
     let (tx, rx) = mpsc::channel(1);
-    let task = tokio::spawn(invite(vec![addr(31, &[]), addr(32, &[])], pid(1)).run_source(tx));
+    let task = crate::node::output::spawn(
+        invite(vec![addr(31, &[]), addr(32, &[])], pid(1)).run_source(tx),
+    );
     tokio::time::sleep(Duration::from_millis(200)).await;
     let got = lines("invite", after);
     assert_eq!(got.len(), 2, "{got:?}");
@@ -106,7 +111,7 @@ async fn full_out_logs_not_accepted() {
 async fn run_waits_until_out_closed() {
     let _g = lock().await;
     let (tx, mut rx) = mpsc::channel(8);
-    let mut task = tokio::spawn(cache(vec![addr(41, &[])], pid(1)).run_source(tx));
+    let mut task = crate::node::output::spawn(cache(vec![addr(41, &[])], pid(1)).run_source(tx));
     assert_eq!(take(&mut rx).await.id, pid(41));
     assert!(tokio::time::timeout(Duration::from_millis(300), &mut task)
         .await
@@ -121,8 +126,8 @@ async fn empty_list_says_nothing() {
     let after = last_seq();
     let (tx, rx) = mpsc::channel(8);
     let (tx2, rx2) = mpsc::channel(8);
-    let mut a = tokio::spawn(cache(vec![], pid(1)).run_source(tx));
-    let mut b = tokio::spawn(invite(vec![], pid(1)).run_source(tx2));
+    let mut a = crate::node::output::spawn(cache(vec![], pid(1)).run_source(tx));
+    let mut b = crate::node::output::spawn(invite(vec![], pid(1)).run_source(tx2));
     tokio::time::sleep(Duration::from_millis(200)).await;
     assert!(lines("cache", after).is_empty());
     assert!(lines("invite", after).is_empty());

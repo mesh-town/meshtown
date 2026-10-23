@@ -4,7 +4,7 @@
 //! `docs/WEB-API.md`; the listener sees the node only through the `NodeControl` trait.
 //!
 //! Module files: `options.rs` — settings and handles (`WebOptions`, `WebHandle`, `WebShared`);
-//! `control.rs` — the `NodeControl` trait and errors (`ActionError`, `WebStartError`); `snapshot.rs` —
+//! `host_control.rs` — `HostControl` (the slots the page addresses) and `single_slot_host`; `control.rs` — the `NodeControl` trait and errors (`ActionError`, `WebStartError`); `snapshot.rs` —
 //! `NodeSnapshot` and nested structs; `listener.rs` — `start_web_page`/`accept_loop`/`shutdown`;
 //! `routes/` — routes and handlers; `config_api/` — config state and API; `guard.rs` —
 //! request checks; `http.rs` — connection-serving server wrapper; `ring.rs` — log ring;
@@ -20,6 +20,7 @@ mod config_api;
 mod control;
 mod cookie;
 mod guard;
+mod host_control;
 mod http;
 mod listener;
 mod members;
@@ -30,10 +31,13 @@ mod snapshot;
 mod token;
 
 pub use auth::password_file::{remove_password_file, PASSWORD_FILE_NAME};
+#[doc(hidden)]
+pub use config_api::ConfigState;
 pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
+pub use host_control::{single_slot_host, HostControl, HostError, SlotHandle};
 pub use listener::start_web_page;
 pub use members::dto::{
     AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
@@ -47,8 +51,7 @@ use std::sync::Arc;
 
 pub(crate) struct App {
     pub shared: Arc<WebShared>,
-    pub node: Arc<dyn NodeControl>,
-    pub config: std::sync::Mutex<config_api::ConfigState>,
+    pub host: Arc<dyn HostControl>,
     pub token_dir: Option<PathBuf>,
     pub stopping: std::sync::atomic::AtomicBool,
 }

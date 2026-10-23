@@ -13,7 +13,7 @@ use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings};
 
 use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
 
-pub(crate) struct ConfigState {
+pub struct ConfigState {
     pub config_file_path: Option<PathBuf>, // settings file; None — the node runs without a file
     pub secret: NodeSecret,                // node secret, written to the file on every save
     pub file_settings: Settings, // what is in the file now (by the listener's latest knowledge)
@@ -25,7 +25,7 @@ pub(crate) struct ConfigState {
 }
 
 impl ConfigState {
-    pub(crate) fn from_run(run_config: &RunConfig) -> ConfigState {
+    pub fn from_run(run_config: &RunConfig) -> ConfigState {
         ConfigState {
             config_file_path: run_config.file_report.path.clone(),
             secret: run_config.secret.clone(),

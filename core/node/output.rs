@@ -6,6 +6,7 @@
 //! Links: used by all node modules for output; `web::NodeControl` reads the log through
 //! `log_page_for`/`log_summary`.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, Mutex};
 use std::time::Instant;
 
@@ -35,6 +36,7 @@ const DEFAULT_RING_CAPACITY: usize = 2000;
 pub struct Journal {
     start: Instant,
     ring: Mutex<LogRing>,
+    multi: AtomicBool,
 }
 
 impl Journal {
@@ -43,14 +45,27 @@ impl Journal {
         Self {
             start: Instant::now(),
             ring: Mutex::new(LogRing::new(capacity)),
+            multi: AtomicBool::new(false),
         }
+    }
+
+    /// Turns the network label on console lines and in downloads on or off. Lines are always stored
+    /// with their label; this only decides whether it is shown.
+    pub fn set_multi_net(&self, on: bool) {
+        self.multi.store(on, Ordering::Relaxed);
     }
 
     /// Prints a line with a tag and text and puts the same line into the ring.
     pub fn say(&self, tag: &str, text: impl std::fmt::Display) {
         let t = self.uptime_secs();
-        println!("+{t:>7.1}s [{tag}] {text}");
-        self.ring().push(t, tag, text.to_string());
+        let net = current_net();
+        let shown = self.multi.load(Ordering::Relaxed) && net.is_some();
+        match (shown, &net) {
+            (true, Some(id)) => println!("+{t:>7.1}s [{tag}] [{id}] {text}"),
+            _ => println!("+{t:>7.1}s [{tag}] {text}"),
+        }
+        self.ring()
+            .push_labeled(t, tag, text.to_string(), net, shown);
     }
 
     /// Seconds since the log was created — the same scale `say` prints.
@@ -59,8 +74,8 @@ impl Journal {
     }
 
     /// A page of lines with `seq > after`, at most `limit`; the caller sets `boot_id`.
-    pub fn page(&self, boot_id: &str, after: u64, limit: usize) -> LogPage {
-        self.ring().page(boot_id, after, limit)
+    pub fn page(&self, boot_id: &str, after: u64, limit: usize, net: Option<&str>) -> LogPage {
+        self.ring().page(boot_id, after, limit, net)
     }
 
     /// A summary: tags, bounds, the tail of the last `tail` lines.
@@ -96,13 +111,13 @@ pub fn uptime_secs() -> f64 {
 }
 
 /// A log page for a slot: the caller supplies `boot_id` (`NodeCtl::log_after`).
-pub fn log_page_for(boot_id: &str, after: u64, limit: usize) -> LogPage {
-    JOURNAL.page(boot_id, after, limit)
+pub fn log_page_for(boot_id: &str, after: u64, limit: usize, net: Option<&str>) -> LogPage {
+    JOURNAL.page(boot_id, after, limit, net)
 }
 
 /// A log page without a slot: `boot_id` is empty. For tests and code outside the node.
 pub fn log_page(after: u64, limit: usize) -> LogPage {
-    log_page_for("", after, limit)
+    log_page_for("", after, limit, None)
 }
 
 /// A log summary: tags, bounds, the tail of the last `tail` lines.
@@ -115,6 +130,19 @@ pub fn set_log_capacity(lines: usize) {
     JOURNAL.set_capacity(lines);
 }
 
+/// Turns the network label in console lines and downloads on or off (on with more than one network).
+pub fn set_multi_net(on: bool) {
+    JOURNAL.set_multi_net(on);
+}
+
+pub use crate::transport::net::task_label::{
+    current_net, spawn, spawn_blocking, spawn_in, spawn_on, with_net,
+};
+
 #[cfg(test)]
 #[path = "output_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "output_net_tests.rs"]
+mod net_tests;

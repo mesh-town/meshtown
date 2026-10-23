@@ -81,7 +81,7 @@ pub(crate) async fn start_web(dir: &Path, run: &RunConfig) -> (WebHandle, Arc<Te
         fixed_token: None,
         drain: DEFAULT_DRAIN,
     };
-    let handle = web_gui::start_web_page(opts, run, node.clone())
+    let handle = web_gui::start_web_page(opts, run, host_of(node.clone(), run))
         .await
         .expect("start_web: web_gui::start must come up");
     (handle, node)
@@ -280,4 +280,12 @@ pub(crate) fn api(
         serde_json::from_slice(&resp.body).unwrap_or(Value::Null)
     };
     (resp.status, value)
+}
+
+/// A host with one `main` slot around `node`, with the config state of `run`.
+pub(crate) fn host_of(
+    node: Arc<dyn web_gui::NodeControl>,
+    run: &RunConfig,
+) -> Arc<dyn web_gui::HostControl> {
+    web_gui::single_slot_host(node, web_gui::ConfigState::from_run(run))
 }

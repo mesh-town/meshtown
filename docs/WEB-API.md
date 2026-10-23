@@ -353,7 +353,8 @@ What each interface element takes from this snapshot is in the table in section 
 
 ### 1.4 `GET /api/log` — log
 
-Parameters: `after` (integer, optional) and `limit` (1…2000, default 500). There are no more
+Parameters: `after` (integer, optional), `limit` (1…2000, default 500) and `net` (a network id, optional: only the
+lines written for that network, process-wide lines are left out; `main` selects the main network). There are no more
 parameters — in particular, no `tag`, see below.
 
 Filtering by tag and substring search are **done by the page, not the node**: the whole buffer is already on the page,
@@ -379,12 +380,15 @@ the `after` cursor stops being continuous. The `tag` parameter is not introduced
 - `text` is a ready-made string **without** the timestamp and tag: the page assembles them by the format
   `core/node/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
   This way the node does not spend bytes repeating what is already in the fields.
+- `net` (string) is present on a line only while more than one network runs and the line belongs to one of them;
+  otherwise the line has exactly the four fields above. With several networks the page shows it as `[<net>] ` before `text`.
 
 ### 1.5 `GET /api/log/download` — log download
 
 Returns the whole buffer as `text/plain; charset=utf-8` with lines in the exact node format
 (`+  141.3s [socks] …`), the header
-`Content-Disposition: attachment; filename="meshtown-<boot_id>.log"`.
+`Content-Disposition: attachment; filename="meshtown-<boot_id>.log"`. While more than one network runs, the lines that
+belong to a network have `[<id>] ` before the text (`+  141.3s [socks] [ab2c3d] …`); other lines are unchanged.
 Credentials are accepted as everywhere (1.1); the session cookie goes along by itself on a plain navigation, the persistent token — via the `?token=` parameter, because the download is a plain navigation without headers.
 
 

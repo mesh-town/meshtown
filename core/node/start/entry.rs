@@ -39,7 +39,7 @@ pub(super) async fn wire_entry_points(
 
     let cached_peers = Arc::new(inbound.cache.seen());
 
-    let run = tokio::spawn(run_node_loop(
+    let run = crate::node::output::spawn(run_node_loop(
         loop_ctx(boot, net, serving, swarm, gossip_neighbor_count.clone()),
         loop_inputs(net, inbound),
     ));
@@ -97,7 +97,7 @@ async fn subscribe_gossip_topic(
         .map_err(NetError::into_anyhow)?;
     background_abort_handles.extend(swarm.pump);
     background_abort_handles.push(
-        tokio::spawn(crate::members::membership::run_swarm_events(
+        crate::node::output::spawn(crate::members::membership::run_swarm_events(
             swarm.events,
             gossip_neighbor_count.clone(),
         ))

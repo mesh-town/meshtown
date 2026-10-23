@@ -229,7 +229,7 @@ impl Fixture {
     /// wait for it.
     fn when_stream_wait_starts(&self) -> JoinHandle<Result<Held>> {
         let (pool, stack, peer) = (self.pool.clone(), self.a.stack.clone(), self.b.id);
-        tokio::spawn(async move { pool.open_peer_stream(&stack, peer).await })
+        meshtown_core::node::output::spawn(async move { pool.open_peer_stream(&stack, peer).await })
     }
 
     fn then_nobody_waiting(&self) {

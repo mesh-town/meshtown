@@ -96,8 +96,9 @@ mod as_service {
     async fn service_hold_until_close() {
         // given: B serves the incoming connection with the AUTH service, A initiates
         let mut fx = setup(Opts::default()).await;
-        let serving =
-            tokio::spawn(handshake_service(fx.res.ctx.clone()).handle(fx.res.conn.clone()));
+        let serving = crate::node::output::spawn(
+            handshake_service(fx.res.ctx.clone()).handle(fx.res.conn.clone()),
+        );
         must_finish(initiate(&fx.ini.conn, &fx.ini.ctx))
             .await
             .expect("initiate");

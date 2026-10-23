@@ -31,12 +31,12 @@ pub(crate) const CLOSED_DOMAIN: &str = "closed.test";
 pub(crate) async fn serve(body_kb: usize) -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         loop {
             let Ok((mut socket, _)) = listener.accept().await else {
                 return;
             };
-            tokio::spawn(async move {
+            meshtown_core::node::output::spawn(async move {
                 let mut buf = vec![0u8; 2048];
                 let _ = socket.read(&mut buf).await;
                 let len = body_kb * 1024;
@@ -65,12 +65,12 @@ pub(crate) async fn serve(body_kb: usize) -> SocketAddr {
 pub(crate) async fn echo_site() -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         loop {
             let Ok((mut socket, _)) = listener.accept().await else {
                 return;
             };
-            tokio::spawn(async move {
+            meshtown_core::node::output::spawn(async move {
                 let mut buf = vec![0u8; 4096];
                 loop {
                     let n = match socket.read(&mut buf).await {
@@ -93,7 +93,7 @@ pub(crate) async fn echo_site() -> SocketAddr {
 pub(crate) async fn silent_site() -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
+    meshtown_core::node::output::spawn(async move {
         let mut held = Vec::new();
         while let Ok((socket, _)) = listener.accept().await {
             held.push(socket);

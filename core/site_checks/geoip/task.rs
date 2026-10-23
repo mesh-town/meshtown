@@ -153,5 +153,5 @@ pub fn spawn_country_check(
     transport: Arc<dyn Transport>,
     list: &DomainList,
 ) -> tokio::task::AbortHandle {
-    tokio::spawn(run_country_check(transport, list.shared_replica())).abort_handle()
+    crate::node::output::spawn(run_country_check(transport, list.shared_replica())).abort_handle()
 }

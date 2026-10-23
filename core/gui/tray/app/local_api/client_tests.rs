@@ -176,7 +176,7 @@ async fn web_put_config_round_trips_route_exits() {
 async fn raw_listener_silent_is_timeout() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("local_addr").port();
-    let accept_task = tokio::spawn(async move {
+    let accept_task = crate::node::output::spawn(async move {
         let (_socket, _addr) = listener.accept().await.expect("accept");
         tokio::time::sleep(Duration::from_secs(5)).await;
     });
@@ -195,7 +195,7 @@ async fn raw_listener_silent_is_timeout() {
 async fn raw_listener_ssh_banner_is_not_http() {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let port = listener.local_addr().expect("local_addr").port();
-    let accept_task = tokio::spawn(async move {
+    let accept_task = crate::node::output::spawn(async move {
         let (mut socket, _addr) = listener.accept().await.expect("accept");
         let _ = socket.write_all(b"SSH-2.0-x\r\n\r\n").await;
     });

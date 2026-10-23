@@ -19,8 +19,8 @@ pub(super) fn spawn(
     out: mpsc::UnboundedReceiver<Ctrl>,
 ) {
     let (r, w) = tokio::io::split(ctrl);
-    tokio::spawn(read_loop(core.clone(), r));
-    tokio::spawn(write_loop(core, w, out));
+    crate::node::output::spawn(read_loop(core.clone(), r));
+    crate::node::output::spawn(write_loop(core, w, out));
 }
 
 async fn read_loop(core: Arc<HyperSessionState>, mut r: ReadHalf<CtrlStream>) {

@@ -70,8 +70,8 @@ async fn when_stream_busy(a: &RunningNode, b: &RunningNode) -> Arc<AtomicUsize> 
         .expect("SOCKS to DOMAIN must reach REP_OK");
     let (read, write) = stream.into_split();
     let echoed = Arc::new(AtomicUsize::new(0));
-    tokio::spawn(write_forever(write));
-    tokio::spawn(read_counting(read, echoed.clone()));
+    meshtown_core::node::output::spawn(write_forever(write));
+    meshtown_core::node::output::spawn(read_counting(read, echoed.clone()));
     echoed
 }
 

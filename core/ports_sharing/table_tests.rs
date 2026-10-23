@@ -25,7 +25,7 @@ fn lookup_published() {
 async fn set_published_wakes_waiter() {
     let t = PublishedPortsTable::new(vec![]);
     let n = t.changed_signal();
-    let waiter = tokio::spawn(async move { n.notified().await });
+    let waiter = crate::node::output::spawn(async move { n.notified().await });
     tokio::task::yield_now().await;
     t.set_published(vec![p(80, "")]);
     timeout(Duration::from_secs(1), waiter)

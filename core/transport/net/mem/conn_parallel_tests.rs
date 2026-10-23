@@ -67,10 +67,10 @@ mod concurrency {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn a_hundred_parallel_echo_streams_come_back_intact() {
         let (a, b) = conns();
-        tokio::spawn(echo_server(b));
+        crate::transport::net::task_label::spawn(echo_server(b));
         let mut set = JoinSet::new();
         for i in 0..100 {
-            set.spawn(echo_round_trip(a.clone(), i));
+            crate::transport::net::task_label::spawn_in(&mut set, echo_round_trip(a.clone(), i));
         }
 
         let bad = within_secs(30, "100 echo streams", failed_among(set)).await;
@@ -81,7 +81,7 @@ mod concurrency {
     #[tokio::test]
     async fn an_echo_of_several_windows_on_one_stream_comes_back_intact() {
         let (a, b) = conns();
-        tokio::spawn(echo_server(b));
+        crate::transport::net::task_label::spawn(echo_server(b));
         let data = pattern(3 * STREAM_WINDOW_BYTES, 4);
 
         let back = within_secs(20, "echo of three windows", echo_bytes(&a, &data)).await;
@@ -182,7 +182,7 @@ async fn collect_data(raw: &MemPath, id: u32, len: usize) -> Vec<u8> {
 async fn echo_server(conn: Arc<MemConn>) {
     let mut tasks = JoinSet::new();
     while let Ok(StreamPair { mut send, mut recv }) = conn.accept().await {
-        tasks.spawn(async move {
+        crate::transport::net::task_label::spawn_in(&mut tasks, async move {
             tokio::io::copy(&mut recv, &mut send)
                 .await
                 .expect("echo: copy");

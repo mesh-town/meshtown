@@ -84,6 +84,7 @@ test('80-members-exclude: proposing a removal: "⋯" → "Remove from network…
 
 test.describe('--members-second-vote', () => {
   test.use({ targetFlags: { extraArgs: ['--members-second-vote'] } });
+  test.skip(({ targetKind }) => targetKind === 'node', 'the second vote is a flag of the demo node; skipped before the target starts');
 
   test('81-members-removed: a second member agrees at once: the row moves to "No longer in the network"', async ({
     app,
@@ -129,6 +130,7 @@ test('82-members-block: blocking on this computer needs no vote: label, "Unblock
 
 test.describe('--me-excluded', () => {
   test.use({ targetFlags: { extraArgs: ['--me-excluded'] } });
+  test.skip(({ targetKind }) => targetKind === 'node', 'starting removed is a flag of the demo node; skipped before the target starts');
 
   test('83-members-me-excluded: a removed computer sees the card with the way back instead of the list', async ({
     app,
@@ -238,6 +240,7 @@ const ANNA = 'anna-laptop';
 
 test.describe('--members-pending', () => {
   test.use({ targetFlags: { extraArgs: ['--members-pending'] } });
+  test.skip(({ targetKind }) => targetKind === 'node', 'the waiting node is a flag of the demo node; skipped before the target starts');
 
   test('88-members-admit: a pending node, confirm, row becomes a member', async ({ app, page, targetKind }) => {
     test.skip(targetKind === 'node', 'the waiting node is a flag of the demo node');
@@ -274,6 +277,7 @@ test.describe('--members-pending', () => {
 
 test.describe('--me-pending', () => {
   test.use({ targetFlags: { extraArgs: ['--me-pending'] } });
+  test.skip(({ targetKind }) => targetKind === 'node', 'starting as a waiting node is a flag of the demo node; skipped before the target starts');
 
   test('89-members-me-pending: a newcomer sees the waiting card', async ({ app, page, targetKind }) => {
     test.skip(targetKind === 'node', 'starting as a waiting node is a flag of the demo node');

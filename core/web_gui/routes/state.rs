@@ -1,15 +1,15 @@
-//! `/api/state`, `/api/log`, `/api/log/download`: the node snapshot for the page, the live log.
+//! `/api/state`: the node snapshot for the page (the log lives in `log.rs`).
 
 use std::sync::Arc;
 
 use axum::extract::{Extension, State};
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use super::state_net::{apply_net, net_state};
 use crate::web_gui::auth::iface_os::current_view;
-use crate::web_gui::http::{json_err, query_param, ConnInfo};
+use crate::web_gui::http::{json_err, ConnInfo};
 use crate::web_gui::{App, InviteJoinView};
 
 struct StateExtras {
@@ -25,7 +25,8 @@ pub(super) async fn state_handler(
     State(app): State<Arc<App>>,
     conn: Option<Extension<ConnInfo>>,
 ) -> Response {
-    let snap = app.node.snapshot();
+    let slot = app.host.main_slot();
+    let snap = slot.node.snapshot();
     let mut value = match serde_json::to_value(&snap) {
         Ok(v) => v,
         Err(_) => {
@@ -38,7 +39,7 @@ pub(super) async fn state_handler(
     };
 
     let (config_rev, identity, identity_reason, network, restart_pending) = {
-        let mut cfg = app.config.lock().unwrap_or_else(|e| e.into_inner());
+        let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.sync_boot_baseline(&snap.boot_id);
         let (identity, identity_reason) = cfg.identity_kind_and_reason();
         (
@@ -58,7 +59,7 @@ pub(super) async fn state_handler(
             identity,
             identity_reason,
             network,
-            invite_join: app.node.invite_join(),
+            invite_join: slot.node.invite_join(),
         },
     );
     let conn = conn.map(|Extension(c)| c);
@@ -115,63 +116,8 @@ fn apply_state_extras(value: &mut Value, extra: StateExtras) {
     }
 }
 
-fn round1(x: f64) -> f64 {
+pub(super) fn round1(x: f64) -> f64 {
     (x * 10.0).round() / 10.0
-}
-
-pub(super) async fn log_handler(State(app): State<Arc<App>>, uri: axum::http::Uri) -> Response {
-    let after = query_param(&uri, "after")
-        .and_then(|s| s.parse::<u64>().ok())
-        .unwrap_or(0);
-    let limit = query_param(&uri, "limit")
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(500)
-        .clamp(1, 2000);
-    let page = app.node.log_after(after, limit);
-    let gap = page.first_seq > 0 && after + 1 < page.first_seq;
-    let lines: Vec<Value> = page
-        .lines
-        .iter()
-        .map(|l| {
-            json!({
-                "seq": l.seq,
-                "t": round1(l.t),
-                "tag": l.tag,
-                "text": l.text,
-            })
-        })
-        .collect();
-    let body = json!({
-        "boot_id": page.boot_id,
-        "first_seq": page.first_seq,
-        "last_seq": page.last_seq,
-        "gap": gap,
-        "lines": lines,
-    });
-    (StatusCode::OK, axum::Json(body)).into_response()
-}
-
-pub(super) async fn log_download_handler(State(app): State<Arc<App>>) -> Response {
-    let page = app.node.log_after(0, usize::MAX);
-    let mut body = String::new();
-    for line in &page.lines {
-        body.push_str(&format!("+{:>7.1}s [{}] {}\n", line.t, line.tag, line.text));
-    }
-    let filename = format!("meshtown-{}.log", page.boot_id);
-    let disposition = HeaderValue::from_str(&format!("attachment; filename=\"{filename}\""))
-        .unwrap_or_else(|_| HeaderValue::from_static("attachment"));
-    (
-        StatusCode::OK,
-        [
-            (
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("text/plain; charset=utf-8"),
-            ),
-            (header::CONTENT_DISPOSITION, disposition),
-        ],
-        body,
-    )
-        .into_response()
 }
 
 #[cfg(test)]

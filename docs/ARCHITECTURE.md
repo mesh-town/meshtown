@@ -70,8 +70,11 @@ through the network it runs in.
 13. Brings up the SOCKS5 server and the exit protocol; on the first `run_cycles` round it starts the console
     (`console::spawn`): commands `invite`, checks, proxy, domains.
 
-Stopping (`node::run`): the node waits for Ctrl-C or SIGTERM, prints a line about it, closes the
-router (up to 10 s) and prints "stopped".
+Stopping: one signal task per process (`core/node/host/signal.rs`) waits for Ctrl-C or SIGTERM, prints a line
+about it and stops every network slot of the host; each node closes its router (up to 10 s) and prints "stopped".
+
+The process host (`core/node/host/`) keeps a map of network slots: each slot holds the node controller, the page's
+config state and the task running the node cycle. The page and the signal reach the nodes only through that map.
 
 Shared records (site check results, port publications, membership votes): a replica of signed records lives in the
 node (`sync::replica`). The replica identifier and its topic are derived from the network key. Members

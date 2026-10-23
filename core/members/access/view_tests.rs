@@ -53,7 +53,7 @@ mod pending_view {
         // given: a pending view and a task waiting for it
         let Cast { m, a, x, .. } = cast();
         let view = AccessView::pending();
-        let waiter = tokio::spawn({
+        let waiter = crate::node::output::spawn({
             let view = view.clone();
             async move { view.ready().await }
         });

@@ -45,7 +45,7 @@ pub fn spawn_console(list: DomainList, checks: Checks, console: crate::proxy::Pr
             }
         }
     });
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         while let Some(line) = rx.recv().await {
             match parse_check_line(&line) {
                 Some(Ok(CheckCommand::Table)) => checks.print_table().await,

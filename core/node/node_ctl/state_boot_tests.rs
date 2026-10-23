@@ -24,7 +24,7 @@ async fn snapshot_carries_boot_id_before_first_cycle() {
 #[tokio::test]
 async fn log_page_boot_id_equals_snapshot_boot_id() {
     let ctl = NodeCtl::new_without_network(&Settings::default());
-    assert_eq!(ctl.log_after(0, 1).boot_id, ctl.snapshot().boot_id);
+    assert_eq!(ctl.log_after(0, 1, None).boot_id, ctl.snapshot().boot_id);
 }
 
 #[tokio::test]
@@ -41,7 +41,7 @@ async fn new_boot_changes_id_and_resets_uptime() {
     let new = ctl.snapshot();
     assert_ne!(new.boot_id, old.boot_id);
     assert!(new.node.uptime_sec < 2);
-    assert_eq!(ctl.log_after(0, 1).boot_id, new.boot_id);
+    assert_eq!(ctl.log_after(0, 1, None).boot_id, new.boot_id);
 }
 
 #[tokio::test]

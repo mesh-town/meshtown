@@ -5,23 +5,22 @@
 //! keeps working. Above threshold 1 it prints a `[guard]` summary (what holds the memory), above
 //! threshold 2 — the summary once and `exit(3)`, before the computer goes into swap.
 //! The `GuardHandle` handle lives in `ProcessServices` (one guard per process): `stop` ends the thread, the tick wait is interrupted at once.
-//! The summary reads the live node's `Members` and `Checks` through `GuardSources`; between nodes there are none.
+//! The summary reads every live node's `Members` and `Checks` through `GuardSources`; between nodes there are none.
 //! Links: `Members` (connections and paths), `Checks` (running checks), `telemetry::rss_kib`.
 
 use portable_atomic::AtomicU64;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 use tokio::runtime::Handle;
 
-use crate::members::membership::Members;
 use crate::node::alloc::{heap_prof_dump, heap_prof_state};
+use crate::node::guard_sources::{GuardSources, NodeHandles};
 use crate::node::output::{say, short_peer_id};
 use crate::node::telemetry;
-use crate::site_checks::checks::Checks;
 use crate::transport::net::PeerConn;
 
 /// Measurement period.
@@ -118,32 +117,6 @@ pub(crate) fn exit_text(rss_kib: u64, limits: MemoryLimitsKib) -> String {
 pub(crate) fn stalled_text(rss_kib: u64, prev_rss_kib: u64, hanging_secs: u64) -> String {
     let growth = rss_kib as i64 - prev_rss_kib as i64;
     format!("memory {rss_kib} KiB ({growth:+} KiB/s), the previous summary didn't finish in {hanging_secs} s")
-}
-
-/// What the summary reads from the live node: its `Members` and `Checks`. The process keeps one
-/// guard, nodes come and go, so the node's controller puts its handles here and takes them away.
-#[derive(Clone, Default)]
-pub(crate) struct GuardSources(Arc<Mutex<Option<(Members, Checks)>>>);
-
-impl GuardSources {
-    /// The node is up: the summary reads these handles.
-    pub(crate) fn set(&self, members: Members, checks: Checks) {
-        *self.lock() = Some((members, checks));
-    }
-
-    /// The node is gone: the summary has nothing to read.
-    pub(crate) fn clear(&self) {
-        *self.lock() = None;
-    }
-
-    /// The handles of the live node; `None` — no node.
-    pub(crate) fn snapshot(&self) -> Option<(Members, Checks)> {
-        self.lock().clone()
-    }
-
-    fn lock(&self) -> std::sync::MutexGuard<'_, Option<(Members, Checks)>> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner())
-    }
 }
 
 /// Everything the summary needs; the `mem-guard` thread doesn't get it — it holds only the measurement.
@@ -341,27 +314,36 @@ fn watch(limits: MemoryLimitsKib, sum: &SummaryJob, stop: &Stopper) {
 /// Summary: the header and a line for every path of every member connection. Without a node
 /// the header counts no checks and no connections.
 fn print_summary(rss_kib: u64, prev_rss_kib: u64, sources: &GuardSources, handle: &Handle) {
-    let node = sources.snapshot();
+    let nodes = sources.snapshot();
     let metrics = handle.metrics();
+    let checks: usize = nodes
+        .iter()
+        .map(|(_, c)| c.domains_in_progress().len())
+        .sum();
     let head = header_text(
         rss_kib,
         prev_rss_kib,
         metrics.num_alive_tasks(),
         metrics.num_workers(),
-        node.as_ref()
-            .map_or(0, |(_, checks)| checks.domains_in_progress().len()),
-        &node.as_ref().map_or_else(
-            || "no node".to_string(),
-            |(members, _)| members.conns_text(),
-        ),
+        checks,
+        &conns_text_of(&nodes),
     );
     say("guard", head);
-    for conn in node
+    for conn in nodes
         .iter()
         .flat_map(|(members, _)| members.conns_snapshot())
     {
         peer_lines(&*conn);
     }
+}
+
+/// The connections part of the header: `no node` without nodes, otherwise one text per node.
+fn conns_text_of(nodes: &[NodeHandles]) -> String {
+    if nodes.is_empty() {
+        return "no node".to_string();
+    }
+    let texts: Vec<String> = nodes.iter().map(|(m, _)| m.conns_text()).collect();
+    texts.join("; ")
 }
 
 /// `[guard]` lines for every connection path; a transport without paths — no lines.

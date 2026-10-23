@@ -86,7 +86,7 @@ impl PeerDialer {
         let peer = addr.id;
         if self.ctx.members.try_begin_dial(peer) {
             self.redial.started(peer);
-            tokio::spawn(dial_peer(
+            crate::node::output::spawn(dial_peer(
                 self.stack.clone(),
                 addr,
                 self.ctx.clone(),

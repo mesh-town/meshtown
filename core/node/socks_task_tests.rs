@@ -17,7 +17,7 @@ async fn close_frees_listener_port() {
     let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
         .await
         .unwrap();
-    let task = SocksTask::new(tokio::spawn(async move {
+    let task = SocksTask::new(crate::node::output::spawn(async move {
         let _ = listener.accept().await;
     }));
     // when: close
@@ -36,7 +36,7 @@ async fn close_without_task_returns() {
 
 #[tokio::test]
 async fn second_close_through_clone_returns() {
-    let task = SocksTask::new(tokio::spawn(std::future::pending::<()>()));
+    let task = SocksTask::new(crate::node::output::spawn(std::future::pending::<()>()));
     let clone = task.clone();
     task.close().await;
     assert!(timeout(LIMIT, clone.close()).await.is_ok());
@@ -44,7 +44,7 @@ async fn second_close_through_clone_returns() {
 
 #[tokio::test]
 async fn close_after_task_finished_returns() {
-    let handle = tokio::spawn(async {});
+    let handle = crate::node::output::spawn(async {});
     while !handle.is_finished() {
         tokio::task::yield_now().await;
     }

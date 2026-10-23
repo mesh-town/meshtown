@@ -179,8 +179,8 @@ impl HyperTransport {
             closed: watch::channel(false).0,
             close_started: AtomicBool::new(false),
         });
-        tokio::spawn(accept_loop(incoming, ctx));
-        tokio::spawn(run_listen(this.listen_outcome.clone(), server, kp));
+        crate::node::output::spawn(accept_loop(incoming, ctx));
+        crate::node::output::spawn(run_listen(this.listen_outcome.clone(), server, kp));
         if opts.watch_net {
             spawn_netchange(
                 Arc::new(DhtReact::new(this.node.clone(), this.ctx.clone())),

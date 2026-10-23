@@ -11,7 +11,7 @@ fn mark_requested_flips_once() {
 async fn wait_returns_after_mark_requested() {
     let quit = QuitSignal::new();
     let waiter = quit.clone();
-    let waiting = tokio::spawn(async move {
+    let waiting = crate::node::output::spawn(async move {
         tokio::time::timeout(Duration::from_secs(1), waiter.wait())
             .await
             .expect("wait must return after mark_requested, not hang");

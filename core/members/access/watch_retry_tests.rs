@@ -115,7 +115,7 @@ async fn failed_first_recompute_leaves_the_view_pending() {
 async fn next_tick_publishes_the_view_after_a_failed_first_recompute() {
     // given: a scan that fails, and a watcher with a short timer
     let f = flaky_setup(true);
-    let task = tokio::spawn(watch_every(f.access.clone(), Duration::from_millis(50)));
+    let task = crate::node::output::spawn(watch_every(f.access.clone(), Duration::from_millis(50)));
     // the first recompute has failed, and the view is still pending
     tokio::time::sleep(Duration::from_millis(450)).await;
     assert!(

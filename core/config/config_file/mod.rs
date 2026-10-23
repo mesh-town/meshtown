@@ -32,6 +32,7 @@ mod retired;
 mod run;
 mod save;
 mod settings;
+mod slot_store;
 mod time;
 
 #[cfg(test)]
@@ -54,6 +55,7 @@ pub use run::{create_fresh, new_secret, prepare, Fresh, RunConfig};
 pub(crate) use save::write_tmp_and_rename;
 pub use save::{save_config_file, save_with_floor, set_aside_bad, SaveError};
 pub use settings::{ListenAccess, Settings, TransportMode};
+pub use slot_store::NetSlotId;
 pub use time::{iso_utc, stamp_utc, utc_parts};
 
 pub const FILE_NAME: &str = "config.json";

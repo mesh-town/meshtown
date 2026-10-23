@@ -243,7 +243,8 @@ mod hold_conn {
         let (ctx, mut events) = member_context_with(b, view_with(b, &[], &[a]));
         ctx.members.add_verified_conn(a);
         // when: holding starts
-        let holding = tokio::spawn(hold_conn_until_closed(mem.far.clone(), a, ctx.clone()));
+        let holding =
+            crate::node::output::spawn(hold_conn_until_closed(mem.far.clone(), a, ctx.clone()));
         // then: the connection is closed with 403 on both ends, the holder ends and reports Down
         must_finish(holding).await.expect("hold");
         let want = Some((ACCESS_CLOSE_CODE, Bytes::from_static(b"excluded")));
@@ -265,7 +266,8 @@ mod hold_conn {
         let (ctx, _events) = member_context_with(b, view_with(b, &[a], &[]));
         ctx.members.add_verified_conn(a);
         // when: holding starts
-        let holding = tokio::spawn(hold_conn_until_closed(mem.far.clone(), a, ctx.clone()));
+        let holding =
+            crate::node::output::spawn(hold_conn_until_closed(mem.far.clone(), a, ctx.clone()));
         tracked(&ctx.members, 1).await;
         tokio::time::sleep(SETTLE).await;
         // then: the connection stays open and held

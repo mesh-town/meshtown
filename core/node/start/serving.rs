@@ -117,8 +117,10 @@ fn setup_ports(
     domain_list: &DomainList,
 ) -> (PortsDoc, Opener) {
     let ports_doc = PortsDoc::new(domain_list.shared_replica());
-    boot.background_abort_handles
-        .push(tokio::spawn(run_announce(ports_doc.clone(), net.ports.clone())).abort_handle());
+    boot.background_abort_handles.push(
+        crate::node::output::spawn(run_announce(ports_doc.clone(), net.ports.clone()))
+            .abort_handle(),
+    );
     let opener = Opener::new(net.stack.clone(), net.members.clone());
     opener.reconcile_listeners(cfg.settings.ports_opened.clone());
     (ports_doc, opener)
@@ -154,9 +156,9 @@ async fn open_domain_list(
     let access = start_access(&domain_list, &net.members, access, background_abort_handles).await;
     let _ = net.domain_list_cell.set(domain_list.clone());
     let events = domains::log_events(domain_list.clone(), doc_changes.clone());
-    background_abort_handles.push(tokio::spawn(events).abort_handle());
+    background_abort_handles.push(crate::node::output::spawn(events).abort_handle());
     background_abort_handles.push(
-        tokio::spawn(node_state::run_exit_announce(
+        crate::node::output::spawn(node_state::run_exit_announce(
             domain_list.shared_replica(),
             net.exit_on.clone(),
             net.exit_announce_wakeup.clone(),
@@ -183,7 +185,8 @@ async fn setup_checks(
         cfg.settings.checks_enabled,
     );
     // The task always starts: whether it is enabled is checked on every tick inside it.
-    background_abort_handles.push(tokio::spawn(checks::run_checks(checks.clone())).abort_handle());
+    background_abort_handles
+        .push(crate::node::output::spawn(checks::run_checks(checks.clone())).abort_handle());
     for d in &cfg.initial_domains {
         let d = domain_list.add(d).await?;
         say("domains", format!("+ {d} (added locally)"));
@@ -248,7 +251,9 @@ fn serve_socks(
         udp_slots: proxy::udp_slots(),
     };
     let (access, lan) = (adm.access, lan_line(&adm, bound.port()));
-    let task = SocksTask::new(tokio::spawn(proxy::serve_proxy(listener, proxy_cfg, adm)));
+    let task = SocksTask::new(crate::node::output::spawn(proxy::serve_proxy(
+        listener, proxy_cfg, adm,
+    )));
     say(
         "socks",
         format!("accepting connections on {bound}{}", access_note(access)),

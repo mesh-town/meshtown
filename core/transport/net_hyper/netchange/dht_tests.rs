@@ -96,7 +96,7 @@ async fn connect_during_reaction_waits_for_resume() {
     react.suspend().await.expect("suspend");
     let resumed = Arc::new(std::sync::Mutex::new(None));
     let (r, mark) = (react.clone(), resumed.clone());
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         tokio::time::sleep(Duration::from_secs(1)).await;
         *mark.lock().unwrap() = Some(Instant::now());
         r.resume().await.expect("resume");
