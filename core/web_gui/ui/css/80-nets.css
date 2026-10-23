@@ -28,3 +28,14 @@
   .net-warn,.net-here-note{margin-left:0}
   .net-badge{margin-left:26px}
 }
+
+/* Members: the row of network tabs and the tab header */
+.ntabs{display:flex;gap:6px;flex-wrap:wrap;align-items:stretch;margin:10px 0 12px;min-width:0}
+.ntab{display:inline-flex;align-items:baseline;gap:6px;padding:7px 12px;border:1px solid var(--grey-bg);border-radius:9px;color:var(--fg);text-decoration:none;font-size:14px;min-width:0;overflow-wrap:anywhere}
+.ntab .sub,.ntab .tail{font-size:12px;color:var(--fg-muted)}
+.ntab.active{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ntab.dis{opacity:.6;cursor:default}
+.ntab.add{font-weight:700;padding:7px 14px}
+.ntab .cnt{display:inline-block;padding:0 7px;border-radius:10px;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:700}
+.tabhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 10px;min-width:0}
+.nets-hint{background:var(--accent-soft);border-radius:8px;padding:9px 12px;margin:10px 0}

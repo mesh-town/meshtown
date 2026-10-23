@@ -8,7 +8,7 @@ import type { SaveResult, ConfigChanges } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
 import { PAC_COPY_FALLBACK } from "../common/pac-texts.ts";
 import type { BrowserId, OsId, StepValue } from "./browser-setup.ts";
-import { saveConfigFields, fieldErrorText } from "../core/save-config.ts";
+import { saveConfigFields, saveSlotFields, fieldErrorText } from "../core/save-config.ts";
 import { saveSingleExit } from "../core/exit-via.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { failText } from "../common/words.ts";
@@ -190,7 +190,7 @@ function findRefused(form: HomeForm, err: unknown): "sent" | "failed" {
 async function persistName(form: HomeForm, store: Store, value: string, deps: HomeDeps): Promise<boolean> {
   const name = form.name;
   const changes = { "node.name": value };
-  const res = await saveConfigFields(store, changes, { api: deps.api });
+  const res = await saveSlotFields(store, store.lead, changes, { api: deps.api });
   name.status = resultStatus(res, changes);
   return res.ok;
 }
@@ -210,7 +210,7 @@ export async function saveName(form: HomeForm, store: Store, deps: HomeDeps = de
 
 export async function saveExitServer(form: HomeForm, store: Store, checked: boolean, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
   const changes = { "exit.enabled": checked };
-  const res = await saveConfigFields(store, changes, { api: deps.api });
+  const res = await saveSlotFields(store, store.lead, changes, { api: deps.api });
   form.exitServerStatus = resultStatus(res, changes);
   return res.ok ? "saved" : "failed";
 }

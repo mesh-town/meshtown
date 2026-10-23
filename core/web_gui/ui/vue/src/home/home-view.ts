@@ -6,7 +6,8 @@ import {
   peerLabel, routeLineAppViaText, routeLineViaText, routeViaText,
 } from "../common/words.ts";
 import type { Absence } from "../core/store.ts";
-import type { ChosenExit, ConfigDocument, ConfigMeta, NodeState, PeerInfo } from "../core/api-types.ts";
+import type { ChosenExit, ConfigDocument, ConfigMeta, NetBrief, NodeState, PeerInfo, SlotSlice } from "../core/api-types.ts";
+import { netName } from "../core/slots.ts";
 import { getPath } from "../settings/settings-fields.ts";
 import { metaHas } from "../settings/settings-view.ts";
 import { inAppPage } from "./browser-setup.ts";
@@ -17,6 +18,10 @@ import {
   HOME_WAIT_STARTING, HOME_WAIT_STOPPING, offlinePeerText, rttMsText,
 } from "./home-flow-texts.ts";
 import type { JoinProgress } from "./join-progress.ts";
+import {
+  NETS_DIRECT, NETS_JUST_YOU, NETS_NO_CONNECTION, netsAdmittingTail, netsChipShort, netsChipText, netsExitOfflineText, netsExitRemovedText,
+  netsNoLinkText, netsOnlineText, netsViaText,
+} from "./nets-texts.ts";
 
 type Snapshot = Partial<NodeState> | null;
 export type HomeMode = "wizard" | "normal";
@@ -31,7 +36,7 @@ export interface StatePanelView {
   actions: PanelAction[];
   busy?: boolean;
 }
-export type CardKey = "invite" | "exit" | "row";
+export type CardKey = "nets" | "invite" | "exit" | "row";
 export type OrderVariant = "A" | "B" | "V";
 
 // The name from settings, otherwise from the handshake (the `peers[]` row with `self`).
@@ -108,7 +113,15 @@ function absencePanel(absent: Absence): StatePanelView {
   return panel("grey", ABSENCE_TEXT[absent], ABSENCE_HINT[absent]);
 }
 
-function directPanel(state: Partial<NodeState>): StatePanelView {
+/** With several networks: names the network of an exit and whether that network has lost its link. */
+export interface PanelCtx {
+  multi: boolean;
+  netOf: (peerId: string) => string | null;
+  linkDown?: (peerId: string) => boolean;
+}
+
+function directPanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
+  if (ctx?.multi) return { ...panel("green", NETS_DIRECT, HOME_DIRECT_PICK) };
   const some = exitCandidates(state, [], []).length > 0;
   const line = inAppPage() ? ROUTE_LINE_APP_DIRECT : ROUTE_LINE_DIRECT;
   return { ...panel("green", inAppPage() ? line : ROUTE_DIRECT_TEXT, some ? HOME_DIRECT_PICK : HOME_DIRECT_NONE), line };
@@ -121,37 +134,48 @@ function linkTail(peer: PeerInfo | undefined): string {
   return [HOME_LINK_ONLINE, ...path, ...rtt].join(" · ");
 }
 
-function exitPanel(state: Partial<NodeState>): StatePanelView {
+function exitPanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const active = (state.route?.exits || []).find((e) => e.active);
   const peers = state.peers || [];
   const who = active ? peerLabel(active, false, peers) : HOME_EXIT_CHOSEN_FALLBACK;
   const peer = peers.find((p) => active && p.id_full === active.id_full);
+  const net = active && ctx?.multi ? ctx.netOf(active.id_full) : null;
+  if (net !== null) return { ...panel("green", netsViaText(who, net), linkTail(peer)) };
   const app = inAppPage();
   const line = app ? routeLineAppViaText(who) : routeLineViaText(who);
   return { ...panel("green", app ? line : routeViaText(who), linkTail(peer)), line };
 }
 
-function unavailablePanel(state: Partial<NodeState>): StatePanelView {
+function multiUnavailable(exit: ChosenExit, who: string, ctx: PanelCtx): StatePanelView | null {
+  const net = ctx.netOf(exit.id_full);
+  if (net === null) return null;
+  const text = exit.removed ? netsExitRemovedText(who, net) : ctx.linkDown?.(exit.id_full) ? netsNoLinkText(who, net) : netsExitOfflineText(who, net);
+  return panel("red", text, "", ["pick-other"]);
+}
+
+function unavailablePanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const exits: ChosenExit[] = state.route?.exits || [];
+  const multi = ctx?.multi && exits.length === 1 ? multiUnavailable(exits[0], peerLabel(exits[0], false, state.peers || []), ctx) : null;
+  if (multi) return multi;
   const who = exits.length === 1 ? offlinePeerText(peerLabel(exits[0], false, state.peers || [])) : HOME_EXITS_OFFLINE;
   return panel("red", who + " — " + EXIT_DOWN_TAIL, "", ["pick-other", "direct"]);
 }
 
-const ROUTE_PANELS = new Map<string | undefined, (state: Partial<NodeState>) => StatePanelView>([["exit", exitPanel], ["unavailable", unavailablePanel]]);
+const ROUTE_PANELS = new Map<string | undefined, (state: Partial<NodeState>, ctx?: PanelCtx) => StatePanelView>([["exit", exitPanel], ["unavailable", unavailablePanel]]);
 
-function routePanel(state: Partial<NodeState>): StatePanelView {
+function routePanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const route = state.route;
-  return (ROUTE_PANELS.get(route && route.state) || directPanel)(state);
+  return (ROUTE_PANELS.get(route && route.state) || directPanel)(state, ctx);
 }
 
 // `{ level: "green"|"red"|"grey", main, sub, actions }`; an empty snapshot gives no exception.
 // `absent` — the page gets no snapshots (`store.absence`): it comes before the snapshot.
-export function statePanel(state: Snapshot, absent: Absence | null = null, progress: JoinProgress | null = null): StatePanelView {
+export function statePanel(state: Snapshot, absent: Absence | null = null, progress: JoinProgress | null = null, ctx?: PanelCtx): StatePanelView {
   if (progress) return progressPanel(progress);
   if (absent) return absencePanel(absent);
   if (!state) return absencePanel("silent");
   const wait = WAIT_TEXT.get(state.node && state.node.status);
-  return wait ? panel("grey", wait) : routePanel(state);
+  return wait ? panel("grey", wait) : routePanel(state, ctx);
 }
 
 function hasOtherExit(state: Snapshot): boolean {
@@ -167,6 +191,48 @@ export const ORDERS = new Map<OrderVariant, (state: Snapshot) => CardKey[]>([
   ["V", (state) => (hasOtherExit(state) ? ["exit", "row"] : ["invite", "exit", "row"])],
 ]);
 
-export function cardOrder(state: Snapshot, variant: OrderVariant): CardKey[] {
+export function cardOrder(state: Snapshot, variant: OrderVariant, multi = false): CardKey[] {
+  if (multi) return ["nets", "exit", "row"];
   return (ORDERS.get(variant) || ORDERS.get("V")!)(state);
+}
+
+/** A network line on Home. */
+export interface NetRowView {
+  slot: string;
+  title: string;
+  summary: string;
+  dot: "green" | "grey";
+  admitting: number;
+}
+
+function netSummary(brief: NetBrief): string {
+  if (brief.peers_total === 0) return NETS_JUST_YOU;
+  return brief.peers_online > 0 ? netsOnlineText(brief.peers_online, brief.peers_total) : NETS_NO_CONNECTION;
+}
+
+// No slice yet (nothing to talk to) reads as "no connection".
+export function netRowView(brief: NetBrief, slot: SlotSlice | undefined, title: string = netName([brief], brief.id)): NetRowView {
+  const known = slot?.state != null;
+  const base = known ? netSummary(brief) : NETS_NO_CONNECTION;
+  const admitting = brief.members_admitting;
+  return {
+    slot: brief.id,
+    title,
+    summary: base + (known && admitting > 0 ? netsAdmittingTail(admitting) : ""),
+    dot: known && brief.peers_online > 0 ? "green" : "grey",
+    admitting,
+  };
+}
+
+export interface StatusChip {
+  slot: string;
+  text: string;
+  short: string;
+}
+
+// One chip per shown network that has requests to confirm; `shown` limits the nets to the visible slots.
+export function statusChips(nets: NetBrief[], shown?: string[]): StatusChip[] {
+  return nets
+    .filter((n) => n.id_hex != null && n.members_admitting > 0 && (shown === undefined || shown.includes(n.id)))
+    .map((n) => ({ slot: n.id, text: netsChipText(n.members_admitting, netName(nets, n.id)), short: netsChipShort(n.members_admitting, netName(nets, n.id)) }));
 }
