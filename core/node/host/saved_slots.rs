@@ -8,7 +8,7 @@ use crate::config::config_file::{list_net_slots, prepare_net_slot, NetSlotId, Ru
 use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
-use crate::node::output::say;
+use crate::node::output::{self, say, with_net};
 use crate::node::{IdentityState, NodeConfig};
 use crate::web_gui::{ConfigState, SlotHandle};
 
@@ -56,6 +56,17 @@ async fn run_slot(
         say("node", format!("net slot {id} stopped with an error: {e:#}"));
     }
     Ok(())
+}
+
+/// Whether the main settings file has saved network folders beside it; without a file (`--no-config`) none.
+pub(crate) fn has_saved_slots(main: Option<&RunConfig>) -> bool {
+    let file = main.and_then(|m| m.file.as_ref());
+    file.is_some_and(|f| !list_net_slots(f.path()).is_empty())
+}
+
+/// The network label is shown in the log only while more than one network runs.
+pub(crate) fn multi_net_for(running: usize) -> bool {
+    running > 1
 }
 
 impl HostSlots {
@@ -126,7 +137,9 @@ impl HostSlots {
             node: ctl.clone(),
             config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
         };
-        let task = tokio::spawn(run_slot(id, cfg, run, ctl.clone(), slot_relaunch));
+        let label = Some(Arc::from(id.to_string()));
+        let work = run_slot(id, cfg, run, ctl.clone(), slot_relaunch);
+        let task = output::spawn(with_net(label, work));
         self.add_slot(handle, ctl, task);
     }
 }

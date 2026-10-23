@@ -313,3 +313,27 @@ fn setup(seed: u8) -> Fixture {
         log_mark: log_summary(0).last_seq,
     }
 }
+
+mod network_label_switch {
+    use crate::node::host::saved_slots::{has_saved_slots, multi_net_for};
+    use super::*;
+
+    #[tokio::test]
+    async fn one_network_keeps_the_label_off() {
+        // given: only the main slot and no saved folders
+        let fx = setup(170);
+        // when / then: nothing asks for the label
+        assert!(!has_saved_slots(Some(&fx.main)));
+        assert!(!multi_net_for(1));
+    }
+
+    #[tokio::test]
+    async fn an_added_network_turns_the_label_on() {
+        // given: the main slot and one saved folder
+        let mut fx = setup(180);
+        fx.add_slot(1, CREATED);
+        // when / then: the folder is seen up front, and two running slots show the label
+        assert!(has_saved_slots(Some(&fx.main)));
+        assert!(multi_net_for(2));
+    }
+}

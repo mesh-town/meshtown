@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use super::process::{heap_dump_dir, ProcessServices};
 use super::signal::spawn_stop_signal;
+use super::saved_slots::{has_saved_slots, multi_net_for};
 use super::slots::HostSlots;
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
@@ -103,11 +104,13 @@ impl Host {
             Err(e) => Host::page_failed(role, &e)?,
         };
         let main_run = saved.relaunch.as_ref().map(|_| run_config.clone());
+        output::set_multi_net(has_saved_slots(main_run.as_ref()));
         let labeled = output::with_net(Some("main".into()), body(run_config, ctl));
         let task = output::spawn(labeled);
         host.set_task(&NetSlotId::main(), task);
         if let (Some(relaunch), Some(main_run)) = (&saved.relaunch, &main_run) {
             host.start_saved_slots(main_run, relaunch, &saved.sources, now_unix());
+            output::set_multi_net(multi_net_for(host.len()));
         }
         let result = Host::wait_slots(&host).await;
         if let Some(handle) = handle {
