@@ -99,6 +99,48 @@ describe("Cancel", () => {
   });
 });
 
+describe("a join that waits for members", () => {
+  describe.each(["peers", "settings"])("in the %s context", (context) => {
+    it("has the Cancel of the waiting join and no second Cancel of the form", async () => {
+      const card = await waiting({ context });
+      expect(card.exists("#net-join-cancel"), "Cancel of the join").toBe(true);
+      expect(card.exists("#add-net-cancel"), "Cancel of the form").toBe(false);
+      expect(card.controlTexts().filter((t) => t === "Cancel")).toHaveLength(1);
+    });
+
+    it("Cancel leaves the half-joined slot and sends nothing else", async () => {
+      const card = await waiting({ context });
+      await card.when.joinCancelled();
+      expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/join", "/api/net/" + FRESH + "/members/leave"]);
+      expect(card.postedBodies()).toEqual([{}, { key: INVITE }, { confirm: true }]);
+      expect(card.node.slotList.map((s) => s.id)).not.toContain(FRESH);
+    });
+
+    it("after Cancel the form is empty, in join mode, without the waiting line", async () => {
+      const card = await waiting({ context });
+      await card.when.joinCancelled();
+      expect(card.visibleInput().element.value).toBe("");
+      expect(card.visibleInput().attributes("placeholder")).toBe("Paste the invite here");
+      expect(card.exists("#net-joining")).toBe(false);
+      expect(card.text()).not.toContain(JOINING);
+      expect(card.controlTexts()).toEqual(expect.arrayContaining(["Add network", "Cancel"]));
+      expect(card.wrapper.find("#add-net-card").exists(), "the form stays open").toBe(true);
+    });
+  });
+
+  it("in the peers context Cancel keeps the \"add\" tab", async () => {
+    const card = await waiting({ context: "peers" });
+    await card.when.joinCancelled();
+    expect(card.store.peersTab).toBe("add");
+  });
+
+  it("in the settings context Cancel leaves the address alone", async () => {
+    const card = await waiting({ context: "settings" });
+    await card.when.joinCancelled();
+    expect(location.hash).toBe("");
+  });
+});
+
 describe("eight networks", () => {
   it("replaces the form with the limit text and asks the node for nothing", async () => {
     const card = await setup({ opts: eightNets() });
@@ -262,18 +304,29 @@ async function setup({ context = "peers", opts = withFreshSlot(twoNets()) } = {}
   const wrapper = mount(AddNetCard, { props: { context }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   await settle();
   mounted = { wrapper, node };
-  return cardOf(wrapper, node);
+  return cardOf(wrapper, node, store);
+}
+
+// The form after a join that waits for members.
+async function waiting(args) {
+  const card = await setup(args);
+  answersJoin(card.node, { waiting: true });
+  await card.when.typed(INVITE);
+  await card.when.clicked("Add network");
+  expect(card.exists("#net-joining"), "the waiting card is shown").toBe(true);
+  return card;
 }
 
 const compact = (text) => text.replace(/\s+/g, " ").trim();
 
-function cardOf(wrapper, node) {
+function cardOf(wrapper, node, store) {
   const root = () => wrapper.get("#add-net-card");
   const controls = () => root().findAll("button, a").filter((c) => shown(c.element));
   const inputs = () => root().findAll("input").filter((i) => shown(i.element));
   const posts = () => node.calls.filter((c) => c.method === "POST");
   return {
-    wrapper, node,
+    wrapper, node, store,
+    exists: (selector) => root().find(selector).exists(),
     text: () => compact(visibleText(root().element)),
     controlTexts: () => controls().map((c) => compact(c.text())),
     visibleInputs: inputs,
@@ -286,6 +339,11 @@ function cardOf(wrapper, node) {
     postedPaths: () => posts().map((c) => c.path),
     postedBodies: () => posts().map((c) => c.body),
     when: {
+      async joinCancelled() {
+        await root().get("#net-join-cancel").trigger("click");
+        await settle();
+        await settle();
+      },
       async typed(value) {
         await inputs()[0].setValue(value);
       },

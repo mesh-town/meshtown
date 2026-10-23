@@ -5,6 +5,7 @@
 import { computed, inject, reactive, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
+import JoiningCard from "./JoiningCard.vue";
 import { peersHash } from "../shell/nav.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import { createJoinForm, highlightParts } from "./join-actions.ts";
@@ -13,8 +14,7 @@ import type { AddNetForm, AddNetMode, AddNetResult } from "./add-net-actions.ts"
 import { expectArrival, useNetBanner } from "./add-net-banner.ts";
 import {
   ADD_NET_BTN, ADD_NET_BUSY, ADD_NET_CANCEL, ADD_NET_CREATE_BTN, ADD_NET_CREATE_LABEL, ADD_NET_CREATE_PLACEHOLDER, ADD_NET_JOIN_HINT,
-  ADD_NET_JOIN_LABEL, ADD_NET_JOIN_PLACEHOLDER, ADD_NET_LIMIT, ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN, ADD_NET_WAITING,
-  ADD_NET_WAITING_SUB, duplicateText, openNetText,
+  ADD_NET_JOIN_LABEL, ADD_NET_JOIN_PLACEHOLDER, ADD_NET_LIMIT, ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN, duplicateText, openNetText,
 } from "./add-net-texts.ts";
 
 const props = defineProps<{ context: "peers" | "settings" }>();
@@ -64,14 +64,24 @@ function toggle(): void {
   outcome.value = "";
 }
 
+function resetForm(): void {
+  Object.assign(form, createJoinForm());
+  mode.value = "join";
+  outcome.value = "";
+}
+
 function cancel(): void {
   if (props.context === "peers") {
     location.hash = peersHash(store.lead);
     return;
   }
-  Object.assign(form, createJoinForm());
-  mode.value = "join";
-  outcome.value = "";
+  resetForm();
+}
+
+// A waiting join was cancelled: the form starts over and stays open.
+function cancelled(): void {
+  resetForm();
+  if (props.context === "peers") store.peersTab = "add";
 }
 
 const openDup = (): void => {
@@ -98,12 +108,11 @@ const openDup = (): void => {
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="submit">{{ form.busy ? ADD_NET_BUSY : creating ? ADD_NET_CREATE_BTN : ADD_NET_BTN }}</button>
-        <button type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
+        <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
       </div>
       <a href="#" class="link-more" id="add-net-toggle" @click.prevent="toggle">{{ creating ? ADD_NET_TO_JOIN : ADD_NET_TO_CREATE }}</a>
-      <div v-if="outcome === 'waiting'" id="add-net-waiting" role="status">
-        <p class="hint">{{ ADD_NET_WAITING }}</p>
-        <p class="hint">{{ ADD_NET_WAITING_SUB }}</p>
+      <div v-if="outcome === 'waiting' && form.slot" id="add-net-waiting">
+        <JoiningCard :slot="form.slot" @cancelled="cancelled" />
       </div>
       <div v-if="outcome === 'duplicate'" id="add-net-dup" role="status">
         <p class="hint">{{ duplicateText(dupName) }}</p>

@@ -132,13 +132,59 @@ describe("joining by invite", () => {
   });
 
   describe("the node waits for members", () => {
-    it("shows the network among the tabs as \"joining…\" and stays on the form", async () => {
+    it("shows the network as one tab \"New network · joining…\" and stays on the form", async () => {
       const page = await openTwo("peers/add", { waiting: true });
       await page.whenJoined();
-      expect(page.tabsText()).toContain("joining…");
-      expect(page.joiningItem().tagName, "the joining network is not a link").not.toBe("A");
+      expect(page.joiningTabs(), "one tab for the waiting network").toHaveLength(1);
+      expect(compact(page.joiningTabs()[0].text())).toMatch(/^New network\s*·\s*joining…$/);
+      expect(page.joiningTabs()[0].attributes("href"), "the tab is a link to the slot").toBe("#peers/" + FRESH);
+      expect(page.tabsText().match(/joining…/g)).toHaveLength(1);
       expect(location.hash).toBe("#peers/add");
       expect(page.card().exists()).toBe(true);
+    });
+
+    it("the form shows the waiting card with Cancel", async () => {
+      const page = await openTwo("peers/add", { waiting: true });
+      await page.whenJoined();
+      expect(page.card().find("#net-joining").exists()).toBe(true);
+      expect(page.card().find("#net-join-cancel").exists()).toBe(true);
+      expect(page.card().find("#add-net-cancel").exists(), "one Cancel on the screen").toBe(false);
+    });
+
+    it("the tab of the waiting network shows the waiting card with Cancel, not the \"no network\" text", async () => {
+      const page = await openTwo("peers/add", { waiting: true });
+      await page.whenJoined();
+      await page.whenTabClicked("New network");
+      expect(location.hash).toBe("#peers/" + FRESH);
+      expect(page.selectedName()).toContain("New network");
+      expect(page.wrapper.find("#sec-peers #net-joining").exists(), "the waiting card").toBe(true);
+      expect(page.wrapper.find("#sec-peers #net-join-cancel").exists(), "Cancel").toBe(true);
+      expect(page.wrapper.find("[data-no-network-msg]").exists(), "no \"no network\" text").toBe(false);
+      expect(page.card().exists(), "not the form").toBe(false);
+    });
+
+    it("Cancel on the tab of the waiting network removes the tab and leaves the network", async () => {
+      const page = await openTwo("peers/add", { waiting: true });
+      await page.whenJoined();
+      await page.whenTabClicked("New network");
+      await page.whenJoinCancelled();
+      expect(page.joiningTabs()).toHaveLength(0);
+      expect(page.tabsText()).not.toContain("New network");
+      expect(page.wrapper.find("#sec-peers #net-joining").exists()).toBe(false);
+      expect(page.posted().at(-1)).toEqual(["/api/net/" + FRESH + "/members/leave", { confirm: true }]);
+      expect(page.wrapper.find("#peers-list").exists(), "a network with members is on show").toBe(true);
+    });
+
+    it("Cancel in the form on the \"add\" tab leaves the form open and empty, without a tab for the network", async () => {
+      const page = await openTwo("peers/add", { waiting: true });
+      await page.whenJoined();
+      await page.whenJoinCancelled();
+      expect(page.card().exists(), "the form stays open").toBe(true);
+      expect(page.card().find("#net-joining").exists()).toBe(false);
+      expect(page.fieldValue()).toBe("");
+      expect(page.joiningTabs()).toHaveLength(0);
+      expect(page.tabs(), "friends, my devices and \"+\"").toHaveLength(3);
+      expect(page.posted().at(-1)).toEqual(["/api/net/" + FRESH + "/members/leave", { confirm: true }]);
     });
 
     it("when the network arrives, its tab opens by itself with the banner", async () => {
@@ -299,7 +345,8 @@ function pageOf(node, wrapper, store) {
     list: () => wrapper.get("#peers-list"),
     codes: () => wrapper.findAll("#sec-peers #peers-list .peer-code").map((c) => c.text()),
     cardText: () => compact(card().text()),
-    joiningItem: () => [...wrapper.get("#sec-peers .ntabs").element.querySelectorAll("*")].filter((e) => e.textContent.includes("joining…")).at(-1),
+    joiningTabs: () => tabs().filter((t) => t.text().includes("joining…")),
+    fieldValue: () => card().findAll("input").find((i) => shown(i.element)).element.value,
     tabsText: () => compact(wrapper.get("#sec-peers .ntabs").text()),
     selectedName: () => compact(tabs().find((t) => t.attributes("aria-selected") === "true")?.text() ?? ""),
     isAfter: (first, second) => Boolean(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING),
@@ -313,6 +360,7 @@ function pageOf(node, wrapper, store) {
     whenPlusClicked: () => clickLink(tabs().at(-1)),
     whenTabClicked: (name) => clickLink(tabNamed(name)),
     whenBannerClosed: () => click(bannerOk()),
+    whenJoinCancelled: () => click(wrapper.get("#net-join-cancel")),
     async whenJoined() {
       await typed(INVITE);
       await whenClicked("Add network");
