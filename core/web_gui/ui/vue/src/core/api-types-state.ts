@@ -213,6 +213,7 @@ export interface ChosenExit {
   exit: boolean | null;
   country: string | null; // not described in the §1.3 prose, present in the code's `ChosenExit`
   active: boolean; // true for at most one
+  removed?: boolean; // the exit is no longer in the network
 }
 
 export interface PortsInfo {
@@ -257,6 +258,7 @@ export interface LogLine {
   t: number; // seconds since start, one decimal place
   tag: string;
   text: string; // without the timestamp and the tag
+  net?: string; // slot id the line belongs to; absent for process-wide lines
 }
 
 // ---------------------------------------------------------------- GET /api/log

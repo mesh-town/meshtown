@@ -61,6 +61,9 @@ pub(crate) struct Args {
     /// Start as a computer that asked to join and waits for confirmations (`me_pending` in the member list).
     #[arg(long)]
     pub(crate) me_pending: bool,
+    /// How many networks the page shows (1..=8); the extra ones are labelled `demo-network-2`, ...
+    #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=8))]
+    pub(crate) nets: u8,
     /// Do not start the page at all — everything else is prepared as usual.
     #[arg(long)]
     pub(crate) no_web: bool,

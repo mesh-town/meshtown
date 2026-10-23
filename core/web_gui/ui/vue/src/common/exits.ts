@@ -1,5 +1,6 @@
 import type { NodeState, ConfigDocument } from "../core/api-types.ts";
 import type { Store } from "../core/store.ts";
+import { isSlotId } from "../core/slots.ts";
 
 /* Chosen exits: a copy of the pure parts of `14-home-exit-choice.js` and of the key
  * `meshtown.exitsRemembered` — the page's shared contract (formerly shared with the classic page). */
@@ -10,22 +11,48 @@ export const AUTO_PICKED_KEY = "meshtown.exitAutoPicked";
 
 type ExitsStorage = Pick<Storage, "getItem" | "setItem">;
 
-export function getRememberedExits(storage: ExitsStorage = localStorage): string[] {
+export interface RememberedExit {
+  id: string;
+  slot: string;
+}
+
+function parseEntry(item: unknown): RememberedExit | null {
+  if (typeof item === "string") return { id: item, slot: "main" };
+  if (typeof item !== "object" || item === null) return null;
+  const { id, slot } = item as { id?: unknown; slot?: unknown };
+  return typeof id === "string" && typeof slot === "string" && isSlotId(slot) ? { id, slot } : null;
+}
+
+export function getRememberedEntries(storage: ExitsStorage = localStorage): RememberedExit[] {
   try {
     const raw = storage.getItem(REMEMBERED_KEY);
     const value: unknown = raw === null ? null : JSON.parse(raw);
-    return Array.isArray(value) ? value : [];
+    if (!Array.isArray(value)) return [];
+    return value.map(parseEntry).filter((e): e is RememberedExit => e !== null);
   } catch (err) {
     return [];
   }
 }
 
-export function setRememberedExits(exits: string[], storage: ExitsStorage = localStorage): void {
+// `main` entries are written as plain strings, so a single network stores exactly what older pages stored.
+export function setRememberedEntries(entries: RememberedExit[], storage: ExitsStorage = localStorage): void {
   try {
-    storage.setItem(REMEMBERED_KEY, JSON.stringify(exits));
+    const items = entries.map((e) => (e.slot === "main" ? e.id : { id: e.id, slot: e.slot }));
+    storage.setItem(REMEMBERED_KEY, JSON.stringify(items));
   } catch (err) {
     /* storage unavailable — the choice simply won't be remembered */
   }
+}
+
+export function getRememberedExits(storage: ExitsStorage = localStorage): string[] {
+  return getRememberedEntries(storage)
+    .filter((e) => e.slot === "main")
+    .map((e) => e.id);
+}
+
+export function setRememberedExits(exits: string[], storage: ExitsStorage = localStorage): void {
+  const others = getRememberedEntries(storage).filter((e) => e.slot !== "main");
+  setRememberedEntries([...exits.map((id) => ({ id, slot: "main" })), ...others], storage);
 }
 
 export function configExits(config: ConfigDocument | null | undefined): string[] {
