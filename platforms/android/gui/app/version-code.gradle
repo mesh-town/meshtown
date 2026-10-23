@@ -1,0 +1,32 @@
+// versionCode = major * 1_000_000 + minor * 1_000 + patch, from a strict "N.N.N" version with each part 0..999.
+// "0.0.0" (no version passed) maps to 1, the lowest valid code.
+ext.versionCodeOf = { String version ->
+    def m = (version =~ /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (!m.matches()) {
+        throw new GradleException("nodeVersion '${version}' must look like N.N.N with each part 0..999")
+    }
+    def code = m[0][1].toInteger() * 1000000 + m[0][2].toInteger() * 1000 + m[0][3].toInteger()
+    return code == 0 ? 1 : code
+}
+
+tasks.register("verifyVersionCode") {
+    doLast {
+        def expected = ["0.0.0": 1, "0.3.70": 3070, "0.3.71": 3071, "0.4.0": 4000, "1.0.0": 1000000]
+        expected.each { v, code ->
+            assert versionCodeOf(v) == code : "versionCodeOf(${v}) should be ${code}"
+        }
+        def order = ["0.3.70", "0.3.71", "0.4.0", "1.0.0"].collect { versionCodeOf(it) }
+        assert order == order.sort(false).unique() : "version codes must grow with the version"
+        ["0.3", "0.3.x", "0.3.1000", "0.3.70-rc1", ""].each { bad ->
+            try {
+                versionCodeOf(bad)
+            } catch (GradleException ignored) {
+                return
+            }
+            throw new GradleException("versionCodeOf('${bad}') should be refused")
+        }
+        versionCodeOf(providers.gradleProperty("nodeVersion").orElse("0.0.0").get())
+    }
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn "verifyVersionCode" }
