@@ -120,7 +120,7 @@ async fn add_redeemed_net(
 ) -> anyhow::Result<()> {
     let text = redeem_text(p, run).await?;
     say("invite", "network key received, adding the network");
-    if let Err(why) = add_net_slot(run, &text, typed_domains, now) {
+    if let Err(why) = add_net_slot(run, &text, typed_domains, &p.peers, now) {
         say(
             "invite",
             format!("network key not saved: {why:#}; the next run needs a new invite"),

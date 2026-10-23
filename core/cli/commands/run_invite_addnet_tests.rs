@@ -107,9 +107,9 @@ mod adding_a_slot {
         let run = main_run(&dir, &key_a());
         let before = std::fs::read(dir.file()).unwrap();
         // when
-        let added = add_net_slot(&run, &key_b(), &[], 5).expect("add");
+        let added = add_net_slot(&run, &key_b(), &[], &[], 5).expect("add");
         // then
-        let path = net_slot_path(&dir.file(), &added.id).unwrap();
+        let path = net_slot_path(&dir.file(), &added).unwrap();
         assert_eq!(slot_key(&path), Some(key_b()));
         assert_eq!(std::fs::read(dir.file()).unwrap(), before);
         assert_eq!(saved_slot_keys(&dir.file()), vec![Some(key_b())]);
@@ -119,8 +119,8 @@ mod adding_a_slot {
     fn gives_the_slot_its_own_secret() {
         let dir = Dir::new("secret");
         let run = main_run(&dir, &key_a());
-        let added = add_net_slot(&run, &key_b(), &[], 5).expect("add");
-        let path = net_slot_path(&dir.file(), &added.id).unwrap();
+        let added = add_net_slot(&run, &key_b(), &[], &[], 5).expect("add");
+        let path = net_slot_path(&dir.file(), &added).unwrap();
         let LoadedNetFile::Parsed(p) = load_net_file(&path) else {
             panic!("the slot file must parse");
         };
@@ -136,7 +136,7 @@ mod adding_a_slot {
     fn refuses_without_a_settings_file() {
         let mut run = main_run(&Dir::new("nofile"), &key_a());
         run.file_report.path = None;
-        assert!(add_net_slot(&run, &key_b(), &[], 5).is_err());
+        assert!(add_net_slot(&run, &key_b(), &[], &[], 5).is_err());
     }
 
     #[test]
@@ -151,7 +151,7 @@ mod adding_a_slot {
     fn plans_from_the_files_on_disk() {
         let dir = Dir::new("plan");
         let run = main_run(&dir, &key_a());
-        add_net_slot(&run, &key_b(), &[], 5).expect("add");
+        add_net_slot(&run, &key_b(), &[], &[], 5).expect("add");
         let src = source(&dir);
         assert_eq!(
             plan_cli_key(&src, Some(&key_b())).unwrap(),
@@ -236,7 +236,91 @@ mod reading_the_site_list {
         let run = main_run(&dir, &key_a());
         write_domains(&dir, &[entry("a.example", b"x", 1)]);
         let typed = vec!["a.example".to_string(), "d.example".to_string()];
-        let added = add_net_slot(&run, &key_b(), &typed, 5).expect("add");
-        assert_eq!(added.seed_domains, vec!["a.example", "d.example"]);
+        let added = add_net_slot(&run, &key_b(), &typed, &[], 5).expect("add");
+        let slot_file = net_slot_path(&dir.file(), &added).unwrap();
+        assert_eq!(
+            read_main_domains(&slot_file),
+            vec!["a.example", "d.example"]
+        );
+    }
+}
+
+mod seeding_a_slot {
+    use super::*;
+    use crate::transport::net::{AddrHint, NodeSecret, PeerAddr};
+    use crate::transport::peers_cache::{peers_cache_path_beside, PeersCache};
+    use std::net::SocketAddr;
+
+    fn invite_peers() -> Vec<PeerAddr> {
+        [3u8, 4]
+            .iter()
+            .map(|n| {
+                let id = NodeSecret::from_bytes(&[*n; 32]).peer_id();
+                let ip = SocketAddr::from(([192, 0, 2, *n], 4000));
+                PeerAddr {
+                    id,
+                    hints: vec![AddrHint::Ip(ip)],
+                }
+            })
+            .collect()
+    }
+
+    fn network_id_of(key: &str) -> String {
+        crate::members::network_key::parse_user_input(key)
+            .unwrap()
+            .key
+            .subkeys()
+            .network_id_hex()
+    }
+
+    #[test]
+    fn remembers_the_invite_addresses_beside_the_slot_file() {
+        let dir = Dir::new("seedcache");
+        let run = main_run(&dir, &key_a());
+        let peers = invite_peers();
+        let id = add_net_slot(&run, &key_b(), &[], &peers, 5).expect("add");
+        let cache_path = peers_cache_path_beside(&net_slot_path(&dir.file(), &id).unwrap());
+        assert!(cache_path.as_ref().unwrap().exists());
+        let cache = PeersCache::load(cache_path.as_deref(), &network_id_of(&key_b()), 5);
+        let seen = cache.seen();
+        assert!(peers.iter().all(|p| seen.contains_key(&p.id)));
+        let other = PeersCache::load(cache_path.as_deref(), &network_id_of(&key_a()), 5);
+        assert!(other.seen().is_empty());
+    }
+
+    #[test]
+    fn writes_no_cache_without_invite_addresses() {
+        let dir = Dir::new("seednocache");
+        let run = main_run(&dir, &key_a());
+        let id = add_net_slot(&run, &key_b(), &[], &[], 5).expect("add");
+        let slot_file = net_slot_path(&dir.file(), &id).unwrap();
+        assert!(!peers_cache_path_beside(&slot_file).unwrap().exists());
+    }
+
+    #[test]
+    fn writes_the_site_list_into_the_slot_and_nothing_for_an_empty_list() {
+        let dir = Dir::new("seedsites");
+        let run = main_run(&dir, &key_a());
+        let typed = vec!["d.example".to_string()];
+        let id = add_net_slot(&run, &key_b(), &typed, &[], 5).expect("add");
+        let slot_file = net_slot_path(&dir.file(), &id).unwrap();
+        assert_eq!(read_main_domains(&slot_file), typed);
+        let empty = add_net_slot(&run, &key_c(), &[], &[], 5).expect("add");
+        let empty_file = net_slot_path(&dir.file(), &empty).unwrap();
+        assert!(!empty_file.parent().unwrap().join("replica").exists());
+    }
+
+    #[test]
+    fn keeps_the_slot_when_the_cache_cannot_be_written() {
+        let dir = Dir::new("seedfail");
+        let run = main_run(&dir, &key_a());
+        let peers = invite_peers();
+        let id = add_net_slot(&run, &key_b(), &[], &peers, 5).expect("add");
+        let slot_file = net_slot_path(&dir.file(), &id).unwrap();
+        let cache_path = peers_cache_path_beside(&slot_file).unwrap();
+        std::fs::remove_file(&cache_path).unwrap();
+        std::fs::create_dir(&cache_path).unwrap();
+        assert!(seed_peers_cache(&slot_file, &network_id_of(&key_b()), &peers, 6).is_err());
+        assert_eq!(slot_key(&slot_file), Some(key_b()));
     }
 }

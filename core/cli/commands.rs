@@ -18,6 +18,7 @@ pub(crate) mod password;
 mod run_args;
 mod run_invite;
 mod run_invite_addnet;
+mod run_invite_seed;
 mod run_key;
 mod run_nokey;
 pub(crate) use run_args::RunArgs;
@@ -142,7 +143,7 @@ fn add_key_net(
     now: u64,
 ) -> anyhow::Result<bool> {
     if let (KeyNet::Add, Some(key)) = (key_net, cli_key) {
-        add_net_slot(run, key, &args.initial_domains, now)?;
+        add_net_slot(run, key, &args.initial_domains, &[], now)?;
     }
     Ok(matches!(key_net, KeyNet::Add | KeyNet::Existing))
 }
