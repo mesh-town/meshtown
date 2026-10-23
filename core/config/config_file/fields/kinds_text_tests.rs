@@ -4,8 +4,9 @@
 use serde_json::{json, Value};
 
 use super::super::value::Kind;
-use super::TextList;
+use super::{SlotRef, TextList};
 
+use crate::config::config_file::slot_store::NetSlotId;
 use crate::config::config_file::{parse_text, Settings};
 
 mod parsing_a_list {
@@ -301,6 +302,101 @@ mod row_read_from_a_file {
     }
 }
 
+mod slot_ref {
+    use super::*;
+
+    mod to_json {
+        use super::*;
+
+        #[test]
+        fn of_main_is_none_so_the_default_is_not_written() {
+            assert_eq!(SlotRef.to_json(&NetSlotId::main()), None);
+        }
+
+        #[test]
+        fn of_another_network_is_its_id_as_a_string() {
+            assert_eq!(SlotRef.to_json(&net("ab2c3d")), Some(json!("ab2c3d")));
+        }
+    }
+
+    mod parse {
+        use super::*;
+
+        #[test]
+        fn main_gives_the_main_slot() {
+            assert_eq!(SlotRef.parse(&json!("main")), Some(NetSlotId::main()));
+        }
+
+        #[test]
+        fn six_base32_characters_give_that_network() {
+            assert_eq!(SlotRef.parse(&json!("ab2c3d")), Some(net("ab2c3d")));
+        }
+
+        #[test]
+        fn rejects_uppercase_wrong_length_and_other_alphabets() {
+            for bad in ["AB", "AB2C3D", "ab2c3", "ab2c3de", "ab1c3d", "", "Main"] {
+                assert_eq!(SlotRef.parse(&json!(bad)), None, "text {bad:?}");
+            }
+        }
+
+        #[test]
+        fn rejects_values_that_are_not_strings() {
+            for bad in [json!(5), json!(null), json!(true), json!(["main"])] {
+                assert_eq!(SlotRef.parse(&bad), None, "value {bad}");
+            }
+        }
+    }
+
+    mod expected {
+        use super::*;
+
+        #[test]
+        fn names_main_and_the_id_alphabet() {
+            assert_eq!(
+                SlotRef.expected(),
+                "main or a network id: 6 characters a-z, 2-7"
+            );
+        }
+    }
+
+    mod default_text {
+        use super::*;
+
+        #[test]
+        fn is_the_id_itself() {
+            assert_eq!(SlotRef.default_text(&NetSlotId::main()), "main");
+        }
+    }
+
+    mod row_read_from_a_file {
+        use super::*;
+
+        #[test]
+        fn network_id_lands_in_process_settings() {
+            let (settings, errs) = read_proxy_net(Some(json!("ab2c3d")));
+            assert_eq!(errs, vec![]);
+            assert_eq!(settings.process.proxy_net, net("ab2c3d"));
+        }
+
+        #[test]
+        fn no_section_leaves_main() {
+            let (settings, errs) = read_proxy_net(None);
+            assert_eq!(errs, vec![]);
+            assert_eq!(settings.process.proxy_net, NetSlotId::main());
+        }
+
+        #[test]
+        fn uppercase_id_gives_one_error_with_the_expectation_and_main() {
+            let (settings, errs) = read_proxy_net(Some(json!("AB")));
+            assert_eq!(errs.len(), 1, "{errs:?}");
+            assert_eq!(errs[0].0, "proxy.net");
+            let want = "expected main or a network id: 6 characters a-z, 2-7";
+            assert!(errs[0].1.contains(want), "message: {}", errs[0].1);
+            assert_eq!(settings.process.proxy_net, NetSlotId::main());
+        }
+    }
+}
+
 fn list() -> TextList {
     TextList {
         max_items: 32,
@@ -326,6 +422,27 @@ fn distinct_phrases(n: usize) -> Value {
 fn read_geo_markers(file_value: Option<Value>) -> (Settings, Vec<(String, String)>) {
     let checks = file_value.map_or_else(|| json!({}), |v| json!({ "geo_markers": v }));
     let text = json!({ "config": { "version": 1, "checks": checks } }).to_string();
+    let parsed = parse_text(&text).expect("the document parsed");
+    let errs = parsed
+        .field_errors
+        .into_iter()
+        .map(|e| (e.field_path, e.message))
+        .collect();
+    (parsed.settings, errs)
+}
+
+fn net(id: &str) -> NetSlotId {
+    NetSlotId::parse(id).expect("valid network id")
+}
+
+/// Reads a file with the single key `proxy.net` (or without the `proxy` section) and returns the settings
+/// and the (path, message) pairs of errors.
+fn read_proxy_net(file_value: Option<Value>) -> (Settings, Vec<(String, String)>) {
+    let mut config = json!({ "version": 1 });
+    if let Some(v) = file_value {
+        config["proxy"] = json!({ "net": v });
+    }
+    let text = json!({ "config": config }).to_string();
     let parsed = parse_text(&text).expect("the document parsed");
     let errs = parsed
         .field_errors

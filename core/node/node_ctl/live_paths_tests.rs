@@ -57,6 +57,25 @@ fn route_exits_is_live() {
 }
 
 #[test]
+fn proxy_net_is_live_and_deferred_never() {
+    // given: only `proxy.net` changed in the incoming settings
+    let mut effective_settings = Settings::default();
+    let from = crate::config::config_file::test_support::all_changed();
+    let paths: [&'static str; 1] = ["proxy.net"];
+
+    // when: copy_live_paths
+    let (live, deferred) = copy_live_paths(&mut effective_settings, &from, &paths);
+
+    // then: the path is live, nothing waits for a restart, the value moved
+    assert_eq!(live, vec!["proxy.net"]);
+    assert!(
+        deferred.is_empty(),
+        "changing proxy.net must not require a restart"
+    );
+    assert_eq!(effective_settings.process.proxy_net, from.process.proxy_net);
+}
+
+#[test]
 fn ports_paths_are_live() {
     // given: `ports.published` and `ports.opened` changed.
     let mut effective_settings = Settings::default();
@@ -96,7 +115,7 @@ mod live_set {
 
     #[test]
     fn live_set_golden() {
-        // given: the original set of live paths; then: exactly these 9
+        // given: the set of live paths; then: exactly these 10
         let expected: BTreeSet<&str> = [
             "exit.enabled",
             "checks.enabled",
@@ -107,6 +126,7 @@ mod live_set {
             "ports.opened",
             "log.ring_lines",
             "node.name",
+            "proxy.net",
         ]
         .into_iter()
         .collect();
@@ -116,7 +136,7 @@ mod live_set {
         assert_eq!(actual, expected, "the set of live paths changed");
         assert_eq!(
             crate::config::config_file::fields::live_paths().len(),
-            9,
+            10,
             "the list has no duplicates"
         );
     }
@@ -133,6 +153,14 @@ mod handles_and_copy {
         let live: BTreeSet<&str> = fields::live_paths().into_iter().collect();
         assert_eq!(handles, live);
         assert_eq!(HANDLES.len(), live.len());
+        assert_eq!(HANDLES.len(), 10, "one handle per live path");
+    }
+
+    #[test]
+    fn proxy_net_has_exactly_one_handle() {
+        // given: the handle list; then: `proxy.net` is listed once
+        let count = HANDLES.iter().filter(|h| h.0 == "proxy.net").count();
+        assert_eq!(count, 1, "`proxy.net` must have exactly one handle");
     }
 
     #[test]
@@ -169,6 +197,15 @@ mod handles_and_copy {
             from.process.log_ring_lines
         );
         assert_eq!(effective_settings.net.node_name, from.net.node_name);
+        assert_eq!(
+            effective_settings.process.proxy_net, from.process.proxy_net,
+            "proxy.net is copied as a live field"
+        );
+        assert_ne!(
+            effective_settings.process.proxy_net,
+            Settings::default().process.proxy_net,
+            "the probe value differs from the default, so the copy is observable"
+        );
         let rest = Settings {
             process: ProcessSettings {
                 socks_port: 1,

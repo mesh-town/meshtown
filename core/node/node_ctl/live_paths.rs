@@ -19,7 +19,7 @@ pub(crate) fn apply_log_capacity(s: &Settings) {
 type Handle = fn(&RunningNode, &Settings);
 
 /// Live-setting handles by path; the set of paths equals `fields::live_paths()` (test `handles_equal_live`).
-const HANDLES: [(&str, Handle); 9] = [
+const HANDLES: [(&str, Handle); 10] = [
     ("exit.enabled", |n, e| {
         n.set_exit_enabled(e.net.exit_enabled)
     }),
@@ -45,6 +45,8 @@ const HANDLES: [(&str, Handle); 9] = [
         n.set_ports_opened(e.net.ports_opened.clone())
     }),
     ("log.ring_lines", |_, e| apply_log_capacity(e)),
+    // The proxy front reads the setting itself; nothing to push into the node.
+    ("proxy.net", |_, _| {}),
 ];
 
 /// Copies into `effective_settings` only the live ones from `paths`; the rest leave `effective_settings` untouched and go to the second

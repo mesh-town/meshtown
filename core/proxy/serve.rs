@@ -27,6 +27,8 @@ use super::{assoc, http, path};
 /// The default port of the local SOCKS5 server.
 pub const DEFAULT_SOCKS_PORT: u16 = 1080;
 pub const DIRECT_TCP_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
+/// The reason of a refusal while the proxy has no network to go through.
+pub const NO_PROXY_NETWORK: &str = "no network for the proxy";
 
 /// Everything the SOCKS5 server needs to work.
 #[derive(Clone)]
@@ -115,8 +117,19 @@ pub async fn bind_proxy_listener(port: u16, access: ListenAccess) -> Result<TcpL
     })
 }
 
-/// Accepts connections while the listening socket is alive; foreign ones are closed at once, without a reply, by `access` and `ifaces`.
+/// Accepts connections while the listening socket is alive, serving them with a fixed configuration.
 pub async fn serve_proxy(listener: TcpListener, cfg: ProxyConfig, adm: Admission) {
+    let (_target, rx) = tokio::sync::watch::channel(Some(cfg));
+    serve_front(listener, rx, adm).await;
+}
+
+/// Accepts connections while the listening socket is alive; foreign ones are closed at once, without a reply, by `access` and `ifaces`.
+/// The target is read at the moment of `accept` and lives with the connection; with none, requests are refused.
+pub(crate) async fn serve_front(
+    listener: TcpListener,
+    target: tokio::sync::watch::Receiver<Option<ProxyConfig>>,
+    adm: Admission,
+) {
     let mut deny_log = DenyLog::default();
     loop {
         let (stream, client_addr) = match listener.accept().await {
@@ -136,7 +149,7 @@ pub async fn serve_proxy(listener: TcpListener, cfg: ProxyConfig, adm: Admission
             continue;
         }
         disable_nagle(&stream);
-        let cfg = cfg.clone();
+        let cfg = target.borrow().clone();
         crate::node::output::spawn(dispatch(stream, cfg, client_addr));
     }
 }
@@ -144,7 +157,7 @@ pub async fn serve_proxy(listener: TcpListener, cfg: ProxyConfig, adm: Admission
 /// Tells the protocol apart by the first byte without taking it from the stream: `0x05` is SOCKS5,
 /// otherwise HTTP; a connection closed without a single byte is a quiet exit. It prints the error with the
 /// protocol label.
-async fn dispatch(stream: TcpStream, cfg: ProxyConfig, client_addr: SocketAddr) {
+async fn dispatch(stream: TcpStream, cfg: Option<ProxyConfig>, client_addr: SocketAddr) {
     let mut first = [0u8; 1];
     match stream.peek(&mut first).await {
         Ok(n) if n > 0 => {}
@@ -164,7 +177,7 @@ async fn dispatch(stream: TcpStream, cfg: ProxyConfig, client_addr: SocketAddr) 
 /// Serves one SOCKS5 connection from the greeting to the end of the transfer. There is one route decision for
 /// the whole connection and it does not depend on the target (a domain or an address);
 /// a connection through an exit is closed if the exit is removed from `route.exits` while it is still open.
-async fn serve_socks5_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Result<()> {
+async fn serve_socks5_connection(mut stream: TcpStream, cfg: Option<ProxyConfig>) -> Result<()> {
     // One timestamp for the whole serving: the summary line prints it.
     let started = Instant::now();
     socks5::read_greeting(&mut stream).await?;
@@ -178,10 +191,28 @@ async fn serve_socks5_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Res
             return Ok(());
         }
     };
+    let Some(cfg) = cfg else {
+        let target = match request.command {
+            socks5::Command::Connect => request.target.to_string(),
+            socks5::Command::UdpAssociate => "udp associate".to_string(),
+        };
+        return refuse_no_network(stream, &target, started).await;
+    };
     match request.command {
         socks5::Command::Connect => serve_connect(stream, cfg, request, started).await,
         socks5::Command::UdpAssociate => assoc::serve_associate(stream, cfg, started).await,
     }
+}
+
+/// The reply and the journal line for a request that arrived while the proxy has no network.
+async fn refuse_no_network(mut stream: TcpStream, target: &str, started: Instant) -> Result<()> {
+    socks5::write_reply(&mut stream, socks5::REP_HOST_UNREACHABLE).await?;
+    let outcome = ProxyOutcome::refused("no route", NO_PROXY_NETWORK);
+    say(
+        "socks",
+        outcome_line(target, &outcome, started.elapsed().as_millis()),
+    );
+    Ok(())
 }
 
 /// A `CONNECT` request: one route decision, the reply and the transfer to the end.

@@ -131,6 +131,9 @@ const ALL_CHANGED_TEXT: &str = r#"{
         "br-lan"
       ]
     },
+    "proxy": {
+      "net": "ab2c3d"
+    },
     "checks": {
       "enabled": false,
       "interval_sec": 600,

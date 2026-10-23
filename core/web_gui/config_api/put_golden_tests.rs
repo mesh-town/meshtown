@@ -50,6 +50,11 @@ fn invalid_cases() -> Vec<(&'static str, Value, String)> {
         ),
         case("probe.interval_sec", json!(1), "an integer 5…86400"),
         case(
+            "proxy.net",
+            json!("AB"),
+            "main or a network id: 6 characters a-z, 2-7",
+        ),
+        case(
             "route.exits",
             json!(["bad"]),
             "a list of node ids without repeats, up to 64",
@@ -67,7 +72,7 @@ mod put_with_invalid_value {
 
     #[test]
     fn put_invalid_text_each_editable() {
-        // given: a literal of 17 triples covers the whole list of editable paths
+        // given: a literal of one triple per path covers the whole list of editable paths
         let cases = invalid_cases();
         let covered: BTreeSet<String> = cases.iter().map(|c| c.0.to_string()).collect();
         assert_eq!(
@@ -201,6 +206,7 @@ mod internal_lists {
             "checks.doh_server",
             "checks.provider_dns",
             "probe.interval_sec",
+            "proxy.net",
             "route.exits",
             "ports.published",
             "ports.opened",
