@@ -3,6 +3,8 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+Entries below stop at 0.3.0; later changes are in the git history and on GitHub Releases.
+
 ## 0.3.0
 
 ### Changed
@@ -27,4 +29,4 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Node management page (Vue, built into one committed file) with password sign-in and access modes.
 - Tray app for macOS, Linux and Windows; settings file `config.json`.
 - Packaging scripts for macOS (`MeshTown.app`), Linux, Windows and OpenWrt.
-- Release archives with `SHA256SUMS` and a Homebrew tap (`brew install mesh-town/tap/meshtown`).
+- Release archives with `SHA256SUMS` and a Homebrew tap (`brew install mesh-town/meshtown/meshtown`).
