@@ -9,7 +9,6 @@ use crate::transport::net::{NetError, REPLICA_DOMAINS, REPLICA_NET};
 use anyhow::Result;
 use tokio::net::TcpListener;
 
-use crate::exit::PeerConnPool;
 use crate::invite::store::Ledger;
 use crate::members::access::runtime::Access;
 use crate::node::node_name;
@@ -35,6 +34,7 @@ use crate::node::DocChanges;
 use super::access_wiring::{start_access, AccessStart};
 use super::boot::Boot;
 use super::network::Net;
+use super::proxy_wiring::proxy_config_of;
 
 /// The domain list, checks, path choice and the SOCKS5 server — everything that is set up to receive traffic.
 pub(super) struct Serving {
@@ -42,6 +42,8 @@ pub(super) struct Serving {
     pub(super) access: Arc<Access>,
     pub(super) checks: Checks,
     pub(super) route: RouteCtx,
+    /// What a proxy front serves this node's traffic with.
+    pub(super) proxy: ProxyConfig,
     pub(super) socks_addr: Option<SocketAddr>,
     /// The SOCKS5 accept task; `shutdown` waits for it to end so the port is free on return.
     pub(super) socks_task: SocksTask,
@@ -89,7 +91,8 @@ pub(super) async fn setup_serving(
         boot.id,
         net.route_exits.clone(),
     );
-    let (socks_addr, socks_task) = spawn_socks_server(cfg, boot, net, &route)?
+    let proxy = proxy_config_of(&route, net);
+    let (socks_addr, socks_task) = spawn_socks_server(cfg, boot, net, &proxy)?
         .map_or((None, SocksTask::default()), |(addr, task)| {
             (Some(addr), task)
         });
@@ -101,6 +104,7 @@ pub(super) async fn setup_serving(
         access,
         checks,
         route,
+        proxy,
         socks_addr,
         socks_task,
         ports_doc,
@@ -208,13 +212,12 @@ fn spawn_socks_server(
     cfg: &NodeConfig,
     boot: &mut Boot,
     net: &Net,
-    route: &RouteCtx,
+    proxy_cfg: &ProxyConfig,
 ) -> Result<Option<(SocketAddr, SocksTask)>> {
     let socks_off = socks_off_line(cfg.socks_off_by_flag);
     let socks = serve_socks(
         boot.socks_listener.take(),
-        route,
-        net,
+        proxy_cfg.clone(),
         (
             socks_off,
             proxy::Admission {
@@ -233,8 +236,7 @@ fn spawn_socks_server(
 /// The SOCKS5 server on the taken port; with no listener — the `socks_off` line and `None`.
 fn serve_socks(
     listener: Option<TcpListener>,
-    route: &RouteCtx,
-    net: &Net,
+    proxy_cfg: ProxyConfig,
     (socks_off, adm): (&str, proxy::Admission),
 ) -> Result<Option<(SocketAddr, SocksTask)>> {
     let Some(listener) = listener else {
@@ -242,14 +244,6 @@ fn serve_socks(
         return Ok(None);
     };
     let bound = listener.local_addr()?;
-    let proxy_cfg = ProxyConfig {
-        route: route.clone(),
-        stack: net.stack.clone(),
-        pool: PeerConnPool::default().with_traffic(net.exit_traffic.clone()),
-        resolver: net.resolver.clone(),
-        host_overrides: net.exit_hosts.clone(),
-        udp_slots: proxy::udp_slots(),
-    };
     let (access, lan) = (adm.access, lan_line(&adm, bound.port()));
     let task = SocksTask::new(crate::node::output::spawn(proxy::serve_proxy(
         listener, proxy_cfg, adm,

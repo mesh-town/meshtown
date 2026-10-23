@@ -47,6 +47,10 @@ pub struct RunningNode {
     pub socks_access: crate::config::config_file::ListenAccess,
     /// The proxy's interface filter (`socks.ifaces`) it was started with.
     pub socks_ifaces: crate::config::config_file::IfaceFilter,
+    /// What a proxy front serves this node's traffic with.
+    pub(in crate::node) proxy: crate::proxy::ProxyConfig,
+    /// The published state of the proxy listener.
+    pub(crate) proxy_face: watch::Receiver<crate::proxy::ProxyFace>,
     /// The switch for exit work: the console flips it without restarting the node.
     pub exit_on: Arc<AtomicBool>,
     /// The registry of exit clients: who is going online through this node right now; read by `collect`.
@@ -96,6 +100,11 @@ pub struct RunningNode {
 }
 
 impl RunningNode {
+    /// The configuration a proxy front serves this node's traffic with (the connection pool is shared).
+    pub fn proxy_config(&self) -> crate::proxy::ProxyConfig {
+        self.proxy.clone()
+    }
+
     /// Introduces the address of a member found from outside (for example, by a test).
     pub async fn introduce(&self, addr: PeerAddr) {
         let _ = self.found_tx.send(addr).await;

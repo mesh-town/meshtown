@@ -21,6 +21,7 @@ mod boot;
 mod entry;
 mod network;
 mod preload;
+mod proxy_wiring;
 mod serving;
 mod stack;
 mod transports;
@@ -38,12 +39,16 @@ pub async fn start_node(cfg: NodeConfig) -> Result<RunningNode> {
     let (net, inbound) = spawn_network(&cfg, &boot).await?;
     let (serving, entry_points) =
         close_on_err(&net.stack, wire_up(&cfg, &mut boot, &net, inbound)).await?;
+    let face = proxy_wiring::face_of(
+        cfg.proxy_face.clone(),
+        (serving.socks_addr, cfg.socks.access, cfg.socks.ifaces.clone()),
+    );
     Ok(assemble_running(
         boot,
         net,
         serving,
         entry_points,
-        (cfg.socks.access, cfg.socks.ifaces.clone()),
+        (cfg.socks.access, cfg.socks.ifaces.clone(), face),
     ))
 }
 
@@ -63,9 +68,10 @@ fn assemble_running(
     net: network::Net,
     serving: serving::Serving,
     entry_points: entry::EntryPoints,
-    (socks_access, socks_ifaces): (
+    (socks_access, socks_ifaces, proxy_face): (
         crate::config::config_file::ListenAccess,
         crate::config::config_file::IfaceFilter,
+        tokio::sync::watch::Receiver<crate::proxy::ProxyFace>,
     ),
 ) -> RunningNode {
     RunningNode {
@@ -82,6 +88,8 @@ fn assemble_running(
         socks_access,
         socks_ifaces,
         socks_task: serving.socks_task,
+        proxy: serving.proxy,
+        proxy_face,
         exit_on: net.exit_on,
         exit_clients: net.exit_clients,
         exit_traffic: net.exit_traffic,

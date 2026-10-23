@@ -49,6 +49,8 @@ pub struct NodeConfig {
     pub geoip: bool,
     /// The proxy is off by the `--no-socks` flag, not by a setting; the log line needs this.
     pub socks_off_by_flag: bool,
+    /// The published state of the proxy listener when it lives outside the node; `None` — the node's own.
+    pub proxy_face: Option<tokio::sync::watch::Receiver<crate::proxy::ProxyFace>>,
     /// Domains the node treats as blocked on its side (the `--block-domain` flag).
     pub blocked_domains: Vec<String>,
     /// Substitute domain addresses for the exit: tests only, always empty in the node.
@@ -91,6 +93,7 @@ impl NodeConfig {
             initial_domains: vec![],
             geoip: true,
             socks_off_by_flag: false,
+            proxy_face: None,
             blocked_domains: Vec::new(),
             exit_hosts: HashMap::new(),
             identity_secret: None,

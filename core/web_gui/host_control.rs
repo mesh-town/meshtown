@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use super::config_api::ConfigState;
 use super::control::NodeControl;
 use crate::config::config_file::NetSlotId;
+use crate::proxy::ProxyFront;
 
 /// One slot: its id, the node control surface and the config state the page edits for it.
 #[derive(Clone)]
@@ -50,6 +51,18 @@ pub trait HostControl: Send + Sync {
     /// Slots whose files could not be used; they have no node and no handle.
     fn broken(&self) -> Vec<NetSlotId> {
         Vec::new()
+    }
+    /// Makes this slot the one that owns the proxy front's exit.
+    fn claim_proxy(&self, _id: &NetSlotId) -> Result<(), HostError> {
+        Ok(())
+    }
+    /// The slot that owns the proxy front's exit.
+    fn proxy_net(&self) -> NetSlotId {
+        NetSlotId::main()
+    }
+    /// The process-wide proxy front, if the host has one.
+    fn proxy_front(&self) -> Option<ProxyFront> {
+        None
     }
 }
 
