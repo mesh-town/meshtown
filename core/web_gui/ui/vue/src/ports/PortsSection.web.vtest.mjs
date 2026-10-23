@@ -168,7 +168,7 @@ describe("the column for other programs", () => {
     const { wrapper } = when_shown([row({ port: 80, opened })]);
 
     const text = wrapper.get('[data-port-row="ab/80"]').text();
-    expect(text).toContain("127.0.0.1:2080 open");
+    expect(text).toContain("127.0.0.1:2080CopyopenClose");
     expect(wrapper.find('[data-port-close="ab/80"]').exists()).toBe(true);
   });
 });
@@ -209,7 +209,7 @@ describe("the hints under the table", () => {
   it("are three paragraphs: the browser, https errors, other programs", () => {
     const { wrapper } = when_shown([row({})]);
 
-    const hints = wrapper.findAll(".card p.hint").slice(-3).map((p) => p.text());
+    const hints = wrapper.findAll(".card")[0].findAll("p.hint").slice(-3).map((p) => p.text());
     expect(hints).toHaveLength(3);
     expect(hints[0]).toBe("Click an address to open it in this browser. It works in a browser set up to use Mesh Town (see the Home tab). Type addresses with http:// at the start, or the browser may search the web instead.");
     expect(hints[1]).toContain("Mesh Town can't explain errors on https:// addresses");

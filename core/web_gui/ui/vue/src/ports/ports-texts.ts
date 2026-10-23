@@ -45,7 +45,6 @@ export const PORTS_COL_PROGRAMS = "In other programs";
 export const PORTS_COL_AUDIENCE = "Shared with";
 export const PORTS_COL_STATUS = "Status";
 export const PORTS_COL_PEER = "Member";
-export const PORTS_COL_ONLINE = "Online";
 export const PORTS_MINE_HINT = "Publish the port of a program that runs on this computer (address 127.0.0.1). All network members, or only the members you select, will see it and can open it — it isn't shown to anyone else and won't open for them. You can change the name and \"Shared with\" with the \"Edit\" button.";
 export const PORTS_NET_HINTS = [
   "Click an address to open it in this browser. It works in a browser set up to use Mesh Town (see the Home tab). Type addresses with http:// at the start, or the browser may search the web instead.",
@@ -67,6 +66,13 @@ export const PORTS_AUDIENCE_LABEL = "Shared with";
 export const PORTS_AUDIENCE_PICK_ALL = "All members";
 export const PORTS_AUDIENCE_PICK_NODES = "Selected members";
 export const PORTS_NO_PEERS = "There are no other members in the network yet";
+
+export const PORTS_CHANGE_NUMBER = "Change number";
+export const PORTS_LOCAL_PORT_LABEL = "port number on this computer";
+
+export function portsLocalAddress(local: number): string {
+  return "127.0.0.1:" + local;
+}
 
 export const PORTS_LOCAL_PORT_TITLE = "port number on this computer";
 export const PORTS_OPEN = "Open on this computer";
