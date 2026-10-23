@@ -178,12 +178,13 @@ fn words_key(label: &str) -> String {
     meshtown_core::members::network_key::format_key_string(Some(label), &tail)
 }
 
-/// Writes into `dir/config.json` the key of network A and `ports.published = [8080 All "web"]` — before `run_config`.
-fn write_file_with_ports(dir: &std::path::Path) {
-    let key_a = words_key("a");
+/// Writes into `dir/config.json` `ports.published = [8080 All "web"]` — before `run_config` — and, when
+/// `with_key` is set, the key of network A.
+fn write_file_with_ports(dir: &std::path::Path, with_key: bool) {
+    let key_a = with_key.then(|| words_key("a"));
     let settings = Settings {
         net: NetSettings {
-            network_key: Some(key_a),
+            network_key: key_a,
             ports_published: vec![Published {
                 port: 8080,
                 name: "web".to_string(),
@@ -211,9 +212,19 @@ fn published_in_file(dir: &std::path::Path) -> Vec<u16> {
     }
 }
 
+/// Posts to a node whose file has the published port and no network key.
 async fn post_network(dir_tag: &str, path: &str, body: Value) -> (u16, Value, Vec<u16>) {
+    post_network_to(dir_tag, path, body, false).await
+}
+
+async fn post_network_to(
+    dir_tag: &str,
+    path: &str,
+    body: Value,
+    with_key: bool,
+) -> (u16, Value, Vec<u16>) {
     let dir = scratch(dir_tag);
-    write_file_with_ports(&dir);
+    write_file_with_ports(&dir, with_key);
     let run = run_config(&dir);
     let (handle, _node) = start_web(&dir, &run).await;
     let (status, resp) = api(
@@ -272,6 +283,14 @@ async fn network_join_invite_with_keep_ports_keeps_published() {
 /// Joining by an invite string with a file that has port 8080 published: the node stub "receives the key"
 /// and calls the handler's `save`; `extra` — extra body fields (`keep_ports`).
 async fn post_invite_network(dir_tag: &str, extra: Value) -> (u16, Value, Vec<u16>) {
+    post_invite_network_to(dir_tag, extra, false).await
+}
+
+async fn post_invite_network_to(
+    dir_tag: &str,
+    extra: Value,
+    with_key: bool,
+) -> (u16, Value, Vec<u16>) {
     let key = NetworkKey::generate().unwrap();
     let head = invite_head(&key, unix_now());
     let mut body = json!({"key": invite_string(&head)});
@@ -279,7 +298,7 @@ async fn post_invite_network(dir_tag: &str, extra: Value) -> (u16, Value, Vec<u1
         .unwrap()
         .extend(extra.as_object().unwrap().clone());
     let dir = scratch(dir_tag);
-    write_file_with_ports(&dir);
+    write_file_with_ports(&dir, with_key);
     let run = run_config(&dir);
     let (handle, node) = start_web(&dir, &run).await;
     node.save_key_on_join(&head.key_text(&key));
@@ -294,6 +313,48 @@ async fn post_invite_network(dir_tag: &str, extra: Value) -> (u16, Value, Vec<u1
     handle.shutdown(DEFAULT_DRAIN).await;
     cleanup(&dir);
     (status, resp, ports)
+}
+
+// ---- a slot that already has a network refuses another one and keeps its file ----
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn network_create_on_a_slot_with_a_network_is_refused() {
+    let body = json!({"label": "new", "keep_ports": false});
+    let (status, resp, ports) =
+        post_network_to("present-create", "/api/network/create", body, true).await;
+    assert_eq!(status, 409);
+    assert_eq!(resp["error"], json!("network_present"));
+    assert_eq!(
+        ports,
+        vec![8080],
+        "the refused request must not touch the file"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn network_join_key_on_a_slot_with_a_network_is_refused() {
+    let body = json!({"key": words_key("b"), "keep_ports": false});
+    let (status, resp, ports) =
+        post_network_to("present-join", "/api/network/join", body, true).await;
+    assert_eq!(status, 409);
+    assert_eq!(resp["error"], json!("network_present"));
+    assert_eq!(
+        ports,
+        vec![8080],
+        "the refused request must not touch the file"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn network_join_invite_on_a_slot_with_a_network_is_refused() {
+    let (status, resp, ports) = post_invite_network_to("present-invite", json!({}), true).await;
+    assert_eq!(status, 409);
+    assert_eq!(resp["error"], json!("network_present"));
+    assert_eq!(
+        ports,
+        vec![8080],
+        "the refused request must not touch the file"
+    );
 }
 
 // ---- joining by an invite string: refusals before the node and the time limit boundary ----
