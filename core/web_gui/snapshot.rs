@@ -280,6 +280,9 @@ pub struct NetPort {
     pub name: String,
     pub published: bool,
     pub opened: Option<OpenedInfo>,
+    /// Link to the port at the member's mesh address; `None` while the port is not shared with this node
+    /// or there is no proxy to answer the address.
+    pub web_url: Option<String>,
 }
 
 /// A port open here; `state` is `"listening"` or `"bind_failed"`.

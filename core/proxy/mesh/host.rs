@@ -31,11 +31,16 @@ impl MeshHost {
 
 /// Link to a device address: port 80 is left out, port 443 selects `https`.
 pub(crate) fn mesh_url(address: &str, port: u16) -> String {
+    host_url(&format!("{address}.{MESH_SUFFIX}"), port)
+}
+
+/// Link to a full `<address>.meshtown` host, with the same port rules as [`mesh_url`].
+pub(crate) fn host_url(host: &str, port: u16) -> String {
     let scheme = if port == HTTPS_PORT { "https" } else { "http" };
     if port == HTTP_PORT || port == HTTPS_PORT {
-        return format!("{scheme}://{address}.{MESH_SUFFIX}");
+        return format!("{scheme}://{host}");
     }
-    format!("{scheme}://{address}.{MESH_SUFFIX}:{port}")
+    format!("{scheme}://{host}:{port}")
 }
 
 #[cfg(test)]

@@ -93,6 +93,36 @@ mod mesh_url {
     }
 }
 
+mod host_url {
+    use super::*;
+
+    #[test]
+    fn port_80_is_plain_http_without_port() {
+        assert_eq!(host_url("box.meshtown", 80), "http://box.meshtown");
+    }
+
+    #[test]
+    fn other_port_is_appended() {
+        assert_eq!(host_url("box.meshtown", 8080), "http://box.meshtown:8080");
+    }
+
+    #[test]
+    fn port_443_is_https_without_port() {
+        assert_eq!(host_url("box.meshtown", 443), "https://box.meshtown");
+    }
+
+    #[test]
+    fn gives_the_same_link_as_mesh_url_for_the_same_device() {
+        for port in [80, 443, 22, 8080] {
+            assert_eq!(
+                host_url("box-a1b2.meshtown", port),
+                mesh_url("box-a1b2", port),
+                "port {port}"
+            );
+        }
+    }
+}
+
 fn label_of(host: &str) -> Option<String> {
     MeshHost::parse(&Target::Domain(host.to_string())).map(|h| h.label)
 }

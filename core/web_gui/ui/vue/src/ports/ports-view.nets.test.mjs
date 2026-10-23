@@ -199,7 +199,7 @@ describe("per-network audience of the form", () => {
   });
 });
 
-describe("ports shared by members across networks", () => {
+describe("ports shared with you across networks", () => {
   describe("two networks", () => {
     it("rows stay per network and carry the network name; the same member in both is two rows", () => {
       const store = publishStore({ a: [], b: [] });

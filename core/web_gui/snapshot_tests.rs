@@ -154,6 +154,7 @@ const FILLED_KEYS: &[&str] = &[
     "ports.network[].opened.state",
     "ports.network[].port",
     "ports.network[].published",
+    "ports.network[].web_url",
     "ports.published",
     "ports.published[].local",
     "ports.published[].name",
@@ -409,6 +410,7 @@ fn filled_ports() -> PortsInfo {
         name: text("web"),
         published: true,
         opened: Some(opened),
+        web_url: Some(text("url")),
     };
     PortsInfo {
         published: vec![OwnPort {

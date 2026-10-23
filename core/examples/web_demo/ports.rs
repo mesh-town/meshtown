@@ -48,6 +48,7 @@ fn fixture_rows(st: &DemoState) -> Vec<NetPort> {
                 port: FIXTURE_PORT,
                 name: FIXTURE_NAME.to_string(),
                 published: true,
+                web_url: p.name.as_ref().map(|n| format!("http://{n}.meshtown:{FIXTURE_PORT}")),
             }
         })
         .into_iter()

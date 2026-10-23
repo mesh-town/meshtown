@@ -31,7 +31,7 @@ describe("ports element survives poll", () => {
     expect(wrapper.get("#ports-net-tbody tr input").element).toBe(input.element);
     expect(input.element.value).toBe(LOCAL_PORT);
 
-    await row.findAll("button").find((b) => b.text() === "Open").trigger("click");
+    await row.findAll("button").find((b) => b.text() === "Open on this computer").trigger("click");
     await settle();
     // The port in "opened" is taken from the PUT body by the fake node (like a real one), not by the test: the page sent the number itself.
     expect(node.config.ports.opened.map((o) => o.local)).toEqual([Number(LOCAL_PORT)]);

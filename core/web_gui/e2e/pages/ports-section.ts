@@ -11,7 +11,7 @@ export class PortsSection {
   readonly netRows: Locator;
 
   constructor(private readonly page: Page) {
-    // Field names are their placeholders ("port", "name (optional)"); exact — the "Ports shared by members" rows have a "port number on this computer" field.
+    // Field names are their placeholders ("port", "name (optional)"); exact — the "Ports shared with you" rows have a "port number on this computer" field.
     this.addPort = page.getByRole('spinbutton', { name: 'port', exact: true });
     this.addName = page.getByRole('textbox', { name: 'name (optional)' });
     this.addButton = page.getByRole('button', { name: 'Publish', exact: true });
@@ -20,9 +20,9 @@ export class PortsSection {
     // Tables are told apart by their accessible name (`aria-label` on `<table>`).
     this.ownBody = page.getByRole('table', { name: 'My published ports' });
     this.netRows = page
-      .getByRole('table', { name: 'Ports shared by members' })
+      .getByRole('table', { name: 'Ports shared with you' })
       .getByRole('row')
-      .filter({ has: page.getByRole('button', { name: /^(Open|Close)$/ }) });
+      .filter({ has: page.getByRole('button', { name: /^(Open on this computer|Close)$/ }) });
   }
 
   async publish(port: string, name: string): Promise<void> {
@@ -41,7 +41,7 @@ export class PortsSection {
   }
 
   openButton(row: Locator): Locator {
-    return row.getByRole('button', { name: 'Open', exact: true });
+    return row.getByRole('button', { name: 'Open on this computer', exact: true });
   }
 
   closeButton(row: Locator): Locator {
