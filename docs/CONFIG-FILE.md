@@ -167,10 +167,8 @@ What is **not** stored in the file even though a flag exists:
 - `--invite` — a one-time join, not state.
 
 Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
-a positive form it is impossible to start once with SOCKS on when it is off in the file.
-Today the code has only the negative ones (`core/cli/args.rs`). The `no_relay` mode
-(`NetSettings::uses_relay`/`is_relay_only` in `core/config/config_file/net_settings.rs`) is entirely unreachable from the command line today — the `--no-relay` flag is added
-together with the `transport.mode` field.
+a positive form it is impossible to start once with SOCKS on when it is off in the file; the last flag
+of a pair wins. `--relay-only` and `--no-relay` set `transport.mode` (reserved, see §3).
 
 ---
 
