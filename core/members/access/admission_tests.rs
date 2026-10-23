@@ -16,11 +16,13 @@ fn input(me: PeerId, rows: &[Row]) -> TallyInput {
         author,
         subject,
         via,
+        made_unix: 0,
     });
     TallyInput {
         me,
         admits: admits.collect(),
         votes: Vec::new(),
+        forgets: Vec::new(),
     }
 }
 
@@ -217,6 +219,7 @@ fn my_witness_keeps_member_after_cascade() {
         author: m,
         subject: x,
         via: W,
+        made_unix: 0,
     });
     // when: tallied
     let ledger = tally(&inp);

@@ -204,7 +204,7 @@ mod admit_write {
         let node = setup().await;
         node.when_issued(&invite(1), Some("Masha")).await;
         // when: the owner is admitted for this invite
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
             .await
             .unwrap();
         // then: the node's own record admits the owner by invite, with the name as the note
@@ -223,7 +223,7 @@ mod admit_write {
         // given: a node that has no record for this invite
         let node = setup().await;
         // when
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
             .await
             .unwrap();
         // then
@@ -237,7 +237,7 @@ mod admit_write {
         let node = setup().await;
         node.when_issued(&invite(1), None).await;
         // when: the holder admits the owner
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
             .await
             .unwrap();
         // then: the record is an invite vote with an empty note
@@ -249,11 +249,11 @@ mod admit_write {
     async fn admit_owner_twice_keeps_one_record() {
         // given: an owner already admitted (a retry after a failed mark)
         let node = setup().await;
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
             .await
             .unwrap();
         // when: the same admit is written again, later
-        let again = admit_owner(&node.list, &invite(1).hash_hex(), pid(7), NOW + 3).await;
+        let again = admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW + 3).await;
         // then: no error and still one live record under the key
         assert!(again.is_ok(), "{again:?}");
         assert_eq!(node.live_admits().await, 1);

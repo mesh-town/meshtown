@@ -4,12 +4,16 @@
 //! in `peers-cache.json` and `peer-names.json` those not seen for longer than `GONE_AFTER_SECS`, and
 //! removes them from memory and from disk. Cuts only one who is "gone" on two ticks in a row: after
 //! a laptop's long sleep the first tick may come before the document syncs.
-//! What it doesn't do: doesn't touch itself, network members and chosen exits; doesn't clean `Members`
-//! and telemetry; cuts nothing on any read failure.
+//! Nodes hidden from this node by the member list (`cut_hidden`: the forgotten ones and the subjects of its
+//! own waiting removal votes) are cut on the first tick, whatever their age, chosen exits included, and even
+//! though the others may still count some of them as members.
+//! What it doesn't do: the age-based part doesn't touch itself, network members and chosen exits; nothing
+//! cuts this node itself; doesn't clean `Members` and telemetry; the age-based part cuts nothing on any
+//! read failure.
 //! Links: `node::event_loop::run_node_loop` calls `prune_tick`; the age and the "gone" rule are in
 //! `stale_peers`; `PeersCache::forget`, `PeerNames::forget` change memory, saving is here.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::future::Future;
 use std::time::{Duration, Instant};
 
@@ -101,6 +105,23 @@ fn forget_and_save(gone: &HashSet<PeerId>, cache: &mut PeersCache, names: &mut P
     }
 }
 
+/// Cuts the hidden nodes (removed from the member list here) from the cache and the names at once.
+/// Returns those that were present in either of them.
+pub fn cut_hidden(
+    hidden: &BTreeSet<PeerId>,
+    cache: &mut PeersCache,
+    names: &mut PeerNames,
+) -> HashSet<PeerId> {
+    let known: HashSet<PeerId> = cache.seen().keys().copied().chain(names.ids()).collect();
+    let cut: HashSet<PeerId> = hidden
+        .iter()
+        .copied()
+        .filter(|p| known.contains(p))
+        .collect();
+    forget_and_save(&cut, cache, names);
+    cut
+}
+
 /// One sweep over what has already been read: cuts the intersection of the candidates with the previous `prune_candidates_prev_tick`, then
 /// `prune_candidates_prev_tick` = the current candidates. A read error is `Err`, nothing is cut and `prune_candidates_prev_tick` stays as it was.
 /// Returns the cut ones with their age.
@@ -169,9 +190,28 @@ fn say_pruned(id: &PeerId, age: Option<u64>) {
 }
 
 /// A sweep tick: the reads (any failure is a log line, nothing is cut), `prune_from`,
-/// a log line for each cut member. Returns the ids of the cut ones (empty on a read failure):
+/// a log line for each cut member. Returns the ids of the cut ones (on a read failure only the hidden ones):
 /// the caller forgets them in the redial.
 pub async fn prune_tick(
+    src: &PruneSources<'_>,
+    prune_candidates_prev_tick: &mut HashSet<PeerId>,
+    cache: &mut PeersCache,
+    names: &mut PeerNames,
+    now_unix: u64,
+) -> HashSet<PeerId> {
+    let hidden = src
+        .members
+        .access()
+        .verdicts()
+        .map(|v| v.removed_here())
+        .unwrap_or_default();
+    let mut cut = cut_hidden(&hidden, cache, names);
+    cut.extend(sweep(src, prune_candidates_prev_tick, cache, names, now_unix).await);
+    cut
+}
+
+/// The age-based part of a tick: the reads, `prune_from`, a log line for each cut member.
+async fn sweep(
     src: &PruneSources<'_>,
     prune_candidates_prev_tick: &mut HashSet<PeerId>,
     cache: &mut PeersCache,

@@ -22,13 +22,15 @@ use crate::web_gui::{MemberActionReq, MemberError, MembersReply, SlotHandle};
 
 /// Registers the member routes of one network under `base` (`/api` or `/api/net/{slot}`).
 pub(crate) fn register_members(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
-    let actions: [(&str, MethodRouter<Arc<App>>); 7] = [
+    let actions: [(&str, MethodRouter<Arc<App>>); 9] = [
         ("exclude", post(exclude_handler)),
         ("unexclude", post(unexclude_handler)),
         ("admit", post(admit_handler)),
         ("unadmit", post(unadmit_handler)),
         ("block", post(block_handler)),
         ("unblock", post(unblock_handler)),
+        ("forget", post(forget_handler)),
+        ("unforget", post(unforget_handler)),
         ("leave", post(leave_handler)),
     ];
     let router = router.route(
@@ -169,6 +171,14 @@ async fn unblock_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     id_action(&slot, &bytes, MemberActionReq::Unblock).await
 }
 
+async fn forget_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Forget).await
+}
+
+async fn unforget_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Unforget).await
+}
+
 fn confirmed(map: &Map<String, Value>) -> bool {
     matches!(map.get("confirm"), Some(Value::Bool(true)))
 }
@@ -291,3 +301,7 @@ mod fixture;
 #[cfg(test)]
 #[path = "routes_admit_tests.rs"]
 mod admit_tests;
+
+#[cfg(test)]
+#[path = "routes_forget_tests.rs"]
+mod forget_tests;

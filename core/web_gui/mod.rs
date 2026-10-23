@@ -43,7 +43,7 @@ pub use control::{
 pub use host_control::{single_slot_host, AddedSlot, HostControl, HostError, SlotHandle};
 pub use listener::start_web_page;
 pub use members::dto::{
-    AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
+    AdmissionInfo, Counts, ExcludedInfo, ForgetInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
 };
 pub use options::{WebHandle, WebOptions, WebShared, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 pub use ring::LogRing;

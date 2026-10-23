@@ -6,63 +6,18 @@
 //! What it doesn't do: no tally, no replica, no I/O; closing connections is `Members::cut`.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::members::access::tally::Ledger;
+use crate::members::access::tally::{ForgetRound, Ledger};
+
+pub use super::deny::Deny;
 use crate::transport::net::PeerId;
 
 /// Close code of a connection refused by the membership list.
 pub const ACCESS_CLOSE_CODE: u32 = 403;
 const MAX_REFUSALS: usize = 64;
-const WIRE_PREFIX: &str = "code 403: ";
-
-/// Why a node is not let in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Deny {
-    Left,
-    Excluded,
-    VotedByMe,
-    Blocked,
-    Unlisted,
-    /// Only from the wire: the other side refused by its own vote or block.
-    Refused,
-}
-
-impl Deny {
-    /// The reason sent in the close frame.
-    pub fn wire_reason(&self) -> &'static [u8] {
-        match self {
-            Deny::Left => b"left",
-            Deny::Excluded => b"excluded",
-            Deny::VotedByMe | Deny::Blocked | Deny::Refused => b"refused",
-            Deny::Unlisted => b"not admitted",
-        }
-    }
-
-    /// The word used in the JSON contract.
-    pub fn code(&self) -> &'static str {
-        match self {
-            Deny::Left => "left",
-            Deny::Excluded => "excluded",
-            Deny::VotedByMe => "voted_by_me",
-            Deny::Blocked => "blocked",
-            Deny::Unlisted => "unlisted",
-            Deny::Refused => "refused",
-        }
-    }
-
-    /// Parses `code 403: <reason>` as reported by `PeerConn::close_reason`.
-    pub fn from_wire(text: &str) -> Option<Deny> {
-        match text.strip_prefix(WIRE_PREFIX)? {
-            "left" => Some(Deny::Left),
-            "excluded" => Some(Deny::Excluded),
-            "refused" => Some(Deny::Refused),
-            "not admitted" => Some(Deny::Unlisted),
-            _ => None,
-        }
-    }
-}
 
 /// Which side refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -108,11 +63,36 @@ impl Verdicts {
             (self.ledger.excluded.contains_key(&peer), Deny::Excluded),
             (self.my_votes.contains(&peer), Deny::VotedByMe),
             (self.blocks.contains(&peer), Deny::Blocked),
+            (self.ledger.is_forgotten(&peer), Deny::Forgotten),
+            (self.my_forgets().contains(&peer), Deny::RemovedByMe),
         ];
         match denies.iter().find(|(hit, _)| *hit) {
             Some((_, deny)) => Err(*deny),
             None => self.check_listed(peer),
         }
+    }
+
+    /// Subjects of live forget circles that I voted in: hidden from me at once, before the circle completes.
+    pub fn my_forgets(&self) -> BTreeSet<PeerId> {
+        let mine = |round: &ForgetRound| round.voters.contains(&self.me);
+        let subjects = self.ledger.forgets.iter().filter(|(_, round)| mine(round));
+        subjects
+            .map(|(p, _)| *p)
+            .filter(|p| *p != self.me)
+            .collect()
+    }
+
+    /// Subjects hidden from this node: forgotten ones and those of its own pending forget votes.
+    pub fn removed_here(&self) -> BTreeSet<PeerId> {
+        let mut hidden = self.my_forgets();
+        let forgotten = self
+            .ledger
+            .forgets
+            .iter()
+            .filter(|(_, r)| r.at_unix.is_some());
+        hidden.extend(forgotten.map(|(p, _)| *p));
+        hidden.remove(&self.me);
+        hidden
     }
 
     fn check_listed(&self, peer: PeerId) -> Result<(), Deny> {
@@ -128,6 +108,7 @@ impl Verdicts {
         all.extend(self.ledger.excluded.keys().copied());
         all.extend(self.my_votes.iter().copied());
         all.extend(self.blocks.iter().copied());
+        all.extend(self.ledger.forgets.keys().copied());
         all.remove(&self.me);
         all
     }
@@ -138,6 +119,7 @@ struct Inner {
     ready: tokio::sync::watch::Sender<bool>,
     refusals: Mutex<Vec<(PeerId, Refusal)>>,
     recompute: Arc<tokio::sync::Mutex<()>>,
+    removed_noted: AtomicBool,
 }
 
 /// Shared handle to the latest verdicts. `open` lets everyone in; `pending` waits for the first
@@ -170,6 +152,7 @@ impl AccessView {
                 ready: tx,
                 refusals: Mutex::new(Vec::new()),
                 recompute: Arc::new(tokio::sync::Mutex::new(())),
+                removed_noted: AtomicBool::new(false),
             }),
         }
     }
@@ -261,6 +244,11 @@ impl AccessView {
         self.inner.refusals.lock().unwrap().clone()
     }
 
+    /// `true` only on the first call: the "removed from the list" line is logged once per run.
+    pub fn first_removed_notice(&self) -> bool {
+        !self.inner.removed_noted.swap(true, Ordering::Relaxed)
+    }
+
     /// Serialises recomputations of the verdicts.
     pub fn recompute_lock(&self) -> Arc<tokio::sync::Mutex<()>> {
         self.inner.recompute.clone()
@@ -270,3 +258,11 @@ impl AccessView {
 #[cfg(test)]
 #[path = "view_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "view_forget_tests.rs"]
+mod forget_tests;
+
+#[cfg(test)]
+#[path = "view_removed_here_tests.rs"]
+mod removed_here_tests;

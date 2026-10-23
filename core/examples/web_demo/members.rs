@@ -83,7 +83,9 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
         | MemberActionReq::Admit(id)
         | MemberActionReq::Unadmit(id)
         | MemberActionReq::Block(id)
-        | MemberActionReq::Unblock(id) => Some(id),
+        | MemberActionReq::Unblock(id)
+        | MemberActionReq::Forget(id)
+        | MemberActionReq::Unforget(id) => Some(id),
         MemberActionReq::Leave => None,
     }
 }
@@ -211,6 +213,11 @@ impl DemoMembers {
             (MemberActionReq::Admit(_), Some(i)) => self.admit(i),
             (MemberActionReq::Unadmit(_), Some(i)) => self.unadmit(i),
             (MemberActionReq::Block(_), Some(i)) => Ok(self.set_blocked(i, true)),
+            (MemberActionReq::Forget(_) | MemberActionReq::Unforget(_), Some(_)) => {
+                Err(MemberError::Action(ActionError::NotFound(
+                    "removal is not simulated by the demo".to_string(),
+                )))
+            }
             (_, Some(i)) => Ok(self.set_blocked(i, false)),
         }
     }
