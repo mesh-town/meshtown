@@ -2,13 +2,13 @@
 # Cross-build of meshtown for Windows x86_64 (.exe), in a container via cargo-zigbuild.
 # Usage: platforms/windows/build/build.sh cli|gui
 # The dist/ file name carries the version from Cargo.toml (<v>); after copying the two
-# newest versions of each name stay (build_keep_two, release/lib.sh).
+# newest versions of each name stay (build_keep_two, scripts/release/lib.sh).
 #   cli — without tray (--no-default-features --features net-hyper): dist/meshtown-windows-cli-<v>.exe
 #   gui — with tray (package meshtown-windows): dist/meshtown-windows-gui-<v>.exe
 # One shared build directory for both kinds ($BUILD_ROOT/make-windows/out), the binary
 # is copied to dist/ right after its own build, there are no prerequisites between kinds.
 # The target manifest is a copy without `crate-type` (see below), laid over /src/core/Cargo.toml in the container.
-# Environment variables (defaults in release/lib.sh): BUILD_ROOT, CONTAINER.
+# Environment variables (defaults in scripts/release/lib.sh): BUILD_ROOT, CONTAINER.
 # townjump is a git dependency: fetched on the host (build_cargo_git_prefetch) into $BUILD_ROOT/make-windows/git, mounted at /usr/local/cargo/git.
 # The image's rustc (1.93) is older than townjump's rust-version 1.94: rustup inside the container installs stable
 # (minimal profile), the toolchain lives in the parent's registry volume no longer than the container (--rm), and is reinstalled each time.
@@ -17,8 +17,8 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-# shellcheck source=../../../release/lib.sh
-. "$SCRIPT_DIR/../../../release/lib.sh"
+# shellcheck source=../../../scripts/release/lib.sh
+. "$SCRIPT_DIR/../../../scripts/release/lib.sh"
 
 KIND="$1"
 WINDOWS_DIR="$BUILD_ROOT/make-windows"

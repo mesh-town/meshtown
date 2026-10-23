@@ -38,7 +38,7 @@ export E2E_RUN_TAG ?= $(notdir $(CURDIR))
 export BUILD_ROOT TARGET_DIR APP_NAME APP_TITLE BUNDLE_ID
 
 # CONTAINER is export only, with no default here: the build/ scripts choose container/docker themselves
-# by OS (release/lib.sh). A `?= container` in this Makefile would override that choice — an empty
+# by OS (scripts/release/lib.sh). A `?= container` in this Makefile would override that choice — an empty
 # export does not override the script default, but `?= container` with a non-empty value would.
 export CONTAINER
 
@@ -81,7 +81,7 @@ help:
 	@echo "make test                       — cargo nextest run (no nextest — cargo test)"
 	@echo "make test-cargo                 — cargo test (old path, no nextest)"
 	@echo "make test-one T=<name> [TARGET_DIR=…] — one Rust test with the same flags and cache as make test"
-	@echo "make test-py                    — unittest over scripts/test_*.py and platforms/linux/build/openwrt/feed/test_*.py and platforms/linux/build/keenetic/feed/test_*.py"
+	@echo "make test-py                    — unittest over scripts/{battery,changed_tests,checks}/test_*.py and platforms/linux/build/openwrt/feed/test_*.py and platforms/linux/build/keenetic/feed/test_*.py"
 	@echo "make test-js                    — vitest: *.test.mjs logic (node environment) and *.vtest.mjs components (happy-dom)"
 	@echo "make test-vue                   — components only (vitest --project dom): core/web_gui/ui/vue/src/**/*.vtest.mjs"
 	@echo "make web-build                  — build the page (Vite): core/web_gui/ui/vue → core/web_gui/ui/bundle/app.js (committed)"
@@ -108,7 +108,7 @@ help:
 
 build: build_$(BUILD_HOST_OS)
 
-# Binaries are built by platforms/<system>/build/build.sh (release/lib.sh is the shared part); the targets
+# Binaries are built by platforms/<system>/build/build.sh (scripts/release/lib.sh is the shared part); the targets
 # here are one-line calls, the logic (feature choice, container, lipo, packaging) lives only in the scripts.
 build_macos: $(addprefix build_macos_,$(MACOS_KINDS))
 
@@ -161,14 +161,16 @@ test-cargo:
 	$(CARGO) test --workspace
 
 test-py:
-	python3 -m unittest discover -s scripts -t scripts -p 'test_*.py'
+	python3 -m unittest discover -s scripts/battery -t scripts/battery -p 'test_*.py'
+	python3 -m unittest discover -s scripts/changed_tests -t scripts/changed_tests -p 'test_*.py'
+	python3 -m unittest discover -s scripts/checks -t scripts/checks -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed -p 'test_*.py'
 
 # The publishing script of the distribution repository, against a local bare repository.
 test-dist:
-	release/dist/publish_test.sh
-	bash release/lib_test.sh
+	scripts/release/dist/publish_test.sh
+	bash scripts/release/lib_test.sh
 
 UI := core/web_gui/ui
 VUE := $(UI)/vue
@@ -206,7 +208,7 @@ web-bundle-check: $(VUE_DEPS)
 	@test "$$(ls $(BUNDLE))" = app.js || { echo "$(BUNDLE) must contain exactly app.js"; exit 1; }
 
 test-changed:
-	CARGO_TARGET_DIR=$(TARGET_DIR) $(DYN_ENV) python3 scripts/changed_tests.py --base $(BASE) $(if $(DRY),--dry-run)
+	CARGO_TARGET_DIR=$(TARGET_DIR) $(DYN_ENV) python3 scripts/changed_tests/changed_tests.py --base $(BASE) $(if $(DRY),--dry-run)
 
 # JVM unit tests of the Android shell (no emulator, NDK or Rust needed; needs the Android SDK and JDK 17+).
 android-test:
@@ -250,7 +252,7 @@ net-boundary:
 
 # Core/platform boundary: manifests, include paths and platform scripts stay on their side (net-boundary looks at network crates inside the core).
 boundary:
-	python3 scripts/check_boundary.py
+	python3 scripts/checks/check_boundary.py
 
 web-typecheck: $(VUE_DEPS)
 	cd $(VUE) && npx vue-tsc --noEmit
@@ -264,7 +266,7 @@ web-demo:
 # (ONLY here means battery.py item names, not web-check cases: GNU make passes ONLY down to children,
 # so battery.py calls each sub-make with an explicit `ONLY=` — otherwise the item name would become a Playwright filter).
 battery:
-	$(DYN_ENV) python3 scripts/battery.py $(if $(OUT),--out $(OUT)) $(if $(ONLY),--only $(ONLY)) $(if $(SERIAL),--serial)
+	$(DYN_ENV) python3 scripts/battery/battery.py $(if $(OUT),--out $(OUT)) $(if $(ONLY),--only $(ONLY)) $(if $(SERIAL),--serial)
 
 E2E := core/web_gui/e2e
 E2E_DEPS := $(E2E)/node_modules/.package-lock.json

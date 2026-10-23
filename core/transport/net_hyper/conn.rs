@@ -289,7 +289,7 @@ impl PeerConn for HyperConn {
     }
 
     fn link(&self) -> LinkInfo {
-        link_info(&self.core.meter, &[])
+        link_info(&self.core.meter)
     }
 
     fn close(&self, code: u32, reason: &[u8]) {

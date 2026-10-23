@@ -2,7 +2,7 @@
 # Build of meshtown for macOS (the native architecture of this Mac, no cross-compilation).
 # Usage: platforms/macos/build/build.sh cli|app|app_x86|app_universal
 # The dist/ file names carry the version from Cargo.toml (<v> below); after copying to dist/
-# the two newest versions of each name stay, older ones are removed (build_keep_two, release/lib.sh).
+# the two newest versions of each name stay, older ones are removed (build_keep_two, scripts/release/lib.sh).
 #   cli            — binary without tray (--no-default-features --features net-hyper), no bundle: dist/meshtown-macos-cli-<v>
 #   app            — binary with tray (arm64) + .app + zip: dist/meshtown-macos-gui-<v>,
 #                    dist/macos-arm64/MeshTown-<v>.app, dist/macos-arm64/MeshTown-macos-arm64-<v>.zip
@@ -15,7 +15,7 @@
 # stays MeshTown.app — it is installed into "Applications".
 # Each kind builds its own binary, there are no prerequisites between kinds; app_universal builds
 # both halves itself (an already built half is a cargo no-op).
-# Environment variables (defaults in release/lib.sh):
+# Environment variables (defaults in scripts/release/lib.sh):
 #   BUILD_ROOT — build directory, default .tmp/build/ at the tree root.
 #   TARGET_DIR — CARGO_TARGET_DIR for the native (arm64) build.
 #   PROFILE — for app (arm64) only: PROFILE=dev builds without --release from $TARGET_DIR/debug and puts
@@ -32,8 +32,8 @@ fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-# shellcheck source=../../../release/lib.sh
-. "$SCRIPT_DIR/../../../release/lib.sh"
+# shellcheck source=../../../scripts/release/lib.sh
+. "$SCRIPT_DIR/../../../scripts/release/lib.sh"
 
 KIND="$1"
 APP_NAME="${APP_NAME:-MeshTown}"

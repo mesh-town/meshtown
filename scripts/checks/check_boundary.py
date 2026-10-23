@@ -8,7 +8,7 @@ Three kinds of checks:
     (`core/` or `platforms/<OS>/`);
   * non-Rust files of a platform (scripts, Makefiles, manifests, docs): a `..` climb or a path from the workspace
     root variable must not leave `platforms/<OS>/` except to a few known places of the workspace.
-Run: `python3 scripts/check_boundary.py [ROOT]`. Exit code: 0 clean (no output), 1 violations (stdout, one per
+Run: `python3 scripts/checks/check_boundary.py [ROOT]`. Exit code: 0 clean (no output), 1 violations (stdout, one per
 line: `<file>: <rule>: <text>`), 2 could not check (stderr).
 """
 
@@ -61,8 +61,8 @@ def allowed_target(root: Path, target: Path, own: Path, manifest: bool) -> bool:
     return (
         (len(parts) == 1 and parts[0] in ROOT_FILES)
         or parts[0] in ROOT_DIRS
-        or parts == ("release", "lib.sh")
-        or parts[:2] == ("release", "dist")
+        or parts == ("scripts", "release", "lib.sh")
+        or parts[:3] == ("scripts", "release", "dist")
         or (manifest and parts[0] == "core")
     )
 
@@ -212,7 +212,7 @@ def run(root: Path) -> list:
 
 
 def main(argv: list) -> int:
-    default = Path(__file__).resolve().parent.parent
+    default = Path(__file__).resolve().parents[2]
     root = Path(argv[1]).resolve() if len(argv) > 1 else default
     try:
         found = run(root)

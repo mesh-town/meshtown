@@ -5,7 +5,7 @@ From `git diff` against `merge-base(BASE, HEAD)` plus untracked files and the pa
 rules it decides the `cargo nextest` slices,
 `make test-py`/`test-js`/`web-typecheck`/`web-check`/`android-test` and runs them in order. It does not parse Rust — only
 a text search for `meshtown_core::<module>` as a whole word (`users_of`), without an AST.
-Run: `python3 scripts/changed_tests.py --base main [--dry-run]`.
+Run: `python3 scripts/changed_tests/changed_tests.py --base main [--dry-run]`.
 """
 
 from __future__ import annotations

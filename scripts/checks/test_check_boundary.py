@@ -13,7 +13,7 @@ BUILD_SH = """#!/bin/sh
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 grep version "$ROOT/Cargo.toml"
-. "$SCRIPT_DIR/../../../release/lib.sh"
+. "$SCRIPT_DIR/../../../scripts/release/lib.sh"
 """
 
 
@@ -34,7 +34,7 @@ class _Tree:
         self.write("platforms/macos/Cargo.toml", _manifest("meshtown-macos", "gui/lib.rs", {"meshtown-core": "../../core"}))
         self.write("platforms/macos/gui/lib.rs", "")
         self.write("platforms/macos/build/build.sh", BUILD_SH)
-        self.write("release/lib.sh", "PROTO=1\n")
+        self.write("scripts/release/lib.sh", "PROTO=1\n")
         self.write_root_manifest()
         subprocess.run(["git", "init", "-q"], cwd=root, check=True)
         self.git_add()
@@ -89,7 +89,7 @@ class _TreeCase(unittest.TestCase):
 
 class CleanTree(_TreeCase):
     def test_clean_tree_exits_0(self):
-        # given: a workspace where the platform uses only the core and release/lib.sh
+        # given: a workspace where the platform uses only the core and scripts/release/lib.sh
         # when: the checker runs
         result = self.run_checker()
         # then: it passes silently
@@ -108,7 +108,7 @@ class CoreReachesPlatform(_TreeCase):
 
     def test_core_include_outside_core_exits_1(self):
         # given: a core source embeds a file from outside core/
-        self.tree.write("core/lib.rs", 'const S: &str = include_str!("../release/lib.sh");\n')
+        self.tree.write("core/lib.rs", 'const S: &str = include_str!("../scripts/release/lib.sh");\n')
         self.tree.git_add()
         # then: the source is reported
         self.assert_violation("core-include-escape", "core/lib.rs")

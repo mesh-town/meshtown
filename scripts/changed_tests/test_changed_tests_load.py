@@ -1,4 +1,4 @@
-"""Tests for _load_examples() from scripts/changed_tests.py.
+"""Tests for _load_examples() from scripts/changed_tests/changed_tests.py.
 
 Shared helpers are in changed_tests_fixtures.py (see its docstring).
 """

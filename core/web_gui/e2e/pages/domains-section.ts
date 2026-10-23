@@ -58,18 +58,6 @@ export class DomainsSection {
     return (await target.boundingBox())?.width ?? 0;
   }
 
-  /** Returns the scroll of the table wrapper `.table-scroll` of the open tab: the full and the visible width. */
-  async tableScrollMetrics(): Promise<{ scrollWidth: number; clientWidth: number }> {
-    return this.panel.locator('.table-scroll').evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
-  }
-
-  /** Returns the texts of header cells whose content is wider than the cell (truncation). */
-  async clippedHeaders(): Promise<string[]> {
-    return this.headers.evaluateAll((ths) =>
-      ths.filter((th) => th.scrollWidth > th.clientWidth).map((th) => th.textContent ?? ''),
-    );
-  }
-
   /**
    * Expected headers, from the body of the last `/api/state` response received by the page (the listener is `trackState`
    * from `AppShell.open`; a separate request could diverge from it — the demo node is live).
