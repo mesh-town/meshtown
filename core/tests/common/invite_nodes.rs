@@ -117,7 +117,7 @@ pub(crate) fn quick_opts(head: &InviteHead, limit_secs: u64) -> RedeemOpts {
         first_pause: Duration::from_millis(100),
         max_pause: Duration::from_millis(400),
         deadline_unix: unix_now() + limit_secs,
-        ..RedeemOpts::for_head(head, false)
+        ..RedeemOpts::for_head(head)
     }
 }
 

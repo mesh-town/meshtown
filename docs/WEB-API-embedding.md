@@ -1,7 +1,7 @@
 # Node HTTP API contract: how the API gets into the binary
 
 Part 3 of 3. Continuation — section "3. How it gets into the binary". Part 1 (1.1–1.5) is
-`WEB-API.md`. Part 2 (1.6–1.9, section 2) is `WEB-API-config.md`.
+`WEB-API.md`. Part 2 (1.6–1.8, section 2) is `WEB-API-config.md`.
 
 ---
 

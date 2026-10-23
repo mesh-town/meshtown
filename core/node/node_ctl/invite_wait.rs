@@ -83,7 +83,6 @@ pub(super) fn start(
     st.invite_gen += 1;
     let invite_gen = st.invite_gen;
     let view = waiting_view(&head);
-    let relay = st.effective_settings.net.uses_relay();
     let test_net = st.test_net.clone();
     let owner = st.owner.clone();
     let job = Job {
@@ -93,7 +92,6 @@ pub(super) fn start(
         head,
         peers,
         save,
-        relay,
         test_net,
         owner,
     };
@@ -147,7 +145,6 @@ struct Job {
     head: InviteHead,
     peers: Vec<PeerAddr>,
     save: SaveKey,
-    relay: bool,
     test_net: Option<Arc<crate::transport::net::mem::MemNet>>,
     owner: Option<NodeSecret>,
 }
@@ -159,7 +156,7 @@ impl Job {
                 "the node's own key is not known".to_string(),
             ));
         };
-        let opts = RedeemOpts::for_head(&self.head, self.relay);
+        let opts = RedeemOpts::for_head(&self.head);
         let transport = match crate::node::bind_ephemeral(self.test_net.as_ref()).await {
             Ok(t) => t,
             Err(e) => return self.refuse(RedeemError::Bind(format!("{e:#}"))),

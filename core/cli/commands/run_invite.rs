@@ -152,7 +152,7 @@ async fn redeem_text(
     secret: &NodeSecret,
 ) -> anyhow::Result<String> {
     say("invite", TEXT_WAITING);
-    let opts = RedeemOpts::for_head(&p.head, run.effective_settings.net.uses_relay());
+    let opts = RedeemOpts::for_head(&p.head);
     let last = AtomicU64::new(0);
     let note = move |pr: Progress| report_progress(&last, pr);
     let transport = crate::node::bind_ephemeral(None)
