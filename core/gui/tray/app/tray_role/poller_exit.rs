@@ -34,8 +34,8 @@ impl Poller {
     /// Takes `&mut self` although the body changes nothing: `Poller` is not `Sync` (fields `Box<dyn Fn + Send>`),
     /// and holding `&Poller` across `.await` in a future that `spawn` requires to be `Send` is not allowed — the same
     /// trick as in `tick`/`tick_own`/`tick_foreign` nearby.
-    pub(super) async fn send_exit_edit(&mut self, edit: ExitEdit) {
-        if self.try_edit_once(&edit).await || self.try_edit_once(&edit).await {
+    pub(super) async fn send_exit_edit(&mut self, slot: Option<&str>, edit: ExitEdit) {
+        if self.try_edit_once(slot, &edit).await || self.try_edit_once(slot, &edit).await {
             return;
         }
         self.say("exits: edit was not applied".to_string());
@@ -44,8 +44,9 @@ impl Poller {
     /// The "Allow sites to open through this computer" checkbox: a `GET` → `PUT` round with `exit.enabled`, and a second round on failure.
     /// Whatever the outcome, the last model is forgotten so that the next tick sends the checkbox again
     /// from the node snapshot (it converges to the fact, not to the click).
-    pub(super) async fn send_exit_server(&mut self, enable: bool) {
-        let done = self.try_serve_once(enable).await || self.try_serve_once(enable).await;
+    pub(super) async fn send_exit_server(&mut self, slot: Option<&str>, enable: bool) {
+        let done =
+            self.try_serve_once(slot, enable).await || self.try_serve_once(slot, enable).await;
         self.last_exit_menu = None;
         if done {
             (self.send_serve_note)(ServeNote::Idle);
@@ -60,9 +61,9 @@ impl Poller {
         self.notes_visible_until = Some(Instant::now() + self.timing.note_visible_for);
     }
 
-    async fn try_serve_once(&mut self, enable: bool) -> bool {
+    async fn try_serve_once(&mut self, slot: Option<&str>, enable: bool) -> bool {
         let token = super::run::read_token(&self.token_path);
-        let Ok(Reply::Ok(current)) = local_api::get_config(self.port, &token).await else {
+        let Ok(Reply::Ok(current)) = local_api::get_config(self.port, &token, slot).await else {
             return false;
         };
         let Some(rev) = ConfigDoc::from_value(&current).rev else {
@@ -70,7 +71,7 @@ impl Poller {
         };
         let body = exit_server_body(rev, enable);
         matches!(
-            local_api::put_config(self.port, &token, &body).await,
+            local_api::put_config(self.port, &token, slot, &body).await,
             Ok(Reply::Ok(_))
         )
     }
@@ -81,9 +82,9 @@ impl Poller {
     /// the whole round is repeated on any failure without parsing the response code — `edit_exits` is idempotent
     /// (the same `Toggle`/`Clear` a second time gives the same result), so an extra retry on a non-409
     /// cause does not corrupt data, it only spends a request.
-    async fn try_edit_once(&mut self, edit: &ExitEdit) -> bool {
+    async fn try_edit_once(&mut self, slot: Option<&str>, edit: &ExitEdit) -> bool {
         let token = super::run::read_token(&self.token_path);
-        let current = match local_api::get_config(self.port, &token).await {
+        let current = match local_api::get_config(self.port, &token, slot).await {
             Ok(Reply::Ok(value)) => value,
             _ => return false,
         };
@@ -97,7 +98,7 @@ impl Poller {
             .to_string()
             .into_bytes();
         matches!(
-            local_api::put_config(self.port, &token, &body).await,
+            local_api::put_config(self.port, &token, slot, &body).await,
             Ok(Reply::Ok(_))
         )
     }

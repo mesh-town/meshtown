@@ -11,32 +11,71 @@ through the network it runs in.
 
 ## Module map
 
-| Module | What the program does with it |
+Paths are from the repository root; a path ending in `/` is a directory.
+
+| Path | What the program does with it |
 |---|---|
-| `output` | single formatted output to stdout |
-| `network_key` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
-| `words` | EFF word list, word pool, the random part of the key and its validation |
-| `peer_record` | format and encryption of the DHT record (member list) |
-| `dht` | joining the mainline DHT, publishing and reading the record |
-| `domains` | the node's own domain list (a second iroh-docs document without reconciliation), the network's shared document and console commands |
-| `handshake` | handshake with the network secret |
-| `membership` | member bookkeeping and gossip topic events |
-| `transfer_probe` | volume probe over an established connection |
-| `connection_report` | connection path, relay state, network report (NAT) |
-| `http_min` | minimal HTTP/1.1 client over a ready stream and shared TLS settings for checks |
-| `doh` | the checks' own resolver: DNS over HTTPS and a separate query to the ISP's resolver |
-| `reachability` | step-by-step check of domain reachability and classification of the result |
-| `checks` | check records in the shared document, check schedule |
-| `config_file` | settings file: reading, writing, merging with flags, node secret |
-| `invite` | invite string: building and parsing |
-| `console` | node console: commands from standard input, the first is `invite` |
-| `node` | assembling the node from all modules, the main loop |
-| `main` | command-line argument parsing (`keygen`, `run`), including the `--invite` flag |
-| `socks5` | parsing and building SOCKS5 frames, client for tests and the `get` command |
-| `route` | choosing a path by domain from `chk/` records and the member list |
-| `exit` | exit protocol `meshtown/exit/1`: both sides and byte splicing |
-| `ports` | publishing own TCP ports and opening others': `meshtown/port/1`, `port/tcp/` records |
-| `proxy` | SOCKS5 server, connection over the chosen path, console commands |
+| `core/node/output.rs` | single formatted output to stdout |
+| `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
+| `core/members/words.rs` | EFF word list, word pool, the random part of the key and its validation |
+| `core/transport/net_mainline/record.rs` | format and encryption of the DHT record (member list) |
+| `core/transport/net_hyperdht/` | joining the DHT, publishing and reading the record |
+| `core/proxy/domains/` | the node's own domain list (a second iroh-docs document without reconciliation), the network's shared document and console commands |
+| `core/members/handshake.rs` | handshake with the network secret |
+| `core/members/membership.rs` | member bookkeeping and gossip topic events |
+| `core/transport/transfer_probe.rs` | volume probe over an established connection |
+| `core/node/peer_path.rs` | connection path of a peer and watching for its changes |
+| `core/site_checks/http_min.rs` | minimal HTTP/1.1 client over a ready stream and shared TLS settings for checks |
+| `core/site_checks/doh/` | the checks' own resolver: DNS over HTTPS and a separate query to the ISP's resolver |
+| `core/site_checks/reachability/` | step-by-step check of domain reachability and classification of the result |
+| `core/site_checks/checks/` | check records in the shared document, check schedule |
+| `core/config/config_file/` | settings file: reading, writing, merging with flags, node secret |
+| `core/invite/` | invite string: building, parsing, issuing and redeeming |
+| `core/cli/console.rs` | node console: commands from standard input, the first is `invite` |
+| `core/node/` | assembling the node from all modules, the main loop |
+| `core/cli/` | command-line argument parsing (`keygen`, `run`), including the `--invite` flag |
+| `core/proxy/socks5/` | parsing and building SOCKS5 frames, client for tests and the `get` command |
+| `core/proxy/route.rs` | choosing a path by domain from `chk/` records and the member list |
+| `core/exit/` | exit protocol `meshtown/exit/1`: both sides and byte splicing |
+| `core/ports_sharing/` | publishing own TCP ports and opening others': `meshtown/port/1`, `port/tcp/` records |
+| `core/proxy/` | SOCKS5 server, connection over the chosen path, console commands |
+| `core/web_gui/` | the node's web page and its HTTP API |
+| `platforms/<os>/` | the desktop app of one operating system: tray, packaging (see "Crates") |
+
+## Crates
+
+The Cargo workspace (root `Cargo.toml`) has four members:
+
+- `core/` — package `meshtown-core`: library (`core/lib.rs`) and the `meshtown` binary (`core/cli/main.rs`). It is the
+  node itself; the binary has no tray icon of its own (the tray backend lives in `platforms/<os>/gui/`).
+- `platforms/linux/`, `platforms/macos/`, `platforms/windows/` — packages `meshtown-linux`, `meshtown-macos`,
+  `meshtown-windows`. Each is a library (`gui/lib.rs`, the tray) plus the desktop binary (`cli/main.rs`) of the same
+  name as the package. Each depends on `meshtown-core` with the `gui` feature, under `cfg(target_os = …)`.
+
+`default-members = ["core"]`: `cargo build` without `-p` builds the `meshtown` node binary, which has no tray icon.
+The core's `gui` feature (tray support code, `gui = ["dep:tray-icon"]`) is on by default (`default = ["gui", "net-hyper"]`);
+`--no-default-features --features net-hyper` builds the core without it. A platform app is built with `-p meshtown-<os>`.
+Crate roots are set by `path` in the manifests, not by directory convention.
+
+Android is a Gradle application (`platforms/android/gui/`). It is not a workspace member: the node is built as a
+shared library for it by `platforms/android/build/build.sh`.
+
+## Core and platform boundary
+
+- The core does not depend on anything in `platforms/`: no `path` dependency into that tree, and no `include_*!` or
+  `#[path]` in `core/` that leaves `core/`.
+- A platform crate depends only on `meshtown-core` among the workspace packages, through its public API (third-party
+  crates are fine).
+- Scripts and `Makefile`s of a platform stay inside its directory. The exceptions are the path dependency on `core/`
+  (only in the platform's `Cargo.toml`), `release/lib.sh`, `release/dist/`, and the workspace root itself, from which
+  `cargo` is run (root `Cargo.toml` and `Cargo.lock`, `.tmp/`, `target/`, `dist/`).
+- Operating-system code is allowed in the core when a node without a tray needs it (console, file limits, signals).
+  Tray, windows and packaging belong to the platform.
+
+`make boundary` (`scripts/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
+text of files: in `core/` only `*.rs` and the manifest, in `platforms/` every text file (sources, `Makefile`s, scripts,
+`.md`). It is part of `make check`
+and runs in CI. A path that leaves the platform directory for any other place is reported with file and line.
 
 ## How the node works (`node::start_node`)
 
@@ -130,14 +169,14 @@ and is printed by the command `meshtown keygen --raw`.
 
 ## Protocols
 
-- **Network key** (`network_key.rs`): the human form is `label--word-word-group` (the label does not
+- **Network key** (`core/members/network_key.rs`): the human form is `label--word-word-group` (the label does not
   affect the key), the machine form is `mesh1-` + 52 lowercase base32 characters (32 bytes
   of secret); all other keys are subkeys via `blake3::derive_key` with different contexts.
-- **DHT record** (`peer_record.rs`, `dht.rs`): a mutable BEP44 record, the signing key and salt come
+- **DHT record** (`core/transport/net_mainline/record.rs`, `core/transport/net_hyperdht/`): a mutable BEP44 record, the signing key and salt come
   from subkeys; the value is `nonce(12) ‖ ChaCha20-Poly1305(postcard(Roster))`, ≤ 990 bytes;
   a member record lives 15 min; publishing uses CAS on the previous `seq` (also when the
   previous record cannot be decrypted).
-- **Handshake** (`handshake.rs`): one bi stream, everything under a 10 s timeout, node ids from TLS
+- **Handshake** (`core/members/handshake.rs`): one bi stream, everything under a 10 s timeout, node ids from TLS
   (`remote_id()`/`ctx.me`):
   1. A→B: `nonce_a` (32 bytes).
   2. B→A: `nonce_b` (32) ‖ `responder_tag` (32).
@@ -214,7 +253,7 @@ The publisher's check order: permission (whether the requester is a member) → 
 
 - **Gossip gate** is absent — see "Limitations" below.
 - **Threat model** — see the section below.
-- **Volume probe** (`transfer_probe.rs`): a bi stream, `u32 LE length ‖ zeros`, the reply is the same 4 bytes.
+- **Volume probe** (`core/transport/transfer_probe.rs`): a bi stream, `u32 LE length ‖ zeros`, the reply is the same 4 bytes.
 
 Keys of the domain list document:
 
@@ -260,7 +299,7 @@ The reachability check must go around the node's own TUN, or it will measure its
 For now this is ensured by never calling the system resolver anywhere: the DoH server is set
 by address, the domain's address is taken from its reply, and a reply from the fake-ip pool (198.18.0.0/15)
 is rejected. When TUN appears, the outgoing socket will have to be marked to bypass the tunnel — there is one
-place for that: `reachability::connect_tcp`.
+place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
 
 ## Limitations
 
@@ -279,7 +318,6 @@ place for that: `reachability::connect_tcp`.
   authors.
 - There are no limits on the number of domains and records.
 - Deleted domains stay in the document as empty records (tombstones) and are not cleaned up.
-- Out of scope: domain reachability checks (`chk/`), SOCKS, TUN, service, tray,
-  Windows/macOS builds, own relay.
+- Out of scope: domain reachability checks (`chk/`), SOCKS, TUN, own relay.
 - The DNS query identifier is zero; for the ISP's reply this is acceptable, because
   addresses from it are not used.

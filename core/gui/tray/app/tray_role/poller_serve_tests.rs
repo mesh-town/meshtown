@@ -47,11 +47,12 @@ mod serve_checkbox {
                 Box::new(|_n| {}),
             ),
             timing: PollTiming::PROD,
+            overview_gate: crate::gui::tray::app::tray_role::overview_poll::OverviewGate::new(),
         }
     }
 
     async fn config_exit_enabled(port: u16) -> bool {
-        match local_api::get_config(port, FAKE_TOKEN).await {
+        match local_api::get_config(port, FAKE_TOKEN, None).await {
             Ok(Reply::Ok(v)) => v["config"]["exit"]["enabled"]
                 .as_bool()
                 .expect("config.exit.enabled is in the reply"),
@@ -76,9 +77,9 @@ mod serve_checkbox {
         std::fs::write(dir.join("token"), FAKE_TOKEN).unwrap();
         let mut p = poller(port, dir.join("token"), Arc::default());
 
-        p.send_exit_server(false).await;
+        p.send_exit_server(None, false).await;
         let after_off = config_exit_enabled(port).await;
-        p.send_exit_server(true).await;
+        p.send_exit_server(None, true).await;
         let after_on = config_exit_enabled(port).await;
 
         assert!(!after_off, "after false the config must hold false");
@@ -97,7 +98,7 @@ mod serve_checkbox {
             log.clone(),
         );
 
-        p.send_exit_server(true).await;
+        p.send_exit_server(None, true).await;
 
         assert_eq!(p.last_exit_menu, None);
         assert_eq!(*log.lock().unwrap(), vec![LOG_LINE.to_string()]);
@@ -111,7 +112,7 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         rig.probe.exits("checkbox is on", |m| m.serves_exit);
 
-        rig.cmd(NodeCmd::SetExitServer(false));
+        rig.cmd(NodeCmd::SetExitServer { slot: None, on: false });
         let menu = rig.probe.exits("checkbox cleared by the snapshot", |m| {
             m.enabled && !m.serves_exit
         });
@@ -132,7 +133,7 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         let before = rig.probe.exits("first model", |m| m.enabled);
 
-        rig.cmd(NodeCmd::SetExitServer(!before.serves_exit));
+        rig.cmd(NodeCmd::SetExitServer { slot: None, on: !before.serves_exit });
         rig.probe.log(LOG_LINE);
         let again = rig.probe.exits("model sent again", |m| m.enabled);
 
@@ -158,7 +159,7 @@ mod serve_checkbox {
             reason: REASON_SERVE_REFUSED,
         };
 
-        rig.cmd(NodeCmd::SetExitServer(!before.serves_exit));
+        rig.cmd(NodeCmd::SetExitServer { slot: None, on: !before.serves_exit });
         let shown = rig.probe.serve("failure", |n| *n != ServeNote::Idle);
         let at = std::time::Instant::now();
         rig.probe.serve("rest", |n| *n == ServeNote::Idle);
@@ -183,7 +184,7 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         rig.probe.exits("checkbox is on", |m| m.serves_exit);
 
-        rig.cmd(NodeCmd::SetExitServer(false));
+        rig.cmd(NodeCmd::SetExitServer { slot: None, on: false });
         rig.probe
             .serve("rest after success", |n| *n == ServeNote::Idle);
         rig.probe.exits("checkbox cleared by the snapshot", |m| {
@@ -216,7 +217,7 @@ mod serve_checkbox {
         );
         rig.probe.view("Disabled", |v| *v == disabled);
 
-        rig.cmd(NodeCmd::SetExitServer(true));
+        rig.cmd(NodeCmd::SetExitServer { slot: None, on: true });
         tokio::time::sleep(T.note_visible_for * 2).await;
 
         assert!(

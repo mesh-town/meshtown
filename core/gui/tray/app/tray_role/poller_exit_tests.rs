@@ -103,12 +103,13 @@ mod send_exit_edit_round_trip {
                 Box::new(|_n| {}),
             ),
             timing: T,
+            overview_gate: crate::gui::tray::app::tray_role::overview_poll::OverviewGate::new(),
         };
         (handle, dir, poller)
     }
 
     async fn current_exits(port: u16) -> Vec<String> {
-        let reply = local_api::get_config(port, FAKE_TOKEN)
+        let reply = local_api::get_config(port, FAKE_TOKEN, None)
             .await
             .expect("get_config: the exchange must not fail");
         match reply {
@@ -152,7 +153,7 @@ mod send_exit_edit_round_trip {
         let new_id = id(1);
 
         poller
-            .send_exit_edit(ExitEdit::Toggle(new_id.clone()))
+            .send_exit_edit(None, ExitEdit::Toggle(new_id.clone()))
             .await;
 
         assert_eq!(
@@ -172,9 +173,9 @@ mod send_exit_edit_round_trip {
         let new_id = id(1);
 
         poller
-            .send_exit_edit(ExitEdit::Toggle(new_id.clone()))
+            .send_exit_edit(None, ExitEdit::Toggle(new_id.clone()))
             .await;
-        poller.send_exit_edit(ExitEdit::Toggle(new_id)).await;
+        poller.send_exit_edit(None, ExitEdit::Toggle(new_id)).await;
 
         assert!(
             current_exits(port).await.is_empty(),
@@ -191,8 +192,10 @@ mod send_exit_edit_round_trip {
         let port = poller.port;
         let (id1, id2) = (id(1), id(2));
 
-        poller.send_exit_edit(ExitEdit::Toggle(id1)).await;
-        poller.send_exit_edit(ExitEdit::Toggle(id2.clone())).await;
+        poller.send_exit_edit(None, ExitEdit::Toggle(id1)).await;
+        poller
+            .send_exit_edit(None, ExitEdit::Toggle(id2.clone()))
+            .await;
 
         // a second Toggle of another id replaces the first rather than accumulating — like the button on the page
         assert_eq!(
@@ -210,8 +213,8 @@ mod send_exit_edit_round_trip {
         let (handle, dir, mut poller) = rig().await;
         let port = poller.port;
 
-        poller.send_exit_edit(ExitEdit::Toggle(id(1))).await;
-        poller.send_exit_edit(ExitEdit::Clear).await;
+        poller.send_exit_edit(None, ExitEdit::Toggle(id(1))).await;
+        poller.send_exit_edit(None, ExitEdit::Clear).await;
 
         assert!(
             current_exits(port).await.is_empty(),

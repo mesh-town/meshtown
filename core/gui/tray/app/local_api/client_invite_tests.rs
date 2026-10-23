@@ -30,7 +30,7 @@ mod invite_exchange {
         async fn get_invite_waits_and_gets_the_answer() {
             let node = setup(Node::AnswersAfter(SLOW_ANSWER)).await;
 
-            let reply = get_invite(node.port, FAKE_TOKEN).await;
+            let reply = get_invite(node.port, FAKE_TOKEN, None).await;
 
             assert!(
                 matches!(reply, Ok(Reply::Ok(_))),
@@ -64,7 +64,7 @@ mod invite_exchange {
             let node = setup(Node::Silent).await;
             let started = Instant::now();
 
-            let reply = get_invite(node.port, FAKE_TOKEN).await;
+            let reply = get_invite(node.port, FAKE_TOKEN, None).await;
 
             let waited = started.elapsed();
             assert!(

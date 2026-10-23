@@ -16,13 +16,18 @@
 
 mod classify;
 mod client;
+mod paths;
 mod request;
 mod response;
 mod transport;
 mod types;
 
-pub(crate) use client::{get_config, get_invite, get_state, post_stop, put_config};
+pub(crate) use client::{get_config, get_invite, get_overview, get_state, post_stop, put_config};
 pub(crate) use types::{ApiError, Reply};
+
+#[cfg(test)]
+#[path = "stub_node.rs"]
+pub(crate) mod stub_node;
 
 #[cfg(test)]
 #[path = "fixtures.rs"]

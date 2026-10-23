@@ -12,6 +12,7 @@
 
 use crate::web_gui::RouteMode;
 
+use crate::gui::tray::app::nets_menu::{ExitGroup, NetMenu};
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::snapshot::{
     TrayChosenExit, TrayMembers, TrayPeer, TrayRoute, TraySnapshot,
@@ -31,6 +32,12 @@ pub struct ExitMenu {
     pub serves_exit: bool,
     /// `members` of the snapshot: the removal vote and our own exclusion (`members_note`).
     pub members: TrayMembers,
+    /// The network the flat menu shows; `None` — the main network (or no network at all).
+    pub slot: Option<String>,
+    /// A submenu per network; filled only when two or more networks are shown.
+    pub nets: Vec<NetMenu>,
+    /// The exits per network, for "Exit via…"; filled together with `nets`, then `items` is empty.
+    pub groups: Vec<ExitGroup>,
 }
 
 /// One submenu item: a node, an identifier for tray commands, a ready label, the "chosen" mark and
@@ -49,7 +56,8 @@ pub const OFFLINE_EXIT_MARK: &str = "🔴";
 impl ExitMenu {
     /// An inactive hint instead of the member list when there are no exits.
     pub fn empty_hint(&self) -> Option<&'static str> {
-        self.items.is_empty().then_some(EMPTY_HINT)
+        let grouped = self.groups.iter().any(|g| !g.items.is_empty());
+        (self.items.is_empty() && !grouped).then_some(EMPTY_HINT)
     }
 }
 
@@ -76,6 +84,9 @@ pub fn disabled_exit_menu(proxy: ProxyState) -> ExitMenu {
         proxy,
         serves_exit: false,
         members: TrayMembers::default(),
+        slot: None,
+        nets: Vec::new(),
+        groups: Vec::new(),
     }
 }
 
@@ -104,6 +115,9 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
         proxy: ProxyState::of_snapshot(&snap.socks),
         serves_exit: snap.exit.enabled,
         members: snap.members,
+        slot: None,
+        nets: Vec::new(),
+        groups: Vec::new(),
     }
 }
 

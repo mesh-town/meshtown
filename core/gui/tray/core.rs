@@ -7,6 +7,7 @@ use super::actions_ui::ActionsUi;
 use super::backend::TrayBackend;
 use super::frame_cache::FrameCache;
 use super::menu_build::{build_icons, build_menu, install_menu_handler, TrayUi};
+use super::nets_click::{menu_facts, MenuFacts};
 use super::spin::Spin;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::start_note::StartNote;
@@ -32,24 +33,7 @@ pub(crate) const MENU_SERVE: &str = "serve";
 /// a tail is the "As usual" item (clear the choice), the prefix + the node's `id_full` toggles that node.
 pub(crate) const MENU_EXIT_PREFIX: &str = "exit:";
 
-/// A command to the node poller from the menu items. Sent only by `Core::dispatch_tray_cmd`, read only by
-/// the `tray_role` poller.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum NodeCmd {
-    Start,
-    Stop,
-    /// Choose/clear an exit by the node's `id_full` — a click on a submenu leaf with that id.
-    ToggleExit(String),
-    /// Clear the chosen exit — a click on "As usual".
-    ClearExits,
-    /// Copy the invite to the clipboard — a click on "Invite a member".
-    CopyInvite,
-    /// Turn `exit.enabled` on or off — a click on the checkbox "Allow sites to open via this computer".
-    SetExitServer(bool),
-}
-
-/// Sender of commands to the node poller.
-pub type NodeCmdTx = tokio::sync::mpsc::UnboundedSender<NodeCmd>;
+pub(crate) use super::node_cmd::{NodeCmd, NodeCmdTx};
 
 /// A command to the tray: update the icon/menu from the node snapshot, update the "Exit via…" submenu, a click on a
 /// menu item, a spinner tick, end the process with a code.
@@ -114,6 +98,15 @@ pub struct Core {
     serves_exit: bool,
     members: crate::gui::tray::app::snapshot::TrayMembers,
     spin: Spin,
+    /// The network the flat menu works with; `None` is the main one.
+    flat_slot: Option<String>,
+    facts: MenuFacts,
+    /// The network the last "Invite a member" click was for.
+    invite_slot: Option<String>,
+    /// Names of the shown networks that have no connection.
+    offline_nets: Vec<String>,
+    /// Whether a removal vote (not only a join request) is pending in some shown network.
+    removal_vote: bool,
 }
 
 impl Core {
@@ -122,16 +115,17 @@ impl Core {
     pub fn attach_ui(&mut self) -> Result<(), String> {
         let icons = build_icons()?;
         let exit = super::exit_menu::ExitUi::build()?;
-        let actions = ActionsUi::build(self.invite_note);
+        let mut actions = ActionsUi::build(self.invite_note);
         let (menu, status_item, open_item, node_item, proxy_item) = build_menu(
             self.view,
             &self.route,
             &self.proxy,
             exit.submenu(),
-            &actions,
+            &mut actions,
         )?;
 
         let vote = super::vote_item::VoteUi::new(menu.clone());
+        let nets = super::nets_ui::NetsUi::new(menu.clone());
         let icon = super::menu_build::view_icon(&icons, self.icon_key())?;
         let tray = tray_icon::TrayIconBuilder::new()
             .with_icon(icon)
@@ -154,6 +148,7 @@ impl Core {
             exit_submenu: exit,
             actions,
             vote,
+            nets,
         });
         self.refresh_ui();
         Ok(())
@@ -240,8 +235,22 @@ impl Core {
         self.proxy = menu.proxy.clone();
         self.serves_exit = menu.serves_exit;
         self.members = menu.members;
+        self.flat_slot = menu.slot.clone();
+        self.facts = menu_facts(&menu);
+        self.offline_nets = menu
+            .nets
+            .iter()
+            .filter(|n| !n.online && !n.joining)
+            .map(|n| n.label.clone())
+            .collect();
+        self.removal_vote = menu.nets.iter().any(|n| n.voting > 0);
+        let note = self.net_invite_note();
         if let Some(ui) = &mut self.ui {
             ui.actions.apply_exit_menu(&menu);
+            let shown = note
+                .as_ref()
+                .map(|(slot, text)| (slot.as_str(), text.as_str()));
+            ui.nets.apply(&menu, shown, &mut ui.actions);
             ui.exit_submenu.apply_exit_menu(menu);
         }
         self.refresh_ui();
@@ -283,6 +292,11 @@ pub(crate) fn channel(
         serves_exit: false,
         members: Default::default(),
         spin: Spin::new(),
+        flat_slot: None,
+        facts: MenuFacts::default(),
+        invite_slot: None,
+        offline_nets: Vec::new(),
+        removal_vote: false,
     };
     (tx, core)
 }
