@@ -650,3 +650,6 @@ fn busy_port() -> (std::net::TcpListener, u16) {
     let port = busy.local_addr().unwrap().port();
     (busy, port)
 }
+
+#[path = "run_outcome_tests.rs"]
+mod outcome;

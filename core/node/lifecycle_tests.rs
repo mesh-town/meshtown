@@ -17,6 +17,9 @@ fn test_relaunch() -> crate::node::node_ctl::Relaunch {
     }
 }
 
+#[path = "lifecycle_network_tests.rs"]
+mod network;
+
 /// (a) `stop()` before calling `run_node_awaiting_key`, (b) `stop()` 50 ms after `spawn` — both times
 /// `Ok(())` within a `timeout` of 2 s.
 #[tokio::test]

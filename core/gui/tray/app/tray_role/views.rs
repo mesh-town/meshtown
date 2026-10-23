@@ -158,3 +158,7 @@ pub(super) const RUNNING_UNAVAILABLE_VIEW: View = View {
 #[cfg(test)]
 #[path = "views_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "views_fallback_tests.rs"]
+mod fallback_tests;

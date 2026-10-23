@@ -98,3 +98,7 @@ pub(super) async fn config_put_handler(
     }
     resp
 }
+
+#[cfg(test)]
+#[path = "config_tests.rs"]
+mod tests;
