@@ -33,7 +33,6 @@ pub(super) enum Phase {
 #[derive(Clone, Debug)]
 pub(crate) enum Cmd {
     Stop,
-    #[allow(dead_code)]
     LeaveNet {
         secret: crate::transport::net::NodeSecret,
     },

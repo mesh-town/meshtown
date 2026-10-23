@@ -149,3 +149,37 @@ fn without_file_only_current_key_changes() {
     assert_eq!(state.current_network_key.as_deref(), Some(b.as_str()));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn drop_network_clears_key_exits_and_publications_and_renews_the_secret() {
+    let dir = temp_dir();
+    let mut state = state_with_file(&dir, &fresh_key("a"));
+    let rev = state.file_report.rev;
+    let old_secret = state.secret.to_bytes();
+    let new_secret = NodeSecret::from_bytes(&[9u8; 32]);
+    let written = state.drop_network(new_secret.clone(), 2, false).unwrap();
+    assert_eq!(written, Some(rev + 1));
+    assert_eq!(state.secret.to_bytes(), new_secret.to_bytes());
+    assert_ne!(state.secret.to_bytes(), old_secret);
+    assert_eq!(state.current_network_key, None);
+    let on_disk = file_settings(&dir);
+    assert_eq!(on_disk.net.network_key, None);
+    assert!(on_disk.net.route_exits.is_empty());
+    assert!(on_disk.net.ports_published.is_empty());
+    assert_eq!(on_disk.net.ports_opened, opened());
+    assert_eq!(state.file_settings, on_disk);
+}
+
+#[test]
+fn drop_network_with_keep_file_leaves_the_file_byte_for_byte() {
+    let dir = temp_dir();
+    let mut state = state_with_file(&dir, &fresh_key("a"));
+    let before = std::fs::read(dir.join("config.json")).unwrap();
+    let written = state
+        .drop_network(NodeSecret::from_bytes(&[9u8; 32]), 2, true)
+        .unwrap();
+    assert_eq!(written, None);
+    assert_eq!(std::fs::read(dir.join("config.json")).unwrap(), before);
+    assert_eq!(state.current_network_key, None);
+    assert_eq!(state.file_settings.net.network_key, None);
+}

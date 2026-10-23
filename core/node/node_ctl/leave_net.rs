@@ -38,7 +38,6 @@ impl NodeCtl {
 
     /// Leaving the network the node is on: from `Stopping` — `Busy`; from `NoNetwork` there is nothing to
     /// leave (`Ok`, no command); otherwise `Cmd::LeaveNet` with the identity the node takes afterwards.
-    #[allow(dead_code)]
     pub(crate) fn request_leave_net(&self, secret: NodeSecret) -> Result<(), ActionError> {
         let st = self
             .ctl_shared
@@ -56,7 +55,6 @@ impl NodeCtl {
     }
 
     /// The node waits for a network key.
-    #[allow(dead_code)]
     pub(crate) fn is_no_network(&self) -> bool {
         let st = self
             .ctl_shared
@@ -67,7 +65,6 @@ impl NodeCtl {
     }
 
     /// Stops the node because its network is being left.
-    #[allow(dead_code)]
     pub(crate) fn stop_for_leave(&self) {
         say("node", "leaving the network");
         self.request_stop();

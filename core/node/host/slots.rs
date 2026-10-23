@@ -17,16 +17,15 @@ use crate::node::output;
 use crate::web_gui::{AddedSlot, ConfigState, HostControl, HostError, SlotHandle};
 
 /// One slot of the host.
-struct Slot {
+pub(super) struct Slot {
     handle: SlotHandle,
     /// The same controller as `handle.node`, kept concretely to stop it without the page-request line.
-    ctl: Arc<NodeCtl>,
+    pub(super) ctl: Arc<NodeCtl>,
     /// The task running the slot's node cycle; `None` until it is spawned and after it is taken.
     task: Option<JoinHandle<anyhow::Result<()>>>,
     /// Turns `true` when the slot's node cycle has ended (a closed sender counts as the end too);
     /// `None` for the main slot, whose task the host waits for itself.
-    #[allow(dead_code)] // read by the slot retirement
-    ended: Option<watch::Receiver<bool>>,
+    pub(super) ended: Option<watch::Receiver<bool>>,
 }
 
 /// What adding a network at run time needs from the start of the run.
@@ -45,7 +44,6 @@ pub(crate) struct HostSlots {
     /// Set once at the start of a run that keeps a settings file; without it no network is added.
     context: OnceLock<SlotContext>,
     /// Background tasks of the slots being left, awaited together with the slot tasks.
-    #[allow(dead_code)] // filled by the slot retirement
     retiring: Mutex<Vec<JoinHandle<()>>>,
     /// Ids of the saved slots that could not be read or have no usable key, in disk order.
     broken: RwLock<Vec<NetSlotId>>,
@@ -116,9 +114,23 @@ impl HostSlots {
         std::mem::take(&mut *self.retiring.lock().unwrap_or_else(|e| e.into_inner()))
     }
 
+    /// The main slot's controller, concretely.
+    pub(super) fn main_ctl(&self) -> Arc<NodeCtl> {
+        let slots = self.read();
+        let main = slots.iter().find(|s| s.handle.id == NetSlotId::main());
+        main.expect("the main slot is created with the map and never removed")
+            .ctl
+            .clone()
+    }
+
+    /// The list of retirement tasks; held while a retirement checks the stop flag and registers its task,
+    /// so a task is either seen by `take_retiring` or refused.
+    pub(super) fn retiring_tasks(&self) -> std::sync::MutexGuard<'_, Vec<JoinHandle<()>>> {
+        self.retiring.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     /// Takes a slot out of the map; the main slot stays.
-    #[allow(dead_code)] // used by the slot retirement
-    fn remove_slot(&self, id: &NetSlotId) -> Option<Slot> {
+    pub(super) fn remove_slot(&self, id: &NetSlotId) -> Option<Slot> {
         let removed = {
             let mut slots = self.write();
             let at = slots.iter().position(|s| s.handle.id == *id);
@@ -143,7 +155,6 @@ impl HostSlots {
     }
 
     /// Forgets a broken slot; `true` when it was one.
-    #[allow(dead_code)] // used by the slot retirement
     pub(super) fn take_broken(&self, id: &NetSlotId) -> bool {
         let mut broken = self.broken.write().unwrap_or_else(|e| e.into_inner());
         let before = broken.len();
@@ -246,8 +257,8 @@ impl HostControl for HostSlots {
         self.add_new_slot()
     }
 
-    fn retire_slot(&self, _id: &NetSlotId, _announced: bool) -> Result<(), HostError> {
-        Err(HostError::Busy("not yet".into()))
+    fn retire_slot(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
+        self.retire(id, announced)
     }
 }
 

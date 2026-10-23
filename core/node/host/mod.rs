@@ -2,12 +2,14 @@
 //! - `run` — the assembly point "services → page → body → page shutdown";
 //! - `process` — the process services: the memory guard;
 //! - `add_slot` — adding a network at run time;
+//! - `retire` — leaving a network: setting its folder or files aside;
 //! - `saved_slots` — starting the networks saved under `nets/`;
 //! - `slots` — the map of network slots the page and the signal reach the nodes through;
 //! - `signal` — the Ctrl-C/SIGTERM stop signal.
 
 mod add_slot;
 mod process;
+mod retire;
 mod run;
 mod saved_slots;
 pub(crate) mod signal;
