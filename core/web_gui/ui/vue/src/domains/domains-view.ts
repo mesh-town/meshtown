@@ -203,7 +203,7 @@ export function mergedDomains(nets: SiteNet[], store: Store): MergedDomain[] {
 }
 
 export function columnGroups(nets: SiteNet[]): ColumnGroup[] {
-  return nets.map((n) => ({ slot: n.slot, label: n.label, peers: n.peers, span: Math.max(1, n.peers.length) }));
+  return nets.map((n) => ({ slot: n.slot, label: n.label, peers: n.peers, span: nets.length >= 2 ? Math.max(1, n.peers.length) : n.peers.length }));
 }
 
 // Columns in the table: site, "For you", the groups, actions.
@@ -226,8 +226,9 @@ function youCell(d: MergedDomain, nets: SiteNet[]): DomainCell {
 
 const NO_ROW_MARK: VerdictView = { cls: "badge-none", text: NONE_TEXT, title: "" };
 
-function netCells(d: MergedDomain, net: SiteNet, tail: string): DomainCell[] {
+function netCells(d: MergedDomain, net: SiteNet, tail: string, multi: boolean): DomainCell[] {
   const row = d.byNet[net.slot];
+  if (net.peers.length === 0 && !multi) return [];
   if (net.peers.length === 0) return [{ key: net.slot, kind: "empty", slot: net.slot, peer: null, tail, checked: true, mark: NO_ROW_MARK }];
   return net.peers.map((peer) => {
     const check = row ? (row.checks || {})[peer.id] : undefined;
@@ -240,7 +241,7 @@ function netCells(d: MergedDomain, net: SiteNet, tail: string): DomainCell[] {
 
 export function domainCells(d: MergedDomain, nets: SiteNet[]): DomainCell[] {
   const tail = (n: SiteNet) => (nets.length >= 2 ? n.label : "");
-  return [youCell(d, nets), ...nets.flatMap((n) => netCells(d, n, tail(n)))];
+  return [youCell(d, nets), ...nets.flatMap((n) => netCells(d, n, tail(n), nets.length >= 2))];
 }
 
 export function domainExit(d: MergedDomain, nets: SiteNet[], proxy: string, chosen: string[]): ExitCell {

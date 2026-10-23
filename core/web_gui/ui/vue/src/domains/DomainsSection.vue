@@ -70,7 +70,7 @@ async function exitVia(idFull: string): Promise<void> {
               <th>{{ DOMAINS_COL_YOU }}</th>
               <template v-for="g in groups" :key="g.slot">
                 <th v-for="p in g.peers" :key="p.id" class="col-peer" :title="p.id">{{ columnHead(p).name }}<br><span class="peer-code mono">{{ columnHead(p).id }}</span></th>
-                <th v-if="g.peers.length === 0" class="col-peer">—</th>
+                <th v-if="g.peers.length === 0 && nets.length >= 2" class="col-peer">—</th>
               </template>
               <th></th>
             </tr>
