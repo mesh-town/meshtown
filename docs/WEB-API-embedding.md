@@ -29,33 +29,28 @@ it is exceeded, the e2e check `static-limits.spec.ts` warns.
 
 ### 3.1 Where the listener sits in the entry point
 
-Module 10 (tray) removes `#[tokio::main]` and moves the main thread into the platform event loop,
-which does not return until the program exits. The page listener's place in this scheme is
-fixed once, so the requirements are recorded here before the loop is written.
+The process entry is `cli::run::start` (`core/cli/run.rs`), an async function under `#[tokio::main]`; the `meshtown`
+binary (`core/cli/main.rs`) only calls it. A platform binary (`platforms/<os>/cli/`) passes its tray backend
+(`core/gui/tray/`, `platforms/<os>/gui/lib.rs`) to the same entry, so with a tray the page listener runs on that
+runtime too. The listener is a task of the runtime and does not own the main thread.
 
 **What it runs on.** axum 0.8 on top of hyper (a manual accept loop on
 `hyper::server::conn::http1::Builder` — `axum::serve` has no hooks for the header size limit) plus
-tower/tower-http, rather than an own listener without a web framework. The weight comes from axum itself and its
-direct companions (below). The module is `core/web_gui/mod.rs` and `core/web_gui/`, next to
+tower/tower-http, rather than an own listener without a web framework. The module is `core/web_gui/mod.rs` and `core/web_gui/`, next to
 `core/site_checks/http_min.rs` (that one is a client; this is the only HTTP server in the tree).
 
-What the server must do: a single limit on the head size — not separate 8 KiB for the request line and
-16 KiB for headers, as was recorded here before, but one shared `max_buf_size` = 24 KiB for the
+What the server must do: a single limit on the head size — one shared `max_buf_size` = 24 KiB for the
 request line and headers together (overflow means a 431 response with an empty body from hyper and the connection
 is closed); a body of up to 256 KiB (the config document is never larger); `chunked` on input
 is not supported and is rejected with 400; keep-alive — the page polls the state every 2 s and the log
 every 1 s, and opening a connection for every poll is expensive; `Connection: close` if the
 client asks for it.
 
-There are six new dependencies, not one: `axum` (`default-features=false`,
-`features=["tokio","http1","json","query"]`) and its own `axum-core`, `matchit`, `mime`,
-`serde_path_to_error`, `serde_urlencoded` — `cargo tree` confirms that these are exactly six new
-packages. The rest of what the server uses directly (`hyper`, `hyper-util`, `tower`,
-`tower-http`, `http-body-util`) was already in the tree transitively and only becomes a direct
-dependency with a wider set of features; this adds no weight to the binary. `serde_json`
-(already there) serializes fifteen addresses with nested documents. Also already in the tree: `tokio`
-(`net`, `io-util`), `ring` (the source of randomness for the token), `data-encoding` (the token encoding),
-`serde` with `derive`.
+Dependencies: `axum` (`default-features=false`, `features=["tokio","http1","json","query"]`) with its own `axum-core`,
+`matchit`, `mime`, `serde_path_to_error`, `serde_urlencoded`; directly also `hyper`, `hyper-util`, `tower`,
+`tower-http` and `http-body-util`, with the minimal feature sets listed in `core/Cargo.toml`. `serde_json` serializes
+the documents. `tokio` (`net`, `io-util`), `ring` (the source of randomness for the token), `data-encoding` (the
+token encoding) and `serde` with `derive` are shared with the rest of the node.
 
 **Port.** Owned by the node. The value is `web.port` (default 7777, read-only, section 2, `WEB-API-config.md`); the command-line
 flag takes precedence over the file. Binding depends on the access mode `web.access` (section 1.1, `WEB-API.md`): `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0` with a filter by the peer address; no IPv6.
@@ -86,12 +81,10 @@ exists for a person sitting at the page. Rotation rewrites both the `web-token` 
 shared process state, so the "Open" item in the tray builds the link at the moment of the click and does not
 remember a string when the menu is created.
 
-**Shutdown.** The server does not own the main thread and does not claim it. The tokio runtime
-is started manually, the listener goes to it as a task, and two handles are handed out: a stop signal
-(`oneshot` or `CancellationToken`) and a `JoinHandle`. On the signal the listener stops
-accepting new connections, lets started requests finish with a deadline of about 2 s, closes and
-returns control. The tray loop on the main thread fires the signal and waits for the handle with the same deadline;
-if it does not get it in time, it exits anyway — loopback connections are not worth delaying the exit.
+**Shutdown.** The server does not own the main thread. `WebHandle::shutdown(deadline)` (`core/web_gui/listener.rs`)
+raises a stop signal (a `watch` channel) and waits for the listener task. On the signal the listener stops
+accepting new connections, lets started requests finish within its drain time, and closes. The process host (`core/node/host/run.rs`) calls it after the network slots stop; the deadline is the
+drain time, so loopback connections do not delay the exit.
 
 The server has no special "I am shutting down" response and does not need one: connections are simply dropped, and the page
 survives that on its own — the poll catches the network error and shows "Mesh Town is not responding" (section 1.3, `WEB-API.md`).

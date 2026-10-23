@@ -44,6 +44,9 @@ Rust dependencies in `Cargo.lock` are distributed under their own licenses, list
 | `BSD-3-Clause` | `curve25519-dalek`, `ed25519-dalek`, `subtle` |
 | `BSD-2-Clause` | `spez` |
 | `Zlib` | `zlib-rs` |
+| `Apache-2.0 AND MIT` | `dpi` |
+| `Apache-2.0 WITH LLVM-exception` | `target-lexicon` |
+| `AGPL-3.0-only` | `townjump-dht`, `townjump-dht-peeroxide`, `townjump-keys` (see "townjump" above) |
 | `Unlicense` | `ksni` |
 | `MIT AND BSD-3-Clause` | `matchit` |
 | `(MIT OR Apache-2.0) AND Unicode-3.0` | `unicode-ident` |

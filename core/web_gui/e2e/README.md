@@ -63,7 +63,7 @@ specs/     specs: a file per section or feature; the test name carries the case 
 ## How to add a case
 
 0. First ask whether a browser is needed: a case that needs no binary, HTTP response, layout (geometry,
-   computed CSS, "Back" history) or server decision is written not here but as `*.flows.vtest.mjs` next to the
+   computed CSS, "Back" history) or server-side logic is written not here but as `*.flows.vtest.mjs` next to the
    `.vue` file in `core/web_gui/ui/vue/src/` (vitest, the fake node `vue/src/testing/fake-node.mjs`); the static
    size check is `vue/src/static-limits.test.mjs` (vitest, node project). Only what cannot be checked without a browser goes here.
 1. Take the next free number: `rg -o "^test\('[0-9]+-" specs` shows the taken ones. The test name is

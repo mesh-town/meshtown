@@ -3,7 +3,7 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
-Entries below stop at 0.3.0; later changes are in the git history and on GitHub Releases.
+Entries below stop at 0.3.0; later changes are in the git history.
 
 ## 0.3.0
 

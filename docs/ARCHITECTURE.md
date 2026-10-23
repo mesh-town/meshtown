@@ -103,7 +103,7 @@ and runs in CI. A path that leaves the platform directory for any other place is
 
 `start_node` (`core/node/start/`) runs four phases and returns a `RunningNode`:
 
-1. **boot** — takes the SOCKS5 port on the configured address (a busy port stops the start); reads the node secret
+1. **boot** — when the proxy is enabled, takes the SOCKS5 port on the configured address (a busy port stops the start); reads the node secret
    from the settings file (without a file, or if it is unusable, the key is new for this run and the log says that
    the identity is temporary and why); brings up the transports; picks the node name; prints the `[node]` lines:
    version and network, mode, listen addresses, name and identity state.
@@ -135,8 +135,8 @@ Shared records (site check results, port publications, the domain list): a repli
 (`core/members/sync/replica/`). The replica identifier and the topic are derived from the network key. Members
 reconcile the replica over `meshtown/replica/1` after the handshake, and topic membership spreads by flooding over
 `meshtown/sync/1`. The author of an entry is the node key, and every entry carries the author's signature. On a new
-member the node starts reconciling with it. With a settings file the replica is stored in `domains.bin` next to it
-(a name with a network id for additional networks); without one it lives in memory.
+member the node starts reconciling with it. With a settings file the replica is stored in the `replica/` directory next to `docs-store/`: `domains.bin`, or
+`<name>-<10 hex>.bin` for additional networks (`core/members/sync/replica/file.rs`); without a file it lives in memory.
 
 ## Network key from a label and a random part
 
@@ -206,10 +206,11 @@ error means "no name", not a failure.
 A request to open a connection to a domain. Request frame: version (1 byte, value 1), name
 length (1 byte), domain name, port (2 bytes, most significant first). Reply: version (1 byte) and
 code (1 byte), then the connection bytes unchanged. Codes: 0 — opened, 1 — the domain is not
-in the shared list (the rule is removed, see below; the code stays in the protocol — old exits in the network
-still send it, and the requesting side prints its text), 2 — address not obtained, 3 — the connection
-did not open, 4 — port not allowed (the rule is also removed, see below; the code stays for the same
-reason), 5 — the node does not work as an exit for you, 6 — the request could not be parsed.
+in the shared list (the exit never sends it; the requesting side still prints its text), 2 — address not obtained,
+3 — the connection did not open, 4 — port not allowed (the exit never sends it; the requesting side prints its
+text), 5 — the node does not work as an exit for you, 6 — the request could not be parsed, 7 — the address is
+closed to exit (private network, loopback, link-local, multicast, service, or the node's own address;
+`EXIT_CODE_ADDRESS_FORBIDDEN`, `core/exit/frame.rs`).
 
 Request frame, 4 + N bytes:
 
@@ -228,22 +229,18 @@ Reply, 2 bytes:
 | 1 | 1 | code |
 
 The exit checks a request in four steps: permission (whether the requester is a member), frame parsing,
-the domain's address, the connection. The check of the domain against the list and of the port is gone: the exit
-owner serves any domain on any port and controls only `exit.enabled`; a separate
-switch for the exit owner (which domains and ports they are ready to serve) is not part of this
-task. There is no personal data in the frame: no client string, no request path — the exit sees
+the domain's address, the connection. The exit serves any domain on any port; the exit owner controls only
+`exit.enabled`. There is no personal data in the frame: no client string, no request path — the exit sees
 only the domain name and the port.
 
 Path choice on the requesting side (`route::choose_route`, `core/proxy/route.rs`) does not look at the request's domain
-at all — one decision for the whole connection at once. The candidates are set by the config field
+at all — one choice for the whole connection at once. The candidates are set by the config field
 `route.exits` (node order = priority, the default is an empty list, edited by `PUT /api/config`
 on the fly): the list is empty → the node connects by itself; not empty → the candidates are tried in list order —
 not the node itself, online and flagged "works as an exit" (`node_state::read_exit_flags`); if the stream to a
 candidate did not open (a transport error) → the next one in the list is tried, while any reply
-code received is final. No suitable candidates → refusal. The earlier auto-choice by the number of
-successful checks of the domain (`route::fallback_peer`) and the "all traffic / list only" switch
-are gone from the code. Open connections through an exit that is not in the new `route.exits` list
-are closed; direct ones are not.
+code received is final. No suitable candidates → refusal. Open connections through an exit that is not in the
+`route.exits` list are closed; direct ones are not.
 
 ### `meshtown/port/1`
 
@@ -272,7 +269,7 @@ Keys of the replica:
 |---|---|---|
 | `list/<domain>/` | `v1` | the domain is in the list (author's record) |
 | `list/<domain>/` | empty (tombstone) | the author removed the domain |
-| `port/tcp/<port>/` | postcard `PortRecord { v, name, audience }`: `v` — 1 byte (1); `name` — varint length and UTF-8; `audience` — varint of the variant (0 = everyone, 1 = list: varint number of keys and 32 bytes each) | the author publishes their port; example "web"/everyone — `01 06 D0 B2 D0 B5 D0 B1 00` |
+| `port/tcp/<port>/` | postcard `PortRecord { v, name, audience }`: `v` — 1 byte (1); `name` — varint length and UTF-8; `audience` — varint of the variant (0 = everyone, 1 = list: varint number of keys and 32 bytes each) | the author publishes their port; example "web"/everyone — `01 03 77 65 62 00` |
 | `port/tcp/<port>/` | empty (tombstone) | the author withdrew the publication |
 
 ## Threat model
@@ -314,7 +311,6 @@ place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
 
 - One DHT record holds up to 16 member keys (after that the oldest are pushed out).
 - There is no relay: nodes that cannot punch through to each other do not connect.
-- The node does not map ports on the router (UPnP/PCP/NAT-PMP); direct paths rely on hole punching alone.
 - Node names are not unique; an invite is reusable and secret exactly like the network key.
 - Without a settings file (`--no-config`), the domain list lives in memory and is lost when the whole
   network restarts.
