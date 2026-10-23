@@ -1,10 +1,10 @@
-//! Tests for `import.rs`: `docs-store/` without a reader is moved aside instead of failing the start.
+//! Tests for `import.rs`: `docs-store/` is moved aside instead of failing the start.
 
-use super::tests::{node, secret, state_of, Fake, SEED};
+use super::tests::{node, run, state_of};
 use super::*;
 
-async fn run_without_reader(dir: &Path, seed: &[u8; 32]) -> NetResult<()> {
-    import_docs_store(Some(dir), &secret(), seed, None).await
+async fn run_for_seed(dir: &Path, seed: &[u8; 32]) -> NetResult<()> {
+    import_docs_store(Some(dir), &super::tests::secret(), seed).await
 }
 
 fn parent(dir: &Path) -> &Path {
@@ -12,9 +12,9 @@ fn parent(dir: &Path) -> &Path {
 }
 
 #[tokio::test]
-async fn no_reader_sets_docs_store_aside() {
+async fn docs_store_is_set_aside() {
     let dir = node(true);
-    run_without_reader(&dir, &SEED).await.unwrap();
+    run(&dir).await.unwrap();
     assert!(!dir.exists());
     assert!(parent(&dir).join("docs-store.old").join("docs").exists());
     for name in ["net", "domains"] {
@@ -47,9 +47,9 @@ fn old_and_seconds_taken_gets_counter() {
 #[tokio::test]
 async fn second_network_after_aside_ok() {
     let dir = node(true);
-    run_without_reader(&dir, &SEED).await.unwrap();
+    run(&dir).await.unwrap();
     let seed = [9u8; 32];
-    run_without_reader(&dir, &seed).await.unwrap();
+    run_for_seed(&dir, &seed).await.unwrap();
     assert!(!dir.exists());
     let id = net_id(&seed);
     let path = file::path_for(&file::replica_dir(&dir).unwrap(), "net", &id);
@@ -78,21 +78,12 @@ fn rename_failure_is_config_error() {
 
 #[tokio::test]
 async fn marked_keeps_docs_store() {
+    // given: both replicas are marked, a new docs-store/ appears
     let dir = node(true);
-    let fake = Fake::new(Some(Legacy::default()));
-    super::tests::run_with(&dir, &fake).await.unwrap();
-    run_without_reader(&dir, &SEED).await.unwrap();
+    run(&dir).await.unwrap();
+    std::fs::create_dir_all(dir.join("docs")).unwrap();
+    // when
+    run(&dir).await.unwrap();
+    // then: the directory stays where it is
     assert!(dir.join("docs").exists());
-    assert!(!parent(&dir).join("docs-store.old").exists());
-}
-
-#[tokio::test]
-async fn reader_error_keeps_docs_store() {
-    let dir = node(true);
-    let err = super::tests::run_with(&dir, &Fake::new(None))
-        .await
-        .unwrap_err();
-    assert!(err.to_string().contains("docs.redb"), "{err}");
-    assert!(dir.join("docs").exists());
-    assert!(!parent(&dir).join("docs-store.old").exists());
 }
