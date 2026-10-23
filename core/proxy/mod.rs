@@ -33,6 +33,8 @@ mod http;
 #[cfg(feature = "net-hyper")]
 mod http_head;
 #[cfg(feature = "net-hyper")]
+mod mesh;
+#[cfg(feature = "net-hyper")]
 mod outcome;
 #[cfg(feature = "net-hyper")]
 mod pac;
@@ -48,7 +50,7 @@ pub use assoc::udp_slots;
 #[cfg(feature = "net-hyper")]
 pub use console::{execute_proxy_command, parse_proxy_line, ProxyCommand, ProxyConsole};
 #[cfg(feature = "net-hyper")]
-pub use front::{ProxyFace, ProxyFront, ProxySeat};
+pub use front::{MeshAddress, ProxyFace, ProxyFront, ProxySeat};
 #[cfg(feature = "net-hyper")]
 pub use get::get_via_socks;
 #[cfg(feature = "net-hyper")]

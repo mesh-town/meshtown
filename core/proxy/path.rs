@@ -34,6 +34,18 @@ enum Upstream {
         send: BoxSend,
         recv: BoxRecv,
     },
+    /// An in-process stream (a mesh peer's port or an answer page).
+    Stream { send: BoxSend, recv: BoxRecv },
+}
+
+impl OpenedUpstream {
+    /// An upstream that is an already open stream.
+    pub(super) fn stream(route_label: String, send: BoxSend, recv: BoxRecv) -> OpenedUpstream {
+        OpenedUpstream {
+            route_label,
+            upstream: Upstream::Stream { send, recv },
+        }
+    }
 }
 
 /// A refusal: the ready outcome and a flag "the direct connection did not open within `DIRECT_TCP_CONNECT_TIMEOUT`".
@@ -125,31 +137,50 @@ pub(super) async fn relay_bytes(
                 bytes_from_client + prefix.len() as u64,
             )
         }
-        Upstream::Exit {
-            peer,
-            mut send,
-            recv,
-        } => {
+        Upstream::Stream { mut send, recv } => {
             if !prefix.is_empty() && send.write_all(prefix).await.is_err() {
                 return ProxyOutcome::refused(route_label, "request not forwarded");
             }
-            match splice_while_chosen(route, peer, send, recv, client).await {
-                Some((bytes_to_client, bytes_from_client)) => ProxyOutcome::success(
-                    route_label,
-                    bytes_to_client,
-                    bytes_from_client + prefix.len() as u64,
+            let (bytes_to_client, bytes_from_client) = exit::splice(send, recv, client).await;
+            ProxyOutcome::success(
+                route_label,
+                bytes_to_client,
+                bytes_from_client + prefix.len() as u64,
+            )
+        }
+        Upstream::Exit { peer, send, recv } => {
+            relay_exit(route_label, route, peer, (send, recv), client, prefix).await
+        }
+    }
+}
+
+/// The exit arm of `relay_bytes`: splices while the exit stays chosen.
+async fn relay_exit(
+    route_label: String,
+    route: &RouteCtx,
+    peer: PeerId,
+    (mut send, recv): (BoxSend, BoxRecv),
+    client: TcpStream,
+    prefix: &[u8],
+) -> ProxyOutcome {
+    if !prefix.is_empty() && send.write_all(prefix).await.is_err() {
+        return ProxyOutcome::refused(route_label, "request not forwarded");
+    }
+    match splice_while_chosen(route, peer, send, recv, client).await {
+        Some((bytes_to_client, bytes_from_client)) => ProxyOutcome::success(
+            route_label,
+            bytes_to_client,
+            bytes_from_client + prefix.len() as u64,
+        ),
+        None => {
+            say(
+                "route",
+                format!(
+                    "exit {} is no longer selected — connection closed",
+                    short_peer_id(&peer)
                 ),
-                None => {
-                    say(
-                        "route",
-                        format!(
-                            "exit {} is no longer selected — connection closed",
-                            short_peer_id(&peer)
-                        ),
-                    );
-                    ProxyOutcome::interrupted(route_label)
-                }
-            }
+            );
+            ProxyOutcome::interrupted(route_label)
         }
     }
 }

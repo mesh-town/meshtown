@@ -281,3 +281,104 @@ mod accounting {
         assert_eq!(stats.up_bytes, 5);
     }
 }
+
+mod mesh_host_target {
+    use super::*;
+
+    /// given a datagram for a mesh host, when it passes the pump, then it is counted as unroutable and never sent.
+    #[tokio::test]
+    async fn is_counted_unroutable_and_not_sent() {
+        let target = Target::Domain("box.meshtown".to_string());
+
+        let pumped = when_pumped_then_a_sentinel(&target).await;
+
+        assert_eq!(
+            pumped.stats.unroutable, 1,
+            "the mesh datagram is dropped as unroutable"
+        );
+        let payloads: Vec<&[u8]> = pumped.sent.iter().map(|p| p.data.as_slice()).collect();
+        assert_eq!(
+            payloads,
+            vec![SENTINEL],
+            "only the sentinel reaches the upstream"
+        );
+    }
+
+    /// given a datagram for a mesh host from one client port, when a datagram follows from another port of the same
+    /// client, then the second is accepted: the dropped one did not pin the client port.
+    #[tokio::test]
+    async fn does_not_pin_the_client_port() {
+        let target = Target::Domain("box.meshtown".to_string());
+
+        let pumped = when_pumped_then_a_sentinel(&target).await;
+
+        assert_eq!(pumped.stats.foreign, 0, "the second port is not foreign");
+        assert_eq!(
+            pumped.pinned,
+            Some(pumped.sentinel_sender),
+            "the pinned port is the one of the sentinel, not the one of the mesh datagram"
+        );
+    }
+}
+
+const SENTINEL: &[u8] = b"sentinel";
+
+/// What a `pump_up` run left behind.
+struct Pumped {
+    /// Packets that reached the upstream, in order.
+    sent: Vec<crate::proxy::socks5::UdpPacket>,
+    stats: RelayStats,
+    pinned: Option<SocketAddr>,
+    sentinel_sender: SocketAddr,
+}
+
+/// An upstream that records what it is given.
+struct RecordingTx(tokio::sync::mpsc::UnboundedSender<crate::proxy::socks5::UdpPacket>);
+
+impl UpstreamTx for RecordingTx {
+    async fn send(&mut self, packet: crate::proxy::socks5::UdpPacket) -> Result<Delivery, Closed> {
+        self.0.send(packet).map_err(|_| Closed)?;
+        Ok(Delivery::Sent)
+    }
+}
+
+/// Runs `pump_up` with a recording upstream. One client socket sends a datagram to `target`, then another socket of
+/// the same client sends a sentinel to a plain address; the run ends when the sentinel reaches the upstream.
+async fn when_pumped_then_a_sentinel(target: &Target) -> Pumped {
+    let udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let relay_addr = udp.local_addr().unwrap();
+    let first = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let second = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let plain = Target::Ip("192.0.2.1".parse().unwrap());
+    for (socket, target, data) in [(&first, target, &b"mesh"[..]), (&second, &plain, SENTINEL)] {
+        let bytes = encode_udp_request(target, 53, data).unwrap();
+        socket.send_to(&bytes, relay_addr).await.unwrap();
+    }
+    let shared = Shared::new();
+    let (sender, mut received) = tokio::sync::mpsc::unbounded_channel::<crate::proxy::socks5::UdpPacket>();
+    let ip = "127.0.0.1".parse().unwrap();
+    let until_sentinel = async {
+        let mut sent = Vec::new();
+        while let Some(packet) = received.recv().await {
+            let last = packet.data == SENTINEL;
+            sent.push(packet);
+            if last {
+                break;
+            }
+        }
+        sent
+    };
+    let run = async {
+        tokio::select! {
+            () = pump_up(&udp, ip, &shared, RecordingTx(sender)) => panic!("pump_up ended before the sentinel"),
+            sent = until_sentinel => sent,
+        }
+    };
+    let sent = timeout(WAIT, run).await.expect("the sentinel in time");
+    Pumped {
+        sent,
+        stats: shared.stats(),
+        pinned: shared.client(),
+        sentinel_sender: second.local_addr().unwrap(),
+    }
+}

@@ -13,13 +13,13 @@ use tokio::time::timeout;
 
 use super::*;
 use crate::config::config_file::{IfaceFilter, ListenAccess, ProcessSettings};
+use crate::exit::PeerConnPool;
 use crate::members::network_key::NetworkKey;
 use crate::node::{start_node, NodeConfig, RunningNode};
 use crate::proxy::socks5::{
     encode_socks5_request, encode_udp_associate_request, Target, REP_GENERAL, REP_HOST_UNREACHABLE,
     REP_OK,
 };
-use crate::exit::PeerConnPool;
 use crate::proxy::{udp_slots, BindError, ProxyConfig};
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
@@ -475,7 +475,11 @@ mod apply {
             let foreign = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
             let busy = foreign.local_addr().unwrap().port();
             // when: P2 is applied
-            let err = w.front.apply(&settings(busy)).await.expect_err("P2 is busy");
+            let err = w
+                .front
+                .apply(&settings(busy))
+                .await
+                .expect_err("P2 is busy");
             // the foreign listener lives until the end of the test
             std::mem::forget(foreign);
             (w, busy, err)
@@ -671,7 +675,10 @@ mod close {
         let _foreign = std::net::TcpListener::bind(("127.0.0.1", w.port)).unwrap();
 
         // when: a front binds the port again
-        let err = bind_front(&w.settings).await.err().expect("the port is busy");
+        let err = bind_front(&w.settings)
+            .await
+            .err()
+            .expect("the port is busy");
 
         // then: the error is the usual one
         let text = format!("{err:#}");
@@ -788,12 +795,16 @@ async fn setup(opts: Opts) -> World {
 /// Two loopback nodes in different networks; the second one has the first one as its only chosen
 /// exit, and it is not a member there — an offline exit.
 async fn two_nodes() -> (RunningNode, RunningNode) {
-    let first = start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap()))
-        .await
-        .unwrap();
-    let second = start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap()))
-        .await
-        .unwrap();
+    let first = start_node(NodeConfig::for_loopback_test(
+        NetworkKey::generate().unwrap(),
+    ))
+    .await
+    .unwrap();
+    let second = start_node(NodeConfig::for_loopback_test(
+        NetworkKey::generate().unwrap(),
+    ))
+    .await
+    .unwrap();
     second.set_route_exits(vec![first.id]);
     (first, second)
 }
@@ -801,7 +812,11 @@ async fn two_nodes() -> (RunningNode, RunningNode) {
 /// The proxy configuration of a node; the echo name leads to the echo site.
 fn config_of(node: &RunningNode, overrides: &Arc<HashMap<String, SocketAddr>>) -> ProxyConfig {
     let silent_doh = SocketAddr::from(([127, 0, 0, 1], 1));
-    let resolver = Resolver::new(silent_doh, HttpLimits::default(), "meshtown-test".to_string());
+    let resolver = Resolver::new(
+        silent_doh,
+        HttpLimits::default(),
+        "meshtown-test".to_string(),
+    );
     ProxyConfig {
         route: node.route.clone(),
         stack: node.stack.clone(),

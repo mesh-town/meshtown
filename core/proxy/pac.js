@@ -1,8 +1,13 @@
 // Mesh Town proxy auto-config (PAC). Served by the node at GET /proxy.pac on the proxy port.
-// Local hosts go DIRECT; everything else goes through the node's proxy.
+// Mesh names (meshtown, *.meshtown) go through the node's own proxy; other local hosts go DIRECT;
+// everything else goes through the node's proxy.
 // Decided by the host text only: no dnsResolve/isInNet, so no DNS query leaves the browser.
 function FindProxyForURL(url, host) {
-  if (isLocalHost(host.toLowerCase())) {
+  var h = host.toLowerCase().replace(/\.+$/, "");
+  if (h == "meshtown" || dnsDomainIs(h, ".meshtown")) {
+    return "__MESH__";
+  }
+  if (isLocalHost(h)) {
     return "DIRECT";
   }
   return "__ROUTE__";
