@@ -14,7 +14,7 @@ use tokio::sync::broadcast;
 
 pub(crate) type Rep = Arc<dyn Replica>;
 
-/// Case keys: none is a prefix of another (`del_own` in iroh deletes by prefix).
+/// Case keys: none is a prefix of another (`del_own` deletes by prefix).
 pub(crate) const K1: &[u8] = b"k1/";
 pub(crate) const K2: &[u8] = b"k2/";
 pub(crate) const K3: &[u8] = b"k3/";

@@ -6,7 +6,6 @@ use crate::transport::net::addr::{PeerAddr, RelayRef};
 use crate::transport::net::discovery_mux::{DiscoveryMux, MANUAL_SOURCE};
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
-use crate::transport::net::link::NetInfo;
 use crate::transport::net::service::ServiceId;
 use crate::transport::net::transport::{PeerConn, Transport};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -62,7 +61,6 @@ pub struct NetSnapshot {
     pub me: PeerId,
     pub transport_names: Vec<&'static str>,
     pub discovery_names: Vec<&'static str>,
-    pub net_infos: Vec<NetInfo>,
     pub known_peer_count: usize,
 }
 
@@ -165,7 +163,6 @@ impl NetStack {
             me: self.0.me,
             transport_names: ts.iter().map(|t| t.kind()).collect(),
             discovery_names: self.0.mux.source_names(),
-            net_infos: ts.iter().map(|t| t.net_info()).collect(),
             known_peer_count: self.0.mux.known_peer_count(&self.0.me),
         }
     }

@@ -65,10 +65,7 @@ fn path_of(meter: &LinkMeter) -> PathKind {
 
 /// Network information of the node: `seen` is the `listen` outcome (`None` — not known yet).
 pub fn net_info(seen: Option<bool>) -> NetInfo {
-    NetInfo {
-        net_seen: seen,
-        ..NetInfo::default()
-    }
+    NetInfo { net_seen: seen }
 }
 
 /// A stream with byte counting; after the session closes it cannot be read or written.

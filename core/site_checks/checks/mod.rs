@@ -7,7 +7,7 @@
 //! What it doesn't do: doesn't combine node results into one verdict, doesn't build a route, doesn't keep
 //! a check history and doesn't restrain an author who writes garbage.
 //! Related: the domain list is `crate::proxy::domains`, measuring is `crate::site_checks::reachability`,
-//! record values live in `iroh-blobs` blobs, output is `crate::node::output`.
+//! record values live in shared-document entries, output is `crate::node::output`.
 //!
 //! Files: `keys.rs` — the record key and the node snapshot (`CheckView`); `schedule.rs` — the schedule
 //! (`Schedule`, "due" / "busy now"); `state.rs` — the `Checks` type and its constructor with live

@@ -9,7 +9,7 @@ use crate::transport::net::NodeSecret;
 fn seal_open_roundtrip() {
     let key = [1u8; 32];
     let roster = Roster {
-        version: RECORD_VERSION,
+        version: RECORD_VERSION_KEYS,
         entries: vec![RosterEntry {
             id: [2u8; 32],
             relay: Some("https://relay.example./".to_string()),
@@ -18,7 +18,7 @@ fn seal_open_roundtrip() {
         }],
     };
     let sealed = seal(&key, &roster, [3u8; 12]).unwrap();
-    let opened = open(&key, &sealed).unwrap();
+    let opened = open_as(&key, &sealed, RECORD_VERSION_KEYS).unwrap();
     assert_eq!(roster, opened);
 }
 
@@ -27,11 +27,11 @@ fn open_fails_with_other_key() {
     let key = [1u8; 32];
     let other_key = [9u8; 32];
     let roster = Roster {
-        version: RECORD_VERSION,
+        version: RECORD_VERSION_KEYS,
         entries: vec![],
     };
     let sealed = seal(&key, &roster, [3u8; 12]).unwrap();
-    let err = open(&other_key, &sealed).unwrap_err();
+    let err = open_as(&other_key, &sealed, RECORD_VERSION_KEYS).unwrap_err();
     assert!(err.to_string().contains("key of a different network"));
 }
 
@@ -39,7 +39,7 @@ fn open_fails_with_other_key() {
 fn open_fails_on_tampering() {
     let key = [1u8; 32];
     let roster = Roster {
-        version: RECORD_VERSION,
+        version: RECORD_VERSION_KEYS,
         entries: vec![RosterEntry {
             id: [2u8; 32],
             relay: None,
@@ -50,91 +50,14 @@ fn open_fails_on_tampering() {
     let mut sealed = seal(&key, &roster, [3u8; 12]).unwrap();
     let last = sealed.len() - 1;
     sealed[last] ^= 0xFF;
-    let err = open(&key, &sealed).unwrap_err();
+    let err = open_as(&key, &sealed, RECORD_VERSION_KEYS).unwrap_err();
     assert!(err.to_string().contains("key of a different network"));
-}
-
-/// Builds the input for `merge_drops_self_stale_and_caps`: our own entry, a stale version of ourselves,
-/// one entry expired by TTL and 10 live entries with different `seen_unix`, each with 6 addresses.
-fn build_merge_prune_and_cap_input() -> (RosterEntry, Roster) {
-    let me = RosterEntry {
-        id: [0u8; 32],
-        relay: None,
-        addrs: vec![],
-        seen_unix: 1000,
-    };
-    let mut prev_entries = Vec::new();
-    // an old version of ourselves — must be dropped
-    prev_entries.push(RosterEntry {
-        id: [0u8; 32],
-        relay: None,
-        addrs: vec![],
-        seen_unix: 999,
-    });
-    // a stale entry (seen_unix + TTL < now) — must be dropped
-    prev_entries.push(RosterEntry {
-        id: [1u8; 32],
-        relay: None,
-        addrs: vec![],
-        seen_unix: 1000 - ENTRY_TTL_SECS - 1,
-    });
-    // 10 live entries with different seen_unix, each with 6 addresses (must be trimmed to 4)
-    for i in 2..12u8 {
-        let addrs: Vec<SocketAddr> = (0..6u16)
-            .map(|p| SocketAddr::from(([127, 0, 0, i], 1000 + p)))
-            .collect();
-        prev_entries.push(RosterEntry {
-            id: [i; 32],
-            relay: None,
-            addrs,
-            seen_unix: 1000 + i as u64,
-        });
-    }
-    let prev = Roster {
-        version: RECORD_VERSION,
-        entries: prev_entries,
-    };
-    (me, prev)
-}
-
-/// Checks the result of `merge()`: our own entry is first and the only one, the TTL-expired one is gone,
-/// the number of entries and addresses is within limits, the order by `seen_unix` is descending.
-fn assert_merge_dropped_self_stale_and_capped(merged: &Roster, me: &RosterEntry) {
-    assert_eq!(merged.entries[0].id, me.id, "our own entry must be first");
-    assert!(merged.entries.len() <= MAX_ADDR_ROSTER_ENTRIES);
-    assert!(merged
-        .entries
-        .iter()
-        .all(|e| e.addrs.len() <= MAX_ADDRS_PER_ENTRY));
-    assert!(
-        !merged.entries.iter().any(|e| e.id == [1u8; 32]),
-        "the stale entry must not remain"
-    );
-    assert_eq!(
-        merged.entries.iter().filter(|e| e.id == me.id).count(),
-        1,
-        "there must be only one own entry"
-    );
-    let rest = &merged.entries[1..];
-    for pair in rest.windows(2) {
-        assert!(
-            pair[0].seen_unix >= pair[1].seen_unix,
-            "the order must be descending"
-        );
-    }
-}
-
-#[test]
-fn merge_drops_self_stale_and_caps() {
-    let (me, prev) = build_merge_prune_and_cap_input();
-    let merged = merge(Some(prev), me.clone(), 1000);
-    assert_merge_dropped_self_stale_and_capped(&merged, &me);
 }
 
 #[test]
 fn seal_fits_limit_by_dropping_oldest() {
     let key = [4u8; 32];
-    let relay = "https://aps1-1.relay.n0.iroh.link./";
+    let relay = "https://relay.example./";
     let mut entries = Vec::new();
     for i in 0..8u8 {
         let addrs: Vec<SocketAddr> = (0..4u16)
@@ -153,13 +76,13 @@ fn seal_fits_limit_by_dropping_oldest() {
         });
     }
     let roster = Roster {
-        version: RECORD_VERSION,
+        version: RECORD_VERSION_KEYS,
         entries,
     };
     let own_id = roster.entries[0].id;
     let sealed = seal(&key, &roster, [5u8; 12]).unwrap();
     assert!(sealed.len() <= MAX_SEALED_BYTES);
-    let opened = open(&key, &sealed).unwrap();
+    let opened = open_as(&key, &sealed, RECORD_VERSION_KEYS).unwrap();
     assert!(opened.entries.len() < 8);
     assert_eq!(opened.entries[0].id, own_id);
 }

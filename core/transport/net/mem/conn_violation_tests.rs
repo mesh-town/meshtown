@@ -153,8 +153,6 @@ mod link_counters {
         );
         assert_eq!(link.remote, None);
         assert_eq!(link.rtt, None);
-        assert_eq!(link.lost_packets, 0);
-        assert_eq!(link.cwnd, None);
     }
 }
 
