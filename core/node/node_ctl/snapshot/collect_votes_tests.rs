@@ -220,3 +220,65 @@ async fn collect_flags_me_pending() {
     assert!(collected.snap.members.me_pending);
     node.shutdown().await;
 }
+
+/// A list that holds an exclusion record for `x`.
+fn excluding_peer(me: PeerId, x: PeerId) -> Verdicts {
+    let excluded = BTreeMap::from([(
+        x,
+        Exclusion {
+            how: How::Votes,
+            at_micros: 1,
+            voters: vec![pid(2)],
+        },
+    )]);
+    verdicts_of(
+        me,
+        Ledger {
+            admitted: BTreeSet::from([me, pid(2)]),
+            excluded,
+            pending: BTreeMap::new(),
+            need: 1,
+            admissions: BTreeMap::new(),
+            forgets: Default::default(),
+            admit_unix: Default::default(),
+            forget_marks: Default::default(),
+            forget_need: 1,
+        },
+    )
+}
+
+mod route_exits {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn with_an_exclusion_record_is_marked_removed() {
+        // given: x is a chosen exit and the published list excludes x
+        let node = loopback_node().await;
+        let x = pid(3);
+        node.set_route_exits(vec![x]);
+        node.access.view.publish(excluding_peer(node.id, x));
+
+        // when: the snapshot is collected
+        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+
+        // then
+        assert_eq!(collected.snap.route.exits.len(), 1);
+        assert!(collected.snap.route.exits[0].removed);
+        node.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn without_verdicts_are_not_marked_removed() {
+        // given: x is a chosen exit and nothing is published
+        let node = loopback_node().await;
+        node.set_route_exits(vec![pid(3)]);
+
+        // when: the snapshot is collected
+        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+
+        // then
+        assert_eq!(collected.snap.route.exits.len(), 1);
+        assert!(!collected.snap.route.exits[0].removed);
+        node.shutdown().await;
+    }
+}

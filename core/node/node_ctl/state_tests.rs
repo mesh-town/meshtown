@@ -282,3 +282,97 @@ mod request_restart;
 /// The cycle stamp in the slot: `boot_id` and `uptime_sec` live in `NodeCtlState`, changed only by `renew_boot_stamp`.
 #[path = "state_boot_tests.rs"]
 mod boot_stamp;
+
+/// The process proxy shows in the snapshot of a controller that has no node, so the page can still tell
+/// where the listener is.
+mod socks_without_a_node {
+    use super::*;
+    use crate::config::config_file::{NetSlotId, ProcessSettings};
+    use crate::proxy::{ProxyFront, ProxySeat};
+
+    mod seat_with_a_bound_front {
+        use super::*;
+
+        #[tokio::test]
+        async fn socks_is_enabled_and_listens_on_the_front_address() {
+            // given
+            let (ctl, front) = setup(Seat::WithFront).await;
+
+            // when
+            let socks = ctl.snapshot().socks;
+
+            // then
+            let addr = front
+                .expect("the front is bound")
+                .addr()
+                .expect("a bound address");
+            assert!(socks.enabled, "a bound front means SOCKS is on");
+            assert_eq!(socks.listen, Some(addr.to_string()));
+        }
+    }
+
+    mod seat_without_a_front {
+        use super::*;
+
+        #[tokio::test]
+        async fn socks_is_disabled_and_has_no_address() {
+            // given
+            let (ctl, _) = setup(Seat::WithoutFront).await;
+
+            // when
+            let socks = ctl.snapshot().socks;
+
+            // then
+            assert!(!socks.enabled);
+            assert_eq!(socks.listen, None);
+        }
+    }
+
+    mod no_seat {
+        use super::*;
+
+        #[tokio::test]
+        async fn socks_is_disabled_and_has_no_address() {
+            // given
+            let (ctl, _) = setup(Seat::None).await;
+
+            // when
+            let socks = ctl.snapshot().socks;
+
+            // then
+            assert!(!socks.enabled);
+            assert_eq!(socks.listen, None);
+        }
+    }
+
+    // --- setup and helpers ---
+
+    enum Seat {
+        WithFront,
+        WithoutFront,
+        None,
+    }
+
+    /// A controller without a network and a node; the seat (if any) sits in it. Also gives the front back.
+    async fn setup(seat: Seat) -> (Arc<NodeCtl>, Option<ProxyFront>) {
+        let ctl = NodeCtl::new_without_network(&Settings::default());
+        let front = match seat {
+            Seat::WithFront => Some(bind_front().await),
+            _ => None,
+        };
+        if !matches!(seat, Seat::None) {
+            let seat = Arc::new(ProxySeat::new(front.clone(), NetSlotId::main()));
+            ctl.set_proxy_seat(NetSlotId::main(), seat);
+        }
+        (ctl, front)
+    }
+
+    async fn bind_front() -> ProxyFront {
+        ProxyFront::bind(&ProcessSettings {
+            socks_port: 0,
+            ..ProcessSettings::default()
+        })
+        .await
+        .expect("a free loopback port")
+    }
+}

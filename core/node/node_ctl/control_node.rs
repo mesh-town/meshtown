@@ -58,6 +58,8 @@ impl NodeCtl {
             snap.node.id = output::short_peer_id(&n.id);
             snap.node.id_full = n.id.to_string();
             snapshot::overlay_members(&mut snap, n);
+        } else if let Some(face) = self.proxy_face() {
+            snap.socks = snapshot::socks_of_face(&face.borrow());
         }
         snap.boot_id = boot_id;
         snap.node.uptime_sec = uptime;

@@ -193,6 +193,9 @@ pub struct ChosenExit {
     pub exit: Option<bool>,
     pub country: Option<String>,
     pub active: bool,
+    /// The node has an exclusion record in the network's verdicts (never set for the own node).
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub removed: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

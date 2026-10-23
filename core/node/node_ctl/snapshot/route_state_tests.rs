@@ -46,6 +46,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         program_versions: HashMap::new(),
         peer_names: HashMap::new(),
         chosen_exits: Vec::new(),
+        excluded: HashSet::new(),
         domain_names: Vec::new(),
         check_views: Vec::new(),
         in_progress: HashSet::new(),
@@ -217,5 +218,113 @@ mod when_chosen_list_contains_only_self {
             "the own row's id_full parses back into the own PeerId"
         );
         assert!(!state.exits[0].active);
+    }
+}
+
+mod removed {
+    use super::*;
+
+    /// `Inputs` where `x` is online and serving, and `excluded` holds the given nodes.
+    fn setup(me: PeerId, x: PeerId, excluded: &[PeerId]) -> Inputs<'static> {
+        let online: HashSet<PeerId> = [x].into_iter().collect();
+        let serving: HashMap<PeerId, bool> = [(x, true)].into_iter().collect();
+        let mut i = inputs(me, online, serving);
+        i.excluded = excluded.iter().copied().collect();
+        i
+    }
+
+    mod exit_with_an_exclusion_record {
+        use super::*;
+
+        #[test]
+        fn is_marked_removed_and_keeps_its_online_state() {
+            // given: x is a chosen exit, online, and the list holds an exclusion record for it
+            let (me, x) = (pair(1), pair(2));
+            let i = setup(me, x, &[x]);
+            let peers = vec![peer_info(x, true, Some(true))];
+
+            // when
+            let state = route_state(&[x], &i, &peers);
+
+            // then
+            assert!(state.exits[0].removed, "an excluded exit is removed");
+            assert!(state.exits[0].online, "online is computed as before");
+        }
+    }
+
+    mod exit_without_a_record {
+        use super::*;
+
+        #[test]
+        fn is_not_removed() {
+            // given: x is a chosen exit, another node is excluded
+            let (me, x) = (pair(1), pair(2));
+            let i = setup(me, x, &[pair(3)]);
+            let peers = vec![peer_info(x, true, Some(true))];
+
+            // when
+            let state = route_state(&[x], &i, &peers);
+
+            // then
+            assert!(!state.exits[0].removed);
+        }
+    }
+
+    mod own_node {
+        use super::*;
+
+        #[test]
+        fn is_never_removed() {
+            // given: the own id is a chosen exit and is also in the excluded set
+            let me = pair(1);
+            let i = setup(me, pair(2), &[me]);
+            let self_peer = PeerInfo {
+                is_self: true,
+                ..peer_info(me, true, Some(true))
+            };
+
+            // when
+            let state = route_state(&[me], &i, &[self_peer]);
+
+            // then
+            assert!(
+                !state.exits[0].removed,
+                "the own node is not marked removed"
+            );
+        }
+    }
+
+    mod json {
+        use super::*;
+
+        #[test]
+        fn not_removed_has_no_removed_key() {
+            // given: a default exit
+            let exit = ChosenExit::default();
+
+            // when
+            let json = serde_json::to_value(&exit).unwrap();
+
+            // then
+            assert!(
+                json.get("removed").is_none(),
+                "a false flag is not serialized"
+            );
+        }
+
+        #[test]
+        fn removed_is_serialized_as_true() {
+            // given: a removed exit
+            let exit = ChosenExit {
+                removed: true,
+                ..ChosenExit::default()
+            };
+
+            // when
+            let json = serde_json::to_value(&exit).unwrap();
+
+            // then
+            assert_eq!(json["removed"], serde_json::json!(true));
+        }
     }
 }

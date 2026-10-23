@@ -48,6 +48,7 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         peer_names: HashMap::new(),
         neighbors: 0,
         votes: Default::default(),
+        excluded: HashSet::new(),
         socks: None,
         socks_access: (
             crate::config::config_file::ListenAccess::Localhost,
