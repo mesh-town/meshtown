@@ -8,7 +8,11 @@ use serde_json::Value;
 
 use super::super::settings::Settings;
 use super::super::CONFIG_VERSION;
-use super::{select::section_names, table::FIELDS};
+use super::row::{Block, Field};
+use super::{
+    select::{section_names, section_names_of},
+    table::FIELDS,
+};
 
 /// Sections that vanish entirely when they have no keys (the others are written as `{}`).
 const DROPPED_WHEN_EMPTY: [&str; 1] = ["net"];
@@ -22,27 +26,51 @@ pub(crate) struct ConfigDoc<'a>(pub &'a Settings);
 
 impl Serialize for ConfigDoc<'_> {
     fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
-        let mut map = ser.serialize_map(None)?;
-        map.serialize_entry("version", &CONFIG_VERSION)?;
-        for name in section_names() {
-            let section = Section { s: self.0, name };
-            if !section.entries().is_empty() || !DROPPED_WHEN_EMPTY.contains(&name) {
-                map.serialize_entry(name, &section)?;
-            }
-        }
-        map.end()
+        serialize_doc(ser, self.0, None)
     }
+}
+
+/// The `config` section of a network slot file: the same serializer, only the rows of `Block::Net`.
+pub(crate) struct NetDoc<'a>(pub &'a Settings);
+
+impl Serialize for NetDoc<'_> {
+    fn serialize<S: Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        serialize_doc(ser, self.0, Some(Block::Net))
+    }
+}
+
+fn serialize_doc<S: Serializer>(
+    ser: S,
+    s: &Settings,
+    block: Option<Block>,
+) -> Result<S::Ok, S::Error> {
+    let names = block.map_or_else(section_names, section_names_of);
+    let mut map = ser.serialize_map(None)?;
+    map.serialize_entry("version", &CONFIG_VERSION)?;
+    for name in names {
+        let section = Section { s, name, block };
+        if !section.entries().is_empty() || !DROPPED_WHEN_EMPTY.contains(&name) {
+            map.serialize_entry(name, &section)?;
+        }
+    }
+    map.end()
 }
 
 struct Section<'a> {
     s: &'a Settings,
     name: &'static str,
+    /// Only the rows of this block; `None` — all rows.
+    block: Option<Block>,
 }
 
 impl Section<'_> {
     /// Returns the section's keys that are written, in table order.
     fn entries(&self) -> Vec<(&'static str, Value)> {
-        let rows = FIELDS.iter().filter(|f| f.section() == self.name);
+        let in_block = |f: &&Field| self.block.is_none_or(|b| f.block() == b);
+        let rows = FIELDS
+            .iter()
+            .filter(in_block)
+            .filter(|f| f.section() == self.name);
         rows.filter_map(|f| f.value.render_for_file(self.s).map(|v| (f.key(), v)))
             .collect()
     }

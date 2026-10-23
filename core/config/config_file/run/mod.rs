@@ -9,11 +9,13 @@
 
 use crate::transport::net::NodeSecret;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use super::overrides::CliOverrides;
 use super::path::ConfigSource;
 use super::report::FileReport;
 use super::settings::Settings;
+use super::slot_store::{MainFile, SettingsFile};
 
 mod fresh;
 mod helpers;
@@ -22,9 +24,11 @@ mod parsed;
 mod sources;
 
 pub use fresh::{create_fresh, Fresh};
+pub(super) use helpers::keep_copy_before_lossy_write;
 pub use helpers::new_secret;
 
 /// The outcome of start preparation: what the node reads, with which secret, and what to say about the file.
+#[derive(Clone)]
 pub struct RunConfig {
     pub effective_settings: Settings,
     /// What is in the file, WITHOUT flags: the settings document for the page is built from it, not from
@@ -35,6 +39,8 @@ pub struct RunConfig {
     pub file_report: FileReport,
     /// Paths of fields given by flags and not written to the file.
     pub cli_override_paths: Vec<&'static str>,
+    /// The file the settings are re-read from and written to; `None` — no file is used.
+    pub file: Option<Arc<dyn SettingsFile>>,
 }
 
 /// What the file sources have in common — what `RunConfig` is assembled from after `source` is parsed.
@@ -141,12 +147,18 @@ pub fn prepare(
         cli_override_paths: &cli_override_paths,
     });
 
+    let file: Option<Arc<dyn SettingsFile>> = match source {
+        ConfigSource::File { path, .. } => Some(Arc::new(MainFile(path.clone()))),
+        ConfigSource::Disabled | ConfigSource::Nowhere(_) => None,
+    };
+
     Ok(RunConfig {
         effective_settings,
         file_settings,
         secret,
         file_report: report,
         cli_override_paths,
+        file,
     })
 }
 

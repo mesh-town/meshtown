@@ -8,7 +8,7 @@ use axum::response::Response;
 use serde_json::Value;
 
 use crate::config::config_file::{
-    self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings,
+    self, CliOverrides, ConfigSource, LoadedConfigFile, LoadedSettings, PathRule, Settings,
 };
 use crate::web_gui::{ActionError, LogPage, NodeControl, NodeSnapshot};
 
@@ -157,7 +157,7 @@ fn document_with_key_masks_tail_and_hides_it() {
 
 #[test]
 fn stale_outcome_on_invalid_is_failed() {
-    let outcome = stale_outcome(LoadedConfigFile::Invalid("x".to_string()));
+    let outcome = stale_outcome(LoadedSettings::Invalid("x".to_string()));
     assert!(matches!(outcome, StaleOutcome::Failed));
 }
 

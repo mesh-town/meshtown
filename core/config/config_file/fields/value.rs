@@ -6,6 +6,7 @@ use serde_json::Value;
 use super::super::parse_fields::push_field_error;
 use super::super::report::FieldError;
 use super::super::settings::Settings;
+use super::row::Block;
 
 /// Reads one table row from the file into `Settings`.
 pub(crate) trait FieldValue: Sync {
@@ -28,6 +29,8 @@ pub(crate) trait FieldValue: Sync {
     fn debug_text(&self, s: &Settings) -> String;
     /// Whether the row is stored in `Settings` (a computed one is not).
     fn is_stored_in_settings(&self) -> bool;
+    /// The settings block the row belongs to.
+    fn block(&self) -> Block;
 }
 
 /// The rule of one value kind of type `T`.
@@ -48,6 +51,7 @@ pub(crate) struct SettingsSlot<T: 'static, K: 'static> {
     pub get: fn(&Settings) -> &T,
     pub set: fn(&mut Settings, T),
     pub kind: K,
+    pub block: Block,
 }
 
 impl<T: Clone + std::fmt::Debug + 'static, K: Kind<T> + 'static> FieldValue for SettingsSlot<T, K> {
@@ -93,10 +97,15 @@ impl<T: Clone + std::fmt::Debug + 'static, K: Kind<T> + 'static> FieldValue for 
     fn is_stored_in_settings(&self) -> bool {
         true
     }
+
+    fn block(&self) -> Block {
+        self.block
+    }
 }
 
 /// A computed row: the key is known (not an "unknown field"), but it is not in `Settings`.
-pub(crate) struct Computed;
+/// It carries the block of the section it is shown in.
+pub(crate) struct Computed(pub Block);
 
 impl FieldValue for Computed {
     fn read_from_file(
@@ -124,5 +133,9 @@ impl FieldValue for Computed {
 
     fn is_stored_in_settings(&self) -> bool {
         false
+    }
+
+    fn block(&self) -> Block {
+        self.0
     }
 }

@@ -198,7 +198,7 @@ pub async fn run(cfg: NodeConfig) -> Result<()> {
         None => crate::config::config_file::new_secret()?,
     };
     let relaunch = crate::node::node_ctl::Relaunch {
-        path: None,
+        file: None,
         cli: crate::config::config_file::CliOverrides::default(),
         secret,
         initial_domains: cfg.initial_domains.clone(),

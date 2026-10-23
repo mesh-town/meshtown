@@ -47,6 +47,17 @@ impl std::fmt::Debug for CliOverrides {
 }
 
 impl CliOverrides {
+    /// Keeps only the flags of the process block (`socks_*`, `web_port`); everything else is `None`.
+    pub fn process_only(&self) -> CliOverrides {
+        CliOverrides {
+            socks_enabled: self.socks_enabled,
+            socks_port: self.socks_port,
+            socks_access: self.socks_access,
+            web_port: self.web_port,
+            ..CliOverrides::default()
+        }
+    }
+
     /// Puts what was typed on top of `s`. Returns the paths of the overridden fields in the order of the docs/CONFIG-FILE.md table,
     /// section 3: "network.key", "transport.mode",
     /// "exit.enabled", "socks.enabled", "socks.port", "socks.access", "checks.enabled", "checks.interval_sec",

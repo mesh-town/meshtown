@@ -42,6 +42,26 @@ impl HostSlots {
         })
     }
 
+    /// Adds a started slot with the task that runs its node cycle.
+    pub(crate) fn add_slot(
+        &self,
+        handle: SlotHandle,
+        ctl: Arc<NodeCtl>,
+        task: JoinHandle<anyhow::Result<()>>,
+    ) {
+        let slot = Slot {
+            handle,
+            ctl,
+            task: Some(task),
+        };
+        self.write().push(slot);
+    }
+
+    /// How many slots the map holds.
+    pub(crate) fn len(&self) -> usize {
+        self.read().len()
+    }
+
     /// Records the task that runs the slot's node cycle.
     pub(crate) fn set_task(&self, id: &NetSlotId, task: JoinHandle<anyhow::Result<()>>) {
         let mut slots = self.write();

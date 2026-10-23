@@ -8,6 +8,7 @@ use serde_json::Value;
 use super::super::parse_fields::push_field_error;
 use super::super::report::FieldError;
 use super::super::settings::Settings;
+use super::row::Block;
 use super::value::{FieldValue, Kind};
 
 /// `true` or `false`.
@@ -207,6 +208,9 @@ impl FieldValue for MemoryExit {
     }
     fn is_stored_in_settings(&self) -> bool {
         true
+    }
+    fn block(&self) -> Block {
+        Block::Process
     }
 }
 

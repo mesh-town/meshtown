@@ -8,11 +8,13 @@ use std::sync::Arc;
 
 use super::process::{heap_dump_dir, ProcessServices};
 use super::signal::spawn_stop_signal;
+use super::saved_slots::{has_saved_slots, multi_net_for};
 use super::slots::HostSlots;
 use crate::config::config_file::{NetSlotId, RunConfig};
-use crate::node::node_ctl::NodeCtl;
+use crate::node::guard_sources::GuardSources;
+use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, say, NET_NAME};
-use crate::web_gui::{ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::web_gui::{now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
 
 /// The role of the node page in a launch: what to do if it didn't start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -21,6 +23,12 @@ pub enum PageRole {
     Optional,
     /// A node without a key: the page is the only way into the network; if it didn't start — a launch error.
     OnlyEntry,
+}
+
+/// What the main slot hands to the start of the saved slots.
+struct SavedSlots {
+    relaunch: Option<Relaunch>,
+    sources: GuardSources,
 }
 
 /// The process host. It has no state: a single function `run_with_web_page`.
@@ -40,6 +48,22 @@ impl Host {
         B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
         F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
+        Host::run_with_saved_slots(run_config, ctl, role, None, body).await
+    }
+
+    /// Like `run_with_web_page`; with `relaunch` the networks saved under `nets/` are started beside the
+    /// main slot (only when the run has a settings file).
+    pub async fn run_with_saved_slots<B, F>(
+        run_config: RunConfig,
+        ctl: Arc<NodeCtl>,
+        role: PageRole,
+        relaunch: Option<Relaunch>,
+        body: B,
+    ) -> anyhow::Result<()>
+    where
+        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
+        F: Future<Output = anyhow::Result<()>> + Send + 'static,
+    {
         crate::node::output::set_log_capacity(
             run_config.effective_settings.process.log_ring_lines as usize,
         );
@@ -50,7 +74,11 @@ impl Host {
         let host = HostSlots::with_main(ctl.clone(), config);
         let on_signal = host.clone();
         let signal_task = spawn_stop_signal(move || on_signal.stop_all_on_signal());
-        let result = Host::with_page(run_config, ctl, role, body, host).await;
+        let saved = SavedSlots {
+            relaunch,
+            sources: services.sources(),
+        };
+        let result = Host::with_page(run_config, ctl, role, body, host, saved).await;
         signal_task.abort();
         services.stop();
         result
@@ -63,6 +91,7 @@ impl Host {
         role: PageRole,
         body: B,
         host: Arc<HostSlots>,
+        saved: SavedSlots,
     ) -> anyhow::Result<()>
     where
         B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
@@ -74,9 +103,15 @@ impl Host {
             Ok(handle) => Some(handle),
             Err(e) => Host::page_failed(role, &e)?,
         };
+        let main_run = saved.relaunch.as_ref().map(|_| run_config.clone());
+        output::set_multi_net(has_saved_slots(main_run.as_ref()));
         let labeled = output::with_net(Some("main".into()), body(run_config, ctl));
         let task = output::spawn(labeled);
         host.set_task(&NetSlotId::main(), task);
+        if let (Some(relaunch), Some(main_run)) = (&saved.relaunch, &main_run) {
+            host.start_saved_slots(main_run, relaunch, &saved.sources, now_unix());
+            output::set_multi_net(multi_net_for(host.len()));
+        }
         let result = Host::wait_slots(&host).await;
         if let Some(handle) = handle {
             handle.shutdown(DEFAULT_DRAIN).await;

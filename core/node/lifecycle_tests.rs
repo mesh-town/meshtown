@@ -8,7 +8,7 @@ use tokio::time::timeout;
 
 fn test_relaunch() -> crate::node::node_ctl::Relaunch {
     crate::node::node_ctl::Relaunch {
-        path: None,
+        file: None,
         cli: crate::config::config_file::CliOverrides::default(),
         secret: NodeSecret::from_bytes(&[11u8; 32]),
         initial_domains: Vec::new(),

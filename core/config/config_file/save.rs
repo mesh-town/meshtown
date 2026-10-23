@@ -174,15 +174,23 @@ pub fn save_with_floor(
 
     let new_rev = compute_new_rev(expected_rev, rev_floor, path)?;
 
+    let text = render_config_file(new_rev, now_unix, secret, s);
+    write_atomically(path, &text)?;
+    Ok(new_rev)
+}
+
+/// The shared write: make sure the directory exists, write a temporary file next to the target, rename it over
+/// the target, `fsync` the directory. On a failed write the temporary file is removed; a failed directory
+/// `fsync` is only a log line, because the rename has already happened.
+pub(super) fn write_atomically(path: &Path, text: &str) -> Result<(), SaveError> {
     let dir = match path.parent() {
         Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
         _ => PathBuf::from("."),
     };
     let tmp = dir.join(format!("{FILE_NAME}.tmp-{}", std::process::id()));
-    let text = render_config_file(new_rev, now_unix, secret, s);
 
     // Steps 2–4; on error the temporary file is removed and the revision does not grow.
-    let written = ensure_dir(&dir).and_then(|()| write_tmp_and_rename(&tmp, path, &text));
+    let written = ensure_dir(&dir).and_then(|()| write_tmp_and_rename(&tmp, path, text));
     if let Err(e) = written {
         let _ = std::fs::remove_file(&tmp);
         return Err(SaveError::Io(format!(
@@ -205,7 +213,7 @@ pub fn save_with_floor(
             );
         }
     }
-    Ok(new_rev)
+    Ok(())
 }
 
 /// Renames an unreadable file to `config.json.bad-<stamp_utc>` next to it.

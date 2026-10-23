@@ -144,7 +144,7 @@ fn without_file_only_current_key_changes() {
     let dir = temp_dir();
     let (a, b) = (fresh_key("a"), fresh_key("b"));
     let mut state = state_with_file(&dir, &a);
-    state.config_file_path = None;
+    state.file = None;
     assert!(state.save_network_key(&b, false).is_ok());
     assert_eq!(state.current_network_key.as_deref(), Some(b.as_str()));
     let _ = std::fs::remove_dir_all(&dir);
