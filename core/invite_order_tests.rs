@@ -12,7 +12,7 @@ fn behind_bridges() -> PeerAddr {
 }
 
 fn first_entry_addrs(primary: &PrimaryIps) -> Vec<SocketAddr> {
-    let s = build(&head_made_at(NOW), &behind_bridges(), &[], primary).unwrap();
+    let s = build_keyed(&head_made_at(NOW), &behind_bridges(), &[], primary).unwrap();
     crate::transport::net::endpoint_shim::to_endpoint_addr(&parse(&s).unwrap().peers[0])
         .ip_addrs()
         .copied()
@@ -120,7 +120,7 @@ fn node_without_relay(ips: &[&str]) -> PeerAddr {
 
 /// Builds an invite without a default route and extracts the IP addresses of the first record.
 fn first_entry_addrs_of(me: &PeerAddr) -> Vec<SocketAddr> {
-    let s = build(&head_made_at(NOW), me, &[], &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), me, &[], &PrimaryIps::NONE).unwrap();
     crate::transport::net::endpoint_shim::to_endpoint_addr(&parse(&s).unwrap().peers[0])
         .ip_addrs()
         .copied()

@@ -195,7 +195,7 @@ impl NodeControl for DemoNode {
             label: None,
             made_unix,
         };
-        meshtown_core::invite::build(
+        meshtown_core::invite::build_keyed(
             &head,
             &me,
             &[],

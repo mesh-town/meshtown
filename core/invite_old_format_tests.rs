@@ -1,4 +1,4 @@
-//! A string of the earlier kind (`mesh-invite1-`, network key inside): recognized but not accepted.
+//! Strings of earlier formats (`mesh-invite1-` with the network key inside, and format 2): recognized but not accepted.
 
 use super::*;
 
@@ -42,6 +42,31 @@ mod parse_of_it {
             !text.contains("more than a day ago"),
             "T2 text instead of T1: {text}"
         );
+    }
+}
+
+/// A string of format 2: the version byte is checked before the body is read.
+const V2_INVITE: &str = "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
+
+mod parse_of_a_version_two_body {
+    use super::*;
+
+    #[test]
+    fn refuses_with_the_older_format_text() {
+        // given / when
+        let err = parse(V2_INVITE).unwrap_err();
+        // then
+        assert_eq!(format!("{err:#}"), TEXT_V2_INVITE);
+    }
+
+    #[test]
+    fn refuses_with_the_same_text_in_upper_case_with_spaces() {
+        // given
+        let spaced = format!("  {}\n", V2_INVITE.to_uppercase());
+        // when
+        let err = parse(&spaced).unwrap_err();
+        // then
+        assert_eq!(format!("{err:#}"), TEXT_V2_INVITE);
     }
 }
 

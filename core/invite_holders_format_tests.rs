@@ -33,14 +33,6 @@ fn head() -> InviteHead {
 }
 
 #[test]
-fn v2_body_without_holders_is_accepted() {
-    // given: a creator with a hint, no holders and no others
-    let s = build(&head(), &with_ip(1), &[], &PrimaryIps::NONE).unwrap();
-    // then: the string parses, one record
-    assert_eq!(parse(&s).unwrap().peers.len(), 1);
-}
-
-#[test]
 fn v3_body_without_holders_is_accepted() {
     // given: v3 with a single creator
     let s = build_keyed(&head(), &with_ip(1), &[], &PrimaryIps::NONE).unwrap();
