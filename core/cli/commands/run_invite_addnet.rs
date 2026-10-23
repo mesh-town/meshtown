@@ -1,0 +1,201 @@
+//! Adding another network to the node from `run`: the key (or the invite) of a network that is not the main one
+//! becomes a network slot under `nets/` beside the main settings file. The main file is left alone.
+//! Here: the decisions about `--key`, the slot files on disk, and the site list the new slot is seeded with.
+
+use std::path::Path;
+
+use crate::config::config_file::{
+    self, fresh_net_slot, list_net_slots, load_net_file, net_slot_path, new_slot_id, save_net_file,
+    ConfigSource, LoadedConfigFile, LoadedNetFile, NetSlotId, RunConfig,
+};
+use crate::members::network_key::parse_user_input;
+use crate::members::sync::replica::entry::WireEntry;
+use crate::members::sync::replica::file::{self as replica_file, Loaded};
+use crate::node::host::MAX_NETS;
+use crate::node::output::say;
+use crate::proxy::domains::{domain_from_key, LIST_PREFIX};
+
+use super::run_invite::save_text;
+
+/// What `--key` means next to the settings file and the network slots on disk.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum KeyNet {
+    /// The main network: no key in the file yet, or the same network as the file's.
+    Main,
+    /// Another network that already has a slot: nothing to add.
+    Existing,
+    /// Another network without a slot: it becomes one.
+    Add,
+    /// Another network, but the node already holds the most networks it can.
+    TooMany,
+}
+
+/// Whether the two key texts are of the same network; an unparsable key is never the same.
+pub(crate) fn same_key_network(a: &str, b: &str) -> bool {
+    match (parse_user_input(a), parse_user_input(b)) {
+        (Ok(a), Ok(b)) => a.key.subkeys().network_id == b.key.subkeys().network_id,
+        _ => false,
+    }
+}
+
+/// Whether the network of `key` is among the slot keys.
+pub(crate) fn in_slots(key: &str, slot_keys: &[Option<String>]) -> bool {
+    slot_keys.iter().flatten().any(|k| same_key_network(key, k))
+}
+
+/// Whether one more network does not fit.
+pub(crate) fn net_limit_reached(slot_keys: &[Option<String>]) -> bool {
+    1 + slot_keys.len() >= MAX_NETS
+}
+
+/// The fate of a key typed with `--key` (or `MESHTOWN_KEY`), before any write.
+pub(crate) fn plan_key_net(
+    cli_key: Option<&str>,
+    file_key: Option<&str>,
+    slot_keys: &[Option<String>],
+) -> KeyNet {
+    let (Some(cli), Some(file)) = (cli_key, file_key) else {
+        return KeyNet::Main;
+    };
+    if same_key_network(cli, file) {
+        return KeyNet::Main;
+    }
+    if in_slots(cli, slot_keys) {
+        return KeyNet::Existing;
+    }
+    if net_limit_reached(slot_keys) {
+        return KeyNet::TooMany;
+    }
+    KeyNet::Add
+}
+
+/// Reads the settings file and the slots on disk and decides what `--key` means. Nothing is written.
+pub(crate) fn plan_cli_key(source: &ConfigSource, cli_key: Option<&str>) -> anyhow::Result<KeyNet> {
+    let ConfigSource::File { path, .. } = source else {
+        return Ok(KeyNet::Main);
+    };
+    let slot_keys = saved_slot_keys(path);
+    let net = plan_key_net(cli_key, peek_file_key(path).as_deref(), &slot_keys);
+    if net == KeyNet::TooMany {
+        anyhow::bail!("too many networks (limit {MAX_NETS})");
+    }
+    Ok(net)
+}
+
+/// The network key of the settings file, read without touching anything.
+pub(crate) fn peek_file_key(path: &Path) -> Option<String> {
+    match config_file::load_config_file(path) {
+        LoadedConfigFile::Parsed(p) => p.settings.net.network_key,
+        _ => None,
+    }
+}
+
+/// The key of every network slot saved beside the main file (`None` for a slot without a readable key).
+pub(crate) fn saved_slot_keys(main: &Path) -> Vec<Option<String>> {
+    list_net_slots(main)
+        .iter()
+        .map(|s| slot_key(&s.path))
+        .collect()
+}
+
+fn slot_key(path: &Path) -> Option<String> {
+    match load_net_file(path) {
+        LoadedNetFile::Parsed(p) => p.net.network_key,
+        _ => None,
+    }
+}
+
+/// A new slot beside the main file: the shared fields of the main run, a fresh node secret, this key.
+#[derive(Debug)]
+#[allow(dead_code)] // the fields are for the caller that starts and seeds the new network
+pub(crate) struct AddedNet {
+    pub id: NetSlotId,
+    /// The sites the new network starts with: the main network's list plus the ones typed with `--domain`.
+    pub seed_domains: Vec<String>,
+}
+
+/// Saves `nets/<id>/config.json` with the key. The main file is not written. `Err` when nothing was saved.
+pub(crate) fn add_net_slot(
+    main: &RunConfig,
+    key_text: &str,
+    typed_domains: &[String],
+    now: u64,
+) -> anyhow::Result<AddedNet> {
+    let main_path = main
+        .file_report
+        .path
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("the run has no settings file"))?;
+    let id = new_slot_id(&main_path)?;
+    let slot = fresh_net_slot(main, &main.file_settings.net, &id, now)?;
+    let mut net = slot.file_settings.net.clone();
+    net.network_key = Some(key_text.to_string());
+    let path = net_slot_path(&main_path, &id)
+        .ok_or_else(|| anyhow::anyhow!("the main slot has no slot file"))?;
+    save_net_file(&path, None, now, now, &slot.secret, &net)
+        .map_err(|e| anyhow::anyhow!("{}", save_text(e)))?;
+    let seed_domains = merged(read_main_domains(&main_path), typed_domains);
+    say("network", format!("added a network ({id})"));
+    Ok(AddedNet { id, seed_domains })
+}
+
+fn merged(mut list: Vec<String>, typed: &[String]) -> Vec<String> {
+    for d in typed {
+        if !list.contains(d) {
+            list.push(d.clone());
+        }
+    }
+    list
+}
+
+/// The site list of the main network as saved beside the main file. A missing file is an empty list,
+/// an unreadable one is an empty list with a line in the log.
+pub(crate) fn read_main_domains(main: &Path) -> Vec<String> {
+    let Some(dir) = main
+        .parent()
+        .and_then(|p| replica_file::replica_dir(&p.join("docs-store")))
+    else {
+        return Vec::new();
+    };
+    let id = crate::members::sync::replica::ids::domains_id();
+    match replica_file::load(&replica_file::path_for(&dir, "domains", &id), &id) {
+        Ok(Loaded::Main(_, e)) | Ok(Loaded::Backup(_, e)) => live_domains(&e),
+        Ok(Loaded::Fresh) => Vec::new(),
+        Err(e) => {
+            say(
+                "domains",
+                format!("the saved site list was not read: {e:?}"),
+            );
+            Vec::new()
+        }
+    }
+}
+
+/// The domains whose newest record (per author and key) is not a tombstone, in the order of first appearance.
+fn live_domains(entries: &[WireEntry]) -> Vec<String> {
+    let mut newest: Vec<&WireEntry> = Vec::new();
+    for e in entries
+        .iter()
+        .filter(|e| e.key.starts_with(LIST_PREFIX.as_bytes()))
+    {
+        match newest
+            .iter()
+            .position(|o| o.author == e.author && o.key == e.key)
+        {
+            Some(i) if newest[i].ts_micros < e.ts_micros => newest[i] = e,
+            Some(_) => {}
+            None => newest.push(e),
+        }
+    }
+    let live = newest.iter().filter(|e| !e.value.is_empty());
+    merged(
+        Vec::new(),
+        &live
+            .filter_map(|e| domain_from_key(&e.key))
+            .collect::<Vec<_>>(),
+    )
+}
+
+#[cfg(test)]
+#[path = "run_invite_addnet_tests.rs"]
+mod tests;

@@ -81,6 +81,7 @@ What the flags and the subcommand do:
   secret**, not with the flags you typed. Flags describe this run, not permanent settings. A restart takes the secret
   from the file, so the node identifier stays the same.
 - `--save-config` writes the flags you typed to the file (only them; other fields are left alone) and keeps running.
+  A `--key` of another network is not a flag to save: it is added as a separate network (see the invite section).
 - `--no-config` neither reads nor writes the file and works on defaults and flags. It cannot be combined with
   `--save-config` or `--config`.
 - `meshtown config-path` prints the path to the settings file and runs nothing. At a normal start the path is also the
@@ -140,9 +141,14 @@ The new node joins without waiting for a DHT lookup:
   changes), so after a restart it joins the network without an invite. With `--no-config` there is no file: the node
   warns that the key is not saved and **does not print it**. It works until a restart, and then you need a new invite.
 - With `--key` of the same network the invite is not spent; with a key of another network it is an error.
-- If the settings file already holds a key of another network and `--save-config` is not set, the run is refused
-  before it goes to the network and the invite is not spent. With `--save-config` the invite is spent and the key in
-  the file is replaced.
+- If the settings file already holds a key of another network, the invite is spent and the received key is saved as a
+  separate network beside the main one (`nets/<id>/config.json` in the folder of the settings file). The main
+  network, its key and its file stay as they were, and the node starts both. An invite of a network the node already
+  has is not spent.
+- The same goes for `--key` of another network without an invite: the network is added beside the main one and the
+  file keeps its key. A key of a network that is already saved is simply used. One node holds up to 8 networks;
+  past that the run is refused before it goes to the network, and the invite is not spent.
+- A network added this way starts with the sites of the main network's list and the ones typed with `--domain`.
 - The same join is available on the node page, in the "Invite from a network member" field. The answer comes at once,
   and "waiting for members" is shown under the field. That field accepts both a plain key and an invite, told apart by
   the prefix.
