@@ -14,7 +14,9 @@ import { HOME_INVITE_EMPTY, HOME_LABEL_EMPTY } from "./home-flow-texts.ts";
 const NEW_SLOT = "k7q2xa";
 const OTHER_SLOT = "b3d5fg";
 const KEY = "mesh-invite2-alpha-beta-gamma";
-const NETS_REPLY = { slot: NEW_SLOT, nets: [] };
+const NETS_REPLY = { slot: NEW_SLOT, fresh: true, nets: [] };
+const LEAVE = ["POST", `/api/net/${NEW_SLOT}/members/leave`, { confirm: true }];
+const JOIN_PATH = `POST /api/net/${NEW_SLOT}/network/join`;
 
 describe("addNetwork", () => {
   describe("eight networks are already shown", () => {
@@ -110,11 +112,62 @@ describe("addNetwork", () => {
         assert.equal(await addNetwork(w.form, w.store, w.deps, "join"), "duplicate");
         assert.equal(w.form.dupSlot, OTHER_SLOT);
       });
+    });
 
-      it("the empty slot is not removed — no DELETE", async () => {
-        const w = setup({ input: KEY, routes: { [`POST /api/net/${NEW_SLOT}/network/join`]: alreadyAdded(OTHER_SLOT) } });
+    describe("a refused add rolls back the slot it took", () => {
+      const lastCall = (w) => w.calls[w.calls.length - 1];
+
+      it("duplicate — the fresh slot is left and the form forgets it; the duplicate points to the other slot", async () => {
+        const w = setup({ input: KEY, routes: { [JOIN_PATH]: alreadyAdded(OTHER_SLOT) } });
+        assert.equal(await addNetwork(w.form, w.store, w.deps, "join"), "duplicate");
+        assert.deepEqual(lastCall(w), LEAVE);
+        assert.equal(w.form.slot, undefined);
+        assert.equal(w.form.dupSlot, OTHER_SLOT);
+      });
+
+      it("422 invalid_key — the fresh slot is left", async () => {
+        const w = setup({ input: KEY, routes: { [JOIN_PATH]: new ApiError(422, "invalid_key", "bad key", {}) } });
+        assert.equal(await addNetwork(w.form, w.store, w.deps, "join"), "failed");
+        assert.deepEqual(lastCall(w), LEAVE);
+        assert.equal(w.form.slot, undefined);
+      });
+
+      it("another refusal — the fresh slot is left", async () => {
+        const w = setup({ input: KEY, routes: { [JOIN_PATH]: new ApiError(500, "internal", "boom") } });
+        assert.equal(await addNetwork(w.form, w.store, w.deps, "join"), "failed");
+        assert.deepEqual(lastCall(w), LEAVE);
+      });
+
+      it("create refused — the fresh slot is left", async () => {
+        const w = setup({ label: "family", routes: { [`POST /api/net/${NEW_SLOT}/network/create`]: new ApiError(409, "busy", "busy") } });
+        assert.equal(await addNetwork(w.form, w.store, w.deps, "create"), "failed");
+        assert.deepEqual(lastCall(w), LEAVE);
+      });
+
+      it("a failing rollback is silent and the result stays", async () => {
+        const w = setup({ input: KEY, routes: { [JOIN_PATH]: alreadyAdded(OTHER_SLOT), [LEAVE[0] + " " + LEAVE[1]]: new ApiError(500, "internal", "boom") } });
+        assert.equal(await addNetwork(w.form, w.store, w.deps, "join"), "duplicate");
+        assert.equal(w.form.busy, "");
+      });
+
+      it("a slot handed back (not fresh) is kept", async () => {
+        const w = setup({ input: KEY, routes: { "POST /api/nets": { slot: NEW_SLOT, fresh: false, nets: [] }, [JOIN_PATH]: alreadyAdded(OTHER_SLOT) } });
         await addNetwork(w.form, w.store, w.deps, "join");
-        assert.ok(w.calls.every(([method]) => method === "POST"), "only POSTs were sent");
+        assert.ok(w.calls.every(([, path]) => !path.endsWith("/members/leave")));
+      });
+
+      it("main is never left", async () => {
+        const w = setup({ input: KEY, routes: { "POST /api/nets": { slot: "main", fresh: true, nets: [] }, "POST /api/network/join": new ApiError(500, "internal", "boom") } });
+        await addNetwork(w.form, w.store, w.deps, "join");
+        assert.ok(w.calls.every(([, path]) => !path.endsWith("/members/leave")));
+      });
+
+      it("joined and waiting — nothing is left", async () => {
+        const waiting = setup({ input: KEY, routes: { [JOIN_PATH]: { label: null, waiting: true } } });
+        assert.equal(await addNetwork(waiting.form, waiting.store, waiting.deps, "join"), "waiting");
+        const joined = setup({ input: KEY });
+        assert.equal(await addNetwork(joined.form, joined.store, joined.deps, "join"), "joined");
+        for (const w of [waiting, joined]) assert.ok(w.calls.every(([, path]) => !path.endsWith("/members/leave")));
       });
     });
 
