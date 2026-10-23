@@ -14,7 +14,7 @@ use crate::node::output::{say, NET_NAME};
 use crate::transport::net::NodeSecret;
 
 use super::run_invite_addnet::{
-    net_limit_reached, prepare_net_slot, save_prepared_slot, saved_slot_keys,
+    net_limit_reached, prepare_new_slot, save_prepared_slot, saved_slot_keys,
 };
 
 /// What to do with the invite in this run.
@@ -121,7 +121,7 @@ async fn add_redeemed_net(
     typed_domains: &[String],
     now: u64,
 ) -> anyhow::Result<()> {
-    let slot = prepare_net_slot(run, now)?;
+    let slot = prepare_new_slot(run, now)?;
     let text = redeem_text(p, &slot.run.secret).await?;
     say("invite", "network key received, adding the network");
     if let Err(why) = save_prepared_slot(run, slot, &text, typed_domains, &p.peers, now) {

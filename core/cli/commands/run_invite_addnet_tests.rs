@@ -138,7 +138,7 @@ mod adding_a_slot {
         let dir = Dir::new("prepared");
         let run = main_run(&dir, &key_a());
         // when
-        let prepared = prepare_net_slot(&run, 5).expect("prepare");
+        let prepared = prepare_new_slot(&run, 5).expect("prepare");
         let wanted = prepared.run.secret.to_bytes();
         let id = save_prepared_slot(&run, prepared, &key_b(), &[], &[], 5).expect("save");
         // then
@@ -156,7 +156,7 @@ mod adding_a_slot {
     fn preparing_a_slot_writes_nothing() {
         let dir = Dir::new("prepare-only");
         let run = main_run(&dir, &key_a());
-        prepare_net_slot(&run, 5).expect("prepare");
+        prepare_new_slot(&run, 5).expect("prepare");
         assert!(saved_slot_keys(&dir.file()).is_empty());
         assert!(!dir.file().parent().unwrap().join("nets").exists());
     }

@@ -1,14 +1,16 @@
 //! Building the start settings of a network slot that has no file yet: it is added at run time and
 //! gets its file with the first network key.
 
-use std::sync::Arc;
+use std::path::Path;
 
+use super::ids::new_slot_id;
 use super::layout::net_slot_path;
+use super::prepare::slot_run;
 use super::settings_file::NetFile;
 use super::slot_id::NetSlotId;
-use crate::config::config_file::{
-    new_secret, FileReport, FileState, NetSettings, RunConfig, Settings,
-};
+use crate::config::config_file::{new_secret, FileReport, FileState, NetSettings, RunConfig};
+
+const ID_ATTEMPTS: usize = 8;
 
 /// Copies the settings every network of the process shares on the page: the probe interval and the
 /// site checks (switch, interval, DoH server, provider DNS). Everything else stays as `to` has it.
@@ -53,27 +55,42 @@ pub fn fresh_net_slot(
         .ok_or_else(|| anyhow::anyhow!("the main slot has no slot file"))?;
     let mut net = NetSettings::default();
     copy_shared_net(shared, &mut net);
-    let mut process = main.effective_settings.process.clone();
-    process.socks_enabled = false;
-    Ok(RunConfig {
-        effective_settings: Settings {
-            process,
-            net: net.clone(),
-        },
-        file_settings: Settings {
-            process: main.file_settings.process.clone(),
-            net,
-        },
-        secret: new_secret()?,
-        file_report: unwritten_report(path.clone()),
-        cli_override_paths: super::prepare::process_flag_paths(main),
-        file: Some(Arc::new(NetFile {
-            path,
-            created_unix: now_unix,
-        })),
-    })
+    let file = NetFile {
+        path: path.clone(),
+        created_unix: now_unix,
+    };
+    Ok(slot_run(
+        main,
+        net,
+        new_secret()?,
+        unwritten_report(path),
+        file,
+    ))
+}
+
+/// Picks a free id (not `taken`, a few tries) and builds the settings of a new slot beside the main
+/// file at `main_path`; see `fresh_net_slot`. Nothing is written.
+pub fn new_net_slot(
+    main: &RunConfig,
+    main_path: &Path,
+    shared: &NetSettings,
+    taken: &dyn Fn(&NetSlotId) -> bool,
+    now_unix: u64,
+) -> anyhow::Result<(NetSlotId, RunConfig)> {
+    for _ in 0..ID_ATTEMPTS {
+        let id = new_slot_id(main_path)?;
+        if !taken(&id) {
+            let run = fresh_net_slot(main, shared, &id, now_unix)?;
+            return Ok((id, run));
+        }
+    }
+    Err(anyhow::anyhow!("couldn't find a free network id"))
 }
 
 #[cfg(test)]
 #[path = "fresh_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "fresh_new_tests.rs"]
+mod new_tests;

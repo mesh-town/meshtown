@@ -8,8 +8,8 @@ use super::prepare_log::{log_file_findings, log_identity};
 use super::settings_file::NetFile;
 use crate::config::config_file::fields::{field_by_path, Block};
 use crate::config::config_file::{
-    new_secret, save_net_file, FileReport, FileState, LoadedNetFile, ParsedNetFile, RunConfig,
-    SaveError, SecretRead, Settings,
+    new_secret, save_net_file, FileReport, FileState, LoadedNetFile, NetSettings, ParsedNetFile,
+    RunConfig, SaveError, SecretRead, Settings,
 };
 use crate::transport::net::NodeSecret;
 
@@ -145,6 +145,33 @@ fn report_of(path: &Path, p: &ParsedNetFile, id: &Identity) -> FileReport {
     }
 }
 
+/// The run settings of a slot: the process block from the main run (SOCKS off), `net` as the slot's
+/// network block, the slot's own secret, file report and file.
+pub(super) fn slot_run(
+    main: &RunConfig,
+    net: NetSettings,
+    secret: NodeSecret,
+    file_report: FileReport,
+    file: NetFile,
+) -> RunConfig {
+    let mut process = main.effective_settings.process.clone();
+    process.socks_enabled = false;
+    RunConfig {
+        effective_settings: Settings {
+            process,
+            net: net.clone(),
+        },
+        file_settings: Settings {
+            process: main.file_settings.process.clone(),
+            net,
+        },
+        secret,
+        file_report,
+        cli_override_paths: process_flag_paths(main),
+        file: Some(Arc::new(file)),
+    }
+}
+
 /// Builds the run settings of an added slot: the process block from the main run (SOCKS off), the network
 /// block from the slot file, the slot's own secret and file. `Err` means "do not start", the text is for the log.
 pub fn prepare_net_slot(
@@ -163,24 +190,10 @@ pub fn prepare_net_slot(
         identity.problem.as_deref(),
     );
 
-    let mut process = main.effective_settings.process.clone();
-    process.socks_enabled = false;
     let file_report = report_of(&path, &p, &identity);
-    Ok(RunConfig {
-        effective_settings: Settings {
-            process,
-            net: p.net.clone(),
-        },
-        file_settings: Settings {
-            process: main.file_settings.process.clone(),
-            net: p.net,
-        },
-        secret: identity.secret,
-        file_report,
-        cli_override_paths: process_flag_paths(main),
-        file: Some(Arc::new(NetFile {
-            path,
-            created_unix: p.created_unix,
-        })),
-    })
+    let file = NetFile {
+        path,
+        created_unix: p.created_unix,
+    };
+    Ok(slot_run(main, p.net, identity.secret, file_report, file))
 }
