@@ -1,7 +1,6 @@
 //! The choice of the network the proxy serves: the listener's target is the published configuration of the
 //! chosen network, or nothing while that network is down.
 
-use std::collections::HashMap;
 use std::sync::Mutex;
 
 use tokio::sync::watch;
@@ -13,7 +12,6 @@ use super::{ProxyFace, ProxyFront};
 
 struct SeatState {
     chosen: NetSlotId,
-    live: HashMap<NetSlotId, ProxyConfig>,
 }
 
 /// Connects networks to the listener: remembers the published configuration of every running network and
@@ -27,24 +25,25 @@ impl ProxySeat {
     pub fn new(front: Option<ProxyFront>, chosen: NetSlotId) -> Self {
         ProxySeat {
             front,
-            state: Mutex::new(SeatState {
-                chosen,
-                live: HashMap::new(),
-            }),
+            state: Mutex::new(SeatState { chosen }),
         }
     }
 
     /// The network `id` is up with this configuration; it becomes the target if it is the chosen one.
     pub fn node_up(&self, id: &NetSlotId, cfg: ProxyConfig) {
-        let mut state = self.lock();
-        state.live.insert(id.clone(), cfg);
+        let state = self.lock();
+        if let Some(front) = &self.front {
+            front.nets().put(id, cfg);
+        }
         self.publish(&state, id);
     }
 
     /// The network `id` is going down; if it is the chosen one, the target becomes empty.
     pub fn node_down(&self, id: &NetSlotId) {
-        let mut state = self.lock();
-        state.live.remove(id);
+        let state = self.lock();
+        if let Some(front) = &self.front {
+            front.nets().remove(id);
+        }
         self.publish(&state, id);
     }
 
@@ -80,7 +79,7 @@ impl ProxySeat {
         let Some(front) = self.front.as_ref().filter(|_| *changed == state.chosen) else {
             return;
         };
-        front.set_target(state.live.get(changed).cloned());
+        front.set_target(front.nets().get(changed));
     }
 }
 
