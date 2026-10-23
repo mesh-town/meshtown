@@ -108,7 +108,7 @@ class ControlArchive(unittest.TestCase):
         fields = control_fields(Unpacked(built.path).control_text())
         # then
         self.assertEqual(fields["License"], "AGPL-3.0-only")
-        self.assertEqual(fields["Maintainer"], "Mesh Town <meshtown.app@gmail.com>")
+        self.assertEqual(fields["Maintainer"], "Mesh Town <340663027+mesh-town@users.noreply.github.com>")
         self.assertEqual(fields["Section"], "net")
         self.assertTrue(fields["Description"], "the index needs a Description to insert its fields before")
 

@@ -7,7 +7,7 @@ Only the latest released 0.3.x version receives security fixes.
 ## Reporting a vulnerability
 
 Please do not open a public issue for a security problem. Use GitHub private vulnerability reporting for this
-repository (the "Security" tab, "Report a vulnerability"), or write to `meshtown.app@gmail.com` with a description,
+repository (the "Security" tab, "Report a vulnerability") with a description,
 the affected version and steps to reproduce. You should get an answer within a week; the fix and the disclosure date
 are agreed with the reporter.
 
