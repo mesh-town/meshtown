@@ -91,6 +91,13 @@ impl InviteServer {
         if timeout(READY_WAIT, self.access.ready()).await.is_err() {
             return Some(RedeemCode::NotReady);
         }
+        if self
+            .access
+            .verdicts()
+            .is_some_and(|v| v.ledger.is_forgotten(&v.me))
+        {
+            return Some(RedeemCode::NotReady); // retryable: another holder can let the newcomer in
+        }
         owner_code(self.access.check(owner))
     }
 

@@ -68,7 +68,10 @@ fn stamped(kind: AclKind, subject: PeerId, note: String, made_unix: u64) -> AclV
 
 /// The removal vote: stamped after every admission of the subject, so that the vote counts.
 fn forget_vote(v: &Verdicts, p: PeerId) -> AclValue {
-    let after = v.ledger.last_admit_unix(&p).map_or(0, |t| t + 1);
+    let after = v
+        .ledger
+        .last_admit_unix(&p)
+        .map_or(0, |t| t.saturating_add(1));
     stamped(AclKind::Forget, p, String::new(), unix_now().max(after))
 }
 
@@ -83,6 +86,17 @@ fn confirmed_by(me: PeerId, v: &Verdicts, p: &PeerId) -> Option<bool> {
     v.ledger.admissions.get(p).map(|a| a.voters.contains(&me))
 }
 
+/// Whether a forgotten node may still do the action: leave and the takebacks stay open.
+fn keeps_when_forgotten(act: &MemberAction) -> bool {
+    matches!(
+        act,
+        MemberAction::Leave
+            | MemberAction::Unforget(_)
+            | MemberAction::Unexclude(_)
+            | MemberAction::Unblock(_)
+    )
+}
+
 /// The checks in contract order: left, self target, then the state of the subject.
 fn check(
     me: PeerId,
@@ -94,6 +108,9 @@ fn check(
     match (act.clone(), left) {
         (MemberAction::Leave, _) => Ok(()),
         (_, true) => Err(ActionRefusal::Left),
+        (other, _) if v.ledger.is_forgotten(&me) && !keeps_when_forgotten(&other) => {
+            Err(ActionRefusal::Left)
+        }
         (
             MemberAction::Exclude(p, _)
             | MemberAction::Unexclude(p)
@@ -157,14 +174,19 @@ pub async fn apply(a: &Access, act: MemberAction) -> Result<bool, ActionRefusal>
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;
     check(a.me, &verdicts, &a.members.ids(), &act)?;
-    let unforget = matches!(act, MemberAction::Unforget(_));
-    let changed = write(a, &verdicts, act)
+    let changed = write(a, &verdicts, act.clone())
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;
-    if unforget && !changed {
+    let changed = unchanged_refusal(&act, changed)?;
+    refresh_after(a, changed).await;
+    Ok(changed)
+}
+
+/// An `Unforget` that changed nothing had no own vote to withdraw.
+fn unchanged_refusal(act: &MemberAction, changed: bool) -> Result<bool, ActionRefusal> {
+    if !changed && matches!(act, MemberAction::Unforget(_)) {
         return Err(ActionRefusal::NotForgotten);
     }
-    refresh_after(a, changed).await;
     Ok(changed)
 }
 
@@ -187,3 +209,11 @@ mod tests;
 #[cfg(test)]
 #[path = "actions_forget_tests.rs"]
 mod forget_tests;
+
+#[cfg(test)]
+#[path = "actions_forgotten_me_tests.rs"]
+mod forgotten_me_tests;
+
+#[cfg(test)]
+#[path = "actions_overflow_tests.rs"]
+mod overflow_tests;

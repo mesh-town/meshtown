@@ -19,7 +19,7 @@ pub(super) fn forget_info(v: &Verdicts, p: &PeerId) -> Option<ForgetInfo> {
     let proposed_by = short_peer_id(round.voters.first()?);
     Some(ForgetInfo {
         votes: round.voters.len(),
-        need: v.ledger.need,
+        need: v.ledger.forget_need,
         proposed_by,
         voters: round.voters.iter().map(short_peer_id).collect(),
         mine: round.voters.contains(&v.me),

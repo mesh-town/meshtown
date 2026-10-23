@@ -47,6 +47,17 @@ mod with_mark {
     }
 
     #[tokio::test]
+    async fn mark_at_the_largest_time_does_not_overflow() {
+        // given: an owner admitted before and a forget vote stamped with the largest possible time
+        let node = setup().await;
+        node.given_admitted_at(NOW).await;
+        // when: the owner is admitted again after that mark
+        node.when_admitted_after(Some(u64::MAX), NOW + 10).await;
+        // then: the stamp saturates instead of wrapping
+        assert_eq!(node.admit_time().await, Some(u64::MAX));
+    }
+
+    #[tokio::test]
     async fn clock_ahead_of_the_mark_gives_the_clock() {
         // given: an owner admitted and forgotten long ago
         let node = setup().await;

@@ -78,6 +78,7 @@ fn one_vote_waiting(me: PeerId) -> Verdicts {
             forgets: Default::default(),
             admit_unix: Default::default(),
             forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }
@@ -102,6 +103,7 @@ fn excluding(me: PeerId) -> Verdicts {
             forgets: Default::default(),
             admit_unix: Default::default(),
             forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }
@@ -185,6 +187,7 @@ fn requests_waiting(me: PeerId, me_asks: bool) -> Verdicts {
             forgets: Default::default(),
             admit_unix: Default::default(),
             forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }

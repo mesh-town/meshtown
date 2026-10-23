@@ -13,6 +13,8 @@
 pub mod access;
 #[cfg(feature = "net-hyper")]
 pub mod handshake;
+mod handshake_name;
+mod handshake_refusal;
 #[cfg(feature = "net-hyper")]
 pub mod membership;
 #[cfg(feature = "net-hyper")]

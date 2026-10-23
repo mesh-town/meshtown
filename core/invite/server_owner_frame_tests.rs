@@ -209,6 +209,7 @@ fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
         forgets: Default::default(),
         admit_unix: Default::default(),
         forget_marks: Default::default(),
+        forget_need: 1,
     }
 }
 

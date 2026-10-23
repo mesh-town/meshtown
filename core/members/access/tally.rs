@@ -93,6 +93,9 @@ pub struct Ledger {
     pub admit_unix: BTreeMap<PeerId, u64>,
     /// Latest `made_unix` per subject among all live forget records.
     pub forget_marks: BTreeMap<PeerId, u64>,
+    /// Votes needed to forget a node now: the threshold of the forget pass, which counts the nodes that
+    /// only a dead admission lets in, so it may differ from `need`.
+    pub forget_need: u8,
 }
 
 impl Ledger {
@@ -134,6 +137,7 @@ struct Pass {
     pending: BTreeMap<PeerId, Vec<(VoteKey, PeerId)>>,
     short: BTreeMap<PeerId, Admission>,
     rounds: BTreeMap<PeerId, ForgetRound>,
+    forget_need: u8,
     need: u8,
 }
 
@@ -148,6 +152,7 @@ impl Pass {
             pending: BTreeMap::new(),
             short: BTreeMap::new(),
             rounds: BTreeMap::new(),
+            forget_need: 1,
             need: 1,
         };
         pass.refresh();
@@ -204,6 +209,7 @@ impl Pass {
         let settled = settle_forgets(&closure0, &self.excluded, &self.admits, &self.forgets);
         let next = admit_closure(self.me, &settled.live_admits, &self.excluded);
         (self.admitted, self.short, self.rounds) = (next.set, next.short, settled.rounds);
+        self.forget_need = settled.need;
         let mut pending = std::mem::take(&mut self.pending);
         pending.retain(|subject, _| self.counts(subject));
         for list in pending.values_mut() {
@@ -263,6 +269,7 @@ impl Pass {
             forgets: self.rounds,
             admit_unix: BTreeMap::new(),
             forget_marks: BTreeMap::new(),
+            forget_need: self.forget_need,
         }
     }
 }
@@ -293,3 +300,7 @@ mod forget_tests;
 #[cfg(test)]
 #[path = "tally_forget_vote_tests.rs"]
 mod forget_vote_tests;
+
+#[cfg(test)]
+#[path = "tally_forget_need_tests.rs"]
+mod forget_need_tests;

@@ -548,14 +548,14 @@ A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `on
   "at_unix"}`. `votes` counts the members who voted, `voters` and `proposed_by` are short ids, `mine` — this node has
   voted, `at_unix` — when the node was removed (`null` while the circle waits for more votes).
 - `denied_by_me` is `null` or why this node refuses the row: `left`, `excluded`, `voted_by_me`, `removed_by_me` (this
-  node voted to remove it, the circle is still open), `blocked`, `removed`, `unlisted`, `refused`.
+  node voted to remove it, the circle is still open), `blocked`, `removed`, `unlisted`.
 - `last_seen_sec` is the number of seconds since the last sign of life of the node (a connection, telemetry, the
   address cache or a write in the shared document); 0 for a node connected now, `null` when there is no sign at all.
 
 **Actions.** All are `POST {base}/members/<name>` with `<name>` one of `exclude`, `unexclude`, `admit`, `unadmit`,
 `block`, `unblock`, `forget`, `unforget`, `leave`. `exclude`, `unexclude`, `admit`, `unadmit`, `block`, `unblock`,
 `forget` and `unforget` take the body `{"id":"<64 hex digits>"}` (`exclude` also an optional `reason`); a missing `id` is 400 `bad_request`, a
-malformed one 422 `invalid`. The reply is 200 with the member list after the action, with
+malformed one 422 `invalid`. `leave` takes the body `{"confirm":true}` (without it 400 `bad_request`). The reply is 200 with the member list after the action, with
 `changed`.
 
 - `forget` — this node votes to remove a node that is not connected from the member list. The vote is recorded as a
@@ -566,5 +566,5 @@ malformed one 422 `invalid`. The reply is 200 with the member list after the act
 - A new admission of the node (an invitation) made after the votes ends the circle: those votes no longer count.
 
 Refusals are 409 with `error` set to the code: `self_target` (own id), `not_member` (the id is not in the list),
-`left` (this node left the network), `not_pending`, `not_confirmed` (`admit`, `unadmit`), `online` (`forget` of a node
+`left` (this node left the network; a node the others removed from the list gets the same refusal for every action except `leave`, `unforget`, `unexclude` and `unblock`), `not_pending`, `not_confirmed` (`admit`, `unadmit`), `online` (`forget` of a node
 that is connected now), `not_forgotten` (`unforget` without a vote of this node). A write failure is 500 `internal`.

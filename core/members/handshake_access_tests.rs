@@ -205,6 +205,7 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
         forgets: Default::default(),
         admit_unix: Default::default(),
         forget_marks: Default::default(),
+        forget_need: 1,
     };
     Verdicts {
         me,

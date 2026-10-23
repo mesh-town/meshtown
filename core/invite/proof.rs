@@ -71,7 +71,7 @@ pub async fn admit_owner(
         kind: AclKind::Admit,
         subject: owner,
         via: Via::Invite,
-        made_unix: after.map_or(now_unix, |t| now_unix.max(t + 1)),
+        made_unix: after.map_or(now_unix, |t| now_unix.max(t.saturating_add(1))),
         note: issue_note(&issued),
     };
     let written = match after {

@@ -35,7 +35,11 @@ mod forgotten_owner {
         assert_key(node.when_owner_asks(&secret(7)).await);
         // then: the admit is one second after the vote, not at the clock
         let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        assert_eq!(admit.made_unix, mark + 1, "the admit is not later than the vote");
+        assert_eq!(
+            admit.made_unix,
+            mark + 1,
+            "the admit is not later than the vote"
+        );
     }
 
     #[tokio::test]
@@ -69,7 +73,11 @@ mod forgotten_owner {
             "the old admit (5) was not overwritten: {}",
             admit.made_unix
         );
-        assert_eq!(node.count("acl/admit/").await, 1, "a second record appeared");
+        assert_eq!(
+            node.count("acl/admit/").await,
+            1,
+            "a second record appeared"
+        );
     }
 
     #[tokio::test]
@@ -138,6 +146,23 @@ mod excluded_and_forgotten_owner {
         let reply = node.when_owner_asks(&secret(7)).await;
         // then: Excluded wins, nothing is written, the invite works for another key
         assert_refused(reply, RedeemCode::Excluded);
+        node.then_invite_unspent().await;
+    }
+}
+
+mod forgotten_server {
+    use super::*;
+
+    #[tokio::test]
+    async fn forgotten_server_refuses_and_keeps_invite_unspent() {
+        // given: two other members forgot the server itself
+        let members = [me(), pid(3), pid(4), owner_id()];
+        let votes = vec![forget_by(pid(3), me(), 100), forget_by(pid(4), me(), 100)];
+        let node = setup_node(access_of(&input_of(&members, votes))).await;
+        // when: a newcomer presents the invite
+        let reply = node.when_owner_asks(&secret(7)).await;
+        // then: a retryable refusal, nothing is written, the invite is still good
+        assert_refused(reply, RedeemCode::NotReady);
         node.then_invite_unspent().await;
     }
 }

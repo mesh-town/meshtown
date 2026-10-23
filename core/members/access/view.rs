@@ -91,6 +91,7 @@ impl Verdicts {
             .iter()
             .filter(|(_, r)| r.at_unix.is_some());
         hidden.extend(forgotten.map(|(p, _)| *p));
+        hidden.remove(&self.me);
         hidden
     }
 
@@ -261,3 +262,7 @@ mod tests;
 #[cfg(test)]
 #[path = "view_forget_tests.rs"]
 mod forget_tests;
+
+#[cfg(test)]
+#[path = "view_removed_here_tests.rs"]
+mod removed_here_tests;

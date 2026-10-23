@@ -34,6 +34,8 @@ pub struct ForgetRound {
 pub(super) struct ForgetOutcome {
     pub rounds: BTreeMap<PeerId, ForgetRound>,
     pub live_admits: Vec<AdmitIn>,
+    /// Votes needed to forget a node when the pass ended.
+    pub need: u8,
 }
 
 /// A pass event; the variant indexes the input slice.
@@ -182,6 +184,7 @@ impl Settle<'_> {
         ForgetOutcome {
             rounds,
             live_admits: self.live,
+            need: self.need,
         }
     }
 }

@@ -4,8 +4,12 @@
 //! in `peers-cache.json` and `peer-names.json` those not seen for longer than `GONE_AFTER_SECS`, and
 //! removes them from memory and from disk. Cuts only one who is "gone" on two ticks in a row: after
 //! a laptop's long sleep the first tick may come before the document syncs.
-//! What it doesn't do: doesn't touch itself, network members and chosen exits; doesn't clean `Members`
-//! and telemetry; cuts nothing on any read failure.
+//! Nodes hidden from this node by the member list (`cut_hidden`: the forgotten ones and the subjects of its
+//! own waiting removal votes) are cut on the first tick, whatever their age, chosen exits included, and even
+//! though the others may still count some of them as members.
+//! What it doesn't do: the age-based part doesn't touch itself, network members and chosen exits; nothing
+//! cuts this node itself; doesn't clean `Members` and telemetry; the age-based part cuts nothing on any
+//! read failure.
 //! Links: `node::event_loop::run_node_loop` calls `prune_tick`; the age and the "gone" rule are in
 //! `stale_peers`; `PeersCache::forget`, `PeerNames::forget` change memory, saving is here.
 
@@ -186,7 +190,7 @@ fn say_pruned(id: &PeerId, age: Option<u64>) {
 }
 
 /// A sweep tick: the reads (any failure is a log line, nothing is cut), `prune_from`,
-/// a log line for each cut member. Returns the ids of the cut ones (empty on a read failure):
+/// a log line for each cut member. Returns the ids of the cut ones (on a read failure only the hidden ones):
 /// the caller forgets them in the redial.
 pub async fn prune_tick(
     src: &PruneSources<'_>,

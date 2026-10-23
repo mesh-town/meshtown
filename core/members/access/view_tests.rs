@@ -264,6 +264,7 @@ fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
         forgets: Default::default(),
         admit_unix: Default::default(),
         forget_marks: Default::default(),
+        forget_need: 1,
     }
 }
 

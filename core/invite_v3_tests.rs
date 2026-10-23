@@ -126,6 +126,7 @@ async fn make_names_listed_members_without_a_connection() {
         forgets: Default::default(),
         admit_unix: Default::default(),
         forget_marks: Default::default(),
+        forget_need: 1,
     };
     let verdicts = Verdicts {
         me: node.id,
