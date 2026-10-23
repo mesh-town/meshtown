@@ -47,13 +47,14 @@ Paths are from the repository root; a path ending in `/` is a directory.
 The Cargo workspace (root `Cargo.toml`) has four members:
 
 - `core/` — package `meshtown-core`: library (`core/lib.rs`) and the `meshtown` binary (`core/cli/main.rs`). It is the
-  node itself, without a tray.
+  node itself; the binary has no tray icon of its own (the tray backend lives in `platforms/<os>/gui/`).
 - `platforms/linux/`, `platforms/macos/`, `platforms/windows/` — packages `meshtown-linux`, `meshtown-macos`,
   `meshtown-windows`. Each is a library (`gui/lib.rs`, the tray) plus the desktop binary (`cli/main.rs`) of the same
   name as the package. Each depends on `meshtown-core` with the `gui` feature, under `cfg(target_os = …)`.
 
-`default-members = ["core"]`: `cargo build` without `-p` builds the node without a tray. A platform app is built with
-`-p meshtown-<os>`; `--workspace` or a platform crate in the build also switches the `gui` feature on in the core.
+`default-members = ["core"]`: `cargo build` without `-p` builds the `meshtown` node binary, which has no tray icon.
+The core's `gui` feature (tray support code, `gui = ["dep:tray-icon"]`) is on by default (`default = ["gui", "net-hyper"]`);
+`--no-default-features --features net-hyper` builds the core without it. A platform app is built with `-p meshtown-<os>`.
 Crate roots are set by `path` in the manifests, not by directory convention.
 
 Android is a Gradle application (`platforms/android/gui/`). It is not a workspace member: the node is built as a
@@ -63,7 +64,8 @@ shared library for it by `platforms/android/build/build.sh`.
 
 - The core does not depend on anything in `platforms/`: no `path` dependency into that tree, and no `include_*!` or
   `#[path]` in `core/` that leaves `core/`.
-- A platform crate depends only on `meshtown-core`, through its public API.
+- A platform crate depends only on `meshtown-core` among the workspace packages, through its public API (third-party
+  crates are fine).
 - Scripts and `Makefile`s of a platform stay inside its directory. The exceptions are the path dependency on `core/`
   (only in the platform's `Cargo.toml`), `release/lib.sh`, `release/dist/`, and the workspace root itself, from which
   `cargo` is run (root `Cargo.toml` and `Cargo.lock`, `.tmp/`, `target/`, `dist/`).
@@ -71,7 +73,8 @@ shared library for it by `platforms/android/build/build.sh`.
   Tray, windows and packaging belong to the platform.
 
 `make boundary` (`scripts/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
-text of the sources, `Makefile`s, scripts and `.md` files of `core/` and `platforms/`. It is part of `make check`
+text of files: in `core/` only `*.rs` and the manifest, in `platforms/` every text file (sources, `Makefile`s, scripts,
+`.md`). It is part of `make check`
 and runs in CI. A path that leaves the platform directory for any other place is reported with file and line.
 
 ## How the node works (`node::start_node`)
