@@ -135,11 +135,7 @@ pub(crate) fn add_net_slot(
     save_net_file(&path, None, now, now, &slot.secret, &net)
         .map_err(|e| anyhow::anyhow!("{}", save_text(e)))?;
     let seed_domains = merged(read_main_domains(&main_path), typed_domains);
-    let n = seed_domains.len();
-    say(
-        "network",
-        format!("added a network ({id}); seeding {n} sites"),
-    );
+    say("network", format!("added a network ({id})"));
     Ok(AddedNet { id, seed_domains })
 }
 
