@@ -269,6 +269,6 @@ function setup({ input = "", label = "", routes = {}, nets = 1 } = {}) {
   const bus = new EventTarget();
   bus.addEventListener(EV_CHANGED, (e) => changed.push(e.detail.what));
   vi.stubGlobal("document", bus);
-  const deps = { api, askKeep: async () => "no", storage: null, setTimer: () => 0, clearTimer: () => {}, notice: () => {} };
+  const deps = { api, storage: null, setTimer: () => 0, clearTimer: () => {}, notice: () => {} };
   return { form, store, deps, calls, changed };
 }

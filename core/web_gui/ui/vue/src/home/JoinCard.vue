@@ -3,7 +3,6 @@
 // `#home-start-choice`) and "Settings" with a network (`joinPlace`). `join` is a ready `useJoin` from the parent (the setup drives the form itself), otherwise its own.
 import { computed, inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
-import PortsKeepDialog from "./PortsKeepDialog.vue";
 import { useJoin } from "./use-join.ts";
 import { inviteWaitText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
@@ -15,7 +14,7 @@ import {
 const props = defineProps<{ join?: JoinView | null; quiet?: boolean }>();
 const store = inject(STORE_KEY)!;
 const j = props.join || useJoin(store);
-const { form, dialog, hasNet, showJoin, showCreate, title, buttonText, errorParts } = j;
+const { form, hasNet, showJoin, showCreate, title, buttonText, errorParts } = j;
 // `quiet` — the setup has already shown the join progress in its own block, so we don't duplicate the line under the form.
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
 </script>
@@ -44,6 +43,5 @@ const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.
     </div>
     <p class="hint" id="join-status" :hidden="!form.status">{{ form.status }}</p>
     <p class="hint" id="join-wait" role="status" :hidden="!waitText">{{ waitText }}</p>
-    <PortsKeepDialog ref="dialog" />
   </div>
 </template>

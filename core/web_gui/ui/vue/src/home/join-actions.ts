@@ -1,13 +1,12 @@
-/* The join card of the Home tab without Vue: joining by invite, creating your own network, the question about ports
- * on a network change (a port of `07c-join.js` and `10-ports-keep.js`). Errors are not thrown — the text goes to `form`.
+/* The join card of the Home tab without Vue: joining by invite, creating your own network. Errors are not thrown — the text goes to `form`.
  * The network key and the invite string go only into the request body and do not stay in `form`. */
 
 import { watch } from "vue";
-import type { CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse, NodeState, ConfigDocument } from "../core/api-types.ts";
+import type { CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
 import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps, writeSetupMark } from "./home-actions.ts";
-import type { HomeDeps, KeepAnswer, SetupMark } from "./home-actions.ts";
+import type { HomeDeps, SetupMark } from "./home-actions.ts";
 import { failText, quotedNet, upperFirst } from "../common/words.ts";
 import {
   HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_JOIN_ACTION, HOME_LABEL_EMPTY, JOIN_STALLED, JOIN_STALLED_SILENT,
@@ -48,7 +47,7 @@ export interface HighlightPart {
   text: string;
   highlighted: boolean;
 }
-export type JoinResult = "skipped" | "empty" | "cancelled" | "joined" | "waiting" | "created" | "failed";
+export type JoinResult = "skipped" | "empty" | "joined" | "waiting" | "created" | "failed";
 type RequestBody = JoinRequest | CreateNetworkRequest;
 
 export function createJoinForm(): JoinForm {
@@ -71,34 +70,11 @@ function markerParts(message: string, word: string, marker: string, idx: number)
   ];
 }
 
-function hasPublished(doc: Partial<NodeState> | ConfigDocument | null | undefined): boolean {
-  const list = doc && doc.ports && doc.ports.published;
-  return Array.isArray(list) && list.length > 0;
-}
-
-// Whether the question is needed: `ports.published` is non-empty in the snapshot or in the config.
-export function portsKeepNeeded(state: Partial<NodeState> | null, config: ConfigDocument | null): boolean {
-  return hasPublished(state) || hasPublished(config);
-}
-
-// "yes" / "no" — a copy of the body with `keep_ports`, anything else ("cancel", "") — null. `body` is not changed.
-export function bodyWithKeep<B extends RequestBody>(body: B, choice: KeepAnswer): (B & { keep_ports: boolean }) | null {
-  if (choice !== "yes" && choice !== "no") return null;
-  return { ...body, keep_ports: choice === "yes" };
-}
-
-// The request body or null ("Cancel": no request).
-export async function confirmSwitch<B extends RequestBody>(body: B, store: Store, deps: HomeDeps = defaultHomeDeps): Promise<B | (B & { keep_ports: boolean }) | null> {
-  if (!portsKeepNeeded(store.state, store.config)) return body;
-  return bodyWithKeep(body, await deps.askKeep());
-}
-
 // Text for `form.status` after creating a network.
 export function createdNotice(label: unknown): string {
   return createdNoticeText(quotedNet(label));
 }
 
-// A request while the ports dialog is open also counts as "in flight".
 const asking = new WeakSet<JoinForm>();
 
 async function ask(form: JoinForm, run: () => Promise<JoinResult> | JoinResult): Promise<JoinResult> {
@@ -155,10 +131,6 @@ async function sendJoin(form: JoinForm, body: JoinRequest, mark: SetupMark | nul
   }
 }
 
-async function confirmedJoin(form: JoinForm, key: string, mark: SetupMark | null, store: Store, deps: HomeDeps): Promise<JoinResult> {
-  const body = await confirmSwitch({ key }, store, deps);
-  return body ? sendJoin(form, body, mark, deps) : "cancelled";
-}
 
 // A promise from `joinDone` waiting for its deadline. A new click clears the mark, and the old deadline stays silent.
 const promiseTokenByForm = new WeakMap<JoinForm, symbol>();
@@ -228,7 +200,7 @@ function startJoin(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinRe
   promiseTokenByForm.delete(form);
   stopLate(form);
   form.inviteError = key ? null : { message: INVITE_EMPTY, word: null };
-  return key ? confirmedJoin(form, key, markFor(store), store, deps) : "empty";
+  return key ? sendJoin(form, { key }, markFor(store), deps) : "empty";
 }
 
 function createFailed(form: JoinForm, err: ApiErrorLike): JoinResult {
@@ -255,11 +227,6 @@ async function sendCreate(form: JoinForm, label: string, body: CreateNetworkRequ
   }
 }
 
-async function confirmedCreate(form: JoinForm, label: string, mark: SetupMark | null, store: Store, deps: HomeDeps): Promise<JoinResult> {
-  const body = await confirmSwitch({ label }, store, deps);
-  return body ? sendCreate(form, label, body, mark, deps) : "cancelled";
-}
-
 export function createNetwork(form: JoinForm, store: Store, deps: HomeDeps = defaultHomeDeps): Promise<JoinResult> {
   return ask(form, () => startCreate(form, store, deps));
 }
@@ -267,5 +234,5 @@ export function createNetwork(form: JoinForm, store: Store, deps: HomeDeps = def
 function startCreate(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinResult> | "empty" {
   const label = form.label.trim();
   form.labelError = label ? null : LABEL_EMPTY;
-  return label ? confirmedCreate(form, label, markFor(store), store, deps) : "empty";
+  return label ? sendCreate(form, label, { label }, markFor(store), deps) : "empty";
 }

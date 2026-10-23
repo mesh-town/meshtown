@@ -20,7 +20,6 @@ import {
 export const SETUP_KEY = "meshtown.homeSetup";
 
 export type SetupMark = "browser" | "exit" | "done";
-export type KeepAnswer = "yes" | "no" | "cancel" | "";
 export interface FieldStatus {
   text: string;
   cls: string;
@@ -30,7 +29,7 @@ export interface SetupStorage {
   setItem(key: string, value: string): void;
 }
 
-/** Everything external that "Home" needs: `api`, the clipboard, the timer, the storage, `userAgent`, the ports dialog, focus, the notification. */
+/** Everything external that "Home" needs: `api`, the clipboard, the timer, the storage, `userAgent`, focus, the notification. */
 export interface HomeDeps {
   api: ApiFn;
   readonly clipboard: { writeText: (text: string) => Promise<void> } | null;
@@ -38,7 +37,6 @@ export interface HomeDeps {
   clearTimer: (id: unknown) => void;
   readonly storage: SetupStorage | null;
   readonly userAgent: string;
-  askKeep: () => Promise<KeepAnswer>;
   focus: (selector: string) => void;
   /** Exists only on "Home" (put there by `use-join`). */
   notice?: (text: string) => void;
@@ -74,7 +72,6 @@ export const defaultHomeDeps: HomeDeps = {
   get userAgent() {
     return typeof navigator === "undefined" ? "" : navigator.userAgent || "";
   },
-  askKeep: () => Promise.resolve("no"),
   focus: (selector) => {
     const el = typeof document === "undefined" ? null : document.querySelector<HTMLElement>(selector);
     if (el) el.focus();

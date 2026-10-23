@@ -175,12 +175,6 @@ describe("promise after joining", () => {
       await enter(w);
       assert.equal(w.timers.length, 0);
     });
-
-    it("the ports question cancelled — no deadline", async () => {
-      const w = setup({ ports: [8080], answer: "cancel" });
-      await enter(w);
-      assert.equal(w.timers.length, 0);
-    });
   });
 
   describe("failure text", () => {
