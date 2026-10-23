@@ -118,6 +118,8 @@ impl NodeControl for FakeNode {
             MemberActionReq::Unadmit(id) => format!("unadmit:{id}"),
             MemberActionReq::Block(id) => format!("block:{id}"),
             MemberActionReq::Unblock(id) => format!("unblock:{id}"),
+            MemberActionReq::Forget(id) => format!("forget:{id}"),
+            MemberActionReq::Unforget(id) => format!("unforget:{id}"),
             MemberActionReq::Leave => "leave".to_string(),
         };
         self.seen.lock().unwrap().push(seen);

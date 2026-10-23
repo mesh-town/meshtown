@@ -4,12 +4,14 @@
 use std::sync::Arc;
 
 use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
-use crate::members::access::report::members_reply;
+use crate::members::access::report::{members_reply, stamp_last_seen};
 use crate::members::access::view::Verdicts;
 use crate::node::RunningNode;
 use crate::transport::net::PeerId;
+use crate::transport::net_mainline::unix_now;
 use crate::web_gui::{ActionError, MemberActionReq, MemberError, MemberFuture, MembersReply};
 
+use super::members_seen::seen_ages;
 use super::state::NodeCtl;
 
 impl NodeCtl {
@@ -57,6 +59,8 @@ pub(super) fn parse_action(req: MemberActionReq) -> Result<MemberAction, MemberE
         MemberActionReq::Unadmit(id) => Ok(MemberAction::Unadmit(parse_id(&id)?)),
         MemberActionReq::Block(id) => Ok(MemberAction::Block(parse_id(&id)?)),
         MemberActionReq::Unblock(id) => Ok(MemberAction::Unblock(parse_id(&id)?)),
+        MemberActionReq::Forget(id) => Ok(MemberAction::Forget(parse_id(&id)?)),
+        MemberActionReq::Unforget(id) => Ok(MemberAction::Unforget(parse_id(&id)?)),
         MemberActionReq::Leave => Ok(MemberAction::Leave),
     }
 }
@@ -96,12 +100,9 @@ async fn run_action(node: &RunningNode, act: MemberAction) -> Result<MembersRepl
 
 async fn reply_of(node: &RunningNode, changed: Option<bool>) -> Result<MembersReply, MemberError> {
     let v = verdicts_of(node).await?;
-    Ok(members_reply(
-        &v,
-        &node.members,
-        &node.access.view.refusals(),
-        changed,
-    ))
+    let mut reply = members_reply(&v, &node.members, &node.access.view.refusals(), changed);
+    stamp_last_seen(&mut reply, &seen_ages(node, unix_now()).await);
+    Ok(reply)
 }
 
 /// The published verdicts, or a fresh recompute when nothing is published yet.

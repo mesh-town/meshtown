@@ -104,7 +104,7 @@ pub trait NodeControl: Send + Sync {
     fn members(&self) -> MemberFuture {
         not_implemented()
     }
-    /// A member action (exclude, unexclude, block, unblock, leave); the reply is the list after it.
+    /// A member action (exclude, unexclude, block, unblock, forget, unforget, leave); the reply is the list after it.
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {
         let _ = act;
         not_implemented()
@@ -138,6 +138,8 @@ pub enum MemberActionReq {
     Unadmit(String),
     Block(String),
     Unblock(String),
+    Forget(String),
+    Unforget(String),
     Leave,
 }
 
