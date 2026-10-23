@@ -194,6 +194,29 @@ describe("joining by invite", () => {
     await card.when.clicked('Open "my devices"');
     expect(location.hash).toBe("#peers/" + NET_B);
   });
+
+  describe("when the node had no empty slot and the join is refused", () => {
+    it("the slot taken for it is given back: no empty slot is left on the node", async () => {
+      const card = await setup({ opts: twoNets() });
+      refusesNewSlotJoin(card.node, 422, { error: "invalid_key", message: "Not an invite" });
+      await card.when.typed(INVITE);
+      await card.when.clicked("Add network");
+      expect(card.alerts()).toEqual(["Not an invite"]);
+      expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/join", "/api/net/" + FRESH + "/members/leave"]);
+      expect(card.node.slotList.map((s) => s.id)).toEqual(["main", NET_B]);
+      const overview = await api("GET", "/api/overview");
+      expect(overview.nets.filter((n) => n.id_hex === null)).toEqual([]);
+    });
+
+    it("an empty slot that was already there is kept", async () => {
+      const card = await setup();
+      refusesJoin(card.node, 422, { error: "invalid_key", message: "Not an invite" });
+      await card.when.typed(INVITE);
+      await card.when.clicked("Add network");
+      expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/join"]);
+      expect(card.node.slotList.map((s) => s.id)).toContain(FRESH);
+    });
+  });
 });
 
 describe("creating a network", () => {
@@ -312,6 +335,17 @@ function answersJoin(node, { waiting = false } = {}) {
     becomesNetwork(slot, "work", "net-cccc");
     return { label: "work", restart: false };
   };
+}
+
+// The node has no empty slot, so `POST /api/nets` adds one; its join is refused.
+function refusesNewSlotJoin(node, status, body) {
+  const fetchOnNode = node.fetch;
+  node.fetch = async (input, init) => {
+    const res = await fetchOnNode(input, init);
+    if (init && init.method === "POST" && String(input).endsWith("/api/nets")) fresh(node).routes["POST /api/network/join"] = { status, body };
+    return res;
+  };
+  vi.stubGlobal("fetch", node.fetch);
 }
 
 const refusesJoin = (node, status, body) => (fresh(node).routes["POST /api/network/join"] = { status, body });

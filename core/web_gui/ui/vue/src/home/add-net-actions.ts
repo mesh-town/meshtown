@@ -19,6 +19,12 @@ export { stayText } from "./add-net-texts.ts";
 export type AddNetResult = "joined" | "waiting" | "created" | "duplicate" | "limit" | "failed" | "empty" | "skipped";
 export type AddNetMode = "join" | "create";
 
+/** The reply of `POST /api/nets`: the slot and whether it was added just now (`fresh`) or handed back. */
+interface TakenSlot {
+  slot: string;
+  fresh?: boolean;
+}
+
 /** `JoinForm` plus what the add form needs: the slot that holds the network, its name, the slot of a duplicate. */
 export interface AddNetForm extends JoinForm {
   dupSlot?: string;
@@ -64,11 +70,35 @@ function createFailed(form: AddNetForm, err: ApiErrorLike): AddNetResult {
   return "failed";
 }
 
+const failedAdd = (form: AddNetForm, mode: AddNetMode, err: unknown): AddNetResult =>
+  mode === "join" ? joinFailed(form, err as ApiErrorLike) : createFailed(form, err as ApiErrorLike);
+
+// A refused add leaves the slot it took empty; a slot that was new for this add is given back (the same route as "leave" for a
+// slot without a network). A slot handed back from an earlier attempt, `main` and a pending or finished add stay.
+function takenForNothing(taken: TakenSlot, result: AddNetResult): boolean {
+  return taken.fresh === true && taken.slot !== "main" && (result === "failed" || result === "duplicate");
+}
+
+async function giveBack(form: AddNetForm, deps: HomeDeps, slot: string): Promise<void> {
+  form.slot = undefined;
+  try {
+    await deps.api("POST", slotPath(slot, "members/leave"), { confirm: true });
+  } catch {
+    // The empty slot stays on the node; the next add takes it again.
+  }
+}
+
 async function send(form: AddNetForm, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
-  const { slot } = await deps.api<{ slot: string }>("POST", "/api/nets", {});
-  form.slot = slot;
-  if (mode === "create") return created(form, await deps.api<CreateNetworkResponse>("POST", slotPath(slot, "network/create"), { label: form.label.trim() }));
-  return joined(form, await deps.api<JoinResponse>("POST", slotPath(slot, "network/join"), { key: form.inviteInput.trim() }));
+  const taken = await deps.api<TakenSlot>("POST", "/api/nets", {});
+  form.slot = taken.slot;
+  try {
+    if (mode === "create") return created(form, await deps.api<CreateNetworkResponse>("POST", slotPath(taken.slot, "network/create"), { label: form.label.trim() }));
+    return joined(form, await deps.api<JoinResponse>("POST", slotPath(taken.slot, "network/join"), { key: form.inviteInput.trim() }));
+  } catch (err) {
+    const result = failedAdd(form, mode, err);
+    if (takenForNothing(taken, result)) await giveBack(form, deps, taken.slot);
+    return result;
+  }
 }
 
 function joined(form: AddNetForm, res: JoinResponse | null): AddNetResult {
@@ -92,7 +122,7 @@ export async function addNetwork(form: AddNetForm, store: Store, deps: HomeDeps,
   try {
     return await send(form, deps, mode);
   } catch (err) {
-    return mode === "join" ? joinFailed(form, err as ApiErrorLike) : createFailed(form, err as ApiErrorLike);
+    return failedAdd(form, mode, err);
   } finally {
     form.busy = "";
     if (typeof document !== "undefined") notifyChanged(document, "state");

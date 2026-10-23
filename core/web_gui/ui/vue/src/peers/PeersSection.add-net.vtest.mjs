@@ -141,13 +141,39 @@ describe("joining by invite", () => {
       expect(page.card().exists()).toBe(true);
     });
 
-    it("when the network arrives, the banner is on its tab", async () => {
+    it("when the network arrives, its tab opens by itself with the banner", async () => {
       const page = await openTwo("peers/add", { waiting: true });
       await page.whenJoined();
       page.arrives();
       await polls(page.node, 1);
+      await page.hashChanged();
+      expect(location.hash).toBe("#peers/" + FRESH);
+      expect(page.selectedName()).toContain("work");
       expect(page.tabsText()).not.toContain("joining…");
+      expect(page.banner()).toBe(JOINED);
+      expect(page.card().exists(), "the form and its waiting line are gone").toBe(false);
+    });
+
+    it("when the user is on another tab, the page stays there and the banner waits on the new tab", async () => {
+      const page = await openTwo("peers/add", { waiting: true });
+      await page.whenJoined();
+      await page.whenTabClicked("friends");
+      page.arrives();
+      await polls(page.node, 1);
+      await page.hashChanged();
+      expect(location.hash).toBe("#peers/main");
+      expect(page.banner()).toBeNull();
       await page.whenTabClicked("work");
+      expect(page.banner()).toBe(JOINED);
+    });
+
+    it("when no poll saw the slot as joining, the network still arrives on its tab", async () => {
+      const page = await openTwo("peers/add", { waiting: "unseen" });
+      await page.whenJoined();
+      page.arrives();
+      await polls(page.node, 1);
+      await page.hashChanged();
+      expect(location.hash).toBe("#peers/" + FRESH);
       expect(page.banner()).toBe(JOINED);
     });
   });
@@ -210,7 +236,7 @@ function becomesNetwork(slot) {
 
 function scriptSlot(slot, { waiting, duplicate }) {
   if (duplicate) slot.routes["POST /api/network/join"] = { status: 409, body: { error: "net_already_added", slot: NET_B } };
-  else if (waiting) slot.routes["POST /api/network/join"] = () => { slot.joining = true; return { label: null, restart: false, waiting: true }; };
+  else if (waiting) slot.routes["POST /api/network/join"] = () => { slot.joining = waiting !== "unseen"; return { label: null, restart: false, waiting: true }; };
   else slot.routes["POST /api/network/join"] = () => { becomesNetwork(slot); return { label: "work", restart: false }; };
   slot.routes["POST /api/network/create"] = () => { becomesNetwork(slot); return { key: "mesh1-secret", label: "work", restart: false }; };
 }

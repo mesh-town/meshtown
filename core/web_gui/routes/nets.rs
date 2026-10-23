@@ -37,7 +37,7 @@ pub(super) async fn nets_post_handler(State(app): State<Arc<App>>, bytes: Bytes)
                 StatusCode::OK
             };
             let nets = briefs(app.host.as_ref());
-            let body = json!({"slot": added.id.to_string(), "nets": nets});
+            let body = json!({"slot": added.id.to_string(), "fresh": added.fresh, "nets": nets});
             (status, axum::Json(body)).into_response()
         }
         Err(e) => host_error_response(e),

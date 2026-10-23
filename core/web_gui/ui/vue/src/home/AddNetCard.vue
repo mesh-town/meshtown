@@ -2,7 +2,7 @@
 // The "Add another network" form: join with an invite or create a network, in a new slot. One component for two places —
 // under the Members list (`peers`) and in Settings → Network (`settings`); only "Cancel" differs. On success it moves to
 // the new network's tab and leaves a banner there; a join that waits for a member shows its progress in place.
-import { computed, inject, reactive, ref } from "vue";
+import { computed, inject, reactive, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
 import { peersHash } from "../shell/nav.ts";
@@ -10,7 +10,7 @@ import { defaultHomeDeps } from "./home-actions.ts";
 import { createJoinForm, highlightParts } from "./join-actions.ts";
 import { addNetwork, addedBannerText, atLimit, stayText } from "./add-net-actions.ts";
 import type { AddNetForm, AddNetMode, AddNetResult } from "./add-net-actions.ts";
-import { useNetBanner } from "./add-net-banner.ts";
+import { expectArrival, useNetBanner } from "./add-net-banner.ts";
 import {
   ADD_NET_BTN, ADD_NET_BUSY, ADD_NET_CANCEL, ADD_NET_CREATE_BTN, ADD_NET_CREATE_LABEL, ADD_NET_CREATE_PLACEHOLDER, ADD_NET_JOIN_HINT,
   ADD_NET_JOIN_LABEL, ADD_NET_JOIN_PLACEHOLDER, ADD_NET_LIMIT, ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN, ADD_NET_WAITING,
@@ -40,9 +40,19 @@ function arrive(result: AddNetResult): void {
   }
 }
 
+// The waiting line goes when the network it waited for holds its key.
+watch(
+  () => store.nets.some((n) => n.id === form.slot && n.id_hex != null),
+  (arrived) => {
+    if (arrived && outcome.value === "waiting") outcome.value = "";
+  },
+);
+
 async function submit(): Promise<void> {
+  expectArrival(null);
   const result = await addNetwork(form, store, defaultHomeDeps, mode.value);
   outcome.value = result;
+  if (result === "waiting") expectArrival(form.slot ?? null);
   if (result === "joined" || result === "created") arrive(result);
   emit("done", result, result === "joined" || result === "created" || result === "waiting" ? form.slot ?? null : null);
 }

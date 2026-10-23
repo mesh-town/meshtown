@@ -83,12 +83,12 @@ export const netsReply = (node) => (node.legacy ? notFound() : reply(200, { api:
 export function addNet(node) {
   if (node.legacy) return notFound();
   const waiting = node.slotList.find((s) => s.id_hex === null && s.id !== MAIN);
-  if (waiting) return reply(200, { slot: waiting.id, nets: briefs(node) });
+  if (waiting) return reply(200, { slot: waiting.id, fresh: false, nets: briefs(node) });
   if (node.slotList.length >= MAX_NETS) return reply(409, { error: "too_many_nets", limit: MAX_NETS });
   node.slotSeq += 1;
   const slot = makeSlot(node, { id: "net" + "abcdefgh"[(node.slotSeq - 1) % 8] + "2" + (2 + ((node.slotSeq - 1) % 6)), state: emptyState(node) });
   node.slotList.push(slot);
-  return reply(201, { slot: slot.id, nets: briefs(node) });
+  return reply(201, { slot: slot.id, fresh: true, nets: briefs(node) });
 }
 
 function leaveReply(node, slot) {

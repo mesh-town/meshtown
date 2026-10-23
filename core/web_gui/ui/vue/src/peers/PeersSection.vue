@@ -51,7 +51,11 @@ const you = ref<InstanceType<typeof YouBlock> | null>(null);
 const hint = useNetsHint(() => visible.value.length);
 // The "added a network" banner sits on that network's tab; a join that waited for a member shows it on arrival.
 const { banner, show: showBanner, clear: clearBanner } = useNetBanner();
-watchArrivals(() => store.nets, (arrived) => showBanner(arrived, arrivedBannerText(store, arrived)));
+// A form that waited for the network leads to its tab; a user who has gone elsewhere stays there.
+watchArrivals(() => store.nets, (arrived) => {
+  showBanner(arrived, arrivedBannerText(store, arrived));
+  if (store.peersTab === "add") location.hash = peersHash(arrived);
+});
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value));
