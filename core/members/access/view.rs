@@ -6,10 +6,11 @@
 //! What it doesn't do: no tally, no replica, no I/O; closing connections is `Members::cut`.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::members::access::tally::Ledger;
+use crate::members::access::tally::{ForgetRound, Ledger};
 
 pub use super::deny::Deny;
 use crate::transport::net::PeerId;
@@ -62,11 +63,23 @@ impl Verdicts {
             (self.ledger.excluded.contains_key(&peer), Deny::Excluded),
             (self.my_votes.contains(&peer), Deny::VotedByMe),
             (self.blocks.contains(&peer), Deny::Blocked),
+            (self.ledger.is_forgotten(&peer), Deny::Forgotten),
+            (self.my_forgets().contains(&peer), Deny::RemovedByMe),
         ];
         match denies.iter().find(|(hit, _)| *hit) {
             Some((_, deny)) => Err(*deny),
             None => self.check_listed(peer),
         }
+    }
+
+    /// Subjects of live forget circles that I voted in: hidden from me at once, before the circle completes.
+    pub fn my_forgets(&self) -> BTreeSet<PeerId> {
+        let mine = |round: &ForgetRound| round.voters.contains(&self.me);
+        let subjects = self.ledger.forgets.iter().filter(|(_, round)| mine(round));
+        subjects
+            .map(|(p, _)| *p)
+            .filter(|p| *p != self.me)
+            .collect()
     }
 
     fn check_listed(&self, peer: PeerId) -> Result<(), Deny> {
@@ -82,6 +95,7 @@ impl Verdicts {
         all.extend(self.ledger.excluded.keys().copied());
         all.extend(self.my_votes.iter().copied());
         all.extend(self.blocks.iter().copied());
+        all.extend(self.ledger.forgets.keys().copied());
         all.remove(&self.me);
         all
     }
@@ -92,6 +106,7 @@ struct Inner {
     ready: tokio::sync::watch::Sender<bool>,
     refusals: Mutex<Vec<(PeerId, Refusal)>>,
     recompute: Arc<tokio::sync::Mutex<()>>,
+    removed_noted: AtomicBool,
 }
 
 /// Shared handle to the latest verdicts. `open` lets everyone in; `pending` waits for the first
@@ -124,6 +139,7 @@ impl AccessView {
                 ready: tx,
                 refusals: Mutex::new(Vec::new()),
                 recompute: Arc::new(tokio::sync::Mutex::new(())),
+                removed_noted: AtomicBool::new(false),
             }),
         }
     }
@@ -215,6 +231,11 @@ impl AccessView {
         self.inner.refusals.lock().unwrap().clone()
     }
 
+    /// `true` only on the first call: the "removed from the list" line is logged once per run.
+    pub fn first_removed_notice(&self) -> bool {
+        !self.inner.removed_noted.swap(true, Ordering::Relaxed)
+    }
+
     /// Serialises recomputations of the verdicts.
     pub fn recompute_lock(&self) -> Arc<tokio::sync::Mutex<()>> {
         self.inner.recompute.clone()
@@ -224,3 +245,7 @@ impl AccessView {
 #[cfg(test)]
 #[path = "view_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "view_forget_tests.rs"]
+mod forget_tests;

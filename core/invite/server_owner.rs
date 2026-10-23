@@ -33,7 +33,7 @@ type Verdict = (RedeemCode, Option<NetworkKey>);
 /// Refusals by this node's own vote or block are retryable: another holder may decide differently.
 fn owner_code(r: Result<(), Deny>) -> Option<RedeemCode> {
     match r {
-        Ok(()) | Err(Deny::Unlisted) => None,
+        Ok(()) | Err(Deny::Unlisted | Deny::Forgotten | Deny::RemovedByMe) => None,
         Err(Deny::Excluded) => Some(RedeemCode::Excluded),
         Err(why) => {
             say(
@@ -108,6 +108,11 @@ impl InviteServer {
             .map_err(|_| RedeemCode::Internal)
     }
 
+    /// The newest forget vote about the owner in this node's view of the list.
+    fn forget_mark(&self, owner: &PeerId) -> Option<u64> {
+        self.access.verdicts()?.ledger.forget_mark(owner)
+    }
+
     /// Phase 2: a fresh verdict, comparing claims (the one who yields gets `Busy`), the owner's record, the mark,
     /// the key. A failed record write leaves the invite unspent: the claim goes stale and the client retries.
     async fn settle_and_grant(
@@ -129,7 +134,8 @@ impl InviteServer {
         if settle(ledger.me(), &rivals) == Settle::Yield {
             return (RedeemCode::Busy, None);
         }
-        if let Err(e) = admit_owner(list, hash, owner, now_unix).await {
+        let after = self.forget_mark(&owner);
+        if let Err(e) = admit_owner(list, hash, owner, after, now_unix).await {
             say("invite", format!("couldn't write the member record: {e:#}"));
             return (RedeemCode::Internal, None);
         }
@@ -150,3 +156,7 @@ fn log_owner(who: &str, owner: PeerId, code: RedeemCode) {
     }
     log_refused(who, code);
 }
+
+#[cfg(test)]
+#[path = "server_owner_forget_tests.rs"]
+mod forget_tests;

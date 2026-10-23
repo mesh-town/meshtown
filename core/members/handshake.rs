@@ -115,6 +115,8 @@ impl std::fmt::Display for RefusedByPeer {
     }
 }
 
+const REMOVED_NOTICE: &str = "acl: members removed this node from the member list; join again with an invite from the node page";
+
 /// The responder did not answer: if it closed with a refusal, remember it (the close frame may arrive a moment later).
 async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<Deny> {
     let _ = timeout(Duration::from_secs(1), conn.closed()).await;
@@ -123,6 +125,9 @@ async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<
     reason
         .iter()
         .for_each(|deny| access.note_refusal(conn.peer(), Side::Them, *deny));
+    if reason == Some(Deny::Forgotten) && access.first_removed_notice() {
+        tracing::warn!("{REMOVED_NOTICE}");
+    }
     reason
 }
 

@@ -9,7 +9,7 @@
 use super::store::{IssueRecord, FOR_WHOM_MAX_CHARS, ISSUE_PREFIX};
 use super::wire::OwnerRequest;
 use super::InviteSecret;
-use crate::members::access::record::{put, AclKind, AclValue, Via};
+use crate::members::access::record::{put, rewrite, AclKind, AclValue, Via};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::{live, NetError, NodeSecret, PeerId, ReplicaEntry};
 
@@ -54,10 +54,13 @@ pub fn issue_note(entries: &[ReplicaEntry]) -> String {
 }
 
 /// Writes the owner's `admit` record (via the invite) into the shared document, with the invite's label.
+/// With `after` (the newest forget vote about the owner) the record is stamped later than it and overwrites
+/// an older one, so that the return outdates those votes.
 pub async fn admit_owner(
     list: &DomainList,
     hash: &str,
     owner: PeerId,
+    after: Option<u64>,
     now_unix: u64,
 ) -> anyhow::Result<()> {
     let shared = list.shared_replica();
@@ -68,12 +71,20 @@ pub async fn admit_owner(
         kind: AclKind::Admit,
         subject: owner,
         via: Via::Invite,
-        made_unix: now_unix,
+        made_unix: after.map_or(now_unix, |t| now_unix.max(t + 1)),
         note: issue_note(&issued),
     };
-    put(&*shared, &value).await.map_err(NetError::into_anyhow)
+    let written = match after {
+        Some(_) => rewrite(&*shared, &value).await,
+        None => put(&*shared, &value).await,
+    };
+    written.map_err(NetError::into_anyhow)
 }
 
 #[cfg(test)]
 #[path = "proof_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "proof_forget_tests.rs"]
+mod forget_tests;

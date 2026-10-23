@@ -81,6 +81,8 @@ fn refused_set(
 ) -> BTreeSet<PeerId> {
     let mut out = live_subjects(snap, me, AclKind::Admit);
     out.extend(live_subjects(snap, me, AclKind::Exclude));
+    out.extend(live_subjects(snap, me, AclKind::Forget));
+    out.extend(ledger.forgets.keys().filter(|p| ledger.is_forgotten(p)));
     out.extend(withdrawn_subjects(snap, me, AclKind::Admit));
     out.extend(ledger.excluded.keys().copied());
     out.extend(blocks.iter().copied());
@@ -103,7 +105,11 @@ pub(super) fn promotions(
     out.extend(witness.iter().copied());
     let refused = live_subjects(snap, me, AclKind::Exclude);
     out.retain(|p| {
-        *p != me && !refused.contains(p) && !blocks.contains(p) && !ledger.excluded.contains_key(p)
+        *p != me
+            && !refused.contains(p)
+            && !blocks.contains(p)
+            && !ledger.excluded.contains_key(p)
+            && !ledger.forgets.contains_key(p)
     });
     out.into_iter().collect()
 }
@@ -150,9 +156,10 @@ pub(super) fn plan_admits(
     let ledger = tally(&input);
     let me_left = ledger.excluded.contains_key(&b.me);
     let refused = refused_set(snap, b.me, blocks, &ledger);
+    let circles: BTreeSet<PeerId> = ledger.forgets.keys().copied().collect();
     let plan = cap(
         keep(witness, &refused, me_left),
-        keep(migration, &refused, me_left),
+        keep(keep(migration, &circles, me_left), &refused, me_left),
     );
     let promote = promotions(snap, b.me, blocks, &ledger, &plan.witness);
     BootPlan {
@@ -162,3 +169,7 @@ pub(super) fn plan_admits(
         ..plan
     }
 }
+
+#[cfg(test)]
+#[path = "boot_forget_tests.rs"]
+mod forget_tests;
