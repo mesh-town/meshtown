@@ -6,7 +6,7 @@ use super::pages::PAGES;
 use crate::web_gui::test_host::send;
 use crate::web_gui::test_host::{config_with_key, slot_handle, test_app, FakeHost, SnapNode};
 
-const NET_PATHS: [&str; 12] = [
+const NET_PATHS: [&str; 20] = [
     "state",
     "config",
     "peer-addresses",
@@ -19,10 +19,6 @@ const NET_PATHS: [&str; 12] = [
     "actions/check-domain",
     "actions/check-all",
     "actions/restart",
-];
-
-/// The member routes; so far registered under `/api` only.
-const MEMBER_PATHS: [&str; 8] = [
     "members",
     "members/exclude",
     "members/unexclude",
@@ -33,7 +29,7 @@ const MEMBER_PATHS: [&str; 8] = [
     "members/leave",
 ];
 
-const PROCESS_PATHS: [&str; 10] = [
+const PROCESS_PATHS: [&str; 12] = [
     "/api/log",
     "/api/log/download",
     "/api/actions/stop",
@@ -44,6 +40,8 @@ const PROCESS_PATHS: [&str; 10] = [
     "/api/auth/reset",
     "/api/auth/password",
     "/api/token/rotate",
+    "/api/nets",
+    "/api/overview",
 ];
 
 const OTHER: &str = "ab2c3d";
@@ -84,12 +82,9 @@ async fn net_paths_answer_under_both_prefixes() {
             found += usize::from(path_exists(&router, &format!("{base}/{path}")).await);
         }
     }
-    for path in MEMBER_PATHS {
-        found += usize::from(path_exists(&router, &format!("/api/{path}")).await);
-    }
     // then
     assert_eq!(
-        found, 32,
+        found, 40,
         "network paths found under /api and /api/net/<slot>"
     );
 }
@@ -107,6 +102,15 @@ async fn process_paths_answer_once_and_not_under_a_slot() {
         prefixed += usize::from(path_exists(&router, &slotted).await);
     }
     // then
-    assert_eq!(found, 10, "process paths");
+    assert_eq!(found, 12, "process paths");
     assert_eq!(prefixed, 0, "process paths under a slot prefix");
+}
+
+#[test]
+fn the_route_count_is_sixty_three() {
+    assert_eq!(
+        PAGES.len() + 2 * NET_PATHS.len() + PROCESS_PATHS.len(),
+        63,
+        "pages, network paths twice, process paths"
+    );
 }

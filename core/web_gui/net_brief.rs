@@ -1,9 +1,6 @@
 //! `NetBrief`: the short form of one network slot that the page and the tray show for every slot.
 //! It is built from a slot's node snapshot and its config state, so it lives with the page's DTOs.
 
-// The page routes and the tray are the callers; until they are wired the builders have none.
-#![allow(dead_code)]
-
 use serde::Serialize;
 
 use super::control::InviteJoinState;

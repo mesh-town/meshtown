@@ -1,7 +1,7 @@
 //! Router of the node page: registers routes by group (the static ones from the `pages` table, the
 //! network routes under two prefixes and the process routes once), then the shared `fallback` (404) and a
 //! layer of headers and guards. Handlers are in neighboring files by group (`pages`, `state`, `config`,
-//! `peers`, `domains`, `actions`, `network`, `auth`, `auth_password`, `token_rotate`), shared helpers are in
+//! `peers`, `domains`, `actions`, `network`, `nets`, `overview`, `auth`, `auth_password`, `token_rotate`), shared helpers are in
 //! `helpers.rs`, the slot a request addresses is read by `slot_param`.
 
 use std::sync::Arc;
@@ -23,11 +23,14 @@ mod config;
 mod domains;
 pub(crate) mod helpers;
 mod log;
+mod nets;
 mod network;
+mod overview;
 mod pages;
 mod peers;
 pub(crate) mod slot_param;
 mod state;
+mod state_host;
 mod state_net;
 mod token_rotate;
 
@@ -47,7 +50,7 @@ pub(crate) fn router(app: Arc<App>) -> Router {
     let router = register_process(router);
     let router = register_auth(router);
     let router = register_token(router);
-    let router = crate::web_gui::members::register_members(router);
+    let router = register_host(router);
     router
         .fallback(fallback_404)
         .layer(
@@ -93,7 +96,23 @@ pub(crate) fn register_net_routes(router: Router<Arc<App>>, base: &str) -> Route
     let router = register_peers(router, base);
     let router = register_domains(router, base);
     let router = register_actions(router, base);
-    register_network(router, base)
+    let router = register_network(router, base);
+    crate::web_gui::members::register_members(router, base)
+}
+
+/// The list of networks and the overview of all of them: process routes with their own paths.
+fn register_host(router: Router<Arc<App>>) -> Router<Arc<App>> {
+    router
+        .route(
+            "/api/nets",
+            get(nets::nets_get_handler)
+                .post(nets::nets_post_handler)
+                .fallback(bad_method),
+        )
+        .route(
+            "/api/overview",
+            get(overview::overview_handler).fallback(bad_method),
+        )
 }
 
 /// Routes of the process: registered once, without a slot prefix.

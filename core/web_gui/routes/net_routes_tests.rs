@@ -84,3 +84,21 @@ async fn both_addresses_of_the_primary_slot_act_the_same() {
     assert_eq!(f.main.restarts(), 2, "restarts of the primary slot");
     assert_eq!(f.other.restarts(), 0, "restarts of ab2c3d");
 }
+
+#[tokio::test]
+async fn a_broken_slot_has_no_routes_but_the_list() {
+    // given
+    let main = SnapNode::new(Default::default());
+    let host = FakeHost::new(vec![slot_handle("main", main, config_with_key(None))]);
+    host.set_broken(vec![
+        crate::config::config_file::NetSlotId::parse("ab2c3d").unwrap()
+    ]);
+    let router = test_app(host).0;
+    // when
+    let (status, body) = send(&router, Method::GET, "/api/net/ab2c3d/state", "").await;
+    let (_, nets) = send(&router, Method::GET, "/api/nets", "").await;
+    // then
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], "unknown_net");
+    assert_eq!(nets["nets"][1]["status"], "broken");
+}

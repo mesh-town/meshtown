@@ -4,48 +4,39 @@
 use std::sync::Arc;
 
 use axum::body::Bytes;
-use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, MethodRouter};
 use axum::Router;
 use serde_json::{Map, Value};
 
 use crate::web_gui::http::json_err;
 use crate::web_gui::routes::helpers::{action_error, bad_method, body_obj};
-use crate::web_gui::{App, MemberActionReq, MemberError, MembersReply};
+use crate::web_gui::routes::slot_param::SlotParam;
+use crate::web_gui::App;
+use crate::web_gui::{MemberActionReq, MemberError, MembersReply, SlotHandle};
 
-pub(crate) fn register_members(router: Router<Arc<App>>) -> Router<Arc<App>> {
-    router
-        .route("/api/members", get(members_handler).fallback(bad_method))
-        .route(
-            "/api/members/exclude",
-            post(exclude_handler).fallback(bad_method),
+/// Registers the member routes of one network under `base` (`/api` or `/api/net/{slot}`).
+pub(crate) fn register_members(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
+    let actions: [(&str, MethodRouter<Arc<App>>); 7] = [
+        ("exclude", post(exclude_handler)),
+        ("unexclude", post(unexclude_handler)),
+        ("admit", post(admit_handler)),
+        ("unadmit", post(unadmit_handler)),
+        ("block", post(block_handler)),
+        ("unblock", post(unblock_handler)),
+        ("leave", post(leave_handler)),
+    ];
+    let router = router.route(
+        &format!("{base}/members"),
+        get(members_handler).fallback(bad_method),
+    );
+    actions.into_iter().fold(router, |router, (name, route)| {
+        router.route(
+            &format!("{base}/members/{name}"),
+            route.fallback(bad_method),
         )
-        .route(
-            "/api/members/unexclude",
-            post(unexclude_handler).fallback(bad_method),
-        )
-        .route(
-            "/api/members/admit",
-            post(admit_handler).fallback(bad_method),
-        )
-        .route(
-            "/api/members/unadmit",
-            post(unadmit_handler).fallback(bad_method),
-        )
-        .route(
-            "/api/members/block",
-            post(block_handler).fallback(bad_method),
-        )
-        .route(
-            "/api/members/unblock",
-            post(unblock_handler).fallback(bad_method),
-        )
-        .route(
-            "/api/members/leave",
-            post(leave_handler).fallback(bad_method),
-        )
+    })
 }
 
 fn reply(result: Result<MembersReply, MemberError>) -> Response {
@@ -58,9 +49,15 @@ fn reply(result: Result<MembersReply, MemberError>) -> Response {
     }
 }
 
-async fn members_handler(State(app): State<Arc<App>>) -> Response {
-    let slot = app.host.main_slot();
+async fn members_handler(SlotParam(slot): SlotParam) -> Response {
     reply(slot.node.members().await)
+}
+
+/// The member list of a slot as the list route would send it; `None` where the route answers an error
+/// (no network, a refusal).
+pub(crate) async fn members_value(slot: &SlotHandle) -> Option<Value> {
+    let reply = slot.node.members().await.ok()?;
+    serde_json::to_value(reply).ok()
 }
 
 /// The body as a JSON object; anything else (including non-JSON) is 400 `bad_request`.
@@ -75,8 +72,11 @@ fn object_body(bytes: &[u8]) -> Result<Map<String, Value>, Response> {
 }
 
 /// Runs an action that takes the target `id` from the body, built by `make`.
-async fn id_action(app: &App, bytes: &Bytes, make: fn(String) -> MemberActionReq) -> Response {
-    let slot = app.host.main_slot();
+async fn id_action(
+    slot: &SlotHandle,
+    bytes: &Bytes,
+    make: fn(String) -> MemberActionReq,
+) -> Response {
     let map = match object_body(bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -120,8 +120,7 @@ fn bad_reason(message: &str) -> Response {
     json_err(StatusCode::BAD_REQUEST, "bad_request", message)
 }
 
-async fn exclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    let slot = app.host.main_slot();
+async fn exclude_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -146,32 +145,31 @@ async fn exclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response 
     }
 }
 
-async fn unexclude_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    id_action(&app, &bytes, MemberActionReq::Unexclude).await
+async fn unexclude_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Unexclude).await
 }
 
-async fn admit_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    id_action(&app, &bytes, MemberActionReq::Admit).await
+async fn admit_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Admit).await
 }
 
-async fn unadmit_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    id_action(&app, &bytes, MemberActionReq::Unadmit).await
+async fn unadmit_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Unadmit).await
 }
 
-async fn block_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    id_action(&app, &bytes, MemberActionReq::Block).await
+async fn block_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Block).await
 }
 
-async fn unblock_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    id_action(&app, &bytes, MemberActionReq::Unblock).await
+async fn unblock_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    id_action(&slot, &bytes, MemberActionReq::Unblock).await
 }
 
 fn confirmed(map: &Map<String, Value>) -> bool {
     matches!(map.get("confirm"), Some(Value::Bool(true)))
 }
 
-async fn leave_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    let slot = app.host.main_slot();
+async fn leave_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
