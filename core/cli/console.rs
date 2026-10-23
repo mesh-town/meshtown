@@ -3,8 +3,7 @@
 //! What it does: reads lines in a separate thread and dispatches them to commands — `invite` (an invite
 //! string), the check commands (`checks`), the proxy (`proxy`) and the domain list (`domains`).
 //! What it doesn't do: it doesn't execute commands itself, it only calls the owner modules.
-//! Links: started from `node::run_cycles` on the first cycle; repeats `checks::spawn_console`,
-//! which stays in the code until the owner of `checks.rs` edits it.
+//! Links: started from `node::run_cycles` on the first cycle; repeats `checks::spawn_console`.
 
 use crate::node::output::say;
 use crate::proxy::domains::{self, DomainList};

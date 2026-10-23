@@ -44,7 +44,7 @@ fn self_addresses_order_and_roundtrip() {
     let my_id = pair(1);
     let v4: SocketAddr = "192.168.1.14:47821".parse().unwrap();
     let v6: SocketAddr = "[2001:db8::1]:47821".parse().unwrap();
-    let relay: RelayUrl = "https://euw1-1.relay.iroh.network./".parse().unwrap();
+    let relay: RelayUrl = "https://relay.example./".parse().unwrap();
     let mut inputs = base(my_id);
     inputs.addr = from_endpoint_addr(&EndpointAddr::from_parts(
         my_id,
@@ -66,7 +66,7 @@ fn self_addresses_order_and_roundtrip() {
     assert_eq!(id_relay.parse::<PeerId>().unwrap(), my_id);
     assert_eq!(rest_v4.parse::<SocketAddr>().unwrap(), v4);
     assert_eq!(rest_v6.parse::<SocketAddr>().unwrap(), v6);
-    assert_eq!(rest_relay, "https://euw1-1.relay.iroh.network./");
+    assert_eq!(rest_relay, "https://relay.example./");
     assert_eq!(rest_relay.parse::<RelayUrl>().unwrap(), relay);
 }
 

@@ -1,7 +1,7 @@
 //! Session counters and path/network information.
 
 use super::*;
-use crate::transport::net::link::{NatKind, PathKind};
+use crate::transport::net::link::PathKind;
 use std::io::ErrorKind;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
 
@@ -9,12 +9,9 @@ use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
 fn fresh_meter_reports_unknown_path() {
     let info = link_info(&LinkMeter::new());
     assert!(matches!(info.path, PathKind::Unknown));
-    assert_eq!(
-        (info.sent_bytes, info.recv_bytes, info.lost_packets),
-        (0, 0, 0)
-    );
+    assert_eq!((info.sent_bytes, info.recv_bytes), (0, 0));
     assert_eq!((info.stream_frames, info.path_count), (0, 0));
-    assert!(info.rtt.is_none() && info.cwnd.is_none() && info.remote.is_none());
+    assert!(info.rtt.is_none() && info.remote.is_none());
 }
 
 #[tokio::test]
@@ -38,7 +35,7 @@ fn established_meter_reports_direct_path_without_rtt() {
     let info = link_info(&meter);
     assert!(matches!(info.path, PathKind::Direct));
     assert_eq!(info.path_count, 1);
-    assert!(info.rtt.is_none() && info.cwnd.is_none() && info.remote.is_none());
+    assert!(info.rtt.is_none() && info.remote.is_none());
     assert!(info.hint().is_none());
 }
 
@@ -60,8 +57,6 @@ async fn metered_fails_after_session_close() {
 fn net_info_before_listen_has_no_net_seen() {
     let info = net_info(None);
     assert_eq!(info.net_seen, None);
-    assert!(matches!(info.nat, NatKind::Unknown));
-    assert!(info.public_v4.is_none() && info.public_v6.is_none() && !info.can_relay);
 }
 
 #[test]

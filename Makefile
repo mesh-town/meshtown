@@ -10,7 +10,7 @@ BUILD_ROOT ?= $(CURDIR)/.tmp/build
 TARGET_DIR ?= $(BUILD_ROOT)/host
 # Dynamic linking for dev/test: tests and target binaries pull code from libmeshtown_core.dylib
 # and libstd.dylib instead of copying it into each of ~40 executables — the "edit lib → build tests" loop is ~40 % shorter.
-# macOS only (Linux/Windows untested) and only for calls through make: the release scripts build/*/build.sh
+# macOS only (Linux/Windows untested) and only for calls through make: the release scripts platforms/<os>/build/build.sh
 # and bare cargo stay static. DYN=0 turns it off.
 DYN ?= 1
 # Feature flags of the node layer without tray (second clippy-full pass, web-check*): the core builds without them too — see core-check.
@@ -37,8 +37,8 @@ BUNDLE_ID ?= local.meshtown
 export E2E_RUN_TAG ?= $(notdir $(CURDIR))
 export BUILD_ROOT TARGET_DIR APP_NAME APP_TITLE BUNDLE_ID
 
-# CONTAINER is export only, with no default here: the build/ scripts choose container/docker themselves
-# by OS (scripts/release/lib.sh). A `?= container` in this Makefile would override that choice — an empty
+# CONTAINER is export only, with no default here: scripts/release/lib.sh chooses container/docker
+# by OS. A `?= container` in this Makefile would override that choice — an empty
 # export does not override the script default, but `?= container` with a non-empty value would.
 export CONTAINER
 
@@ -245,7 +245,6 @@ net-boundary:
 	@! rg -n -g '!*_tests.rs' -e '\b(mainline|rustls|tokio_rustls|simple_dns|n0_future|axum|hyper\w*|tower\w*|url)::' -e '\bcrate::(\{|\w+)' -e '\bsuper::super\b' core/transport/net | rg -v 'crate::transport::net\b'
 	@test -d core/transport/net_hyperdht || { echo "net-boundary: core/transport/net_hyperdht is missing" >&2; exit 1; }
 	@! rg -n -g '!*_tests.rs' '\b(net_hyper|mainline|townjump_\w+|peeroxide_\w+)::' core/transport/net_hyperdht
-	@test -d core || { echo "net-boundary: core is missing" >&2; exit 1; }
 	@! rg -n -e '\b(townjump_\w+|peeroxide_\w+|libudx)::' core -g '!**/net_hyper/**'
 	@test -d core || { echo "net-boundary: core is missing" >&2; exit 1; }
 	@! rg -n '\bnet_hyper::' core -g '!**/net_hyper/**' -g '!**/node/start/**'

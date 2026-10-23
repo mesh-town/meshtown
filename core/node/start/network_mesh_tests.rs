@@ -111,7 +111,7 @@ async fn registry_opens_mesh_with_own_replicas() {
         .open_sync(&mesh_choice(), sync_ctx(SEED_A))
         .await
         .expect("mesh opens");
-    // then: the name is mesh, the "net" replica opens (its own, without iroh-docs), there are two services
+    // then: the name is mesh, the "net" replica opens (its own), there are two services
     assert_eq!(sync.name(), "mesh");
     assert!(sync.open_replica(REPLICA_NET).await.is_ok(), "net replica");
     assert_eq!(sync.services().len(), 2, "SYNC and REPLICA");

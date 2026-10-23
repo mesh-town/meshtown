@@ -101,6 +101,6 @@ fn open_as_rejects_other_version() {
     let err = open_as(&key, &sealed_v1, RECORD_VERSION_KEYS).unwrap_err();
     assert!(err.to_string().contains("unknown record version"), "{err}");
     let sealed_v2 = seal(&key, &key_roster(vec![key_entry(1, T)]), [0x22; 12]).unwrap();
-    let err = open(&key, &sealed_v2).unwrap_err();
+    let err = open_as(&key, &sealed_v2, 1).unwrap_err();
     assert!(err.to_string().contains("unknown record version"), "{err}");
 }

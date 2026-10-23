@@ -1,6 +1,6 @@
 //! Self-check of the `core/tests/lossy_link/` proxy: delay, loss share and bursts, the bottleneck (throughput and tail drop).
 //!
-//! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC or iroh here — the congestion
+//! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC stack here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
 #[path = "common/lossy_link.rs"]

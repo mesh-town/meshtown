@@ -1,7 +1,6 @@
 //! Tests of the running facade, continued: closing (order, repeat, after close) and the snapshot.
 
 use super::*;
-use crate::transport::net::link::NetInfo;
 use crate::transport::net::transport::Transport;
 
 mod close {
@@ -147,14 +146,7 @@ mod snapshot {
     async fn snapshot_fields() {
         // given: two transports of different kinds, two sources with priority, three foreign hints (one about itself)
         let (x, y) = (MemNet::new(), MemNet::new());
-        let relaying = NetInfo {
-            can_relay: true,
-            ..NetInfo::default()
-        };
-        let first = Spy::on(&x, &secret(1))
-            .of_kind("alpha")
-            .with_info(relaying)
-            .shared();
+        let first = Spy::on(&x, &secret(1)).of_kind("alpha").shared();
         let second = Spy::on(&y, &secret(1)).of_kind("beta").shared();
         let stack = NetStackBuilder::new(secret(1))
             .transport(first)
@@ -182,11 +174,6 @@ mod snapshot {
             snap.discovery_names,
             vec!["invite", "mainline"],
             "order of discovery — by priority"
-        );
-        assert_eq!(snap.net_infos.len(), 2);
-        assert!(
-            snap.net_infos[0].can_relay && !snap.net_infos[1].can_relay,
-            "net_info in the order of transports"
         );
         assert_eq!(snap.known_peer_count, 2, "we do not count ourselves");
     }

@@ -17,7 +17,7 @@ use bytes::Bytes;
 use std::sync::{Arc, Mutex, MutexGuard, Weak};
 use tokio::sync::broadcast;
 
-/// The replica's event queue, like the iroh adapter's.
+/// The replica's event queue.
 const EVENT_QUEUE: usize = 256;
 
 pub struct MeshReplica {

@@ -74,7 +74,7 @@ impl HttpResponse {
 }
 
 /// TLS client config for checks: `ring` provider, `webpki-roots` roots, http/1.1 only.
-/// The provider is passed explicitly and the process-wide provider is left alone: iroh installs it.
+/// The provider is passed explicitly and the process-wide provider is left alone.
 pub fn tls_client_config() -> Result<ClientConfig> {
     let mut roots = RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
