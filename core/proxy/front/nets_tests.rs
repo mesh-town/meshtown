@@ -12,6 +12,7 @@ use crate::transport::net::{NodeSecret, PeerId};
 
 const A_TAG: u8 = 2;
 const B_TAG: u8 = 3;
+const OTHER_TAG: u8 = 9;
 
 mod empty_directory {
     use super::*;
@@ -101,6 +102,75 @@ mod clone {
     }
 }
 
+mod entries {
+    use super::*;
+
+    /// given a new directory, then it lists no entry.
+    #[test]
+    fn of_an_empty_directory_is_empty() {
+        let nets = NetDirectory::default();
+
+        assert!(nets.entries().is_empty(), "nothing was put");
+    }
+
+    /// given slots put in descending order, then the entries come ascending by slot id.
+    #[tokio::test]
+    async fn are_sorted_by_slot_id() {
+        let fx = setup().await;
+        let nets = NetDirectory::default();
+        nets.put(&slot_b(), fx.config(B_TAG));
+        nets.put(&slot_a(), fx.config(A_TAG));
+
+        let entries = nets.entries();
+
+        assert_eq!(ids_of(&entries), vec![slot_a(), slot_b()]);
+        assert_eq!(tags_of(&entries), vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]);
+    }
+
+    /// given a slot that was put and one that was removed, then the entries show only the live one.
+    #[tokio::test]
+    async fn follow_put_and_remove() {
+        let fx = setup().await;
+        let nets = NetDirectory::default();
+        nets.put(&slot_a(), fx.config(A_TAG));
+        nets.put(&slot_b(), fx.config(B_TAG));
+
+        nets.remove(&slot_a());
+
+        assert_eq!(ids_of(&nets.entries()), vec![slot_b()]);
+    }
+}
+
+mod entries_or {
+    use super::*;
+
+    /// given an empty directory, then there is one entry: the given config for the main slot.
+    #[tokio::test]
+    async fn on_an_empty_directory_is_one_main_entry_from_the_argument() {
+        let fx = setup().await;
+        let nets = NetDirectory::default();
+
+        let entries = nets.entries_or(&fx.config(A_TAG));
+
+        assert_eq!(ids_of(&entries), vec![NetSlotId::main()]);
+        assert_eq!(tags_of(&entries), vec![vec![peer(A_TAG)]]);
+    }
+
+    /// given a directory with networks, then the entries are the directory's and the argument is ignored.
+    #[tokio::test]
+    async fn on_a_filled_directory_gives_its_entries_and_ignores_the_argument() {
+        let fx = setup().await;
+        let nets = NetDirectory::default();
+        nets.put(&slot_a(), fx.config(A_TAG));
+        nets.put(&slot_b(), fx.config(B_TAG));
+
+        let entries = nets.entries_or(&fx.config(OTHER_TAG));
+
+        assert_eq!(ids_of(&entries), vec![slot_a(), slot_b()]);
+        assert_eq!(tags_of(&entries), vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]);
+    }
+}
+
 struct Fixture {
     node: RunningNode,
 }
@@ -147,6 +217,19 @@ fn then_tag_is(nets: &NetDirectory, slot: &NetSlotId, tag: Option<u8>) {
         got, want,
         "the config of the slot (marked by its exit list)"
     );
+}
+
+/// The slots of the entries, in the order the directory gave them.
+fn ids_of(entries: &[NetEntry]) -> Vec<NetSlotId> {
+    entries.iter().map(|entry| entry.id.clone()).collect()
+}
+
+/// The exit lists (the marks of the configs) of the entries, in the order the directory gave them.
+fn tags_of(entries: &[NetEntry]) -> Vec<Vec<PeerId>> {
+    entries
+        .iter()
+        .map(|entry| entry.cfg.route.chosen_exits())
+        .collect()
 }
 
 fn peer(tag: u8) -> PeerId {

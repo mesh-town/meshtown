@@ -18,6 +18,7 @@ mod handshake_name;
 #[cfg(feature = "net-hyper")]
 mod handshake_refusal;
 mod host_label;
+pub use host_label::host_label;
 #[cfg(feature = "net-hyper")]
 pub mod membership;
 #[cfg(feature = "net-hyper")]

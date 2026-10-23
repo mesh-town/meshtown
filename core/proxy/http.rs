@@ -89,7 +89,7 @@ async fn forward(
 /// Serves the PAC; the port in the path line is the listener's actual port.
 async fn serve_pac(mut stream: TcpStream, request: PacRequest) -> Result<()> {
     let proxy_list = pac_proxy_list(stream.local_addr()?, false);
-    let script = pac_script(&proxy_list);
+    let script = pac_script(&proxy_list, &proxy_list);
     stream
         .write_all(&pac_reply(&script, request.head_only))
         .await?;
