@@ -2,7 +2,7 @@
 //! that lives in `build.rs`.
 
 use crate::transport::net::PeerId;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -19,9 +19,9 @@ use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
 use crate::web_gui::auth::iface_nets::admitted_lan;
 use crate::web_gui::auth::iface_os::current_view;
 use crate::web_gui::NodeStatus;
-use crate::web_gui::{MembersInfo, NodeSnapshot, PortsInfo};
+use crate::web_gui::{MembersInfo, NodeSnapshot, PortsInfo, SocksInfo};
 
-use super::build::{build, Inputs};
+use super::build::{build, socks_lan, Inputs};
 use super::doc_cache::{DocCache, DocParts};
 use super::ports::build_ports;
 
@@ -159,6 +159,7 @@ pub(crate) async fn collect(
         peer_names: node.members.names(),
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
         votes: votes_of(node),
+        excluded: excluded_of(node),
         socks: face.addr,
         socks_access: socks_access_of(&face),
         socks_ifaces: face.ifaces,
@@ -201,6 +202,27 @@ fn ports_of(node: &RunningNode, port_views: &[PortView]) -> PortsInfo {
 /// The SOCKS access mode together with the LAN addresses it is reachable on.
 fn socks_access_of(face: &ProxyFace) -> (ListenAccess, Vec<IfaceAddr>) {
     (face.access, socks_lan_addrs(face.access, &face.ifaces))
+}
+
+/// The `SocksInfo` of a proxy front, built the same way for a node snapshot and for a slot without a node.
+pub(in crate::node::node_ctl) fn socks_of_face(face: &ProxyFace) -> SocksInfo {
+    let (access, lan) = socks_access_of(face);
+    SocksInfo {
+        enabled: face.addr.is_some(),
+        listen: face.addr.map(|a| a.to_string()),
+        pac_url: face.addr.map(crate::proxy::pac_url),
+        access: access.as_str().to_string(),
+        lan: socks_lan(face.addr, lan),
+        ifaces: face.ifaces.to_state(),
+    }
+}
+
+/// Nodes with an exclusion record in the published verdicts; nothing published yet — an empty set.
+fn excluded_of(node: &RunningNode) -> HashSet<PeerId> {
+    let Some(v) = node.access.view.verdicts() else {
+        return HashSet::new();
+    };
+    v.ledger.excluded.keys().copied().collect()
 }
 
 /// The published verdicts as a summary for the page; nothing published yet — an empty one. Never recomputes.

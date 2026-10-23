@@ -93,7 +93,10 @@ mod proxy {
             let got = proxies(host.as_ref());
 
             // then
-            assert_eq!(got, flags(&[("main", true), ("ab2c3d", false), ("cd4e5f", false)]));
+            assert_eq!(
+                got,
+                flags(&[("main", true), ("ab2c3d", false), ("cd4e5f", false)])
+            );
         }
     }
 
@@ -109,7 +112,10 @@ mod proxy {
             let got = proxies(host.as_ref());
 
             // then
-            assert_eq!(got, flags(&[("main", false), ("ab2c3d", true), ("cd4e5f", false)]));
+            assert_eq!(
+                got,
+                flags(&[("main", false), ("ab2c3d", true), ("cd4e5f", false)])
+            );
         }
 
         #[test]
@@ -121,7 +127,10 @@ mod proxy {
             let got = proxies(host.as_ref());
 
             // then
-            assert_eq!(got, flags(&[("main", false), ("ab2c3d", false), ("cd4e5f", true)]));
+            assert_eq!(
+                got,
+                flags(&[("main", false), ("ab2c3d", false), ("cd4e5f", true)])
+            );
         }
     }
 
@@ -153,7 +162,10 @@ mod proxy {
             let got = proxies(host.as_ref());
 
             // then
-            assert_eq!(got, flags(&[("main", false), ("ab2c3d", false), ("ee2222", false)]));
+            assert_eq!(
+                got,
+                flags(&[("main", false), ("ab2c3d", false), ("ee2222", false)])
+            );
         }
 
         #[test]
@@ -178,7 +190,12 @@ mod proxy {
         if let Some(id) = proxy_net {
             host.set_proxy_net(NetSlotId::parse(id).unwrap());
         }
-        host.set_broken(broken.iter().map(|id| NetSlotId::parse(id).unwrap()).collect());
+        host.set_broken(
+            broken
+                .iter()
+                .map(|id| NetSlotId::parse(id).unwrap())
+                .collect(),
+        );
         host
     }
 
@@ -187,7 +204,10 @@ mod proxy {
     }
 
     fn flags(expected: &[(&str, bool)]) -> Vec<(String, bool)> {
-        expected.iter().map(|(id, on)| (id.to_string(), *on)).collect()
+        expected
+            .iter()
+            .map(|(id, on)| (id.to_string(), *on))
+            .collect()
     }
 }
 
@@ -237,13 +257,104 @@ fn the_json_keeps_the_field_order() {
 
     // then
     let keys = [
-        "id", "label", "id_hex", "status", "exit_enabled", "proxy", "route_state", "exits",
-        "members_voting", "joining", "members_admitting", "me_excluded", "me_pending",
-        "peers_online", "peers_total",
+        "id",
+        "label",
+        "id_hex",
+        "status",
+        "exit_enabled",
+        "proxy",
+        "route_state",
+        "exits",
+        "members_voting",
+        "joining",
+        "members_admitting",
+        "me_excluded",
+        "me_pending",
+        "peers_online",
+        "peers_total",
     ];
     let at: Vec<usize> = keys
         .iter()
         .map(|k| text.find(&format!("\"{k}\":")).unwrap())
         .collect();
     assert!(at.windows(2).all(|w| w[0] < w[1]), "{text}");
+}
+
+mod route_state {
+    use super::*;
+
+    mod unavailable {
+        use super::*;
+
+        #[test]
+        fn every_exit_removed_reads_removed() {
+            // given
+            let route = route(RouteMode::Unavailable, &[true, true]);
+
+            // when
+            let word = route_word(&route);
+
+            // then
+            assert_eq!(word, "removed");
+        }
+
+        #[test]
+        fn one_exit_removed_and_one_not_reads_unavailable() {
+            // given
+            let route = route(RouteMode::Unavailable, &[true, false]);
+
+            // when
+            let word = route_word(&route);
+
+            // then
+            assert_eq!(word, "unavailable");
+        }
+
+        #[test]
+        fn no_exits_reads_unavailable() {
+            // given
+            let route = route(RouteMode::Unavailable, &[]);
+
+            // when
+            let word = route_word(&route);
+
+            // then
+            assert_eq!(
+                word, "unavailable",
+                "an empty list is not a list of removed exits"
+            );
+        }
+    }
+
+    mod exit {
+        use super::*;
+
+        #[test]
+        fn a_removed_exit_still_reads_exit() {
+            // given
+            let route = route(RouteMode::Exit, &[true]);
+
+            // when
+            let word = route_word(&route);
+
+            // then
+            assert_eq!(word, "exit");
+        }
+    }
+
+    // --- setup and helpers ---
+
+    /// A route in `state` whose exits carry the given `removed` flags in order.
+    fn route(state: RouteMode, removed: &[bool]) -> RouteState {
+        RouteState {
+            state,
+            exits: removed
+                .iter()
+                .map(|&removed| ChosenExit {
+                    removed,
+                    ..ChosenExit::default()
+                })
+                .collect(),
+        }
+    }
 }

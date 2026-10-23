@@ -46,18 +46,25 @@ impl Relaunch {
         cfg
     }
 
-    /// The start settings of an added network slot: its own file and secret, the flags that belong to the
-    /// process, and the lists shared by every network. Task domains are a flag of one network, so they
+    /// The start settings of an added network slot: its own file and secret, every launch flag except
+    /// the key, and the lists shared by every network. Task domains are a flag of one network, so they
     /// are not inherited.
     pub fn for_net_slot(&self, run: &RunConfig) -> Relaunch {
         Relaunch {
             file: run.file.clone(),
-            cli: self.cli.process_only(),
+            cli: self.cli.for_added_slot(),
             secret: run.secret.clone(),
             initial_domains: Vec::new(),
             blocked_domains: self.blocked_domains.clone(),
             test_net: self.test_net.clone(),
         }
+    }
+
+    /// Lays the launch flags (never the key) over the network block of `s`; the process block of `s` stays as it was.
+    pub(crate) fn apply_net_flags(&self, s: &mut Settings) {
+        let process = s.process.clone();
+        self.cli.for_added_slot().apply(s);
+        s.process = process;
     }
 
     /// Parses the new network key, takes the base settings (file or `prev`), lays the CLI over them

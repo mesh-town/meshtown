@@ -47,14 +47,11 @@ impl std::fmt::Debug for CliOverrides {
 }
 
 impl CliOverrides {
-    /// Keeps only the flags of the process block (`socks_*`, `web_port`); everything else is `None`.
-    pub fn process_only(&self) -> CliOverrides {
+    /// Every flag except the network key: the key of an added network comes from its own file.
+    pub fn for_added_slot(&self) -> CliOverrides {
         CliOverrides {
-            socks_enabled: self.socks_enabled,
-            socks_port: self.socks_port,
-            socks_access: self.socks_access,
-            web_port: self.web_port,
-            ..CliOverrides::default()
+            network_key: None,
+            ..self.clone()
         }
     }
 

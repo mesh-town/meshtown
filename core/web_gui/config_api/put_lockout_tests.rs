@@ -19,7 +19,7 @@ fn put_ifaces(state: &mut ConfigState, value: Value, c: Option<ConnInfo>) -> (St
         state.file_report.rev,
         serde_json::json!({"web": {"ifaces": value}}),
     );
-    body_json(state.put_keeping(&body, &StubNode::new(), c).0)
+    body_json(state.put_keeping(&body, &StubNode::new(), c, &[]).0)
 }
 
 #[test]

@@ -4,7 +4,7 @@
 use serde::Serialize;
 
 use super::control::InviteJoinState;
-use super::{HostControl, NodeStatus, RouteMode, SlotHandle};
+use super::{HostControl, NodeStatus, RouteMode, RouteState, SlotHandle};
 use crate::config::config_file::NetSlotId;
 
 /// One slot as the page lists it. Field order is the JSON order.
@@ -34,6 +34,15 @@ fn word<T: Serialize>(value: &T) -> String {
         .unwrap_or_default()
 }
 
+/// `removed` when no route is available and every listed exit has been excluded; otherwise the route mode.
+fn route_word(route: &RouteState) -> String {
+    let all_removed = !route.exits.is_empty() && route.exits.iter().all(|e| e.removed);
+    if route.state == RouteMode::Unavailable && all_removed {
+        return "removed".to_string();
+    }
+    word::<RouteMode>(&route.state)
+}
+
 fn text_of(block: &serde_json::Value, key: &str) -> Option<String> {
     block.get(key)?.as_str().map(str::to_string)
 }
@@ -59,7 +68,7 @@ pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
         status: word::<NodeStatus>(&snap.node.status),
         exit_enabled: snap.exit.enabled,
         proxy: &slot.id == chosen,
-        route_state: word::<RouteMode>(&snap.route.state),
+        route_state: route_word(&snap.route),
         exits: snap.route.exits.iter().map(|e| e.id_full.clone()).collect(),
         members_voting: snap.members.voting,
         joining,

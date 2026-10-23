@@ -55,6 +55,7 @@ fn demo_route_state(st: &DemoState, peers: &[PeerInfo]) -> RouteState {
                 exit: peer.map(|_| true),
                 country: peer.and_then(|p| p.country.clone()),
                 active: active == Some(id),
+                removed: false,
             }
         })
         .collect();

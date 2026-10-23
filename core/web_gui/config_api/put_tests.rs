@@ -45,7 +45,11 @@ mod exits_choice {
             });
             let (status, pick) = fx.when_put(json!({"route": {"exits": []}}));
             assert_eq!(status, StatusCode::OK);
-            assert_eq!(pick, Pick::None, "an empty exit list leaves nothing to choose");
+            assert_eq!(
+                pick,
+                Pick::None,
+                "an empty exit list leaves nothing to choose"
+            );
         }
     }
 
@@ -170,7 +174,11 @@ mod unrelated_change {
         });
         let (status, pick) = fx.when_put(json!({"checks": {"interval_sec": 600}}));
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(pick, Pick::None, "neither route.exits nor proxy.net changed");
+        assert_eq!(
+            pick,
+            Pick::None,
+            "neither route.exits nor proxy.net changed"
+        );
     }
 }
 
@@ -204,7 +212,11 @@ mod refused_write {
             let (status, pick) = fx.when_put(body);
             // then: the choice is computed after the write, so a lost write yields none
             assert_eq!(status, StatusCode::CONFLICT);
-            assert_eq!(pick, Pick::None, "the choice must not be computed before the write");
+            assert_eq!(
+                pick,
+                Pick::None,
+                "the choice must not be computed before the write"
+            );
         }
     }
 
@@ -272,7 +284,11 @@ impl Fixture {
             config["proxy"] = json!({"net": net});
         }
         let (status, _) = self.when_put(config);
-        assert_eq!(status, StatusCode::OK, "the initial file could not be written");
+        assert_eq!(
+            status,
+            StatusCode::OK,
+            "the initial file could not be written"
+        );
     }
 
     fn when_put(&mut self, config: Value) -> (StatusCode, Pick) {
@@ -281,8 +297,10 @@ impl Fixture {
     }
 
     fn when_put_at(&mut self, rev: u64, config: Value) -> (StatusCode, Pick) {
-        let body = json!({"rev": rev, "config": config}).to_string().into_bytes();
-        let (resp, pick) = self.state.put_keeping(&body, &self.node, None);
+        let body = json!({"rev": rev, "config": config})
+            .to_string()
+            .into_bytes();
+        let (resp, pick) = self.state.put_keeping(&body, &self.node, None, &[]);
         (resp.status(), seen(pick))
     }
 

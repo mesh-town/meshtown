@@ -36,18 +36,26 @@ mod flags_of_the_main {
     }
 
     #[test]
-    fn only_process_flag_paths_are_kept() {
-        // given: a main started with a process flag and a network flag
+    fn every_flag_path_but_the_key_is_kept() {
+        // given: a main started with a process flag, a network flag and a key
         let fx = setup(CliOverrides {
             socks_port: Some(2000),
             exit_enabled: Some(true),
+            network_key: Some(key()),
             ..CliOverrides::default()
         });
+        assert!(
+            fx.main.cli_override_paths.contains(&"network.key"),
+            "the main lists its key as a flag: {:?}",
+            fx.main.cli_override_paths
+        );
         fx.write_slot("ab2c3d", &slot_text(&secret_line(), &good_config(false)));
         // when: the slot is prepared
         let run = fx.prepare("ab2c3d").expect("the slot is prepared");
-        // then: only the process flag is listed as overridden
-        assert_eq!(run.cli_override_paths, vec!["socks.port"]);
+        // then: both flags are listed as overridden, the key is not
+        let mut paths = run.cli_override_paths.clone();
+        paths.sort_unstable();
+        assert_eq!(paths, vec!["exit.enabled", "socks.port"]);
     }
 
     #[test]

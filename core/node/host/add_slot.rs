@@ -7,7 +7,9 @@ use super::slots::{HostSlots, SlotContext};
 use crate::config::config_file::{new_net_slot, NetSettings, NetSlotId, RunConfig};
 use crate::node::node_ctl::Relaunch;
 use crate::node::output::say;
-use crate::web_gui::{now_unix, AddedSlot, HostControl, HostError, NodeStatus, SlotHandle};
+use crate::web_gui::{
+    now_unix, AddedSlot, HostControl, HostError, InviteJoinState, NodeStatus, SlotHandle,
+};
 
 const ONE_NET_RUN: &str = "this run keeps one network: start with a settings file";
 
@@ -23,7 +25,11 @@ fn waits_for_key(handle: &SlotHandle) -> bool {
         .unwrap_or_else(|e| e.into_inner())
         .current_network_key
         .is_none();
-    keyless && handle.node.snapshot().node.status == NodeStatus::Offline
+    let waiting = matches!(
+        handle.node.invite_join(),
+        Some(v) if v.state == InviteJoinState::Waiting
+    );
+    keyless && !waiting && handle.node.snapshot().node.status == NodeStatus::Offline
 }
 
 impl HostSlots {

@@ -226,9 +226,9 @@ async fn stop_before_attach_keeps_stopping_status() {
     assert!(matches!(serve_until_command(node, &ctl).await, Cmd::Stop));
 }
 
-/// With the stop queued before the start, the loop leaves after that one start and takes no second boot id.
+/// With the stop queued before the loop starts, the loop leaves at once and the node takes no boot id.
 #[tokio::test]
-async fn stop_before_attach_leaves_after_one_boot() {
+async fn stop_before_the_loop_takes_no_boot() {
     let ctl = NodeCtl::new(&Settings::default());
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([6; 32]));
     let mut settings = Settings::default();
@@ -242,7 +242,7 @@ async fn stop_before_attach_leaves_after_one_boot() {
     .expect("loop must leave");
     assert!(res.is_ok());
     let id1 = ctl.snapshot().boot_id;
-    assert_ne!(id0, id1);
+    assert_eq!(id0, id1, "the node must not boot");
 }
 
 /// Leaving the network of a running node: the loop ends with `LeftNet`, the settings lose the network's
@@ -624,9 +624,7 @@ impl crate::transport::net::Replica for HeldFlush {
         self.inner.latest_per_key(prefix)
     }
 
-    fn subscribe(
-        &self,
-    ) -> tokio::sync::broadcast::Receiver<crate::transport::net::ReplicaEvent> {
+    fn subscribe(&self) -> tokio::sync::broadcast::Receiver<crate::transport::net::ReplicaEvent> {
         self.inner.subscribe()
     }
 

@@ -41,6 +41,8 @@ pub(super) struct Inputs<'a> {
     pub neighbors: u64,
     /// Nodes waiting for this node's vote and whether this node is out (`access::report::vote_summary`).
     pub votes: VoteSummary,
+    /// Nodes with an exclusion record in the verdicts; empty while nothing is published.
+    pub excluded: HashSet<PeerId>,
     pub socks: Option<SocketAddr>,
     /// Proxy access mode and this machine's address on the local network (only with `localnet`).
     pub socks_access: (ListenAccess, Vec<IfaceAddr>),
@@ -123,7 +125,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
 
 /// `lan` in `socks`: "address:port" and the interface for other devices on the network; empty — the proxy is off
 /// or in `localhost` mode (then the address list is empty too).
-fn socks_lan(socks: Option<SocketAddr>, lan: Vec<IfaceAddr>) -> Vec<SocksLan> {
+pub(super) fn socks_lan(socks: Option<SocketAddr>, lan: Vec<IfaceAddr>) -> Vec<SocksLan> {
     let Some(addr) = socks else { return Vec::new() };
     let one = |(iface, ip): IfaceAddr| SocksLan {
         addr: SocketAddr::from((ip, addr.port())).to_string(),

@@ -33,6 +33,13 @@ pub struct AddedSlot {
     pub fresh: bool,
 }
 
+/// A `local` port already opened by one network of this node, and the name of that network.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpenedLocal {
+    pub local: u16,
+    pub net: String,
+}
+
 /// The process host as the page sees it.
 pub trait HostControl: Send + Sync {
     /// The slot with this id, if the host has it.
@@ -41,6 +48,10 @@ pub trait HostControl: Send + Sync {
     fn main_slot(&self) -> SlotHandle;
     /// Every live slot, in the host's own order (the primary first).
     fn slots(&self) -> Vec<SlotHandle>;
+    /// The `local` ports opened by every slot except `except`, each with its network's name.
+    fn opened_locals(&self, except: &NetSlotId) -> Vec<OpenedLocal> {
+        opened_locals_of(self.slots(), except)
+    }
     /// Stops every slot's node (as `NodeControl::stop` does for one).
     fn stop_all(&self);
     /// Adds an empty slot waiting for a network key, or hands back an existing empty one.
@@ -63,6 +74,38 @@ pub trait HostControl: Send + Sync {
     /// The process-wide proxy front, if the host has one.
     fn proxy_front(&self) -> Option<ProxyFront> {
         None
+    }
+}
+
+/// Every `local` of `ports.opened` in the slots other than `except`. Config locks are taken one at a time;
+/// a slot without a key opens nothing.
+pub(crate) fn opened_locals_of(slots: Vec<SlotHandle>, except: &NetSlotId) -> Vec<OpenedLocal> {
+    let mut out = Vec::new();
+    for slot in slots.iter().filter(|s| s.id != *except) {
+        let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+        if cfg.current_network_key.is_none() {
+            continue;
+        }
+        let net = net_name(&cfg.network_block(), &slot.id);
+        let opened = cfg.file_settings.net.ports_opened.iter();
+        out.extend(opened.map(|o| OpenedLocal {
+            local: o.local,
+            net: net.clone(),
+        }));
+    }
+    out
+}
+
+/// The name a network goes by in messages: its label, else `Network` and the first four characters of its id;
+/// the slot id when the key does not parse.
+fn net_name(block: &serde_json::Value, slot: &NetSlotId) -> String {
+    let label = block["label"].as_str().filter(|l| !l.is_empty());
+    if let Some(label) = label {
+        return label.to_string();
+    }
+    match block["id_hex"].as_str() {
+        Some(id) => format!("Network {}", id.chars().take(4).collect::<String>()),
+        None => slot.to_string(),
     }
 }
 
@@ -124,3 +167,7 @@ pub fn single_slot_host_with_front(
     };
     Arc::new(SingleSlotHost { main, front })
 }
+
+#[cfg(test)]
+#[path = "opened_locals_tests.rs"]
+mod opened_locals_tests;

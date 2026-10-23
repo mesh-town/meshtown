@@ -69,6 +69,7 @@ pub(crate) fn state_json(s: &StateSpec) -> Value {
 pub(crate) struct NetSpec<'a> {
     pub(crate) id: &'a str,
     pub(crate) label: Option<&'a str>,
+    pub(crate) id_hex: Option<&'a str>,
     pub(crate) status: &'a str,
     pub(crate) proxy: bool,
     pub(crate) joining: bool,
@@ -86,6 +87,7 @@ impl Default for NetSpec<'_> {
         NetSpec {
             id: "main",
             label: Some("friends"),
+            id_hex: Some("aa"),
             status: "online",
             proxy: false,
             joining: false,
@@ -110,6 +112,7 @@ impl NetSpec<'_> {
         NetSpec {
             id,
             label: None,
+            id_hex: None,
             state: Some(state_json(&state)),
             ..Default::default()
         }
@@ -120,6 +123,7 @@ impl NetSpec<'_> {
         NetSpec {
             id,
             label: None,
+            id_hex: None,
             status: "broken",
             peers_online: 0,
             peers_total: 0,
@@ -133,7 +137,7 @@ impl NetSpec<'_> {
 pub(crate) fn overview_json(specs: &[NetSpec]) -> Value {
     let net = |n: &NetSpec| {
         json!({
-            "id": n.id, "label": n.label, "id_hex": "aa", "status": n.status, "exit_enabled": false,
+            "id": n.id, "label": n.label, "id_hex": n.id_hex, "status": n.status, "exit_enabled": false,
             "proxy": n.proxy, "route_state": n.route_state, "exits": n.exits,
             "members_voting": n.voting, "joining": n.joining, "members_admitting": n.admitting,
             "me_excluded": false, "me_pending": false,

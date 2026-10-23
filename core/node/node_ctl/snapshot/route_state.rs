@@ -74,6 +74,7 @@ fn chosen_exit(
         exit,
         country: i.countries.get(&id).cloned(),
         active: active == Some(id),
+        removed: !is_self && i.excluded.contains(&id),
     }
 }
 

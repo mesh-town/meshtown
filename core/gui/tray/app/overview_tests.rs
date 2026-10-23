@@ -134,6 +134,18 @@ mod visible_slots {
     }
 
     #[test]
+    fn network_with_a_key_and_no_label_is_visible() {
+        let unnamed = NetSpec {
+            label: None,
+            id_hex: Some("bb"),
+            ..NetSpec::keyless("ab12cd")
+        };
+        let all = slots_of(&[friends(), unnamed]);
+
+        assert_eq!(ids(visible_slots(all)), ["main", "ab12cd"]);
+    }
+
+    #[test]
     fn broken_slot_is_hidden() {
         let all = slots_of(&[friends(), NetSpec::broken("zz")]);
 
