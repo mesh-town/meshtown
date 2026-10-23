@@ -9,10 +9,10 @@ import OwnPortRow from "./OwnPortRow.vue";
 import PublishForm from "./PublishForm.vue";
 import type { MergedOwn, NetPortItem } from "./ports-view.ts";
 import {
-  EMPTY_NET, EMPTY_OWN, audienceText, configPorts, localUsedText, mergeOwn, mergedAudienceText, netGroups, netPortItems, netRowKey, nodeLabel, takenLocals,
+  EMPTY_NET, EMPTY_OWN, audienceText, configPorts, localUsedText, mergeOwn, mergedAudienceText, netGroups, netPortItems, netRowKey, nodeLabel, sameNameNodes, takenLocals,
 } from "./ports-view.ts";
 import { usePortsActions } from "./use-ports-actions.ts";
-import { PORTS_COL_AUDIENCE, PORTS_COL_NAME, PORTS_COL_ONLINE, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_STATUS, PORTS_MINE_HINT, PORTS_MINE_TITLE, PORTS_NET_HINT, PORTS_NET_TITLE, PORTS_NO_STORE } from "./ports-texts.ts";
+import { PORTS_COL_AUDIENCE, PORTS_COL_BROWSER, PORTS_COL_NAME, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_PROGRAMS, PORTS_COL_STATUS, PORTS_MINE_HINT, PORTS_MINE_TITLE, PORTS_NET_HINTS, PORTS_NET_TITLE, PORTS_NO_STORE, PORTS_SAME_NAME_HINT } from "./ports-texts.ts";
 
 const injected = inject(STORE_KEY);
 if (!injected) throw new Error(PORTS_NO_STORE);
@@ -62,6 +62,7 @@ function startEdit(port: number): void {
   editing.value = port;
 }
 
+const sameName = computed<Set<string>>(() => sameNameNodes(net.value.map((it) => it.row)));
 const rowKeyOf = (it: NetPortItem): string => netRowKey(it.row, multi.value ? it.slot : undefined);
 const refOf = (it: NetPortItem) => ({ slot: it.slot, node: it.row.node, port: it.row.port });
 
@@ -108,16 +109,17 @@ function usedTextFor(it: NetPortItem): ((local: number) => string) | undefined {
     <h2>{{ PORTS_NET_TITLE }}</h2>
     <div class="table-scroll">
       <table class="data" :aria-label="PORTS_NET_TITLE">
-        <thead><tr><th>{{ PORTS_COL_PEER }}</th><th>{{ PORTS_COL_PORT }}</th><th>{{ PORTS_COL_NAME }}</th><th>{{ PORTS_COL_ONLINE }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ PORTS_COL_PEER }}</th><th>{{ PORTS_COL_PORT }}</th><th>{{ PORTS_COL_BROWSER }}</th><th>{{ PORTS_COL_PROGRAMS }}</th></tr></thead>
         <tbody id="ports-net-tbody">
-          <tr v-if="!net.length"><td colspan="5" class="hint">{{ EMPTY_NET }}</td></tr>
+          <tr v-if="!net.length"><td colspan="4" class="hint">{{ EMPTY_NET }}</td></tr>
           <NetPortRow
-            v-for="it in net" :key="rowKeyOf(it)" :row="it.row" :busy="saving" :slot="it.slot" :net="it.net" :taken="takenSet(it)" :used-text="usedTextFor(it)" :error="openErrors[rowKeyOf(it)]"
+            v-for="it in net" :key="rowKeyOf(it)" :row="it.row" :busy="saving" :slot="it.slot" :net="it.net" :taken="takenSet(it)" :same-name="sameName.has(it.row.node)" :used-text="usedTextFor(it)" :error="openErrors[rowKeyOf(it)]"
             @open="(row: NetPort, local: number | string) => openNetPort(it.slot, row.node, row.port, local)" @close="(row: NetPort) => closeNetPort(it.slot, row.node, row.port)"
           />
         </tbody>
       </table>
     </div>
-    <p class="hint">{{ PORTS_NET_HINT }}</p>
+    <p v-if="sameName.size" class="hint">{{ PORTS_SAME_NAME_HINT }}</p>
+    <p v-for="h in PORTS_NET_HINTS" :key="h" class="hint">{{ h }}</p>
   </div>
 </template>

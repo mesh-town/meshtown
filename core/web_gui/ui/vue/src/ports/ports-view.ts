@@ -164,6 +164,25 @@ export function nodeLabel(r: Pick<NetPort, "node" | "node_name">): string {
   return r.node_name && r.node_name.trim() ? r.node_name : portsNodeLabelText(r.node);
 }
 
+// Ports that browsers refuse to connect to (the Fetch Standard "bad ports" list).
+const BROWSER_BLOCKED_PORTS: ReadonlySet<number> = new Set([
+  1, 7, 9, 11, 13, 15, 17, 19, 20, 21, 22, 23, 25, 37, 42, 43, 53, 69, 77, 79, 87, 95, 101, 102, 103, 104, 109, 110, 111, 113, 115, 117, 119,
+  123, 135, 137, 139, 143, 161, 179, 389, 427, 465, 512, 513, 514, 515, 526, 530, 531, 532, 540, 548, 554, 556, 563, 587, 601, 636, 989, 990,
+  993, 995, 1719, 1720, 1723, 2049, 3659, 4045, 4190, 5060, 5061, 6000, 6566, 6665, 6666, 6667, 6668, 6669, 6679, 6697, 10080,
+]);
+
+export function isBrowserBlockedPort(port: number): boolean {
+  return BROWSER_BLOCKED_PORTS.has(port);
+}
+
+// Members (full ids) that share a displayed name with another member: their addresses end with a part of the id.
+export function sameNameNodes(rows: Pick<NetPort, "node" | "node_name">[]): Set<string> {
+  const byName = new Map<string, Set<string>>();
+  for (const r of rows) byName.set(nodeLabel(r), (byName.get(nodeLabel(r)) ?? new Set()).add(r.node));
+  const same = Array.from(byName.values()).filter((nodes) => nodes.size > 1);
+  return new Set(same.flatMap((nodes) => Array.from(nodes)));
+}
+
 // ---- Several networks ----
 
 export interface SlotShare { slot: string; label: string; audience: "all" | string[] }

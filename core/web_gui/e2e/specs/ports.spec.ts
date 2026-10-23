@@ -11,13 +11,13 @@ test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', a
   page,
   targetKind,
 }) => {
-  test.skip(targetKind === 'node', 'the "Ports shared by members" row is a web_demo stub fixture; a real node has none');
+  test.skip(targetKind === 'node', 'the "Ports shared with you" row is a web_demo stub fixture; a real node has none');
   const ports = new PortsSection(page);
   const cfg = async () => (await api.getJson<PortsCfg>('/api/config')).body?.config?.ports;
   await app.tabs.open('ports');
   const row = ports.netRows.first();
 
-  await test.step('"Ports shared by members" has a stub row', async () => {
+  await test.step('"Ports shared with you" has a stub row', async () => {
     await expect.soft(row, 'no row').toBeVisible();
   });
 
@@ -36,6 +36,41 @@ test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', a
     await ports.closeButton(row).click();
     await expect.soft(row, 'the row has no "open" mark').not.toContainText('open');
     await expect.poll(async () => (await cfg())?.opened, { message: 'ports.opened is empty', timeout: 6000 }).toEqual([]);
+  });
+});
+
+test('ports-web-address: tab "Ports": a member\'s port has a link in the browser column and a "Copy" button (demo)', async ({
+  app,
+  page,
+  targetKind,
+}) => {
+  test.skip(targetKind === 'node', 'the shared port row is a web_demo stub fixture; a real node has none');
+  const ports = new PortsSection(page);
+  await app.tabs.open('ports');
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => undefined }, configurable: true });
+  });
+  const row = ports.netRows.first();
+  const link = row.getByRole('link');
+  const url = (await link.getAttribute('href')) ?? '';
+
+  await test.step('the table has the columns Member, Port, In the browser, In other programs', async () => {
+    const table = page.getByRole('table', { name: 'Ports shared with you' });
+    await expect.soft(table.getByRole('columnheader')).toHaveText(['Member', 'Port', 'In the browser', 'In other programs']);
+  });
+
+  await test.step('the link is the member\'s .meshtown address, opens in a new tab and shows its own address', async () => {
+    expect.soft(url, 'href').toMatch(/^http:\/\/[a-z0-9-]+\.meshtown:9000$/);
+    await expect.soft(link).toHaveText(url);
+    await expect.soft(link).toHaveAttribute('target', '_blank');
+    await expect.soft(link).toHaveAttribute('rel', 'noopener');
+  });
+
+  await test.step('"Copy address <url>" says "Copied" after a click', async () => {
+    const copy = row.getByRole('button', { name: `Copy address ${url}` });
+    await expect.soft(copy).toHaveText('Copy');
+    await copy.click();
+    await expect.soft(copy).toHaveText('Copied');
   });
 });
 

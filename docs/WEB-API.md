@@ -232,7 +232,8 @@ all fields are required; `null` is allowed where marked):
       {
         "node": "1bd2ec32a56f...", "node_name": null, "online": true,
         "port": 80, "name": "site", "published": true,
-        "opened": { "local": 9000, "state": "listening", "error": null }
+        "opened": { "local": 9000, "state": "listening", "error": null },
+        "web_url": "http://home-box.meshtown"
       }
     ]
   },
@@ -350,7 +351,7 @@ Exact enum values:
   the scope "all" and a readable value while the author is in the network (`online` — the same flag as in
   `peers[]`), plus everything opened here (`opened`: `state` `"listening"` or `"bind_failed"`,
   `error` — the error text). `published: false` — the port is open here, but there is no valid record
-  for everyone; `node` — the full identifier. Own publications are not in `network`.
+  for everyone; `node` — the full identifier; `web_url` — the link to the port at the member's mesh address (`http://<name>.meshtown`, with `:port` unless the port is 80, `https://` for 443), `null` when the port is not shared with this node (`published: false`) or no proxy answers mesh addresses. Own publications are not in `network`.
 - `log.tail` — exactly the last 6 lines, for the "Recent events" card on "Home".
 - `boot_id` — random 8 hexadecimal characters, new on every process start.
   A change of `boot_id` means the node restarted: the page clears the log and rereads the config.

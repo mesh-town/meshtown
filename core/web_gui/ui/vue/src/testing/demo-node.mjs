@@ -28,6 +28,7 @@ const domains = () => ["example.org", "example.com", "x.com"].map((name) => ({
 const networkPorts = () => [{
   node: DEMO_PEER_ONE.id_full, node_name: DEMO_PEER_ONE.name, online: true, port: DEMO_PORT, name: DEMO_PORT_NAME,
   published: true, opened: { local: DEMO_PORT, state: "listening", error: null },
+  web_url: "http://" + DEMO_PEER_ONE.name + ".meshtown:" + DEMO_PORT,
 }];
 
 export function demoLog(n = LOG_LINES) {

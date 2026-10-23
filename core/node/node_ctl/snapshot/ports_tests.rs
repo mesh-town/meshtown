@@ -145,3 +145,6 @@ fn bind_failed_carries_error_text() {
     assert_eq!(o.state, "bind_failed");
     assert_eq!(o.error.as_deref(), Some("busy"));
 }
+
+#[path = "ports_web_url_tests.rs"]
+mod web_url;

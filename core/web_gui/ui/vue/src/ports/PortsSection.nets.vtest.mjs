@@ -122,7 +122,7 @@ describe("two networks", () => {
     });
   });
 
-  describe("ports shared by members", () => {
+  describe("ports shared with you", () => {
     it("rows are not merged: one per network, the member is named with its network", async () => {
       const { wrapper } = await setup({
         a: { rows: [netRow(PEER_ONE, "peer-one", 80)] },
@@ -287,7 +287,7 @@ const openedOf = (node, path) => lastBody(node, path).config.ports.opened;
 
 const rowOf = (wrapper, text) => wrapper.findAll("#ports-net-tbody tr").find((r) => r.text().includes(text));
 const localField = (row) => row.get("input[type=number]");
-const openButton = (row) => row.findAll("button").find((b) => b.text() === "Open") ?? { exists: () => false };
+const openButton = (row) => row.findAll("button").find((b) => b.text() === "Open on this computer") ?? { exists: () => false };
 
 const tick = (input, on) => new DOMWrapper(input).setValue(on);
 const boxesOf = (scope) => [...scope.querySelectorAll("input[type=checkbox]")];

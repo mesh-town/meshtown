@@ -61,10 +61,19 @@ impl NodeCtl {
         } else if let Some(face) = self.proxy_face() {
             snap.socks = snapshot::socks_of_face(&face.borrow());
         }
+        self.overlay_web_urls(&mut snap);
         snap.boot_id = boot_id;
         snap.node.uptime_sec = uptime;
         snapshot::overlay_process(&mut snap, snapshot::ProcessFacts::collect());
         snap
+    }
+
+    /// Fills `web_url` of the shared ports from the mesh addresses the process proxy answers.
+    fn overlay_web_urls(&self, snap: &mut NodeSnapshot) {
+        let Some(front) = self.proxy_front() else {
+            return;
+        };
+        snapshot::overlay_web_urls(&mut snap.ports.network, &front.mesh_addresses());
     }
 
     pub(super) fn add_peer_address_impl(&self, line: &str) -> Result<(), String> {

@@ -14,4 +14,5 @@ mod route_state;
 pub(crate) use collect::{collect, link_status, Collected};
 pub(in crate::node::node_ctl) use collect::{overlay_members, socks_of_face};
 pub(crate) use doc_cache::DocCache;
+pub(in crate::node::node_ctl) use ports::overlay_web_urls;
 pub(in crate::node::node_ctl) use process::{overlay_process, status_of, ProcessFacts};

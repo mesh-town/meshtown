@@ -237,6 +237,7 @@ export interface NetPort {
   name: string;
   published: boolean;
   opened: OpenedPort | null;
+  web_url: string | null; // link at the member's mesh address; null while the port is not shared with this node or there is no proxy
 }
 
 export interface OpenedPort {

@@ -7,7 +7,7 @@ use crate::config::config_file::NetSlotId;
 use crate::exit::PeerConnPool;
 use crate::proxy::ProxyConfig;
 use crate::proxy::mesh::catalog::{addresses, devices, rows_of, Device};
-use crate::proxy::mesh::host::MESH_SUFFIX;
+use crate::proxy::mesh::host::{host_url, MESH_SUFFIX};
 use crate::transport::net::{PeerId, PORT};
 
 /// One running network: its slot, its published configuration and its pool of connections to members for the
@@ -36,6 +36,13 @@ pub struct MeshAddress {
     pub peer: PeerId,
     /// `<address>.meshtown`.
     pub host: String,
+}
+
+impl MeshAddress {
+    /// The link to `port` of this device: port 80 is left out, port 443 selects `https`.
+    pub fn url(&self, port: u16) -> String {
+        host_url(&self.host, port)
+    }
 }
 
 /// Published configuration of every running network; clones share the same map.

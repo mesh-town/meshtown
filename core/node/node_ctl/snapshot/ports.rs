@@ -3,6 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use crate::proxy::MeshAddress;
 use crate::transport::net::PeerId;
 
 use crate::ports_sharing::open::OpenState;
@@ -62,7 +63,18 @@ fn row(
         name: name.unwrap_or_default().to_string(),
         published: name.is_some(),
         opened,
+        web_url: None,
     }
+}
+
+/// Sets `web_url` on every shared port whose author has a mesh address.
+pub(in crate::node::node_ctl) fn overlay_web_urls(rows: &mut [NetPort], addresses: &[MeshAddress]) {
+    rows.iter_mut().for_each(|row| row.web_url = web_url_of(row, addresses));
+}
+
+fn web_url_of(row: &NetPort, addresses: &[MeshAddress]) -> Option<String> {
+    let address = addresses.iter().find(|a| a.peer.to_string() == row.node)?;
+    row.published.then(|| address.url(row.port))
 }
 
 struct Ctx<'a> {
