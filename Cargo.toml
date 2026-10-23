@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["core", "platforms/macos", "platforms/windows", "platforms/linux"]
-default-members = ["core", "platforms/macos", "platforms/windows", "platforms/linux"]
+default-members = ["core"]
 
 # Keep this the first table with a version line: release scripts read the first
 # "version =" line of this file.
