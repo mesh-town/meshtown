@@ -107,11 +107,17 @@ export function currentExitVia(store: Store): { peer: string; net: string } | nu
   return peer ? { peer: peerLabel(peer, true, peers), net: netName(store.nets, store.lead) } : null;
 }
 
+// The name the tab shows: from the slot's entry when the poll already has its label, else the node's reply, else the slot's own fallback name.
+function joinedName(store: Store, form: AddNetForm): string {
+  const slot = form.slot ?? "";
+  if (store.nets.some((n) => n.id === slot && n.label != null)) return netName(store.nets, slot);
+  return form.netLabel || netName(store.nets, slot);
+}
+
 /** The banner text for a finished add; `null` — nothing to say (the join is still waiting, or it failed). */
 export function addedBannerText(store: Store, form: AddNetForm, result: AddNetResult): string | null {
-  const net = form.netLabel || PEERS_NEW_NET;
-  if (result === "created") return createdBanner(net);
-  return result === "joined" ? joinedBanner(net, currentExitVia(store)) : null;
+  if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET);
+  return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store)) : null;
 }
 
 /** The banner for a network that finished joining after a wait. */

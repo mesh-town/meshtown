@@ -12,7 +12,7 @@ import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { SELF_FULL, baseConfig, baseState } from "../testing/section.mjs";
 
 const LEFT_B = 'You left the network "my devices".';
-const NOT_TOLD = "Other members couldn't be told that you left, so they may see this computer as offline for a while.";
+const NOT_TOLD = "Mesh Town couldn't let the other members know, so for a while they may still see this computer in their list as offline. You don't need to do anything.";
 
 beforeEach(() => localStorage.clear());
 afterEach(unmountPage);

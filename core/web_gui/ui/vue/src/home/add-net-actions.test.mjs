@@ -223,6 +223,13 @@ describe("addedBannerText", () => {
     assert.equal(addedBannerText(w.store, w.form, result), "You joined \"friends\".");
   });
 
+  it("joined — the name comes from the slot's entry, the same as on its tab", async () => {
+    const w = setup({ input: KEY, routes: { [`POST /api/net/${NEW_SLOT}/network/join`]: {} } });
+    w.store.nets.push({ id: NEW_SLOT, label: undefined, id_hex: "ab12cdef", joining: false });
+    const result = await addNetwork(w.form, w.store, w.deps, "join");
+    assert.equal(addedBannerText(w.store, w.form, result), "You joined \"Network ab12\".");
+  });
+
   it("created — the banner names the typed network and points to the invite", async () => {
     const w = setup({ label: "family" });
     const result = await addNetwork(w.form, w.store, w.deps, "create");

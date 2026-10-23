@@ -15,7 +15,7 @@ const NAME_A = "alice-box";
 const NAME_B = "bob-box";
 const STALE = "settings were changed in another tab";
 const ON_TEXT = 'On: members of the network "my devices" can open sites through your internet connection, and sites will see your address.';
-const OFF_TEXT = `Off: members of "my devices" can't open sites through this computer.`;
+const OFF_TEXT = `Off: members of the network "my devices" can't open sites through your internet connection.`;
 
 beforeEach(() => localStorage.clear());
 afterEach(() => unmountPage());

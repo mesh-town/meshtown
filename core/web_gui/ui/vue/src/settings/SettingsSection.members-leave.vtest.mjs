@@ -161,7 +161,7 @@ describe("Settings: leaving the network", () => {
       await confirmLeave(wrapper);
       const text = wrapper.get("#settings-leave-status").text();
       expect(text.startsWith("You left the network \"demo-network\". ")).toBe(true);
-      expect(text).toContain("Other members couldn't be told that you left");
+      expect(text).toContain("Mesh Town couldn't let the other members know");
     });
 
     it("the node did not leave (`left:false`): the store keeps its networks and the line stays empty", async () => {
