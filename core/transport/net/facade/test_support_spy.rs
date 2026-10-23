@@ -6,7 +6,6 @@ use super::*;
 pub(crate) struct Spy {
     inner: Arc<dyn Transport>,
     kind: Option<&'static str>,
-    info: Option<NetInfo>,
     serve_all: bool,
     journal: Option<Journal>,
     closes: AtomicUsize,
@@ -23,7 +22,6 @@ impl Spy {
         Spy {
             inner,
             kind: None,
-            info: None,
             serve_all: false,
             journal: None,
             closes: AtomicUsize::new(0),
@@ -43,12 +41,6 @@ impl Spy {
     /// Its own `kind()` instead of `mem`.
     pub(crate) fn of_kind(mut self, kind: &'static str) -> Self {
         self.kind = Some(kind);
-        self
-    }
-
-    /// Its own `net_info()`.
-    pub(crate) fn with_info(mut self, info: NetInfo) -> Self {
-        self.info = Some(info);
         self
     }
 
@@ -157,7 +149,7 @@ impl Transport for Spy {
     }
 
     fn net_info(&self) -> NetInfo {
-        self.info.clone().unwrap_or_else(|| self.inner.net_info())
+        self.inner.net_info()
     }
 
     fn wait_net_info(&self) -> BoxFuture<'_, ()> {

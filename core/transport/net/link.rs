@@ -20,8 +20,6 @@ pub struct LinkInfo {
     pub rtt: Option<Duration>,
     pub sent_bytes: u64,
     pub recv_bytes: u64,
-    pub lost_packets: u64,
-    pub cwnd: Option<u64>,
     /// All paths of the connection, not only the chosen one. Default 0 — mem, stubs.
     pub path_count: usize,
     /// STREAM frames sent since the start of the connection. Default 0.
@@ -42,21 +40,7 @@ impl LinkInfo {
 }
 
 #[derive(Clone, Debug, Default)]
-pub enum NatKind {
-    #[default]
-    Unknown,
-    Open,
-    Consistent,
-    Random,
-}
-
-#[derive(Clone, Debug, Default)]
 pub struct NetInfo {
-    pub public_v4: Option<SocketAddr>,
-    pub public_v6: Option<SocketAddr>,
-    pub nat: NatKind,
-    pub home_relay: Option<RelayRef>,
-    pub can_relay: bool,
     /// "Network is visible" (UDP v4/v6 or a relay, no captive portal); `None` — unknown.
     pub net_seen: Option<bool>,
 }

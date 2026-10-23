@@ -18,10 +18,12 @@ use anyhow::{bail, ensure, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
-use crate::members::access::view::{Deny, Side, ACCESS_CLOSE_CODE};
+pub use super::handshake_name::{name_frame, parse_name_tail};
+pub use super::handshake_refusal::RefusedByPeer;
+use super::handshake_refusal::{learn_refusal, typed_refusal, with_refusal};
+use crate::members::access::view::{Side, ACCESS_CLOSE_CODE};
 use crate::members::membership::{self, MemberContext, MemberEvent};
 use crate::members::network_key::fill_random;
-use crate::members::words::{trim_and_validate_node_name, MAX_NAME_BYTES};
 use crate::node::output::{say, short_peer_id, NET_NAME};
 
 /// ALPN of the handshake protocol.
@@ -30,34 +32,6 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 /// The handshake tail is a name frame (2 + up to 256 bytes); the rest is room for fields of future versions,
 /// which this version skips.
 const MAX_TAIL_BYTES: usize = 1024;
-
-/// Name frame: an empty name or one longer than `MAX_NAME_BYTES` means "no name" (`[0, 0]`); otherwise the length
-/// as `u16` big-endian (2 bytes) and the bytes themselves. It neither trims nor validates the name — the node's own name has already
-/// passed validation (the default or `trim_and_validate_node_name`).
-pub fn name_frame(name: &str) -> Vec<u8> {
-    let bytes = name.as_bytes();
-    if bytes.is_empty() || bytes.len() > MAX_NAME_BYTES {
-        return vec![0, 0];
-    }
-    let mut out = Vec::with_capacity(2 + bytes.len());
-    out.extend_from_slice(&(bytes.len() as u16).to_be_bytes());
-    out.extend_from_slice(bytes);
-    out
-}
-
-/// Parses the handshake tail into the peer's name. Returns `None` on anything odd (shorter than 2 bytes, length 0 or
-/// above `MAX_NAME_BYTES`, fewer bytes than promised, not UTF-8, rejected by `trim_and_validate_node_name`) —
-/// the handshake still succeeds, the peer is simply treated as nameless. Bytes after the frame are not
-/// looked at at all (room for future fields).
-pub fn parse_name_tail(tail: &[u8]) -> Option<String> {
-    let len = u16::from_be_bytes(tail.get(0..2)?.try_into().unwrap()) as usize;
-    if len == 0 || len > MAX_NAME_BYTES {
-        return None;
-    }
-    let name_bytes = tail.get(2..2 + len)?;
-    let s = std::str::from_utf8(name_bytes).ok()?;
-    trim_and_validate_node_name(s).ok().map(str::to_string)
-}
 
 /// Responder tag: bound to both one-time numbers and both ids from TLS.
 pub fn responder_tag(
@@ -105,27 +79,6 @@ async fn admit_peer(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()>
     bail!("peer refused by the membership list: {}", deny.code())
 }
 
-/// Context of a handshake error: the responder closed the connection with this refusal.
-#[derive(Debug, Clone, Copy)]
-pub struct RefusedByPeer(pub Deny);
-
-impl std::fmt::Display for RefusedByPeer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "peer refused us: {}", self.0.code())
-    }
-}
-
-/// The responder did not answer: if it closed with a refusal, remember it (the close frame may arrive a moment later).
-async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<Deny> {
-    let _ = timeout(Duration::from_secs(1), conn.closed()).await;
-    let reason = Deny::from_wire(&conn.close_reason());
-    let access = ctx.members.access();
-    reason
-        .iter()
-        .for_each(|deny| access.note_refusal(conn.peer(), Side::Them, *deny));
-    reason
-}
-
 /// Reads the responder's nonce and tag; a failed read may mean the responder refused us.
 async fn read_reply(
     conn: &Arc<dyn PeerConn>,
@@ -137,26 +90,6 @@ async fn read_reply(
     let Err(err) = read else { return Ok(reply) };
     let refusal = learn_refusal(conn, ctx).await;
     Err(with_refusal(err.into(), refusal))
-}
-
-/// A failed exchange: if the responder's refusal is not attached yet, learns it from the close frame.
-async fn typed_refusal(
-    err: anyhow::Error,
-    conn: &Arc<dyn PeerConn>,
-    ctx: &MemberContext,
-) -> anyhow::Error {
-    match err.downcast_ref::<RefusedByPeer>() {
-        Some(_) => err,
-        None => with_refusal(err, learn_refusal(conn, ctx).await),
-    }
-}
-
-/// Attaches the responder's refusal, if any, to the error as a typed context.
-fn with_refusal(err: anyhow::Error, refusal: Option<Deny>) -> anyhow::Error {
-    match refusal {
-        Some(deny) => err.context(RefusedByPeer(deny)),
-        None => err,
-    }
 }
 
 /// The initiator's and the responder's nonces of one handshake.

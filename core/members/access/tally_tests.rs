@@ -259,6 +259,7 @@ pub(super) fn scene(me: PeerId) -> Scene {
             me,
             admits: vec![],
             votes: vec![],
+            forgets: Vec::new(),
         },
     }
 }
@@ -280,6 +281,7 @@ impl Scene {
             author,
             subject,
             via,
+            made_unix: 0,
         });
         self
     }

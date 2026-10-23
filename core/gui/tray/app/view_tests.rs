@@ -38,7 +38,7 @@ const API_EXAMPLE: &str = r#"{
   "transport": {
     "mode": "direct_and_relay",
     "self_path": "direct",
-    "relay": { "connected": true, "url": "euw1-1.relay.iroh.network" },
+    "relay": { "connected": true, "url": "relay.example" },
     "nat": "address-restricted cone",
     "listen_udp": ["192.168.1.14:47821", "[::]:47821"],
     "dht": { "joined": true, "nodes": 8, "last_publish_sec": 137 },

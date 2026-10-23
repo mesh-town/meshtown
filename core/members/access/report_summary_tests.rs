@@ -28,6 +28,8 @@ fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
         excluded: None,
         blocked_by_me: false,
         denied_by_me: None,
+        forget: None,
+        last_seen_sec: None,
         last_refusal: None,
         admission: None,
     }
@@ -40,10 +42,12 @@ fn reply(rows: Vec<MemberRow>, me_excluded: bool) -> MembersReply {
         excluded: 0,
         unlisted: 0,
         pending: 0,
+        forgotten: 0,
     };
     MembersReply {
         me: pid(1).to_string(),
         me_excluded,
+        me_removed: false,
         me_pending: false,
         me_admission: None,
         need: 2,

@@ -7,6 +7,8 @@ use serde::Serialize;
 pub struct MembersReply {
     pub me: String,
     pub me_excluded: bool,
+    /// The members removed this node from the member list.
+    pub me_removed: bool,
     /// This node waits for the confirmation of others and has been turned away for it.
     pub me_pending: bool,
     pub need: u8,
@@ -26,6 +28,7 @@ pub struct Counts {
     pub excluded: usize,
     pub unlisted: usize,
     pub pending: usize,
+    pub forgotten: usize,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -41,6 +44,9 @@ pub struct MemberRow {
     pub excluded: Option<ExcludedInfo>,
     pub blocked_by_me: bool,
     pub denied_by_me: Option<&'static str>,
+    pub forget: Option<ForgetInfo>,
+    /// Seconds since the last sign of life; set by `stamp_last_seen`.
+    pub last_seen_sec: Option<u64>,
     pub last_refusal: Option<RefusalInfo>,
     pub admission: Option<AdmissionInfo>,
 }
@@ -65,6 +71,18 @@ pub struct VoteInfo {
     pub mine: bool,
     /// The reason noted by the first voter; `null` when there is none or it is not fit to show.
     pub reason: Option<String>,
+}
+
+/// A circle of votes to remove a node from the member list.
+#[derive(Clone, Debug, Serialize)]
+pub struct ForgetInfo {
+    pub votes: usize,
+    pub need: u8,
+    pub proposed_by: String,
+    pub voters: Vec<String>,
+    pub mine: bool,
+    /// When the node was removed; `null` while the circle waits for more votes.
+    pub at_unix: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]

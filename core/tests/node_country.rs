@@ -1,6 +1,6 @@
 //! Integration tests of the node's country (`geoip::board`).
 //!
-//! What it does: checks real live iroh-docs synchronization between two nodes on
+//! What it does: checks live shared-document synchronization between two nodes on
 //! loopback — a peer sees the announced country, the own cache is read with its write time, a tombstone
 //! and an invalid value are indistinguishable from a missing record, and the old key is not confused with
 //! `list/`/`chk/`/`node/exit/` (modeled on `core/tests/exit_flag.rs`).

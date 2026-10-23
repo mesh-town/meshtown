@@ -18,6 +18,7 @@ fn reply(changed: Option<bool>) -> MembersReply {
     MembersReply {
         me: "me".to_string(),
         me_excluded: false,
+        me_removed: false,
         me_pending: false,
         need: 1,
         me_admission: None,
@@ -27,6 +28,7 @@ fn reply(changed: Option<bool>) -> MembersReply {
             excluded: 0,
             unlisted: 0,
             pending: 0,
+            forgotten: 0,
         },
         members: Vec::new(),
         changed,

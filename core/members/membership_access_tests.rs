@@ -316,6 +316,10 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
         pending: BTreeMap::new(),
         need: 1,
         admissions: BTreeMap::new(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
+        forget_need: 1,
     };
     Verdicts {
         me,

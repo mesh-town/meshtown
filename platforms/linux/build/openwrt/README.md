@@ -74,7 +74,7 @@ key your router has with the repository copy before trusting a mirror. Key finge
 Autostart of a Mesh Town node on OpenWrt.
 
 The `init.d-meshtown` script is a procd service: the node starts when the router boots, restarts after a crash,
-and logs to `logread`. Tested on OpenWrt 24.10 (aarch64) in an emulator. **Not tested on a live router.**
+and logs to `logread`. Built for OpenWrt 24.10 (aarch64). **Not yet tested on a physical router.**
 
 A static aarch64 binary is required (`make build_linux_arm64_cli` → `dist/meshtown-linux-arm64-cli-<version>`).
 The commands below run from a Mac at the repository root; `ROUTER=root@192.168.1.1`. Files are poured in with `cat | ssh`:
@@ -139,7 +139,7 @@ accepted too). The key is not written into the script: it would be visible in `p
     ssh $ROUTER '/etc/init.d/meshtown status; pidof meshtown; logread -e meshtown | tail -20'
     ssh $ROUTER 'ls -l /etc/rc.d | grep mesh; sysupgrade -l | grep -E "mesh|rc.d"'
 
-Expected: `running`, a process id, the lines `[exit] working as an exit for network members …` and `[relay] … connected`; two links
+Expected: `running`, a process id, the line `[exit] working as an exit for network members …`; two links
 and at least nine lines in the sysupgrade list (seven files and two links; there may be more files in `docs-store` — they grow with data). In `[status]` the node itself writes its memory once a minute
 (`memory … KiB`; about 11–12 MB on a small router).
 
@@ -161,19 +161,18 @@ the node gets a new identity on the next install). `disable` removes both links 
 
 ## Exit for other members
 
-In the script `SOCKS_FLAG=` is empty: whether the proxy is on comes from `config.json`. Since 17 Oct 2026 the proxy on the router
+In the script `SOCKS_FLAG=` is empty: whether the proxy is on comes from `config.json`. The proxy on the router
 is on for the home network — `socks.enabled: true`, `socks.access: "localnet"`, port 1080 by default: the node listens on
 `0.0.0.0:1080`, lets in only private addresses (loopback, `10/8`, `172.16/12`, `192.168/16`, `169.254/16`; tailscale addresses
 `100.64/10` it cuts off itself) and serves a PAC at `http://<router address on br-lan>:1080/proxy.pac` (on the router —
 `http://192.168.1.1:1080/proxy.pac`; the address in the PAC is the one the request came to). The proxy has no password, so the port
 must not be opened on the wan zone: in the stock OpenWrt `firewall` wan has `input REJECT`, do not add rules for 1080;
-check with `nft list chain inet fw4 input_wan` (no `accept` on 1080). Before 17 Oct 2026 it was `SOCKS_FLAG=--no-socks`
-(there is no browser on the router). To turn the proxy off again — `SOCKS_FLAG=--no-socks` and `restart`
+check with `nft list chain inet fw4 input_wan` (no `accept` on 1080). To turn the proxy off again — `SOCKS_FLAG=--no-socks` and `restart`
 (the flag overrides the file); `socks.enabled: false` in the file with an empty `SOCKS_FLAG` turns it off too.
 
 In the script `EXIT_FLAG=` is empty: the exit role comes from `config.json` (`exit.enabled`, default — on), the router works as an
 exit for other members and is switched by the checkbox "Allow other members to open sites through this computer"
-on the node page. The exit does not let traffic through to the home network or the router itself: it cuts off private addresses (merged 1 Oct 2026).
+on the node page. The exit does not let traffic through to the home network or the router itself: it cuts off private addresses.
 `EXIT_FLAG=--no-exit` or `--exit` pin the role over the file, and the checkbox then has no effect.
 A router installed earlier with `--no-exit --save-config` may have written `exit.enabled: false` to `config.json` — then after
 replacing the script and `restart`, turn the checkbox on the page on once.
@@ -208,8 +207,8 @@ For the exit role the script already has `limits nofile="4096 4096"` (one descri
 - **Restart on crash:** `respawn 60 5 10` — a 5 s pause; after 10–11 quick restarts in a row procd gives up on the node
   (`logread -e procd` writes "crash loop"), to bring it back — `/etc/init.d/meshtown restart`.
 - **Clock.** The router has no RTC, after boot the clock may stand "in the past" until time sync runs.
-  The node is alive at that time but the relay does not connect ("certificate not valid yet"); once the clock is right it
-  connects by itself (within seconds, without `restart`). No time-change hook is needed. The same goes for no route by
+  The node is alive at that time but TLS connections fail ("certificate not valid yet"); once the clock is right they
+  work by themselves (within seconds, without `restart`). No time-change hook is needed. The same goes for no route by
   default at start: the node waits and joins the network itself once the route appears.
 - **Node page** listens on port 7777 according to the access mode `web.access` (default `localnet` — on all IPv4
   addresses, lets in only `127.0.0.0/8` and private addresses `10/8`, `172.16/12`, `192.168/16`, `169.254/16`; `localhost` —
@@ -217,7 +216,7 @@ For the exit role the script already has `limits nofile="4096 4096"` (one descri
   the node prints the address with a one-time token for 10 minutes (in the log: `logread -e meshtown`), the permanent token
   `/etc/meshtown/web-token` does not reach the log; a forgotten password — `meshtown password reset`. Over HTTP the password,
   token and cookie travel in plain text on the local network. From a Mac with `localhost` — `ssh -L 7777:127.0.0.1:7777 $ROUTER`.
-  **On a router the `localnet` mode relies on the WAN firewall** (a deliberate decision to rely on the firewall):
+  **On a router the `localnet` mode relies on the WAN firewall** (the node relies on the firewall):
   the peer filter accepts any private address, and if the ISP gave the router a private WAN address (`10/8`, `172.16/12`),
   neighbors on the ISP network would pass the filter; OpenWrt drops inbound on WAN by default — do not open port 7777
   on WAN with a rule, and when in doubt set `meshtown access localhost`.
@@ -238,7 +237,7 @@ A list for allow-listing: the installation touches only these places and nothing
 
 Beyond the table, what the installation affects:
 
-- **outbound connections** of the node: DHT bootstrap (UDP), relay `n0.iroh` (HTTPS), `ipwho.is` (country), DoH `1.1.1.1`;
+- **outbound connections** of the node: DHT bootstrap and peer connections (UDP), `ipwho.is` (country), DoH `1.1.1.1`;
 - **log:** the new network key (first start) and the node page link with the token (every start) can be read in `logread`;
 - **space on the overlay:** about 10 MB of binary plus a growing `/etc/meshtown/docs-store/` (its size and the NAND wear from the write rate
   were not measured);
@@ -247,6 +246,5 @@ Beyond the table, what the installation affects:
 
 Unchanged: `/etc/config/*`, `uci`, firewall, routes, interfaces, packages (`opkg`), other services; the installation needs neither
 `reboot` nor `sysupgrade`. A reboot is needed only to test autostart, which is a separate permission. The installation adds no firewall
-rules; whether the node works behind the router firewall without port forwarding was not tested (the
-emulator network is behind NAT, there were no inbound connections). The exit role is on by default; the load
+rules; whether the node works behind the router firewall without port forwarding was not tested. The exit role is on by default; the load
 on the router in this role has not been measured yet.

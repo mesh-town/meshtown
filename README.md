@@ -15,8 +15,7 @@ Mesh Town is a peer-to-peer network of nodes that share one secret network key. 
 - serves a small management page and, in the desktop build, shows a tray icon.
 
 This repository is the application: the Rust node, the management page (Vue, built into one committed file), the tray,
-and the packaging scripts for macOS, Linux, Windows and OpenWrt. The 0.2.x line is the first public
-release.
+and the packaging scripts for macOS, Linux, Windows and OpenWrt. The current line is 0.3.x.
 
 ## How it works
 
@@ -197,7 +196,7 @@ tests together with `clippy`; the same checks run in CI.
 - **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by
   path, headers or content.
 
-Releases of the 0.2.x line are a working network node, not a hardened product. See [SECURITY.md](SECURITY.md) for the
+Releases of the 0.3.x line are a working network node, not a hardened product. See [SECURITY.md](SECURITY.md) for the
 scope and how to report a problem.
 
 ## Credits
@@ -206,7 +205,7 @@ scope and how to report a problem.
   that provides the DHT and the transport (via the forked `peeroxide-dht` and `libudx`).
 - The word list for the random part of the key is the EFF Large Wordlist for Passphrases, © Electronic Frontier
   Foundation, https://www.eff.org/dice, license CC BY 3.0 US. It is embedded unchanged; see
-  `core/wordlist/NOTICE.md`.
+  `core/members/wordlist/NOTICE.md`.
 - The page is built with [Vue](https://vuejs.org/) (MIT).
 
 The full list is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

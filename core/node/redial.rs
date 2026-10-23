@@ -5,7 +5,7 @@
 //! a disconnect computes the pause before the next attempt (doubles up to a cap, with a
 //! random addition).
 //! What it doesn't do: doesn't dial a connection and knows nothing about the transport/`Members` — that is `dial.rs`;
-//! takes time as an argument, doesn't read the clock itself (there is no iroh here at all).
+//! takes time as an argument, doesn't read the clock itself.
 //! Links: `dial::PeerDialer` holds one `Redial` for all known ids that aren't connected yet.
 
 use std::collections::{HashMap, HashSet};

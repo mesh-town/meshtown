@@ -1,8 +1,10 @@
-//! Member actions: exclude, unexclude, admit, unadmit, block, unblock, leave.
+//! Member actions: exclude, unexclude, forget, unforget, admit, unadmit, block, unblock, leave.
 //!
 //! What it does: checks the action against the current verdicts, writes the own record (vote or
 //! leave in the shared replica, block in the own one) and recomputes.
 //! What it doesn't do: no parsing of ids or HTTP (the node control layer does).
+
+use std::collections::HashSet;
 
 use crate::node::output::say;
 use crate::transport::net::{NetResult, PeerId};
@@ -24,6 +26,10 @@ pub enum MemberAction {
     Unadmit(PeerId),
     Block(PeerId),
     Unblock(PeerId),
+    /// Vote to remove a node that is not connected from the member list.
+    Forget(PeerId),
+    /// Take the own removal vote back.
+    Unforget(PeerId),
     Leave,
 }
 
@@ -35,6 +41,10 @@ pub enum ActionRefusal {
     Left,
     NotPending,
     NotConfirmed,
+    /// The node to remove is connected to this one right now.
+    Online,
+    /// The own removal vote of the node does not exist.
+    NotForgotten,
     Write(String),
 }
 
@@ -43,13 +53,32 @@ fn value(kind: AclKind, subject: PeerId) -> AclValue {
 }
 
 fn noted(kind: AclKind, subject: PeerId, note: String) -> AclValue {
+    stamped(kind, subject, note, unix_now())
+}
+
+fn stamped(kind: AclKind, subject: PeerId, note: String, made_unix: u64) -> AclValue {
     AclValue {
         kind,
         subject,
         via: Via::None,
-        made_unix: unix_now(),
+        made_unix,
         note,
     }
+}
+
+/// The removal vote: stamped after every admission of the subject, so that the vote counts.
+fn forget_vote(v: &Verdicts, p: PeerId) -> AclValue {
+    let after = v
+        .ledger
+        .last_admit_unix(&p)
+        .map_or(0, |t| t.saturating_add(1));
+    stamped(AclKind::Forget, p, String::new(), unix_now().max(after))
+}
+
+/// Whether the vote of `me` is already in the current circle of `p`.
+fn voted_to_forget(me: PeerId, v: &Verdicts, p: &PeerId) -> bool {
+    let circle = v.ledger.forgets.get(p);
+    circle.is_some_and(|round| round.voters.contains(&me))
 }
 
 /// Whether the request of `p` has the vote of `me` counted.
@@ -57,19 +86,40 @@ fn confirmed_by(me: PeerId, v: &Verdicts, p: &PeerId) -> Option<bool> {
     v.ledger.admissions.get(p).map(|a| a.voters.contains(&me))
 }
 
+/// Whether a forgotten node may still do the action: leave and the takebacks stay open.
+fn keeps_when_forgotten(act: &MemberAction) -> bool {
+    matches!(
+        act,
+        MemberAction::Leave
+            | MemberAction::Unforget(_)
+            | MemberAction::Unexclude(_)
+            | MemberAction::Unblock(_)
+    )
+}
+
 /// The checks in contract order: left, self target, then the state of the subject.
-fn check(me: PeerId, v: &Verdicts, act: &MemberAction) -> Result<(), ActionRefusal> {
+fn check(
+    me: PeerId,
+    v: &Verdicts,
+    online: &HashSet<PeerId>,
+    act: &MemberAction,
+) -> Result<(), ActionRefusal> {
     let left = v.ledger.excluded.contains_key(&me);
     match (act.clone(), left) {
         (MemberAction::Leave, _) => Ok(()),
         (_, true) => Err(ActionRefusal::Left),
+        (other, _) if v.ledger.is_forgotten(&me) && !keeps_when_forgotten(&other) => {
+            Err(ActionRefusal::Left)
+        }
         (
             MemberAction::Exclude(p, _)
             | MemberAction::Unexclude(p)
             | MemberAction::Admit(p)
             | MemberAction::Unadmit(p)
             | MemberAction::Block(p)
-            | MemberAction::Unblock(p),
+            | MemberAction::Unblock(p)
+            | MemberAction::Forget(p)
+            | MemberAction::Unforget(p),
             _,
         ) if p == me => Err(ActionRefusal::SelfTarget),
         (MemberAction::Exclude(p, _), _)
@@ -77,6 +127,8 @@ fn check(me: PeerId, v: &Verdicts, act: &MemberAction) -> Result<(), ActionRefus
         {
             Err(ActionRefusal::NotMember)
         }
+        (MemberAction::Forget(p), _) if !v.ledger.is_member(&p) => Err(ActionRefusal::NotMember),
+        (MemberAction::Forget(p), _) if online.contains(&p) => Err(ActionRefusal::Online),
         (MemberAction::Admit(p), _) if confirmed_by(me, v, &p) != Some(false) => {
             Err(ActionRefusal::NotPending)
         }
@@ -105,6 +157,11 @@ async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
         MemberAction::Unadmit(p) => record::withdraw(shared, AclKind::Admit, p).await,
         MemberAction::Block(p) => record::ensure(own, &value(AclKind::Block, p)).await,
         MemberAction::Unblock(p) => record::withdraw(own, AclKind::Block, p).await,
+        MemberAction::Forget(p) if voted_to_forget(a.me, v, &p) => Ok(false),
+        MemberAction::Forget(p) => record::rewrite(shared, &forget_vote(v, p))
+            .await
+            .map(|_| true),
+        MemberAction::Unforget(p) => record::withdraw(shared, AclKind::Forget, p).await,
         MemberAction::Leave if v.ledger.excluded.contains_key(&a.me) => Ok(false),
         MemberAction::Leave => record::ensure(shared, &value(AclKind::Exclude, a.me)).await,
     }
@@ -116,11 +173,20 @@ pub async fn apply(a: &Access, act: MemberAction) -> Result<bool, ActionRefusal>
         .refresh()
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;
-    check(a.me, &verdicts, &act)?;
-    let changed = write(a, &verdicts, act)
+    check(a.me, &verdicts, &a.members.ids(), &act)?;
+    let changed = write(a, &verdicts, act.clone())
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;
+    let changed = unchanged_refusal(&act, changed)?;
     refresh_after(a, changed).await;
+    Ok(changed)
+}
+
+/// An `Unforget` that changed nothing had no own vote to withdraw.
+fn unchanged_refusal(act: &MemberAction, changed: bool) -> Result<bool, ActionRefusal> {
+    if !changed && matches!(act, MemberAction::Unforget(_)) {
+        return Err(ActionRefusal::NotForgotten);
+    }
     Ok(changed)
 }
 
@@ -139,3 +205,15 @@ async fn refresh_after(a: &Access, changed: bool) {
 #[cfg(test)]
 #[path = "actions_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "actions_forget_tests.rs"]
+mod forget_tests;
+
+#[cfg(test)]
+#[path = "actions_forgotten_me_tests.rs"]
+mod forgotten_me_tests;
+
+#[cfg(test)]
+#[path = "actions_overflow_tests.rs"]
+mod overflow_tests;

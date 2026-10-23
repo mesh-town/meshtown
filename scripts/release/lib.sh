@@ -21,7 +21,7 @@
 # Defaults use `${VAR:-default}` (empty or unset → default): an empty value
 # that arrived through `export` in the root Makefile must not override the OS-based choice or the substituted
 # default.
-: "${ROOT:?release/lib.sh: the calling script must set ROOT before sourcing}"
+: "${ROOT:?scripts/release/lib.sh: the calling script must set ROOT before sourcing}"
 
 PROTO="$ROOT"
 DIST="${DIST:-$ROOT/dist}"

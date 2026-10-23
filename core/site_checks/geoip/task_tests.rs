@@ -1,5 +1,4 @@
 //! Unit tests of the country lookup schedule: `wait_before_check`, `pause_after_outcome`.
-//! The `net_seen` tests left together with the iroh adapter.
 
 use std::time::Duration;
 
@@ -89,8 +88,5 @@ mod net_absent_decision {
 }
 
 fn info_with(net_seen: Option<bool>) -> NetInfo {
-    NetInfo {
-        net_seen,
-        ..NetInfo::default()
-    }
+    NetInfo { net_seen }
 }

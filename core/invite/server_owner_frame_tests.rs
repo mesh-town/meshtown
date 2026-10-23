@@ -206,6 +206,10 @@ fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
         pending: Default::default(),
         need: 1,
         admissions: Default::default(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
+        forget_need: 1,
     }
 }
 
@@ -236,12 +240,14 @@ fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
             author: me,
             subject: owner,
             via: Via::Invite,
+            made_unix: 0,
         }],
         votes: vec![VoteIn {
             voter: me,
             subject: owner,
             ts_micros: 10,
         }],
+        forgets: Vec::new(),
     };
     let verdicts = Verdicts {
         me,

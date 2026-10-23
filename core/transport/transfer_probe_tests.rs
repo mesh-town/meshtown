@@ -1,5 +1,5 @@
 //! Tests for the volume probe: size choice (no network) and `send_probe`/`answer_probes`/`send_probes_while_open` on a `mem` pair.
-//! No live iroh is needed here: the probe talks to `PeerConn`.
+//! No live network is needed here: the probe talks to `PeerConn`.
 
 use super::*;
 use crate::transport::net::contract::{must_finish, secret, SEED_A, SEED_B};

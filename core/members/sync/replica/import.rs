@@ -1,5 +1,5 @@
 //! The one-time transfer of `docs-store/` into the files of its own replicas. Reads through an external reader
-//! (`LegacyRead`), knows nothing about iroh itself; the mark in the replica file makes a repeated start fast.
+//! (`LegacyRead`), knows nothing about the old store format itself; the mark in the replica file makes a repeated start fast.
 
 use super::entry::{seal, WireEntry, MAX_KEY_BYTES};
 use super::file::{self, Bak, FileError, ImportMark, Loaded, MarkSource};

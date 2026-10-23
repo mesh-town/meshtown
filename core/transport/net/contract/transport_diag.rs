@@ -13,7 +13,7 @@ use crate::transport::net::transport::{PathWatch, PeerConn, Transport};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// How long we wait for the event that the watcher returns while the connection is alive (iroh returns the current snapshot
+/// How long we wait for the event that the watcher returns while the connection is alive (some transports return the current snapshot
 /// at once, the other transports return `None` or stay silent).
 const LIVE_PROBE: Duration = Duration::from_millis(500);
 
@@ -83,7 +83,7 @@ macro_rules! transport_diag_contract {
                         // when: A closes the connection
                         pair.conn.close(7, b"bye");
                         // then: next() reaches None within 5 s (not necessarily on the first next():
-                        // the closed flag in the iroh path snapshot rises later than close)
+                        // the closed flag in the path snapshot rises later than close)
                         let ended = drain_until_none(&mut *watch).await;
                         assert!(
                             ended.is_some(),

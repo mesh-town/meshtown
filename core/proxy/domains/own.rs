@@ -1,7 +1,7 @@
 //! The node's own domain list: a closed replica without synchronization.
 //!
 //! What it does: reads the domain list from a replica (`Replica`).
-//! What it does not do: it knows nothing about `iroh-docs` (the space and secret are derived by `sync::replica`),
+//! What it does not do: it knows nothing about how the replica is stored or synced (the space and secret are derived by `sync::replica`),
 //! does not start synchronization, does not change or clean the shared replica.
 
 use anyhow::Result;

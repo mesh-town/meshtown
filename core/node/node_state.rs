@@ -1,7 +1,7 @@
 //! The "this node works as an exit" flag in the network's shared document, and shared helpers for reading/writing
 //! a single value by key in the same document.
 //!
-//! What it does: announces whether the node's exit is on in the same iroh-docs document where
+//! What it does: announces whether the node's exit is on in the same shared document where
 //! `chk/` lives (key `node/exit/`, own author), at start and on every change of
 //! `exit.enabled`; reads the flag of other members from there. Provides the shared `read_values`/`own_value`
 //! for modules that publish their own value under a separate key the same way — the first
