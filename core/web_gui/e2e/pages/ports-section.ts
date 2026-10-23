@@ -44,6 +44,19 @@ export class PortsSection {
     return row.getByRole('button', { name: 'Open on this computer', exact: true });
   }
 
+  changeButton(row: Locator): Locator {
+    return row.getByRole('button', { name: 'Change number', exact: true });
+  }
+
+  copyLocalButton(row: Locator, local: string): Locator {
+    return row.getByRole('button', { name: `Copy address 127.0.0.1:${local}`, exact: true });
+  }
+
+  /** Card titles in page order. */
+  cardTitles(): Locator {
+    return this.page.locator('.card > h2');
+  }
+
   closeButton(row: Locator): Locator {
     return row.getByRole('button', { name: 'Close', exact: true });
   }
