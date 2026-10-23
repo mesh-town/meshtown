@@ -33,7 +33,7 @@ test.describe('two networks (demo --nets 2)', () => {
 
         await test.step('the row has two network tabs and the "+" tab', async () => {
           await expect(tabs(page)).toBeVisible();
-          await expect(tabs(page).getByRole('tab')).toHaveCount(3);
+          await expect(tabs(page).getByRole('link')).toHaveCount(3);
           await expect(addTab(page)).toBeVisible();
           await expect(slotTabs(page)).toHaveCount(2);
           await expect(slotTabs(page).nth(1)).toBeVisible();
@@ -45,14 +45,14 @@ test.describe('two networks (demo --nets 2)', () => {
         await test.step('clicking the second tab: the hash is #peers/<slot> and the tab is selected', async () => {
           await tab(page, SECOND).click();
           await expect.poll(() => hash(page)).toBe(`#peers/${SECOND}`);
-          await expect(tab(page, SECOND)).toHaveAttribute('aria-selected', 'true');
+          await expect(tab(page, SECOND)).toHaveAttribute('aria-current', 'page');
         });
 
         await test.step('"Back" selects the first network again', async () => {
           await page.goBack();
           await app.tabs.expectShown('peers');
-          await expect(tab(page, firstSlot)).toHaveAttribute('aria-selected', 'true');
-          await expect(tab(page, SECOND)).toHaveAttribute('aria-selected', 'false');
+          await expect(tab(page, firstSlot)).toHaveAttribute('aria-current', 'page');
+          await expect(tab(page, SECOND)).not.toHaveAttribute('aria-current', 'page');
         });
       });
 
@@ -73,7 +73,7 @@ test.describe('two networks (demo --nets 2)', () => {
           await expect(page.locator('#add-net-card:visible')).toBeHidden();
           await expect.poll(() => hash(page)).toMatch(/^#peers(\/|$)/);
           await expect.poll(() => hash(page)).not.toBe('#peers/add');
-          await expect(addTab(page)).toHaveAttribute('aria-selected', 'false');
+          await expect(addTab(page)).not.toHaveAttribute('aria-current', 'page');
         });
       });
 
@@ -88,7 +88,7 @@ test.describe('two networks (demo --nets 2)', () => {
           await rows.nth(1).locator('a.net-row-open').click();
           await app.tabs.expectShown('peers');
           await expect.poll(() => hash(page)).toBe(`#peers/${SECOND}`);
-          await expect(tab(page, SECOND)).toHaveAttribute('aria-selected', 'true');
+          await expect(tab(page, SECOND)).toHaveAttribute('aria-current', 'page');
         });
 
         await test.step('Settings: the add-network card is there, the join card is not', async () => {
