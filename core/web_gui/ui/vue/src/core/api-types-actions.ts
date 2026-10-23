@@ -4,47 +4,6 @@ import type { ConfigDocument, ConfigFileInfo, FieldError } from "./api-types-con
 
 // ---------------------------------------------------------------- actions and network
 
-/** Actions — docs/WEB-API-config.md §1.8. Bodies with a single domain. */
-export interface DomainRequest {
-  domain: string;
-}
-
-/** `POST /api/actions/find-exit`, 202. */
-export interface FindExitResponse {
-  domain: string;
-  added: true;
-}
-
-/** `POST /api/actions/check-domain` (202), `POST /api/domains` and `DELETE /api/domains?name=` (200). */
-export interface DomainResponse {
-  domain: string; // the name after the node normalizes it
-}
-
-/** `POST /api/actions/check-all`, 202: how many checks were queued. */
-export interface CheckAllResponse {
-  queued: number;
-}
-
-/** `POST /api/actions/stop`, 202. */
-export interface StopResponse {
-  stopping: true;
-}
-
-/** `POST /api/actions/restart`, 202. */
-export interface RestartResponse {
-  restart: true;
-}
-
-/** `GET /api/peer-addresses`: own addresses as `<id>@<address>` strings. */
-export interface PeerAddressesResponse {
-  lines: string[];
-}
-
-/** Body of `POST /api/peer-addresses`: addresses one per line; empty lines are skipped. */
-export interface PeerAddressesRequest {
-  text: string;
-}
-
 /** `POST /api/peer-addresses`, 200: partial success — not an error. */
 export interface PeerAddressesAddResponse {
   added: number;

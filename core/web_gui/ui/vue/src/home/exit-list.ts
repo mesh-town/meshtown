@@ -40,11 +40,6 @@ function uniq<T>(list: T[]): T[] {
   return [...new Set(list)];
 }
 
-// A single choice — switching a node on ⇒ it is the only one; switching off — the rest without it, no more than one.
-export function nextExitsOnChange(chosen: string[], idFull: string, checked: boolean): string[] {
-  return checked ? [idFull] : chosen.filter((id) => id !== idFull).slice(0, 1);
-}
-
 // The country code as text, without a flag emoji.
 export function countryTag(item: { country: string | null }): string {
   return item.country ? " · " + countryName(item.country) : "";
