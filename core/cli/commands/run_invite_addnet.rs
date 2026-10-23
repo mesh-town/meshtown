@@ -14,8 +14,10 @@ use crate::members::sync::replica::file::{self as replica_file, Loaded};
 use crate::node::host::MAX_NETS;
 use crate::node::output::say;
 use crate::proxy::domains::{domain_from_key, LIST_PREFIX};
+use crate::transport::net::{NodeSecret, PeerAddr};
 
 use super::run_invite::save_text;
+use super::run_invite_seed::{seed_domains, seed_peers_cache};
 
 /// What `--key` means next to the settings file and the network slots on disk.
 #[derive(Debug, PartialEq, Eq)]
@@ -105,22 +107,16 @@ fn slot_key(path: &Path) -> Option<String> {
     }
 }
 
-/// A new slot beside the main file: the shared fields of the main run, a fresh node secret, this key.
-#[derive(Debug)]
-#[allow(dead_code)] // the fields are for the caller that starts and seeds the new network
-pub(crate) struct AddedNet {
-    pub id: NetSlotId,
-    /// The sites the new network starts with: the main network's list plus the ones typed with `--domain`.
-    pub seed_domains: Vec<String>,
-}
-
-/// Saves `nets/<id>/config.json` with the key. The main file is not written. `Err` when nothing was saved.
+/// Saves `nets/<id>/config.json` with the key and seeds the slot with the invite's peer addresses and the site
+/// list (the main network's plus the ones typed with `--domain`). The main file is not written.
+/// `Err` when nothing was saved; a failed seed is only a line in the log.
 pub(crate) fn add_net_slot(
     main: &RunConfig,
     key_text: &str,
     typed_domains: &[String],
+    peers: &[PeerAddr],
     now: u64,
-) -> anyhow::Result<AddedNet> {
+) -> anyhow::Result<NetSlotId> {
     let main_path = main
         .file_report
         .path
@@ -134,9 +130,30 @@ pub(crate) fn add_net_slot(
         .ok_or_else(|| anyhow::anyhow!("the main slot has no slot file"))?;
     save_net_file(&path, None, now, now, &slot.secret, &net)
         .map_err(|e| anyhow::anyhow!("{}", save_text(e)))?;
-    let seed_domains = merged(read_main_domains(&main_path), typed_domains);
+    let domains = merged(read_main_domains(&main_path), typed_domains);
+    seed_slot(&path, key_text, &slot.secret, &domains, peers, now);
     say("network", format!("added a network ({id})"));
-    Ok(AddedNet { id, seed_domains })
+    Ok(id)
+}
+
+/// Writes the neighbour cache and the site list of a new slot; each failure is a line in the log.
+fn seed_slot(
+    path: &Path,
+    key_text: &str,
+    secret: &NodeSecret,
+    domains: &[String],
+    peers: &[PeerAddr],
+    now: u64,
+) {
+    if let Ok(parsed) = parse_user_input(key_text) {
+        let network_id = parsed.key.subkeys().network_id_hex();
+        if let Err(why) = seed_peers_cache(path, &network_id, peers, now) {
+            say("network", format!("peer addresses not seeded: {why}"));
+        }
+    }
+    if let Err(why) = seed_domains(path, secret, domains, now * 1_000_000) {
+        say("network", format!("site list not seeded: {why}"));
+    }
 }
 
 fn merged(mut list: Vec<String>, typed: &[String]) -> Vec<String> {
