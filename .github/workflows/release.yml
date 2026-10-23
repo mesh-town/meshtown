@@ -175,7 +175,7 @@ jobs:
           key="$RUNNER_TEMP/deploy-key"
           printf '%s\n' "$DIST_DEPLOY_KEY" > "$key"
           export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-          release/dist/publish.sh dist-src "$VERSION"
+          scripts/release/dist/publish.sh dist-src "$VERSION"
           rm -f "$key"
 
   tap:

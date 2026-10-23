@@ -28,5 +28,5 @@ is needed, only the Android SDK (`ANDROID_HOME`) and JDK 17+.
 
 ## What is used outside this directory
 
-Only `core/` (the node sources), `release/lib.sh`, `release/dist/` and the workspace root (`Cargo.toml`, `Cargo.lock`,
+Only `core/` (the node sources), `scripts/release/lib.sh`, `scripts/release/dist/` and the workspace root (`Cargo.toml`, `Cargo.lock`,
 `.tmp/`, `dist/`). `make boundary` checks this.

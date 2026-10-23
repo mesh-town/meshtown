@@ -67,12 +67,12 @@ shared library for it by `platforms/android/build/build.sh`.
 - A platform crate depends only on `meshtown-core` among the workspace packages, through its public API (third-party
   crates are fine).
 - Scripts and `Makefile`s of a platform stay inside its directory. The exceptions are the path dependency on `core/`
-  (only in the platform's `Cargo.toml`), `release/lib.sh`, `release/dist/`, and the workspace root itself, from which
+  (only in the platform's `Cargo.toml`), `scripts/release/lib.sh`, `scripts/release/dist/`, and the workspace root itself, from which
   `cargo` is run (root `Cargo.toml` and `Cargo.lock`, `.tmp/`, `target/`, `dist/`).
 - Operating-system code is allowed in the core when a node without a tray needs it (console, file limits, signals).
   Tray, windows and packaging belong to the platform.
 
-`make boundary` (`scripts/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
+`make boundary` (`scripts/checks/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
 text of files: in `core/` only `*.rs` and the manifest, in `platforms/` every text file (sources, `Makefile`s, scripts,
 `.md`). It is part of `make check`
 and runs in CI. A path that leaves the platform directory for any other place is reported with file and line.

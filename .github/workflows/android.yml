@@ -134,5 +134,5 @@ jobs:
           version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
           mkdir -p dist-src/android
           cp "apk/meshtown-${version}.apk" dist-src/android/
-          release/dist/publish.sh dist-src "$version"
+          scripts/release/dist/publish.sh dist-src "$version"
           rm -f "$key"
