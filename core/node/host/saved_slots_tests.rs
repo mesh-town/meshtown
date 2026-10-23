@@ -337,3 +337,32 @@ mod network_label_switch {
         assert!(multi_net_for(2));
     }
 }
+
+mod without_a_settings_file {
+    use crate::node::host::saved_slots::has_saved_slots;
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn no_net_files_are_written_or_read() {
+        // given: `--no-config`: no settings file, and no `nets` folder
+        let fx = setup(190);
+        let overrides = CliOverrides {
+            network_key: Some(NetworkKey::from_bytes([190; 32]).encode()),
+            ..CliOverrides::default()
+        };
+        let main = config_file::prepare(&ConfigSource::Disabled, &overrides, true, 0)
+            .expect("prepare without a file");
+        let slots = HostSlots::with_main(
+            NodeCtl::new(&main.effective_settings),
+            ConfigState::from_run(&main),
+        );
+        // when: the saved slots are started
+        slots.start_saved_slots(&main, &fx.relaunch, &fx.sources, NOW);
+        // then: no file, no extra slot, no `nets` folder anywhere near the test directory
+        assert!(main.file.is_none());
+        assert!(!has_saved_slots(Some(&main)));
+        assert_eq!(slots.len(), 1, "the main slot only");
+        assert!(!fx.dir.join("nets").exists());
+        assert!(!std::env::current_dir().unwrap().join("nets").exists());
+    }
+}
