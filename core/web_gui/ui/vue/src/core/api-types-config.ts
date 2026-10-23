@@ -87,12 +87,5 @@ export interface ConfigResponse {
   file: ConfigFileInfo;
 }
 
-/** Partial object: nested objects are partial too, lists are whole. */
-export type DeepPartial<T> = T extends readonly unknown[]
-  ? T
-  : T extends object
-    ? { [K in keyof T]?: DeepPartial<T[K]> }
-    : T;
-
 /** Config meta lists in the page store (`store.configMeta`, `core/save-config.js`). */
 export type ConfigMeta = Pick<ConfigResponse, "read_only" | "restart_fields" | "restart_pending" | "cli_overrides">;
