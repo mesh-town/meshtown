@@ -192,3 +192,65 @@ async fn a_new_network_starts_with_the_domains_of_the_running_ones() {
     let relaunch = fx.slots.relaunch_for_new(ctx, &fx.main);
     assert_eq!(relaunch.initial_domains, ["a.org", "b.org"]);
 }
+
+mod slot_with_an_invite_join {
+    use super::*;
+    use crate::web_gui::{InviteJoinState, InviteJoinView, NodeRuntime};
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn waiting_for_members_is_not_handed_back_a_new_slot_is_made() {
+        // given
+        let fx = busy_map();
+        push_offline_slot(&fx.slots, "ab2c3d", Some(InviteJoinState::Waiting));
+
+        // when
+        let added = fx.slots.add_slot().unwrap();
+
+        // then
+        assert!(added.fresh, "the waiting slot must stay untouched");
+        assert_ne!(added.id, NetSlotId::parse("ab2c3d").unwrap());
+        assert_eq!(fx.slots.len(), 3);
+        fx.slots.stop_all();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn refused_is_handed_back_as_an_empty_slot() {
+        // given
+        let fx = busy_map();
+        push_offline_slot(&fx.slots, "ab2c3d", Some(InviteJoinState::Refused));
+
+        // when
+        let added = fx.slots.add_slot().unwrap();
+
+        // then
+        assert_eq!(added.id, NetSlotId::parse("ab2c3d").unwrap());
+        assert!(!added.fresh);
+        assert_eq!(fx.slots.len(), 2);
+        fx.slots.stop_all();
+    }
+
+    /// An added slot without a key whose node is offline, with the given invite-join state, if any.
+    fn push_offline_slot(slots: &HostSlots, id: &str, invite: Option<InviteJoinState>) {
+        let snapshot = NodeSnapshot {
+            node: NodeRuntime {
+                status: NodeStatus::Offline,
+                ..NodeRuntime::default()
+            },
+            ..NodeSnapshot::default()
+        };
+        let node = SnapNode::new(snapshot);
+        *node.invite_join.lock().unwrap() = invite.map(|state| InviteJoinView {
+            state,
+            message: "text".to_string(),
+            label: None,
+            expires_unix: 1_800_000_000,
+        });
+        let handle = SlotHandle {
+            id: NetSlotId::parse(id).unwrap(),
+            node,
+            config: Arc::new(Mutex::new(ConfigState::from_run(&placeholder_run()))),
+        };
+        let ctl = NodeCtl::new(&Settings::default());
+        slots.push_slot(handle, ctl, async { Ok(()) }).unwrap();
+    }
+}

@@ -16,10 +16,11 @@ use meshtown_core::config::config_file::{
     self, CliOverrides, ConfigSource, PathRule, TransportMode,
 };
 use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::node::host::Host;
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
 use meshtown_core::node::output;
 use meshtown_core::node::{self, IdentityState};
-use meshtown_core::proxy::{ProxyFront, ProxySeat};
+use meshtown_core::proxy::ProxyFront;
 use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
 use serde_json::{json, Value};
 use tokio::time::sleep;
@@ -364,15 +365,7 @@ async fn seat_front(
     ctl: &std::sync::Arc<NodeCtl>,
     run: &config_file::RunConfig,
 ) -> Option<ProxyFront> {
-    let process = &run.effective_settings.process;
-    if !process.socks_enabled {
-        return None;
-    }
-    let front = ProxyFront::bind(process).await.expect("boot: proxy front");
-    let seat = std::sync::Arc::new(ProxySeat::new(
-        Some(front.clone()),
-        process.proxy_net.clone(),
-    ));
+    let (front, seat) = Host::seat_proxy(run).await.expect("boot: proxy front");
     ctl.set_proxy_seat(NetSlotId::main(), seat);
-    Some(front)
+    front
 }
