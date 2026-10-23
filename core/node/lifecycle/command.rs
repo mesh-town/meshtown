@@ -32,7 +32,7 @@ pub(super) fn apply_switch(
 }
 
 /// After the stop: Stop → `Break`; Switch → `apply_switch` with the old `cfg.identity`, on success `*cfg = new`,
-/// on error the line "coming back up with the old key"; then `Continue`.
+/// on error the line "coming back up with the old key"; then `Break` if a stop was requested meanwhile, else `Continue`.
 pub(super) fn after_command(
     cmd: Cmd,
     cfg: &mut NodeConfig,
@@ -47,5 +47,12 @@ pub(super) fn after_command(
         Ok(new_cfg) => *cfg = new_cfg,
         Err(e) => say("node", format!("{e:#}; coming back up with the old key")),
     }
+    if ctl.stop_requested() {
+        return ControlFlow::Break(());
+    }
     ControlFlow::Continue(())
 }
+
+#[cfg(test)]
+#[path = "command_tests.rs"]
+mod tests;

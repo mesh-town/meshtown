@@ -160,7 +160,9 @@ impl NodeCtl {
             st.snapshot_gen += 1;
             st.node = Some(node.clone());
             st.cache = None;
-            st.phase = Phase::Up;
+            if !matches!(st.phase, Phase::Stopping) {
+                st.phase = Phase::Up;
+            }
             let pending = std::mem::take(&mut st.pending);
             (st.snapshot_gen, pending, st.effective_settings.clone())
         };

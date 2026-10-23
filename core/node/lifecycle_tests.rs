@@ -229,3 +229,38 @@ async fn boot_cycles_reuse_fixed_socks_port() {
         );
     }
 }
+
+/// A stop that arrives while the node starts survives `attach`: the snapshot says "stopping".
+#[tokio::test]
+async fn stop_before_attach_keeps_stopping_status() {
+    let ctl = NodeCtl::new(&Settings::default());
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([5; 32]));
+    cfg.socks.enabled = false;
+    ctl.stop_on_os_signal();
+    let node = boot_cycle(&cfg, &ctl, true).await.unwrap();
+    assert_eq!(
+        ctl.snapshot().node.status,
+        crate::web_gui::NodeStatus::Stopping
+    );
+    assert!(matches!(serve_until_command(node, &ctl).await, Cmd::Stop));
+}
+
+/// With the stop queued before the start, the loop leaves after that one start and takes no second boot id.
+#[tokio::test]
+async fn stop_before_attach_leaves_after_one_boot() {
+    let ctl = NodeCtl::new(&Settings::default());
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([6; 32]));
+    cfg.socks.enabled = false;
+    let mut settings = Settings::default();
+    let id0 = ctl.snapshot().boot_id;
+    ctl.stop_on_os_signal();
+    let res = timeout(
+        Duration::from_secs(20),
+        run_cycles(&mut cfg, &mut settings, &ctl, &test_relaunch()),
+    )
+    .await
+    .expect("loop must leave");
+    assert!(res.is_ok());
+    let id1 = ctl.snapshot().boot_id;
+    assert_ne!(id0, id1);
+}
