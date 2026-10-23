@@ -11,21 +11,48 @@ use crate::node::output::say;
 use super::http_head::{
     parse_head, status_reply, HttpProxyRequest, HttpRequestKind, MAX_HEAD_BYTES,
 };
-use super::outcome::outcome_line;
+use super::outcome::{outcome_line, ProxyOutcome};
 use super::pac::{pac_proxy_list, pac_reply, pac_script, PacRequest, PAC_PATH};
 use super::path;
-use super::serve::ProxyConfig;
+use super::serve::{ProxyConfig, NO_PROXY_NETWORK};
 
 /// Serves one HTTP connection: one request (`CONNECT`, an absolute URI or a PAC).
-pub(super) async fn serve_http_connection(mut stream: TcpStream, cfg: ProxyConfig) -> Result<()> {
+pub(super) async fn serve_http_connection(
+    mut stream: TcpStream,
+    cfg: Option<ProxyConfig>,
+) -> Result<()> {
     let started = Instant::now();
     let Some((request_kind, buf)) = read_head(&mut stream).await? else {
         return Ok(());
     };
     match request_kind {
-        HttpRequestKind::Proxy(request) => forward(stream, &cfg, request, buf, started).await,
+        HttpRequestKind::Proxy(request) => match cfg {
+            Some(cfg) => forward(stream, &cfg, request, buf, started).await,
+            None => refuse_no_network(stream, request, started).await,
+        },
         HttpRequestKind::Pac(request) => serve_pac(stream, request).await,
     }
+}
+
+/// A proxy request while the proxy has no network: `502` and the journal line.
+async fn refuse_no_network(
+    mut stream: TcpStream,
+    request: HttpProxyRequest,
+    started: Instant,
+) -> Result<()> {
+    let outcome = ProxyOutcome::refused("no route", NO_PROXY_NETWORK);
+    stream
+        .write_all(&status_reply(502, &outcome.result))
+        .await?;
+    say(
+        "http",
+        outcome_line(
+            &request.target.to_string(),
+            &outcome,
+            started.elapsed().as_millis(),
+        ),
+    );
+    Ok(())
 }
 
 /// Proxying: `CONNECT` or a request with an absolute URI.

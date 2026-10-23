@@ -1,8 +1,8 @@
 //! Building and starting the node: `start` ties all modules into a working process (transports, sync, the network stack with
 //! discovery, background tasks) and returns `RunningNode`.
 //!
-//! Files: `boot` (SOCKS5 port, transports, name, identity) → `network` (sync, network stack, discovery) →
-//! `serving` (domain list, checks, SOCKS5) → `entry` (swarm topic, main loop). The intermediate bundles (`Boot`, `Net`, `Serving`) are visible only inside `start`.
+//! Files: `boot` (transports, name, identity) → `network` (sync, network stack, discovery) →
+//! `serving` (domain list, checks, proxy configuration) → `entry` (swarm topic, main loop). The intermediate bundles (`Boot`, `Net`, `Serving`) are visible only inside `start`.
 
 use std::future::Future;
 use std::sync::Arc;
@@ -21,6 +21,7 @@ mod boot;
 mod entry;
 mod network;
 mod preload;
+mod proxy_wiring;
 mod serving;
 mod stack;
 mod transports;
@@ -38,13 +39,8 @@ pub async fn start_node(cfg: NodeConfig) -> Result<RunningNode> {
     let (net, inbound) = spawn_network(&cfg, &boot).await?;
     let (serving, entry_points) =
         close_on_err(&net.stack, wire_up(&cfg, &mut boot, &net, inbound)).await?;
-    Ok(assemble_running(
-        boot,
-        net,
-        serving,
-        entry_points,
-        (cfg.socks.access, cfg.socks.ifaces.clone()),
-    ))
+    let face = proxy_wiring::face_of(cfg.proxy_face.clone());
+    Ok(assemble_running(boot, net, serving, entry_points, face))
 }
 
 /// Awaits a phase; a phase error closes the stack and is returned as is, success leaves the stack alone.
@@ -63,10 +59,7 @@ fn assemble_running(
     net: network::Net,
     serving: serving::Serving,
     entry_points: entry::EntryPoints,
-    (socks_access, socks_ifaces): (
-        crate::config::config_file::ListenAccess,
-        crate::config::config_file::IfaceFilter,
-    ),
+    proxy_face: tokio::sync::watch::Receiver<crate::proxy::ProxyFace>,
 ) -> RunningNode {
     RunningNode {
         id: boot.id,
@@ -78,10 +71,8 @@ fn assemble_running(
         domains: serving.domain_list,
         access: serving.access,
         checks: serving.checks,
-        socks_addr: serving.socks_addr,
-        socks_access,
-        socks_ifaces,
-        socks_task: serving.socks_task,
+        proxy: serving.proxy,
+        proxy_face,
         exit_on: net.exit_on,
         exit_clients: net.exit_clients,
         exit_traffic: net.exit_traffic,

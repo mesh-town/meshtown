@@ -119,7 +119,6 @@ async fn join_client(b: &Booted, key: &NetworkKey) -> (RunningNode, PeerId) {
 
     let mut cfg = NodeConfig::for_loopback_test(key.clone());
     cfg.settings.exit_enabled = false;
-    cfg.socks.enabled = false;
     let a = node::start_node(cfg).await.expect("A must start");
     a.introduce(addr_b).await;
     let ok = wait_until(MEMBER_WITHIN, || a.members.is_member(id_b)).await;

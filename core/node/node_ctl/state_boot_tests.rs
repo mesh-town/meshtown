@@ -6,8 +6,7 @@ use crate::node::output::{log_summary, say};
 
 async fn start_test_node() -> RunningNode {
     let key = NetworkKey::generate().unwrap();
-    let mut cfg = NodeConfig::for_loopback_test(key);
-    cfg.socks.enabled = false;
+    let cfg = NodeConfig::for_loopback_test(key);
     crate::node::start_node(cfg).await.unwrap()
 }
 

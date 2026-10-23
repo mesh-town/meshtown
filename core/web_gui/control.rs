@@ -146,6 +146,8 @@ pub enum MemberActionReq {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ActionError {
     Busy(String),
+    /// The node has no network yet, so the action has nothing to act on.
+    NoNetwork(String),
     NotFound(String),
     Invalid(String),
     Internal(String),

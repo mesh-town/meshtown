@@ -8,7 +8,7 @@
 //! Links: frames — `crate::proxy::socks5`, path choice — `crate::proxy::route`, exit — `crate::exit`,
 //! addresses — `crate::site_checks::doh`; started from `crate::node::start_node`.
 //!
-//! Files: `admit` — client admission by address; `serve` — the listening socket and SOCKS5 serving; `assoc` — UDP ASSOCIATE; `path` — the shared path (direct or through
+//! Files: `front` — the one process-wide listener (`ProxyFront`), its published state (`ProxyFace`) and the choice of the serving network (`ProxySeat`); `admit` — client admission by address; `serve` — the listening socket and SOCKS5 serving; `assoc` — UDP ASSOCIATE; `path` — the shared path (direct or through
 //! a member); `http` and `http_head` — the HTTP face and head parsing; `pac` and `pac.js` — the proxy autoconfiguration file; `outcome` — the serving outcome for the log line; `get` — the `get` command
 //! (an HTTP client over our own SOCKS5); `console` — console commands.
 
@@ -24,6 +24,8 @@ mod admit;
 mod assoc;
 #[cfg(feature = "net-hyper")]
 mod console;
+#[cfg(feature = "net-hyper")]
+mod front;
 #[cfg(feature = "net-hyper")]
 mod get;
 #[cfg(feature = "net-hyper")]
@@ -46,6 +48,8 @@ pub use assoc::udp_slots;
 #[cfg(feature = "net-hyper")]
 pub use console::{execute_proxy_command, parse_proxy_line, ProxyCommand, ProxyConsole};
 #[cfg(feature = "net-hyper")]
+pub use front::{ProxyFace, ProxyFront, ProxySeat};
+#[cfg(feature = "net-hyper")]
 pub use get::get_via_socks;
 #[cfg(feature = "net-hyper")]
 pub use outcome::{outcome_line, ProxyOutcome};
@@ -53,6 +57,6 @@ pub use outcome::{outcome_line, ProxyOutcome};
 pub use pac::pac_url;
 #[cfg(feature = "net-hyper")]
 pub use serve::{
-    bind_proxy_listener, listen_ip, serve_proxy, BindError, ProxyConfig, DEFAULT_SOCKS_PORT,
-    DIRECT_TCP_CONNECT_TIMEOUT,
+    bind_proxy_listener, listen_ip, BindError, ProxyConfig, DEFAULT_SOCKS_PORT,
+    DIRECT_TCP_CONNECT_TIMEOUT, NO_PROXY_NETWORK,
 };

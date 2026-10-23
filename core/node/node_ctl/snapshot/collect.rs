@@ -13,6 +13,7 @@ use crate::node::node_state;
 use crate::node::program_version;
 use crate::node::RunningNode;
 use crate::ports_sharing::PortView;
+use crate::proxy::ProxyFace;
 use crate::site_checks::geoip;
 use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
 use crate::web_gui::auth::iface_nets::admitted_lan;
@@ -112,6 +113,18 @@ fn country_texts(countries: HashMap<PeerId, geoip::Country>) -> HashMap<PeerId, 
         .collect()
 }
 
+/// The peers' program versions plus this node's own.
+fn with_own_version(
+    node: &RunningNode,
+    mut versions: HashMap<PeerId, String>,
+) -> HashMap<PeerId, String> {
+    versions.insert(
+        node.id,
+        program_version::current_program_version().to_string(),
+    );
+    versions
+}
+
 /// Collects the node snapshot: document parts go through the `cache` (`DocCache`), the rest is
 /// synchronous reads of live state and the own program version on every tick, then the pure
 /// `build`. An error or timeout of any document read leaves the matching field empty and sets
@@ -130,15 +143,13 @@ pub(crate) async fn collect(
         views,
         exits,
         countries,
-        mut program_versions,
+        program_versions,
         port_views,
         doc_seen,
     } = parts;
-    program_versions.insert(
-        node.id,
-        program_version::current_program_version().to_string(),
-    );
+    let program_versions = with_own_version(node, program_versions);
 
+    let face = node.proxy_face.borrow().clone();
     let inputs = Inputs {
         id: node.id,
         me: node.domains.me(),
@@ -148,9 +159,9 @@ pub(crate) async fn collect(
         peer_names: node.members.names(),
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
         votes: votes_of(node),
-        socks: node.socks_addr,
-        socks_access: socks_access_of(node),
-        socks_ifaces: node.socks_ifaces.clone(),
+        socks: face.addr,
+        socks_access: socks_access_of(&face),
+        socks_ifaces: face.ifaces,
         exit_on: node.exit_on.load(Ordering::Relaxed),
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
@@ -188,11 +199,8 @@ fn ports_of(node: &RunningNode, port_views: &[PortView]) -> PortsInfo {
 }
 
 /// The SOCKS access mode together with the LAN addresses it is reachable on.
-fn socks_access_of(node: &RunningNode) -> (ListenAccess, Vec<IfaceAddr>) {
-    (
-        node.socks_access,
-        socks_lan_addrs(node.socks_access, &node.socks_ifaces),
-    )
+fn socks_access_of(face: &ProxyFace) -> (ListenAccess, Vec<IfaceAddr>) {
+    (face.access, socks_lan_addrs(face.access, &face.ifaces))
 }
 
 /// The published verdicts as a summary for the page; nothing published yet — an empty one. Never recomputes.

@@ -139,6 +139,9 @@ impl HostSlots {
     ) -> Result<(), HostError> {
         let ctl = NodeCtl::new(&run.effective_settings);
         ctl.set_guard_sources(id.clone(), sources.clone());
+        if let Some(seat) = self.proxy.get() {
+            ctl.set_proxy_seat(id.clone(), seat.clone());
+        }
         let slot_relaunch = relaunch.for_net_slot(&run);
         let mut cfg = slot_relaunch.node_config(&run.effective_settings, parsed.key);
         cfg.network_label = parsed.label;

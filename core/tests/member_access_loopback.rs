@@ -28,7 +28,6 @@ const LIMIT: Duration = Duration::from_secs(15);
 async fn start(key: &NetworkKey) -> RunningNode {
     let mut cfg = NodeConfig::for_loopback_test(key.clone());
     cfg.open_list = false;
-    cfg.socks.enabled = false;
     node::start_node(cfg).await.unwrap()
 }
 

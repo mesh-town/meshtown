@@ -161,6 +161,76 @@ fn stale_outcome_on_invalid_is_failed() {
     assert!(matches!(outcome, StaleOutcome::Failed));
 }
 
+mod get_of_a_file {
+    use super::*;
+
+    mod without_the_proxy_section {
+        use super::*;
+
+        #[test]
+        fn has_no_proxy_key_in_the_config() {
+            // given: a file written before `proxy.net` existed
+            let dir = temp_dir();
+            let state = state_from_text(&dir, OLD_FILE);
+            // when
+            let body = state.config_get_body();
+            cleanup(&dir);
+            // then: the default is not written, so no empty section appears
+            let config = body["config"].as_object().expect("config is an object");
+            assert!(!config.contains_key("proxy"), "config: {config:?}");
+            assert!(config.contains_key("socks"), "the other sections stay");
+        }
+    }
+
+    mod with_a_proxy_net {
+        use super::*;
+
+        #[test]
+        fn shows_the_chosen_network() {
+            let dir = temp_dir();
+            let state = state_from_text(&dir, &old_file_with(r#","proxy":{"net":"ab2c3d"}"#));
+            let body = state.config_get_body();
+            cleanup(&dir);
+            assert_eq!(
+                body["config"]["proxy"],
+                serde_json::json!({"net": "ab2c3d"})
+            );
+        }
+    }
+
+    mod with_proxy_net_main {
+        use super::*;
+
+        #[test]
+        fn has_no_proxy_key_either() {
+            let dir = temp_dir();
+            let state = state_from_text(&dir, &old_file_with(r#","proxy":{"net":"main"}"#));
+            let body = state.config_get_body();
+            cleanup(&dir);
+            assert!(body["config"].get("proxy").is_none(), "{}", body["config"]);
+        }
+    }
+}
+
+const OLD_FILE: &str = r#"{"rev":3,"saved_at":"2023-11-14T22:13:20Z","identity":{"secret":"BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc="},"config":{"version":1}}"#;
+
+/// `OLD_FILE` with extra `config` members (a leading comma and the members) appended.
+fn old_file_with(extra: &str) -> String {
+    OLD_FILE.replacen(r#""version":1"#, &format!(r#""version":1{extra}"#), 1)
+}
+
+fn state_from_text(dir: &Path, text: &str) -> ConfigState {
+    let path = dir.join("config.json");
+    std::fs::write(&path, text).unwrap();
+    let source = ConfigSource::File {
+        path,
+        may_create: false,
+        rule: PathRule::Explicit,
+    };
+    let run = config_file::prepare(&source, &CliOverrides::default(), true, 0).unwrap();
+    ConfigState::from_run(&run)
+}
+
 #[cfg(test)]
 #[path = "mod_put_tests.rs"]
 mod put_tests;

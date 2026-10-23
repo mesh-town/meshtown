@@ -15,7 +15,12 @@ pub(super) fn scratch(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let dir = std::env::temp_dir().join(format!("mesh-cfg-{name}-{}-{nanos}", std::process::id()));
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let seq = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-cfg-{name}-{}-{nanos}-{seq}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).expect("couldn't create the test's temporary directory");
     dir
 }
@@ -38,6 +43,7 @@ pub(super) fn sample_settings() -> Settings {
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,
             socks_ifaces: super::IfaceFilter::Only(vec!["br-lan".to_string()]),
+            proxy_net: super::NetSlotId::parse("ab2c3d").expect("valid id"),
             web_ifaces: super::IfaceFilter::Any,
             web_enabled: false,
             web_port: 8080,
@@ -103,6 +109,7 @@ pub(crate) fn all_changed() -> Settings {
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,
             socks_ifaces: super::IfaceFilter::Only(vec!["br-lan".to_string()]),
+            proxy_net: super::NetSlotId::parse("ab2c3d").expect("valid id"),
             web_ifaces: super::IfaceFilter::Any,
             web_enabled: false,
             web_port: 8080,

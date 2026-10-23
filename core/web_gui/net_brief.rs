@@ -38,8 +38,9 @@ fn text_of(block: &serde_json::Value, key: &str) -> Option<String> {
     block.get(key)?.as_str().map(str::to_string)
 }
 
-/// The brief of a live slot. The slot's config lock is released before this returns.
-pub(crate) fn brief_of(slot: &SlotHandle) -> NetBrief {
+/// The brief of a live slot; `chosen` is the slot that owns the proxy front's exit. The slot's config lock
+/// is released before this returns.
+pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
     let snap = slot.node.snapshot();
     let block = slot
         .config
@@ -57,7 +58,7 @@ pub(crate) fn brief_of(slot: &SlotHandle) -> NetBrief {
         id_hex: text_of(&block, "id_hex"),
         status: word::<NodeStatus>(&snap.node.status),
         exit_enabled: snap.exit.enabled,
-        proxy: slot.id == NetSlotId::main(),
+        proxy: &slot.id == chosen,
         route_state: word::<RouteMode>(&snap.route.state),
         exits: snap.route.exits.iter().map(|e| e.id_full.clone()).collect(),
         members_voting: snap.members.voting,
@@ -93,7 +94,12 @@ pub(crate) fn broken_brief(id: &NetSlotId) -> NetBrief {
 
 /// Briefs of every live slot in the host's order, then the broken ones. Slot locks are taken one by one.
 pub(crate) fn briefs(host: &dyn HostControl) -> Vec<NetBrief> {
-    let live = host.slots().iter().map(brief_of).collect::<Vec<_>>();
+    let chosen = host.proxy_net();
+    let live = host
+        .slots()
+        .iter()
+        .map(|slot| brief_of(slot, &chosen))
+        .collect::<Vec<_>>();
     let broken = host.broken().into_iter().map(|id| broken_brief(&id));
     live.into_iter().chain(broken).collect()
 }

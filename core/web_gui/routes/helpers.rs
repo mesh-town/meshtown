@@ -65,7 +65,9 @@ pub(super) fn invalid_key_response(err: &anyhow::Error, fallback_message: &str) 
 /// Converts a node's `ActionError` into a page response.
 pub(crate) fn action_error(err: ActionError) -> Response {
     match err {
-        ActionError::Busy(message) => json_err(StatusCode::CONFLICT, "busy", &message),
+        ActionError::Busy(message) | ActionError::NoNetwork(message) => {
+            json_err(StatusCode::CONFLICT, "busy", &message)
+        }
         ActionError::NotFound(message) => json_err(StatusCode::NOT_FOUND, "not_found", &message),
         ActionError::Invalid(message) => {
             let body = json!({

@@ -17,13 +17,14 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::proxy::ProxyFront;
 use meshtown_core::proxy::socks5;
 use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits, HttpResponse};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, timeout};
 
-use common::{echo_site, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
+use common::{front_for, echo_site, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
 
 const BODY: usize = 4 * 1024;
 
@@ -199,7 +200,8 @@ mod through_exit {
         let site = serve(4).await;
         let (a, _b) = pair_with_static_exit(site).await;
         wait_exit_route(&a, Duration::from_secs(20)).await;
-        let proxy = a.socks_addr.expect("the proxy port must be up");
+        let front = front_for(&a).await;
+        let proxy = front.addr().expect("the proxy port must be up");
 
         // when/then: forwarding.
         let mut stream = TcpStream::connect(proxy).await.unwrap();
@@ -330,13 +332,14 @@ mod pac_file {
 }
 
 /// A node with a direct route: `site.test` → a 4 KiB server. Returns the node (keep it alive) and the proxy address.
-async fn direct_node() -> (RunningNode, SocketAddr) {
+async fn direct_node() -> ((RunningNode, ProxyFront), SocketAddr) {
     let site = serve(4).await;
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
     cfg.exit_hosts = HashMap::from([(DOMAIN.to_string(), site)]);
     let node = node::start_node(cfg).await.unwrap();
-    let proxy = node.socks_addr.expect("the proxy port must be up");
-    (node, proxy)
+    let front = front_for(&node).await;
+    let proxy = front.addr().expect("the proxy port must be up");
+    ((node, front), proxy)
 }
 
 /// Writes a raw `CONNECT` head, reads the reply up to `\r\n\r\n` (byte by byte — takes nothing extra);

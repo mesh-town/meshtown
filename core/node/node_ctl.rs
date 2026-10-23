@@ -7,7 +7,7 @@
 //! Links: `node::run_node_with_ctl`/`node::run` hold an `Arc<NodeCtl>` and `Relaunch`, call
 //! `attach`/`detach`/`next_command`/`stop_on_os_signal`/`replace_effective_settings`; `web::NodeControl` —
 //! the only entry from outside the module.
-//! Files: `boot_stamp.rs` — the cycle stamp (`boot_id`, `uptime_sec`); `guard_link.rs` — the link to the process memory guard; `state.rs` — the phase, commands, `NodeCtl` and the lifecycle (`attach`/`detach`/gates);
+//! Files: `boot_stamp.rs` — the cycle stamp (`boot_id`, `uptime_sec`); `guard_link.rs` — the link to the process memory guard; `proxy_link.rs` — the link to the process proxy; `state.rs` — the phase, commands, `NodeCtl` and the lifecycle (`attach`/`detach`/gates);
 //! `control.rs` — the page actions (`impl web_gui::NodeControl`); `invite_wait.rs` — waiting for
 //! a sign-in by invite; `task.rs` — the background snapshot collection;
 //! `live_paths.rs` — which settings paths take effect without a restart; `relaunch.rs` — rebuilding
@@ -25,6 +25,7 @@ mod leave_net;
 mod live_paths;
 mod members_seen;
 mod peer_addr;
+mod proxy_link;
 mod relaunch;
 mod state;
 mod task;

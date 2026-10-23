@@ -128,6 +128,9 @@ impl HostSlots {
     ) -> Result<(), HostError> {
         let ctl = NodeCtl::new_without_network(&run.effective_settings);
         ctl.set_guard_sources(id.clone(), ctx.sources.clone());
+        if let Some(seat) = self.proxy.get() {
+            ctl.set_proxy_seat(id.clone(), seat.clone());
+        }
         let relaunch = self.relaunch_for_new(ctx, &run);
         let handle = SlotHandle {
             id: id.clone(),

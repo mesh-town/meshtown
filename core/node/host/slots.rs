@@ -14,6 +14,8 @@ use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output;
+use crate::proxy::ProxySeat;
+use crate::proxy::ProxyFront;
 use crate::web_gui::{AddedSlot, ConfigState, HostControl, HostError, SlotHandle};
 
 /// One slot of the host.
@@ -47,6 +49,10 @@ pub(crate) struct HostSlots {
     retiring: Mutex<Vec<JoinHandle<()>>>,
     /// Ids of the saved slots that could not be read or have no usable key, in disk order.
     broken: RwLock<Vec<NetSlotId>>,
+    /// The choice of the network the proxy serves; set once by the run that binds the proxy.
+    pub(super) proxy: OnceLock<Arc<ProxySeat>>,
+    /// Held while the proxy's network is changed or a slot that may hold the choice leaves.
+    pub(super) claim: Mutex<()>,
 }
 
 impl HostSlots {
@@ -69,6 +75,8 @@ impl HostSlots {
             context: OnceLock::new(),
             retiring: Mutex::new(Vec::new()),
             broken: RwLock::new(Vec::new()),
+            proxy: OnceLock::new(),
+            claim: Mutex::new(()),
         })
     }
 
@@ -92,6 +100,11 @@ impl HostSlots {
         }
         self.sync_multi_net();
         Ok(())
+    }
+
+    /// Keeps the proxy's seat; the first call wins.
+    pub(crate) fn set_proxy_seat(&self, seat: Arc<ProxySeat>) {
+        self.proxy.set(seat).ok();
     }
 
     /// Keeps what adding a network needs; the first call wins.
@@ -259,6 +272,19 @@ impl HostControl for HostSlots {
 
     fn retire_slot(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
         self.retire(id, announced)
+    }
+
+    fn claim_proxy(&self, id: &NetSlotId) -> Result<(), HostError> {
+        self.claim(id, true)
+    }
+
+    fn proxy_net(&self) -> NetSlotId {
+        let seat = self.proxy.get();
+        seat.map_or_else(NetSlotId::main, |s| s.chosen())
+    }
+
+    fn proxy_front(&self) -> Option<ProxyFront> {
+        self.proxy.get().and_then(|s| s.front())
     }
 }
 

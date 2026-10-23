@@ -91,6 +91,11 @@ pub struct NodeCtl {
         crate::config::config_file::NetSlotId,
         crate::node::guard_sources::GuardSources,
     )>,
+    /// The process proxy seat and the slot id the node publishes under; unset when there is no process host.
+    pub(super) proxy: std::sync::OnceLock<(
+        crate::config::config_file::NetSlotId,
+        Arc<crate::proxy::ProxySeat>,
+    )>,
 }
 
 impl NodeCtl {
@@ -130,6 +135,7 @@ impl NodeCtl {
             cmd_tx,
             cmd_rx: tokio::sync::Mutex::new(cmd_rx),
             guard_sources: std::sync::OnceLock::new(),
+            proxy: std::sync::OnceLock::new(),
         })
     }
 
@@ -267,7 +273,7 @@ impl NodeCtl {
             match st.phase {
                 Phase::Up => {}
                 Phase::NoNetwork => {
-                    return Err(ActionError::Busy(format!(
+                    return Err(ActionError::NoNetwork(format!(
                         "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
                         crate::node::output::NET_NAME
                     )))

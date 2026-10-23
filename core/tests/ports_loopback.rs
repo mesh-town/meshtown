@@ -39,11 +39,9 @@ async fn pair_ports(published: Vec<Published>) -> (RunningNode, RunningNode) {
     let key = NetworkKey::generate().unwrap();
     let mut cfg_a = NodeConfig::for_loopback_test(key.clone());
     cfg_a.settings.exit_enabled = false;
-    cfg_a.socks.enabled = false;
     cfg_a.settings.ports_published = published;
     let mut cfg_b = NodeConfig::for_loopback_test(key);
     cfg_b.settings.exit_enabled = false;
-    cfg_b.socks.enabled = false;
     let a = node::start_node(cfg_a).await.unwrap();
     let b = node::start_node(cfg_b).await.unwrap();
     introduce(&a, &b).await;

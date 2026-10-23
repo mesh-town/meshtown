@@ -303,8 +303,7 @@ struct Fixture {
 /// A loopback node whose address cache holds `opts.cached`, attached to a control.
 async fn setup(opts: Opts) -> Fixture {
     let key = crate::members::network_key::NetworkKey::generate().unwrap();
-    let mut cfg = crate::node::NodeConfig::for_loopback_test(key);
-    cfg.socks.enabled = false;
+    let cfg = crate::node::NodeConfig::for_loopback_test(key);
     let mut node = crate::node::start_node(cfg).await.unwrap();
     node.cached_peers = Arc::new(opts.cached.into_iter().collect());
     let ctl = NodeCtl::new(&Settings::default());

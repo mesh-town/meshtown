@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 fn paths_unique() {
     // given: the whole table
     let set: BTreeSet<&str> = FIELDS.iter().map(|f| f.field_path).collect();
-    // then: 36 rows, no repeats
-    assert_eq!(FIELDS.len(), 36);
+    // then: 37 rows, no repeats
+    assert_eq!(FIELDS.len(), 37);
     assert_eq!(set.len(), FIELDS.len(), "a path is repeated");
 }
 
@@ -29,7 +29,7 @@ fn sections_contiguous() {
             seen.push(f.section());
         }
     }
-    assert_eq!(seen.len(), 14);
+    assert_eq!(seen.len(), 15);
 }
 
 #[test]
@@ -136,6 +136,49 @@ fn debug_lists_every_stored_row() {
         !text.contains("secret"),
         "the key leaked into Debug: {text}"
     );
+}
+
+mod proxy_net_row {
+    use super::super::super::row::{Block, Mode};
+    use super::FIELDS;
+
+    fn position_of(path: &str) -> usize {
+        FIELDS
+            .iter()
+            .position(|f| f.field_path == path)
+            .unwrap_or_else(|| panic!("no row {path}"))
+    }
+
+    #[test]
+    fn is_a_live_process_row() {
+        // given: the `proxy.net` row
+        let row = &FIELDS[position_of("proxy.net")];
+        // then: it applies without a restart and belongs to the process block
+        assert_eq!(row.mode, Mode::Live);
+        assert_eq!(row.block(), Block::Process);
+        assert_eq!((row.section(), row.key()), ("proxy", "net"));
+    }
+
+    #[test]
+    fn sits_right_after_socks_ifaces() {
+        // given: the row order is the file output order
+        // then: `proxy.net` follows `socks.ifaces` and precedes `checks.enabled`
+        assert_eq!(position_of("proxy.net"), position_of("socks.ifaces") + 1);
+        assert_eq!(position_of("checks.enabled"), position_of("proxy.net") + 1);
+    }
+
+    #[test]
+    fn adds_one_stored_row_to_the_six_computed_ones() {
+        // given: the whole table
+        // when: rows stored in `Settings` are counted (computed rows are not)
+        let stored = FIELDS
+            .iter()
+            .filter(|f| f.value.is_stored_in_settings())
+            .count();
+        // then: 31 stored paths, 6 computed, 37 rows in all
+        assert_eq!(stored, 31, "stored rows");
+        assert_eq!(FIELDS.len() - stored, 6, "computed rows");
+    }
 }
 
 mod blocks {

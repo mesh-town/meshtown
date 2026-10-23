@@ -1,5 +1,7 @@
 use super::*;
 use crate::members::network_key::NetworkKey;
+use crate::config::config_file::ProcessSettings;
+use crate::proxy::{ProxyFace, ProxyFront};
 use tokio::time::{timeout, Instant};
 
 /// After `shutdown` all background tasks started in `start_node` must abort —
@@ -234,91 +236,169 @@ mod close_on_err_seam {
     }
 }
 
-/// The SOCKS5 port is free by the time `shutdown` returns.
-mod socks_port_release {
+/// The node never takes the proxy port: the process-wide front owns it.
+mod proxy_port_held_by_a_front {
     use super::*;
-    use crate::node::socks_task::tests::free_port;
-
-    fn socks_cfg(port: u16) -> NodeConfig {
-        let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-        cfg.socks.enabled = true;
-        cfg.socks.port = port;
-        cfg
-    }
-
-    fn can_bind(port: u16) -> bool {
-        std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
-    }
-
-    const BUSY: &str = "for the browser proxy is in use by another program";
-
-    #[tokio::test]
-    async fn shutdown_frees_socks_port_before_return() {
-        // given: a node is up on a fixed port
-        let port = free_port();
-        let node = start_node(socks_cfg(port)).await.unwrap();
-        // when: shutdown
-        node.shutdown().await;
-        // then: the port is free at once
-        assert!(can_bind(port), "port {port} is busy after shutdown");
-    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn twenty_restarts_on_one_port() {
+    async fn two_nodes_start_while_the_proxy_port_is_held() {
+        // given: a front holds a port
         let port = free_port();
-        for round in 0..20 {
-            let node = start_node(socks_cfg(port)).await.unwrap_or_else(|e| {
-                panic!("round {round}, port {port}: {e:#}");
-            });
-            assert_eq!(node.socks_addr.unwrap().port(), port, "round {round}");
+        let front = ProxyFront::bind(&settings(port)).await.unwrap();
+        let (first, second) = (loopback_cfg(), loopback_cfg());
+
+        // when: two nodes start
+        let first = start_node(first).await;
+        let second = start_node(second).await;
+
+        // then: both start, and the front still holds the port
+        assert!(first.is_ok(), "first node: {:?}", first.as_ref().err());
+        assert!(second.is_ok(), "second node: {:?}", second.as_ref().err());
+        assert_eq!(front.addr(), Some(loopback(port)));
+        for node in [first, second].into_iter().flatten() {
+            node.shutdown().await;
+        }
+    }
+}
+
+/// The proxy face a node reads: the supplied one, or a constant "off".
+mod proxy_face {
+    use super::*;
+
+    mod not_supplied {
+        use super::*;
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn is_off() {
+            // given: a config without a face
+            let mut cfg = loopback_cfg();
+            cfg.proxy_face = None;
+
+            // when: the node starts
+            let node = start_node(cfg).await.unwrap();
+
+            // then: its face is the constant "off"
+            assert_eq!(*node.proxy_face.borrow(), ProxyFace::OFF);
             node.shutdown().await;
         }
     }
 
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn foreign_listener_fails_start_with_same_text() {
-        let foreign = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-        let port = foreign.local_addr().unwrap().port();
-        let err = start_node(socks_cfg(port))
-            .await
-            .err()
-            .expect("start on a busy port");
-        let text = format!("{err:#}");
-        assert!(
-            text.contains(&format!("port {port} {BUSY}")),
-            "port {port}: {text}"
-        );
+    mod supplied {
+        use super::*;
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn is_the_one_that_was_passed() {
+            // given: a front on a port and a config with its face
+            let port = free_port();
+            let front = ProxyFront::bind(&settings(port)).await.unwrap();
+            let mut cfg = loopback_cfg();
+            cfg.proxy_face = Some(front.face());
+
+            // when: the node starts
+            let node = start_node(cfg).await.unwrap();
+
+            // then: it sees the front's address
+            assert_eq!(node.proxy_face.borrow().addr, Some(loopback(port)));
+            node.shutdown().await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn follows_the_front_when_its_port_changes() {
+            // given: a node reading the face of a front
+            let front = ProxyFront::bind(&settings(free_port())).await.unwrap();
+            let mut cfg = loopback_cfg();
+            cfg.proxy_face = Some(front.face());
+            let node = start_node(cfg).await.unwrap();
+
+            // when: the front moves to another port
+            let moved = free_port();
+            front.apply(&settings(moved)).await.unwrap();
+
+            // then: the node sees the new address
+            assert_eq!(node.proxy_face.borrow().addr, Some(loopback(moved)));
+            node.shutdown().await;
+        }
     }
+}
+
+mod proxy_config {
+    use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn foreign_listener_after_shutdown_still_fails() {
-        let port = free_port();
-        let node = start_node(socks_cfg(port)).await.unwrap();
-        node.shutdown().await;
-        let _foreign = std::net::TcpListener::bind(("127.0.0.1", port)).unwrap();
-        let err = start_node(socks_cfg(port))
-            .await
-            .err()
-            .expect("start on a busy port");
-        let text = format!("{err:#}");
+    async fn repeated_calls_share_one_udp_semaphore() {
+        // given: a started node
+        let node = loopback_node().await;
+
+        // when: the configuration is taken twice
+        let (first, second) = (node.proxy_config(), node.proxy_config());
+
+        // then: both carry the same semaphore for UDP associations
         assert!(
-            text.contains(&format!("port {port} {BUSY}")),
-            "port {port}: {text}"
+            Arc::ptr_eq(&first.udp_slots, &second.udp_slots),
+            "each call made its own semaphore"
         );
+        node.shutdown().await;
     }
+}
+
+/// Stopping a node does not touch the process-wide proxy listener.
+mod shutdown_with_a_front {
+    use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn open_client_does_not_hold_port() {
-        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    async fn front_keeps_listening_and_refuses_without_a_network() {
+        // given: a front serving through a node
         let port = free_port();
-        let node = start_node(socks_cfg(port)).await.unwrap();
-        let addr = node.socks_addr.unwrap();
-        let mut client = tokio::net::TcpStream::connect(addr).await.unwrap();
-        client.write_all(&[5, 1, 0]).await.unwrap();
-        let mut reply = [0u8; 2];
-        client.read_exact(&mut reply).await.unwrap();
-        assert_eq!(reply, [5, 0], "port {port}");
+        let front = ProxyFront::bind(&settings(port)).await.unwrap();
+        let node = loopback_node().await;
+        front.set_target(Some(node.proxy_config()));
+
+        // when: the node stops and the front loses its target
         node.shutdown().await;
-        assert!(can_bind(port), "port {port} is busy while a client is open");
+        front.set_target(None);
+
+        // then: the front still listens on the port and refuses with "no network"
+        assert_eq!(front.addr(), Some(loopback(port)));
+        let answer = http_connect(loopback(port)).await;
+        assert!(answer.starts_with("HTTP/1.1 502"), "answer: {answer}");
+        assert!(
+            answer.contains("no network for the proxy"),
+            "answer: {answer}"
+        );
     }
+}
+
+fn loopback_cfg() -> NodeConfig {
+    NodeConfig::for_loopback_test(NetworkKey::generate().unwrap())
+}
+
+fn settings(port: u16) -> ProcessSettings {
+    ProcessSettings {
+        socks_port: port,
+        ..ProcessSettings::default()
+    }
+}
+
+fn loopback(port: u16) -> std::net::SocketAddr {
+    std::net::SocketAddr::from(([127, 0, 0, 1], port))
+}
+
+/// A free port on loopback: bind with port zero, remember it, close.
+fn free_port() -> u16 {
+    let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    l.local_addr().unwrap().port()
+}
+
+/// HTTP `CONNECT` to some host; returns the whole answer (a refusal closes the connection).
+async fn http_connect(proxy: std::net::SocketAddr) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let request = "CONNECT site.test:80 HTTP/1.1\r\nHost: site.test:80\r\n\r\n";
+    let mut stream = tokio::net::TcpStream::connect(proxy).await.unwrap();
+    stream.write_all(request.as_bytes()).await.unwrap();
+    let mut answer = Vec::new();
+    timeout(Duration::from_secs(5), stream.read_to_end(&mut answer))
+        .await
+        .expect("the proxy did not close the connection")
+        .unwrap();
+    String::from_utf8_lossy(&answer).into_owned()
 }

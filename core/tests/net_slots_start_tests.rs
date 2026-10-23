@@ -109,7 +109,8 @@ fn setup(tag: &str) -> Fixture {
     };
     let mut run = config_file::prepare(&source, &overrides, true, 0).expect("prepare");
     run.effective_settings.process.web_enabled = false;
-    let slot = NetSlotId::parse("ab2c3d").unwrap();
+    run.effective_settings.process.socks_port = 0;
+    let slot = NetSlotId::parse(&unique_slot_text()).unwrap();
     let slot_file = net_slot_path(run.file.as_ref().unwrap().path(), &slot).unwrap();
     write_text(&slot_file, BROKEN_TEXT);
     Fixture {
@@ -118,6 +119,14 @@ fn setup(tag: &str) -> Fixture {
         slot,
         slot_file,
     }
+}
+
+/// A slot id no other test of this process uses, so that log lines of parallel tests never name it.
+fn unique_slot_text() -> String {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let letter = |shift: u32| char::from(b'a' + ((n >> shift) % 26) as u8);
+    format!("ab2c{}{}", letter(0), letter(5))
 }
 
 fn write_text(path: &Path, text: &str) {
