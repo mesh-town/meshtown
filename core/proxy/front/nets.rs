@@ -6,7 +6,9 @@ use std::sync::{Arc, RwLock};
 use crate::config::config_file::NetSlotId;
 use crate::exit::PeerConnPool;
 use crate::proxy::ProxyConfig;
-use crate::transport::net::PORT;
+use crate::proxy::mesh::catalog::{addresses, devices, rows_of, Device};
+use crate::proxy::mesh::host::MESH_SUFFIX;
+use crate::transport::net::{PeerId, PORT};
 
 /// One running network: its slot, its published configuration and its pool of connections to members for the
 /// port protocol (one per network; clones share the connections).
@@ -25,6 +27,15 @@ impl NetEntry {
             ports: PeerConnPool::new(PORT),
         }
     }
+}
+
+/// The mesh address of one device in one network, as written in a browser.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MeshAddress {
+    pub net: NetSlotId,
+    pub peer: PeerId,
+    /// `<address>.meshtown`.
+    pub host: String,
 }
 
 /// Published configuration of every running network; clones share the same map.
@@ -58,6 +69,17 @@ impl NetDirectory {
             .unwrap_or_else(|e| e.into_inner())
             .values()
             .cloned()
+            .collect()
+    }
+
+    /// The address of every device listed by the running networks.
+    pub(crate) fn mesh_addresses(&self) -> Vec<MeshAddress> {
+        let devices = devices(rows_of(&self.entries()));
+        let issued = addresses(&devices);
+        let host_of = |d: &Device| format!("{}.{MESH_SUFFIX}", issued[&d.peer]);
+        devices
+            .iter()
+            .map(|d| MeshAddress { net: d.net.clone(), peer: d.peer, host: host_of(d) })
             .collect()
     }
 

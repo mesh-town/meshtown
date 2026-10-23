@@ -8,6 +8,7 @@ use std::time::Duration;
 use tokio::io::AsyncReadExt;
 use tokio::net::{TcpStream, UdpSocket};
 
+use crate::proxy::mesh::host::MeshHost;
 use crate::proxy::socks5::{encode_udp_reply, parse_udp_datagram, UdpHeaderError};
 
 use super::stats::{RelayStats, Shared};
@@ -64,6 +65,11 @@ async fn pump_up(udp: &UdpSocket, client_ip: IpAddr, shared: &Shared, mut tx: im
                 continue;
             }
         };
+        if MeshHost::parse(&packet.target).is_some() {
+            // Mesh hosts are answered by the node over TCP only; a datagram never reaches an exit or DNS.
+            shared.count(|s| s.unroutable += 1);
+            continue;
+        }
         shared.pin_client(source);
         shared.touch();
         let len = packet.data.len() as u64;

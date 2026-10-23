@@ -220,7 +220,7 @@ impl Client {
 
     fn write_in_background(&mut self, bytes: Vec<u8>) {
         let mut send = self.send.take().expect("send half taken");
-        tokio::spawn(async move {
+        crate::transport::net::task_label::spawn(async move {
             let _ = send.write_all(&bytes).await;
             let _ = send.flush().await;
             // Keep the half open: the server must stop on its own.

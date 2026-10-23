@@ -8,11 +8,13 @@ use tokio::net::TcpStream;
 
 use crate::node::output::say;
 
+use super::front::NetDirectory;
 use super::http_head::{
     parse_head, status_reply, HttpProxyRequest, HttpRequestKind, MAX_HEAD_BYTES,
 };
 use super::outcome::{outcome_line, ProxyOutcome};
 use super::pac::{pac_proxy_list, pac_reply, pac_script, PacRequest, PAC_PATH};
+use super::mesh;
 use super::path;
 use super::serve::{ProxyConfig, NO_PROXY_NETWORK};
 
@@ -20,6 +22,7 @@ use super::serve::{ProxyConfig, NO_PROXY_NETWORK};
 pub(super) async fn serve_http_connection(
     mut stream: TcpStream,
     cfg: Option<ProxyConfig>,
+    nets: NetDirectory,
 ) -> Result<()> {
     let started = Instant::now();
     let Some((request_kind, buf)) = read_head(&mut stream).await? else {
@@ -27,7 +30,7 @@ pub(super) async fn serve_http_connection(
     };
     match request_kind {
         HttpRequestKind::Proxy(request) => match cfg {
-            Some(cfg) => forward(stream, &cfg, request, buf, started).await,
+            Some(cfg) => forward(stream, &cfg, &nets, request, buf, started).await,
             None => refuse_no_network(stream, request, started).await,
         },
         HttpRequestKind::Pac(request) => serve_pac(stream, request).await,
@@ -59,12 +62,13 @@ async fn refuse_no_network(
 async fn forward(
     mut stream: TcpStream,
     cfg: &ProxyConfig,
+    nets: &NetDirectory,
     request: HttpProxyRequest,
     buf: Vec<u8>,
     started: Instant,
 ) -> Result<()> {
     let target_text = request.target.to_string();
-    let outcome = match path::open_chosen_route(cfg, &request.target, request.port, "http").await {
+    let outcome = match mesh::open::open_target(cfg, nets, &request.target, request.port, "http").await {
         Ok(opened) => {
             stream.write_all(request.reply).await?;
             let mut prefix = request.upstream_head;

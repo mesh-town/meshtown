@@ -6,6 +6,8 @@ use crate::config::config_file::NetSlotId;
 use crate::members::host_label;
 use crate::transport::net::PeerId;
 
+use crate::proxy::front::NetEntry;
+
 use super::host::MeshHost;
 
 /// Shortest and longest hex tail of a disambiguated address.
@@ -22,6 +24,27 @@ pub(crate) struct NameRow {
     pub name: String,
     pub online: bool,
     pub allowed: bool,
+}
+
+/// The names every running network knows, without the node itself.
+pub(crate) fn rows_of(nets: &[NetEntry]) -> Vec<NameRow> {
+    nets.iter().flat_map(rows_of_net).collect()
+}
+
+fn rows_of_net(entry: &NetEntry) -> Vec<NameRow> {
+    let members = entry.cfg.route.members();
+    let access = members.access();
+    let me = entry.cfg.route.me();
+    let named = members.names().into_iter().filter(|(peer, _)| *peer != me);
+    named
+        .map(|(peer, name)| NameRow {
+            net: entry.id.clone(),
+            peer,
+            name,
+            online: members.is_member(peer),
+            allowed: access.allows(peer),
+        })
+        .collect()
 }
 
 /// One device, merged over all networks that list it.

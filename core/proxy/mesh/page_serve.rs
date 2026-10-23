@@ -17,7 +17,7 @@ const TLS_HANDSHAKE: u8 = 0x16;
 /// the send half are read as a request, the response comes out of the recv half.
 pub(crate) fn serve_page(page: MeshPage) -> (BoxSend, BoxRecv) {
     let (client, server) = duplex(MAX_HEAD * 4);
-    tokio::spawn(answer(server, page));
+    crate::transport::net::task_label::spawn(answer(server, page));
     let (read, write) = split(client);
     (Box::new(write), Box::new(read))
 }

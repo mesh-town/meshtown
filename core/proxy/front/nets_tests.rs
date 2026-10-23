@@ -4,8 +4,10 @@
 use std::sync::Arc;
 
 use super::*;
+use crate::config::config_file::ProcessSettings;
 use crate::exit::PeerConnPool;
 use crate::node::RunningNode;
+use crate::proxy::front::ProxyFront;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 use crate::transport::net::{NodeSecret, PeerId};
@@ -13,6 +15,8 @@ use crate::transport::net::{NodeSecret, PeerId};
 const A_TAG: u8 = 2;
 const B_TAG: u8 = 3;
 const OTHER_TAG: u8 = 9;
+const A_ROUTER_TAG: u8 = 21;
+const B_ROUTER_TAG: u8 = 22;
 
 mod empty_directory {
     use super::*;
@@ -124,7 +128,10 @@ mod entries {
         let entries = nets.entries();
 
         assert_eq!(ids_of(&entries), vec![slot_a(), slot_b()]);
-        assert_eq!(tags_of(&entries), vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]);
+        assert_eq!(
+            tags_of(&entries),
+            vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]
+        );
     }
 
     /// given a slot that was put and one that was removed, then the entries show only the live one.
@@ -167,7 +174,39 @@ mod entries_or {
         let entries = nets.entries_or(&fx.config(OTHER_TAG));
 
         assert_eq!(ids_of(&entries), vec![slot_a(), slot_b()]);
-        assert_eq!(tags_of(&entries), vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]);
+        assert_eq!(
+            tags_of(&entries),
+            vec![vec![peer(A_TAG)], vec![peer(B_TAG)]]
+        );
+    }
+}
+
+mod mesh_addresses {
+    use super::*;
+
+    /// given two networks that each name a different device "Router", when the front lists its mesh addresses, then
+    /// both are `router-<hex>.meshtown` (the hex is the start of the device id) and the tails differ.
+    #[tokio::test]
+    async fn of_same_named_devices_in_two_networks_have_different_tails() {
+        let front = setup_front_with_router_in_two_networks().await;
+
+        let addresses = front.mesh_addresses();
+
+        assert_eq!(addresses.len(), 2, "one address per device");
+        let in_a = addresses.iter().find(|m| m.net == slot_a());
+        let in_b = addresses.iter().find(|m| m.net == slot_b());
+        let (in_a, in_b) = (
+            in_a.expect("an address in net a"),
+            in_b.expect("an address in net b"),
+        );
+        assert_eq!(in_a.peer, peer(A_ROUTER_TAG));
+        assert_eq!(in_b.peer, peer(B_ROUTER_TAG));
+        let tail_a = then_is_router_address_of(&in_a.host, in_a.peer);
+        let tail_b = then_is_router_address_of(&in_b.host, in_b.peer);
+        assert_ne!(
+            tail_a, tail_b,
+            "the two addresses must tell the devices apart"
+        );
     }
 }
 
@@ -242,4 +281,38 @@ fn slot_a() -> NetSlotId {
 
 fn slot_b() -> NetSlotId {
     NetSlotId::parse("xy4z56").unwrap()
+}
+
+/// A front whose directory holds two networks; in each, a member with its own id is named "Router" and is online.
+async fn setup_front_with_router_in_two_networks() -> ProxyFront {
+    let settings = ProcessSettings {
+        socks_port: 0,
+        ..ProcessSettings::default()
+    };
+    let front = ProxyFront::bind(&settings)
+        .await
+        .expect("a free loopback port");
+    for (slot, tag) in [(slot_a(), A_ROUTER_TAG), (slot_b(), B_ROUTER_TAG)] {
+        let fx = setup().await;
+        fx.node.members.add_verified_conn(peer(tag));
+        fx.node.members.set_name(peer(tag), "Router".to_string());
+        front.nets().put(&slot, fx.config(tag));
+    }
+    front
+}
+
+/// The host is `router-<hex>.meshtown` where `<hex>` (4 or more digits) starts the hex id of `device`; returns `<hex>`.
+fn then_is_router_address_of(host: &str, device: PeerId) -> String {
+    let address = host.strip_suffix(".meshtown").expect("the mesh suffix");
+    let tail = address.strip_prefix("router-").expect("label and a tail");
+    assert!(tail.len() >= 4, "a tail of at least 4 digits: {host}");
+    assert!(
+        tail.chars().all(|c| c.is_ascii_hexdigit()),
+        "hex digits: {host}"
+    );
+    assert!(
+        device.to_string().starts_with(tail),
+        "the tail is the start of the device id: {host}"
+    );
+    tail.to_string()
 }
