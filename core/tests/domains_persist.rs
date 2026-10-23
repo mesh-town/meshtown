@@ -2,11 +2,11 @@
 //!
 //! What it does: through a full node on `mem`, checks that a restart with the same sync directory
 //! (`NodeConfig::docs_store_dir`) keeps the domain list and removals, that the replica file is
-//! `replica/domains.bin` next to `docs-store/`, and that the former `docs/` and `blobs/` (the iroh-docs
+//! `replica/domains.bin` next to `docs-store/`, and that the former `docs/` and `blobs/` (the old
 //! store) are absent from the directory.
 //! What it doesn't do: doesn't check synchronization between nodes (`domains_loopback.rs`) or the format of
 //! the replica file (`sync/replica/file_tests.rs`); the "directory occupied by a file" and "directory occupied
-//! by a second node" branches existed only in the iroh-docs adapter, the replica has no analogue (a broken file is the test
+//! by a second node" branches existed only in the old adapter, the replica has no analogue (a broken file is the test
 //! `domains_broken_starts_empty` in `replica_tests`).
 //! Links: `meshtown_core::node::NodeConfig::docs_store_dir`, `meshtown_core::node`.
 
@@ -73,7 +73,7 @@ async fn domains_survive_restart_without_peers() {
     );
     assert!(
         !dir.join("docs").exists(),
-        "the iroh-docs store (docs/) must not exist"
+        "the old store (docs/) must not exist"
     );
     assert!(
         !dir.join("blobs").exists(),

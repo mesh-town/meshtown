@@ -133,6 +133,35 @@ mod adding_a_slot {
     }
 
     #[test]
+    fn saves_the_slot_under_the_secret_prepared_before() {
+        // given
+        let dir = Dir::new("prepared");
+        let run = main_run(&dir, &key_a());
+        // when
+        let prepared = prepare_net_slot(&run, 5).expect("prepare");
+        let wanted = prepared.run.secret.to_bytes();
+        let id = save_prepared_slot(&run, prepared, &key_b(), &[], &[], 5).expect("save");
+        // then
+        let path = net_slot_path(&dir.file(), &id).unwrap();
+        let LoadedNetFile::Parsed(p) = load_net_file(&path) else {
+            panic!("the slot file must parse");
+        };
+        let SecretRead::Valid(saved) = p.secret else {
+            panic!("the slot must hold a valid secret");
+        };
+        assert_eq!(saved.to_bytes(), wanted);
+    }
+
+    #[test]
+    fn preparing_a_slot_writes_nothing() {
+        let dir = Dir::new("prepare-only");
+        let run = main_run(&dir, &key_a());
+        prepare_net_slot(&run, 5).expect("prepare");
+        assert!(saved_slot_keys(&dir.file()).is_empty());
+        assert!(!dir.file().parent().unwrap().join("nets").exists());
+    }
+
+    #[test]
     fn refuses_without_a_settings_file() {
         let mut run = main_run(&Dir::new("nofile"), &key_a());
         run.file_report.path = None;

@@ -13,6 +13,8 @@ use crate::web_gui::{
     AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
 };
 
+pub use super::report_forget::stamp_last_seen;
+use super::report_forget::{forget_info, me_removed};
 use super::tally::How;
 use super::view::{Deny, Refusal, Side, Verdicts};
 
@@ -23,6 +25,7 @@ fn all_ids(v: &Verdicts, members: &Members, refusals: &[(PeerId, Refusal)]) -> B
     ids.extend(v.ledger.admissions.keys().copied());
     ids.extend(v.my_votes.iter().copied());
     ids.extend(v.blocks.iter().copied());
+    ids.extend(v.ledger.forgets.keys().copied());
     ids.extend(members.names().into_keys());
     ids.extend(members.ids());
     ids.extend(refusals.iter().map(|(p, _)| *p));
@@ -34,13 +37,15 @@ fn status_of(v: &Verdicts, p: &PeerId) -> &'static str {
     let waiting = v.ledger.admissions.contains_key(p);
     match (
         v.ledger.excluded.contains_key(p),
+        v.ledger.is_forgotten(p),
         v.ledger.admitted.contains(p),
         waiting,
     ) {
-        (true, _, _) => "excluded",
-        (false, true, _) => "member",
-        (false, false, true) => "pending",
-        (false, false, false) => "unlisted",
+        (true, ..) => "excluded",
+        (false, true, ..) => "forgotten",
+        (false, false, true, _) => "member",
+        (false, false, false, true) => "pending",
+        (false, false, false, false) => "unlisted",
     }
 }
 
@@ -132,19 +137,22 @@ fn row(
         excluded: excluded_of(v, &p),
         blocked_by_me: v.blocks.contains(&p),
         denied_by_me: v.check(p).err().map(|d| d.code()),
+        forget: forget_info(v, &p),
+        last_seen_sec: None,
         last_refusal: refusal_of(refusals, &p),
         admission: admission_of(v, &p).filter(|_| p != v.me),
     }
 }
 
-/// Own row first, then members, pending, unlisted, excluded; by name (nameless last), then by id.
+/// Own row first, then members, pending, unlisted, forgotten, excluded; by name (nameless last), then by id.
 fn order_key(r: &MemberRow) -> (u8, u8, bool, String, String) {
     let rank = match (r.is_self, r.status) {
         (true, _) => 0,
         (_, "member") => 1,
         (_, "pending") => 2,
         (_, "unlisted") => 3,
-        _ => 4,
+        (_, "forgotten") => 4,
+        _ => 5,
     };
     (
         rank,
@@ -166,6 +174,7 @@ fn counts_of(rows: &[MemberRow]) -> Counts {
         excluded: count_status(rows, "excluded"),
         unlisted: count_status(rows, "unlisted"),
         pending: count_status(rows, "pending"),
+        forgotten: count_status(rows, "forgotten"),
     }
 }
 
@@ -186,6 +195,7 @@ pub fn members_reply(
     MembersReply {
         me: v.me.to_string(),
         me_excluded: v.ledger.excluded.contains_key(&v.me),
+        me_removed: me_removed(v, members, refusals),
         me_pending: me_admission.is_some(),
         me_admission,
         need: v.ledger.need,
@@ -251,3 +261,7 @@ mod summary_tests;
 #[cfg(test)]
 #[path = "report_admission_tests.rs"]
 mod admission_tests;
+
+#[cfg(test)]
+#[path = "report_forget_tests.rs"]
+mod forget_tests;

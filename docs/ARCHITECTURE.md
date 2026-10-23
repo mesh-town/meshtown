@@ -2,12 +2,33 @@
 
 ## What this is
 
-A node with a given network key finds other nodes with the same
-key through the public mainline DHT, checks with a secret that they know the same key
-(handshake), keeps a QUIC connection with them (iroh, direct or through the n0 relay) and
-takes part with them in a shared gossip topic (iroh-gossip). Once per interval a volume probe
-(16 KiB / 256 KiB / 1 MiB) runs over the connection to find out whether the transport passes
+A node with a given network key finds other nodes with the same key through a record in the public DHT
+(HyperDHT), checks with a secret that they know the same key (handshake), and keeps a connection with them over
+the `hyper` transport: an adapter to the townjump library, which does NAT hole punching. The transport has no relay
+fallback: a pair of nodes that cannot punch through to each other stay unconnected. The nodes share a topic
+(membership by flooding) and a replica of signed records (domain list, check results, port publications). Once per
+interval a volume probe (16 KiB / 256 KiB / 1 MiB) runs over a connection to find out whether the transport passes
 through the network it runs in.
+
+The transport sits behind a small interface (`core/transport/net/`): a node identifier, a peer address with hints,
+services identified by a label on a stream, and discovery sources. An in-memory implementation
+(`core/transport/net/mem/`) backs the tests.
+
+## Services
+
+Each service is a stream label (`core/transport/net/service.rs`):
+
+| Service | Purpose |
+|---|---|
+| `meshtown/auth/1` | handshake on the network secret (open to everyone) |
+| `meshtown/invite/1` | issuing and redeeming an invite (open to everyone) |
+| `meshtown/sync/1` | topic membership by flooding (members only) |
+| `meshtown/replica/1` | reconciling the record replica (members only) |
+| `meshtown/exit/1` | exit protocol: opening a connection to a domain (members only) |
+| `meshtown/port/1` | opening a connection to a published TCP port (members only) |
+
+"Members only" means the peer has a live connection that passed `meshtown/auth/1`
+(`core/node/start/transports_hyper.rs`).
 
 ## Module map
 
@@ -15,31 +36,32 @@ Paths are from the repository root; a path ending in `/` is a directory.
 
 | Path | What the program does with it |
 |---|---|
-| `core/node/output.rs` | single formatted output to stdout |
-| `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
-| `core/members/words.rs` | EFF word list, word pool, the random part of the key and its validation |
-| `core/transport/net_mainline/record.rs` | format and encryption of the DHT record (member list) |
-| `core/transport/net_hyperdht/` | joining the DHT, publishing and reading the record |
-| `core/proxy/domains/` | the node's own domain list (a second iroh-docs document without reconciliation), the network's shared document and console commands |
-| `core/members/handshake.rs` | handshake with the network secret |
-| `core/members/membership.rs` | member bookkeeping and gossip topic events |
+| `core/transport/net/` | transport interface, services, stack facade, discovery multiplexer, in-memory implementation |
+| `core/transport/net_hyper/` | the `hyper` transport on townjump (feature `net-hyper`) |
+| `core/transport/net_hyperdht/` | the `hyperdht` discovery source: joining the DHT, publishing and reading the record |
+| `core/transport/net_mainline/record.rs` | format and encryption of the record (member list); no networking |
 | `core/transport/transfer_probe.rs` | volume probe over an established connection |
+| `core/transport/peers_cache.rs` | cache of last seen peer addresses |
+| `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
+| `core/members/words.rs`, `core/members/wordlist/` | EFF word list, word pool, the random part of the key and its validation |
+| `core/members/handshake.rs` | handshake with the network secret |
+| `core/members/membership.rs` | member bookkeeping and topic events |
+| `core/members/access/` | per-member access rules |
+| `core/members/sync/flood/` | topic membership by flooding over `meshtown/sync/1` |
+| `core/members/sync/replica/` | record replica: entries, signatures, reconciliation over `meshtown/replica/1`, replica file |
+| `core/node/` | assembling the node from all modules (`start/`), the main loop, process host (`host/`), output |
 | `core/node/peer_path.rs` | connection path of a peer and watching for its changes |
-| `core/site_checks/http_min.rs` | minimal HTTP/1.1 client over a ready stream and shared TLS settings for checks |
-| `core/site_checks/doh/` | the checks' own resolver: DNS over HTTPS and a separate query to the ISP's resolver |
-| `core/site_checks/reachability/` | step-by-step check of domain reachability and classification of the result |
-| `core/site_checks/checks/` | check records in the shared document, check schedule |
-| `core/config/config_file/` | settings file: reading, writing, merging with flags, node secret |
-| `core/invite/` | invite string: building, parsing, issuing and redeeming |
-| `core/cli/console.rs` | node console: commands from standard input, the first is `invite` |
-| `core/node/` | assembling the node from all modules, the main loop |
-| `core/cli/` | command-line argument parsing (`keygen`, `run`), including the `--invite` flag |
-| `core/proxy/socks5/` | parsing and building SOCKS5 frames, client for tests and the `get` command |
-| `core/proxy/route.rs` | choosing a path by domain from `chk/` records and the member list |
+| `core/node/output.rs` | single formatted output to stdout |
+| `core/proxy/` | SOCKS5 server, connection over the chosen path, console commands, route choice (`route.rs`) |
+| `core/proxy/domains.rs`, `core/proxy/domains/` | the domain list in the replica |
 | `core/exit/` | exit protocol `meshtown/exit/1`: both sides and byte splicing |
 | `core/ports_sharing/` | publishing own TCP ports and opening others': `meshtown/port/1`, `port/tcp/` records |
-| `core/proxy/` | SOCKS5 server, connection over the chosen path, console commands |
-| `core/web_gui/` | the node's web page and its HTTP API |
+| `core/site_checks/` | reachability checks: `http_min.rs` (minimal HTTP/1.1 client), `doh/` (own resolver), `reachability/`, `checks/` (records in the replica, schedule), `geoip/` |
+| `core/config/config_file/` | settings file: reading, writing, merging with flags, node secret |
+| `core/invite/` | invite string: building, parsing, issuing and redeeming |
+| `core/cli/` | command-line parsing and subcommands (`keygen`, `run`, `ifaces`, …), node console |
+| `core/web_gui/` | the node's web page (`ui/`, Vue) and its HTTP API |
+| `core/gui/` | tray support code used by the platform crates (feature `gui`) |
 | `platforms/<os>/` | the desktop app of one operating system: tray, packaging (see "Crates") |
 
 ## Crates
@@ -67,59 +89,54 @@ shared library for it by `platforms/android/build/build.sh`.
 - A platform crate depends only on `meshtown-core` among the workspace packages, through its public API (third-party
   crates are fine).
 - Scripts and `Makefile`s of a platform stay inside its directory. The exceptions are the path dependency on `core/`
-  (only in the platform's `Cargo.toml`), `release/lib.sh`, `release/dist/`, and the workspace root itself, from which
+  (only in the platform's `Cargo.toml`), `scripts/release/lib.sh`, `scripts/release/dist/`, and the workspace root itself, from which
   `cargo` is run (root `Cargo.toml` and `Cargo.lock`, `.tmp/`, `target/`, `dist/`).
 - Operating-system code is allowed in the core when a node without a tray needs it (console, file limits, signals).
   Tray, windows and packaging belong to the platform.
 
-`make boundary` (`scripts/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
+`make boundary` (`scripts/checks/check_boundary.py`) checks these rules from the manifests (`cargo metadata`) and from the
 text of files: in `core/` only `*.rs` and the manifest, in `platforms/` every text file (sources, `Makefile`s, scripts,
 `.md`). It is part of `make check`
 and runs in CI. A path that leaves the platform directory for any other place is reported with file and line.
 
 ## How the node works (`node::start_node`)
 
-1. Takes the SOCKS5 port on `127.0.0.1`; if the port is busy, it does not start.
-2. The single output timer starts by itself on the first log line (`output::JOURNAL`, a lazy static).
-3. The node key (`SecretKey`) is taken from the settings file; if there is no file or it is unusable, the key is new
-   for this run, and the node writes to the log that the identity is temporary and why.
-4. A `MemoryLookup` (memory for found member addresses) and an iroh `Endpoint` are built
-   (the n0 preset, but n0's own lookup services are disabled and replaced with `MemoryLookup`;
-   the n0 relay stays; port mapping is off).
-5. `[node]` lines are printed: version and network, mode (direct+relay / relay only / no relay),
-   the list of UDP addresses the node listens on, the node name and the identity state.
-6. `iroh-gossip` starts (`Gossip::spawn`) — it adds its own address lookup service.
-7. The member context is built (`MemberContext`: handshake secret, member counter,
-   event channel, volume probe settings and the node's own name — it goes to the peer in the handshake) along with the protocol router
-   (`Router`), which accepts the
-   handshake ALPN, the gossip ALPN and `meshtown/exit/1`.
-8. A line is printed with the number of address lookup services (n0 is off, but `MemoryLookup` + the gossip
-   service + the in-memory lookup of iroh-docs make 3).
-9. The node subscribes to the gossip topic (the topic identifier is derived from the network key) and starts
-   topic event handling in the background.
-10. If the relay is allowed, the relay state report and the network report (NAT) start in the background.
-11. If the list of DHT entry addresses is not empty, the `dht::run` loop starts in the background:
-    joining the public DHT, periodic publishing of its own record (merged with the previous one) and
-    reporting new members through a channel.
-12. The node's main loop starts (`run_node_loop`): for each found address — dialing a
-    connection and the handshake as initiator; for each `Up`/`Down` event from `membership` —
-    printing a member line and inviting it to the gossip topic; every 30 s — a broadcast
-    message to the topic if there is at least one member; every 60 s — a `[status]` line with the number of
-    members, gossip peers and process memory (RSS from `/proc/self/status`).
-13. Brings up the SOCKS5 server and the exit protocol; on the first `run_cycles` round it starts the console
-    (`console::spawn`): commands `invite`, checks, proxy, domains.
+`start_node` (`core/node/start/`) runs four phases and returns a `RunningNode`:
+
+1. **boot** — when the proxy is enabled, takes the SOCKS5 port on the configured address (a busy port stops the start); reads the node secret
+   from the settings file (without a file, or if it is unusable, the key is new for this run and the log says that
+   the identity is temporary and why); brings up the transports; picks the node name; prints the `[node]` lines:
+   version and network, mode, listen addresses, name and identity state.
+2. **network** — builds the sync pieces (topic membership and the record replica), the network stack with the
+   service handlers (see "Services"), the member context (handshake secret, member counter, event channel, volume
+   probe settings, the node's own name that goes to the peer in the handshake), and the discovery sources:
+   `invite`, `cache` (last seen addresses) and `hyperdht` (the DHT record). Addresses found by any source go to the
+   main loop through one channel.
+3. **serving** — the domain list, the checks, the path choice and the SOCKS5 server.
+4. **entry** — subscribes to the topic (its identifier is derived from the network key) and starts the main loop.
+
+A phase error closes the network stack and is returned as is.
+
+The `hyperdht` source periodically publishes the node's own key into a shared roster record and reads the others'
+(see "Protocols"); the other nodes' addresses are found through the transport once their keys are known.
+
+The main loop (`run_node_loop`, `core/node/event_loop.rs`): for each found address it dials a connection and runs
+the handshake as the initiator; for each `Up`/`Down` member event it prints a member line and updates the topic;
+every 30 s it broadcasts a message to the topic; every 60 s it prints a `[status]` line (members, topic neighbors,
+domains, checks, process memory); a slower timer prunes stale peers.
 
 Stopping: one signal task per process (`core/node/host/signal.rs`) waits for Ctrl-C or SIGTERM, prints a line
-about it and stops every network slot of the host; each node closes its router (up to 10 s) and prints "stopped".
+about it and stops every network slot of the host; each node closes its network stack and prints "stopped".
 
 The process host (`core/node/host/`) keeps a map of network slots: each slot holds the node controller, the page's
 config state and the task running the node cycle. The page and the signal reach the nodes only through that map.
 
-Shared records (site check results, port publications, membership votes): a replica of signed records lives in the
-node (`sync::replica`). The replica identifier and its topic are derived from the network key. Members
-reconcile the replica over the `meshtown/replica/1` service after the handshake, and topic membership spreads by
-flooding over the `meshtown/sync/1` service. The author of a record is the node key, and every entry carries the
-author's signature. On a new member the node starts reconciling with it.
+Shared records (site check results, port publications, the domain list): a replica of signed entries
+(`core/members/sync/replica/`). The replica identifier and the topic are derived from the network key. Members
+reconcile the replica over `meshtown/replica/1` after the handshake, and topic membership spreads by flooding over
+`meshtown/sync/1`. The author of an entry is the node key, and every entry carries the author's signature. On a new
+member the node starts reconciling with it. With a settings file the replica is stored in the `replica/` directory next to `docs-store/`: `domains.bin`, or
+`<name>-<10 hex>.bin` for additional networks (`core/members/sync/replica/file.rs`); without a file it lives in memory.
 
 ## Network key from a label and a random part
 
@@ -159,11 +176,6 @@ Argon2id is not used at all: the program sets the entropy, not a human, it is kn
 exactly and equals 130.8 bits — there is nothing to brute-force, and a slow key derivation function is not
 needed here. Pinned by the known-answer test `key_from_tail_known_answer`.
 
-Key derivation takes a few milliseconds. Almost all of
-that time is the one-off building of the word list in memory (a `Vec` and a `HashSet` of 7,772 entries, 1.2 ms by
-the difference between `keygen` and `keygen --raw`); SHA-256 itself takes under a microsecond. The memory peak during
-key derivation is gone: the word list already sits in the binary, and the 64 MiB buffer no longer exists.
-
 The machine form `mesh1-…` (32 random bytes in base32) remains the second valid input
 and is printed by the command `meshtown keygen --raw`.
 
@@ -172,10 +184,10 @@ and is printed by the command `meshtown keygen --raw`.
 - **Network key** (`core/members/network_key.rs`): the human form is `label--word-word-group` (the label does not
   affect the key), the machine form is `mesh1-` + 52 lowercase base32 characters (32 bytes
   of secret); all other keys are subkeys via `blake3::derive_key` with different contexts.
-- **DHT record** (`core/transport/net_mainline/record.rs`, `core/transport/net_hyperdht/`): a mutable BEP44 record, the signing key and salt come
-  from subkeys; the value is `nonce(12) ‖ ChaCha20-Poly1305(postcard(Roster))`, ≤ 990 bytes;
-  a member record lives 15 min; publishing uses CAS on the previous `seq` (also when the
-  previous record cannot be decrypted).
+- **DHT record** (format in `core/transport/net_mainline/record.rs`, publishing and reading in
+  `core/transport/net_hyperdht/`): a mutable record whose signing key and salt come from subkeys; the value is
+  `nonce(12) ‖ ChaCha20-Poly1305(postcard(Roster))`, ≤ 990 bytes. The roster holds node keys (up to 16 entries); an
+  entry lives 15 min. A new `seq` is always greater than the previous one.
 - **Handshake** (`core/members/handshake.rs`): one bi stream, everything under a 10 s timeout, node ids from TLS
   (`remote_id()`/`ctx.me`):
   1. A→B: `nonce_a` (32 bytes).
@@ -194,10 +206,11 @@ error means "no name", not a failure.
 A request to open a connection to a domain. Request frame: version (1 byte, value 1), name
 length (1 byte), domain name, port (2 bytes, most significant first). Reply: version (1 byte) and
 code (1 byte), then the connection bytes unchanged. Codes: 0 — opened, 1 — the domain is not
-in the shared list (the rule is removed, see below; the code stays in the protocol — old exits in the network
-still send it, and the requesting side prints its text), 2 — address not obtained, 3 — the connection
-did not open, 4 — port not allowed (the rule is also removed, see below; the code stays for the same
-reason), 5 — the node does not work as an exit for you, 6 — the request could not be parsed.
+in the shared list (the exit never sends it; the requesting side still prints its text), 2 — address not obtained,
+3 — the connection did not open, 4 — port not allowed (the exit never sends it; the requesting side prints its
+text), 5 — the node does not work as an exit for you, 6 — the request could not be parsed, 7 — the address is
+closed to exit (private network, loopback, link-local, multicast, service, or the node's own address;
+`EXIT_CODE_ADDRESS_FORBIDDEN`, `core/exit/frame.rs`).
 
 Request frame, 4 + N bytes:
 
@@ -216,22 +229,18 @@ Reply, 2 bytes:
 | 1 | 1 | code |
 
 The exit checks a request in four steps: permission (whether the requester is a member), frame parsing,
-the domain's address, the connection. The check of the domain against the list and of the port is gone: the exit
-owner serves any domain on any port and controls only `exit.enabled`; a separate
-switch for the exit owner (which domains and ports they are ready to serve) is not part of this
-task. There is no personal data in the frame: no client string, no request path — the exit sees
+the domain's address, the connection. The exit serves any domain on any port; the exit owner controls only
+`exit.enabled`. There is no personal data in the frame: no client string, no request path — the exit sees
 only the domain name and the port.
 
 Path choice on the requesting side (`route::choose_route`, `core/proxy/route.rs`) does not look at the request's domain
-at all — one decision for the whole connection at once. The candidates are set by the config field
+at all — one choice for the whole connection at once. The candidates are set by the config field
 `route.exits` (node order = priority, the default is an empty list, edited by `PUT /api/config`
 on the fly): the list is empty → the node connects by itself; not empty → the candidates are tried in list order —
 not the node itself, online and flagged "works as an exit" (`node_state::read_exit_flags`); if the stream to a
 candidate did not open (a transport error) → the next one in the list is tried, while any reply
-code received is final. No suitable candidates → refusal. The earlier auto-choice by the number of
-successful checks of the domain (`route::fallback_peer`) and the "all traffic / list only" switch
-are gone from the code. Open connections through an exit that is not in the new `route.exits` list
-are closed; direct ones are not.
+code received is final. No suitable candidates → refusal. Open connections through an exit that is not in the
+`route.exits` list are closed; direct ones are not.
 
 ### `meshtown/port/1`
 
@@ -251,33 +260,30 @@ parsed; others (including 2 and 4) are an "unknown code", a refusal for the requ
 
 The publisher's check order: permission (whether the requester is a member) → frame parsing → its own loopback.
 
-- **Gossip gate** is absent — see "Limitations" below.
 - **Threat model** — see the section below.
 - **Volume probe** (`core/transport/transfer_probe.rs`): a bi stream, `u32 LE length ‖ zeros`, the reply is the same 4 bytes.
 
-Keys of the domain list document:
+Keys of the replica:
 
 | Key | Value | Meaning |
 |---|---|---|
 | `list/<domain>/` | `v1` | the domain is in the list (author's record) |
-| `list/<domain>/` | empty (tombstone, `Hash::EMPTY`) | the author removed the domain |
-| `port/tcp/<port>/` | postcard `PortRecord { v, name, audience }`: `v` — 1 byte (1); `name` — varint length and UTF-8; `audience` — varint of the variant (0 = everyone, 1 = list: varint number of keys and 32 bytes each) | the author publishes their port; example "web"/everyone — `01 06 D0 B2 D0 B5 D0 B1 00` |
+| `list/<domain>/` | empty (tombstone) | the author removed the domain |
+| `port/tcp/<port>/` | postcard `PortRecord { v, name, audience }`: `v` — 1 byte (1); `name` — varint length and UTF-8; `audience` — varint of the variant (0 = everyone, 1 = list: varint number of keys and 32 bytes each) | the author publishes their port; example "web"/everyone — `01 03 77 65 62 00` |
 | `port/tcp/<port>/` | empty (tombstone) | the author withdrew the publication |
 
 ## Threat model
 
 An outsider who does not know the network key sees in the DHT only the public signing key, the salt and the
 record ciphertext: from them they cannot get the record key, the handshake key, or the
-gossip topic identifier (`blake3::derive_key` is irreversible, the contexts of all subkeys are
+topic identifier (`blake3::derive_key` is irreversible, the contexts of all subkeys are
 different). They cannot forge a record without the signing key. They cannot pass the handshake
 without the handshake key: the tags are bound to the fresh nonces of both sides and to both
 node identifiers from TLS, and replaying an intercepted exchange is useless.
 
-A gossip connection to a node whose `EndpointId` became known to an outsider (for example, from
-intercepted traffic) can be opened by them — the gossip ALPN accepts a connection from anyone
-who knows the `EndpointId`. But without the network key they do not know the topic identifier and so
-can neither receive nor send messages in it. This is a deliberate limitation
-(see "Limitations" below, the item about the gate).
+An outsider who learned a node's identifier (for example, from intercepted traffic) can open a connection to it,
+but only the `auth` and `invite` services answer them; every other service refuses a peer that has not passed the
+handshake. Without the network key they cannot pass it and do not know the topic identifier.
 
 A network set by the random part of a key: whoever guessed the random part is a full
 member. The key derivation salt is one for the whole application, so an outsider can compute once
@@ -303,13 +309,8 @@ place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
 
 ## Limitations
 
-- One DHT record holds up to 8 members (after that the oldest are pushed out).
-- Relay — only n0 (`RelayMode::Default`), there is no relay of its own.
-- The gossip ALPN accepts a connection from anyone who knows the `EndpointId`, but the gossip topic
-  is derived from the network key — without the key, topic messages can be neither received nor sent.
-- Port mapping on the router (UPnP/PCP/NAT-PMP) is always off
-  (`PortmapperConfig::Disabled`) — the node does not touch the router; direct
-  paths are measured without port mapping, which is an estimate from below.
+- One DHT record holds up to 16 member keys (after that the oldest are pushed out).
+- There is no relay: nodes that cannot punch through to each other do not connect.
 - Node names are not unique; an invite is reusable and secret exactly like the network key.
 - Without a settings file (`--no-config`), the domain list lives in memory and is lost when the whole
   network restarts.
@@ -318,6 +319,6 @@ place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
   authors.
 - There are no limits on the number of domains and records.
 - Deleted domains stay in the document as empty records (tombstones) and are not cleaned up.
-- Out of scope: domain reachability checks (`chk/`), SOCKS, TUN, own relay.
+- Out of scope: TUN, an own relay.
 - The DNS query identifier is zero; for the ISP's reply this is acceptable, because
   addresses from it are not used.

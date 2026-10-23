@@ -2,11 +2,13 @@
 resolver = "2"
 members = ["core", "platforms/macos", "platforms/windows", "platforms/linux"]
 default-members = ["core"]
+# Scratch clones (for example the Android build's tun2proxy checkout) live under .tmp/ and are not members.
+exclude = [".tmp"]
 
 # Keep this the first table with a version line: release scripts read the first
 # "version =" line of this file.
 [workspace.package]
-version = "0.3.61"
+version = "0.3.68"
 edition = "2021"
 rust-version = "1.94"
 publish = false

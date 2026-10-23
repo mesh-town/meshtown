@@ -80,7 +80,7 @@ pub trait Transport: Send + Sync {
     fn can_reach(&self, to: &PeerAddr) -> bool;
     fn add_hints(&self, addr: &PeerAddr);
     fn set_relays(&self, relays: &[RelayRef]);
-    /// Called before the first `accept` (for iroh — the ALPN list).
+    /// Called before the first `accept` (the list of services to accept).
     fn serve(&self, svcs: &[ServiceId]);
     fn connect(&self, to: &PeerAddr, svc: ServiceId)
         -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>>;

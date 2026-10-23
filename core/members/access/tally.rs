@@ -3,6 +3,8 @@
 //!
 //! What it does: one forward pass over the votes in time order. Who is admitted comes from
 //! `admission::admit_closure`: one confirmation per newcomer, a fixed point independent of the order.
+//! Forget votes are settled by `forget::settle_forgets` on every recount; admissions a node made after it was
+//! forgotten leave the closure, and a forgotten node's exclusion votes count only up to its forgetting.
 //! An exclusion narrows the reach and lowers the exclusion thresholds, so a pending removal may complete during the
 //! pass, but the excluded only grow, so there is no oscillation and a cascade is the end of a pass.
 //! What it doesn't do: no replica, no clock, no I/O; blocks, the boot marker and ignored entries are not its business.
@@ -12,7 +14,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::transport::net::PeerId;
 
 use super::admission::admit_closure;
+use super::forget::{marks, settle_forgets};
 use super::record::Via;
+
+pub use super::forget::{ForgetIn, ForgetRound};
 
 /// An admit record: `author` admits `subject`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -20,6 +25,7 @@ pub struct AdmitIn {
     pub author: PeerId,
     pub subject: PeerId,
     pub via: Via,
+    pub made_unix: u64,
 }
 
 /// A live exclusion vote; `voter == subject` is a self-exclusion.
@@ -36,6 +42,7 @@ pub struct TallyInput {
     pub me: PeerId,
     pub admits: Vec<AdmitIn>,
     pub votes: Vec<VoteIn>,
+    pub forgets: Vec<ForgetIn>,
 }
 
 /// How a node was excluded.
@@ -80,16 +87,25 @@ pub struct Ledger {
     pub need: u8,
     /// Requests that do not reach the confirmation threshold yet.
     pub admissions: BTreeMap<PeerId, Admission>,
+    /// Vote circles on `acl/forget/` records of non-excluded subjects.
+    pub forgets: BTreeMap<PeerId, ForgetRound>,
+    /// Latest admission time per subject among live admissions that count elsewhere.
+    pub admit_unix: BTreeMap<PeerId, u64>,
+    /// Latest `made_unix` per subject among all live forget records.
+    pub forget_marks: BTreeMap<PeerId, u64>,
+    /// Votes needed to forget a node now: the threshold of the forget pass, which counts the nodes that
+    /// only a dead admission lets in, so it may differ from `need`.
+    pub forget_need: u8,
 }
 
 impl Ledger {
     pub fn is_member(&self, p: &PeerId) -> bool {
-        self.admitted.contains(p) && !self.excluded.contains_key(p)
+        self.admitted.contains(p) && !self.excluded.contains_key(p) && !self.is_forgotten(p)
     }
 }
 
 type VoteKey = (u64, PeerId, PeerId);
-type Excluded = BTreeMap<PeerId, Exclusion>;
+pub(super) type Excluded = BTreeMap<PeerId, Exclusion>;
 
 pub(super) fn need_for(active: usize) -> u8 {
     if active <= 2 {
@@ -115,27 +131,32 @@ fn sorted_votes(votes: &[VoteIn]) -> Vec<VoteIn> {
 struct Pass {
     me: PeerId,
     admits: Vec<AdmitIn>,
+    forgets: Vec<ForgetIn>,
     admitted: BTreeSet<PeerId>,
     excluded: Excluded,
     pending: BTreeMap<PeerId, Vec<(VoteKey, PeerId)>>,
     short: BTreeMap<PeerId, Admission>,
+    rounds: BTreeMap<PeerId, ForgetRound>,
+    forget_need: u8,
     need: u8,
 }
 
 impl Pass {
     fn new(input: &TallyInput) -> Pass {
-        let first = admit_closure(input.me, &input.admits, &Excluded::new());
-        let need = need_for(first.set.len());
-        let (admits, excluded) = (input.admits.clone(), Excluded::new());
-        Pass {
+        let mut pass = Pass {
             me: input.me,
-            admits,
-            admitted: first.set,
-            excluded,
+            admits: input.admits.clone(),
+            forgets: input.forgets.clone(),
+            admitted: BTreeSet::new(),
+            excluded: Excluded::new(),
             pending: BTreeMap::new(),
-            short: first.short,
-            need,
-        }
+            short: BTreeMap::new(),
+            rounds: BTreeMap::new(),
+            forget_need: 1,
+            need: 1,
+        };
+        pass.refresh();
+        pass
     }
 
     /// In the closure and not excluded.
@@ -143,8 +164,18 @@ impl Pass {
         self.admitted.contains(p) && !self.excluded.contains_key(p)
     }
 
+    fn forgotten(&self, p: &PeerId) -> bool {
+        self.rounds.get(p).is_some_and(|r| r.at_unix.is_some())
+    }
+
+    /// A voter counts if present and, when forgotten, only for votes made by the moment of forgetting.
+    fn voter_counts(&self, voter: &PeerId, ts_micros: u64) -> bool {
+        let at = self.rounds.get(voter).and_then(|r| r.at_unix);
+        self.counts(voter) && at.is_none_or(|at| ts_micros / 1_000_000 <= at)
+    }
+
     fn vote(&mut self, v: &VoteIn) {
-        if !self.counts(&v.voter) || !self.counts(&v.subject) {
+        if !self.voter_counts(&v.voter, v.ts_micros) || !self.counts(&v.subject) {
             return;
         }
         let cap = self.admitted.len() + 1;
@@ -171,23 +202,26 @@ impl Pass {
         });
     }
 
-    /// Recomputes the admitted set, drops votes that no longer count and updates the threshold.
+    /// Recomputes the forget circles and the admitted set, drops votes that no longer count and updates
+    /// the threshold.
     fn refresh(&mut self) {
-        let next = admit_closure(self.me, &self.admits, &self.excluded);
-        (self.admitted, self.short) = (next.set, next.short);
-        let (admitted, excluded) = (&self.admitted, &self.excluded);
-        let counts = |p: &PeerId| admitted.contains(p) && !excluded.contains_key(p);
-        self.pending.retain(|subject, _| counts(subject));
-        for list in self.pending.values_mut() {
-            list.retain(|(_, voter)| counts(voter));
+        let closure0 = admit_closure(self.me, &self.admits, &self.excluded).set;
+        let settled = settle_forgets(&closure0, &self.excluded, &self.admits, &self.forgets);
+        let next = admit_closure(self.me, &settled.live_admits, &self.excluded);
+        (self.admitted, self.short, self.rounds) = (next.set, next.short, settled.rounds);
+        self.forget_need = settled.need;
+        let mut pending = std::mem::take(&mut self.pending);
+        pending.retain(|subject, _| self.counts(subject));
+        for list in pending.values_mut() {
+            list.retain(|((ts, _, _), voter)| self.voter_counts(voter, *ts));
         }
-        self.pending.retain(|_, list| !list.is_empty());
+        pending.retain(|_, list| !list.is_empty());
+        self.pending = pending;
         let active = self
             .admitted
             .iter()
-            .filter(|p| !self.excluded.contains_key(*p))
-            .count();
-        self.need = need_for(active);
+            .filter(|p| self.counts(p) && !self.forgotten(p));
+        self.need = need_for(active.count());
     }
 
     /// The subject with enough votes whose first vote is the earliest.
@@ -232,6 +266,10 @@ impl Pass {
             pending,
             need,
             admissions: self.short,
+            forgets: self.rounds,
+            admit_unix: BTreeMap::new(),
+            forget_marks: BTreeMap::new(),
+            forget_need: self.forget_need,
         }
     }
 }
@@ -242,7 +280,9 @@ pub fn tally(input: &TallyInput) -> Ledger {
     for v in sorted_votes(&input.votes) {
         pass.vote(&v);
     }
-    pass.finish()
+    let mut ledger = pass.finish();
+    (ledger.admit_unix, ledger.forget_marks) = marks(&input.admits, &input.forgets);
+    ledger
 }
 
 #[cfg(test)]
@@ -252,3 +292,15 @@ mod tests;
 #[cfg(test)]
 #[path = "tally_cascade_tests.rs"]
 mod cascade_tests;
+
+#[cfg(test)]
+#[path = "tally_forget_tests.rs"]
+mod forget_tests;
+
+#[cfg(test)]
+#[path = "tally_forget_vote_tests.rs"]
+mod forget_vote_tests;
+
+#[cfg(test)]
+#[path = "tally_forget_need_tests.rs"]
+mod forget_need_tests;

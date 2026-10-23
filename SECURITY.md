@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest released 0.2.x version receives security fixes.
+Only the latest released 0.3.x version receives security fixes.
 
 ## Reporting a vulnerability
 

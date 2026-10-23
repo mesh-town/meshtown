@@ -4,7 +4,7 @@
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
-  countryTag, exitCandidates, exitMetaText, findExitView, nextExitsOnChange, noPeersYet, otherExitSelector, pickOtherExit,
+  countryTag, exitCandidates, exitMetaText, findExitView, noPeersYet, otherExitSelector, pickOtherExit,
 } from "./exit-list.ts";
 
 const ids = (list) => list.map((item) => item.idFull);
@@ -152,22 +152,6 @@ describe("countryTag", () => {
   });
 
   it("no country — empty", () => assert.equal(countryTag({ country: null }), ""));
-});
-
-describe("nextExitsOnChange", () => {
-  it("b switched on with a chosen — replaces", () => assert.deepEqual(nextExitsOnChange(["a"], "b", true), ["b"]));
-  it("a switched on with an empty choice", () => assert.deepEqual(nextExitsOnChange([], "a", true), ["a"]));
-  it("a switched off at [a] — empty", () => assert.deepEqual(nextExitsOnChange(["a"], "a", false), []));
-  it("b switched off from the old [a, b] — a remains", () => assert.deepEqual(nextExitsOnChange(["a", "b"], "b", false), ["a"]));
-  it("a switched off from the old [a, b] — b remains", () => assert.deepEqual(nextExitsOnChange(["a", "b"], "a", false), ["b"]));
-
-  it("the result is never longer than one id", () => {
-    const cases = [
-      nextExitsOnChange(["a"], "b", true), nextExitsOnChange([], "a", true), nextExitsOnChange(["a"], "a", false),
-      nextExitsOnChange(["a", "b"], "b", false), nextExitsOnChange(["a", "b"], "a", false),
-    ];
-    for (const result of cases) assert.ok(result.length <= 1, "got " + JSON.stringify(result));
-  });
 });
 
 describe("findExitView", () => {

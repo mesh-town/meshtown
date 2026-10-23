@@ -11,8 +11,11 @@ use crate::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
 use crate::invite::{check_fresh, same_network, ParsedInvite};
 use crate::node::host::MAX_NETS;
 use crate::node::output::{say, NET_NAME};
+use crate::transport::net::NodeSecret;
 
-use super::run_invite_addnet::{add_net_slot, net_limit_reached, saved_slot_keys};
+use super::run_invite_addnet::{
+    net_limit_reached, prepare_net_slot, save_prepared_slot, saved_slot_keys,
+};
 
 /// What to do with the invite in this run.
 pub(crate) enum InviteStep {
@@ -118,9 +121,10 @@ async fn add_redeemed_net(
     typed_domains: &[String],
     now: u64,
 ) -> anyhow::Result<()> {
-    let text = redeem_text(p, run).await?;
+    let slot = prepare_net_slot(run, now)?;
+    let text = redeem_text(p, run, &slot.run.secret).await?;
     say("invite", "network key received, adding the network");
-    if let Err(why) = add_net_slot(run, &text, typed_domains, &p.peers, now) {
+    if let Err(why) = save_prepared_slot(run, slot, &text, typed_domains, &p.peers, now) {
         say(
             "invite",
             format!("network key not saved: {why:#}; the next run needs a new invite"),
@@ -135,14 +139,18 @@ pub(crate) async fn redeem_for_run(
     run: &mut RunConfig,
     now: u64,
 ) -> anyhow::Result<()> {
-    let text = redeem_text(p, run).await?;
+    let text = redeem_text(p, run, &run.secret).await?;
     run.effective_settings.net.network_key = Some(text.clone());
     say("invite", "network key received, joining the network");
     persist_key(run, &text, now)
 }
 
-/// Waits for the key from the members and returns it as the text a settings file holds.
-async fn redeem_text(p: &ParsedInvite, run: &RunConfig) -> anyhow::Result<String> {
+/// Waits for the key from the members, redeeming the invite with `secret`, and returns it as the text a settings file holds.
+async fn redeem_text(
+    p: &ParsedInvite,
+    run: &RunConfig,
+    secret: &NodeSecret,
+) -> anyhow::Result<String> {
     say("invite", TEXT_WAITING);
     let opts = RedeemOpts::for_head(&p.head, run.effective_settings.net.uses_relay());
     let last = AtomicU64::new(0);
@@ -150,7 +158,7 @@ async fn redeem_text(p: &ParsedInvite, run: &RunConfig) -> anyhow::Result<String
     let transport = crate::node::bind_ephemeral(None)
         .await
         .map_err(|e| RedeemError::Bind(format!("{e:#}")))?;
-    let key = redeem(&p.head, &p.peers, &opts, &note, transport, &run.secret).await?;
+    let key = redeem(&p.head, &p.peers, &opts, &note, transport, secret).await?;
     Ok(p.head.key_text(&key))
 }
 

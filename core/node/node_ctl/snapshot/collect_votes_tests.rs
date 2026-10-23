@@ -74,6 +74,10 @@ fn one_vote_waiting(me: PeerId) -> Verdicts {
             pending,
             need: 2,
             admissions: BTreeMap::new(),
+            forgets: Default::default(),
+            admit_unix: Default::default(),
+            forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }
@@ -95,6 +99,10 @@ fn excluding(me: PeerId) -> Verdicts {
             pending: BTreeMap::new(),
             need: 1,
             admissions: BTreeMap::new(),
+            forgets: Default::default(),
+            admit_unix: Default::default(),
+            forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }
@@ -175,6 +183,10 @@ fn requests_waiting(me: PeerId, me_asks: bool) -> Verdicts {
             pending: BTreeMap::new(),
             need: 2,
             admissions,
+            forgets: Default::default(),
+            admit_unix: Default::default(),
+            forget_marks: Default::default(),
+            forget_need: 1,
         },
     )
 }

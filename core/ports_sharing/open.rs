@@ -1,4 +1,4 @@
-//! Listeners of other nodes' ports opened here (`Opener`): `127.0.0.1:<local>` → a QUIC stream to the publisher.
+//! Listeners of other nodes' ports opened here (`Opener`): `127.0.0.1:<local>` → a stream to the publisher.
 //!
 //! What it does: reconciles the `Opened` list with the running listeners, binds ports synchronously,
 //! hands every accepted connection to `dial::forward_to_peer_port`; closing a listener drops its connections.

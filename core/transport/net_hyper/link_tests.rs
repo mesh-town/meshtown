@@ -1,20 +1,17 @@
 //! Session counters and path/network information.
 
 use super::*;
-use crate::transport::net::link::{NatKind, PathKind};
+use crate::transport::net::link::PathKind;
 use std::io::ErrorKind;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
 
 #[test]
 fn fresh_meter_reports_unknown_path() {
-    let info = link_info(&LinkMeter::new(), &[]);
+    let info = link_info(&LinkMeter::new());
     assert!(matches!(info.path, PathKind::Unknown));
-    assert_eq!(
-        (info.sent_bytes, info.recv_bytes, info.lost_packets),
-        (0, 0, 0)
-    );
+    assert_eq!((info.sent_bytes, info.recv_bytes), (0, 0));
     assert_eq!((info.stream_frames, info.path_count), (0, 0));
-    assert!(info.rtt.is_none() && info.cwnd.is_none() && info.remote.is_none());
+    assert!(info.rtt.is_none() && info.remote.is_none());
 }
 
 #[tokio::test]
@@ -26,7 +23,7 @@ async fn metered_counts_both_directions() {
     b.write_all(&[2u8; 500]).await.unwrap();
     let mut got = [0u8; 500];
     a.read_exact(&mut got).await.unwrap();
-    let info = link_info(&meter, &[]);
+    let info = link_info(&meter);
     assert_eq!((info.sent_bytes, info.recv_bytes), (1000, 500));
     assert!(info.stream_frames >= 1);
 }
@@ -35,10 +32,10 @@ async fn metered_counts_both_directions() {
 fn established_meter_reports_direct_path_without_rtt() {
     let meter = LinkMeter::new();
     meter.mark_established();
-    let info = link_info(&meter, &[]);
+    let info = link_info(&meter);
     assert!(matches!(info.path, PathKind::Direct));
     assert_eq!(info.path_count, 1);
-    assert!(info.rtt.is_none() && info.cwnd.is_none() && info.remote.is_none());
+    assert!(info.rtt.is_none() && info.remote.is_none());
     assert!(info.hint().is_none());
 }
 
@@ -49,7 +46,7 @@ async fn metered_fails_after_session_close() {
     let mut a = Metered::new(a, meter.clone());
     meter.mark_established();
     meter.close();
-    assert_eq!(link_info(&meter, &[]).path_count, 0);
+    assert_eq!(link_info(&meter).path_count, 0);
     let w = a.write_all(b"x").await.unwrap_err();
     assert_eq!(w.kind(), ErrorKind::ConnectionAborted);
     let r = a.read(&mut [0u8; 1]).await.unwrap_err();
@@ -60,8 +57,6 @@ async fn metered_fails_after_session_close() {
 fn net_info_before_listen_has_no_net_seen() {
     let info = net_info(None);
     assert_eq!(info.net_seen, None);
-    assert!(matches!(info.nat, NatKind::Unknown));
-    assert!(info.public_v4.is_none() && info.public_v6.is_none() && !info.can_relay);
 }
 
 #[test]

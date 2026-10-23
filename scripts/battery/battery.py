@@ -16,7 +16,7 @@ the binary with the tray); before each one comes a relink step (a repeat of the 
 
 Usage:
     make battery [OUT=<path>] [ONLY=test,clippy] [SERIAL=1]
-    python3 scripts/battery.py [--out path] [--only test,clippy] [--serial]
+    python3 scripts/battery/battery.py [--out path] [--only test,clippy] [--serial]
 
 The list of items is ITEMS below, edited in place (order = run order in --serial).
 """

@@ -4,7 +4,7 @@
 //! with the old record, encrypts and decrypts the record for storage in the DHT,
 //! converts a node address (`PeerAddr`) into a record and back.
 //! What it does not do: it neither reads nor writes the DHT — `dht` does that.
-//! Links: `dht` calls `merge`, `seal`, `open`, `entry_from_addr`, `entry_to_addr`;
+//! Links: `roster` calls `merge_keys`, `seal`, `open_as`; `invite` calls `entry_from_addr`, `entry_to_addr`;
 //! `addr_order` sorts the addresses before slicing.
 
 use std::net::SocketAddr;
@@ -18,16 +18,12 @@ use serde::{Deserialize, Serialize};
 use crate::node::output::NET_NAME;
 use crate::transport::addr_order::{order_direct, truncate_ranked, PrimaryIps};
 
-/// Record format version.
-const RECORD_VERSION: u8 = 1;
 /// Version of the keys-only record (without relay and addresses) — for the `hyperdht` source.
 pub const RECORD_VERSION_KEYS: u8 = 2;
 /// Maximum entries in a key roster (654 bytes sealed at a limit of 990).
 pub const MAX_KEY_ENTRIES: usize = 16;
 /// Limit on the size of the encrypted record (in BEP44 the value is at most 1000 bytes).
 const MAX_SEALED_BYTES: usize = 990;
-/// Maximum member entries in one DHT record.
-const MAX_ADDR_ROSTER_ENTRIES: usize = 8;
 /// Maximum addresses in one member entry.
 const MAX_ADDRS_PER_ENTRY: usize = 4;
 /// Lifetime of a member entry without an update.
@@ -51,12 +47,8 @@ pub struct RosterEntry {
     pub seen_unix: u64,
 }
 
-/// Merges our own record with the old record: drops stale entries and our own from the old one,
+/// Merges our own entry with the old record: drops stale entries and our own from the old one,
 /// puts ourselves first, limits the number of addresses and the number of entries.
-pub fn merge(prev: Option<Roster>, me: RosterEntry, now_unix: u64) -> Roster {
-    merge_capped(prev, me, now_unix, MAX_ADDR_ROSTER_ENTRIES)
-}
-
 fn merge_capped(prev: Option<Roster>, me: RosterEntry, now_unix: u64, cap: usize) -> Roster {
     let mut entries: Vec<RosterEntry> = prev
         .map(|r| r.entries)
@@ -74,12 +66,12 @@ fn merge_capped(prev: Option<Roster>, me: RosterEntry, now_unix: u64, cap: usize
     }
     entries.truncate(cap);
     Roster {
-        version: RECORD_VERSION,
+        version: RECORD_VERSION_KEYS,
         entries,
     }
 }
 
-/// Like `merge`, but for a key roster: relay and addresses are erased in all entries, our own entry
+/// Merges a key roster: relay and addresses are erased in all entries, our own entry
 /// (only id, `seen_unix = now_unix`) goes first, version 2, ceiling `MAX_KEY_ENTRIES`.
 pub fn merge_keys(prev: Option<Roster>, me: [u8; 32], now_unix: u64) -> Roster {
     let mine = RosterEntry {
@@ -93,7 +85,6 @@ pub fn merge_keys(prev: Option<Roster>, me: [u8; 32], now_unix: u64) -> Roster {
         e.relay = None;
         e.addrs.clear();
     }
-    roster.version = RECORD_VERSION_KEYS;
     roster
 }
 
@@ -126,11 +117,6 @@ pub fn seal(key: &[u8; 32], roster: &Roster, nonce: [u8; 12]) -> Result<Vec<u8>>
             bail!("record does not fit into 990 bytes");
         }
     }
-}
-
-/// Decrypts a v1 record, checks the version.
-pub fn open(key: &[u8; 32], sealed: &[u8]) -> Result<Roster> {
-    open_as(key, sealed, RECORD_VERSION)
 }
 
 /// Decrypts the record and requires the given format version.

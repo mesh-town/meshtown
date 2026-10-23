@@ -23,7 +23,7 @@ use crate::node::output::say;
 
 /// Key prefix of the domain list in the document.
 pub const LIST_PREFIX: &str = "list/";
-/// Value of a domain record: non-empty, since an empty record in iroh-docs is a tombstone.
+/// Value of a domain record: non-empty, since an empty record in the shared document is a tombstone.
 pub const ENTRY_VALUE: &[u8] = b"v1";
 /// Maximum length of a domain.
 pub const MAX_DOMAIN_LEN: usize = 253;
@@ -86,7 +86,7 @@ pub fn normalize_domain(input: &str) -> Result<String> {
 }
 
 /// Key of a domain record: `list/<domain>/`. The trailing `/` is needed because of the prefix
-/// semantics of iroh-docs: without it the record `a.com` would overwrite `a.com.org` by the same author.
+/// semantics of the shared document: without it the record `a.com` would overwrite `a.com.org` by the same author.
 pub fn entry_key(domain: &str) -> Vec<u8> {
     format!("{LIST_PREFIX}{domain}/").into_bytes()
 }

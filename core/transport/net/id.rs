@@ -1,5 +1,5 @@
 //! Node id (`PeerId`, an ed25519 public key) and node secret (`NodeSecret`, a seed).
-//! Text and byte forms are as for the iroh-base 1.2.0 node id; there is no network here.
+//! Text and byte forms are fixed (base32 text, 32 raw bytes); there is no network here.
 
 use data_encoding::{BASE32_NOPAD, HEXLOWER};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};

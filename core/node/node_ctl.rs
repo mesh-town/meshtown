@@ -23,6 +23,7 @@ mod guard_link;
 mod invite_wait;
 mod leave_net;
 mod live_paths;
+mod members_seen;
 mod peer_addr;
 mod proxy_link;
 mod relaunch;

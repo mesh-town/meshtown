@@ -1,6 +1,6 @@
 //! Integration tests of the exit flag on other nodes (`node_state`).
 //!
-//! What it does: checks truly live iroh-docs synchronization between two nodes on
+//! What it does: checks truly live shared-document synchronization between two nodes on
 //! loopback — the flag switch reaches the neighbor, a node disabled at startup announces
 //! `false` (not absence), and the key itself is invisible to old readers (`list/`, `chk/`).
 //! What it doesn't do: doesn't check the HTTP page or the node snapshot — that is `tests/node_web.rs` and

@@ -48,7 +48,7 @@ pub(crate) async fn sync_delivers_and_reports_synced(pair: SyncPair) {
     let mut events = ra.subscribe();
     // when: A reconciles with B
     sync_from_a(&ra).await;
-    // then: the result is a Synced event with peer = B. Its outcome is "for the log only": iroh-docs 0.101.0
+    // then: the result is a Synced event with peer = B. Its outcome is "for the log only": a real backend
     // on a loopback ends reconciliation with `Err("Failed to close connection1")` even when the data has converged,
     // so success is not required — the data is checked below by polling
     let synced = next_event(&mut events, "Synced from B", is_synced_with_b).await;
@@ -170,7 +170,7 @@ pub(crate) async fn latest_picks_newest_across_authors(pair: SyncPair) {
 }
 
 pub(crate) async fn latest_tie_breaks_by_author(pair: SyncPair) {
-    // iroh sets the time itself: a tie can be built only where a "raw" entry exists
+    // some backends set the time themselves: a tie can be built only where a "raw" entry exists
     let Some(raw) = pair.raw.clone() else { return };
     // given: keys K1 and K2 each have two entries with the same ts_micros from authors A and B, in different order
     let ra = open_net(&pair.a).await;

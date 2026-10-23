@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib_test.sh: checks the shared build helpers in release/lib.sh against a throwaway workspace tree.
+# lib_test.sh: checks the shared build helpers in scripts/release/lib.sh against a throwaway workspace tree.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,7 +44,7 @@ version_from_workspace_package() {
 
 root_is_required() {
   if err="$(env -u ROOT sh -c ". '$lib'" 2>&1)"; then fail "root_is_required: sourcing without ROOT passed"; fi
-  case "$err" in *release/lib.sh*) ;; *) fail "root_is_required: message: $err" ;; esac
+  case "$err" in *scripts/release/lib.sh*) ;; *) fail "root_is_required: message: $err" ;; esac
 }
 
 manifest_copy_has_no_crate_type() {

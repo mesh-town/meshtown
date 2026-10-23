@@ -28,5 +28,5 @@ same script.
 
 ## What is used outside this directory
 
-Only `core/` (the path dependency in `Cargo.toml`), `release/lib.sh`, `release/dist/` and the workspace root, from
+Only `core/` (the path dependency in `Cargo.toml`), `scripts/release/lib.sh`, `scripts/release/dist/` and the workspace root, from
 which `cargo` runs. `make boundary` checks this.

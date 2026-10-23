@@ -3,7 +3,7 @@
 //! What it does: `bind_shared` creates a socket with `SO_REUSEADDR` and binds it to a specific `ip:port`;
 //! packets sent to this address are received by it, not by the "wide" socket (verified on macOS:
 //! an exact address match beats `0.0.0.0`). This is how the proxy takes the addresses that the
-//! iroh server announces to the client for the direct path (`LossyLink::block_addr`).
+//! server announces to the client for the direct path (`LossyLink::block_addr`).
 //! What it does not have: IPv6 and other OSes — there `bind_shared` returns an `Unsupported` error.
 
 use std::io;

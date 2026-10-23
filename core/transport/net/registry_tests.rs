@@ -360,7 +360,7 @@ fn choice(transports: &[&str], discovery: &[&str]) -> NetChoice {
     NetChoice {
         transports: own(transports),
         discovery: own(discovery),
-        sync: "iroh-docs".into(),
+        sync: "docs".into(),
     }
 }
 

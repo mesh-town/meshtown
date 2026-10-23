@@ -35,7 +35,7 @@ pub use discovery_mux::{DiscoveryMux, HINT_TTL};
 pub use error::{NetError, NetResult};
 pub use facade::{NetSnapshot, NetStack, NetStackBuilder, ServiceHandler, WeakStack};
 pub use id::{IdError, NodeSecret, PeerId};
-pub use link::{LinkInfo, NatKind, NetInfo, PathChange, PathKind};
+pub use link::{LinkInfo, NetInfo, PathChange, PathKind};
 pub use mem::{MemConnector, MemDiscovery, MemNet};
 pub use registry::{DiscoveryCtor, NetChoice, NetCtx, Registry, TransportCtor};
 pub use replica::{

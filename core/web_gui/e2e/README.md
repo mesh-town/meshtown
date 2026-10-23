@@ -1,7 +1,6 @@
 # e2e — Playwright Test
 
-Browser test suite for the node page, built on [Playwright Test](https://playwright.dev/). It replaces
-the Python suite `scripts/web-check.py` (removed); `make web-check` runs this suite.
+Browser test suite for the node page, built on [Playwright Test](https://playwright.dev/); `make web-check` runs it.
 
 ## Running
 
@@ -53,24 +52,25 @@ pages/     page objects by page section — locators and actions, selectors only
   glossary.ts         dictionary of page texts, member label
   join-card.ts        the join card (JS moves it between Home and "Settings → Network")
   home/               Home: section (panel, card frames, first screen), net-card (network,
-                      invite, members), exit-card ("Exit via…"), name-card
+                      invite, members), nets-block (network choice), exit-card ("Exit via…"), name-card
                       (computer name, exit switch), proxy-card ("Connect the browser to Mesh Town")
-  peers-section.ts, ports-section.ts, network-section.ts, settings-section.ts,
+  peers-section.ts, members-section.ts, ports-section.ts, network-section.ts, settings-section.ts,
   settings-file-banner.ts, domains-section.ts, log-section.ts   — one per tab
+  ready.ts            waiting until the page and the node state are ready
 specs/     specs: a file per section or feature; the test name carries the case number and slug
 ```
 
 ## How to add a case
 
 0. First ask whether a browser is needed: a case that needs no binary, HTTP response, layout (geometry,
-   computed CSS, "Back" history) or server decision is written not here but as `*.flows.vtest.mjs` next to the
+   computed CSS, "Back" history) or server-side logic is written not here but as `*.flows.vtest.mjs` next to the
    `.vue` file in `core/web_gui/ui/vue/src/` (vitest, the fake node `vue/src/testing/fake-node.mjs`); the static
    size check is `vue/src/static-limits.test.mjs` (vitest, node project). Only what cannot be checked without a browser goes here.
 1. Take the next free number: `rg -o "^test\('[0-9]+-" specs` shows the taken ones. The test name is
    `N-slug: what is checked`; the spec is `specs/<section>.spec.ts` (a new file if the section does not exist).
 2. Selectors live only in the page object of their section (`pages/`), never in the spec; name a method
    after the action or the property ("restart button is visible"), not after the markup.
-3. Locators must survive a markup change (the node page will be rewritten in Vue). Order of anchors:
+3. Locators must survive a markup change. Order of anchors:
    `getByRole` with a name, `getByLabel`, `getByText`; `id` — only if the markup has no other anchor,
    and then a comment above the locator `// no anchor: <what the markup lacks>`; CSS classes,
    `nth-child`, and nesting chains are not used. Example: the "Restart Mesh Town"

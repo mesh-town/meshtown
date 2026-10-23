@@ -1,4 +1,4 @@
-"""Tests for run_all() from scripts/changed_tests.py: a red command does not cancel the following ones."""
+"""Tests for run_all() from scripts/changed_tests/changed_tests.py: a red command does not cancel the following ones."""
 
 import unittest
 from unittest import mock

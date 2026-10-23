@@ -18,7 +18,7 @@ pub mod stats;
 
 use std::io;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -120,20 +120,6 @@ impl LossyLink {
                 self.sink.clone(),
             )));
         Ok(())
-    }
-
-    /// The kill switch: drops the next `n` data packets c2s before the model (overwrites the counter).
-    /// A loss that fires is counted in `lost_model`.
-    pub fn drop_next_c2s(&self, n: usize) {
-        self.trap_c2s.store(n, Ordering::SeqCst);
-    }
-
-    /// Random c2s loss on the fly: a share `pct` % of data packets (not shorter than the kill switch),
-    /// on top of `LossModel`; 0 — off. The randomness comes from the direction's seed, and at 0 its
-    /// sequence does not shift. A loss that fires is counted in `lost_model`.
-    pub fn set_loss_c2s(&self, pct: f64) {
-        let milli = (pct.clamp(0.0, 100.0) * 1000.0).round() as u32;
-        self.loss_c2s.store(milli, Ordering::SeqCst);
     }
 
     pub fn stats(&self) -> LinkStats {
