@@ -6,22 +6,14 @@
 //! Links: `Core::attach_ui` builds `ExitUi` once and inserts `submenu()` into the menu (after
 //! "Open"); `Core::apply_exits` (`TrayCmd::ExitMenu`) calls `apply_exit_menu()` on every new snapshot.
 
-use tray_icon::menu::{CheckMenuItem, MenuItem, PredefinedMenuItem, Submenu, TextStyle};
+use tray_icon::menu::{CheckMenuItem, PredefinedMenuItem, Submenu};
 
-use crate::gui::tray::app::exit_menu::{ExitItem, ExitMenu};
+use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::nets_rows::exit_rows;
 use crate::gui::tray::app::tray_texts::{direct_text, SUBMENU_TITLE};
 
 use super::core::MENU_EXIT_PREFIX;
-
-/// Text style of an item: an offline node is gray (`Secondary`, muda 0.20 on macOS), otherwise like an
-/// ordinary menu item.
-fn text_style(item: &ExitItem) -> TextStyle {
-    if item.online {
-        TextStyle::Default
-    } else {
-        TextStyle::Secondary
-    }
-}
+use super::nets_ui::LiveRow;
 
 /// The container's own id — not `MENU_EXIT_PREFIX` (that one is reserved for the leaf item
 /// "As usual"): a click does not open the submenu as an item, but the id must be unique.
@@ -34,8 +26,7 @@ const SUBMENU_ID: &str = "exit-menu";
 pub(super) struct ExitUi {
     submenu: Submenu,
     direct: CheckMenuItem,
-    peers: Vec<CheckMenuItem>,
-    hint: Option<MenuItem>,
+    peers: Vec<LiveRow>,
 }
 
 impl ExitUi {
@@ -52,7 +43,6 @@ impl ExitUi {
             submenu,
             direct,
             peers: Vec::new(),
-            hint: None,
         })
     }
 
@@ -67,36 +57,25 @@ impl ExitUi {
     pub(super) fn apply_exit_menu(&mut self, menu: ExitMenu) {
         self.submenu.set_enabled(menu.enabled);
         self.direct
-            .set_checked(menu.items.iter().all(|item| !item.checked));
+            .set_checked(menu.items.iter().all(|item| !item.checked) && no_group_choice(&menu));
         for old in self.peers.drain(..) {
-            let _ = self.submenu.remove(&old);
+            old.remove_from(&self.submenu);
         }
-        for item in &menu.items {
-            let id = format!("{MENU_EXIT_PREFIX}{}", item.id_full);
-            let check = CheckMenuItem::with_id(id, item.menu_text(), true, item.checked, None);
-            check.set_styled_text([(item.menu_text(), text_style(item))]);
-            match self.submenu.append(&check) {
-                Ok(()) => self.peers.push(check),
+        for spec in exit_rows(&menu) {
+            let row = LiveRow::build(&spec);
+            match row.append_to(&self.submenu) {
+                Ok(()) => self.peers.push(row),
                 Err(e) => super::log_tray(&format!("exits submenu: {e}")),
             }
         }
-        self.update_hint(&menu);
     }
+}
 
-    /// Removes the previous hint and, if there are no exits, sets an inactive one after the separator.
-    fn update_hint(&mut self, menu: &ExitMenu) {
-        if let Some(old) = self.hint.take() {
-            let _ = self.submenu.remove(&old);
-        }
-        let Some(text) = menu.empty_hint() else {
-            return;
-        };
-        let hint = MenuItem::new(text, false, None);
-        match self.submenu.append(&hint) {
-            Ok(()) => self.hint = Some(hint),
-            Err(e) => super::log_tray(&format!("exits submenu: {e}")),
-        }
-    }
+/// "Directly" is checked when no network has a chosen exit.
+fn no_group_choice(menu: &ExitMenu) -> bool {
+    menu.groups
+        .iter()
+        .all(|g| g.items.iter().all(|item| !item.checked))
 }
 
 #[cfg(test)]

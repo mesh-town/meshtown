@@ -100,7 +100,7 @@ async fn web_get_config_returns_current_document() {
     let (handle, _node) = start_fake(0, &dir).await;
     let port = handle.shared.port();
 
-    let reply = get_config(port, FAKE_TOKEN)
+    let reply = get_config(port, FAKE_TOKEN, None)
         .await
         .expect("get_config: the exchange must not fail");
     match reply {
@@ -121,7 +121,7 @@ async fn web_put_config_round_trips_route_exits() {
     let (handle, _node) = start_fake_with_config(0, &dir).await;
     let port = handle.shared.port();
 
-    let current = get_config(port, FAKE_TOKEN)
+    let current = get_config(port, FAKE_TOKEN, None)
         .await
         .expect("get_config: the exchange must not fail");
     let rev = match current {
@@ -136,7 +136,7 @@ async fn web_put_config_round_trips_route_exits() {
         .to_string()
         .into_bytes();
 
-    let reply = put_config(port, FAKE_TOKEN, &body)
+    let reply = put_config(port, FAKE_TOKEN, None, &body)
         .await
         .expect("put_config: the exchange must not fail");
     assert!(
@@ -147,7 +147,7 @@ async fn web_put_config_round_trips_route_exits() {
     // The loop closes only with a repeated GET: a PUT returns 200 even for a rejected field (with
     // a wrong value the server rolls the list back to [] and still answers `Ok`),
     // so what actually landed on disk has to be checked.
-    let after = get_config(port, FAKE_TOKEN)
+    let after = get_config(port, FAKE_TOKEN, None)
         .await
         .expect("get_config after PUT: the exchange must not fail");
     match after {
@@ -231,7 +231,7 @@ async fn get_invite_returns_invite_with_token() {
     node.set_invite(Some("mesh-invite2-FAKE"));
     let port = handle.shared.port();
 
-    let reply = get_invite(port, FAKE_TOKEN)
+    let reply = get_invite(port, FAKE_TOKEN, None)
         .await
         .expect("get_invite: the exchange must not fail");
     match reply {
@@ -264,7 +264,7 @@ async fn get_invite_without_token_is_unauthorized() {
     node.set_invite(Some("mesh-invite2-FAKE"));
     let port = handle.shared.port();
 
-    let reply = get_invite(port, "")
+    let reply = get_invite(port, "", None)
         .await
         .expect("get_invite: the exchange must not fail");
     assert!(matches!(reply, Reply::Unauthorized));
@@ -280,7 +280,7 @@ async fn get_invite_busy_is_409() {
     node.set_invite(None);
     let port = handle.shared.port();
 
-    let reply = get_invite(port, FAKE_TOKEN)
+    let reply = get_invite(port, FAKE_TOKEN, None)
         .await
         .expect("get_invite: the exchange must not fail");
     assert!(matches!(reply, Reply::OtherStatus(409)));

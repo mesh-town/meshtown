@@ -83,7 +83,7 @@ pub(super) fn build_menu(
     route: &crate::gui::tray::app::view::RouteLine,
     proxy: &ProxyState,
     exit_submenu: &tray_icon::menu::Submenu,
-    actions: &ActionsUi,
+    actions: &mut ActionsUi,
 ) -> Result<
     (
         tray_icon::menu::Menu,
@@ -157,6 +157,7 @@ pub(super) struct TrayUi {
     pub(super) exit_submenu: super::exit_menu::ExitUi,
     pub(super) actions: ActionsUi,
     pub(super) vote: super::vote_item::VoteUi,
+    pub(super) nets: super::nets_ui::NetsUi,
 }
 
 impl TrayUi {

@@ -79,7 +79,7 @@ async fn finish(handle: crate::web_gui::WebHandle, mut rig: Rig) {
 async fn click_copies_then_title_returns() {
     let (handle, mut rig) = foreign_rig("invite-click", Some(SECRET)).await;
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     rig.probe
         .invite("Copied", |n| matches!(n, InviteNote::Copied(_)));
     let at = Instant::now();
@@ -98,11 +98,11 @@ async fn click_copies_then_title_returns() {
 async fn second_click_restarts_timer() {
     let (handle, mut rig) = foreign_rig("invite-twice", Some(SECRET)).await;
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     rig.probe
         .invite("Copied 1", |n| matches!(n, InviteNote::Copied(_)));
     tokio::time::sleep(Duration::from_millis(240)).await;
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     rig.probe
         .invite("Copied 2", |n| matches!(n, InviteNote::Copied(_)));
     let at = Instant::now();
@@ -120,7 +120,7 @@ async fn second_click_restarts_timer() {
 async fn busy_node_shows_joining() {
     let (handle, mut rig) = foreign_rig("invite-busy", None).await;
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     let note = rig
         .probe
         .invite("Failed", |n| matches!(n, InviteNote::Failed(_)));
@@ -138,7 +138,7 @@ async fn clipboard_failure_shows_reason() {
     let (handle, mut rig) = foreign_rig("invite-clipfail", Some(SECRET)).await;
     rig.clip.lock().unwrap().fail = Some(REASON_NO_TOOL);
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     let note = rig
         .probe
         .invite("Failed", |n| matches!(n, InviteNote::Failed(_)));
@@ -151,11 +151,11 @@ async fn clipboard_failure_shows_reason() {
 async fn secret_never_logged() {
     let (handle, mut rig) = foreign_rig("invite-secret", Some(SECRET)).await;
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     rig.probe.log("invite: copied");
     rig.clip.lock().unwrap().fail = Some(REASON_CLIP_FAILED);
     rig.probe.invite("Idle", |n| *n == InviteNote::Idle);
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     rig.probe
         .log("invite: couldn't copy — the clipboard didn't accept the text");
 
@@ -189,7 +189,7 @@ async fn click_outside_online_phase_is_dropped() {
     );
     rig.probe.view("Disabled", |v| *v == disabled);
 
-    rig.cmd(NodeCmd::CopyInvite);
+    rig.cmd(NodeCmd::CopyInvite(None));
     tokio::time::sleep(T.note_visible_for * 2).await;
     rig.probe.drain();
 

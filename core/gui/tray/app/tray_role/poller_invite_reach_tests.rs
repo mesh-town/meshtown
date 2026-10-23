@@ -252,7 +252,7 @@ mod click_by_reach {
         async fn node_without_holders_gives_copied_issuer_only() {
             let (handle, mut rig) = foreign_rig("invite-reach-real", Some(SECRET)).await;
 
-            rig.cmd(NodeCmd::CopyInvite);
+            rig.cmd(NodeCmd::CopyInvite(None));
             let note = rig
                 .probe
                 .invite("Copied", |n| matches!(n, InviteNote::Copied(_)));
@@ -314,7 +314,7 @@ async fn setup(node_body: Value, clipboard: Clipboard) -> Click {
     let taps = Taps::default();
     let mut p = poller_on(port, &taps, clipboard);
 
-    p.copy_invite().await;
+    p.copy_invite(None).await;
 
     let click = Click {
         notes: taps.notes.lock().unwrap().clone(),
@@ -351,6 +351,7 @@ fn poller_on(port: u16, taps: &Taps, clipboard: Clipboard) -> Poller {
         notes_visible_until: None,
         start_fail: StartFail::new(Box::new(|| None), Box::new(|| None), Box::new(|_n| {})),
         timing: PollTiming::PROD,
+        overview_gate: crate::gui::tray::app::tray_role::overview_poll::OverviewGate::new(),
     }
 }
 
