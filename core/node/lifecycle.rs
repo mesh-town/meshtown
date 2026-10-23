@@ -2,7 +2,6 @@
 //! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one. The stop signal belongs to the
 //! process host (`host::signal`); `run` starts its own, since it has no host.
 
-use std::ops::ControlFlow;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -12,12 +11,19 @@ use crate::node::node_ctl::{Cmd, NodeCtl, Relaunch};
 use crate::node::output::say;
 use crate::proxy::ProxyConsole;
 use crate::site_checks::checks;
-use crate::transport::net::PeerAddr;
 
 use super::config::NodeConfig;
 use super::identity::IdentityState;
 use super::running::RunningNode;
 use super::start::start_node;
+
+mod command;
+use command::{after_command, apply_switch};
+
+#[cfg(test)]
+use crate::transport::net::PeerAddr;
+#[cfg(test)]
+use std::ops::ControlFlow;
 
 /// Runs the "start → run → stop or restart into a new network" loop in a single process.
 /// The stop signal comes from outside (the process host), so Ctrl-C during a restart is not lost.
@@ -77,25 +83,6 @@ async fn wait_then_run(
             }
         }
     }
-}
-
-/// Handles `Switch`: `relaunch.reload`, on success — the new settings into `settings`, a new cfg with the passed
-/// `identity` and `initial_peers = peers`, `ctl.replace_effective_settings`, the ring capacity. On error changes nothing.
-fn apply_switch(
-    key: &str,
-    peers: Vec<PeerAddr>,
-    identity: IdentityState,
-    settings: &mut Settings,
-    ctl: &NodeCtl,
-    relaunch: &Relaunch,
-) -> Result<NodeConfig> {
-    let (s, mut cfg) = relaunch.reload(key, settings)?;
-    *settings = s;
-    cfg.identity = identity;
-    cfg.initial_peers = peers;
-    ctl.replace_effective_settings(settings);
-    crate::node::node_ctl::apply_log_capacity(settings);
-    Ok(cfg)
 }
 
 /// Brings up the stdin console on the first cycle: after a network switch it is
@@ -167,25 +154,6 @@ async fn serve_until_command(node: RunningNode, ctl: &NodeCtl) -> Cmd {
     node.shutdown().await;
     ctl.release_guard_sources();
     cmd
-}
-
-/// After the stop: Stop → `Break`; Switch → `apply_switch` with the old `cfg.identity`, on success `*cfg = new`,
-/// on error the line "coming back up with the old key"; then `Continue`.
-fn after_command(
-    cmd: Cmd,
-    cfg: &mut NodeConfig,
-    settings: &mut Settings,
-    ctl: &NodeCtl,
-    relaunch: &Relaunch,
-) -> ControlFlow<()> {
-    let Cmd::Switch { key, peers } = cmd else {
-        return ControlFlow::Break(());
-    };
-    match apply_switch(&key, peers, cfg.identity, settings, ctl, relaunch) {
-        Ok(new_cfg) => *cfg = new_cfg,
-        Err(e) => say("node", format!("{e:#}; coming back up with the old key")),
-    }
-    ControlFlow::Continue(())
 }
 
 /// Starts the node and runs until the stop signal (Ctrl-C or SIGTERM), then stops it.
