@@ -3,12 +3,15 @@
 
 use super::launch::SlotLaunch;
 use super::slots::HostSlots;
-use crate::config::config_file::{list_net_slots, prepare_net_slot, NetSlotId, RunConfig};
+use crate::config::config_file::{
+    list_net_slots, load_invited_peers, prepare_net_slot, NetSlotId, RunConfig,
+};
 use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::Relaunch;
 use crate::node::output::say;
 use crate::node::IdentityState;
+use crate::transport::net::PeerAddr;
 
 /// How many networks one process runs; the main slot always counts, even without a key.
 pub const MAX_NETS: usize = 8;
@@ -42,12 +45,20 @@ fn slot_launch(
     let mut cfg = relaunch.node_config(&run.effective_settings, parsed.key);
     cfg.network_label = parsed.label;
     cfg.identity = IdentityState::from_report(&run.file_report);
+    cfg.initial_peers = invited_peers(&run);
     SlotLaunch {
         id,
         run,
         relaunch,
         start: Some(cfg),
     }
+}
+
+/// The peers the slot was added with; without a settings file there are none.
+fn invited_peers(run: &RunConfig) -> Vec<PeerAddr> {
+    let file = run.file.as_ref();
+    file.map(|f| load_invited_peers(f.path()))
+        .unwrap_or_default()
 }
 
 fn not_started(id: &NetSlotId, why: impl std::fmt::Display) {
@@ -129,3 +140,7 @@ impl HostSlots {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "saved_slots_invited_tests.rs"]
+mod invited_tests;

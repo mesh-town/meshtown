@@ -1,4 +1,5 @@
 use super::*;
+use crate::config::config_file::load_invited_peers;
 use crate::config::config_file::{CliOverrides, PathRule, SecretRead};
 use crate::members::network_key::NetworkKey;
 use crate::members::sync::replica::file::Bak;
@@ -351,5 +352,18 @@ mod seeding_a_slot {
         std::fs::create_dir(&cache_path).unwrap();
         assert!(seed_peers_cache(&slot_file, &network_id_of(&key_b()), &peers, 6).is_err());
         assert_eq!(slot_key(&slot_file), Some(key_b()));
+    }
+
+    #[test]
+    fn keeps_the_ids_of_invite_peers_that_have_no_address_hints() {
+        let dir = Dir::new("seedbare");
+        let run = main_run(&dir, &key_a());
+        let peers: Vec<PeerAddr> = invite_peers().iter().map(|p| PeerAddr::new(p.id)).collect();
+        let id = add_net_slot(&run, &key_b(), &[], &peers, 5).expect("add");
+        let slot_file = net_slot_path(&dir.file(), &id).unwrap();
+        assert_eq!(load_invited_peers(&slot_file), peers);
+        let cache_path = peers_cache_path_beside(&slot_file).unwrap();
+        let cache = PeersCache::load(Some(&cache_path), &network_id_of(&key_b()), 5);
+        assert!(cache.seen().is_empty());
     }
 }

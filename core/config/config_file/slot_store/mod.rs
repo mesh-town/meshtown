@@ -5,6 +5,7 @@
 mod aside;
 mod fresh;
 mod ids;
+mod invited;
 mod layout;
 mod list;
 mod prepare;
@@ -15,6 +16,7 @@ mod slot_id;
 pub use aside::{set_aside_main, set_aside_slot};
 pub use fresh::{copy_shared_net, new_net_slot};
 pub use ids::new_slot_id;
+pub use invited::{load_invited_peers, save_invited_peers};
 pub use layout::net_slot_path;
 pub use list::{list_net_slots, NetSlotOnDisk};
 pub use prepare::prepare_net_slot;

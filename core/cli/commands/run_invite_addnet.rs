@@ -5,8 +5,8 @@
 use std::path::Path;
 
 use crate::config::config_file::{
-    self, list_net_slots, load_net_file, net_slot_path, new_net_slot, save_net_file, ConfigSource,
-    LoadedConfigFile, LoadedNetFile, NetSlotId, RunConfig,
+    self, list_net_slots, load_net_file, net_slot_path, new_net_slot, save_invited_peers,
+    save_net_file, ConfigSource, LoadedConfigFile, LoadedNetFile, NetSlotId, RunConfig,
 };
 use crate::members::network_key::parse_user_input;
 use crate::members::sync::replica::entry::WireEntry;
@@ -178,6 +178,9 @@ fn seed_slot(
         if let Err(why) = seed_peers_cache(path, &network_id, peers, now) {
             say("network", format!("peer addresses not seeded: {why}"));
         }
+    }
+    if let Err(why) = save_invited_peers(path, peers) {
+        say("network", format!("invited peers not saved: {why}"));
     }
     if let Err(why) = seed_domains(path, secret, domains, now * 1_000_000) {
         say("network", format!("site list not seeded: {why}"));
