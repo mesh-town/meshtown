@@ -6,9 +6,15 @@ import java.util.concurrent.TimeUnit;
 /** Adapts a {@link Process} to {@link NodeStopper.Target} on every supported API level. */
 final class ProcessTarget implements NodeStopper.Target {
     private final Process process;
+    private final int sdk;
 
     ProcessTarget(Process process) {
+        this(process, Build.VERSION.SDK_INT);
+    }
+
+    ProcessTarget(Process process, int sdk) {
         this.process = process;
+        this.sdk = sdk;
     }
 
     @Override
@@ -18,7 +24,7 @@ final class ProcessTarget implements NodeStopper.Target {
 
     @Override
     public boolean awaitExit(long millis) throws InterruptedException {
-        if (Build.VERSION.SDK_INT >= 26) {
+        if (sdk >= 26) {
             return process.waitFor(millis, TimeUnit.MILLISECONDS);
         }
         long end = System.currentTimeMillis() + millis;

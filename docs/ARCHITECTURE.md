@@ -285,8 +285,8 @@ An outsider who learned a node's identifier (for example, from intercepted traff
 but only the `auth` and `invite` services answer them; every other service refuses a peer that has not passed the
 handshake. Without the network key they cannot pass it and do not know the topic identifier.
 
-A network set by the random part of a key: whoever guessed the random part is a full
-member. The key derivation salt is one for the whole application, so an outsider can compute once
+A network set by the random part of a key: whoever guessed the random part finds the network's
+records and passes the handshake, but is not a member until a member admits it to the member list. The key derivation salt is one for the whole application, so an outsider can compute once
 the keys for a list of candidates and match them at once against all the records they
 see in the public DHT. But there is no need to defend against salt guessing: the random part is issued
 by the program, and its 130.8 bits cannot be brute-forced — this is not a human's password, which can be

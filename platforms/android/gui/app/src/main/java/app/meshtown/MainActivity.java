@@ -1,8 +1,6 @@
 package app.meshtown;
 
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.VpnService;
@@ -29,12 +27,8 @@ import java.net.URLEncoder;
 public class MainActivity extends Activity {
     private static final int REQ_VPN = 1;
     private static final int REQ_NOTIFY = 2;
-    private static final int MENU_QUIT = 1;
-    private static final int MENU_START_OVER = 2;
-    /** The page asks for the start-over dialog by navigating here. */
-    private static final String START_OVER_URL = "meshtown-app://start-over";
-    private static final long WIPE_DELAY_MS = 1500;
     private Button button;
+    private AppMenu menu;
     private LinearLayout bar;
     private TextView hint;
     private WebView web;
@@ -52,6 +46,7 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         button = new Button(this);
         button.setOnClickListener(v -> toggle());
+        menu = new AppMenu(this, button);
         hint = new TextView(this);
         hint.setText("Join or create a network first");
         hint.setGravity(android.view.Gravity.CENTER);
@@ -60,8 +55,8 @@ public class MainActivity extends Activity {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                if (START_OVER_URL.equals(r.getUrl().toString())) {
-                    confirmStartOver();
+                if (AppMenu.START_OVER_URL.equals(r.getUrl().toString())) {
+                    menu.confirmStartOver();
                     return true;
                 }
                 if ("https".equals(r.getUrl().getScheme())) {
@@ -113,29 +108,19 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add(Menu.NONE, MENU_QUIT, Menu.NONE, "Quit Mesh Town");
-        menu.add(Menu.NONE, MENU_START_OVER, Menu.NONE, StatusText.resetMenuTitle(NodeService.state));
+        this.menu.create(menu);
         return true;
     }
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-        menu.findItem(MENU_START_OVER).setTitle(StatusText.resetMenuTitle(NodeService.state));
+        this.menu.prepare(menu);
         return super.onPrepareOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == MENU_START_OVER) {
-            confirmStartOver();
-            return true;
-        }
-        if (item.getItemId() != MENU_QUIT) {
-            return super.onOptionsItemSelected(item);
-        }
-        startService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_QUIT));
-        finishAndRemoveTask();
-        return true;
+        return menu.select(item) || super.onOptionsItemSelected(item);
     }
 
     /**
@@ -151,27 +136,6 @@ public class MainActivity extends Activity {
             return;
         }
         moveTaskToBack(true);
-    }
-
-    private void confirmStartOver() {
-        NodeState s = NodeService.state;
-        AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(StatusText.resetTitle(s))
-                .setMessage(StatusText.resetMessage(s))
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton(s.inNetwork || s.excluded ? "Leave and reset" : "Reset", (d, w) -> startOver())
-                .create();
-        dialog.show();
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(0xFFC62828);
-    }
-
-    /** Stops the tunnel and the node like Quit, then erases the app data; the system closes the process. */
-    private void startOver() {
-        startService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_QUIT));
-        button.postDelayed(() -> {
-            ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
-            am.clearApplicationUserData();
-        }, WIPE_DELAY_MS);
     }
 
     @Override
