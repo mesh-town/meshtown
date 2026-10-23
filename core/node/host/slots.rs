@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 
 use crate::config::config_file::NetSlotId;
 use crate::node::node_ctl::NodeCtl;
-use crate::web_gui::{ConfigState, HostControl, SlotHandle};
+use crate::web_gui::{AddedSlot, ConfigState, HostControl, HostError, SlotHandle};
 
 /// One slot of the host.
 struct Slot {
@@ -107,8 +107,20 @@ impl HostControl for HostSlots {
             .expect("the main slot is created with the map and never removed")
     }
 
+    fn slots(&self) -> Vec<SlotHandle> {
+        self.read().iter().map(|s| s.handle.clone()).collect()
+    }
+
     fn stop_all(&self) {
         self.read().iter().for_each(|s| s.handle.node.stop());
+    }
+
+    fn add_slot(&self) -> Result<AddedSlot, HostError> {
+        Err(HostError::Busy("not yet".into()))
+    }
+
+    fn retire_slot(&self, _id: &NetSlotId, _announced: bool) -> Result<(), HostError> {
+        Err(HostError::Busy("not yet".into()))
     }
 }
 
