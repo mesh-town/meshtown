@@ -8,7 +8,7 @@ from pathlib import Path
 
 NAME = "meshtown"
 DESCRIPTION = "Mesh Town node: private mesh network (static binary)"
-MAINTAINER = "Mesh Town <meshtown.app@gmail.com>"
+MAINTAINER = "Mesh Town <340663027+mesh-town@users.noreply.github.com>"
 LICENSE = "AGPL-3.0-only"
 URL = "https://github.com/mesh-town/meshtown"
 DEFAULT_MTIME = 1760000000

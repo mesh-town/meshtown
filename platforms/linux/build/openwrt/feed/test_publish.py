@@ -42,7 +42,7 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(git("--git-dir", str(self.bare), "rev-list", "--count", "main"), "1")
         self.assertEqual(git("--git-dir", str(self.bare), "log", "-1", "--format=%s", "main"), "meshtown 0.2.8")
         who = git("--git-dir", str(self.bare), "log", "-1", "--format=%an <%ae>|%cn <%ce>", "main")
-        self.assertEqual(who, "Mesh Town <meshtown.app@gmail.com>|Mesh Town <meshtown.app@gmail.com>")
+        self.assertEqual(who, "Mesh Town <340663027+mesh-town@users.noreply.github.com>|Mesh Town <340663027+mesh-town@users.noreply.github.com>")
         files = set(git("--git-dir", str(self.bare), "ls-tree", "-r", "--name-only", "main").splitlines())
         self.assertEqual(files, {"install.sh", ".nojekyll", "opkg/x86_64/Packages"})
         shown = git("--git-dir", str(self.bare), "show", "main:install.sh")
