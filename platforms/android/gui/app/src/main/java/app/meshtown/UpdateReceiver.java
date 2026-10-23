@@ -12,6 +12,8 @@ public final class UpdateReceiver extends BroadcastReceiver {
     public void onReceive(Context ctx, Intent intent) {
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            // Busy guards the download only; the confirmation window may be left with Home.
+            UpdateInstaller.busy.set(false);
             confirm(ctx, intent);
             return;
         }

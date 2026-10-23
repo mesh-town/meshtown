@@ -10,6 +10,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.widget.Toast;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -54,26 +57,44 @@ final class UpdateInstaller {
 
     private static void run(Context ctx, String url) {
         PackageInstaller installer = ctx.getPackageManager().getPackageInstaller();
+        File file = new File(ctx.getCacheDir(), "update.apk");
         int id = -1;
         try {
-            HttpURLConnection c = open(url);
-            long len = c.getContentLengthLong();
-            id = installer.createSession(params(ctx, len));
-            transfer(ctx, installer, id, c, len);
+            abandonOwn(installer);
+            download(url, file);
+            String refusal = PackageProbe.refusal(ctx, file.getPath());
+            if (refusal != null) {
+                finish(ctx, refusal);
+                return;
+            }
+            id = installer.createSession(params(ctx, file.length()));
+            transfer(ctx, installer, id, file);
         } catch (IOException | RuntimeException e) {
             abandon(installer, id);
-            busy.set(false);
-            toast(ctx, "Download failed.");
+            finish(ctx, UpdateCheck.DOWNLOAD_FAILED);
+        } finally {
+            file.delete();
         }
     }
 
-    private static void transfer(Context ctx, PackageInstaller installer, int id, HttpURLConnection c, long len)
-            throws IOException {
-        try (PackageInstaller.Session s = installer.openSession(id)) {
-            write(s, c, len);
-            s.commit(resultSender(ctx));
+    private static void finish(Context ctx, String message) {
+        busy.set(false);
+        toast(ctx, message);
+    }
+
+    private static void download(String url, File file) throws IOException {
+        HttpURLConnection c = open(url);
+        try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(file)) {
+            LimitedCopy.copy(in, out, LIMIT);
         } finally {
             c.disconnect();
+        }
+    }
+
+    private static void transfer(Context ctx, PackageInstaller installer, int id, File file) throws IOException {
+        try (PackageInstaller.Session s = installer.openSession(id)) {
+            write(s, file);
+            s.commit(resultSender(ctx));
         }
     }
 
@@ -98,8 +119,8 @@ final class UpdateInstaller {
         return c;
     }
 
-    private static void write(PackageInstaller.Session s, HttpURLConnection c, long len) throws IOException {
-        try (InputStream in = c.getInputStream(); OutputStream out = s.openWrite("meshtown.apk", 0, len > 0 ? len : -1)) {
+    private static void write(PackageInstaller.Session s, File file) throws IOException {
+        try (InputStream in = new FileInputStream(file); OutputStream out = s.openWrite("meshtown.apk", 0, file.length())) {
             LimitedCopy.copy(in, out, LIMIT);
             s.fsync(out);
         }
@@ -119,6 +140,12 @@ final class UpdateInstaller {
             installer.abandonSession(id);
         } catch (RuntimeException ignored) {
             // The session is already gone.
+        }
+    }
+
+    private static void abandonOwn(PackageInstaller installer) {
+        for (PackageInstaller.SessionInfo info : installer.getMySessions()) {
+            abandon(installer, info.getSessionId());
         }
     }
 
