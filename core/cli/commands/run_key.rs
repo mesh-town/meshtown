@@ -91,7 +91,7 @@ async fn serve_node(
     let ctl = crate::node::node_ctl::NodeCtl::new(&run.effective_settings);
     let saved = Some(relaunch.clone());
     Host::run_with_saved_slots(run, ctl, PageRole::Optional, saved, |run, ctl| {
-        crate::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch)
+        crate::node::run_network(Some(cfg), run, ctl, relaunch)
     })
     .await
 }

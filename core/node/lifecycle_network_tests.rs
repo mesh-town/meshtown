@@ -3,6 +3,7 @@
 //! the only place that knows which start function is behind it.
 
 use super::*;
+use crate::config::config_file::{self, CliOverrides, ConfigSource, RunConfig};
 
 const LEAVE_WITHIN: Duration = Duration::from_secs(20);
 
@@ -109,7 +110,10 @@ mod without_key {
         ctl.stop();
 
         // then
-        assert!(waiting, "the controller must be in `NoNetwork` while it waits");
+        assert!(
+            waiting,
+            "the controller must be in `NoNetwork` while it waits"
+        );
         assert!(!finished, "the call must not end before the stop");
         let res = timeout(LEAVE_WITHIN, task).await;
         assert!(matches!(res, Ok(Ok(Ok(())))), "stop while waiting: {res:?}");
@@ -174,17 +178,19 @@ fn setup_without_key() -> Fixture {
 }
 
 /// The single entry the tests start a network through: `Some` starts it at once, `None` waits for a key.
+/// The run config is a launch without a file, so a node without a key is a declined identity.
 async fn start_network(
     start: Option<NodeConfig>,
     settings: Settings,
     ctl: Arc<NodeCtl>,
     relaunch: Relaunch,
 ) -> Result<()> {
-    match start {
-        Some(cfg) => run_node_with_ctl(cfg, settings, ctl, relaunch).await,
-        None => {
-            let identity = IdentityState::Temporary(TemporaryReason::Declined);
-            run_node_awaiting_key(settings, identity, ctl, relaunch).await
-        }
-    }
+    run_network(start, run_config(settings), ctl, relaunch).await
+}
+
+fn run_config(settings: Settings) -> RunConfig {
+    let mut run =
+        config_file::prepare(&ConfigSource::Disabled, &CliOverrides::default(), false, 0).unwrap();
+    run.effective_settings = settings;
+    run
 }

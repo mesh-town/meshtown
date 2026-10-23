@@ -5,7 +5,6 @@
 use crate::config::config_file::{CliOverrides, RunConfig};
 use crate::node::host::{Host, PageRole};
 use crate::node::output::{say, NET_NAME};
-use crate::node::IdentityState;
 
 use super::run_key::build_relaunch;
 
@@ -37,10 +36,15 @@ pub(super) async fn run_without_key(
     let relaunch = build_relaunch(&run, overrides, initial_domains, blocked_domains);
     let ctl = crate::node::node_ctl::NodeCtl::new_without_network(&run.effective_settings);
     let saved = Some(relaunch.clone());
-    Host::run_with_saved_slots(run, ctl, PageRole::OnlyEntry, saved, |run, ctl| async move {
-        hint_lines();
-        let identity = IdentityState::from_report(&run.file_report);
-        crate::node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await
-    })
+    Host::run_with_saved_slots(
+        run,
+        ctl,
+        PageRole::OnlyEntry,
+        saved,
+        |run, ctl| async move {
+            hint_lines();
+            crate::node::run_network(None, run, ctl, relaunch).await
+        },
+    )
     .await
 }

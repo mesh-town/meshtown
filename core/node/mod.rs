@@ -81,7 +81,7 @@ pub use doc_changes::DocChanges;
 #[cfg(feature = "net-hyper")]
 pub use identity::{IdentityState, TemporaryReason};
 #[cfg(feature = "net-hyper")]
-pub use lifecycle::{run, run_node_awaiting_key, run_node_with_ctl};
+pub use lifecycle::{run, run_network, run_node_awaiting_key, run_node_with_ctl};
 #[cfg(feature = "net-hyper")]
 pub use running::RunningNode;
 #[cfg(feature = "net-hyper")]

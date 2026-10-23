@@ -79,6 +79,23 @@ pub async fn run_node_awaiting_key(
     wait_then_run(settings, identity, &ctl, &relaunch).await
 }
 
+/// Runs one network's node until it stops: with `Some(cfg)` it starts at once, with `None` it waits for the
+/// first key from the page.
+pub async fn run_network(
+    start: Option<NodeConfig>,
+    run: crate::config::config_file::RunConfig,
+    ctl: Arc<crate::node::node_ctl::NodeCtl>,
+    relaunch: crate::node::node_ctl::Relaunch,
+) -> Result<()> {
+    match start {
+        Some(cfg) => run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch).await,
+        None => {
+            let identity = IdentityState::from_report(&run.file_report);
+            run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch).await
+        }
+    }
+}
+
 /// Wait loop before the first start: `Stop` — exit (from the page or Ctrl-C/SIGTERM, already
 /// turned into `Stop` by the signal task of the host); `Switch { key, peers }` — `relaunch.reload`, on success
 /// — move to `run_cycles` with the invite's addresses for this start; on failure — back to

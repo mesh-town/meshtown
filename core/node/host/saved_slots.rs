@@ -1,16 +1,14 @@
 //! Starting the networks saved under `nets/` beside the main settings file: every slot folder that can be
 //! read is brought up next to the main slot, the rest is reported in the log and left untouched.
 
-use std::sync::{Arc, Mutex};
-
+use super::launch::SlotLaunch;
 use super::slots::HostSlots;
 use crate::config::config_file::{list_net_slots, prepare_net_slot, NetSlotId, RunConfig};
 use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::guard_sources::GuardSources;
-use crate::node::node_ctl::{NodeCtl, Relaunch};
+use crate::node::node_ctl::Relaunch;
 use crate::node::output::say;
-use crate::node::{IdentityState, NodeConfig};
-use crate::web_gui::{ConfigState, HostError, SlotHandle};
+use crate::node::IdentityState;
 
 /// How many networks one process runs; the main slot always counts, even without a key.
 pub const MAX_NETS: usize = 8;
@@ -32,6 +30,25 @@ impl Running {
     }
 }
 
+/// What starts a prepared slot: its own launch settings and the parsed key.
+fn slot_launch(
+    id: NetSlotId,
+    run: RunConfig,
+    parsed: NetworkKeyInput,
+    relaunch: &Relaunch,
+) -> SlotLaunch {
+    let relaunch = relaunch.for_net_slot(&run);
+    let mut cfg = relaunch.node_config(&run.effective_settings, parsed.key);
+    cfg.network_label = parsed.label;
+    cfg.identity = IdentityState::from_report(&run.file_report);
+    SlotLaunch {
+        id,
+        run,
+        relaunch,
+        start: Some(cfg),
+    }
+}
+
 fn not_started(id: &NetSlotId, why: impl std::fmt::Display) {
     say("node", format!("net slot {id} not started: {why}"));
 }
@@ -41,24 +58,6 @@ fn slot_key(run: &RunConfig) -> Result<NetworkKeyInput, String> {
     let text = run.effective_settings.net.network_key.as_deref();
     let text = text.ok_or_else(|| "the file has no network key".to_string())?;
     parse_user_input(text).map_err(|_| "the network key could not be parsed".to_string())
-}
-
-/// Runs one added slot's node cycle; its failure is a log line, the process goes on.
-async fn run_slot(
-    id: NetSlotId,
-    cfg: NodeConfig,
-    run: RunConfig,
-    ctl: Arc<NodeCtl>,
-    relaunch: Relaunch,
-) -> anyhow::Result<()> {
-    if let Err(e) = crate::node::run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch).await
-    {
-        say(
-            "node",
-            format!("net slot {id} stopped with an error: {e:#}"),
-        );
-    }
-    Ok(())
 }
 
 /// Whether the main settings file has saved network folders beside it; without a file (`--no-config`) none.
@@ -123,35 +122,9 @@ impl HostSlots {
                 format!("limit of {MAX_NETS} networks; the folder is kept"),
             );
         }
-        match self.spawn_slot(id.clone(), run, parsed, relaunch, sources) {
+        match self.launch(slot_launch(id.clone(), run, parsed, relaunch), sources) {
             Ok(()) => running.0.push((network, id)),
             Err(why) => not_started(&id, format!("{why:?}")),
         }
-    }
-
-    fn spawn_slot(
-        &self,
-        id: NetSlotId,
-        run: RunConfig,
-        parsed: NetworkKeyInput,
-        relaunch: &Relaunch,
-        sources: &GuardSources,
-    ) -> Result<(), HostError> {
-        let ctl = NodeCtl::new(&run.effective_settings);
-        ctl.set_guard_sources(id.clone(), sources.clone());
-        if let Some(seat) = self.proxy.get() {
-            ctl.set_proxy_seat(id.clone(), seat.clone());
-        }
-        let slot_relaunch = relaunch.for_net_slot(&run);
-        let mut cfg = slot_relaunch.node_config(&run.effective_settings, parsed.key);
-        cfg.network_label = parsed.label;
-        cfg.identity = IdentityState::from_report(&run.file_report);
-        let handle = SlotHandle {
-            id: id.clone(),
-            node: ctl.clone(),
-            config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
-        };
-        let work = run_slot(id, cfg, run, ctl.clone(), slot_relaunch);
-        self.push_slot(handle, ctl, work)
     }
 }
