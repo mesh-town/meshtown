@@ -506,11 +506,13 @@ leaving in the network (if it has one), then the slot is taken out:
 - The primary network stays as an empty slot with a new node identity; its key and the publications are
   dropped from the settings file, its files are moved to `nets/left-main-<time>/`. The page needs no
   restart; after a process restart the cookie of the page is renamed, so sign in again.
-- 200 `{"left":bool,"announced":bool,"nets":[…]}`. `left` — the record was written (false when the node was
+- 200 `{"left":bool,"announced":bool,"nets":[…]}` plus the member list fields of the other `members/*`
+  replies (`me`, `members`, `counts`, …; with no members and zero counts when the slot had no network or is
+  broken). `left` — the record was written (false when the node was
   already excluded or the slot had no network); `announced` — a neighbour was online while the record was
   written. If the node refuses to write the record (409 `busy`, 500 `internal`), the slot is not touched.
 - 409 `busy` for the primary network when its key comes from `--key` or `MESHTOWN_KEY`: restart without it.
-- A broken slot is only set aside: 200 `{"left":false,"announced":false,"nets":[…]}`.
+- A broken slot is only set aside: 200 `{"left":false,"announced":false,"nets":[…]}` plus an empty member list (`"members":[]`, zero counts).
 
 **`POST …/network/join` and `…/network/create`** act on the slot of the address. A slot that already works
 with a network refuses a different one: 409 `network_present` (`this tab already has a network: leave it

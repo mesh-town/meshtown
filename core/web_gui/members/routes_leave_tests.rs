@@ -116,6 +116,7 @@ async fn a_slot_with_a_network_announces_then_is_retired() {
         assert_eq!(body["left"], true);
         assert_eq!(body["announced"], announced, "online {online}");
         assert!(body["nets"].is_array());
+        assert!(body["members"].is_array(), "{body}");
         assert_eq!(
             f.node
                 .member_calls
@@ -246,6 +247,10 @@ async fn a_broken_slot_is_retired_without_the_node() {
             .load(std::sync::atomic::Ordering::SeqCst),
         0
     );
+    assert_eq!(body["members"], json!([]));
+    assert_eq!(body["me_excluded"], false);
+    assert_eq!(body["need"], 2);
+    assert_eq!(body["counts"]["members"], 0);
     assert_eq!(state, StatusCode::NOT_FOUND);
     assert_eq!(state_body["error"], "unknown_net");
 }

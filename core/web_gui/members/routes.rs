@@ -196,13 +196,44 @@ fn neighbour_online(slot: &SlotHandle) -> bool {
     snap.peers.iter().any(|p| !p.is_self && p.online)
 }
 
+/// The member list of a node that has no network: no members, nobody excluded or pending.
+fn empty_list() -> Map<String, Value> {
+    let counts = json!({"members": 0, "voting": 0, "excluded": 0, "unlisted": 0, "pending": 0});
+    let Value::Object(map) = json!({
+        "me": "",
+        "me_excluded": false,
+        "me_pending": false,
+        "need": 2,
+        "me_admission": null,
+        "counts": counts,
+        "members": [],
+    }) else {
+        unreachable!("an object literal")
+    };
+    map
+}
+
 /// Takes the slot out of the host and answers with the list of the networks left.
-fn retired(app: &App, id: &NetSlotId, left: bool, announced: bool) -> Response {
+/// The body is the member list of the node (empty when there was no answer) with the leave fields added.
+fn retired(
+    app: &App,
+    id: &NetSlotId,
+    left: Option<MembersReply>,
+    announced: bool,
+) -> Response {
     if let Err(e) = app.host.retire_slot(id, announced) {
         return host_error_response(e);
     }
     let nets = briefs(app.host.as_ref());
-    let body = json!({"left": left, "announced": announced, "nets": nets});
+    let flag = left.as_ref().and_then(|r| r.changed).unwrap_or(false);
+    let mut body = match left.map(serde_json::to_value) {
+        Some(Ok(Value::Object(map))) => map,
+        _ => empty_list(),
+    };
+    body.insert("left".into(), json!(flag));
+    body.insert("announced".into(), json!(announced));
+    body.insert("nets".into(), json!(nets));
+    let body = Value::Object(body);
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
@@ -214,11 +245,11 @@ async fn leave_live(app: &App, slot: SlotHandle) -> Response {
         return json_err(StatusCode::CONFLICT, "busy", KEY_FROM_FLAG);
     }
     if !standing.has_network {
-        return retired(app, &slot.id, false, false);
+        return retired(app, &slot.id, None, false);
     }
     let announced = neighbour_online(&slot);
     match slot.node.member_action(MemberActionReq::Leave).await {
-        Ok(reply) => retired(app, &slot.id, reply.changed.unwrap_or(false), announced),
+        Ok(reply) => retired(app, &slot.id, Some(reply), announced),
         Err(e) => reply(Err(e)),
     }
 }
@@ -237,7 +268,7 @@ async fn leave_handler(State(app): State<Arc<App>>, target: LeaveSlot, bytes: By
     }
     match target {
         LeaveSlot::Live(slot) => leave_live(&app, slot).await,
-        LeaveSlot::Broken(id) => retired(&app, &id, false, false),
+        LeaveSlot::Broken(id) => retired(&app, &id, None, false),
     }
 }
 
