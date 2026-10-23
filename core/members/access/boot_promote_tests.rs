@@ -61,19 +61,6 @@ mod timing {
     }
 
     #[tokio::test]
-    async fn legacy_first_boot_promotes_its_witnesses() {
-        // given: a node of stage zero with a neighbour in the cache
-        let rig = setup();
-        let x = pid(2);
-        rig.given_prior_life().await;
-        // when: the first boot
-        rig.when_boot(&[], &[x], NOW).await;
-        // then: the witness is promoted at once and the marker carries the flag
-        assert_eq!(rig.admits().await, admits_of(&[(x, Via::None)]));
-        assert!(flagged(&rig).await);
-    }
-
-    #[tokio::test]
     async fn newcomer_promotes_nothing() {
         // given: a node with no earlier life and a neighbour from the invitation
         let rig = setup();

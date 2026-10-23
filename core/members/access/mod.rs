@@ -1,4 +1,4 @@
-//! Membership list ("who may be a neighbour"): record format, vote tally, verdict view, boot migration,
+//! Membership list ("who may be a neighbour"): record format, vote tally, verdict view, boot,
 //! watcher and member actions.
 //!
 //! What it does: declares the modules of the list.

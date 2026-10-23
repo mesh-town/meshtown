@@ -142,7 +142,6 @@ async fn open_domain_list(
             domain_list.me().fmt_short()
         ),
     );
-    // The boot run goes before the node's first record in the shared replica: otherwise `is_legacy` fires falsely.
     let access = start_access(&domain_list, &net.members, access, background_abort_handles).await;
     let _ = net.domain_list_cell.set(domain_list.clone());
     let events = domains::log_events(domain_list.clone(), doc_changes.clone());

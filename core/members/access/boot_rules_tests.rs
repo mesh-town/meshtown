@@ -91,17 +91,15 @@ mod never_admits {
 
     #[tokio::test]
     async fn exclusion_by_not_yet_admitted_voters_is_respected() {
-        // given: a long-time node; V1 and V2 are recent authors (they will be admitted only by the migration)
-        // and have voted against S, who is a cached neighbour
+        // given: V1 and V2 are cached neighbours (not admitted yet) and have voted against S, who is cached too
         let rig = setup();
         let (v1, v2, s) = (pid(2), pid(3), pid(4));
-        rig.given_prior_life().await;
         rig.given_vote_by(v1, s, ago(2 * DAY));
         rig.given_vote_by(v2, s, ago(DAY));
         // when: the first boot
-        rig.when_boot(&[], &[s], NOW).await;
+        rig.when_boot(&[], &[v1, v2, s], NOW).await;
         // then: the voters are admitted and their votes count: S is excluded, so S is not admitted
-        let want = admits_of(&[(v1, Via::Migration), (v2, Via::Migration)]);
+        let want = admits_of(&[(v1, Via::Witness), (v2, Via::Witness)]);
         assert_eq!(rig.admits().await, want, "S must stay out");
     }
 
@@ -128,74 +126,22 @@ mod never_admits {
 mod ceiling {
     use super::*;
 
-    #[tokio::test]
-    async fn admit_cap_prefers_witness_then_recent() {
-        // given: a long-time node with 100 cached neighbours and 200 recent authors (300 candidates)
-        let rig = setup();
-        let (cached, authors) = (many_ids(1, 100), many_ids(2, 200));
-        rig.given_prior_life().await;
-        rig.given_authors_by_age(&authors);
-        // when: the first boot
-        let out = rig.when_boot(&[], &cached, NOW).await;
-        // then: 256 records: every witness, then the 156 newest authors; the 44 oldest are left for the next start
-        let written = rig.admits().await;
-        assert_eq!(written.len(), 256);
-        assert_eq!(out, 256);
-        assert!(
-            cached.iter().all(|c| written.get(c) == Some(&Via::None)),
-            "every witness must be written and promoted"
-        );
-        assert!(
-            authors[44..]
-                .iter()
-                .all(|a| written.get(a) == Some(&Via::Migration)),
-            "the newest 156 authors"
-        );
-        assert!(
-            authors[..44].iter().all(|a| !written.contains_key(a)),
-            "the oldest 44 authors"
-        );
-    }
-
-    #[tokio::test]
+        #[tokio::test]
     async fn admit_cap_counts_skipped_candidates() {
-        // given: the same 300 candidates, planned without writing anything
+        // given: 300 cached neighbours, planned without writing anything
         let rig = setup();
-        let (cached, authors) = (many_ids(1, 100), many_ids(2, 200));
-        rig.given_authors_by_age(&authors);
-        let snap = rig.shared.scan(b"").await.unwrap();
+        let cached = many_ids(1, 300);
         let boot = AccessBoot {
             me: rig.me,
             initial: vec![],
             cached: cached.clone(),
             now_unix: NOW,
         };
-        // when: the plan is made with the migration on
-        let plan = plan_admits(&snap, &BTreeSet::new(), &boot, Some(NOW));
-        // then: the witnesses first, 156 authors, 44 skipped, and the order is newest first
-        assert_eq!(plan.witness, cached);
-        assert_eq!(plan.migration.len(), 156);
+        // when: the plan is made
+        let plan = plan_admits(&[], &BTreeSet::new(), &boot);
+        // then: the first 256 are kept, 44 are skipped
+        assert_eq!(plan.witness, cached[..256]);
         assert_eq!(plan.skipped, 44);
-        let newest_first: Vec<PeerId> = authors[44..].iter().rev().copied().collect();
-        assert_eq!(
-            plan.migration, newest_first,
-            "authors by their last record, newest first"
-        );
-    }
-
-    #[tokio::test]
-    async fn restart_does_not_write_what_the_ceiling_left() {
-        // given: the first boot has written 256 of 300 candidates
-        let rig = setup();
-        let (cached, authors) = (many_ids(1, 100), many_ids(2, 200));
-        rig.given_prior_life().await;
-        rig.given_authors_by_age(&authors);
-        rig.when_boot(&[], &cached, NOW).await;
-        // when: the node starts again
-        let out = rig.when_boot(&[], &cached, NOW + 60).await;
-        // then: the marker is there, so the migration is not repeated and the 44 oldest authors stay out
-        assert_eq!(out, 0);
-        assert_eq!(rig.admits().await.len(), 256);
     }
 }
 
@@ -206,14 +152,13 @@ mod log_line {
     fn boot_line_is_ascii_without_ids() {
         // given: plans that carry real node ids, for every class of a boot
         let ids = [pid(2), pid(3), pid(4)];
-        let plan = plan_of(&ids[..2], &ids[2..], 7, 3);
+        let plan = plan_of(&ids, 7, 3);
         let left = BootPlan {
             me_left: true,
-            ..plan_of(&[], &[], 0, 0)
+            ..plan_of(&[], 0, 0)
         };
         // when: the lines are made
         let lines = [
-            boot_line(Class::Legacy, &plan, 3),
             boot_line(Class::Fresh, &plan, 2),
             boot_line(Class::Done, &plan, 1),
             boot_line(Class::Done, &plan, 0),
@@ -241,14 +186,10 @@ mod log_line {
 
     #[test]
     fn boot_line_follows_the_documented_texts() {
-        // given: a plan with two witnesses and one migrated author
-        let ids = [pid(2), pid(3), pid(4)];
-        let plan = plan_of(&ids[..2], &ids[2..], 0, 0);
-        // when / then: the first start of a long-time node, the repeats, the node that left
-        assert_eq!(
-            boot_line(Class::Legacy, &plan, 3),
-            "acl boot: legacy, admitted 3 (witness 2, migration 1)"
-        );
+        // given: a plan with two witnesses
+        let ids = [pid(2), pid(3)];
+        let plan = plan_of(&ids, 0, 0);
+        // when / then: the first start, the repeats, the node that left
         assert_eq!(
             boot_line(Class::Fresh, &plan, 2),
             "acl boot: fresh, admitted 2"
@@ -263,7 +204,7 @@ mod log_line {
         );
         let left = BootPlan {
             me_left: true,
-            ..plan_of(&[], &[], 0, 0)
+            ..plan_of(&[], 0, 0)
         };
         assert_eq!(
             boot_line(Class::Left, &left, 0),
@@ -274,8 +215,8 @@ mod log_line {
     #[test]
     fn boot_line_adds_skipped_and_ignored_only_when_not_zero() {
         // given: plans that skipped some candidates and met unreadable list records
-        let plan = plan_of(&[pid(2)], &[], 44, 3);
-        let only_skipped = plan_of(&[pid(2)], &[], 44, 0);
+        let plan = plan_of(&[pid(2)], 44, 3);
+        let only_skipped = plan_of(&[pid(2)], 44, 0);
         // when / then: the tail names the counts, in this order, and is absent for zero
         assert_eq!(
             boot_line(Class::Fresh, &plan, 1),
@@ -356,14 +297,6 @@ impl Rig {
             "the block must be stored"
         );
     }
-
-    /// One record per author; the later in the list, the newer (an hour apart, all within 9 days).
-    fn given_authors_by_age(&self, authors: &[PeerId]) {
-        let count = authors.len() as u64;
-        for (i, author) in authors.iter().enumerate() {
-            self.given_record_of(*author, b"node/exit/a", ago((count - i as u64) * 3600));
-        }
-    }
 }
 
 /// `n` distinct node ids; `tag` separates the families.
@@ -376,10 +309,9 @@ fn many_ids(tag: u8, n: usize) -> Vec<PeerId> {
     (0..n).map(id).collect()
 }
 
-fn plan_of(witness: &[PeerId], migration: &[PeerId], skipped: usize, ignored: usize) -> BootPlan {
+fn plan_of(witness: &[PeerId], skipped: usize, ignored: usize) -> BootPlan {
     BootPlan {
         witness: witness.to_vec(),
-        migration: migration.to_vec(),
         skipped,
         ignored,
         me_left: false,
