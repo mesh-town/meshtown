@@ -23,7 +23,7 @@ mod config;
 mod domains;
 pub(crate) mod helpers;
 mod log;
-mod nets;
+pub(crate) mod nets;
 mod network;
 mod overview;
 mod pages;

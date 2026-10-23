@@ -16,7 +16,6 @@ use crate::web_gui::{App, SlotHandle};
 pub(crate) struct SlotParam(pub SlotHandle);
 
 /// The slot of a request that may also name a broken one (a slot whose files are unusable has no handle).
-#[allow(dead_code)]
 pub(crate) enum LeaveSlot {
     Live(SlotHandle),
     Broken(NetSlotId),

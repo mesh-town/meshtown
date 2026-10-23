@@ -27,6 +27,11 @@ must match it character for character: field names, error codes, enum values.
   `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0`; default port 7777. Not
   `localhost` by name, not `::1`: the page does not listen on IPv6. The mode only affects access to the
   node settings page, not the network or traffic.
+- A node can work with several networks at once. The routes of one network exist under two addresses:
+  `/api/<route>` is the primary network, `/api/net/{slot}/<route>` is the network with the id `{slot}`
+  (`main` for the primary one); both are served by the same handler. An id that names no network is
+  404 `unknown_net`. Process routes (the log, sign-in, `actions/stop`, `token/rotate`, `/api/nets`,
+  `/api/overview`) have no prefix. Details in 1.11.
 - All responses are `Content-Type: application/json; charset=utf-8`, except static files and
   the log download.
 - Headers on every response:
@@ -126,7 +131,10 @@ code, and `default-src 'none'` stays.
 
 ### 1.3 `GET /api/state` — state snapshot
 
-Served in full on every request, there are no partial responses. Example (the values are made up, but
+Served in full on every request, there are no partial responses. The address `/api/net/{slot}/state`
+answers for one network; besides the fields below every state carries `api` (the version of the
+multi-network replies, `2`), `slot` (the id of the network the state describes) and `nets` (the brief of
+every network of the node, see 1.11). Example (the values are made up, but
 all fields are required; `null` is allowed where marked):
 
 ```json
@@ -443,3 +451,70 @@ also a failure. There is no global counter, otherwise anyone on the network coul
 sign-in without extension. The persistent token, `X-Meshtown-Token` and `?token=` work for the tray, e2e and scripts
 as before. There is no CSRF token: for a state-changing method `Origin` is required and checked against `Host`, the cookie is
 `SameSite=Strict; HttpOnly`, a foreign site can neither send the cookie nor forge `Origin`.
+
+### 1.11 Networks: `/api/net/{slot}`, `/api/nets`, `/api/overview`
+
+A network slot is one network the node works with. Its id is six characters `[a-z2-7]`; the primary
+network is `main`. A slot may be empty: it waits for a key (see `network/join` and `network/create`).
+
+**Route classes.** The network routes (`state`, `config`, `peer-addresses`, `network/key`,
+`network/invite`, `network/join`, `network/create`, `domains`, `actions/find-exit`, `actions/check-domain`,
+`actions/check-all`, `actions/restart`, `members` and `members/{exclude,unexclude,admit,unadmit,block,unblock,leave}`)
+exist twice: under `/api` for the primary network and under `/api/net/{slot}` for any network. All other
+routes are process routes and exist once, without a prefix. `/api/net/{slot}/log` does not exist (404
+`not_found`): the log is one for the process, filter it with `?net=`. The address of a slot that was left or
+does not exist is 404 `unknown_net`.
+
+**`NetBrief`** — the short form of one network, used in `nets`:
+
+| Field | Meaning |
+|---|---|
+| `id` | the slot id |
+| `label`, `id_hex` | the network label and its identifier; `null` for an empty or broken slot |
+| `status` | the node status of the slot, or `broken` |
+| `exit_enabled`, `proxy` | the slot offers an exit; the slot is the one the local proxy uses |
+| `route_state`, `exits` | how traffic is routed and the exits in use |
+| `members_voting`, `members_admitting` | member counts |
+| `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
+| `peers_online`, `peers_total` | peers online and all known peers |
+
+A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters
+are 0, `label` and `id_hex` are `null`. Its only action is `POST /api/net/{slot}/members/leave`; every other
+address of it is 404 `unknown_net`.
+
+**`GET /api/nets`** — 200 `{"api":2,"nets":[NetBrief…]}`: the primary network first, then the others in
+the order the node started them, broken slots last.
+
+**`POST /api/nets`** — adds an empty slot that waits for a key. The body is a JSON object (`{}`). 201
+`{"slot":"<id>","nets":[…]}` for a new slot; 200 with the same body when an empty slot already waited
+(it is handed back, none is added). 409 `too_many_nets` with `limit` (8) at the limit; 409 `busy` when the
+node cannot add networks (it is stopping, or it runs without a settings file).
+
+**`GET /api/overview`** — 200 `{"api":2,"nets":[…],"slots":[…],"restart_slots":[…]}`. Each element of
+`slots` is `{"slot":"<id>","state":{…},"members":{…}}` with what `/api/net/{slot}/state` and
+`/api/net/{slot}/members` would answer; `members` is `null` where that route answers an error (no network),
+and both are `null` for a broken slot. `restart_slots` lists the slots whose state has settings waiting for a
+restart.
+
+**Leave network: `POST /api/net/{slot}/members/leave`** (also `/api/members/leave` for the primary
+network). The body is `{"confirm":true}`, otherwise 400 `bad_request`. The node first records its own
+leaving in the network (if it has one), then the slot is taken out:
+
+- An added slot disappears at once (its address is then 404 `unknown_net`); the node stops it in the
+  background and moves its folder aside to `nets/left-<id>-<time>/`. When a neighbour was online, the node
+  waits a few seconds before stopping so the record reaches it.
+- The primary network stays as an empty slot with a new node identity; its key and the publications are
+  dropped from the settings file, its files are moved to `nets/left-main-<time>/`. The page needs no
+  restart; after a process restart the cookie of the page is renamed, so sign in again.
+- 200 `{"left":bool,"announced":bool,"nets":[…]}`. `left` — the record was written (false when the node was
+  already excluded or the slot had no network); `announced` — a neighbour was online while the record was
+  written. If the node refuses to write the record (409 `busy`, 500 `internal`), the slot is not touched.
+- 409 `busy` for the primary network when its key comes from `--key` or `MESHTOWN_KEY`: restart without it.
+- A broken slot is only set aside: 200 `{"left":false,"announced":false,"nets":[…]}`.
+
+**`POST …/network/join` and `…/network/create`** act on the slot of the address. A slot that already works
+with a network refuses a different one: 409 `network_present` (`this tab already has a network: leave it
+first, or add a network`), nothing is written and an invite is not spent; `create` always refuses such a
+slot, `join` of the slot's own network is accepted as before. A network that another slot already works
+with is 409 `net_already_added` with the field `slot` — the id of that slot. `keep_ports` is accepted
+and has no effect on a slot without a network.

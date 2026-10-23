@@ -4,15 +4,19 @@
 use std::sync::Arc;
 
 use axum::body::Bytes;
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, MethodRouter};
 use axum::Router;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 
+use crate::config::config_file::NetSlotId;
 use crate::web_gui::http::json_err;
+use crate::web_gui::net_brief::briefs;
 use crate::web_gui::routes::helpers::{action_error, bad_method, body_obj};
-use crate::web_gui::routes::slot_param::SlotParam;
+use crate::web_gui::routes::nets::host_error_response;
+use crate::web_gui::routes::slot_param::{LeaveSlot, SlotParam};
 use crate::web_gui::App;
 use crate::web_gui::{MemberActionReq, MemberError, MembersReply, SlotHandle};
 
@@ -169,7 +173,57 @@ fn confirmed(map: &Map<String, Value>) -> bool {
     matches!(map.get("confirm"), Some(Value::Bool(true)))
 }
 
-async fn leave_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+const KEY_FROM_FLAG: &str =
+    "the network key comes from --key or MESHTOWN_KEY: restart without it to leave";
+
+/// What the leave handler needs to know of a live slot before it acts.
+struct Standing {
+    has_network: bool,
+    key_from_flag: bool,
+}
+
+fn standing_of(slot: &SlotHandle) -> Standing {
+    let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    Standing {
+        has_network: cfg.current_network_key.is_some(),
+        key_from_flag: cfg.cli_override_paths.contains(&"network.key"),
+    }
+}
+
+/// Whether some other member is online now, i.e. someone can hear that this node leaves.
+fn neighbour_online(slot: &SlotHandle) -> bool {
+    let snap = slot.node.snapshot();
+    snap.peers.iter().any(|p| !p.is_self && p.online)
+}
+
+/// Takes the slot out of the host and answers with the list of the networks left.
+fn retired(app: &App, id: &NetSlotId, left: bool, announced: bool) -> Response {
+    if let Err(e) = app.host.retire_slot(id, announced) {
+        return host_error_response(e);
+    }
+    let nets = briefs(app.host.as_ref());
+    let body = json!({"left": left, "announced": announced, "nets": nets});
+    (StatusCode::OK, axum::Json(body)).into_response()
+}
+
+/// Tells the network about leaving (when there is one), then retires the slot. A refusal of the node
+/// leaves the slot untouched.
+async fn leave_live(app: &App, slot: SlotHandle) -> Response {
+    let standing = standing_of(&slot);
+    if slot.id == NetSlotId::main() && standing.key_from_flag {
+        return json_err(StatusCode::CONFLICT, "busy", KEY_FROM_FLAG);
+    }
+    if !standing.has_network {
+        return retired(app, &slot.id, false, false);
+    }
+    let announced = neighbour_online(&slot);
+    match slot.node.member_action(MemberActionReq::Leave).await {
+        Ok(reply) => retired(app, &slot.id, reply.changed.unwrap_or(false), announced),
+        Err(e) => reply(Err(e)),
+    }
+}
+
+async fn leave_handler(State(app): State<Arc<App>>, target: LeaveSlot, bytes: Bytes) -> Response {
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -181,12 +235,19 @@ async fn leave_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
             "field confirm must be true",
         );
     }
-    reply(slot.node.member_action(MemberActionReq::Leave).await)
+    match target {
+        LeaveSlot::Live(slot) => leave_live(&app, slot).await,
+        LeaveSlot::Broken(id) => retired(&app, &id, false, false),
+    }
 }
 
 #[cfg(test)]
 #[path = "routes_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "routes_leave_tests.rs"]
+mod leave_tests;
 
 #[cfg(test)]
 #[path = "routes_actions_tests.rs"]

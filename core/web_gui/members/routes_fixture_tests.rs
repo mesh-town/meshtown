@@ -182,9 +182,11 @@ fn fixture(node: Arc<dyn NodeControl>, seen: Seen) -> Fixture {
     let auth = AuthState::new("mesh_test".to_string(), None, ListenAccess::Localhost);
     let run = prepare(&ConfigSource::Disabled, &CliOverrides::default(), false, 0)
         .expect("prepare without a file");
+    let mut config = ConfigState::from_run(&run);
+    config.current_network_key = Some("test-network-key".to_string());
     let app = Arc::new(App {
         shared: Arc::new(WebShared::new(PORT, TOKEN.to_string(), auth)),
-        host: single_slot_host(node, ConfigState::from_run(&run)),
+        host: single_slot_host(node, config),
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
     });
