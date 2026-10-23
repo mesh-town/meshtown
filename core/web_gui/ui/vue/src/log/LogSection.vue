@@ -4,9 +4,9 @@ import { navigateTo } from "../common/navigate.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import { getToken } from "../core/token.ts";
-import { GAP_TEXT, chipTags, downloadUrl, formatLogTime, ringHint, visibleEntries } from "./log-view.ts";
+import { GAP_TEXT, chipTags, downloadUrl, effectiveLogNet, formatLogTime, lineNetTag, logNetFilters, ringHint, visibleEntries } from "./log-view.ts";
 import {
-  LOG_AUTOSCROLL, LOG_DOWNLOAD, LOG_LOADING, LOG_PAUSE, LOG_RESUME, LOG_SEARCH_PLACEHOLDER, LOG_STORE_MISSING, LOG_TAG_ALL, LOG_WINDOW_LABEL,
+  LOG_AUTOSCROLL, LOG_DOWNLOAD, LOG_LOADING, LOG_NETWORK_LABEL, LOG_PAUSE, LOG_RESUME, LOG_SEARCH_PLACEHOLDER, LOG_STORE_MISSING, LOG_TAG_ALL, LOG_WINDOW_LABEL,
 } from "./log-texts.ts";
 import { useLogFeed } from "./use-log-feed.ts";
 
@@ -15,13 +15,16 @@ const AT_BOTTOM_PX = 24;
 const injected = inject(STORE_KEY);
 if (!injected) throw new Error(LOG_STORE_MISSING);
 const store: Store = injected;
-const { feed, paused, pollError, togglePause } = useLogFeed(store);
+const net = ref<string | null>(null);
+const { feed, paused, pollError, togglePause } = useLogFeed(store, net);
 const tag = ref<string>("all");
 const search = ref<string>("");
 const autoscroll = ref(true);
 const userScrolledUp = ref(false);
 const logWindowEl = ref<HTMLElement | null>(null);
 
+const netFilters = computed(() => logNetFilters(store));
+const activeNet = computed(() => effectiveLogNet(store, net.value));
 const tags = computed(() => chipTags(store.state && store.state.log));
 const hint = computed(() => ringHint(store.state && store.state.log));
 const shown = computed(() => visibleEntries(feed.value.lines, tag.value, search.value));
@@ -58,6 +61,12 @@ watch([shown, autoscroll], scrollDown, { flush: "post" });
 
 <template>
   <div v-if="store.state" class="card">
+    <div v-if="netFilters.length" class="log-toolbar">
+      <span class="hint">{{ LOG_NETWORK_LABEL }}</span>
+      <div class="chips" id="log-nets">
+        <button v-for="f in netFilters" :key="f.slot ?? 'all'" type="button" class="chip" :class="{ active: activeNet === f.slot }" :data-net="f.slot ?? 'all'" @click="net = f.slot">{{ f.label }}</button>
+      </div>
+    </div>
     <div class="log-toolbar">
       <div class="chips" id="log-chips">
         <button type="button" class="chip" :class="{ active: tag === 'all' }" data-tag="all" @click="tag = 'all'">{{ LOG_TAG_ALL }}</button>
@@ -78,7 +87,7 @@ watch([shown, autoscroll], scrollDown, { flush: "post" });
       <div role="list">
         <template v-for="e in shown" :key="e.key">
           <div v-if="e.gap" class="log-gap hint" role="listitem">{{ GAP_TEXT }}</div>
-          <div v-else class="log-line" role="listitem" :data-tag="e.tag"><span class="log-time">{{ formatLogTime(e.t) }}</span><span class="log-tag" :class="'tag-' + e.tag">[{{ e.tag }}]</span> {{ e.text }}</div>
+          <div v-else class="log-line" role="listitem" :data-tag="e.tag"><span class="log-time">{{ formatLogTime(e.t) }}</span><span class="log-tag" :class="'tag-' + e.tag">[{{ e.tag }}]</span> <span v-if="lineNetTag(e, store)" class="log-net">{{ lineNetTag(e, store) }}</span> {{ e.text }}</div>
         </template>
       </div>
     </div>

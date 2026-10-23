@@ -2,11 +2,14 @@
  * the row status text, the key of the "Network ports" row. A port of the classic `10-ports.js`. */
 
 import type { NetPort, OwnPort, PeerInfo } from "../core/api-types.ts";
+import { isMulti, netConfig, netName, slotState, visibleSlots } from "../core/slots.ts";
+import { targetSlots } from "../core/save-config.ts";
+import type { Store } from "../core/store.ts";
 import type { ConfigDocument, OpenedPortConfig, PublishedPortConfig } from "../core/api-types.ts";
 import {
   PORTS_ADD_ERROR_NO_NODES, PORTS_ADD_ERROR_RANGE, PORTS_AUDIENCE_ALL, PORTS_AUDIENCE_NOBODY, PORTS_EMPTY_NET, PORTS_EMPTY_OWN,
   PORTS_OFFLINE, PORTS_ONLINE, PORTS_STATUS_OK, PORTS_STATUS_REFUSED, PORTS_STATUS_UNKNOWN, portsAlreadyPublishedText,
-  portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText,
+  portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText, PORTS_NET_ALL, PORTS_NET_SEPARATOR, portsLocalUsedText, portsNetPeerText,
 } from "./ports-texts.ts";
 
 export type PortsConfigKey = "published" | "opened";
@@ -103,21 +106,28 @@ export function publishedAfterRemove(list: PublishedPortConfig[], port: number):
 // cannot be taken by an ordinary user).
 export const LOCAL_PORT_SHIFT = 2000;
 
-// The member's port plus the shift; if it does not fit in 65535 — the member's own number.
-export function defaultLocalPort(port: number): number {
-  return port + LOCAL_PORT_SHIFT <= PORT_MAX ? port + LOCAL_PORT_SHIFT : port;
+const LOCAL_MIN = 1024;
+
+// The member's port plus the shift; if it does not fit in 65535 — the member's own number. A taken number moves up
+// to the next free one, then wraps to 1024; nothing free — the first candidate (the node refuses it).
+export function defaultLocalPort(port: number, taken: ReadonlySet<number> = new Set()): number {
+  const first = port + LOCAL_PORT_SHIFT <= PORT_MAX ? port + LOCAL_PORT_SHIFT : port;
+  if (!taken.has(first)) return first;
+  const above = Array.from({ length: PORT_MAX - first }, (_, i) => first + 1 + i);
+  const below = Array.from({ length: Math.max(0, first - LOCAL_MIN) }, (_, i) => LOCAL_MIN + i);
+  return above.concat(below).find((n) => !taken.has(n)) ?? first;
 }
 
 // Empty or not an integer — the default number.
-function localPortOf(local: unknown, port: number): number {
+function localPortOf(local: unknown, port: number, taken?: ReadonlySet<number>): number {
   const n = Number(local);
-  return local === undefined || local === null || local === "" || !Number.isInteger(n) ? defaultLocalPort(port) : n;
+  return local === undefined || local === null || local === "" || !Number.isInteger(n) ? defaultLocalPort(port, taken) : n;
 }
 
 // The pair `(node, port)` already exists — its `local` is replaced (open on another number after a failure),
 // the order and the other entries stay; no such pair — the entry is appended to the end.
-export function openedAfterOpen(list: OpenedPortConfig[], node: string, port: number, local?: unknown): OpenedPortConfig[] {
-  const next = localPortOf(local, port);
+export function openedAfterOpen(list: OpenedPortConfig[], node: string, port: number, local?: unknown, taken?: ReadonlySet<number>): OpenedPortConfig[] {
+  const next = localPortOf(local, port, taken);
   if (list.some((o) => o.node === node && o.port === port)) return list.map((o) => (o.node === node && o.port === port ? { ...o, local: next } : o));
   return list.concat([{ node, port, local: next }]);
 }
@@ -127,7 +137,7 @@ export function openedAfterClose(list: OpenedPortConfig[], node: string, port: n
 }
 
 // An own row (`OwnPort`) carries `local`; someone else's (`NetPort`) — `online` and `opened`.
-export function portStatusText(row: OwnPort | NetPort): string {
+export function portStatusText(row: Pick<OwnPort, "local"> | NetPort): string {
   if ("opened" in row && row.opened && row.opened.state === "bind_failed") return portsBindFailedText(row.opened.local);
   if ("local" in row && row.local !== undefined) return OWN_STATUS_TEXT[row.local] || OWN_STATUS_TEXT.unknown;
   return "online" in row && row.online === false ? PORTS_OFFLINE : PORTS_ONLINE;
@@ -144,11 +154,99 @@ export function configPorts<K extends PortsConfigKey>(config: Pick<ConfigDocumen
   return (section && section[key]) || [];
 }
 
-export function netRowKey(r: Pick<NetPort, "node" | "port">): string {
-  return r.node + "/" + r.port;
+// With several networks the key starts with the slot.
+export function netRowKey(r: Pick<NetPort, "node" | "port">, slot?: string): string {
+  return (slot ? slot + "/" : "") + r.node + "/" + r.port;
 }
 
 // The node label in "Network ports"; without a name — "member <id>".
 export function nodeLabel(r: Pick<NetPort, "node" | "node_name">): string {
   return r.node_name && r.node_name.trim() ? r.node_name : portsNodeLabelText(r.node);
+}
+
+// ---- Several networks ----
+
+export interface SlotShare { slot: string; label: string; audience: "all" | string[] }
+/** One published port over all networks: where it is shared and with whom. */
+export interface MergedOwn { port: number; name: string; local: OwnPort["local"]; shared: SlotShare[] }
+export interface PortRef { slot: string; node: string; port: number }
+export interface NetPortItem { slot: string; net: string | null; row: NetPort }
+export interface NetGroup { slot: string; label: string; candidates: AudienceCandidate[] }
+/** One network's choice in the form: "All members" or the checked members; nothing checked — not published there. */
+export interface NetSelection { all: boolean; ids: string[] }
+export type NetAudiences = Record<string, "all" | string[] | null>;
+
+function slotStateOf(store: Store, slot: string) {
+  return slotState(store, slot) ?? (slot === store.lead ? store.state : null);
+}
+
+export function slotPeers(store: Store, slot: string): PeerInfo[] {
+  return slotStateOf(store, slot)?.peers ?? [];
+}
+
+// Rows by port number over the networks that hold a key, the main network first; the name is the first network's.
+export function mergeOwn(store: Store): MergedOwn[] {
+  const merged = new Map<number, MergedOwn>();
+  for (const slot of targetSlots(store)) {
+    const rows = slotStateOf(store, slot)?.ports?.published ?? [];
+    for (const e of configPorts(netConfig(store, slot), "published")) {
+      const row = rows.find((r) => r.port === e.port);
+      const m = merged.get(e.port) ?? { port: e.port, name: e.name ?? row?.name ?? "", local: row?.local ?? "unknown", shared: [] };
+      m.shared.push({ slot, label: netName(store.nets, slot), audience: e.for ?? "all" });
+      merged.set(e.port, m);
+    }
+  }
+  return Array.from(merged.values());
+}
+
+// "friends: all · my devices: alice, bob"
+export function mergedAudienceText(store: Store, m: MergedOwn): string {
+  const who = (s: SlotShare) => (s.audience === "all" ? PORTS_NET_ALL : audienceText({ for: s.audience }, slotPeers(store, s.slot)));
+  return m.shared.map((s) => s.label + ": " + who(s)).join(PORTS_NET_SEPARATOR);
+}
+
+// Members' ports by network; the network name is set only when there are several.
+export function netPortItems(store: Store): NetPortItem[] {
+  if (!isMulti(store)) return (store.state?.ports?.network ?? []).map((row) => ({ slot: store.lead, net: null, row }));
+  return visibleSlots(store.nets, store.slots).flatMap((slot) =>
+    (slotStateOf(store, slot)?.ports?.network ?? []).map((row) => ({ slot, net: netName(store.nets, slot), row })));
+}
+
+export function peerNetLabel(label: string, net: string | null): string {
+  return net ? portsNetPeerText(label, net) : label;
+}
+
+// Local numbers of opened ports over all visible networks, with the pair that holds each.
+export function takenLocals(store: Store, except?: PortRef): Map<number, PortRef> {
+  const taken = new Map<number, PortRef>();
+  for (const slot of visibleSlots(store.nets, store.slots)) {
+    for (const o of configPorts(netConfig(store, slot), "opened")) {
+      if (except && except.slot === slot && except.node === o.node && except.port === o.port) continue;
+      taken.set(o.local, { slot, node: o.node, port: o.port });
+    }
+  }
+  return taken;
+}
+
+export function localUsedText(local: number, by: { peerLabel: string; net: string | null }): string {
+  return portsLocalUsedText(local, peerNetLabel(by.peerLabel, by.net));
+}
+
+// The groups of the form: a network that holds a key with its candidate members (`extra` — ids no longer among the members).
+export function netGroups(store: Store, extra: Record<string, string[]> = {}): NetGroup[] {
+  return targetSlots(store).map((slot) => ({ slot, label: netName(store.nets, slot), candidates: audienceCandidatesWith(slotPeers(store, slot), extra[slot] ?? []) }));
+}
+
+export function selectionOf(audience: "all" | string[] | undefined): NetSelection {
+  return audience === undefined ? { all: false, ids: [] } : audience === "all" ? { all: true, ids: [] } : { all: false, ids: [...audience] };
+}
+
+export function audiencesOf(groups: NetGroup[], selection: Record<string, NetSelection>): NetAudiences {
+  const out: NetAudiences = {};
+  for (const g of groups) {
+    const sel = selection[g.slot] ?? { all: false, ids: [] };
+    const ids = g.candidates.filter((c) => sel.ids.includes(c.idFull)).map((c) => c.idFull);
+    out[g.slot] = sel.all ? "all" : ids.length > 0 ? ids : null;
+  }
+  return out;
 }

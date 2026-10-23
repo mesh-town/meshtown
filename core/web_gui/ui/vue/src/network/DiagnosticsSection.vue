@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { inject } from "vue";
+import { computed, inject } from "vue";
+import { diagnosticRows } from "./diag-checks.ts";
 import { STORE_KEY } from "../core/store.ts";
 import DiagChecks from "./DiagChecks.vue";
 import DiagSpecialist from "./DiagSpecialist.vue";
@@ -12,7 +13,8 @@ import { useDiagnostics } from "./use-diagnostics.ts";
 const store = inject(STORE_KEY);
 if (!store) throw new Error(DIAG_STORE_MISSING);
 const d = useDiagnostics(store);
-const { form, checks, events, copySummary } = d;
+const { form, events, copySummary } = d;
+const checks = computed(() => diagnosticRows(store));
 </script>
 
 <template>

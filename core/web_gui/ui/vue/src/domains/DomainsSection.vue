@@ -12,9 +12,9 @@ import DomainCards from "./DomainCards.vue";
 import DomainRow from "./DomainRow.vue";
 import {
   DOMAINS_ADD, DOMAINS_ADDRESS_LABEL, DOMAINS_ADDRESS_PLACEHOLDER, DOMAINS_COL_SITE, DOMAINS_COL_YOU, DOMAINS_EMPTY,
-  DOMAINS_HINT_INTRO, DOMAINS_HINT_LOCAL, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
+  DOMAINS_HINT_INTRO, DOMAINS_HINT_LOCAL, DOMAINS_HINT_LOCAL_NETS, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
 } from "./domains-texts.ts";
-import { LEGEND, checkAllLabel, checkColumns, columnHead, emptyColspan, otherPeers, rowsBusy } from "./domains-view.ts";
+import { LEGEND, checkAllLabel, columnGroups, columnHead, mergedDomains, proxySlot, rowsBusy, siteNets, tableColspan } from "./domains-view.ts";
 import { useDomainActions } from "./use-domain-actions.ts";
 
 const injected = inject(STORE_KEY);
@@ -25,9 +25,10 @@ const newDomain = ref<string>("");
 const exitStatus = ref<ExitSaveStatus>({ text: "", cls: "" });
 
 const narrow = useNarrow();
-const others = computed(() => otherPeers(store.state));
-const domains = computed(() => (store.state && store.state.domains) || []);
-const columns = computed(() => (store.state ? checkColumns(store.state, others.value) : []));
+const nets = computed(() => siteNets(store));
+const groups = computed(() => columnGroups(nets.value));
+const domains = computed(() => mergedDomains(nets.value, store));
+const proxy = computed(() => proxySlot(nets.value, store.nets));
 const chosen = computed(() => chosenExitIds(store));
 const checkAllOff = computed(() => actions.ui.checkAllBusy || rowsBusy(domains.value));
 
@@ -54,20 +55,29 @@ async function exitVia(idFull: string): Promise<void> {
       </div>
       <p class="field-error-text" id="domain-add-error" role="alert" :hidden="!actions.ui.addError">{{ actions.ui.addError }}</p>
       <p class="field-status" id="domains-check-all-status" role="status" :hidden="!actions.ui.checkAllStatus">{{ actions.ui.checkAllStatus }}</p>
-      <DomainCards v-if="narrow" :domains="domains" :columns="columns" :others="others" :self-id="store.state.node.id" :chosen="chosen" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
+      <DomainCards v-if="narrow" :domains="domains" :nets="nets" :proxy="proxy" :chosen="chosen" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
       <div v-else class="table-scroll">
         <table class="data domains-table" :aria-label="DOMAINS_TABLE_LABEL">
           <thead>
+            <tr v-if="nets.length >= 2" id="domains-groups-row">
+              <th></th>
+              <th></th>
+              <th v-for="g in groups" :key="g.slot" :colspan="g.span" class="col-net">{{ g.label }}</th>
+              <th></th>
+            </tr>
             <tr id="domains-head-row">
               <th>{{ DOMAINS_COL_SITE }}</th>
               <th>{{ DOMAINS_COL_YOU }}</th>
-              <th v-for="p in others" :key="p.id" class="col-peer" :title="p.id">{{ columnHead(p).name }}<br><span class="peer-code mono">{{ columnHead(p).id }}</span></th>
+              <template v-for="g in groups" :key="g.slot">
+                <th v-for="p in g.peers" :key="p.id" class="col-peer" :title="p.id">{{ columnHead(p).name }}<br><span class="peer-code mono">{{ columnHead(p).id }}</span></th>
+                <th v-if="g.peers.length === 0" class="col-peer">—</th>
+              </template>
               <th></th>
             </tr>
           </thead>
           <tbody id="domains-tbody">
-            <tr v-if="domains.length === 0"><td :colspan="emptyColspan(others)" class="hint">{{ DOMAINS_EMPTY }}</td></tr>
-            <DomainRow v-for="d in domains" :key="d.name" :domain="d" :columns="columns" :others="others" :self-id="store.state.node.id" :chosen="chosen" :busy="!!actions.ui.busy[d.name]" :error="actions.ui.errors[d.name] || ''" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
+            <tr v-if="domains.length === 0"><td :colspan="tableColspan(groups)" class="hint">{{ DOMAINS_EMPTY }}</td></tr>
+            <DomainRow v-for="d in domains" :key="d.name" :domain="d" :nets="nets" :proxy="proxy" :chosen="chosen" :busy="!!actions.ui.busy[d.name]" :error="actions.ui.errors[d.name] || ''" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
           </tbody>
         </table>
       </div>
@@ -76,7 +86,7 @@ async function exitVia(idFull: string): Promise<void> {
       <ul class="hint" id="domains-legend">
         <li v-for="e in LEGEND" :key="e.text"><span class="badge" :class="e.cls">{{ e.text }}</span> — {{ e.note }}</li>
       </ul>
-      <p class="hint">{{ DOMAINS_HINT_LOCAL }}</p>
+      <p class="hint">{{ nets.length >= 2 ? DOMAINS_HINT_LOCAL_NETS : DOMAINS_HINT_LOCAL }}</p>
     </div>
   </template>
 </template>

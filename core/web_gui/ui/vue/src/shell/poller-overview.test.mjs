@@ -149,9 +149,8 @@ describe("a failing overview", () => {
       expect(env.store.source).toBe("overview");
     });
 
-    // QUESTION: the plan says "500 -> onFailure", but `classify` treats any HTTP answer except 401/403/503 as "alive".
-    // The overview error is meant to be handled "as /api/state today", so the connection must end up exactly as after a
-    // 500 on /api/state; this test compares the two instead of pinning one of the readings.
+    // An overview error is handled like one on /api/state: the connection must end up exactly as after a
+    // 500 on /api/state, so this test compares the two instead of pinning one reading.
     it("leaves the connection exactly as a 500 on /api/state does", async () => {
       const viaOverview = setup(oneNet());
       viaOverview.conn.failures = 1;

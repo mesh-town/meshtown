@@ -7,12 +7,14 @@ import { api as coreApi } from "../core/api.ts";
 import type { ApiFn } from "../core/api.ts";
 import { notifyChanged } from "../core/bridge.ts";
 import type { ExitSaveStatus } from "../core/exit-via.ts";
+import { dropSlot, putSlotMembers } from "../core/overview.ts";
+import { membersOf, stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import { navigateTo } from "../common/navigate.ts";
 import { dialogSpec } from "./dialog-specs.ts";
 import type { DialogKind, DialogSpec } from "./dialog-specs.ts";
-import { memberErrorText, postMemberAction } from "./members-api.ts";
+import { leaveNet, memberErrorText, postMemberAction } from "./members-api.ts";
 import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, removalProposedStatus, removedStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
 import type { MemberAction, MembersReply } from "./members-types.ts";
 import { displayNames, meId, memberById } from "./members-view.ts";
@@ -47,15 +49,15 @@ function failureText(err: unknown): string {
   return typeof said === "string" && said.trim() ? said : memberErrorText(err);
 }
 
-export function useMembersActions(store: Store, deps: MembersActionsDeps = {}): MembersActions {
+export function useMembersActions(store: Store, slot: () => string = () => store.lead, deps: MembersActionsDeps = {}): MembersActions {
   const status = ref<ExitSaveStatus>({ text: "", cls: "" });
   const dialog = ref<DialogHandle | null>(null);
   const call: ApiFn = deps.api || coreApi;
-  const net = (): string => (store.state && store.state.network && store.state.network.label) || "";
-  const nameOf = (idFull: string): string => displayNames(store.members)[idFull] || idFull.slice(0, 8);
+  const net = (): string => stateOf(store, slot())?.network?.label || "";
+  const nameOf = (idFull: string): string => displayNames(membersOf(store, slot()))[idFull] || idFull.slice(0, 8);
 
   function context(kind: DialogKind, idFull: string) {
-    const row = memberById(store.members, idFull);
+    const row = memberById(membersOf(store, slot()), idFull);
     const by = row && row.vote ? nameOf(row.vote.proposed_by) : undefined;
     const label = row && row.admission ? row.admission.label : null;
     return { name: nameOf(idFull), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(), isMyExit: chosenExitIds(store).includes(idFull) };
@@ -68,7 +70,6 @@ export function useMembersActions(store: Store, deps: MembersActionsDeps = {}): 
 
   // The line under the list after an accepted action.
   function doneText(action: MemberAction, idFull: string, reply: MembersReply, netName: string): string {
-    if (action === "leave") return leftNetworkStatus(netName);
     if (action === "unblock") return "";
     if (action === "unexclude") return withdrawnStatus(nameOf(idFull), memberById(reply, idFull)?.blocked_by_me === true);
     if (action === "block") return blockedStatus(nameOf(idFull));
@@ -78,13 +79,36 @@ export function useMembersActions(store: Store, deps: MembersActionsDeps = {}): 
     return row && row.status === "excluded" ? removedStatus(nameOf(idFull)) : removalProposedStatus(nameOf(idFull));
   }
 
-  async function run(action: MemberAction, idFull: string, reason?: string): Promise<void> {
+  // Leaving: a left network disappears from the page; a refused leave only refreshes the network list.
+  async function leave(): Promise<void> {
+    const from = slot();
     const netName = net();
+    const reply = await leaveNet(call, from);
+    if (reply.left) {
+      const sliced = store.slots[from] !== undefined;
+      dropSlot(store, from, reply.nets);
+      if (!sliced && from === store.lead) store.members = null;
+      status.value = INFO(leftNetworkStatus(netName));
+    } else if (reply.nets.length > 0) {
+      store.nets = reply.nets;
+    }
+    wake();
+  }
+
+  async function act(action: MemberAction, idFull: string, reason?: string): Promise<void> {
+    const from = slot();
+    const netName = net();
+    const { reply } = await postMemberAction(call, action, idFull, reason, from);
+    putSlotMembers(store, from, reply);
+    if (from === store.lead) store.members = reply;
+    status.value = INFO(doneText(action, idFull, reply, netName));
+    wake();
+  }
+
+  async function run(action: MemberAction, idFull: string, reason?: string): Promise<void> {
     try {
-      const { reply } = await postMemberAction(call, action, idFull, reason);
-      store.members = action === "leave" ? null : reply;
-      status.value = INFO(doneText(action, idFull, reply, netName));
-      wake();
+      if (action === "leave") await leave();
+      else await act(action, idFull, reason);
     } catch (err) {
       status.value = FAILED(failureText(err));
     }
@@ -101,8 +125,8 @@ export function useMembersActions(store: Store, deps: MembersActionsDeps = {}): 
     confirm: (id) => ask("confirm", id),
     admit: (id) => ask("admit", id),
     unadmit: (id) => run("unadmit", id),
-    exclude: (id) => ask(store.members && store.members.need === 1 ? "remove-two" : "remove", id),
-    leave: () => ask("leave", meId(store.state)),
+    exclude: (id) => ask(membersOf(store, slot())?.need === 1 ? "remove-two" : "remove", id),
+    leave: () => ask("leave", meId(stateOf(store, slot()))),
     unblock: (id) => run("unblock", id),
     withdraw: (id) => run("unexclude", id),
     rename: async () => navigateTo("#home"),

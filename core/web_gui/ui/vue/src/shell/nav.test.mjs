@@ -2,7 +2,9 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { NARROW_MORE, SECTIONS, SECTION_VIEWS, openableSection, parseHash, sectionViews, splitTabs } from "./nav.ts";
+import {
+  NARROW_MORE, SECTIONS, SECTION_VIEWS, openableSection, parseHash, peersHash, peersTail, pickPeersTab, sectionViews, splitTabs,
+} from "./nav.ts";
 
 describe("parseHash", () => {
   it("a known section in the hash — its name, with the hash sign and without", () => {
@@ -55,7 +57,6 @@ describe("openableSection", () => {
 });
 
 describe("splitTabs", () => {
-  // OPEN QUESTION: the result shape `{ main, more }` (two lists of section views) is the likeliest reading of the plan.
   it("the \"More\" sections are ports, diagnostics and log", () => {
     assert.deepEqual(NARROW_MORE, ["ports", "network", "log"]);
   });
@@ -75,5 +76,118 @@ describe("splitTabs", () => {
   it("the views are the same objects, not copies", () => {
     const { more } = splitTabs(SECTION_VIEWS);
     assert.equal(more[0], SECTION_VIEWS.find((v) => v.id === "ports"));
+  });
+});
+
+describe("peers tab in the hash", () => {
+  const NET_B = "k7q2xa";
+
+  describe("parseHash", () => {
+    it("#peers with a tail of any kind is still the members section", () => {
+      assert.equal(parseHash(`#peers/${NET_B}`), "peers");
+      assert.equal(parseHash("#peers/add"), "peers");
+      assert.equal(parseHash("#peers/anything-at-all"), "peers");
+      assert.equal(parseHash("#peers/"), "peers", "an empty tail");
+    });
+
+    it("a tail on any other section is not a section", () => {
+      assert.equal(parseHash("#home/x"), null);
+      assert.equal(parseHash("#log/main"), null);
+    });
+
+    it("the plain section hashes are unchanged", () => {
+      assert.equal(parseHash("#peers"), "peers");
+      assert.equal(parseHash("#overview"), "home");
+    });
+  });
+
+  describe("openableSection", () => {
+    it("a hash with a net tail opens the members section", () => {
+      assert.equal(openableSection(`#peers/${NET_B}`, false), "peers");
+    });
+
+    it("in the phone app the members section with a tail stays visible", () => {
+      assert.equal(openableSection("#peers/add", true), "peers");
+    });
+  });
+
+  describe("peersTail", () => {
+    it("main, a six-letter net id and add are tails", () => {
+      assert.equal(peersTail("#peers/main"), "main");
+      assert.equal(peersTail(`#peers/${NET_B}`), NET_B);
+      assert.equal(peersTail("#peers/add"), "add");
+    });
+
+    it("a well-formed but unknown id is still a tail (the check is syntactic)", () => {
+      assert.equal(peersTail("#peers/zzzzzz"), "zzzzzz");
+    });
+
+    it("no tail — null", () => {
+      assert.equal(peersTail("#peers"), null, "bare section");
+      assert.equal(peersTail("#peers/"), null, "empty tail");
+      assert.equal(peersTail(""), null, "empty hash");
+      assert.equal(peersTail(undefined), null, "no hash");
+    });
+
+    it("a malformed tail — null", () => {
+      assert.equal(peersTail("#peers/K7Q2XA"), null, "upper case");
+      assert.equal(peersTail("#peers/k7q2x"), null, "five characters");
+      assert.equal(peersTail("#peers/k7q2xab"), null, "seven characters");
+      assert.equal(peersTail("#peers/k7q2x1"), null, "a digit outside 2-7");
+      assert.equal(peersTail("#peers/k7q2xa/extra"), null, "a second segment");
+    });
+
+    it("a tail on another section — null", () => {
+      assert.equal(peersTail("#home"), null);
+      assert.equal(peersTail(`#home/${NET_B}`), null);
+      assert.equal(peersTail(`#log/${NET_B}`), null);
+    });
+  });
+
+  describe("peersHash", () => {
+    it("no tab (one net) — the bare section, no tail", () => {
+      assert.equal(peersHash(null), "#peers");
+    });
+
+    it("a tab — the section with the tab as the tail", () => {
+      assert.equal(peersHash(NET_B), `#peers/${NET_B}`);
+      assert.equal(peersHash("main"), "#peers/main");
+      assert.equal(peersHash("add"), "#peers/add");
+    });
+
+    it("what peersHash writes, peersTail and parseHash read back", () => {
+      for (const t of ["main", NET_B, "add"]) {
+        assert.equal(peersTail(peersHash(t)), t, t);
+        assert.equal(parseHash(peersHash(t)), "peers", t);
+      }
+      assert.equal(peersTail(peersHash(null)), null);
+    });
+  });
+
+  describe("pickPeersTab", () => {
+    const visible = ["main", NET_B];
+
+    it("add is always kept, even when it is not a visible slot", () => {
+      assert.equal(pickPeersTab("add", visible), "add");
+      assert.equal(pickPeersTab("add", []), "add");
+    });
+
+    it("a wanted visible slot is picked", () => {
+      assert.equal(pickPeersTab(NET_B, visible), NET_B);
+    });
+
+    it("an unknown or hidden slot falls back to the first visible", () => {
+      assert.equal(pickPeersTab("zzzzzz", visible), "main");
+      assert.equal(pickPeersTab("zzzzzz", [NET_B, "main"]), NET_B, "the first in the list, not main");
+    });
+
+    it("nothing wanted — the first visible", () => {
+      assert.equal(pickPeersTab(null, visible), "main");
+    });
+
+    it("no visible slots and nothing to keep — null", () => {
+      assert.equal(pickPeersTab(null, []), null);
+      assert.equal(pickPeersTab("zzzzzz", []), null);
+    });
   });
 });

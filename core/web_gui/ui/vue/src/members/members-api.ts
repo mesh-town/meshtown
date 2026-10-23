@@ -1,6 +1,9 @@
 /* Client of `GET /api/members` and `POST /api/members/<action>`. */
 
 import type { ApiFn } from "../core/api.ts";
+import { slotPath } from "../core/slots.ts";
+import { parseOverview } from "../core/overview.ts";
+import type { LeaveReply } from "../core/api-types.ts";
 import { NET_NAME, errReason, failText } from "../common/words.ts";
 import { cleanReason } from "./member-reason.ts";
 import type { AdmissionInfo, ExcludedInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo, VoteInfo } from "./members-types.ts";
@@ -97,12 +100,28 @@ function actionBody(action: MemberAction, id?: string, reason?: string): Record<
   return clean ? { id, reason: clean } : { id };
 }
 
-export async function postMemberAction(api: ApiFn, action: MemberAction, id?: string, reason?: string): Promise<{ reply: MembersReply; changed: boolean }> {
+export async function postMemberAction(api: ApiFn, action: MemberAction, id?: string, reason?: string, slot = "main"): Promise<{ reply: MembersReply; changed: boolean }> {
   const body = actionBody(action, id, reason);
-  const parsed = parseMembers(await api("POST", "/api/members/" + action, body));
+  const parsed = parseMembers(await api("POST", slotPath(slot, "members/" + action), body));
   if (!parsed) throw new Error(NET_NAME + " sent an unreadable member list");
   const { changed, ...reply } = parsed;
   return { reply, changed: changed === true };
+}
+
+// The reply of `members/leave`: the member list plus `left`, `announced` and the briefs of the remaining networks.
+// An old node sends only the list: a 200 then means "left".
+export function parseLeave(raw: unknown): LeaveReply | null {
+  const members = parseMembers(raw);
+  if (!members) return null;
+  const r = raw as Raw;
+  const nets = parseOverview({ slots: [], nets: r.nets })?.nets ?? [];
+  return { ...members, left: r.left !== false, announced: r.announced !== false, nets };
+}
+
+export async function leaveNet(api: ApiFn, slot: string): Promise<LeaveReply> {
+  const parsed = parseLeave(await api("POST", slotPath(slot, "members/leave"), { confirm: true }));
+  if (!parsed) throw new Error(NET_NAME + " sent an unreadable member list");
+  return parsed;
 }
 
 const REASONS: Record<string, string> = {

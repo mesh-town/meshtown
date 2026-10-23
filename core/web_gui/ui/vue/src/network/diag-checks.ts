@@ -2,12 +2,15 @@
  * the "About" formatters (port of `formatUptimeText`, `formatMib` from the classic page). No Vue. */
 
 import { NET_NAME, ROUTE_DIRECT_TEXT, peerLabel, quotedNet, routeViaText } from "../common/words.ts";
-import type { NodeRuntime, NetworkInfo, NodeState, PeerInfo, RouteState, SocksInfo, TransportInfo, ChosenExit } from "../core/api-types.ts";
+import { isMulti, netName, slotState } from "../core/slots.ts";
+import { targetSlots } from "../core/save-config.ts";
+import type { Store } from "../core/store.ts";
+import type { NetBrief, NodeRuntime, NetworkInfo, NodeState, PeerInfo, RouteState, SocksInfo, TransportInfo, ChosenExit } from "../core/api-types.ts";
 import {
   DIAG_DIRECTORY_LABEL, DIAG_DIRECTORY_OK, DIAG_DIRECTORY_WARN, DIAG_EXIT_DEFAULT_NAME, DIAG_EXIT_LABEL, DIAG_EXIT_VIA_DEFAULT,
   DIAG_NODE_RUNNING, DIAG_NODE_STARTING, DIAG_NODE_STOPPING, DIAG_NO_DATA, DIAG_NO_NETWORK, DIAG_PEERS_ALONE, DIAG_PEERS_LABEL,
   DIAG_PEERS_NONE_ONLINE, DIAG_PROXY_LABEL, DIAG_PROXY_OFF, diagExitUnavailableText, diagMibText, diagNetworkJoinedText, DIAG_NETWORK_JOINED_NO_LABEL,
-  diagPeersOnlineText, diagProxyOnText, diagRunningMinutesText, diagRunningUptimeText, diagUptimeText,
+  diagNetAloneText, diagNetDirectoryWarnText, diagNetNoConnectionText, diagNetPeersText, diagPeersOnlineText, diagProxyOnText, diagRouteWontOpenText, diagRunningMinutesText, diagRunningUptimeText, diagUptimeText,
 } from "./diag-texts.ts";
 
 export type CheckLevel = "ok" | "warn" | "bad" | "none";
@@ -122,4 +125,48 @@ export function diagnosticChecks(state: DiagState): CheckRow[] {
     exitRow(st.route, st.peers || []),
     proxyRow(st.socks),
   ];
+}
+
+// --- Several networks: process rows once, then rows per network. ---
+
+function netPeersRow(slot: string, name: string, peers: PeerInfo[] | undefined): CheckRow {
+  const key = "peers:" + slot;
+  const others = (peers || []).filter((p) => !p.self);
+  const online = others.filter((p) => p.online).length;
+  if (others.length === 0) return row(key, "warn", diagNetAloneText(name));
+  if (online === 0) return row(key, "bad", diagNetNoConnectionText(name));
+  return row(key, online < others.length ? "warn" : "ok", diagNetPeersText(name, online, others.length), "#peers/" + slot);
+}
+
+/** The rows of one network: its members and, when it is not connected, its address directory. */
+export function netRows(brief: NetBrief, state: NodeState | null, name: string = brief.label ?? brief.id): CheckRow[] {
+  if (!state) return [row("peers:" + brief.id, "bad", diagNetNoConnectionText(name))];
+  const rows = [netPeersRow(brief.id, name, state.peers)];
+  if (directoryRow(state.transport).level !== "warn") return rows;
+  return [...rows, row("directory:" + brief.id, "warn", diagNetDirectoryWarnText(name))];
+}
+
+function multiExitRow(store: Store, slots: string[]): CheckRow {
+  const slot = slots.find((id) => store.nets.find((n) => n.id === id)?.proxy);
+  const state = slot ? slotState(store, slot) : null;
+  const route = state?.route;
+  if (!slot || !route || route.state === "direct") return row("exit", "ok", ROUTE_DIRECT_TEXT);
+  const peers = state.peers || [];
+  const exits = route.exits || [];
+  if (route.state === "unavailable") return row("exit", "bad", diagRouteWontOpenText(exits.length ? peerLabel(exits[0], false, peers) : DIAG_EXIT_DEFAULT_NAME));
+  const active = exits.find((e) => e.active);
+  const via = (active ? peerLabel(active, false, peers) : DIAG_EXIT_VIA_DEFAULT) + " (" + netName(store.nets, slot) + ")";
+  return row("exit", "ok", routeViaText(via));
+}
+
+/** The status rows of the page: with one network exactly `diagnosticChecks(state)`. */
+export function diagnosticRows(store: Store): CheckRow[] {
+  if (!isMulti(store)) return diagnosticChecks(store.state);
+  const slots = targetSlots(store);
+  const main = store.slots.main?.state ?? store.state;
+  const perNet = slots.flatMap((id) => {
+    const brief = store.nets.find((n) => n.id === id) as NetBrief;
+    return netRows(brief, slotState(store, id), netName(store.nets, id));
+  });
+  return [nodeRow(main?.node), ...perNet, multiExitRow(store, slots), proxyRow(main?.socks)];
 }

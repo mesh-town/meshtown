@@ -60,6 +60,17 @@ export function slotMembers(store: SlotsHost, id: string): MembersReply | null {
   return store.slots[id]?.members ?? null;
 }
 
+/** The leading slot's `state`/`members` live in the store itself (they exist before any slice does); other slots in their slice. */
+interface LeadHost extends SlotsHost {
+  lead: string;
+  state: NodeState | null;
+  members: MembersReply | null;
+}
+
+export const stateOf = (store: LeadHost, id: string): NodeState | null => (id === store.lead ? store.state : slotState(store, id));
+
+export const membersOf = (store: LeadHost, id: string): MembersReply | null => (id === store.lead ? store.members : slotMembers(store, id));
+
 export function netConfig(store: SlotsHost, id: string): ConfigDocument | null {
   return id === "main" ? store.config : (store.slots[id]?.config ?? null);
 }
