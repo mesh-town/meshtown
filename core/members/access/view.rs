@@ -10,59 +10,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::members::access::tally::Ledger;
+
+pub use super::deny::Deny;
 use crate::transport::net::PeerId;
 
 /// Close code of a connection refused by the membership list.
 pub const ACCESS_CLOSE_CODE: u32 = 403;
 const MAX_REFUSALS: usize = 64;
-const WIRE_PREFIX: &str = "code 403: ";
-
-/// Why a node is not let in.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Deny {
-    Left,
-    Excluded,
-    VotedByMe,
-    Blocked,
-    Unlisted,
-    /// Only from the wire: the other side refused by its own vote or block.
-    Refused,
-}
-
-impl Deny {
-    /// The reason sent in the close frame.
-    pub fn wire_reason(&self) -> &'static [u8] {
-        match self {
-            Deny::Left => b"left",
-            Deny::Excluded => b"excluded",
-            Deny::VotedByMe | Deny::Blocked | Deny::Refused => b"refused",
-            Deny::Unlisted => b"not admitted",
-        }
-    }
-
-    /// The word used in the JSON contract.
-    pub fn code(&self) -> &'static str {
-        match self {
-            Deny::Left => "left",
-            Deny::Excluded => "excluded",
-            Deny::VotedByMe => "voted_by_me",
-            Deny::Blocked => "blocked",
-            Deny::Unlisted => "unlisted",
-            Deny::Refused => "refused",
-        }
-    }
-
-    /// Parses `code 403: <reason>` as reported by `PeerConn::close_reason`.
-    pub fn from_wire(text: &str) -> Option<Deny> {
-        match text.strip_prefix(WIRE_PREFIX)? {
-            "left" => Some(Deny::Left),
-            "excluded" => Some(Deny::Excluded),
-            "refused" => Some(Deny::Refused),
-            "not admitted" => Some(Deny::Unlisted),
-            _ => None,
-        }
-    }
-}
 
 /// Which side refused.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

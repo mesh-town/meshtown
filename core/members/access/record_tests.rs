@@ -100,7 +100,7 @@ fn enums_from_u8_reject_unknown_bytes() {
     // given / when / then: known bytes map to their variants, the others to nothing
     assert_eq!(AclKind::from_u8(1), Some(AclKind::Admit));
     assert_eq!(AclKind::from_u8(4), Some(AclKind::Boot));
-    assert_eq!((AclKind::from_u8(0), AclKind::from_u8(5)), (None, None));
+    assert_eq!((AclKind::from_u8(0), AclKind::from_u8(6)), (None, None));
     assert_eq!(Via::from_u8(0), Some(Via::None));
     assert_eq!(Via::from_u8(3), Some(Via::Witness));
     assert_eq!((Via::from_u8(4), Via::from_u8(255)), (None, None));
@@ -126,9 +126,9 @@ fn ignores_unknown_version() {
 
 #[test]
 fn ignores_unknown_kind() {
-    // given: kinds outside 1..=4 and a via outside 0..=3 in otherwise good bodies
+    // given: kinds outside 1..=5 and a via outside 0..=3 in otherwise good bodies
     // when / then: the kind and the via are told apart
-    for kind in [0, 5, 255] {
+    for kind in [0, 6, 255] {
         let bytes = raw(Raw {
             kind,
             ..Raw::default()

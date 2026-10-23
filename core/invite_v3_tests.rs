@@ -123,6 +123,9 @@ async fn make_names_listed_members_without_a_connection() {
         pending: BTreeMap::new(),
         need: 1,
         admissions: BTreeMap::new(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
     };
     let verdicts = Verdicts {
         me: node.id,

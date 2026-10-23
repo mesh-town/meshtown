@@ -26,6 +26,7 @@ pub const BOOT_KEY: &[u8] = b"acl/boot";
 pub const BOOT_NOTE_ADMISSION: &str = "admission-v2";
 const ADMIT_PREFIX: &[u8] = b"acl/admit/";
 const EXCLUDE_PREFIX: &[u8] = b"acl/exclude/";
+const FORGET_PREFIX: &[u8] = b"acl/forget/";
 
 /// What a record says.
 #[repr(u8)]
@@ -35,6 +36,7 @@ pub enum AclKind {
     Exclude = 2,
     Block = 3,
     Boot = 4,
+    Forget = 5,
 }
 
 impl AclKind {
@@ -44,6 +46,7 @@ impl AclKind {
             AclKind::Exclude,
             AclKind::Block,
             AclKind::Boot,
+            AclKind::Forget,
         ]
         .into_iter()
         .find(|k| *k as u8 == b)
@@ -151,6 +154,11 @@ pub fn exclude_key(subject: &PeerId) -> Vec<u8> {
     key_with(EXCLUDE_PREFIX, subject)
 }
 
+/// Key `acl/forget/<hex>`.
+pub fn forget_key(subject: &PeerId) -> Vec<u8> {
+    key_with(FORGET_PREFIX, subject)
+}
+
 /// Key `acl-block/<hex>`.
 pub fn block_key(subject: &PeerId) -> Vec<u8> {
     key_with(BLOCK_PREFIX, subject)
@@ -161,6 +169,7 @@ pub fn key_for(kind: AclKind, subject: &PeerId) -> Vec<u8> {
     match kind {
         AclKind::Admit => admit_key(subject),
         AclKind::Exclude => exclude_key(subject),
+        AclKind::Forget => forget_key(subject),
         AclKind::Block => block_key(subject),
         AclKind::Boot => BOOT_KEY.to_vec(),
     }
@@ -177,9 +186,10 @@ pub(super) fn parse_key(key: &[u8]) -> Option<(AclKind, Option<PeerId>)> {
         return Some((AclKind::Boot, None));
     }
     let admit = subject_of(key, ADMIT_PREFIX).map(|s| (AclKind::Admit, s));
-    let found = admit.or_else(|| subject_of(key, EXCLUDE_PREFIX).map(|s| (AclKind::Exclude, s)));
-    let (kind, subject) =
-        found.or_else(|| subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s)))?;
+    let exclude = || subject_of(key, EXCLUDE_PREFIX).map(|s| (AclKind::Exclude, s));
+    let forget = || subject_of(key, FORGET_PREFIX).map(|s| (AclKind::Forget, s));
+    let block = || subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s));
+    let (kind, subject) = admit.or_else(exclude).or_else(forget).or_else(block)?;
     (key_for(kind, &subject) == key).then_some((kind, Some(subject)))
 }
 
@@ -265,3 +275,7 @@ pub(super) mod tests;
 #[cfg(test)]
 #[path = "record_write_tests.rs"]
 mod write_tests;
+
+#[cfg(test)]
+#[path = "record_forget_tests.rs"]
+mod forget_tests;

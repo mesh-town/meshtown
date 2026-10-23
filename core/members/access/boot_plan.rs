@@ -145,6 +145,7 @@ pub(super) fn plan_admits(
         author: b.me,
         subject: *s,
         via: Via::Witness,
+        made_unix: b.now_unix,
     }));
     let ledger = tally(&input);
     let me_left = ledger.excluded.contains_key(&b.me);

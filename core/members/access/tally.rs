@@ -14,12 +14,15 @@ use crate::transport::net::PeerId;
 use super::admission::admit_closure;
 use super::record::Via;
 
+pub use super::forget::{ForgetIn, ForgetRound};
+
 /// An admit record: `author` admits `subject`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AdmitIn {
     pub author: PeerId,
     pub subject: PeerId,
     pub via: Via,
+    pub made_unix: u64,
 }
 
 /// A live exclusion vote; `voter == subject` is a self-exclusion.
@@ -36,6 +39,7 @@ pub struct TallyInput {
     pub me: PeerId,
     pub admits: Vec<AdmitIn>,
     pub votes: Vec<VoteIn>,
+    pub forgets: Vec<ForgetIn>,
 }
 
 /// How a node was excluded.
@@ -80,11 +84,17 @@ pub struct Ledger {
     pub need: u8,
     /// Requests that do not reach the confirmation threshold yet.
     pub admissions: BTreeMap<PeerId, Admission>,
+    /// Vote circles on `acl/forget/` records; empty until the forget pass lands.
+    pub forgets: BTreeMap<PeerId, ForgetRound>,
+    /// Latest admission time per subject among live admissions that count elsewhere.
+    pub admit_unix: BTreeMap<PeerId, u64>,
+    /// Latest `made_unix` per subject among all live forget records.
+    pub forget_marks: BTreeMap<PeerId, u64>,
 }
 
 impl Ledger {
     pub fn is_member(&self, p: &PeerId) -> bool {
-        self.admitted.contains(p) && !self.excluded.contains_key(p)
+        self.admitted.contains(p) && !self.excluded.contains_key(p) && !self.is_forgotten(p)
     }
 }
 
@@ -232,6 +242,9 @@ impl Pass {
             pending,
             need,
             admissions: self.short,
+            forgets: BTreeMap::new(),
+            admit_unix: BTreeMap::new(),
+            forget_marks: BTreeMap::new(),
         }
     }
 }

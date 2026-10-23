@@ -8,6 +8,8 @@ pub mod actions;
 mod admission;
 pub mod boot;
 mod boot_plan;
+mod deny;
+mod forget;
 mod reasons;
 pub mod record;
 mod record_input;

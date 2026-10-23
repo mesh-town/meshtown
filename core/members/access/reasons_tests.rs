@@ -29,6 +29,9 @@ fn ledger(pending: &[(PeerId, &[PeerId])]) -> Ledger {
         pending,
         need: 2,
         admissions: BTreeMap::new(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
     }
 }
 

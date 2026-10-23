@@ -362,6 +362,9 @@ fn world(listed: &[PeerId], excluded: &[PeerId]) -> World {
         pending: BTreeMap::new(),
         need: 2,
         admissions: BTreeMap::new(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
     };
     let verdicts = Verdicts {
         me,

@@ -27,6 +27,9 @@ fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
         pending: BTreeMap::new(),
         need: 2,
         admissions: asks.into_iter().collect(),
+        forgets: Default::default(),
+        admit_unix: Default::default(),
+        forget_marks: Default::default(),
     };
     Verdicts {
         me: pid(1),

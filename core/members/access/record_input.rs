@@ -4,7 +4,7 @@
 use crate::transport::net::{PeerId, ReplicaEntry};
 
 use super::record::{exclude_key, parse_entry, AclKind, Parsed};
-use super::tally::{AdmitIn, TallyInput, VoteIn};
+use super::tally::{AdmitIn, ForgetIn, TallyInput, VoteIn};
 
 /// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
 /// tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored entries.
@@ -13,6 +13,7 @@ pub fn tally_input(me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) 
         me,
         admits: Vec::new(),
         votes: Vec::new(),
+        forgets: Vec::new(),
     };
     let mut ignored = 0;
     for e in entries {
@@ -30,6 +31,15 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 author,
                 subject: value.subject,
                 via: value.via,
+                made_unix: value.made_unix,
+            });
+            0
+        }
+        Parsed::Record { author, value, .. } if value.kind == AclKind::Forget => {
+            input.forgets.push(ForgetIn {
+                author,
+                subject: value.subject,
+                made_unix: value.made_unix,
             });
             0
         }
