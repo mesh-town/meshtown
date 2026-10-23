@@ -187,15 +187,6 @@ fn fills_process_part_from_process_block() {
     // when: the settings are turned into a node config
     let cfg = s.node_config(key, test_secret());
     // then: the process part came from the process block, the network part from net, the secret is the one passed
-    assert_eq!(
-        cfg.socks,
-        crate::node::SocksListen {
-            enabled: false,
-            port: 1090,
-            access: crate::config::config_file::ListenAccess::Localhost,
-            ifaces: crate::config::config_file::IfaceFilter::Auto
-        }
-    );
     assert_eq!(cfg.settings, s.net);
     assert_eq!(
         cfg.identity_secret.map(|k| k.peer_id()),

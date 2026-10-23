@@ -9,6 +9,7 @@ use anyhow::{anyhow, Result};
 use crate::node::output::{say, short_peer_id};
 use crate::proxy::route::{self, Route, RouteCtx};
 
+use super::front::ProxyFront;
 use super::get::get_via_socks;
 
 /// Console commands.
@@ -39,17 +40,51 @@ pub fn parse_proxy_line(line: &str) -> Option<Result<ProxyCommand>> {
 /// What the console knows about this node's proxy.
 #[derive(Clone)]
 pub struct ProxyConsole {
-    /// Where the SOCKS5 server listens; `None` — disabled by the `--no-socks` flag or the `socks.enabled: false` setting.
-    pub socks: Option<SocketAddr>,
+    /// The process proxy entry; `None` — there is no proxy, as if it had no network.
+    pub front: Option<ProxyFront>,
     /// Whether the node works as an exit for others.
     pub exit_on: Arc<AtomicBool>,
-    pub route: RouteCtx,
     pub user_agent: String,
+}
+
+impl ProxyConsole {
+    /// The listening address of the process entry.
+    fn listen_addr(&self) -> Option<SocketAddr> {
+        self.front.as_ref().and_then(|front| front.addr())
+    }
+
+    /// The route context now; `None` — the proxy has no network to route through.
+    fn route_now(&self) -> Option<RouteCtx> {
+        self.front.as_ref().and_then(|front| front.current_route())
+    }
+}
+
+/// Runs the route choice for a domain and prints the outcome.
+async fn say_route(console: &ProxyConsole, domain: &str) {
+    let Some(route_ctx) = console.route_now() else {
+        say(
+            "route",
+            format!("{domain} → refused: no network for the proxy"),
+        );
+        return;
+    };
+    match route_ctx.choose_now().await {
+        Ok(Route::Direct) => say("route", format!("{domain} → direct")),
+        Ok(Route::Exits(candidates)) => {
+            let first = route::first_exit(&candidates);
+            say(
+                "route",
+                format!("{domain} → exit {}", short_peer_id(&first)),
+            );
+        }
+        Ok(Route::Refuse(reason)) => say("route", format!("{domain} → refused: {reason}")),
+        Err(e) => say("route", format!("{domain}: {e:#}")),
+    }
 }
 
 /// Prints the SOCKS listening address and whether the exit is on for others.
 fn say_socks(console: &ProxyConsole) {
-    let listening = match console.socks {
+    let listening = match console.listen_addr() {
         Some(addr) => addr.to_string(),
         None => "off".to_string(),
     };
@@ -68,20 +103,9 @@ fn say_socks(console: &ProxyConsole) {
 pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
     match cmd {
         ProxyCommand::Socks => say_socks(console),
-        ProxyCommand::Route(domain) => match console.route.choose_now().await {
-            Ok(Route::Direct) => say("route", format!("{domain} → direct")),
-            Ok(Route::Exits(candidates)) => {
-                let first = route::first_exit(&candidates);
-                say(
-                    "route",
-                    format!("{domain} → exit {}", short_peer_id(&first)),
-                );
-            }
-            Ok(Route::Refuse(reason)) => say("route", format!("{domain} → refused: {reason}")),
-            Err(e) => say("route", format!("{domain}: {e:#}")),
-        },
+        ProxyCommand::Route(domain) => say_route(console, &domain).await,
         ProxyCommand::Get(domain) => {
-            let Some(proxy) = console.socks else {
+            let Some(proxy) = console.listen_addr() else {
                 say("get", "SOCKS5 server is off, the command is unavailable");
                 return;
             };

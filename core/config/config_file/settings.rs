@@ -1,7 +1,6 @@
 //! The whole `config` document (`Settings` = process and network blocks), `TransportMode`, `ListenAccess`.
 //! Not here: JSON parsing (`parse.rs`/`parse_fields.rs`) and writing (`render.rs`).
 
-use crate::node::SocksListen;
 use crate::transport::net::NodeSecret;
 
 use super::net_settings::NetSettings;
@@ -87,12 +86,6 @@ impl Settings {
     ) -> crate::node::NodeConfig {
         let mut cfg = crate::node::NodeConfig::for_cli(network_key, &self.net);
         cfg.identity_secret = Some(node_secret);
-        cfg.socks = SocksListen {
-            enabled: self.process.socks_enabled,
-            port: self.process.socks_port,
-            access: self.process.socks_access,
-            ifaces: self.process.socks_ifaces.clone(),
-        };
         cfg
     }
 }

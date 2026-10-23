@@ -15,7 +15,7 @@ use crate::web_gui::http::{json_err, ConnInfo};
 use crate::web_gui::NodeControl;
 
 use super::put_merge::{merge_with_config, parse_merged_settings, reject_unavailable_fields};
-use super::put_write::write_new_settings;
+use super::put_write::{write_new_settings, ProxyPick};
 use super::state::ConfigState;
 use super::support::field_entry;
 
@@ -23,7 +23,7 @@ impl ConfigState {
     /// A write without a connection (self-lockout is not checked): needed by tests.
     #[cfg(test)]
     pub(crate) fn put(&mut self, body: &[u8], node: &dyn NodeControl) -> Response {
-        self.put_keeping(body, node, None)
+        self.put_keeping(body, node, None).0
     }
 
     /// `put` with self-lockout protection: `conn` is the connection the request came through.
@@ -32,35 +32,32 @@ impl ConfigState {
         body: &[u8],
         node: &dyn NodeControl,
         conn: Option<ConnInfo>,
-    ) -> Response {
+    ) -> (Response, Option<ProxyPick>) {
+        match self.put_checked(body, node, conn) {
+            Ok(done) => done,
+            Err(resp) => (resp, None),
+        }
+    }
+
+    /// Steps 1–10; `Err` is a refusal before anything was written.
+    fn put_checked(
+        &mut self,
+        body: &[u8],
+        node: &dyn NodeControl,
+        conn: Option<ConnInfo>,
+    ) -> Result<(Response, Option<ProxyPick>), Response> {
         if let Some(resp) = self.refuse_slot_without_network() {
-            return resp;
+            return Err(resp);
         }
-        let (rev_in, mut config_in) = match parse_put_request(body) {
-            Ok(v) => v,
-            Err(resp) => return resp,
-        };
+        let (rev_in, mut config_in) = parse_put_request(body)?;
         self.drop_process_fields(&mut config_in);
-        let file = match writable_file(self) {
-            Ok(f) => f,
-            Err(resp) => return resp,
-        };
-        let loaded = match load_file_or_reject_stale_rev(self, file.as_ref(), rev_in) {
-            Ok(l) => l,
-            Err(resp) => return resp,
-        };
+        let file = writable_file(self)?;
+        let loaded = load_file_or_reject_stale_rev(self, file.as_ref(), rev_in)?;
         let merged = merge_with_config(self, &config_in);
-        if let Err(resp) = reject_unavailable_fields(&merged) {
-            return resp;
-        }
-        let new = match parse_merged_settings(self, &merged) {
-            Ok(s) => s,
-            Err(resp) => return resp,
-        };
-        if let Err(resp) = reject_web_lockout(self, &new, conn) {
-            return resp;
-        }
-        write_new_settings(self, new, loaded, file.as_ref(), rev_in, node)
+        reject_unavailable_fields(&merged)?;
+        let new = parse_merged_settings(self, &merged)?;
+        reject_web_lockout(self, &new, conn)?;
+        Ok(write_new_settings(self, new, loaded, file.as_ref(), rev_in, node))
     }
 }
 
@@ -155,3 +152,7 @@ fn reject_web_lockout(
         format!("this list would close the page for you: the connection came through \"{name}\"");
     Err(state.invalid_response(vec![field_entry("web.ifaces", &text)]))
 }
+
+#[cfg(test)]
+#[path = "put_tests.rs"]
+mod tests;

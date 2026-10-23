@@ -1,4 +1,4 @@
-//! The `FIELDS` table: 27 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
+//! The `FIELDS` table: 31 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
 //! Row order is the file output order (`render.rs`); computed rows sit in their own section.
 
 use crate::node::net_names;
@@ -9,7 +9,7 @@ use super::kinds_list::{NetNames, NetSync, OpenedList, PeerList, PublishedList};
 use super::kinds_scalar::{
     Addr, BoolKind, Choice, Int, MemoryExit, NetKey, NodeName, OffOnly, OptAddr, Port,
 };
-use super::kinds_text::TextList;
+use super::kinds_text::{SlotRef, TextList};
 use super::row::{row, Block, Field, Mode};
 use super::value::{Computed, SettingsSlot};
 
@@ -49,6 +49,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("socks.port", RestartShown, slot!(process.socks_port, Port { min: 1024, max: 65535 })),
     row!("socks.access", RestartShown, slot!(process.socks_access, Choice { parse: ListenAccess::parse, name: ListenAccess::as_str, expected: "localhost or localnet" })),
     row!("socks.ifaces", RestartShown, slot!(process.socks_ifaces, IfaceNames)),
+    row!("proxy.net", Live, slot!(process.proxy_net, SlotRef)),
     row!("checks.enabled", Live, slot!(net.checks_enabled, BoolKind)),
     row!("checks.interval_sec", Live, slot!(net.check_interval_sec, Int { min: 30, max: 86_400 })),
     row!("checks.doh_server", RestartShown, slot!(net.doh_server, Addr)),

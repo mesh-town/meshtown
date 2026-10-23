@@ -40,7 +40,9 @@ pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
-pub use host_control::{single_slot_host, AddedSlot, HostControl, HostError, SlotHandle};
+pub use host_control::{
+    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, SlotHandle,
+};
 pub use listener::start_web_page;
 pub use members::dto::{
     AdmissionInfo, Counts, ExcludedInfo, ForgetInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,

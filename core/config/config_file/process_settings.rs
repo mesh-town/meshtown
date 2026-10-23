@@ -3,6 +3,7 @@
 
 use super::iface_filter::IfaceFilter;
 use super::settings::ListenAccess;
+use super::slot_store::NetSlotId;
 
 /// The fields of the `config` document that the running node does not read: SOCKS, the page, the log,
 /// the memory guard, the pass-through `autostart`/`full_tunnel`. Defaults live only in `Default`.
@@ -12,6 +13,7 @@ pub struct ProcessSettings {
     pub socks_port: u16,            // socks.port
     pub socks_access: ListenAccess, // socks.access   — who may use the proxy
     pub socks_ifaces: IfaceFilter,  // socks.ifaces — over which networks the proxy may be used
+    pub proxy_net: NetSlotId,       // proxy.net — which network's exit the local proxy uses
     pub web_enabled: bool,          // web.enabled       — pass-through
     pub web_port: u16,              // web.port          — pass-through
     pub web_access: ListenAccess,   // web.access      — who may open the page
@@ -31,6 +33,7 @@ impl Default for ProcessSettings {
             socks_port: crate::proxy::DEFAULT_SOCKS_PORT,
             socks_access: ListenAccess::Localhost,
             socks_ifaces: IfaceFilter::Auto,
+            proxy_net: NetSlotId::main(),
             web_enabled: true,
             web_port: 7777,
             web_access: ListenAccess::Localnet,

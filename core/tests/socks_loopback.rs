@@ -38,7 +38,7 @@ use meshtown_core::proxy::route::Route;
 use meshtown_core::proxy::socks5;
 use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
 
-use common::{pair, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
+use common::{front_for, pair, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn chosen_exit_carries_socks5_traffic() {
@@ -55,7 +55,8 @@ async fn chosen_exit_carries_socks5_traffic() {
     );
 
     // then: a request through SOCKS5 goes through B and brings the whole body.
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let mut stream = socks5::client_connect(proxy, DOMAIN, 80).await.unwrap();
     let response = http_min::http_get(
         &mut stream,
@@ -135,7 +136,8 @@ async fn route_exits_is_live_and_clears_back_to_direct() {
     assert_eq!(route, Route::Exits(vec![b.id]));
 
     // then: the SOCKS5 request goes through B.
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let mut stream = socks5::client_connect(proxy, "outside.test", 80)
         .await
         .unwrap();

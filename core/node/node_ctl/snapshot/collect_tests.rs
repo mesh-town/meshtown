@@ -12,10 +12,12 @@ use std::path::PathBuf;
 use crate::transport::net::AddrHint;
 use crate::transport::net::NodeSecret;
 
+use crate::config::config_file::{IfaceFilter, ListenAccess};
 use crate::members::network_key::NetworkKey;
 use crate::members::peer_names::PeerNames;
 use crate::node::output;
 use crate::node::NodeConfig;
+use crate::proxy::ProxyFace;
 use crate::transport::peers_cache::{entry_for, PeersCache};
 
 /// Path to a cache file in the test's temporary directory, unique for every call.
@@ -198,10 +200,139 @@ mod own_address {
     }
 }
 
+/// The `socks` block of the snapshot is the published face of the process proxy, not the node's own listener.
+mod socks_block {
+    use super::*;
+
+    mod face_with_an_address {
+        use super::*;
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn shows_the_proxy_as_enabled_on_that_address() {
+            // given: a node whose proxy face points at a loopback port
+            let (node, _face) = node_with_face(face_on(41234)).await;
+            // when: the snapshot is collected
+            let socks = socks_of(&node).await;
+            // then: the block shows that address
+            assert!(socks.enabled, "a face with an address means the proxy is on");
+            assert_eq!(socks.listen.as_deref(), Some("127.0.0.1:41234"));
+            node.shutdown().await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn gives_the_pac_url_on_the_face_port() {
+            let (node, _face) = node_with_face(face_on(41234)).await;
+            let socks = socks_of(&node).await;
+            assert_eq!(
+                socks.pac_url.as_deref(),
+                Some("http://127.0.0.1:41234/proxy.pac")
+            );
+            node.shutdown().await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn localhost_access_has_no_lan_addresses() {
+            let (node, _face) = node_with_face(face_on(41234)).await;
+            let socks = socks_of(&node).await;
+            assert_eq!(socks.access, "localhost");
+            assert!(socks.lan.is_empty(), "localhost shows no LAN addresses");
+            node.shutdown().await;
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn passes_access_and_ifaces_of_the_face_through() {
+            // given: a face in local-network mode over all interfaces
+            let face = ProxyFace {
+                access: ListenAccess::Localnet,
+                ifaces: IfaceFilter::Any,
+                ..face_on(41234)
+            };
+            let (node, _face) = node_with_face(face).await;
+            // when / then
+            let socks = socks_of(&node).await;
+            assert_eq!(socks.access, "localnet");
+            assert_eq!(socks.ifaces, Some(vec!["*".to_string()]));
+            node.shutdown().await;
+        }
+    }
+
+    mod face_off {
+        use super::*;
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn shows_the_proxy_as_disabled_with_no_address() {
+            // given: a node whose proxy face is off
+            let (node, _face) = node_with_face(ProxyFace::OFF).await;
+            // when: the snapshot is collected
+            let socks = socks_of(&node).await;
+            // then: nothing is listening, nothing to show
+            assert!(!socks.enabled);
+            assert_eq!(socks.listen, None);
+            assert_eq!(socks.pac_url, None);
+            assert!(socks.lan.is_empty(), "an off proxy has no LAN addresses");
+            node.shutdown().await;
+        }
+    }
+
+    mod face_changes {
+        use super::*;
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn next_snapshot_follows_the_new_face() {
+            // given: a node whose face is on and a snapshot taken from it
+            let (node, face) = node_with_face(face_on(41234)).await;
+            assert!(socks_of(&node).await.enabled, "precondition: face is on");
+            // when: the face is switched off and then to another port
+            face.send_replace(ProxyFace::OFF);
+            let off = socks_of(&node).await;
+            face.send_replace(face_on(41999));
+            let moved = socks_of(&node).await;
+            // then: each snapshot shows the face of its moment
+            assert!(!off.enabled, "after the face went off the block is off");
+            assert_eq!(off.listen, None);
+            assert_eq!(moved.listen.as_deref(), Some("127.0.0.1:41999"));
+            assert_eq!(
+                moved.pac_url.as_deref(),
+                Some("http://127.0.0.1:41999/proxy.pac")
+            );
+            node.shutdown().await;
+        }
+    }
+}
+
 /// A node on loopback (the `mem` transport); the address is taken from the stack without waiting for an IP.
 async fn loopback_node_with_address() -> crate::node::RunningNode {
     let key = NetworkKey::generate().unwrap();
     crate::node::start_node(NodeConfig::for_loopback_test(key))
         .await
         .unwrap()
+}
+
+/// A proxy face on `127.0.0.1:port` with the default access and interface filter.
+fn face_on(port: u16) -> ProxyFace {
+    ProxyFace {
+        addr: Some(SocketAddr::from(([127, 0, 0, 1], port))),
+        access: ListenAccess::Localhost,
+        ifaces: IfaceFilter::Auto,
+    }
+}
+
+/// A loopback node that reads its proxy face from a channel; the sender stays with the test.
+async fn node_with_face(
+    face: ProxyFace,
+) -> (crate::node::RunningNode, tokio::sync::watch::Sender<ProxyFace>) {
+    let (tx, rx) = tokio::sync::watch::channel(face);
+    let cfg = NodeConfig {
+        proxy_face: Some(rx),
+        ..NodeConfig::for_loopback_test(NetworkKey::generate().unwrap())
+    };
+    (crate::node::start_node(cfg).await.unwrap(), tx)
+}
+
+/// The `socks` block of a freshly collected snapshot.
+async fn socks_of(node: &crate::node::RunningNode) -> crate::web_gui::SocksInfo {
+    collect(node, None, "direct_and_relay", &mut DocCache::default())
+        .await
+        .snap
+        .socks
 }

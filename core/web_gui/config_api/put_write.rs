@@ -4,12 +4,31 @@
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::config::config_file::{fields, FileState, LoadedSettings, SaveError, Settings, SettingsFile};
+use crate::config::config_file::{fields, NetSlotId, FileState, LoadedSettings, SaveError, Settings, SettingsFile};
 use crate::web_gui::NodeControl;
 
 use super::settings_access::write_loaded;
 use super::state::ConfigState;
 use super::support::{get_path, json_response};
+
+/// Which slot should own the proxy's exit after a successful write.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum ProxyPick {
+    /// The slot that was written: it got a non-empty `route.exits`.
+    ThisSlot,
+    /// The slot named by the changed `proxy.net`.
+    Named(NetSlotId),
+}
+
+/// The switch a successful write asks for: new exits win over a changed `proxy.net`.
+fn proxy_pick(new: &Settings, changed: &[&'static str]) -> Option<ProxyPick> {
+    if changed.contains(&"route.exits") && !new.net.route_exits.is_empty() {
+        return Some(ProxyPick::ThisSlot);
+    }
+    changed
+        .contains(&"proxy.net")
+        .then(|| ProxyPick::Named(new.process.proxy_net.clone()))
+}
 
 /// Steps 9–10: fills in the unwritten (read-only) fields from the current file, computes the list of
 /// changed editable fields, writes the file — the write method depends on what was
@@ -21,7 +40,7 @@ pub(super) fn write_new_settings(
     file: &dyn SettingsFile,
     rev_in: u64,
     node: &dyn NodeControl,
-) -> Response {
+) -> (Response, Option<ProxyPick>) {
     new.net.network_key = state.file_settings.net.network_key.clone();
     new.process.web_enabled = state.file_settings.process.web_enabled;
     new.process.web_port = state.file_settings.process.web_port;
@@ -35,8 +54,8 @@ pub(super) fn write_new_settings(
 
     match perform_write(state, file, &loaded, rev_in, &new) {
         Ok(new_rev) => finish_successful_write(state, node, new, new_rev, changed),
-        Err(SaveError::StaleRev(_)) => respond_to_stale_write(state, file),
-        Err(SaveError::Io(t)) => state.config_write_failed(&t),
+        Err(SaveError::StaleRev(_)) => (respond_to_stale_write(state, file), None),
+        Err(SaveError::Io(t)) => (state.config_write_failed(&t), None),
     }
 }
 
@@ -58,7 +77,8 @@ fn finish_successful_write(
     new: Settings,
     new_rev: u64,
     changed: Vec<&'static str>,
-) -> Response {
+) -> (Response, Option<ProxyPick>) {
+    let pick = proxy_pick(&new, &changed);
     state.file_settings = new;
     state.file_report.state = FileState::Ok;
     state.file_report.message = None;
@@ -77,7 +97,7 @@ fn finish_successful_write(
         node.apply_config(&state.file_settings, &apply_now);
     }
 
-    json_response(
+    let resp = json_response(
         StatusCode::OK,
         serde_json::json!({
             "rev": new_rev,
@@ -89,7 +109,8 @@ fn finish_successful_write(
             "cli_overrides": state.cli_override_paths,
             "file": state.file_block(),
         }),
-    )
+    );
+    (resp, pick)
 }
 
 fn respond_to_stale_write(state: &mut ConfigState, file: &dyn SettingsFile) -> Response {

@@ -9,7 +9,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::web_gui::App;
+use crate::config::config_file::{NetSlotId, ProcessSettings};
+use crate::web_gui::{ActionError, App, SlotHandle};
 
 use super::helpers::{action_error, body_obj, map_string_field};
 use super::slot_param::SlotParam;
@@ -64,9 +65,52 @@ pub(super) async fn action_stop_handler(State(app): State<Arc<App>>) -> Response
     (StatusCode::ACCEPTED, axum::Json(json!({"stopping": true}))).into_response()
 }
 
-pub(super) async fn action_restart_handler(SlotParam(slot): SlotParam) -> Response {
-    match slot.node.restart() {
+pub(super) async fn action_restart_handler(
+    State(app): State<Arc<App>>,
+    SlotParam(slot): SlotParam,
+) -> Response {
+    let outcome = match slot.node.restart() {
+        Err(ActionError::NoNetwork(text)) => restart_without_network(&app, &slot, text).await,
+        other => other,
+    };
+    match outcome {
         Ok(()) => (StatusCode::ACCEPTED, axum::Json(json!({"restart": true}))).into_response(),
         Err(e) => action_error(e),
     }
 }
+
+/// A restart of the primary slot that has no network: the only thing it can restart is the process-wide
+/// proxy, which takes the pending `socks.*` settings. Anything else keeps the original refusal.
+async fn restart_without_network(
+    app: &App,
+    slot: &SlotHandle,
+    refusal: String,
+) -> Result<(), ActionError> {
+    let refused = ActionError::NoNetwork(refusal);
+    let Some(front) = app.host.proxy_front().filter(|_| slot.id == NetSlotId::main()) else {
+        return Err(refused);
+    };
+    let Some(process) = pending_socks_process(slot) else {
+        return Err(refused);
+    };
+    front
+        .apply(&process)
+        .await
+        .map_err(|e| ActionError::Busy(format!("{e:#}")))?;
+    let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    cfg.settle_socks_baseline(&process);
+    Ok(())
+}
+
+/// The process settings to apply when `socks.*` waits for a restart and no launch flag owns it.
+fn pending_socks_process(slot: &SlotHandle) -> Option<ProcessSettings> {
+    let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    let pending = cfg.pending_restart_paths();
+    let waits = pending.iter().any(|p| p.starts_with("socks."));
+    let flagged = cfg.cli_override_paths.iter().any(|p| p.starts_with("socks."));
+    (waits && !flagged).then(|| cfg.file_settings.process.clone())
+}
+
+#[cfg(test)]
+#[path = "actions_tests.rs"]
+mod tests;

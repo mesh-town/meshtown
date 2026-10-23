@@ -280,41 +280,6 @@ fn relaunch_reload_keeps_label() {
     assert_eq!(cfg2.network_label, None);
 }
 
-/// `Relaunch` without a file and with `--socks`/`--no-socks` set; settings with `socks.enabled: false`.
-fn socks_off_by_flag_for(socks_enabled: Option<bool>) -> bool {
-    let relaunch = Relaunch {
-        file: None,
-        cli: CliOverrides {
-            socks_enabled,
-            ..CliOverrides::default()
-        },
-        secret: test_secret(20),
-        initial_domains: Vec::new(),
-        blocked_domains: Vec::new(),
-        test_net: None,
-    };
-    let s = Settings {
-        process: crate::config::config_file::ProcessSettings {
-            socks_enabled: false,
-            ..crate::config::config_file::ProcessSettings::default()
-        },
-        ..Settings::default()
-    };
-    relaunch
-        .node_config(&s, NetworkKey::from_bytes([21u8; 32]))
-        .socks_off_by_flag
-}
-
-#[test]
-fn node_config_marks_socks_off_by_flag_only_for_no_socks() {
-    assert!(socks_off_by_flag_for(Some(false)), "--no-socks — a flag");
-    assert!(!socks_off_by_flag_for(Some(true)), "--socks — not a flag");
-    assert!(
-        !socks_off_by_flag_for(None),
-        "no flag — turned off by settings"
-    );
-}
-
 #[test]
 fn node_config_with_test_net_runs_on_mem() {
     // given: Relaunch with the tests' mem network

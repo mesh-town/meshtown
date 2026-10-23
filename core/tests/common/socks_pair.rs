@@ -15,7 +15,9 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::config::config_file::ProcessSettings;
 use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::ProxyFront;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::time::{sleep, Instant};
@@ -152,7 +154,6 @@ pub(crate) async fn pair_with(
     cfg_a.exit_hosts = HashMap::from([(DOMAIN.to_string(), site)]);
     let mut cfg_b = NodeConfig::for_loopback_test(key);
     cfg_b.settings.exit_enabled = exit_enabled;
-    cfg_b.socks.enabled = false;
     cfg_b.exit_hosts = HashMap::from([
         (DOMAIN.to_string(), site),
         ("outside.test".to_string(), site),
@@ -171,6 +172,18 @@ pub(crate) async fn pair_with(
     (a, b)
 }
 
+/// The process-wide proxy front on a free loopback port, serving through `node`. Keep it while the port is needed.
+pub(crate) async fn front_for(node: &RunningNode) -> ProxyFront {
+    let settings = ProcessSettings {
+        socks_enabled: true,
+        socks_port: 0,
+        ..ProcessSettings::default()
+    };
+    let front = ProxyFront::bind(&settings).await.expect("the proxy front binds");
+    front.set_target(Some(node.proxy_config()));
+    front
+}
+
 /// A pair of nodes where A knows B as the only exit in
 /// `route.exits` from the very start (not by a live edit) — this checks the config path `Settings.route_exits` → `node/start/serving.rs` →
 /// `RouteCtx::new`, not only the live knob `set_route_exits`.
@@ -178,7 +191,6 @@ pub(crate) async fn pair_with_static_exit(site: SocketAddr) -> (RunningNode, Run
     let key = NetworkKey::generate().unwrap();
     let mut cfg_b = NodeConfig::for_loopback_test(key.clone());
     cfg_b.settings.exit_enabled = true;
-    cfg_b.socks.enabled = false;
     cfg_b.exit_hosts = HashMap::from([(DOMAIN.to_string(), site)]);
     let b = node::start_node(cfg_b).await.unwrap();
 

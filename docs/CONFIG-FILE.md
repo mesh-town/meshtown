@@ -124,6 +124,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
+| `proxy.net` | no flag | `main` | which network's exit the local proxy uses |
 | `checks.enabled` | `--checks` / `--no-checks` | `true` | `settings.checks_enabled` (`core/config/config_file/net_settings.rs`) |
 | `checks.interval_sec` | `--check-interval` | 900 | `settings.check_interval()` (`core/config/config_file/net_settings.rs`) |
 | `checks.doh_server` | `--check-doh` | `1.1.1.1:443` | `settings.doh_server` (`core/config/config_file/net_settings.rs`) |
@@ -485,11 +486,13 @@ folder without `config.json`. The node reads `nets/` at startup, only when the m
 - **Only network settings.** `config` holds the network rows (network key, node name, transport, exit, routes,
   ports, checks, domains and the like) and nothing else. Every slot has its own identity secret and its own
   files beside it (peer cache, peer names, replica).
-- **Process keys are ignored.** `socks.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
+- **Process keys are ignored.** `socks.*`, `proxy.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
   `full_tunnel.*` always come from the main file. If such keys are found in a slot file (for example a copy of
   the main file) they are not an error: one log line names them, and they disappear on the next write.
 - **Command-line flags** that belong to a network (`--key`, `--exit` and the like) apply to the main network only;
   the flags that belong to the process (SOCKS, the page port) are shared by all slots.
+- **One proxy entrance per process.** The SOCKS/HTTP entrance is shared by all networks, so `socks.*` apply to the
+  whole process; `proxy.net` picks which network's exit it uses.
 - **A slot that cannot start** gets a log line `net slot <id> not started: <reason>`; its folder is never
   deleted or rewritten for that. The reasons: the file is missing, unreadable or invalid, its version is newer
   than this build knows, it has no `network.key`, it holds the same network as a running slot, or the

@@ -21,7 +21,7 @@ use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use common::{echo_site, pair, wait_exit_route, DOMAIN};
+use common::{front_for, echo_site, pair, wait_exit_route, DOMAIN};
 
 /// given: a pair of nodes with an echo site behind B; with an empty `route.exits` a direct connection D to
 /// `DOMAIN` is open, with exit B chosen a connection E to `outside.test` is open — both prove
@@ -33,7 +33,8 @@ async fn exit_connection_closes_when_exit_unchosen_direct_survives() {
     let (a, b) = pair(site, true).await;
 
     // given: `route.exits` is empty — the connection to `DOMAIN` goes directly.
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let mut d = socks5::client_connect(proxy, DOMAIN, 80).await.unwrap();
     echo_round_trip(&mut d, b"ping-direct", Duration::from_secs(5)).await;
 

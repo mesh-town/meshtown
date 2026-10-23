@@ -32,7 +32,6 @@ impl Relaunch {
         let mut cfg = s.node_config(key, self.secret.clone());
         cfg.initial_domains = self.initial_domains.clone();
         cfg.blocked_domains = self.blocked_domains.clone();
-        cfg.socks_off_by_flag = self.cli.socks_enabled == Some(false);
         let beside = self.file.as_ref().map(|f| f.path());
         cfg.peers_cache_path = beside.and_then(peers_cache::peers_cache_path_beside);
         cfg.peer_names_path = beside.and_then(peer_names::peer_names_path_beside);

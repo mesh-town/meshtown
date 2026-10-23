@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
+use super::super::slot_store::NetSlotId;
 use super::value::Kind;
 
 /// A list of phrases: at most `max_items`, each at most `max_chars` characters (not bytes).
@@ -43,6 +44,27 @@ impl Kind<Vec<String>> for TextList {
 
     fn default_text(&self, _: &Vec<String>) -> String {
         "[]".to_string()
+    }
+}
+
+/// A network slot reference (`proxy.net`): `main` or a six-character network id.
+pub(crate) struct SlotRef;
+
+impl Kind<NetSlotId> for SlotRef {
+    fn to_json(&self, v: &NetSlotId) -> Option<Value> {
+        (*v != NetSlotId::main()).then(|| Value::from(v.as_str()))
+    }
+
+    fn parse(&self, v: &Value) -> Option<NetSlotId> {
+        NetSlotId::parse(v.as_str()?)
+    }
+
+    fn expected(&self) -> String {
+        "main or a network id: 6 characters a-z, 2-7".to_string()
+    }
+
+    fn default_text(&self, d: &NetSlotId) -> String {
+        d.as_str().to_string()
     }
 }
 

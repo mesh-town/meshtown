@@ -69,7 +69,7 @@ const DEFAULT_TEXT: &str = r#"{
   }
 }
 "#;
-const DEBUG_DEFAULT: &str = r#"Settings { node.memory_warn_mib: 400, node.memory_exit_mib: 900, node.name: None, network.key: None, transport.mode: DirectAndRelay, net.transports: ["hyper"], net.discovery: ["invite", "cache", "hyperdht"], net.sync: "mesh", exit.enabled: true, socks.enabled: true, socks.port: 1080, socks.access: Localhost, socks.ifaces: Auto, checks.enabled: true, checks.interval_sec: 900, checks.doh_server: 1.1.1.1:443, checks.provider_dns: None, checks.geo_markers: [], probe.interval_sec: 300, probe.full_cycle: false, route.exits: [], ports.published: [], ports.opened: [], web.enabled: true, web.port: 7777, web.access: Localnet, web.ifaces: Auto, log.ring_lines: 2000, autostart.enabled: false, full_tunnel.enabled: false }"#;
+const DEBUG_DEFAULT: &str = r#"Settings { node.memory_warn_mib: 400, node.memory_exit_mib: 900, node.name: None, network.key: None, transport.mode: DirectAndRelay, net.transports: ["hyper"], net.discovery: ["invite", "cache", "hyperdht"], net.sync: "mesh", exit.enabled: true, socks.enabled: true, socks.port: 1080, socks.access: Localhost, socks.ifaces: Auto, proxy.net: NetSlotId("main"), checks.enabled: true, checks.interval_sec: 900, checks.doh_server: 1.1.1.1:443, checks.provider_dns: None, checks.geo_markers: [], probe.interval_sec: 300, probe.full_cycle: false, route.exits: [], ports.published: [], ports.opened: [], web.enabled: true, web.port: 7777, web.access: Localnet, web.ifaces: Auto, log.ring_lines: 2000, autostart.enabled: false, full_tunnel.enabled: false }"#;
 const INPUT: &str = r#"{
   "rev": 7,
   "saved_at": "2023-11-14T22:13:20Z",
@@ -106,6 +106,9 @@ const INPUT: &str = r#"{
       "ifaces": [
         "br-lan"
       ]
+    },
+    "proxy": {
+      "net": "ab2c3d"
     },
     "checks": {
       "enabled": false,
@@ -169,7 +172,7 @@ const INPUT: &str = r#"{
   }
 }
 "#;
-const DEBUG_ALL: &str = r#"Settings { node.memory_warn_mib: 500, node.memory_exit_mib: 800, node.name: Some("Kitchen \"1\""), network.key: Some("<hidden>"), transport.mode: RelayOnly, net.transports: ["hyper"], net.discovery: ["cache", "invite"], net.sync: "mem", exit.enabled: false, socks.enabled: false, socks.port: 1090, socks.access: Localnet, socks.ifaces: Only(["br-lan"]), checks.enabled: false, checks.interval_sec: 600, checks.doh_server: 9.9.9.9:443, checks.provider_dns: Some([::1]:53), checks.geo_markers: ["ünavailable hère"], probe.interval_sec: 120, probe.full_cycle: true, route.exits: [PeerId(fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618), PeerId(43a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3c)], ports.published: [Published { port: 8080, name: "web", audience: All }, Published { port: 9090, name: "second", audience: Nodes([PeerId(66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a)]) }], ports.opened: [Opened { node: PeerId(0b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d), port: 80, local: 8081 }], web.enabled: false, web.port: 8080, web.access: Localhost, web.ifaces: Any, log.ring_lines: 500, autostart.enabled: false, full_tunnel.enabled: false }"#;
+const DEBUG_ALL: &str = r#"Settings { node.memory_warn_mib: 500, node.memory_exit_mib: 800, node.name: Some("Kitchen \"1\""), network.key: Some("<hidden>"), transport.mode: RelayOnly, net.transports: ["hyper"], net.discovery: ["cache", "invite"], net.sync: "mem", exit.enabled: false, socks.enabled: false, socks.port: 1090, socks.access: Localnet, socks.ifaces: Only(["br-lan"]), proxy.net: NetSlotId("ab2c3d"), checks.enabled: false, checks.interval_sec: 600, checks.doh_server: 9.9.9.9:443, checks.provider_dns: Some([::1]:53), checks.geo_markers: ["ünavailable hère"], probe.interval_sec: 120, probe.full_cycle: true, route.exits: [PeerId(fd1724385aa0c75b64fb78cd602fa1d991fdebf76b13c58ed702eac835e9f618), PeerId(43a72e714401762df66b68c26dfbdf2682aaec9f2474eca4613e424a0fbafd3c)], ports.published: [Published { port: 8080, name: "web", audience: All }, Published { port: 9090, name: "second", audience: Nodes([PeerId(66be7e332c7a453332bd9d0a7f7db055f5c5ef1a06ada66d98b39fb6810c473a)]) }], ports.opened: [Opened { node: PeerId(0b513ad9b4924015ca0902ed079044d3ac5dbec2306f06948c10da8eb6e39f2d), port: 80, local: 8081 }], web.enabled: false, web.port: 8080, web.access: Localhost, web.ifaces: Any, log.ring_lines: 500, autostart.enabled: false, full_tunnel.enabled: false }"#;
 
 fn render_of(s: &Settings) -> String {
     render_config_file(REV, NOW, &test_secret(), s)

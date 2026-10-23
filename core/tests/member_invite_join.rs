@@ -32,7 +32,6 @@ async fn start_listed(
 ) -> RunningNode {
     let mut cfg = NodeConfig::for_loopback_test(key.clone());
     cfg.open_list = false;
-    cfg.socks.enabled = false;
     cfg.identity_secret = owner;
     cfg.initial_peers = peers;
     node::start_node(cfg).await.unwrap()

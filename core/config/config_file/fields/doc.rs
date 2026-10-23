@@ -15,7 +15,7 @@ use super::{
 };
 
 /// Sections that vanish entirely when they have no keys (the others are written as `{}`).
-const DROPPED_WHEN_EMPTY: [&str; 1] = ["net"];
+const DROPPED_WHEN_EMPTY: [&str; 2] = ["net", "proxy"];
 
 /// Key order in objects inside lists (`serde_json` without `preserve_order` sorts them
 /// alphabetically): `ports.published` — port, name, for; `ports.opened` — node, port, local.

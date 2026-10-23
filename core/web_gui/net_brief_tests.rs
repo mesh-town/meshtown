@@ -70,25 +70,125 @@ fn a_slot_without_a_key_has_no_label_and_no_id() {
     let host = FakeHost::new(vec![handle("main", rich_snapshot(), None)]);
 
     // when
-    let b = brief_of(&host.main_slot());
+    let b = brief_of(&host.main_slot(), &NetSlotId::main());
 
     // then
     assert_eq!((b.label, b.id_hex), (None, None));
 }
 
-#[test]
-fn the_proxy_belongs_to_main_only() {
-    // given
-    let host = FakeHost::new(vec![
-        handle("main", rich_snapshot(), None),
-        handle("ab2c3d", rich_snapshot(), None),
-    ]);
+mod proxy {
+    use std::sync::Arc;
 
-    // when
-    let proxies: Vec<bool> = briefs(host.as_ref()).iter().map(|b| b.proxy).collect();
+    use super::*;
 
-    // then
-    assert_eq!(proxies, vec![true, false]);
+    mod net_is_the_default_main {
+        use super::*;
+
+        #[test]
+        fn only_the_main_slot_has_the_proxy() {
+            // given
+            let host = setup(&["main", "ab2c3d", "cd4e5f"], None, &[]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", true), ("ab2c3d", false), ("cd4e5f", false)]));
+        }
+    }
+
+    mod net_names_a_second_slot {
+        use super::*;
+
+        #[test]
+        fn only_that_slot_has_the_proxy_and_main_does_not() {
+            // given
+            let host = setup(&["main", "ab2c3d", "cd4e5f"], Some("ab2c3d"), &[]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", false), ("ab2c3d", true), ("cd4e5f", false)]));
+        }
+
+        #[test]
+        fn naming_the_last_slot_marks_exactly_that_one() {
+            // given
+            let host = setup(&["main", "ab2c3d", "cd4e5f"], Some("cd4e5f"), &[]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", false), ("ab2c3d", false), ("cd4e5f", true)]));
+        }
+    }
+
+    mod net_names_a_slot_that_is_not_loaded {
+        use super::*;
+
+        #[test]
+        fn no_slot_has_the_proxy() {
+            // given
+            let host = setup(&["main", "ab2c3d"], Some("ee2222"), &[]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", false), ("ab2c3d", false)]));
+        }
+    }
+
+    mod net_names_a_broken_slot {
+        use super::*;
+
+        #[test]
+        fn the_broken_brief_has_no_proxy_and_the_live_ones_neither() {
+            // given
+            let host = setup(&["main", "ab2c3d"], Some("ee2222"), &["ee2222"]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", false), ("ab2c3d", false), ("ee2222", false)]));
+        }
+
+        #[test]
+        fn the_main_slot_keeps_the_proxy_next_to_a_broken_one() {
+            // given
+            let host = setup(&["main"], None, &["ee2222"]);
+
+            // when
+            let got = proxies(host.as_ref());
+
+            // then
+            assert_eq!(got, flags(&[("main", true), ("ee2222", false)]));
+        }
+    }
+
+    fn setup(live: &[&str], proxy_net: Option<&str>, broken: &[&str]) -> Arc<FakeHost> {
+        let host = FakeHost::new(
+            live.iter()
+                .map(|id| handle(id, rich_snapshot(), None))
+                .collect(),
+        );
+        if let Some(id) = proxy_net {
+            host.set_proxy_net(NetSlotId::parse(id).unwrap());
+        }
+        host.set_broken(broken.iter().map(|id| NetSlotId::parse(id).unwrap()).collect());
+        host
+    }
+
+    fn proxies(host: &FakeHost) -> Vec<(String, bool)> {
+        briefs(host).into_iter().map(|b| (b.id, b.proxy)).collect()
+    }
+
+    fn flags(expected: &[(&str, bool)]) -> Vec<(String, bool)> {
+        expected.iter().map(|(id, on)| (id.to_string(), *on)).collect()
+    }
 }
 
 #[test]

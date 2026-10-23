@@ -71,12 +71,11 @@ mod rejoin;
 #[cfg(feature = "net-hyper")]
 mod running;
 #[cfg(feature = "net-hyper")]
-mod socks_task;
 #[cfg(feature = "net-hyper")]
 mod start;
 
 #[cfg(feature = "net-hyper")]
-pub use config::{NodeConfig, SocksListen};
+pub use config::NodeConfig;
 #[cfg(feature = "net-hyper")]
 pub use doc_changes::DocChanges;
 #[cfg(feature = "net-hyper")]

@@ -24,6 +24,7 @@ use super::{
     SlotHandle, WebShared,
 };
 use crate::config::config_file::NetSlotId;
+use crate::proxy::ProxyFront;
 
 pub(crate) const PORT: u16 = 18767;
 pub(crate) const TOKEN: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789ABCDEFGHJK";
@@ -34,6 +35,7 @@ pub(crate) enum HostCall {
     Add,
     Retire(NetSlotId, bool),
     StopAll,
+    ClaimProxy(NetSlotId),
 }
 
 struct State {
@@ -41,6 +43,11 @@ struct State {
     add: Result<AddedSlot, HostError>,
     retire: Result<(), HostError>,
     broken: Vec<NetSlotId>,
+    claim: Result<(), HostError>,
+    front: Option<ProxyFront>,
+    proxy_net: NetSlotId,
+    check_lock_free_of: Option<NetSlotId>,
+    lock_was_free: Option<bool>,
 }
 
 /// A host over fixed slots with settable answers.
@@ -58,6 +65,11 @@ impl FakeHost {
                 add: Err(HostError::TooManyNets),
                 retire: Ok(()),
                 broken: Vec::new(),
+                claim: Ok(()),
+                front: None,
+                proxy_net: NetSlotId::main(),
+                check_lock_free_of: None,
+                lock_was_free: None,
             }),
         })
     }
@@ -80,6 +92,28 @@ impl FakeHost {
 
     pub(crate) fn set_broken(&self, ids: Vec<NetSlotId>) {
         self.state().broken = ids;
+    }
+
+    pub(crate) fn set_claim_result(&self, answer: Result<(), HostError>) {
+        self.state().claim = answer;
+    }
+
+    pub(crate) fn set_front(&self, front: Option<ProxyFront>) {
+        self.state().front = front;
+    }
+
+    pub(crate) fn set_proxy_net(&self, id: NetSlotId) {
+        self.state().proxy_net = id;
+    }
+
+    /// On `claim_proxy`, try this slot's config lock and remember whether it was free.
+    pub(crate) fn check_lock_free_of(&self, id: NetSlotId) {
+        self.state().check_lock_free_of = Some(id);
+    }
+
+    /// `Some(true)` if the watched slot's config lock was free during the last `claim_proxy`.
+    pub(crate) fn lock_was_free(&self) -> Option<bool> {
+        self.state().lock_was_free
     }
 }
 
@@ -114,6 +148,25 @@ impl HostControl for FakeHost {
 
     fn broken(&self) -> Vec<NetSlotId> {
         self.state().broken.clone()
+    }
+
+    fn claim_proxy(&self, id: &NetSlotId) -> Result<(), HostError> {
+        let watched = self.state().check_lock_free_of.clone();
+        let free = watched
+            .and_then(|w| self.slot(&w))
+            .map(|s| s.config.try_lock().is_ok());
+        let mut st = self.state();
+        st.calls.push(HostCall::ClaimProxy(id.clone()));
+        st.lock_was_free = free.or(st.lock_was_free);
+        st.claim.clone()
+    }
+
+    fn proxy_net(&self) -> NetSlotId {
+        self.state().proxy_net.clone()
+    }
+
+    fn proxy_front(&self) -> Option<ProxyFront> {
+        self.state().front.clone()
     }
 }
 

@@ -4,7 +4,6 @@
 use super::*;
 use crate::config::config_file::{NetSettings, TransportMode};
 use crate::members::network_key::NetworkKey;
-use crate::node::SocksListen;
 use crate::site_checks::doh::DEFAULT_DOH;
 use crate::transport::net::NetChoice;
 use std::time::Duration;
@@ -33,8 +32,6 @@ mod for_loopback_test {
             "checks every 15 minutes"
         );
         assert!(!s.checks_enabled, "checks are off");
-        assert_eq!(cfg.socks.port, 0, "the OS picks the proxy port");
-        assert!(cfg.socks.enabled, "proxy is on");
         assert!(s.exit_enabled, "exit is on");
         assert_eq!(s.doh_server, DEFAULT_DOH, "default DoH server");
         assert_eq!(
@@ -50,21 +47,12 @@ mod for_loopback_test {
     }
 
     #[test]
-    fn socks_on_any_port_guard_off() {
+    fn loopback_preset_runs_on_the_mem_network() {
         // given: a network key
         let key = key();
         // when: the preset for loopback tests is built
         let cfg = NodeConfig::for_loopback_test(key);
-        // then: SOCKS is on at any port, the network is mem
-        assert_eq!(
-            cfg.socks,
-            SocksListen {
-                enabled: true,
-                port: 0,
-                access: crate::config::config_file::ListenAccess::Localhost,
-                ifaces: crate::config::config_file::IfaceFilter::Auto
-            }
-        );
+        // then: the network is mem
         assert_eq!(cfg.settings.net_choice.transports, ["mem"]);
     }
 
@@ -140,15 +128,6 @@ mod for_cli {
         );
     }
 
-    #[test]
-    fn leaves_process_services_off() {
-        // given: network defaults
-        let n = NetSettings::default();
-        // when: the CLI preset is built
-        let cfg = NodeConfig::for_cli(key(), &n);
-        // then: SOCKS is off: the live path goes through `Settings::node_config`
-        assert_eq!(cfg.socks, SocksListen::OFF);
-    }
 }
 
 fn key() -> NetworkKey {

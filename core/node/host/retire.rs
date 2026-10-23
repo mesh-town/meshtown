@@ -37,8 +37,10 @@ impl HostSlots {
         if self.is_stopping() {
             return Err(HostError::Busy("the node is stopping".into()));
         }
+        let claim = self.claim_guard();
         let task = match self.remove_slot(id) {
             Some(slot) => {
+                self.leave_proxy_seat(id, &claim);
                 let ended = slot.ended.clone();
                 let main_file = self.main_file();
                 leave_task(

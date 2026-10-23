@@ -19,7 +19,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use common::{echo_site, pair_with, wait_exit_route};
+use common::{front_for, echo_site, pair_with, wait_exit_route};
 
 /// The IPv6 literal the exit maps to the echo server.
 const LITERAL: &str = "2001:db8::1";
@@ -32,6 +32,7 @@ struct Fixture {
         meshtown_core::node::RunningNode,
     ),
     proxy: SocketAddr,
+    _front: meshtown_core::proxy::ProxyFront,
 }
 
 async fn setup() -> Fixture {
@@ -47,8 +48,10 @@ async fn setup() -> Fixture {
         Route::Exits(vec![b.id]),
         "the route must lead through the exit"
     );
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     Fixture {
+        _front: front,
         _nodes: (a, b),
         proxy,
     }

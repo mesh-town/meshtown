@@ -24,7 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::{sleep, timeout, Instant};
 
-use common::{echo_site, pair_with, wait_exit_route, DOMAIN};
+use common::{front_for, echo_site, pair_with, wait_exit_route, DOMAIN};
 use udp::{associate, reply_within, send_to_relay, spawn_udp_echo, UDP_LIMIT};
 
 /// The name the exit maps to the UDP echo server.
@@ -35,6 +35,7 @@ const SILENCE: Duration = Duration::from_millis(500);
 struct Fixture {
     _nodes: (RunningNode, RunningNode),
     proxy: SocketAddr,
+    _front: meshtown_core::proxy::ProxyFront,
     echo: SocketAddr,
 }
 
@@ -55,8 +56,10 @@ async fn setup() -> Fixture {
         Route::Exits(vec![b.id]),
         "the route must lead through the exit"
     );
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     Fixture {
+        _front: front,
         _nodes: (a, b),
         proxy,
         echo,
@@ -179,7 +182,8 @@ async fn associate_without_exits_relays_directly() {
         .expect("the loopback is up");
     let site = echo_site().await;
     let (a, _b) = pair_with(site, true, |_| {}).await;
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let (_control, client, bound) = associate(proxy).await;
 
     // when: a datagram for the echo server
@@ -212,7 +216,8 @@ async fn direct_association_reaches_an_ipv6_target() {
     };
     let site = echo_site().await;
     let (a, _b) = pair_with(site, true, |_| {}).await;
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let (_control, client, bound) = associate(proxy).await;
 
     // when: a datagram with an IPv6 address
