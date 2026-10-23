@@ -11,9 +11,9 @@ use crate::gui::tray::app::start_note::StartNote;
 use crate::gui::tray::app::view::{self, NodeState, PageState, TrayColor, View};
 
 use super::api::{
-    child_status_text, fetch_reply, reply_summary, start_policy, NodeRequest, StartDecision,
-    KILLED_BY_SIGNAL_TEXT,
+    child_status_text, reply_summary, start_policy, StartDecision, KILLED_BY_SIGNAL_TEXT,
 };
+use super::overview_poll::fetch_node_reply;
 use super::poller::{Poller, QuitCause, QuitTriggers};
 use super::views::{grey_view, views_from_state_json, ABSENT_VIEW, RUNNING_UNAVAILABLE_VIEW};
 
@@ -157,11 +157,10 @@ impl Poller {
             Phase::Absent | Phase::PortBusy => {
                 let was_busy = matches!(phase, Phase::PortBusy);
                 let reply = quit_triggers
-                    .race_with_quit(fetch_reply(
+                    .race_with_quit(fetch_node_reply(
                         self.port,
                         &self.token_path,
-                        NodeRequest::State,
-                        None,
+                        &mut self.overview_gate,
                     ))
                     .await?;
                 *phase = self.enter(reply, false, was_busy);
@@ -198,11 +197,10 @@ impl Poller {
             return Ok(());
         }
         let reply = quit_triggers
-            .race_with_quit(fetch_reply(
+            .race_with_quit(fetch_node_reply(
                 self.port,
                 &self.token_path,
-                NodeRequest::State,
-                None,
+                &mut self.overview_gate,
             ))
             .await?;
         let v = match &reply {
@@ -232,11 +230,10 @@ impl Poller {
             unreachable!("tick_foreign is only for Phase::Foreign")
         };
         let reply = quit_triggers
-            .race_with_quit(fetch_reply(
+            .race_with_quit(fetch_node_reply(
                 self.port,
                 &self.token_path,
-                NodeRequest::State,
-                None,
+                &mut self.overview_gate,
             ))
             .await?;
         match &reply {

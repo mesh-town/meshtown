@@ -16,6 +16,7 @@ use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
 use crate::gui::tray::app::view::View;
 use crate::gui::tray::NodeCmd;
 
+use super::overview_poll::OverviewGate;
 use super::poller::{Poller, QuitTriggers};
 use super::start_fail::StartFail;
 
@@ -117,6 +118,7 @@ impl PollEnv {
             notes_visible_until: None,
             start_fail,
             timing,
+            overview_gate: OverviewGate::new(),
         };
         (poller, web_enabled, cmds, QuitTriggers::new(signal, quit))
     }

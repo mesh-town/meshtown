@@ -159,3 +159,6 @@ fn view_carries_disk_from_snapshot() {
         })
     );
 }
+
+#[path = "views_nets_tests.rs"]
+mod nets;

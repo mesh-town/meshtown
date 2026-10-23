@@ -1,5 +1,8 @@
 // Types and fixture of the target (demo/node) — starting and stopping the target.
-import { test as base } from '@playwright/test';
+import { access } from 'node:fs/promises';
+import * as path from 'node:path';
+
+import { test as base, type TestInfo } from '@playwright/test';
 
 import { launchTarget, type LaunchSpec } from './target-launch';
 
@@ -42,6 +45,12 @@ function resolveFlags(flags: TargetFlags): Required<TargetFlags> {
   };
 }
 
+// Attaches the target log to the report as `<kind>-log` (lands in `test-results/…` of a failed test).
+async function attachLog(testInfo: TestInfo, kind: TargetKind, logPath: string): Promise<void> {
+  const exists = await access(logPath).then(() => true, () => false);
+  if (exists) await testInfo.attach(`${kind}-log`, { path: logPath, contentType: 'text/plain' });
+}
+
 export const test = base.extend<TargetTestOptions & { target: RunningTarget }, TargetWorkerOptions>({
   targetKind: ['demo', { scope: 'worker', option: true }],
   targetBin: ['', { scope: 'worker', option: true }],
@@ -53,11 +62,14 @@ export const test = base.extend<TargetTestOptions & { target: RunningTarget }, T
       flags: resolveFlags(targetFlags),
       workDir: testInfo.outputPath('target'),
     };
-    const handle = await launchTarget(spec);
+    const logPath = path.join(spec.workDir, 'target.log');
+    // A failed launch (readiness wait) leaves no handle, but the log is already on disk.
+    const handle = await launchTarget(spec).catch(async (err: unknown) => {
+      await attachLog(testInfo, targetKind, logPath);
+      throw err;
+    });
     await use(handle.running);
     await handle.stop();
-    if (testInfo.status !== testInfo.expectedStatus) {
-      await testInfo.attach('target.log', { path: handle.running.logPath });
-    }
+    if (testInfo.status !== testInfo.expectedStatus) await attachLog(testInfo, targetKind, logPath);
   },
 });

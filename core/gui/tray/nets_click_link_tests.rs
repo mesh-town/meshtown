@@ -1,0 +1,170 @@
+//! Tests of the page links of menu clicks and of the facts taken from the menu model.
+
+use super::*;
+use crate::gui::tray::app::exit_menu::disabled_exit_menu;
+use crate::gui::tray::app::local_api::stub_node::{friends, work, NetSpec};
+use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+
+mod link_for {
+    use super::*;
+
+    const BASE: &str = "http://127.0.0.1:8080/?token=T";
+
+    #[test]
+    fn open_is_the_base_without_an_anchor() {
+        assert_eq!(
+            link_for(&MenuTarget::Open, BASE, &MenuFacts::default()),
+            Some(BASE.to_string())
+        );
+    }
+
+    #[test]
+    fn members_and_participant_rows_point_at_the_network() {
+        let target = parse_menu_id("peer:ab12cd");
+
+        let link = link_for(&target, BASE, &MenuFacts::default());
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers/ab12cd")
+        );
+        assert_eq!(
+            link,
+            link_for(
+                &parse_menu_id("members:ab12cd"),
+                BASE,
+                &MenuFacts::default()
+            )
+        );
+    }
+
+    #[test]
+    fn vote_with_two_networks_points_at_the_network_with_the_vote() {
+        let mut facts = facts(&[("main", false, false), ("ab12cd", false, false)]);
+        facts.vote_slot = Some("ab12cd".into());
+
+        let link = link_for(&MenuTarget::Vote, BASE, &facts);
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers/ab12cd")
+        );
+    }
+
+    #[test]
+    fn vote_with_one_network_points_at_the_member_list() {
+        let link = link_for(&MenuTarget::Vote, BASE, &MenuFacts::default());
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers")
+        );
+    }
+
+    #[test]
+    fn vote_with_two_networks_and_no_slot_points_at_the_member_list() {
+        let facts = facts(&[("main", false, false), ("ab12cd", false, false)]);
+
+        let link = link_for(&MenuTarget::Vote, BASE, &facts);
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers")
+        );
+    }
+
+    #[test]
+    fn commands_have_no_link() {
+        assert_eq!(
+            link_for(&MenuTarget::Quit, BASE, &MenuFacts::default()),
+            None
+        );
+        assert_eq!(
+            link_for(&MenuTarget::Directly, BASE, &MenuFacts::default()),
+            None
+        );
+    }
+}
+
+mod menu_facts {
+    use super::*;
+
+    #[test]
+    fn nested_menu_lists_every_network() {
+        // given
+        let menu = menu_of(&[friends(), work()]);
+
+        // when
+        let f = menu_facts(&menu);
+
+        // then
+        let slots: Vec<&str> = f.nets.iter().map(|n| n.slot.as_str()).collect();
+        assert_eq!(slots, ["main", "ab12cd"]);
+        assert_eq!(f.nets[0].label, "friends");
+    }
+
+    #[test]
+    fn chosen_exit_marks_only_its_network() {
+        let f = menu_facts(&menu_of(&[friends(), work()]));
+
+        assert!(!f.nets[0].exit_chosen, "nothing is chosen in friends");
+        assert!(f.nets[1].exit_chosen, "peer-b is chosen in work");
+    }
+
+    #[test]
+    fn flat_menu_has_no_network_facts() {
+        let menu = disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings));
+
+        assert!(menu_facts(&menu).nets.is_empty());
+    }
+
+    #[test]
+    fn vote_slot_is_the_first_network_with_a_vote() {
+        let first = NetSpec {
+            voting: 1,
+            admitting: 1,
+            ..friends()
+        };
+        let second = NetSpec {
+            voting: 1,
+            ..work()
+        };
+
+        let f = menu_facts(&menu_of(&[first, second]));
+
+        assert_eq!(f.vote_slot.as_deref(), Some("main"));
+    }
+
+    #[test]
+    fn vote_beats_a_waiting_node_in_an_earlier_network() {
+        let first = NetSpec {
+            admitting: 1,
+            ..friends()
+        };
+        let second = NetSpec {
+            voting: 1,
+            ..work()
+        };
+
+        let f = menu_facts(&menu_of(&[first, second]));
+
+        assert_eq!(f.vote_slot.as_deref(), Some("ab12cd"));
+    }
+
+    #[test]
+    fn without_a_vote_a_waiting_node_picks_the_network() {
+        let second = NetSpec {
+            admitting: 1,
+            ..work()
+        };
+
+        let f = menu_facts(&menu_of(&[friends(), second]));
+
+        assert_eq!(f.vote_slot.as_deref(), Some("ab12cd"));
+    }
+
+    #[test]
+    fn quiet_networks_have_no_vote_slot() {
+        assert_eq!(menu_facts(&menu_of(&[friends(), work()])).vote_slot, None);
+    }
+}

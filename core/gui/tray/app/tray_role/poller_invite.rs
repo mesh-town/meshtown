@@ -64,8 +64,9 @@ fn invite_line_from_body(body: &Value) -> Option<String> {
 impl Poller {
     /// A click on the item: request → clipboard write → outcome in the item for `note_visible_for`. `&mut self` is there for the same
     /// reason as in `send_exit_edit`: `Poller` is not `Sync`.
-    pub(super) async fn copy_invite(&mut self) {
-        let reply = fetch_reply(self.port, &self.token_path, NodeRequest::Invite, None).await;
+    pub(super) async fn copy_invite(&mut self, slot: Option<&str>) {
+        let api = NodeRequest::Invite(slot);
+        let reply = fetch_reply(self.port, &self.token_path, api, None).await;
         let text = invite_from(&reply);
         let reach = reach_from(&reply);
         drop(reply);

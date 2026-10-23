@@ -3,6 +3,7 @@
 //! a normal build is expected and allowed here until the poller uses them.
 
 use super::classify::reply_from_response;
+use super::paths::{api_path, OVERVIEW_PATH};
 use super::request::{request_bytes_put, request_bytes_without_body};
 use super::transport::{exchange, exchange_within, INVITE_EXCHANGE_TIMEOUT};
 use super::types::{ApiError, Reply};
@@ -15,6 +16,13 @@ pub(crate) async fn get_state(port: u16, token: &str) -> Result<Reply, ApiError>
     Ok(reply_from_response(status, &body))
 }
 
+/// The summary of all networks (`GET /api/overview`). The same chain as `get_state`.
+pub(crate) async fn get_overview(port: u16, token: &str) -> Result<Reply, ApiError> {
+    let request = request_bytes_without_body("GET", OVERVIEW_PATH, port, token);
+    let (status, body) = exchange(&request, port).await?;
+    Ok(reply_from_response(status, &body))
+}
+
 /// Node stop (`POST /api/actions/stop`). The same chain as `get_state`.
 pub(crate) async fn post_stop(port: u16, token: &str) -> Result<Reply, ApiError> {
     let request = request_bytes_without_body("POST", "/api/actions/stop", port, token);
@@ -23,24 +31,38 @@ pub(crate) async fn post_stop(port: u16, token: &str) -> Result<Reply, ApiError>
 }
 
 /// The current configuration document (`GET /api/config`). The same chain as `get_state`.
-pub(crate) async fn get_config(port: u16, token: &str) -> Result<Reply, ApiError> {
-    let request = request_bytes_without_body("GET", "/api/config", port, token);
+pub(crate) async fn get_config(
+    port: u16,
+    token: &str,
+    slot: Option<&str>,
+) -> Result<Reply, ApiError> {
+    let request = request_bytes_without_body("GET", &api_path(slot, "config"), port, token);
     let (status, body) = exchange(&request, port).await?;
     Ok(reply_from_response(status, &body))
 }
 
 /// The node's invite (`GET /api/network/invite`). The same chain as `get_config`. The response body
 /// carries a secret — the caller extracts the string at once and never formats it anywhere.
-pub(crate) async fn get_invite(port: u16, token: &str) -> Result<Reply, ApiError> {
-    let request = request_bytes_without_body("GET", "/api/network/invite", port, token);
+pub(crate) async fn get_invite(
+    port: u16,
+    token: &str,
+    slot: Option<&str>,
+) -> Result<Reply, ApiError> {
+    let path = api_path(slot, "network/invite");
+    let request = request_bytes_without_body("GET", &path, port, token);
     let (status, body) = exchange_within(&request, port, INVITE_EXCHANGE_TIMEOUT).await?;
     Ok(reply_from_response(status, &body))
 }
 
 /// A configuration edit (`PUT /api/config`). `body` is an already serialized document
 /// `{"rev": <rev>, "config": {...}}` (the server merges the patch itself, no need to send the full document).
-pub(crate) async fn put_config(port: u16, token: &str, body: &[u8]) -> Result<Reply, ApiError> {
-    let request = request_bytes_put("/api/config", port, token, body);
+pub(crate) async fn put_config(
+    port: u16,
+    token: &str,
+    slot: Option<&str>,
+    body: &[u8],
+) -> Result<Reply, ApiError> {
+    let request = request_bytes_put(&api_path(slot, "config"), port, token, body);
     let (status, response_body) = exchange(&request, port).await?;
     Ok(reply_from_response(status, &response_body))
 }

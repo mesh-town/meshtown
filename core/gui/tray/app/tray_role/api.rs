@@ -53,10 +53,11 @@ pub(super) fn child_status_text(status: &ExitStatus) -> String {
 }
 
 #[derive(Clone, Copy)]
-pub(super) enum NodeRequest {
+pub(super) enum NodeRequest<'a> {
     State,
+    Overview,
     Stop,
-    Invite,
+    Invite(Option<&'a str>),
 }
 
 /// A request with the token read from the file right now; on 401 it re-reads the token and retries once at once. `total_timeout` is
@@ -64,7 +65,7 @@ pub(super) enum NodeRequest {
 pub(super) async fn fetch_reply(
     port: u16,
     token_path: &Path,
-    api: NodeRequest,
+    api: NodeRequest<'_>,
     total_timeout: Option<Duration>,
 ) -> Result<Reply, ApiError> {
     let call = async {
@@ -83,11 +84,12 @@ pub(super) async fn fetch_reply(
     }
 }
 
-async fn call_api(api: NodeRequest, port: u16, token: &str) -> Result<Reply, ApiError> {
+async fn call_api(api: NodeRequest<'_>, port: u16, token: &str) -> Result<Reply, ApiError> {
     match api {
         NodeRequest::State => local_api::get_state(port, token).await,
+        NodeRequest::Overview => local_api::get_overview(port, token).await,
         NodeRequest::Stop => local_api::post_stop(port, token).await,
-        NodeRequest::Invite => local_api::get_invite(port, token).await,
+        NodeRequest::Invite(slot) => local_api::get_invite(port, token, slot).await,
     }
 }
 
