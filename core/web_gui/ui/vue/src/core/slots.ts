@@ -35,8 +35,12 @@ export function isMulti(store: SlotsHost): boolean {
 
 const normalized = (s: string) => s.toLowerCase().replace(/\s+/g, "");
 
+/** The name of a slot being joined that holds no key yet. */
+export const NEW_NET_NAME = "New network";
+
 function baseName(n: NetBrief): string {
   if (n.label != null) return n.label;
+  if (n.joining && n.id_hex == null) return NEW_NET_NAME;
   return n.id_hex != null ? `Network ${n.id_hex.slice(0, 4)}` : n.id;
 }
 

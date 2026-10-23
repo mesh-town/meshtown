@@ -8,6 +8,7 @@ import { saveSingleExit } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import type { PeerInfo } from "../core/api-types.ts";
+import JoiningCard from "../home/JoiningCard.vue";
 import NoNetwork from "../common/NoNetwork.vue";
 import { chosenExitIds } from "../common/exits.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
@@ -55,6 +56,10 @@ const { banner, show: showBanner, clear: clearBanner } = useNetBanner();
 watchArrivals(() => store.nets, (arrived) => {
   showBanner(arrived, arrivedBannerText(store, arrived));
   if (store.peersTab === "add") location.hash = peersHash(arrived);
+});
+const waitingHere = computed(() => {
+  const b = store.nets.find((n) => n.id === slot.value);
+  return !!b && b.joining && b.id_hex == null && slot.value !== "main";
 });
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
@@ -106,6 +111,7 @@ async function exitVia(idFull: string): Promise<void> {
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
     <ExcludedCard v-else-if="excluded" :variant="variant" :net="net" @join="joinAnother" />
+    <JoiningCard v-else-if="waitingHere" :key="slot" :slot="slot" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />
       <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>

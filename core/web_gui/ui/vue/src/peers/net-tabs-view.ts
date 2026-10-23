@@ -1,10 +1,10 @@
 /* What the tab row and the tab header show, derived from the network list. */
 
-import { netName, visibleSlots } from "../core/slots.ts";
+import { NEW_NET_NAME, netName, visibleSlots } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import type { NetBrief } from "../core/api-types.ts";
 import { slotVotes } from "./net-votes.ts";
-import { PEERS_NEW_NET, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
+import { PEERS_TAB_JOINING_SUB, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
 
 export interface NetTab {
   slot: string;
@@ -25,14 +25,18 @@ function tabOf(store: Store, slot: string): NetTab {
   const down = b ? isDown(b) : false;
   const online = b ? b.peers_online : 0;
   const total = b ? b.peers_total : 0;
-  return { slot, name, sub: peersTabSub(online, down), title: peersTabTitle(name, online, total, down), votes: slotVotes(store, slot) };
+  const waiting = b ? b.joining && b.id_hex == null : false;
+  const sub = waiting ? PEERS_TAB_JOINING_SUB : peersTabSub(online, down);
+  return { slot, name, sub, title: peersTabTitle(name, online, total, down), votes: slotVotes(store, slot) };
 }
 
 export const netTabs = (store: Store): NetTab[] => visibleSlots(store.nets, store.slots).map((slot) => tabOf(store, slot));
 
-// Networks being joined: no key yet, so they have no tab of their own.
-export const joiningTabs = (store: Store): { name: string }[] =>
-  store.nets.filter((n) => n.joining && n.id_hex == null).map((n) => ({ name: n.label || PEERS_NEW_NET }));
+// Networks being joined whose state has not arrived yet: they are not among the regular tabs.
+export const joiningTabs = (store: Store): { name: string }[] => {
+  const shown = visibleSlots(store.nets, store.slots);
+  return store.nets.filter((n) => n.joining && n.id_hex == null && !shown.includes(n.id)).map((n) => ({ name: n.label || NEW_NET_NAME }));
+};
 
 export function netWho(store: Store, slot: string): string {
   const b = briefOf(store, slot);

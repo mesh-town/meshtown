@@ -176,6 +176,26 @@ describe("netName", () => {
     });
   });
 
+  describe("a slot that is joining and holds no key yet", () => {
+    it("without a label is New network, not the slot id", () => {
+      assert.equal(netName([brief(B, { joining: true })], B), "New network");
+    });
+    it("with a label is the label", () => {
+      assert.equal(netName([brief(B, { joining: true, label: "friends" })], B), "friends");
+    });
+    it("two of them without labels get no suffix: there is no key to take it from", () => {
+      const nets = [brief(B, { joining: true }), brief(C, { joining: true })];
+      assert.equal(netName(nets, B), "New network");
+      assert.equal(netName(nets, C), "New network");
+    });
+  });
+
+  describe("a slot that is not joining and holds no key", () => {
+    it("without a label stays the slot id", () => {
+      assert.equal(netName([brief(B, { joining: false })], B), B);
+    });
+  });
+
   describe("an unknown id", () => {
     it("is the id itself", () => {
       assert.equal(netName([brief(B, { id_hex: "3f2a00" })], C), C);

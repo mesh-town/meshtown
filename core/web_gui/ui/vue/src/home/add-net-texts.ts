@@ -19,6 +19,11 @@ export const ADD_NET_TO_CREATE = "No invite? Create a new network ▸";
 export const ADD_NET_TO_JOIN = "Have an invite? Join a network ▸";
 export const ADD_NET_WAITING = "Joining the network…";
 export const ADD_NET_WAITING_SUB = "This takes up to a minute. Your other networks keep working.";
+export const JOIN_NO_ANSWER = "No answer yet — the network's host may be offline.";
+export const JOIN_CANCEL_BTN = "Cancel";
+export const JOIN_CANCEL_FAILED = "Couldn't cancel — try again.";
+/** How long a join waits before the page says nobody has answered. */
+export const JOIN_NO_ANSWER_MS = 60_000;
 export const ADD_NET_LIMIT = `Mesh Town can be in up to ${MAX_NETS} networks at once. To add this one, leave another network first.`;
 export const ADD_NET_BUSY = "Adding…";
 export const ADD_NET_ACTION = "add the network";
