@@ -49,13 +49,15 @@ async fn a_new_slot_is_201_and_a_handed_back_one_is_200() {
     fake.set_add(added(true));
     let (created, body) = send(&router, Method::POST, "/api/nets", "").await;
     fake.set_add(added(false));
-    let (again, _) = send(&router, Method::POST, "/api/nets", "{}").await;
+    let (again, again_body) = send(&router, Method::POST, "/api/nets", "{}").await;
 
     // then
     assert_eq!(created, StatusCode::CREATED);
     assert_eq!(body["slot"], "main");
     assert_eq!(body["nets"][0]["id"], "main");
+    assert_eq!(body["fresh"], true);
     assert_eq!(again, StatusCode::OK);
+    assert_eq!(again_body["fresh"], false);
     assert_eq!(fake.calls(), vec![HostCall::Add, HostCall::Add]);
 }
 
