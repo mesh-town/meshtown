@@ -147,7 +147,8 @@ The new node joins without waiting for a DHT lookup:
 - The same goes for `--key` of another network without an invite: the network is added beside the main one and the
   file keeps its key. A key of a network that is already saved is simply used. One node holds up to 8 networks;
   past that the run is refused before it goes to the network, and the invite is not spent.
-- A network added this way starts with the sites of the main network's list and the ones typed with `--domain`;
+- A network added this way runs with the launch flags of the main network, except `--key`.
+  It starts with the sites of the main network's list and the ones typed with `--domain`;
   an added network joined by an invite also remembers the peer addresses from the invite, so it finds them at start.
 - The same join is available on the node page, in the "Invite from a network member" field. The answer comes at once,
   and "waiting for members" is shown under the field. That field accepts both a plain key and an invite, told apart by

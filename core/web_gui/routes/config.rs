@@ -80,10 +80,11 @@ pub(super) async fn config_put_handler(
     if let Some(resp) = refuse_unknown_proxy_net(&app, &slot, &bytes) {
         return resp;
     }
+    let taken = app.host.opened_locals(&slot.id);
     overlay_from_main(&app, &slot);
     let (resp, pick) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
-        let (resp, pick) = cfg.put_keeping(&bytes, &*slot.node, conn.map(|Extension(c)| c));
+        let (resp, pick) = cfg.put_keeping(&bytes, &*slot.node, conn.map(|Extension(c)| c), &taken);
         if resp.status() == StatusCode::OK && slot.id.carries_process() {
             app.shared.set_access(cfg.file_settings.process.web_access);
             if !cfg.cli_override_paths.contains(&"web.ifaces") {

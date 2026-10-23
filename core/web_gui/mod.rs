@@ -41,7 +41,8 @@ pub use control::{
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
 pub use host_control::{
-    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, SlotHandle,
+    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, OpenedLocal,
+    SlotHandle,
 };
 pub use listener::start_web_page;
 pub use members::dto::{

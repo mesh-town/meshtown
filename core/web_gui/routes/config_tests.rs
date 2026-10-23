@@ -7,6 +7,10 @@ use axum::http::{Method, StatusCode};
 use serde_json::{json, Value};
 
 use crate::config::config_file::{self, CliOverrides, ConfigSource, ListenAccess, PathRule};
+use crate::members::network_key::format_key_string;
+use crate::members::words::generate_tail;
+use crate::ports_sharing::Opened;
+use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{send, slot_handle, test_app, FakeHost, SnapNode};
 use crate::web_gui::{App, ConfigState, HostControl};
 
@@ -43,7 +47,9 @@ mod put_to_the_primary_slot {
             let f = setup();
             f.app.shared.set_access(ListenAccess::Localhost);
             // when
-            let (status, body) = f.when_put("main", json!({"web": {"access": "localnet"}})).await;
+            let (status, body) = f
+                .when_put("main", json!({"web": {"access": "localnet"}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::OK, "body: {body}");
             assert_eq!(f.app.shared.auth.access(), ListenAccess::Localnet);
@@ -74,10 +80,63 @@ mod put_to_an_added_slot {
         let kept = other_than(f.main_access());
         f.app.shared.set_access(kept);
         // when
-        let (status, body) = f.when_put(ADDED, json!({"checks": {"interval_sec": 600}})).await;
+        let (status, body) = f
+            .when_put(ADDED, json!({"checks": {"interval_sec": 600}}))
+            .await;
         // then
         assert_eq!(status, StatusCode::OK, "body: {body}");
         assert_eq!(f.app.shared.auth.access(), kept, "access of the page");
+    }
+}
+
+mod a_local_opened_in_another_network {
+    use super::*;
+
+    #[tokio::test]
+    async fn refuses_the_put_to_an_added_slot_and_keeps_its_file() {
+        // given: the primary slot has opened `local 9000`
+        let f = setup();
+        f.given_opened("main", 9000);
+        let before = f.file_text(ADDED);
+        // when
+        let (status, body) = f.when_put(ADDED, opens(9000)).await;
+        // then
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "body: {body}");
+        assert_eq!(body["fields"][0]["path"], "ports.opened");
+        assert_eq!(
+            body["fields"][0]["message"],
+            "local port 9000 is already opened in network \"home\""
+        );
+        assert_eq!(f.file_text(ADDED), before, "file of the added slot");
+    }
+
+    #[tokio::test]
+    async fn refuses_the_put_to_the_primary_slot_and_keeps_its_file() {
+        // given: the added slot has opened `local 9000`
+        let f = setup();
+        f.given_opened(ADDED, 9000);
+        let before = f.file_text("main");
+        // when
+        let (status, body) = f.when_put("main", opens(9000)).await;
+        // then
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "body: {body}");
+        assert_eq!(body["fields"][0]["path"], "ports.opened");
+        assert_eq!(
+            body["fields"][0]["message"],
+            "local port 9000 is already opened in network \"work\""
+        );
+        assert_eq!(f.file_text("main"), before, "file of the primary slot");
+    }
+
+    #[tokio::test]
+    async fn lets_another_local_through() {
+        // given
+        let f = setup();
+        f.given_opened("main", 9000);
+        // when
+        let (status, body) = f.when_put(ADDED, opens(9001)).await;
+        // then
+        assert_eq!(status, StatusCode::OK, "body: {body}");
     }
 }
 
@@ -91,7 +150,13 @@ mod get_of_an_added_slot {
         let (put, body) = f.when_put("main", json!({"socks": {"port": 4242}})).await;
         assert_eq!(put, StatusCode::OK, "body: {body}");
         // when
-        let (status, body) = send(&f.router, Method::GET, &format!("/api/net/{ADDED}/config"), "").await;
+        let (status, body) = send(
+            &f.router,
+            Method::GET,
+            &format!("/api/net/{ADDED}/config"),
+            "",
+        )
+        .await;
         // then
         assert_eq!(status, StatusCode::OK, "body: {body}");
         assert_eq!(body["config"]["socks"]["port"], 4242);
@@ -125,13 +190,31 @@ impl Fixture {
     }
 
     fn rev_of(&self, slot: &str) -> u64 {
-        let handle = self.host.slot(&config_file::NetSlotId::parse(slot).unwrap()).unwrap();
+        let handle = self
+            .host
+            .slot(&config_file::NetSlotId::parse(slot).unwrap())
+            .unwrap();
         let rev = handle.config.lock().unwrap().file_report.rev;
         rev
     }
 
     fn file_text(&self, slot: &str) -> String {
         std::fs::read_to_string(self.dir.join(slot).join("config.json")).unwrap_or_default()
+    }
+
+    /// The settings of the slot hold one opened port with this `local`.
+    fn given_opened(&self, slot: &str, local: u16) {
+        let handle = self
+            .host
+            .slot(&config_file::NetSlotId::parse(slot).unwrap())
+            .unwrap();
+        let node = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
+        let opened = Opened {
+            node,
+            port: 80,
+            local,
+        };
+        handle.config.lock().unwrap().file_settings.net.ports_opened = vec![opened];
     }
 
     fn main_access(&self) -> ListenAccess {
@@ -147,15 +230,30 @@ impl Drop for Fixture {
     }
 }
 
+/// A config part that opens a port of a peer on `local`.
+fn opens(local: u16) -> Value {
+    let node = NodeSecret::from_bytes(&[7u8; 32]).peer_id().to_string();
+    json!({"ports": {"opened": [{"node": node, "port": 80, "local": local}]}})
+}
+
+fn labelled_key(label: &str) -> String {
+    format_key_string(Some(label), &generate_tail().unwrap())
+}
+
 fn setup() -> Fixture {
     static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("routes-config-{}-{n}", std::process::id()));
-    let main = file_slot("main", &dir.join("main"), None);
-    let added = file_slot(ADDED, &dir.join(ADDED), Some("some-network-key"));
+    let main = file_slot("main", &dir.join("main"), Some(&labelled_key("home")));
+    let added = file_slot(ADDED, &dir.join(ADDED), Some(&labelled_key("work")));
     let host = FakeHost::new(vec![main, added]);
     let (router, app) = test_app(host.clone());
-    Fixture { router, app, host, dir }
+    Fixture {
+        router,
+        app,
+        host,
+        dir,
+    }
 }
 
 fn file_slot(id: &str, dir: &std::path::Path, key: Option<&str>) -> crate::web_gui::SlotHandle {

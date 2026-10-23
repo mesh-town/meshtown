@@ -240,6 +240,10 @@ mod put_tests;
 mod ports_tests;
 
 #[cfg(test)]
+#[path = "put_opened_tests.rs"]
+mod put_opened_tests;
+
+#[cfg(test)]
 #[path = "put_golden_tests.rs"]
 mod put_golden_tests;
 
