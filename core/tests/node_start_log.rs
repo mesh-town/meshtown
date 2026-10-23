@@ -16,16 +16,12 @@ const TAGS: [&str; 8] = [
 /// Replaces the variable parts of a line with labels.
 fn normalize(text: &str, node: &node::RunningNode) -> String {
     let full = node.id.to_string();
-    let socks = node.socks_addr.map(|a| a.to_string()).unwrap_or_default();
     let mut s = text
         .replace(&full, "<hex>")
         .replace(&node.id.fmt_short(), "<short>")
         .replace(&node.domains.shared_replica_id().fmt_short(), "<space>")
         .replace(&format!("\"{}\"", node.name_at_start), "\"<name>\"")
         .replace(env!("CARGO_PKG_VERSION"), "<ver>");
-    if !socks.is_empty() {
-        s = s.replace(&socks, "<socks>");
-    }
     // The network id in the banner (8 hex after the network name) isn't available in the public API, so we cut it in place.
     if let Some(at) = s.find("network Mesh Town ") {
         let from = at + "network Mesh Town ".len();
@@ -53,7 +49,6 @@ async fn start_log_order_matches_reference() {
         "[node] mode: no relay",
         "[net] non-default network choice: transport mem; discovery invite, cache; sync mesh",
         "[docs] domain list: space <space>, author <short>",
-        "[socks] accepting connections on <socks>",
         "[exit] serving as exit for members of network Mesh Town",
     ];
     node.shutdown().await;

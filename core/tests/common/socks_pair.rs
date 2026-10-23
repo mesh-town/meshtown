@@ -15,7 +15,9 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::config::config_file::ProcessSettings;
 use meshtown_core::proxy::route::Route;
+use meshtown_core::proxy::ProxyFront;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::time::{sleep, Instant};
@@ -169,6 +171,18 @@ pub(crate) async fn pair_with(
     wait_member(&a, b.id, Duration::from_secs(20)).await;
     wait_member(&b, a.id, Duration::from_secs(20)).await;
     (a, b)
+}
+
+/// The process-wide proxy front on a free loopback port, serving through `node`. Keep it while the port is needed.
+pub(crate) async fn front_for(node: &RunningNode) -> ProxyFront {
+    let settings = ProcessSettings {
+        socks_enabled: true,
+        socks_port: 0,
+        ..ProcessSettings::default()
+    };
+    let front = ProxyFront::bind(&settings).await.expect("the proxy front binds");
+    front.set_target(Some(node.proxy_config()));
+    front
 }
 
 /// A pair of nodes where A knows B as the only exit in

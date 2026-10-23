@@ -210,26 +210,6 @@ async fn each_boot_cycle_takes_new_boot_id() {
     }
 }
 
-/// Network switch (`boot_cycle` in a row) on one fixed SOCKS5 port.
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn boot_cycles_reuse_fixed_socks_port() {
-    let ctl = NodeCtl::new(&Settings::default());
-    let port = free_port();
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([4; 32]));
-    cfg.socks.enabled = true;
-    cfg.socks.port = port;
-    for round in 0..20 {
-        let node = boot_cycle(&cfg, &ctl, false)
-            .await
-            .unwrap_or_else(|e| panic!("round {round}, port {port}: {e:#}"));
-        ctl.stop_on_os_signal();
-        assert!(
-            matches!(serve_until_command(node, &ctl).await, Cmd::Stop),
-            "round {round}"
-        );
-    }
-}
-
 /// A stop that arrives while the node starts survives `attach`: the snapshot says "stopping".
 #[tokio::test]
 async fn stop_before_attach_keeps_stopping_status() {

@@ -109,6 +109,7 @@ fn setup(tag: &str) -> Fixture {
     };
     let mut run = config_file::prepare(&source, &overrides, true, 0).expect("prepare");
     run.effective_settings.process.web_enabled = false;
+    run.effective_settings.process.socks_port = 0;
     let slot = NetSlotId::parse("ab2c3d").unwrap();
     let slot_file = net_slot_path(run.file.as_ref().unwrap().path(), &slot).unwrap();
     write_text(&slot_file, BROKEN_TEXT);

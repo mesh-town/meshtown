@@ -2,7 +2,6 @@
 
 use portable_atomic::AtomicU64;
 use std::collections::HashMap;
-use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -24,7 +23,6 @@ use crate::proxy::route::RouteCtx;
 use crate::site_checks::checks::Checks;
 
 use super::identity::IdentityState;
-use super::socks_task::SocksTask;
 
 /// A running node: holds everything needed to introduce new addresses and to shut down.
 ///
@@ -41,12 +39,6 @@ pub struct RunningNode {
     pub ok_probe_count: Arc<AtomicUsize>,
     pub domains: DomainList,
     pub checks: Checks,
-    /// The SOCKS5 server address, if it is up. Tests read the real port from here.
-    pub socks_addr: Option<SocketAddr>,
-    /// Who can reach the proxy (`socks.access`): `socks_addr` is always the address for this computer.
-    pub socks_access: crate::config::config_file::ListenAccess,
-    /// The proxy's interface filter (`socks.ifaces`) it was started with.
-    pub socks_ifaces: crate::config::config_file::IfaceFilter,
     /// What a proxy front serves this node's traffic with.
     pub(in crate::node) proxy: crate::proxy::ProxyConfig,
     /// The published state of the proxy listener.
@@ -93,10 +85,8 @@ pub struct RunningNode {
     pub access: Arc<crate::members::access::runtime::Access>,
     /// Handles of background tasks started in `start_node()` (except those spawned by
     /// `run_node_loop` itself — they end when connections close). `shutdown` aborts them
-    /// after the stack stops. Except the SOCKS5 accept task — that one is in `socks_task`.
+    /// after the stack stops.
     pub(super) background_abort_handles: Arc<Vec<tokio::task::AbortHandle>>,
-    /// The SOCKS5 accept task: `shutdown` waits for it to end, so the port is free on return.
-    pub(super) socks_task: SocksTask,
 }
 
 impl RunningNode {
@@ -164,14 +154,13 @@ impl RunningNode {
     }
 
     /// Stops the node: closes the port opener and the network stack (the transport
-    /// itself enforces the time limit for closing), then aborts the background tasks. On return the SOCKS5 port is free.
+    /// itself enforces the time limit for closing), then aborts the background tasks.
     pub async fn shutdown(self) {
         self.opener.close_all();
         self.stack.close().await;
         for handle in self.background_abort_handles.iter() {
             handle.abort();
         }
-        self.socks_task.close().await;
         flush_replicas(&self.domains).await;
         say("node", "stopped");
     }

@@ -30,7 +30,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 
-use common::{echo_site, pair_with, silent_site, wait_exit_route, DOMAIN};
+use common::{front_for, echo_site, pair_with, silent_site, wait_exit_route, DOMAIN};
 
 /// How many streams B allows A on the exit connection (as in `core/tests/exit_pool_timeout.rs`): if
 /// the pair does not converge with 1, here it is 2 and `when_slots_taken` holds two SOCKS connections.
@@ -141,6 +141,7 @@ struct Fixture {
     /// The nodes live as long as the fixture does.
     _nodes: (RunningNode, RunningNode),
     proxy: SocketAddr,
+    _front: meshtown_core::proxy::ProxyFront,
 }
 
 /// A pair of nodes with a stream limit at B, B's exit chosen at A, targets behind B are `site`.
@@ -153,8 +154,10 @@ async fn setup(site: SocketAddr) -> Fixture {
         Route::Exits(vec![b.id]),
         "A's route must lead through B"
     );
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     Fixture {
+        _front: front,
         _nodes: (a, b),
         proxy,
     }

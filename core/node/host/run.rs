@@ -14,6 +14,7 @@ use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, say, NET_NAME};
+use crate::proxy::{ProxyFront, ProxySeat};
 use crate::web_gui::{now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
 
 /// The role of the node page in a launch: what to do if it didn't start.
@@ -70,8 +71,21 @@ impl Host {
         let dump_dir = heap_dump_dir(run_config.file_report.path.as_deref());
         let services = ProcessServices::start(&run_config.effective_settings.process, dump_dir);
         ctl.set_guard_sources(NetSlotId::main(), services.sources());
+        let front = match Host::bind_front(&run_config).await {
+            Ok(front) => front,
+            Err(e) => {
+                services.stop();
+                return Err(e);
+            }
+        };
+        let seat = Arc::new(ProxySeat::new(
+            front.clone(),
+            run_config.effective_settings.process.proxy_net.clone(),
+        ));
+        ctl.set_proxy_seat(NetSlotId::main(), seat.clone());
         let config = ConfigState::from_run(&run_config);
         let host = HostSlots::with_main(ctl.clone(), config);
+        host.set_proxy_seat(seat);
         let on_signal = host.clone();
         let signal_task = spawn_stop_signal(move || on_signal.stop_all_on_signal());
         let saved = SavedSlots {
@@ -80,8 +94,22 @@ impl Host {
         };
         let result = Host::with_page(run_config, ctl, role, body, host, saved).await;
         signal_task.abort();
+        if let Some(front) = front {
+            front.close().await;
+        }
         services.stop();
         result
+    }
+
+    /// Takes the process proxy port; with the proxy off, takes nothing and logs why.
+    async fn bind_front(run_config: &RunConfig) -> anyhow::Result<Option<ProxyFront>> {
+        let process = &run_config.effective_settings.process;
+        if !process.socks_enabled {
+            let by_flag = run_config.cli_override_paths.contains(&"socks.enabled");
+            say("socks", socks_off_line(by_flag));
+            return Ok(None);
+        }
+        Ok(Some(ProxyFront::bind(process).await?))
     }
 
     /// Starts the page and runs the main slot's cycle around it; the page is stopped after the slots.
@@ -115,6 +143,7 @@ impl Host {
                 sources: saved.sources.clone(),
             });
             host.start_saved_slots(main_run, relaunch, &saved.sources, now_unix());
+            host.report_proxy_start();
             output::set_multi_net(multi_net_for(host.len()));
         }
         let result = Host::wait_slots(&host).await;
@@ -158,6 +187,14 @@ impl Host {
                 task.await.ok();
             }
         }
+    }
+}
+
+/// The log line about the proxy being off: the startup flag or a setting.
+fn socks_off_line(by_flag: bool) -> String {
+    match by_flag {
+        true => "off by the --no-socks flag".to_string(),
+        false => "off in settings (socks.enabled: false)".to_string(),
     }
 }
 

@@ -18,7 +18,7 @@ use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
-use common::{pair_with_static_exit, wait_exit_route, DOMAIN};
+use common::{front_for, pair_with_static_exit, wait_exit_route, DOMAIN};
 
 const BLOCK: usize = 64 * 1024;
 const TOTAL: usize = 64 * 1024 * 1024;
@@ -89,7 +89,8 @@ async fn exit_throughput() {
     assert_eq!(route, meshtown_core::proxy::route::Route::Exits(vec![b.id]));
 
     // when: the client pulls the body through node A's SOCKS5
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let mut stream = socks5::client_connect(proxy, DOMAIN, 80).await.unwrap();
     let req = format!("GET / HTTP/1.1\r\nHost: {DOMAIN}\r\nConnection: close\r\n\r\n");
     stream.write_all(req.as_bytes()).await.unwrap();

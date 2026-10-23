@@ -1,4 +1,4 @@
-//! The first start phase: the SOCKS5 port, the secret, transports, the node name and identity; the banner and
+//! The first start phase: the secret, transports, the node name and identity; the banner and
 //! listen addresses to the log. `Boot` is the intermediate state carried onward through the
 //! start phases by the other files of `node/start/`.
 
@@ -7,7 +7,6 @@ use std::sync::Arc;
 use crate::transport::net::{NodeSecret, PeerId, Transport};
 use anyhow::Result;
 use data_encoding::HEXLOWER;
-use tokio::net::TcpListener;
 
 use crate::config::config_file::NetSettings;
 use crate::members::network_key::{NetworkKey, SubKeys};
@@ -15,7 +14,6 @@ use crate::members::words::trim_and_validate_node_name;
 use crate::node::node_name::effective_node_name;
 use crate::node::output::{say, short_peer_id};
 use crate::node::telemetry::Telemetry;
-use crate::proxy;
 
 use crate::node::config::NodeConfig;
 use crate::node::identity::IdentityState;
@@ -26,7 +24,6 @@ use super::transports::bind_transports;
 /// plus handles of background tasks that accumulate across the start phases and go to `RunningNode.background_abort_handles`.
 pub(super) struct Boot {
     pub(super) background_abort_handles: Vec<tokio::task::AbortHandle>,
-    pub(super) socks_listener: Option<TcpListener>,
     pub(super) subkeys: SubKeys,
     pub(super) secret: NodeSecret,
     /// The stack transports in `net.transports` order.
@@ -42,10 +39,8 @@ pub(super) struct Boot {
     pub(super) telemetry: Arc<Telemetry>,
 }
 
-/// The SOCKS5 port, the secret, transports, the node name and identity; the banner and listen addresses
-/// to the log.
+/// The secret, transports, the node name and identity; the banner and listen addresses to the log.
 pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
-    let socks_listener = bind_socks_listener(cfg).await?;
     let subkeys = cfg.network_key.subkeys();
     let secret = resolve_secret(cfg)?;
     let bound = bind_transports(cfg, &secret).await?;
@@ -56,7 +51,6 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
     let telemetry = Telemetry::new();
     Ok(Boot {
         background_abort_handles: Vec::new(),
-        socks_listener,
         subkeys,
         secret,
         transports: bound.list,
@@ -68,15 +62,6 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
         network_key: cfg.network_key.clone(),
         network_label: cfg.network_label.clone(),
         telemetry,
-    })
-}
-
-/// The SOCKS5 port is taken before the network: if it is busy the node doesn't start, so as not to
-/// end up with a running node without a proxy.
-async fn bind_socks_listener(cfg: &NodeConfig) -> Result<Option<TcpListener>> {
-    Ok(match cfg.socks.enabled {
-        true => Some(proxy::bind_proxy_listener(cfg.socks.port, cfg.socks.access).await?),
-        false => None,
     })
 }
 

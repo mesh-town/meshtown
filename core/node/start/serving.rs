@@ -1,13 +1,11 @@
-//! The third start phase: the domain list, checks, path choice and the SOCKS5 server — everything that is set up
+//! The third start phase: the domain list, checks, path choice and the proxy configuration — everything that is set up
 //! to receive traffic.
 
 use std::collections::HashSet;
-use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use crate::transport::net::{NetError, REPLICA_DOMAINS, REPLICA_NET};
 use anyhow::Result;
-use tokio::net::TcpListener;
 
 use crate::invite::store::Ledger;
 use crate::members::access::runtime::Access;
@@ -20,15 +18,11 @@ use crate::ports_sharing::open::Opener;
 use crate::ports_sharing::PortsDoc;
 use crate::proxy::domains::{self, DomainList};
 use crate::proxy::route::RouteCtx;
-use crate::proxy::{self, ProxyConfig};
+use crate::proxy::ProxyConfig;
 use crate::site_checks::checks::{self, Checks, Schedule};
 use crate::site_checks::geoip;
-use crate::web_gui::auth::iface_nets::admitted_lan;
-use crate::web_gui::auth::iface_os::current_view;
 
-use crate::config::config_file::ListenAccess;
 use crate::node::config::NodeConfig;
-use crate::node::socks_task::SocksTask;
 use crate::node::DocChanges;
 
 use super::access_wiring::{start_access, AccessStart};
@@ -36,7 +30,7 @@ use super::boot::Boot;
 use super::network::Net;
 use super::proxy_wiring::proxy_config_of;
 
-/// The domain list, checks, path choice and the SOCKS5 server — everything that is set up to receive traffic.
+/// The domain list, checks, path choice and the proxy configuration — everything that is set up to receive traffic.
 pub(super) struct Serving {
     pub(super) domain_list: DomainList,
     pub(super) access: Arc<Access>,
@@ -44,9 +38,6 @@ pub(super) struct Serving {
     pub(super) route: RouteCtx,
     /// What a proxy front serves this node's traffic with.
     pub(super) proxy: ProxyConfig,
-    pub(super) socks_addr: Option<SocketAddr>,
-    /// The SOCKS5 accept task; `shutdown` waits for it to end so the port is free on return.
-    pub(super) socks_task: SocksTask,
     pub(super) ports_doc: PortsDoc,
     pub(super) doc_changes: Arc<DocChanges>,
     pub(super) opener: Opener,
@@ -71,7 +62,7 @@ fn spawn_country_check(cfg: &NodeConfig, boot: &mut Boot, domain_list: &DomainLi
     boot.background_abort_handles.push(task);
 }
 
-/// Opens the domain list, brings up the checks and the SOCKS5 server on the already taken port.
+/// Opens the domain list, brings up the checks and builds the proxy configuration.
 pub(super) async fn setup_serving(
     cfg: &NodeConfig,
     boot: &mut Boot,
@@ -92,10 +83,7 @@ pub(super) async fn setup_serving(
         net.route_exits.clone(),
     );
     let proxy = proxy_config_of(&route, net);
-    let (socks_addr, socks_task) = spawn_socks_server(cfg, boot, net, &proxy)?
-        .map_or((None, SocksTask::default()), |(addr, task)| {
-            (Some(addr), task)
-        });
+    log_exit_and_blocked(cfg, net);
 
     let (ports_doc, opener) = setup_ports(cfg, boot, net, &domain_list);
 
@@ -105,8 +93,6 @@ pub(super) async fn setup_serving(
         checks,
         route,
         proxy,
-        socks_addr,
-        socks_task,
         ports_doc,
         doc_changes,
         opener,
@@ -198,89 +184,12 @@ async fn setup_checks(
     Ok(checks)
 }
 
-/// The log line about SOCKS5 being off: the startup flag or a setting.
-fn socks_off_line(by_flag: bool) -> &'static str {
-    match by_flag {
-        true => "off by the --no-socks flag",
-        false => "off in settings (socks.enabled: false)",
-    }
-}
-
-/// Brings up the SOCKS5 server on the already taken port (or logs that it is off) and logs
-/// exit work and the list of blocked domains.
-fn spawn_socks_server(
-    cfg: &NodeConfig,
-    boot: &mut Boot,
-    net: &Net,
-    proxy_cfg: &ProxyConfig,
-) -> Result<Option<(SocketAddr, SocksTask)>> {
-    let socks_off = socks_off_line(cfg.socks_off_by_flag);
-    let socks = serve_socks(
-        boot.socks_listener.take(),
-        proxy_cfg.clone(),
-        (
-            socks_off,
-            proxy::Admission {
-                access: cfg.socks.access,
-                ifaces: cfg.socks.ifaces.clone(),
-            },
-        ),
-    )?;
+/// Logs exit work and the list of blocked domains.
+fn log_exit_and_blocked(cfg: &NodeConfig, net: &Net) {
     say("exit", exit_line(cfg.settings.exit_enabled));
     blocked_line(&net.blocked_domains)
         .into_iter()
         .for_each(|line| say("route", line));
-    Ok(socks)
-}
-
-/// The SOCKS5 server on the taken port; with no listener — the `socks_off` line and `None`.
-fn serve_socks(
-    listener: Option<TcpListener>,
-    proxy_cfg: ProxyConfig,
-    (socks_off, adm): (&str, proxy::Admission),
-) -> Result<Option<(SocketAddr, SocksTask)>> {
-    let Some(listener) = listener else {
-        say("socks", socks_off);
-        return Ok(None);
-    };
-    let bound = listener.local_addr()?;
-    let (access, lan) = (adm.access, lan_line(&adm, bound.port()));
-    let task = SocksTask::new(crate::node::output::spawn(proxy::serve_proxy(
-        listener, proxy_cfg, adm,
-    )));
-    say(
-        "socks",
-        format!("accepting connections on {bound}{}", access_note(access)),
-    );
-    lan.into_iter().for_each(|line| say("socks", line));
-    Ok(Some((
-        SocketAddr::from((Ipv4Addr::LOCALHOST, bound.port())),
-        task,
-    )))
-}
-
-/// A note for the log line: in local-network mode the proxy has no password.
-fn access_note(access: ListenAccess) -> &'static str {
-    match access {
-        ListenAccess::Localhost => "",
-        ListenAccess::Localnet => " (from the local network, no password)",
-    }
-}
-
-/// A log line with addresses for the network's devices; only in `localnet` mode.
-fn lan_line(adm: &proxy::Admission, port: u16) -> Option<String> {
-    (adm.access == ListenAccess::Localnet).then(|| {
-        let all = crate::web_gui::auth::access::lan_addrs();
-        let open = admitted_lan(adm.access, &adm.ifaces, &current_view(), all);
-        let list: Vec<String> = open
-            .into_iter()
-            .map(|(iface, ip)| format!("{ip}:{port} ({iface})"))
-            .collect();
-        match list.is_empty() {
-            true => "no local network address found".to_string(),
-            false => format!("addresses for network devices: {}", list.join(", ")),
-        }
-    })
 }
 
 /// A log line about exit work.

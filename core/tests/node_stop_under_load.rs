@@ -25,7 +25,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::time::{sleep, timeout};
 
-use common::{echo_site, pair, wait_exit_route, DOMAIN};
+use common::{front_for, echo_site, pair, wait_exit_route, DOMAIN};
 
 /// The stop limit of one node under load.
 const STOP_LIMIT: Duration = Duration::from_secs(5);
@@ -63,7 +63,8 @@ async fn when_stream_busy(a: &RunningNode, b: &RunningNode) -> Arc<AtomicUsize> 
         Route::Exits(vec![b.id]),
         "A's path must lead through B"
     );
-    let proxy = a.socks_addr.expect("the SOCKS5 server must be up");
+    let front = front_for(&a).await;
+    let proxy = front.addr().expect("the SOCKS5 server must be up");
     let stream = timeout(FLOW_LIMIT, socks5::client_connect(proxy, DOMAIN, 80))
         .await
         .expect("SOCKS did not answer in time")

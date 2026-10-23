@@ -1,22 +1,7 @@
 use super::*;
 use crate::members::network_key::NetworkKey;
-use crate::node::discovery_sources::tests::LOG_LOCK;
-use crate::node::output::log_page;
 use crate::node::start::boot::boot_endpoint;
 use crate::node::start::network::spawn_network;
-
-#[test]
-fn socks_off_line_names_flag() {
-    assert_eq!(socks_off_line(true), "off by the --no-socks flag");
-}
-
-#[test]
-fn socks_off_line_names_settings() {
-    assert_eq!(
-        socks_off_line(false),
-        "off in settings (socks.enabled: false)"
-    );
-}
 
 #[test]
 fn exit_line_names_both_modes() {
@@ -47,34 +32,6 @@ fn blocked_line_sorts_names() {
     );
 }
 
-/// Brings up the phases up to `serving` and calls `setup_serving`; returns the SOCKS5 address and the `socks` lines.
-async fn serve_with(socks_enabled: bool) -> (Option<SocketAddr>, Vec<String>) {
-    let served = serve_full(socks_enabled).await;
-    (served.addr, served.lines)
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn setup_serving_without_socks() {
-    // given: SOCKS5 is off in settings
-    let (addr, lines) = serve_with(false).await;
-    // then: no address, the reason is in the log
-    assert_eq!(addr, None);
-    assert!(
-        lines
-            .iter()
-            .any(|l| l == "off in settings (socks.enabled: false)"),
-        "{lines:?}"
-    );
-}
-
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn setup_serving_with_socks_port_zero() {
-    // given: the default (port 0 — a free one)
-    let (addr, _) = serve_with(true).await;
-    // then: there is a listener, the port taken is a real one
-    assert_ne!(addr.expect("SOCKS5 address").port(), 0);
-}
-
 /// The proxy configuration the serving phase builds for a front: shared by every clone, with or without the
 /// node's own listener.
 mod proxy_config {
@@ -82,11 +39,10 @@ mod proxy_config {
     use crate::node::start_node;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn is_built_when_socks_is_off_in_settings() {
-        // given: SOCKS5 is off in settings, so the node has no listener
-        let served = serve_full(false).await;
-        // then: the configuration is still there and its association limit is untouched
-        assert_eq!(served.addr, None);
+    async fn is_built_without_any_listener() {
+        // given: the serving phase, which binds no listener
+        let served = serve_full().await;
+        // then: the configuration is there and its association limit is untouched
         assert_eq!(
             served.proxy.udp_slots.available_permits(),
             crate::proxy::udp_slots().available_permits(),
@@ -96,8 +52,8 @@ mod proxy_config {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn clone_shares_udp_slots() {
-        // given: a node with a listener
-        let served = serve_full(true).await;
+        // given: a serving phase
+        let served = serve_full().await;
         // when: the configuration is cloned
         let clone = served.proxy.clone();
         // then: the clone holds the same semaphore, not a new one
@@ -110,7 +66,7 @@ mod proxy_config {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn clone_shares_the_connection_pool() {
         // given: a configuration and its clone
-        let served = serve_full(false).await;
+        let served = serve_full().await;
         let clone = served.proxy.clone();
         // when: the clone's pool notes a refusal of the UDP gateway target
         clone.pool.note_gateway_refused(served.id);
@@ -124,7 +80,7 @@ mod proxy_config {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn two_nodes_have_separate_udp_slots() {
         // given: two nodes served one after another
-        let (first, second) = (serve_full(false).await, serve_full(false).await);
+        let (first, second) = (serve_full().await, serve_full().await);
         // then: each has its own association limit
         assert!(
             !Arc::ptr_eq(&first.proxy.udp_slots, &second.proxy.udp_slots),
@@ -155,34 +111,20 @@ mod proxy_config {
 
 /// What `serve_full` leaves of the serving phase after the node is torn down.
 struct Served {
-    addr: Option<SocketAddr>,
-    lines: Vec<String>,
     proxy: crate::proxy::ProxyConfig,
     id: crate::transport::net::PeerId,
 }
 
-/// Like `serve_with`, plus the proxy configuration and the node's id.
-async fn serve_full(socks_enabled: bool) -> Served {
-    let _log = LOG_LOCK.lock().await;
-    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
-    cfg.socks.enabled = socks_enabled;
+/// Runs the serving phase and tears the node down; keeps the proxy configuration and the node's id.
+async fn serve_full() -> Served {
+    let cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
     let mut boot = boot_endpoint(&cfg).await.unwrap();
     let (net, inbound) = spawn_network(&cfg, &boot).await.unwrap();
     let access = super::super::access_wiring::access_start(&cfg, boot.id, &inbound.cache);
-    let after = log_page(0, 1).last_seq;
     let serving = setup_serving(&cfg, &mut boot, &net, access).await.unwrap();
-    let lines = log_page(after, 10_000)
-        .lines
-        .into_iter()
-        .filter(|l| l.tag == "socks")
-        .map(|l| l.text)
-        .collect();
     boot.background_abort_handles.iter().for_each(|t| t.abort());
-    serving.socks_task.close().await;
     net.stack.close().await;
     Served {
-        addr: serving.socks_addr,
-        lines,
         proxy: serving.proxy,
         id: boot.id,
     }

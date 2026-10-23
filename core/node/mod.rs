@@ -71,7 +71,6 @@ mod rejoin;
 #[cfg(feature = "net-hyper")]
 mod running;
 #[cfg(feature = "net-hyper")]
-mod socks_task;
 #[cfg(feature = "net-hyper")]
 mod start;
 
