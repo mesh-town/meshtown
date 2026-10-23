@@ -5,6 +5,8 @@ export const NETS_OPEN_MEMBERS = "Open Members";
 export const NETS_NO_CONNECTION = "no connection";
 export const NETS_JUST_YOU = "just you";
 export const NETS_EXIT_ALL = "(one exit for all your networks)";
+export const NETS_EXIT_NONE_IN = "No member of this network offers an exit yet.";
+export const NETS_EXIT_NO_NET = "The browser proxy points to a network this device isn't in, so sites won't open. Pick an exit or \"Directly\" to fix it.";
 export const NETS_DIRECT = "Sites open directly";
 
 export const netsOnlineText = (online: number, total: number): string => `${online} of ${total} online`;

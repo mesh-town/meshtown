@@ -131,9 +131,22 @@ export function pickOtherExit(candidates: ExitCandidate[]): string {
   return other ? other.idFull : "";
 }
 
-export function otherExitSelector(candidates: ExitCandidate[]): string {
-  const id = pickOtherExit(candidates);
-  return id ? 'input.exit-choice[data-id="' + id + '"]' : "#exit-direct";
+// The radio value of an exit: the bare id with one network, "<slot>|<id>" with two or more.
+export function exitValue(slot: string, idFull: string, multi: boolean): string {
+  return multi ? `${slot}|${idFull}` : idFull;
+}
+
+export function parseExitValue(value: string): { slot: string; id: string } {
+  const at = value.indexOf("|");
+  if (at < 0) return { slot: "main", id: value };
+  return { slot: value.slice(0, at), id: value.slice(at + 1) };
+}
+
+// The radio of an exit (`id` empty — "Directly"); with a slot the row of that network.
+export function otherExitSelector(id: string, slot?: string): string {
+  if (!id) return "#exit-direct";
+  const where = slot === undefined ? "" : '[data-slot="' + slot + '"]';
+  return 'input.exit-choice[data-id="' + id + '"]' + where;
 }
 
 // The "Check a site" result: none — no domain; checking — no verdict yet; empty — through no one;

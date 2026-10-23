@@ -7,9 +7,11 @@ import {
   chosenExitIds,
   getRememberedEntries,
   getRememberedExits,
+  getRememberedFor,
   pickChosenExits,
   setRememberedEntries,
   setRememberedExits,
+  setRememberedFor,
 } from "./exits.ts";
 
 function memoryStorage(initial = {}) {
@@ -146,6 +148,86 @@ describe("remembered entries (per network)", () => {
       assert.deepEqual(getRememberedEntries(broken), []);
       assert.doesNotThrow(() => setRememberedEntries([{ id: "a", slot: NET }], broken));
       assert.doesNotThrow(() => setRememberedExits(["a"], broken));
+    });
+  });
+});
+
+describe("remembered exits of one network (getRememberedFor / setRememberedFor)", () => {
+  const NET = "k7q2xa";
+  const OTHER = "m3n4pq";
+
+  describe("getRememberedFor", () => {
+    it("returns only the ids of the asked slot", () => {
+      const st = storageWith(`["a",{"id":"b","slot":"${NET}"},{"id":"c","slot":"${OTHER}"},{"id":"d","slot":"${NET}"}]`);
+      assert.deepEqual(getRememberedFor(NET, st), ["b", "d"]);
+      assert.deepEqual(getRememberedFor(OTHER, st), ["c"]);
+      assert.deepEqual(getRememberedFor("main", st), ["a"]);
+    });
+
+    it("a slot with no records — an empty list", () => {
+      assert.deepEqual(getRememberedFor(NET, storageWith('["a"]')), []);
+      assert.deepEqual(getRememberedFor(NET, memoryStorage()), []);
+    });
+
+    it("main equals getRememberedExits", () => {
+      const st = storageWith(`["a",{"id":"b","slot":"${NET}"}]`);
+      assert.deepEqual(getRememberedFor("main", st), getRememberedExits(st));
+    });
+  });
+
+  describe("setRememberedFor", () => {
+    it("writing a network keeps the main entries and the entries of other networks", () => {
+      const st = storageWith(`["a",{"id":"o","slot":"${OTHER}"},{"id":"old","slot":"${NET}"}]`);
+      setRememberedFor(NET, ["new"], st);
+      assert.deepEqual(getRememberedFor("main", st), ["a"]);
+      assert.deepEqual(getRememberedFor(OTHER, st), ["o"]);
+      assert.deepEqual(getRememberedFor(NET, st), ["new"], "the old record of this slot is replaced");
+    });
+
+    it("written ids read back for the slot", () => {
+      const st = memoryStorage();
+      setRememberedFor(NET, ["x", "y"], st);
+      assert.deepEqual(getRememberedFor(NET, st), ["x", "y"]);
+    });
+
+    it("an empty list clears the slot and leaves the others", () => {
+      const st = storageWith(`["a",{"id":"b","slot":"${NET}"}]`);
+      setRememberedFor(NET, [], st);
+      assert.deepEqual(getRememberedFor(NET, st), []);
+      assert.deepEqual(getRememberedFor("main", st), ["a"]);
+    });
+
+    it("main stays a plain string list in storage, byte for byte as before", () => {
+      const st = storageWith('["old"]');
+      setRememberedFor("main", ["x", "z"], st);
+      assert.equal(st.data[REMEMBERED_KEY], '["x","z"]');
+    });
+
+    it("main with a network record: same bytes as setRememberedExits", () => {
+      const raw = `["old",{"id":"y","slot":"${NET}"}]`;
+      const viaFor = storageWith(raw);
+      const viaExits = storageWith(raw);
+      setRememberedFor("main", ["x"], viaFor);
+      setRememberedExits(["x"], viaExits);
+      assert.equal(viaFor.data[REMEMBERED_KEY], viaExits.data[REMEMBERED_KEY]);
+    });
+
+    it("an added network is stored as an object with id and slot", () => {
+      const st = storageWith('["a"]');
+      setRememberedFor(NET, ["b"], st);
+      const stored = JSON.parse(st.data[REMEMBERED_KEY]);
+      assert.ok(stored.includes("a"), "the main entry stays a plain string");
+      assert.ok(stored.some((e) => e && e.id === "b" && e.slot === NET), "the network entry is {id, slot}");
+    });
+  });
+
+  describe("storage throws", () => {
+    const broken = { getItem() { throw new Error("x"); }, setItem() { throw new Error("x"); } };
+
+    it("reading gives an empty list, writing is silent", () => {
+      assert.deepEqual(getRememberedFor(NET, broken), []);
+      assert.doesNotThrow(() => setRememberedFor(NET, ["a"], broken));
+      assert.doesNotThrow(() => setRememberedFor("main", ["a"], broken));
     });
   });
 });

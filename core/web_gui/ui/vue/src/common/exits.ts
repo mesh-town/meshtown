@@ -44,15 +44,25 @@ export function setRememberedEntries(entries: RememberedExit[], storage: ExitsSt
   }
 }
 
-export function getRememberedExits(storage: ExitsStorage = localStorage): string[] {
+export function getRememberedFor(slot: string, storage: ExitsStorage = localStorage): string[] {
   return getRememberedEntries(storage)
-    .filter((e) => e.slot === "main")
+    .filter((e) => e.slot === slot)
     .map((e) => e.id);
 }
 
+// Only the entries of `slot` are replaced; other networks' entries stay.
+export function setRememberedFor(slot: string, ids: string[], storage: ExitsStorage = localStorage): void {
+  const others = getRememberedEntries(storage).filter((e) => e.slot !== slot);
+  const own = ids.map((id) => ({ id, slot }));
+  setRememberedEntries(slot === "main" ? [...own, ...others] : [...others, ...own], storage);
+}
+
+export function getRememberedExits(storage: ExitsStorage = localStorage): string[] {
+  return getRememberedFor("main", storage);
+}
+
 export function setRememberedExits(exits: string[], storage: ExitsStorage = localStorage): void {
-  const others = getRememberedEntries(storage).filter((e) => e.slot !== "main");
-  setRememberedEntries([...exits.map((id) => ({ id, slot: "main" })), ...others], storage);
+  setRememberedFor("main", exits, storage);
 }
 
 export function configExits(config: ConfigDocument | null | undefined): string[] {

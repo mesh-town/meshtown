@@ -4,7 +4,8 @@
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
-  countryTag, exitCandidates, exitMetaText, findExitView, noPeersYet, otherExitSelector, pickOtherExit,
+  countryTag, exitCandidates, exitMetaText, exitValue, findExitView, noPeersYet, otherExitSelector, parseExitValue,
+  pickOtherExit,
 } from "./exit-list.ts";
 
 const ids = (list) => list.map((item) => item.idFull);
@@ -234,10 +235,13 @@ describe("pickOtherExit", () => {
 });
 
 describe("otherExitSelector", () => {
-  it("a member — by data-id, \"As usual\" — by #exit-direct", () => {
-    const list = [{ idFull: "b", online: false, checked: true }, { idFull: "c", online: true, checked: false }];
-    assert.equal(otherExitSelector(list), 'input.exit-choice[data-id="c"]');
-    assert.equal(otherExitSelector([]), "#exit-direct");
+  it("a member — by data-id, \"As usual\" (empty id) — by #exit-direct", () => {
+    assert.equal(otherExitSelector("c"), 'input.exit-choice[data-id="c"]');
+    assert.equal(otherExitSelector(""), "#exit-direct");
+  });
+
+  it("with a slot — also by data-slot", () => {
+    assert.equal(otherExitSelector("c", "n2"), 'input.exit-choice[data-id="c"][data-slot="n2"]');
   });
 });
 
@@ -253,5 +257,71 @@ describe("noPeersYet", () => {
     assert.equal(noPeersYet({ network: net, peers: [{ id_full: "p", id: "p" }] }), false);
     assert.equal(noPeersYet({ peers: [] }), false);
     assert.equal(noPeersYet(null), false);
+  });
+});
+
+describe("exit radio values (per network)", () => {
+  const NET = "k7q2xa";
+  const ID = "0123abcd";
+
+  describe("exitValue", () => {
+    it("a single network — the bare full id", () => {
+      assert.equal(exitValue("main", ID, false), ID);
+    });
+
+    it("two or more networks — \"<slot>|<id>\" for main and for an added network", () => {
+      assert.equal(exitValue("main", ID, true), `main|${ID}`);
+      assert.equal(exitValue(NET, ID, true), `${NET}|${ID}`);
+    });
+  });
+
+  describe("parseExitValue", () => {
+    it("a value without \"|\" is the main network", () => {
+      assert.deepEqual(parseExitValue(ID), { slot: "main", id: ID });
+    });
+
+    it("a main value with a slot prefix", () => {
+      assert.deepEqual(parseExitValue(`main|${ID}`), { slot: "main", id: ID });
+    });
+
+    it("a value of an added network (six characters a-z2-7)", () => {
+      assert.deepEqual(parseExitValue(`${NET}|${ID}`), { slot: NET, id: ID });
+    });
+
+    it("the empty value (\"Directly\") gives an empty id in main", () => {
+      assert.deepEqual(parseExitValue(""), { slot: "main", id: "" });
+    });
+  });
+
+  describe("round trip", () => {
+    it("parse(exitValue(...)) returns the slot and the id, for main and an added network", () => {
+      for (const slot of ["main", NET]) {
+        assert.deepEqual(parseExitValue(exitValue(slot, ID, true)), { slot, id: ID }, `multi, slot ${slot}`);
+      }
+    });
+
+    it("a single network: the bare value parses into main", () => {
+      assert.deepEqual(parseExitValue(exitValue("main", ID, false)), { slot: "main", id: ID });
+    });
+  });
+});
+
+describe("otherExitSelector with an id and a slot", () => {
+  it("an id without a slot — by data-id only, no data-slot", () => {
+    const selector = otherExitSelector("c");
+    assert.equal(selector, 'input.exit-choice[data-id="c"]');
+    assert.ok(!selector.includes("data-slot"), "no slot given, no slot filter");
+  });
+
+  it("an id with a slot — both data-id and data-slot are in the selector", () => {
+    const selector = otherExitSelector("c", "k7q2xa");
+    assert.ok(selector.startsWith("input.exit-choice"), selector);
+    assert.ok(selector.includes('[data-id="c"]'), selector);
+    assert.ok(selector.includes('[data-slot="k7q2xa"]'), selector);
+  });
+
+  it("no id — \"As usual\" (#exit-direct), with or without a slot", () => {
+    assert.equal(otherExitSelector(""), "#exit-direct");
+    assert.equal(otherExitSelector("", "k7q2xa"), "#exit-direct");
   });
 });
