@@ -81,6 +81,10 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
             "not_confirmed",
             "You haven't confirmed this node, or it has already joined",
         ),
+        ActionRefusal::Online => refused("online", "The node is connected right now"),
+        ActionRefusal::NotForgotten => {
+            refused("not_forgotten", "You haven't proposed removing this node")
+        }
         ActionRefusal::Write(m) => MemberError::Action(ActionError::Internal(m)),
     }
 }

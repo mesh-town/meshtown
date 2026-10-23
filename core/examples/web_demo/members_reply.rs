@@ -116,6 +116,8 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         excluded: excluded_of(e, me),
         blocked_by_me: e.blocked,
         denied_by_me: denied_by_me(m, e),
+        forget: None,
+        last_seen_sec: None,
         last_refusal: None,
         admission: admission_of(e, me),
     }
@@ -146,6 +148,7 @@ fn counts(rows: &[MemberRow]) -> Counts {
         excluded: n("excluded"),
         unlisted: n("unlisted"),
         pending: n("pending"),
+        forgotten: n("forgotten"),
     }
 }
 
@@ -161,6 +164,7 @@ fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> Members
     MembersReply {
         me,
         me_excluded: m.me_excluded,
+        me_removed: false,
         me_pending: m.me_pending,
         me_admission,
         need: m.need(),

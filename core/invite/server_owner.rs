@@ -160,3 +160,7 @@ fn log_owner(who: &str, owner: PeerId, code: RedeemCode) {
 #[cfg(test)]
 #[path = "server_owner_forget_tests.rs"]
 mod forget_tests;
+
+#[cfg(test)]
+#[path = "server_owner_forget_more_tests.rs"]
+mod forget_more_tests;

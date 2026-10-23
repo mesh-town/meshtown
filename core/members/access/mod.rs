@@ -15,6 +15,7 @@ pub mod record;
 mod record_input;
 mod record_io;
 pub mod report;
+mod report_forget;
 pub mod runtime;
 mod subjects;
 pub mod tally;

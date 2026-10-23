@@ -82,6 +82,18 @@ impl Verdicts {
             .collect()
     }
 
+    /// Subjects hidden from this node: forgotten ones and those of its own pending forget votes.
+    pub fn removed_here(&self) -> BTreeSet<PeerId> {
+        let mut hidden = self.my_forgets();
+        let forgotten = self
+            .ledger
+            .forgets
+            .iter()
+            .filter(|(_, r)| r.at_unix.is_some());
+        hidden.extend(forgotten.map(|(p, _)| *p));
+        hidden
+    }
+
     fn check_listed(&self, peer: PeerId) -> Result<(), Deny> {
         match self.ledger.is_member(&peer) {
             true => Ok(()),

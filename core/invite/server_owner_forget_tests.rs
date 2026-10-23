@@ -28,7 +28,7 @@ use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET}
 use crate::transport::net::{live, NodeSecret, Replica};
 
 /// The network key with which `setup_node` builds the server.
-const KEY: [u8; 32] = [1; 32];
+pub(super) const KEY: [u8; 32] = [1; 32];
 
 mod owner_code_of_the_verdict {
     use super::*;
@@ -66,165 +66,29 @@ mod owner_code_of_the_verdict {
     }
 }
 
-mod forgotten_owner {
-    use super::*;
-
-    #[tokio::test]
-    async fn gets_key_and_admit_and_the_invite_is_burned() {
-        // given: the server forgot the owner (two members, one vote forgets) long ago
-        let node = setup_node(view_of(&[owner_id()], vec![forget(owner_id(), 100)])).await;
-        node.then_view_says(owner_id(), Err(Deny::Forgotten));
-        // when: the owner presents the invite
-        let reply = node.when_owner_asks(&secret(7)).await;
-        // then: the key, the owner's admit record and the used mark
-        assert_key(reply);
-        assert!(node.admit_of(owner_id()).await.is_some(), "no admit record");
-        assert_eq!(
-            node.count("invite-used/").await,
-            1,
-            "the invite was not burned"
-        );
-    }
-
-    #[tokio::test]
-    async fn admit_is_stamped_later_than_the_forget_vote_in_the_future() {
-        // given: the forget vote carries a time far ahead of the server's clock
-        let mark = now() + 10_000;
-        let node = setup_node(view_of(&[owner_id()], vec![forget(owner_id(), mark)])).await;
-        // when
-        assert_key(node.when_owner_asks(&secret(7)).await);
-        // then: the admit is one second after the vote, not at the clock
-        let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        assert_eq!(admit.made_unix, mark + 1, "the admit is not later than the vote");
-    }
-
-    #[tokio::test]
-    async fn admit_is_stamped_with_the_clock_when_the_forget_vote_is_old() {
-        // given: an old forget vote
-        let node = setup_node(view_of(&[owner_id()], vec![forget(owner_id(), 100)])).await;
-        let before = now();
-        // when
-        assert_key(node.when_owner_asks(&secret(7)).await);
-        // then: the stamp is the clock reading of the grant
-        let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        assert!(
-            admit.made_unix >= before && admit.made_unix <= now(),
-            "made_unix {} is off the clock",
-            admit.made_unix
-        );
-    }
-
-    #[tokio::test]
-    async fn own_older_admit_is_overwritten_with_a_later_one() {
-        // given: the server's old admit record of the owner is in the list, then the owner was forgotten
-        let mark = now() + 500;
-        let node = setup_node(view_of(&[owner_id()], vec![forget(owner_id(), mark)])).await;
-        node.given_own_admit(owner_id(), 5).await;
-        // when
-        assert_key(node.when_owner_asks(&secret(7)).await);
-        // then: the record under the same key is the new one
-        let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        assert!(
-            admit.made_unix > mark,
-            "the old admit (5) was not overwritten: {}",
-            admit.made_unix
-        );
-        assert_eq!(node.count("acl/admit/").await, 1, "a second record appeared");
-    }
-
-    #[tokio::test]
-    async fn without_a_forget_vote_the_admit_is_stamped_with_the_clock() {
-        // given: an owner nobody voted about (unknown to the list)
-        let node = setup_node(view_of(&[], Vec::new())).await;
-        let before = now();
-        // when
-        assert_key(node.when_owner_asks(&secret(7)).await);
-        // then
-        let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        assert!(
-            admit.made_unix >= before && admit.made_unix <= now(),
-            "made_unix {} is off the clock",
-            admit.made_unix
-        );
-    }
-}
-
-mod owner_removed_by_my_vote {
-    use super::*;
-
-    #[tokio::test]
-    async fn waiting_round_owner_invite_spends_round() {
-        // given: four members, so one vote is not enough; my forget vote about the owner waits for a second
-        let members = [pid(3), pid(4), owner_id()];
-        let input = input_of(&members, vec![forget(owner_id(), 100)]);
-        let node = setup_node(access_of(&input)).await;
-        node.then_view_says(owner_id(), Err(Deny::RemovedByMe));
-        // when: the owner presents the invite
-        let reply = node.when_owner_asks(&secret(7)).await;
-        // then: the key and an admit later than my vote; counted again, the round is gone and the owner is a member
-        assert_key(reply);
-        let admit = node.admit_of(owner_id()).await.expect("no admit record");
-        let after = verdicts_of(&with_admit(input, owner_id(), admit.made_unix));
-        assert!(
-            after.ledger.forgets.is_empty(),
-            "the round is still open: {:?}",
-            after.ledger.forgets
-        );
-        assert!(after.my_forgets().is_empty(), "my vote still stands");
-        assert!(after.ledger.is_member(&owner_id()));
-    }
-
-    #[tokio::test]
-    async fn others_waiting_round_does_not_stop_the_invite() {
-        // given: someone else's vote about the owner waits, mine does not exist
-        let members = [pid(3), pid(4), owner_id()];
-        let input = input_of(&members, vec![forget_by(pid(3), owner_id(), 100)]);
-        let node = setup_node(access_of(&input)).await;
-        node.then_view_says(owner_id(), Ok(()));
-        // when / then
-        assert_key(node.when_owner_asks(&secret(7)).await);
-    }
-}
-
-mod excluded_and_forgotten_owner {
-    use super::*;
-
-    #[tokio::test]
-    async fn gets_excluded_and_invite_unspent() {
-        // given: the ledger holds the owner as excluded and as forgotten at once
-        let node = setup_node(access_with(excluded_and_forgotten(owner_id()))).await;
-        node.then_view_says(owner_id(), Err(Deny::Excluded));
-        // when
-        let reply = node.when_owner_asks(&secret(7)).await;
-        // then: Excluded wins, nothing is written, the invite works for another key
-        assert_refused(reply, RedeemCode::Excluded);
-        node.then_invite_unspent().await;
-    }
-}
-
 /// The server's own id: the replica author, the inbox transport `secret(2)`.
-fn me() -> PeerId {
+pub(super) fn me() -> PeerId {
     pid(2)
 }
 
-fn owner_id() -> PeerId {
+pub(super) fn owner_id() -> PeerId {
     pid(7)
 }
 
-fn issued() -> InviteSecret {
+pub(super) fn issued() -> InviteSecret {
     InviteSecret::from_bytes([7; 32])
 }
 
-fn now() -> u64 {
+pub(super) fn now() -> u64 {
     crate::transport::net_mainline::unix_now()
 }
 
 /// A forget vote of the server about `subject` made at `made_unix`.
-fn forget(subject: PeerId, made_unix: u64) -> ForgetIn {
+pub(super) fn forget(subject: PeerId, made_unix: u64) -> ForgetIn {
     forget_by(me(), subject, made_unix)
 }
 
-fn forget_by(author: PeerId, subject: PeerId, made_unix: u64) -> ForgetIn {
+pub(super) fn forget_by(author: PeerId, subject: PeerId, made_unix: u64) -> ForgetIn {
     ForgetIn {
         author,
         subject,
@@ -233,7 +97,7 @@ fn forget_by(author: PeerId, subject: PeerId, made_unix: u64) -> ForgetIn {
 }
 
 /// The tally input of a network where the server admitted every member of `members` at second 0.
-fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput {
+pub(super) fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput {
     let admit = |subject: &PeerId| AdmitIn {
         author: me(),
         subject: *subject,
@@ -249,7 +113,7 @@ fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput {
 }
 
 /// The same input where the server admits `subject` again at `made_unix`.
-fn with_admit(mut input: TallyInput, subject: PeerId, made_unix: u64) -> TallyInput {
+pub(super) fn with_admit(mut input: TallyInput, subject: PeerId, made_unix: u64) -> TallyInput {
     input.admits.retain(|a| a.subject != subject);
     input.admits.push(AdmitIn {
         author: me(),
@@ -260,7 +124,7 @@ fn with_admit(mut input: TallyInput, subject: PeerId, made_unix: u64) -> TallyIn
     input
 }
 
-fn verdicts_of(input: &TallyInput) -> Verdicts {
+pub(super) fn verdicts_of(input: &TallyInput) -> Verdicts {
     Verdicts {
         me: me(),
         ledger: Arc::new(tally(input)),
@@ -270,23 +134,23 @@ fn verdicts_of(input: &TallyInput) -> Verdicts {
     }
 }
 
-fn access_of(input: &TallyInput) -> AccessView {
+pub(super) fn access_of(input: &TallyInput) -> AccessView {
     access_from(verdicts_of(input))
 }
 
-fn access_from(verdicts: Verdicts) -> AccessView {
+pub(super) fn access_from(verdicts: Verdicts) -> AccessView {
     let access = AccessView::open();
     access.publish(verdicts);
     access
 }
 
 /// A two-node network (the server and the members) with the given forget votes.
-fn view_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> AccessView {
+pub(super) fn view_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> AccessView {
     access_of(&input_of(members, forgets))
 }
 
 /// A ledger where the node is both excluded by votes and forgotten, with forget marks.
-fn excluded_and_forgotten(owner: PeerId) -> Votes {
+pub(super) fn excluded_and_forgotten(owner: PeerId) -> Votes {
     let mut ledger = tally(&input_of(&[owner], Vec::new()));
     ledger.excluded.insert(
         owner,
@@ -305,7 +169,7 @@ fn excluded_and_forgotten(owner: PeerId) -> Votes {
     ledger
 }
 
-fn access_with(ledger: Votes) -> AccessView {
+pub(super) fn access_with(ledger: Votes) -> AccessView {
     access_from(Verdicts {
         me: me(),
         ledger: Arc::new(ledger),
@@ -315,12 +179,12 @@ fn access_with(ledger: Votes) -> AccessView {
     })
 }
 
-fn owner_frame(owner: &NodeSecret) -> [u8; OWNER_REQUEST_LEN] {
+pub(super) fn owner_frame(owner: &NodeSecret) -> [u8; OWNER_REQUEST_LEN] {
     let sig = sign_owner(owner, &issued(), pid(1));
     encode_owner_request(&issued(), owner.peer_id(), &sig)
 }
 
-fn assert_key(reply: Option<RedeemReply>) {
+pub(super) fn assert_key(reply: Option<RedeemReply>) {
     match reply {
         Some(RedeemReply::Key(key)) => {
             assert_eq!(key.to_bytes(), KEY, "the key of another network")
@@ -329,7 +193,7 @@ fn assert_key(reply: Option<RedeemReply>) {
     }
 }
 
-fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
+pub(super) fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
     match reply {
         Some(RedeemReply::Refused(got)) => {
             assert_eq!(got, want, "the refusal code is not the expected one")
@@ -339,7 +203,7 @@ fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
 }
 
 /// The server over a filled list with one issued invite.
-struct Node {
+pub(super) struct Node {
     server: InviteServer,
     access: AccessView,
     shared: Arc<dyn Replica>,
@@ -347,7 +211,7 @@ struct Node {
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
 
-async fn setup_node(access: AccessView) -> Node {
+pub(super) async fn setup_node(access: AccessView) -> Node {
     let net = MemSyncNet::new();
     let ctx = SyncCtx {
         secret: secret(2),
@@ -377,7 +241,7 @@ async fn setup_node(access: AccessView) -> Node {
 
 impl Node {
     /// The owner presents the invite over a connection whose transport id is `pid(1)`.
-    async fn when_owner_asks(&self, owner: &NodeSecret) -> Option<RedeemReply> {
+    pub(super) async fn when_owner_asks(&self, owner: &NodeSecret) -> Option<RedeemReply> {
         let reply = self
             .server
             .owner_reply(&owner_frame(owner), pid(1), "test")
@@ -386,17 +250,17 @@ impl Node {
     }
 
     /// The precondition: the server's view gives this verdict about the node.
-    fn then_view_says(&self, peer: PeerId, want: Result<(), Deny>) {
+    pub(super) fn then_view_says(&self, peer: PeerId, want: Result<(), Deny>) {
         assert_eq!(self.access.check(peer), want, "the view is not as the test needs");
     }
 
     /// Live entries under the prefix in the shared replica.
-    async fn count(&self, prefix: &str) -> usize {
+    pub(super) async fn count(&self, prefix: &str) -> usize {
         live(self.shared.scan(prefix.as_bytes()).await.unwrap()).len()
     }
 
     /// The server's own admit record of `subject` by invite, made at `made_unix`.
-    async fn given_own_admit(&self, subject: PeerId, made_unix: u64) {
+    pub(super) async fn given_own_admit(&self, subject: PeerId, made_unix: u64) {
         let value = AclValue {
             kind: AclKind::Admit,
             subject,
@@ -408,7 +272,7 @@ impl Node {
     }
 
     /// The server's own parsed admit record of `subject`.
-    async fn admit_of(&self, subject: PeerId) -> Option<AclValue> {
+    pub(super) async fn admit_of(&self, subject: PeerId) -> Option<AclValue> {
         let entry = self.shared.get(me(), &admit_key(&subject)).await.unwrap()?;
         match parse_entry(&entry) {
             Parsed::Record { value, .. } => Some(value),
@@ -417,7 +281,7 @@ impl Node {
     }
 
     /// No claim, no used mark, no admit, and the storage still grants the invite.
-    async fn then_invite_unspent(&self) {
+    pub(super) async fn then_invite_unspent(&self) {
         for prefix in ["invite-claim/", "invite-used/", "acl/admit/"] {
             assert_eq!(
                 self.count(prefix).await,
