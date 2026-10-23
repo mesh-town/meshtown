@@ -2,7 +2,6 @@
 //! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one. The stop signal belongs to the
 //! process host (`host::signal`); `run` starts its own, since it has no host.
 
-use std::ops::ControlFlow;
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -12,12 +11,18 @@ use crate::node::node_ctl::{Cmd, NodeCtl, Relaunch};
 use crate::node::output::say;
 use crate::proxy::ProxyConsole;
 use crate::site_checks::checks;
-use crate::transport::net::PeerAddr;
 
 use super::config::NodeConfig;
 use super::identity::IdentityState;
 use super::running::RunningNode;
 use super::start::start_node;
+
+mod command;
+use command::{after_command, apply_switch, CycleEnd};
+
+#[cfg(test)]
+use crate::transport::net::PeerAddr;
+use std::ops::ControlFlow;
 
 /// Runs the "start → run → stop or restart into a new network" loop in a single process.
 /// The stop signal comes from outside (the process host), so Ctrl-C during a restart is not lost.
@@ -31,7 +36,33 @@ pub async fn run_node_with_ctl(
 ) -> Result<()> {
     ctl.set_test_net(relaunch.test_net.clone());
     ctl.set_owner_secret(relaunch.secret.clone());
-    run_cycles(&mut cfg, &mut settings, &ctl, &relaunch).await
+    match run_cycles(&mut cfg, &mut settings, &ctl, &relaunch).await? {
+        CycleEnd::Stopped => Ok(()),
+        CycleEnd::LeftNet { secret } => {
+            let relaunch = forget_network(&mut settings, &ctl, &relaunch, secret);
+            wait_then_run(settings, cfg.identity, &ctl, &relaunch).await
+        }
+    }
+}
+
+/// The node left its network: the old network's lists are dropped from the settings, the new identity goes
+/// to the control object and into a copy of the start settings; the node returns to waiting for a key.
+fn forget_network(
+    settings: &mut Settings,
+    ctl: &NodeCtl,
+    relaunch: &Relaunch,
+    secret: crate::transport::net::NodeSecret,
+) -> Relaunch {
+    settings.net.network_key = None;
+    settings.net.route_exits.clear();
+    settings.net.ports_published.clear();
+    ctl.set_owner_secret(secret.clone());
+    ctl.replace_effective_settings(settings);
+    ctl.mark_no_network();
+    Relaunch {
+        secret,
+        ..relaunch.clone()
+    }
 }
 
 /// A node without a key: waits for the first command from the page (`wait_then_run`), then runs the
@@ -59,13 +90,21 @@ async fn wait_then_run(
     ctl: &Arc<NodeCtl>,
     relaunch: &Relaunch,
 ) -> Result<()> {
+    let mut relaunch = relaunch.clone();
     loop {
         match ctl.next_command().await {
             Cmd::Stop => return Ok(()),
+            Cmd::LeaveNet { .. } => {}
             Cmd::Switch { key, peers } => {
                 ctl.mark_starting();
-                match apply_switch(&key, peers, identity, &mut settings, ctl, relaunch) {
-                    Ok(mut cfg) => return run_cycles(&mut cfg, &mut settings, ctl, relaunch).await,
+                match apply_switch(&key, peers, identity, &mut settings, ctl, &relaunch) {
+                    Ok(mut cfg) => match run_cycles(&mut cfg, &mut settings, ctl, &relaunch).await?
+                    {
+                        CycleEnd::Stopped => return Ok(()),
+                        CycleEnd::LeftNet { secret } => {
+                            relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
+                        }
+                    },
                     Err(e) => {
                         say(
                             "node",
@@ -77,25 +116,6 @@ async fn wait_then_run(
             }
         }
     }
-}
-
-/// Handles `Switch`: `relaunch.reload`, on success — the new settings into `settings`, a new cfg with the passed
-/// `identity` and `initial_peers = peers`, `ctl.replace_effective_settings`, the ring capacity. On error changes nothing.
-fn apply_switch(
-    key: &str,
-    peers: Vec<PeerAddr>,
-    identity: IdentityState,
-    settings: &mut Settings,
-    ctl: &NodeCtl,
-    relaunch: &Relaunch,
-) -> Result<NodeConfig> {
-    let (s, mut cfg) = relaunch.reload(key, settings)?;
-    *settings = s;
-    cfg.identity = identity;
-    cfg.initial_peers = peers;
-    ctl.replace_effective_settings(settings);
-    crate::node::node_ctl::apply_log_capacity(settings);
-    Ok(cfg)
 }
 
 /// Brings up the stdin console on the first cycle: after a network switch it is
@@ -122,13 +142,13 @@ async fn run_cycles(
     settings: &mut Settings,
     ctl: &Arc<NodeCtl>,
     relaunch: &Relaunch,
-) -> Result<()> {
+) -> Result<CycleEnd> {
     let mut first_cycle = true;
     loop {
         let node = boot_cycle(cfg, ctl, first_cycle).await?;
         let cmd = serve_until_command(node, ctl).await;
-        if after_command(cmd, cfg, settings, ctl, relaunch).is_break() {
-            return Ok(());
+        if let ControlFlow::Break(end) = after_command(cmd, cfg, settings, ctl, relaunch) {
+            return Ok(end);
         }
         first_cycle = false;
     }
@@ -162,30 +182,11 @@ async fn serve_until_command(node: RunningNode, ctl: &NodeCtl) -> Cmd {
     let cmd = ctl.next_command().await;
     ctl.detach(match &cmd {
         Cmd::Stop => crate::web_gui::NodeStatus::Stopping,
-        Cmd::Switch { .. } => crate::web_gui::NodeStatus::Starting,
+        Cmd::LeaveNet { .. } | Cmd::Switch { .. } => crate::web_gui::NodeStatus::Starting,
     });
     node.shutdown().await;
     ctl.release_guard_sources();
     cmd
-}
-
-/// After the stop: Stop → `Break`; Switch → `apply_switch` with the old `cfg.identity`, on success `*cfg = new`,
-/// on error the line "coming back up with the old key"; then `Continue`.
-fn after_command(
-    cmd: Cmd,
-    cfg: &mut NodeConfig,
-    settings: &mut Settings,
-    ctl: &NodeCtl,
-    relaunch: &Relaunch,
-) -> ControlFlow<()> {
-    let Cmd::Switch { key, peers } = cmd else {
-        return ControlFlow::Break(());
-    };
-    match apply_switch(&key, peers, cfg.identity, settings, ctl, relaunch) {
-        Ok(new_cfg) => *cfg = new_cfg,
-        Err(e) => say("node", format!("{e:#}; coming back up with the old key")),
-    }
-    ControlFlow::Continue(())
 }
 
 /// Starts the node and runs until the stop signal (Ctrl-C or SIGTERM), then stops it.

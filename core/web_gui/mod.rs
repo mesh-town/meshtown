@@ -24,10 +24,13 @@ mod host_control;
 mod http;
 mod listener;
 mod members;
+mod net_brief;
 mod options;
 mod ring;
 mod routes;
 mod snapshot;
+#[cfg(test)]
+pub(crate) mod test_host;
 mod token;
 
 pub use auth::password_file::{remove_password_file, PASSWORD_FILE_NAME};
@@ -37,7 +40,7 @@ pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
-pub use host_control::{single_slot_host, HostControl, HostError, SlotHandle};
+pub use host_control::{single_slot_host, AddedSlot, HostControl, HostError, SlotHandle};
 pub use listener::start_web_page;
 pub use members::dto::{
     AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,

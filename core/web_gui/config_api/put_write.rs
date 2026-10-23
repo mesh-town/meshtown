@@ -82,7 +82,7 @@ fn finish_successful_write(
         serde_json::json!({
             "rev": new_rev,
             "config": state.page_config_document(),
-            "read_only": fields::read_only_paths(),
+            "read_only": state.read_only_list(),
             "restart_fields": fields::restart_paths(),
             "restart_pending": state.pending_restart_paths(),
             "changed": changed,

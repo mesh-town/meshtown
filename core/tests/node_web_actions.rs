@@ -16,7 +16,7 @@ use meshtown_core::node::{self, NodeConfig};
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
-use common::{api, boot, cleanup, teardown, wait_ready, wait_until};
+use common::{api, boot, boot_without_key, cleanup, teardown, wait_ready, wait_until};
 
 /// (a) `web::start_web_page` + `run_node_with_ctl`: `status` is not `starting` within ≤ 10 s, `boot_id` is 8 hex digits,
 /// `node.identity == "persistent"` on a fresh temporary file (replaces item 10 of the battery).
@@ -77,14 +77,12 @@ async fn stop_action_ends_run_with_quickly() {
     cleanup(&booted.dir);
 }
 
-/// (c) `switch_network` (through `POST /api/network/join` with a temporary config file) → a new
-/// `boot_id`, `log.last_seq` didn't decrease.
+/// (c) a node without a network enters one (through `POST /api/network/join` with a temporary config file)
+/// → a new `boot_id`, `log.last_seq` didn't decrease.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn switch_network_gets_new_boot_id_without_shrinking_log() {
-    let key1 = NetworkKey::generate().unwrap();
     let key2 = NetworkKey::generate().unwrap();
-    let booted = boot("switch", &key1).await;
-    wait_ready(&booted).await;
+    let booted = boot_without_key("switch").await;
 
     let (_, before) = api(booted.port, &booted.token, "GET", "/api/state", None);
     let boot_before = before["boot_id"].as_str().unwrap().to_string();
@@ -119,6 +117,35 @@ async fn switch_network_gets_new_boot_id_without_shrinking_log() {
     assert!(
         last_seq_after >= last_seq_before,
         "log.last_seq must not decrease on a network change: was {last_seq_before}, now {last_seq_after}"
+    );
+
+    teardown(booted, Duration::from_secs(5)).await;
+}
+
+/// A node that already has a network refuses `POST /api/network/join` with another one: 409
+/// `network_present`, the cycle is not restarted.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn join_on_a_node_with_a_network_is_refused() {
+    let key1 = NetworkKey::generate().unwrap();
+    let key2 = NetworkKey::generate().unwrap();
+    let booted = boot("switch-refused", &key1).await;
+    wait_ready(&booted).await;
+    let (_, before) = api(booted.port, &booted.token, "GET", "/api/state", None);
+
+    let (status, body) = api(
+        booted.port,
+        &booted.token,
+        "POST",
+        "/api/network/join",
+        Some(json!({"key": key2.encode()})),
+    );
+    assert_eq!(status, 409);
+    assert_eq!(body["error"], json!("network_present"));
+
+    let (_, after) = api(booted.port, &booted.token, "GET", "/api/state", None);
+    assert_eq!(
+        after["boot_id"], before["boot_id"],
+        "a refusal must not restart the cycle"
     );
 
     teardown(booted, Duration::from_secs(5)).await;

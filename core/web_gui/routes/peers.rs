@@ -1,32 +1,28 @@
 //! Node addresses and the network key/invite: `/api/peer-addresses`, `/api/network/key`,
 //! `/api/network/invite`.
 
-use std::sync::Arc;
-
 use axum::body::Bytes;
-use axum::extract::State;
 use axum::http::{StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use crate::invite::store::FOR_WHOM_MAX_CHARS;
 use crate::web_gui::http::{json_err, query_param};
-use crate::web_gui::{ActionError, App};
+use crate::web_gui::ActionError;
 
 use super::helpers::{action_error, body_obj};
+use super::slot_param::SlotParam;
 
-pub(super) async fn peer_addresses_get_handler(State(app): State<Arc<App>>) -> Response {
-    let slot = app.host.main_slot();
+pub(super) async fn peer_addresses_get_handler(SlotParam(slot): SlotParam) -> Response {
     let snap = slot.node.snapshot();
     let body = json!({"lines": snap.transport.self_addresses});
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
 pub(super) async fn peer_addresses_post_handler(
-    State(app): State<Arc<App>>,
+    SlotParam(slot): SlotParam,
     bytes: Bytes,
 ) -> Response {
-    let slot = app.host.main_slot();
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -58,8 +54,7 @@ pub(super) async fn peer_addresses_post_handler(
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
-pub(super) async fn network_key_handler(State(app): State<Arc<App>>) -> Response {
-    let slot = app.host.main_slot();
+pub(super) async fn network_key_handler(SlotParam(slot): SlotParam) -> Response {
     let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     let body = json!({"key": cfg.current_network_key});
     (StatusCode::OK, axum::Json(body)).into_response()
@@ -85,8 +80,7 @@ fn invite_label(uri: &Uri) -> Result<Option<String>, ActionError> {
     Ok(Some(text.to_string()).filter(|s| !s.is_empty()))
 }
 
-pub(super) async fn network_invite_handler(State(app): State<Arc<App>>, uri: Uri) -> Response {
-    let slot = app.host.main_slot();
+pub(super) async fn network_invite_handler(SlotParam(slot): SlotParam, uri: Uri) -> Response {
     let label = match invite_label(&uri) {
         Ok(label) => label,
         Err(e) => return action_error(e),

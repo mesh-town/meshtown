@@ -6,6 +6,7 @@
 //! `put_merge.rs` — steps 6–8 (patch merge, check of unavailable fields, parsing of settings);
 //! `put_write.rs` — steps 9–10 (writing to disk and the response), also `stale_outcome`; `put_name.rs` —
 //! normalization of `node.name` inside the merge (step 6); `save_key.rs` — `ConfigState::save_network_key`;
+//! `slot_overlay.rs` — the process block of an added slot;
 //! `settings_access.rs` — the write through the slot's `SettingsFile`.
 
 mod put;
@@ -13,6 +14,7 @@ mod put_merge;
 mod put_name;
 mod put_write;
 mod save_key;
+mod slot_overlay;
 mod settings_access;
 mod state;
 mod support;

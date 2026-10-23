@@ -21,6 +21,7 @@ mod control_members;
 mod control_node;
 mod guard_link;
 mod invite_wait;
+mod leave_net;
 mod live_paths;
 mod peer_addr;
 mod relaunch;

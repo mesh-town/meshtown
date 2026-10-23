@@ -25,14 +25,32 @@ pub enum HostError {
     Io(String),
 }
 
+/// A slot made by `HostControl::add_slot`: `fresh` is false when an existing empty slot was handed back.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AddedSlot {
+    pub id: NetSlotId,
+    pub fresh: bool,
+}
+
 /// The process host as the page sees it.
 pub trait HostControl: Send + Sync {
     /// The slot with this id, if the host has it.
     fn slot(&self, id: &NetSlotId) -> Option<SlotHandle>;
     /// The primary slot; it always exists.
     fn main_slot(&self) -> SlotHandle;
+    /// Every live slot, in the host's own order (the primary first).
+    fn slots(&self) -> Vec<SlotHandle>;
     /// Stops every slot's node (as `NodeControl::stop` does for one).
     fn stop_all(&self);
+    /// Adds an empty slot waiting for a network key, or hands back an existing empty one.
+    fn add_slot(&self) -> Result<AddedSlot, HostError>;
+    /// Takes a slot out; `announced` says whether the network was told about the leaving. The files
+    /// are moved aside in the background.
+    fn retire_slot(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError>;
+    /// Slots whose files could not be used; they have no node and no handle.
+    fn broken(&self) -> Vec<NetSlotId> {
+        Vec::new()
+    }
 }
 
 /// A host with a single `main` slot.
@@ -49,8 +67,21 @@ impl HostControl for SingleSlotHost {
         self.main.clone()
     }
 
+    fn slots(&self) -> Vec<SlotHandle> {
+        vec![self.main.clone()]
+    }
+
     fn stop_all(&self) {
         self.main.node.stop();
+    }
+
+    fn add_slot(&self) -> Result<AddedSlot, HostError> {
+        Err(HostError::TooManyNets)
+    }
+
+    fn retire_slot(&self, id: &NetSlotId, _announced: bool) -> Result<(), HostError> {
+        crate::node::output::say("web", format!("this run keeps one network: slot {id} stays"));
+        Ok(())
     }
 }
 

@@ -29,10 +29,17 @@ pub(super) enum Phase {
 
 /// A command taken from the queue for `run_node_with_ctl`/`run_node_awaiting_key`. `Stop` always wins;
 /// of several `Switch` commands in a row the last one stays whole, with its addresses.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Comparison is by hand (`leave_net.rs`): the node secret has no equality.
+#[derive(Clone, Debug)]
 pub(crate) enum Cmd {
     Stop,
-    Switch { key: String, peers: Vec<PeerAddr> },
+    LeaveNet {
+        secret: crate::transport::net::NodeSecret,
+    },
+    Switch {
+        key: String,
+        peers: Vec<PeerAddr>,
+    },
 }
 
 /// State under one lock. Under the lock — only assignments and clones: no `.await`,
@@ -160,7 +167,9 @@ impl NodeCtl {
             st.snapshot_gen += 1;
             st.node = Some(node.clone());
             st.cache = None;
-            st.phase = Phase::Up;
+            if !matches!(st.phase, Phase::Stopping) {
+                st.phase = Phase::Up;
+            }
             let pending = std::mem::take(&mut st.pending);
             (st.snapshot_gen, pending, st.effective_settings.clone())
         };
@@ -201,7 +210,7 @@ impl NodeCtl {
     }
 
     /// Waits for the next command for `run_node_with_ctl`: `recv().await` first, then everything in the queue
-    /// is folded — `Stop` always wins, otherwise the last `Switch` stays.
+    /// is folded — `Stop` wins, then `LeaveNet`, otherwise the last `Switch` stays.
     pub(crate) async fn next_command(&self) -> Cmd {
         let mut rx = self.cmd_rx.lock().await;
         let mut cmd = rx.recv().await.expect("cmd_tx lives as long as NodeCtl");
@@ -209,7 +218,8 @@ impl NodeCtl {
             cmd = match (cmd, next) {
                 (_, Cmd::Stop) => Cmd::Stop,
                 (Cmd::Stop, _) => Cmd::Stop,
-                (_, switch) => switch,
+                (leave @ Cmd::LeaveNet { .. }, Cmd::Switch { .. }) => leave,
+                (_, other) => other,
             };
         }
         cmd

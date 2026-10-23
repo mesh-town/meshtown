@@ -24,7 +24,7 @@ const JS: &str = "text/javascript; charset=utf-8";
 /// `<link>` in `core/web_gui/ui/index.html` (style cascade); the page is one built Vue module
 /// `/bundle/app.js`, which comes last. The build is committed (`make web-build`), so
 /// `cargo build` does without Node.
-const PAGES: &[(&str, &str, &str)] = &[
+pub(super) const PAGES: &[(&str, &str, &str)] = &[
     ("/", HTML, include_str!("../ui/index.html")),
     (
         "/css/00-base.css",

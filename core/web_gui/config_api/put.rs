@@ -33,10 +33,14 @@ impl ConfigState {
         node: &dyn NodeControl,
         conn: Option<ConnInfo>,
     ) -> Response {
-        let (rev_in, config_in) = match parse_put_request(body) {
+        if let Some(resp) = self.refuse_slot_without_network() {
+            return resp;
+        }
+        let (rev_in, mut config_in) = match parse_put_request(body) {
             Ok(v) => v,
             Err(resp) => return resp,
         };
+        self.drop_process_fields(&mut config_in);
         let file = match writable_file(self) {
             Ok(f) => f,
             Err(resp) => return resp,

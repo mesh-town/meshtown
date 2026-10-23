@@ -7,9 +7,9 @@ use std::future::Future;
 use std::sync::Arc;
 
 use super::process::{heap_dump_dir, ProcessServices};
-use super::signal::spawn_stop_signal;
 use super::saved_slots::{has_saved_slots, multi_net_for};
-use super::slots::HostSlots;
+use super::signal::spawn_stop_signal;
+use super::slots::{HostSlots, SlotContext};
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
@@ -109,6 +109,11 @@ impl Host {
         let task = output::spawn(labeled);
         host.set_task(&NetSlotId::main(), task);
         if let (Some(relaunch), Some(main_run)) = (&saved.relaunch, &main_run) {
+            host.set_context(SlotContext {
+                main_run: main_run.clone(),
+                relaunch: relaunch.clone(),
+                sources: saved.sources.clone(),
+            });
             host.start_saved_slots(main_run, relaunch, &saved.sources, now_unix());
             output::set_multi_net(multi_net_for(host.len()));
         }
@@ -135,15 +140,24 @@ impl Host {
     /// Waits for every slot's task; the outcome is the main slot's, a panicked task is an error.
     async fn wait_slots(host: &HostSlots) -> anyhow::Result<()> {
         let mut main = Ok(());
-        for (id, task) in host.take_tasks() {
-            let outcome = task
-                .await
-                .unwrap_or_else(|e| Err(anyhow::anyhow!("the node task of slot {id} failed: {e}")));
-            if id == NetSlotId::main() {
-                main = outcome;
+        loop {
+            let tasks = host.take_tasks();
+            let retiring = host.take_retiring();
+            if tasks.is_empty() && retiring.is_empty() {
+                return main;
+            }
+            for (id, task) in tasks {
+                let outcome = task.await.unwrap_or_else(|e| {
+                    Err(anyhow::anyhow!("the node task of slot {id} failed: {e}"))
+                });
+                if id == NetSlotId::main() {
+                    main = outcome;
+                }
+            }
+            for task in retiring {
+                task.await.ok();
             }
         }
-        main
     }
 }
 

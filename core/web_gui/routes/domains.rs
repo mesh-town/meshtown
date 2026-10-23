@@ -1,20 +1,16 @@
 //! Domains: `/api/domains` (adding and removing).
 
-use std::sync::Arc;
-
 use axum::body::Bytes;
-use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::web_gui::http::{json_err, query_param};
-use crate::web_gui::App;
 
 use super::helpers::{action_error, body_obj, map_string_field};
+use super::slot_param::SlotParam;
 
-pub(super) async fn domains_post_handler(State(app): State<Arc<App>>, bytes: Bytes) -> Response {
-    let slot = app.host.main_slot();
+pub(super) async fn domains_post_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     let map = match body_obj(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,
@@ -30,10 +26,9 @@ pub(super) async fn domains_post_handler(State(app): State<Arc<App>>, bytes: Byt
 }
 
 pub(super) async fn domains_delete_handler(
-    State(app): State<Arc<App>>,
+    SlotParam(slot): SlotParam,
     uri: axum::http::Uri,
 ) -> Response {
-    let slot = app.host.main_slot();
     let name = match query_param(&uri, "name") {
         Some(n) if !n.is_empty() => n,
         _ => {

@@ -149,7 +149,7 @@ async fn apply_switch_good_key_takes_identity_and_peers() {
     assert_eq!(settings.net.network_key, Some(key_text(2)));
 }
 
-fn run_after(cmd: Cmd) -> (ControlFlow<()>, NodeConfig) {
+fn run_after(cmd: Cmd) -> (ControlFlow<CycleEnd>, NodeConfig) {
     let mut settings = old_settings();
     let ctl = NodeCtl::new_without_network(&settings);
     let mut cfg = old_cfg();
@@ -228,4 +228,103 @@ async fn boot_cycles_reuse_fixed_socks_port() {
             "round {round}"
         );
     }
+}
+
+/// A stop that arrives while the node starts survives `attach`: the snapshot says "stopping".
+#[tokio::test]
+async fn stop_before_attach_keeps_stopping_status() {
+    let ctl = NodeCtl::new(&Settings::default());
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([5; 32]));
+    cfg.socks.enabled = false;
+    ctl.stop_on_os_signal();
+    let node = boot_cycle(&cfg, &ctl, true).await.unwrap();
+    assert_eq!(
+        ctl.snapshot().node.status,
+        crate::web_gui::NodeStatus::Stopping
+    );
+    assert!(matches!(serve_until_command(node, &ctl).await, Cmd::Stop));
+}
+
+/// With the stop queued before the start, the loop leaves after that one start and takes no second boot id.
+#[tokio::test]
+async fn stop_before_attach_leaves_after_one_boot() {
+    let ctl = NodeCtl::new(&Settings::default());
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([6; 32]));
+    cfg.socks.enabled = false;
+    let mut settings = Settings::default();
+    let id0 = ctl.snapshot().boot_id;
+    ctl.stop_on_os_signal();
+    let res = timeout(
+        Duration::from_secs(20),
+        run_cycles(&mut cfg, &mut settings, &ctl, &test_relaunch()),
+    )
+    .await
+    .expect("loop must leave");
+    assert!(res.is_ok());
+    let id1 = ctl.snapshot().boot_id;
+    assert_ne!(id0, id1);
+}
+
+/// Leaving the network of a running node: the loop ends with `LeftNet`, the settings lose the network's
+/// key and lists, and the control object waits for a key again.
+#[tokio::test]
+async fn leave_net_ends_cycles_and_clears_network_settings() {
+    let mut settings = Settings::default();
+    settings.net.route_exits = vec![NodeSecret::from_bytes(&[9u8; 32]).peer_id()];
+    let ctl = NodeCtl::new(&settings);
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([7; 32]));
+    cfg.socks.enabled = false;
+    let new_secret = NodeSecret::from_bytes(&[33u8; 32]);
+    ctl.request_leave_net(new_secret.clone()).unwrap();
+    let res = timeout(
+        Duration::from_secs(20),
+        run_cycles(&mut cfg, &mut settings, &ctl, &test_relaunch()),
+    )
+    .await
+    .expect("loop must leave")
+    .unwrap();
+    let CycleEnd::LeftNet { secret } = res else {
+        panic!("expected LeftNet");
+    };
+    assert_eq!(secret.peer_id(), new_secret.peer_id());
+    let relaunch = forget_network(&mut settings, &ctl, &test_relaunch(), secret);
+    assert_eq!(relaunch.secret.peer_id(), new_secret.peer_id());
+    assert!(settings.net.network_key.is_none());
+    assert!(settings.net.route_exits.is_empty());
+    assert!(settings.net.ports_published.is_empty());
+    assert!(ctl.is_no_network());
+}
+
+/// A running node that is told to leave waits for a key; a stop ends the wait.
+#[tokio::test]
+async fn left_node_waits_for_key_until_stop() {
+    use crate::web_gui::NodeControl;
+
+    let settings = Settings::default();
+    let ctl = NodeCtl::new(&settings);
+    let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([8; 32]));
+    cfg.socks.enabled = false;
+    let task = crate::node::output::spawn(run_node_with_ctl(
+        cfg,
+        settings,
+        ctl.clone(),
+        test_relaunch(),
+    ));
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    ctl.request_leave_net(NodeSecret::from_bytes(&[34u8; 32]))
+        .unwrap();
+    let waited = timeout(Duration::from_secs(20), async {
+        while !ctl.is_no_network() {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await;
+    assert!(
+        waited.is_ok(),
+        "the node must come to waiting for a network key"
+    );
+    assert!(!task.is_finished());
+    ctl.stop();
+    let res = timeout(Duration::from_secs(5), task).await;
+    assert!(matches!(res, Ok(Ok(Ok(())))), "{res:?}");
 }

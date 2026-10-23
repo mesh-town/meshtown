@@ -8,6 +8,11 @@ Part 2 of 3. A continuation of section "1. HTTP API contract" (subsections 1.6�
 
 ### 1.6 `GET /api/config` — config
 
+For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`socks.*`,
+`web.*`, `log.*`, `node.memory_*`, `autostart.*`, `full_tunnel.*`) show the primary network's values and are
+listed in `read_only`; `cli_overrides` is empty. A `PUT` leaves them as they are without an error, writes only
+the network fields to the slot's file, and answers 409 `busy` while the slot has no network.
+
 ```json
 {
   "rev": 7,
@@ -181,6 +186,10 @@ Enabling something unavailable, 422 `not_available`:
 All actions are `POST`, the body is JSON (or empty), the response is JSON. Actions do not touch the config and do not
 change `rev`, except those explicitly marked — `POST /api/network/join` and `POST /api/network/create`
 write a new network key into the config and raise `rev`.
+Network actions also exist under `/api/net/{slot}/…` and act on that network. `network/join` and
+`network/create` answer 409 `network_present` when the slot already works with another network, and
+`network/join` answers 409 `net_already_added` (with `slot`) when another slot has the network; see 1.11 in
+`WEB-API.md`.
 
 | Address | Body | Response | What it does |
 |---|---|---|---|
