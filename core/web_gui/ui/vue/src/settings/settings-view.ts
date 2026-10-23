@@ -3,10 +3,12 @@
 
 import type { ConfigDocument, ConfigFileInfo, ConfigMeta, FieldError, NodeState } from "../core/api-types.ts";
 import { CLI_FIXED_NOTE, upperFirst } from "../common/words.ts";
-import { controlValue, fid, getPath } from "./settings-fields.ts";
+import type { Store } from "../core/store.ts";
+import type { ConfigChanges } from "../core/save-config.ts";
+import { EXPERT_FIELDS, PAGE_FIELDS, SHARED_PATHS, controlValue, fid, getPath } from "./settings-fields.ts";
 import type { Field, RawValue } from "./settings-fields.ts";
 import {
-  SETTINGS_BROKEN_FILE, SETTINGS_CLI_NOTE_EDITABLE, SETTINGS_CLI_TAIL, SETTINGS_READONLY_DEFAULT, SETTINGS_READONLY_WEB_ENABLED,
+  SETTINGS_ALL_NETS, SETTINGS_WEB_ACCESS_MULTI, SETTINGS_BROKEN_FILE, SETTINGS_CLI_NOTE_EDITABLE, SETTINGS_CLI_TAIL, SETTINGS_READONLY_DEFAULT, SETTINGS_READONLY_WEB_ENABLED,
   SETTINGS_RESTART_STARTED, SETTINGS_SAVED, SETTINGS_SAVED_LATE, SETTINGS_VALUE_OFF, SETTINGS_VALUE_ON, SETTINGS_WRITABLE_REASON,
   settingsCliHeadText,
 } from "./settings-texts.ts";
@@ -53,6 +55,7 @@ export interface SaveBarInput {
   requested: boolean;
   busy: boolean;
   message: MessageView | null | undefined;
+  restartTargets?: string[]; // slots waiting for a restart; omitted — derived from `meta`
 }
 
 export interface SaveBarView {
@@ -70,6 +73,28 @@ export const RESTART_STARTED = SETTINGS_RESTART_STARTED;
 // Whether the node has fields waiting for a restart.
 export function restartPending(meta: MetaLike): boolean {
   return !!(meta && meta.restart_pending && meta.restart_pending.length > 0);
+}
+
+// Slots to restart: the ones the overview lists, else the main one when the config says a restart is pending.
+export function restartTargets(store: Pick<Store, "restartSlots" | "configMeta">): string[] {
+  if (store.restartSlots.length > 0) return store.restartSlots;
+  return restartPending(store.configMeta) ? ["main"] : [];
+}
+
+// The part of the changes that every network keeps in step.
+export function sharedChanges(changes: ConfigChanges): ConfigChanges {
+  return Object.fromEntries(Object.entries(changes).filter(([path]) => SHARED_PATHS.includes(path)));
+}
+
+const ALL_NETS_FIELDS: readonly string[] = [...EXPERT_FIELDS, ...PAGE_FIELDS].map((f) => f.path);
+
+// A note under the rows that apply to every network.
+export function fieldCaption(field: Field, multi: boolean): string {
+  return multi && ALL_NETS_FIELDS.includes(field.path) ? SETTINGS_ALL_NETS : "";
+}
+
+export function fieldLabel(field: Field, multi: boolean): string {
+  return multi && field.path === "web.access" ? SETTINGS_WEB_ACCESS_MULTI : field.title;
 }
 
 export function metaHas(meta: MetaLike, key: keyof ConfigMeta, path: string): boolean {
@@ -164,10 +189,11 @@ function barClass(dirty: boolean, pending: boolean): string {
   return pending ? "save-bar saved-sticky" : "save-bar";
 }
 
-export function saveBarView({ dirty: isDirty, meta, configFile, requested, busy, message }: SaveBarInput): SaveBarView {
+export function saveBarView({ dirty: isDirty, meta, configFile, requested, busy, message, restartTargets: targets }: SaveBarInput): SaveBarView {
   const dirty = !!isDirty;
   const writable = !configFile || configFile.writable !== false;
-  const pending = restartPending(meta);
+  const slots = targets ?? (restartPending(meta) ? ["main"] : []);
+  const pending = restartPending(meta) || slots.length > 0;
   const text = (message && message.text) || "";
   return {
     visible: dirty || !writable || pending,
@@ -175,7 +201,7 @@ export function saveBarView({ dirty: isDirty, meta, configFile, requested, busy,
     dirtyHint: dirty,
     saveDisabled: !writable || !!busy,
     writableReason: writable ? "" : (upperFirst(configFile && configFile.message) || SETTINGS_WRITABLE_REASON),
-    restartOffered: pending && !requested,
+    restartOffered: slots.length > 0 && !requested,
     messageShown: text === RESTART_STARTED && !pending ? "" : text,
   };
 }

@@ -25,7 +25,7 @@ describe("first snapshot", () => {
     assert.equal(env.stateWhenConfigAsked, null, "the snapshot was written before the config");
     assert.equal(env.store.state.boot_id, "b1");
     assert.equal(env.store.configRev, 1);
-    assert.deepEqual(env.calls, ["GET /api/state", "GET /api/config"]);
+    assert.deepEqual(env.calls, ["GET /api/overview", "GET /api/state", "GET /api/config"]);
   });
 
   it("configMeta: empty arrays if the node sent no fields; file — null", async () => {
@@ -41,7 +41,7 @@ describe("first snapshot", () => {
     const env = setup({ configRev: 1 });
     env.reply["GET /api/state"] = () => stateReply();
     await env.poller.pollOnce();
-    assert.deepEqual(env.calls, ["GET /api/state"]);
+    assert.deepEqual(env.calls, ["GET /api/overview", "GET /api/state"]);
   });
 });
 
@@ -217,7 +217,7 @@ describe("clearPollTimer and onBus", () => {
 
   it("stopped during a request — the 200 response is discarded: stopped stays, the next poll in 15 s", async () => {
     const env = setup({ configRev: 1 });
-    env.hold("GET /api/state", () => stateReply());
+    env.hold("GET /api/overview", () => ({ api: 1, nets: [], slots: [{ slot: "main", state: stateReply() }], restart_slots: [] }));
     const first = env.poller.pollOnce();
     env.poller.onBus("stopped");
     env.release();
@@ -229,7 +229,7 @@ describe("clearPollTimer and onBus", () => {
 
   it("stopped during a request — a network error from it does not change the connection", async () => {
     const env = setup({ configRev: 1 });
-    env.hold("GET /api/state", () => { throw new ApiError(0, "network"); });
+    env.hold("GET /api/overview", () => { throw new ApiError(0, "network"); });
     const first = env.poller.pollOnce();
     env.poller.onBus("stopped");
     env.release();
@@ -264,22 +264,22 @@ describe("schedule and stop", () => {
 
   it("schedule(0) during a request — exactly one retry after the response, 2 requests (not 3)", async () => {
     const env = setup({ configRev: 1 });
-    env.hold("GET /api/state", () => stateReply());
+    env.hold("GET /api/overview", () => ({ api: 1, nets: [], slots: [{ slot: "main", state: stateReply() }], restart_slots: [] }));
     const first = env.poller.pollOnce();
     env.poller.schedule(0);
     env.poller.schedule(0);
     env.poller.pollOnce(); // a second pollOnce does not start on top of a running one
     await new Promise((resolve) => setImmediate(resolve));
-    assert.equal(env.count("GET /api/state"), 1, "the second request must not start on top of a running one");
+    assert.equal(env.count("GET /api/overview"), 1, "the second request must not start on top of a running one");
     env.release();
     await first;
     await env.runZeroTimers();
-    assert.equal(env.count("GET /api/state"), 2);
+    assert.equal(env.count("GET /api/overview"), 2);
   });
 
   it("stop() during a request — the timer is not set after the response", async () => {
     const env = setup({ configRev: 1 });
-    env.hold("GET /api/state", () => stateReply());
+    env.hold("GET /api/overview", () => ({ api: 1, nets: [], slots: [{ slot: "main", state: stateReply() }], restart_slots: [] }));
     const first = env.poller.pollOnce();
     env.poller.stop();
     env.release();
@@ -314,6 +314,7 @@ function setup({ configRev = null, hidden = false } = {}) {
           };
         });
       }
+      if (key === "GET /api/overview") return Promise.reject(new ApiError(404, "not_found")); // an old node: the legacy poll
       const fn = env.reply[key];
       if (!fn) return Promise.reject(new Error("unexpected request " + key));
       try {

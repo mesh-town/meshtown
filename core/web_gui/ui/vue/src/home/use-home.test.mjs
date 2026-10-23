@@ -262,7 +262,7 @@ function setup(state = {}, { userAgent = "", clipboard = false } = {}) {
     storage: { getItem: () => null, setItem: () => {} },
     userAgent,
     focus: (selector) => focused.push(selector),
-    askKeep: async () => "no",
+   
   };
   const focused = [];
   const { result: h, unmount } = withSetup(() => useHome(store, deps));

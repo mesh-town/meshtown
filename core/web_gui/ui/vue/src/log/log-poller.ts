@@ -7,13 +7,14 @@ import { POLL_MS, emptyFeed, mergePoll, pollErrorText, pollPath } from "./log-vi
 import type { LogFeed } from "./log-view.ts";
 
 /* deps: api(method, path), setTimer/clearTimer, active() — whether the tab with node data is open,
- * boot() — the current `boot_id`, max() — the ring size, onFeed(feed) — a new feed, onError(text) — the polling failure line ("" — no failure; optional). */
+ * boot() — the current `boot_id`, net() — the selected network filter (`null` — all), max() — the ring size, onFeed(feed) — a new feed, onError(text) — the polling failure line ("" — no failure; optional). */
 export interface LogPollerDeps {
   api: ApiFn;
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (id: unknown) => void;
   active: () => boolean;
   boot: () => string | null | undefined;
+  net?: () => string | null;
   max: () => number;
   onFeed: (feed: LogFeed) => void;
   onError?: (text: string) => void;
@@ -45,11 +46,16 @@ export function createLogPoller(deps: LogPollerDeps): LogPoller {
 
   async function poll(): Promise<void> {
     const boot = deps.boot();
-    const data = await deps.api<LogResponse | null>("GET", pollPath(feed.lastSeq));
-    // the node restarted while the request was running: the response belongs to the old start
-    if (deps.boot() !== boot) return;
+    const net = currentNet();
+    const data = await deps.api<LogResponse | null>("GET", pollPath(feed.lastSeq, net));
+    // the node restarted or the filter changed while the request was running: the response belongs to the old one
+    if (deps.boot() !== boot || currentNet() !== net) return;
     setFeed(mergePoll(feed, data, deps.max()));
     report("");
+  }
+
+  function currentNet(): string | null {
+    return deps.net ? deps.net() : null;
   }
 
   function report(text: string): void {

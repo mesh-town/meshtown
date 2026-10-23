@@ -141,6 +141,75 @@ describe("leave", () => {
   });
 });
 
+describe("leave in a page with several networks", () => {
+  const MULTI = { multi: true, net: "my devices" };
+  const OTHERS_STAY = "Disconnect this computer from \"my devices\" for good. Your other networks stay. You'll need a new invite to come back.";
+
+  it("the title is short and names the network", () => {
+    assert.equal(spec("leave", MULTI).title, 'Leave "my devices"?');
+  });
+
+  it("the body says that the other networks stay", () => {
+    assert.deepEqual(spec("leave", MULTI).body, [OTHERS_STAY]);
+  });
+
+  it("the button is still red \"Leave network\", no hint and no field", () => {
+    const s = spec("leave", MULTI);
+    assert.equal(s.action, "Leave network");
+    assert.equal(s.danger, true);
+    assert.ok(!s.hint, "hint: " + s.hint);
+    assert.ok(!s.field, "field: " + JSON.stringify(s.field));
+  });
+
+  describe("the exit is a member of this network", () => {
+    it("a second paragraph names the exit", () => {
+      assert.deepEqual(spec("leave", { ...MULTI, exitName: "peer-one" }).body, [
+        OTHERS_STAY,
+        "Your exit peer-one is in this network. After you leave, sites will open directly until you choose another exit.",
+      ]);
+    });
+
+    it("the rest of the spec does not change", () => {
+      const withoutBody = (s) => ({ ...s, body: null });
+      assert.deepEqual(withoutBody(spec("leave", { ...MULTI, exitName: "peer-one" })), withoutBody(spec("leave", MULTI)));
+    });
+  });
+
+  describe("the exit is in another network", () => {
+    it.each([undefined, null, ""])("exitName %j: no paragraph about the exit", (exitName) => {
+      assert.deepEqual(spec("leave", { ...MULTI, exitName }).body, [OTHERS_STAY]);
+    });
+  });
+
+  it("`isMyExit` adds nothing (the exit has its own paragraph)", () => {
+    assert.deepEqual(spec("leave", { ...MULTI, isMyExit: true }), spec("leave", MULTI));
+  });
+});
+
+describe("leave in a page with one network is the same as before", () => {
+  const PLAIN = spec("leave");
+
+  it.each([{ multi: false }, { multi: undefined }, { exitName: null }])("context %j gives the plain spec", (over) => {
+    assert.deepEqual(spec("leave", over), PLAIN);
+  });
+
+  it("an exit name without `multi` is ignored", () => {
+    assert.deepEqual(spec("leave", { exitName: "peer-one" }), PLAIN);
+    assert.deepEqual(spec("leave", { multi: false, exitName: "peer-one" }), PLAIN);
+  });
+
+  it("the sentences are unchanged, word for word", () => {
+    assert.equal(PLAIN.title, 'Leave the network "family"?');
+    assert.deepEqual(PLAIN.body, [
+      "This computer disconnects from all members, and sites stop opening through Mesh Town. To come back, you'll need a new invite from a member.",
+    ]);
+  });
+
+  it.each(["remove", "remove-two", "confirm", "block"])("%s ignores `multi`", (kind) => {
+    assert.deepEqual(spec(kind, { multi: true, exitName: "peer-one" }), spec(kind));
+  });
+});
+
 describe("the reason field", () => {
   it("remove (a proposal) has a field with the label and the limit of 80", () => {
     assert.deepEqual(spec("remove").field, { label: "Reason (optional, members will see it)", max: 80 });

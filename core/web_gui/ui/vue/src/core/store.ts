@@ -3,7 +3,7 @@
 import { reactive } from "vue";
 import type { InjectionKey } from "vue";
 import type { MembersReply } from "../members/members-types.ts";
-import type { ConfigFileInfo, ConfigDocument, ConfigMeta, NodeState } from "./api-types.ts";
+import type { ConfigFileInfo, ConfigDocument, ConfigMeta, NetBrief, NodeState, SlotSlice } from "./api-types.ts";
 
 // Why the page gets no snapshots: the link is stale, the node is silent, the node is stopped.
 export type Absence = "token" | "silent" | "stopped";
@@ -17,7 +17,13 @@ export interface StoreState {
   activeSection: string;
   settingsDirty: boolean;
   absence: Absence | null;
-  members: MembersReply | null; // `GET /api/members`; null — no list (old node, no network, not asked yet)
+  members: MembersReply | null; // the leading slot's member list; null — no list (old node, no network, not asked yet)
+  slots: Record<string, SlotSlice>; // every slot of the last overview, hidden ones too
+  nets: NetBrief[];
+  restartSlots: string[]; // slots with changes that need a restart
+  lead: string; // the leading slot: `state` and `members` are its
+  peersTab: string | null;
+  source: "overview" | "legacy" | null; // which request the last accepted snapshot came from
 }
 
 export type Store = StoreState;
@@ -35,5 +41,11 @@ export function createStore(): Store {
     settingsDirty: false, // there are unsaved edits in "Settings"
     absence: null,
     members: null,
+    slots: {},
+    nets: [],
+    restartSlots: [],
+    lead: "main",
+    peersTab: null,
+    source: null,
   });
 }

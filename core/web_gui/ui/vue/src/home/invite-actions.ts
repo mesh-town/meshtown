@@ -2,6 +2,7 @@
  * (a component `ref`) and does not reach the store, storages, `title` or the log. */
 
 import type { InviteResponse } from "../core/api-types.ts";
+import { slotPath, stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
@@ -29,8 +30,8 @@ export function createInviteState(): InviteState {
   return { text: "", netId: null, busy: false, status: "", warning: "" };
 }
 
-function currentNetId(store: Store): string | null {
-  const net = store.state && store.state.network;
+function currentNetId(store: Store, slot: string): string | null {
+  const net = stateOf(store, slot)?.network;
   return net ? net.id_hex : null;
 }
 
@@ -42,8 +43,8 @@ export function reachWarning(reach: unknown): string {
 }
 
 // The response is applied only if the network in the current snapshot is the same as at request time.
-async function showInvite(inv: InviteState, store: Store, netId: string, res: InviteResponse, deps: InviteDeps): Promise<InviteResult> {
-  if (currentNetId(store) !== netId) {
+async function showInvite(inv: InviteState, store: Store, slot: string, netId: string, res: InviteResponse, deps: InviteDeps): Promise<InviteResult> {
+  if (currentNetId(store, slot) !== netId) {
     inv.status = STALE;
     return "stale";
   }
@@ -56,26 +57,26 @@ async function showInvite(inv: InviteState, store: Store, netId: string, res: In
 }
 
 // The invite path; a non-blank label travels as `?for=`.
-export function invitePath(forWhom: string): string {
+export function invitePath(forWhom: string, slot = "main"): string {
   const label = forWhom.trim();
-  return "/api/network/invite" + (label ? "?for=" + encodeURIComponent(label) : "");
+  return slotPath(slot, "network/invite") + (label ? "?for=" + encodeURIComponent(label) : "");
 }
 
-async function fetchInvite(inv: InviteState, store: Store, netId: string, deps: InviteDeps, forWhom: string): Promise<InviteResult> {
+async function fetchInvite(inv: InviteState, store: Store, slot: string, netId: string, deps: InviteDeps, forWhom: string): Promise<InviteResult> {
   // A failed request gives the same text as an empty response.
-  const res = await deps.api<InviteResponse>("GET", invitePath(forWhom)).catch(() => null);
-  if (res && res.invite) return showInvite(inv, store, netId, res, deps);
+  const res = await deps.api<InviteResponse>("GET", invitePath(forWhom, slot)).catch(() => null);
+  if (res && res.invite) return showInvite(inv, store, slot, netId, res, deps);
   inv.status = UNAVAILABLE;
   return "failed";
 }
 
 // `netId` is taken BEFORE `await`; a response for another network is dropped ("stale").
-export async function requestInvite(inv: InviteState, store: Store, deps: InviteDeps = defaultHomeDeps, forWhom = ""): Promise<InviteResult> {
-  const netId = currentNetId(store);
+export async function requestInvite(inv: InviteState, store: Store, deps: InviteDeps = defaultHomeDeps, forWhom = "", slot = store.lead): Promise<InviteResult> {
+  const netId = currentNetId(store, slot);
   if (inv.busy || netId === null) return "skipped";
   inv.busy = true;
   try {
-    return await fetchInvite(inv, store, netId, deps, forWhom);
+    return await fetchInvite(inv, store, slot, netId, deps, forWhom);
   } finally {
     inv.busy = false;
   }

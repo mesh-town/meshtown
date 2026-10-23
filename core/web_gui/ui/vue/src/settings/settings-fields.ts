@@ -2,7 +2,7 @@
  * Pure functions without Vue: the draft stores the raw control value, parsing by `dataType` happens on save. */
 
 import type { ConfigDocument, FieldError, UnavailableFeature } from "../core/api-types.ts";
-import { DESC_SOCKS_ACCESS_NETS } from "../nets/nets-texts.ts";
+import { DESC_SOCKS_ACCESS_NETS } from "../lan/nets-texts.ts";
 import {
   SETTINGS_DESC_HOST_PORT, SETTINGS_DESC_LOG_RING, SETTINGS_DESC_PROBE_INTERVAL, SETTINGS_DESC_PROVIDER_DNS, SETTINGS_DESC_SOCKS_ACCESS,
   SETTINGS_DESC_SOCKS_ENABLED, SETTINGS_DESC_WEB_ACCESS, SETTINGS_EVERY_10_MIN, SETTINGS_EVERY_15_MIN, SETTINGS_EVERY_30_MIN,
@@ -213,3 +213,8 @@ export function fieldErrorLine(fe: FieldError): string {
   const field = [...MAIN_FIELDS, ...EXPERT_FIELDS, ...PAGE_FIELDS].find((f) => f.path === fe.path);
   return field ? field.title + " (" + fe.path + "): " + fe.message : fe.path + ": " + fe.message;
 }
+
+/** Paths that every network keeps in step with the main one. */
+export const SHARED_PATHS: readonly string[] = [
+  "probe.interval_sec", "checks.enabled", "checks.interval_sec", "checks.doh_server", "checks.provider_dns",
+];

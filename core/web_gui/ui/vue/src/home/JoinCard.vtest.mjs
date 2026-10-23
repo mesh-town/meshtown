@@ -1,4 +1,4 @@
-/* The join card: an empty field, a node error with a key word, the question about ports. */
+/* The join card: an empty field, a node error with a key word. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -44,19 +44,6 @@ describe("JoinCard", () => {
     await flushPromises();
     expect(wrapper.find("#join-key-error b").exists()).toBe(false);
     expect(wrapper.get("#join-key-error").text()).toContain("<b>bold</b>");
-  });
-
-  it("ports are published — <dialog> is open, focus on \"No\"", async () => {
-    const state = baseState({ network: null, peers: [], ports: { published: [{ port: 8080 }], network: [] } });
-    const { wrapper } = await mountHomeJoin({ state });
-    await wrapper.get("#join-key-input").setValue("mesh-invite2-abc");
-    await wrapper.get("#join-btn").trigger("click");
-    await flushPromises();
-    expect(wrapper.get("dialog").attributes("open")).toBeDefined();
-    expect(document.activeElement).toBe(wrapper.get("#ports-keep-no").element);
-    expect(api).not.toHaveBeenCalled();
-    await wrapper.get("#ports-keep-no").trigger("click");
-    await flushPromises();
   });
 
   it("#join-wait: empty at invite_join null, visible with text at waiting, a refusal — the node's message", async () => {

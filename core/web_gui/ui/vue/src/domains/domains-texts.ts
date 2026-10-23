@@ -48,6 +48,7 @@ export const DOMAINS_EMPTY = "No sites yet — enter an address above and click 
 export const DOMAINS_HINT_INTRO = "Each member checks sites from their own internet connection, without";
 export const DOMAINS_HINT_REST = "A green mark in a member's column means the site will open through them. The \"For you\" column shows whether the site opens for you as usual.";
 export const DOMAINS_HINT_LOCAL = "The site list is stored only on this computer: other members can't see or change it.";
+export const DOMAINS_HINT_LOCAL_NETS = "The site list is stored only on this computer: members of your networks can\u2019t see or change it.";
 
 export const DOMAINS_CHECKING_ROW = "checking…";
 export const DOMAINS_CHOSEN_PREFIX = "✓ Your exit:";

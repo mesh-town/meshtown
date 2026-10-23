@@ -87,15 +87,15 @@ describe("unpublish, open, close", () => {
 
   it("open without a number writes the port plus 2000 (8080 → 10080), close removes the pair", async () => {
     const w = setup();
-    await w.actions.openNetPort("ab", 8080, "");
+    await w.actions.openNetPort("main", "ab", 8080, "");
     assert.deepEqual(w.calls[0].body.config.ports.opened, [{ node: "ab", port: 8080, local: 10080 }]);
-    await w.actions.closeNetPort("ab", 8080);
+    await w.actions.closeNetPort("main", "ab", 8080);
     assert.deepEqual(w.calls[1].body.config.ports.opened, []);
   });
 
   it("open with its own number; no ports section in the config — does not fail", async () => {
     const w = setup({ ports: undefined });
-    await w.actions.openNetPort("ab", 8080, 9000);
+    await w.actions.openNetPort("main", "ab", 8080, 9000);
     assert.deepEqual(w.calls[0].body.config.ports.opened, [{ node: "ab", port: 8080, local: 9000 }]);
   });
 });
@@ -162,8 +162,8 @@ describe("saving ports", () => {
     it("unpublish, open and close also set the second poll", async () => {
       const w = setup();
       await w.actions.unpublish(80);
-      await w.actions.openNetPort("ab", 8080, "");
-      await w.actions.closeNetPort("ab", 8080);
+      await w.actions.openNetPort("main", "ab", 8080, "");
+      await w.actions.closeNetPort("main", "ab", 8080);
       assert.deepEqual(w.timers.map((t) => t.ms), [1200, 1200, 1200]);
     });
   });

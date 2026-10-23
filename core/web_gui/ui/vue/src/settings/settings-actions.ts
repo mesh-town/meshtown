@@ -8,16 +8,18 @@ import type { ChangedWhat } from "../core/bridge.ts";
 import { notifyChanged } from "../core/bridge.ts";
 import type { TokenRotateResponse } from "../core/api-types.ts";
 import type { Store } from "../core/store.ts";
-import { putConfigOnce } from "../core/save-config.ts";
+import { asResult, eachSlot, putConfigOnce, saveSlotFields, slotFailureText, targetSlots } from "../core/save-config.ts";
+import { slotPath } from "../core/slots.ts";
 import { getToken, setToken } from "../core/token.ts";
 import { errReason, failText, upperFirst } from "../common/words.ts";
-import { EXPERT_FIELDS, MAIN_FIELDS, PAGE_FIELDS, collectChanges } from "./settings-fields.ts";
+import { EXPERT_FIELDS, MAIN_FIELDS, PAGE_FIELDS, SHARED_PATHS, collectChanges } from "./settings-fields.ts";
 import type { Field, RawValue } from "./settings-fields.ts";
-import { RESTART_STARTED, restartPending, savedMessageText } from "./settings-view.ts";
+import type { ConfigChanges, SlotFailure } from "../core/save-config.ts";
+import { RESTART_STARTED, restartPending, restartTargets, savedMessageText, sharedChanges } from "./settings-view.ts";
 import type { MessageView } from "./settings-view.ts";
 import {
   SETTINGS_CONFIRM_ROTATE, SETTINGS_FAIL_RESTART, SETTINGS_FAIL_ROTATE, SETTINGS_FAIL_SAVE, SETTINGS_FAIL_STOP,
-  SETTINGS_FIELD_ERRORS_MESSAGE, SETTINGS_SAVING, SETTINGS_TOKEN_ROTATED, SETTINGS_WRITE_FAILED,
+  SETTINGS_FIELD_ERRORS_MESSAGE, SETTINGS_PARTIAL, SETTINGS_SAVING, SETTINGS_TOKEN_ROTATED, SETTINGS_WRITE_FAILED,
 } from "./settings-texts.ts";
 
 /** Dependencies of the section (replaced in tests). */
@@ -45,7 +47,7 @@ export interface SettingsForm {
   timer: unknown;
 }
 
-export type SaveOutcome = "saved" | "invalid" | "conflict" | "failed" | "skipped";
+export type SaveOutcome = "saved" | "partial" | "invalid" | "conflict" | "failed" | "skipped";
 export type RestartOutcome = "restarted" | "failed" | "skipped";
 
 const ALL_FIELDS: readonly Field[] = [...MAIN_FIELDS, ...EXPERT_FIELDS, ...PAGE_FIELDS];
@@ -180,9 +182,29 @@ export async function saveDraft(form: SettingsForm, store: Store, deps: Partial<
   form.busy = true;
   say(form, SETTINGS_SAVING, "hint");
   form.conflict = null;
-  const res = await putConfigOnce(store, collectChanges(sent, ALL_FIELDS), d, rev);
+  const changes = collectChanges(sent, ALL_FIELDS);
+  const res = await putConfigOnce(store, changes, d, rev);
+  const failures = res.ok ? await writeShared(store, changes, d) : [];
   form.busy = false;
-  return res.ok ? onSaved(form, store, d, sent) : onSaveError(form, res.error);
+  if (!res.ok) return onSaveError(form, res.error);
+  return failures.length > 0 ? onPartial(form, sent, failures) : onSaved(form, store, d, sent);
+}
+
+// The shared paths go to the other networks after the main one took them; a slot without a key is skipped.
+async function writeShared(store: Store, changes: ConfigChanges, d: SettingsDeps): Promise<SlotFailure[]> {
+  const shared = sharedChanges(changes);
+  if (Object.keys(shared).length === 0) return [];
+  const others = targetSlots(store).filter((s) => s !== "main");
+  return eachSlot(store, others, (slot) => saveSlotFields(store, slot, shared, d));
+}
+
+// The main config is saved; the shared fields stay in the draft so another "Save" brings the networks in step.
+function onPartial(form: SettingsForm, sent: Record<string, RawValue>, failures: SlotFailure[]): SaveOutcome {
+  const rest = Object.fromEntries(Object.entries(form.draft).filter(([path, raw]) => SHARED_PATHS.includes(path) || !(path in sent) || sent[path] !== raw));
+  form.draft = rest;
+  form.errors = {};
+  say(form, SETTINGS_PARTIAL + " " + failures.map(slotFailureText).join(" "), "field-error-text");
+  return "partial";
 }
 
 // The fresh config is brought by the shell (`shell/use-shell.js`) on `meshtown:changed{config}`.
@@ -197,18 +219,21 @@ function onRestartAsked(form: SettingsForm): RestartOutcome {
   return "restarted";
 }
 
-function onRestartFailed(form: SettingsForm, err: unknown): RestartOutcome {
-  say(form, failText(SETTINGS_FAIL_RESTART, err), "field-error-text");
+function onRestartFailed(form: SettingsForm, failures: SlotFailure[]): RestartOutcome {
+  const single = failures.length === 1 && failures[0].slot === "main";
+  const text = single ? failText(SETTINGS_FAIL_RESTART, failures[0].error) : failures.map(slotFailureText).join(" ");
+  say(form, text, "field-error-text");
   return "failed";
 }
 
-export async function restartNode(form: SettingsForm, deps: Partial<SettingsDeps>): Promise<RestartOutcome> {
+// Restarts every network that waits for it, the main one first; all must accept for "restarted".
+export async function restartNode(form: SettingsForm, deps: Partial<SettingsDeps>, store: Store): Promise<RestartOutcome> {
   if (form.busy) return "skipped";
   const d = resolveSettingsDeps(deps);
   form.busy = true;
-  const outcome = await d.api("POST", "/api/actions/restart", {}).then(() => onRestartAsked(form), (err) => onRestartFailed(form, err));
+  const failures = await eachSlot(store, restartTargets(store), (slot) => asResult(d.api("POST", slotPath(slot, "actions/restart"), {}).then(() => undefined)));
   form.busy = false;
-  return outcome;
+  return failures.length === 0 ? onRestartAsked(form) : onRestartFailed(form, failures);
 }
 
 export function onPendingEmpty(form: SettingsForm): void {

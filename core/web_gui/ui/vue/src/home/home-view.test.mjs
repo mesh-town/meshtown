@@ -211,10 +211,10 @@ describe("joinPlace", () => {
     assert.equal(joinPlace(snap({ network: null })), "home");
   });
 
-  it("there is a network — in \"Settings\"", () => assert.equal(joinPlace(snap()), "settings"));
+  it("there is a network — still on \"Home\" (Settings offers the add-network card)", () => assert.equal(joinPlace(snap()), "home"));
 
-  it("there is a network, one member (just created) — still \"Settings\"", () => {
-    assert.equal(joinPlace(snap({ peers: [SELF] })), "settings");
+  it("there is a network, one member (just created) — still \"Home\"", () => {
+    assert.equal(joinPlace(snap({ peers: [SELF] })), "home");
   });
 });
 

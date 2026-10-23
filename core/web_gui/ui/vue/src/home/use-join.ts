@@ -1,11 +1,10 @@
-/* Wrapper of the join card: form, computed texts and actions. The logic is in `join-actions.ts`.
- * The "Keep publishing ports…" dialog is `dialog` (a template `ref` of the component); no dialog — "No". */
+/* Wrapper of the join card: form, computed texts and actions. The logic is in `join-actions.ts`. */
 
 import { computed, inject, reactive, ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
-import type { HomeDeps, KeepAnswer } from "./home-actions.ts";
+import type { HomeDeps } from "./home-actions.ts";
 import { createNetwork, createJoinForm, highlightParts, joinNetwork } from "./join-actions.ts";
 import type { JoinForm, JoinResult, HighlightPart } from "./join-actions.ts";
 import { JOIN_PROMISE_MS } from "./join-actions.ts";
@@ -16,14 +15,8 @@ import { HOME_KEY } from "./use-home.ts";
 import type { HomeContext } from "./use-home.ts";
 import { HOME_BUTTON_JOIN, HOME_BUTTON_SWITCH, HOME_TITLE_CREATE, HOME_TITLE_JOIN, HOME_TITLE_SWITCH } from "./home-flow-texts.ts";
 
-/** What `PortsKeepDialog` exposes outward through `defineExpose`. */
-export interface PortsKeepDialogHandle {
-  ask: () => Promise<KeepAnswer>;
-}
-
 export interface JoinView {
   form: JoinForm;
-  dialog: Ref<PortsKeepDialogHandle | null>;
   hasNet: ComputedRef<boolean>;
   showJoin: ComputedRef<boolean>;
   showCreate: ComputedRef<boolean>;
@@ -36,12 +29,6 @@ export interface JoinView {
   openJoin: () => void;
   openCreate: () => void;
   toggleCreate: () => void;
-}
-
-// `Object.create(deps, …)`, not `{ ...deps }`: the getters of `defaultHomeDeps` are read at call time, not copied.
-function withDialog(deps: HomeDeps, dialog: Ref<PortsKeepDialogHandle | null>): HomeDeps {
-  const askKeep = (): Promise<KeepAnswer> => (dialog.value ? dialog.value.ask() : Promise.resolve("no"));
-  return Object.create(deps, { askKeep: { value: askKeep } });
 }
 
 // "Join sent" holds until the node answers with a new start; the deadline insures against an endless spinner
@@ -80,9 +67,7 @@ function takeInviteFromAddress(form: JoinForm): void {
 export function useJoin(store: Store, deps: HomeDeps = defaultHomeDeps): JoinView {
   const form = reactive(createJoinForm());
   takeInviteFromAddress(form);
-  const dialog = ref<PortsKeepDialogHandle | null>(null);
   const home = inject(HOME_KEY, null);
-  const jdeps = withDialog(deps, dialog);
   const sent = home ? home.joinSent : ref<JoinSent | null>(null);
   const hasNet = computed(() => !!(store.state && store.state.network));
   const err = computed(() => form.inviteError);
@@ -91,13 +76,13 @@ export function useJoin(store: Store, deps: HomeDeps = defaultHomeDeps): JoinVie
   const title = computed(() => titleText(hasNet.value, form.choice));
 
   return {
-    form, dialog, hasNet,
+    form, hasNet,
     showJoin, showCreate, title,
     buttonText: computed(() => (hasNet.value ? HOME_BUTTON_SWITCH : HOME_BUTTON_JOIN)),
     errorParts: computed(() => (err.value ? highlightParts(err.value.message, err.value.word) : [])),
     progress: computed(() => joinProgress(store.state, sent.value, store.absence ?? null)),
-    join: () => joinNetwork(form, store, jdeps).then((res) => markSent(res, sent, store, deps)),
-    create: () => createNetwork(form, store, jdeps),
+    join: () => joinNetwork(form, store, deps).then((res) => markSent(res, sent, store, deps)),
+    create: () => createNetwork(form, store, deps),
     openJoin: () => { form.choice = "join"; },
     openCreate: () => { form.choice = "create"; },
     toggleCreate: () => { form.choice = form.choice === "create" ? "" : "create"; },

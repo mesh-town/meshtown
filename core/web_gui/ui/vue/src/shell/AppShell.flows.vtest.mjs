@@ -258,11 +258,11 @@ describe("401 on polling", () => {
     expect(wrapper.find("#status-line").exists()).toBe(false);
 
     node.fail = null;
-    const ok = node.count("GET", "/api/state");
+    const ok = node.count("GET", "/api/overview");
     await wrapper.get("#login-password").setValue("correct-password");
     await wrapper.get("#login-form").trigger("submit");
     await polls(node, 1);
-    expect(node.count("GET", "/api/state")).toBeGreaterThan(ok);
+    expect(node.count("GET", "/api/overview")).toBeGreaterThan(ok);
     expect(wrapper.find("#login-form").exists()).toBe(false);
     expect(textOf(wrapper, "#status-line")).not.toBe(NOT_RESPONDING);
   });

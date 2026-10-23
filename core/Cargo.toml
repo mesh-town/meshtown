@@ -33,6 +33,7 @@ required-features = ["net-hyper"]
 name = "web_demo"
 path = "examples/web_demo/main.rs"
 required-features = ["net-hyper"]
+test = true
 
 [dependencies]
 # 64-bit atomics for targets without native ones (32-bit MIPS).

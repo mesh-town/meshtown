@@ -7,6 +7,7 @@ import BrowserCard from "./BrowserCard.vue";
 import { inAppPage } from "./browser-setup.ts";
 import HomeTabs from "./HomeTabs.vue";
 import ExitCard from "./ExitCard.vue";
+import NetsCard from "./NetsCard.vue";
 import InviteCard from "./InviteCard.vue";
 import JoinCard from "./JoinCard.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
@@ -17,13 +18,14 @@ import StatePanel from "./StatePanel.vue";
 import UpdateBanner from "./UpdateBanner.vue";
 import ThisComputerCard from "./ThisComputerCard.vue";
 import { HOME_LOADING } from "./home-card-texts.ts";
+import { peersHash } from "../shell/nav.ts";
 import { HOME_KEY, useHome } from "./use-home.ts";
 
 const store = inject(STORE_KEY)!;
 const inApp = inAppPage();
 const home = useHome(store);
 provide(HOME_KEY, home);
-const { activeTab, panel, ring, order } = home;
+const { activeTab, panel, ring, order, multi, chips } = home;
 // A computer that is out of the network: the card and the way back (an invite) instead of the usual cards.
 const { excluded, variant, net } = useExcluded(store);
 const { joinAnother } = useMembersActions(store);
@@ -43,14 +45,18 @@ const { joinAnother } = useMembersActions(store);
         <template v-else>
           <UpdateBanner />
           <StatePanel :panel="panel" :ring="ring" @pick-other="home.pickOther" @direct="home.chooseDirect" />
+          <div v-if="chips.length" class="net-chips" id="home-chips">
+            <a v-for="c in chips" :key="c.slot" class="chip net-chip" :href="peersHash(c.slot)" :title="c.short">{{ c.text }}</a>
+          </div>
           <div class="home-grid">
             <template v-for="key in order" :key="key">
-              <InviteCard v-if="key === 'invite'" full />
+              <NetsCard v-if="key === 'nets'" />
+              <InviteCard v-else-if="key === 'invite'" full />
               <ExitCard v-else-if="key === 'exit'" class="card-full" />
               <div v-else class="mini-row">
                 <BrowserCard v-if="!inApp" />
-                <InviteCard v-if="!order.includes('invite')" />
-                <ThisComputerCard />
+                <InviteCard v-if="!multi && !order.includes('invite')" />
+                <ThisComputerCard v-if="!multi" />
               </div>
             </template>
           </div>

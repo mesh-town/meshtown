@@ -35,9 +35,9 @@ export const stateWith = (summary = {}) => {
 };
 
 // `exits`: the exit members chosen in the config (`route.exits`), e.g. `[PEER_FULL]` — then peer-one "is your exit".
-export async function openMembersPage({ members = threeMembers(), state = stateWith(), tab = "peers", exits = [] } = {}) {
+export async function openMembersPage({ members = threeMembers(), state = stateWith(), tab = "peers", exits = [], legacy = false } = {}) {
   localStorage.clear();
-  const node = createFakeNode({ state, config: demoConfig({ route: { exits } }) });
+  const node = createFakeNode({ state, config: demoConfig({ route: { exits } }), legacy });
   node.members = members;
   if (members !== null) node.routes["GET /api/members"] = () => node.members;
   const { wrapper, store } = await mountPage(node);

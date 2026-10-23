@@ -30,7 +30,7 @@ describe("membersCountText", () => {
   it("no label — a string without \"Network …\"", () => {
     const s = state({ peers: [] });
     s.network = { ...s.network, label: null };
-    // OPEN QUESTION: the contract fixes the alone text only for a labelled network; without a label this test expects the old text.
+    // Without a label the alone text stays the old one.
     assert.equal(membersCountText(s), "Only you for now");
   });
 

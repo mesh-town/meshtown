@@ -113,3 +113,11 @@ export const SETTINGS_FAIL_RESTART = "restart the node";
 export const SETTINGS_FAIL_STOP = "stop the node";
 export const SETTINGS_FAIL_ROTATE = "change the token";
 export const SETTINGS_TOKEN_ROTATED = "The new token has been issued and applied";
+
+// --- Several networks ---
+export const SETTINGS_PARTIAL = "Saved, but some networks did not accept it:";
+export const SETTINGS_NAME_PER_NET = "Your name is set for each network: Members \u2192 the network's tab.";
+export const SETTINGS_ALL_NETS = "Applies to all your networks.";
+export const SETTINGS_STOP_ALL = "Stops all your networks. ";
+export const SETTINGS_LEAVE_MULTI = "To leave a network, open Members \u2192 its tab.";
+export const SETTINGS_WEB_ACCESS_MULTI = "Which connections of this computer can open this page (Wi-Fi, cable)";

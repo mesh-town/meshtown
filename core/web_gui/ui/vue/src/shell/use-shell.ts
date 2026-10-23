@@ -7,7 +7,7 @@ import type { Store } from "../core/store.ts";
 import { setToken } from "../core/token.ts";
 import { absence, createConn, stripView } from "./conn.ts";
 import type { Conn, Strip, StripViewKind } from "./conn.ts";
-import { openableSection } from "./nav.ts";
+import { openableSection, peersTail, pickPeersTab } from "./nav.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { createPoller } from "./poller.ts";
 import { defaultShellDeps } from "./shell-deps.ts";
@@ -15,6 +15,7 @@ import type { ShellDeps } from "./shell-deps.ts";
 import { identityStrip, statusLine } from "./status-line.ts";
 import type { IdentityStripView, StatusLine } from "./status-line.ts";
 import { tokenFromPasted } from "./token-url.ts";
+import { visibleSlots } from "../core/slots.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import { exitWarning, withExitWarning } from "../members/exit-members.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
@@ -42,6 +43,18 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   const poller = createPoller(store, conn, deps);
   watch(() => absence(conn), (a) => { store.absence = a; }, { immediate: true, flush: "sync" });
   store.activeSection = openableSection(deps.hash, inAppPage());
+  let wanted = peersTail(deps.hash);
+
+  // Before the first snapshot the wanted tab is kept as is; later it must be a visible slot (or "add").
+  const syncPeersTab = (): void => {
+    if (store.source === null) {
+      store.peersTab = wanted;
+      return;
+    }
+    store.peersTab = pickPeersTab(wanted, visibleSlots(store.nets, store.slots));
+  };
+  syncPeersTab();
+  watch(() => visibleSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
   const status = computed(() => withExitWarning(statusLine(store.state, conn), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
   const strip = computed(() => stripView(conn));
@@ -50,6 +63,8 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
 
   const onHash = () => {
     store.activeSection = openableSection(deps.hash, inAppPage());
+    wanted = peersTail(deps.hash);
+    syncPeersTab();
     deps.scrollToTop();
   };
   const onVisible = () => {

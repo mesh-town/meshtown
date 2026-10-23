@@ -31,7 +31,26 @@ export const SECTIONS: SectionId[] = SECTION_VIEWS.map((v) => v.id);
 export function parseHash(hash: string | null | undefined): SectionId | null {
   const h = (hash || "").replace(/^#/, "");
   if (h === "overview") return "home";
+  if (h.startsWith("peers/")) return "peers";
   return SECTIONS.find((id) => id === h) ?? null;
+}
+
+const PEERS_TAIL = /^peers\/(main|add|[a-z2-7]{6})$/;
+
+// The tab named by `#peers/<tab>`: `main`, a six-character slot id or `add`; anything else — `null`.
+export function peersTail(hash: string | null | undefined): string | null {
+  const m = PEERS_TAIL.exec((hash || "").replace(/^#/, ""));
+  return m ? m[1] : null;
+}
+
+// The address hash of the Peers section with a tab; no tab — the bare section.
+export const peersHash = (tab: string | null): string => (tab === null ? "#peers" : `#peers/${tab}`);
+
+// The tab to show: "add" always stands; a wanted visible slot; otherwise the first visible one.
+export function pickPeersTab(wanted: string | null, visible: string[]): string | null {
+  if (wanted === "add") return "add";
+  if (wanted !== null && visible.includes(wanted)) return wanted;
+  return visible[0] ?? null;
 }
 
 // The section to open for an address hash: unknown and, in the phone app, hidden sections fall back to Home.

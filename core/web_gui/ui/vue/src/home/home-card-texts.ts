@@ -63,12 +63,6 @@ export const HOME_NAME_LABEL_PHONE = "Name of this phone";
 export const HOME_NAME_PLACEHOLDER = "for example, Home laptop";
 export const HOME_NAME_HINT = "Others see you by this name; leave it empty for a random one.";
 
-// PortsKeepDialog
-export const HOME_PORTS_KEEP_TITLE = "Keep publishing this computer's ports in the new network?";
-export const HOME_PORTS_CANCEL = "Cancel";
-export const HOME_PORTS_YES = "Yes";
-export const HOME_PORTS_NO = "No";
-
 // SetupWizard
 export const HOME_WIZARD_HEAD_JOIN = "Join a " + NET_NAME + " network";
 export const HOME_WIZARD_NOT_JOINED = "You haven't joined a " + NET_NAME + " network yet";

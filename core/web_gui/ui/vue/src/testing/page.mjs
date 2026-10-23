@@ -52,11 +52,13 @@ export async function mountPage(node, { hash = "", token = TOKEN, urlToken = nul
   return { wrapper, store };
 }
 
-/** Advances timers until the number of `GET /api/state` requests grows by `n`. */
+const cycles = (node) => node.count("GET", "/api/overview") + node.count("GET", "/api/state");
+
+/** Advances timers until the number of poll cycles (`GET /api/overview`, or `GET /api/state` of a node without it) grows by `n`. */
 export async function polls(node, n) {
-  const want = node.count("GET", "/api/state") + n;
-  for (let spent = 0; node.count("GET", "/api/state") < want; spent += STEP_MS) {
-    if (spent > n * POLL_STOPPED_MS) throw new Error("polling of /api/state did not reach +" + n);
+  const want = cycles(node) + n;
+  for (let spent = 0; cycles(node) < want; spent += STEP_MS) {
+    if (spent > n * POLL_STOPPED_MS) throw new Error("polling of the node did not reach +" + n);
     await vi.advanceTimersByTimeAsync(STEP_MS);
   }
   await settle();

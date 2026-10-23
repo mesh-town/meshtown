@@ -8,7 +8,7 @@ import type { SaveResult, ConfigChanges } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
 import { PAC_COPY_FALLBACK } from "../common/pac-texts.ts";
 import type { BrowserId, OsId, StepValue } from "./browser-setup.ts";
-import { saveConfigFields, fieldErrorText } from "../core/save-config.ts";
+import { saveConfigFields, saveSlotFields, fieldErrorText } from "../core/save-config.ts";
 import { saveSingleExit } from "../core/exit-via.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { failText } from "../common/words.ts";
@@ -20,7 +20,6 @@ import {
 export const SETUP_KEY = "meshtown.homeSetup";
 
 export type SetupMark = "browser" | "exit" | "done";
-export type KeepAnswer = "yes" | "no" | "cancel" | "";
 export interface FieldStatus {
   text: string;
   cls: string;
@@ -30,7 +29,7 @@ export interface SetupStorage {
   setItem(key: string, value: string): void;
 }
 
-/** Everything external that "Home" needs: `api`, the clipboard, the timer, the storage, `userAgent`, the ports dialog, focus, the notification. */
+/** Everything external that "Home" needs: `api`, the clipboard, the timer, the storage, `userAgent`, focus, the notification. */
 export interface HomeDeps {
   api: ApiFn;
   readonly clipboard: { writeText: (text: string) => Promise<void> } | null;
@@ -38,7 +37,6 @@ export interface HomeDeps {
   clearTimer: (id: unknown) => void;
   readonly storage: SetupStorage | null;
   readonly userAgent: string;
-  askKeep: () => Promise<KeepAnswer>;
   focus: (selector: string) => void;
   /** Exists only on "Home" (put there by `use-join`). */
   notice?: (text: string) => void;
@@ -74,7 +72,6 @@ export const defaultHomeDeps: HomeDeps = {
   get userAgent() {
     return typeof navigator === "undefined" ? "" : navigator.userAgent || "";
   },
-  askKeep: () => Promise.resolve("no"),
   focus: (selector) => {
     const el = typeof document === "undefined" ? null : document.querySelector<HTMLElement>(selector);
     if (el) el.focus();
@@ -190,7 +187,7 @@ function findRefused(form: HomeForm, err: unknown): "sent" | "failed" {
 async function persistName(form: HomeForm, store: Store, value: string, deps: HomeDeps): Promise<boolean> {
   const name = form.name;
   const changes = { "node.name": value };
-  const res = await saveConfigFields(store, changes, { api: deps.api });
+  const res = await saveSlotFields(store, store.lead, changes, { api: deps.api });
   name.status = resultStatus(res, changes);
   return res.ok;
 }
@@ -210,7 +207,7 @@ export async function saveName(form: HomeForm, store: Store, deps: HomeDeps = de
 
 export async function saveExitServer(form: HomeForm, store: Store, checked: boolean, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
   const changes = { "exit.enabled": checked };
-  const res = await saveConfigFields(store, changes, { api: deps.api });
+  const res = await saveSlotFields(store, store.lead, changes, { api: deps.api });
   form.exitServerStatus = resultStatus(res, changes);
   return res.ok ? "saved" : "failed";
 }

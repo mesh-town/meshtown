@@ -175,7 +175,11 @@ function setup({ hidden = false } = {}) {
   const env = { timers: [], conn: connModule.createConn(), store: createStore(), reply: () => STATE, calls: [] };
   env.store.configRev = 1;
   const deps = {
-    api: async (method, path) => (env.calls.push(method + " " + path), env.reply()),
+    api: async (method, path) => {
+      env.calls.push(method + " " + path);
+      if (path === "/api/overview") throw new ApiError(404, "not_found"); // an old node: the legacy poll
+      return env.reply();
+    },
     setTimer: (fn, ms) => (env.timers.push({ fn, ms, live: true }), env.timers.length),
     clearTimer: (id) => { if (id && env.timers[id - 1]) env.timers[id - 1].live = false; },
     isHidden: () => hidden,

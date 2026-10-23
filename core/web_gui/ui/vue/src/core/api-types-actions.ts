@@ -28,7 +28,6 @@ export type InviteReach = "issuer_only" | "issuer_and_one" | "spread";
 /** Body of `POST /api/network/join`: a key, `mesh1-…` or an invite. */
 export interface JoinRequest {
   key: string;
-  keep_ports?: boolean; // only JSON true keeps the port publications
 }
 
 /** `POST /api/network/join`, 202. */
@@ -42,7 +41,6 @@ export interface JoinResponse {
 /** Body of `POST /api/network/create`. */
 export interface CreateNetworkRequest {
   label: string;
-  keep_ports?: boolean;
 }
 
 /** `POST /api/network/create`, 200: the full key arrives only here. */

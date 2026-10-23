@@ -9,21 +9,29 @@ interface StateBody {
 const lastBodies = new WeakMap<Page, StateBody>();
 const tracked = new WeakSet<Page>();
 
-/** Listener of `/api/state` responses: the body of the last snapshot received by the page itself. */
+/** The primary network state of an overview reply; the body itself for a plain `/api/state` reply. */
+function mainState(path: string, body: unknown): StateBody {
+  if (path === '/api/state') return body as StateBody;
+  const slots = (body as { slots?: { slot?: string; state?: StateBody }[] }).slots ?? [];
+  return slots.find((s) => s.slot === 'main')?.state ?? {};
+}
+
+/** Listener of `/api/overview` (and legacy `/api/state`) responses: the main-network state of the last snapshot received by the page itself. */
 export function trackState(page: Page): void {
   if (tracked.has(page)) return;
   tracked.add(page);
   page.on('response', async (res) => {
-    if (res.request().method() !== 'GET' || new URL(res.url()).pathname !== '/api/state' || res.status() !== 200) return;
+    const path = new URL(res.url()).pathname;
+    if (res.request().method() !== 'GET' || (path !== '/api/overview' && path !== '/api/state') || res.status() !== 200) return;
     try {
-      lastBodies.set(page, (await res.json()) as StateBody);
+      lastBodies.set(page, mainState(path, await res.json()));
     } catch {
       // the response was cut off by navigation — the next poll will bring a snapshot
     }
   });
 }
 
-/** Returns the body of the last `/api/state` response received by the page (empty until there was a response). */
+/** Returns the main-network state of the last snapshot received by the page (empty until there was a response). */
 export function lastState(page: Page): StateBody {
   return lastBodies.get(page) ?? {};
 }
