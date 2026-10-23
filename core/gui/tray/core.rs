@@ -4,9 +4,9 @@
 use std::sync::{Arc, Mutex};
 
 use super::actions_ui::ActionsUi;
+use super::backend::TrayBackend;
 use super::frame_cache::FrameCache;
 use super::menu_build::{build_icons, build_menu, install_menu_handler, TrayUi};
-use super::open_url;
 use super::spin::Spin;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::start_note::StartNote;
@@ -35,7 +35,7 @@ pub(crate) const MENU_EXIT_PREFIX: &str = "exit:";
 /// A command to the node poller from the menu items. Sent only by `Core::dispatch_tray_cmd`, read only by
 /// the `tray_role` poller.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum NodeCmd {
+pub(crate) enum NodeCmd {
     Start,
     Stop,
     /// Choose/clear an exit by the node's `id_full` — a click on a submenu leaf with that id.
@@ -53,7 +53,7 @@ pub type NodeCmdTx = tokio::sync::mpsc::UnboundedSender<NodeCmd>;
 
 /// A command to the tray: update the icon/menu from the node snapshot, update the "Exit via…" submenu, a click on a
 /// menu item, a spinner tick, end the process with a code.
-pub enum TrayCmd {
+pub(crate) enum TrayCmd {
     Update(crate::gui::tray::app::view::View),
     ExitMenu(crate::gui::tray::app::exit_menu::ExitMenu),
     Menu(String),
@@ -75,7 +75,7 @@ pub enum TrayCmd {
 #[derive(Clone)]
 pub struct CmdTx {
     tx: Arc<Mutex<std::sync::mpsc::Sender<TrayCmd>>>,
-    wake: fn(),
+    tray: &'static dyn TrayBackend,
 }
 
 impl CmdTx {
@@ -86,7 +86,7 @@ impl CmdTx {
             let sender = self.tx.lock().expect("CmdTx: sender mutex poisoned");
             let _ = sender.send(cmd);
         }
-        (self.wake)();
+        self.tray.wake();
     }
 }
 
@@ -103,6 +103,7 @@ pub struct Core {
     quit: crate::gui::tray::app::quit::QuitSignal,
     page_url_fn: LinkFn,
     node_cmd_tx: NodeCmdTx,
+    tray: &'static dyn TrayBackend,
     ui: Option<TrayUi>,
     view: crate::gui::tray::app::view::View,
     route: crate::gui::tray::app::view::RouteLine,
@@ -118,7 +119,7 @@ pub struct Core {
 impl Core {
     /// Raises the icon and the menu once: an icon cache by color, the menu, `MenuEvent::set_event_handler`.
     /// A repeated call is not expected — callers (02/05/06) call it exactly once.
-    pub(crate) fn attach_ui(&mut self) -> Result<(), String> {
+    pub fn attach_ui(&mut self) -> Result<(), String> {
         let icons = build_icons()?;
         let exit = super::exit_menu::ExitUi::build()?;
         let actions = ActionsUi::build(self.invite_note);
@@ -160,8 +161,7 @@ impl Core {
 
     /// Handles all commands accumulated in the channel until it is empty. `QuitWithCode` stops handling and
     /// returns its code.
-    #[cfg(any(test, windows, target_os = "macos"))]
-    pub(crate) fn drain_commands(&mut self) -> Option<i32> {
+    pub fn drain_commands(&mut self) -> Option<i32> {
         while let Ok(cmd) = self.rx.try_recv() {
             if let Some(code) = self.dispatch_tray_cmd(cmd) {
                 return Some(code);
@@ -172,7 +172,7 @@ impl Core {
 
     /// Handles commands in a blocking way until `QuitWithCode`, returns its code. The channel does not break while
     /// `self` is alive — `Core` holds its own sender (the `tx` field).
-    pub(crate) fn recv_blocking(&mut self) -> i32 {
+    pub fn recv_blocking(&mut self) -> i32 {
         loop {
             let cmd = self
                 .rx
@@ -185,8 +185,7 @@ impl Core {
     }
 
     /// Removes the icon (Windows calls it before `exit_now` — otherwise a ghost stays in the tray).
-    #[cfg_attr(not(target_os = "windows"), allow(dead_code))] // only the Windows loop calls it (06)
-    pub(crate) fn drop_ui(&mut self) {
+    pub fn drop_ui(&mut self) {
         self.ui = None;
     }
 
@@ -248,32 +247,24 @@ impl Core {
         self.refresh_ui();
     }
 
-    /// The `NSStatusItem` of the icon for the "hidden" check (`macos_hidden`); `None` until `attach_ui`.
-    #[cfg(target_os = "macos")]
-    pub(super) fn status_item(&self) -> Option<objc2::rc::Retained<objc2_app_kit::NSStatusItem>> {
-        self.ui.as_ref()?.tray_icon_handle.ns_status_item()
+    /// The raised tray icon, for platform code that needs the native handle; `None` until `attach_ui`.
+    pub fn tray_icon(&self) -> Option<&tray_icon::TrayIcon> {
+        self.ui.as_ref().map(|ui| &ui.tray_icon_handle)
     }
 }
 
-/// Builds the command channel and the platform loop state. `wake` is chosen by OS — the only
-/// `cfg(target_os)` branch in this file.
-pub fn channel(
+/// Builds the command channel and the platform loop state; the platform is reached only through `tray`.
+pub(crate) fn channel(
     quit: crate::gui::tray::app::quit::QuitSignal,
     page_url_fn: LinkFn,
     node_cmd_tx: NodeCmdTx,
+    tray: &'static dyn TrayBackend,
 ) -> (CmdTx, Core) {
     let (sender, rx) = std::sync::mpsc::channel();
 
-    #[cfg(target_os = "macos")]
-    let wake: fn() = super::macos::wake;
-    #[cfg(target_os = "windows")]
-    let wake: fn() = super::windows::wake;
-    #[cfg(target_os = "linux")]
-    let wake: fn() = super::linux::wake;
-
     let tx = CmdTx {
         tx: Arc::new(Mutex::new(sender)),
-        wake,
+        tray,
     };
     let core = Core {
         rx,
@@ -281,6 +272,7 @@ pub fn channel(
         quit,
         page_url_fn,
         node_cmd_tx,
+        tray,
         ui: None,
         view: crate::gui::tray::app::view::View::initial(),
         route: crate::gui::tray::app::view::RouteLine::Direct,
@@ -296,20 +288,15 @@ pub fn channel(
 }
 
 /// The platform tray loop: handles commands and never returns (exits through
-/// `app::quit::exit_now`). The module for its OS is chosen by `use … as platform`.
-pub fn run(core: Core) -> ! {
-    #[cfg(target_os = "linux")]
-    use super::linux as platform;
-    #[cfg(target_os = "macos")]
-    use super::macos as platform;
-    #[cfg(target_os = "windows")]
-    use super::windows as platform;
-    platform::run(core)
+/// `app::quit::exit_now`). The loop belongs to the backend the channel was built with.
+pub(crate) fn run(core: Core) -> ! {
+    let tray = core.tray;
+    tray.run(core)
 }
 
 /// The only output of the `tray` module: `[tray] …`, without the `say()` timestamp — `tray/*` does not
 /// see the `meshtown` crate; the platform `run` prints it.
-pub(super) fn log_tray(text: &str) {
+pub fn log_tray(text: &str) {
     println!("[tray] {text}");
 }
 

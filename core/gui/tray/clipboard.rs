@@ -1,6 +1,6 @@
-//! Writing a string to the OS clipboard with an external program: macOS `pbcopy`, Windows `clip`, Linux
-//! `wl-copy`/`xclip`/`xsel` in turn. The string goes only to the tool's stdin (not argv, not
-//! the log); the failure reason is a ready-made constant from `app::tray_texts`, without the string's text.
+//! Writing a string to the OS clipboard with an external program. The platform backend supplies the list of
+//! tools for its OS; the string goes only to the tool's stdin (not argv, not the log); the failure reason is
+//! a ready-made constant from `app::tray_texts`, without the string's text.
 
 use std::io::{ErrorKind, Write};
 use std::process::{Command, Stdio};
@@ -8,25 +8,11 @@ use std::process::{Command, Stdio};
 use crate::gui::tray::app::tray_texts::{REASON_CLIP_FAILED, REASON_NO_TOOL};
 
 /// A program and its arguments.
-pub(super) type ClipboardTool = (&'static str, &'static [&'static str]);
-
-/// The tools of the current OS in order of attempts.
-pub(super) fn clipboard_tools() -> &'static [ClipboardTool] {
-    #[cfg(target_os = "macos")]
-    return &[("pbcopy", &[])];
-    #[cfg(target_os = "windows")]
-    return &[("clip", &[])];
-    #[cfg(target_os = "linux")]
-    return &[
-        ("wl-copy", &[]),
-        ("xclip", &["-selection", "clipboard"]),
-        ("xsel", &["--clipboard", "--input"]),
-    ];
-}
+pub type ClipboardTool = (&'static str, &'static [&'static str]);
 
 /// Tries the tools in turn; the first one that accepts is `Ok`. None found — `REASON_NO_TOOL`,
 /// otherwise `REASON_CLIP_FAILED`.
-pub(super) fn copy_via(tools: &[ClipboardTool], text: &str) -> Result<(), &'static str> {
+pub fn copy_via(tools: &[ClipboardTool], text: &str) -> Result<(), &'static str> {
     let mut all_missing = true;
     for tool in tools {
         match run_tool(tool, text) {
@@ -39,11 +25,6 @@ pub(super) fn copy_via(tools: &[ClipboardTool], text: &str) -> Result<(), &'stat
     } else {
         REASON_CLIP_FAILED
     })
-}
-
-/// A string to the OS clipboard; the caller keeps the call under a deadline (blocking).
-pub(crate) fn copy_to_clipboard(text: &str) -> Result<(), &'static str> {
-    copy_via(clipboard_tools(), text)
 }
 
 /// One tool: the string to stdin, output to null, wait for the exit code.

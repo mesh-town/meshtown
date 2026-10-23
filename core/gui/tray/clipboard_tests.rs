@@ -1,26 +1,10 @@
-//! Tests of writing to the clipboard (`clipboard.rs`): the list of tools per OS, moving on to the next
+//! Tests of writing to the clipboard (`clipboard.rs`): moving on to the next
 //! tool, the string only through stdin.
 
 use super::*;
 #[cfg(unix)]
 use crate::gui::tray::app::tray_texts::REASON_CLIP_FAILED;
 use crate::gui::tray::app::tray_texts::REASON_NO_TOOL;
-
-#[test]
-fn host_candidates_match_os() {
-    let names: Vec<&str> = clipboard_tools().iter().map(|t| t.0).collect();
-    #[cfg(target_os = "macos")]
-    assert_eq!(names, ["pbcopy"]);
-    #[cfg(target_os = "windows")]
-    assert_eq!(names, ["clip"]);
-    #[cfg(target_os = "linux")]
-    assert_eq!(names, ["wl-copy", "xclip", "xsel"]);
-    #[cfg(target_os = "linux")]
-    {
-        assert_eq!(clipboard_tools()[1].1, ["-selection", "clipboard"]);
-        assert_eq!(clipboard_tools()[2].1, ["--clipboard", "--input"]);
-    }
-}
 
 #[test]
 fn missing_tool_is_no_tool() {

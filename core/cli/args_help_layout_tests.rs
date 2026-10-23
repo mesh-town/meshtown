@@ -171,12 +171,12 @@ mod config_path_help {
 
 // ---- helpers ----
 
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 fn sub_names() -> Vec<&'static str> {
     vec!["tray", "run", "keygen", "config-path", "password", "access"]
 }
 
-#[cfg(not(feature = "tray"))]
+#[cfg(not(feature = "gui"))]
 fn sub_names() -> Vec<&'static str> {
     vec!["run", "keygen", "config-path", "password", "access"]
 }

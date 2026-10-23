@@ -16,7 +16,7 @@
 //! - `site_checks` - checking whether a domain opens, and how.
 //! - `transport` - the network layer: interfaces, HyperDHT, the roster record, the peer cache.
 //! - `web_gui` - the node page: built-in HTTP server, its API and the UI files.
-//! - `gui` - the tray icon (only in builds with the `tray` feature).
+//! - `gui` - the tray icon (only in builds with the `gui` feature).
 //!
 //! The core is the modules without foreign network crates (built with `--no-default-features`);
 //! the rest is behind the `net-hyper` feature. A new module goes into the core part only if
@@ -39,8 +39,8 @@ pub mod transport;
 pub mod web_gui;
 
 #[cfg(all(
-    feature = "tray",
+    feature = "gui",
     feature = "net-hyper",
     any(target_os = "macos", target_os = "windows", target_os = "linux")
 ))]
-pub(crate) mod gui;
+pub mod gui;

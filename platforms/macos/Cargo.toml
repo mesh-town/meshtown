@@ -1,0 +1,29 @@
+[package]
+name = "meshtown-macos"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+license.workspace = true
+description = "Mesh Town desktop app for macos: the node with the tray icon"
+
+[lints]
+workspace = true
+
+[lib]
+path = "gui/lib.rs"
+
+[[bin]]
+name = "meshtown-macos"
+path = "cli/main.rs"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+meshtown-core = { path = "../../core", features = ["gui"] }
+objc2 = "0.6.4"
+block2 = "0.6"
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSRunningApplication", "NSWorkspace", "NSAlert", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSView", "NSResponder", "NSWindow", "NSGraphics", "objc2-core-foundation"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSURL"] }
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFCGTypes", "CFRunLoop", "CFString", "block2"] }

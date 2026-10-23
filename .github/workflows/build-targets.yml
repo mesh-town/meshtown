@@ -101,8 +101,14 @@ jobs:
           fi
           cp "target/$TARGET/release/meshtown$exe" "stage/meshtown-cli$exe"
           if [ "$CLI_ONLY" != true ]; then
-            cargo "$sub" --release --locked --target "$TARGET"
-            cp "target/$TARGET/release/meshtown$exe" "stage/meshtown$exe"
+            case "$TARGET" in
+              *apple-darwin) pkg=meshtown-macos ;;
+              *windows*) pkg=meshtown-windows ;;
+              *linux*) pkg=meshtown-linux ;;
+              *) echo "no desktop package for $TARGET" >&2; exit 1 ;;
+            esac
+            cargo "$sub" --release --locked --target "$TARGET" -p "$pkg"
+            cp "target/$TARGET/release/$pkg$exe" "stage/meshtown$exe"
           fi
       - name: Package
         shell: bash

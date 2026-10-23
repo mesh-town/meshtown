@@ -6,24 +6,8 @@
 //! (`Core::dispatch_tray_cmd`); the function only returns a short reason.
 //! Relations: `Core::dispatch_tray_cmd` (the "Open" click).
 
-/// Opens `url` in the default browser (macOS — `NSWorkspace`).
-#[cfg(target_os = "macos")]
-pub fn open(url: &str) -> Result<(), String> {
-    use objc2_app_kit::NSWorkspace;
-    use objc2_foundation::{NSString, NSURL};
-
-    let ns_url = NSURL::URLWithString(&NSString::from_str(url))
-        .ok_or_else(|| "could not build an NSURL from the link".to_string())?;
-    if NSWorkspace::sharedWorkspace().openURL(&ns_url) {
-        Ok(())
-    } else {
-        Err("NSWorkspace.openURL returned false".to_string())
-    }
-}
-
 /// Opens `url` in the default browser (Windows — `ShellExecuteW`, success is a result `> 32`,
 /// as documented for `ShellExecuteW`).
-#[cfg(target_os = "windows")]
 pub fn open(url: &str) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
 
@@ -57,23 +41,4 @@ pub fn open(url: &str) -> Result<(), String> {
     } else {
         Err(format!("ShellExecuteW returned {}", result as isize))
     }
-}
-
-/// Opens `url` in the default browser (Linux — `xdg-open`, a reaper on a separate thread so that
-/// no zombie is left behind).
-#[cfg(target_os = "linux")]
-pub fn open(url: &str) -> Result<(), String> {
-    use std::process::{Command, Stdio};
-
-    let mut child = Command::new("xdg-open")
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|e| e.to_string())?;
-    std::thread::spawn(move || {
-        let _ = child.wait();
-    });
-    Ok(())
 }

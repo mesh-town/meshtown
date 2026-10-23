@@ -133,7 +133,7 @@ mod help_word {
 
     // On macOS `tray --help` with a non-terminal stderr goes to `meshtown-tray.log` (`app/console/macos.rs`,
     // accepted behavior): stdout is empty, there is nothing to compare — that check is manual.
-    #[cfg(all(feature = "tray", not(target_os = "macos")))]
+    #[cfg(all(feature = "gui", not(target_os = "macos")))]
     #[test]
     fn tray_prints_what_tray_help_flag_prints() {
         assert_same_help(&["help", "tray"], &["tray", "--help"]);

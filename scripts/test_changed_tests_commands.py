@@ -3,7 +3,9 @@
 Shared helpers are in changed_tests_fixtures.py (see its docstring).
 """
 
+import os
 import unittest
+from unittest import mock
 
 from changed_tests_fixtures import _sources, changed_tests
 
@@ -139,3 +141,11 @@ class Commands(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HostPlatformCommands(unittest.TestCase):
+    def test_host_platform_runs_make_test(self):
+        with mock.patch.dict(os.environ, {"CHANGED_TESTS_HOST_OS": "macos"}):
+            sel = changed_tests.select(["platforms/macos/gui/backend.rs"], _sources())
+
+        self.assertEqual(changed_tests.commands(sel), [["make", "test"]])

@@ -88,7 +88,9 @@ build_manifest_no_dylib() {
 # manifest (copied), Cargo.lock (a link) and core/ whose manifest has no dylib and whose other entries are
 # links to $PROTO/core/* (nothing else is needed for `cargo build --release`). The directory is rebuilt
 # on each call: stale entries of core/ are removed (`rm -rf` runs inside the farm, which holds only links
-# and the manifest copy). Prints the path to Cargo.toml; call with `--manifest-path` from the $PROTO directory.
+# and the manifest copy). Each platform crate $PROTO/platforms/<os> with a Cargo.toml gets a real
+# directory there too: a copy of its manifest and links to its other entries (the workspace needs every member manifest).
+# Prints the path to Cargo.toml; call with `--manifest-path` from the $PROTO directory.
 build_farm_no_dylib() {
   if [ ! -d "$PROTO/core" ]; then
     echo "core directory not found: $PROTO/core" >&2
@@ -104,6 +106,19 @@ build_farm_no_dylib() {
     farm_name="$(basename "$farm_item")"
     [ "$farm_name" = Cargo.toml ] && continue
     ln -s "$farm_item" "$1/core/$farm_name"
+  done
+  rm -rf "${1:?}/platforms"
+  for farm_manifest in "$PROTO"/platforms/*/Cargo.toml; do
+    [ -f "$farm_manifest" ] || continue
+    farm_pdir="$(dirname "$farm_manifest")"
+    farm_pname="$(basename "$farm_pdir")"
+    mkdir -p "$1/platforms/$farm_pname"
+    cp "$farm_manifest" "$1/platforms/$farm_pname/Cargo.toml"
+    for farm_item in "$farm_pdir"/*; do
+      farm_name="$(basename "$farm_item")"
+      [ "$farm_name" = Cargo.toml ] && continue
+      ln -s "$farm_item" "$1/platforms/$farm_pname/$farm_name"
+    done
   done
   echo "$1/Cargo.toml"
 }

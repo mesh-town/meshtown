@@ -12,8 +12,8 @@ use super::log;
 /// Redirects stdout/stderr to `meshtown-tray.log` if the role is `tray` and stderr is not a terminal; otherwise
 /// does nothing. A failure to open the file is silent (there is nowhere to report it: there was no output before this point,
 /// and handing out stdout/stderr for a message before `dup2` would be premature).
-pub fn init() {
-    let role = log::process_role();
+pub fn init(has_tray: bool) {
+    let role = log::process_role(has_tray);
     let terminal = std::io::stderr().is_terminal();
     if !log::should_redirect_stdio(role.as_deref(), terminal) {
         return;

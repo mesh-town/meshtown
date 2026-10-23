@@ -6,10 +6,10 @@
 //! Thread messages (`WM_WAKE`, `WM_TIMER` without a window) are handled by `Core::drain_commands` right here, in the body of
 //! the loop; the rest go to the tray-icon/muda window procedure. On `QuitWithCode` it removes the icon
 //! (`drop_ui`, otherwise a "ghost" stays in the tray) and exits through `exit_now`.
-//! What it does not do: it prints nothing except the no-icon line through `super::log_tray`; it knows no window
+//! What it does not do: it prints nothing except the no-icon line through `log_tray`; it knows no window
 //! procedure or crate window of its own; `TaskbarCreated` (an Explorer restart) is up to tray-icon;
 //! it does not send `WM_QUIT` itself.
-//! Relations: `super::Core`, `super::log_tray`, `crate::gui::tray::app::quit::exit_now`; `wake` calls `CmdTx::send`
+//! Relations: `Core`, `log_tray`, `exit_now`; `wake` calls `CmdTx::send`
 //! from any thread.
 
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -23,7 +23,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     MSG, PM_NOREMOVE, WM_APP, WM_TIMER,
 };
 
-use super::Core;
+use meshtown_core::gui::tray::{exit_now, log_tray, Core};
 
 /// 0 — the loop is not published yet (the queue may not exist).
 static LOOP_THREAD_ID: AtomicU32 = AtomicU32::new(0);
@@ -33,7 +33,7 @@ const WM_WAKE: u32 = WM_APP + 1;
 /// a full queue).
 const SAFETY_TICK_MS: u32 = 1000;
 
-pub(super) fn run(mut core: Core) -> ! {
+pub(crate) fn run(mut core: Core) -> ! {
     let mut msg = MSG::default();
 
     // SAFETY: the Win32 calls take no pointers to Rust data except `&mut msg` — a live `MSG` on
@@ -58,7 +58,7 @@ pub(super) fn run(mut core: Core) -> ! {
 
     // The icon is created on this thread: the crate's hidden window belongs to it.
     if let Err(e) = core.attach_ui() {
-        super::log_tray(&format!("no tray icon: {e}"));
+        log_tray(&format!("no tray icon: {e}"));
     }
     // Commands sent before the thread id was published: `wake` did nothing for them.
     drain_or_exit(&mut core);
@@ -98,13 +98,13 @@ fn drain_or_exit(core: &mut Core) {
 /// Removes the icon (on Windows `Drop` is fast: `NIM_DELETE` + `DestroyWindow`), then exits.
 fn finish(core: &mut Core, code: i32) -> ! {
     core.drop_ui();
-    crate::gui::tray::app::quit::exit_now(code)
+    exit_now(code)
 }
 
 /// Wakes the loop with a thread message. Before the id is published it does nothing: the initial `drain_commands` picks the commands up.
 /// A `PostThreadMessageW` failure (the queue is full) does not matter: the command is already in the channel, and the
 /// timer tick will drain it.
-pub(super) fn wake() {
+pub(crate) fn wake() {
     let id = LOOP_THREAD_ID.load(Ordering::SeqCst);
     if id != 0 {
         // SAFETY: no pointers; a wrong id gives an error, not UB.

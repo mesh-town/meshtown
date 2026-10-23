@@ -61,7 +61,7 @@ pub(super) struct PollEnv {
     pub(super) send_view: Box<dyn Fn(View) + Send>,
     /// Production: `CmdTx::send(TrayCmd::ExitMenu)`.
     pub(super) send_exit_menu: Box<dyn Fn(ExitMenu) + Send>,
-    /// Production: `crate::gui::tray::copy_to_clipboard` (supplied by `run.rs`).
+    /// Production: `TrayBackend::copy_to_clipboard` (supplied by `run.rs`).
     pub(super) copy_to_clipboard_fn: CopyFn,
     /// Production: `CmdTx::send(TrayCmd::Invite)`.
     pub(super) send_invite_note: Box<dyn Fn(InviteNote) + Send>,

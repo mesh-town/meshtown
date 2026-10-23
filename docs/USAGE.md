@@ -5,7 +5,7 @@ exit, site checks, the node page and the log. For a short introduction see [READ
 
 ## Running the node
 
-Without a subcommand `meshtown` picks one itself: `tray` in a build with the tray (the default), `run` in a build
+Without a subcommand `meshtown` picks one itself: `tray` in the desktop build, `run` in a build
 without it (`--no-default-features --features net-hyper`). An explicit subcommand is never changed.
 
 The command is named the same on every system: `meshtown` is the build with the tray, `meshtown-cli` is the build

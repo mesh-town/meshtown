@@ -11,11 +11,27 @@ use crate::cli::program_name::{program_name, DEFAULT_PROGRAM_NAME};
 use clap::parser::ValueSource;
 use clap::{Arg, ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
 
-/// The subcommand used if the user named none.
-#[cfg(feature = "tray")]
-pub(crate) const DEFAULT_SUBCOMMAND: &str = "tray";
-#[cfg(not(feature = "tray"))]
-pub(crate) const DEFAULT_SUBCOMMAND: &str = "run";
+/// Whether this process has a tray backend; set once at startup, before the arguments are parsed.
+static HAS_TRAY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Records whether a tray backend was handed to the process (the first call wins).
+pub(crate) fn set_has_tray(has_tray: bool) {
+    let _ = HAS_TRAY.set(has_tray);
+}
+
+/// Whether the help text should describe the tray start; before `set_has_tray` (tests) it follows the
+/// `gui` feature.
+fn has_tray() -> bool {
+    HAS_TRAY.get().copied().unwrap_or(cfg!(feature = "gui"))
+}
+
+/// The footer of the top-level help: what a start with no command does, and how to join a network.
+pub(crate) fn after_help_text(has_tray: bool) -> &'static str {
+    match has_tray {
+        true => "With no command, the Mesh Town icon starts next to the clock.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
+        false => "With no command, the node starts.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
+    }
+}
 
 /// Replaces the word `meshtown` that starts a command in a help text with `name`.
 fn with_program_name(text: &str, name: &str) -> String {
@@ -37,18 +53,6 @@ const HELP: &str = "{about}\n\nUsage: {usage}\n\n{all-args}{after-help}";
     disable_help_flag = true,
     disable_version_flag = true,
     disable_help_subcommand = true
-)]
-#[cfg_attr(
-    feature = "tray",
-    command(
-        after_help = "With no command, the Mesh Town icon starts next to the clock.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\""
-    )
-)]
-#[cfg_attr(
-    not(feature = "tray"),
-    command(
-        after_help = "With no command, the node starts.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\""
-    )
 )]
 pub(crate) struct Cli {
     #[command(subcommand)]
@@ -80,7 +84,8 @@ impl Cli {
                 a.display_order(HELP_ORDER)
                     .help(with_program_name(HELP_HINT, program_name()))
             })
-            .mut_arg("version", |a| a.display_order(HELP_ORDER + 1));
+            .mut_arg("version", |a| a.display_order(HELP_ORDER + 1))
+            .after_help(after_help_text(has_tray()));
         let cmd = rename_commands(cmd, program_name());
         let names: Vec<String> = cmd
             .get_subcommands()
@@ -137,7 +142,7 @@ fn sub_help_flag() -> Arg {
 #[derive(Subcommand)]
 pub(crate) enum CliCommand {
     /// Show the Mesh Town icon next to the clock and start the node
-    #[cfg(feature = "tray")]
+    #[cfg(feature = "gui")]
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown tray [OPTIONS] [-- RUN_OPTIONS…]")]
     Tray(crate::gui::tray::app::tray_role::TrayArgs),
     /// Run the node in this window, without an icon
@@ -240,13 +245,16 @@ pub(crate) fn toggle_from_flag_pair(on: bool, off: bool) -> Option<bool> {
 }
 
 /// If `args` is exactly the program name (one element, no flags or subcommand), appends
-/// `DEFAULT_SUBCOMMAND`; otherwise returns it as is (an empty list too). The substitution
+/// `tray` when `has_tray`, otherwise `run`; otherwise returns it as is (an empty list too). The substitution
 /// happens before `clap` parses, so the value sources (`ValueSource`) don't change: `run` with no
 /// arguments looks to `is_flag_typed`/`toggle_from_flag_pair` the same as a `run` subcommand typed by a person.
-pub(crate) fn with_default_subcommand(args: impl IntoIterator<Item = OsString>) -> Vec<OsString> {
+pub(crate) fn with_default_subcommand(
+    args: impl IntoIterator<Item = OsString>,
+    has_tray: bool,
+) -> Vec<OsString> {
     let mut args: Vec<OsString> = args.into_iter().collect();
     if args.len() == 1 {
-        args.push(OsString::from(DEFAULT_SUBCOMMAND));
+        args.push(OsString::from(if has_tray { "tray" } else { "run" }));
     }
     args
 }

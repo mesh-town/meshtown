@@ -32,7 +32,7 @@ fn sub_names() -> Vec<&'static str> {
         "access",
         "ifaces",
     ];
-    if cfg!(feature = "tray") {
+    if cfg!(feature = "gui") {
         v.push("tray");
     }
     v
@@ -57,7 +57,7 @@ fn top_help_speaks_english() {
             assert!(help.contains(want), "no \"{want}\" in the help:\n{help}");
         }
     }
-    #[cfg(feature = "tray")]
+    #[cfg(feature = "gui")]
     assert!(top().contains("Show the Mesh Town icon next to the clock and start the node"));
 }
 
@@ -100,7 +100,7 @@ fn commands_in_order() {
         "  access ",
         "  ifaces ",
     ];
-    if cfg!(feature = "tray") {
+    if cfg!(feature = "gui") {
         names.insert(0, "  tray ");
     }
     let pos: Vec<usize> = names
@@ -116,7 +116,7 @@ fn commands_in_order() {
     );
 }
 
-#[cfg(feature = "tray")]
+#[cfg(feature = "gui")]
 #[test]
 fn footer_names_default() {
     let help = top();
@@ -134,7 +134,7 @@ fn footer_names_default() {
     );
 }
 
-#[cfg(not(feature = "tray"))]
+#[cfg(not(feature = "gui"))]
 #[test]
 fn footer_names_default() {
     let help = top();
