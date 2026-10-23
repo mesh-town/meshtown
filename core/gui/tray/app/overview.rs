@@ -9,6 +9,8 @@ pub struct SlotView {
     pub slot: String,
     pub label: Option<String>,
     pub joining: bool,
+    /// The slot holds a network key (`id_hex` is a string).
+    pub keyed: bool,
     /// The network that carries the browser proxy.
     pub proxy: bool,
     pub status: String,
@@ -30,9 +32,7 @@ pub fn parse_overview(v: &Value) -> Option<Vec<SlotView>> {
 
 /// The networks the menu shows: with a key, or being joined right now.
 pub fn visible_slots(all: Vec<SlotView>) -> Vec<SlotView> {
-    all.into_iter()
-        .filter(|s| s.label.is_some() || s.joining)
-        .collect()
+    all.into_iter().filter(|s| s.keyed || s.joining).collect()
 }
 
 /// The network of the menu's single view: the one with the proxy, otherwise the first.
@@ -45,6 +45,7 @@ fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
     SlotView {
         label: text(net, "label"),
         joining: flag(net, "joining"),
+        keyed: net.get("id_hex").is_some_and(Value::is_string),
         proxy: flag(net, "proxy"),
         status: text(net, "status").unwrap_or_default(),
         peers_online: count(net, "peers_online"),
