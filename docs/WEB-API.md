@@ -472,7 +472,7 @@ does not exist is 404 `unknown_net`.
 | `id` | the slot id |
 | `label`, `id_hex` | the network label and its identifier; `null` for an empty or broken slot |
 | `status` | the node status of the slot, or `broken` |
-| `exit_enabled`, `proxy` | the slot offers an exit; the slot is the one the local proxy uses |
+| `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot — the one named by `proxy.net` of the primary config (`main` by default), whose network the local proxy (SOCKS, HTTP, PAC, system proxy) goes through; `false` for the others and for broken slots. If `proxy.net` names a network that is not loaded, `proxy` is `false` everywhere and the proxy refuses connections. A slot that is the proxy slot but not `online` makes the proxy refuse until it is up. The answer to a `PUT` that changes `route.exits` (non-empty) of a slot, or `proxy.net` of the primary config, is sent after the proxy has been switched; if the switch fails the answer is still 200 and the summary shows the truth, so take it from `proxy`, not from the `PUT` answer |
 | `route_state`, `exits` | how traffic is routed and the exits in use |
 | `members_voting`, `members_admitting` | member counts |
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |

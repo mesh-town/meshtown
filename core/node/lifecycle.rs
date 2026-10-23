@@ -120,8 +120,9 @@ async fn wait_then_run(
 
 /// Brings up the stdin console on the first cycle: after a network switch it is
 /// unavailable until the process restarts.
-fn spawn_console_on_first_cycle(node: &super::running::RunningNode) {
+fn spawn_console_on_first_cycle(node: &super::running::RunningNode, ctl: &NodeCtl) {
     let console = ProxyConsole {
+        front: ctl.proxy_front(),
         socks: node.socks_addr,
         exit_on: node.exit_on.clone(),
         route: node.route.clone(),
@@ -145,6 +146,8 @@ async fn run_cycles(
 ) -> Result<CycleEnd> {
     let mut first_cycle = true;
     loop {
+        cfg.proxy_face = ctl.proxy_face();
+        apply_proxy(settings, ctl, first_cycle).await?;
         let node = boot_cycle(cfg, ctl, first_cycle).await?;
         let cmd = serve_until_command(node, ctl).await;
         if let ControlFlow::Break(end) = after_command(cmd, cfg, settings, ctl, relaunch) {
@@ -156,24 +159,38 @@ async fn run_cycles(
 
 /// Start of a cycle: `ctl.renew_boot_stamp()`, `start_node(cfg.clone())`; on error — `detach(Stopping)`, the line
 /// "restart failed: {e:#}" only if `!first_cycle`, the error goes up; on success — the console on the first
-/// cycle, `ctl.attach(&node)`.
+/// cycle, `ctl.attach(&node)`, `ctl.node_up(&node)`.
 async fn boot_cycle(cfg: &NodeConfig, ctl: &NodeCtl, first_cycle: bool) -> Result<RunningNode> {
     ctl.renew_boot_stamp();
     let node = match start_node(cfg.clone()).await {
         Ok(node) => node,
-        Err(e) => {
-            ctl.detach(crate::web_gui::NodeStatus::Stopping);
-            if !first_cycle {
-                say("node", format!("restart failed: {e:#}"));
-            }
-            return Err(e);
-        }
+        Err(e) => return Err(cycle_failed(ctl, first_cycle, e)),
     };
     if first_cycle {
-        spawn_console_on_first_cycle(&node);
+        spawn_console_on_first_cycle(&node, ctl);
     }
     ctl.attach(&node);
+    ctl.node_up(&node);
     Ok(node)
+}
+
+/// A cycle could not start: the proxy gives up the node, `detach(Stopping)`, the line "restart failed: {e:#}"
+/// only if `!first_cycle`; the error goes up.
+fn cycle_failed(ctl: &NodeCtl, first_cycle: bool, e: anyhow::Error) -> anyhow::Error {
+    ctl.node_down();
+    ctl.detach(crate::web_gui::NodeStatus::Stopping);
+    if !first_cycle {
+        say("node", format!("restart failed: {e:#}"));
+    }
+    e
+}
+
+/// Brings the process listener to the settings before a cycle; a failure ends the cycle like a failed start.
+async fn apply_proxy(settings: &Settings, ctl: &NodeCtl, first_cycle: bool) -> Result<()> {
+    match ctl.apply_process_proxy(&settings.process).await {
+        Ok(()) => Ok(()),
+        Err(e) => Err(cycle_failed(ctl, first_cycle, e)),
+    }
 }
 
 /// Work until a command: `next_command`, `detach` (Stop → Stopping, Switch → Starting), `node.shutdown().await`,
@@ -184,6 +201,7 @@ async fn serve_until_command(node: RunningNode, ctl: &NodeCtl) -> Cmd {
         Cmd::Stop => crate::web_gui::NodeStatus::Stopping,
         Cmd::LeaveNet { .. } | Cmd::Switch { .. } => crate::web_gui::NodeStatus::Starting,
     });
+    ctl.node_down();
     node.shutdown().await;
     ctl.release_guard_sources();
     cmd

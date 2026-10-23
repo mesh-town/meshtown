@@ -32,12 +32,12 @@ mod refused {
     use super::*;
 
     #[tokio::test]
-    async fn restart_from_no_network_is_busy() {
+    async fn restart_from_no_network_is_no_network_not_busy() {
         let ctl = NodeCtl::new_without_network(&Settings::default());
 
         let res = ctl.request_restart();
 
-        assert!(matches!(res, Err(ActionError::Busy(_))), "got {res:?}");
+        assert!(matches!(res, Err(ActionError::NoNetwork(_))), "got {res:?}");
         assert_eq!(phase_name(&ctl), "NoNetwork");
         assert_channel_empty(&ctl).await;
     }
