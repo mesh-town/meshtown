@@ -17,11 +17,10 @@ mod of_the_same_network {
     }
 
     #[test]
-    fn keeps_the_key_written_with_a_label_even_with_save_config() {
+    fn keeps_the_key_written_with_a_label() {
         // given
         let opts = Opts {
             file_key: Some(key_with_label(Some("our-game"), &net_a())),
-            save_config: true,
             ..Opts::default()
         };
         // when
@@ -34,39 +33,30 @@ mod of_the_same_network {
 mod of_another_network {
     use super::*;
 
-    mod without_save_config {
-        use super::*;
-
-        #[test]
-        fn refuses_naming_the_flag_and_not_spending_the_invite() {
-            // given
-            let opts = Opts {
-                file_key: Some(net_b().encode()),
-                ..Opts::default()
-            };
-            // when
-            let text = plan(opts).refusal();
-            // then
-            assert!(text.contains("--save-config"), "{text}");
-            assert!(text.contains("was not spent"), "{text}");
-        }
+    #[test]
+    fn adds_a_network_slot() {
+        // given
+        let opts = Opts {
+            file_key: Some(net_b().encode()),
+            ..Opts::default()
+        };
+        // when
+        let out = plan(opts);
+        // then
+        then_adds_a_network_with_the_same_invite(out);
     }
 
-    mod with_save_config {
-        use super::*;
-
-        #[test]
-        fn redeems_the_invite() {
-            // given
-            let opts = Opts {
-                file_key: Some(net_b().encode()),
-                save_config: true,
-                ..Opts::default()
-            };
-            // when
-            let out = plan(opts);
-            // then
-            then_redeems_the_same_invite(out);
-        }
+    #[test]
+    fn adds_a_network_slot_beside_other_slots() {
+        // given: the plan has no input that could replace the file's key
+        let opts = Opts {
+            file_key: Some(net_b().encode()),
+            slot_keys: vec![Some(net_c().encode())],
+            ..Opts::default()
+        };
+        // when
+        let out = plan(opts);
+        // then
+        then_adds_a_network_with_the_same_invite(out);
     }
 }

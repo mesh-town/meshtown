@@ -17,9 +17,11 @@ mod node_link;
 pub(crate) mod password;
 mod run_args;
 mod run_invite;
+mod run_invite_addnet;
 mod run_key;
 mod run_nokey;
 pub(crate) use run_args::RunArgs;
+use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
 
@@ -73,11 +75,7 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
         .transpose()?;
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
-    let mut run = config_file::prepare(&source, &overrides, args.save_config, now)?;
-    let cli_key = overrides.network_key.clone();
-    let invited =
-        run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, args.save_config, now)
-            .await?;
+    let (run, overrides, invited) = prepare_run(&args, overrides, invited, &source, now).await?;
     match run.effective_settings.net.network_key.clone() {
         Some(key_text) => {
             run_with_key(
@@ -99,6 +97,54 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
         }
         None => run_without_key(overrides, run, args.initial_domains, args.blocked_domains).await,
     }
+}
+
+/// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
+/// Returns the run, the flags for the main network and the invite that belongs to the main network.
+async fn prepare_run(
+    args: &RunArgs,
+    overrides: CliOverrides,
+    invited: Option<crate::invite::ParsedInvite>,
+    source: &ConfigSource,
+    now: u64,
+) -> anyhow::Result<(
+    config_file::RunConfig,
+    CliOverrides,
+    Option<crate::invite::ParsedInvite>,
+)> {
+    let cli_key = overrides.network_key.clone();
+    let key_net = plan_cli_key(source, cli_key.as_deref())?;
+    let overrides = overrides_for_main(&overrides, &key_net);
+    let mut run = config_file::prepare(source, &overrides, args.save_config, now)?;
+    let typed = &args.initial_domains;
+    let invited =
+        run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, typed, now).await?;
+    let added = add_key_net(&key_net, cli_key.as_deref(), &run, args, now)?;
+    Ok((run, overrides, invited.filter(|_| !added)))
+}
+
+/// The flags for the main network: a key of another network is not the main one, it goes to a slot.
+fn overrides_for_main(overrides: &CliOverrides, key_net: &KeyNet) -> CliOverrides {
+    let mut main = overrides.clone();
+    if matches!(key_net, KeyNet::Add | KeyNet::Existing) {
+        main.network_key = None;
+    }
+    main
+}
+
+/// `--key` of another network: saves it as a network slot (one that is already saved is left as it is).
+/// Returns whether the key belongs to a slot: then the invite's label and addresses are not for the main network.
+fn add_key_net(
+    key_net: &KeyNet,
+    cli_key: Option<&str>,
+    run: &config_file::RunConfig,
+    args: &RunArgs,
+    now: u64,
+) -> anyhow::Result<bool> {
+    if let (KeyNet::Add, Some(key)) = (key_net, cli_key) {
+        add_net_slot(run, key, &args.initial_domains, now)?;
+    }
+    Ok(matches!(key_net, KeyNet::Add | KeyNet::Existing))
 }
 
 /// Flags retired in 0.1.38: if typed — one line in the log, they have no effect.
