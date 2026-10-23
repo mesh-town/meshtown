@@ -8,16 +8,28 @@ use super::*;
 use crate::config::config_file::fields;
 use crate::transport::net::NodeSecret;
 
+const PUBLISHED: &str = "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
+const OPENED: &str =
+    "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
+const IFACES: &str =
+    "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
+const FLAG: &str = "true or false";
+const OFF: &str = "false (enabling is unavailable in this build)";
+
+type InvalidCase = (&'static str, Value, String);
+
+fn case(path: &'static str, bad: Value, text: &str) -> InvalidCase {
+    (path, bad, text.to_string())
+}
+
 /// 17 editable paths: a bad value and the 422 text in `fields[0].message`.
-fn invalid_cases() -> Vec<(&'static str, Value, String)> {
-    let published = "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
-    let opened =
-        "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
-    const IFACES: &str =
-        "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
-    let flag = "true or false";
-    let off = "false (enabling is unavailable in this build)";
-    let case = |path, bad, text: &str| (path, bad, text.to_string());
+fn invalid_cases() -> Vec<InvalidCase> {
+    let mut cases = invalid_front_cases();
+    cases.extend(invalid_rest_cases());
+    cases
+}
+
+fn invalid_front_cases() -> Vec<InvalidCase> {
     vec![
         case(
             "node.name",
@@ -31,12 +43,17 @@ fn invalid_cases() -> Vec<(&'static str, Value, String)> {
             json!("bogus"),
             "direct_and_relay, relay_only or no_relay",
         ),
-        case("exit.enabled", json!("x"), flag),
-        case("socks.enabled", json!("x"), flag),
+        case("exit.enabled", json!("x"), FLAG),
+        case("socks.enabled", json!("x"), FLAG),
         case("socks.port", json!(80), "a port 1024…65535"),
         case("socks.access", json!("public"), "localhost or localnet"),
         case("socks.ifaces", json!("br-lan"), IFACES),
-        case("checks.enabled", json!("x"), flag),
+    ]
+}
+
+fn invalid_rest_cases() -> Vec<InvalidCase> {
+    vec![
+        case("checks.enabled", json!("x"), FLAG),
         case("checks.interval_sec", json!(1), "an integer 30…86400"),
         case(
             "checks.doh_server",
@@ -59,11 +76,11 @@ fn invalid_cases() -> Vec<(&'static str, Value, String)> {
             json!(["bad"]),
             "a list of node ids without repeats, up to 64",
         ),
-        case("ports.published", json!(5), published),
-        case("ports.opened", json!(5), opened),
+        case("ports.published", json!(5), PUBLISHED),
+        case("ports.opened", json!(5), OPENED),
         case("log.ring_lines", json!(1), "an integer 200…20000"),
-        case("autostart.enabled", json!("x"), off),
-        case("full_tunnel.enabled", json!("x"), off),
+        case("autostart.enabled", json!("x"), OFF),
+        case("full_tunnel.enabled", json!("x"), OFF),
     ]
 }
 

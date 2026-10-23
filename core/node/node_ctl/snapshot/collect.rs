@@ -12,8 +12,8 @@ use crate::members::stale_peers;
 use crate::node::node_state;
 use crate::node::program_version;
 use crate::node::RunningNode;
-use crate::proxy::ProxyFace;
 use crate::ports_sharing::PortView;
+use crate::proxy::ProxyFace;
 use crate::site_checks::geoip;
 use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
 use crate::web_gui::auth::iface_nets::admitted_lan;
@@ -113,6 +113,18 @@ fn country_texts(countries: HashMap<PeerId, geoip::Country>) -> HashMap<PeerId, 
         .collect()
 }
 
+/// The peers' program versions plus this node's own.
+fn with_own_version(
+    node: &RunningNode,
+    mut versions: HashMap<PeerId, String>,
+) -> HashMap<PeerId, String> {
+    versions.insert(
+        node.id,
+        program_version::current_program_version().to_string(),
+    );
+    versions
+}
+
 /// Collects the node snapshot: document parts go through the `cache` (`DocCache`), the rest is
 /// synchronous reads of live state and the own program version on every tick, then the pure
 /// `build`. An error or timeout of any document read leaves the matching field empty and sets
@@ -131,14 +143,11 @@ pub(crate) async fn collect(
         views,
         exits,
         countries,
-        mut program_versions,
+        program_versions,
         port_views,
         doc_seen,
     } = parts;
-    program_versions.insert(
-        node.id,
-        program_version::current_program_version().to_string(),
-    );
+    let program_versions = with_own_version(node, program_versions);
 
     let face = node.proxy_face.borrow().clone();
     let inputs = Inputs {

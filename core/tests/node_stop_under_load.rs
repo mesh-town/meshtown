@@ -63,7 +63,7 @@ async fn when_stream_busy(a: &RunningNode, b: &RunningNode) -> Arc<AtomicUsize> 
         Route::Exits(vec![b.id]),
         "A's path must lead through B"
     );
-    let front = front_for(&a).await;
+    let front = front_for(a).await;
     let proxy = front.addr().expect("the SOCKS5 server must be up");
     let stream = timeout(FLOW_LIMIT, socks5::client_connect(proxy, DOMAIN, 80))
         .await

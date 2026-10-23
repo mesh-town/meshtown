@@ -163,6 +163,22 @@ mod handles_and_copy {
         assert_eq!(count, 1, "`proxy.net` must have exactly one handle");
     }
 
+    fn assert_process_fields_copied(effective_settings: &Settings, from: &Settings) {
+        assert_eq!(
+            effective_settings.process.log_ring_lines,
+            from.process.log_ring_lines
+        );
+        assert_eq!(
+            effective_settings.process.proxy_net, from.process.proxy_net,
+            "proxy.net is copied as a live field"
+        );
+        assert_ne!(
+            effective_settings.process.proxy_net,
+            Settings::default().process.proxy_net,
+            "the probe value differs from the default, so the copy is observable"
+        );
+    }
+
     #[test]
     fn merge_live_copies_each_live_field() {
         // given: `from` differs in all fields; when copy_live_paths over the live paths
@@ -192,20 +208,8 @@ mod handles_and_copy {
             from.net.ports_published
         );
         assert_eq!(effective_settings.net.ports_opened, from.net.ports_opened);
-        assert_eq!(
-            effective_settings.process.log_ring_lines,
-            from.process.log_ring_lines
-        );
         assert_eq!(effective_settings.net.node_name, from.net.node_name);
-        assert_eq!(
-            effective_settings.process.proxy_net, from.process.proxy_net,
-            "proxy.net is copied as a live field"
-        );
-        assert_ne!(
-            effective_settings.process.proxy_net,
-            Settings::default().process.proxy_net,
-            "the probe value differs from the default, so the copy is observable"
-        );
+        assert_process_fields_copied(&effective_settings, &from);
         let rest = Settings {
             process: ProcessSettings {
                 socks_port: 1,

@@ -11,6 +11,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
+use meshtown_core::config::config_file::NetSlotId;
 use meshtown_core::config::config_file::{
     self, CliOverrides, ConfigSource, PathRule, TransportMode,
 };
@@ -18,6 +19,7 @@ use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
 use meshtown_core::node::output;
 use meshtown_core::node::{self, IdentityState};
+use meshtown_core::proxy::{ProxyFront, ProxySeat};
 use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
 use serde_json::{json, Value};
 use tokio::time::sleep;
@@ -189,11 +191,24 @@ pub(crate) struct Booted {
     pub(crate) task: tokio::task::JoinHandle<anyhow::Result<()>>,
     pub(crate) port: u16,
     pub(crate) token: String,
+    pub(crate) front: Option<ProxyFront>,
 }
 
 /// A node with the `main.rs` wiring and an empty `exit_hosts` table — as on the working path, where it can't be set.
 pub(crate) async fn boot(tag: &str, key: &NetworkKey) -> Booted {
     boot_with_exit_hosts(tag, key, HashMap::new()).await
+}
+
+/// The hermetic command-line overrides shared by the boots with a network key.
+fn hermetic_overrides(key: &NetworkKey) -> CliOverrides {
+    CliOverrides {
+        network_key: Some(key.encode()),
+        transport_mode: Some(TransportMode::NoRelay),
+        checks_enabled: Some(false),
+        socks_port: Some(0),
+        web_port: Some(0),
+        ..CliOverrides::default()
+    }
 }
 
 /// Hermetic settings: `--no-relay` (no relay and no DHT publishing), `--no-checks`, `--socks-port 0`,
@@ -207,14 +222,7 @@ pub(crate) async fn boot_with_exit_hosts(
     hosts: HashMap<String, SocketAddr>,
 ) -> Booted {
     let dir = scratch(tag);
-    let overrides = CliOverrides {
-        network_key: Some(key.encode()),
-        transport_mode: Some(TransportMode::NoRelay),
-        checks_enabled: Some(false),
-        socks_port: Some(0),
-        web_port: Some(0),
-        ..CliOverrides::default()
-    };
+    let overrides = hermetic_overrides(key);
     let source = ConfigSource::File {
         path: dir.join("config.json"),
         may_create: true,
@@ -236,10 +244,11 @@ pub(crate) async fn boot_with_exit_hosts(
     cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
     cfg.exit_hosts = hosts;
     let ctl = NodeCtl::new(&run.effective_settings);
-    let handle =
-        web_gui::start_web_page(WebOptions::for_run(&run), &run, host_of(ctl.clone(), &run))
-            .await
-            .expect("boot: web_gui::start must come up");
+    let front = seat_front(&ctl, &run).await;
+    let host = host_of(ctl.clone(), &run, front.clone());
+    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, host)
+        .await
+        .expect("boot: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
     let task = meshtown_core::node::output::spawn(node::run_node_with_ctl(
@@ -254,6 +263,7 @@ pub(crate) async fn boot_with_exit_hosts(
         task,
         port,
         token,
+        front,
     }
 }
 
@@ -288,10 +298,11 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
         blocked_domains: Vec::new(),
     };
     let ctl = NodeCtl::new_without_network(&run.effective_settings);
-    let handle =
-        web_gui::start_web_page(WebOptions::for_run(&run), &run, host_of(ctl.clone(), &run))
-            .await
-            .expect("boot_without_key: web_gui::start must come up");
+    let front = seat_front(&ctl, &run).await;
+    let host = host_of(ctl.clone(), &run, front.clone());
+    let handle = web_gui::start_web_page(WebOptions::for_run(&run), &run, host)
+        .await
+        .expect("boot_without_key: web_gui::start must come up");
     let port = handle.shared.port();
     let token = handle.shared.token();
     let identity = IdentityState::from_report(&run.file_report);
@@ -307,6 +318,7 @@ pub(crate) async fn boot_without_key(tag: &str) -> Booted {
         task,
         port,
         token,
+        front,
     }
 }
 
@@ -337,6 +349,9 @@ pub(crate) async fn teardown(booted: Booted, limit: Duration) {
     assert_eq!(status, 202, "teardown: stop must return 202");
     let res = tokio::time::timeout(limit, booted.task).await;
     booted.handle.shutdown(DEFAULT_DRAIN).await;
+    if let Some(front) = &booted.front {
+        front.close().await;
+    }
     cleanup(&booted.dir);
     assert!(
         matches!(res, Ok(Ok(Ok(())))),
@@ -344,10 +359,29 @@ pub(crate) async fn teardown(booted: Booted, limit: Duration) {
     );
 }
 
-/// A host with one `main` slot around `node`, with the config state of `run`.
+/// A host with one `main` slot around `node`, with the config state of `run` and the process proxy front.
 fn host_of(
     node: std::sync::Arc<dyn web_gui::NodeControl>,
     run: &config_file::RunConfig,
+    front: Option<ProxyFront>,
 ) -> std::sync::Arc<dyn web_gui::HostControl> {
-    web_gui::single_slot_host(node, web_gui::ConfigState::from_run(run))
+    web_gui::single_slot_host_with_front(node, web_gui::ConfigState::from_run(run), front)
+}
+
+/// Binds the process proxy front as the host does and seats it on the controller.
+async fn seat_front(
+    ctl: &std::sync::Arc<NodeCtl>,
+    run: &config_file::RunConfig,
+) -> Option<ProxyFront> {
+    let process = &run.effective_settings.process;
+    if !process.socks_enabled {
+        return None;
+    }
+    let front = ProxyFront::bind(process).await.expect("boot: proxy front");
+    let seat = std::sync::Arc::new(ProxySeat::new(
+        Some(front.clone()),
+        process.proxy_net.clone(),
+    ));
+    ctl.set_proxy_seat(NetSlotId::main(), seat);
+    Some(front)
 }

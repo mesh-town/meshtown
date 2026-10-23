@@ -69,6 +69,7 @@ pub trait HostControl: Send + Sync {
 /// A host with a single `main` slot.
 struct SingleSlotHost {
     main: SlotHandle,
+    front: Option<ProxyFront>,
 }
 
 impl HostControl for SingleSlotHost {
@@ -93,17 +94,33 @@ impl HostControl for SingleSlotHost {
     }
 
     fn retire_slot(&self, id: &NetSlotId, _announced: bool) -> Result<(), HostError> {
-        crate::node::output::say("web", format!("this run keeps one network: slot {id} stays"));
+        crate::node::output::say(
+            "web",
+            format!("this run keeps one network: slot {id} stays"),
+        );
         Ok(())
+    }
+
+    fn proxy_front(&self) -> Option<ProxyFront> {
+        self.front.clone()
     }
 }
 
 /// A host holding exactly one slot, `main`, built from a node and its config state.
 pub fn single_slot_host(node: Arc<dyn NodeControl>, config: ConfigState) -> Arc<dyn HostControl> {
+    single_slot_host_with_front(node, config, None)
+}
+
+/// Like `single_slot_host`, with the process proxy front the page may reconfigure.
+pub fn single_slot_host_with_front(
+    node: Arc<dyn NodeControl>,
+    config: ConfigState,
+    front: Option<ProxyFront>,
+) -> Arc<dyn HostControl> {
     let main = SlotHandle {
         id: NetSlotId::main(),
         node,
         config: Arc::new(Mutex::new(config)),
     };
-    Arc::new(SingleSlotHost { main })
+    Arc::new(SingleSlotHost { main, front })
 }
