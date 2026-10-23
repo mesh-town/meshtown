@@ -4,7 +4,7 @@ use std::net::{Ipv6Addr, SocketAddr};
 
 use crate::transport::net::endpoint_shim::from_endpoint_addr;
 use crate::transport::net::endpoint_shim::{EndpointAddr, RelayUrl};
-use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId, RelayRef};
+use crate::transport::net::{NodeSecret, PeerAddr, PeerId};
 use data_encoding::{BASE32_NOPAD, BASE32_NOPAD_NOCASE};
 
 use super::*;
@@ -46,7 +46,7 @@ fn round_trip() {
     let head = head_made_at(NOW);
     let me = with_relay(1);
     let others = [with_relay(2)];
-    let s = build(&head, &me, &others, &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head, &me, &others, &PrimaryIps::NONE).unwrap();
     assert!(s.starts_with(INVITE_PREFIX));
     let parsed = parse(&s).unwrap();
     assert_eq!(parsed.head.secret, head.secret);
@@ -63,7 +63,7 @@ fn label_round_trip() {
     let me = with_relay(1);
     let others = [with_relay(2)];
     let head = head_with_label("our-game");
-    let s = build(&head, &me, &others, &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head, &me, &others, &PrimaryIps::NONE).unwrap();
     let parsed = parse(&s).unwrap();
     assert_eq!(parsed.head.label.as_deref(), Some("our-game"));
     assert_eq!(parsed.head.secret, head.secret);
@@ -77,7 +77,7 @@ fn me_first_and_at_most_five() {
         .iter()
         .map(|&n| with_relay(n))
         .collect();
-    let s = build(&head_made_at(NOW), &me, &others, &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), &me, &others, &PrimaryIps::NONE).unwrap();
     let parsed = parse(&s).unwrap();
     let ids: Vec<_> = parsed.peers.iter().map(|a| a.id).collect();
     assert_eq!(ids, vec![id(1), id(2), id(3), id(4), id(5)]);
@@ -89,10 +89,10 @@ fn me_first_and_at_most_five() {
 fn lengths_match_plan() {
     let me = with_relay(1);
     let others: Vec<PeerAddr> = (2..=5).map(with_relay).collect();
-    let s = build(&head_made_at(NOW), &me, &others, &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), &me, &others, &PrimaryIps::NONE).unwrap();
     assert_eq!(s.chars().count(), 684, "{s}");
 
-    let s = build(
+    let s = build_keyed(
         &head_with_label("our-game"),
         &me,
         &others,
@@ -103,7 +103,7 @@ fn lengths_match_plan() {
 
     let me6 = ipv6_pair(1);
     let others6: Vec<PeerAddr> = (2..=5).map(ipv6_pair).collect();
-    let s = build(
+    let s = build_keyed(
         &head_with_label(&"𝄞".repeat(64)),
         &me6,
         &others6,
@@ -122,7 +122,7 @@ fn relay_drops_direct_addrs() {
         .with_ip_addr(SocketAddr::from(([10, 0, 0, 3], 4002)))
         .with_ip_addr(SocketAddr::from(([10, 0, 0, 4], 4003)));
     let neighbor = from_endpoint_addr(&neighbor);
-    let s = build(&head_made_at(NOW), &me, &[neighbor], &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), &me, &[neighbor], &PrimaryIps::NONE).unwrap();
     let parsed = parse(&s).unwrap();
     assert_eq!(parsed.peers.len(), 2);
     assert_eq!(
@@ -152,31 +152,6 @@ fn relay_drops_direct_addrs() {
 }
 
 #[test]
-fn nothing_to_invite() {
-    let me = PeerAddr::new(id(1));
-    let err = format!(
-        "{:#}",
-        build(&head_made_at(NOW), &me, &[], &PrimaryIps::NONE).unwrap_err()
-    );
-    assert!(err.contains("nothing to invite with"), "{err}");
-}
-
-#[test]
-fn build_with_only_peer_relay_and_opaque_has_nothing_to_invite() {
-    let mut me = PeerAddr::new(id(1));
-    me.hints.push(AddrHint::Relay(RelayRef::Peer(id(2))));
-    me.hints.push(AddrHint::Opaque {
-        kind: 7,
-        bytes: vec![1, 2, 3],
-    });
-    let err = build(&head_made_at(NOW), &me, &[], &PrimaryIps::NONE).unwrap_err();
-    assert_eq!(
-        format!("{err:#}"),
-        "the node has no address of its own and no members yet — nothing to invite with; wait a minute after start"
-    );
-}
-
-#[test]
 fn parse_rejects_garbage() {
     for bad in ["", "   \n"] {
         let err = format!("{:#}", parse(bad).unwrap_err());
@@ -195,7 +170,7 @@ fn parse_rejects_garbage() {
     let err = format!("{:#}", parse("mesh-invite2-!!!!").unwrap_err());
     assert!(err.contains("foreign characters"), "{err}");
 
-    let real = build(
+    let real = build_keyed(
         &head_made_at(NOW),
         &with_relay(1),
         &[with_relay(2)],
@@ -215,21 +190,12 @@ fn parse_rejects_garbage() {
         err.contains("update the program") && err.contains('4'),
         "{err}"
     );
-
-    bytes[0] = 2;
-    bytes.truncate(10);
-    let truncated = format!(
-        "{INVITE_PREFIX}{}",
-        BASE32_NOPAD.encode(&bytes).to_ascii_lowercase()
-    );
-    let err = format!("{:#}", parse(&truncated).unwrap_err());
-    assert!(err.contains("unreadable"), "{err}");
 }
 
 #[test]
 fn parse_tolerates_case_and_spaces() {
     let head = head_made_at(NOW);
-    let real = build(&head, &with_relay(1), &[with_relay(2)], &PrimaryIps::NONE).unwrap();
+    let real = build_keyed(&head, &with_relay(1), &[with_relay(2)], &PrimaryIps::NONE).unwrap();
     let upper = real.to_uppercase();
     let mut spaced = String::new();
     for (i, c) in upper.chars().enumerate() {

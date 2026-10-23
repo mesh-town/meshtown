@@ -1,4 +1,4 @@
-//! Tests of the order of the boot writes (`boot.rs`): the marker goes last, a failed write leaves no marker.
+//! Tests of the order of the boot writes (`boot.rs`): a newcomer marker goes first, a failed promotion leaves the marker without the flag.
 //! Child of `boot_tests.rs`: `Rig`, `setup`, `NOW` and the other helpers are there.
 
 use super::*;
@@ -6,51 +6,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use crate::transport::net::{BoxFuture, NetError, ReplicaEvent, ReplicaId};
-
-#[tokio::test]
-async fn marker_is_written_after_the_admits() {
-    // given: a long-time node with a cached neighbour and a recent author, over a replica that logs the writes
-    let rig = setup();
-    let (author, cached) = (pid(2), pid(3));
-    rig.given_prior_life().await;
-    rig.given_record_of(author, b"node/exit/a", ago(DAY));
-    let spy = Spy::new(&rig);
-    // when: the first boot
-    boot_over(&rig, &spy, &[cached]).await.unwrap();
-    // then: the witness, the migration and the promotion come first, the marker is the last write
-    let keys = spy.written.lock().unwrap().clone();
-    assert_eq!(keys.len(), 4, "{keys:?}");
-    assert!(
-        keys[..3].iter().all(|k| k.starts_with(b"acl/admit/")),
-        "{keys:?}"
-    );
-    assert_eq!(keys[3], BOOT_KEY);
-}
-
-#[tokio::test]
-async fn failed_admit_leaves_no_marker_and_next_boot_retries() {
-    // given: a long-time node with a cached neighbour and a recent author; writing an admission fails
-    let rig = setup();
-    let (author, cached) = (pid(2), pid(3));
-    rig.given_prior_life().await;
-    rig.given_record_of(author, b"node/exit/a", ago(DAY));
-    let spy = Spy::new(&rig);
-    spy.fail_admits.store(true, Ordering::SeqCst);
-    // when: the first boot breaks off
-    assert!(boot_over(&rig, &spy, &[cached]).await.is_err());
-    // then: there is no marker
-    assert!(
-        rig.marker().await.is_none(),
-        "an interrupted boot must leave no marker"
-    );
-    // and when: the next start runs over a healthy replica
-    let written = rig.when_boot(&[], &[cached], NOW + 60).await;
-    // then: the same admissions and the marker are written, the migration is whole, the witness is promoted
-    let want = admits_of(&[(cached, Via::None), (author, Via::Migration)]);
-    assert_eq!(rig.admits().await, want);
-    assert_eq!(written, 2);
-    assert_eq!(rig.marker().await.map(|m| m.via), Some(Via::Migration));
-}
 
 #[tokio::test]
 async fn failed_promotion_leaves_the_marker_without_the_flag() {
@@ -105,7 +60,7 @@ async fn failed_boot_of_a_newcomer_leaves_it_a_newcomer() {
     rig.given_prior_life().await;
     rig.given_record_of(author, b"node/exit/a", ago(DAY));
     let written = rig.when_boot(&[], &[cached], NOW + 60).await;
-    // then: the node is not taken for a long-time one: no migration, the marker is as it was
+    // then: the marker is as it was
     assert_eq!(rig.admits().await, admits_of(&[(cached, Via::Witness)]));
     assert_eq!(written, 1);
     let marker = rig.marker().await.expect("the marker stays");

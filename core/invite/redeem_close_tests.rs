@@ -313,7 +313,6 @@ pub(super) fn head() -> InviteHead {
 /// exit without pauses, otherwise `within` in the test will time out.
 pub(super) fn opts() -> RedeemOpts {
     RedeemOpts {
-        use_relay: false,
         first_pause: Duration::from_secs(30),
         max_pause: Duration::from_secs(30),
         deadline_unix: unix_now() + 60,

@@ -9,7 +9,6 @@ use serde_json::Value;
 use super::fields;
 use super::parse_fields::{build_settings, push_field_error};
 use super::report::FieldError;
-use super::retired;
 use super::settings::Settings;
 use super::CONFIG_VERSION;
 use crate::node::output::NET_NAME;
@@ -34,8 +33,6 @@ pub struct ParsedConfigFile {
     pub field_errors: Vec<FieldError>,
     /// Paths of unknown fields, for one log line.
     pub unknown_paths: Vec<String>,
-    /// Retired keys, one log line each.
-    pub retired_paths: Vec<String>,
 }
 
 /// What is on disk. One value per launch and short-lived, so the large `ParsedConfigFile` is not boxed.
@@ -128,8 +125,7 @@ fn check_sections_are_objects(cfg: &Value, errs: &mut Vec<FieldError>) {
     }
 }
 
-/// Unknown fields: the root, `config`, the sections. Computed keys are part of `known_keys`;
-/// retired keys go to `retired_paths`.
+/// Unknown fields: the root, `config`, the sections. Computed keys are part of `known_keys`.
 fn collect_unknown(root_obj: &serde_json::Map<String, Value>, cfg: &Value) -> Vec<String> {
     let mut unknown: Vec<String> = Vec::new();
     for k in root_obj.keys() {
@@ -148,9 +144,6 @@ fn collect_unknown(root_obj: &serde_json::Map<String, Value>, cfg: &Value) -> Ve
             }
             if let Some(sec_obj) = v.as_object() {
                 for sk in sec_obj.keys() {
-                    if retired::is_retired(k, sk) {
-                        continue;
-                    }
                     if !fields::known_keys(k).contains(&sk.as_str()) {
                         unknown.push(format!("config.{k}.{sk}"));
                     }
@@ -185,7 +178,6 @@ pub fn parse_text(text: &str) -> Result<ParsedConfigFile, String> {
     check_sections_are_objects(cfg, &mut errs);
     let settings = build_settings(cfg, &mut errs);
     let unknown_paths = collect_unknown(root_obj, cfg);
-    let retired_paths = retired::collect_retired_paths(cfg);
 
     Ok(ParsedConfigFile {
         rev,
@@ -193,7 +185,6 @@ pub fn parse_text(text: &str) -> Result<ParsedConfigFile, String> {
         settings,
         field_errors: errs,
         unknown_paths,
-        retired_paths,
     })
 }
 

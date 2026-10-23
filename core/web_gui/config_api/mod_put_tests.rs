@@ -313,7 +313,7 @@ fn put_rejects_bad_net() {
     cleanup(&dir);
 }
 
-mod retired_key {
+mod former_transport_key {
     use super::*;
 
     #[test]
@@ -322,7 +322,7 @@ mod retired_key {
         let dir = temp_dir();
         let mut state = new_state(&dir);
         let rev = state.file_report.rev;
-        // when: a PUT with the node name and the removed key `transport.udp_port` (earlier 70000 gave 422)
+        // when: a PUT with the node name and the former key `transport.udp_port`
         let body = put_body(
             rev,
             serde_json::json!({"node": {"name": "alpha"}, "transport": {"udp_port": 70000}}),

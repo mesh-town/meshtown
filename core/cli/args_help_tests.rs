@@ -217,21 +217,6 @@ fn run_help_words() {
 }
 
 #[test]
-fn run_help_hides_port_flag() {
-    // given: the `run` help; the `--port` flag has had no effect since 0.1.38, it is accepted for old command lines
-    let help = sub_help("run");
-    // then: no help line describes `--port` (flags start a line after the indent)
-    let listed: Vec<&str> = help
-        .lines()
-        .filter(|l| l.trim_start().starts_with("--port"))
-        .collect();
-    assert!(
-        listed.is_empty(),
-        "the --port flag is visible in the help: {listed:?}\n{help}"
-    );
-}
-
-#[test]
 fn help_flags_still_display() {
     for args in [
         vec!["-h"],

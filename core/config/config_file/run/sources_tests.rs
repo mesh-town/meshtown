@@ -1,5 +1,5 @@
 //! Tests for the final log line for a corrupted settings file (`sources.rs`: `broken_file_summary`,
-//! `prepare_file`) and for retired keys in the `prepare_file` outcome. Included from `sources.rs`:
+//! `prepare_file`) and for former transport keys in the `prepare_file` outcome. Included from `sources.rs`:
 //! `#[cfg(test)] #[path = "sources_tests.rs"] mod tests;`.
 
 use super::*;
@@ -99,14 +99,14 @@ mod moved_aside {
     }
 }
 
-/// A file with a real secret carries retired keys: they go into the outcome as a separate list.
-mod retired_keys_in_file {
+/// A file with a real secret carries keys of the former transport: they are listed among the unknown fields.
+mod former_transport_keys_in_file {
     use super::*;
 
     #[test]
-    fn reach_prepare_outcome_apart_from_unknown() {
+    fn are_listed_as_unknown() {
         // given: a file with a secret, where transport.udp_port and transport.loss_time_threshold
-        let dir = scratch("sources-retired");
+        let dir = scratch("sources-former-keys");
         let file = dir.join(FILE_NAME);
         let text = format!(
             r#"{{"identity":{{"secret":"{}"}},"config":{{"version":1,"transport":{{"udp_port":4000,"loss_time_threshold":2.5}}}}}}"#,
@@ -116,19 +116,15 @@ mod retired_keys_in_file {
         // when: prepare_file
         let outcome = prepare_file(&file, true, &CliOverrides::default(), false, NOW);
         let _ = std::fs::remove_dir_all(&dir);
-        // then: both keys are in retired in list order, and not in unknown
-        let outcome = outcome.expect("prepare_file");
+        // then: both keys are in the unknown list
+        let mut unknown = outcome.expect("prepare_file").unknown_paths;
+        unknown.sort();
         assert_eq!(
-            outcome.retired_paths,
+            unknown,
             vec![
-                "config.transport.udp_port",
-                "config.transport.loss_time_threshold"
+                "config.transport.loss_time_threshold",
+                "config.transport.udp_port"
             ]
-        );
-        assert!(
-            outcome.unknown_paths.is_empty(),
-            "unknown fields: {:?}",
-            outcome.unknown_paths
         );
     }
 }

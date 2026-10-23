@@ -1,8 +1,8 @@
-//! The host of the node's two replicas: reads their files (after the `docs-store/` import) and hands them out by name.
+//! The host of the node's two replicas: reads their files (after the `docs-store/` handling) and hands them out by name.
 
 use super::file::{self, FileError, ImportMark, Loaded};
 use super::ids::{domains_id, net_id};
-use super::import::{self, LegacyRead};
+use super::import;
 use super::replica::MeshReplica;
 use super::saver::{BakPolicy, Saver};
 use super::state::State;
@@ -124,18 +124,9 @@ fn open_one(
 }
 
 impl ReplicaHost {
-    /// The `docs-store/` import (if needed) → reading the files → both replicas.
-    pub(crate) async fn load(
-        ctx: &SyncCtx,
-        legacy: Option<LegacyRead>,
-    ) -> NetResult<Arc<ReplicaHost>> {
-        import::import_docs_store(
-            ctx.store_dir.as_deref(),
-            &ctx.secret,
-            &ctx.network_seed,
-            legacy.as_ref(),
-        )
-        .await?;
+    /// The `docs-store/` handling (if needed) → reading the files → both replicas.
+    pub(crate) async fn load(ctx: &SyncCtx) -> NetResult<Arc<ReplicaHost>> {
+        import::import_docs_store(ctx.store_dir.as_deref(), &ctx.secret, &ctx.network_seed).await?;
         let dir = ctx.store_dir.as_deref().and_then(file::replica_dir);
         let wiring = Arc::new(Wiring {
             stack: OnceLock::new(),

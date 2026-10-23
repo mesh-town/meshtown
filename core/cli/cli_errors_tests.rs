@@ -70,7 +70,7 @@ fn classify_help_word() {
     assert_eq!(classify(&parse_err(&["help"])), ParseFail::HelpWord);
 }
 
-// `--port 1` without a subcommand used to be "other" (Clap); now it is an unknown
+// `--port 1` without a subcommand is an unknown
 // top-level option — `BadFlag` (see `classify_kind::unknown_flag::before_command_is_bad_flag`).
 #[test]
 fn classify_other_is_clap() {

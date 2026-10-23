@@ -1,5 +1,5 @@
 //! Tests of the boot plan next to forget votes (`boot_plan.rs`): a node with a forget circle is
-//! neither witnessed, nor promoted, nor migrated, because an admission written at boot would
+//! neither witnessed nor promoted, because an admission written at boot would
 //! return a forgotten node or clear somebody else's pending vote.
 //!
 //! Nodes: `me` is the own node. `a` and `b` are members admitted by `me`. `c` joined through `a`,
@@ -16,8 +16,6 @@ use crate::transport::net::contract::pid;
 use crate::transport::net::{PeerId, ReplicaEntry};
 
 const NOW: u64 = 1_792_400_000;
-const DAY: u64 = 86_400;
-const MICROS: u64 = 1_000_000;
 
 mod witnesses {
     use super::*;
@@ -28,7 +26,7 @@ mod witnesses {
         let mut w = setup();
         w.given_forget_votes(&[w.a, w.b], w.c);
         // when: the boot plans its admissions
-        let plan = w.when_plan(&[w.c, w.d], None);
+        let plan = w.when_plan(&[w.c, w.d]);
         // then: only the bystander is witnessed
         assert_eq!(plan.witness, vec![w.d]);
     }
@@ -39,7 +37,7 @@ mod witnesses {
         let mut w = setup();
         w.given_forget_votes(&[w.me], w.c);
         // when: the boot plans its admissions
-        let plan = w.when_plan(&[w.c, w.d], None);
+        let plan = w.when_plan(&[w.c, w.d]);
         // then: no witness for c, the bystander still gets one
         assert_eq!(plan.witness, vec![w.d]);
         let refused = w.refused();
@@ -68,7 +66,7 @@ mod witnesses {
         w.given_forget_votes(&[w.a, w.b], w.c);
         w.snap.retain(|e| e.key != key_for(AclKind::Admit, &w.c));
         // when: the boot plans its admissions and they are tallied together with the replica
-        let plan = w.when_plan(&[w.c], None);
+        let plan = w.when_plan(&[w.c]);
         // then: c is not a member
         let (mut input, _) = tally_input(w.me, &w.snap);
         input.admits.extend(plan.witness.iter().map(|s| AdmitIn {
@@ -92,7 +90,7 @@ mod promotion {
         w.given_own_witness(w.c);
         w.given_own_witness(w.e);
         // when: the boot plans its admissions
-        let plan = w.when_plan(&[], None);
+        let plan = w.when_plan(&[]);
         // then: only e becomes a vote
         assert_eq!(plan.promote, vec![w.e]);
     }
@@ -105,7 +103,7 @@ mod promotion {
         w.given_own_witness(w.c);
         w.given_own_witness(w.e);
         // when: the boot plans its admissions
-        let plan = w.when_plan(&[], None);
+        let plan = w.when_plan(&[]);
         // then: c is left alone, so the vote of a stays pending; e becomes a vote
         assert_eq!(plan.promote, vec![w.e]);
     }
@@ -123,49 +121,6 @@ mod promotion {
         let out = promotions(&w.snap, w.me, &BTreeSet::new(), &ledger, &[]);
         // then: the same as in the plan
         assert_eq!(out, vec![w.e]);
-    }
-}
-
-mod migration {
-    use super::*;
-
-    #[test]
-    fn waiting_round_subject_is_not_migrated() {
-        // given: c (pending vote of a against it) and d were active a day ago
-        let mut w = setup();
-        w.given_forget_votes(&[w.a], w.c);
-        w.given_activity(w.c);
-        w.given_activity(w.d);
-        // when: the boot of a long-time node plans the migration
-        let plan = w.when_plan(&[], Some(NOW));
-        // then: d is migrated, c is not: a migration admit would clear the pending vote
-        assert_eq!(plan.migration, vec![w.d]);
-    }
-
-    #[test]
-    fn forgotten_recent_author_is_not_migrated() {
-        // given: c is forgotten but was active a day ago, d was too
-        let mut w = setup();
-        w.given_forget_votes(&[w.a, w.b], w.c);
-        w.given_activity(w.c);
-        w.given_activity(w.d);
-        // when: the boot of a long-time node plans the migration
-        let plan = w.when_plan(&[], Some(NOW));
-        // then: only d is migrated
-        assert_eq!(plan.migration, vec![w.d]);
-    }
-
-    #[test]
-    fn no_circle_means_the_author_is_migrated() {
-        // given: c without any forget vote and d, both active a day ago
-        let mut w = setup();
-        w.given_activity(w.c);
-        w.given_activity(w.d);
-        // when: the boot of a long-time node plans the migration
-        let plan = w.when_plan(&[], Some(NOW));
-        // then: control: both are migrated (c has no admit of mine yet)
-        assert_eq!(plan.migration.len(), 2);
-        assert!(plan.migration.contains(&w.c) && plan.migration.contains(&w.d));
     }
 }
 
@@ -225,24 +180,14 @@ impl World {
         self.put(self.me, AclKind::Admit, subject, Via::Witness, 50);
     }
 
-    /// A record of `author` outside `acl/` made a day before the boot.
-    fn given_activity(&mut self, author: PeerId) {
-        self.snap.push(ReplicaEntry {
-            author,
-            key: b"node/exit/x".to_vec(),
-            value: Bytes::from_static(b"x"),
-            ts_micros: (NOW - DAY) * MICROS,
-        });
-    }
-
-    fn when_plan(&self, cached: &[PeerId], migrate: Option<u64>) -> BootPlan {
+    fn when_plan(&self, cached: &[PeerId]) -> BootPlan {
         let boot = AccessBoot {
             me: self.me,
             initial: Vec::new(),
             cached: cached.to_vec(),
             now_unix: NOW,
         };
-        plan_admits(&self.snap, &BTreeSet::new(), &boot, migrate)
+        plan_admits(&self.snap, &BTreeSet::new(), &boot)
     }
 
     fn refused(&self) -> BTreeSet<PeerId> {

@@ -78,12 +78,6 @@ fn keyed_build_accepts_key_only_entries() {
     assert!(parsed.peers.iter().all(|p| p.hints.is_empty()));
 }
 
-#[test]
-fn plain_build_still_drops_key_only() {
-    let err = build(&head(), &key_only(1), &[key_only(2)], &PrimaryIps::NONE).unwrap_err();
-    assert!(err.to_string().contains("nothing to invite with"), "{err}");
-}
-
 #[tokio::test]
 async fn make_on_mem_is_v3() {
     // given: a node on `mem`, with no hints at its own address
@@ -146,19 +140,6 @@ async fn make_names_listed_members_without_a_connection() {
 }
 
 #[test]
-fn v2_literal_still_parses() {
-    // given: a literal of invite v2 (the same as in `invite_golden_tests`)
-    const INVITE: &str =
-        "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
-    // when: parsing
-    let parsed = parse(INVITE).unwrap();
-    // then: version 2, one record with an address
-    assert_eq!(body_of(INVITE)[0], 2);
-    assert_eq!(parsed.peers.len(), 1);
-    assert!(!parsed.peers[0].hints.is_empty());
-}
-
-#[test]
 fn keyed_invite_golden_body() {
     let mut body = vec![0x03, 0xaa, 0xbb, 0xcc, 0xdd, 0x00];
     body.extend_from_slice(&[0x11; 32]);
@@ -177,10 +158,10 @@ fn keyed_invite_golden_body() {
 }
 
 #[test]
-fn parse_accepts_v2_and_v3_rejects_four() {
+fn parse_accepts_v3_and_rejects_four() {
     let s = build_keyed(&head(), &with_ip(1), &[], &PrimaryIps::NONE).unwrap();
     let mut body = body_of(&s);
-    for (version, ok) in [(2u8, true), (3, true), (4, false)] {
+    for (version, ok) in [(3u8, true), (4, false)] {
         body[0] = version;
         let got = parse(&invite_string(&body));
         match ok {

@@ -7,7 +7,6 @@ import {
   MAIN_FIELDS,
   EXPERT_FIELDS,
   PAGE_FIELDS,
-  TRANSPORT_MODE_OPTIONS,
   fid,
   getPath,
   parseRaw,

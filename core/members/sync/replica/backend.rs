@@ -1,7 +1,6 @@
 //! The "mesh" sync: membership by flooding (`sync/flood`) and its own replica (`MeshReplica`).
 
 use super::host::ReplicaHost;
-use super::import::LegacyRead;
 use super::service::ReplicaService;
 use crate::members::sync::flood::{FloodSync, Tuning};
 use crate::transport::net::error::{NetError, NetResult};
@@ -79,12 +78,11 @@ impl SyncBackend for MeshSync {
     }
 }
 
-/// The constructor for `Registry::add_sync("mesh", …)`: the files and the `docs-store/` import happen before the sync is returned.
-pub fn sync_ctor(legacy: Option<LegacyRead>) -> SyncCtor {
+/// The constructor for `Registry::add_sync("mesh", …)`: the files and the `docs-store/` handling happen before the sync is returned.
+pub fn sync_ctor() -> SyncCtor {
     Box::new(move |ctx| {
-        let legacy = legacy.clone();
         Box::pin(async move {
-            let host = ReplicaHost::load(&ctx, legacy).await?;
+            let host = ReplicaHost::load(&ctx).await?;
             Ok(MeshSync::assemble(&ctx, host, Tuning::default()) as Arc<dyn SyncBackend>)
         })
     })

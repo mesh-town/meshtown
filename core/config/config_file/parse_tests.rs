@@ -312,3 +312,51 @@ mod geo_markers_field {
         }
     }
 }
+
+mod former_transport_keys {
+    use super::*;
+
+    const KEYS: [&str; 8] = [
+        "udp_port",
+        "congestion_control",
+        "mtu_upper_bound",
+        "stream_receive_window",
+        "receive_window",
+        "max_concurrent_bidi_streams",
+        "loss_packet_threshold",
+        "loss_time_threshold",
+    ];
+
+    fn parse_transport(body: &str) -> ParsedConfigFile {
+        let text = format!(r#"{{"config":{{"version":1,"transport":{{{body}}}}}}}"#);
+        parse_text(&text).expect("the file parses")
+    }
+
+    #[test]
+    fn a_former_key_is_unknown_and_a_live_one_is_not() {
+        // given: a former key with a value next to `mode`
+        let body = r#""udp_port":4000,"mode":"direct_and_relay""#;
+        // when
+        let p = parse_transport(body);
+        // then: the file is parsed, only the former key is listed
+        assert_eq!(p.field_errors, vec![]);
+        assert!(p.unknown_paths.contains(&"config.transport.udp_port".to_string()));
+        assert!(!p.unknown_paths.contains(&"config.transport.mode".to_string()));
+    }
+
+    #[test]
+    fn former_keys_with_null_are_all_unknown() {
+        // given: all eight former keys with the value null
+        let body: Vec<String> = KEYS.iter().map(|k| format!(r#""{k}":null"#)).collect();
+        // when
+        let p = parse_transport(&body.join(","));
+        // then: all of them are listed, no field errors
+        assert_eq!(p.field_errors, vec![]);
+        let want: Vec<String> = KEYS.iter().map(|k| format!("config.transport.{k}")).collect();
+        let mut got = p.unknown_paths.clone();
+        got.sort();
+        let mut want = want;
+        want.sort();
+        assert_eq!(got, want);
+    }
+}

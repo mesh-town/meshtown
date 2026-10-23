@@ -71,22 +71,6 @@ fn body_carries_secret_and_network_id_instead() {
     );
 }
 
-#[test]
-fn body_starts_with_version_two_and_network_id() {
-    // given
-    let net_key = distinctive_key();
-    let head = head_of_network(&net_key);
-    // when
-    let body = decoded_body(&invite_of_network(&net_key));
-    // then
-    assert_eq!(body[0], 2, "format number");
-    assert_eq!(
-        body[1..5],
-        head.network_id,
-        "network marker follows the format number"
-    );
-}
-
 /// A key without repeated bytes: an 8-byte piece will not match the secret `0xC7…` or the addresses by chance.
 fn distinctive_key() -> NetworkKey {
     NetworkKey::from_bytes(core::array::from_fn(|i| 0x21 + (i as u8) * 5))
@@ -100,7 +84,7 @@ fn head_of_network(net_key: &NetworkKey) -> InviteHead {
 }
 
 fn invite_of_network(net_key: &NetworkKey) -> String {
-    build(
+    build_keyed(
         &head_of_network(net_key),
         &with_relay(1),
         &[with_relay(2)],

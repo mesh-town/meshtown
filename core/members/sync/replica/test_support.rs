@@ -30,7 +30,7 @@ pub(crate) async fn mesh_node(
         network_seed,
         store_dir: dir,
     };
-    let host = ReplicaHost::load(&ctx, None)
+    let host = ReplicaHost::load(&ctx)
         .await
         .expect("the replicas came up");
     let sync = MeshSync::assemble(&ctx, host, fast());

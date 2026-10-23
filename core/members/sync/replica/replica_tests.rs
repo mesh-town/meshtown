@@ -24,7 +24,7 @@ fn ctx(base: &Path) -> SyncCtx {
 }
 
 async fn try_start(base: &Path) -> NetResult<Arc<dyn SyncBackend>> {
-    sync_ctor(None)(ctx(base)).await
+    sync_ctor()(ctx(base)).await
 }
 
 async fn start(base: &Path) -> Arc<dyn SyncBackend> {

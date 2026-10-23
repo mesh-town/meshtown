@@ -37,7 +37,7 @@ pub mod store;
 pub mod wire;
 pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};
-pub use parse::{looks_like_invite, parse};
+pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE};
 
 /// Prefix of the invite string; carries the format number.
 pub const INVITE_PREFIX: &str = "mesh-invite2-";
@@ -52,10 +52,8 @@ pub const MAX_INVITE_CHARS: usize = 4_000;
 /// Limit of the invite size in bytes (before base32).
 pub const MAX_INVITE_BYTES: usize = 2_000;
 
-/// Invite format number v2 (a record without addresses is dropped); now it is only parsed and built by `build`.
-const INVITE_VERSION: u8 = 2;
-/// Format number with "key" records: a member record without relay and addresses is legal and means
-/// "dial by key"; in this format the node issues everything.
+/// Format number of the invite: a member record without relay and addresses is legal and means
+/// "dial by key".
 const INVITE_KEYED_VERSION: u8 = 3;
 
 /// Internal form of the invite before base32 — the field order is the format, it must not change.
@@ -91,38 +89,23 @@ pub struct Source {
 /// With relay direct addresses are not needed, without relay — at most `MAX_DIRECT_ADDRS`;
 /// first come the default-route address and public ones, the foreign tunnel address (100.64/10) —
 /// last (`addr_order`), but it stays if there is otherwise neither a route nor a public address;
-/// a record with no relay and no addresses has nothing to invite with — it is dropped, except in format v3
-/// (`key_ok`): there such a record is legal and means "dial by key".
+/// a record with no relay and no addresses is legal and means "dial by key".
 fn record_for_addr(
     addr: &PeerAddr,
     made_unix: u64,
     primary: &PrimaryIps,
-    key_ok: bool,
-) -> Option<RosterEntry> {
+) -> RosterEntry {
     let mut entry = entry_from_addr(addr, made_unix, primary);
     if entry.relay.is_some() {
         entry.addrs.clear();
     } else {
         truncate_ranked(&mut entry.addrs, MAX_DIRECT_ADDRS, primary);
     }
-    if entry.relay.is_none() && entry.addrs.is_empty() && !key_ok {
-        return None;
-    }
-    Some(entry)
+    entry
 }
 
-/// Builds an invite string of format v2: own address first, then members, repeats by node key
-/// are dropped, at most `MAX_INVITE_PEERS` records; records without addresses are dropped.
-pub fn build(
-    head: &InviteHead,
-    me: &PeerAddr,
-    others: &[PeerAddr],
-    primary: &PrimaryIps,
-) -> Result<String> {
-    build_as(INVITE_VERSION, head, me, others, primary)
-}
-
-/// The same in format v3: records without hints are kept, an invite of keys alone is legal —
+/// Builds an invite string: own address first, then members, repeats by node key are dropped, at most
+/// `MAX_INVITE_PEERS` records; records without hints are kept, an invite of keys alone is legal —
 /// `hyper` (like `mem` in tests) dials by key.
 pub fn build_keyed(
     head: &InviteHead,
@@ -130,17 +113,6 @@ pub fn build_keyed(
     others: &[PeerAddr],
     primary: &PrimaryIps,
 ) -> Result<String> {
-    build_as(INVITE_KEYED_VERSION, head, me, others, primary)
-}
-
-fn build_as(
-    version: u8,
-    head: &InviteHead,
-    me: &PeerAddr,
-    others: &[PeerAddr],
-    primary: &PrimaryIps,
-) -> Result<String> {
-    let key_ok = version == INVITE_KEYED_VERSION;
     let mut seen: HashSet<[u8; 32]> = HashSet::new();
     let mut peers: Vec<RosterEntry> = Vec::new();
     for addr in std::iter::once(me).chain(others.iter()) {
@@ -151,22 +123,10 @@ fn build_as(
         if !seen.insert(id_bytes) {
             continue;
         }
-        if let Some(entry) = record_for_addr(addr, head.made_unix, primary, key_ok) {
-            peers.push(entry);
-        }
-    }
-    if !key_ok
-        && peers
-            .iter()
-            .all(|e| e.relay.is_none() && e.addrs.is_empty())
-    {
-        bail!(
-            "the node has no address of its own and no members yet — nothing to invite with; wait a \
-            minute after start"
-        );
+        peers.push(record_for_addr(addr, head.made_unix, primary));
     }
     let invite = Invite {
-        version,
+        version: INVITE_KEYED_VERSION,
         network_id: head.network_id,
         label: head.label.clone(),
         secret: *head.secret.as_bytes(),

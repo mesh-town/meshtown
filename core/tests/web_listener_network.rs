@@ -362,6 +362,9 @@ async fn network_join_invite_on_a_slot_with_a_network_is_refused() {
 /// The refusal texts of the invite module — verbatim.
 const TEXT_OLD_INVITE: &str = "This invite is of the old format (mesh-invite1-): it contained the network key, \
     such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
+const TEXT_V2_INVITE: &str = "This invite is of an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
+/// An invite string of format 2.
+const V2_INVITE: &str = "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
 const TEXT_EXPIRED: &str =
     "The invite was issued more than a day ago and is no longer valid. Ask a \
     network member for a new one.";
@@ -370,34 +373,41 @@ const HOUR: u64 = 3600;
 mod old_invite_string {
     use super::*;
 
+    /// A string of an earlier format and the refusal text it gets.
+    const REFUSED: [(&str, &str); 2] = [
+        ("mesh-invite1-abcdefghij", TEXT_OLD_INVITE),
+        (V2_INVITE, TEXT_V2_INVITE),
+    ];
+
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn is_refused_with_the_old_format_text() {
-        // given
-        let web = setup("old-invite").await;
-        // when
-        let (status, body) = web.when_join_with("mesh-invite1-abcdefghij");
-        // then
-        assert_eq!(status, 422);
-        assert_eq!(
-            body.get("error").and_then(Value::as_str),
-            Some("invalid_key")
-        );
-        assert_eq!(
-            body.get("message").and_then(Value::as_str),
-            Some(TEXT_OLD_INVITE)
-        );
-        web.finish().await;
+    async fn is_refused_with_its_format_text() {
+        for (n, (text, want)) in REFUSED.into_iter().enumerate() {
+            // given
+            let web = setup(&format!("old-invite-{n}")).await;
+            // when
+            let (status, body) = web.when_join_with(text);
+            // then
+            assert_eq!(status, 422);
+            assert_eq!(
+                body.get("error").and_then(Value::as_str),
+                Some("invalid_key")
+            );
+            assert_eq!(body.get("message").and_then(Value::as_str), Some(want));
+            web.finish().await;
+        }
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn is_not_given_to_the_node() {
-        // given
-        let web = setup("old-invite-node").await;
-        // when
-        web.when_join_with("mesh-invite1-abcdefghij");
-        // then
-        web.then_node_got_no_join();
-        web.finish().await;
+        for (n, (text, _)) in REFUSED.into_iter().enumerate() {
+            // given
+            let web = setup(&format!("old-invite-node-{n}")).await;
+            // when
+            web.when_join_with(text);
+            // then
+            web.then_node_got_no_join();
+            web.finish().await;
+        }
     }
 }
 
@@ -523,5 +533,5 @@ fn invite_string(head: &InviteHead) -> String {
         id: NodeSecret::from_bytes(&[7u8; 32]).peer_id(),
         hints: vec![AddrHint::Ip(SocketAddr::from(([10, 0, 0, 1], 4000)))],
     };
-    invite::build(head, &me, &[], &PrimaryIps::NONE).expect("invite::build must assemble an invite")
+    invite::build_keyed(head, &me, &[], &PrimaryIps::NONE).expect("invite::build must assemble an invite")
 }
