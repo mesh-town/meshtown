@@ -233,7 +233,7 @@ describe("restartNode over several networks", () => {
     it("POSTs restart to each, the main one first", async () => {
       const w = setupNets("two");
       w.store.restartSlots = [B, "main"];
-      const outcome = await restartNode(w.form, w.deps, w.store);
+      const outcome = await restartNode(w.form, w.store, w.deps);
       assert.equal(outcome, "restarted");
       assert.deepEqual(w.calls.map(callLine), ["POST /api/actions/restart", `POST /api/net/${B}/actions/restart`]);
     });
@@ -241,7 +241,7 @@ describe("restartNode over several networks", () => {
     it("the other network refuses: failed, with the network named in the message", async () => {
       const w = setupNets("two", { [`POST /api/net/${B}/actions/restart`]: [() => { throw new ApiError(500, "http", "boom"); }] });
       w.store.restartSlots = ["main", B];
-      const outcome = await restartNode(w.form, w.deps, w.store);
+      const outcome = await restartNode(w.form, w.store, w.deps);
       assert.equal(outcome, "failed");
       assert.ok(w.form.message.text.includes("\"my devices\": boom"), w.form.message.text);
     });
@@ -249,7 +249,7 @@ describe("restartNode over several networks", () => {
     it("the main network refuses: the other one is still asked", async () => {
       const w = setupNets("two", { "POST /api/actions/restart": [() => { throw new ApiError(500, "http", "boom"); }] });
       w.store.restartSlots = ["main", B];
-      assert.equal(await restartNode(w.form, w.deps, w.store), "failed");
+      assert.equal(await restartNode(w.form, w.store, w.deps), "failed");
       assert.equal(w.calls.length, 2);
     });
   });
@@ -258,7 +258,7 @@ describe("restartNode over several networks", () => {
     it("the main network is not restarted", async () => {
       const w = setupNets("two");
       w.store.restartSlots = [B];
-      await restartNode(w.form, w.deps, w.store);
+      await restartNode(w.form, w.store, w.deps);
       assert.deepEqual(w.calls.map(callLine), [`POST /api/net/${B}/actions/restart`]);
     });
   });
@@ -268,7 +268,7 @@ describe("restartNode over several networks", () => {
       const w = setupNets("one");
       w.store.restartSlots = [];
       w.store.configMeta = { read_only: [], restart_fields: [], restart_pending: ["socks.port"], cli_overrides: [] };
-      assert.equal(await restartNode(w.form, w.deps, w.store), "restarted");
+      assert.equal(await restartNode(w.form, w.store, w.deps), "restarted");
       assert.deepEqual(w.calls.map(callLine), ["POST /api/actions/restart"]);
     });
   });

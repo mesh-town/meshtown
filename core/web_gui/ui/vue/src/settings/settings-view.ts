@@ -75,9 +75,11 @@ export function restartPending(meta: MetaLike): boolean {
   return !!(meta && meta.restart_pending && meta.restart_pending.length > 0);
 }
 
-// Slots to restart: the ones the overview lists, else the main one when the config says a restart is pending.
-export function restartTargets(store: Pick<Store, "restartSlots" | "configMeta">): string[] {
+// Slots to restart: the ones the overview lists, else the main one when the config says a restart is pending (not while the overview is the source).
+export function restartTargets(store: Pick<Store, "restartSlots" | "configMeta" | "source">): string[] {
   if (store.restartSlots.length > 0) return store.restartSlots;
+  // The overview already said nothing waits; the config of the main node is read later and may still be stale.
+  if (store.source === "overview") return [];
   return restartPending(store.configMeta) ? ["main"] : [];
 }
 

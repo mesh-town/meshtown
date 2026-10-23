@@ -8,14 +8,17 @@ import type { ComputedRef, InjectionKey, Ref } from "vue";
 import type { ConfigDocument, ConfigMeta, NetBrief, NetworkInfo } from "../core/api-types.ts";
 import { isMulti, membersOf, netConfig, netName, stateOf, visibleSlots } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
-import { chosenExitIds, getRememberedExits, markExitAutoPicked, wasExitAutoPicked } from "../common/exits.ts";
+import { chosenExitIds, getRememberedFor, markExitAutoPicked, wasExitAutoPicked } from "../common/exits.ts";
+import { exitChoiceValue, proxySlotOf } from "../core/exit-via.ts";
+import { exitGroups, rememberedIn } from "./exit-groups.ts";
+import type { ExitGroup } from "./exit-groups.ts";
 import { getPath } from "../settings/settings-fields.ts";
 import { isAppUserAgent, proxyState } from "./browser-setup.ts";
 import type { BrowserId, OsId, ProxyState, StepValue } from "./browser-setup.ts";
 import { exitWarning, memberExits, warnPanel } from "../members/exit-members.ts";
 import type { ExitWarning } from "../members/exit-members.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
-import { autoExitPick, exitCandidates, findExitView, noPeersYet, otherExitSelector } from "./exit-list.ts";
+import { autoExitPick, exitCandidates, exitValue, findExitView, noPeersYet, otherExitSelector, pickOtherExit } from "./exit-list.ts";
 import type { ExitCandidate, FindExitView } from "./exit-list.ts";
 import {
   chooseDirect, chooseExit, clearHomeTimers, copyValue, createHomeForm, defaultHomeDeps, findExit, storageOf,
@@ -37,12 +40,7 @@ export interface ExitServerView {
   hint: string;
 }
 
-/** The exit candidates of one network; the title is drawn when several networks are shown. */
-export interface ExitGroup {
-  slot: string;
-  title: string;
-  items: ExitCandidate[];
-}
+export type { ExitGroup };
 
 export interface NameView {
   readOnly: boolean;
@@ -79,7 +77,12 @@ export interface HomeContext {
   members: ComputedRef<string | null>;
   netStatus: ComputedRef<string | null>;
   nameView: ComputedRef<NameView>;
-  chooseExit: (idFull: string) => Promise<ExitSaveResult>;
+  /** `value` as in `exitValue`: the bare id with one network, "<slot>|<id>" with several. */
+  chooseExit: (value: string) => Promise<ExitSaveResult>;
+  /** The `value` of the exit in the leading network (for the site-check buttons). */
+  viaValue: (idFull: string) => string;
+  /** Several networks and the proxy points to none of them. */
+  noProxyNet: ComputedRef<boolean>;
   chooseDirect: () => Promise<ExitSaveResult>;
   findExit: () => Promise<"empty" | "sent" | "failed">;
   saveName: () => Promise<"same" | "saved" | "failed">;
@@ -111,20 +114,6 @@ const shownBriefs = (store: Store): NetBrief[] => {
 // Slots whose exits are listed: those that carry the proxy.
 function proxySlots(store: Store): string[] {
   return shownBriefs(store).filter((n) => n.proxy).map((n) => n.id);
-}
-
-// The chosen exits of a slot: the leading one from the page config, others from their route.
-function chosenOf(store: Store, slot: string, lead: string[]): string[] {
-  if (slot === store.lead) return lead;
-  return (stateOf(store, slot)?.route?.exits || []).map((e) => e.id_full);
-}
-
-function exitGroups(store: Store, lead: string[], remembered: string[]): ExitGroup[] {
-  return proxySlots(store).map((slot) => ({
-    slot,
-    title: netName(store.nets, slot),
-    items: memberExits(exitCandidates(stateOf(store, slot), chosenOf(store, slot, lead), remembered), membersOf(store, slot)),
-  }));
 }
 
 // The network that holds an exit: the shown slot where it is a member, else one whose route lists it, else the first proxy slot.
@@ -184,15 +173,22 @@ const proxyCopyText = (proxy: ProxyState, kind: StepValue): string => (proxy.on 
 const proxyOf = (store: Store, form: HomeForm, deps: HomeDeps): ProxyState => proxyState(store.state, form.browser.choice, deps.userAgent, form.browser.os);
 
 // Inside the phone app, a node that joined a network picks the nearest online exit once, when none was ever chosen.
-function useAutoExit(store: Store, deps: HomeDeps, candidates: ComputedRef<ExitCandidate[]>, pick: (id: string) => unknown): void {
+function useAutoExit(store: Store, deps: HomeDeps, auto: ComputedRef<ExitGroup | undefined>, pick: (slot: string, id: string) => unknown): void {
   const idle = (): boolean => isAppUserAgent(deps.userAgent) && !!store.config && !!netOf(store) && !wasExitAutoPicked(storageOf(deps));
-  const free = (): boolean => chosenExitIds(store).length === 0 && getRememberedExits(storageOf(deps)).length === 0;
-  watch(candidates, (list) => {
-    const id = idle() && free() ? autoExitPick(list) : null;
+  const free = (): boolean => chosenExitIds(store).length === 0 && getRememberedFor(auto.value?.slot ?? store.lead, storageOf(deps)).length === 0;
+  watch(auto, (group) => {
+    const id = idle() && free() ? autoExitPick(group?.items ?? []) : null;
     if (id === null) return;
     markExitAutoPicked(storageOf(deps));
-    pick(id);
+    pick(group!.slot, id);
   }, { immediate: true });
+}
+
+// The first other online exit over the groups, as a selector of its radio.
+function otherSelector(groups: ExitGroup[], multi: boolean): string {
+  const group = groups.find((g) => pickOtherExit(g.items) !== "");
+  if (!group) return otherExitSelector("");
+  return otherExitSelector(pickOtherExit(group.items), multi ? group.slot : undefined);
 }
 
 export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeContext {
@@ -204,8 +200,9 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
   const chosen = computed(() => chosenExitIds(store));
   const warning = computed(() => exitWarning(chosen.value, store.members, isMeExcluded(store.state, store.members)));
   const multi = computed(() => isMulti(store));
-  const leadCandidates = computed(() => memberExits(exitCandidates(store.state, chosen.value, getRememberedExits(storageOf(deps))), store.members));
-  const groups = computed(() => (multi.value ? exitGroups(store, chosen.value, getRememberedExits(storageOf(deps))) : [{ slot: store.lead, title: "", items: leadCandidates.value }]));
+  const leadCandidates = computed(() => memberExits(exitCandidates(store.state, chosen.value, getRememberedFor(store.lead, storageOf(deps))), store.members));
+  const groups = computed(() => (multi.value ? exitGroups(store, chosen.value, rememberedIn(storageOf(deps))) : [{ slot: store.lead, title: "", items: leadCandidates.value }]));
+  const autoGroup = computed(() => groups.value.find((g) => g.slot === (proxySlotOf(store) ?? store.lead)));
   const candidates = computed(() => (multi.value ? groups.value.flatMap((g) => g.items) : leadCandidates.value));
   const joinSent = ref<JoinSent | null>(null);
   const progress = computed(() => joinProgress(store.state, joinSent.value, store.absence ?? null));
@@ -216,8 +213,9 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     return { checked, ...configFieldAccess(metaOf(store, store.lead), "exit.enabled"), hint: exitServerHint(checked, networkLabel.value) };
   });
 
-  useAutoExit(store, deps, candidates, (id) => chooseExit(form, store, id, deps));
-  watch(() => chosen.value[0] ?? "", (v) => syncExit(form, v), { immediate: true });
+  useAutoExit(store, deps, autoGroup, (slot, id) => chooseExit(form, store, exitValue(slot, id, multi.value), deps));
+  // On every overview: a refused switch leaves the summary as it was, so the radio goes back to the truth.
+  watch([() => store.nets, () => exitChoiceValue(store)], () => syncExit(form, exitChoiceValue(store)), { immediate: true });
   watch(() => nodeNameFieldValue(netConfig(store, store.lead), store.state), (v) => syncName(form, v), { immediate: true });
   onUnmounted(() => clearHomeTimers(form, deps));
 
@@ -241,7 +239,9 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     members: computed(() => membersCountText(store.state)),
     netStatus: computed(() => (hasOthers(store.state) ? netStatusText(store.state) : null)),
     nameView: computed(() => ({ ...configFieldAccess(metaOf(store, store.lead), "node.name"), value: nodeNameFieldValue(netConfig(store, store.lead), store.state) })),
-    chooseExit: (idFull: string) => chooseExit(form, store, idFull, deps),
+    chooseExit: (value: string) => chooseExit(form, store, value, deps),
+    viaValue: (idFull: string) => exitValue(store.lead, idFull, multi.value),
+    noProxyNet: computed(() => multi.value && proxySlotOf(store) === null),
     chooseDirect: () => chooseDirect(form, store, deps),
     findExit: () => findExit(form, deps),
     saveName: () => saveName(form, store, deps),
@@ -250,7 +250,7 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     pickBrowser: (id: BrowserId) => { form.browser.choice = id; },
     pickOs: (id: OsId) => { form.browser.os = id; },
     toggleBrowser: () => { form.browser.open = !form.browser.open; },
-    pickOther: () => deps.focus(otherExitSelector(candidates.value)),
+    pickOther: () => deps.focus(otherSelector(groups.value, multi.value)),
     setMark,
   };
 }

@@ -6,16 +6,16 @@
 import { inject } from "vue";
 import { exitViaText } from "../common/words.ts";
 import { STORE_KEY } from "../core/store.ts";
-import { countryTag, exitMetaText } from "./exit-list.ts";
+import { countryTag, exitMetaText, exitValue } from "./exit-list.ts";
 import {
   HOME_EXIT_DIRECT, HOME_EXIT_EXPLAIN, HOME_EXIT_LIST_HINT, HOME_EXIT_NONE, HOME_EXIT_SEARCHING, HOME_EXIT_TITLE, HOME_FIND_ARIA, HOME_FIND_BTN, HOME_FIND_LEAD,
   HOME_FIND_NO_NET, HOME_FIND_PLACEHOLDER, findCheckingText, findEmptyText, findOkText,
 } from "./home-card-texts.ts";
-import { NETS_EXIT_ALL } from "./nets-texts.ts";
+import { NETS_EXIT_ALL, NETS_EXIT_NONE_IN, NETS_EXIT_NO_NET } from "./nets-texts.ts";
 import { useHomeContext } from "./use-home.ts";
 
 defineProps<{ bare?: boolean }>();
-const { form, candidates, exitGroups, multi, findView, hasNet, searching, warning, ...h } = useHomeContext(inject(STORE_KEY)!);
+const { form, candidates, exitGroups, multi, findView, hasNet, searching, warning, noProxyNet, ...h } = useHomeContext(inject(STORE_KEY)!);
 </script>
 
 <template>
@@ -27,10 +27,12 @@ const { form, candidates, exitGroups, multi, findView, hasNet, searching, warnin
       <label class="exit-row"><input type="radio" name="exit-choice" id="exit-direct" value="" v-model="form.exitChoice" @change="h.chooseDirect"><span class="exit-label-text">{{ HOME_EXIT_DIRECT }}</span></label>
       <template v-for="g in exitGroups" :key="g.slot">
         <h3 v-if="multi" class="exit-group-title" :data-slot="g.slot">{{ g.title }}</h3>
-        <label v-for="c in g.items" :key="c.idFull" class="exit-row"><input type="radio" name="exit-choice" class="exit-choice" :data-id="c.idFull" :value="c.idFull" :disabled="c.blocked" v-model="form.exitChoice" @change="h.chooseExit(c.idFull)"><span class="exit-label-text" :data-id="c.idFull">{{ c.label }}{{ countryTag(c) }}</span><span class="exit-meta" :data-id="c.idFull">{{ exitMetaText(c) }}</span></label>
+        <label v-for="c in g.items" :key="c.idFull" class="exit-row"><input type="radio" name="exit-choice" class="exit-choice" :data-id="c.idFull" :data-slot="g.slot" :value="exitValue(g.slot, c.idFull, multi)" :disabled="c.blocked" v-model="form.exitChoice" @change="h.chooseExit(exitValue(g.slot, c.idFull, multi))"><span class="exit-label-text" :data-id="c.idFull">{{ c.label }}{{ countryTag(c) }}</span><span class="exit-meta" :data-id="c.idFull">{{ exitMetaText(c) }}</span></label>
+        <p v-if="multi && !g.items.length" class="hint exit-group-none" :data-slot="g.slot">{{ NETS_EXIT_NONE_IN }}</p>
       </template>
       <p v-if="!candidates.length && searching" class="hint" id="exit-searching"><span class="spinner" aria-hidden="true"></span> {{ HOME_EXIT_SEARCHING }}</p>
-      <p v-else-if="!candidates.length" class="hint">{{ HOME_EXIT_NONE }}</p>
+      <p v-else-if="!candidates.length && !multi" class="hint">{{ HOME_EXIT_NONE }}</p>
+      <p v-if="noProxyNet" class="hint alert" id="exit-no-net">{{ NETS_EXIT_NO_NET }}</p>
     </div>
     <p v-if="!multi" class="hint" id="exit-list-hint" :hidden="!candidates.length">{{ HOME_EXIT_LIST_HINT }}</p>
     <p class="field-status" :class="form.exitStatus.cls" id="exit-list-status" role="status" :hidden="!form.exitStatus.text">{{ form.exitStatus.text }}</p>
@@ -45,7 +47,7 @@ const { form, candidates, exitGroups, multi, findView, hasNet, searching, warnin
         <template v-if="form.findError">{{ form.findError }}</template>
         <template v-else-if="findView.kind === 'checking'">{{ findCheckingText(findView.domain) }}</template>
         <template v-else-if="findView.kind === 'empty'">{{ findEmptyText(findView.domain) }}</template>
-        <template v-else-if="findView.kind === 'ok'"><span class="find-exit-domain">{{ findOkText(findView.domain) }}</span> <button v-for="item in findView.items" :key="item.idFull" type="button" class="btn btn-sm" :data-exit-via="item.idFull" @click="h.chooseExit(item.idFull)">{{ exitViaText(item.label) }}</button></template>
+        <template v-else-if="findView.kind === 'ok'"><span class="find-exit-domain">{{ findOkText(findView.domain) }}</span> <button v-for="item in findView.items" :key="item.idFull" type="button" class="btn btn-sm" :data-exit-via="item.idFull" @click="h.chooseExit(h.viaValue(item.idFull))">{{ exitViaText(item.label) }}</button></template>
       </p>
     </template>
   </div>

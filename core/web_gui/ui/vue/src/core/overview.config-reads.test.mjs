@@ -159,4 +159,9 @@ describe("slotFailureText", () => {
   it('is "<label>": <message>', () => {
     assert.equal(slotFailureText({ slot: MAIN, label: "friends", error: { message: "boom" } }), '"friends": boom');
   });
+
+  it("prefers the reason from the response body", () => {
+    const error = { message: "HTTP 422", body: { message: "port is taken" } };
+    assert.equal(slotFailureText({ slot: MAIN, label: "friends", error }), '"friends": port is taken');
+  });
 });

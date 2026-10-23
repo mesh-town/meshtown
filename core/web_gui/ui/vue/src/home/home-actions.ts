@@ -8,11 +8,12 @@ import type { SaveResult, ConfigChanges } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
 import { PAC_COPY_FALLBACK } from "../common/pac-texts.ts";
 import type { BrowserId, OsId, StepValue } from "./browser-setup.ts";
-import { saveConfigFields, saveSlotFields, fieldErrorText } from "../core/save-config.ts";
-import { saveSingleExit } from "../core/exit-via.ts";
+import { saveSlotFields, fieldErrorText } from "../core/save-config.ts";
+import { exitChoiceValue, rememberCurrentExit, saveDirect, saveExitIn } from "../core/exit-via.ts";
+import { parseExitValue } from "./exit-list.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { failText } from "../common/words.ts";
-import { chosenExitIds, setRememberedExits } from "../common/exits.ts";
+import { setRememberedFor } from "../common/exits.ts";
 import {
   HOME_EMPTY_FIND, HOME_FIND_ACTION, HOME_KIND_ADDR, HOME_KIND_LAN, HOME_KIND_PORT, HOME_SAVED, clipboardFallbackText,
 } from "./home-flow-texts.ts";
@@ -116,7 +117,7 @@ function resultStatus(res: SaveResult, changes: ConfigChanges): FieldStatus {
 }
 
 // The `exitSavesInFlight` counter holds the store's watch back from overwriting `exitChoice` during our PUT.
-async function exitSave(form: HomeForm, store: Store, chosenExitId: string, save: () => Promise<FieldStatus>): Promise<ExitSaveResult> {
+async function exitSave(form: HomeForm, store: Store, value: string, save: () => Promise<FieldStatus>): Promise<ExitSaveResult> {
   form.exitSavesInFlight++;
   try {
     form.exitStatus = await save();
@@ -124,19 +125,21 @@ async function exitSave(form: HomeForm, store: Store, chosenExitId: string, save
     form.exitSavesInFlight--;
   }
   const ok = form.exitStatus.cls === "saved";
-  settleChoice(form, store, chosenExitId, ok);
+  settleChoice(form, store, value, ok);
   return ok ? "saved" : "failed";
 }
 
 // While another PUT is in flight, we leave the choice to it: the last saved one will set `exitChoice` itself.
-function settleChoice(form: HomeForm, store: Store, chosenExitId: string, ok: boolean): void {
+function settleChoice(form: HomeForm, store: Store, value: string, ok: boolean): void {
   if (form.exitSavesInFlight > 0) return;
-  form.exitChoice = ok ? chosenExitId : chosenExitIds(store)[0] ?? "";
+  form.exitChoice = ok ? value : exitChoiceValue(store);
 }
 
-export function chooseExit(form: HomeForm, store: Store, idFull: string, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
-  const remember = (exits: string[]) => setRememberedExits(exits, storageOf(deps));
-  return exitSave(form, store, idFull, () => saveSingleExit(store, idFull, { api: deps.api, remember }));
+// `value` is the radio value (`exitValue`): the exit and the network it is taken in.
+export function chooseExit(form: HomeForm, store: Store, value: string, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
+  const { slot, id } = parseExitValue(value);
+  const remember = (exits: string[]) => setRememberedFor(slot, exits, storageOf(deps));
+  return exitSave(form, store, value, () => saveExitIn(store, slot, id, { api: deps.api, remember }));
 }
 
 // No storage (null) — `setRememberedExits` swallows the error itself, so we pass null as is.
@@ -144,17 +147,10 @@ export function storageOf(deps: HomeDeps): SetupStorage {
   return deps.storage as SetupStorage;
 }
 
-function rememberCurrent(store: Store, deps: HomeDeps): void {
-  const current = chosenExitIds(store).slice(0, 1);
-  return current.length ? setRememberedExits(current, storageOf(deps)) : undefined;
-}
-
 // "As usual": the chosen exit stays a list row (remembered), the choice itself is cleared.
 export function chooseDirect(form: HomeForm, store: Store, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
-  rememberCurrent(store, deps);
-  const changes = { "route.exits": [] };
-  const save = () => saveConfigFields(store, changes, { api: deps.api }).then((r) => resultStatus(r, changes));
-  return exitSave(form, store, "", save);
+  rememberCurrentExit(store, (slot, ids) => setRememberedFor(slot, ids, storageOf(deps)));
+  return exitSave(form, store, "", () => saveDirect(store, { api: deps.api }));
 }
 
 const EMPTY_FIND = HOME_EMPTY_FIND;

@@ -80,6 +80,14 @@ describe("restartTargets", () => {
       assert.deepEqual(restartTargets(storeWith({})), []);
     });
 
+    it("restart_pending is set but the overview is the source: nothing", () => {
+      assert.deepEqual(restartTargets(storeWith({ pending: ["socks.port"], source: "overview" })), []);
+    });
+
+    it("restart_pending is set and the source is the legacy request: only the main one", () => {
+      assert.deepEqual(restartTargets(storeWith({ pending: ["socks.port"], source: "legacy" })), ["main"]);
+    });
+
     it("no config meta at all: nothing", () => {
       assert.deepEqual(restartTargets(storeWith({ meta: null })), []);
     });
@@ -161,8 +169,9 @@ function fieldOf(path) {
   return field;
 }
 
-function storeWith({ restartSlots = [], pending = [], meta }) {
+function storeWith({ restartSlots = [], pending = [], meta, source = null }) {
   const store = createStore();
+  store.source = source;
   store.restartSlots = restartSlots;
   store.configMeta = meta === undefined ? { read_only: [], restart_fields: [], restart_pending: pending, cli_overrides: [] } : meta;
   return store;
