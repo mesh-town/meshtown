@@ -5,7 +5,7 @@ import { SETTINGS_RESTART_BADGE } from "./settings-texts.ts";
 import type { Field, RawValue } from "./settings-fields.ts";
 import type { FieldView } from "./settings-view.ts";
 
-const props = defineProps<{ field: Field; view: FieldView }>();
+const props = defineProps<{ field: Field; view: FieldView; caption?: string }>();
 const emit = defineEmits<{ (e: "edit", path: string, raw: RawValue): void }>();
 
 const isBool = (v: unknown): v is boolean => v === true || v === false;
@@ -24,6 +24,7 @@ function onChecked(ev: Event): void {
     <div class="setting-text">
       <div class="setting-title">{{ field.title }} <span v-if="view.restartBadge" class="mini-badge mini-badge-restart">{{ SETTINGS_RESTART_BADGE }}</span></div>
       <div v-if="field.desc" class="setting-desc">{{ field.desc }}</div>
+      <div v-if="caption" class="setting-desc field-caption">{{ caption }}</div>
       <div v-if="view.cliNote" class="setting-desc cli-note" :data-note-for="field.path" :data-readonly="view.readOnly ? '' : null">{{ view.cliNote }}</div>
       <div v-else-if="view.readonlyNote || view.disabledReason" class="setting-desc readonly-note">{{ view.readonlyNote || view.disabledReason }}</div>
       <div class="field-error-text" :id="view.id + '-error'" :hidden="!view.error">{{ view.error }}</div>

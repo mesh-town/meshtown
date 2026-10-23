@@ -6,6 +6,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
   LEGEND, VERDICT_TEXT, VERDICT_BADGE, addFailedText, checkAllLabel, checkColumns, checkTitle, columnHead, domainExitPeer, emptyColspan,
+  columnGroups, tableColspan, domainCells,
   exitCell, otherPeers, rowsBusy, verdictView,
 } from "./domains-view.ts";
 
@@ -150,5 +151,21 @@ describe("columnHead", () => {
   it("without a name or with an empty one — \"member\", the id is not repeated in the name", () => {
     assert.deepEqual(columnHead({ id: "ab12", name: null }), { name: "member", id: "ab12" });
     assert.deepEqual(columnHead({ id: "ab12", name: "  " }), { name: "member", id: "ab12" });
+  });
+});
+
+describe("a network without members", () => {
+  const empty = (slot) => ({ slot, label: slot, selfId: "me", peers: [] });
+  const merged = { name: "a.org", checking: false, byNet: {} };
+
+  it("one network — no placeholder column, the table keeps its three columns", () => {
+    assert.equal(tableColspan(columnGroups([empty("main")])), 3);
+    assert.deepEqual(domainCells(merged, [empty("main")]).map((c) => c.kind), ["you"]);
+  });
+
+  it("two networks — each empty network gets a placeholder column", () => {
+    const nets = [empty("main"), empty("b")];
+    assert.equal(tableColspan(columnGroups(nets)), 5);
+    assert.deepEqual(domainCells(merged, nets).map((c) => c.kind), ["you", "empty", "empty"]);
   });
 });

@@ -14,7 +14,7 @@ import PeersSection from "../peers/PeersSection.vue";
 import PortsSection from "../ports/PortsSection.vue";
 import LoginScreen from "../login/LoginScreen.vue";
 import SetupScreen from "../login/SetupScreen.vue";
-import { admittable, confirmable, isMeExcluded, meId } from "../members/members-view.ts";
+import { totalVotes, votesTarget } from "../peers/net-votes.ts";
 import { useAuth } from "../login/use-auth.ts";
 import SettingsSection from "../settings/SettingsSection.vue";
 import ConnStrip from "./ConnStrip.vue";
@@ -46,9 +46,9 @@ if (!injected) throw new Error(SHELL_NO_STORE);
 const store: Store = injected;
 const { conn, status, strip, identity, ready, applyToken, reloadConfig, resume } = useShell(store);
 useFavicon(store);
-// Removals and join requests waiting for this member's confirmation (none for a computer that is out of the network).
-const waiting = (): number => confirmable(store.members, meId(store.state)).length + admittable(store.members, meId(store.state)).length;
-const votes = computed(() => (isMeExcluded(store.state, store.members) ? 0 : waiting()));
+// Removals and join requests waiting for this member's confirmation, summed over the networks.
+const votes = computed(() => totalVotes(store));
+const votesHref = computed(() => votesTarget(store));
 const { screen, hasSession, noPassword, loggedIn, passwordSet } = useAuth(conn);
 
 function onLoggedIn(): void {
@@ -66,7 +66,7 @@ function onLoggedIn(): void {
     <div v-if="screen === 'app'" class="layout">
       <TabsNav :active="store.activeSection" :dirty="store.settingsDirty" :votes="votes" />
       <div class="content-col">
-        <TopBar :status="status" :votes="votes" />
+        <TopBar :status="status" :votes="votes" :href="votesHref" />
         <main class="page">
           <section
             v-for="v in views"

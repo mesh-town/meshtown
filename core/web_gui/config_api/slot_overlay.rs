@@ -14,7 +14,8 @@ use super::state::ConfigState;
 impl ConfigState {
     /// Shows `p` as this slot's process block: the file view and the boot baseline take it (so it never
     /// counts as a pending restart), the process fields become read-only and launch flags do not apply.
-    pub(crate) fn overlay_process(&mut self, p: &ProcessSettings) {
+    #[doc(hidden)]
+    pub fn overlay_process(&mut self, p: &ProcessSettings) {
         self.file_settings.process = p.clone();
         self.boot_file_settings.process = p.clone();
         self.cli_override_paths.clear();

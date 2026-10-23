@@ -1,6 +1,6 @@
 /* Texts of the five confirmation dialogs (UI spec, section 2.2). */
 
-import { REASON_LABEL, isYourExitText, labelLine, reasonLine } from "./members-texts.ts";
+import { REASON_LABEL, isYourExitText, labelLine, leaveExitLine, leaveMultiBody, leaveMultiTitle, reasonLine } from "./members-texts.ts";
 import { quotedNet } from "../common/words.ts";
 import { REASON_MAX } from "./member-reason.ts";
 
@@ -14,6 +14,8 @@ export interface DialogContext {
   isMyExit?: boolean;
   reason?: string | null; // the proposer's reason ("confirm")
   label?: string | null; // the "for whom" label of the invite ("admit")
+  multi?: boolean; // the page shows several networks ("leave")
+  exitName?: string | null; // my exit, when it is a member of this network ("leave", several networks)
 }
 
 export interface DialogSpec {
@@ -76,7 +78,7 @@ const BUILDERS: Record<DialogKind, Builder> = {
       ' stays in the network and keeps working with other members. To remove it for everyone, choose "Remove from network" instead.',
     action: "Block " + c.name,
   }),
-  leave: (c) => ({
+  leave: (c) => (c.multi ? leaveMulti(c) : {
     title: "Leave the network" + quotedNet(c.net) + "?",
     body: [
       "This computer disconnects from all members, and sites stop opening through Mesh Town. To come back, you'll need a new invite from a member.",
@@ -84,6 +86,11 @@ const BUILDERS: Record<DialogKind, Builder> = {
     action: "Leave network",
   }),
 };
+
+function leaveMulti(c: DialogContext): Omit<DialogSpec, "danger"> {
+  const net = c.net || "";
+  return { title: leaveMultiTitle(net), body: [leaveMultiBody(net), ...(c.exitName ? [leaveExitLine(c.exitName)] : [])], action: "Leave network" };
+}
 
 export function dialogSpec(kind: DialogKind, ctx: DialogContext): DialogSpec {
   const built = BUILDERS[kind](ctx);

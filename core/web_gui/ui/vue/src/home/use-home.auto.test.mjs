@@ -71,7 +71,7 @@ function setup(state, { userAgent = APP_UA, exits = [], data = {} } = {}) {
   const puts = [];
   const api = async (method, path, body) => { puts.push({ method, path, body }); return { rev: 2, config: body?.config ?? store.config }; };
   const storage = { getItem: (k) => data[k] ?? null, setItem: (k, v) => { data[k] = v; } };
-  const deps = { api, clipboard: null, setTimer: () => 1, clearTimer: () => {}, storage, userAgent, focus: () => {}, askKeep: async () => "no" };
+  const deps = { api, clipboard: null, setTimer: () => 1, clearTimer: () => {}, storage, userAgent, focus: () => {}};
   const { result: h, unmount } = withSetup(() => useHome(store, deps));
   return { h, store, unmount, puts, data };
 }

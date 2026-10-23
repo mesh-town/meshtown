@@ -12,12 +12,13 @@
 //! Files: `args.rs` — CLI flags; `overrides.rs` — parsing of `--cli-override`; `config.rs` —
 //! preparation of the settings file; `rng.rs` — deterministic generator; `node.rs` — the state of
 //! `DemoNode`; `background.rs` — background model-time task; `ports.rs` — the `ports` section of the
-//! snapshot; `members.rs` and `members_reply.rs` — the member list and its actions; `snapshot.rs` — assembling `NodeSnapshot`; `control.rs` — `impl NodeControl`; `shutdown.rs` — shutdown and cleanup.
+//! snapshot; `members.rs` and `members_reply.rs` — the member list and its actions; `snapshot.rs` — assembling `NodeSnapshot`; `control.rs` — `impl NodeControl`; `host.rs` — the network slots (`--nets`); `shutdown.rs` — shutdown and cleanup.
 
 mod args;
 mod background;
 mod config;
 mod control;
+mod host;
 mod members;
 mod members_reply;
 mod node;
@@ -33,11 +34,12 @@ use std::sync::Arc;
 use clap::Parser;
 
 use meshtown_core::config::config_file;
-use meshtown_core::web_gui::{self, WebOptions, DEFAULT_DRAIN};
+use meshtown_core::web_gui::{self, HostControl, WebOptions, DEFAULT_DRAIN};
 
 use crate::args::Args;
 use crate::background::run_background;
 use crate::config::prepare_demo_config;
+use crate::host::DemoHost;
 use crate::node::{DemoNetworkOptions, DemoNode};
 use crate::shutdown::{cleanup_dir, wait_for_sigterm};
 
@@ -47,7 +49,7 @@ fn current_unix_time() -> anyhow::Result<u64> {
         .as_secs())
 }
 
-fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> DemoNode {
+pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> DemoNode {
     let seed = if args.seed == 0 { 1 } else { args.seed };
     let ring_capacity = args
         .ring_lines
@@ -75,7 +77,7 @@ fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> DemoNode {
 async fn start_web_if_enabled(
     args: &Args,
     run: &config_file::RunConfig,
-    demo: Arc<DemoNode>,
+    host: Arc<dyn HostControl>,
 ) -> Option<web_gui::WebHandle> {
     if args.no_web {
         println!("page: not started (--no-web)");
@@ -84,13 +86,7 @@ async fn start_web_if_enabled(
     let mut opts = WebOptions::for_run(run);
     opts.port = args.port;
     opts.fixed_token = args.token.clone();
-    match web_gui::start_web_page(
-        opts,
-        run,
-        web_gui::single_slot_host(demo, web_gui::ConfigState::from_run(run)),
-    )
-    .await
-    {
+    match web_gui::start_web_page(opts, run, host).await {
         Ok(h) => {
             println!("page: http://127.0.0.1:{}/", h.shared.port());
             Some(h)
@@ -131,7 +127,8 @@ async fn main() -> anyhow::Result<()> {
     let (run, dir) = prepare_demo_config(&args, now)?;
 
     let demo = Arc::new(build_demo_node(&args, &run));
-    let handle = start_web_if_enabled(&args, &run, demo.clone()).await;
+    let host = DemoHost::new(&args, &run, demo.clone());
+    let handle = start_web_if_enabled(&args, &run, host).await;
     let bg = meshtown_core::node::output::spawn(run_background(demo.clone()));
 
     wait_for_shutdown(&demo).await;

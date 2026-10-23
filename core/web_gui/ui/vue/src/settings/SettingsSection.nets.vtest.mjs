@@ -3,7 +3,7 @@
  * the page access options without the word localhost. The rest is in `SettingsSection.vtest.mjs`. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DESC_SOCKS_ACCESS_NETS } from "../nets/nets-texts.ts";
+import { DESC_SOCKS_ACCESS_NETS } from "../lan/nets-texts.ts";
 import { flat, lastPut, mountWithNode, settled } from "../testing/nets-mount.mjs";
 import { laptopState, routerState } from "../testing/nets-states.mjs";
 import SettingsSection from "./SettingsSection.vue";

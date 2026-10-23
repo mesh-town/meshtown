@@ -1,16 +1,14 @@
-/* Joining a network and creating a network without Vue (`join-actions.ts`): highlighting the error word, the question about
- * published ports, outcomes of `joinNetwork` and `createNetwork`. The cases of `10-ports-keep.test.mjs`
- * (without the DOM dialog — it is in `PortsKeepDialog.vtest.mjs`) are moved here. The promise after joining is in
- * `join-promise.test.mjs`. */
+/* Joining a network and creating a network without Vue (`join-actions.ts`): highlighting the error word,
+ * outcomes of `joinNetwork` and `createNetwork`. The promise after joining is in `join-promise.test.mjs`. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { ApiError, API_ERROR_TEXT } from "../core/api.ts";
 import { NET_NAME } from "../common/words.ts";
 import {
-  JOIN_PROMISE_MS, JOIN_STALLED, JOIN_WAITING, bodyWithKeep, confirmSwitch, createNetwork, highlightParts, joinNetwork, portsKeepNeeded,
+  JOIN_PROMISE_MS, JOIN_STALLED, JOIN_WAITING, createNetwork, highlightParts, joinNetwork,
 } from "./join-actions.ts";
-import { pub, setup } from "../testing/join-setup.mjs";
+import { setup } from "../testing/join-setup.mjs";
 
 const MARK_KEY = "meshtown.homeSetup";
 const plain = (v) => JSON.parse(JSON.stringify(v));
@@ -40,49 +38,6 @@ describe("highlightParts", () => {
     const parts = highlightParts("The word \"<b>x</b>\" is bad", "<b>x</b>");
     assert.equal(parts.map((p) => p.text).join(""), "The word \"<b>x</b>\" is bad");
     assert.ok(parts.every((p) => typeof p.text === "string" && typeof p.highlighted === "boolean"));
-  });
-});
-
-describe("portsKeepNeeded", () => {
-  it("both empty or without ports — false", () => {
-    assert.equal(portsKeepNeeded(null, null), false);
-    assert.equal(portsKeepNeeded({}, {}), false);
-    assert.equal(portsKeepNeeded(pub([]), pub([])), false);
-  });
-  it("8080 only in state — true", () => assert.equal(portsKeepNeeded(pub([{ port: 8080 }]), pub([])), true));
-  it("8080 only in config — true", () => assert.equal(portsKeepNeeded(pub([]), pub([{ port: 8080 }])), true));
-  it("state without ports, 8080 in config — true", () => assert.equal(portsKeepNeeded({}, pub([{ port: 8080 }])), true));
-});
-
-describe("bodyWithKeep", () => {
-  it("yes — keep_ports: true, the original object is intact", () => {
-    const src = { key: "k" };
-    assert.deepEqual(plain(bodyWithKeep(src, "yes")), { key: "k", keep_ports: true });
-    assert.deepEqual(plain(src), { key: "k" });
-  });
-  it("no — keep_ports: false", () => assert.deepEqual(plain(bodyWithKeep({ key: "k" }, "no")), { key: "k", keep_ports: false }));
-  it("cancel and an empty string — null", () => {
-    assert.equal(bodyWithKeep({ key: "k" }, "cancel"), null);
-    assert.equal(bodyWithKeep({ key: "k" }, ""), null);
-  });
-});
-
-describe("confirmSwitch", () => {
-  it("nothing published — the same body, no question asked", async () => {
-    const w = setup({ ports: [] });
-    const body = { key: "k" };
-    assert.equal(await confirmSwitch(body, w.store, w.deps), body);
-    assert.equal(w.asked(), 0);
-  });
-
-  it("8080 published, \"yes\" — keep_ports: true", async () => {
-    const w = setup({ ports: [8080], answer: "yes" });
-    assert.deepEqual(plain(await confirmSwitch({ key: "k" }, w.store, w.deps)), { key: "k", keep_ports: true });
-  });
-
-  it("8080 published, \"cancel\" — null", async () => {
-    const w = setup({ ports: [8080], answer: "cancel" });
-    assert.equal(await confirmSwitch({ key: "k" }, w.store, w.deps), null);
   });
 });
 
@@ -202,42 +157,8 @@ describe("joinNetwork", () => {
     });
   });
 
-  describe("ports published", () => {
-    it("question asked, \"yes\" — keep_ports: true", async () => {
-      const w = setup({ ports: [8080], answer: "yes", reply: { label: "a" } });
-      w.form.inviteInput = "k";
-      await joinNetwork(w.form, w.store, w.deps);
-      assert.equal(w.asked(), 1);
-      assert.deepEqual(w.calls[0][2], { key: "k", keep_ports: true });
-    });
-
-    it("\"no\" — keep_ports: false", async () => {
-      const w = setup({ ports: [8080], answer: "no", reply: { label: "a" } });
-      w.form.inviteInput = "k";
-      await joinNetwork(w.form, w.store, w.deps);
-      assert.deepEqual(w.calls[0][2], { key: "k", keep_ports: false });
-    });
-
-    it("\"cancel\" — \"cancelled\", no requests, the key stays in the field", async () => {
-      const w = setup({ ports: [8080], answer: "cancel" });
-      w.form.inviteInput = "k";
-      assert.equal(await joinNetwork(w.form, w.store, w.deps), "cancelled");
-      assert.equal(w.calls.length, 0);
-      assert.equal(w.form.inviteInput, "k");
-    });
-  });
-
-  describe("ports not published", () => {
-    it("no question asked", async () => {
-      const w = setup({ reply: { label: "a" } });
-      w.form.inviteInput = "k";
-      await joinNetwork(w.form, w.store, w.deps);
-      assert.equal(w.asked(), 0);
-    });
-  });
-
   describe("repeat click in flight", () => {
-    it("\"skipped\", one request (also while the ports dialog is open)", async () => {
+    it("\"skipped\", one request", async () => {
       const w = setup({ hold: true, reply: { label: "a" } });
       w.form.inviteInput = "k";
       const first = joinNetwork(w.form, w.store, w.deps);
@@ -248,21 +169,6 @@ describe("joinNetwork", () => {
       assert.equal(await first, "joined");
       assert.equal(w.calls.length, 1);
     });
-  });
-});
-
-describe("joinNetwork, ports dialog open", () => {
-  it("second click — \"skipped\", one dialog, one request", async () => {
-    let answer = () => {};
-    const w = setup({ ports: [8080], reply: { label: "a" } });
-    w.deps.askKeep = () => new Promise((resolve) => { answer = resolve; });
-    w.form.inviteInput = "k";
-    const first = joinNetwork(w.form, w.store, w.deps);
-    await tick();
-    assert.equal(await joinNetwork(w.form, w.store, w.deps), "skipped");
-    answer("yes");
-    assert.equal(await first, "joined");
-    assert.equal(w.calls.length, 1);
   });
 });
 
@@ -350,15 +256,6 @@ describe("createNetwork", () => {
       w.form.label = "family";
       await createNetwork(w.form, w.store, w.deps);
       assert.equal(w.form.labelError, "Couldn't create the network — try again");
-    });
-  });
-
-  describe("ports published, \"cancel\"", () => {
-    it("\"cancelled\", no requests", async () => {
-      const w = setup({ ports: [8080], answer: "cancel" });
-      w.form.label = "family";
-      assert.equal(await createNetwork(w.form, w.store, w.deps), "cancelled");
-      assert.equal(w.calls.length, 0);
     });
   });
 

@@ -5,9 +5,11 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { NET_NAME } from "../common/words.ts";
 import { ApiError, API_ERROR_TEXT } from "../core/api.ts";
+import { createStore } from "../core/store.ts";
+import { NET_A, NET_B } from "../testing/overview-fixtures.mjs";
 import {
-  GAP_TEXT, chipTags, downloadUrl, emptyFeed, entryPasses, formatLogTime, mergePoll, pollErrorText, pollPath,
-  ringHint, logRingMaxLines, trimRing, visibleEntries,
+  GAP_TEXT, chipTags, downloadUrl, effectiveLogNet, emptyFeed, entryPasses, formatLogTime, lineNetTag, logNetFilters, mergePoll,
+  pollErrorText, pollPath, ringHint, logRingMaxLines, trimRing, visibleEntries,
 } from "./log-view.ts";
 
 const line = (seq, tag = "net", text = "line " + seq) => ({ seq, t: seq, tag, text });
@@ -123,3 +125,108 @@ describe("texts and addresses", () => {
     assert.equal(GAP_TEXT, "⋯ lines skipped here: " + NET_NAME + " erased them before the page could read them ⋯");
   });
 });
+
+describe("log by network", () => {
+  describe("pollPath", () => {
+    it("with a network filter adds &net=<slot> after the limit", () => {
+      assert.equal(pollPath(5, NET_B), "/api/log?after=5&limit=500&net=k7q2xa");
+    });
+    it("without a filter the path is the same as before", () => {
+      assert.equal(pollPath(5), "/api/log?after=5&limit=500");
+      assert.equal(pollPath(5, null), "/api/log?after=5&limit=500");
+    });
+    it("the download address has no filter: the whole log", () => {
+      assert.equal(downloadUrl("t"), "/api/log/download?token=t");
+    });
+  });
+
+  describe("two networks", () => {
+    it("filters are All networks, then every network that holds a key", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.deepEqual(logNetFilters(store), [
+        { slot: null, label: "All networks" },
+        { slot: NET_A, label: "friends" },
+        { slot: NET_B, label: "my devices" },
+      ]);
+    });
+    it("a slot without a key is not offered as a filter", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb"), net("m3n4pq", null, null)]);
+      assert.deepEqual(logNetFilters(store).map((f) => f.slot), [null, NET_A, NET_B]);
+    });
+    it("the network that was left disappears from the filters", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb"), net("m3n4pq", "work", "cccc")]);
+      leave(store, NET_B);
+      assert.deepEqual(logNetFilters(store).map((f) => f.slot), [null, NET_A, "m3n4pq"]);
+    });
+    it("the selected network is kept while it is a filter", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.equal(effectiveLogNet(store, NET_B), NET_B);
+      assert.equal(effectiveLogNet(store, null), null);
+    });
+    it("the selected network that was left falls back to All networks (null)", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb"), net("m3n4pq", "work", "cccc")]);
+      leave(store, NET_B);
+      assert.equal(effectiveLogNet(store, NET_B), null);
+    });
+    it("with one network left no selection survives", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      leave(store, NET_B);
+      assert.equal(effectiveLogNet(store, NET_B), null);
+      assert.equal(effectiveLogNet(store, NET_A), null);
+    });
+    it("a line of network B is tagged with its name in braces", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.equal(lineNetTag({ ...line(1), net: NET_B }, store), "{my devices}");
+    });
+    it("a line of the main network is tagged {friends}", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.equal(lineNetTag({ ...line(1), net: NET_A }, store), "{friends}");
+    });
+    it("a process line without net has no tag", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.equal(lineNetTag(line(1), store), "");
+    });
+    it("a line of an unknown slot is tagged with the slot id", () => {
+      const store = setup([net(NET_A, "friends", "aaaa"), net(NET_B, "my devices", "bbbb")]);
+      assert.equal(lineNetTag({ ...line(1), net: "zzzzzz" }, store), "{zzzzzz}");
+    });
+  });
+
+  describe("one network", () => {
+    it("there is no filter row", () => {
+      assert.deepEqual(logNetFilters(setup([net(NET_A, "friends", "aaaa")])), []);
+    });
+    it("there is no filter row when the only network is not the main one", () => {
+      assert.deepEqual(logNetFilters(setup([net(NET_A, null, null), net(NET_B, "my devices", "bbbb")])), []);
+    });
+    it("lines carry no tags, even when they have a net", () => {
+      const store = setup([net(NET_A, "friends", "aaaa")]);
+      assert.equal(lineNetTag({ ...line(1), net: NET_A }, store), "");
+      assert.equal(lineNetTag(line(2), store), "");
+    });
+  });
+});
+
+// A network summary the way the overview reports it.
+function net(id, label, idHex) {
+  return {
+    id, label, id_hex: idHex, status: "online", exit_enabled: false, proxy: id === NET_A, route_state: "direct", exits: [],
+    members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0,
+  };
+}
+
+// A store whose slots with a key have a state (visible); the rest have none.
+function setup(nets) {
+  const store = createStore();
+  store.nets = nets;
+  for (const n of nets) {
+    store.slots[n.id] = { id: n.id, brief: n, state: n.id_hex ? { network: { id_hex: n.id_hex } } : null, members: null, config: null, configRev: null, configMeta: null, bootId: "b1" };
+  }
+  return store;
+}
+
+// Network `id` is left: the slot no longer holds a key.
+function leave(store, id) {
+  store.nets = store.nets.filter((n) => n.id !== id);
+  delete store.slots[id];
+}

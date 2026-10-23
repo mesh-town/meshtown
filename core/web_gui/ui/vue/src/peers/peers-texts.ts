@@ -29,3 +29,49 @@ export const PEERS_EDIT = "Rename";
 export const PEERS_CHOSEN_OK = "✓ Your exit";
 export const PEERS_CHOSEN_DOWN = "Your exit — unavailable right now";
 export const PEERS_REFUSED = "Not available as an exit";
+
+// Several networks: the tab row, the tab header, the hint.
+export const PEERS_INVITE_ONE = "Invite a member";
+export const PEERS_INVITE_COPIED = "Invite copied. It works once, for 24 hours — send it to one person in a private message.";
+export const PEERS_TAB_ADD = "Add network";
+export const PEERS_TAB_ADD_FULL = "Mesh Town can be in up to 8 networks at once";
+export const PEERS_TAB_ADD_MARK = "+";
+export const PEERS_TAB_JOINING = "Joining the network…";
+export const PEERS_TAB_JOINING_SUB = "· joining…";
+export const PEERS_NEW_NET = "New network";
+export const PEERS_TAB_NO_CONN = "· no connection";
+export const PEERS_NETS_HINT_OK = "OK";
+export const PEERS_NETS_HINT_KEY = "meshtown.netsHintSeen";
+
+export function peersInviteTo(net: string): string {
+  return `Invite to "${net}"`;
+}
+
+// "just you" · "you and 1 other, online" · "you and 2 others, both online" · "you and 5 others, all online" · "you and 5 others, 3 online".
+export function peersWhoText(online: number, total: number): string {
+  if (total <= 0) return "just you";
+  const others = `you and ${total} ${total === 1 ? "other" : "others"}, `;
+  if (online !== total) return `${others}${online} online`;
+  if (total === 1) return others + "online";
+  return others + (total === 2 ? "both" : "all") + " online";
+}
+
+export function peersNetLine(net: string, who: string): string {
+  return `Network "${net}" · ${who}`;
+}
+
+export function peersTabSub(online: number, down: boolean): string {
+  return down ? PEERS_TAB_NO_CONN : `· ${online} online`;
+}
+
+export function peersTabTitle(net: string, online: number, total: number, down: boolean): string {
+  return down ? `${net} — no connection` : `${net} — ${online} of ${total} members online`;
+}
+
+export function peersVotesTitle(n: number): string {
+  return `${n} to confirm`;
+}
+
+export function peersNetsHint(n: number): string {
+  return `You’re now in ${n} networks. Each network has its own tab here. Your name, "Let members open sites" and "Leave network" are now in each network’s tab.`;
+}

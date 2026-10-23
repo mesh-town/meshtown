@@ -21,8 +21,9 @@ test.describe('27-home-create-network', () => {
       await expect.soft(app.joinCard.keyError).toBeHidden();
     });
 
-    await test.step('the join card moved to "Settings" (#net-join-slot) and left "Home"', async () => {
-      await expect.soft(app.joinCard.netSlotKeyInput).toHaveCount(1);
+    await test.step('"Settings" (#net-join-slot) shows the "Add another network" card (#add-net-card) and "Home" has no join card', async () => {
+      await expect.soft(app.joinCard.addNetCard).toHaveCount(1);
+      await expect.soft(app.joinCard.addNetCard).toHaveAttribute('data-context', 'settings');
       await expect.soft(app.joinCard.inHomeSlot).toHaveCount(0);
     });
 

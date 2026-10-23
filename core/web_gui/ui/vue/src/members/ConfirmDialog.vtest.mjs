@@ -1,7 +1,7 @@
 /* Contract of `members/ConfirmDialog.vue` (written before the component: red until it exists).
  *
- * Component: the one confirmation dialog of the "Members" tab (remove, confirm, block, leave), a native `<dialog>` like
- * `home/PortsKeepDialog.vue`. No props. `defineExpose({ ask })`:
+ * Component: the one confirmation dialog of the "Members" tab (remove, confirm, block, leave), a native `<dialog>`.
+ * No props. `defineExpose({ ask })`:
  *   ask(spec: { title: string; body: string[]; hint?: string; action: string; danger: boolean }): Promise<boolean>
  *   resolves true when the action is chosen, false for everything else (Cancel, Esc, a click on the backdrop,
  *   the component removed from the page while the question is open).

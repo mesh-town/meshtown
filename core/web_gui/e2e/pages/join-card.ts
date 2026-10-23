@@ -3,8 +3,8 @@ import type { Locator, Page } from '@playwright/test';
 import type { AppShell } from './app-shell';
 import { TabsBar } from './tabs-bar';
 
-/** Card region: the heading "Join with an invite" without a network, "Switch to another network" with one. */
-const CARD_NAME = /^(Join with an invite|Switch to another network)/;
+/** Card region: the heading "Join with an invite" without a network, no card of this kind with one (the "Add another network" card takes its place). */
+const CARD_NAME = /^(Join with an invite|Add another network)/;
 
 /**
  * The join card: the invite field, the "Join"/"Switch" button, the error line. The section draws it on
@@ -20,6 +20,8 @@ export class JoinCard {
   readonly inNetSlot: Locator;
   /** The invite field inside the card on Settings. */
   readonly netSlotKeyInput: Locator;
+  /** The "Add another network" card in the Settings slot (`#net-join-slot`); it replaces the join card once a network exists. */
+  readonly addNetCard: Locator;
 
   constructor(page: Page) {
     this.keyInput = page.getByLabel('Invite from a network member');
@@ -30,6 +32,7 @@ export class JoinCard {
     this.inHomeSlot = tabs.panel('home').getByRole('region', { name: CARD_NAME, includeHidden: true });
     this.inNetSlot = tabs.panel('settings').getByRole('region', { name: CARD_NAME, includeHidden: true });
     this.netSlotKeyInput = this.inNetSlot.getByLabel('Invite from a network member');
+    this.addNetCard = page.locator('#net-join-slot #add-net-card[data-context="settings"]');
   }
 
   /**

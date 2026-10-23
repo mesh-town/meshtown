@@ -7,7 +7,7 @@ import { api } from "../core/api.ts";
 import type { ApiFn } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { createLogPoller } from "./log-poller.ts";
-import { emptyFeed, logRingMaxLines } from "./log-view.ts";
+import { effectiveLogNet, emptyFeed, logRingMaxLines } from "./log-view.ts";
 import type { LogFeed } from "./log-view.ts";
 
 export interface LogFeedState {
@@ -17,7 +17,12 @@ export interface LogFeedState {
   togglePause: () => void;
 }
 
-export function useLogFeed(store: Store): LogFeedState {
+// The log belongs to the process: its start is the main slot's, whichever network leads.
+function processBoot(store: Store): string | null | undefined {
+  return store.slots.main?.bootId ?? (store.state && store.state.boot_id);
+}
+
+export function useLogFeed(store: Store, net: Ref<string | null> = ref<string | null>(null)): LogFeedState {
   const feed = shallowRef<LogFeed>(emptyFeed());
   const paused = ref<boolean>(false);
   const pollError = ref<string>("");
@@ -26,7 +31,8 @@ export function useLogFeed(store: Store): LogFeedState {
     setTimer: (fn: () => void, ms: number) => setInterval(fn, ms),
     clearTimer: (id: unknown) => clearInterval(id as ReturnType<typeof setInterval> | undefined),
     active: () => store.activeSection === "log",
-    boot: () => store.state && store.state.boot_id,
+    boot: () => processBoot(store),
+    net: () => effectiveLogNet(store, net.value),
     max: () => logRingMaxLines(store.state && store.state.log),
     onFeed: (next: LogFeed) => (feed.value = next),
     onError: (text: string) => (pollError.value = text),
@@ -38,7 +44,11 @@ export function useLogFeed(store: Store): LogFeedState {
   }
 
   watch(() => store.activeSection === "log" && !!store.state, (on) => (on ? poller.start() : poller.stop()), { immediate: true });
-  watch(() => store.state && store.state.boot_id, (now, prev) => {
+  watch(() => effectiveLogNet(store, net.value), () => {
+    poller.reset();
+    poller.tick();
+  });
+  watch(() => processBoot(store), (now, prev) => {
     if (prev != null && now !== prev) poller.reset();
   });
   onUnmounted(poller.stop);

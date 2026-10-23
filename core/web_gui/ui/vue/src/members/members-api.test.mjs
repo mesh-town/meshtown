@@ -18,6 +18,12 @@
  *      `cleanReason`); a blank reason leaves the body `{ id }` with no `reason` key at all; other actions never send a reason.
  *      Resolves `{ reply: MembersReply, changed: boolean }`; `reply` has NO `changed` key. Rejections propagate;
  *      a reply that cannot be parsed makes it reject with an Error.
+ *  - A 5th argument `slot` (default "main") moves the request to `slotPath(slot, "members/<action>")`: `main` keeps
+ *      `/api/members/<action>`, another network is `/api/net/<slot>/members/<action>`; the body is the same.
+ *  - `parseLeave(raw): LeaveReply | null`: a member list plus `left`, `announced` (both default `true` when absent: an older node
+ *      answers 200 for a left network) and `nets` (briefs, default `[]`); not a member list -> `null`.
+ *  - `leaveNet(api, slot)`: one `POST slotPath(slot, "members/leave")` with `{ confirm: true }`, resolves the `LeaveReply`;
+ *      an unreadable reply rejects with an Error.
  *  - `memberErrorText(err): string`: `failText("update the member list", err)` of common/words.ts when the error carries a
  *      human message (`body.message`, else `message`); when there is none (message is empty or equals the machine code) the
  *      reason comes from the code (self_target, not_member, left, busy, invalid, internal) so the raw code is never shown.
@@ -26,7 +32,8 @@
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import { ApiError } from "../core/api.ts";
-import { getMembers, memberErrorText, parseMembers, postMemberAction } from "./members-api.ts";
+import { getMembers, parseMembers, postMemberAction } from "./members-api.ts";
+import { NET_A } from "../testing/overview-fixtures.mjs";
 import {
   AT_UNIX,
   EXTRA_FULL,
@@ -40,7 +47,6 @@ import {
 } from "../testing/members-fixtures.mjs";
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
-const ACTION = "update the member list";
 
 describe("parseMembers", () => {
   describe("a full valid reply", () => {
@@ -313,73 +319,6 @@ describe("postMemberAction", () => {
   });
 });
 
-describe("memberErrorText", () => {
-  describe("the node sent a message", () => {
-    it.each([
-      [409, "self_target", "You can't remove your own computer"],
-      [409, "not_member", "That computer isn't in the member list"],
-      [409, "left", "This computer has left the network"],
-      [409, "busy", "The node is starting"],
-      [422, "invalid", "The member id is not valid"],
-      [500, "internal", "Couldn't write the member list"],
-    ])("%i %s: Couldn't …: the message with a lowercase first letter", (status, code, message) => {
-      const err = new ApiError(status, code, message, { error: code, message });
-      const lowered = message[0].toLowerCase() + message.slice(1);
-      assert.equal(memberErrorText(err), "Couldn't " + ACTION + ": " + lowered);
-    });
-
-    it("the program name at the start keeps its capital letter", () => {
-      const err = new ApiError(409, "busy", "busy", { error: "busy", message: "Mesh Town is stopping" });
-      assert.equal(memberErrorText(err), "Couldn't " + ACTION + ": Mesh Town is stopping");
-    });
-  });
-
-  describe("no message, only a code", () => {
-    it.each([
-      [409, "self_target"],
-      [409, "not_member"],
-      [409, "left"],
-      [409, "busy"],
-      [422, "invalid"],
-      [500, "internal"],
-    ])("%i %s: a human reason, never the raw code", (status, code) => {
-      const text = memberErrorText(new ApiError(status, code));
-      assert.ok(text.startsWith("Couldn't " + ACTION + ": "), text);
-      assert.ok(!text.endsWith(": " + code), "the raw code is the whole reason: " + text);
-      assert.ok(!text.includes("_"), "a machine code leaked: " + text);
-      assert.ok(text.length > ("Couldn't " + ACTION + ": ").length + 5, "the reason is empty: " + text);
-    });
-
-    it("different codes give different reasons", () => {
-      const codes = ["self_target", "not_member", "left", "busy", "invalid", "internal"];
-      const texts = new Set(codes.map((code) => memberErrorText(new ApiError(409, code))));
-      assert.equal(texts.size, codes.length);
-    });
-  });
-
-  describe("the page could not reach the node", () => {
-    it("network: the message of the api layer", () => {
-      const err = new ApiError(0, "network", "Mesh Town is not responding");
-      assert.equal(memberErrorText(err), "Couldn't " + ACTION + ": Mesh Town is not responding");
-    });
-
-    it("timeout: the message of the api layer", () => {
-      const err = new ApiError(0, "timeout", "Mesh Town didn't respond in time");
-      assert.equal(memberErrorText(err), "Couldn't " + ACTION + ": Mesh Town didn't respond in time");
-    });
-  });
-
-  describe("not an api error", () => {
-    it("a plain Error: its message", () => {
-      assert.equal(memberErrorText(new Error("Boom")), "Couldn't " + ACTION + ": boom");
-    });
-
-    it.each([[null], [undefined], [{}]])("%j: the generic phrase with a hint", (err) => {
-      assert.equal(memberErrorText(err), "Couldn't " + ACTION + " — try again");
-    });
-  });
-});
-
 // ---------------------------------------------------------------- setup
 
 // A fake `api`: answers every call with `reply` (or rejects with `fail`) and records the calls.
@@ -393,4 +332,13 @@ function setup({ reply, fail } = {}) {
     return { method, path, body };
   };
   return { api, call };
+}
+
+// A brief of a network with a key as the overview gives it; `label` null — no label.
+function briefOf(id, label, over = {}) {
+  return {
+    id, label, id_hex: id === NET_A ? "net-aaaa" : "net-bbbb", status: "online", exit_enabled: false, proxy: id === NET_A,
+    route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
+    peers_online: 1, peers_total: 2, ...over,
+  };
 }

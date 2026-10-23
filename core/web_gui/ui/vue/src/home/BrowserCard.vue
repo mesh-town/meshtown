@@ -5,8 +5,8 @@ import { computed, inject } from "vue";
 import type { StepValue } from "./browser-setup.ts";
 import { MANUAL_TOGGLE, MANUAL_TOGGLE_OPEN, OS_LABEL, PAC_ADDR_LABEL, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, WIZARD_AGAIN } from "../common/pac-texts.ts";
 import { STORE_KEY } from "../core/store.ts";
-import { isRouter } from "../nets/nets-view.ts";
-import NetworksSummary from "../nets/NetworksSummary.vue";
+import { isRouter } from "../lan/nets-view.ts";
+import NetworksSummary from "../lan/NetworksSummary.vue";
 import { PAC_OS_LIST, browserList, copyAriaLabel, manualAvailable, manualBrowserHint, manualIntro } from "./pac-setup.ts";
 import {
   HOME_BROWSER_GROUP_LABEL, HOME_COPIED, HOME_COPY_ADDR, HOME_COPY_PORT, HOME_COPY_SHORT, HOME_LAN_LEAD_HOME, HOME_LAN_LEAD_MULTI,

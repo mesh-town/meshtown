@@ -4,6 +4,7 @@
 
 import { computed, onUnmounted, ref, watch } from "vue";
 import type { ComputedRef, Ref } from "vue";
+import { stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { createInviteState, requestInvite, resetInviteIfNetChanged } from "./invite-actions.ts";
 import type { InviteResult, InviteState } from "./invite-actions.ts";
@@ -19,13 +20,13 @@ export interface InviteView {
   request: () => Promise<InviteResult>;
 }
 
-const netIdOf = (store: Store): string | null => (store.state && store.state.network && store.state.network.id_hex) || null;
+const netIdOf = (store: Store, slot: string): string | null => stateOf(store, slot)?.network?.id_hex || null;
 
-export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"> = defaultHomeDeps): InviteView {
+export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"> = defaultHomeDeps, slot: () => string = () => store.lead): InviteView {
   const inv = ref<InviteState>(createInviteState());
   const forWhom = ref("");
 
-  watch(() => netIdOf(store), (netId) => resetInviteIfNetChanged(inv.value, netId), { immediate: true });
+  watch(() => netIdOf(store, slot()), (netId) => resetInviteIfNetChanged(inv.value, netId), { immediate: true });
   onUnmounted(() => resetInviteIfNetChanged(inv.value, null));
 
   return {
@@ -34,6 +35,6 @@ export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"
     status: computed(() => inv.value.status),
     warning: computed(() => inv.value.warning),
     forWhom,
-    request: () => requestInvite(inv.value, store, deps, forWhom.value),
+    request: () => requestInvite(inv.value, store, deps, forWhom.value, slot()),
   };
 }

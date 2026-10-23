@@ -4,8 +4,8 @@
 
 import type { NodeState } from "../core/api-types.ts";
 import { PAC_INTRO, PHONE_SOON } from "../common/pac-texts.ts";
-import { lanView, routerPacUrl, type LanView } from "../nets/nets-view.ts";
-import { PAC_INTRO_ROUTER } from "../nets/nets-texts.ts";
+import { lanView, routerPacUrl, type LanView } from "../lan/nets-view.ts";
+import { PAC_INTRO_ROUTER } from "../lan/nets-texts.ts";
 import {
   HOME_BROWSER_WARN, HOME_FF_DNS, HOME_FF_MANUAL, HOME_FF_OPEN, HOME_FF_SOCKS5, HOME_LINUX_MANUAL, HOME_LINUX_OPEN, HOME_MAC_DETAILS,
   HOME_MAC_OK, HOME_MAC_OPEN, HOME_MAC_SOCKS, HOME_SAFARI_ONLY_MAC, HOME_STEP_HOST, HOME_STEP_PORT, HOME_STEP_SOCKS_HOST, HOME_WIN_FILL, HOME_WIN_MANUAL,

@@ -18,7 +18,7 @@ test('70-shell-rotate-token: "Revoke" in the same tab — a pending poll request
   let held: Route | null = null;
   let alive = 0;
   // The first poll request after `arm` does not reach the node until released: its token is the old one.
-  await page.route('**/api/state', async (route) => {
+  await page.route('**/api/overview', async (route) => {
     if (!arm || held) return route.continue();
     held = route;
   });
@@ -37,13 +37,13 @@ test('70-shell-rotate-token: "Revoke" in the same tab — a pending poll request
 
   await test.step('the pending request goes out with the old token and session (a 200 reply is fine); without the cookie the old token gives 401; after at least 2 poll cycles there is no bar', async () => {
     page.on('response', (r) => {
-      if (new URL(r.url()).pathname === '/api/state' && r.status() === 200) alive++;
+      if (new URL(r.url()).pathname === '/api/overview' && r.status() === 200) alive++;
     });
     await held!.continue();
     // New model: rotate keeps the initiator session, so with the cookie the reply is 200; without the cookie the old token is rejected.
     const bare = await request.get(`${target.origin}/api/state`, { headers: { 'X-Meshtown-Token': target.token }, failOnStatusCode: false });
     expect(bare.status(), 'old token without cookie').toBe(401);
-    await expect.poll(() => alive, { timeout: POLL_CYCLES_MS * 2, message: 'two /api/state polls with 200' }).toBeGreaterThanOrEqual(2);
+    await expect.poll(() => alive, { timeout: POLL_CYCLES_MS * 2, message: 'two /api/overview polls with 200' }).toBeGreaterThanOrEqual(2);
     await expect(page.locator('#conn-strip')).toBeHidden();
     await expect(page.getByText(GLOSSARY.badTokenStrip)).toHaveCount(0);
     await expect(app.topPanel.statusLine).not.toHaveText(GLOSSARY.nodeNotResponding);

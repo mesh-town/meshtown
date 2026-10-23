@@ -64,6 +64,27 @@ export const DIAG_EXIT_LABEL = "How sites open";
 export const DIAG_EXIT_VIA_DEFAULT = "the chosen member";
 export const DIAG_PROXY_LABEL = "Browser proxy";
 export const DIAG_PROXY_OFF = "The browser proxy is off";
+export const DIAG_ROUTE_WONT_OPEN_PREFIX = "In the browser, sites won’t open through ";
+
+export function diagNetNoConnectionText(net: string): string {
+  return net + ": no connection to the " + NET_NAME + " network";
+}
+
+export function diagNetAloneText(net: string): string {
+  return net + ": nobody else is here yet";
+}
+
+export function diagNetDirectoryWarnText(net: string): string {
+  return net + ": the address directory is not connected — members may not find you";
+}
+
+export function diagNetPeersText(net: string, online: number, total: number): string {
+  return net + ": " + online + " of " + total + " " + plural(total, "member", "members") + " online";
+}
+
+export function diagRouteWontOpenText(peer: string): string {
+  return DIAG_ROUTE_WONT_OPEN_PREFIX + peer;
+}
 
 export function diagUptimeText(hours: number, minutes: number): string {
   return hours + " h " + minutes + " min";

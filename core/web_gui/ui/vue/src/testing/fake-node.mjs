@@ -2,9 +2,11 @@
  * `POST /api/actions/restart` per the contract in `docs/WEB-API.md` / `docs/WEB-API-config.md`; `GET /api/members` answers 404 (an older node)
  * until a test sets `node.routes["GET /api/members"]`. It is plugged in with
  * `vi.stubGlobal("fetch", node.fetch)`: the real `api.js`, token, `ApiError` and poller work as in the browser.
+ * `/api/overview`, `/api/nets` and `/api/net/<slot>/…` — in `fake-node-slots.mjs` (option `slots`; `legacy: true` — a node without them).
  * Writing a config that needs a restart (`socks.ifaces`, `socks.access`) and `web.ifaces` — in `fake-node-config.mjs`. */
 
 import { configMeta, putConfig, restartNode } from "./fake-node-config.mjs";
+import { addNet, makeSlots, netsReply, overviewReply, primaryLeave, slotRequest } from "./fake-node-slots.mjs";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
@@ -34,6 +36,10 @@ const BUILTIN = {
   // A node of an older version has no member list: the page asks anyway and must live with the 404.
   // A test that wants the list sets `node.routes["GET /api/members"]` (and the `POST /api/members/<action>` routes).
   "GET /api/members": () => reply(404, { error: "not_found" }),
+  "GET /api/overview": (node) => overviewReply(node, OPS),
+  "GET /api/nets": (node) => netsReply(node),
+  "POST /api/nets": (node) => addNet(node),
+  "POST /api/members/leave": (node) => (node.slotsGiven ? primaryLeave(node) : null),
 };
 
 function routed(node, key, body) {
@@ -48,17 +54,24 @@ function failure(fail, path) {
   return null;
 }
 
-function respond(node, method, url, body) {
+async function respond(node, method, url, body) {
   const key = method + " " + url.pathname;
   if (key in node.routes) return routed(node, key, body);
   const handler = BUILTIN[key];
-  if (handler) return handler(node, body, url.searchParams);
+  const answer = handler ? await handler(node, body, url.searchParams) : null;
+  if (answer) return answer;
+  const slotted = await slotRequest(node, method, url, body, OPS);
+  if (slotted) return slotted;
   node.unexpected.push(key);
   return reply(404, { error: "not_found" });
 }
 
-export function createFakeNode({ state, config, rev = 1, log = [], routes = {} }) {
-  const node = { state, config, rev, log, routes, calls: [], unexpected: [], fail: null, pending: [], running: null };
+// What the slot module needs from here: answer a request as one slot's node would, and the injected failure.
+const OPS = { dispatch: respond, failure };
+
+export function createFakeNode({ state, config, rev = 1, log = [], routes = {}, slots = null, legacy = false }) {
+  const node = { state, config, rev, log, routes, calls: [], unexpected: [], fail: null, pending: [], running: null, legacy };
+  makeSlots(node, slots);
   node.count = (method, path) => node.calls.filter((c) => c.method === method && c.path === path).length;
   node.fetch = async (input, init = {}) => {
     const url = new URL(String(input), "http://node.test");

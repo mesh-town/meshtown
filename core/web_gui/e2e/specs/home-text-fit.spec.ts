@@ -1,20 +1,20 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
+import { patchMainState } from '../helpers/overview-route';
 
 // The member ring and the exit list on "Home": the text does not hit the arc, the exit caption does not overlap the name.
-// The roster is replaced via `page.route('**/api/state')`: any number of members without changing the node.
+// The roster is replaced via `patchMainState` (the main network state of the overview): any number of members without changing the node.
 
 const GAP_PX = 4;
 const WIDE = { width: 1280, height: 900 };
 const NARROW = { width: 375, height: 900 };
 
+type Peer = Record<string, unknown> & { self?: boolean };
 interface Box { x: number; y: number; width: number; height: number }
 interface RingGeometry { center: { x: number; y: number }; inner: number; texts: { name: string; box: Box }[] }
 
 async function mockPeers(page: Page, total: number, online: number): Promise<void> {
-  await page.route('**/api/state', async (route) => {
-    const res = await route.fetch();
-    const body = await res.json();
+  await patchMainState(page, (body: { peers?: Peer[] }) => {
     const self = (body.peers ?? []).find((p: { self?: boolean }) => p.self);
     const template = (body.peers ?? []).find((p: { self?: boolean }) => !p.self) ?? self;
     const others = Array.from({ length: total }, (_, i) => ({
@@ -28,7 +28,7 @@ async function mockPeers(page: Page, total: number, online: number): Promise<voi
       path: i < online ? (i === 0 ? 'relay' : 'direct') : null,
       rtt_ms: i < online ? 30 : null,
     }));
-    await route.fulfill({ response: res, json: { ...body, peers: [self, ...others] } });
+    return { ...body, peers: [self as Peer, ...others] };
   });
 }
 

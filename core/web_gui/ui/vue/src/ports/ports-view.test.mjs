@@ -248,3 +248,5 @@ describe("audienceCandidatesWith", () => {
     assert.deepEqual(res[1], { idFull: "ZZZZZZZZZZZZZZ", label: "ZZZZZZZZZZ", short: "ZZZZZZZZZZ", online: false });
   });
 });
+
+// Several networks (the cases below are written in the nested style: context, then condition, then the behaviour).

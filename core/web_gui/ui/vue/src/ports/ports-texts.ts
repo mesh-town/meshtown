@@ -68,3 +68,18 @@ export const PORTS_SAVE = "Save";
 export const PORTS_CANCEL = "Cancel";
 export const PORTS_PORT_PLACEHOLDER = "port";
 export const PORTS_PUBLISH = "Publish";
+
+export const PORTS_NET_ALL = "all";
+export const PORTS_NET_SEPARATOR = " · ";
+
+export function portsLocalUsedText(local: number, by: string): string {
+  return local + " is already used by " + by;
+}
+
+export function portsNetPeerText(peer: string, net: string): string {
+  return peer + " (" + net + ")";
+}
+
+export function portsNetGroupText(net: string): string {
+  return net + ":";
+}

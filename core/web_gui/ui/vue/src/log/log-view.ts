@@ -3,7 +3,10 @@
 
 import { formatNumber } from "../common/locale.ts";
 import { errReason, lowerFirst } from "../common/words.ts";
-import { LOG_GAP_TEXT, LOG_POLL_FAILED_PREFIX, LOG_POLL_FAILED_RETRY, LOG_RING_HINT_HEAD, LOG_RING_HINT_TAIL } from "./log-texts.ts";
+import { isMulti, netName } from "../core/slots.ts";
+import { targetSlots } from "../core/save-config.ts";
+import type { Store } from "../core/store.ts";
+import { LOG_ALL_NETWORKS, LOG_GAP_TEXT, LOG_POLL_FAILED_PREFIX, LOG_POLL_FAILED_RETRY, LOG_RING_HINT_HEAD, LOG_RING_HINT_TAIL } from "./log-texts.ts";
 import type { LogLine, LogResponse, LogSummary } from "../core/api-types.ts";
 
 /** The feed gap: the program erased some lines before the page read them. */
@@ -59,8 +62,34 @@ export function logRingMaxLines(log: Pick<LogSummary, "ring_lines"> | null | und
   return (log && log.ring_lines) || DEFAULT_LOG_RING_LINES;
 }
 
-export function pollPath(lastSeq: number): string {
-  return "/api/log?after=" + lastSeq + "&limit=" + LOG_POLL_LIMIT_LINES;
+export function pollPath(lastSeq: number, net: string | null = null): string {
+  const base = "/api/log?after=" + lastSeq + "&limit=" + LOG_POLL_LIMIT_LINES;
+  return net ? base + "&net=" + encodeURIComponent(net) : base;
+}
+
+/** One button of the network filter row; `slot: null` — every network. */
+export interface LogNetFilter {
+  slot: string | null;
+  label: string;
+}
+
+// The filter row: "All networks" and every visible network with a key; with one network there is no row.
+export function logNetFilters(store: Store): LogNetFilter[] {
+  if (!isMulti(store)) return [];
+  const nets = targetSlots(store).map((slot) => ({ slot, label: netName(store.nets, slot) }));
+  return [{ slot: null, label: LOG_ALL_NETWORKS }, ...nets];
+}
+
+// The selected network is gone from the filter row (left, hidden): back to every network.
+export function effectiveLogNet(store: Store, selected: string | null): string | null {
+  if (selected == null) return null;
+  return logNetFilters(store).some((f) => f.slot === selected) ? selected : null;
+}
+
+// The `{net}` mark of a line: only with several networks and only for lines that belong to a network.
+export function lineNetTag(line: LogLine, store: Store): string {
+  if (!isMulti(store) || !line.net) return "";
+  return "{" + netName(store.nets, line.net) + "}";
 }
 
 export function downloadUrl(token: string): string {

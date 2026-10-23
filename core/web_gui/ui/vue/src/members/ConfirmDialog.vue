@@ -76,7 +76,7 @@ defineExpose({ ask, reason });
         <label for="member-reason">{{ spec.field.label }}</label>
         <input id="member-reason" v-model="draft" type="text" class="input" :maxlength="spec.field.max" autocomplete="off" @keydown.enter.prevent />
       </template>
-      <div class="ports-keep-actions">
+      <div class="dialog-actions">
         <button id="member-confirm-yes" type="button" class="btn" :class="{ 'btn-danger': spec.danger }" @click="finish('yes')">{{ spec.action }}</button>
         <button id="member-confirm-cancel" ref="cancelBtn" type="button" class="btn btn-primary" autofocus @click="finish('no')">{{ DIALOG_CANCEL }}</button>
       </div>

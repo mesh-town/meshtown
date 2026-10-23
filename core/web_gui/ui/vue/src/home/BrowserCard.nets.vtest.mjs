@@ -3,7 +3,7 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { PAC_INTRO } from "../common/pac-texts.ts";
-import { LAN_HINT_MULTI, PAC_INTRO_ROUTER } from "../nets/nets-texts.ts";
+import { LAN_HINT_MULTI, PAC_INTRO_ROUTER } from "../lan/nets-texts.ts";
 import { flat, mountWithNode } from "../testing/nets-mount.mjs";
 import { laptopState, routerGuestState, routerState } from "../testing/nets-states.mjs";
 import BrowserCard from "./BrowserCard.vue";
