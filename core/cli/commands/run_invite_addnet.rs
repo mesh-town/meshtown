@@ -107,9 +107,28 @@ fn slot_key(path: &Path) -> Option<String> {
     }
 }
 
-/// Saves `nets/<id>/config.json` with the key and seeds the slot with the invite's peer addresses and the site
-/// list (the main network's plus the ones typed with `--domain`). The main file is not written.
-/// `Err` when nothing was saved; a failed seed is only a line in the log.
+/// A slot made ready but not yet written: its id and the run settings it will have, secret included.
+pub(crate) struct PreparedSlot {
+    pub(crate) id: NetSlotId,
+    pub(crate) run: RunConfig,
+}
+
+/// Picks the id and builds the settings of a new slot, with its own secret. Nothing is written.
+pub(crate) fn prepare_net_slot(main: &RunConfig, now: u64) -> anyhow::Result<PreparedSlot> {
+    let main_path = main_file_path(main)?;
+    let id = new_slot_id(&main_path)?;
+    let run = fresh_net_slot(main, &main.file_settings.net, &id, now)?;
+    Ok(PreparedSlot { id, run })
+}
+
+fn main_file_path(main: &RunConfig) -> anyhow::Result<std::path::PathBuf> {
+    main.file_report
+        .path
+        .clone()
+        .ok_or_else(|| anyhow::anyhow!("the run has no settings file"))
+}
+
+/// Prepares a slot and saves it with the key; see `save_prepared_slot`.
 pub(crate) fn add_net_slot(
     main: &RunConfig,
     key_text: &str,
@@ -117,13 +136,23 @@ pub(crate) fn add_net_slot(
     peers: &[PeerAddr],
     now: u64,
 ) -> anyhow::Result<NetSlotId> {
-    let main_path = main
-        .file_report
-        .path
-        .clone()
-        .ok_or_else(|| anyhow::anyhow!("the run has no settings file"))?;
-    let id = new_slot_id(&main_path)?;
-    let slot = fresh_net_slot(main, &main.file_settings.net, &id, now)?;
+    let slot = prepare_net_slot(main, now)?;
+    save_prepared_slot(main, slot, key_text, typed_domains, peers, now)
+}
+
+/// Saves `nets/<id>/config.json` with the key under the slot's own secret and seeds the slot with the invite's
+/// peer addresses and the site list (the main network's plus the ones typed with `--domain`). The main file is
+/// not written. `Err` when nothing was saved; a failed seed is only a line in the log.
+pub(crate) fn save_prepared_slot(
+    main: &RunConfig,
+    slot: PreparedSlot,
+    key_text: &str,
+    typed_domains: &[String],
+    peers: &[PeerAddr],
+    now: u64,
+) -> anyhow::Result<NetSlotId> {
+    let main_path = main_file_path(main)?;
+    let PreparedSlot { id, run: slot } = slot;
     let mut net = slot.file_settings.net.clone();
     net.network_key = Some(key_text.to_string());
     let path = net_slot_path(&main_path, &id)
