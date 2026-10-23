@@ -107,7 +107,7 @@ mod pac_script {
         // given
         let route = "SOCKS5 127.0.0.1:1080; PROXY 127.0.0.1:1080";
         // when
-        let script = pac_script(route);
+        let script = pac_script(route, route);
         // then
         assert!(
             script.contains(&format!("return \"{route}\";")),
@@ -121,7 +121,7 @@ mod pac_script {
 
     #[test]
     fn defines_find_proxy_for_url() {
-        let script = pac_script("DIRECT");
+        let script = pac_script("DIRECT", "DIRECT");
         assert!(
             script.contains("function FindProxyForURL(url, host)"),
             "script:\n{script}"
@@ -131,7 +131,7 @@ mod pac_script {
     #[test]
     fn never_resolves_names() {
         // given: the comment in the script header names these functions, so we look only at the code.
-        let code = code_without_comments(&pac_script("DIRECT"));
+        let code = code_without_comments(&pac_script("DIRECT", "DIRECT"));
         // then
         for call in ["dnsResolve", "isInNet", "myIpAddress", "isResolvable"] {
             assert!(!code.contains(call), "the script calls {call}:\n{code}");
@@ -140,7 +140,7 @@ mod pac_script {
 
     #[test]
     fn is_plain_es5() {
-        let code = code_without_comments(&pac_script("DIRECT"));
+        let code = code_without_comments(&pac_script("DIRECT", "DIRECT"));
         for syntax in ["const ", "let ", "=>", "`"] {
             assert!(
                 !code.contains(syntax),
@@ -151,10 +151,67 @@ mod pac_script {
 
     #[test]
     fn is_ascii_only() {
-        let script = pac_script("DIRECT");
+        let script = pac_script("DIRECT", "DIRECT");
         assert!(
             script.is_ascii(),
             "without a charset the body is read as Latin-1:\n{script}"
+        );
+    }
+
+    #[test]
+    fn leaves_no_marker_for_route_or_mesh() {
+        let script = pac_script("DIRECT", "SOCKS5 a; PROXY a");
+        for marker in ["__MESH__", "__ROUTE__"] {
+            assert!(
+                !script.contains(marker),
+                "the marker {marker} is left in the script:\n{script}"
+            );
+        }
+    }
+
+    #[test]
+    fn puts_mesh_route_into_return_before_local_check_and_direct() {
+        // given
+        let script = pac_script("DIRECT", "SOCKS5 a; PROXY a");
+        // then
+        let mesh = position(&script, "return \"SOCKS5 a; PROXY a\"");
+        assert!(
+            mesh < position(&script, "isLocalHost("),
+            "the mesh route comes after the local check:\n{script}"
+        );
+        assert!(
+            mesh < position(&script, "return \"DIRECT\""),
+            "the mesh route comes after the direct route:\n{script}"
+        );
+    }
+
+    #[test]
+    fn bare_mesh_name_goes_to_mesh_route() {
+        let script = pac_script("DIRECT", "SOCKS5 a; PROXY a");
+        let branch = mesh_branch(&script);
+        assert!(
+            branch.contains("h == \"meshtown\""),
+            "no test for the bare name:\n{branch}"
+        );
+    }
+
+    #[test]
+    fn name_under_mesh_suffix_with_trailing_dot_goes_to_mesh_route() {
+        // `box.meshtown.` is normalised (lower case, trailing dots dropped) before the suffix check.
+        let script = pac_script("DIRECT", "SOCKS5 a; PROXY a");
+        let branch = mesh_branch(&script);
+        assert!(
+            branch.contains("dnsDomainIs(h, \".meshtown\")"),
+            "no test for the suffix:\n{branch}"
+        );
+        let suffix = position(&script, "dnsDomainIs(h, \".meshtown\")");
+        assert!(
+            position(&script, ".replace(/\\.+$/, \"\")") < suffix,
+            "trailing dots are not dropped before the suffix check:\n{script}"
+        );
+        assert!(
+            position(&script, ".toLowerCase()") < suffix,
+            "the host is not lower-cased before the suffix check:\n{script}"
         );
     }
 }
@@ -192,7 +249,10 @@ mod pac_reply {
     #[test]
     fn head_keeps_length_and_drops_body() {
         // given
-        let script = pac_script(&pac_proxy_list(addr("127.0.0.1:1080"), false));
+        let script = pac_script(
+            &pac_proxy_list(addr("127.0.0.1:1080"), false),
+            "DIRECT",
+        );
         let (get_head, _) = split_reply(&pac_reply(&script, false));
         // when
         let (head, body) = split_reply(&pac_reply(&script, true));
@@ -239,4 +299,24 @@ fn content_length(head: &str) -> usize {
         .find_map(|l| l.strip_prefix("Content-Length: "))
         .expect("no Content-Length");
     line.parse().expect("Content-Length is a number")
+}
+
+/// Byte position of `needle` in `script`; fails the test with the script when it is missing.
+fn position(script: &str, needle: &str) -> usize {
+    script
+        .find(needle)
+        .unwrap_or_else(|| panic!("no {needle:?} in the script:\n{script}"))
+}
+
+/// The `if` block of `FindProxyForURL` that tests the mesh names: from the bare-name test up to the first `}`,
+/// proven to hold the mesh route as its `return`.
+fn mesh_branch(script: &str) -> String {
+    let from = position(script, "h == \"meshtown\"");
+    let tail = &script[from..];
+    let branch = &tail[..tail.find('}').expect("the branch is closed")];
+    assert!(
+        branch.contains("return \"SOCKS5 a; PROXY a\""),
+        "the mesh branch does not return the mesh route:\n{branch}"
+    );
+    branch.to_string()
 }

@@ -14,7 +14,7 @@ use crate::proxy::serve::serve_front;
 use crate::proxy::{bind_proxy_listener, Admission, ProxyConfig};
 
 use super::face::{access_note, lan_line, off_line};
-use super::nets::NetDirectory;
+use super::nets::{MeshAddress, NetDirectory};
 use super::ProxyFace;
 
 /// The listener's settings as they were applied.
@@ -85,6 +85,11 @@ impl ProxyFront {
     /// The shared directory of the running networks' configurations.
     pub(crate) fn nets(&self) -> NetDirectory {
         self.0.nets.clone()
+    }
+
+    /// Mesh addresses of every device the running networks list, one per device; `net` is the network where the device is online, else the lowest slot.
+    pub fn mesh_addresses(&self) -> Vec<MeshAddress> {
+        self.0.nets.mesh_addresses()
     }
 
     pub fn addr(&self) -> Option<SocketAddr> {
@@ -176,8 +181,12 @@ impl ProxyFront {
             ifaces: applied.ifaces.clone(),
         };
         let lan = lan_line(&adm, port);
-        let task =
-            crate::node::output::spawn(serve_front(listener, self.0.target.subscribe(), adm));
+        let task = crate::node::output::spawn(serve_front(
+            listener,
+            self.0.target.subscribe(),
+            self.nets(),
+            adm,
+        ));
         self.0.face.send_replace(ProxyFace {
             addr: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, port))),
             access: applied.access,

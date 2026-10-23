@@ -11,7 +11,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::transport::net::PeerId;
+use crate::transport::net::{PeerId, Replica};
 use anyhow::Result;
 
 use crate::members::membership::Members;
@@ -107,6 +107,21 @@ impl RouteCtx {
             me,
             chosen_exits,
         }
+    }
+
+    /// The member list of this node.
+    pub(crate) fn members(&self) -> &Members {
+        &self.members
+    }
+
+    /// This node's id.
+    pub(crate) fn me(&self) -> PeerId {
+        self.me
+    }
+
+    /// The replica shared with the network.
+    pub(crate) fn shared_replica(&self) -> std::sync::Arc<dyn Replica> {
+        self.doc_source.shared_replica()
     }
 
     /// Live handle: replaces the list of chosen exits without restarting the node.

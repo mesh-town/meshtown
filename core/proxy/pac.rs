@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 
 /// The PAC path on the proxy port.
 pub(super) const PAC_PATH: &str = "/proxy.pac";
-/// The script with the `__ROUTE__` marker in place of the route string.
+/// The script with the `__ROUTE__` and `__MESH__` markers in place of the route strings.
 const PAC_TEMPLATE: &str = include_str!("pac.js");
 
 #[derive(Debug, PartialEq, Eq)]
@@ -36,9 +36,11 @@ pub(super) fn pac_proxy_list(proxy: SocketAddr, direct_only: bool) -> String {
     format!("SOCKS5 {proxy}; PROXY {proxy}")
 }
 
-/// The PAC script with the route string.
-pub(super) fn pac_script(proxy_list: &str) -> String {
-    PAC_TEMPLATE.replace("__ROUTE__", proxy_list)
+/// The PAC script: `route` for ordinary hosts, `mesh` for mesh names (`meshtown`, `*.meshtown`).
+pub(super) fn pac_script(route: &str, mesh: &str) -> String {
+    PAC_TEMPLATE
+        .replace("__MESH__", mesh)
+        .replace("__ROUTE__", route)
 }
 
 /// The whole reply; `HEAD` has no body, `Content-Length` is the same.
