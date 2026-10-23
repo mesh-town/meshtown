@@ -1,5 +1,5 @@
 //! Session counters and path and network information for display. For now the path is always "direct UDX",
-//! rtt and window are unknown: `WireStats` of live streams will supply them once townjump exposes statistics.
+//! rtt and window are unknown: live stream statistics will supply them once townjump exposes statistics.
 
 use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
 use portable_atomic::AtomicU64;
@@ -44,12 +44,8 @@ impl LinkMeter {
     }
 }
 
-/// UDX statistics of one live stream. Empty until the transport exposes `stats()`.
-#[derive(Clone, Debug, Default)]
-pub struct WireStats;
-
-/// Path information of the session: bytes are mesh, not UDP; `wire` is not read yet.
-pub fn link_info(meter: &LinkMeter, _wire: &[WireStats]) -> LinkInfo {
+/// Path information of the session: bytes are mesh, not UDP.
+pub fn link_info(meter: &LinkMeter) -> LinkInfo {
     LinkInfo {
         path: path_of(meter),
         sent_bytes: meter.sent.load(Relaxed),

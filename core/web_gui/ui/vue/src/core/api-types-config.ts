@@ -87,11 +87,6 @@ export interface ConfigResponse {
   file: ConfigFileInfo;
 }
 
-/** Successful `PUT /api/config`, 200 — docs/WEB-API-config.md §1.7. */
-export interface ConfigPutResponse extends ConfigResponse {
-  changed: ConfigPath[];
-}
-
 /** Partial object: nested objects are partial too, lists are whole. */
 export type DeepPartial<T> = T extends readonly unknown[]
   ? T
@@ -99,20 +94,5 @@ export type DeepPartial<T> = T extends readonly unknown[]
     ? { [K in keyof T]?: DeepPartial<T[K]> }
     : T;
 
-/** Body of `PUT /api/config` — docs/WEB-API-config.md §1.7. The node overlays `config` on the current
- * document (objects merge, lists are replaced); it ignores `read_only` fields. */
-export interface ConfigPutRequest {
-  rev: number;
-  config: DeepPartial<ConfigDocument>;
-}
-
 /** Config meta lists in the page store (`store.configMeta`, `core/save-config.js`). */
 export type ConfigMeta = Pick<ConfigResponse, "read_only" | "restart_fields" | "restart_pending" | "cli_overrides">;
-
-/** Backup — docs/WEB-API-config.md §1.9: not implemented in the node, no addresses; the type follows the prose. */
-export type ConfigExportResponse = ConfigResponse; // GET /api/config/export — not confirmed by the code
-export interface ConfigImportRequest {
-  // POST /api/config/import — not confirmed by the code
-  rev: number | "force";
-  config: DeepPartial<ConfigDocument>;
-}

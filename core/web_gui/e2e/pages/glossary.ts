@@ -83,7 +83,6 @@ export const MEMBERS_WORDS = {
   waitingLine: 'You proposed removing it · waiting for 1 more member to confirm',
   proposedByLine: 'Proposed by peer-one · needs 1 more confirmation',
   chipLabelOf: (n: number): string => (n === 1 ? '1 request needs your confirmation' : `${n} requests need your confirmation`),
-  stripLink: 'a request needs your confirmation',
   removedSummary: (n: number): string => `No longer in the network (${n})`,
   removeTitle: (name: string): string => `Remove ${name} from the network?`,
   blockTitle: (name: string): string => `Block ${name} on this computer?`,
