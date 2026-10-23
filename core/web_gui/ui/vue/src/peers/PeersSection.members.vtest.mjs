@@ -35,7 +35,7 @@ describe("a node of an older version (no member list: GET /api/members answers 4
   });
 
   it("the page does not claim that the node is not responding", async () => {
-    const page = await openMembersPage({ members: null });
+    const page = await openMembersPage({ members: null, legacy: true });
     await page.waitPolls(2);
     expect(page.askedMembers(), "the page does ask for the list").toBeGreaterThan(0);
     expect(page.statusLine()).not.toContain(NOT_RESPONDING);
@@ -197,7 +197,7 @@ describe("the list request fails", () => {
   });
 
   it("the network fails for this request only: the last list stays, the header does not say \"not responding\"", async () => {
-    const page = await openMembersPage();
+    const page = await openMembersPage({ legacy: true });
     page.membersUnreachable();
     await page.waitPolls(2);
     expect(page.has('button[data-member-menu="' + PEER_FULL + '"]')).toBe(true);

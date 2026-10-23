@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { patchMainState } from '../helpers/overview-route';
 
 interface PortEntry {
   port?: number;
@@ -98,26 +99,25 @@ export class PortsSection {
   }
 
   /**
-   * Publications are mixed into the `GET /api/state` response (`page.route`): the page draws what
-   * the poll brought. The method waits for the `/api/state` response with the substitution (the body has the needed number of publications), then for the table rows.
+   * Publications are mixed into the main network state of the `GET /api/overview` response (`page.route`): the page draws what
+   * the poll brought. The method waits for the `/api/overview` response with the substitution (the body has the needed number of publications), then for the table rows.
    */
   async setPublished(list: PortEntry[]): Promise<void> {
     this.published = list;
     if (!this.stateRouted) {
       this.stateRouted = true;
-      await this.page.route('**/api/state', async (route) => {
-        const res = await route.fetch();
-        const body = await res.json();
-        body.ports = Object.assign({}, body.ports, { published: this.published });
-        await route.fulfill({ response: res, json: body });
-      });
+      await patchMainState(this.page, (state: { ports?: object }) => ({
+        ...state,
+        ports: Object.assign({}, state.ports, { published: this.published }),
+      }));
     }
     // The Ports tab may be hidden (the page is on Home), so we wait for the poll response with
     // the needed number of publications, not for table rows: they are not always visible.
     await this.page.waitForResponse(async (r) => {
-      if (new URL(r.url()).pathname !== '/api/state' || r.request().method() !== 'GET') return false;
+      if (new URL(r.url()).pathname !== '/api/overview' || r.request().method() !== 'GET') return false;
       const body = await r.json().catch(() => null);
-      return ((body && body.ports && body.ports.published) || []).length === list.length;
+      const main = ((body && body.slots) || []).find((s: { slot?: string }) => s.slot === 'main');
+      return ((main && main.state && main.state.ports && main.state.ports.published) || []).length === list.length;
     });
     // The response arrived, but the snapshot reaches the store later (`acceptSnapshot`, and on the first snapshot also
     // `refreshConfig`): wait for the "My published ports" rows. A hidden tab does not show them, but a CSS locator counts them.

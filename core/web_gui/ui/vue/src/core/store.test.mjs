@@ -17,6 +17,12 @@ describe("createStore", () => {
       settingsDirty: false,
       absence: null,
       members: null,
+      slots: {},
+      nets: [],
+      restartSlots: [],
+      lead: "main",
+      peersTab: null,
+      source: null,
     });
   });
 

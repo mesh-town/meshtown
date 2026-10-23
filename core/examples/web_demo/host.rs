@@ -178,5 +178,11 @@ impl HostControl for DemoHost {
 }
 
 #[cfg(test)]
+#[path = "host_slot_tests.rs"]
+mod slot_tests;
+#[cfg(test)]
 #[path = "host_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "host_tests_support.rs"]
+mod tests_support;

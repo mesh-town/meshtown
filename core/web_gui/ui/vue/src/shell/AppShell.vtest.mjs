@@ -148,6 +148,7 @@ describe("AppShell", () => {
 // Responses of the mock `api` by path; an undescribed request — `null`.
 function answer({ state, config } = {}) {
   api.mockImplementation(async (_method, path) => {
+    if (path === "/api/overview") throw new ApiError(404, "not_found"); // an old node: the legacy poll
     if (path === "/api/state") return state ? state() : null;
     if (path === "/api/config") return config ? config() : { config: baseConfig(), rev: 1 };
     return null;

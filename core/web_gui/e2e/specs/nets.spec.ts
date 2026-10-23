@@ -1,9 +1,10 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
+import { patchMainState } from '../helpers/overview-route';
 import { NETS_TEXT, NetsBlock, type Rgba } from '../pages/home/nets-block';
 
 // Choosing networks for the proxy and the page. Neither the real node nor the demo node reports networks,
-// so `/api/state` (and `/api/config` for the laptop) is replaced: the real demo reply plus the networks fields.
+// so the main state of `/api/overview` (and `/api/config` for the laptop) is replaced: the real demo reply plus the networks fields.
 // Saving ("Save") is not checked in the demo: it does not know the `ifaces` field yet — saving is covered by vitest.
 
 const NARROW = { width: 390, height: 844 };
@@ -193,13 +194,9 @@ function openToLocalnet(body: ConfigDoc): ConfigDoc {
   };
 }
 
-/** Routes `/api/state` so that the page gets the real demo reply rewritten by `patch`. */
+/** Routes the main network state of `/api/overview` so that the page gets the real demo reply rewritten by `patch`. */
 async function pretendState(page: Page, patch: (body: StateDoc) => StateDoc): Promise<void> {
-  await page.route('**/api/state', async (route) => {
-    const res = await route.fetch();
-    const body = (await res.json()) as StateDoc;
-    await route.fulfill({ response: res, json: patch(body) });
-  });
+  await patchMainState<StateDoc>(page, patch);
 }
 
 /** Does the same for reading `/api/config`; writes (PUT) go to the demo as they are. */

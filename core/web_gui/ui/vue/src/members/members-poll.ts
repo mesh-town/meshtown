@@ -1,4 +1,4 @@
-/* The second request of the poll cycle: `GET /api/members` into `store.members`. Never throws; never touches `conn`. */
+/* The second request of the legacy-mode poll cycle: `GET /api/members` into `store.members`. Never throws; never touches `conn`. */
 
 import { ApiError } from "../core/api.ts";
 import type { ApiFn } from "../core/api.ts";

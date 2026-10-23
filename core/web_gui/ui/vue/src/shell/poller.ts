@@ -1,13 +1,16 @@
-/* Polling `/api/state` and loading the config without Vue (a port of `04-poll.js`): intervals, backoff
- * on failures, reacting to `boot_id` and `config_rev` changes. It writes only to the passed `store`/`conn`. */
+/* Polling `/api/overview` (or `/api/state` + `/api/members` on an old node) and loading the config without Vue:
+ * intervals, backoff on failures, reacting to `boot_id` and `config_rev` changes. It writes only to the passed `store`/`conn`. */
 
 import type { ChangedWhat } from "../core/bridge.ts";
-import type { ApiErrorBodyLoose, ConfigMeta, ConfigResponse, NodeState } from "../core/api-types.ts";
+import type { ApiErrorBodyLoose, ConfigResponse, NodeState } from "../core/api-types.ts";
 import type { Store } from "../core/store.ts";
 import type { Conn } from "./conn.ts";
 import type { ShellDeps } from "./shell-deps.ts";
 import { POLL_HIDDEN_MS, POLL_STOPPED_MS, classify, onBadOrigin, onBadToken, onFailure, onStopping, onSuccess } from "./conn.ts";
+import { ApiError } from "../core/api.ts";
+import { acceptOverview, legacyOverview, parseOverview } from "../core/overview.ts";
 import { fetchMembers } from "../members/members-poll.ts";
+import { configMeta, readSlotConfig } from "./slot-config.ts";
 import { defaultShellDeps } from "./shell-deps.ts";
 
 const RESTART_NOTICE_MS = 4000;
@@ -21,13 +24,8 @@ const REACTION_BY_ERROR_KIND = new Map<string, Reaction>([
   ["failure", (conn) => onFailure(conn)],
 ]);
 
-const CONFIG_META_LISTS = ["read_only", "restart_fields", "restart_pending", "cli_overrides"] as const;
-
-function configMeta(data: ConfigResponse): ConfigMeta {
-  const meta: Partial<ConfigMeta> = {};
-  for (const key of CONFIG_META_LISTS) meta[key] = data[key] || [];
-  return meta as ConfigMeta;
-}
+// Only an old node answers the overview route with "not found": the node's own 404 body carries this code.
+const isNoOverview = (err: unknown): boolean => err instanceof ApiError && err.status === 404 && err.code === "not_found";
 
 // The revision only grows within one boot; a restart is handled by the config reload. While the node is
 // starting, a newer revision is its own write and a restart is ahead: the next poll after the start decides.
@@ -55,6 +53,7 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
   let inFlight = false;
   let pollAgainAfterCurrent = false;
   let closed = false;
+  let mode: "overview" | "legacy" = "overview"; // legacy — the node has no `/api/overview`, until its `boot_id` changes
   let stoppedAt: number | null = null; // when the node was stopped from this page; cleared by any live answer
 
   const blocked = () => closed || conn.awaitingToken;
@@ -111,17 +110,53 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
     }
   }
 
-  async function acceptSnapshot(data: NodeState): Promise<void> {
+  // The main slot's snapshot: reactions to `boot_id` and `config_rev`. True — the node restarted since the last one.
+  async function observe(data: NodeState): Promise<boolean> {
     const restarted = conn.bootId !== null && data.boot_id !== conn.bootId;
     if (restarted) refreshConfig();
     conn.bootId = data.boot_id;
     if (foreignRevision(store, data, restarted)) conn.configChanged = true;
     if (!conn.sawFirst) {
       conn.sawFirst = true;
-  // The config comes before the first snapshot write: the identity strip takes the reason text from the `file` block.
+      // The config comes before the first snapshot write: the identity strip takes the reason text from the `file` block.
       if (!store.configRev) await refreshConfig();
     }
-    store.state = data;
+    return restarted;
+  }
+
+  async function readSlotConfigs(ids: string[], born: number): Promise<void> {
+    for (const id of ids) {
+      if (born !== generation) return;
+      await readSlotConfig(store, deps.api, id, store.slots[id]?.state?.boot_id ?? null);
+    }
+  }
+
+  async function fetchOverview(): Promise<void> {
+    const born = generation;
+    const asked = tokenNow();
+    try {
+      const ov = parseOverviewReply(await deps.api<unknown>("GET", "/api/overview"), born);
+      if (!ov) return;
+      const main = ov.slots.find((s) => s.slot === "main")?.state ?? null;
+      if (main) await observe(main);
+      if (born !== generation) return;
+      store.source = "overview";
+      await readSlotConfigs(acceptOverview(store, ov), born);
+    } catch (err) {
+      if (born !== generation) return;
+      if (isNoOverview(err)) {
+        mode = "legacy";
+        return fetchState();
+      }
+      if (!staleAuth(err, asked)) noteError(err);
+    }
+  }
+
+  // A live answer of a request started in the current generation; null — discarded or not an overview.
+  function parseOverviewReply(raw: unknown, born: number) {
+    if (born !== generation) return null;
+    markAlive();
+    return parseOverview(raw);
   }
 
   async function fetchState(): Promise<void> {
@@ -131,8 +166,13 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
       const data = await deps.api<NodeState | null>("GET", "/api/state");
       if (born !== generation) return;
       markAlive();
-      if (data) await acceptSnapshot(data);
-      if (data && born === generation) await fetchMembers(store, deps.api); // never throws, never touches `conn`
+      if (!data) return;
+      if (await observe(data)) mode = "overview";
+      if (born !== generation) return;
+      store.source = "legacy";
+      acceptOverview(store, legacyOverview(data, store.members));
+      await fetchMembers(store, deps.api); // never throws, never touches `conn`
+      if (born === generation) acceptOverview(store, legacyOverview(data, store.members));
     } catch (err) {
       if (born === generation && !staleAuth(err, asked)) noteError(err);
     }
@@ -142,7 +182,7 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
     if (inFlight || blocked()) return;
     inFlight = true;
     try {
-      await fetchState();
+      await (mode === "overview" ? fetchOverview() : fetchState());
     } finally {
       inFlight = false;
     }

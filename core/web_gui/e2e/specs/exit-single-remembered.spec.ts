@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/index';
+import { patchMainState } from '../helpers/overview-route';
 import {
   POLL_TIMEOUT_MS,
   STRANGER_ID,
@@ -17,12 +18,10 @@ test(
     const put = await putRouteExits(api, [STRANGER_ID]);
     test.skip(put.status !== 200, `could not set route.exits before loading the page (status=${put.status})`);
     // Without exits offered by members the list holds only the remembered node: otherwise the "No other member…" check is empty.
-    await page.route('**/api/state', async (route) => {
-      const res = await route.fetch();
-      const body = await res.json();
-      body.peers = (body.peers || []).map((p: Record<string, unknown>) => ({ ...p, exit: false }));
-      await route.fulfill({ response: res, json: body });
-    });
+    await patchMainState(page, (body: { peers?: Record<string, unknown>[] }) => ({
+      ...body,
+      peers: (body.peers || []).map((p) => ({ ...p, exit: false })),
+    }));
     const app = new AppShell(page);
     await app.open(target.origin, target.token);
     const exit = app.exitCard;

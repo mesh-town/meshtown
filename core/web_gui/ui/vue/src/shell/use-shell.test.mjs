@@ -289,7 +289,7 @@ function build({ hash = "" } = {}) {
       env.calls.push(method + " " + path);
       if (path === "/api/state") return env.stateReply ? env.stateReply() : STATE;
       if (path === "/api/config") return CONFIG_REPLY;
-      throw new ApiError(404, "nf");
+      throw new ApiError(404, "not_found");
     },
     setTimer: (fn, ms) => (env.timers.push({ fn, ms, live: true }), env.timers.length),
     clearTimer: (id) => { if (id && env.timers[id - 1]) env.timers[id - 1].live = false; },

@@ -3,6 +3,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
+import { ApiError } from "../core/api.ts";
 import { createStore } from "../core/store.ts";
 import { createConn } from "./conn.ts";
 import { createPoller } from "./poller.ts";
@@ -130,6 +131,7 @@ function setup({ configRev = null } = {}) {
     api: (method, path) => {
       const key = method + " " + path;
       env.calls.push(key);
+      if (key === "GET /api/overview") return Promise.reject(new ApiError(404, "not_found")); // an old node: the legacy poll
       if (env.held && env.held.key === key) {
         const held = env.held;
         return new Promise((resolve) => { held.resolve = () => resolve(held.fn()); });
