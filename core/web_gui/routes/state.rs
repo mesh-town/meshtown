@@ -1,4 +1,4 @@
-//! `/api/state`: the node snapshot for the page (the log lives in `log.rs`).
+//! `/api/state`: the node snapshot of one slot for the page (the log lives in `log.rs`).
 
 use std::sync::Arc;
 
@@ -7,10 +7,13 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
+use super::slot_param::SlotParam;
+use super::state_host::{apply_host, apply_slot};
 use super::state_net::{apply_net, net_state};
 use crate::web_gui::auth::iface_os::current_view;
 use crate::web_gui::http::{json_err, ConnInfo};
-use crate::web_gui::{App, InviteJoinView};
+use crate::web_gui::net_brief::briefs;
+use crate::web_gui::{App, InviteJoinView, SlotHandle};
 
 struct StateExtras {
     port: u16,
@@ -23,21 +26,31 @@ struct StateExtras {
 
 pub(super) async fn state_handler(
     State(app): State<Arc<App>>,
+    SlotParam(slot): SlotParam,
     conn: Option<Extension<ConnInfo>>,
 ) -> Response {
-    let slot = app.host.main_slot();
-    let snap = slot.node.snapshot();
-    let mut value = match serde_json::to_value(&snap) {
-        Ok(v) => v,
-        Err(_) => {
-            return json_err(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "internal",
-                "internal node error",
-            )
-        }
+    let conn = conn.map(|Extension(c)| c);
+    let Some(mut value) = state_of(&app, &slot, conn.as_ref()) else {
+        return json_err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "internal",
+            "internal node error",
+        );
     };
+    // The slot's config lock is released by now; `briefs` takes the locks one by one.
+    apply_host(&mut value, &slot.id, briefs(app.host.as_ref()));
+    (StatusCode::OK, axum::Json(value)).into_response()
+}
 
+/// The state of one slot as `/api/state` sends it, without the list of networks. `/api/overview` carries
+/// one per slot; the connection-specific keys are those of a request without a connection.
+pub(crate) fn slot_state_value(app: &App, slot: &SlotHandle) -> Value {
+    state_of(app, slot, None).unwrap_or(Value::Null)
+}
+
+fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Value> {
+    let snap = slot.node.snapshot();
+    let mut value = serde_json::to_value(&snap).ok()?;
     let (config_rev, identity, identity_reason, network, restart_pending) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.sync_boot_baseline(&snap.boot_id);
@@ -50,7 +63,6 @@ pub(super) async fn state_handler(
             cfg.pending_restart_paths(),
         )
     };
-
     apply_state_extras(
         &mut value,
         StateExtras {
@@ -62,17 +74,16 @@ pub(super) async fn state_handler(
             invite_join: slot.node.invite_join(),
         },
     );
-    let conn = conn.map(|Extension(c)| c);
     let net = net_state(
         &snap,
         &app.shared.auth,
         &current_view(),
-        conn.as_ref(),
+        conn,
         restart_pending,
     );
     apply_net(&mut value, net);
-
-    (StatusCode::OK, axum::Json(value)).into_response()
+    apply_slot(&mut value, &slot.id);
+    Some(value)
 }
 
 /// Inserts derived fields (`config_rev`/`network`/version/address/identity) and rounds the time in

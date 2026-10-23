@@ -3,4 +3,4 @@
 pub(crate) mod dto;
 mod routes;
 
-pub(crate) use routes::register_members;
+pub(crate) use routes::{members_value, register_members};

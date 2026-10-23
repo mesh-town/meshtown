@@ -23,6 +23,7 @@ pub struct ConfigState {
     pub cli_override_paths: Vec<&'static str>, // fields set by launch flags
     pub current_network_key: Option<String>, // network key the node works with now
     pub last_boot_id: Option<String>, // boot_id from the node's last snapshot
+    pub(super) process_overlaid: bool, // an added slot: the process block is the primary slot's, not editable here
 }
 
 impl ConfigState {
@@ -36,6 +37,7 @@ impl ConfigState {
             cli_override_paths: run_config.cli_override_paths.clone(),
             current_network_key: run_config.effective_settings.net.network_key.clone(),
             last_boot_id: None,
+            process_overlaid: false,
         }
     }
 
@@ -149,7 +151,7 @@ impl ConfigState {
         serde_json::json!({
             "rev": self.file_report.rev,
             "config": self.page_config_document(),
-            "read_only": fields::read_only_paths(),
+            "read_only": self.read_only_list(),
             "restart_fields": fields::restart_paths(),
             "restart_pending": self.pending_restart_paths(),
             "cli_overrides": self.cli_override_paths,
