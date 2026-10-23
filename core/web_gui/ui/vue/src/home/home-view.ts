@@ -90,8 +90,9 @@ export function shownStep(step: number): number {
   return step || 2;
 }
 
-export function joinPlace(state: Snapshot): "settings" | "home" {
-  return hasNet(state) ? "settings" : "home";
+// The join form always lives on Home; with a network, Settings offers the "add another network" card instead.
+export function joinPlace(_state: Snapshot): "settings" | "home" {
+  return "home";
 }
 
 function panel(level: PanelLevel, main: string, sub = "", actions: PanelAction[] = []): StatePanelView {

@@ -3,26 +3,29 @@ import { computed, inject, nextTick, ref } from "vue";
 import { STOPPED_NOTE } from "../common/pac-texts.ts";
 import { NET_NAME } from "../common/words.ts";
 import { STORE_KEY } from "../core/store.ts";
-import { joinPlace } from "../home/home-view.ts";
+import { isMulti } from "../core/slots.ts";
+import { targetSlots } from "../core/save-config.ts";
 import { useExcluded } from "../members/use-excluded.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import { meId } from "../members/members-ids.ts";
 import NodeNameField from "../home/NodeNameField.vue";
-import JoinCard from "../home/JoinCard.vue";
+import AddNetCard from "../home/AddNetCard.vue";
 import SettingField from "./SettingField.vue";
 import SettingsSaveBar from "./SettingsSaveBar.vue";
 import PasswordRow from "../login/PasswordRow.vue";
 import TokenRow from "./TokenRow.vue";
 import type { SaveOutcome } from "./settings-actions.ts";
 import { EXPERT_FIELDS, MAIN_FIELDS, PAGE_FIELDS, fieldErrorLine, socksAccessDesc } from "./settings-fields.ts";
+import type { Field } from "./settings-fields.ts";
+import { fieldCaption, fieldLabel } from "./settings-view.ts";
 import NetworksBlock from "../lan/NetworksBlock.vue";
 import { blockWhere, sameNetsLine } from "../lan/nets-view.ts";
 import {
   SETTINGS_BAD_FILE_NAME, SETTINGS_BROKEN_HINT, SETTINGS_BROKEN_TITLE, SETTINGS_CONFLICT_HINT, SETTINGS_CONFLICT_OVERWRITE,
   SETTINGS_CONFLICT_RELOAD, SETTINGS_CONFLICT_TITLE, SETTINGS_EXPERT_TITLE, SETTINGS_FIELD_ERRORS_HINT, SETTINGS_FILE_LABEL,
   SETTINGS_LOADING, SETTINGS_MAIN_TITLE, SETTINGS_NET_TITLE, SETTINGS_PAGE_TITLE, SETTINGS_RESTART_NOTE, SETTINGS_SAME_NETS_LINK,
-  SETTINGS_LEAVE_BTN, SETTINGS_LEAVE_TITLE, SETTINGS_STOP_PREFIX, SETTINGS_STORE_MISSING, leaveHint,
+  SETTINGS_LEAVE_BTN, SETTINGS_LEAVE_MULTI, SETTINGS_LEAVE_TITLE, SETTINGS_NAME_PER_NET, SETTINGS_STOP_ALL, SETTINGS_STOP_PREFIX, SETTINGS_STORE_MISSING, leaveHint,
 } from "./settings-texts.ts";
 import { useSettings } from "./use-settings.ts";
 
@@ -33,6 +36,9 @@ const { bar, banner } = s; // top level — refs are unwrapped in the template
 const root = ref<HTMLElement | null>(null);
 const { excluded } = useExcluded(store);
 const { status: leaveStatus, dialog, pick } = useMembersActions(store);
+const multi = computed(() => isMulti(store));
+const hasKeyNet = computed(() => targetSlots(store).length > 0);
+const labeled = (f: Field): Field => ({ ...f, title: fieldLabel(f, multi.value) });
 const ready = computed(() => !!(store.config && store.configMeta));
 
 // After a 422 rejection — scroll to the first field with an error (like `scrollToFirstFieldError` in the classic page).
@@ -88,7 +94,7 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
         </div>
         <div class="card" id="settings-main-card">
           <h2>{{ SETTINGS_MAIN_TITLE }}</h2>
-          <div id="settings-node-name-row"><NodeNameField id-base="settings-node-name" /></div>
+          <div id="settings-node-name-row"><p v-if="multi" id="settings-name-per-net" class="hint">{{ SETTINGS_NAME_PER_NET }}</p><NodeNameField v-else id-base="settings-node-name" /></div>
           <template v-for="f in mainFields" :key="f.path">
             <SettingField :field="f" :view="s.view(f)" @edit="s.edit" />
             <NetworksBlock v-if="f.path === 'socks.access' && where === 'main'" context="settings" />
@@ -99,10 +105,11 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
 
     <div class="card" id="settings-net-card">
       <h2>{{ SETTINGS_NET_TITLE }}</h2>
-      <div id="net-join-slot"><JoinCard v-if="joinPlace(store.state) === 'settings' && !excluded" /></div>
+      <div id="net-join-slot"><AddNetCard v-if="hasKeyNet && !excluded" context="settings" /></div>
       <button type="button" class="btn btn-danger" id="stop-node-btn" @click="s.stop">{{ SETTINGS_STOP_PREFIX }}{{ NET_NAME }}</button>
-      <p class="hint">{{ STOPPED_NOTE }}</p>
-      <div v-if="store.state && store.state.network && !excluded" id="settings-leave-row">
+      <p class="hint">{{ multi ? SETTINGS_STOP_ALL : "" }}{{ STOPPED_NOTE }}</p>
+      <p v-if="multi" id="settings-leave-multi" class="hint">{{ SETTINGS_LEAVE_MULTI }}</p>
+      <div v-else-if="store.state && store.state.network && !excluded" id="settings-leave-row">
         <h3 class="setting-title">{{ SETTINGS_LEAVE_TITLE }}</h3>
         <p class="hint">{{ leaveHint(store.state.network.label) }}</p>
         <button type="button" class="btn btn-danger" id="settings-leave-btn" @click="pick('leave', meId(store.state))">{{ SETTINGS_LEAVE_BTN }}</button>
@@ -115,10 +122,10 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
       <div id="settings-expert">
         <details class="card" id="settings-expert-details" :open="s.form.expertOpen" @toggle="onToggle">
           <summary class="setting-title">{{ SETTINGS_EXPERT_TITLE }}</summary>
-          <SettingField v-for="f in EXPERT_FIELDS" :key="f.path" :field="f" :view="s.view(f)" @edit="s.edit" />
+          <SettingField v-for="f in EXPERT_FIELDS" :key="f.path" :field="labeled(f)" :caption="fieldCaption(f, multi)" :view="s.view(f)" @edit="s.edit" />
           <h3 class="setting-title">{{ SETTINGS_PAGE_TITLE }}</h3>
           <template v-for="f in PAGE_FIELDS" :key="f.path">
-            <SettingField :field="f" :view="s.view(f)" @edit="s.edit" />
+            <SettingField :field="labeled(f)" :caption="fieldCaption(f, multi)" :view="s.view(f)" @edit="s.edit" />
             <NetworksBlock v-if="f.path === 'web.access' && where === 'page'" context="settings" />
             <p v-if="f.path === 'web.access' && sameNets" id="same-nets" class="nets-same">{{ sameNets }} <button type="button" id="same-nets-link" class="nets-link" @click="showSameNets">{{ SETTINGS_SAME_NETS_LINK }}</button></p>
           </template>

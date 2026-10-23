@@ -237,7 +237,7 @@ function pageOf(node, wrapper, store) {
   const section = () => wrapper.get("#sec-peers");
   const tabs = () => wrapper.findAll("#sec-peers .ntabs [role=tab]");
   const tabNamed = (name) => tabs().find((t) => compact(t.text()).startsWith(name));
-  const card = () => wrapper.find("#add-net-card");
+  const card = () => wrapper.find("#add-net-card[data-context=\"peers\"]");
   const buttonIn = (root, name) => root.findAll("button, a").find((b) => compact(b.text()) === name);
   const hashChanged = async () => {
     window.dispatchEvent(new HashChangeEvent("hashchange"));

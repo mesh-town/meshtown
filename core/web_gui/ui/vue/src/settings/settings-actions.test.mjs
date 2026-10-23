@@ -309,19 +309,19 @@ describe("restartNode", () => {
   describe("result", () => {
     it("restarted / failed / skipped", async () => {
       const ok = setup({ script: [() => ({})] });
-      assert.equal(await restartNode(ok.form, ok.deps), "restarted");
+      assert.equal(await restartNode(ok.form, ok.deps, restartable(ok.store)), "restarted");
       const bad = setup({ script: [() => { throw new ApiError(409, "busy", "x"); }] });
-      assert.equal(await restartNode(bad.form, bad.deps), "failed");
+      assert.equal(await restartNode(bad.form, bad.deps, restartable(bad.store)), "failed");
       const busy = setup({ script: [] });
       busy.form.busy = true;
-      assert.equal(await restartNode(busy.form, busy.deps), "skipped");
+      assert.equal(await restartNode(busy.form, busy.deps, restartable(busy.store)), "skipped");
     });
   });
 
   describe("success", () => {
     it("POST /api/actions/restart, restartRequested, the text \"Mesh Town is restarting…\" with class saved", async () => {
       const w = setup({ script: [() => ({ restart: true })] });
-      await restartNode(w.form, w.deps);
+      await restartNode(w.form, w.deps, restartable(w.store));
       assert.equal(w.calls[0].method, "POST");
       assert.equal(w.calls[0].path, "/api/actions/restart");
       assert.equal(w.form.restartRequested, true);
@@ -332,7 +332,7 @@ describe("restartNode", () => {
   describe("failure", () => {
     it("the node's error text, restartRequested not set", async () => {
       const w = setup({ script: [() => { throw new ApiError(409, "busy", "node is starting"); }] });
-      await restartNode(w.form, w.deps);
+      await restartNode(w.form, w.deps, restartable(w.store));
       assert.equal(w.form.message.text, "Couldn't restart the node: node is starting");
       assert.equal(w.form.message.cls, "field-error-text");
       assert.equal(w.form.restartRequested, false);
@@ -340,7 +340,7 @@ describe("restartNode", () => {
 
     it("an error without text — \"Couldn't restart the node — try again\"", async () => {
       const w = setup({ script: [() => { throw Object.assign(new Error(""), { code: "x" }); }] });
-      await restartNode(w.form, w.deps);
+      await restartNode(w.form, w.deps, restartable(w.store));
       assert.equal(w.form.message.text, "Couldn't restart the node — try again");
     });
   });
@@ -349,7 +349,7 @@ describe("restartNode", () => {
     it("the bar does not show \"Mesh Town is restarting\"", async () => {
       const w = setup({ script: [() => ({ restart: true })] });
       w.store.configMeta = meta({ restart_pending: [] });
-      await restartNode(w.form, w.deps);
+      await restartNode(w.form, w.deps, restartable(w.store));
       const view = saveBarView({
         dirty: false,
         meta: w.store.configMeta,
@@ -541,6 +541,12 @@ function fail(code, status, body) {
 }
 
 /** `script` — one response per `api` call; `confirm` — what the confirmation dialog answers. */
+// A store whose overview lists the main network as waiting for a restart.
+function restartable(store) {
+  store.restartSlots = ["main"];
+  return store;
+}
+
 function setup({ script, confirm = true }) {
   const store = createStore();
   store.config = configBody();

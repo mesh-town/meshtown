@@ -382,6 +382,7 @@ function bar({ dirty = false, pending = [], requested = false, busy = false, con
     dirty,
     meta: meta_({ restart_pending: pending }),
     configFile,
+    restartTargets: pending.length > 0 ? ["main"] : [],
     requested,
     busy,
     message: msg(text),

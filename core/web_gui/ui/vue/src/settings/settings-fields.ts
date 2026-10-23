@@ -213,3 +213,8 @@ export function fieldErrorLine(fe: FieldError): string {
   const field = [...MAIN_FIELDS, ...EXPERT_FIELDS, ...PAGE_FIELDS].find((f) => f.path === fe.path);
   return field ? field.title + " (" + fe.path + "): " + fe.message : fe.path + ": " + fe.message;
 }
+
+/** Paths that every network keeps in step with the main one. */
+export const SHARED_PATHS: readonly string[] = [
+  "probe.interval_sec", "checks.enabled", "checks.interval_sec", "checks.doh_server", "checks.provider_dns",
+];

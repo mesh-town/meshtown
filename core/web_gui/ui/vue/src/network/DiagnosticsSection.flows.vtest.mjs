@@ -7,7 +7,6 @@ import { createFakeNode } from "../testing/fake-node.mjs";
 import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.mjs";
 import { shownStrict as shown } from "../testing/dom.mjs";
 
-const RESTART_HINT_DESCRIBEDBY = "join-key-error net-restart-hint";
 const TYPED = "abc";
 
 afterEach(unmountPage);
@@ -24,17 +23,15 @@ async function openSpecialist(wrapper) {
 }
 
 const headingsNamed = (wrapper, name) => wrapper.findAll("h1,h2,h3,h4,h5,h6").filter((h) => h.text().trim() === name);
-const buttonsNamed = (wrapper, name) => wrapper.findAll("button").filter((b) => b.text().trim() === name);
 
 describe("texts of the join and key cards when a network exists", () => {
-  it("\"Switch to another network\"/\"Switch\", the restart hint is tied to the field, the \"Mesh Town network key\" card with a \"Show\" button", async () => {
+  it("Settings offers \"Add another network\" instead of a switch, the \"Mesh Town network key\" card with a \"Show\" button", async () => {
     const { wrapper } = await mountPage(makeNode());
     await openTab(wrapper, "settings");
 
-    expect(headingsNamed(wrapper, "Switch to another network")).toHaveLength(1);
-    expect(buttonsNamed(wrapper, "Switch")).toHaveLength(1);
-    expect(wrapper.get("#join-key-input").attributes("aria-describedby")).toBe(RESTART_HINT_DESCRIBEDBY);
-    expect(wrapper.get("#join-card").text()).toMatch(/restarts Mesh Town/);
+    expect(headingsNamed(wrapper, "Switch to another network")).toHaveLength(0);
+    expect(wrapper.find("#join-card").exists()).toBe(false);
+    expect(headingsNamed(wrapper, "Add another network")).toHaveLength(1);
 
     await openTab(wrapper, "network");
     await openSpecialist(wrapper);
