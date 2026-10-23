@@ -2,7 +2,8 @@
 
 use super::*;
 use crate::config::config_file::{
-    save_net_file, NetFile, NetSettings, ProcessSettings, SettingsFile,
+    save_net_file, ConfigSource, NetFile, NetSettings, ProcessSettings, RunConfig, SettingsFile,
+    TransportMode,
 };
 
 const SLOT_INTERVAL: u64 = 77;
@@ -62,6 +63,80 @@ fn caches_are_placed_beside_the_slot_file() {
         cfg.peers_cache_path,
         Some(slot_dir.join("peers-cache.json"))
     );
+}
+
+mod flags_of_the_process {
+    use super::*;
+
+    #[test]
+    fn slot_relaunch_keeps_the_transport_flag_but_not_the_key() {
+        // given: a process started with --no-relay and --key
+        let main = flagged_relaunch(Some(TransportMode::NoRelay), None);
+        // when: the relaunch of an added slot is derived from it
+        let slot = main.for_net_slot(&bare_run());
+        // then: the transport flag is inherited, the key is not
+        assert_eq!(slot.cli.transport_mode, Some(TransportMode::NoRelay));
+        assert_eq!(slot.cli.network_key, None, "the key belongs to one network");
+    }
+
+    #[test]
+    fn net_flags_go_to_the_net_block() {
+        // given: --no-relay is a flag of the process, the settings say otherwise
+        let main = flagged_relaunch(Some(TransportMode::NoRelay), None);
+        let mut s = Settings::default();
+        assert_ne!(s.net.transport_mode, TransportMode::NoRelay);
+        // when: the flags are laid over the settings of a slot
+        main.apply_net_flags(&mut s);
+        // then: the transport comes from the flag
+        assert_eq!(s.net.transport_mode, TransportMode::NoRelay);
+    }
+
+    #[test]
+    fn net_flags_leave_the_process_block_alone() {
+        // given: --socks and --no-relay, a process block with SOCKS off
+        let main = flagged_relaunch(Some(TransportMode::NoRelay), Some(true));
+        let mut s = Settings::default();
+        s.process.socks_enabled = false;
+        let process_before = s.process.clone();
+        // when: the flags are laid over the settings of a slot
+        main.apply_net_flags(&mut s);
+        // then: the process block is the one it was
+        assert_eq!(s.process, process_before);
+    }
+
+    #[test]
+    fn net_flags_never_put_the_key_into_the_settings() {
+        // given: a process started with --key
+        let main = flagged_relaunch(None, None);
+        let mut s = Settings::default();
+        // when: the flags are laid over the settings of a slot
+        main.apply_net_flags(&mut s);
+        // then: the settings still have no key
+        assert_eq!(s.net.network_key, None);
+    }
+
+    fn flagged_relaunch(
+        transport_mode: Option<TransportMode>,
+        socks_enabled: Option<bool>,
+    ) -> Relaunch {
+        Relaunch {
+            file: None,
+            cli: CliOverrides {
+                network_key: Some("main-key".into()),
+                transport_mode,
+                socks_enabled,
+                ..CliOverrides::default()
+            },
+            secret: test_secret(3),
+            initial_domains: Vec::new(),
+            blocked_domains: Vec::new(),
+            test_net: None,
+        }
+    }
+
+    fn bare_run() -> RunConfig {
+        config_file::prepare(&ConfigSource::Disabled, &CliOverrides::default(), false, 0).unwrap()
+    }
 }
 
 struct Fixture {

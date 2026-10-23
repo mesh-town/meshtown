@@ -97,7 +97,7 @@ pub async fn run_network(
     }
 }
 
-/// Wait loop before the first start: `Stop` — exit (from the page or Ctrl-C/SIGTERM, already
+/// Wait loop before the first start: a `Stop` that lands while a switch is applied also exits before the boot. `Stop` — exit (from the page or Ctrl-C/SIGTERM, already
 /// turned into `Stop` by the signal task of the host); `Switch { key, peers }` — `relaunch.reload`, on success
 /// — move to `run_cycles` with the invite's addresses for this start; on failure — back to
 /// `NoNetwork`, keep waiting (a failure of `start_node` itself on the first cycle after that
@@ -116,6 +116,7 @@ async fn wait_then_run(
             Cmd::Switch { key, peers } => {
                 ctl.mark_starting();
                 match apply_switch(&key, peers, identity, &mut settings, ctl, &relaunch) {
+                    Ok(_) if ctl.stop_requested() => return Ok(()),
                     Ok(mut cfg) => match run_cycles(&mut cfg, &mut settings, ctl, &relaunch).await?
                     {
                         CycleEnd::Stopped => return Ok(()),
@@ -154,6 +155,7 @@ fn spawn_console_on_first_cycle(node: &super::running::RunningNode, ctl: &NodeCt
 
 /// Cycles "start → run → stop → command handling". Split into three steps: `boot_cycle` (start),
 /// `serve_until_command` (work until a command, and stop), `after_command` (Stop or network switch).
+/// A stop that arrived before a cycle begins ends the loop without booting the node.
 async fn run_cycles(
     cfg: &mut NodeConfig,
     settings: &mut Settings,
@@ -162,6 +164,9 @@ async fn run_cycles(
 ) -> Result<CycleEnd> {
     let mut first_cycle = true;
     loop {
+        if ctl.stop_requested() {
+            return Ok(CycleEnd::Stopped);
+        }
         cfg.proxy_face = ctl.proxy_face();
         apply_proxy(settings, ctl, first_cycle).await?;
         let node = boot_cycle(cfg, ctl, first_cycle).await?;

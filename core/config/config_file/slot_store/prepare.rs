@@ -6,7 +6,6 @@ use std::sync::Arc;
 use super::list::NetSlotOnDisk;
 use super::prepare_log::{log_file_findings, log_identity};
 use super::settings_file::NetFile;
-use crate::config::config_file::fields::{field_by_path, Block};
 use crate::config::config_file::{
     new_secret, save_net_file, FileReport, FileState, LoadedNetFile, NetSettings, ParsedNetFile,
     RunConfig, SaveError, SecretRead, Settings,
@@ -120,14 +119,12 @@ fn settle_identity(path: &Path, p: &ParsedNetFile, now_unix: u64) -> Result<Iden
     Ok(write_new_secret(path, p, secret, now_unix))
 }
 
-/// The main run's flag paths that belong to the process block; network flags do not apply to a slot.
-pub(super) fn process_flag_paths(main: &RunConfig) -> Vec<&'static str> {
-    let is_process =
-        |p: &&'static str| field_by_path(p).is_some_and(|f| f.block() == Block::Process);
+/// The main run's flag paths that apply to a slot: every one except the network key, which a slot takes from its file.
+pub(super) fn slot_flag_paths(main: &RunConfig) -> Vec<&'static str> {
     main.cli_override_paths
         .iter()
         .copied()
-        .filter(is_process)
+        .filter(|p| *p != "network.key")
         .collect()
 }
 
@@ -167,7 +164,7 @@ pub(super) fn slot_run(
         },
         secret,
         file_report,
-        cli_override_paths: process_flag_paths(main),
+        cli_override_paths: slot_flag_paths(main),
         file: Some(Arc::new(file)),
     }
 }

@@ -24,9 +24,9 @@ mod with_key {
         assert!(matches!(res, Ok(Ok(()))), "stop before start: {res:?}");
     }
 
-    /// given a config, when the stop was requested before the start, then the node still boots once.
+    /// given a config, when the stop was requested before the start, then the node takes no boot.
     #[tokio::test]
-    async fn stop_before_start_still_boots_once() {
+    async fn stop_before_start_takes_no_boot() {
         // given
         let fx = setup_with_key(62);
         let id0 = fx.ctl.snapshot().boot_id;
@@ -37,7 +37,7 @@ mod with_key {
 
         // then
         assert!(matches!(res, Ok(Ok(()))), "{res:?}");
-        assert_ne!(id0, fx.ctl.snapshot().boot_id, "the node must boot once");
+        assert_eq!(id0, fx.ctl.snapshot().boot_id, "the node must not boot");
     }
 
     /// given a running node, when the stop is requested, then the call ends with `Ok`.
@@ -92,6 +92,26 @@ mod without_key {
 
         // then
         assert!(matches!(res, Ok(Ok(()))), "stop before start: {res:?}");
+    }
+
+    /// given no config and a key that arrived, when the stop was requested before the call, then the call
+    /// ends with `Ok` and the node takes no boot. A guard, not a red test: the queue folds the pending
+    /// `Switch` and `Stop` into `Stop`, so the stop is seen before the switch is applied.
+    #[tokio::test]
+    async fn stop_after_a_key_before_start_takes_no_boot() {
+        // given
+        let fx = setup_without_key();
+        let id0 = fx.ctl.snapshot().boot_id;
+        fx.ctl
+            .join_with_peers(&NetworkKey::from_bytes([65; 32]).encode(), vec![]);
+        fx.ctl.stop();
+
+        // when
+        let res = timeout(LEAVE_WITHIN, fx.start()).await;
+
+        // then
+        assert!(matches!(res, Ok(Ok(()))), "{res:?}");
+        assert_eq!(id0, fx.ctl.snapshot().boot_id, "the node must not boot");
     }
 
     /// given no config, when the node runs, then it waits for a key (`NoNetwork`) until it is stopped,

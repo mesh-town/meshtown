@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use serde_json::Value;
 
-use crate::config::config_file::fields::{self, Block};
+use crate::config::config_file::fields::{self, field_by_path, Block};
 use crate::config::config_file::ProcessSettings;
 use crate::web_gui::http::json_err;
 
@@ -13,12 +13,13 @@ use super::state::ConfigState;
 
 impl ConfigState {
     /// Shows `p` as this slot's process block: the file view and the boot baseline take it (so it never
-    /// counts as a pending restart), the process fields become read-only and launch flags do not apply.
+    /// counts as a pending restart), the process fields become read-only and launch flags of the process block do not apply.
     #[doc(hidden)]
     pub fn overlay_process(&mut self, p: &ProcessSettings) {
         self.file_settings.process = p.clone();
         self.boot_file_settings.process = p.clone();
-        self.cli_override_paths.clear();
+        self.cli_override_paths
+            .retain(|p| !field_by_path(p).is_some_and(|f| f.block() == Block::Process));
         self.process_overlaid = true;
     }
 
