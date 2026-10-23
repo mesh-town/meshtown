@@ -101,6 +101,17 @@ jobs:
       - name: JVM unit tests
         run: make android-test
 
+  boundary:
+    name: core/platform boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        run: rustup toolchain install stable --profile minimal
+      - name: Boundary
+        run: make boundary
+
   msrv:
     name: msrv
     runs-on: ubuntu-latest
