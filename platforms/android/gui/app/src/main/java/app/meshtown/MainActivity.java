@@ -59,6 +59,11 @@ public class MainActivity extends Activity {
                     menu.confirmStartOver();
                     return true;
                 }
+                if (UpdateLink.matches(r.getUrl().toString())) {
+                    UpdateInstaller.start(MainActivity.this,
+                            UpdateLink.source(r.getUrl().toString(), BuildConfig.UPDATE_TEST_URL));
+                    return true;
+                }
                 if ("https".equals(r.getUrl().getScheme())) {
                     startActivity(new android.content.Intent(android.content.Intent.ACTION_VIEW, r.getUrl()));
                     return true;
@@ -105,6 +110,7 @@ public class MainActivity extends Activity {
         NodeService.quitRequested = false;
         startForegroundService(new Intent(this, NodeService.class));
         refresh();
+        UpdateInstaller.startIfRequested(this, getIntent());
     }
 
     @Override
@@ -144,6 +150,7 @@ public class MainActivity extends Activity {
         super.onNewIntent(intent);
         takeInvite(intent);
         loadPage();
+        UpdateInstaller.startIfRequested(this, intent);
     }
 
     /** Remembers the shared text when it is an invite; the secret is never logged. */
