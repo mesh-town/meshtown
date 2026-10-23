@@ -20,7 +20,7 @@ material.
 
 - Source: https://www.eff.org/dice, © Electronic Frontier Foundation
 - License: Creative Commons Attribution 3.0 United States (CC BY 3.0 US), https://creativecommons.org/licenses/by/3.0/us/
-- Embedded unchanged as `core/wordlist/eff_large_wordlist.txt`; details are in `core/wordlist/NOTICE.md`.
+- Embedded unchanged as `core/members/wordlist/eff_large_wordlist.txt`; details are in `core/members/wordlist/NOTICE.md`.
 
 ## Vue 3.5.43
 
@@ -31,8 +31,25 @@ material.
 
 ## Rust dependencies
 
-Rust dependencies in `Cargo.lock` are distributed under their own licenses. A full list of dependency licenses for
-binary releases is planned after 0.2.0.
+Rust dependencies in `Cargo.lock` are distributed under their own licenses, listed in each package's metadata
+(`cargo metadata`). Most are `MIT`, `Apache-2.0` or both. Dependencies under other licenses:
+
+| License | Crates |
+|---|---|
+| `MPL-2.0` | `option-ext` |
+| `CDLA-Permissive-2.0` | `webpki-roots` |
+| `Unicode-3.0` | the `icu_*` crates, `litemap`, `potential_utf`, `tinystr`, `writeable`, `yoke`, `yoke-derive`, `zerofrom`, `zerofrom-derive`, `zerotrie`, `zerovec`, `zerovec-derive` |
+| `Apache-2.0 AND ISC` | `ring` |
+| `ISC` | `libloading`, `rustls-webpki`, `untrusted` |
+| `BSD-3-Clause` | `curve25519-dalek`, `ed25519-dalek`, `subtle` |
+| `BSD-2-Clause` | `spez` |
+| `Zlib` | `zlib-rs` |
+| `Apache-2.0 AND MIT` | `dpi` |
+| `Apache-2.0 WITH LLVM-exception` | `target-lexicon` |
+| `AGPL-3.0-only` | `townjump-dht`, `townjump-dht-peeroxide`, `townjump-keys` (see "townjump" above) |
+| `Unlicense` | `ksni` |
+| `MIT AND BSD-3-Clause` | `matchit` |
+| `(MIT OR Apache-2.0) AND Unicode-3.0` | `unicode-ident` |
 
 ## tun2proxy udpgw protocol
 

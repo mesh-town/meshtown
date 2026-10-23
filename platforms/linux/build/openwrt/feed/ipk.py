@@ -7,7 +7,7 @@ import tarfile
 from pathlib import Path
 
 NAME = "meshtown"
-DESCRIPTION = "Mesh Town node: private mesh network over iroh (static binary)"
+DESCRIPTION = "Mesh Town node: private mesh network (static binary)"
 MAINTAINER = "Mesh Town <meshtown.app@gmail.com>"
 LICENSE = "AGPL-3.0-only"
 URL = "https://github.com/mesh-town/meshtown"

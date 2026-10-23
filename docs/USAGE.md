@@ -17,12 +17,13 @@ way it was started.
 meshtown keygen our gaming room       # network key: label + random part
 meshtown keygen                       # the same without a label
 meshtown keygen --raw                 # machine key mesh1-… for scripts
+meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
   [--port N] \
-  [--relay-only] [--no-relay] [--probe-interval SECONDS] [--domain SITE]... \
+  [--relay-only] [--no-relay] [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
   [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
-  [--socks-port N] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
+  [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
   [--web-port N]
 ```
 
@@ -215,6 +216,16 @@ way. There is no automatic choice by country or operator.
 request only from someone who has passed the handshake, and serves any domain on any port if the address is public.
 Private, loopback, link-local, CGNAT and multicast addresses and the node's own address are refused (code 7). Turn
 the exit off with `--no-exit`, with `exit off` in the console, or on the node page.
+
+`--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
+local network too). `--probe-full-cycle` is a testing flag: it tests speed with 1 MiB to all members, not only the
+chosen exit.
+
+`meshtown ifaces NAME...` sets which networks (interfaces) the node accepts connections from, for the proxy and the
+page at once (`socks.ifaces` and `web.ifaces`). `NAME` is an interface name such as `br-lan`, the single word
+`auto` (automatic) or `*` (no restriction). If the node is running, the command applies the change through
+`PUT /api/config`; otherwise it writes the settings file (`--config PATH`; `--web-port N` names the running node's
+page). With `--if-unset` it writes only when the file has neither field yet, which suits autostart scripts.
 
 `--block-domain SITE` (repeatable) only feeds the site checks (below): it makes the node treat the domain as blocked
 without checking it. It does not affect the path choice.
