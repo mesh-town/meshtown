@@ -30,7 +30,6 @@ pub(super) fn prepare_parsed(
         settings,
         field_errors,
         unknown_paths,
-        retired_paths,
     } = p;
     let lossy = matches!(secret_read, SecretRead::Bad(_)) || !field_errors.is_empty();
     let mut file_settings = settings;
@@ -57,7 +56,6 @@ pub(super) fn prepare_parsed(
 
     let mut outcome = PrepareOutcome::new(file_settings, report, String::new(), secret);
     outcome.unknown_paths = unknown_paths;
-    outcome.retired_paths = retired_paths;
 
     if secret_is_new || save_config {
         let result = rewrite_parsed_file(RewriteCtx {

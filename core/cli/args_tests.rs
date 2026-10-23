@@ -27,7 +27,7 @@ fn no_args_is_run_without_tray() {
         .subcommand_matches("run")
         .expect("run subcommand substituted");
     assert!(
-        !is_flag_typed(run_m, "port"),
+        !is_flag_typed(run_m, "socks_port"),
         "the default must not look typed"
     );
     assert!(matches!(
@@ -74,14 +74,25 @@ fn explicit_subcommand_kept() {
 
     let m = Cli::command()
         .try_get_matches_from(with_default_subcommand(
+            to_os(&["meshtown", "run", "--web-port", "7000"]),
+            HAS_TRAY,
+        ))
+        .expect("run --web-port 7000 parses");
+    match Cli::from_arg_matches(&m).expect("parse").command {
+        CliCommand::Run(args) => assert_eq!(args.web_port, Some(7000)),
+        _ => panic!("expected the run subcommand"),
+    }
+}
+
+#[test]
+fn run_port_flag_is_an_unknown_argument() {
+    let err = Cli::command()
+        .try_get_matches_from(with_default_subcommand(
             to_os(&["meshtown", "run", "--port", "7000"]),
             HAS_TRAY,
         ))
-        .expect("run --port 7000 parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Run(args) => assert_eq!(args.port, Some(7000)),
-        _ => panic!("expected the run subcommand"),
-    }
+        .expect_err("--port is not a flag of run");
+    assert_eq!(err.kind(), ErrorKind::UnknownArgument);
 }
 
 #[test]
