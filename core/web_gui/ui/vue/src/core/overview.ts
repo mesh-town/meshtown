@@ -145,7 +145,7 @@ function applyLead(store: Store): void {
   const lead = store.slots[store.lead];
   if (!lead) return;
   const main = store.slots.main?.state ?? null;
-  if (lead.state) store.state = store.lead === "main" || !main ? lead.state : { ...lead.state, socks: main.socks, web: main.web };
+  if (lead.state) store.state = store.lead === "main" || !main ? lead.state : { ...lead.state, socks: main.socks, web: main.web, log: main.log };
   store.members = lead.members;
 }
 

@@ -56,7 +56,7 @@ const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value));
 const variant = computed(() => excludedVariant(members.value, meId(state.value)));
-const net = computed(() => (state.value && state.value.network && state.value.network.label) || "");
+const net = computed(() => netName(store.nets, slot.value));
 const hidden = ref<string[]>([]); // "Not now": keys of the proposals hidden until they change or go away
 
 const me = computed(() => meId(state.value));

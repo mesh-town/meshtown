@@ -9,7 +9,7 @@ import { notifyChanged } from "../core/bridge.ts";
 import type { TokenRotateResponse } from "../core/api-types.ts";
 import type { Store } from "../core/store.ts";
 import { asResult, eachSlot, putConfigOnce, saveSlotFields, slotFailureText, targetSlots } from "../core/save-config.ts";
-import { slotPath, isMulti } from "../core/slots.ts";
+import { slotPath } from "../core/slots.ts";
 import { getToken, setToken } from "../core/token.ts";
 import { errReason, failText, upperFirst } from "../common/words.ts";
 import { EXPERT_FIELDS, MAIN_FIELDS, PAGE_FIELDS, SHARED_PATHS, collectChanges } from "./settings-fields.ts";
@@ -193,7 +193,7 @@ export async function saveDraft(form: SettingsForm, store: Store, deps: Partial<
 // The shared paths go to the other networks after the main one took them; a slot without a key is skipped.
 async function writeShared(store: Store, changes: ConfigChanges, d: SettingsDeps): Promise<SlotFailure[]> {
   const shared = sharedChanges(changes);
-  if (!isMulti(store) || Object.keys(shared).length === 0) return [];
+  if (Object.keys(shared).length === 0) return [];
   const others = targetSlots(store).filter((s) => s !== "main");
   return eachSlot(store, others, (slot) => saveSlotFields(store, slot, shared, d));
 }

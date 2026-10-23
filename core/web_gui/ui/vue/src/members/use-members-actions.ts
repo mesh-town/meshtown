@@ -34,7 +34,7 @@ export interface MembersActions {
   status: Ref<ExitSaveStatus>;
   dialog: Ref<DialogHandle | null>;
   ask: (kind: DialogKind, idFull: string) => Promise<void>;
-  run: (action: MemberAction, idFull: string, reason?: string) => Promise<void>;
+  run: (action: MemberAction, idFull: string, reason?: string, from?: string) => Promise<void>;
   pick: (key: string, idFull: string) => Promise<void>;
   joinAnother: () => Promise<void>;
 }
@@ -54,20 +54,21 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   const dialog = ref<DialogHandle | null>(null);
   const call: ApiFn = deps.api || coreApi;
   const multi = (): boolean => isMulti(store);
-  const net = (): string => (multi() ? slotNetName(store.nets, slot()) : stateOf(store, slot())?.network?.label || "");
-  const nameOf = (idFull: string): string => displayNames(membersOf(store, slot()))[idFull] || idFull.slice(0, 8);
+  const net = (at: string = slot()): string => (multi() ? slotNetName(store.nets, at) : stateOf(store, at)?.network?.label || "");
+  const nameOf = (idFull: string, at: string = slot()): string => displayNames(membersOf(store, at))[idFull] || idFull.slice(0, 8);
 
-  function context(kind: DialogKind, idFull: string) {
-    const row = memberById(membersOf(store, slot()), idFull);
-    const by = row && row.vote ? nameOf(row.vote.proposed_by) : undefined;
+  // `from` is the network the dialog names: the action must go to the same one after the window closes.
+  function context(kind: DialogKind, idFull: string, from: string) {
+    const row = memberById(membersOf(store, from), idFull);
+    const by = row && row.vote ? nameOf(row.vote.proposed_by, from) : undefined;
     const label = row && row.admission ? row.admission.label : null;
-    return { name: nameOf(idFull), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(), isMyExit: chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitInNet() };
+    return { name: nameOf(idFull, from), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(from), isMyExit: chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitInNet(from) };
   }
 
   // My exit, when it is a member of this network.
-  function exitInNet(): string | null {
-    const inNet = chosenExitIds(store).find((id) => memberById(membersOf(store, slot()), id));
-    return multi() && inNet ? nameOf(inNet) : null;
+  function exitInNet(from: string): string | null {
+    const inNet = chosenExitIds(store).find((id) => memberById(membersOf(store, from), id));
+    return multi() && inNet ? nameOf(inNet, from) : null;
   }
 
   function wake(): void {
@@ -76,20 +77,19 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   }
 
   // The line under the list after an accepted action.
-  function doneText(action: MemberAction, idFull: string, reply: MembersReply, netName: string): string {
+  function doneText(action: MemberAction, idFull: string, reply: MembersReply, netName: string, from: string): string {
     if (action === "unblock") return "";
-    if (action === "unexclude") return withdrawnStatus(nameOf(idFull), memberById(reply, idFull)?.blocked_by_me === true);
-    if (action === "block") return blockedStatus(nameOf(idFull));
-    if (action === "unadmit") return unadmittedStatus(nameOf(idFull));
-    if (action === "admit") return memberById(reply, idFull)?.status === "member" ? admittedStatus(nameOf(idFull)) : confirmedStatus(nameOf(idFull));
+    if (action === "unexclude") return withdrawnStatus(nameOf(idFull, from), memberById(reply, idFull)?.blocked_by_me === true);
+    if (action === "block") return blockedStatus(nameOf(idFull, from));
+    if (action === "unadmit") return unadmittedStatus(nameOf(idFull, from));
+    if (action === "admit") return memberById(reply, idFull)?.status === "member" ? admittedStatus(nameOf(idFull, from)) : confirmedStatus(nameOf(idFull, from));
     const row = memberById(reply, idFull);
-    return row && row.status === "excluded" ? removedStatus(nameOf(idFull)) : removalProposedStatus(nameOf(idFull));
+    return row && row.status === "excluded" ? removedStatus(nameOf(idFull, from)) : removalProposedStatus(nameOf(idFull, from));
   }
 
   // Leaving: a left network disappears from the page; a refused leave only refreshes the network list.
-  async function leave(): Promise<void> {
-    const from = slot();
-    const netName = net();
+  async function leave(from: string): Promise<void> {
+    const netName = net(from);
     const reply = await leaveNet(call, from);
     if (reply.left) {
       const sliced = store.slots[from] !== undefined;
@@ -102,29 +102,29 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     wake();
   }
 
-  async function act(action: MemberAction, idFull: string, reason?: string): Promise<void> {
-    const from = slot();
-    const netName = net();
+  async function act(action: MemberAction, idFull: string, reason: string | undefined, from: string): Promise<void> {
+    const netName = net(from);
     const { reply } = await postMemberAction(call, action, idFull, reason, from);
     putSlotMembers(store, from, reply);
     if (from === store.lead) store.members = reply;
-    status.value = INFO(doneText(action, idFull, reply, netName));
+    status.value = INFO(doneText(action, idFull, reply, netName, from));
     wake();
   }
 
-  async function run(action: MemberAction, idFull: string, reason?: string): Promise<void> {
+  async function run(action: MemberAction, idFull: string, reason?: string, from: string = slot()): Promise<void> {
     try {
-      if (action === "leave") await leave();
-      else await act(action, idFull, reason);
+      if (action === "leave") await leave(from);
+      else await act(action, idFull, reason, from);
     } catch (err) {
       status.value = FAILED(failureText(err));
     }
   }
 
   async function ask(kind: DialogKind, idFull: string): Promise<void> {
-    const spec = dialogSpec(kind, context(kind, idFull));
+    const from = slot();
+    const spec = dialogSpec(kind, context(kind, idFull, from));
     const yes = dialog.value ? await dialog.value.ask(spec) : false;
-    if (yes) await run(ACTION_OF[kind], idFull, dialog.value?.reason?.());
+    if (yes) await run(ACTION_OF[kind], idFull, dialog.value?.reason?.(), from);
   }
 
   const pickers: Record<string, (idFull: string) => Promise<void>> = {

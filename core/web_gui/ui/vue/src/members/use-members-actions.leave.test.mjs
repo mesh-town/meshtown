@@ -135,6 +135,36 @@ describe("leaving a network from the Members tab (useMembersActions)", () => {
     });
   });
 
+  describe("the tab changes while the dialog is open", () => {
+    it("the action goes to the network named in the dialog", async () => {
+      const env = await setupPage(twoNets(), { actionAnswer: { ...membersReply(), changed: true } });
+      let current = NET_B;
+      const shifting = useMembersActions(env.store, () => current, { api: env.call, busTarget: new EventTarget() });
+      shifting.dialog.value = {
+        ask: async () => {
+          current = NET_A;
+          return true;
+        },
+      };
+      await shifting.ask("block", EXTRA_FULL);
+      assert.deepEqual(env.writes().map((w) => w.path), ["/api/net/" + NET_B + "/members/block"]);
+    });
+
+    it("leave goes to the network named in the dialog", async () => {
+      const env = await setupPage(twoNets());
+      let current = NET_B;
+      const shifting = useMembersActions(env.store, () => current, { api: env.call, busTarget: new EventTarget() });
+      shifting.dialog.value = {
+        ask: async () => {
+          current = NET_A;
+          return true;
+        },
+      };
+      await shifting.ask("leave", SELF_FULL);
+      assert.deepEqual(env.writes().map((w) => w.path), ["/api/net/" + NET_B + "/members/leave"]);
+    });
+  });
+
   describe("one network", () => {
     it("leave goes to /api/members/leave and main stays the lead after the next poll", async () => {
       const one = { ...twoNets(), slots: [twoNets().slots[0]] };
@@ -290,7 +320,7 @@ async function setupPage(nodeOptions, { slot = NET_B, leaveAnswer = null, action
   const byDefault = useMembersActions(store, undefined, { api: call, busTarget });
   const writes = () => node.calls.filter((c) => c.method !== "GET");
   return {
-    node, store, ov, bus, actions, writes, poll,
+    node, store, ov, bus, actions, writes, poll, call,
     leave: async (target) => {
       slot = target;
       await actions.run("leave", SELF_FULL);

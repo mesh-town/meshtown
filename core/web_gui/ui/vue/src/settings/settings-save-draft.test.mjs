@@ -89,6 +89,15 @@ describe("saveDraft over several networks", () => {
     });
   });
 
+  describe("a lone secondary network (the main one holds no key)", () => {
+    it("shared path edited: the main PUT and the PUT of the secondary network", async () => {
+      const w = setupNets("lone");
+      editField(w.form, "checks.interval_sec", "900");
+      assert.equal(await saveDraft(w.form, w.store, w.deps), "saved");
+      assert.deepEqual(w.calls.map(callLine), ["PUT /api/config", `PUT ${BPATH}`]);
+    });
+  });
+
   describe("two networks", () => {
     it("shared path edited: the main PUT first, then the PUT of the other network", async () => {
       const w = setupNets("two");
@@ -328,6 +337,7 @@ function netsOf(layout, { bJoining = false } = {}) {
   const c = brief(C, { label: "work", id_hex: "9c1d00" });
   if (layout === "legacy") return [];
   if (layout === "one") return [main];
+  if (layout === "lone") return [{ ...main, id_hex: null }, b];
   return layout === "three" ? [main, b, c] : [main, b];
 }
 
