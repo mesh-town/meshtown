@@ -10,6 +10,7 @@ pub mod boot;
 mod boot_plan;
 mod reasons;
 pub mod record;
+mod record_input;
 mod record_io;
 pub mod report;
 pub mod runtime;

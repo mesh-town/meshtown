@@ -1,5 +1,5 @@
 //! Format of membership list records: value bytes, keys and parsing of `acl/...` and `acl-block/...`
-//! entries, plus the input builder for the tally. Pure functions; writing lives in `record_io.rs`.
+//! entries. Pure functions; writing lives in `record_io.rs`, the tally input builder in `record_input.rs`.
 //!
 //! Value layout, version 1: `[ACL_VALUE_VERSION] ++ postcard(Body)` with the fields of `Body` frozen in
 //! order. Compatibility: there are no tail bytes at `v = 1` — extra bytes make the record invalid; a changed
@@ -9,8 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::tally::{AdmitIn, TallyInput, VoteIn};
-
+pub use super::record_input::tally_input;
 pub use super::record_io::{ensure, put, rewrite, withdraw};
 
 /// Version byte of the value layout.
@@ -259,65 +258,10 @@ pub fn parse_entry(e: &ReplicaEntry) -> Parsed {
     }
 }
 
-/// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
-/// tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored entries.
-pub fn tally_input(me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) {
-    let mut input = TallyInput {
-        me,
-        admits: Vec::new(),
-        votes: Vec::new(),
-    };
-    let mut ignored = 0;
-    for e in entries {
-        ignored += absorb(&mut input, e);
-    }
-    (input, ignored)
-}
-
-/// Adds one entry to the input; returns 1 when the entry is ignored.
-fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
-    match parse_entry(e) {
-        Parsed::Ignored(_) => 1,
-        Parsed::Record { author, value, .. } if value.kind == AclKind::Admit => {
-            input.admits.push(AdmitIn {
-                author,
-                subject: value.subject,
-                via: value.via,
-            });
-            0
-        }
-        Parsed::Record {
-            author,
-            ts_micros,
-            value,
-        } if value.kind == AclKind::Exclude => {
-            input.votes.push(VoteIn {
-                voter: author,
-                subject: value.subject,
-                ts_micros,
-            });
-            0
-        }
-        Parsed::Withdrawn { author, key } if key == exclude_key(&author) => {
-            input.votes.push(VoteIn {
-                voter: author,
-                subject: author,
-                ts_micros: e.ts_micros,
-            });
-            0
-        }
-        _ => 0,
-    }
-}
-
 #[cfg(test)]
 #[path = "record_tests.rs"]
-mod tests;
+pub(super) mod tests;
 
 #[cfg(test)]
 #[path = "record_write_tests.rs"]
 mod write_tests;
-
-#[cfg(test)]
-#[path = "record_input_tests.rs"]
-mod input_tests;

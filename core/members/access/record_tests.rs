@@ -443,7 +443,7 @@ fn off_curve() -> [u8; 32] {
 }
 
 /// The value of the golden test, for the given subject.
-pub(super) fn admit_of(subject: PeerId) -> AclValue {
+pub(in crate::members::access) fn admit_of(subject: PeerId) -> AclValue {
     AclValue {
         kind: AclKind::Admit,
         subject,
@@ -453,7 +453,12 @@ pub(super) fn admit_of(subject: PeerId) -> AclValue {
     }
 }
 
-pub(super) fn entry(author: PeerId, key: Vec<u8>, value: Vec<u8>, ts_micros: u64) -> ReplicaEntry {
+pub(in crate::members::access) fn entry(
+    author: PeerId,
+    key: Vec<u8>,
+    value: Vec<u8>,
+    ts_micros: u64,
+) -> ReplicaEntry {
     ReplicaEntry {
         author,
         key,
@@ -481,12 +486,12 @@ fn combinations(notes: &[String]) -> Vec<(AclKind, Via, String)> {
 }
 
 /// Bytes of a version 1 value assembled by hand; every field can be broken on its own.
-pub(super) struct Raw {
-    pub(super) version: u8,
-    pub(super) kind: u8,
-    pub(super) subject: [u8; 32],
-    pub(super) via: u8,
-    pub(super) note: Vec<u8>,
+pub(in crate::members::access) struct Raw {
+    pub(in crate::members::access) version: u8,
+    pub(in crate::members::access) kind: u8,
+    pub(in crate::members::access) subject: [u8; 32],
+    pub(in crate::members::access) via: u8,
+    pub(in crate::members::access) note: Vec<u8>,
 }
 
 impl Default for Raw {
@@ -501,7 +506,7 @@ impl Default for Raw {
     }
 }
 
-pub(super) fn raw(r: Raw) -> Vec<u8> {
+pub(in crate::members::access) fn raw(r: Raw) -> Vec<u8> {
     let mut out = vec![r.version, r.kind];
     out.extend(r.subject);
     out.push(r.via);
