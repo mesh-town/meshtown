@@ -14,6 +14,7 @@ use crate::proxy::serve::serve_front;
 use crate::proxy::{bind_proxy_listener, Admission, ProxyConfig};
 
 use super::face::{access_note, lan_line, off_line};
+use super::nets::NetDirectory;
 use super::ProxyFace;
 
 /// The listener's settings as they were applied.
@@ -45,6 +46,7 @@ struct Live {
 struct Inner {
     target: watch::Sender<Option<ProxyConfig>>,
     face: watch::Sender<ProxyFace>,
+    nets: NetDirectory,
     /// One limit of UDP associations for the whole process, whatever the target.
     udp_slots: Arc<tokio::sync::Semaphore>,
     /// Held by `apply` and `close`: calls go one at a time.
@@ -61,6 +63,7 @@ impl ProxyFront {
         let front = ProxyFront(Arc::new(Inner {
             target: watch::channel(None).0,
             face: watch::channel(ProxyFace::OFF).0,
+            nets: NetDirectory::default(),
             udp_slots: crate::proxy::udp_slots(),
             live: Mutex::new(None),
         }));
@@ -77,6 +80,11 @@ impl ProxyFront {
             ..c
         });
         self.0.target.send_replace(cfg);
+    }
+
+    /// The shared directory of the running networks' configurations.
+    pub(crate) fn nets(&self) -> NetDirectory {
+        self.0.nets.clone()
     }
 
     pub fn addr(&self) -> Option<SocketAddr> {
