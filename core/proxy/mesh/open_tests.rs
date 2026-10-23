@@ -1,4 +1,4 @@
-//! Tests for the mesh branch of `open_target` (`path.rs`): a `.meshtown` host is answered by the node itself,
+//! Tests for the mesh branch of `open_target` (`mesh/open.rs`): a `.meshtown` host is answered by the node itself,
 //! never sent to an exit and never resolved; every other host keeps the ordinary route.
 
 use std::collections::HashMap;

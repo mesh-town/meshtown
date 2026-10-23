@@ -28,7 +28,7 @@ pub(in crate::proxy) async fn open_target(
 }
 
 /// Opens `host`:`port` inside the mesh. Never fails: whatever cannot be reached is answered with a page.
-pub(in crate::proxy) async fn open_mesh(
+async fn open_mesh(
     entries: Vec<NetEntry>,
     host: MeshHost,
     port: u16,
@@ -79,7 +79,7 @@ async fn open_device(
 async fn refused(ask: &Ask<'_>, reach: PortReach) -> OpenedUpstream {
     match reach {
         PortReach::Offline => ask.offline().await,
-        PortReach::NotOpened => ask.not_opened(false).await,
+        PortReach::NotOpened => ask.not_opened().await,
         PortReach::NoService | PortReach::Failed => ask.no_service(false).await,
         PortReach::TimedOut => ask.no_service(true).await,
     }

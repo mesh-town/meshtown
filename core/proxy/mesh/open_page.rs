@@ -76,9 +76,9 @@ impl<'a> Ask<'a> {
         self.page("offline", kind).await
     }
 
-    pub(super) async fn not_opened(&self, offline: bool) -> OpenedUpstream {
+    pub(super) async fn not_opened(&self) -> OpenedUpstream {
         let listing = self.listing().await;
-        self.page("not-opened", self.not_opened_kind(listing.open, offline)).await
+        self.page("not-opened", self.not_opened_kind(listing.open, false)).await
     }
 
     pub(super) async fn no_service(&self, timed_out: bool) -> OpenedUpstream {
@@ -116,7 +116,7 @@ impl<'a> Ask<'a> {
         format!("{}.{MESH_SUFFIX}", self.host.label)
     }
 
-    /// The node's own name from the shared document of the first network that has it.
+    /// The node's own name from the shared document of the network in `self.entry` (the device's network, else the lowest slot).
     async fn me_name(&self) -> String {
         let me = self.entry.cfg.route.me();
         let replica = self.entry.cfg.route.shared_replica();
@@ -138,7 +138,7 @@ impl<'a> Ask<'a> {
         let mut listing = Listing { open: Vec::new(), published: false };
         for view in mine {
             let Some(record) = view.record else { continue };
-            listing.published |= view.port == self.port;
+            listing.published |= view.port == self.port && record.name_for(&me).is_some();
             listing.open.extend(self.open_port(view.port, &record, &me));
         }
         listing

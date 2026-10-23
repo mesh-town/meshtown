@@ -194,3 +194,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
 #[cfg(test)]
 #[path = "catalog_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "catalog_more_tests.rs"]
+mod more_tests;

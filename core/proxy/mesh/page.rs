@@ -90,3 +90,7 @@ fn document(parts: &Parts) -> String {
 #[cfg(test)]
 #[path = "page_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "page_more_tests.rs"]
+mod more_tests;

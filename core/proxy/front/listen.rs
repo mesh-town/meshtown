@@ -87,7 +87,7 @@ impl ProxyFront {
         self.0.nets.clone()
     }
 
-    /// Mesh addresses of every device the running networks list, one per device and network.
+    /// Mesh addresses of every device the running networks list, one per device; `net` is the network where the device is online, else the lowest slot.
     pub fn mesh_addresses(&self) -> Vec<MeshAddress> {
         self.0.nets.mesh_addresses()
     }
@@ -181,8 +181,7 @@ impl ProxyFront {
             ifaces: applied.ifaces.clone(),
         };
         let lan = lan_line(&adm, port);
-        let task =
-            crate::node::output::spawn(serve_front(
+        let task = crate::node::output::spawn(serve_front(
             listener,
             self.0.target.subscribe(),
             self.nets(),
