@@ -1,12 +1,13 @@
 //! The "start → run → stop or restart" loops: `run` is a thin wrapper for starting without a network
-//! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one. The stop signal belongs to the
+//! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one, and `run_network` picks between
+//! them by whether the first key is already known. The stop signal belongs to the
 //! process host (`host::signal`); `run` starts its own, since it has no host.
 
 use std::sync::Arc;
 
 use anyhow::Result;
 
-use crate::config::config_file::Settings;
+use crate::config::config_file::{RunConfig, Settings};
 use crate::node::node_ctl::{Cmd, NodeCtl, Relaunch};
 use crate::node::output::say;
 use crate::proxy::ProxyConsole;
@@ -83,9 +84,9 @@ pub async fn run_node_awaiting_key(
 /// first key from the page.
 pub async fn run_network(
     start: Option<NodeConfig>,
-    run: crate::config::config_file::RunConfig,
-    ctl: Arc<crate::node::node_ctl::NodeCtl>,
-    relaunch: crate::node::node_ctl::Relaunch,
+    run: RunConfig,
+    ctl: Arc<NodeCtl>,
+    relaunch: Relaunch,
 ) -> Result<()> {
     match start {
         Some(cfg) => run_node_with_ctl(cfg, run.effective_settings, ctl, relaunch).await,

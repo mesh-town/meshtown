@@ -3,12 +3,12 @@
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 use std::time::Duration;
 
 use tokio::sync::watch;
 
-use super::slots::HostSlots;
+use super::slots::{HostSlots, Slot};
 use crate::config::config_file::{
     net_slot_path, new_secret, set_aside_main, set_aside_slot, NetSlotId, SaveError,
 };
@@ -39,15 +39,7 @@ impl HostSlots {
         }
         let claim = self.claim_guard();
         let task = match self.remove_slot(id) {
-            Some(slot) => {
-                self.leave_proxy_seat(id, &claim);
-                let ended = slot.ended.clone();
-                let main_file = self.main_file();
-                leave_task(
-                    id,
-                    retire_added(id.clone(), slot.ctl, ended, main_file, announced),
-                )
-            }
+            Some(slot) => self.leave_and_remove(id, slot, &claim, announced),
             None if self.take_broken(id) => {
                 leave_task(id, set_aside_folder(id.clone(), self.main_file()))
             }
@@ -57,10 +49,24 @@ impl HostSlots {
         Ok(())
     }
 
+    /// The background task of a slot that has left the map.
+    fn leave_and_remove(
+        &self,
+        id: &NetSlotId,
+        slot: Slot,
+        claim: &MutexGuard<'_, ()>,
+        announced: bool,
+    ) -> tokio::task::JoinHandle<()> {
+        self.leave_proxy_seat(id, claim);
+        let main_file = self.main_file();
+        let work = retire_added(id.clone(), slot.ctl, slot.ended, main_file, announced);
+        leave_task(id, work)
+    }
+
     fn leave_in_place(&self, id: &NetSlotId, announced: bool) -> Result<(), HostError> {
-        let main = self.slot(id).ok_or(HostError::UnknownNet)?;
+        let slot = self.slot(id).ok_or(HostError::UnknownNet)?;
         let (has_key, from_flag) = {
-            let state = main.config.lock().unwrap_or_else(|e| e.into_inner());
+            let state = slot.config.lock().unwrap_or_else(|e| e.into_inner());
             (
                 state.current_network_key.is_some(),
                 state.cli_override_paths.contains(&"network.key"),
@@ -78,7 +84,7 @@ impl HostSlots {
             return Err(HostError::Busy("the node is stopping".into()));
         }
         let ctl = self.ctl_of(id).ok_or(HostError::UnknownNet)?;
-        let task = retire_main_task(main, ctl, secret, announced);
+        let task = leave_in_place_task(slot, ctl, secret, announced);
         tasks.push(leave_task(id, task));
         Ok(())
     }
@@ -153,8 +159,8 @@ fn has_folder(main: &Path, id: &NetSlotId) -> bool {
         .unwrap_or(false)
 }
 
-async fn retire_main_task(
-    main: SlotHandle,
+async fn leave_in_place_task(
+    slot: SlotHandle,
     ctl: Arc<NodeCtl>,
     secret: NodeSecret,
     announced: bool,
@@ -173,7 +179,7 @@ async fn retire_main_task(
         );
         return;
     }
-    let file = main
+    let file = slot
         .config
         .lock()
         .unwrap_or_else(|e| e.into_inner())
@@ -181,7 +187,7 @@ async fn retire_main_task(
         .as_ref()
         .map(|f| f.path().to_path_buf());
     let kept = file.is_some_and(|path| !set_aside_main_file(&path));
-    let mut state = main.config.lock().unwrap_or_else(|e| e.into_inner());
+    let mut state = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     if let Err(e) = state.drop_network(secret, now_unix(), kept) {
         say(
             "host",

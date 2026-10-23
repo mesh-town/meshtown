@@ -47,8 +47,14 @@ fn a_taken_id_is_skipped() {
 #[test]
 fn running_out_of_attempts_is_an_error() {
     let (file, main) = main_run();
-    let Err(err) = new_net_slot(&main, &file, &NetSettings::default(), &|_| true, NOW) else {
+    let calls = Cell::new(0);
+    let taken = |_: &_| {
+        calls.set(calls.get() + 1);
+        true
+    };
+    let Err(err) = new_net_slot(&main, &file, &NetSettings::default(), &taken, NOW) else {
         panic!("no free id expected");
     };
     assert_eq!(err.to_string(), "couldn't find a free network id");
+    assert_eq!(calls.get(), 8);
 }

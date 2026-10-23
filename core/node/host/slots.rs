@@ -41,13 +41,13 @@ pub(crate) struct SlotContext {
 pub(crate) struct HostSlots {
     slots: RwLock<Vec<Slot>>,
     /// Set once the stop began: no slot is added after it.
-    pub(super) stopping: AtomicBool,
+    stopping: AtomicBool,
     /// Set once at the start of a run that keeps a settings file; without it no network is added.
     context: OnceLock<SlotContext>,
     /// Background tasks of the slots being left, awaited together with the slot tasks.
     retiring: Mutex<Vec<JoinHandle<()>>>,
     /// Ids of the saved slots that could not be read or have no usable key, in disk order.
-    pub(super) broken: RwLock<Vec<NetSlotId>>,
+    broken: RwLock<Vec<NetSlotId>>,
     /// The choice of the network the proxy serves; set once by the run that binds the proxy.
     pub(super) proxy: OnceLock<Arc<ProxySeat>>,
     /// Held while the proxy's network is changed or a slot that may hold the choice leaves.
@@ -180,7 +180,7 @@ impl HostSlots {
     }
 
     /// Spawns the slot's node cycle, labelled with the slot id, and records its task.
-    pub(crate) fn spawn_task(
+    pub(super) fn spawn_task(
         &self,
         id: &NetSlotId,
         cycle: impl Future<Output = anyhow::Result<()>> + Send + 'static,
@@ -217,20 +217,27 @@ impl HostSlots {
         slots.iter().for_each(|s| s.ctl.stop_on_os_signal());
     }
 
-    pub(super) fn read_slots(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
+    /// Stops every slot on the page's request.
+    pub(super) fn stop_all_from_page(&self) {
+        let slots = self.write();
+        self.stopping.store(true, Ordering::SeqCst);
+        slots.iter().for_each(|s| s.handle.node.stop());
+    }
+
+    /// Ids of the saved slots that could not be started, in disk order.
+    pub(super) fn broken_ids(&self) -> Vec<NetSlotId> {
+        self.broken
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
+    }
+
+    pub(super) fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
         self.slots.read().unwrap_or_else(|e| e.into_inner())
     }
 
-    pub(super) fn write_slots(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
+    pub(super) fn write(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
         self.slots.write().unwrap_or_else(|e| e.into_inner())
-    }
-
-    fn read(&self) -> std::sync::RwLockReadGuard<'_, Vec<Slot>> {
-        self.read_slots()
-    }
-
-    fn write(&self) -> std::sync::RwLockWriteGuard<'_, Vec<Slot>> {
-        self.write_slots()
     }
 }
 

@@ -75,6 +75,15 @@ impl HostSlots {
         if self.len() >= MAX_NETS {
             return Err(HostError::TooManyNets);
         }
+        let slot = self.fresh_launch(ctx)?;
+        let id = slot.id.clone();
+        self.launch(slot, &ctx.sources)?;
+        say("host", format!("network slot {id} added"));
+        Ok(AddedSlot { id, fresh: true })
+    }
+
+    /// The launch of a new slot: a free id and the unwritten settings beside the main file.
+    fn fresh_launch(&self, ctx: &SlotContext) -> Result<SlotLaunch, HostError> {
         let main_path = ctx.main_run.file.as_ref().map(|f| f.path().to_path_buf());
         let main_path = main_path.ok_or_else(|| HostError::Busy(ONE_NET_RUN.into()))?;
         let taken = |id: &NetSlotId| self.slot(id).is_some() || self.broken().contains(id);
@@ -87,15 +96,12 @@ impl HostSlots {
         )
         .map_err(io_error)?;
         let relaunch = self.relaunch_for_new(ctx, &run);
-        let slot = SlotLaunch {
-            id: id.clone(),
+        Ok(SlotLaunch {
+            id,
             run,
             relaunch,
             start: None,
-        };
-        self.launch(slot, &ctx.sources)?;
-        say("host", format!("network slot {id} added"));
-        Ok(AddedSlot { id, fresh: true })
+        })
     }
 }
 

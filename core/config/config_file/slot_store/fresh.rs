@@ -10,6 +10,7 @@ use super::settings_file::NetFile;
 use super::slot_id::NetSlotId;
 use crate::config::config_file::{new_secret, FileReport, FileState, NetSettings, RunConfig};
 
+/// How many random ids are tried before the add gives up.
 const ID_ATTEMPTS: usize = 8;
 
 /// Copies the settings every network of the process shares on the page: the probe interval and the

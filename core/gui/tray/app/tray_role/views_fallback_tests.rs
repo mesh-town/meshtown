@@ -28,7 +28,7 @@ mod no_main_slot {
 
     #[test]
     fn menu_state_is_taken_from_the_added_slot() {
-        // characterizes current behaviour
+        // no main slot in the summary: the first slot with a state is shown
         // given
         let slots = [keyless("ab12cd", true)];
 
