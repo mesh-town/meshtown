@@ -16,8 +16,8 @@ import PasswordRow from "../login/PasswordRow.vue";
 import TokenRow from "./TokenRow.vue";
 import type { SaveOutcome } from "./settings-actions.ts";
 import { EXPERT_FIELDS, MAIN_FIELDS, PAGE_FIELDS, fieldErrorLine, socksAccessDesc } from "./settings-fields.ts";
-import NetworksBlock from "../nets/NetworksBlock.vue";
-import { blockWhere, sameNetsLine } from "../nets/nets-view.ts";
+import NetworksBlock from "../lan/NetworksBlock.vue";
+import { blockWhere, sameNetsLine } from "../lan/nets-view.ts";
 import {
   SETTINGS_BAD_FILE_NAME, SETTINGS_BROKEN_HINT, SETTINGS_BROKEN_TITLE, SETTINGS_CONFLICT_HINT, SETTINGS_CONFLICT_OVERWRITE,
   SETTINGS_CONFLICT_RELOAD, SETTINGS_CONFLICT_TITLE, SETTINGS_EXPERT_TITLE, SETTINGS_FIELD_ERRORS_HINT, SETTINGS_FILE_LABEL,
