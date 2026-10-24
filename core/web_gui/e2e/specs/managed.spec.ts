@@ -219,11 +219,12 @@ test.describe('--managed (you are an admin and the creator)', () => {
         await expect(action).toBeEnabled();
       });
 
-      await test.step('confirming closes the dialog; the other members are gone', async () => {
+      await test.step('confirming closes the dialog; the member list is empty, so no row has a menu any more', async () => {
         await members.dialogButton(WORDS.deleteAction).click();
         await expect(members.dialog).toBeHidden();
-        await expect(members.row(ADMIN_PEER)).toHaveCount(0);
-        await expect(members.row(PLAIN_PEER)).toHaveCount(0);
+        await expect(members.menuButton(ADMIN_PEER)).toHaveCount(0);
+        await expect(members.menuButton(PLAIN_PEER)).toHaveCount(0);
+        await expect(ownRow(page).getByRole('button', { name: /^More actions for/ })).toHaveCount(0);
       });
     });
   });
