@@ -18,3 +18,8 @@ export function managedFacts(net: NetworkInfo | null | undefined, list: MembersR
   const meAdmin = list?.me_admin ?? net?.me_role === "admin";
   return { me, managed, meAdmin, onlyAdmin: meAdmin && adminIds(net, list).length <= 1, canLeave: net?.can_leave, isRoot: (id) => isRoot(net, id) };
 }
+
+// An admin may delete a Managed network for everyone; the node's `can_delete_network` decides when it says.
+export function canDeleteNet(net: NetworkInfo | null | undefined): boolean {
+  return net?.kind === "Managed" && (net.can_delete_network ?? net.me_role === "admin");
+}

@@ -3,7 +3,10 @@ import { computed, inject, nextTick, ref } from "vue";
 import { STOPPED_NOTE } from "../common/pac-texts.ts";
 import { NET_NAME } from "../common/words.ts";
 import { STORE_KEY } from "../core/store.ts";
-import { isMulti } from "../core/slots.ts";
+import { isMulti, stateOf, visibleSlots } from "../core/slots.ts";
+import DeletedBanner from "../members/DeletedBanner.vue";
+import { canDeleteNet } from "../members/managed-ctx.ts";
+import { MENU_DELETE_NETWORK } from "../members/members-managed-texts.ts";
 import { targetSlots } from "../core/save-config.ts";
 import { useExcluded } from "../members/use-excluded.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
@@ -25,7 +28,7 @@ import {
   SETTINGS_BAD_FILE_NAME, SETTINGS_BROKEN_HINT, SETTINGS_BROKEN_TITLE, SETTINGS_CONFLICT_HINT, SETTINGS_CONFLICT_OVERWRITE,
   SETTINGS_CONFLICT_RELOAD, SETTINGS_CONFLICT_TITLE, SETTINGS_EXPERT_TITLE, SETTINGS_FIELD_ERRORS_HINT, SETTINGS_FILE_LABEL,
   SETTINGS_LOADING, SETTINGS_MAIN_TITLE, SETTINGS_NET_TITLE, SETTINGS_PAGE_TITLE, SETTINGS_RESTART_NOTE, SETTINGS_SAME_NETS_LINK,
-  SETTINGS_LEAVE_BTN, SETTINGS_LEAVE_MULTI, SETTINGS_LEAVE_TITLE, SETTINGS_NAME_PER_NET, SETTINGS_STOP_ALL, SETTINGS_STOP_PREFIX, SETTINGS_STORE_MISSING, leaveHint,
+  SETTINGS_LEAVE_BTN, SETTINGS_LEAVE_DELETE_MULTI, SETTINGS_LEAVE_MULTI, SETTINGS_LEAVE_TITLE, SETTINGS_NAME_PER_NET, SETTINGS_STOP_ALL, SETTINGS_STOP_PREFIX, SETTINGS_STORE_MISSING, leaveHint,
 } from "./settings-texts.ts";
 import { useSettings } from "./use-settings.ts";
 
@@ -37,6 +40,8 @@ const root = ref<HTMLElement | null>(null);
 const { excluded } = useExcluded(store);
 const { status: leaveStatus, dialog, pick } = useMembersActions(store);
 const multi = computed(() => isMulti(store));
+const anyManaged = computed(() => visibleSlots(store.nets, store.slots).some((id) => store.slots[id]?.brief.kind === "Managed" || stateOf(store, id)?.network?.kind === "Managed"));
+const canDelete = computed(() => canDeleteNet(store.state?.network));
 const hasKeyNet = computed(() => targetSlots(store).length > 0);
 const labeled = (f: Field): Field => ({ ...f, title: fieldLabel(f, multi.value) });
 const ready = computed(() => !!(store.config && store.configMeta));
@@ -108,11 +113,13 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
       <div id="net-join-slot"><AddNetCard v-if="hasKeyNet && !excluded" context="settings" /></div>
       <button type="button" class="btn btn-danger" id="stop-node-btn" @click="s.stop">{{ SETTINGS_STOP_PREFIX }}{{ NET_NAME }}</button>
       <p class="hint">{{ multi ? SETTINGS_STOP_ALL : "" }}{{ STOPPED_NOTE }}</p>
-      <p v-if="multi" id="settings-leave-multi" class="hint">{{ SETTINGS_LEAVE_MULTI }}</p>
+      <DeletedBanner />
+      <p v-if="multi" id="settings-leave-multi" class="hint">{{ anyManaged ? SETTINGS_LEAVE_DELETE_MULTI : SETTINGS_LEAVE_MULTI }}</p>
       <div v-else-if="store.state && store.state.network && !excluded" id="settings-leave-row">
         <h3 class="setting-title">{{ SETTINGS_LEAVE_TITLE }}</h3>
         <p class="hint">{{ leaveHint(store.state.network.label) }}</p>
         <button type="button" class="btn btn-danger" id="settings-leave-btn" @click="pick('leave', meId(store.state))">{{ SETTINGS_LEAVE_BTN }}</button>
+        <button v-if="canDelete" type="button" class="btn btn-danger" id="settings-delete-net-btn" @click="pick('delete-network', meId(store.state))">{{ MENU_DELETE_NETWORK }}</button>
       </div>
       <p id="settings-leave-status" role="status" class="field-status" :class="leaveStatus.cls">{{ leaveStatus.text }}</p>
       <ConfirmDialog ref="dialog" />

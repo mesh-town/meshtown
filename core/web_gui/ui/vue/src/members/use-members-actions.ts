@@ -49,7 +49,7 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   const dialog = ref<DialogHandle | null>(null);
   const call: ApiFn = deps.api || coreApi;
   const multi = (): boolean => isMulti(store);
-  const net = (at: string = slot()): string => (multi() ? slotNetName(store.nets, at) : stateOf(store, at)?.network?.label || "");
+  const net = (at: string = slot()): string => (multi() ? slotNetName(store.nets, at) : stateOf(store, at)?.network?.label || store.nets.find((n) => n.id === at)?.label || "");
   const facts = (at: string = slot()) => managedFacts(stateOf(store, at)?.network, membersOf(store, at), meId(stateOf(store, at)));
   const nameOf = (idFull: string, at: string = slot()): string => displayNames(membersOf(store, at))[idFull] || idFull.slice(0, 8);
 

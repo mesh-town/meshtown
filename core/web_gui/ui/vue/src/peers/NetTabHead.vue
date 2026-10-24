@@ -7,7 +7,7 @@ import { useInvite } from "../home/use-invite.ts";
 import { PEERS_INVITE_COPIED, PEERS_INVITE_ONE, peersInviteTo, peersNetLine } from "./peers-texts.ts";
 
 const COPIED_MS = 10_000;
-const props = defineProps<{ slot: string; name: string; who: string; multi: boolean }>();
+const props = defineProps<{ slot: string; name: string; who: string; multi: boolean; note?: string | null }>();
 const store = inject(STORE_KEY)!;
 const { inviteText, busy, status, warning, request } = useInvite(store, undefined, () => props.slot);
 const copied = ref(false);
@@ -29,7 +29,8 @@ onUnmounted(() => timer && clearTimeout(timer));
 
 <template>
   <div class="tabhead" id="peers-tabhead">
-    <button type="button" class="btn btn-primary" id="peers-invite-btn" :disabled="busy" @click="invite">{{ multi ? peersInviteTo(name) : PEERS_INVITE_ONE }}</button>
+    <p v-if="note" class="hint" id="peers-invite-note">{{ note }}</p>
+    <button v-else type="button" class="btn btn-primary" id="peers-invite-btn" :disabled="busy" @click="invite">{{ multi ? peersInviteTo(name) : PEERS_INVITE_ONE }}</button>
     <span v-if="multi" class="quiet" id="peers-net-line">{{ peersNetLine(name, who) }}</span>
   </div>
   <p v-if="copied" class="hint" id="peers-invite-status" role="status">{{ PEERS_INVITE_COPIED }}</p>

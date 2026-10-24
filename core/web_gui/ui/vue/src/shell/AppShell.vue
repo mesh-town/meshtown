@@ -17,6 +17,7 @@ import SetupScreen from "../login/SetupScreen.vue";
 import { totalVotes, votesTarget } from "../peers/net-votes.ts";
 import { useAuth } from "../login/use-auth.ts";
 import SettingsSection from "../settings/SettingsSection.vue";
+import NoticeBanner from "./NoticeBanner.vue";
 import ConnStrip from "./ConnStrip.vue";
 import IdentityStrip from "./IdentityStrip.vue";
 import TabsNav from "./TabsNav.vue";
@@ -68,6 +69,7 @@ function onLoggedIn(): void {
       <div class="content-col">
         <TopBar :status="status" :votes="votes" :href="votesHref" />
         <main class="page">
+          <NoticeBanner v-if="store.activeSection === 'home' || store.activeSection === 'peers'" />
           <section
             v-for="v in views"
             :id="'sec-' + v.id"

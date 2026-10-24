@@ -7,6 +7,7 @@ import type { ExitSaveStatus } from "../core/exit-via.ts";
 import { putSlotMembers } from "../core/overview.ts";
 import type { Store } from "../core/store.ts";
 import { FAILED, INFO, failureText } from "./action-status.ts";
+import { useDeletedBanner } from "./deleted-banner.ts";
 import { deleteNetwork, postAdmin } from "./members-api.ts";
 import { madeAdminStatus } from "./members-texts.ts";
 
@@ -40,7 +41,9 @@ export function useManagedActions(env: ManagedEnv): ManagedActions {
   // The network is gone for everyone; the next snapshot shows it (the poller is woken).
   async function deleteNet(from: string): Promise<void> {
     try {
+      const name = env.net(from);
       await deleteNetwork(env.call, from);
+      useDeletedBanner().show(name);
       env.status.value = INFO("");
       env.wake();
     } catch (err) {

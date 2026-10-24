@@ -12,11 +12,13 @@ import { HOME_SAVED } from "../home/home-flow-texts.ts";
 import { exitServerHint } from "../home/home-words.ts";
 import { configFieldAccess, nodeNameFieldValue } from "../home/home-view.ts";
 import { getPath } from "../settings/settings-fields.ts";
+import { MENU_DELETE_NETWORK } from "../members/members-managed-texts.ts";
+import { canDeleteNet } from "../members/managed-ctx.ts";
 import { PEERS_NO_STORE } from "./peers-texts.ts";
 import { YOU_LEAVE_BTN, YOU_NAME_PLACEHOLDER, youExitLabel, youExitOff, youLeaveHint, youNameHint, youNameLabel, youSameName, youTitle } from "./you-texts.ts";
 
 const props = defineProps<{ slot: string }>();
-const emit = defineEmits<{ (e: "leave"): void }>();
+const emit = defineEmits<{ (e: "leave"): void; (e: "delete"): void }>();
 const store = inject(STORE_KEY);
 if (!store) throw new Error(PEERS_NO_STORE);
 
@@ -26,6 +28,7 @@ const visible = computed(() => visibleSlots(store.nets, store.slots));
 const first = computed(() => visible.value[0]);
 const metaOf = (id: string) => (id === "main" ? store.configMeta : (store.slots[id]?.configMeta ?? null));
 const nameOf = (id: string): string => nodeNameFieldValue(netConfig(store, id), stateOf(store, id));
+const canDelete = computed(() => canDeleteNet(stateOf(store, props.slot)?.network));
 const saved = computed(() => nameOf(props.slot));
 const nameAccess = computed(() => configFieldAccess(metaOf(props.slot), "node.name"));
 const exitAccess = computed(() => configFieldAccess(metaOf(props.slot), "exit.enabled"));
@@ -87,5 +90,6 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <p class="field-status" :class="exitStatus.cls" id="you-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
     <p class="hint">{{ youLeaveHint(net) }}</p>
     <button type="button" class="btn btn-danger" id="you-leave" @click="emit('leave')">{{ YOU_LEAVE_BTN }}</button>
+    <button v-if="canDelete" type="button" class="btn btn-danger" id="you-delete-net-btn" @click="emit('delete')">{{ MENU_DELETE_NETWORK }}</button>
   </div>
 </template>

@@ -42,9 +42,11 @@ export function stayText(names: string[]): string {
   return `You stay in ${list}. The new network gets its own tab in Members.`;
 }
 
-/** `via` — the exit the computer keeps using, when it is not direct: the member and the network it is in. */
-export function joinedBanner(net: string, via: { peer: string; net: string } | null): string {
-  const base = `You joined "${net}".`;
+/** `via` — the exit the computer keeps using, when it is not direct: the member and the network it is in.
+ * `admins` — the display names of the admins of a Managed network (absent for a Peer network). */
+export function joinedBanner(net: string, via: { peer: string; net: string } | null, admins?: string[]): string {
+  const managed = admins && admins.length > 0 ? ` Only admins invite and remove members here. Admins: ${admins.join(", ")}.` : "";
+  const base = `You joined "${net}".${managed}`;
   return via ? `${base} Your exit hasn't changed: sites still open via ${via.peer} (${via.net}).` : base;
 }
 

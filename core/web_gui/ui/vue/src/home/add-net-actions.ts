@@ -13,6 +13,7 @@ import type { HomeDeps } from "./home-actions.ts";
 import { HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_LABEL_EMPTY } from "./home-flow-texts.ts";
 import type { JoinForm } from "./join-actions.ts";
 import { inviteNotFromAdminText } from "./net-kind-texts.ts";
+import { adminNamesOf } from "../peers/admins-line.ts";
 import { ADD_NET_ACTION, MAX_NETS, createdBanner, joinedBanner } from "./add-net-texts.ts";
 
 export { stayText } from "./add-net-texts.ts";
@@ -159,10 +160,10 @@ function joinedName(store: Store, form: AddNetForm): string {
 /** The banner text for a finished add; `null` — nothing to say (the join is still waiting, or it failed). */
 export function addedBannerText(store: Store, form: AddNetForm, result: AddNetResult): string | null {
   if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET, form.kind);
-  return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store)) : null;
+  return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store), adminNamesOf(store, form.slot ?? "")) : null;
 }
 
 /** The banner for a network that finished joining after a wait. */
 export function arrivedBannerText(store: Store, slot: string): string {
-  return joinedBanner(netName(store.nets, slot), currentExitVia(store));
+  return joinedBanner(netName(store.nets, slot), currentExitVia(store), adminNamesOf(store, slot));
 }

@@ -28,6 +28,10 @@ import NetTabHead from "./NetTabHead.vue";
 import NetTabs from "./NetTabs.vue";
 import PeerRow from "./PeerRow.vue";
 import YouBlock from "./YouBlock.vue";
+import AdminsLine from "./AdminsLine.vue";
+import DeletedBanner from "../members/DeletedBanner.vue";
+import { excludedByName } from "../members/excluded-by.ts";
+import { useInviteNote } from "./invite-note.ts";
 import { joiningTabs, netTabs, netWho } from "./net-tabs-view.ts";
 import { PEERS_LOADING, PEERS_NETS_HINT_OK, PEERS_NO_STORE, peersNetsHint } from "./peers-texts.ts";
 import { useNetsHint } from "./use-nets-hint.ts";
@@ -80,6 +84,9 @@ const excludedLines = computed(() => parts.value.excluded.map((m) => excludedRow
 const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
 // A managed network has no votes: no banner, no confirmation card.
 const noVotes = computed(() => votingHidden(members.value) || state.value?.network?.kind === "Managed");
+const adminIds = computed(() => (menuCtx.value.managed ? (members.value?.admins ?? state.value?.network?.admins ?? []) : []));
+const inviteNote = useInviteNote(store, () => slot.value);
+const excludedBy = computed(() => excludedByName(state.value?.network?.excluded_by));
 const menuCtx = computed(() => managedFacts(state.value?.network, members.value, me.value));
 const waiting = computed(() => (noVotes.value ? [] : confirmable(members.value, me.value)));
 const proposal = computed(() => pendingProposal(waiting.value, hidden.value));
@@ -116,14 +123,17 @@ async function exitVia(idFull: string): Promise<void> {
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
-    <ExcludedCard v-else-if="excluded" :variant="variant" :net="net" @join="joinAnother" />
+    <ExcludedCard v-else-if="excluded" :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
     <JoiningCard v-else-if="waitingHere" :key="slot" :slot="slot" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />
       <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
     </template>
     <template v-else>
-      <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" :multi="showRow" />
+      <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" 
+:multi="showRow" :note="inviteNote" />
+      <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
+      <DeletedBanner />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
       <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />
@@ -140,7 +150,7 @@ async function exitVia(idFull: string): Promise<void> {
       <UnlistedList :rows="parts.unlisted" @pick="pick" />
       <AddNetCard v-if="addHere" context="peers" />
       <p v-else-if="!showRow" class="addlink"><a class="quiet" id="peers-add-link" :href="peersHash('add')">{{ ADD_NET_LINK }}</a></p>
-      <YouBlock v-if="multi" ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" />
+      <YouBlock v-if="multi" ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" @delete="pick('delete-network', me)" />
     </template>
     <ConfirmDialog ref="dialog" />
   </template>

@@ -38,6 +38,8 @@ export const PEERS_TAB_ADD_FULL = "Mesh Town can be in up to 8 networks at once"
 export const PEERS_TAB_ADD_MARK = "+";
 export const PEERS_TAB_JOINING = "Joining the network…";
 export const PEERS_TAB_JOINING_SUB = "· joining…";
+export const PEERS_ADMIN_BADGE = "Admin";
+export const PEERS_TAB_DELETED_SUB = "· deleted";
 export const PEERS_NEW_NET = "New network";
 export const PEERS_TAB_NO_CONN = "· no connection";
 export const PEERS_NETS_HINT_OK = "OK";
@@ -63,6 +65,8 @@ export function peersNetLine(net: string, who: string): string {
 export function peersTabSub(online: number, down: boolean): string {
   return down ? PEERS_TAB_NO_CONN : `· ${online} online`;
 }
+
+export const peersManagedTabSub = (online: number): string => `· managed · ${online} online`;
 
 export function peersTabTitle(net: string, online: number, total: number, down: boolean): string {
   return down ? `${net} — no connection` : `${net} — ${online} of ${total} members online`;
