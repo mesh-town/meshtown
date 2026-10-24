@@ -18,7 +18,7 @@ export const peerOneRow = (over = {}) => memberRow({ id: "bbbb2222", id_full: PE
 export const peerTwoRow = (over = {}) => memberRow({ id: "cccc3333", id_full: PEER2_FULL, name: null, online: false, ...over });
 export const extraRow = (over = {}) => memberRow({ id: "dddd4444", id_full: EXTRA_FULL, name: "old-laptop", ...over });
 
-// A pending removal vote on a row; by default proposed by "You" and counted as mine.
+// A pending ban vote on a row; by default proposed by "You" and counted as mine.
 export const voteInfo = (over = {}) => ({ votes: 1, need: 2, proposed_by: SELF_FULL, voters: [SELF_FULL], mine: true, reason: null, ...over });
 
 // A vote proposed by someone else (peer-one) that "You" has not joined yet: "You" can confirm it.

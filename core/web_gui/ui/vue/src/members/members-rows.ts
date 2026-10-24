@@ -1,8 +1,8 @@
 /* What a member row shows (`rowDecor`) and what its `⋯` menu offers (`menuItems`). Pure functions. */
 
 import {
-  BADGE_BLOCKED, BADGE_PENDING, BADGE_PROPOSED, LINE_CANT_CONNECT, MENU_BLOCK, MENU_LEAVE, MENU_REMOVE, MENU_RENAME,
-  MENU_UNADMIT, MENU_UNBLOCK, MENU_WAITING, MENU_WITHDRAW, TITLE_BLOCKED, TITLE_PROPOSED, admissionLine, proposedByText, waitingMoreText,
+  BADGE_BLOCKED, BADGE_PENDING, BADGE_BAN_PROPOSED, LINE_CANT_CONNECT, MENU_BLOCK, MENU_LEAVE, MENU_BAN, MENU_RENAME,
+  MENU_UNADMIT, MENU_UNBLOCK, MENU_WAITING, MENU_WITHDRAW, TITLE_BLOCKED, TITLE_BAN_PROPOSED, admissionLine, proposedByText, waitingMoreText,
 } from "./members-texts.ts";
 import { canConfirm, canUnadmit } from "./members-ids.ts";
 import type { MemberRow, MenuItem } from "./members-types.ts";
@@ -24,7 +24,7 @@ interface PeerLike {
 }
 
 const NEUTRAL = (): RowDecor => ({ badge: null, lines: [], mainAction: null });
-const PROPOSED: Badge = { text: BADGE_PROPOSED, tone: "warn" };
+const PROPOSED: Badge = { text: BADGE_BAN_PROPOSED, tone: "warn" };
 const BLOCKED: Badge = { text: BADGE_BLOCKED, tone: "grey" };
 
 const nameOf = (names: Record<string, string>, id: string): string => names[id] || id.slice(0, 8);
@@ -53,8 +53,8 @@ function blockItem(m: MemberRow): MenuItem {
   return item("block", MENU_BLOCK, m.blocked_by_me ? disabled(TITLE_BLOCKED) : {});
 }
 
-function removeItem(m: MemberRow): MenuItem {
-  return item("exclude", MENU_REMOVE, { danger: true, ...(m.vote ? disabled(TITLE_PROPOSED) : {}) });
+function banItem(m: MemberRow): MenuItem {
+  return item("exclude", MENU_BAN, { danger: true, ...(m.vote ? disabled(TITLE_BAN_PROPOSED) : {}) });
 }
 
 function votedItems(row: MemberRow, me: string): MenuItem[] {
@@ -71,5 +71,5 @@ export function menuItems(row: MemberRow | null | undefined, ctx: { me: string }
   if (row.status === "unlisted") return [blockItem(row)];
   if (row.status === "pending") return [...unadmitItems(row), blockItem(row)];
   if (row.vote && row.vote.mine) return votedItems(row, ctx.me);
-  return [blockItem(row), removeItem(row), ...unadmitItems(row)];
+  return [blockItem(row), banItem(row), ...unadmitItems(row)];
 }

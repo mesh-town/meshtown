@@ -15,7 +15,7 @@ import { navigateTo } from "../common/navigate.ts";
 import { dialogSpec } from "./dialog-specs.ts";
 import type { DialogKind, DialogSpec } from "./dialog-specs.ts";
 import { leaveNet, memberErrorText, postMemberAction } from "./members-api.ts";
-import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, removalProposedStatus, removedStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
+import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, banProposedStatus, bannedStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
 import type { MemberAction, MembersReply } from "./members-types.ts";
 import { displayNames, meId, memberById } from "./members-view.ts";
 
@@ -39,7 +39,7 @@ export interface MembersActions {
   joinAnother: () => Promise<void>;
 }
 
-const ACTION_OF: Record<DialogKind, MemberAction> = { remove: "exclude", "remove-two": "exclude", confirm: "exclude", admit: "admit", block: "block", leave: "leave" };
+const ACTION_OF: Record<DialogKind, MemberAction> = { ban: "exclude", "ban-two": "exclude", "ban-confirm": "exclude", admit: "admit", block: "block", leave: "leave" };
 const INFO = (text: string): ExitSaveStatus => ({ text, cls: "" });
 const FAILED = (text: string): ExitSaveStatus => ({ text, cls: "field-error-text" });
 
@@ -84,7 +84,7 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     if (action === "unadmit") return unadmittedStatus(nameOf(idFull, from));
     if (action === "admit") return memberById(reply, idFull)?.status === "member" ? admittedStatus(nameOf(idFull, from)) : confirmedStatus(nameOf(idFull, from));
     const row = memberById(reply, idFull);
-    return row && row.status === "excluded" ? removedStatus(nameOf(idFull, from)) : removalProposedStatus(nameOf(idFull, from));
+    return row && row.status === "excluded" ? bannedStatus(nameOf(idFull, from)) : banProposedStatus(nameOf(idFull, from));
   }
 
   // Leaving: a left network disappears from the page; a refused leave only refreshes the network list.
@@ -129,10 +129,10 @@ export function useMembersActions(store: Store, slot: () => string = () => store
 
   const pickers: Record<string, (idFull: string) => Promise<void>> = {
     block: (id) => ask("block", id),
-    confirm: (id) => ask("confirm", id),
+    confirm: (id) => ask("ban-confirm", id),
     admit: (id) => ask("admit", id),
     unadmit: (id) => run("unadmit", id),
-    exclude: (id) => ask(membersOf(store, slot())?.need === 1 ? "remove-two" : "remove", id),
+    exclude: (id) => ask(membersOf(store, slot())?.need === 1 ? "ban-two" : "ban", id),
     leave: () => ask("leave", meId(stateOf(store, slot()))),
     unblock: (id) => run("unblock", id),
     withdraw: (id) => run("unexclude", id),

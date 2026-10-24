@@ -4,14 +4,14 @@ export type MemberStatus = "member" | "pending" | "unlisted" | "excluded";
 
 export type MemberAction = "exclude" | "unexclude" | "block" | "unblock" | "leave" | "admit" | "unadmit";
 
-// A pending removal vote on a row.
+// A pending ban vote on a row.
 export interface VoteInfo {
   votes: number;
   need: number;
   proposed_by: string; // id_full of the proposer
   voters: string[];
   mine: boolean; // my node has voted
-  reason: string | null; // why the proposer wants the removal
+  reason: string | null; // why the proposer wants the ban
 }
 
 // A join request that has not reached the quorum yet (or a member held only by confirmations).

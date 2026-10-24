@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The column header: the status line with a colored dot. `status` — `{ level, text }`; `votes` — how many removals
+// The column header: the status line with a colored dot. `status` — `{ level, text }`; `votes` — how many bans
 // wait for this member's confirmation (a link after the text, none for 0); `href` — where it leads (the Members tab by default).
 import { useNarrow } from "../common/use-narrow.ts";
 import { stripVoteShortText, stripVoteText } from "../members/members-texts.ts";

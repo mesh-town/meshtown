@@ -113,7 +113,7 @@ export interface NetworkInfo {
 export interface MembersInfo {
   count: number;
   gossip_neighbors: number;
-  voting?: number; // rows with a pending removal vote
+  voting?: number; // rows with a pending ban vote
   me_excluded?: boolean; // this node is no longer in the member list
   admitting?: number; // join requests that wait for this node's confirmation
   me_pending?: boolean; // this node waits for members to confirm it

@@ -4,13 +4,13 @@
 // In the Android app the way back is the app's "Start over" dialog: a link to an address the app intercepts.
 import { inAppPage } from "../home/browser-setup.ts";
 import {
-  EXCLUDED_APP_BUTTON, EXCLUDED_APP_TEXT, EXCLUDED_JOIN, EXCLUDED_LEFT_TEXT, EXCLUDED_REMOVED_TEXT, START_OVER_URL, excludedTitle,
+  EXCLUDED_APP_BUTTON, EXCLUDED_APP_TEXT, EXCLUDED_JOIN, EXCLUDED_LEFT_TEXT, EXCLUDED_BANNED_TEXT, START_OVER_URL, excludedTitle,
 } from "./members-texts.ts";
 
-const props = defineProps<{ variant: "removed" | "left"; net: string }>();
+const props = defineProps<{ variant: "banned" | "left"; net: string }>();
 defineEmits<{ (e: "join"): void }>();
 const inApp = inAppPage();
-const body = (): string => (props.variant === "left" ? EXCLUDED_LEFT_TEXT : EXCLUDED_REMOVED_TEXT);
+const body = (): string => (props.variant === "left" ? EXCLUDED_LEFT_TEXT : EXCLUDED_BANNED_TEXT);
 </script>
 
 <template>

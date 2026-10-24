@@ -1,6 +1,6 @@
 /* The "Members" tab with the member list (written before the code: red until it exists): the whole page on a fake node.
  * Here: an older node without the list, the rows and their menus, nodes that are not in the list, a failing list request.
- * The other flows: `PeersSection.members-vote.vtest.mjs` (propose / confirm a removal), `…-block.vtest.mjs` (block, errors, the dialog),
+ * The other flows: `PeersSection.members-vote.vtest.mjs` (propose / confirm a ban), `…-block.vtest.mjs` (block, errors, the dialog),
  * `…-leave.vtest.mjs` (leaving, the excluded screen).
  *
  * Contract of the page (see `testing/members-page.mjs` for the helpers):
@@ -30,7 +30,7 @@ describe("a node of an older version (no member list: GET /api/members answers 4
     expect(page.has("[data-member-menu]")).toBe(false);
     expect(page.has(".peer-badge")).toBe(false);
     expect(page.has("#vote-banner")).toBe(false);
-    expect(page.has("#removed-list")).toBe(false);
+    expect(page.has("#excluded-list")).toBe(false);
     expect(page.has("#unlisted-list")).toBe(false);
   });
 
@@ -63,10 +63,10 @@ describe("a node with the member list", () => {
     }
   });
 
-  it("the menu of another member: block on this computer, remove from the network", async () => {
+  it("the menu of another member: block on this computer, ban from the network", async () => {
     const page = await openMembersPage();
     await page.openMenu(PEER_FULL);
-    expect(page.menuLabels()).toEqual(["Block on this computer…", "Remove from network…"]);
+    expect(page.menuLabels()).toEqual(["Block on this computer…", "Ban from network…"]);
   });
 
   it("the menu of your own row: rename, leave the network", async () => {
@@ -75,12 +75,12 @@ describe("a node with the member list", () => {
     expect(page.menuLabels()).toEqual(["Rename", "Leave network…"]);
   });
 
-  it("an ordinary row has no badge and no removal text", async () => {
+  it("an ordinary row has no badge and no ban text", async () => {
     const page = await openMembersPage();
     expect(page.badge(ONE.code)).toBeNull();
     expect(page.lines(ONE.code)).toEqual([]);
     expect(page.has("#vote-banner")).toBe(false);
-    expect(page.has("#removed-list")).toBe(false);
+    expect(page.has("#excluded-list")).toBe(false);
   });
 
   it("the status line under the list is empty until something is done", async () => {
@@ -104,7 +104,7 @@ describe("the toggles survive polling", () => {
     const page = await openMembersPage();
     await page.openMenu(PEER_FULL);
     await page.waitPolls(1);
-    expect(page.menuLabels()).toEqual(["Block on this computer…", "Remove from network…"]);
+    expect(page.menuLabels()).toEqual(["Block on this computer…", "Ban from network…"]);
   });
 
   it("a vote that appears in a later reply of the list shows on the row, the toggle stays", async () => {
@@ -112,7 +112,7 @@ describe("the toggles survive polling", () => {
     const toggle = page.wrapper.get('button[data-member-menu="' + PEER_FULL + '"]').element;
     page.members(membersReply({ rows: [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoNamed()] }));
     await page.waitPolls(1);
-    expect(page.badge(ONE.code)).toBe("Removal proposed");
+    expect(page.badge(ONE.code)).toBe("Ban proposed");
     expect(page.wrapper.get('button[data-member-menu="' + PEER_FULL + '"]').element).toBe(toggle);
   });
 });
@@ -131,7 +131,7 @@ describe("a node that is not in the member list (status unlisted)", () => {
     expect(page.wrapper.get("#unlisted-list .peer-badge").text()).toBe("Not a member");
   });
 
-  it("can only be blocked: no removal in its menu", async () => {
+  it("can only be blocked: no ban in its menu", async () => {
     const page = await openMembersPage({ members: withStray() });
     await page.openMenu(EXTRA_FULL);
     expect(page.menuLabels()).toEqual(["Block on this computer…"]);
@@ -182,7 +182,7 @@ describe("a node of the network that is missing from the member list", () => {
   it("is not put into a group under the list", async () => {
     const page = await openMembersPage({ members: withoutTwo() });
     expect(page.has("#unlisted-list")).toBe(false);
-    expect(page.has("#removed-list")).toBe(false);
+    expect(page.has("#excluded-list")).toBe(false);
   });
 });
 

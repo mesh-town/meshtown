@@ -48,9 +48,9 @@ export function isMeExcluded(state: StateWithNode | null | undefined, members: M
 }
 
 // "left" only when my own row says I left on my own.
-export function excludedVariant(members: MembersReply | null | undefined, me: string): "removed" | "left" {
+export function excludedVariant(members: MembersReply | null | undefined, me: string): "banned" | "left" {
   const mine = memberById(members, me);
-  return mine && mine.excluded && mine.excluded.how === "left" ? "left" : "removed";
+  return mine && mine.excluded && mine.excluded.how === "left" ? "left" : "banned";
 }
 
 // id_full -> name, or the short id for a nameless (or blank-named) member.

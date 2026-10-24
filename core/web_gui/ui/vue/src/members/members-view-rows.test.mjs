@@ -16,7 +16,7 @@
  *      An item: `{ key, label, danger?, disabled?, title? }` — the very shape `MemberMenu.vue` takes as `items`; `key` is one of
  *      "block" | "unblock" | "exclude" | "leave" | "rename" | "waiting" | "withdraw". `danger`/`disabled` are booleans when set; `title` is a
  *      string only on a disabled item (the tooltip that says why). There are NO separator items (the menu draws its own divider).
- *      The row where I proposed the removal (`vote.mine` and `vote.proposed_by === ctx.me`) has ONE enabled item, "withdraw"
+ *      The row where I proposed the ban (`vote.mine` and `vote.proposed_by === ctx.me`) has ONE enabled item, "withdraw"
  *      ("Withdraw proposal"); a row where I only confirmed somebody else's proposal (`vote.mine`, another proposer) keeps ONE disabled "waiting".
  *      The unlisted row has a single item: "block", or "unblock" (label "Unblock") when it is already blocked by me.
  *  - The unlisted rows are drawn by `UnlistedList.vue`, so `rowDecor` is not defined for them (no tests). */
@@ -30,7 +30,7 @@ import { excludedInfo, extraRow, foreignVote, peerOneRow, peerTwoRow, selfRow, v
 const ME = SELF_FULL;
 const NAMES = { [SELF_FULL]: "finch-unwary", [PEER_FULL]: "peer-one", [PEER2_FULL]: "cccc3333" };
 const NEUTRAL = { badge: null, lines: [], mainAction: null };
-const PROPOSED = { text: "Removal proposed", tone: "warn" };
+const PROPOSED = { text: "Ban proposed", tone: "warn" };
 const BLOCKED = { text: "Blocked on this computer", tone: "grey" };
 const peerOf = (row) => ({ id: row.id, id_full: row.id_full, name: row.name, self: row.self, online: row.online });
 
@@ -49,23 +49,23 @@ describe("rowDecor", () => {
     });
   });
 
-  describe("I proposed removing it", () => {
+  describe("I proposed banning it", () => {
     const row = peerOneRow({ vote: voteInfo(), denied_by_me: "voted_by_me" });
 
-    it("a yellow \"Removal proposed\" mark", () => {
+    it("a yellow \"Ban proposed\" mark", () => {
       assert.deepEqual(rowDecor(peerOf(row), row, ME, NAMES).badge, PROPOSED);
     });
 
     it("says that I wait for one more member, and that it is blocked here", () => {
       assert.deepEqual(rowDecor(peerOf(row), row, ME, NAMES).lines, [
-        "You proposed removing it · waiting for 1 more member to confirm",
+        "You proposed banning it · waiting for 1 more member to confirm",
         "Blocked on this computer",
       ]);
     });
 
     it("counts the missing votes from the vote itself", () => {
       const slow = peerOneRow({ vote: voteInfo({ votes: 1, need: 3 }), denied_by_me: "voted_by_me" });
-      assert.equal(rowDecor(peerOf(slow), slow, ME, NAMES).lines[0], "You proposed removing it · waiting for 2 more members to confirm");
+      assert.equal(rowDecor(peerOf(slow), slow, ME, NAMES).lines[0], "You proposed banning it · waiting for 2 more members to confirm");
     });
 
     it("there is nothing to confirm for me", () => {
@@ -75,7 +75,7 @@ describe("rowDecor", () => {
     describe("and it is also blocked by me", () => {
       const both = peerOneRow({ vote: voteInfo(), blocked_by_me: true, denied_by_me: "voted_by_me" });
 
-      it("the mark is still \"Removal proposed\"", () => {
+      it("the mark is still \"Ban proposed\"", () => {
         assert.deepEqual(rowDecor(peerOf(both), both, ME, NAMES).badge, PROPOSED);
       });
 
@@ -94,10 +94,10 @@ describe("rowDecor", () => {
     });
   });
 
-  describe("another member proposed removing it", () => {
+  describe("another member proposed banning it", () => {
     const row = peerTwoRow({ online: true, vote: foreignVote() });
 
-    it("a yellow \"Removal proposed\" mark", () => {
+    it("a yellow \"Ban proposed\" mark", () => {
       assert.deepEqual(rowDecor(peerOf(row), row, ME, NAMES).badge, PROPOSED);
     });
 
@@ -161,12 +161,12 @@ describe("menuItems", () => {
   const ctx = { me: ME };
 
   describe("an ordinary member", () => {
-    it("block, then remove (dangerous)", () => {
-      assert.deepEqual(view(menuItems(peerOneRow(), ctx)), [BLOCK, REMOVE]);
+    it("block, then ban (dangerous)", () => {
+      assert.deepEqual(view(menuItems(peerOneRow(), ctx)), [BLOCK, BAN]);
     });
   });
 
-  describe("I proposed removing it", () => {
+  describe("I proposed banning it", () => {
     it("the only item: \"Withdraw proposal\", enabled", () => {
       const row = peerOneRow({ vote: voteInfo(), denied_by_me: "voted_by_me" });
       assert.deepEqual(view(menuItems(row, ctx)), [WITHDRAW]);
@@ -200,22 +200,22 @@ describe("menuItems", () => {
     });
   });
 
-  describe("another member proposed removing it", () => {
-    it("remove is disabled with the reason, block works", () => {
+  describe("another member proposed banning it", () => {
+    it("ban is disabled with the reason, block works", () => {
       const row = peerTwoRow({ vote: foreignVote() });
-      assert.deepEqual(view(menuItems(row, ctx)), [BLOCK, { ...REMOVE, disabled: true, title: "Removal already proposed" }]);
+      assert.deepEqual(view(menuItems(row, ctx)), [BLOCK, { ...BAN, disabled: true, title: "Ban already proposed" }]);
     });
   });
 
   describe("it is blocked by me", () => {
-    it("block is disabled (\"Already blocked\"), remove works", () => {
+    it("block is disabled (\"Already blocked\"), ban works", () => {
       const row = peerOneRow({ blocked_by_me: true });
-      assert.deepEqual(view(menuItems(row, ctx)), [{ ...BLOCK, disabled: true, title: "Already blocked" }, REMOVE]);
+      assert.deepEqual(view(menuItems(row, ctx)), [{ ...BLOCK, disabled: true, title: "Already blocked" }, BAN]);
     });
   });
 
   describe("it is not in the member list", () => {
-    it("block only: it can not be removed", () => {
+    it("block only: it can not be banned", () => {
       assert.deepEqual(view(menuItems(extraRow({ status: "unlisted" }), ctx)), [BLOCK]);
     });
 
@@ -248,10 +248,10 @@ describe("menuItems", () => {
   });
 
   describe("which items are dangerous", () => {
-    it("only \"Remove from network…\" and \"Leave network…\" are marked", () => {
+    it("only \"Ban from network…\" and \"Leave network…\" are marked", () => {
       const all = [peerOneRow(), selfRow(), extraRow({ status: "unlisted" }), peerTwoRow({ blocked_by_me: true }), peerOneRow({ vote: voteInfo() })].flatMap((row) => view(menuItems(row, ctx)));
       const dangerous = all.filter((item) => item.danger).map((item) => item.label);
-      assert.deepEqual([...new Set(dangerous)].sort(), ["Leave network…", "Remove from network…"]);
+      assert.deepEqual([...new Set(dangerous)].sort(), ["Ban from network…", "Leave network…"]);
     });
   });
 });
@@ -260,7 +260,7 @@ describe("menuItems", () => {
 
 const item = (key, label, over = {}) => ({ key, label, danger: false, disabled: false, title: "", ...over });
 const BLOCK = item("block", "Block on this computer…");
-const REMOVE = item("exclude", "Remove from network…", { danger: true });
+const BAN = item("exclude", "Ban from network…", { danger: true });
 const WAITING = item("waiting", "Waiting for another member to confirm", { disabled: true });
 const WITHDRAW = item("withdraw", "Withdraw proposal");
 const RENAME = item("rename", "Rename");

@@ -184,7 +184,7 @@ describe("clicking the second tab", () => {
     const page = await openTwo();
     page.node.slotList[1].routes["POST /api/members/exclude"] = () => actionReply(bMembers([laptop(true), phone(true)]));
     await page.whenTabClicked("my devices");
-    await page.whenMemberRemoved(EXTRA_FULL);
+    await page.whenMemberBanned(EXTRA_FULL);
     expect(page.posted("/api/net/" + NET_B + "/members/exclude")).toEqual([{ id: EXTRA_FULL }]);
     expect(page.posted("/api/members/exclude"), "nothing for the first network").toEqual([]);
   });
@@ -237,7 +237,7 @@ describe("the status under the list", () => {
   it("belongs to the tab where the action was done: the other tab starts empty", async () => {
     const page = await openTwo();
     page.node.routes["POST /api/members/exclude"] = () => actionReply(votesOnPeerOne());
-    await page.whenMemberRemoved(PEER_ONE_FULL);
+    await page.whenMemberBanned(PEER_ONE_FULL);
     expect(page.status(), "the action on the first network left a line").not.toBe("");
     await page.whenTabClicked("my devices");
     expect(page.status()).toBe("");
@@ -385,7 +385,7 @@ function pageOf(node, wrapper, store) {
       await hashChanged();
     },
     async whenAddressBack() { location.hash = "peers"; await hashChanged(); },
-    async whenMemberRemoved(idFull) {
+    async whenMemberBanned(idFull) {
       await click(wrapper.get('button[data-member-menu="' + idFull + '"]'));
       await click(wrapper.get('[role="menu"] [data-member-item="exclude"]'));
       await click(wrapper.get("#member-confirm-yes"));

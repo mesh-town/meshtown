@@ -49,10 +49,10 @@ pub(crate) struct Args {
     /// Capacity of the log ring; by default it is log.ring_lines from the settings file.
     #[arg(long)]
     pub(crate) ring_lines: Option<usize>,
-    /// Another member agrees to every removal proposed from this page at once (the member lands in "No longer in the network").
+    /// Another member agrees to every ban proposed from this page at once (the member lands in "No longer in the network").
     #[arg(long)]
     pub(crate) members_second_vote: bool,
-    /// Start as a computer already removed from the network (`me_excluded` in the member list).
+    /// Start as a computer already banned from the network (`me_excluded` in the member list).
     #[arg(long)]
     pub(crate) me_excluded: bool,
     /// A node that asked to join waits in the list for confirmations (no member has confirmed it yet).

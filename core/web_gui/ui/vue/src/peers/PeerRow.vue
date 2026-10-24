@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // One row of the member list: the name and id, the connection, the main action and (with a member list) the
-// removal-vote badge, extra lines and the "⋯" menu. Only reports what was chosen; the parent acts.
+// ban-vote badge, extra lines and the "⋯" menu. Only reports what was chosen; the parent acts.
 import { computed } from "vue";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
 import { EXIT_VIA_HIM, peerName } from "../common/words.ts";
 import MemberMenu from "../members/MemberMenu.vue";
-import { ACTION_CONFIRM, ACTION_UNBLOCK, confirmAria, unblockAria } from "../members/members-texts.ts";
+import { ACTION_CONFIRM_BAN, ACTION_UNBLOCK, confirmAria, unblockAria } from "../members/members-texts.ts";
 import type { MemberRow } from "../members/members-types.ts";
 import { menuItems, rowDecor } from "../members/members-view.ts";
 import { PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
@@ -40,7 +40,7 @@ const rowTitle = computed(() => (props.peer.self && props.state.node.id_full) ||
       <span v-else-if="action.kind === 'chosen-down'" class="peer-chosen">{{ PEERS_CHOSEN_DOWN }}</span>
       <button v-else-if="action.kind === 'button'" type="button" class="btn btn-sm" :data-exit-via="peer.id_full" :aria-label="EXIT_VIA_HIM + ': ' + name" @click="emit('exit-via', peer.id_full)">{{ EXIT_VIA_HIM }}</button>
       <span v-else-if="action.kind === 'refused'" class="peer-note">{{ PEERS_REFUSED }}</span>
-      <button v-if="decor.mainAction === 'confirm'" type="button" class="btn btn-sm btn-primary" data-member-action="confirm" :aria-label="confirmAria(name)" @click="emit('member-pick', 'confirm', peer.id_full)">{{ ACTION_CONFIRM }}</button>
+      <button v-if="decor.mainAction === 'confirm'" type="button" class="btn btn-sm btn-primary" data-member-action="confirm" :aria-label="confirmAria(name)" @click="emit('member-pick', 'confirm', peer.id_full)">{{ ACTION_CONFIRM_BAN }}</button>
       <button v-else-if="decor.mainAction === 'unblock'" type="button" class="btn btn-sm" data-member-action="unblock" :aria-label="unblockAria(name)" @click="emit('member-pick', 'unblock', peer.id_full)">{{ ACTION_UNBLOCK }}</button>
       <MemberMenu v-if="items.length > 0" :id="peer.id_full" :name="name" :items="items" @pick="(key) => emit('member-pick', key, peer.id_full)" />
     </span>

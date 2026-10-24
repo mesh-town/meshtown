@@ -1,5 +1,5 @@
 /* Join requests on the "Members" tab: the card with requests, confirming through the dialog, the tab counter that adds requests
- * to removals, and the card of a computer that waits itself. The page runs on a fake node (`testing/members-page.mjs`). */
+ * to bans, and the card of a computer that waits itself. The page runs on a fake node (`testing/members-page.mjs`). */
 
 import { afterEach, describe, expect, it } from "vitest";
 import { PEER2_FULL, PEER_FULL } from "../testing/section.mjs";
@@ -63,7 +63,7 @@ describe("a node waits to join", () => {
 });
 
 describe("the tab counter", () => {
-  it("the tab counter adds join requests to removals", async () => {
+  it("the tab counter adds join requests to bans", async () => {
     const rows = [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoNamed(), pendingRow()];
     const page = await openMembersPage({ members: membersReply({ rows }), state: stateWith({ voting: 1, admitting: 1 }) });
     expect(page.text("#tab-peers .chip")).toBe("2");

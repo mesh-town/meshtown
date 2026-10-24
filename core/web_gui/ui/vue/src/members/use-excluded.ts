@@ -8,7 +8,7 @@ import { excludedVariant, isMeExcluded, meId } from "./members-view.ts";
 
 export interface ExcludedView {
   excluded: ComputedRef<boolean>;
-  variant: ComputedRef<"removed" | "left">;
+  variant: ComputedRef<"banned" | "left">;
   net: ComputedRef<string>;
 }
 

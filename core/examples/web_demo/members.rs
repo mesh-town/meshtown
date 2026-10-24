@@ -90,7 +90,7 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
     }
 }
 
-/// Appends the removed member, the node that is not in the list and, if asked, the pending one.
+/// Appends the banned member, the node that is not in the list and, if asked, the pending one.
 fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
     let id3 = fake_id("a3");
     entries.push(entry(
@@ -122,8 +122,8 @@ fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
 }
 
 impl DemoMembers {
-    /// You, `peer-one` (ordinary), `peer-two` (somebody else's removal proposal waits for a second voter),
-    /// `peer-three` (removed by votes) and `stray-laptop` (not in the list); with `--members-pending` also
+    /// You, `peer-one` (ordinary), `peer-two` (somebody else's ban proposal waits for a second voter),
+    /// `peer-three` (banned by votes) and `stray-laptop` (not in the list); with `--members-pending` also
     /// `anna-laptop`, which `peer-one` has confirmed.
     pub(crate) fn new(peers: &[DemoPeer], opts: &DemoNetworkOptions) -> Self {
         let (second_vote, me_excluded) = (opts.members_second_vote, opts.me_excluded);

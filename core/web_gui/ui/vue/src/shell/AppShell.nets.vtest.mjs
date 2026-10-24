@@ -1,5 +1,5 @@
 /* The requests-to-confirm counter of the shell with several networks: the "Members" tab chip and the header link `#strip-vote`
- * count the requests of every network together. A removal proposed by somebody else and a join request each count as one;
+ * count the requests of every network together. A ban proposed by somebody else and a join request each count as one;
  * a network the computer was excluded from adds nothing. The link goes to the one network that has requests, otherwise to `#peers`.
  * With a single network the counter is the one the page always had. */
 
@@ -87,10 +87,10 @@ describe("one network", () => {
 // A member list without requests.
 const noRequests = (over = {}) => membersReply(over);
 
-// One removal of peer-two proposed by peer-one, which this computer has not joined yet.
+// One ban of peer-two proposed by peer-one, which this computer has not joined yet.
 const oneRequest = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow(), peerTwoRow({ name: "peer-two", vote: foreignVote() })], ...over });
 
-// A removal proposed by peer-two and a join request: two things for this computer to confirm.
+// A ban proposed by peer-two and a join request: two things for this computer to confirm.
 const twoRequests = (over = {}) =>
   membersReply({ rows: [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoRow({ name: "peer-two" }), pendingRow()], ...over });
 

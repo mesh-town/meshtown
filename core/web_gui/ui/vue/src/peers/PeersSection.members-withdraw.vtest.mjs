@@ -1,5 +1,5 @@
-/* Taking back my own removal proposal on the "Members" tab (written before the code: red until it exists): the whole page on a fake node.
- * The menu of a row where I proposed the removal has one item, "Withdraw proposal"; it sends `POST /api/members/unexclude {id}` at once,
+/* Taking back my own ban proposal on the "Members" tab (written before the code: red until it exists): the whole page on a fake node.
+ * The menu of a row where I proposed the ban has one item, "Withdraw proposal"; it sends `POST /api/members/unexclude {id}` at once,
  * without a dialog, and the row becomes an ordinary one again. A proposal of another member that I only confirmed keeps the disabled
  * "Waiting…" item. Selectors and helpers: `PeersSection.members.vtest.mjs`, `testing/members-page.mjs`. */
 
@@ -11,9 +11,9 @@ import { unmountPage } from "../testing/page.mjs";
 
 afterEach(unmountPage);
 
-const ORDINARY_MENU = ["Block on this computer…", "Remove from network…"];
+const ORDINARY_MENU = ["Block on this computer…", "Ban from network…"];
 
-describe("the menu of a row where I proposed the removal", () => {
+describe("the menu of a row where I proposed the ban", () => {
   it("has one item, \"Withdraw proposal\", and it is enabled", async () => {
     const page = await pageWithMyProposal();
     await page.openMenu(PEER_FULL);
@@ -23,13 +23,13 @@ describe("the menu of a row where I proposed the removal", () => {
 
   it("the row says that I wait for another member, and has no \"Waiting…\" item", async () => {
     const page = await pageWithMyProposal();
-    expect(page.badge(ONE.code)).toBe("Removal proposed");
-    expect(page.lines(ONE.code)).toContain("You proposed removing it · waiting for 1 more member to confirm");
+    expect(page.badge(ONE.code)).toBe("Ban proposed");
+    expect(page.lines(ONE.code)).toContain("You proposed banning it · waiting for 1 more member to confirm");
     await page.openMenu(PEER_FULL);
     expect(page.has('[data-member-item="waiting"]')).toBe(false);
   });
 
-  it("the members I did not propose to remove keep the ordinary menu", async () => {
+  it("the members I did not propose to ban keep the ordinary menu", async () => {
     const page = await pageWithMyProposal();
     await page.openMenu(PEER2_FULL);
     expect(page.menuLabels()).toEqual(ORDINARY_MENU);
@@ -98,7 +98,7 @@ describe("\"Withdraw proposal\"", () => {
       expect(page.listCodes()).toContain(TWO.code);
     });
 
-    it("can be proposed for removal again afterwards", async () => {
+    it("can be proposed for a ban again afterwards", async () => {
       const page = await pageWithMyProposal();
       await withdraw(page);
       page.answerWith("exclude", membersWithMyProposal());
@@ -106,7 +106,7 @@ describe("\"Withdraw proposal\"", () => {
       await page.pick("exclude");
       await page.confirmDialog();
       expect(page.postedBodies("exclude")).toEqual([{ id: PEER_FULL }]);
-      expect(page.badge(ONE.code)).toBe("Removal proposed");
+      expect(page.badge(ONE.code)).toBe("Ban proposed");
     });
   });
 
@@ -114,14 +114,14 @@ describe("\"Withdraw proposal\"", () => {
     it("says the proposal is withdrawn and that the member is no longer blocked on this computer", async () => {
       const page = await pageWithMyProposal();
       await withdraw(page);
-      expect(page.status()).toBe("Removal proposal withdrawn. peer-one is no longer blocked on this computer.");
+      expect(page.status()).toBe("Ban proposal withdrawn. peer-one is no longer blocked on this computer.");
     });
 
     it("when I had also blocked the member myself, only the withdrawal is reported and the block stays", async () => {
       const page = await pageWithMyProposal();
       page.answerWith("unexclude", membersReply({ rows: [selfRow(), peerOneRow({ blocked_by_me: true, denied_by_me: "blocked" }), peerTwoNamed()] }));
       await withdraw(page);
-      expect(page.status()).toBe("Removal proposal withdrawn.");
+      expect(page.status()).toBe("Ban proposal withdrawn.");
       expect(page.badge(ONE.code)).toBe("Blocked on this computer");
       expect(page.rowAction(ONE.code, "unblock").text()).toBe("Unblock");
     });
@@ -133,14 +133,14 @@ describe("\"Withdraw proposal\"", () => {
       page.failWith("unexclude", 409, "not_member", "That computer isn't in the member list");
       await withdraw(page);
       expect(page.status()).toContain("That computer isn't in the member list");
-      expect(page.badge(ONE.code)).toBe("Removal proposed");
+      expect(page.badge(ONE.code)).toBe("Ban proposed");
       await page.openMenu(PEER_FULL);
       expect(page.menuLabels()).toEqual(["Withdraw proposal"]);
     });
   });
 });
 
-// You proposed removing peer-one: one vote (yours) of the two needed.
+// You proposed banning peer-one: one vote (yours) of the two needed.
 const membersWithMyProposal = () =>
   membersReply({ rows: [selfRow(), peerOneRow({ vote: voteInfo(), denied_by_me: "voted_by_me" }), peerTwoNamed()] });
 
@@ -151,7 +151,7 @@ async function pageWithMyProposal() {
   return page;
 }
 
-// peer-two proposed removing peer-one and I confirmed it, the second confirmation has not come yet (a network of four or more).
+// peer-two proposed banning peer-one and I confirmed it, the second confirmation has not come yet (a network of four or more).
 async function pageWithProposalIConfirmed() {
   const vote = foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL, SELF_FULL], mine: true, votes: 2, need: 3 });
   return openMembersPage({ members: membersReply({ rows: [selfRow(), peerOneRow({ vote }), peerTwoNamed()], need: 3 }) });

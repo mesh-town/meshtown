@@ -14,9 +14,9 @@ const A = "main";
 const B = "k7q2xa";
 
 describe("slotVotes", () => {
-  describe("a removal vote proposed by someone else", () => {
+  describe("a ban vote proposed by someone else", () => {
     it("counts one", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] } });
       assert.equal(slotVotes(store, A), 1);
     });
   });
@@ -28,19 +28,19 @@ describe("slotVotes", () => {
     });
   });
 
-  describe("a removal vote and a join request together", () => {
+  describe("a ban vote and a join request together", () => {
     it("counts both", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm(), pendingRow()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm(), pendingRow()] } });
       assert.equal(slotVotes(store, A), 2);
     });
   });
 
   describe("requests that need nothing from me", () => {
-    it("a removal vote I proposed is not counted", () => {
+    it("a ban vote I proposed is not counted", () => {
       const { store } = setup({ [A]: { rows: [peerOneRow({ vote: voteInfo() })] } });
       assert.equal(slotVotes(store, A), 0);
     });
-    it("a removal vote I already joined is not counted", () => {
+    it("a ban vote I already joined is not counted", () => {
       const { store } = setup({ [A]: { rows: [peerOneRow({ vote: foreignVote({ mine: true }) })] } });
       assert.equal(slotVotes(store, A), 0);
     });
@@ -56,37 +56,37 @@ describe("slotVotes", () => {
 
   describe("two networks", () => {
     it("each network counts only its own list", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm(), pendingRow()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm(), pendingRow()] } });
       assert.deepEqual([slotVotes(store, A), slotVotes(store, B)], [1, 2]);
     });
     it("requests of B do not leak into the number of A", () => {
-      const { store } = setup({ [B]: { rows: [removalToConfirm(), pendingRow()] } });
+      const { store } = setup({ [B]: { rows: [banToConfirm(), pendingRow()] } });
       assert.equal(slotVotes(store, A), 0);
     });
   });
 
   describe("this computer is excluded from the network", () => {
     it("the list flag zeroes the number", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()], excluded: "members" } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()], excluded: "members" } });
       assert.equal(slotVotes(store, A), 0);
     });
     it("the flag in the node state zeroes the number", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()], excluded: "state" } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()], excluded: "state" } });
       assert.equal(slotVotes(store, A), 0);
     });
     it("only that network is zeroed, the other keeps its requests", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm()], excluded: "members" } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm()], excluded: "members" } });
       assert.deepEqual([slotVotes(store, A), slotVotes(store, B)], [1, 0]);
     });
   });
 
   describe("no data", () => {
     it("an unknown network gives zero", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] } });
       assert.equal(slotVotes(store, "zzzzzz"), 0);
     });
     it("a network whose member list has not arrived gives zero", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: null } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: null } });
       assert.equal(slotVotes(store, B), 0);
     });
   });
@@ -95,21 +95,21 @@ describe("slotVotes", () => {
 describe("totalVotes", () => {
   describe("one request in A and two in B", () => {
     it("the badge shows three", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm(), pendingRow()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm(), pendingRow()] } });
       assert.equal(totalVotes(store), 3);
     });
   });
 
   describe("this computer is excluded from B", () => {
     it("B adds nothing to the sum", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm(), pendingRow()], excluded: "members" } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm(), pendingRow()], excluded: "members" } });
       assert.equal(totalVotes(store), 1);
     });
   });
 
   describe("a network that is not visible", () => {
     it("its requests are not in the sum", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm()], keyless: true } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm()], keyless: true } });
       assert.equal(totalVotes(store), 1);
     });
   });
@@ -131,35 +131,35 @@ describe("totalVotes", () => {
 describe("votesTarget", () => {
   describe("two networks, requests only in B", () => {
     it("leads to the tab of B", () => {
-      const { store } = setup({ [A]: {}, [B]: { rows: [removalToConfirm()] } });
+      const { store } = setup({ [A]: {}, [B]: { rows: [banToConfirm()] } });
       assert.equal(votesTarget(store), "#peers/k7q2xa");
     });
   });
 
   describe("two networks, requests only in A", () => {
     it("leads to the tab of A", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: {} });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: {} });
       assert.equal(votesTarget(store), "#peers/main");
     });
   });
 
   describe("two networks, requests in both", () => {
     it("leads to the Members page as a whole", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [pendingRow()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [pendingRow()] } });
       assert.equal(votesTarget(store), "#peers");
     });
   });
 
   describe("two networks, requests only in B but this computer is excluded from it", () => {
     it("leads to the Members page as a whole", () => {
-      const { store } = setup({ [A]: {}, [B]: { rows: [removalToConfirm()], excluded: "members" } });
+      const { store } = setup({ [A]: {}, [B]: { rows: [banToConfirm()], excluded: "members" } });
       assert.equal(votesTarget(store), "#peers");
     });
   });
 
   describe("one network with requests", () => {
     it("leads to the Members page as a whole", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] } });
       assert.equal(votesTarget(store), "#peers");
     });
   });
@@ -175,7 +175,7 @@ describe("votesTarget", () => {
 describe("netTabs", () => {
   describe("the circle of a tab", () => {
     it("equals slotVotes of that network", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()] }, [B]: { rows: [removalToConfirm(), pendingRow()] } });
+      const { store } = setup({ [A]: { rows: [banToConfirm()] }, [B]: { rows: [banToConfirm(), pendingRow()] } });
       assert.deepEqual(netTabs(store).map((t) => t.votes), [1, 2]);
     });
     it("ignores members_voting of the brief", () => {
@@ -183,7 +183,7 @@ describe("netTabs", () => {
       assert.equal(netTabs(store)[0].votes, 0);
     });
     it("is zero when this computer is excluded, though the brief counts requests", () => {
-      const { store } = setup({ [A]: {}, [B]: { rows: [removalToConfirm()], excluded: "members", brief: { members_voting: 1 } } });
+      const { store } = setup({ [A]: {}, [B]: { rows: [banToConfirm()], excluded: "members", brief: { members_voting: 1 } } });
       assert.equal(netTabs(store)[1].votes, 0);
     });
   });
@@ -198,7 +198,7 @@ describe("netTabs", () => {
       assert.equal(netTabs(store)[0].title, "friends — no connection");
     });
     it("the circle of requests stays on the tab", () => {
-      const { store } = setup({ [A]: { rows: [removalToConfirm()], brief: { status: "offline", peers_online: 0, peers_total: 2 } }, [B]: {} });
+      const { store } = setup({ [A]: { rows: [banToConfirm()], brief: { status: "offline", peers_online: 0, peers_total: 2 } }, [B]: {} });
       assert.equal(netTabs(store)[0].votes, 1);
     });
   });
@@ -240,8 +240,8 @@ describe("isDown", () => {
   });
 });
 
-// A removal vote proposed by peer-one, which this node ("You") has not joined yet.
-const removalToConfirm = () => peerTwoRow({ vote: foreignVote() });
+// A ban vote proposed by peer-one, which this node ("You") has not joined yet.
+const banToConfirm = () => peerTwoRow({ vote: foreignVote() });
 
 function brief(id, over = {}) {
   return {

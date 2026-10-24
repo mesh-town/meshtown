@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The "Members" section: the removal-vote banner, the member list (each row with its "⋯" menu), the line under the
+// The "Members" section: the ban-vote banner, the member list (each row with its "⋯" menu), the line under the
 // list, the groups of nodes that are no longer in / not in the member list, the confirmation dialog. A computer that
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
 import { computed, inject, ref, watch } from "vue";
@@ -16,10 +16,10 @@ import ConfirmDialog from "../members/ConfirmDialog.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
 import PendingCard from "../members/PendingCard.vue";
 import PendingList from "../members/PendingList.vue";
-import RemovedList from "../members/RemovedList.vue";
+import ExcludedList from "../members/ExcludedList.vue";
 import UnlistedList from "../members/UnlistedList.vue";
 import VoteBanner from "../members/VoteBanner.vue";
-import { confirmable, displayNames, excludedVariant, isMeExcluded, memberById, meId, partitionRows, removedLine } from "../members/members-view.ts";
+import { confirmable, displayNames, excludedVariant, isMeExcluded, memberById, meId, partitionRows, excludedRowLine } from "../members/members-view.ts";
 import { pendingProposal, proposalKey, pruneHidden } from "../members/vote-hidden.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import NetTabHead from "./NetTabHead.vue";
@@ -74,7 +74,7 @@ const names = computed(() => displayNames(members.value));
 const parts = computed(() => partitionRows(orderedPeers(state.value && state.value.peers), members.value, me.value));
 // A peer the member list does not know is shown as a plain row: no menu, no badge.
 const rows = computed(() => parts.value.active as PeerInfo[]);
-const removedLines = computed(() => parts.value.removed.map((m) => removedLine(m, names.value)));
+const excludedLines = computed(() => parts.value.excluded.map((m) => excludedRowLine(m, names.value)));
 const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
 const waiting = computed(() => confirmable(members.value, me.value));
 const proposal = computed(() => pendingProposal(waiting.value, hidden.value));
@@ -121,7 +121,7 @@ async function exitVia(idFull: string): Promise<void> {
       <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" :multi="showRow" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <PendingCard v-if="members && members.me_pending" :votes="meVotes" :need="meNeed" />
-      <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('confirm', proposal.id_full)" @later="later" />
+      <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />
       <div class="card">
         <ul class="peer-list" id="peers-list" role="list">
           <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :me="me" :names="names" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
@@ -129,7 +129,7 @@ async function exitVia(idFull: string): Promise<void> {
         <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
       </div>
       <PendingList :rows="parts.pending" :me="me" @pick="pick" />
-      <RemovedList :lines="removedLines" />
+      <ExcludedList :lines="excludedLines" />
       <UnlistedList :rows="parts.unlisted" @pick="pick" />
       <AddNetCard v-if="addHere" context="peers" />
       <p v-else-if="!showRow" class="addlink"><a class="quiet" id="peers-add-link" :href="peersHash('add')">{{ ADD_NET_LINK }}</a></p>

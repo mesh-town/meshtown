@@ -1,4 +1,4 @@
-/* `members-view.ts`, part 1: lookups, the "can I confirm" rules, the grouping of rows, dates and the "removed" lines.
+/* `members-view.ts`, part 1: lookups, the "can I confirm" rules, the grouping of rows, dates and the "excluded" lines.
  * (Row decoration and the `⋯` menu are in `members-view-rows.test.mjs`.) All functions are pure, named exports of `./members-view.ts`.
  *
  * Contract fixed by these tests:
@@ -9,17 +9,17 @@
  *  - `canConfirm(m, me): boolean` — strictly `true`/`false` (never a vote object); `false` for a null/undefined `m`.
  *  - `confirmable(members, me): MemberRow[]` — rows with `canConfirm`, in the order of `members.members`; `[]` for null members.
  *  - `isMeExcluded(state, members): boolean` — `state.members.me_excluded || members.me_excluded`, both may be missing/null.
- *  - `excludedVariant(members, me): "left" | "removed"` — "left" only when my own row has `excluded.how === "left"`.
+ *  - `excludedVariant(members, me): "left" | "banned"` — "left" only when my own row has `excluded.how === "left"`.
  *  - `displayNames(members): Record<id_full, string>` — name, or the short `id` for a nameless/blank-named member; `{}` for null.
- *      (It builds the `names` argument of `removedLine` and `rowDecor`.)
- *  - `partitionRows(peers, members, me): { active, pending, unlisted, removed }`:
+ *      (It builds the `names` argument of `excludedRowLine` and `rowDecor`.)
+ *  - `partitionRows(peers, members, me): { active, pending, unlisted, excluded }`:
  *      `active` holds the peers with status "member" (the same objects as in `peers`, order kept) and, appended in the order of
  *      `members`, a minimal row `{ id, id_full, name, online, self }` copied from the member row for a member absent from `peers`;
- *      `unlisted` and `removed` hold `MemberRow`s of `members` (status "unlisted" / "excluded", order of `members`) — they are
- *      drawn from the member data (`UnlistedList.vue` / `RemovedList.vue`), whether or not the node is among the peers.
- *      A peer unknown to `members` stays in `active`. `members == null`: `{ active: peers, unlisted: [], removed: [] }`.
+ *      `unlisted` and `excluded` hold `MemberRow`s of `members` (status "unlisted" / "excluded", order of `members`) — they are
+ *      drawn from the member data (`UnlistedList.vue` / `ExcludedList.vue`), whether or not the node is among the peers.
+ *      A peer unknown to `members` stays in `active`. `members == null`: `{ active: peers, unlisted: [], excluded: [] }`.
  *  - `shortDate(unix, timeZone?): string` — "19 Oct" (day without a leading zero, English short month); a non-number gives "".
- *  - `removedLine(m, names, timeZone?): string`; `names` is a `displayNames` object; an unknown id falls back to its first 8 chars. */
+ *  - `excludedRowLine(m, names, timeZone?): string`; `names` is a `displayNames` object; an unknown id falls back to its first 8 chars. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -32,7 +32,7 @@ import {
   meId,
   memberById,
   partitionRows,
-  removedLine,
+  excludedRowLine,
   shortDate,
 } from "./members-view.ts";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
@@ -142,19 +142,19 @@ describe("excludedVariant", () => {
     assert.equal(excludedVariant(reply, ME), "left");
   });
 
-  it("my own row says I was removed by votes: removed", () => {
+  it("my own row says I was banned by votes: banned", () => {
     const reply = membersReply({ rows: [selfRow({ status: "excluded", excluded: excludedInfo({ how: "votes" }) })] });
-    assert.equal(excludedVariant(reply, ME), "removed");
+    assert.equal(excludedVariant(reply, ME), "banned");
   });
 
-  it("somebody else left, not me: removed", () => {
+  it("somebody else left, not me: banned", () => {
     const reply = membersReply({ rows: [selfRow(), extraRow({ status: "excluded", excluded: excludedInfo({ how: "left" }) })] });
-    assert.equal(excludedVariant(reply, ME), "removed");
+    assert.equal(excludedVariant(reply, ME), "banned");
   });
 
-  it("no members or no row of mine: removed", () => {
-    assert.equal(excludedVariant(null, ME), "removed");
-    assert.equal(excludedVariant(membersReply({ rows: [peerOneRow()] }), ME), "removed");
+  it("no members or no row of mine: banned", () => {
+    assert.equal(excludedVariant(null, ME), "banned");
+    assert.equal(excludedVariant(membersReply({ rows: [peerOneRow()] }), ME), "banned");
   });
 });
 
@@ -177,11 +177,11 @@ describe("partitionRows", () => {
       assert.deepEqual(parts.active, peers);
       assert.equal(parts.active[0], peers[0], "the very same peer objects");
       assert.deepEqual(parts.unlisted, []);
-      assert.deepEqual(parts.removed, []);
+      assert.deepEqual(parts.excluded, []);
     });
 
     it("no peers either: three empty lists", () => {
-      assert.deepEqual(partitionRows(null, null, ME), { active: [], pending: [], unlisted: [], removed: [] });
+      assert.deepEqual(partitionRows(null, null, ME), { active: [], pending: [], unlisted: [], excluded: [] });
     });
   });
 
@@ -191,7 +191,7 @@ describe("partitionRows", () => {
       const reply = membersReply({ rows: [selfRow(), peerOneRow(), peerTwoRow()] });
       const parts = partitionRows(peers, reply, ME);
       assert.deepEqual(ids(parts.active), [PEER2_FULL, SELF_FULL, PEER_FULL]);
-      assert.equal(parts.unlisted.length + parts.removed.length, 0);
+      assert.equal(parts.unlisted.length + parts.excluded.length, 0);
     });
 
     it("a pending vote does not move a row anywhere", () => {
@@ -202,26 +202,26 @@ describe("partitionRows", () => {
   });
 
   describe("a member was excluded", () => {
-    it("its peer row leaves the active list and the row of the reply goes to removed", () => {
+    it("its peer row leaves the active list and the row of the reply goes to excluded", () => {
       const peers = [peer(SELF_FULL, { self: true }), peer(PEER_FULL)];
       const gone = peerOneRow({ status: "excluded", excluded: excludedInfo() });
       const parts = partitionRows(peers, membersReply({ rows: [selfRow(), gone] }), ME);
       assert.deepEqual(ids(parts.active), [SELF_FULL]);
-      assert.deepEqual(parts.removed, [gone]);
+      assert.deepEqual(parts.excluded, [gone]);
     });
 
-    it("an excluded member that is not among the peers is still in removed", () => {
+    it("an excluded member that is not among the peers is still in excluded", () => {
       const gone = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [EXTRA_FULL] }) });
       const parts = partitionRows([peer(SELF_FULL, { self: true })], membersReply({ rows: [selfRow(), gone] }), ME);
       assert.deepEqual(ids(parts.active), [SELF_FULL]);
-      assert.deepEqual(parts.removed, [gone]);
+      assert.deepEqual(parts.excluded, [gone]);
     });
 
-    it("removed keeps the order of the reply", () => {
+    it("excluded keeps the order of the reply", () => {
       const a = extraRow({ status: "excluded", excluded: excludedInfo() });
       const b = peerTwoRow({ status: "excluded", excluded: excludedInfo() });
       const parts = partitionRows([], membersReply({ rows: [selfRow(), b, a] }), ME);
-      assert.deepEqual(ids(parts.removed), [PEER2_FULL, EXTRA_FULL]);
+      assert.deepEqual(ids(parts.excluded), [PEER2_FULL, EXTRA_FULL]);
     });
   });
 
@@ -285,37 +285,37 @@ describe("shortDate", () => {
   });
 });
 
-describe("removedLine", () => {
+describe("excludedRowLine", () => {
   const names = { [SELF_FULL]: "finch-unwary", [PEER_FULL]: "peer-one" };
 
-  describe("removed by votes", () => {
+  describe("banned by votes", () => {
     it("lists the date and both voters", () => {
       const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(removedLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and peer-one");
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by finch-unwary and peer-one");
     });
 
     it("a nameless member is shown by its short id", () => {
       const row = peerTwoRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(removedLine(row, names, "UTC"), "cccc3333 · removed on 19 Oct · by finch-unwary and peer-one");
+      assert.equal(excludedRowLine(row, names, "UTC"), "cccc3333 · banned on 19 Oct · by finch-unwary and peer-one");
     });
 
     // NOTE: one voter happens in a network of two (need = 1); the wording is "by {a}".
     it("a single voter: no \"and\"", () => {
       const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [PEER_FULL] }) });
-      assert.equal(removedLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by peer-one");
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by peer-one");
     });
 
     // NOTE: a voter that is in neither the peers nor the list — the first 8 characters of the id are the likely fallback.
     it("a voter nobody knows is shown by the start of its id", () => {
       const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, "e".repeat(64)] }) });
-      assert.equal(removedLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and eeeeeeee");
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by finch-unwary and eeeeeeee");
     });
   });
 
   describe("left on their own", () => {
     it("says that the member left the network", () => {
       const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [EXTRA_FULL] }) });
-      assert.equal(removedLine(row, names, "UTC"), "old-laptop · left the network on 19 Oct");
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · left the network on 19 Oct");
     });
   });
 });

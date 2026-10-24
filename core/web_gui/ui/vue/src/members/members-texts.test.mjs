@@ -2,29 +2,29 @@
  *
  * Contract fixed by these tests — named exports of `./members-texts.ts` (the names are the test author's choice):
  *  constants (strings):
- *    BADGE_PROPOSED, BADGE_BLOCKED, BADGE_UNLISTED      marks after a name
+ *    BADGE_BAN_PROPOSED, BADGE_BLOCKED, BADGE_UNLISTED      marks after a name
  *    LINE_CANT_CONNECT                                  row line of a member blocked by me
- *    ACTION_CONFIRM, ACTION_UNBLOCK                     main actions of a row
- *    MENU_BLOCK, MENU_REMOVE, MENU_RENAME, MENU_LEAVE, MENU_WAITING   items of the `⋯` menu
- *    TITLE_PROPOSED, TITLE_BLOCKED                      tooltips of disabled menu items
- *    AFFECTS_EVERYONE                                   hidden description of "Remove from network…"
+ *    ACTION_CONFIRM_BAN, ACTION_UNBLOCK                     main actions of a row
+ *    MENU_BLOCK, MENU_BAN, MENU_RENAME, MENU_LEAVE, MENU_WAITING   items of the `⋯` menu
+ *    TITLE_BAN_PROPOSED, TITLE_BLOCKED                      tooltips of disabled menu items
+ *    AFFECTS_EVERYONE                                   hidden description of "Ban from network…"
  *    DIALOG_CANCEL                                      the cancel button of every dialog
- *    VOTE_CONFIRM, VOTE_LATER                           buttons of the banner
+ *    VOTE_CONFIRM_BAN, VOTE_LATER                           buttons of the banner
  *    CHIP_TITLE                                         tooltip of the counter on the tab
- *    EXCLUDED_REMOVED_TEXT, EXCLUDED_JOIN               the "removed" card: body and button
+ *    EXCLUDED_BANNED_TEXT, EXCLUDED_JOIN               the "banned" card: body and button
  *  builders (functions returning strings; a name is passed already resolved by the caller):
  *    waitingMoreText(n), proposedByText(by, n)          row lines of a proposal (n = missing votes, plural by n)
  *    confirmAria(name), unblockAria(name), moreActionsLabel(name)    aria-labels
  *    isYourExitText(name)                               the extra paragraph of the dialogs
- *    removedSummary(n), unlistedSummary(n)              summaries of the two `<details>`
- *    removalProposedStatus(name), removedStatus(name), leftStatus(name), blockedStatus(name)   `#peers-exit-status` after an action
+ *    excludedSummary(n), unlistedSummary(n)              summaries of the two `<details>`
+ *    banProposedStatus(name), bannedStatus(name), leftStatus(name), blockedStatus(name)   `#peers-exit-status` after an action
  *    MENU_WITHDRAW                                      the item that takes my own proposal back
  *    withdrawnStatus(name, stillBlocked)                `#peers-exit-status` after taking a proposal back
- *    REASON_LABEL, reasonLine(by, reason)               the optional reason of a removal: the field label and the line shown to members
+ *    REASON_LABEL, reasonLine(by, reason)               the optional reason of a ban: the field label and the line shown to members
  *    voteTitle(by, target), voteBody(target)            the banner
  *    stripVoteText(n)                                   the link in the header: 1 -> singular, n >= 2 -> "N requests need ..."
  *    chipLabel(n)                                       aria-label of the counter on the tab (same wording as the header)
- *    excludedTitle(variant, net)                        variant "removed" | "left"; `net` without quotes, absent/blank -> no quotes part
+ *    excludedTitle(variant, net)                        variant "banned" | "left"; `net` without quotes, absent/blank -> no quotes part
  * Not covered (not defined by the spec): the body text of the "left" card, the warnings about a chosen exit. */
 
 import { describe, it } from "vitest";
@@ -33,7 +33,7 @@ import * as t from "./members-texts.ts";
 
 describe("marks and row lines", () => {
   it("marks after the name", () => {
-    assert.equal(t.BADGE_PROPOSED, "Removal proposed");
+    assert.equal(t.BADGE_BAN_PROPOSED, "Ban proposed");
     assert.equal(t.BADGE_BLOCKED, "Blocked on this computer");
     assert.equal(t.BADGE_UNLISTED, "Not a member");
   });
@@ -44,11 +44,11 @@ describe("marks and row lines", () => {
 
   describe("my own proposal is waiting", () => {
     it("one more member", () => {
-      assert.equal(t.waitingMoreText(1), "You proposed removing it · waiting for 1 more member to confirm");
+      assert.equal(t.waitingMoreText(1), "You proposed banning it · waiting for 1 more member to confirm");
     });
 
     it("several more members", () => {
-      assert.equal(t.waitingMoreText(2), "You proposed removing it · waiting for 2 more members to confirm");
+      assert.equal(t.waitingMoreText(2), "You proposed banning it · waiting for 2 more members to confirm");
     });
   });
 
@@ -65,12 +65,12 @@ describe("marks and row lines", () => {
 
 describe("row actions and labels", () => {
   it("the main actions", () => {
-    assert.equal(t.ACTION_CONFIRM, "Confirm removal…");
+    assert.equal(t.ACTION_CONFIRM_BAN, "Confirm ban…");
     assert.equal(t.ACTION_UNBLOCK, "Unblock");
   });
 
   it("aria-labels name the member", () => {
-    assert.equal(t.confirmAria("old-laptop"), "Confirm removal: old-laptop");
+    assert.equal(t.confirmAria("old-laptop"), "Confirm ban: old-laptop");
     assert.equal(t.unblockAria("old-laptop"), "Unblock old-laptop");
     assert.equal(t.moreActionsLabel("old-laptop"), "More actions for old-laptop");
   });
@@ -79,7 +79,7 @@ describe("row actions and labels", () => {
 describe("the menu", () => {
   it("items", () => {
     assert.equal(t.MENU_BLOCK, "Block on this computer…");
-    assert.equal(t.MENU_REMOVE, "Remove from network…");
+    assert.equal(t.MENU_BAN, "Ban from network…");
     assert.equal(t.MENU_RENAME, "Rename");
     assert.equal(t.MENU_LEAVE, "Leave network…");
     assert.equal(t.MENU_WAITING, "Waiting for another member to confirm");
@@ -90,7 +90,7 @@ describe("the menu", () => {
   });
 
   it("tooltips of the disabled items", () => {
-    assert.equal(t.TITLE_PROPOSED, "Removal already proposed");
+    assert.equal(t.TITLE_BAN_PROPOSED, "Ban already proposed");
     assert.equal(t.TITLE_BLOCKED, "Already blocked");
   });
 
@@ -110,9 +110,9 @@ describe("dialogs", () => {
 });
 
 describe("the lists under the members", () => {
-  it("removed members", () => {
-    assert.equal(t.removedSummary(1), "No longer in the network (1)");
-    assert.equal(t.removedSummary(3), "No longer in the network (3)");
+  it("excluded members", () => {
+    assert.equal(t.excludedSummary(1), "No longer in the network (1)");
+    assert.equal(t.excludedSummary(3), "No longer in the network (3)");
   });
 
   it("nodes that are not in the member list", () => {
@@ -121,15 +121,15 @@ describe("the lists under the members", () => {
 });
 
 describe("the status under the list after an action", () => {
-  it("a removal was proposed", () => {
+  it("a ban was proposed", () => {
     assert.equal(
-      t.removalProposedStatus("old-laptop"),
-      "Removal proposed. old-laptop is already blocked on this computer. Ask another member to open Mesh Town and confirm on the Members tab.",
+      t.banProposedStatus("old-laptop"),
+      "Ban proposed. old-laptop is already blocked on this computer. Ask another member to open Mesh Town and confirm on the Members tab.",
     );
   });
 
-  it("a member was removed", () => {
-    assert.equal(t.removedStatus("old-laptop"), "old-laptop was removed from the network.");
+  it("a member was banned", () => {
+    assert.equal(t.bannedStatus("old-laptop"), "old-laptop was banned from the network.");
   });
 
   it("a member left", () => {
@@ -174,16 +174,16 @@ describe("taking a proposal back", () => {
   it("the member is no longer blocked here: the status says so", () => {
     assert.equal(
       t.withdrawnStatus("old-laptop", false),
-      "Removal proposal withdrawn. old-laptop is no longer blocked on this computer.",
+      "Ban proposal withdrawn. old-laptop is no longer blocked on this computer.",
     );
   });
 
   it("the member is still blocked here (blocked separately): only the withdrawal is reported", () => {
-    assert.equal(t.withdrawnStatus("old-laptop", true), "Removal proposal withdrawn.");
+    assert.equal(t.withdrawnStatus("old-laptop", true), "Ban proposal withdrawn.");
   });
 });
 
-describe("the reason of a removal", () => {
+describe("the reason of a ban", () => {
   it("the label of the field in the dialog", () => {
     assert.equal(t.REASON_LABEL, "Reason (optional, members will see it)");
   });
@@ -199,40 +199,40 @@ describe("the reason of a removal", () => {
 
 describe("the banner on the Members tab", () => {
   it("the title names the proposer and the target", () => {
-    assert.equal(t.voteTitle("peer-one", "old-laptop"), "peer-one proposes removing old-laptop from the network");
+    assert.equal(t.voteTitle("peer-one", "old-laptop"), "peer-one proposes banning old-laptop from the network");
   });
 
   it("the text says what a confirmation and a silence do", () => {
     assert.equal(
       t.voteBody("old-laptop"),
-      "If you confirm, old-laptop is removed for everyone and its open connections are cut. If you don't answer, nothing changes for you: old-laptop stays in the network until another member confirms.",
+      "If you confirm, old-laptop is banned for everyone and its open connections are cut. If you don't answer, nothing changes for you: old-laptop stays in the network until another member confirms.",
     );
   });
 
   it("the buttons", () => {
-    assert.equal(t.VOTE_CONFIRM, "Confirm removal…");
+    assert.equal(t.VOTE_CONFIRM_BAN, "Confirm ban…");
     assert.equal(t.VOTE_LATER, "Not now");
   });
 });
 
 describe("signals that a request needs my confirmation", () => {
   describe("the link in the header", () => {
-    it("one removal", () => {
+    it("one ban", () => {
       assert.equal(t.stripVoteText(1), "1 request to confirm");
     });
 
-    it("several removals", () => {
+    it("several bans", () => {
       assert.equal(t.stripVoteText(2), "2 requests to confirm");
       assert.equal(t.stripVoteText(5), "5 requests to confirm");
     });
   });
 
   describe("the counter on the tab", () => {
-    it("one removal", () => {
+    it("one ban", () => {
       assert.equal(t.chipLabel(1), "1 request needs your confirmation");
     });
 
-    it("several removals", () => {
+    it("several bans", () => {
       assert.equal(t.chipLabel(2), "2 requests need your confirmation");
       assert.equal(t.chipLabel(7), "7 requests need your confirmation");
     });
@@ -244,15 +244,15 @@ describe("signals that a request needs my confirmation", () => {
 });
 
 describe("the screen of an excluded computer", () => {
-  it("removed by the members: the title names the network", () => {
-    assert.equal(t.excludedTitle("removed", "family"), 'This computer was removed from the network "family"');
+  it("banned by the members: the title names the network", () => {
+    assert.equal(t.excludedTitle("banned", "family"), 'This computer was banned from the network "family"');
   });
 
   it("left on its own: the title names the network", () => {
     assert.equal(t.excludedTitle("left", "family"), 'You left the network "family"');
   });
 
-  it.each(["removed", "left"])("%s: without a network name there are no quotes", (variant) => {
+  it.each(["banned", "left"])("%s: without a network name there are no quotes", (variant) => {
     for (const net of [undefined, "", "  "]) {
       const title = t.excludedTitle(variant, net);
       assert.ok(!title.includes('"') && !title.includes("undefined"), variant + " / " + String(net) + ": " + title);
@@ -260,10 +260,10 @@ describe("the screen of an excluded computer", () => {
     }
   });
 
-  it("the text for \"removed\"", () => {
+  it("the text for \"banned\"", () => {
     assert.equal(
-      t.EXCLUDED_REMOVED_TEXT,
-      "Members of the network removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.",
+      t.EXCLUDED_BANNED_TEXT,
+      "Members of the network banned it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.",
     );
   });
 

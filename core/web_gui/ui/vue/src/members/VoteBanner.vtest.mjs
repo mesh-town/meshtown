@@ -1,10 +1,10 @@
 /* Contract of `members/VoteBanner.vue` (written before the component: red until it exists).
  *
- * Component: the banner at the top of the "Members" tab, shown to a member who can confirm somebody's removal.
- * Props: `by: string` (display name of the member who proposed), `target: string` (display name of the member to remove),
+ * Component: the banner at the top of the "Members" tab, shown to a member who can confirm somebody's ban.
+ * Props: `by: string` (display name of the member who proposed), `target: string` (display name of the member to ban),
  *   `reason?: string | null` (what the proposer wrote; with text, `p.vote-reason` says `Reason from {by}: "{reason}"` — as text, never as markup;
  *   absent, null or empty — no such paragraph).
- * Emits: `confirm` (the "Confirm removal…" button, `#vote-confirm`), `later` (the "Not now" button, `#vote-later`).
+ * Emits: `confirm` (the "Confirm ban…" button, `#vote-confirm`), `later` (the "Not now" button, `#vote-later`).
  *   The component only reports the clicks: opening the dialog and hiding the banner until the next page load are the parent's job.
  * Markup: `section#vote-banner[role=region][aria-labelledby=vote-title][tabindex=-1]` (focusable by script: the tray link
  *   focuses it), title `#vote-title`, then the explanation paragraph and the two buttons. */
@@ -17,7 +17,7 @@ let wrapper;
 afterEach(() => wrapper.unmount());
 
 describe("VoteBanner", () => {
-  describe("for a proposal by peer-two to remove peer-one", () => {
+  describe("for a proposal by peer-two to ban peer-one", () => {
     it("is a labelled region that can take the focus", () => {
       setup();
       const banner = wrapper.get("#vote-banner");
@@ -27,21 +27,21 @@ describe("VoteBanner", () => {
       expect(banner.attributes("tabindex")).toBe("-1");
     });
 
-    it("says who proposes removing whom", () => {
+    it("says who proposes banning whom", () => {
       setup();
-      expect(wrapper.get("#vote-title").text()).toBe("peer-two proposes removing peer-one from the network");
+      expect(wrapper.get("#vote-title").text()).toBe("peer-two proposes banning peer-one from the network");
     });
 
     it("explains what confirming and not answering do", () => {
       setup();
       const text = wrapper.get("#vote-banner").text();
-      expect(text).toContain("If you confirm, peer-one is removed for everyone and its open connections are cut.");
+      expect(text).toContain("If you confirm, peer-one is banned for everyone and its open connections are cut.");
       expect(text).toContain("If you don't answer, nothing changes for you: peer-one stays in the network until another member confirms.");
     });
 
-    it("offers \"Confirm removal…\" and \"Not now\"", () => {
+    it("offers \"Confirm ban…\" and \"Not now\"", () => {
       setup();
-      expect(wrapper.get("#vote-confirm").text()).toBe("Confirm removal…");
+      expect(wrapper.get("#vote-confirm").text()).toBe("Confirm ban…");
       expect(wrapper.get("#vote-later").text()).toBe("Not now");
     });
   });
@@ -54,9 +54,9 @@ describe("VoteBanner", () => {
 
     it("keeps the title, the explanation and both buttons", () => {
       setup({ by: "peer-two", target: "peer-one", reason: "lost laptop" });
-      expect(wrapper.get("#vote-title").text()).toBe("peer-two proposes removing peer-one from the network");
-      expect(wrapper.get("#vote-banner").text()).toContain("If you confirm, peer-one is removed for everyone");
-      expect(wrapper.get("#vote-confirm").text()).toBe("Confirm removal…");
+      expect(wrapper.get("#vote-title").text()).toBe("peer-two proposes banning peer-one from the network");
+      expect(wrapper.get("#vote-banner").text()).toContain("If you confirm, peer-one is banned for everyone");
+      expect(wrapper.get("#vote-confirm").text()).toBe("Confirm ban…");
       expect(wrapper.get("#vote-later").text()).toBe("Not now");
     });
 
@@ -85,7 +85,7 @@ describe("VoteBanner", () => {
   });
 
   describe("the buttons", () => {
-    it("\"Confirm removal…\" emits confirm and nothing else", async () => {
+    it("\"Confirm ban…\" emits confirm and nothing else", async () => {
       setup();
       await wrapper.get("#vote-confirm").trigger("click");
       expect(wrapper.emitted("confirm")).toHaveLength(1);

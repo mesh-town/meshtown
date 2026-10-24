@@ -82,7 +82,7 @@ describe("parseMembers", () => {
     });
   });
 
-  describe("the reason of a removal proposal", () => {
+  describe("the reason of a ban proposal", () => {
     const withVote = (vote) => parseMembers({ members: [{ id_full: EXTRA_FULL, status: "member", vote }] }).members[0].vote;
     const baseVote = { votes: 1, need: 2, proposed_by: EXTRA_FULL, voters: [EXTRA_FULL], mine: false };
 
@@ -251,7 +251,7 @@ describe("postMemberAction", () => {
     });
   });
 
-  describe("the reason of a removal", () => {
+  describe("the reason of a ban", () => {
     const bodyOf = async (action, id, reason) => {
       const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
       await postMemberAction(api, action, id, reason);

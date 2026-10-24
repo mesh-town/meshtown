@@ -18,7 +18,7 @@ export interface Partition<P> {
   active: (P | PeerLike)[];
   pending: MemberRow[];
   unlisted: MemberRow[];
-  removed: MemberRow[];
+  excluded: MemberRow[];
 }
 
 const minimalRow = (m: MemberRow): PeerLike => ({ id: m.id, id_full: m.id_full, name: m.name, online: m.online, self: m.self });
@@ -26,7 +26,7 @@ const minimalRow = (m: MemberRow): PeerLike => ({ id: m.id, id_full: m.id_full, 
 // Peers stay in `active` unless the list says the node is unlisted or excluded; list-only members are appended.
 export function partitionRows<P extends PeerLike>(peers: P[] | null | undefined, members: MembersReply | null | undefined, me: string): Partition<P> {
   const list = peers || [];
-  if (!members) return { active: list, pending: [], unlisted: [], removed: [] };
+  if (!members) return { active: list, pending: [], unlisted: [], excluded: [] };
   const status = new Map(members.members.map((m) => [m.id_full, m.status]));
   const known = new Set(list.map((p) => p.id_full));
   const kept = list.filter((p) => (status.get(p.id_full) || "member") === "member");
@@ -35,7 +35,7 @@ export function partitionRows<P extends PeerLike>(peers: P[] | null | undefined,
     active: [...kept, ...extra],
     pending: members.members.filter((m) => m.status === "pending"),
     unlisted: members.members.filter((m) => m.status === "unlisted"),
-    removed: members.members.filter((m) => m.status === "excluded"),
+    excluded: members.members.filter((m) => m.status === "excluded"),
   };
 }
 
@@ -49,12 +49,12 @@ export function shortDate(unix: unknown, timeZone?: string): string {
 
 const joinNames = (list: string[]): string => list.join(" and ");
 
-// "{x} · removed on 19 Oct · by {a} and {b}" / "{x} · left the network on 19 Oct".
-export function removedLine(m: MemberRow, names: Record<string, string>, timeZone?: string): string {
+// "{x} · banned on 19 Oct · by {a} and {b}" / "{x} · left the network on 19 Oct".
+export function excludedRowLine(m: MemberRow, names: Record<string, string>, timeZone?: string): string {
   const who = m.name && m.name.trim() ? m.name : m.id;
   const ex = m.excluded;
   const date = ex ? shortDate(ex.at_unix, timeZone) : "";
   if (ex && ex.how === "left") return who + " · left the network on " + date;
   const by = ex ? joinNames(ex.voters.map((v) => names[v] || v.slice(0, 8))) : "";
-  return who + " · removed on " + date + " · by " + by;
+  return who + " · banned on " + date + " · by " + by;
 }

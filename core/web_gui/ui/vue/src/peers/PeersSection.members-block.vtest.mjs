@@ -19,7 +19,7 @@ describe("the dialog", () => {
     page.expectDialog({ title: "Block peer-one on this computer?", action: "Block peer-one" });
     expect(page.dialogBody()).toContain("peer-one won't be able to connect to this computer or open sites through it. Its open connections to you are cut.");
     expect(page.dialogBody()).toContain("Only this computer is affected: peer-one stays in the network and keeps working with other members.");
-    expect(page.dialogBody()).toContain('To remove it for everyone, choose "Remove from network" instead.');
+    expect(page.dialogBody()).toContain('To ban it for everyone, choose "Ban from network" instead.');
   });
 
   it("Cancel sends nothing, closes the dialog and returns the focus to the toggle", async () => {
@@ -78,7 +78,7 @@ describe("\"Block peer-one\"", () => {
     await blockPeerOne(page);
     expect(page.status()).toBe("peer-one is blocked on this computer.");
     expect(page.listCodes()).toContain(ONE.code);
-    expect(page.has("#removed-list")).toBe(false);
+    expect(page.has("#excluded-list")).toBe(false);
   });
 
   it("in the menu of that row \"Block on this computer…\" is disabled", async () => {

@@ -1,5 +1,5 @@
-/* The reason of a removal on the "Members" tab (written before the code: red until it exists): the whole page on a fake node.
- * The dialog "Remove from network…" has an optional field; its text goes to `POST /api/members/exclude` as `reason` (an empty field
+/* The reason of a ban on the "Members" tab (written before the code: red until it exists): the whole page on a fake node.
+ * The dialog "Ban from network…" has an optional field; its text goes to `POST /api/members/exclude` as `reason` (an empty field
  * sends no `reason` at all). The banner and the confirmation dialog of another member's proposal show the reason the proposer gave.
  * Components: `members/ConfirmDialog.reason.vtest.mjs`, `members/VoteBanner.vtest.mjs`. Selectors and helpers:
  * `PeersSection.members.vtest.mjs`, `testing/members-page.mjs`. */
@@ -15,17 +15,17 @@ afterEach(unmountPage);
 const REASON_LABEL = "Reason (optional, members will see it)";
 const REASON_LINE = 'Reason from peer-two: "lost laptop"';
 
-describe("the dialog \"Remove from network…\"", () => {
+describe("the dialog \"Ban from network…\"", () => {
   it("asks for an optional reason in a labelled field of at most 80 characters; the focus stays on Cancel", async () => {
-    const page = await openRemoveDialog();
-    page.expectDialog({ title: "Remove peer-one from the network?", action: "Propose removal" });
+    const page = await openBanDialog();
+    page.expectDialog({ title: "Ban peer-one from the network?", action: "Propose ban" });
     expect(page.text("label[for='member-reason']")).toBe(REASON_LABEL);
     expect(page.attr("input#member-reason", "maxlength")).toBe("80");
     expect(page.attr("input#member-reason", "type")).toBe("text");
   });
 
   it("the field is empty each time the dialog opens", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "lost laptop");
     await page.cancelDialog();
     await page.openMenu(PEER_FULL);
@@ -33,7 +33,7 @@ describe("the dialog \"Remove from network…\"", () => {
     expect(reasonValue(page)).toBe("");
   });
 
-  it("a network of two removes at once: its dialog has no field", async () => {
+  it("a network of two bans at once: its dialog has no field", async () => {
     const page = await openMembersPage({ members: twoMembers() });
     await page.openMenu(PEER_FULL);
     await page.pick("exclude");
@@ -55,37 +55,37 @@ describe("the dialog \"Remove from network…\"", () => {
   });
 });
 
-describe("\"Propose removal\"", () => {
+describe("\"Propose ban\"", () => {
   it("sends the typed reason with the full id", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "lost laptop");
     await page.confirmDialog();
     expect(page.postedBodies("exclude")).toEqual([{ id: PEER_FULL, reason: "lost laptop" }]);
   });
 
   it("sends the reason without the spaces around it", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "  lost laptop  ");
     await page.confirmDialog();
     expect(page.postedBodies("exclude")).toEqual([{ id: PEER_FULL, reason: "lost laptop" }]);
   });
 
   it("an empty field sends only the id", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await page.confirmDialog();
     expect(page.postedBodies("exclude")).toEqual([{ id: PEER_FULL }]);
     expect("reason" in page.postedBodies("exclude")[0], "an empty reason was sent").toBe(false);
   });
 
   it("a field with only spaces sends only the id", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "     ");
     await page.confirmDialog();
     expect(page.postedBodies("exclude")).toEqual([{ id: PEER_FULL }]);
   });
 
   it("Enter in the field sends nothing and keeps the dialog open", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "lost laptop");
     await page.wrapper.get("#member-reason").trigger("keydown", { key: "Enter" });
     expect(page.postedBodies("exclude")).toEqual([]);
@@ -93,7 +93,7 @@ describe("\"Propose removal\"", () => {
   });
 
   it("Cancel sends nothing, even with text in the field", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "lost laptop");
     await page.cancelDialog();
     expect(page.postedBodies("exclude")).toEqual([]);
@@ -101,7 +101,7 @@ describe("\"Propose removal\"", () => {
   });
 
   it("the next request does not reuse the reason of the previous one", async () => {
-    const page = await openRemoveDialog();
+    const page = await openBanDialog();
     await typeReason(page, "lost laptop");
     await page.confirmDialog();
     await page.openMenu(PEER2_FULL);
@@ -112,7 +112,7 @@ describe("\"Propose removal\"", () => {
   });
 });
 
-describe("another member proposed removing peer-one and gave a reason", () => {
+describe("another member proposed banning peer-one and gave a reason", () => {
   it("the banner shows the reason of the proposer", async () => {
     const page = await foreignProposalPage("lost laptop");
     expect(page.text("#vote-banner .vote-reason")).toBe(REASON_LINE);
@@ -124,14 +124,14 @@ describe("another member proposed removing peer-one and gave a reason", () => {
     expect(page.has("#vote-banner b")).toBe(false);
   });
 
-  it("the dialog of \"Confirm removal…\" in the banner shows the same line", async () => {
+  it("the dialog of \"Confirm ban…\" in the banner shows the same line", async () => {
     const page = await foreignProposalPage("lost laptop");
     await page.click("#vote-confirm");
-    page.expectDialog({ title: "Confirm removing peer-one?", action: "Remove peer-one" });
+    page.expectDialog({ title: "Confirm banning peer-one?", action: "Ban peer-one" });
     expect(page.dialogBody()).toContain(REASON_LINE);
   });
 
-  it("the dialog of \"Confirm removal…\" on the row shows it too", async () => {
+  it("the dialog of \"Confirm ban…\" on the row shows it too", async () => {
     const page = await foreignProposalPage("lost laptop");
     await page.clickRowAction(ONE.code, "confirm");
     expect(page.dialogBody()).toContain(REASON_LINE);
@@ -147,7 +147,7 @@ describe("another member proposed removing peer-one and gave a reason", () => {
     expect(at("peer-one is your exit")).toBeGreaterThan(at(REASON_LINE));
   });
 
-  it("the confirmation dialog has no reason field of its own, and \"Remove peer-one\" sends only the id", async () => {
+  it("the confirmation dialog has no reason field of its own, and \"Ban peer-one\" sends only the id", async () => {
     const page = await foreignProposalPage("lost laptop");
     await page.click("#vote-confirm");
     expect(page.has("#member-reason")).toBe(false);
@@ -156,7 +156,7 @@ describe("another member proposed removing peer-one and gave a reason", () => {
   });
 });
 
-describe("another member proposed removing peer-one and gave no reason", () => {
+describe("another member proposed banning peer-one and gave no reason", () => {
   it("the banner has no reason line", async () => {
     const page = await foreignProposalPage(null);
     expect(page.has("#vote-banner")).toBe(true);
@@ -180,8 +180,8 @@ describe("my own proposal that has a reason", () => {
   });
 });
 
-// The three members; the exclude answer is "you proposed removing peer-one", whatever the request was.
-async function openRemoveDialog() {
+// The three members; the exclude answer is "you proposed banning peer-one", whatever the request was.
+async function openBanDialog() {
   const page = await openMembersPage({ members: threeMembers() });
   page.answerWith("exclude", membersReply({ rows: [selfRow(), peerOneRow({ vote: voteInfo(), denied_by_me: "voted_by_me" }), peerTwoNamed()] }));
   await page.openMenu(PEER_FULL);
@@ -192,7 +192,7 @@ async function openRemoveDialog() {
 const typeReason = (page, text) => page.wrapper.get("#member-reason").setValue(text);
 const reasonValue = (page) => page.wrapper.get("#member-reason").element.value;
 
-// peer-two proposed removing peer-one with `reason`, I have not voted.
+// peer-two proposed banning peer-one with `reason`, I have not voted.
 function foreignProposalPage(reason, { exits = [] } = {}) {
   const vote = foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL], reason });
   const members = membersReply({ rows: [selfRow(), peerOneRow({ vote }), peerTwoNamed()] });
