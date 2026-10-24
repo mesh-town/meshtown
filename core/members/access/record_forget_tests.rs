@@ -3,7 +3,7 @@
 //! from `record_tests.rs`.
 
 use super::super::tally::{ForgetIn, TallyInput};
-use super::tests::{admit_of, entry};
+use super::support_tests::{admit_of, entry};
 use super::*;
 use crate::transport::net::contract::pid;
 use crate::transport::net::PeerId;

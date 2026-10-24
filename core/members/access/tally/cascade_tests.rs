@@ -1,6 +1,6 @@
-//! Tests of the membership list tally (`tally.rs`), part two: cascade after an exclusion,
+//! Tests of the membership list tally (`pass.rs`, `votes.rs`), part two: cascade after an exclusion,
 //! determinism (order of input, ties, the round cap) and attack scenarios on 2, 3 and 5 nodes.
-//! Helpers (`cast`, `scene`, `members`, ...) come from `tally_tests.rs`.
+//! Helpers (`cast`, `scene`, `members`, ...) come from `tests.rs`.
 
 use super::tests::{by_votes, cast, excluded, left, members, scene, set, waiting, Cast, Scene};
 use super::*;

@@ -1,6 +1,6 @@
-//! Tests of the membership list tally (`tally.rs`): who is listed, how votes exclude, how the
+//! Tests of the membership list tally (`pass.rs`, `votes.rs`): who is listed, how votes exclude, how the
 //! need changes with the network size. Cascades, determinism and attack scenarios live in
-//! `tally_cascade_tests.rs`. Nodes: `m` is the own node, `a`..`d` are members, `x` is a stranger.
+//! `cascade_tests.rs`. Nodes: `m` is the own node, `a`..`d` are members, `x` is a stranger.
 
 use super::*;
 use crate::transport::net::contract::pid;
@@ -225,7 +225,7 @@ fn mutual_votes_before_shrink_exclude_the_earlier_target() {
     assert!(ledger.is_member(&a) && ledger.pending.is_empty());
 }
 
-// --- scene and helpers (shared with `tally_cascade_tests.rs`) ---
+// --- scene and helpers (shared with `cascade_tests.rs`) ---
 
 /// The cast: `m` is the own node, `a`..`d` are potential members, `x` is a stranger.
 pub(super) struct Cast {

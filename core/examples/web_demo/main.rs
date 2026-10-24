@@ -12,7 +12,7 @@
 //! Files: `args.rs` — CLI flags; `overrides.rs` — parsing of `--cli-override`; `config.rs` —
 //! preparation of the settings file; `rng.rs` — deterministic generator; `node.rs` — the state of
 //! `DemoNode`; `background.rs` — background model-time task; `ports.rs` — the `ports` section of the
-//! snapshot; `members.rs` and `members_reply.rs` — the member list and its actions; `snapshot.rs` — assembling `NodeSnapshot`; `control.rs` — `impl NodeControl`; `host.rs` — the network slots (`--nets`); `shutdown.rs` — shutdown and cleanup.
+//! snapshot; `members.rs`, `members_act.rs` and `members_reply.rs` — the member list and its actions; `snapshot.rs` — assembling `NodeSnapshot`; `control.rs` — `impl NodeControl`; `host.rs` — the network slots (`--nets`); `shutdown.rs` — shutdown and cleanup.
 
 mod args;
 mod background;
@@ -20,6 +20,7 @@ mod config;
 mod control;
 mod host;
 mod members;
+mod members_act;
 mod members_reply;
 mod node;
 mod overrides;
