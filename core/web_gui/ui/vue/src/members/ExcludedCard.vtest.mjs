@@ -33,6 +33,15 @@ describe("ExcludedCard", () => {
     });
   });
 
+  describe("variant banned in a Managed network", () => {
+    it("says an admin removed the computer", () => {
+      setup({ variant: "banned", managed: true });
+      const text = wrapper.get("#excluded-card").text();
+      expect(text).toContain("An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer.");
+      expect(text).not.toContain("Members of the network banned it");
+    });
+  });
+
   describe("variant left", () => {
     it("says the computer left the network", () => {
       setup({ variant: "left" });
@@ -109,6 +118,6 @@ describe("ExcludedCard", () => {
   });
 });
 
-function setup({ variant, net = "demo-network" }) {
-  wrapper = mount(ExcludedCard, { props: { variant, net }, attachTo: document.body });
+function setup({ variant, net = "demo-network", managed }) {
+  wrapper = mount(ExcludedCard, { props: { variant, net, managed }, attachTo: document.body });
 }

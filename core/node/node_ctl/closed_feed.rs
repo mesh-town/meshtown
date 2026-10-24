@@ -51,6 +51,15 @@ impl NodeCtl {
         node.members.name_of(*id)
     }
 
+    /// This node's id in the current network; `None` without a node.
+    pub(crate) fn own_id(&self) -> Option<PeerId> {
+        #[cfg(test)]
+        if let Some(id) = *self.ctl_shared.own_id_for_test.lock().unwrap() {
+            return Some(id);
+        }
+        self.current_node().map(|n| n.id)
+    }
+
     /// Whether the last verdicts count this node as having left. `false` without a node or verdicts.
     pub(crate) fn me_left(&self) -> bool {
         let Some(node) = self.current_node() else {
@@ -70,6 +79,11 @@ impl NodeCtl {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         st.node.clone()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_own_id_for_test(&self, id: PeerId) {
+        *self.ctl_shared.own_id_for_test.lock().unwrap() = Some(id);
     }
 
     #[cfg(test)]

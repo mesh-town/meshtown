@@ -82,6 +82,9 @@ pub(super) struct NodeCtlShared {
     pub(super) kick: Notify,
     /// The slot's permanent "network closed" channel: it outlives the node cycles.
     pub(super) closed: watch::Sender<Option<Closed>>,
+    /// Stands in for the running node's id in tests that attach no node.
+    #[cfg(test)]
+    pub(super) own_id_for_test: std::sync::Mutex<Option<crate::transport::net::PeerId>>,
 }
 
 /// Lives in an `Arc`: the web listener, `run_node_with_ctl` and the background snapshot task each hold their own copy.
@@ -139,6 +142,8 @@ impl NodeCtl {
                 }),
                 kick: Notify::new(),
                 closed: watch::channel(None).0,
+                #[cfg(test)]
+                own_id_for_test: std::sync::Mutex::new(None),
             }),
             cmd_tx,
             cmd_rx: tokio::sync::Mutex::new(cmd_rx),

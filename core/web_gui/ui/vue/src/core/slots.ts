@@ -29,6 +29,18 @@ export function visibleSlots(nets: NetBrief[], slots: Record<string, SlotSlice>)
   return ids.length > 0 ? ids : ["main"];
 }
 
+/** A slot whose join the members refused: it holds no key, the node keeps the refusal until the user goes back. */
+export const isRefused = (nets: NetBrief[], slots: Record<string, SlotSlice>, id: string): boolean =>
+  nets.some((n) => n.id === id && n.id_hex == null && !n.joining) && slots[id]?.state?.node?.invite_join?.state === "refused";
+
+// The slots the Members page lists as tabs: the visible ones and those with a refused join (until the user goes back).
+export function peersSlots(nets: NetBrief[], slots: Record<string, SlotSlice>): string[] {
+  const shown = visibleSlots(nets, slots).filter((id) => id !== "main" || nets.some((n) => n.id === "main" && holdsNetwork(n)));
+  const refused = nets.map((n) => n.id).filter((id) => !shown.includes(id) && isRefused(nets, slots, id));
+  const all = [...shown, ...refused];
+  return all.length > 0 ? all : ["main"];
+}
+
 export function isMulti(store: SlotsHost): boolean {
   return visibleSlots(store.nets, store.slots).length >= 2;
 }

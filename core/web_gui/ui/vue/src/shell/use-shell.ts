@@ -15,7 +15,7 @@ import type { ShellDeps } from "./shell-deps.ts";
 import { identityStrip, statusLine } from "./status-line.ts";
 import type { IdentityStripView, StatusLine } from "./status-line.ts";
 import { tokenFromPasted } from "./token-url.ts";
-import { visibleSlots } from "../core/slots.ts";
+import { peersSlots } from "../core/slots.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import { exitWarning, withExitWarning } from "../members/exit-members.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
@@ -51,10 +51,10 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
       store.peersTab = wanted;
       return;
     }
-    store.peersTab = pickPeersTab(wanted, visibleSlots(store.nets, store.slots));
+    store.peersTab = pickPeersTab(wanted, peersSlots(store.nets, store.slots));
   };
   syncPeersTab();
-  watch(() => visibleSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
+  watch(() => peersSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
   const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
   const strip = computed(() => stripView(conn));

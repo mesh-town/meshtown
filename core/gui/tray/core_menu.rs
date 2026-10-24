@@ -13,7 +13,11 @@ impl Core {
             MenuTarget::Node => self.click_node(),
             // The status line, the proxy line, a network header or an unknown id — silently.
             MenuTarget::Unknown => {}
-            MenuTarget::Open | MenuTarget::Vote | MenuTarget::Members(_) => self.open_page(&target),
+            MenuTarget::Open
+            | MenuTarget::Vote
+            | MenuTarget::Add
+            | MenuTarget::Notice(_)
+            | MenuTarget::Members(_) => self.open_page(&target),
             _ => self.send_node_cmds(&target),
         }
     }
@@ -58,3 +62,7 @@ impl Core {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "core_menu_tests.rs"]
+mod tests;

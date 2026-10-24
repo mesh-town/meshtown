@@ -40,6 +40,7 @@ export const PEERS_TAB_JOINING = "Joining the network…";
 export const PEERS_TAB_JOINING_SUB = "· joining…";
 export const PEERS_ADMIN_BADGE = "Admin";
 export const PEERS_TAB_DELETED_SUB = "· deleted";
+export const PEERS_TAB_REFUSED_SUB = "· refused";
 export const PEERS_TAB_REMOVED_SUB = "· removed";
 export const PEERS_NEW_NET = "New network";
 export const PEERS_TAB_NO_CONN = "· no connection";

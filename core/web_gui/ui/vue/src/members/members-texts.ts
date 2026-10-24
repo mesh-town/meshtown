@@ -32,6 +32,8 @@ export const CHIP_TITLE = "Members need your confirmation";
 export const PENDING_TITLE = "Waiting to join the network";
 export const EXCLUDED_BANNED_TEXT =
   "Members of the network banned it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.";
+export const EXCLUDED_REMOVED_TEXT =
+  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.";
 export const EXCLUDED_LEFT_TEXT = "To use " + NET_NAME + " again, join a network with an invite from one of its members.";
 export const EXCLUDED_JOIN = "Join with another invite";
 // In the Android app: the way back is the app's own "Start over" dialog, reached through this address.
