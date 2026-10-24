@@ -727,3 +727,31 @@ async fn node_with_other_settings_on_the_port_is_not_refused() {
     std::fs::remove_dir_all(&first).ok();
     std::fs::remove_dir_all(&second).ok();
 }
+
+/// The proxy and the page both on: the second start must name the running node, not the busy proxy port.
+fn run_config_with_proxy(port: u16, dir: &std::path::Path) -> RunConfig {
+    let mut run = run_config_in(port, dir);
+    run.effective_settings.process.socks_enabled = true;
+    run.effective_settings.process.socks_port = free_port();
+    run
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn second_node_is_refused_before_the_proxy_port() {
+    let dir = scratch_dir("proxy");
+    let port = free_port();
+    let first = run_config_with_proxy(port, &dir);
+    let proxy_port = first.effective_settings.process.socks_port;
+    let stop = start_background_node(first).await;
+    for role in [PageRole::Optional, PageRole::OnlyEntry] {
+        let mut run = run_config_with_proxy(port, &dir);
+        run.effective_settings.process.socks_port = proxy_port;
+        let ctl = ctl_of(&run);
+        let res = Host::run_with_web_page(run, ctl, role, |_, _| async { Ok(()) }).await;
+        let text = res.unwrap_err().to_string();
+        assert!(text.contains("already running on port"), "{text}");
+        assert!(!text.contains("browser proxy"), "{text}");
+    }
+    let _ = stop.send(());
+    std::fs::remove_dir_all(&dir).ok();
+}
