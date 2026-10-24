@@ -19,7 +19,7 @@ use crate::transport::net_mainline::unix_now;
 use super::authority::Rules;
 use super::reasons::{label_admissions, reasons_of};
 use super::record::{self, tally_input_under, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
-use super::subjects::live_subjects;
+use super::subjects::{live_subjects, my_votes_under};
 use super::tally::{tally, Closed};
 use super::view::{AccessView, Verdicts};
 
@@ -104,11 +104,10 @@ impl Access {
         let scan = self.scan().await?;
         let (input, ignored) = tally_input_under(self.rules, self.me, &scan.acl);
         self.log_ignored(ignored);
-        let mut my_votes = live_subjects(&scan.acl, self.me, AclKind::Exclude);
-        my_votes.remove(&self.me);
         let blocks = live_subjects(&scan.blocks, self.me, AclKind::Block);
         let mut ledger = tally(&input);
         label_admissions(&mut ledger, &scan.acl);
+        let my_votes = my_votes_under(self.rules, &scan.acl, self.me, &ledger.excluded);
         let reasons = reasons_of(&ledger, &scan.acl);
         let closed = ledger.closed.clone();
         let verdicts = Verdicts {

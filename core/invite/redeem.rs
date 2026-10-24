@@ -83,8 +83,8 @@ fn text_of(e: &RedeemError) -> String {
         RedeemError::Expired => "The invite was issued more than a day ago and is no longer valid. Ask a network member for a new one.".into(),
         RedeemError::Unknown => "Network members don't know this invite: it was revoked, it has expired or the string is damaged. Ask a network member for a new one.".into(),
         RedeemError::WrongNetwork => "A member answered with the key of another network — the invite was not accepted.".into(),
-        RedeemError::Excluded => "This node's key is excluded from the network. The invite was not spent: it can be used on a node with a new key.".into(),
-        RedeemError::NotFromAdmin => "This invite was not issued by an admin of the network, so it cannot be used. Ask an admin of the network for a new one.".into(),
+        RedeemError::Excluded => "This computer can't rejoin this network. The invite wasn't used up — someone else can join with it.".into(),
+        RedeemError::NotFromAdmin => "This invite can't be used: whoever made it is not an admin of this network now. Ask an admin of the network for a new one.".into(),
         RedeemError::Bind(why) => format!("couldn't set up a connection for joining: {why}"),
     }
 }
@@ -226,3 +226,7 @@ fn next_pause(cur: Duration, max: Duration) -> Duration {
 #[cfg(test)]
 #[path = "redeem_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "redeem_text_tests.rs"]
+mod text_tests;
