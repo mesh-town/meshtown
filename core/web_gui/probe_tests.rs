@@ -27,8 +27,9 @@ fn closed_port_is_not_running() {
     let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let port = l.local_addr().unwrap().port();
     drop(l);
+    // Windows retries a refused connection to localhost for about two seconds before reporting it.
     assert!(matches!(
-        call_within(PROBE_TIMEOUT, port, "T", "GET", "/", None),
+        call_within(Duration::from_secs(5), port, "T", "GET", "/", None),
         Err(LinkError::NotRunning)
     ));
 }
