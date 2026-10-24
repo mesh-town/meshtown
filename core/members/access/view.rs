@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::members::access::tally::{ForgetRound, Ledger};
+use crate::members::access::tally::Ledger;
 
 pub use super::deny::Deny;
 use crate::transport::net::PeerId;
@@ -32,6 +32,16 @@ pub struct Refusal {
     pub side: Side,
     pub deny: Deny,
     pub at_unix: u64,
+}
+
+impl Refusal {
+    fn now(side: Side, deny: Deny) -> Refusal {
+        Refusal {
+            side,
+            deny,
+            at_unix: unix_now(),
+        }
+    }
 }
 
 /// Everything `check` needs, computed by the watcher.
@@ -58,39 +68,52 @@ impl Verdicts {
         if peer == self.me {
             return Ok(());
         }
-        let denies = [
-            (self.ledger.excluded.contains_key(&self.me), Deny::Left),
-            (self.ledger.excluded.contains_key(&peer), Deny::Excluded),
-            (self.my_votes.contains(&peer), Deny::VotedByMe),
-            (self.blocks.contains(&peer), Deny::Blocked),
-            (self.ledger.is_forgotten(&peer), Deny::Forgotten),
-            (self.my_forgets().contains(&peer), Deny::RemovedByMe),
-        ];
-        match denies.iter().find(|(hit, _)| *hit) {
-            Some((_, deny)) => Err(*deny),
+        match self.first_deny(peer) {
+            Some(deny) => Err(deny),
             None => self.check_listed(peer),
         }
     }
 
+    /// The first refusal in contract order; my own forget votes are looked at last.
+    fn first_deny(&self, peer: PeerId) -> Option<Deny> {
+        self.early_deny(peer).or_else(|| {
+            let mine = self.my_forget_subjects().any(|p| p == peer);
+            mine.then_some(Deny::RemovedByMe)
+        })
+    }
+
+    fn early_deny(&self, peer: PeerId) -> Option<Deny> {
+        let l = &self.ledger;
+        let table = [
+            (l.excluded.contains_key(&self.me), Deny::Left),
+            (l.excluded.contains_key(&peer), Deny::Excluded),
+            (self.my_votes.contains(&peer), Deny::VotedByMe),
+            (self.blocks.contains(&peer), Deny::Blocked),
+            (l.is_forgotten(&peer), Deny::Forgotten),
+        ];
+        table.iter().find(|(hit, _)| *hit).map(|(_, deny)| *deny)
+    }
+
+    /// Subjects of live forget circles that I voted in, without myself.
+    fn my_forget_subjects(&self) -> impl Iterator<Item = PeerId> + '_ {
+        let me = self.me;
+        let circles = self.ledger.forgets.iter();
+        let mine = circles.filter(move |(_, round)| round.voters.contains(&me));
+        mine.map(|(p, _)| *p).filter(move |p| *p != me)
+    }
+
     /// Subjects of live forget circles that I voted in: hidden from me at once, before the circle completes.
     pub fn my_forgets(&self) -> BTreeSet<PeerId> {
-        let mine = |round: &ForgetRound| round.voters.contains(&self.me);
-        let subjects = self.ledger.forgets.iter().filter(|(_, round)| mine(round));
-        subjects
-            .map(|(p, _)| *p)
-            .filter(|p| *p != self.me)
-            .collect()
+        self.my_forget_subjects().collect()
     }
 
     /// Subjects hidden from this node: forgotten ones and those of its own pending forget votes.
     pub fn removed_here(&self) -> BTreeSet<PeerId> {
-        let mut hidden = self.my_forgets();
-        let forgotten = self
-            .ledger
-            .forgets
-            .iter()
-            .filter(|(_, r)| r.at_unix.is_some());
-        hidden.extend(forgotten.map(|(p, _)| *p));
+        let circles = self.ledger.forgets.iter();
+        let forgotten = circles
+            .filter(|(_, r)| r.at_unix.is_some())
+            .map(|(p, _)| *p);
+        let mut hidden: BTreeSet<PeerId> = self.my_forget_subjects().chain(forgotten).collect();
         hidden.remove(&self.me);
         hidden
     }
@@ -104,13 +127,25 @@ impl Verdicts {
 
     /// Nodes this view has an opinion about.
     fn known(&self) -> BTreeSet<PeerId> {
-        let mut all: BTreeSet<PeerId> = self.ledger.admitted.clone();
-        all.extend(self.ledger.excluded.keys().copied());
-        all.extend(self.my_votes.iter().copied());
-        all.extend(self.blocks.iter().copied());
-        all.extend(self.ledger.forgets.keys().copied());
-        all.remove(&self.me);
-        all
+        let l = &self.ledger;
+        let listed = l.admitted.iter().chain(l.excluded.keys());
+        let listed = listed.chain(&self.my_votes).chain(&self.blocks);
+        listed
+            .chain(l.forgets.keys())
+            .filter(|p| **p != self.me)
+            .copied()
+            .collect()
+    }
+
+    /// The nodes denied by this view that the previous one (if any) let in.
+    fn newly_denied(&self, old: Option<&Verdicts>) -> Vec<(PeerId, Deny)> {
+        let before = old.into_iter().flat_map(|o| o.known());
+        let candidates: BTreeSet<PeerId> = self.known().into_iter().chain(before).collect();
+        candidates
+            .into_iter()
+            .filter(|p| old.is_none_or(|o| o.check(*p).is_ok()))
+            .filter_map(|p| self.check(p).err().map(|deny| (p, deny)))
+            .collect()
     }
 }
 
@@ -179,13 +214,7 @@ impl AccessView {
         let old = self.inner.verdicts.lock().unwrap().replace(new.clone());
         self.inner.ready.send_replace(true);
         self.drop_stale_refusals(&new);
-        let mut candidates = new.known();
-        candidates.extend(old.iter().flat_map(|o| o.known()));
-        candidates
-            .into_iter()
-            .filter(|p| old.as_ref().is_none_or(|o| o.check(*p).is_ok()))
-            .filter_map(|p| new.check(p).err().map(|deny| (p, deny)))
-            .collect()
+        new.newly_denied(old.as_deref())
     }
 
     /// The decision for one node; everyone passes while no verdicts are published.
@@ -208,36 +237,23 @@ impl AccessView {
     pub fn note_refusal(&self, peer: PeerId, side: Side, deny: Deny) {
         let mut list = self.inner.refusals.lock().unwrap();
         list.retain(|(p, _)| *p != peer);
-        list.push((
-            peer,
-            Refusal {
-                side,
-                deny,
-                at_unix: unix_now(),
-            },
-        ));
+        list.push((peer, Refusal::now(side, deny)));
         let extra = list.len().saturating_sub(MAX_REFUSALS);
         list.drain(..extra);
     }
 
     /// Forgets that a refusal was noted for the node.
     pub fn clear_refusal(&self, peer: PeerId) {
-        self.inner
-            .refusals
-            .lock()
-            .unwrap()
-            .retain(|(p, _)| *p != peer);
+        self.retain_refusals(|(p, _)| *p != peer);
     }
 
     /// Drops my own refusals whose denial no longer holds (lifted or replaced by another reason).
     fn drop_stale_refusals(&self, new: &Verdicts) {
-        let holds =
-            |peer: &PeerId, r: &Refusal| r.side == Side::Them || new.check(*peer) == Err(r.deny);
-        self.inner
-            .refusals
-            .lock()
-            .unwrap()
-            .retain(|(p, r)| holds(p, r));
+        self.retain_refusals(|(p, r)| r.side == Side::Them || new.check(*p) == Err(r.deny));
+    }
+
+    fn retain_refusals(&self, keep: impl FnMut(&(PeerId, Refusal)) -> bool) {
+        self.inner.refusals.lock().unwrap().retain(keep);
     }
 
     pub fn refusals(&self) -> Vec<(PeerId, Refusal)> {

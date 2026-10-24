@@ -4,14 +4,11 @@
 //! leave in the shared replica, block in the own one) and recomputes.
 //! What it doesn't do: no parsing of ids or HTTP (the node control layer does).
 
-use std::collections::HashSet;
-
 use crate::node::output::say;
 use crate::transport::net::{NetResult, PeerId};
 use crate::transport::net_mainline::unix_now;
 
 use super::actions_managed::{self, gate, returns};
-use super::authority::Rules;
 use super::record::{self, AclKind, AclValue, Via};
 use super::runtime::Access;
 use super::view::Verdicts;
@@ -117,100 +114,133 @@ fn keeps_when_forgotten(act: &MemberAction) -> bool {
 
 /// The checks in contract order: the rules of the network kind, left, self target, then the state of
 /// the subject.
-fn check(
-    me: PeerId,
-    rules: Rules,
-    v: &Verdicts,
-    online: &HashSet<PeerId>,
-    act: &MemberAction,
-) -> Result<(), ActionRefusal> {
-    gate(me, rules, v, act)?;
-    let left = v.ledger.excluded.contains_key(&me);
-    match (act.clone(), left) {
-        (MemberAction::Leave, _) => Ok(()),
-        (_, true) => Err(ActionRefusal::Left),
-        (other, _) if v.ledger.is_forgotten(&me) && !keeps_when_forgotten(&other) => {
-            Err(ActionRefusal::Left)
-        }
-        (
-            MemberAction::Exclude(p, _)
-            | MemberAction::Unexclude(p)
-            | MemberAction::Admit(p)
-            | MemberAction::Unadmit(p)
-            | MemberAction::Block(p)
-            | MemberAction::Unblock(p)
-            | MemberAction::Forget(p)
-            | MemberAction::Unforget(p),
-            _,
-        ) if p == me => Err(ActionRefusal::SelfTarget),
-        (MemberAction::Exclude(p, _), _)
-            if !v.ledger.admitted.contains(&p) && !v.ledger.excluded.contains_key(&p) =>
-        {
-            Err(ActionRefusal::NotMember)
-        }
-        (MemberAction::Forget(p), _) if !v.ledger.is_member(&p) => Err(ActionRefusal::NotMember),
-        (MemberAction::Forget(p), _) if online.contains(&p) => Err(ActionRefusal::Online),
-        (MemberAction::Admit(p), _)
-            if confirmed_by(me, v, &p) != Some(false) && !returns(rules, v, &p) =>
-        {
-            Err(ActionRefusal::NotPending)
-        }
-        (MemberAction::Unadmit(p), _) if confirmed_by(me, v, &p) != Some(true) => {
-            Err(ActionRefusal::NotConfirmed)
-        }
-        _ => Ok(()),
+fn check(a: &Access, v: &Verdicts, act: &MemberAction) -> Result<(), ActionRefusal> {
+    gate(a.me, a.rules, v, act)?;
+    if matches!(act, MemberAction::Leave) {
+        return Ok(());
+    }
+    refuse_if(has_left(a.me, v, act), ActionRefusal::Left)?;
+    check_subject(a, v, act)
+}
+
+fn refuse_if(cond: bool, refusal: ActionRefusal) -> Result<(), ActionRefusal> {
+    if cond {
+        return Err(refusal);
+    }
+    Ok(())
+}
+
+/// The node is out of the list, or forgotten and the action is not one of the open ones.
+fn has_left(me: PeerId, v: &Verdicts, act: &MemberAction) -> bool {
+    let forgotten = v.ledger.is_forgotten(&me) && !keeps_when_forgotten(act);
+    v.ledger.excluded.contains_key(&me) || forgotten
+}
+
+fn other_than(me: PeerId, p: &PeerId) -> Result<(), ActionRefusal> {
+    refuse_if(*p == me, ActionRefusal::SelfTarget)
+}
+
+/// The self-target check and the state of the subject, by the kind of the action.
+fn check_subject(a: &Access, v: &Verdicts, act: &MemberAction) -> Result<(), ActionRefusal> {
+    use MemberAction::*;
+    let me = a.me;
+    match act {
+        Exclude(p, _) => other_than(me, p).and_then(|_| exclude_known(v, p)),
+        Admit(p) => other_than(me, p).and_then(|_| admit_pending(a, v, p)),
+        Unadmit(p) => other_than(me, p).and_then(|_| unadmit_confirmed(me, v, p)),
+        Forget(p) => other_than(me, p).and_then(|_| forget_allowed(a, v, p)),
+        Unexclude(p) | Block(p) | Unblock(p) | Unforget(p) => other_than(me, p),
+        Grant(_) | Revoke(_) | Close | Leave => Ok(()),
     }
 }
 
+fn exclude_known(v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
+    let known = v.ledger.admitted.contains(p) || v.ledger.excluded.contains_key(p);
+    refuse_if(!known, ActionRefusal::NotMember)
+}
+
+fn admit_pending(a: &Access, v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
+    let waits = confirmed_by(a.me, v, p) == Some(false) || returns(a.rules, v, p);
+    refuse_if(!waits, ActionRefusal::NotPending)
+}
+
+fn unadmit_confirmed(me: PeerId, v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
+    refuse_if(
+        confirmed_by(me, v, p) != Some(true),
+        ActionRefusal::NotConfirmed,
+    )
+}
+
+fn forget_allowed(a: &Access, v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
+    refuse_if(!v.ledger.is_member(p), ActionRefusal::NotMember)?;
+    refuse_if(a.members.ids().contains(p), ActionRefusal::Online)
+}
+
 /// Writes the record of the action; `true` — something changed.
-async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
-    let shared = &*a.shared;
-    let own = &*a.own;
+async fn write(a: &Access, v: &Verdicts, act: &MemberAction) -> NetResult<bool> {
     match act {
-        MemberAction::Exclude(p, _) if v.ledger.excluded.contains_key(&p) => Ok(false),
-        MemberAction::Exclude(p, note) => {
-            record::ensure(
-                shared,
-                &noted(AclKind::Exclude, p, note.unwrap_or_default()),
-            )
-            .await
-        }
-        MemberAction::Unexclude(p) => record::withdraw(shared, AclKind::Exclude, p).await,
-        MemberAction::Admit(p) if a.rules.is_managed() => {
-            record::rewrite(shared, &value(AclKind::Admit, p))
-                .await
-                .map(|_| true)
-        }
-        MemberAction::Admit(p) => record::ensure(shared, &value(AclKind::Admit, p)).await,
-        MemberAction::Unadmit(p) => record::withdraw(shared, AclKind::Admit, p).await,
-        MemberAction::Block(p) => record::ensure(own, &value(AclKind::Block, p)).await,
-        MemberAction::Unblock(p) => record::withdraw(own, AclKind::Block, p).await,
-        MemberAction::Forget(p) if voted_to_forget(a.me, v, &p) => Ok(false),
-        MemberAction::Forget(p) => record::rewrite(shared, &forget_vote(v, p))
-            .await
-            .map(|_| true),
-        MemberAction::Unforget(p) => record::withdraw(shared, AclKind::Forget, p).await,
-        MemberAction::Grant(p) => actions_managed::grant(a, v, p).await,
-        MemberAction::Revoke(p) => actions_managed::revoke(a, v, p).await,
+        MemberAction::Grant(p) => actions_managed::grant(a, v, *p).await,
+        MemberAction::Revoke(p) => actions_managed::revoke(a, v, *p).await,
         MemberAction::Close => actions_managed::close(a).await,
-        MemberAction::Leave if v.ledger.excluded.contains_key(&a.me) => Ok(false),
-        MemberAction::Leave => record::ensure(shared, &value(AclKind::Exclude, a.me)).await,
+        _ => write_record(a, v, act).await,
     }
+}
+
+/// The votes, takebacks, blocks and leaving; the role actions are written by `write`.
+async fn write_record(a: &Access, v: &Verdicts, act: &MemberAction) -> NetResult<bool> {
+    use MemberAction::*;
+    match act {
+        Exclude(p, note) => exclude(a, v, p, note.as_deref()).await,
+        Unexclude(p) => record::withdraw(&*a.shared, AclKind::Exclude, *p).await,
+        Admit(p) => admit(a, p).await,
+        Unadmit(p) => record::withdraw(&*a.shared, AclKind::Admit, *p).await,
+        Block(p) => record::ensure(&*a.own, &value(AclKind::Block, *p)).await,
+        Unblock(p) => record::withdraw(&*a.own, AclKind::Block, *p).await,
+        Forget(p) => forget(a, v, *p).await,
+        Unforget(p) => record::withdraw(&*a.shared, AclKind::Forget, *p).await,
+        Leave => exclude(a, v, &a.me, None).await,
+        Grant(_) | Revoke(_) | Close => Ok(false),
+    }
+}
+
+/// An exclusion vote (the own leave is the vote against the own id); nothing to do when it stands.
+async fn exclude(a: &Access, v: &Verdicts, p: &PeerId, note: Option<&str>) -> NetResult<bool> {
+    if v.ledger.excluded.contains_key(p) {
+        return Ok(false);
+    }
+    let vote = noted(AclKind::Exclude, *p, note.unwrap_or_default().to_owned());
+    record::ensure(&*a.shared, &vote).await
+}
+
+async fn admit(a: &Access, p: &PeerId) -> NetResult<bool> {
+    let vote = value(AclKind::Admit, *p);
+    if a.rules.is_managed() {
+        return record::rewrite(&*a.shared, &vote).await.map(|_| true);
+    }
+    record::ensure(&*a.shared, &vote).await
+}
+
+async fn forget(a: &Access, v: &Verdicts, p: PeerId) -> NetResult<bool> {
+    if voted_to_forget(a.me, v, &p) {
+        return Ok(false);
+    }
+    record::rewrite(&*a.shared, &forget_vote(v, p))
+        .await
+        .map(|_| true)
 }
 
 /// Applies the action and recomputes the verdicts. `Ok(true)` — the lists changed.
 pub async fn apply(a: &Access, act: MemberAction) -> Result<bool, ActionRefusal> {
-    let verdicts = a
-        .refresh()
-        .await
-        .map_err(|e| ActionRefusal::Write(e.to_string()))?;
-    check(a.me, a.rules, &verdicts, &a.members.ids(), &act)?;
-    let changed = write(a, &verdicts, act.clone())
-        .await
-        .map_err(|e| ActionRefusal::Write(e.to_string()))?;
+    let verdicts = a.refresh().await.map_err(write_refusal)?;
+    check(a, &verdicts, &act)?;
+    let changed = write(a, &verdicts, &act).await.map_err(write_refusal)?;
     let changed = unchanged_refusal(&act, changed)?;
     refresh_after(a, changed).await;
     Ok(changed)
+}
+
+fn write_refusal(e: impl std::fmt::Display) -> ActionRefusal {
+    ActionRefusal::Write(e.to_string())
 }
 
 /// An `Unforget` that changed nothing had no own vote to withdraw.

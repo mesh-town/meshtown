@@ -32,10 +32,20 @@ pub(super) struct Pass {
 impl Pass {
     pub(super) fn new(input: &TallyInput) -> Pass {
         let mut pass = Pass {
-            me: input.me,
-            rules: input.rules,
             admits: input.admits.clone(),
             forgets: input.forgets.clone(),
+            ..Pass::empty(input.me, input.rules)
+        };
+        pass.refresh();
+        pass
+    }
+
+    fn empty(me: PeerId, rules: Rules) -> Pass {
+        Pass {
+            me,
+            rules,
+            admits: Vec::new(),
+            forgets: Vec::new(),
             admitted: BTreeSet::new(),
             excluded: Excluded::new(),
             pending: BTreeMap::new(),
@@ -43,9 +53,7 @@ impl Pass {
             rounds: BTreeMap::new(),
             forget_need: 1,
             need: 1,
-        };
-        pass.refresh();
-        pass
+        }
     }
 
     /// In the closure and not excluded.
@@ -60,17 +68,24 @@ impl Pass {
     /// Recomputes the forget circles and the admitted set, drops votes that no longer count and updates
     /// the threshold.
     pub(super) fn refresh(&mut self) {
-        let closure0 = admit_closure(self.rules, self.me, &self.admits, &self.excluded).set;
-        let settled = settle_forgets(
-            self.rules,
-            &closure0,
-            &self.excluded,
-            &self.admits,
-            &self.forgets,
-        );
-        let next = admit_closure(self.rules, self.me, &settled.live_admits, &self.excluded);
+        self.settle_circles();
+        self.drop_stale_votes();
+        self.update_need();
+    }
+
+    /// The admitted set and the forget circles, each computed against the other.
+    fn settle_circles(&mut self) {
+        let (rules, me) = (self.rules, self.me);
+        let closure0 = admit_closure(rules, me, &self.admits, &self.excluded).set;
+        let (admits, forgets) = (&self.admits, &self.forgets);
+        let settled = settle_forgets(rules, &closure0, &self.excluded, admits, forgets);
+        let next = admit_closure(rules, me, &settled.live_admits, &self.excluded);
         (self.admitted, self.short, self.rounds) = (next.set, next.short, settled.rounds);
         self.forget_need = settled.need;
+    }
+
+    /// Pending votes of subjects that left the count, and votes of voters that no longer count.
+    fn drop_stale_votes(&mut self) {
         let mut pending = std::mem::take(&mut self.pending);
         pending.retain(|subject, _| self.counts(subject));
         for list in pending.values_mut() {
@@ -78,6 +93,9 @@ impl Pass {
         }
         pending.retain(|_, list| !list.is_empty());
         self.pending = pending;
+    }
+
+    fn update_need(&mut self) {
         let standing = self.standing();
         let active = self.admitted.iter().filter(|p| standing.counts(p));
         self.need = self.rules.need(active.count());
@@ -86,15 +104,7 @@ impl Pass {
     pub(super) fn finish(mut self) -> Ledger {
         self.refresh();
         let need = self.need;
-        let to_pending = |l: Vec<(VoteKey, PeerId)>| PendingVote {
-            voters: l.into_iter().map(|(_, v)| v).collect(),
-            need,
-        };
-        let pending = self
-            .pending
-            .into_iter()
-            .map(|(s, l)| (s, to_pending(l)))
-            .collect();
+        let pending = self.pending_votes(need);
         Ledger {
             admitted: self.admitted,
             excluded: self.excluded,
@@ -102,9 +112,34 @@ impl Pass {
             need,
             admissions: self.short,
             forgets: self.rounds,
+            forget_need: self.forget_need,
+            ..Ledger::bare()
+        }
+    }
+
+    fn pending_votes(&mut self, need: u8) -> BTreeMap<PeerId, PendingVote> {
+        let pending = std::mem::take(&mut self.pending);
+        let to_vote = |l: Vec<(VoteKey, PeerId)>| PendingVote {
+            voters: l.into_iter().map(|(_, v)| v).collect(),
+            need,
+        };
+        pending.into_iter().map(|(s, l)| (s, to_vote(l))).collect()
+    }
+}
+
+impl Ledger {
+    /// A ledger with nothing in it; the pass fills the counted parts, the caller the marks.
+    fn bare() -> Ledger {
+        Ledger {
+            admitted: BTreeSet::new(),
+            excluded: BTreeMap::new(),
+            pending: BTreeMap::new(),
+            need: 1,
+            admissions: BTreeMap::new(),
+            forgets: BTreeMap::new(),
             admit_unix: BTreeMap::new(),
             forget_marks: BTreeMap::new(),
-            forget_need: self.forget_need,
+            forget_need: 1,
             admins: BTreeSet::new(),
             closed: None,
         }
