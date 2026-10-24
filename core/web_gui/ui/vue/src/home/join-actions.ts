@@ -7,6 +7,8 @@ import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps, writeSetupMark } from "./home-actions.ts";
 import type { HomeDeps, SetupMark } from "./home-actions.ts";
+import { createdBanner } from "./add-net-texts.ts";
+import { inviteNotFromAdminText } from "./net-kind-texts.ts";
 import { failText, quotedNet, upperFirst } from "../common/words.ts";
 import {
   HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_JOIN_ACTION, HOME_LABEL_EMPTY, JOIN_STALLED, JOIN_STALLED_SILENT,
@@ -98,7 +100,14 @@ async function request<T>(form: JoinForm, kind: "join" | "create", path: string,
   }
 }
 
+function notFromAdmin(form: JoinForm, err: ApiErrorLike): JoinResult {
+  const label = ((err.body || {}) as { label?: unknown }).label;
+  form.inviteError = { message: inviteNotFromAdminText(typeof label === "string" ? label : null), word: null };
+  return "failed";
+}
+
 function joinFailed(form: JoinForm, err: ApiErrorLike): JoinResult {
+  if (err.code === "invite_not_from_admin") return notFromAdmin(form, err);
   const body = err.body || {};
   const invalid = err.code === "invalid_key";
   const message = invalid ? body.message || INVITE_INVALID : failText(HOME_JOIN_ACTION, err);
@@ -216,7 +225,8 @@ function createDone(form: JoinForm, res: CreateNetworkResponse | null, label: st
   form.choice = "";
   form.inviteInput = "";
   form.inviteError = null;
-  form.status = createdNotice((res && res.label) || label);
+  const name = (res && res.label) || label;
+  form.status = form.kind === "Managed" ? createdBanner(name, "Managed") : createdNotice(name);
   writeMark(mark, deps);
   return "created";
 }
@@ -233,8 +243,11 @@ export function createNetwork(form: JoinForm, store: Store, deps: HomeDeps = def
   return ask(form, () => startCreate(form, store, deps));
 }
 
+// A Peer network is created exactly as before: the kind rides along only when it is Managed.
+const createBody = (form: JoinForm, label: string): CreateNetworkRequest => (form.kind === "Managed" ? { label, kind: "Managed" } : { label });
+
 function startCreate(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinResult> | "empty" {
   const label = form.label.trim();
   form.labelError = label ? null : LABEL_EMPTY;
-  return label ? sendCreate(form, label, { label }, markFor(store), deps) : "empty";
+  return label ? sendCreate(form, label, createBody(form, label), markFor(store), deps) : "empty";
 }

@@ -3,6 +3,8 @@
 // `#home-start-choice`) and "Settings" with a network (`joinPlace`). `join` is a ready `useJoin` from the parent (the setup drives the form itself), otherwise its own.
 import { computed, inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
+import NetKindPicker from "./NetKindPicker.vue";
+import { useInspectPreview } from "./inspect-preview.ts";
 import { useJoin } from "./use-join.ts";
 import { inviteWaitText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
@@ -18,6 +20,7 @@ const j = props.join || useJoin(store);
 const { form, hasNet, showJoin, showCreate, title, buttonText, errorParts } = j;
 // `quiet` — the setup has already shown the join progress in its own block, so we don't duplicate the line under the form.
 // `removed` — the others removed this computer from the member list: its own title and hint instead of the "switch" ones.
+const { preview } = useInspectPreview(() => form.inviteInput);
 const heading = computed(() => (props.removed ? HOME_TITLE_REMOVED : title.value));
 const restartHint = computed(() => (props.removed ? HOME_JOIN_REMOVED_HINT : HOME_JOIN_RESTART_HINT));
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
@@ -30,6 +33,7 @@ const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.
     <label class="field-label" for="join-key-input">{{ HOME_JOIN_FIELD_LABEL }}</label>
     <input type="text" class="input mono input-wide" :class="{ 'field-error': form.inviteError }" id="join-key-input" v-model="form.inviteInput" autocomplete="off" spellcheck="false" aria-describedby="join-key-error net-restart-hint" :placeholder="HOME_JOIN_PLACEHOLDER">
     <p class="field-error-text" id="join-key-error" role="alert" :aria-label="HOME_JOIN_ERROR_ARIA" :hidden="!form.inviteError"><template v-for="(part, i) in errorParts" :key="i"><mark v-if="part.highlighted" class="key-error-word">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></p>
+    <p v-if="preview" class="hint kind-preview" id="join-kind-preview" role="status">{{ preview }}</p>
     <p class="hint" id="net-restart-hint" :hidden="!hasNet">{{ restartHint }}</p>
     <p class="hint">{{ HOME_JOIN_PASTE_HINT }}</p>
     <div class="btn-row">
@@ -41,6 +45,7 @@ const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.
       <label class="field-label" for="create-label-input">{{ HOME_CREATE_LABEL }}</label>
       <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="create-label-input" v-model="form.label" :placeholder="HOME_CREATE_PLACEHOLDER">
       <p class="field-error-text" id="create-label-error" role="alert" :aria-label="HOME_CREATE_ERROR_ARIA" :hidden="!form.labelError">{{ form.labelError }}</p>
+      <NetKindPicker v-model="form.kind" :name="form.label" />
       <div class="btn-row">
         <button type="button" :class="['btn', { 'btn-primary': !hasNet }]" id="create-btn" :disabled="!!form.busy" @click="j.create">{{ form.busy === "create" ? HOME_CREATE_BUSY : HOME_CREATE_BTN }}</button>
       </div>
