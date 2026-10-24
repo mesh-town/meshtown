@@ -87,3 +87,7 @@ pub(crate) fn admit_text(label: &str) -> String {
 pub(crate) fn no_connection_tail(label: &str) -> String {
     format!(" · {label}: no connection")
 }
+
+#[cfg(test)]
+#[path = "nets_texts_tests.rs"]
+mod tests;

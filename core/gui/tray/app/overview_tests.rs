@@ -259,6 +259,16 @@ mod notices {
     }
 
     #[test]
+    fn a_note_with_a_null_label_is_kept_with_an_empty_label() {
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!([{ "id": 3, "kind": "net_deleted", "label": null }]);
+
+        let notes = parse_notices(&json);
+
+        assert_eq!(notes, [Notice { id: 3, label: String::new() }]);
+    }
+
+    #[test]
     fn summary_slots_do_not_depend_on_notices() {
         let mut json = overview_json(&[friends(), work()]);
         json["notices"] = json!([{ "id": 1, "kind": "net_deleted", "label": "gone" }]);
