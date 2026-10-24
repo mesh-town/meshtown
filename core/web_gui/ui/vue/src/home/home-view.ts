@@ -18,6 +18,7 @@ import {
   HOME_WAIT_STARTING, HOME_WAIT_STOPPING, offlinePeerText, rttMsText,
 } from "./home-flow-texts.ts";
 import type { JoinProgress } from "./join-progress.ts";
+import type { RouteHead } from "./route-line.ts";
 import {
   NETS_DIRECT, NETS_JUST_YOU, NETS_NO_CONNECTION, netsAdmittingTail, netsChipShort, netsChipText, netsExitOfflineText, netsExitRemovedText,
   netsNoLinkText, netsOnlineText, netsViaText,
@@ -119,6 +120,8 @@ export interface PanelCtx {
   multi: boolean;
   netOf: (peerId: string) => string | null;
   linkDown?: (peerId: string) => boolean;
+  /** The header verdict; a red one means sites will not open, whatever the leading network says. */
+  head?: RouteHead | null;
 }
 
 function directPanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
@@ -166,6 +169,7 @@ const ROUTE_PANELS = new Map<string | undefined, (state: Partial<NodeState>, ctx
 
 function routePanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const route = state.route;
+  if (ctx?.multi && ctx.head?.level === "red") return panel("red", ctx.head.text, "", ["pick-other"]);
   return (ROUTE_PANELS.get(route && route.state) || directPanel)(state, ctx);
 }
 

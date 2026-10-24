@@ -27,6 +27,8 @@ export interface JoinView {
   buttonText: ComputedRef<string>;
   errorParts: ComputedRef<HighlightPart[]>;
   progress: ComputedRef<JoinProgress | null>;
+  /** The sent invite the progress waits on (shared with Home when it provides one). */
+  sent: Ref<JoinSent | null>;
   join: () => Promise<JoinResult>;
   create: () => Promise<JoinResult>;
   openJoin: () => void;
@@ -65,7 +67,7 @@ export function useJoin(store: Store, deps: HomeDeps = defaultHomeDeps): JoinVie
   const title = computed(() => titleText(hasNet.value, form.choice));
 
   return {
-    form, invite, hasNet,
+    form, invite, hasNet, sent,
     showJoin, showCreate, title,
     buttonText: computed(() => HOME_BUTTON_JOIN),
     errorParts: computed(() => (err.value ? highlightParts(err.value.message, err.value.word) : [])),
