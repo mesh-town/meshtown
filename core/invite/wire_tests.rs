@@ -177,8 +177,8 @@ mod reply {
         use super::*;
 
         #[test]
-        fn unknown_code_nine_is_rejected() {
-            let frame = raw_reply(REDEEM_FRAME_KIND, 9, [0; 32]);
+        fn unknown_code_ten_is_rejected() {
+            let frame = raw_reply(REDEEM_FRAME_KIND, 10, [0; 32]);
             assert!(parse_invite_reply(&frame).is_none());
         }
 
@@ -246,8 +246,8 @@ mod code_numbers {
     }
 
     #[test]
-    fn code_9_is_unknown() {
-        assert_eq!(RedeemCode::from_u8(9), None);
+    fn code_10_is_unknown() {
+        assert_eq!(RedeemCode::from_u8(10), None);
     }
 
     #[test]
@@ -259,7 +259,7 @@ mod code_numbers {
 
     #[test]
     fn from_u8_rejects_numbers_past_the_last_code() {
-        for number in [9u8, 10, 100, 255] {
+        for number in [10u8, 11, 100, 255] {
             assert_eq!(RedeemCode::from_u8(number), None, "number {number}");
         }
     }
@@ -381,3 +381,34 @@ fn all_verdicts() -> [IssueVerdict; 5] {
 
 #[path = "wire_owner_tests.rs"]
 mod owner_frame;
+
+mod not_from_admin {
+    use super::*;
+
+    #[test]
+    fn is_code_9_and_round_trips() {
+        assert_eq!(RedeemCode::NotFromAdmin as u8, 9);
+        assert_eq!(RedeemCode::from_u8(9), Some(RedeemCode::NotFromAdmin));
+    }
+
+    #[test]
+    fn code_10_is_unknown() {
+        assert_eq!(RedeemCode::from_u8(10), None);
+    }
+
+    #[test]
+    fn refusal_frame_survives_a_round_trip() {
+        let frame = encode_invite_reply(RedeemCode::NotFromAdmin, None);
+        assert_eq!(frame[1], 9);
+        assert_eq!(
+            refusal_in(parse_invite_reply(&frame)),
+            Some(RedeemCode::NotFromAdmin)
+        );
+    }
+
+    #[test]
+    fn is_final_not_retryable() {
+        // assumed: a refusal for a key not issued by an administrator is final, like `Excluded`.
+        assert!(!RedeemCode::NotFromAdmin.is_retryable());
+    }
+}

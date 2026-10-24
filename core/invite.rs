@@ -56,6 +56,12 @@ pub const MAX_INVITE_BYTES: usize = 2_000;
 /// "dial by key".
 const INVITE_KEYED_VERSION: u8 = 3;
 
+/// Format number of the invite of a Managed network: the v3 body plus the network kind and creator.
+const INVITE_MANAGED_VERSION: u8 = 4;
+
+/// The `kind` byte of a Managed network in a version 4 invite.
+pub const INVITE_KIND_MANAGED: u8 = 1;
+
 /// Internal form of the invite before base32 — the field order is the format, it must not change.
 #[derive(Serialize, Deserialize)]
 struct Invite {
@@ -65,6 +71,15 @@ struct Invite {
     secret: [u8; 32],
     made_unix: u64,
     peers: Vec<RosterEntry>,
+}
+
+/// Internal form of a version 4 invite: the version 3 body (its `version` is 4), then the network kind
+/// and the 32 bytes of the network creator.
+#[derive(Serialize, Deserialize)]
+struct InviteV4 {
+    body: Invite,
+    kind: u8,
+    root: [u8; 32],
 }
 
 /// A parsed invite.
@@ -94,11 +109,7 @@ pub struct Source {
 /// first come the default-route address and public ones, the foreign tunnel address (100.64/10) —
 /// last (`addr_order`), but it stays if there is otherwise neither a route nor a public address;
 /// a record with no relay and no addresses is legal and means "dial by key".
-fn record_for_addr(
-    addr: &PeerAddr,
-    made_unix: u64,
-    primary: &PrimaryIps,
-) -> RosterEntry {
+fn record_for_addr(addr: &PeerAddr, made_unix: u64, primary: &PrimaryIps) -> RosterEntry {
     let mut entry = entry_from_addr(addr, made_unix, primary);
     if entry.relay.is_some() {
         entry.addrs.clear();
@@ -129,15 +140,24 @@ pub fn build_keyed(
         }
         peers.push(record_for_addr(addr, head.made_unix, primary));
     }
-    let invite = Invite {
-        version: INVITE_KEYED_VERSION,
+    let root = head.kind.root();
+    let body = Invite {
+        version: root.map_or(INVITE_KEYED_VERSION, |_| INVITE_MANAGED_VERSION),
         network_id: head.network_id,
         label: head.label.clone(),
         secret: *head.secret.as_bytes(),
         made_unix: head.made_unix,
         peers,
     };
-    let bytes = postcard::to_allocvec(&invite).context("could not write postcard")?;
+    let bytes = match root {
+        None => postcard::to_allocvec(&body),
+        Some(root) => postcard::to_allocvec(&InviteV4 {
+            body,
+            kind: INVITE_KIND_MANAGED,
+            root: *root.as_bytes(),
+        }),
+    }
+    .context("could not write postcard")?;
     if bytes.len() > MAX_INVITE_BYTES {
         bail!(
             "invite did not fit: {} bytes with a limit of {MAX_INVITE_BYTES}",
@@ -225,6 +245,7 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
         network_id: src.key.subkeys().network_id,
         label: src.label.clone(),
         made_unix: net_mainline::unix_now(),
+        kind: src.kind,
     };
     let me = own_addr(&src.stack, src.stack.me());
     let primary = PrimaryIps::probe();

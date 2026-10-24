@@ -86,6 +86,7 @@ pub(crate) fn fresh_head(key: &NetworkKey, made_unix: u64) -> InviteHead {
         network_id: key.subkeys().network_id,
         label: None,
         made_unix,
+        kind: meshtown_core::members::network_key::NetKind::Peer,
     }
 }
 
