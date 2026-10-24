@@ -10,6 +10,7 @@ import type { MembersReply } from "../members/members-types.ts";
 import { bannedStatusText, forgottenStatusText } from "../members/members-texts.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { statePanel } from "../home/home-view.ts";
+import type { RouteHead } from "../home/route-line.ts";
 import { netPhase } from "../home/home-words.ts";
 import { joinProgress } from "../home/join-progress.ts";
 import type { NetPhase } from "../home/home-words.ts";
@@ -87,15 +88,16 @@ function plainNet(label: unknown): string {
   return typeof label === "string" && label.trim() ? " · " + label : "";
 }
 
-function joinedNetworkLine(state: NodeState & { network: NonNullable<NodeState["network"]> }): StatusLine {
-  const panel = statePanel(state);
+function joinedNetworkLine(state: NodeState & { network: NonNullable<NodeState["network"]> }, route: RouteHead | null): StatusLine {
+  const panel = route ? { level: route.level, line: route.text } : statePanel(state);
   const tail = inAppPage() ? quotedNet(state.network.label).replace(/^ /, STATUS_NETWORK_SEP) : plainNet(state.network.label);
   return { level: panel.level, text: panel.line + tail + " · " + othersOnlineText(state) };
 }
 
-// `{ level: "green"|"red"|"grey", text }` — in the order of the branches.
-export function statusLine(state: NodeState | null, conn: Conn, members: MembersReply | null = null): StatusLine {
-  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || forgottenLine(state, members) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0]))) || grey(NOT_RESPONDING_TEXT);
+// `{ level: "green"|"red"|"grey", text }` — in the order of the branches. `route` (several networks) replaces
+// the "how sites open" part of the line of the leading network.
+export function statusLine(state: NodeState | null, conn: Conn, members: MembersReply | null = null, route: RouteHead | null = null): StatusLine {
+  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || forgottenLine(state, members) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0], route))) || grey(NOT_RESPONDING_TEXT);
 }
 
 function capitalizeFirst(text: string): string {

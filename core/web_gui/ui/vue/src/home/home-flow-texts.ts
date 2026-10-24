@@ -6,6 +6,7 @@ import { NET_NAME } from "../common/words.ts";
 // Shared connection words (the exit list, the status panel)
 export const HOME_LINK_ONLINE = "online";
 export const HOME_LINK_OFFLINE = "offline";
+export const HOME_EXIT_NOT_OFFERED = "not an exit";
 export const HOME_LINK_DIRECT = "direct";
 export const HOME_LINK_RELAY = "via relay server";
 export const rttMsText = (ms: number): string => ms + " ms";

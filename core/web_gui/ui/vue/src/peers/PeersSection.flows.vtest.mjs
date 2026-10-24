@@ -62,6 +62,6 @@ describe("peers element survives poll", () => {
     expect(EXIT_CHOSEN.some((t) => rowNow.text().includes(t))).toBe(true);
     expect(wrapper.get("#peers-exit-status").text()).toBe("Saved");
     expect(node.config.route.exits).toEqual([idFull]);
-    expect(JSON.parse(localStorage.getItem(REMEMBERED_KEY))).toEqual([idFull]);
+    expect(JSON.parse(localStorage.getItem(REMEMBERED_KEY))).toEqual([{ id: idFull, slot: "main" }]);
   });
 });

@@ -123,7 +123,7 @@ describe("ExitCard with several networks", () => {
   });
 
   describe("no network carries the proxy", () => {
-    it("says the proxy points to a network this device is not in", () => {
+    it("says the network of the chosen exit is gone", () => {
       const { wrapper } = setup(threeNets({ proxy: null, chosen: NET_B }));
       expect(wrapper.text()).toContain(NETS_EXIT_NO_NET);
     });

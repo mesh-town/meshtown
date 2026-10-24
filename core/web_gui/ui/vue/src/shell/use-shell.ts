@@ -10,6 +10,7 @@ import type { Conn, Strip, StripViewKind } from "./conn.ts";
 import { openableSection, peersHash, peersTail, pickPeersTab } from "./nav.ts";
 import { addressInvite } from "../home/use-invite-join.ts";
 import { inAppPage } from "../home/browser-setup.ts";
+import { routeLine } from "../home/route-line.ts";
 import { createPoller } from "./poller.ts";
 import { defaultShellDeps } from "./shell-deps.ts";
 import type { ShellDeps } from "./shell-deps.ts";
@@ -66,7 +67,7 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   checkAddress();
   watch(() => peersSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
-  const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
+  const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members, routeLine(store)), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
   const strip = computed(() => stripView(conn));
   const identity = computed(() => identityStrip(store.state, store.configFile));
   const ready = computed(() => store.state !== null && store.configRev !== null);

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { memberRow, membersReply, selfRow } from "../testing/members-fixtures.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
-import { mountPage, settle, unmountPage } from "../testing/page.mjs";
+import { mountPage, openTab, settle, unmountPage } from "../testing/page.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
 
 const REMEMBERED_KEY = "meshtown.exitsRemembered";
@@ -61,12 +61,27 @@ describe("choosing an exit on the tab of another network", () => {
     await button.trigger("click");
     await settle();
     expect(paths(node)).toEqual(["/api/config"]);
-    expect(JSON.parse(localStorage.getItem(REMEMBERED_KEY))).toEqual([idFull]);
+    expect(JSON.parse(localStorage.getItem(REMEMBERED_KEY))).toEqual([{ id: idFull, slot: "main" }]);
   });
 
   it("hides the button at the exit that the network of the tab already uses", async () => {
     const { wrapper } = await open("peers/" + NET_B, [FULL_ONE]);
     expect(wrapper.find(`[data-exit-via="${FULL_ONE}"]`).exists()).toBe(false);
     expect(wrapper.find(`[data-exit-via="${FULL_TWO}"]`).exists()).toBe(true);
+  });
+
+  it("the main save after Use as exit in B has no stale_rev", async () => {
+    const { node, wrapper } = await open("peers/" + NET_B);
+    // The node rewrites the primary config while it moves the proxy; the reply to the write into B does not say so.
+    node.slotList[1].routes["PUT /api/config"] = (body) => {
+      node.rev += 2;
+      return { rev: body.rev + 1, config: body.config };
+    };
+    await wrapper.get(`[data-exit-via="${FULL_ONE}"]`).trigger("click");
+    await settle();
+    await openTab(wrapper, "peers");
+    await wrapper.find(SELECTOR).trigger("click");
+    await settle();
+    expect(puts(node).filter((c) => c.path === "/api/config"), "one write of the primary config, no retry").toHaveLength(1);
   });
 });

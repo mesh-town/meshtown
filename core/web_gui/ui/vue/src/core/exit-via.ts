@@ -3,11 +3,12 @@
 
 import type { SaveDeps } from "./save-config.ts";
 import type { Store } from "./store.ts";
-import { saveConfigFields, saveSlotFields, fieldErrorText } from "./save-config.ts";
+import { refetchConfig, saveConfigFields, saveSlotFields, fieldErrorText } from "./save-config.ts";
 import type { ConfigChanges } from "./save-config.ts";
 import { isMulti, visibleSlots } from "./slots.ts";
 import { chosenExitIds, setRememberedFor } from "../common/exits.ts";
 import { exitValue } from "../home/exit-list.ts";
+import { api as coreApi } from "./api.ts";
 import { CORE_SAVED } from "./core-texts.ts";
 
 // `deps` — as for `saveConfigFields` plus `remember(exits)` (by default the page's localStorage).
@@ -65,9 +66,21 @@ export async function saveExitIn(store: Store, slot: string, idFull: string, dep
   const remember = deps.remember || ((ids: string[]) => setRememberedFor(slot, ids));
   const changes = { "route.exits": [idFull] };
   const move = needsProxyMove(store, slot, idFull);
+  const hadMainExits = chosenExitIds(store).length > 0;
   const res = move ? await putProxyNet(store, slot, deps) : await writeExit(store, slot, changes, deps);
-  if (res.cls === "saved") remember([idFull]);
+  if (res.cls !== "saved") return res;
+  remember([idFull]);
+  if (slot !== "main" || (move && hadMainExits)) await rereadMain(store, deps);
   return res;
+}
+
+// The node rewrites the primary config while it moves the proxy; its reply to the write does not carry the new revision.
+async function rereadMain(store: Store, deps: ExitDeps): Promise<void> {
+  try {
+    await refetchConfig(store, { api: deps.api ?? coreApi });
+  } catch (err) {
+    /* the next save refetches on a stale revision anyway */
+  }
 }
 
 async function writeExit(store: Store, slot: string, changes: ConfigChanges, deps: ExitDeps): Promise<ExitSaveStatus> {

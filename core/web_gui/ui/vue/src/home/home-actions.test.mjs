@@ -25,7 +25,7 @@ describe("chooseExit", () => {
       w.form.exitChoice = "P";
       assert.equal(await chooseExit(w.form, w.store, "P", w.deps), "saved");
       assert.deepEqual(w.puts[0].route.exits, ["P"]);
-      assert.deepEqual(w.remembered(), ["P"]);
+      assert.deepEqual(w.remembered(), [{ id: "P", slot: "main" }]);
       assert.equal(w.form.exitStatus.text, "Saved");
       assert.equal(w.form.exitChoice, "P");
       assert.equal(w.form.exitSavesInFlight, 0);
@@ -82,7 +82,7 @@ describe("chooseDirect", () => {
     w.form.exitChoice = "";
     assert.equal(await chooseDirect(w.form, w.store, w.deps), "saved");
     assert.deepEqual(w.puts[0].route.exits, []);
-    assert.deepEqual(w.remembered(), ["Q"]);
+    assert.deepEqual(w.remembered(), [{ id: "Q", slot: "main" }]);
     assert.equal(w.form.exitStatus.text, "Saved");
     assert.equal(w.form.exitChoice, "");
   });
