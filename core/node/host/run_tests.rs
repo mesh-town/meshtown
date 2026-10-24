@@ -17,7 +17,7 @@ use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{log_page, log_summary, say, set_log_capacity, with_net};
 use crate::proxy::{BindError, ProxyFront, ProxySeat};
 use crate::transport::net::NodeSecret;
-use crate::web_gui::{ConfigState, HostControl};
+use crate::web_gui::{ConfigState, HostControl, WebStartError};
 
 /// Log capacity in tests: larger than the default (2000), so other lines are not cut.
 const TEST_RING: u64 = 2001;
@@ -650,3 +650,80 @@ fn busy_port() -> (std::net::TcpListener, u16) {
 
 #[path = "run_outcome_tests.rs"]
 mod outcome;
+
+#[test]
+fn entry_error_names_the_running_node() {
+    let e = WebStartError::Bind {
+        port: 7777,
+        reason: "in use".into(),
+        kind: std::io::ErrorKind::AddrInUse,
+    };
+    let text = super::entry_error_text(&e, true).to_string();
+    assert!(text.contains("already running on port 7777"), "{text}");
+    assert!(text.contains("password reset"), "{text}");
+    assert!(!text.contains("Another port"), "{text}");
+    let plain = super::entry_error_text(&e, false).to_string();
+    assert!(plain.contains("Another port"), "{plain}");
+}
+
+/// A scratch settings directory for the second-instance tests.
+fn scratch_dir(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("mt-run-{tag}-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+fn run_config_in(port: u16, dir: &std::path::Path) -> RunConfig {
+    let mut run = run_config(port);
+    run.file_report.path = Some(dir.join("config.json"));
+    run
+}
+
+/// Starts a node page on `run` in the background; it keeps running until the returned sender fires.
+async fn start_background_node(run: RunConfig) -> tokio::sync::oneshot::Sender<()> {
+    let port = run.effective_settings.process.web_port;
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let ctl = ctl_of(&run);
+    crate::node::output::spawn(async move {
+        let _ = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, _| async move {
+            let _ = stopped.await;
+            Ok(())
+        })
+        .await;
+    });
+    for _ in 0..100 {
+        if port_open(port).await {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    stop
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn second_node_with_same_settings_is_refused() {
+    let dir = scratch_dir("same");
+    let port = free_port();
+    let stop = start_background_node(run_config_in(port, &dir)).await;
+    let run = run_config_in(port, &dir);
+    let ctl = ctl_of(&run);
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, _| async { Ok(()) }).await;
+    let _ = stop.send(());
+    let text = res.unwrap_err().to_string();
+    assert!(text.contains("already running on port"), "{text}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn node_with_other_settings_on_the_port_is_not_refused() {
+    let (first, second) = (scratch_dir("first"), scratch_dir("second"));
+    let port = free_port();
+    let stop = start_background_node(run_config_in(port, &first)).await;
+    let run = run_config_in(port, &second);
+    let ctl = ctl_of(&run);
+    let res = Host::run_with_web_page(run, ctl, PageRole::Optional, |_, _| async { Ok(()) }).await;
+    let _ = stop.send(());
+    assert!(res.is_ok(), "{res:?}");
+    std::fs::remove_dir_all(&first).ok();
+    std::fs::remove_dir_all(&second).ok();
+}

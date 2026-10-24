@@ -113,6 +113,20 @@ async fn reset_without_node_removes_file_exit_0() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn reset_without_node_and_without_file_is_error() {
+    let dir = scratch("cli-reset-nofile");
+    let o = mesh(&["password", "reset"], &dir, free_port());
+    assert_eq!(o.status.code(), Some(1), "stdout: {}", out(&o));
+    assert!(!out(&o).contains("Password reset"), "stdout: {}", out(&o));
+    let text = err(&o);
+    assert!(
+        text.contains("nothing to reset") && text.contains("--config"),
+        "stderr: {text}"
+    );
+    cleanup(&dir);
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn reset_with_wrong_token_exit_1_file_kept() {
     let rig = rig("cli-reset-403").await;
     std::fs::write(rig.dir.join("web-token"), "wrong-token\n").expect("token substitution");

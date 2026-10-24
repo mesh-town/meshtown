@@ -71,7 +71,7 @@ Where the file is looked for (the first rule that applies wins):
 2. the `MESHTOWN_CONFIG` variable, as given (the flag is stronger than the variable);
 3. `config.json` next to the program, if it is there (portable mode: a flash drive, a directory on a router);
 4. otherwise the standard place: Windows `%APPDATA%\meshtown\config.json`; macOS
-   `~/Library/Application Support/meshtown/config.json`; Linux as root `/etc/meshtown/config.json`; Linux as an
+   `~/Library/Application Support/meshtown/config.json`; Linux as root `/etc/meshtown/config.json` (`/opt/etc/meshtown/config.json` when the program is in `/opt/bin`, as with Entware); Linux as an
    ordinary user `$XDG_CONFIG_HOME/meshtown/config.json`, or `~/.config/meshtown/config.json` if that is unset.
 
 What the flags and the subcommand do:

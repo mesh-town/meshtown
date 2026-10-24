@@ -103,9 +103,15 @@ pub(crate) fn write_password_file(dir: &Path, rec: &PasswordRecord) -> io::Resul
 
 /// No file is also `Ok`.
 pub fn remove_password_file(dir: &Path) -> io::Result<()> {
+    take_password_file(dir).map(|_| ())
+}
+
+/// Like [`remove_password_file`], and reports whether the file was there.
+pub fn take_password_file(dir: &Path) -> io::Result<bool> {
     match std::fs::remove_file(dir.join(PASSWORD_FILE_NAME)) {
-        Err(e) if e.kind() != io::ErrorKind::NotFound => Err(e),
-        _ => Ok(()),
+        Ok(()) => Ok(true),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(e),
     }
 }
 

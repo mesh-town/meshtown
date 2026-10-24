@@ -26,6 +26,7 @@ mod listener;
 mod members;
 mod net_brief;
 mod options;
+pub(crate) mod probe;
 mod ring;
 mod routes;
 mod snapshot;
@@ -33,7 +34,7 @@ mod snapshot;
 pub(crate) mod test_host;
 mod token;
 
-pub use auth::password_file::{remove_password_file, PASSWORD_FILE_NAME};
+pub use auth::password_file::{remove_password_file, take_password_file, PASSWORD_FILE_NAME};
 #[doc(hidden)]
 pub use config_api::ConfigState;
 pub use control::{
