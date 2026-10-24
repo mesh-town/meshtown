@@ -17,6 +17,16 @@ let wrapper;
 afterEach(() => wrapper.unmount());
 
 describe("ExcludedCard", () => {
+  describe("the card button", () => {
+    it("is primary while the form is closed and gone once it is open", () => {
+      setup({ variant: "banned" });
+      expect(wrapper.get("#excluded-join").classes()).toContain("btn-primary");
+      wrapper.unmount();
+      setup({ variant: "banned", formOpen: true });
+      expect(wrapper.find("#excluded-join").exists()).toBe(false);
+    });
+  });
+
   describe("variant banned", () => {
     it("is a status region that says the computer was banned from the network", () => {
       setup({ variant: "banned" });
@@ -118,6 +128,6 @@ describe("ExcludedCard", () => {
   });
 });
 
-function setup({ variant, net = "demo-network", managed }) {
-  wrapper = mount(ExcludedCard, { props: { variant, net, managed }, attachTo: document.body });
+function setup({ variant, net = "demo-network", managed, formOpen }) {
+  wrapper = mount(ExcludedCard, { props: { variant, net, managed, formOpen }, attachTo: document.body });
 }

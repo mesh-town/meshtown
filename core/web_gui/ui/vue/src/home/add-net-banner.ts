@@ -35,13 +35,24 @@ export function resetNetBanner(): void {
   banner.value = null;
 }
 
-// The slot a join is waiting on (set when the node answers "waiting"): it counts as arrived once it holds its key, even
-// if no poll saw it as joining.
-const expected = ref<string | null>(null);
+// The slot a join is waiting on (set when the node answers "waiting") and the address the user was at: it counts as arrived
+// once it holds its key, even if no poll saw it as joining.
+const expected = ref<{ slot: string; hash: string } | null>(null);
 
-/** Remembers the slot an add form waits on; `null` forgets it. */
+/** Remembers the slot an add form waits on and where the user is now; `null` forgets it. */
 export function expectArrival(slot: string | null): void {
-  expected.value = slot;
+  expected.value = slot === null ? null : { slot, hash: typeof location === "undefined" ? "" : location.hash };
+}
+
+/** Forgets the expected slot when it is `slot` (after the page acted on its arrival or refusal). */
+export function settleExpected(slot: string): void {
+  if (expected.value?.slot === slot) expected.value = null;
+}
+
+/** Whether a slot that arrived (or was refused) leads the user to its tab: the user is where the form was sent from, or on the add tab. */
+export function leadsToArrival(slot: string, currentHash: string, peersTab: string | null): boolean {
+  const waited = expected.value;
+  return peersTab === "add" || (waited !== null && waited.slot === slot && waited.hash === currentHash);
 }
 
 // A network that was being joined (waiting for a member) and now holds its key.
@@ -52,13 +63,16 @@ export function arrivedSlots(before: NetBrief[], now: NetBrief[]): string[] {
 
 function arrivals(before: NetBrief[], now: NetBrief[]): string[] {
   const arrived = arrivedSlots(before, now);
-  const slot = expected.value;
+  const slot = expected.value?.slot ?? null;
   if (slot === null || !now.some((n) => n.id === slot && n.id_hex != null)) return arrived;
-  expected.value = null;
   return arrived.includes(slot) ? arrived : [...arrived, slot];
 }
 
-/** Calls `onArrive(slot)` for each joined network that finished joining while the page was open. */
+/** Calls `onArrive(slot)` for each joined network that finished joining while the page was open; the expectation ends after. */
 export function watchArrivals(nets: () => NetBrief[], onArrive: (slot: string) => void): void {
-  watch(nets, (now, before) => arrivals(before, now).forEach(onArrive), { flush: "sync" });
+  watch(nets, (now, before) => {
+    arrivals(before, now).forEach(onArrive);
+    const slot = expected.value?.slot;
+    if (slot !== undefined && now.some((n) => n.id === slot && n.id_hex != null)) expected.value = null;
+  }, { flush: "sync" });
 }

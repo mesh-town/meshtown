@@ -99,6 +99,14 @@ describe("useInspectPreview", () => {
     });
   });
 
+  it("a value already in the field is inspected", async () => {
+    const w = setup({ answers: [MANAGED_WORK], initial: KEY });
+    assert.equal(w.timers.pending().length, 1, "the pause is running without a keystroke");
+    await w.pauseOver();
+    assert.deepEqual(w.requests.map((r) => r.body), [{ key: KEY }]);
+    assert.equal(w.preview.value, MANAGED_LINE);
+  });
+
   describe("an empty field", () => {
     it("never asks", async () => {
       const w = await setup({ answers: [MANAGED_WORK] }).typed("");
@@ -196,7 +204,7 @@ const refused = (status, code) => Object.assign(new Error(code), { status, code 
 
 // Preconditions: the answers of the node in the order of requests (an `Error` is thrown; with `deferred` every request waits for
 // `answer(i, value)`), and a timer the test fires by hand. The field is a ref the test types into.
-function setup({ answers = [], deferred = false } = {}) {
+function setup({ answers = [], deferred = false, initial = "" } = {}) {
   const requests = [];
   const waiting = [];
   const api = vi.fn((method, path, body) => {
@@ -206,7 +214,7 @@ function setup({ answers = [], deferred = false } = {}) {
     return answer instanceof Error ? Promise.reject(answer) : Promise.resolve(answer);
   });
   const timers = fakeTimers();
-  const key = ref("");
+  const key = ref(initial);
   const { preview } = useInspectPreview(() => key.value, api, timers);
   const w = {
     requests, preview, timers, api,

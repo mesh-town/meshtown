@@ -58,7 +58,7 @@ export function useInspectPreview(getKey: () => string, api: ApiFn = defaultApi,
     reply.value = null;
     const key = value.trim();
     if (key) timer = timers.setTimer(() => void ask(key, generation), INSPECT_DELAY_MS);
-  });
+  }, { immediate: true });
   if (getCurrentScope()) onScopeDispose(cancel);
   return { preview, reply };
 }

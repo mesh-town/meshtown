@@ -17,6 +17,17 @@ const REMOVED = "An admin removed it";
 const squash = (el) => visibleText(el).replace(/\s+/g, " ").trim();
 
 describe("a banned computer on Home", () => {
+  it("Home: no card button, the only primary button is the Join of the form", async () => {
+    const page = await openMembersPage({
+      members: membersReply({ me_excluded: true, members: [selfRow({ status: "excluded", excluded: excludedInfo() })] }),
+      state: stateWith({ me_excluded: true }),
+      tab: "home",
+    });
+    expect(page.wrapper.find("#excluded-join").exists()).toBe(false);
+    expect(page.wrapper.get("#join-btn").classes()).toContain("btn-primary");
+    expect(page.wrapper.get("#home-root").findAll(".btn-primary")).toHaveLength(1);
+  });
+
   it("in a Managed network says_an_admin_removed_it", async () => {
     const { wrapper } = await mountPage(managedExcludedNode(), { hash: "home" });
     await settle();

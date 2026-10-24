@@ -9,7 +9,9 @@ import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import type { PeerInfo } from "../core/api-types.ts";
 import JoiningCard from "../home/JoiningCard.vue";
-import { refusedText } from "../home/join-wait.ts";
+import { refusedLead, refusedText } from "../home/join-wait.ts";
+import { REFUSED_LEAD } from "../home/invite-join-texts.ts";
+import { quotedNet } from "../common/words.ts";
 import NoNetwork from "../common/NoNetwork.vue";
 import { chosenOf } from "../home/exit-groups.ts";
 import { chosenExitIds } from "../common/exits.ts";
@@ -32,13 +34,14 @@ import PeerRow from "./PeerRow.vue";
 import YouBlock from "./YouBlock.vue";
 import AdminsLine from "./AdminsLine.vue";
 import DeletedBanner from "../members/DeletedBanner.vue";
+import AdmissionRefused from "./AdmissionRefused.vue";
 import { excludedByName } from "../members/excluded-by.ts";
 import { useInviteNote } from "./invite-note.ts";
 import { joiningTabs, netTabs, netWho } from "./net-tabs-view.ts";
 import { PEERS_LOADING, PEERS_NETS_HINT_OK, PEERS_NO_STORE, peersNetsHint } from "./peers-texts.ts";
 import { useNetsHint } from "./use-nets-hint.ts";
 import AddNetCard from "../home/AddNetCard.vue";
-import { watchArrivals, useNetBanner } from "../home/add-net-banner.ts";
+import { leadsToArrival, settleExpected, watchArrivals, useNetBanner } from "../home/add-net-banner.ts";
 import { arrivedBannerText } from "../home/add-net-actions.ts";
 import { ADD_NET_LINK, BANNER_OK, MAX_NETS } from "../home/add-net-texts.ts";
 import { peersHash } from "../shell/nav.ts";
@@ -67,12 +70,14 @@ watch(
   () => store.nets.map((n) => n.id).filter((id) => isRefused(store.nets, store.slots, id)),
   (now, before) => {
     const fresh = now.find((id) => !before.includes(id));
-    if (fresh && store.peersTab === "add") location.hash = peersHash(fresh);
+    if (!fresh) return;
+    if (leadsToArrival(fresh, location.hash, store.peersTab)) location.hash = peersHash(fresh);
+    settleExpected(fresh);
   },
 );
 watchArrivals(() => store.nets, (arrived) => {
   showBanner(arrived, arrivedBannerText(store, arrived));
-  if (store.peersTab === "add") location.hash = peersHash(arrived);
+  if (leadsToArrival(arrived, location.hash, store.peersTab)) location.hash = peersHash(arrived);
 });
 const waitingHere = computed(() => {
   const b = store.nets.find((n) => n.id === slot.value);
@@ -149,10 +154,10 @@ async function exitVia(idFull: string): Promise<void> {
     <AddNetCard v-if="addOnly" context="peers" />
     <template v-else-if="excluded">
       <ExcludedCard members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
-      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" />
-      <p v-if="rejoinRefused" class="hint" id="rejoin-refused" role="status">{{ rejoinRefused }}</p>
+      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" :refused="rejoinRefused" />
+      <p v-else-if="rejoinRefused" class="field-error-text" id="rejoin-refused" role="alert"><strong>{{ REFUSED_LEAD(quotedNet(net)) }}</strong> {{ rejoinRefused }}</p>
     </template>
-    <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" />
+    <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" :lead="refusedLead(state?.node?.invite_join)" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />
       <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
@@ -162,6 +167,7 @@ async function exitVia(idFull: string): Promise<void> {
 :multi="showRow" :note="inviteNote" />
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
       <DeletedBanner />
+      <AdmissionRefused :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
       <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />

@@ -87,6 +87,43 @@ describe("InviteForm", () => {
     expect(done).toEqual([["here", null]]);
   });
 
+  it("the note and the Open link are divided by a space", async () => {
+    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" } });
+    mountForm();
+    await typeInvite();
+    const text = wrapper.get("#x-note").text();
+    expect(text).toContain('"family". Open');
+    expect(text).not.toContain(".Open");
+  });
+
+  it("after a 409 \"already in\" the note is gone and Open is shown once", async () => {
+    route({
+      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" },
+      "/api/network/join": () => { throw new ApiError(409, "net_already_added", "x", { slot: "neta22", label: "family" }); },
+    });
+    mountForm();
+    await typeInvite();
+    expect(wrapper.find("#x-note").exists()).toBe(true);
+    await wrapper.get("#x-btn").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("#x-note").exists()).toBe(false);
+    expect(wrapper.find("#x-dup").exists()).toBe(true);
+    expect(wrapper.text().split('Open "family"').length - 1).toBe(1);
+  });
+
+  it("the note goes away while an error stands under the field", async () => {
+    route({
+      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" },
+      "/api/network/join": () => { throw new ApiError(422, "invalid_key", "x", { message: "Bad key", word: null }); },
+    });
+    mountForm();
+    await typeInvite();
+    expect(wrapper.find("#x-note").exists()).toBe(true);
+    await wrapper.get("#x-btn").trigger("click");
+    await flushPromises();
+    expect(wrapper.find("#x-note").exists()).toBe(false);
+  });
+
   it("a 422 goes to the alert", async () => {
     route({
       "/api/network/inspect": () => { throw new ApiError(422, "invalid_key", "x"); },

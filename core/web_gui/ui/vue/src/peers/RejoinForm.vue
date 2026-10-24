@@ -5,19 +5,23 @@ import { computed, inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import InviteForm from "../home/InviteForm.vue";
 import { HOME_ASK_ADMIN_HINT, HOME_ASK_MEMBER_HINT, HOME_NO_RETURN_HINT } from "../home/home-card-texts.ts";
-import { REJOIN_OTHER, REJOIN_TITLE } from "../home/invite-join-texts.ts";
+import { quotedNet } from "../common/words.ts";
+import { REFUSED_LEAD, REJOIN_OTHER, REJOIN_TITLE } from "../home/invite-join-texts.ts";
 import { useArrival, useInviteJoin } from "../home/use-invite-join.ts";
 import type { InviteFormIds } from "../home/use-invite-join.ts";
 import type { InviteOutcome } from "../home/invite-join-actions.ts";
 
-const props = defineProps<{ slot: string; net: string; variant: "banned" | "left" | "forgotten"; managed: boolean }>();
+const props = defineProps<{ slot: string; net: string; variant: "banned" | "left" | "forgotten"; managed: boolean; refused?: string | null }>();
 const store = inject(STORE_KEY)!;
 const invite = useInviteJoin(store, { kind: "rejoin", slot: props.slot });
 const arrival = useArrival(store);
-const ids: InviteFormIds = {
+const baseIds: InviteFormIds = {
   input: "rejoin-input", button: "rejoin-btn", error: "rejoin-error", preview: "rejoin-kind-preview", note: "rejoin-place-note",
   dup: "rejoin-dup", open: "rejoin-open", status: "rejoin-status", title: "rejoin-title",
 };
+
+// The waiting line is stale once the join is refused: the refusal under the button replaces it.
+const ids = computed<InviteFormIds>(() => (props.refused ? { ...baseIds, status: "" } : baseIds));
 
 // A Peer network does not take back a computer the members banned or that left; any other case gets its own title.
 const sameAgain = computed(() => props.variant === "forgotten" || props.managed);
@@ -38,6 +42,9 @@ defineExpose({ focus: invite.focus });
     <InviteForm :join="invite" :ids="ids" :title="title" @done="arrived">
       <template #hint>
         <p class="hint" id="rejoin-hint">{{ hint }}</p>
+      </template>
+      <template #after>
+        <p v-if="refused" id="rejoin-refused" class="field-error-text" role="alert"><strong>{{ REFUSED_LEAD(quotedNet(net)) }}</strong> {{ refused }}</p>
       </template>
     </InviteForm>
   </div>

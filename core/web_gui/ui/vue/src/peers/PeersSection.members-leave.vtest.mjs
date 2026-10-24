@@ -91,12 +91,10 @@ describe("this computer was banned by the members", () => {
     expect(page.statusLine()).toContain('Banned from the network "demo-network" — sites won\'t open through Mesh Town');
   });
 
-  it("\"Join with another invite\" opens Home and focuses the invite field", async () => {
-    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
-    await page.click("#excluded-join");
-    expect(page.tabShown("home")).toBe(true);
-    // NOTE: `#invite-field` does not exist in the app; the invite field of the Home tab is `#join-key-input`.
-    expect(page.focusedId()).toBe("join-key-input");
+  it("Home has no card button: the invite field is already open under the card", async () => {
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }), tab: "home" });
+    expect(page.has("#excluded-join")).toBe(false);
+    expect(page.has("#join-key-input")).toBe(true);
   });
 
   it("`me_excluded` in the state alone is enough: the node does not know the list (404)", async () => {

@@ -18,11 +18,10 @@ describe("this computer was removed from the member list", () => {
     expect(page.text("#net-restart-hint")).not.toMatch(/restart|disconnect|exclu|ban/i);
   });
 
-  it("\"Join with an invite\" opens Home and focuses the invite field", async () => {
-    const page = await openMembersPage({ members: removedMe() });
-    await page.click("#excluded-join");
-    expect(page.tabShown("home")).toBe(true);
-    expect(page.focusedId()).toBe("join-key-input");
+  it("Home has no card button: the invite field is already open under the card", async () => {
+    const page = await openMembersPage({ members: removedMe(), tab: "home" });
+    expect(page.has("#excluded-join")).toBe(false);
+    expect(page.has("#join-key-input")).toBe(true);
   });
 
   it("the Home card and the Members card never repeat an id", async () => {

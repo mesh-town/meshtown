@@ -2,7 +2,7 @@
 // The "Add another network" form: join with an invite or create a network, in a new slot. One component for two places —
 // under the Members list (`peers`) and in Settings → Network (`settings`); only "Cancel" differs. On success it moves to
 // the new network's tab and leaves a banner there; a join that waits for a member shows its progress in place.
-import { computed, inject, ref } from "vue";
+import { computed, inject, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
 import JoiningCard from "./JoiningCard.vue";
@@ -69,6 +69,14 @@ function resetForm(): void {
   outcome.value = "";
 }
 
+// The slot of a waiting join got its key: the network is in, the form starts over (its tab is the banner's place).
+watch(
+  () => store.nets.find((n) => n.id === form.slot)?.id_hex ?? null,
+  (idHex) => {
+    if (idHex !== null && outcome.value === "waiting") resetForm();
+  },
+);
+
 function cancel(): void {
   if (props.context === "peers") {
     location.hash = peersHash(store.lead);
@@ -88,7 +96,7 @@ function cancelled(): void {
   <div class="card" id="add-net-card" role="region" aria-labelledby="add-net-title" :data-context="context">
     <div class="step-head"><h2 id="add-net-title">{{ ADD_NET_TITLE }}</h2></div>
     <p v-if="limited" class="hint" id="add-net-limit" role="status">{{ ADD_NET_LIMIT_INVITE }}</p>
-    <p class="hint" id="add-net-stay">{{ stayText(names) }}</p>
+    <p v-if="!limited" class="hint" id="add-net-stay">{{ stayText(names) }}</p>
     <InviteForm v-if="!creating" :join="invite" :ids="ids" :button="ADD_NET_BTN" :busy="ADD_NET_BUSY" @done="joined" />
     <div v-else id="add-net-create-box">
       <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>

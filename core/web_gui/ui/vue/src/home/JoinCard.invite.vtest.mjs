@@ -2,11 +2,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
-import { api } from "../core/api.ts";
+import { ApiError, api } from "../core/api.ts";
+import { NOTE_NEW_AT_LIMIT } from "./invite-join-texts.ts";
 import { baseState, mountSection } from "../testing/section.mjs";
 import { JOIN_PROMISE_MS, JOIN_STALLED } from "./join-actions.ts";
 import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
-import { resetNetBanner, useNetBanner } from "./add-net-banner.ts";
+import { leadsToArrival, resetNetBanner, useNetBanner } from "./add-net-banner.ts";
 import JoinCard from "./JoinCard.vue";
 import SetupWizard from "./SetupWizard.vue";
 
@@ -72,6 +73,35 @@ describe("JoinCard > the one invite form", () => {
     await vi.advanceTimersByTimeAsync(JOIN_PROMISE_MS + 1);
     await flushPromises();
     expect(mounted.wrapper.text()).not.toContain(JOIN_STALLED);
+  });
+
+  it("an invite to another network from Home leads to its tab when it arrives", async () => {
+    route({
+      "/api/network/inspect": { label: "other", kind: "Peer", id_hex: "bb" },
+      "/api/network/join": { label: null, restart: false, waiting: true, slot: "neta22" },
+    });
+    mounted = mountSection(JoinCard, { state: baseState() });
+    mounted.store.nets = [brief("main", "family", { me_excluded: true })];
+    await send(mounted.wrapper);
+    await press(mounted.wrapper);
+    expect(leadsToArrival("neta22", location.hash, null), "the user is where he sent the form from").toBe(true);
+    expect(leadsToArrival("neta22", "#other", null), "the user went elsewhere").toBe(false);
+    expect(leadsToArrival("netb33", location.hash, null), "another slot").toBe(false);
+  });
+
+  it("at the limit the note goes away when the error appears", async () => {
+    api.mockImplementation(async (method, path) => {
+      if (path === "/api/network/inspect") return { label: "other", kind: "Peer", id_hex: "bb", place: "new" };
+      throw new ApiError(409, "too_many_nets", "x", { limit: 8 });
+    });
+    mounted = mountSection(JoinCard, { state: baseState() });
+    mounted.store.nets = Array.from({ length: 8 }, (_, i) => brief(i === 0 ? "main" : "net" + i + "x", "n" + i));
+    for (const n of mounted.store.nets) mounted.store.slots[n.id] = { state: baseState() };
+    await send(mounted.wrapper);
+    expect(mounted.wrapper.get("#join-place-note").text()).toBe(NOTE_NEW_AT_LIMIT);
+    await press(mounted.wrapper);
+    expect(mounted.wrapper.get("#join-key-error").attributes("hidden")).toBeUndefined();
+    expect(mounted.wrapper.find("#join-place-note").exists()).toBe(false);
   });
 
   it("the setup: a Managed invite shows the join progress", async () => {

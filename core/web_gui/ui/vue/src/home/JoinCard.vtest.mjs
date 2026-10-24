@@ -59,7 +59,22 @@ describe("JoinCard", () => {
     expect(el.text()).toBe("Waiting for members of the network \"family\" to come online. As soon as one of the members from the invite is online, Mesh Town will join the network.");
     waiting.store.state.node.invite_join = { ...info, state: "refused", message: "Another node has already joined with this invite." };
     await waiting.wrapper.vm.$nextTick();
-    expect(el.text()).toBe("Another node has already joined with this invite.");
+    const refused = waiting.wrapper.get("#join-wait");
+    expect(refused.text()).toBe("Couldn't join \"family\". Another node has already joined with this invite.");
+    expect(refused.get("strong").text()).toBe("Couldn't join \"family\".");
+  });
+
+  it("waiting: one waiting line", async () => {
+    api.mockResolvedValue({ label: "family", restart: true, slot: "main" });
+    const { wrapper, store } = mountJoin({ state: baseState() });
+    await wrapper.get("#join-key-input").setValue("mesh-invite2-abc");
+    await wrapper.get("#join-btn").trigger("click");
+    await flushPromises();
+    expect(wrapper.get("#join-status").attributes("hidden")).toBeUndefined();
+    store.state.node.invite_join = { state: "waiting", message: "waiting", label: "family", expires_unix: 1 };
+    await wrapper.vm.$nextTick();
+    expect(wrapper.get("#join-wait").attributes("hidden")).toBeUndefined();
+    expect(wrapper.get("#join-status").attributes("hidden")).toBeDefined();
   });
 
   it("with a network the title is \"Join with an invite\", the button is \"Join\"", () => {

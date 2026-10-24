@@ -5,8 +5,7 @@ import assert from "node:assert/strict";
 import { ApiError } from "../core/api.ts";
 import { createJoinForm } from "./join-actions.ts";
 import { sendInvite, placeNote, isInvite } from "./invite-join-actions.ts";
-import { ADD_NET_LIMIT } from "./add-net-texts.ts";
-import { NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET } from "./invite-join-texts.ts";
+import { NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET, ADD_NET_LIMIT_HERE } from "./invite-join-texts.ts";
 
 const INVITE = "mesh-invite2-abc";
 const WORD_KEY = "mesh1-abc";
@@ -66,7 +65,7 @@ describe("sendInvite > an invite", () => {
   it("409 too_many_nets — \"limit\" and the limit text", async () => {
     const w = setup({ ["POST " + JOIN]: refuse(409, "too_many_nets") });
     assert.equal(await send(w, INVITE, { kind: "add" }), "limit");
-    assert.equal(w.form.inviteError.message, ADD_NET_LIMIT);
+    assert.equal(w.form.inviteError.message, ADD_NET_LIMIT_HERE);
   });
 
   it("422 with a word — \"failed\", the word kept", async () => {
@@ -154,6 +153,11 @@ describe("placeNote", () => {
     assert.equal(placeNote(reply({ place: "new" }), nets), "");
     assert.equal(placeNote(reply({}), nets), "");
     assert.equal(placeNote(reply({ place: "new" }), nets, true), NOTE_NEW_AT_LIMIT);
+  });
+  it("placeNote: no limit note in the add context", () => {
+    assert.equal(placeNote(reply({ place: "new" }), nets, true, "add"), "");
+    assert.equal(placeNote(reply({ place: "new" }), nets, true, "rejoin"), NOTE_NEW_AT_LIMIT);
+    assert.equal(placeNote(reply({ place: "here", slot: "netb33" }), nets, true, "add"), NOTE_HERE("work"));
   });
   it("a slot that is not in the list — the node's label, then a placeholder without quotes", () => {
     assert.equal(placeNote(reply({ place: "here", slot: "nope99" }), nets), NOTE_HERE("family"));

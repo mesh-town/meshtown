@@ -8,7 +8,7 @@ import { joinOnNewSlot } from "./add-net-actions.ts";
 import type { AddNetResult } from "./add-net-actions.ts";
 import { ask, beginJoin, postJoin } from "./join-actions.ts";
 import type { JoinForm, JoinResult } from "./join-actions.ts";
-import { NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET } from "./invite-join-texts.ts";
+import { ADD_NET_LIMIT_HERE, NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET } from "./invite-join-texts.ts";
 
 export type InviteOutcome = "joined" | "waiting" | "here" | "limit" | "failed" | "empty" | "skipped";
 export type InviteFormState = JoinForm;
@@ -37,7 +37,9 @@ async function route(form: InviteFormState, ctx: InviteContext, deps: HomeDeps):
   const key = beginJoin(form);
   if (!key) return "empty";
   const sent = isInvite(key) ? postJoin(form, "/api/network/join", key, deps) : wordKey(form, ctx, key, deps);
-  return OUTCOME[await sent];
+  const outcome = OUTCOME[await sent];
+  if (outcome === "limit" && ctx.kind === "add") form.inviteError = { message: ADD_NET_LIMIT_HERE, word: null };
+  return outcome;
 }
 
 /** An invite goes to `/api/network/join` without a slot (the node picks it); a word key — by the context. */
@@ -57,9 +59,9 @@ function returnNote(reply: InspectResponse, nets: NetBrief[], name: string): str
 }
 
 /** The line under the field about the place the invite leads to; empty for a new network (unless the node is at its limit) and for a key. */
-export function placeNote(reply: InspectResponse, nets: NetBrief[], atLimit = false): string {
+export function placeNote(reply: InspectResponse, nets: NetBrief[], atLimit = false, kind: InviteContext["kind"] = "home"): string {
   const name = netTitle(nets, reply.slot, reply.label);
   if (reply.place === "here") return NOTE_HERE(name);
   if (reply.place === "return") return returnNote(reply, nets, name);
-  return reply.place === "new" && atLimit ? NOTE_NEW_AT_LIMIT : "";
+  return reply.place === "new" && atLimit && kind !== "add" ? NOTE_NEW_AT_LIMIT : "";
 }

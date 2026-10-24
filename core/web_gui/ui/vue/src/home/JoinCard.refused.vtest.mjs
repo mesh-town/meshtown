@@ -1,4 +1,4 @@
-/* The join card after a refusal: the stale "Invite sent" line goes away, the waiting line stays while waiting. */
+/* The join card after a refusal: the stale "Invite sent" line goes away, the one waiting line stays while waiting. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -26,12 +26,13 @@ async function sendInvite() {
 }
 
 describe("JoinCard > invite_join", () => {
-  it("waiting: the \"Invite sent\" line is shown", async () => {
+  it("waiting: the \"Invite sent\" line gives way to the one waiting line", async () => {
     const { wrapper, store } = await sendInvite();
+    expect(wrapper.get("#join-status").text()).toContain("Invite sent");
     store.state = lonely(INFO);
     await flushPromises();
-    expect(wrapper.get("#join-status").attributes("hidden")).toBeUndefined();
-    expect(wrapper.get("#join-status").text()).toContain("Invite sent");
+    expect(wrapper.get("#join-status").attributes("hidden")).toBeDefined();
+    expect(wrapper.get("#join-wait").attributes("hidden")).toBeUndefined();
   });
 
   it("refused: only the refusal text, no \"Invite sent\" line", async () => {
@@ -40,6 +41,24 @@ describe("JoinCard > invite_join", () => {
     await flushPromises();
     expect(wrapper.get("#join-status").attributes("hidden")).toBeDefined();
     expect(wrapper.text()).not.toContain("Invite sent");
-    expect(wrapper.get("#join-wait").text()).toBe("This invite cannot be used.");
+    expect(wrapper.get("#join-wait").text()).toBe("Couldn't join \"family\". This invite cannot be used.");
+  });
+
+  it("refused: the refusal is an error right under the Join button, before the create block; waiting is a plain line", async () => {
+    const { wrapper, store } = await sendInvite();
+    store.state = lonely(INFO);
+    await flushPromises();
+    expect(wrapper.get("#join-wait").classes()).toContain("hint");
+    expect(wrapper.get("#join-wait").attributes("role")).toBe("status");
+    store.state = lonely(REFUSED);
+    await flushPromises();
+    const el = wrapper.get("#join-wait");
+    expect(wrapper.findAll("#join-wait")).toHaveLength(1);
+    expect(el.classes()).toContain("field-error-text");
+    expect(el.classes()).not.toContain("hint");
+    expect(el.attributes("role")).toBe("alert");
+    const html = wrapper.html();
+    expect(html.indexOf('id="join-btn"')).toBeLessThan(html.indexOf('id="join-wait"'));
+    expect(html.indexOf('id="join-wait"')).toBeLessThan(html.indexOf('id="create-box"'));
   });
 });

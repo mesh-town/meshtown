@@ -14,8 +14,14 @@ export const NOTE_REMOVED = (net: string): string => `This invite brings this co
 export const NOTE_EXCLUDED_MANAGED = (net: string): string =>
   `This invite brings this computer back to ${named(net)} if an admin of ${named(net)} made it.`;
 export const NOTE_BANNED_PEER = (net: string): string =>
-  `${named(net)} won't take this computer back — its members will refuse this invite. It won't be used up.`;
-export const NOTE_NEW_AT_LIMIT = `This is a new network, and Mesh Town is already in ${MAX_NETS}. Leave a network first.`;
+  `This computer can't rejoin ${named(net)}, so this invite won't work here. It won't be used up — someone else can join with it.`;
+export const NOTE_NEW_AT_LIMIT = `This is a new network, and Mesh Town is already in ${MAX_NETS}, the most it can be in. Leave a network first.`;
+
+/** The short error under the field of "Add" (the line above the field already says the rest). */
+export const ADD_NET_LIMIT_HERE = "This is a new network, so it can't be added until you leave one.";
+
+/** The bold lead of a refused join, before the core's own text; `netQuoted` is `quotedNet(label)` (with its leading space) or "". */
+export const REFUSED_LEAD = (netQuoted: string): string => `Couldn't join${netQuoted}.`;
 
 export const ADD_NET_LIMIT_INVITE =
   `Mesh Town is in ${MAX_NETS} networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.`;

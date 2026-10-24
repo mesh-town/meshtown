@@ -1,7 +1,7 @@
 /* Actions of the Members tab: ask in the dialog, send to `POST /api/members/<action>`, keep the answer in
  * `store.members`, wake the poller, and produce the line under the list. Does not draw anything. */
 
-import { nextTick, ref } from "vue";
+import { ref } from "vue";
 import type { Ref } from "vue";
 import { api as coreApi } from "../core/api.ts";
 import type { ApiFn } from "../core/api.ts";
@@ -39,7 +39,6 @@ export interface MembersActions {
   ask: (kind: DialogKind, idFull: string) => Promise<void>;
   run: (action: MemberAction, idFull: string, reason?: string, from?: string) => Promise<void>;
   pick: (key: string, idFull: string) => Promise<void>;
-  joinAnother: () => Promise<void>;
 }
 
 const ACTION_OF: Partial<Record<DialogKind, MemberAction>> = { ban: "exclude", "ban-two": "exclude", "ban-confirm": "exclude", "ban-managed": "exclude", admit: "admit", block: "block", leave: "leave", forget: "forget", "forget-two": "forget", "forget-confirm": "forget" };
@@ -182,15 +181,5 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     if (act) await act(idFull);
   };
 
-  // "Join with another invite": the Home tab, the invite field. The address hash is the source of truth for the section
-  // (`hashchange` re-reads it), so it moves together with the store: otherwise a pending `hashchange` of the previous
-  // tab switches the page back, and a reload or "Back" lands on the old tab.
-  async function joinAnother(): Promise<void> {
-    location.hash = "home";
-    store.activeSection = "home";
-    await nextTick();
-    document.getElementById("join-key-input")?.focus();
-  }
-
-  return { status, dialog, ask, run, pick, joinAnother };
+  return { status, dialog, ask, run, pick };
 }
