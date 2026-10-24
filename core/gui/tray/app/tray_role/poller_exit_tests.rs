@@ -93,6 +93,7 @@ mod send_exit_edit_round_trip {
             send_invite_note: Box::new(|_n| {}),
             send_serve_note: Box::new(|_n| {}),
             copy_to_clipboard_fn: std::sync::Arc::new(|_t: &str| Ok(())),
+            notify_fn: std::sync::Arc::new(|_n: crate::gui::tray::notify::Notice| {}),
             log: Box::new(|_s| {}),
             last_view: None,
             last_exit_menu: None,

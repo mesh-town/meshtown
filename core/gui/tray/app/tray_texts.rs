@@ -52,6 +52,16 @@ pub(crate) const INVITE_COPIED_ISSUER_ONLY_LINE: &str =
 /// First menu line when the invite can be accepted by the issuer and one more node.
 pub(crate) const INVITE_COPIED_ISSUER_AND_ONE_LINE: &str =
     "Invite copied — keep this computer on until they join";
+
+/// System notification title after copying an invite that depends on this computer; the product is named
+/// because some systems label the notification with another sender.
+pub(crate) const INVITE_NOTICE_TITLE: &str = "Mesh Town — keep this computer on";
+/// Notification body when only the issuing computer can let the invite in.
+pub(crate) const INVITE_NOTICE_ISSUER_ONLY_BODY: &str =
+    "Invite copied. Only this computer can let them in. Keep it on until they join.";
+/// Notification body when the issuer and one more member can let the invite in.
+pub(crate) const INVITE_NOTICE_ISSUER_AND_ONE_BODY: &str =
+    "Invite copied. Only this computer and one member can let them in. Keep it on until they join.";
 /// Label of the item and first menu line when the invite could not be copied.
 pub(crate) fn invite_copy_failed_text(reason: &str) -> String {
     format!("Couldn't copy the invite: {reason}")

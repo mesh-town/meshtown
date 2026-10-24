@@ -17,7 +17,7 @@ use crate::gui::tray::app::view::{NodeState, PageState, View};
 use crate::gui::tray::NodeCmd;
 
 use super::overview_poll::{fetch_node_reply, OverviewGate};
-use super::poll_types::{CopyFn, Once, PollEnv, PollTiming};
+use super::poll_types::{CopyFn, NotifyFn, Once, PollEnv, PollTiming};
 use super::poller_cmd::{changes_node_state, on_cmd};
 use super::poller_phase::Phase;
 use super::start_fail::StartFail;
@@ -117,6 +117,7 @@ pub(super) struct Poller {
     pub(super) last_view: Option<View>,
     pub(super) last_exit_menu: Option<ExitMenu>,
     pub(super) copy_to_clipboard_fn: CopyFn,
+    pub(super) notify_fn: NotifyFn,
     pub(super) send_invite_note: Box<dyn Fn(InviteNote) + Send>,
     pub(super) send_serve_note: Box<dyn Fn(ServeNote) + Send>,
     /// When both notes (invite, checkbox failure) go away; `None` means no notes are on screen.

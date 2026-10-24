@@ -1,19 +1,13 @@
 //! Tests for the invite reach in `poller_invite`: `reach_from` and a click on "Invite a member"
 //! against a stub node with real HTTP. The module is a child of `poller_invite_tests.rs`, so it sees
-//! its `SECRET`, `foreign_rig` and `finish`.
+//! its `SECRET`, `foreign_rig` and `finish`; the click helpers are in `click_support`.
 
+use super::click_support::*;
 use super::*;
 
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use serde_json::json;
 
-use serde_json::{json, Value};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
-
-use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::tray_actions::InviteReach;
-use crate::gui::tray::app::tray_role::start_fail::StartFail;
 
 // Invite reach: the node puts `reach` in the reply, the poller turns it into `InviteReach`
 // and shows it together with the "copied" note. Anything that is not `issuer_only` or `issuer_and_one`
@@ -261,115 +255,4 @@ mod click_by_reach {
             finish(handle, rig).await;
         }
     }
-}
-
-// ---- invite reach helpers ----
-
-/// A node reply of 200 with a ready body.
-fn ok(body: Value) -> Result<Reply, ApiError> {
-    Ok(Reply::Ok(body))
-}
-
-/// Body of a node reply with a `reach` field; the number of holders is consistent with the word.
-fn node_says(reach: &str) -> Value {
-    let holders = match reach {
-        "issuer_only" => 0,
-        "issuer_and_one" => 1,
-        _ => 2,
-    };
-    json!({"invite": SECRET, "holders": holders, "reach": reach})
-}
-
-/// Body of an old node's reply: neither `holders` nor `reach`.
-fn old_node() -> Value {
-    json!({"invite": SECRET})
-}
-
-/// Whether the clipboard accepts the string.
-#[derive(Clone, Copy)]
-enum Clipboard {
-    Takes,
-    Refuses,
-}
-
-/// Everything the poller showed and wrote during one click.
-struct Click {
-    notes: Vec<InviteNote>,
-    copied: Vec<String>,
-    log: Vec<String>,
-}
-
-/// Shared sinks for poller events in the click test.
-#[derive(Clone, Default)]
-struct Taps {
-    notes: Arc<Mutex<Vec<InviteNote>>>,
-    copied: Arc<Mutex<Vec<String>>>,
-    log: Arc<Mutex<Vec<String>>>,
-}
-
-/// Preconditions: the node answers 200 with `node_body`, the clipboard accepts or refuses. One click on
-/// the item (`copy_invite`) — the result goes into `Click`.
-async fn setup(node_body: Value, clipboard: Clipboard) -> Click {
-    let port = node_answering(node_body.to_string()).await;
-    let taps = Taps::default();
-    let mut p = poller_on(port, &taps, clipboard);
-
-    p.copy_invite(None).await;
-
-    let click = Click {
-        notes: taps.notes.lock().unwrap().clone(),
-        copied: taps.copied.lock().unwrap().clone(),
-        log: taps.log.lock().unwrap().clone(),
-    };
-    click
-}
-
-fn poller_on(port: u16, taps: &Taps, clipboard: Clipboard) -> Poller {
-    let (notes, log, copied) = (taps.notes.clone(), taps.log.clone(), taps.copied.clone());
-    let copy_to_clipboard_fn: CopyFn = Arc::new(move |text: &str| -> Result<(), &'static str> {
-        match clipboard {
-            Clipboard::Takes => {
-                copied.lock().unwrap().push(text.to_string());
-                Ok(())
-            }
-            Clipboard::Refuses => Err(REASON_CLIP_FAILED),
-        }
-    });
-    Poller {
-        port,
-        token_path: PathBuf::from("/nonexistent/token"),
-        proxy: ProxyState::Off(ProxyOff::DisabledInSettings),
-        spawn: Box::new(|| panic!("spawn must not be called")),
-        send_view: Box::new(|_v| {}),
-        send_exit_menu: Box::new(|_m| {}),
-        log: Box::new(move |line| log.lock().unwrap().push(line)),
-        last_view: None,
-        last_exit_menu: None,
-        copy_to_clipboard_fn,
-        send_invite_note: Box::new(move |note| notes.lock().unwrap().push(note)),
-        send_serve_note: Box::new(|_n| {}),
-        notes_visible_until: None,
-        start_fail: StartFail::new(Box::new(|| None), Box::new(|| None), Box::new(|_n| {})),
-        timing: PollTiming::PROD,
-        overview_gate: crate::gui::tray::app::tray_role::overview_poll::OverviewGate::new(),
-    }
-}
-
-/// A stub node on 127.0.0.1: reads the request on each connection and answers HTTP 200 with `body`.
-/// Returns the port; the task lives until the end of the test runtime.
-async fn node_answering(body: String) -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
-    let port = listener.local_addr().expect("local_addr").port();
-    crate::node::output::spawn(async move {
-        while let Ok((mut socket, _addr)) = listener.accept().await {
-            let mut request = [0u8; 4096];
-            let _ = socket.read(&mut request).await;
-            let reply = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            );
-            let _ = socket.write_all(reply.as_bytes()).await;
-        }
-    });
-    port
 }

@@ -14,6 +14,7 @@ use crate::gui::tray::app::exit_menu::ExitMenu;
 use crate::gui::tray::app::proxy_state::ProxyState;
 use crate::gui::tray::app::tray_actions::{InviteNote, ServeNote};
 use crate::gui::tray::app::view::View;
+use crate::gui::tray::notify::Notice;
 use crate::gui::tray::NodeCmd;
 
 use super::overview_poll::OverviewGate;
@@ -50,6 +51,9 @@ pub(super) type Once = Pin<Box<dyn Future<Output = ()> + Send>>;
 /// Writing a string to the clipboard; the failure reason is a ready constant, not text with a secret.
 pub(super) type CopyFn = Arc<dyn Fn(&str) -> Result<(), &'static str> + Send + Sync>;
 
+/// Showing a system notification; fire-and-forget, the call must not block the poller.
+pub(super) type NotifyFn = Arc<dyn Fn(Notice) + Send + Sync>;
+
 /// Everything the poller receives from outside; in production `run` assembles it, in tests the test does.
 pub(super) struct PollEnv {
     pub(super) port: u16,
@@ -64,6 +68,8 @@ pub(super) struct PollEnv {
     pub(super) send_exit_menu: Box<dyn Fn(ExitMenu) + Send>,
     /// Production: `TrayBackend::copy_to_clipboard` (supplied by `run.rs`).
     pub(super) copy_to_clipboard_fn: CopyFn,
+    /// Production: `spawn_notify` on the tray backend.
+    pub(super) notify_fn: NotifyFn,
     /// Production: `CmdTx::send(TrayCmd::Invite)`.
     pub(super) send_invite_note: Box<dyn Fn(InviteNote) + Send>,
     /// Production: `CmdTx::send(TrayCmd::Serve)`.
@@ -94,6 +100,7 @@ impl PollEnv {
             send_view,
             send_exit_menu,
             copy_to_clipboard_fn,
+            notify_fn,
             send_invite_note,
             send_serve_note,
             start_fail,
@@ -113,6 +120,7 @@ impl PollEnv {
             last_view: None,
             last_exit_menu: None,
             copy_to_clipboard_fn,
+            notify_fn,
             send_invite_note,
             send_serve_note,
             notes_visible_until: None,

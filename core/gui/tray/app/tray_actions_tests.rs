@@ -329,3 +329,23 @@ mod refused_because_not_admin {
         );
     }
 }
+
+mod menu_line_unchanged_by_reach {
+    use super::*;
+
+    #[test]
+    fn issuer_only_line_unchanged() {
+        assert_eq!(
+            invite_status_line(InviteNote::Copied(InviteReach::IssuerOnly)),
+            Some(INVITE_COPIED_ISSUER_ONLY_LINE.to_string())
+        );
+    }
+
+    #[test]
+    fn issuer_and_one_line_unchanged() {
+        assert_eq!(
+            invite_status_line(InviteNote::Copied(InviteReach::IssuerAndOne)),
+            Some(INVITE_COPIED_ISSUER_AND_ONE_LINE.to_string())
+        );
+    }
+}

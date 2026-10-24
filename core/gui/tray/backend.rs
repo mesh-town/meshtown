@@ -18,4 +18,8 @@ pub trait TrayBackend: Sync {
     /// Writes `text` to the OS clipboard, blocking until done. Called from a worker thread. The error is a
     /// ready-made reason that does not contain the text.
     fn copy_to_clipboard(&self, text: &str) -> Result<(), &'static str>;
+
+    /// Shows a system notification. Called from a short-lived worker thread, never from the event loop;
+    /// may block. The error is a ready-made reason for the log.
+    fn notify(&self, title: &str, body: &str) -> Result<(), &'static str>;
 }

@@ -200,6 +200,7 @@ impl Rig {
             send_exit_menu: sink(Mutex::new(ev_tx.clone()), Seen::Exits),
             log: sink(Mutex::new(ev_tx.clone()), Seen::Log),
             copy_to_clipboard_fn: clip_copy(clip.clone()),
+            notify_fn: std::sync::Arc::new(|_n: crate::gui::tray::notify::Notice| {}),
             send_invite_note: sink(Mutex::new(ev_tx.clone()), Seen::Invite),
             send_serve_note: sink(Mutex::new(ev_tx.clone()), Seen::Serve),
             start_fail: stub_start_fail(stub, ev_tx),

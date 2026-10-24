@@ -249,3 +249,11 @@ fn invite_wrong_type_is_no_answer() {
 // Invite reach is in a separate file so that this one does not grow past the ceiling.
 #[path = "poller_invite_reach_tests.rs"]
 mod reach;
+
+// Helpers of a click on the item (stub node, recorded poller outputs) shared by the two files below.
+#[path = "poller_invite_click_support.rs"]
+mod click_support;
+
+// What the poller does with the system notification after a click.
+#[path = "poller_invite_notice_tests.rs"]
+mod notice;

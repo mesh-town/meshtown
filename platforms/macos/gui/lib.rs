@@ -4,6 +4,7 @@
 
 mod backend;
 mod clipboard;
+mod notify;
 mod open_url;
 mod tray;
 

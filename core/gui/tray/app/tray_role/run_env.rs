@@ -39,6 +39,9 @@ pub(super) fn build_poll_env(
         send_view: super::super::first_run::view_sender(show_tx),
         send_exit_menu: Box::new(move |m| show_exits_tx(TrayCmd::ExitMenu(m))),
         copy_to_clipboard_fn: std::sync::Arc::new(move |text: &str| tray.copy_to_clipboard(text)),
+        notify_fn: std::sync::Arc::new(move |n| {
+            crate::gui::tray::notify::spawn_notify(tray, n);
+        }),
         send_invite_note: Box::new(move |n| show_invite_tx(TrayCmd::Invite(n))),
         send_serve_note: Box::new(move |n| show_serve_tx(TrayCmd::Serve(n))),
         start_fail: StartFail::new(
