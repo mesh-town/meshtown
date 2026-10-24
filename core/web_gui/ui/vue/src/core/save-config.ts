@@ -60,7 +60,7 @@ async function putChanges(store: Store, changes: ConfigChanges, deps: ResolvedDe
   storeConfigReply(store, res);
 }
 
-async function refetchConfig(store: Store, deps: ResolvedDeps): Promise<void> {
+export async function refetchConfig(store: Store, deps: { api: ApiFn }): Promise<void> {
   const res = await deps.api<ConfigResponse | null>("GET", "/api/config");
   if (res) storeConfigReply(store, res);
 }

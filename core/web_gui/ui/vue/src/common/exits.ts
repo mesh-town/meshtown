@@ -34,10 +34,10 @@ export function getRememberedEntries(storage: ExitsStorage = localStorage): Reme
   }
 }
 
-// `main` entries are written as plain strings, so a single network stores exactly what older pages stored.
+// Every entry is written as an object; a bare string in storage is a legacy `main` entry (read, never written).
 export function setRememberedEntries(entries: RememberedExit[], storage: ExitsStorage = localStorage): void {
   try {
-    const items = entries.map((e) => (e.slot === "main" ? e.id : { id: e.id, slot: e.slot }));
+    const items = entries.map((e) => ({ id: e.id, slot: e.slot }));
     storage.setItem(REMEMBERED_KEY, JSON.stringify(items));
   } catch (err) {
     /* storage unavailable — the choice simply won't be remembered */
@@ -48,6 +48,24 @@ export function getRememberedFor(slot: string, storage: ExitsStorage = localStor
   return getRememberedEntries(storage)
     .filter((e) => e.slot === slot)
     .map((e) => e.id);
+}
+
+// The remembered ids of a slot told by origin: `trusted` were written as objects by this page, `legacy` are bare
+// strings (the `main` memory of older pages, which could hold an id that never was a member).
+export function getRememberedSplit(slot: string, storage: ExitsStorage = localStorage): { trusted: string[]; legacy: string[] } {
+  const all = getRememberedFor(slot, storage);
+  const legacy = slot === "main" ? bareStrings(storage) : [];
+  return { trusted: all.filter((id) => !legacy.includes(id)), legacy: all.filter((id) => legacy.includes(id)) };
+}
+
+function bareStrings(storage: ExitsStorage): string[] {
+  try {
+    const raw = storage.getItem(REMEMBERED_KEY);
+    const value: unknown = raw === null ? null : JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch (err) {
+    return [];
+  }
 }
 
 // Only the entries of `slot` are replaced; other networks' entries stay.

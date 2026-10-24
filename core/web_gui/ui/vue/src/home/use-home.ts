@@ -8,7 +8,7 @@ import type { ComputedRef, InjectionKey, Ref } from "vue";
 import type { ConfigDocument, ConfigMeta, NetBrief, NetworkInfo } from "../core/api-types.ts";
 import { isMulti, membersOf, netConfig, netName, stateOf, visibleSlots } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
-import { chosenExitIds, getRememberedFor, markExitAutoPicked, wasExitAutoPicked } from "../common/exits.ts";
+import { chosenExitIds, getRememberedFor, getRememberedSplit, markExitAutoPicked, wasExitAutoPicked } from "../common/exits.ts";
 import { exitChoiceValue, proxySlotOf } from "../core/exit-via.ts";
 import { exitGroups, rememberedIn } from "./exit-groups.ts";
 import type { ExitGroup } from "./exit-groups.ts";
@@ -18,7 +18,7 @@ import type { BrowserId, OsId, ProxyState, StepValue } from "./browser-setup.ts"
 import { exitWarning, memberExits, warnPanel } from "../members/exit-members.ts";
 import type { ExitWarning } from "../members/exit-members.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
-import { autoExitPick, exitCandidates, exitValue, findExitView, noPeersYet, otherExitSelector, pickOtherExit } from "./exit-list.ts";
+import { autoExitPick, exitCandidates, exitValue, findExitView, noPeersYet, offeredRemembered, otherExitSelector, pickOtherExit, shownRemembered } from "./exit-list.ts";
 import type { ExitCandidate, FindExitView } from "./exit-list.ts";
 import {
   chooseDirect, chooseExit, clearHomeTimers, copyValue, createHomeForm, defaultHomeDeps, findExit, storageOf,
@@ -175,7 +175,8 @@ const proxyOf = (store: Store, form: HomeForm, deps: HomeDeps): ProxyState => pr
 // Inside the phone app, a node that joined a network picks the nearest online exit once, when none was ever chosen.
 function useAutoExit(store: Store, deps: HomeDeps, auto: ComputedRef<ExitGroup | undefined>, pick: (slot: string, id: string) => unknown): void {
   const idle = (): boolean => isAppUserAgent(deps.userAgent) && !!store.config && !!netOf(store) && !wasExitAutoPicked(storageOf(deps));
-  const free = (): boolean => chosenExitIds(store).length === 0 && getRememberedFor(auto.value?.slot ?? store.lead, storageOf(deps)).length === 0;
+  const slot = (): string => auto.value?.slot ?? store.lead;
+  const free = (): boolean => chosenExitIds(store).length === 0 && offeredRemembered(stateOf(store, slot()), getRememberedFor(slot(), storageOf(deps))).length === 0;
   watch(auto, (group) => {
     const id = idle() && free() ? autoExitPick(group?.items ?? []) : null;
     if (id === null) return;
@@ -191,6 +192,12 @@ function otherSelector(groups: ExitGroup[], multi: boolean): string {
   return otherExitSelector(pickOtherExit(group.items), multi ? group.slot : undefined);
 }
 
+// The remembered ids shown on one network: a legacy bare id of a stranger is dropped.
+function leadRemembered(store: Store, deps: HomeDeps): string[] {
+  const { trusted, legacy } = getRememberedSplit(store.lead, storageOf(deps));
+  return shownRemembered(store.state, trusted, legacy);
+}
+
 export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeContext {
   const form = reactive(createHomeForm());
   const homeTab = ref<HomeTab | null>(null);
@@ -200,7 +207,7 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
   const chosen = computed(() => chosenExitIds(store));
   const warning = computed(() => exitWarning(chosen.value, store.members, isMeExcluded(store.state, store.members)));
   const multi = computed(() => isMulti(store));
-  const leadCandidates = computed(() => memberExits(exitCandidates(store.state, chosen.value, getRememberedFor(store.lead, storageOf(deps))), store.members));
+  const leadCandidates = computed(() => memberExits(exitCandidates(store.state, chosen.value, leadRemembered(store, deps)), store.members));
   const groups = computed(() => (multi.value ? exitGroups(store, chosen.value, rememberedIn(storageOf(deps))) : [{ slot: store.lead, title: "", items: leadCandidates.value }]));
   const autoGroup = computed(() => groups.value.find((g) => g.slot === (proxySlotOf(store) ?? store.lead)));
   const candidates = computed(() => (multi.value ? groups.value.flatMap((g) => g.items) : leadCandidates.value));

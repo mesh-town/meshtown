@@ -5,7 +5,7 @@
 import type { ChosenExit, CheckInfo, DomainInfo, NodeState, PathKind, PeerInfo } from "../core/api-types.ts";
 import { peerLabel } from "../common/words.ts";
 import { BADGE_BLOCKED } from "../members/members-texts.ts";
-import { HOME_LINK_DIRECT, HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_LINK_RELAY, rttMsText } from "./home-flow-texts.ts";
+import { HOME_EXIT_NOT_OFFERED, HOME_LINK_DIRECT, HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_LINK_RELAY, rttMsText } from "./home-flow-texts.ts";
 
 /** A row of the "Exit via…" list. */
 export interface ExitCandidate {
@@ -17,6 +17,8 @@ export interface ExitCandidate {
   path: PathKind | null;
   rttMs: number | null;
   checked: boolean;
+  /** Chosen, the member is known, and it does not offer an exit any more. */
+  notExit?: boolean;
   blocked?: boolean;
 }
 
@@ -55,9 +57,15 @@ function countryName(code: string): string {
 }
 
 // On the right, small: connection, path (direct / via relay server), latency.
-export function exitMetaText(item: Pick<ExitCandidate, "online" | "path" | "rttMs" | "blocked">): string {
+export function exitMetaText(item: Pick<ExitCandidate, "online" | "path" | "rttMs" | "blocked" | "notExit">): string {
   if (item.blocked) return BADGE_BLOCKED;
-  return item.online ? onlineMeta(item) : HOME_LINK_OFFLINE;
+  if (!item.online) return HOME_LINK_OFFLINE;
+  return notOffered(item) ? HOME_EXIT_NOT_OFFERED : onlineMeta(item);
+}
+
+// The row shows "not an exit" (and its hint) only when nothing stronger — blocked, offline — is said about it.
+export function notOffered(item: Pick<ExitCandidate, "online" | "blocked" | "notExit">): boolean {
+  return !!item.notExit && item.online && !item.blocked;
 }
 
 const PATH_WORDS: Record<PathKind, string> = { direct: HOME_LINK_DIRECT, relay: HOME_LINK_RELAY };
@@ -81,6 +89,7 @@ function exitCandidate(idFull: string, peer: PeerInfo | undefined, stateEntry: C
     path: source.path || null,
     rttMs: source.rtt_ms != null ? source.rtt_ms : null,
     checked,
+    notExit: checked && !!peer && peer.exit !== true,
   };
 }
 
@@ -103,6 +112,11 @@ export function offeredRemembered(state: Partial<NodeState> | null, remembered: 
   if (!state || !Array.isArray(state.peers)) return remembered;
   const offered = new Set(state.peers.filter((p) => !p.self && p.exit === true).map((p) => p.id_full));
   return remembered.filter((id) => offered.has(id));
+}
+
+// One network: ids the page remembered itself stay as they are; a legacy bare id stays only while the network still offers it.
+export function shownRemembered(state: Partial<NodeState> | null, trusted: string[], legacy: string[]): string[] {
+  return [...trusted, ...offeredRemembered(state, legacy)];
 }
 
 // In a network, but no other member is known yet (right after joining): the exit list is still being filled.

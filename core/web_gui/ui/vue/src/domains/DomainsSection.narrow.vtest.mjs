@@ -3,13 +3,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
-import { saveSingleExit } from "../core/exit-via.ts";
+import { saveExitIn } from "../core/exit-via.ts";
 import { PEER_FULL, baseConfig, baseState, mountSection } from "../testing/section.mjs";
 import { stubNarrow } from "../testing/narrow-media.mjs";
 import DomainsSection from "./DomainsSection.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
-vi.mock("../core/exit-via.ts", () => ({ saveSingleExit: vi.fn(async () => ({ text: "Saved", cls: "saved" })) }));
+vi.mock("../core/exit-via.ts", () => ({ saveExitIn: vi.fn(async () => ({ text: "Saved", cls: "saved" })) }));
 
 // example.org: blocked for you, opens at peer-one (an online exit) — the "Use as exit" case; fresh.test: never checked.
 const DOMAINS = [
@@ -79,7 +79,7 @@ describe("site checks", () => {
         const { wrapper, store } = mountNarrow();
         await cards(wrapper)[0].findAll("button").find((b) => b.text() === "Use as exit").trigger("click");
         await flushPromises();
-        expect(saveSingleExit).toHaveBeenCalledWith(store, PEER_FULL);
+        expect(saveExitIn).toHaveBeenCalledWith(store, "main", PEER_FULL);
         expect(wrapper.get("#domains-exit-status").text()).toBe("Saved");
       });
 

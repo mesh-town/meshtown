@@ -109,16 +109,16 @@ describe("remembered entries (per network)", () => {
   });
 
   describe("writing", () => {
-    it("main entries are plain strings, byte for byte as before", () => {
+    it("main entries are written as objects too", () => {
       const st = memoryStorage();
       setRememberedEntries([{ id: "abc", slot: "main" }], st);
-      assert.equal(st.data[REMEMBERED_KEY], '["abc"]');
+      assert.equal(st.data[REMEMBERED_KEY], '[{"id":"abc","slot":"main"}]');
     });
 
-    it("another network is an object with id and slot, main untouched", () => {
+    it("another network is an object with id and slot, like main", () => {
       const st = memoryStorage();
       setRememberedEntries([{ id: "abc", slot: "main" }, { id: "def", slot: NET }], st);
-      assert.equal(st.data[REMEMBERED_KEY], `["abc",{"id":"def","slot":"${NET}"}]`);
+      assert.equal(st.data[REMEMBERED_KEY], `[{"id":"abc","slot":"main"},{"id":"def","slot":"${NET}"}]`);
     });
 
     it("written entries read back unchanged", () => {
@@ -131,13 +131,13 @@ describe("remembered entries (per network)", () => {
     it("setRememberedExits keeps the entries of other networks after the new main ones", () => {
       const st = storageWith(`["old",{"id":"y","slot":"${NET}"}]`);
       setRememberedExits(["x"], st);
-      assert.equal(st.data[REMEMBERED_KEY], `["x",{"id":"y","slot":"${NET}"}]`);
+      assert.equal(st.data[REMEMBERED_KEY], `[{"id":"x","slot":"main"},{"id":"y","slot":"${NET}"}]`);
     });
 
-    it("setRememberedExits with no other networks stays a plain string list", () => {
+    it("setRememberedExits with no other networks writes objects", () => {
       const st = storageWith('["old"]');
       setRememberedExits(["x", "z"], st);
-      assert.equal(st.data[REMEMBERED_KEY], '["x","z"]');
+      assert.equal(st.data[REMEMBERED_KEY], '[{"id":"x","slot":"main"},{"id":"z","slot":"main"}]');
     });
   });
 
@@ -197,10 +197,10 @@ describe("remembered exits of one network (getRememberedFor / setRememberedFor)"
       assert.deepEqual(getRememberedFor("main", st), ["a"]);
     });
 
-    it("main stays a plain string list in storage, byte for byte as before", () => {
+    it("main is stored as objects; a legacy bare id of main is replaced", () => {
       const st = storageWith('["old"]');
       setRememberedFor("main", ["x", "z"], st);
-      assert.equal(st.data[REMEMBERED_KEY], '["x","z"]');
+      assert.equal(st.data[REMEMBERED_KEY], '[{"id":"x","slot":"main"},{"id":"z","slot":"main"}]');
     });
 
     it("main with a network record: same bytes as setRememberedExits", () => {
@@ -216,7 +216,7 @@ describe("remembered exits of one network (getRememberedFor / setRememberedFor)"
       const st = storageWith('["a"]');
       setRememberedFor(NET, ["b"], st);
       const stored = JSON.parse(st.data[REMEMBERED_KEY]);
-      assert.ok(stored.includes("a"), "the main entry stays a plain string");
+      assert.ok(stored.some((e) => e.id === "a" && e.slot === "main"), "the legacy main entry becomes an object");
       assert.ok(stored.some((e) => e && e.id === "b" && e.slot === NET), "the network entry is {id, slot}");
     });
   });

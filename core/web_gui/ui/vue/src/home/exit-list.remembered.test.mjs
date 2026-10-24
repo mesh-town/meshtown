@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { exitCandidates, offeredRemembered } from "./exit-list.ts";
+import { exitCandidates, offeredRemembered, shownRemembered } from "./exit-list.ts";
 
 const peer = (idFull, exit, self) => ({ id_full: idFull, id: idFull.slice(0, 4), name: "n-" + idFull, exit, self });
 
@@ -33,5 +33,26 @@ describe("exitCandidates with one network", () => {
   it("lists a remembered id that has no peer", () => {
     const list = exitCandidates({ peers: [peer("p", true)] }, [], ["foreign"]);
     assert.deepEqual(list.map((c) => c.idFull), ["foreign", "p"]);
+  });
+});
+
+describe("shownRemembered with one network", () => {
+  const state = { peers: [peer("p", true), peer("quiet", false)] };
+  const listed = (trusted, legacy) => exitCandidates(state, [], shownRemembered(state, trusted, legacy)).map((c) => c.idFull);
+
+  it("a legacy bare id of a stranger is not listed", () => {
+    assert.deepEqual(listed([], ["foreign"]), ["p"]);
+  });
+
+  it("an entry written by this page stays listed after Directly", () => {
+    assert.deepEqual(listed(["foreign"], []), ["foreign", "p"]);
+  });
+
+  it("a legacy bare id of an offering peer stays", () => {
+    assert.deepEqual(listed([], ["p"]), ["p"]);
+  });
+
+  it("a legacy bare id of a peer that no longer offers an exit is not listed", () => {
+    assert.deepEqual(listed([], ["quiet"]), ["p"]);
   });
 });

@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, inject, ref } from "vue";
-import { saveSingleExit } from "../core/exit-via.ts";
+import { saveExitIn } from "../core/exit-via.ts";
 import type { ExitSaveStatus } from "../core/exit-via.ts";
+import { isMulti } from "../core/slots.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import NoNetwork from "../common/NoNetwork.vue";
 import { chosenExitIds } from "../common/exits.ts";
+import { chosenOf } from "../home/exit-groups.ts";
 import { NET_NAME } from "../common/words.ts";
 import { useNarrow } from "../common/use-narrow.ts";
 import DomainCards from "./DomainCards.vue";
@@ -29,7 +31,7 @@ const nets = computed(() => siteNets(store));
 const groups = computed(() => columnGroups(nets.value));
 const domains = computed(() => mergedDomains(nets.value, store));
 const proxy = computed(() => proxySlot(nets.value, store.nets));
-const chosen = computed(() => chosenExitIds(store));
+const chosen = computed(() => (isMulti(store) ? chosenOf(store, proxy.value, chosenExitIds(store)) : chosenExitIds(store)));
 const checkAllOff = computed(() => actions.ui.checkAllBusy || rowsBusy(domains.value));
 
 async function add(): Promise<void> {
@@ -38,7 +40,7 @@ async function add(): Promise<void> {
 
 // The "Exit via …" button makes the member the only exit.
 async function exitVia(idFull: string): Promise<void> {
-  exitStatus.value = await saveSingleExit(store, idFull);
+  exitStatus.value = await saveExitIn(store, proxy.value, idFull);
 }
 </script>
 

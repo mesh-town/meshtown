@@ -47,7 +47,7 @@ describe("saveSingleExit in several networks", () => {
     const w = setupNets({ proxy: "main", lead: NET_B });
     const st = await saveSingleExit(w.store, "BB", w.deps);
     assert.deepEqual(st, { text: "Saved", cls: "saved" });
-    assert.deepEqual(w.paths(), [`PUT /api/net/${NET_B}/config`]);
+    assert.deepEqual(w.paths(), [`PUT /api/net/${NET_B}/config`, "GET /api/config"]);
     assert.deepEqual(w.calls[0].body.config.route.exits, ["BB"]);
   });
 });
@@ -58,7 +58,7 @@ describe("saveExitIn", () => {
       const w = setupNets({ proxy: "main" });
       const st = await saveExitIn(w.store, NET_B, "BB", w.deps);
       assert.deepEqual(st, { text: "Saved", cls: "saved" });
-      assert.deepEqual(w.paths(), [`PUT /api/net/${NET_B}/config`]);
+      assert.deepEqual(w.paths(), [`PUT /api/net/${NET_B}/config`, "GET /api/config"]);
       assert.deepEqual(w.calls[0].body.config.route.exits, ["BB"]);
       assert.equal(w.calls[0].body.rev, 11, "the revision of B's slice, not the main one");
     });
@@ -102,18 +102,18 @@ describe("saveExitIn", () => {
       const w = setupNets({ proxy: "main", exits: { [NET_B]: ["BB"] } });
       const st = await saveExitIn(w.store, NET_B, "BB", w.deps);
       assert.deepEqual(st, { text: "Saved", cls: "saved" });
-      assert.deepEqual(w.paths(), ["PUT /api/config"]);
+      assert.deepEqual(w.paths(), ["PUT /api/config", "GET /api/config"]);
       assert.equal(w.calls[0].body.config.proxy.net, NET_B);
     });
   });
 
   describe("one network", () => {
-    it("PUT /api/config, the exit is remembered byte for byte as before (a bare id)", async () => {
+    it("PUT /api/config, the exit is remembered as an object of the main slot", async () => {
       const w = setupNets({ slots: ["main"] });
       await saveExitIn(w.store, "main", "AA", w.deps);
       assert.deepEqual(w.paths(), ["PUT /api/config"]);
       assert.deepEqual(w.calls[0].body.config.route.exits, ["AA"]);
-      assert.equal(w.storage.getItem(REMEMBERED_KEY), JSON.stringify(["AA"]));
+      assert.equal(w.storage.getItem(REMEMBERED_KEY), JSON.stringify([{ id: "AA", slot: "main" }]));
     });
   });
 });
@@ -257,6 +257,7 @@ function setupNets({ slots = ["main", NET_B], proxy = "main", exits = {}, lead =
   const api = async (method, path, body) => {
     calls.push({ method, path, body: structuredClone(body) });
     if (fail) throw fail;
+    if (method === "GET") return { config: { route: { exits: [] } }, rev: 5 };
     return { config: body.config, rev: body.rev + 1 };
   };
   const deps = { api, busTarget: new EventTarget() };
