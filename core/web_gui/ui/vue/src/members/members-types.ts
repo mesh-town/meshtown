@@ -1,5 +1,7 @@
 /* Types of `GET /api/members` and `POST /api/members/<action>` (the member-list API contract). */
 
+import type { NetKind } from "../core/api-types-state.ts";
+
 export type MemberStatus = "member" | "pending" | "unlisted" | "excluded" | "forgotten";
 
 export type MemberAction = "exclude" | "unexclude" | "block" | "unblock" | "leave" | "admit" | "unadmit" | "forget" | "unforget";
@@ -60,6 +62,7 @@ export interface MemberRow {
   admission: AdmissionInfo | null;
   forget: ForgetInfo | null;
   last_seen_sec: number | null; // seconds since the node was last online; null — never seen
+  admin?: boolean;
 }
 
 export interface MemberCounts {
@@ -81,6 +84,9 @@ export interface MembersReply {
   counts: MemberCounts;
   members: MemberRow[];
   changed?: boolean; // only in an action reply
+  kind?: NetKind;
+  admins?: string[];
+  me_admin?: boolean;
 }
 
 // An item of the `⋯` menu.

@@ -1,6 +1,7 @@
 /* Node API types: actions, network, token, error bodies. Types only; the shared header and rules are in `api-types.ts`. */
 
 import type { ConfigDocument, ConfigFileInfo, FieldError } from "./api-types-config.ts";
+import type { NetKind } from "./api-types-state.ts";
 
 // ---------------------------------------------------------------- actions and network
 
@@ -41,6 +42,14 @@ export interface JoinResponse {
 /** Body of `POST /api/network/create`. */
 export interface CreateNetworkRequest {
   label: string;
+  kind?: NetKind; // sent only for Managed
+}
+
+/** `POST /api/network/inspect`, 200: what a pasted invite leads to, before it is used. */
+export interface InspectResponse {
+  label: string | null;
+  kind: NetKind;
+  id_hex: string;
 }
 
 /** `POST /api/network/create`, 200: the full key arrives only here. */

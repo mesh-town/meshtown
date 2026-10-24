@@ -322,7 +322,7 @@ const compact = (text) => text.replace(/\s+/g, " ").trim();
 function cardOf(wrapper, node, store) {
   const root = () => wrapper.get("#add-net-card");
   const controls = () => root().findAll("button, a").filter((c) => shown(c.element));
-  const inputs = () => root().findAll("input").filter((i) => shown(i.element));
+  const inputs = () => root().findAll("input[type=text]").filter((i) => shown(i.element));
   const posts = () => node.calls.filter((c) => c.method === "POST");
   return {
     wrapper, node, store,

@@ -1,5 +1,6 @@
 /* Texts of the "Add another network" form and of the banners shown after a network is added. */
 
+import type { NetKind } from "../core/api-types.ts";
 import { HOME_CREATE_BTN, HOME_CREATE_LABEL, HOME_JOIN_FIELD_LABEL, HOME_JOIN_PASTE_HINT, HOME_JOIN_PLACEHOLDER } from "./home-card-texts.ts";
 
 /** The most networks the node holds at once. */
@@ -47,5 +48,12 @@ export function joinedBanner(net: string, via: { peer: string; net: string } | n
   return via ? `${base} Your exit hasn't changed: sites still open via ${via.peer} (${via.net}).` : base;
 }
 
-export const createdBanner = (net: string): string =>
-  `You created "${net}". Nobody else is here yet: use Invite to "${net}" to add a member.`;
+const NOBODY_YET = (net: string): string => `Nobody else is here yet: use Invite to "${net}" to add a member.`;
+
+/** The banner after creating a network; Managed adds that the creator is its admin and should name a second one. */
+export function createdBanner(net: string, kind: NetKind = "Peer"): string {
+  if (kind === "Managed") {
+    return `You created "${net}" and you're its admin. ${NOBODY_YET(net)} Once someone joins, make a second member an admin (⋯ → Make admin): a network without an admin can't be managed.`;
+  }
+  return `You created "${net}". ${NOBODY_YET(net)}`;
+}

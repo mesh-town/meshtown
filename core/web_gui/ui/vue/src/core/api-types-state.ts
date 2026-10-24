@@ -47,6 +47,7 @@ export interface NodeState {
   web?: WebState;
   /** Paths that are saved but not in effect yet; `"socks.ifaces"` — a restart is needed (`POST /api/actions/restart`). */
   restart_pending?: string[];
+  notices?: Notice[];
 }
 
 /** Who decides whether a network is open: auto — automatic (on a router it closes the ISP network, private ones are open);
@@ -108,6 +109,31 @@ export interface NetworkInfo {
   label: string | null; // key label; for a key without a label — null
   masked: string;
   id_hex: string;
+  kind?: NetKind; // absent — Peer
+  me_role?: NetRole;
+  admins?: string[]; // full ids of the admins
+  root?: string; // full id of the member who created the network
+  can_invite?: boolean;
+  can_remove?: boolean;
+  can_set_admins?: boolean;
+  can_delete_network?: boolean;
+  can_leave?: boolean;
+  excluded_by?: string | { id: string; name: string };
+}
+
+/** How a network is governed: every member decides (Peer) or admins decide (Managed). */
+export type NetKind = "Peer" | "Managed";
+export type NetRole = "admin" | "member";
+
+/** A note the node keeps until the page acknowledges it (`POST /api/notices/ack`). */
+export interface Notice {
+  id: number;
+  kind: "net_deleted";
+  label: string | null;
+  id_hex: string;
+  by: string;
+  by_name: string | null;
+  at_unix: number;
 }
 
 export interface MembersInfo {
@@ -165,6 +191,7 @@ export interface RecordInfo {
 }
 
 export interface PeerInfo {
+  role?: NetRole; // absent — a regular member
   id: string;
   id_full: string;
   name: string | null;

@@ -354,7 +354,7 @@ function pageOf(node, wrapper, store) {
       const ok = bannerOk();
       return ok ? compact(ok.element.parentElement.textContent).replace(/ ?OK$/, "") : null;
     },
-    posted: () => node.calls.filter((c) => c.method === "POST").map((c) => [c.path, c.body]),
+    posted: () => node.calls.filter((c) => c.method === "POST" && c.path !== "/api/network/inspect").map((c) => [c.path, c.body]),
     arrives: () => becomesNetwork(node.slotList.find((s) => s.id === FRESH)),
     whenLinkClicked: () => clickLink(section().findAll("a").find((a) => compact(a.text()) === ADD_LINK)),
     whenPlusClicked: () => clickLink(tabs().at(-1)),

@@ -2,7 +2,7 @@
  * The network key and the invite string go only into the request body and do not stay in `form`. */
 
 import { watch } from "vue";
-import type { CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
+import type { NetKind, CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
 import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps, writeSetupMark } from "./home-actions.ts";
@@ -42,6 +42,8 @@ export interface JoinForm {
   choice: "" | "join" | "create";
   busy: "" | "join" | "create";
   status: string;
+  /** The kind of the network the create form makes; the join forms never send it. */
+  kind: NetKind;
 }
 export interface HighlightPart {
   text: string;
@@ -51,7 +53,7 @@ export type JoinResult = "skipped" | "empty" | "joined" | "waiting" | "created" 
 type RequestBody = JoinRequest | CreateNetworkRequest;
 
 export function createJoinForm(): JoinForm {
-  return { inviteInput: "", inviteError: null, label: "", labelError: null, choice: "", busy: "", status: "" };
+  return { inviteInput: "", inviteError: null, label: "", labelError: null, choice: "", busy: "", status: "", kind: "Peer" };
 }
 
 // Body of the word highlight in the key error without raw HTML: `[{ text, highlighted }]`.

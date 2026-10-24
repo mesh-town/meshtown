@@ -2,7 +2,7 @@
 
 import type { MembersReply } from "../members/members-types.ts";
 import type { ConfigDocument, ConfigMeta } from "./api-types-config.ts";
-import type { NodeState } from "./api-types-state.ts";
+import type { NetKind, NodeState, Notice } from "./api-types-state.ts";
 
 /** One network as listed by `nets`; field order follows the JSON. */
 export interface NetBrief {
@@ -21,6 +21,9 @@ export interface NetBrief {
   me_pending: boolean;
   peers_online: number;
   peers_total: number;
+  kind?: NetKind;
+  me_admin?: boolean;
+  can_invite?: boolean;
 }
 
 export interface SlotEntry {
@@ -34,6 +37,7 @@ export interface Overview {
   nets: NetBrief[];
   slots: SlotEntry[];
   restart_slots: string[];
+  notices?: Notice[];
 }
 
 export type LeaveReply = MembersReply & { left: boolean; announced: boolean; nets: NetBrief[] };
