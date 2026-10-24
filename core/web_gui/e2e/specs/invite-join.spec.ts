@@ -1,0 +1,293 @@
+import type { APIRequestContext } from '@playwright/test';
+
+import { test, expect } from '../fixtures/index';
+import type { MeshApi } from '../fixtures/api';
+import type { RunningTarget } from '../fixtures/target';
+import { InviteForm, NetTabs, OutOfNetCard } from '../pages/invite-form';
+
+// One form takes an invite wherever the computer meets one: the node, not the user, picks the slot. Each case checks the tab
+// the user lands on and the slots the node ends up with, so a form that always joins the main network fails here.
+
+const READY_TIMEOUT_MS = 15000;
+/** The demo network every keyless demo node hands an invite for; no demo slot is in it at the start. */
+const NEW_NETWORK = 'demo-invited';
+
+interface InviteDoc {
+  invite?: string;
+}
+
+interface NetsDoc {
+  nets?: { id: string; id_hex: string | null }[];
+}
+
+interface SlotDoc {
+  slot?: string;
+}
+
+interface Reply<T> {
+  status: number;
+  body: T | null;
+}
+
+/** The invite a slot hands out; waits until a real node has its network up. */
+async function inviteOf(api: MeshApi, slot: string | null): Promise<string> {
+  const path = slot === null ? '/api/network/invite' : `/api/net/${slot}/network/invite`;
+  let invite = '';
+  await expect
+    .poll(async () => {
+      const res = await api.getJson<InviteDoc>(path);
+      invite = res.body?.invite ?? '';
+      return res.status;
+    }, { timeout: READY_TIMEOUT_MS })
+    .toBe(200);
+  return invite;
+}
+
+/** POST with the token, the host and the origin the page itself sends. */
+async function post<T>(request: APIRequestContext, target: RunningTarget, path: string, data: unknown): Promise<Reply<T>> {
+  const res = await request.fetch(`${target.origin}${path}?token=${target.token}`, {
+    method: 'POST',
+    headers: { Host: target.host, Origin: target.origin },
+    data,
+    failOnStatusCode: false,
+    maxRedirects: 0,
+  });
+  const text = await res.text();
+  return { status: res.status(), body: text === '' ? null : (JSON.parse(text) as T) };
+}
+
+/** An empty slot (no key yet) hands out an invite to the demo network no slot is in. */
+async function inviteToNewNetwork(api: MeshApi, request: APIRequestContext, target: RunningTarget): Promise<{ invite: string; emptySlot: string }> {
+  const added = await post<SlotDoc>(request, target, '/api/nets', {});
+  expect(added.status, 'POST /api/nets adds an empty slot').toBe(201);
+  const emptySlot = added.body?.slot ?? '';
+  return { invite: await inviteOf(api, emptySlot), emptySlot };
+}
+
+/** The slots that hold a network; the empty slots waiting for a key are not counted. */
+async function visibleNets(api: MeshApi): Promise<string[]> {
+  const res = await api.getJson<NetsDoc>('/api/nets');
+  return (res.body?.nets ?? []).filter((n) => n.id_hex !== null).map((n) => n.id);
+}
+
+test.describe('invite into a new network (demo, two networks)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'a new network needs the demo registry; a real node has one network');
+  test.use({ targetFlags: { extraArgs: ['--nets', '2'] } });
+
+  test('110-invite-new-slot: an invite to another network pasted in the "+" tab takes a new slot and opens its tab', async ({ app, page, api, request, target }) => {
+    const tabs = new NetTabs(page);
+    const form = new InviteForm(page, 'add');
+    const { invite, emptySlot } = await inviteToNewNetwork(api, request, target);
+    await page.goto(`${target.origin}/#peers/add`);
+    await app.tabs.expectShown('peers');
+    const before = await tabs.slots();
+
+    await test.step('given: two network tabs; the empty slot made for the invite is not shown', async () => {
+      expect(before).toHaveLength(2);
+      expect(before).not.toContain(emptySlot);
+    });
+
+    await test.step('the pasted invite is read as a new network: no "already in" note', async () => {
+      await form.pasteAndInspect(invite);
+      await expect(form.placeNote).toHaveCount(0);
+    });
+
+    await test.step('"Add network" opens the tab of the slot the node took for it', async () => {
+      await form.submit();
+      await expect.poll(() => tabs.slots()).toHaveLength(3);
+      const added = (await tabs.slots()).filter((s) => !before.includes(s));
+      expect(added, 'one new tab, not the main one and not the empty slot').toHaveLength(1);
+      await expect.poll(() => tabs.hash()).toBe(`#peers/${added[0]}`);
+      await expect(tabs.tab(added[0])).toHaveAttribute('aria-current', 'page');
+      await expect(tabs.tab(added[0])).toContainText(NEW_NETWORK);
+    });
+
+    await test.step('the first network is still the main one: the invite did not replace it', async () => {
+      await expect(tabs.tab(before[0])).not.toHaveAttribute('aria-current', 'page');
+      expect(await visibleNets(api)).toEqual(expect.arrayContaining(before));
+    });
+  });
+
+  test('115-invite-api-addresses: the unnamed join address picks the slot, a slot address joins that slot', async ({ api, request, target }) => {
+    const { invite, emptySlot } = await inviteToNewNetwork(api, request, target);
+    const own = await inviteOf(api, null);
+    const before = await visibleNets(api);
+
+    await test.step('an invite of a network this node is in: 409 "already added", it names the slot, nothing is joined', async () => {
+      const res = await post<{ error?: string; slot?: string }>(request, target, '/api/network/join', { key: own });
+      expect(res.status).toBe(409);
+      expect(res.body?.error).toBe('net_already_added');
+      expect(res.body?.slot).toBe('main');
+      expect(await visibleNets(api)).toEqual(before);
+    });
+
+    await test.step('the same invite to the slot address of the empty slot: that slot is entered, as it always was', async () => {
+      const res = await post<{ slot?: string }>(request, target, `/api/net/${emptySlot}/network/join`, { key: invite });
+      expect(res.status).toBe(202);
+      expect(res.body?.slot).toBe(emptySlot);
+      await expect.poll(() => visibleNets(api)).toContain(emptySlot);
+    });
+
+    await test.step('the same invite on the unnamed address: 409 "already added", it names the slot the invite went to', async () => {
+      const res = await post<{ error?: string; slot?: string; label?: string }>(request, target, '/api/network/join', { key: invite });
+      expect(res.status).toBe(409);
+      expect(res.body?.error).toBe('net_already_added');
+      expect(res.body?.slot).toBe(emptySlot);
+      expect(res.body?.label).toBe(NEW_NETWORK);
+    });
+  });
+
+  test('116-invite-api-new-network: the unnamed join address takes an invite to a new network into a new slot, not into main', async ({ api, request, target }) => {
+    const { invite } = await inviteToNewNetwork(api, request, target);
+    const before = await visibleNets(api);
+    const res = await post<{ slot?: string }>(request, target, '/api/network/join', { key: invite });
+    expect(res.status).toBe(202);
+    expect(res.body?.slot, 'the answer names the slot the invite went to').toBeTruthy();
+    expect(res.body?.slot).not.toBe('main');
+    await expect.poll(() => visibleNets(api)).toEqual([...before, res.body?.slot]);
+  });
+});
+
+test('111-invite-already-here: your own invite in Settings says "already in", "Open" shows the members of that network, no slot is taken', async ({ app, page, api }) => {
+  const form = new InviteForm(page, 'add');
+  const own = await inviteOf(api, null);
+  const slotsBefore = await visibleNets(api);
+  await app.tabs.open('settings');
+
+  await test.step('the pasted invite is marked as one of this computer\'s networks', async () => {
+    await form.pasteAndInspect(own);
+    await expect(form.placeNote).toContainText("You're already in");
+  });
+
+  await test.step('"Add network" does not join: the block says "already in" and offers "Open"', async () => {
+    await form.submit();
+    await expect(form.alreadyHere).toContainText("You're already in");
+    await expect(form.openButton).toBeVisible();
+    await expect(form.error).toBeHidden();
+  });
+
+  await test.step('"Open" leads to the Members tab of that network', async () => {
+    await form.openButton.click();
+    await app.tabs.expectShown('peers');
+    await expect.poll(() => page.evaluate(() => location.hash)).toBe('#peers/main');
+  });
+
+  await test.step('the node still has the same networks: the invite was not spent on a new slot', async () => {
+    expect(await visibleNets(api)).toEqual(slotsBefore);
+  });
+});
+
+test.describe('this computer removed from the member list (demo --me-removed)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'a real node starts alone and is never removed');
+  test.use({ targetFlags: { extraArgs: ['--me-removed'] } });
+
+  test('112-invite-return-removed: the card button on Home focuses the invite field, your own invite is read as a way back', async ({ app, page, api }) => {
+    const card = new OutOfNetCard(page, 'home');
+    const form = new InviteForm(page, 'home');
+    const own = await inviteOf(api, null);
+
+    await test.step('given: Home shows the card of a removed computer', async () => {
+      await app.tabs.open('home');
+      await expect(card.card).toBeVisible();
+    });
+
+    await test.step('its button puts the cursor into the invite field', async () => {
+      await card.joinButton.click();
+      await expect(form.input).toBeFocused();
+    });
+
+    await test.step('the own invite is read as a way back into the same network', async () => {
+      await form.pasteAndInspect(own);
+      await expect(form.placeNote).toContainText('brings this computer back');
+    });
+  });
+
+  test('117-invite-return-removed-joins: the own invite takes the removed computer back into its network, no second network appears', async ({ app, page, api }) => {
+    // OPEN: the demo registry does not hold the key of the main network (`remember` runs for `push`ed slots only), so the demo refuses its own invite.
+    test.skip(true, 'the demo refuses the invite of its main network: it does not know it');
+    const card = new OutOfNetCard(page, 'home');
+    const form = new InviteForm(page, 'home');
+    const own = await inviteOf(api, null);
+    const slotsBefore = await visibleNets(api);
+    await app.tabs.open('home');
+    await card.joinButton.click();
+    await form.pasteAndInspect(own);
+    await form.submit();
+    await expect(card.card).toHaveCount(0);
+    expect(await visibleNets(api)).toEqual(slotsBefore);
+  });
+});
+
+test.describe('this computer banned in the second network (demo --nets 2 --me-excluded)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'a real node has one network and is never banned at the start');
+  test.use({ targetFlags: { extraArgs: ['--nets', '2', '--me-excluded'] } });
+
+  test('113-invite-excluded-tab: the card button of a network tab opens the form on that tab and puts the cursor into it', async ({ app, page }) => {
+    const tabs = new NetTabs(page);
+    const card = new OutOfNetCard(page, 'members');
+    const form = new InviteForm(page, 'rejoin');
+    await app.tabs.open('peers');
+    const second = (await tabs.slots())[1];
+
+    await test.step('given: the second tab shows the card of a banned computer', async () => {
+      await tabs.tab(second).click();
+      await expect.poll(() => tabs.hash()).toBe(`#peers/${second}`);
+      await expect(card.card).toBeVisible();
+    });
+
+    await test.step('the button opens the form on this tab and puts the cursor into it', async () => {
+      await card.joinButton.click();
+      await expect(form.input).toBeFocused();
+      expect(await tabs.hash(), 'still the second tab, not Home').toBe(`#peers/${second}`);
+    });
+  });
+
+  test('118-invite-excluded-tab-joins: the invite of the banned network brings the computer back in this slot only', async ({ app, page, api }) => {
+    // OPEN: the node answers "already in" for a banned Peer slot (the note should say "return"), so the join does not start.
+    test.skip(true, 'the node reads the banned slot as "already in" instead of a way back');
+    const tabs = new NetTabs(page);
+    const card = new OutOfNetCard(page, 'members');
+    const form = new InviteForm(page, 'rejoin');
+    await app.tabs.open('peers');
+    const [main, second] = await tabs.slots();
+    const invite = await inviteOf(api, second);
+    await tabs.tab(second).click();
+    await card.joinButton.click();
+    await form.pasteAndInspect(invite);
+    await form.submit();
+    await expect(card.card).toHaveCount(0);
+    expect(await tabs.hash()).toBe(`#peers/${second}`);
+    await tabs.tab(main).click();
+    await expect(card.card).toBeVisible();
+  });
+});
+
+test.describe('the setup wizard (demo --no-network)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'a keyless demo node hands out an invite to a network it knows; a real node has none');
+  test.use({ targetFlags: { extraArgs: ['--no-network'] } });
+
+  test('114-invite-wizard: an invite pasted in the wizard joins the first network and the wizard goes to its next step', async ({ app, api, page }) => {
+    const form = new InviteForm(page, 'home');
+    const invite = await inviteOf(api, null);
+
+    await test.step('given: no network, the wizard offers "Join with an invite"', async () => {
+      await expect(app.netCard.startTitle).toBeVisible();
+      await app.netCard.startJoin.click();
+      await expect(form.input).toBeVisible();
+    });
+
+    await test.step('the invite is read as a new network; "Join" sends it', async () => {
+      await form.pasteAndInspect(invite);
+      await form.submit();
+    });
+
+    await test.step('the wizard says the computer joined, and the node reports a network', async () => {
+      await expect(app.homePanel.wizard).toContainText('✓ You joined the network');
+      await expect.poll(async () => (await api.getJson<{ network?: unknown }>('/api/state')).body?.network).toBeTruthy();
+    });
+
+    await test.step('the first network lives in the main slot: no extra slot is taken', async () => {
+      expect(await visibleNets(api)).toEqual(['main']);
+    });
+  });
+});

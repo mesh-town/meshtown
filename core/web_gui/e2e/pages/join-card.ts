@@ -24,14 +24,14 @@ export class JoinCard {
   readonly addNetCard: Locator;
 
   constructor(page: Page) {
-    this.keyInput = page.getByLabel('Invite from a network member');
+    this.keyInput = page.getByLabel('Invite you received');
     // The label depends on the network: "Join" without a network, "Switch" with one (section).
     this.joinButton = page.getByRole('button', { name: /^(Join|Switch)$/ });
     this.keyError = page.getByRole('alert', { name: 'Invite error', includeHidden: true });
     const tabs = new TabsBar(page);
     this.inHomeSlot = tabs.panel('home').getByRole('region', { name: CARD_NAME, includeHidden: true });
     this.inNetSlot = tabs.panel('settings').getByRole('region', { name: CARD_NAME, includeHidden: true });
-    this.netSlotKeyInput = this.inNetSlot.getByLabel('Invite from a network member');
+    this.netSlotKeyInput = this.inNetSlot.getByLabel('Invite you received');
     this.addNetCard = page.locator('#net-join-slot #add-net-card[data-context="settings"]');
   }
 

@@ -35,7 +35,7 @@ export class HomeSection {
 
   /** The invite field of the join card inside the given panel (the card heading changes depending on whether there is a network). */
   joinInput(scope: Locator): Locator {
-    return scope.getByLabel('Invite from a network member');
+    return scope.getByLabel('Invite you received');
   }
 
   /** Returns the bottom of the locator's box (`y + height`); no box means the element is not rendered. */
