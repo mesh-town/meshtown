@@ -15,7 +15,8 @@ import ThisComputerCard from "./ThisComputerCard.vue";
 import type { SetupMark } from "./home-actions.ts";
 import { shownStep } from "./home-view.ts";
 import { useHomeContext } from "./use-home.ts";
-import { PROGRESS_HEAD } from "./join-progress.ts";
+import { PROGRESS_HEAD, joinProgress } from "./join-progress.ts";
+import { useRefusalGate } from "./use-refusal-gate.ts";
 import { useJoin } from "./use-join.ts";
 import { refusedLead } from "./join-wait.ts";
 import {
@@ -41,8 +42,10 @@ const finish = (mark: SetupMark): void => {
 };
 const j = useJoin(store);
 // The join progress phase: searching and joining replace the buttons with a progress block; a node refusal is text above the buttons.
-const progress = computed(() => j.progress.value);
-const lead = computed(() => refusedLead(store.state?.node?.invite_join));
+const refusal = useRefusalGate(() => store.state?.node?.invite_join);
+const maskedState = computed(() => ({ ...store.state, node: { ...store.state?.node, invite_join: refusal.info.value } }) as typeof store.state);
+const progress = computed(() => joinProgress(maskedState.value, j.sent.value, store.absence ?? null));
+const lead = computed(() => refusedLead(refusal.info.value));
 const running = computed(() => (progress.value && progress.value.phase !== "refused" ? progress.value : null));
 const stepHead = computed(() => (running.value ? PROGRESS_HEAD[running.value.phase as "searching" | "entering"] : HOME_WIZARD_HEAD_JOIN));
 
@@ -75,7 +78,7 @@ async function startCreate(): Promise<void> {
       <button type="button" :class="['btn', { 'btn-primary': !j.form.choice }]" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
       <button type="button" class="btn" id="home-start-create-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'create'" @click="startCreate">{{ HOME_WIZARD_CREATE_BTN }}</button>
     </div>
-    <JoinCard v-if="j.form.choice" :join="j" quiet />
+    <JoinCard v-if="j.form.choice" :join="j" quiet @attempt="refusal.dismiss" />
     </template>
   </div>
   <div class="card wizard-card" role="region" aria-labelledby="home-wizard-title">

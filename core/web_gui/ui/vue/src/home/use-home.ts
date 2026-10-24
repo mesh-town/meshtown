@@ -12,6 +12,7 @@ import { chosenExitIds, getRememberedFor, getRememberedSplit, markExitAutoPicked
 import { exitChoiceValue, proxySlotOf } from "../core/exit-via.ts";
 import { exitGroups, rememberedIn } from "./exit-groups.ts";
 import type { ExitGroup } from "./exit-groups.ts";
+import { routeLine } from "./route-line.ts";
 import { getPath } from "../settings/settings-fields.ts";
 import { isAppUserAgent, proxyState } from "./browser-setup.ts";
 import type { BrowserId, OsId, ProxyState, StepValue } from "./browser-setup.ts";
@@ -126,6 +127,7 @@ function panelCtx(store: Store): PanelCtx {
   };
   return {
     multi: isMulti(store),
+    head: routeLine(store),
     netOf: (peerId) => { const slot = holder(peerId); return slot === null ? null : netName(store.nets, slot); },
     linkDown: (peerId) => {
       const brief = store.nets.find((n) => n.id === holder(peerId));

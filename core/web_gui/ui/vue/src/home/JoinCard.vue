@@ -23,6 +23,7 @@ import { HOME_BUTTON_JOIN } from "./home-flow-texts.ts";
 import { REJOIN_OTHER, REJOIN_TITLE } from "./invite-join-texts.ts";
 
 const props = defineProps<{ join?: JoinView | null; quiet?: boolean; removed?: boolean }>();
+const emit = defineEmits<{ attempt: [] }>();
 const store = inject(STORE_KEY)!;
 const j = props.join || useJoin(store);
 const { form, hasNet, showJoin, showCreate, title, buttonText } = j;
@@ -49,6 +50,10 @@ const hint = computed(() => {
   return hasNet.value && form.inviteInput.trim() && !isInvite(form.inviteInput) ? HOME_JOIN_KEY_HINT(netLabel.value) : "";
 });
 const refusal = useRefusalGate(() => store.state?.node?.invite_join);
+const attempt = (): void => {
+  refusal.dismiss();
+  emit("attempt");
+};
 const leadText = computed(() => (props.quiet ? "" : refusedLead(refusal.info.value)));
 // A refusal is told as an error right under the Join button; the waiting line stays below the card.
 const refusedNow = computed(() => !props.quiet && refusedText(refusal.info.value) !== null);
@@ -61,7 +66,7 @@ const statusText = computed(() => (refusedText(refusal.info.value) === null && !
   <div id="join-card" role="region" aria-labelledby="join-card-title">
     <div class="step-head"><h2 id="join-card-title">{{ heading }}</h2></div>
     <div id="join-box" :hidden="!showJoin">
-      <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived" @start="refusal.dismiss">
+      <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived" @start="attempt">
         <template #hint>
           <p class="hint" id="net-restart-hint" :hidden="!hint">{{ hint }}</p>
         </template>
