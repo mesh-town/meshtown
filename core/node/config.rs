@@ -35,6 +35,9 @@ pub struct NodeConfig {
     pub identity: IdentityState,
     /// Member addresses from the invite (`--invite`), entered at startup as discovered.
     pub initial_peers: Vec<PeerAddr>,
+    /// The settings file of the slot this node runs; the invited peers file beside it is removed once the
+    /// membership boot has applied it. `None` — nothing to remove (tests, `--no-config`).
+    pub invited_peers_file: Option<PathBuf>,
     /// The network label from the invite or the settings file.
     pub network_label: Option<String>,
     /// The kind of the network (Peer unless the key says otherwise).
@@ -76,6 +79,7 @@ impl NodeConfig {
             identity_secret: None,
             identity: IdentityState::Temporary(TemporaryReason::Declined),
             initial_peers: vec![],
+            invited_peers_file: None,
             network_label: None,
             net_kind: NetKind::Peer,
             peers_cache_path: None,

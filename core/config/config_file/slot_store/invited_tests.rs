@@ -58,3 +58,32 @@ fn a_missing_file_is_an_empty_list() {
     assert!(load_invited_peers(&dir.join("config.json")).is_empty());
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn forget_removes_the_file() {
+    let dir = slot_dir("forget");
+    let file = dir.join("config.json");
+    save_invited_peers(&file, &[peer(1)]).unwrap();
+    assert!(dir.join(INVITED_PEERS_FILE_NAME).exists());
+    forget_invited_peers(&file);
+    assert!(!dir.join(INVITED_PEERS_FILE_NAME).exists());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn forgetting_a_missing_file_is_quiet() {
+    let dir = slot_dir("forget-missing");
+    forget_invited_peers(&dir.join("config.json"));
+    assert!(!dir.join(INVITED_PEERS_FILE_NAME).exists());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn nothing_is_read_after_forgetting() {
+    let dir = slot_dir("forget-read");
+    let file = dir.join("config.json");
+    save_invited_peers(&file, &[peer(1), peer(2)]).unwrap();
+    forget_invited_peers(&file);
+    assert!(load_invited_peers(&file).is_empty());
+    std::fs::remove_dir_all(&dir).ok();
+}

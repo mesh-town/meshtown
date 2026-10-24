@@ -46,6 +46,7 @@ fn slot_launch(
     apply_key_input(&mut cfg, &parsed);
     cfg.identity = IdentityState::from_report(&run.file_report);
     cfg.initial_peers = invited_peers(&run);
+    cfg.invited_peers_file = run.file.as_ref().map(|f| f.path().to_path_buf());
     SlotLaunch {
         id,
         run,
