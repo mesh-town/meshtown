@@ -39,7 +39,7 @@ pub(super) fn build_peers(i: &Inputs<'_>) -> Vec<PeerInfo> {
 
 /// The set of other members: the union of `members`, the keys of `telemetry.peers`, authors of check
 /// records for domains from `domain_names` and the keys of `cached_seen` (the on-disk
-/// address cache), without the node itself and without departed members (7 days without
+/// address cache), without the node itself and without removed nodes and departed members (7 days without
 /// news — `stale_peers::is_gone`; chosen exits stay); sorted ascending by
 /// short id.
 fn other_peer_ids(i: &Inputs<'_>, ev: &Evidence<'_>) -> Vec<PeerId> {
@@ -52,12 +52,16 @@ fn other_peer_ids(i: &Inputs<'_>, ev: &Evidence<'_>) -> Vec<PeerId> {
     }
     ids.extend(i.cached_seen.keys().copied());
     ids.remove(&i.id);
-    ids.retain(|id| {
-        i.chosen_exits.contains(id) || !stale_peers::is_gone(stale_peers::age_sec(ev, *id))
-    });
+    ids.retain(|id| shown(i, ev, id));
     let mut others: Vec<PeerId> = ids.into_iter().collect();
     others.sort_by_key(output::short_peer_id);
     others
+}
+
+/// A node stays in the list if it is a chosen exit, or it is neither removed nor departed.
+fn shown(i: &Inputs<'_>, ev: &Evidence<'_>, id: &PeerId) -> bool {
+    i.chosen_exits.contains(id)
+        || (!i.removed.contains(id) && !stale_peers::is_gone(stale_peers::age_sec(ev, *id)))
 }
 
 /// The snapshot's own row: always `online`, the path is not computed (`None`), the exit flag is the direct flag

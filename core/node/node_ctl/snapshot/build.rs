@@ -43,6 +43,8 @@ pub(super) struct Inputs<'a> {
     pub votes: VoteSummary,
     /// Nodes with an exclusion record in the verdicts; empty while nothing is published.
     pub excluded: HashSet<PeerId>,
+    /// Nodes hidden from `peers[]`: forgotten ones and those of this node's own pending forget votes.
+    pub removed: HashSet<PeerId>,
     pub socks: Option<SocketAddr>,
     /// Proxy access mode and this machine's address on the local network (only with `localnet`).
     pub socks_access: (ListenAccess, Vec<IfaceAddr>),
@@ -262,6 +264,10 @@ mod exit_tests;
 mod tests;
 
 #[cfg(test)]
+#[path = "build_peers_tests.rs"]
+mod peers_tests;
+
+#[cfg(test)]
 #[path = "build_more_tests.rs"]
 mod more_tests;
 
@@ -284,3 +290,7 @@ mod stale_tests;
 #[cfg(test)]
 #[path = "pac_url_tests.rs"]
 mod pac_url_tests;
+
+#[cfg(test)]
+#[path = "build_removed_tests.rs"]
+mod removed_tests;

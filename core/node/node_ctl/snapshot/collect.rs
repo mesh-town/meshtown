@@ -4,10 +4,12 @@
 use crate::transport::net::PeerId;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::config_file::{IfaceFilter, ListenAccess};
 use crate::members::access::report::{members_reply, vote_summary, VoteSummary};
+use crate::members::access::view::Verdicts;
 use crate::members::stale_peers;
 use crate::node::node_state;
 use crate::node::program_version;
@@ -160,6 +162,7 @@ pub(crate) async fn collect(
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
         votes: votes_of(node),
         excluded: excluded_of(node),
+        removed: removed_of(node),
         socks: face.addr,
         socks_access: socks_access_of(&face),
         socks_ifaces: face.ifaces,
@@ -225,6 +228,19 @@ fn excluded_of(node: &RunningNode) -> HashSet<PeerId> {
     v.ledger.excluded.keys().copied().collect()
 }
 
+/// Nodes hidden from this node's member list; nothing published yet — an empty set.
+fn removed_of(node: &RunningNode) -> HashSet<PeerId> {
+    removed_of_verdicts(node.access.view.verdicts())
+}
+
+/// The pure part of `removed_of`.
+fn removed_of_verdicts(verdicts: Option<Arc<Verdicts>>) -> HashSet<PeerId> {
+    let Some(v) = verdicts else {
+        return HashSet::new();
+    };
+    v.removed_here().into_iter().collect()
+}
+
 /// The published verdicts as a summary for the page; nothing published yet — an empty one. Never recomputes.
 fn votes_of(node: &RunningNode) -> VoteSummary {
     let Some(v) = node.access.view.verdicts() else {
@@ -277,3 +293,7 @@ mod program_version_tests;
 #[cfg(test)]
 #[path = "collect_votes_tests.rs"]
 mod votes_tests;
+
+#[cfg(test)]
+#[path = "collect_removed_tests.rs"]
+mod removed_tests;
