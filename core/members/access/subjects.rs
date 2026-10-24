@@ -1,10 +1,12 @@
 //! Reading the own live records of the list out of a scan.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
+use super::authority::Rules;
 use super::record::{parse_entry, parse_key, AclKind, Parsed, Via};
+use super::tally::Exclusion;
 
 /// Subjects of the live records of `kind` written by `me` in `entries`.
 pub(super) fn live_subjects(
@@ -19,6 +21,23 @@ pub(super) fn live_subjects(
         _ => None,
     };
     entries.iter().filter_map(subject).collect()
+}
+
+/// Subjects `me` currently votes to exclude, without `me` itself. Under managed
+/// rules a vote counts only while the tally still excludes its subject: a later
+/// admit by an admin lifts the exclusion and the vote stops refusing.
+pub(super) fn my_votes_under(
+    rules: Rules,
+    entries: &[ReplicaEntry],
+    me: PeerId,
+    excluded: &BTreeMap<PeerId, Exclusion>,
+) -> BTreeSet<PeerId> {
+    let mut votes = live_subjects(entries, me, AclKind::Exclude);
+    votes.remove(&me);
+    if rules.is_managed() {
+        votes.retain(|p| excluded.contains_key(p));
+    }
+    votes
 }
 
 /// Subjects of the live admits of `me` that are only witnesses.
@@ -49,3 +68,7 @@ pub(super) fn withdrawn_subjects(
     };
     entries.iter().filter_map(subject).collect()
 }
+
+#[cfg(test)]
+#[path = "subjects_tests.rs"]
+mod tests;

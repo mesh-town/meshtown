@@ -125,5 +125,9 @@ mod tests;
 mod grant_tests;
 
 #[cfg(test)]
+#[path = "actions_managed_return_tests.rs"]
+mod return_tests;
+
+#[cfg(test)]
 #[path = "actions_managed_support.rs"]
 mod support;

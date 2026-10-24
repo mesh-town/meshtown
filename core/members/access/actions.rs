@@ -209,6 +209,9 @@ async fn exclude(a: &Access, v: &Verdicts, p: &PeerId, note: Option<&str>) -> Ne
         return Ok(false);
     }
     let vote = noted(AclKind::Exclude, *p, note.unwrap_or_default().to_owned());
+    if a.rules.is_managed() && *p != a.me {
+        return record::rewrite(&*a.shared, &vote).await.map(|_| true);
+    }
     record::ensure(&*a.shared, &vote).await
 }
 

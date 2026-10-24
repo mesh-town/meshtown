@@ -9,7 +9,7 @@ use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
 use crate::members::access::runtime::Access;
 use crate::members::access::tally::Ledger;
-use crate::members::access::view::AccessView;
+use crate::members::access::view::{AccessView, Deny};
 use crate::members::membership::Members;
 use crate::transport::net::contract::{pid, secret};
 use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
@@ -150,6 +150,11 @@ impl World {
             .refresh()
             .await
             .expect("the recompute must work on a healthy replica");
+    }
+
+    /// What this node's view says about letting `peer` in.
+    pub(super) fn verdict(&self, peer: PeerId) -> Result<(), Deny> {
+        self.access.view.check(peer)
     }
 
     pub(super) fn ledger(&self) -> Arc<Ledger> {
