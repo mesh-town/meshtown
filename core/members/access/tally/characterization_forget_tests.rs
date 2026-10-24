@@ -29,7 +29,8 @@ mod threshold {
                 "forgets: {B: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -52,7 +53,8 @@ mod threshold {
                 "forgets: {C: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -75,7 +77,8 @@ mod threshold {
                 "forgets: {C: ForgetRound { voters: [A, B], at_unix: Some(200) }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 200}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -101,7 +104,8 @@ mod threshold {
                 "forgets: {B: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {E: 50, B: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -123,7 +127,8 @@ mod threshold {
                 "forgets: {D: ForgetRound { voters: [A, B], at_unix: Some(30) }, C: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {B: 0, D: 0, C: 0}, ",
                 "forget_marks: {D: 30, C: 10}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             ));
     }
 }
@@ -150,7 +155,8 @@ mod return_of_forgotten {
                 "forgets: {}, ",
                 "admit_unix: {B: 101}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -174,7 +180,8 @@ mod return_of_forgotten {
                 "forgets: {B: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 100}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -203,7 +210,8 @@ mod return_of_forgotten {
                 "forgets: {C: ForgetRound { voters: [A, B], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0}, ",
                 "forget_marks: {C: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -233,7 +241,8 @@ mod return_of_forgotten {
                 "forgets: {B: ForgetRound { voters: [A, D], at_unix: Some(100) }, C: ForgetRound { voters: [A, D], at_unix: Some(101) }}, ",
                 "admit_unix: {E: 0, B: 150, D: 0, C: 150}, ",
                 "forget_marks: {B: 100, C: 101}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             ));
     }
 }
@@ -263,7 +272,8 @@ mod forgotten_node {
                 "forgets: {D: ForgetRound { voters: [B, A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0, D: 0, C: 0}, ",
                 "forget_marks: {D: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -292,7 +302,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 50, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -321,7 +332,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 150, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -350,7 +362,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 160, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -374,7 +387,8 @@ mod forgotten_node {
                 "forgets: {C: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }

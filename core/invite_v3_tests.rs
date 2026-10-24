@@ -33,6 +33,7 @@ fn head() -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: None,
         made_unix: T,
+        kind: NetKind::Peer,
     }
 }
 
@@ -121,6 +122,8 @@ async fn make_names_listed_members_without_a_connection() {
         admit_unix: Default::default(),
         forget_marks: Default::default(),
         forget_need: 1,
+        admins: Default::default(),
+        closed: None,
     };
     let verdicts = Verdicts {
         me: node.id,

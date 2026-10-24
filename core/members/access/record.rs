@@ -11,6 +11,12 @@ use crate::transport::net::{PeerId, ReplicaEntry};
 
 pub use super::record_input::{tally_input, tally_input_under};
 pub use super::record_io::{ensure, put, rewrite, withdraw};
+pub use super::record_keys::{
+    admit_key, block_key, exclude_key, forget_key, grant_key, revoke_key,
+};
+use super::record_keys::{
+    subject_of, ADMIT_PREFIX, EXCLUDE_PREFIX, FORGET_PREFIX, GRANT_PREFIX, REVOKE_PREFIX,
+};
 
 /// Version byte of the value layout.
 pub const ACL_VALUE_VERSION: u8 = 1;
@@ -24,9 +30,8 @@ pub const BLOCK_PREFIX: &[u8] = b"acl-block/";
 pub const BOOT_KEY: &[u8] = b"acl/boot";
 /// Note of the boot marker of a node that counts admissions by one confirmation.
 pub const BOOT_NOTE_ADMISSION: &str = "admission-v2";
-const ADMIT_PREFIX: &[u8] = b"acl/admit/";
-const EXCLUDE_PREFIX: &[u8] = b"acl/exclude/";
-const FORGET_PREFIX: &[u8] = b"acl/forget/";
+/// Key of the closing record of a managed network.
+pub const CLOSE_KEY: &[u8] = b"acl/close";
 
 /// What a record says.
 #[repr(u8)]
@@ -37,6 +42,9 @@ pub enum AclKind {
     Block = 3,
     Boot = 4,
     Forget = 5,
+    Grant = 6,
+    Revoke = 7,
+    Close = 8,
 }
 
 impl AclKind {
@@ -47,6 +55,9 @@ impl AclKind {
             AclKind::Block,
             AclKind::Boot,
             AclKind::Forget,
+            AclKind::Grant,
+            AclKind::Revoke,
+            AclKind::Close,
         ]
         .into_iter()
         .find(|k| *k as u8 == b)
@@ -139,33 +150,7 @@ pub enum Parsed {
     Ignored(Ignored),
 }
 
-fn key_with(prefix: &[u8], subject: &PeerId) -> Vec<u8> {
-    let mut key = prefix.to_vec();
-    key.extend_from_slice(subject.to_string().as_bytes());
-    key
-}
-
-/// Key `acl/admit/<hex>`.
-pub fn admit_key(subject: &PeerId) -> Vec<u8> {
-    key_with(ADMIT_PREFIX, subject)
-}
-
-/// Key `acl/exclude/<hex>`.
-pub fn exclude_key(subject: &PeerId) -> Vec<u8> {
-    key_with(EXCLUDE_PREFIX, subject)
-}
-
-/// Key `acl/forget/<hex>`.
-pub fn forget_key(subject: &PeerId) -> Vec<u8> {
-    key_with(FORGET_PREFIX, subject)
-}
-
-/// Key `acl-block/<hex>`.
-pub fn block_key(subject: &PeerId) -> Vec<u8> {
-    key_with(BLOCK_PREFIX, subject)
-}
-
-/// Key by kind; `Boot` ignores the subject.
+/// Key by kind; `Boot` and `Close` ignore the subject.
 pub fn key_for(kind: AclKind, subject: &PeerId) -> Vec<u8> {
     match kind {
         AclKind::Admit => admit_key(subject),
@@ -173,12 +158,10 @@ pub fn key_for(kind: AclKind, subject: &PeerId) -> Vec<u8> {
         AclKind::Forget => forget_key(subject),
         AclKind::Block => block_key(subject),
         AclKind::Boot => BOOT_KEY.to_vec(),
+        AclKind::Grant => grant_key(subject),
+        AclKind::Revoke => revoke_key(subject),
+        AclKind::Close => CLOSE_KEY.to_vec(),
     }
-}
-
-fn subject_of(key: &[u8], prefix: &[u8]) -> Option<PeerId> {
-    let hex = std::str::from_utf8(key.strip_prefix(prefix)?).ok()?;
-    hex.parse().ok()
 }
 
 /// Strict key parse: the exact form `key_for` produces, nothing else.
@@ -186,11 +169,21 @@ pub(super) fn parse_key(key: &[u8]) -> Option<(AclKind, Option<PeerId>)> {
     if key == BOOT_KEY {
         return Some((AclKind::Boot, None));
     }
+    if key == CLOSE_KEY {
+        return Some((AclKind::Close, None));
+    }
     let admit = subject_of(key, ADMIT_PREFIX).map(|s| (AclKind::Admit, s));
     let exclude = || subject_of(key, EXCLUDE_PREFIX).map(|s| (AclKind::Exclude, s));
     let forget = || subject_of(key, FORGET_PREFIX).map(|s| (AclKind::Forget, s));
     let block = || subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s));
-    let (kind, subject) = admit.or_else(exclude).or_else(forget).or_else(block)?;
+    let grant = || subject_of(key, GRANT_PREFIX).map(|s| (AclKind::Grant, s));
+    let revoke = || subject_of(key, REVOKE_PREFIX).map(|s| (AclKind::Revoke, s));
+    let (kind, subject) = admit
+        .or_else(exclude)
+        .or_else(forget)
+        .or_else(block)
+        .or_else(grant)
+        .or_else(revoke)?;
     (key_for(kind, &subject) == key).then_some((kind, Some(subject)))
 }
 
@@ -239,7 +232,7 @@ fn from_body(body: Body) -> Result<AclValue, Ignored> {
 
 fn matches_key(kind: AclKind, key_subject: Option<PeerId>, v: &AclValue, author: PeerId) -> bool {
     match (kind, key_subject) {
-        (AclKind::Boot, _) => v.kind == kind && v.subject == author,
+        (AclKind::Boot | AclKind::Close, _) => v.kind == kind && v.subject == author,
         (_, Some(s)) => v.kind == kind && v.subject == s,
         (_, None) => false,
     }

@@ -105,6 +105,8 @@ impl Pass {
             admit_unix: BTreeMap::new(),
             forget_marks: BTreeMap::new(),
             forget_need: self.forget_need,
+            admins: BTreeSet::new(),
+            closed: None,
         }
     }
 }
@@ -117,6 +119,9 @@ impl Forgotten for BTreeMap<PeerId, ForgetRound> {
 
 /// Computes the ledger of the node `input.me`.
 pub fn tally(input: &TallyInput) -> Ledger {
+    if let Some(root) = input.rules.root() {
+        return super::super::managed::tally(root, input);
+    }
     let mut pass = Pass::new(input);
     for v in sorted_votes(&input.votes) {
         pass.vote(&v);

@@ -105,6 +105,7 @@ pub(super) fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput
         votes: Vec::new(),
         forgets,
         rules: Rules::Peer,
+        powers: vec![],
     }
 }
 

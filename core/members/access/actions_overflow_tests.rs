@@ -22,6 +22,7 @@ fn forget_vote_after_an_admission_at_the_largest_time_does_not_overflow() {
         votes: Vec::new(),
         forgets: Vec::new(),
         rules: Rules::Peer,
+        powers: vec![],
     });
     let verdicts = Verdicts {
         me,

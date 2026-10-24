@@ -79,7 +79,7 @@ fn enums_from_u8_reject_unknown_bytes() {
     // given / when / then: known bytes map to their variants, the others to nothing
     assert_eq!(AclKind::from_u8(1), Some(AclKind::Admit));
     assert_eq!(AclKind::from_u8(4), Some(AclKind::Boot));
-    assert_eq!((AclKind::from_u8(0), AclKind::from_u8(6)), (None, None));
+    assert_eq!((AclKind::from_u8(0), AclKind::from_u8(9)), (None, None));
     assert_eq!(Via::from_u8(0), Some(Via::None));
     assert_eq!(Via::from_u8(3), Some(Via::Witness));
     assert_eq!((Via::from_u8(4), Via::from_u8(255)), (None, None));

@@ -78,6 +78,8 @@ fn one_vote_waiting(me: PeerId) -> Verdicts {
             admit_unix: Default::default(),
             forget_marks: Default::default(),
             forget_need: 1,
+            admins: Default::default(),
+            closed: None,
         },
     )
 }
@@ -103,6 +105,8 @@ fn excluding(me: PeerId) -> Verdicts {
             admit_unix: Default::default(),
             forget_marks: Default::default(),
             forget_need: 1,
+            admins: Default::default(),
+            closed: None,
         },
     )
 }
@@ -187,6 +191,8 @@ fn requests_waiting(me: PeerId, me_asks: bool) -> Verdicts {
             admit_unix: Default::default(),
             forget_marks: Default::default(),
             forget_need: 1,
+            admins: Default::default(),
+            closed: None,
         },
     )
 }
@@ -243,6 +249,8 @@ fn excluding_peer(me: PeerId, x: PeerId) -> Verdicts {
             admit_unix: Default::default(),
             forget_marks: Default::default(),
             forget_need: 1,
+            admins: Default::default(),
+            closed: None,
         },
     )
 }

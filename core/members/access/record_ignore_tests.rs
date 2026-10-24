@@ -25,7 +25,7 @@ fn ignores_unknown_version() {
 fn ignores_unknown_kind() {
     // given: kinds outside 1..=5 and a via outside 0..=3 in otherwise good bodies
     // when / then: the kind and the via are told apart
-    for kind in [0, 6, 255] {
+    for kind in [0, 9, 255] {
         let bytes = raw(Raw {
             kind,
             ..Raw::default()

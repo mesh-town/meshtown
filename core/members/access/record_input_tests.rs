@@ -82,6 +82,77 @@ fn garbage_counts_as_ignored() {
     assert_eq!(admit_rows(&input), [(a, b)]);
 }
 
+mod powers {
+    use super::*;
+    use crate::members::access::authority::{Power, PowerIn};
+    use crate::members::access::record::{grant_key, revoke_key, Via, CLOSE_KEY};
+
+    #[test]
+    fn powers_from_records() {
+        // given: A admits B by an invitation and by a witness record, makes B an admin, takes the role
+        // back, and closes the network; the records are written at 100..=500 us
+        let (me, a, b) = (pid(1), pid(2), pid(3));
+        let value = |kind, subject| AclValue {
+            kind,
+            subject,
+            ..admit_of(subject)
+        };
+        let witness = AclValue {
+            via: Via::Witness,
+            ..admit_of(pid(4))
+        };
+        let entries = [
+            entry(a, admit_key(&b), encode(&admit_of(b)), 100),
+            entry(a, admit_key(&pid(4)), encode(&witness), 150),
+            entry(a, grant_key(&b), encode(&value(AclKind::Grant, b)), 200),
+            entry(a, revoke_key(&b), encode(&value(AclKind::Revoke, b)), 300),
+            entry(
+                a,
+                CLOSE_KEY.to_vec(),
+                encode(&value(AclKind::Close, a)),
+                500,
+            ),
+        ];
+        // when: the input is built
+        let (input, ignored) = tally_input(me, &entries);
+        // then: every record is a record of power with the time of the entry (not the time inside
+        // the value); an admission is also an admit row as before
+        let power = |power, subject, ts_micros| PowerIn {
+            author: a,
+            power,
+            subject,
+            ts_micros,
+        };
+        let want = vec![
+            power(Power::Admit(Via::Invite), b, 100),
+            power(Power::Admit(Via::Witness), pid(4), 150),
+            power(Power::Grant, b, 200),
+            power(Power::Revoke, b, 300),
+            power(Power::Close, a, 500),
+        ];
+        assert_eq!(input.powers, want);
+        assert_eq!(admit_rows(&input), [(a, b), (a, pid(4))]);
+        assert_eq!(ignored, 0);
+    }
+
+    #[test]
+    fn power_tombstones_are_absent() {
+        // given: A's tombstones under the grant, revoke, close and admit keys
+        let (me, a, b) = (pid(1), pid(2), pid(3));
+        let entries = [
+            entry(a, grant_key(&b), vec![], 200),
+            entry(a, revoke_key(&b), vec![], 210),
+            entry(a, CLOSE_KEY.to_vec(), vec![], 220),
+            entry(a, admit_key(&b), vec![], 230),
+        ];
+        // when: the input is built
+        let (input, ignored) = tally_input(me, &entries);
+        // then: a taken-back record is not a record of power; nobody counts it as garbage
+        assert!(input.powers.is_empty() && admit_rows(&input).is_empty());
+        assert_eq!(ignored, 0);
+    }
+}
+
 // --- helpers ---
 
 fn admit_rows(input: &TallyInput) -> Vec<(PeerId, PeerId)> {
