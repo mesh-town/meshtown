@@ -9,7 +9,7 @@ use super::nets_ui::insert_position;
 
 use super::core::{MENU_INVITE, MENU_SERVE};
 use crate::gui::tray::app::exit_menu::ExitMenu;
-use crate::gui::tray::app::tray_actions::{invite_item_text, InviteNote};
+use crate::gui::tray::app::tray_actions::{flat_invite_text, InviteNote};
 use crate::gui::tray::app::tray_texts::SERVE_TEXT;
 
 /// Live items of the actions block.
@@ -19,16 +19,21 @@ pub(super) struct ActionsUi {
     /// The menu the items were put into, to hide and show them again.
     menu: Option<Menu>,
     flat_visible: bool,
+    /// The last note and right to invite: together they decide the label of the invite item.
+    note: InviteNote,
+    can_invite: bool,
 }
 
 impl ActionsUi {
     /// The invite item with a label by state; unavailable until the first snapshot.
     pub(super) fn build(note: InviteNote) -> ActionsUi {
         ActionsUi {
-            invite_item: MenuItem::with_id(MENU_INVITE, invite_item_text(note), false, None),
+            invite_item: MenuItem::with_id(MENU_INVITE, flat_invite_text(true, note), false, None),
             serve: CheckMenuItem::with_id(MENU_SERVE, SERVE_TEXT, false, false, None),
             menu: None,
             flat_visible: true,
+            note,
+            can_invite: true,
         }
     }
 
@@ -40,8 +45,12 @@ impl ActionsUi {
     }
 
     /// Availability is the same as for the exits submenu; the checkbox follows the snapshot.
-    pub(super) fn apply_exit_menu(&self, menu: &ExitMenu) {
-        self.invite_item.set_enabled(menu.enabled);
+    pub(super) fn apply_exit_menu(&mut self, menu: &ExitMenu) {
+        self.can_invite = menu.can_invite;
+        self.invite_item
+            .set_text(flat_invite_text(self.can_invite, self.note));
+        self.invite_item
+            .set_enabled(menu.enabled && menu.can_invite);
         self.serve.set_enabled(menu.enabled);
         self.serve.set_checked(menu.serves_exit);
     }
@@ -65,7 +74,9 @@ impl ActionsUi {
     }
 
     /// Only the label of the invite item.
-    pub(super) fn show_invite(&self, note: InviteNote) {
-        self.invite_item.set_text(invite_item_text(note));
+    pub(super) fn show_invite(&mut self, note: InviteNote) {
+        self.note = note;
+        self.invite_item
+            .set_text(flat_invite_text(self.can_invite, note));
     }
 }

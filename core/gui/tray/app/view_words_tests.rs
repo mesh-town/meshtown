@@ -21,7 +21,7 @@ mod open_text {
         #[test]
         fn outside_network_offers_join() {
             let view = view(NodeState::Running, TrayColor::Grey, PageState::Ready);
-            assert_eq!(page_text(view), "Join a Mesh Town network…");
+            assert_eq!(page_text(view), "Join or create a network…");
         }
 
         #[test]

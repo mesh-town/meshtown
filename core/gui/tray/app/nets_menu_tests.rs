@@ -205,6 +205,91 @@ mod groups_from_slots {
     }
 }
 
+mod managed_titles {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn member_of_a_managed_network_sees_managed_after_the_counts() {
+        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+
+        assert_eq!(
+            title_with(friends(), extra),
+            "friends — 2 of 3 online · managed"
+        );
+    }
+
+    #[test]
+    fn admin_of_a_managed_network_is_told_so() {
+        let extra = json!({ "kind": "Managed", "me_admin": true, "can_invite": true });
+
+        assert_eq!(
+            title_with(friends(), extra),
+            "friends — 2 of 3 online · managed, you're an admin"
+        );
+    }
+
+    #[test]
+    fn offline_managed_network_keeps_the_managed_tail() {
+        let offline = NetSpec {
+            status: "offline",
+            ..friends()
+        };
+        let extra = json!({ "kind": "Managed", "me_admin": false });
+
+        assert_eq!(
+            title_with(offline, extra),
+            "friends — no connection · managed"
+        );
+    }
+
+    #[test]
+    fn offline_managed_network_tells_the_admin_too() {
+        let offline = NetSpec {
+            status: "offline",
+            ..friends()
+        };
+        let extra = json!({ "kind": "Managed", "me_admin": true });
+
+        assert_eq!(
+            title_with(offline, extra),
+            "friends — no connection · managed, you're an admin"
+        );
+    }
+
+    #[test]
+    fn managed_state_in_the_slot_is_enough_for_the_tail() {
+        // given: no kind in the summary entry, only in the state of the slot
+        let mut json = overview_json(&[friends()]);
+        json["slots"][0]["state"]["network"] = json!({ "kind": "Managed", "me_role": "admin" });
+
+        // when
+        let vis = visible_slots(parse_overview(&json).expect("a summary"));
+
+        // then
+        let title = nets_from_slots(&vis).remove(0).title;
+        assert_eq!(title, "friends — 2 of 3 online · managed, you're an admin");
+    }
+
+    #[test]
+    fn peer_network_title_is_unchanged() {
+        let extra = json!({ "kind": "Peer", "me_admin": false, "can_invite": true });
+
+        assert_eq!(title_with(friends(), extra), "friends — 2 of 3 online");
+        assert_eq!(title_of(friends()), "friends — 2 of 3 online");
+    }
+
+    #[test]
+    fn offline_peer_network_title_is_unchanged() {
+        let offline = NetSpec {
+            status: "offline",
+            ..friends()
+        };
+
+        assert_eq!(title_of(offline), "friends — no connection");
+    }
+}
+
 fn visible(specs: &[NetSpec]) -> Vec<SlotView> {
     visible_slots(parse_overview(&overview_json(specs)).expect("a summary"))
 }
@@ -215,4 +300,14 @@ fn title_of(net: NetSpec) -> String {
 
 fn names(rows: &[PeerRow]) -> Vec<&str> {
     rows.iter().map(|r| r.name.as_str()).collect()
+}
+
+/// The title of one network whose summary entry has `extra` fields merged in.
+fn title_with(net: NetSpec, extra: serde_json::Value) -> String {
+    let mut json = overview_json(&[net]);
+    for (key, value) in extra.as_object().expect("an object") {
+        json["nets"][0][key] = value.clone();
+    }
+    let vis = visible_slots(parse_overview(&json).expect("a summary"));
+    nets_from_slots(&vis).remove(0).title
 }

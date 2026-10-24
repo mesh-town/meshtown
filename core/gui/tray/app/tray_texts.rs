@@ -30,6 +30,8 @@ pub(crate) fn quit_text() -> String {
 
 /// The node answered 409: it is still joining the network.
 pub(crate) const REASON_JOINING: &str = "Mesh Town is still joining the network";
+/// The node answered 409 `not_admin`: only admins of the network issue invites.
+pub(crate) const REASON_NOT_ADMIN: &str = "only admins can invite to this network";
 /// Other node answers and network failures.
 pub(crate) const REASON_NO_ANSWER: &str = "Mesh Town didn't create an invite";
 /// No clipboard program in the system.
@@ -69,14 +71,14 @@ pub(crate) fn serve_disable_failed_text(reason: &str) -> String {
 pub(crate) fn status_absent_text() -> String {
     format!("{NET_NAME} is stopped — sites won't open through it")
 }
-/// Our own node was removed from the network by a vote: nothing opens through it.
+/// Our own node was banned from the network by a vote: nothing opens through it.
 pub(crate) fn status_excluded_text() -> String {
     format!("This computer is no longer in the network — sites won't open through {NET_NAME}")
 }
-/// The menu item shown while a removal vote is in progress; a click opens the members section.
-pub(crate) const VOTE_ITEM_TEXT: &str = "Removal vote in progress — open Members…";
-/// The tail of the icon hint while a removal vote is in progress.
-pub(crate) const VOTE_TOOLTIP_TAIL: &str = " · a removal vote is in progress";
+/// The menu item shown while a ban vote is in progress; a click opens the members section.
+pub(crate) const VOTE_ITEM_TEXT: &str = "Ban vote in progress — open Members…";
+/// The tail of the icon hint while a ban vote is in progress.
+pub(crate) const VOTE_TOOLTIP_TAIL: &str = " · a ban vote is in progress";
 /// The menu item shown while a node waits to join; a click opens the members section.
 pub(crate) const ADMIT_ITEM_TEXT: &str = "A node is waiting to join — open Members…";
 /// The tail of the icon hint while a node waits to join.
@@ -133,9 +135,13 @@ pub(crate) fn net_lost_status_text() -> String {
 pub(crate) fn page_open_text() -> String {
     format!("Open {APP_NAME}…")
 }
+/// The item that opens the form for adding one more network.
+pub(crate) const ADD_NET_TEXT: &str = "Add a network…";
+/// The flat-menu invite item for a member who may not invite.
+pub(crate) const INVITE_ADMINS_ONLY_TEXT: &str = "Only admins can invite";
 /// The "Open" item while not yet joined to a network.
 pub(crate) fn page_join_text() -> String {
-    format!("Join a {NET_NAME} network…")
+    "Join or create a network…".to_string()
 }
 /// The "Open" item while the node page is starting.
 pub(crate) const PAGE_STARTING_TEXT: &str = "Mesh Town page is starting…";

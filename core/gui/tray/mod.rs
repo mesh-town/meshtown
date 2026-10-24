@@ -26,6 +26,7 @@ mod backend;
 mod clipboard;
 mod core;
 mod exit_menu;
+mod extras_ui;
 mod frame_cache;
 mod menu_build;
 mod nets_click;

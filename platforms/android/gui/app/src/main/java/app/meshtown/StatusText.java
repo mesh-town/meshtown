@@ -106,8 +106,21 @@ final class StatusText {
         if (!hasNetwork(s)) {
             return "Erase all Mesh Town settings on this phone?";
         }
-        return "This phone leaves the network and forgets its settings. "
+        String base = "This phone leaves the network and forgets its settings. "
                 + "To come back, you'll need a new invite from a member.";
+        return isLastAdmin(s) ? base + "\n\n" + onlyAdminLine(s) : base;
+    }
+
+    /** The only admin of an administered network: after the reset nobody is left to invite or remove members. */
+    private static boolean isLastAdmin(NodeState s) {
+        return s.inNetwork && "admin".equals(s.meRole) && s.adminCount == 1;
+    }
+
+    private static String onlyAdminLine(NodeState s) {
+        String net = s.networkName == null ? "this network" : "\"" + s.networkName + "\"";
+        return "You're the only admin of " + net + ". "
+                + "After the reset nobody can invite or remove members there. "
+                + "Make another member an admin first: Members \u2192 \u22EF \u2192 Make admin.";
     }
 
     private static boolean hasNetwork(NodeState s) {

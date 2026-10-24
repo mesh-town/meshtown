@@ -18,6 +18,12 @@ pub struct SlotView {
     pub peers_total: u32,
     pub members_voting: u32,
     pub members_admitting: u32,
+    /// The network is administered (`kind` is `Managed`); a peer network is the default.
+    pub managed: bool,
+    /// We are an admin of the network.
+    pub admin: bool,
+    /// We may issue invites here; an unreadable or missing flag never forbids it.
+    pub can_invite: bool,
     /// The `/api/state` document of the slot; `Null` when the slot has none.
     pub state: Value,
 }
@@ -40,9 +46,39 @@ pub fn main_slot(vis: &[SlotView]) -> Option<&SlotView> {
     vis.iter().find(|s| s.proxy).or_else(|| vis.first())
 }
 
+/// A note of the summary: a network that an admin deleted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Notice {
+    pub id: u64,
+    pub label: String,
+}
+
+/// The deleted-network notes of a summary in array order; entries without a numeric `id` or of another kind are skipped.
+pub fn parse_notices(v: &Value) -> Vec<Notice> {
+    let list = v.get("notices").and_then(Value::as_array);
+    list.map(|l| l.iter().filter_map(notice).collect())
+        .unwrap_or_default()
+}
+
+fn notice(n: &Value) -> Option<Notice> {
+    (n.get("kind")?.as_str()? == "net_deleted").then_some(())?;
+    Some(Notice {
+        id: n.get("id")?.as_u64()?,
+        label: text(n, "label").unwrap_or_default(),
+    })
+}
+
 fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
     let slot = text(net, "id").unwrap_or_default();
+    let state = state_of(&slot, slots);
+    let own = state.get("network").unwrap_or(&Value::Null);
     SlotView {
+        managed: kind_of(net).or(kind_of(own)) == Some("Managed"),
+        admin: opt_flag(net, "me_admin")
+            .unwrap_or_else(|| own.get("me_role").and_then(Value::as_str) == Some("admin")),
+        can_invite: opt_flag(net, "can_invite")
+            .or_else(|| opt_flag(own, "can_invite"))
+            .unwrap_or(true),
         label: text(net, "label"),
         joining: flag(net, "joining"),
         keyed: net.get("id_hex").is_some_and(Value::is_string),
@@ -52,7 +88,7 @@ fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
         peers_total: count(net, "peers_total"),
         members_voting: count(net, "members_voting"),
         members_admitting: count(net, "members_admitting"),
-        state: state_of(&slot, slots),
+        state,
         slot,
     }
 }
@@ -65,6 +101,14 @@ fn state_of(slot: &str, slots: &[Value]) -> Value {
         .and_then(|s| s.get("state"))
         .cloned()
         .unwrap_or(Value::Null)
+}
+
+fn kind_of(v: &Value) -> Option<&str> {
+    v.get("kind").and_then(Value::as_str)
+}
+
+fn opt_flag(v: &Value, key: &str) -> Option<bool> {
+    v.get(key).and_then(Value::as_bool)
 }
 
 fn text(v: &Value, key: &str) -> Option<String> {

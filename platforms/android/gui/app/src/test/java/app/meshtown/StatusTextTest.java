@@ -2,6 +2,7 @@ package app.meshtown;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -91,7 +92,7 @@ public class StatusTextTest {
 
     @Test
     public void excludedTextPointsToTheMenu() {
-        assertEquals("Removed from the network — tap ⋮ → Leave network and reset",
+        assertEquals("Banned from the network — tap ⋮ → Leave network and reset",
                 NodeState.EXCLUDED_TEXT);
     }
 
@@ -109,5 +110,45 @@ public class StatusTextTest {
         assertEquals("Reset app…", StatusText.resetMenuTitle(OUT));
         assertNull(StatusText.resetTitle(OUT));
         assertEquals("Erase all Mesh Town settings on this phone?", StatusText.resetMessage(OUT));
+    }
+
+    private static final String RESET_BASE = "This phone leaves the network and forgets its settings. "
+            + "To come back, you'll need a new invite from a member.";
+    private static final String ONLY_ADMIN_LINE = "You're the only admin of \"probe\". "
+            + "After the reset nobody can invite or remove members there. "
+            + "Make another member an admin first: Members \u2192 \u22EF \u2192 Make admin.";
+
+    private static NodeState managed(String role, String admins) {
+        return NodeState.parse("{\"network\":{\"label\":\"probe\",\"id_hex\":\"ab\",\"kind\":\"Managed\","
+                + "\"me_role\":\"" + role + "\",\"admins\":" + admins + "}}");
+    }
+
+    @Test
+    public void lastAdminIsWarnedInTheResetWindow() {
+        String message = StatusText.resetMessage(managed("admin", "[\"me\"]"));
+        assertTrue(message.startsWith(RESET_BASE));
+        assertTrue(message, message.endsWith(ONLY_ADMIN_LINE));
+    }
+
+    @Test
+    public void oneOfSeveralAdminsGetsTheUsualResetMessage() {
+        assertEquals(RESET_BASE, StatusText.resetMessage(managed("admin", "[\"me\",\"other\"]")));
+    }
+
+    @Test
+    public void plainMemberGetsTheUsualResetMessage() {
+        assertEquals(RESET_BASE, StatusText.resetMessage(managed("member", "[\"other\"]")));
+    }
+
+    @Test
+    public void peerNetworkKeepsTheUsualResetMessage() {
+        assertEquals(RESET_BASE, StatusText.resetMessage(DIRECT));
+    }
+
+    @Test
+    public void resetButtonsAndTitleStayTheSameForTheLastAdmin() {
+        NodeState s = managed("admin", "[\"me\"]");
+        assertEquals("Leave network and reset\u2026", StatusText.resetMenuTitle(s));
+        assertEquals("Leave the network \"probe\"?", StatusText.resetTitle(s));
     }
 }

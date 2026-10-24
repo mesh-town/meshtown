@@ -3,7 +3,9 @@
 
 use crate::gui::tray::app::exit_menu::{exit_menu_from_snapshot, ExitMenu};
 use crate::gui::tray::app::nets_menu::{groups_from_slots, nets_from_slots};
-use crate::gui::tray::app::overview::{main_slot, parse_overview, visible_slots, SlotView};
+use crate::gui::tray::app::overview::{
+    main_slot, parse_notices, parse_overview, visible_slots, SlotView,
+};
 use crate::gui::tray::app::proxy_state::ProxyState;
 use crate::gui::tray::app::snapshot::TraySnapshot;
 use crate::gui::tray::app::view::{
@@ -64,7 +66,11 @@ pub(super) fn views_from_state_json(
     tray_proxy_plan: &ProxyState,
 ) -> (ExitMenu, View) {
     match parse_overview(state_json) {
-        Some(all) => views_from_overview(&all, tray_proxy_plan),
+        Some(all) => {
+            let (mut menu, view) = views_from_overview(&all, tray_proxy_plan);
+            menu.notices = parse_notices(state_json);
+            (menu, view)
+        }
         None => views_from_state(state_json, tray_proxy_plan),
     }
 }
@@ -88,6 +94,7 @@ fn views_from_overview(all: &[SlotView], tray_proxy_plan: &ProxyState) -> (ExitM
     let snap = TraySnapshot::from_value(&main.state);
     let mut menu = exit_menu_from_snapshot(&snap);
     menu.slot = Some(main.slot.clone());
+    menu.can_invite = !main.managed || main.can_invite;
     menu.proxy = proxy_of(all, &snap).with_flag_reason_from(tray_proxy_plan);
     if vis.len() >= 2 {
         nest(&mut menu, &vis, main);

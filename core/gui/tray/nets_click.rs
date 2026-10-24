@@ -10,11 +10,18 @@ use crate::gui::tray::app::members_note::with_anchor;
 pub enum MenuTarget {
     Open,
     Vote,
+    /// "Add a network…": opens the add form of the page.
+    Add,
+    /// A deleted-network note, by its number: opens the member list.
+    Notice(u64),
     Node,
     Quit,
     Invite(Option<String>),
     Serve(Option<String>),
-    Exit { slot: Option<String>, id: String },
+    Exit {
+        slot: Option<String>,
+        id: String,
+    },
     Directly,
     Members(String),
     Unknown,
@@ -49,6 +56,7 @@ fn plain_target(id: &str) -> MenuTarget {
     match id {
         "open" => MenuTarget::Open,
         "vote" => MenuTarget::Vote,
+        "add" => MenuTarget::Add,
         "node" => MenuTarget::Node,
         "quit" => MenuTarget::Quit,
         "invite" => MenuTarget::Invite(None),
@@ -65,6 +73,7 @@ fn prefixed_target(kind: &str, rest: &str) -> MenuTarget {
         ("invite", slot) => MenuTarget::Invite(Some(slot.to_string())),
         ("serve", slot) => MenuTarget::Serve(Some(slot.to_string())),
         ("peer" | "members", slot) => MenuTarget::Members(slot.to_string()),
+        ("notice", id) => id.parse().map_or(MenuTarget::Unknown, MenuTarget::Notice),
         _ => MenuTarget::Unknown,
     }
 }
@@ -114,6 +123,8 @@ pub fn link_for(target: &MenuTarget, base: &str, facts: &MenuFacts) -> Option<St
         MenuTarget::Open => Some(base.to_string()),
         MenuTarget::Members(slot) => Some(with_anchor(base, &format!("peers/{slot}"))),
         MenuTarget::Vote => Some(with_anchor(base, &vote_anchor(facts))),
+        MenuTarget::Add => Some(with_anchor(base, "peers/add")),
+        MenuTarget::Notice(_) => Some(with_anchor(base, "peers")),
         _ => None,
     }
 }

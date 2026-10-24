@@ -40,7 +40,7 @@ fn excluded_line_absent_otherwise() {
 
 #[test]
 fn vote_item_only_with_vote_and_not_excluded() {
-    let text = Some("Removal vote in progress — open Members…");
+    let text = Some("Ban vote in progress — open Members…");
     assert_eq!(vote_item_text(2, false), text);
     assert_eq!(vote_item_text(0, false), None);
     assert_eq!(vote_item_text(2, true), None);
@@ -52,7 +52,7 @@ fn tooltip_gets_tail_only_during_a_vote() {
     assert_eq!(tooltip_text("Mesh Town", members(0, false)), "Mesh Town");
     assert_eq!(
         tooltip_text("Mesh Town", members(1, false)),
-        "Mesh Town · a removal vote is in progress"
+        "Mesh Town · a ban vote is in progress"
     );
 }
 
@@ -114,7 +114,7 @@ fn admit_item_shown_only_with_requests() {
     assert_eq!(admit_item_text(1, false), text);
     assert_eq!(admit_item_text(0, false), None);
     assert_eq!(admit_item_text(1, true), None);
-    // one menu slot: a removal vote wins over a request
+    // one menu slot: a ban vote wins over a request
     assert_eq!(
         members_item_text(TrayMembers {
             voting: 1,
@@ -144,7 +144,7 @@ fn tooltip_tails_for_vote_request_and_pending() {
     };
     assert_eq!(
         tooltip_text("Mesh Town", all),
-        "Mesh Town · a removal vote is in progress · a node is waiting to join · waiting for members to confirm this computer"
+        "Mesh Town · a ban vote is in progress · a node is waiting to join · waiting for members to confirm this computer"
     );
 }
 
@@ -161,4 +161,24 @@ fn tray_members_reads_an_old_state() {
             ..TrayMembers::default()
         }
     );
+}
+
+mod ban_words {
+    use crate::gui::tray::app::nets_texts::vote_text;
+    use crate::gui::tray::app::tray_texts::{VOTE_ITEM_TEXT, VOTE_TOOLTIP_TAIL};
+
+    #[test]
+    fn item_says_ban_vote() {
+        assert_eq!(VOTE_ITEM_TEXT, "Ban vote in progress — open Members…");
+    }
+
+    #[test]
+    fn tooltip_tail_says_ban_vote() {
+        assert_eq!(VOTE_TOOLTIP_TAIL, " · a ban vote is in progress");
+    }
+
+    #[test]
+    fn item_of_a_named_network_says_ban_vote() {
+        assert_eq!(vote_text("work"), "Ban vote in work — open Members…");
+    }
 }

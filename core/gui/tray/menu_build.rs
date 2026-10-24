@@ -158,6 +158,7 @@ pub(super) struct TrayUi {
     pub(super) actions: ActionsUi,
     pub(super) vote: super::vote_item::VoteUi,
     pub(super) nets: super::nets_ui::NetsUi,
+    pub(super) extras: super::extras_ui::ExtrasUi,
 }
 
 impl TrayUi {

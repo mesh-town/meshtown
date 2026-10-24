@@ -164,4 +164,50 @@ public class NodeStateTest {
         assertFalse(NodeState.parse("{\"route\":{\"state\":\"unavailable\"}}").exitLost());
         assertFalse(NodeState.UNREACHABLE.exitLost());
     }
+
+    private static String network(String extra) {
+        return "{\"network\":{\"label\":\"probe\",\"id_hex\":\"ab\"" + extra + "}}";
+    }
+
+    @Test
+    public void roleAndAdminsComeFromTheNetwork() {
+        NodeState s = NodeState.parse(network(",\"kind\":\"Managed\",\"me_role\":\"admin\",\"admins\":[\"a\",\"b\"]"));
+        assertEquals("admin", s.meRole);
+        assertEquals(2, s.adminCount);
+    }
+
+    @Test
+    public void memberRoleIsKept() {
+        NodeState s = NodeState.parse(network(",\"me_role\":\"member\",\"admins\":[\"a\"]"));
+        assertEquals("member", s.meRole);
+        assertEquals(1, s.adminCount);
+    }
+
+    @Test
+    public void peerNetworkHasNoRoleAndNoAdmins() {
+        NodeState s = NodeState.parse(network(",\"admins\":[]"));
+        assertNull(s.meRole);
+        assertEquals(0, s.adminCount);
+        assertNull(NodeState.parse(network("")).meRole);
+        assertEquals(0, NodeState.parse(network("")).adminCount);
+    }
+
+    @Test
+    public void noNetworkHasNoRole() {
+        assertNull(NodeState.parse("{}").meRole);
+        assertEquals(0, NodeState.parse("{}").adminCount);
+        assertNull(NodeState.UNREACHABLE.meRole);
+    }
+
+    @Test
+    public void wrongTypesReadAsNoRole() {
+        NodeState s = NodeState.parse(network(",\"me_role\":5,\"admins\":\"x\""));
+        assertNull(s.meRole);
+        assertEquals(0, s.adminCount);
+    }
+
+    @Test
+    public void excludedTextSaysBanned() {
+        assertEquals("Banned from the network \u2014 tap \u22EE \u2192 Leave network and reset", NodeState.EXCLUDED_TEXT);
+    }
 }

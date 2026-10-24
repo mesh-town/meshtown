@@ -13,6 +13,7 @@
 use crate::web_gui::RouteMode;
 
 use crate::gui::tray::app::nets_menu::{ExitGroup, NetMenu};
+use crate::gui::tray::app::overview::Notice;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::snapshot::{
     TrayChosenExit, TrayMembers, TrayPeer, TrayRoute, TraySnapshot,
@@ -30,7 +31,7 @@ pub struct ExitMenu {
     pub proxy: ProxyState,
     /// The checkbox "Allow opening sites via this computer": `exit.enabled` of the snapshot.
     pub serves_exit: bool,
-    /// `members` of the snapshot: the removal vote and our own exclusion (`members_note`).
+    /// `members` of the snapshot: the ban vote and our own exclusion (`members_note`).
     pub members: TrayMembers,
     /// The network the flat menu shows; `None` — the main network (or no network at all).
     pub slot: Option<String>,
@@ -38,6 +39,10 @@ pub struct ExitMenu {
     pub nets: Vec<NetMenu>,
     /// The exits per network, for "Exit via…"; filled together with `nets`, then `items` is empty.
     pub groups: Vec<ExitGroup>,
+    /// We may issue invites in the network the flat menu shows (false: an administered network, we are no admin).
+    pub can_invite: bool,
+    /// Networks that admins deleted, one note each, right after "Open Mesh Town…".
+    pub notices: Vec<Notice>,
 }
 
 /// One submenu item: a node, an identifier for tray commands, a ready label, the "chosen" mark and
@@ -87,6 +92,8 @@ pub fn disabled_exit_menu(proxy: ProxyState) -> ExitMenu {
         slot: None,
         nets: Vec::new(),
         groups: Vec::new(),
+        can_invite: true,
+        notices: Vec::new(),
     }
 }
 
@@ -118,6 +125,8 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
         slot: None,
         nets: Vec::new(),
         groups: Vec::new(),
+        can_invite: true,
+        notices: Vec::new(),
     }
 }
 

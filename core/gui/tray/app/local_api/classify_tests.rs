@@ -61,3 +61,54 @@ fn classify_503_non_object_error_is_other() {
         Reply::OtherStatus(503)
     ));
 }
+
+mod conflict {
+    use super::*;
+
+    #[test]
+    fn classify_409_not_admin_is_not_admin() {
+        let body = br#"{"error":"not_admin","message":"only admins can do this"}"#;
+
+        assert!(matches!(reply_from_response(409, body), Reply::NotAdmin));
+    }
+
+    #[test]
+    fn classify_409_without_body_is_other() {
+        assert!(matches!(
+            reply_from_response(409, b""),
+            Reply::OtherStatus(409)
+        ));
+    }
+
+    #[test]
+    fn classify_409_with_another_code_is_other() {
+        let body = br#"{"error":"last_admin","message":"x"}"#;
+
+        assert!(matches!(
+            reply_from_response(409, body),
+            Reply::OtherStatus(409)
+        ));
+    }
+
+    #[test]
+    fn classify_409_with_a_body_that_is_not_json_is_other() {
+        assert!(matches!(
+            reply_from_response(409, b"busy"),
+            Reply::OtherStatus(409)
+        ));
+        assert!(matches!(
+            reply_from_response(409, br#"{"error":5}"#),
+            Reply::OtherStatus(409)
+        ));
+    }
+
+    #[test]
+    fn classify_not_admin_code_on_another_status_is_other() {
+        let body = br#"{"error":"not_admin"}"#;
+
+        assert!(matches!(
+            reply_from_response(403, body),
+            Reply::OtherStatus(403)
+        ));
+    }
+}

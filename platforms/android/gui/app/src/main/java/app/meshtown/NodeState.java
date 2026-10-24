@@ -5,7 +5,7 @@ import org.json.JSONObject;
 
 /** The part of the node's {@code /api/state} snapshot the app cares about. */
 final class NodeState {
-    static final String EXCLUDED_TEXT = "Removed from the network \u2014 tap \u22EE \u2192 Leave network and reset";
+    static final String EXCLUDED_TEXT = "Banned from the network \u2014 tap \u22EE \u2192 Leave network and reset";
     static final NodeState UNREACHABLE = new NodeState(false, false, false, "direct", null, true, false, false, false);
 
     final boolean reachable;
@@ -26,6 +26,10 @@ final class NodeState {
     final boolean exitChosen;
     /** Name of the network the node belongs to (also when removed from it); null when unknown or none. */
     final String networkName;
+    /** {@code network.me_role} ("admin" or "member") of an administered network; null otherwise. */
+    final String meRole;
+    /** Length of {@code network.admins}; 0 when the list is absent. */
+    final int adminCount;
 
     NodeState(boolean reachable, boolean inNetwork, boolean excluded, String route, String exitName, boolean exitOnline,
               boolean peersKnown, boolean exitOffered, boolean exitChosen) {
@@ -34,6 +38,13 @@ final class NodeState {
 
     NodeState(boolean reachable, boolean inNetwork, boolean excluded, String route, String exitName, boolean exitOnline,
               boolean peersKnown, boolean exitOffered, boolean exitChosen, String networkName) {
+        this(reachable, inNetwork, excluded, route, exitName, exitOnline, peersKnown, exitOffered, exitChosen,
+                networkName, null, 0);
+    }
+
+    NodeState(boolean reachable, boolean inNetwork, boolean excluded, String route, String exitName, boolean exitOnline,
+              boolean peersKnown, boolean exitOffered, boolean exitChosen, String networkName, String meRole,
+              int adminCount) {
         this.reachable = reachable;
         this.inNetwork = inNetwork;
         this.excluded = excluded;
@@ -44,6 +55,8 @@ final class NodeState {
         this.exitOffered = exitOffered;
         this.exitChosen = exitChosen;
         this.networkName = networkName;
+        this.meRole = meRole;
+        this.adminCount = adminCount;
     }
 
     boolean exitLost() {
@@ -58,9 +71,13 @@ final class NodeState {
             JSONObject route = o.optJSONObject("route");
             boolean known = inNetwork && hasOthers(o.optJSONArray("peers"), false);
             boolean offered = inNetwork && hasOthers(o.optJSONArray("peers"), true);
-            String netName = networkName(o.optJSONObject("network"));
+            JSONObject network = o.optJSONObject("network");
+            String netName = networkName(network);
+            String role = meRole(network);
+            int admins = adminCount(network);
             if (route == null) {
-                return new NodeState(true, inNetwork, excluded, "direct", null, true, known, offered, false, netName);
+                return new NodeState(true, inNetwork, excluded, "direct", null, true, known, offered, false, netName,
+                        role, admins);
             }
             JSONArray exits = route.optJSONArray("exits");
             JSONObject exit = pickExit(exits);
@@ -68,7 +85,7 @@ final class NodeState {
             boolean online = exit == null || exit.optBoolean("online", true);
             boolean chosen = inNetwork && exits != null && exits.length() > 0;
             return new NodeState(true, inNetwork, excluded, route.optString("state", "direct"), name, online,
-                    known, offered, chosen, netName);
+                    known, offered, chosen, netName, role, admins);
         } catch (Exception e) {
             return UNREACHABLE;
         }
@@ -80,6 +97,18 @@ final class NodeState {
         }
         String name = network.isNull("label") ? "" : network.optString("label", "").trim();
         return name.isEmpty() ? null : name;
+    }
+
+    /** {@code network.me_role} when it is a string. */
+    private static String meRole(JSONObject network) {
+        Object role = network == null ? null : network.opt("me_role");
+        return role instanceof String ? (String) role : null;
+    }
+
+    /** Length of {@code network.admins} when it is an array, otherwise 0. */
+    private static int adminCount(JSONObject network) {
+        JSONArray admins = network == null ? null : network.optJSONArray("admins");
+        return admins == null ? 0 : admins.length();
     }
 
     /** Any peer without {@code self: true}; with {@code exitOnly}, only online peers that offer an exit. */

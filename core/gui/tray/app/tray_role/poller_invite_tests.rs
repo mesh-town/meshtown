@@ -13,7 +13,7 @@ use serde_json::json;
 use crate::gui::tray::app::local_api::tests::{start_fake, temp_dir};
 use crate::gui::tray::app::tray_actions::InviteNote;
 use crate::gui::tray::app::tray_texts::{
-    REASON_CLIP_FAILED, REASON_JOINING, REASON_NO_ANSWER, REASON_NO_TOOL,
+    REASON_CLIP_FAILED, REASON_JOINING, REASON_NOT_ADMIN, REASON_NO_ANSWER, REASON_NO_TOOL,
 };
 use crate::gui::tray::NodeCmd;
 
@@ -31,6 +31,32 @@ fn invite_from_ok_gives_string() {
 fn invite_from_409_is_joining() {
     let reply = Ok(Reply::OtherStatus(409));
     assert_eq!(invite_from(&reply), Err(REASON_JOINING));
+}
+
+#[test]
+fn invite_from_not_admin_gives_its_own_reason() {
+    let reply = Ok(Reply::NotAdmin);
+    assert_eq!(invite_from(&reply), Err(REASON_NOT_ADMIN));
+}
+
+#[test]
+fn invite_from_not_admin_is_not_joining() {
+    let reply = Ok(Reply::NotAdmin);
+    assert_ne!(invite_from(&reply), Err(REASON_JOINING));
+}
+
+#[test]
+fn not_admin_reason_reads_as_the_failed_note() {
+    let note = InviteNote::Failed(REASON_NOT_ADMIN);
+    assert_eq!(
+        crate::gui::tray::app::tray_actions::invite_item_text(note),
+        "Couldn't copy the invite: only admins can invite to this network"
+    );
+}
+
+#[test]
+fn not_admin_does_not_change_the_reach() {
+    assert_eq!(reach_from(&Ok(Reply::NotAdmin)), InviteReach::Spread);
 }
 
 #[test]

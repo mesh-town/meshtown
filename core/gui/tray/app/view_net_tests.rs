@@ -174,7 +174,7 @@ mod grey_texts {
     fn open_text_follows_the_table() {
         for net in LINKS {
             let expected = match net {
-                NetLink::NoNetwork => format!("Join a {NET_NAME} network…"),
+                NetLink::NoNetwork => "Join or create a network…".to_string(),
                 _ => "Open Mesh Town…".to_string(),
             };
             assert_eq!(page_text(grey_ready(net)), expected, "{net:?}");
@@ -230,5 +230,19 @@ mod grey_texts {
             );
             assert_eq!(page_text(v), page_text(base), "{v:?}");
         }
+    }
+}
+
+mod without_a_network {
+    use crate::gui::tray::app::tray_texts::{page_join_text, ADD_NET_TEXT};
+
+    #[test]
+    fn open_item_offers_to_join_or_create() {
+        assert_eq!(page_join_text(), "Join or create a network…");
+    }
+
+    #[test]
+    fn add_item_text_is_add_a_network() {
+        assert_eq!(ADD_NET_TEXT, "Add a network…");
     }
 }
