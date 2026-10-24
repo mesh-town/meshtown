@@ -3,279 +3,149 @@
 **Reach your devices from anywhere — no port forwarding, no central server, no accounts.**
 
 Mesh Town connects your computers, phones and routers into a private network and lets you reach the services running
-on them: SSH to your home server, RDP to the office machine, the web panel of your NAS or router — from a café, a train
-or another country. A web interface opens by a link: with the browser set to use the node's proxy, the shared port of
-a device is at `http://<device-name>.meshtown` (with `:<port>` for a port other than 80). There is no public IP to get,
-no routing to configure, no server to keep running and no account to create in someone else's service.
+on them — SSH to a home server, RDP to the office machine, the web panel of a NAS or router — from a café, a train or
+another country. A web interface opens by a link: with the browser set to use the node's proxy, a shared port is at
+`http://<device-name>.meshtown`. No public IP to get, no routing to configure, no server to keep running, no account to
+create in someone else's service.
 
-Mesh Town is for:
+Runs on macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers.
 
-- **Homelab enthusiasts**: a Raspberry Pi, a NAS or Home Assistant at home, behind a router you can't or don't want to
-  open to the internet.
-- **Sysadmins**: a few machines at a client's office or at your relatives', each behind its own NAT, that you need to
-  reach over SSH or RDP without setting up routing at every site.
-- **Small teams**: share a dev database, an internal web tool or a build machine with colleagues, without a cloud
+**Contents:** [Who it is for](#who-it-is-for) · [Why it fits](#why-it-fits) · [How it differs](#how-it-differs) ·
+[Not for you if](#not-for-you-if) · [Exit node](#also-use-a-member-as-an-exit-node) · [Quick start](#quick-start) ·
+[Install](#install) · [Safety](#safety) · [Limitations](#limitations) · [Building](#building) ·
+[Documentation](#documentation)
+
+## Who it is for
+
+- **Homelab enthusiasts** — a Raspberry Pi, a NAS or Home Assistant at home, behind a router you can't or don't want
+  to open to the internet.
+- **Sysadmins** — a few machines at a client's office or at your relatives', each behind its own NAT, that you reach
+  over SSH or RDP without setting up routing at every site.
+- **Small teams** — a dev database, an internal web tool or a build machine shared with colleagues, without a cloud
   service in the middle or a server someone has to look after.
 
 ## Why it fits
 
-- **No port forwarding, no NAT rules, no public IP.** Nodes find each other and connect directly; nothing on your router
-  is opened to the internet.
+- **No port forwarding, no NAT rules, no public IP.** Nodes find each other and connect directly; nothing on your
+  router is opened to the internet.
 - **Keeps working when you change networks.** Wi-Fi, mobile data, a hotel network: the node notices the switch and
-  reconnects to the other members within seconds, by itself. Connections that were open at the moment of the switch
-  are closed, and the program opens them again.
-- **No central server.** Nodes meet on the public DHT, a distributed directory that nobody owns. There is nothing for
-  you to host and no server of ours that your network depends on.
+  reconnects to the other members within seconds. Connections open at that moment are closed and reopened by the
+  program.
+- **No central server.** Nodes meet on the public DHT, a distributed directory that nobody owns. Nothing for you to
+  host, no server of ours your network depends on.
 - **No accounts.** A network is a secret key and a member list signed by the members. A newcomer joins with a
   single-use invite from a member. No device limit.
-- **You choose who sees what.** A port is shared with all members or with selected ones; the others do not reach it.
-- **Runs where your devices are**: macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers. One node can be in
-  several networks at once, for example "my devices" and "the team".
+- **You choose who sees what.** A port is shared with all members or with selected ones.
+- **Several networks on one node**, for example "my devices" and "the team".
 
 ## How it differs
 
 | The usual way | What it takes | With Mesh Town |
 |---|---|---|
-| Port forwarding and dynamic DNS | A public IP (not available behind a carrier's NAT), a rule on every router, and the service open to the whole internet | Nothing to open: only members reach the port |
-| A tunnel server of your own | A machine with a public IP that everyone connects to, its keys and routing, and keeping it up | No server: members connect to each other directly |
-| A tunnel or relay service | An account with the provider, and your traffic going through its servers | No account, no provider in the middle |
-| A mesh network with a coordination server | An account or a self-hosted coordination server that every device signs in to | The member list lives with the members; the network works without any server of yours or ours |
+| Port forwarding and dynamic DNS | A public IP (not available behind a carrier's NAT), a rule on every router, the service open to the whole internet | Nothing to open: only members reach the port |
+| A tunnel server of your own | A machine with a public IP, its keys and routing, keeping it up | No server: members connect to each other directly |
+| A tunnel or relay service | An account with the provider, your traffic through its servers | No account, no provider in the middle |
+| A mesh network with a coordination server | An account or a self-hosted coordination server every device signs in to | The member list lives with the members |
 
-What you give up: Mesh Town connects TCP ports of programs, not whole IP networks (see [Limitations](#limitations)).
+What you give up: Mesh Town connects TCP ports of programs, not whole IP networks — see [Limitations](#limitations).
 
 ## Not for you if
 
-- you need a whole subnet, a virtual network interface or UDP ports: Mesh Town shares TCP ports of programs running on
-  the device itself;
+- you need a whole subnet, a virtual network interface or UDP ports: Mesh Town shares TCP ports of programs running
+  on the device itself;
 - you need it on an iPhone or iPad;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
 
 ## Also: use a member as an exit node
 
 A member can let the others send traffic out through its internet connection. Point a browser or a program at the
-local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port), and its connections leave from that member's address, for
-example to reach a service that accepts connections only from your office or home IP. A member decides whether to be an
-exit, and serves only the members of its network.
-
-## How it works
-
-1. A network key looks like `our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5`: a free-form label plus a random
-   part (two words from the EFF list and 21 characters, 130.8 bits). Everything else is derived from the random part.
-2. Nodes find each other through the public HyperDHT, using an encrypted record that only holders of the network key
-   can read. The DHT and the transport come from [townjump](https://github.com/mesh-town/townjump), a Rust port of
-   Holesail.
-3. A node becomes a member when it is on the member list. The list lives in the network document: a small record
-   shared by all members, where every entry is signed by its author. It also holds the published ports, the site
-   checks, the exit flags and the program versions; each node keeps its own domain list.
-4. New members join with a single-use invite (valid for a day), and the inviting member admits them at once. A node
-   that starts with the network key instead waits until a member confirms it on the node page.
-5. A member opens a published port: the node listens on `127.0.0.1:<port>` and carries each connection to the
-   member that published it.
-6. A program that talks to the local proxy asks to connect to a domain. The node picks a path (itself, or a member
-   chosen as an exit) and moves the bytes. An exit serves only members and only public addresses.
-
-Modules and protocols are described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port) and its connections leave from that member's address — for
+example, to reach a service that accepts connections only from your office or home IP. A member decides whether to be
+an exit and serves only members of its network.
 
 ## Quick start
 
-1. Install Mesh Town (see [Install](#install)).
-2. Start it. Without arguments `meshtown` starts the tray app (desktop builds); in a terminal or on a server use
-   `meshtown-cli` or `meshtown run`.
-3. Open the node page from the tray menu, or with the sign-in link printed at start
-   (`node page: http://127.0.0.1:7777/?token=… — sign-in link, valid for 10 minutes, single use`). Set a password
-   when asked.
-4. Press "Create a new network" on the page, or "Join with an invite" if a friend gave you one. In a terminal:
-   `meshtown run --invite mesh-invite2-…`.
-5. Invite the others: "Invite a member" on the page (or `invite` in the node console) gives a single-use string.
-6. Share a port on the "Ports" tab, or open one that a member shared. A shared web interface also opens in the
-   browser at `http://<device-name>.meshtown` when the browser uses the proxy from step 7; the "Ports" tab shows the link.
-7. To open sites through a member, point a browser or a program at the proxy `127.0.0.1:1080` (SOCKS5; use
-   `socks5h://` so the node resolves names), for example `curl -x socks5h://127.0.0.1:1080 https://example.com/`.
+1. [Install](#install) and start Mesh Town. Without arguments `meshtown` opens the tray app; in a terminal or on a
+   server use `meshtown-cli`.
+2. Open the node page from the tray menu, or with the sign-in link printed at start
+   (`node page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
+3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
+   `meshtown run --invite mesh-invite2-…`).
+4. **Invite a member** on the page gives a single-use string for the next device or person.
+5. Share a port on the **Ports** tab, or open one a member shared. With the browser using the proxy from step 6, a
+   shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
+6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
+   names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`.
 
-Every option, the settings file, the node page and the log format are described in [docs/USAGE.md](docs/USAGE.md).
-
-## Safety
-
-Read this before you invite anyone or let your node act as an exit. More in [SECURITY.md](SECURITY.md).
-
-- **Members are trusted.** A member can use your published ports and, if you are an exit, your connection. Invite
-  only people you trust. If a device is lost or a member leaves, the members vote that node out on the node page;
-  the network key does not need to change.
-- **Keep the network key secret anyway.** The key alone does not let a node in, but it lets anyone find the network's
-  records in the DHT and see who its members are. Pass it through `MESHTOWN_KEY` or the settings file, not the
-  command line.
-- **An exit lends your IP address.** When you work as an exit, the sites a member opens and your ISP see that traffic
-  as yours. Turn it off with `--no-exit` or on the node page if you do not want that.
-- **Exits see where members connect.** An exit knows which hosts a member asks for. Mesh Town is not an anonymity
-  tool; do not use it to hide who you are.
-- **The node page uses plain HTTP.** By default (`localnet`) devices of your local network can open it. On a network
-  you do not trust set `web.access` to `localhost` (`meshtown access localhost`). Never publish the page port.
-- **Keep `config.json` private.** It holds the network key and the node secret.
+Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md).
 
 ## Install
 
-### macOS
-
-**Homebrew** (Apple silicon and Intel) is the easiest way:
-
-```sh
-brew install mesh-town/meshtown/meshtown
-```
-
-Then `meshtown` opens the tray app, and `meshtown` with arguments works as the command-line program. The formula also
-installs `meshtown-cli`, the node in a terminal until Ctrl+C. To update: `brew upgrade meshtown`.
-
-Homebrew 7 refuses formulas from a tap it does not trust yet; the full name above trusts the formula. If you prefer
-`brew tap mesh-town/meshtown` first, run `brew trust mesh-town/meshtown` before `brew install meshtown`.
-
-**Without Homebrew**, download [MeshTown-macos-arm64.zip](https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-arm64.zip)
-(Apple silicon) or [MeshTown-macos-x86_64.zip](https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-x86_64.zip)
-(Intel). The builds are signed ad hoc and are not notarized, so Gatekeeper blocks the first launch of a zip
-downloaded in a browser. Either open **System Settings → Privacy & Security → "Open Anyway"**, or remove the
-quarantine mark from a terminal:
-
-```sh
-xattr -dr com.apple.quarantine /path/to/MeshTown.app
-```
-
-Homebrew does not set this mark, which is why no window appears there.
-
-### Windows, Linux, Android
-
-Download from [meshtown-dist](https://github.com/mesh-town/meshtown-dist); the files without a version in the name are
-always the latest build.
-
-| System | File |
+| System | Command or file |
 |---|---|
-| Windows, with the tray icon | [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) |
-| Windows, console only | [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
-| Linux, x86_64 | [meshtown-linux-x86_64.tar.gz](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) |
-| Linux, aarch64 | [meshtown-linux-aarch64.tar.gz](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
+| macOS | `brew install mesh-town/meshtown/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
+| Windows | [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) (tray) or [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
+| Linux | [x86_64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) · [aarch64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
 | Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) |
+| OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
+| Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |
 
-Console-only Linux builds are `meshtown-cli-linux-x86_64.tar.gz` and `meshtown-cli-linux-aarch64.tar.gz` in the same
-folder. The folder of each system keeps the four latest versions too, with `SHA256SUMS` and notes. The Windows binary
-is not signed; SmartScreen may warn on the first launch.
+On every system `meshtown` is the build with the tray icon and `meshtown-cli` the node in a terminal; they share
+settings, so run one at a time. The macOS zip and the Windows binary are not notarized or signed, so the first launch
+needs a confirmation. Gatekeeper, console-only Linux builds, router details, versioned archives and checksums:
+[docs/INSTALL.md](docs/INSTALL.md).
 
-The same names on every system: `meshtown` is the build with the tray icon, `meshtown-cli` is the node in a terminal
-until Ctrl+C. They share their settings, so do not run both at once.
+## Safety
 
-### Routers
+- **Members are trusted.** A member can use your shared ports and, if you are an exit, your connection. Invite only
+  people you trust; the members vote a lost device out, the network key does not need to change.
+- **Keep the network key and `config.json` private.** The key alone does not let a node in, but it reveals the
+  network's records in the DHT. Pass it through `MESHTOWN_KEY` or the settings file, not the command line.
+- **An exit lends your IP address** and sees which hosts members connect to. Turn it off with `--no-exit` or on the
+  node page.
+- **The node page is plain HTTP** and by default reachable from your local network; set `meshtown access localhost`
+  on a network you do not trust. Never share the page port.
 
-- **OpenWrt** (24.10 with `opkg` and 25.12 with `apk`). On the router, as root:
-
-  ```sh
-  wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh | sh
-  ```
-
-  The script finds the package manager of the router itself, adds the signed package feed and installs the package
-  `meshtown`; the service starts on boot. Architectures: 64-bit ARM, 32-bit ARM Cortex and x86_64; MIPS, ARMv5/v6 and
-  32-bit x86 routers are not covered yet.
-
-  To update, run the command for your OpenWrt version only (`grep DISTRIB_RELEASE /etc/openwrt_release` shows it):
-
-  - OpenWrt 24.10 (`opkg`): `opkg update && opkg upgrade meshtown`
-  - OpenWrt 25.12 (`apk`): `apk update && apk upgrade meshtown`
-
-  Manual installation and details: [platforms/linux/build/openwrt/README.md](platforms/linux/build/openwrt/README.md).
-
-- **Keenetic** (router with Entware installed; MIPS and aarch64 models). Over SSH on the router:
-
-  ```sh
-  wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh | sh
-  ```
-
-  The script reads the Entware architecture, adds the package feed and installs the package `meshtown`; the service
-  `/opt/etc/init.d/S99meshtown` starts on boot. To update: `opkg update && opkg upgrade meshtown`. Not tested on a live
-  KeeneticOS router yet.
-
-### Release archives
-
-[GitHub Releases](https://github.com/mesh-town/meshtown/releases) have versioned archives for macOS (`MeshTown.app`
-in `MeshTown-macos-arm64-<version>.zip` and `MeshTown-macos-x86_64-<version>.zip`), Linux (x86_64 and aarch64, static
-musl builds, `.tar.gz`), Windows (x86_64, `.zip`), console-only builds for 32-bit ARM and MIPS Linux, and
-`SHA256SUMS`. Every platform has a `meshtown-cli-…` archive without the tray; the other archives are the tray builds.
-Check an archive against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS --ignore-missing`) before running it.
-
-The node page tells you when a newer version is out.
-
-## Building
-
-Requirements: Rust 1.94 or newer (see `rust-version` in `Cargo.toml`). Node 22.18 or newer is needed only to rebuild
-the node page (`core/web_gui/ui/bundle/app.js` is committed). The code depends on townjump by a pinned git revision, so the
-first build needs network access to GitHub.
-
-```sh
-cargo build --release --locked -p meshtown-<os>   # the binary: target/release/meshtown-<os> (with the tray); <os> is macos, linux or windows
-cargo build --release --locked --no-default-features --features net-hyper   # no tray, for servers
-```
-
-`make` without arguments prints the list of project commands. The build logic for release packages is in
-`platforms/<system>/build/build.sh`, and the macOS app bundle is described in [platforms/macos/build/README.md](platforms/macos/build/README.md).
-
-| Command | Target | Result in `dist/` |
-|---|---|---|
-| `make build` | the OS of this computer | native build |
-| `make build_macos` / `make build_macos_app` | macOS, command line / `.app` with a tray (arm64) | `macos-arm64/MeshTown-<version>.app` |
-| `make build_linux`, `make build_windows` | Linux or Windows x86_64, cross-built in a container | `meshtown-<os>-{cli,gui}-<version>` |
-| `make build_all` | all three in turn | — |
-| `make build_<os>_cli` / `make build_<os>_gui` | without / with a tray | `meshtown-<os>-{cli,gui}-<version>[.exe]` |
-
-The containers need Apple `container`, or Docker: `make build_linux CONTAINER=docker`. Run `make check` to run all
-tests together with `clippy`; the same checks run in CI.
-
-## Documentation
-
-- [docs/USAGE.md](docs/USAGE.md): running the node, the settings file, invites, proxy and exit, site checks, the node page and
-  the log format.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): modules, protocols, data flow.
-- [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md): the settings file, its fields and versions.
-- [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md), [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md): the
-  HTTP API of the node page.
-- [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+More in [SECURITY.md](SECURITY.md).
 
 ## Limitations
 
-- **No TUN and no capture of all system traffic.** Mesh Town gives a local SOCKS5/HTTP proxy and published TCP ports;
-  a program must be able to use a proxy itself (`socks5h://`, a browser setting) or connect to `127.0.0.1:<port>`.
-- **Published ports are TCP only**, and only for programs listening on the publishing computer itself.
-- **No authentication in SOCKS5.** By default the proxy listens only on `127.0.0.1`.
-- **UDP through the proxy only with `UDP ASSOCIATE`, and no `BIND`.** `UDP ASSOCIATE` works with an exit that
-  supports it (a current build of Mesh Town); an exit without UDP support is skipped and the next one in
-  `route.exits` is tried, and if none supports it the answer is code `0x07`, "command not supported". With no exits
-  chosen, datagrams are sent directly from the node. Datagram fragmentation is not supported (such datagrams are
-  dropped), `BIND` still gets code `0x07`, and an association without traffic for 10 minutes is closed.
-- **IPv6 is partial.** A SOCKS5 request or an HTTP `CONNECT [v6]:port` with an IPv6 address works through an exit
-  that has IPv6 connectivity. For a domain name an exit tries its IPv4 addresses first (up to four, one after
-  another) and falls back to its IPv6 addresses (AAAA records) when none of them opens, so a name that has only
-  AAAA records opens through an exit with IPv6 connectivity and is refused quickly through one without it. A node
-  itself resolves names for direct connections to IPv4 addresses only, and the proxy listens on IPv4 only. An exit
-  refuses IPv6 addresses in its own local network segment, as it does for private IPv4 ranges.
-- **The exit is picked from a list you set.** The node uses the exits in the `route.exits` list, in order; it cannot
-  choose an exit by country or operator.
-- **A refusal is final.** The node moves to the next exit in the list only when the current one cannot be reached;
-  if an exit answers with a refusal, the client gets it.
-- **A direct connection may not open on some mobile networks.** Behind home routers and most NATs the nodes connect
-  directly; some mobile operators block that, and then the node cannot reach the others from that network.
-- **No traffic accounting or speed limits** per member, and no limit on simultaneous connections.
-- **One hop only.** Client → your node → a member → the site; chains of two or more members are not supported.
-- **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by
-  path, headers or content.
+- TCP ports of programs on the device itself; no TUN, no subnet, no UDP ports.
+- A SOCKS5/HTTP proxy, not a system-wide tunnel: the program must be able to use a proxy or connect to
+  `127.0.0.1:<port>`.
+- The exit is picked from a list you set, one hop, no traffic accounting; IPv6 only through an exit.
+- Some mobile operators block direct connections between nodes.
 
-Releases of the 0.3.x line are a working network node, not a hardened product. See [SECURITY.md](SECURITY.md) for the
-scope and how to report a problem.
+Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md). Releases of the 0.3.x line are a working network node, not a
+hardened product.
 
-## Credits
+## Building
 
-- [townjump](https://github.com/mesh-town/townjump) is the Rust port of [Holesail](https://github.com/holesail/holesail)
-  that provides the DHT and the transport (via the forked `peeroxide-dht` and `libudx`).
-- The word list for the random part of the key is the EFF Large Wordlist for Passphrases, © Electronic Frontier
-  Foundation, https://www.eff.org/dice, license CC BY 3.0 US. It is embedded unchanged; see
-  `core/members/wordlist/NOTICE.md`.
-- The page is built with [Vue](https://vuejs.org/) (MIT).
+Rust 1.94 or newer; Node 22.18 only to rebuild the node page.
 
-The full list is in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+```sh
+cargo build --release --locked -p meshtown-<os>                                 # with the tray; <os> is macos, linux or windows
+cargo build --release --locked --no-default-features --features net-hyper     # no tray, for servers
+```
 
-## License
+`make` prints the project commands; `make check` runs the tests and `clippy` as in CI. Release packages, containers
+and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
+
+## Documentation
+
+- [docs/USAGE.md](docs/USAGE.md) — running the node, the settings file, invites, proxy and exit, the node page, the log.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, protocols, data flow.
+- [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md) — the settings file.
+- [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md),
+  [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md) — the HTTP API of the node page.
+- [docs/INSTALL.md](docs/INSTALL.md), [docs/BUILDING.md](docs/BUILDING.md), [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+- [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Credits and license
+
+The DHT and transport come from [townjump](https://github.com/mesh-town/townjump), a Rust port of
+[Holesail](https://github.com/holesail/holesail). The word list in network keys is the EFF Large Wordlist for
+Passphrases (CC BY 3.0 US, embedded unchanged, see `core/members/wordlist/NOTICE.md`). The page is built with
+[Vue](https://vuejs.org/). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 AGPL-3.0-only, see [LICENSE](LICENSE).
