@@ -15,7 +15,9 @@ const storeWithNotices = () => {
 };
 
 describe("ackNotice", () => {
-  beforeEach(() => api.mockReset());
+  beforeEach(() => {
+    api.mockReset();
+  });
 
   it("sends the id and drops the notice from the store", async () => {
     api.mockResolvedValue({});
