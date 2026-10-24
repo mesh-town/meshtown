@@ -9,26 +9,28 @@ use crate::transport::net::service::ServiceId;
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net::transport::{PeerConn, Transport};
 use crate::transport::net_hyper::accept::{accept_loop, AcceptCtx, Accepted};
-use crate::transport::net_hyper::conn::{establish_dialed_session, StreamDialer};
+use crate::transport::net_hyper::conn::establish_dialed_session;
+use crate::transport::net_hyper::dht_table::{load, TableSaver, TTL};
 use crate::transport::net_hyper::gate::{Admit, PeerGate};
-use crate::transport::net_hyper::keys::{key_pair, peer_of};
+use crate::transport::net_hyper::keys::key_pair;
 use crate::transport::net_hyper::link::net_info;
 use crate::transport::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
 use crate::transport::net_hyper::records::HyperRecords;
 use crate::transport::net_hyperdht::RecordStore;
+use crate::transport::net_mainline::unix_now;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{mpsc, watch, Semaphore};
 use tokio::time::timeout;
-use townjump_dht::{
-    ConnectOpts, Dht, DhtError, DhtFactory, DhtServer, Duplex, KeyPair, ServerOpts,
-};
+use townjump_dht::{Dht, DhtError, DhtFactory, DhtServer, KeyPair, ServerOpts};
 use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
 
+mod dialer;
 mod held;
 
-use held::Held;
+use dialer::NodeDialer;
 
 /// Transport name in the config and in the registry.
 pub const KIND: &str = "hyper";
@@ -45,6 +47,8 @@ pub struct HyperOpts {
     pub bootstrap: Option<Vec<String>>,
     /// Watch the OS network and survive its change (disabled in tests).
     pub watch_net: bool,
+    /// File of the saved DHT table: read before the node starts, written while it runs and on close; `None` — off.
+    pub table_file: Option<PathBuf>,
 }
 
 type ListenOutcome = Option<Result<(), String>>;
@@ -59,13 +63,7 @@ pub struct HyperTransport {
     listen_outcome: watch::Sender<ListenOutcome>,
     closed: watch::Sender<bool>,
     close_started: AtomicBool,
-}
-
-/// Dials DHT connections of the node and checks the other side's key.
-struct NodeDialer {
-    node: Arc<PeeroxideDht>,
-    /// Simultaneous dials: the incoming queue of the townjump server has 16 slots, a larger burst drops connections.
-    slots: Arc<Semaphore>,
+    saver: Option<TableSaver>,
 }
 
 pub fn dht_error_to_net_error(e: DhtError) -> NetError {
@@ -74,44 +72,6 @@ pub fn dht_error_to_net_error(e: DhtError) -> NetError {
         DhtError::Destroyed => NetError::Closed,
         DhtError::Io(io) => NetError::Io(io),
         other => NetError::Other(anyhow::anyhow!("{other}")),
-    }
-}
-
-impl NodeDialer {
-    async fn dial_checked(&self, to: PeerId) -> NetResult<Box<dyn Duplex>> {
-        let slot = self
-            .slots
-            .clone()
-            .acquire_owned()
-            .await
-            .map_err(|_| NetError::Closed)?;
-        // reusable_socket: after the first hole punch the fork remembers the route, the next connect goes without it.
-        let conn = self
-            .node
-            .connect(
-                *to.as_bytes(),
-                ConnectOpts {
-                    reusable_socket: true,
-                    ..Default::default()
-                },
-            )
-            .await
-            .map_err(dht_error_to_net_error)?;
-        let got = peer_of(&conn.remote_public_key)?;
-        match got == to {
-            true => Ok(Box::new(Held::new(conn.stream, slot))),
-            false => Err(NetError::WrongPeer { want: to, got }),
-        }
-    }
-}
-
-impl StreamDialer for NodeDialer {
-    fn dial(&self, to: PeerId) -> BoxFuture<'_, NetResult<Box<dyn Duplex>>> {
-        Box::pin(async move {
-            timeout(CONNECT_LIMIT, self.dial_checked(to))
-                .await
-                .map_err(|_| NetError::Timeout)?
-        })
     }
 }
 
@@ -127,8 +87,17 @@ async fn run_listen(state: watch::Sender<ListenOutcome>, server: PeeroxideServer
     state.send_replace(Some(res));
 }
 
-/// The DHT factory: the given bootstrap list, or the environment's defaults when there is none.
-fn factory_for(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
+/// The DHT factory: the given bootstrap list, or the environment's defaults when there is none,
+/// plus the nodes saved in `table_file`.
+fn factory_for(bootstrap: Option<Vec<String>>, table_file: Option<&Path>) -> PeeroxideFactory {
+    let mut factory = base_factory(bootstrap);
+    if let Some(path) = table_file {
+        factory.set_nodes(load(path, unix_now(), TTL));
+    }
+    factory
+}
+
+fn base_factory(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
     match bootstrap {
         Some(list) => PeeroxideFactory {
             bootstrap: Some(list),
@@ -142,13 +111,16 @@ impl HyperTransport {
     /// Starts the node and the server; `listen` runs as a task (wait for its outcome with `wait_listen_outcome`).
     pub async fn bind(secret: NodeSecret, opts: HyperOpts) -> NetResult<Arc<Self>> {
         let kp = key_pair(&secret);
-        let factory = factory_for(opts.bootstrap);
+        let factory = factory_for(opts.bootstrap, opts.table_file.as_deref());
         let node = Arc::new(
             factory
                 .create(Some(kp.clone()))
                 .await
                 .map_err(dht_error_to_net_error)?,
         );
+        let saver = opts
+            .table_file
+            .map(|path| TableSaver::start(node.clone(), path));
         let gate = Arc::new(PeerGate::open());
         // reusable_socket: same as townjump-server, so that clients follow the remembered route.
         let server_opts = ServerOpts {
@@ -178,17 +150,19 @@ impl HyperTransport {
             listen_outcome: watch::channel(None).0,
             closed: watch::channel(false).0,
             close_started: AtomicBool::new(false),
+            saver,
         });
         crate::node::output::spawn(accept_loop(incoming, ctx));
         crate::node::output::spawn(run_listen(this.listen_outcome.clone(), server, kp));
         if opts.watch_net {
-            spawn_netchange(
-                Arc::new(DhtReact::new(this.node.clone(), this.ctx.clone())),
-                this.closed.subscribe(),
-            )
-            .await
+            this.watch_network().await;
         }
         Ok(this)
+    }
+
+    async fn watch_network(&self) {
+        let react = Arc::new(DhtReact::new(self.node.clone(), self.ctx.clone()));
+        spawn_netchange(react, self.closed.subscribe()).await
     }
 
     /// Waits for the `listen` outcome: the announcement is made or the reason why not.
@@ -258,6 +232,9 @@ impl HyperTransport {
         }
         self.ctx.close_sessions(0, b"transport closed");
         let _ = self.server.close().await;
+        if let Some(saver) = &self.saver {
+            saver.finish().await;
+        }
         let _ = self.node.destroy().await;
         self.closed.send_replace(true);
     }

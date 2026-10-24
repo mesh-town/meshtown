@@ -14,6 +14,9 @@ use crate::node::output::{say, NET_NAME};
 use crate::node::NodeConfig;
 use crate::transport::peers_cache;
 
+/// Name of the saved DHT table file, next to the slot's config file.
+pub(crate) const DHT_TABLE_FILE_NAME: &str = "dht-nodes.txt";
+
 #[derive(Clone)]
 pub struct Relaunch {
     pub file: Option<Arc<dyn SettingsFile>>,
@@ -36,6 +39,9 @@ impl Relaunch {
         cfg.peers_cache_path = beside.and_then(peers_cache::peers_cache_path_beside);
         cfg.peer_names_path = beside.and_then(peer_names::peer_names_path_beside);
         cfg.docs_store_dir = beside.and_then(docs_store::docs_store_path_beside);
+        cfg.dht_table_path = beside
+            .and_then(std::path::Path::parent)
+            .map(|dir| dir.join(DHT_TABLE_FILE_NAME));
         if let Some(net) = &self.test_net {
             cfg.test_net = Some(net.clone());
             cfg.open_list = true;
