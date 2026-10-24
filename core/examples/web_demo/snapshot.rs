@@ -159,7 +159,7 @@ fn build_members_info(st: &DemoState) -> MembersInfo {
         count: st.peers.iter().filter(|p| p.online).count() as u64,
         gossip_neighbors: st.peers.len() as u64,
         voting: 0,
-        me_excluded: false,
+        me_excluded: st.members.me_excluded,
         admitting: 0,
         me_pending: false,
     }

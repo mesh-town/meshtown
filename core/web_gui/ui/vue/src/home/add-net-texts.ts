@@ -27,7 +27,7 @@ export const JOIN_BACK_BTN = "Back";
 export const JOIN_CANCEL_FAILED = "Couldn't cancel — try again.";
 /** How long a join waits before the page says nobody has answered. */
 export const JOIN_NO_ANSWER_MS = 60_000;
-export const ADD_NET_LIMIT = `Mesh Town can be in up to ${MAX_NETS} networks at once. To add this one, leave another network first.`;
+export const ADD_NET_LIMIT = `This invite is for a new network, and Mesh Town is already in ${MAX_NETS}. Leave a network, then paste the invite again.`;
 export const ADD_NET_BUSY = "Adding…";
 export const ADD_NET_ACTION = "add the network";
 export const ADD_NET_CREATE_ACTION = "create the network";

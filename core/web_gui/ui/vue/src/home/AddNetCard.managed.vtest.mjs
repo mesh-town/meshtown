@@ -18,7 +18,7 @@ import { resetNetBanner, useNetBanner } from "./add-net-banner.ts";
 import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
 
 const FRESH = "neta22";
-const INVITE = "mesh-invite2-ABCDEFGH";
+const INVITE = "mesh1-ABCDEFGH";
 const CREATE_TOGGLE = "No invite? Create a new network ▸";
 const INSPECT = "/api/network/inspect";
 const MANAGED_LINE = 'Network "work" · Managed: admins decide who joins';

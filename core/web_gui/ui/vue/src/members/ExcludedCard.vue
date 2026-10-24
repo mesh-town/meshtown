@@ -9,7 +9,7 @@ import {
 } from "./members-texts.ts";
 
 // `members` — the card on the Members page: its ids differ from the Home card, both pages live in one document.
-const props = defineProps<{ variant: "banned" | "left" | "forgotten"; net: string; by?: string | null; members?: boolean; managed?: boolean }>();
+const props = defineProps<{ variant: "banned" | "left" | "forgotten"; net: string; by?: string | null; members?: boolean; managed?: boolean; formOpen?: boolean }>();
 defineEmits<{ (e: "join"): void }>();
 const inApp = inAppPage();
 // In a Managed network an admin removes a member; in a Peer network the members ban one.
@@ -30,7 +30,7 @@ const startOver = (): boolean => inApp && props.variant !== "forgotten";
     </template>
     <template v-else>
       <p>{{ body() }}</p>
-      <button :id="id('join')" type="button" class="btn btn-primary" @click="$emit('join')">{{ props.variant === "forgotten" ? FORGOTTEN_JOIN : EXCLUDED_JOIN }}</button>
+      <button v-if="!formOpen" :id="id('join')" type="button" class="btn btn-primary" @click="$emit('join')">{{ props.variant === "forgotten" ? FORGOTTEN_JOIN : EXCLUDED_JOIN }}</button>
     </template>
   </section>
 </template>

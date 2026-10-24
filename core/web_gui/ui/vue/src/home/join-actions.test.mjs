@@ -8,6 +8,7 @@ import { NET_NAME } from "../common/words.ts";
 import {
   JOIN_PROMISE_MS, JOIN_STALLED, JOIN_WAITING, createNetwork, highlightParts, joinNetwork,
 } from "./join-actions.ts";
+import { waitingStatusText } from "./home-flow-texts.ts";
 import { setup } from "../testing/join-setup.mjs";
 
 const MARK_KEY = "meshtown.homeSetup";
@@ -48,7 +49,7 @@ describe("joinNetwork", () => {
       w.form.inviteInput = "   ";
       assert.equal(await joinNetwork(w.form, w.store, w.deps), "empty");
       assert.equal(w.calls.length, 0);
-      assert.equal(inviteErrorText(w.form), "Paste the invite a network member sent you.");
+      assert.equal(inviteErrorText(w.form), "Paste the invite first.");
     });
   });
 
@@ -92,7 +93,7 @@ describe("joinNetwork", () => {
       const w = setup({ reply: { label: "family", restart: false, waiting: true } });
       w.form.inviteInput = " mesh-invite2-abc ";
       assert.equal(await joinNetwork(w.form, w.store, w.deps), "waiting");
-      assert.equal(w.form.status, JOIN_WAITING);
+      assert.equal(w.form.status, waitingStatusText(' "family"'));
       assert.equal(w.form.inviteInput, "");
       assert.deepEqual(w.calls, [["POST", "/api/network/join", { key: "mesh-invite2-abc" }]]);
     });
@@ -133,7 +134,7 @@ describe("joinNetwork", () => {
       await joinNetwork(w.form, w.store, w.deps);
       assert.equal(
         inviteErrorText(w.form),
-        "This doesn't look like an invite. Copy it from the network member again in full and paste it here."
+        "This doesn't look like an invite. Copy the whole invite again and paste it here."
       );
     });
 

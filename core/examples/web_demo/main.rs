@@ -19,6 +19,7 @@ mod background;
 mod config;
 mod control;
 mod host;
+mod invites;
 mod managed;
 mod members;
 mod members_act;

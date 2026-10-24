@@ -14,14 +14,15 @@ use crate::node::output::NET_NAME;
 use crate::transport::net::PeerId;
 use crate::web_gui::http::json_err;
 use crate::web_gui::net_brief::briefs;
-use crate::web_gui::{App, HostControl, SaveKey, SlotHandle};
+use crate::web_gui::{App, HostControl, SlotHandle};
 
-use super::helpers::{action_error, body_obj, invalid_key_response, map_string_field};
+use super::helpers::{body_obj, invalid_key_response, map_string_field};
+use super::network_invite::{join_by_invite_response, label_of, net_already_added};
 use super::slot_param::SlotParam;
 
 /// Serializes "is this network already on the node" with the write of the key, so two tabs adopting the
 /// same network cannot both pass the check. Taken before any slot's config lock and never across an `await`.
-static ADOPT: Mutex<()> = Mutex::new(());
+pub(super) static ADOPT: Mutex<()> = Mutex::new(());
 
 /// The slot other than `except` that works with the network `id_hex`.
 pub(crate) fn slot_with_network(
@@ -55,18 +56,9 @@ fn network_present() -> Response {
     )
 }
 
-fn net_already_added(other: &NetSlotId) -> Response {
-    let body = json!({
-        "error": "net_already_added",
-        "message": "this network is already on the node",
-        "slot": other.to_string(),
-    });
-    (StatusCode::CONFLICT, axum::Json(body)).into_response()
-}
-
 /// Refuses a network that does not fit the slot: the slot already works with another one, or another slot
 /// has the network. `incoming` is the id of the network being joined, `None` for a new one.
-fn check_target(
+pub(super) fn check_target(
     host: &dyn HostControl,
     slot: &SlotHandle,
     incoming: Option<&str>,
@@ -77,7 +69,7 @@ fn check_target(
     }
     let taken = incoming.and_then(|id_hex| slot_with_network(host, id_hex, &slot.id));
     match taken {
-        Some(other) => Err(net_already_added(&other)),
+        Some(other) => Err(net_already_added(&other, label_of(host, &other))),
         None => Ok(()),
     }
 }
@@ -143,62 +135,36 @@ fn wants_keep_ports(map: &serde_json::Map<String, serde_json::Value>) -> bool {
     map.get("keep_ports") == Some(&serde_json::Value::Bool(true))
 }
 
-/// Sign-in by an invite string: the response is immediate, waiting for members happens on the node (`node.invite_join`).
-/// The node writes the received key to the settings file with the `save` closure and joins the network itself.
-fn join_by_invite_response(
-    app: &Arc<App>,
-    slot: &SlotHandle,
-    text: &str,
-    keep_ports: bool,
-) -> Response {
-    let parsed = match crate::invite::parse(text) {
-        Ok(p) => p,
-        Err(e) => return invalid_key_response(&e, &format!("{e:#}")),
-    };
-    if let Err(e) = crate::invite::check_fresh(&parsed.head, crate::web_gui::now_unix()) {
-        return invalid_key_response(&e, &format!("{e:#}"));
-    }
-    let incoming = data_encoding::HEXLOWER.encode(&parsed.head.network_id);
-    let adopt = ADOPT.lock().unwrap_or_else(|e| e.into_inner());
-    if let Err(resp) = check_target(app.host.as_ref(), slot, Some(&incoming)) {
-        return resp;
-    }
-    drop(adopt);
-    let label = parsed.head.label.clone();
-    let config = slot.config.clone();
-    let save: SaveKey = Box::new(move |key| {
-        let mut cfg = config.lock().unwrap_or_else(|e| e.into_inner());
-        cfg.save_network_key(key, keep_ports)
-            .map_err(|_| "settings file not written".to_string())
-    });
-    if let Err(e) = slot.node.join_by_invite(parsed.head, parsed.peers, save) {
-        return action_error(e);
-    }
-    (
-        StatusCode::ACCEPTED,
-        axum::Json(json!({"label": label, "restart": false, "waiting": true})),
-    )
-        .into_response()
-}
-
 pub(super) async fn network_join_handler(
     State(app): State<Arc<App>>,
     SlotParam(slot): SlotParam,
     bytes: Bytes,
 ) -> Response {
-    let map = match body_obj(&bytes) {
-        Ok(m) => m,
+    let (key_or_invite, keep_ports) = match join_request(&bytes) {
+        Ok(r) => r,
         Err(resp) => return resp,
     };
-    let key_or_invite = match map_string_field(&map, "key") {
-        Ok(k) => k,
-        Err(resp) => return resp,
-    };
-    let keep_ports = wants_keep_ports(&map);
     if crate::invite::looks_like_invite(&key_or_invite) {
         return join_by_invite_response(&app, &slot, &key_or_invite, keep_ports);
     }
-    let input = match crate::members::network_key::parse_user_input(&key_or_invite) {
+    join_by_key_response(&app, &slot, &key_or_invite, keep_ports)
+}
+
+/// The `key` text and the "keep port publications" choice of a join request body.
+pub(super) fn join_request(bytes: &Bytes) -> Result<(String, bool), Response> {
+    let map = body_obj(bytes)?;
+    let key_or_invite = map_string_field(&map, "key")?;
+    Ok((key_or_invite, wants_keep_ports(&map)))
+}
+
+/// Sign-in by a words key: written to the slot at once, the node switches to it.
+pub(super) fn join_by_key_response(
+    app: &Arc<App>,
+    slot: &SlotHandle,
+    key_or_invite: &str,
+    keep_ports: bool,
+) -> Response {
+    let input = match crate::members::network_key::parse_user_input(key_or_invite) {
         Ok(i) => i,
         Err(e) => {
             return invalid_key_response(
@@ -208,14 +174,14 @@ pub(super) async fn network_join_handler(
         }
     };
     let incoming = input.key.subkeys().network_id_hex();
-    if let Err(resp) = adopt_key(&app, &slot, &key_or_invite, Some(&incoming), keep_ports) {
+    if let Err(resp) = adopt_key(app, slot, key_or_invite, Some(&incoming), keep_ports) {
         return resp;
     }
     let label = input.label.clone();
-    slot.node.switch_network(&key_or_invite);
+    slot.node.switch_network(key_or_invite);
     (
         StatusCode::ACCEPTED,
-        axum::Json(json!({"label": label, "restart": true})),
+        axum::Json(json!({"label": label, "restart": true, "slot": slot.id.to_string()})),
     )
         .into_response()
 }

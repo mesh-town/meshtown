@@ -2,7 +2,7 @@
 // The "Members" section: the ban-vote banner, the member list (each row with its "⋯" menu), the line under the
 // list, the groups of nodes that are no longer in / not in the member list, the confirmation dialog. A computer that
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
-import { computed, inject, ref, watch } from "vue";
+import { computed, inject, nextTick, ref, watch } from "vue";
 import { isRefused, membersOf, netName, peersSlots, stateOf } from "../core/slots.ts";
 import { saveExitIn } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
@@ -25,6 +25,7 @@ import VoteBanner from "../members/VoteBanner.vue";
 import { confirmable, displayNames, excludedVariant, isMeExcluded, isMeRemoved, managedFacts, memberById, meId, partitionRows, excludedRowLine, votingHidden } from "../members/members-view.ts";
 import { pendingProposal, proposalKey, pruneHidden } from "../members/vote-hidden.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
+import RejoinForm from "./RejoinForm.vue";
 import NetTabHead from "./NetTabHead.vue";
 import NetTabs from "./NetTabs.vue";
 import PeerRow from "./PeerRow.vue";
@@ -81,10 +82,20 @@ const waitingHere = computed(() => {
 const refusedHere = computed(() => (slot.value === "main" || state.value?.network ? null : refusedText(state.value?.node?.invite_join)));
 const managedHere = computed(() => (store.nets.find((n) => n.id === slot.value)?.kind ?? state.value?.network?.kind) === "Managed");
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
-const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
+const { status, dialog, ask, pick } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
 const variant = computed(() => excludedVariant(members.value, meId(state.value)));
 const net = computed(() => netName(store.nets, slot.value));
+// The way back for an excluded or removed computer is a form under the card, in this tab: the card's button opens it.
+const rejoinOpen = ref(false);
+const rejoin = ref<InstanceType<typeof RejoinForm> | null>(null);
+// A join the members refused is told under the card, also when the form is closed (the slot has no network of its own then).
+const rejoinRefused = computed(() => refusedText(state.value?.node?.invite_join));
+async function openRejoin(): Promise<void> {
+  rejoinOpen.value = true;
+  await nextTick();
+  rejoin.value?.focus();
+}
 const hidden = ref<string[]>([]); // "Not now": keys of the proposals hidden until they change or go away
 
 const me = computed(() => meId(state.value));
@@ -114,6 +125,7 @@ const memberOf = (p: PeerInfo) => memberById(members.value, p.id_full);
 // unless the old tab is gone (a left network keeps its farewell line).
 watch(slot, (now, before) => {
   hidden.value = [];
+  rejoinOpen.value = false;
   if (before !== now && visible.value.includes(before)) status.value = { text: "", cls: "" };
 });
 
@@ -135,7 +147,11 @@ async function exitVia(idFull: string): Promise<void> {
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
-    <ExcludedCard v-else-if="excluded" members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
+    <template v-else-if="excluded">
+      <ExcludedCard members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
+      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" />
+      <p v-if="rejoinRefused" class="hint" id="rejoin-refused" role="status">{{ rejoinRefused }}</p>
+    </template>
     <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />

@@ -176,6 +176,8 @@ pub(crate) struct SnapNode {
     pub(crate) invite_join: Mutex<Option<InviteJoinView>>,
     pub(crate) members: Mutex<Result<MembersReply, MemberError>>,
     pub(crate) member_calls: AtomicUsize,
+    pub(crate) join_result: Mutex<Result<(), ActionError>>,
+    pub(crate) joins: AtomicUsize,
     pub(crate) restarts: AtomicUsize,
     pub(crate) stops: AtomicUsize,
 }
@@ -189,6 +191,8 @@ impl SnapNode {
                 "no members set".to_string(),
             )))),
             member_calls: AtomicUsize::new(0),
+            join_result: Mutex::new(Ok(())),
+            joins: AtomicUsize::new(0),
             restarts: AtomicUsize::new(0),
             stops: AtomicUsize::new(0),
         })
@@ -196,6 +200,21 @@ impl SnapNode {
 
     pub(crate) fn restarts(&self) -> usize {
         self.restarts.load(Ordering::SeqCst)
+    }
+
+    /// The answer `join_by_invite` gives from now on (`Ok` by default).
+    pub(crate) fn set_join_result(&self, r: Result<(), ActionError>) {
+        *self.join_result.lock().unwrap() = r;
+    }
+
+    /// How many times `join_by_invite` was called.
+    pub(crate) fn join_calls(&self) -> usize {
+        self.joins.load(Ordering::SeqCst)
+    }
+
+    /// The reply `members` and member actions give from now on.
+    pub(crate) fn set_members(&self, r: Result<MembersReply, MemberError>) {
+        *self.members.lock().unwrap() = r;
     }
 
     fn members_reply(&self) -> MemberFuture {
@@ -244,6 +263,15 @@ impl NodeControl for SnapNode {
     ) {
     }
     fn switch_network(&self, _key: &str) {}
+    fn join_by_invite(
+        &self,
+        _head: crate::invite::InviteHead,
+        _peers: Vec<crate::transport::net::PeerAddr>,
+        _save: super::SaveKey,
+    ) -> Result<(), ActionError> {
+        self.joins.fetch_add(1, Ordering::SeqCst);
+        self.join_result.lock().unwrap().clone()
+    }
     fn stop(&self) {
         self.stops.fetch_add(1, Ordering::SeqCst);
     }

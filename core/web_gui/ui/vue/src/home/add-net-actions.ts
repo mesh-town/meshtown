@@ -26,12 +26,8 @@ interface TakenSlot {
   fresh?: boolean;
 }
 
-/** `JoinForm` plus what the add form needs: the slot that holds the network, its name, the slot of a duplicate. */
-export interface AddNetForm extends JoinForm {
-  dupSlot?: string;
-  slot?: string;
-  netLabel?: string;
-}
+/** The join form already carries the slot that holds the network, its name and the slot of a duplicate. */
+export type AddNetForm = JoinForm;
 
 export const atLimit = (store: Store): boolean => visibleSlots(store.nets, store.slots).length >= MAX_NETS;
 
@@ -119,11 +115,7 @@ function created(form: AddNetForm, res: CreateNetworkResponse | null): AddNetRes
   return "created";
 }
 
-export async function addNetwork(form: AddNetForm, store: Store, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
-  if (form.busy) return "skipped";
-  clearForm(form);
-  if (refuseEmpty(form, mode)) return "empty";
-  if (atLimit(store)) return "limit";
+async function onNewSlot(form: AddNetForm, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
   form.busy = mode;
   try {
     return await send(form, deps, mode);
@@ -133,6 +125,21 @@ export async function addNetwork(form: AddNetForm, store: Store, deps: HomeDeps,
     form.busy = "";
     if (typeof document !== "undefined") notifyChanged(document, "state");
   }
+}
+
+/** Joins with a word key on a slot of its own: claims an empty slot, joins in it, gives the slot back when the join is refused. */
+export async function joinOnNewSlot(form: JoinForm, deps: HomeDeps): Promise<AddNetResult> {
+  if (form.busy) return "skipped";
+  clearForm(form);
+  return onNewSlot(form, deps, "join");
+}
+
+export async function addNetwork(form: AddNetForm, store: Store, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
+  if (form.busy) return "skipped";
+  clearForm(form);
+  if (refuseEmpty(form, mode)) return "empty";
+  if (atLimit(store)) return "limit";
+  return onNewSlot(form, deps, mode);
 }
 
 // The exit the computer keeps using, when it is a member (not "directly"): shown in the banner so a new network does not look like a change.

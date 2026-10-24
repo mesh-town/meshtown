@@ -1,4 +1,4 @@
-/* The join card after a refusal: the stale "Invite accepted" line goes away, the waiting line stays while waiting. */
+/* The join card after a refusal: the stale "Invite sent" line goes away, the waiting line stays while waiting. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -26,20 +26,20 @@ async function sendInvite() {
 }
 
 describe("JoinCard > invite_join", () => {
-  it("waiting: the \"Invite accepted\" line is shown", async () => {
+  it("waiting: the \"Invite sent\" line is shown", async () => {
     const { wrapper, store } = await sendInvite();
     store.state = lonely(INFO);
     await flushPromises();
     expect(wrapper.get("#join-status").attributes("hidden")).toBeUndefined();
-    expect(wrapper.get("#join-status").text()).toContain("Invite accepted");
+    expect(wrapper.get("#join-status").text()).toContain("Invite sent");
   });
 
-  it("refused: only the refusal text, no \"Invite accepted\" line", async () => {
+  it("refused: only the refusal text, no \"Invite sent\" line", async () => {
     const { wrapper, store } = await sendInvite();
     store.state = lonely(REFUSED);
     await flushPromises();
     expect(wrapper.get("#join-status").attributes("hidden")).toBeDefined();
-    expect(wrapper.text()).not.toContain("Invite accepted");
+    expect(wrapper.text()).not.toContain("Invite sent");
     expect(wrapper.get("#join-wait").text()).toBe("This invite cannot be used.");
   });
 });

@@ -58,6 +58,10 @@ impl DemoHost {
     /// The main slot wraps `main_node`; with `--nets N` the slots 2..=N follow, each with its own
     /// node and network key. Its background tasks start here, so it must run inside a runtime.
     pub(crate) fn new(args: &Args, run: &RunConfig, main_node: Arc<DemoNode>) -> Arc<Self> {
+        let key = main_node.state.lock().unwrap().settings.net.network_key.clone();
+        if let Some(key) = key {
+            crate::invites::remember(&key);
+        }
         let main = Entry {
             handle: SlotHandle {
                 id: NetSlotId::main(),
@@ -89,6 +93,10 @@ impl DemoHost {
     }
 
     fn push(&self, node: Arc<DemoNode>, config: ConfigState) -> NetSlotId {
+        let key = node.state.lock().unwrap().settings.net.network_key.clone();
+        if let Some(key) = key {
+            crate::invites::remember(&key);
+        }
         let mut slots = self.slots.lock().unwrap();
         let id = slot_id(slots.created);
         slots.created += 1;

@@ -7,11 +7,11 @@ import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps, writeSetupMark } from "./home-actions.ts";
 import type { HomeDeps, SetupMark } from "./home-actions.ts";
-import { createdBanner } from "./add-net-texts.ts";
+import { ADD_NET_LIMIT, createdBanner } from "./add-net-texts.ts";
 import { failText, quotedNet, upperFirst } from "../common/words.ts";
 import {
   HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_JOIN_ACTION, HOME_LABEL_EMPTY, JOIN_STALLED, JOIN_STALLED_SILENT,
-  JOIN_WAITING, createdNoticeText, joinedStatusText,
+  JOIN_WAITING, createdNoticeText, joinedStatusText, waitingStatusText,
 } from "./home-flow-texts.ts";
 
 const INVITE_EMPTY = HOME_INVITE_EMPTY;
@@ -45,12 +45,16 @@ export interface JoinForm {
   status: string;
   /** The kind of the network the create form makes; the join forms never send it. */
   kind: NetKind;
+  /** The slot the last join went to, the slot of an "already in" answer, and the name the node gave the network. */
+  slot?: string;
+  dupSlot?: string;
+  netLabel?: string;
 }
 export interface HighlightPart {
   text: string;
   highlighted: boolean;
 }
-export type JoinResult = "skipped" | "empty" | "joined" | "waiting" | "created" | "failed";
+export type JoinResult = "skipped" | "empty" | "joined" | "waiting" | "here" | "limit" | "created" | "failed";
 type RequestBody = JoinRequest | CreateNetworkRequest;
 
 export function createJoinForm(): JoinForm {
@@ -80,7 +84,7 @@ export function createdNotice(label: unknown): string {
 
 const asking = new WeakSet<JoinForm>();
 
-async function ask(form: JoinForm, run: () => Promise<JoinResult> | JoinResult): Promise<JoinResult> {
+export async function ask(form: JoinForm, run: () => Promise<JoinResult> | JoinResult): Promise<JoinResult> {
   if (form.busy || asking.has(form)) return "skipped";
   asking.add(form);
   try {
@@ -99,41 +103,77 @@ async function request<T>(form: JoinForm, kind: "join" | "create", path: string,
   }
 }
 
+type ErrBody = { slot?: string; label?: string; message?: string; word?: string };
+
 function joinFailed(form: JoinForm, err: ApiErrorLike): JoinResult {
-  const body = err.body || {};
+  const body = (err.body || {}) as ErrBody;
+  if (err.code === "net_already_added") return alreadyHere(form, body);
+  if (err.code === "too_many_nets") return atTheLimit(form);
   const invalid = err.code === "invalid_key";
   const message = invalid ? body.message || INVITE_INVALID : failText(HOME_JOIN_ACTION, err);
   form.inviteError = { message, word: invalid ? body.word || null : null };
   return "failed";
 }
 
+function alreadyHere(form: JoinForm, body: ErrBody): JoinResult {
+  form.dupSlot = body.slot;
+  form.netLabel = body.label || undefined;
+  return "here";
+}
+
+function atTheLimit(form: JoinForm): JoinResult {
+  form.inviteError = { message: ADD_NET_LIMIT, word: null };
+  return "limit";
+}
+
 // The "Three steps" setup — only for a node that joined its first network; switching from "Settings" (`mark` null) does not wake it.
-const markFor = (store: Store): SetupMark | null => (store.state && store.state.network ? null : "browser");
+export const markFor = (store: Store): SetupMark | null => (store.state && store.state.network ? null : "browser");
 
 const writeMark = (mark: SetupMark | null, deps: HomeDeps) => mark && writeSetupMark(mark, deps.storage);
 
-function joinDone(form: JoinForm, res: JoinResponse | null, mark: SetupMark | null, deps: HomeDeps): JoinResult {
+const slotOfPath = (path: string): string => /^\/api\/net\/([^/]+)\//.exec(path)?.[1] ?? "main";
+
+// The slot of the answer: an older node does not name it, then it is the slot of the address.
+function joinDone(form: JoinForm, res: JoinResponse | null, path: string): JoinResult {
   form.inviteInput = "";
-  if (res && res.waiting === true) return joinWaiting(form, mark, deps);
+  form.slot = res?.slot ?? slotOfPath(path);
+  form.netLabel = res?.label || undefined;
+  if (res && res.waiting === true) {
+    form.status = res.label ? waitingStatusText(quotedNet(res.label)) : JOIN_WAITING;
+    return "waiting";
+  }
   form.status = joinedStatusText(quotedNet(res && res.label));
-  writeMark(mark, deps);
   return "joined";
 }
 
-function joinWaiting(form: JoinForm, mark: SetupMark | null, deps: HomeDeps): JoinResult {
-  form.status = JOIN_WAITING;
-  writeMark(mark, deps);
-  return "waiting";
+/** Clears what the last attempt left on the form and returns the trimmed key; an empty field puts the error on the form. */
+export function beginJoin(form: JoinForm): string {
+  const key = form.inviteInput.trim();
+  form.status = "";
+  form.slot = undefined;
+  form.dupSlot = undefined;
+  promiseTokenByForm.delete(form);
+  stopLate(form);
+  form.inviteError = key ? null : { message: INVITE_EMPTY, word: null };
+  return key;
 }
 
-async function sendJoin(form: JoinForm, body: JoinRequest, mark: SetupMark | null, deps: HomeDeps): Promise<JoinResult> {
+/** One request to a join address; the mark and the promise of a restart are not written here (see `afterMainJoin`). */
+export async function postJoin(form: JoinForm, path: string, key: string, deps: HomeDeps): Promise<JoinResult> {
   try {
-    return joinDone(form, await request<JoinResponse>(form, "join", "/api/network/join", body, deps), mark, deps);
+    return joinDone(form, await request<JoinResponse>(form, "join", path, { key }, deps), path);
   } catch (err) {
     return joinFailed(form, err as ApiErrorLike);
   }
 }
 
+/** A join into `main` restarts the node: the setup mark and the promise of the status. Another slot — the outcome as it is. */
+export function afterMainJoin<T extends JoinResult>(form: JoinForm, store: Store, deps: HomeDeps, outcome: T, mark: SetupMark | null): T {
+  if (form.slot !== "main") return outcome;
+  if (outcome === "joined" || outcome === "waiting") writeMark(mark, deps);
+  expectNode(form, store, deps, outcome);
+  return outcome;
+}
 
 // A promise from `joinDone` waiting for its deadline. A new click clears the mark, and the old deadline stays silent.
 const promiseTokenByForm = new WeakMap<JoinForm, symbol>();
@@ -194,16 +234,14 @@ function expectNode(form: JoinForm, store: Store, deps: HomeDeps, outcome: JoinR
 }
 
 export function joinNetwork(form: JoinForm, store: Store, deps: HomeDeps = defaultHomeDeps): Promise<JoinResult> {
-  return ask(form, async () => expectNode(form, store, deps, await startJoin(form, store, deps)));
+  return ask(form, () => startJoin(form, store, deps));
 }
 
-function startJoin(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinResult> | "empty" {
-  const key = form.inviteInput.trim();
-  form.status = "";
-  promiseTokenByForm.delete(form);
-  stopLate(form);
-  form.inviteError = key ? null : { message: INVITE_EMPTY, word: null };
-  return key ? sendJoin(form, { key }, markFor(store), deps) : "empty";
+async function startJoin(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinResult> {
+  const key = beginJoin(form);
+  const mark = markFor(store);
+  if (!key) return "empty";
+  return afterMainJoin(form, store, deps, await postJoin(form, "/api/network/join", key, deps), mark);
 }
 
 function createFailed(form: JoinForm, err: ApiErrorLike): JoinResult {

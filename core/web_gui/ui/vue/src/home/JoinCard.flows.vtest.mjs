@@ -7,7 +7,7 @@ import { createFakeNode } from "../testing/fake-node.mjs";
 import { mountPage, settle, unmountPage } from "../testing/page.mjs";
 import { shown } from "../testing/dom.mjs";
 
-const JOIN_FALLBACK_TEXT = "This doesn't look like an invite. Copy it from the network member again in full and paste it here.";
+const JOIN_FALLBACK_TEXT = "This doesn't look like an invite. Copy the whole invite again and paste it here.";
 
 afterEach(unmountPage);
 

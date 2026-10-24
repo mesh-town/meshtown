@@ -17,9 +17,11 @@ import { baseState } from "../testing/section.mjs";
 import AddNetCard from "./AddNetCard.vue";
 
 const FRESH = "neta22";
-const INVITE = "mesh-invite2-ABCDEFGH";
+const INVITE = "mesh1-ABCDEFGH";
 const STAY_BOTH = 'You stay in "friends" and "my devices". The new network gets its own tab in Members.';
-const LIMIT = "Mesh Town can be in up to 8 networks at once. To add this one, leave another network first.";
+const LIMIT = "Mesh Town is in 8 networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.";
+const LIMIT_REFUSED = "This invite is for a new network, and Mesh Town is already in 8. Leave a network, then paste the invite again.";
+const NEW_INVITE = "mesh-invite2-ABCDEFGH";
 const JOINING = "Joining the network…";
 const MINUTE = "This takes up to a minute. Your other networks keep working.";
 const CREATE_TOGGLE = "No invite? Create a new network ▸";
@@ -47,7 +49,7 @@ describe("the form", () => {
 
     it("asks for the invite in a field with a paste hint", async () => {
       const card = await setup({ context });
-      expect(card.text()).toContain("Invite from a network member");
+      expect(card.text()).toContain("Invite you received");
       expect(card.visibleInput().attributes("placeholder")).toBe("Paste the invite here");
       expect(card.text()).toContain("Paste the entire invite. If a word has a typo, Mesh Town will highlight it.");
     });
@@ -142,11 +144,20 @@ describe("a join that waits for members", () => {
 });
 
 describe("eight networks", () => {
-  it("replaces the form with the limit text and asks the node for nothing", async () => {
+  it("keeps the field, says the limit above it and offers no way to create", async () => {
     const card = await setup({ opts: eightNets() });
     expect(card.text()).toContain(LIMIT);
-    expect(card.visibleInputs()).toHaveLength(0);
-    expect(card.controlTexts()).not.toContain("Add network");
+    expect(card.visibleInputs()).toHaveLength(1);
+    expect(card.controlTexts()).toContain("Add network");
+    expect(card.controlTexts()).not.toContain(CREATE_TOGGLE);
+    expect(card.postedPaths()).toEqual([]);
+  });
+
+  it("refuses a word key before any request", async () => {
+    const card = await setup({ opts: eightNets() });
+    await card.when.typed(INVITE);
+    await card.when.clicked("Add network");
+    expect(card.alerts()).toEqual([LIMIT_REFUSED]);
     expect(card.postedPaths()).toEqual([]);
   });
 
@@ -163,14 +174,14 @@ describe("eight networks", () => {
     expect(card.visibleInputs()).toHaveLength(1);
   });
 
-  it("the node can refuse as well: \"too_many_nets\" turns the form into the limit text", async () => {
+  it("the node can refuse an invite as well: \"too_many_nets\" gives the refusal text in the field's error", async () => {
     const opts = withFreshSlot(twoNets());
     const card = await setup({ opts });
-    card.node.routes["POST /api/nets"] = { status: 409, body: { error: "too_many_nets", limit: 8 } };
-    await card.when.typed(INVITE);
+    card.node.routes["POST /api/network/join"] = { status: 409, body: { error: "too_many_nets", limit: 8 } };
+    await card.when.typed(NEW_INVITE);
     await card.when.clicked("Add network");
-    expect(card.text()).toContain(LIMIT);
-    expect(card.postedPaths()).toEqual(["/api/nets"]);
+    expect(card.alerts()).toEqual([LIMIT_REFUSED]);
+    expect(card.postedPaths()).toEqual(["/api/network/join"]);
   });
 });
 
@@ -195,7 +206,7 @@ describe("joining by invite", () => {
   it("with an empty field says so and sends nothing", async () => {
     const card = await setup();
     await card.when.clicked("Add network");
-    expect(card.alerts()).toEqual(["Paste the invite a network member sent you."]);
+    expect(card.alerts()).toEqual(["Paste the invite first."]);
     expect(card.postedPaths()).toEqual([]);
   });
 

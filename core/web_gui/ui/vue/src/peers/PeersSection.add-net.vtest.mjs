@@ -12,7 +12,7 @@ import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { PEER_FULL, baseConfig, baseState } from "../testing/section.mjs";
 
 const FRESH = "neta22";
-const INVITE = "mesh-invite2-ABCDEFGH";
+const INVITE = "mesh1-ABCDEFGH";
 const ADD_LINK = "Add another network";
 const CREATE_TOGGLE = "No invite? Create a new network ▸";
 const JOINED = 'You joined "work".';

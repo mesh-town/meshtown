@@ -32,8 +32,9 @@ export async function inspectKey(api: ApiFn, key: string): Promise<InspectRespon
 export const previewText = (reply: InspectResponse): string => (reply.kind === "Managed" ? previewManaged(reply.label) : previewPeer(reply.label));
 
 /** `preview` is the one-line text for the string in the field, empty while there is none; a stale answer is dropped. */
-export function useInspectPreview(getKey: () => string, api: ApiFn = defaultApi, timers: InspectTimers = pageTimers): { preview: Ref<string> } {
+export function useInspectPreview(getKey: () => string, api: ApiFn = defaultApi, timers: InspectTimers = pageTimers): { preview: Ref<string>; reply: Ref<InspectResponse | null> } {
   const preview = ref("");
+  const reply = ref<InspectResponse | null>(null);
   let timer: unknown = null;
   let generation = 0;
 
@@ -45,16 +46,19 @@ export function useInspectPreview(getKey: () => string, api: ApiFn = defaultApi,
 
   async function ask(key: string, mine: number): Promise<void> {
     timer = null;
-    const reply = await inspectKey(api, key);
-    if (mine === generation) preview.value = reply ? previewText(reply) : "";
+    const answer = await inspectKey(api, key);
+    if (mine !== generation) return;
+    reply.value = answer;
+    preview.value = answer ? previewText(answer) : "";
   }
 
   watch(getKey, (value) => {
     cancel();
     preview.value = "";
+    reply.value = null;
     const key = value.trim();
     if (key) timer = timers.setTimer(() => void ask(key, generation), INSPECT_DELAY_MS);
   });
   if (getCurrentScope()) onScopeDispose(cancel);
-  return { preview };
+  return { preview, reply };
 }
