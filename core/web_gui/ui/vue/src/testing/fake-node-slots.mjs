@@ -3,7 +3,7 @@
  * `main`, which is the node itself: the overview is built from `node.state` and the member list route, so a test written for one
  * network keeps working. `legacy: true` makes the overview and `/api/nets` answer 404 `not_found`, as a node of an older version.
  *
- * A slot spec (`slots: [...]`): `{ id, label?, id_hex?, members?, state?, config?, rev? }`. `main` uses the top-level `state` and
+ * A slot spec (`slots: [...]`): `{ id, label?, id_hex?, members?, state?, config?, rev?, proxy? }` (`proxy` — the slot carries the browser proxy; default: `main`). `main` uses the top-level `state` and
  * `config` of the node; another slot has its own. `members` is the reply of the slot's member list (`null` — no network).
  * A slot with a key has `id_hex != null`; `label` may stay `null` (a key without a label). */
 
@@ -25,7 +25,7 @@ function makeSlot(node, spec) {
   if (spec.id !== MAIN && spec.members) own.routes["GET /api/members"] = spec.members;
   const network = own.state.network ?? null;
   const pick = (key) => (spec[key] !== undefined ? spec[key] : network?.[key] ?? null);
-  Object.assign(own, { id: spec.id, label: pick("label"), id_hex: pick("id_hex"), members: spec.members ?? null });
+  Object.assign(own, { id: spec.id, label: pick("label"), id_hex: pick("id_hex"), members: spec.members ?? null, proxy: spec.proxy });
   return own;
 }
 
@@ -42,7 +42,7 @@ function brief(slot) {
   const peers = (state.peers || []).filter((p) => !p.self);
   return {
     id: slot.id, label: slot.label, id_hex: slot.id_hex, status: state.node?.status ?? "running", exit_enabled: Boolean(state.exit?.enabled),
-    proxy: slot.id === MAIN, route_state: state.route?.state ?? "direct", exits: (state.route?.exits || []).map((e) => e.id_full),
+    proxy: slot.proxy ?? slot.id === MAIN, route_state: state.route?.state ?? "direct", exits: (state.route?.exits || []).map((e) => e.id_full),
     members_voting: state.members?.voting ?? 0, joining: slot.joining ?? false, members_admitting: state.members?.admitting ?? 0,
     me_excluded: state.members?.me_excluded ?? false, me_pending: state.members?.me_pending ?? false,
     peers_online: peers.filter((p) => p.online).length, peers_total: peers.length,
