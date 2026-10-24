@@ -3,6 +3,7 @@
 
 use meshtown_core::web_gui::{ActionError, MemberActionReq, MemberError};
 
+use crate::managed::Roles;
 use crate::members_forget::ForgetState;
 use crate::node::{DemoNetworkOptions, DemoPeer};
 
@@ -51,6 +52,8 @@ pub(crate) struct DemoMembers {
     pub(crate) me_pending: bool,
     pub(crate) second_vote: bool,
     pub(crate) entries: Vec<Entry>,
+    /// Administrators and the creator of a managed network; `None` in a peer network.
+    pub(crate) roles: Option<Roles>,
 }
 
 /// The demo id of a fake member: one byte repeated, so it is a valid 64-hex id.
@@ -176,6 +179,7 @@ impl DemoMembers {
             me_pending: opts.me_pending,
             second_vote,
             entries,
+            roles: Roles::new(opts.managed, &ids),
         };
         if opts.members_forget {
             members.push_forget_rows();
@@ -205,6 +209,10 @@ impl DemoMembers {
 
     /// Applies an action; `Ok(changed)`.
     pub(crate) fn apply(&mut self, act: &MemberActionReq) -> Result<bool, MemberError> {
+        self.gate(act)?;
+        if let Some(done) = self.role_act(act) {
+            return Ok(done);
+        }
         let Some(id) = target_of(act) else {
             return Ok(self.leave());
         };

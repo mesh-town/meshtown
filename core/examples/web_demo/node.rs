@@ -10,6 +10,7 @@ use meshtown_core::config::config_file::Settings;
 use meshtown_core::node::output;
 use meshtown_core::web_gui::{DhtInfo, LogRing, NodeStatus, PathKindView, VerdictKind};
 
+use crate::managed::ManagedMode;
 use crate::members::DemoMembers;
 use crate::rng::gen_hex8;
 
@@ -60,6 +61,8 @@ pub(crate) struct DemoNetworkOptions {
     pub(crate) members_forget: bool,
     /// `--me-removed`: the node starts removed from the member list.
     pub(crate) me_removed: bool,
+    /// `--managed` / `--managed-member`: the network has administrators.
+    pub(crate) managed: ManagedMode,
 }
 
 pub(crate) struct DemoNode {

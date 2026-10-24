@@ -27,6 +27,7 @@ fn demo() -> DemoMembers {
         me_pending: false,
         members_forget: true,
         me_removed: false,
+        managed: Default::default(),
     };
     DemoMembers::new(&[peer(2, "peer-one"), peer(3, "peer-two")], &opts)
 }

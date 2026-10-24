@@ -5,7 +5,8 @@ use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
 use meshtown_core::config::config_file::Settings;
 use meshtown_core::members::network_key::{NetKind, NetworkKey};
 use meshtown_core::web_gui::{
-    ActionError, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot, NodeStatus,
+    ActionError, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl, NodeSnapshot,
+    NodeStatus,
 };
 
 use crate::node::{DemoDomain, DemoNode};
@@ -23,6 +24,10 @@ impl NodeControl for DemoNode {
             .lock()
             .unwrap()
             .page(&boot_id, after, limit.max(1), net)
+    }
+
+    fn net_roles(&self) -> Option<NetRoles> {
+        self.roles_of_node()
     }
 
     fn members(&self) -> MemberFuture {

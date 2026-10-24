@@ -2,11 +2,12 @@
 
 use meshtown_core::web_gui::{
     AdmissionInfo, Counts, ExcludedInfo, MemberActionReq, MemberError, MemberRow, MembersReply,
-    NodeStatus, VoteInfo,
+    NetRoles, NodeStatus, VoteInfo,
 };
 
 use meshtown_core::web_gui::ActionError;
 
+use crate::managed::own_id_as_me;
 use crate::members::{DemoMembers, Entry, Standing, ME};
 use crate::members_forget::{forget_info, last_seen};
 use crate::node::{DemoNode, DemoState};
@@ -115,7 +116,7 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         name: e.name.clone(),
         is_self,
         online: e.online,
-        admin: false,
+        admin: m.is_admin(&e.id_full),
         status: status_of(e),
         vote: vote_of(m, e, me),
         excluded: excluded_of(e, me),
@@ -158,26 +159,45 @@ fn counts(rows: &[MemberRow]) -> Counts {
     }
 }
 
+fn kind_word(m: &DemoMembers) -> &'static str {
+    match m.roles {
+        Some(_) => "Managed",
+        None => "Peer",
+    }
+}
+
+/// The administrators as full ids, ascending.
+fn admins_of(m: &DemoMembers, me: &str) -> Vec<String> {
+    let mut ids = m
+        .roles
+        .as_ref()
+        .map(|r| resolve_all(&r.admins, me))
+        .unwrap_or_default();
+    ids.sort();
+    ids
+}
+
 pub(crate) fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> MembersReply {
     let me = demo_self_id_full(boot_id);
     let mut sorted: Vec<&Entry> = m.entries.iter().collect();
     sorted.sort_by_key(|e| order_key(e));
     let members: Vec<MemberRow> = sorted
         .into_iter()
+        .filter(|_| !m.is_closed())
         .map(|e| row(m, e, &me, boot_id))
         .collect();
     let (counts, me_admission) = (counts(&members), own_admission(m));
     MembersReply {
-        me,
+        me: me.clone(),
         me_excluded: m.me_excluded,
         me_removed: m.me_removed,
         me_pending: m.me_pending,
         me_admission,
         need: m.need(),
-        kind: "Peer",
-        admins: Vec::new(),
-        me_admin: false,
-        root: None,
+        kind: kind_word(m),
+        admins: admins_of(m, &me),
+        me_admin: m.is_admin(ME),
+        root: m.roles.as_ref().map(|r| resolve(&r.root, &me)),
         counts,
         members,
         changed,
@@ -200,10 +220,22 @@ impl DemoNode {
         Ok(build_reply(&st.members, &st.boot_id, None))
     }
 
+    /// The roles of a managed demo network; `None` in a peer network.
+    pub(crate) fn roles_of_node(&self) -> Option<NetRoles> {
+        let st = self.state.lock().unwrap();
+        st.members.roles.as_ref()?;
+        Some(NetRoles::from_reply(&build_reply(
+            &st.members,
+            &st.boot_id,
+            None,
+        )))
+    }
+
     pub(crate) fn members_act(&self, act: &MemberActionReq) -> Result<MembersReply, MemberError> {
         let mut st = self.state.lock().unwrap();
         ensure_online(self, &st)?;
-        let changed = st.members.apply(act)?;
+        let act = own_id_as_me(act.clone(), &st.boot_id);
+        let changed = st.members.apply(&act)?;
         Ok(build_reply(&st.members, &st.boot_id, Some(changed)))
     }
 }
