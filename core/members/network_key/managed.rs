@@ -172,3 +172,11 @@ pub fn parse_managed(label: Option<String>, rest: &str) -> Option<Result<Network
 #[cfg(test)]
 #[path = "managed_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "managed_forms_tests.rs"]
+mod forms_tests;
+
+#[cfg(test)]
+#[path = "managed_support.rs"]
+mod support;

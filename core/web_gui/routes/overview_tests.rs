@@ -30,6 +30,7 @@ async fn one_slot_matches_the_separate_replies() {
     assert_eq!(overview["nets"], nets["nets"]);
     let mut expected = state.clone();
     expected.as_object_mut().unwrap().remove("nets");
+    expected.as_object_mut().unwrap().remove("notices");
     let mut got = overview["slots"][0]["state"].clone();
     for value in [&mut expected, &mut got] {
         value.as_object_mut().unwrap().remove("now");

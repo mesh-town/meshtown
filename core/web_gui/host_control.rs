@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use super::config_api::ConfigState;
 use super::control::NodeControl;
 use crate::config::config_file::NetSlotId;
+pub use crate::node::host::Notice;
 use crate::proxy::ProxyFront;
 
 /// One slot: its id, the node control surface and the config state the page edits for it.
@@ -74,6 +75,14 @@ pub trait HostControl: Send + Sync {
     /// The process-wide proxy front, if the host has one.
     fn proxy_front(&self) -> Option<ProxyFront> {
         None
+    }
+    /// What the page must show until it is acknowledged, oldest first.
+    fn notices(&self) -> Vec<Notice> {
+        Vec::new()
+    }
+    /// Removes the notice; `false` when there is none with this id.
+    fn ack_notice(&self, _id: u64) -> bool {
+        false
     }
 }
 

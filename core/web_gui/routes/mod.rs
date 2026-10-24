@@ -114,6 +114,10 @@ fn register_host(router: Router<Arc<App>>) -> Router<Arc<App>> {
             "/api/overview",
             get(overview::overview_handler).fallback(bad_method),
         )
+        .route(
+            "/api/notices/ack",
+            post(state_host::notices_ack_handler).fallback(bad_method),
+        )
 }
 
 /// Routes of the process: registered once, without a slot prefix.

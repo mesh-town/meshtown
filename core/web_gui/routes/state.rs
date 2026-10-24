@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use super::slot_param::SlotParam;
-use super::state_host::{apply_host, apply_slot};
+use super::state_host::{apply_host, apply_notices, apply_slot};
 use super::state_net::{apply_net, net_state};
 use crate::web_gui::auth::iface_os::current_view;
 use crate::web_gui::http::{json_err, ConnInfo};
@@ -39,6 +39,7 @@ pub(super) async fn state_handler(
     };
     // The slot's config lock is released by now; `briefs` takes the locks one by one.
     apply_host(&mut value, &slot.id, briefs(app.host.as_ref()));
+    apply_notices(&mut value, app.host.notices());
     (StatusCode::OK, axum::Json(value)).into_response()
 }
 

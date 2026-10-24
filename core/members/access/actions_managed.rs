@@ -119,3 +119,11 @@ pub(super) async fn close(a: &Access) -> NetResult<bool> {
 #[cfg(test)]
 #[path = "actions_managed_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "actions_managed_grant_tests.rs"]
+mod grant_tests;
+
+#[cfg(test)]
+#[path = "actions_managed_support.rs"]
+mod support;

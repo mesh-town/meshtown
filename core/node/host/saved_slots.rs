@@ -6,9 +6,9 @@ use super::slots::HostSlots;
 use crate::config::config_file::{
     list_net_slots, load_invited_peers, prepare_net_slot, NetSlotId, RunConfig,
 };
-use crate::members::network_key::{parse_user_input, NetworkKey, NetworkKeyInput};
+use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::guard_sources::GuardSources;
-use crate::node::node_ctl::Relaunch;
+use crate::node::node_ctl::{apply_key_input, Relaunch};
 use crate::node::output::say;
 use crate::node::IdentityState;
 use crate::transport::net::PeerAddr;
@@ -43,9 +43,7 @@ fn slot_launch(
     let relaunch = relaunch.for_net_slot(&run);
     relaunch.apply_net_flags(&mut run.effective_settings);
     let mut cfg = relaunch.node_config(&run.effective_settings, parsed.key.clone());
-    cfg.network_label = parsed.label.clone();
-    cfg.net_kind = parsed.kind;
-    cfg.reply_secret = NetworkKey::from_bytes(parsed.reply_secret());
+    apply_key_input(&mut cfg, &parsed);
     cfg.identity = IdentityState::from_report(&run.file_report);
     cfg.initial_peers = invited_peers(&run);
     SlotLaunch {

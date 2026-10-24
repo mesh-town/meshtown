@@ -68,3 +68,7 @@ mod characterization_cascade_tests;
 #[cfg(test)]
 #[path = "characterization_forget_tests.rs"]
 mod characterization_forget_tests;
+
+#[cfg(test)]
+#[path = "characterization_forget_return_tests.rs"]
+mod characterization_forget_return_tests;
