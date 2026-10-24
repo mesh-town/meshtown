@@ -21,7 +21,7 @@ describe("JoinCard", () => {
     await flushPromises();
     const alert = wrapper.get("#join-key-error");
     expect(alert.attributes("role")).toBe("alert");
-    expect(alert.text()).toBe("Paste the invite a network member sent you.");
+    expect(alert.text()).toBe("Paste the invite first.");
     expect(api).not.toHaveBeenCalled();
   });
 
@@ -62,11 +62,11 @@ describe("JoinCard", () => {
     expect(el.text()).toBe("Another node has already joined with this invite.");
   });
 
-  it("with a network the title is \"Switch to another network\", the button is \"Switch\"", () => {
+  it("with a network the title is \"Join with an invite\", the button is \"Join\"", () => {
     const { wrapper } = mountJoin({ state: baseState() });
-    expect(wrapper.get("#join-card-title").text()).toBe("Switch to another network");
-    expect(wrapper.get("#join-btn").text()).toBe("Switch");
-    expect(wrapper.get("#net-restart-hint").attributes("hidden")).toBeUndefined();
+    expect(wrapper.get("#join-card-title").text()).toBe("Join with an invite");
+    expect(wrapper.get("#join-btn").text()).toBe("Join");
+    expect(wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();
   });
 
   it("without a network the restart hint is hidden", async () => {

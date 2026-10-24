@@ -37,6 +37,8 @@ export interface JoinResponse {
   restart: boolean; // false for `waiting`
   /** The `mesh-invite2-` invite is accepted, the node is waiting (`node.invite_join`). */
   waiting?: boolean;
+  /** The slot the join went to; an older node does not send it (the join went to `main`). */
+  slot?: string;
 }
 
 /** Body of `POST /api/network/create`. */
@@ -50,6 +52,10 @@ export interface InspectResponse {
   label: string | null;
   kind: NetKind;
   id_hex: string;
+  /** For an invite: `new` — a slot will be taken, `return` — back into the slot that already holds this network, `here` — the node is in it. */
+  place?: "new" | "return" | "here";
+  /** The slot of `return` / `here`. */
+  slot?: string;
 }
 
 /** `POST /api/network/create`, 200: the full key arrives only here. */

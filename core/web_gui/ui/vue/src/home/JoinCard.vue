@@ -4,26 +4,49 @@
 import { computed, inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import NetKindPicker from "./NetKindPicker.vue";
-import { useInspectPreview } from "./inspect-preview.ts";
+import InviteForm from "./InviteForm.vue";
+import { isInvite } from "./invite-join-actions.ts";
+import { useArrival } from "./use-invite-join.ts";
+import type { InviteOutcome } from "./invite-join-actions.ts";
+import type { InviteFormIds } from "./use-invite-join.ts";
+import { netName } from "../core/slots.ts";
+import { isMeExcluded } from "../members/members-ids.ts";
 import { useJoin } from "./use-join.ts";
 import { inviteWaitText, refusedText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
 import {
-  HOME_CREATE_BTN, HOME_CREATE_BUSY, HOME_CREATE_ERROR_ARIA, HOME_CREATE_LABEL, HOME_CREATE_PLACEHOLDER, HOME_CREATE_TOGGLE,
-  HOME_JOIN_BUSY, HOME_JOIN_ERROR_ARIA, HOME_JOIN_FIELD_LABEL, HOME_JOIN_PASTE_HINT, HOME_JOIN_PLACEHOLDER, HOME_JOIN_REMOVED_HINT, HOME_JOIN_RESTART_HINT,
+  HOME_ASK_ADMIN_HINT, HOME_ASK_MEMBER_HINT, HOME_CREATE_BTN, HOME_CREATE_BUSY, HOME_CREATE_ERROR_ARIA, HOME_CREATE_LABEL, HOME_CREATE_PLACEHOLDER,
+  HOME_CREATE_TOGGLE, HOME_JOIN_KEY_HINT, HOME_NO_RETURN_HINT,
 } from "./home-card-texts.ts";
-import { HOME_BUTTON_JOIN, HOME_TITLE_REMOVED } from "./home-flow-texts.ts";
+import { HOME_BUTTON_JOIN } from "./home-flow-texts.ts";
+import { REJOIN_OTHER, REJOIN_TITLE } from "./invite-join-texts.ts";
 
 const props = defineProps<{ join?: JoinView | null; quiet?: boolean; removed?: boolean }>();
 const store = inject(STORE_KEY)!;
 const j = props.join || useJoin(store);
-const { form, hasNet, showJoin, showCreate, title, buttonText, errorParts } = j;
+const { form, hasNet, showJoin, showCreate, title, buttonText } = j;
 // `quiet` — the setup has already shown the join progress in its own block, so we don't duplicate the line under the form.
-// `removed` — the others removed this computer from the member list: its own title and hint instead of the "switch" ones.
-const { preview } = useInspectPreview(() => form.inviteInput);
-const heading = computed(() => (props.removed ? HOME_TITLE_REMOVED : title.value));
-const button = computed(() => (props.removed ? HOME_BUTTON_JOIN : buttonText.value));
-const restartHint = computed(() => (props.removed ? HOME_JOIN_REMOVED_HINT : HOME_JOIN_RESTART_HINT));
+// `removed` — the others removed this computer from the member list; an excluded computer is told by the member list too:
+// either way the title and the hint say where the invite has to come from.
+const ids: InviteFormIds = {
+  input: "join-key-input", button: "join-btn", error: "join-key-error", preview: "join-kind-preview", note: "join-place-note", dup: "join-dup", open: "join-open",
+};
+const arrival = useArrival(store);
+const arrived = (outcome: InviteOutcome, slot: string | null): void => {
+  if (slot && slot !== "main") arrival(outcome, form);
+};
+const gone = computed(() => !!props.removed || (hasNet.value && isMeExcluded(store.state, store.members)));
+const managed = computed(() => store.state?.network?.kind === "Managed");
+const bannedPeer = computed(() => gone.value && !props.removed && !managed.value);
+const netLabel = computed(() => netName(store.nets, store.lead));
+const heading = computed(() => (!gone.value ? title.value : bannedPeer.value ? REJOIN_OTHER : REJOIN_TITLE(netLabel.value)));
+const button = computed(() => (gone.value ? HOME_BUTTON_JOIN : buttonText.value));
+// Under the field: where a new invite has to come from, or — for a word key — that it replaces the network.
+const hint = computed(() => {
+  if (bannedPeer.value) return HOME_NO_RETURN_HINT(netLabel.value);
+  if (gone.value) return (managed.value ? HOME_ASK_ADMIN_HINT : HOME_ASK_MEMBER_HINT)(netLabel.value);
+  return hasNet.value && form.inviteInput.trim() && !isInvite(form.inviteInput) ? HOME_JOIN_KEY_HINT(netLabel.value) : "";
+});
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
 // "Invite accepted. Waiting…" is stale once the node reports a refusal: only the refusal text stays.
 const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null ? form.status : ""));
@@ -33,15 +56,11 @@ const statusText = computed(() => (refusedText(store.state?.node?.invite_join) =
   <div id="join-card" role="region" aria-labelledby="join-card-title">
     <div class="step-head"><h2 id="join-card-title">{{ heading }}</h2></div>
     <div id="join-box" :hidden="!showJoin">
-    <label class="field-label" for="join-key-input">{{ HOME_JOIN_FIELD_LABEL }}</label>
-    <input type="text" class="input mono input-wide" :class="{ 'field-error': form.inviteError }" id="join-key-input" v-model="form.inviteInput" autocomplete="off" spellcheck="false" aria-describedby="join-key-error net-restart-hint" :placeholder="HOME_JOIN_PLACEHOLDER">
-    <p class="field-error-text" id="join-key-error" role="alert" :aria-label="HOME_JOIN_ERROR_ARIA" :hidden="!form.inviteError"><template v-for="(part, i) in errorParts" :key="i"><mark v-if="part.highlighted" class="key-error-word">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></p>
-    <p v-if="preview" class="hint kind-preview" id="join-kind-preview" role="status">{{ preview }}</p>
-    <p class="hint" id="net-restart-hint" :hidden="!hasNet">{{ restartHint }}</p>
-    <p class="hint">{{ HOME_JOIN_PASTE_HINT }}</p>
-    <div class="btn-row">
-      <button type="button" class="btn btn-primary" id="join-btn" :disabled="!!form.busy" @click="j.join">{{ form.busy === "join" ? HOME_JOIN_BUSY : button }}</button>
-    </div>
+      <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived">
+        <template #hint>
+          <p class="hint" id="net-restart-hint" :hidden="!hint">{{ hint }}</p>
+        </template>
+      </InviteForm>
     </div>
     <a href="#" class="link-more" id="create-toggle" v-if="hasNet" @click.prevent="j.toggleCreate">{{ HOME_CREATE_TOGGLE }}</a>
     <div id="create-box" :hidden="!showCreate">

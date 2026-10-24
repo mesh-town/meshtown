@@ -14,7 +14,7 @@ describe("this computer was removed from the member list", () => {
     const page = await openMembersPage({ members: removedMe(), tab: "home" });
     expect(page.has("#excluded-card")).toBe(true);
     expect(page.has("#join-key-input")).toBe(true);
-    expect(page.text("#join-card-title")).toBe("Join the network again");
+    expect(page.text("#join-card-title")).toMatch(/^Join ".+" again$/);
     expect(page.text("#net-restart-hint")).not.toMatch(/restart|disconnect|exclu|ban/i);
   });
 
@@ -37,8 +37,8 @@ describe("this computer was removed from the member list", () => {
     expect(page.text("#join-btn")).toBe("Join");
   });
 
-  it("a banned computer keeps the usual title of the form", async () => {
+  it("a banned computer in a Peer network is sent to another network", async () => {
     const page = await openMembersPage({ members: threeMembers({ me_excluded: true }), state: stateWith({ me_excluded: true }), tab: "home" });
-    expect(page.text("#join-card-title")).toBe("Switch to another network");
+    expect(page.text("#join-card-title")).toBe("Join another network");
   });
 });

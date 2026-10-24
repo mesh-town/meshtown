@@ -1,0 +1,99 @@
+/* The join card with the one invite form: the place the node picks, the note, the move to another network's tab, the restart promise only for `main`. */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
+import { api } from "../core/api.ts";
+import { baseState, mountSection } from "../testing/section.mjs";
+import { JOIN_PROMISE_MS, JOIN_STALLED } from "./join-actions.ts";
+import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
+import { resetNetBanner, useNetBanner } from "./add-net-banner.ts";
+import JoinCard from "./JoinCard.vue";
+import SetupWizard from "./SetupWizard.vue";
+
+vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
+
+const INVITE = "mesh-invite2-abc";
+let mounted;
+
+const route = (table) => api.mockImplementation(async (method, path) => {
+  if (table[path] === undefined) throw new Error("unexpected request " + path);
+  return table[path];
+});
+const brief = (id, label, over = {}) => ({ id, label, id_hex: id + "-hex", status: "running", joining: false, me_excluded: false, ...over });
+async function send(wrapper) {
+  await wrapper.get("#join-key-input").setValue(INVITE);
+  await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);
+  await flushPromises();
+}
+const press = async (wrapper) => {
+  await wrapper.get("#join-btn").trigger("click");
+  await flushPromises();
+};
+
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  api.mockReset();
+  localStorage.clear();
+  history.replaceState(null, "", "/");
+  location.hash = "";
+  resetNetBanner();
+});
+afterEach(() => {
+  mounted.wrapper.unmount();
+  vi.useRealTimers();
+});
+
+describe("JoinCard > the one invite form", () => {
+  it("`main` was removed: the note says the invite brings the computer back, the join enters `main`", async () => {
+    route({
+      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "main-hex", place: "return", slot: "main" },
+      "/api/network/join": { label: "family", restart: true, slot: "main" },
+    });
+    mounted = mountSection(JoinCard, { state: baseState() });
+    mounted.store.nets = [brief("main", "family")];
+    await send(mounted.wrapper);
+    expect(mounted.wrapper.get("#join-place-note").text()).toBe('This invite brings this computer back to "family".');
+    await press(mounted.wrapper);
+    expect(mounted.wrapper.get("#join-status").text()).toContain("Done");
+    expect(location.hash).toBe("");
+  });
+
+  it("`main` is excluded, the invite is for another network: the page goes to the new tab with a banner and promises no restart", async () => {
+    route({
+      "/api/network/inspect": { label: "other", kind: "Peer", id_hex: "bb" },
+      "/api/network/join": { label: "other", restart: true, slot: "neta22" },
+    });
+    mounted = mountSection(JoinCard, { state: baseState() });
+    mounted.store.nets = [brief("main", "family", { me_excluded: true }), brief("neta22", "other")];
+    await send(mounted.wrapper);
+    await press(mounted.wrapper);
+    expect(location.hash).toBe("#peers/neta22");
+    expect(useNetBanner().banner.value.slot).toBe("neta22");
+    await vi.advanceTimersByTimeAsync(JOIN_PROMISE_MS + 1);
+    await flushPromises();
+    expect(mounted.wrapper.text()).not.toContain(JOIN_STALLED);
+  });
+
+  it("the setup: a Managed invite shows the join progress", async () => {
+    route({
+      "/api/network/inspect": { label: "firm", kind: "Managed", id_hex: "cc" },
+      "/api/network/join": { label: "firm", restart: true, slot: "main" },
+    });
+    mounted = mountSection(SetupWizard, { state: baseState({ network: null, peers: [] }) });
+    await mounted.wrapper.get("#home-start-join-btn").trigger("click");
+    await send(mounted.wrapper);
+    await press(mounted.wrapper);
+    expect(mounted.wrapper.find(".join-progress").exists()).toBe(true);
+  });
+
+  it("a word key in the field of a node with a network: the hint says it replaces the network; an invite has no hint", async () => {
+    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa" } });
+    mounted = mountSection(JoinCard, { state: baseState() });
+    mounted.store.nets = [brief("main", "family")];
+    expect(mounted.wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();
+    await mounted.wrapper.get("#join-key-input").setValue("mesh1-abc");
+    expect(mounted.wrapper.get("#net-restart-hint").text()).toContain("replaces");
+    await mounted.wrapper.get("#join-key-input").setValue(INVITE);
+    expect(mounted.wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();
+  });
+});

@@ -12,7 +12,7 @@ import { shown } from "../testing/dom.mjs";
 const STRANGER_ID = "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c";
 const STRANGER_LABEL = STRANGER_ID.slice(0, 10);
 const LISTEN = "127.0.0.1:1080";
-const EMPTY_KEY_HINT = "Paste the invite a network member sent you.";
+const EMPTY_KEY_HINT = "Paste the invite first.";
 
 afterEach(unmountPage);
 

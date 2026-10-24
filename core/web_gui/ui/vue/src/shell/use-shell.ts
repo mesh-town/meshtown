@@ -7,7 +7,8 @@ import type { Store } from "../core/store.ts";
 import { setToken } from "../core/token.ts";
 import { absence, createConn, stripView } from "./conn.ts";
 import type { Conn, Strip, StripViewKind } from "./conn.ts";
-import { openableSection, peersTail, pickPeersTab } from "./nav.ts";
+import { openableSection, peersHash, peersTail, pickPeersTab } from "./nav.ts";
+import { addressInvite } from "../home/use-invite-join.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { createPoller } from "./poller.ts";
 import { defaultShellDeps } from "./shell-deps.ts";
@@ -54,6 +55,15 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
     store.peersTab = pickPeersTab(wanted, peersSlots(store.nets, store.slots));
   };
   syncPeersTab();
+  // An invite in the address and a node that is already in a network: the form for it is "Add another network".
+  let addressChecked = false;
+  const checkAddress = (): void => {
+    if (addressChecked || store.state === null) return;
+    addressChecked = true;
+    if (addressInvite() && store.state.network) location.hash = peersHash("add");
+  };
+  watch(() => store.state, checkAddress, { flush: "sync" });
+  checkAddress();
   watch(() => peersSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
   const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));

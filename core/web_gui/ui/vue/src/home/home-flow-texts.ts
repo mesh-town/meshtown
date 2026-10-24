@@ -62,12 +62,14 @@ export const HOME_REACH_ISSUER_ONLY = "Only this computer can let them in — do
 export const HOME_REACH_ISSUER_AND_ONE = "Better not to turn this computer off until the new member joins.";
 
 // join-actions.ts
-export const HOME_INVITE_EMPTY = "Paste the invite a network member sent you.";
-export const HOME_INVITE_INVALID = "This doesn't look like an invite. Copy it from the network member again in full and paste it here.";
+export const HOME_INVITE_EMPTY = "Paste the invite first.";
+export const HOME_INVITE_INVALID = "This doesn't look like an invite. Copy the whole invite again and paste it here.";
 export const HOME_LABEL_EMPTY = "Enter a name, for example \"family\".";
 export const JOIN_STALLED = "Something went wrong: " + NET_NAME + " didn't respond after joining the network. What happened is on the \"Log\" tab.";
 export const JOIN_STALLED_SILENT = "Something went wrong: " + NET_NAME + " didn't respond after joining the network. What happened is in the meshtown.log file next to the settings file or in the terminal window you started " + NET_NAME + " from.";
-export const JOIN_WAITING = "Invite accepted. Waiting for a network member to come online — the status will appear here when they do.";
+export const JOIN_WAITING = "Invite sent. Waiting for a member of this network to come online and let this computer in — this page will update.";
+export const waitingStatusText = (netQuoted: string): string =>
+  "Invite sent. Waiting for a member of" + netQuoted + " to come online and let this computer in — this page will update.";
 export const HOME_JOIN_ACTION = "join the network";
 export const HOME_CREATE_FAILED = "Couldn't create the network — try again";
 export const createdNoticeText = (netQuoted: string): string =>

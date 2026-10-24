@@ -2,62 +2,58 @@
 // The "Add another network" form: join with an invite or create a network, in a new slot. One component for two places —
 // under the Members list (`peers`) and in Settings → Network (`settings`); only "Cancel" differs. On success it moves to
 // the new network's tab and leaves a banner there; a join that waits for a member shows its progress in place.
-import { computed, inject, reactive, ref, watch } from "vue";
+import { computed, inject, ref } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
 import JoiningCard from "./JoiningCard.vue";
+import InviteForm from "./InviteForm.vue";
 import NetKindPicker from "./NetKindPicker.vue";
-import { useInspectPreview } from "./inspect-preview.ts";
 import { peersHash } from "../shell/nav.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
-import { createJoinForm, highlightParts } from "./join-actions.ts";
+import { createJoinForm } from "./join-actions.ts";
 import { addNetwork, addedBannerText, atLimit, stayText } from "./add-net-actions.ts";
-import type { AddNetForm, AddNetMode, AddNetResult } from "./add-net-actions.ts";
-import { expectArrival, useNetBanner } from "./add-net-banner.ts";
+import type { AddNetMode, AddNetResult } from "./add-net-actions.ts";
+import { useNetBanner } from "./add-net-banner.ts";
+import type { InviteOutcome } from "./invite-join-actions.ts";
+import { ADD_NET_LIMIT_INVITE } from "./invite-join-texts.ts";
+import { useArrival, useInviteJoin } from "./use-invite-join.ts";
+import type { InviteFormIds } from "./use-invite-join.ts";
 import {
-  ADD_NET_BTN, ADD_NET_BUSY, ADD_NET_CANCEL, ADD_NET_CREATE_BTN, ADD_NET_CREATE_LABEL, ADD_NET_CREATE_PLACEHOLDER, ADD_NET_JOIN_HINT,
-  ADD_NET_JOIN_LABEL, ADD_NET_JOIN_PLACEHOLDER, ADD_NET_LIMIT, ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN, duplicateText, openNetText,
+  ADD_NET_BTN, ADD_NET_BUSY, ADD_NET_CANCEL, ADD_NET_CREATE_BTN, ADD_NET_CREATE_LABEL, ADD_NET_CREATE_PLACEHOLDER,
+  ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN,
 } from "./add-net-texts.ts";
 
 const props = defineProps<{ context: "peers" | "settings" }>();
 const emit = defineEmits<{ done: [result: AddNetResult, slot: string | null] }>();
 const store = inject(STORE_KEY)!;
-const form = reactive<AddNetForm>(createJoinForm());
+const invite = useInviteJoin(store, { kind: "add" });
+const { form, outcome } = invite;
 const mode = ref<AddNetMode>("join");
-const outcome = ref<AddNetResult | "">("");
 const { show } = useNetBanner();
+const arrival = useArrival(store);
+const ids: InviteFormIds = {
+  input: "add-net-input", button: "add-net-btn", error: "add-net-error", preview: "add-net-kind-preview", note: "add-net-place-note", dup: "add-net-dup", open: "add-net-open",
+};
 
 const names = computed(() => visibleSlots(store.nets, store.slots).map((s) => netName(store.nets, s)));
-const limited = computed(() => outcome.value === "limit" || atLimit(store));
-const dupName = computed(() => (form.dupSlot ? netName(store.nets, form.dupSlot) : ""));
-const errorParts = computed(() => (form.inviteError ? highlightParts(form.inviteError.message, form.inviteError.word) : []));
+const limited = computed(() => atLimit(store));
 const creating = computed(() => mode.value === "create");
-const { preview } = useInspectPreview(() => form.inviteInput);
 
-function arrive(result: AddNetResult): void {
+// Joined: the new network's tab with its banner; waiting: watched for. Created: the banner and the tab.
+function joined(result: InviteOutcome, slot: string | null): void {
+  arrival(result, form);
+  emit("done", result === "joined" || result === "waiting" ? result : "failed", result === "joined" || result === "waiting" ? slot : null);
+}
+
+async function create(): Promise<void> {
+  const result = await addNetwork(form, store, defaultHomeDeps, "create");
   const slot = form.slot ?? null;
   const text = addedBannerText(store, form, result);
-  if (slot && text) {
+  if (result === "created" && slot && text) {
     show(slot, text);
     location.hash = peersHash(slot);
   }
-}
-
-// The waiting line goes when the network it waited for holds its key.
-watch(
-  () => store.nets.some((n) => n.id === form.slot && n.id_hex != null),
-  (arrived) => {
-    if (arrived && outcome.value === "waiting") outcome.value = "";
-  },
-);
-
-async function submit(): Promise<void> {
-  expectArrival(null);
-  const result = await addNetwork(form, store, defaultHomeDeps, mode.value);
-  outcome.value = result;
-  if (result === "waiting") expectArrival(form.slot ?? null);
-  if (result === "joined" || result === "created") arrive(result);
-  emit("done", result, result === "joined" || result === "created" || result === "waiting" ? form.slot ?? null : null);
+  emit("done", result, result === "created" ? slot : null);
 }
 
 function toggle(): void {
@@ -86,43 +82,29 @@ function cancelled(): void {
   resetForm();
   if (props.context === "peers") store.peersTab = "add";
 }
-
-const openDup = (): void => {
-  if (form.dupSlot) location.hash = peersHash(form.dupSlot);
-};
 </script>
 
 <template>
   <div class="card" id="add-net-card" role="region" aria-labelledby="add-net-title" :data-context="context">
     <div class="step-head"><h2 id="add-net-title">{{ ADD_NET_TITLE }}</h2></div>
-    <p v-if="limited" class="hint" id="add-net-limit" role="status">{{ ADD_NET_LIMIT }}</p>
-    <template v-else>
-      <p class="hint" id="add-net-stay">{{ stayText(names) }}</p>
-      <div v-if="!creating" id="add-net-join-box">
-        <label class="field-label" for="add-net-input">{{ ADD_NET_JOIN_LABEL }}</label>
-        <input type="text" class="input mono input-wide" :class="{ 'field-error': form.inviteError }" id="add-net-input" v-model="form.inviteInput" autocomplete="off" spellcheck="false" aria-describedby="add-net-error" :placeholder="ADD_NET_JOIN_PLACEHOLDER">
-        <p class="field-error-text" id="add-net-error" role="alert" :hidden="!form.inviteError"><template v-for="(part, i) in errorParts" :key="i"><mark v-if="part.highlighted" class="key-error-word">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></p>
-        <p v-if="preview" class="hint kind-preview" id="add-net-kind-preview" role="status">{{ preview }}</p>
-        <p class="hint">{{ ADD_NET_JOIN_HINT }}</p>
-      </div>
-      <div v-else id="add-net-create-box">
-        <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>
-        <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
-        <p class="field-error-text" id="add-net-label-error" role="alert" :hidden="!form.labelError">{{ form.labelError }}</p>
-        <NetKindPicker v-model="form.kind" :name="form.label" />
-      </div>
+    <p v-if="limited" class="hint" id="add-net-limit" role="status">{{ ADD_NET_LIMIT_INVITE }}</p>
+    <p class="hint" id="add-net-stay">{{ stayText(names) }}</p>
+    <InviteForm v-if="!creating" :join="invite" :ids="ids" :button="ADD_NET_BTN" :busy="ADD_NET_BUSY" @done="joined" />
+    <div v-else id="add-net-create-box">
+      <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>
+      <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
+      <p class="field-error-text" id="add-net-label-error" role="alert" :hidden="!form.labelError">{{ form.labelError }}</p>
+      <NetKindPicker v-model="form.kind" :name="form.label" />
       <div class="btn-row">
-        <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="submit">{{ form.busy ? ADD_NET_BUSY : creating ? ADD_NET_CREATE_BTN : ADD_NET_BTN }}</button>
-        <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
+        <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="create">{{ form.busy ? ADD_NET_BUSY : ADD_NET_CREATE_BTN }}</button>
       </div>
-      <a href="#" class="link-more" id="add-net-toggle" @click.prevent="toggle">{{ creating ? ADD_NET_TO_JOIN : ADD_NET_TO_CREATE }}</a>
-      <div v-if="outcome === 'waiting' && form.slot" id="add-net-waiting">
-        <JoiningCard :slot="form.slot" @cancelled="cancelled" />
-      </div>
-      <div v-if="outcome === 'duplicate'" id="add-net-dup" role="status">
-        <p class="hint">{{ duplicateText(dupName) }}</p>
-        <button type="button" class="btn" id="add-net-open" @click="openDup">{{ openNetText(dupName) }}</button>
-      </div>
-    </template>
+    </div>
+    <div class="btn-row">
+      <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
+    </div>
+    <a v-if="!limited" href="#" class="link-more" id="add-net-toggle" @click.prevent="toggle">{{ creating ? ADD_NET_TO_JOIN : ADD_NET_TO_CREATE }}</a>
+    <div v-if="outcome === 'waiting' && form.slot" id="add-net-waiting">
+      <JoiningCard :slot="form.slot" @cancelled="cancelled" />
+    </div>
   </div>
 </template>

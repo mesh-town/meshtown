@@ -44,12 +44,14 @@ export const HOME_INVITE_FOR_LABEL = "For whom (optional, members will see it)";
 export const HOME_INVITE_VALUE_ARIA = "Invite to send";
 
 // JoinCard
-export const HOME_JOIN_FIELD_LABEL = "Invite from a network member";
+export const HOME_JOIN_FIELD_LABEL = "Invite you received";
 export const HOME_JOIN_PLACEHOLDER = "Paste the invite here";
 export const HOME_JOIN_ERROR_ARIA = "Invite error";
-export const HOME_JOIN_RESTART_HINT = "Joining another " + NET_NAME + " network or creating your own restarts " + NET_NAME + " and disconnects you from the current network.";
+export const HOME_JOIN_KEY_HINT = (net: string): string => `This is a network key, not an invite. Joining with it replaces "${net}" on this computer.`;
 export const HOME_JOIN_PASTE_HINT = "Paste the entire invite. If a word has a typo, " + NET_NAME + " will highlight it.";
-export const HOME_JOIN_REMOVED_HINT = "Ask a member of the network for a new invite and paste it here.";
+export const HOME_ASK_MEMBER_HINT = (net: string): string => `Ask any member of "${net}" for a new invite and paste it here.`;
+export const HOME_ASK_ADMIN_HINT = (net: string): string => `Ask an admin of "${net}" for a new invite and paste it here.`;
+export const HOME_NO_RETURN_HINT = (net: string): string => `"${net}" won't take this computer back. Paste an invite to another network.`;
 export const HOME_JOIN_BUSY = "Joining…";
 export const HOME_CREATE_TOGGLE = "No invite? Create a new " + NET_NAME + " network";
 export const HOME_CREATE_LABEL = "Network name (members will see it in the invite)";
