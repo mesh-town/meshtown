@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The "Home" section: without a snapshot — "Loading…"; otherwise two tabs: "Main" (the status panel and the cards
 // in `cardOrder` order) and "Setup" ("Three steps"). The shared `useHome` is passed to the cards through `provide`.
-import { inject, provide } from "vue";
+import { computed, inject, provide } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import BrowserCard from "./BrowserCard.vue";
 import { inAppPage } from "./browser-setup.ts";
@@ -12,6 +12,7 @@ import InviteCard from "./InviteCard.vue";
 import JoinCard from "./JoinCard.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
 import { useExcluded } from "../members/use-excluded.ts";
+import { isMeRemoved } from "../members/members-view.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import SetupWizard from "./SetupWizard.vue";
 import StatePanel from "./StatePanel.vue";
@@ -28,15 +29,17 @@ provide(HOME_KEY, home);
 const { activeTab, panel, ring, order, multi, chips } = home;
 // A computer that is out of the network: the card and the way back (an invite) instead of the usual cards.
 const { excluded, variant, net } = useExcluded(store);
+const removed = computed(() => isMeRemoved(store.members));
+const outOfNet = computed(() => excluded.value || removed.value);
 const { joinAnother } = useMembersActions(store);
 </script>
 
 <template>
   <div id="home-root">
     <div v-if="store.state === null" class="card"><p class="hint">{{ HOME_LOADING }}</p></div>
-    <template v-else-if="excluded">
+    <template v-else-if="outOfNet">
       <ExcludedCard :variant="variant" :net="net" @join="joinAnother" />
-      <div class="card"><JoinCard /></div>
+      <div class="card"><JoinCard :removed="removed && !excluded" /></div>
     </template>
     <template v-else>
       <HomeTabs />

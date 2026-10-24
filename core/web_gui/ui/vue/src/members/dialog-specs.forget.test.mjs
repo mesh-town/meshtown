@@ -160,3 +160,10 @@ describe("a ban waits for votes while the removal finishes a round", () => {
 function spec(kind, over = {}) {
   return dialogSpec(kind, ctx(over));
 }
+
+describe("forget-two without a third member", () => {
+  it("names the target twice instead of an empty gap", () => {
+    const text = spec("forget-two", { seen: 777600, other: "" }).body.join(" ");
+    assert.ok(text.includes("You and old-laptop are the only members, so old-laptop is removed right away."), text);
+  });
+});
