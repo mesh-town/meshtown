@@ -21,7 +21,7 @@ import ForgottenList from "../members/ForgottenList.vue";
 import ExcludedList from "../members/ExcludedList.vue";
 import UnlistedList from "../members/UnlistedList.vue";
 import VoteBanner from "../members/VoteBanner.vue";
-import { confirmable, displayNames, excludedVariant, isMeExcluded, isMeRemoved, memberById, meId, partitionRows, excludedRowLine } from "../members/members-view.ts";
+import { confirmable, displayNames, excludedVariant, isMeExcluded, isMeRemoved, managedFacts, memberById, meId, partitionRows, excludedRowLine, votingHidden } from "../members/members-view.ts";
 import { pendingProposal, proposalKey, pruneHidden } from "../members/vote-hidden.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import NetTabHead from "./NetTabHead.vue";
@@ -78,7 +78,10 @@ const parts = computed(() => partitionRows(orderedPeers(state.value && state.val
 const rows = computed(() => parts.value.active as PeerInfo[]);
 const excludedLines = computed(() => parts.value.excluded.map((m) => excludedRowLine(m, names.value)));
 const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
-const waiting = computed(() => confirmable(members.value, me.value));
+// A managed network has no votes: no banner, no confirmation card.
+const noVotes = computed(() => votingHidden(members.value) || state.value?.network?.kind === "Managed");
+const menuCtx = computed(() => managedFacts(state.value?.network, members.value, me.value));
+const waiting = computed(() => (noVotes.value ? [] : confirmable(members.value, me.value)));
 const proposal = computed(() => pendingProposal(waiting.value, hidden.value));
 watch(waiting, (list) => (hidden.value = pruneHidden(hidden.value, list)));
 const later = (): void => {
@@ -122,16 +125,16 @@ async function exitVia(idFull: string): Promise<void> {
     <template v-else>
       <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" :multi="showRow" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
-      <PendingCard v-if="members && members.me_pending" :votes="meVotes" :need="meNeed" />
+      <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
       <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />
       <div class="card">
         <ul class="peer-list" id="peers-list" role="list">
-          <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :me="me" :names="names" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
+          <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :list="members" :me="me" :names="names" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
         </ul>
         <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
       </div>
       <PendingList :rows="parts.pending" :me="me" @pick="pick" />
-      <StaleList :rows="parts.stale" :me="me" @pick="pick" />
+      <StaleList :rows="parts.stale" :me="me" :ctx="menuCtx" @pick="pick" />
       <ForgottenList :rows="parts.forgotten" :all="members ? members.members : []" :me="me" @pick="pick" />
       <ExcludedList :lines="excludedLines" />
       <UnlistedList :rows="parts.unlisted" @pick="pick" />

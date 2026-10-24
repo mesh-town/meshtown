@@ -1,9 +1,10 @@
 <script setup lang="ts">
-// The one confirmation dialog of the Members tab (ban, confirm, block, leave): a native modal `<dialog>`.
+// The one confirmation dialog of the Members tab (ban, confirm, block, leave, roles, deleting the network): a native modal `<dialog>`.
 // `ask(spec)` resolves true only for the action button; Cancel, Esc, a click on the backdrop or the removal of the
 // component answer false. Does not call the API: the caller acts on the answer. Cancel takes the focus on open.
 // A spec with `field` also draws a one-line reason input; `reason()` gives its cleaned text for the last opening.
-import { nextTick, onUnmounted, ref } from "vue";
+// A spec with `alt` draws a second action button; `alt()` tells whether the last opening was closed with it.
+import { computed, nextTick, onUnmounted, ref } from "vue";
 import type { DialogSpec } from "./dialog-specs.ts";
 import { cleanReason } from "./member-reason.ts";
 import { DIALOG_CANCEL } from "./members-texts.ts";
@@ -14,6 +15,7 @@ const spec = ref<DialogSpec | null>(null);
 const draft = ref("");
 let resolver: ((answer: boolean) => void) | null = null;
 let opener: HTMLElement | null = null;
+let last = ""; // how the last opening closed: "yes", "alt" or "no"
 
 async function open(el: HTMLDialogElement, next: DialogSpec, resolve: (answer: boolean) => void): Promise<void> {
   resolver = resolve;
@@ -37,11 +39,12 @@ function onClose(): void {
   const back = opener;
   resolver = null;
   opener = null;
-  if (resolve) resolve(dlg.value?.returnValue === "yes");
+  last = dlg.value?.returnValue || "no";
+  if (resolve) resolve(last === "yes");
   if (back && back.isConnected) back.focus();
 }
 
-const finish = (answer: "yes" | "no"): void => dlg.value?.close(answer);
+const finish = (answer: "yes" | "alt" | "no"): void => dlg.value?.close(answer);
 const onBackdrop = (ev: MouseEvent): void => {
   if (ev.target === dlg.value) finish("no");
 };
@@ -61,7 +64,12 @@ onUnmounted(() => resolver && resolver(false));
 
 const reason = (): string => (spec.value && spec.value.field ? cleanReason(draft.value) : "");
 
-defineExpose({ ask, reason });
+// A field with `match` must hold exactly that text (spaces around it do not count) before the main button works.
+const locked = computed(() => !!(spec.value && spec.value.field && spec.value.field.match !== undefined && draft.value.trim() !== spec.value.field.match));
+
+const alt = (): boolean => last === "alt";
+
+defineExpose({ ask, reason, alt });
 </script>
 
 <template>
@@ -77,7 +85,8 @@ defineExpose({ ask, reason });
         <input id="member-reason" v-model="draft" type="text" class="input" :maxlength="spec.field.max" autocomplete="off" @keydown.enter.prevent />
       </template>
       <div class="dialog-actions">
-        <button id="member-confirm-yes" type="button" class="btn" :class="{ 'btn-danger': spec.danger }" @click="finish('yes')">{{ spec.action }}</button>
+        <button id="member-confirm-yes" type="button" class="btn" :class="{ 'btn-danger': spec.danger }" @click="finish('yes')" :disabled="locked">{{ spec.action }}</button>
+        <button v-if="spec.alt" id="member-confirm-alt" type="button" class="btn" :class="{ 'btn-danger': spec.alt.danger }" @click="finish('alt')">{{ spec.alt.label }}</button>
         <button id="member-confirm-cancel" ref="cancelBtn" type="button" class="btn btn-primary" autofocus @click="finish('no')">{{ DIALOG_CANCEL }}</button>
       </div>
     </template>

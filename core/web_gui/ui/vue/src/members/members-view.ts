@@ -6,6 +6,7 @@ import type { MemberRow, MembersReply } from "./members-types.ts";
 
 export * from "./members-ids.ts";
 export * from "./members-rows.ts";
+export * from "./managed-ctx.ts";
 
 export interface PeerLike {
   id: string;

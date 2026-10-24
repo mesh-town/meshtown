@@ -91,7 +91,7 @@ export interface MembersReply {
 
 // An item of the `⋯` menu.
 export interface MenuItem {
-  key: "block" | "unblock" | "exclude" | "leave" | "rename" | "waiting" | "withdraw" | "unadmit" | "forget" | "unforget";
+  key: "block" | "unblock" | "exclude" | "leave" | "rename" | "waiting" | "withdraw" | "unadmit" | "forget" | "unforget" | "make-admin" | "make-member" | "give-up" | "delete-network";
   label: string;
   danger?: boolean;
   disabled?: boolean;

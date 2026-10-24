@@ -6,12 +6,12 @@ import type { NodeState, PeerInfo } from "../core/api-types.ts";
 import { EXIT_VIA_HIM, peerName } from "../common/words.ts";
 import MemberMenu from "../members/MemberMenu.vue";
 import { ACTION_CONFIRM_BAN, ACTION_UNBLOCK, confirmAria, unblockAria } from "../members/members-texts.ts";
-import type { MemberRow } from "../members/members-types.ts";
-import { menuItems, rowDecor } from "../members/members-view.ts";
+import type { MemberRow, MembersReply } from "../members/members-types.ts";
+import { managedFacts, menuItems, rowDecor } from "../members/members-view.ts";
 import { PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
 import { countryCell, olderMark, olderTitle, peerAction, peerMetaText, versionText } from "./peers-view.ts";
 
-const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; names?: Record<string, string>; multi?: boolean }>();
+const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; names?: Record<string, string>; multi?: boolean; list?: MembersReply | null }>();
 const emit = defineEmits<{ (e: "exit-via", idFull: string): void; (e: "member-pick", key: string, idFull: string): void }>();
 
 // In a multi-network page "Edit" opens the rename dialog instead of following the link.
@@ -22,7 +22,7 @@ function onRename(e: Event): void {
 }
 
 const decor = computed(() => rowDecor(props.peer, props.member, props.me || "", props.names || {}));
-const items = computed(() => (props.member ? menuItems(props.member, { me: props.me || "" }) : []));
+const items = computed(() => (props.member ? menuItems(props.member, managedFacts(props.state.network, props.list, props.me || "")) : []));
 const action = computed(() => peerAction(props.peer, props.chosen, !!(props.member && props.member.blocked_by_me)));
 const meta = computed(() => peerMetaText(props.peer, props.state));
 const name = computed(() => peerName(props.peer));

@@ -145,3 +145,6 @@ export const forgottenStatus = (name: string): string => name + " was removed fr
 export const unforgottenStatus = (name: string): string => "Removal withdrawn. " + name + " is back in the member list.";
 export const forgottenStatusText = (net?: string | null): string =>
   "Removed from the member list" + quotedNet(net) + " \u2014 ask a member for an invite";
+
+// The line under the list after "Make admin".
+export const madeAdminStatus = (name: string, net: string): string => name + " is now an admin of " + quotedNet(net).trim();

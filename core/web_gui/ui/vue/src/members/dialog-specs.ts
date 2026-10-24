@@ -7,8 +7,9 @@ import {
 } from "./members-texts.ts";
 import { quotedNet } from "../common/words.ts";
 import { REASON_MAX } from "./member-reason.ts";
+import { MANAGED_BUILDERS, MANAGED_CALM, MANAGED_CALM_DANGER, type ManagedKind } from "./dialog-managed.ts";
 
-export type DialogKind = "ban" | "ban-two" | "ban-confirm" | "admit" | "block" | "leave" | "forget" | "forget-two" | "forget-confirm";
+export type DialogKind = "ban" | "ban-two" | "ban-confirm" | "admit" | "block" | "leave" | "forget" | "forget-two" | "forget-confirm" | ManagedKind;
 
 // `name`: the target as shown in the list; `by`: the proposer (only "confirm"); `net`: the network name without quotes.
 export interface DialogContext {
@@ -22,6 +23,7 @@ export interface DialogContext {
   exitName?: string | null; // my exit, when it is a member of this network ("leave", several networks)
   seen?: number | null; // seconds since the target was last online; null — never ("forget")
   other?: string; // the only other member ("forget-two")
+  members?: number; // how many members the network has ("delete-net")
   banAtRisk?: boolean; // a ban vote is pending and this removal lowers its threshold ("forget-two", "forget-confirm")
 }
 
@@ -29,14 +31,16 @@ export interface DialogSpec {
   title: string;
   body: string[];
   hint?: string;
-  field?: { label: string; max: number };
+  field?: { label: string; max: number; match?: string }; // `match`: the exact text that enables the main button
   action: string;
+  alt?: { label: string; danger: boolean }; // a second button next to the main one ("last-admin")
   danger: boolean;
 }
 
 type Builder = (c: DialogContext) => Omit<DialogSpec, "danger">;
 
 const BUILDERS: Record<DialogKind, Builder> = {
+  ...MANAGED_BUILDERS,
   ban: (c) => ({
     title: "Ban " + c.name + " from the network?",
     body: [
@@ -122,6 +126,6 @@ function leaveMulti(c: DialogContext): Omit<DialogSpec, "danger"> {
 
 export function dialogSpec(kind: DialogKind, ctx: DialogContext): DialogSpec {
   const built = BUILDERS[kind](ctx);
-  const extra = ctx.isMyExit && kind !== "leave" ? [isYourExitText(ctx.name)] : [];
-  return { ...built, body: [...built.body, ...extra], danger: kind !== "admit" };
+  const extra = ctx.isMyExit && kind !== "leave" && !MANAGED_CALM.includes(kind) ? [isYourExitText(ctx.name)] : [];
+  return { ...built, body: [...built.body, ...extra], danger: kind !== "admit" && !MANAGED_CALM_DANGER.includes(kind) };
 }

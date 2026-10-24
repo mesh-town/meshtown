@@ -65,6 +65,7 @@ function parseRow(v: unknown): MemberRow | null {
     admission: parseAdmission(v.admission),
     forget: parseForget(v.forget),
     last_seen_sec: typeof v.last_seen_sec === "number" && Number.isFinite(v.last_seen_sec) ? v.last_seen_sec : null,
+    ...(typeof v.admin === "boolean" ? { admin: v.admin } : {}),
   };
 }
 
@@ -97,6 +98,9 @@ export function parseMembers(raw: unknown): MembersReply | null {
     members: rows,
   };
   if (typeof raw.changed === "boolean") reply.changed = raw.changed;
+  if (raw.kind === "Peer" || raw.kind === "Managed") reply.kind = raw.kind;
+  if (Array.isArray(raw.admins)) reply.admins = ids(raw.admins);
+  if (typeof raw.me_admin === "boolean") reply.me_admin = raw.me_admin;
   return reply;
 }
 
@@ -118,6 +122,19 @@ export async function postMemberAction(api: ApiFn, action: MemberAction, id?: st
   return { reply, changed: changed === true };
 }
 
+// `POST members/admin`: make a member an admin of a managed network, or a regular member again.
+export async function postAdmin(api: ApiFn, idFull: string, admin: boolean, slot = "main"): Promise<{ reply: MembersReply; changed: boolean }> {
+  const parsed = parseMembers(await api("POST", slotPath(slot, "members/admin"), { id: idFull, admin }));
+  if (!parsed) throw new Error(NET_NAME + " sent an unreadable member list");
+  const { changed, ...reply } = parsed;
+  return { reply, changed: changed === true };
+}
+
+// `POST network/delete`: delete a managed network for everyone.
+export async function deleteNetwork(api: ApiFn, slot: string): Promise<void> {
+  await api("POST", slotPath(slot, "network/delete"), { confirm: true });
+}
+
 // The reply of `members/leave`: the member list plus `left`, `announced` and the briefs of the remaining networks.
 // An old node sends only the list: a 200 then means "left".
 export function parseLeave(raw: unknown): LeaveReply | null {
@@ -133,6 +150,14 @@ export async function leaveNet(api: ApiFn, slot: string): Promise<LeaveReply> {
   if (!parsed) throw new Error(NET_NAME + " sent an unreadable member list");
   return parsed;
 }
+
+// Codes of a managed network: whole sentences, no prefix.
+const SENTENCES: Record<string, string> = {
+  not_admin: "Only admins can do this.",
+  last_admin: "You're the only admin: make another member an admin or delete the network.",
+  not_managed: "This is a peer network: it has no admins.",
+  peer_only: "This only works in a peer network.",
+};
 
 const REASONS: Record<string, string> = {
   self_target: "you can't remove your own computer",
@@ -150,6 +175,7 @@ export function memberErrorText(err: unknown): string {
   const code = isObj(err) && typeof err.code === "string" ? err.code : "";
   const reason = errReason(err);
   if (reason && reason !== code) return failText(ACTION, err);
+  if (SENTENCES[code]) return SENTENCES[code];
   const known = REASONS[code];
   return known ? "Couldn't " + ACTION + ": " + known : failText(ACTION, null);
 }
