@@ -262,6 +262,10 @@ mod exit_tests;
 mod tests;
 
 #[cfg(test)]
+#[path = "build_peers_tests.rs"]
+mod peers_tests;
+
+#[cfg(test)]
 #[path = "build_more_tests.rs"]
 mod more_tests;
 
