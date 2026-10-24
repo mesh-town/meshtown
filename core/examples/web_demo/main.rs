@@ -21,6 +21,7 @@ mod control;
 mod host;
 mod members;
 mod members_act;
+mod members_forget;
 mod members_reply;
 mod node;
 mod overrides;
@@ -69,6 +70,8 @@ pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> Demo
             me_excluded: args.me_excluded,
             members_pending: args.members_pending,
             me_pending: args.me_pending,
+            members_forget: args.members_forget,
+            me_removed: args.me_removed,
         },
         run.effective_settings.clone(),
     )

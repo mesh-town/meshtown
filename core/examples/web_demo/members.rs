@@ -3,6 +3,7 @@
 
 use meshtown_core::web_gui::{ActionError, MemberActionReq, MemberError};
 
+use crate::members_forget::ForgetState;
 use crate::node::{DemoNetworkOptions, DemoPeer};
 
 /// Stands for the demo node's own id inside the list (its real id follows `boot_id`, which can change).
@@ -21,6 +22,8 @@ pub(crate) enum Standing {
     Pending,
     Unlisted,
     Excluded(Exit),
+    /// Removed from the list by enough votes (see `members_forget.rs`).
+    Forgotten,
 }
 
 pub(crate) struct Entry {
@@ -36,10 +39,14 @@ pub(crate) struct Entry {
     pub(crate) reason: Option<String>,
     /// For whom the invitation of a pending node was made.
     pub(crate) label: Option<String>,
+    /// Signs of life and the circle of votes to remove the node.
+    pub(crate) forget: ForgetState,
 }
 
 pub(crate) struct DemoMembers {
     pub(crate) me_excluded: bool,
+    /// This computer was removed from the member list by the others (`--me-removed`).
+    pub(crate) me_removed: bool,
     /// This computer asked to join and waits for confirmations.
     pub(crate) me_pending: bool,
     pub(crate) second_vote: bool,
@@ -47,11 +54,17 @@ pub(crate) struct DemoMembers {
 }
 
 /// The demo id of a fake member: one byte repeated, so it is a valid 64-hex id.
-fn fake_id(byte: &str) -> String {
+pub(crate) fn fake_id(byte: &str) -> String {
     byte.repeat(32)
 }
 
-fn entry(id_full: String, id: String, name: &str, online: bool, standing: Standing) -> Entry {
+pub(crate) fn entry(
+    id_full: String,
+    id: String,
+    name: &str,
+    online: bool,
+    standing: Standing,
+) -> Entry {
     Entry {
         id_full,
         id,
@@ -62,6 +75,7 @@ fn entry(id_full: String, id: String, name: &str, online: bool, standing: Standi
         blocked: false,
         reason: None,
         label: None,
+        forget: ForgetState::default(),
     }
 }
 
@@ -156,10 +170,14 @@ impl DemoMembers {
         push_outsiders(&mut entries, gone, opts.members_pending);
         let mut members = DemoMembers {
             me_excluded: false,
+            me_removed: opts.me_removed,
             me_pending: opts.me_pending,
             second_vote,
             entries,
         };
+        if opts.members_forget {
+            members.push_forget_rows();
+        }
         if me_excluded {
             members.remove_me(Exit {
                 how: "votes",
@@ -213,11 +231,8 @@ impl DemoMembers {
             (MemberActionReq::Admit(_), Some(i)) => self.admit(i),
             (MemberActionReq::Unadmit(_), Some(i)) => self.unadmit(i),
             (MemberActionReq::Block(_), Some(i)) => Ok(self.set_blocked(i, true)),
-            (MemberActionReq::Forget(_) | MemberActionReq::Unforget(_), Some(_)) => {
-                Err(MemberError::Action(ActionError::NotFound(
-                    "removal is not simulated by the demo".to_string(),
-                )))
-            }
+            (MemberActionReq::Forget(_), Some(i)) => self.forget(i),
+            (MemberActionReq::Unforget(_), Some(i)) => self.unforget(i),
             (_, Some(i)) => Ok(self.set_blocked(i, false)),
         }
     }

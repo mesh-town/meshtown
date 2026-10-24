@@ -61,6 +61,12 @@ pub(crate) struct Args {
     /// Start as a computer that asked to join and waits for confirmations (`me_pending` in the member list).
     #[arg(long)]
     pub(crate) me_pending: bool,
+    /// Offline members can be removed from the list: adds rows that were not seen for days and a removed one.
+    #[arg(long)]
+    pub(crate) members_forget: bool,
+    /// Start as a computer the other members removed from the list (the card is shown in the `main` network only).
+    #[arg(long)]
+    pub(crate) me_removed: bool,
     /// How many networks the page shows (1..=8); the extra ones are labelled `demo-network-2`, ...
     #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=8))]
     pub(crate) nets: u8,

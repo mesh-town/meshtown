@@ -56,6 +56,10 @@ pub(crate) struct DemoNetworkOptions {
     pub(crate) members_pending: bool,
     /// `--me-pending`: the node itself waits for confirmations.
     pub(crate) me_pending: bool,
+    /// `--members-forget`: rows of offline members that can be removed.
+    pub(crate) members_forget: bool,
+    /// `--me-removed`: the node starts removed from the member list.
+    pub(crate) me_removed: bool,
 }
 
 pub(crate) struct DemoNode {

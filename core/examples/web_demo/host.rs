@@ -117,6 +117,7 @@ fn clone_args(a: &Args) -> Args {
         (a.me_excluded, "--me-excluded"),
         (a.members_pending, "--members-pending"),
         (a.me_pending, "--me-pending"),
+        (a.members_forget, "--members-forget"),
     ];
     flags.extend(toggles.iter().filter(|t| t.0).map(|t| t.1.to_string()));
     if let Some(n) = a.ring_lines {
