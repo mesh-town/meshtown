@@ -1,14 +1,15 @@
 //! `impl NodeControl for DemoNode`: the snapshot (one line through `snapshot.rs`) and the page actions.
 
-use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
+use meshtown_core::invite::InviteHead;
+use meshtown_core::transport::net::PeerAddr;
 
 use meshtown_core::config::config_file::Settings;
-use meshtown_core::members::network_key::{NetKind, NetworkKey};
 use meshtown_core::web_gui::{
     ActionError, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl, NodeSnapshot,
-    NodeStatus,
+    NodeStatus, SaveKey,
 };
 
+use crate::invites::{enter, invite_for, key_of_node};
 use crate::node::{DemoDomain, DemoNode};
 use crate::rng::{gen_hex8, xorshift64};
 use crate::snapshot::demo_snapshot;
@@ -184,30 +185,16 @@ impl NodeControl for DemoNode {
     }
 
     fn invite(&self) -> Result<String, ActionError> {
-        let key = NetworkKey::from_bytes([0x42; 32]);
-        let mut me = PeerAddr::new(NodeSecret::from_bytes(&[0x01u8; 32]).peer_id());
-        me.hints.push(AddrHint::Ip(std::net::SocketAddr::from((
-            [127, 0, 0, 1],
-            4000,
-        ))));
-        let made_unix = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        let head = meshtown_core::invite::InviteHead {
-            secret: meshtown_core::invite::InviteSecret::from_bytes([0x42; 32]),
-            network_id: key.subkeys().network_id,
-            label: None,
-            made_unix,
-            kind: NetKind::Peer,
-        };
-        meshtown_core::invite::build_keyed(
-            &head,
-            &me,
-            &[],
-            &meshtown_core::transport::addr_order::PrimaryIps::NONE,
-        )
-        .map_err(|e| ActionError::Internal(e.to_string()))
+        invite_for(&key_of_node(self))
+    }
+
+    fn join_by_invite(
+        &self,
+        head: InviteHead,
+        _peers: Vec<PeerAddr>,
+        save: SaveKey,
+    ) -> Result<(), ActionError> {
+        enter(self, &head, save)
     }
 
     fn stop(&self) {

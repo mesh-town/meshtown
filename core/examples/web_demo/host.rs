@@ -89,6 +89,10 @@ impl DemoHost {
     }
 
     fn push(&self, node: Arc<DemoNode>, config: ConfigState) -> NetSlotId {
+        let key = node.state.lock().unwrap().settings.net.network_key.clone();
+        if let Some(key) = key {
+            crate::invites::remember(&key);
+        }
         let mut slots = self.slots.lock().unwrap();
         let id = slot_id(slots.created);
         slots.created += 1;
