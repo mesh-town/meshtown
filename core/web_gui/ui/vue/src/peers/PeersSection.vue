@@ -4,12 +4,13 @@
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
 import { computed, inject, ref, watch } from "vue";
 import { membersOf, netName, stateOf, visibleSlots } from "../core/slots.ts";
-import { saveSingleExit } from "../core/exit-via.ts";
+import { saveExitIn } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import type { PeerInfo } from "../core/api-types.ts";
 import JoiningCard from "../home/JoiningCard.vue";
 import NoNetwork from "../common/NoNetwork.vue";
+import { chosenOf } from "../home/exit-groups.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
@@ -74,7 +75,7 @@ const parts = computed(() => partitionRows(orderedPeers(state.value && state.val
 // A peer the member list does not know is shown as a plain row: no menu, no badge.
 const rows = computed(() => parts.value.active as PeerInfo[]);
 const removedLines = computed(() => parts.value.removed.map((m) => removedLine(m, names.value)));
-const chosen = computed(() => chosenExitIds(store));
+const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
 const waiting = computed(() => confirmable(members.value, me.value));
 const proposal = computed(() => pendingProposal(waiting.value, hidden.value));
 watch(waiting, (list) => (hidden.value = pruneHidden(hidden.value, list)));
@@ -100,7 +101,7 @@ function onPick(key: string, idFull: string): void {
 
 // The "Use as exit" button makes this member the only exit.
 async function exitVia(idFull: string): Promise<void> {
-  status.value = await saveSingleExit(store, idFull);
+  status.value = await saveExitIn(store, slot.value, idFull);
 }
 </script>
 

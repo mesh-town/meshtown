@@ -97,6 +97,14 @@ export function exitCandidates(state: Partial<NodeState> | null, chosen: string[
     exitCandidate(id, byPeer.get(id), byRoute.get(id), chosenSet.has(id), st.peers || []));
 }
 
+// A remembered id stays only while the network still offers it: a peer (not the own node) with `exit === true`.
+// A state without a peer list leaves the ids as they are.
+export function offeredRemembered(state: Partial<NodeState> | null, remembered: string[]): string[] {
+  if (!state || !Array.isArray(state.peers)) return remembered;
+  const offered = new Set(state.peers.filter((p) => !p.self && p.exit === true).map((p) => p.id_full));
+  return remembered.filter((id) => offered.has(id));
+}
+
 // In a network, but no other member is known yet (right after joining): the exit list is still being filled.
 export function noPeersYet(state: Partial<NodeState> | null): boolean {
   return !!(state && state.network) && !(state.peers || []).some((p) => !p.self);
