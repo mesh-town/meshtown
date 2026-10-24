@@ -16,7 +16,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
-use super::store_admins::{admin_verdict, made_of};
+use super::store_admins::{admin_verdict, issue_value, made_of};
 use super::INVITE_TTL_SECS;
 use crate::node::output::say;
 use crate::proxy::domains::DomainList;
@@ -38,7 +38,7 @@ pub const SWEEP_PERIOD: Duration = Duration::from_secs(3600);
 /// How many characters of "for whom" stay in the record.
 pub const FOR_WHOM_MAX_CHARS: usize = 64;
 
-/// Issue record.
+/// Issue record. In a Managed network it is stored as version 2: the issuer's id follows the record.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct IssueRecord {
     pub v: u8,
@@ -155,9 +155,19 @@ impl Ledger {
         }
     }
 
-    /// Writes the issue record under the secret's hash.
+    /// Writes the issue record under the secret's hash (the plain v1 record, no issuer).
     pub async fn issue(&self, hash: &str, rec: &IssueRecord) -> Result<()> {
-        let bytes = postcard::to_stdvec(rec)?;
+        self.issue_as(hash, rec, None).await
+    }
+
+    /// Writes the issue record under the secret's hash; with `Some(issuer)` the record also names the issuer.
+    pub async fn issue_as(
+        &self,
+        hash: &str,
+        rec: &IssueRecord,
+        issuer: Option<PeerId>,
+    ) -> Result<()> {
+        let bytes = issue_value(rec, issuer)?;
         self.replica
             .set_own(&issue_key(hash), Bytes::from(bytes))
             .await
@@ -197,7 +207,7 @@ impl Ledger {
     }
 
     /// Returns the verdict for the secret's hash; a document query error gives `NotReady`. `admins` is
-    /// `None` in a Peer network; in a Managed one only the records of these authors count.
+    /// `None` in a Peer network; in a Managed one only records written by an admin on behalf of an admin count.
     pub async fn verdict(
         &self,
         hash: &str,

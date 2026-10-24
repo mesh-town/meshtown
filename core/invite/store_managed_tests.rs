@@ -1,5 +1,6 @@
 //! Tests of the invite verdict under the rules of a Managed network (`Ledger::verdict` with a set of admins):
 //! only the records written by administrators count; in a Peer network (no set) every author counts.
+//! The issue records themselves (issuer, holder copies, old formats) are in `store_managed_issue_tests.rs`.
 //!
 //! The ledger sits on an in-memory replica where records of several authors are put by hand.
 //!
@@ -10,6 +11,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use super::*;
+use crate::invite::store_admins::issue_value;
 use crate::proxy::domains::DomainList;
 use crate::transport::net::facade::test_support::{pid, secret};
 use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
@@ -19,76 +21,8 @@ const NOW: u64 = 1_790_000_000;
 const TTL: u64 = INVITE_TTL_SECS;
 const HASH: &str = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
 
-mod issue_records {
-    use super::*;
-
-    #[tokio::test]
-    async fn only_from_a_stranger_is_not_admin() {
-        // given: the only issue record was written by a node that is not an admin
-        let rig = setup().await;
-        rig.given_issue_by(stranger(), NOW - 10);
-        // when
-        let got = rig.when_judged_among(&[admin()]).await;
-        // then
-        assert_eq!(got, IssueVerdict::NotAdmin);
-    }
-
-    #[tokio::test]
-    async fn from_an_admin_grants() {
-        // given
-        let rig = setup().await;
-        rig.given_issue_by(admin(), NOW - 10);
-        // when
-        let got = rig.when_judged_among(&[admin()]).await;
-        // then
-        assert_eq!(got, IssueVerdict::Grant);
-    }
-
-    #[tokio::test]
-    async fn from_a_stranger_and_an_admin_grants() {
-        // given: the stranger's record is ignored, the admin's one is enough
-        let rig = setup().await;
-        rig.given_issue_by(stranger(), NOW - 10);
-        rig.given_issue_by(admin(), NOW - 10);
-        // when
-        let got = rig.when_judged_among(&[admin()]).await;
-        // then
-        assert_eq!(got, IssueVerdict::Grant);
-    }
-
-    #[tokio::test]
-    async fn fresh_one_of_a_stranger_does_not_save_an_expired_one_of_an_admin() {
-        // given: the admin issued long ago, the stranger "issued" just now
-        let rig = setup().await;
-        rig.given_issue_by(admin(), NOW - TTL - 1);
-        rig.given_issue_by(stranger(), NOW - 10);
-        // when
-        let got = rig.when_judged_among(&[admin()]).await;
-        // then
-        assert_eq!(got, IssueVerdict::Expired);
-    }
-
-    #[tokio::test]
-    async fn from_an_author_outside_an_empty_admin_set_is_not_admin() {
-        // given
-        let rig = setup().await;
-        rig.given_issue_by(admin(), NOW - 10);
-        // when: nobody is an admin at this node's view
-        let got = rig.when_judged_among(&[]).await;
-        // then
-        assert_eq!(got, IssueVerdict::NotAdmin);
-    }
-
-    #[tokio::test]
-    async fn absent_is_unknown() {
-        // given: no records at all
-        let rig = setup().await;
-        // when
-        let got = rig.when_judged_among(&[admin()]).await;
-        // then
-        assert_eq!(got, IssueVerdict::Unknown);
-    }
-}
+#[path = "store_managed_issue_tests.rs"]
+mod issue_records;
 
 mod used_marks {
     use super::*;
@@ -166,9 +100,9 @@ mod peer_rules {
 
     #[tokio::test]
     async fn issue_of_any_author_grants() {
-        // given: no admin set (a Peer network)
+        // given: no admin set (a Peer network); a Peer node writes the v1 record
         let rig = setup().await;
-        rig.given_issue_by(stranger(), NOW - 10);
+        rig.given_v1_issue_by(stranger(), NOW - 10);
         // when
         let got = rig.when_judged_as_peer().await;
         // then
@@ -179,7 +113,7 @@ mod peer_rules {
     async fn used_mark_of_any_author_is_used() {
         // given
         let rig = setup().await;
-        rig.given_issue_by(stranger(), NOW - 10);
+        rig.given_v1_issue_by(stranger(), NOW - 10);
         rig.given_used_by(stranger());
         // when
         let got = rig.when_judged_as_peer().await;
@@ -223,7 +157,19 @@ async fn setup() -> Rig {
 }
 
 impl Rig {
+    /// The author's own record of a Managed network: v2, the issuer is the author.
     fn given_issue_by(&self, author: PeerId, made_unix: u64) {
+        self.given_copy_by(author, author, made_unix);
+    }
+
+    /// A record `holder` wrote on behalf of `issuer` (a holder's copy, or the issuer's own when they are equal).
+    fn given_copy_by(&self, holder: PeerId, issuer: PeerId, made_unix: u64) {
+        let value = issue_value(&issue_record(made_unix, None), Some(issuer)).unwrap();
+        self.put(holder, ISSUE_PREFIX, value);
+    }
+
+    /// The record a Peer node writes: v1, no issuer in it.
+    fn given_v1_issue_by(&self, author: PeerId, made_unix: u64) {
         let value = postcard::to_stdvec(&issue_record(made_unix, None)).unwrap();
         self.put(author, ISSUE_PREFIX, value);
     }
@@ -271,4 +217,9 @@ fn admin() -> PeerId {
 
 fn stranger() -> PeerId {
     pid(12)
+}
+
+/// A second admin, or a former one.
+fn third() -> PeerId {
+    pid(13)
 }

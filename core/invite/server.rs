@@ -100,12 +100,17 @@ impl InviteServer {
         match frame {
             Frame::Legacy(req) => legacy_reply(req[0], &who),
             Frame::Owner(req) => self.owner_reply(req, transport, &who).await,
-            Frame::Hold(req) => self.hold_reply(req, &who).await,
+            Frame::Hold(req) => self.hold_reply(req, transport, &who).await,
         }
     }
 
-    async fn hold_reply(&self, req: &[u8; HOLD_LEN], who: &str) -> [u8; REPLY_LEN] {
-        let code = match timeout(ANSWER_TIMEOUT, self.decide_hold(req)).await {
+    async fn hold_reply(
+        &self,
+        req: &[u8; HOLD_LEN],
+        transport: PeerId,
+        who: &str,
+    ) -> [u8; REPLY_LEN] {
+        let code = match timeout(ANSWER_TIMEOUT, self.decide_hold(req, transport)).await {
             Ok(code) => code,
             Err(_) => RedeemCode::Internal,
         };
@@ -113,8 +118,10 @@ impl InviteServer {
         hold_reply(code)
     }
 
-    /// The code for a "save" request: signature and kind, future time, deadline, the list, one's own copy of the entry.
-    async fn decide_hold(&self, req: &[u8; HOLD_LEN]) -> RedeemCode {
+    /// The code for a "save" request: signature and kind, future time, deadline, the list, the sender, one's own
+    /// copy of the entry. In a Managed network a sender that is not an admin is refused with `NotFromAdmin`
+    /// and nothing is written; otherwise the copy names the sender as the issuer.
+    async fn decide_hold(&self, req: &[u8; HOLD_LEN], transport: PeerId) -> RedeemCode {
         let Some(hold) = parse_hold(&self.key, req) else {
             return RedeemCode::BadRequest;
         };
@@ -128,10 +135,27 @@ impl InviteServer {
         let Some(list) = self.list.get().filter(|_| self.may_serve()) else {
             return RedeemCode::NotReady;
         };
+        let issuer = match self.hold_issuer(transport) {
+            Ok(issuer) => issuer,
+            Err(code) => return code,
+        };
         let rec = issue_record(hold.made_unix, None);
-        match Ledger::of(list).issue(&hash_hex_of(&hold.hash), &rec).await {
+        let hash = hash_hex_of(&hold.hash);
+        match Ledger::of(list).issue_as(&hash, &rec, issuer).await {
             Ok(()) => RedeemCode::Ok,
             Err(_) => RedeemCode::Internal,
+        }
+    }
+
+    /// Who the copy names as the issuer: nobody in a Peer network, the sender in a Managed one if it is an admin.
+    fn hold_issuer(&self, transport: PeerId) -> Result<Option<PeerId>, RedeemCode> {
+        if self.kind.root().is_none() {
+            return Ok(None);
+        }
+        let admins = self.record_authors();
+        match admins.is_some_and(|a| a.contains(&transport)) {
+            true => Ok(Some(transport)),
+            false => Err(RedeemCode::NotFromAdmin),
         }
     }
 
