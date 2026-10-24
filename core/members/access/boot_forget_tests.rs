@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 use bytes::Bytes;
 
 use super::*;
-use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
+use crate::members::access::record::{encode, key_for, tally_input, AclKind, AclValue, Via};
 use crate::members::access::tally::{tally, AdmitIn};
 use crate::transport::net::contract::pid;
 use crate::transport::net::{PeerId, ReplicaEntry};
@@ -41,7 +41,10 @@ mod witnesses {
         // then: no witness for c, the bystander still gets one
         assert_eq!(plan.witness, vec![w.d]);
         let refused = w.refused();
-        assert!(refused.contains(&w.c), "a subject of my forget vote is refused");
+        assert!(
+            refused.contains(&w.c),
+            "a subject of my forget vote is refused"
+        );
         assert!(!refused.contains(&w.d), "a bystander is not refused");
     }
 
@@ -75,7 +78,10 @@ mod witnesses {
             via: Via::Witness,
             made_unix: NOW,
         }));
-        assert!(!tally(&input).is_member(&w.c), "a witness cannot return a forgotten node");
+        assert!(
+            !tally(&input).is_member(&w.c),
+            "a witness cannot return a forgotten node"
+        );
     }
 }
 

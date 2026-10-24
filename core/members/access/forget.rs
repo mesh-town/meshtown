@@ -12,7 +12,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::transport::net::PeerId;
 
 use super::admission::counts_elsewhere;
-use super::tally::{need_for, AdmitIn, Excluded, Ledger};
+use super::authority::{Forgotten, Rules, Standing};
+use super::tally::{AdmitIn, Excluded, Ledger};
 
 /// A live forget vote: `author` votes to forget `subject`, written at `made_unix`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -64,6 +65,12 @@ fn events(admits: &[AdmitIn], forgets: &[ForgetIn]) -> Vec<Event> {
     keyed.into_iter().map(|(_, e)| e).collect()
 }
 
+impl Forgotten for BTreeMap<PeerId, Circle> {
+    fn forgotten(&self, p: &PeerId) -> bool {
+        self.get(p).is_some_and(|c| c.at_unix.is_some())
+    }
+}
+
 /// A circle under construction: votes as (made_unix, voter) in pass order.
 #[derive(Default)]
 struct Circle {
@@ -73,6 +80,7 @@ struct Circle {
 
 /// State of the forget pass.
 struct Settle<'a> {
+    rules: Rules,
     closure0: &'a BTreeSet<PeerId>,
     excluded: &'a Excluded,
     circles: BTreeMap<PeerId, Circle>,
@@ -81,23 +89,14 @@ struct Settle<'a> {
 }
 
 impl Settle<'_> {
-    fn forgotten(&self, p: &PeerId) -> bool {
-        self.circles.get(p).is_some_and(|c| c.at_unix.is_some())
-    }
-
-    /// In the closure and not excluded.
-    fn present(&self, p: &PeerId) -> bool {
-        self.closure0.contains(p) && !self.excluded.contains_key(p)
-    }
-
-    /// An author whose records count right now.
-    fn counts(&self, p: &PeerId) -> bool {
-        self.present(p) && !self.forgotten(p)
+    fn standing(&self) -> Standing<'_> {
+        Standing::new(self.closure0, self.excluded, &self.circles)
     }
 
     fn refresh_need(&mut self) {
-        let active = self.closure0.iter().filter(|p| self.counts(p)).count();
-        self.need = need_for(active);
+        let standing = self.standing();
+        let active = self.closure0.iter().filter(|p| standing.counts(p)).count();
+        self.need = self.rules.need(active);
     }
 
     fn step(&mut self, event: Event, admits: &[AdmitIn], forgets: &[ForgetIn]) {
@@ -109,7 +108,7 @@ impl Settle<'_> {
 
     /// An admission made by a forgotten author is dead; otherwise it may return its subject.
     fn admit(&mut self, a: &AdmitIn) {
-        if self.forgotten(&a.author) {
+        if self.circles.forgotten(&a.author) {
             return;
         }
         self.live.push(*a);
@@ -117,7 +116,7 @@ impl Settle<'_> {
     }
 
     fn reopen(&mut self, a: &AdmitIn) {
-        if !counts_elsewhere(a.via) || a.author == a.subject || !self.counts(&a.author) {
+        if !counts_elsewhere(a.via) || a.author == a.subject || !self.standing().counts(&a.author) {
             return;
         }
         self.circles.remove(&a.subject);
@@ -125,7 +124,8 @@ impl Settle<'_> {
     }
 
     fn vote(&mut self, f: &ForgetIn) {
-        if !self.counts(&f.author) || f.author == f.subject || !self.present(&f.subject) {
+        let standing = self.standing();
+        if !standing.counts(&f.author) || f.author == f.subject || !standing.present(&f.subject) {
             return;
         }
         let circle = self.circles.entry(f.subject).or_default();
@@ -138,7 +138,9 @@ impl Settle<'_> {
 
     /// Forgets `subject` if its circle reaches the threshold, then cascades at the same moment.
     fn complete(&mut self, subject: PeerId, at: u64) {
-        if self.forgotten(&subject) || self.circles[&subject].votes.len() < usize::from(self.need) {
+        if self.circles.forgotten(&subject)
+            || self.circles[&subject].votes.len() < usize::from(self.need)
+        {
             return;
         }
         self.forget(subject, at);
@@ -191,12 +193,14 @@ impl Settle<'_> {
 
 /// The forget pass over the closure `closure0` with the exclusions known so far.
 pub(super) fn settle_forgets(
+    rules: Rules,
     closure0: &BTreeSet<PeerId>,
     excluded: &Excluded,
     admits: &[AdmitIn],
     forgets: &[ForgetIn],
 ) -> ForgetOutcome {
     let mut pass = Settle {
+        rules,
         closure0,
         excluded,
         circles: BTreeMap::new(),

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::members::access::tally::{tally, AdmitIn, TallyInput};
+use crate::members::access::tally::{tally, AdmitIn, Rules, TallyInput};
 use crate::transport::net::contract::pid;
 
 #[test]
@@ -21,6 +21,7 @@ fn forget_vote_after_an_admission_at_the_largest_time_does_not_overflow() {
         admits: vec![admit],
         votes: Vec::new(),
         forgets: Vec::new(),
+        rules: Rules::Peer,
     });
     let verdicts = Verdicts {
         me,

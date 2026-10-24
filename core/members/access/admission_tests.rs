@@ -2,7 +2,7 @@
 //! the witness that is no vote at other nodes, requests that wait. Nodes: `m` is the own node.
 
 use super::*;
-use crate::members::access::tally::{tally, How, Ledger, TallyInput, VoteIn};
+use crate::members::access::tally::{tally, How, Ledger, Rules, TallyInput, VoteIn};
 use crate::transport::net::contract::pid;
 
 const N: Via = Via::None;
@@ -23,6 +23,7 @@ fn input(me: PeerId, rows: &[Row]) -> TallyInput {
         admits: admits.collect(),
         votes: Vec::new(),
         forgets: Vec::new(),
+        rules: Rules::Peer,
     }
 }
 

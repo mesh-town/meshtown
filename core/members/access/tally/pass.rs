@@ -9,13 +9,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::transport::net::PeerId;
 
 use super::super::admission::admit_closure;
+use super::super::authority::{Forgotten, Rules, Standing};
 use super::super::forget::{marks, settle_forgets};
-use super::votes::{need_for, sorted_votes, Excluded, VoteKey};
-use super::{AdmitIn, Admission, ForgetIn, ForgetRound, Ledger, PendingVote, TallyInput};
+use super::votes::{sorted_votes, Excluded, VoteKey};
+use super::{Admission, AdmitIn, ForgetIn, ForgetRound, Ledger, PendingVote, TallyInput};
 
 /// State of the pass.
 pub(super) struct Pass {
     pub(super) me: PeerId,
+    pub(super) rules: Rules,
     pub(super) admits: Vec<AdmitIn>,
     pub(super) forgets: Vec<ForgetIn>,
     pub(super) admitted: BTreeSet<PeerId>,
@@ -31,6 +33,7 @@ impl Pass {
     pub(super) fn new(input: &TallyInput) -> Pass {
         let mut pass = Pass {
             me: input.me,
+            rules: input.rules,
             admits: input.admits.clone(),
             forgets: input.forgets.clone(),
             admitted: BTreeSet::new(),
@@ -47,19 +50,25 @@ impl Pass {
 
     /// In the closure and not excluded.
     pub(super) fn counts(&self, p: &PeerId) -> bool {
-        self.admitted.contains(p) && !self.excluded.contains_key(p)
+        self.standing().present(p)
     }
 
-    fn forgotten(&self, p: &PeerId) -> bool {
-        self.rounds.get(p).is_some_and(|r| r.at_unix.is_some())
+    fn standing(&self) -> Standing<'_> {
+        Standing::new(&self.admitted, &self.excluded, &self.rounds)
     }
 
     /// Recomputes the forget circles and the admitted set, drops votes that no longer count and updates
     /// the threshold.
     pub(super) fn refresh(&mut self) {
-        let closure0 = admit_closure(self.me, &self.admits, &self.excluded).set;
-        let settled = settle_forgets(&closure0, &self.excluded, &self.admits, &self.forgets);
-        let next = admit_closure(self.me, &settled.live_admits, &self.excluded);
+        let closure0 = admit_closure(self.rules, self.me, &self.admits, &self.excluded).set;
+        let settled = settle_forgets(
+            self.rules,
+            &closure0,
+            &self.excluded,
+            &self.admits,
+            &self.forgets,
+        );
+        let next = admit_closure(self.rules, self.me, &settled.live_admits, &self.excluded);
         (self.admitted, self.short, self.rounds) = (next.set, next.short, settled.rounds);
         self.forget_need = settled.need;
         let mut pending = std::mem::take(&mut self.pending);
@@ -69,11 +78,9 @@ impl Pass {
         }
         pending.retain(|_, list| !list.is_empty());
         self.pending = pending;
-        let active = self
-            .admitted
-            .iter()
-            .filter(|p| self.counts(p) && !self.forgotten(p));
-        self.need = need_for(active.count());
+        let standing = self.standing();
+        let active = self.admitted.iter().filter(|p| standing.counts(p));
+        self.need = self.rules.need(active.count());
     }
 
     pub(super) fn finish(mut self) -> Ledger {
@@ -99,6 +106,12 @@ impl Pass {
             forget_marks: BTreeMap::new(),
             forget_need: self.forget_need,
         }
+    }
+}
+
+impl Forgotten for BTreeMap<PeerId, ForgetRound> {
+    fn forgotten(&self, p: &PeerId) -> bool {
+        self.get(p).is_some_and(|r| r.at_unix.is_some())
     }
 }
 

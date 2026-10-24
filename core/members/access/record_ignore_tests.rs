@@ -99,4 +99,3 @@ fn ignores_subject_off_curve() {
     // when / then: the subject is rejected as such, not as a generic postcard error
     assert_eq!(decode(&bytes), Err(Ignored::BadSubject));
 }
-

@@ -13,17 +13,15 @@ mod pass;
 mod types;
 mod votes;
 
+pub use super::authority::Rules;
 pub use super::forget::{ForgetIn, ForgetRound};
 pub use pass::tally;
-pub use types::{AdmitIn, Admission, Exclusion, How, Ledger, PendingVote, TallyInput, VoteIn};
-pub(super) use votes::{need_for, Excluded};
+pub use types::{Admission, AdmitIn, Exclusion, How, Ledger, PendingVote, TallyInput, VoteIn};
+pub(super) use votes::Excluded;
 
 // Names the test modules take through `use super::*`.
 #[cfg(test)]
-use {
-    super::record::Via,
-    pass::Pass,
-};
+use {super::record::Via, pass::Pass};
 
 #[cfg(test)]
 #[path = "tests.rs"]
@@ -56,3 +54,15 @@ mod forget_marks_tests;
 #[cfg(test)]
 #[path = "forget_need_tests.rs"]
 mod forget_need_tests;
+
+#[cfg(test)]
+#[path = "characterization_tests.rs"]
+mod characterization_tests;
+
+#[cfg(test)]
+#[path = "characterization_cascade_tests.rs"]
+mod characterization_cascade_tests;
+
+#[cfg(test)]
+#[path = "characterization_forget_tests.rs"]
+mod characterization_forget_tests;

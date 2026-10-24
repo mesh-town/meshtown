@@ -3,14 +3,25 @@
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
+use super::authority::Rules;
 use super::record::{exclude_key, parse_entry, AclKind, Parsed};
 use super::tally::{AdmitIn, ForgetIn, TallyInput, VoteIn};
 
 /// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
 /// tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored entries.
 pub fn tally_input(me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) {
+    tally_input_under(Rules::Peer, me, entries)
+}
+
+/// `tally_input` for a network counted by `rules`.
+pub fn tally_input_under(
+    rules: Rules,
+    me: PeerId,
+    entries: &[ReplicaEntry],
+) -> (TallyInput, usize) {
     let mut input = TallyInput {
         me,
+        rules,
         admits: Vec::new(),
         votes: Vec::new(),
         forgets: Vec::new(),

@@ -11,7 +11,7 @@ use super::*;
 use crate::invite::store::{issue_record, IssueVerdict, Ledger};
 use crate::members::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
 use crate::members::access::tally::{
-    tally, AdmitIn, Exclusion, How, Ledger as Votes, TallyInput, VoteIn,
+    tally, AdmitIn, Exclusion, How, Ledger as Votes, Rules, TallyInput, VoteIn,
 };
 use crate::members::access::view::Verdicts;
 use crate::transport::net::mem::{MemSync, MemSyncNet};
@@ -248,6 +248,7 @@ fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
             ts_micros: 10,
         }],
         forgets: Vec::new(),
+        rules: Rules::Peer,
     };
     let verdicts = Verdicts {
         me,

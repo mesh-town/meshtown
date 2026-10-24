@@ -86,6 +86,7 @@ pub(super) fn run_votes(
         admits,
         votes,
         forgets,
+        rules: Rules::Peer,
     })
 }
 
@@ -153,7 +154,13 @@ impl World {
     }
 
     /// An admit record of member `author` about any node.
-    pub(super) fn admit(&mut self, author: usize, subject: PeerId, via: Via, made_unix: u64) -> &mut World {
+    pub(super) fn admit(
+        &mut self,
+        author: usize,
+        subject: PeerId,
+        via: Via,
+        made_unix: u64,
+    ) -> &mut World {
         let author = self.id(author);
         self.admits.push(AdmitIn {
             author,
@@ -170,11 +177,18 @@ impl World {
             admits: self.admits.clone(),
             votes: self.votes.clone(),
             forgets: self.forgets.clone(),
+            rules: Rules::Peer,
         })
     }
 
     /// The ledger holds a round on `who` with exactly these voters; `at_unix` is set once forgotten.
-    pub(super) fn assert_round(&self, ledger: &Ledger, who: usize, voters: &[usize], at_unix: Option<u64>) {
+    pub(super) fn assert_round(
+        &self,
+        ledger: &Ledger,
+        who: usize,
+        voters: &[usize],
+        at_unix: Option<u64>,
+    ) {
         let voters = voters.iter().map(|v| self.id(*v)).collect();
         let want = ForgetRound { voters, at_unix };
         assert_eq!(ledger.forgets.get(&self.id(who)), Some(&want));
