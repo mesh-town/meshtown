@@ -10,6 +10,7 @@ import type { Store } from "../core/store.ts";
 import type { PeerInfo } from "../core/api-types.ts";
 import JoiningCard from "../home/JoiningCard.vue";
 import { refusedLead, refusedText } from "../home/join-wait.ts";
+import { useRefusalGate } from "../home/use-refusal-gate.ts";
 import { REFUSED_LEAD } from "../home/invite-join-texts.ts";
 import { quotedNet } from "../common/words.ts";
 import NoNetwork from "../common/NoNetwork.vue";
@@ -95,7 +96,8 @@ const net = computed(() => netName(store.nets, slot.value));
 const rejoinOpen = ref(false);
 const rejoin = ref<InstanceType<typeof RejoinForm> | null>(null);
 // A join the members refused is told under the card, also when the form is closed (the slot has no network of its own then).
-const rejoinRefused = computed(() => refusedText(state.value?.node?.invite_join));
+const refusalGate = useRefusalGate(() => state.value?.node?.invite_join);
+const rejoinRefused = computed(() => refusedText(refusalGate.info.value));
 async function openRejoin(): Promise<void> {
   rejoinOpen.value = true;
   await nextTick();
@@ -154,7 +156,7 @@ async function exitVia(idFull: string): Promise<void> {
     <AddNetCard v-if="addOnly" context="peers" />
     <template v-else-if="excluded">
       <ExcludedCard members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
-      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" :refused="rejoinRefused" />
+      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />
       <p v-else-if="rejoinRefused" class="field-error-text" id="rejoin-refused" role="alert"><strong>{{ REFUSED_LEAD(quotedNet(net)) }}</strong> {{ rejoinRefused }}</p>
     </template>
     <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" :lead="refusedLead(state?.node?.invite_join)" />
