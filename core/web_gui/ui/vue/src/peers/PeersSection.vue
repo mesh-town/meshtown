@@ -3,7 +3,7 @@
 // list, the groups of nodes that are no longer in / not in the member list, the confirmation dialog. A computer that
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
 import { computed, inject, ref, watch } from "vue";
-import { membersOf, netName, stateOf, visibleSlots } from "../core/slots.ts";
+import { isRefused, membersOf, netName, peersSlots, stateOf } from "../core/slots.ts";
 import { saveExitIn } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
@@ -47,7 +47,7 @@ const injected = inject(STORE_KEY);
 if (!injected) throw new Error(PEERS_NO_STORE);
 const store: Store = injected;
 // The network on show: with several networks the chosen tab, otherwise the leading one.
-const visible = computed(() => visibleSlots(store.nets, store.slots));
+const visible = computed(() => peersSlots(store.nets, store.slots));
 const multi = computed(() => visible.value.length >= 2);
 const joining = computed(() => joiningTabs(store));
 const showRow = computed(() => multi.value || joining.value.length > 0);
@@ -61,6 +61,14 @@ const hint = useNetsHint(() => visible.value.length);
 // The "added a network" banner sits on that network's tab; a join that waited for a member shows it on arrival.
 const { banner, show: showBanner, clear: clearBanner } = useNetBanner();
 // A form that waited for the network leads to its tab; a user who has gone elsewhere stays there.
+// A join that the members refused leads from the form to that network's card, which says so and offers "Back".
+watch(
+  () => store.nets.map((n) => n.id).filter((id) => isRefused(store.nets, store.slots, id)),
+  (now, before) => {
+    const fresh = now.find((id) => !before.includes(id));
+    if (fresh && store.peersTab === "add") location.hash = peersHash(fresh);
+  },
+);
 watchArrivals(() => store.nets, (arrived) => {
   showBanner(arrived, arrivedBannerText(store, arrived));
   if (store.peersTab === "add") location.hash = peersHash(arrived);
@@ -71,6 +79,7 @@ const waitingHere = computed(() => {
 });
 // A join that the members refused: the slot has no network yet, the node says why.
 const refusedHere = computed(() => (slot.value === "main" || state.value?.network ? null : refusedText(state.value?.node?.invite_join)));
+const managedHere = computed(() => (store.nets.find((n) => n.id === slot.value)?.kind ?? state.value?.network?.kind) === "Managed");
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
@@ -126,7 +135,7 @@ async function exitVia(idFull: string): Promise<void> {
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
-    <ExcludedCard v-else-if="excluded" members :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
+    <ExcludedCard v-else-if="excluded" members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
     <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />

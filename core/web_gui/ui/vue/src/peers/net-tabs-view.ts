@@ -1,11 +1,11 @@
 /* What the tab row and the tab header show, derived from the network list. */
 
-import { NEW_NET_NAME, membersOf, netName, visibleSlots } from "../core/slots.ts";
+import { NEW_NET_NAME, isRefused, membersOf, netName, peersSlots, visibleSlots } from "../core/slots.ts";
 import { isMeRemoved } from "../members/members-ids.ts";
 import type { Store } from "../core/store.ts";
 import type { NetBrief } from "../core/api-types.ts";
 import { slotVotes } from "./net-votes.ts";
-import { PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REMOVED_SUB, peersManagedTabSub, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
+import { PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REFUSED_SUB, PEERS_TAB_REMOVED_SUB, peersManagedTabSub, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
 
 export interface NetTab {
   slot: string;
@@ -29,16 +29,17 @@ function subOf(store: Store, slot: string, b: NetBrief | undefined, online: numb
 
 function tabOf(store: Store, slot: string): NetTab {
   const b = briefOf(store, slot);
-  const name = netName(store.nets, slot);
+  const refused = isRefused(store.nets, store.slots, slot);
+  const name = refused && !b?.label ? NEW_NET_NAME : netName(store.nets, slot);
   const down = b ? isDown(b) : false;
   const online = b ? b.peers_online : 0;
   const total = b ? b.peers_total : 0;
   const waiting = b ? b.joining && b.id_hex == null : false;
-  const sub = waiting ? PEERS_TAB_JOINING_SUB : subOf(store, slot, b, online, down);
+  const sub = refused ? PEERS_TAB_REFUSED_SUB : waiting ? PEERS_TAB_JOINING_SUB : subOf(store, slot, b, online, down);
   return { slot, name, sub, title: peersTabTitle(name, online, total, down), votes: slotVotes(store, slot) };
 }
 
-export const netTabs = (store: Store): NetTab[] => visibleSlots(store.nets, store.slots).map((slot) => tabOf(store, slot));
+export const netTabs = (store: Store): NetTab[] => peersSlots(store.nets, store.slots).map((slot) => tabOf(store, slot));
 
 // Networks being joined whose state has not arrived yet: they are not among the regular tabs.
 export const joiningTabs = (store: Store): { name: string }[] => {

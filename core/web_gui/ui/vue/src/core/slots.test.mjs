@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { slotPath, isSlotId, visibleSlots, isMulti, netName } from "./slots.ts";
+import { slotPath, isSlotId, visibleSlots, peersSlots, isRefused, isMulti, netName } from "./slots.ts";
 
 const B = "k7q2xa";
 const C = "m3n4pq";
@@ -246,6 +246,28 @@ describe("netName", () => {
       assert.equal(netName(nets, B), "friends");
       assert.equal(netName(nets, C), "work");
     });
+  });
+});
+
+describe("a refused join", () => {
+  const refusedState = { node: { invite_join: { state: "refused", message: "No." } } };
+  const world = () => setup([brief("main", { id_hex: "aa" }), brief(B)], { [B]: { state: refusedState } });
+
+  it("is not a visible slot, but stays among the tabs of the Members page", () => {
+    const { nets, slots } = world();
+    assert.deepEqual(visibleSlots(nets, slots), ["main"]);
+    assert.deepEqual(peersSlots(nets, slots), ["main", B]);
+    assert.equal(isRefused(nets, slots, B), true);
+  });
+
+  it("is gone with the slot's refusal", () => {
+    const { nets, slots } = setup([brief("main", { id_hex: "aa" }), brief(B)], { [B]: { state: { node: {} } } });
+    assert.deepEqual(peersSlots(nets, slots), ["main"]);
+  });
+
+  it("a slot that is joining again is not refused", () => {
+    const { nets, slots } = setup([brief("main", { id_hex: "aa" }), brief(B, { joining: true })], { [B]: { state: refusedState } });
+    assert.equal(isRefused(nets, slots, B), false);
   });
 });
 
