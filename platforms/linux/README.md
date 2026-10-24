@@ -8,7 +8,7 @@ Package `meshtown-linux`: the node with a tray icon. The package is a library (`
 - `cli/` — the binary entry point.
 - `gui/` — the tray, clipboard and URL opening.
 - `build/` — packaging: `build.sh` cross-builds static binaries in a container; `keenetic/`, `openwrt/` and `mips/`
-  hold the router targets.
+  hold the router targets, `debian/` the `.deb` package and the apt repository.
 
 ## Commands
 
@@ -25,6 +25,17 @@ Run from the repository root as `make linux-<target>`, or `make -C platforms/lin
 `dist/` (`meshtown-linux-gui-<version>`, `meshtown-linux-cli-<version>`, ...). The root targets
 `make build_linux_cli`, `make build_linux_gui`, `make build_linux_arm64_cli`, `make build_linux_armv7_cli` call the
 same script.
+
+## Debian package
+
+`build/debian/deb.py` builds `meshtown_<version>_<arch>.deb` (amd64, arm64) from the static release binary with the
+Python standard library: the binary, a systemd unit that stays disabled until `systemctl enable`, and the apt source
+and key of the repository (`keys/meshtown.gpg`). `build/debian/apt_repo.py update` adds packages to an apt repository
+tree, prunes old versions, rebuilds the indexes with by-hash files and signs them with `gpg`.
+`scripts/release/dist/build_debs.sh <assets> <out> <version>` builds both packages from the release archives, and
+`scripts/release/dist/publish.sh` publishes them to `linux/debian/` of the distribution repository, served at
+`https://mesh-town.github.io/meshtown-dist/linux/debian`. Tests: `make test-py` (the ones that need `dpkg-deb`,
+`apt-get` or `gpgv` are skipped where these tools are missing).
 
 ## What is used outside this directory
 
