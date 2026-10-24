@@ -43,6 +43,10 @@ Paths are from the repository root; a path ending in `/` is a directory.
 | `core/transport/transfer_probe.rs` | volume probe over an established connection |
 | `core/transport/peers_cache.rs` | cache of last seen peer addresses |
 | `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
+| `core/members/network_key/managed.rs` | the kind of a network (`NetKind`), the Managed key that carries the creator's node id, its text forms |
+| `core/members/access/authority.rs` | counting rules of a network (`Rules::Peer`, `Rules::Managed`) and the standing of a node |
+| `core/members/access/managed/` | the tally of an administered network: roles, exclusions, closing of the network |
+| `core/members/access/abilities.rs` | what this node may do in its network (flags for the page and the tray) |
 | `core/members/words.rs`, `core/members/wordlist/` | EFF word list, word pool, the random part of the key and its validation |
 | `core/members/handshake.rs` | handshake with the network secret |
 | `core/members/membership.rs` | member bookkeeping and topic events |
@@ -178,6 +182,34 @@ needed here. Pinned by the known-answer test `key_from_tail_known_answer`.
 
 The machine form `mesh1-…` (32 random bytes in base32) remains the second valid input
 and is printed by the command `meshtown keygen --raw`.
+
+## Network types: Peer and Managed
+
+A network has a type that is part of its key and does not change. `NetKind::Peer` is the default: the key alone lets a
+node in and every admitted node votes. `NetKind::Managed { root }` is derived from a random base and the node id of the
+creator (`root`), so another creator gives another network. A Managed key has its own text forms (`label--word-word-group-<root>`
+for people, `label--mesh2-…` for the machine form); neither is understood by the Peer parser, so an older program refuses
+such a key instead of joining as a Peer. An invite of a Managed network is a version 4 invite: it carries the kind
+and the root next to the label and the addresses (`core/invite/parse.rs`), and an older program does not accept it.
+Only one place asks the kind: `NetKind::root()`.
+
+Who decides is the job of `Rules` (`core/members/access/authority.rs`):
+
+| | `Rules::Peer` | `Rules::Managed { root }` |
+|---|---|---|
+| where the admitted closure starts | this node | the root |
+| votes to remove a node (`need`) | 1 while at most two nodes are active, else 2 | always 1 |
+| whose admission records count | those of the admission origins that count elsewhere, and this node's own | any, except a witness's |
+| roles | none | administrators; the root is one for good |
+| `forget` of an offline node by votes | available | refused (`peer_only`) |
+
+The roles live in the signed record of the network as records of power (`Grant`, `Revoke`, `Close`) next to the
+admissions. The tally (`core/members/access/managed/`) replays them in order: a record counts when its author is an
+administrator at that moment, and an exclusion voids the earlier records of the excluded node. The last administrator
+cannot step down (`last_admin`). `Close` is written by an administrator and ends the network for everybody: members
+that see it leave by themselves. From the published verdicts `access::abilities` derives the flags `can_invite`,
+`can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`; the page and the tray show no control whose flag is
+off, and the actions check the same rules again (`access::actions`), so a stale page gets 409 and not an effect.
 
 ## Protocols
 

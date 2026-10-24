@@ -20,6 +20,7 @@ describe("createStore", () => {
       slots: {},
       nets: [],
       restartSlots: [],
+      notices: [],
       lead: "main",
       peersTab: null,
       source: null,

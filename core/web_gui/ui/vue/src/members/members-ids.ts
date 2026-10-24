@@ -81,3 +81,18 @@ export function displayNames(members: MembersReply | null | undefined): Record<s
   for (const m of members ? members.members : []) out[m.id_full] = m.name && m.name.trim() ? m.name : m.id;
   return out;
 }
+
+// This member created the network (`NetworkInfo.root`); a peer network names no creator.
+export function isRoot(info: { root?: string } | null | undefined, idFull: string): boolean {
+  return !!(info && info.root && info.root === idFull);
+}
+
+// An admin who cannot leave (the only admin) must choose a successor first.
+export function leaveKind(ctx: { meAdmin?: boolean; canLeave?: boolean; onlyAdmin?: boolean }): "leave" | "last-admin" {
+  return ctx.meAdmin && (ctx.canLeave === false || ctx.onlyAdmin) ? "last-admin" : "leave";
+}
+
+// A managed network has no votes: the vote banner and the vote texts stay hidden.
+export function votingHidden(reply: { kind?: string } | null | undefined): boolean {
+  return !!reply && reply.kind === "Managed";
+}

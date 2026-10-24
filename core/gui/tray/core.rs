@@ -105,7 +105,7 @@ pub struct Core {
     invite_slot: Option<String>,
     /// Names of the shown networks that have no connection.
     offline_nets: Vec<String>,
-    /// Whether a removal vote (not only a join request) is pending in some shown network.
+    /// Whether a ban vote (not only a join request) is pending in some shown network.
     removal_vote: bool,
 }
 
@@ -126,6 +126,7 @@ impl Core {
 
         let vote = super::vote_item::VoteUi::new(menu.clone());
         let nets = super::nets_ui::NetsUi::new(menu.clone());
+        let extras = super::extras_ui::ExtrasUi::new(menu.clone());
         let icon = super::menu_build::view_icon(&icons, self.icon_key())?;
         let tray = tray_icon::TrayIconBuilder::new()
             .with_icon(icon)
@@ -149,6 +150,7 @@ impl Core {
             actions,
             vote,
             nets,
+            extras,
         });
         self.refresh_ui();
         Ok(())
@@ -251,6 +253,8 @@ impl Core {
                 .as_ref()
                 .map(|(slot, text)| (slot.as_str(), text.as_str()));
             ui.nets.apply(&menu, shown, &mut ui.actions);
+            ui.extras.apply_notices(&menu.notices);
+            ui.extras.apply_add(&menu);
             ui.exit_submenu.apply_exit_menu(menu);
         }
         self.refresh_ui();

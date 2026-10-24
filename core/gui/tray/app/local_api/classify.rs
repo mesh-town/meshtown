@@ -1,6 +1,6 @@
 //! Response → `Reply` per the contract (`docs/WEB-API.md`): 200 with a JSON object body → `Ok`; any other 200 →
 //! `OtherStatus(200)`; 202 → `Accepted`; 401 → `Unauthorized`; 503 with `error == "stopping"` in the body →
-//! `Stopping`; anything else, including 403 `bad_host`/`bad_origin`, → `OtherStatus(code)`.
+//! `Stopping`; 409 with `error == "not_admin"` → `NotAdmin`; anything else, including 403 `bad_host`/`bad_origin`, → `OtherStatus(code)`.
 
 use serde_json::Value;
 
@@ -16,6 +16,7 @@ pub(crate) fn reply_from_response(status: u16, body: &[u8]) -> Reply {
         202 => Reply::Accepted,
         401 => Reply::Unauthorized,
         503 => stopping_or_other(body),
+        409 => conflict_or_other(body),
         other => Reply::OtherStatus(other),
     }
 }
@@ -26,6 +27,16 @@ pub(crate) fn reply_from_response(status: u16, body: &[u8]) -> Reply {
 struct ErrorBody {
     #[serde(deserialize_with = "lenient::opt_string")]
     error: Option<String>,
+}
+
+/// A 409 with `error == "not_admin"` means the network lets only admins do this; any other 409 stays `OtherStatus(409)`.
+fn conflict_or_other(body: &[u8]) -> Reply {
+    let value = serde_json::from_slice::<Value>(body).unwrap_or(Value::Null);
+    let error: ErrorBody = lenient::from_object(&value);
+    match error.error.as_deref() {
+        Some("not_admin") => Reply::NotAdmin,
+        _ => Reply::OtherStatus(409),
+    }
 }
 
 /// A 503 with `error == "stopping"` means the node is stopping; any other body, or non-JSON, gives `OtherStatus(503)`.

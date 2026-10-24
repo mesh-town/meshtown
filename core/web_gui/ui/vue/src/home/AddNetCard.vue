@@ -6,6 +6,8 @@ import { computed, inject, reactive, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
 import JoiningCard from "./JoiningCard.vue";
+import NetKindPicker from "./NetKindPicker.vue";
+import { useInspectPreview } from "./inspect-preview.ts";
 import { peersHash } from "../shell/nav.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import { createJoinForm, highlightParts } from "./join-actions.ts";
@@ -30,6 +32,7 @@ const limited = computed(() => outcome.value === "limit" || atLimit(store));
 const dupName = computed(() => (form.dupSlot ? netName(store.nets, form.dupSlot) : ""));
 const errorParts = computed(() => (form.inviteError ? highlightParts(form.inviteError.message, form.inviteError.word) : []));
 const creating = computed(() => mode.value === "create");
+const { preview } = useInspectPreview(() => form.inviteInput);
 
 function arrive(result: AddNetResult): void {
   const slot = form.slot ?? null;
@@ -99,12 +102,14 @@ const openDup = (): void => {
         <label class="field-label" for="add-net-input">{{ ADD_NET_JOIN_LABEL }}</label>
         <input type="text" class="input mono input-wide" :class="{ 'field-error': form.inviteError }" id="add-net-input" v-model="form.inviteInput" autocomplete="off" spellcheck="false" aria-describedby="add-net-error" :placeholder="ADD_NET_JOIN_PLACEHOLDER">
         <p class="field-error-text" id="add-net-error" role="alert" :hidden="!form.inviteError"><template v-for="(part, i) in errorParts" :key="i"><mark v-if="part.highlighted" class="key-error-word">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></p>
+        <p v-if="preview" class="hint kind-preview" id="add-net-kind-preview" role="status">{{ preview }}</p>
         <p class="hint">{{ ADD_NET_JOIN_HINT }}</p>
       </div>
       <div v-else id="add-net-create-box">
         <label class="field-label" for="add-net-label-input">{{ ADD_NET_CREATE_LABEL }}</label>
         <input type="text" class="input" :class="{ 'field-error': form.labelError }" id="add-net-label-input" v-model="form.label" :placeholder="ADD_NET_CREATE_PLACEHOLDER">
         <p class="field-error-text" id="add-net-label-error" role="alert" :hidden="!form.labelError">{{ form.labelError }}</p>
+        <NetKindPicker v-model="form.kind" :name="form.label" />
       </div>
       <div class="btn-row">
         <button type="button" class="btn btn-primary" id="add-net-btn" :disabled="!!form.busy" @click="submit">{{ form.busy ? ADD_NET_BUSY : creating ? ADD_NET_CREATE_BTN : ADD_NET_BTN }}</button>

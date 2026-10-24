@@ -164,6 +164,45 @@ invite [for whom] — a new single-use invite string for this network (valid for
 
 On the page, the "Invite a member" button on "Home" puts the same string on the clipboard.
 
+## Managed networks
+
+A network has one of two types, chosen when it is created and never changed afterwards.
+
+- **Peer** (the default): every member can invite people, and removing a member takes the votes of two members.
+- **Managed**: administrators decide who is in and who is out. Only an administrator can invite a person, remove a
+  member, make another member an administrator or delete the network. Everyone else sees the list of members and
+  uses the network as usual.
+
+The creator of a Managed network is its first administrator and the *root*: the root keeps the role for good and
+cannot be made a regular member. A key or an invite of a Managed network is not understood by a program that does not
+know Managed networks, so such a program refuses it instead of joining a network of another kind.
+
+**Create.** On the page, "Add a network" (or "Join or create a network" when there is none) asks "Who can invite and
+remove members?" and offers *Peer network* (selected) and *Managed network*. The tray menu has the item
+`Add a network…`, which opens the same form. A node that joins by a key or an invite sees the type of the network
+before it joins.
+
+**Invite.** Only an administrator can issue an invite to a Managed network; for anyone else the button is replaced by
+a note naming the administrators, and the tray item is disabled. An invite that was not made by an administrator is
+refused when it is redeemed.
+
+**Administrators.** In the member list an administrator opens the `⋯` menu of a row and picks `Make admin` or
+`Make regular member`. An administrator can give up their own role (`Give up admin rights`) unless they are the only
+one; the last administrator cannot leave or give up the role, and is offered to make another member an administrator
+or to delete the network. A Managed network without any administrator cannot be managed, so make a second one soon.
+
+**Remove.** An administrator picks `Remove from network…` for a member. One administrator's decision is enough, with
+no voting; the removed node is disconnected from all members and needs a new invite to come back. The removed node
+sees which administrator removed it.
+
+**Delete for everyone.** `Delete network for everyone…` (the administrator's own row) asks to type the network name.
+All members leave the network, this computer too; it cannot be undone. A member that was offline leaves the network by
+itself when it learns about it.
+
+**What a regular member sees.** The network name, the line `Managed network · Admins: …`, the `Admin` badge on rows,
+and a greyed `Remove from network (admins only)`. A member can still leave the network and block a node on this
+computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.3, 1.11, 1.12).
+
 ## Domain list
 
 Every node has its own domain list. It is kept only on this node and is not passed to other members. The results of

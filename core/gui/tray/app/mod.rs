@@ -27,6 +27,8 @@ pub(crate) mod local_api;
 #[cfg(feature = "gui")]
 pub(crate) mod members_note;
 #[cfg(feature = "gui")]
+pub(crate) mod menu_order;
+#[cfg(feature = "gui")]
 mod mode;
 #[cfg(feature = "gui")]
 pub(crate) mod nets_menu;

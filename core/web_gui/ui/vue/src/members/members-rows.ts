@@ -5,7 +5,10 @@ import {
   MENU_UNADMIT, MENU_UNBLOCK, MENU_UNDO_FORGET, MENU_WAITING, MENU_WITHDRAW, TITLE_BLOCKED, TITLE_BAN_PROPOSED, admissionLine, proposedByText, waitingMoreText,
 } from "./members-texts.ts";
 import { canConfirm, canUnadmit } from "./members-ids.ts";
+import { managedMenuItems, type MenuCtx } from "./members-managed-rows.ts";
 import type { MemberRow, MenuItem } from "./members-types.ts";
+
+export type { MenuCtx };
 
 export interface Badge {
   text: string;
@@ -83,8 +86,9 @@ function forgottenItems(row: MemberRow): MenuItem[] {
   return row.forget && row.forget.mine ? [item("unforget", label)] : [];
 }
 
-export function menuItems(row: MemberRow | null | undefined, ctx: { me: string }): MenuItem[] {
+export function menuItems(row: MemberRow | null | undefined, ctx: MenuCtx): MenuItem[] {
   if (!row || row.status === "excluded") return [];
+  if (ctx.managed) return managedMenuItems(row, ctx);
   if (row.self || row.id_full === ctx.me) return [item("rename", MENU_RENAME), item("leave", MENU_LEAVE, { danger: true })];
   if (row.status === "forgotten" || (row.forget && row.forget.mine)) return forgottenItems(row);
   if (row.status === "unlisted") return [blockItem(row)];

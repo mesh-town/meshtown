@@ -25,6 +25,7 @@ pub(super) fn start_policy(reply: &Result<Reply, ApiError>) -> StartDecision {
         Ok(Reply::Unauthorized)
         | Ok(Reply::Accepted)
         | Ok(Reply::Stopping)
+        | Ok(Reply::NotAdmin)
         | Ok(Reply::OtherStatus(_))
         | Err(ApiError::Timeout)
         | Err(ApiError::NotHttp(_)) => StartDecision::PortBusy,
@@ -38,6 +39,7 @@ pub(super) fn reply_summary(reply: &Result<Reply, ApiError>) -> String {
         Ok(Reply::Accepted) => "HTTP 202".to_string(),
         Ok(Reply::Unauthorized) => "HTTP 401".to_string(),
         Ok(Reply::Stopping) => "HTTP 503 stopping".to_string(),
+        Ok(Reply::NotAdmin) => "HTTP 409 not_admin".to_string(),
         Ok(Reply::OtherStatus(code)) => format!("HTTP {code}"),
         Err(ApiError::Refused) => "connection refused".to_string(),
         Err(ApiError::Timeout) => "no reply in time".to_string(),

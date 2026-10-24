@@ -2,6 +2,8 @@
 
 use clap::{Parser, ValueEnum};
 
+use crate::managed::ManagedMode;
+
 // ============================================================================================
 // Flags
 // ============================================================================================
@@ -67,6 +69,12 @@ pub(crate) struct Args {
     /// Start as a computer the other members removed from the list (the card is shown in the `main` network only).
     #[arg(long)]
     pub(crate) me_removed: bool,
+    /// The network is managed and this node created it: it is an administrator and the root.
+    #[arg(long, conflicts_with = "managed_member")]
+    pub(crate) managed: bool,
+    /// The network is managed and this node is an ordinary member; two other members are administrators.
+    #[arg(long)]
+    pub(crate) managed_member: bool,
     /// How many networks the page shows (1..=8); the extra ones are labelled `demo-network-2`, ...
     #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=8))]
     pub(crate) nets: u8,
@@ -90,4 +98,14 @@ pub(crate) enum IdentityMode {
     Declined,
     FileProblem,
     FilePreserved,
+}
+
+impl Args {
+    pub(crate) fn managed_mode(&self) -> ManagedMode {
+        match (self.managed, self.managed_member) {
+            (true, _) => ManagedMode::Admin,
+            (_, true) => ManagedMode::Member,
+            _ => ManagedMode::Peer,
+        }
+    }
 }

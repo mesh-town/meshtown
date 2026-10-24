@@ -57,6 +57,24 @@ describe("just after the join started", () => {
   });
 });
 
+describe("the members refused the join", () => {
+  const MESSAGE = "This invite was not issued by an admin of the network, so it cannot be used. Ask an admin of the network for a new one.";
+
+  it("shows the node message verbatim instead of the waiting lines", async () => {
+    const card = await setup(MESSAGE);
+    expect(compact(card.wrapper.get("#net-join-refused").text())).toBe(MESSAGE);
+    expect(card.text()).not.toContain(JOINING);
+    expect(card.text()).not.toContain(MINUTE);
+  });
+
+  it("the button says Back and gives the slot back", async () => {
+    const card = await setup(MESSAGE);
+    expect(card.cancelText()).toBe("Back");
+    await card.when.cancelled();
+    expect(card.postedPaths()).toEqual([LEAVE_PATH]);
+  });
+});
+
 describe("the minute passes", () => {
   it("one millisecond short of 60 s it still says up to a minute", async () => {
     const card = await setup();
@@ -163,7 +181,7 @@ describe("Cancel", () => {
   });
 });
 
-async function setup() {
+async function setup(refused) {
   const opts = twoNets();
   opts.slots.push({ id: WAITING });
   const node = createFakeNode(opts);
@@ -172,7 +190,7 @@ async function setup() {
   sessionStorage.setItem(TOKEN_KEY, "test-token");
   const store = createStore();
   acceptOverview(store, parseOverview(await api("GET", "/api/overview")));
-  const wrapper = mount(JoiningCard, { props: { slot: WAITING }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+  const wrapper = mount(JoiningCard, { props: { slot: WAITING, refused }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   await settle();
   mounted = { wrapper, node };
   return cardOf(wrapper, node, store);

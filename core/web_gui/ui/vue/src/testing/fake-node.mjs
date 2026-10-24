@@ -40,6 +40,8 @@ const BUILTIN = {
   "GET /api/nets": (node) => netsReply(node),
   "POST /api/nets": (node) => addNet(node),
   "POST /api/members/leave": (node) => (node.slotsGiven ? primaryLeave(node) : null),
+  // An older node: a pasted invite gets no preview line. A test that wants one sets `node.routes["POST /api/network/inspect"]`.
+  "POST /api/network/inspect": () => reply(404, { error: "not_found" }),
 };
 
 function routed(node, key, body) {

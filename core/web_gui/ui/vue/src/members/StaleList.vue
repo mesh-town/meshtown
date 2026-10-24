@@ -5,12 +5,13 @@ import MemberMenu from "./MemberMenu.vue";
 import { BADGE_FORGET_PROPOSED, lastOnlineText, staleSummary } from "./members-texts.ts";
 import type { MemberRow } from "./members-types.ts";
 import { menuItems } from "./members-view.ts";
+import type { MenuCtx } from "./members-view.ts";
 
-const props = defineProps<{ rows: MemberRow[]; me: string }>();
+const props = defineProps<{ rows: MemberRow[]; me: string; ctx?: MenuCtx }>();
 defineEmits<{ (e: "pick", key: string, idFull: string): void }>();
 
 const nameOf = (r: MemberRow): string => (r.name && r.name.trim() ? r.name : r.id);
-const itemsOf = (r: MemberRow) => menuItems(r, { me: props.me });
+const itemsOf = (r: MemberRow) => menuItems(r, props.ctx || { me: props.me });
 </script>
 
 <template>

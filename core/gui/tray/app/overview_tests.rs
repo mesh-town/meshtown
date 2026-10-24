@@ -112,6 +112,178 @@ mod parse_overview {
     }
 }
 
+mod managed_fields {
+    use super::*;
+
+    #[test]
+    fn summary_entry_carries_kind_admin_and_invite_right() {
+        // given
+        let json =
+            summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": false }));
+
+        // when
+        let s = first_slot(&json);
+
+        // then
+        assert!(s.managed, "kind Managed");
+        assert!(s.admin, "me_admin");
+        assert!(!s.can_invite, "can_invite false is kept");
+    }
+
+    #[test]
+    fn no_fields_mean_a_peer_network_where_inviting_is_allowed() {
+        let s = first_slot(&summary_with(json!({})));
+
+        assert!(!s.managed && !s.admin);
+        assert!(s.can_invite, "an old node never forbids inviting");
+    }
+
+    #[test]
+    fn peer_kind_is_not_managed() {
+        let json = summary_with(json!({ "kind": "Peer", "me_admin": false, "can_invite": true }));
+
+        let s = first_slot(&json);
+
+        assert!(!s.managed && !s.admin && s.can_invite);
+    }
+
+    #[test]
+    fn unknown_kind_reads_as_peer() {
+        let s = first_slot(&summary_with(json!({ "kind": "Council" })));
+
+        assert!(!s.managed);
+    }
+
+    #[test]
+    fn state_network_is_the_fallback_source() {
+        // given
+        let mut json = summary_with(json!({}));
+        json["slots"][0]["state"]["network"] =
+            json!({ "kind": "Managed", "me_role": "admin", "can_invite": false });
+
+        // when
+        let s = first_slot(&json);
+
+        // then
+        assert!(s.managed && s.admin);
+        assert!(!s.can_invite);
+    }
+
+    #[test]
+    fn member_role_in_the_state_is_not_admin() {
+        let mut json = summary_with(json!({}));
+        json["slots"][0]["state"]["network"] =
+            json!({ "kind": "Managed", "me_role": "member", "can_invite": false });
+
+        let s = first_slot(&json);
+
+        assert!(s.managed && !s.admin);
+    }
+
+    #[test]
+    fn summary_entry_wins_over_the_state() {
+        // given
+        let mut json =
+            summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": true }));
+        json["slots"][0]["state"]["network"] =
+            json!({ "kind": "Peer", "me_role": "member", "can_invite": false });
+
+        // when
+        let s = first_slot(&json);
+
+        // then
+        assert!(s.managed && s.admin && s.can_invite);
+    }
+
+    #[test]
+    fn fields_of_foreign_types_become_peer_defaults() {
+        let json = summary_with(json!({ "kind": 5, "me_admin": "yes", "can_invite": "no" }));
+
+        let s = first_slot(&json);
+
+        assert!(!s.managed && !s.admin);
+        assert!(s.can_invite, "an unreadable flag does not forbid inviting");
+    }
+}
+
+mod notices {
+    use super::*;
+
+    #[test]
+    fn deleted_network_notes_come_in_the_order_of_the_array() {
+        // given
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!([
+            { "id": 4, "kind": "net_deleted", "label": "work", "id_hex": "ab", "by": "x", "by_name": "Ann", "at_unix": 1 },
+            { "id": 9, "kind": "net_deleted", "label": "home", "id_hex": "cd", "by": "y", "by_name": "Bob", "at_unix": 2 },
+        ]);
+
+        // when
+        let notes = parse_notices(&json);
+
+        // then
+        let pairs: Vec<(u64, &str)> = notes.iter().map(|n| (n.id, n.label.as_str())).collect();
+        assert_eq!(pairs, [(4, "work"), (9, "home")]);
+    }
+
+    #[test]
+    fn no_notices_field_means_no_notes() {
+        assert!(parse_notices(&overview_json(&[friends()])).is_empty());
+    }
+
+    #[test]
+    fn notices_that_is_not_an_array_means_no_notes() {
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!("work");
+
+        assert!(parse_notices(&json).is_empty());
+    }
+
+    #[test]
+    fn broken_entries_are_skipped() {
+        // given
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!([
+            { "kind": "net_deleted", "label": "no id" },
+            { "id": "7", "kind": "net_deleted", "label": "id is text" },
+            { "id": 5, "kind": "something_else", "label": "other kind" },
+            { "id": 6, "kind": "net_deleted", "label": "fine" },
+        ]);
+
+        // when
+        let notes = parse_notices(&json);
+
+        // then
+        let ids: Vec<u64> = notes.iter().map(|n| n.id).collect();
+        assert_eq!(ids, [6]);
+    }
+
+    #[test]
+    fn a_note_with_a_null_label_is_kept_with_an_empty_label() {
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!([{ "id": 3, "kind": "net_deleted", "label": null }]);
+
+        let notes = parse_notices(&json);
+
+        assert_eq!(notes, [Notice { id: 3, label: String::new() }]);
+        assert_eq!(
+            crate::gui::tray::app::nets_texts::net_deleted_text(&notes[0].label),
+            "A network was deleted by an admin — open Members…"
+        );
+    }
+
+    #[test]
+    fn summary_slots_do_not_depend_on_notices() {
+        let mut json = overview_json(&[friends(), work()]);
+        json["notices"] = json!([{ "id": 1, "kind": "net_deleted", "label": "gone" }]);
+
+        assert_eq!(
+            ids(parse_overview(&json).expect("a summary")),
+            ["main", "ab12cd"]
+        );
+    }
+}
+
 mod visible_slots {
     use super::*;
 
@@ -205,4 +377,17 @@ fn slots_of(specs: &[NetSpec]) -> Vec<SlotView> {
 
 fn ids(slots: Vec<SlotView>) -> Vec<String> {
     slots.into_iter().map(|s| s.slot).collect()
+}
+
+/// A one-network summary whose first entry has `extra` fields merged in (e.g. `kind`, `me_admin`).
+fn summary_with(extra: serde_json::Value) -> serde_json::Value {
+    let mut json = overview_json(&[friends()]);
+    for (key, value) in extra.as_object().expect("an object") {
+        json["nets"][0][key] = value.clone();
+    }
+    json
+}
+
+fn first_slot(json: &serde_json::Value) -> SlotView {
+    parse_overview(json).expect("a summary").remove(0)
 }

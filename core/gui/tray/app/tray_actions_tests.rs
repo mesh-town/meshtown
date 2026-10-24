@@ -277,3 +277,55 @@ mod invite_reach {
         menu_first_line(View::initial(), &route, invite, serve, &StartNote::Idle)
     }
 }
+
+mod flat_invite_item {
+    use super::*;
+    use crate::gui::tray::app::tray_texts::REASON_NOT_ADMIN;
+
+    #[test]
+    fn allowed_to_invite_shows_the_usual_text() {
+        assert_eq!(flat_invite_text(true, InviteNote::Idle), "Invite a member");
+    }
+
+    #[test]
+    fn not_allowed_to_invite_says_who_can() {
+        assert_eq!(
+            flat_invite_text(false, InviteNote::Idle),
+            "Only admins can invite"
+        );
+    }
+
+    #[test]
+    fn a_note_of_a_click_is_shown_whatever_the_right() {
+        let note = InviteNote::Failed(REASON_NOT_ADMIN);
+
+        assert_eq!(flat_invite_text(true, note), invite_item_text(note));
+        assert_eq!(flat_invite_text(false, note), invite_item_text(note));
+    }
+}
+
+mod refused_because_not_admin {
+    use super::*;
+    use crate::gui::tray::app::tray_texts::REASON_NOT_ADMIN;
+
+    #[test]
+    fn reason_names_the_network_rule() {
+        assert_eq!(REASON_NOT_ADMIN, "only admins can invite to this network");
+    }
+
+    #[test]
+    fn item_text_names_the_reason() {
+        assert_eq!(
+            invite_item_text(InviteNote::Failed(REASON_NOT_ADMIN)),
+            "Couldn't copy the invite: only admins can invite to this network"
+        );
+    }
+
+    #[test]
+    fn first_line_names_the_reason() {
+        assert_eq!(
+            invite_status_line(InviteNote::Failed(REASON_NOT_ADMIN)),
+            Some("Couldn't copy the invite: only admins can invite to this network".to_string())
+        );
+    }
+}

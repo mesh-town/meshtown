@@ -1,6 +1,6 @@
 /* `GET /api/overview`: tolerant parsing, the synthetic overview of an old node and writing a snapshot into the store. */
 
-import type { NetBrief, NodeState, Overview, SlotEntry, SlotSlice } from "./api-types.ts";
+import type { NetBrief, NodeState, Notice, Overview, SlotEntry, SlotSlice } from "./api-types.ts";
 import type { MembersReply } from "../members/members-types.ts";
 import type { Store } from "./store.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
@@ -17,6 +17,15 @@ const strOrNull = (v: unknown): string | null => (typeof v === "string" ? v : nu
 const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
 const oneOf = (v: unknown, list: readonly string[]): string => (typeof v === "string" && list.includes(v) ? v : "unavailable");
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+
+// The Managed fields of a brief; a Peer-only node sends none and the brief stays without them.
+function managedBrief(raw: Raw): Pick<NetBrief, "kind" | "me_admin" | "can_invite"> {
+  const out: Pick<NetBrief, "kind" | "me_admin" | "can_invite"> = {};
+  if (raw.kind === "Managed" || raw.kind === "Peer") out.kind = raw.kind;
+  if (typeof raw.me_admin === "boolean") out.me_admin = raw.me_admin;
+  if (typeof raw.can_invite === "boolean") out.can_invite = raw.can_invite;
+  return out;
+}
 
 function parseBrief(raw: unknown): NetBrief | null {
   if (!isObj(raw) || typeof raw.id !== "string" || !isSlotId(raw.id)) return null;
@@ -36,6 +45,7 @@ function parseBrief(raw: unknown): NetBrief | null {
     me_pending: raw.me_pending === true,
     peers_online: count(raw.peers_online),
     peers_total: count(raw.peers_total),
+    ...managedBrief(raw),
   };
 }
 
@@ -55,7 +65,12 @@ export function parseOverview(raw: unknown): Overview | null {
     nets: (Array.isArray(raw.nets) ? raw.nets : []).map(parseBrief).filter(nonNull),
     slots: raw.slots.map(parseEntry).filter(nonNull),
     restart_slots: strings(raw.restart_slots),
+    ...(raw.notices === undefined ? {} : { notices: parseNotices(raw.notices) }),
   };
+}
+
+function parseNotices(raw: unknown): Notice[] {
+  return Array.isArray(raw) ? raw.filter((n): n is Notice => isObj(n) && typeof n.id === "number" && n.kind === "net_deleted") : [];
 }
 
 const BROKEN: Omit<NetBrief, "id"> = {
@@ -95,7 +110,15 @@ export function briefFromState(id: string, state: NodeState | null, members: Mem
     me_pending: members?.me_pending === true,
     peers_online: peers.filter((p) => p.online).length,
     peers_total: peers.length,
+    ...managedFromState(state),
   };
+}
+
+// A node without `/api/overview` carries the Managed facts in the snapshot's `network`.
+function managedFromState(state: NodeState): Pick<NetBrief, "kind" | "me_admin" | "can_invite"> {
+  const net = state.network;
+  if (!net?.kind) return {};
+  return { kind: net.kind, me_admin: net.me_role === "admin", ...(net.can_invite === undefined ? {} : { can_invite: net.can_invite }) };
 }
 
 /** The overview of a node that has no `/api/overview`: one slot, `main`. */
@@ -106,6 +129,7 @@ export function legacyOverview(state: NodeState, members: MembersReply | null): 
     nets: [briefFromState("main", state, members)],
     slots: [{ slot: "main", state, members }],
     restart_slots: restart ? ["main"] : [],
+    notices: state.notices ?? [],
   };
 }
 
@@ -156,6 +180,7 @@ export function acceptOverview(store: Store, ov: Overview): string[] {
   store.nets = ov.nets;
   store.slots = next;
   store.restartSlots = ov.restart_slots.filter((id) => id in next);
+  store.notices = ov.notices ?? [];
   applyLead(store);
   return reads;
 }

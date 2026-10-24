@@ -253,6 +253,7 @@ fn tag(reply: &Reply) -> &'static str {
         Reply::Accepted => "202",
         Reply::Unauthorized => "401",
         Reply::Stopping => "503",
+        Reply::NotAdmin => "409",
         Reply::OtherStatus(_) => "other code",
     }
 }

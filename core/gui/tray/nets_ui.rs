@@ -7,6 +7,7 @@ use tray_icon::menu::{
 };
 
 use crate::gui::tray::app::exit_menu::ExitMenu;
+use crate::gui::tray::app::menu_order::net_menu_id;
 use crate::gui::tray::app::nets_menu::NetMenu;
 use crate::gui::tray::app::nets_rows::{layout_key, net_rows, RowKind, RowSpec};
 
@@ -162,7 +163,7 @@ impl NetsUi {
     }
 
     fn insert_net(&self, net: &NetMenu, note: Option<&str>) -> Result<NetSub, String> {
-        let submenu = Submenu::with_id(format!("net-menu:{}", net.slot), &net.label, true);
+        let submenu = Submenu::with_id(net_menu_id(&net.slot), &net.label, true);
         let mut rows = Vec::new();
         for spec in net_rows(net, note) {
             let row = LiveRow::build(&spec);

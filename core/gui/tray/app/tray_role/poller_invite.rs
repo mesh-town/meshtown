@@ -11,7 +11,9 @@ use tokio::time::Instant;
 use crate::gui::tray::app::local_api::{ApiError, Reply};
 use crate::gui::tray::app::snapshot::lenient;
 use crate::gui::tray::app::tray_actions::{InviteNote, InviteReach, ServeNote};
-use crate::gui::tray::app::tray_texts::{REASON_CLIP_FAILED, REASON_JOINING, REASON_NO_ANSWER};
+use crate::gui::tray::app::tray_texts::{
+    REASON_CLIP_FAILED, REASON_JOINING, REASON_NOT_ADMIN, REASON_NO_ANSWER,
+};
 
 use super::api::{fetch_reply, NodeRequest};
 use super::poll_types::CopyFn;
@@ -24,6 +26,7 @@ const CLIP_TIMEOUT: Duration = Duration::from_secs(2);
 pub(super) fn invite_from(reply: &Result<Reply, ApiError>) -> Result<String, &'static str> {
     match reply {
         Ok(Reply::Ok(body)) => invite_line_from_body(body).ok_or(REASON_NO_ANSWER),
+        Ok(Reply::NotAdmin) => Err(REASON_NOT_ADMIN),
         Ok(Reply::OtherStatus(409)) => Err(REASON_JOINING),
         Ok(Reply::OtherStatus(_))
         | Ok(Reply::Unauthorized)

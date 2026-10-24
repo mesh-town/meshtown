@@ -3,7 +3,7 @@
 
 import { notifyChanged } from "../core/bridge.ts";
 import type { ApiErrorLike } from "../core/api.ts";
-import type { JoinResponse, CreateNetworkResponse } from "../core/api-types.ts";
+import type { JoinResponse, CreateNetworkRequest, CreateNetworkResponse } from "../core/api-types.ts";
 import { netName, slotPath, visibleSlots } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { chosenExitIds } from "../common/exits.ts";
@@ -12,6 +12,7 @@ import { PEERS_NEW_NET } from "../peers/peers-texts.ts";
 import type { HomeDeps } from "./home-actions.ts";
 import { HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_LABEL_EMPTY } from "./home-flow-texts.ts";
 import type { JoinForm } from "./join-actions.ts";
+import { adminNamesOf } from "../peers/admins-line.ts";
 import { ADD_NET_ACTION, MAX_NETS, createdBanner, joinedBanner } from "./add-net-texts.ts";
 
 export { stayText } from "./add-net-texts.ts";
@@ -34,7 +35,8 @@ export interface AddNetForm extends JoinForm {
 
 export const atLimit = (store: Store): boolean => visibleSlots(store.nets, store.slots).length >= MAX_NETS;
 
-const errBody = (err: ApiErrorLike): { slot?: string; message?: string; word?: string } => (err.body || {}) as { slot?: string; message?: string; word?: string };
+type ErrBody = { slot?: string; message?: string; word?: string; label?: string };
+const errBody = (err: ApiErrorLike): ErrBody => (err.body || {}) as ErrBody;
 
 function clearForm(form: AddNetForm): void {
   form.status = "";
@@ -88,11 +90,15 @@ async function giveBack(form: AddNetForm, deps: HomeDeps, slot: string): Promise
   }
 }
 
+// A Peer network is created exactly as before: the kind rides along only when it is Managed.
+const createBody = (form: AddNetForm): CreateNetworkRequest =>
+  form.kind === "Managed" ? { label: form.label.trim(), kind: form.kind } : { label: form.label.trim() };
+
 async function send(form: AddNetForm, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
   const taken = await deps.api<TakenSlot>("POST", "/api/nets", {});
   form.slot = taken.slot;
   try {
-    if (mode === "create") return created(form, await deps.api<CreateNetworkResponse>("POST", slotPath(taken.slot, "network/create"), { label: form.label.trim() }));
+    if (mode === "create") return created(form, await deps.api<CreateNetworkResponse>("POST", slotPath(taken.slot, "network/create"), createBody(form)));
     return joined(form, await deps.api<JoinResponse>("POST", slotPath(taken.slot, "network/join"), { key: form.inviteInput.trim() }));
   } catch (err) {
     const result = failedAdd(form, mode, err);
@@ -146,11 +152,11 @@ function joinedName(store: Store, form: AddNetForm): string {
 
 /** The banner text for a finished add; `null` — nothing to say (the join is still waiting, or it failed). */
 export function addedBannerText(store: Store, form: AddNetForm, result: AddNetResult): string | null {
-  if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET);
-  return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store)) : null;
+  if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET, form.kind);
+  return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store), adminNamesOf(store, form.slot ?? "")) : null;
 }
 
 /** The banner for a network that finished joining after a wait. */
 export function arrivedBannerText(store: Store, slot: string): string {
-  return joinedBanner(netName(store.nets, slot), currentExitVia(store));
+  return joinedBanner(netName(store.nets, slot), currentExitVia(store), adminNamesOf(store, slot));
 }

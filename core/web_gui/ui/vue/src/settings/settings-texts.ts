@@ -116,5 +116,6 @@ export const SETTINGS_PARTIAL = "Saved, but some networks did not accept it:";
 export const SETTINGS_NAME_PER_NET = "Your name is set for each network: Members \u2192 the network's tab.";
 export const SETTINGS_ALL_NETS = "Applies to all your networks.";
 export const SETTINGS_STOP_ALL = "Stops all your networks. ";
+export const SETTINGS_LEAVE_DELETE_MULTI = "To leave or delete a network, open Members \u2192 its tab.";
 export const SETTINGS_LEAVE_MULTI = "To leave a network, open Members \u2192 its tab.";
 export const SETTINGS_WEB_ACCESS_MULTI = "Which connections of this computer can open this page (Wi-Fi, cable)";

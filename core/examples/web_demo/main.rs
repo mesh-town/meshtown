@@ -19,6 +19,7 @@ mod background;
 mod config;
 mod control;
 mod host;
+mod managed;
 mod members;
 mod members_act;
 mod members_forget;
@@ -72,6 +73,7 @@ pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> Demo
             me_pending: args.me_pending,
             members_forget: args.members_forget,
             me_removed: args.me_removed,
+            managed: args.managed_mode(),
         },
         run.effective_settings.clone(),
     )

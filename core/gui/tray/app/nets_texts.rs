@@ -22,6 +22,19 @@ pub(crate) fn net_offline_title_text(label: &str) -> String {
     format!("{label} — no connection")
 }
 
+/// The tail of a header of an administered network: `· managed`, for an admin `· managed, you're an admin`.
+pub(crate) fn managed_tail(admin: bool) -> &'static str {
+    match admin {
+        true => " · managed, you're an admin",
+        false => " · managed",
+    }
+}
+
+/// The grey invite row of a member who may not invite to an administered network.
+pub(crate) fn net_invite_admins_only_text(label: &str) -> String {
+    format!("Only admins can invite to \"{label}\"")
+}
+
 pub(crate) fn invite_copied_text(label: &str) -> String {
     format!("Invite to \"{label}\" copied ✓")
 }
@@ -58,7 +71,15 @@ pub(crate) fn open_members_text(label: &str) -> String {
 }
 
 pub(crate) fn vote_text(label: &str) -> String {
-    format!("Removal vote in {label} — open Members…")
+    format!("Ban vote in {label} — open Members…")
+}
+
+/// The note about a network an admin deleted; a note without a name says "A network".
+pub(crate) fn net_deleted_text(label: &str) -> String {
+    match label.trim() {
+        "" => "A network was deleted by an admin — open Members…".to_string(),
+        name => format!("\"{name}\" was deleted by an admin — open Members…"),
+    }
 }
 
 pub(crate) fn admit_text(label: &str) -> String {
@@ -69,3 +90,7 @@ pub(crate) fn admit_text(label: &str) -> String {
 pub(crate) fn no_connection_tail(label: &str) -> String {
     format!(" · {label}: no connection")
 }
+
+#[cfg(test)]
+#[path = "nets_texts_tests.rs"]
+mod tests;

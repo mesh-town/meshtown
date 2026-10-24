@@ -253,6 +253,10 @@ mod status_line {
     }
 
     fn assert_names_network(text: &str) {
+        // The open item of a node without a network offers to join or create one; it names no network.
+        if text == "Join or create a network…" {
+            return;
+        }
         let text = text.replace(
             &format!("{NET_NAME} network"),
             &format!("network {NET_NAME}"),

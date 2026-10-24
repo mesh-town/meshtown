@@ -275,6 +275,99 @@ fn proxy_carrier() -> NetSpec<'static> {
     }
 }
 
+mod flat_menu_of_a_managed_network {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn member_cannot_invite() {
+        // given
+        let json =
+            summary_with(json!({ "kind": "Managed", "me_admin": false, "can_invite": false }));
+
+        // when
+        let (menu, _) = views_from_state_json(&json, &plan());
+
+        // then
+        assert!(!menu.can_invite, "the flat invite item must be grey");
+    }
+
+    #[test]
+    fn admin_can_invite() {
+        let json = summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": true }));
+
+        let (menu, _) = views_from_state_json(&json, &plan());
+
+        assert!(menu.can_invite);
+    }
+
+    #[test]
+    fn peer_network_can_invite() {
+        let (menu, _) = shown(&[friends()]);
+
+        assert!(menu.can_invite);
+    }
+
+    #[test]
+    fn single_state_reply_can_invite() {
+        let single = state_json(&StateSpec::default());
+
+        let (menu, _) = views_from_state_json(&single, &plan());
+
+        assert!(menu.can_invite);
+    }
+}
+
+mod deleted_network_notes {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn menu_carries_the_notes_of_the_summary() {
+        // given
+        let mut json = overview_json(&[friends()]);
+        json["notices"] = json!([{ "id": 4, "kind": "net_deleted", "label": "work" }]);
+
+        // when
+        let (menu, _) = views_from_state_json(&json, &plan());
+
+        // then
+        let notes: Vec<(u64, &str)> = menu
+            .notices
+            .iter()
+            .map(|n| (n.id, n.label.as_str()))
+            .collect();
+        assert_eq!(notes, [(4, "work")]);
+    }
+
+    #[test]
+    fn nested_menu_carries_them_too() {
+        let mut json = overview_json(&[friends(), work()]);
+        json["notices"] = json!([{ "id": 4, "kind": "net_deleted", "label": "home" }]);
+
+        let (menu, _) = views_from_state_json(&json, &plan());
+
+        assert_eq!(menu.nets.len(), 2);
+        assert_eq!(menu.notices.len(), 1);
+    }
+
+    #[test]
+    fn menu_without_notices_has_none() {
+        let (menu, _) = shown(&[friends()]);
+
+        assert!(menu.notices.is_empty());
+    }
+
+    #[test]
+    fn single_state_reply_has_none() {
+        let single = state_json(&StateSpec::default());
+
+        let (menu, _) = views_from_state_json(&single, &plan());
+
+        assert!(menu.notices.is_empty());
+    }
+}
+
 fn plan() -> ProxyState {
     ProxyState::On("127.0.0.1:1080".to_string())
 }
@@ -295,4 +388,13 @@ fn offline_snapshot() -> TraySnapshot {
         ..Default::default()
     };
     TraySnapshot::from_value(&state_json(&state))
+}
+
+/// A one-network summary whose entry has `extra` fields merged in.
+fn summary_with(extra: Value) -> Value {
+    let mut json = overview_json(&[friends()]);
+    for (key, value) in extra.as_object().expect("an object") {
+        json["nets"][0][key] = value.clone();
+    }
+    json
 }

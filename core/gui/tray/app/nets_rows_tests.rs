@@ -265,6 +265,87 @@ mod layout_key {
     }
 }
 
+mod invite_in_managed_network {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn member_gets_a_grey_row_instead_of_the_invite() {
+        // given
+        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let net = managed_net(extra);
+
+        // when
+        let rows = net_rows(&net, None);
+
+        // then
+        let invite = row(&rows, "invite:main");
+        assert_eq!(invite.text, "Only admins can invite to \"friends\"");
+        assert!(!invite.enabled, "a member cannot click it");
+        assert_eq!(invite.kind, RowKind::Item);
+    }
+
+    #[test]
+    fn admin_keeps_the_usual_invite() {
+        let extra = json!({ "kind": "Managed", "me_admin": true, "can_invite": true });
+        let net = managed_net(extra);
+
+        let rows = net_rows(&net, None);
+
+        let invite = row(&rows, "invite:main");
+        assert_eq!(invite.text, "Invite a member");
+        assert!(invite.enabled);
+    }
+
+    #[test]
+    fn peer_network_row_is_the_usual_invite() {
+        let extra = json!({ "kind": "Peer", "me_admin": false, "can_invite": true });
+        let net = managed_net(extra);
+
+        let rows = net_rows(&net, None);
+
+        assert_eq!(row(&rows, "invite:main").text, "Invite a member");
+        assert!(row(&rows, "invite:main").enabled);
+    }
+
+    #[test]
+    fn grey_row_keeps_the_place_and_the_layout_key() {
+        // given
+        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let managed = managed_net(extra);
+        let peer = nets_of(&[friends()]).remove(0);
+
+        // when
+        let ids = |net: &NetMenu| -> Vec<String> {
+            net_rows(net, None).into_iter().map(|r| r.id).collect()
+        };
+
+        // then
+        assert_eq!(ids(&managed), ids(&peer), "same ids in the same order");
+    }
+
+    #[test]
+    fn other_rows_of_a_managed_member_stay_usable() {
+        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let net = managed_net(extra);
+
+        let rows = net_rows(&net, None);
+
+        assert!(row(&rows, "members:main").enabled);
+        assert!(row(&rows, "serve:main").enabled);
+    }
+}
+
+/// The only network of a summary whose entry has `extra` fields merged in.
+fn managed_net(extra: serde_json::Value) -> NetMenu {
+    let mut json = overview_json(&[friends()]);
+    for (key, value) in extra.as_object().expect("an object") {
+        json["nets"][0][key] = value.clone();
+    }
+    let vis = visible_slots(parse_overview(&json).expect("a summary"));
+    nets_from_slots(&vis).remove(0)
+}
+
 fn nets_of(specs: &[NetSpec]) -> Vec<NetMenu> {
     nets_from_slots(&visible(specs))
 }

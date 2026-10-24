@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { inviteWaitText } from "./join-wait.ts";
+import { inviteWaitText, refusedText } from "./join-wait.ts";
 
 const info = (over) => ({ state: "waiting", message: "waiting", label: null, expires_unix: 1, ...over });
 
@@ -27,7 +27,20 @@ describe("inviteWaitText", () => {
     assert.equal(inviteWaitText(info({ state: "refused", message })), message);
   });
 
+  it("refused because the invite was not issued by an admin — the server text verbatim", () => {
+    const message = "This invite was not issued by an admin of the network, so it cannot be used. Ask an admin of the network for a new one.";
+    assert.equal(inviteWaitText(info({ state: "refused", message })), message);
+  });
+
   it("unknown state — empty string", () => {
     assert.equal(inviteWaitText(info({ state: "other" })), "");
+  });
+});
+
+describe("refusedText", () => {
+  it("is the node message for a refusal and null otherwise", () => {
+    assert.equal(refusedText(info({ state: "refused", message: "No." })), "No.");
+    assert.equal(refusedText(info()), null);
+    assert.equal(refusedText(null), null);
   });
 });

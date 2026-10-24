@@ -158,7 +158,13 @@ all fields are required; `null` is allowed where marked):
   "network": {
     "label": "our-gaming-room",
     "masked": "our-gaming-room--••••••••••••••••••••••••••••••••••",
-    "id_hex": "9c1e..."
+    "id_hex": "9c1e...",
+    "kind": "Peer",
+    "root": null,
+    "me_role": "member",
+    "admins": [],
+    "can_invite": true, "can_remove": true, "can_set_admins": false, "can_delete_network": false, "can_leave": true,
+    "excluded_by": null
   },
   "members": { "count": 3, "gossip_neighbors": 2, "voting": 0, "me_excluded": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
@@ -326,6 +332,19 @@ Exact enum values:
   `waiting` — the node is looking for members from the string, `refused` — a final refusal with the text `message`;
   it disappears when the node has joined the network, and on a new join, network creation or stop. More in
   `WEB-API-config.md`, section "The `node.invite_join` field and single-use invites".
+- `network` — `null` when the node has no readable key. Besides `label`, `masked` and `id_hex` it says what kind of
+  network this is and what this node may do in it:
+  - `kind`: `"Peer"` or `"Managed"` (the type is fixed when the network is created); no `kind` in a reply of an older node means `Peer`.
+  - `root`: the full id of the creator of a Managed network (an administrator who cannot lose the role); `null` for Peer.
+  - `me_role`: `"admin"` or `"member"`; always `"member"` in Peer.
+  - `admins`: full ids of the administrators in ascending order; `[]` for Peer.
+  - `can_invite`, `can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`: the actions open to this node. For Peer
+    they are `true, true, false, false, true`; in Managed the first four are `true` for an administrator only, and `can_set_admins`
+    is `false` for a regular member. A node that has no member list yet gets the flags from the key alone: in Managed everything is
+    `false` except `can_leave`. The page shows no control whose flag is off.
+  - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator of a Managed network excluded this node (`name` is the known
+    member name, else the short id); `null` otherwise, and after the node left on its own.
+- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network (the key is absent in Peer).
 - `peers[].id_full` — the full identifier of **each** node, not only the own one (unlike
   `node.id_full` above): it is needed as a `route.exits` value when choosing exits on the page and in
   the tray (the checkbox puts `p.id_full` into the list), not only for the tooltip. In the page text it is not shown on
@@ -462,7 +481,7 @@ network is `main`. A slot may be empty: it waits for a key (see `network/join` a
 
 **Route classes.** The network routes (`state`, `config`, `peer-addresses`, `network/key`,
 `network/invite`, `network/join`, `network/create`, `domains`, `actions/find-exit`, `actions/check-domain`,
-`actions/check-all`, `actions/restart`, `members` and `members/{exclude,unexclude,admit,unadmit,block,unblock,forget,unforget,leave}`)
+`actions/check-all`, `actions/restart`, `network/inspect`, `network/delete`, `members` and `members/{exclude,unexclude,admit,unadmit,block,unblock,forget,unforget,leave,admin}`)
 exist twice: under `/api` for the primary network and under `/api/net/{slot}` for any network. All other
 routes are process routes and exist once, without a prefix. `/api/net/{slot}/log` does not exist (404
 `not_found`): the log is one for the process, filter it with `?net=`. The address of a slot that was left or
@@ -480,6 +499,7 @@ does not exist is 404 `unknown_net`.
 | `members_voting`, `members_admitting` | member counts |
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
+| `kind`, `me_admin`, `can_invite` | the type of the network (`"Peer"` or `"Managed"`), whether this node is an administrator, whether it may invite. A broken slot: `"Peer", false, false`; a slot without a key: `"Peer", false, true` |
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters
 are 0, `label` and `id_hex` are `null`. Its only action is `POST /api/net/{slot}/members/leave`; every other
@@ -541,9 +561,13 @@ only by the prefix, no body carries a network. An unknown slot is 404 `unknown_n
 | `counts` | `{"members","voting","excluded","unlisted","pending","forgotten"}`; removed nodes are only in `forgotten` |
 | `members` | the rows, see below |
 | `changed` | only in replies to actions: whether the action changed anything |
+| `kind` | `"Peer"` or `"Managed"`, from the rules of the network (a Managed network without an administrator still says `"Managed"`) |
+| `admins`, `me_admin`, `root` | the full ids of the administrators in ascending order (`[]` for Peer); whether this node is one; the creator of a Managed network, else `null` |
 
 A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `online`, `status`, `vote`, `excluded`,
-`blocked_by_me`, `denied_by_me`, `forget`, `last_seen_sec`, `last_refusal`, `admission`.
+`blocked_by_me`, `denied_by_me`, `forget`, `last_seen_sec`, `last_refusal`, `admission`, `admin`.
+
+`admin` is `true` for an administrator of a Managed network (always `false` in Peer).
 
 - `status` is one of `member`, `pending`, `unlisted`, `forgotten`, `excluded`; rows are ordered in that way after the
   own row. `forgotten` is a node removed from the member list by enough votes.
@@ -556,7 +580,7 @@ A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `on
   address cache or a write in the shared document); 0 for a node connected now, `null` when there is no sign at all.
 
 **Actions.** All are `POST {base}/members/<name>` with `<name>` one of `exclude`, `unexclude`, `admit`, `unadmit`,
-`block`, `unblock`, `forget`, `unforget`, `leave`. `exclude`, `unexclude`, `admit`, `unadmit`, `block`, `unblock`,
+`block`, `unblock`, `forget`, `unforget`, `leave`, `admin`. `exclude`, `unexclude`, `admit`, `unadmit`, `block`, `unblock`,
 `forget` and `unforget` take the body `{"id":"<64 hex digits>"}` (`exclude` also an optional `reason`); a missing `id` is 400 `bad_request`, a
 malformed one 422 `invalid`. `leave` takes the body `{"confirm":true}` (without it 400 `bad_request`). The reply is 200 with the member list after the action, with
 `changed`.
@@ -571,3 +595,5 @@ malformed one 422 `invalid`. `leave` takes the body `{"confirm":true}` (without 
 Refusals are 409 with `error` set to the code: `self_target` (own id), `not_member` (the id is not in the list),
 `left` (this node left the network; a node the others removed from the list gets the same refusal for every action except `leave`, `unforget`, `unexclude` and `unblock`), `not_pending`, `not_confirmed` (`admit`, `unadmit`), `online` (`forget` of a node
 that is connected now), `not_forgotten` (`unforget` without a vote of this node). A write failure is 500 `internal`.
+
+Managed networks add `members/admin`, `network/delete` and more refusals: see "Managed networks: members and deletion" in `WEB-API-config.md`.

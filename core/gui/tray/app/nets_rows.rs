@@ -4,8 +4,8 @@
 use super::exit_menu::ExitMenu;
 use super::nets_menu::{ExitGroup, NetMenu, PeerRow};
 use super::nets_texts::{
-    more_peers_text, open_members_text, peer_offline_row_text, peer_online_text, serve_text,
-    MAX_PEER_ROWS, NET_INVITE_TEXT,
+    more_peers_text, net_invite_admins_only_text, open_members_text, peer_offline_row_text,
+    peer_online_text, serve_text, MAX_PEER_ROWS, NET_INVITE_TEXT,
 };
 
 /// What a row is in the menu.
@@ -108,12 +108,7 @@ pub fn net_rows(net: &NetMenu, note: Option<&str>) -> Vec<RowSpec> {
         RowKind::Item,
     ));
     rows.push(RowSpec::separator());
-    let invite_text = note.unwrap_or(NET_INVITE_TEXT).to_string();
-    rows.push(RowSpec::new(
-        format!("invite:{slot}"),
-        invite_text,
-        RowKind::Item,
-    ));
+    rows.push(invite_row(net, note));
     rows.push(RowSpec {
         checked: net.serves_exit,
         ..RowSpec::new(
@@ -126,6 +121,20 @@ pub fn net_rows(net: &NetMenu, note: Option<&str>) -> Vec<RowSpec> {
         rows.iter_mut().for_each(|row| row.enabled = false);
     }
     rows
+}
+
+/// The invite row: a note of a click wins; a member of an administered network sees a grey explanation instead.
+fn invite_row(net: &NetMenu, note: Option<&str>) -> RowSpec {
+    let id = format!("invite:{}", net.slot);
+    let grey = note.is_none() && net.invite_admins_only;
+    let text = match (note, grey) {
+        (None, true) => net_invite_admins_only_text(&net.label),
+        _ => note.unwrap_or(NET_INVITE_TEXT).to_string(),
+    };
+    RowSpec {
+        enabled: !grey,
+        ..RowSpec::new(id, text, RowKind::Item)
+    }
 }
 
 fn peer_lines(net: &NetMenu) -> Vec<RowSpec> {

@@ -168,3 +168,53 @@ mod menu_facts {
         assert_eq!(menu_facts(&menu_of(&[friends(), work()])).vote_slot, None);
     }
 }
+
+mod added_items {
+    use super::*;
+
+    const BASE: &str = "http://127.0.0.1:8080/?token=T";
+
+    #[test]
+    fn add_a_network_opens_the_add_form() {
+        let link = link_for(&MenuTarget::Add, BASE, &MenuFacts::default());
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers/add")
+        );
+    }
+
+    #[test]
+    fn add_a_network_ignores_an_anchor_already_in_the_base() {
+        let link = link_for(
+            &MenuTarget::Add,
+            "http://127.0.0.1:8080/#peers",
+            &MenuFacts::default(),
+        );
+
+        assert_eq!(link.as_deref(), Some("http://127.0.0.1:8080/#peers/add"));
+    }
+
+    #[test]
+    fn deleted_network_note_opens_the_member_list() {
+        let link = link_for(&MenuTarget::Notice(7), BASE, &MenuFacts::default());
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers")
+        );
+    }
+
+    #[test]
+    fn deleted_network_note_does_not_depend_on_the_vote_network() {
+        let mut with_vote = facts(&[("main", false, false), ("ab12cd", false, false)]);
+        with_vote.vote_slot = Some("ab12cd".into());
+
+        let link = link_for(&MenuTarget::Notice(7), BASE, &with_vote);
+
+        assert_eq!(
+            link.as_deref(),
+            Some("http://127.0.0.1:8080/?token=T#peers")
+        );
+    }
+}

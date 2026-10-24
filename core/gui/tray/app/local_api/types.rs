@@ -10,6 +10,8 @@ pub(crate) enum Reply {
     Accepted,
     Unauthorized,
     Stopping,
+    /// 409 `not_admin`: the network lets only its admins do this.
+    NotAdmin,
     OtherStatus(u16),
 }
 

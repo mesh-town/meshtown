@@ -5,8 +5,8 @@
 use crate::gui::tray::app::start_note::{start_note_line, StartNote};
 use crate::gui::tray::app::tray_texts::{
     invite_copy_failed_text, serve_disable_failed_text, serve_enable_failed_text,
-    INVITE_COPIED_ISSUER_AND_ONE_LINE, INVITE_COPIED_ISSUER_ONLY_LINE, INVITE_COPIED_LINE,
-    INVITE_COPIED_TEXT, INVITE_TEXT,
+    INVITE_ADMINS_ONLY_TEXT, INVITE_COPIED_ISSUER_AND_ONE_LINE, INVITE_COPIED_ISSUER_ONLY_LINE,
+    INVITE_COPIED_LINE, INVITE_COPIED_TEXT, INVITE_TEXT,
 };
 use crate::gui::tray::app::view::{node_status_menu_line, RouteLine, View};
 
@@ -61,6 +61,14 @@ pub(crate) fn invite_item_text(note: InviteNote) -> String {
         InviteNote::Idle => INVITE_TEXT.to_string(),
         InviteNote::Copied(_) => INVITE_COPIED_TEXT.to_string(),
         InviteNote::Failed(reason) => invite_copy_failed_text(reason),
+    }
+}
+
+/// The label of the flat menu's invite item: a click's note wins, otherwise the right to invite decides the text.
+pub(crate) fn flat_invite_text(can_invite: bool, note: InviteNote) -> String {
+    match (note, can_invite) {
+        (InviteNote::Idle, false) => INVITE_ADMINS_ONLY_TEXT.to_string(),
+        _ => invite_item_text(note),
     }
 }
 

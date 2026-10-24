@@ -2,7 +2,9 @@
 //! of exits per network. No `muda` here — `nets_rows` turns these into rows and the tray applies the rows.
 
 use super::exit_menu::{exit_menu_from_snapshot, ExitItem};
-use super::nets_texts::{net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS};
+use super::nets_texts::{
+    managed_tail, net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS,
+};
 use super::overview::SlotView;
 use super::snapshot::{TrayPeer, TraySnapshot};
 use super::tray_texts::peer_unnamed_text;
@@ -28,9 +30,11 @@ pub struct NetMenu {
     /// Members that are not in `peers` but exist (listed in the "and N more" line).
     pub peers_more: usize,
     pub serves_exit: bool,
-    /// Pending removal votes and join requests of the network.
+    /// Pending ban votes and join requests of the network.
     pub voting: u32,
     pub admitting: u32,
+    /// Administered network where we may not invite: the invite row is grey.
+    pub invite_admins_only: bool,
     /// The network name for texts; the slot id when it has no name.
     pub label: String,
 }
@@ -71,6 +75,7 @@ fn net_menu(slot: &SlotView) -> NetMenu {
         serves_exit: snap.exit.enabled,
         voting: slot.members_voting,
         admitting: slot.members_admitting,
+        invite_admins_only: slot.managed && !slot.can_invite,
         label,
     }
 }
@@ -79,15 +84,19 @@ fn title_of(slot: &SlotView, label: &str) -> String {
     if slot.joining {
         return JOINING_TITLE.to_string();
     }
-    if slot.status != "online" {
-        return net_offline_title_text(label);
+    let base = match slot.status == "online" {
+        true => net_title_text(
+            label,
+            slot.peers_online,
+            slot.peers_total,
+            slot.members_admitting,
+        ),
+        false => net_offline_title_text(label),
+    };
+    match slot.managed {
+        true => format!("{base}{}", managed_tail(slot.admin)),
+        false => base,
     }
-    net_title_text(
-        label,
-        slot.peers_online,
-        slot.peers_total,
-        slot.members_admitting,
-    )
 }
 
 fn peer_rows(snap: &TraySnapshot) -> Vec<PeerRow> {

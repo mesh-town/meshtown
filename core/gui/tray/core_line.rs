@@ -88,7 +88,7 @@ impl Core {
         Some(text)
     }
 
-    /// The label of the network the vote item points at, and whether it is a removal vote (otherwise a join request).
+    /// The label of the network the vote item points at, and whether it is a ban vote (otherwise a join request).
     fn vote_net_label(&self) -> Option<(&str, bool)> {
         let facts = &self.facts;
         let slot = facts
@@ -165,6 +165,7 @@ impl Core {
         ui.node_item
             .set_enabled(start_enabled(self.view.node) || stop_enabled(self.view.node));
         ui.proxy_item.set_text(&proxy_text);
-        ui.vote.apply(vote_text.as_deref());
+        let note_ids = ui.extras.note_ids();
+        ui.vote.apply(vote_text.as_deref(), &note_ids);
     }
 }

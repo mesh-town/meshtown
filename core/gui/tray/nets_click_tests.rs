@@ -78,6 +78,40 @@ mod parse_menu_id {
     }
 }
 
+mod parse_added_ids {
+    use super::*;
+
+    #[test]
+    fn add_a_network_has_a_plain_id() {
+        assert_eq!(parse_menu_id("add"), MenuTarget::Add);
+    }
+
+    #[test]
+    fn deleted_network_note_carries_its_number() {
+        assert_eq!(parse_menu_id("notice:7"), MenuTarget::Notice(7));
+        assert_eq!(
+            parse_menu_id("notice:18446744073709551615"),
+            MenuTarget::Notice(u64::MAX)
+        );
+    }
+
+    #[test]
+    fn note_with_a_broken_number_is_unknown() {
+        assert_eq!(parse_menu_id("notice:"), MenuTarget::Unknown);
+        assert_eq!(parse_menu_id("notice:x"), MenuTarget::Unknown);
+        assert_eq!(parse_menu_id("notice:-1"), MenuTarget::Unknown);
+    }
+
+    #[test]
+    fn clicks_on_them_send_nothing_to_the_node() {
+        for target in [MenuTarget::Add, MenuTarget::Notice(7)] {
+            let cmds = node_cmd_for(&target, None, false, &MenuFacts::default());
+
+            assert!(cmds.is_empty(), "{target:?}: {cmds:?}");
+        }
+    }
+}
+
 mod node_cmd_for {
     use super::*;
 
