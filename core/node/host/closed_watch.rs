@@ -4,7 +4,7 @@
 //! What it does: one watcher per slot cycle; it fires on a change of the value, not on every wake.
 //! What it doesn't do: no counting of the close (access does), no answer to the page.
 
-use std::sync::{Arc, Mutex, Weak};
+use std::sync::{Arc, Weak};
 
 use tokio::sync::watch;
 
@@ -13,18 +13,7 @@ use crate::config::config_file::NetSlotId;
 use crate::members::access::tally::Closed;
 use crate::node::node_ctl::NodeCtl;
 use crate::node::output::say;
-use crate::transport::net::PeerId;
 use crate::web_gui::{HostControl, HostError};
-
-/// What the host keeps about a network deleted by an administrator.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(super) struct DeletedNet {
-    pub(super) label: Option<String>,
-    pub(super) id_hex: Option<String>,
-    pub(super) by: PeerId,
-    pub(super) by_name: Option<String>,
-    pub(super) at_unix: u64,
-}
 
 /// How a firing ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,21 +27,6 @@ enum Fired {
 /// Whether `seen` is a close the watcher has not acted on yet.
 fn should_fire(seen: Option<&Closed>, last: Option<&Closed>) -> bool {
     seen.is_some() && seen != last
-}
-
-/// The host's record of deleted networks; one line per deletion.
-#[derive(Default)]
-pub(super) struct DeletedLog(Mutex<Vec<DeletedNet>>);
-
-impl DeletedLog {
-    fn push(&self, note: DeletedNet) {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).push(note);
-    }
-
-    #[cfg(test)]
-    pub(super) fn list(&self) -> Vec<DeletedNet> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
-    }
 }
 
 impl HostSlots {
@@ -72,11 +46,6 @@ impl HostSlots {
             ended,
         ));
         slot.watch = Some(task.abort_handle());
-    }
-
-    /// Records a deleted network for the page. The single hook of the deletion notice.
-    pub(super) fn push_deleted(&self, note: DeletedNet) {
-        self.deleted.push(note);
     }
 }
 
@@ -115,13 +84,8 @@ fn fire(host: &HostSlots, id: &NetSlotId, ctl: &NodeCtl, c: &Closed) -> Fired {
     let by_name = ctl.peer_name(&c.by);
     let fired = leave_after_close(host, id, ctl, label.as_deref());
     if matches!(fired, Fired::Left | Fired::Stuck) {
-        host.push_deleted(DeletedNet {
-            label,
-            id_hex,
-            by: c.by,
-            by_name,
-            at_unix: c.at_unix,
-        });
+        host.notices
+            .push_deleted(label, id_hex, &c.by, by_name, c.at_unix);
     }
     fired
 }

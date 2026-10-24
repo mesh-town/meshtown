@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
 use tokio::sync::watch;
 use tokio::task::{AbortHandle, JoinHandle};
 
-use super::closed_watch::DeletedLog;
+use super::notices::NoticeBook;
 use super::saved_slots::{multi_net_for, MAX_NETS};
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
@@ -59,8 +59,8 @@ pub(crate) struct HostSlots {
     pub(super) me: Weak<HostSlots>,
     /// Set while the main slot's network is being left in place; a second leave then does nothing.
     pub(super) leaving: Arc<AtomicBool>,
-    /// The networks deleted by an administrator.
-    pub(super) deleted: DeletedLog,
+    /// The notices waiting for the page to acknowledge them.
+    pub(super) notices: NoticeBook,
 }
 
 impl HostSlots {
@@ -88,7 +88,7 @@ impl HostSlots {
             claim: Mutex::new(()),
             me: me.clone(),
             leaving: Arc::new(AtomicBool::new(false)),
-            deleted: DeletedLog::default(),
+            notices: NoticeBook::default(),
         })
     }
 
