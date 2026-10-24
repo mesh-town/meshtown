@@ -24,7 +24,6 @@ function stoppedOffering(peer: PeerInfo | undefined): boolean {
 }
 
 function viaHead(store: Store, slot: string, peer: PeerInfo, state: NodeState): RouteHead | null {
-  if (state.route?.state === "unavailable") return null;
   if (slot === store.lead) return null;
   return { level: "green", text: netsViaText(peerLabel(peer, false, state.peers || []), netName(store.nets, slot)) };
 }
@@ -32,7 +31,9 @@ function viaHead(store: Store, slot: string, peer: PeerInfo, state: NodeState): 
 function chosenHead(store: Store, slot: string): RouteHead | null {
   const state = stateOf(store, slot);
   const id = chosenOf(store, slot, chosenExitIds(store))[0];
-  if (!state || id === undefined) return null;
+  if (!state) return null;
+  if (slot !== store.lead && state.route?.state === "unavailable") return wontOpen;
+  if (id === undefined) return null;
   const peer = (state.peers || []).find((p) => p.id_full === id);
   if (stoppedOffering(peer)) return wontOpen;
   return peer ? viaHead(store, slot, peer, state) : null;
