@@ -3,6 +3,7 @@
 
 pub mod accept;
 pub mod conn;
+mod dht_table;
 pub mod gate;
 pub mod keys;
 pub mod link;

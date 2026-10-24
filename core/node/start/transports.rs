@@ -85,7 +85,7 @@ async fn add_by_name(
         ("mem", Some(net)) => bound.list.push(KeyedMem::new(net, secret)),
         #[cfg(feature = "net-hyper")]
         ("hyper", _) => {
-            let hyper = open_hyper(secret, opts).await?;
+            let hyper = open_hyper(secret, opts, cfg.dht_table_path.clone()).await?;
             bound.list.push(hyper.clone());
             bound.hyper = Some(hyper);
         }
@@ -115,13 +115,18 @@ async fn open_ephemeral(test_net: Option<&Arc<MemNet>>) -> Result<Arc<dyn Transp
 
 #[cfg(feature = "net-hyper")]
 async fn ephemeral_hyper(secret: NodeSecret) -> Result<Arc<dyn Transport>> {
-    let opts = crate::transport::net_hyper::HyperOpts {
-        watch_net: false,
-        ..Default::default()
-    };
-    let hyper = crate::transport::net_hyper::HyperTransport::bind(secret, opts).await?;
+    let hyper = crate::transport::net_hyper::HyperTransport::bind(secret, ephemeral_opts()).await?;
     hyper.wait_listen_outcome().await?;
     Ok(hyper)
+}
+
+/// Options of the one-off DHT: no network watcher and no table file.
+#[cfg(feature = "net-hyper")]
+pub(super) fn ephemeral_opts() -> crate::transport::net_hyper::HyperOpts {
+    crate::transport::net_hyper::HyperOpts {
+        watch_net: false,
+        ..Default::default()
+    }
 }
 
 #[cfg(not(feature = "net-hyper"))]
@@ -134,11 +139,13 @@ async fn ephemeral_hyper(_secret: NodeSecret) -> Result<Arc<dyn Transport>> {
 async fn open_hyper(
     secret: &NodeSecret,
     opts: &BindOpts,
+    table_file: Option<std::path::PathBuf>,
 ) -> Result<Arc<crate::transport::net_hyper::HyperTransport>> {
     let hyper = crate::transport::net_hyper::HyperTransport::bind(
         secret.clone(),
         crate::transport::net_hyper::HyperOpts {
             watch_net: !cfg!(test),
+            table_file,
             ..opts.hyper.clone()
         },
     )

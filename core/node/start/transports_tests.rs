@@ -71,3 +71,65 @@ async fn ephemeral_mem() {
     assert_eq!(t.kind(), "mem");
     t.close().await;
 }
+
+/// The one-off DHT (redeeming an invite) never reads or writes a table file.
+#[cfg(feature = "net-hyper")]
+#[test]
+fn ephemeral_dht_has_no_table_file() {
+    assert!(
+        ephemeral_opts().table_file.is_none(),
+        "a one-off DHT must not touch the saved table"
+    );
+}
+
+/// The config's `dht_table_path` reaches the transport: closing it leaves the table file behind.
+#[cfg(feature = "net-hyper")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn bind_with_passes_table_file_to_hyper() {
+    // given: a config naming a table file, on a loopback DHT cluster
+    let dir = scratch("bind-with");
+    let file = dir.join("dht-nodes.txt");
+    let cluster = crate::transport::net_hyper::test_cluster::cluster(3).await;
+    let mut cfg = cfg_with(&["hyper"], true);
+    cfg.dht_table_path = Some(file.clone());
+    let opts = BindOpts {
+        hyper: crate::transport::net_hyper::HyperOpts {
+            bootstrap: Some(cluster.bootstrap()),
+            ..Default::default()
+        },
+    };
+    // when: the transports are bound and the hyper one is closed
+    let bound = tokio::time::timeout(
+        std::time::Duration::from_secs(15),
+        bind_with(&cfg, &secret(), &opts),
+    )
+    .await
+    .expect("bind did not finish in time")
+    .expect("bind_with");
+    bound.hyper.expect("typed hyper handle").close().await;
+    // then: the file exists and holds at least one node address
+    let text = std::fs::read_to_string(&file).expect("the table file is written on close");
+    let nodes = text
+        .lines()
+        .filter(|l| l.parse::<std::net::SocketAddrV4>().is_ok());
+    assert!(
+        nodes.count() >= 1,
+        "the file must list at least one node: {text:?}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A fresh temporary directory for one test.
+#[cfg(feature = "net-hyper")]
+fn scratch(name: &str) -> std::path::PathBuf {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-start-transports-{name}-{}-{nanos}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).expect("could not create the test's temporary directory");
+    dir
+}

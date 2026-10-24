@@ -255,6 +255,57 @@ fn node_config_leaves_docs_store_none_without_path() {
 }
 
 #[test]
+fn node_config_sets_dht_table_beside_config_path() {
+    // given: a main config file in its own folder
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-node-ctl-dht-table-test-{}-{nanos}",
+        std::process::id()
+    ));
+    std::fs::create_dir_all(&dir).expect("temporary test directory");
+    let relaunch = Relaunch {
+        file: Some(Arc::new(MainFile(dir.join("config.json")))),
+        cli: CliOverrides::default(),
+        secret: test_secret(18),
+        initial_domains: Vec::new(),
+        blocked_domains: Vec::new(),
+        test_net: None,
+    };
+    // when: the node config is built
+    let cfg = relaunch.node_config(&Settings::default(), NetworkKey::from_bytes([19u8; 32]));
+    // then: the DHT table file is next to the config file
+    assert_eq!(
+        cfg.dht_table_path,
+        Some(dir.join("dht-nodes.txt")),
+        "a config path exists — the DHT table is next to it"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn node_config_leaves_dht_table_none_without_path() {
+    // given: no settings file
+    let relaunch = Relaunch {
+        file: None,
+        cli: CliOverrides::default(),
+        secret: test_secret(20),
+        initial_domains: Vec::new(),
+        blocked_domains: Vec::new(),
+        test_net: None,
+    };
+    // when: the node config is built
+    let cfg = relaunch.node_config(&Settings::default(), NetworkKey::from_bytes([21u8; 32]));
+    // then: the DHT table is off
+    assert_eq!(
+        cfg.dht_table_path, None,
+        "no config path — the DHT table is off"
+    );
+}
+
+#[test]
 fn relaunch_reload_keeps_label() {
     let key = NetworkKey::from_bytes([5u8; 32]);
     let relaunch = Relaunch {

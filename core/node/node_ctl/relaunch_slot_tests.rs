@@ -65,6 +65,32 @@ fn caches_are_placed_beside_the_slot_file() {
     );
 }
 
+#[test]
+fn dht_table_is_placed_beside_the_slot_file() {
+    // given: two slots in their own folders under one parent
+    let fx = setup(SLOT_INTERVAL);
+    let second_file = fx.dir.join("nets").join("cd4e5f").join("config.json");
+    let second = slot_relaunch(&second_file);
+    let key = NetworkKey::from_bytes([2u8; 32]);
+    // when: the node configs are built
+    let first_cfg = fx.relaunch.node_config(&Settings::default(), key.clone());
+    let second_cfg = second.node_config(&Settings::default(), key);
+    // then: each slot has its own table file in its own folder
+    let first_dir = fx.path.parent().unwrap();
+    assert_eq!(
+        first_cfg.dht_table_path,
+        Some(first_dir.join("dht-nodes.txt"))
+    );
+    assert_eq!(
+        second_cfg.dht_table_path,
+        Some(second_file.parent().unwrap().join("dht-nodes.txt"))
+    );
+    assert_ne!(
+        first_cfg.dht_table_path, second_cfg.dht_table_path,
+        "slots must not share a table file"
+    );
+}
+
 mod flags_of_the_process {
     use super::*;
 
@@ -195,5 +221,21 @@ fn setup(interval: u64) -> Fixture {
         relaunch,
         path,
         dir,
+    }
+}
+
+/// A `Relaunch` over a slot file at `path` (the file itself is not created).
+fn slot_relaunch(path: &std::path::Path) -> Relaunch {
+    let file: std::sync::Arc<dyn SettingsFile> = std::sync::Arc::new(NetFile {
+        path: path.to_path_buf(),
+        created_unix: 6,
+    });
+    Relaunch {
+        file: Some(file),
+        cli: CliOverrides::default(),
+        secret: test_secret(4),
+        initial_domains: Vec::new(),
+        blocked_domains: Vec::new(),
+        test_net: None,
     }
 }

@@ -59,6 +59,7 @@ Notes:
   web-token                      permanent token of the web page, mode 0600 (`core/web_gui`); read by the tray and scripts
   web-password                   hash of the page password, mode 0600; no file — no password (section 8.2)
   peers-cache.json               last working addresses of network members, mode 0600; auxiliary, can be deleted
+  dht-nodes.txt                  DHT nodes this node knew, read at start next to the bootstrap nodes, written every few minutes and on stop, mode 0600; auxiliary, can be deleted; one file per network slot
   peer-names.json                last known names of network members, mode 0600; auxiliary, can be deleted
   config.json.bad-<date-time>    an unreadable config, set aside before being overwritten
 ```
