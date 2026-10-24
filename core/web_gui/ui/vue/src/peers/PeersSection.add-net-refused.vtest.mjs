@@ -24,7 +24,7 @@ describe("the members refused the join", () => {
     await page.refuse();
     expect(location.hash).toBe("#peers/" + FRESH);
     expect(page.tab().text()).toContain("refused");
-    expect(page.wrapper.get("#sec-peers #net-join-refused").text()).toBe(MESSAGE);
+    expect(page.wrapper.get("#sec-peers #net-join-refused").text()).toBe(`Couldn't join. ${MESSAGE}`);
     expect(page.wrapper.get("#sec-peers #net-join-cancel").text()).toBe("Back");
   });
 

@@ -3,10 +3,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 /** The places that carry the one "Join with an invite" form; each gives its fields their own ids. */
 export type InviteFormPlace = 'home' | 'add' | 'rejoin';
 
-const IDS: Record<InviteFormPlace, { input: string; button: string; error: string; preview: string; note: string; dup: string; open: string; status?: string }> = {
-  home: { input: 'join-key-input', button: 'join-btn', error: 'join-key-error', preview: 'join-kind-preview', note: 'join-place-note', dup: 'join-dup', open: 'join-open', status: 'join-status' },
+const IDS: Record<InviteFormPlace, { input: string; button: string; error: string; preview: string; note: string; dup: string; open: string; status?: string; refused?: string }> = {
+  home: { input: 'join-key-input', button: 'join-btn', error: 'join-key-error', preview: 'join-kind-preview', note: 'join-place-note', dup: 'join-dup', open: 'join-open', status: 'join-status', refused: 'join-refused' },
   add: { input: 'add-net-input', button: 'add-net-btn', error: 'add-net-error', preview: 'add-net-kind-preview', note: 'add-net-place-note', dup: 'add-net-dup', open: 'add-net-open' },
-  rejoin: { input: 'rejoin-input', button: 'rejoin-btn', error: 'rejoin-error', preview: 'rejoin-kind-preview', note: 'rejoin-place-note', dup: 'rejoin-dup', open: 'rejoin-open', status: 'rejoin-status' },
+  rejoin: { input: 'rejoin-input', button: 'rejoin-btn', error: 'rejoin-error', preview: 'rejoin-kind-preview', note: 'rejoin-place-note', dup: 'rejoin-dup', open: 'rejoin-open', status: 'rejoin-status', refused: 'rejoin-refused' },
 };
 
 /**
@@ -27,6 +27,10 @@ export class InviteForm {
   readonly openButton: Locator;
   /** The line under the button that tells what was sent (home and rejoin only). */
   readonly status: Locator;
+  /** The refusal of the core under the button (home and rejoin only): a bold lead and the text of the core. */
+  readonly refused: Locator;
+  /** The one-line note about the limit of networks, above the field, and the short error under it. */
+  readonly limitLine: Locator;
 
   constructor(page: Page, place: InviteFormPlace) {
     const ids = IDS[place];
@@ -40,6 +44,8 @@ export class InviteForm {
     this.alreadyHere = visible(ids.dup);
     this.openButton = visible(ids.open);
     this.status = visible(ids.status ?? ids.dup);
+    this.refused = visible(ids.refused ?? ids.error);
+    this.limitLine = visible('add-net-limit');
   }
 
   /** Pastes an invite into the field. */
@@ -96,4 +102,9 @@ export class OutOfNetCard {
     this.card = page.locator(`#${prefix}-card:visible`);
     this.joinButton = page.locator(`#${prefix}-join:visible`);
   }
+}
+
+/** The primary buttons on screen: a page keeps one main action. */
+export function visiblePrimary(page: Page): Locator {
+  return page.locator('.btn-primary:visible');
 }

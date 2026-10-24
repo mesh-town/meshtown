@@ -9,7 +9,8 @@ import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
 import { addedBannerText, atLimit } from "./add-net-actions.ts";
 import { expectArrival, useNetBanner } from "./add-net-banner.ts";
-import { ADD_NET_LIMIT, openNetText } from "./add-net-texts.ts";
+import { openNetText } from "./add-net-texts.ts";
+import { ADD_NET_LIMIT_HERE } from "./invite-join-texts.ts";
 import { useInspectPreview } from "./inspect-preview.ts";
 import { inviteFromSearch, withoutInvite } from "./invite-param.ts";
 import { isInvite, netTitle, placeNote, sendInvite } from "./invite-join-actions.ts";
@@ -81,7 +82,7 @@ export function useInviteJoin(store: Store, ctx: InviteContext, deps: HomeDeps =
   const input = ref<HTMLInputElement | null>(null);
   const outcome = ref<InviteOutcome | "">("");
   const { preview, reply } = useInspectPreview(() => form.inviteInput);
-  const note = computed(() => (reply.value ? placeNote(reply.value, store.nets, atLimit(store)) : ""));
+  const note = computed(() => (reply.value ? placeNote(reply.value, store.nets, atLimit(store), ctx.kind) : ""));
   const noteLink = computed(() => {
     const slot = reply.value?.place === "here" ? reply.value.slot : undefined;
     return slot ? { slot, text: openNetText(netTitle(store.nets, slot, reply.value?.label)) } : null;
@@ -100,7 +101,7 @@ export function useInviteJoin(store: Store, ctx: InviteContext, deps: HomeDeps =
   function sendOrRefuse(): Promise<InviteOutcome> {
     const key = form.inviteInput.trim();
     if (ctx.kind !== "add" || !key || isInvite(key) || !atLimit(store)) return sendInvite(form, ctx, deps);
-    form.inviteError = { message: ADD_NET_LIMIT, word: null };
+    form.inviteError = { message: ADD_NET_LIMIT_HERE, word: null };
     return Promise.resolve("limit");
   }
 

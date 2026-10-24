@@ -18,6 +18,7 @@ const store = inject(STORE_KEY)!;
 const { form, input, preview, note, noteLink, outcome } = props.join;
 const errorParts = computed(() => (form.inviteError ? highlightParts(form.inviteError.message, form.inviteError.word) : []));
 const dupName = computed(() => netTitle(store.nets, form.dupSlot, form.netLabel));
+const showNote = computed(() => !!note.value && !form.inviteError && !(outcome.value === "here" && form.dupSlot));
 const describedBy = computed(() => `${props.ids.error} ${props.ids.note}`);
 
 const setInput = (el: unknown): void => {
@@ -40,13 +41,14 @@ async function go(): Promise<void> {
     <input :ref="setInput" type="text" class="input mono input-wide" :class="{ 'field-error': form.inviteError }" :id="ids.input" v-model="form.inviteInput" autocomplete="off" spellcheck="false" :aria-describedby="describedBy" :placeholder="HOME_JOIN_PLACEHOLDER">
     <p class="field-error-text" :id="ids.error" role="alert" :aria-label="HOME_JOIN_ERROR_ARIA" :hidden="!form.inviteError"><template v-for="(part, i) in errorParts" :key="i"><mark v-if="part.highlighted" class="key-error-word">{{ part.text }}</mark><template v-else>{{ part.text }}</template></template></p>
     <p v-if="preview" class="hint kind-preview" :id="ids.preview" role="status">{{ preview }}</p>
-    <p v-if="note" class="hint place-note" :id="ids.note">{{ note }}<template v-if="noteLink"> <a href="#" class="link-more" @click.prevent="open(noteLink.slot)">{{ noteLink.text }}</a></template></p>
+    <p v-if="showNote" class="hint place-note" :id="ids.note">{{ note }}<template v-if="noteLink">{{ " " }}<a href="#" class="link-more" @click.prevent="open(noteLink.slot)">{{ noteLink.text }}</a></template></p>
     <slot name="hint"></slot>
     <p class="hint">{{ HOME_JOIN_PASTE_HINT }}</p>
     <div class="btn-row">
       <button type="button" class="btn btn-primary" :id="ids.button" :disabled="!!form.busy" @click="go">{{ form.busy ? busy ?? HOME_JOIN_BUSY : button ?? HOME_BUTTON_JOIN }}</button>
     </div>
     <p v-if="ids.status" class="hint" :id="ids.status" :hidden="!form.status">{{ form.status }}</p>
+    <slot name="after"></slot>
     <div v-if="outcome === 'here' && form.dupSlot" :id="ids.dup" role="status">
       <p class="hint">{{ duplicateText(dupName) }}</p>
       <button type="button" class="btn" :id="ids.open" @click="open(form.dupSlot)">{{ openNetText(dupName) }}</button>

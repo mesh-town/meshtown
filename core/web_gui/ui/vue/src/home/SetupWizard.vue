@@ -17,6 +17,7 @@ import { shownStep } from "./home-view.ts";
 import { useHomeContext } from "./use-home.ts";
 import { PROGRESS_HEAD } from "./join-progress.ts";
 import { useJoin } from "./use-join.ts";
+import { refusedLead } from "./join-wait.ts";
 import {
   HOME_WIZARD_BROWSER_DONE, HOME_WIZARD_CREATE_BTN, HOME_WIZARD_DONE, HOME_WIZARD_HEAD_JOIN, HOME_WIZARD_INVITE_HINT, HOME_WIZARD_JOIN_BTN,
   HOME_WIZARD_JOINED, HOME_WIZARD_NOT_JOINED, HOME_WIZARD_STEP_BROWSER, HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT, HOME_WIZARD_TITLE,
@@ -41,6 +42,7 @@ const finish = (mark: SetupMark): void => {
 const j = useJoin(store);
 // The join progress phase: searching and joining replace the buttons with a progress block; a node refusal is text above the buttons.
 const progress = computed(() => j.progress.value);
+const lead = computed(() => refusedLead(store.state?.node?.invite_join));
 const running = computed(() => (progress.value && progress.value.phase !== "refused" ? progress.value : null));
 const stepHead = computed(() => (running.value ? PROGRESS_HEAD[running.value.phase as "searching" | "entering"] : HOME_WIZARD_HEAD_JOIN));
 
@@ -67,7 +69,7 @@ async function startCreate(): Promise<void> {
     </div>
     <template v-else>
     <h1 id="home-start-title">{{ HOME_WIZARD_NOT_JOINED }}</h1>
-    <p v-if="progress" class="field-error-text" id="join-refused" role="status" aria-live="polite">{{ progress.main }}</p>
+    <p v-if="progress" class="field-error-text" id="join-refused" role="status" aria-live="polite"><strong v-if="lead">{{ lead }}</strong>{{ lead ? " " : "" }}{{ progress.main }}</p>
     <p class="hint">{{ HOME_WIZARD_INVITE_HINT }}</p>
     <div class="btn-row">
       <button type="button" :class="['btn', { 'btn-primary': !j.form.choice }]" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>

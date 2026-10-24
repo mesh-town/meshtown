@@ -8,7 +8,7 @@ import { STORE_KEY } from "../core/store.ts";
 import { leaveNet } from "../members/members-api.ts";
 import { ADD_NET_WAITING, ADD_NET_WAITING_SUB, JOIN_BACK_BTN, JOIN_CANCEL_BTN, JOIN_CANCEL_FAILED, JOIN_NO_ANSWER, JOIN_NO_ANSWER_MS } from "./add-net-texts.ts";
 
-const props = defineProps<{ slot: string; refused?: string }>();
+const props = defineProps<{ slot: string; refused?: string; lead?: string }>();
 const emit = defineEmits<{ cancelled: [] }>();
 const store = inject(STORE_KEY)!;
 const silent = ref(false);
@@ -38,7 +38,7 @@ async function cancel(): Promise<void> {
 
 <template>
   <div class="joining" id="net-joining" role="status">
-    <p v-if="refused" class="field-error-text" id="net-join-refused">{{ refused }}</p>
+    <p v-if="refused" class="field-error-text" id="net-join-refused"><strong v-if="lead">{{ lead }}</strong>{{ lead ? " " : "" }}{{ refused }}</p>
     <template v-else>
       <p class="hint">{{ ADD_NET_WAITING }}</p>
       <p class="hint">{{ silent ? JOIN_NO_ANSWER : ADD_NET_WAITING_SUB }}</p>

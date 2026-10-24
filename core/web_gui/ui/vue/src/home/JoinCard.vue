@@ -12,7 +12,7 @@ import type { InviteFormIds } from "./use-invite-join.ts";
 import { netName } from "../core/slots.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
 import { useJoin } from "./use-join.ts";
-import { inviteWaitText, refusedText } from "./join-wait.ts";
+import { inviteWaitText, refusedLead, refusedText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
 import {
   HOME_ASK_ADMIN_HINT, HOME_ASK_MEMBER_HINT, HOME_CREATE_BTN, HOME_CREATE_BUSY, HOME_CREATE_ERROR_ARIA, HOME_CREATE_LABEL, HOME_CREATE_PLACEHOLDER,
@@ -47,9 +47,10 @@ const hint = computed(() => {
   if (gone.value) return (managed.value ? HOME_ASK_ADMIN_HINT : HOME_ASK_MEMBER_HINT)(netLabel.value);
   return hasNet.value && form.inviteInput.trim() && !isInvite(form.inviteInput) ? HOME_JOIN_KEY_HINT(netLabel.value) : "";
 });
+const leadText = computed(() => (props.quiet ? "" : refusedLead(store.state?.node?.invite_join)));
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
-// "Invite accepted. Waiting…" is stale once the node reports a refusal: only the refusal text stays.
-const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null ? form.status : ""));
+// "Invite accepted. Waiting…" is stale once the node reports a refusal, and doubles the waiting line: one line stays.
+const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null && !waitText.value ? form.status : ""));
 </script>
 
 <template>
@@ -73,6 +74,6 @@ const statusText = computed(() => (refusedText(store.state?.node?.invite_join) =
       </div>
     </div>
     <p class="hint" id="join-status" :hidden="!statusText">{{ statusText }}</p>
-    <p class="hint" id="join-wait" role="status" :hidden="!waitText">{{ waitText }}</p>
+    <p class="hint" id="join-wait" role="status" :hidden="!waitText"><strong v-if="leadText">{{ leadText }}</strong>{{ leadText ? " " : "" }}{{ waitText }}</p>
   </div>
 </template>

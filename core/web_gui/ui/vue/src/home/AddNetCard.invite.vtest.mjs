@@ -11,20 +11,23 @@ import { createFakeNode } from "../testing/fake-node.mjs";
 import { membersReply } from "../testing/members-fixtures.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
 import { settle } from "../testing/page.mjs";
+import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
 import AddNetCard from "./AddNetCard.vue";
 
 const FRESH = "neta22";
 const INVITE = "mesh-invite2-ABCDEFGH";
 const WORD_KEY = "mesh1-ABCDEFGH";
 const LIMIT_ABOVE = "Mesh Town is in 8 networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.";
-const LIMIT_REFUSED = "This invite is for a new network, and Mesh Town is already in 8. Leave a network, then paste the invite again.";
+const LIMIT_REFUSED = "This is a new network, so it can't be added until you leave one.";
 
 let mounted;
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   sessionStorage.clear();
   location.hash = "";
 });
 afterEach(() => {
+  vi.useRealTimers();
   mounted.wrapper.unmount();
   location.hash = "";
   expect(mounted.node.unexpected).toEqual([]);
@@ -72,6 +75,20 @@ describe("eight networks", () => {
     await card.type(INVITE);
     await card.click("#add-net-btn");
     expect(card.text("#add-net-error")).toBe(LIMIT_REFUSED);
+  });
+
+  it("at the limit the card says it once: no note, the error under the field", async () => {
+    const card = await setup({ opts: eightNets() });
+    card.node.routes["POST /api/network/inspect"] = { label: "work", kind: "Peer", id_hex: "bb", place: "new" };
+    card.node.routes["POST /api/network/join"] = { status: 409, body: { error: "too_many_nets", limit: 8 } };
+    await card.type(INVITE);
+    await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);
+    await settle();
+    expect(card.has("#add-net-kind-preview"), "the preview is shown").toBe(true);
+    expect(card.has("#add-net-place-note"), "the limit stands above the field already").toBe(false);
+    await card.click("#add-net-btn");
+    expect(card.text("#add-net-error")).toBe(LIMIT_REFUSED);
+    expect(card.has("#add-net-place-note")).toBe(false);
   });
 
   it("let an invite in: it may lead back to a network the computer is in", async () => {

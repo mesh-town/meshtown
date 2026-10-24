@@ -32,7 +32,7 @@ describe("HomeSection > join progress, setup", () => {
   it("refused: the error text once and the join buttons are back", () => {
     const { wrapper } = mountHome(lonely({ ...INFO, state: "refused", message: "The invite has already been used." }));
     expect(wrapper.find(".join-progress").exists()).toBe(false);
-    expect(wrapper.get("#join-refused").text()).toBe("The invite has already been used.");
+    expect(wrapper.get("#join-refused").text()).toBe("Couldn't join \"family\". The invite has already been used.");
     expect(wrapper.find("#home-start-join-btn").exists()).toBe(true);
     expect(wrapper.text().split("The invite has already been used.").length - 1).toBe(1);
   });

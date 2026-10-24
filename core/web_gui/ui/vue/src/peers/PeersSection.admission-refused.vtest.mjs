@@ -1,0 +1,72 @@
+/* The plate "this computer can't connect" on the tab of a network: shown after the refusal has stood for 15 seconds. */
+
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { membersReply, peerOneRow, peerTwoRow, selfRow } from "../testing/members-fixtures.mjs";
+import { openMembersPage } from "../testing/members-page.mjs";
+import { unmountPage } from "../testing/page.mjs";
+import { ADMISSION_REFUSED_DELAY_MS } from "./peers-texts.ts";
+
+beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+afterEach(() => {
+  unmountPage();
+  vi.useRealTimers();
+});
+
+const them = { side: "them", reason: "no", at_unix: 1 };
+const gone = (over = {}) => ({ online: false, last_refusal: them, ...over });
+const names = (list) => list.map((n) => peerOneRow(gone({ name: "peer-" + n, id: n.repeat(8), id_full: n.toUpperCase().repeat(64) })));
+const wait = (ms) => vi.advanceTimersByTimeAsync(ms);
+
+async function plate(rows, extra = {}) {
+  const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), ...rows], ...extra }) });
+  await wait(ADMISSION_REFUSED_DELAY_MS);
+  return page.wrapper.find("#admission-refused");
+}
+
+describe("the plate on the tab", () => {
+  it("is not there before 15 seconds, then it is a status in the warning style", async () => {
+    const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), ...names(["a"])] }) });
+    await wait(ADMISSION_REFUSED_DELAY_MS - 1);
+    expect(page.wrapper.find("#admission-refused").exists()).toBe(false);
+    await wait(1);
+    const el = page.wrapper.get("#admission-refused");
+    expect(el.attributes("role")).toBe("status");
+    expect(el.classes()).toContain("warn-card");
+  });
+
+  it("one name in a Peer network: who refuses and whom to ask", async () => {
+    const el = await plate(names(["a"]));
+    const text = el.text();
+    expect(text).toContain("This computer can't connect to");
+    expect(text).toContain("peer-a refuses to let it in, and no other member of");
+    expect(text).toContain("Ask peer-a to let this computer in.");
+    expect(text).toContain("Until then, sites won't open through");
+  });
+
+  it("several names: the list and `Ask one of them`", async () => {
+    const el = await plate(names(["a", "b"]));
+    expect(el.text()).toContain("peer-a and peer-b refuse to let it in");
+    expect(el.text()).toContain("Ask one of them to let this computer in.");
+  });
+
+  it("more than three names: three and `and N more`", async () => {
+    const el = await plate(names(["a", "b", "c", "d", "e"]));
+    expect(el.text()).toContain("peer-a, peer-b, peer-c and 2 more refuse to let it in");
+  });
+
+  it("a Managed network asks an admin", async () => {
+    const el = await plate(names(["a"]), { kind: "Managed" });
+    expect(el.text()).toMatch(/Ask an admin of ".+" to let this computer in\./);
+    expect(el.text()).not.toContain("Ask peer-a");
+  });
+
+  it("the reason \"unlisted\" does not count: no plate", async () => {
+    const el = await plate([peerOneRow(gone({ last_refusal: { side: "them", reason: "unlisted", at_unix: 1 } }))]);
+    expect(el.exists()).toBe(false);
+  });
+
+  it("somebody online: no plate", async () => {
+    const el = await plate([peerOneRow(gone()), peerTwoRow({ online: true })]);
+    expect(el.exists()).toBe(false);
+  });
+});

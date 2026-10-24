@@ -81,3 +81,27 @@ export function peersVotesTitle(n: number): string {
 export function peersNetsHint(n: number): string {
   return `You’re now in ${n} networks. Each network has its own tab here. Your name, "Let members open sites" and "Leave network" are now in each network’s tab.`;
 }
+
+/** How long the refusal has to stand before the plate shows: right after joining "0 online" is normal. */
+export const ADMISSION_REFUSED_DELAY_MS = 15_000;
+
+export const ADMISSION_REFUSED_TITLE = (net: string): string => `This computer can't connect to "${net}"`;
+const NO_ONE_ELSE = (net: string): string => `and no other member of "${net}" is online.`;
+export const ADMISSION_REFUSED_ONE = (name: string, net: string): string => `${name} refuses to let it in, ${NO_ONE_ELSE(net)}`;
+export const ADMISSION_REFUSED_MANY = (list: string, net: string): string => `${list} refuse to let it in, ${NO_ONE_ELSE(net)}`;
+const UNTIL_THEN = (net: string): string => ` Until then, sites won't open through "${net}".`;
+/** What to do: a Managed network lets in through an admin; in a Peer network the refusing members are asked. */
+export function admissionRefusedAsk(names: string[], net: string, managed: boolean): string {
+  if (managed) return `Ask an admin of "${net}" to let this computer in.${UNTIL_THEN(net)}`;
+  const who = names.length === 1 ? names[0] : "one of them";
+  return `Ask ${who} to let this computer in.${UNTIL_THEN(net)}`;
+}
+
+// 'a' · 'a and b' · 'a, b and c' · 'a, b, c and 2 more'
+export function admissionRefusedList(names: string[]): string {
+  const shown = names.slice(0, 3);
+  const more = names.length - shown.length;
+  if (more > 0) return `${shown.join(", ")} and ${more} more`;
+  const last = shown.pop();
+  return shown.length === 0 ? (last ?? "") : `${shown.join(", ")} and ${last}`;
+}

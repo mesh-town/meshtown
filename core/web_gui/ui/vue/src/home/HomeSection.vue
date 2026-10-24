@@ -3,6 +3,7 @@
 // in `cardOrder` order) and "Setup" ("Three steps"). The shared `useHome` is passed to the cards through `provide`.
 import { computed, inject, provide } from "vue";
 import { STORE_KEY } from "../core/store.ts";
+import { netName } from "../core/slots.ts";
 import BrowserCard from "./BrowserCard.vue";
 import { inAppPage } from "./browser-setup.ts";
 import HomeTabs from "./HomeTabs.vue";
@@ -13,10 +14,10 @@ import JoinCard from "./JoinCard.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
 import { useExcluded } from "../members/use-excluded.ts";
 import { isMeRemoved } from "../members/members-view.ts";
-import { useMembersActions } from "../members/use-members-actions.ts";
 import SetupWizard from "./SetupWizard.vue";
 import StatePanel from "./StatePanel.vue";
 import UpdateBanner from "./UpdateBanner.vue";
+import AdmissionRefused from "../peers/AdmissionRefused.vue";
 import ThisComputerCard from "./ThisComputerCard.vue";
 import { HOME_LOADING } from "./home-card-texts.ts";
 import { peersHash } from "../shell/nav.ts";
@@ -32,14 +33,13 @@ const { excluded, variant, net } = useExcluded(store);
 const removed = computed(() => isMeRemoved(store.members));
 const managedHere = computed(() => store.state?.network?.kind === "Managed");
 const outOfNet = computed(() => excluded.value || removed.value);
-const { joinAnother } = useMembersActions(store);
 </script>
 
 <template>
   <div id="home-root">
     <div v-if="store.state === null" class="card"><p class="hint">{{ HOME_LOADING }}</p></div>
     <template v-else-if="outOfNet">
-      <ExcludedCard :variant="variant" :net="net" :managed="managedHere" @join="joinAnother" />
+      <ExcludedCard form-open :variant="variant" :net="net" :managed="managedHere" />
       <div class="card"><JoinCard :removed="removed && !excluded" /></div>
     </template>
     <template v-else>
@@ -48,6 +48,7 @@ const { joinAnother } = useMembersActions(store);
         <SetupWizard v-if="activeTab === 'wizard'" />
         <template v-else>
           <UpdateBanner />
+          <AdmissionRefused :members="store.members" :net='netName(store.nets, "main")' />
           <StatePanel :panel="panel" :ring="ring" @pick-other="home.pickOther" @direct="home.chooseDirect" />
           <div v-if="chips.length" class="net-chips" id="home-chips">
             <a v-for="c in chips" :key="c.slot" class="chip net-chip" :href="peersHash(c.slot)" :title="c.short">{{ c.text }}</a>

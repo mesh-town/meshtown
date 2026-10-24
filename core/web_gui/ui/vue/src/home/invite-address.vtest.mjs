@@ -1,8 +1,15 @@
 /* An invite in the page address (`?invite=`): read once, kept for the forms, sent to "Add another network" when the node is in a network. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createStore } from "../core/store.ts";
+import { flushPromises, mount } from "@vue/test-utils";
+import { defineComponent, h } from "vue";
+import { api } from "../core/api.ts";
+import { STORE_KEY, createStore } from "../core/store.ts";
 import { STATE } from "../shell/use-shell-support.mjs";
+import InviteForm from "./InviteForm.vue";
+import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
+
+vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
 const INVITE = "mesh-invite2-abc";
 const IN_NET = { ...STATE, network: { id_hex: "net-aaaa", masked: "mesh1-••••-••••" } };
@@ -16,6 +23,8 @@ async function fresh() {
 }
 
 beforeEach(() => {
+  api.mockReset();
+  api.mockResolvedValue(null);
   history.replaceState(null, "", "/?invite=" + INVITE + "&x=1#home");
   location.hash = "";
 });
@@ -57,5 +66,35 @@ describe("the invite in the address", () => {
     expect(await first.submit()).toBe("joined");
     expect(invite.useInviteJoin(createStore(), { kind: "add" }).form.inviteInput).toBe("");
     expect(invite.addressInvite()).toBe("");
+  });
+});
+
+describe("the preview of the invite from the address", () => {
+  it("the invite from the address gets the preview and the note without a keystroke", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    api.mockImplementation(async (method, path) => {
+      if (path !== "/api/network/inspect") throw new Error("unexpected request " + path);
+      return { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" };
+    });
+    const { invite } = await fresh();
+    const store = createStore();
+    store.nets = [{ id: "neta22", label: "family", id_hex: "aa", me_excluded: false }];
+    const ids = { input: "x-input", button: "x-btn", error: "x-error", preview: "x-preview", note: "x-note", dup: "x-dup", open: "x-open" };
+    const Host = defineComponent({
+      setup() {
+        const join = invite.useInviteJoin(store, { kind: "add" });
+        return () => h(InviteForm, { join, ids });
+      },
+    });
+    const wrapper = mount(Host, { attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+    expect(wrapper.get("#x-input").element.value).toBe(INVITE);
+    expect(api).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);
+    await flushPromises();
+    expect(api).toHaveBeenCalledWith("POST", "/api/network/inspect", { key: INVITE });
+    expect(wrapper.find("#x-preview").exists()).toBe(true);
+    expect(wrapper.get("#x-note").text()).toContain("You're already in");
+    wrapper.unmount();
+    vi.useRealTimers();
   });
 });
