@@ -16,7 +16,7 @@ use data_encoding::BASE32_NOPAD;
 use serde::{Deserialize, Serialize};
 
 use crate::members::membership::Members;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetKind, NetworkKey};
 use crate::node::output::NET_NAME;
 use crate::transport::addr_order::{truncate_ranked, PrimaryIps};
 use crate::transport::net::{NetStack, PeerAddr, PeerId};
@@ -81,6 +81,10 @@ pub struct Source {
     pub stack: NetStack,
     pub members: Members,
     pub key: NetworkKey,
+    /// The kind of the network the node is in.
+    pub kind: NetKind,
+    /// The secret an invite redemption answers with; equals `key` in a Peer network.
+    pub reply_secret: NetworkKey,
     pub label: Option<String>,
     /// The node's domain list: provides the network's shared document and the author for issue records.
     pub domains: crate::proxy::domains::DomainList,

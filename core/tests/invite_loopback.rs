@@ -188,6 +188,8 @@ impl Issuer {
             stack: self.a.stack.clone(),
             members: self.a.members.clone(),
             key: self.a.network_key.clone(),
+            kind: self.a.net_kind,
+            reply_secret: self.a.reply_secret.clone(),
             label: self.a.network_label.clone(),
             domains: self.a.domains.clone(),
         }

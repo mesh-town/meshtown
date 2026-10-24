@@ -92,8 +92,10 @@ impl Relaunch {
         cli.network_key = None;
         cli.apply(&mut s);
         s.net.network_key = Some(key_text.to_string());
-        let mut cfg = self.node_config(&s, parsed.key);
-        cfg.network_label = parsed.label;
+        let mut cfg = self.node_config(&s, parsed.key.clone());
+        cfg.network_label = parsed.label.clone();
+        cfg.net_kind = parsed.kind;
+        cfg.reply_secret = NetworkKey::from_bytes(parsed.reply_secret());
         Ok((s, cfg))
     }
 }
