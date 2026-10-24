@@ -59,8 +59,9 @@ describe("JoinCard", () => {
     expect(el.text()).toBe("Waiting for members of the network \"family\" to come online. As soon as one of the members from the invite is online, Mesh Town will join the network.");
     waiting.store.state.node.invite_join = { ...info, state: "refused", message: "Another node has already joined with this invite." };
     await waiting.wrapper.vm.$nextTick();
-    expect(el.text()).toBe("Couldn't join \"family\". Another node has already joined with this invite.");
-    expect(el.get("strong").text()).toBe("Couldn't join \"family\".");
+    const refused = waiting.wrapper.get("#join-wait");
+    expect(refused.text()).toBe("Couldn't join \"family\". Another node has already joined with this invite.");
+    expect(refused.get("strong").text()).toBe("Couldn't join \"family\".");
   });
 
   it("waiting: one waiting line", async () => {

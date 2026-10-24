@@ -48,6 +48,8 @@ const hint = computed(() => {
   return hasNet.value && form.inviteInput.trim() && !isInvite(form.inviteInput) ? HOME_JOIN_KEY_HINT(netLabel.value) : "";
 });
 const leadText = computed(() => (props.quiet ? "" : refusedLead(store.state?.node?.invite_join)));
+// A refusal is told as an error right under the Join button; the waiting line stays below the card.
+const refusedNow = computed(() => !props.quiet && refusedText(store.state?.node?.invite_join) !== null);
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
 // "Invite accepted. Waiting…" is stale once the node reports a refusal, and doubles the waiting line: one line stays.
 const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null && !waitText.value ? form.status : ""));
@@ -60,6 +62,9 @@ const statusText = computed(() => (refusedText(store.state?.node?.invite_join) =
       <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived">
         <template #hint>
           <p class="hint" id="net-restart-hint" :hidden="!hint">{{ hint }}</p>
+        </template>
+        <template #after>
+          <p v-if="refusedNow" class="field-error-text" id="join-wait" role="alert"><strong>{{ leadText }}</strong> {{ waitText }}</p>
         </template>
       </InviteForm>
     </div>
@@ -74,6 +79,6 @@ const statusText = computed(() => (refusedText(store.state?.node?.invite_join) =
       </div>
     </div>
     <p class="hint" id="join-status" :hidden="!statusText">{{ statusText }}</p>
-    <p class="hint" id="join-wait" role="status" :hidden="!waitText"><strong v-if="leadText">{{ leadText }}</strong>{{ leadText ? " " : "" }}{{ waitText }}</p>
+    <p v-if="!refusedNow" class="hint" id="join-wait" role="status" :hidden="!waitText">{{ waitText }}</p>
   </div>
 </template>

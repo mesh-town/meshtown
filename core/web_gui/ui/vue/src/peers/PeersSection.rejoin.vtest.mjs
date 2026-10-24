@@ -43,7 +43,8 @@ describe("the tab of a removed or banned computer", () => {
     await page.type("#rejoin-input", INVITE);
     await page.click("#rejoin-btn");
     expect(page.node.calls.filter((c) => c.method === "POST").map((c) => c.path)).toContain("/api/network/join");
-    expect(page.text("#rejoin-status")).not.toBe("");
+    expect(page.text("#rejoin-status")).toBe('Done: Mesh Town is restarting and joining the network "my devices". The status will appear here in a few seconds.');
+    expect(page.node.routes["POST /api/network/join"].slot).toBe(location.hash.slice("#peers/".length));
   });
 
   it("a join that the members refused afterwards is told under the card", async () => {

@@ -20,16 +20,16 @@ const wait = (ms) => vi.advanceTimersByTimeAsync(ms);
 async function plate(rows, extra = {}) {
   const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), ...rows], ...extra }) });
   await wait(ADMISSION_REFUSED_DELAY_MS);
-  return page.wrapper.find("#admission-refused");
+  return page.wrapper.find("#sec-peers #admission-refused");
 }
 
 describe("the plate on the tab", () => {
   it("is not there before 15 seconds, then it is a status in the warning style", async () => {
     const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), ...names(["a"])] }) });
     await wait(ADMISSION_REFUSED_DELAY_MS - 1);
-    expect(page.wrapper.find("#admission-refused").exists()).toBe(false);
+    expect(page.wrapper.find("#sec-peers #admission-refused").exists()).toBe(false);
     await wait(1);
-    const el = page.wrapper.get("#admission-refused");
+    const el = page.wrapper.get("#sec-peers #admission-refused");
     expect(el.attributes("role")).toBe("status");
     expect(el.classes()).toContain("warn-card");
   });
