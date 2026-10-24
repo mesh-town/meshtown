@@ -65,11 +65,14 @@ export async function refetchConfig(store: Store, deps: { api: ApiFn }): Promise
   if (res) storeConfigReply(store, res);
 }
 
+// `unknown_net`: the stale copy names a network the node has left; it is refused before the revision is checked.
+const RETRY_CODES = ["stale_rev", "unknown_net"];
+
 async function putWithRetry(store: Store, changes: ConfigChanges, deps: ResolvedDeps): Promise<void> {
   try {
     await putChanges(store, changes, deps, store.configRev);
   } catch (err) {
-    if ((err as ApiErrorLike).code !== "stale_rev") throw err;
+    if (!RETRY_CODES.includes((err as ApiErrorLike).code as string)) throw err;
     await refetchConfig(store, deps);
     await putChanges(store, changes, deps, store.configRev);
   }
