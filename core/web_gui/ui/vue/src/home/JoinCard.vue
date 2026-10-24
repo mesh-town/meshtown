@@ -12,7 +12,7 @@ import {
   HOME_CREATE_BTN, HOME_CREATE_BUSY, HOME_CREATE_ERROR_ARIA, HOME_CREATE_LABEL, HOME_CREATE_PLACEHOLDER, HOME_CREATE_TOGGLE,
   HOME_JOIN_BUSY, HOME_JOIN_ERROR_ARIA, HOME_JOIN_FIELD_LABEL, HOME_JOIN_PASTE_HINT, HOME_JOIN_PLACEHOLDER, HOME_JOIN_REMOVED_HINT, HOME_JOIN_RESTART_HINT,
 } from "./home-card-texts.ts";
-import { HOME_TITLE_REMOVED } from "./home-flow-texts.ts";
+import { HOME_BUTTON_JOIN, HOME_TITLE_REMOVED } from "./home-flow-texts.ts";
 
 const props = defineProps<{ join?: JoinView | null; quiet?: boolean; removed?: boolean }>();
 const store = inject(STORE_KEY)!;
@@ -22,6 +22,7 @@ const { form, hasNet, showJoin, showCreate, title, buttonText, errorParts } = j;
 // `removed` — the others removed this computer from the member list: its own title and hint instead of the "switch" ones.
 const { preview } = useInspectPreview(() => form.inviteInput);
 const heading = computed(() => (props.removed ? HOME_TITLE_REMOVED : title.value));
+const button = computed(() => (props.removed ? HOME_BUTTON_JOIN : buttonText.value));
 const restartHint = computed(() => (props.removed ? HOME_JOIN_REMOVED_HINT : HOME_JOIN_RESTART_HINT));
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
 </script>
@@ -37,7 +38,7 @@ const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.
     <p class="hint" id="net-restart-hint" :hidden="!hasNet">{{ restartHint }}</p>
     <p class="hint">{{ HOME_JOIN_PASTE_HINT }}</p>
     <div class="btn-row">
-      <button type="button" class="btn btn-primary" id="join-btn" :disabled="!!form.busy" @click="j.join">{{ form.busy === "join" ? HOME_JOIN_BUSY : buttonText }}</button>
+      <button type="button" class="btn btn-primary" id="join-btn" :disabled="!!form.busy" @click="j.join">{{ form.busy === "join" ? HOME_JOIN_BUSY : button }}</button>
     </div>
     </div>
     <a href="#" class="link-more" id="create-toggle" v-if="hasNet" @click.prevent="j.toggleCreate">{{ HOME_CREATE_TOGGLE }}</a>

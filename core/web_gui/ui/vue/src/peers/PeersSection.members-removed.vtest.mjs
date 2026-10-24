@@ -25,6 +25,18 @@ describe("this computer was removed from the member list", () => {
     expect(page.focusedId()).toBe("join-key-input");
   });
 
+  it("the Home card and the Members card never repeat an id", async () => {
+    const page = await openMembersPage({ members: removedMe(), tab: "home" });
+    const ids = [...page.wrapper.element.querySelectorAll("[id]")].map((el) => el.id);
+    expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);
+    expect(page.wrapper.element.querySelectorAll("#excluded-card, #members-removed-card").length).toBe(2);
+  });
+
+  it("the form button of the removed card says \"Join\"", async () => {
+    const page = await openMembersPage({ members: removedMe(), tab: "home" });
+    expect(page.text("#join-btn")).toBe("Join");
+  });
+
   it("a banned computer keeps the usual title of the form", async () => {
     const page = await openMembersPage({ members: threeMembers({ me_excluded: true }), state: stateWith({ me_excluded: true }), tab: "home" });
     expect(page.text("#join-card-title")).toBe("Switch to another network");

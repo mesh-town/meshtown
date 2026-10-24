@@ -76,21 +76,21 @@ describe("card when slot me removed", () => {
   it("the second tab shows the card instead of the list", async () => {
     const page = await openTwo({ removedInB: true });
     await page.whenTabClicked("my devices");
-    expect(page.text("#excluded-card")).toContain('This computer was removed from the member list "my devices"');
+    expect(page.text("#members-removed-card")).toContain('This computer was removed from the member list "my devices"');
     expect(page.has("[data-member-menu]")).toBe(false);
   });
 
   it("the card offers joining with an invite", async () => {
     const page = await openTwo({ removedInB: true });
     await page.whenTabClicked("my devices");
-    expect(page.text("#excluded-join")).toBe("Join with an invite");
+    expect(page.text("#members-removed-join")).toBe("Join with an invite");
   });
 
   it("going back to the first tab shows its list again", async () => {
     const page = await openTwo({ removedInB: true });
     await page.whenTabClicked("my devices");
     await page.whenAddressBack();
-    expect(page.has("#excluded-card")).toBe(false);
+    expect(page.has("#members-removed-card")).toBe(false);
     expect(page.has("#peers-list")).toBe(true);
   });
 });

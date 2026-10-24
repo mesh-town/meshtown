@@ -123,7 +123,7 @@ async function exitVia(idFull: string): Promise<void> {
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
-    <ExcludedCard v-else-if="excluded" :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
+    <ExcludedCard v-else-if="excluded" members :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
     <JoiningCard v-else-if="waitingHere" :key="slot" :slot="slot" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />
