@@ -93,12 +93,25 @@ impl Relaunch {
         cli.apply(&mut s);
         s.net.network_key = Some(key_text.to_string());
         let mut cfg = self.node_config(&s, parsed.key.clone());
-        cfg.network_label = parsed.label.clone();
-        cfg.net_kind = parsed.kind;
-        cfg.reply_secret = NetworkKey::from_bytes(parsed.reply_secret());
+        apply_key_input(&mut cfg, &parsed);
         Ok((s, cfg))
     }
 }
+
+/// Puts what the parsed key says (label, kind, reply secret) into `cfg`. An administered network always
+/// counts its membership list, even on the in-process test network that leaves the list open.
+pub(crate) fn apply_key_input(cfg: &mut NodeConfig, parsed: &network_key::NetworkKeyInput) {
+    cfg.network_label = parsed.label.clone();
+    cfg.net_kind = parsed.kind;
+    cfg.reply_secret = NetworkKey::from_bytes(parsed.reply_secret());
+    if cfg.net_kind.root().is_some() {
+        cfg.open_list = false;
+    }
+}
+
+#[cfg(test)]
+#[path = "relaunch_kind_tests.rs"]
+mod kind_tests;
 
 #[cfg(test)]
 #[path = "relaunch_tests.rs"]
