@@ -229,6 +229,71 @@ mod inspecting {
     }
 }
 
+mod an_invite_place {
+    use super::*;
+    use crate::web_gui::routes::invite_fixture::{invite_into, members_reply, word_key};
+    use crate::web_gui::test_host::HostCall;
+
+    /// `main` works with `key`; asks `inspect` about the invite into `target`.
+    async fn inspect_into(key: &str, target: &str, tune: impl Fn(&SnapNode)) -> Value {
+        let node = SnapNode::new(Default::default());
+        tune(&node);
+        let slot = slot_handle("main", node, config_with_key(Some(key)));
+        let host = FakeHost::new(vec![slot]);
+        let router = test_app(host.clone()).0;
+        let body = json!({"key": invite_into(target, NetKind::Peer)}).to_string();
+        let (status, reply) = send(&router, Method::POST, "/api/network/inspect", &body).await;
+        assert_eq!(status, StatusCode::OK, "{reply}");
+        assert_eq!(
+            host.calls(),
+            Vec::<HostCall>::new(),
+            "inspect takes no slot"
+        );
+        reply
+    }
+
+    #[tokio::test]
+    async fn an_invite_of_a_new_network_says_new() {
+        let reply = inspect_into(&word_key("alpha"), &word_key("beta"), |_| {}).await;
+        assert_eq!(reply["place"], "new", "{reply}");
+        assert!(reply.get("slot").is_none(), "{reply}");
+    }
+
+    #[tokio::test]
+    async fn of_an_active_network_says_here_with_its_slot() {
+        let key = word_key("alpha");
+        let reply = inspect_into(&key, &key, |n| n.set_members(Ok(members_reply(false)))).await;
+        assert_eq!(reply["place"], "here", "{reply}");
+        assert_eq!(reply["slot"], "main", "{reply}");
+    }
+
+    #[tokio::test]
+    async fn of_a_removed_network_says_return_with_its_slot() {
+        let key = word_key("alpha");
+        let reply = inspect_into(&key, &key, |n| n.set_members(Ok(members_reply(true)))).await;
+        assert_eq!(reply["place"], "return", "{reply}");
+        assert_eq!(reply["slot"], "main", "{reply}");
+    }
+
+    #[tokio::test]
+    async fn of_an_excluded_network_says_return() {
+        let key = word_key("alpha");
+        let tune = |n: &SnapNode| n.snapshot.lock().unwrap().members.me_excluded = true;
+        let reply = inspect_into(&key, &key, tune).await;
+        assert_eq!(reply["place"], "return", "{reply}");
+        assert_eq!(reply["slot"], "main", "{reply}");
+    }
+
+    #[tokio::test]
+    async fn a_key_has_no_place() {
+        let f = setup(None);
+        let (status, reply) = f.when_inspect(&word_key("beta")).await;
+        assert_eq!(status, StatusCode::OK, "{reply}");
+        assert!(reply.get("place").is_none(), "{reply}");
+        assert!(reply.get("slot").is_none(), "{reply}");
+    }
+}
+
 // --- helpers ---
 
 struct Fixture {

@@ -23,9 +23,13 @@ mod config;
 mod domains;
 pub(crate) mod helpers;
 mod inspect;
+#[cfg(test)]
+pub(crate) mod invite_fixture;
+mod join_target;
 mod log;
 pub(crate) mod nets;
 mod network;
+mod network_invite;
 mod overview;
 mod pages;
 mod peers;
@@ -87,7 +91,7 @@ fn register_pages(router: Router<Arc<App>>) -> Router<Arc<App>> {
 }
 
 /// Registers the routes of one network under `base`: `/api` addresses the primary slot, `/api/net/{slot}`
-/// any slot. The same handlers serve both; `SlotParam` reads the prefix.
+/// any slot. Most handlers serve both (`SlotParam` reads the prefix); `join` differs, see `register_network`.
 pub(crate) fn register_net_routes(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
     let router = router.route(
         &format!("{base}/state"),
@@ -190,12 +194,15 @@ fn register_actions(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
         )
 }
 
+/// `/api/network/join` without a slot picks the slot for an invite itself; `/api/net/{slot}/network/join`
+/// joins the slot it names.
 fn register_network(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
+    let join = match base == "/api" {
+        true => post(join_target::network_join_auto_handler),
+        false => post(network::network_join_handler),
+    };
     router
-        .route(
-            &format!("{base}/network/join"),
-            post(network::network_join_handler).fallback(bad_method),
-        )
+        .route(&format!("{base}/network/join"), join.fallback(bad_method))
         .route(
             &format!("{base}/network/create"),
             post(network::network_create_handler).fallback(bad_method),

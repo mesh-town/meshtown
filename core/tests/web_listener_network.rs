@@ -346,10 +346,10 @@ async fn network_join_key_on_a_slot_with_a_network_is_refused() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn network_join_invite_on_a_slot_with_a_network_is_refused() {
+async fn network_join_invite_of_another_network_on_a_one_network_run_is_refused() {
     let (status, resp, ports) = post_invite_network_to("present-invite", json!({}), true).await;
     assert_eq!(status, 409);
-    assert_eq!(resp["error"], json!("network_present"));
+    assert_eq!(resp["error"], json!("too_many_nets"));
     assert_eq!(
         ports,
         vec![8080],
@@ -534,5 +534,6 @@ fn invite_string(head: &InviteHead) -> String {
         id: NodeSecret::from_bytes(&[7u8; 32]).peer_id(),
         hints: vec![AddrHint::Ip(SocketAddr::from(([10, 0, 0, 1], 4000)))],
     };
-    invite::build_keyed(head, &me, &[], &PrimaryIps::NONE).expect("invite::build must assemble an invite")
+    invite::build_keyed(head, &me, &[], &PrimaryIps::NONE)
+        .expect("invite::build must assemble an invite")
 }
