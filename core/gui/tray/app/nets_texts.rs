@@ -74,9 +74,12 @@ pub(crate) fn vote_text(label: &str) -> String {
     format!("Ban vote in {label} — open Members…")
 }
 
-/// The note about a network an admin deleted.
+/// The note about a network an admin deleted; a note without a name says "A network".
 pub(crate) fn net_deleted_text(label: &str) -> String {
-    format!("\"{label}\" was deleted by an admin — open Members…")
+    match label.trim() {
+        "" => "A network was deleted by an admin — open Members…".to_string(),
+        name => format!("\"{name}\" was deleted by an admin — open Members…"),
+    }
 }
 
 pub(crate) fn admit_text(label: &str) -> String {

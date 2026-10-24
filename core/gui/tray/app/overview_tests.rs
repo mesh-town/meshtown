@@ -266,6 +266,10 @@ mod notices {
         let notes = parse_notices(&json);
 
         assert_eq!(notes, [Notice { id: 3, label: String::new() }]);
+        assert_eq!(
+            crate::gui::tray::app::nets_texts::net_deleted_text(&notes[0].label),
+            "A network was deleted by an admin — open Members…"
+        );
     }
 
     #[test]
