@@ -7,14 +7,17 @@
 
 use std::collections::BTreeSet;
 
+use bytes::Bytes;
+
 use super::*;
 use crate::invite::head::hash_hex_of;
 use crate::invite::store::{issue_record, IssueVerdict, Ledger, ISSUE_PREFIX};
+use crate::invite::store_admins::issue_value;
 use crate::members::access::tally::Ledger as Votes;
 use crate::members::access::view::Verdicts;
-use crate::transport::net::mem::{MemSync, MemSyncNet};
+use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
-use crate::transport::net::Replica;
+use crate::transport::net::{Replica, ReplicaEntry};
 use crate::transport::net_mainline::unix_now;
 
 mod managed_holder {
@@ -54,6 +57,68 @@ mod managed_holder {
             holder
                 .then_verdict_among(&[pid(2)], IssueVerdict::NotAdmin)
                 .await;
+        }
+    }
+
+    mod hold_on_the_hash_of_the_senders_own_invite {
+        use super::*;
+
+        #[tokio::test]
+        async fn naming_an_admin_issuer_is_refused_and_does_not_grant() {
+            // given: a member wrote the record itself, naming an admin as the issuer
+            let holder = setup_holder(managed(), admins_view(&[pid(2)])).await;
+            let value = issue_value(&issue_record(unix_now(), None), Some(pid(2))).unwrap();
+            holder.given_record_by(pid(1), value);
+            // when: the same member asks the holder to keep a copy
+            let code = holder.when_hold_arrives(unix_now()).await;
+            // then: refused, no copy, and the member's own record does not count
+            assert_eq!(code, Some(RedeemCode::NotFromAdmin));
+            assert_eq!(holder.record_value().await, None);
+            holder
+                .then_verdict_among(&[pid(2)], IssueVerdict::NotAdmin)
+                .await;
+        }
+
+        #[tokio::test]
+        async fn without_an_issuer_is_refused_and_does_not_grant() {
+            // given: a member wrote a plain record
+            let holder = setup_holder(managed(), admins_view(&[pid(2)])).await;
+            let value = postcard::to_stdvec(&issue_record(unix_now(), None)).unwrap();
+            holder.given_record_by(pid(1), value);
+            // when
+            let code = holder.when_hold_arrives(unix_now()).await;
+            // then
+            assert_eq!(code, Some(RedeemCode::NotFromAdmin));
+            assert_eq!(holder.record_value().await, None);
+            holder
+                .then_verdict_among(&[pid(2)], IssueVerdict::NotAdmin)
+                .await;
+        }
+    }
+
+    mod hold_before_the_admin_list {
+        use super::*;
+
+        #[tokio::test]
+        async fn gets_not_ready_rather_than_not_from_admin() {
+            // given: a Managed holder that has no published list of admins yet
+            let holder = setup_holder(managed(), AccessView::open()).await;
+            // when
+            let code = holder.when_hold_arrives(unix_now()).await;
+            // then: not ready, nothing written
+            assert_eq!(code, Some(RedeemCode::NotReady));
+            assert_eq!(holder.record_value().await, None);
+        }
+
+        #[tokio::test]
+        async fn expired_frame_is_answered_before_not_ready() {
+            // given: the same holder, a frame older than the invite lifetime
+            let holder = setup_holder(managed(), AccessView::open()).await;
+            let made = unix_now() - crate::invite::INVITE_TTL_SECS - 10;
+            // when
+            let code = holder.when_hold_arrives(made).await;
+            // then
+            assert_eq!(code, Some(RedeemCode::Expired));
         }
     }
 }
@@ -118,6 +183,7 @@ fn admins_view(admins: &[PeerId]) -> AccessView {
 struct Holder {
     fx: Fixture,
     shared: Arc<dyn Replica>,
+    mem: Arc<MemReplica>,
     list: DomainList,
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
@@ -129,7 +195,8 @@ async fn setup_holder(kind: NetKind, access: AccessView) -> Holder {
         network_seed: [9; 32],
         store_dir: None,
     });
-    let shared: Arc<dyn Replica> = backend.replica_mem(REPLICA_NET).unwrap();
+    let mem = backend.replica_mem(REPLICA_NET).unwrap();
+    let shared: Arc<dyn Replica> = mem.clone();
     let own: Arc<dyn Replica> = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let list = DomainList::open(shared.clone(), own).await.unwrap();
     let fx = setup(Opts {
@@ -141,6 +208,7 @@ async fn setup_holder(kind: NetKind, access: AccessView) -> Holder {
     Holder {
         fx,
         shared,
+        mem,
         list,
         _keep: (net, backend),
     }
@@ -153,6 +221,16 @@ impl Holder {
         let frame = hold_frame(&NetworkKey::from_bytes(KEY), &HASH, made_unix);
         let raw = session.when_asks_raw(&frame).await;
         raw.and_then(|b| parse_hold_reply(&b))
+    }
+
+    /// A record under `HASH` that `author` wrote, as it arrives by sync.
+    fn given_record_by(&self, author: PeerId, value: Vec<u8>) {
+        self.mem.put_raw(ReplicaEntry {
+            author,
+            key: format!("{ISSUE_PREFIX}{}", hash_hex_of(&HASH)).into_bytes(),
+            value: Bytes::from(value),
+            ts_micros: (unix_now() - 5) * 1_000_000,
+        });
     }
 
     /// The value of the holder's own record `invite/<hash>`.

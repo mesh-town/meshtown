@@ -171,6 +171,57 @@ mod old_record {
     }
 }
 
+mod mixed_formats {
+    use super::*;
+
+    #[tokio::test]
+    async fn v1_of_a_holder_admin_does_not_hinder_v2_of_an_admin_author() {
+        // given: a v1 record of an admin next to the v2 record of another admin
+        let rig = setup().await;
+        rig.given_v1_issue_by(admin(), NOW - 10);
+        rig.given_issue_by(third(), NOW - 10);
+        // when
+        let got = rig.when_judged_among(&[admin(), third()]).await;
+        // then: only the v2 record counts, and it is enough
+        assert_eq!(got, IssueVerdict::Grant);
+    }
+
+    #[tokio::test]
+    async fn v1_of_an_admin_next_to_v2_of_a_stranger_is_not_admin() {
+        // given: a v1 record of an admin and a v2 record of a node that is not an admin
+        let rig = setup().await;
+        rig.given_v1_issue_by(admin(), NOW - 10);
+        rig.given_issue_by(stranger(), NOW - 10);
+        // when
+        let got = rig.when_judged_among(&[admin()]).await;
+        // then
+        assert_eq!(got, IssueVerdict::NotAdmin);
+    }
+
+    #[tokio::test]
+    async fn v1_of_a_non_admin_next_to_v2_of_an_admin_grants() {
+        // given: a v1 record of a node that is not an admin and the v2 record of an admin
+        let rig = setup().await;
+        rig.given_v1_issue_by(stranger(), NOW - 10);
+        rig.given_issue_by(admin(), NOW - 10);
+        // when
+        let got = rig.when_judged_among(&[admin()]).await;
+        // then: the stranger's record is ignored
+        assert_eq!(got, IssueVerdict::Grant);
+    }
+
+    #[tokio::test]
+    async fn v1_of_a_non_admin_alone_is_not_admin() {
+        // given
+        let rig = setup().await;
+        rig.given_v1_issue_by(stranger(), NOW - 10);
+        // when
+        let got = rig.when_judged_among(&[admin()]).await;
+        // then
+        assert_eq!(got, IssueVerdict::NotAdmin);
+    }
+}
+
 mod value_layout {
     use super::*;
 
