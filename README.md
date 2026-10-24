@@ -36,6 +36,10 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers.
 - **No accounts.** A network is a secret key and a member list signed by the members. A newcomer joins with a
   single-use invite from a member. No device limit.
 - **You choose who sees what.** A port is shared with all members or with selected ones.
+- **Web interfaces open by a link.** With the browser using the node's proxy, the panel of a router, a NAS or a home
+  automation box is at `http://<device-name>.meshtown`, no IP addresses to remember.
+- **A member can be your exit node.** Point a browser or a program at the local SOCKS5/HTTP proxy, and its
+  traffic goes out to the internet through a trusted member's connection — see [below](#also-use-a-member-as-an-exit-node).
 - **Several networks on one node**, for example "my devices" and "the team".
 
 ## How it differs
