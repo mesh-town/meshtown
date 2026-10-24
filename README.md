@@ -1,30 +1,61 @@
 # Mesh Town
 
-A private network for your home, your family or a small team. It connects your computers, phones and routers
-directly to each other, so you can reach a service running on one device from another, and open sites through the
-internet connection of a member you trust. There is no central server, no account to register, and no device quota.
-It runs on macOS, Windows, Linux, Android and OpenWrt or Keenetic routers.
+**Reach your devices from anywhere — no port forwarding, no central server, no accounts.**
 
-## What it is
+Mesh Town connects your computers, phones and routers into a private network and lets you reach the services running
+on them: SSH to your home server, RDP to the office machine, the web panel of your NAS or router — from a café, a train
+or another country. A web interface opens by a link: with the browser set to use the node's proxy, the shared port of
+a device is at `http://<device-name>.meshtown` (with `:<port>` for a port other than 80). There is no public IP to get,
+no routing to configure, no server to keep running and no account to create in someone else's service.
 
-Mesh Town is a peer-to-peer network of nodes. Each network has its own secret network key, and every node has its own
-node key. Each node:
+Mesh Town is for:
 
-- finds the other members of its network on the public DHT, using only the network key (no server of ours is
-  involved);
-- lets in only the nodes that are on the network's member list: a member confirms a newcomer, and members can remove
-  a node by vote. Knowing the network key alone is not enough to join;
-- publishes the TCP ports of programs on its own computer to all members or to selected ones, and opens the ports
-  other members shared with it on `127.0.0.1`;
-- runs a local proxy (`127.0.0.1:1080`, SOCKS5 and HTTP on one port) and, if you allow it, works as an exit for other
-  members;
-- checks which sites open from its own connection and shares the results with the members;
-- serves a small management page and, in the desktop build, shows a tray icon.
+- **Homelab enthusiasts**: a Raspberry Pi, a NAS or Home Assistant at home, behind a router you can't or don't want to
+  open to the internet.
+- **Sysadmins**: a few machines at a client's office or at your relatives', each behind its own NAT, that you need to
+  reach over SSH or RDP without setting up routing at every site.
+- **Small teams**: share a dev database, an internal web tool or a build machine with colleagues, without a cloud
+  service in the middle or a server someone has to look after.
 
-One node can be in several networks at once (up to 8), for example "my devices" and "friends".
+## Why it fits
 
-This repository is the application: the Rust node, the management page (Vue, built into one committed file), the tray,
-and the packaging scripts for macOS, Linux, Windows, Android and routers. The current line is 0.3.x.
+- **No port forwarding, no NAT rules, no public IP.** Nodes find each other and connect directly; nothing on your router
+  is opened to the internet.
+- **Keeps working when you change networks.** Wi-Fi, mobile data, a hotel network: the node notices the switch and
+  reconnects to the other members within seconds, by itself. Connections that were open at the moment of the switch
+  are closed, and the program opens them again.
+- **No central server.** Nodes meet on the public DHT, a distributed directory that nobody owns. There is nothing for
+  you to host and no server of ours that your network depends on.
+- **No accounts.** A network is a secret key and a member list signed by the members. A newcomer joins with a
+  single-use invite from a member. No device limit.
+- **You choose who sees what.** A port is shared with all members or with selected ones; the others do not reach it.
+- **Runs where your devices are**: macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers. One node can be in
+  several networks at once, for example "my devices" and "the team".
+
+## How it differs
+
+| The usual way | What it takes | With Mesh Town |
+|---|---|---|
+| Port forwarding and dynamic DNS | A public IP (not available behind a carrier's NAT), a rule on every router, and the service open to the whole internet | Nothing to open: only members reach the port |
+| A tunnel server of your own | A machine with a public IP that everyone connects to, its keys and routing, and keeping it up | No server: members connect to each other directly |
+| A tunnel or relay service | An account with the provider, and your traffic going through its servers | No account, no provider in the middle |
+| A mesh network with a coordination server | An account or a self-hosted coordination server that every device signs in to | The member list lives with the members; the network works without any server of yours or ours |
+
+What you give up: Mesh Town connects TCP ports of programs, not whole IP networks (see [Limitations](#limitations)).
+
+## Not for you if
+
+- you need a whole subnet, a virtual network interface or UDP ports: Mesh Town shares TCP ports of programs running on
+  the device itself;
+- you need it on an iPhone or iPad;
+- you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
+
+## Also: use a member as an exit node
+
+A member can let the others send traffic out through its internet connection. Point a browser or a program at the
+local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port), and its connections leave from that member's address, for
+example to reach a service that accepts connections only from your office or home IP. A member decides whether to be an
+exit, and serves only the members of its network.
 
 ## How it works
 
@@ -56,7 +87,8 @@ Modules and protocols are described in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.
 4. Press "Create a new network" on the page, or "Join with an invite" if a friend gave you one. In a terminal:
    `meshtown run --invite mesh-invite2-…`.
 5. Invite the others: "Invite a member" on the page (or `invite` in the node console) gives a single-use string.
-6. Share a port on the "Ports" tab, or open one that a member shared.
+6. Share a port on the "Ports" tab, or open one that a member shared. A shared web interface also opens in the
+   browser at `http://<device-name>.meshtown` when the browser uses the proxy from step 7; the "Ports" tab shows the link.
 7. To open sites through a member, point a browser or a program at the proxy `127.0.0.1:1080` (SOCKS5; use
    `socks5h://` so the node resolves names), for example `curl -x socks5h://127.0.0.1:1080 https://example.com/`.
 
@@ -223,6 +255,8 @@ tests together with `clippy`; the same checks run in CI.
   choose an exit by country or operator.
 - **A refusal is final.** The node moves to the next exit in the list only when the current one cannot be reached;
   if an exit answers with a refusal, the client gets it.
+- **A direct connection may not open on some mobile networks.** Behind home routers and most NATs the nodes connect
+  directly; some mobile operators block that, and then the node cannot reach the others from that network.
 - **No traffic accounting or speed limits** per member, and no limit on simultaneous connections.
 - **One hop only.** Client → your node → a member → the site; chains of two or more members are not supported.
 - **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by
