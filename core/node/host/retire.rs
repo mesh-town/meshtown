@@ -3,6 +3,7 @@
 
 use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, MutexGuard};
 use std::time::Duration;
 
@@ -84,7 +85,11 @@ impl HostSlots {
             return Err(HostError::Busy("the node is stopping".into()));
         }
         let ctl = self.ctl_of(id).ok_or(HostError::UnknownNet)?;
-        let task = leave_in_place_task(slot, ctl, secret, announced);
+        if self.leaving.swap(true, Ordering::SeqCst) {
+            return Ok(());
+        }
+        let flag = LeavingFlag(self.leaving.clone());
+        let task = leave_in_place_task(slot, ctl, secret, announced, flag);
         tasks.push(leave_task(id, task));
         Ok(())
     }
@@ -159,11 +164,21 @@ fn has_folder(main: &Path, id: &NetSlotId) -> bool {
         .unwrap_or(false)
 }
 
+/// Clears the "leave in progress" flag of the host when the leave task ends, however it ends.
+struct LeavingFlag(Arc<AtomicBool>);
+
+impl Drop for LeavingFlag {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 async fn leave_in_place_task(
     slot: SlotHandle,
     ctl: Arc<NodeCtl>,
     secret: NodeSecret,
     announced: bool,
+    _leaving: LeavingFlag,
 ) {
     if announced {
         tokio::time::sleep(LEAVE_GRACE).await;

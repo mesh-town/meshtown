@@ -99,8 +99,10 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
         | MemberActionReq::Block(id)
         | MemberActionReq::Unblock(id)
         | MemberActionReq::Forget(id)
-        | MemberActionReq::Unforget(id) => Some(id),
-        MemberActionReq::Leave => None,
+        | MemberActionReq::Unforget(id)
+        | MemberActionReq::Grant(id)
+        | MemberActionReq::Revoke(id) => Some(id),
+        MemberActionReq::Leave | MemberActionReq::Close => None,
     }
 }
 

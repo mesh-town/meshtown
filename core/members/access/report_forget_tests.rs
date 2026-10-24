@@ -288,6 +288,8 @@ fn world(listed: &[PeerId]) -> World {
         admit_unix: BTreeMap::new(),
         forget_marks: BTreeMap::new(),
         forget_need: 2,
+        admins: Default::default(),
+        closed: None,
     };
     World {
         ledger,

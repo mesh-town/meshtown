@@ -105,6 +105,7 @@ pub(super) fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput
         votes: Vec::new(),
         forgets,
         rules: Rules::Peer,
+        powers: vec![],
     }
 }
 
@@ -290,7 +291,7 @@ impl Node {
             );
         }
         let verdict = Ledger::of(&self.list)
-            .verdict(&issued().hash_hex(), now())
+            .verdict(&issued().hash_hex(), now(), None)
             .await;
         assert_eq!(verdict, IssueVerdict::Grant, "the invite is spent");
     }

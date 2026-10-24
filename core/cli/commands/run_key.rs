@@ -109,10 +109,11 @@ pub(super) async fn run_with_key(
     let started = std::time::Instant::now();
     let parsed = parse_run_key(&key_text, &overrides, &run)?;
     let from_words = parsed.from_words;
+    let (kind, reply_secret) = (parsed.kind, NetworkKey::from_bytes(parsed.reply_secret()));
     let label = parsed.label;
     let network_key = parsed.key;
     log_key_ready(started, from_words, label.as_deref());
-    let (relaunch, cfg) = launch_parts(
+    let (relaunch, mut cfg) = launch_parts(
         &run,
         overrides,
         initial_domains,
@@ -121,5 +122,7 @@ pub(super) async fn run_with_key(
         label,
         invited,
     );
+    cfg.net_kind = kind;
+    cfg.reply_secret = reply_secret;
     serve_node(cfg, run, relaunch).await
 }

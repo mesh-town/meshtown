@@ -9,6 +9,7 @@ use crate::members::words::{
 };
 use crate::node::output::NET_NAME;
 
+use super::managed::{parse_managed, NetKind, NetworkKeyInput as KeyInput};
 use super::{normalize_dashed, normalize_label, NetworkKey, CTX_TAIL_SALT, LABEL_SEPARATOR};
 
 /// Fast hash of the normalized random part: SHA-256(salt ‖ 0x0A ‖ part) → 32 bytes.
@@ -74,9 +75,9 @@ pub fn key_from_tail(tail: &str) -> Result<NetworkKey> {
     Ok(NetworkKey::from_bytes(derive_tail_bytes(&canonical)))
 }
 
-/// Parsed human input: the label (for display only) and the network key.
+/// Parsed Peer input: the label (for display only) and the network key.
 #[derive(Debug)]
-pub struct NetworkKeyInput {
+pub(super) struct NetworkKeyInput {
     pub label: Option<String>,
     pub key: NetworkKey,
     /// The key was derived from the random part, not parsed from `mesh1-…`.
@@ -126,8 +127,8 @@ fn parse_labelled(raw_label: &str, raw_tail: &str) -> Result<NetworkKeyInput> {
     })
 }
 
-/// Parses human input: "label--random-part", "random-part" or the machine `mesh1-…`.
-pub fn parse_user_input(input: &str) -> Result<NetworkKeyInput> {
+/// Parses Peer input: "label--random-part", "random-part" or the machine `mesh1-…`.
+pub(super) fn parse_peer_only(input: &str) -> Result<NetworkKeyInput> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Err(anyhow!(
@@ -168,6 +169,44 @@ pub fn parse_user_input(input: &str) -> Result<NetworkKeyInput> {
         key,
         from_words: true,
     })
+}
+
+impl From<NetworkKeyInput> for KeyInput {
+    fn from(peer: NetworkKeyInput) -> KeyInput {
+        KeyInput {
+            base: peer.key.to_bytes(),
+            label: peer.label,
+            key: peer.key,
+            from_words: peer.from_words,
+            kind: NetKind::Peer,
+        }
+    }
+}
+
+/// The label left of the first `--`, normalized; none if it is empty.
+fn split_label(raw: &str) -> Result<Option<String>> {
+    if normalize_dashed(raw).is_empty() {
+        return Ok(None);
+    }
+    normalize_label(raw).map(Some)
+}
+
+/// Reads the input as a Managed key; none if it is not shaped like one.
+fn parse_managed_input(trimmed: &str) -> Option<Result<KeyInput>> {
+    let (label, rest) = match trimmed.split_once(LABEL_SEPARATOR) {
+        Some((raw_label, rest)) => (split_label(raw_label), rest),
+        None => (Ok(None), trimmed),
+    };
+    let found = parse_managed(label.as_ref().ok().cloned().flatten(), rest)?;
+    Some(label.and(found))
+}
+
+/// Parses human input: a Peer or a Managed key, with or without a label.
+pub fn parse_user_input(input: &str) -> Result<KeyInput> {
+    if let Some(found) = parse_managed_input(input.trim()) {
+        return found;
+    }
+    parse_peer_only(input).map(KeyInput::from)
 }
 
 impl NetworkKey {

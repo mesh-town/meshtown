@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use tokio::task::AbortHandle;
 
+use crate::members::access::authority::Rules;
 use crate::members::access::boot::{run_boot, AccessBoot};
 use crate::members::access::runtime::Access;
 use crate::members::access::watch::spawn_access;
@@ -23,6 +24,7 @@ use crate::transport::peers_cache::PeersCache;
 pub(super) struct AccessStart {
     pub(super) boot: AccessBoot,
     pub(super) open_list: bool,
+    pub(super) rules: Rules,
 }
 
 /// Ids from the invite (in the order given, no repeats).
@@ -53,6 +55,7 @@ pub(super) fn access_start(cfg: &NodeConfig, me: PeerId, cache: &PeersCache) -> 
     AccessStart {
         boot,
         open_list: cfg.open_list,
+        rules: Rules::from(&cfg.net_kind),
     }
 }
 
@@ -64,10 +67,10 @@ pub(super) async fn start_access(
     handles: &mut Vec<AbortHandle>,
 ) -> Arc<Access> {
     if st.open_list {
-        return Arc::new(Access::new(list, members));
+        return Arc::new(Access::new(list, members).with_rules(st.rules));
     }
     boot_or_say(list, &st.boot).await;
-    let access = Arc::new(Access::new(list, members));
+    let access = Arc::new(Access::new(list, members).with_rules(st.rules));
     handles.extend(spawn_access(access.clone()));
     access
 }

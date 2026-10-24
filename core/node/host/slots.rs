@@ -4,11 +4,12 @@
 
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, OnceLock, RwLock};
+use std::sync::{Arc, Mutex, OnceLock, RwLock, Weak};
 
 use tokio::sync::watch;
-use tokio::task::JoinHandle;
+use tokio::task::{AbortHandle, JoinHandle};
 
+use super::notices::NoticeBook;
 use super::saved_slots::{multi_net_for, MAX_NETS};
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
@@ -27,6 +28,8 @@ pub(super) struct Slot {
     /// Turns `true` when the slot's node cycle has ended (a closed sender counts as the end too);
     /// `None` only for a slot whose cycle was not spawned through the map.
     pub(super) ended: Option<watch::Receiver<bool>>,
+    /// The watcher of the slot's "network closed" channel; replaced when the cycle is spawned again.
+    pub(super) watch: Option<AbortHandle>,
 }
 
 /// What adding a network at run time needs from the start of the run.
@@ -52,6 +55,12 @@ pub(crate) struct HostSlots {
     pub(super) proxy: OnceLock<Arc<ProxySeat>>,
     /// Held while the proxy's network is changed or a slot that may hold the choice leaves.
     pub(super) claim: Mutex<()>,
+    /// This map behind its own `Arc`, for tasks that must not keep the host alive.
+    pub(super) me: Weak<HostSlots>,
+    /// Set while the main slot's network is being left in place; a second leave then does nothing.
+    pub(super) leaving: Arc<AtomicBool>,
+    /// The notices waiting for the page to acknowledge them.
+    pub(super) notices: NoticeBook,
 }
 
 impl HostSlots {
@@ -67,8 +76,9 @@ impl HostSlots {
             ctl,
             task: None,
             ended: None,
+            watch: None,
         };
-        Arc::new(HostSlots {
+        Arc::new_cyclic(|me| HostSlots {
             slots: RwLock::new(vec![slot]),
             stopping: AtomicBool::new(false),
             context: OnceLock::new(),
@@ -76,6 +86,9 @@ impl HostSlots {
             broken: RwLock::new(Vec::new()),
             proxy: OnceLock::new(),
             claim: Mutex::new(()),
+            me: me.clone(),
+            leaving: Arc::new(AtomicBool::new(false)),
+            notices: NoticeBook::default(),
         })
     }
 
@@ -96,6 +109,9 @@ impl HostSlots {
                 return Err(HostError::TooManyNets);
             }
             slots.push(spawned_slot(handle, ctl, cycle));
+            if let Some(added) = slots.last_mut() {
+                self.watch_slot(added);
+            }
         }
         self.sync_multi_net();
         Ok(())
@@ -190,6 +206,7 @@ impl HostSlots {
         if let Some(slot) = slots.iter_mut().find(|s| s.handle.id == *id) {
             slot.task = Some(task);
             slot.ended = Some(ended);
+            self.watch_slot(slot);
         }
     }
 
@@ -268,6 +285,7 @@ fn spawned_slot(
         ctl,
         task: Some(task),
         ended: Some(ended),
+        watch: None,
     }
 }
 

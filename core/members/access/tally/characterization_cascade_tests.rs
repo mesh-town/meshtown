@@ -30,7 +30,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {d: 0, a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -55,7 +56,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {d: 0, a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -80,7 +82,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
         assert_eq!(
@@ -94,7 +97,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -121,7 +125,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0, x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             ));
     }
 
@@ -148,7 +153,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0, x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -172,7 +178,8 @@ mod cascade {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -203,7 +210,8 @@ mod refresh {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -230,7 +238,8 @@ mod refresh {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -254,7 +263,8 @@ mod refresh {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             ));
     }
 }

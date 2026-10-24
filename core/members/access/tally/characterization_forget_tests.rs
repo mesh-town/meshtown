@@ -29,7 +29,8 @@ mod threshold {
                 "forgets: {B: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -52,7 +53,8 @@ mod threshold {
                 "forgets: {C: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -75,7 +77,8 @@ mod threshold {
                 "forgets: {C: ForgetRound { voters: [A, B], at_unix: Some(200) }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 200}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -101,7 +104,8 @@ mod threshold {
                 "forgets: {B: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {E: 50, B: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -123,117 +127,8 @@ mod threshold {
                 "forgets: {D: ForgetRound { voters: [A, B], at_unix: Some(30) }, C: ForgetRound { voters: [A], at_unix: None }}, ",
                 "admit_unix: {B: 0, D: 0, C: 0}, ",
                 "forget_marks: {D: 30, C: 10}, ",
-                "forget_need: 2 }",
-            ));
-    }
-}
-
-mod return_of_forgotten {
-    use super::*;
-
-    #[test]
-    fn admit_after_forget_returns_the_member() {
-        // given: A forgot B at 100, then A admits B again at 101
-        let (a, p, admits) = net(2);
-        let admits = rewrite(admits, a, p[1], Via::Invite, 101);
-        // when: tallied
-        let ledger = run(a, admits, vec![forget(a, p[1], 100)]);
-        // then: B is a member again, the round is spent
-        assert_eq!(
-            shown(&ledger, &letters(&p)),
-            concat!(
-                "Ledger { admitted: {B, A}, ",
-                "excluded: {}, ",
-                "pending: {}, ",
-                "need: 1, ",
-                "admissions: {}, ",
-                "forgets: {}, ",
-                "admit_unix: {B: 101}, ",
-                "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
-            )
-        );
-    }
-
-    #[test]
-    fn admit_in_the_same_second_does_not_return() {
-        // given: the admit of B is written in the same second as the vote against B
-        let (a, p, admits) = net(2);
-        let admits = rewrite(admits, a, p[1], Via::Invite, 100);
-        // when: tallied
-        let ledger = run(a, admits, vec![forget(a, p[1], 100)]);
-        // then: the vote goes after the admit, B is forgotten
-        assert_eq!(
-            shown(&ledger, &letters(&p)),
-            concat!(
-                "Ledger { admitted: {B, A}, ",
-                "excluded: {}, ",
-                "pending: {}, ",
-                "need: 1, ",
-                "admissions: {}, ",
-                "forgets: {B: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
-                "admit_unix: {B: 100}, ",
-                "forget_marks: {B: 100}, ",
-                "forget_need: 1 }",
-            )
-        );
-    }
-
-    #[test]
-    fn witness_after_forget_does_not_return() {
-        // given: C is forgotten by A and B; A and B then write witnesses of C
-        let (a, p, admits) = net(3);
-        let admits = rewrite(admits, a, p[2], Via::Witness, 150);
-        let admits = rewrite(admits, p[1], p[2], Via::Witness, 150);
-        // when: tallied
-        let ledger = run(
-            a,
-            admits,
-            vec![forget(a, p[2], 90), forget(p[1], p[2], 100)],
-        );
-        // then: C stays forgotten
-        assert_eq!(
-            shown(&ledger, &letters(&p)),
-            concat!(
-                "Ledger { admitted: {B, A, C}, ",
-                "excluded: {}, ",
-                "pending: {}, ",
-                "need: 1, ",
-                "admissions: {}, ",
-                "forgets: {C: ForgetRound { voters: [A, B], at_unix: Some(100) }}, ",
-                "admit_unix: {B: 0}, ",
-                "forget_marks: {C: 100}, ",
-                "forget_need: 1 }",
-            )
-        );
-    }
-
-    #[test]
-    fn forgotten_pair_cannot_readmit_each_other() {
-        // given: five members; A and B are forgotten, then admit each other
-        let (me, p, admits) = net(5);
-        let (a, b, c) = (p[1], p[2], p[3]);
-        let admits = rewrite(admits, a, b, Via::Invite, 150);
-        let admits = rewrite(admits, b, a, Via::Invite, 150);
-        let forgets = vec![
-            forget(me, a, 90),
-            forget(c, a, 100),
-            forget(me, b, 91),
-            forget(c, b, 101),
-        ];
-        // when: tallied
-        let ledger = run(me, admits, forgets);
-        // then: both stay forgotten
-        assert_eq!(shown(&ledger, &letters(&p)), concat!(
-                "Ledger { admitted: {E, B, A, D, C}, ",
-                "excluded: {}, ",
-                "pending: {}, ",
-                "need: 2, ",
-                "admissions: {}, ",
-                "forgets: {B: ForgetRound { voters: [A, D], at_unix: Some(100) }, C: ForgetRound { voters: [A, D], at_unix: Some(101) }}, ",
-                "admit_unix: {E: 0, B: 150, D: 0, C: 150}, ",
-                "forget_marks: {B: 100, C: 101}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             ));
     }
 }
@@ -263,7 +158,8 @@ mod forgotten_node {
                 "forgets: {D: ForgetRound { voters: [B, A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0, D: 0, C: 0}, ",
                 "forget_marks: {D: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -292,7 +188,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 50, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -321,7 +218,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 150, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -350,7 +248,8 @@ mod forgotten_node {
                 "forgets: {B: ForgetRound { voters: [A, C], at_unix: Some(100) }}, ",
                 "admit_unix: {E: 160, B: 0, D: 0, C: 0}, ",
                 "forget_marks: {B: 100}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -374,7 +273,8 @@ mod forgotten_node {
                 "forgets: {C: ForgetRound { voters: [A], at_unix: Some(100) }}, ",
                 "admit_unix: {B: 0, C: 0}, ",
                 "forget_marks: {C: 100}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -383,7 +283,7 @@ mod forgotten_node {
 // --- helpers ---
 
 /// The names `A`.. of the first `n` nodes of the scene.
-fn lettered(w: &World, n: usize) -> Vec<(&'static str, PeerId)> {
+pub(super) fn lettered(w: &World, n: usize) -> Vec<(&'static str, PeerId)> {
     ["A", "B", "C", "D", "E", "F"]
         .into_iter()
         .zip((0..n).map(|i| w.id(i)))
@@ -391,9 +291,10 @@ fn lettered(w: &World, n: usize) -> Vec<(&'static str, PeerId)> {
 }
 
 /// The names `A`.. of the nodes of `net(n)`.
-fn letters(peers: &[PeerId]) -> Vec<(&'static str, PeerId)> {
+pub(super) fn letters(peers: &[PeerId]) -> Vec<(&'static str, PeerId)> {
     ["A", "B", "C", "D", "E", "F"]
         .into_iter()
         .zip(peers.iter().copied())
         .collect()
 }
+

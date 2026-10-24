@@ -1,7 +1,7 @@
 //! `GET`/`PUT /api/config`: the page's config state on top of `crate::config::config_file`.
 //!
 //! Files: `support.rs` — shared constants and small helpers (`get_path`, `field_entry`,
-//! `json_response`); `state.rs` — `ConfigState` itself: reading (`page_config_document`, `config_get_body`, directory write
+//! `json_response`); `network_block.rs` — the `network` block of the state; `state.rs` — `ConfigState` itself: reading (`page_config_document`, `config_get_body`, directory write
 //! probe) and responses to write errors; `put.rs` — the `ConfigState::put` dispatcher by steps;
 //! `put_merge.rs` — steps 6–8 (patch merge, check of unavailable fields, parsing of settings);
 //! `put_write.rs` — steps 9–10 (writing to disk and the response), also `stale_outcome`; `put_name.rs` —
@@ -9,6 +9,7 @@
 //! `rewrite.rs` — writing the settings of a slot on the page's own initiative; `slot_overlay.rs` — the process block of an added slot;
 //! `settings_access.rs` — the write through the slot's `SettingsFile`.
 
+mod network_block;
 mod put;
 mod put_merge;
 mod put_name;
@@ -21,6 +22,7 @@ mod state;
 mod support;
 
 pub(crate) use put_write::ProxyPick;
+pub use network_block::NetRoles;
 pub use state::ConfigState;
 
 #[cfg(test)]

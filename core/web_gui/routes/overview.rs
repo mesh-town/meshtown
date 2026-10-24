@@ -8,7 +8,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
 use super::state::slot_state_value;
-use super::state_host::API;
+use super::state_host::{apply_notices, API};
 use crate::config::config_file::NetSlotId;
 use crate::web_gui::members::members_value;
 use crate::web_gui::net_brief::briefs;
@@ -24,7 +24,9 @@ pub(super) async fn overview_handler(State(app): State<Arc<App>>) -> Response {
         slots.push(broken_entry(&id));
     }
     let restart_slots = restart_slots(&slots);
-    let body = json!({"api": API, "nets": nets, "slots": slots, "restart_slots": restart_slots});
+    let mut body =
+        json!({"api": API, "nets": nets, "slots": slots, "restart_slots": restart_slots});
+    apply_notices(&mut body, app.host.notices());
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 

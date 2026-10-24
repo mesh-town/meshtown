@@ -1,5 +1,6 @@
 //! The page's view of the slot map: `HostControl` over `HostSlots`.
 
+use super::notices::Notice;
 use super::slots::HostSlots;
 use crate::config::config_file::NetSlotId;
 use crate::proxy::ProxyFront;
@@ -50,5 +51,13 @@ impl HostControl for HostSlots {
 
     fn proxy_front(&self) -> Option<ProxyFront> {
         self.proxy.get().and_then(|s| s.front())
+    }
+
+    fn notices(&self) -> Vec<Notice> {
+        self.notices.list()
+    }
+
+    fn ack_notice(&self, id: u64) -> bool {
+        self.notices.ack(id)
     }
 }

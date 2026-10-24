@@ -13,6 +13,7 @@ use crate::web_gui::{
     AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
 };
 
+use super::abilities::{admins_of, kind_of};
 pub use super::report_forget::stamp_last_seen;
 use super::report_forget::{forget_info, me_removed};
 use super::tally::How;
@@ -132,6 +133,7 @@ fn row(
         name: members.name_of(p),
         is_self: p == v.me,
         online: p == v.me || online.contains(&p),
+        admin: v.ledger.is_admin(&p),
         status: status_of(v, &p),
         vote: vote_of(v, &p),
         excluded: excluded_of(v, &p),
@@ -199,6 +201,10 @@ pub fn members_reply(
         me_pending: me_admission.is_some(),
         me_admission,
         need: v.ledger.need,
+        kind: kind_of(v),
+        admins: admins_of(v),
+        me_admin: v.ledger.is_admin(&v.me),
+        root: None,
         counts: counts_of(&rows),
         members: rows,
         changed,

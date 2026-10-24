@@ -22,6 +22,7 @@ mod auth_password;
 mod config;
 mod domains;
 pub(crate) mod helpers;
+mod inspect;
 mod log;
 pub(crate) mod nets;
 mod network;
@@ -113,6 +114,10 @@ fn register_host(router: Router<Arc<App>>) -> Router<Arc<App>> {
             "/api/overview",
             get(overview::overview_handler).fallback(bad_method),
         )
+        .route(
+            "/api/notices/ack",
+            post(state_host::notices_ack_handler).fallback(bad_method),
+        )
 }
 
 /// Routes of the process: registered once, without a slot prefix.
@@ -194,6 +199,10 @@ fn register_network(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
         .route(
             &format!("{base}/network/create"),
             post(network::network_create_handler).fallback(bad_method),
+        )
+        .route(
+            &format!("{base}/network/inspect"),
+            post(inspect::network_inspect_handler).fallback(bad_method),
         )
 }
 

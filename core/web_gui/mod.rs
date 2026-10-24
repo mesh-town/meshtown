@@ -36,13 +36,13 @@ mod token;
 
 pub use auth::password_file::{remove_password_file, take_password_file, PASSWORD_FILE_NAME};
 #[doc(hidden)]
-pub use config_api::ConfigState;
+pub use config_api::{ConfigState, NetRoles};
 pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
 pub use host_control::{
-    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, OpenedLocal,
+    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, Notice, OpenedLocal,
     SlotHandle,
 };
 pub use listener::start_web_page;

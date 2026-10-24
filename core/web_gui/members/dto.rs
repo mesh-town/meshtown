@@ -12,6 +12,14 @@ pub struct MembersReply {
     /// This node waits for the confirmation of others and has been turned away for it.
     pub me_pending: bool,
     pub need: u8,
+    /// `"Peer"` or `"Managed"`.
+    pub kind: &'static str,
+    /// Administrators of a managed network (full ids); empty in a peer network.
+    pub admins: Vec<String>,
+    /// This node is an administrator.
+    pub me_admin: bool,
+    /// The creator of a managed network (full id), whose role cannot be taken away; `null` in a peer network.
+    pub root: Option<String>,
     /// The own request, shown only while `me_pending`.
     pub me_admission: Option<AdmissionInfo>,
     pub counts: Counts,
@@ -19,6 +27,17 @@ pub struct MembersReply {
     /// Present only in replies to actions: whether the action changed anything.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub changed: Option<bool>,
+}
+
+impl MembersReply {
+    /// Takes the kind and the creator from the rules of the network, not from the administrators seen.
+    pub fn set_kind(&mut self, kind: &crate::members::network_key::NetKind) {
+        self.root = kind.root().map(|r| r.to_string());
+        self.kind = match self.root {
+            Some(_) => "Managed",
+            None => "Peer",
+        };
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -39,6 +58,8 @@ pub struct MemberRow {
     #[serde(rename = "self")]
     pub is_self: bool,
     pub online: bool,
+    /// The node is an administrator of a managed network.
+    pub admin: bool,
     pub status: &'static str,
     pub vote: Option<VoteInfo>,
     pub excluded: Option<ExcludedInfo>,

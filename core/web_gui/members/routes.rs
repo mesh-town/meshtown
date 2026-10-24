@@ -14,13 +14,13 @@ use crate::web_gui::http::json_err;
 use crate::web_gui::routes::helpers::{action_error, bad_method, body_obj};
 use crate::web_gui::routes::slot_param::SlotParam;
 use crate::web_gui::App;
-use crate::web_gui::{MemberActionReq, MemberError, MembersReply, SlotHandle};
+use crate::web_gui::{ActionError, MemberActionReq, MemberError, MembersReply, SlotHandle};
 
 use super::leave::leave_handler;
 
 /// Registers the member routes of one network under `base` (`/api` or `/api/net/{slot}`).
 pub(crate) fn register_members(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
-    let actions: [(&str, MethodRouter<Arc<App>>); 9] = [
+    let actions: [(&str, MethodRouter<Arc<App>>); 10] = [
         ("exclude", post(exclude_handler)),
         ("unexclude", post(unexclude_handler)),
         ("admit", post(admit_handler)),
@@ -30,17 +30,22 @@ pub(crate) fn register_members(router: Router<Arc<App>>, base: &str) -> Router<A
         ("forget", post(forget_handler)),
         ("unforget", post(unforget_handler)),
         ("leave", post(leave_handler)),
+        ("admin", post(admin_handler)),
     ];
     let router = router.route(
         &format!("{base}/members"),
         get(members_handler).fallback(bad_method),
     );
-    actions.into_iter().fold(router, |router, (name, route)| {
+    let router = actions.into_iter().fold(router, |router, (name, route)| {
         router.route(
             &format!("{base}/members/{name}"),
             route.fallback(bad_method),
         )
-    })
+    });
+    router.route(
+        &format!("{base}/network/delete"),
+        post(delete_handler).fallback(bad_method),
+    )
 }
 
 pub(super) fn reply(result: Result<MembersReply, MemberError>) -> Response {
@@ -169,6 +174,37 @@ async fn unblock_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     id_action(&slot, &bytes, MemberActionReq::Unblock).await
 }
 
+/// `{id, admin}`: gives the administrator role to the member or takes it away.
+async fn admin_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    let map = match object_body(&bytes) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
+    match map.get("admin") {
+        Some(Value::Bool(true)) => id_action(&slot, &bytes, MemberActionReq::Grant).await,
+        Some(Value::Bool(false)) => id_action(&slot, &bytes, MemberActionReq::Revoke).await,
+        _ => json_err(
+            StatusCode::BAD_REQUEST,
+            "bad_request",
+            "field admin must be true or false",
+        ),
+    }
+}
+
+/// `{confirm: true}`: deletes the network for all its members (administrators only).
+async fn delete_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
+    let map = match object_body(&bytes) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
+    match map.get("confirm") {
+        Some(Value::Bool(true)) => reply(slot.node.member_action(MemberActionReq::Close).await),
+        _ => action_error(ActionError::Invalid(
+            "field confirm must be true".to_string(),
+        )),
+    }
+}
+
 async fn forget_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     id_action(&slot, &bytes, MemberActionReq::Forget).await
 }
@@ -204,3 +240,7 @@ mod forget_slot_tests;
 #[cfg(test)]
 #[path = "routes_forget_support_tests.rs"]
 mod forget_support;
+
+#[cfg(test)]
+#[path = "routes_admin_tests.rs"]
+mod admin_tests;

@@ -33,6 +33,7 @@ fn head() -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: None,
         made_unix: T,
+        kind: NetKind::Peer,
     }
 }
 
@@ -121,6 +122,8 @@ async fn make_names_listed_members_without_a_connection() {
         admit_unix: Default::default(),
         forget_marks: Default::default(),
         forget_need: 1,
+        admins: Default::default(),
+        closed: None,
     };
     let verdicts = Verdicts {
         me: node.id,
@@ -158,17 +161,17 @@ fn keyed_invite_golden_body() {
 }
 
 #[test]
-fn parse_accepts_v3_and_rejects_four() {
+fn parse_accepts_v3_and_rejects_five() {
     let s = build_keyed(&head(), &with_ip(1), &[], &PrimaryIps::NONE).unwrap();
     let mut body = body_of(&s);
-    for (version, ok) in [(3u8, true), (4, false)] {
+    for (version, ok) in [(3u8, true), (5, false)] {
         body[0] = version;
         let got = parse(&invite_string(&body));
         match ok {
             true => assert!(got.is_ok(), "version {version}: {got:?}"),
             false => {
                 let err = got.unwrap_err().to_string();
-                assert!(err.contains("different format (4)"), "{err}");
+                assert!(err.contains("different format (5)"), "{err}");
             }
         }
     }

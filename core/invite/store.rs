@@ -8,6 +8,7 @@
 //! Links: `invite::Issued::commit` writes, `invite::server` judges and redeems, the sweeper is started by
 //! `node::start::serving`.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -15,6 +16,7 @@ use anyhow::Result;
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
 
+use super::store_admins::{admin_verdict, made_of};
 use super::INVITE_TTL_SECS;
 use crate::node::output::say;
 use crate::proxy::domains::DomainList;
@@ -76,6 +78,8 @@ pub enum IssueVerdict {
     Expired,
     Unknown,
     NotReady,
+    /// A Managed network: the issue records exist, but none is from an admin.
+    NotAdmin,
 }
 
 /// Pure verdict: a mark — `Used`; a fresh readable issue — `Grant`; an unreadable one — `NotReady`;
@@ -192,16 +196,24 @@ impl Ledger {
         Ok(live_rivals(&entries, self.replica.me(), now_unix))
     }
 
-    /// Returns the verdict for the secret's hash; a document query error gives `NotReady`.
-    pub async fn verdict(&self, hash: &str, now_unix: u64) -> IssueVerdict {
+    /// Returns the verdict for the secret's hash; a document query error gives `NotReady`. `admins` is
+    /// `None` in a Peer network; in a Managed one only the records of these authors count.
+    pub async fn verdict(
+        &self,
+        hash: &str,
+        now_unix: u64,
+        admins: Option<&BTreeSet<PeerId>>,
+    ) -> IssueVerdict {
         let Ok(used) = self.exact(used_key(hash)).await else {
             return IssueVerdict::NotReady;
         };
         let Ok(issued) = self.exact(issue_key(hash)).await else {
             return IssueVerdict::NotReady;
         };
-        let made: Vec<Option<u64>> = issued.iter().map(read_made).collect();
-        decide(&made, !used.is_empty(), now_unix)
+        match admins {
+            None => decide(&made_of(&issued), !used.is_empty(), now_unix),
+            Some(admins) => admin_verdict(&issued, &used, admins, now_unix),
+        }
     }
 
     /// Removes its own expired records of the three groups; returns the number deleted.
@@ -248,12 +260,6 @@ impl Ledger {
     }
 }
 
-/// Returns `made_unix` from the issue record; empty or invalid bytes give `None`.
-fn read_made(entry: &ReplicaEntry) -> Option<u64> {
-    let rec: IssueRecord = postcard::from_bytes(&entry.value).ok()?;
-    Some(rec.made_unix)
-}
-
 /// Sweeper: right away and every `SWEEP_PERIOD` removes its own expired records.
 pub fn spawn_sweeper(ledger: Ledger) -> tokio::task::AbortHandle {
     crate::node::output::spawn(async move {
@@ -280,3 +286,7 @@ mod tests;
 #[cfg(test)]
 #[path = "store_claim_tests.rs"]
 mod claim_tests;
+
+#[cfg(test)]
+#[path = "store_managed_tests.rs"]
+mod managed_tests;

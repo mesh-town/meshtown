@@ -203,7 +203,7 @@ mod expired_issue {
             assert!(removed >= 1, "the cleanup removed no records");
             let hash = head.secret.hash_hex();
             assert_eq!(
-                rig.ledger().verdict(&hash, later).await,
+                rig.ledger().verdict(&hash, later, None).await,
                 IssueVerdict::Unknown
             );
         }

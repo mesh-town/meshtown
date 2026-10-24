@@ -27,6 +27,7 @@ fn head() -> InviteHead {
         network_id: NetworkKey::from_bytes([9u8; 32]).subkeys().network_id,
         label: None,
         made_unix: NOW,
+        kind: NetKind::Peer,
     }
 }
 

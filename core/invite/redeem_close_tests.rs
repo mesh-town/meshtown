@@ -306,6 +306,7 @@ pub(super) fn head() -> InviteHead {
         network_id: own_key().subkeys().network_id,
         label: None,
         made_unix: unix_now(),
+        kind: crate::members::network_key::NetKind::Peer,
     }
 }
 

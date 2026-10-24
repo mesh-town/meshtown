@@ -8,7 +8,7 @@ use std::time::Duration;
 use crate::config::config_file::{NetSettings, TransportMode};
 use crate::transport::net::{NodeSecret, PeerAddr};
 
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetKind, NetworkKey};
 
 use super::identity::{IdentityState, TemporaryReason};
 
@@ -37,6 +37,10 @@ pub struct NodeConfig {
     pub initial_peers: Vec<PeerAddr>,
     /// The network label from the invite or the settings file.
     pub network_label: Option<String>,
+    /// The kind of the network (Peer unless the key says otherwise).
+    pub net_kind: NetKind,
+    /// The secret an invite redemption answers with; equals `network_key` in a Peer network.
+    pub reply_secret: NetworkKey,
     /// File of the peer address cache; `None` — the cache is off (tests, `--no-config`).
     pub peers_cache_path: Option<PathBuf>,
     /// Directory of the document and blob store (the domain list); `None` — in memory (tests,
@@ -60,6 +64,7 @@ impl NodeConfig {
     /// The live path goes through `Settings::node_config`, here SOCKS is off.
     pub fn for_cli(key: NetworkKey, settings: &NetSettings) -> NodeConfig {
         NodeConfig {
+            reply_secret: key.clone(),
             network_key: key,
             settings: settings.clone(),
             probe_first_delay: Duration::from_secs(10),
@@ -72,6 +77,7 @@ impl NodeConfig {
             identity: IdentityState::Temporary(TemporaryReason::Declined),
             initial_peers: vec![],
             network_label: None,
+            net_kind: NetKind::Peer,
             peers_cache_path: None,
             docs_store_dir: None,
             peer_names_path: None,

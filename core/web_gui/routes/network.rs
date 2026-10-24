@@ -9,7 +9,9 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::config::config_file::NetSlotId;
+use crate::members::network_key::{format_key_string, format_managed_key};
 use crate::node::output::NET_NAME;
+use crate::transport::net::PeerId;
 use crate::web_gui::http::json_err;
 use crate::web_gui::net_brief::briefs;
 use crate::web_gui::{App, HostControl, SaveKey, SlotHandle};
@@ -92,6 +94,47 @@ fn adopt_key(
     check_target(app.host.as_ref(), slot, incoming)?;
     let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     cfg.save_network_key(key, keep_ports)
+}
+
+/// Creates the key under `ADOPT` and writes it in the same step: `make` gets the node id of the secret the slot
+/// works with, which is also the secret that goes into its settings file together with the key.
+fn adopt_created(
+    app: &App,
+    slot: &SlotHandle,
+    make: impl FnOnce(&PeerId) -> String,
+    keep_ports: bool,
+) -> Result<String, Response> {
+    let _adopt = ADOPT.lock().unwrap_or_else(|e| e.into_inner());
+    check_target(app.host.as_ref(), slot, None)?;
+    let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    let key = make(&cfg.secret.peer_id());
+    cfg.save_network_key(&key, keep_ports)?;
+    Ok(key)
+}
+
+/// The `kind` field of a create request: missing means Peer; `true` for Managed.
+fn wants_managed(map: &serde_json::Map<String, serde_json::Value>) -> Result<bool, Response> {
+    match map.get("kind") {
+        None => Ok(false),
+        Some(serde_json::Value::String(k)) if k == "Peer" => Ok(false),
+        Some(serde_json::Value::String(k)) if k == "Managed" => Ok(true),
+        Some(_) => {
+            let body = json!({
+                "error": "invalid",
+                "message": "this network type is not known",
+                "fields": [{"path": "kind", "message": "must be \"Peer\" or \"Managed\""}],
+            });
+            Err((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(body)).into_response())
+        }
+    }
+}
+
+/// The key text of a new network: the words form, with the creator's node id in a Managed one.
+fn new_key_text(label: &str, tail: &str, managed: bool, root: &PeerId) -> String {
+    if managed {
+        return format_managed_key(Some(label), tail, root);
+    }
+    format_key_string(Some(label), tail)
 }
 
 /// The "keep port publications" choice from the request body: `true` only for JSON `true`; a missing field,
@@ -191,6 +234,10 @@ pub(super) async fn network_create_handler(
         Err(resp) => return resp,
     };
     let keep_ports = wants_keep_ports(&map);
+    let managed = match wants_managed(&map) {
+        Ok(m) => m,
+        Err(resp) => return resp,
+    };
     let label = match crate::members::network_key::normalize_label(&label_input) {
         Ok(l) => l,
         Err(e) => {
@@ -212,10 +259,11 @@ pub(super) async fn network_create_handler(
             )
         }
     };
-    let key = crate::members::network_key::format_key_string(Some(&label), &tail);
-    if let Err(resp) = adopt_key(&app, &slot, &key, None, keep_ports) {
-        return resp;
-    }
+    let make = |root: &PeerId| new_key_text(&label, &tail, managed, root);
+    let key = match adopt_created(&app, &slot, make, keep_ports) {
+        Ok(key) => key,
+        Err(resp) => return resp,
+    };
     slot.node.switch_network(&key);
     (
         StatusCode::OK,
@@ -231,3 +279,7 @@ mod tests;
 #[cfg(test)]
 #[path = "network_present_tests.rs"]
 mod present_tests;
+
+#[cfg(test)]
+#[path = "network_create_tests.rs"]
+mod create_tests;

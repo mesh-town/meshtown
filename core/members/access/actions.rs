@@ -10,6 +10,8 @@ use crate::node::output::say;
 use crate::transport::net::{NetResult, PeerId};
 use crate::transport::net_mainline::unix_now;
 
+use super::actions_managed::{self, gate, returns};
+use super::authority::Rules;
 use super::record::{self, AclKind, AclValue, Via};
 use super::runtime::Access;
 use super::view::Verdicts;
@@ -30,6 +32,12 @@ pub enum MemberAction {
     Forget(PeerId),
     /// Take the own removal vote back.
     Unforget(PeerId),
+    /// Make a member an administrator of a managed network.
+    Grant(PeerId),
+    /// Take the administrator role away.
+    Revoke(PeerId),
+    /// Delete the network.
+    Close,
     Leave,
 }
 
@@ -45,6 +53,16 @@ pub enum ActionRefusal {
     Online,
     /// The own removal vote of the node does not exist.
     NotForgotten,
+    /// The action needs an administrator and this node is not one.
+    NotAdmin,
+    /// The only administrator may neither leave nor give the role up.
+    LastAdmin,
+    /// The action exists only in a managed network.
+    NotManaged,
+    /// The action exists only in a network without administrators.
+    PeerOnly,
+    /// The network has been deleted.
+    Closed,
     Write(String),
 }
 
@@ -97,13 +115,16 @@ fn keeps_when_forgotten(act: &MemberAction) -> bool {
     )
 }
 
-/// The checks in contract order: left, self target, then the state of the subject.
+/// The checks in contract order: the rules of the network kind, left, self target, then the state of
+/// the subject.
 fn check(
     me: PeerId,
+    rules: Rules,
     v: &Verdicts,
     online: &HashSet<PeerId>,
     act: &MemberAction,
 ) -> Result<(), ActionRefusal> {
+    gate(me, rules, v, act)?;
     let left = v.ledger.excluded.contains_key(&me);
     match (act.clone(), left) {
         (MemberAction::Leave, _) => Ok(()),
@@ -129,7 +150,9 @@ fn check(
         }
         (MemberAction::Forget(p), _) if !v.ledger.is_member(&p) => Err(ActionRefusal::NotMember),
         (MemberAction::Forget(p), _) if online.contains(&p) => Err(ActionRefusal::Online),
-        (MemberAction::Admit(p), _) if confirmed_by(me, v, &p) != Some(false) => {
+        (MemberAction::Admit(p), _)
+            if confirmed_by(me, v, &p) != Some(false) && !returns(rules, v, &p) =>
+        {
             Err(ActionRefusal::NotPending)
         }
         (MemberAction::Unadmit(p), _) if confirmed_by(me, v, &p) != Some(true) => {
@@ -153,6 +176,11 @@ async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
             .await
         }
         MemberAction::Unexclude(p) => record::withdraw(shared, AclKind::Exclude, p).await,
+        MemberAction::Admit(p) if a.rules.is_managed() => {
+            record::rewrite(shared, &value(AclKind::Admit, p))
+                .await
+                .map(|_| true)
+        }
         MemberAction::Admit(p) => record::ensure(shared, &value(AclKind::Admit, p)).await,
         MemberAction::Unadmit(p) => record::withdraw(shared, AclKind::Admit, p).await,
         MemberAction::Block(p) => record::ensure(own, &value(AclKind::Block, p)).await,
@@ -162,6 +190,9 @@ async fn write(a: &Access, v: &Verdicts, act: MemberAction) -> NetResult<bool> {
             .await
             .map(|_| true),
         MemberAction::Unforget(p) => record::withdraw(shared, AclKind::Forget, p).await,
+        MemberAction::Grant(p) => actions_managed::grant(a, v, p).await,
+        MemberAction::Revoke(p) => actions_managed::revoke(a, v, p).await,
+        MemberAction::Close => actions_managed::close(a).await,
         MemberAction::Leave if v.ledger.excluded.contains_key(&a.me) => Ok(false),
         MemberAction::Leave => record::ensure(shared, &value(AclKind::Exclude, a.me)).await,
     }
@@ -173,7 +204,7 @@ pub async fn apply(a: &Access, act: MemberAction) -> Result<bool, ActionRefusal>
         .refresh()
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;
-    check(a.me, &verdicts, &a.members.ids(), &act)?;
+    check(a.me, a.rules, &verdicts, &a.members.ids(), &act)?;
     let changed = write(a, &verdicts, act.clone())
         .await
         .map_err(|e| ActionRefusal::Write(e.to_string()))?;

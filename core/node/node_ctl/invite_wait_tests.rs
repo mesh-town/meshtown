@@ -346,6 +346,7 @@ fn head(label: Option<&str>, made_unix: u64) -> InviteHead {
         network_id: [1, 2, 3, 4],
         label: label.map(str::to_string),
         made_unix,
+        kind: crate::members::network_key::NetKind::Peer,
     }
 }
 

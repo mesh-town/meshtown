@@ -524,6 +524,7 @@ fn invite_head(key: &NetworkKey, made_unix: u64) -> InviteHead {
         network_id: key.subkeys().network_id,
         label: Some("island".to_string()),
         made_unix,
+        kind: meshtown_core::members::network_key::NetKind::Peer,
     }
 }
 

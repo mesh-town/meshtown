@@ -35,10 +35,11 @@ pub enum RedeemCode {
     BadRequest = 6,
     Internal = 7,
     Excluded = 8,
+    NotFromAdmin = 9,
 }
 
 /// All codes in value order.
-const ALL: [RedeemCode; 9] = [
+const ALL: [RedeemCode; 10] = [
     RedeemCode::Ok,
     RedeemCode::NotReady,
     RedeemCode::Busy,
@@ -48,6 +49,7 @@ const ALL: [RedeemCode; 9] = [
     RedeemCode::BadRequest,
     RedeemCode::Internal,
     RedeemCode::Excluded,
+    RedeemCode::NotFromAdmin,
 ];
 
 /// Codes after which it makes sense for the client to retry.
@@ -168,6 +170,7 @@ pub fn code_from(v: IssueVerdict) -> RedeemCode {
         IssueVerdict::Expired => RedeemCode::Expired,
         IssueVerdict::Unknown => RedeemCode::Unknown,
         IssueVerdict::NotReady => RedeemCode::NotReady,
+        IssueVerdict::NotAdmin => RedeemCode::NotFromAdmin,
     }
 }
 

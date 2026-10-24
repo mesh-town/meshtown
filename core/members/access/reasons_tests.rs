@@ -33,6 +33,8 @@ fn ledger(pending: &[(PeerId, &[PeerId])]) -> Ledger {
         admit_unix: Default::default(),
         forget_marks: Default::default(),
         forget_need: 1,
+        admins: Default::default(),
+        closed: None,
     }
 }
 

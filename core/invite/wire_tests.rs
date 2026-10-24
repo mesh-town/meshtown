@@ -177,8 +177,8 @@ mod reply {
         use super::*;
 
         #[test]
-        fn unknown_code_nine_is_rejected() {
-            let frame = raw_reply(REDEEM_FRAME_KIND, 9, [0; 32]);
+        fn unknown_code_ten_is_rejected() {
+            let frame = raw_reply(REDEEM_FRAME_KIND, 10, [0; 32]);
             assert!(parse_invite_reply(&frame).is_none());
         }
 
@@ -210,100 +210,6 @@ mod reply {
         fn foreign_version_is_rejected_for_a_refusal_too() {
             let frame = raw_reply(0, 3, [0; 32]);
             assert!(parse_invite_reply(&frame).is_none());
-        }
-    }
-}
-
-mod code_numbers {
-    use super::*;
-
-    #[test]
-    fn values_are_fixed() {
-        let want = [
-            (RedeemCode::Ok, 0u8),
-            (RedeemCode::NotReady, 1),
-            (RedeemCode::Busy, 2),
-            (RedeemCode::Used, 3),
-            (RedeemCode::Expired, 4),
-            (RedeemCode::Unknown, 5),
-            (RedeemCode::BadRequest, 6),
-            (RedeemCode::Internal, 7),
-            (RedeemCode::Excluded, 8),
-        ];
-        for (code, number) in want {
-            assert_eq!(code as u8, number, "{code:?}");
-        }
-    }
-
-    #[test]
-    fn excluded_is_code_8_and_not_retryable() {
-        assert_eq!(RedeemCode::Excluded as u8, 8);
-        assert_eq!(RedeemCode::from_u8(8), Some(RedeemCode::Excluded));
-        assert!(
-            !RedeemCode::Excluded.is_retryable(),
-            "an excluded key stays excluded: no point in retrying"
-        );
-    }
-
-    #[test]
-    fn code_9_is_unknown() {
-        assert_eq!(RedeemCode::from_u8(9), None);
-    }
-
-    #[test]
-    fn from_u8_inverts_the_numbers() {
-        for (code, number) in all_codes() {
-            assert_eq!(RedeemCode::from_u8(number), Some(code), "number {number}");
-        }
-    }
-
-    #[test]
-    fn from_u8_rejects_numbers_past_the_last_code() {
-        for number in [9u8, 10, 100, 255] {
-            assert_eq!(RedeemCode::from_u8(number), None, "number {number}");
-        }
-    }
-}
-
-mod retry_flag {
-    use super::*;
-
-    #[test]
-    fn true_exactly_for_not_ready_busy_and_internal() {
-        for (code, number) in all_codes() {
-            let must_retry = matches!(number, 1 | 2 | 7);
-            assert_eq!(
-                code.is_retryable(),
-                must_retry,
-                "{code:?} (number {number})"
-            );
-        }
-    }
-}
-
-mod code_from_verdict {
-    use super::*;
-
-    #[test]
-    fn every_verdict_maps_to_its_own_code() {
-        for verdict in all_verdicts() {
-            let want = match verdict {
-                IssueVerdict::Grant => RedeemCode::Ok,
-                IssueVerdict::Used => RedeemCode::Used,
-                IssueVerdict::Expired => RedeemCode::Expired,
-                IssueVerdict::Unknown => RedeemCode::Unknown,
-                IssueVerdict::NotReady => RedeemCode::NotReady,
-            };
-            assert_eq!(code_from(verdict), want);
-        }
-    }
-
-    #[test]
-    fn not_ready_is_the_only_retried_verdict() {
-        // "Document not ready yet" — retry; redeemed, expired, unknown — final.
-        for verdict in all_verdicts() {
-            let retried = matches!(verdict, IssueVerdict::NotReady);
-            assert_eq!(code_from(verdict).is_retryable(), retried);
         }
     }
 }
@@ -381,3 +287,5 @@ fn all_verdicts() -> [IssueVerdict; 5] {
 
 #[path = "wire_owner_tests.rs"]
 mod owner_frame;
+#[path = "wire_managed_tests.rs"]
+mod managed;

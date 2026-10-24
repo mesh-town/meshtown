@@ -24,6 +24,7 @@ fn input(me: PeerId, rows: &[Row]) -> TallyInput {
         votes: Vec::new(),
         forgets: Vec::new(),
         rules: Rules::Peer,
+        powers: vec![],
     }
 }
 

@@ -12,7 +12,7 @@ use tokio::sync::{mpsc, watch, Notify};
 
 use crate::exit::{Clients, ExitTraffic};
 use crate::members::membership::Members;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetKind, NetworkKey};
 use crate::node::node_name::effective_node_name;
 use crate::node::output::say;
 use crate::node::telemetry::Telemetry;
@@ -60,6 +60,10 @@ pub struct RunningNode {
     pub identity: IdentityState,
     /// The network key the node was started with.
     pub network_key: NetworkKey,
+    /// The kind of the network.
+    pub net_kind: NetKind,
+    /// The secret an invite redemption answers with; equals `network_key` in a Peer network.
+    pub reply_secret: NetworkKey,
     /// The network label from the invite or the settings file.
     pub network_label: Option<String>,
     /// The node's live state for the page (relay, NAT, DHT, RSS, members).
@@ -172,6 +176,8 @@ impl RunningNode {
             stack: self.stack.clone(),
             members: self.members.clone(),
             key: self.network_key.clone(),
+            kind: self.net_kind,
+            reply_secret: self.reply_secret.clone(),
             label: self.network_label.clone(),
             domains: self.domains.clone(),
         }

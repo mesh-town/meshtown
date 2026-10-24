@@ -17,6 +17,7 @@ fn removed_here_never_lists_me() {
         votes: Vec::new(),
         forgets: Vec::new(),
         rules: Rules::Peer,
+        powers: vec![],
     });
     for subject in [me, other] {
         let round = ForgetRound {

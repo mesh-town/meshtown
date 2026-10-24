@@ -31,6 +31,8 @@ fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
         admit_unix: Default::default(),
         forget_marks: Default::default(),
         forget_need: 1,
+        admins: Default::default(),
+        closed: None,
     };
     Verdicts {
         me: pid(1),

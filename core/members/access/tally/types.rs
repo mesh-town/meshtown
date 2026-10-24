@@ -7,6 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::transport::net::PeerId;
 
+use super::super::authority::PowerIn;
 use super::super::record::Via;
 use super::{ForgetIn, ForgetRound, Rules};
 
@@ -35,6 +36,8 @@ pub struct TallyInput {
     pub votes: Vec<VoteIn>,
     pub forgets: Vec<ForgetIn>,
     pub rules: Rules,
+    /// Records of power; only an administered network reads them.
+    pub powers: Vec<PowerIn>,
 }
 
 /// How a node was excluded.
@@ -67,6 +70,13 @@ pub struct Admission {
     pub label: Option<String>,
 }
 
+/// The closing of a network by an administrator.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Closed {
+    pub by: PeerId,
+    pub at_unix: u64,
+}
+
 /// The result of a tally.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ledger {
@@ -88,9 +98,17 @@ pub struct Ledger {
     /// Votes needed to forget a node now: the threshold of the forget pass, which counts the nodes that
     /// only a dead admission lets in, so it may differ from `need`.
     pub forget_need: u8,
+    /// Administrators; empty in a peer network.
+    pub admins: BTreeSet<PeerId>,
+    /// Set when an administrator closed the network.
+    pub closed: Option<Closed>,
 }
 
 impl Ledger {
+    pub fn is_admin(&self, p: &PeerId) -> bool {
+        self.admins.contains(p)
+    }
+
     pub fn is_member(&self, p: &PeerId) -> bool {
         self.admitted.contains(p) && !self.excluded.contains_key(p) && !self.is_forgotten(p)
     }
