@@ -1,7 +1,7 @@
 /* The tab of a network this computer is out of: the card's button opens the one invite form under the card, in the same tab.
  * Network A is `main` ("friends"), network B is `k7q2xa` ("my devices"); in B the other members removed this computer or banned it. */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
 import { NET_A, NET_B, twoNets } from "../testing/overview-fixtures.mjs";
@@ -55,11 +55,15 @@ describe("the tab of a removed or banned computer", () => {
   });
 
   it("a refused join: no waiting line, the refusal is under the button in the error style, inside the card", async () => {
-    const page = await openTab({ members: banned(), refused: true });
+    const page = await openTab({ members: banned() });
     page.node.routes["POST /api/network/join"] = { label: "my devices", restart: false, slot: NET_B };
     await page.click("#members-removed-join");
     await page.type("#rejoin-input", INVITE);
     await page.click("#rejoin-btn");
+    const slot = page.node.slotList.find((s) => s.id === NET_B);
+    slot.state = { ...slot.state, node: { ...slot.state.node, invite_join: { state: "refused", message: REFUSED } } };
+    await vi.advanceTimersByTimeAsync(5000);
+    await settle();
     expect(page.has("#rejoin-status"), "the waiting line is gone").toBe(false);
     const card = page.wrapper.get("#rejoin-card").element;
     const refusal = card.querySelector("#rejoin-refused");

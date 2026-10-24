@@ -13,7 +13,7 @@ import { openNetText } from "./add-net-texts.ts";
 import { ADD_NET_LIMIT_HERE } from "./invite-join-texts.ts";
 import { useInspectPreview } from "./inspect-preview.ts";
 import { inviteFromSearch, withoutInvite } from "./invite-param.ts";
-import { isInvite, netTitle, placeNote, sendInvite } from "./invite-join-actions.ts";
+import { isInvite, netTitle, placeNote, refusalForeseen, sendInvite } from "./invite-join-actions.ts";
 import type { InviteContext, InviteFormState, InviteOutcome } from "./invite-join-actions.ts";
 import { afterMainJoin, createJoinForm, markFor } from "./join-actions.ts";
 
@@ -91,7 +91,9 @@ export function useInviteJoin(store: Store, ctx: InviteContext, deps: HomeDeps =
   // Home: the mark of the first setup is decided before the request, while the node still has no network.
   async function submit(): Promise<InviteOutcome> {
     const mark = ctx.kind === "home" ? markFor(store) : null;
+    const foreseen = refusalForeseen(reply.value, store.nets);
     const res = await sendOrRefuse();
+    if (res === "waiting" && foreseen) form.status = "";
     outcome.value = ctx.kind === "home" ? afterMainJoin(form, store, deps, res, mark) : res;
     if (spent(res)) heldInvite = "";
     return res;

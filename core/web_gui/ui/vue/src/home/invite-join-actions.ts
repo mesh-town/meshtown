@@ -52,10 +52,16 @@ export function netTitle(nets: NetBrief[], slot: string | undefined, label: stri
   return slot && nets.some((n) => n.id === slot) ? netName(nets, slot) : label || NOTE_THIS_NET;
 }
 
+const bannedHere = (reply: InspectResponse, nets: NetBrief[]): boolean => nets.some((n) => n.id === reply.slot && n.me_excluded);
+
+/** The invite leads back to a Peer network that banned this computer: the members' refusal is already known. */
+export function refusalForeseen(reply: InspectResponse | null | undefined, nets: NetBrief[]): boolean {
+  return !!reply && reply.place === "return" && reply.kind !== "Managed" && bannedHere(reply, nets);
+}
+
 function returnNote(reply: InspectResponse, nets: NetBrief[], name: string): string {
-  const excluded = nets.some((n) => n.id === reply.slot && n.me_excluded);
-  if (!excluded) return NOTE_REMOVED(name);
-  return reply.kind === "Managed" ? NOTE_EXCLUDED_MANAGED(name) : NOTE_BANNED_PEER(name);
+  if (!bannedHere(reply, nets)) return NOTE_REMOVED(name);
+  return refusalForeseen(reply, nets) ? NOTE_BANNED_PEER(name) : NOTE_EXCLUDED_MANAGED(name);
 }
 
 /** The line under the field about the place the invite leads to; empty for a new network (unless the node is at its limit) and for a key. */

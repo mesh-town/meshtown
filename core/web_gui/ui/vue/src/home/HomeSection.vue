@@ -45,7 +45,10 @@ const outOfNet = computed(() => excluded.value || removed.value);
     <template v-else>
       <HomeTabs />
       <div id="home-tabpanel" role="tabpanel" :aria-labelledby="'home-tab-' + activeTab">
-        <SetupWizard v-if="activeTab === 'wizard'" />
+        <template v-if="activeTab === 'wizard'">
+          <AdmissionRefused :members="store.members" :net='netName(store.nets, "main")' />
+          <SetupWizard />
+        </template>
         <template v-else>
           <UpdateBanner />
           <AdmissionRefused :members="store.members" :net='netName(store.nets, "main")' />

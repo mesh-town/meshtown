@@ -12,6 +12,7 @@ import type { InviteFormIds } from "../home/use-invite-join.ts";
 import type { InviteOutcome } from "../home/invite-join-actions.ts";
 
 const props = defineProps<{ slot: string; net: string; variant: "banned" | "left" | "forgotten"; managed: boolean; refused?: string | null }>();
+const emit = defineEmits<{ attempt: [] }>();
 const store = inject(STORE_KEY)!;
 const invite = useInviteJoin(store, { kind: "rejoin", slot: props.slot });
 const arrival = useArrival(store);
@@ -39,7 +40,7 @@ defineExpose({ focus: invite.focus });
 
 <template>
   <div id="rejoin-card" class="card" role="region" aria-labelledby="rejoin-title">
-    <InviteForm :join="invite" :ids="ids" :title="title" @done="arrived">
+    <InviteForm :join="invite" :ids="ids" :title="title" @done="arrived" @start="emit('attempt')">
       <template #hint>
         <p class="hint" id="rejoin-hint">{{ hint }}</p>
       </template>

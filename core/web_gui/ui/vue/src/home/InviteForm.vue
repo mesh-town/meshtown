@@ -13,7 +13,7 @@ import { highlightParts } from "./join-actions.ts";
 import type { InviteFormIds, InviteJoin } from "./use-invite-join.ts";
 
 const props = defineProps<{ join: InviteJoin; ids: InviteFormIds; title?: string; button?: string; busy?: string }>();
-const emit = defineEmits<{ done: [outcome: InviteOutcome, slot: string | null] }>();
+const emit = defineEmits<{ done: [outcome: InviteOutcome, slot: string | null]; start: [] }>();
 const store = inject(STORE_KEY)!;
 const { form, input, preview, note, noteLink, outcome } = props.join;
 const errorParts = computed(() => (form.inviteError ? highlightParts(form.inviteError.message, form.inviteError.word) : []));
@@ -29,6 +29,7 @@ const open = (slot: string | undefined): void => {
 };
 
 async function go(): Promise<void> {
+  if (form.inviteInput.trim()) emit("start");
   const result = await props.join.submit();
   emit("done", result, form.slot ?? null);
 }

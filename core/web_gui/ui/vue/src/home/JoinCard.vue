@@ -12,6 +12,7 @@ import type { InviteFormIds } from "./use-invite-join.ts";
 import { netName } from "../core/slots.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
 import { useJoin } from "./use-join.ts";
+import { useRefusalGate } from "./use-refusal-gate.ts";
 import { inviteWaitText, refusedLead, refusedText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
 import {
@@ -47,19 +48,20 @@ const hint = computed(() => {
   if (gone.value) return (managed.value ? HOME_ASK_ADMIN_HINT : HOME_ASK_MEMBER_HINT)(netLabel.value);
   return hasNet.value && form.inviteInput.trim() && !isInvite(form.inviteInput) ? HOME_JOIN_KEY_HINT(netLabel.value) : "";
 });
-const leadText = computed(() => (props.quiet ? "" : refusedLead(store.state?.node?.invite_join)));
+const refusal = useRefusalGate(() => store.state?.node?.invite_join);
+const leadText = computed(() => (props.quiet ? "" : refusedLead(refusal.info.value)));
 // A refusal is told as an error right under the Join button; the waiting line stays below the card.
-const refusedNow = computed(() => !props.quiet && refusedText(store.state?.node?.invite_join) !== null);
-const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
+const refusedNow = computed(() => !props.quiet && refusedText(refusal.info.value) !== null);
+const waitText = computed(() => (props.quiet ? "" : inviteWaitText(refusal.info.value)));
 // "Invite accepted. Waiting…" is stale once the node reports a refusal, and doubles the waiting line: one line stays.
-const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null && !waitText.value ? form.status : ""));
+const statusText = computed(() => (refusedText(refusal.info.value) === null && !waitText.value ? form.status : ""));
 </script>
 
 <template>
   <div id="join-card" role="region" aria-labelledby="join-card-title">
     <div class="step-head"><h2 id="join-card-title">{{ heading }}</h2></div>
     <div id="join-box" :hidden="!showJoin">
-      <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived">
+      <InviteForm :join="j.invite" :ids="ids" :button="button" @done="arrived" @start="refusal.dismiss">
         <template #hint>
           <p class="hint" id="net-restart-hint" :hidden="!hint">{{ hint }}</p>
         </template>
