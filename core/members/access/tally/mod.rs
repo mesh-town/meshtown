@@ -56,3 +56,15 @@ mod forget_marks_tests;
 #[cfg(test)]
 #[path = "forget_need_tests.rs"]
 mod forget_need_tests;
+
+#[cfg(test)]
+#[path = "characterization_tests.rs"]
+mod characterization_tests;
+
+#[cfg(test)]
+#[path = "characterization_cascade_tests.rs"]
+mod characterization_cascade_tests;
+
+#[cfg(test)]
+#[path = "characterization_forget_tests.rs"]
+mod characterization_forget_tests;
