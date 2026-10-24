@@ -30,6 +30,7 @@ const { activeTab, panel, ring, order, multi, chips } = home;
 // A computer that is out of the network: the card and the way back (an invite) instead of the usual cards.
 const { excluded, variant, net } = useExcluded(store);
 const removed = computed(() => isMeRemoved(store.members));
+const managedHere = computed(() => store.state?.network?.kind === "Managed");
 const outOfNet = computed(() => excluded.value || removed.value);
 const { joinAnother } = useMembersActions(store);
 </script>
@@ -38,7 +39,7 @@ const { joinAnother } = useMembersActions(store);
   <div id="home-root">
     <div v-if="store.state === null" class="card"><p class="hint">{{ HOME_LOADING }}</p></div>
     <template v-else-if="outOfNet">
-      <ExcludedCard :variant="variant" :net="net" @join="joinAnother" />
+      <ExcludedCard :variant="variant" :net="net" :managed="managedHere" @join="joinAnother" />
       <div class="card"><JoinCard :removed="removed && !excluded" /></div>
     </template>
     <template v-else>
