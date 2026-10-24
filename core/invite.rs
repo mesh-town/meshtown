@@ -194,8 +194,9 @@ impl Issued {
     /// Writes the issue record, collects the holders (members that saved their copy) and returns
     /// the string with them first; if writing the issue record fails — there is no string.
     pub async fn commit(self) -> Result<Dealt> {
+        let issuer = self.head.kind.root().map(|_| self.own_addr.id);
         self.ledger
-            .issue(&self.hash, &self.record)
+            .issue_as(&self.hash, &self.record, issuer)
             .await
             .context("writing the invite into the network document failed")?;
         let frame = hold_wire::hold_frame(

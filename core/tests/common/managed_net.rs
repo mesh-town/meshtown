@@ -5,6 +5,7 @@
 #![allow(dead_code)] // each test crate takes its own subset
 
 use std::collections::BTreeSet;
+use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
 use meshtown_core::invite::redeem::{redeem, Progress, RedeemError};
@@ -24,8 +25,13 @@ pub(crate) const ROOT_SEED: u8 = 31;
 /// How long a wait for a view or a replicated record may take.
 pub(crate) const VIEW_LIMIT: Duration = Duration::from_secs(20);
 
+/// The nodes of every test share one in-process network and the same permanent keys, so the tests of a file
+/// run one at a time: a `ManagedNet` holds this lock until it is dropped.
+static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
+
 /// A Managed network: the base its key is derived from, the creator and the derived key.
 pub(crate) struct ManagedNet {
+    _turn: MutexGuard<'static, ()>,
     pub(crate) base: NetworkKey,
     pub(crate) root_secret: NodeSecret,
     pub(crate) root: PeerId,
@@ -38,7 +44,9 @@ impl ManagedNet {
         let root_secret = NodeSecret::from_bytes(&[ROOT_SEED; 32]);
         let root = root_secret.peer_id();
         let key = managed_key(&base.to_bytes(), &root);
+        let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
         ManagedNet {
+            _turn,
             base,
             root_secret,
             root,

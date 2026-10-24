@@ -10,6 +10,7 @@
 use meshtown_core::invite::redeem::RedeemError;
 use meshtown_core::invite::store::{issue_record, IssueVerdict, Ledger};
 use meshtown_core::invite::{self, InviteHead, InviteSecret, NotAdmin};
+use meshtown_core::members::access::actions::{apply, MemberAction};
 use meshtown_core::members::network_key::{NetKind, NetworkKey};
 use meshtown_core::node::RunningNode;
 use meshtown_core::transport::net::NodeSecret;
@@ -32,6 +33,7 @@ use mesh::{deal, source_of};
 /// The permanent key seeds of the newcomers.
 const FIRST_SEED: u8 = 5;
 const SECOND_SEED: u8 = 6;
+const THIRD_SEED: u8 = 7;
 
 mod creator_invites {
     use super::*;
@@ -120,6 +122,54 @@ mod plain_member_writes_the_issue_itself {
         let got = redeem_as(SECOND_SEED, &forged, &peers).await;
         // then: the final refusal, not a key and not a timeout
         assert_eq!(got.err(), Some(RedeemError::NotFromAdmin));
+        member.shutdown().await;
+        root.shutdown().await;
+    }
+}
+
+mod demoted_admin_invites {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn earlier_newcomer_stays_and_later_one_is_refused() {
+        // given: a member made an admin, two invites of it held by the creator, one of them redeemed
+        let (_net, root, member) = joined_member().await;
+        let granted = apply(&root.access, MemberAction::Grant(member.id)).await;
+        assert_eq!(
+            granted,
+            Ok(true),
+            "the creator must make the member an admin"
+        );
+        wait_can_invite(&member).await;
+        let (first_dealt, first) = deal(&member).await;
+        let (second_dealt, second) = deal(&member).await;
+        for dealt in [&first_dealt, &second_dealt] {
+            assert!(
+                dealt.holders.contains(&root.id),
+                "the creator must hold a copy of the admin's invite"
+            );
+        }
+        let root_only = [addr_of(&root)];
+        let answer = redeem_as(THIRD_SEED, &first.head, &root_only)
+            .await
+            .expect("the invite of an admin must be redeemed");
+        let earlier = start_joined(&first.head, &answer, THIRD_SEED, root_only.to_vec()).await;
+        wait_both_members(&earlier, &root).await;
+        // when: the creator demotes the member, then the second invite is redeemed
+        let revoked = apply(&root.access, MemberAction::Revoke(member.id)).await;
+        assert_eq!(revoked, Ok(true), "the creator must demote the member");
+        let got = redeem_as(SECOND_SEED, &second.head, &root_only).await;
+        // then: the copy of a demoted issuer is refused; those who joined earlier stay members
+        assert_eq!(got.err(), Some(RedeemError::NotFromAdmin));
+        assert!(
+            root.members.is_member(earlier.id),
+            "the earlier newcomer was cut off"
+        );
+        assert!(
+            root.members.is_member(member.id),
+            "the demoted member was cut off"
+        );
+        earlier.shutdown().await;
         member.shutdown().await;
         root.shutdown().await;
     }

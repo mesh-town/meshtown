@@ -21,7 +21,7 @@ use crate::invite::wire::{
 use crate::invite::wire::{encode_owner_request, OWNER_REQUEST_LEN};
 use crate::invite::InviteSecret;
 use crate::members::access::view::AccessView;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetKind, NetworkKey};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::facade::test_support::{pid, secret, within};
 use crate::transport::net::{
@@ -210,6 +210,8 @@ struct Opts {
     access: AccessView,
     /// The filled domain list; none by default (the cell stays empty).
     list: Option<DomainList>,
+    /// The kind of the network; a Peer one by default.
+    kind: NetKind,
 }
 
 /// The server on node B of the `mem` network and the client on node A.
@@ -228,7 +230,8 @@ fn setup(opts: Opts) -> Fixture {
     inbox.serve(&[INVITE]);
     let cell = Arc::new(OnceLock::new());
     opts.list.into_iter().for_each(|list| drop(cell.set(list)));
-    let server = InviteServer::new(NetworkKey::from_bytes(KEY), cell, opts.access);
+    let server = InviteServer::new(NetworkKey::from_bytes(KEY), cell, opts.access)
+        .of_kind(opts.kind, NetworkKey::from_bytes(KEY));
     let held = match opts.slots_full {
         true => take_all_slots(&server),
         false => Vec::new(),
@@ -351,3 +354,6 @@ fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
 
 #[path = "server_owner_frame_tests.rs"]
 mod owner_frame_flow;
+
+#[path = "server_hold_tests.rs"]
+mod hold_flow;
