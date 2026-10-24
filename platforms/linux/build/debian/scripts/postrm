@@ -1,0 +1,12 @@
+#!/bin/sh
+# Reload systemd after the unit file is gone. /etc/meshtown (network key, node identity) is kept.
+set -e
+
+case "$1" in
+    remove|purge) ;;
+    *) exit 0 ;;
+esac
+
+[ -d "$DPKG_ROOT/run/systemd/system" ] || exit 0
+systemctl daemon-reload || true
+exit 0

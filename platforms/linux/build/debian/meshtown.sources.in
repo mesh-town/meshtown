@@ -1,0 +1,6 @@
+Types: deb
+URIs: https://mesh-town.github.io/meshtown-dist/linux/debian
+Suites: stable
+Components: main
+Architectures: @ARCH@
+Signed-By: /usr/share/keyrings/meshtown.gpg

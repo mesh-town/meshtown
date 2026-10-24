@@ -1,0 +1,19 @@
+#!/bin/sh
+# First install: register the unit only. Upgrade: restart the service if it is running.
+set -e
+
+[ "$1" = configure ] || exit 0
+
+if [ -e "$DPKG_ROOT/etc/systemd/system/meshtown.service" ]; then
+    echo "meshtown: /etc/systemd/system/meshtown.service is present; systemd is left untouched"
+    exit 0
+fi
+[ -d "$DPKG_ROOT/run/systemd/system" ] || exit 0
+
+systemctl daemon-reload || true
+if [ -z "$2" ]; then
+    echo "meshtown: the service is installed but not enabled; start it with: sudo systemctl enable --now meshtown"
+else
+    systemctl try-restart meshtown.service || true
+fi
+exit 0

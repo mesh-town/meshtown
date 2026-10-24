@@ -1,0 +1,12 @@
+#!/bin/sh
+# Removal stops and disables the service; an upgrade leaves it to postinst.
+set -e
+
+[ "$1" = remove ] || exit 0
+
+if [ -e "$DPKG_ROOT/etc/systemd/system/meshtown.service" ] || [ ! -d "$DPKG_ROOT/run/systemd/system" ]; then
+    exit 0
+fi
+systemctl stop meshtown.service || true
+systemctl disable meshtown.service || true
+exit 0

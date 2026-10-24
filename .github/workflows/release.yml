@@ -131,6 +131,7 @@ jobs:
     env:
       VERSION: ${{ needs.check-tag.outputs.version }}
       DIST_DEPLOY_KEY: ${{ secrets.DIST_DEPLOY_KEY }}
+      DIST_APT_KEY: ${{ secrets.DIST_APT_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -165,18 +166,26 @@ jobs:
             cp "assets/meshtown-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-linux-${arch}-${VERSION}.tar.gz"
             cp "assets/meshtown-cli-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-cli-linux-${arch}-${VERSION}.tar.gz"
           done
+          umask 077
+          apt_key="$RUNNER_TEMP/apt-key.asc"
+          if [ -z "$DIST_APT_KEY" ]; then
+            echo "::notice::DIST_APT_KEY is not set; the apt repository is not updated"
+          else
+            printf '%s\n' "$DIST_APT_KEY" > "$apt_key"
+            export MESHTOWN_APT_KEY="$apt_key"
+            scripts/release/dist/build_debs.sh assets dist-src/linux/debian "$VERSION"
+          fi
           if [ -f "apk/meshtown-${VERSION}.apk" ] && [ -f apk/signed.txt ]; then
             mkdir dist-src/android
             cp "apk/meshtown-${VERSION}.apk" dist-src/android/
           else
             echo "::notice::no signed APK: android/ is not updated"
           fi
-          umask 077
           key="$RUNNER_TEMP/deploy-key"
           printf '%s\n' "$DIST_DEPLOY_KEY" > "$key"
           export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           scripts/release/dist/publish.sh dist-src "$VERSION"
-          rm -f "$key"
+          rm -f "$key" "$apt_key"
 
   tap:
     name: notify Homebrew tap
