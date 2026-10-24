@@ -14,6 +14,7 @@ of every file under their version numbers.
 | Linux, aarch64 | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz |
 | Linux, x86_64, console only | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-cli-linux-x86_64.tar.gz |
 | Linux, aarch64, console only | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-cli-linux-aarch64.tar.gz |
+| Debian, Ubuntu (apt) | https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb (`meshtown_arm64.deb` on arm64), then `sudo apt install ./meshtown_amd64.deb` |
 | Android | https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk |
 | Routers (OpenWrt) | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh`, run on the router as root |
 | Keenetic routers (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh`, run on the router over SSH |

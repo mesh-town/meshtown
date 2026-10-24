@@ -1,0 +1,19 @@
+[Unit]
+Description=Mesh Town node
+Documentation=https://github.com/mesh-town/meshtown
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/meshtown run --config /etc/meshtown/config.json
+ConfigurationDirectory=meshtown
+ConfigurationDirectoryMode=0700
+Environment=NO_COLOR=1
+LimitNOFILE=4096
+TimeoutStopSec=15
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

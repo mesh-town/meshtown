@@ -12,6 +12,10 @@ at a time: they share their settings.
 
 Check the download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missing`) before running it.
 
+## Debian and Ubuntu
+
+The [`debian/`](debian/README.md) folder is an apt repository with a signed `.deb` package for amd64 and arm64.
+
 ## Versions
 
 @TABLE@

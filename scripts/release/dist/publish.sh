@@ -5,6 +5,9 @@
 # folders present in <src-dir> are updated: each kind of file keeps its four (keep) newest versions plus <stem>.<ext>,
 # a copy of the newest one. The other folders, and the older files, are taken from the current main of the repository
 # unchanged. Every folder gets SHA256SUMS and README.md; the root gets README.md and version.txt.
+# A folder linux/debian/ in <src-dir> is an apt repository: its packages go to pool/, dists/ is rebuilt and signed
+# with the key file MESHTOWN_APT_KEY (required then; MESHTOWN_APT_PUBKEY overrides the public key). Without it in
+# <src-dir>, linux/debian/ comes from the current main. The root gets an empty .nojekyll: Pages serves the tree as is.
 # The ssh key, if any, comes from GIT_SSH_COMMAND of the caller; the repository URL can be overridden with
 # MESHTOWN_DIST_PUBLISH_URL.
 set -euo pipefail
@@ -32,6 +35,14 @@ for d in "$src"/*/; do
     *) echo "publish.sh: unknown folder in $src: ${d##*/}" >&2; exit 1 ;;
   esac
 done
+
+deb_src="$src/linux/debian"
+if [ -d "$deb_src" ]; then
+  if [ -z "${MESHTOWN_APT_KEY:-}" ] || [ ! -f "$MESHTOWN_APT_KEY" ]; then
+    echo "publish.sh: $deb_src needs MESHTOWN_APT_KEY (a key file); the apt repository is never published unsigned" >&2
+    exit 1
+  fi
+fi
 
 work="$(mktemp -d)"
 prev="$(mktemp -d)"
@@ -68,11 +79,20 @@ for folder in $folders; do
     render "$here/templates/$folder.md.in" "$version" "$prev/table" > "$work/$folder/README.md"
   fi
 done
+if [ -d "$deb_src" ]; then
+  deb_args=("$work/linux/debian" "$deb_src" --keep "$keep" --key "$MESHTOWN_APT_KEY")
+  if [ -n "${MESHTOWN_APT_PUBKEY:-}" ]; then deb_args+=(--pubkey "$MESHTOWN_APT_PUBKEY"); fi
+  python3 "$here/../../../platforms/linux/build/debian/apt_repo.py" update "${deb_args[@]}"
+  write_sums "$work/linux/debian"
+  deb_table "$work/linux/debian" "$dist_pages_url/linux/debian" > "$prev/table"
+  render "$here/templates/debian.md.in" "$version" "$prev/table" > "$work/linux/debian/README.md"
+fi
 if [ "$published" -eq 0 ]; then
   echo "publish.sh: $src has no system folders" >&2
   exit 1
 fi
 printf '%s\n' "$version" > "$work/version.txt"
+: > "$work/.nojekyll"
 render "$here/templates/root.md.in" "$version" /dev/null > "$work/README.md"
 
 cd "$work"

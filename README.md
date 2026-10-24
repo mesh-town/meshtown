@@ -90,6 +90,7 @@ Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md
 | macOS | `brew install mesh-town/meshtown/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
 | Windows | [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) (tray) or [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
 | Linux | [x86_64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) · [aarch64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
+| Debian, Ubuntu | [meshtown_amd64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb) · [meshtown_arm64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_arm64.deb), then `sudo apt install ./meshtown_<arch>.deb`; updates come with `apt upgrade` ([details](docs/INSTALL.md#debian-ubuntu-apt)) |
 | Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) |
 | OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
 | Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |

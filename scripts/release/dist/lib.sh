@@ -4,6 +4,7 @@
 # "<stem>|<ext>"; the extension is one of tar.gz, zip, exe, apk.
 
 dist_base_url="https://github.com/mesh-town/meshtown-dist/raw/main"
+dist_pages_url="https://mesh-town.github.io/meshtown-dist"
 dist_name_re='^(.+)-([0-9]+\.[0-9]+\.[0-9]+)\.(tar\.gz|zip|exe|apk)$'
 
 # sha256_of <file>: the SHA-256 digest of a file (GNU sha256sum, or shasum on macOS).
@@ -82,4 +83,26 @@ render() {
       printf '%s\n' "${line//@VERSION@/$2}"
     fi
   done < "$1"
+}
+
+# deb_table <dir> <url>: a markdown table "file -> link" of the apt repository folder <dir> published at <url>: the
+# direct links to the newest packages, then the packages of the pool by version, newest first.
+deb_table() {
+  local arch v f name
+  printf '| File | Link |\n|---|---|\n'
+  for arch in amd64 arm64; do
+    if [ -f "$1/meshtown_$arch.deb" ]; then
+      printf '| `meshtown_%s.deb` (latest) | %s/meshtown_%s.deb |\n' "$arch" "$2" "$arch"
+    fi
+  done
+  for arch in amd64 arm64; do
+    for f in "$1"/pool/main/m/meshtown/meshtown_*_"$arch".deb; do
+      [ -f "$f" ] || continue
+      name="${f##*/}"
+      v="${name#meshtown_}"
+      printf '%s %s\n' "${v%%_*}" "$name"
+    done | sort -t. -k1,1nr -k2,2nr -k3,3nr | while read -r _ name; do
+      printf '| `%s` | %s/pool/main/m/meshtown/%s |\n' "$name" "$2" "$name"
+    done
+  done
 }
