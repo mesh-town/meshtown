@@ -129,8 +129,9 @@ export const forgetEffectLine = (): string =>
   "It disappears from the member list on every computer in the network and can't connect until it joins again. To bring it back, send it a new invite.";
 export const forgetNeedTwoLine = (name: string): string =>
   "This takes two members: you propose, and one more member confirms. On this computer, " + name + " is hidden right away.";
+// With no third member `other` is empty: the two of you are the target and this computer.
 export const forgetOnlyTwoLine = (name: string, other: string): string =>
-  "You and " + other + " are the only members, so " + name + " is removed right away.";
+  "You and " + (other || name) + " are the only members, so " + name + " is removed right away.";
 export const forgetConfirmTitle = (name: string): string => "Confirm removing " + name + "?";
 export const forgetConfirmLine = (name: string): string => "Yours is the second vote: " + name + " is removed for everyone right away.";
 export const FORGET_PROPOSE = "Propose removal";
