@@ -134,6 +134,26 @@ fn a_failed_boot_keeps_the_file() {
 }
 
 #[test]
+fn a_failed_flush_keeps_the_file() {
+    // given: a finished boot whose flush failed
+    let (dir, slot_file, _) = slot_with_host("flush");
+    let res = saved(
+        &Ok::<usize, String>(1),
+        Err::<(), String>("disk full".into()),
+    );
+    // when: the file is to be forgotten
+    forget_after_boot(&res, Some(&slot_file));
+    // then: the file stays for the next start; a flush that worked lets it go
+    assert!(invited_exists(&dir));
+    forget_after_boot(
+        &saved(&Ok::<usize, String>(1), Ok::<(), String>(())),
+        Some(&slot_file),
+    );
+    assert!(!invited_exists(&dir));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn no_path_means_nothing_to_forget() {
     let (dir, _, _) = slot_with_host("nopath");
     forget_after_boot(&Ok::<usize, String>(1), None);

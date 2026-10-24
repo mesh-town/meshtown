@@ -80,18 +80,37 @@ pub(super) async fn start_access(
 }
 
 /// A failed boot is logged and the node goes on: the watcher still publishes the view. A finished boot has
-/// put the invited peers into the replica, so their file is no longer needed.
+/// put the invited peers into the shared replica, which reaches the disk with a delay, so it is flushed first;
+/// only then the invited peers file is no longer needed.
 async fn boot_or_say(list: &DomainList, boot: &AccessBoot, invited_file: Option<&Path>) {
-    let res = run_boot(
-        list.shared_replica().as_ref(),
-        list.own_replica().as_ref(),
-        boot,
-    )
-    .await;
+    let shared = list.shared_replica();
+    let res = run_boot(shared.as_ref(), list.own_replica().as_ref(), boot).await;
     if let Err(e) = &res {
         say("access", format!("boot failed: {e}"));
     }
-    forget_after_boot(&res, invited_file);
+    let flush = match res {
+        Ok(_) => shared.flush().await,
+        Err(_) => Ok(()),
+    };
+    if let Err(e) = &flush {
+        say(
+            "access",
+            format!("saving the list after the boot failed: {e}"),
+        );
+    }
+    forget_after_boot(&saved(&res, flush), invited_file);
+}
+
+/// The boot result that also counts the flush: a boot that finished but was not saved counts as failed.
+fn saved<E, F: std::fmt::Display>(
+    res: &Result<usize, E>,
+    flush: Result<(), F>,
+) -> Result<usize, String> {
+    match (res, flush) {
+        (Ok(n), Ok(())) => Ok(*n),
+        (Ok(_), Err(e)) => Err(format!("not saved: {e}")),
+        (Err(_), _) => Err("boot failed".to_string()),
+    }
 }
 
 /// Removes the invited peers file after a boot that finished; a failed boot keeps it for the next start.
