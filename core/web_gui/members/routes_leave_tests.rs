@@ -21,6 +21,9 @@ fn reply(changed: Option<bool>) -> MembersReply {
         me_removed: false,
         me_pending: false,
         need: 1,
+        kind: "Peer",
+        admins: Vec::new(),
+        me_admin: false,
         me_admission: None,
         counts: Counts {
             members: 1,

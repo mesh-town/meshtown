@@ -140,6 +140,12 @@ pub enum MemberActionReq {
     Unblock(String),
     Forget(String),
     Unforget(String),
+    /// Make the node an administrator of a managed network.
+    Grant(String),
+    /// Take the administrator role away.
+    Revoke(String),
+    /// Delete the network (administrators only).
+    Close,
     Leave,
 }
 

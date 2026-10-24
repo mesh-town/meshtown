@@ -120,6 +120,9 @@ impl NodeControl for FakeNode {
             MemberActionReq::Unblock(id) => format!("unblock:{id}"),
             MemberActionReq::Forget(id) => format!("forget:{id}"),
             MemberActionReq::Unforget(id) => format!("unforget:{id}"),
+            MemberActionReq::Grant(id) => format!("grant:{id}"),
+            MemberActionReq::Revoke(id) => format!("revoke:{id}"),
+            MemberActionReq::Close => "close".to_string(),
             MemberActionReq::Leave => "leave".to_string(),
         };
         self.seen.lock().unwrap().push(seen);
@@ -260,6 +263,7 @@ fn row(prefix: &str, name: Option<&str>, status: &'static str) -> MemberRow {
         name: name.map(str::to_string),
         is_self: false,
         online: true,
+        admin: false,
         status,
         vote: None,
         excluded: None,
@@ -306,6 +310,9 @@ pub(super) fn sample_reply() -> MembersReply {
         me_pending: false,
         me_admission: None,
         need: 2,
+        kind: "Peer",
+        admins: Vec::new(),
+        me_admin: false,
         // plain input here: the DTO does not derive the counts from the rows
         counts: sample_counts(),
         members: vec![
@@ -338,17 +345,17 @@ pub(super) fn sample_reply() -> MembersReply {
 pub(super) fn golden() -> Value {
     let (me, router) = (full("a1b2c3d4"), full("e5f6a7b8"));
     json!({
-        "me": me, "me_excluded": false, "me_removed": false, "me_pending": false, "need": 2, "me_admission": null,
+        "me": me, "me_excluded": false, "me_removed": false, "me_pending": false, "need": 2, "kind": "Peer", "admins": [], "me_admin": false, "me_admission": null,
         "counts": {"members": 3, "voting": 1, "excluded": 1, "unlisted": 1, "pending": 0, "forgotten": 0},
         "members": [
-            {"id": "a1b2c3d4", "id_full": me, "name": "laptop", "self": true, "online": true,
+            {"id": "a1b2c3d4", "id_full": me, "name": "laptop", "self": true, "online": true, "admin": false,
              "status": "member", "vote": null, "excluded": null,
              "blocked_by_me": false, "denied_by_me": null, "forget": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
-            {"id": "e5f6a7b8", "id_full": router, "name": "router", "self": false, "online": true,
+            {"id": "e5f6a7b8", "id_full": router, "name": "router", "self": false, "online": true, "admin": false,
              "status": "member",
              "vote": {"votes": 1, "need": 2, "proposed_by": me, "voters": [me], "mine": true, "reason": "noisy link"},
              "excluded": null, "blocked_by_me": false, "denied_by_me": "voted_by_me", "forget": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
-            {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false,
+            {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false, "admin": false,
              "status": "excluded", "vote": null,
              "excluded": {"how": "votes", "at_unix": 1_792_400_000u64, "voters": [me, router]},
              "blocked_by_me": false, "denied_by_me": "excluded", "forget": null, "last_seen_sec": null,

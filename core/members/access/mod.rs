@@ -4,7 +4,9 @@
 //! What it does: declares the modules of the list.
 //! What it doesn't do: holds no logic.
 
+pub mod abilities;
 pub mod actions;
+mod actions_managed;
 mod admission;
 pub mod authority;
 pub mod boot;

@@ -12,6 +12,12 @@ pub struct MembersReply {
     /// This node waits for the confirmation of others and has been turned away for it.
     pub me_pending: bool,
     pub need: u8,
+    /// `"Peer"` or `"Managed"`.
+    pub kind: &'static str,
+    /// Administrators of a managed network (full ids); empty in a peer network.
+    pub admins: Vec<String>,
+    /// This node is an administrator.
+    pub me_admin: bool,
     /// The own request, shown only while `me_pending`.
     pub me_admission: Option<AdmissionInfo>,
     pub counts: Counts,
@@ -39,6 +45,8 @@ pub struct MemberRow {
     #[serde(rename = "self")]
     pub is_self: bool,
     pub online: bool,
+    /// The node is an administrator of a managed network.
+    pub admin: bool,
     pub status: &'static str,
     pub vote: Option<VoteInfo>,
     pub excluded: Option<ExcludedInfo>,

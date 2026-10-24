@@ -61,6 +61,9 @@ pub(super) fn parse_action(req: MemberActionReq) -> Result<MemberAction, MemberE
         MemberActionReq::Unblock(id) => Ok(MemberAction::Unblock(parse_id(&id)?)),
         MemberActionReq::Forget(id) => Ok(MemberAction::Forget(parse_id(&id)?)),
         MemberActionReq::Unforget(id) => Ok(MemberAction::Unforget(parse_id(&id)?)),
+        MemberActionReq::Grant(id) => Ok(MemberAction::Grant(parse_id(&id)?)),
+        MemberActionReq::Revoke(id) => Ok(MemberAction::Revoke(parse_id(&id)?)),
+        MemberActionReq::Close => Ok(MemberAction::Close),
         MemberActionReq::Leave => Ok(MemberAction::Leave),
     }
 }
@@ -89,6 +92,17 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
         ActionRefusal::NotForgotten => {
             refused("not_forgotten", "You haven't proposed removing this node")
         }
+        ActionRefusal::NotAdmin => refused("not_admin", "only admins can do this in this network"),
+        ActionRefusal::LastAdmin => refused(
+            "last_admin",
+            "you are the only admin: make another member an admin or delete the network",
+        ),
+        ActionRefusal::NotManaged => refused("not_managed", "this network has no admins"),
+        ActionRefusal::PeerOnly => refused(
+            "peer_only",
+            "removal votes exist only in networks without admins",
+        ),
+        ActionRefusal::Closed => refused("network_deleted", "this network has been deleted"),
         ActionRefusal::Write(m) => MemberError::Action(ActionError::Internal(m)),
     }
 }
