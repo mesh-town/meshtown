@@ -4,11 +4,12 @@
 import { computed } from "vue";
 import type { ComputedRef } from "vue";
 import type { Store } from "../core/store.ts";
+import type { ExcludedVariant } from "./members-ids.ts";
 import { excludedVariant, isMeExcluded, meId } from "./members-view.ts";
 
 export interface ExcludedView {
   excluded: ComputedRef<boolean>;
-  variant: ComputedRef<"banned" | "left">;
+  variant: ComputedRef<ExcludedVariant>;
   net: ComputedRef<string>;
 }
 

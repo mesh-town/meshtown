@@ -6,7 +6,8 @@ import type { Conn } from "./conn.ts";
 import { fieldErrorLine } from "../settings/settings-fields.ts";
 import { ABSENCE_TEXT, ALONE_INVITE_SHORT, ALONE_TEXT, NET_LOADING_TEXT, NO_CATALOG_SHORT, NOT_RESPONDING_TEXT, offlineOthersText, quotedNet } from "../common/words.ts";
 import { IDENTITY_DECLINED_NOTE, IDENTITY_PRESERVED_NOTE, IDENTITY_PROBLEM_NOTE, restartConsequenceText } from "./shell-texts.ts";
-import { bannedStatusText } from "../members/members-texts.ts";
+import type { MembersReply } from "../members/members-types.ts";
+import { bannedStatusText, forgottenStatusText } from "../members/members-texts.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { statePanel } from "../home/home-view.ts";
 import { netPhase } from "../home/home-words.ts";
@@ -68,6 +69,12 @@ function excludedLine(state: NodeState): StatusLine | null {
   return { level: "red", text: bannedStatusText(state.network.label) };
 }
 
+// This computer was removed from the member list: the same grey line as "not joined", only the lead network has it.
+function forgottenLine(state: NodeState, members: MembersReply | null): StatusLine | null {
+  if (!state.network || !(members && members.me_removed)) return null;
+  return grey(forgottenStatusText(state.network.label));
+}
+
 // The node is looking for the network by invite (`invite_join`) — the header says the same as Home, not "not joined yet".
 function noNetworkLine(state: NodeState): StatusLine | null {
   if (state.network) return null;
@@ -87,8 +94,8 @@ function joinedNetworkLine(state: NodeState & { network: NonNullable<NodeState["
 }
 
 // `{ level: "green"|"red"|"grey", text }` — in the order of the branches.
-export function statusLine(state: NodeState | null, conn: Conn): StatusLine {
-  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0]))) || grey(NOT_RESPONDING_TEXT);
+export function statusLine(state: NodeState | null, conn: Conn, members: MembersReply | null = null): StatusLine {
+  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || forgottenLine(state, members) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0]))) || grey(NOT_RESPONDING_TEXT);
 }
 
 function capitalizeFirst(text: string): string {

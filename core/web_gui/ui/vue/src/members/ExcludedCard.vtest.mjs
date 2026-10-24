@@ -2,10 +2,11 @@
  *
  * Component: the screen of a computer that is no longer in the network; it takes the place of the Members content and of
  * the Home cards.
- * Props: `variant: "banned" | "left"` (the members banned this computer / it left on its own), `net: string` (the network
- *   name, shown in quotes).
+ * Props: `variant: "banned" | "left" | "forgotten"` (the members banned this computer / it left on its own / the members
+ *   removed it from the member list after it had been offline), `net: string` (the network name, shown in quotes).
  * Emits: `join` (the "Join with another invite" button, `#excluded-join`); the parent switches to Home and focuses the invite field.
  * Markup: `section#excluded-card[role=status]` with a title and a text.
+ * The "forgotten" variant has one button, "Join with an invite" (`#excluded-join`), also inside the app: there is no "Start over".
  * NOTE: there is no body text for the "left" variant (only the title `You left the network "{net}"`), so it is not asserted. */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -43,6 +44,49 @@ describe("ExcludedCard", () => {
       const text = wrapper.get("#excluded-card").text();
       expect(text).not.toContain("was banned from the network");
       expect(text).not.toContain("Members of the network banned it");
+    });
+  });
+
+  describe("variant forgotten", () => {
+    it("says the computer was removed from the member list", () => {
+      setup({ variant: "forgotten" });
+      const card = wrapper.get("#excluded-card");
+      expect(card.attributes("role")).toBe("status");
+      expect(card.text()).toContain('This computer was removed from the member list "demo-network"');
+    });
+
+    it("explains that a new invite is the way back", () => {
+      setup({ variant: "forgotten" });
+      expect(wrapper.get("#excluded-card").text()).toContain("Ask a member for a new invite");
+    });
+
+    it("does not claim a ban or a departure", () => {
+      setup({ variant: "forgotten" });
+      const text = wrapper.get("#excluded-card").text();
+      expect(text).not.toContain("banned");
+      expect(text).not.toContain("You left the network");
+    });
+
+    it("inside the app the join button stays and there is no Start over link", () => {
+      Object.defineProperty(navigator, "userAgent", { value: "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android", configurable: true });
+      try {
+        setup({ variant: "forgotten" });
+        expect(wrapper.find("#excluded-start-over").exists()).toBe(false);
+        expect(wrapper.get("#excluded-join").text()).toBe("Join with an invite");
+      } finally {
+        Reflect.deleteProperty(navigator, "userAgent");
+      }
+    });
+
+    it("forgotten variant has join only", async () => {
+      setup({ variant: "forgotten" });
+      expect(wrapper.findAll("button, a")).toHaveLength(1);
+      const button = wrapper.get("#excluded-join");
+      expect(button.text()).toBe("Join with an invite");
+      expect(button.classes()).toContain("btn-primary");
+      expect(wrapper.find("#excluded-start-over").exists()).toBe(false);
+      await button.trigger("click");
+      expect(wrapper.emitted("join")).toHaveLength(1);
     });
   });
 

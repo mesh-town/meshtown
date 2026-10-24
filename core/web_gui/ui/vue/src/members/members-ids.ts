@@ -47,10 +47,32 @@ export function isMeExcluded(state: StateWithNode | null | undefined, members: M
   return !!(state && state.members && state.members.me_excluded) || !!(members && members.me_excluded);
 }
 
-// "left" only when my own row says I left on my own.
-export function excludedVariant(members: MembersReply | null | undefined, me: string): "banned" | "left" {
+// A ban vote is pending on someone else and removing `subject` leaves two members or fewer: the threshold drops to one.
+export function banAtRisk(members: MembersReply | null | undefined, subject: string): boolean {
+  if (!members) return false;
+  const voting = members.members.some((m) => m.id_full !== subject && m.vote !== null);
+  return voting && members.members.filter((m) => m.status === "member" && m.id_full !== subject).length <= 2;
+}
+
+// The only member besides me and `subject` (its full id), or null when there are more or fewer.
+export function onlyOtherMember(members: MembersReply | null | undefined, me: string, subject: string): string | null {
+  const rest = (members ? members.members : []).filter((m) => m.status === "member" && m.id_full !== me && m.id_full !== subject);
+  return rest.length === 1 ? rest[0].id_full : null;
+}
+
+// This computer was removed from the member list by the others (`me_removed`).
+export function isMeRemoved(members: MembersReply | null | undefined): boolean {
+  return !!(members && members.me_removed);
+}
+
+export type ExcludedVariant = "banned" | "left" | "forgotten";
+
+// "left" only when my own row says I left on my own; a ban comes before a removal.
+export function excludedVariant(members: MembersReply | null | undefined, me: string): ExcludedVariant {
   const mine = memberById(members, me);
-  return mine && mine.excluded && mine.excluded.how === "left" ? "left" : "banned";
+  if (mine && mine.excluded && mine.excluded.how === "left") return "left";
+  const banned = !!(mine && mine.excluded) || !!(members && members.me_excluded);
+  return isMeRemoved(members) && !banned ? "forgotten" : "banned";
 }
 
 // id_full -> name, or the short id for a nameless (or blank-named) member.

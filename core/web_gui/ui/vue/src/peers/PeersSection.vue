@@ -16,10 +16,12 @@ import ConfirmDialog from "../members/ConfirmDialog.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
 import PendingCard from "../members/PendingCard.vue";
 import PendingList from "../members/PendingList.vue";
+import StaleList from "../members/StaleList.vue";
+import ForgottenList from "../members/ForgottenList.vue";
 import ExcludedList from "../members/ExcludedList.vue";
 import UnlistedList from "../members/UnlistedList.vue";
 import VoteBanner from "../members/VoteBanner.vue";
-import { confirmable, displayNames, excludedVariant, isMeExcluded, memberById, meId, partitionRows, excludedRowLine } from "../members/members-view.ts";
+import { confirmable, displayNames, excludedVariant, isMeExcluded, isMeRemoved, memberById, meId, partitionRows, excludedRowLine } from "../members/members-view.ts";
 import { pendingProposal, proposalKey, pruneHidden } from "../members/vote-hidden.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import NetTabHead from "./NetTabHead.vue";
@@ -64,7 +66,7 @@ const waitingHere = computed(() => {
 });
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
-const excluded = computed(() => isMeExcluded(state.value, members.value));
+const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
 const variant = computed(() => excludedVariant(members.value, meId(state.value)));
 const net = computed(() => netName(store.nets, slot.value));
 const hidden = ref<string[]>([]); // "Not now": keys of the proposals hidden until they change or go away
@@ -129,6 +131,8 @@ async function exitVia(idFull: string): Promise<void> {
         <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
       </div>
       <PendingList :rows="parts.pending" :me="me" @pick="pick" />
+      <StaleList :rows="parts.stale" :me="me" @pick="pick" />
+      <ForgottenList :rows="parts.forgotten" :all="members ? members.members : []" :me="me" @pick="pick" />
       <ExcludedList :lines="excludedLines" />
       <UnlistedList :rows="parts.unlisted" @pick="pick" />
       <AddNetCard v-if="addHere" context="peers" />
