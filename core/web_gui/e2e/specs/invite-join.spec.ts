@@ -203,8 +203,6 @@ test.describe('this computer removed from the member list (demo --me-removed)', 
   });
 
   test('117-invite-return-removed-joins: the own invite takes the removed computer back into its network, no second network appears', async ({ app, page, api }) => {
-    // OPEN: the demo registry does not hold the key of the main network (`remember` runs for `push`ed slots only), so the demo refuses its own invite.
-    test.skip(true, 'the demo refuses the invite of its main network: it does not know it');
     const card = new OutOfNetCard(page, 'home');
     const form = new InviteForm(page, 'home');
     const own = await inviteOf(api, null);
@@ -243,8 +241,6 @@ test.describe('this computer banned in the second network (demo --nets 2 --me-ex
   });
 
   test('118-invite-excluded-tab-joins: the invite of the banned network brings the computer back in this slot only', async ({ app, page, api }) => {
-    // OPEN: the node answers "already in" for a banned Peer slot (the note should say "return"), so the join does not start.
-    test.skip(true, 'the node reads the banned slot as "already in" instead of a way back');
     const tabs = new NetTabs(page);
     const card = new OutOfNetCard(page, 'members');
     const form = new InviteForm(page, 'rejoin');
