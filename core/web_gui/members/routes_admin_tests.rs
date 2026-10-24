@@ -210,6 +210,7 @@ mod list_fields {
             kind: "Peer",
             admins: vec![],
             me_admin: false,
+            root: None,
             ..sample_reply()
         };
         let fx = setup(Answer::List(reply));
@@ -238,6 +239,7 @@ fn managed_reply(admins: &[String]) -> MembersReply {
         kind: "Managed",
         admins: admins.to_vec(),
         me_admin: true,
+        root: None,
         ..sample_reply()
     }
 }

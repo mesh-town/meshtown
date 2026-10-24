@@ -13,7 +13,7 @@ use super::state_net::{apply_net, net_state};
 use crate::web_gui::auth::iface_os::current_view;
 use crate::web_gui::http::{json_err, ConnInfo};
 use crate::web_gui::net_brief::briefs;
-use crate::web_gui::{App, InviteJoinView, SlotHandle};
+use crate::web_gui::{App, InviteJoinView, NetRoles, SlotHandle};
 
 struct StateExtras {
     port: u16,
@@ -50,6 +50,7 @@ pub(crate) fn slot_state_value(app: &App, slot: &SlotHandle) -> Value {
 
 fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Value> {
     let snap = slot.node.snapshot();
+    let roles = slot.node.net_roles();
     let mut value = serde_json::to_value(&snap).ok()?;
     let (config_rev, identity, identity_reason, network, restart_pending) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
@@ -59,7 +60,7 @@ fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Val
             cfg.file_report.rev,
             identity,
             identity_reason,
-            cfg.network_block(),
+            cfg.network_block_with(roles.as_ref()),
             cfg.pending_restart_paths(),
         )
     };
@@ -83,7 +84,27 @@ fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Val
     );
     apply_net(&mut value, net);
     apply_slot(&mut value, &slot.id);
+    apply_peer_roles(&mut value, roles.as_ref());
     Some(value)
+}
+
+/// `peers[].role` in a managed network: `"admin"` for the listed administrators, `"member"` for the rest.
+/// A peer network has no such key.
+fn apply_peer_roles(value: &mut Value, roles: Option<&NetRoles>) {
+    let Some(roles) = roles.filter(|r| r.managed) else {
+        return;
+    };
+    let Some(peers) = value.get_mut("peers").and_then(Value::as_array_mut) else {
+        return;
+    };
+    for peer in peers.iter_mut().filter_map(Value::as_object_mut) {
+        let id = peer.get("id_full").and_then(Value::as_str).unwrap_or("");
+        let role = match roles.admins.iter().any(|a| a == id) {
+            true => "admin",
+            false => "member",
+        };
+        peer.insert("role".into(), json!(role));
+    }
 }
 
 /// Inserts derived fields (`config_rev`/`network`/version/address/identity) and rounds the time in

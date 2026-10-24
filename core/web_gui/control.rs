@@ -6,7 +6,7 @@ use std::pin::Pin;
 
 use serde::Serialize;
 
-use super::{LogPage, MembersReply, NodeSnapshot};
+use super::{LogPage, MembersReply, NetRoles, NodeSnapshot};
 use crate::invite::Dealt;
 
 /// Writes the network key to the settings file: the page hands it to the node, the node calls it when the key is received.
@@ -103,6 +103,10 @@ pub trait NodeControl: Send + Sync {
     /// The member list for `GET /api/members`.
     fn members(&self) -> MemberFuture {
         not_implemented()
+    }
+    /// The kind of the network and what this node may do in it; `None` — the node has published nothing yet.
+    fn net_roles(&self) -> Option<NetRoles> {
+        None
     }
     /// A member action (exclude, unexclude, block, unblock, forget, unforget, leave); the reply is the list after it.
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {

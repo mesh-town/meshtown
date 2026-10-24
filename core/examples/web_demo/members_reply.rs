@@ -177,6 +177,7 @@ pub(crate) fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>)
         kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
+        root: None,
         counts,
         members,
         changed,

@@ -30,19 +30,24 @@ pub(super) fn kind_of(v: &Verdicts) -> &'static str {
 }
 
 /// The administrators as full ids in ascending order.
-pub(super) fn admins_of(v: &Verdicts) -> Vec<String> {
+pub fn admins_of(v: &Verdicts) -> Vec<String> {
     v.ledger.admins.iter().map(|p| p.to_string()).collect()
-}
-
-/// The only administrator may not leave: the network would stay without one.
-fn is_last_admin(v: &Verdicts) -> bool {
-    v.ledger.is_admin(&v.me) && v.ledger.admins.len() == 1
 }
 
 /// The flags for this node: in a peer network everyone may invite, remove and leave; in a managed one
 /// the administrators may do everything but leave as the last one.
 pub fn abilities(v: &Verdicts) -> Abilities {
-    if !is_managed(v) {
+    abilities_of(
+        is_managed(v),
+        v.ledger.is_admin(&v.me),
+        v.ledger.admins.len(),
+    )
+}
+
+/// The same flags from the facts alone: the kind of the network, whether this node is an administrator and
+/// how many administrators there are. The only administrator may not leave: the network would stay without one.
+pub fn abilities_of(managed: bool, me_admin: bool, admin_count: usize) -> Abilities {
+    if !managed {
         return Abilities {
             can_invite: true,
             can_remove: true,
@@ -51,13 +56,12 @@ pub fn abilities(v: &Verdicts) -> Abilities {
             can_leave: true,
         };
     }
-    let admin = v.ledger.is_admin(&v.me);
     Abilities {
-        can_invite: admin,
-        can_remove: admin,
-        can_set_admins: admin,
-        can_delete_network: admin,
-        can_leave: !is_last_admin(v),
+        can_invite: me_admin,
+        can_remove: me_admin,
+        can_set_admins: me_admin,
+        can_delete_network: me_admin,
+        can_leave: !(me_admin && admin_count == 1),
     }
 }
 

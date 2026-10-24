@@ -313,6 +313,7 @@ pub(super) fn sample_reply() -> MembersReply {
         kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
+        root: None,
         // plain input here: the DTO does not derive the counts from the rows
         counts: sample_counts(),
         members: vec![
@@ -345,7 +346,7 @@ pub(super) fn sample_reply() -> MembersReply {
 pub(super) fn golden() -> Value {
     let (me, router) = (full("a1b2c3d4"), full("e5f6a7b8"));
     json!({
-        "me": me, "me_excluded": false, "me_removed": false, "me_pending": false, "need": 2, "kind": "Peer", "admins": [], "me_admin": false, "me_admission": null,
+        "me": me, "me_excluded": false, "me_removed": false, "me_pending": false, "need": 2, "kind": "Peer", "admins": [], "me_admin": false, "root": null, "me_admission": null,
         "counts": {"members": 3, "voting": 1, "excluded": 1, "unlisted": 1, "pending": 0, "forgotten": 0},
         "members": [
             {"id": "a1b2c3d4", "id_full": me, "name": "laptop", "self": true, "online": true, "admin": false,

@@ -9,7 +9,9 @@ use crate::members::access::view::Verdicts;
 use crate::node::RunningNode;
 use crate::transport::net::PeerId;
 use crate::transport::net_mainline::unix_now;
-use crate::web_gui::{ActionError, MemberActionReq, MemberError, MemberFuture, MembersReply};
+use crate::web_gui::{
+    ActionError, MemberActionReq, MemberError, MemberFuture, MembersReply, NetRoles,
+};
 
 use super::members_seen::seen_ages;
 use super::state::NodeCtl;
@@ -20,6 +22,19 @@ impl NodeCtl {
             Ok(node) => Box::pin(async move { reply_of(&node, None).await }),
             Err(e) => failed(MemberError::Action(e)),
         }
+    }
+
+    /// The roles from the published verdicts; read without waiting.
+    pub(super) fn net_roles_impl(&self) -> Option<NetRoles> {
+        let node = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .node
+            .clone()?;
+        let v = node.access.view.verdicts()?;
+        Some(NetRoles::of(&node.net_kind, &v, &node.members))
     }
 
     pub(super) fn member_action_impl(&self, req: MemberActionReq) -> MemberFuture {
@@ -115,6 +130,7 @@ async fn run_action(node: &RunningNode, act: MemberAction) -> Result<MembersRepl
 async fn reply_of(node: &RunningNode, changed: Option<bool>) -> Result<MembersReply, MemberError> {
     let v = verdicts_of(node).await?;
     let mut reply = members_reply(&v, &node.members, &node.access.view.refusals(), changed);
+    reply.set_kind(&node.net_kind);
     stamp_last_seen(&mut reply, &seen_ages(node, unix_now()).await);
     Ok(reply)
 }

@@ -204,6 +204,7 @@ pub fn members_reply(
         kind: kind_of(v),
         admins: admins_of(v),
         me_admin: v.ledger.is_admin(&v.me),
+        root: None,
         counts: counts_of(&rows),
         members: rows,
         changed,

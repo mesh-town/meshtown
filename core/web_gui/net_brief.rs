@@ -25,6 +25,11 @@ pub struct NetBrief {
     pub me_pending: bool,
     pub peers_online: u64,
     pub peers_total: u64,
+    /// `"Peer"` or `"Managed"`.
+    pub kind: String,
+    /// This node is an administrator of a managed network.
+    pub me_admin: bool,
+    pub can_invite: bool,
 }
 
 fn word<T: Serialize>(value: &T) -> String {
@@ -47,15 +52,23 @@ fn text_of(block: &serde_json::Value, key: &str) -> Option<String> {
     block.get(key)?.as_str().map(str::to_string)
 }
 
+fn flag_of(block: &serde_json::Value, key: &str, otherwise: bool) -> bool {
+    block
+        .get(key)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(otherwise)
+}
+
 /// The brief of a live slot; `chosen` is the slot that owns the proxy front's exit. The slot's config lock
 /// is released before this returns.
 pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
     let snap = slot.node.snapshot();
+    let roles = slot.node.net_roles();
     let block = slot
         .config
         .lock()
         .unwrap_or_else(|e| e.into_inner())
-        .network_block();
+        .network_block_with(roles.as_ref());
     let peers = || snap.peers.iter().filter(|p| !p.is_self);
     let joining = slot
         .node
@@ -77,6 +90,9 @@ pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
         me_pending: snap.members.me_pending,
         peers_online: peers().filter(|p| p.online).count() as u64,
         peers_total: peers().count() as u64,
+        kind: text_of(&block, "kind").unwrap_or_else(|| "Peer".to_string()),
+        me_admin: text_of(&block, "me_role").as_deref() == Some("admin"),
+        can_invite: flag_of(&block, "can_invite", true),
     }
 }
 
@@ -98,6 +114,9 @@ pub(crate) fn broken_brief(id: &NetSlotId) -> NetBrief {
         me_pending: false,
         peers_online: 0,
         peers_total: 0,
+        kind: "Peer".to_string(),
+        me_admin: false,
+        can_invite: false,
     }
 }
 

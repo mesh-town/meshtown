@@ -53,6 +53,7 @@ fn reply(rows: Vec<MemberRow>, me_excluded: bool) -> MembersReply {
         kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
+        root: None,
         me_admission: None,
         need: 2,
         counts,

@@ -24,6 +24,7 @@ fn reply(changed: Option<bool>) -> MembersReply {
         kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
+        root: None,
         me_admission: None,
         counts: Counts {
             members: 1,
