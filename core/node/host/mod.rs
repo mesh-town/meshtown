@@ -2,6 +2,7 @@
 //! - `run` — the assembly point "services → page → body → page shutdown";
 //! - `process` — the process services: the memory guard;
 //! - `add_slot` — adding a network at run time;
+//! - `closed_watch` — leaving a network that an administrator closed;
 //! - `control` — the page's view of the slot map (`HostControl`);
 //! - `launch` — starting one network slot;
 //! - `proxy_claim` — choosing the network whose exit the proxy uses;
@@ -11,6 +12,7 @@
 //! - `signal` — the Ctrl-C/SIGTERM stop signal.
 
 mod add_slot;
+mod closed_watch;
 mod control;
 mod launch;
 mod process;

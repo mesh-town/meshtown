@@ -8,6 +8,8 @@ use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+use tokio::sync::watch;
+
 use crate::members::membership::Members;
 use crate::node::output::say;
 use crate::proxy::domains::DomainList;
@@ -18,7 +20,7 @@ use super::authority::Rules;
 use super::reasons::{label_admissions, reasons_of};
 use super::record::{self, tally_input_under, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
 use super::subjects::live_subjects;
-use super::tally::tally;
+use super::tally::{tally, Closed};
 use super::view::{AccessView, Verdicts};
 
 /// The state a recompute needs; cheap to share behind an `Arc`.
@@ -30,6 +32,8 @@ pub struct Access {
     pub(crate) members: Members,
     pub(crate) rules: Rules,
     ignored_logged: AtomicUsize,
+    /// The closing of the network by an administrator, as the last recompute saw it.
+    closed_tx: watch::Sender<Option<Closed>>,
 }
 
 /// The records a recompute reads.
@@ -62,6 +66,7 @@ impl Access {
             members,
             rules: Rules::Peer,
             ignored_logged: AtomicUsize::new(0),
+            closed_tx: watch::channel(None).0,
         }
     }
 
@@ -69,6 +74,12 @@ impl Access {
     pub fn with_rules(mut self, rules: Rules) -> Access {
         self.rules = rules;
         self
+    }
+
+    /// The closing of the network: `Some` once an administrator's close is counted. It changes only
+    /// after the verdicts that carry it are published.
+    pub fn closed(&self) -> watch::Receiver<Option<Closed>> {
+        self.closed_tx.subscribe()
     }
 
     /// Recomputes and publishes the verdicts, then writes the missing witnesses. A failed scan leaves
@@ -99,6 +110,7 @@ impl Access {
         let mut ledger = tally(&input);
         label_admissions(&mut ledger, &scan.acl);
         let reasons = reasons_of(&ledger, &scan.acl);
+        let closed = ledger.closed.clone();
         let verdicts = Verdicts {
             me: self.me,
             ledger: Arc::new(ledger),
@@ -107,6 +119,11 @@ impl Access {
             reasons,
         };
         let denied = self.view.publish(verdicts.clone());
+        self.closed_tx.send_if_modified(|seen| {
+            let changed = *seen != closed;
+            *seen = closed;
+            changed
+        });
         self.cut_denied(denied.into_iter().map(|(p, _)| p).collect());
         Ok(Arc::new(verdicts))
     }
@@ -175,3 +192,7 @@ impl Access {
         Ok(usize::from(record::ensure(&*self.shared, &admit).await?))
     }
 }
+
+#[cfg(test)]
+#[path = "runtime_closed_tests.rs"]
+mod closed_tests;

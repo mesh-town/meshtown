@@ -5,14 +5,16 @@
 use std::sync::Arc;
 
 use tokio::runtime::Handle;
-use tokio::sync::{mpsc, Notify};
+use tokio::sync::{mpsc, watch, Notify};
 use tokio::time::Instant;
 
 use crate::config::config_file::Settings;
+use crate::members::access::tally::Closed;
 use crate::node::RunningNode;
 use crate::transport::net::PeerAddr;
 use crate::web_gui::{ActionError, NodeStatus};
 
+use super::closed_feed::abort_task;
 use super::invite_wait::InviteWait;
 use super::live_paths::apply_pending_handles;
 use super::snapshot::Collected;
@@ -59,6 +61,8 @@ pub(super) struct NodeCtlState {
     /// into the new node's `cache`.
     pub(super) snapshot_gen: u64,
     pub(super) task: Option<tokio::task::JoinHandle<()>>,
+    /// Forwards the access object's `closed` value into `NodeCtlShared.closed`; replaced by `attach`.
+    pub(super) closed_task: Option<tokio::task::JoinHandle<()>>,
     /// The last `snapshot()` call — the background task uses it to decide whether to skip a collection.
     pub(super) last_read: Instant,
     /// Joining by invite: waiting or the last refusal (`invite_wait.rs`).
@@ -76,6 +80,8 @@ pub(super) struct NodeCtlShared {
     /// Wakes the background snapshot task earlier than the 1 s tick. Holds one permit — a nudge without
     /// a waiter is not lost.
     pub(super) kick: Notify,
+    /// The slot's permanent "network closed" channel: it outlives the node cycles.
+    pub(super) closed: watch::Sender<Option<Closed>>,
 }
 
 /// Lives in an `Arc`: the web listener, `run_node_with_ctl` and the background snapshot task each hold their own copy.
@@ -124,6 +130,7 @@ impl NodeCtl {
                     cache: None,
                     snapshot_gen: 0,
                     task: None,
+                    closed_task: None,
                     last_read: Instant::now(),
                     invite_wait: None,
                     invite_gen: 0,
@@ -131,6 +138,7 @@ impl NodeCtl {
                     owner: None,
                 }),
                 kick: Notify::new(),
+                closed: watch::channel(None).0,
             }),
             cmd_tx,
             cmd_rx: tokio::sync::Mutex::new(cmd_rx),
@@ -171,6 +179,7 @@ impl NodeCtl {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             st.snapshot_gen += 1;
+            abort_task(&mut st.closed_task);
             st.node = Some(node.clone());
             st.cache = None;
             if !matches!(st.phase, Phase::Stopping) {
@@ -183,14 +192,16 @@ impl NodeCtl {
         self.publish_guard_sources(node.members.clone(), node.checks.clone());
         let task = crate::node::output::spawn_on(
             &self.rt,
-            snapshot_task(self.ctl_shared.clone(), task_gen, node),
+            snapshot_task(self.ctl_shared.clone(), task_gen, node.clone()),
         );
+        let closed_task = self.start_closed_feed(node.access.clone());
         let mut st = self
             .ctl_shared
             .ctl_state
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         st.task = Some(task);
+        st.closed_task = Some(closed_task);
     }
 
     /// The node goes away: the snapshot task is aborted, the state is cleared, the phase follows `next`
@@ -208,6 +219,8 @@ impl NodeCtl {
         st.node = None;
         st.cache = None;
         st.pending.clear();
+        abort_task(&mut st.closed_task);
+        self.ctl_shared.closed.send_replace(None);
         st.phase = if matches!(next, NodeStatus::Starting) {
             Phase::Starting
         } else {
