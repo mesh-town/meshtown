@@ -50,8 +50,14 @@ fn refusal(t: &Target, code: u16, body: &str) -> String {
 }
 
 fn remove_offline(t: &Target) -> Result<(), String> {
-    crate::web_gui::remove_password_file(&t.dir)
+    let existed = crate::web_gui::take_password_file(&t.dir)
         .map_err(|e| format!("password file was not removed: {e}"))?;
+    if !existed {
+        return Err(format!(
+            "no page password file in {}, nothing to reset; if the node keeps its settings elsewhere, pass --config <PATH>",
+            t.dir.display()
+        ));
+    }
     println!("Password reset. The node isn't running: it will print a one-time sign-in link when it starts.");
     println!("If the node runs on another page port, repeat with --web-port <PORT>.");
     Ok(())

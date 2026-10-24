@@ -15,7 +15,10 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, say, NET_NAME};
 use crate::proxy::{ProxyFront, ProxySeat};
-use crate::web_gui::{now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::web_gui::probe;
+use crate::web_gui::{
+    now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN, TOKEN_FILE_NAME,
+};
 
 /// The role of the node page in a launch: what to do if it didn't start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,10 +135,11 @@ impl Host {
         F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
         let options = WebOptions::for_run(&run_config);
+        let token_dir = options.token_dir.clone();
         let started = crate::web_gui::start_web_page(options, &run_config, host.clone()).await;
         let handle = match started {
             Ok(handle) => Some(handle),
-            Err(e) => Host::page_failed(role, &e)?,
+            Err(e) => Host::page_failed(role, &e, token_dir).await?,
         };
         let main_run = saved.relaunch.as_ref().map(|_| run_config.clone());
         output::set_multi_net(has_saved_slots(main_run.as_ref()));
@@ -158,10 +162,17 @@ impl Host {
     }
 
     /// The page didn't start: by role — a launch error, or a log line and the cycle without the page.
-    fn page_failed(role: PageRole, e: &WebStartError) -> anyhow::Result<Option<WebHandle>> {
+    async fn page_failed(
+        role: PageRole,
+        e: &WebStartError,
+        token_dir: Option<std::path::PathBuf>,
+    ) -> anyhow::Result<Option<WebHandle>> {
         match role {
-            PageRole::OnlyEntry => Err(entry_error(e)),
+            PageRole::OnlyEntry => Err(entry_error(e).await),
             PageRole::Optional => {
+                if let Some(err) = same_settings_node_error(e, token_dir).await {
+                    return Err(err);
+                }
                 e.continue_without_page_log_line()
                     .into_iter()
                     .for_each(|line| say("web", line));
@@ -202,8 +213,60 @@ fn socks_off_line(by_flag: bool) -> String {
     }
 }
 
+/// The busy page port of a start error, if the cause is exactly that.
+fn busy_port(e: &WebStartError) -> Option<u16> {
+    match e {
+        WebStartError::Bind { port, kind, .. } if *kind == std::io::ErrorKind::AddrInUse => {
+            Some(*port)
+        }
+        _ => None,
+    }
+}
+
+/// A blocking probe on the blocking pool; a failed task counts as "no".
+async fn probe_blocking(check: impl FnOnce() -> bool + Send + 'static) -> bool {
+    output::spawn_blocking(check).await.unwrap_or(false)
+}
+
 /// A launch error without a key: the page is the only way in, and it is unavailable.
-fn entry_error(e: &WebStartError) -> anyhow::Error {
+async fn entry_error(e: &WebStartError) -> anyhow::Error {
+    let running = match busy_port(e) {
+        Some(port) => probe_blocking(move || probe::node_page_answers(port)).await,
+        None => false,
+    };
+    entry_error_text(e, running)
+}
+
+/// A node with a key whose page port is held by a node that accepts this settings directory's token is
+/// the same node already running (for example, a service): a second one must not start beside it.
+async fn same_settings_node_error(
+    e: &WebStartError,
+    token_dir: Option<std::path::PathBuf>,
+) -> Option<anyhow::Error> {
+    let port = busy_port(e)?;
+    let token = token_dir
+        .map(|dir| std::fs::read_to_string(dir.join(TOKEN_FILE_NAME)).unwrap_or_default())?;
+    let token = token.trim().to_string();
+    let same = probe_blocking(move || probe::node_accepts_token(port, &token)).await;
+    same.then(|| already_running_error(port))
+}
+
+/// The text of [`entry_error`]; `node_on_port` — a Mesh Town node already answers on the busy page port.
+fn entry_error_text(e: &WebStartError, node_on_port: bool) -> anyhow::Error {
+    match (node_on_port, e) {
+        (true, WebStartError::Bind { port, .. }) => already_running_error(*port),
+        _ => generic_entry_error(e),
+    }
+}
+
+fn already_running_error(port: u16) -> anyhow::Error {
+    let program = crate::cli::program_name::program_name();
+    anyhow::anyhow!(
+        "{NET_NAME}: a Mesh Town node is already running on port {port} (for example, as a service). Its page is on port {port} of this device (http://<device address>:{port}/). To get a new sign-in link, run: {program} password reset. There is no need to start a second node."
+    )
+}
+
+fn generic_entry_error(e: &WebStartError) -> anyhow::Error {
     let advice = e
         .start_failure_advice()
         .map(|a| format!(" {a}"))

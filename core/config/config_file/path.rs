@@ -83,6 +83,11 @@ pub fn resolve_config_source(explicit: Option<&Path>, env: &PathEnv) -> ConfigSo
     }
 }
 
+/// Entware (routers such as Keenetic) installs binaries to `/opt/bin`; the root file system there is
+/// read-only, so the settings live in `/opt/etc` instead of `/etc`.
+const ENTWARE_BIN_DIR: &str = "/opt/bin";
+const ENTWARE_ETC_DIR: &str = "/opt/etc";
+
 /// Rule 4: the system's standard location, the path `<base>/meshtown/config.json`.
 pub fn standard_path(env: &PathEnv) -> Result<PathBuf, String> {
     let base: PathBuf = match env.os {
@@ -94,6 +99,9 @@ pub fn standard_path(env: &PathEnv) -> Result<PathBuf, String> {
         )
         .join("Library")
         .join("Application Support"),
+        Os::Unix if env.is_root && env.exe_dir.as_deref() == Some(Path::new(ENTWARE_BIN_DIR)) => {
+            PathBuf::from(ENTWARE_ETC_DIR)
+        }
         Os::Unix if env.is_root => PathBuf::from("/etc"),
         Os::Unix => {
             // XDG_CONFIG_HOME with a relative path is ignored (the XDG specification requires this).

@@ -141,6 +141,55 @@ fn standard_linux_root() {
 }
 
 #[test]
+fn standard_linux_root_entware_uses_opt_etc() {
+    let mut t = TestEnv::new(Os::Unix);
+    t.is_root = true;
+    t.exe_dir = Some(PathBuf::from("/opt/bin"));
+    assert_eq!(
+        standard(&t),
+        std_file(PathBuf::from("/opt/etc").join(DIR_NAME).join(FILE_NAME))
+    );
+}
+
+#[test]
+fn standard_linux_root_usr_bin_uses_etc() {
+    let mut t = TestEnv::new(Os::Unix);
+    t.is_root = true;
+    t.exe_dir = Some(PathBuf::from("/usr/bin"));
+    assert_eq!(
+        standard(&t),
+        std_file(PathBuf::from("/etc").join(DIR_NAME).join(FILE_NAME))
+    );
+}
+
+#[test]
+fn standard_linux_non_root_in_opt_bin_uses_home() {
+    let mut t = TestEnv::new(Os::Unix).var("HOME", "/home/x");
+    t.is_root = false;
+    t.exe_dir = Some(PathBuf::from("/opt/bin"));
+    assert_eq!(
+        standard(&t),
+        std_file(
+            PathBuf::from("/home/x/.config")
+                .join(DIR_NAME)
+                .join(FILE_NAME)
+        )
+    );
+}
+
+#[test]
+fn file_next_to_binary_beats_entware_path() {
+    let mut t = TestEnv::new(Os::Unix);
+    t.is_root = true;
+    t.exe_dir = Some(PathBuf::from("/opt/bin"));
+    t.file_beside = true;
+    match t.resolve(None) {
+        ConfigSource::File { rule, .. } => assert_eq!(rule, PathRule::NextToBinary),
+        other => panic!("{other:?}"),
+    }
+}
+
+#[test]
 fn standard_linux_xdg() {
     let t = TestEnv::new(Os::Unix)
         .var("XDG_CONFIG_HOME", "/x")

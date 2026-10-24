@@ -26,10 +26,14 @@ the standard location.** The first rule that applies wins:
 | 4 | Windows | `%APPDATA%\meshtown\config.json` |
 | 4 | macOS | `~/Library/Application Support/meshtown/config.json` |
 | 4 | Linux, uid 0 (a service on a router) | `/etc/meshtown/config.json` |
+| 4 | Linux, uid 0, binary in `/opt/bin` (Entware) | `/opt/etc/meshtown/config.json` |
 | 4 | Linux, regular user | `$XDG_CONFIG_HOME/meshtown/config.json`, otherwise `~/.config/meshtown/config.json` |
 
 Notes:
 
+- **Entware routers** (for example Keenetic) keep the root file system read-only and install programs
+  under `/opt`. A root process whose binary is in `/opt/bin` therefore uses `/opt/etc/meshtown/` instead of `/etc/meshtown/`,
+  so a command typed in a shell finds the same settings as the service.
 - **A file next to the binary is the portable mode** (a flash drive, a directory on a router,
   "downloaded, ran, left nothing in the system"). It is looked up first, so a portable copy
   is always stronger than one installed in the system.
