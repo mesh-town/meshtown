@@ -10,7 +10,7 @@ use tokio::time::Instant;
 
 use crate::gui::tray::app::local_api::{ApiError, Reply};
 use crate::gui::tray::app::snapshot::lenient;
-use crate::gui::tray::app::tray_actions::{InviteNote, InviteReach, ServeNote};
+use crate::gui::tray::app::tray_actions::{invite_notice, InviteNote, InviteReach, ServeNote};
 use crate::gui::tray::app::tray_texts::{
     REASON_CLIP_FAILED, REASON_JOINING, REASON_NOT_ADMIN, REASON_NO_ANSWER,
 };
@@ -89,6 +89,15 @@ impl Poller {
         self.say(log_line(outcome));
         (self.send_invite_note)(note);
         self.notes_visible_until = Some(Instant::now() + self.timing.note_visible_for);
+        self.notify_if_copied(outcome, reach);
+    }
+
+    /// A system notification for a copied invite whose reach depends on this computer; after the menu line.
+    fn notify_if_copied(&self, outcome: Result<(), &'static str>, reach: InviteReach) {
+        let Some(notice) = outcome.ok().and_then(|()| invite_notice(reach)) else {
+            return;
+        };
+        (self.notify_fn)(notice);
     }
 
     /// The deadline passed: both notes go away.

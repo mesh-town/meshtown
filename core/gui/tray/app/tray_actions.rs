@@ -6,9 +6,11 @@ use crate::gui::tray::app::start_note::{start_note_line, StartNote};
 use crate::gui::tray::app::tray_texts::{
     invite_copy_failed_text, serve_disable_failed_text, serve_enable_failed_text,
     INVITE_ADMINS_ONLY_TEXT, INVITE_COPIED_ISSUER_AND_ONE_LINE, INVITE_COPIED_ISSUER_ONLY_LINE,
-    INVITE_COPIED_LINE, INVITE_COPIED_TEXT, INVITE_TEXT,
+    INVITE_COPIED_LINE, INVITE_COPIED_TEXT, INVITE_NOTICE_ISSUER_AND_ONE_BODY,
+    INVITE_NOTICE_ISSUER_ONLY_BODY, INVITE_NOTICE_TITLE, INVITE_TEXT,
 };
 use crate::gui::tray::app::view::{node_status_menu_line, RouteLine, View};
+use crate::gui::tray::notify::Notice;
 
 /// How many nodes will let a newcomer in with this invite (the `reach` field of the node's reply).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,13 +30,41 @@ impl InviteReach {
         }
     }
 
-    fn line(self) -> &'static str {
+    /// The menu line and the system notice for this reach; the only `match` over the variants.
+    fn texts(self) -> ReachTexts {
         match self {
-            InviteReach::Spread => INVITE_COPIED_LINE,
-            InviteReach::IssuerAndOne => INVITE_COPIED_ISSUER_AND_ONE_LINE,
-            InviteReach::IssuerOnly => INVITE_COPIED_ISSUER_ONLY_LINE,
+            InviteReach::Spread => ReachTexts {
+                line: INVITE_COPIED_LINE,
+                notice: None,
+            },
+            InviteReach::IssuerAndOne => ReachTexts {
+                line: INVITE_COPIED_ISSUER_AND_ONE_LINE,
+                notice: Some(notice(INVITE_NOTICE_ISSUER_AND_ONE_BODY)),
+            },
+            InviteReach::IssuerOnly => ReachTexts {
+                line: INVITE_COPIED_ISSUER_ONLY_LINE,
+                notice: Some(notice(INVITE_NOTICE_ISSUER_ONLY_BODY)),
+            },
         }
     }
+}
+
+/// What a reach shows: the first menu line and, when the invite depends on this computer, a notification.
+struct ReachTexts {
+    line: &'static str,
+    notice: Option<Notice>,
+}
+
+fn notice(body: &'static str) -> Notice {
+    Notice {
+        title: INVITE_NOTICE_TITLE,
+        body,
+    }
+}
+
+/// The system notification after a successful copy; `None` when the invite does not depend on this computer.
+pub(crate) fn invite_notice(reach: InviteReach) -> Option<Notice> {
+    reach.texts().notice
 }
 
 /// What the invite item shows.
@@ -76,7 +106,7 @@ pub(crate) fn flat_invite_text(can_invite: bool, note: InviteNote) -> String {
 pub(crate) fn invite_status_line(note: InviteNote) -> Option<String> {
     match note {
         InviteNote::Idle => None,
-        InviteNote::Copied(reach) => Some(reach.line().to_string()),
+        InviteNote::Copied(reach) => Some(reach.texts().line.to_string()),
         InviteNote::Failed(reason) => Some(invite_copy_failed_text(reason)),
     }
 }
@@ -114,3 +144,7 @@ pub(crate) fn menu_first_line(
 #[cfg(test)]
 #[path = "tray_actions_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "tray_actions_notice_tests.rs"]
+mod notice_tests;

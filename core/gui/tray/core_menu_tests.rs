@@ -24,6 +24,9 @@ impl TrayBackend for RecordingTray {
     fn copy_to_clipboard(&self, _text: &str) -> Result<(), &'static str> {
         Ok(())
     }
+    fn notify(&self, _title: &str, _body: &str) -> Result<(), &'static str> {
+        Ok(())
+    }
 }
 
 fn page() -> Option<String> {

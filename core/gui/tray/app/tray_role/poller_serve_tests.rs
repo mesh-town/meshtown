@@ -34,6 +34,7 @@ mod serve_checkbox {
             send_invite_note: Box::new(|_n| {}),
             send_serve_note: Box::new(|_n| {}),
             copy_to_clipboard_fn: Arc::new(|_t: &str| Ok(())),
+            notify_fn: std::sync::Arc::new(|_n: crate::gui::tray::notify::Notice| {}),
             log: Box::new(move |s| log.lock().unwrap().push(s)),
             last_view: None,
             proxy: ProxyState::Off(ProxyOff::DisabledInSettings),

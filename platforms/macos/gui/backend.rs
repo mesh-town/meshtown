@@ -1,8 +1,8 @@
-//! The `TrayBackend` of this OS: the event loop, the wake-up, opening a link and the clipboard.
+//! The `TrayBackend` of this OS: the event loop, the wake-up, opening a link, the clipboard and system notifications.
 
 use meshtown_core::gui::tray::{copy_via, Core, TrayBackend};
 
-use crate::{clipboard, open_url, tray};
+use crate::{clipboard, notify, open_url, tray};
 
 /// The macos tray backend.
 pub struct MacosTray;
@@ -25,5 +25,9 @@ impl TrayBackend for MacosTray {
 
     fn copy_to_clipboard(&self, text: &str) -> Result<(), &'static str> {
         copy_via(clipboard::TOOLS, text)
+    }
+
+    fn notify(&self, title: &str, body: &str) -> Result<(), &'static str> {
+        notify::show(title, body)
     }
 }
