@@ -150,3 +150,7 @@ impl Replay {
 #[cfg(test)]
 #[path = "roles_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "roles_more_tests.rs"]
+mod more_tests;
