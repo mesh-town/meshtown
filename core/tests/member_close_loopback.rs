@@ -1,8 +1,8 @@
 //! Deleting a Managed network, end to end: three nodes (the creator, an administrator and a plain member) run
 //! under the process host over the in-process test network; the administrator deletes the network from the page.
 //!
-//! What it does: every node leaves the network and keeps a notice that the page lists until it is
-//! acknowledged; a close asked for by a plain member changes nothing. The network key of every node comes from its
+//! What it does: every node leaves the network; each node except the administrator who asked for the close keeps a
+//! notice that the page lists until it is acknowledged; a close asked for by a plain member changes nothing. The network key of every node comes from its
 //! settings file, not from a flag: a key given by a flag could not be left.
 //! What it does not do: a forged close record in the replica of a member is a unit test of the count; here the
 //! page's own refusal stands in for it. Every wait has a ceiling, so a hang fails the test.
@@ -23,12 +23,17 @@ use std::time::Duration;
 use serde_json::json;
 
 use common::wait_until;
-use trio_nodes::{trio, LABEL};
+use trio_nodes::{trio, Hosted, Trio, LABEL};
 
 /// The wait of the host between the leave record and the stop of the node.
 const LEAVE_GRACE: Duration = Duration::from_secs(3);
 /// How long the notices may take to show up after the close was asked for.
 const NOTICE_LIMIT: Duration = Duration::from_secs(LEAVE_GRACE.as_secs() + 5);
+
+/// The nodes that did not ask for the close: only they get a notice, the author has just seen the result.
+fn others(t: &Trio) -> [&Hosted; 2] {
+    [&t.root, &t.member]
+}
 
 mod admin_deletes_the_network {
     use super::*;
@@ -42,16 +47,21 @@ mod admin_deletes_the_network {
         let (status, body) = t
             .admin
             .post("/api/network/delete", json!({"confirm": true}));
-        // then: each node shows one notice about the deletion by the administrator, within the grace and a margin
+        // then: each other node shows one notice about the deletion by the administrator, within the grace and a margin;
+        // the administrator who asked for it has none
         assert_eq!(status, 200, "delete: {body}");
-        let noted = wait_until(NOTICE_LIMIT, || t.all().all(|n| n.notices().len() == 1)).await;
+        let noted = wait_until(NOTICE_LIMIT, || {
+            others(&t).iter().all(|n| n.notices().len() == 1)
+        })
+        .await;
         assert!(
             noted,
             "not every node noted the deletion: {:?}",
             t.all_notices()
         );
         assert_eq!(t.root.notices()[0]["label"], LABEL);
-        for node in t.all() {
+        assert!(t.admin.notices().is_empty(), "{:?}", t.all_notices());
+        for node in others(&t) {
             let notes = node.notices();
             assert_eq!(notes[0]["kind"], "net_deleted", "{notes:?}");
             assert!(notes[0].get("label").is_some(), "{notes:?}");
@@ -69,7 +79,10 @@ mod admin_deletes_the_network {
         let t = trio().await;
         t.admin
             .post("/api/network/delete", json!({"confirm": true}));
-        let noted = wait_until(NOTICE_LIMIT, || t.all().all(|n| !n.notices().is_empty())).await;
+        let noted = wait_until(NOTICE_LIMIT, || {
+            others(&t).iter().all(|n| !n.notices().is_empty())
+        })
+        .await;
         assert!(
             noted,
             "not every node noted the deletion: {:?}",
@@ -90,18 +103,21 @@ mod admin_deletes_the_network {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn acknowledging_clears_the_notice() {
-        // given: every node has a notice
+        // given: every node but the author has a notice
         let t = trio().await;
         t.admin
             .post("/api/network/delete", json!({"confirm": true}));
-        let noted = wait_until(NOTICE_LIMIT, || t.all().all(|n| !n.notices().is_empty())).await;
+        let noted = wait_until(NOTICE_LIMIT, || {
+            others(&t).iter().all(|n| !n.notices().is_empty())
+        })
+        .await;
         assert!(
             noted,
             "not every node noted the deletion: {:?}",
             t.all_notices()
         );
-        // when: each node acknowledges its notice
-        for node in t.all() {
+        // when: each of them acknowledges its notice
+        for node in others(&t) {
             let id = node.notices()[0]["id"].clone();
             let (status, body) = node.post("/api/notices/ack", json!({ "id": id }));
             assert_eq!(status, 200, "ack: {body}");
