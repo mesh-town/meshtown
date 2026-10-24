@@ -4,10 +4,12 @@
 //! writes anything of its own to the shared replica, then starts the watcher that publishes the view.
 //! What it doesn't do: no tally and no records of its own (`access`).
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tokio::task::AbortHandle;
 
+use crate::config::config_file::forget_invited_peers;
 use crate::members::access::authority::Rules;
 use crate::members::access::boot::{run_boot, AccessBoot};
 use crate::members::access::runtime::Access;
@@ -25,6 +27,7 @@ pub(super) struct AccessStart {
     pub(super) boot: AccessBoot,
     pub(super) open_list: bool,
     pub(super) rules: Rules,
+    pub(super) invited_file: Option<PathBuf>,
 }
 
 /// Ids from the invite (in the order given, no repeats).
@@ -56,6 +59,7 @@ pub(super) fn access_start(cfg: &NodeConfig, me: PeerId, cache: &PeersCache) -> 
         boot,
         open_list: cfg.open_list,
         rules: Rules::from(&cfg.net_kind),
+        invited_file: cfg.invited_peers_file.clone(),
     }
 }
 
@@ -69,23 +73,52 @@ pub(super) async fn start_access(
     if st.open_list {
         return Arc::new(Access::new(list, members).with_rules(st.rules));
     }
-    boot_or_say(list, &st.boot).await;
+    boot_or_say(list, &st.boot, st.invited_file.as_deref()).await;
     let access = Arc::new(Access::new(list, members).with_rules(st.rules));
     handles.extend(spawn_access(access.clone()));
     access
 }
 
-/// A failed boot is logged and the node goes on: the watcher still publishes the view.
-async fn boot_or_say(list: &DomainList, boot: &AccessBoot) {
-    if let Err(e) = run_boot(
-        list.shared_replica().as_ref(),
-        list.own_replica().as_ref(),
-        boot,
-    )
-    .await
-    {
+/// A failed boot is logged and the node goes on: the watcher still publishes the view. A finished boot has
+/// put the invited peers into the shared replica, which reaches the disk with a delay, so it is flushed first;
+/// only then the invited peers file is no longer needed.
+async fn boot_or_say(list: &DomainList, boot: &AccessBoot, invited_file: Option<&Path>) {
+    let shared = list.shared_replica();
+    let res = run_boot(shared.as_ref(), list.own_replica().as_ref(), boot).await;
+    if let Err(e) = &res {
         say("access", format!("boot failed: {e}"));
     }
+    let flush = match res {
+        Ok(_) => shared.flush().await,
+        Err(_) => Ok(()),
+    };
+    if let Err(e) = &flush {
+        say(
+            "access",
+            format!("saving the list after the boot failed: {e}"),
+        );
+    }
+    forget_after_boot(&saved(&res, flush), invited_file);
+}
+
+/// The boot result that also counts the flush: a boot that finished but was not saved counts as failed.
+fn saved<E, F: std::fmt::Display>(
+    res: &Result<usize, E>,
+    flush: Result<(), F>,
+) -> Result<usize, String> {
+    match (res, flush) {
+        (Ok(n), Ok(())) => Ok(*n),
+        (Ok(_), Err(e)) => Err(format!("not saved: {e}")),
+        (Err(_), _) => Err("boot failed".to_string()),
+    }
+}
+
+/// Removes the invited peers file after a boot that finished; a failed boot keeps it for the next start.
+fn forget_after_boot<E>(res: &Result<usize, E>, slot_file: Option<&Path>) {
+    let Some(path) = slot_file.filter(|_| res.is_ok()) else {
+        return;
+    };
+    forget_invited_peers(path);
 }
 
 #[cfg(test)]

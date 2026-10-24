@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::config::config_file::write_tmp_and_rename;
+use crate::node::output::say;
 use crate::transport::net::{PeerAddr, PeerId};
 
 /// The name of the file with the invited peers.
@@ -47,6 +48,20 @@ pub fn load_invited_peers(slot_file: &Path) -> Vec<PeerAddr> {
         .filter_map(|l| PeerId::from_str(l.trim()).ok())
         .map(PeerAddr::new)
         .collect()
+}
+
+/// Removes the invited peers file beside `slot_file` once the node no longer needs it. A missing file is
+/// fine; any other failure is logged and the node goes on.
+pub fn forget_invited_peers(slot_file: &Path) {
+    let Some(path) = file_beside(slot_file) else {
+        return;
+    };
+    match std::fs::remove_file(&path) {
+        Err(e) if e.kind() != io::ErrorKind::NotFound => {
+            say("network", format!("invited peers not removed: {e}"))
+        }
+        _ => {}
+    }
 }
 
 #[cfg(test)]

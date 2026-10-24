@@ -2,9 +2,11 @@
 //! either runs the boot and the watcher (live) or leaves the view open (the loopback preset).
 
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use super::*;
+use crate::config::config_file::save_invited_peers;
 use crate::members::access::record::BOOT_KEY;
 use crate::members::network_key::NetworkKey;
 use crate::transport::net::contract::pid;
@@ -91,4 +93,103 @@ async fn a_live_list_runs_the_boot_and_publishes_the_view() {
         "the boot marker must be written"
     );
     node.shutdown().await;
+}
+
+fn slot_dir(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("mesh-wiring-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// A slot directory with an invited peers file naming one host; returns the directory and the settings path.
+fn slot_with_host(name: &str) -> (PathBuf, PathBuf, PeerId) {
+    let dir = slot_dir(name);
+    let slot_file = dir.join("config.json");
+    let host = pid(7);
+    save_invited_peers(&slot_file, &[PeerAddr::new(host)]).unwrap();
+    (dir.clone(), slot_file, host)
+}
+
+fn invited_exists(dir: &Path) -> bool {
+    dir.join("invited-peers.txt").exists()
+}
+
+#[test]
+fn a_finished_boot_forgets_the_file() {
+    for written in [0usize, 3] {
+        let (dir, slot_file, _) = slot_with_host(&format!("done{written}"));
+        forget_after_boot(&Ok::<usize, String>(written), Some(&slot_file));
+        assert!(!invited_exists(&dir), "written = {written}");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}
+
+#[test]
+fn a_failed_boot_keeps_the_file() {
+    let (dir, slot_file, _) = slot_with_host("failed");
+    forget_after_boot(&Err::<usize, String>("no".into()), Some(&slot_file));
+    assert!(invited_exists(&dir));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_failed_flush_keeps_the_file() {
+    // given: a finished boot whose flush failed
+    let (dir, slot_file, _) = slot_with_host("flush");
+    let res = saved(
+        &Ok::<usize, String>(1),
+        Err::<(), String>("disk full".into()),
+    );
+    // when: the file is to be forgotten
+    forget_after_boot(&res, Some(&slot_file));
+    // then: the file stays for the next start; a flush that worked lets it go
+    assert!(invited_exists(&dir));
+    forget_after_boot(
+        &saved(&Ok::<usize, String>(1), Ok::<(), String>(())),
+        Some(&slot_file),
+    );
+    assert!(!invited_exists(&dir));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn no_path_means_nothing_to_forget() {
+    let (dir, _, _) = slot_with_host("nopath");
+    forget_after_boot(&Ok::<usize, String>(1), None);
+    assert!(invited_exists(&dir));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_live_list_boot_removes_the_invited_file() {
+    // given: a live list and a slot whose invited peers file names the host
+    let (dir, slot_file, host) = slot_with_host("live");
+    let mut cfg = cfg_with_invite(&[host]);
+    cfg.open_list = false;
+    cfg.invited_peers_file = Some(slot_file);
+    // when: the node starts and the boot finishes
+    let node = crate::node::start_node(cfg).await.unwrap();
+    tokio::time::timeout(LIMIT, node.members.access().ready())
+        .await
+        .expect("the view must become ready");
+    // then: the file is gone and the boot marker is written
+    assert!(!invited_exists(&dir), "the file must be removed");
+    assert!(has_boot_marker(&node).await);
+    node.shutdown().await;
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_open_list_leaves_the_invited_file() {
+    // given: an open list and a slot with an invited peers file
+    let (dir, slot_file, host) = slot_with_host("open");
+    let mut cfg = cfg_with_invite(&[host]);
+    cfg.invited_peers_file = Some(slot_file);
+    // when: the node starts (no boot)
+    let node = crate::node::start_node(cfg).await.unwrap();
+    // then: the file stays
+    assert!(invited_exists(&dir));
+    node.shutdown().await;
+    std::fs::remove_dir_all(&dir).ok();
 }

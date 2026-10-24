@@ -76,3 +76,21 @@ fn a_slot_without_the_file_starts_without_peers() {
     let launch = launch_of_slot("without", &[]);
     assert!(launch.start.unwrap().initial_peers.is_empty());
 }
+
+#[test]
+fn a_slot_start_carries_its_settings_path() {
+    let launch = launch_of_slot("path", &[peer(1)]);
+    let expected = launch.run.file.as_ref().map(|f| f.path().to_path_buf());
+    assert!(expected.is_some());
+    assert_eq!(launch.start.unwrap().invited_peers_file, expected);
+}
+
+#[test]
+fn a_slot_without_a_file_carries_no_path() {
+    let mut launch = launch_of_slot("nofile", &[]);
+    launch.run.file = None;
+    let parsed = slot_key(&launch.run).expect("key");
+    let relaunch = launch.relaunch.clone();
+    let again = slot_launch(launch.id.clone(), launch.run, parsed, &relaunch);
+    assert_eq!(again.start.unwrap().invited_peers_file, None);
+}
