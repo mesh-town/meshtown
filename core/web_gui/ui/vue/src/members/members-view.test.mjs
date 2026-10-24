@@ -12,12 +12,17 @@
  *  - `excludedVariant(members, me): "left" | "banned"` — "left" only when my own row has `excluded.how === "left"`.
  *  - `displayNames(members): Record<id_full, string>` — name, or the short `id` for a nameless/blank-named member; `{}` for null.
  *      (It builds the `names` argument of `excludedRowLine` and `rowDecor`.)
- *  - `partitionRows(peers, members, me): { active, pending, unlisted, excluded }`:
+ *  - `partitionRows(peers, members, me): { active, pending, unlisted, excluded, forgotten, stale }`:
  *      `active` holds the peers with status "member" (the same objects as in `peers`, order kept) and, appended in the order of
  *      `members`, a minimal row `{ id, id_full, name, online, self }` copied from the member row for a member absent from `peers`;
  *      `unlisted` and `excluded` hold `MemberRow`s of `members` (status "unlisted" / "excluded", order of `members`) — they are
  *      drawn from the member data (`UnlistedList.vue` / `ExcludedList.vue`), whether or not the node is among the peers.
- *      A peer unknown to `members` stays in `active`. `members == null`: `{ active: peers, unlisted: [], excluded: [] }`.
+ *      A peer unknown to `members` stays in `active`. `members == null`: `{ active: peers, pending: [], unlisted: [], excluded: [], forgotten: [], stale: [] }`.
+ *  - `partitionRows` also returns `forgotten` (`status "forgotten"` or my own waiting round, see `inForgottenGroup`) and `stale`
+ *      (`isStale`: a member that is not me, offline, with `last_seen_sec` null or over `STALE_AFTER_SECS`, not in `forgotten`);
+ *      both are `MemberRow`s of `members` in the order of the reply and are taken out of `active` (peers and list-only members alike).
+ *  - `forgottenRowLine(m, rows, timeZone?)`: "Removed by {a} and {b} on 19 Oct" (voters are short ids, named through `rows`), or
+ *      "Waiting for one more member to confirm" while the round is not complete.
  *  - `shortDate(unix, timeZone?): string` — "19 Oct" (day without a leading zero, English short month); a non-number gives "".
  *  - `excludedRowLine(m, names, timeZone?): string`; `names` is a `displayNames` object; an unknown id falls back to its first 8 chars. */
 
@@ -33,7 +38,11 @@ import {
   memberById,
   partitionRows,
   excludedRowLine,
+  forgottenRowLine,
+  inForgottenGroup,
+  isStale,
   shortDate,
+  STALE_AFTER_SECS,
 } from "./members-view.ts";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
 import {
@@ -42,10 +51,12 @@ import {
   excludedInfo,
   extraRow,
   foreignVote,
+  forgetInfo,
   membersReply,
   peerOneRow,
   peerTwoRow,
   selfRow,
+  staleRow,
   voteInfo,
 } from "../testing/members-fixtures.mjs";
 
@@ -169,98 +180,62 @@ describe("displayNames", () => {
   });
 });
 
-describe("partitionRows", () => {
-  describe("members are not known (an old node or a failed request)", () => {
-    it("every peer stays in the active list as it is", () => {
-      const peers = [peer(PEER_FULL), peer(PEER2_FULL)];
-      const parts = partitionRows(peers, null, ME);
-      assert.deepEqual(parts.active, peers);
-      assert.equal(parts.active[0], peers[0], "the very same peer objects");
-      assert.deepEqual(parts.unlisted, []);
-      assert.deepEqual(parts.excluded, []);
-    });
-
-    it("no peers either: three empty lists", () => {
-      assert.deepEqual(partitionRows(null, null, ME), { active: [], pending: [], unlisted: [], excluded: [] });
-    });
+describe("isStale", () => {
+  it("an offline member seen over a week ago", () => {
+    assert.equal(isStale(staleRow("old-desktop", 777600), ME), true);
   });
 
-  describe("everybody is a member", () => {
-    it("the active list is the peers in their order", () => {
-      const peers = [peer(PEER2_FULL), peer(SELF_FULL, { self: true }), peer(PEER_FULL)];
-      const reply = membersReply({ rows: [selfRow(), peerOneRow(), peerTwoRow()] });
-      const parts = partitionRows(peers, reply, ME);
-      assert.deepEqual(ids(parts.active), [PEER2_FULL, SELF_FULL, PEER_FULL]);
-      assert.equal(parts.unlisted.length + parts.excluded.length, 0);
-    });
+  it.each([
+    ["never seen", staleRow("ghost-key", null), true],
+    ["exactly a week", staleRow("week-old", 604800), false],
+    ["a second over", staleRow("week-old", 604801), true],
+    ["online", peerOneRow({ online: true, last_seen_sec: 777600 }), false],
+    ["not a member", extraRow({ status: "pending", online: false, last_seen_sec: 777600 }), false],
+    ["me", selfRow({ online: false, last_seen_sec: 777600 }), false],
+  ])("%s: %s", (_name, row, expected) => {
+    assert.equal(isStale(row, ME), expected);
+  });
+});
 
-    it("a pending vote does not move a row anywhere", () => {
-      const peers = [peer(SELF_FULL, { self: true }), peer(PEER_FULL)];
-      const reply = membersReply({ rows: [selfRow({ vote: foreignVote() }), peerOneRow({ vote: voteInfo() })] });
-      assert.deepEqual(ids(partitionRows(peers, reply, ME).active), [SELF_FULL, PEER_FULL]);
-    });
+describe("inForgottenGroup", () => {
+  it("the status \"forgotten\"", () => {
+    assert.equal(inForgottenGroup(peerOneRow({ status: "forgotten", forget: forgetInfo({ at_unix: AT_UNIX }) })), true);
   });
 
-  describe("a member was excluded", () => {
-    it("its peer row leaves the active list and the row of the reply goes to excluded", () => {
-      const peers = [peer(SELF_FULL, { self: true }), peer(PEER_FULL)];
-      const gone = peerOneRow({ status: "excluded", excluded: excludedInfo() });
-      const parts = partitionRows(peers, membersReply({ rows: [selfRow(), gone] }), ME);
-      assert.deepEqual(ids(parts.active), [SELF_FULL]);
-      assert.deepEqual(parts.excluded, [gone]);
-    });
-
-    it("an excluded member that is not among the peers is still in excluded", () => {
-      const gone = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [EXTRA_FULL] }) });
-      const parts = partitionRows([peer(SELF_FULL, { self: true })], membersReply({ rows: [selfRow(), gone] }), ME);
-      assert.deepEqual(ids(parts.active), [SELF_FULL]);
-      assert.deepEqual(parts.excluded, [gone]);
-    });
-
-    it("excluded keeps the order of the reply", () => {
-      const a = extraRow({ status: "excluded", excluded: excludedInfo() });
-      const b = peerTwoRow({ status: "excluded", excluded: excludedInfo() });
-      const parts = partitionRows([], membersReply({ rows: [selfRow(), b, a] }), ME);
-      assert.deepEqual(ids(parts.excluded), [PEER2_FULL, EXTRA_FULL]);
-    });
+  it("my waiting round on a member", () => {
+    assert.equal(inForgottenGroup(peerOneRow({ forget: forgetInfo({ mine: true }) })), true);
   });
 
-  describe("a node is not in the member list", () => {
-    it("its row of the reply goes to unlisted and its peer row leaves the active list", () => {
-      const peers = [peer(SELF_FULL, { self: true }), peer(PEER2_FULL)];
-      const stray = peerTwoRow({ status: "unlisted" });
-      const parts = partitionRows(peers, membersReply({ rows: [selfRow(), stray] }), ME);
-      assert.deepEqual(ids(parts.active), [SELF_FULL]);
-      assert.deepEqual(parts.unlisted, [stray]);
-    });
-
-    it("also when the node is not among the peers; the order of the reply is kept", () => {
-      const a = extraRow({ status: "unlisted", online: false });
-      const b = peerTwoRow({ status: "unlisted" });
-      const parts = partitionRows([], membersReply({ rows: [selfRow(), b, a] }), ME);
-      assert.deepEqual(ids(parts.unlisted), [PEER2_FULL, EXTRA_FULL]);
-    });
+  it("a round of somebody else on a member: not", () => {
+    assert.equal(inForgottenGroup(peerOneRow({ forget: forgetInfo() })), false);
   });
 
-  describe("a member the peer list does not have", () => {
-    it("a minimal row after the peers in the active list", () => {
-      const peers = [peer(SELF_FULL, { self: true })];
-      const parts = partitionRows(peers, membersReply({ rows: [selfRow(), extraRow()] }), ME);
-      assert.deepEqual(ids(parts.active), [SELF_FULL, EXTRA_FULL]);
-      const minimal = parts.active[1];
-      assert.equal(minimal.id, "dddd4444");
-      assert.equal(minimal.name, "old-laptop");
-      assert.equal(minimal.online, true);
-      assert.equal(!!minimal.self, false);
-    });
+  it("an ordinary member: not", () => {
+    assert.equal(inForgottenGroup(peerOneRow()), false);
+  });
+});
+
+describe("forgottenRowLine", () => {
+  const rows = [selfRow(), peerOneRow(), peerTwoRow({ name: "router" })];
+  const gone = (over = {}) => extraRow({ status: "forgotten", online: false, forget: forgetInfo({ votes: 2, mine: true, voters: ["aaaa1111", "bbbb2222"], at_unix: AT_UNIX, ...over }) });
+
+  it("a forgotten member names both voters by the names of the rows and the date", () => {
+    assert.equal(forgottenRowLine(gone(), rows, "UTC"), "Removed by finch-unwary and peer-one on 19 Oct");
   });
 
-  describe("a peer the reply does not know", () => {
-    it("stays in the active list", () => {
-      const peers = [peer(SELF_FULL, { self: true }), peer(PEER_FULL)];
-      const parts = partitionRows(peers, membersReply({ rows: [selfRow()] }), ME);
-      assert.deepEqual(ids(parts.active), [SELF_FULL, PEER_FULL]);
-    });
+  it("a voter whose row has no name is shown by the short id", () => {
+    const row = gone({ voters: ["bbbb2222", "cccc3333"] });
+    const nameless = [selfRow(), peerOneRow(), peerTwoRow({ name: null })];
+    assert.equal(forgottenRowLine(row, nameless, "UTC"), "Removed by peer-one and cccc3333 on 19 Oct");
+  });
+
+  it("a single voter has no \"and\"", () => {
+    assert.equal(forgottenRowLine(gone({ voters: ["bbbb2222"] }), rows, "UTC"), "Removed by peer-one on 19 Oct");
+  });
+
+  it("a round that waits for one more member says so", () => {
+    const waiting = extraRow({ online: false, forget: forgetInfo({ mine: true, voters: ["aaaa1111"], at_unix: null }) });
+    assert.equal(forgottenRowLine(waiting, rows, "UTC"), "Waiting for one more member to confirm");
   });
 });
 

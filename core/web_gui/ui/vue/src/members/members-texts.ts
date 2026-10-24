@@ -1,6 +1,6 @@
 /* The words of the "members" part of the page, verbatim from the UI spec. A name passed to a builder is already resolved. */
 
-import { NET_NAME, quotedNet } from "../common/words.ts";
+import { NET_NAME, agoText, quotedNet } from "../common/words.ts";
 
 export const BADGE_BAN_PROPOSED = "Ban proposed";
 export const BADGE_BLOCKED = "Blocked on this computer";
@@ -83,9 +83,13 @@ export const labelLine = (label: string): string => "Invited as \"" + label + "\
 export const admitAria = (name: string): string => "Confirm joining: " + name;
 
 // `net` without quotes; absent or blank — no quoted part.
-export function excludedTitle(variant: "banned" | "left", net?: string | null): string {
-  const tail = quotedNet(net);
-  return variant === "left" ? "You left the network" + tail : "This computer was banned from the network" + tail;
+const EXCLUDED_TITLES = {
+  left: "You left the network",
+  banned: "This computer was banned from the network",
+  forgotten: "This computer was removed from the member list",
+};
+export function excludedTitle(variant: "banned" | "left" | "forgotten", net?: string | null): string {
+  return EXCLUDED_TITLES[variant] + quotedNet(net);
 }
 
 // The header line of a computer that is no longer in the network; `net` without quotes.
@@ -101,3 +105,42 @@ export const leaveMultiBody = (net: string): string =>
   `Disconnect this computer from "${net}" for good. Your other networks stay. You'll need a new invite to come back.`;
 export const leaveExitLine = (exit: string): string =>
   `Your exit ${exit} is in this network. After you leave, sites will open directly until you choose another exit.`;
+
+// Removing an offline node from the member list.
+export const MENU_FORGET = "Remove from network\u2026";
+export const MENU_CONFIRM_FORGET = "Confirm removal\u2026";
+export const MENU_UNDO_FORGET = "Undo removal";
+export const BADGE_FORGET_PROPOSED = "Removal proposed";
+export const FORGET_WAITING = "Waiting for one more member to confirm";
+export const FORGOTTEN_CARD_TEXT =
+  "Members removed it after it had been offline for a while. It can't connect to them until it joins again. Ask a member for a new invite \u2014 this computer keeps its key.";
+export const FORGOTTEN_JOIN = "Join with an invite";
+export const FORGET_RECENT_HINT = "It was online recently \u2014 remove it only if this computer is gone.";
+
+export const staleSummary = (n: number): string => "Offline for over a week (" + n + ")";
+export const forgottenSummary = (n: number): string => "Removed from the member list (" + n + ")";
+export const forgottenLine = (by: string, date: string): string => "Removed by " + by + " on " + date;
+export const lastOnlineText = (sec: number | null): string => (sec === null ? "Never seen online" : "Last online " + agoText(sec));
+
+export const forgetTitle = (name: string): string => "Remove " + name + " from the network?";
+export const forgetLastSeenLine = (name: string, sec: number | null): string =>
+  name + (sec === null ? " has never been seen online." : " was last online " + agoText(sec) + ".");
+export const forgetEffectLine = (): string =>
+  "It disappears from the member list on every computer in the network and can't connect until it joins again. To bring it back, send it a new invite.";
+export const forgetNeedTwoLine = (name: string): string =>
+  "This takes two members: you propose, and one more member confirms. On this computer, " + name + " is hidden right away.";
+export const forgetOnlyTwoLine = (name: string, other: string): string =>
+  "You and " + other + " are the only members, so " + name + " is removed right away.";
+export const forgetConfirmTitle = (name: string): string => "Confirm removing " + name + "?";
+export const forgetConfirmLine = (name: string): string => "Yours is the second vote: " + name + " is removed for everyone right away.";
+export const FORGET_PROPOSE = "Propose removal";
+export const forgetAction = (name: string): string => "Remove " + name;
+export const banAtRiskText = (name: string): string =>
+  "A ban is waiting for votes in this network. With " + name + " removed, fewer votes are needed, and it may pass right away.";
+
+export const forgetProposedStatus = (name: string): string =>
+  "Removal proposed. " + name + " is hidden on this computer. Ask another member to open Mesh Town and confirm on the Members tab.";
+export const forgottenStatus = (name: string): string => name + " was removed from the member list.";
+export const unforgottenStatus = (name: string): string => "Removal withdrawn. " + name + " is back in the member list.";
+export const forgottenStatusText = (net?: string | null): string =>
+  "Removed from the member list" + quotedNet(net) + " \u2014 ask a member for an invite";

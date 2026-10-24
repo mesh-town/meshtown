@@ -3,7 +3,7 @@
  * Contract fixed by these tests:
  *  - `exitWarning(chosen, members, meExcluded)` looks at the chosen exits in the order of `chosen` and reports the first one whose row in
  *    `members` is excluded (`excluded.how === "left"` → kind "left", anything else → "banned") or blocked on this computer
- *    (`blocked_by_me`, or `denied_by_me === "voted_by_me"` — my own ban proposal blocks it locally → kind "blocked").
+ *    (`blocked_by_me`, or `denied_by_me === "voted_by_me"` / `"removed_by_me"` — my own ban or removal proposal blocks it locally → kind "blocked").
  *    The result is `{ id, kind, text, hint }`, `text` is "Your exit {name} {was banned from the network | left the network | is blocked on
  *    this computer} — sites won't open until you choose another exit" (no final period); the name is the `displayNames` one.
  *    `hint` is the short line above the exit list: "{name} {was banned from the network | left the network | is blocked on this
@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { exitMetaText } from "../home/exit-list.ts";
 import { exitWarning, memberExits, warnPanel, withExitWarning } from "./exit-members.ts";
 import { PEER2_FULL, PEER_FULL } from "../testing/section.mjs";
-import { excludedInfo, membersReply, peerOneRow, peerTwoRow, selfRow, voteInfo } from "../testing/members-fixtures.mjs";
+import { excludedInfo, forgetInfo, membersReply, peerOneRow, peerTwoRow, selfRow, voteInfo } from "../testing/members-fixtures.mjs";
 
 const TAIL = " — sites won't open until you choose another exit";
 const REMOVED_TEXT = "Your exit peer-one was banned from the network" + TAIL;
@@ -32,6 +32,7 @@ const removedOne = (over = {}) => peerOneRow({ status: "excluded", online: false
 const leftOne = () => removedOne({ denied_by_me: "left", excluded: excludedInfo({ how: "left", voters: [] }) });
 const blockedOne = () => peerOneRow({ blocked_by_me: true, denied_by_me: "blocked" });
 const proposedByMe = () => peerOneRow({ denied_by_me: "voted_by_me", vote: voteInfo() });
+const removalProposedByMe = () => peerOneRow({ online: false, denied_by_me: "removed_by_me", forget: forgetInfo({ mine: true }) });
 const candidate = (idFull, over = {}) => ({
   idFull, label: "member " + idFull.slice(0, 4), country: null, online: true, active: false, path: "direct", rttMs: 30, checked: false, ...over,
 });
@@ -61,6 +62,13 @@ describe("exitWarning", () => {
       const warning = exitWarning([PEER_FULL], reply(proposedByMe()), false);
       assert.equal(warning.kind, "blocked");
       assert.equal(warning.id, PEER_FULL);
+    });
+
+    it("removed_by_me (my own removal proposal) blocks it here too", () => {
+      const warning = exitWarning([PEER_FULL], reply(removalProposedByMe()), false);
+      assert.equal(warning.kind, "blocked");
+      assert.equal(warning.id, PEER_FULL);
+      assert.equal(warning.text, "Your exit peer-one is blocked on this computer" + TAIL);
     });
 
     it("a removed member that is also blocked is reported as removed", () => {
@@ -147,6 +155,11 @@ describe("memberExits", () => {
 
     it("a candidate I proposed banning (voted_by_me) is blocked too", () => {
       const out = memberExits(list(), reply(proposedByMe(), peerTwoRow()));
+      assert.equal(out.find((c) => c.idFull === PEER_FULL).blocked, true);
+    });
+
+    it("a candidate I proposed removing (removed_by_me) is blocked too", () => {
+      const out = memberExits(list(), reply(removalProposedByMe(), peerTwoRow()));
       assert.equal(out.find((c) => c.idFull === PEER_FULL).blocked, true);
     });
 

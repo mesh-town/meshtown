@@ -25,6 +25,9 @@
  *    stripVoteText(n)                                   the link in the header: 1 -> singular, n >= 2 -> "N requests need ..."
  *    chipLabel(n)                                       aria-label of the counter on the tab (same wording as the header)
  *    excludedTitle(variant, net)                        variant "banned" | "left"; `net` without quotes, absent/blank -> no quotes part
+ *  removal: MENU_FORGET, MENU_CONFIRM_FORGET, MENU_UNDO_FORGET, BADGE_FORGET_PROPOSED, FORGET_WAITING, FORGOTTEN_CARD_TEXT, FORGOTTEN_JOIN,
+ *    staleSummary(n), forgottenSummary(n), forgottenLine(by, date), lastOnlineText(sec | null), forgetProposedStatus(name),
+ *    forgottenStatus(name), unforgottenStatus(name), forgottenStatusText(net), banAtRiskText(name)
  * Not covered (not defined by the spec): the body text of the "left" card, the warnings about a chosen exit. */
 
 import { describe, it } from "vitest";
@@ -287,5 +290,66 @@ describe("join request texts", () => {
     assert.equal(t.ACTION_ADMIT, "Confirm…");
     assert.equal(t.MENU_UNADMIT, "Withdraw confirmation");
     assert.equal(t.PENDING_TITLE, "Waiting to join the network");
+  });
+});
+
+describe("ban texts do not use the removal wording", () => {
+  const BAN_STRINGS = [
+    t.BADGE_BAN_PROPOSED, t.ACTION_CONFIRM_BAN, t.VOTE_CONFIRM_BAN, t.MENU_BAN, t.TITLE_BAN_PROPOSED, t.EXCLUDED_BANNED_TEXT,
+    t.EXCLUDED_APP_TEXT, t.AFFECTS_EVERYONE,
+  ];
+  const BAN_BUILT = [
+    t.waitingMoreText(1), t.confirmAria("old-laptop"), t.banProposedStatus("old-laptop"), t.bannedStatus("old-laptop"),
+    t.withdrawnStatus("old-laptop", false), t.withdrawnStatus("old-laptop", true), t.voteTitle("peer-one", "old-laptop"),
+    t.voteBody("old-laptop"), t.excludedTitle("banned", "family"), t.bannedStatusText("family"),
+  ];
+
+  it("no constant or builder of the ban says remove, removal or removed", () => {
+    for (const text of [...BAN_STRINGS, ...BAN_BUILT]) assert.ok(!/remov/i.test(text), text);
+  });
+
+  it("the ban words themselves", () => {
+    assert.equal(t.MENU_BAN, "Ban from network\u2026");
+    assert.equal(t.ACTION_CONFIRM_BAN, "Confirm ban\u2026");
+    assert.equal(t.VOTE_CONFIRM_BAN, "Confirm ban\u2026");
+    assert.equal(t.TITLE_BAN_PROPOSED, "Ban already proposed");
+    assert.equal(t.BADGE_BAN_PROPOSED, "Ban proposed");
+    assert.equal(t.EXCLUDED_APP_TEXT, "This phone was banned from the network. Start over to join with a new invite.");
+    assert.equal(t.confirmAria("old-laptop"), "Confirm ban: old-laptop");
+    assert.equal(t.waitingMoreText(1), "You proposed banning it \u00b7 waiting for 1 more member to confirm");
+  });
+
+  it("statuses after a ban", () => {
+    assert.equal(t.bannedStatus("old-laptop"), "old-laptop was banned from the network.");
+    assert.ok(t.banProposedStatus("old-laptop").startsWith("Ban proposed. old-laptop is already blocked on this computer."), t.banProposedStatus("old-laptop"));
+    assert.ok(t.withdrawnStatus("old-laptop", false).startsWith("Ban proposal withdrawn."), t.withdrawnStatus("old-laptop", false));
+  });
+
+  it("the banner", () => {
+    assert.equal(t.voteTitle("peer-one", "old-laptop"), "peer-one proposes banning old-laptop from the network");
+    assert.ok(t.voteBody("old-laptop").startsWith("If you confirm, old-laptop is banned for everyone"), t.voteBody("old-laptop"));
+  });
+
+  it("the titles and the header line of a computer that was banned", () => {
+    assert.equal(t.excludedTitle("banned", "family"), 'This computer was banned from the network "family"');
+    assert.equal(t.excludedTitle("banned"), "This computer was banned from the network");
+    assert.ok(t.bannedStatusText("family").startsWith('Banned from the network "family"'), t.bannedStatusText("family"));
+  });
+});
+
+describe("lastOnlineText", () => {
+  it.each([
+    [777600, "Last online 9 d ago"],
+    [86400, "Last online 1 d ago"],
+    [7200, "Last online 2 h ago"],
+    [300, "Last online 5 min ago"],
+    [10, "Last online just now"],
+    [0, "Last online just now"],
+  ])("%s s: %s", (sec, expected) => {
+    assert.equal(t.lastOnlineText(sec), expected);
+  });
+
+  it("never seen (null)", () => {
+    assert.equal(t.lastOnlineText(null), "Never seen online");
   });
 });

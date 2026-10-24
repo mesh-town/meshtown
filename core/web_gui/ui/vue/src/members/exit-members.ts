@@ -30,9 +30,9 @@ function kindOf(row: MemberRow | undefined): ExitWarningKind | null {
   return isBlocked(row) ? "blocked" : null;
 }
 
-// Blocked here: by an explicit block, or by my own ban proposal.
+// Blocked here: by an explicit block, or by my own ban or removal proposal.
 function isBlocked(row: MemberRow): boolean {
-  return !!row.blocked_by_me || row.denied_by_me === "voted_by_me";
+  return !!row.blocked_by_me || row.denied_by_me === "voted_by_me" || row.denied_by_me === "removed_by_me";
 }
 
 function warningOf(id: string, row: MemberRow | undefined, names: Record<string, string>): ExitWarning | null {

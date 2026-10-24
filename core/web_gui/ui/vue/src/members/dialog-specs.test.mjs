@@ -1,4 +1,4 @@
-/* `dialog-specs.ts`: the texts of the five confirmation dialogs (`dialogSpec(kind, ctx)`), exactly as in the UI spec, section 2.2.
+/* `dialog-specs.ts`: the texts of the confirmation dialogs (`dialogSpec(kind, ctx)`), exactly as in the UI spec, section 2.2.
  *
  * Contract fixed by these tests:
  *  - `dialogSpec(kind, ctx): { title: string, body: string[], hint?: string, action: string, danger: boolean }`
@@ -12,19 +12,25 @@
  *      `isMyExit` is true and the kind is not "leave".
  *  - `hint` is a separate small paragraph under the body; absent (undefined) when the spec has none ("ban-two", "leave").
  *  - `action` is the label of the action button (the cancel button is always "Cancel" and is not part of the spec);
- *      `danger` is true for all five (the action button is red).
+ *      `danger` is true for all of them but "admit" (the action button is red).
  *  - `spec.field?: { label: string, max: number }` — the optional text input the dialog draws before its buttons (the reason of a ban):
  *      present ONLY for "ban" (label "Reason (optional, members will see it)", max 80); absent (undefined) for "ban-two", "ban-confirm",
  *      "block" and "leave".
  *  - `ctx.reason?: string | null` — the reason the proposer gave. Only "ban-confirm" uses it: the line `Reason from {by}: "{reason}"` goes to
  *      `body` right after the main paragraph (before the "your exit" paragraph); no reason (absent, null, empty) — no line.
+ *  - "forget" (a removal proposal), "forget-two" (the network of two, removed at once), "forget-confirm" (the second vote): `ctx` also has
+ *      `seen?: number | null` (seconds since the member was last online, `null` = never), `other?: string` (the second member, "forget-two")
+ *      and `banAtRisk?: boolean` (a pending ban would pass at once after this removal: the last line of the body of "forget-two" and
+ *      "forget-confirm"). A hint "It was online recently" only for `seen` below a week. All three are red, none has a reason field.
  *  - The "ban-confirm" text has no time of the proposal after the network name. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { dialogSpec } from "./dialog-specs.ts";
 
-const KINDS = ["ban", "ban-two", "ban-confirm", "block", "leave"];
+const KINDS = ["ban", "ban-two", "ban-confirm", "block", "leave", "forget", "forget-two", "forget-confirm"];
+const BAN_KINDS = ["ban", "ban-two", "ban-confirm"];
+const FORGET_KINDS = ["forget", "forget-two", "forget-confirm"];
 const ctx = (over = {}) => ({ name: "old-laptop", by: "peer-one", net: "family", isMyExit: false, ...over });
 const EXIT_PARAGRAPH = "old-laptop is your exit: after this, sites won't open until you choose another exit.";
 
@@ -302,6 +308,18 @@ describe("the names are taken from the context", () => {
   });
 });
 
+describe("the words of the ban dialogs", () => {
+  it.each(BAN_KINDS)("%s: no removal wording in the title, body, hint or button", (kind) => {
+    const s = spec(kind);
+    for (const text of [s.title, ...s.body, s.hint || "", s.action]) assert.ok(!/remov/i.test(text), kind + ": " + text);
+  });
+
+  it.each(FORGET_KINDS)("%s: no ban wording in the title, body, hint or button", (kind) => {
+    const s = spec(kind, { seen: 777600, other: "peer-one" });
+    for (const text of [s.title, ...s.body, s.hint || "", s.action]) assert.ok(!/\bban/i.test(text.replace(/A ban is waiting/g, "")), kind + ": " + text);
+  });
+});
+
 describe("no network name in the context", () => {
   it.each(["ban", "ban-confirm", "leave"])("%s: no empty quotes, no \"undefined\"", (kind) => {
     for (const net of [undefined, "", "   "]) {
@@ -311,6 +329,12 @@ describe("no network name in the context", () => {
         assert.ok(!/"\s*"/.test(text), kind + " / " + String(net) + ": empty quotes in " + text);
       }
     }
+  });
+});
+
+describe("every removal dialog is red", () => {
+  it.each(FORGET_KINDS)("%s: danger", (kind) => {
+    assert.equal(spec(kind, { seen: 777600, other: "peer-one" }).danger, true);
   });
 });
 

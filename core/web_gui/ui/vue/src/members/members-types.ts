@@ -1,8 +1,8 @@
 /* Types of `GET /api/members` and `POST /api/members/<action>` (the member-list API contract). */
 
-export type MemberStatus = "member" | "pending" | "unlisted" | "excluded";
+export type MemberStatus = "member" | "pending" | "unlisted" | "excluded" | "forgotten";
 
-export type MemberAction = "exclude" | "unexclude" | "block" | "unblock" | "leave" | "admit" | "unadmit";
+export type MemberAction = "exclude" | "unexclude" | "block" | "unblock" | "leave" | "admit" | "unadmit" | "forget" | "unforget";
 
 // A pending ban vote on a row.
 export interface VoteInfo {
@@ -21,6 +21,16 @@ export interface AdmissionInfo {
   voters: string[];
   mine: boolean; // my node has confirmed
   label: string | null; // "for whom" label given with the invite
+}
+
+// A removal circle on a row: members who asked to drop an offline node from the list (short ids).
+export interface ForgetInfo {
+  votes: number;
+  need: number;
+  proposed_by: string; // short id of the proposer
+  voters: string[]; // short ids
+  mine: boolean; // my node has voted
+  at_unix: number | null; // set once the circle is complete
 }
 
 export interface ExcludedInfo {
@@ -48,6 +58,8 @@ export interface MemberRow {
   denied_by_me: string | null;
   last_refusal: RefusalInfo | null;
   admission: AdmissionInfo | null;
+  forget: ForgetInfo | null;
+  last_seen_sec: number | null; // seconds since the node was last online; null — never seen
 }
 
 export interface MemberCounts {
@@ -56,11 +68,13 @@ export interface MemberCounts {
   excluded: number;
   unlisted: number;
   pending: number;
+  forgotten: number;
 }
 
 export interface MembersReply {
   me: string;
   me_excluded: boolean;
+  me_removed: boolean; // this node was removed from the member list
   me_pending: boolean; // this node waits for members to confirm it
   me_admission: AdmissionInfo | null;
   need: number;
@@ -71,7 +85,7 @@ export interface MembersReply {
 
 // An item of the `⋯` menu.
 export interface MenuItem {
-  key: "block" | "unblock" | "exclude" | "leave" | "rename" | "waiting" | "withdraw" | "unadmit";
+  key: "block" | "unblock" | "exclude" | "leave" | "rename" | "waiting" | "withdraw" | "unadmit" | "forget" | "unforget";
   label: string;
   danger?: boolean;
   disabled?: boolean;

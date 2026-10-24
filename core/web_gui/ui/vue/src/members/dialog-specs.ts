@@ -1,10 +1,14 @@
-/* Texts of the five confirmation dialogs (UI spec, section 2.2). */
+/* Texts of the confirmation dialogs. */
 
-import { REASON_LABEL, isYourExitText, labelLine, leaveExitLine, leaveMultiBody, leaveMultiTitle, reasonLine } from "./members-texts.ts";
+import {
+  FORGET_PROPOSE, FORGET_RECENT_HINT, REASON_LABEL, banAtRiskText, forgetAction, forgetConfirmLine, forgetConfirmTitle, forgetEffectLine,
+  forgetLastSeenLine, forgetNeedTwoLine, forgetOnlyTwoLine, forgetTitle, isYourExitText, labelLine, leaveExitLine, leaveMultiBody, leaveMultiTitle,
+  reasonLine,
+} from "./members-texts.ts";
 import { quotedNet } from "../common/words.ts";
 import { REASON_MAX } from "./member-reason.ts";
 
-export type DialogKind = "ban" | "ban-two" | "ban-confirm" | "admit" | "block" | "leave";
+export type DialogKind = "ban" | "ban-two" | "ban-confirm" | "admit" | "block" | "leave" | "forget" | "forget-two" | "forget-confirm";
 
 // `name`: the target as shown in the list; `by`: the proposer (only "confirm"); `net`: the network name without quotes.
 export interface DialogContext {
@@ -16,6 +20,9 @@ export interface DialogContext {
   label?: string | null; // the "for whom" label of the invite ("admit")
   multi?: boolean; // the page shows several networks ("leave")
   exitName?: string | null; // my exit, when it is a member of this network ("leave", several networks)
+  seen?: number | null; // seconds since the target was last online; null — never ("forget")
+  other?: string; // the only other member ("forget-two")
+  banAtRisk?: boolean; // a ban vote is pending and this removal lowers its threshold ("forget-two", "forget-confirm")
 }
 
 export interface DialogSpec {
@@ -78,6 +85,23 @@ const BUILDERS: Record<DialogKind, Builder> = {
       ' stays in the network and keeps working with other members. To ban it for everyone, choose "Ban from network" instead.',
     action: "Block " + c.name,
   }),
+  forget: (c) => ({
+    title: forgetTitle(c.name),
+    body: [forgetLastSeenLine(c.name, c.seen ?? null), forgetEffectLine(), forgetNeedTwoLine(c.name)],
+    hint: recentlySeen(c) ? FORGET_RECENT_HINT : undefined,
+    action: FORGET_PROPOSE,
+  }),
+  "forget-two": (c) => ({
+    title: forgetTitle(c.name),
+    body: [forgetLastSeenLine(c.name, c.seen ?? null), forgetEffectLine(), forgetOnlyTwoLine(c.name, c.other || ""), ...atRisk(c)],
+    hint: recentlySeen(c) ? FORGET_RECENT_HINT : undefined,
+    action: forgetAction(c.name),
+  }),
+  "forget-confirm": (c) => ({
+    title: forgetConfirmTitle(c.name),
+    body: [forgetConfirmLine(c.name), ...atRisk(c)],
+    action: forgetAction(c.name),
+  }),
   leave: (c) => (c.multi ? leaveMulti(c) : {
     title: "Leave the network" + quotedNet(c.net) + "?",
     body: [
@@ -86,6 +110,10 @@ const BUILDERS: Record<DialogKind, Builder> = {
     action: "Leave network",
   }),
 };
+
+const WEEK_SECS = 604800;
+const recentlySeen = (c: DialogContext): boolean => typeof c.seen === "number" && c.seen < WEEK_SECS;
+const atRisk = (c: DialogContext): string[] => (c.banAtRisk ? [banAtRiskText(c.name)] : []);
 
 function leaveMulti(c: DialogContext): Omit<DialogSpec, "danger"> {
   const net = c.net || "";

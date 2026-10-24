@@ -6,11 +6,11 @@ import { parseOverview } from "../core/overview.ts";
 import type { LeaveReply } from "../core/api-types.ts";
 import { NET_NAME, errReason, failText } from "../common/words.ts";
 import { cleanReason } from "./member-reason.ts";
-import type { AdmissionInfo, ExcludedInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo, VoteInfo } from "./members-types.ts";
+import type { AdmissionInfo, ExcludedInfo, ForgetInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo, VoteInfo } from "./members-types.ts";
 
 type Raw = Record<string, unknown>;
 
-const STATUSES: readonly string[] = ["member", "pending", "unlisted", "excluded"];
+const STATUSES: readonly string[] = ["member", "pending", "unlisted", "excluded", "forgotten"];
 const ACTION = "update the member list";
 
 const isObj = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -36,6 +36,12 @@ function parseExcluded(v: unknown): ExcludedInfo | null {
   return { how: v.how === "left" ? "left" : "votes", at_unix: num(v.at_unix, 0), voters: ids(v.voters) };
 }
 
+function parseForget(v: unknown): ForgetInfo | null {
+  if (!isObj(v)) return null;
+  const at = typeof v.at_unix === "number" && Number.isFinite(v.at_unix) ? v.at_unix : null;
+  return { votes: num(v.votes, 0), need: num(v.need, 2), proposed_by: str(v.proposed_by, ""), voters: ids(v.voters), mine: bool(v.mine), at_unix: at };
+}
+
 function parseRefusal(v: unknown): RefusalInfo | null {
   if (!isObj(v)) return null;
   return { side: v.side === "them" ? "them" : "me", reason: str(v.reason, ""), at_unix: num(v.at_unix, 0) };
@@ -57,6 +63,8 @@ function parseRow(v: unknown): MemberRow | null {
     denied_by_me: typeof v.denied_by_me === "string" ? v.denied_by_me : null,
     last_refusal: parseRefusal(v.last_refusal),
     admission: parseAdmission(v.admission),
+    forget: parseForget(v.forget),
+    last_seen_sec: typeof v.last_seen_sec === "number" && Number.isFinite(v.last_seen_sec) ? v.last_seen_sec : null,
   };
 }
 
@@ -69,6 +77,7 @@ function parseCounts(raw: unknown, rows: MemberRow[]): MemberCounts {
     excluded: num(c.excluded, count((r) => r.status === "excluded")),
     unlisted: num(c.unlisted, count((r) => r.status === "unlisted")),
     pending: num(c.pending, count((r) => r.status === "pending")),
+    forgotten: num(c.forgotten, count((r) => r.status === "forgotten")),
   };
 }
 
@@ -80,6 +89,7 @@ export function parseMembers(raw: unknown): MembersReply | null {
   const reply: MembersReply = {
     me: str(raw.me, ""),
     me_excluded: bool(raw.me_excluded),
+    me_removed: bool(raw.me_removed),
     me_pending: bool(raw.me_pending),
     me_admission: parseAdmission(raw.me_admission),
     need,
