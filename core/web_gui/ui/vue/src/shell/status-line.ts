@@ -66,7 +66,7 @@ function waitingLine(state: NodeState): StatusLine | null {
 // This computer was banned from the network (or left it) but the node still reports the network.
 function excludedLine(state: NodeState): StatusLine | null {
   if (!state.network || !(state.members && state.members.me_excluded)) return null;
-  return { level: "red", text: bannedStatusText(state.network.label) };
+  return { level: "red", text: bannedStatusText(state.network.label, state.network.kind === "Managed") };
 }
 
 // This computer was removed from the member list: the same grey line as "not joined", only the lead network has it.

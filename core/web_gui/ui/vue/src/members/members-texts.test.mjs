@@ -273,7 +273,7 @@ describe("the screen of an excluded computer", () => {
   it("the text for a removal by an admin in a Managed network", () => {
     assert.equal(
       t.EXCLUDED_REMOVED_TEXT,
-      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.",
+      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.",
     );
   });
 

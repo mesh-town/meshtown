@@ -33,7 +33,7 @@ export const PENDING_TITLE = "Waiting to join the network";
 export const EXCLUDED_BANNED_TEXT =
   "Members of the network banned it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.";
 export const EXCLUDED_REMOVED_TEXT =
-  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, contact a member of the network.";
+  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.";
 export const EXCLUDED_LEFT_TEXT = "To use " + NET_NAME + " again, join a network with an invite from one of its members.";
 export const EXCLUDED_JOIN = "Join with another invite";
 // In the Android app: the way back is the app's own "Start over" dialog, reached through this address.
@@ -90,13 +90,16 @@ const EXCLUDED_TITLES = {
   banned: "This computer was banned from the network",
   forgotten: "This computer was removed from the member list",
 };
-export function excludedTitle(variant: "banned" | "left" | "forgotten", net?: string | null): string {
-  return EXCLUDED_TITLES[variant] + quotedNet(net);
+const REMOVED_TITLE = "This computer was removed from the network";
+// `managed` — an admin removed the computer from a Managed network: "removed", not "banned".
+export function excludedTitle(variant: "banned" | "left" | "forgotten", net?: string | null, managed = false): string {
+  return (managed && variant === "banned" ? REMOVED_TITLE : EXCLUDED_TITLES[variant]) + quotedNet(net);
 }
 
 // The header line of a computer that is no longer in the network; `net` without quotes.
-export const bannedStatusText = (net?: string | null): string =>
-  "Banned from the network" + quotedNet(net) + " \u2014 sites won't open through " + NET_NAME;
+export const bannedStatusText = (net?: string | null, managed = false): string =>
+  (managed ? "Removed from the network" : "Banned from the network") + quotedNet(net) + (managed ? " by an admin" : "") +
+  " \u2014 sites won't open through " + NET_NAME;
 
 // Under the list after leaving: 'You left the network "x".'
 export const NOT_TOLD_LEFT = "Mesh Town couldn't let the other members know, so for a while they may still see this computer in their list as offline. You don't need to do anything.";

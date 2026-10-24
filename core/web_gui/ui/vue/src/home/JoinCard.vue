@@ -6,7 +6,7 @@ import { STORE_KEY } from "../core/store.ts";
 import NetKindPicker from "./NetKindPicker.vue";
 import { useInspectPreview } from "./inspect-preview.ts";
 import { useJoin } from "./use-join.ts";
-import { inviteWaitText } from "./join-wait.ts";
+import { inviteWaitText, refusedText } from "./join-wait.ts";
 import type { JoinView } from "./use-join.ts";
 import {
   HOME_CREATE_BTN, HOME_CREATE_BUSY, HOME_CREATE_ERROR_ARIA, HOME_CREATE_LABEL, HOME_CREATE_PLACEHOLDER, HOME_CREATE_TOGGLE,
@@ -25,6 +25,8 @@ const heading = computed(() => (props.removed ? HOME_TITLE_REMOVED : title.value
 const button = computed(() => (props.removed ? HOME_BUTTON_JOIN : buttonText.value));
 const restartHint = computed(() => (props.removed ? HOME_JOIN_REMOVED_HINT : HOME_JOIN_RESTART_HINT));
 const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.node?.invite_join)));
+// "Invite accepted. Waiting…" is stale once the node reports a refusal: only the refusal text stays.
+const statusText = computed(() => (refusedText(store.state?.node?.invite_join) === null ? form.status : ""));
 </script>
 
 <template>
@@ -51,7 +53,7 @@ const waitText = computed(() => (props.quiet ? "" : inviteWaitText(store.state?.
         <button type="button" :class="['btn', { 'btn-primary': !hasNet }]" id="create-btn" :disabled="!!form.busy" @click="j.create">{{ form.busy === "create" ? HOME_CREATE_BUSY : HOME_CREATE_BTN }}</button>
       </div>
     </div>
-    <p class="hint" id="join-status" :hidden="!form.status">{{ form.status }}</p>
+    <p class="hint" id="join-status" :hidden="!statusText">{{ statusText }}</p>
     <p class="hint" id="join-wait" role="status" :hidden="!waitText">{{ waitText }}</p>
   </div>
 </template>
