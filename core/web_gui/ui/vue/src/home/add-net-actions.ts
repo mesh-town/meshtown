@@ -12,7 +12,6 @@ import { PEERS_NEW_NET } from "../peers/peers-texts.ts";
 import type { HomeDeps } from "./home-actions.ts";
 import { HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_LABEL_EMPTY } from "./home-flow-texts.ts";
 import type { JoinForm } from "./join-actions.ts";
-import { inviteNotFromAdminText } from "./net-kind-texts.ts";
 import { adminNamesOf } from "../peers/admins-line.ts";
 import { ADD_NET_ACTION, MAX_NETS, createdBanner, joinedBanner } from "./add-net-texts.ts";
 
@@ -55,11 +54,6 @@ function refuseEmpty(form: AddNetForm, mode: AddNetMode): boolean {
   return mode === "join" ? !form.inviteInput.trim() : !form.label.trim();
 }
 
-function notFromAdmin(form: AddNetForm, err: ApiErrorLike): AddNetResult {
-  form.inviteError = { message: inviteNotFromAdminText(errBody(err).label ?? null), word: null };
-  return "failed";
-}
-
 function joinFailed(form: AddNetForm, err: ApiErrorLike): AddNetResult {
   const body = errBody(err);
   if (err.code === "net_already_added") {
@@ -67,7 +61,6 @@ function joinFailed(form: AddNetForm, err: ApiErrorLike): AddNetResult {
     return "duplicate";
   }
   if (err.code === "too_many_nets") return "limit";
-  if (err.code === "invite_not_from_admin") return notFromAdmin(form, err);
   const invalid = err.code === "invalid_key";
   form.inviteError = { message: invalid ? body.message || HOME_INVITE_INVALID : failText(ADD_NET_ACTION, err), word: invalid ? body.word || null : null };
   return "failed";

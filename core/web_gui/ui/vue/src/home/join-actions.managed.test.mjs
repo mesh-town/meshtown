@@ -92,31 +92,4 @@ describe("joinNetwork", () => {
     assert.equal(await joinNetwork(w.form, w.store, w.deps), "joined");
     assert.deepEqual(w.calls, [["POST", "/api/network/join", { key: "mesh-invite2-abc" }]]);
   });
-
-  describe("an invite that a regular member of a Managed network made (422 invite_not_from_admin)", () => {
-    it("is refused with the network's name under the field", async () => {
-      const w = setup({ fail: new ApiError(422, "invite_not_from_admin", "x", { label: "work" }) });
-      w.form.inviteInput = "mesh-invite2-abc";
-      assert.equal(await joinNetwork(w.form, w.store, w.deps), "failed");
-      assert.deepEqual(w.form.inviteError, {
-        message: 'This invite to "work" wasn\'t made by an admin. Ask an admin of "work" for a new one.',
-        word: null,
-      });
-    });
-
-    it("without a name in the reply the text names no network", async () => {
-      const w = setup({ fail: new ApiError(422, "invite_not_from_admin", "x") });
-      w.form.inviteInput = "mesh-invite2-abc";
-      assert.equal(await joinNetwork(w.form, w.store, w.deps), "failed");
-      assert.equal(w.form.inviteError.message, "This invite wasn't made by an admin. Ask an admin of the network for a new one.");
-    });
-
-    it("sets no status and no join promise", async () => {
-      const w = setup({ fail: new ApiError(422, "invite_not_from_admin", "x", { label: "work" }) });
-      w.form.inviteInput = "mesh-invite2-abc";
-      await joinNetwork(w.form, w.store, w.deps);
-      assert.equal(w.form.status, "");
-      assert.deepEqual(w.timers, []);
-    });
-  });
 });

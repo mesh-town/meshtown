@@ -17,9 +17,3 @@ const named = (label: string | null): string => (label ? `Network "${label}"` : 
 
 export const previewManaged = (label: string | null): string => `${named(label)} · Managed: admins decide who joins`;
 export const previewPeer = (label: string | null): string => `${named(label)} · Peer: every member can invite`;
-
-/** The refusal of an invite that a regular member of a Managed network made. */
-export const inviteNotFromAdminText = (net: string | null): string =>
-  net
-    ? `This invite to "${net}" wasn't made by an admin. Ask an admin of "${net}" for a new one.`
-    : "This invite wasn't made by an admin. Ask an admin of the network for a new one.";

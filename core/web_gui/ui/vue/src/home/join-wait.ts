@@ -13,3 +13,8 @@ export function inviteWaitText(info: InviteJoinInfo | null | undefined): string 
   if (info.state !== "waiting") return "";
   return inviteWaitingText(quotedNet(info.label));
 }
+
+// The refusal message of a join, `null` while there is none.
+export function refusedText(info: InviteJoinInfo | null | undefined): string | null {
+  return info?.state === "refused" ? info.message : null;
+}

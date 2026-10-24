@@ -6,9 +6,9 @@ import { api } from "../core/api.ts";
 import { dropSlot } from "../core/overview.ts";
 import { STORE_KEY } from "../core/store.ts";
 import { leaveNet } from "../members/members-api.ts";
-import { ADD_NET_WAITING, ADD_NET_WAITING_SUB, JOIN_CANCEL_BTN, JOIN_CANCEL_FAILED, JOIN_NO_ANSWER, JOIN_NO_ANSWER_MS } from "./add-net-texts.ts";
+import { ADD_NET_WAITING, ADD_NET_WAITING_SUB, JOIN_BACK_BTN, JOIN_CANCEL_BTN, JOIN_CANCEL_FAILED, JOIN_NO_ANSWER, JOIN_NO_ANSWER_MS } from "./add-net-texts.ts";
 
-const props = defineProps<{ slot: string }>();
+const props = defineProps<{ slot: string; refused?: string }>();
 const emit = defineEmits<{ cancelled: [] }>();
 const store = inject(STORE_KEY)!;
 const silent = ref(false);
@@ -38,10 +38,13 @@ async function cancel(): Promise<void> {
 
 <template>
   <div class="joining" id="net-joining" role="status">
-    <p class="hint">{{ ADD_NET_WAITING }}</p>
-    <p class="hint">{{ silent ? JOIN_NO_ANSWER : ADD_NET_WAITING_SUB }}</p>
+    <p v-if="refused" class="field-error-text" id="net-join-refused">{{ refused }}</p>
+    <template v-else>
+      <p class="hint">{{ ADD_NET_WAITING }}</p>
+      <p class="hint">{{ silent ? JOIN_NO_ANSWER : ADD_NET_WAITING_SUB }}</p>
+    </template>
     <div class="btn-row">
-      <button type="button" class="btn" id="net-join-cancel" :disabled="busy" @click="cancel">{{ JOIN_CANCEL_BTN }}</button>
+      <button type="button" class="btn" id="net-join-cancel" :disabled="busy" @click="cancel">{{ refused ? JOIN_BACK_BTN : JOIN_CANCEL_BTN }}</button>
     </div>
     <p v-if="failed" class="field-error-text" id="net-join-error" role="alert">{{ JOIN_CANCEL_FAILED }}</p>
   </div>

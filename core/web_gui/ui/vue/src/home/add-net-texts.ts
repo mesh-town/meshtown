@@ -22,6 +22,8 @@ export const ADD_NET_WAITING = "Joining the network…";
 export const ADD_NET_WAITING_SUB = "This takes up to a minute. Your other networks keep working.";
 export const JOIN_NO_ANSWER = "No answer yet — the network's host may be offline.";
 export const JOIN_CANCEL_BTN = "Cancel";
+/** The button of a refused join: it gives the slot back. */
+export const JOIN_BACK_BTN = "Back";
 export const JOIN_CANCEL_FAILED = "Couldn't cancel — try again.";
 /** How long a join waits before the page says nobody has answered. */
 export const JOIN_NO_ANSWER_MS = 60_000;

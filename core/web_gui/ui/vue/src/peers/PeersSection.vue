@@ -9,6 +9,7 @@ import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import type { PeerInfo } from "../core/api-types.ts";
 import JoiningCard from "../home/JoiningCard.vue";
+import { refusedText } from "../home/join-wait.ts";
 import NoNetwork from "../common/NoNetwork.vue";
 import { chosenOf } from "../home/exit-groups.ts";
 import { chosenExitIds } from "../common/exits.ts";
@@ -68,6 +69,8 @@ const waitingHere = computed(() => {
   const b = store.nets.find((n) => n.id === slot.value);
   return !!b && b.joining && b.id_hex == null && slot.value !== "main";
 });
+// A join that the members refused: the slot has no network yet, the node says why.
+const refusedHere = computed(() => (slot.value === "main" || state.value?.network ? null : refusedText(state.value?.node?.invite_join)));
 const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick, joinAnother } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
@@ -124,7 +127,7 @@ async function exitVia(idFull: string): Promise<void> {
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" context="peers" />
     <ExcludedCard v-else-if="excluded" members :variant="variant" :net="net" :by="excludedBy" @join="joinAnother" />
-    <JoiningCard v-else-if="waitingHere" :key="slot" :slot="slot" />
+    <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" />
     <template v-else-if="!state || !state.network">
       <NoNetwork />
       <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
