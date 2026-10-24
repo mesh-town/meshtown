@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::transport::net::PeerId;
 
+use super::authority::{Rules, Standing};
 use super::record::Via;
 use super::tally::{Admission, AdmitIn, Exclusion};
 
@@ -32,7 +33,7 @@ struct Rows {
     by_author: BTreeMap<PeerId, BTreeSet<PeerId>>,
 }
 
-fn rows(admits: &[AdmitIn]) -> Rows {
+fn rows(rules: Rules, me: PeerId, admits: &[AdmitIn]) -> Rows {
     let mut out = Rows {
         by_subject: BTreeMap::new(),
         by_author: BTreeMap::new(),
@@ -44,45 +45,33 @@ fn rows(admits: &[AdmitIn]) -> Rows {
             .or_default()
             .entry(a.author)
             .or_insert(false);
-        *counts |= counts_elsewhere(a.via);
+        *counts |= rules.admit_counts(a.via, &a.author, &me);
         out.by_author.entry(a.author).or_default().insert(a.subject);
     }
     out
 }
 
-/// An author whose records are read: `me`, or anybody not excluded.
-fn open(me: PeerId, excluded: &Excluded, author: &PeerId) -> bool {
-    *author == me || !excluded.contains_key(author)
-}
-
 /// Confirmations that admit a newcomer, whatever the size of the network. Exclusion counts its own
-/// threshold in `tally::need_for`.
+/// threshold in `Rules::need`.
 const ADMIT_NEED: u8 = 1;
 
 /// Authors from `set` whose vote for `x` counts, ascending.
-fn voters(
-    me: PeerId,
-    rows: &Rows,
-    set: &BTreeSet<PeerId>,
-    excluded: &Excluded,
-    x: &PeerId,
-) -> Vec<PeerId> {
+fn voters(me: PeerId, rows: &Rows, standing: Standing, x: &PeerId) -> Vec<PeerId> {
     let Some(authors) = rows.by_subject.get(x) else {
         return Vec::new();
     };
-    let counted =
-        |(a, counts): &(&PeerId, &bool)| **counts && set.contains(*a) && open(me, excluded, a);
+    let counted = |(a, counts): &(&PeerId, &bool)| **counts && standing.backs(&me, a);
     authors.iter().filter(counted).map(|(a, _)| *a).collect()
 }
 
 /// Rounds until nothing is added: a subject enters when its votes reach `ADMIT_NEED`.
-fn grow(me: PeerId, rows: &Rows, excluded: &Excluded) -> BTreeSet<PeerId> {
-    let mut set = BTreeSet::from([me]);
+fn grow(rules: Rules, me: PeerId, rows: &Rows, excluded: &Excluded) -> BTreeSet<PeerId> {
+    let mut set = rules.seeds(me);
     set.extend(rows.by_author.get(&me).into_iter().flatten().copied());
     loop {
+        let standing = Standing::new(&set, excluded, &());
         let enters = |x: &&PeerId| {
-            !set.contains(*x)
-                && voters(me, rows, &set, excluded, x).len() >= usize::from(ADMIT_NEED)
+            !set.contains(*x) && voters(me, rows, standing, x).len() >= usize::from(ADMIT_NEED)
         };
         let added: Vec<PeerId> = rows.by_subject.keys().filter(enters).copied().collect();
         if added.is_empty() {
@@ -93,17 +82,9 @@ fn grow(me: PeerId, rows: &Rows, excluded: &Excluded) -> BTreeSet<PeerId> {
 }
 
 /// A record on `x` by an open author from the set, whatever its kind.
-fn has_backer(
-    me: PeerId,
-    rows: &Rows,
-    set: &BTreeSet<PeerId>,
-    excluded: &Excluded,
-    x: &PeerId,
-) -> bool {
+fn has_backer(me: PeerId, rows: &Rows, standing: Standing, x: &PeerId) -> bool {
     let authors = rows.by_subject.get(x).into_iter().flatten();
-    authors
-        .into_iter()
-        .any(|(a, _)| set.contains(a) && open(me, excluded, a))
+    authors.into_iter().any(|(a, _)| standing.backs(&me, a))
 }
 
 /// Subjects with a backer and too few votes: outside `set`, held only by my own vote, or me.
@@ -113,6 +94,7 @@ fn requests(
     set: &BTreeSet<PeerId>,
     excluded: &Excluded,
 ) -> BTreeMap<PeerId, Admission> {
+    let standing = Standing::new(set, excluded, &());
     let mine_counts = |x: &PeerId| {
         rows.by_subject
             .get(x)
@@ -125,10 +107,10 @@ fn requests(
         let inside = set.contains(x);
         let relevant = !inside || *x == me || mine_counts(x);
         let need = ADMIT_NEED;
-        let found = voters(me, rows, set, excluded, x);
+        let found = voters(me, rows, standing, x);
         if relevant
-            && !excluded.contains_key(x)
-            && has_backer(me, rows, set, excluded, x)
+            && !standing.excluded(x)
+            && has_backer(me, rows, standing, x)
             && found.len() < usize::from(need)
         {
             out.insert(
@@ -145,9 +127,14 @@ fn requests(
 }
 
 /// The admitted set `T` and the requests short of the threshold. Empty input gives `{me}` and no requests.
-pub(super) fn admit_closure(me: PeerId, admits: &[AdmitIn], excluded: &Excluded) -> Admitted {
-    let rows = rows(admits);
-    let set = grow(me, &rows, excluded);
+pub(super) fn admit_closure(
+    rules: Rules,
+    me: PeerId,
+    admits: &[AdmitIn],
+    excluded: &Excluded,
+) -> Admitted {
+    let rows = rows(rules, me, admits);
+    let set = grow(rules, me, &rows, excluded);
     let short = requests(me, &rows, &set, excluded);
     Admitted { set, short }
 }

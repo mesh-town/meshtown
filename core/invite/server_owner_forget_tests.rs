@@ -15,11 +15,9 @@ use crate::invite::wire::{
     encode_owner_request, parse_invite_reply, RedeemReply, OWNER_REQUEST_LEN,
 };
 use crate::invite::InviteSecret;
-use crate::members::access::record::{
-    admit_key, parse_entry, put, AclKind, AclValue, Parsed, Via,
-};
+use crate::members::access::record::{admit_key, parse_entry, put, AclKind, AclValue, Parsed, Via};
 use crate::members::access::tally::{
-    tally, AdmitIn, Exclusion, ForgetIn, ForgetRound, How, Ledger as Votes, TallyInput,
+    tally, AdmitIn, Exclusion, ForgetIn, ForgetRound, How, Ledger as Votes, Rules, TallyInput,
 };
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::transport::net::facade::test_support::{pid, secret};
@@ -48,10 +46,7 @@ mod owner_code_of_the_verdict {
 
     #[test]
     fn excluded_stays_final() {
-        assert_eq!(
-            owner_code(Err(Deny::Excluded)),
-            Some(RedeemCode::Excluded)
-        );
+        assert_eq!(owner_code(Err(Deny::Excluded)), Some(RedeemCode::Excluded));
     }
 
     #[test]
@@ -109,6 +104,7 @@ pub(super) fn input_of(members: &[PeerId], forgets: Vec<ForgetIn>) -> TallyInput
         admits: members.iter().map(admit).collect(),
         votes: Vec::new(),
         forgets,
+        rules: Rules::Peer,
     }
 }
 
@@ -251,7 +247,11 @@ impl Node {
 
     /// The precondition: the server's view gives this verdict about the node.
     pub(super) fn then_view_says(&self, peer: PeerId, want: Result<(), Deny>) {
-        assert_eq!(self.access.check(peer), want, "the view is not as the test needs");
+        assert_eq!(
+            self.access.check(peer),
+            want,
+            "the view is not as the test needs"
+        );
     }
 
     /// Live entries under the prefix in the shared replica.

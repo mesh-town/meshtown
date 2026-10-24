@@ -2,7 +2,7 @@
 //! dead admission lets in and so may differ from the exclusion threshold `Ledger::need`.
 
 use crate::members::access::record::Via;
-use crate::members::access::tally::{tally, AdmitIn, ForgetIn, TallyInput};
+use crate::members::access::tally::{tally, AdmitIn, ForgetIn, Rules, TallyInput};
 use crate::transport::net::contract::pid;
 
 #[test]
@@ -25,6 +25,7 @@ fn forget_need_counts_nodes_admitted_by_a_dead_admission() {
         admits: vec![admit(me, a, 0), admit(me, b, 0), admit(a, e, 150)],
         votes: Vec::new(),
         forgets: vec![vote(me, a, 100), vote(b, a, 100)],
+        rules: Rules::Peer,
     });
     // when / then: a is forgotten and e is no member, yet e is among those the forget pass counts
     assert!(ledger.is_forgotten(&a));

@@ -15,13 +15,6 @@ use super::{Exclusion, How, VoteIn};
 pub(super) type VoteKey = (u64, PeerId, PeerId);
 pub(in crate::members::access) type Excluded = BTreeMap<PeerId, Exclusion>;
 
-pub(in crate::members::access) fn need_for(active: usize) -> u8 {
-    if active <= 2 {
-        return 1;
-    }
-    2
-}
-
 pub(super) fn vote_key(v: &VoteIn) -> VoteKey {
     (v.ts_micros, v.voter, v.subject)
 }

@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use crate::members::access::tally::{tally, ForgetRound, TallyInput};
+use crate::members::access::tally::{tally, ForgetRound, Rules, TallyInput};
 use crate::members::access::view::Verdicts;
 use crate::transport::net::contract::pid;
 
@@ -16,6 +16,7 @@ fn removed_here_never_lists_me() {
         admits: Vec::new(),
         votes: Vec::new(),
         forgets: Vec::new(),
+        rules: Rules::Peer,
     });
     for subject in [me, other] {
         let round = ForgetRound {

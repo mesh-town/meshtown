@@ -6,6 +6,7 @@
 
 pub mod actions;
 mod admission;
+pub mod authority;
 pub mod boot;
 mod boot_plan;
 mod deny;

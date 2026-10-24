@@ -14,8 +14,9 @@ use crate::proxy::domains::DomainList;
 use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
 use crate::transport::net_mainline::unix_now;
 
+use super::authority::Rules;
 use super::reasons::{label_admissions, reasons_of};
-use super::record::{self, tally_input, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
+use super::record::{self, tally_input_under, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
 use super::subjects::live_subjects;
 use super::tally::tally;
 use super::view::{AccessView, Verdicts};
@@ -27,6 +28,7 @@ pub struct Access {
     pub(crate) own: Arc<dyn Replica>,
     pub(crate) me: PeerId,
     pub(crate) members: Members,
+    pub(crate) rules: Rules,
     ignored_logged: AtomicUsize,
 }
 
@@ -58,6 +60,7 @@ impl Access {
             own,
             me,
             members,
+            rules: Rules::Peer,
             ignored_logged: AtomicUsize::new(0),
         }
     }
@@ -82,7 +85,7 @@ impl Access {
 
     async fn recompute(&self) -> NetResult<Arc<Verdicts>> {
         let scan = self.scan().await?;
-        let (input, ignored) = tally_input(self.me, &scan.acl);
+        let (input, ignored) = tally_input_under(self.rules, self.me, &scan.acl);
         self.log_ignored(ignored);
         let mut my_votes = live_subjects(&scan.acl, self.me, AclKind::Exclude);
         my_votes.remove(&self.me);

@@ -260,6 +260,7 @@ pub(super) fn scene(me: PeerId) -> Scene {
             admits: vec![],
             votes: vec![],
             forgets: Vec::new(),
+            rules: Rules::Peer,
         },
     }
 }

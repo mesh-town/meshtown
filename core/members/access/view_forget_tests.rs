@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use crate::members::access::record::Via;
 use crate::members::access::tally::{
-    tally, AdmitIn, Exclusion, ForgetIn, ForgetRound, How, Ledger, TallyInput,
+    tally, AdmitIn, Exclusion, ForgetIn, ForgetRound, How, Ledger, Rules, TallyInput,
 };
 use crate::members::access::view::{AccessView, Deny, Verdicts, ACCESS_CLOSE_CODE};
 use crate::transport::net::contract::pid;
@@ -249,6 +249,7 @@ impl Net {
             admits: self.admits.clone(),
             votes: Vec::new(),
             forgets: forgets.to_vec(),
+            rules: Rules::Peer,
         })
     }
 

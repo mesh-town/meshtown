@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-pub use super::record_input::tally_input;
+pub use super::record_input::{tally_input, tally_input_under};
 pub use super::record_io::{ensure, put, rewrite, withdraw};
 
 /// Version byte of the value layout.

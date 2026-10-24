@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::transport::net::PeerId;
 
 use super::super::record::Via;
-use super::{ForgetIn, ForgetRound};
+use super::{ForgetIn, ForgetRound, Rules};
 
 /// An admit record: `author` admits `subject`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,6 +34,7 @@ pub struct TallyInput {
     pub admits: Vec<AdmitIn>,
     pub votes: Vec<VoteIn>,
     pub forgets: Vec<ForgetIn>,
+    pub rules: Rules,
 }
 
 /// How a node was excluded.
