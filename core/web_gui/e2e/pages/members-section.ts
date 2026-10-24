@@ -13,6 +13,9 @@ export class MembersSection {
   readonly pendingList: Locator;
   readonly pendingCard: Locator;
   readonly status: Locator;
+  readonly staleList: Locator;
+  readonly forgottenList: Locator;
+  readonly forgottenCard: Locator;
 
   constructor(private readonly page: Page) {
     // no anchor: the member list has no accessible name
@@ -25,6 +28,9 @@ export class MembersSection {
     this.leftCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.leftTitle }) });
     this.pendingList = page.locator('#members-pending-list');
     this.pendingCard = page.locator('#members-pending-card');
+    this.staleList = page.locator('#stale-list');
+    this.forgottenList = page.locator('#forgotten-list');
+    this.forgottenCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.forgottenTitle }) });
     this.status = page.getByRole('status').filter({ hasText: /\S/ });
   }
 
@@ -36,6 +42,11 @@ export class MembersSection {
   /** The row of a node that waits for confirmations, by name. */
   pendingRow(name: string): Locator {
     return this.pendingList.getByRole('listitem').filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  /** The row of a member inside a group under the list (`#stale-list`, `#forgotten-list`). */
+  groupRow(group: Locator, name: string): Locator {
+    return group.getByRole('listitem').filter({ has: this.page.getByText(name, { exact: true }) });
   }
 
   /** The action button of the open confirmation dialog. */
