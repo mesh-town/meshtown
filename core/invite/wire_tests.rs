@@ -293,6 +293,7 @@ mod code_from_verdict {
                 IssueVerdict::Expired => RedeemCode::Expired,
                 IssueVerdict::Unknown => RedeemCode::Unknown,
                 IssueVerdict::NotReady => RedeemCode::NotReady,
+                IssueVerdict::NotAdmin => RedeemCode::NotFromAdmin,
             };
             assert_eq!(code_from(verdict), want);
         }

@@ -170,6 +170,7 @@ pub fn code_from(v: IssueVerdict) -> RedeemCode {
         IssueVerdict::Expired => RedeemCode::Expired,
         IssueVerdict::Unknown => RedeemCode::Unknown,
         IssueVerdict::NotReady => RedeemCode::NotReady,
+        IssueVerdict::NotAdmin => RedeemCode::NotFromAdmin,
     }
 }
 

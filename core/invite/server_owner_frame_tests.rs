@@ -351,6 +351,7 @@ impl Node {
             .verdict(
                 &issued().hash_hex(),
                 crate::transport::net_mainline::unix_now(),
+                None,
             )
             .await;
         assert_eq!(verdict, IssueVerdict::Grant, "the invite is spent");

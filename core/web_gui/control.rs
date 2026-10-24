@@ -150,6 +150,11 @@ pub enum ActionError {
     NoNetwork(String),
     NotFound(String),
     Invalid(String),
+    /// A refusal of a member action with its own code (answered 409 `{error: code, message}`).
+    Denied {
+        code: &'static str,
+        message: String,
+    },
     Internal(String),
 }
 

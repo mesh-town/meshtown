@@ -9,7 +9,7 @@
 //! dialing goes by key); a member record is `net_mainline::record::RosterEntry`; called by `console` (the `invite` command) and
 //! `main.rs` (the `--invite` flag).
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use anyhow::{bail, Context, Result};
 use data_encoding::BASE32_NOPAD;
@@ -26,6 +26,7 @@ use crate::transport::net_mainline::record::{entry_from_addr, RosterEntry};
 mod dealt;
 mod head;
 pub mod hold_wire;
+mod issuer;
 mod parse;
 pub mod proof;
 pub mod redeem;
@@ -34,9 +35,11 @@ pub mod server;
 mod server_owner;
 mod spread;
 pub mod store;
+mod store_admins;
 pub mod wire;
 pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};
+pub use issuer::NotAdmin;
 pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE};
 
 /// Prefix of the invite string; carries the format number.
@@ -216,7 +219,7 @@ pub(crate) fn own_addr(stack: &NetStack, me: PeerId) -> PeerAddr {
 }
 
 /// Listed members the view lets in: the string's tail may name members that have no connection right now.
-fn listed_members(src: &Source) -> std::collections::BTreeSet<PeerId> {
+fn listed_members(src: &Source) -> BTreeSet<PeerId> {
     let Some(verdicts) = src.members.access().verdicts() else {
         return Default::default();
     };
@@ -230,15 +233,22 @@ fn listed_members(src: &Source) -> std::collections::BTreeSet<PeerId> {
         .collect()
 }
 
+/// Whom to ask to keep the invite: the connected members in a Peer network, the listed admins in a Managed one.
+fn holders_pool(connected: &[PeerId], admins: Option<BTreeSet<PeerId>>) -> Vec<PeerId> {
+    admins.map_or_else(|| connected.to_vec(), |set| set.into_iter().collect())
+}
+
 /// Builds the invite of a live node: own address plus the listed members (keys only; v3 dials by key).
 /// Does not touch the document — `Issued::commit` does that.
 pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     if src.stack.is_closed() {
         bail!("node was restarted into another network {NET_NAME} — the invite command is unavailable until the process restarts");
     }
-    let others: Vec<PeerId> = src.members.ids().into_iter().collect();
+    let admins = issuer::issuing_admins(src)?;
+    let connected: Vec<PeerId> = src.members.ids().into_iter().collect();
+    let others = holders_pool(&connected, admins);
     let me_id = src.stack.me();
-    let rest = spread::rest(&others, &listed_members(src), me_id);
+    let rest = spread::rest(&connected, &listed_members(src), me_id);
     let rest_addr: Vec<PeerAddr> = rest.iter().copied().map(PeerAddr::new).collect();
     let head = InviteHead {
         secret: InviteSecret::generate()?,

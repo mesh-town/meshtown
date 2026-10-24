@@ -25,7 +25,7 @@ async fn issue_is_written_to_the_network_document_before_the_string_is_given() {
         .secret
         .hash_hex();
     let verdict = Ledger::of(&rig.node.domains)
-        .verdict(&hash, crate::transport::net_mainline::unix_now())
+        .verdict(&hash, crate::transport::net_mainline::unix_now(), None)
         .await;
     assert_eq!(
         verdict,

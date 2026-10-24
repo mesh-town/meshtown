@@ -70,12 +70,13 @@ impl Outcome {
 /// The outcome of a round by the members' answers (a pure function).
 pub(super) fn round_outcome(
     answers: &[Option<RedeemReply>],
-    network_id: [u8; 4],
+    head: &InviteHead,
     mode: Mode,
 ) -> Outcome {
     let replies: Vec<&RedeemReply> = answers.iter().flatten().collect();
     let keys = replies.iter().filter_map(|r| key_of(r));
-    if let Some(own) = keys.clone().find(|k| k.subkeys().network_id == network_id) {
+    let ours = |k: &&NetworkKey| head.reply_key(k).subkeys().network_id == head.network_id;
+    if let Some(own) = keys.clone().find(ours) {
         return Outcome::Key(own.clone());
     }
     if keys.count() > 0 {
@@ -107,6 +108,7 @@ pub(super) fn final_refusal(c: RedeemCode, mode: Mode) -> Option<RedeemError> {
         (RedeemCode::Used, _) => Some(RedeemError::Used),
         (RedeemCode::Expired, _) => Some(RedeemError::Expired),
         (RedeemCode::Excluded, _) => Some(RedeemError::Excluded),
+        (RedeemCode::NotFromAdmin, _) => Some(RedeemError::NotFromAdmin),
         (RedeemCode::BadRequest, Mode::Legacy) => Some(RedeemError::Unknown),
         _ => None,
     }

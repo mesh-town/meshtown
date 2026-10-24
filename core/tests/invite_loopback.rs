@@ -218,7 +218,7 @@ impl Issuer {
     /// The verdict of A's document for the secret from the string.
     async fn verdict(&self, parsed: &ParsedInvite) -> IssueVerdict {
         Ledger::of(&self.a.domains)
-            .verdict(&parsed.head.secret.hash_hex(), unix_now())
+            .verdict(&parsed.head.secret.hash_hex(), unix_now(), None)
             .await
     }
 

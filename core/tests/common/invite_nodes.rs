@@ -69,7 +69,7 @@ impl Rig {
 
     pub(crate) async fn verdict(&self, head: &InviteHead) -> IssueVerdict {
         self.ledger()
-            .verdict(&head.secret.hash_hex(), unix_now())
+            .verdict(&head.secret.hash_hex(), unix_now(), None)
             .await
     }
 }
@@ -181,7 +181,7 @@ pub(crate) async fn wait_verdict(
     let hash = head.secret.hash_hex();
     let deadline = Instant::now() + Duration::from_secs(secs);
     loop {
-        if ledger.verdict(&hash, unix_now()).await == want {
+        if ledger.verdict(&hash, unix_now(), None).await == want {
             return true;
         }
         if Instant::now() >= deadline {

@@ -86,10 +86,21 @@ impl InviteServer {
         self.settle_and_grant(list, &ledger, &hash, req.owner).await
     }
 
+    /// The view's verdict on the owner; in a Managed network an excluded key may come back by a new invite.
+    fn checked(&self, owner: PeerId) -> Result<(), Deny> {
+        match self.access.check(owner) {
+            Err(Deny::Excluded) if self.kind.root().is_some() => Ok(()),
+            other => other,
+        }
+    }
+
     /// Whether this node's view of the list lets the newcomer's key in.
     async fn membership_refusal(&self, owner: PeerId) -> Option<RedeemCode> {
         if timeout(READY_WAIT, self.access.ready()).await.is_err() {
             return Some(RedeemCode::NotReady);
+        }
+        if !self.may_serve() {
+            return Some(RedeemCode::NotReady); // only an admin lets a newcomer in; another holder may
         }
         if self
             .access
@@ -98,14 +109,16 @@ impl InviteServer {
         {
             return Some(RedeemCode::NotReady); // retryable: another holder can let the newcomer in
         }
-        owner_code(self.access.check(owner))
+        owner_code(self.checked(owner))
     }
 
     /// Phase 1: a verdict and one's own claim; if not `Grant` — its code.
     async fn place_claim(&self, ledger: &Ledger, hash: &str) -> Result<(), RedeemCode> {
         let _guard = self.gate.lock().await;
         let now_unix = net_mainline::unix_now();
-        let verdict = ledger.verdict(hash, now_unix).await;
+        let verdict = ledger
+            .verdict(hash, now_unix, self.record_authors().as_ref())
+            .await;
         if verdict != IssueVerdict::Grant {
             return Err(code_from(verdict));
         }
@@ -120,6 +133,20 @@ impl InviteServer {
         self.access.verdicts()?.ledger.forget_mark(owner)
     }
 
+    /// The time the owner's record must be later than: the newest forget vote, or in a Managed network
+    /// the exclusion that a returning key outdates.
+    fn rewrite_after(&self, owner: &PeerId) -> Option<u64> {
+        let excluded = self.kind.root().and_then(|_| self.excluded_secs(owner));
+        self.forget_mark(owner).max(excluded)
+    }
+
+    /// When the owner's exclusion was written, in seconds.
+    fn excluded_secs(&self, owner: &PeerId) -> Option<u64> {
+        let verdicts = self.access.verdicts()?;
+        let exclusion = verdicts.ledger.excluded.get(owner)?;
+        Some(exclusion.at_micros / 1_000_000)
+    }
+
     /// Phase 2: a fresh verdict, comparing claims (the one who yields gets `Busy`), the owner's record, the mark,
     /// the key. A failed record write leaves the invite unspent: the claim goes stale and the client retries.
     async fn settle_and_grant(
@@ -131,23 +158,25 @@ impl InviteServer {
     ) -> Verdict {
         let _guard = self.gate.lock().await;
         let now_unix = net_mainline::unix_now();
-        let verdict = ledger.verdict(hash, now_unix).await;
+        let admins = self.record_authors();
+        let verdict = ledger.verdict(hash, now_unix, admins.as_ref()).await;
         if verdict != IssueVerdict::Grant {
             return (code_from(verdict), None);
         }
-        let Ok(rivals) = ledger.rival_claims(hash, now_unix).await else {
+        let Ok(mut rivals) = ledger.rival_claims(hash, now_unix).await else {
             return (RedeemCode::Internal, None);
         };
+        rivals.retain(|r| admins.as_ref().is_none_or(|set| set.contains(r)));
         if settle(ledger.me(), &rivals) == Settle::Yield {
             return (RedeemCode::Busy, None);
         }
-        let after = self.forget_mark(&owner);
+        let after = self.rewrite_after(&owner);
         if let Err(e) = admit_owner(list, hash, owner, after, now_unix).await {
             say("invite", format!("couldn't write the member record: {e:#}"));
             return (RedeemCode::Internal, None);
         }
         match ledger.mark_used(hash, now_unix).await {
-            Ok(()) => (RedeemCode::Ok, Some(self.key.clone())),
+            Ok(()) => (RedeemCode::Ok, Some(self.reply_secret.clone())),
             Err(_) => (RedeemCode::Internal, None),
         }
     }

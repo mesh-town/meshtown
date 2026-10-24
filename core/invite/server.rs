@@ -7,6 +7,7 @@
 //! What it doesn't do: writes to the log neither the secret, nor its hash, nor the key.
 //! Links: plugged in `node::start::network::build_stack` via `invite_service`; the issue journal is `invite::store`.
 
+use std::collections::BTreeSet;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
@@ -23,7 +24,7 @@ use super::wire::{
 };
 use super::INVITE_TTL_SECS;
 use crate::members::access::view::AccessView;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetKind, NetworkKey};
 use crate::node::output::{say, short_peer_id};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::{BoxFuture, BoxSend, NetError, PeerConn, PeerId, ServiceHandler};
@@ -46,6 +47,9 @@ pub struct InviteServer {
     pub(super) key: NetworkKey,
     pub(super) list: Arc<OnceLock<DomainList>>,
     pub(super) access: AccessView,
+    /// The kind of the network and the secret a redemption answers with (equal to `key` in a Peer network).
+    pub(super) kind: NetKind,
+    pub(super) reply_secret: NetworkKey,
     slots: Arc<Semaphore>,
     pub(super) gate: Arc<tokio::sync::Mutex<()>>,
 }
@@ -55,12 +59,39 @@ impl InviteServer {
     /// whether this node may let a newcomer's permanent key in.
     pub fn new(key: NetworkKey, list: Arc<OnceLock<DomainList>>, access: AccessView) -> Self {
         InviteServer {
+            reply_secret: key.clone(),
             key,
             list,
             access,
+            kind: NetKind::Peer,
             slots: Arc::new(Semaphore::new(MAX_REDEEMS)),
             gate: Arc::new(tokio::sync::Mutex::new(())),
         }
+    }
+
+    /// Marks the server as the one of a Managed network (or states the kind again): admin-only rules and the
+    /// secret redemptions answer with.
+    pub fn of_kind(mut self, kind: NetKind, reply_secret: NetworkKey) -> Self {
+        self.kind = kind;
+        self.reply_secret = reply_secret;
+        self
+    }
+
+    /// Whether this node may take part in issuing: always in a Peer network, only an admin in a Managed one.
+    pub(super) fn may_serve(&self) -> bool {
+        if self.kind.root().is_none() {
+            return true;
+        }
+        self.access
+            .verdicts()
+            .is_some_and(|v| v.ledger.is_admin(&v.me))
+    }
+
+    /// The authors whose invite records count: `None` in a Peer network, the admins in a Managed one.
+    pub(super) fn record_authors(&self) -> Option<BTreeSet<PeerId>> {
+        self.kind.root()?;
+        let verdicts = self.access.verdicts()?;
+        Some(verdicts.ledger.admins.clone())
     }
 
     /// The answer to a frame: the only choice by frame kind; `transport` is the caller's one-time id.
@@ -94,7 +125,7 @@ impl InviteServer {
         if now_unix >= hold.made_unix.saturating_add(INVITE_TTL_SECS) {
             return RedeemCode::Expired;
         }
-        let Some(list) = self.list.get() else {
+        let Some(list) = self.list.get().filter(|_| self.may_serve()) else {
             return RedeemCode::NotReady;
         };
         let rec = issue_record(hold.made_unix, None);
@@ -188,8 +219,10 @@ pub fn invite_service(
     key: NetworkKey,
     list: Arc<OnceLock<DomainList>>,
     access: AccessView,
+    kind: NetKind,
+    reply_secret: NetworkKey,
 ) -> Arc<dyn ServiceHandler> {
-    Arc::new(InviteServer::new(key, list, access))
+    Arc::new(InviteServer::new(key, list, access).of_kind(kind, reply_secret))
 }
 
 impl ServiceHandler for InviteServer {

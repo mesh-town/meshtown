@@ -15,7 +15,7 @@ use tokio::task::AbortHandle;
 use super::control::begin_network_switch;
 use super::state::{Cmd, NodeCtl, NodeCtlShared, NodeCtlState, Phase};
 use crate::invite::redeem::{redeem, RedeemError, RedeemOpts};
-use crate::invite::{check_fresh, InviteHead, INVITE_TTL_SECS};
+use crate::invite::{check_fresh, InviteHead, NotAdmin, INVITE_TTL_SECS};
 use crate::node::output::say;
 use crate::transport::net::{NodeSecret, PeerAddr};
 use crate::web_gui::{ActionError, InviteJoinState, InviteJoinView, PendingInvite, SaveKey};
@@ -58,9 +58,19 @@ pub(super) fn make_invite(
     if node.stack.is_closed() {
         return Err(ActionError::Busy("node is stopping".to_string()));
     }
-    let issued = crate::invite::make(&node.invite_source(), for_whom)
-        .map_err(|e| ActionError::Internal(format!("invite could not be built: {e:#}")))?;
+    let issued = crate::invite::make(&node.invite_source(), for_whom).map_err(make_error)?;
     Ok(PendingInvite::pending(issued.commit()))
+}
+
+/// The page-facing error of a failed `invite::make`: the admin-only refusal has its own code.
+fn make_error(e: anyhow::Error) -> ActionError {
+    if let Some(denied) = e.downcast_ref::<NotAdmin>() {
+        return ActionError::Denied {
+            code: "not_admin",
+            message: denied.to_string(),
+        };
+    }
+    ActionError::Internal(format!("invite could not be built: {e:#}"))
 }
 
 /// Starts the wait. A previous wait or refusal is cleared; the node phase does not change.
