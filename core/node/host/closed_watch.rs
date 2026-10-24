@@ -78,12 +78,17 @@ async fn watch_closed(
     }
 }
 
+/// Whether the deletion is worth a note: the node left or could not, and another member closed the network.
+fn should_note(fired: Fired, ctl: &NodeCtl, c: &Closed) -> bool {
+    matches!(fired, Fired::Left | Fired::Stuck) && ctl.own_id() != Some(c.by)
+}
+
 /// Leaves the network of the slot because `c` closed it; notes the deletion when the node left or could not.
 fn fire(host: &HostSlots, id: &NetSlotId, ctl: &NodeCtl, c: &Closed) -> Fired {
     let (label, id_hex) = names_of(host, id);
     let by_name = ctl.peer_name(&c.by);
     let fired = leave_after_close(host, id, ctl, label.as_deref());
-    if matches!(fired, Fired::Left | Fired::Stuck) {
+    if should_note(fired, ctl, c) {
         host.notices
             .push_deleted(label, id_hex, &c.by, by_name, c.at_unix);
     }

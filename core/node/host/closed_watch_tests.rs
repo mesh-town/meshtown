@@ -46,6 +46,32 @@ mod added_slot_with_a_closed_network {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn no_note_when_this_node_closed_the_network() {
+        let fx = setup(Opts::default());
+        let ctl = fx.add_waiting("ab2c3d");
+        ctl.set_own_id_for_test(pid(2));
+        fx.when_closed(Some(closing(5))).await;
+        assert!(
+            fx.slots.slot(&id_of("ab2c3d")).is_none(),
+            "the slot still leaves"
+        );
+        assert!(
+            fx.notes().is_empty(),
+            "no note for the closer: {:?}",
+            fx.notes()
+        );
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn note_when_another_admin_closed_the_network() {
+        let fx = setup(Opts::default());
+        let ctl = fx.add_waiting("ab2c3d");
+        ctl.set_own_id_for_test(pid(3));
+        fx.when_closed(Some(closing(5))).await;
+        assert_eq!(fx.notes().len(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn the_stop_waits_for_the_grace_because_the_leave_is_announced() {
         // given / when
         let fx = setup(Opts::default());
