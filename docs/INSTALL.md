@@ -42,6 +42,7 @@ always the latest build.
 | Linux, aarch64 | [meshtown-linux-aarch64.tar.gz](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
 | Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) |
 
+On Debian and Ubuntu, prefer the apt package: it updates with the system ([Debian, Ubuntu (apt)](#debian-ubuntu-apt)).
 Console-only Linux builds are `meshtown-cli-linux-x86_64.tar.gz` and `meshtown-cli-linux-aarch64.tar.gz` in the same
 folder. The folder of each system keeps the four latest versions too, with `SHA256SUMS` and notes. The Windows binary
 is not signed; SmartScreen may warn on the first launch.
