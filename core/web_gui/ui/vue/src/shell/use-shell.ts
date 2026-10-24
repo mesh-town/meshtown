@@ -56,7 +56,7 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   syncPeersTab();
   watch(() => visibleSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
-  const status = computed(() => withExitWarning(statusLine(store.state, conn), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
+  const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
   const strip = computed(() => stripView(conn));
   const identity = computed(() => identityStrip(store.state, store.configFile));
   const ready = computed(() => store.state !== null && store.configRev !== null);

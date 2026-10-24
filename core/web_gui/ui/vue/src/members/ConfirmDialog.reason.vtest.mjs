@@ -12,12 +12,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
-const FIELD = { label: "Why remove it? (optional)", max: 80 };
-const REMOVE = {
-  title: "Remove peer-one from the network?",
+const FIELD = { label: "Why ban it? (optional)", max: 80 };
+const BAN = {
+  title: "Ban peer-one from the network?",
   body: ["peer-one will lose access.", "On this computer, peer-one is blocked right away."],
   hint: "Use this if the computer is lost.",
-  action: "Propose removal",
+  action: "Propose ban",
   danger: true,
   field: FIELD,
 };
@@ -35,7 +35,7 @@ describe("ConfirmDialog with a reason field", () => {
   describe("a spec with the field", () => {
     it("draws a labelled text input before the buttons", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.label().text()).toBe(FIELD.label);
       expect(page.label().attributes("for")).toBe("member-reason");
       expect(page.input().exists()).toBe(true);
@@ -45,7 +45,7 @@ describe("ConfirmDialog with a reason field", () => {
 
     it("the input is a plain text field of at most 80 characters with no autocomplete", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       const input = page.input();
       expect(input.element.tagName).toBe("INPUT");
       expect(input.attributes("type")).toBe("text");
@@ -56,21 +56,21 @@ describe("ConfirmDialog with a reason field", () => {
 
     it("the focus is still on Cancel, not on the field", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(document.activeElement).toBe(page.cancel().element);
     });
 
     it("the field is empty when the dialog opens", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.input().element.value).toBe("");
     });
 
     it("the paragraphs and the hint are the same as without the field", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
-      expect(wrapper.findAll("#confirm-body p:not(.hint)").map((p) => p.text())).toEqual(REMOVE.body);
-      expect(wrapper.get("#confirm-body .hint").text()).toBe(REMOVE.hint);
+      await page.ask(BAN);
+      expect(wrapper.findAll("#confirm-body p:not(.hint)").map((p) => p.text())).toEqual(BAN.body);
+      expect(wrapper.get("#confirm-body .hint").text()).toBe(BAN.hint);
     });
   });
 
@@ -84,7 +84,7 @@ describe("ConfirmDialog with a reason field", () => {
 
     it("the field of an earlier question is gone", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.clickCancel();
       await first;
       await page.ask(BLOCK);
@@ -96,41 +96,41 @@ describe("ConfirmDialog with a reason field", () => {
   describe("the text of the reason", () => {
     it("reason() gives what was typed", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.type("lost laptop");
       expect(page.reason()).toBe("lost laptop");
     });
 
     it("is cleaned: trimmed, control characters become spaces", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.type("  lost\tlaptop \u0007");
       expect(page.reason()).toBe("lost laptop");
     });
 
     it("is cut to 80 characters even if the field let more through (a paste)", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.type("x".repeat(100));
       expect(page.reason()).toBe("x".repeat(80));
     });
 
     it("an untouched field gives an empty string", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.reason()).toBe("");
     });
 
     it("a blank field gives an empty string", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.type("   ");
       expect(page.reason()).toBe("");
     });
 
     it("is still there after the action button closed the dialog", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.type("lost laptop");
       await page.clickYes();
       expect(await answer).toBe(true);
@@ -139,7 +139,7 @@ describe("ConfirmDialog with a reason field", () => {
 
     it("is empty when the last question had no field", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.type("lost laptop");
       await page.clickYes();
       await first;
@@ -151,33 +151,33 @@ describe("ConfirmDialog with a reason field", () => {
   describe("the field is cleared on every opening", () => {
     it("after the action was chosen", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.type("lost laptop");
       await page.clickYes();
       await first;
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.input().element.value).toBe("");
       expect(page.reason()).toBe("");
     });
 
     it("after Cancel", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.type("lost laptop");
       await page.clickCancel();
       await first;
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.input().element.value).toBe("");
       expect(page.reason()).toBe("");
     });
 
     it("after Esc", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.type("lost laptop");
       page.pressEscape();
       await first;
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.input().element.value).toBe("");
     });
   });
@@ -185,7 +185,7 @@ describe("ConfirmDialog with a reason field", () => {
   describe("Enter in the field", () => {
     it("confirms nothing: the dialog stays open and the question stays unanswered", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       let answered = false;
       void answer.then(() => (answered = true));
       await page.type("lost laptop");
@@ -201,14 +201,14 @@ describe("ConfirmDialog with a reason field", () => {
   describe("the focus with the field", () => {
     it("Tab on Cancel (the last control) wraps to the reason field", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.cancel().trigger("keydown", { key: "Tab" });
       expect(document.activeElement).toBe(page.input().element);
     });
 
     it("Shift+Tab in the reason field (the first control) wraps to Cancel", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       page.input().element.focus();
       await page.input().trigger("keydown", { key: "Tab", shiftKey: true });
       expect(document.activeElement).toBe(page.cancel().element);
@@ -216,7 +216,7 @@ describe("ConfirmDialog with a reason field", () => {
 
     it("Tab in the reason field is left to the browser: it moves on to the action", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       page.input().element.focus();
       const event = await page.pressTab(page.input());
       expect(event.defaultPrevented, "Tab inside the dialog was cancelled").toBe(false);
@@ -226,7 +226,7 @@ describe("ConfirmDialog with a reason field", () => {
       const { page } = setup();
       opener = page.addOutsideButton();
       opener.focus();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.type("lost laptop");
       await page.clickCancel();
       await answer;

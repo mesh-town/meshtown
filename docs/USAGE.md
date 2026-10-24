@@ -267,6 +267,16 @@ hint, node name, permission to be an exit for other members) and six more tabs: 
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
 the tabs become a horizontal strip.
 
+**Removing a member that is offline.** On the "Members" tab, a member that is not connected has a "Remove from network…"
+item. It differs from "Ban from network…": a ban forbids the node to enter and is held by the votes of the whole
+network, while removal only cleans the list of nodes that have not been around for a long time and does not stop
+them from coming back. Removal is a vote of your node and passes at the same threshold as a ban: one vote while at
+most two nodes are active, otherwise two. A pending proposal shows to the others as "Confirm removal…" and is
+withdrawn with "Undo removal". Removed nodes are listed in the group "Removed from the member list"; nodes offline
+for more than a week are collected in "Offline for over a week" and are removed one at a time, nothing is removed
+automatically. A removed node sees the card "This computer was removed from the member list" and returns with a new
+invite, keeping the same computer key.
+
 The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
 which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo
 build` does not need Node. The listener is built into the binary (`core/web_gui/mod.rs`, HTTP/1.1 on axum) and starts with the

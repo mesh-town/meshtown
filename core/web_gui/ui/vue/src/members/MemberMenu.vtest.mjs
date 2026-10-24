@@ -23,9 +23,9 @@ const PEER = "B".repeat(64);
 const OTHER = "C".repeat(64);
 const ITEMS = [
   { key: "block", label: "Block on this computer…" },
-  { key: "exclude", label: "Remove from network…", danger: true },
+  { key: "exclude", label: "Ban from network…", danger: true },
 ];
-const WAITING = [{ key: "waiting", label: "Waiting for another member to confirm", disabled: true, title: "Removal already proposed" }];
+const WAITING = [{ key: "waiting", label: "Waiting for another member to confirm", disabled: true, title: "Ban already proposed" }];
 
 let wrappers = [];
 afterEach(() => {
@@ -58,7 +58,7 @@ describe("MemberMenu", () => {
       await menu.open();
       expect(menu.toggle().attributes("aria-expanded")).toBe("true");
       expect(menu.isOpen()).toBe(true);
-      expect(menu.labels()).toEqual(["Block on this computer…", "Remove from network…"]);
+      expect(menu.labels()).toEqual(["Block on this computer…", "Ban from network…"]);
       expect(menu.items().map((i) => i.attributes("data-member-item"))).toEqual(["block", "exclude"]);
       expect(menu.items().every((i) => i.attributes("role") === "menuitem")).toBe(true);
     });
@@ -170,7 +170,7 @@ describe("MemberMenu", () => {
       await menu.open();
       const waiting = menu.item("waiting");
       expect(waiting.attributes("aria-disabled")).toBe("true");
-      expect(waiting.attributes("title")).toBe("Removal already proposed");
+      expect(waiting.attributes("title")).toBe("Ban already proposed");
       expect(waiting.attributes("role")).toBe("menuitem");
     });
 

@@ -65,7 +65,7 @@ describe("Settings: leaving the network", () => {
       expect(wrapper.find("#settings-leave-btn").exists()).toBe(false);
     });
 
-    it("when this computer was removed from the network (the state says so)", () => {
+    it("when this computer was banned from the network (the state says so)", () => {
       const { wrapper } = mountSettings(withMembersSummary(baseState({ network: NET }), { me_excluded: true }));
       expect(isShown(wrapper, "#settings-leave-row")).toBe(false);
     });

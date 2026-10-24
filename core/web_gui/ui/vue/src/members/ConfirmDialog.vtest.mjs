@@ -1,6 +1,6 @@
 /* Contract of `members/ConfirmDialog.vue` (written before the component: red until it exists).
  *
- * Component: the one confirmation dialog of the "Members" tab (remove, confirm, block, leave), a native `<dialog>`.
+ * Component: the one confirmation dialog of the "Members" tab (ban, confirm, block, leave), a native `<dialog>`.
  * No props. `defineExpose({ ask })`:
  *   ask(spec: { title: string; body: string[]; hint?: string; action: string; danger: boolean }): Promise<boolean>
  *   resolves true when the action is chosen, false for everything else (Cancel, Esc, a click on the backdrop,
@@ -18,11 +18,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import ConfirmDialog from "./ConfirmDialog.vue";
 
-const REMOVE = {
-  title: "Remove peer-one from the network?",
+const BAN = {
+  title: "Ban peer-one from the network?",
   body: ["peer-one will lose access.", "On this computer, peer-one is blocked right away."],
   hint: "Use this if the computer is lost.",
-  action: "Propose removal",
+  action: "Propose ban",
   danger: true,
 };
 const BLOCK = { title: "Block peer-one on this computer?", body: ["It won't be able to connect."], action: "Block peer-one", danger: false };
@@ -46,7 +46,7 @@ describe("ConfirmDialog", () => {
   describe("a question is asked", () => {
     it("opens a modal alertdialog labelled by the title and described by the body", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.isOpen()).toBe(true);
       expect(page.dialog().attributes("role")).toBe("alertdialog");
       expect(page.dialog().attributes("aria-labelledby")).toBe("confirm-title");
@@ -55,10 +55,10 @@ describe("ConfirmDialog", () => {
 
     it("shows the title, one paragraph per body line and the hint", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
-      expect(wrapper.get("#confirm-title").text()).toBe(REMOVE.title);
-      expect(wrapper.findAll("#confirm-body p:not(.hint)").map((p) => p.text())).toEqual(REMOVE.body);
-      expect(wrapper.get("#confirm-body .hint").text()).toBe(REMOVE.hint);
+      await page.ask(BAN);
+      expect(wrapper.get("#confirm-title").text()).toBe(BAN.title);
+      expect(wrapper.findAll("#confirm-body p:not(.hint)").map((p) => p.text())).toEqual(BAN.body);
+      expect(wrapper.get("#confirm-body .hint").text()).toBe(BAN.hint);
     });
 
     it("shows no hint when the spec has none", async () => {
@@ -69,8 +69,8 @@ describe("ConfirmDialog", () => {
 
     it("names the action button after spec.action; a danger action is red", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
-      expect(page.yes().text()).toBe("Propose removal");
+      await page.ask(BAN);
+      expect(page.yes().text()).toBe("Propose ban");
       expect(page.yes().classes()).toContain("btn-danger");
     });
 
@@ -82,7 +82,7 @@ describe("ConfirmDialog", () => {
 
     it("Cancel is the primary button and comes after the action in the DOM", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(page.cancel().text()).toBe("Cancel");
       expect(page.cancel().classes()).toContain("btn-primary");
       expect(page.cancel().attributes("autofocus")).toBeDefined();
@@ -92,13 +92,13 @@ describe("ConfirmDialog", () => {
 
     it("moves the focus to Cancel", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       expect(document.activeElement).toBe(page.cancel().element);
     });
 
     it("shows the new text when the dialog is asked again with another spec", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.clickCancel();
       await first;
       await page.ask(BLOCK);
@@ -111,7 +111,7 @@ describe("ConfirmDialog", () => {
   describe("the answer", () => {
     it("the action button answers true and closes the dialog", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.clickYes();
       expect(await answer).toBe(true);
       expect(page.isOpen()).toBe(false);
@@ -119,7 +119,7 @@ describe("ConfirmDialog", () => {
 
     it("Cancel answers false and closes the dialog", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.clickCancel();
       expect(await answer).toBe(false);
       expect(page.isOpen()).toBe(false);
@@ -127,24 +127,24 @@ describe("ConfirmDialog", () => {
 
     it("Esc answers false", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       page.pressEscape();
       expect(await answer).toBe(false);
     });
 
     it("Esc after an earlier \"yes\" answers false, not the previous true", async () => {
       const { page } = setup();
-      const { answer: first } = await page.ask(REMOVE);
+      const { answer: first } = await page.ask(BAN);
       await page.clickYes();
       await first;
-      const { answer: second } = await page.ask(REMOVE);
+      const { answer: second } = await page.ask(BAN);
       page.pressEscape();
       expect(await second).toBe(false);
     });
 
     it("a click on the backdrop (the dialog itself) answers false", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.dialog().trigger("click");
       expect(await answer).toBe(false);
       expect(page.isOpen()).toBe(false);
@@ -152,7 +152,7 @@ describe("ConfirmDialog", () => {
 
     it("a click on the text inside the dialog keeps it open", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await wrapper.get("#confirm-body").trigger("click");
       expect(page.isOpen()).toBe(true);
       await page.clickCancel();
@@ -161,7 +161,7 @@ describe("ConfirmDialog", () => {
 
     it("removing the component while the question is open answers false, it does not hang", async () => {
       const { page } = setup();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       wrapper.unmount();
       expect(await answer).toBe(false);
       wrapper = mount(ConfirmDialog, { attachTo: document.body });
@@ -171,14 +171,14 @@ describe("ConfirmDialog", () => {
   describe("the focus", () => {
     it("Tab on Cancel (the last button) wraps to the action", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       await page.cancel().trigger("keydown", { key: "Tab" });
       expect(document.activeElement).toBe(page.yes().element);
     });
 
     it("Shift+Tab on the action (the first button) wraps to Cancel", async () => {
       const { page } = setup();
-      await page.ask(REMOVE);
+      await page.ask(BAN);
       page.yes().element.focus();
       await page.yes().trigger("keydown", { key: "Tab", shiftKey: true });
       expect(document.activeElement).toBe(page.cancel().element);
@@ -188,7 +188,7 @@ describe("ConfirmDialog", () => {
       const { page } = setup();
       opener = page.addOutsideButton();
       opener.focus();
-      const { answer } = await page.ask(REMOVE);
+      const { answer } = await page.ask(BAN);
       await page.clickCancel();
       await answer;
       expect(document.activeElement).toBe(opener);

@@ -1,5 +1,5 @@
-/* What the member list means for the exit you chose: a warning when it was removed, left or is blocked here,
- * the exit list without removed members, and the header line / state panel that carry the warning. Pure functions. */
+/* What the member list means for the exit you chose: a warning when it was banned, left or is blocked here,
+ * the exit list without banned members, and the header line / state panel that carry the warning. Pure functions. */
 
 import type { ExitCandidate } from "../home/exit-list.ts";
 import type { StatePanelView } from "../home/home-view.ts";
@@ -18,21 +18,21 @@ export interface ExitWarning {
 
 const TAIL = " — sites won't open until you choose another exit";
 const WARNING_TAIL: Record<ExitWarningKind, string> = {
-  removed: "was removed from the network",
+  removed: "was banned from the network",
   left: "left the network",
   blocked: "is blocked on this computer",
 };
 
-// Excluded wins over blocked: a removed member is reported as removed or left.
+// Excluded wins over blocked: a banned member is reported as banned or left.
 function kindOf(row: MemberRow | undefined): ExitWarningKind | null {
   if (!row) return null;
   if (row.status === "excluded") return row.excluded && row.excluded.how === "left" ? "left" : "removed";
   return isBlocked(row) ? "blocked" : null;
 }
 
-// Blocked here: by an explicit block, or by my own removal proposal.
+// Blocked here: by an explicit block, or by my own ban or removal proposal.
 function isBlocked(row: MemberRow): boolean {
-  return !!row.blocked_by_me || row.denied_by_me === "voted_by_me";
+  return !!row.blocked_by_me || row.denied_by_me === "voted_by_me" || row.denied_by_me === "removed_by_me";
 }
 
 function warningOf(id: string, row: MemberRow | undefined, names: Record<string, string>): ExitWarning | null {
@@ -51,7 +51,7 @@ export function exitWarning(chosen: string[], members: MembersReply | null | und
   return found.find((w) => w !== null) || null;
 }
 
-// Removed members leave the list; blocked ones stay, marked.
+// Banned members leave the list; blocked ones stay, marked.
 export function memberExits(cands: ExitCandidate[], members: MembersReply | null | undefined): ExitCandidate[] {
   if (!members) return cands;
   const byId = new Map(members.members.map((m) => [m.id_full, m]));

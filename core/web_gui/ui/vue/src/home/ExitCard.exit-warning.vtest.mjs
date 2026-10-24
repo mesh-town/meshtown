@@ -19,11 +19,11 @@ beforeEach(() => localStorage.clear());
 afterEach(() => mounted.wrapper.unmount());
 
 describe("ExitCard warning about the chosen exit", () => {
-  describe("the exit was removed from the network", () => {
+  describe("the exit was banned from the network", () => {
     it("an alert above the list says so", () => {
       const { wrapper } = mountExit({ chosen: [PEER_FULL], members: members({ one: removed() }) });
       const warning = wrapper.get("#exit-warning");
-      expect(warning.text()).toBe("peer-one was removed from the network. Choose another exit below.");
+      expect(warning.text()).toBe("peer-one was banned from the network. Choose another exit below.");
       expect(warning.attributes("role")).toBeUndefined();
       expect(warning.classes()).toContain("alert");
     });
@@ -113,7 +113,7 @@ describe("ExitCard warning about the chosen exit", () => {
       expect(wrapper.find("#exit-warning").exists()).toBe(false);
       store.members = members({ one: removed() });
       await nextTick();
-      expect(wrapper.get("#exit-warning").text()).toBe("peer-one was removed from the network. Choose another exit below.");
+      expect(wrapper.get("#exit-warning").text()).toBe("peer-one was banned from the network. Choose another exit below.");
       store.members = members();
       await nextTick();
       expect(wrapper.find("#exit-warning").exists()).toBe(false);

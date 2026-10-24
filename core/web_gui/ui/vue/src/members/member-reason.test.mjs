@@ -1,4 +1,4 @@
-/* `member-reason.ts`: the optional reason a member gives when proposing a removal (shown to the other members).
+/* `member-reason.ts`: the optional reason a member gives when proposing a ban (shown to the other members).
  *
  * Contract fixed by these tests:
  *  - `REASON_MAX` = 80, the longest reason in Unicode code points (not UTF-16 units).

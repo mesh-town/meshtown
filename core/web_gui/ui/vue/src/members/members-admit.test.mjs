@@ -136,9 +136,9 @@ describe("rows: decoration and menu", () => {
     assert.deepEqual(d.lines, ["Confirmed by 1 of 2"]);
   });
 
-  it("a removal vote wins over the admission line", () => {
+  it("a ban vote wins over the admission line", () => {
     const row = extraRow({ vote: foreignVote(), admission: admissionInfo() });
-    assert.equal(rowDecor({ id_full: EXTRA_FULL }, row, SELF_FULL).badge.text, "Removal proposed");
+    assert.equal(rowDecor({ id_full: EXTRA_FULL }, row, SELF_FULL).badge.text, "Ban proposed");
   });
 
   it("the menu offers withdrawing only with my confirmation", () => {

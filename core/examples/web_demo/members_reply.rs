@@ -8,6 +8,7 @@ use meshtown_core::web_gui::{
 use meshtown_core::web_gui::ActionError;
 
 use crate::members::{DemoMembers, Entry, Standing, ME};
+use crate::members_forget::{forget_info, last_seen};
 use crate::node::{DemoNode, DemoState};
 
 /// Confirmations that admit a newcomer, as the node counts them.
@@ -38,6 +39,7 @@ fn status_of(e: &Entry) -> &'static str {
         Standing::Pending => "pending",
         Standing::Unlisted => "unlisted",
         Standing::Excluded(_) => "excluded",
+        Standing::Forgotten => "forgotten",
     }
 }
 
@@ -49,6 +51,8 @@ fn denied_by_me(m: &DemoMembers, e: &Entry) -> Option<&'static str> {
         (Standing::Excluded(_), _) => Some("excluded"),
         _ if mine => Some("voted_by_me"),
         _ if e.blocked => Some("blocked"),
+        (Standing::Forgotten, _) => Some("removed"),
+        _ if e.forget.voters.iter().any(|v| v == ME) => Some("removed_by_me"),
         (Standing::Unlisted | Standing::Pending, _) => Some("unlisted"),
         _ => None,
     }
@@ -116,8 +120,8 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         excluded: excluded_of(e, me),
         blocked_by_me: e.blocked,
         denied_by_me: denied_by_me(m, e),
-        forget: None,
-        last_seen_sec: None,
+        forget: forget_info(m, e, me_short),
+        last_seen_sec: last_seen(e),
         last_refusal: None,
         admission: admission_of(e, me),
     }
@@ -130,6 +134,7 @@ fn order_key(e: &Entry) -> (u8, u8, String, String) {
         Standing::Pending => 1,
         Standing::Unlisted => 2,
         Standing::Excluded(_) => 3,
+        Standing::Forgotten => 4,
     };
     let nameless = u8::from(e.name.is_none());
     (
@@ -152,7 +157,7 @@ fn counts(rows: &[MemberRow]) -> Counts {
     }
 }
 
-fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> MembersReply {
+pub(crate) fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> MembersReply {
     let me = demo_self_id_full(boot_id);
     let mut sorted: Vec<&Entry> = m.entries.iter().collect();
     sorted.sort_by_key(|e| order_key(e));
@@ -164,7 +169,7 @@ fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>) -> Members
     MembersReply {
         me,
         me_excluded: m.me_excluded,
-        me_removed: false,
+        me_removed: m.me_removed,
         me_pending: m.me_pending,
         me_admission,
         need: m.need(),

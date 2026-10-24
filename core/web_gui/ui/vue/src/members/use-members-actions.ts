@@ -15,9 +15,9 @@ import { navigateTo } from "../common/navigate.ts";
 import { dialogSpec } from "./dialog-specs.ts";
 import type { DialogKind, DialogSpec } from "./dialog-specs.ts";
 import { leaveNet, memberErrorText, postMemberAction } from "./members-api.ts";
-import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, removalProposedStatus, removedStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
+import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, banProposedStatus, bannedStatus, forgetProposedStatus, forgottenStatus, unforgottenStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
 import type { MemberAction, MembersReply } from "./members-types.ts";
-import { displayNames, meId, memberById } from "./members-view.ts";
+import { banAtRisk, displayNames, meId, memberById, onlyOtherMember } from "./members-view.ts";
 
 /** What `ConfirmDialog` exposes outward through `defineExpose`. */
 export interface DialogHandle {
@@ -39,7 +39,7 @@ export interface MembersActions {
   joinAnother: () => Promise<void>;
 }
 
-const ACTION_OF: Record<DialogKind, MemberAction> = { remove: "exclude", "remove-two": "exclude", confirm: "exclude", admit: "admit", block: "block", leave: "leave" };
+const ACTION_OF: Record<DialogKind, MemberAction> = { ban: "exclude", "ban-two": "exclude", "ban-confirm": "exclude", admit: "admit", block: "block", leave: "leave", forget: "forget", "forget-two": "forget", "forget-confirm": "forget" };
 const INFO = (text: string): ExitSaveStatus => ({ text, cls: "" });
 const FAILED = (text: string): ExitSaveStatus => ({ text, cls: "field-error-text" });
 
@@ -62,7 +62,10 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     const row = memberById(membersOf(store, from), idFull);
     const by = row && row.vote ? nameOf(row.vote.proposed_by, from) : undefined;
     const label = row && row.admission ? row.admission.label : null;
-    return { name: nameOf(idFull, from), by, label, reason: row && row.vote ? row.vote.reason : null, net: net(from), isMyExit: chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitInNet(from) };
+    const members = membersOf(store, from);
+    const other = onlyOtherMember(members, meId(stateOf(store, from)), idFull);
+    const risk = banAtRisk(members, idFull);
+    return { name: nameOf(idFull, from), by, seen: row ? row.last_seen_sec : null, other: other ? nameOf(other, from) : undefined, banAtRisk: risk, label, reason: row && row.vote ? row.vote.reason : null, net: net(from), isMyExit: chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitInNet(from) };
   }
 
   // My exit, when it is a member of this network.
@@ -76,15 +79,22 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     if (target) notifyChanged(target, "state");
   }
 
-  // The line under the list after an accepted action.
-  function doneText(action: MemberAction, idFull: string, reply: MembersReply, netName: string, from: string): string {
-    if (action === "unblock") return "";
-    if (action === "unexclude") return withdrawnStatus(nameOf(idFull, from), memberById(reply, idFull)?.blocked_by_me === true);
-    if (action === "block") return blockedStatus(nameOf(idFull, from));
-    if (action === "unadmit") return unadmittedStatus(nameOf(idFull, from));
-    if (action === "admit") return memberById(reply, idFull)?.status === "member" ? admittedStatus(nameOf(idFull, from)) : confirmedStatus(nameOf(idFull, from));
+  // The line under the list after an accepted action, by action.
+  function doneText(action: MemberAction, idFull: string, reply: MembersReply, from: string): string {
+    const name = nameOf(idFull, from);
     const row = memberById(reply, idFull);
-    return row && row.status === "excluded" ? removedStatus(nameOf(idFull, from)) : removalProposedStatus(nameOf(idFull, from));
+    const done: Record<MemberAction, () => string> = {
+      unblock: () => "",
+      unexclude: () => withdrawnStatus(name, row?.blocked_by_me === true),
+      block: () => blockedStatus(name),
+      unadmit: () => unadmittedStatus(name),
+      admit: () => (row?.status === "member" ? admittedStatus(name) : confirmedStatus(name)),
+      exclude: () => (row?.status === "excluded" ? bannedStatus(name) : banProposedStatus(name)),
+      forget: () => (row?.status === "forgotten" ? forgottenStatus(name) : forgetProposedStatus(name)),
+      unforget: () => unforgottenStatus(name),
+      leave: () => "",
+    };
+    return done[action]();
   }
 
   // Leaving: a left network disappears from the page; a refused leave only refreshes the network list.
@@ -103,11 +113,10 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   }
 
   async function act(action: MemberAction, idFull: string, reason: string | undefined, from: string): Promise<void> {
-    const netName = net(from);
     const { reply } = await postMemberAction(call, action, idFull, reason, from);
     putSlotMembers(store, from, reply);
     if (from === store.lead) store.members = reply;
-    status.value = INFO(doneText(action, idFull, reply, netName, from));
+    status.value = INFO(doneText(action, idFull, reply, from));
     wake();
   }
 
@@ -127,12 +136,21 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     if (yes) await run(ACTION_OF[kind], idFull, dialog.value?.reason?.(), from);
   }
 
+  // The dialog for removing an offline node: the second vote confirms, a two-member network removes at once.
+  function forgetKind(idFull: string): DialogKind {
+    const members = membersOf(store, slot());
+    if (memberById(members, idFull)?.forget) return "forget-confirm";
+    return members?.need === 1 ? "forget-two" : "forget";
+  }
+
   const pickers: Record<string, (idFull: string) => Promise<void>> = {
     block: (id) => ask("block", id),
-    confirm: (id) => ask("confirm", id),
+    confirm: (id) => ask("ban-confirm", id),
     admit: (id) => ask("admit", id),
     unadmit: (id) => run("unadmit", id),
-    exclude: (id) => ask(membersOf(store, slot())?.need === 1 ? "remove-two" : "remove", id),
+    forget: (id) => ask(forgetKind(id), id),
+    unforget: (id) => run("unforget", id),
+    exclude: (id) => ask(membersOf(store, slot())?.need === 1 ? "ban-two" : "ban", id),
     leave: () => ask("leave", meId(stateOf(store, slot()))),
     unblock: (id) => run("unblock", id),
     withdraw: (id) => run("unexclude", id),

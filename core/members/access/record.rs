@@ -270,8 +270,20 @@ pub fn parse_entry(e: &ReplicaEntry) -> Parsed {
 }
 
 #[cfg(test)]
-#[path = "record_tests.rs"]
-pub(super) mod tests;
+#[path = "record_support_tests.rs"]
+pub(super) mod support_tests;
+
+#[cfg(test)]
+#[path = "record_format_tests.rs"]
+mod format_tests;
+
+#[cfg(test)]
+#[path = "record_ignore_tests.rs"]
+mod ignore_tests;
+
+#[cfg(test)]
+#[path = "record_entry_tests.rs"]
+mod entry_tests;
 
 #[cfg(test)]
 #[path = "record_write_tests.rs"]

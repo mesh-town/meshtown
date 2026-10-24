@@ -5,7 +5,7 @@ import type { Store } from "../core/store.ts";
 import { admittable, confirmable, isMeExcluded, meId } from "../members/members-view.ts";
 import { peersHash } from "../shell/nav.ts";
 
-// Removals plus join requests to confirm in one network; nothing for a computer that is out of it.
+// Bans plus join requests to confirm in one network; nothing for a computer that is out of it.
 export function slotVotes(store: Store, slot: string): number {
   const state = stateOf(store, slot);
   const members = membersOf(store, slot);

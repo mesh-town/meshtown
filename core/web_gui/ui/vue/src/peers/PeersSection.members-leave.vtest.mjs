@@ -1,8 +1,8 @@
-/* Leaving the network and being removed from it (written before the code: red until it exists): the whole page on a fake node.
+/* Leaving the network and being banned from it (written before the code: red until it exists): the whole page on a fake node.
  * Leaving: the dialog, `POST /api/members/leave {confirm:true}`, the page after it. Being out: the screen `#excluded-card`
  * (components: `members/ExcludedCard.vtest.mjs`) takes the place of the Members content and of the Home cards when
  * `me_excluded` is set in `/api/state.members` or in the member list (`/api/members` may even answer 404: the state is enough).
- * The variant of the card comes from my own row: `excluded.how === "left"` → "left", anything else → "removed".
+ * The variant of the card comes from my own row: `excluded.how === "left"` → "left", anything else → "banned".
  * Selectors and helpers: `PeersSection.members.vtest.mjs`, `testing/members-page.mjs`. */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -70,11 +70,11 @@ describe("leaving the network", () => {
   });
 });
 
-describe("this computer was removed by the members", () => {
+describe("this computer was banned by the members", () => {
   it("the Members tab shows the card instead of the list, with the title and the text", async () => {
-    const page = await openMembersPage({ members: removedMe(), state: stateWith({ me_excluded: true }) });
-    expect(page.text("#excluded-card")).toContain('This computer was removed from the network "demo-network"');
-    expect(page.text("#excluded-card")).toContain("Members of the network removed it. Sites no longer open through Mesh Town");
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
+    expect(page.text("#excluded-card")).toContain('This computer was banned from the network "demo-network"');
+    expect(page.text("#excluded-card")).toContain("Members of the network banned it. Sites no longer open through Mesh Town");
     expect(page.attr("#excluded-card", "role")).toBe("status");
     expect(page.has("#peers-list")).toBe(false);
     expect(page.has("[data-member-menu]")).toBe(false);
@@ -82,17 +82,17 @@ describe("this computer was removed by the members", () => {
   });
 
   it("the Home tab shows the same card", async () => {
-    const page = await openMembersPage({ members: removedMe(), state: stateWith({ me_excluded: true }), tab: "home" });
-    expect(page.text("#excluded-card")).toContain('This computer was removed from the network "demo-network"');
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }), tab: "home" });
+    expect(page.text("#excluded-card")).toContain('This computer was banned from the network "demo-network"');
   });
 
   it("the header says it too", async () => {
-    const page = await openMembersPage({ members: removedMe(), state: stateWith({ me_excluded: true }) });
-    expect(page.statusLine()).toContain('Removed from the network "demo-network" — sites won\'t open through Mesh Town');
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
+    expect(page.statusLine()).toContain('Banned from the network "demo-network" — sites won\'t open through Mesh Town');
   });
 
   it("\"Join with another invite\" opens Home and focuses the invite field", async () => {
-    const page = await openMembersPage({ members: removedMe(), state: stateWith({ me_excluded: true }) });
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
     await page.click("#excluded-join");
     expect(page.tabShown("home")).toBe(true);
     // NOTE: `#invite-field` does not exist in the app; the invite field of the Home tab is `#join-key-input`.
@@ -106,7 +106,7 @@ describe("this computer was removed by the members", () => {
   });
 
   it("`me_excluded` in the list alone is enough, too", async () => {
-    const page = await openMembersPage({ members: removedMe(), state: stateWith() });
+    const page = await openMembersPage({ members: excludedMe(), state: stateWith() });
     expect(page.has("#excluded-card")).toBe(true);
   });
 
@@ -121,7 +121,7 @@ describe("this computer left on its own (the node still reports the network)", (
   it("the card has the \"left\" wording", async () => {
     const page = await openMembersPage({ members: leftMe(), state: stateWith({ me_excluded: true }) });
     expect(page.text("#excluded-card")).toContain('You left the network "demo-network"');
-    expect(page.text("#excluded-card")).not.toContain("was removed from the network");
+    expect(page.text("#excluded-card")).not.toContain("was banned from the network");
     expect(page.has("[data-member-menu]")).toBe(false);
   });
 });
@@ -131,8 +131,8 @@ describe("somebody else left the network", () => {
     const gone = peerOneRow({ status: "excluded", online: false, denied_by_me: "excluded", excluded: excludedInfo({ how: "left", voters: [] }) });
     const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), gone, peerTwoNamed()] }) });
     expect(page.listCodes()).toEqual([ME.code, "cccc3333"]);
-    expect(page.summaryOf("#removed-list")).toBe("No longer in the network (1)");
-    expect(page.text("#removed-list li")).toMatch(/^peer-one · left the network on \d{1,2} Oct$/);
+    expect(page.summaryOf("#excluded-list")).toBe("No longer in the network (1)");
+    expect(page.text("#excluded-list li")).toMatch(/^peer-one · left the network on \d{1,2} Oct$/);
   });
 });
 
@@ -218,7 +218,7 @@ async function leave(page) {
 const mineExcluded = (how, voters) =>
   selfRow({ status: "excluded", online: false, denied_by_me: how === "left" ? "left" : "excluded", excluded: excludedInfo({ how, voters }) });
 
-const removedMe = () => membersReply({ rows: [mineExcluded("votes", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true, need: 2 });
+const excludedMe = () => membersReply({ rows: [mineExcluded("votes", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true, need: 2 });
 const leftMe = () => membersReply({ rows: [mineExcluded("left", []), peerOneRow(), peerTwoNamed()], me_excluded: true });
 
 

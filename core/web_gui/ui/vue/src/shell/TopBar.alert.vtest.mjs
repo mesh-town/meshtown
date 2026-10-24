@@ -1,11 +1,11 @@
 /* The column header when the status line carries `alert: true` (a warning the person must notice, e.g. the chosen exit
- * was removed from the network): the line is `role="alert"` instead of `role="status"`, the rest of the header is the same. */
+ * was banned from the network): the line is `role="alert"` instead of `role="status"`, the rest of the header is the same. */
 
 import { describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import TopBar from "./TopBar.vue";
 
-const WARNING = "Your exit peer-one was removed from the network — sites won't open until you choose another exit";
+const WARNING = "Your exit peer-one was banned from the network — sites won't open until you choose another exit";
 
 describe("TopBar", () => {
   describe("the line is an alert", () => {
@@ -23,7 +23,7 @@ describe("TopBar", () => {
       expect(w.get(".dot").attributes("aria-hidden")).toBe("true");
     });
 
-    it("the link to the removals that wait for a confirmation still follows the text", () => {
+    it("the link to the bans that wait for a confirmation still follows the text", () => {
       const w = mount(TopBar, { props: { status: { level: "red", text: WARNING, alert: true }, votes: 1 } });
       expect(w.get("#status-line").attributes("role")).toBe("alert");
       expect(w.get("#strip-vote").text()).toBe("1 request to confirm");

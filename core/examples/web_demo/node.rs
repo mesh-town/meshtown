@@ -48,14 +48,18 @@ pub(crate) struct DemoNetworkOptions {
     pub(crate) offline_peers: u64,
     pub(crate) dht_joined: bool,
     pub(crate) dht_nodes: u64,
-    /// `--members-second-vote`: a second member agrees to every removal proposal at once.
+    /// `--members-second-vote`: a second member agrees to every ban proposal at once.
     pub(crate) members_second_vote: bool,
-    /// `--me-excluded`: the node starts already removed from the network.
+    /// `--me-excluded`: the node starts already banned from the network.
     pub(crate) me_excluded: bool,
     /// `--members-pending`: a node that asked to join waits for confirmations.
     pub(crate) members_pending: bool,
     /// `--me-pending`: the node itself waits for confirmations.
     pub(crate) me_pending: bool,
+    /// `--members-forget`: rows of offline members that can be removed.
+    pub(crate) members_forget: bool,
+    /// `--me-removed`: the node starts removed from the member list.
+    pub(crate) me_removed: bool,
 }
 
 pub(crate) struct DemoNode {

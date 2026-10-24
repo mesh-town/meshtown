@@ -3,6 +3,7 @@
 
 use meshtown_core::web_gui::{ActionError, MemberActionReq, MemberError};
 
+use crate::members_forget::ForgetState;
 use crate::node::{DemoNetworkOptions, DemoPeer};
 
 /// Stands for the demo node's own id inside the list (its real id follows `boot_id`, which can change).
@@ -21,6 +22,8 @@ pub(crate) enum Standing {
     Pending,
     Unlisted,
     Excluded(Exit),
+    /// Removed from the list by enough votes (see `members_forget.rs`).
+    Forgotten,
 }
 
 pub(crate) struct Entry {
@@ -36,22 +39,32 @@ pub(crate) struct Entry {
     pub(crate) reason: Option<String>,
     /// For whom the invitation of a pending node was made.
     pub(crate) label: Option<String>,
+    /// Signs of life and the circle of votes to remove the node.
+    pub(crate) forget: ForgetState,
 }
 
 pub(crate) struct DemoMembers {
     pub(crate) me_excluded: bool,
+    /// This computer was removed from the member list by the others (`--me-removed`).
+    pub(crate) me_removed: bool,
     /// This computer asked to join and waits for confirmations.
     pub(crate) me_pending: bool,
-    second_vote: bool,
+    pub(crate) second_vote: bool,
     pub(crate) entries: Vec<Entry>,
 }
 
 /// The demo id of a fake member: one byte repeated, so it is a valid 64-hex id.
-fn fake_id(byte: &str) -> String {
+pub(crate) fn fake_id(byte: &str) -> String {
     byte.repeat(32)
 }
 
-fn entry(id_full: String, id: String, name: &str, online: bool, standing: Standing) -> Entry {
+pub(crate) fn entry(
+    id_full: String,
+    id: String,
+    name: &str,
+    online: bool,
+    standing: Standing,
+) -> Entry {
     Entry {
         id_full,
         id,
@@ -62,6 +75,7 @@ fn entry(id_full: String, id: String, name: &str, online: bool, standing: Standi
         blocked: false,
         reason: None,
         label: None,
+        forget: ForgetState::default(),
     }
 }
 
@@ -69,7 +83,7 @@ fn is_full_id(s: &str) -> bool {
     s.len() == 64 && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-fn refused(code: &'static str, message: &str) -> MemberError {
+pub(crate) fn refused(code: &'static str, message: &str) -> MemberError {
     MemberError::Refused {
         code,
         message: message.to_string(),
@@ -90,7 +104,7 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
     }
 }
 
-/// Appends the removed member, the node that is not in the list and, if asked, the pending one.
+/// Appends the banned member, the node that is not in the list and, if asked, the pending one.
 fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
     let id3 = fake_id("a3");
     entries.push(entry(
@@ -122,8 +136,8 @@ fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
 }
 
 impl DemoMembers {
-    /// You, `peer-one` (ordinary), `peer-two` (somebody else's removal proposal waits for a second voter),
-    /// `peer-three` (removed by votes) and `stray-laptop` (not in the list); with `--members-pending` also
+    /// You, `peer-one` (ordinary), `peer-two` (somebody else's ban proposal waits for a second voter),
+    /// `peer-three` (banned by votes) and `stray-laptop` (not in the list); with `--members-pending` also
     /// `anna-laptop`, which `peer-one` has confirmed.
     pub(crate) fn new(peers: &[DemoPeer], opts: &DemoNetworkOptions) -> Self {
         let (second_vote, me_excluded) = (opts.members_second_vote, opts.me_excluded);
@@ -156,10 +170,14 @@ impl DemoMembers {
         push_outsiders(&mut entries, gone, opts.members_pending);
         let mut members = DemoMembers {
             me_excluded: false,
+            me_removed: opts.me_removed,
             me_pending: opts.me_pending,
             second_vote,
             entries,
         };
+        if opts.members_forget {
+            members.push_forget_rows();
+        }
         if me_excluded {
             members.remove_me(Exit {
                 how: "votes",
@@ -213,128 +231,9 @@ impl DemoMembers {
             (MemberActionReq::Admit(_), Some(i)) => self.admit(i),
             (MemberActionReq::Unadmit(_), Some(i)) => self.unadmit(i),
             (MemberActionReq::Block(_), Some(i)) => Ok(self.set_blocked(i, true)),
-            (MemberActionReq::Forget(_) | MemberActionReq::Unforget(_), Some(_)) => {
-                Err(MemberError::Action(ActionError::NotFound(
-                    "removal is not simulated by the demo".to_string(),
-                )))
-            }
+            (MemberActionReq::Forget(_), Some(i)) => self.forget(i),
+            (MemberActionReq::Unforget(_), Some(i)) => self.unforget(i),
             (_, Some(i)) => Ok(self.set_blocked(i, false)),
         }
-    }
-
-    /// My confirmation of a waiting node; it joins once the threshold is reached.
-    fn admit(&mut self, i: usize) -> Result<bool, MemberError> {
-        let e = &mut self.entries[i];
-        if !matches!(e.standing, Standing::Pending) || e.voters.iter().any(|v| v == ME) {
-            return Err(refused(
-                "not_pending",
-                "This node isn't waiting for confirmation",
-            ));
-        }
-        e.voters.push(ME.to_string());
-        e.standing = Standing::Member;
-        Ok(true)
-    }
-
-    /// Withdraws my confirmation of a node that has not joined yet.
-    fn unadmit(&mut self, i: usize) -> Result<bool, MemberError> {
-        let e = &mut self.entries[i];
-        let mine = matches!(e.standing, Standing::Pending) && e.voters.iter().any(|v| v == ME);
-        if !mine {
-            return Err(refused(
-                "not_confirmed",
-                "You haven't confirmed this node, or it has already joined",
-            ));
-        }
-        e.voters.retain(|v| v != ME);
-        Ok(true)
-    }
-
-    fn leave(&mut self) -> bool {
-        let done = !self.me_excluded;
-        self.remove_me(Exit {
-            how: "left",
-            voters: vec![ME.to_string()],
-        });
-        done
-    }
-
-    fn remove_me(&mut self, exit: Exit) {
-        self.me_excluded = true;
-        self.entries[0].standing = Standing::Excluded(exit);
-    }
-
-    fn set_blocked(&mut self, i: usize, value: bool) -> bool {
-        let changed = self.entries[i].blocked != value;
-        self.entries[i].blocked = value;
-        changed
-    }
-
-    fn exclude(&mut self, i: usize, reason: Option<String>) -> Result<bool, MemberError> {
-        let e = &mut self.entries[i];
-        if matches!(e.standing, Standing::Unlisted) {
-            return Err(refused("not_member", "the node is not in the member list"));
-        }
-        if !matches!(e.standing, Standing::Member) || e.voters.iter().any(|v| v == ME) {
-            return Ok(false);
-        }
-        if e.voters.is_empty() {
-            e.reason = reason;
-        }
-        e.voters.push(ME.to_string());
-        self.add_second_voter(i);
-        self.settle();
-        Ok(true)
-    }
-
-    /// With `--members-second-vote` another member agrees at once, when one more vote is still needed.
-    fn add_second_voter(&mut self, i: usize) {
-        if !self.second_vote || self.entries[i].voters.len() >= usize::from(self.need()) {
-            return;
-        }
-        let have = self.entries[i].voters.clone();
-        let other = self.entries.iter().enumerate().find(|(j, e)| {
-            *j != i
-                && e.id_full != ME
-                && matches!(e.standing, Standing::Member)
-                && !have.contains(&e.id_full)
-        });
-        if let Some((_, e)) = other {
-            let id = e.id_full.clone();
-            self.entries[i].voters.push(id);
-        }
-    }
-
-    /// Members whose votes reached the threshold become excluded; the threshold may fall after each.
-    fn settle(&mut self) {
-        let need = usize::from(self.need());
-        let hit = self.entries.iter().position(|e| {
-            e.id_full != ME && matches!(e.standing, Standing::Member) && e.voters.len() >= need
-        });
-        let Some(i) = hit else { return };
-        let voters = std::mem::take(&mut self.entries[i].voters);
-        self.entries[i].standing = Standing::Excluded(Exit {
-            how: "votes",
-            voters,
-        });
-        self.settle();
-    }
-
-    fn unexclude(&mut self, i: usize) -> bool {
-        let e = &mut self.entries[i];
-        if let Standing::Excluded(exit) = &mut e.standing {
-            let held = exit.how == "votes" && exit.voters.iter().any(|v| v == ME);
-            if !held {
-                return false;
-            }
-            e.voters = std::mem::take(&mut exit.voters);
-            e.standing = Standing::Member;
-        }
-        let before = e.voters.len();
-        e.voters.retain(|v| v != ME);
-        if e.voters.is_empty() {
-            e.reason = None;
-        }
-        before != e.voters.len()
     }
 }

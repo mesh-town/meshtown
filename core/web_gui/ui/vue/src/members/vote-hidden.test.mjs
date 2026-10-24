@@ -1,8 +1,8 @@
-/* `vote-hidden.ts`: which removal proposals the banner still has to show after "Not now". Pure functions.
+/* `vote-hidden.ts`: which ban proposals the banner still has to show after "Not now". Pure functions.
  *
  * Contract fixed by these tests:
  *  - A proposal is told apart by `proposalKey(row)` = `row.id_full + ":" + row.vote.proposed_by`: the same member proposed
- *    for removal by somebody else is another proposal.
+ *    for a ban by somebody else is another proposal.
  *  - `rows` is the list of rows that wait for my confirmation (`confirmable(...)`), in the order of the member list.
  *  - `pendingProposal(rows, hidden)`: the first row whose key is not in `hidden` (the very row object), or nothing (null) when
  *    every proposal is hidden or there are no rows. Neither argument is changed.
@@ -15,15 +15,15 @@ import { proposalKey, pendingProposal, pruneHidden } from "./vote-hidden.ts";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
 import { extraRow, foreignVote, peerOneRow, peerTwoRow } from "../testing/members-fixtures.mjs";
 
-// peer-two proposes removing peer-one.
+// peer-two proposes banning peer-one.
 const againstOne = () => peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) });
-// peer-one proposes removing peer-two.
+// peer-one proposes banning peer-two.
 const againstTwo = () => peerTwoRow({ vote: foreignVote() });
 const KEY_AGAINST_ONE = PEER_FULL + ":" + PEER2_FULL;
 const KEY_AGAINST_TWO = PEER2_FULL + ":" + PEER_FULL;
 
 describe("proposalKey", () => {
-  it("is the id of the member to remove and the id of the proposer, joined by a colon", () => {
+  it("is the id of the member to ban and the id of the proposer, joined by a colon", () => {
     assert.equal(proposalKey(againstOne()), KEY_AGAINST_ONE);
     assert.equal(proposalKey(againstTwo()), KEY_AGAINST_TWO);
   });

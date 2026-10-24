@@ -39,14 +39,18 @@ import {
   EXTRA_FULL,
   excludedInfo,
   extraRow,
+  forgetInfo,
   membersReply,
   peerOneRow,
   peerTwoRow,
   selfRow,
+  staleRow,
   voteInfo,
 } from "../testing/members-fixtures.mjs";
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
+const PEER_FULL_HEX = "B".repeat(64);
+const SELF_HEX = "A".repeat(64);
 
 describe("parseMembers", () => {
   describe("a full valid reply", () => {
@@ -82,7 +86,7 @@ describe("parseMembers", () => {
     });
   });
 
-  describe("the reason of a removal proposal", () => {
+  describe("the reason of a ban proposal", () => {
     const withVote = (vote) => parseMembers({ members: [{ id_full: EXTRA_FULL, status: "member", vote }] }).members[0].vote;
     const baseVote = { votes: 1, need: 2, proposed_by: EXTRA_FULL, voters: [EXTRA_FULL], mine: false };
 
@@ -166,6 +170,75 @@ describe("parseMembers", () => {
     });
   });
 
+  describe("removal fields", () => {
+    const forgotten = () => extraRow({ status: "forgotten", online: false, last_seen_sec: 900000, forget: forgetInfo({ votes: 2, mine: true, at_unix: AT_UNIX, voters: ["aaaa1111", "bbbb2222"] }) });
+
+    it("a reply with forget, last_seen_sec, me_removed and counts.forgotten arrives whole", () => {
+      const raw = membersReply({
+        rows: [selfRow(), peerOneRow({ forget: forgetInfo() }), staleRow("old-desktop", 777600), forgotten()],
+        me_removed: true,
+      });
+      const parsed = plain(parseMembers(raw));
+      assert.deepEqual(parsed, raw);
+      assert.equal(parsed.me_removed, true);
+      assert.equal(parsed.counts.forgotten, 1);
+      assert.deepEqual(parsed.members[1].forget, forgetInfo());
+      assert.equal(parsed.members[2].last_seen_sec, 777600);
+    });
+
+    it("the status \"forgotten\" is kept as it is, the row is not skipped", () => {
+      const parsed = parseMembers(membersReply({ rows: [selfRow(), forgotten()] }));
+      assert.equal(parsed.members.length, 2);
+      assert.equal(parsed.members[1].status, "forgotten");
+    });
+
+    it("the ids of the circle stay short ids and at_unix stays a number", () => {
+      const row = parseMembers(membersReply({ rows: [forgotten()] })).members[0];
+      assert.deepEqual(plain(row.forget.voters), ["aaaa1111", "bbbb2222"]);
+      assert.equal(row.forget.proposed_by, "bbbb2222");
+      assert.equal(row.forget.at_unix, AT_UNIX);
+      assert.equal(row.forget.mine, true);
+    });
+
+    it("last_seen_sec: null (never seen) stays null, zero stays zero", () => {
+      const rows = parseMembers(membersReply({ rows: [staleRow("ghost-key", null), peerOneRow({ last_seen_sec: 0 })] })).members;
+      assert.equal(rows[0].last_seen_sec, null);
+      assert.equal(rows[1].last_seen_sec, 0);
+    });
+  });
+
+  describe("removal fields are missing", () => {
+    const bare = () => parseMembers({ members: [{ id_full: EXTRA_FULL, status: "member" }] });
+
+    it("row: forget and last_seen_sec are null", () => {
+      const row = bare().members[0];
+      assert.equal(row.forget, null);
+      assert.equal(row.last_seen_sec, null);
+    });
+
+    it("top level: me_removed is false", () => {
+      assert.equal(bare().me_removed, false);
+    });
+
+    it("counts.forgotten is the number of rows with the status \"forgotten\"", () => {
+      assert.equal(bare().counts.forgotten, 0);
+      const rows = [{ id_full: EXTRA_FULL, status: "forgotten" }, { id_full: PEER_FULL_HEX, status: "forgotten" }, { id_full: SELF_HEX, status: "member" }];
+      assert.equal(parseMembers({ members: rows }).counts.forgotten, 2);
+    });
+
+    it("a counts.forgotten of the server wins over the rows", () => {
+      const parsed = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "forgotten" }], counts: { forgotten: 5 } });
+      assert.equal(parsed.counts.forgotten, 5);
+    });
+
+    it("forget that is not an object gives null", () => {
+      for (const forget of ["x", 3, [], true]) {
+        const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "member", forget }] }).members[0];
+        assert.equal(row.forget, null, JSON.stringify(forget));
+      }
+    });
+  });
+
   describe("extra fields", () => {
     it("unknown fields at the top level and in rows are tolerated", () => {
       const raw = membersReply();
@@ -205,140 +278,3 @@ describe("parseMembers", () => {
     });
   });
 });
-
-describe("getMembers", () => {
-  it("asks GET /api/members and returns the parsed reply", async () => {
-    const { api, call } = setup({ reply: membersReply() });
-    const result = await getMembers(api);
-    assert.deepEqual(call(0), { method: "GET", path: "/api/members", body: undefined });
-    assert.deepEqual(plain(result), membersReply());
-  });
-
-  it("a reply that is not a members list gives null", async () => {
-    const { api } = setup({ reply: { hello: "world" } });
-    assert.equal(await getMembers(api), null);
-  });
-
-  it("an empty body (204) gives null", async () => {
-    const { api } = setup({ reply: null });
-    assert.equal(await getMembers(api), null);
-  });
-
-  it("an api error is not swallowed", async () => {
-    const { api } = setup({ fail: new ApiError(409, "busy") });
-    await assert.rejects(getMembers(api), (err) => err.status === 409 && err.code === "busy");
-  });
-});
-
-describe("postMemberAction", () => {
-  describe("the request", () => {
-    it.each(["exclude", "unexclude", "block", "unblock"])("%s: POST /api/members/%s with the id", async (action) => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, action, EXTRA_FULL);
-      assert.deepEqual(call(0), { method: "POST", path: "/api/members/" + action, body: { id: EXTRA_FULL } });
-    });
-
-    it("leave: the body is { confirm: true }, an id is not sent", async () => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, "leave");
-      assert.deepEqual(call(0), { method: "POST", path: "/api/members/leave", body: { confirm: true } });
-    });
-
-    it("leave ignores a stray id", async () => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, "leave", EXTRA_FULL);
-      assert.deepEqual(call(0).body, { confirm: true });
-    });
-  });
-
-  describe("the reason of a removal", () => {
-    const bodyOf = async (action, id, reason) => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, action, id, reason);
-      return call(0).body;
-    };
-
-    it("exclude with a reason: the body is { id, reason }", async () => {
-      assert.deepEqual(await bodyOf("exclude", EXTRA_FULL, "lost laptop"), { id: EXTRA_FULL, reason: "lost laptop" });
-    });
-
-    it("exclude without a reason: the body is { id } and has no `reason` key", async () => {
-      const body = await bodyOf("exclude", EXTRA_FULL);
-      assert.deepEqual(body, { id: EXTRA_FULL });
-      assert.equal("reason" in body, false, "a `reason` key was sent: " + JSON.stringify(body));
-    });
-
-    it.each([[""], ["   "], ["\n\t"], [undefined]])("exclude with the reason %j: no `reason` key", async (reason) => {
-      const body = await bodyOf("exclude", EXTRA_FULL, reason);
-      assert.deepEqual(body, { id: EXTRA_FULL });
-      assert.equal("reason" in body, false, "a `reason` key was sent: " + JSON.stringify(body));
-    });
-
-    // `cleanReason` is applied to the reason before it is sent.
-    it("exclude cleans the reason: the ends are trimmed and a newline becomes a space", async () => {
-      assert.deepEqual(await bodyOf("exclude", EXTRA_FULL, "  lost\nlaptop "), { id: EXTRA_FULL, reason: "lost laptop" });
-    });
-
-    it.each(["unexclude", "block", "unblock"])("%s never sends a reason", async (action) => {
-      assert.deepEqual(await bodyOf(action, EXTRA_FULL, "lost laptop"), { id: EXTRA_FULL });
-    });
-
-    it("leave sends only the confirmation, whatever the reason", async () => {
-      assert.deepEqual(await bodyOf("leave", undefined, "lost laptop"), { confirm: true });
-    });
-  });
-
-  describe("the result", () => {
-    it("the parsed reply without `changed`, and `changed` next to it", async () => {
-      const reply = membersReply({ rows: [selfRow(), peerOneRow({ vote: voteInfo() })] });
-      const { api } = setup({ reply: { ...reply, changed: true } });
-      const result = await postMemberAction(api, "exclude", peerOneRow().id_full);
-      assert.equal(result.changed, true);
-      assert.deepEqual(plain(result.reply), reply);
-      assert.equal(result.reply.changed, undefined, "the reply part must not carry `changed`");
-    });
-
-    it("a repeated action (changed: false) is passed on", async () => {
-      const { api } = setup({ reply: { ...membersReply(), changed: false } });
-      const result = await postMemberAction(api, "block", EXTRA_FULL);
-      assert.equal(result.changed, false);
-    });
-  });
-
-  describe("failures", () => {
-    it("an api error propagates as is", async () => {
-      const { api } = setup({ fail: new ApiError(409, "self_target") });
-      await assert.rejects(postMemberAction(api, "exclude", EXTRA_FULL), (err) => err.status === 409 && err.code === "self_target");
-    });
-
-    // A 200 with a body we cannot read is an error.
-    it("a reply that is not a members list rejects", async () => {
-      const { api } = setup({ reply: { ok: true } });
-      await assert.rejects(postMemberAction(api, "block", EXTRA_FULL), Error);
-    });
-  });
-});
-
-// ---------------------------------------------------------------- setup
-
-// A fake `api`: answers every call with `reply` (or rejects with `fail`) and records the calls.
-function setup({ reply, fail } = {}) {
-  const api = vi.fn(async () => {
-    if (fail) throw fail;
-    return reply;
-  });
-  const call = (index) => {
-    const [method, path, body] = api.mock.calls[index];
-    return { method, path, body };
-  };
-  return { api, call };
-}
-
-// A brief of a network with a key as the overview gives it; `label` null — no label.
-function briefOf(id, label, over = {}) {
-  return {
-    id, label, id_hex: id === NET_A ? "net-aaaa" : "net-bbbb", status: "online", exit_enabled: false, proxy: id === NET_A,
-    route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
-    peers_online: 1, peers_total: 2, ...over,
-  };
-}

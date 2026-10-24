@@ -1,7 +1,7 @@
 //! Tests of building the tally input from replica entries (`tally_input` in `record_input.rs`).
 //! Helpers for entries and raw values come from `record_tests.rs`.
 
-use super::super::record::tests::{admit_of, entry, raw, Raw};
+use super::super::record::support_tests::{admit_of, entry, raw, Raw};
 use super::super::record::{admit_key, encode, exclude_key, AclKind, AclValue};
 use super::*;
 use crate::transport::net::contract::pid;

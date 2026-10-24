@@ -49,10 +49,10 @@ pub(crate) struct Args {
     /// Capacity of the log ring; by default it is log.ring_lines from the settings file.
     #[arg(long)]
     pub(crate) ring_lines: Option<usize>,
-    /// Another member agrees to every removal proposed from this page at once (the member lands in "No longer in the network").
+    /// Another member agrees to every ban proposed from this page at once (the member lands in "No longer in the network").
     #[arg(long)]
     pub(crate) members_second_vote: bool,
-    /// Start as a computer already removed from the network (`me_excluded` in the member list).
+    /// Start as a computer already banned from the network (`me_excluded` in the member list).
     #[arg(long)]
     pub(crate) me_excluded: bool,
     /// A node that asked to join waits in the list for confirmations (no member has confirmed it yet).
@@ -61,6 +61,12 @@ pub(crate) struct Args {
     /// Start as a computer that asked to join and waits for confirmations (`me_pending` in the member list).
     #[arg(long)]
     pub(crate) me_pending: bool,
+    /// Offline members can be removed from the list: adds rows that were not seen for days and a removed one.
+    #[arg(long)]
+    pub(crate) members_forget: bool,
+    /// Start as a computer the other members removed from the list (the card is shown in the `main` network only).
+    #[arg(long)]
+    pub(crate) me_removed: bool,
     /// How many networks the page shows (1..=8); the extra ones are labelled `demo-network-2`, ...
     #[arg(long, default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=8))]
     pub(crate) nets: u8,
