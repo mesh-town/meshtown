@@ -77,6 +77,7 @@ pub(crate) fn action_error(err: ActionError) -> Response {
             });
             (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(body)).into_response()
         }
+        ActionError::Denied { code, message } => json_err(StatusCode::CONFLICT, code, &message),
         ActionError::Internal(message) => {
             json_err(StatusCode::INTERNAL_SERVER_ERROR, "internal", &message)
         }

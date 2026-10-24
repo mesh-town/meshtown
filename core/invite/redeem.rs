@@ -65,6 +65,7 @@ pub enum RedeemError {
     Unknown,
     WrongNetwork,
     Excluded,
+    NotFromAdmin,
     Bind(String),
 }
 
@@ -83,6 +84,7 @@ fn text_of(e: &RedeemError) -> String {
         RedeemError::Unknown => "Network members don't know this invite: it was revoked, it has expired or the string is damaged. Ask a network member for a new one.".into(),
         RedeemError::WrongNetwork => "A member answered with the key of another network — the invite was not accepted.".into(),
         RedeemError::Excluded => "This node's key is excluded from the network. The invite was not spent: it can be used on a node with a new key.".into(),
+        RedeemError::NotFromAdmin => "This invite was not issued by an admin of the network, so it cannot be used. Ask an admin of the network for a new one.".into(),
         RedeemError::Bind(why) => format!("couldn't set up a connection for joining: {why}"),
     }
 }
@@ -173,11 +175,11 @@ async fn run_round(
             .ok()
             .flatten();
         answers.push(answer);
-        if round_outcome(&answers, head.network_id, mode).decisive() {
+        if round_outcome(&answers, head, mode).decisive() {
             break;
         }
     }
-    round_outcome(&answers, head.network_id, mode)
+    round_outcome(&answers, head, mode)
 }
 
 /// One attempt: a connection, checking the other side's id, a frame there and back; any failure is `None`.

@@ -13,6 +13,11 @@ fn check(r: &dyn Replica, v: &AclValue) -> NetResult<()> {
             "boot marker subject must be the own node".into(),
         ));
     }
+    if v.kind == AclKind::Close && v.subject != r.me() {
+        return Err(NetError::Config(
+            "close record subject must be the own node".into(),
+        ));
+    }
     Ok(())
 }
 

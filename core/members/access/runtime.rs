@@ -65,6 +65,12 @@ impl Access {
         }
     }
 
+    /// The same node counted by other rules.
+    pub fn with_rules(mut self, rules: Rules) -> Access {
+        self.rules = rules;
+        self
+    }
+
     /// Recomputes and publishes the verdicts, then writes the missing witnesses. A failed scan leaves
     /// the previous view in place.
     pub async fn refresh(&self) -> NetResult<Arc<Verdicts>> {

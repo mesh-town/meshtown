@@ -7,7 +7,7 @@
 
 use anyhow::{anyhow, Result};
 
-use crate::members::network_key::{self, NetworkKey};
+use crate::members::network_key::{self, managed_key, managed_key_with_label, NetKind, NetworkKey};
 
 /// How many seconds an invite is valid from the moment of issue (a day).
 pub const INVITE_TTL_SECS: u64 = 86_400;
@@ -71,14 +71,33 @@ pub struct InviteHead {
     pub network_id: [u8; 4],
     pub label: Option<String>,
     pub made_unix: u64,
+    /// The kind of the network; a Managed one carries its creator.
+    pub kind: NetKind,
 }
 
 impl InviteHead {
-    /// The key text in the same form that a person enters: "label--mesh1-…" or just "mesh1-…".
-    pub fn key_text(&self, key: &NetworkKey) -> String {
-        network_key::key_with_label(self.label.as_deref(), key)
+    /// The network key a redemption reply gives: Peer — the reply itself, Managed — derived from the
+    /// reply (the base) and the creator.
+    pub fn reply_key(&self, reply: &NetworkKey) -> NetworkKey {
+        let Some(root) = self.kind.root() else {
+            return reply.clone();
+        };
+        managed_key(&reply.to_bytes(), &root)
+    }
+
+    /// The key text in the same form that a person enters: "label--mesh1-…" or just "mesh1-…";
+    /// for a Managed network "label--mesh2-…".
+    pub fn key_text(&self, reply: &NetworkKey) -> String {
+        let Some(root) = self.kind.root() else {
+            return network_key::key_with_label(self.label.as_deref(), reply);
+        };
+        managed_key_with_label(self.label.as_deref(), &reply.to_bytes(), &root)
     }
 }
+
+#[cfg(test)]
+#[path = "head_tests.rs"]
+mod tests;
 
 /// The invite is expired (`now >= made_unix + TTL`) — `Err` with a text for a person.
 pub fn check_fresh(head: &InviteHead, now: u64) -> Result<()> {

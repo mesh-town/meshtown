@@ -26,6 +26,7 @@ fn forget_need_counts_nodes_admitted_by_a_dead_admission() {
         votes: Vec::new(),
         forgets: vec![vote(me, a, 100), vote(b, a, 100)],
         rules: Rules::Peer,
+        powers: vec![],
     });
     // when / then: a is forgotten and e is no member, yet e is among those the forget pass counts
     assert!(ledger.is_forgotten(&a));

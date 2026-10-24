@@ -4,17 +4,21 @@
 //! What it does: declares the modules of the list.
 //! What it doesn't do: holds no logic.
 
+pub mod abilities;
 pub mod actions;
+mod actions_managed;
 mod admission;
 pub mod authority;
 pub mod boot;
 mod boot_plan;
 mod deny;
 mod forget;
+mod managed;
 mod reasons;
 pub mod record;
 mod record_input;
 mod record_io;
+mod record_keys;
 pub mod report;
 mod report_forget;
 pub mod runtime;

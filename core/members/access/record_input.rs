@@ -3,7 +3,7 @@
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::authority::Rules;
+use super::authority::{power_of, PowerIn, Rules};
 use super::record::{exclude_key, parse_entry, AclKind, Parsed};
 use super::tally::{AdmitIn, ForgetIn, TallyInput, VoteIn};
 
@@ -25,6 +25,7 @@ pub fn tally_input_under(
         admits: Vec::new(),
         votes: Vec::new(),
         forgets: Vec::new(),
+        powers: Vec::new(),
     };
     let mut ignored = 0;
     for e in entries {
@@ -33,9 +34,32 @@ pub fn tally_input_under(
     (input, ignored)
 }
 
+/// Adds the record of power an entry carries, if any; a withdrawn one is absent.
+fn push_power(input: &mut TallyInput, parsed: &Parsed) {
+    let Parsed::Record {
+        author,
+        ts_micros,
+        value,
+    } = parsed
+    else {
+        return;
+    };
+    let Some(power) = power_of(value.kind, value.via) else {
+        return;
+    };
+    input.powers.push(PowerIn {
+        author: *author,
+        power,
+        subject: value.subject,
+        ts_micros: *ts_micros,
+    });
+}
+
 /// Adds one entry to the input; returns 1 when the entry is ignored.
 fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
-    match parse_entry(e) {
+    let parsed = parse_entry(e);
+    push_power(input, &parsed);
+    match parsed {
         Parsed::Ignored(_) => 1,
         Parsed::Record { author, value, .. } if value.kind == AclKind::Admit => {
             input.admits.push(AdmitIn {

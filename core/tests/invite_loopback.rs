@@ -188,6 +188,8 @@ impl Issuer {
             stack: self.a.stack.clone(),
             members: self.a.members.clone(),
             key: self.a.network_key.clone(),
+            kind: self.a.net_kind,
+            reply_secret: self.a.reply_secret.clone(),
             label: self.a.network_label.clone(),
             domains: self.a.domains.clone(),
         }
@@ -216,7 +218,7 @@ impl Issuer {
     /// The verdict of A's document for the secret from the string.
     async fn verdict(&self, parsed: &ParsedInvite) -> IssueVerdict {
         Ledger::of(&self.a.domains)
-            .verdict(&parsed.head.secret.hash_hex(), unix_now())
+            .verdict(&parsed.head.secret.hash_hex(), unix_now(), None)
             .await
     }
 

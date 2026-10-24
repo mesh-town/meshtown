@@ -2,12 +2,14 @@
 
 use anyhow::{anyhow, bail, Result};
 
-use crate::members::network_key;
+use crate::members::network_key::{self, NetKind};
 use crate::node::output::NET_NAME;
+use crate::transport::net::PeerId;
 
 use super::{
-    Invite, InviteHead, InviteSecret, ParsedInvite, INVITE_KEYED_VERSION, INVITE_PREFIX,
-    MAX_INVITE_BYTES, MAX_INVITE_CHARS, OLD_INVITE_PREFIX,
+    Invite, InviteHead, InviteSecret, InviteV4, ParsedInvite, INVITE_KEYED_VERSION,
+    INVITE_KIND_MANAGED, INVITE_MANAGED_VERSION, INVITE_PREFIX, MAX_INVITE_BYTES, MAX_INVITE_CHARS,
+    OLD_INVITE_PREFIX,
 };
 
 /// The refusal text for an invite of the old format (with the network key inside).
@@ -34,9 +36,7 @@ fn has_prefix(text: &str, prefix: &str) -> bool {
 /// broken entries and the label become notes in `ParsedInvite::warnings`, joining goes on.
 pub fn parse(text: &str) -> Result<ParsedInvite> {
     let bytes = decode_invite_body(text)?;
-    let invite: Invite = postcard::from_bytes(&bytes).map_err(|_| {
-        anyhow!("invite is damaged: unreadable — copy the string in full once more")
-    })?;
+    let (invite, kind) = read_invite(&bytes)?;
     if invite.peers.is_empty() {
         bail!("the invite has no member address at all — ask for a new one");
     }
@@ -48,10 +48,42 @@ pub fn parse(text: &str) -> Result<ParsedInvite> {
             network_id: invite.network_id,
             label,
             made_unix: invite.made_unix,
+            kind,
         },
         peers,
         warnings,
     })
+}
+
+/// Reads the postcard body by the version byte: a version 3 invite is a Peer network, a version 4 one
+/// names the kind and the creator of the network.
+fn read_invite(bytes: &[u8]) -> Result<(Invite, NetKind)> {
+    match bytes[0] {
+        INVITE_MANAGED_VERSION => {
+            let v4: InviteV4 = postcard::from_bytes(bytes).map_err(|_| unreadable())?;
+            let kind = managed_kind(v4.kind, &v4.root)?;
+            Ok((v4.body, kind))
+        }
+        _ => {
+            let invite = postcard::from_bytes(bytes).map_err(|_| unreadable())?;
+            Ok((invite, NetKind::Peer))
+        }
+    }
+}
+
+fn unreadable() -> anyhow::Error {
+    anyhow!("invite is damaged: unreadable — copy the string in full once more")
+}
+
+/// The network kind of a version 4 invite: only Managed exists; the creator must be a curve point.
+fn managed_kind(kind: u8, root: &[u8; 32]) -> Result<NetKind> {
+    if kind != INVITE_KIND_MANAGED {
+        bail!("invite of an unknown network type ({kind}) — update the program");
+    }
+    let root = PeerId::from_bytes(root).map_err(|_| {
+        anyhow!("invite is damaged: the network creator key is not valid — ask for a new one")
+    })?;
+    Ok(NetKind::Managed { root })
 }
 
 /// Strips whitespace, checks the length, prefix and version, decodes the body from base32 — before parsing
@@ -98,7 +130,7 @@ fn decode_invite_body(text: &str) -> Result<Vec<u8>> {
     if bytes[0] == 2 {
         bail!(TEXT_V2_INVITE);
     }
-    if bytes[0] != INVITE_KEYED_VERSION {
+    if !matches!(bytes[0], INVITE_KEYED_VERSION | INVITE_MANAGED_VERSION) {
         bail!(
             "invite of a different format ({}) — update the program",
             bytes[0]
@@ -141,3 +173,7 @@ fn normalize_label_or_warn(raw: Option<String>, warnings: &mut Vec<String>) -> O
         None => None,
     }
 }
+
+#[cfg(test)]
+#[path = "parse_v4_tests.rs"]
+mod v4_tests;

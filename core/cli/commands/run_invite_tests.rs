@@ -322,6 +322,7 @@ fn invite_of_net_a() -> ParsedInvite {
             network_id: net_a().subkeys().network_id,
             label: None,
             made_unix: NOW,
+            kind: crate::members::network_key::NetKind::Peer,
         },
         peers: vec![],
         warnings: vec![],

@@ -30,6 +30,8 @@ pub(crate) fn source_of(node: &RunningNode) -> Source {
         stack: node.stack.clone(),
         members: node.members.clone(),
         key: node.network_key.clone(),
+        kind: node.net_kind,
+        reply_secret: node.reply_secret.clone(),
         label: node.network_label.clone(),
         domains: node.domains.clone(),
     }

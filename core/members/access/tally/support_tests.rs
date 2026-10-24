@@ -87,6 +87,7 @@ pub(super) fn run_votes(
         votes,
         forgets,
         rules: Rules::Peer,
+        powers: vec![],
     })
 }
 
@@ -178,6 +179,7 @@ impl World {
             votes: self.votes.clone(),
             forgets: self.forgets.clone(),
             rules: Rules::Peer,
+            powers: vec![],
         })
     }
 

@@ -29,7 +29,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -53,7 +54,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0, x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -77,7 +79,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 1 }",
+                "forget_need: 1, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -104,7 +107,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -130,7 +134,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -159,7 +164,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, m: 0, b: 0, x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -188,7 +194,8 @@ mod admission {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -219,7 +226,8 @@ mod exclusion {
                 "forgets: {}, ",
                 "admit_unix: {d: 0, a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -243,7 +251,8 @@ mod exclusion {
                 "forgets: {}, ",
                 "admit_unix: {d: 0, a: 0, c: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -271,7 +280,8 @@ mod exclusion {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, m: 0, c: 0, x: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }
@@ -297,7 +307,8 @@ mod exclusion {
                 "forgets: {}, ",
                 "admit_unix: {a: 0, b: 0}, ",
                 "forget_marks: {}, ",
-                "forget_need: 2 }",
+                "forget_need: 2, ",
+                "admins: {}, closed: None }",
             )
         );
     }

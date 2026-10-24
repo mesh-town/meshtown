@@ -223,3 +223,93 @@ fn block_key_is_outside_the_shared_prefix() {
     assert!(!block_key(&p).starts_with(ACL_PREFIX));
     assert!(block_key(&p).starts_with(BLOCK_PREFIX));
 }
+
+// --- grant, revoke, close ---
+
+#[test]
+fn grant_revoke_close_round_trip() {
+    // given: A's records of the three kinds of administration; a close names its author
+    let (a, s) = (pid(2), pid(5));
+    let hex = HEXLOWER.encode(s.as_bytes());
+    let cases = [
+        (
+            AclKind::Grant,
+            6,
+            s,
+            format!("acl/admin/{hex}").into_bytes(),
+        ),
+        (
+            AclKind::Revoke,
+            7,
+            s,
+            format!("acl/unadmin/{hex}").into_bytes(),
+        ),
+        (AclKind::Close, 8, a, b"acl/close".to_vec()),
+    ];
+    for (kind, byte, subject, want_key) in cases {
+        let value = AclValue {
+            kind,
+            subject,
+            ..admit_of(subject)
+        };
+        // when: the value is encoded and the entry under the key of its kind is parsed
+        let key = key_for(kind, &subject);
+        let bytes = encode(&value);
+        let parsed = parse_entry(&entry(a, key.clone(), bytes.clone(), 10));
+        // then: the kind byte and the key are fixed, and the record comes back whole
+        assert_eq!(bytes[1], byte, "{kind:?}: kind byte");
+        assert_eq!(AclKind::from_u8(byte), Some(kind));
+        assert_eq!(key, want_key, "{kind:?}: key");
+        let want = Parsed::Record {
+            author: a,
+            ts_micros: 10,
+            value,
+        };
+        assert_eq!(parsed, want, "{kind:?}");
+    }
+}
+
+#[test]
+fn close_with_foreign_subject_is_key_mismatch() {
+    // given: A's close record that names S, not A
+    let (a, s) = (pid(2), pid(5));
+    let value = AclValue {
+        kind: AclKind::Close,
+        ..admit_of(s)
+    };
+    // when / then: a close is the author's own record, so it does not match its key
+    let parsed = parse_entry(&entry(a, key_for(AclKind::Close, &a), encode(&value), 10));
+    assert_eq!(parsed, Parsed::Ignored(Ignored::KeyMismatch));
+}
+
+#[test]
+fn grant_body_under_admit_key_is_key_mismatch() {
+    // given: A's values whose kind disagrees with the key of another kind of administration
+    let (a, s) = (pid(2), pid(5));
+    let of = |kind| AclValue {
+        kind,
+        ..admit_of(s)
+    };
+    let cases = [
+        (
+            "grant under the admit key",
+            admit_key(&s),
+            of(AclKind::Grant),
+        ),
+        (
+            "revoke under the grant key",
+            grant_key(&s),
+            of(AclKind::Revoke),
+        ),
+        (
+            "admit under the revoke key",
+            revoke_key(&s),
+            of(AclKind::Admit),
+        ),
+    ];
+    for (name, key, value) in cases {
+        // when / then: every one is a key mismatch
+        let parsed = parse_entry(&entry(a, key, encode(&value), 10));
+        assert_eq!(parsed, Parsed::Ignored(Ignored::KeyMismatch), "{name}");
+    }
+}

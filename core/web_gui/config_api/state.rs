@@ -159,20 +159,6 @@ impl ConfigState {
         })
     }
 
-    pub(crate) fn network_block(&self) -> Value {
-        let Some(key) = &self.current_network_key else {
-            return Value::Null;
-        };
-        let Ok(input) = crate::members::network_key::parse_user_input(key) else {
-            return Value::Null;
-        };
-        serde_json::json!({
-            "label": input.label,
-            "masked": mask_key(key),
-            "id_hex": input.key.subkeys().network_id_hex(),
-        })
-    }
-
     pub(crate) fn identity_kind_and_reason(&self) -> (&'static str, Option<&'static str>) {
         if self.file_report.persistent_identity {
             ("persistent", None)
@@ -288,7 +274,7 @@ fn network_view(current_network_key: Option<&str>) -> Value {
     serde_json::json!({"label": label, "masked": mask_key(key)})
 }
 
-fn mask_key(key: &str) -> String {
+pub(super) fn mask_key(key: &str) -> String {
     match key.split_once("--") {
         Some((head, tail)) => format!("{head}--{}", "•".repeat(tail.chars().count())),
         None => "•".repeat(key.chars().count()),

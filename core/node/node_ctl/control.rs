@@ -8,8 +8,8 @@ use crate::config::config_file::Settings;
 use crate::invite::InviteHead;
 use crate::node::output::{self, say};
 use crate::web_gui::{
-    ActionError, InviteJoinView, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot,
-    PendingInvite, SaveKey,
+    ActionError, InviteJoinView, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl,
+    NodeSnapshot, PendingInvite, SaveKey,
 };
 
 use super::invite_wait;
@@ -95,6 +95,10 @@ impl NodeControl for NodeCtl {
 
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {
         self.member_action_impl(act)
+    }
+
+    fn net_roles(&self) -> Option<NetRoles> {
+        self.net_roles_impl()
     }
 
     fn invite_join(&self) -> Option<InviteJoinView> {

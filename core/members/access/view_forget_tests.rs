@@ -250,6 +250,7 @@ impl Net {
             votes: Vec::new(),
             forgets: forgets.to_vec(),
             rules: Rules::Peer,
+            powers: vec![],
         })
     }
 

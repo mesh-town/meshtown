@@ -316,7 +316,7 @@ fn round(answers: &[Option<RedeemReply>]) -> Outcome {
 }
 
 fn round_in(answers: &[Option<RedeemReply>], mode: Mode) -> Outcome {
-    round_outcome(answers, own_key().subkeys().network_id, mode)
+    round_outcome(answers, &peer_head(), mode)
 }
 
 fn is_fallback(o: &Outcome) -> bool {
@@ -357,6 +357,16 @@ fn key(k: NetworkKey) -> Option<RedeemReply> {
 }
 
 /// The key of the network the invite was issued from.
+fn peer_head() -> InviteHead {
+    InviteHead {
+        secret: crate::invite::InviteSecret::from_bytes([1; 32]),
+        network_id: own_key().subkeys().network_id,
+        label: None,
+        made_unix: 0,
+        kind: crate::members::network_key::NetKind::Peer,
+    }
+}
+
 fn own_key() -> NetworkKey {
     NetworkKey::from_bytes([1; 32])
 }
@@ -381,3 +391,5 @@ fn id(seed: u8) -> PeerId {
 mod closes_transport;
 #[path = "redeem_mem_tests.rs"]
 mod mem_endpoint;
+#[path = "redeem_round_tests.rs"]
+mod managed_round;

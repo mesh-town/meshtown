@@ -179,15 +179,15 @@ fn parse_rejects_garbage() {
     .unwrap();
     let body = &real[INVITE_PREFIX.len()..];
     let mut bytes = BASE32_NOPAD_NOCASE.decode(body.as_bytes()).unwrap();
-    // version 3 is now legal (a key invite); "foreign format" is 4
-    bytes[0] = 4;
+    // version 3 is now legal (a key invite); "foreign format" is 5
+    bytes[0] = 5;
     let corrupted = format!(
         "{INVITE_PREFIX}{}",
         BASE32_NOPAD.encode(&bytes).to_ascii_lowercase()
     );
     let err = format!("{:#}", parse(&corrupted).unwrap_err());
     assert!(
-        err.contains("update the program") && err.contains('4'),
+        err.contains("update the program") && err.contains('5'),
         "{err}"
     );
 }
@@ -268,6 +268,7 @@ fn head_made_at(made_unix: u64) -> InviteHead {
         network_id: key().subkeys().network_id,
         label: None,
         made_unix,
+        kind: NetKind::Peer,
     }
 }
 

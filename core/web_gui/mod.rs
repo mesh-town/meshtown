@@ -36,7 +36,7 @@ mod token;
 
 pub use auth::password_file::{remove_password_file, take_password_file, PASSWORD_FILE_NAME};
 #[doc(hidden)]
-pub use config_api::ConfigState;
+pub use config_api::{ConfigState, NetRoles};
 pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
     NodeControl, PendingInvite, SaveKey, WebStartError,

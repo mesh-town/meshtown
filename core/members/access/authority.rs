@@ -9,8 +9,10 @@ use std::collections::BTreeSet;
 
 use crate::transport::net::PeerId;
 
+use crate::members::network_key::NetKind;
+
 use super::admission::counts_elsewhere;
-use super::record::Via;
+use super::record::{AclKind, Via};
 use super::tally::Excluded;
 
 /// The counting rules of a network.
@@ -19,13 +21,63 @@ pub enum Rules {
     /// Every admitted node may vote.
     #[default]
     Peer,
+    /// Administrators decide; `root` is the creator and always an administrator.
+    Managed { root: PeerId },
+}
+
+/// What a record of power says.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Power {
+    /// An admission by the given origin.
+    Admit(Via),
+    Grant,
+    Revoke,
+    Close,
+}
+
+/// A live record of power: `author` writes `power` about `subject` at `ts_micros`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PowerIn {
+    pub author: PeerId,
+    pub power: Power,
+    pub subject: PeerId,
+    pub ts_micros: u64,
+}
+
+/// The power a record kind carries; `None` for kinds that are not records of power.
+pub(super) fn power_of(kind: AclKind, via: Via) -> Option<Power> {
+    match kind {
+        AclKind::Admit => Some(Power::Admit(via)),
+        AclKind::Grant => Some(Power::Grant),
+        AclKind::Revoke => Some(Power::Revoke),
+        AclKind::Close => Some(Power::Close),
+        _ => None,
+    }
+}
+
+impl From<&NetKind> for Rules {
+    fn from(kind: &NetKind) -> Rules {
+        match kind.root() {
+            Some(root) => Rules::Managed { root },
+            None => Rules::Peer,
+        }
+    }
 }
 
 impl Rules {
+    /// The creator of an administered network.
+    pub fn root(&self) -> Option<PeerId> {
+        match self {
+            Rules::Peer => None,
+            Rules::Managed { root } => Some(*root),
+        }
+    }
+
     /// The nodes the admitted closure starts from.
     pub fn seeds(&self, me: PeerId) -> BTreeSet<PeerId> {
         match self {
             Rules::Peer => BTreeSet::from([me]),
+            Rules::Managed { root } => BTreeSet::from([*root]),
         }
     }
 
@@ -33,6 +85,7 @@ impl Rules {
     pub fn need(&self, active: usize) -> u8 {
         match self {
             Rules::Peer => peer_need(active),
+            Rules::Managed { .. } => 1,
         }
     }
 
@@ -40,14 +93,13 @@ impl Rules {
     pub fn admit_counts(&self, via: Via, author: &PeerId, me: &PeerId) -> bool {
         match self {
             Rules::Peer => counts_elsewhere(via) || author == me,
+            Rules::Managed { .. } => via != Via::Witness,
         }
     }
 
     /// Whether the network is administered.
     pub fn is_managed(&self) -> bool {
-        match self {
-            Rules::Peer => false,
-        }
+        self.root().is_some()
     }
 }
 

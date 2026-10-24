@@ -3,7 +3,7 @@
 use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
 
 use meshtown_core::config::config_file::Settings;
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::network_key::{NetKind, NetworkKey};
 use meshtown_core::web_gui::{
     ActionError, LogPage, MemberActionReq, MemberFuture, NodeControl, NodeSnapshot, NodeStatus,
 };
@@ -194,6 +194,7 @@ impl NodeControl for DemoNode {
             network_id: key.subkeys().network_id,
             label: None,
             made_unix,
+            kind: NetKind::Peer,
         };
         meshtown_core::invite::build_keyed(
             &head,

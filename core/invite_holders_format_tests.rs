@@ -29,6 +29,7 @@ fn head() -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: None,
         made_unix: T,
+        kind: NetKind::Peer,
     }
 }
 

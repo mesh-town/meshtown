@@ -93,3 +93,65 @@ fn open_author_is_me_or_not_excluded() {
     assert!(!st.open(&me, &b) && !st.backs(&me, &b));
     assert!(st.backs(&me, &c) && !st.backs(&me, &pid(9)));
 }
+
+mod managed {
+    use super::*;
+    use crate::members::network_key::NetKind;
+
+    #[test]
+    fn seeds_are_the_root_whoever_asks() {
+        // given: a managed network and two nodes that are not its root
+        let (root, me, other) = (pid(1), pid(2), pid(3));
+        let rules = Rules::Managed { root };
+        // when / then: the closure starts from the root, not from the asking node
+        assert_eq!(rules.seeds(me), BTreeSet::from([root]));
+        assert_eq!(rules.seeds(other), BTreeSet::from([root]));
+        assert_eq!(rules.seeds(root), BTreeSet::from([root]));
+        assert!(rules.is_managed());
+    }
+
+    #[test]
+    fn one_vote_is_enough_at_any_size() {
+        // given: a managed network
+        let rules = Rules::Managed { root: pid(1) };
+        // when / then: an admin removes a node alone, however many nodes count
+        assert!([0, 1, 2, 3, 9, 200].iter().all(|n| rules.need(*n) == 1));
+    }
+
+    #[test]
+    fn witness_never_counts_and_every_other_via_does() {
+        // given: a managed network; the author of a record is the node itself or another one
+        let (root, me, other) = (pid(1), pid(2), pid(3));
+        let rules = Rules::Managed { root };
+        // when / then: whose record it is is judged by the roles, not here; a witness never counts
+        for author in [me, other, root] {
+            assert!(!rules.admit_counts(Via::Witness, &author, &me));
+            for via in [Via::Invite, Via::None, Via::Migration] {
+                assert!(
+                    rules.admit_counts(via, &author, &me),
+                    "{via:?} by {author:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn root_is_told_by_the_kind_of_rules() {
+        // given / when / then: only a managed network has a root
+        let root = pid(1);
+        assert_eq!(Rules::Managed { root }.root(), Some(root));
+        assert_eq!(Rules::Peer.root(), None);
+    }
+
+    #[test]
+    fn rules_follow_the_kind_of_network() {
+        // given: the kinds of a network
+        let root = pid(1);
+        // when / then: a peer network is counted by votes, a managed one by its root
+        assert_eq!(Rules::from(&NetKind::Peer), Rules::Peer);
+        assert_eq!(
+            Rules::from(&NetKind::Managed { root }),
+            Rules::Managed { root }
+        );
+    }
+}

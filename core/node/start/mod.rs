@@ -81,6 +81,8 @@ fn assemble_running(
         own_name_tx: net.ctx.own_name_tx.clone(),
         identity: boot.identity,
         network_key: boot.network_key,
+        net_kind: boot.net_kind,
+        reply_secret: boot.reply_secret,
         network_label: boot.network_label,
         telemetry: boot.telemetry,
         cached_peers: entry_points.cached_peers,

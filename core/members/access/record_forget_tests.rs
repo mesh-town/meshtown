@@ -15,7 +15,7 @@ mod kind_and_key {
     fn forget_kind_is_five_and_round_trips() {
         assert_eq!(AclKind::Forget as u8, 5, "wire number of the forget kind");
         assert_eq!(AclKind::from_u8(5), Some(AclKind::Forget));
-        assert_eq!(AclKind::from_u8(6), None, "no kind beyond forget");
+        assert_eq!(AclKind::from_u8(9), None, "no kind beyond close");
     }
 
     #[test]

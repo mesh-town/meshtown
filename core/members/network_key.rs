@@ -8,6 +8,8 @@
 //! (Argon2id) any more — the entropy of the random part is known exactly and equals 130.8 bits.
 //! Protocol: the rules of `normalize_dashed`, `CTX_TAIL_SALT` and the composition of the random part must not
 //! change — a different result means a different network; pinned by a reference test.
+//! A Managed network key (`managed.rs`) is a different network from any Peer key: the derivation rule and the `mesh2-` form
+//! must not change either.
 //! Links: `peer_record`, `dht`, `handshake`, `node` take subkeys from `SubKeys`;
 //! `main` calls `parse_user_input`; `words` provides the word list and the part checks.
 
@@ -19,7 +21,12 @@ use ring::rand::{SecureRandom, SystemRandom};
 use crate::node::output::NET_NAME;
 
 mod input;
-pub use input::{key_from_tail, parse_user_input, BadWord, NetworkKeyInput};
+mod managed;
+pub use input::{key_from_tail, parse_user_input, BadWord};
+pub use managed::{
+    format_managed_key, managed_key, managed_key_with_label, parse_managed, NetKind,
+    NetworkKeyInput,
+};
 // Only for the reference test `derive_tail_is_deterministic_and_input_sensitive` in
 // `network_key_tests.rs`: the function itself remained a detail of `input` and is not exposed.
 #[cfg(test)]
@@ -39,6 +46,8 @@ const CTX_DOCS_NAMESPACE: &str = "meshtown docs namespace v1";
 const CTX_NETWORK_ID: &str = "meshtown network id v1";
 /// Salt for deriving the key from the random part: one for the whole application (part of the protocol).
 const CTX_TAIL_SALT: &str = "meshtown network key tail v1";
+/// Derives the key bytes of a Managed network from its base and creator (part of the protocol).
+const CTX_MANAGED: &str = "meshtown managed network v1";
 /// Separator of the label and the random part in the key.
 pub const LABEL_SEPARATOR: &str = "--";
 /// Limit of the label length after normalization, in characters.

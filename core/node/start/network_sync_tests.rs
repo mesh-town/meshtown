@@ -140,7 +140,7 @@ macro_rules! consumer_suite {
                     .await
                     .unwrap();
                 assert_eq!(
-                    ledger_b.verdict(INVITE_HASH, now).await,
+                    ledger_b.verdict(INVITE_HASH, now, None).await,
                     IssueVerdict::Unknown
                 );
                 // when: A reconciles with B
@@ -148,7 +148,7 @@ macro_rules! consumer_suite {
                 // then: B, by polling, reaches the verdict "grant"
                 let ledger = &ledger_b;
                 eventually("Grant verdict at B", move || async move {
-                    ledger.verdict(INVITE_HASH, now).await == IssueVerdict::Grant
+                    ledger.verdict(INVITE_HASH, now, None).await == IssueVerdict::Grant
                 })
                 .await;
             }

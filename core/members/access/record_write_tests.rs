@@ -298,6 +298,23 @@ async fn withdraw_removes_garbage_under_own_key() {
     assert!(r.tombstone(&admit_key(&s)).await.is_some());
 }
 
+// --- close ---
+
+#[tokio::test]
+async fn close_for_other_is_config_error() {
+    // given: a close record that names another node as its subject
+    let r = setup();
+    let other = value_of(AclKind::Close, pid(7));
+    // when: ensure is asked to write it
+    let result = r.ensure(&other).await;
+    // then: a config error, and nothing is written
+    assert!(matches!(result, Err(NetError::Config(_))), "{result:?}");
+    assert!(r.scan_list().await.is_empty(), "nothing written at all");
+    // and the close that names the own node goes under the close key
+    r.ensure(&value_of(AclKind::Close, r.me)).await.unwrap();
+    assert!(r.own(b"acl/close").await.is_some());
+}
+
 // --- setup and helpers ---
 
 struct Rig {
