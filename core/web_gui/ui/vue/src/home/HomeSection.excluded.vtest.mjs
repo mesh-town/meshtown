@@ -14,6 +14,7 @@ afterEach(unmountPage);
 
 const BANNED = "Members of the network banned it";
 const REMOVED = "An admin removed it";
+const squash = (el) => visibleText(el).replace(/\s+/g, " ").trim();
 
 describe("a banned computer on Home", () => {
   it("in a Managed network says_an_admin_removed_it", async () => {
@@ -22,6 +23,17 @@ describe("a banned computer on Home", () => {
     const text = visibleText(wrapper.get("#excluded-card").element).replace(/\s+/g, " ");
     expect(text).toContain(REMOVED);
     expect(text).not.toContain(BANNED);
+    expect(text).toContain("ask an admin of the network for a new invite");
+    expect(text).not.toContain("contact a member");
+  });
+
+  it("in a Managed network says_removed_in_the_title_and_the_status_line", async () => {
+    const { wrapper } = await mountPage(managedExcludedNode(), { hash: "home" });
+    await settle();
+    const title = wrapper.get("#excluded-card h2").text();
+    expect(title).toBe(`This computer was removed from the network "${NET_NAME}"`);
+    expect(squash(wrapper.get("#status-line").element)).toBe(`Removed from the network "${NET_NAME}" by an admin \u2014 sites won't open through Mesh Town`);
+    expect(title).not.toContain("banned");
   });
 
   it("in a Peer network keeps_the_members_text", async () => {
@@ -32,11 +44,13 @@ describe("a banned computer on Home", () => {
     });
     expect(page.text("#excluded-card")).toContain(BANNED);
     expect(page.text("#excluded-card")).not.toContain(REMOVED);
+    expect(page.text("#excluded-card h2")).toMatch(/^This computer was banned from the network/);
+    expect(page.statusLine()).toMatch(/^Banned from the network/);
   });
 });
 
 function managedExcludedNode() {
-  const state = managedState({ meRole: "member", admins: [ANNA_FULL], network: {} });
+  const state = managedState({ meRole: "member", admins: [ANNA_FULL], network: { label: NET_NAME } });
   state.members = { count: 1, gossip_neighbors: 0, voting: 0, me_excluded: true };
   const members = managedMembers(state);
   members.me_excluded = true;

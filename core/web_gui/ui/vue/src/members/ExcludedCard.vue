@@ -23,7 +23,7 @@ const startOver = (): boolean => inApp && props.variant !== "forgotten";
 
 <template>
   <section :id="id('card')" class="card excluded-card" role="status">
-    <h2>{{ excludedTitle(variant, net) }}</h2>
+    <h2>{{ excludedTitle(variant, net, managed) }}</h2>
     <template v-if="startOver()">
       <p>{{ EXCLUDED_APP_TEXT }}</p>
       <a :id="id('start-over')" class="btn btn-primary" role="button" :href="START_OVER_URL">{{ EXCLUDED_APP_BUTTON }}</a>
