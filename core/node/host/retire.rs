@@ -14,7 +14,7 @@ use crate::config::config_file::{
     net_slot_path, new_secret, set_aside_main, set_aside_slot, NetSlotId, SaveError,
 };
 use crate::node::node_ctl::NodeCtl;
-use crate::node::output::{self, say};
+use crate::node::output::{self, say, NET_NAME};
 use crate::transport::net::NodeSecret;
 use crate::web_gui::{now_unix, HostControl, HostError, SlotHandle};
 
@@ -36,7 +36,7 @@ impl HostSlots {
         }
         let mut tasks = self.retiring_tasks();
         if self.is_stopping() {
-            return Err(HostError::Busy("the node is stopping".into()));
+            return Err(HostError::Busy(format!("{NET_NAME} is stopping")));
         }
         let claim = self.claim_guard();
         let task = match self.remove_slot(id) {
@@ -82,7 +82,7 @@ impl HostSlots {
         let secret = new_secret().map_err(|e| HostError::Io(format!("{e:#}")))?;
         let mut tasks = self.retiring_tasks();
         if self.is_stopping() {
-            return Err(HostError::Busy("the node is stopping".into()));
+            return Err(HostError::Busy(format!("{NET_NAME} is stopping")));
         }
         let ctl = self.ctl_of(id).ok_or(HostError::UnknownNet)?;
         if self.leaving.swap(true, Ordering::SeqCst) {

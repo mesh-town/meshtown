@@ -36,7 +36,7 @@ describe("fields", () => {
       assert.deepEqual(f.options.map((o) => o[0]), ["localhost", "localnet"]);
       assert.deepEqual(f.options.map((o) => o[1]), ["This computer only", "Local network devices (TV, phone)"]);
       assert.match(f.desc, /proxy has no password/);
-      assert.match(f.desc, /after the node restarts/);
+      assert.match(f.desc, /after Mesh Town restarts/);
       assert.deepEqual(collectChanges({ "socks.access": "localnet" }, MAIN_FIELDS), { "socks.access": "localnet" });
     });
 
@@ -83,7 +83,7 @@ describe("fields", () => {
       assert.equal(f.dataType, "str");
       assert.deepEqual(f.options.map((o) => o[0]), ["localhost", "localnet"]);
       assert.ok(f.options.every((o) => /[a-z]/i.test(o[1])));
-      assert.match(f.desc, /this only concerns access to the node settings, not to the network or traffic/i);
+      assert.match(f.desc, /this only concerns access to the Mesh Town settings, not to the network or traffic/i);
     });
 
     it("web.access goes into PUT /api/config via the shared collectChanges path", () => {
@@ -263,7 +263,7 @@ describe("network selection texts", () => {
     const f = MAIN_FIELDS.find((x) => x.path === "socks.access");
     assert.equal(
       f.desc,
-      "In local network mode the proxy has no password: any device on your network (and guest Wi-Fi, if it isn't separated) can use it. Takes effect after the node restarts.",
+      "In local network mode the proxy has no password: any device on your network (and guest Wi-Fi, if it isn't separated) can use it. Takes effect after Mesh Town restarts.",
     );
   });
 });

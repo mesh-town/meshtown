@@ -49,10 +49,10 @@ describe("SetupScreen", () => {
     expect(w.get("#setup-submit").attributes("disabled")).toBeDefined();
   });
 
-  it("access choice explanation: only about access to the node settings, not to the network and traffic", () => {
+  it("access choice explanation: only about access to the Mesh Town settings, not to the network and traffic", () => {
     stubNode();
     const w = mountSetup();
-    expect(w.text()).toContain("this only concerns access to the node settings, not to the network or traffic");
+    expect(w.text()).toContain("this only concerns access to the Mesh Town settings, not to the network or traffic");
     const values = w.findAll("#setup-access option").map((o) => o.attributes("value"));
     expect(values).toEqual(["localnet", "localhost"]);
   });

@@ -173,7 +173,10 @@ impl NodeControl for DemoNode {
         let t = {
             let mut st = self.state.lock().unwrap();
             if st.status == NodeStatus::Stopping {
-                return Err(ActionError::Busy("node is stopping".to_string()));
+                return Err(ActionError::Busy(format!(
+                    "{} is stopping",
+                    meshtown_core::node::output::NET_NAME
+                )));
             }
             st.boot_id = gen_hex8(&mut st.gen);
             st.status = NodeStatus::Starting;

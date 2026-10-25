@@ -46,11 +46,11 @@ fn top_help_speaks_english() {
             "Usage: meshtown [COMMAND]",
             "Commands:",
             "Options:",
-            "Run the node in this window, without an icon",
+            "Run Mesh Town in this window, without an icon",
             "Print a new network key",
             "Print the path to the settings file",
-            "Reset the node page password",
-            "Who can open the node page",
+            "Reset the Mesh Town page password",
+            "Who can open the Mesh Town page",
             "Show help (for one command: meshtown run --help)",
             "Show version",
         ] {
@@ -58,7 +58,7 @@ fn top_help_speaks_english() {
         }
     }
     #[cfg(feature = "gui")]
-    assert!(top().contains("Show the Mesh Town icon next to the clock and start the node"));
+    assert!(top().contains("Show the Mesh Town icon next to the clock and start Mesh Town"));
 }
 
 #[test]
@@ -138,7 +138,10 @@ fn footer_names_default() {
 #[test]
 fn footer_names_default() {
     let help = top();
-    assert!(help.contains("With no command, the node starts."), "{help}");
+    assert!(
+        help.contains("With no command, Mesh Town starts."),
+        "{help}"
+    );
     assert!(!help.contains("  tray "), "{help}");
     assert!(
         help.contains("meshtown run --invite \"<invite>\""),

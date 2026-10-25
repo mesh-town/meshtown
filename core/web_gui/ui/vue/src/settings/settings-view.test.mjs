@@ -155,34 +155,34 @@ describe("cliNoteText", () => {
     const state = { socks: { listen: null } };
     assert.equal(
       cliNoteText("socks.port", false, state, config),
-      "set at node startup — your edit will be saved to the file and take effect when you start the node without this command-line option",
+      "set at startup — your edit will be saved to the file and take effect when you start Mesh Town without this command-line option",
     );
-    assert.equal(cliNoteText("socks.port", true, state, config), "set at node startup — can't be changed here");
+    assert.equal(cliNoteText("socks.port", true, state, config), "set at startup — can't be changed here");
   });
 
   it("listen 127.0.0.1:2000 — the file and the effective port", () => {
     const state = { socks: { listen: "127.0.0.1:2000" } };
     assert.match(
       cliNoteText("socks.port", false, state, config),
-      /^in file: 1080 · currently in effect: 2000 — set at node startup, your edit will be saved/,
+      /^in file: 1080 · currently in effect: 2000 — set at startup, your edit will be saved/,
     );
     assert.match(
       cliNoteText("socks.port", false, state, config),
-      /take effect when you start the node without this command-line option$/,
+      /take effect when you start Mesh Town without this command-line option$/,
     );
     assert.equal(
       cliNoteText("socks.port", true, state, config),
-      "in file: 1080 · currently in effect: 2000 — set at node startup",
+      "in file: 1080 · currently in effect: 2000 — set at startup",
     );
   });
 
   it("web.port is taken from state.node.web_addr", () => {
     const text = cliNoteText("web.port", true, { node: { web_addr: "127.0.0.1:7788" } }, { web: { port: 7777 } });
-    assert.equal(text, "in file: 7777 · currently in effect: 7788 — set at node startup");
+    assert.equal(text, "in file: 7777 · currently in effect: 7788 — set at startup");
   });
 
   it("state null — does not crash, the text has no port", () => {
-    assert.equal(cliNoteText("socks.port", true, null, config), "set at node startup — can't be changed here");
+    assert.equal(cliNoteText("socks.port", true, null, config), "set at startup — can't be changed here");
   });
 
   it("the text changes when socks.listen appears in the snapshot", () => {

@@ -8,6 +8,7 @@ use crate::config::config_file::{
 use serde_json::{json, Value};
 
 use super::node_link::{LinkError, Target};
+use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and sets the access mode.
 pub(crate) fn run_access_command(
@@ -34,28 +35,29 @@ fn set(t: &Target, mode: ListenAccess) -> Result<(), String> {
 fn report_live(mode: ListenAccess, applied: bool) {
     let name = mode.as_str();
     if applied {
-        println!("Node page access: {name} (takes effect immediately).");
+        println!("{NET_NAME} page access: {name} (takes effect immediately).");
         return;
     }
-    println!("Node page access: {name} (saved; takes effect after the node restarts).");
+    println!("{NET_NAME} page access: {name} (saved; takes effect after {NET_NAME} restarts).");
 }
 
 fn json_of(call: Result<(u16, String), LinkError>, what: &str) -> Result<Value, LinkError> {
     let (code, body) = call?;
     if code != 200 {
         return Err(LinkError::Other(format!(
-            "node refused ({what}, code {code})"
+            "{NET_NAME} refused ({what}, code {code})"
         )));
     }
     serde_json::from_str(&body)
-        .map_err(|_| LinkError::Other(format!("node did not reply with JSON ({what})")))
+        .map_err(|_| LinkError::Other(format!("{NET_NAME} did not reply with JSON ({what})")))
 }
 
 /// The node is running: `true` means the mode already applies, `false` means it waits for a restart.
 fn live(t: &Target, mode: ListenAccess) -> Result<bool, LinkError> {
     let rev = json_of(t.call("GET", "/api/config", None), "reading settings")?["rev"].as_u64();
-    let rev =
-        rev.ok_or_else(|| LinkError::Other("the node reply has no settings revision".into()))?;
+    let rev = rev.ok_or_else(|| {
+        LinkError::Other(format!("the {NET_NAME} reply has no settings revision"))
+    })?;
     let body = json!({"rev": rev, "config": {"web": {"access": mode.as_str()}}}).to_string();
     json_of(
         t.call("PUT", "/api/config", Some(&body)),
@@ -71,9 +73,9 @@ fn live(t: &Target, mode: ListenAccess) -> Result<bool, LinkError> {
 /// The node is not running: reads the file, changes the field, writes with a revision check.
 fn offline(t: &Target, mode: ListenAccess) -> Result<(), String> {
     match config_file::load_config_file(&t.path) {
-        LoadedConfigFile::Absent => {
-            Err("no settings file: start the node once, then change the access".into())
-        }
+        LoadedConfigFile::Absent => Err(format!(
+            "no settings file: start {NET_NAME} once, then change the access"
+        )),
         LoadedConfigFile::Unreadable(why) | LoadedConfigFile::Invalid(why) => {
             Err(format!("settings file is unusable: {why}"))
         }
@@ -83,7 +85,9 @@ fn offline(t: &Target, mode: ListenAccess) -> Result<(), String> {
 
 fn write_field(t: &Target, p: ParsedConfigFile, mode: ListenAccess) -> Result<(), String> {
     let SecretRead::Valid(secret) = p.secret else {
-        return Err("the settings file has no valid node key: start the node once".into());
+        return Err(format!(
+            "the settings file has no valid key for this computer: start {NET_NAME} once"
+        ));
     };
     let mut settings = p.settings;
     settings.process.web_access = mode;
@@ -91,7 +95,7 @@ fn write_field(t: &Target, p: ParsedConfigFile, mode: ListenAccess) -> Result<()
     config_file::save_config_file(&t.path, Some(p.rev), now, &secret, &settings)
         .map_err(|e| format!("settings file was not saved: {e:?}"))?;
     println!(
-        "Node page access: {} (node is not running: applies at startup).",
+        "{NET_NAME} page access: {} ({NET_NAME} is not running: applies at startup).",
         mode.as_str()
     );
     Ok(())

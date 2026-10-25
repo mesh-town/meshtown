@@ -243,7 +243,7 @@ mod after_help {
     }
 
     #[test]
-    fn after_help_names_the_node_without_tray() {
-        assert!(after_help_text(false).contains("the node starts"));
+    fn after_help_names_mesh_town_without_tray() {
+        assert!(after_help_text(false).contains("Mesh Town starts"));
     }
 }

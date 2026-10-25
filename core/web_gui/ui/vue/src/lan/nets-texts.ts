@@ -13,7 +13,7 @@ export const ROUTER_RESTART_NOTE = "The page will disappear for a few seconds an
 
 export const WARN_PROVIDER =
   "Then any device on the network the router is connected to will be able to use the proxy without a password: for example, on the main home router's network or your ISP's. Select only if that is also your network.";
-export const HERE_NOTE = "This page is open through this network — you can't deselect it here. Open the page from another network or from the node itself.";
+export const HERE_NOTE = "This page is open through this network — you can't deselect it here. Open the page from another network or from this computer itself.";
 
 export const PAC_INTRO_ROUTER =
   "Enter this address once in the proxy settings of a phone or computer connected to the router. After that, the browser opens sites through Mesh Town by itself whenever you choose an exit. No password needed.";
@@ -21,7 +21,7 @@ export const LAN_HINT_MULTI = "Use the address of the network the device is conn
 export const ROUTER_ONLY_TEXT = "The proxy is open only to the router itself — phones and computers at home won't be able to use it.";
 
 export const DESC_SOCKS_ACCESS_NETS =
-  "In local network mode the proxy has no password: any device on the networks selected below can use it. Takes effect after the node restarts.";
+  "In local network mode the proxy has no password: any device on the networks selected below can use it. Takes effect after " + NET_NAME + " restarts.";
 
 // Network names (`iface-title.ts`), summary lines and service messages.
 export const NETS_IFACE_PROVIDER_HINT = "The router reaches the internet through this network";

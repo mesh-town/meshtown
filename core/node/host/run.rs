@@ -284,7 +284,7 @@ fn entry_error_text(e: &WebStartError, node_on_port: bool) -> anyhow::Error {
 fn already_running_error(port: u16) -> anyhow::Error {
     let program = crate::cli::program_name::program_name();
     anyhow::anyhow!(
-        "{NET_NAME}: a Mesh Town node is already running on port {port} (for example, as a service). Its page is on port {port} of this device (http://<device address>:{port}/). To get a new sign-in link, run: {program} password reset. There is no need to start a second node."
+        "{NET_NAME}: another copy is already running on port {port} (for example, as a service). Its page is on port {port} of this device (http://<device address>:{port}/). To get a new sign-in link, run: {program} password reset. There is no need to start a second copy."
     )
 }
 
@@ -294,7 +294,7 @@ fn generic_entry_error(e: &WebStartError) -> anyhow::Error {
         .map(|a| format!(" {a}"))
         .unwrap_or_default();
     anyhow::anyhow!(
-        "{NET_NAME}: the node page is unavailable, and without a network key you can join the network only through it. Reason: {e}.{advice} Or join the network by starting with an invite: {cmd} run --invite \"<invite>\" (network key — --key or MESHTOWN_KEY)",
+        "{NET_NAME}: the page is unavailable, and without a network key you can join the network only through it. Reason: {e}.{advice} Or join the network by starting with an invite: {cmd} run --invite \"<invite>\" (network key — --key or MESHTOWN_KEY)",
         cmd = crate::cli::program_name::program_name()
     )
 }

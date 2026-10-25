@@ -76,17 +76,17 @@ describe("restartNode", () => {
 
   describe("failure", () => {
     it("the node's error text, restartRequested not set", async () => {
-      const w = setup({ script: [() => { throw new ApiError(409, "busy", "node is starting"); }] });
+      const w = setup({ script: [() => { throw new ApiError(409, "busy", "Mesh Town is starting"); }] });
       await restartNode(w.form, restartable(w.store), w.deps);
-      assert.equal(w.form.message.text, "Couldn't restart the node: node is starting");
+      assert.equal(w.form.message.text, "Couldn't restart Mesh Town: Mesh Town is starting");
       assert.equal(w.form.message.cls, "field-error-text");
       assert.equal(w.form.restartRequested, false);
     });
 
-    it("an error without text — \"Couldn't restart the node — try again\"", async () => {
+    it("an error without text — \"Couldn't restart Mesh Town — try again\"", async () => {
       const w = setup({ script: [() => { throw Object.assign(new Error(""), { code: "x" }); }] });
       await restartNode(w.form, restartable(w.store), w.deps);
-      assert.equal(w.form.message.text, "Couldn't restart the node — try again");
+      assert.equal(w.form.message.text, "Couldn't restart Mesh Town — try again");
     });
   });
 
@@ -185,17 +185,17 @@ describe("stopNode", () => {
     assert.equal(w.calls.length, 0);
   });
 
-  it("node failure — the line \"Couldn't stop the node: …\", events stopping then state, no stopped", async () => {
+  it("node failure — the line \"Couldn't stop Mesh Town: …\", events stopping then state, no stopped", async () => {
     const w = setup({ script: [() => { throw new ApiError(500, "x", "Node failure"); }] });
     assert.equal(await stopNode(w.form, w.deps), false);
     assert.deepEqual(w.events, [{ what: "stopping" }, { what: "state" }]);
-    assert.deepEqual(plain(w.form.message), { text: "Couldn't stop the node: node failure", cls: "field-error-text" });
+    assert.deepEqual(plain(w.form.message), { text: "Couldn't stop Mesh Town: node failure", cls: "field-error-text" });
   });
 
   it("failure without text — \"— try again\"", async () => {
     const w = setup({ script: [() => { throw Object.assign(new Error(""), { code: "x" }); }] });
     await stopNode(w.form, w.deps);
-    assert.equal(w.form.message.text, "Couldn't stop the node — try again");
+    assert.equal(w.form.message.text, "Couldn't stop Mesh Town — try again");
   });
 });
 

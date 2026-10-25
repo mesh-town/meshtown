@@ -38,7 +38,7 @@ export const SETUP_HINT = "The password protects this settings page. From now on
 export const SETUP_AGAIN_LABEL = "Password again";
 export const SETUP_MISMATCH = "Passwords don't match";
 export const SETUP_ACCESS_LABEL = "Who can access the settings page";
-export const SETUP_ACCESS_HINT = "You can change this later in \"Settings\". Note: this only concerns access to the node settings, not to the network or traffic.";
+export const SETUP_ACCESS_HINT = "You can change this later in \"Settings\". Note: this only concerns access to the " + NET_NAME + " settings, not to the network or traffic.";
 export const SETUP_CONTINUE = "Continue";
 export const LOGIN_SET_PASSWORD = "Set password";
 
@@ -67,7 +67,7 @@ export function passwordLogoutFailedText(reason: string): string {
 export const PASSWORD_ROW_TITLE = "Page password";
 export const PASSWORD_IS_SET = "A password is set. Use it to sign in to this page.";
 export const PASSWORD_NOT_SET = "No password yet. The page opens only from the link " + NET_NAME + " prints at startup.";
-export const PASSWORD_NEEDS_RESTART = "The chosen page access will take effect after the node restarts.";
+export const PASSWORD_NEEDS_RESTART = "The chosen page access will take effect after " + NET_NAME + " restarts.";
 export const PASSWORD_NEW_LABEL = "New password";
 export const PASSWORD_CHANGE = "Change password";
 export const PASSWORD_LOGOUT = "Sign out";

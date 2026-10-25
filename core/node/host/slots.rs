@@ -14,7 +14,7 @@ use super::saved_slots::{multi_net_for, MAX_NETS};
 use crate::config::config_file::{NetSlotId, RunConfig};
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
-use crate::node::output;
+use crate::node::output::{self, NET_NAME};
 use crate::proxy::ProxySeat;
 use crate::web_gui::{ConfigState, HostError, SlotHandle};
 
@@ -103,7 +103,7 @@ impl HostSlots {
         {
             let mut slots = self.write();
             if self.stopping.load(Ordering::SeqCst) {
-                return Err(HostError::Busy("the node is stopping".into()));
+                return Err(HostError::Busy(format!("{NET_NAME} is stopping")));
             }
             if slots.len() >= MAX_NETS {
                 return Err(HostError::TooManyNets);

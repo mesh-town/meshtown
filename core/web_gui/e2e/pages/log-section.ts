@@ -8,7 +8,7 @@ export class LogSection {
   readonly lines: Locator;
 
   constructor(page: Page) {
-    this.window = page.getByRole('log', { name: 'Node log' });
+    this.window = page.getByRole('log', { name: 'Mesh Town log' });
     this.lines = this.window.getByRole('listitem').filter({ has: page.getByText(/^\+\s*\d+\.\d+s$/) });
   }
 

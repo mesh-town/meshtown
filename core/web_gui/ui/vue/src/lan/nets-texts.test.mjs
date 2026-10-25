@@ -28,7 +28,7 @@ describe("nets-texts", () => {
     });
 
     it("HERE_NOTE — why the checkbox cannot be cleared for the network the page is opened from", () => {
-      expect(texts.HERE_NOTE).toBe("This page is open through this network — you can't deselect it here. Open the page from another network or from the node itself.");
+      expect(texts.HERE_NOTE).toBe("This page is open through this network — you can't deselect it here. Open the page from another network or from this computer itself.");
     });
   });
 
@@ -51,7 +51,7 @@ describe("nets-texts", () => {
   describe("the \"Who can use the proxy\" description", () => {
     it("DESC_SOCKS_ACCESS_NETS — any device from the networks selected below", () => {
       expect(texts.DESC_SOCKS_ACCESS_NETS).toBe(
-        "In local network mode the proxy has no password: any device on the networks selected below can use it. Takes effect after the node restarts.",
+        "In local network mode the proxy has no password: any device on the networks selected below can use it. Takes effect after Mesh Town restarts.",
       );
     });
   });

@@ -13,7 +13,6 @@ describe("memberErrorText", () => {
       [409, "self_target", "You can't remove your own computer"],
       [409, "not_member", "That computer isn't in the member list"],
       [409, "left", "This computer has left the network"],
-      [409, "busy", "The node is starting"],
       [422, "invalid", "The member id is not valid"],
       [500, "internal", "Couldn't write the member list"],
     ])("%i %s: Couldn't …: the message with a lowercase first letter", (status, code, message) => {
@@ -25,6 +24,8 @@ describe("memberErrorText", () => {
     it("the program name at the start keeps its capital letter", () => {
       const err = new ApiError(409, "busy", "busy", { error: "busy", message: "Mesh Town is stopping" });
       assert.equal(memberErrorText(err), "Couldn't " + ACTION + ": Mesh Town is stopping");
+      const err2 = new ApiError(409, "busy", "busy", { error: "busy", message: "Mesh Town is starting" });
+      assert.equal(memberErrorText(err2), "Couldn't " + ACTION + ": Mesh Town is starting");
     });
   });
 

@@ -31,7 +31,7 @@ afterEach(() => {
 describe("UpdateBanner", () => {
   it("shows the banner when GitHub has a newer release", async () => {
     const wrapper = await mountBanner(release("v9.0.0"));
-    expect(wrapper.get("#update-banner").text()).toContain(`Mesh Town 9.0.0 is available (this node runs ${OWN_VERSION}).`);
+    expect(wrapper.get("#update-banner").text()).toContain(`Mesh Town 9.0.0 is available (this computer runs ${OWN_VERSION}).`);
     const link = wrapper.get("#update-download");
     expect(link.attributes("href")).toBe("https://github.com/mesh-town/meshtown-dist#readme");
     expect(link.attributes("rel")).toBe("noopener");

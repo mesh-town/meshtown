@@ -39,7 +39,7 @@ fn owner_code(r: Result<(), Deny>) -> Option<RedeemCode> {
             say(
                 "invite",
                 format!(
-                    "invite not given: this node refuses the newcomer ({})",
+                    "invite not given: this computer refuses the newcomer ({})",
                     why.code()
                 ),
             );
@@ -188,7 +188,10 @@ fn log_owner(who: &str, owner: PeerId, code: RedeemCode) {
     if code == RedeemCode::Ok {
         say(
             "invite",
-            format!("node {who} let in by invite as {}", short_peer_id(&owner)),
+            format!(
+                "newcomer {who} let in by invite as {}",
+                short_peer_id(&owner)
+            ),
         );
         return;
     }

@@ -29,7 +29,7 @@ fn has_tray() -> bool {
 pub(crate) fn after_help_text(has_tray: bool) -> &'static str {
     match has_tray {
         true => "With no command, the Mesh Town icon starts next to the clock.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
-        false => "With no command, the node starts.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
+        false => "With no command, Mesh Town starts.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
     }
 }
 
@@ -141,11 +141,11 @@ fn sub_help_flag() -> Arg {
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
 pub(crate) enum CliCommand {
-    /// Show the Mesh Town icon next to the clock and start the node
+    /// Show the Mesh Town icon next to the clock and start Mesh Town
     #[cfg(feature = "gui")]
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown tray [OPTIONS] [-- RUN_OPTIONS…]")]
     Tray(crate::gui::tray::app::tray_role::TrayArgs),
-    /// Run the node in this window, without an icon
+    /// Run Mesh Town in this window, without an icon
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown run [OPTIONS]")]
     Run(crate::cli::commands::RunArgs),
     /// Print a new network key (advanced; most people join with an invite)
@@ -166,7 +166,7 @@ pub(crate) enum CliCommand {
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
         config: Option<std::path::PathBuf>,
     },
-    /// Reset the node page password and print a one-time sign-in link
+    /// Reset the Mesh Town page password and print a one-time sign-in link
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown password reset [--config <PATH>] [--web-port <PORT>]")]
     Password {
         /// What to do with the password: for now only reset.
@@ -180,11 +180,11 @@ pub(crate) enum CliCommand {
         /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
         config: Option<std::path::PathBuf>,
-        /// Port of the running node's page, if it isn't from the settings (default: 7777).
+        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
         #[arg(long, value_name = "PORT")]
         web_port: Option<u16>,
     },
-    /// Who can open the node page: localhost (this computer only) or localnet (the local network too)
+    /// Who can open the Mesh Town page: localhost (this computer only) or localnet (the local network too)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access <localhost|localnet> [--config <PATH>] [--web-port <PORT>]")]
     Access {
         /// Mode: localhost or localnet.
@@ -193,11 +193,11 @@ pub(crate) enum CliCommand {
         /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
         config: Option<std::path::PathBuf>,
-        /// Port of the running node's page, if it isn't from the settings (default: 7777).
+        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
         #[arg(long, value_name = "PORT")]
         web_port: Option<u16>,
     },
-    /// Which networks the node accepts connections from: interface names, auto (automatic) or '*' (no restriction)
+    /// Which networks Mesh Town accepts connections from: interface names, auto (automatic) or '*' (no restriction)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown ifaces <NAME>... [--if-unset] [--config <PATH>] [--web-port <PORT>]")]
     Ifaces {
         /// Interface names (br-lan), the single word auto (automatic) or '*' (no restriction).
@@ -209,7 +209,7 @@ pub(crate) enum CliCommand {
         /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
         #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
         config: Option<std::path::PathBuf>,
-        /// Port of the running node's page, if it isn't from the settings (default: 7777).
+        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
         #[arg(long, value_name = "PORT")]
         web_port: Option<u16>,
     },

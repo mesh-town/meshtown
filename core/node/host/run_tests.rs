@@ -163,7 +163,7 @@ async fn entry_role_fails_without_page() {
         })
         .await;
         let text = res.unwrap_err().to_string();
-        assert!(text.contains("the node page is unavailable"), "{text}");
+        assert!(text.contains("the page is unavailable"), "{text}");
         assert!(text.contains(advice), "{text}");
         assert!(text.contains("meshtown run --invite"), "{text}");
         assert!(!ran.load(Ordering::SeqCst));

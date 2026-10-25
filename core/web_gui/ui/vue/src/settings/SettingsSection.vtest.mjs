@@ -81,7 +81,7 @@ describe("SettingsSection", () => {
 
   it("the section starts with a hint about \"after restart\" fields", () => {
     const { wrapper } = mountSettings();
-    expect(wrapper.text()).toContain("Fields marked \"after restart\" take effect after the node restarts");
+    expect(wrapper.text()).toContain("Fields marked \"after restart\" take effect after Mesh Town restarts");
     expect(wrapper.text()).toContain("a \"Restart Mesh Town\" button appears at the bottom");
   });
 

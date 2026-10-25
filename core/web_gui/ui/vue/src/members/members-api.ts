@@ -164,11 +164,11 @@ const REASONS: Record<string, string> = {
   self_target: "you can't remove your own computer",
   not_member: "that computer isn't in the member list",
   left: "this computer has left the network",
-  busy: "the node is starting",
+  busy: NET_NAME + " is starting",
   invalid: "the member id is not valid",
-  not_pending: "this node isn't waiting for confirmation",
-  not_confirmed: "you haven't confirmed this node, or it has already joined",
-  internal: "the node couldn't write the member list",
+  not_pending: "this member isn't waiting for confirmation",
+  not_confirmed: "you haven't confirmed this member, or they have already joined",
+  internal: NET_NAME + " couldn't write the member list",
 };
 
 // "Couldn't update the member list: {reason}"; a bare machine code is replaced by a human reason.

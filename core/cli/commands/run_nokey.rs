@@ -13,7 +13,7 @@ fn hint_lines() {
     say(
         "node",
         format!(
-            "You haven't joined a {NET_NAME} network yet. Open the node page (its address is in the \"node page\" line above) and click \"Join with an invite\" or \"Create a new network\"."
+            "You haven't joined a {NET_NAME} network yet. Open the {NET_NAME} page (its address is printed above) and click \"Join with an invite\" or \"Create a new network\"."
         ),
     );
     say(

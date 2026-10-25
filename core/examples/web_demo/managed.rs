@@ -123,7 +123,7 @@ impl DemoMembers {
                 ))
             }
             MemberActionReq::Grant(id) | MemberActionReq::Revoke(id) if !self.listed(id) => {
-                Err(refused("not_member", "the node is not in the member list"))
+                Err(refused("not_member", "this member is not in the list"))
             }
             MemberActionReq::Revoke(id) if id == ME && self.is_last_admin(ME) => Err(last_admin()),
             _ => Ok(()),

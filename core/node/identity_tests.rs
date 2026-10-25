@@ -84,7 +84,7 @@ fn identity_texts_match_page() {
     );
     let page_texts = [
         (TemporaryReason::Declined, "NET_NAME + \" was started in a mode that doesn't remember this computer. \"".to_string()),
-        (TemporaryReason::FilePreserved, format!("The settings file couldn't be updated, and the node left it as is so that nothing is lost. Don't delete this file: it may contain access to your {} network. ", crate::node::output::NET_NAME)),
+        (TemporaryReason::FilePreserved, format!("The settings file couldn't be updated, and {0} left it as is so that nothing is lost. Don't delete this file: it may contain access to your {0} network. ", crate::node::output::NET_NAME)),
         (TemporaryReason::FileProblem, "NET_NAME + \" couldn't remember this computer: there is an error in the settings file. \"".to_string()),
     ];
     for (reason, expected) in page_texts {
