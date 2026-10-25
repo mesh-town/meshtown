@@ -31,6 +31,7 @@ pub(crate) mod nets;
 mod network;
 mod network_invite;
 mod overview;
+mod page_encoding;
 mod pages;
 mod peers;
 pub(crate) mod slot_param;
