@@ -18,7 +18,8 @@ use tokio::task::JoinHandle;
 
 /// Time within which the counterpart sees the close and an unserved service gets a refusal.
 pub(crate) const CLOSE_WITHIN: Duration = Duration::from_secs(2);
-/// Time limit of the "bulk" step: a debug build; `hyper` alone takes tens of seconds, longer under machine load; nextest kills a test at 150 s, `mem` takes seconds.
+/// Time limit of the "bulk" step: both `hyper` and `mem` take a few seconds with optimized dependencies; the limit is
+/// generous for a machine under heavy load, and nextest kills a test later, at 240 s.
 const VOLUME_LIMIT: Duration = Duration::from_secs(100);
 /// Window in which `accept` must not return an unserved service.
 const QUIET: Duration = Duration::from_millis(300);
