@@ -23,13 +23,19 @@ const LETTERS: [(char, &str); 8] = [
 /// scripts without a Latin base letter turn into separators.
 pub fn host_label(name: &str) -> String {
     let folded: String = decomposed(name).chars().map(piece).collect();
-    let joined = folded.split('-').filter(|part| !part.is_empty()).collect::<Vec<_>>().join("-");
+    let joined = folded
+        .split('-')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
     finish(&joined)
 }
 
 fn decomposed(name: &str) -> String {
     let lower = name.to_lowercase();
-    DecomposingNormalizerBorrowed::new_nfd().normalize(&lower).into_owned()
+    DecomposingNormalizerBorrowed::new_nfd()
+        .normalize(&lower)
+        .into_owned()
 }
 
 /// What one decomposed character contributes: itself, a replacement, nothing or a separator.

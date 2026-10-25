@@ -120,7 +120,10 @@ async fn next_tick_publishes_the_view_after_a_failed_first_recompute() {
     let f = flaky_setup(true);
     let task = crate::node::output::spawn(watch_every(f.access.clone(), Duration::from_millis(50)));
     // the first recompute has failed, and the view is still pending
-    eventually("several failed scans", || f.flaky.scans.load(Ordering::SeqCst) >= 3).await;
+    eventually("several failed scans", || {
+        f.flaky.scans.load(Ordering::SeqCst) >= 3
+    })
+    .await;
     assert!(
         f.rig.view().verdicts().is_none(),
         "nothing may be published while the scan fails"

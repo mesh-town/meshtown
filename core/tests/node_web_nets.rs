@@ -157,8 +157,15 @@ async fn leaving_an_added_slot_is_seen_by_its_network() {
     let (status, body) = a.post(&join, json!({"key": invite_of(&b)}));
     assert_eq!(status, 202, "join in the slot: {body}");
     let state = format!("/api/net/{slot}/state");
-    let linked = wait_until(Duration::from_secs(20), || other_online_peer(&a.get(&state).1)).await;
-    assert!(linked, "the slot never connected to the other node: {}", a.get(&state).1["peers"]);
+    let linked = wait_until(Duration::from_secs(20), || {
+        other_online_peer(&a.get(&state).1)
+    })
+    .await;
+    assert!(
+        linked,
+        "the slot never connected to the other node: {}",
+        a.get(&state).1["peers"]
+    );
 
     let path = format!("/api/net/{slot}/members/leave");
     let (status, body) = a.post(&path, json!({"confirm": true}));

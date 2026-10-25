@@ -16,7 +16,7 @@ use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FUL
 
 pub struct ConfigState {
     pub file: Option<Arc<dyn SettingsFile>>, // settings file; None — the node runs without a file
-    pub secret: NodeSecret,                // node secret, written to the file on every save
+    pub secret: NodeSecret,                  // node secret, written to the file on every save
     pub file_settings: Settings, // what is in the file now (by the listener's latest knowledge)
     pub boot_file_settings: Settings, // what was in the file when the node last started
     pub file_report: FileReport, // file state; rev — the file revision

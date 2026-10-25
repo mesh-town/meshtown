@@ -6,9 +6,7 @@ use std::sync::Arc;
 use axum::http::{Method, StatusCode};
 use serde_json::{json, Value};
 
-use crate::config::config_file::{
-    self, CliOverrides, ConfigSource, NetSlotId, PathRule,
-};
+use crate::config::config_file::{self, CliOverrides, ConfigSource, NetSlotId, PathRule};
 use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{
     config_with_key, send, slot_handle, test_app, FakeHost, HostCall, SnapNode,
@@ -123,7 +121,9 @@ mod proxy_exit_choice {
             // given
             let f = setup_exit_choice();
             // when
-            let (status, body) = f.when_put(B, json!({"route": {"exits": [exit_id(1)]}})).await;
+            let (status, body) = f
+                .when_put(B, json!({"route": {"exits": [exit_id(1)]}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::OK, "body: {body}");
             assert_eq!(f.host.calls(), vec![HostCall::ClaimProxy(slot_b())]);
@@ -133,7 +133,8 @@ mod proxy_exit_choice {
         async fn emptied_route_exits_do_not_claim() {
             // given: exits were set, which claimed once
             let f = setup_exit_choice();
-            f.when_put(B, json!({"route": {"exits": [exit_id(1)]}})).await;
+            f.when_put(B, json!({"route": {"exits": [exit_id(1)]}}))
+                .await;
             // when
             let (status, body) = f.when_put(B, json!({"route": {"exits": []}})).await;
             // then
@@ -146,7 +147,9 @@ mod proxy_exit_choice {
             // given
             let f = setup_exit_choice();
             // when
-            let (status, body) = f.when_put(B, json!({"checks": {"interval_sec": 600}})).await;
+            let (status, body) = f
+                .when_put(B, json!({"checks": {"interval_sec": 600}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::OK, "body: {body}");
             assert_eq!(f.host.calls(), vec![]);
@@ -158,7 +161,8 @@ mod proxy_exit_choice {
             let f = setup_exit_choice();
             f.host.check_lock_free_of(slot_b());
             // when
-            f.when_put(B, json!({"route": {"exits": [exit_id(1)]}})).await;
+            f.when_put(B, json!({"route": {"exits": [exit_id(1)]}}))
+                .await;
             // then
             assert_eq!(f.host.lock_was_free(), Some(true), "lock was free at claim");
         }
@@ -167,10 +171,13 @@ mod proxy_exit_choice {
         async fn failed_claim_still_answers_200_and_is_logged() {
             // given
             let f = setup_exit_choice();
-            f.host.set_claim_result(Err(HostError::Busy("test claim failure".to_string())));
+            f.host
+                .set_claim_result(Err(HostError::Busy("test claim failure".to_string())));
             let seq_before = crate::node::output::log_summary(0).last_seq;
             // when
-            let (status, body) = f.when_put(B, json!({"route": {"exits": [exit_id(1)]}})).await;
+            let (status, body) = f
+                .when_put(B, json!({"route": {"exits": [exit_id(1)]}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::OK, "body: {body}");
             let lines = lines_after(seq_before);
@@ -202,7 +209,9 @@ mod proxy_exit_choice {
             let f = setup_exit_choice();
             let rev_before = f.rev_of("main");
             // when
-            let (status, body) = f.when_put("main", json!({"proxy": {"net": "zzzzzz"}})).await;
+            let (status, body) = f
+                .when_put("main", json!({"proxy": {"net": "zzzzzz"}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::NOT_FOUND, "body: {body}");
             assert_eq!(body["error"], "unknown_net");
@@ -226,7 +235,9 @@ mod proxy_exit_choice {
             // given
             let f = setup_exit_choice();
             // when
-            let (status, body) = f.when_put("main", json!({"checks": {"interval_sec": 600}})).await;
+            let (status, body) = f
+                .when_put("main", json!({"checks": {"interval_sec": 600}}))
+                .await;
             // then
             assert_eq!(status, StatusCode::OK, "body: {body}");
             assert_eq!(f.host.calls(), vec![]);

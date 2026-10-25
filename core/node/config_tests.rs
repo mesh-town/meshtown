@@ -127,7 +127,6 @@ mod for_cli {
             "the original settings are available"
         );
     }
-
 }
 
 fn key() -> NetworkKey {

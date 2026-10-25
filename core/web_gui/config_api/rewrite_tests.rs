@@ -23,7 +23,11 @@ mod edit_that_changes_the_file {
         let result = fx.when_exits_set(&[exit(1)]);
         assert_eq!(result, Ok(true));
         assert_eq!(fx.file_rev(), rev_before + 1, "revision on disk");
-        assert_eq!(fx.state.file_report.rev, rev_before + 1, "revision in the state");
+        assert_eq!(
+            fx.state.file_report.rev,
+            rev_before + 1,
+            "revision in the state"
+        );
     }
 
     #[test]
@@ -125,7 +129,10 @@ mod foreign_write_between_the_read_and_the_write {
         let mut fx = setup(Opts::with_exits(&[]));
         fx.race_with_a_foreign_write();
         let result = fx.when_exits_set(&[exit(1)]);
-        assert!(result.is_err(), "a stale revision must not be overwritten: {result:?}");
+        assert!(
+            result.is_err(),
+            "a stale revision must not be overwritten: {result:?}"
+        );
     }
 
     #[test]
@@ -134,7 +141,11 @@ mod foreign_write_between_the_read_and_the_write {
         let rev_before = fx.file_rev();
         fx.race_with_a_foreign_write();
         let _ = fx.when_exits_set(&[exit(1)]);
-        assert_eq!(fx.file_rev(), rev_before + 1, "only the foreign write landed");
+        assert_eq!(
+            fx.file_rev(),
+            rev_before + 1,
+            "only the foreign write landed"
+        );
         assert!(fx.file_settings().net.route_exits.is_empty());
     }
 
@@ -172,7 +183,12 @@ mod settle_socks_baseline {
             fx.file_has_socks(false, 1090, ListenAccess::Localnet, IfaceFilter::Any);
             assert_eq!(
                 fx.pending(),
-                vec!["socks.enabled", "socks.port", "socks.access", "socks.ifaces"],
+                vec![
+                    "socks.enabled",
+                    "socks.port",
+                    "socks.access",
+                    "socks.ifaces"
+                ],
                 "precondition: the file differs from the boot baseline"
             );
             let applied = fx.state.file_settings.process.clone();
@@ -436,7 +452,10 @@ struct RecordingNode {
 
 impl RecordingNode {
     fn applied(&self) -> Vec<Vec<String>> {
-        self.applied.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.applied
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 

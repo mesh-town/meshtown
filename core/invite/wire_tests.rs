@@ -285,7 +285,7 @@ fn all_verdicts() -> [IssueVerdict; 5] {
     ]
 }
 
-#[path = "wire_owner_tests.rs"]
-mod owner_frame;
 #[path = "wire_managed_tests.rs"]
 mod managed;
+#[path = "wire_owner_tests.rs"]
+mod owner_frame;

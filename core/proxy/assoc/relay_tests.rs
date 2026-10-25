@@ -355,7 +355,8 @@ async fn when_pumped_then_a_sentinel(target: &Target) -> Pumped {
         socket.send_to(&bytes, relay_addr).await.unwrap();
     }
     let shared = Shared::new();
-    let (sender, mut received) = tokio::sync::mpsc::unbounded_channel::<crate::proxy::socks5::UdpPacket>();
+    let (sender, mut received) =
+        tokio::sync::mpsc::unbounded_channel::<crate::proxy::socks5::UdpPacket>();
     let ip = "127.0.0.1".parse().unwrap();
     let until_sentinel = async {
         let mut sent = Vec::new();

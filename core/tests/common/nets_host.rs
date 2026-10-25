@@ -118,12 +118,7 @@ pub(crate) async fn boot_host_empty(tag: &str) -> HostNode {
     let ctl = NodeCtl::new_without_network(&run.effective_settings);
     let saved = Some(relaunch.clone());
     let body = Host::run_with_saved_slots(run, ctl, PageRole::Optional, saved, move |run, ctl| {
-        node::run_node_awaiting_key(
-            run.effective_settings,
-            identity,
-            ctl,
-            relaunch.clone(),
-        )
+        node::run_node_awaiting_key(run.effective_settings, identity, ctl, relaunch.clone())
     });
     let task = output::spawn(body);
     let node = HostNode {

@@ -249,10 +249,7 @@ mod pac_reply {
     #[test]
     fn head_keeps_length_and_drops_body() {
         // given
-        let script = pac_script(
-            &pac_proxy_list(addr("127.0.0.1:1080"), false),
-            "DIRECT",
-        );
+        let script = pac_script(&pac_proxy_list(addr("127.0.0.1:1080"), false), "DIRECT");
         let (get_head, _) = split_reply(&pac_reply(&script, false));
         // when
         let (head, body) = split_reply(&pac_reply(&script, true));

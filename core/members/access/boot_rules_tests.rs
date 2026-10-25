@@ -149,7 +149,7 @@ mod never_admits {
 mod ceiling {
     use super::*;
 
-        #[tokio::test]
+    #[tokio::test]
     async fn admit_cap_counts_skipped_candidates() {
         // given: 300 cached neighbours, planned without writing anything
         let rig = setup();

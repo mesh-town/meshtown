@@ -88,6 +88,11 @@ async fn broken_net_file_is_quarantined_and_marked_again() {
     assert_eq!(state_of(&dir, "net").0.unwrap().source, MarkSource::Absent);
     let broken = std::fs::read_dir(path_of(&dir, "net").parent().unwrap())
         .unwrap()
-        .any(|e| e.unwrap().file_name().to_string_lossy().contains(".broken-"));
+        .any(|e| {
+            e.unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains(".broken-")
+        });
     assert!(broken);
 }

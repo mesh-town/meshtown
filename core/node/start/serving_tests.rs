@@ -91,9 +91,11 @@ mod proxy_config {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn running_node_hands_out_configs_with_the_same_udp_slots() {
         // given: a started node
-        let node = start_node(NodeConfig::for_loopback_test(NetworkKey::generate().unwrap()))
-            .await
-            .unwrap();
+        let node = start_node(NodeConfig::for_loopback_test(
+            NetworkKey::generate().unwrap(),
+        ))
+        .await
+        .unwrap();
         // when: the configuration is asked for twice
         let (first, second) = (node.proxy_config(), node.proxy_config());
         let id = node.stack.me();
@@ -104,7 +106,10 @@ mod proxy_config {
         );
         node.shutdown().await;
         // then: both calls give the same limit and the same pool
-        assert!(same_slots, "proxy_config() must return clones of one configuration");
+        assert!(
+            same_slots,
+            "proxy_config() must return clones of one configuration"
+        );
         assert!(same_pool, "the pool of both configurations must be shared");
     }
 }

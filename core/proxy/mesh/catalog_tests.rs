@@ -9,7 +9,10 @@ mod addresses_of_devices {
     #[test]
     fn unique_label_has_no_tail() {
         let router = id(&[0xab, 0xcd], 1);
-        let devs = devices(vec![row(main(), router, "Router"), row(main(), id(&[0x12], 2), "Camera")]);
+        let devs = devices(vec![
+            row(main(), router, "Router"),
+            row(main(), id(&[0x12], 2), "Camera"),
+        ]);
 
         let map = addresses(&devs);
 
@@ -40,7 +43,11 @@ mod addresses_of_devices {
 
     #[test]
     fn tail_grows_while_it_equals_the_label_of_another_device() {
-        let (a, b, x) = (id(&[0xbe, 0xef, 0x01], 1), id(&[0x12, 0x34], 2), id(&[0x77], 3));
+        let (a, b, x) = (
+            id(&[0xbe, 0xef, 0x01], 1),
+            id(&[0x12, 0x34], 2),
+            id(&[0x77], 3),
+        );
         let devs = devices(vec![
             row(main(), a, "Router"),
             row(other(), b, "Router"),
@@ -49,8 +56,14 @@ mod addresses_of_devices {
 
         let map = addresses(&devs);
 
-        assert_eq!(map[&x], "router-beef", "the unique label keeps its bare address");
-        assert_eq!(map[&a], "router-beef0", "one more hex digit than the colliding label");
+        assert_eq!(
+            map[&x], "router-beef",
+            "the unique label keeps its bare address"
+        );
+        assert_eq!(
+            map[&a], "router-beef0",
+            "one more hex digit than the colliding label"
+        );
         assert_eq!(map[&b], "router-1234");
     }
 
@@ -70,7 +83,10 @@ mod addresses_of_devices {
     #[test]
     fn disallowed_twin_does_not_force_a_tail() {
         let (a, b) = (id(&[0xab, 0xcd], 1), id(&[0x12, 0x34], 2));
-        let devs = devices(vec![row(main(), a, "Router"), denied(row(other(), b, "Router"))]);
+        let devs = devices(vec![
+            row(main(), a, "Router"),
+            denied(row(other(), b, "Router")),
+        ]);
 
         let map = addresses(&devs);
 
@@ -123,7 +139,10 @@ mod device_list {
     fn disallowed_row_is_not_listed() {
         let (kept, dropped) = (id(&[0x01], 1), id(&[0x02], 2));
 
-        let devs = devices(vec![row(main(), kept, "Kept"), denied(row(main(), dropped, "Dropped"))]);
+        let devs = devices(vec![
+            row(main(), kept, "Kept"),
+            denied(row(main(), dropped, "Dropped")),
+        ]);
 
         assert_eq!(peers_of(&devs), vec![kept]);
     }
@@ -147,7 +166,11 @@ mod device_list {
 
             let devs = devices(rows);
 
-            assert_eq!(devs[0].net, main(), "the online net wins over the smaller one");
+            assert_eq!(
+                devs[0].net,
+                main(),
+                "the online net wins over the smaller one"
+            );
             assert!(devs[0].online);
         }
 
@@ -165,7 +188,10 @@ mod device_list {
         #[test]
         fn offline_everywhere_takes_the_smaller_net_id() {
             let peer = id(&[0x01], 1);
-            let rows = vec![offline(row(main(), peer, "Box")), offline(row(other(), peer, "Box"))];
+            let rows = vec![
+                offline(row(main(), peer, "Box")),
+                offline(row(other(), peer, "Box")),
+            ];
 
             let devs = devices(rows);
 
@@ -196,8 +222,15 @@ pub(super) struct Trap {
 /// A device named `router-beef` and a device named `router` whose id starts with `beef`.
 pub(super) fn trap() -> Trap {
     let (dashed, plain) = (id(&[0x11], 1), id(&[0xbe, 0xef], 2));
-    let devs = devices(vec![row(main(), dashed, "router-beef"), row(main(), plain, "Router")]);
-    Trap { devs, dashed, plain }
+    let devs = devices(vec![
+        row(main(), dashed, "router-beef"),
+        row(main(), plain, "Router"),
+    ]);
+    Trap {
+        devs,
+        dashed,
+        plain,
+    }
 }
 
 pub(super) struct TwoRouters {
@@ -234,19 +267,33 @@ pub(super) fn other() -> NetSlotId {
 
 /// An online, allowed row.
 pub(super) fn row(net: NetSlotId, peer: PeerId, name: &str) -> NameRow {
-    NameRow { net, peer, name: name.to_string(), online: true, allowed: true }
+    NameRow {
+        net,
+        peer,
+        name: name.to_string(),
+        online: true,
+        allowed: true,
+    }
 }
 
 pub(super) fn offline(row: NameRow) -> NameRow {
-    NameRow { online: false, ..row }
+    NameRow {
+        online: false,
+        ..row
+    }
 }
 
 pub(super) fn denied(row: NameRow) -> NameRow {
-    NameRow { allowed: false, ..row }
+    NameRow {
+        allowed: false,
+        ..row
+    }
 }
 
 pub(super) fn host(label: &str) -> MeshHost {
-    MeshHost { label: label.to_string() }
+    MeshHost {
+        label: label.to_string(),
+    }
 }
 
 /// A node id on the curve whose hex text starts with `prefix`; `salt` makes ids with the same

@@ -4,7 +4,9 @@
 use axum::http::StatusCode;
 use axum::response::Response;
 
-use crate::config::config_file::{fields, NetSlotId, FileState, LoadedSettings, SaveError, Settings, SettingsFile};
+use crate::config::config_file::{
+    fields, FileState, LoadedSettings, NetSlotId, SaveError, Settings, SettingsFile,
+};
 use crate::web_gui::NodeControl;
 
 use super::settings_access::write_loaded;

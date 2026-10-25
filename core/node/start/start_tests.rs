@@ -1,6 +1,6 @@
 use super::*;
-use crate::members::network_key::NetworkKey;
 use crate::config::config_file::ProcessSettings;
+use crate::members::network_key::NetworkKey;
 use crate::proxy::{ProxyFace, ProxyFront};
 use tokio::time::{timeout, Instant};
 

@@ -16,13 +16,13 @@ mod put_name;
 mod put_write;
 mod rewrite;
 mod save_key;
-mod slot_overlay;
 mod settings_access;
+mod slot_overlay;
 mod state;
 mod support;
 
-pub(crate) use put_write::ProxyPick;
 pub use network_block::NetRoles;
+pub(crate) use put_write::ProxyPick;
 pub use state::ConfigState;
 
 #[cfg(test)]

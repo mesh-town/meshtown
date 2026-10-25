@@ -25,7 +25,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use tokio::time::{sleep, timeout};
 
-use common::{front_for, echo_site, pair, wait_exit_route, DOMAIN};
+use common::{echo_site, front_for, pair, wait_exit_route, DOMAIN};
 
 /// The stop limit of one node under load.
 const STOP_LIMIT: Duration = Duration::from_secs(5);

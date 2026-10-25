@@ -340,8 +340,12 @@ mod former_transport_keys {
         let p = parse_transport(body);
         // then: the file is parsed, only the former key is listed
         assert_eq!(p.field_errors, vec![]);
-        assert!(p.unknown_paths.contains(&"config.transport.udp_port".to_string()));
-        assert!(!p.unknown_paths.contains(&"config.transport.mode".to_string()));
+        assert!(p
+            .unknown_paths
+            .contains(&"config.transport.udp_port".to_string()));
+        assert!(!p
+            .unknown_paths
+            .contains(&"config.transport.mode".to_string()));
     }
 
     #[test]
@@ -352,7 +356,10 @@ mod former_transport_keys {
         let p = parse_transport(&body.join(","));
         // then: all of them are listed, no field errors
         assert_eq!(p.field_errors, vec![]);
-        let want: Vec<String> = KEYS.iter().map(|k| format!("config.transport.{k}")).collect();
+        let want: Vec<String> = KEYS
+            .iter()
+            .map(|k| format!("config.transport.{k}"))
+            .collect();
         let mut got = p.unknown_paths.clone();
         got.sort();
         let mut want = want;

@@ -102,7 +102,9 @@ fn parse_response(raw: &[u8]) -> Result<(u16, String), LinkError> {
         .and_then(|c| c.parse::<u16>().ok());
     match code {
         Some(code) => Ok((code, body.to_string())),
-        None => Err(LinkError::Other(format!("{NET_NAME} did not reply over HTTP"))),
+        None => Err(LinkError::Other(format!(
+            "{NET_NAME} did not reply over HTTP"
+        ))),
     }
 }
 

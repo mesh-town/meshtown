@@ -21,7 +21,10 @@ mod a_saved_slot_that_fails {
         // when: the process runs
         let res = fx.when_run_until_slot_reports(&id).await;
         // then: the outcome of the process is the main slot's
-        assert!(res.is_ok(), "the slot's failure must not fail the process: {res:?}");
+        assert!(
+            res.is_ok(),
+            "the slot's failure must not fail the process: {res:?}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -48,7 +51,9 @@ mod the_main_slot_that_fails {
         let mut fx = setup_run("main-fails");
         fx.saved_network_that_cannot_start();
         // when: the process runs
-        let res = fx.when_run_with(|_, _| async { Err(anyhow::anyhow!("main broke")) }).await;
+        let res = fx
+            .when_run_with(|_, _| async { Err(anyhow::anyhow!("main broke")) })
+            .await;
         // then: the run returns the main slot's error
         assert_eq!(res.unwrap_err().to_string(), "main broke");
     }
@@ -89,7 +94,10 @@ fn setup_run(tag: &str) -> RunFx {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
-    let dir = std::env::temp_dir().join(format!("mesh-host-outcome-{tag}-{}-{nanos}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-host-outcome-{tag}-{}-{nanos}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).unwrap();
     let cli = CliOverrides {
         web_port: Some(free_port()),
@@ -116,7 +124,12 @@ fn setup_run(tag: &str) -> RunFx {
         test_net: Some(crate::transport::net::mem::process_net()),
     };
     let log_mark = log_summary(0).last_seq;
-    RunFx { dir, main, relaunch, log_mark }
+    RunFx {
+        dir,
+        main,
+        relaunch,
+        log_mark,
+    }
 }
 
 impl RunFx {
@@ -133,7 +146,8 @@ impl RunFx {
         };
         let path = net_slot_path(&main_path, &id).unwrap();
         let secret = NodeSecret::from_bytes(&[72; 32]);
-        save_net_file(&path, None, 1_790_000_000, 1_790_000_000, &secret, &net).expect("write the slot file");
+        save_net_file(&path, None, 1_790_000_000, 1_790_000_000, &secret, &net)
+            .expect("write the slot file");
         std::fs::write(path.parent().unwrap().join("replica"), b"not a directory").unwrap();
         id
     }
@@ -145,7 +159,14 @@ impl RunFx {
         F: std::future::Future<Output = anyhow::Result<()>> + Send + 'static,
     {
         let ctl = NodeCtl::new(&self.main.effective_settings);
-        Host::run_with_saved_slots(self.main.clone(), ctl, PageRole::Optional, Some(self.relaunch.clone()), body).await
+        Host::run_with_saved_slots(
+            self.main.clone(),
+            ctl,
+            PageRole::Optional,
+            Some(self.relaunch.clone()),
+            body,
+        )
+        .await
     }
 
     /// The main cycle ends well as soon as the log says the slot `id` stopped with an error.
@@ -154,7 +175,10 @@ impl RunFx {
         self.when_run_with(move |_, _| async move {
             let deadline = std::time::Instant::now() + SLOT_REPORT_WAIT;
             while slot_error_lines(mark, &id).is_empty() {
-                anyhow::ensure!(std::time::Instant::now() < deadline, "slot {id} never reported a failure");
+                anyhow::ensure!(
+                    std::time::Instant::now() < deadline,
+                    "slot {id} never reported a failure"
+                );
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
             Ok(())
@@ -181,5 +205,8 @@ fn slot_error_lines(seq: u64, id: &NetSlotId) -> Vec<crate::web_gui::LogLine> {
 /// The lines after `seq` whose text contains `needle`.
 fn lines_with(seq: u64, needle: &str) -> Vec<crate::web_gui::LogLine> {
     let page = log_page(seq, 5000);
-    page.lines.into_iter().filter(|l| l.text.contains(needle)).collect()
+    page.lines
+        .into_iter()
+        .filter(|l| l.text.contains(needle))
+        .collect()
 }

@@ -52,15 +52,26 @@ mod claim_while_the_previous_network_is_busy {
             wait_until(|| fx.seat.chosen() == next),
             "the choice must not wait for the previous network's lock"
         );
-        assert_eq!(fx.main_proxy_net(), next, "the main file is already written");
+        assert_eq!(
+            fx.main_proxy_net(),
+            next,
+            "the main file is already written"
+        );
         assert!(
             fx.slots.main_slot().config.try_lock().is_ok(),
             "the main network's lock must not be held while the previous one is awaited"
         );
-        assert_eq!(fx.exits_in_file(&previous), vec![peer(1)], "not cleared yet");
+        assert_eq!(
+            fx.exits_in_file(&previous),
+            vec![peer(1)],
+            "not cleared yet"
+        );
         drop(guard);
         assert_eq!(claim.join().unwrap(), Ok(()));
-        assert!(fx.exits_in_file(&previous).is_empty(), "cleared after the lock");
+        assert!(
+            fx.exits_in_file(&previous).is_empty(),
+            "cleared after the lock"
+        );
     }
 }
 
@@ -83,7 +94,10 @@ mod two_claims_at_once {
             // then
             assert_eq!(answers, vec![Ok(()), Ok(())], "round {round}");
             let chosen = fx.seat.chosen();
-            assert!(chosen == first || chosen == second, "round {round}: {chosen}");
+            assert!(
+                chosen == first || chosen == second,
+                "round {round}: {chosen}"
+            );
             assert_eq!(fx.main_proxy_net(), chosen, "round {round}: the main file");
             let holding: Vec<NetSlotId> = [&first, &second]
                 .into_iter()
@@ -114,7 +128,11 @@ mod leaving_while_being_claimed {
             // then
             assert!(fx.slots.slot(&doomed).is_none(), "round {round}: it left");
             assert_ne!(fx.seat.chosen(), doomed, "round {round}: the seat");
-            assert_eq!(fx.main_proxy_net(), NetSlotId::main(), "round {round}: the main file");
+            assert_eq!(
+                fx.main_proxy_net(),
+                NetSlotId::main(),
+                "round {round}: the main file"
+            );
         }
     }
 }
@@ -193,15 +211,24 @@ mod path_of_the_proxy {
         let mut fx = setup_with(Some(front.clone()));
         let other = fx.add_slot(61, &[9]);
         let node = start_loopback_node().await;
-        fx.seat.node_up(&NetSlotId::main(), proxy_config(&node, &[]));
+        fx.seat
+            .node_up(&NetSlotId::main(), proxy_config(&node, &[]));
         fx.seat.node_up(&other, proxy_config(&node, &[9]));
-        assert_eq!(chosen_exits_of(&front), Some(vec![]), "the main network, direct");
+        assert_eq!(
+            chosen_exits_of(&front),
+            Some(vec![]),
+            "the main network, direct"
+        );
 
         // when
         fx.slots.claim(&other, true).unwrap();
 
         // then
-        assert_eq!(chosen_exits_of(&front), Some(vec![peer(9)]), "the exit of the claimed network");
+        assert_eq!(
+            chosen_exits_of(&front),
+            Some(vec![peer(9)]),
+            "the exit of the claimed network"
+        );
         front.close().await;
     }
 }
@@ -283,7 +310,9 @@ impl Fixture {
         let main = self.slots.main_slot();
         let edit = |s: &mut Settings| s.process.proxy_net = id.clone();
         let mut state = main.config.lock().unwrap();
-        state.rewrite_settings(self.main_ctl.as_ref(), edit).unwrap();
+        state
+            .rewrite_settings(self.main_ctl.as_ref(), edit)
+            .unwrap();
         drop(state);
         self.seat.choose(id.clone());
     }
@@ -402,7 +431,9 @@ async fn new_front() -> ProxyFront {
         socks_port: 0,
         ..ProcessSettings::default()
     };
-    ProxyFront::bind(&settings).await.expect("a free loopback port")
+    ProxyFront::bind(&settings)
+        .await
+        .expect("a free loopback port")
 }
 
 async fn start_loopback_node() -> RunningNode {

@@ -40,7 +40,8 @@ pub(super) const PAGE_ALSO_OFFLINE: &str = "{name} is also offline right now.";
 pub(super) const PAGE_H2_GET_ACCESS: &str = "How to get access";
 pub(super) const PAGE_BODY_GET_ACCESS: &str = "Ask the owner of {name} to share port {port} with you. On {name}'s Mesh Town page, they need to:";
 pub(super) const PAGE_STEP_OPEN_TAB: &str = "Open the Ports tab.";
-pub(super) const PAGE_STEP_PUBLISH: &str = "Under “My published ports”, publish port {port} — or click “Edit” if it's already there.";
+pub(super) const PAGE_STEP_PUBLISH: &str =
+    "Under “My published ports”, publish port {port} — or click “Edit” if it's already there.";
 pub(super) const PAGE_STEP_SHARE: &str =
     "In “Shared with”, choose “All members”, or “Selected members” and tick {me}.";
 pub(super) const PAGE_MESSAGE_LABEL: &str = "Message for the owner:";

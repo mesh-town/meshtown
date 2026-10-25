@@ -132,7 +132,10 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         rig.probe.exits("checkbox is on", |m| m.serves_exit);
 
-        rig.cmd(NodeCmd::SetExitServer { slot: None, on: false });
+        rig.cmd(NodeCmd::SetExitServer {
+            slot: None,
+            on: false,
+        });
         let menu = rig.probe.exits("checkbox cleared by the snapshot", |m| {
             m.enabled && !m.serves_exit
         });
@@ -153,7 +156,10 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         let before = rig.probe.exits("first model", |m| m.enabled);
 
-        rig.cmd(NodeCmd::SetExitServer { slot: None, on: !before.serves_exit });
+        rig.cmd(NodeCmd::SetExitServer {
+            slot: None,
+            on: !before.serves_exit,
+        });
         rig.probe.log(LOG_LINE);
         let again = rig.probe.exits("model sent again", |m| m.enabled);
 
@@ -179,7 +185,10 @@ mod serve_checkbox {
             reason: REASON_SERVE_REFUSED,
         };
 
-        rig.cmd(NodeCmd::SetExitServer { slot: None, on: !before.serves_exit });
+        rig.cmd(NodeCmd::SetExitServer {
+            slot: None,
+            on: !before.serves_exit,
+        });
         let shown = rig.probe.serve("failure", |n| *n != ServeNote::Idle);
         let at = std::time::Instant::now();
         rig.probe.serve("rest", |n| *n == ServeNote::Idle);
@@ -204,7 +213,10 @@ mod serve_checkbox {
         let mut rig = Rig::start(port, dir.join("web-token"), true, spawn_panics());
         rig.probe.exits("checkbox is on", |m| m.serves_exit);
 
-        rig.cmd(NodeCmd::SetExitServer { slot: None, on: false });
+        rig.cmd(NodeCmd::SetExitServer {
+            slot: None,
+            on: false,
+        });
         rig.probe
             .serve("rest after success", |n| *n == ServeNote::Idle);
         rig.probe.exits("checkbox cleared by the snapshot", |m| {
@@ -237,7 +249,10 @@ mod serve_checkbox {
         );
         rig.probe.view("Disabled", |v| *v == disabled);
 
-        rig.cmd(NodeCmd::SetExitServer { slot: None, on: true });
+        rig.cmd(NodeCmd::SetExitServer {
+            slot: None,
+            on: true,
+        });
         tokio::time::sleep(T.note_visible_for * 2).await;
 
         assert!(

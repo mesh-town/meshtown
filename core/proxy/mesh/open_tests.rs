@@ -131,7 +131,10 @@ mod ordinary_host {
 
         // then
         let text = String::from_utf8_lossy(&answer);
-        assert!(text.contains(SITE_BODY), "the site's answer is expected: {text}");
+        assert!(
+            text.contains(SITE_BODY),
+            "the site's answer is expected: {text}"
+        );
         assert_eq!(site.hits().await, 1, "the site must be contacted once");
     }
 }
@@ -182,7 +185,9 @@ impl Fixture {
         let (mut client, server) = tcp_pair().await;
         let route = self.cfg.route.clone();
         let request = request.to_vec();
-        crate::transport::net::task_label::spawn(async move { relay_bytes(opened, &route, server, &request).await });
+        crate::transport::net::task_label::spawn(async move {
+            relay_bytes(opened, &route, server, &request).await
+        });
         let mut answer = Vec::new();
         within("read the answer", client.read_to_end(&mut answer))
             .await

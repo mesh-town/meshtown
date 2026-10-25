@@ -10,8 +10,8 @@ mod nets;
 mod seat;
 
 pub use face::ProxyFace;
+pub use listen::ProxyFront;
+pub use nets::MeshAddress;
 pub(super) use nets::NetDirectory;
 pub(crate) use nets::NetEntry;
-pub use nets::MeshAddress;
-pub use listen::ProxyFront;
 pub use seat::ProxySeat;

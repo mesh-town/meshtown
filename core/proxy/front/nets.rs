@@ -5,9 +5,9 @@ use std::sync::{Arc, RwLock};
 
 use crate::config::config_file::NetSlotId;
 use crate::exit::PeerConnPool;
-use crate::proxy::ProxyConfig;
 use crate::proxy::mesh::catalog::{addresses, devices, rows_of, Device};
 use crate::proxy::mesh::host::{host_url, MESH_SUFFIX};
+use crate::proxy::ProxyConfig;
 use crate::transport::net::{PeerId, PORT};
 
 /// One running network: its slot, its published configuration and its pool of connections to members for the
@@ -86,7 +86,11 @@ impl NetDirectory {
         let host_of = |d: &Device| format!("{}.{MESH_SUFFIX}", issued[&d.peer]);
         devices
             .iter()
-            .map(|d| MeshAddress { net: d.net.clone(), peer: d.peer, host: host_of(d) })
+            .map(|d| MeshAddress {
+                net: d.net.clone(),
+                peer: d.peer,
+                host: host_of(d),
+            })
             .collect()
     }
 

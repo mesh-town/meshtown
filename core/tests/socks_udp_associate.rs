@@ -24,7 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::{sleep, timeout, Instant};
 
-use common::{front_for, echo_site, pair_with, wait_exit_route, DOMAIN};
+use common::{echo_site, front_for, pair_with, wait_exit_route, DOMAIN};
 use udp::{associate, reply_within, send_to_relay, spawn_udp_echo, UDP_LIMIT};
 
 /// The name the exit maps to the UDP echo server.

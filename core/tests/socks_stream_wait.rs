@@ -30,7 +30,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, timeout};
 
-use common::{front_for, echo_site, pair_with, silent_site, wait_exit_route, DOMAIN};
+use common::{echo_site, front_for, pair_with, silent_site, wait_exit_route, DOMAIN};
 
 /// How many streams B allows A on the exit connection (as in `core/tests/exit_pool_timeout.rs`): if
 /// the pair does not converge with 1, here it is 2 and `when_slots_taken` holds two SOCKS connections.

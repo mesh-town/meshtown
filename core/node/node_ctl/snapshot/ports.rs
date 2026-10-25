@@ -69,7 +69,8 @@ fn row(
 
 /// Sets `web_url` on every shared port whose author has a mesh address.
 pub(in crate::node::node_ctl) fn overlay_web_urls(rows: &mut [NetPort], addresses: &[MeshAddress]) {
-    rows.iter_mut().for_each(|row| row.web_url = web_url_of(row, addresses));
+    rows.iter_mut()
+        .for_each(|row| row.web_url = web_url_of(row, addresses));
 }
 
 fn web_url_of(row: &NetPort, addresses: &[MeshAddress]) -> Option<String> {

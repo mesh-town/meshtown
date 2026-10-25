@@ -114,7 +114,10 @@ async fn setup() -> Fixture {
     let route = wait_exit_route(&xb, WITHIN).await;
     assert_eq!(route, Route::Exits(vec![y.id]), "slot B routes through y");
     let seat = seat_aimed_at_b(&xa, &xb).await;
-    let proxy = seat.front().and_then(|f| f.addr()).expect("the front listens");
+    let proxy = seat
+        .front()
+        .and_then(|f| f.addr())
+        .expect("the front listens");
     Fixture {
         p,
         xa,

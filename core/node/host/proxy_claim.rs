@@ -135,8 +135,8 @@ fn report_unused_exits(slot: &SlotHandle, chosen: &NetSlotId) {
 }
 
 #[cfg(test)]
-#[path = "proxy_claim_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "proxy_claim_race_tests.rs"]
 mod race_tests;
+#[cfg(test)]
+#[path = "proxy_claim_tests.rs"]
+mod tests;

@@ -3,13 +3,13 @@
 
 use super::*;
 
+use crate::config::config_file::Settings;
 use crate::exit::PeerConnPool;
 use crate::proxy::route::RouteCtx;
+use crate::proxy::ProxyConfig;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 use crate::transport::net::{NodeSecret, PeerId};
-use crate::config::config_file::Settings;
-use crate::proxy::ProxyConfig;
 
 mod without_a_seat {
     use super::*;
@@ -54,7 +54,10 @@ mod set_proxy_seat {
         fx.ctl.node_up(&fx.node);
 
         // then: the first seat got the node, the second got nothing
-        assert!(fx.front.current_route().is_some(), "the first seat's target");
+        assert!(
+            fx.front.current_route().is_some(),
+            "the first seat's target"
+        );
         assert!(
             second.front().unwrap().current_route().is_none(),
             "the second seat must stay untouched"
@@ -140,7 +143,11 @@ mod apply_process_proxy {
 
         // then
         assert!(res.is_ok(), "got {res:?}");
-        assert_eq!(fx.front.addr(), before, "only the main slot owns the listener");
+        assert_eq!(
+            fx.front.addr(),
+            before,
+            "only the main slot owns the listener"
+        );
     }
 
     #[tokio::test]
