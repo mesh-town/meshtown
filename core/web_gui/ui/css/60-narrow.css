@@ -33,7 +33,7 @@
     .domain-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0;}
     .domain-card-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
     .domain-card-name{flex:1 1 auto;min-width:0;font-weight:700;overflow-wrap:anywhere;}
-    .btn-x.btn-text{font-size:13px;color:var(--accent);padding:4px 6px;white-space:nowrap;}
+    .btn-x.btn-text{font-size:13px;color:var(--accent);padding:4px 6px;white-space:nowrap;text-decoration:underline;}
     .domain-card-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:4px 0;}
     .domain-card-who{flex:0 0 96px;color:var(--fg-muted);font-size:13px;}
     .domain-card .peer-chosen{color:var(--green);font-size:13px;}

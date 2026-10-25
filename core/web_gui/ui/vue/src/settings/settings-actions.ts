@@ -177,7 +177,7 @@ function onSaveError(form: SettingsForm, error: ApiErrorLike): SaveOutcome {
 export async function saveDraft(form: SettingsForm, store: Store, deps: Partial<SettingsDeps>, overrideRev?: number | null): Promise<SaveOutcome> {
   if (form.busy || (store.configFile && store.configFile.writable === false)) return "skipped";
   const d = resolveSettingsDeps(deps);
-  const rev = overrideRev ?? store.configRev;
+  const rev = overrideRev ?? undefined;
   const sent = { ...form.draft };
   form.busy = true;
   say(form, SETTINGS_SAVING, "hint");

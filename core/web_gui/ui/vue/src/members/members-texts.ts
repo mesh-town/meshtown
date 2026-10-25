@@ -94,7 +94,7 @@ const EXCLUDED_TITLES = {
 const REMOVED_TITLE = "This computer was removed from the network";
 // `managed` — an admin removed the computer from a Managed network: "removed", not "banned".
 export function excludedTitle(variant: "banned" | "left" | "forgotten", net?: string | null, managed = false): string {
-  return (managed && variant === "banned" ? REMOVED_TITLE : EXCLUDED_TITLES[variant]) + quotedNet(net);
+  return forDevice(managed && variant === "banned" ? REMOVED_TITLE : EXCLUDED_TITLES[variant]) + quotedNet(net);
 }
 
 // The header line of a computer that is no longer in the network; `net` without quotes.

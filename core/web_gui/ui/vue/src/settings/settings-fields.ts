@@ -2,6 +2,7 @@
  * Pure functions without Vue: the draft stores the raw control value, parsing by `dataType` happens on save. */
 
 import type { ConfigDocument, FieldError, UnavailableFeature } from "../core/api-types.ts";
+import { forDevice } from "../common/device.ts";
 import { DESC_SOCKS_ACCESS_NETS } from "../lan/nets-texts.ts";
 import {
   SETTINGS_DESC_HOST_PORT, SETTINGS_DESC_LOG_RING, SETTINGS_DESC_PROBE_INTERVAL, SETTINGS_DESC_PROVIDER_DNS, SETTINGS_DESC_SOCKS_ACCESS,
@@ -186,7 +187,7 @@ export function controlValue(value: unknown, kind?: FieldKind): RawValue {
 
 // The current value that is not in the list stays selectable (like `fieldRow`).
 export function selectOptions(field: Field, value: unknown): readonly SelectOption[] {
-  const options = field.options || [];
+  const options = (field.options || []).map((pair) => [pair[0], forDevice(pair[1])] as const);
   if (options.some((pair) => String(pair[0]) === String(value))) return options;
   return [...options, [value as string | number, settingsFileValueText(value as string | number)] as const];
 }
