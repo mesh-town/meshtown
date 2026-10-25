@@ -226,7 +226,7 @@ of a pair wins. `--relay-only` and `--no-relay` set `transport.mode` (reserved, 
 - **Because of the key, the whole file is secret.** Mode `0600`, directory `0700`, and a backup, when
   one appears, will need a warning on download: the file gives access to the whole network. Today
   the settings export goes through the API and contains no key — so a copy restores the settings
-  but not the network. This was deferred ("we'll think later"), and the decision is still open.
+  but not the network.
 - **`version` is one, inside `config`** (as in `WEB-API.md`, section 2). The envelope has no second
   version: two version numbers in one file always diverge.
 - **`rev`** is the config revision, the same as in `GET /api/config`. It lives in the file, not in the node's
@@ -278,10 +278,9 @@ Two rules from which this follows:
   identity changes in the process, and the page must say so in words, not with an icon: for the network
   this is a different node;
 - **the file cannot be written** (a read-only router) — the node **works** with a temporary identity,
-  new on every start, and says so in the log and on the page (decision: "let's go with the first
-  option"). Refusing to start is not allowed — on a router the node would then simply not come up.
+  new on every start, and says so in the log and on the page. Refusing to start is not allowed — on a router the node would then simply not come up.
 
-**The first start creates a file with defaults, not with flag values** (decision). Otherwise a flag
+**The first start creates a file with defaults, not with flag values**. Otherwise a flag
 typed once for a trial quietly becomes a permanent setting, and there is nothing to remove it with later —
 the person does not know it got written. Flag values are visible on the page as `cli_overrides`, and
 the person decides whether to save them. Whoever needs the opposite starts with `--save-config`
@@ -330,9 +329,9 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
 The node writes the file in four cases:
 
 1. a successful `PUT /api/config`;
-2. the first start when there is no file — with **defaults**, without flag values (decision);
+2. the first start when there is no file — with **defaults**, without flag values;
 3. a start with `--save-config` — the file plus the typed flags (section 2);
-4. `POST /api/network/join` and `/create` — they change `network.key`, which by decision lives in
+4. `POST /api/network/join` and `/create` — they change `network.key`, which lives in
    this same file, and so they raise `rev` on a par with saving settings.
 
 Other actions (`/api/actions/*`) do not touch the file.
@@ -374,7 +373,7 @@ the settings of a running node is the page.
 | What | Where it lives | Why not here |
 |---|---|---|
 | page password | the `web-password` file next to it (section 8.2) | the page reads and rewrites the config as a whole and serves it via `GET /api/config`, and the password hash must not be served; a config backup must not carry it away either |
-| page token | the `web-token` file next to it | the page reads and rewrites the config as a whole, and the token must not be given to it (R9); it is changed by the "New token" button, not by a setting |
+| page token | the `web-token` file next to it | the page reads and rewrites the config as a whole, and the token must not be given to it; it is changed by the "New token" button, not by a setting |
 | node secret | in the **envelope** of the same file, next to `config` (section 4) | identity, not a setting: it is not given to the page and does not get into a backup, otherwise a copy would multiply one identity onto two machines |
 | domain list | the node's own document (`replica/`), without reconciliation | the node's personal list, not a config field |
 | `blocked_domains` | only the flag `--block-domain` | debugging |
@@ -384,9 +383,8 @@ the settings of a running node is the page.
 (`core/config/config_file/overrides.rs`). If there is neither, and the file has no key, the node comes up without a network and
 shows the page: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network by itself.
 
-The open question ("does the network key get into the backup file") stays open
-deliberately: it was deferred with the words "we'll think later". Today the export goes through the API, where
-there is no key, so a copy restores the settings but not the network.
+The settings export goes through the API, where there is no key, so a copy restores the settings but not
+the network.
 
 ---
 
@@ -453,8 +451,6 @@ An optional section: what the node uses to talk over the network. No section or 
 - `sync` — replica sync (how the node exchanges the network's shared state); the string `"mesh"` (default):
   its own topic membership (flooding over the node's connections) and its own records (signed by the author, reconciled with
   peers), stored as files in the `replica/` directory.
-- Up to 0.1.37 there were `iroh` and `mainline` (tag `archive/iroh`): an old `config.json` with these values gives
-  a field error, and the default is taken.
 - An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning
   and the default for the whole field; the node starts. An unknown key in `net` goes to the log, as everywhere.
 - There is no command-line flag; the page neither shows nor edits the section; `PUT /api/config` stores

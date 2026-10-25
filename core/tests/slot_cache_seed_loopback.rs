@@ -3,7 +3,7 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig};
@@ -11,16 +11,9 @@ use meshtown_core::transport::net::{AddrHint, PeerAddr};
 use meshtown_core::transport::net_mainline;
 use meshtown_core::transport::peers_cache::{self, peers_cache_path_beside, PeersCache};
 
-async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
-    let start = Instant::now();
-    while start.elapsed() < limit {
-        if cond() {
-            return true;
-        }
-        tokio::time::sleep(Duration::from_millis(50)).await;
-    }
-    cond()
-}
+#[path = "common/wait.rs"]
+mod wait;
+use wait::wait_until;
 
 fn slot_file() -> PathBuf {
     let nanos = std::time::SystemTime::now()
