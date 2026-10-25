@@ -6,6 +6,7 @@ use super::nets_texts::{
     managed_tail, net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS,
 };
 use super::overview::SlotView;
+use crate::web_gui::net_name::net_display_name;
 use super::snapshot::{TrayPeer, TraySnapshot};
 use super::tray_texts::peer_unnamed_text;
 
@@ -56,7 +57,8 @@ pub fn groups_from_slots(vis: &[SlotView]) -> Vec<ExitGroup> {
 }
 
 fn label_of(slot: &SlotView) -> String {
-    slot.label.clone().unwrap_or_else(|| slot.slot.clone())
+    let named = net_display_name(slot.label.as_deref(), slot.id_hex.as_deref());
+    named.unwrap_or_else(|| slot.slot.clone())
 }
 
 fn net_menu(slot: &SlotView) -> NetMenu {

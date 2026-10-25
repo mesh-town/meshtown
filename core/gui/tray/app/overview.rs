@@ -11,6 +11,8 @@ pub struct SlotView {
     pub joining: bool,
     /// The slot holds a network key (`id_hex` is a string).
     pub keyed: bool,
+    /// The network key as the summary gives it; `None` when the slot holds none.
+    pub id_hex: Option<String>,
     /// The network that carries the browser proxy.
     pub proxy: bool,
     pub status: String,
@@ -81,6 +83,7 @@ fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
             .unwrap_or(true),
         label: text(net, "label"),
         joining: flag(net, "joining"),
+        id_hex: text(net, "id_hex"),
         keyed: net.get("id_hex").is_some_and(Value::is_string),
         proxy: flag(net, "proxy"),
         status: text(net, "status").unwrap_or_default(),

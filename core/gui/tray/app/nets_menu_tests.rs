@@ -311,3 +311,47 @@ fn title_with(net: NetSpec, extra: serde_json::Value) -> String {
     let vis = visible_slots(parse_overview(&json).expect("a summary"));
     nets_from_slots(&vis).remove(0).title
 }
+
+mod unnamed_network {
+    use super::*;
+
+    fn unnamed(label: Option<&'static str>, id_hex: Option<&'static str>) -> NetSpec<'static> {
+        NetSpec {
+            label,
+            id_hex,
+            joining: id_hex.is_none(),
+            ..friends()
+        }
+    }
+
+    #[test]
+    fn unnamed_keyed_network_is_named_like_the_page() {
+        let vis = visible(&[unnamed(None, Some("9c1e5a77"))]);
+
+        let nets = nets_from_slots(&vis);
+
+        assert_eq!(nets[0].label, "Network 9c1e");
+        assert!(nets[0].title.starts_with("Network 9c1e"));
+    }
+
+    #[test]
+    fn empty_label_falls_back_to_the_id_name() {
+        let vis = visible(&[unnamed(Some(""), Some("9c1e5a77"))]);
+
+        assert_eq!(nets_from_slots(&vis)[0].label, "Network 9c1e");
+    }
+
+    #[test]
+    fn keyless_unlabelled_network_keeps_the_slot_id() {
+        let vis = visible(&[unnamed(None, None)]);
+
+        assert_eq!(nets_from_slots(&vis)[0].label, "main");
+    }
+
+    #[test]
+    fn unnamed_keyed_network_names_exit_group_and_title() {
+        let vis = visible(&[unnamed(None, Some("9c1e5a77"))]);
+
+        assert_eq!(groups_from_slots(&vis)[0].title, "Network 9c1e");
+    }
+}
