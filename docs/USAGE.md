@@ -201,7 +201,7 @@ itself when it learns about it.
 
 **What a regular member sees.** The network name, the line `Managed network · Admins: …`, the `Admin` badge on rows,
 and a greyed `Remove from network (admins only)`. A member can still leave the network and block a node on this
-computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.3, 1.11, 1.12).
+computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.3, 1.11 and, in [WEB-API-members.md](WEB-API-members.md), 1.12).
 
 ## Domain list
 
@@ -298,6 +298,30 @@ rejected by the check and no connection is opened.
 `blocked: address spoofed`. Addresses from the provider's answer are used for nothing else.
 
 `--no-checks` leaves only the domain list.
+
+## Published ports
+
+A member can publish a port of a program that runs on this computer and listens on `127.0.0.1`: a web page, an SSH
+server, a file share. All members of the network, or only the members you select, see the port and can open it. It is
+not shown to anyone else and does not open for them.
+
+Everything is on the "Ports" tab of the node page, in two cards. In "My published ports" you enter a port (1 to
+65535), an optional name (up to 64 characters) and "Shared with": "All members" or "Selected members", then press
+"Publish". Each row shows a status: "responding", "not responding" (nothing listens on the port) or "not checked yet".
+"Edit" changes the name and the audience, "Unpublish" removes the publication.
+
+"Ports shared with you" lists the ports other members published to you. Click an address to open it in a browser set up
+to use Mesh Town; type addresses with `http://`. For other programs press "Open on this computer": the node starts a
+TCP listener on `127.0.0.1:<number>`, by default the member's port plus 2000 (80 becomes 2080); you can type another
+number. "Close" stops the listener. If the number is busy, the row says to choose another number. Browsers refuse some
+ports on principle; such a row is marked "not for the browser" and can only be used through "Open on this computer".
+
+The same data lives in the settings file, per network: `ports.published` is a list of `{port, name, for}`, where `for`
+is `"all"` or a list of full node ids, and `ports.opened` is a list of `{node, port, local}`. Both hold up to 64
+entries; `port` is unique in `ports.published`, `local` is unique in `ports.opened` and across all networks of the
+node. Opening a `local` port that another network of the node already uses is refused with 422 and the text
+`local port L is already opened in network "<name>"`. See [CONFIG-FILE.md](CONFIG-FILE.md) and
+[WEB-API-config.md](WEB-API-config.md). There are no command-line flags for ports: use the page or the settings file.
 
 ## Node page
 

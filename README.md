@@ -142,7 +142,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, protocols, data flow.
 - [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md) — the settings file.
 - [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md),
-  [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md) — the HTTP API of the node page.
+  [docs/WEB-API-members.md](docs/WEB-API-members.md), [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md) — the HTTP API of the node page.
 - [docs/INSTALL.md](docs/INSTALL.md), [docs/BUILDING.md](docs/BUILDING.md), [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 - [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

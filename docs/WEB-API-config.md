@@ -219,7 +219,7 @@ Network actions also exist under `/api/net/{slot}/…` and act on that network. 
 
 ### Managed networks: members and deletion
 
-In a Managed network (`{base}` as in section 1.12 of `WEB-API.md`):
+In a Managed network (`{base}` as in section 1.12, `WEB-API-members.md`):
 
 - `POST {base}/members/admin` with `{"id":"<64 hex digits>","admin":true|false}` makes the node an administrator or a regular
   member (only an administrator may; the creator cannot lose the role). A missing id is 400 `bad_request`, a missing or non-boolean
