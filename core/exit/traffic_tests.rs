@@ -24,6 +24,35 @@ mod window {
     }
 
     #[test]
+    fn steady_slow_flow_never_dips_to_zero() {
+        // given: 20 kB/s in one sample per second for a minute
+        let (traffic, t0) = (ExitTraffic::default(), Instant::now());
+        let mut seen = Vec::new();
+
+        // when
+        for k in 0..60u32 {
+            let at = t0 + k * SEC;
+            traffic.add(pid(2), Direction::ThroughPeer, 20_000, at);
+            seen.push(traffic.rates_at(at)[&pid(2)].through_peer_bps);
+        }
+
+        // then: after the window fills the rate stays exactly the flow's rate
+        assert!(seen[9..].iter().all(|&bps| bps == 20_000), "{seen:?}");
+    }
+
+    #[test]
+    fn bursty_flow_reads_zero_between_bursts_longer_than_the_window() {
+        // given: the same average rate delivered as one burst every 30 s (what a reader draining a full socket
+        // buffer at 20 kB/s produces)
+        let (traffic, t0) = (ExitTraffic::default(), Instant::now());
+        traffic.add(pid(2), Direction::ThroughPeer, 600_000, t0);
+
+        // when / then: the burst shows for ten seconds, then nothing until the next one
+        assert_eq!(traffic.rates_at(t0 + SEC)[&pid(2)].through_peer_bps, 60_000);
+        assert!(!traffic.rates_at(t0 + 11 * SEC).contains_key(&pid(2)));
+    }
+
+    #[test]
     fn samples_older_than_window_are_dropped() {
         let (traffic, t0) = (ExitTraffic::default(), Instant::now());
         traffic.add(pid(2), Direction::ThroughUs, 100_000, t0);

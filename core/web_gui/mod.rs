@@ -26,6 +26,7 @@ mod invite_qr;
 mod listener;
 mod members;
 mod net_brief;
+pub mod net_name;
 mod options;
 pub(crate) mod probe;
 mod ring;

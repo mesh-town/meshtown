@@ -108,14 +108,8 @@ pub(crate) fn opened_locals_of(slots: Vec<SlotHandle>, except: &NetSlotId) -> Ve
 /// The name a network goes by in messages: its label, else `Network` and the first four characters of its id;
 /// the slot id when the key does not parse.
 fn net_name(block: &serde_json::Value, slot: &NetSlotId) -> String {
-    let label = block["label"].as_str().filter(|l| !l.is_empty());
-    if let Some(label) = label {
-        return label.to_string();
-    }
-    match block["id_hex"].as_str() {
-        Some(id) => format!("Network {}", id.chars().take(4).collect::<String>()),
-        None => slot.to_string(),
-    }
+    super::net_name::net_display_name(block["label"].as_str(), block["id_hex"].as_str())
+        .unwrap_or_else(|| slot.to_string())
 }
 
 /// A host with a single `main` slot.
