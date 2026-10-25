@@ -30,6 +30,8 @@ pub struct NetBrief {
     /// This node is an administrator of a managed network.
     pub me_admin: bool,
     pub can_invite: bool,
+    /// This computer is kept out of the network (`state.members.admission_refused`).
+    pub admission_refused: bool,
 }
 
 fn word<T: Serialize>(value: &T) -> String {
@@ -93,6 +95,7 @@ pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
         kind: text_of(&block, "kind").unwrap_or_else(|| "Peer".to_string()),
         me_admin: text_of(&block, "me_role").as_deref() == Some("admin"),
         can_invite: flag_of(&block, "can_invite", true),
+        admission_refused: snap.members.admission_refused,
     }
 }
 
@@ -117,6 +120,7 @@ pub(crate) fn broken_brief(id: &NetSlotId) -> NetBrief {
         kind: "Peer".to_string(),
         me_admin: false,
         can_invite: false,
+        admission_refused: false,
     }
 }
 

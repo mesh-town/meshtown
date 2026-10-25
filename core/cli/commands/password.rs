@@ -5,6 +5,7 @@
 use serde_json::Value;
 
 use super::node_link::{LinkError, Target};
+use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and resets the password.
 pub(crate) fn run_password_command(
@@ -43,10 +44,10 @@ fn print_urls(body: &str) {
 
 fn refusal(t: &Target, code: u16, body: &str) -> String {
     if t.token().is_empty() {
-        return format!("node refused (code {code}): no web-token file next to the settings file {}; a password reset only works with the permanent token", t.path.display());
+        return format!("{NET_NAME} refused (code {code}): no web-token file next to the settings file {}; a password reset only works with the permanent token", t.path.display());
     }
     let head: String = body.chars().take(200).collect();
-    format!("node refused the password reset (code {code}): {head}")
+    format!("{NET_NAME} refused the password reset (code {code}): {head}")
 }
 
 fn remove_offline(t: &Target) -> Result<(), String> {
@@ -54,11 +55,11 @@ fn remove_offline(t: &Target) -> Result<(), String> {
         .map_err(|e| format!("password file was not removed: {e}"))?;
     if !existed {
         return Err(format!(
-            "no page password file in {}, nothing to reset; if the node keeps its settings elsewhere, pass --config <PATH>",
+            "no page password file in {}, nothing to reset; if {NET_NAME} keeps its settings elsewhere, pass --config <PATH>",
             t.dir.display()
         ));
     }
-    println!("Password reset. The node isn't running: it will print a one-time sign-in link when it starts.");
-    println!("If the node runs on another page port, repeat with --web-port <PORT>.");
+    println!("Password reset. {NET_NAME} isn't running: it will print a one-time sign-in link when it starts.");
+    println!("If {NET_NAME} runs on another page port, repeat with --web-port <PORT>.");
     Ok(())
 }

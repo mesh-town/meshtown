@@ -31,7 +31,7 @@ pub(crate) enum InviteStep {
 
 const TEXT_WAITING: &str =
     "Waiting for network members: as soon as anyone from the invite is online, \
-the node will join the network.";
+this computer will join the network.";
 
 /// Decides the fate of the invite before any trip to the network. A refusal does not spend the invite.
 pub(crate) fn plan_invite(

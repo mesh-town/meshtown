@@ -24,7 +24,7 @@ use crate::transport::net::NodeSecret;
 use crate::transport::net_mainline;
 
 /// The log line when the members turn out to run a version without member records.
-const MEMBERS_OLD: &str = "members run an older version: joining without a member record; updated nodes will refuse this node until it joins by an invite from an updated node";
+const MEMBERS_OLD: &str = "members run an older version: joining without a member record; updated members will refuse this computer until it joins by an invite from an updated member";
 /// The connection time limit with one member.
 const CONNECT_LIMIT: Duration = Duration::from_secs(10);
 /// The frame exchange time limit on an established connection.

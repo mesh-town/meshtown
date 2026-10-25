@@ -35,15 +35,15 @@ fn api_body_has_invite_holders_and_reach_for_every_reach() {
 }
 
 #[test]
-fn console_line_for_issuer_only_says_only_this_node() {
+fn console_line_for_issuer_only_says_only_this_computer() {
     assert!(Reach::IssuerOnly
         .console_line()
-        .contains("only this node will let a newcomer in"));
+        .contains("only this computer will let a newcomer in"));
 }
 
 #[test]
-fn console_line_for_spread_says_works_without_this_node() {
+fn console_line_for_spread_says_works_without_this_computer() {
     assert!(Reach::Spread
         .console_line()
-        .contains("even without this node"));
+        .contains("even without this computer"));
 }

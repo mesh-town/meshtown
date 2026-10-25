@@ -18,7 +18,7 @@ use super::state::NodeCtl;
 
 impl NodeCtl {
     pub(super) fn members_impl(&self) -> MemberFuture {
-        match self.running_node_for_action() {
+        match self.running_node_for_read() {
             Ok(node) => Box::pin(async move { reply_of(&node, None).await }),
             Err(e) => failed(MemberError::Action(e)),
         }
@@ -55,7 +55,7 @@ fn failed(e: MemberError) -> MemberFuture {
 
 fn invalid(what: &str) -> MemberError {
     MemberError::Action(ActionError::Invalid(format!(
-        "{what}: a full node id (64 hex digits) is needed"
+        "{what}: a full member id (64 hex digits) is needed"
     )))
 }
 
@@ -93,19 +93,19 @@ fn refused(code: &'static str, message: &str) -> MemberError {
 /// A refusal of the action as the page error: a code with a message, or an internal failure.
 pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
     match r {
-        ActionRefusal::SelfTarget => refused("self_target", "this is your own node"),
-        ActionRefusal::NotMember => refused("not_member", "the node is not in the list"),
-        ActionRefusal::Left => refused("left", "this node has left the network"),
+        ActionRefusal::SelfTarget => refused("self_target", "this is your own computer"),
+        ActionRefusal::NotMember => refused("not_member", "this member is not in the list"),
+        ActionRefusal::Left => refused("left", "this member has left the network"),
         ActionRefusal::NotPending => {
-            refused("not_pending", "This node isn't waiting for confirmation")
+            refused("not_pending", "This member isn't waiting for confirmation")
         }
         ActionRefusal::NotConfirmed => refused(
             "not_confirmed",
-            "You haven't confirmed this node, or it has already joined",
+            "You haven't confirmed this member, or they have already joined",
         ),
-        ActionRefusal::Online => refused("online", "The node is connected right now"),
+        ActionRefusal::Online => refused("online", "This member is connected right now"),
         ActionRefusal::NotForgotten => {
-            refused("not_forgotten", "You haven't proposed removing this node")
+            refused("not_forgotten", "You haven't proposed removing this member")
         }
         ActionRefusal::NotAdmin => refused("not_admin", "only admins can do this in this network"),
         ActionRefusal::LastAdmin => refused(
@@ -150,3 +150,7 @@ async fn verdicts_of(node: &RunningNode) -> Result<Arc<Verdicts>, MemberError> {
 #[cfg(test)]
 #[path = "control_members_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "control_members_gate_tests.rs"]
+mod gate_tests;

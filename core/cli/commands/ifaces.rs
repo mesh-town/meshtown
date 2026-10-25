@@ -9,6 +9,7 @@ use crate::config::config_file::{
 use serde_json::{json, Value};
 
 use super::node_link::{LinkError, Target};
+use crate::node::output::NET_NAME;
 
 const EXPECTED: &str = "a list of interface names without repeats was expected (auto — automatic, '*' — no restriction)";
 
@@ -116,7 +117,7 @@ fn set(t: &Target, filter: &IfaceFilter) -> Result<(), String> {
         Err(LinkError::Other(e)) => Err(e),
         Ok(()) => {
             println!(
-                "Interface list saved: {} (the proxy picks it up after the node restarts).",
+                "Interface list saved: {} (the proxy picks it up after {NET_NAME} restarts).",
                 describe(filter)
             );
             Ok(())
@@ -133,18 +134,19 @@ fn json_of(call: Result<(u16, String), LinkError>, what: &str) -> Result<Value, 
     let (code, body) = call?;
     if code != 200 {
         return Err(LinkError::Other(format!(
-            "node refused ({what}, code {code}): {body}"
+            "{NET_NAME} refused ({what}, code {code}): {body}"
         )));
     }
     serde_json::from_str(&body)
-        .map_err(|_| LinkError::Other(format!("node did not reply with JSON ({what})")))
+        .map_err(|_| LinkError::Other(format!("{NET_NAME} did not reply with JSON ({what})")))
 }
 
 /// The node is running: writes both fields with one PUT carrying the revision.
 fn live(t: &Target, filter: &IfaceFilter) -> Result<(), LinkError> {
     let rev = json_of(t.call("GET", "/api/config", None), "reading settings")?["rev"].as_u64();
-    let rev =
-        rev.ok_or_else(|| LinkError::Other("the node reply has no settings revision".into()))?;
+    let rev = rev.ok_or_else(|| {
+        LinkError::Other(format!("the {NET_NAME} reply has no settings revision"))
+    })?;
     let names = filter.parts().1;
     let config = json!({"socks": {"ifaces": names}, "web": {"ifaces": names}});
     let body = json!({"rev": rev, "config": config}).to_string();
@@ -158,9 +160,9 @@ fn live(t: &Target, filter: &IfaceFilter) -> Result<(), LinkError> {
 /// The node is not running: reads the file, changes the fields, writes with a revision check. If there is no file, it does not create one.
 pub(super) fn offline(t: &Target, filter: &IfaceFilter) -> Result<(), String> {
     match config_file::load_config_file(&t.path) {
-        LoadedConfigFile::Absent => {
-            Err("no settings file: start the node once, then change the interface list".into())
-        }
+        LoadedConfigFile::Absent => Err(format!(
+            "no settings file: start {NET_NAME} once, then change the interface list"
+        )),
         LoadedConfigFile::Unreadable(why) | LoadedConfigFile::Invalid(why) => {
             Err(format!("settings file is unusable: {why}"))
         }
@@ -170,7 +172,9 @@ pub(super) fn offline(t: &Target, filter: &IfaceFilter) -> Result<(), String> {
 
 fn write_fields(t: &Target, p: ParsedConfigFile, filter: &IfaceFilter) -> Result<(), String> {
     let SecretRead::Valid(secret) = p.secret else {
-        return Err("the settings file has no valid node key: start the node once".into());
+        return Err(format!(
+            "the settings file has no valid key for this computer: start {NET_NAME} once"
+        ));
     };
     let mut settings = p.settings;
     settings.process.socks_ifaces = filter.clone();
@@ -178,7 +182,7 @@ fn write_fields(t: &Target, p: ParsedConfigFile, filter: &IfaceFilter) -> Result
     config_file::save_config_file(&t.path, Some(p.rev), super::now_unix(), &secret, &settings)
         .map_err(|e| format!("settings file was not saved: {e:?}"))?;
     println!(
-        "Interface list saved: {} (node is not running: applies at startup).",
+        "Interface list saved: {} ({NET_NAME} is not running: applies at startup).",
         describe(filter)
     );
     Ok(())

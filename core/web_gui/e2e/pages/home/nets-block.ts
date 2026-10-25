@@ -21,7 +21,7 @@ export const NETS_TEXT = {
     "Then any device on the network the router is connected to will be able to use the proxy without a password: for example, on the main home router's network or your ISP's. Select only if that is also your network.",
   /** A note under the network through which the page is open. */
   hereNote:
-    "This page is open through this network — you can't deselect it here. Open the page from another network or from the node itself.",
+    "This page is open through this network — you can't deselect it here. Open the page from another network or from this computer itself.",
   /** The intro paragraph of step 2 on the router and the former one on the laptop. */
   pacIntroRouter: `Enter this address once in the proxy settings of a phone or computer connected to the router. After that, the browser opens sites through ${NET_NAME} by itself whenever you choose an exit. No password needed.`,
   pacIntroLaptop: `Enter this address once in your computer's proxy settings. After that, the browser opens sites through ${NET_NAME} by itself whenever you choose an exit. No password needed.`,

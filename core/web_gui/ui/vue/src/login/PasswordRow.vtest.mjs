@@ -65,8 +65,8 @@ describe("PasswordRow", () => {
 
   it("access ≠ listening — a restart hint; equal — without it", async () => {
     const w = await mountRow({ access: "localnet", listening: "localhost" });
-    expect(w.text()).toContain("will take effect after the node restarts");
+    expect(w.text()).toContain("will take effect after Mesh Town restarts");
     const w2 = await mountRow();
-    expect(w2.text()).not.toContain("will take effect after the node restarts");
+    expect(w2.text()).not.toContain("will take effect after Mesh Town restarts");
   });
 });

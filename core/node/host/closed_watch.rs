@@ -12,7 +12,7 @@ use super::slots::{HostSlots, Slot};
 use crate::config::config_file::NetSlotId;
 use crate::members::access::tally::Closed;
 use crate::node::node_ctl::NodeCtl;
-use crate::node::output::say;
+use crate::node::output::{say, NET_NAME};
 use crate::web_gui::{HostControl, HostError};
 
 /// How a firing ended.
@@ -129,7 +129,7 @@ fn leave_after_close(
             say(
                 "host",
                 format!(
-                    "network {shown} was deleted by an admin; it stays until the node restarts without --key ({e:?})"
+                    "network {shown} was deleted by an admin; it stays until {NET_NAME} restarts without --key ({e:?})"
                 ),
             );
             Fired::Stuck

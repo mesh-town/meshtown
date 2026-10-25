@@ -6,7 +6,7 @@ use super::saved_slots::MAX_NETS;
 use super::slots::{HostSlots, SlotContext};
 use crate::config::config_file::{new_net_slot, NetSettings, NetSlotId, RunConfig};
 use crate::node::node_ctl::Relaunch;
-use crate::node::output::say;
+use crate::node::output::{say, NET_NAME};
 use crate::web_gui::{
     now_unix, AddedSlot, HostControl, HostError, InviteJoinState, NodeStatus, SlotHandle,
 };
@@ -73,7 +73,7 @@ impl HostSlots {
             .context()
             .ok_or_else(|| HostError::Busy(ONE_NET_RUN.into()))?;
         if self.is_stopping() {
-            return Err(HostError::Busy("the node is stopping".into()));
+            return Err(HostError::Busy(format!("{NET_NAME} is stopping")));
         }
         if let Some(id) = self.slot_without_key() {
             return Ok(AddedSlot { id, fresh: false });

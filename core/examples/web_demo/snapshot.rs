@@ -162,6 +162,7 @@ fn build_members_info(st: &DemoState) -> MembersInfo {
         me_excluded: st.members.me_excluded,
         admitting: 0,
         me_pending: false,
+        admission_refused: false,
     }
 }
 

@@ -285,7 +285,7 @@ describe("identityStrip", () => {
   it("file_preserved — the note about the preserved file, the network name, the reason", () => {
     const got = identityStrip(temporary("file_preserved"), { message: "can't be rewritten" });
     assert.equal(got.cls, "identity-strip-preserved");
-    assert.match(got.text, /^The settings file couldn't be updated, and the node left it as is/);
+    assert.match(got.text, /^The settings file couldn't be updated, and Mesh Town left it as is/);
     assert.match(got.text, /access to your Mesh Town network\. /);
     assert.match(got.text, /Can't be rewritten\. After a restart/);
   });

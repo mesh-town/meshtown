@@ -75,10 +75,10 @@ describe("admit and unadmit", () => {
 
   it("admit/unadmit errors have human reasons", () => {
     const err = (code) => new ApiError(409, code, code);
-    assert.equal(memberErrorText(err("not_pending")), "Couldn't update the member list: this node isn't waiting for confirmation");
+    assert.equal(memberErrorText(err("not_pending")), "Couldn't update the member list: this member isn't waiting for confirmation");
     assert.equal(
       memberErrorText(err("not_confirmed")),
-      "Couldn't update the member list: you haven't confirmed this node, or it has already joined",
+      "Couldn't update the member list: you haven't confirmed this member, or they have already joined",
     );
   });
 });

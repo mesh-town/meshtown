@@ -11,7 +11,7 @@ use tokio::time::timeout;
 
 use crate::members::access::view::{AccessView, Deny, Side};
 use crate::members::membership::MemberContext;
-use crate::node::output::say;
+use crate::node::output::{say, NET_NAME};
 use crate::transport::net::PeerConn;
 
 /// Context of a handshake error: the responder closed the connection with this refusal.
@@ -23,8 +23,6 @@ impl std::fmt::Display for RefusedByPeer {
         write!(f, "peer refused us: {}", self.0.code())
     }
 }
-
-pub(super) const REMOVED_NOTICE: &str = "acl: members removed this node from the member list; join again with an invite from the node page";
 
 /// The responder did not answer: if it closed with a refusal, remember it (the close frame may arrive a moment later).
 pub(super) async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<Deny> {
@@ -43,7 +41,10 @@ fn warn_if_removed(access: &AccessView, deny: Deny) {
     if deny != Deny::Forgotten || !access.first_removed_notice() {
         return;
     }
-    say("access", REMOVED_NOTICE);
+    say(
+        "access",
+        format!("acl: members removed this computer from the member list; join again with an invite on the {NET_NAME} page"),
+    );
 }
 
 /// A failed exchange: if the responder's refusal is not attached yet, learns it from the close frame.

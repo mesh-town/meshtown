@@ -12,7 +12,7 @@ impl DemoMembers {
         if !matches!(e.standing, Standing::Pending) || e.voters.iter().any(|v| v == ME) {
             return Err(refused(
                 "not_pending",
-                "This node isn't waiting for confirmation",
+                "This member isn't waiting for confirmation",
             ));
         }
         e.voters.push(ME.to_string());
@@ -27,7 +27,7 @@ impl DemoMembers {
         if !mine {
             return Err(refused(
                 "not_confirmed",
-                "You haven't confirmed this node, or it has already joined",
+                "You haven't confirmed this member, or they have already joined",
             ));
         }
         e.voters.retain(|v| v != ME);
@@ -57,7 +57,7 @@ impl DemoMembers {
     pub(crate) fn exclude(&mut self, i: usize, reason: Option<String>) -> Result<bool, MemberError> {
         let e = &mut self.entries[i];
         if matches!(e.standing, Standing::Unlisted) {
-            return Err(refused("not_member", "the node is not in the member list"));
+            return Err(refused("not_member", "this member is not in the list"));
         }
         if !matches!(e.standing, Standing::Member) || e.voters.iter().any(|v| v == ME) {
             return Ok(false);

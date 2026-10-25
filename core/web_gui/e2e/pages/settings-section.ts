@@ -44,7 +44,7 @@ export class SettingsSection {
   constructor(private readonly page: Page) {
     this.root = page.getByRole('tabpanel');
     this.tab = page.getByRole('tab', { name: /Settings/ });
-    this.intro = this.root.getByText(/Fields marked "after restart" take effect after the node restarts/);
+    this.intro = this.root.getByText(/Fields marked "after restart" take effect after Mesh Town restarts/);
     this.socksPort = page.getByRole('textbox', { name: 'Proxy port (SOCKS5 and HTTP)' });
     this.webEnabled = page.locator('#field-web-enabled');
     this.restartBadge = page

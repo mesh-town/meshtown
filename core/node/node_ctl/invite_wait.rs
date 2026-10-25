@@ -22,7 +22,7 @@ use crate::web_gui::{ActionError, InviteJoinState, InviteJoinView, PendingInvite
 
 const TEXT_WAITING: &str =
     "Waiting for network members: as soon as anyone from the invite is online, \
-the node will join the network.";
+this computer will join the network.";
 
 /// Slot in `NodeCtlState`: the generation the page sees, and the task handle (`Refused` no longer has one).
 pub(super) struct InviteWait {
@@ -47,16 +47,16 @@ pub(super) fn make_invite(
             (Phase::Up, Some(n)) => n.clone(),
             (Phase::NoNetwork, _) => {
                 return Err(ActionError::Busy(format!(
-                    "the node has not joined the {} network yet",
+                    "this computer has not joined the {} network yet",
                     crate::node::output::NET_NAME
                 )))
             }
-            (Phase::Stopping, _) => return Err(ActionError::Busy("node is stopping".to_string())),
-            _ => return Err(ActionError::Busy("node is starting".to_string())),
+            (Phase::Stopping, _) => return Err(super::gates::busy_stopping()),
+            _ => return Err(super::gates::busy_starting()),
         }
     };
     if node.stack.is_closed() {
-        return Err(ActionError::Busy("node is stopping".to_string()));
+        return Err(super::gates::busy_stopping());
     }
     let issued = crate::invite::make(&node.invite_source(), for_whom).map_err(make_error)?;
     Ok(PendingInvite::pending(issued.commit()))
@@ -86,7 +86,7 @@ pub(super) fn start(
         .lock()
         .unwrap_or_else(|e| e.into_inner());
     if matches!(st.phase, Phase::Stopping) {
-        return Err(ActionError::Busy("node is stopping".to_string()));
+        return Err(super::gates::busy_stopping());
     }
     check_fresh(&head, now_unix()).map_err(|e| ActionError::Invalid(e.to_string()))?;
     cancel(&mut st);

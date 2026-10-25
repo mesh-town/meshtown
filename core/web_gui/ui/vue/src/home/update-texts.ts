@@ -8,5 +8,5 @@ export const UPDATE_ANDROID_DOWNLOAD_URL = "https://github.com/mesh-town/meshtow
 export const UPDATE_LATEST_API_URL = "https://api.github.com/repos/mesh-town/meshtown/releases/latest";
 
 export function updateAvailableText(latest: string, own: string): string {
-  return `Mesh Town ${latest} is available (this node runs ${own}).`;
+  return `Mesh Town ${latest} is available (this computer runs ${own}).`;
 }

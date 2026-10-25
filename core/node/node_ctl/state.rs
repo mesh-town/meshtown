@@ -291,15 +291,10 @@ impl NodeCtl {
             match st.phase {
                 Phase::Up => {}
                 Phase::NoNetwork => {
-                    return Err(ActionError::NoNetwork(format!(
-                        "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
-                        crate::node::output::NET_NAME
-                    )))
+                    return Err(ActionError::NoNetwork(super::gates::no_network_text()))
                 }
-                Phase::Starting => return Err(ActionError::Busy("node is starting".to_string())),
-                Phase::Stopping => {
-                    return Err(ActionError::Busy("node is stopping".to_string()))
-                }
+                Phase::Starting => return Err(super::gates::busy_starting()),
+                Phase::Stopping => return Err(super::gates::busy_stopping()),
             }
             let Some(key) = st.effective_settings.net.network_key.clone() else {
                 return Err(ActionError::Internal("network key is unknown".to_string()));
@@ -347,31 +342,6 @@ impl NodeCtl {
             .unwrap_or_else(|e| e.into_inner());
         if matches!(st.phase, Phase::Starting) {
             st.phase = Phase::NoNetwork;
-        }
-    }
-
-    /// Action gates: `NoNetwork` → the node is not on a network yet; `Starting`, or `Up` without a ready
-    /// snapshot → busy "starting"; `Stopping` → busy "stopping"; otherwise a clone of the node.
-    pub(super) fn running_node_for_action(&self) -> Result<Arc<RunningNode>, ActionError> {
-        let st = self
-            .ctl_shared
-            .ctl_state
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        match st.phase {
-            Phase::NoNetwork => Err(ActionError::Busy(format!(
-                "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
-                crate::node::output::NET_NAME
-            ))),
-            Phase::Starting => Err(ActionError::Busy("node is starting".to_string())),
-            Phase::Stopping => Err(ActionError::Busy("node is stopping".to_string())),
-            Phase::Up => match &st.cache {
-                None => Err(ActionError::Busy("node is starting".to_string())),
-                Some(_) => Ok(st
-                    .node
-                    .clone()
-                    .expect("Phase::Up always means node = Some")),
-            },
         }
     }
 

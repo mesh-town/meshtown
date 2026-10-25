@@ -20,7 +20,7 @@ interface ErrorWithBody {
 export const NET_NAME = "Mesh Town";
 
 // A note on a field set by a node startup flag (Home and Settings).
-export const CLI_FIXED_NOTE = "set at node startup — can't be changed here";
+export const CLI_FIXED_NOTE = "set at startup — can't be changed here";
 
 export function anonymousPeerLabel(p: NamedPeer): string {
   return "member " + p.id;

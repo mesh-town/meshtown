@@ -45,7 +45,7 @@ impl NodeCtl {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         match st.phase {
-            Phase::Stopping => return Err(ActionError::Busy("node is stopping".to_string())),
+            Phase::Stopping => return Err(super::gates::busy_stopping()),
             Phase::NoNetwork => return Ok(()),
             Phase::Starting | Phase::Up => {}
         }

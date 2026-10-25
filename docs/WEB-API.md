@@ -167,7 +167,7 @@ all fields are required; `null` is allowed where marked):
     "can_invite": true, "can_remove": true, "can_set_admins": false, "can_delete_network": false, "can_leave": true,
     "excluded_by": null
   },
-  "members": { "count": 3, "gossip_neighbors": 2, "voting": 0, "me_excluded": false },
+  "members": { "count": 3, "gossip_neighbors": 2, "voting": 0, "me_excluded": false, "admission_refused": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
   "transport": {
@@ -501,6 +501,7 @@ does not exist is 404 `unknown_net`.
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
 | `kind`, `me_admin`, `can_invite` | the type of the network (`"Peer"` or `"Managed"`), whether this node is an administrator, whether it may invite. A broken slot: `"Peer", false, false`; a slot without a key: `"Peer", false, true` |
+| `admission_refused` | `true` when this computer is kept out: it is not excluded, removed or pending, no other member is online, and at least one member refused it (`last_refusal.side == "them"`, reason not `unlisted`). No delay: the page waits before showing it. The same value is `state.members.admission_refused`. `false` for a broken slot |
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters
 are 0, `label` and `id_hex` are `null`. Its only action is `POST /api/net/{slot}/members/leave`; every other

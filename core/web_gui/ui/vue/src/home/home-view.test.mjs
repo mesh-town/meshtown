@@ -300,7 +300,7 @@ describe("nodeNameFieldValue", () => {
 describe("configFieldAccess", () => {
   it("read_only and cli_overrides from configMeta; without meta — a free field", () => {
     const meta = { read_only: ["node.name"], cli_overrides: ["node.name"] };
-    assert.deepEqual(configFieldAccess(meta, "node.name"), { readOnly: true, cliNote: "set at node startup — can't be changed here" });
+    assert.deepEqual(configFieldAccess(meta, "node.name"), { readOnly: true, cliNote: "set at startup — can't be changed here" });
     assert.deepEqual(configFieldAccess(meta, "exit.enabled"), { readOnly: false, cliNote: "" });
     assert.deepEqual(configFieldAccess(null, "node.name"), { readOnly: false, cliNote: "" });
   });

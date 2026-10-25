@@ -97,6 +97,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             me_excluded: i.votes.me_excluded,
             admitting: i.votes.admitting,
             me_pending: i.votes.me_pending,
+            admission_refused: false,
         },
         socks: SocksInfo {
             enabled: i.socks.is_some(),

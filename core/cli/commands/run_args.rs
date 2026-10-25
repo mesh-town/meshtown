@@ -70,7 +70,7 @@ pub(crate) struct RunArgs {
     /// Treat a site as blocked for you, without checking. Can be repeated.
     #[arg(long = "block-domain", value_name = "SITE")]
     pub(crate) blocked_domains: Vec<String>,
-    /// Port of the node page on 127.0.0.1 (default: 7777).
+    /// Port of the Mesh Town page on 127.0.0.1 (default: 7777).
     #[arg(long, value_name = "PORT")]
     pub(crate) web_port: Option<u16>,
 }

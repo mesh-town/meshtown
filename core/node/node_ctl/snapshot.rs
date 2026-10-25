@@ -3,6 +3,7 @@
 //! pure function with no network that decides everything else (member statuses, order, route by
 //! domain).
 
+mod admission;
 mod build;
 mod collect;
 mod doc_cache;

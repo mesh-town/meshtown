@@ -101,7 +101,7 @@ async fn reset_without_node_removes_file_exit_0() {
     let o = mesh(&["password", "reset"], &dir, free_port());
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     assert!(
-        out(&o).contains("The node isn't running"),
+        out(&o).contains("Mesh Town isn't running"),
         "stdout: {}",
         out(&o)
     );
@@ -162,7 +162,7 @@ async fn access_live_localnet_needs_restart() {
     let o = mesh(&["access", "localnet"], &rig.dir, rig.port);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     assert!(
-        out(&o).contains("after the node restarts"),
+        out(&o).contains("after Mesh Town restarts"),
         "stdout: {}",
         out(&o)
     );

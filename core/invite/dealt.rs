@@ -82,15 +82,15 @@ impl Reach {
         match self {
             Reach::IssuerOnly => (
                 "issuer_only",
-                "only this node will let a newcomer in: no other members are online or they didn't confirm the entry — don't turn it off until the newcomer joins",
+                "only this computer will let a newcomer in: no other members are online or they didn't confirm the entry — don't turn it off until the newcomer joins",
             ),
             Reach::IssuerAndOne => (
                 "issuer_and_one",
-                "this node and one more member will let a newcomer in — better not to turn this node off until the newcomer joins",
+                "this computer and one more member will let a newcomer in — better not to turn this computer off until the newcomer joins",
             ),
             Reach::Spread => (
                 "spread",
-                "the invite entry is held by two more members online — a newcomer will join even without this node",
+                "the invite entry is held by two more members online — a newcomer will join even without this computer",
             ),
         }
     }

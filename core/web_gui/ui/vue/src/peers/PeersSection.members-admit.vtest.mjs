@@ -44,10 +44,10 @@ describe("a node waits to join", () => {
 
   it("a refusal shows the sentence of the node", async () => {
     const page = await openMembersPage({ members: withPending() });
-    page.failWith("admit", 409, "not_pending", "This node isn't waiting for confirmation");
+    page.failWith("admit", 409, "not_pending", "This member isn't waiting for confirmation");
     await page.click('[data-pending="' + ID + '"] [data-member-action="admit"]');
     await page.confirmDialog();
-    expect(page.status()).toBe("This node isn't waiting for confirmation");
+    expect(page.status()).toBe("This member isn't waiting for confirmation");
   });
 
   it("after my confirmation: the line says so, no button, the menu withdraws", async () => {

@@ -48,7 +48,10 @@ mod refused {
 
         let res = ctl.request_restart();
 
-        assert_eq!(res, Err(ActionError::Busy("node is starting".to_string())));
+        assert_eq!(
+            res,
+            Err(ActionError::Busy("Mesh Town is starting".to_string()))
+        );
         assert_channel_empty(&ctl).await;
     }
 
@@ -59,7 +62,10 @@ mod refused {
 
         let res = ctl.request_restart();
 
-        assert_eq!(res, Err(ActionError::Busy("node is stopping".to_string())));
+        assert_eq!(
+            res,
+            Err(ActionError::Busy("Mesh Town is stopping".to_string()))
+        );
         assert_eq!(ctl.next_command().await, Cmd::Stop);
     }
 

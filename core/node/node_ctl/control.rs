@@ -1,6 +1,6 @@
 //! Page actions: `impl web_gui::NodeControl for NodeCtl` — snapshot, domain search/check,
 //! adding a member address, applying settings, joining/leaving a network, invite. State
-//! and gates (`running_node_for_action`, `known_domains`) live in `state.rs`; live paths in `live_paths.rs`.
+//! and gates (`running_node_for_action`, `known_domains`) live in `gates.rs`/`state.rs`; live paths in `live_paths.rs`.
 
 use tokio::sync::mpsc::UnboundedSender;
 

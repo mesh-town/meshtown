@@ -40,7 +40,7 @@ describe("the log element survives polling", () => {
     const line = lines(wrapper).at(-1);
     const button = pause(wrapper);
     expect(shown(wrapper.get("#logwin").element)).toBe(true);
-    expect(wrapper.get("#logwin").attributes("aria-label")).toBe("Node log");
+    expect(wrapper.get("#logwin").attributes("aria-label")).toBe("Mesh Town log");
     expect(wrapper.findAll("#logwin [role=list]")).toHaveLength(1);
 
     await logPolls(node, LOG_TICKS);

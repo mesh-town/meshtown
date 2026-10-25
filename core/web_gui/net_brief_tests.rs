@@ -29,6 +29,7 @@ fn rich_snapshot() -> crate::web_gui::NodeSnapshot {
             admitting: 2,
             me_excluded: true,
             me_pending: true,
+            admission_refused: true,
             ..MembersInfo::default()
         },
         peers: vec![peer(true, true), peer(true, false), peer(false, false)],
@@ -62,6 +63,19 @@ fn fields_come_from_the_snapshot_and_the_key() {
     assert_eq!((b.members_voting, b.members_admitting), (4, 2));
     assert!(b.me_excluded && b.me_pending && !b.joining);
     assert_eq!((b.peers_online, b.peers_total), (1, 2));
+    assert!(b.admission_refused);
+}
+
+#[test]
+fn the_brief_carries_the_refusal() {
+    // given: a snapshot whose members block says this computer is kept out
+    let host = FakeHost::new(vec![handle("main", rich_snapshot(), None)]);
+
+    // when
+    let b = brief_of(&host.main_slot(), &NetSlotId::main());
+
+    // then
+    assert!(b.admission_refused, "the flag is taken from the snapshot");
 }
 
 #[test]
@@ -244,6 +258,10 @@ fn a_broken_slot_comes_last_with_its_fixed_fields() {
     assert_eq!(b.route_state, "unavailable");
     assert!(b.label.is_none() && b.id_hex.is_none() && b.exits.is_empty());
     assert!(!b.proxy && !b.exit_enabled && !b.joining);
+    assert!(
+        !b.admission_refused,
+        "a broken slot never reports a refusal"
+    );
     assert_eq!((b.peers_total, b.members_voting), (0, 0));
 }
 
@@ -272,6 +290,10 @@ fn the_json_keeps_the_field_order() {
         "me_pending",
         "peers_online",
         "peers_total",
+        "kind",
+        "me_admin",
+        "can_invite",
+        "admission_refused",
     ];
     let at: Vec<usize> = keys
         .iter()

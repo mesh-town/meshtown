@@ -46,6 +46,44 @@ describe('the word "node" in page literals', () => {
   });
 });
 
+// Phrase check (P1-P24 of the word table): no string literal of the text files names the node. The program is
+// `NET_NAME`, the user's machine is "this computer", another participant is a "member". Kept: "directory nodes"
+// (DHT nodes of the diagnostics) and a setting key ("node.name").
+const TEXT_FILE = /(?:-texts\.ts|^common\/words\.ts|^members\/members-api\.ts)$/;
+const COMMENT_LINE = /^\s*(?:\/\/|\*|\/\*)/;
+const STRING_LITERAL = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`/g;
+const TEMPLATE_HOLE = /\$\{[^}]*\}/g;
+const NAMES_THE_NODE = /\bnode(?:s|'s)?\b/i;
+const NODE_KEPT = /directory nodes|\bnode\.[a-z]/i;
+
+describe('no phrase of the page names the node', () => {
+  it("the walk sees the text files (otherwise the check is empty)", () => {
+    const files = textFiles().map((f) => f.rel);
+    assert.ok(files.includes("common/words.ts"), "no common/words.ts among " + files.length + " files");
+    assert.ok(files.includes("settings/settings-texts.ts"), "no settings/settings-texts.ts among " + files.length + " files");
+    assert.ok(files.includes("members/members-api.ts"), "no members/members-api.ts among " + files.length + " files");
+  });
+
+  it("the check catches a phrase about the node and skips what is kept", () => {
+    assert.deepEqual(badLiteralsOf('const A = "after the node restarts";'), ['"after the node restarts"']);
+    assert.deepEqual(badLiteralsOf("const B = `this node runs ${own}`;"), ["`this node runs `"]);
+    assert.deepEqual(badLiteralsOf('const C = ", directory nodes: ";'), []);
+    assert.deepEqual(badLiteralsOf("const D = `member ${node}`;"), []);
+    assert.deepEqual(badLiteralsOf('const E = "set node.name first";'), []);
+    assert.deepEqual(badLiteralsOf('  // the node restarts: a comment'), []);
+    assert.deepEqual(badLiteralsOf('  * the node restarts: a doc line'), []);
+  });
+
+  it("no literal of the text files has the word node", () => {
+    const found = textFiles().flatMap(({ full, rel }) =>
+      fs.readFileSync(full, "utf8").split("\n").flatMap((line, i) =>
+        badLiteralsOf(line).map((lit) => `${rel}:${i + 1}: ${lit}`),
+      ),
+    );
+    assert.deepEqual(found, [], 'say "this computer", "member" or NET_NAME instead of "node": ' + found.join("; "));
+  });
+});
+
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const full = path.join(dir, e.name);
@@ -68,4 +106,18 @@ function findLines(bad) {
       .filter(({ line }) => bad(rel, line))
       .map(({ line, where }) => `${where}: ${line.trim()}`),
   );
+}
+
+// The text files of the page: `{ full, rel }`.
+function textFiles() {
+  return sourceFiles().filter(({ rel }) => TEXT_FILE.test(rel));
+}
+
+// The string literals of one source line that name the node (the `${...}` holes of a template are cut out first).
+function badLiteralsOf(line) {
+  if (COMMENT_LINE.test(line)) return [];
+  const literals = line.match(STRING_LITERAL) ?? [];
+  return literals
+    .map((lit) => lit.replace(TEMPLATE_HOLE, ""))
+    .filter((lit) => NAMES_THE_NODE.test(lit) && !NODE_KEPT.test(lit));
 }

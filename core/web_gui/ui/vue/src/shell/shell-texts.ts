@@ -28,5 +28,5 @@ export const SHELL_TAB_UNSAVED = "You have unsaved changes";
 // The node identity strip: the Rust test `identity_texts_match_page` reads these phrases verbatim.
 export const IDENTITY_DECLINED_NOTE = NET_NAME + " was started in a mode that doesn't remember this computer. ";
 export const IDENTITY_PROBLEM_NOTE = NET_NAME + " couldn't remember this computer: there is an error in the settings file. ";
-export const IDENTITY_PRESERVED_NOTE = "The settings file couldn't be updated, and the node left it as is so that nothing is lost. Don't delete this file: it may contain access to your " + NET_NAME + " network. ";
+export const IDENTITY_PRESERVED_NOTE = "The settings file couldn't be updated, and " + NET_NAME + " left it as is so that nothing is lost. Don't delete this file: it may contain access to your " + NET_NAME + " network. ";
 export const restartConsequenceText = (who: string): string => "After a restart, other members will see " + who + " as a new member.";

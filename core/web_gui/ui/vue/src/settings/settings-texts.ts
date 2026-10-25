@@ -5,7 +5,7 @@ import { forDevice } from "../common/device.ts";
 
 // --- Page ---
 export const SETTINGS_STORE_MISSING = "STORE_KEY not provided";
-export const SETTINGS_RESTART_NOTE = "Fields marked \"after restart\" take effect after the node restarts: once you save your changes, a \"Restart Mesh Town\" button appears at the bottom.";
+export const SETTINGS_RESTART_NOTE = "Fields marked \"after restart\" take effect after " + NET_NAME + " restarts: once you save your changes, a \"Restart Mesh Town\" button appears at the bottom.";
 export const SETTINGS_LOADING = "Loading settings…";
 export const SETTINGS_CONFLICT_TITLE = "The settings changed while you were editing";
 export const SETTINGS_CONFLICT_HINT = "They were changed in another tab or by Mesh Town itself. Choose which changes to keep.";
@@ -29,7 +29,7 @@ export const SETTINGS_SAME_NETS_LINK = "change";
 
 // --- Field row, token ---
 export const SETTINGS_RESTART_BADGE = "after restart";
-export const SETTINGS_TOKEN_TITLE = "Persistent node token";
+export const SETTINGS_TOKEN_TITLE = "Persistent " + NET_NAME + " token";
 export const SETTINGS_TOKEN_DESC = "Used by the tray icon and scripts. You don't need it to sign in: use your password or the link with a temporary token that Mesh Town prints at startup.";
 export const SETTINGS_TOKEN_HIDE = "Hide";
 export const SETTINGS_TOKEN_SHOW = "Show";
@@ -56,7 +56,7 @@ export const SETTINGS_WEB_LOCALNET = "From this computer and the local network";
 
 // --- Field captions ---
 export const SETTINGS_DESC_SOCKS_ACCESS =
-  "In local network mode the proxy has no password: any device on your network (and guest Wi-Fi, if it isn't separated) can use it. Takes effect after the node restarts.";
+  "In local network mode the proxy has no password: any device on your network (and guest Wi-Fi, if it isn't separated) can use it. Takes effect after " + NET_NAME + " restarts.";
 export const SETTINGS_TITLE_AUTOSTART = "Start at login";
 export const SETTINGS_TITLE_SOCKS_ENABLED = "Browser proxy";
 export const SETTINGS_DESC_SOCKS_ENABLED = "Turns on the browser proxy.";
@@ -72,12 +72,12 @@ export const SETTINGS_DESC_PROVIDER_DNS = "Format: host:port. Leave empty to ski
 export const SETTINGS_TITLE_PROBE_INTERVAL = "How often to check connection speed";
 export const SETTINGS_DESC_PROBE_INTERVAL = "Checks whether a large chunk of data gets through " + NET_NAME + ": 16 KiB, 256 KiB, 1 MiB.";
 export const SETTINGS_TITLE_LOG_RING = "Log size";
-export const SETTINGS_DESC_LOG_RING = "How many lines are kept in the node's memory (from 200 to 20,000).";
+export const SETTINGS_DESC_LOG_RING = "How many lines " + NET_NAME + " keeps in memory (from 200 to 20,000).";
 export const SETTINGS_TITLE_FULL_TUNNEL = "All traffic through " + NET_NAME;
-export const SETTINGS_TITLE_WEB_ENABLED = "Node web page";
+export const SETTINGS_TITLE_WEB_ENABLED = NET_NAME + " web page";
 export const SETTINGS_TITLE_WEB_PORT = "Web page port";
 export const SETTINGS_TITLE_WEB_ACCESS = "Who can access the settings page";
-export const SETTINGS_DESC_WEB_ACCESS = "This only concerns access to the node settings, not to the network or traffic. A change takes effect immediately; widening access to the local network when the page address is 127.0.0.1 takes effect after the node restarts.";
+export const SETTINGS_DESC_WEB_ACCESS = "This only concerns access to the " + NET_NAME + " settings, not to the network or traffic. A change takes effect immediately; widening access to the local network when the page address is 127.0.0.1 takes effect after " + NET_NAME + " restarts.";
 
 export function settingsFileValueText(value: string | number): string {
   return String(value) + " — set in the file";
@@ -89,17 +89,17 @@ export const SETTINGS_WRITABLE_REASON = "Can't save: the folder with the setting
 export const SETTINGS_BROKEN_FILE = "The settings file is damaged";
 export const SETTINGS_VALUE_ON = "on";
 export const SETTINGS_VALUE_OFF = "off";
-export const SETTINGS_CLI_NOTE_EDITABLE = "set at node startup — your edit will be saved to the file and take effect when you start the node without this command-line option";
+export const SETTINGS_CLI_NOTE_EDITABLE = "set at startup — your edit will be saved to the file and take effect when you start " + NET_NAME + " without this command-line option";
 export const SETTINGS_READONLY_WEB_ENABLED = "Can only be turned off in the settings file — otherwise the page would lock itself out";
 export const SETTINGS_READONLY_DEFAULT = "Can only be changed in the settings file";
 export const SETTINGS_SAVED_LATE = "Saved. Takes effect after " + NET_NAME + " restarts.";
 export const SETTINGS_SAVED = "Saved";
 
 export function settingsCliHeadText(inFile: string, effective: string): string {
-  return "in file: " + inFile + " · currently in effect: " + effective + " — set at node startup";
+  return "in file: " + inFile + " · currently in effect: " + effective + " — set at startup";
 }
 
-export const SETTINGS_CLI_TAIL = ", your edit will be saved to the file and take effect when you start the node without this command-line option";
+export const SETTINGS_CLI_TAIL = ", your edit will be saved to the file and take effect when you start " + NET_NAME + " without this command-line option";
 
 // --- Action messages (settings-actions) ---
 export const SETTINGS_CONFIRM_ROTATE = "Old links to this page will stop working immediately; this tab will get the new token by itself. Continue?";
@@ -107,8 +107,8 @@ export const SETTINGS_FIELD_ERRORS_MESSAGE = "There are errors in the fields —
 export const SETTINGS_WRITE_FAILED = "Couldn't write the settings file";
 export const SETTINGS_SAVING = "Saving…";
 export const SETTINGS_FAIL_SAVE = "save";
-export const SETTINGS_FAIL_RESTART = "restart the node";
-export const SETTINGS_FAIL_STOP = "stop the node";
+export const SETTINGS_FAIL_RESTART = "restart " + NET_NAME;
+export const SETTINGS_FAIL_STOP = "stop " + NET_NAME;
 export const SETTINGS_FAIL_ROTATE = "change the token";
 export const SETTINGS_TOKEN_ROTATED = "The new token has been issued and applied";
 
