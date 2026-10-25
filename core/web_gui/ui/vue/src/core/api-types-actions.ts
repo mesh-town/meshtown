@@ -21,6 +21,7 @@ export interface InviteResponse {
   invite: string; // "mesh-invite2-…" (single-use, without the network key)
   holders?: number; // how many nodes besides the issuer can let a newcomer in (0..2)
   reach?: InviteReach; // absent on an old node — same as "spread"
+  qr?: string | null; // SVG of the invite; null when too long for a QR code
 }
 
 /** Invite reach: who will be able to let a newcomer in. */

@@ -107,7 +107,7 @@ describe("requestInvite", () => {
 describe("createInviteState", () => {
   it("warning is empty, other fields as before", () => {
     assert.equal(createInviteState().warning, "");
-    assert.deepEqual(createInviteState(), { text: "", netId: null, busy: false, status: "", warning: "" });
+    assert.deepEqual(createInviteState(), { text: "", qr: "", netId: null, busy: false, status: "", warning: "" });
   });
 });
 
@@ -125,7 +125,7 @@ describe("resetInviteIfNetChanged", () => {
   it("different id_hex — text, netId, status, warning reset", () => {
     const inv = shown();
     resetInviteIfNetChanged(inv, "net-b");
-    assert.deepEqual(inv, { text: "", netId: null, busy: false, status: "", warning: "" });
+    assert.deepEqual(inv, { text: "", qr: "", netId: null, busy: false, status: "", warning: "" });
   });
 
   it("no network (null) — reset, the warning goes away", () => {

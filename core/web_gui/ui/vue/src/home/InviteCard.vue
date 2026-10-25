@@ -4,6 +4,7 @@
 import { inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { HOME_INVITE_BTN, HOME_INVITE_FOR_LABEL, HOME_INVITE_HINT, HOME_INVITE_TITLE, HOME_INVITE_VALUE_ARIA } from "./home-card-texts.ts";
+import { HOME_INVITE_QR_ALT, HOME_INVITE_QR_TOO_LONG } from "./invite-qr-texts.ts";
 import { useHomeContext } from "./use-home.ts";
 import { useInvite } from "./use-invite.ts";
 import { useInviteNote } from "../peers/invite-note.ts";
@@ -11,7 +12,7 @@ import { useInviteNote } from "../peers/invite-note.ts";
 defineProps<{ full?: boolean }>();
 const store = inject(STORE_KEY)!;
 const { hasNet, members, netStatus, notice } = useHomeContext(store);
-const { inviteText, busy, status, warning, forWhom, request } = useInvite(store);
+const { inviteText, inviteQr, busy, status, warning, forWhom, request } = useInvite(store);
 const note = useInviteNote(store, () => store.lead);
 </script>
 
@@ -30,5 +31,7 @@ const note = useInviteNote(store, () => store.lead);
     <p class="hint" id="invite-status" role="status" :hidden="!(status || notice)">{{ status || notice }}</p>
     <p class="hint" id="invite-value-wrap" :hidden="!inviteText"><code class="mono invite-value" id="invite-value" :aria-label="HOME_INVITE_VALUE_ARIA">{{ inviteText }}</code></p>
     <p class="hint hint-warn" id="invite-reach-warning" :hidden="!warning">{{ warning }}</p>
+    <img v-if="inviteText && inviteQr" id="invite-qr" class="invite-qr" :src="inviteQr" :alt="HOME_INVITE_QR_ALT">
+    <p v-else-if="inviteText" id="invite-qr-too-long" class="hint">{{ HOME_INVITE_QR_TOO_LONG }}</p>
   </div>
 </template>
