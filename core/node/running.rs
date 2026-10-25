@@ -157,16 +157,28 @@ impl RunningNode {
             .store(d.as_secs().max(1), Ordering::Relaxed);
     }
 
-    /// Stops the node: closes the port opener and the network stack (the transport
-    /// itself enforces the time limit for closing), then aborts the background tasks.
+    /// Stops the node: closes the network, then writes the delayed replica state to disk.
     pub async fn shutdown(self) {
+        self.close_network().await;
+        flush_replicas(&self.domains).await;
+        say("node", "stopped");
+    }
+
+    /// Closes a node whose start was interrupted. It was never shown to the user, so the replicas are not saved:
+    /// saving would recreate the folder of a network that may already be gone.
+    pub(crate) async fn discard(self) {
+        self.close_network().await;
+        say("node", "an interrupted start was closed");
+    }
+
+    /// Closes the port opener and the network stack (the transport itself enforces the time limit for
+    /// closing), then aborts the background tasks.
+    async fn close_network(&self) {
         self.opener.close_all();
         self.stack.close().await;
         for handle in self.background_abort_handles.iter() {
             handle.abort();
         }
-        flush_replicas(&self.domains).await;
-        say("node", "stopped");
     }
 
     /// Everything `invite::make` needs to build an invite for a live node. Called by both
@@ -184,14 +196,33 @@ impl RunningNode {
     }
 }
 
-/// Writes the delayed state of both replicas to disk; a failure is a warning and does not stop the shutdown.
+/// The longest a single replica may take to reach the disk on shutdown.
+pub(super) const REPLICA_FLUSH_LIMIT: Duration = Duration::from_secs(3);
+
+/// Waits for one replica flush; the text of the problem if it failed or did not end within `limit`.
+async fn flush_trouble(
+    flush: impl std::future::Future<Output = crate::transport::net::NetResult<()>>,
+    limit: Duration,
+) -> Option<String> {
+    match tokio::time::timeout(limit, flush).await {
+        Ok(Ok(())) => None,
+        Ok(Err(e)) => Some(format!("saving a replica on shutdown failed: {e}")),
+        Err(_) => Some(format!(
+            "saving a replica on shutdown did not finish within {limit:?}, skipped"
+        )),
+    }
+}
+
+/// Writes the delayed state of both replicas to disk; a failure or a stuck disk is a warning and does not
+/// stop the shutdown.
 async fn flush_replicas(domains: &crate::proxy::domains::DomainList) {
     for replica in [domains.shared_replica(), domains.own_replica()] {
-        if let Err(e) = replica.flush().await {
-            say(
-                "node",
-                format!("warning: saving a replica on shutdown failed: {e}"),
-            );
+        if let Some(trouble) = flush_trouble(replica.flush(), REPLICA_FLUSH_LIMIT).await {
+            say("node", format!("warning: {trouble}"));
         }
     }
 }
+
+#[cfg(test)]
+#[path = "running_flush_tests.rs"]
+mod flush_tests;

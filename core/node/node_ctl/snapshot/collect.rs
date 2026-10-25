@@ -20,7 +20,6 @@ use crate::site_checks::geoip;
 use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
 use crate::web_gui::auth::iface_nets::admitted_lan;
 use crate::web_gui::auth::iface_os::current_view;
-use crate::web_gui::NodeStatus;
 use crate::web_gui::{MembersInfo, NodeSnapshot, PortsInfo, SocksInfo};
 
 use super::build::{build, socks_lan, Inputs};
@@ -266,16 +265,6 @@ pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: 
         admitting: votes.admitting,
         me_pending: votes.me_pending,
     };
-}
-
-/// Node status from the last collection: online if there are network members or the
-/// relay is connected, otherwise offline. `Starting`/`Stopping` on top is decided by `NodeCtl::snapshot()` — they are not here.
-pub(crate) fn link_status(c: &Collected) -> NodeStatus {
-    if c.snap.members.count > 0 || c.snap.transport.relay.connected {
-        NodeStatus::Online
-    } else {
-        NodeStatus::Offline
-    }
 }
 
 #[cfg(test)]

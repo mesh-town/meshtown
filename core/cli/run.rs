@@ -55,8 +55,12 @@ pub fn run_with_tray(tray: &'static dyn crate::gui::tray::TrayBackend) -> std::p
     start(Some(tray))
 }
 
-#[tokio::main]
-async fn start(tray: Option<TrayRef>) -> std::process::ExitCode {
+/// Runs the process on its own runtime, which does not wait long for stuck blocking threads at exit.
+fn start(tray: Option<TrayRef>) -> std::process::ExitCode {
+    crate::cli::runtime::run_to_exit(start_async(tray))
+}
+
+async fn start_async(tray: Option<TrayRef>) -> std::process::ExitCode {
     let has_tray = tray.is_some();
     crate::cli::args::set_has_tray(has_tray);
     crate::cli::os_console::init(has_tray);

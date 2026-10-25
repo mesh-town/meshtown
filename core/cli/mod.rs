@@ -6,6 +6,7 @@
 //! - `console` - the node console: commands from standard input.
 //! - `os_console` - console output by process role and OS.
 //! - `program_name` - the name the program was started under.
+//! - `runtime` - the tokio runtime of the process entry, with a bounded exit.
 //! - `run` - the process entry called by the `meshtown` binary (`main.rs`).
 
 #[cfg(feature = "net-hyper")]
@@ -21,3 +22,5 @@ pub(crate) mod os_console;
 pub mod program_name;
 #[cfg(feature = "net-hyper")]
 pub mod run;
+#[cfg(feature = "net-hyper")]
+pub(crate) mod runtime;

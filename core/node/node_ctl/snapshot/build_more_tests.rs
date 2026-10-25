@@ -114,7 +114,7 @@ fn self_path_direct_or_none() {
     assert_eq!(collected4.snap.transport.self_path, None);
 }
 
-// 10. link_status (on Collected): members > 0 → Online; relay only → Online; nothing →
+// 10. link_status (on the snapshot): members > 0 → Online; relay only → Online; nothing →
 //     Offline.
 #[test]
 fn link_status_online_or_offline() {
@@ -123,11 +123,11 @@ fn link_status_online_or_offline() {
     let mut inputs = base(my_id);
     inputs.members = [friend_id].into_iter().collect();
     let collected = build(inputs);
-    assert_eq!(link_status(&collected), NodeStatus::Online);
+    assert_eq!(link_status(&collected.snap), NodeStatus::Online);
 
     let inputs3 = base(my_id);
     let collected3 = build(inputs3);
-    assert_eq!(link_status(&collected3), NodeStatus::Offline);
+    assert_eq!(link_status(&collected3.snap), NodeStatus::Offline);
 }
 
 // 11. Collected.domains == list; checking from in_progress; transport.mode == mode.
