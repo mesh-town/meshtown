@@ -20,11 +20,12 @@ fi
 BUILD="${ANDROID_BUILD_DIR:-$ROOT/.tmp/build}"
 DIST="${ANDROID_DIST_DIR:-$ROOT/dist/android}"
 T2P_REF="${TUN2PROXY_REF:-657a263ecc1fe11be7ebb2ba9b360456df74b77d}" # tun2proxy 0.8.6
-T2P_SRC="$BUILD/tun2proxy-src"
+# The tun2proxy checkout is a separate crate: it must stay outside the workspace tree.
+T2P_SRC="${TUN2PROXY_SRC_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/meshtown/tun2proxy-src}"
 JNI="$GUI/app/src/main/jniLibs/arm64-v8a"
 VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/Cargo.toml" | head -1)"
 
-mkdir -p "$BUILD" "$JNI" "$DIST"
+mkdir -p "$BUILD" "$JNI" "$DIST" "$(dirname "$T2P_SRC")"
 
 # Source paths must not leak into the libraries (panic messages, debug info): the last matching prefix wins,
 # so the most specific ones come last.
