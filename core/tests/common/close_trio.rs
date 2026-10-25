@@ -5,6 +5,7 @@
 //! What it doesn't do: no assertions about the close itself; the tests own them.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use meshtown_core::config::config_file::{
@@ -26,6 +27,8 @@ use super::common::{api, wait_until};
 
 /// How long a view or a record may take to spread.
 pub const VIEW_LIMIT: Duration = Duration::from_secs(25);
+/// How long the nodes may take to link to each other after they joined.
+const LINK_LIMIT: Duration = Duration::from_secs(60);
 pub const LABEL: &str = "club";
 
 /// The creator, an administrator and a plain member of one Managed network.
@@ -51,6 +54,12 @@ pub async fn trio() -> Trio {
         admin,
         member,
     };
+    let linked = wait_until(LINK_LIMIT, || t.all().all(|n| n.fully_linked())).await;
+    assert!(
+        linked,
+        "the nodes did not all link to each other: {:?}",
+        t.all().map(|n| n.get("/api/members").1).collect::<Vec<_>>()
+    );
     let ready = wait_until(VIEW_LIMIT, || {
         t.admin.role().as_deref() == Some("admin") && t.member.role().as_deref() == Some("member")
     })
@@ -123,6 +132,14 @@ impl Hosted {
         // The status alone flickers with the links; a node without a network has no `network` block.
         let state = self.get("/api/state").1;
         state["network"].is_null() && state["node"]["status"] == json!("offline")
+    }
+
+    /// Whether the members page shows both other nodes online.
+    pub fn fully_linked(&self) -> bool {
+        let members = self.get("/api/members").1;
+        let rows = members["members"].as_array().cloned().unwrap_or_default();
+        let others = rows.iter().filter(|r| r["self"] == json!(false));
+        others.clone().count() == 2 && others.into_iter().all(|r| r["online"] == json!(true))
     }
 
     /// Whether the members page lists `who` with a status.
@@ -285,11 +302,9 @@ fn free_port() -> u16 {
 }
 
 fn scratch_dir(tag: &str) -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("mesh-close-{tag}-{}-{nanos}", std::process::id()));
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("mesh-close-{tag}-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch directory");
     dir
 }

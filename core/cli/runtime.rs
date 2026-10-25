@@ -9,6 +9,7 @@ pub(crate) const EXIT_DRAIN: Duration = Duration::from_secs(1);
 /// Runs `body` on a multi-thread runtime and returns its output; blocking threads still running after the body
 /// are given `EXIT_DRAIN` and then abandoned, so they cannot hold the exit of the process.
 pub(crate) fn run_to_exit<T>(body: impl Future<Output = T>) -> T {
+    crate::cli::stop_signals::unblock_stop_signals();
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
