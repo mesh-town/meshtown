@@ -1,8 +1,8 @@
 # HTTP API contract and config schema for the node, continued (2)
 
-Part 2 of 3. A continuation of section "1. HTTP API contract" (subsections 1.6–1.8) and section
+Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6–1.8) and section
 "2. Config schema". Part 1 (1.1–1.5) is `WEB-API.md`. Part 3 (section 3) —
-`WEB-API-embedding.md`.
+`WEB-API-embedding.md`. Part 4 (1.12) is `WEB-API-members.md`.
 
 ---
 

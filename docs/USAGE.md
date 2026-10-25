@@ -328,7 +328,7 @@ node. Opening a `local` port that another network of the node already uses is re
 The node page has a "Home" tab with the essentials for a simple setup (state, joining a network, exit choice, proxy
 hint, node name, permission to be an exit for other members) and six more tabs: "Members", "Site checks", "Ports",
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
-the tabs become a horizontal strip.
+the tabs become a horizontal strip. The "Ports" tab is described in [Published ports](#published-ports).
 
 **Removing a member that is offline.** On the "Members" tab, a member that is not connected has a "Remove from network…"
 item. It differs from "Ban from network…": a ban forbids the node to enter and is held by the votes of the whole
