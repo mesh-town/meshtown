@@ -1,6 +1,9 @@
 //! The "icon is hidden" check (the sign is that the `NSStatusItem` button window is not visible and is parked below the bottom
-//! edge of the screen) and a window with an "Open settings" button; there is no timer and no repeats —
-//! the check runs exactly once per launch, called by the delegate through `performSelector:…afterDelay:`.
+//! edge of the screen) and a window with an "Open settings" button. There is no timer: the delegate calls `check` once after
+//! launch and, if the icon looked hidden, `recheck` a few seconds later, both through `performSelector:…afterDelay:`.
+//! The window is shown only when both checks saw a hidden icon (the menu bar can still be loading on a cold start).
+
+use std::cell::Cell;
 
 use objc2::MainThreadMarker;
 use objc2_app_kit::{
@@ -13,8 +16,10 @@ use meshtown_core::gui::tray::{
     HIDDEN_ICON_OPEN_SETTINGS_TEXT,
 };
 
-/// Delay before the single check after `attach_ui`.
+/// Delay before the first check after `attach_ui`.
 pub(crate) const CHECK_DELAY_SECS: f64 = 2.0;
+/// Delay between a first "hidden" verdict and the second check that confirms it.
+pub(crate) const RECHECK_DELAY_SECS: f64 = 5.0;
 pub(crate) const MENU_BAR_SETTINGS_URL: &str =
     "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension";
 /// The top edge of the window frame (`maxY`) is no higher than this (in points) — the window is wholly below the bottom edge of the
@@ -53,16 +58,39 @@ fn icon_window(item: &NSStatusItem, mtm: MainThreadMarker) -> Option<IconWindow>
     })
 }
 
-/// The "hidden" check exactly once: writes a line to the acceptance log, a hidden icon
-/// opens `show_hidden_icon_alert`.
-pub(crate) fn check(item: &NSStatusItem, mtm: MainThreadMarker) {
+/// The icon counts as hidden only when both checks saw it hidden; a visible or unknown window in either one cancels the alert.
+fn confirmed_hidden(first: Option<IconWindow>, second: Option<IconWindow>) -> bool {
+    looks_hidden(first) && looks_hidden(second)
+}
+
+thread_local! {
+    /// The window seen by the first check, handed to the second one (both run on the main thread).
+    static FIRST: Cell<Option<IconWindow>> = const { Cell::new(None) };
+}
+
+/// Samples the icon window and writes the verdict to the acceptance log under `label`.
+fn sample(item: &NSStatusItem, mtm: MainThreadMarker, label: &str) -> Option<IconWindow> {
     let window = icon_window(item, mtm);
     let hidden = looks_hidden(window);
-    log_tray(&format!("icon: window {window:?}, hidden: {hidden}"));
-    if !hidden {
-        return;
+    log_tray(&format!(
+        "icon: window {window:?}, hidden: {hidden} ({label})"
+    ));
+    window
+}
+
+/// The first "hidden" check; returns `true` when the icon looks hidden and `recheck` should be scheduled.
+pub(crate) fn check(item: &NSStatusItem, mtm: MainThreadMarker) -> bool {
+    let window = sample(item, mtm, "first");
+    FIRST.with(|cell| cell.set(window));
+    looks_hidden(window)
+}
+
+/// The second check: the alert opens only if `confirmed_hidden` holds for both samples.
+pub(crate) fn recheck(item: &NSStatusItem, mtm: MainThreadMarker) {
+    let second = sample(item, mtm, "second");
+    if confirmed_hidden(FIRST.with(Cell::get), second) {
+        show_hidden_icon_alert(mtm);
     }
-    show_hidden_icon_alert(mtm);
 }
 
 /// An `NSAlert` with the buttons "Open settings"/"Not now"; the first button opens the "Menu

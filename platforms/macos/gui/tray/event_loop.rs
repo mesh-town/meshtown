@@ -15,7 +15,7 @@ use std::sync::OnceLock;
 
 use block2::RcBlock;
 use objc2::rc::Retained;
-use objc2::runtime::{NSObject, NSObjectProtocol, ProtocolObject};
+use objc2::runtime::{NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{define_class, msg_send, sel, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
     NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStatusItem,
@@ -94,7 +94,15 @@ define_class!(
         // SAFETY: the signature is correct.
         #[unsafe(method(checkStatusItem:))]
         fn check_status_item(&self, item: &NSStatusItem) {
-            super::hidden_icon::check(item, self.mtm());
+            if super::hidden_icon::check(item, self.mtm()) {
+                self.schedule(sel!(recheckStatusItem:), item, super::hidden_icon::RECHECK_DELAY_SECS);
+            }
+        }
+
+        // SAFETY: the signature is correct.
+        #[unsafe(method(recheckStatusItem:))]
+        fn recheck_status_item(&self, item: &NSStatusItem) {
+            super::hidden_icon::recheck(item, self.mtm());
         }
     }
 );
@@ -106,19 +114,22 @@ impl Delegate {
         unsafe { msg_send![super(this), init] }
     }
 
-    /// Schedules the single "hidden" check via `hidden_icon::CHECK_DELAY_SECS`; without
+    /// Schedules the first "hidden" check via `hidden_icon::CHECK_DELAY_SECS`; without
     /// an icon (`attach_ui` failed or has not built one yet) — it does not schedule.
     fn schedule_check(&self, item: Option<Retained<NSStatusItem>>) {
         let Some(item) = item else { return };
-        // SAFETY: the selector is declared in `define_class!` above with an object argument; `performSelector:…
+        self.schedule(
+            sel!(checkStatusItem:),
+            &item,
+            super::hidden_icon::CHECK_DELAY_SECS,
+        );
+    }
+
+    fn schedule(&self, selector: Sel, item: &NSStatusItem, delay: f64) {
+        // SAFETY: both selectors are declared in `define_class!` above with an object argument; `performSelector:…
         // afterDelay:` retains `self` and `item` until the call; called on the main thread (the delegate).
         let _: () = unsafe {
-            msg_send![
-                self,
-                performSelector: sel!(checkStatusItem:),
-                withObject: &*item,
-                afterDelay: super::hidden_icon::CHECK_DELAY_SECS
-            ]
+            msg_send![self, performSelector: selector, withObject: item, afterDelay: delay]
         };
     }
 }
