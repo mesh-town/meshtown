@@ -92,16 +92,22 @@ impl SplitTransport {
     }
 
     async fn connect_inner(&self, to: PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
+        let path = self.check_can_carry(&to).await?;
+        let (_, conn) = self.carrier.start(path, CarrierRole::Dial(svc)).await?;
+        Ok(conn)
+    }
+
+    /// Dials a path unless the transport is closed; a path the carrier cannot carry is closed and is `NoRoute`.
+    async fn check_can_carry(&self, to: &PeerAddr) -> NetResult<Box<dyn PacketPath>> {
         if self.closed.load(Ordering::Acquire) {
             return Err(NetError::Closed);
         }
-        let path = self.connector.dial(&to).await?;
+        let path = self.connector.dial(to).await?;
         if !self.carrier.can_carry(&path.info()) {
             path.close();
             return Err(NetError::NoRoute);
         }
-        let (_, conn) = self.carrier.start(path, CarrierRole::Dial(svc)).await?;
-        Ok(conn)
+        Ok(path)
     }
 
     async fn close_inner(&self) {
