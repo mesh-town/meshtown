@@ -57,16 +57,23 @@ pub(super) fn copy_live_paths(
     paths: &[&'static str],
 ) -> (Vec<&'static str>, Vec<&'static str>) {
     let mut live = Vec::new();
-    let mut deferred = Vec::new();
     for &p in paths {
-        if let Some(f) = fields::field_by_path(p).filter(|_| fields::live_paths().contains(&p)) {
+        if let Some(f) = fields::field_by_path(p).filter(|_| is_live(p)) {
             f.value.copy_value_between(from, effective_settings);
             live.push(p);
-        } else {
-            deferred.push(p);
         }
     }
-    (live, deferred)
+    (live, deferred_paths(paths))
+}
+
+/// Whether the field behind the path exists and takes effect without a restart.
+fn is_live(path: &'static str) -> bool {
+    fields::field_by_path(path).is_some() && fields::live_paths().contains(&path)
+}
+
+/// The paths that take effect only after a restart, in the order given.
+fn deferred_paths(paths: &[&'static str]) -> Vec<&'static str> {
+    paths.iter().copied().filter(|&p| !is_live(p)).collect()
 }
 
 /// Applies live paths to an already running node through the live-setting handles (shared by `attach` — with `pending` —

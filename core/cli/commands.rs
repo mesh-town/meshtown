@@ -76,6 +76,16 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
     let (run, overrides, invited) = prepare_run(&args, overrides, invited, &source, now).await?;
+    launch_prepared(args, overrides, run, invited).await
+}
+
+/// Starts the node from a prepared run: with the network key when one is set, otherwise without it.
+async fn launch_prepared(
+    args: RunArgs,
+    overrides: CliOverrides,
+    run: config_file::RunConfig,
+    invited: Option<crate::invite::ParsedInvite>,
+) -> anyhow::Result<()> {
     match run.effective_settings.net.network_key.clone() {
         Some(key_text) => {
             run_with_key(

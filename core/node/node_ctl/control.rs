@@ -149,6 +149,11 @@ pub(super) fn begin_network_switch(
         key: key.to_string(),
         peers,
     });
+    say("node", switch_line(from_no_network, peers_count));
+}
+
+/// The journal line for a network switch: first join or restart, plus the number of addresses from the invite.
+fn switch_line(from_no_network: bool, peers_count: usize) -> String {
     let mut msg = if from_no_network {
         format!(
             "joining the {} network: starting the node",
@@ -163,5 +168,5 @@ pub(super) fn begin_network_switch(
     if peers_count > 0 {
         msg.push_str(&format!(" (addresses from the invite: {peers_count})"));
     }
-    say("node", msg);
+    msg
 }
