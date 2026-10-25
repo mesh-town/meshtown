@@ -61,7 +61,7 @@ pub(super) fn write_new_settings(
     }
 }
 
-/// The write itself; the method depends on what was on disk (see `load_file_or_reject_stale_rev`).
+/// The write itself; the method depends on what was on disk (see `load_settings_file`).
 fn perform_write(
     state: &ConfigState,
     file: &dyn SettingsFile,

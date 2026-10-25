@@ -61,10 +61,18 @@ pub(super) fn open_tray_log() -> std::io::Result<std::fs::File> {
 pub(super) fn open_log(dir: &Path, name: &str) -> std::io::Result<std::fs::File> {
     std::fs::create_dir_all(dir)?;
     let path = dir.join(name);
-    if path.exists() {
-        let _ = std::fs::rename(&path, dir.join(format!("{name}.1")));
-    }
+    rotate_old_log(&path);
     std::fs::File::create(path)
+}
+
+/// Moves an existing log to `<path>.1` (an old `.1` is replaced; a failure is ignored).
+#[cfg(any(test, windows, target_os = "macos"))]
+fn rotate_old_log(path: &Path) {
+    if path.exists() {
+        let mut old = path.as_os_str().to_owned();
+        old.push(".1");
+        let _ = std::fs::rename(path, old);
+    }
 }
 
 /// The node log `meshtown.log` (the same rotation in the standard config directory) that the

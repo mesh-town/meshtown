@@ -35,22 +35,9 @@ pub async fn start_web_page(
         }
     };
 
-    let auth = AuthState::new(
-        cookie::session_cookie_name(&run_config.secret.peer_id()),
-        opts.token_dir.clone(),
-        run_config.effective_settings.process.web_access,
-    );
-    auth.set_ifaces(run_config.effective_settings.process.web_ifaces.clone());
-    let shared = Arc::new(WebShared::new(port, token, auth));
-    let app = Arc::new(App {
-        shared: shared.clone(),
-        host,
-        token_dir: opts.token_dir.clone(),
-        stopping: std::sync::atomic::AtomicBool::new(false),
-    });
+    let (app, router) = build_web_app(&opts, run_config, host, port, token);
 
-    let router = super::routes::router(app.clone());
-
+    let shared = app.shared.clone();
     let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
 
     announce_start(&shared);
@@ -64,10 +51,35 @@ pub async fn start_web_page(
     ));
 
     Ok(WebHandle {
-        shared: app.shared.clone(),
+        shared,
         stop: stop_tx,
         task,
     })
+}
+
+/// Builds the shared state, the app and the router for the page listening on `port`.
+fn build_web_app(
+    opts: &WebOptions,
+    run_config: &crate::config::config_file::RunConfig,
+    host: Arc<dyn HostControl>,
+    port: u16,
+    token: String,
+) -> (Arc<App>, axum::Router) {
+    let auth = AuthState::new(
+        cookie::session_cookie_name(&run_config.secret.peer_id()),
+        opts.token_dir.clone(),
+        run_config.effective_settings.process.web_access,
+    );
+    auth.set_ifaces(run_config.effective_settings.process.web_ifaces.clone());
+    let shared = Arc::new(WebShared::new(port, token, auth));
+    let app = Arc::new(App {
+        shared,
+        host,
+        token_dir: opts.token_dir.clone(),
+        stopping: std::sync::atomic::AtomicBool::new(false),
+    });
+    let router = super::routes::router(app.clone());
+    (app, router)
 }
 
 /// Listens on `port` at the address given by the access mode and re-reads the actual port (random when

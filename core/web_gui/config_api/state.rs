@@ -2,6 +2,7 @@
 //! the `stale_rev`/`invalid`/`config_write_failed` responses. Editing fields is in `put.rs`/`save_key.rs`
 //! of this same folder, shared constants and small helpers are in `support.rs`.
 
+use crate::node::output::NET_NAME;
 use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -54,27 +55,34 @@ impl ConfigState {
 
     pub(super) fn page_config_document(&self) -> Value {
         let mut doc = self.config_doc_of(&self.file_settings);
-        if let Some(obj) = doc.as_object_mut() {
-            obj.insert(
-                "network".to_string(),
-                network_view(self.current_network_key.as_deref()),
-            );
-            if let Some(node) = obj.get_mut("node").and_then(Value::as_object_mut) {
-                if !node.contains_key("name") {
-                    node.insert("name".to_string(), Value::Null);
-                }
-            }
-            for (section, reason) in [
-                ("autostart", AUTOSTART_REASON),
-                ("full_tunnel", FULL_TUNNEL_REASON),
-            ] {
-                if let Some(sec) = obj.get_mut(section).and_then(Value::as_object_mut) {
-                    sec.insert("available".to_string(), Value::Bool(false));
-                    sec.insert("reason".to_string(), Value::String(reason.to_string()));
-                }
+        self.add_page_fields(&mut doc);
+        doc
+    }
+
+    /// Adds the fields only the page shows: `network`, an explicit `node.name`, and the unavailable
+    /// `autostart` / `full_tunnel` sections.
+    fn add_page_fields(&self, doc: &mut Value) {
+        let Some(obj) = doc.as_object_mut() else {
+            return;
+        };
+        obj.insert(
+            "network".to_string(),
+            network_view(self.current_network_key.as_deref()),
+        );
+        if let Some(node) = obj.get_mut("node").and_then(Value::as_object_mut) {
+            if !node.contains_key("name") {
+                node.insert("name".to_string(), Value::Null);
             }
         }
-        doc
+        for (section, reason) in [
+            ("autostart", AUTOSTART_REASON),
+            ("full_tunnel", FULL_TUNNEL_REASON),
+        ] {
+            if let Some(sec) = obj.get_mut(section).and_then(Value::as_object_mut) {
+                sec.insert("available".to_string(), Value::Bool(false));
+                sec.insert("reason".to_string(), Value::String(reason.to_string()));
+            }
+        }
     }
 
     /// Probe of the directory for writing.
@@ -176,7 +184,7 @@ impl ConfigState {
             StatusCode::CONFLICT,
             serde_json::json!({
                 "error": "stale_rev",
-                "message": "settings were changed in another tab or by the node itself",
+                "message": format!("settings were changed in another tab or by {NET_NAME} itself"),
                 "rev": rev,
                 "config": self.page_config_document(),
             }),
