@@ -169,3 +169,7 @@ impl Core {
         ui.vote.apply(vote_text.as_deref(), &note_ids);
     }
 }
+
+#[cfg(test)]
+#[path = "core_line_tests.rs"]
+mod tests;

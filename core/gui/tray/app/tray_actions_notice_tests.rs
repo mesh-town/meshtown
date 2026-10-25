@@ -46,3 +46,18 @@ fn notice_title_is_short() {
         }
     }
 }
+
+#[test]
+fn notice_bodies_lead_with_the_action() {
+    for body in [
+        INVITE_NOTICE_ISSUER_ONLY_BODY,
+        INVITE_NOTICE_ISSUER_AND_ONE_BODY,
+    ] {
+        assert!(body.starts_with("Keep this computer on"), "{body}");
+        let head: String = body.chars().take(55).collect();
+        assert!(
+            head.contains("Keep") && head.contains("until they join"),
+            "{head}"
+        );
+    }
+}
