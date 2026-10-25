@@ -14,7 +14,7 @@ use crate::transport::net::id::PeerId;
 use crate::transport::net::link::LinkInfo;
 use crate::transport::net::stream::{BoxFuture, StreamPair};
 use crate::transport::net::transport::PeerConn;
-use crate::transport::net_hyper::link::{link_info, LinkMeter, Metered, PathFacts};
+use crate::transport::net_hyper::link::{link_info, path_text_of, LinkMeter, Metered, PathFacts};
 use crate::transport::net_hyper::table::{SessionKey, Sessions};
 use crate::transport::net_hyper::wire::Ctrl;
 use crate::transport::net_hyper::wire::REASON_MAX_BYTES;
@@ -33,7 +33,6 @@ pub const DEAD_AFTER: Duration = Duration::from_secs(20);
 pub const CODE_SILENT: u32 = 0xFFFF_0002;
 /// How many accepted streams not yet picked up by `accept()` the session holds.
 const STREAM_QUEUE: usize = 256;
-const PATH_TEXT: &str = "hyper: direct UDX, rtt unknown";
 
 /// Dials a data stream to the other side: a DHT connection whose key has already been checked against `to`.
 pub trait StreamDialer: Send + Sync {
@@ -315,11 +314,11 @@ impl PeerConn for HyperConn {
     }
 
     fn path_text(&self) -> String {
-        PATH_TEXT.to_string()
+        path_text_of(link_info(&self.core.meter).rtt)
     }
 
     fn path_lines(&self) -> Vec<String> {
-        vec![PATH_TEXT.to_string()]
+        vec![self.path_text()]
     }
 
     fn close_reason(&self) -> String {

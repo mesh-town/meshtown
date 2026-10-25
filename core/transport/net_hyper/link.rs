@@ -90,6 +90,14 @@ pub fn link_info(meter: &LinkMeter) -> LinkInfo {
     }
 }
 
+/// Path line of a session: the round-trip time in whole milliseconds (at least 1), or `unknown`.
+pub fn path_text_of(rtt: Option<std::time::Duration>) -> String {
+    match rtt {
+        Some(d) => format!("hyper: direct UDX, rtt {} ms", d.as_millis().max(1)),
+        None => "hyper: direct UDX, rtt unknown".to_string(),
+    }
+}
+
 fn probed_rtt(meter: &LinkMeter) -> Option<std::time::Duration> {
     let probe = meter.path.get()?.rtt.as_ref()?;
     probe()
