@@ -4,6 +4,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
   REMEMBERED_KEY,
+  addRememberedFor,
   chosenExitIds,
   getRememberedEntries,
   getRememberedExits,
@@ -235,3 +236,56 @@ describe("remembered exits of one network (getRememberedFor / setRememberedFor)"
 function storageWith(raw) {
   return memoryStorage({ [REMEMBERED_KEY]: raw });
 }
+
+describe("addRememberedFor", () => {
+  const store = () => {
+    const m = new Map();
+    return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, v) };
+  };
+  const ABC = ["A", "B", "C"];
+
+  it("an empty slot gets the ids", () => {
+    const s = store();
+    addRememberedFor("main", ["A"], s);
+    assert.deepEqual(getRememberedFor("main", s), ["A"]);
+  });
+
+  it("a new id goes to the end, the old order stays", () => {
+    const s = store();
+    setRememberedFor("main", ["A", "B"], s);
+    addRememberedFor("main", ["C"], s);
+    assert.deepEqual(getRememberedFor("main", s), ABC);
+  });
+
+  it("an id that is already there changes nothing", () => {
+    const s = store();
+    setRememberedFor("k7q2xa", ABC, s);
+    addRememberedFor("k7q2xa", ["A", "C"], s);
+    assert.deepEqual(getRememberedFor("k7q2xa", s), ABC);
+  });
+
+  it("more than eight: the oldest go away", () => {
+    const s = store();
+    const ids = Array.from({ length: 8 }, (_, i) => "id" + i);
+    setRememberedFor("k7q2xa", ids, s);
+    addRememberedFor("k7q2xa", ["new"], s);
+    assert.deepEqual(getRememberedFor("k7q2xa", s), [...ids.slice(1), "new"]);
+  });
+
+  it("the entries of other slots stay; main entries lead the list", () => {
+    const s = store();
+    setRememberedFor("k7q2xa", ["N"], s);
+    addRememberedFor("main", ["M"], s);
+    addRememberedFor("k7q2xa", ["O"], s);
+    assert.deepEqual(getRememberedFor("k7q2xa", s), ["N", "O"]);
+    assert.deepEqual(getRememberedFor("main", s), ["M"]);
+    assert.deepEqual(getRememberedEntries(s)[0], { id: "M", slot: "main" });
+  });
+
+  it("a legacy bare id of main is kept and written as an object", () => {
+    const s = store();
+    s.setItem(REMEMBERED_KEY, JSON.stringify(["L"]));
+    addRememberedFor("main", ["M"], s);
+    assert.deepEqual(getRememberedFor("main", s), ["L", "M"]);
+  });
+});

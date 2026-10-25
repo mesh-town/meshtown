@@ -56,7 +56,7 @@ describe("removal texts", () => {
     it("the text of the card", () => {
       assert.equal(
         t.FORGOTTEN_CARD_TEXT,
-        "Members removed it after it had been offline for a while. It can't connect to them until it joins again. Ask a member for a new invite \u2014 this computer keeps its key.",
+        "Members removed it after it had been offline for a while. It can't connect to them until it joins again. Ask a member for a new invite.",
       );
     });
   });

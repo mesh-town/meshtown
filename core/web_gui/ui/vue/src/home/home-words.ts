@@ -1,6 +1,7 @@
 /* Home words — pure functions: the member counter, the "suddenly alone" network status, the hint
  * for the "Allow others…" switch (a port of `07-home.js`). */
 
+import { forDevice } from "../common/device.ts";
 import { plural } from "../common/locale.ts";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
 import { ALONE_INVITE_TEXT, ALONE_TEXT, NET_LOADING_TEXT, NO_CATALOG_INVITE_TEXT, noCatalogOthersText, offlineOthersText, quotedNet } from "../common/words.ts";
@@ -103,7 +104,7 @@ export function exitServerHint(enabled: boolean, label: string | null): string {
   return enabled
     ? "On: members of the network" + quotedNet(label) +
       " can open sites through your internet connection, and sites will see your address."
-    : "Off: no one can open sites through this computer.";
+    : forDevice("Off: no one can open sites through this computer.");
 }
 
 // Home tabs: the strip caption and the button texts.

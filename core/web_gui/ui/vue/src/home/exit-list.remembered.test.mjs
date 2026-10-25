@@ -32,7 +32,7 @@ describe("offeredRemembered", () => {
 describe("exitCandidates with one network", () => {
   it("lists a remembered id that has no peer", () => {
     const list = exitCandidates({ peers: [peer("p", true)] }, [], ["foreign"]);
-    assert.deepEqual(list.map((c) => c.idFull), ["foreign", "p"]);
+    assert.deepEqual(list.map((c) => c.idFull), ["p", "foreign"]);
   });
 });
 
@@ -45,7 +45,7 @@ describe("shownRemembered with one network", () => {
   });
 
   it("an entry written by this page stays listed after Directly", () => {
-    assert.deepEqual(listed(["foreign"], []), ["foreign", "p"]);
+    assert.deepEqual(listed(["foreign"], []), ["p", "foreign"]);
   });
 
   it("a legacy bare id of an offering peer stays", () => {

@@ -2,6 +2,7 @@
  * The network key and the invite string go only into the request body and do not stay in `form`. */
 
 import { watch } from "vue";
+import { forDevice } from "../common/device.ts";
 import type { NetKind, CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
 import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
@@ -139,7 +140,7 @@ function joinDone(form: JoinForm, res: JoinResponse | null, path: string): JoinR
   form.slot = res?.slot ?? slotOfPath(path);
   form.netLabel = res?.label || undefined;
   if (res && res.waiting === true) {
-    form.status = res.label ? waitingStatusText(quotedNet(res.label)) : JOIN_WAITING;
+    form.status = res.label ? waitingStatusText(quotedNet(res.label)) : forDevice(JOIN_WAITING);
     return "waiting";
   }
   form.status = joinedStatusText(quotedNet(res && res.label));

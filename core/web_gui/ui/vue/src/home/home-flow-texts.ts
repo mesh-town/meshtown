@@ -1,6 +1,7 @@
 /* Texts of the Home logic (`.ts`): browser connection steps, the exit list, actions and the status panel,
  * invite, joining a network, join progress, the member ring. */
 
+import { forDevice } from "../common/device.ts";
 import { NET_NAME } from "../common/words.ts";
 
 // Shared connection words (the exit list, the status panel)
@@ -70,7 +71,7 @@ export const JOIN_STALLED = "Something went wrong: " + NET_NAME + " didn't respo
 export const JOIN_STALLED_SILENT = "Something went wrong: " + NET_NAME + " didn't respond after joining the network. What happened is in the meshtown.log file next to the settings file or in the terminal window you started " + NET_NAME + " from.";
 export const JOIN_WAITING = "Invite sent. Waiting for a member of this network to come online and let this computer in — this page will update.";
 export const waitingStatusText = (netQuoted: string): string =>
-  "Invite sent. Waiting for a member of" + netQuoted + " to come online and let this computer in — this page will update.";
+  "Invite sent. Waiting for a member of" + netQuoted + forDevice(" to come online and let this computer in — this page will update.");
 export const HOME_JOIN_ACTION = "join the network";
 export const HOME_CREATE_FAILED = "Couldn't create the network — try again";
 export const createdNoticeText = (netQuoted: string): string =>

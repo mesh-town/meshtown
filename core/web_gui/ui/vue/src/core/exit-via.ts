@@ -6,7 +6,7 @@ import type { Store } from "./store.ts";
 import { refetchConfig, saveConfigFields, saveSlotFields, fieldErrorText } from "./save-config.ts";
 import type { ConfigChanges } from "./save-config.ts";
 import { isMulti, visibleSlots } from "./slots.ts";
-import { chosenExitIds, setRememberedFor } from "../common/exits.ts";
+import { addRememberedFor, chosenExitIds } from "../common/exits.ts";
 import { exitValue } from "../home/exit-list.ts";
 import { api as coreApi } from "./api.ts";
 import { CORE_SAVED } from "./core-texts.ts";
@@ -63,7 +63,7 @@ const needsProxyMove = (store: Store, slot: string, idFull: string): boolean => 
 };
 
 export async function saveExitIn(store: Store, slot: string, idFull: string, deps: ExitDeps = {}): Promise<ExitSaveStatus> {
-  const remember = deps.remember || ((ids: string[]) => setRememberedFor(slot, ids));
+  const remember = deps.remember || ((ids: string[]) => addRememberedFor(slot, ids));
   const changes = { "route.exits": [idFull] };
   const move = needsProxyMove(store, slot, idFull);
   const hadMainExits = chosenExitIds(store).length > 0;

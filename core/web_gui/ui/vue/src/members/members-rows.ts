@@ -4,6 +4,7 @@ import {
   BADGE_BLOCKED, BADGE_FORGET_PROPOSED, BADGE_PENDING, BADGE_BAN_PROPOSED, LINE_CANT_CONNECT, MENU_BLOCK, MENU_CONFIRM_FORGET, MENU_FORGET, MENU_LEAVE, MENU_BAN, MENU_RENAME,
   MENU_UNADMIT, MENU_UNBLOCK, MENU_UNDO_FORGET, MENU_WAITING, MENU_WITHDRAW, TITLE_BLOCKED, TITLE_BAN_PROPOSED, admissionLine, proposedByText, waitingMoreText,
 } from "./members-texts.ts";
+import { forDevice } from "../common/device.ts";
 import { canConfirm, canUnadmit } from "./members-ids.ts";
 import { managedMenuItems, type MenuCtx } from "./members-managed-rows.ts";
 import type { MemberRow, MenuItem } from "./members-types.ts";
@@ -28,14 +29,14 @@ interface PeerLike {
 
 const NEUTRAL = (): RowDecor => ({ badge: null, lines: [], mainAction: null });
 const PROPOSED: Badge = { text: BADGE_BAN_PROPOSED, tone: "warn" };
-const BLOCKED: Badge = { text: BADGE_BLOCKED, tone: "grey" };
+const blocked = (): Badge => ({ text: forDevice(BADGE_BLOCKED), tone: "grey" });
 
 const nameOf = (names: Record<string, string>, id: string): string => names[id] || id.slice(0, 8);
 
 function decorVote(m: MemberRow, me: string, names: Record<string, string>): RowDecor {
   const vote = m.vote!;
   const more = vote.need - vote.votes;
-  if (vote.mine) return { badge: PROPOSED, lines: [waitingMoreText(more), BADGE_BLOCKED], mainAction: null };
+  if (vote.mine) return { badge: PROPOSED, lines: [waitingMoreText(more), forDevice(BADGE_BLOCKED)], mainAction: null };
   const mainAction = canConfirm(m, me) ? "confirm" : null;
   return { badge: PROPOSED, lines: [proposedByText(nameOf(names, vote.proposed_by), more)], mainAction };
 }
@@ -45,7 +46,7 @@ export function rowDecor(peer: PeerLike, m: MemberRow | null | undefined, me: st
   if (m.vote) return decorVote(m, me, names);
   if (m.forget) return { badge: { text: BADGE_FORGET_PROPOSED, tone: "warn" }, lines: [], mainAction: null };
   if (m.admission) return { badge: { text: BADGE_PENDING, tone: "warn" }, lines: [admissionLine(m.admission.votes, m.admission.need)], mainAction: null };
-  if (m.blocked_by_me) return { badge: BLOCKED, lines: [LINE_CANT_CONNECT], mainAction: "unblock" };
+  if (m.blocked_by_me) return { badge: blocked(), lines: [LINE_CANT_CONNECT], mainAction: "unblock" };
   return NEUTRAL();
 }
 
@@ -54,7 +55,7 @@ const disabled = (title: string): Partial<MenuItem> => ({ disabled: true, title 
 
 function blockItem(m: MemberRow): MenuItem {
   if (m.blocked_by_me && m.status !== "member") return item("unblock", MENU_UNBLOCK);
-  return item("block", MENU_BLOCK, m.blocked_by_me ? disabled(TITLE_BLOCKED) : {});
+  return item("block", forDevice(MENU_BLOCK), m.blocked_by_me ? disabled(TITLE_BLOCKED) : {});
 }
 
 function banItem(m: MemberRow): MenuItem {

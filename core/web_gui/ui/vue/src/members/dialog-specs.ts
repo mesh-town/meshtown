@@ -46,12 +46,12 @@ const BUILDERS: Record<DialogKind, Builder> = {
     title: "Ban " + c.name + " from the network?",
     body: [
       c.name + " will lose access to the network" + quotedNet(c.net) + ". This takes two members: you propose, and one more member confirms.",
-      "On this computer, " + c.name + " is blocked right away.",
+      forDevice("On this computer, ") + c.name + " is blocked right away.",
       "For everyone else, it's banned after a second member confirms. Its open connections are then cut.",
     ],
     hint:
       "Use this if the computer is lost, stolen, or no longer used. To keep " + c.name +
-      ' away from this computer only, choose "Block on this computer" instead.',
+      forDevice(' away from this computer only, choose "Block on this computer" instead.'),
     field: { label: REASON_LABEL, max: REASON_MAX },
     action: "Propose ban",
   }),
@@ -83,10 +83,10 @@ const BUILDERS: Record<DialogKind, Builder> = {
     action: "Confirm " + c.name,
   }),
   block: (c) => ({
-    title: "Block " + c.name + " on this computer?",
-    body: [c.name + " won't be able to connect to this computer or open sites through it. Its open connections to you are cut."],
+    title: "Block " + c.name + forDevice(" on this computer?"),
+    body: [c.name + forDevice(" won't be able to connect to this computer or open sites through it. Its open connections to you are cut.")],
     hint:
-      "Only this computer is affected: " + c.name +
+      forDevice("Only this computer is affected: ") + c.name +
       ' stays in the network and keeps working with other members. To ban it for everyone, choose "Ban from network" instead.',
     action: "Block " + c.name,
   }),

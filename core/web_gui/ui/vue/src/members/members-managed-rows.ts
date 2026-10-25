@@ -4,6 +4,7 @@ import {
   MENU_DELETE_NETWORK, MENU_GIVE_UP, MENU_GIVE_UP_ONLY, MENU_MAKE_ADMIN, MENU_MAKE_MEMBER, MENU_REMOVE, MENU_REMOVE_ADMINS_ONLY, TITLE_ADMINS_ONLY,
   TITLE_CREATOR, TITLE_ONLY_ADMIN,
 } from "./members-managed-texts.ts";
+import { forDevice } from "../common/device.ts";
 import { MENU_BLOCK, MENU_LEAVE, MENU_RENAME, MENU_UNBLOCK, TITLE_BLOCKED } from "./members-texts.ts";
 import type { MemberRow, MenuItem } from "./members-types.ts";
 
@@ -20,7 +21,7 @@ const item = (key: MenuItem["key"], label: string, extra: Partial<MenuItem> = {}
 function blockItem(row: MemberRow): MenuItem {
   if (row.blocked_by_me && row.status !== "member") return item("unblock", MENU_UNBLOCK);
   const off = row.blocked_by_me ? { disabled: true, title: TITLE_BLOCKED } : {};
-  return item("block", MENU_BLOCK, off);
+  return item("block", forDevice(MENU_BLOCK), off);
 }
 
 function roleItem(row: MemberRow, ctx: MenuCtx): MenuItem {

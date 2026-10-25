@@ -2,6 +2,7 @@
  * save bar. No markup and no Vue. */
 
 import type { ConfigDocument, ConfigFileInfo, ConfigMeta, FieldError, NodeState } from "../core/api-types.ts";
+import { forDevice } from "../common/device.ts";
 import { CLI_FIXED_NOTE, upperFirst } from "../common/words.ts";
 import type { Store } from "../core/store.ts";
 import type { ConfigChanges } from "../core/save-config.ts";
@@ -96,7 +97,7 @@ export function fieldCaption(field: Field, multi: boolean): string {
 }
 
 export function fieldLabel(field: Field, multi: boolean): string {
-  return multi && field.path === "web.access" ? SETTINGS_WEB_ACCESS_MULTI : field.title;
+  return multi && field.path === "web.access" ? forDevice(SETTINGS_WEB_ACCESS_MULTI) : field.title;
 }
 
 export function metaHas(meta: MetaLike, key: keyof ConfigMeta, path: string): boolean {

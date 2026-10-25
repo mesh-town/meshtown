@@ -8,6 +8,7 @@ import { ABSENCE_TEXT, ALONE_INVITE_SHORT, ALONE_TEXT, NET_LOADING_TEXT, NO_CATA
 import { IDENTITY_DECLINED_NOTE, IDENTITY_PRESERVED_NOTE, IDENTITY_PROBLEM_NOTE, restartConsequenceText } from "./shell-texts.ts";
 import type { MembersReply } from "../members/members-types.ts";
 import { bannedStatusText, forgottenStatusText } from "../members/members-texts.ts";
+import { forDevice } from "../common/device.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { statePanel } from "../home/home-view.ts";
 import { WONT_OPEN } from "../home/route-line.ts";
@@ -124,8 +125,8 @@ function reasonText(fileBlock: ConfigFileInfo | null | undefined): string {
 }
 
 function withReason(reason: string, fallback: string): string {
-  if (reason) return capitalizeFirst(reason) + ". " + restartConsequenceText(STATUS_THIS_COMPUTER);
-  return fallback + restartConsequenceText(fallback ? STATUS_HIM : STATUS_THIS_COMPUTER);
+  if (reason) return capitalizeFirst(reason) + ". " + restartConsequenceText(forDevice(STATUS_THIS_COMPUTER));
+  return forDevice(fallback) + restartConsequenceText(forDevice(fallback ? STATUS_HIM : STATUS_THIS_COMPUTER));
 }
 
 // The node reports only `overwrite_refused`: the advice "delete the file" is dangerous — the file may hold

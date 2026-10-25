@@ -59,13 +59,13 @@ export const excludedSummary = (n: number): string => "No longer in the network 
 export const unlistedSummary = (n: number): string => "Not in the member list (" + n + ")";
 
 export const banProposedStatus = (name: string): string =>
-  "Ban proposed. " + name + " is already blocked on this computer. Ask another member to open Mesh Town and confirm on the Members tab.";
+  "Ban proposed. " + name + forDevice(" is already blocked on this computer. Ask another member to open Mesh Town and confirm on the Members tab.");
 export const bannedStatus = (name: string): string => name + " was banned from the network.";
 export const leftStatus = (name: string): string => name + " left the network.";
 export const withdrawnStatus = (name: string, stillBlocked: boolean): string =>
-  "Ban proposal withdrawn." + (stillBlocked ? "" : " " + name + " is no longer blocked on this computer.");
+  "Ban proposal withdrawn." + (stillBlocked ? "" : " " + name + forDevice(" is no longer blocked on this computer."));
 export const reasonLine = (by: string, reason: string): string => "Reason from " + by + ": \"" + reason + "\"";
-export const blockedStatus = (name: string): string => name + " is blocked on this computer.";
+export const blockedStatus = (name: string): string => name + forDevice(" is blocked on this computer.");
 
 export const voteTitle = (by: string, target: string): string => by + " proposes banning " + target + " from the network";
 export const voteBody = (target: string): string =>
@@ -78,7 +78,7 @@ export const chipLabel = (n: number): string => (n === 1 ? "1 request needs your
 
 export const admissionLine = (votes: number, need: number): string => "Confirmed by " + votes + " of " + need;
 export const meWaitingText = (votes: number, need: number): string =>
-  "This computer is waiting for network members to confirm it (" + votes + " of " + need + ").";
+  forDevice("This computer is waiting for network members to confirm it (" + votes + " of " + need + ").");
 export const admittedStatus = (name: string): string => name + " joined the network.";
 export const confirmedStatus = (name: string): string => "You confirmed " + name + ". It joins once another member confirms.";
 export const unadmittedStatus = (name: string): string => "Your confirmation for " + name + " was withdrawn.";
@@ -105,7 +105,7 @@ export const bannedStatusText = (net?: string | null, managed = false): string =
 // Under the list after leaving: 'You left the network "x".'
 export const NOT_TOLD_LEFT = "Mesh Town couldn't let the other members know, so for a while they may still see this computer in their list as offline. You don't need to do anything.";
 export const leftNetworkStatus = (net?: string | null, announced = true): string =>
-  excludedTitle("left", net) + "." + (announced ? "" : " " + NOT_TOLD_LEFT);
+  excludedTitle("left", net) + "." + (announced ? "" : " " + forDevice(NOT_TOLD_LEFT));
 export const leaveMultiTitle = (net: string): string => `Leave "${net}"?`;
 export const leaveMultiBody = (net: string): string =>
   forDevice(`Disconnect this computer from "${net}" for good. Your other networks stay. You'll need a new invite to come back.`);
@@ -119,7 +119,7 @@ export const MENU_UNDO_FORGET = "Undo removal";
 export const BADGE_FORGET_PROPOSED = "Removal proposed";
 export const FORGET_WAITING = "Waiting for one more member to confirm";
 export const FORGOTTEN_CARD_TEXT =
-  "Members removed it after it had been offline for a while. It can't connect to them until it joins again. Ask a member for a new invite \u2014 this computer keeps its key.";
+  "Members removed it after it had been offline for a while. It can't connect to them until it joins again. Ask a member for a new invite.";
 export const FORGOTTEN_JOIN = "Join with an invite";
 export const FORGET_RECENT_HINT = "It was online recently \u2014 remove it only if this computer is gone.";
 
@@ -134,7 +134,7 @@ export const forgetLastSeenLine = (name: string, sec: number | null): string =>
 export const forgetEffectLine = (): string =>
   "It disappears from the member list on every computer in the network and can't connect until it joins again. To bring it back, send it a new invite.";
 export const forgetNeedTwoLine = (name: string): string =>
-  "This takes two members: you propose, and one more member confirms. On this computer, " + name + " is hidden right away.";
+  "This takes two members: you propose, and one more member confirms. " + forDevice("On this computer, ") + name + " is hidden right away.";
 // With no third member `other` is empty: the two of you are the target and this computer.
 export const forgetOnlyTwoLine = (name: string, other: string): string =>
   "You and " + (other || name) + " are the only members, so " + name + " is removed right away.";
@@ -146,7 +146,7 @@ export const banAtRiskText = (name: string): string =>
   "A ban is waiting for votes in this network. With " + name + " removed, fewer votes are needed, and it may pass right away.";
 
 export const forgetProposedStatus = (name: string): string =>
-  "Removal proposed. " + name + " is hidden on this computer. Ask another member to open Mesh Town and confirm on the Members tab.";
+  "Removal proposed. " + name + forDevice(" is hidden on this computer. Ask another member to open Mesh Town and confirm on the Members tab.");
 export const forgottenStatus = (name: string): string => name + " was removed from the member list.";
 export const unforgottenStatus = (name: string): string => "Removal withdrawn. " + name + " is back in the member list.";
 export const forgottenStatusText = (net?: string | null): string =>

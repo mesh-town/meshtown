@@ -3,6 +3,7 @@
  * row labels, the "Check a site" result. */
 
 import type { ChosenExit, CheckInfo, DomainInfo, NodeState, PathKind, PeerInfo } from "../core/api-types.ts";
+import { forDevice } from "../common/device.ts";
 import { peerLabel } from "../common/words.ts";
 import { BADGE_BLOCKED } from "../members/members-texts.ts";
 import { HOME_EXIT_NOT_OFFERED, HOME_LINK_DIRECT, HOME_LINK_OFFLINE, HOME_LINK_ONLINE, HOME_LINK_RELAY, rttMsText } from "./home-flow-texts.ts";
@@ -58,7 +59,7 @@ function countryName(code: string): string {
 
 // On the right, small: connection, path (direct / via relay server), latency.
 export function exitMetaText(item: Pick<ExitCandidate, "online" | "path" | "rttMs" | "blocked" | "notExit">): string {
-  if (item.blocked) return BADGE_BLOCKED;
+  if (item.blocked) return forDevice(BADGE_BLOCKED);
   if (!item.online) return HOME_LINK_OFFLINE;
   return notOffered(item) ? HOME_EXIT_NOT_OFFERED : onlineMeta(item);
 }
@@ -102,7 +103,7 @@ export function exitCandidates(state: Partial<NodeState> | null, chosen: string[
   const byRoute = indexBy<ChosenExit>((st.route && st.route.exits) || [], "id_full");
   const offered = peers.filter((p) => p.exit === true).map((p) => p.id_full);
   const chosenSet = new Set(chosen);
-  return uniq([...chosen, ...(remembered || []), ...offered]).map((id) =>
+  return uniq([...offered, ...(remembered || []), ...chosen]).map((id) =>
     exitCandidate(id, byPeer.get(id), byRoute.get(id), chosenSet.has(id), st.peers || []));
 }
 

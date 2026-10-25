@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The group under the member list: nodes that knocked but are not in the member list. They cannot be removed, only
 // blocked / unblocked on this computer; the parent opens the dialog or calls the API on `pick`.
+import { forDevice } from "../common/device.ts";
 import MemberMenu from "./MemberMenu.vue";
 import { BADGE_UNLISTED, MENU_BLOCK, MENU_UNBLOCK, unlistedSummary } from "./members-texts.ts";
 import type { MenuItem } from "./members-types.ts";
@@ -17,7 +18,7 @@ defineEmits<{ (e: "pick", key: string, idFull: string): void }>();
 
 const nameOf = (r: UnlistedRow): string => (r.name && r.name.trim() ? r.name : r.id);
 const itemsOf = (r: UnlistedRow): MenuItem[] =>
-  r.blocked_by_me ? [{ key: "unblock", label: MENU_UNBLOCK }] : [{ key: "block", label: MENU_BLOCK }];
+  r.blocked_by_me ? [{ key: "unblock", label: MENU_UNBLOCK }] : [{ key: "block", label: forDevice(MENU_BLOCK) }];
 </script>
 
 <template>

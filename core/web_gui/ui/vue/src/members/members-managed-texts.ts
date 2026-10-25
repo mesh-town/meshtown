@@ -1,5 +1,7 @@
 /* Menu labels and dialog texts of a managed network. */
 
+import { forDevice } from "../common/device.ts";
+
 export const MENU_MAKE_ADMIN = "Make admin";
 export const MENU_MAKE_MEMBER = "Make regular member";
 export const MENU_GIVE_UP = "Give up admin rights";
@@ -21,7 +23,7 @@ export const removeBody = (name: string): string =>
   name + " is disconnected from all members right away. To come back, it needs a new invite from an admin.";
 export const deleteNetTitle = (net: string): string => "Delete \"" + net + "\" for everyone?";
 export const deleteNetBody = (members: number, net: string): string =>
-  "All " + members + ' members leave "' + net + "\", this computer too. This can't be undone: to be together again, someone has to create a new network and invite everyone.";
+  "All " + members + ' members leave "' + net + forDevice("\", this computer too. This can't be undone: to be together again, someone has to create a new network and invite everyone.");
 export const deleteNetExitLine = (exit: string): string =>
   "Your exit " + exit + " is in this network. After the network is deleted, sites will open directly until you choose another exit.";
 export const DELETE_NET_FIELD = "Type the network name to confirm";
