@@ -16,6 +16,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::hint_tests::SETTLE;
 use super::{record_peer_up, watch_path};
 
 /// Seeds of the peers of fake streams: no other test takes them, so a short id in the
@@ -39,6 +40,8 @@ mod new_connection {
             .build()
             .unwrap();
         let hint = record_peer_up(&*fx.conn, &stack, &tel);
+        // the hint, if there were one, reaches the transport asynchronously: give it the time
+        tokio::time::sleep(SETTLE).await;
         // then: no hint, none was passed to the transport
         assert!(hint.is_none(), "a hint for mem: {hint:?}");
         assert!(

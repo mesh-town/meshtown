@@ -48,7 +48,9 @@ async fn an_excluded_peer_is_refused_by_a_new_invite() {
         wait_until(LIMIT, refused).await,
         "the exclusion did not reach the first node"
     );
-    // when: the excluded node redeems a new invite under its own key
+    // when: the excluded computer, no longer running as a node, redeems a new invite under its own key
+    // (a still-running excluded node would not know of its exclusion and could answer the invite itself)
+    excluded.shutdown().await;
     let (_dealt, second) = deal(&a).await;
     let got = redeem_via(
         &second.head,
@@ -63,7 +65,6 @@ async fn an_excluded_peer_is_refused_by_a_new_invite() {
         error.to_string(),
         "This computer can't rejoin this network. The invite wasn't used up — someone else can join with it."
     );
-    excluded.shutdown().await;
     a.shutdown().await;
 }
 

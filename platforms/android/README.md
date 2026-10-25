@@ -18,6 +18,7 @@ Run `platforms/android/build/build.sh` from the repository root. It needs `cargo
 | `ANDROID_HOME`, `ANDROID_NDK_HOME` | SDK and NDK locations |
 | `ANDROID_BUILD_DIR` | build directory (default `.tmp/build`) |
 | `ANDROID_DIST_DIR` | where the APK is copied (default `dist/android`) |
+| `TUN2PROXY_SRC_DIR` | where the `tun2proxy` source is cloned (default `$XDG_CACHE_HOME/meshtown/tun2proxy-src`, i.e. `~/.cache/meshtown/tun2proxy-src`); keep it outside the repository tree, otherwise cargo treats it as part of the workspace |
 | `TUN2PROXY_REF` | the `tun2proxy` revision to build |
 | `MESHTOWN_ANDROID_KEYSTORE`, `MESHTOWN_ANDROID_KEYSTORE_PASS`, `MESHTOWN_ANDROID_KEY_ALIAS`, `MESHTOWN_ANDROID_KEY_PASS` | signing key; without the first three a debug APK is built |
 
