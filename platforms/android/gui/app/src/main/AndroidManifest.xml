@@ -34,6 +34,12 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
+        <!-- The single file the system camera writes the invite photo to. -->
+        <provider
+            android:name=".PhotoSlot"
+            android:authorities="app.meshtown.photo"
+            android:exported="false"
+            android:grantUriPermissions="true" />
         <receiver
             android:name=".UpdateReceiver"
             android:exported="false" />

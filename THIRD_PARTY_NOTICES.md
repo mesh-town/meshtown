@@ -29,6 +29,12 @@ material.
 - Built into the management page bundle `core/web_gui/ui/bundle/app.js` (sources in `core/web_gui/ui/vue`; the Vue runtime is the only runtime
   dependency of the page).
 
+## ZXing core 3.5.4
+
+- Upstream: https://github.com/zxing/zxing
+- License: Apache-2.0
+- Built into the Android app (decoding a photo of a QR code).
+
 ## Rust dependencies
 
 Rust dependencies in `Cargo.lock` are distributed under their own licenses, listed in each package's metadata

@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private long waitingSince;
     private String splashText;
     private String pendingInvite;
+    private ScanFlow scan;
     private final Runnable refresh = this::refresh;
 
     @Override
@@ -57,6 +58,10 @@ public class MainActivity extends Activity {
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 if (AppMenu.START_OVER_URL.equals(r.getUrl().toString())) {
                     menu.confirmStartOver();
+                    return true;
+                }
+                if (InviteScan.URL.equals(r.getUrl().toString())) {
+                    scan.start();
                     return true;
                 }
                 if (UpdateLink.matches(r.getUrl().toString())) {
@@ -106,6 +111,10 @@ public class MainActivity extends Activity {
         setContentView(root);
         waitingSince = SystemClock.elapsedRealtime();
         showSplash(Splash.STARTING);
+        scan = new ScanFlow(this, text -> {
+            pendingInvite = text;
+            loadPage();
+        });
         takeInvite(getIntent());
         NodeService.quitRequested = false;
         startForegroundService(new Intent(this, NodeService.class));
@@ -267,6 +276,10 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int req, int result, Intent data) {
+        if (req == ScanFlow.REQ_SCAN) {
+            scan.onResult(result);
+            return;
+        }
         if (req == REQ_VPN && result == RESULT_OK) {
             Prefs.setVpnWanted(this, true);
             startService(new Intent(this, TunnelService.class));
