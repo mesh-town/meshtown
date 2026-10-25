@@ -23,9 +23,6 @@ const INPUT: &str = r#"{
     "network": {
       "key": "label--sample-key-not-real"
     },
-    "transport": {
-      "mode": "relay_only"
-    },
     "net": {
       "discovery": [
         "cache",
@@ -178,9 +175,6 @@ const BODY_TEXT: &str = r#"{
       "ifaces": [],
       "port": 1090
     },
-    "transport": {
-      "mode": "relay_only"
-    },
     "version": 1,
     "web": {
       "access": "localhost",
@@ -200,7 +194,6 @@ const BODY_TEXT: &str = r#"{
     "full_tunnel.reason"
   ],
   "restart_fields": [
-    "transport.mode",
     "socks.enabled",
     "socks.port",
     "socks.access",

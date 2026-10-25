@@ -102,7 +102,6 @@ export function buildNodeArgs(key: string, configPath: string, port: number, pla
     configPath,
     '--web-port',
     String(port),
-    '--no-relay',
     '--no-checks',
     ...plan.socksTail,
   ];

@@ -10,7 +10,6 @@ fn defaults_match_config_file_md() {
     let s = Settings::default();
     assert_eq!(s.net.node_name, None);
     assert_eq!(s.net.network_key, None);
-    assert_eq!(s.net.transport_mode, TransportMode::DirectAndRelay);
     assert!(s.net.exit_enabled);
     assert!(s.process.socks_enabled);
     assert_eq!(s.process.socks_port, 1080);
@@ -32,21 +31,6 @@ fn defaults_match_config_file_md() {
     assert_eq!(s.process.log_ring_lines, 2000);
     assert!(!s.process.autostart_enabled);
     assert!(!s.process.full_tunnel_enabled);
-}
-
-#[test]
-fn transport_mode_roundtrip() {
-    for m in [
-        TransportMode::DirectAndRelay,
-        TransportMode::RelayOnly,
-        TransportMode::NoRelay,
-    ] {
-        assert_eq!(TransportMode::parse(m.as_str()), Some(m));
-    }
-    assert_eq!(TransportMode::parse("direct"), None);
-    assert_eq!(relay_flags_of(TransportMode::DirectAndRelay), (true, false));
-    assert_eq!(relay_flags_of(TransportMode::RelayOnly), (true, true));
-    assert_eq!(relay_flags_of(TransportMode::NoRelay), (false, false));
 }
 
 #[test]
@@ -113,29 +97,10 @@ fn debug_hides_key() {
 }
 
 #[test]
-fn node_config_maps_mode() {
+fn node_config_carries_identity_secret() {
     let key = NetworkKey::generate().expect("network key");
-    let no_relay = Settings {
-        net: NetSettings {
-            transport_mode: TransportMode::NoRelay,
-            ..NetSettings::default()
-        },
-        ..Settings::default()
-    }
-    .node_config(key.clone(), test_secret());
-    assert!(!no_relay.settings.uses_relay());
-    assert!(!no_relay.settings.is_relay_only());
-    assert!(no_relay.identity_secret.is_some());
-    let relay_only = Settings {
-        net: NetSettings {
-            transport_mode: TransportMode::RelayOnly,
-            ..NetSettings::default()
-        },
-        ..Settings::default()
-    }
-    .node_config(key, test_secret());
-    assert!(relay_only.settings.uses_relay());
-    assert!(relay_only.settings.is_relay_only());
+    let cfg = Settings::default().node_config(key, test_secret());
+    assert!(cfg.identity_secret.is_some());
 }
 
 #[test]
@@ -280,15 +245,4 @@ fn node_config_carries_net() {
         cfg.settings.net_choice.sync, "mem",
         "net was not carried into NodeConfig"
     );
-}
-
-fn relay_flags_of(mode: TransportMode) -> (bool, bool) {
-    let s = Settings {
-        net: NetSettings {
-            transport_mode: mode,
-            ..NetSettings::default()
-        },
-        ..Settings::default()
-    };
-    (s.net.uses_relay(), s.net.is_relay_only())
 }

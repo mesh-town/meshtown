@@ -5,7 +5,7 @@
 use crate::transport::net::{NodeSecret, PeerId};
 use std::path::{Path, PathBuf};
 
-use super::settings::{Settings, TransportMode};
+use super::settings::Settings;
 use super::{LoadedConfigFile, ParsedConfigFile, SecretRead};
 use super::{NetSettings, ProcessSettings};
 
@@ -55,7 +55,6 @@ pub(super) fn sample_settings() -> Settings {
         net: NetSettings {
             node_name: Some("ginger-pool".to_string()),
             network_key: Some("鍵🔑--test-key-not-real".to_string()),
-            transport_mode: TransportMode::RelayOnly,
             exit_enabled: false,
             checks_enabled: false,
             check_interval_sec: 900,
@@ -121,7 +120,6 @@ pub(crate) fn all_changed() -> Settings {
         net: NetSettings {
             node_name: Some("台所 \"1\"".to_string()),
             network_key: Some("鍵🔑--test-key-not-real".to_string()),
-            transport_mode: TransportMode::RelayOnly,
             exit_enabled: false,
             checks_enabled: false,
             check_interval_sec: 600,

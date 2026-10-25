@@ -1,6 +1,6 @@
 //! Parsing of the demo node's `--cli-override path[=value]` into `CliOverrides`.
 
-use meshtown_core::config::config_file::{CliOverrides, TransportMode};
+use meshtown_core::config::config_file::CliOverrides;
 
 fn parse_bool_override(value: Option<&str>, default_no_value: bool, path: &str) -> bool {
     match value {
@@ -30,16 +30,6 @@ fn parse_with_default<T: std::str::FromStr>(path: &str, value: Option<&str>, def
     }
 }
 
-fn parse_transport_mode_override(value: Option<&str>) -> TransportMode {
-    match value {
-        None => TransportMode::RelayOnly,
-        Some(v) => TransportMode::parse(v).unwrap_or_else(|| {
-            eprintln!("web_demo: --cli-override transport.mode: couldn't parse the value \"{v}\"");
-            std::process::exit(2);
-        }),
-    }
-}
-
 fn split_override_entry(entry: &str) -> (&str, Option<&str>) {
     match entry.split_once('=') {
         Some((p, v)) => (p, Some(v)),
@@ -52,7 +42,6 @@ fn split_override_entry(entry: &str) -> (&str, Option<&str>) {
 /// `prepare_demo_config` after step 7.
 fn apply_cli_override(cli: &mut CliOverrides, path: &str, value: Option<&str>) {
     match path {
-        "transport.mode" => cli.transport_mode = Some(parse_transport_mode_override(value)),
         "exit.enabled" => cli.exit_enabled = Some(parse_bool_override(value, false, path)),
         "socks.enabled" => cli.socks_enabled = Some(parse_bool_override(value, false, path)),
         "checks.enabled" => cli.checks_enabled = Some(parse_bool_override(value, false, path)),

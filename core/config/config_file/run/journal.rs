@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use super::super::report::FileReport;
+use super::super::retired::log_retired;
 use crate::node::output::{say, NET_NAME};
 
 /// Inputs of one summary line: assembled in `mod.rs` from `PrepareOutcome` and the applied
@@ -12,6 +13,7 @@ pub(super) struct LogInputs<'a> {
     pub(super) file_summary: &'a str,
     pub(super) report: &'a FileReport,
     pub(super) unknown_paths: &'a [String],
+    pub(super) retired_paths: &'a [String],
     pub(super) write_error: &'a Option<String>,
     pub(super) kept_copy_path: &'a Option<PathBuf>,
     pub(super) saved_flags_rev: Option<u64>,
@@ -26,6 +28,7 @@ pub(super) fn log_outcome(inputs: LogInputs) {
         file_summary,
         report,
         unknown_paths,
+        retired_paths,
         write_error,
         kept_copy_path,
         saved_flags_rev,
@@ -37,6 +40,7 @@ pub(super) fn log_outcome(inputs: LogInputs) {
     say("config", format!("config: {file_summary}"));
     log_field_errors(report);
     log_unknown_fields(unknown_paths);
+    log_retired("", retired_paths);
     log_write_failed(write_error);
     log_copy_kept(kept_copy_path);
     log_flags_written(saved_flags_rev, written_flag_paths);

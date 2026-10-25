@@ -3,13 +3,6 @@ use crate::members::network_key::NetworkKey;
 use crate::node::NodeConfig;
 use std::time::Duration;
 
-fn with_mode(mode: TransportMode) -> NetSettings {
-    NetSettings {
-        transport_mode: mode,
-        ..NetSettings::default()
-    }
-}
-
 fn with_key(key: Option<&str>) -> NetSettings {
     NetSettings {
         network_key: key.map(str::to_string),
@@ -40,23 +33,6 @@ fn debug_shows_none_without_network_key() {
     // then: None is visible, the marker is absent
     assert!(t.contains("network_key: None"), "{t}");
     assert!(!t.contains("<hidden>"), "{t}");
-}
-
-#[test]
-fn methods_read_net_block() {
-    // given: three transport modes
-    let cases = [
-        (TransportMode::NoRelay, false, false),
-        (TransportMode::DirectAndRelay, true, false),
-        (TransportMode::RelayOnly, true, true),
-    ];
-    for (mode, relay, only) in cases {
-        // when: reading the block's methods
-        let n = with_mode(mode);
-        // then: use_relay and relay_only follow the mode
-        assert_eq!(n.uses_relay(), relay, "use_relay for {mode:?}");
-        assert_eq!(n.is_relay_only(), only, "relay_only for {mode:?}");
-    }
 }
 
 #[test]

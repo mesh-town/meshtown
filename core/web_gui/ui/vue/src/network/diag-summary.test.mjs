@@ -79,7 +79,6 @@ function secretState() {
     node: { status: "online", uptime_sec: 60, version: "1.2.3", id_full: SECRETS.id_full },
     network: { label: "home", masked: SECRETS.masked, id_hex: SECRETS.id_hex },
     transport: {
-      mode: "direct_and_relay",
       relay: { connected: true, url: "wss://r.example" },
       dht: { joined: true },
       self_addresses: [SECRETS.self_address],

@@ -125,7 +125,6 @@ keys in the written file. The column "Read in the node" below is where the node 
 | Config path | Flag | Default | Read in the node |
 |---|---|---|---|
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
-| `transport.mode` | `--relay-only` / `--no-relay` | `direct_and_relay` | `settings.uses_relay()`, `settings.is_relay_only()` (`core/config/config_file/net_settings.rs`). Reserved: the transport does not use relays yet; the setting has no effect. |
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
@@ -173,7 +172,9 @@ What is **not** stored in the file even though a flag exists:
 
 Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
 a positive form it is impossible to start once with SOCKS on when it is off in the file; the last flag
-of a pair wins. `--relay-only` and `--no-relay` set `transport.mode` (reserved, see §3).
+of a pair wins.
+
+An old `transport.mode` key in the file is still accepted and ignored: the log shows `deprecated fields ignored and dropped on the next write: transport.mode`, and the key disappears at the next write of the file.
 
 ---
 
@@ -188,7 +189,6 @@ of a pair wins. `--relay-only` and `--no-relay` set `transport.mode` (reserved, 
     "version": 1,
     "node":      { "name": "finch-unwary" },
     "network":   { "key": "our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tzd6w5" },
-    "transport": { "mode": "direct_and_relay" },
     "exit":      { "enabled": true },
     "socks":     { "enabled": true, "port": 1080 },
     "checks":    { "enabled": true, "interval_sec": 900,
@@ -299,7 +299,7 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
   "read_only": ["…"],
   "restart_fields": ["…"],
   "restart_pending": [],
-  "cli_overrides": ["socks.port", "transport.mode"],
+  "cli_overrides": ["socks.port"],
   "file": {
     "path": "/Users/example/Library/Application Support/meshtown/config.json",
     "state": "ok",

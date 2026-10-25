@@ -195,7 +195,6 @@ fn unknown_labels(s: &str) -> Vec<&str> {
 fn run_help_words() {
     let help = sub_help("run");
     for want in [
-        "Only via a relay server, no direct connections",
         "Add a site to your list (for example example.com); it is checked at startup. Can be repeated",
         "can be set with the MESHTOWN_KEY variable",
         "can be set with the MESHTOWN_INVITE variable",
@@ -208,6 +207,10 @@ fn run_help_words() {
         "{help}"
     );
     assert!(!help.contains("[env:"), "{help}");
+    assert!(
+        !help.contains("--relay-only") && !help.contains("--no-relay"),
+        "{help}"
+    );
     assert_eq!(unknown_labels(&help), Vec::<&str>::new(), "{help}");
     // The flag names are `--domain`, `--config`; the descriptions say "site" and "settings file".
     let prose: Vec<&str> = help

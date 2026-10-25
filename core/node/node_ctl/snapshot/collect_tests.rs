@@ -68,7 +68,7 @@ async fn collect_shows_cached_peer_offline_after_restart() {
         "precondition: B never connected — telemetry does not know it"
     );
 
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
 
     let b_peer = collected
         .snap
@@ -134,7 +134,7 @@ async fn collect_takes_cached_peer_name_from_peer_names_file() {
     };
     let node = crate::node::start_node(cfg).await.unwrap();
 
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
 
     let b_peer = collected
         .snap
@@ -167,7 +167,7 @@ async fn collect_shows_own_published_port() {
     }];
     let node = crate::node::start_node(cfg).await.unwrap();
 
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
 
     assert_eq!(collected.snap.ports.published.len(), 1);
     assert_eq!(collected.snap.ports.published[0].port, 8080);
@@ -188,7 +188,7 @@ mod own_address {
         // given: a running node whose transport already knows its own addresses
         let node = loopback_node_with_address().await;
         // when: the snapshot is built
-        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+        let collected = collect(&node, None, &mut DocCache::default()).await;
         // then: the node addresses in the snapshot are not empty and equal the transport address lines
         let self_addresses = &collected.snap.transport.self_addresses;
         assert_eq!(
@@ -337,7 +337,7 @@ async fn node_with_face(
 
 /// The `socks` block of a freshly collected snapshot.
 async fn socks_of(node: &crate::node::RunningNode) -> crate::web_gui::SocksInfo {
-    collect(node, None, "direct_and_relay", &mut DocCache::default())
+    collect(node, None, &mut DocCache::default())
         .await
         .snap
         .socks

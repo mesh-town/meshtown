@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use super::{Host, HostSlots, PageRole, SlotContext};
 use crate::config::config_file::{
     self, net_slot_path, new_slot_id, save_net_file, CliOverrides, ConfigSource, ListenAccess,
-    NetSettings, NetSlotId, PathRule, RunConfig, TransportMode,
+    NetSettings, NetSlotId, PathRule, RunConfig,
 };
 use crate::members::network_key::NetworkKey;
 use crate::node::guard_sources::GuardSources;
@@ -546,7 +546,6 @@ async fn setup_host(tag: &str) -> HostFx {
     let dir = fresh_host_dir(tag);
     let cli = CliOverrides {
         network_key: Some(NetworkKey::from_bytes([61; 32]).encode()),
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         ..CliOverrides::default()
     };
@@ -604,7 +603,6 @@ impl HostFx {
         let id = new_slot_id(&main_path).expect("a free slot id");
         let net = NetSettings {
             network_key: Some(NetworkKey::from_bytes([62; 32]).encode()),
-            transport_mode: TransportMode::NoRelay,
             checks_enabled: false,
             ..NetSettings::default()
         };

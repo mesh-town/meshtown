@@ -116,16 +116,9 @@ mod former_transport_keys_in_file {
         // when: prepare_file
         let outcome = prepare_file(&file, true, &CliOverrides::default(), false, NOW);
         let _ = std::fs::remove_dir_all(&dir);
-        // then: both keys are in the unknown list
-        let mut unknown = outcome.expect("prepare_file").unknown_paths;
-        unknown.sort();
-        assert_eq!(
-            unknown,
-            vec![
-                "config.transport.loss_time_threshold",
-                "config.transport.udp_port"
-            ]
-        );
+        // then: the former section, which the table no longer has, is one unknown path
+        let unknown = outcome.expect("prepare_file").unknown_paths;
+        assert_eq!(unknown, vec!["config.transport"]);
     }
 }
 

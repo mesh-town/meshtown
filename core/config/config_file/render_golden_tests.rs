@@ -45,9 +45,6 @@ const DEFAULTS_TEXT: &str = r#"{
       "memory_exit_mib": 900
     },
     "network": {},
-    "transport": {
-      "mode": "direct_and_relay"
-    },
     "exit": {
       "enabled": true
     },
@@ -109,9 +106,6 @@ const ALL_CHANGED_TEXT: &str = r#"{
     },
     "network": {
       "key": "鍵🔑--test-key-not-real"
-    },
-    "transport": {
-      "mode": "relay_only"
     },
     "net": {
       "discovery": [

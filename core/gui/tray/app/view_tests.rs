@@ -36,7 +36,6 @@ const API_EXAMPLE: &str = r#"{
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
   "exit": { "enabled": true, "ports": [80, 443], "domains": 7 },
   "transport": {
-    "mode": "direct_and_relay",
     "self_path": "direct",
     "relay": { "connected": true, "url": "relay.example" },
     "nat": "address-restricted cone",

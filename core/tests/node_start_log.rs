@@ -46,7 +46,6 @@ async fn start_log_order_matches_reference() {
         "[node] transports: mem",
         "[node] meshtown <ver>, network Mesh Town <net>, node <short> \"<name>\" (<hex>), identity temporary",
         "[node] Node identity is not saved, as set at startup. After a restart, peers will see a new node.",
-        "[node] mode: no relay",
         "[net] non-default network choice: transport mem; discovery invite, cache; sync mesh",
         "[docs] domain list: space <space>, author <short>",
         "[exit] serving as exit for members of network Mesh Town",

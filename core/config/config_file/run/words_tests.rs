@@ -12,6 +12,7 @@ fn config_lines_after(report: &FileReport, secret_written: bool) -> Vec<String> 
         file_summary: "x",
         report,
         unknown_paths: &[],
+        retired_paths: &[],
         write_error: &None,
         kept_copy_path: &None,
         saved_flags_rev: None,
@@ -69,4 +70,32 @@ fn temporary_identity_line_says_temporary() {
     let line = lines.iter().find(|l| l.contains("is temporary"));
     let line = line.unwrap_or_else(|| panic!("no temporary line: {lines:?}"));
     assert!(!line.contains("node"), "{line}");
+}
+
+#[test]
+fn retired_mode_is_logged() {
+    // given: a parsed file that held the retired `transport.mode`
+    let seq_before = log_summary(0).last_seq;
+    // when: the outcome is printed
+    log_outcome(LogInputs {
+        file_summary: "x",
+        report: &base_report(None),
+        unknown_paths: &[],
+        retired_paths: &["config.transport.mode".to_string()],
+        write_error: &None,
+        kept_copy_path: &None,
+        saved_flags_rev: None,
+        written_flag_paths: &[],
+        secret_written: false,
+        cli_override_paths: &[],
+    });
+    // then: the config category has the warning with the path
+    let lines: Vec<String> = log_page(seq_before, 4000)
+        .lines
+        .into_iter()
+        .filter(|l| l.tag == "config")
+        .map(|l| l.text)
+        .collect();
+    let want = "deprecated fields ignored and dropped on the next write: transport.mode";
+    assert!(has_line(&lines, want), "{lines:?}");
 }

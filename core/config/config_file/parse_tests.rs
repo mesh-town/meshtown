@@ -14,7 +14,6 @@ const EXAMPLE: &str = r#"{
     "version": 1,
     "node":      { "name": "finch-unwary-4c7d9" },
     "network":   { "key": "our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tzd6w5" },
-    "transport": { "mode": "direct_and_relay" },
     "exit":      { "enabled": true },
     "socks":     { "enabled": true, "port": 1080 },
     "checks":    { "enabled": true, "interval_sec": 900,
@@ -334,11 +333,11 @@ mod former_transport_keys {
 
     #[test]
     fn a_former_key_is_unknown_and_a_live_one_is_not() {
-        // given: a former key with a value next to `mode`
+        // given: a former key with a value next to the retired `mode`
         let body = r#""udp_port":4000,"mode":"direct_and_relay""#;
         // when
         let p = parse_transport(body);
-        // then: the file is parsed, only the former key is listed
+        // then: the file is parsed, the former key is unknown and `mode` is retired
         assert_eq!(p.field_errors, vec![]);
         assert!(p
             .unknown_paths
@@ -346,25 +345,19 @@ mod former_transport_keys {
         assert!(!p
             .unknown_paths
             .contains(&"config.transport.mode".to_string()));
+        assert_eq!(p.retired_paths, vec!["config.transport.mode"]);
     }
 
     #[test]
-    fn former_keys_with_null_are_all_unknown() {
+    fn former_keys_with_null_are_one_unknown_section() {
         // given: all eight former keys with the value null
         let body: Vec<String> = KEYS.iter().map(|k| format!(r#""{k}":null"#)).collect();
         // when
         let p = parse_transport(&body.join(","));
-        // then: all of them are listed, no field errors
+        // then: the section is not in the table any more, so it is one unknown path; no field errors
         assert_eq!(p.field_errors, vec![]);
-        let want: Vec<String> = KEYS
-            .iter()
-            .map(|k| format!("config.transport.{k}"))
-            .collect();
-        let mut got = p.unknown_paths.clone();
-        got.sort();
-        let mut want = want;
-        want.sort();
-        assert_eq!(got, want);
+        assert_eq!(p.unknown_paths, vec!["config.transport"]);
+        assert!(p.retired_paths.is_empty());
     }
 }
 

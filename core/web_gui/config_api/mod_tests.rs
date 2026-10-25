@@ -236,6 +236,10 @@ fn state_from_text(dir: &Path, text: &str) -> ConfigState {
 mod put_tests;
 
 #[cfg(test)]
+#[path = "mod_put_retired_tests.rs"]
+mod put_retired_tests;
+
+#[cfg(test)]
 #[path = "ports_tests.rs"]
 mod ports_tests;
 

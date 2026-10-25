@@ -1,7 +1,7 @@
 //! Stopping a real `meshtown run` process on SIGTERM (unix only): the process prints
 //! "received stop signal" (to stdout, through `say`) and exits with code 0 within `EXIT_LIMIT`.
 //!
-//! What it does: starts the binary as in `core/tests/run_first_start.rs` (no settings file, no relay,
+//! What it does: starts the binary as in `core/tests/run_first_start.rs` (no settings file,
 //! no checks and no SOCKS, `TOWNJUMP_BOOTSTRAP` pointing at a closed port), waits for the line that the node prints
 //! once the start phase is over (the web page address is printed earlier, while the transports are still binding),
 //! then sends `kill -TERM <pid>` (there is no `libc` in the dev-dependencies). `EXIT_LIMIT` therefore measures
@@ -44,7 +44,7 @@ impl Proc {
         let key = NetworkKey::generate().unwrap().encode();
         let mut child = Command::new(env!("CARGO_BIN_EXE_meshtown"))
             .args(["run", "--no-config", "--key", &key, "--web-port", "0"])
-            .args(["--no-relay", "--no-checks", "--no-socks"])
+            .args(["--no-checks", "--no-socks"])
             .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
             .env_remove("MESHTOWN_KEY")
             .env_remove("MESHTOWN_INVITE")

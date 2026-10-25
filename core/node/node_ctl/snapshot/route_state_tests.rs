@@ -28,7 +28,6 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         id,
         me: id,
         self_name: None,
-        mode: "direct_and_relay",
         members: online,
         neighbors: 0,
         votes: Default::default(),

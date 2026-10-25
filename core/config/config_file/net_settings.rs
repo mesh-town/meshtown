@@ -7,15 +7,12 @@ use std::time::Duration;
 use crate::ports_sharing::types::{Opened, Published};
 use crate::transport::net::{NetChoice, PeerId};
 
-use super::settings::TransportMode;
-
 /// The network fields of the `config` document, all filled in. Defaults live only in `Default`.
 /// `Debug` is hand-written, without the network key: otherwise `{:?}` of `NodeConfig` would print it in full.
 #[derive(Clone, PartialEq)]
 pub struct NetSettings {
     pub network_key: Option<String>, // network.key       — only in the file
     pub node_name: Option<String>, // node.name         — the node's display name, read at start by `pick_node_name`
-    pub transport_mode: TransportMode, // transport.mode
     pub exit_enabled: bool,        // exit.enabled
     pub route_exits: Vec<PeerId>,  // route.exits
     pub ports_published: Vec<Published>, // ports.published
@@ -41,7 +38,6 @@ impl Default for NetSettings {
         NetSettings {
             network_key: None,
             node_name: None,
-            transport_mode: TransportMode::DirectAndRelay,
             exit_enabled: default_exit_enabled(cfg!(target_os = "android")),
             route_exits: vec![],
             ports_published: vec![],
@@ -64,7 +60,6 @@ impl std::fmt::Debug for NetSettings {
         f.debug_struct("NetSettings")
             .field("network_key", &key)
             .field("node_name", &self.node_name)
-            .field("transport_mode", &self.transport_mode)
             .field("exit_enabled", &self.exit_enabled)
             .field("route_exits", &self.route_exits)
             .field("ports_published", &self.ports_published)
@@ -82,16 +77,6 @@ impl std::fmt::Debug for NetSettings {
 }
 
 impl NetSettings {
-    /// Whether the node goes through the relay: `DirectAndRelay` and `RelayOnly`.
-    pub fn uses_relay(&self) -> bool {
-        self.transport_mode != TransportMode::NoRelay
-    }
-
-    /// Whether it goes through the relay only: `RelayOnly`.
-    pub fn is_relay_only(&self) -> bool {
-        self.transport_mode == TransportMode::RelayOnly
-    }
-
     /// The bandwidth probe interval.
     pub fn probe_interval(&self) -> Duration {
         Duration::from_secs(self.probe_interval_sec)

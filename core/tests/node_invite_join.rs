@@ -11,7 +11,7 @@ mod common;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use meshtown_core::config::config_file::{NetSettings, Settings, TransportMode};
+use meshtown_core::config::config_file::Settings;
 use meshtown_core::invite::InviteHead;
 use meshtown_core::members::network_key::{parse_user_input, NetworkKey};
 use meshtown_core::node::node_ctl::NodeCtl;
@@ -297,13 +297,7 @@ fn newcomer_with_broken_save() -> Newcomer {
 }
 
 fn newcomer_saving(save_result: Result<(), String>) -> Newcomer {
-    let settings = Settings {
-        net: NetSettings {
-            transport_mode: TransportMode::NoRelay,
-            ..NetSettings::default()
-        },
-        ..Settings::default()
-    };
+    let settings = Settings::default();
     let ctl = NodeCtl::new_without_network(&settings);
     ctl.set_test_net(Some(meshtown_core::transport::net::mem::process_net()));
     ctl.set_owner_secret(meshtown_core::transport::net::NodeSecret::from_bytes(

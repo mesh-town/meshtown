@@ -194,14 +194,14 @@ describe("cliNoteText", () => {
 });
 
 describe("savedMessageText", () => {
-  const meta = meta_({ restart_fields: ["socks.port"], restart_pending: ["transport.mode"] });
+  const meta = meta_({ restart_fields: ["socks.port"], restart_pending: ["socks.enabled"] });
 
   it("a field from restart_fields — \"Takes effect after Mesh Town restarts\"", () => {
     assert.equal(savedMessageText(meta, ["socks.port"]), "Saved. Takes effect after Mesh Town restarts.");
   });
 
   it("a field from restart_pending — the same", () => {
-    assert.equal(savedMessageText(meta, ["transport.mode"]), "Saved. Takes effect after Mesh Town restarts.");
+    assert.equal(savedMessageText(meta, ["socks.enabled"]), "Saved. Takes effect after Mesh Town restarts.");
   });
 
   it("another field or an empty list — \"Saved\"", () => {

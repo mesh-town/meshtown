@@ -29,7 +29,7 @@ async fn no_verdicts_means_no_votes() {
         "precondition: nothing is published"
     );
     // when: the snapshot is collected
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     // then: both counters are empty and the snapshot published nothing
     assert_eq!(collected.snap.members.voting, 0);
     assert!(!collected.snap.members.me_excluded);
@@ -117,7 +117,7 @@ async fn collect_counts_the_votes_awaiting_this_node() {
     let node = loopback_node().await;
     node.access.view.publish(one_vote_waiting(node.id));
     // when: the snapshot is collected
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     // then: the vote is counted and the node is not excluded
     assert_eq!(collected.snap.members.voting, 1);
     assert!(!collected.snap.members.me_excluded);
@@ -130,7 +130,7 @@ async fn collect_flags_this_node_as_excluded() {
     let node = loopback_node().await;
     node.access.view.publish(excluding(node.id));
     // when: the snapshot is collected
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     // then: the flag is up
     assert!(collected.snap.members.me_excluded);
     node.shutdown().await;
@@ -140,9 +140,7 @@ async fn collect_flags_this_node_as_excluded() {
 async fn overlay_members_shows_votes_newer_than_the_collected_snapshot() {
     // given: a snapshot collected before any list was published
     let node = loopback_node().await;
-    let mut snap = collect(&node, None, "direct_and_relay", &mut DocCache::default())
-        .await
-        .snap;
+    let mut snap = collect(&node, None, &mut DocCache::default()).await.snap;
     assert_eq!(snap.members.voting, 0);
     // when: a vote appears and the old snapshot is overlaid with the live block
     node.access.view.publish(one_vote_waiting(node.id));
@@ -203,7 +201,7 @@ async fn collect_counts_admitting() {
     let node = loopback_node().await;
     node.access.view.publish(requests_waiting(node.id, false));
     // when: the snapshot is collected
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     // then: the request is counted and I am not waiting
     assert_eq!(collected.snap.members.admitting, 1);
     assert!(!collected.snap.members.me_pending);
@@ -221,7 +219,7 @@ async fn collect_flags_me_pending() {
         crate::members::access::view::Deny::Unlisted,
     );
     // when: the snapshot is collected
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     // then: the flag is up
     assert!(collected.snap.members.me_pending);
     node.shutdown().await;
@@ -267,7 +265,7 @@ mod route_exits {
         node.access.view.publish(excluding_peer(node.id, x));
 
         // when: the snapshot is collected
-        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+        let collected = collect(&node, None, &mut DocCache::default()).await;
 
         // then
         assert_eq!(collected.snap.route.exits.len(), 1);
@@ -282,7 +280,7 @@ mod route_exits {
         node.set_route_exits(vec![pid(3)]);
 
         // when: the snapshot is collected
-        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+        let collected = collect(&node, None, &mut DocCache::default()).await;
 
         // then
         assert_eq!(collected.snap.route.exits.len(), 1);

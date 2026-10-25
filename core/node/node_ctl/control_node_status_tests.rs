@@ -208,7 +208,7 @@ async fn freeze_cache(ctl: &NodeCtl, node: &RunningNode, cached: Option<Cached>)
 }
 
 async fn collected_with(node: &RunningNode, cached: Cached) -> Collected {
-    let mut c = collect(node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let mut c = collect(node, None, &mut DocCache::default()).await;
     c.snap.members.count = cached.members as _;
     c.snap.transport.relay.connected = cached.relay;
     c

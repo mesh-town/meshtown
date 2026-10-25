@@ -89,7 +89,7 @@ pub(super) fn reject_unavailable_fields(merged: &Value) -> Result<(), Response> 
 }
 
 /// Step 8: the merged document is a valid `config_file` (version 1, no errors except `rev`/`identity`,
-/// those are checked separately at step 5 and at node startup).
+/// those are checked separately at step 5 and at node startup). Retired fields in the body are logged and dropped.
 pub(super) fn parse_merged_settings(
     state: &ConfigState,
     merged: &Value,
@@ -115,6 +115,7 @@ pub(super) fn parse_merged_settings(
             .collect();
         return Err(state.invalid_response(fields));
     }
+    config_file::log_retired("", &p.retired_paths);
     Ok(p.settings)
 }
 

@@ -81,8 +81,11 @@ fn no_config_conflicts_save_config() {
 }
 
 #[test]
-fn relay_flags_conflict() {
-    assert!(run_matches(&["--relay-only", "--no-relay"]).is_err());
+fn removed_relay_flags_are_rejected() {
+    for flag in ["--relay-only", "--no-relay"] {
+        let e = run_matches(&[flag]).expect_err("the flag no longer exists");
+        assert_eq!(e.kind(), ErrorKind::UnknownArgument, "{flag}");
+    }
 }
 
 #[test]

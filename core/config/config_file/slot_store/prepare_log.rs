@@ -3,7 +3,7 @@
 use std::path::{Path, PathBuf};
 
 use super::slot_id::NetSlotId;
-use crate::config::config_file::ParsedNetFile;
+use crate::config::config_file::{log_retired, ParsedNetFile};
 use crate::node::output::say;
 
 /// Says what was found in the file: damaged fields, process keys, unknown and retired keys.
@@ -35,6 +35,7 @@ pub(super) fn log_file_findings(id: &NetSlotId, main: Option<&Path>, p: &ParsedN
             ),
         );
     }
+    log_retired(&format!("net slot {id}: "), &p.retired_paths);
 }
 
 /// Says what happened to the slot's identity: a copy kept, a failed write, a temporary identity.
@@ -55,3 +56,7 @@ pub(super) fn log_identity(id: &NetSlotId, copy: Option<&PathBuf>, problem: Opti
         );
     }
 }
+
+#[cfg(test)]
+#[path = "prepare_log_tests.rs"]
+mod tests;

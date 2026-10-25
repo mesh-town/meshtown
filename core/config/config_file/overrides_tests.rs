@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::config_file::settings::{ListenAccess, Settings, TransportMode};
+use crate::config::config_file::settings::{ListenAccess, Settings};
 use crate::config::config_file::test_support::sample_settings;
 use crate::config::config_file::{NetSettings, ProcessSettings};
 
@@ -36,18 +36,6 @@ fn apply_empty_changes_nothing() {
 }
 
 #[test]
-fn apply_mode() {
-    let mut s = Settings::default();
-    let cli = CliOverrides {
-        transport_mode: Some(TransportMode::NoRelay),
-        ..CliOverrides::default()
-    };
-    let paths = cli.apply(&mut s);
-    assert_eq!((s.net.uses_relay(), s.net.is_relay_only()), (false, false));
-    assert_eq!(paths, vec!["transport.mode"]);
-}
-
-#[test]
 fn apply_probe_full_cycle() {
     let mut s = Settings::default();
     let cli = CliOverrides {
@@ -61,10 +49,9 @@ fn apply_probe_full_cycle() {
 
 #[test]
 fn override_paths_are_in_table() {
-    // given: all flags are set; when apply; then every path is in the table (13 of them)
+    // given: all flags are set; when apply; then every path is in the table (12 of them)
     let cli = CliOverrides {
         network_key: Some("k".into()),
-        transport_mode: Some(TransportMode::NoRelay),
         exit_enabled: Some(true),
         socks_enabled: Some(true),
         socks_port: Some(2000),
@@ -78,7 +65,7 @@ fn override_paths_are_in_table() {
         web_port: Some(2001),
     };
     let paths = cli.apply(&mut Settings::default());
-    assert_eq!(paths.len(), 13);
+    assert_eq!(paths.len(), 12);
     for p in paths {
         assert!(
             crate::config::config_file::fields::field_by_path(p).is_some(),
@@ -126,8 +113,8 @@ mod for_added_slot {
         let slot = every_flag().for_added_slot();
         // when: the slot flags are applied
         let paths = slot.apply(&mut Settings::default());
-        // then: twelve paths, all but "network.key"
-        assert_eq!(paths.len(), 12, "paths: {paths:?}");
+        // then: eleven paths, all but "network.key"
+        assert_eq!(paths.len(), 11, "paths: {paths:?}");
         assert!(!paths.contains(&"network.key"), "paths: {paths:?}");
     }
 
@@ -145,7 +132,6 @@ mod for_added_slot {
 fn every_flag() -> CliOverrides {
     CliOverrides {
         network_key: Some("k".into()),
-        transport_mode: Some(TransportMode::NoRelay),
         exit_enabled: Some(true),
         socks_enabled: Some(true),
         socks_port: Some(2000),

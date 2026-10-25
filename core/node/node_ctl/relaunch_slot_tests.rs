@@ -3,7 +3,6 @@
 use super::*;
 use crate::config::config_file::{
     save_net_file, ConfigSource, NetFile, NetSettings, ProcessSettings, RunConfig, SettingsFile,
-    TransportMode,
 };
 
 const SLOT_INTERVAL: u64 = 77;
@@ -95,32 +94,32 @@ mod flags_of_the_process {
     use super::*;
 
     #[test]
-    fn slot_relaunch_keeps_the_transport_flag_but_not_the_key() {
-        // given: a process started with --no-relay and --key
-        let main = flagged_relaunch(Some(TransportMode::NoRelay), None);
+    fn slot_relaunch_keeps_the_net_flag_but_not_the_key() {
+        // given: a process started with --no-exit and --key
+        let main = flagged_relaunch(Some(false), None);
         // when: the relaunch of an added slot is derived from it
         let slot = main.for_net_slot(&bare_run());
-        // then: the transport flag is inherited, the key is not
-        assert_eq!(slot.cli.transport_mode, Some(TransportMode::NoRelay));
+        // then: the net flag is inherited, the key is not
+        assert_eq!(slot.cli.exit_enabled, Some(false));
         assert_eq!(slot.cli.network_key, None, "the key belongs to one network");
     }
 
     #[test]
     fn net_flags_go_to_the_net_block() {
-        // given: --no-relay is a flag of the process, the settings say otherwise
-        let main = flagged_relaunch(Some(TransportMode::NoRelay), None);
+        // given: --no-exit is a flag of the process, the settings say otherwise
+        let main = flagged_relaunch(Some(false), None);
         let mut s = Settings::default();
-        assert_ne!(s.net.transport_mode, TransportMode::NoRelay);
+        assert!(s.net.exit_enabled);
         // when: the flags are laid over the settings of a slot
         main.apply_net_flags(&mut s);
-        // then: the transport comes from the flag
-        assert_eq!(s.net.transport_mode, TransportMode::NoRelay);
+        // then: the exit setting comes from the flag
+        assert!(!s.net.exit_enabled);
     }
 
     #[test]
     fn net_flags_leave_the_process_block_alone() {
-        // given: --socks and --no-relay, a process block with SOCKS off
-        let main = flagged_relaunch(Some(TransportMode::NoRelay), Some(true));
+        // given: --socks and --no-exit, a process block with SOCKS off
+        let main = flagged_relaunch(Some(false), Some(true));
         let mut s = Settings::default();
         s.process.socks_enabled = false;
         let process_before = s.process.clone();
@@ -141,15 +140,12 @@ mod flags_of_the_process {
         assert_eq!(s.net.network_key, None);
     }
 
-    fn flagged_relaunch(
-        transport_mode: Option<TransportMode>,
-        socks_enabled: Option<bool>,
-    ) -> Relaunch {
+    fn flagged_relaunch(exit_enabled: Option<bool>, socks_enabled: Option<bool>) -> Relaunch {
         Relaunch {
             file: None,
             cli: CliOverrides {
                 network_key: Some("main-key".into()),
-                transport_mode,
+                exit_enabled,
                 socks_enabled,
                 ..CliOverrides::default()
             },

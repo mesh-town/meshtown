@@ -270,17 +270,14 @@ fn put_keeps_net() {
     let node = StubNode::new();
     let rev = state.file_report.rev;
     // when: a PUT with a patch that does not touch the net section but rewrites the file
-    let body = put_body(
-        rev,
-        serde_json::json!({"transport": {"mode": "relay_only"}}),
-    );
+    let body = put_body(rev, serde_json::json!({"exit": {"enabled": false}}));
     let (status, v) = body_json(state.put(&body, &node));
     // then: the file is rewritten, and net.sync in it is still "mem"
     assert_eq!(status, StatusCode::OK);
     assert!(v["changed"]
         .as_array()
         .unwrap()
-        .contains(&Value::String("transport.mode".to_string())));
+        .contains(&Value::String("exit.enabled".to_string())));
     assert_eq!(net_sync_in_file(&dir), "mem");
     cleanup(&dir);
 }

@@ -1,39 +1,10 @@
-//! The whole `config` document (`Settings` = process and network blocks), `TransportMode`, `ListenAccess`.
+//! The whole `config` document (`Settings` = process and network blocks), `ListenAccess`.
 //! Not here: JSON parsing (`parse.rs`/`parse_fields.rs`) and writing (`render.rs`).
 
 use crate::transport::net::NodeSecret;
 
 use super::net_settings::NetSettings;
 use super::process_settings::ProcessSettings;
-
-/// Transport mode (`transport.mode`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TransportMode {
-    DirectAndRelay,
-    RelayOnly,
-    NoRelay,
-}
-
-impl TransportMode {
-    /// Returns the value in the file: `direct_and_relay` | `relay_only` | `no_relay`.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            TransportMode::DirectAndRelay => "direct_and_relay",
-            TransportMode::RelayOnly => "relay_only",
-            TransportMode::NoRelay => "no_relay",
-        }
-    }
-
-    /// The inverse of `as_str`; an unknown string gives `None`.
-    pub fn parse(s: &str) -> Option<TransportMode> {
-        match s {
-            "direct_and_relay" => Some(TransportMode::DirectAndRelay),
-            "relay_only" => Some(TransportMode::RelayOnly),
-            "no_relay" => Some(TransportMode::NoRelay),
-            _ => None,
-        }
-    }
-}
 
 /// Who may connect to a listening port — the node page (`web.access`) or the proxy (`socks.access`): this machine only, or the local network too.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

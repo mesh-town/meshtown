@@ -24,7 +24,7 @@ async fn collect_reads_own_country_from_document() {
     .await
     .expect("the country should be written to the network document");
 
-    let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+    let collected = collect(&node, None, &mut DocCache::default()).await;
     let own = collected
         .snap
         .peers

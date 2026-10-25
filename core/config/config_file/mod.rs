@@ -8,7 +8,7 @@
 //!
 //! Parsing by file (this entry point only declares them and re-exports the public path
 //! `crate::config::config_file::*`, so callers don't notice the move into a folder):
-//! `settings` — the `Settings` document (two blocks) and the `TransportMode`/`ListenAccess` enums;
+//! `settings` — the `Settings` document (two blocks) and the `ListenAccess` enum;
 //! `process_settings`/`net_settings` — the `ProcessSettings` (process host) and `NetSettings` blocks
 //! (what the node reads); `path` — finding the file on disk; `time` —
 //! time in the docs/CONFIG-FILE.md format; `report` — what the settings module hands out; `parse_fields`/`parse` — reading
@@ -29,6 +29,7 @@ mod presence;
 mod process_settings;
 mod render;
 mod report;
+mod retired;
 mod run;
 mod save;
 mod settings;
@@ -53,10 +54,11 @@ pub use presence::has_field;
 pub use process_settings::ProcessSettings;
 pub use render::render_config_file;
 pub use report::{FieldError, FileReport, FileState};
+pub use retired::log_retired;
 pub use run::{create_fresh, new_secret, prepare, Fresh, RunConfig};
 pub(crate) use save::write_tmp_and_rename;
 pub use save::{save_config_file, save_with_floor, set_aside_bad, SaveError};
-pub use settings::{ListenAccess, Settings, TransportMode};
+pub use settings::{ListenAccess, Settings};
 pub use slot_store::{
     copy_shared_net, forget_invited_peers, list_net_slots, load_invited_peers, net_slot_path,
     new_net_slot, new_slot_id, prepare_net_slot, save_invited_peers, set_aside_main,

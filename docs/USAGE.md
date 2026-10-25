@@ -20,7 +20,7 @@ meshtown keygen --raw                 # machine key mesh1-… for scripts
 meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
-  [--relay-only] [--no-relay] [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
+  [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
   [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
   [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
   [--web-port N]
@@ -44,12 +44,6 @@ from the EFF list plus a group of 21 characters (digits and letters, except `i`,
 - The random part has 130.8 bits of strength (two words, 25.8 bits, plus 21 characters, 105 bits). The key is
   derived instantly: a fast hash, no Argon2id and no large memory peak.
 - Prefer `MESHTOWN_KEY` or the settings file over `--key`: an argument is visible in the process list.
-
-### Transport mode
-
-Reserved: the transport does not use relays yet; the setting has no effect. `--relay-only` and `--no-relay` (the settings field
-`transport.mode`: `direct_and_relay`, `relay_only` or `no_relay`) only change the `mode:` word in the start-up log
-(`direct + relay`, `relay only`, `no relay`). Leave them at the default.
 
 ## Tray
 
@@ -397,7 +391,7 @@ Every line is `+<seconds>s [tag] text`. The tags:
 
 | Tag | What it is about |
 |---|---|
-| `[node]` | version, network, transport mode, what the node listens on, start and stop, the node name and identity (persistent, from the settings file, or temporary, with the reason on a separate line), joining by an invite |
+| `[node]` | version, network, what the node listens on, start and stop, the node name and identity (persistent, from the settings file, or temporary, with the reason on a separate line), joining by an invite |
 | `[web]` | the node page: sign-in addresses (with a temporary token while no password is set), problems with the password file or a temporary token; the permanent token never appears here |
 | `[config]` | the settings file: where it was taken from, what is in it, which fields were rejected, what flags override |
 | `[invite]` | invites: joining progress ("waiting for network members", the pause between rounds), a refusal with a reason, writing the key to the settings file, addresses from an invite; the invite string itself on the `invite` command |

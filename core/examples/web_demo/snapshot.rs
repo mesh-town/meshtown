@@ -198,7 +198,6 @@ fn build_exit_info(st: &DemoState) -> ExitInfo {
 
 fn build_transport_info(demo: &DemoNode, st: &DemoState) -> TransportInfo {
     TransportInfo {
-        mode: st.settings.net.transport_mode.as_str().to_string(),
         self_path: if demo.no_network {
             None
         } else {
