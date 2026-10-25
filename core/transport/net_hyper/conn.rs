@@ -14,7 +14,7 @@ use crate::transport::net::id::PeerId;
 use crate::transport::net::link::LinkInfo;
 use crate::transport::net::stream::{BoxFuture, StreamPair};
 use crate::transport::net::transport::PeerConn;
-use crate::transport::net_hyper::link::{link_info, LinkMeter, Metered};
+use crate::transport::net_hyper::link::{link_info, LinkMeter, Metered, PathFacts};
 use crate::transport::net_hyper::table::{SessionKey, Sessions};
 use crate::transport::net_hyper::wire::Ctrl;
 use crate::transport::net_hyper::wire::REASON_MAX_BYTES;
@@ -251,6 +251,11 @@ async fn write_ack(ctrl: &mut Box<dyn Duplex>) -> NetResult<()> {
 }
 
 impl HyperConn {
+    /// Records the path facts of the session (the first call wins).
+    pub(crate) fn note_path(&self, facts: PathFacts) {
+        self.core.meter.note_path(facts);
+    }
+
     async fn open_inner(&self) -> NetResult<StreamPair> {
         let mut closed = self.core.subscribe();
         tokio::select! {
