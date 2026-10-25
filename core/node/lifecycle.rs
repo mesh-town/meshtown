@@ -17,8 +17,10 @@ use super::config::NodeConfig;
 use super::identity::IdentityState;
 use super::running::RunningNode;
 use super::start::start_node;
+use start_race::start_unless_stopped;
 
 mod command;
+mod start_race;
 use command::{after_command, apply_switch, CycleEnd};
 
 #[cfg(test)]
@@ -169,7 +171,9 @@ async fn run_cycles(
         }
         cfg.proxy_face = ctl.proxy_face();
         apply_proxy(settings, ctl, first_cycle).await?;
-        let node = boot_cycle(cfg, ctl, first_cycle).await?;
+        let Some(node) = boot_cycle(cfg, ctl, first_cycle).await? else {
+            return Ok(CycleEnd::Stopped);
+        };
         let cmd = serve_until_command(node, ctl).await;
         if let ControlFlow::Break(end) = after_command(cmd, cfg, settings, ctl, relaunch) {
             return Ok(end);
@@ -178,13 +182,32 @@ async fn run_cycles(
     }
 }
 
-/// Start of a cycle: `ctl.renew_boot_stamp()`, `start_node(cfg.clone())`; on error — `detach(Stopping)`, the line
-/// "restart failed: {e:#}" only if `!first_cycle`, the error goes up; on success — the console on the first
-/// cycle, `ctl.attach(&node)`, `ctl.node_up(&node)`.
-async fn boot_cycle(cfg: &NodeConfig, ctl: &NodeCtl, first_cycle: bool) -> Result<RunningNode> {
+/// Start of a cycle: `start_node(cfg.clone())` through `boot_cycle_with`.
+async fn boot_cycle(
+    cfg: &NodeConfig,
+    ctl: &NodeCtl,
+    first_cycle: bool,
+) -> Result<Option<RunningNode>> {
+    boot_cycle_with(ctl, first_cycle, start_node(cfg.clone())).await
+}
+
+/// Start of a cycle: `ctl.renew_boot_stamp()`, the start itself (a stop request interrupts it: `None`, the
+/// start is closed in the background); on error — `detach(Stopping)`, the line "restart failed: {e:#}" only
+/// if `!first_cycle`, the error goes up; on success — the console on the first cycle, `ctl.attach(&node)`,
+/// `ctl.node_up(&node)`.
+async fn boot_cycle_with(
+    ctl: &NodeCtl,
+    first_cycle: bool,
+    start: impl std::future::Future<Output = Result<RunningNode>> + Send + 'static,
+) -> Result<Option<RunningNode>> {
     ctl.renew_boot_stamp();
-    let node = match start_node(cfg.clone()).await {
-        Ok(node) => node,
+    let started = start_unless_stopped(ctl, start, |node| Box::pin(node.discard())).await;
+    let node = match started {
+        Ok(Some(node)) => node,
+        Ok(None) => {
+            say("node", "start interrupted by a stop");
+            return Ok(None);
+        }
         Err(e) => return Err(cycle_failed(ctl, first_cycle, e)),
     };
     if first_cycle {
@@ -192,7 +215,7 @@ async fn boot_cycle(cfg: &NodeConfig, ctl: &NodeCtl, first_cycle: bool) -> Resul
     }
     ctl.attach(&node);
     ctl.node_up(&node);
-    Ok(node)
+    Ok(Some(node))
 }
 
 /// A cycle could not start: the proxy gives up the node, `detach(Stopping)`, the line "restart failed: {e:#}"
@@ -254,6 +277,9 @@ pub async fn run(cfg: NodeConfig) -> Result<()> {
     result
 }
 
+#[cfg(test)]
+#[path = "lifecycle_start_stop_tests.rs"]
+mod start_stop_tests;
 #[cfg(test)]
 #[path = "lifecycle_tests.rs"]
 mod tests;

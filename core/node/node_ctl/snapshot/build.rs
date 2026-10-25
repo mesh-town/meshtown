@@ -21,10 +21,10 @@ use crate::web_gui::{
     PeerInfo, RecordInfo, RelayInfo, SocksInfo, SocksLan, TransportInfo, VerdictKind,
 };
 
-#[cfg(test)]
-use super::collect::link_status;
 use super::collect::Collected;
 use super::peers::build_peers;
+#[cfg(test)]
+use super::process::link_status;
 use super::route_state::route_state;
 
 /// Everything the pure `build` function needs, gathered by `collect` in one pass without repeated
