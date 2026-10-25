@@ -1,14 +1,41 @@
 //! Session counters and path and network information for display. For now the path is always "direct UDX",
-//! rtt and window are unknown: live stream statistics will supply them once townjump exposes statistics.
+//! the window is unknown; rtt comes from the connection probe.
 
 use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
 use portable_atomic::AtomicU64;
 use std::io;
+use std::net::{SocketAddr, SocketAddrV4};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use townjump_dht::{DhtConnection, RttProbe};
+
+/// What is known about the path of a session once it is set up.
+#[derive(Clone, Default)]
+pub struct PathFacts {
+    pub remote: Option<SocketAddr>,
+    pub rtt: Option<RttProbe>,
+}
+
+impl PathFacts {
+    /// Outgoing session: `via` is the address a direct dial used (`None` for a dial by key).
+    pub fn dialed(conn: &DhtConnection, via: Option<SocketAddrV4>) -> PathFacts {
+        PathFacts {
+            remote: via.map(SocketAddr::V4),
+            rtt: conn.rtt_probe(),
+        }
+    }
+
+    /// Incoming session: the source address of a handshake is not a dialable address, so it is not kept.
+    pub fn accepted(conn: &DhtConnection) -> PathFacts {
+        PathFacts {
+            remote: None,
+            rtt: conn.rtt_probe(),
+        }
+    }
+}
 
 /// Counters of one session; shared by all its streams.
 #[derive(Default)]
@@ -18,6 +45,7 @@ pub struct LinkMeter {
     frames: AtomicU64,
     established: AtomicBool,
     closed: AtomicBool,
+    path: OnceLock<PathFacts>,
 }
 
 impl LinkMeter {
@@ -28,6 +56,11 @@ impl LinkMeter {
     /// The control stream received `Ack`: the path is established.
     pub fn mark_established(&self) {
         self.established.store(true, Relaxed);
+    }
+
+    /// Records the path facts; the first call wins.
+    pub fn note_path(&self, facts: PathFacts) {
+        let _ = self.path.set(facts);
     }
 
     /// The session is closed: data streams answer `ConnectionAborted` from now on.
@@ -52,8 +85,14 @@ pub fn link_info(meter: &LinkMeter) -> LinkInfo {
         recv_bytes: meter.recv.load(Relaxed),
         path_count: usize::from(meter.alive()),
         stream_frames: meter.frames.load(Relaxed),
-        ..LinkInfo::default()
+        remote: meter.path.get().and_then(|p| p.remote),
+        rtt: probed_rtt(meter),
     }
+}
+
+fn probed_rtt(meter: &LinkMeter) -> Option<std::time::Duration> {
+    let probe = meter.path.get()?.rtt.as_ref()?;
+    probe()
 }
 
 fn path_of(meter: &LinkMeter) -> PathKind {

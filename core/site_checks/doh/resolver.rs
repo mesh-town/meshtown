@@ -50,6 +50,23 @@ impl Resolver {
         })
     }
 
+    /// Like `new`, but with a ready TLS config (own trust anchors) — for tests against a loopback server.
+    #[cfg(test)]
+    pub(crate) fn with_tls_for_tests(
+        server: SocketAddr,
+        limits: HttpLimits,
+        user_agent: String,
+        tls: Arc<ClientConfig>,
+    ) -> Resolver {
+        Resolver {
+            server,
+            tls,
+            limits,
+            user_agent,
+            cache: Arc::new(Mutex::new(DnsCache::new(CACHE_ENTRIES))),
+        }
+    }
+
     /// The DoH server address.
     pub fn server(&self) -> SocketAddr {
         self.server

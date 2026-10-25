@@ -170,6 +170,8 @@ mod answers {
 mod udp {
     use super::*;
     use crate::exit::test_support::exit_config_with_dead_resolver;
+    use crate::site_checks::doh::test_server::TestDoh;
+    use simple_dns::TYPE;
 
     fn seeded(v4: Vec<Ipv4Addr>, v6: Vec<&str>) -> crate::exit::server::ExitConfig {
         let cfg = exit_config_with_dead_resolver();
@@ -215,6 +217,27 @@ mod udp {
             udp_address_from(&cfg.resolver, "udp.test", 53, v4).await,
             None
         );
+    }
+
+    #[tokio::test]
+    async fn doh_nxdomain_stops_udp_lookup_before_aaaa() {
+        let server = TestDoh::start().await;
+
+        let addr = udp_address(&server.resolver(), "gone.nx.test", 53).await;
+
+        assert_eq!(addr, None);
+        assert_eq!(server.queries(), [("gone.nx.test".to_string(), TYPE::A)]);
+    }
+
+    #[tokio::test]
+    async fn doh_empty_answer_still_asks_for_aaaa() {
+        let server = TestDoh::start().await;
+
+        let addr = udp_address(&server.resolver(), "a.empty.test", 53).await;
+
+        assert_eq!(addr, None);
+        let types: Vec<TYPE> = server.queries().into_iter().map(|q| q.1).collect();
+        assert_eq!(types, [TYPE::A, TYPE::AAAA]);
     }
 
     #[tokio::test]

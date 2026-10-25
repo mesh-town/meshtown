@@ -30,6 +30,10 @@ pub const DEFAULT_SOCKS_PORT: u16 = 1080;
 pub const DIRECT_TCP_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 /// The reason of a refusal while the proxy has no network to go through.
 pub const NO_PROXY_NETWORK: &str = "no network for the proxy";
+/// How long a client has, from `accept`, to deliver the whole request head (the first byte included).
+/// It is a deadline, not an idle limit: a client dripping bytes cannot hold the task. A connection that
+/// misses it is closed silently.
+const HEAD_DEADLINE: Duration = Duration::from_secs(30);
 
 /// Everything the SOCKS5 server needs to work.
 #[derive(Clone)]
@@ -146,31 +150,33 @@ pub(crate) async fn serve_front(
         }
         disable_nagle(&stream);
         let cfg = target.borrow().clone();
-        crate::node::output::spawn(dispatch(stream, cfg, nets.clone(), client_addr));
+        let deadline = tokio::time::Instant::now() + HEAD_DEADLINE;
+        crate::node::output::spawn(dispatch(stream, cfg, nets.clone(), client_addr, deadline));
     }
 }
 
 /// Tells the protocol apart by the first byte without taking it from the stream: `0x05` is SOCKS5,
 /// otherwise HTTP; a connection closed without a single byte is a quiet exit. It prints the error with the
-/// protocol label.
+/// protocol label. A client that sends no byte before `deadline` is closed silently.
 async fn dispatch(
     stream: TcpStream,
     cfg: Option<ProxyConfig>,
     nets: NetDirectory,
     client_addr: SocketAddr,
+    deadline: tokio::time::Instant,
 ) {
     let mut first = [0u8; 1];
-    match stream.peek(&mut first).await {
-        Ok(n) if n > 0 => {}
+    match tokio::time::timeout_at(deadline, stream.peek(&mut first)).await {
+        Ok(Ok(n)) if n > 0 => {}
         _ => return,
     }
     if first[0] == socks5::VERSION {
-        if let Err(e) = serve_socks5_connection(stream, cfg, nets).await {
+        if let Err(e) = serve_socks5_connection(stream, cfg, nets, deadline).await {
             say("socks", format!("{client_addr}: {e:#}"));
         }
         return;
     }
-    if let Err(e) = http::serve_http_connection(stream, cfg, nets).await {
+    if let Err(e) = http::serve_http_connection(stream, cfg, nets, deadline).await {
         say("http", format!("{client_addr}: {e:#}"));
     }
 }
@@ -178,15 +184,20 @@ async fn dispatch(
 /// Serves one SOCKS5 connection from the greeting to the end of the transfer. There is one route decision for
 /// the whole connection and it does not depend on the target (a domain or an address);
 /// a connection through an exit is closed if the exit is removed from `route.exits` while it is still open.
+/// The greeting and the request bytes must arrive before `deadline`, otherwise the connection is closed silently.
 async fn serve_socks5_connection(
     mut stream: TcpStream,
     cfg: Option<ProxyConfig>,
     nets: NetDirectory,
+    deadline: tokio::time::Instant,
 ) -> Result<()> {
     // One timestamp for the whole serving: the summary line prints it.
     let started = Instant::now();
-    socks5::read_greeting(&mut stream).await?;
-    let raw = socks5::read_request_bytes(&mut stream).await?;
+    let head = tokio::time::timeout_at(deadline, read_request_head(&mut stream)).await;
+    let Ok(raw) = head else {
+        return Ok(());
+    };
+    let raw = raw?;
     let request = match socks5::parse_socks5_request(&raw) {
         Ok(request) => request,
         Err(e) => {
@@ -207,6 +218,12 @@ async fn serve_socks5_connection(
         socks5::Command::Connect => serve_connect(stream, cfg, nets, request, started).await,
         socks5::Command::UdpAssociate => assoc::serve_associate(stream, cfg, started).await,
     }
+}
+
+/// The greeting (with its reply) and the raw bytes of the request.
+async fn read_request_head(stream: &mut TcpStream) -> Result<Vec<u8>> {
+    socks5::read_greeting(stream).await?;
+    socks5::read_request_bytes(stream).await
 }
 
 /// The reply and the journal line for a request that arrived while the proxy has no network.
@@ -268,3 +285,7 @@ mod tests;
 #[cfg(test)]
 #[path = "serve_access_tests.rs"]
 mod access_tests;
+
+#[cfg(test)]
+#[path = "serve_head_tests.rs"]
+mod head_tests;

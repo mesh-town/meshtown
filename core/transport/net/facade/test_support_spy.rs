@@ -13,6 +13,7 @@ pub(crate) struct Spy {
     hints: Mutex<Vec<PeerAddr>>,
     relays: Mutex<Vec<Vec<RelayRef>>>,
     served: Mutex<Vec<Vec<ServiceId>>>,
+    proven: Mutex<Vec<(PeerId, std::net::SocketAddr)>>,
     /// Incoming connections of the `serving_everything` mode: while the spy holds them, only the facade can close them.
     held: Mutex<Vec<Arc<dyn PeerConn>>>,
 }
@@ -29,6 +30,7 @@ impl Spy {
             hints: Mutex::new(Vec::new()),
             relays: Mutex::new(Vec::new()),
             served: Mutex::new(Vec::new()),
+            proven: Mutex::new(Vec::new()),
             held: Mutex::new(Vec::new()),
         }
     }
@@ -53,6 +55,12 @@ impl Spy {
     /// `close` writes "transport" to the journal.
     pub(crate) fn journaled(mut self, journal: &Journal) -> Self {
         self.journal = Some(journal.clone());
+        self
+    }
+
+    /// `proven_addr` answers `at` for `peer`.
+    pub(crate) fn proving(self, peer: PeerId, at: std::net::SocketAddr) -> Self {
+        lock(&self.proven).push((peer, at));
         self
     }
 
@@ -109,6 +117,14 @@ impl Transport for Spy {
 
     fn can_reach(&self, to: &PeerAddr) -> bool {
         self.inner.can_reach(to)
+    }
+
+    fn proven_addr(&self, peer: PeerId) -> Option<std::net::SocketAddr> {
+        let own = lock(&self.proven)
+            .iter()
+            .find(|(id, _)| *id == peer)
+            .map(|(_, at)| *at);
+        own.or_else(|| self.inner.proven_addr(peer))
     }
 
     fn add_hints(&self, addr: &PeerAddr) {

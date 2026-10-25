@@ -176,3 +176,100 @@ fn parse_accepts_v3_and_rejects_five() {
         }
     }
 }
+
+mod proven_addresses {
+    use super::*;
+    use crate::transport::net::facade::test_support::{secret, Spy};
+    use crate::transport::net::facade::NetStackBuilder;
+    use crate::transport::net::mem::MemNet;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn make_carries_the_proven_address_of_a_member() {
+        // given: a node that proved an address of B but not of C, both listed as members
+        let (node, src) = setup_with_proof(&[2, 3], 2).await;
+        // when: it builds an invite and the string is parsed
+        let issued = make(&src, None).unwrap();
+        let parsed = parse(&issued.text).unwrap();
+        // then: B carries the proven address, C stays a key alone
+        assert_eq!(hints_of(&parsed, 2), vec![AddrHint::Ip(proven_at())]);
+        assert!(hints_of(&parsed, 3).is_empty(), "no proof for C");
+        node.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn commit_carries_the_proven_address_of_a_member() {
+        // given: the same node and an invite made by it
+        let (node, src) = setup_with_proof(&[2, 3], 2).await;
+        let issued = make(&src, None).unwrap();
+        // when: the issue record is written and the final string is assembled
+        let dealt = tokio::time::timeout(Duration::from_secs(10), issued.commit())
+            .await
+            .expect("commit finishes")
+            .expect("commit succeeds");
+        // then: B carries the proven address in the final string too
+        let parsed = parse(&dealt.text).unwrap();
+        assert_eq!(hints_of(&parsed, 2), vec![AddrHint::Ip(proven_at())]);
+        assert!(hints_of(&parsed, 3).is_empty(), "no proof for C");
+        node.shutdown().await;
+    }
+
+    #[tokio::test]
+    async fn make_keeps_a_member_key_only_without_any_proof() {
+        // given: a node that proved nothing, with B listed
+        let (node, src) = setup_with_proof(&[2], 9).await;
+        // when
+        let parsed = parse(&make(&src, None).unwrap().text).unwrap();
+        // then
+        assert!(hints_of(&parsed, 2).is_empty(), "{:?}", parsed.peers);
+        node.shutdown().await;
+    }
+
+    fn proven_at() -> SocketAddr {
+        "203.0.113.7:4000".parse().unwrap()
+    }
+
+    fn hints_of(parsed: &ParsedInvite, n: u8) -> Vec<AddrHint> {
+        let found = parsed.peers.iter().find(|p| p.id == id(n));
+        found.expect("the member is named").hints.clone()
+    }
+
+    /// A running node whose invite source has a stack over a spy that proved `proven_at()` for node `proved`;
+    /// the node's list admits the members `listed`.
+    async fn setup_with_proof(listed: &[u8], proved: u8) -> (crate::node::RunningNode, Source) {
+        use crate::members::access::tally::Ledger;
+        use crate::members::access::view::Verdicts;
+        use std::collections::BTreeSet;
+        let cfg = crate::node::NodeConfig::for_loopback_test(
+            crate::members::network_key::NetworkKey::generate().unwrap(),
+        );
+        let node = crate::node::start_node(cfg).await.unwrap();
+        let mut src = node.invite_source();
+        let spy = Spy::on(&MemNet::new(), &secret(1)).proving(id(proved), proven_at());
+        src.stack = NetStackBuilder::new(secret(1))
+            .transport(std::sync::Arc::new(spy))
+            .build()
+            .unwrap();
+        let ledger = Ledger {
+            admitted: listed.iter().map(|n| id(*n)).collect(),
+            excluded: Default::default(),
+            pending: Default::default(),
+            need: 1,
+            admissions: Default::default(),
+            forgets: Default::default(),
+            admit_unix: Default::default(),
+            forget_marks: Default::default(),
+            forget_need: 1,
+            admins: Default::default(),
+            closed: None,
+        };
+        src.members.access().publish(Verdicts {
+            me: node.id,
+            ledger: std::sync::Arc::new(ledger),
+            my_votes: BTreeSet::new(),
+            blocks: BTreeSet::new(),
+            reasons: Default::default(),
+        });
+        (node, src)
+    }
+}

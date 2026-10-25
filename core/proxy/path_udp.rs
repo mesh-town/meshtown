@@ -3,12 +3,12 @@
 
 use crate::exit;
 use crate::node::output::{say, short_peer_id};
-use crate::proxy::route::{self, Route};
+use crate::proxy::route;
 use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
 use super::super::outcome::ProxyOutcome;
 use super::super::serve::ProxyConfig;
-use super::{open_through_exits, OpenedUpstream, Upstream};
+use super::{open_through_exits, OpenRefused};
 
 /// An open stream to the UDP gateway of an exit.
 pub(in crate::proxy) struct ExitLink {
@@ -42,26 +42,25 @@ pub(in crate::proxy) async fn open_udp_route(cfg: &ProxyConfig) -> Result<UdpRou
             )));
         }
     };
-    match route {
-        Route::Direct => {
-            say("route", "udp → direct");
-            Ok(UdpRoute::Direct)
-        }
-        Route::Exits(candidates) => {
-            say(
-                "route",
-                format!(
-                    "udp → exit {}",
-                    short_peer_id(&route::first_exit(&candidates))
-                ),
-            );
-            open_exit_link(cfg, &candidates).await.map(UdpRoute::Exit)
-        }
-        Route::Refuse(reason) => {
+    let candidates = match route.candidates() {
+        Ok(candidates) => candidates,
+        Err(reason) => {
             say("route", format!("udp → refused: {reason}"));
-            Err(failure(ProxyOutcome::refused("no route", reason)))
+            return Err(failure(ProxyOutcome::refused("no route", reason)));
         }
-    }
+    };
+    let Some(candidates) = candidates else {
+        say("route", "udp → direct");
+        return Ok(UdpRoute::Direct);
+    };
+    say(
+        "route",
+        format!(
+            "udp → exit {}",
+            short_peer_id(&route::first_exit(&candidates))
+        ),
+    );
+    open_exit_link(cfg, &candidates).await.map(UdpRoute::Exit)
 }
 
 /// Opens the gateway stream through the first candidate that has a UDP gateway.
@@ -69,25 +68,17 @@ pub(super) async fn open_exit_link(
     cfg: &ProxyConfig,
     candidates: &[PeerId],
 ) -> Result<ExitLink, UdpRefusal> {
-    let opened = open_through_exits(cfg, candidates, exit::UDPGW_HOST, exit::UDPGW_PORT).await;
-    match opened {
-        Ok(OpenedUpstream {
-            route_label,
-            upstream: Upstream::Exit { peer, send, recv },
-        }) => Ok(ExitLink {
-            route_label,
-            peer,
-            send,
-            recv,
-        }),
-        Ok(other) => Err(failure(ProxyOutcome::refused(
-            other.route_label,
-            "no exit stream",
-        ))),
-        Err(refused) => Err(UdpRefusal {
+    open_through_exits(cfg, candidates, exit::UDPGW_HOST, exit::UDPGW_PORT)
+        .await
+        .map_err(UdpRefusal::from)
+}
+
+impl From<OpenRefused> for UdpRefusal {
+    fn from(refused: OpenRefused) -> Self {
+        UdpRefusal {
             no_udp: refused.gateway_refused,
             outcome: refused.outcome,
-        }),
+        }
     }
 }
 

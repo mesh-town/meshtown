@@ -2,7 +2,7 @@
 //! Closing goes in one order: discovery, acceptor, handlers, transports.
 
 use super::services::HandlerSet;
-use crate::transport::net::addr::{PeerAddr, RelayRef};
+use crate::transport::net::addr::{AddrHint, PeerAddr, RelayRef};
 use crate::transport::net::discovery_mux::{DiscoveryMux, MANUAL_SOURCE};
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
@@ -136,6 +136,15 @@ impl NetStack {
         self.0.transports.iter().for_each(|t| t.set_relays(&relays));
     }
 
+    /// An address of `peer` that one of the transports dialed successfully itself.
+    pub fn proven_addr(&self, peer: PeerId) -> Option<PeerAddr> {
+        let found = self.0.transports.iter().find_map(|t| t.proven_addr(peer))?;
+        Some(PeerAddr {
+            id: peer,
+            hints: vec![AddrHint::Ip(found)],
+        })
+    }
+
     pub fn invite_addrs(&self) -> Vec<PeerAddr> {
         self.0.transports.iter().map(|t| t.local_addr()).collect()
     }
@@ -192,3 +201,7 @@ impl NetStack {
 #[cfg(test)]
 #[path = "stack_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "stack_proven_tests.rs"]
+mod proven_tests;

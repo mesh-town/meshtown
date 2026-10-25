@@ -226,3 +226,26 @@ async fn running_node() -> crate::node::RunningNode {
         .await
         .unwrap()
 }
+
+mod candidates {
+    use super::*;
+
+    #[test]
+    fn direct_has_no_candidates() {
+        assert_eq!(Route::Direct.candidates(), Ok(None));
+    }
+
+    #[test]
+    fn exits_give_their_candidates() {
+        let list = vec![pair(1), pair(2)];
+        assert_eq!(Route::Exits(list.clone()).candidates(), Ok(Some(list)));
+    }
+
+    #[test]
+    fn refuse_gives_its_reason() {
+        assert_eq!(
+            Route::Refuse("chosen exits are offline").candidates(),
+            Err("chosen exits are offline")
+        );
+    }
+}

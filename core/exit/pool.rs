@@ -24,6 +24,10 @@ type Slot = Arc<OnceCell<Arc<dyn PeerConn>>>;
 /// How long to wait for `open_bi` (the connection's stream budget is exhausted) before refusing the request.
 pub const OPEN_STREAM_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// How long a request waits for the member's cell to be filled (a connection being dialed, possibly by another
+/// request) before it gives up; twice the transport's own connect limit, so a single dial ends first.
+pub const CONNECT_WAIT: Duration = Duration::from_secs(20);
+
 /// The `open_bi` deadline passed: the connection is alive, but all exit streams are busy. It is carried inside
 /// `anyhow::Error`; the caller finds it via `downcast_ref` and tells "exit overloaded"
 /// from "exit is not responding".
@@ -59,6 +63,8 @@ pub struct PeerConnPool {
     open_bi_waiter_count: Arc<AtomicUsize>,
     /// Deadline for one stream's `open_bi`; when it expires `open_peer_stream` returns an error.
     open_timeout: Duration,
+    /// Deadline for filling the member's cell; when it expires the request returns an error.
+    connect_wait: Duration,
     /// Speed registry: the pool's outgoing connections are counted as `ThroughPeer`; `None` — not counted.
     traffic: Option<ExitTraffic>,
     /// Exits that refused the UDP gateway target.
@@ -96,6 +102,7 @@ impl PeerConnPool {
             svc,
             open_bi_waiter_count: Arc::default(),
             open_timeout: OPEN_STREAM_TIMEOUT,
+            connect_wait: CONNECT_WAIT,
             traffic: None,
             gateway: GatewayMemo::default(),
         }
@@ -125,6 +132,12 @@ impl PeerConnPool {
         self
     }
 
+    /// Replaces the cell-filling deadline (tests; the node calls `PeerConnPool::default()`).
+    pub fn with_connect_wait(mut self, limit: Duration) -> Self {
+        self.connect_wait = limit;
+        self
+    }
+
     pub fn open_bi_waiter_count(&self) -> usize {
         self.open_bi_waiter_count.load(Ordering::SeqCst)
     }
@@ -132,12 +145,24 @@ impl PeerConnPool {
     /// Opens a stream to a member through the pool's service; a closed connection is reopened.
     /// `open` waits no longer than `open_timeout` (default `OPEN_STREAM_TIMEOUT`), then returns an error.
     pub async fn open_peer_stream(&self, stack: &NetStack, peer: PeerId) -> Result<StreamPair> {
-        let slot = self.slot(peer).await;
-        let conn = slot.get_or_try_init(|| self.connect(stack, peer)).await?;
+        let (_, pair) = self.open_stream(stack, peer).await?;
+        Ok(pair)
+    }
+
+    /// Like `open_peer_stream`, plus the `stable_id` of the connection the stream is on (for `forget`).
+    /// A failed `open` drops the connection from the cell: the next request dials a new one.
+    async fn open_stream(&self, stack: &NetStack, peer: PeerId) -> Result<(u64, StreamPair)> {
+        let conn = self.cell_connection(stack, peer).await?;
+        let id = conn.stable_id();
         let _open_bi_waiter = OpenBiWaiterGuard::enter(&self.open_bi_waiter_count);
         match timeout(self.open_timeout, conn.open()).await {
-            Ok(opened) => {
-                opened.map_err(|e| anyhow!("stream to {} didn't open: {e}", short_peer_id(&peer)))
+            Ok(Ok(pair)) => Ok((id, pair)),
+            Ok(Err(e)) => {
+                self.forget(peer, id).await;
+                Err(anyhow!(
+                    "stream to {} didn't open: {e}",
+                    short_peer_id(&peer)
+                ))
             }
             Err(_) => Err(StreamBusy {
                 peer: short_peer_id(&peer),
@@ -145,6 +170,32 @@ impl PeerConnPool {
                 open_bi_waiter_count: self.open_bi_waiter_count(),
             }
             .into()),
+        }
+    }
+
+    /// The member's connection: waits for the cell to be filled, but no longer than `connect_wait`.
+    async fn cell_connection(&self, stack: &NetStack, peer: PeerId) -> Result<Arc<dyn PeerConn>> {
+        let slot = self.slot(peer).await;
+        let filled = slot.get_or_try_init(|| self.connect(stack, peer));
+        match timeout(self.connect_wait, filled).await {
+            Ok(conn) => Ok(conn?.clone()),
+            Err(_) => bail!(
+                "connection to {} didn't open: still not connected after {} s",
+                short_peer_id(&peer),
+                self.connect_wait.as_secs()
+            ),
+        }
+    }
+
+    /// Empties the member's cell if it still holds the connection with this `stable_id`. The connection is
+    /// not closed: other streams may live on it.
+    pub(crate) async fn forget(&self, peer: PeerId, stable_id: u64) {
+        let mut map = self.conns.lock().await;
+        let Some(slot) = map.get_mut(&peer) else {
+            return;
+        };
+        if slot.get().is_some_and(|conn| conn.stable_id() == stable_id) {
+            *slot = Slot::default();
         }
     }
 
@@ -195,11 +246,12 @@ pub async fn ask_exit_to_connect(
     port: u16,
 ) -> Result<(BoxSend, BoxRecv, u8)> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let StreamPair { mut send, mut recv } = pool.open_peer_stream(stack, peer).await?;
+    let (id, StreamPair { mut send, mut recv }) = pool.open_stream(stack, peer).await?;
     let frame = encode_exit_request(target_host, port)?;
-    send.write_all(&frame)
-        .await
-        .map_err(|e| anyhow!("request not sent: {e}"))?;
+    if let Err(e) = send.write_all(&frame).await {
+        pool.forget(peer, id).await;
+        bail!("request not sent: {e}");
+    }
     let mut answer = [0u8; 2];
     recv.read_exact(&mut answer)
         .await
@@ -216,3 +268,6 @@ mod ask_tests;
 #[cfg(test)]
 #[path = "pool_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "pool_wait_tests.rs"]
+mod wait_tests;

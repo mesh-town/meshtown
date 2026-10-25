@@ -12,20 +12,25 @@ use super::front::NetDirectory;
 use super::http_head::{
     parse_head, status_reply, HttpProxyRequest, HttpRequestKind, MAX_HEAD_BYTES,
 };
+use super::mesh;
 use super::outcome::{outcome_line, ProxyOutcome};
 use super::pac::{pac_proxy_list, pac_reply, pac_script, PacRequest, PAC_PATH};
-use super::mesh;
 use super::path;
 use super::serve::{ProxyConfig, NO_PROXY_NETWORK};
 
-/// Serves one HTTP connection: one request (`CONNECT`, an absolute URI or a PAC).
+/// Serves one HTTP connection: one request (`CONNECT`, an absolute URI or a PAC). The head must be complete
+/// before `deadline`, otherwise the connection is closed silently.
 pub(super) async fn serve_http_connection(
     mut stream: TcpStream,
     cfg: Option<ProxyConfig>,
     nets: NetDirectory,
+    deadline: tokio::time::Instant,
 ) -> Result<()> {
     let started = Instant::now();
-    let Some((request_kind, buf)) = read_head(&mut stream).await? else {
+    let Ok(head) = tokio::time::timeout_at(deadline, read_head(&mut stream)).await else {
+        return Ok(());
+    };
+    let Some((request_kind, buf)) = head? else {
         return Ok(());
     };
     match request_kind {
@@ -68,21 +73,22 @@ async fn forward(
     started: Instant,
 ) -> Result<()> {
     let target_text = request.target.to_string();
-    let outcome = match mesh::open::open_target(cfg, nets, &request.target, request.port, "http").await {
-        Ok(opened) => {
-            stream.write_all(request.reply).await?;
-            let mut prefix = request.upstream_head;
-            prefix.extend_from_slice(&buf[request.head_len..]);
-            path::relay_bytes(opened, &cfg.route, stream, &prefix).await
-        }
-        Err(refused) => {
-            let code = if refused.timed_out { 504 } else { 502 };
-            stream
-                .write_all(&status_reply(code, &refused.outcome.result))
-                .await?;
-            refused.outcome
-        }
-    };
+    let outcome =
+        match mesh::open::open_target(cfg, nets, &request.target, request.port, "http").await {
+            Ok(opened) => {
+                stream.write_all(request.reply).await?;
+                let mut prefix = request.upstream_head;
+                prefix.extend_from_slice(&buf[request.head_len..]);
+                path::relay_bytes(opened, &cfg.route, stream, &prefix).await
+            }
+            Err(refused) => {
+                let code = if refused.timed_out { 504 } else { 502 };
+                stream
+                    .write_all(&status_reply(code, &refused.outcome.result))
+                    .await?;
+                refused.outcome
+            }
+        };
     say(
         "http",
         outcome_line(&target_text, &outcome, started.elapsed().as_millis()),
