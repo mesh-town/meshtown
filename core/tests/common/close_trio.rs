@@ -27,8 +27,6 @@ use super::common::{api, wait_until};
 
 /// How long a view or a record may take to spread.
 pub const VIEW_LIMIT: Duration = Duration::from_secs(25);
-/// How long the nodes may take to link to each other after they joined.
-const LINK_LIMIT: Duration = Duration::from_secs(60);
 pub const LABEL: &str = "club";
 
 /// The creator, an administrator and a plain member of one Managed network.
@@ -54,10 +52,20 @@ pub async fn trio() -> Trio {
         admin,
         member,
     };
-    let linked = wait_until(LINK_LIMIT, || t.all().all(|n| n.fully_linked())).await;
+    // A record of the close travels through the creator: every node must be linked to it before the test closes the network.
+    let linked = wait_until(VIEW_LIMIT, || {
+        let to_root = [&t.admin, &t.member]
+            .into_iter()
+            .all(|n| n.sees_online(&t.root));
+        to_root
+            && [&t.admin, &t.member]
+                .into_iter()
+                .all(|n| t.root.sees_online(n))
+    })
+    .await;
     assert!(
         linked,
-        "the nodes did not all link to each other: {:?}",
+        "the nodes did not link to the creator: {:?}",
         t.all().map(|n| n.get("/api/members").1).collect::<Vec<_>>()
     );
     let ready = wait_until(VIEW_LIMIT, || {
@@ -134,12 +142,13 @@ impl Hosted {
         state["network"].is_null() && state["node"]["status"] == json!("offline")
     }
 
-    /// Whether the members page shows both other nodes online.
-    pub fn fully_linked(&self) -> bool {
+    /// Whether the members page shows `who` online.
+    pub fn sees_online(&self, who: &Hosted) -> bool {
         let members = self.get("/api/members").1;
-        let rows = members["members"].as_array().cloned().unwrap_or_default();
-        let others = rows.iter().filter(|r| r["self"] == json!(false));
-        others.clone().count() == 2 && others.into_iter().all(|r| r["online"] == json!(true))
+        members["members"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|r| r["id_full"] == json!(who.id_full()) && r["online"] == json!(true))
+        })
     }
 
     /// Whether the members page lists `who` with a status.
