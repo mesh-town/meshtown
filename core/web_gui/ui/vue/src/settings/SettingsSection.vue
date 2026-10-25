@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref } from "vue";
-import { STOPPED_NOTE } from "../common/pac-texts.ts";
+import { STOPPED_NOTE, STOPPED_NOTE_APP } from "../common/pac-texts.ts";
 import { NET_NAME } from "../common/words.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 import { STORE_KEY } from "../core/store.ts";
 import { isMulti, stateOf, visibleSlots } from "../core/slots.ts";
 import DeletedBanner from "../members/DeletedBanner.vue";
@@ -112,7 +113,7 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
       <h2>{{ SETTINGS_NET_TITLE }}</h2>
       <div id="net-join-slot"><AddNetCard v-if="hasKeyNet && !excluded" context="settings" /></div>
       <button type="button" class="btn btn-danger" id="stop-node-btn" @click="s.stop">{{ SETTINGS_STOP_PREFIX }}{{ NET_NAME }}</button>
-      <p class="hint">{{ multi ? SETTINGS_STOP_ALL : "" }}{{ STOPPED_NOTE }}</p>
+      <p class="hint">{{ multi ? SETTINGS_STOP_ALL : "" }}{{ inAppPage() ? STOPPED_NOTE_APP : STOPPED_NOTE }}</p>
       <DeletedBanner />
       <p v-if="multi" id="settings-leave-multi" class="hint">{{ anyManaged ? SETTINGS_LEAVE_DELETE_MULTI : SETTINGS_LEAVE_MULTI }}</p>
       <div v-else-if="store.state && store.state.network && !excluded" id="settings-leave-row">

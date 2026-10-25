@@ -7,6 +7,7 @@ import type { Store } from "../core/store.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
 import { writeClipboard } from "../common/clipboard.ts";
+import { forDevice } from "../common/device.ts";
 import {
   HOME_INVITE_COPIED, HOME_INVITE_MANUAL, HOME_INVITE_STALE, HOME_INVITE_UNAVAILABLE, HOME_REACH_ISSUER_AND_ONE, HOME_REACH_ISSUER_ONLY,
 } from "./home-flow-texts.ts";
@@ -37,8 +38,8 @@ function currentNetId(store: Store, slot: string): string | null {
 
 // Reach warning; an unknown value and `spread` produce no text.
 export function reachWarning(reach: unknown): string {
-  if (reach === "issuer_only") return HOME_REACH_ISSUER_ONLY;
-  if (reach === "issuer_and_one") return HOME_REACH_ISSUER_AND_ONE;
+  if (reach === "issuer_only") return forDevice(HOME_REACH_ISSUER_ONLY);
+  if (reach === "issuer_and_one") return forDevice(HOME_REACH_ISSUER_AND_ONE);
   return "";
 }
 

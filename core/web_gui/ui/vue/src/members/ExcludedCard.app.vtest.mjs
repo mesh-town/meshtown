@@ -1,5 +1,5 @@
-/* `members/ExcludedCard.vue` inside the Android app (the user agent carries `MeshTownApp/`): "Start over" replaces
- * "Join with another invite" and leads to the address the app intercepts. */
+/* `members/ExcludedCard.vue` inside the Android app (the user agent carries `MeshTownApp/`): "Leave network and reset…" (the
+ * title of the app's own menu item) replaces "Join with another invite" and leads to the address the app intercepts. */
 
 import { afterEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -12,17 +12,26 @@ afterEach(() => {
 });
 
 describe("ExcludedCard in the app", () => {
-  it.each(["banned", "left"])("%s: a Start over link to the app address, no join button", (variant) => {
+  it.each(["banned", "left"])("%s: a \"Leave network and reset…\" link to the app address, no join button", (variant) => {
     setup(variant);
     const link = wrapper.get("#excluded-start-over");
-    expect(link.text()).toBe("Start over");
+    expect(link.text()).toBe("Leave network and reset\u2026");
     expect(link.attributes("href")).toBe("meshtown-app://start-over");
     expect(wrapper.find("#excluded-join").exists()).toBe(false);
   });
 
-  it("explains that the phone was banned", () => {
-    setup("banned");
-    expect(wrapper.get("#excluded-card").text()).toContain("This phone was banned from the network. Start over to join with a new invite.");
+  it.each(["banned", "left"])("%s: explains that the phone was banned and what to do — leave and reset the app", (variant) => {
+    setup(variant);
+    const text = wrapper.get("#excluded-card").text();
+    expect(text).toContain("This phone was banned from the network. Leave the network and reset the app to join with a new invite.");
+    expect(text).not.toContain("Start over");
+  });
+
+  it("forgotten: no reset link, the ordinary text and the join button stay", () => {
+    setup("forgotten");
+    expect(wrapper.find("#excluded-start-over").exists()).toBe(false);
+    expect(wrapper.find("#excluded-join").exists()).toBe(true);
+    expect(wrapper.get("#excluded-card").text()).not.toContain("reset the app");
   });
 
   it("outside the app the join button stays", () => {

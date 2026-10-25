@@ -28,6 +28,7 @@ export const MANUAL_BROWSER_HINT_NO_SAFARI = "Firefox is configured separately â
 export const WIZARD_AGAIN = "Open step-by-step setup";
 
 export const STOPPED_NOTE = `While ${NET_NAME} is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, use the ${NET_NAME} icon near the clock â†’ "Start ${NET_NAME}".`;
+export const STOPPED_NOTE_APP = `While ${NET_NAME} is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, open the ${NET_NAME} app.`;
 export const CONFIRM_STOP_TEXT = `Stop ${NET_NAME}? While it is stopped, sites in the browser don't open (local addresses do); after it starts, they come back in about 15 seconds.`;
 
 export const MAC_STEPS: string[] = [

@@ -6,6 +6,7 @@ import { mount } from "@vue/test-utils";
 import { STORE_KEY } from "../core/store.ts";
 import { netsStore } from "../testing/nets-store.mjs";
 import HomeSection from "./HomeSection.vue";
+import { routeLine } from "./route-line.ts";
 
 const X = "D".repeat(64);
 const Y = "E".repeat(64);
@@ -115,5 +116,42 @@ describe("Home route card in every error state is never the green direct card", 
     store.absence = "silent";
     const w = show(store);
     expect(w.find("#route-state").exists()).toBe(false);
+  });
+});
+
+describe("Home route card with a green \"via\" header", () => {
+  const VIA = "Sites open via exit-e (work)";
+
+  it("proxy in a non-leading network, exit online: the card says what the header says, with a green dot", () => {
+    const store = netsStore([net("main", "home", [X], [], false), net("k7q2xa", "work", [Y], [Y], true)]);
+    expect(routeLine(store)?.text).toBe(VIA);
+    const w = show(store);
+    expect(card(w).text()).toBe(VIA);
+    expect(dotOf(w).classes()).toContain("green");
+    expect(card(w).text()).not.toContain("Sites open directly");
+  });
+
+  it("the header is null (proxy in the leading network, exit in it): the card keeps its own exit text, as before", () => {
+    const store = netsStore([net("main", "home", [X], [X], true), net("k7q2xa", "work", [Y], [], false)]);
+    expect(routeLine(store)).toBeNull();
+    const w = show(store);
+    expect(card(w).text()).toBe("Sites open via exit-d (home)");
+    expect(dotOf(w).classes()).toContain("green");
+  });
+
+  it("the header is null (proxy in a non-leading network, no exit chosen): still \"Sites open directly\"", () => {
+    const store = netsStore([net("main", "home", [X], [], false), net("k7q2xa", "work", [Y], [], true)]);
+    expect(routeLine(store)).toBeNull();
+    const w = show(store);
+    expect(card(w).text()).toBe("Sites open directly");
+    expect(dotOf(w).classes()).toContain("green");
+  });
+
+  it("one network: no header override, the card never carries a network name in brackets", () => {
+    const store = netsStore([net("main", "home", [X], [X], true)]);
+    expect(routeLine(store)).toBeNull();
+    const w = show(store);
+    expect(card(w).text()).toContain("exit-d");
+    expect(card(w).text()).not.toMatch(/\(.*\)/);
   });
 });

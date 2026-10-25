@@ -17,6 +17,7 @@ export const SHELL_TAB_SETTINGS = "Settings";
 export const SHELL_RESTARTED = NET_NAME + " is responding again";
 export const SHELL_BAD_ORIGIN = "The page was opened from the wrong address — open it from the " + NET_NAME + " icon near the clock";
 export const SHELL_STOPPED = NET_NAME + " is stopped — start it: the " + NET_NAME + " icon near the clock → \"Start " + NET_NAME + "\". You don't need to refresh the page.";
+export const SHELL_STOPPED_APP = NET_NAME + " is stopped — start it: open the " + NET_NAME + " app. You don't need to refresh the page.";
 export const SHELL_CHANGED = "Settings were changed in another tab or by " + NET_NAME + " itself";
 
 export const SHELL_RELOAD = "Reload";

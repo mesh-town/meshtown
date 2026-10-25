@@ -115,6 +115,7 @@ export const routeLineAppViaText = (label: string): string => "Exit: " + label;
 export const NOT_RESPONDING_TEXT = NET_NAME + " is not responding";
 
 const START_HINT = "Start it: the " + NET_NAME + " icon near the clock → \"Start " + NET_NAME + "\".";
+export const START_HINT_APP = "Start it: open the " + NET_NAME + " app.";
 
 // The "the page gets no snapshots" texts — shared by the header and the Home panel.
 export const ABSENCE_TEXT: Record<Absence, string> = {

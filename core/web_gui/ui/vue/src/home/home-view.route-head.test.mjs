@@ -17,10 +17,10 @@ describe("statePanel with ctx.head", () => {
     assert.deepEqual(p.actions, ["pick-other"]);
   });
 
-  it("a green head: the usual panel", () => {
+  it("a green head: a green panel with the head text", () => {
     const p = statePanel(baseState(), null, null, ctx(GREEN));
     assert.equal(p.level, "green");
-    assert.notEqual(p.main, GREEN.text);
+    assert.equal(p.main, GREEN.text);
   });
 
   it("a null head: the usual panel", () => {

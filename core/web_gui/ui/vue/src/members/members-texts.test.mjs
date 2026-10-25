@@ -321,7 +321,8 @@ describe("ban texts do not use the removal wording", () => {
     assert.equal(t.VOTE_CONFIRM_BAN, "Confirm ban\u2026");
     assert.equal(t.TITLE_BAN_PROPOSED, "Ban already proposed");
     assert.equal(t.BADGE_BAN_PROPOSED, "Ban proposed");
-    assert.equal(t.EXCLUDED_APP_TEXT, "This phone was banned from the network. Start over to join with a new invite.");
+    assert.equal(t.EXCLUDED_APP_TEXT, "This phone was banned from the network. Leave the network and reset the app to join with a new invite.");
+    assert.equal(t.EXCLUDED_APP_BUTTON, "Leave network and reset\u2026");
     assert.equal(t.confirmAria("old-laptop"), "Confirm ban: old-laptop");
     assert.equal(t.waitingMoreText(1), "You proposed banning it \u00b7 waiting for 1 more member to confirm");
   });

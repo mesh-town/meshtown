@@ -1,6 +1,7 @@
 /* Texts of the "Settings" section: the page, the save bar, field captions, notes and action messages. */
 
 import { NET_NAME } from "../common/words.ts";
+import { forDevice } from "../common/device.ts";
 
 // --- Page ---
 export const SETTINGS_STORE_MISSING = "STORE_KEY not provided";
@@ -20,7 +21,7 @@ export const SETTINGS_NET_TITLE = "Network";
 export const SETTINGS_LEAVE_TITLE = "Leave network";
 export const SETTINGS_LEAVE_BTN = "Leave network…";
 export const leaveHint = (net?: string | null): string =>
-  "Disconnect this computer from " + (net ? "\"" + net + "\"" : "the network") + " for good. You'll need a new invite to come back.";
+  forDevice("Disconnect this computer from " + (net ? "\"" + net + "\"" : "the network") + " for good. You'll need a new invite to come back.");
 export const SETTINGS_STOP_PREFIX = "Stop ";
 export const SETTINGS_EXPERT_TITLE = "Advanced";
 export const SETTINGS_PAGE_TITLE = "Page";

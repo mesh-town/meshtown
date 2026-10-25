@@ -1,5 +1,6 @@
 /* Texts of the confirmation dialogs. */
 
+import { forDevice } from "../common/device.ts";
 import {
   FORGET_PROPOSE, FORGET_RECENT_HINT, REASON_LABEL, banAtRiskText, forgetAction, forgetConfirmLine, forgetConfirmTitle, forgetEffectLine,
   forgetLastSeenLine, forgetNeedTwoLine, forgetOnlyTwoLine, forgetTitle, isYourExitText, labelLine, leaveExitLine, leaveMultiBody, leaveMultiTitle,
@@ -109,7 +110,7 @@ const BUILDERS: Record<DialogKind, Builder> = {
   leave: (c) => (c.multi ? leaveMulti(c) : {
     title: "Leave the network" + quotedNet(c.net) + "?",
     body: [
-      "This computer disconnects from all members, and sites stop opening through Mesh Town. To come back, you'll need a new invite from a member.",
+      forDevice("This computer disconnects from all members, and sites stop opening through Mesh Town. To come back, you'll need a new invite from a member."),
     ],
     action: "Leave network",
   }),

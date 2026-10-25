@@ -8,16 +8,16 @@ export const BACKOFF_STEPS = [2000, 2000, 5000, 15000];
 // While the node is stopped, polling is rare: the node may have been started again.
 export const POLL_STOPPED_MS = 15000;
 
-import { SHELL_BAD_ORIGIN, SHELL_CHANGED, SHELL_RESTARTED, SHELL_STOPPED } from "./shell-texts.ts";
+import { SHELL_BAD_ORIGIN, SHELL_CHANGED, SHELL_RESTARTED, SHELL_STOPPED, SHELL_STOPPED_APP } from "./shell-texts.ts";
 import { API_ERROR_TEXT } from "../core/api.ts";
 import type { ApiErrorBodyLoose } from "../core/api-types.ts";
 import type { Absence } from "../core/store.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 
 const TEXT_DISCONNECTED = API_ERROR_TEXT.network;
 const TEXT_RESTARTED = SHELL_RESTARTED;
 const TEXT_BAD_TOKEN = API_ERROR_TEXT.bad_token;
 const TEXT_BAD_ORIGIN = SHELL_BAD_ORIGIN;
-const TEXT_STOPPED = SHELL_STOPPED;
 export const TEXT_CHANGED = SHELL_CHANGED;
 
 export type StripKind = "disconnected" | "restarted" | "bad_token" | "bad_origin" | "stopped";
@@ -112,7 +112,7 @@ export function onBadOrigin(conn: Conn, body?: ApiErrorBodyLoose | null): void {
 
 export function onStopping(conn: Conn): void {
   conn.stopped = true;
-  setStrip(conn, "stopped", TEXT_STOPPED);
+  setStrip(conn, "stopped", inAppPage() ? SHELL_STOPPED_APP : SHELL_STOPPED);
 }
 
 const BY_STATUS = new Map<number, ErrorKind>([
