@@ -100,6 +100,9 @@ impl Relaunch {
         s.net.network_key = Some(key_text.to_string());
         let mut cfg = self.node_config(&s, parsed.key.clone());
         apply_key_input(&mut cfg, &parsed);
+        // A network entered at run time counts its list like a live node, also on the test network: the
+        // invite's peers are written as witnesses by the start, so the first verdict does not cut their link.
+        cfg.open_list = false;
         Ok((s, cfg))
     }
 }

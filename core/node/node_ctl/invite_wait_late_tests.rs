@@ -88,9 +88,12 @@ async fn missing_owner_secret_refuses_without_network() {
 
     // then: the wait is refused up front and no key is saved
     assert!(
-        refused.message.contains("the node's own key is not known"),
+        refused
+            .message
+            .contains("this computer's own key is not known"),
         "{}",
         refused.message
     );
+    assert!(!refused.message.contains("node"), "{}", refused.message);
     assert_eq!(fx.saved(), Vec::<String>::new());
 }

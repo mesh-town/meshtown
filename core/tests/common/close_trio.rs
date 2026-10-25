@@ -5,6 +5,7 @@
 //! What it doesn't do: no assertions about the close itself; the tests own them.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use meshtown_core::config::config_file::{
@@ -51,6 +52,22 @@ pub async fn trio() -> Trio {
         admin,
         member,
     };
+    // A record of the close travels through the creator: every node must be linked to it before the test closes the network.
+    let linked = wait_until(VIEW_LIMIT, || {
+        let to_root = [&t.admin, &t.member]
+            .into_iter()
+            .all(|n| n.sees_online(&t.root));
+        to_root
+            && [&t.admin, &t.member]
+                .into_iter()
+                .all(|n| t.root.sees_online(n))
+    })
+    .await;
+    assert!(
+        linked,
+        "the nodes did not link to the creator: {:?}",
+        t.all().map(|n| n.get("/api/members").1).collect::<Vec<_>>()
+    );
     let ready = wait_until(VIEW_LIMIT, || {
         t.admin.role().as_deref() == Some("admin") && t.member.role().as_deref() == Some("member")
     })
@@ -123,6 +140,15 @@ impl Hosted {
         // The status alone flickers with the links; a node without a network has no `network` block.
         let state = self.get("/api/state").1;
         state["network"].is_null() && state["node"]["status"] == json!("offline")
+    }
+
+    /// Whether the members page shows `who` online.
+    pub fn sees_online(&self, who: &Hosted) -> bool {
+        let members = self.get("/api/members").1;
+        members["members"].as_array().is_some_and(|rows| {
+            rows.iter()
+                .any(|r| r["id_full"] == json!(who.id_full()) && r["online"] == json!(true))
+        })
     }
 
     /// Whether the members page lists `who` with a status.
@@ -285,11 +311,9 @@ fn free_port() -> u16 {
 }
 
 fn scratch_dir(tag: &str) -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("mesh-close-{tag}-{}-{nanos}", std::process::id()));
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("mesh-close-{tag}-{}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("scratch directory");
     dir
 }

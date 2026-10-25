@@ -24,3 +24,5 @@ pub mod program_name;
 pub mod run;
 #[cfg(feature = "net-hyper")]
 pub(crate) mod runtime;
+#[cfg(feature = "net-hyper")]
+pub(crate) mod stop_signals;

@@ -163,7 +163,7 @@ impl Job {
     async fn run(self) {
         let Some(owner) = self.owner.clone() else {
             return self.refuse(RedeemError::Bind(
-                "the node's own key is not known".to_string(),
+                "this computer's own key is not known".to_string(),
             ));
         };
         let opts = RedeemOpts::for_head(&self.head);
