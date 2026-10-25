@@ -73,7 +73,7 @@ public class QrPhotoTest {
     // helpers
 
     private static String invite(int length) {
-        Random random = new Random(1);
+        Random random = new Random(7);
         StringBuilder text = new StringBuilder("mesh-invite2-");
         while (text.length() < length) {
             text.append(ALPHABET.charAt(random.nextInt(ALPHABET.length())));
