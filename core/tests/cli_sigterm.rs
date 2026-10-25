@@ -2,10 +2,11 @@
 //! "received stop signal" (to stdout, through `say`) and exits with code 0 within `EXIT_LIMIT`.
 //!
 //! What it does: starts the binary as in `core/tests/run_first_start.rs` (no settings file, no relay,
-//! no checks and no SOCKS, `TOWNJUMP_BOOTSTRAP` pointing at a closed port), waits for the line with the web page address,
-//! sends `kill -TERM <pid>` (there is no `libc` in the dev-dependencies).
-//! What it doesn't do: it doesn't check the tray or SIGINT. a known open issue is "does not stop within 8 s";
-//! the shutdown takes about 4 s on a normal build, the limit is 5 s.
+//! no checks and no SOCKS, `TOWNJUMP_BOOTSTRAP` pointing at a closed port), waits for the line that the node prints
+//! once the start phase is over (the web page address is printed earlier, while the transports are still binding),
+//! then sends `kill -TERM <pid>` (there is no `libc` in the dev-dependencies). `EXIT_LIMIT` therefore measures
+//! only the stop of a running node, not the rest of the start.
+//! What it doesn't do: it doesn't check the tray or SIGINT.
 //! Links: `core/node/host/signal.rs` (`spawn_stop_signal`).
 #![cfg(unix)]
 
@@ -18,8 +19,11 @@ use meshtown_core::members::network_key::NetworkKey;
 
 /// The time from SIGTERM to the process exit.
 const EXIT_LIMIT: Duration = Duration::from_secs(5);
-/// The time from launch to printing the web page address.
+/// The time from launch to the end of the start phase.
 const START_LIMIT: Duration = Duration::from_secs(30);
+
+/// The line the node prints at the end of its start phase.
+const READY_LINE: &str = "serving as exit for members";
 
 struct Proc {
     child: Child,
@@ -117,11 +121,11 @@ fn pump(stream: impl Read + Send + 'static, tx: std::sync::mpsc::Sender<String>)
 
 #[test]
 fn sigterm_stops_node_with_zero_exit_and_message() {
-    // given: a running node, the web page printed its address
+    // given: a running node: the start phase is over (this line comes after the transports are bound)
     let mut node = Proc::start();
     assert!(
-        node.wait_line("http://", START_LIMIT),
-        "page address was not printed: {:#?}",
+        node.wait_line(READY_LINE, START_LIMIT),
+        "the node did not finish starting: {:#?}",
         node.seen
     );
 

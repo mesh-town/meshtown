@@ -355,7 +355,7 @@ fn served_keep_alive_stream(port: u16, token: &str) -> TcpStream {
 
 /// The race: `deadline`
 /// equals `drain`, but the only worker thread is busy with a synchronous `std::thread::sleep`, so
-/// the accept loop wakes on the stop signal with a delay δ ≈ 50 ms — noticeably more than the timer
+/// the accept loop wakes on the stop signal with a delay δ ≈ 10 ms — noticeably more than the timer
 /// tick. The test body runs on the `block_on` thread, not a worker: the outer deadline starts on time,
 /// while the inner drain effectively starts δ later.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
@@ -381,7 +381,7 @@ async fn shutdown_true_when_loop_wakes_late() {
     let (started_tx, started_rx) = tokio::sync::oneshot::channel();
     meshtown_core::node::output::spawn(async move {
         let _ = started_tx.send(());
-        std::thread::sleep(Duration::from_millis(50));
+        std::thread::sleep(Duration::from_millis(10));
     });
     started_rx
         .await

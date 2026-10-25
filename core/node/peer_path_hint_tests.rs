@@ -104,7 +104,7 @@ impl Fixture {
 }
 
 /// Time for handing the hint to the transport (and for the absence of a hint to mean something).
-const SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
+pub(super) const SETTLE: std::time::Duration = std::time::Duration::from_millis(150);
 
 fn sock() -> SocketAddr {
     "203.0.113.7:4455".parse().unwrap()
