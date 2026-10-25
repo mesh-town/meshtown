@@ -11,7 +11,7 @@ use crate::transport::net::PeerId;
 use super::super::admission::admit_closure;
 use super::super::authority::{Forgotten, Rules, Standing};
 use super::super::forget::{marks, settle_forgets};
-use super::votes::{sorted_votes, Excluded, VoteKey};
+use super::votes::{first_admits, sorted_votes, Excluded, VoteKey};
 use super::{Admission, AdmitIn, ForgetIn, ForgetRound, Ledger, PendingVote, TallyInput};
 
 /// State of the pass.
@@ -27,6 +27,10 @@ pub(super) struct Pass {
     pub(super) rounds: BTreeMap<PeerId, ForgetRound>,
     pub(super) forget_need: u8,
     pub(super) need: u8,
+    /// Earliest counted admission time per node; absent — admitted since always.
+    pub(super) first_admit: BTreeMap<PeerId, u64>,
+    /// (voter, subject) of the votes that carry the mark.
+    pub(super) at_moment: BTreeSet<(PeerId, PeerId)>,
 }
 
 impl Pass {
@@ -34,6 +38,7 @@ impl Pass {
         let mut pass = Pass {
             admits: input.admits.clone(),
             forgets: input.forgets.clone(),
+            first_admit: first_admits(&input.admits),
             ..Pass::empty(input.me, input.rules)
         };
         pass.refresh();
@@ -53,6 +58,8 @@ impl Pass {
             rounds: BTreeMap::new(),
             forget_need: 1,
             need: 1,
+            first_admit: BTreeMap::new(),
+            at_moment: BTreeSet::new(),
         }
     }
 
@@ -61,7 +68,7 @@ impl Pass {
         self.standing().present(p)
     }
 
-    fn standing(&self) -> Standing<'_> {
+    pub(super) fn standing(&self) -> Standing<'_> {
         Standing::new(&self.admitted, &self.excluded, &self.rounds)
     }
 

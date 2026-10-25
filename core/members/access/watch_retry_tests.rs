@@ -1,7 +1,7 @@
 //! Tests of the retry of the recompute: a failed scan publishes nothing and the next tick tries again, and a
 //! failure never erases a view that was already published.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use super::*;
 use crate::transport::net::stream::BoxFuture;
@@ -11,6 +11,7 @@ use crate::transport::net::{NetError, NetResult, ReplicaId};
 struct FlakyScan {
     inner: Arc<MemReplica>,
     failing: AtomicBool,
+    scans: AtomicUsize,
 }
 
 impl FlakyScan {
@@ -18,6 +19,7 @@ impl FlakyScan {
         Arc::new(FlakyScan {
             inner,
             failing: AtomicBool::new(failing),
+            scans: AtomicUsize::new(0),
         })
     }
 
@@ -48,6 +50,7 @@ impl Replica for FlakyScan {
     }
 
     fn scan(&self, prefix: &[u8]) -> BoxFuture<'_, NetResult<Vec<ReplicaEntry>>> {
+        self.scans.fetch_add(1, Ordering::SeqCst);
         match self.failing.load(Ordering::SeqCst) {
             true => Box::pin(async { Err(NetError::Config("scan failed".into())) }),
             false => self.inner.scan(prefix),
@@ -117,7 +120,7 @@ async fn next_tick_publishes_the_view_after_a_failed_first_recompute() {
     let f = flaky_setup(true);
     let task = crate::node::output::spawn(watch_every(f.access.clone(), Duration::from_millis(50)));
     // the first recompute has failed, and the view is still pending
-    tokio::time::sleep(Duration::from_millis(450)).await;
+    eventually("several failed scans", || f.flaky.scans.load(Ordering::SeqCst) >= 3).await;
     assert!(
         f.rig.view().verdicts().is_none(),
         "nothing may be published while the scan fails"

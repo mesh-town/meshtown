@@ -303,6 +303,7 @@ fn vote_in(voter: PeerId, subject: PeerId, ts_micros: u64) -> VoteIn {
         voter,
         subject,
         ts_micros,
+        at_moment: false,
     }
 }
 

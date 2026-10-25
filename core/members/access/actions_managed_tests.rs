@@ -6,6 +6,7 @@
 
 use super::support::*;
 use crate::members::access::actions::{ActionRefusal, MemberAction};
+use crate::members::access::record::{exclude_key, parse_entry, Parsed, Via};
 
 mod member_without_power {
     use super::*;
@@ -187,5 +188,26 @@ mod the_root {
         // when / then
         let result = world.apply(MemberAction::Revoke(world.root)).await;
         assert_eq!(result, Err(ActionRefusal::NotAdmin));
+    }
+}
+
+mod vote_record {
+    use super::*;
+
+    #[tokio::test]
+    async fn managed_exclude_writes_no_moment_mark() {
+        // given: an administered network, I am the administrator
+        let world = setup(Seat::Root);
+        // when: I exclude a member
+        world
+            .apply(MemberAction::Exclude(member(), None))
+            .await
+            .unwrap();
+        // then: my record is a plain exclusion, the via is the old one
+        let entry = world.live_of(world.me, &exclude_key(&member())).await;
+        match parse_entry(&entry.expect("the exclusion must be stored")) {
+            Parsed::Record { value, .. } => assert_eq!(value.via, Via::None),
+            other => panic!("not a record: {other:?}"),
+        }
     }
 }

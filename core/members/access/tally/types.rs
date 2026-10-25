@@ -26,6 +26,9 @@ pub struct VoteIn {
     pub voter: PeerId,
     pub subject: PeerId,
     pub ts_micros: u64,
+    /// The vote is counted against the threshold of its own moment; `false` — a record without the
+    /// mark, counted against the current threshold.
+    pub at_moment: bool,
 }
 
 /// Tally input: only live records (a withdrawn vote is simply absent).

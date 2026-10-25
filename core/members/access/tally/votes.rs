@@ -9,8 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::transport::net::PeerId;
 
+use super::super::admission::counts_elsewhere;
 use super::pass::Pass;
-use super::{Exclusion, How, VoteIn};
+use super::{AdmitIn, Exclusion, How, VoteIn};
 
 pub(super) type VoteKey = (u64, PeerId, PeerId);
 pub(in crate::members::access) type Excluded = BTreeMap<PeerId, Exclusion>;
@@ -28,7 +29,54 @@ pub(super) fn sorted_votes(votes: &[VoteIn]) -> Vec<VoteIn> {
     sorted
 }
 
+/// Earliest `made_unix` per subject among admissions that count elsewhere.
+pub(super) fn first_admits(admits: &[AdmitIn]) -> BTreeMap<PeerId, u64> {
+    let mut first = BTreeMap::new();
+    for a in admits.iter().filter(|a| counts_elsewhere(a.via)) {
+        let at = first.entry(a.subject).or_insert(a.made_unix);
+        *at = (*at).min(a.made_unix);
+    }
+    first
+}
+
 impl Pass {
+    fn admitted_at(&self, p: &PeerId) -> u64 {
+        self.first_admit.get(p).copied().unwrap_or(0)
+    }
+
+    /// Votes needed when only the nodes admitted by `moment_secs` count.
+    fn need_at(&self, moment_secs: u64) -> u8 {
+        let standing = self.standing();
+        let active = self
+            .admitted
+            .iter()
+            .filter(|p| standing.counts(p) && self.admitted_at(p) <= moment_secs);
+        self.rules.need(active.count())
+    }
+
+    /// The threshold for the vote list of `subject`: of the list's own moment when every vote carries
+    /// the mark, the current one otherwise.
+    fn list_need(&self, subject: &PeerId, at_micros: u64) -> u8 {
+        let Some(list) = self.pending.get(subject) else {
+            return self.need;
+        };
+        if !list
+            .iter()
+            .all(|(_, v)| self.at_moment.contains(&(*v, *subject)))
+        {
+            return self.need;
+        }
+        let floor = list
+            .iter()
+            .map(|(_, v)| self.admitted_at(v))
+            .max()
+            .unwrap_or(0);
+        let moment = (at_micros / 1_000_000)
+            .max(self.admitted_at(subject))
+            .max(floor);
+        self.need_at(moment)
+    }
+
     /// A voter counts if present and, when forgotten, only for votes made by the moment of forgetting.
     pub(super) fn voter_counts(&self, voter: &PeerId, ts_micros: u64) -> bool {
         let at = self.rounds.get(voter).and_then(|r| r.at_unix);
@@ -45,9 +93,14 @@ impl Pass {
             self.settle(v.ts_micros, cap);
             return;
         }
+        if v.at_moment {
+            self.at_moment.insert((v.voter, v.subject));
+        }
         let list = self.pending.entry(v.subject).or_default();
         list.push((vote_key(v), v.voter));
-        if list.len() >= usize::from(self.need) {
+        let enough = list.len() >= usize::from(self.list_need(&v.subject, v.ts_micros));
+        if enough {
+            let list = &self.pending[&v.subject];
             let voters = list.iter().map(|(_, voter)| *voter).collect();
             self.exclude(v.subject, How::Votes, v.ts_micros, voters);
             self.settle(v.ts_micros, cap);
@@ -64,11 +117,11 @@ impl Pass {
     }
 
     /// The subject with enough votes whose first vote is the earliest.
-    fn candidate(&self) -> Option<PeerId> {
+    fn candidate(&self, at: u64) -> Option<PeerId> {
         let enough = self
             .pending
             .iter()
-            .filter(|(_, l)| l.len() >= usize::from(self.need));
+            .filter(|(s, l)| l.len() >= usize::from(self.list_need(s, at)));
         enough.min_by_key(|(_, l)| l[0].0).map(|(s, _)| *s)
     }
 
@@ -77,13 +130,13 @@ impl Pass {
     pub(super) fn settle(&mut self, at: u64, cap: usize) -> bool {
         for _ in 0..cap {
             self.refresh();
-            let Some(subject) = self.candidate() else {
+            let Some(subject) = self.candidate(at) else {
                 return true;
             };
             let voters = self.pending[&subject].iter().map(|(_, v)| *v).collect();
             self.exclude(subject, How::Votes, at, voters);
         }
         self.refresh();
-        self.candidate().is_none()
+        self.candidate(at).is_none()
     }
 }

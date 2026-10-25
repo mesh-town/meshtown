@@ -61,6 +61,15 @@ pub(super) fn vote_in(voter: PeerId, subject: PeerId, secs: u64) -> VoteIn {
         voter,
         subject,
         ts_micros: secs * 1_000_000,
+        at_moment: false,
+    }
+}
+
+/// A vote carrying the mark: it is counted against the threshold of its own moment.
+pub(super) fn vote_at_moment(voter: PeerId, subject: PeerId, secs: u64) -> VoteIn {
+    VoteIn {
+        at_moment: true,
+        ..vote_in(voter, subject, secs)
     }
 }
 
@@ -145,12 +154,28 @@ impl World {
 
     /// An exclusion vote of `voter` on `subject`, cast `secs` seconds after the epoch.
     pub(super) fn exclude(&mut self, voter: usize, subject: usize, secs: u64) -> &mut World {
-        let vote = VoteIn {
-            voter: self.id(voter),
-            subject: self.id(subject),
-            ts_micros: secs * 1_000_000,
-        };
+        let vote = vote_in(self.id(voter), self.id(subject), secs);
         self.votes.push(vote);
+        self
+    }
+
+    /// The same vote with the mark: counted against the threshold of its own moment.
+    pub(super) fn exclude_at_moment(
+        &mut self,
+        voter: usize,
+        subject: usize,
+        secs: u64,
+    ) -> &mut World {
+        let vote = vote_at_moment(self.id(voter), self.id(subject), secs);
+        self.votes.push(vote);
+        self
+    }
+
+    /// `subject` is admitted by the own node at `made_unix` instead of the start of the scene.
+    pub(super) fn admitted_at(&mut self, subject: usize, made_unix: u64) -> &mut World {
+        let admits = std::mem::take(&mut self.admits);
+        let (me, subject) = (self.me, self.id(subject));
+        self.admits = rewrite(admits, me, subject, Via::Invite, made_unix);
         self
     }
 
