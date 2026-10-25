@@ -76,7 +76,7 @@ they do not need a password); a person without the tray signs in with a link car
 stdout and the log **never print the permanent token**. The temporary token is separate: the same
 form (52 characters), lives 10 minutes, single-use, in memory only, accepted only by the exchange endpoint
 `POST /api/auth/token` (`WEB-API.md`, 1.10), not by a header. The node prints it at startup
-in the line "node page: <addresses> — sign-in link…" while no password is set (when a password is set,
+in the line "Mesh Town page: <addresses> — sign-in link…" while no password is set (when a password is set,
 the address is printed without a token), and `meshtown password reset` issues it. A node without a network key
 prints the same single address.
 

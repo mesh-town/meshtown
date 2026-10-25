@@ -8,11 +8,12 @@
   .mini-row > .card{margin-bottom:0;}
   /* "Network invite" on a wide screen: the name field and the button share one row, the member counter sits in the title row. */
   @media (min-width:600px){
-    #home-invite{display:grid;grid-template-columns:1fr auto;column-gap:8px;align-items:center;position:relative;}
+    #home-invite{display:grid;grid-template-columns:1fr auto;column-gap:8px;align-items:center;}
     #home-invite > *{grid-column:1 / -1;}
     #home-invite > #invite-for-input{grid-column:1;}
     #home-invite > .btn-row{grid-column:2;margin-top:0;}
-    #home-invite > #home-members-count{position:absolute;top:14px;right:16px;margin:0;}
+    #home-invite > h2{grid-column:1;grid-row:1;}
+    #home-invite > #home-members-count{grid-column:2;grid-row:1;align-self:start;margin:0;text-align:right;max-width:16em;}
   }
   .state-panel{display:flex;align-items:flex-start;gap:10px;}
   .state-panel .state-dot{margin-top:5px;flex-shrink:0;}

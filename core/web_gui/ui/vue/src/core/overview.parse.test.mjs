@@ -35,6 +35,21 @@ describe("parseOverview", () => {
     });
   });
 
+  describe("admission_refused", () => {
+    const refusedOf = (v) => {
+      const raw = rawOverview();
+      if (v === undefined) delete raw.nets[0].admission_refused;
+      else raw.nets[0].admission_refused = v;
+      return parseOverview(raw).nets[0].admission_refused;
+    };
+    it("true stays true; false, missing and other shapes read as false", () => {
+      assert.equal(refusedOf(true), true);
+      assert.equal(refusedOf(false), false);
+      assert.equal(refusedOf(undefined), false);
+      assert.equal(refusedOf("yes"), false);
+    });
+  });
+
   describe("api", () => {
     it("3 is not an error", () => {
       assert.equal(parseOverview(rawOverview({ api: 3 })).api, 3);

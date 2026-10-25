@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
 
-const MIN_GAP = 8;
+const MIN_GAP = 12;
 
 // The vertical space between the paragraph of the card and the button or link below it.
 async function gapBelowText(card: Locator): Promise<number> {

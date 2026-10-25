@@ -238,7 +238,7 @@ fn run_without_key_and_web_disabled_fails_with_invite_hint() {
     assert_ne!(code, 0);
     let err = node.text(true);
     assert!(
-        err.contains("the page is turned off in node settings"),
+        err.contains("the page is turned off in Mesh Town settings"),
         "stderr: {err}"
     );
     assert!(!err.contains("--web-port"), "stderr: {err}");
@@ -265,7 +265,7 @@ fn run_without_key_busy_web_port_advises_port() {
     assert!(err.contains("--web-port"), "stderr: {err}");
     assert!(err.contains("--invite"), "stderr: {err}");
     assert!(
-        !err.contains("the node is running without the page"),
+        !err.contains("Mesh Town is running without the page"),
         "stderr: {err}"
     );
 }

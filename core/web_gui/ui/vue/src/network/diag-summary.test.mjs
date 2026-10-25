@@ -96,7 +96,7 @@ describe("buildSummary > log cleaning", () => {
   it("the token, network and node ids, addresses from log lines do not get into the summary", () => {
     const state = secretState();
     const lines = [
-      { seq: 1, t: 1, tag: "web", text: "node page: http://127.0.0.1:7070/?token=tok123" },
+      { seq: 1, t: 1, tag: "web", text: "Mesh Town page: http://127.0.0.1:7070/?token=tok123" },
       { seq: 2, t: 2, tag: "node", text: `network ${SECRETS.id_hex}, node ${SECRETS.id_full} [2001:db8::1]:5` },
     ];
     const text = summaryOf(state, { lines }).split("Latest log lines:")[1];

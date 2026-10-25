@@ -94,10 +94,10 @@ on disk next to the settings file.
 ## First run without a key
 
 If the key comes from neither a flag, a variable nor the file, the node still starts as long as the node page comes
-up. When the page is up the node prints the line `node page: <address> — sign-in link…` (the address carries a
+up. When the page is up the node prints the line `Mesh Town page: <address> — sign-in link…` (the address carries a
 one-time token while no password is set), then two more lines, and waits:
 
-    [node] You haven't joined a Mesh Town network yet. Open the node page (its address is in the "node page" line above) and click "Join with an invite" or "Create a new network".
+    [node] You haven't joined a Mesh Town network yet. Open the Mesh Town page (its address is printed above) and click "Join with an invite" or "Create a new network".
     [node] Got an invite? You can also join from the terminal: press Ctrl+C, then run meshtown run --invite "<invite>"
 
 Join through the page with "Join with an invite" or "Create a new network" on the "Home" tab. The node then starts

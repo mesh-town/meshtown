@@ -17,6 +17,8 @@ fn node_with(key: Option<String>) -> DemoNode {
     settings.net.network_key = key;
     let opts = DemoNetworkOptions {
         offline_peers: 0,
+        no_exit_peers: 0,
+        admission_refused: false,
         dht_joined: false,
         dht_nodes: 0,
         members_second_vote: false,

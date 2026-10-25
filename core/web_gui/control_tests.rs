@@ -18,7 +18,7 @@ fn busy_page_line() {
     );
     assert_eq!(
         e.continue_without_page_log_line().unwrap(),
-        "the page didn't start: port 7777 is in use by another program — the node is running without the page; another port: meshtown run --web-port 7778"
+        "the page didn't start: port 7777 is in use by another program — Mesh Town is running without the page; another port: meshtown run --web-port 7778"
     );
     assert!(e.to_string().contains("in use by another program"), "{e}");
 }
@@ -32,7 +32,7 @@ fn other_bind_line() {
     );
     assert_eq!(
         e.continue_without_page_log_line().unwrap(),
-        "the page didn't start: port 7777 didn't open (Permission denied (os error 13)) — the node is running without the page"
+        "the page didn't start: port 7777 didn't open (Permission denied (os error 13)) — Mesh Town is running without the page"
     );
     assert!(e.to_string().contains("didn't open"), "{e}");
 }

@@ -30,7 +30,7 @@ fn demo_route_state(st: &DemoState, peers: &[PeerInfo]) -> RouteState {
     let me = demo_self_id();
     let online: std::collections::HashSet<PeerId> = st.peers.iter().map(|p| p.id_full).collect();
     let serving: std::collections::HashMap<PeerId, bool> =
-        st.peers.iter().map(|p| (p.id_full, true)).collect();
+        st.peers.iter().map(|p| (p.id_full, p.exit)).collect();
     let chosen = st.settings.net.route_exits.clone();
     let decision = route::choose_route(&chosen, me, &online, &serving);
     let active = match &decision {
@@ -52,7 +52,7 @@ fn demo_route_state(st: &DemoState, peers: &[PeerInfo]) -> RouteState {
                 id_full,
                 name: peer.and_then(|p| p.name.clone()),
                 online: peer.is_some(),
-                exit: peer.map(|_| true),
+                exit: peer.and_then(|p| p.exit),
                 country: peer.and_then(|p| p.country.clone()),
                 active: active == Some(id),
                 removed: false,
@@ -93,7 +93,7 @@ fn build_demo_peer_infos(st: &DemoState) -> Vec<PeerInfo> {
         online: p.online,
         path: p.path,
         rtt_ms: Some(30),
-        exit: Some(true),
+        exit: Some(p.exit),
         country: (p.name.as_deref() == Some("peer-one")).then(|| "RU".to_string()),
         program_version: (p.name.as_deref() == Some("peer-one")).then(|| "0.0.9".to_string()),
         checked: 0,
@@ -162,7 +162,7 @@ fn build_members_info(st: &DemoState) -> MembersInfo {
         me_excluded: st.members.me_excluded,
         admitting: 0,
         me_pending: false,
-        admission_refused: false,
+        admission_refused: st.admission_refused,
     }
 }
 

@@ -18,7 +18,8 @@ import type { ShellDeps } from "./shell-deps.ts";
 import { identityStrip, statusLine } from "./status-line.ts";
 import type { IdentityStripView, StatusLine } from "./status-line.ts";
 import { tokenFromPasted } from "./token-url.ts";
-import { peersSlots } from "../core/slots.ts";
+import { peersSlots, refusedFlag } from "../core/slots.ts";
+import { refusedNow } from "../peers/admission-refused.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import { exitWarning, withExitWarning } from "../members/exit-members.ts";
 import { isMeExcluded } from "../members/members-ids.ts";
@@ -68,7 +69,7 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   checkAddress();
   watch(() => peersSlots(store.nets, store.slots).join(",") + "|" + String(store.source === null), syncPeersTab, { flush: "pre" });
 
-  const refused = useHeldRefusal(() => store.members);
+  const refused = useHeldRefusal(() => refusedNow(refusedFlag(store, store.lead), store.members));
   const status = computed(() => withExitWarning(statusLine(store.state, conn, store.members, routeLine(store), refused.value), exitWarning(chosenExitIds(store), store.members, isMeExcluded(store.state, store.members))));
   const strip = computed(() => stripView(conn));
   const identity = computed(() => identityStrip(store.state, store.configFile));

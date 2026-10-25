@@ -23,7 +23,7 @@ pub(super) fn label_of(host: &dyn HostControl, id: &NetSlotId) -> Option<String>
 pub(super) fn net_already_added(other: &NetSlotId, label: Option<String>) -> Response {
     let body = json!({
         "error": "net_already_added",
-        "message": "this network is already on the node",
+        "message": "this network is already on this computer",
         "slot": other.to_string(),
         "label": label,
     });

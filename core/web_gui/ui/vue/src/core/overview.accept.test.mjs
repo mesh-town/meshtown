@@ -219,6 +219,24 @@ describe("briefFromState", () => {
   });
 });
 
+describe("briefFromState: admission refusal and waiting", () => {
+  const withMembers = (over) => stateOf(B, { members: { count: 2, gossip_neighbors: 0, ...over } });
+  it("admission_refused comes from state.members", () => {
+    assert.equal(briefFromState(B, withMembers({ admission_refused: true }), null).admission_refused, true);
+    assert.equal(briefFromState(B, withMembers({ admission_refused: false }), null).admission_refused, false);
+    assert.equal(briefFromState(B, stateOf(B), null).admission_refused, false);
+  });
+  it("a null state: not refused", () => {
+    assert.equal(briefFromState(B, null, null).admission_refused, false);
+  });
+  it("me_pending: the member list when it is asked, else the state", () => {
+    const state = withMembers({ me_pending: true });
+    assert.equal(briefFromState(B, state, null).me_pending, true);
+    assert.equal(briefFromState(B, state, { me_pending: false, members: [] }).me_pending, false);
+    assert.equal(briefFromState(B, withMembers({}), { me_pending: true, members: [] }).me_pending, true);
+  });
+});
+
 describe("putSlotMembers", () => {
   describe("the lead slot", () => {
     it("updates the slice and store.members", () => {

@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { slotPath, isSlotId, visibleSlots, peersSlots, isRefused, isMulti, netName } from "./slots.ts";
+import { slotPath, isSlotId, visibleSlots, peersSlots, isRefused, isMulti, netName, refusedFlag } from "./slots.ts";
 
 const B = "k7q2xa";
 const C = "m3n4pq";
@@ -275,7 +275,7 @@ function brief(id, over = {}) {
   return {
     id, label: null, id_hex: null, status: "running", exit_enabled: false, proxy: id === "main",
     route_state: "direct", exits: [], members_voting: 1, joining: false, members_admitting: 0,
-    me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, ...over,
+    me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, admission_refused: false, ...over,
   };
 }
 
@@ -290,3 +290,19 @@ function setup(nets, sliceOver = {}) {
   }
   return { nets, slots };
 }
+
+describe("refusedFlag", () => {
+  const store = { nets: [{ id: "main", admission_refused: true }, { id: B, admission_refused: false }] };
+  it("is true for a slot the members refused", () => {
+    assert.equal(refusedFlag(store, "main"), true);
+  });
+  it("is false for a slot that is not refused", () => {
+    assert.equal(refusedFlag(store, B), false);
+  });
+  it("is false for an unknown id", () => {
+    assert.equal(refusedFlag(store, C), false);
+  });
+  it("is false when there are no nets", () => {
+    assert.equal(refusedFlag({ nets: [] }, "main"), false);
+  });
+});

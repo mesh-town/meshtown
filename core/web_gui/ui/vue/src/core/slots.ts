@@ -29,6 +29,10 @@ export function visibleSlots(nets: NetBrief[], slots: Record<string, SlotSlice>)
   return ids.length > 0 ? ids : ["main"];
 }
 
+/** The server says the members of the slot turned this computer down. */
+export const refusedFlag = (store: { nets: NetBrief[] }, id: string): boolean =>
+  store.nets.find((n) => n.id === id)?.admission_refused === true;
+
 /** A slot whose join the members refused: it holds no key, the node keeps the refusal until the user goes back. */
 export const isRefused = (nets: NetBrief[], slots: Record<string, SlotSlice>, id: string): boolean =>
   nets.some((n) => n.id === id && n.id_hex == null && !n.joining) && slots[id]?.state?.node?.invite_join?.state === "refused";

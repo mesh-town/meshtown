@@ -3,15 +3,11 @@
 
 import { computed, onUnmounted, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
-import type { MembersReply } from "../members/members-types.ts";
-import { admissionRefused } from "./admission-refused.ts";
+import type { Refused } from "./admission-refused.ts";
 import { ADMISSION_REFUSED_DELAY_MS } from "./peers-texts.ts";
 
-type Source = { value: MembersReply | null | undefined } | (() => MembersReply | null | undefined);
-
-export function useHeldRefusal(members: Source): ComputedRef<{ names: string[] } | null> {
-  const read = typeof members === "function" ? members : () => members.value;
-  const refused = computed(() => admissionRefused(read()));
+export function useHeldRefusal(read: () => Refused | null): ComputedRef<Refused | null> {
+  const refused = computed(read);
   const held = ref(false);
   let timer: ReturnType<typeof setTimeout> | null = null;
   const stop = (): void => {

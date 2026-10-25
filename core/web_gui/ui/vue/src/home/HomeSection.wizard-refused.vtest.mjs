@@ -2,7 +2,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
-import { openMembersPage } from "../testing/members-page.mjs";
+import { openMembersPage, stateWith } from "../testing/members-page.mjs";
 import { unmountPage } from "../testing/page.mjs";
 import { ADMISSION_REFUSED_DELAY_MS } from "../peers/peers-texts.ts";
 
@@ -14,8 +14,8 @@ afterEach(() => {
 
 const them = { side: "them", reason: "no", at_unix: 1 };
 
-async function openWizard(rows) {
-  const page = await openMembersPage({ members: membersReply({ rows }), tab: "home" });
+async function openWizard(rows, refused = true) {
+  const page = await openMembersPage({ members: membersReply({ rows }), state: stateWith({ admission_refused: refused }), tab: "home" });
   await page.wrapper.get("#home-tab-wizard").trigger("click");
   await vi.advanceTimersByTimeAsync(ADMISSION_REFUSED_DELAY_MS);
   return page;
@@ -28,8 +28,8 @@ describe("the plate on the Setup tab", () => {
     expect(page.wrapper.get("#home-root #admission-refused").text()).toContain("peer-one refuses to let it in");
   });
 
-  it("no refusal: no plate", async () => {
-    const page = await openWizard([selfRow(), peerOneRow({ online: false })]);
+  it("the flag is off: no plate", async () => {
+    const page = await openWizard([selfRow(), peerOneRow({ online: false, last_refusal: them })], false);
     expect(page.wrapper.find("#admission-refused").exists()).toBe(false);
   });
 });

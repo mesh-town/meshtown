@@ -8,6 +8,7 @@ use super::auth::state::AuthState;
 use super::http::ConnInfo;
 use super::{cookie, token, App, HostControl, WebHandle, WebOptions, WebShared, WebStartError};
 use crate::config::config_file::ListenAccess;
+use crate::node::output::NET_NAME;
 
 /// Starts the node page: binds the listener, prints the announce line and spawns the accept loop.
 /// The token is never printed anywhere —
@@ -99,9 +100,9 @@ fn announce_start(shared: &WebShared) {
 fn announce_text(urls: &[String], password_set: bool) -> String {
     let addrs = urls.join(" or ");
     if password_set {
-        return format!("node page: {addrs} — password sign-in");
+        return format!("{NET_NAME} page: {addrs} — password sign-in");
     }
-    format!("node page: {addrs} — sign-in link, valid for 10 minutes, single use")
+    format!("{NET_NAME} page: {addrs} — sign-in link, valid for 10 minutes, single use")
 }
 
 /// Connection addresses; `None` — the peer is not admitted by the current mode or there is no local address:

@@ -18,8 +18,8 @@ import { joinProgress } from "../home/join-progress.ts";
 import type { NetPhase } from "../home/home-words.ts";
 import { STATUS_HIM, STATUS_NETWORK_SEP, STATUS_NOT_JOINED, STATUS_STARTING, STATUS_STOPPING, STATUS_THIS_COMPUTER, statusOnlineOthersText } from "./status-texts.ts";
 
-/** The held admission refusal (see `useHeldRefusal`). */
-export type Refused = { names: string[] };
+import type { Refused } from "../peers/admission-refused.ts";
+export type { Refused };
 export type StatusLevel = "green" | "red" | "grey";
 export interface StatusLine {
   level: StatusLevel;

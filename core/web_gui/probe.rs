@@ -5,6 +5,8 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
+use crate::node::output::NET_NAME;
+
 /// The identification probe is a courtesy to an error message: it must not hold the process up.
 const PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -73,7 +75,7 @@ fn connect_error(e: std::io::Error) -> LinkError {
 }
 
 fn link_error_from_io(e: std::io::Error) -> LinkError {
-    LinkError::Other(format!("connection to the node: {e}"))
+    LinkError::Other(format!("connection to {NET_NAME}: {e}"))
 }
 
 fn request_text(port: u16, token: &str, method: &str, path: &str, body: Option<&str>) -> String {
@@ -100,7 +102,7 @@ fn parse_response(raw: &[u8]) -> Result<(u16, String), LinkError> {
         .and_then(|c| c.parse::<u16>().ok());
     match code {
         Some(code) => Ok((code, body.to_string())),
-        None => Err(LinkError::Other("the node did not reply over HTTP".into())),
+        None => Err(LinkError::Other(format!("{NET_NAME} did not reply over HTTP"))),
     }
 }
 

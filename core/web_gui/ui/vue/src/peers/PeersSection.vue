@@ -3,7 +3,7 @@
 // list, the groups of nodes that are no longer in / not in the member list, the confirmation dialog. A computer that
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
 import { computed, inject, nextTick, ref, watch } from "vue";
-import { isRefused, membersOf, netName, peersSlots, stateOf } from "../core/slots.ts";
+import { isRefused, membersOf, netName, peersSlots, refusedFlag, stateOf } from "../core/slots.ts";
 import { saveExitIn } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
@@ -169,7 +169,7 @@ async function exitVia(idFull: string): Promise<void> {
 :multi="showRow" :note="inviteNote" />
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
       <DeletedBanner />
-      <AdmissionRefused :members="members" :net="netName(store.nets, slot)" />
+      <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
       <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />

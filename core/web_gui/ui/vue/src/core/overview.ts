@@ -45,6 +45,7 @@ function parseBrief(raw: unknown): NetBrief | null {
     me_pending: raw.me_pending === true,
     peers_online: count(raw.peers_online),
     peers_total: count(raw.peers_total),
+    admission_refused: raw.admission_refused === true,
     ...managedBrief(raw),
   };
 }
@@ -88,6 +89,7 @@ const BROKEN: Omit<NetBrief, "id"> = {
   me_pending: false,
   peers_online: 0,
   peers_total: 0,
+  admission_refused: false,
 };
 
 /** The brief of a slot computed from its snapshot (the node did not list it, or it is an old node). */
@@ -107,9 +109,10 @@ export function briefFromState(id: string, state: NodeState | null, members: Mem
     joining: state.node?.invite_join?.state === "waiting",
     members_admitting: state.members?.admitting ?? 0,
     me_excluded: isMeExcluded(state, members),
-    me_pending: members?.me_pending === true,
+    me_pending: members ? members.me_pending === true : state.members?.me_pending === true,
     peers_online: peers.filter((p) => p.online).length,
     peers_total: peers.length,
+    admission_refused: state.members?.admission_refused === true,
     ...managedFromState(state),
   };
 }

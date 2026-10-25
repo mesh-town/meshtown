@@ -25,7 +25,7 @@ fn unknown_net() -> Response {
     json_err(
         StatusCode::NOT_FOUND,
         "unknown_net",
-        "no such network on this node",
+        "no such network on this computer",
     )
 }
 
