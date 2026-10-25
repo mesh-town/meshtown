@@ -12,10 +12,10 @@ async function gapBelowText(card: Locator): Promise<number> {
 }
 
 test.describe('excluded card spacing', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'starting banned is a flag of the demo node; skipped before the target starts');
   test.use({ targetFlags: { extraArgs: ['--me-excluded'] } });
 
-  test('112-excluded-card-gap: the "Join with another invite" button keeps a gap from the text above it', async ({ app, page, targetKind }) => {
-    test.skip(targetKind === 'node', 'starting banned is a flag of the demo node');
+  test('112-excluded-card-gap: the "Join with another invite" button keeps a gap from the text above it', async ({ app, page }) => {
     const card = page.locator('#members-removed-card');
     await app.tabs.open('peers');
     await expect(card).toBeVisible();
@@ -25,9 +25,8 @@ test.describe('excluded card spacing', () => {
   test.describe('in the app', () => {
     test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android' });
 
-    test('113-excluded-card-app: the reset link keeps a gap and the card speaks of the phone', async ({ app, page, targetKind }) => {
-      test.skip(targetKind === 'node', 'starting banned is a flag of the demo node');
-      const card = page.locator('#members-removed-card');
+    test('113-excluded-card-app: the reset link keeps a gap and the card speaks of the phone', async ({ app, page }) => {
+        const card = page.locator('#members-removed-card');
       await app.tabs.open('peers');
       await expect(card.getByRole('button', { name: /Leave network and reset/ })).toBeVisible();
       await expect(card.getByRole('heading')).toContainText('This phone');
