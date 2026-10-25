@@ -16,7 +16,7 @@ use crate::gui::tray::NodeCmd;
 
 #[cfg(unix)]
 const PORT_ERROR_LOG: &str =
-    "Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\nClose it or start the node on another port: meshtown run --socks-port 1081\n";
+    "Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\nClose it or start Mesh Town on another port: meshtown run --socks-port 1081\n";
 
 #[cfg(unix)]
 fn is_starting(v: &crate::gui::tray::app::view::View) -> bool {

@@ -84,6 +84,23 @@ mod host_in_the_mesh_suffix {
         }
     }
 
+    mod while_the_own_name_is_not_in_the_document {
+        use super::*;
+
+        #[tokio::test]
+        async fn page_calls_this_machine_this_computer() {
+            // given
+            let t = setup(HashMap::new()).await;
+
+            // when
+            let answer = t.fetch("ghost.meshtown", 80, GHOST_GET).await;
+
+            // then
+            let text = String::from_utf8_lossy(&answer);
+            assert!(text.contains("on this computer"), "{text}");
+        }
+    }
+
     mod with_a_nested_label {
         use super::*;
 

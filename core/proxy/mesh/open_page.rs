@@ -18,7 +18,7 @@ use super::page_serve::serve_page;
 /// How long the shared documents may take to be read for a page.
 const DOC_READ_TIMEOUT: Duration = Duration::from_secs(2);
 /// The name shown when the node's own name is not in the document yet.
-const UNNAMED_SELF: &str = "this node";
+const UNNAMED_SELF: &str = "this computer";
 
 /// What was asked, and the device it resolved to (if any).
 pub(super) struct Ask<'a> {

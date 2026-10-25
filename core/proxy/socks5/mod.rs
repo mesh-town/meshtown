@@ -28,4 +28,4 @@ pub use frame::{
 pub use udp::{
     encode_udp_reply, encode_udp_request, parse_udp_datagram, UdpHeaderError, UdpPacket,
 };
-pub use wire::{read_greeting, read_request_bytes, write_reply, write_reply_bound};
+pub use wire::{negotiate_auth_method, read_request_bytes, write_reply, write_reply_bound};

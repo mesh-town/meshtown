@@ -6,7 +6,7 @@ use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 
 use crate::config::config_file::{IfaceFilter, ListenAccess};
-use crate::node::output::say;
+use crate::node::output::{say, NET_NAME};
 use crate::web_gui::auth::access::is_client_allowed;
 use crate::web_gui::auth::iface_gate::{judge, IfaceView, Verdict};
 
@@ -53,7 +53,7 @@ pub(super) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admiss
         None => "automatic".to_string(),
     };
     format!(
-        "{client_addr}: refused, interface \"{iface}\": {why} (socks.ifaces: {list}); change: node page or `{} ifaces`",
+        "{client_addr}: refused, interface \"{iface}\": {why} (socks.ifaces: {list}); change: the {NET_NAME} page or `{} ifaces`",
         crate::cli::program_name::program_name()
     )
 }
@@ -65,13 +65,18 @@ pub(super) struct DenyLog(HashMap<IpAddr, Instant>);
 impl DenyLog {
     /// `true` — it is time to write about a refusal for this address (the first in the period), and it remembers it.
     pub(super) fn remember_if_first_in_period(&mut self, ip: IpAddr, now: Instant) -> bool {
-        self.0
-            .retain(|_, at| now.duration_since(*at) < DENY_LOG_PERIOD);
+        self.drop_expired(now);
         if self.0.contains_key(&ip) || self.0.len() >= DENY_LOG_CAP {
             return false;
         }
         self.0.insert(ip, now);
         true
+    }
+
+    /// Forgets the addresses whose quiet period is over.
+    fn drop_expired(&mut self, now: Instant) {
+        self.0
+            .retain(|_, at| now.duration_since(*at) < DENY_LOG_PERIOD);
     }
 
     /// Refusal by interface: the same per-address period as `log_address_deny`; `text` is the ready line.

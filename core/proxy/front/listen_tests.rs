@@ -65,7 +65,7 @@ mod bind {
             assert!(
                 bind_error
                     .advice()
-                    .starts_with("Close it or start the node on another port: "),
+                    .starts_with("Close it or start Mesh Town on another port: "),
                 "advice: {}",
                 bind_error.advice()
             );

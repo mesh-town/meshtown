@@ -12,9 +12,18 @@ use super::frame::{
 };
 
 /// Reads the client's greeting and replies "no authentication".
-pub async fn read_greeting<S>(stream: &mut S) -> Result<()>
+pub async fn negotiate_auth_method<S>(stream: &mut S) -> Result<()>
 where
     S: AsyncRead + AsyncWrite + Unpin,
+{
+    let methods = read_auth_methods(stream).await?;
+    answer_auth_method(stream, &methods).await
+}
+
+/// Reads the version, the method count and the list of authentication methods the client offers.
+async fn read_auth_methods<S>(stream: &mut S) -> Result<Vec<u8>>
+where
+    S: AsyncRead + Unpin,
 {
     let mut head = [0u8; 2];
     stream.read_exact(&mut head).await.context("greeting")?;
@@ -30,6 +39,14 @@ where
         .read_exact(&mut methods)
         .await
         .context("list of authentication methods")?;
+    Ok(methods)
+}
+
+/// Picks "no authentication" if the client offers it, otherwise tells it nothing is acceptable.
+async fn answer_auth_method<S>(stream: &mut S, methods: &[u8]) -> Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
     if !methods.contains(&METHOD_NO_AUTH) {
         let _ = stream.write_all(&[VERSION, METHOD_NO_ACCEPTABLE]).await;
         bail!("the client cannot work without authentication");
