@@ -29,6 +29,18 @@ pub enum Route {
     Refuse(&'static str),
 }
 
+impl Route {
+    /// The exits to try: `None` — connect directly, `Some` — the candidates in priority order, `Err` — the reason
+    /// the connection is refused.
+    pub(crate) fn candidates(self) -> Result<Option<Vec<PeerId>>, &'static str> {
+        match self {
+            Route::Direct => Ok(None),
+            Route::Exits(list) => Ok(Some(list)),
+            Route::Refuse(reason) => Err(reason),
+        }
+    }
+}
+
 /// Chooses a route. A pure function, it does not touch the network.
 ///
 /// An empty `chosen_exits` gives `Direct`. Otherwise a candidate is a node from `chosen_exits` that is not `own_id`,

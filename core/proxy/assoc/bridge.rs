@@ -14,14 +14,11 @@ pub(super) fn conn_id_for(target: &codec::Target) -> u16 {
 /// The gateway form of a destination: IP literals are canonical (`::ffff:a.b.c.d` is IPv4), a domain that is
 /// an IP literal becomes an IP.
 fn gateway_target(target: Target, port: u16) -> codec::Target {
-    let ip = match target {
-        Target::Ip(ip) => ip,
-        Target::Domain(name) => match name.parse::<IpAddr>() {
-            Ok(ip) => ip,
-            Err(_) => return codec::Target::Domain(name, port),
-        },
-    };
-    codec::Target::Ip(SocketAddr::new(ip.to_canonical(), port))
+    let text = target.to_string();
+    match text.parse::<IpAddr>() {
+        Ok(ip) => codec::Target::Ip(SocketAddr::new(ip.to_canonical(), port)),
+        Err(_) => codec::Target::Domain(text, port),
+    }
 }
 
 /// The wire bytes of a DATA frame for a client datagram; `None` if it does not fit one frame.

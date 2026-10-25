@@ -111,7 +111,7 @@ async fn config(stuck: &[u8]) -> ProxyConfig {
 }
 
 /// Like `config`, with the handler `exit` makes for each of the exits 2 and 3.
-pub(super) async fn config_with(
+pub(in crate::proxy) async fn config_with(
     stuck: &[u8],
     exit: impl Fn() -> Arc<dyn ServiceHandler>,
 ) -> ProxyConfig {

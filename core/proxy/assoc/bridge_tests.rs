@@ -94,3 +94,48 @@ mod replies {
         assert!(to_gateway_frame(big).is_none());
     }
 }
+
+mod gateway_targets {
+    use super::*;
+
+    #[test]
+    fn ipv4_target_stays_ip() {
+        let target = gateway_target(Target::Ip(Ipv4Addr::new(192, 0, 2, 1).into()), 53);
+        assert_eq!(
+            target,
+            codec::Target::Ip(SocketAddr::from(([192, 0, 2, 1], 53)))
+        );
+    }
+
+    #[test]
+    fn ipv6_target_stays_ip() {
+        let ip = Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1);
+        let target = gateway_target(Target::Ip(ip.into()), 53);
+        assert_eq!(target, codec::Target::Ip(SocketAddr::from((ip, 53))));
+    }
+
+    #[test]
+    fn mapped_ipv6_becomes_ipv4() {
+        let mapped = Ipv4Addr::new(192, 0, 2, 7).to_ipv6_mapped();
+        let target = gateway_target(Target::Ip(IpAddr::V6(mapped)), 9);
+        assert_eq!(
+            target,
+            codec::Target::Ip(SocketAddr::from(([192, 0, 2, 7], 9)))
+        );
+    }
+
+    #[test]
+    fn ip_literal_domain_becomes_ip() {
+        let target = gateway_target(Target::Domain("10.0.0.1".into()), 80);
+        assert_eq!(
+            target,
+            codec::Target::Ip(SocketAddr::from(([10, 0, 0, 1], 80)))
+        );
+    }
+
+    #[test]
+    fn name_stays_domain() {
+        let target = gateway_target(Target::Domain("example.com".into()), 443);
+        assert_eq!(target, codec::Target::Domain("example.com".into(), 443));
+    }
+}
