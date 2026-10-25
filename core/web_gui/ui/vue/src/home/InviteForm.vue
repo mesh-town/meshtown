@@ -7,6 +7,8 @@ import { peersHash } from "../shell/nav.ts";
 import { duplicateText, openNetText } from "./add-net-texts.ts";
 import { HOME_JOIN_BUSY, HOME_JOIN_ERROR_ARIA, HOME_JOIN_FIELD_LABEL, HOME_JOIN_PASTE_HINT, HOME_JOIN_PLACEHOLDER } from "./home-card-texts.ts";
 import { HOME_BUTTON_JOIN } from "./home-flow-texts.ts";
+import { inAppPage } from "./browser-setup.ts";
+import { HOME_JOIN_SCAN, SCAN_INVITE_URL } from "./invite-qr-texts.ts";
 import { netTitle } from "./invite-join-actions.ts";
 import type { InviteOutcome } from "./invite-join-actions.ts";
 import { highlightParts } from "./join-actions.ts";
@@ -47,6 +49,7 @@ async function go(): Promise<void> {
     <p class="hint">{{ HOME_JOIN_PASTE_HINT }}</p>
     <div class="btn-row">
       <button type="button" class="btn btn-primary" :id="ids.button" :disabled="!!form.busy" @click="go">{{ form.busy ? busy ?? HOME_JOIN_BUSY : button ?? HOME_BUTTON_JOIN }}</button>
+      <a v-if="inAppPage()" class="btn invite-scan" role="button" :href="SCAN_INVITE_URL">{{ HOME_JOIN_SCAN }}</a>
     </div>
     <p v-if="ids.status" class="hint" :id="ids.status" :hidden="!form.status">{{ form.status }}</p>
     <slot name="after"></slot>

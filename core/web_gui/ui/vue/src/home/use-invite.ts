@@ -6,13 +6,14 @@ import { computed, onUnmounted, ref, watch } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
-import { createInviteState, requestInvite, resetInviteIfNetChanged } from "./invite-actions.ts";
+import { createInviteState, qrImageSrc, requestInvite, resetInviteIfNetChanged } from "./invite-actions.ts";
 import type { InviteResult, InviteState } from "./invite-actions.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
 
 export interface InviteView {
   inviteText: ComputedRef<string>;
+  inviteQr: ComputedRef<string>; // data URI of the QR picture, "" when none
   busy: ComputedRef<boolean>;
   status: ComputedRef<string>;
   warning: ComputedRef<string>;
@@ -31,6 +32,7 @@ export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"
 
   return {
     inviteText: computed(() => inv.value.text),
+    inviteQr: computed(() => qrImageSrc(inv.value.qr)),
     busy: computed(() => inv.value.busy),
     status: computed(() => inv.value.status),
     warning: computed(() => inv.value.warning),

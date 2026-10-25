@@ -19,6 +19,7 @@ const STALE = HOME_INVITE_STALE;
 
 export interface InviteState {
   text: string;
+  qr: string; // SVG of the shown invite, "" when there is none
   netId: string | null;
   busy: boolean;
   status: string;
@@ -28,7 +29,7 @@ export type InviteResult = "stale" | "copied" | "manual" | "failed" | "skipped";
 type InviteDeps = Pick<HomeDeps, "api" | "clipboard">;
 
 export function createInviteState(): InviteState {
-  return { text: "", netId: null, busy: false, status: "", warning: "" };
+  return { text: "", qr: "", netId: null, busy: false, status: "", warning: "" };
 }
 
 function currentNetId(store: Store, slot: string): string | null {
@@ -50,11 +51,17 @@ async function showInvite(inv: InviteState, store: Store, slot: string, netId: s
     return "stale";
   }
   inv.text = res.invite;
+  inv.qr = typeof res.qr === "string" ? res.qr : "";
   inv.warning = reachWarning(res.reach);
   inv.netId = netId;
   const copied = await writeClipboard(deps, res.invite);
   inv.status = inv.netId === netId ? (copied ? COPIED : MANUAL) : inv.status;
   return copied ? "copied" : "manual";
+}
+
+// Data URI for an <img> of the QR SVG; "" when there is no SVG.
+export function qrImageSrc(svg: string): string {
+  return svg ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg) : "";
 }
 
 // The invite path; a non-blank label travels as `?for=`.
@@ -87,6 +94,7 @@ export async function requestInvite(inv: InviteState, store: Store, deps: Invite
 export function resetInviteIfNetChanged(inv: InviteState, netId: string | null | undefined): void {
   if (netId != null && netId === inv.netId) return;
   inv.text = "";
+  inv.qr = "";
   inv.netId = null;
   inv.status = "";
   inv.warning = "";

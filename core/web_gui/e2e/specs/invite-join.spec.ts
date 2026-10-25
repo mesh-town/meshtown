@@ -385,3 +385,33 @@ test.describe('an invite in the address, no network yet (demo --no-network)', ()
     await expect(app.homePanel.wizard).toContainText('✓ You joined the network');
   });
 });
+
+// The "Scan QR" link opens the scanner of the phone app; it exists only on a page opened in the app shell.
+const SCAN_LINK = 'a.invite-scan';
+const SCAN_URL = 'meshtown-app://scan-invite';
+
+test.describe('the invite form in the phone app', () => {
+  test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36 MeshTownApp/Android' });
+
+  test('122-invite-scan-app: the form has a "Scan QR" link to the app scanner right after its button', async ({ app, page }) => {
+    const form = new InviteForm(page, 'add');
+    await app.tabs.open('settings');
+    await expect(form.button).toBeVisible();
+
+    // no anchor: the link is a styled anchor with a custom-scheme address, told apart by its class
+    const scan = page.locator(SCAN_LINK);
+    await expect(scan).toHaveCount(1);
+    await expect(scan).toHaveText('Scan QR');
+    await expect(scan).toHaveAttribute('href', SCAN_URL);
+    await expect(form.button.locator('xpath=following-sibling::*[1]'), 'the link stands next to the form button').toHaveClass(/invite-scan/);
+  });
+});
+
+test.describe('the invite form in a browser', () => {
+  test('122-invite-scan-browser: the form has its button and no "Scan QR" link', async ({ app, page }) => {
+    const form = new InviteForm(page, 'add');
+    await app.tabs.open('settings');
+    await expect(form.button).toBeVisible();
+    await expect(page.locator(SCAN_LINK)).toHaveCount(0);
+  });
+});
