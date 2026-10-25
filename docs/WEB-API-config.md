@@ -1,8 +1,8 @@
 # HTTP API contract and config schema for the node, continued (2)
 
-Part 2 of 3. A continuation of section "1. HTTP API contract" (subsections 1.6–1.8) and section
+Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6–1.8) and section
 "2. Config schema". Part 1 (1.1–1.5) is `WEB-API.md`. Part 3 (section 3) —
-`WEB-API-embedding.md`.
+`WEB-API-embedding.md`. Part 4 (1.12) is `WEB-API-members.md`.
 
 ---
 
@@ -219,7 +219,7 @@ Network actions also exist under `/api/net/{slot}/…` and act on that network. 
 
 ### Managed networks: members and deletion
 
-In a Managed network (`{base}` as in section 1.12 of `WEB-API.md`):
+In a Managed network (`{base}` as in section 1.12, `WEB-API-members.md`):
 
 - `POST {base}/members/admin` with `{"id":"<64 hex digits>","admin":true|false}` makes the node an administrator or a regular
   member (only an administrator may; the creator cannot lose the role). A missing id is 400 `bad_request`, a missing or non-boolean
