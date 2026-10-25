@@ -15,7 +15,7 @@ fn test_relaunch() -> Relaunch {
 
 #[test]
 fn a_managed_key_keeps_the_list_counted_on_the_test_network() {
-    // given: a relaunch on the in-process test network, which opens the list for plain nets
+    // given: a relaunch on the in-process test network
     let relaunch = test_relaunch();
     let creator = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
     let key = managed_key_with_label(None, &[3u8; 32], &creator);
@@ -29,7 +29,7 @@ fn a_managed_key_keeps_the_list_counted_on_the_test_network() {
 }
 
 #[test]
-fn a_peer_key_leaves_the_list_open_on_the_test_network() {
+fn a_peer_key_counts_the_list_on_the_test_network() {
     // given: the same relaunch
     let relaunch = test_relaunch();
     let key = key_with_label(None, &NetworkKey::from_bytes([5u8; 32]));
@@ -37,6 +37,6 @@ fn a_peer_key_leaves_the_list_open_on_the_test_network() {
     let (_, cfg) = relaunch
         .reload(&key, &Settings::default())
         .expect("reload a plain key");
-    // then: nothing changes for it
-    assert!(cfg.open_list);
+    // then: the list is counted like on a live node
+    assert!(!cfg.open_list);
 }

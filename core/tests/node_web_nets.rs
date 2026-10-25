@@ -140,13 +140,10 @@ async fn leaving_an_added_slot_drops_it_and_keeps_main() {
 }
 
 /// The network the slot was in lists the node as a member that left. The leave notice travels over the
-/// slot's link to the other node, so the test must not break that link before the leave. The test nodes run
-/// with an open list and nobody writes the admission records of a live start, so the first page read that
-/// computes the verdicts closes the connection of the node that is not on the list yet.
-/// Ignored until the test nodes write the admission records of a live start (their own list entry for the
-/// invite's peers): every page read that computes verdicts cuts the link, so the leave may find no link.
+/// slot's link to the other node, so that link must survive every page read before the leave. A network
+/// entered at run time counts its list and writes the admission records of a live start for the invite's
+/// peers, so the verdicts do not cut the link.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-#[ignore = "test nodes run with an open list and write no admission records, so the first verdict cuts the slot's link"]
 async fn leaving_an_added_slot_is_seen_by_its_network() {
     let a = boot_host("seen-a", &NetworkKey::generate().unwrap()).await;
     let b = boot("seen-b", &NetworkKey::generate().unwrap()).await;
