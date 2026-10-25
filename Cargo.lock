@@ -2022,7 +2022,7 @@ dependencies = [
 
 [[package]]
 name = "meshtown-core"
-version = "0.3.120"
+version = "0.3.121"
 dependencies = [
  "anyhow",
  "axum",
@@ -2077,14 +2077,14 @@ dependencies = [
 
 [[package]]
 name = "meshtown-linux"
-version = "0.3.120"
+version = "0.3.121"
 dependencies = [
  "meshtown-core",
 ]
 
 [[package]]
 name = "meshtown-macos"
-version = "0.3.120"
+version = "0.3.121"
 dependencies = [
  "block2",
  "meshtown-core",
@@ -2096,7 +2096,7 @@ dependencies = [
 
 [[package]]
 name = "meshtown-windows"
-version = "0.3.120"
+version = "0.3.121"
 dependencies = [
  "meshtown-core",
  "windows-sys 0.61.2",
