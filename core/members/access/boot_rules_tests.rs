@@ -136,6 +136,7 @@ mod ceiling {
             initial: vec![],
             cached: cached.clone(),
             now_unix: NOW,
+            rules: Rules::Peer,
         };
         // when: the plan is made
         let plan = plan_admits(&[], &BTreeSet::new(), &boot);

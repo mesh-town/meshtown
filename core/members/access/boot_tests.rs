@@ -250,6 +250,7 @@ impl Rig {
             initial: initial.to_vec(),
             cached: cached.to_vec(),
             now_unix,
+            rules: Rules::Peer,
         };
         run_boot(&*self.shared, &*self.own, &boot)
             .await

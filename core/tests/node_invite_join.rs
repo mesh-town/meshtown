@@ -20,7 +20,7 @@ use meshtown_core::web_gui::{InviteJoinState, InviteJoinView, NodeControl, NodeS
 
 use common::{fresh_head, record_issue, setup, wait_until, Rig, ENTRY_LIMIT_SECS};
 
-const TEXT_USED: &str = "Another node has already joined with this invite — it is single-use. Ask a network member for a new one.";
+const TEXT_USED: &str = "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.";
 const TEXT_WRONG_NETWORK: &str =
     "A member answered with the key of another network — the invite was not accepted.";
 

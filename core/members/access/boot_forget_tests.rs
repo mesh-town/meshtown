@@ -10,6 +10,7 @@ use std::collections::BTreeSet;
 use bytes::Bytes;
 
 use super::*;
+use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, tally_input, AclKind, AclValue, Via};
 use crate::members::access::tally::{tally, AdmitIn};
 use crate::transport::net::contract::pid;
@@ -192,6 +193,7 @@ impl World {
             initial: Vec::new(),
             cached: cached.to_vec(),
             now_unix: NOW,
+            rules: Rules::Peer,
         };
         plan_admits(&self.snap, &BTreeSet::new(), &boot)
     }

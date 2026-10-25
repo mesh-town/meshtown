@@ -31,7 +31,7 @@ fn exactly_at_the_ttl_is_refused() {
 fn made_twenty_five_hours_ago_is_refused_with_the_expired_text() {
     let err = check_fresh(&head_made_at(NOW), NOW + 25 * HOUR).unwrap_err();
     let text = format!("{err:#}");
-    assert!(text.contains("more than a day ago"), "{text}");
+    assert_eq!(text, crate::invite::head::TEXT_EXPIRED);
     assert!(
         !text.contains("old format"),
         "T1 text instead of T2: {text}"
