@@ -47,7 +47,8 @@ pub(super) fn is_loud(attempt: u32) -> bool {
     attempt <= 3 || attempt.is_power_of_two()
 }
 
-/// State of one not-yet-connected id: idle, dial in progress, or waiting until a deadline.
+/// State of one not-yet-connected id: idle (left by `found`, or by `wake_idle` after a denial is lifted), dial in
+/// progress, or waiting until a deadline.
 #[derive(Debug, Clone, Copy, Default)]
 enum State {
     #[default]
@@ -165,6 +166,19 @@ impl Redial {
         Duration::ZERO
     }
 
+    /// Moves every idle id for which `wake` holds to "due now"; failures and address stay. Waiting and
+    /// dialing ids are skipped (the predicate isn't asked). Returns the woken ids.
+    pub(super) fn wake_idle(&mut self, now: Instant, wake: impl Fn(PeerId) -> bool) -> Vec<PeerId> {
+        let mut woken = Vec::new();
+        for (&id, peer) in self.peers.iter_mut() {
+            if matches!(peer.state, State::Idle) && wake(id) {
+                peer.state = State::Waiting(now);
+                woken.push(id);
+            }
+        }
+        woken
+    }
+
     /// Forgets members cut by the prune: entries go away, dialing them stops.
     pub(super) fn forget(&mut self, ids: &HashSet<PeerId>) {
         self.peers.retain(|id, _| !ids.contains(id));
@@ -203,3 +217,7 @@ mod tests;
 #[cfg(test)]
 #[path = "redial_forget_tests.rs"]
 mod forget_tests;
+
+#[cfg(test)]
+#[path = "redial_wake_tests.rs"]
+mod wake_tests;

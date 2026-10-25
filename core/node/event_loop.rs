@@ -192,6 +192,7 @@ impl LoopState {
             Wake::Member(event) => self.dispatch_member_event(loop_ctx, event).await,
             Wake::Failed(failed) => self.dialer.on_dial_failed(failed),
             Wake::RedialDue => self.dialer.dial_due_peers(),
+            Wake::Allowed => self.dialer.on_access_allowed(),
             Wake::HelloTick => self.hello(loop_ctx).await,
             Wake::StatusTick => {
                 log_periodic_status(
@@ -303,6 +304,7 @@ pub(super) async fn run_node_loop(loop_ctx: LoopCtx, inputs: LoopInputs) {
     let prune_candidates_prev_tick = HashSet::new();
     let hello_count = 0u64;
     let (failed_tx, failed) = mpsc::unbounded_channel::<DialFailed>();
+    let allowed_rx = inputs.ctx.members.access().allowed_changes();
     let dialer = PeerDialer::new(loop_ctx.id, loop_ctx.stack.clone(), inputs.ctx, failed_tx);
     let mut state = LoopState {
         dialer,
@@ -316,6 +318,7 @@ pub(super) async fn run_node_loop(loop_ctx: LoopCtx, inputs: LoopInputs) {
         found_rx: inputs.found,
         events_rx: inputs.events,
         failed_rx: failed,
+        allowed_rx,
         hello_interval: broadcast,
         status_interval: status,
         prune_interval: prune,

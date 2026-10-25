@@ -25,4 +25,5 @@ pub mod runtime;
 mod subjects;
 pub mod tally;
 pub mod view;
+mod view_diff;
 pub mod watch;

@@ -126,7 +126,7 @@ impl Verdicts {
     }
 
     /// Nodes this view has an opinion about.
-    fn known(&self) -> BTreeSet<PeerId> {
+    pub(super) fn known(&self) -> BTreeSet<PeerId> {
         let l = &self.ledger;
         let listed = l.admitted.iter().chain(l.excluded.keys());
         let listed = listed.chain(&self.my_votes).chain(&self.blocks);
@@ -134,17 +134,6 @@ impl Verdicts {
             .chain(l.forgets.keys())
             .filter(|p| **p != self.me)
             .copied()
-            .collect()
-    }
-
-    /// The nodes denied by this view that the previous one (if any) let in.
-    fn newly_denied(&self, old: Option<&Verdicts>) -> Vec<(PeerId, Deny)> {
-        let before = old.into_iter().flat_map(|o| o.known());
-        let candidates: BTreeSet<PeerId> = self.known().into_iter().chain(before).collect();
-        candidates
-            .into_iter()
-            .filter(|p| old.is_none_or(|o| o.check(*p).is_ok()))
-            .filter_map(|p| self.check(p).err().map(|deny| (p, deny)))
             .collect()
     }
 }
@@ -155,6 +144,7 @@ struct Inner {
     refusals: Mutex<Vec<(PeerId, Refusal)>>,
     recompute: Arc<tokio::sync::Mutex<()>>,
     removed_noted: AtomicBool,
+    allowed: tokio::sync::watch::Sender<u64>,
 }
 
 /// Shared handle to the latest verdicts. `open` lets everyone in; `pending` waits for the first
@@ -188,6 +178,7 @@ impl AccessView {
                 refusals: Mutex::new(Vec::new()),
                 recompute: Arc::new(tokio::sync::Mutex::new(())),
                 removed_noted: AtomicBool::new(false),
+                allowed: tokio::sync::watch::channel(0).0,
             }),
         }
     }
@@ -209,12 +200,21 @@ impl AccessView {
     }
 
     /// Replaces the verdicts; returns the nodes denied now that were not denied by the previous view.
+    /// When the new view lets in a node the previous one denied, the `allowed_changes` counter grows.
     pub fn publish(&self, v: Verdicts) -> Vec<(PeerId, Deny)> {
         let new = Arc::new(v);
         let old = self.inner.verdicts.lock().unwrap().replace(new.clone());
         self.inner.ready.send_replace(true);
         self.drop_stale_refusals(&new);
+        if !new.newly_allowed(old.as_deref()).is_empty() {
+            self.inner.allowed.send_modify(|g| *g += 1);
+        }
         new.newly_denied(old.as_deref())
+    }
+
+    /// A counter that grows each time a publication lets in a node the previous view denied.
+    pub fn allowed_changes(&self) -> tokio::sync::watch::Receiver<u64> {
+        self.inner.allowed.subscribe()
     }
 
     /// The decision for one node; everyone passes while no verdicts are published.

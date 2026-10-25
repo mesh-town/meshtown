@@ -1,6 +1,7 @@
 //! The membership list on two real nodes over loopback, with the list consulted (`open_list = false`):
 //! without admissions the neighbours stay out and the refusal is shown; after mutual admissions they see each
-//! other; an exclusion vote removes a node and withdrawing it brings the node back.
+//! other; an exclusion vote removes a node and withdrawing it brings the node back, also when both sides had
+//! already given up dialing each other.
 //!
 //! What it does: both nodes share one network key and are tied together with `introduce`. Every wait runs under an
 //! external deadline (`LIMIT`), so a hang fails the test instead of the run.
@@ -16,7 +17,7 @@ use meshtown_core::members::access::record::{ensure, AclKind, AclValue, Via};
 use meshtown_core::members::access::report::members_reply;
 use meshtown_core::members::access::view::Deny;
 use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::node::{self, output, NodeConfig, RunningNode};
 use meshtown_core::transport::net_mainline::unix_now;
 use tokio::time::{sleep, timeout};
 
@@ -78,6 +79,35 @@ fn status_of(a: &RunningNode, who: &RunningNode) -> String {
         .find(|r| r.id_full == who.id.to_string())
         .map(|r| r.status.to_string())
         .unwrap_or_default()
+}
+
+/// Mutual admissions, a recompute on each side and a connection between them.
+async fn connected_pair(a: &RunningNode, b: &RunningNode) {
+    admit(a, b).await;
+    admit(b, a).await;
+    refresh(a).await;
+    refresh(b).await;
+    introduce(a, b).await;
+    wait_member(a, b.id, LIMIT).await;
+    wait_member(b, a.id, LIMIT).await;
+}
+
+/// Applies a member action on `a` and requires that it changed the list.
+async fn act(a: &RunningNode, action: MemberAction) {
+    let changed = timeout(LIMIT, apply(&a.access, action))
+        .await
+        .expect("the action in time");
+    assert_eq!(changed, Ok(true));
+}
+
+/// Fails unless the log has a line with `text` after the sequence mark `since`.
+fn assert_logged(since: u64, text: &str) {
+    let page = output::log_page(since, 5000);
+    assert!(
+        page.lines.iter().any(|l| l.text.contains(text)),
+        "the log must have a line with {text:?}: {:?}",
+        page.lines
+    );
 }
 
 async fn shut(a: RunningNode, b: RunningNode) {
@@ -142,5 +172,40 @@ async fn an_exclusion_vote_removes_a_member_and_withdrawing_it_restores() {
     assert_eq!(back.expect("the withdrawal in time"), Ok(true));
     // then: b is listed again
     assert_eq!(status_of(&a, &b), "member");
+    // when: b gets the withdrawal while the first redial is still waiting for its term
+    let _ = b.domains.sync_shared_with(a.id).await;
+    // then: both sides are members of each other again
+    wait_member(&a, b.id, LIMIT).await;
+    wait_member(&b, a.id, LIMIT).await;
+    shut(a, b).await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_unexcluded_member_comes_back_without_a_restart() {
+    // given: a and b are members of each other, a excludes b, and b has learned that it was excluded
+    let (a, b) = pair().await;
+    connected_pair(&a, &b).await;
+    act(&a, MemberAction::Exclude(b.id, None)).await;
+    eventually("b is out", || !a.members.is_member(b.id)).await;
+    let _ = b.domains.sync_shared_with(a.id).await;
+    eventually("b knows its own exclusion", || {
+        b.members.access().check(a.id) == Err(Deny::Left)
+    })
+    .await;
+    // and: both redial terms have passed, so neither side has a dial in flight or waiting
+    sleep(Duration::from_secs(10)).await;
+    let before = output::log_summary(0).last_seq;
+    // when: a withdraws the exclusion and b receives the record
+    act(&a, MemberAction::Unexclude(b.id)).await;
+    let _ = b.domains.sync_shared_with(a.id).await;
+    // then: the connection returns by itself, without a restart and without a new `introduce`
+    eventually("a and b are members of each other again", || {
+        a.members.is_member(b.id) && b.members.is_member(a.id)
+    })
+    .await;
+    assert_logged(
+        before,
+        &format!("{}: access allowed again", output::short_peer_id(&b.id)),
+    );
     shut(a, b).await;
 }
