@@ -57,10 +57,10 @@ describe("JoinCard", () => {
     const el = waiting.wrapper.get("#join-wait");
     expect(el.attributes("hidden")).toBeUndefined();
     expect(el.text()).toBe("Waiting for members of the network \"family\" to come online. As soon as one of the members from the invite is online, Mesh Town will join the network.");
-    waiting.store.state.node.invite_join = { ...info, state: "refused", message: "Another node has already joined with this invite." };
+    waiting.store.state.node.invite_join = { ...info, state: "refused", message: "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one." };
     await waiting.wrapper.vm.$nextTick();
     const refused = waiting.wrapper.get("#join-wait");
-    expect(refused.text()).toBe("Couldn't join \"family\". Another node has already joined with this invite.");
+    expect(refused.text()).toBe("Couldn't join \"family\". Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.");
     expect(refused.get("strong").text()).toBe("Couldn't join \"family\".");
   });
 

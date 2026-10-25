@@ -13,7 +13,7 @@ import { exitChoiceValue, rememberCurrentExit, saveDirect, saveExitIn } from "..
 import { parseExitValue } from "./exit-list.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { failText } from "../common/words.ts";
-import { setRememberedFor } from "../common/exits.ts";
+import { addRememberedFor } from "../common/exits.ts";
 import {
   HOME_EMPTY_FIND, HOME_FIND_ACTION, HOME_KIND_ADDR, HOME_KIND_LAN, HOME_KIND_PORT, HOME_SAVED, clipboardFallbackText,
 } from "./home-flow-texts.ts";
@@ -138,7 +138,7 @@ function settleChoice(form: HomeForm, store: Store, value: string, ok: boolean):
 // `value` is the radio value (`exitValue`): the exit and the network it is taken in.
 export function chooseExit(form: HomeForm, store: Store, value: string, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
   const { slot, id } = parseExitValue(value);
-  const remember = (exits: string[]) => setRememberedFor(slot, exits, storageOf(deps));
+  const remember = (exits: string[]) => addRememberedFor(slot, exits, storageOf(deps));
   return exitSave(form, store, value, () => saveExitIn(store, slot, id, { api: deps.api, remember }));
 }
 
@@ -149,7 +149,7 @@ export function storageOf(deps: HomeDeps): SetupStorage {
 
 // "As usual": the chosen exit stays a list row (remembered), the choice itself is cleared.
 export function chooseDirect(form: HomeForm, store: Store, deps: HomeDeps = defaultHomeDeps): Promise<ExitSaveResult> {
-  rememberCurrentExit(store, (slot, ids) => setRememberedFor(slot, ids, storageOf(deps)));
+  rememberCurrentExit(store, (slot, ids) => addRememberedFor(slot, ids, storageOf(deps)));
   return exitSave(form, store, "", () => saveDirect(store, { api: deps.api }));
 }
 

@@ -6,6 +6,14 @@
   .card-full{grid-column:1 / -1;}
   .mini-row{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start;}
   .mini-row > .card{margin-bottom:0;}
+  /* "Network invite" on a wide screen: the name field and the button share one row, the member counter sits in the title row. */
+  @media (min-width:600px){
+    #home-invite{display:grid;grid-template-columns:1fr auto;column-gap:8px;align-items:center;position:relative;}
+    #home-invite > *{grid-column:1 / -1;}
+    #home-invite > #invite-for-input{grid-column:1;}
+    #home-invite > .btn-row{grid-column:2;margin-top:0;}
+    #home-invite > #home-members-count{position:absolute;top:14px;right:16px;margin:0;}
+  }
   .state-panel{display:flex;align-items:flex-start;gap:10px;}
   .state-panel .state-dot{margin-top:5px;flex-shrink:0;}
   .state-dot{width:12px;height:12px;border-radius:50%;background:var(--grey);}

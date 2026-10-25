@@ -3,6 +3,7 @@
 // others" switch. `bare` — without a card and title (step 3 of the setup).
 import { inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
+import { forDevice } from "../common/device.ts";
 import NodeNameField from "./NodeNameField.vue";
 import { HOME_COMPUTER_ALLOW, HOME_COMPUTER_TITLE } from "./home-card-texts.ts";
 import { inAppPage } from "./browser-setup.ts";
@@ -21,13 +22,13 @@ async function onToggle(ev: Event): Promise<void> {
 
 <template>
   <div :class="{ card: !bare }" :id="bare ? undefined : 'home-computer'" :role="bare ? undefined : 'region'" :aria-labelledby="bare ? undefined : 'home-computer-title'">
-    <h2 v-if="!bare" id="home-computer-title">{{ HOME_COMPUTER_TITLE }}</h2>
+    <h2 v-if="!bare" id="home-computer-title">{{ forDevice(HOME_COMPUTER_TITLE) }}</h2>
     <div id="home-name">
       <NodeNameField :with-save="inApp" />
     </div>
     <div v-if="!inApp" id="home-exit-server">
       <label class="toggle-inline home-exit-toggle">
-        <span class="toggle-inline-text">{{ HOME_COMPUTER_ALLOW }}</span>
+        <span class="toggle-inline-text">{{ forDevice(HOME_COMPUTER_ALLOW) }}</span>
         <span class="toggle"><input type="checkbox" id="field-exit-enabled" :checked="exitServer.checked" :disabled="exitServer.readOnly" @change="onToggle"><span class="toggle-track"></span></span>
       </label>
       <p class="hint">{{ exitServer.hint }}</p>

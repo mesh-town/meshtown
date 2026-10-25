@@ -1,6 +1,7 @@
 /* Texts of the Home cards (`.vue` templates): browser connection, exit choice, invite, joining a network,
  * computer name, the ports question, the "Three steps" setup, the status panel. */
 
+import { forDevice } from "../common/device.ts";
 import { EXIT_DOWN_TAIL, NET_NAME } from "../common/words.ts";
 
 // HomeSection
@@ -47,11 +48,11 @@ export const HOME_INVITE_VALUE_ARIA = "Invite to send";
 export const HOME_JOIN_FIELD_LABEL = "Invite you received";
 export const HOME_JOIN_PLACEHOLDER = "Paste the invite here";
 export const HOME_JOIN_ERROR_ARIA = "Invite error";
-export const HOME_JOIN_KEY_HINT = (net: string): string => `This is a network key, not an invite. Joining with it replaces "${net}" on this computer.`;
+export const HOME_JOIN_KEY_HINT = (net: string): string => `This is a network key, not an invite. Joining with it replaces "${net}"` + forDevice(" on this computer.");
 export const HOME_JOIN_PASTE_HINT = "Paste the entire invite. If a word has a typo, " + NET_NAME + " will highlight it.";
 export const HOME_ASK_MEMBER_HINT = (net: string): string => `Ask any member of "${net}" for a new invite and paste it here.`;
 export const HOME_ASK_ADMIN_HINT = (net: string): string => `Ask an admin of "${net}" for a new invite and paste it here.`;
-export const HOME_NO_RETURN_HINT = (net: string): string => `This computer can't rejoin "${net}". To keep using Mesh Town, paste an invite to another network.`;
+export const HOME_NO_RETURN_HINT = (net: string): string => forDevice("This computer can't rejoin ") + `"${net}". To keep using Mesh Town, paste an invite to another network.`;
 export const HOME_JOIN_BUSY = "Joining…";
 export const HOME_CREATE_TOGGLE = "No invite? Create a new " + NET_NAME + " network";
 export const HOME_CREATE_LABEL = "Network name (members will see it in the invite)";

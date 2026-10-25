@@ -22,8 +22,8 @@ describe("inviteWaitText", () => {
       "Waiting for members of the network \"family\" to come online. As soon as one of the members from the invite is online, Mesh Town will join the network.");
   });
 
-  it("refused — the node message verbatim", () => {
-    const message = "This invite was already used by another node — it is single-use.";
+  it("refused because the invite was used — the core text (RedeemError::Used) verbatim", () => {
+    const message = "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.";
     assert.equal(inviteWaitText(info({ state: "refused", message })), message);
   });
 

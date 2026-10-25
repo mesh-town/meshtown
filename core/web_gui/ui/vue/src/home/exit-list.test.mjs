@@ -12,9 +12,9 @@ const ids = (list) => list.map((item) => item.idFull);
 
 describe("exitCandidates", () => {
   describe("choice is empty", () => {
-    it("remembered [r] and exit member p — both rows, order: remembered, then member; not checked", () => {
+    it("remembered [r] and exit member p — both rows, order: member, then remembered; not checked", () => {
       const list = exitCandidates({ peers: [{ id_full: "p", id: "pp", name: "kitchen", exit: true }] }, [], ["r"]);
-      assert.deepEqual(ids(list), ["r", "p"]);
+      assert.deepEqual(ids(list), ["p", "r"]);
       assert.ok(list.every((item) => item.checked === false), "the remembered one and the exit member are not checked");
     });
 
@@ -45,9 +45,9 @@ describe("exitCandidates", () => {
       assert.equal(list[0].checked, true);
     });
 
-    it("chosen ones go before the remembered one, no repeats", () => {
+    it("the offering member goes first, then the remembered one, no repeats", () => {
       const state = { peers: [{ id_full: "p", id: "pp", name: "x", exit: true }] };
-      assert.deepEqual(ids(exitCandidates(state, ["b"], ["b", "r"])), ["b", "r", "p"]);
+      assert.deepEqual(ids(exitCandidates(state, ["b"], ["b", "r"])), ["p", "b", "r"]);
     });
   });
 

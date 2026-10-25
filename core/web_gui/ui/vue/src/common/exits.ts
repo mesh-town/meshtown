@@ -75,6 +75,15 @@ export function setRememberedFor(slot: string, ids: string[], storage: ExitsStor
   setRememberedEntries(slot === "main" ? [...own, ...others] : [...others, ...own], storage);
 }
 
+export const REMEMBERED_MAX = 8;
+
+// Appends the ids that the slot does not hold yet: the order of the existing entries stays, the oldest go over the limit.
+export function addRememberedFor(slot: string, ids: string[], storage: ExitsStorage = localStorage): void {
+  const have = getRememberedFor(slot, storage);
+  const added = ids.filter((id, i) => !have.includes(id) && ids.indexOf(id) === i);
+  setRememberedFor(slot, [...have, ...added].slice(-REMEMBERED_MAX), storage);
+}
+
 export function getRememberedExits(storage: ExitsStorage = localStorage): string[] {
   return getRememberedFor("main", storage);
 }
