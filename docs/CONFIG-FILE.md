@@ -339,7 +339,7 @@ Other actions (`/api/actions/*`) do not touch the file.
 The write order, in full:
 
 1. **Re-read the file from disk.** If `rev` on disk differs from the revision in memory, the file
-   was edited behind the node's back: 409 `stale_rev` with the document **from disk**, nothing written. The page already
+   was edited behind Mesh Town's back: 409 `stale_rev` with the document **from disk**, nothing written. The page already
    knows this state (a second tab), no separate handling is needed.
 2. Build the new document: the accepted fields, none of the node-computed ones is saved
    (section 4), `rev` + 1, `saved_at` — now.

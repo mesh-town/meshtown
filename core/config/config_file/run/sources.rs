@@ -6,12 +6,29 @@ use std::path::{Path, PathBuf};
 
 use super::super::overrides::CliOverrides;
 use super::super::parse::{load_config_file, LoadedConfigFile};
+use super::super::path::ConfigSource;
 use super::super::report::{FileReport, FileState};
 use super::super::save::{save_config_file, set_aside_bad};
 use super::super::settings::Settings;
 use super::fresh::create_fresh;
 use super::helpers::{is_probably_writable, new_secret, save_error_text};
 use super::{base_report, PrepareOutcome};
+
+/// Dispatches on the chosen source and returns what that source yields.
+pub(super) fn load_source(
+    source: &ConfigSource,
+    cli: &CliOverrides,
+    save_config: bool,
+    now_unix: u64,
+) -> anyhow::Result<PrepareOutcome> {
+    match source {
+        ConfigSource::Disabled => prepare_disabled(),
+        ConfigSource::Nowhere(why) => prepare_nowhere(why),
+        ConfigSource::File {
+            path, may_create, ..
+        } => prepare_file(path, *may_create, cli, save_config, now_unix),
+    }
+}
 
 /// `ConfigSource::Disabled` (`--no-config`): a new secret for this run, the file is not touched.
 pub(super) fn prepare_disabled() -> anyhow::Result<PrepareOutcome> {
