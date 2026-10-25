@@ -11,7 +11,7 @@ import { previewManaged, previewPeer } from "./net-kind-texts.ts";
 /** How long the field must stay unchanged before the node is asked. */
 export const INSPECT_DELAY_MS = 500;
 
-export interface InspectTimers {
+interface InspectTimers {
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (id: unknown) => void;
 }

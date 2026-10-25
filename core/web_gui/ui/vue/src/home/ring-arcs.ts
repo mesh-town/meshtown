@@ -62,7 +62,7 @@ function byRoles(members: RingMember[], r: number, keep: number): RingArc[] {
   return layout(groups.map((g, i) => ({ role: g.role, members: g.list, lengthPx: lengths[i] })), r);
 }
 
-export interface ArcOpts {
+interface ArcOpts {
   minArcPx?: number;
   keepRolePx?: number;
 }

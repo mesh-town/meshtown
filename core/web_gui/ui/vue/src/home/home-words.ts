@@ -1,5 +1,5 @@
 /* Home words — pure functions: the member counter, the "suddenly alone" network status, the hint
- * for the "Allow others…" switch (a port of `07-home.js`). */
+ * for the "Allow others…" switch. */
 
 import { forDevice } from "../common/device.ts";
 import { plural } from "../common/locale.ts";

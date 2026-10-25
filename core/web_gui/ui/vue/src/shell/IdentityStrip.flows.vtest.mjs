@@ -1,4 +1,4 @@
-/* The identity strip on the whole page (a port of the 10-identity DOM cases from e2e config): the state
+/* The identity strip on the whole page (DOM cases of the identity strip): the state
  * `node.identity` / `identity_reason` and the reason from `file.message` come from the mock node. */
 
 import { afterEach, describe, expect, it } from "vitest";

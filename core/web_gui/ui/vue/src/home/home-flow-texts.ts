@@ -103,9 +103,9 @@ export const HOME_RING_SINGLE_VIA = "your exit, online";
 export const HOME_RING_SINGLE_CLIENT = "opens sites through you";
 
 // use-join.ts
-export const HOME_TITLE_REMOVED = "Join the network again";
-export const HOME_TITLE_SWITCH = "Switch to another network";
+const HOME_TITLE_REMOVED = "Join the network again";
+const HOME_TITLE_SWITCH = "Switch to another network";
 export const HOME_TITLE_CREATE = "Create a new network";
 export const HOME_TITLE_JOIN = "Join with an invite";
-export const HOME_BUTTON_SWITCH = "Switch";
+const HOME_BUTTON_SWITCH = "Switch";
 export const HOME_BUTTON_JOIN = "Join";

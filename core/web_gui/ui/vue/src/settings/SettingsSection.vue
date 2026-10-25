@@ -47,7 +47,7 @@ const hasKeyNet = computed(() => targetSlots(store).length > 0);
 const labeled = (f: Field): Field => ({ ...f, title: fieldLabel(f, multi.value) });
 const ready = computed(() => !!(store.config && store.configMeta));
 
-// After a 422 rejection — scroll to the first field with an error (like `scrollToFirstFieldError` in the classic page).
+// After a 422 rejection — scroll to the first field with an error.
 function focusFirstError(container: HTMLElement | null): void {
   const el = container && container.querySelector<HTMLElement>(".field-error");
   if (!el) return;

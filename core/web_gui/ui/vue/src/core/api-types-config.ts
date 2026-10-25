@@ -32,7 +32,7 @@ export interface ConfigDocument {
 }
 
 /** `config.network`: without the key — empty strings, the whole key is never in the document. */
-export interface ConfigNetworkView {
+interface ConfigNetworkView {
   label: string;
   masked: string;
 }
@@ -59,7 +59,7 @@ export interface UnavailableFeature {
 }
 
 /** Dotted path of a config field: `"socks.port"`, `"route.exits"`… */
-export type ConfigPath = string;
+type ConfigPath = string;
 
 /** Error of a single field: in `file.field_errors`, in `fields` of the 422 responses. */
 export interface FieldError {

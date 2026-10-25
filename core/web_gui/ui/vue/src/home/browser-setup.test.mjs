@@ -1,4 +1,4 @@
-/* Browser setup (`browser-setup.ts`): a port of `07b-browser-setup.js` — choosing the browser and system
+/* Browser setup (`browser-setup.ts`): choosing the browser and system
  * by userAgent, the steps, the warning; plus parsing the proxy address and the card view. */
 
 import { describe, it } from "vitest";

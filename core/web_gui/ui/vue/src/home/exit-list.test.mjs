@@ -1,5 +1,5 @@
 /* The "Exit via…" list (`exit-list.ts`): candidates, labels, a single choice,
- * the "Check a site" result. The classic cases `14-home-exit-choice`, `-rows`, `14-home-exit` are carried over. */
+ * the "Check a site" result. */
 
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";

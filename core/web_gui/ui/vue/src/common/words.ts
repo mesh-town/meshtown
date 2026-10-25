@@ -1,7 +1,7 @@
 import type { Absence } from "../core/store.ts";
 
 /** A member for a label: `id` and an optional `name` are enough (`PeerInfo`, `ChosenExit`, etc.). */
-export interface NamedPeer {
+interface NamedPeer {
   id: string;
   name?: string | null;
 }
@@ -13,9 +13,7 @@ interface ErrorWithBody {
 }
 
 /* Page words shared by the sections: the network name in texts and the label of a
- * node without a name. A copy of the classic `00-core.js::NET_NAME` and `peerName` (it was in the removed
- * `10-domains.js`) — the duplicates are reconciled when the classic code is removed (the classic copies of `peerLabel`, `anonymousPeerLabel` are in
- * `14-home-exit-rows.js` and will go with the last classic consumer). */
+ * node without a name. `NET_NAME` must match `NET_NAME` in `core/node/output.rs`. */
 
 export const NET_NAME = "Mesh Town";
 

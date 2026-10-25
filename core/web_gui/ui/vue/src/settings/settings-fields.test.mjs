@@ -18,7 +18,7 @@ import {
 
 describe("fields", () => {
   describe("\"Main\"", () => {
-    it("six paths in the classic order, proxy access — after the port", () => {
+    it("six paths in the fixed order, proxy access — after the port", () => {
       assert.deepEqual(MAIN_FIELDS.map((f) => f.path), [
         "autostart.enabled",
         "socks.enabled",
@@ -53,7 +53,7 @@ describe("fields", () => {
   });
 
   describe("\"For specialists\"", () => {
-    it("does not overlap with \"Main\", carries the remaining fields from the classic page", () => {
+    it("does not overlap with \"Main\", carries the remaining fields", () => {
       const main = new Set(MAIN_FIELDS.map((f) => f.path));
       const expert = EXPERT_FIELDS.map((f) => f.path);
       for (const p of expert) assert.equal(main.has(p), false, p + " in both lists");

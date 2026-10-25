@@ -1,5 +1,5 @@
 /* Pure logic of the "Ports" section (`ports-view.ts`): the lists `ports.published` and `ports.opened`,
- * the row status text, the key of the "Network ports" row. A port of the classic `10-ports.js`. */
+ * the row status text, the key of the "Network ports" row. */
 
 import type { NetPort, OwnPort, PeerInfo } from "../core/api-types.ts";
 import { isMulti, netConfig, netName, slotState, visibleSlots } from "../core/slots.ts";
@@ -17,7 +17,7 @@ export interface PortsConfigLists {
   published: PublishedPortConfig[];
   opened: OpenedPortConfig[];
 }
-export type PublishedAfterAdd = { list: PublishedPortConfig[]; error?: undefined } | { error: string; list?: undefined };
+type PublishedAfterAdd = { list: PublishedPortConfig[]; error?: undefined } | { error: string; list?: undefined };
 
 export type AudienceMode = "all" | "nodes";
 export interface AudienceCandidate {
@@ -30,9 +30,9 @@ export interface AudienceCandidate {
 const PORT_MIN = 1;
 const PORT_MAX = 65535;
 
-export const ADD_ERROR_RANGE = PORTS_ADD_ERROR_RANGE;
+const ADD_ERROR_RANGE = PORTS_ADD_ERROR_RANGE;
 export const ADD_ERROR_NO_NODES = PORTS_ADD_ERROR_NO_NODES;
-export const SHORT_ID_CHARS = 10;
+const SHORT_ID_CHARS = 10;
 export const EMPTY_OWN = PORTS_EMPTY_OWN;
 export const EMPTY_NET = PORTS_EMPTY_NET;
 
@@ -185,10 +185,10 @@ export function sameNameNodes(rows: Pick<NetPort, "node" | "node_name">[]): Set<
 
 // ---- Several networks ----
 
-export interface SlotShare { slot: string; label: string; audience: "all" | string[] }
+interface SlotShare { slot: string; label: string; audience: "all" | string[] }
 /** One published port over all networks: where it is shared and with whom. */
 export interface MergedOwn { port: number; name: string; local: OwnPort["local"]; shared: SlotShare[] }
-export interface PortRef { slot: string; node: string; port: number }
+interface PortRef { slot: string; node: string; port: number }
 export interface NetPortItem { slot: string; net: string | null; row: NetPort }
 export interface NetGroup { slot: string; label: string; candidates: AudienceCandidate[] }
 /** One network's choice in the form: "All members" or the checked members; nothing checked — not published there. */
@@ -199,7 +199,7 @@ function slotStateOf(store: Store, slot: string) {
   return slotState(store, slot) ?? (slot === store.lead ? store.state : null);
 }
 
-export function slotPeers(store: Store, slot: string): PeerInfo[] {
+function slotPeers(store: Store, slot: string): PeerInfo[] {
   return slotStateOf(store, slot)?.peers ?? [];
 }
 

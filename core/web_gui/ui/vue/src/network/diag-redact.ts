@@ -11,9 +11,9 @@ const IPV6_FULL = /(?<![\w:])(?:[0-9a-f]{1,4}:){7}[0-9a-f]{1,4}(?![\w:])/gi;
 const HEX_LONG = /(?<![0-9a-f])[0-9a-f]{40,}(?![0-9a-f])/gi;
 const IPV6_SHORT = /(?<![\w:])(?=[0-9a-f:]*::)(?=[0-9a-f:]*[0-9a-f])[0-9a-f:]{3,}(?![\w:])/gi;
 
-export const HIDDEN_TOKEN = DIAG_HIDDEN_TOKEN;
-export const HIDDEN_ID = "‹id›";
-export const HIDDEN_ADDR = DIAG_HIDDEN_ADDR;
+const HIDDEN_TOKEN = DIAG_HIDDEN_TOKEN;
+const HIDDEN_ID = "‹id›";
+const HIDDEN_ADDR = DIAG_HIDDEN_ADDR;
 
 // Long values go first: a short node id is the beginning of the full one and would otherwise leave its tail.
 function hideValues(line: string, values: string[]): string {

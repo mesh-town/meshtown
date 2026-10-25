@@ -1,5 +1,4 @@
-/* The header status line and the identity strip — pure functions without Vue (a port of
- * `06-render.js`). The phrase "how sites open right now" comes from Home (`statePanel`). */
+/* The header status line and the identity strip — pure functions without Vue. The phrase "how sites open right now" comes from Home (`statePanel`). */
 
 import type { ConfigFileInfo, NodeState, PeerInfo } from "../core/api-types.ts";
 import type { Conn } from "./conn.ts";
@@ -20,7 +19,7 @@ import { STATUS_HIM, STATUS_NETWORK_SEP, STATUS_NOT_JOINED, STATUS_STARTING, STA
 
 import type { Refused } from "../peers/admission-refused.ts";
 export type { Refused };
-export type StatusLevel = "green" | "red" | "grey";
+type StatusLevel = "green" | "red" | "grey";
 export interface StatusLine {
   level: StatusLevel;
   text: string;

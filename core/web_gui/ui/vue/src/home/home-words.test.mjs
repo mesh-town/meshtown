@@ -1,5 +1,5 @@
 /* The words of "Home" (`home-words.ts`): the member counter, the network status, the hint
- * under the "Allow others" switch. The cases of the classic `07-home-words.test.mjs` are carried over. */
+ * under the "Allow others" switch. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";

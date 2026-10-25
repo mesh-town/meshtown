@@ -7,7 +7,7 @@ import { getToken } from "../core/token.ts";
 import { loginHttpErrorText } from "./login-texts.ts";
 
 /** How the request credentials were obtained: `null` — not at all. */
-export type AuthVia = "token" | "temp" | "password" | null;
+type AuthVia = "token" | "temp" | "password" | null;
 export type AuthAccess = "localhost" | "localnet";
 
 /** Body of `GET /api/auth/status`. */

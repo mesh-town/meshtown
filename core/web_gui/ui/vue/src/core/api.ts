@@ -1,5 +1,5 @@
-/* api() — a fetch wrapper with a token and a timeout (a port of `js/03-api.js`). The status strips
- * are drawn by the shell poll (`shell/poller.js`); from the core only a 401 ("token") goes to the bridge. */
+/* api() — a fetch wrapper with a token and a timeout. The status strips
+ * are drawn by the shell poll (`shell/poller.ts`); from the core only a 401 ("token") goes to the bridge. */
 
 import type { ApiErrorBodyLoose } from "./api-types.ts";
 import { notifyChanged } from "./bridge.ts";
@@ -37,7 +37,7 @@ export interface ApiErrorLike {
   body?: ApiErrorBodyLoose | null;
 }
 
-export interface ApiDeps {
+interface ApiDeps {
   fetch: (input: string, init: RequestInit) => Promise<Response>;
   getToken: () => string;
   timeoutMs: number;
@@ -48,7 +48,7 @@ export interface ApiDeps {
 export type ApiFn = <T = unknown>(method: string, path: string, body?: unknown) => Promise<T>;
 
 // Globals are read at call time, not at import: tests run in node without a DOM.
-export const defaultApiDeps: ApiDeps = {
+const defaultApiDeps: ApiDeps = {
   fetch: (input, init) => fetch(input, init),
   getToken: () => getToken(),
   timeoutMs: 5000,

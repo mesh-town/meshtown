@@ -8,7 +8,7 @@ import type { StatusLine } from "../shell/status-line.ts";
 import type { MemberRow, MembersReply } from "./members-types.ts";
 import { displayNames } from "./members-ids.ts";
 
-export type ExitWarningKind = "removed" | "left" | "blocked";
+type ExitWarningKind = "removed" | "left" | "blocked";
 
 export interface ExitWarning {
   id: string;

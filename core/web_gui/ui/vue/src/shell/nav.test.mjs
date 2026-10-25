@@ -30,7 +30,7 @@ describe("SECTION_VIEWS", () => {
     assert.deepEqual(SECTION_VIEWS.map((v) => v.id), SECTIONS);
   });
 
-  it("tab labels are the old ones, as in the classic markup", () => {
+  it("tab labels are the old ones, as in the page markup", () => {
     assert.deepEqual(SECTION_VIEWS.map((v) => v.tab), [
       "Home", "Members", "Site checks", "Ports", "Diagnostics", "Log", "Settings",
     ]);

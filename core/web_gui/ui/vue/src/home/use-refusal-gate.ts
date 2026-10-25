@@ -5,7 +5,7 @@ import { computed, ref, watch } from "vue";
 import type { ComputedRef } from "vue";
 import type { InviteJoinInfo } from "../core/api-types.ts";
 
-export interface RefusalGate {
+interface RefusalGate {
   info: ComputedRef<InviteJoinInfo | null | undefined>;
   /** Hide the refusal that is shown now; no refusal - nothing is remembered. */
   dismiss(): void;

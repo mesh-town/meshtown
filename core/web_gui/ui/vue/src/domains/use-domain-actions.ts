@@ -11,7 +11,7 @@ import { createDomainActions, emptyUi } from "./domain-actions.ts";
 import type { DomainActions, DomainTargets, DomainUi } from "./domain-actions.ts";
 import { mergedDomains, rowsBusy, siteNets } from "./domains-view.ts";
 
-export type UseDomainActions = { ui: DomainUi } & DomainActions;
+type UseDomainActions = { ui: DomainUi } & DomainActions;
 
 // One network: only the leading slot; several: every visible slot with a key.
 function targetsOf(store: Store): DomainTargets {

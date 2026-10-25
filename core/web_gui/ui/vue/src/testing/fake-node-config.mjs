@@ -5,7 +5,7 @@
  * The running values (`node.running`) are remembered at the first PUT from the config that lay there before it: a test
  * may adjust `node.config` before mounting, and that is not "pending a restart". Returning a value clears the pending state. */
 
-export const RESTART_PATHS = ["socks.ifaces", "socks.access"];
+const RESTART_PATHS = ["socks.ifaces", "socks.access"];
 const DEFAULT_PORT = 1080;
 const LOOPBACK = "127.0.0.1";
 

@@ -2,8 +2,8 @@ import type { NodeState, ConfigDocument } from "../core/api-types.ts";
 import type { Store } from "../core/store.ts";
 import { isSlotId } from "../core/slots.ts";
 
-/* Chosen exits: a copy of the pure parts of `14-home-exit-choice.js` and of the key
- * `meshtown.exitsRemembered` — the page's shared contract (formerly shared with the classic page). */
+/* Chosen exits: the pure parts of the choice and the key
+ * `meshtown.exitsRemembered` — the page's shared contract. */
 
 export const REMEMBERED_KEY = "meshtown.exitsRemembered";
 
@@ -11,7 +11,7 @@ export const AUTO_PICKED_KEY = "meshtown.exitAutoPicked";
 
 type ExitsStorage = Pick<Storage, "getItem" | "setItem">;
 
-export interface RememberedExit {
+interface RememberedExit {
   id: string;
   slot: string;
 }
@@ -75,7 +75,7 @@ export function setRememberedFor(slot: string, ids: string[], storage: ExitsStor
   setRememberedEntries(slot === "main" ? [...own, ...others] : [...others, ...own], storage);
 }
 
-export const REMEMBERED_MAX = 8;
+const REMEMBERED_MAX = 8;
 
 // Appends the ids that the slot does not hold yet: the order of the existing entries stays, the oldest go over the limit.
 export function addRememberedFor(slot: string, ids: string[], storage: ExitsStorage = localStorage): void {

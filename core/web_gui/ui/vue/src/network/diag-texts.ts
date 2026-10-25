@@ -64,7 +64,7 @@ export const DIAG_EXIT_LABEL = "How sites open";
 export const DIAG_EXIT_VIA_DEFAULT = "the chosen member";
 export const DIAG_PROXY_LABEL = "Browser proxy";
 export const DIAG_PROXY_OFF = "The browser proxy is off";
-export const DIAG_ROUTE_WONT_OPEN_PREFIX = "In the browser, sites won’t open through ";
+const DIAG_ROUTE_WONT_OPEN_PREFIX = "In the browser, sites won’t open through ";
 
 export function diagNetNoConnectionText(net: string): string {
   return net + ": no connection to the " + NET_NAME + " network";

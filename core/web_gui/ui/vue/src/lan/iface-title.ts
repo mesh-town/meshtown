@@ -6,7 +6,7 @@ import {
 } from "./nets-texts.ts";
 import type { NetEntry } from "./nets-types.ts";
 
-export interface IfaceTitle {
+interface IfaceTitle {
   title: string;
   hint: string;
   code: string;

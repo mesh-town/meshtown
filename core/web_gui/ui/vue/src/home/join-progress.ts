@@ -7,7 +7,7 @@ import { ENTER_SUB, HOME_PROGRESS_ENTERING, HOME_PROGRESS_SEARCHING, SEARCH_SUB,
 import type { Absence } from "../core/store.ts";
 import type { InviteJoinInfo, NodeState } from "../core/api-types.ts";
 
-export type JoinPhase = "searching" | "entering" | "refused";
+type JoinPhase = "searching" | "entering" | "refused";
 export interface JoinProgress {
   phase: JoinPhase;
   main: string;

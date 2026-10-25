@@ -8,7 +8,7 @@ import type { LogFeed } from "./log-view.ts";
 
 /* deps: api(method, path), setTimer/clearTimer, active() — whether the tab with node data is open,
  * boot() — the current `boot_id`, net() — the selected network filter (`null` — all), max() — the ring size, onFeed(feed) — a new feed, onError(text) — the polling failure line ("" — no failure; optional). */
-export interface LogPollerDeps {
+interface LogPollerDeps {
   api: ApiFn;
   setTimer: (fn: () => void, ms: number) => unknown;
   clearTimer: (id: unknown) => void;
@@ -20,7 +20,7 @@ export interface LogPollerDeps {
   onError?: (text: string) => void;
 }
 
-export interface LogPoller {
+interface LogPoller {
   start: () => void;
   stop: () => void;
   tick: () => Promise<void>;

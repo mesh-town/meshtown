@@ -1,11 +1,11 @@
-/* `token.ts`: reading the token from session storage; the key is shared with the classic page. */
+/* `token.ts`: reading the token from session storage; the key is a shared contract of the page. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { getToken, setToken, TOKEN_KEY } from "./token.ts";
 
 describe("getToken", () => {
-  it("storage key is the same as the classic page's: meshtown.token", () => {
+  it("storage key is fixed: meshtown.token", () => {
     assert.equal(TOKEN_KEY, "meshtown.token");
   });
 

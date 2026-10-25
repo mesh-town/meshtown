@@ -27,7 +27,7 @@ import {
 type Snapshot = Partial<NodeState> | null;
 export type HomeMode = "wizard" | "normal";
 export type PanelLevel = "green" | "red" | "grey";
-export type PanelAction = "pick-other" | "direct";
+type PanelAction = "pick-other" | "direct";
 export interface StatePanelView {
   level: PanelLevel;
   main: string;
@@ -38,7 +38,7 @@ export interface StatePanelView {
   busy?: boolean;
 }
 export type CardKey = "nets" | "invite" | "exit" | "row";
-export type OrderVariant = "A" | "B" | "V";
+type OrderVariant = "A" | "B" | "V";
 
 // The name from settings, otherwise from the handshake (the `peers[]` row with `self`).
 export function nodeNameFieldValue(config: ConfigDocument | null, state: Snapshot): string {

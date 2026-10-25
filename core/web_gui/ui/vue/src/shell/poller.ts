@@ -36,7 +36,7 @@ function foreignRevision(store: Store, data: NodeState, restarted: boolean): boo
 }
 
 /** Polling the state and config. */
-export interface Poller {
+interface Poller {
   start: () => Promise<void>;
   schedule: (delay: number) => void;
   clearPollTimer: () => void;

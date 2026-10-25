@@ -1,5 +1,4 @@
-/* The pure logic of the Log section: time label, filter, merging polling responses, the line ring.
- * The cases are moved from the classic `11-log.test.mjs` (deleted together with `11-log.js`). */
+/* The pure logic of the Log section: time label, filter, merging polling responses, the line ring. */
 
 import { formatNumber } from "../common/locale.ts";
 import { errReason, lowerFirst } from "../common/words.ts";
@@ -10,12 +9,12 @@ import { LOG_ALL_NETWORKS, LOG_GAP_TEXT, LOG_POLL_FAILED_PREFIX, LOG_POLL_FAILED
 import type { LogLine, LogResponse, LogSummary } from "../core/api-types.ts";
 
 /** The feed gap: the program erased some lines before the page read them. */
-export interface LogGap {
+interface LogGap {
   gap: true;
 }
-export type LogEntry = (LogLine & { gap?: undefined }) | LogGap;
+type LogEntry = (LogLine & { gap?: undefined }) | LogGap;
 /** An entry with a key for `v-for`. */
-export type KeyedEntry = LogEntry & { key: string };
+type KeyedEntry = LogEntry & { key: string };
 /** The page feed: lines and the `seq` of the last one read. */
 export interface LogFeed {
   lines: KeyedEntry[];
@@ -23,7 +22,7 @@ export interface LogFeed {
 }
 
 export const POLL_MS = 1000;
-export const DEFAULT_LOG_RING_LINES = 2000;
+const DEFAULT_LOG_RING_LINES = 2000;
 const LOG_POLL_LIMIT_LINES = 500;
 const TIME_WIDTH = 7;
 export const GAP_TEXT = LOG_GAP_TEXT;
@@ -68,7 +67,7 @@ export function pollPath(lastSeq: number, net: string | null = null): string {
 }
 
 /** One button of the network filter row; `slot: null` — every network. */
-export interface LogNetFilter {
+interface LogNetFilter {
   slot: string | null;
   label: string;
 }

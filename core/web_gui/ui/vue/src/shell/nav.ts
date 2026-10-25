@@ -1,9 +1,9 @@
-/* Navigation: seven sections, tab order and the address hash (a port of `05-nav.js`). */
+/* Navigation: seven sections, tab order and the address hash. */
 
 import { SHELL_TAB_DOMAINS, SHELL_TAB_DOMAINS_NARROW, SHELL_TAB_HOME, SHELL_TAB_LOG, SHELL_TAB_NETWORK, SHELL_TAB_PEERS, SHELL_TAB_PORTS, SHELL_TAB_SETTINGS } from "./shell-texts.ts";
 
 export type SectionId = "home" | "peers" | "domains" | "ports" | "network" | "log" | "settings";
-export interface SectionView {
+interface SectionView {
   id: SectionId;
   tab: string;
   title: string | null;

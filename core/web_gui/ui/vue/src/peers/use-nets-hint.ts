@@ -4,7 +4,7 @@ import { ref, watch } from "vue";
 import type { Ref } from "vue";
 import { PEERS_NETS_HINT_KEY } from "./peers-texts.ts";
 
-export interface NetsHint {
+interface NetsHint {
   seen: Ref<boolean>;
   dismiss: () => void;
 }

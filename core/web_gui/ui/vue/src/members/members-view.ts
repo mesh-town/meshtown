@@ -16,7 +16,7 @@ export interface PeerLike {
   self?: boolean;
 }
 
-export interface Partition<P> {
+interface Partition<P> {
   active: (P | PeerLike)[];
   pending: MemberRow[];
   unlisted: MemberRow[];

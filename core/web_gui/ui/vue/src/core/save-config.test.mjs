@@ -1,5 +1,5 @@
 /* `save-config.ts`: a pinpoint config edit on top of the store, one retry on `stale_rev`,
- * a signal to the bridge only on success. A port of the cases of the classic `15-save-field.js`. */
+ * a signal to the bridge only on success. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";

@@ -8,7 +8,7 @@ const deleted = ref<string | null>(null);
 export const DELETED_OK = "OK";
 export const deletedBannerText = (net: string): string => `You deleted "${net}". All members have left it.`;
 
-export interface DeletedBannerApi {
+interface DeletedBannerApi {
   deleted: Ref<string | null>;
   show: (net: string) => void;
   clear: () => void;

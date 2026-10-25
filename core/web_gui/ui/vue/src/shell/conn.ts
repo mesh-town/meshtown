@@ -1,6 +1,6 @@
-/* The page's connection with the node — pure state without Vue (a port of `03-api.js` and `01-state.js::S.net`):
+/* The page's connection with the node — pure state without Vue:
  * the failure counter, poll backoff, the current status strip. It is changed only by poll requests and
- * `refreshConfig`; the texts are verbatim from the classic page. */
+ * `refreshConfig`. */
 
 export const POLL_VISIBLE_MS = 2000;
 export const POLL_HIDDEN_MS = 10000;
@@ -18,9 +18,9 @@ const TEXT_DISCONNECTED = API_ERROR_TEXT.network;
 const TEXT_RESTARTED = SHELL_RESTARTED;
 const TEXT_BAD_TOKEN = API_ERROR_TEXT.bad_token;
 const TEXT_BAD_ORIGIN = SHELL_BAD_ORIGIN;
-export const TEXT_CHANGED = SHELL_CHANGED;
+const TEXT_CHANGED = SHELL_CHANGED;
 
-export type StripKind = "disconnected" | "restarted" | "bad_token" | "bad_origin" | "stopped";
+type StripKind = "disconnected" | "restarted" | "bad_token" | "bad_origin" | "stopped";
 export type StripViewKind = StripKind | "changed";
 export interface Strip<K extends string = StripKind> {
   kind: K;
@@ -39,7 +39,7 @@ export interface Conn {
   sawFirst: boolean;
 }
 
-export type ErrorKind = "token" | "origin" | "stopping" | "failure" | "alive";
+type ErrorKind = "token" | "origin" | "stopping" | "failure" | "alive";
 
 export function createConn(): Conn {
   return {

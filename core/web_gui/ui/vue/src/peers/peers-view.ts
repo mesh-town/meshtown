@@ -1,4 +1,4 @@
-/* The "Members" section: pure logic of the list (port of `js/09-peers.js`). A row is a dot, the name and
+/* The "Members" section: pure logic of the list. A row is a dot, the name and
  * id, the connection, the action. */
 
 import { agoText } from "../common/words.ts";
@@ -8,7 +8,7 @@ import {
 } from "./peers-texts.ts";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
 
-export type PeerActionKind = "self" | "chosen-ok" | "chosen-down" | "button" | "refused" | "none";
+type PeerActionKind = "self" | "chosen-ok" | "chosen-down" | "button" | "refused" | "none";
 
 export function countryText(p: Pick<PeerInfo, "country">): string {
   return p.country || "—";

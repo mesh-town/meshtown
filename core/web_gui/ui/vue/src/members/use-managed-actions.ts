@@ -11,7 +11,7 @@ import { useDeletedBanner } from "./deleted-banner.ts";
 import { deleteNetwork, postAdmin } from "./members-api.ts";
 import { madeAdminStatus } from "./members-texts.ts";
 
-export interface ManagedEnv {
+interface ManagedEnv {
   store: Store;
   call: ApiFn;
   status: Ref<ExitSaveStatus>;
@@ -20,7 +20,7 @@ export interface ManagedEnv {
   net: (at: string) => string;
 }
 
-export interface ManagedActions {
+interface ManagedActions {
   setAdmin: (idFull: string, admin: boolean, from: string) => Promise<void>;
   deleteNet: (from: string) => Promise<void>;
 }

@@ -10,7 +10,7 @@ import { createLogPoller } from "./log-poller.ts";
 import { effectiveLogNet, emptyFeed, logRingMaxLines } from "./log-view.ts";
 import type { LogFeed } from "./log-view.ts";
 
-export interface LogFeedState {
+interface LogFeedState {
   feed: ShallowRef<LogFeed>;
   paused: Ref<boolean>;
   pollError: Ref<string>;

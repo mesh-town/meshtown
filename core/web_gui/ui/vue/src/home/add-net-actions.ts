@@ -27,7 +27,7 @@ interface TakenSlot {
 }
 
 /** The join form already carries the slot that holds the network, its name and the slot of a duplicate. */
-export type AddNetForm = JoinForm;
+type AddNetForm = JoinForm;
 
 export const atLimit = (store: Store): boolean => visibleSlots(store.nets, store.slots).length >= MAX_NETS;
 
@@ -143,7 +143,7 @@ export async function addNetwork(form: AddNetForm, store: Store, deps: HomeDeps,
 }
 
 // The exit the computer keeps using, when it is a member (not "directly"): shown in the banner so a new network does not look like a change.
-export function currentExitVia(store: Store): { peer: string; net: string } | null {
+function currentExitVia(store: Store): { peer: string; net: string } | null {
   const id = chosenExitIds(store)[0];
   const peers = store.state?.peers ?? [];
   const peer = id ? peers.find((p) => p.id_full === id) : undefined;

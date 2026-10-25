@@ -93,7 +93,7 @@ describe("api", () => {
       assert.equal(err.message, NET_NAME + " responded with an error (code 500)");
     });
 
-    it("503 — no events on the target (the classic poll draws the strips)", async () => {
+    it("503 — no events on the target (the shell poll draws the strips)", async () => {
       const w = setup({ reply: () => json(503, { error: "stopping" }) });
       const err = await rejection(api("GET", "/api/state", null, w.deps));
       assert.equal(err.status, 503);

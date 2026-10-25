@@ -26,7 +26,7 @@ export interface NetRow {
   warn: boolean;
 }
 
-export interface NetsApi {
+interface NetsApi {
   rows: ComputedRef<NetRow[]>;
   nodeIsRouter: ComputedRef<boolean>;
   hasSavedNetList: ComputedRef<boolean>;

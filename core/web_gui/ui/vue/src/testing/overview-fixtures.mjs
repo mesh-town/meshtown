@@ -34,4 +34,4 @@ export function twoNets(patchB = {}) {
 }
 
 /** Two networks where B holds a key but has no label. */
-export const unlabeledNet = () => twoNets({ label: null });
+const unlabeledNet = () => twoNets({ label: null });
