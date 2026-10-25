@@ -1,8 +1,9 @@
 //! Boot of the membership list: confirms the own "admitted" records for the known neighbours at every
 //! start.
 //!
-//! What it does: one run reads the shared replica first, then writes the witnesses (`initial` and `cached`
-//! neighbours) and the boot marker.
+//! What it does: one run reads the shared replica first, then (for a newcomer) claims the boot marker, writes
+//! the witnesses (`initial` and `cached` neighbours) and the promotions, and finishes the marker last (for a
+//! returning node the marker is rewritten only after the promotions succeeded).
 //! What it doesn't do: no watching and no verdicts (`runtime`, `watch`); the caller logs a failure.
 
 use std::collections::BTreeSet;
