@@ -125,16 +125,24 @@ def _uses_module(module: str, clean: str) -> bool:
     segs = module.split("::")
     direct = re.compile(r"\bmeshtown_core::" + "::".join(map(re.escape, segs)) + r"\b")
     parents = [
-        re.compile(r"\bmeshtown_core::" + "::".join(map(re.escape, segs[:k])) + r"\b(?!::)")
+        re.compile(r"\bmeshtown_core::" + "::".join(map(re.escape, segs[:k])) + r"\b(?!::[a-z_{])")
         for k in range(1, len(segs))
     ]
     if direct.search(clean) or any(p.search(clean) for p in parents):
         return True
     for prefix, body in _group_bodies(clean):
-        rest = _rest_after(prefix, module)
-        if rest is not None and re.search(r"\b" + re.escape(rest.split("::")[0]) + r"\b", body):
+        if _group_uses(prefix, module, body):
             return True
     return False
+
+def _group_uses(prefix: str, module: str, body: str) -> bool:
+    rest = _rest_after(prefix, module)
+    if rest is None:
+        return False
+    if re.search(r"\b" + re.escape(rest.split("::")[0]) + r"\b", body):
+        return True
+    # A group under a parent of the module that names `self` or a type (`Name`) uses the parent's items.
+    return rest != module and re.search(r"\bself\b|\b[A-Z]\w*", body) is not None
 
 def users_of(module: str, sources: dict[str, str]) -> set[str]:
     """Keys of `sources` where `meshtown_core::<module>` (`a::b`; directly, via a parent module import or in

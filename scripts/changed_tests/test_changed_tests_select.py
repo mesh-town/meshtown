@@ -326,6 +326,36 @@ class UsersOf(unittest.TestCase):
         self.assertEqual(changed_tests.users_of("members::words", {"a": text}), {"a"})
         self.assertEqual(changed_tests.users_of("transport::net", {"a": text}), set())
 
+    def test_parent_type_import_counts_as_user_of_child(self):
+        text = "use meshtown_core::proxy::ProxyFront;\n"
+
+        self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), {"a"})
+
+    def test_group_with_parent_type_counts_as_user_of_child(self):
+        text = "use meshtown_core::proxy::{socks5, ProxyFront};\n"
+
+        self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), {"a"})
+
+    def test_group_with_self_counts_as_user_of_child(self):
+        text = "use meshtown_core::node::{self};\n"
+
+        self.assertEqual(changed_tests.users_of("node::identity", {"a": text}), {"a"})
+
+    def test_sibling_module_import_is_not_a_user(self):
+        text = "use meshtown_core::proxy::socks5;\n"
+
+        self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), set())
+
+    def test_sibling_module_type_is_not_a_user(self):
+        text = "use meshtown_core::proxy::socks5::Socks5Error;\n"
+
+        self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), set())
+
+    def test_similar_prefix_is_not_a_user(self):
+        text = "use meshtown_core::proxying::Foo;\n"
+
+        self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), set())
+
 
 if __name__ == "__main__":
     unittest.main()

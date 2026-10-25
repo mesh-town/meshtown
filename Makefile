@@ -1,4 +1,4 @@
-.PHONY: help build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test clippy clippy-full core-check features-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
+.PHONY: help build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test fmt-check clippy clippy-full core-check features-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
 
 # One cargo build per host at a time — make -j does not break that.
 .NOTPARALLEL:
@@ -215,6 +215,9 @@ test-changed:
 android-test:
 	bash platforms/android/gui/test.sh
 
+fmt-check:
+	$(CARGO) fmt --all --check
+
 # Fast loop — one pass (default); acceptance (check, battery) — clippy-full, both feature sets.
 clippy:
 	$(CARGO) clippy --workspace --all-targets -- -D warnings
@@ -235,7 +238,7 @@ features-check:
 
 # -k: a red target does not abort the rest — the battery shows all red ones in one go.
 check:
-	$(MAKE) -k test test-py test-dist test-js web-typecheck web-bundle-check clippy-full core-check net-boundary boundary
+	$(MAKE) -k test test-py test-dist test-js web-typecheck web-bundle-check fmt-check clippy-full core-check net-boundary boundary
 
 # Network core boundary: core/transport/net has no foreign network crates and no paths outside the core;
 # no path within the core boundary names foreign network crates; townjump crates live only in net_hyper/.

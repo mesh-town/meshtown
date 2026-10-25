@@ -175,7 +175,7 @@ mod an_unknown_network {
         let unknown = NetSlotId::parse("aaaaaa").unwrap();
         // when: the proxy is claimed for a network that is not loaded
         let got = fx.when_claimed(&unknown);
-        // then: an error, the choice is A, no file is written
+        // then: the error is UnknownNet, the choice is A, no file is written
         assert_eq!(got, Err(HostError::UnknownNet));
         assert_eq!(fx.seat.chosen(), fx.a);
         assert_eq!(fx.all_files(), before, "no file may change");

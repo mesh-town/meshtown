@@ -39,7 +39,7 @@ jobs:
       - name: Install toolchain
         shell: bash
         run: |
-          rustup toolchain install "$CLIPPY_RUST" --profile minimal --component clippy
+          rustup toolchain install "$CLIPPY_RUST" --profile minimal --component clippy --component rustfmt
           rustup default "$CLIPPY_RUST"
       - uses: Swatinem/rust-cache@v2
       # `crate-type = ["rlib", "dylib"]` is only for the fast local loop on macOS; a dylib hits the PE export
@@ -48,7 +48,9 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: sed -i '/^crate-type = /d' core/Cargo.toml
-      # `cargo fmt --all --check` is not enabled yet: the tree is not rustfmt-clean.
+      - name: Format
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Clippy (no tray)
