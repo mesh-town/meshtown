@@ -67,8 +67,8 @@ async fn lost(react: &dyn NetReact, asleep: &mut bool) {
     say("hyper", format!("network lost: closed {n} sessions"));
 }
 
-async fn changed(react: &dyn NetReact, asleep: &mut bool) {
-    let t0 = Instant::now();
+/// Closes the sessions and restarts the network side; how many sessions were closed.
+async fn react_to_change(react: &dyn NetReact, asleep: &mut bool) -> usize {
     let n = react.close_sessions(CODE_NET_CHANGED, NET_CHANGED.as_bytes());
     if !*asleep {
         if let Err(e) = react.suspend().await {
@@ -79,6 +79,12 @@ async fn changed(react: &dyn NetReact, asleep: &mut bool) {
         warn("resume failed", &e);
     }
     *asleep = false;
+    n
+}
+
+async fn changed(react: &dyn NetReact, asleep: &mut bool) {
+    let t0 = Instant::now();
+    let n = react_to_change(react, asleep).await;
     let ms = t0.elapsed().as_millis();
     say(
         "hyper",
