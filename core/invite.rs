@@ -51,6 +51,9 @@ pub const OLD_INVITE_PREFIX: &str = "mesh-invite1-";
 pub const MAX_INVITE_PEERS: usize = 5;
 /// How many direct addresses a record without relay holds.
 pub const MAX_DIRECT_ADDRS: usize = 2;
+/// The same limit when the default route is unknown: a LAN address can't be told from a bridge one,
+/// so more candidates are kept.
+pub const MAX_DIRECT_ADDRS_NO_ROUTE: usize = 4;
 /// Limit of the invite string length in characters.
 pub const MAX_INVITE_CHARS: usize = 4_000;
 /// Limit of the invite size in bytes (before base32).
@@ -109,7 +112,16 @@ pub struct Source {
     pub domains: crate::proxy::domains::DomainList,
 }
 
-/// With relay direct addresses are not needed, without relay — at most `MAX_DIRECT_ADDRS`;
+/// How many direct addresses a record keeps: more when no default route is known.
+fn direct_cap(primary: &PrimaryIps) -> usize {
+    if primary.v4.is_none() && primary.v6.is_none() {
+        return MAX_DIRECT_ADDRS_NO_ROUTE;
+    }
+    MAX_DIRECT_ADDRS
+}
+
+/// With relay direct addresses are not needed, without relay — at most `MAX_DIRECT_ADDRS`
+/// (`MAX_DIRECT_ADDRS_NO_ROUTE` when no default route is known);
 /// first come the default-route address and public ones, the foreign tunnel address (100.64/10) —
 /// last (`addr_order`), but it stays if there is otherwise neither a route nor a public address;
 /// a record with no relay and no addresses is legal and means "dial by key".
@@ -118,7 +130,7 @@ fn record_for_addr(addr: &PeerAddr, made_unix: u64, primary: &PrimaryIps) -> Ros
     if entry.relay.is_some() {
         entry.addrs.clear();
     } else {
-        truncate_ranked(&mut entry.addrs, MAX_DIRECT_ADDRS, primary);
+        truncate_ranked(&mut entry.addrs, direct_cap(primary), primary);
     }
     entry
 }
@@ -282,6 +294,10 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
 #[cfg(test)]
 #[path = "invite_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "invite_noroute_tests.rs"]
+mod noroute_tests;
 
 #[cfg(test)]
 #[path = "invite_golden_tests.rs"]
