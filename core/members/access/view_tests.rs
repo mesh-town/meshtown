@@ -214,6 +214,9 @@ mod unlisted {
 #[path = "view_publish_tests.rs"]
 mod publishing;
 
+#[path = "view_allowed_tests.rs"]
+mod allowed;
+
 // ---- helpers ----
 
 struct Cast {

@@ -139,6 +139,20 @@ impl PeerDialer {
         self.redial.up(peer);
     }
 
+    /// Access was lifted for someone: every idle id that is now allowed and not connected is due at once.
+    /// Starts nothing itself — the dial begins on the next loop turn through `RedialDue`.
+    pub(super) fn on_access_allowed(&mut self) {
+        if self.stack.is_closed() {
+            return;
+        }
+        let members = &self.ctx.members;
+        let wake = |id: PeerId| members.access().allows(id) && !members.is_member(id);
+        for id in self.redial.wake_idle(Instant::now(), wake) {
+            let line = format!("{}: access allowed again, redialing", short_peer_id(&id));
+            say("auth", line);
+        }
+    }
+
     /// The prune cut these members from the cache — a repeated dial forgets them.
     pub(super) fn forget_pruned_peers(&mut self, ids: &HashSet<PeerId>) {
         self.redial.forget(ids);

@@ -206,6 +206,25 @@ mod publication {
     }
 }
 
+mod lifted_forget {
+    use super::*;
+
+    #[test]
+    fn lifted_forget_wakes() {
+        // given: four members; in one view I voted to remove c, in the other a and b removed it
+        let s = setup(4);
+        let by_me = s.verdicts(&[s.vote(s.m, s.c, 100)]);
+        let by_others = s.verdicts(&[s.vote(s.a, s.c, 100), s.vote(s.b, s.c, 110)]);
+        assert_eq!(by_me.check(s.c), Err(Deny::RemovedByMe));
+        assert_eq!(by_others.check(s.c), Err(Deny::Forgotten));
+        // when: a view without any vote is published over each
+        let wakes =
+            [by_me, by_others].map(|before| wakes_when_replaced_by(before, s.verdicts(&[])));
+        // then: the subscriber is told in both cases
+        assert_eq!(wakes, [true, true], "woken for RemovedByMe, Forgotten");
+    }
+}
+
 mod removed_notice {
     use super::*;
 
@@ -301,4 +320,13 @@ fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {
 fn on_the_wire(deny: Deny) -> String {
     let reason = String::from_utf8(deny.wire_reason().to_vec()).expect("wire reason is text");
     format!("code {ACCESS_CLOSE_CODE}: {reason}")
+}
+
+/// Whether publishing `after` over `before` moves the "allowed again" counter.
+fn wakes_when_replaced_by(before: Verdicts, after: Verdicts) -> bool {
+    let view = AccessView::open();
+    view.publish(before);
+    let allowed = view.allowed_changes();
+    view.publish(after);
+    allowed.has_changed().expect("the view keeps the sender")
 }
