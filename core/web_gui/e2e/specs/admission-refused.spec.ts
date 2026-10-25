@@ -18,7 +18,8 @@ test.describe('admission-refused', () => {
     test.use({ targetFlags: { extraArgs: ['--admission-refused'] } });
 
     test('admission-refused-on: the card and the red header appear after a delay, not at once', async ({ app, page }) => {
-      const card = page.locator('#admission-refused');
+      // The card is mounted twice (overview and members tab, the second one hidden): look at the shown one.
+      const card = page.locator('#admission-refused:visible');
       await expect(card).toHaveCount(0);
       await expect(app.topPanel.statusLine).not.toContainText("Sites won't open");
 
