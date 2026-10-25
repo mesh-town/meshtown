@@ -95,7 +95,7 @@ rig_test!(foreign_token_string_is_refused, false, |r| {
     assert_eq!(resp.status, 401);
     assert_eq!(body_json(&resp)["error"], "bad_token");
     assert!(
-        resp.headers.get("set-cookie").is_none(),
+        !resp.headers.contains_key("set-cookie"),
         "no session for a refused token"
     );
 });
