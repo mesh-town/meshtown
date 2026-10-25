@@ -3,16 +3,15 @@
 
 use crate::transport::net::addr::{PeerAddr, RelayRef};
 use crate::transport::net::error::{NetError, NetResult};
-use crate::transport::net::id::{NodeSecret, PeerId};
+use crate::transport::net::id::PeerId;
 use crate::transport::net::link::NetInfo;
 use crate::transport::net::service::ServiceId;
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net::transport::{PeerConn, Transport};
-use crate::transport::net_hyper::accept::{accept_loop, AcceptCtx, Accepted};
+use crate::transport::net_hyper::accept::{AcceptCtx, Accepted};
 use crate::transport::net_hyper::conn::establish_dialed_session;
 use crate::transport::net_hyper::dht_table::TableSaver;
 use crate::transport::net_hyper::gate::{Admit, PeerGate};
-use crate::transport::net_hyper::keys::key_pair;
 use crate::transport::net_hyper::link::net_info;
 use crate::transport::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
 use crate::transport::net_hyper::records::HyperRecords;
@@ -22,11 +21,12 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{mpsc, watch, Semaphore};
+use tokio::sync::{mpsc, watch};
 use tokio::time::timeout;
-use townjump_dht::{Dht, DhtError, DhtFactory, DhtServer, KeyPair, ServerOpts};
+use townjump_dht::{Dht, DhtError, DhtServer, KeyPair};
 use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideServer};
 
+mod bind;
 mod dialer;
 mod factory;
 mod held;
@@ -42,8 +42,6 @@ mod direct_tests;
 mod path_tests;
 
 use dialer::NodeDialer;
-use factory::factory_for;
-use hints::HintBook;
 
 /// Transport name in the config and in the registry.
 pub const KIND: &str = "hyper";
@@ -102,57 +100,6 @@ async fn run_listen(state: watch::Sender<ListenOutcome>, server: PeeroxideServer
 }
 
 impl HyperTransport {
-    /// Starts the node and the server; `listen` runs as a task (wait for its outcome with `wait_listen_outcome`).
-    pub async fn bind(secret: NodeSecret, opts: HyperOpts) -> NetResult<Arc<Self>> {
-        let kp = key_pair(&secret);
-        let factory = factory_for(opts.bootstrap, opts.table_file.as_deref());
-        let node = Arc::new(
-            factory
-                .create(Some(kp.clone()))
-                .await
-                .map_err(dht_error_to_net_error)?,
-        );
-        let saver = opts
-            .table_file
-            .map(|path| TableSaver::start(node.clone(), path));
-        let gate = Arc::new(PeerGate::open());
-        // reusable_socket: same as townjump-server, so that clients follow the remembered route.
-        let server_opts = ServerOpts {
-            firewall: None,
-            reusable_socket: true,
-            ..Default::default()
-        };
-        let (server, incoming) = node
-            .create_server(server_opts)
-            .map_err(dht_error_to_net_error)?;
-        let (accepted_tx, out) = mpsc::channel(ACCEPT_QUEUE);
-        let dialer = Arc::new(NodeDialer {
-            node: node.clone(),
-            slots: Arc::new(Semaphore::new(DIAL_SLOTS)),
-            hints: HintBook::default(),
-        });
-        let ctx = Arc::new(AcceptCtx::new(dialer.clone(), accepted_tx, gate.clone()));
-        let this = Arc::new(Self {
-            me: secret.peer_id(),
-            node,
-            server: server.clone(),
-            gate,
-            ctx: ctx.clone(),
-            dialer,
-            incoming: tokio::sync::Mutex::new(out),
-            listen_outcome: watch::channel(None).0,
-            closed: watch::channel(false).0,
-            close_started: AtomicBool::new(false),
-            saver,
-        });
-        crate::node::output::spawn(accept_loop(incoming, ctx));
-        crate::node::output::spawn(run_listen(this.listen_outcome.clone(), server, kp));
-        if opts.watch_net {
-            this.watch_network().await;
-        }
-        Ok(this)
-    }
-
     async fn watch_network(&self) {
         let react = Arc::new(DhtReact::new(self.node.clone(), self.ctx.clone()));
         spawn_netchange(react, self.closed.subscribe()).await
@@ -185,7 +132,8 @@ impl HyperTransport {
         })
     }
 
-    async fn connect_inner(&self, to: PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
+    /// Refuses a dial after `close`, to ourselves; otherwise waits for dials to open and notes the hints.
+    async fn check_dial_allowed(&self, to: &PeerAddr) -> NetResult<()> {
         if self.close_started.load(Ordering::SeqCst) {
             return Err(NetError::Closed);
         }
@@ -193,7 +141,12 @@ impl HyperTransport {
         if to.id == self.me {
             return Err(NetError::NoRoute);
         }
-        self.add_hints(&to);
+        self.add_hints(to);
+        Ok(())
+    }
+
+    async fn connect_inner(&self, to: PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
+        self.check_dial_allowed(&to).await?;
         let (ctrl, facts) = self.dialer.dial_with_path(to.id).await?;
         let session = new_session()?;
         let stream_dialer = self.dialer.clone();

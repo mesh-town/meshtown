@@ -66,7 +66,9 @@ fn certificate() -> CertificateDer<'static> {
 fn acceptor() -> TlsAcceptor {
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let body: String = KEY_B64.split_whitespace().collect();
-    let der = data_encoding::BASE64.decode(body.as_bytes()).expect("test key");
+    let der = data_encoding::BASE64
+        .decode(body.as_bytes())
+        .expect("test key");
     let key = PrivateKeyDer::from(PrivatePkcs8KeyDer::from(der));
     let mut cfg = ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()

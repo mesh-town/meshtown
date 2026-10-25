@@ -297,4 +297,3 @@ pub(super) fn letters(peers: &[PeerId]) -> Vec<(&'static str, PeerId)> {
         .zip(peers.iter().copied())
         .collect()
 }
-

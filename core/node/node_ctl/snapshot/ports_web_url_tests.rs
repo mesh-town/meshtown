@@ -71,21 +71,30 @@ mod overlay {
         let urls: Vec<_> = rows.iter().map(url_of).collect();
         assert_eq!(
             urls,
-            [Some("http://router.meshtown"), Some("http://router.meshtown:22")]
+            [
+                Some("http://router.meshtown"),
+                Some("http://router.meshtown:22")
+            ]
         );
     }
 
     #[test]
     fn each_member_gets_the_address_of_its_own_device() {
         let mut rows = shared_rows(&[(A, 80), (B, 80)]);
-        let addresses = [address(A, "router.meshtown"), address(B, "printer.meshtown")];
+        let addresses = [
+            address(A, "router.meshtown"),
+            address(B, "printer.meshtown"),
+        ];
 
         overlay_web_urls(&mut rows, &addresses);
 
         let urls: Vec<_> = rows.iter().map(url_of).collect();
         assert_eq!(
             urls,
-            [Some("http://router.meshtown"), Some("http://printer.meshtown")]
+            [
+                Some("http://router.meshtown"),
+                Some("http://printer.meshtown")
+            ]
         );
     }
 

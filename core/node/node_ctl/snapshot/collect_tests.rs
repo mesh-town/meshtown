@@ -214,7 +214,10 @@ mod socks_block {
             // when: the snapshot is collected
             let socks = socks_of(&node).await;
             // then: the block shows that address
-            assert!(socks.enabled, "a face with an address means the proxy is on");
+            assert!(
+                socks.enabled,
+                "a face with an address means the proxy is on"
+            );
             assert_eq!(socks.listen.as_deref(), Some("127.0.0.1:41234"));
             node.shutdown().await;
         }
@@ -320,7 +323,10 @@ fn face_on(port: u16) -> ProxyFace {
 /// A loopback node that reads its proxy face from a channel; the sender stays with the test.
 async fn node_with_face(
     face: ProxyFace,
-) -> (crate::node::RunningNode, tokio::sync::watch::Sender<ProxyFace>) {
+) -> (
+    crate::node::RunningNode,
+    tokio::sync::watch::Sender<ProxyFace>,
+) {
     let (tx, rx) = tokio::sync::watch::channel(face);
     let cfg = NodeConfig {
         proxy_face: Some(rx),

@@ -77,8 +77,7 @@ fn install_delegate(center: &UNUserNotificationCenter) {
 
 /// Waits for the answer of an asynchronous call; a timeout is a failure.
 fn wait<T>(rx: &Receiver<T>, limit: Duration) -> Result<T, &'static str> {
-    rx.recv_timeout(limit)
-        .map_err(|_| REASON_NOTIFY_FAILED)
+    rx.recv_timeout(limit).map_err(|_| REASON_NOTIFY_FAILED)
 }
 
 fn authorize(center: &UNUserNotificationCenter) -> Result<(), &'static str> {

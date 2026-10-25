@@ -126,6 +126,105 @@ mod wire_format {
     }
 }
 
+mod report_attempt {
+    use super::*;
+
+    mod written {
+        use super::*;
+
+        #[test]
+        fn finishes_the_task() {
+            let f = setup();
+            assert!(f.when_reported(Ok(true)));
+        }
+
+        #[test]
+        fn logs_the_announced_version() {
+            let f = setup();
+            f.when_reported(Ok(true));
+            let want = format!(
+                "announced program version {} to peers",
+                current_program_version()
+            );
+            assert!(
+                f.logged("docs").contains(&want),
+                "log: {:?}",
+                f.logged("docs")
+            );
+        }
+    }
+
+    mod already_current {
+        use super::*;
+
+        #[test]
+        fn finishes_the_task() {
+            let f = setup();
+            assert!(f.when_reported(Ok(false)));
+        }
+
+        #[test]
+        fn logs_nothing() {
+            let f = setup();
+            f.when_reported(Ok(false));
+            assert_eq!(f.logged("docs"), Vec::<String>::new());
+        }
+    }
+
+    mod failed {
+        use super::*;
+
+        #[test]
+        fn asks_for_a_retry() {
+            let f = setup();
+            assert!(!f.when_reported(Err(failure())));
+        }
+
+        #[test]
+        fn logs_the_error_with_its_cause() {
+            let f = setup();
+            f.when_reported(Err(failure()));
+            let lines = f.logged("docs");
+            assert!(
+                lines
+                    .iter()
+                    .any(|l| l.starts_with("program version not written: ")
+                        && l.contains("outer-marker")
+                        && l.contains("inner-marker")),
+                "log: {lines:?}"
+            );
+        }
+    }
+}
+
+/// Journal lines written after `setup`. The journal is one per process, so the tests of this
+/// module assume a process of their own (as `nextest` runs them).
+struct Fixture {
+    first_new_seq: u64,
+}
+
+impl Fixture {
+    fn when_reported(&self, attempt: Result<bool>) -> bool {
+        report_attempt(attempt)
+    }
+
+    /// Texts of the lines with the given tag written since `setup`.
+    fn logged(&self, tag: &str) -> Vec<String> {
+        let page = crate::node::output::log_page(self.first_new_seq, 100_000);
+        let lines = page.lines.into_iter();
+        lines.filter(|l| l.tag == tag).map(|l| l.text).collect()
+    }
+}
+
+fn setup() -> Fixture {
+    let first_new_seq = crate::node::output::log_page(0, 1).last_seq;
+    Fixture { first_new_seq }
+}
+
+fn failure() -> anyhow::Error {
+    anyhow::anyhow!("inner-marker").context("outer-marker")
+}
+
 /// A valid value is returned as the same string.
 fn assert_parses_as_is(bytes: &[u8]) {
     let want = String::from_utf8(bytes.to_vec()).expect("a valid version is UTF-8");

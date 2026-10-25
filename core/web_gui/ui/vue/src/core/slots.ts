@@ -4,7 +4,7 @@ import type { ConfigDocument, NetBrief, NodeState, SlotSlice } from "./api-types
 import type { MembersReply } from "../members/members-types.ts";
 
 /** The part of the page store these helpers read. */
-export interface SlotsHost {
+interface SlotsHost {
   nets: NetBrief[];
   slots: Record<string, SlotSlice>;
   config: ConfigDocument | null;
@@ -76,7 +76,7 @@ export function slotState(store: SlotsHost, id: string): NodeState | null {
   return store.slots[id]?.state ?? null;
 }
 
-export function slotMembers(store: SlotsHost, id: string): MembersReply | null {
+function slotMembers(store: SlotsHost, id: string): MembersReply | null {
   return store.slots[id]?.members ?? null;
 }
 

@@ -1,4 +1,4 @@
-/* The token from the page address (a port of `02-token.js`): removed before the app is created,
+/* The token from the page address: removed before the app is created,
  * so that the sections already see the token when mounted. */
 
 import { setToken } from "../core/token.ts";

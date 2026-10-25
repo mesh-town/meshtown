@@ -17,14 +17,14 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
-use meshtown_core::proxy::ProxyFront;
 use meshtown_core::proxy::socks5;
+use meshtown_core::proxy::ProxyFront;
 use meshtown_core::site_checks::http_min::{self, HttpGetRequest, HttpLimits, HttpResponse};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, timeout};
 
-use common::{front_for, echo_site, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
+use common::{echo_site, front_for, pair_with_static_exit, serve, wait_exit_route, DOMAIN};
 
 const BODY: usize = 4 * 1024;
 

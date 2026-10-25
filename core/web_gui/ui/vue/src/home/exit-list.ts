@@ -1,5 +1,4 @@
-/* Exit choice on "Home" — pure functions without Vue and DOM (a port of `14-home-exit-choice.js`,
- * `14-home-exit-rows.js`, `14-home-exit.js`): the candidates of the "Exit via…" list,
+/* Exit choice on "Home" — pure functions without Vue and DOM: the candidates of the "Exit via…" list,
  * row labels, the "Check a site" result. */
 
 import type { ChosenExit, CheckInfo, DomainInfo, NodeState, PathKind, PeerInfo } from "../core/api-types.ts";
@@ -23,7 +22,7 @@ export interface ExitCandidate {
   blocked?: boolean;
 }
 
-export interface ExitItem {
+interface ExitItem {
   idFull: string;
   label: string;
 }

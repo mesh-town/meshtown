@@ -80,7 +80,13 @@ fn preferred(new: &NameRow, old: &NameRow) -> bool {
 
 fn device_of(row: NameRow) -> Device {
     let label = host_label(&row.name);
-    Device { net: row.net, peer: row.peer, name: row.name, label, online: row.online }
+    Device {
+        net: row.net,
+        peer: row.peer,
+        name: row.name,
+        label,
+        online: row.online,
+    }
 }
 
 /// Address of every device: its label when unique, else `<label>-<start of the id in hex>`.
@@ -88,7 +94,10 @@ pub(crate) fn addresses(devices: &[Device]) -> HashMap<PeerId, String> {
     let labels: BTreeSet<&str> = devices.iter().map(|d| d.label.as_str()).collect();
     let mut groups: BTreeMap<&str, Vec<PeerId>> = BTreeMap::new();
     for device in devices {
-        groups.entry(device.label.as_str()).or_default().push(device.peer);
+        groups
+            .entry(device.label.as_str())
+            .or_default()
+            .push(device.peer);
     }
     let mut out = HashMap::new();
     for (label, peers) in groups {
@@ -113,9 +122,15 @@ fn address_of(label: &str, peer: PeerId, group: &[PeerId], labels: &BTreeSet<&st
 
 /// Shortest hex start (at least `MIN_TAIL`, at most `MAX_TAIL`) that no other peer of the group shares.
 fn shortest_tail(hex: &str, peer: PeerId, group: &[PeerId]) -> usize {
-    let others: Vec<String> = group.iter().filter(|p| **p != peer).map(|p| p.to_string()).collect();
+    let others: Vec<String> = group
+        .iter()
+        .filter(|p| **p != peer)
+        .map(|p| p.to_string())
+        .collect();
     let clash = |n: usize| others.iter().any(|o| o[..n] == hex[..n]);
-    (MIN_TAIL..=MAX_TAIL).find(|n| !clash(*n)).unwrap_or(MAX_TAIL)
+    (MIN_TAIL..=MAX_TAIL)
+        .find(|n| !clash(*n))
+        .unwrap_or(MAX_TAIL)
 }
 
 /// Result of resolving a `.meshtown` host.
@@ -135,7 +150,11 @@ pub(crate) fn lookup(devices: &[Device], host: &MeshHost) -> Lookup {
     if by_address.len() == 1 {
         return Lookup::Found(by_address[0].clone());
     }
-    let mut found: Vec<Device> = devices.iter().filter(|d| matches_name(d, &host.label)).cloned().collect();
+    let mut found: Vec<Device> = devices
+        .iter()
+        .filter(|d| matches_name(d, &host.label))
+        .cloned()
+        .collect();
     found.sort_by(|a, b| (&a.label, a.peer).cmp(&(&b.label, b.peer)));
     match found.len() {
         0 => Lookup::NotFound,
@@ -146,14 +165,20 @@ pub(crate) fn lookup(devices: &[Device], host: &MeshHost) -> Lookup {
 
 fn by_address<'a>(devices: &'a [Device], host: &str) -> Vec<&'a Device> {
     let issued = addresses(devices);
-    devices.iter().filter(|d| issued.get(&d.peer).is_some_and(|a| a == host)).collect()
+    devices
+        .iter()
+        .filter(|d| issued.get(&d.peer).is_some_and(|a| a == host))
+        .collect()
 }
 
 fn matches_name(device: &Device, host: &str) -> bool {
     if device.label == host {
         return true;
     }
-    let Some(tail) = host.strip_prefix(device.label.as_str()).and_then(|r| r.strip_prefix('-')) else {
+    let Some(tail) = host
+        .strip_prefix(device.label.as_str())
+        .and_then(|r| r.strip_prefix('-'))
+    else {
         return false;
     };
     tail.len() >= MIN_TAIL && device.peer.to_string().starts_with(tail)
@@ -165,14 +190,25 @@ pub(crate) fn suggest_labels(devices: &[Device], slug: &str) -> Vec<String> {
         return Vec::new();
     }
     let labels: BTreeSet<&str> = devices.iter().map(|d| d.label.as_str()).collect();
-    let mut close: Vec<(usize, &str)> = labels.into_iter().filter_map(|l| closeness(l, slug)).collect();
+    let mut close: Vec<(usize, &str)> = labels
+        .into_iter()
+        .filter_map(|l| closeness(l, slug))
+        .collect();
     close.sort();
-    close.into_iter().take(SUGGESTIONS).map(|(_, label)| label.to_string()).collect()
+    close
+        .into_iter()
+        .take(SUGGESTIONS)
+        .map(|(_, label)| label.to_string())
+        .collect()
 }
 
 fn closeness<'a>(label: &'a str, slug: &str) -> Option<(usize, &'a str)> {
     let distance = levenshtein(label, slug);
-    let shared = label.chars().zip(slug.chars()).take_while(|(a, b)| a == b).count();
+    let shared = label
+        .chars()
+        .zip(slug.chars())
+        .take_while(|(a, b)| a == b)
+        .count();
     (distance <= 2 || shared >= SHARED_START).then_some((distance, label))
 }
 
@@ -184,7 +220,9 @@ fn levenshtein(a: &str, b: &str) -> usize {
         row[0] = i + 1;
         for (j, cb) in b.iter().enumerate() {
             let above = row[j + 1];
-            row[j + 1] = (diagonal + usize::from(ca != *cb)).min(above + 1).min(row[j] + 1);
+            row[j + 1] = (diagonal + usize::from(ca != *cb))
+                .min(above + 1)
+                .min(row[j] + 1);
             diagonal = above;
         }
     }

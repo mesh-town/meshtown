@@ -7,7 +7,7 @@ import {
 import type { DialogContext, DialogSpec } from "./dialog-specs.ts";
 
 export type ManagedKind = "make-admin" | "give-up" | "ban-managed" | "delete-net" | "last-admin";
-export type ManagedPart = Omit<DialogSpec, "danger">;
+type ManagedPart = Omit<DialogSpec, "danger">;
 
 // The network name must be typed whole; a long name still fits the input.
 const NET_NAME_MAX = 200;
@@ -37,7 +37,7 @@ export const MANAGED_BUILDERS: Record<ManagedKind, (c: DialogContext) => Managed
   }),
 };
 
-export const isManagedKind = (kind: string): kind is ManagedKind => kind in MANAGED_BUILDERS;
+const isManagedKind = (kind: string): kind is ManagedKind => kind in MANAGED_BUILDERS;
 
 // Only a removal names a member who may be my exit; the other kinds do not cut anything off.
 export const MANAGED_CALM: readonly string[] = ["make-admin", "give-up", "delete-net", "last-admin"];

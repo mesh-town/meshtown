@@ -15,19 +15,9 @@ use meshtown_core::node::{self, NodeConfig};
 use meshtown_core::transport::net::PeerAddr;
 use tokio::time::{sleep, Instant};
 
-/// Polls the condition every 50 ms until it becomes true or the limit expires.
-async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + limit;
-    loop {
-        if cond() {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return cond();
-        }
-        sleep(Duration::from_millis(50)).await;
-    }
-}
+#[path = "common/wait.rs"]
+mod wait;
+use wait::wait_until;
 
 /// Polls the log every 50 ms until the lines tagged `auth` contain both refusal marks
 /// of the handshake — from the initiator (`a`) and from the responder (`b`) — or the limit expires.

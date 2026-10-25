@@ -161,7 +161,6 @@ impl FieldValue for MemoryExit {
         errs: &mut Vec<FieldError>,
     ) {
         let default = Settings::default().process.node_memory_exit_mib;
-        let warn = s.process.node_memory_warn_mib;
         let exit = match file_value {
             None => default,
             Some(v) => EXIT_RANGE.parse(v).unwrap_or_else(|| {
@@ -176,20 +175,7 @@ impl FieldValue for MemoryExit {
             }),
         };
         s.process.node_memory_exit_mib = exit;
-        if exit == 0 || warn == 0 || exit >= warn {
-            return;
-        }
-        s.process.node_memory_exit_mib = default.max(warn);
-        if file_value.is_some() {
-            let expected = format!("at least node.memory_warn_mib ({warn}) or 0");
-            push_field_error(
-                errs,
-                field_path.to_string(),
-                &Value::from(exit),
-                &expected,
-                default.max(warn),
-            );
-        }
+        check_exit_against_warn(field_path, file_value.is_some(), s, errs);
     }
 
     fn expected(&self) -> String {
@@ -211,6 +197,33 @@ impl FieldValue for MemoryExit {
     }
     fn block(&self) -> Block {
         Block::Process
+    }
+}
+
+/// The exit threshold must exceed the warning one (or be 0 / have no warning): otherwise it is raised to the
+/// warning value, and a value that came from the file is reported.
+fn check_exit_against_warn(
+    field_path: &'static str,
+    from_file: bool,
+    s: &mut Settings,
+    errs: &mut Vec<FieldError>,
+) {
+    let warn = s.process.node_memory_warn_mib;
+    let exit = s.process.node_memory_exit_mib;
+    if exit == 0 || warn == 0 || exit >= warn {
+        return;
+    }
+    let default = Settings::default().process.node_memory_exit_mib;
+    s.process.node_memory_exit_mib = default.max(warn);
+    if from_file {
+        let expected = format!("at least node.memory_warn_mib ({warn}) or 0");
+        push_field_error(
+            errs,
+            field_path.to_string(),
+            &Value::from(exit),
+            &expected,
+            default.max(warn),
+        );
     }
 }
 

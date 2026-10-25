@@ -1,4 +1,4 @@
-/* Saving a config edit from a section (a port of `js/15-save-field.js::saveConfigFields`). */
+/* Saving a config edit from a section. */
 
 import { toRaw } from "vue";
 import type { ConfigResponse } from "./api-types.ts";
@@ -25,7 +25,7 @@ export type SaveResult = { ok: true } | { ok: false; error: ApiErrorLike };
 type ResolvedDeps = { api: ApiFn; busTarget?: EventTarget };
 
 // Dotted path; missing nodes are created.
-export function setPath(obj: object, path: string, value: unknown): void {
+function setPath(obj: object, path: string, value: unknown): void {
   const parts = path.split(".");
   let cur = obj as Record<string, any>; // any: walking the document by string keys
   for (const key of parts.slice(0, -1)) {

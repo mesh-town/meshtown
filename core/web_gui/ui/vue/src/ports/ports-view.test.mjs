@@ -1,5 +1,5 @@
-/* Pure logic of the "Ports" section (`ports-view.ts`): cases moved from the classic
- * `10-ports.test.mjs` (removed together with `10-ports.js`), plus the row key and the node label. */
+/* Pure logic of the "Ports" section (`ports-view.ts`): the row
+ * lists, status texts, the row key and the computer label. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";

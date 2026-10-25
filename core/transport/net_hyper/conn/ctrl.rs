@@ -45,9 +45,18 @@ fn on_read_outcome(
     match read_outcome {
         Ok(Ok(Ctrl::Ping)) => core.send(Ctrl::Pong),
         Ok(Ok(Ctrl::Pong)) => true,
-        Ok(Ok(Ctrl::Close { code, reason })) => core.close_remote(code, &reason),
-        Ok(Err(_)) => core.close_remote(0, "read ended".as_bytes()),
-        Err(_) => core.close_local(CODE_SILENT, "no frames for too long".as_bytes()),
+        Ok(Ok(Ctrl::Close { code, reason })) => {
+            core.close_remote(code, &reason);
+            false
+        }
+        Ok(Err(_)) => {
+            core.close_remote(0, "read ended".as_bytes());
+            false
+        }
+        Err(_) => {
+            core.close_local(CODE_SILENT, "no frames for too long".as_bytes());
+            false
+        }
     }
 }
 

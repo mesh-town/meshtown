@@ -163,6 +163,11 @@ impl HyperDhtDiscovery {
         tally: &mut Tally,
         failures: &mut u32,
     ) -> Option<Vec<PeerId>> {
+        self.count_round(&res, tally, failures);
+        res.ok().map(|r| self.others_of(&r))
+    }
+
+    fn count_round(&self, res: &NetResult<Roster>, tally: &mut Tally, failures: &mut u32) {
         let now = Instant::now();
         match res {
             Ok(r) => {
@@ -173,7 +178,6 @@ impl HyperDhtDiscovery {
                 });
                 *failures = 0;
                 tally.record_round_ok(r.entries.len(), now);
-                Some(self.others(&r))
             }
             Err(e) => {
                 self.notify(DhtRoundOutcome {
@@ -182,8 +186,7 @@ impl HyperDhtDiscovery {
                     published: false,
                 });
                 *failures += 1;
-                tally.record_round_failure(&e, now);
-                None
+                tally.record_round_failure(e, now);
             }
         }
     }
@@ -194,7 +197,7 @@ impl HyperDhtDiscovery {
         }
     }
 
-    fn others(&self, r: &Roster) -> Vec<PeerId> {
+    fn others_of(&self, r: &Roster) -> Vec<PeerId> {
         let mine = self.me.map(|m| *m.as_bytes());
         let ids = r.entries.iter().filter(|e| Some(e.id) != mine);
         ids.filter_map(|e| PeerId::from_bytes(&e.id).ok()).collect()

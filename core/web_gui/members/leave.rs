@@ -65,12 +65,7 @@ fn empty_list() -> Map<String, Value> {
 
 /// Takes the slot out of the host and answers with the list of the networks left.
 /// The body is the member list of the node (empty when there was no answer) with the leave fields added.
-fn retired(
-    app: &App,
-    id: &NetSlotId,
-    left: Option<MembersReply>,
-    announced: bool,
-) -> Response {
+fn retired(app: &App, id: &NetSlotId, left: Option<MembersReply>, announced: bool) -> Response {
     if let Err(e) = app.host.retire_slot(id, announced) {
         return host_error_response(e);
     }
@@ -104,7 +99,11 @@ async fn leave_live(app: &App, slot: SlotHandle) -> Response {
     }
 }
 
-pub(super) async fn leave_handler(State(app): State<Arc<App>>, target: LeaveSlot, bytes: Bytes) -> Response {
+pub(super) async fn leave_handler(
+    State(app): State<Arc<App>>,
+    target: LeaveSlot,
+    bytes: Bytes,
+) -> Response {
     let map = match object_body(&bytes) {
         Ok(m) => m,
         Err(resp) => return resp,

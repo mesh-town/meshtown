@@ -172,7 +172,7 @@ impl ProxyFront {
         Ok(Some(self.accept(listener, applied)))
     }
 
-    /// Starts the accept task on a taken port, publishes the face and prints the journal lines.
+    /// Starts the accept task on a taken port and publishes the face.
     fn accept(&self, listener: tokio::net::TcpListener, applied: &Applied) -> JoinHandle<()> {
         let bound = listener.local_addr().ok();
         let port = bound.map_or(applied.port, |a| a.port());
@@ -187,6 +187,18 @@ impl ProxyFront {
             self.nets(),
             adm,
         ));
+        self.publish_face(applied, bound, port, lan);
+        task
+    }
+
+    /// Publishes the face of the bound listener and prints the journal lines.
+    fn publish_face(
+        &self,
+        applied: &Applied,
+        bound: Option<SocketAddr>,
+        port: u16,
+        lan: Option<String>,
+    ) {
         self.0.face.send_replace(ProxyFace {
             addr: Some(SocketAddr::from((Ipv4Addr::LOCALHOST, port))),
             access: applied.access,
@@ -201,7 +213,6 @@ impl ProxyFront {
             ),
         );
         lan.into_iter().for_each(|line| say("socks", line));
-        task
     }
 
     /// Aborts the accept task and waits for it to end: destroying its future closes the socket.

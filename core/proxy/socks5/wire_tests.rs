@@ -20,7 +20,7 @@ async fn greeting_and_request_pass_through_duplex() {
         client.read_exact(&mut reply).await.unwrap();
         assert_eq!(reply[1], REP_OK);
     });
-    read_greeting(&mut server).await.unwrap();
+    negotiate_auth_method(&mut server).await.unwrap();
     let raw = read_request_bytes(&mut server).await.unwrap();
     let req = crate::proxy::socks5::parse_socks5_request(&raw).unwrap();
     assert_eq!(req.target, Target::Domain("example.com".to_string()));

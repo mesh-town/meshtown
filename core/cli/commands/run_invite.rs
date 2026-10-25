@@ -146,10 +146,7 @@ pub(crate) async fn redeem_for_run(
 }
 
 /// Waits for the key from the members, redeeming the invite with `secret`, and returns it as the text a settings file holds.
-async fn redeem_text(
-    p: &ParsedInvite,
-    secret: &NodeSecret,
-) -> anyhow::Result<String> {
+async fn redeem_text(p: &ParsedInvite, secret: &NodeSecret) -> anyhow::Result<String> {
     say("invite", TEXT_WAITING);
     let opts = RedeemOpts::for_head(&p.head);
     let last = AtomicU64::new(0);

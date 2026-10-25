@@ -1,5 +1,5 @@
 /* The manual block "Connect the browser to Mesh Town": the browser and system by `userAgent`, numbered steps for
- * them, the proxy address and port from `state.socks.listen` (a port of `07b-browser-setup.js`). Pure
+ * them, the proxy address and port from `state.socks.listen`. Pure
  * functions. */
 
 import type { NodeState } from "../core/api-types.ts";
@@ -20,20 +20,20 @@ export type StepValue = "host" | "port" | "lan" | "pac";
 export const isAppUserAgent = (userAgent: string): boolean => userAgent.includes("MeshTownApp/");
 export const inAppPage = (): boolean => typeof navigator !== "undefined" && isAppUserAgent(navigator.userAgent || "");
 
-export interface BrowserStep {
+interface BrowserStep {
   text: string;
   copyKind?: "host" | "port";
 }
-export interface HostPort {
+interface HostPort {
   host: string;
   port: string;
 }
 /** `lan` — addresses for the network's other devices (`192.168.8.1:1080` and the interface name); no key while the proxy is closed to the network. */
-export interface LanAddr {
+interface LanAddr {
   addr: string;
   iface: string;
 }
-export type ProxyView = { on: false } | ({ on: true; lan?: LanAddr[]; pacUrl: string } & HostPort);
+type ProxyView = { on: false } | ({ on: true; lan?: LanAddr[]; pacUrl: string } & HostPort);
 export type ProxyState = { on: false } | ({
   on: true; lan?: LanAddr[]; pacUrl: string; intro: string; lanView: LanView | null; browser: BrowserId; steps: BrowserStep[]; warn: string; os: OsId; pac: PacBlock;
 } & HostPort);

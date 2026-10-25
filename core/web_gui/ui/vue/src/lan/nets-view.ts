@@ -10,7 +10,7 @@ export const AUTO_PAYLOAD = { "socks.ifaces": [] as string[], "web.ifaces": [] a
 const HOME_TITLE = NETS_IFACE_HOME_TITLE;
 const LEGACY_LAN_HINT = NETS_LEGACY_LAN_HINT;
 
-export interface LanItem {
+interface LanItem {
   title: string;
   addr: string;
 }

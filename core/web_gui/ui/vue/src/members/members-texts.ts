@@ -103,7 +103,7 @@ export const bannedStatusText = (net?: string | null, managed = false): string =
   " \u2014 sites won't open through " + NET_NAME;
 
 // Under the list after leaving: 'You left the network "x".'
-export const NOT_TOLD_LEFT = "Mesh Town couldn't let the other members know, so for a while they may still see this computer in their list as offline. You don't need to do anything.";
+const NOT_TOLD_LEFT = "Mesh Town couldn't let the other members know, so for a while they may still see this computer in their list as offline. You don't need to do anything.";
 export const leftNetworkStatus = (net?: string | null, announced = true): string =>
   excludedTitle("left", net) + "." + (announced ? "" : " " + forDevice(NOT_TOLD_LEFT));
 export const leaveMultiTitle = (net: string): string => `Leave "${net}"?`;

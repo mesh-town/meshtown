@@ -228,15 +228,7 @@ pub async fn respond(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()
         }
         Ok(r) => r?,
     };
-    if let Some(name) = parse_name_tail(&tail) {
-        ctx.members.set_name(peer, name);
-    }
-    if ctx.members.add_verified_conn(peer) {
-        let _ = ctx.events.send(MemberEvent::Up {
-            peer,
-            conn: conn.clone(),
-        });
-    }
+    announce_up(conn, ctx, &tail);
     // a write error is not counted as a failure here — membership::hold_conn_until_closed will see the connection close
     let ack_and_name_frame = ack_frame(ctx);
     let _ = send.write_all(&ack_and_name_frame).await;

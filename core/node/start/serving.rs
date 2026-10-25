@@ -116,8 +116,7 @@ fn setup_ports(
     (ports_doc, opener)
 }
 
-/// Opens the domain list, fills the exit protocol cell and starts its background tasks
-/// (the event log, the exit flag announcer).
+/// Opens the domain list and its replicas, then starts access and the background tasks.
 async fn open_domain_list(
     net: &Net,
     access: AccessStart,
@@ -142,7 +141,27 @@ async fn open_domain_list(
             domain_list.me().fmt_short()
         ),
     );
-    let access = start_access(&domain_list, &net.members, access, background_abort_handles).await;
+    let access = start_domain_background(
+        net,
+        &domain_list,
+        &doc_changes,
+        access,
+        background_abort_handles,
+    )
+    .await;
+    Ok((domain_list, doc_changes, access))
+}
+
+/// Starts access on the opened list, publishes it to the cell and starts the background tasks
+/// (the event log, the exit flag announcer).
+async fn start_domain_background(
+    net: &Net,
+    domain_list: &DomainList,
+    doc_changes: &Arc<DocChanges>,
+    access: AccessStart,
+    background_abort_handles: &mut Vec<tokio::task::AbortHandle>,
+) -> Arc<Access> {
+    let access = start_access(domain_list, &net.members, access, background_abort_handles).await;
     let _ = net.domain_list_cell.set(domain_list.clone());
     let events = domains::log_events(domain_list.clone(), doc_changes.clone());
     background_abort_handles.push(crate::node::output::spawn(events).abort_handle());
@@ -154,7 +173,7 @@ async fn open_domain_list(
         ))
         .abort_handle(),
     );
-    Ok((domain_list, doc_changes, access))
+    access
 }
 
 /// Builds `Checks`, starts their background task and adds the initial domains (the task
@@ -176,11 +195,17 @@ async fn setup_checks(
     // The task always starts: whether it is enabled is checked on every tick inside it.
     background_abort_handles
         .push(crate::node::output::spawn(checks::run_checks(checks.clone())).abort_handle());
+    add_typed_domains(cfg, domain_list).await?;
+    Ok(checks)
+}
+
+/// Adds the domains given at start to the list and writes a line for each.
+async fn add_typed_domains(cfg: &NodeConfig, domain_list: &DomainList) -> Result<()> {
     for d in &cfg.initial_domains {
         let d = domain_list.add(d).await?;
         say("domains", format!("+ {d} (added locally)"));
     }
-    Ok(checks)
+    Ok(())
 }
 
 /// Logs exit work and the list of blocked domains.

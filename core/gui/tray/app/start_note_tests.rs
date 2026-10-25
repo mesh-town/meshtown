@@ -32,7 +32,7 @@ async fn real_bind_error_is_proxy_was_busy() {
 fn last_error_line_wins() {
     let log = "+ 1.0s restart failed: port 1080 is in use\n\
                Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\n\
-               Close it or start the node on another port: meshtown run --socks-port 1081\n";
+               Close it or start Mesh Town on another port: meshtown run --socks-port 1081\n";
     assert_eq!(
         start_note_from(Some(1), Some(log)),
         StartNote::ProxyWasBusy(1080)

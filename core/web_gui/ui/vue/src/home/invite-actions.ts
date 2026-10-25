@@ -65,7 +65,7 @@ export function qrImageSrc(svg: string): string {
 }
 
 // The invite path; a non-blank label travels as `?for=`.
-export function invitePath(forWhom: string, slot = "main"): string {
+function invitePath(forWhom: string, slot = "main"): string {
   const label = forWhom.trim();
   return slotPath(slot, "network/invite") + (label ? "?for=" + encodeURIComponent(label) : "");
 }

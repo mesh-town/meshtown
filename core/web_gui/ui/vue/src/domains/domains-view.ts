@@ -1,4 +1,4 @@
-/* The "Site checks" section: pure table logic (a port of `js/10-domains.js`). A row is a site,
+/* The "Site checks" section: pure table logic. A row is a site,
  * with "For you" marks and a mark per member, and actions. */
 
 import { agoText, failText } from "../common/words.ts";
@@ -16,13 +16,13 @@ import { targetSlots } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
 
 /** A table cell mark. */
-export interface VerdictView {
+interface VerdictView {
   cls: string;
   text: string;
   title: string;
 }
 
-export type ExitCell = { kind: "none" } | { kind: "chosen" | "button"; peer: PeerInfo };
+type ExitCell = { kind: "none" } | { kind: "chosen" | "button"; peer: PeerInfo };
 
 const isVerdict = (v: string): v is Verdict => Object.hasOwn(VERDICT_TEXT, v);
 
@@ -52,8 +52,8 @@ export function checkTitle(check: CheckInfo | null | undefined): string {
   return [check.reason, age && domainsCheckedAgoText(age)].filter(Boolean).join(" · ");
 }
 
-export const NONE_TEXT = "—";
-export const UNKNOWN_TEXT = DOMAINS_UNKNOWN;
+const NONE_TEXT = "—";
+const UNKNOWN_TEXT = DOMAINS_UNKNOWN;
 
 // Legend under the table: a badge (the text is VERDICT_TEXT verbatim) and its explanation.
 export const LEGEND: Array<{ cls: string; text: string; note: string }> = ([
@@ -156,7 +156,7 @@ export interface MergedDomain {
   byNet: Record<string, DomainInfo>;
 }
 
-export interface ColumnGroup {
+interface ColumnGroup {
   slot: string;
   label: string;
   peers: PeerInfo[];
@@ -164,7 +164,7 @@ export interface ColumnGroup {
 }
 
 /** A mark cell of a row: yours, a member's, or the placeholder of a network without members. */
-export interface DomainCell {
+interface DomainCell {
   key: string;
   kind: "you" | "peer" | "empty";
   slot: string;

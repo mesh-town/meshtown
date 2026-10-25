@@ -107,7 +107,10 @@ fn pending_socks_process(slot: &SlotHandle) -> Option<ProcessSettings> {
     let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
     let pending = cfg.pending_restart_paths();
     let waits = pending.iter().any(|p| p.starts_with("socks."));
-    let flagged = cfg.cli_override_paths.iter().any(|p| p.starts_with("socks."));
+    let flagged = cfg
+        .cli_override_paths
+        .iter()
+        .any(|p| p.starts_with("socks."));
     (waits && !flagged).then(|| cfg.file_settings.process.clone())
 }
 

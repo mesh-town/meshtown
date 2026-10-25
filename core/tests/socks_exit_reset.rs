@@ -21,7 +21,7 @@ use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
-use common::{front_for, echo_site, pair, wait_exit_route, DOMAIN};
+use common::{echo_site, front_for, pair, wait_exit_route, DOMAIN};
 
 /// given: a pair of nodes with an echo site behind B; with an empty `route.exits` a direct connection D to
 /// `DOMAIN` is open, with exit B chosen a connection E to `outside.test` is open — both prove

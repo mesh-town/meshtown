@@ -1,4 +1,4 @@
-/* `exits.ts`: the chosen exits and the remembered choice (the key is shared with the classic page). */
+/* `exits.ts`: the chosen exits and the remembered choice (the key is a shared contract of the page). */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -21,7 +21,7 @@ function memoryStorage(initial = {}) {
 }
 
 describe("remembered exits", () => {
-  it("same key as the classic page", () => assert.equal(REMEMBERED_KEY, "meshtown.exitsRemembered"));
+  it("uses the shared remembered-choice key", () => assert.equal(REMEMBERED_KEY, "meshtown.exitsRemembered"));
 
   it("written and read back", () => {
     const st = memoryStorage();

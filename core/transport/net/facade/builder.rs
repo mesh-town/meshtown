@@ -7,13 +7,14 @@ use crate::transport::net::addr::PeerAddr;
 use crate::transport::net::discovery::Discovery;
 use crate::transport::net::discovery_mux::DiscoveryMux;
 use crate::transport::net::error::{NetError, NetResult};
-use crate::transport::net::id::NodeSecret;
+use crate::transport::net::id::{NodeSecret, PeerId};
 use crate::transport::net::service::ServiceId;
 use crate::transport::net::transport::Transport;
 use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
+use tokio::task::JoinHandle;
 
 pub struct NetStackBuilder {
     secret: NodeSecret,
@@ -100,18 +101,7 @@ impl NetStackBuilder {
         let hints = mux.subscribe();
         mux.start();
         let handler_tasks = Arc::new(HandlerSet::default());
-        let mut tasks = vec![crate::transport::net::task_label::spawn(forward_hints(
-            hints,
-            me,
-            self.transports.clone(),
-        ))];
-        for t in &self.transports {
-            tasks.push(crate::transport::net::task_label::spawn(accept_loop(
-                t.clone(),
-                table.clone(),
-                handler_tasks.clone(),
-            )));
-        }
+        let tasks = Self::spawn_stack_tasks(hints, me, &self.transports, &table, &handler_tasks);
         Ok(NetStack(Arc::new(NetStackShared {
             me,
             transports: self.transports,
@@ -121,6 +111,26 @@ impl NetStackBuilder {
             closed: AtomicBool::new(false),
             close_gate: tokio::sync::Mutex::new(false),
         })))
+    }
+
+    /// The hint forwarder and one accept loop per transport.
+    fn spawn_stack_tasks(
+        hints: broadcast::Receiver<PeerAddr>,
+        me: PeerId,
+        transports: &[Arc<dyn Transport>],
+        table: &Arc<ServiceTable>,
+        handler_tasks: &Arc<HandlerSet>,
+    ) -> Vec<JoinHandle<()>> {
+        let forwarder = forward_hints(hints, me, transports.to_vec());
+        let mut tasks = vec![crate::transport::net::task_label::spawn(forwarder)];
+        for t in transports {
+            tasks.push(crate::transport::net::task_label::spawn(accept_loop(
+                t.clone(),
+                table.clone(),
+                handler_tasks.clone(),
+            )));
+        }
+        tasks
     }
 }
 

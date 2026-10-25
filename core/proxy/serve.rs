@@ -4,14 +4,14 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use anyhow::Result;
 use tokio::net::{TcpListener, TcpStream};
 
 use crate::config::config_file::ListenAccess;
 use crate::exit::PeerConnPool;
-use crate::node::output::say;
+use crate::node::output::{say, NET_NAME};
 use crate::node::tcp_tune::disable_nagle;
 use crate::proxy::route::RouteCtx;
 use crate::proxy::socks5;
@@ -22,8 +22,7 @@ use crate::web_gui::auth::iface_os::current_view;
 
 use super::admit::{admit_conn, iface_deny_text, is_proxy_client_allowed, Admission, DenyLog};
 use super::front::NetDirectory;
-use super::outcome::{outcome_line, ProxyOutcome};
-use super::{assoc, http, mesh, path};
+use super::http;
 
 /// The default port of the local SOCKS5 server.
 pub const DEFAULT_SOCKS_PORT: u16 = 1080;
@@ -97,9 +96,9 @@ impl BindError {
         );
         match self.io_error_kind {
             std::io::ErrorKind::AddrInUse => {
-                format!("Close it or start the node on another port: {cmd}")
+                format!("Close it or start {NET_NAME} on another port: {cmd}")
             }
-            _ => format!("Start the node on another port: {cmd}"),
+            _ => format!("Start {NET_NAME} on another port: {cmd}"),
         }
     }
 }
@@ -171,7 +170,7 @@ async fn dispatch(
         _ => return,
     }
     if first[0] == socks5::VERSION {
-        if let Err(e) = serve_socks5_connection(stream, cfg, nets, deadline).await {
+        if let Err(e) = socks::serve_socks5_connection(stream, cfg, nets, deadline).await {
             say("socks", format!("{client_addr}: {e:#}"));
         }
         return;
@@ -179,93 +178,6 @@ async fn dispatch(
     if let Err(e) = http::serve_http_connection(stream, cfg, nets, deadline).await {
         say("http", format!("{client_addr}: {e:#}"));
     }
-}
-
-/// Serves one SOCKS5 connection from the greeting to the end of the transfer. There is one route decision for
-/// the whole connection and it does not depend on the target (a domain or an address);
-/// a connection through an exit is closed if the exit is removed from `route.exits` while it is still open.
-/// The greeting and the request bytes must arrive before `deadline`, otherwise the connection is closed silently.
-async fn serve_socks5_connection(
-    mut stream: TcpStream,
-    cfg: Option<ProxyConfig>,
-    nets: NetDirectory,
-    deadline: tokio::time::Instant,
-) -> Result<()> {
-    // One timestamp for the whole serving: the summary line prints it.
-    let started = Instant::now();
-    let head = tokio::time::timeout_at(deadline, read_request_head(&mut stream)).await;
-    let Ok(raw) = head else {
-        return Ok(());
-    };
-    let raw = raw?;
-    let request = match socks5::parse_socks5_request(&raw) {
-        Ok(request) => request,
-        Err(e) => {
-            // The request was not parsed — there is no target, nothing to write a summary line about.
-            say("socks", format!("request rejected: {e}"));
-            socks5::write_reply(&mut stream, e.reply_code()).await?;
-            return Ok(());
-        }
-    };
-    let Some(cfg) = cfg else {
-        let target = match request.command {
-            socks5::Command::Connect => request.target.to_string(),
-            socks5::Command::UdpAssociate => "udp associate".to_string(),
-        };
-        return refuse_no_network(stream, &target, started).await;
-    };
-    match request.command {
-        socks5::Command::Connect => serve_connect(stream, cfg, nets, request, started).await,
-        socks5::Command::UdpAssociate => assoc::serve_associate(stream, cfg, started).await,
-    }
-}
-
-/// The greeting (with its reply) and the raw bytes of the request.
-async fn read_request_head(stream: &mut TcpStream) -> Result<Vec<u8>> {
-    socks5::read_greeting(stream).await?;
-    socks5::read_request_bytes(stream).await
-}
-
-/// The reply and the journal line for a request that arrived while the proxy has no network.
-async fn refuse_no_network(mut stream: TcpStream, target: &str, started: Instant) -> Result<()> {
-    socks5::write_reply(&mut stream, socks5::REP_HOST_UNREACHABLE).await?;
-    let outcome = ProxyOutcome::refused("no route", NO_PROXY_NETWORK);
-    say(
-        "socks",
-        outcome_line(target, &outcome, started.elapsed().as_millis()),
-    );
-    Ok(())
-}
-
-/// A `CONNECT` request: one route decision, the reply and the transfer to the end.
-async fn serve_connect(
-    mut stream: TcpStream,
-    cfg: ProxyConfig,
-    nets: NetDirectory,
-    request: socks5::Request,
-    started: Instant,
-) -> Result<()> {
-    let target_text = request.target.to_string();
-    let opening = tokio::select! {
-        opened = mesh::open::open_target(&cfg, &nets, &request.target, request.port, "socks") => Some(opened),
-        () = client_gone(&stream) => None,
-    };
-    let outcome = match opening {
-        None => ProxyOutcome::abandoned(),
-        Some(Ok(opened)) => {
-            socks5::write_reply(&mut stream, socks5::REP_OK).await?;
-            path::relay_bytes(opened, &cfg.route, stream, &[]).await
-        }
-        Some(Err(refused)) => {
-            socks5::write_reply(&mut stream, socks5::REP_HOST_UNREACHABLE).await?;
-            refused.outcome
-        }
-    };
-    say(
-        "socks",
-        outcome_line(&target_text, &outcome, started.elapsed().as_millis()),
-    );
-    Ok(())
 }
 
 /// Completes when the client has closed the connection (`peek` gave `Ok(0)` or an error). If data arrived it
@@ -277,6 +189,8 @@ pub(in crate::proxy) async fn client_gone(client: &TcpStream) {
         _ => {}
     }
 }
+
+mod socks;
 
 #[cfg(test)]
 #[path = "serve_tests.rs"]

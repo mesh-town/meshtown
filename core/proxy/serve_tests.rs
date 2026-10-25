@@ -36,7 +36,7 @@ fn busy_text_and_advice() {
     );
     assert_eq!(
         e.advice(),
-        "Close it or start the node on another port: meshtown run --socks-port 1081"
+        "Close it or start Mesh Town on another port: meshtown run --socks-port 1081"
     );
 }
 
@@ -49,7 +49,7 @@ fn no_permission_text() {
     );
     assert_eq!(
         e.advice(),
-        "Start the node on another port: meshtown run --socks-port 81"
+        "Start Mesh Town on another port: meshtown run --socks-port 81"
     );
 }
 
@@ -60,7 +60,7 @@ fn other_kind_text() {
         e.to_string(),
         "port 1080 for the browser proxy is in use or unavailable (OS)."
     );
-    assert!(e.advice().starts_with("Start the node on another port"));
+    assert!(e.advice().starts_with("Start Mesh Town on another port"));
 }
 
 #[test]

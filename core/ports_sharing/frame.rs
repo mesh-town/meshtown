@@ -10,11 +10,11 @@ pub const PORT_FRAME_VERSION: u8 = 1;
 
 /// The connection is open, bytes follow.
 pub const PORT_CODE_OK: u8 = 0;
-/// The node does not publish this port.
+/// The member does not publish this port.
 pub const PORT_CODE_NOT_PUBLISHED: u8 = 1;
-/// The port on the node does not respond.
+/// The port on the member's computer does not respond.
 pub const PORT_CODE_CONNECT_FAILED: u8 = 3;
-/// The node does not open this port for the requester.
+/// The member does not open this port for the requester.
 pub const PORT_CODE_REFUSED: u8 = 5;
 /// The request could not be parsed.
 pub const PORT_CODE_BAD_REQUEST: u8 = 6;
@@ -60,9 +60,9 @@ pub fn parse_port_reply(buf: &[u8]) -> Result<u8> {
 pub fn port_code_text(code: u8) -> &'static str {
     match code {
         PORT_CODE_OK => "connection open",
-        PORT_CODE_NOT_PUBLISHED => "node does not publish this port",
-        PORT_CODE_CONNECT_FAILED => "port on the node does not respond",
-        PORT_CODE_REFUSED => "node does not open this port for you",
+        PORT_CODE_NOT_PUBLISHED => "the port is not published",
+        PORT_CODE_CONNECT_FAILED => "the port does not respond",
+        PORT_CODE_REFUSED => "access to this port is not allowed",
         PORT_CODE_BAD_REQUEST => "request could not be parsed",
         _ => "unknown reply code",
     }

@@ -18,7 +18,7 @@ type StateLike = Partial<NodeState> | null | undefined;
 type MetaLike = ConfigMeta | null | undefined;
 
 /** Everything needed for the view of a single field row. */
-export interface FieldContext {
+interface FieldContext {
   config: ConfigDocument | null;
   meta: MetaLike;
   state: StateLike;
@@ -49,7 +49,7 @@ export interface MessageView {
   cls: string;
 }
 
-export interface SaveBarInput {
+interface SaveBarInput {
   dirty: boolean;
   meta: MetaLike;
   configFile: ConfigFileInfo | null | undefined;

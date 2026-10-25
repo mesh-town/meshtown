@@ -20,7 +20,7 @@ import type { PublishedPortConfig } from "../core/api-types.ts";
 const SNAPSHOT_SETTLE_MS = 1200;
 
 /** `deps` — as in `saveConfigFields`, plus `setTimer` to be replaced in tests. */
-export type PortsDeps = SaveDeps & { setTimer?: (fn: () => void, ms: number) => unknown };
+type PortsDeps = SaveDeps & { setTimer?: (fn: () => void, ms: number) => unknown };
 
 /** One network's choice ("all" / "all" or ids) or, with several networks, the choice per network (`null` — not published there). */
 export type PortAudience = "all" | string[] | NetAudiences;
@@ -28,7 +28,7 @@ export type PortAudience = "all" | string[] | NetAudiences;
 const isNetAudiences = (a: PortAudience): a is NetAudiences => a !== "all" && !Array.isArray(a);
 type SlotList = { slot: string; list: PublishedPortConfig[] };
 
-export interface PortsActions {
+interface PortsActions {
   saveStatus: Ref<ExitSaveStatus>;
   addError: Ref<string>;
   editError: Ref<string>;

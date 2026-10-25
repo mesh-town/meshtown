@@ -74,9 +74,8 @@ must match it character for character: field names, error codes, enum values.
   sessions (a cookie does not distinguish ports). The session id is 32 random bytes in the same text form as the
   token; the session table lives in process memory, a node restart signs everyone out.
 - **An honest limit.** The page is served over HTTP without TLS: on a local network the password, token and cookie
-  travel in clear text, and whoever listens to the network can intercept them. The decision was made
-  deliberately (outside the scope of the "sign-in to the page" work); the `localhost` mode does not expose them to the network
-  at all. A known limitation (not resolved yet): the port of the page itself, published to the
+  travel in clear text, and whoever listens to the network can intercept them. The `localhost` mode does not expose them to the network
+  at all. Limitation: the port of the page itself, published to the
   network via `ports.published`, reaches the page from the address `127.0.0.1` (the node itself connects to the
   local port) and bypasses the access mode; a network member can then guess the password, sharing the attempt counter
   with the owner on `127.0.0.1`. Do not publish the page port. On a router the `localnet` mode
@@ -173,7 +172,7 @@ all fields are required; `null` is allowed where marked):
   "transport": {
     "mode": "direct_and_relay",
     "self_path": "direct",
-    "relay": { "connected": true, "url": "euw1-1.relay.iroh.network" },
+    "relay": { "connected": true, "url": "relay.example.net" },
     "nat": "address-restricted cone",
     "listen_udp": ["192.168.1.14:47821", "[::]:47821"],
     "dht": { "joined": true, "nodes": 8, "last_publish_sec": 137 },
@@ -181,7 +180,7 @@ all fields are required; `null` is allowed where marked):
     "self_addresses": [
       "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@192.168.1.14:47821",
       "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@77.88.21.3:47821",
-      "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@https://euw1-1.relay.iroh.network./"
+      "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@https://relay.example.net./"
     ]
   },
   "peers": [

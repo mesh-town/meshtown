@@ -3,7 +3,6 @@
 
 use crate::transport::net::addr::{AddrHint, PeerAddr};
 use crate::transport::net::discovery::Discovery;
-use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
 use crate::transport::net::stream::BoxFuture;
 use std::collections::HashMap;
@@ -11,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
-use tokio::task::{JoinHandle, JoinSet};
+use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
 /// Lifetime of a hint (like `ENTRY_TTL_SECS`).
@@ -102,22 +101,31 @@ impl DiscoveryMux {
 
     /// The source's `run_source` task and the `rx -> note` pump; the pump holds a `Weak`, there is no `Arc` cycle.
     fn spawn_source(self: &Arc<Self>, src: Arc<dyn Discovery>) -> [JoinHandle<()>; 2] {
-        let (tx, mut rx) = mpsc::channel(64);
+        let (tx, rx) = mpsc::channel(64);
         let name = src.name();
         let weak: Weak<Self> = Arc::downgrade(self);
         let tap = self.found_tap.clone();
         let run = crate::transport::net::task_label::spawn(src.run_source(tx));
-        let pump = crate::transport::net::task_label::spawn(async move {
-            while let Some(addr) = rx.recv().await {
-                let Some(mux) = weak.upgrade() else { return };
-                mux.note(name, addr.clone());
-                drop(mux);
-                if !Self::tap_send(&tap, addr).await {
-                    return;
-                }
-            }
-        });
+        let pump =
+            crate::transport::net::task_label::spawn(Self::forward_reports(weak, name, tap, rx));
         [run, pump]
+    }
+
+    /// The `rx -> note` pump of one source; it ends when the mux is gone, the source closes or the tap is dropped.
+    async fn forward_reports(
+        weak: Weak<Self>,
+        name: &'static str,
+        tap: Option<mpsc::Sender<PeerAddr>>,
+        mut rx: mpsc::Receiver<PeerAddr>,
+    ) {
+        while let Some(addr) = rx.recv().await {
+            let Some(mux) = weak.upgrade() else { return };
+            mux.note(name, addr.clone());
+            drop(mux);
+            if !Self::tap_send(&tap, addr).await {
+                return;
+            }
+        }
     }
 
     /// Passes an address to the tap; `false` means the tap's receiver was dropped.
@@ -131,17 +139,20 @@ impl DiscoveryMux {
         if addr.hints.is_empty() {
             return;
         }
-        let now = Instant::now();
-        let merged = {
-            let mut state = lock(&self.state);
-            let by_src = state.entry(addr.id).or_default();
-            let list = by_src.entry(source).or_default();
-            let fresh = Self::absorb(list, &addr.hints, now, self.timing.ttl);
-            fresh.then(|| self.living(by_src, addr.id, now)).flatten()
-        };
+        let merged = self.store_hint(source, &addr);
         if let Some(merged) = merged {
             let _ = self.news.send(merged);
         }
+    }
+
+    /// Records the hints of one report; returns the merged address if a new hint appeared.
+    fn store_hint(&self, source: &'static str, addr: &PeerAddr) -> Option<PeerAddr> {
+        let now = Instant::now();
+        let mut state = lock(&self.state);
+        let by_src = state.entry(addr.id).or_default();
+        let list = by_src.entry(source).or_default();
+        let fresh = Self::absorb(list, &addr.hints, now, self.timing.ttl);
+        fresh.then(|| self.living(by_src, addr.id, now)).flatten()
     }
 
     /// Rule of `note`: new hints first, then the earlier live ones, at most 16. `true` means there was a new one.
@@ -208,43 +219,6 @@ impl DiscoveryMux {
         self.news.subscribe()
     }
 
-    /// To all publishing sources at once; the error of the earliest-added one goes up.
-    pub fn publish(&self, own_addr: &PeerAddr) -> BoxFuture<'_, NetResult<()>> {
-        let own_addr = own_addr.clone();
-        Box::pin(async move {
-            let limit = self.timing.publish_timeout;
-            let mut set = JoinSet::new();
-            let mut index = HashMap::new();
-            let publishers = self.sources.iter().filter(|s| s.publishes());
-            for (i, src) in publishers.enumerate() {
-                let job = Self::publish_one(src.clone(), own_addr.clone(), limit);
-                index.insert(
-                    crate::transport::net::task_label::spawn_in(&mut set, job).id(),
-                    i,
-                );
-            }
-            let mut errors: Vec<(usize, NetError)> = Vec::new();
-            while let Some(done) = set.join_next_with_id().await {
-                match done {
-                    Ok((_, Ok(()))) => {}
-                    Ok((id, Err(e))) => errors.push((index[&id], e)),
-                    Err(e) => errors.push((index[&e.id()], NetError::Other(e.into()))),
-                }
-            }
-            errors.sort_by_key(|(i, _)| *i);
-            errors.into_iter().next().map_or(Ok(()), |(_, e)| Err(e))
-        })
-    }
-
-    async fn publish_one(
-        src: Arc<dyn Discovery>,
-        own_addr: PeerAddr,
-        limit: Duration,
-    ) -> NetResult<()> {
-        let sent = tokio::time::timeout(limit, src.publish(&own_addr)).await;
-        sent.unwrap_or(Err(NetError::Timeout))
-    }
-
     /// Added sources by rank; `"manual"` is not a source.
     pub fn source_names(&self) -> Vec<&'static str> {
         let mut names: Vec<&'static str> = self.sources.iter().map(|s| s.name()).collect();
@@ -281,6 +255,8 @@ impl DiscoveryMux {
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
 }
+
+mod publish;
 
 #[path = "discovery_mux_sweep.rs"]
 mod sweep;

@@ -8,7 +8,7 @@ import type { ConfigFileInfo, ConfigDocument, ConfigMeta, NetBrief, NodeState, N
 // Why the page gets no snapshots: the link is stale, the node is silent, the node is stopped.
 export type Absence = "token" | "silent" | "stopped";
 
-export interface StoreState {
+interface StoreState {
   state: NodeState | null;
   config: ConfigDocument | null;
   configRev: number | null;

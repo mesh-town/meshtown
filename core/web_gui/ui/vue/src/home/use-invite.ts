@@ -11,7 +11,7 @@ import type { InviteResult, InviteState } from "./invite-actions.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
 
-export interface InviteView {
+interface InviteView {
   inviteText: ComputedRef<string>;
   inviteQr: ComputedRef<string>; // data URI of the QR picture, "" when none
   busy: ComputedRef<boolean>;

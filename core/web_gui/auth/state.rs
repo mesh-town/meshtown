@@ -153,6 +153,11 @@ impl AuthState {
         if self.password_set() {
             return String::new();
         }
+        self.issue_temp_suffix()
+    }
+
+    /// A new temporary token as a URL query; empty if issuing failed (the failure is logged).
+    fn issue_temp_suffix(&self) -> String {
         let issued = self
             .tickets
             .lock()

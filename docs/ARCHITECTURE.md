@@ -241,7 +241,7 @@ code (1 byte), then the connection bytes unchanged. Codes: 0 — opened, 1 — t
 in the shared list (the exit never sends it; the requesting side still prints its text), 2 — address not obtained,
 3 — the connection did not open, 4 — port not allowed (the exit never sends it; the requesting side prints its
 text), 5 — the node does not work as an exit for you, 6 — the request could not be parsed, 7 — the address is
-closed to exit (private network, loopback, link-local, multicast, service, or the node's own address;
+closed to exit (private network, loopback, link-local, multicast, service, or the member's own address;
 `EXIT_CODE_ADDRESS_FORBIDDEN`, `core/exit/frame.rs`).
 
 Request frame, 4 + N bytes:
@@ -286,8 +286,8 @@ Request frame, 3 bytes:
 | 0 | 1 | version | 1 (`PORT_FRAME_VERSION`) |
 | 1 | 2 | port | most significant byte first, 1…65535 |
 
-Reply, 2 bytes: version (1) and code. Codes: 0 — connection opened; 1 — the node does not publish this port;
-3 — the port does not respond on the node; 5 — the node does not open this port for the requester; 6 — the request could not be
+Reply, 2 bytes: version (1) and code. Codes: 0 — connection opened; 1 — the port is not published;
+3 — the port does not respond; 5 — access to this port is not allowed for the requester; 6 — the request could not be
 parsed; others (including 2 and 4) are an "unknown code", a refusal for the requester.
 
 The publisher's check order: permission (whether the requester is a member) → frame parsing → its own loopback.

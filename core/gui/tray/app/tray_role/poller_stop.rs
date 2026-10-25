@@ -9,6 +9,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::time::Instant;
 
 use crate::gui::tray::app::local_api::{ApiError, Reply};
+use crate::gui::tray::app::view::View;
 use crate::gui::tray::NodeCmd;
 
 use super::api::{
@@ -56,25 +57,23 @@ impl Poller {
             Phase::OwnNode { mut child, .. } => {
                 self.show(STOPPING_VIEW);
                 let end = self.stop_own(&mut child).await;
-                discard_pending_cmds(cmds);
                 let code = match end {
                     OwnStopOutcome::Gone(code) => code,
                     OwnStopOutcome::Killed => KILLED_BY_SIGNAL_TEXT.to_string(),
                 };
-                self.say(format!("node stopped via \"Stop Mesh Town\", code {code}"));
-                self.show(ABSENT_VIEW);
+                let line = format!("node stopped via \"Stop Mesh Town\", code {code}");
+                self.finish_stop(cmds, Some(line), ABSENT_VIEW);
                 Phase::Absent
             }
             Phase::ForeignNode { .. } => {
                 self.show(STOPPING_VIEW);
                 let gone = self.stop_foreign().await;
-                discard_pending_cmds(cmds);
                 if gone {
-                    self.say("node stopped via \"Stop Mesh Town\"".to_string());
-                    self.show(ABSENT_VIEW);
+                    let line = "node stopped via \"Stop Mesh Town\"".to_string();
+                    self.finish_stop(cmds, Some(line), ABSENT_VIEW);
                     Phase::Absent
                 } else {
-                    self.show(RUNNING_UNAVAILABLE_VIEW);
+                    self.finish_stop(cmds, None, RUNNING_UNAVAILABLE_VIEW);
                     Phase::ForeignNode {
                         failed_poll_count: 0,
                     }
@@ -82,6 +81,20 @@ impl Poller {
             }
             other => other,
         }
+    }
+
+    /// The end of the "Stop" procedure: pending commands are discarded, then the outcome line (if any) and view.
+    fn finish_stop(
+        &mut self,
+        cmds: &mut UnboundedReceiver<NodeCmd>,
+        line: Option<String>,
+        view: View,
+    ) {
+        discard_pending_cmds(cmds);
+        if let Some(line) = line {
+            self.say(line);
+        }
+        self.show(view);
     }
 
     /// The "Stop" procedure for our own node: `POST` until accepted, `try_wait` until the deadline, otherwise `kill`.
@@ -145,6 +158,11 @@ impl Poller {
                 return false;
             }
         }
+        self.wait_until_stopped(deadline).await
+    }
+
+    /// Waits until the foreign node refuses connections or the deadline passes. `true` means it went away.
+    async fn wait_until_stopped(&mut self, deadline: Instant) -> bool {
         loop {
             let left = deadline.saturating_duration_since(Instant::now());
             tokio::time::sleep(FOREIGN_STOP_POLL_INTERVAL.min(left)).await;

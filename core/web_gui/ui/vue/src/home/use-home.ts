@@ -34,7 +34,7 @@ import { joinProgress } from "./join-progress.ts";
 import type { JoinProgress, JoinSent } from "./join-progress.ts";
 import { exitServerHint, membersCountText, netStatusText } from "./home-words.ts";
 
-export interface ExitServerView {
+interface ExitServerView {
   checked: boolean;
   readOnly: boolean;
   cliNote: string;
@@ -43,7 +43,7 @@ export interface ExitServerView {
 
 export type { ExitGroup };
 
-export interface NameView {
+interface NameView {
   readOnly: boolean;
   cliNote: string;
   value: string;

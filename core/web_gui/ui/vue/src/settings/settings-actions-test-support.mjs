@@ -10,7 +10,7 @@ export function meta(over = {}) {
   return { read_only: [], restart_fields: [], restart_pending: [], cli_overrides: [], ...over };
 }
 
-export function configBody() {
+function configBody() {
   return {
     socks: { enabled: true, port: 1080 },
     checks: { enabled: true, provider_dns: null },

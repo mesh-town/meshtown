@@ -34,24 +34,14 @@ pub(super) fn prepare_parsed(
     let lossy = matches!(secret_read, SecretRead::Bad(_)) || !field_errors.is_empty();
     let mut file_settings = settings;
     report.field_errors = field_errors;
-    if let Some(k) = &file_settings.net.network_key {
-        if crate::members::network_key::parse_user_input(k).is_err() {
-            report.field_errors.push(FieldError {
-                field_path: "network.key".to_string(),
-                message: format!("the {NET_NAME} network key in the file did not parse"),
-            });
-        }
-    }
+    check_network_key(&file_settings, &mut report);
     if save_config {
         cli.apply(&mut file_settings);
     }
     report.state = FileState::Ok;
     report.rev = rev;
     let secret_is_new = !matches!(secret_read, SecretRead::Valid(_));
-    let secret = match secret_read {
-        SecretRead::Valid(k) => k,
-        SecretRead::Missing | SecretRead::Bad(_) => new_secret()?,
-    };
+    let secret = pick_secret(secret_read)?;
     report.persistent_identity = !secret_is_new;
 
     let mut outcome = PrepareOutcome::new(file_settings, report, String::new(), secret);
@@ -74,6 +64,27 @@ pub(super) fn prepare_parsed(
     }
     outcome.file_summary = format!("{} (read)", path.display());
     Ok(outcome)
+}
+
+/// Adds a field error when the network key in the file does not parse.
+fn check_network_key(file_settings: &Settings, report: &mut FileReport) {
+    let Some(k) = &file_settings.net.network_key else {
+        return;
+    };
+    if crate::members::network_key::parse_user_input(k).is_err() {
+        report.field_errors.push(FieldError {
+            field_path: "network.key".to_string(),
+            message: format!("the {NET_NAME} network key in the file did not parse"),
+        });
+    }
+}
+
+/// The file's secret if it is valid, otherwise a new one.
+fn pick_secret(secret_read: SecretRead) -> anyhow::Result<NodeSecret> {
+    match secret_read {
+        SecretRead::Valid(k) => Ok(k),
+        SecretRead::Missing | SecretRead::Bad(_) => new_secret(),
+    }
 }
 
 /// Input for `rewrite_parsed_file`: everything read from the already parsed file and the decisions above

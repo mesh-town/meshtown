@@ -9,14 +9,14 @@ import type { Conn } from "../shell/conn.ts";
 import { authStatus } from "./login-api.ts";
 import type { AuthStatus } from "./login-api.ts";
 
-export type Screen = "app" | "login" | "setup";
+type Screen = "app" | "login" | "setup";
 
-export interface AuthDeps {
+interface AuthDeps {
   authStatus: () => Promise<AuthStatus>;
   getToken: () => string;
 }
 
-export interface Auth {
+interface Auth {
   screen: ComputedRef<Screen>;
   hasSession: ComputedRef<boolean>;
   noPassword: ComputedRef<boolean>;

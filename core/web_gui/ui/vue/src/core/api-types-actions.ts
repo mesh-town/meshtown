@@ -25,7 +25,7 @@ export interface InviteResponse {
 }
 
 /** Invite reach: who will be able to let a newcomer in. */
-export type InviteReach = "issuer_only" | "issuer_and_one" | "spread";
+type InviteReach = "issuer_only" | "issuer_and_one" | "spread";
 
 /** Body of `POST /api/network/join`: a key, `mesh1-…` or an invite. */
 export interface JoinRequest {
@@ -75,7 +75,7 @@ export interface TokenRotateResponse {
 // ---------------------------------------------------------------- errors
 
 /** Error codes — docs/WEB-API.md §1.1, the code table. */
-export type ApiErrorCode =
+type ApiErrorCode =
   | "bad_json"
   | "bad_request"
   | "bad_token"
@@ -95,51 +95,51 @@ export type ApiErrorCode =
   | "internal";
 
 /** Body of any error — docs/WEB-API.md §1.1. Flat: `error` is a code string, not an object. */
-export interface ApiErrorBody {
+interface ApiErrorBody {
   error: ApiErrorCode;
   message: string;
 }
 
 /** 409 `stale_rev` on `PUT /api/config` — docs/WEB-API-config.md §1.7: the current revision and document. */
-export interface StaleRevError extends ApiErrorBody {
+interface StaleRevError extends ApiErrorBody {
   error: "stale_rev";
   rev: number;
   config: ConfigDocument;
 }
 
 /** 422 `invalid`: on `PUT /api/config` with `rev`; for actions `fields` is empty, for create — `label`. */
-export interface InvalidError extends ApiErrorBody {
+interface InvalidError extends ApiErrorBody {
   error: "invalid";
   rev?: number; // only on `PUT /api/config`
   fields: FieldError[];
 }
 
 /** 422 `not_available`: turning on autostart or full tunnel — docs/WEB-API-config.md §1.7. */
-export interface NotAvailableError extends ApiErrorBody {
+interface NotAvailableError extends ApiErrorBody {
   error: "not_available";
   fields: FieldError[];
 }
 
 /** 422 `invalid_key` on `POST /api/network/join`; `word` — only if it tripped on a word. */
-export interface InvalidKeyError extends ApiErrorBody {
+interface InvalidKeyError extends ApiErrorBody {
   error: "invalid_key";
   word?: string;
 }
 
 /** 500 `config_write_failed`: the file was not written, the body holds the file state. */
-export interface ConfigWriteFailedError extends ApiErrorBody {
+interface ConfigWriteFailedError extends ApiErrorBody {
   error: "config_write_failed";
   file: ConfigFileInfo;
 }
 
 /** 429 `rate_limited` — reserved in the prose, the node does not return it now. */
-export interface RateLimitedError extends ApiErrorBody {
+interface RateLimitedError extends ApiErrorBody {
   error: "rate_limited";
   retry_after_sec: number; // not confirmed by the code
 }
 
 /** Any API error body: `error` narrows it to a specific shape. */
-export type ApiErrorResponse =
+type ApiErrorResponse =
   | StaleRevError
   | InvalidError
   | NotAvailableError

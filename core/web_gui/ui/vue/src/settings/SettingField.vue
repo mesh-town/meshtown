@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Field row: the classic `fieldRow` markup. The value and rules come from `view` (`fieldView`).
+// Field row: the field row markup. The value and rules come from `view` (`fieldView`).
 import { selectOptions } from "./settings-fields.ts";
 import { SETTINGS_RESTART_BADGE } from "./settings-texts.ts";
 import type { Field, RawValue } from "./settings-fields.ts";

@@ -55,7 +55,8 @@ impl ConfigState {
         let (rev_in, mut config_in) = parse_put_request(body)?;
         self.drop_process_fields(&mut config_in);
         let file = writable_file(self)?;
-        let loaded = load_file_or_reject_stale_rev(self, file.as_ref(), rev_in)?;
+        let loaded = load_settings_file(self, file.as_ref());
+        reject_stale_rev(self, rev_in, &loaded)?;
         let merged = merge_with_config(self, &config_in);
         reject_unavailable_fields(&merged)?;
         let new = parse_merged_settings(self, &merged)?;
@@ -115,24 +116,28 @@ fn writable_file(state: &ConfigState) -> Result<Arc<dyn SettingsFile>, Response>
     Ok(file)
 }
 
-/// Step 5: the file revision on disk matches `rev_in` from the request; otherwise 409 and syncing
-/// the state with what is actually in the file. Returns the loaded file — it is also needed at step 9 to
-/// choose the write method.
-fn load_file_or_reject_stale_rev(
+/// Step 5a: loads the settings file; the result is also needed at step 9 to choose the write method.
+fn load_settings_file(state: &ConfigState, file: &dyn SettingsFile) -> LoadedSettings {
+    file.load(&state.file_settings)
+}
+
+/// Step 5b: the file revision on disk matches `rev_in` from the request; otherwise 409 and syncing
+/// the state with what is actually in the file.
+fn reject_stale_rev(
     state: &mut ConfigState,
-    file: &dyn SettingsFile,
     rev_in: u64,
-) -> Result<LoadedSettings, Response> {
-    let loaded = file.load(&state.file_settings);
-    if let LoadedSettings::Parsed { rev, settings } = &loaded {
-        if *rev != rev_in {
-            let new_rev = *rev;
-            state.file_settings = settings.clone();
-            state.file_report.rev = new_rev;
-            return Err(state.stale_rev_response(new_rev));
-        }
+    loaded: &LoadedSettings,
+) -> Result<(), Response> {
+    let LoadedSettings::Parsed { rev, settings } = loaded else {
+        return Ok(());
+    };
+    if *rev == rev_in {
+        return Ok(());
     }
-    Ok(loaded)
+    let new_rev = *rev;
+    state.file_settings = settings.clone();
+    state.file_report.rev = new_rev;
+    Err(state.stale_rev_response(new_rev))
 }
 
 /// Step 8a: the new `web.ifaces` must not close the page for the current connection (loopback, own

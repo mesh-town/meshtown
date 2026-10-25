@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------- shared enums
 
 /** `node.status` (`NodeStatus`, `snapshot.rs`). */
-export type NodeStatus = "starting" | "online" | "offline" | "stopping";
+type NodeStatus = "starting" | "online" | "offline" | "stopping";
 
 /** Path to a member and the node's own path to the network (`PathKind`). */
 export type PathKind = "direct" | "relay";
@@ -15,11 +15,11 @@ export type TransportMode = "direct_and_relay" | "relay_only" | "no_relay";
 export type Verdict = "ok" | "dns_mismatch" | "network_blocked" | "site_geoblock" | "antibot" | "down";
 
 /** `route.state` (`RouteMode`). */
-export type RouteMode = "direct" | "exit" | "unavailable";
+type RouteMode = "direct" | "exit" | "unavailable";
 
 /** `node.identity` and `node.identity_reason` (`ConfigState::identity`, `config_api/state.rs`). */
-export type Identity = "persistent" | "temporary";
-export type IdentityReason = "declined" | "file_preserved" | "file_problem";
+type Identity = "persistent" | "temporary";
+type IdentityReason = "declined" | "file_preserved" | "file_problem";
 
 /** State of the config file (`FileState::as_str`, `config_file/report.rs`). */
 export type ConfigFileState = "ok" | "created" | "unreadable" | "invalid";
@@ -123,7 +123,7 @@ export interface NetworkInfo {
 
 /** How a network is governed: every member decides (Peer) or admins decide (Managed). */
 export type NetKind = "Peer" | "Managed";
-export type NetRole = "admin" | "member";
+type NetRole = "admin" | "member";
 
 /** A note the node keeps until the page acknowledges it (`POST /api/notices/ack`). */
 export interface Notice {
@@ -136,7 +136,7 @@ export interface Notice {
   at_unix: number;
 }
 
-export interface MembersInfo {
+interface MembersInfo {
   count: number;
   gossip_neighbors: number;
   voting?: number; // rows with a pending ban vote
@@ -155,7 +155,7 @@ export interface SocksInfo {
   pac_url: string | null; // PAC address on the proxy port ("http://127.0.0.1:1080/proxy.pac"); null — the proxy is off
 }
 
-export interface ExitInfo {
+interface ExitInfo {
   enabled: boolean;
   domains: number;
   /** Full ids of the members going to the internet through this node; `[]` — nobody. */
@@ -173,7 +173,7 @@ export interface TransportInfo {
   self_addresses: string[]; // "<id>@<address>" — the same as GET /api/peer-addresses
 }
 
-export interface RelayInfo {
+interface RelayInfo {
   connected: boolean;
   url: string | null;
 }
@@ -244,7 +244,7 @@ export interface ChosenExit {
   removed?: boolean; // the exit is no longer in the network
 }
 
-export interface PortsInfo {
+interface PortsInfo {
   published: OwnPort[];
   network: NetPort[];
 }
@@ -268,7 +268,7 @@ export interface NetPort {
   web_url: string | null; // link at the member's mesh address; null while the port is not shared with this node or there is no proxy
 }
 
-export interface OpenedPort {
+interface OpenedPort {
   local: number;
   state: "listening" | "bind_failed"; // a String in the code, the values come from the `OpenedInfo` comment
   error: string | null;

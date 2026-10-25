@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use super::super::save::SaveError;
 use super::super::time::stamp_utc;
 use super::super::FILE_NAME;
+use crate::node::output::NET_NAME;
 
 /// Returns a new node secret: 32 random bytes, as before in `node.rs`.
 pub fn new_secret() -> anyhow::Result<NodeSecret> {
@@ -18,7 +19,7 @@ pub fn new_secret() -> anyhow::Result<NodeSecret> {
 pub(super) fn save_error_text(e: &SaveError) -> String {
     match e {
         SaveError::StaleRev(r) => {
-            format!("the file on disk has another revision ({r}): it was edited behind the node's back; write cancelled")
+            format!("the file on disk has another revision ({r}): it was edited behind {NET_NAME}'s back; write cancelled")
         }
         SaveError::Io(m) => m.clone(),
     }

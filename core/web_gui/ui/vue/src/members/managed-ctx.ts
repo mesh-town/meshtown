@@ -5,7 +5,7 @@ import { isRoot } from "./members-ids.ts";
 import type { MenuCtx } from "./members-managed-rows.ts";
 import type { MembersReply } from "./members-types.ts";
 
-export interface ManagedFacts extends MenuCtx {
+interface ManagedFacts extends MenuCtx {
   canLeave?: boolean;
 }
 

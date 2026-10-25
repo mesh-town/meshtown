@@ -45,7 +45,7 @@ export const PEERS_TAB_DELETED_SUB = "· deleted";
 export const PEERS_TAB_REFUSED_SUB = "· refused";
 export const PEERS_TAB_REMOVED_SUB = "· removed";
 export const PEERS_NEW_NET = "New network";
-export const PEERS_TAB_NO_CONN = "· no connection";
+const PEERS_TAB_NO_CONN = "· no connection";
 export const PEERS_NETS_HINT_OK = "OK";
 export const PEERS_NETS_HINT_KEY = "meshtown.netsHintSeen";
 

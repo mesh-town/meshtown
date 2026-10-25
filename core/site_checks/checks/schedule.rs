@@ -3,7 +3,7 @@
 //! (`Checks::due`/`schedule_after_verdict`/`postpone`, called from `run.rs`).
 
 use portable_atomic::AtomicU64;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,19 +113,28 @@ fn first_check_delay(author: crate::transport::net::PeerId, domain: &str) -> Dur
     FIRST_DELAY + offset_for(author, domain, FIRST_SPREAD)
 }
 
+/// The state of a domain; a new domain gets its first check scheduled after the first-check delay.
+fn domain_state<'a>(
+    states: &'a mut HashMap<String, DomainState>,
+    domain: &str,
+    now: Instant,
+    me: crate::transport::net::PeerId,
+) -> &'a mut DomainState {
+    states
+        .entry(domain.to_string())
+        .or_insert_with(|| DomainState {
+            next_at: now + first_check_delay(me, domain),
+            last_verdict: None,
+            same_verdict_streak: 0,
+        })
+}
+
 impl Checks {
     /// Whether it is time to check the domain; also creates the state for a new domain.
     pub(super) async fn due(&self, domain: &str) -> bool {
         let now = Instant::now();
         let mut state = self.domain_states.lock().await;
-        let entry = state
-            .entry(domain.to_string())
-            .or_insert_with(|| DomainState {
-                next_at: now + first_check_delay(self.shared_replica.me(), domain),
-                last_verdict: None,
-                same_verdict_streak: 0,
-            });
-        entry.next_at <= now
+        domain_state(&mut state, domain, now, self.shared_replica.me()).next_at <= now
     }
 
     pub(super) async fn schedule_after_verdict(&self, domain: &str, verdict: CheckVerdict) {

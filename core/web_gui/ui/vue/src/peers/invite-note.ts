@@ -13,13 +13,13 @@ function orList(names: string[]): string {
 }
 
 /** `Only admins can invite people to "work". Ask anna or bob to send an invite.` */
-export function inviteNoteText(net: string, admins: string[]): string {
+function inviteNoteText(net: string, admins: string[]): string {
   const ask = admins.length > 0 ? ` Ask ${orList(admins)} to send an invite.` : "";
   return `Only admins can invite people to "${net}".${ask}`;
 }
 
 /** The plaque for a slot, or `null` when this computer may invite (Peer network, admin, no snapshot yet). */
-export function inviteNoteOf(store: Store, slot: string): string | null {
+function inviteNoteOf(store: Store, slot: string): string | null {
   const net = stateOf(store, slot)?.network;
   const brief = store.nets.find((n) => n.id === slot);
   if (net?.kind !== "Managed" || (net.can_invite ?? brief?.can_invite) !== false) return null;

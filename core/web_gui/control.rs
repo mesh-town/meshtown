@@ -137,7 +137,10 @@ pub enum MemberError {
 /// A member action asked by the page; ids are 64-hex node ids as sent.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MemberActionReq {
-    Exclude { id: String, reason: Option<String> },
+    Exclude {
+        id: String,
+        reason: Option<String>,
+    },
     Unexclude(String),
     Admit(String),
     Unadmit(String),

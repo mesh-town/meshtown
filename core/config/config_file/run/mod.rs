@@ -103,13 +103,7 @@ pub fn prepare(
     save_config: bool,
     now_unix: u64,
 ) -> anyhow::Result<RunConfig> {
-    let outcome = match source {
-        ConfigSource::Disabled => sources::prepare_disabled()?,
-        ConfigSource::Nowhere(why) => sources::prepare_nowhere(why)?,
-        ConfigSource::File {
-            path, may_create, ..
-        } => sources::prepare_file(path, *may_create, cli, save_config, now_unix)?,
-    };
+    let outcome = sources::load_source(source, cli, save_config, now_unix)?;
     let PrepareOutcome {
         file_settings,
         report,
@@ -169,3 +163,7 @@ mod flags_tests;
 #[cfg(test)]
 #[path = "backup_tests.rs"]
 mod backup_tests;
+
+#[cfg(test)]
+#[path = "words_tests.rs"]
+mod words_tests;

@@ -5,14 +5,14 @@ import { ref, watch } from "vue";
 import type { Ref } from "vue";
 import type { NetBrief } from "../core/api-types.ts";
 
-export interface NetBanner {
+interface NetBanner {
   slot: string;
   text: string;
 }
 
 const banner = ref<NetBanner | null>(null);
 
-export interface NetBannerApi {
+interface NetBannerApi {
   banner: Ref<NetBanner | null>;
   show: (slot: string, text: string) => void;
   clear: () => void;

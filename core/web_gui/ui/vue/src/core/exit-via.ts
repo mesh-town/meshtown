@@ -17,7 +17,7 @@ export interface ExitSaveStatus {
   cls: string;
 }
 
-export type ExitDeps = SaveDeps & { remember?: (exits: string[]) => void };
+type ExitDeps = SaveDeps & { remember?: (exits: string[]) => void };
 
 const briefOf = (store: Store, slot: string) => store.nets.find((n) => n.id === slot);
 

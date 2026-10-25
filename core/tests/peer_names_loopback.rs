@@ -15,21 +15,10 @@ use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::members::peer_names::PeerNames;
 use meshtown_core::node::{self, NodeConfig};
 use meshtown_core::transport::net::PeerAddr;
-use tokio::time::{sleep, Instant};
 
-/// Polls the condition every 50 ms until it becomes true or the limit expires.
-async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + limit;
-    loop {
-        if cond() {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return cond();
-        }
-        sleep(Duration::from_millis(50)).await;
-    }
-}
+#[path = "common/wait.rs"]
+mod wait;
+use wait::wait_until;
 
 /// The path to the names file in the test's temporary directory, its own for each call.
 fn scratch_names_path(suffix: &str) -> PathBuf {

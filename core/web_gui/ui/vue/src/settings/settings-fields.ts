@@ -15,15 +15,15 @@ import {
   SETTINGS_TITLE_WEB_ENABLED, SETTINGS_TITLE_WEB_PORT, SETTINGS_WEB_LOCALHOST, SETTINGS_WEB_LOCALNET, settingsFileValueText,
 } from "./settings-texts.ts";
 
-export type FieldKind = "toggle" | "text" | "select" | "lines" | "readonly";
-export type DataType = "int" | "int_or_null" | "str" | "str_or_null" | "lines";
+type FieldKind = "toggle" | "text" | "select" | "lines" | "readonly";
+type DataType = "int" | "int_or_null" | "str" | "str_or_null" | "lines";
 /** The raw control value in the draft: a switch is a boolean, anything else is a string. */
 export type RawValue = string | boolean;
 /** The value that goes into the config after `parseRaw`. */
-export type ConfigValue = string | number | boolean | null | string[];
-export type SelectOption = readonly [string | number, string];
+type ConfigValue = string | number | boolean | null | string[];
+type SelectOption = readonly [string | number, string];
 
-export interface FieldLock {
+interface FieldLock {
   disabled: boolean;
   reason: string | undefined;
 }
@@ -39,14 +39,14 @@ export interface Field {
   disabledBy?: (config: ConfigDocument | null | undefined) => FieldLock;
 }
 
-export const CHECKS_INTERVAL_OPTIONS: readonly SelectOption[] = [
+const CHECKS_INTERVAL_OPTIONS: readonly SelectOption[] = [
   [300, SETTINGS_EVERY_5_MIN],
   [900, SETTINGS_EVERY_15_MIN],
   [1800, SETTINGS_EVERY_30_MIN],
   [3600, SETTINGS_EVERY_HOUR],
   [21600, SETTINGS_EVERY_6_HOURS],
 ];
-export const PROBE_INTERVAL_OPTIONS: readonly SelectOption[] = [
+const PROBE_INTERVAL_OPTIONS: readonly SelectOption[] = [
   [60, SETTINGS_EVERY_MINUTE],
   [300, SETTINGS_EVERY_5_MIN],
   [600, SETTINGS_EVERY_10_MIN],
@@ -54,7 +54,7 @@ export const PROBE_INTERVAL_OPTIONS: readonly SelectOption[] = [
   [3600, SETTINGS_EVERY_HOUR],
 ];
 
-export const SOCKS_ACCESS_OPTIONS: readonly SelectOption[] = [
+const SOCKS_ACCESS_OPTIONS: readonly SelectOption[] = [
   ["localhost", SETTINGS_SOCKS_LOCALHOST],
   ["localnet", SETTINGS_SOCKS_LOCALNET],
 ];
@@ -136,7 +136,7 @@ export const PAGE_FIELDS: readonly Field[] = [
   },
 ];
 
-// The same `id` as in the classic page: e2e relies on them.
+// The `id` values are stable: e2e relies on them.
 export function fid(path: string): string {
   return "field-" + path.replace(/\./g, "-");
 }

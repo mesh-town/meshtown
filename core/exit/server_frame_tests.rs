@@ -14,7 +14,11 @@ mod read_request_raw_frame {
 
     #[tokio::test]
     async fn cut_inside_head_is_err() {
-        assert_eq!(raw_of(&[EXIT_PROTOCOL_VERSION]).await, Err(()), "truncated at 1 byte");
+        assert_eq!(
+            raw_of(&[EXIT_PROTOCOL_VERSION]).await,
+            Err(()),
+            "truncated at 1 byte"
+        );
     }
 
     #[tokio::test]

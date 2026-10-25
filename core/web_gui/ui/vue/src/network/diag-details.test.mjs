@@ -63,7 +63,7 @@ describe("transportRows", () => {
 });
 
 describe("aboutLines", () => {
-  it("two classic lines: address and version; memory and uptime", () => {
+  it("two plain lines: address and version; memory and uptime", () => {
     const node = { web_addr: "127.0.0.1:7777", version: "0.9.1", rss_kib: 14643, uptime_sec: 3661 };
     assert.deepEqual(aboutLines(node), [
       NET_NAME + " on this computer · 127.0.0.1:7777 · version 0.9.1",

@@ -175,8 +175,7 @@ mod an_unknown_network {
         let unknown = NetSlotId::parse("aaaaaa").unwrap();
         // when: the proxy is claimed for a network that is not loaded
         let got = fx.when_claimed(&unknown);
-        // then: an error, the choice is A, no file is written
-        // QUESTION: the error kind is assumed to be `UnknownNet` (the plan says only "an error").
+        // then: the error is UnknownNet, the choice is A, no file is written
         assert_eq!(got, Err(HostError::UnknownNet));
         assert_eq!(fx.seat.chosen(), fx.a);
         assert_eq!(fx.all_files(), before, "no file may change");
@@ -286,7 +285,9 @@ impl Fixture {
         let main = self.slots.main_slot();
         let mut state = main.config.lock().unwrap();
         let edit = |s: &mut Settings| s.process.proxy_net = id.clone();
-        state.rewrite_settings(self.main_ctl.as_ref(), edit).unwrap();
+        state
+            .rewrite_settings(self.main_ctl.as_ref(), edit)
+            .unwrap();
         drop(state);
         self.seat = Arc::new(ProxySeat::new(None, id));
         self.slots.set_proxy_seat(self.seat.clone());
@@ -334,8 +335,13 @@ impl Fixture {
             .unwrap()
             .flatten()
             .map(|e| e.path())
-            .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with(&prefix)));
-        found.expect("the folder of the left network").join(config_file::FILE_NAME)
+            .find(|p| {
+                p.file_name()
+                    .is_some_and(|n| n.to_string_lossy().starts_with(&prefix))
+            });
+        found
+            .expect("the folder of the left network")
+            .join(config_file::FILE_NAME)
     }
 
     fn make_read_only(&mut self, path: &Path) {

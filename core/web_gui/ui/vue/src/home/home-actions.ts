@@ -18,14 +18,14 @@ import {
   HOME_EMPTY_FIND, HOME_FIND_ACTION, HOME_KIND_ADDR, HOME_KIND_LAN, HOME_KIND_PORT, HOME_SAVED, clipboardFallbackText,
 } from "./home-flow-texts.ts";
 
-export const SETUP_KEY = "meshtown.homeSetup";
+const SETUP_KEY = "meshtown.homeSetup";
 
 export type SetupMark = "browser" | "exit" | "done";
 export interface FieldStatus {
   text: string;
   cls: string;
 }
-export interface SetupStorage {
+interface SetupStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
 }

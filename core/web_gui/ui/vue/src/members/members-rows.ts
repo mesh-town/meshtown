@@ -11,12 +11,12 @@ import type { MemberRow, MenuItem } from "./members-types.ts";
 
 export type { MenuCtx };
 
-export interface Badge {
+interface Badge {
   text: string;
   tone: "warn" | "grey";
 }
 
-export interface RowDecor {
+interface RowDecor {
   badge: Badge | null;
   lines: string[];
   mainAction: "confirm" | "unblock" | null;

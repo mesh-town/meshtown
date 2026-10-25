@@ -13,7 +13,12 @@ mod ambiguous {
     #[test]
     fn lists_every_candidate_address_and_name() {
         let body = body_of(&ambiguous(&[("Box One", true), ("Box Two", true)]));
-        for needle in ["http://box-0001.meshtown", "http://box-0002.meshtown", "Box One", "Box Two"] {
+        for needle in [
+            "http://box-0001.meshtown",
+            "http://box-0002.meshtown",
+            "Box One",
+            "Box Two",
+        ] {
             assert!(body.contains(needle), "missing {needle}: {body}");
         }
     }
@@ -21,8 +26,12 @@ mod ambiguous {
     #[test]
     fn keeps_the_order_given_by_the_caller() {
         let body = body_of(&ambiguous(&[("Box One", true), ("Box Two", true)]));
-        let first = body.find("http://box-0001.meshtown").expect("first address");
-        let second = body.find("http://box-0002.meshtown").expect("second address");
+        let first = body
+            .find("http://box-0001.meshtown")
+            .expect("first address");
+        let second = body
+            .find("http://box-0002.meshtown")
+            .expect("second address");
         assert!(first < second, "candidates are not in the given order");
     }
 
@@ -47,7 +56,10 @@ mod ambiguous {
     #[test]
     fn candidate_name_is_shown_escaped() {
         let body = body_of(&ambiguous(&[("<b>&\"", true), ("Box", true)]));
-        assert!(!body.contains("<b>"), "raw markup from the name leaked: {body}");
+        assert!(
+            !body.contains("<b>"),
+            "raw markup from the name leaked: {body}"
+        );
         assert!(body.contains("&lt;b&gt;&amp;"), "{body}");
     }
 
@@ -73,7 +85,10 @@ mod not_opened {
         #[test]
         fn is_named_with_the_device() {
             let body = body_of(&not_opened(&[], false));
-            assert!(body.contains("Caf\u{e9} Router hasn't shared port 8080"), "{body}");
+            assert!(
+                body.contains("Caf\u{e9} Router hasn't shared port 8080"),
+                "{body}"
+            );
         }
     }
 
@@ -83,7 +98,10 @@ mod not_opened {
         #[test]
         fn becomes_an_open_button_with_its_url() {
             let body = body_of(&not_opened(&[(3000, "web")], false));
-            assert!(body.contains("href=\"http://router.meshtown:3000\""), "{body}");
+            assert!(
+                body.contains("href=\"http://router.meshtown:3000\""),
+                "{body}"
+            );
             assert!(body.contains("Open port 3000"), "{body}");
         }
 
@@ -136,7 +154,10 @@ mod not_opened {
         #[test]
         fn says_nothing_was_shared_yet() {
             let body = body_of(&not_opened(&[], false));
-            assert!(body.contains("hasn't shared any ports with you yet"), "{body}");
+            assert!(
+                body.contains("hasn't shared any ports with you yet"),
+                "{body}"
+            );
         }
 
         #[test]
@@ -178,7 +199,12 @@ mod not_opened {
         #[test]
         fn try_again_leads_to_the_requested_url() {
             let body = body_of(&not_opened(&[], false));
-            assert!(body.contains("<a class=\"btn\" href=\"http://router.meshtown:8080\">Try again</a>"), "{body}");
+            assert!(
+                body.contains(
+                    "<a class=\"btn\" href=\"http://router.meshtown:8080\">Try again</a>"
+                ),
+                "{body}"
+            );
         }
     }
 
@@ -209,7 +235,10 @@ mod not_opened {
                 *device = "<b>&\"".to_string();
             }
             let body = body_of(&page);
-            assert!(!body.contains("<b>"), "raw markup from the name leaked: {body}");
+            assert!(
+                !body.contains("<b>"),
+                "raw markup from the name leaked: {body}"
+            );
             assert!(body.contains("&lt;b&gt;&amp;"), "{body}");
         }
 
@@ -220,7 +249,10 @@ mod not_opened {
                 *device = "A&B".to_string();
             }
             let body = body_of(&page);
-            assert!(body.contains("aria-label=\"Copy message for the owner of A&amp;B\""), "{body}");
+            assert!(
+                body.contains("aria-label=\"Copy message for the owner of A&amp;B\""),
+                "{body}"
+            );
         }
 
         #[test]
@@ -228,13 +260,19 @@ mod not_opened {
             let mut page = not_opened(&[], false);
             page.me = "<b>&\"".to_string();
             let body = body_of(&page);
-            assert!(!body.contains("<b>"), "raw markup from the name leaked: {body}");
+            assert!(
+                !body.contains("<b>"),
+                "raw markup from the name leaked: {body}"
+            );
         }
 
         #[test]
         fn open_port_name_is_shown_escaped() {
             let body = body_of(&not_opened(&[(3000, "<b>&\"")], false));
-            assert!(!body.contains("<b>"), "raw markup from the port name leaked: {body}");
+            assert!(
+                !body.contains("<b>"),
+                "raw markup from the port name leaked: {body}"
+            );
         }
     }
 }
@@ -258,7 +296,10 @@ mod offline {
     #[test]
     fn has_a_try_again_button_to_the_requested_url() {
         let body = body_of(&offline(&[]));
-        assert!(body.contains("href=\"http://router.meshtown:8080\">Try again</a>"), "{body}");
+        assert!(
+            body.contains("href=\"http://router.meshtown:8080\">Try again</a>"),
+            "{body}"
+        );
     }
 
     #[test]
@@ -281,7 +322,10 @@ mod no_service {
     #[test]
     fn plain_failure_says_no_program_accepted_the_connection() {
         let body = body_of(&no_service(false));
-        assert!(body.contains("no program on port 8080 accepted the connection"), "{body}");
+        assert!(
+            body.contains("no program on port 8080 accepted the connection"),
+            "{body}"
+        );
     }
 
     #[test]
@@ -299,13 +343,19 @@ mod no_service {
     #[test]
     fn title_names_the_port_and_the_device() {
         let body = body_of(&no_service(false));
-        assert!(body.contains("Nothing answers on port 8080 of Caf\u{e9} Router"), "{body}");
+        assert!(
+            body.contains("Nothing answers on port 8080 of Caf\u{e9} Router"),
+            "{body}"
+        );
     }
 
     #[test]
     fn has_a_try_again_button_to_the_requested_url() {
         let body = body_of(&no_service(false));
-        assert!(body.contains("href=\"http://router.meshtown:8080\">Try again</a>"), "{body}");
+        assert!(
+            body.contains("href=\"http://router.meshtown:8080\">Try again</a>"),
+            "{body}"
+        );
     }
 
     #[test]
@@ -331,7 +381,9 @@ mod common_text {
         for (what, page) in every_variant() {
             let body = body_of(&page);
             assert!(
-                body.contains("This page is from Mesh Town on Cafe Laptop, not from router.meshtown."),
+                body.contains(
+                    "This page is from Mesh Town on Cafe Laptop, not from router.meshtown."
+                ),
                 "{what}"
             );
         }

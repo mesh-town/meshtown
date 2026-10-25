@@ -19,7 +19,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use common::{front_for, echo_site, pair_with, wait_exit_route};
+use common::{echo_site, front_for, pair_with, wait_exit_route};
 
 /// The IPv6 literal the exit maps to the echo server.
 const LITERAL: &str = "2001:db8::1";

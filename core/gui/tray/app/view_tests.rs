@@ -143,11 +143,26 @@ fn stop_enabled_starting_running() {
 
 #[test]
 fn node_text_matches_state() {
-    assert_eq!(node_state_phrase(NodeState::Unknown), "node not visible");
-    assert_eq!(node_state_phrase(NodeState::Absent), "no node");
-    assert_eq!(node_state_phrase(NodeState::Starting), "node is starting");
-    assert_eq!(node_state_phrase(NodeState::Running), "node is running");
-    assert_eq!(node_state_phrase(NodeState::Stopping), "node is stopping");
+    assert_eq!(
+        node_state_phrase(NodeState::Unknown),
+        "Mesh Town not visible"
+    );
+    assert_eq!(
+        node_state_phrase(NodeState::Absent),
+        "Mesh Town is not running"
+    );
+    assert_eq!(
+        node_state_phrase(NodeState::Starting),
+        "Mesh Town is starting"
+    );
+    assert_eq!(
+        node_state_phrase(NodeState::Running),
+        "Mesh Town is running"
+    );
+    assert_eq!(
+        node_state_phrase(NodeState::Stopping),
+        "Mesh Town is stopping"
+    );
 }
 
 #[test]

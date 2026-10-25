@@ -101,7 +101,9 @@ mod request_head {
             let mut client = setup();
 
             // when
-            client.write(&[0x16, 0x03, 0x01, 0x00, 0x05, 0x01, 0x00]).await;
+            client
+                .write(&[0x16, 0x03, 0x01, 0x00, 0x05, 0x01, 0x00])
+                .await;
             let answer = client.read_until_eof().await;
 
             // then
@@ -145,7 +147,11 @@ mod request_head {
             let answer = client.read_until_eof().await;
 
             // then
-            assert!(answer.is_empty(), "silent client got {} bytes", answer.len());
+            assert!(
+                answer.is_empty(),
+                "silent client got {} bytes",
+                answer.len()
+            );
             assert!(
                 start.elapsed() >= PAGE_HEAD_TIMEOUT,
                 "closed too early: {:?}",
@@ -162,7 +168,10 @@ mod request_head {
             tokio::time::sleep(PAGE_HEAD_TIMEOUT - Duration::from_secs(1)).await;
 
             // then
-            assert!(client.nothing_to_read_yet().await, "closed before the timeout");
+            assert!(
+                client.nothing_to_read_yet().await,
+                "closed before the timeout"
+            );
         }
 
         #[tokio::test(start_paused = true)]
@@ -195,7 +204,11 @@ mod request_head {
             let answer = client.read_until_eof().await;
 
             // then
-            assert!(answer.is_empty(), "oversized head got {} bytes", answer.len());
+            assert!(
+                answer.is_empty(),
+                "oversized head got {} bytes",
+                answer.len()
+            );
             assert!(
                 start.elapsed() < PAGE_HEAD_TIMEOUT,
                 "limit must close before the timeout, took {:?}",

@@ -22,10 +22,14 @@ impl MeshHost {
         };
         let host = domain.trim_end_matches('.');
         if host == MESH_SUFFIX {
-            return Some(MeshHost { label: String::new() });
+            return Some(MeshHost {
+                label: String::new(),
+            });
         }
         let label = host.strip_suffix(&format!(".{MESH_SUFFIX}"))?;
-        Some(MeshHost { label: label.to_string() })
+        Some(MeshHost {
+            label: label.to_string(),
+        })
     }
 }
 

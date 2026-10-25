@@ -217,7 +217,7 @@ describe("fileBanner", () => {
       assert.equal(b.broken.message, "broken json");
     });
 
-    it("unreadable without a message — the classic page's fallback text", () => {
+    it("unreadable without a message — the fallback text", () => {
       const b = fileBanner({ state: "unreadable" }, false);
       assert.equal(b.broken.message, "The settings file is damaged");
     });

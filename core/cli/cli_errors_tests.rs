@@ -45,7 +45,7 @@ fn report_adds_proxy_advice() {
     assert_eq!(
         text,
         "Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\n\
-         Close it or start the node on another port: meshtown run --socks-port 1081"
+         Close it or start Mesh Town on another port: meshtown run --socks-port 1081"
     );
 }
 

@@ -306,3 +306,6 @@ async fn publisher_reports_published() {
         }
     );
 }
+
+#[path = "source_account_tests.rs"]
+mod account;

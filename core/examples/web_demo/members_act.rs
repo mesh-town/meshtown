@@ -54,7 +54,11 @@ impl DemoMembers {
         changed
     }
 
-    pub(crate) fn exclude(&mut self, i: usize, reason: Option<String>) -> Result<bool, MemberError> {
+    pub(crate) fn exclude(
+        &mut self,
+        i: usize,
+        reason: Option<String>,
+    ) -> Result<bool, MemberError> {
         let e = &mut self.entries[i];
         if matches!(e.standing, Standing::Unlisted) {
             return Err(refused("not_member", "this member is not in the list"));

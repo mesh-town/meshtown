@@ -26,11 +26,32 @@ pub(crate) struct MeshPage {
 }
 
 pub(crate) enum PageKind {
-    NotFound { label: String, suggest: Vec<String> },
-    Ambiguous { choices: Vec<MeshChoice> },
-    NotOpened { device: String, url: String, port: u16, open: Vec<OpenPort>, offline: bool },
-    Offline { device: String, url: String, port: u16, open: Vec<OpenPort> },
-    NoService { device: String, url: String, port: u16, timed_out: bool },
+    NotFound {
+        label: String,
+        suggest: Vec<String>,
+    },
+    Ambiguous {
+        choices: Vec<MeshChoice>,
+    },
+    NotOpened {
+        device: String,
+        url: String,
+        port: u16,
+        open: Vec<OpenPort>,
+        offline: bool,
+    },
+    Offline {
+        device: String,
+        url: String,
+        port: u16,
+        open: Vec<OpenPort>,
+    },
+    NoService {
+        device: String,
+        url: String,
+        port: u16,
+        timed_out: bool,
+    },
 }
 
 /// Renders a complete HTTP/1.1 response; with `head_only` the body is left out.
@@ -48,15 +69,25 @@ fn parts_of(page: &MeshPage) -> Parts {
     match &page.kind {
         PageKind::NotFound { label, suggest } => page_html::not_found(page, label, suggest),
         PageKind::Ambiguous { choices } => page_html::ambiguous(page, choices),
-        PageKind::NotOpened { device, url, port, open, offline } => {
-            page_html::not_opened(page, device, url, *port, open, *offline)
-        }
-        PageKind::Offline { device, url, port, open } => {
-            page_html::offline(page, device, url, *port, open)
-        }
-        PageKind::NoService { device, url, port, timed_out } => {
-            page_html::no_service(page, device, url, *port, *timed_out)
-        }
+        PageKind::NotOpened {
+            device,
+            url,
+            port,
+            open,
+            offline,
+        } => page_html::not_opened(page, device, url, *port, open, *offline),
+        PageKind::Offline {
+            device,
+            url,
+            port,
+            open,
+        } => page_html::offline(page, device, url, *port, open),
+        PageKind::NoService {
+            device,
+            url,
+            port,
+            timed_out,
+        } => page_html::no_service(page, device, url, *port, *timed_out),
     }
 }
 
@@ -69,7 +100,10 @@ fn reason(status: u16) -> &'static str {
         (503, "Service Unavailable"),
         (504, "Gateway Timeout"),
     ];
-    known.iter().find(|(code, _)| *code == status).map_or("Error", |(_, text)| text)
+    known
+        .iter()
+        .find(|(code, _)| *code == status)
+        .map_or("Error", |(_, text)| text)
 }
 
 fn head(status: u16, length: usize) -> String {

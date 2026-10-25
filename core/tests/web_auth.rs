@@ -82,6 +82,36 @@ rig_test!(permanent_token_exchange_keeps_header, false, |r| {
     assert_eq!(status, 200, "the header must keep working");
 });
 
+rig_test!(foreign_token_string_is_refused, false, |r| {
+    let resp = http(
+        r.port,
+        "POST",
+        "/api/auth/token",
+        &[("Content-Type", "application/json")],
+        json!({"token": "not-a-token-of-this-node"})
+            .to_string()
+            .as_bytes(),
+    );
+    assert_eq!(resp.status, 401);
+    assert_eq!(body_json(&resp)["error"], "bad_token");
+    assert!(
+        !resp.headers.contains_key("set-cookie"),
+        "no session for a refused token"
+    );
+});
+
+rig_test!(near_miss_of_permanent_token_is_refused, false, |r| {
+    let shorter = &r.perm[..r.perm.len() - 1];
+    let longer = format!("{}x", r.perm);
+    assert_eq!(exchange(r.port, shorter), (401, None), "a prefix");
+    assert_eq!(exchange(r.port, &longer), (401, None), "an extended token");
+    assert_eq!(
+        exchange(r.port, &r.perm).0,
+        200,
+        "refusals must not spoil the real token"
+    );
+});
+
 rig_test!(login_right_and_wrong, true, |r| {
     let (wrong, cookie) = login(r.port, "wrong password");
     assert_eq!(wrong.status, 401);

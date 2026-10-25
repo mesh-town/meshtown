@@ -64,7 +64,7 @@ describe("onlyOtherMember", () => {
     assert.notEqual(onlyOtherMember(members, SELF_FULL, SUBJECT.id_full), SUBJECT.id_full);
   });
 
-  // QUESTION: the contract does not say what a list with no second member gives; null follows the signature `string | null`.
+  // With no member besides me and the subject there is no answer: null, as the return type `string | null` allows.
   it("nobody but me and the subject: null", () => {
     const members = membersReply({ rows: [selfRow(), SUBJECT], need: 1 });
     assert.equal(onlyOtherMember(members, SELF_FULL, SUBJECT.id_full), null);

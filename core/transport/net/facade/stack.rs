@@ -184,6 +184,12 @@ impl NetStack {
         }
         *done = true;
         self.0.closed.store(true, Ordering::SeqCst);
+        self.stop_tasks().await;
+        self.close_transports().await;
+    }
+
+    /// Stops discovery, the facade tasks and the handler tasks, in that order.
+    async fn stop_tasks(&self) {
         self.0.mux.stop().await;
         let tasks =
             std::mem::take(&mut *self.0.tasks.lock().unwrap_or_else(PoisonError::into_inner));
@@ -192,6 +198,9 @@ impl NetStack {
             let _ = task.await;
         }
         self.0.handler_tasks.shutdown().await;
+    }
+
+    async fn close_transports(&self) {
         for t in &self.0.transports {
             t.close().await;
         }

@@ -1,8 +1,8 @@
 //! Opening a mesh address for a proxy connection: the stream of a member's port, or an answer page.
 
+use crate::node::output::short_peer_id;
 use crate::ports_sharing::dial::DIAL_TIMEOUT;
 use crate::ports_sharing::{dial_peer_port, PortReach};
-use crate::node::output::short_peer_id;
 use crate::proxy::front::{NetDirectory, NetEntry};
 use crate::proxy::path::{open_chosen_route, OpenRefused, OpenedUpstream};
 use crate::proxy::serve::ProxyConfig;
@@ -28,21 +28,21 @@ pub(in crate::proxy) async fn open_target(
 }
 
 /// Opens `host`:`port` inside the mesh. Never fails: whatever cannot be reached is answered with a page.
-async fn open_mesh(
-    entries: Vec<NetEntry>,
-    host: MeshHost,
-    port: u16,
-) -> OpenedUpstream {
+async fn open_mesh(entries: Vec<NetEntry>, host: MeshHost, port: u16) -> OpenedUpstream {
     let list = devices(rows_of(&entries));
     match lookup(&list, &host) {
         Lookup::Found(device) => open_device(&entries, &list, device, &host, port).await,
         Lookup::Ambiguous(found) => {
             let kind = ambiguous(&list, found, port);
-            Ask::bare(&entries, &host, port).page("ambiguous", kind).await
+            Ask::bare(&entries, &host, port)
+                .page("ambiguous", kind)
+                .await
         }
         Lookup::NotFound => {
             let kind = not_found(&list, &host, port);
-            Ask::bare(&entries, &host, port).page("not-found", kind).await
+            Ask::bare(&entries, &host, port)
+                .page("not-found", kind)
+                .await
         }
     }
 }

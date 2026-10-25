@@ -190,7 +190,9 @@ mod forget_through_the_node {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn forget_of_own_node_is_refused_self_target() {
         let fx = setup(Opts::default()).await;
-        let err = fx.when_action(MemberActionReq::Forget(fx.node.id.to_string())).await;
+        let err = fx
+            .when_action(MemberActionReq::Forget(fx.node.id.to_string()))
+            .await;
         assert_eq!(refusal_code(&err), "self_target");
         fx.finish().await;
     }
@@ -198,7 +200,9 @@ mod forget_through_the_node {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn forget_of_unknown_node_is_refused_not_member() {
         let fx = setup(Opts::default()).await;
-        let err = fx.when_action(MemberActionReq::Forget(pid(9).to_string())).await;
+        let err = fx
+            .when_action(MemberActionReq::Forget(pid(9).to_string()))
+            .await;
         assert_eq!(refusal_code(&err), "not_member");
         fx.finish().await;
     }
@@ -206,7 +210,9 @@ mod forget_through_the_node {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn unforget_without_own_vote_is_refused_not_forgotten() {
         let fx = setup(Opts::default()).await;
-        let err = fx.when_action(MemberActionReq::Unforget(pid(9).to_string())).await;
+        let err = fx
+            .when_action(MemberActionReq::Unforget(pid(9).to_string()))
+            .await;
         assert_eq!(refusal_code(&err), "not_forgotten");
         fx.finish().await;
     }
@@ -214,7 +220,9 @@ mod forget_through_the_node {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn forget_with_bad_id_is_invalid_before_the_node_is_asked() {
         let fx = setup(Opts::default()).await;
-        let err = fx.when_action(MemberActionReq::Forget("zz".to_string())).await;
+        let err = fx
+            .when_action(MemberActionReq::Forget("zz".to_string()))
+            .await;
         assert!(is_invalid(&err), "{err:?}");
         fx.finish().await;
     }
@@ -267,7 +275,9 @@ mod members_reply_last_seen {
         let fx = setup(Opts::with_cached(pid(7), seen)).await;
         fx.given_row_for(pid(7)).await;
         let reply = fx.when_reply().await;
-        let age = row_of(&reply, pid(7)).last_seen_sec.expect("age from the cache");
+        let age = row_of(&reply, pid(7))
+            .last_seen_sec
+            .expect("age from the cache");
         assert!((120..=180).contains(&age), "age {age}");
         fx.finish().await;
     }
@@ -336,7 +346,9 @@ impl Fixture {
     }
 
     async fn when_reply(&self) -> MembersReply {
-        reply_of(&self.node, None).await.expect("the list of a running node")
+        reply_of(&self.node, None)
+            .await
+            .expect("the list of a running node")
     }
 
     /// Makes the node a row of the list without making it a member: the own block list names it.

@@ -6,9 +6,9 @@ use super::nets_texts::{
     managed_tail, net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS,
 };
 use super::overview::SlotView;
-use crate::web_gui::net_name::net_display_name;
 use super::snapshot::{TrayPeer, TraySnapshot};
 use super::tray_texts::peer_unnamed_text;
+use crate::web_gui::net_name::net_display_name;
 
 /// One member line of a network submenu.
 #[derive(Clone, Debug, PartialEq, Eq)]

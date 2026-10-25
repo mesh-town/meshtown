@@ -84,6 +84,23 @@ mod host_in_the_mesh_suffix {
         }
     }
 
+    mod while_the_own_name_is_not_in_the_document {
+        use super::*;
+
+        #[tokio::test]
+        async fn page_calls_this_machine_this_computer() {
+            // given
+            let t = setup(HashMap::new()).await;
+
+            // when
+            let answer = t.fetch("ghost.meshtown", 80, GHOST_GET).await;
+
+            // then
+            let text = String::from_utf8_lossy(&answer);
+            assert!(text.contains("on this computer"), "{text}");
+        }
+    }
+
     mod with_a_nested_label {
         use super::*;
 
@@ -131,7 +148,10 @@ mod ordinary_host {
 
         // then
         let text = String::from_utf8_lossy(&answer);
-        assert!(text.contains(SITE_BODY), "the site's answer is expected: {text}");
+        assert!(
+            text.contains(SITE_BODY),
+            "the site's answer is expected: {text}"
+        );
         assert_eq!(site.hits().await, 1, "the site must be contacted once");
     }
 }
@@ -182,7 +202,9 @@ impl Fixture {
         let (mut client, server) = tcp_pair().await;
         let route = self.cfg.route.clone();
         let request = request.to_vec();
-        crate::transport::net::task_label::spawn(async move { relay_bytes(opened, &route, server, &request).await });
+        crate::transport::net::task_label::spawn(async move {
+            relay_bytes(opened, &route, server, &request).await
+        });
         let mut answer = Vec::new();
         within("read the answer", client.read_to_end(&mut answer))
             .await

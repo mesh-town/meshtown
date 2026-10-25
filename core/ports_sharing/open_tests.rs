@@ -8,6 +8,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 
 use super::*;
+use crate::node::output::{log_page, log_summary};
 
 fn node(n: u8) -> PeerId {
     pid(n)
@@ -241,4 +242,72 @@ fn changes_dedup_keeps_order() {
     let (a, b) = (op(1, 10), op(1, 11));
     let (_, to_bind) = listener_changes(&[], &[b.clone(), a.clone(), b.clone()]);
     assert_eq!(to_bind, vec![b, a]);
+}
+
+mod after_the_network_stopped {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_journal_says_the_network_has_stopped() {
+        // given: an opener whose network was closed
+        let (o, l, seq) = (opener().await, free_port(), journal_mark());
+        o.close_all();
+        // when: a list with a port arrives
+        o.reconcile_listeners(vec![op(1, l)]);
+        // then: the member reads the reason in the [port] lines after the mark
+        let lines = port_lines_since(seq);
+        assert!(
+            lines
+                .iter()
+                .any(|t| t == "cannot open the port: the network has stopped"),
+            "no such line in the [port] journal: {lines:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn the_text_does_not_mention_a_node() {
+        // given
+        let (o, l, seq) = (opener().await, free_port(), journal_mark());
+        o.close_all();
+        // when
+        o.reconcile_listeners(vec![op(1, l)]);
+        // then: every line with the reason avoids the word
+        let reasons: Vec<String> = port_lines_since(seq)
+            .into_iter()
+            .filter(|t| t.starts_with("cannot open the port"))
+            .collect();
+        assert!(!reasons.is_empty(), "no refusal line was written");
+        for text in reasons {
+            assert!(!text.to_lowercase().contains("node"), "{text}");
+        }
+    }
+
+    #[tokio::test]
+    async fn the_port_is_not_listened() {
+        // given
+        let (o, l) = (opener().await, free_port());
+        o.close_all();
+        // when
+        o.reconcile_listeners(vec![op(1, l)]);
+        // then: nothing is bound, the port stays free
+        assert!(o.bind_states().is_empty());
+        assert!(
+            std::net::TcpListener::bind(("127.0.0.1", l)).is_ok(),
+            "the port is held by the closed opener"
+        );
+    }
+
+    fn journal_mark() -> u64 {
+        log_summary(0).last_seq
+    }
+
+    /// Texts of the `port` journal lines written after `seq`.
+    fn port_lines_since(seq: u64) -> Vec<String> {
+        log_page(seq, 4000)
+            .lines
+            .into_iter()
+            .filter(|l| l.tag == "port")
+            .map(|l| l.text)
+            .collect()
+    }
 }

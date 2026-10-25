@@ -32,7 +32,7 @@ export { JOIN_STALLED, JOIN_STALLED_SILENT };
 // the `JOIN_PROMISE_MS` deadline is not set.
 export { JOIN_WAITING };
 
-export interface InviteError {
+interface InviteError {
   message: string;
   word: string | null;
 }
@@ -79,7 +79,7 @@ function markerParts(message: string, word: string, marker: string, idx: number)
 }
 
 // Text for `form.status` after creating a network.
-export function createdNotice(label: unknown): string {
+function createdNotice(label: unknown): string {
   return createdNoticeText(quotedNet(label));
 }
 

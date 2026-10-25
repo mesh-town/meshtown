@@ -309,7 +309,10 @@ mod process_proxy_off {
         assert!(res.is_ok(), "{res:?}");
         let lines = socks_lines("proxy-off-flag", mark);
         assert_eq!(lines.len(), 1, "{lines:?}");
-        assert!(lines[0].starts_with("off by the --no-socks flag"), "{lines:?}");
+        assert!(
+            lines[0].starts_with("off by the --no-socks flag"),
+            "{lines:?}"
+        );
     }
 
     #[tokio::test]
@@ -335,12 +338,17 @@ mod process_proxy_off {
         run.effective_settings.process.socks_enabled = false;
         run.effective_settings.process.socks_port = port;
         // when: the body looks at the port and at the face
-        let res = run_with("proxy-off-port", run, PageRole::Optional, move |_, ctl| async move {
-            assert!(!port_open(port).await, "the port must stay untouched");
-            let face = ctl.proxy_face().expect("the main slot must have a seat");
-            assert_eq!(face.borrow().addr, None, "the face must be off");
-            Ok(())
-        })
+        let res = run_with(
+            "proxy-off-port",
+            run,
+            PageRole::Optional,
+            move |_, ctl| async move {
+                assert!(!port_open(port).await, "the port must stay untouched");
+                let face = ctl.proxy_face().expect("the main slot must have a seat");
+                assert_eq!(face.borrow().addr, None, "the face must be off");
+                Ok(())
+            },
+        )
         .await;
         // then: the run is fine
         assert!(res.is_ok(), "{res:?}");
@@ -413,12 +421,20 @@ mod process_proxy_start {
         let mut run = run_config(free_port());
         run.effective_settings.process.socks_port = port;
         // when: the body looks at the controller and the port
-        let res = run_with("proxy-seat", run, PageRole::Optional, move |_, ctl| async move {
-            assert!(port_open(port).await, "the proxy port must be open in the body");
-            let face = ctl.proxy_face().expect("the main slot must have a seat");
-            assert_eq!(face.borrow().addr.map(|a| a.port()), Some(port));
-            Ok(())
-        })
+        let res = run_with(
+            "proxy-seat",
+            run,
+            PageRole::Optional,
+            move |_, ctl| async move {
+                assert!(
+                    port_open(port).await,
+                    "the proxy port must be open in the body"
+                );
+                let face = ctl.proxy_face().expect("the main slot must have a seat");
+                assert_eq!(face.borrow().addr.map(|a| a.port()), Some(port));
+                Ok(())
+            },
+        )
         .await;
         // then: the body's checks held
         assert!(res.is_ok(), "{res:?}");
@@ -493,7 +509,11 @@ mod several_networks {
         // then: one accepting line for the port, and the port is still ours
         let want = format!("accepting connections on 127.0.0.1:{}", fx.port);
         let lines = socks_lines_any(fx.log_mark);
-        assert_eq!(lines.iter().filter(|l| l.contains(&want)).count(), 1, "{lines:?}");
+        assert_eq!(
+            lines.iter().filter(|l| l.contains(&want)).count(),
+            1,
+            "{lines:?}"
+        );
         assert_eq!(fx.slots.len(), 3, "main, saved and added");
         fx.finish().await;
     }
@@ -510,12 +530,20 @@ struct HostFx {
     log_mark: u64,
 }
 
-async fn setup_host(tag: &str) -> HostFx {
+fn fresh_host_dir(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
-    let dir = std::env::temp_dir().join(format!("mesh-host-proxy-{tag}-{}-{nanos}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!(
+        "mesh-host-proxy-{tag}-{}-{nanos}",
+        std::process::id()
+    ));
     std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+async fn setup_host(tag: &str) -> HostFx {
+    let dir = fresh_host_dir(tag);
     let cli = CliOverrides {
         network_key: Some(NetworkKey::from_bytes([61; 32]).encode()),
         transport_mode: Some(TransportMode::NoRelay),
@@ -531,7 +559,9 @@ async fn setup_host(tag: &str) -> HostFx {
     let port = free_port();
     main.effective_settings.process.socks_port = port;
     let log_mark = log_summary(0).last_seq;
-    let front = ProxyFront::bind(&main.effective_settings.process).await.unwrap();
+    let front = ProxyFront::bind(&main.effective_settings.process)
+        .await
+        .unwrap();
     let seat = Arc::new(ProxySeat::new(Some(front.clone()), NetSlotId::main()));
     let ctl = NodeCtl::new(&main.effective_settings);
     ctl.set_proxy_seat(NetSlotId::main(), seat.clone());
@@ -547,8 +577,20 @@ async fn setup_host(tag: &str) -> HostFx {
     };
     let sources = GuardSources::default();
     let (main_run, ctx_relaunch) = (main.clone(), relaunch.clone());
-    slots.set_context(SlotContext { main_run, relaunch: ctx_relaunch, sources });
-    HostFx { dir, slots, front, port, main, relaunch, log_mark }
+    slots.set_context(SlotContext {
+        main_run,
+        relaunch: ctx_relaunch,
+        sources,
+    });
+    HostFx {
+        dir,
+        slots,
+        front,
+        port,
+        main,
+        relaunch,
+        log_mark,
+    }
 }
 
 impl HostFx {
@@ -568,23 +610,32 @@ impl HostFx {
         };
         let path = net_slot_path(&main_path, &id).unwrap();
         let secret = NodeSecret::from_bytes(&[62; 32]);
-        save_net_file(&path, None, 1_790_000_000, 1_790_000_000, &secret, &net).expect("write the slot file");
+        save_net_file(&path, None, 1_790_000_000, 1_790_000_000, &secret, &net)
+            .expect("write the slot file");
         id
     }
 
     fn when_saved_networks_started(&self) {
         let sources = GuardSources::default();
-        self.slots.start_saved_slots(&self.main, &self.relaunch, &sources, 1_790_000_000);
+        self.slots
+            .start_saved_slots(&self.main, &self.relaunch, &sources, 1_790_000_000);
     }
 
     /// The slot's own controller shows the process listener. The slot leaves the map and is stopped,
     /// because the map hands out only the page-facing handle.
     fn then_slot_shows_the_listener(&self, id: &NetSlotId) {
-        let slot = self.slots.remove_slot(id).unwrap_or_else(|| panic!("no slot {id}"));
+        let slot = self
+            .slots
+            .remove_slot(id)
+            .unwrap_or_else(|| panic!("no slot {id}"));
         let face = slot.ctl.proxy_face().expect("the slot has no proxy seat");
         let shown = face.borrow().addr;
         slot.ctl.stop_on_os_signal();
-        assert_eq!(shown, self.front.addr(), "the slot must show the process listener");
+        assert_eq!(
+            shown,
+            self.front.addr(),
+            "the slot must show the process listener"
+        );
         assert_eq!(shown.map(|a| a.port()), Some(self.port));
     }
 
@@ -658,11 +709,11 @@ fn entry_error_names_the_running_node() {
         reason: "in use".into(),
         kind: std::io::ErrorKind::AddrInUse,
     };
-    let text = super::entry_error_text(&e, true).to_string();
+    let text = super::entry_errors::entry_error_text(&e, true).to_string();
     assert!(text.contains("already running on port 7777"), "{text}");
     assert!(text.contains("password reset"), "{text}");
     assert!(!text.contains("Another port"), "{text}");
-    let plain = super::entry_error_text(&e, false).to_string();
+    let plain = super::entry_errors::entry_error_text(&e, false).to_string();
     assert!(plain.contains("Another port"), "{plain}");
 }
 

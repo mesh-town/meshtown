@@ -99,25 +99,25 @@ fn log_flags_written(saved_flags_rev: Option<u64>, written_flag_paths: &[&'stati
     say("config", format!("flags written: {list}, revision {rev}"));
 }
 
-/// The node secret was written to the file — a separate line so it doesn't get lost among the others.
+/// The identity secret was written to the file — a separate line so it doesn't get lost among the others.
 fn log_secret_written(secret_written: bool) {
     if secret_written {
-        say("config", "node secret written to the file");
+        say("config", "identity secret written to the file");
     }
 }
 
-/// The node identity is temporary (for one run or with no file at all) — warns that after a
-/// restart the node will join the network with a different identity.
+/// This computer's identity is temporary (for one run or with no file at all) — warns that after a
+/// restart this computer will join the network with a different identity.
 fn log_identity_status(report: &FileReport) {
     if report.identity_declined {
         say(
             "config",
-            format!("node identity is for this run only (--no-config): after a restart the node will join the {NET_NAME} network with a different identity"),
+            format!("this computer's identity is for this run only (--no-config): after a restart this computer will join the {NET_NAME} network with a different identity"),
         );
     } else if !report.persistent_identity {
         say(
             "config",
-            format!("node identity is temporary: after a restart the node will join the {NET_NAME} network with a different identity"),
+            format!("this computer's identity is temporary: after a restart this computer will join the {NET_NAME} network with a different identity"),
         );
     }
 }

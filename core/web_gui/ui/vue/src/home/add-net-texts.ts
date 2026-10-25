@@ -8,9 +8,9 @@ export const MAX_NETS = 8;
 
 export const ADD_NET_TITLE = "Add another network";
 export const ADD_NET_LINK = "Add another network";
-export const ADD_NET_JOIN_LABEL = HOME_JOIN_FIELD_LABEL;
-export const ADD_NET_JOIN_PLACEHOLDER = HOME_JOIN_PLACEHOLDER;
-export const ADD_NET_JOIN_HINT = HOME_JOIN_PASTE_HINT;
+const ADD_NET_JOIN_LABEL = HOME_JOIN_FIELD_LABEL;
+const ADD_NET_JOIN_PLACEHOLDER = HOME_JOIN_PLACEHOLDER;
+const ADD_NET_JOIN_HINT = HOME_JOIN_PASTE_HINT;
 export const ADD_NET_CREATE_LABEL = HOME_CREATE_LABEL;
 export const ADD_NET_CREATE_PLACEHOLDER = "for example, family";
 export const ADD_NET_BTN = "Add network";
@@ -30,7 +30,7 @@ export const JOIN_NO_ANSWER_MS = 60_000;
 export const ADD_NET_LIMIT = `This invite is for a new network, and Mesh Town is already in ${MAX_NETS}. Leave a network, then paste the invite again.`;
 export const ADD_NET_BUSY = "Adding…";
 export const ADD_NET_ACTION = "add the network";
-export const ADD_NET_CREATE_ACTION = "create the network";
+const ADD_NET_CREATE_ACTION = "create the network";
 export const BANNER_OK = "OK";
 
 export const duplicateText = (net: string): string => `You're already in "${net}" — this invite isn't needed. Keep it for someone else.`;

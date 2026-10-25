@@ -84,26 +84,24 @@ pub async fn read_program_versions(r: &dyn Replica) -> Result<HashMap<PeerId, St
         .collect())
 }
 
+/// The journal line for one attempt: a write and an error are reported, an already current entry is not.
+fn attempt_line(attempt: &Result<bool>) -> Option<String> {
+    match attempt {
+        Ok(true) => Some(format!(
+            "announced program version {} to peers",
+            current_program_version()
+        )),
+        Ok(false) => None,
+        Err(e) => Some(format!("program version not written: {e:#}")),
+    }
+}
+
 /// The outcome of one attempt: `true` — the task is finished; the log reports only a write and an error.
 fn report_attempt(attempt: Result<bool>) -> bool {
-    match attempt {
-        Ok(written) => {
-            written.then(|| {
-                say(
-                    "docs",
-                    format!(
-                        "announced program version {} to peers",
-                        current_program_version()
-                    ),
-                )
-            });
-            true
-        }
-        Err(e) => {
-            say("docs", format!("program version not written: {e:#}"));
-            false
-        }
+    if let Some(line) = attempt_line(&attempt) {
+        say("docs", line);
     }
+    attempt.is_ok()
 }
 
 /// Once per launch brings its own entry to the build version; on an error retries in 30 s.

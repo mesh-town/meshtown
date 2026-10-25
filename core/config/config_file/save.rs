@@ -18,7 +18,7 @@ use crate::node::output::{say, NET_NAME};
 /// Why the file was not written.
 #[derive(Debug)]
 pub enum SaveError {
-    /// The disk holds a different revision: the file was edited behind the node's back. Holds the revision from disk.
+    /// The disk holds a different revision: the file was edited behind Mesh Town's back. Holds the revision from disk.
     StaleRev(u64),
     /// The write failed. Holds the path and the reason as text.
     Io(String),
@@ -131,27 +131,24 @@ fn compute_new_rev(
     rev_floor: u64,
     path: &Path,
 ) -> Result<u64, SaveError> {
-    match expected_rev {
-        Some(r) => {
-            match load_config_file(path) {
-                LoadedConfigFile::Parsed(p) if p.rev != r => {
-                    return Err(SaveError::StaleRev(p.rev))
-                }
-                LoadedConfigFile::Parsed(_) => {}
-                LoadedConfigFile::Absent => return Err(SaveError::StaleRev(0)),
-                LoadedConfigFile::Unreadable(m) | LoadedConfigFile::Invalid(m) => {
-                    return Err(SaveError::Io(format!(
-                        "the file on disk got corrupted after reading: {m}"
-                    )))
-                }
-            }
-            r.checked_add(1).ok_or_else(|| {
-                SaveError::Io("file revision reached the u64 limit, can't write".to_string())
-            })
-        }
-        None => rev_floor.checked_add(1).ok_or_else(|| {
-            SaveError::Io("file revision reached the u64 limit, can't write".to_string())
-        }),
+    let base = match expected_rev {
+        Some(r) => current_rev_or_stale(r, path)?,
+        None => rev_floor,
+    };
+    base.checked_add(1).ok_or_else(|| {
+        SaveError::Io("file revision reached the u64 limit, can't write".to_string())
+    })
+}
+
+/// Re-reads the file and checks that its revision is still `expected_rev`; returns that revision.
+fn current_rev_or_stale(expected_rev: u64, path: &Path) -> Result<u64, SaveError> {
+    match load_config_file(path) {
+        LoadedConfigFile::Parsed(p) if p.rev != expected_rev => Err(SaveError::StaleRev(p.rev)),
+        LoadedConfigFile::Parsed(_) => Ok(expected_rev),
+        LoadedConfigFile::Absent => Err(SaveError::StaleRev(0)),
+        LoadedConfigFile::Unreadable(m) | LoadedConfigFile::Invalid(m) => Err(SaveError::Io(
+            format!("the file on disk got corrupted after reading: {m}"),
+        )),
     }
 }
 

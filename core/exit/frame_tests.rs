@@ -81,3 +81,12 @@ fn address_forbidden_is_new_code() {
         exit_code_text(EXIT_CODE_ADDRESS_FORBIDDEN)
     );
 }
+
+#[test]
+fn refused_and_forbidden_texts_say_member_not_node() {
+    assert!(exit_code_text(EXIT_CODE_REFUSED).contains("this member doesn't act as an exit"));
+    assert!(exit_code_text(EXIT_CODE_ADDRESS_FORBIDDEN).contains("the member's own address"));
+    for code in [EXIT_CODE_REFUSED, EXIT_CODE_ADDRESS_FORBIDDEN] {
+        assert!(!exit_code_text(code).contains("node"));
+    }
+}

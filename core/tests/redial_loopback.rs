@@ -20,22 +20,11 @@ use meshtown_core::node::output;
 use meshtown_core::node::{self, NodeConfig};
 use meshtown_core::transport::net::mem::process_net;
 use meshtown_core::transport::net::PeerAddr;
-use tokio::time::{sleep, Instant};
+use tokio::time::sleep;
 
-/// Polls the condition every 50 ms until it becomes true or the limit expires — the same
-/// technique as in `invite_loopback.rs`.
-async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + limit;
-    loop {
-        if cond() {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return cond();
-        }
-        sleep(Duration::from_millis(50)).await;
-    }
-}
+#[path = "common/wait.rs"]
+mod wait;
+use wait::wait_until;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn redials_peer_that_came_up_later() {

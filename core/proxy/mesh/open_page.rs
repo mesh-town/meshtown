@@ -6,9 +6,9 @@ use tokio::time::timeout;
 
 use crate::node::node_name::read_node_names;
 use crate::ports_sharing::{PortRecord, PortsDoc};
-use crate::transport::net::PeerId;
 use crate::proxy::front::NetEntry;
 use crate::proxy::path::OpenedUpstream;
+use crate::transport::net::PeerId;
 
 use super::catalog::{addresses, suggest_labels, Device};
 use super::host::{mesh_url, MeshHost, MESH_SUFFIX};
@@ -18,7 +18,7 @@ use super::page_serve::serve_page;
 /// How long the shared documents may take to be read for a page.
 const DOC_READ_TIMEOUT: Duration = Duration::from_secs(2);
 /// The name shown when the node's own name is not in the document yet.
-const UNNAMED_SELF: &str = "this node";
+const UNNAMED_SELF: &str = "this computer";
 
 /// What was asked, and the device it resolved to (if any).
 pub(super) struct Ask<'a> {
@@ -39,7 +39,13 @@ struct Listing {
 impl<'a> Ask<'a> {
     /// A request that matched no single device. `entries` is never empty when called from `open_target`.
     pub(super) fn bare(entries: &'a [NetEntry], host: &'a MeshHost, port: u16) -> Ask<'a> {
-        Ask { host, port, device: None, address: String::new(), entry: &entries[0] }
+        Ask {
+            host,
+            port,
+            device: None,
+            address: String::new(),
+            entry: &entries[0],
+        }
     }
 
     pub(super) fn of_device(
@@ -49,14 +55,27 @@ impl<'a> Ask<'a> {
         host: &'a MeshHost,
         port: u16,
     ) -> Ask<'a> {
-        let entry = entries.iter().find(|e| e.id == device.net).unwrap_or(&entries[0]);
+        let entry = entries
+            .iter()
+            .find(|e| e.id == device.net)
+            .unwrap_or(&entries[0]);
         let address = addresses(list).remove(&device.peer).unwrap_or_default();
-        Ask { host, port, device: Some(device), address, entry }
+        Ask {
+            host,
+            port,
+            device: Some(device),
+            address,
+            entry,
+        }
     }
 
     /// Serves `kind` as the upstream; `label` goes to the journal line.
     pub(super) async fn page(&self, label: &str, kind: PageKind) -> OpenedUpstream {
-        let page = MeshPage { me: self.me_name().await, host: self.host_text(), kind };
+        let page = MeshPage {
+            me: self.me_name().await,
+            host: self.host_text(),
+            kind,
+        };
         let (send, recv) = serve_page(page);
         OpenedUpstream::stream(format!("mesh page: {label}"), send, recv)
     }
@@ -65,7 +84,9 @@ impl<'a> Ask<'a> {
     pub(super) async fn offline(&self) -> OpenedUpstream {
         let listing = self.listing().await;
         if !listing.published {
-            return self.page("not-opened", self.not_opened_kind(listing.open, true)).await;
+            return self
+                .page("not-opened", self.not_opened_kind(listing.open, true))
+                .await;
         }
         let kind = PageKind::Offline {
             device: self.device_name(),
@@ -78,7 +99,8 @@ impl<'a> Ask<'a> {
 
     pub(super) async fn not_opened(&self) -> OpenedUpstream {
         let listing = self.listing().await;
-        self.page("not-opened", self.not_opened_kind(listing.open, false)).await
+        self.page("not-opened", self.not_opened_kind(listing.open, false))
+            .await
     }
 
     pub(super) async fn no_service(&self, timed_out: bool) -> OpenedUpstream {
@@ -121,21 +143,30 @@ impl<'a> Ask<'a> {
         let me = self.entry.cfg.route.me();
         let replica = self.entry.cfg.route.shared_replica();
         let names = timeout(DOC_READ_TIMEOUT, read_node_names(&*replica)).await;
-        let found = names.ok().and_then(Result::ok).and_then(|mut names| names.remove(&me));
+        let found = names
+            .ok()
+            .and_then(Result::ok)
+            .and_then(|mut names| names.remove(&me));
         found.unwrap_or_else(|| UNNAMED_SELF.to_string())
     }
 
     /// Reads the ports document; any failure reads as an empty list.
     async fn listing(&self) -> Listing {
         let Some(device) = self.device else {
-            return Listing { open: Vec::new(), published: false };
+            return Listing {
+                open: Vec::new(),
+                published: false,
+            };
         };
         let doc = PortsDoc::new(self.entry.cfg.route.shared_replica());
         let read = timeout(DOC_READ_TIMEOUT, doc.read_all()).await;
         let views = read.ok().and_then(Result::ok).unwrap_or_default();
         let me = self.entry.cfg.route.me();
         let mine = views.into_iter().filter(|v| v.author == device.peer);
-        let mut listing = Listing { open: Vec::new(), published: false };
+        let mut listing = Listing {
+            open: Vec::new(),
+            published: false,
+        };
         for view in mine {
             let Some(record) = view.record else { continue };
             listing.published |= view.port == self.port && record.name_for(&me).is_some();
@@ -150,7 +181,11 @@ impl<'a> Ask<'a> {
             return None;
         }
         let name = record.name_for(me)?.to_string();
-        Some(OpenPort { port, name, url: mesh_url(&self.address, port) })
+        Some(OpenPort {
+            port,
+            name,
+            url: mesh_url(&self.address, port),
+        })
     }
 }
 
@@ -171,9 +206,18 @@ pub(super) fn ambiguous(list: &[Device], found: Vec<Device>, port: u16) -> PageK
         .map(|d| {
             let address = issued.get(&d.peer).cloned().unwrap_or_default();
             let url = mesh_url(&address, port);
-            (address, MeshChoice { url, name: d.name, online: d.online })
+            (
+                address,
+                MeshChoice {
+                    url,
+                    name: d.name,
+                    online: d.online,
+                },
+            )
         })
         .collect();
     choices.sort_by(|a, b| a.0.cmp(&b.0));
-    PageKind::Ambiguous { choices: choices.into_iter().map(|(_, c)| c).collect() }
+    PageKind::Ambiguous {
+        choices: choices.into_iter().map(|(_, c)| c).collect(),
+    }
 }

@@ -95,7 +95,11 @@ fn build_startup_log(ring_capacity: usize) -> LogRing {
 }
 
 /// Two fixed demo peers; `offline_peers` determines how many of them are shown offline.
-pub(crate) fn build_demo_peers(offline_peers: u64, no_exit_peers: u64, _gen: &mut u64) -> Vec<DemoPeer> {
+pub(crate) fn build_demo_peers(
+    offline_peers: u64,
+    no_exit_peers: u64,
+    _gen: &mut u64,
+) -> Vec<DemoPeer> {
     let peer_count = 2u64;
     let offline_from = peer_count.saturating_sub(offline_peers.min(peer_count));
     let exit_until = peer_count.saturating_sub(no_exit_peers.min(peer_count));

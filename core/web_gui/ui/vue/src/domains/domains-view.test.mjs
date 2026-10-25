@@ -1,5 +1,5 @@
-/* Pure logic of the "Site checks" section (`domains-view.ts`): the cases were moved from the classic
- * `10-domains.test.mjs` (removed together with `10-domains.js`). */
+/* Pure logic of the "Site checks" section (`domains-view.ts`): the table rows, marks
+ * and actions. */
 
 import { agoText } from "../common/words.ts";
 import { describe, it } from "vitest";

@@ -15,21 +15,11 @@ use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig};
 use meshtown_core::transport::net::{AddrHint, PeerAddr};
 use meshtown_core::transport::peers_cache::{self, PeersCache};
-use tokio::time::{sleep, Instant};
+use tokio::time::sleep;
 
-/// Polls the condition every 50 ms until it becomes true or the limit expires.
-async fn wait_until(limit: Duration, mut cond: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + limit;
-    loop {
-        if cond() {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return cond();
-        }
-        sleep(Duration::from_millis(50)).await;
-    }
-}
+#[path = "common/wait.rs"]
+mod wait;
+use wait::wait_until;
 
 /// The path to the cache file in the test's temporary directory, its own for each call (by process name,
 /// time and suffix, so that cases don't interfere with each other).

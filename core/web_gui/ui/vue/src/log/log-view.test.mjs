@@ -1,5 +1,5 @@
-/* The pure logic of the Log section (`log-view.ts`): the `formatLogTime` and filter cases are moved from
- * the classic `11-log.test.mjs`; the rest — merging a poll, the ring, texts. */
+/* The pure logic of the Log section (`log-view.ts`): `formatLogTime` and filter cases, merging a poll,
+ * the ring, texts. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";

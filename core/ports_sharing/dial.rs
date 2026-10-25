@@ -105,7 +105,7 @@ pub async fn dial_peer_port(
     deadline: Duration,
 ) -> Result<PortStream, PortDialError> {
     if !members.is_member(node) {
-        return Err(PortDialError::new(PortReach::Offline, "node is offline"));
+        return Err(PortDialError::new(PortReach::Offline, "member is offline"));
     }
     let reply = timeout(deadline, request_port_stream(stack, pool, node, port)).await;
     match reply {

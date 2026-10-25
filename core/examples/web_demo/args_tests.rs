@@ -19,6 +19,9 @@ fn flags_are_parsed() {
 
 #[test]
 fn the_last_peers_do_not_offer_an_exit() {
-    let exits: Vec<bool> = build_demo_peers(0, 1, &mut 1).iter().map(|p| p.exit).collect();
+    let exits: Vec<bool> = build_demo_peers(0, 1, &mut 1)
+        .iter()
+        .map(|p| p.exit)
+        .collect();
     assert_eq!(exits, [true, false]);
 }

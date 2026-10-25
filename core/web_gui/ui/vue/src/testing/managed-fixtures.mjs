@@ -16,7 +16,7 @@ export const ID_HEX = "net-aaaa";
 export const ME_FULL = SELF_FULL;
 export const ANNA_FULL = "b1b1b1b1" + "0".repeat(56);
 export const BOB_FULL = "c2c2c2c2" + "0".repeat(56);
-export const NONAME_FULL = "d3d3d3d3" + "0".repeat(56);
+const NONAME_FULL = "d3d3d3d3" + "0".repeat(56);
 
 const PEERS = [
   { id_full: ANNA_FULL, id: "b1b1b1b1", name: "anna" },

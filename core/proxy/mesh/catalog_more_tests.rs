@@ -1,14 +1,16 @@
 use super::tests::*;
 use super::*;
 
-
 mod lookup_by_host {
     use super::*;
 
     #[test]
     fn unique_label_is_found_by_the_bare_address() {
         let router = id(&[0xab, 0xcd], 1);
-        let devs = devices(vec![row(main(), router, "Router"), row(main(), id(&[0x12], 2), "Camera")]);
+        let devs = devices(vec![
+            row(main(), router, "Router"),
+            row(main(), id(&[0x12], 2), "Camera"),
+        ]);
 
         let found = found_peer(lookup(&devs, &host("router")));
 
@@ -189,7 +191,11 @@ mod suggestions {
 
         let found = suggest_labels(&devs, "home");
 
-        assert_eq!(found, vec!["home-a", "home-b", "home-c"], "equal distance sorts alphabetically");
+        assert_eq!(
+            found,
+            vec!["home-a", "home-b", "home-c"],
+            "equal distance sorts alphabetically"
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
-/* Pure logic of the "Members" section (`peers-view.ts`): cases moved from the classic
- * `09-peers.test.mjs` (removed together with `09-peers.js`). */
+/* Pure logic of the "Members" section (`peers-view.ts`): the member rows
+ * and their actions. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";

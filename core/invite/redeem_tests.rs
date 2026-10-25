@@ -389,7 +389,7 @@ fn id(seed: u8) -> PeerId {
 // Closing the transport on the `redeem_with` exit — neighbor files (this file is already at the line ceiling).
 #[path = "redeem_close_tests.rs"]
 mod closes_transport;
-#[path = "redeem_mem_tests.rs"]
-mod mem_endpoint;
 #[path = "redeem_round_tests.rs"]
 mod managed_round;
+#[path = "redeem_mem_tests.rs"]
+mod mem_endpoint;

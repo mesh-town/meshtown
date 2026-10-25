@@ -110,12 +110,17 @@ impl InviteServer {
         transport: PeerId,
         who: &str,
     ) -> [u8; REPLY_LEN] {
-        let code = match timeout(ANSWER_TIMEOUT, self.decide_hold(req, transport)).await {
-            Ok(code) => code,
-            Err(_) => RedeemCode::Internal,
-        };
+        let code = self.decide_hold_in_time(req, transport).await;
         log_hold(who, code);
         hold_reply(code)
+    }
+
+    /// The code for a "save" request, `Internal` when the decision takes longer than `ANSWER_TIMEOUT`.
+    async fn decide_hold_in_time(&self, req: &[u8; HOLD_LEN], transport: PeerId) -> RedeemCode {
+        match timeout(ANSWER_TIMEOUT, self.decide_hold(req, transport)).await {
+            Ok(code) => code,
+            Err(_) => RedeemCode::Internal,
+        }
     }
 
     /// The code for a "save" request: signature and kind, future time, deadline, the list, the sender, one's own

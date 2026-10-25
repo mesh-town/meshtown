@@ -1,5 +1,5 @@
 /* Diagnostics status lights: the pure function `diagnosticChecks(state)` over the `/api/state` snapshot and
- * the "About" formatters (port of `formatUptimeText`, `formatMib` from the classic page). No Vue. */
+ * the "About" formatters (`formatUptimeText`, `formatMib`). No Vue. */
 
 import { NET_NAME, ROUTE_DIRECT_TEXT, peerLabel, quotedNet, routeViaText } from "../common/words.ts";
 import { isMulti, netName, slotState } from "../core/slots.ts";
@@ -13,7 +13,7 @@ import {
   diagNetAloneText, diagNetDirectoryWarnText, diagNetNoConnectionText, diagNetPeersText, diagPeersOnlineText, diagProxyOnText, diagRouteWontOpenText, diagRunningMinutesText, diagRunningUptimeText, diagUptimeText,
 } from "./diag-texts.ts";
 
-export type CheckLevel = "ok" | "warn" | "bad" | "none";
+type CheckLevel = "ok" | "warn" | "bad" | "none";
 export interface CheckRow {
   key: string;
   level: CheckLevel;

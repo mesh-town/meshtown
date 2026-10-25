@@ -1,23 +1,18 @@
 //! The common connection path of the proxy: route choice, connecting to the target directly or through an exit, and
 //! relaying bytes. It writes nothing to the client — the protocol's "face" (`serve`, `http`) writes the reply.
 
-use std::net::SocketAddr;
-
 use crate::transport::net::{BoxRecv, BoxSend, PeerId};
-use anyhow::{anyhow, Context, Result};
+use anyhow::Result;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tokio::time::timeout;
 
 use crate::exit;
 use crate::node::output::{say, short_peer_id};
-use crate::node::tcp_tune::disable_nagle;
 use crate::proxy::route::{self, RouteCtx};
 use crate::proxy::socks5::Target;
-use crate::site_checks::doh;
 
 use super::outcome::ProxyOutcome;
-use super::serve::{ProxyConfig, DIRECT_TCP_CONNECT_TIMEOUT};
+use super::serve::ProxyConfig;
 
 /// An open connection to the target and the route label for the summary line.
 pub(super) struct OpenedUpstream {
@@ -195,85 +190,6 @@ async fn relay_exit(
     }
 }
 
-/// The target address for the direct route: an IP address as is, a domain via the test table, then the own resolver
-/// over HTTPS (with a cache: a repeated name goes without contacting DoH).
-pub(in crate::proxy) async fn address_of(
-    cfg: &ProxyConfig,
-    target: &Target,
-    port: u16,
-) -> Result<SocketAddr> {
-    let domain = match target {
-        Target::Ip(ip) => return Ok(SocketAddr::new(*ip, port)),
-        Target::Domain(domain) => domain,
-    };
-    if let Some(addr) = cfg.host_overrides.get(domain) {
-        return Ok(*addr);
-    }
-    let addrs = cfg
-        .resolver
-        .resolve_cached(domain)
-        .await
-        .with_context(|| format!("{domain}: the own resolver did not answer"))?;
-    let ip = addrs
-        .iter()
-        .copied()
-        .find(|a| !doh::is_unusable(*a))
-        .ok_or_else(|| anyhow!("{domain}: no usable address"))?;
-    Ok(SocketAddr::from((ip, port)))
-}
-
-/// If it did not open, the address may have gone stale in the resolver cache: reset it (does nothing for an IP target).
-fn forget_address(cfg: &ProxyConfig, target: &Target) {
-    if let Target::Domain(domain) = target {
-        cfg.resolver.forget(domain);
-    }
-}
-
-/// The direct route: the target address and a connection with the `DIRECT_TCP_CONNECT_TIMEOUT` timeout.
-async fn open_direct_tcp(
-    cfg: &ProxyConfig,
-    target: &Target,
-    port: u16,
-    tag: &'static str,
-) -> Result<OpenedUpstream, OpenRefused> {
-    let addr = match address_of(cfg, target, port).await {
-        Ok(addr) => addr,
-        Err(e) => {
-            say(tag, format!("{e:#}"));
-            return Err(OpenRefused::new(ProxyOutcome::refused(
-                "direct",
-                "address not found",
-            )));
-        }
-    };
-    match timeout(DIRECT_TCP_CONNECT_TIMEOUT, TcpStream::connect(addr)).await {
-        Ok(Ok(tcp)) => {
-            disable_nagle(&tcp);
-            Ok(OpenedUpstream {
-                route_label: "direct".to_string(),
-                upstream: Upstream::Tcp(tcp),
-            })
-        }
-        Ok(Err(_)) => {
-            forget_address(cfg, target);
-            say(tag, format!("{addr}: connection did not open"));
-            Err(OpenRefused::new(ProxyOutcome::refused(
-                "direct",
-                "connection did not open",
-            )))
-        }
-        Err(_) => {
-            forget_address(cfg, target);
-            say(tag, format!("{addr}: connection did not open"));
-            Err(OpenRefused {
-                outcome: ProxyOutcome::refused("direct", "connection did not open"),
-                timed_out: true,
-                gateway_refused: false,
-            })
-        }
-    }
-}
-
 /// Logs an exit's refusal code and turns it into the outcome shown to the user.
 fn exit_refusal(peer: PeerId, code: u8, route_label: String) -> ProxyOutcome {
     say(
@@ -305,10 +221,14 @@ async fn splice_while_chosen(
     }
 }
 
+#[path = "path_direct.rs"]
+mod direct;
 #[path = "path_exits.rs"]
 mod exits;
 #[path = "path_udp.rs"]
 mod udp;
+pub(in crate::proxy) use direct::address_of;
+use direct::open_direct_tcp;
 #[cfg(test)]
 use exits::no_answer_reason;
 use exits::open_through_exits;

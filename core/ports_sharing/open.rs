@@ -8,13 +8,11 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::task::Poll;
-use std::time::Duration;
 
 use crate::transport::net::{NetStack, PeerId, PORT};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
-use tokio::task::{AbortHandle, JoinSet};
+use tokio::task::AbortHandle;
 
 use super::dial::forward_to_peer_port;
 use super::types::Opened;
@@ -95,27 +93,39 @@ impl Opener {
         let _rt = self.0.handle.enter();
         let mut inner = lock(&self.0.inner);
         if inner.closed {
-            say("port", "cannot open the port: the node is stopped");
+            say("port", "cannot open the port: the network has stopped");
             return;
         }
         let listening = listening_of(&inner.entries);
         let (to_close, to_bind) = listener_changes(&listening, &opened);
         let mut old = std::mem::take(&mut inner.entries);
         close_matching(&mut old, &to_close);
+        let entries = self.open_added(&mut inner, &opened, old, &to_bind);
+        inner
+            .pools
+            .retain(|id, _| entries.iter().any(|e| e.opened.node == *id));
+        inner.entries = entries;
+    }
+
+    /// The new entry list in the order of `opened`: a still-listening entry is kept, every other one is bound.
+    fn open_added(
+        &self,
+        inner: &mut Inner,
+        opened: &[Opened],
+        mut old: Vec<Entry>,
+        to_bind: &[Opened],
+    ) -> Vec<Entry> {
         let mut entries = Vec::new();
-        for o in dedup(&opened) {
+        for o in dedup(opened) {
             let kept = old
                 .iter()
                 .position(|e| e.opened == o && e.listener.is_some());
             entries.push(match kept {
                 Some(i) if !to_bind.contains(&o) => old.remove(i),
-                _ => self.bind_entry(&mut inner, o),
+                _ => self.bind_entry(inner, o),
             });
         }
-        inner
-            .pools
-            .retain(|id, _| entries.iter().any(|e| e.opened.node == *id));
-        inner.entries = entries;
+        entries
     }
 
     fn bind_entry(&self, inner: &mut Inner, o: Opened) -> Entry {
@@ -235,69 +245,8 @@ pub(crate) fn listener_changes(
     (to_close, to_bind)
 }
 
-/// Binding `127.0.0.1:local`; an error is a ready text for `BindFailed`.
-fn bind_loopback(local: u16) -> Result<TcpListener, String> {
-    if local == 0 {
-        return Err("cannot open local port 0".into());
-    }
-    probe_wildcard(local)?;
-    let busy = |e: std::io::Error| format!("cannot take 127.0.0.1:{local}: {e}");
-    let std_l = std::net::TcpListener::bind(("127.0.0.1", local)).map_err(busy)?;
-    std_l.set_nonblocking(true).map_err(busy)?;
-    TcpListener::from_std(std_l).map_err(busy)
-}
-
-/// macOS lets you take `127.0.0.1:L` on top of somebody else's `0.0.0.0:L`/`[::]:L`; the probe catches such a conflicting listener.
-#[cfg(target_os = "macos")]
-fn probe_wildcard(local: u16) -> Result<(), String> {
-    match std::net::TcpListener::bind(("0.0.0.0", local)) {
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
-            Err("port is in use by another program".into())
-        }
-        _ => Ok(()),
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-fn probe_wildcard(_local: u16) -> Result<(), String> {
-    Ok(())
-}
-
-/// Listener: the task accepts through the cell and holds a `JoinSet` of connections.
-pub(crate) fn spawn_listener<F, Fut>(listener: TcpListener, conn: F) -> Listener
-where
-    F: Fn(TcpStream) -> Fut + Send + 'static,
-    Fut: Future<Output = ()> + Send + 'static,
-{
-    let slot: Slot = Arc::new(Mutex::new(Some(listener)));
-    let task = crate::node::output::spawn(accept_loop(slot.clone(), conn)).abort_handle();
-    Listener { slot, task }
-}
-
-async fn accept_loop<F, Fut>(slot: Slot, conn: F)
-where
-    F: Fn(TcpStream) -> Fut + Send + 'static,
-    Fut: Future<Output = ()> + Send + 'static,
-{
-    let mut set = JoinSet::new();
-    loop {
-        let polled = std::future::poll_fn(|cx| match lock(&slot).as_ref() {
-            None => Poll::Ready(None),
-            Some(l) => l.poll_accept(cx).map(Some),
-        });
-        match polled.await {
-            None => break,
-            Some(Ok((tcp, _))) => {
-                crate::node::output::spawn_in(&mut set, conn(tcp));
-            }
-            Some(Err(e)) => {
-                say("port", format!("accepting a connection failed: {e}"));
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
-        }
-        while set.try_join_next().is_some() {}
-    }
-}
+mod listen;
+use listen::{bind_loopback, spawn_listener};
 
 #[cfg(test)]
 #[path = "open_tests.rs"]

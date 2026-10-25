@@ -53,7 +53,11 @@ mod headers {
     fn cache_control_is_no_store_for_every_variant() {
         for (what, page) in every_variant() {
             let reply = parse(&render_page(&page, false));
-            assert_eq!(reply.header("Cache-Control").as_deref(), Some("no-store"), "{what}");
+            assert_eq!(
+                reply.header("Cache-Control").as_deref(),
+                Some("no-store"),
+                "{what}"
+            );
         }
     }
 
@@ -61,7 +65,11 @@ mod headers {
     fn connection_is_close_for_every_variant() {
         for (what, page) in every_variant() {
             let reply = parse(&render_page(&page, false));
-            assert_eq!(reply.header("Connection").as_deref(), Some("close"), "{what}");
+            assert_eq!(
+                reply.header("Connection").as_deref(),
+                Some("close"),
+                "{what}"
+            );
         }
     }
 
@@ -69,7 +77,9 @@ mod headers {
     fn content_length_is_the_body_size_in_bytes_for_every_variant() {
         for (what, page) in every_variant() {
             let reply = parse(&render_page(&page, false));
-            let declared = reply.header("Content-Length").expect("Content-Length is present");
+            let declared = reply
+                .header("Content-Length")
+                .expect("Content-Length is present");
             assert_eq!(declared, reply.body.len().to_string(), "{what}");
         }
     }
@@ -119,7 +129,10 @@ mod head_only {
     #[test]
     fn ends_right_after_the_blank_line() {
         let bytes = render_page(&no_service(true), true);
-        assert!(bytes.ends_with(b"\r\n\r\n"), "a HEAD answer stops at the blank line");
+        assert!(
+            bytes.ends_with(b"\r\n\r\n"),
+            "a HEAD answer stops at the blank line"
+        );
     }
 }
 
@@ -132,7 +145,10 @@ mod not_found {
         #[test]
         fn title_names_the_missing_member() {
             let body = body_of(&not_found("x", &[]));
-            assert!(body.contains("There is no member called \u{201c}x\u{201d}"), "{body}");
+            assert!(
+                body.contains("There is no member called \u{201c}x\u{201d}"),
+                "{body}"
+            );
         }
 
         #[test]
@@ -147,14 +163,20 @@ mod not_found {
         #[test]
         fn label_is_shown_escaped() {
             let body = body_of(&not_found("<b>&\"", &[]));
-            assert!(!body.contains("<b>"), "raw markup from the label leaked: {body}");
+            assert!(
+                !body.contains("<b>"),
+                "raw markup from the label leaked: {body}"
+            );
             assert!(body.contains("&lt;b&gt;&amp;"), "{body}");
         }
 
         #[test]
         fn nested_label_is_shown_as_is() {
             let body = body_of(&not_found("a.b", &[]));
-            assert!(body.contains("There is no member called \u{201c}a.b\u{201d}"), "{body}");
+            assert!(
+                body.contains("There is no member called \u{201c}a.b\u{201d}"),
+                "{body}"
+            );
         }
 
         #[test]
@@ -199,7 +221,9 @@ mod not_found {
         fn one_is_offered_as_a_link() {
             let body = body_of(&not_found("x", &["http://box.meshtown"]));
             assert!(
-                body.contains("Did you mean <a href=\"http://box.meshtown\">http://box.meshtown</a>?"),
+                body.contains(
+                    "Did you mean <a href=\"http://box.meshtown\">http://box.meshtown</a>?"
+                ),
                 "{body}"
             );
         }
@@ -214,7 +238,11 @@ mod not_found {
         fn several_are_joined_with_or_in_order() {
             let body = body_of(&not_found(
                 "x",
-                &["http://one.meshtown", "http://two.meshtown", "http://three.meshtown"],
+                &[
+                    "http://one.meshtown",
+                    "http://two.meshtown",
+                    "http://three.meshtown",
+                ],
             ));
             let expected = concat!(
                 "Did you mean <a href=\"http://one.meshtown\">http://one.meshtown</a>",
@@ -225,7 +253,6 @@ mod not_found {
         }
     }
 }
-
 
 pub(super) struct Reply {
     /// Status line and headers, without the blank line.
@@ -241,7 +268,8 @@ impl Reply {
     pub(super) fn header(&self, name: &str) -> Option<String> {
         self.head.lines().skip(1).find_map(|line| {
             let (key, value) = line.split_once(':')?;
-            key.eq_ignore_ascii_case(name).then(|| value.trim().to_string())
+            key.eq_ignore_ascii_case(name)
+                .then(|| value.trim().to_string())
         })
     }
 }

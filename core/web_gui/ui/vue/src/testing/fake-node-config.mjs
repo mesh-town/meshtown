@@ -5,7 +5,7 @@
  * The running values (`node.running`) are remembered at the first PUT from the config that lay there before it: a test
  * may adjust `node.config` before mounting, and that is not "pending a restart". Returning a value clears the pending state. */
 
-export const RESTART_PATHS = ["socks.ifaces", "socks.access"];
+const RESTART_PATHS = ["socks.ifaces", "socks.access"];
 const DEFAULT_PORT = 1080;
 const LOOPBACK = "127.0.0.1";
 
@@ -62,7 +62,7 @@ function applyWebIfaces(node, config) {
 /** `PUT /api/config` of the fake node. */
 export function putConfig(node, body) {
   if (body.rev !== node.rev) {
-    return { status: 409, body: { error: "stale_rev", message: "settings were changed in another tab or by the node itself", rev: node.rev, config: copy(node.config) } };
+    return { status: 409, body: { error: "stale_rev", message: "settings were changed in another tab or by Mesh Town itself", rev: node.rev, config: copy(node.config) } };
   }
   const invalid = invalidWebIfaces(node, body.config);
   if (invalid) return invalid;

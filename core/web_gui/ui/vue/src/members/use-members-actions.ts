@@ -22,18 +22,18 @@ import type { MemberAction, MembersReply } from "./members-types.ts";
 import { banAtRisk, displayNames, leaveKind, managedFacts, meId, memberById, onlyOtherMember } from "./members-view.ts";
 
 /** What `ConfirmDialog` exposes outward through `defineExpose`. */
-export interface DialogHandle {
+interface DialogHandle {
   ask: (spec: DialogSpec) => Promise<boolean>;
   reason?: () => string;
   alt?: () => boolean; // the last opening was closed with the second button
 }
 
-export interface MembersActionsDeps {
+interface MembersActionsDeps {
   api?: ApiFn;
   busTarget?: EventTarget;
 }
 
-export interface MembersActions {
+interface MembersActions {
   status: Ref<ExitSaveStatus>;
   dialog: Ref<DialogHandle | null>;
   ask: (kind: DialogKind, idFull: string) => Promise<void>;

@@ -106,25 +106,29 @@ async fn read_request_raw(recv: &mut BoxRecv) -> std::result::Result<Vec<u8>, ()
     Ok(raw)
 }
 
-/// Answers one request and, if everything matches, shuttles bytes.
-async fn serve_exit_stream(
-    cfg: ExitConfig,
+/// Checks the permission and reads the request frame. `None` means the refusal or the
+/// bad-request reply has already been written and the stream is done.
+async fn read_exit_request(
+    cfg: &ExitConfig,
     peer: PeerId,
-    conn: ConnRef,
-    mut send: BoxSend,
-    mut recv: BoxRecv,
-) -> Result<()> {
+    send: &mut BoxSend,
+    recv: &mut BoxRecv,
+) -> Result<Option<(String, u16)>> {
     // 1. Permission: the exit is on and the caller is a network member.
     if !cfg.enabled.load(Ordering::Relaxed) || !cfg.members.is_member(peer) {
-        return write_exit_reply(&mut send, EXIT_CODE_REFUSED).await;
+        write_exit_reply(send, EXIT_CODE_REFUSED).await?;
+        return Ok(None);
     }
     // 2. Request frame: first two bytes, then the name and port.
-    let raw = match read_request_raw(&mut recv).await {
+    let raw = match read_request_raw(recv).await {
         Ok(raw) => raw,
-        Err(()) => return write_exit_reply(&mut send, EXIT_CODE_BAD_REQUEST).await,
+        Err(()) => {
+            write_exit_reply(send, EXIT_CODE_BAD_REQUEST).await?;
+            return Ok(None);
+        }
     };
-    let (target_host, port) = match parse_exit_request(&raw) {
-        Ok(v) => v,
+    match parse_exit_request(&raw) {
+        Ok(v) => Ok(Some(v)),
         Err(e) => {
             say(
                 "exit",
@@ -133,16 +137,41 @@ async fn serve_exit_stream(
                     short_peer_id(&peer)
                 ),
             );
-            return write_exit_reply(&mut send, EXIT_CODE_BAD_REQUEST).await;
+            write_exit_reply(send, EXIT_CODE_BAD_REQUEST).await?;
+            Ok(None)
         }
-    };
-    // The conventional UDP gateway target: served on this stream, no address lookup or connection.
-    if udpgw::is_gateway_target(&target_host, port) {
-        write_exit_reply(&mut send, EXIT_CODE_OK).await?;
-        let _stream_guard = conn.register_stream();
-        say("exit", format!("{}: udpgw opened", short_peer_id(&peer)));
-        udpgw::serve(cfg, peer, send, recv).await;
+    }
+}
+
+/// The conventional UDP gateway target: served on this stream, no address lookup or connection.
+async fn serve_gateway(
+    cfg: ExitConfig,
+    peer: PeerId,
+    conn: ConnRef,
+    mut send: BoxSend,
+    recv: BoxRecv,
+) -> Result<()> {
+    write_exit_reply(&mut send, EXIT_CODE_OK).await?;
+    let _stream_guard = conn.register_stream();
+    say("exit", format!("{}: udpgw opened", short_peer_id(&peer)));
+    udpgw::serve(cfg, peer, send, recv).await;
+    Ok(())
+}
+
+/// Answers one request and, if everything matches, shuttles bytes.
+async fn serve_exit_stream(
+    cfg: ExitConfig,
+    peer: PeerId,
+    conn: ConnRef,
+    mut send: BoxSend,
+    mut recv: BoxRecv,
+) -> Result<()> {
+    let Some((target_host, port)) = read_exit_request(&cfg, peer, &mut send, &mut recv).await?
+    else {
         return Ok(());
+    };
+    if udpgw::is_gateway_target(&target_host, port) {
+        return serve_gateway(cfg, peer, conn, send, recv).await;
     }
     // 3. Address and connection: the test table, otherwise a literal or the own resolver over HTTPS (IPv4 first,
     // then IPv6); closed networks are refused (`address_guard`). Neither domain nor port is checked (those rules

@@ -36,6 +36,11 @@ path = "examples/web_demo/main.rs"
 required-features = ["net-hyper"]
 test = true
 
+[[example]]
+name = "tray_icon_sheet"
+path = "examples/tray_icon_sheet/main.rs"
+required-features = ["net-hyper"]
+
 [dependencies]
 # Inflates the gzip-compressed embedded pages for clients that do not accept gzip.
 miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }

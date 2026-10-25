@@ -33,11 +33,7 @@ pub(super) fn preload_peer_names_into_members(
 
 /// Reads the address cache and builds the discovery sources from it and the config.
 pub(super) fn load_sources(cfg: &NodeConfig, boot: &Boot) -> (PeersCache, Vec<Arc<dyn Discovery>>) {
-    let cache = PeersCache::load(
-        cfg.peers_cache_path.as_deref(),
-        &boot.subkeys.network_id_hex(),
-        net_mainline::unix_now(),
-    );
+    let cache = load_peers_cache(cfg, boot);
     let sources = node_sources(
         cfg,
         &cache,
@@ -47,6 +43,15 @@ pub(super) fn load_sources(cfg: &NodeConfig, boot: &Boot) -> (PeersCache, Vec<Ar
         hyper_records(boot),
     );
     (cache, sources)
+}
+
+/// Reads the address cache of this network from the file.
+fn load_peers_cache(cfg: &NodeConfig, boot: &Boot) -> PeersCache {
+    PeersCache::load(
+        cfg.peers_cache_path.as_deref(),
+        &boot.subkeys.network_id_hex(),
+        net_mainline::unix_now(),
+    )
 }
 
 #[cfg(test)]

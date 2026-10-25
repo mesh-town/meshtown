@@ -134,7 +134,7 @@ Stale revision, 409:
 ```json
 {
   "error": "stale_rev",
-  "message": "settings were changed in another tab or by the node itself",
+  "message": "settings were changed in another tab or by Mesh Town itself",
   "rev": 9,
   "config": { "…": "the node's current document" }
 }
