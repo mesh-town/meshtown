@@ -39,7 +39,7 @@ mod node_outside_the_network {
 
         // then: offline, with its text, and B accepted no stream
         assert_eq!(err.reach, PortReach::Offline);
-        assert_eq!(err.text, "node is offline");
+        assert_eq!(err.text, "member is offline");
         assert_eq!(streams.count(), 0, "a stream was opened to a non-member");
     }
 }

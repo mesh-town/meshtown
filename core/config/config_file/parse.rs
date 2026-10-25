@@ -11,7 +11,6 @@ use super::parse_fields::{build_settings, push_field_error};
 use super::report::FieldError;
 use super::settings::Settings;
 use super::CONFIG_VERSION;
-use crate::node::output::NET_NAME;
 
 /// What is up with the node secret in the file envelope.
 #[derive(Clone, Debug)]
@@ -69,7 +68,7 @@ fn read_secret(root: &serde_json::Map<String, Value>, errs: &mut Vec<FieldError>
     errs.push(FieldError {
         field_path: "identity.secret".to_string(),
         message: format!(
-            "node secret is corrupted ({why}); the node has a new identity, for {NET_NAME} this is a different node"
+            "identity secret is corrupted ({why}); this computer has a new identity, other members will see it as a new computer"
         ),
     });
     SecretRead::Bad(why)
@@ -127,26 +126,38 @@ fn check_sections_are_objects(cfg: &Value, errs: &mut Vec<FieldError>) {
 
 /// Unknown fields: the root, `config`, the sections. Computed keys are part of `known_keys`.
 fn collect_unknown(root_obj: &serde_json::Map<String, Value>, cfg: &Value) -> Vec<String> {
+    let mut unknown = unknown_root_keys(root_obj);
+    unknown.extend(unknown_config_paths(cfg));
+    unknown
+}
+
+/// Keys of the root object that are not part of the file envelope.
+fn unknown_root_keys(root_obj: &serde_json::Map<String, Value>) -> Vec<String> {
+    root_obj
+        .keys()
+        .filter(|k| !["rev", "saved_at", "identity", "config"].contains(&k.as_str()))
+        .cloned()
+        .collect()
+}
+
+/// Paths (`config.<key>` and `config.<section>.<key>`) of the unknown fields inside `config`.
+fn unknown_config_paths(cfg: &Value) -> Vec<String> {
     let mut unknown: Vec<String> = Vec::new();
-    for k in root_obj.keys() {
-        if !["rev", "saved_at", "identity", "config"].contains(&k.as_str()) {
-            unknown.push(k.clone());
+    let Some(cfg_obj) = cfg.as_object() else {
+        return unknown;
+    };
+    for (k, v) in cfg_obj {
+        if k == "version" {
+            continue;
         }
-    }
-    if let Some(cfg_obj) = cfg.as_object() {
-        for (k, v) in cfg_obj {
-            if k == "version" {
-                continue;
-            }
-            if !fields::section_names().contains(&k.as_str()) {
-                unknown.push(format!("config.{k}"));
-                continue;
-            }
-            if let Some(sec_obj) = v.as_object() {
-                for sk in sec_obj.keys() {
-                    if !fields::known_keys(k).contains(&sk.as_str()) {
-                        unknown.push(format!("config.{k}.{sk}"));
-                    }
+        if !fields::section_names().contains(&k.as_str()) {
+            unknown.push(format!("config.{k}"));
+            continue;
+        }
+        if let Some(sec_obj) = v.as_object() {
+            for sk in sec_obj.keys() {
+                if !fields::known_keys(k).contains(&sk.as_str()) {
+                    unknown.push(format!("config.{k}.{sk}"));
                 }
             }
         }

@@ -60,9 +60,9 @@ pub fn parse_port_reply(buf: &[u8]) -> Result<u8> {
 pub fn port_code_text(code: u8) -> &'static str {
     match code {
         PORT_CODE_OK => "connection open",
-        PORT_CODE_NOT_PUBLISHED => "node does not publish this port",
-        PORT_CODE_CONNECT_FAILED => "port on the node does not respond",
-        PORT_CODE_REFUSED => "node does not open this port for you",
+        PORT_CODE_NOT_PUBLISHED => "the port is not published",
+        PORT_CODE_CONNECT_FAILED => "the port does not respond",
+        PORT_CODE_REFUSED => "access to this port is not allowed",
         PORT_CODE_BAD_REQUEST => "request could not be parsed",
         _ => "unknown reply code",
     }

@@ -252,7 +252,7 @@ way. There is no automatic choice by country or operator.
 
 **Working as an exit.** Independently of its own `route.exits`, a node serves other members as an exit. It accepts a
 request only from someone who has passed the handshake, and serves any domain on any port if the address is public.
-Private, loopback, link-local, CGNAT and multicast addresses and the node's own address are refused (code 7). Turn
+Private, loopback, link-local, CGNAT and multicast addresses and the member's own address are refused (code 7). Turn
 the exit off with `--no-exit`, with `exit off` in the console, or on the node page.
 
 `--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
