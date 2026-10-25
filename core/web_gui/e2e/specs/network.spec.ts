@@ -70,6 +70,32 @@ test('15-invite: invite: GET /api/network/invite and the button put it on the cl
   void app;
 });
 
+test('15-invite-qr: the invite comes with its QR picture', async ({ app, api, page }) => {
+  const net = new DiagnosticsSection(page);
+  // no anchor: the picture is told apart from the other images by its id; the alt text is not the contract here
+  const qr = page.locator('#invite-qr');
+  await awaitNetwork(api);
+
+  await test.step('given: before the invite is issued there is no picture', async () => {
+    await expect(net.inviteButton).toBeVisible();
+    await expect(qr).toHaveCount(0);
+  });
+
+  await net.inviteButton.click();
+
+  await test.step('the picture appears, it is an inline SVG that the browser decoded', async () => {
+    await expect(qr).toBeVisible({ timeout: START_TIMEOUT_MS });
+    await expect(qr).toHaveAttribute('src', /^data:image\/svg\+xml/);
+    await expect.poll(() => qr.evaluate((img: HTMLImageElement) => img.naturalWidth), { message: 'the SVG has a size, so it is drawn' }).toBeGreaterThan(0);
+  });
+
+  await test.step('the "too long for a QR code" note is not shown', async () => {
+    await expect(page.locator('#invite-qr-too-long')).toHaveCount(0);
+  });
+
+  void app;
+});
+
 test.describe('no network', () => {
   test.use({ targetFlags: { extraArgs: ['--no-network'] } });
 
