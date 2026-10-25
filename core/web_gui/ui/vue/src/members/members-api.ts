@@ -5,6 +5,7 @@ import { slotPath } from "../core/slots.ts";
 import { parseOverview } from "../core/overview.ts";
 import type { LeaveReply } from "../core/api-types.ts";
 import { NET_NAME, errReason, failText } from "../common/words.ts";
+import { forDevice } from "../common/device.ts";
 import { cleanReason } from "./member-reason.ts";
 import type { AdmissionInfo, ExcludedInfo, ForgetInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo, VoteInfo } from "./members-types.ts";
 
@@ -177,5 +178,5 @@ export function memberErrorText(err: unknown): string {
   if (reason && reason !== code) return failText(ACTION, err);
   if (SENTENCES[code]) return SENTENCES[code];
   const known = REASONS[code];
-  return known ? "Couldn't " + ACTION + ": " + known : failText(ACTION, null);
+  return known ? "Couldn't " + ACTION + ": " + (code === "not_member" ? known : forDevice(known)) : failText(ACTION, null);
 }

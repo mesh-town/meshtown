@@ -2,7 +2,7 @@
  * the setup step, the "how sites open right now" panel, the place of the join card, the card order. */
 
 import {
-  ABSENCE_HINT, ABSENCE_TEXT, CLI_FIXED_NOTE, EXIT_DOWN_TAIL, ROUTE_DIRECT_TEXT, ROUTE_LINE_APP_DIRECT, ROUTE_LINE_DIRECT,
+  ABSENCE_HINT, ABSENCE_TEXT, START_HINT_APP, CLI_FIXED_NOTE, EXIT_DOWN_TAIL, ROUTE_DIRECT_TEXT, ROUTE_LINE_APP_DIRECT, ROUTE_LINE_DIRECT,
   peerLabel, routeLineAppViaText, routeLineViaText, routeViaText,
 } from "../common/words.ts";
 import type { Absence } from "../core/store.ts";
@@ -112,7 +112,8 @@ function progressPanel(p: JoinProgress): StatePanelView {
 }
 
 function absencePanel(absent: Absence): StatePanelView {
-  return panel("grey", ABSENCE_TEXT[absent], ABSENCE_HINT[absent]);
+  const hint = inAppPage() && ABSENCE_HINT[absent] ? START_HINT_APP : ABSENCE_HINT[absent];
+  return panel("grey", ABSENCE_TEXT[absent], hint);
 }
 
 /** With several networks: names the network of an exit and whether that network has lost its link. */
@@ -170,6 +171,7 @@ const ROUTE_PANELS = new Map<string | undefined, (state: Partial<NodeState>, ctx
 function routePanel(state: Partial<NodeState>, ctx?: PanelCtx): StatePanelView {
   const route = state.route;
   if (ctx?.multi && ctx.head?.level === "red") return panel("red", ctx.head.text, "", ["pick-other"]);
+  if (ctx?.multi && ctx.head?.level === "green") return panel("green", ctx.head.text);
   return (ROUTE_PANELS.get(route && route.state) || directPanel)(state, ctx);
 }
 

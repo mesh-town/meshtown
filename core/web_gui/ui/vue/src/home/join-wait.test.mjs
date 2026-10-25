@@ -27,8 +27,8 @@ describe("inviteWaitText", () => {
     assert.equal(inviteWaitText(info({ state: "refused", message })), message);
   });
 
-  it("refused because the invite was not issued by an admin — the server text verbatim", () => {
-    const message = "This invite was not issued by an admin of the network, so it cannot be used. Ask an admin of the network for a new one.";
+  it("refused because the invite was not made by an admin — the core text (RedeemError::NotFromAdmin) verbatim", () => {
+    const message = "This invite can't be used: whoever made it is not an admin of this network now. Ask an admin of the network for a new one.";
     assert.equal(inviteWaitText(info({ state: "refused", message })), message);
   });
 

@@ -1,6 +1,7 @@
 /* The words of the "members" part of the page, verbatim from the UI spec. A name passed to a builder is already resolved. */
 
 import { NET_NAME, agoText, quotedNet } from "../common/words.ts";
+import { forDevice } from "../common/device.ts";
 
 export const BADGE_BAN_PROPOSED = "Ban proposed";
 export const BADGE_BLOCKED = "Blocked on this computer";
@@ -36,9 +37,9 @@ export const EXCLUDED_REMOVED_TEXT =
   "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.";
 export const EXCLUDED_LEFT_TEXT = "To use " + NET_NAME + " again, join a network with an invite from one of its members.";
 export const EXCLUDED_JOIN = "Join with another invite";
-// In the Android app: the way back is the app's own "Start over" dialog, reached through this address.
-export const EXCLUDED_APP_TEXT = "This phone was banned from the network. Start over to join with a new invite.";
-export const EXCLUDED_APP_BUTTON = "Start over";
+// In the Android app: the way back is the app's own "Leave network and reset…" menu item, reached through this address.
+export const EXCLUDED_APP_TEXT = "This phone was banned from the network. Leave the network and reset the app to join with a new invite.";
+export const EXCLUDED_APP_BUTTON = "Leave network and reset\u2026";
 export const START_OVER_URL = "meshtown-app://start-over";
 
 const plural = (n: number, one: string, many: string): string => n + " " + (n === 1 ? one : many);
@@ -107,7 +108,7 @@ export const leftNetworkStatus = (net?: string | null, announced = true): string
   excludedTitle("left", net) + "." + (announced ? "" : " " + NOT_TOLD_LEFT);
 export const leaveMultiTitle = (net: string): string => `Leave "${net}"?`;
 export const leaveMultiBody = (net: string): string =>
-  `Disconnect this computer from "${net}" for good. Your other networks stay. You'll need a new invite to come back.`;
+  forDevice(`Disconnect this computer from "${net}" for good. Your other networks stay. You'll need a new invite to come back.`);
 export const leaveExitLine = (exit: string): string =>
   `Your exit ${exit} is in this network. After you leave, sites will open directly until you choose another exit.`;
 

@@ -15,7 +15,7 @@ export interface RouteHead {
   text: string;
 }
 
-const WONT_OPEN = "Sites won't open";
+export const WONT_OPEN = "Sites won't open";
 const wontOpen: RouteHead = { level: "red", text: WONT_OPEN };
 
 // The member chosen as the exit, when it is known in the network and no longer offers an exit.

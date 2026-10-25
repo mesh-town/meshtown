@@ -1,6 +1,7 @@
 /* What the member list means for the exit you chose: a warning when it was banned, left or is blocked here,
  * the exit list without banned members, and the header line / state panel that carry the warning. Pure functions. */
 
+import { forDevice } from "../common/device.ts";
 import type { ExitCandidate } from "../home/exit-list.ts";
 import type { StatePanelView } from "../home/home-view.ts";
 import type { StatusLine } from "../shell/status-line.ts";
@@ -39,7 +40,7 @@ function warningOf(id: string, row: MemberRow | undefined, names: Record<string,
   const kind = kindOf(row);
   if (!kind) return null;
   const name = names[id] || id.slice(0, 8);
-  const what = name + " " + WARNING_TAIL[kind];
+  const what = name + " " + forDevice(WARNING_TAIL[kind]);
   return { id, kind, text: "Your exit " + what + TAIL, hint: what + ". Choose another exit below." };
 }
 
