@@ -87,7 +87,7 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
         CliCommand::Keygen { label, raw } => crate::cli::commands::keygen(label, raw),
         CliCommand::ConfigPath { config } => crate::cli::commands::config_path(config),
         CliCommand::Run(args) => {
-            crate::node::fd_limit::report(fd_note);
+            report_run_start(fd_note);
             let m = matches.subcommand_matches("run").expect("run subcommand");
             crate::cli::commands::run_node_command(args, m).await
         }
@@ -113,6 +113,18 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
             crate::gui::tray::app::tray_role::run_tray(args, require_tray(tray)?)
         }
     }
+}
+
+/// First log lines of `run`: the program version, then the raised open-files limit (if it changed).
+fn report_run_start(fd_note: Option<String>) {
+    crate::node::output::say(
+        "node",
+        format!(
+            "meshtown {}",
+            crate::node::program_version::current_program_version()
+        ),
+    );
+    crate::node::fd_limit::report(fd_note);
 }
 
 #[cfg(test)]

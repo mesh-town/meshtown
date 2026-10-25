@@ -73,6 +73,76 @@ impl Drop for Reaper {
     }
 }
 
+/// Spawns `meshtown run` (low soft limit, no relay/checks/socks) and returns the reaper plus a line channel.
+fn spawn_run(extra: &[&str]) -> (Reaper, std::sync::mpsc::Receiver<String>) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
+    cmd.arg("run")
+        .args(extra)
+        .args(["--web-port", "0", "--no-relay", "--no-checks", "--no-socks"])
+        .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
+        .env_remove("MESHTOWN_KEY")
+        .env_remove("MESHTOWN_INVITE")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    lower_nofile(&mut cmd);
+    let mut node = Reaper(cmd.spawn().expect("start meshtown"));
+    let stdout = node.0.stdout.take().unwrap();
+    let (tx, rx) = channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
+            if tx.send(line).is_err() {
+                break;
+            }
+        }
+    });
+    (node, rx)
+}
+
+fn next_line(rx: &std::sync::mpsc::Receiver<String>) -> String {
+    loop {
+        match rx.recv_timeout(Duration::from_secs(30)) {
+            Ok(line) if line.trim().is_empty() => continue,
+            Ok(line) => return line,
+            Err(e) => panic!("no stdout line from `run`: {e}"),
+        }
+    }
+}
+
+fn assert_version_line(line: &str) {
+    let want = format!("[node] meshtown {}", env!("CARGO_PKG_VERSION"));
+    assert!(line.ends_with(&want), "first line: {line}");
+}
+
+#[test]
+fn run_prints_version_before_the_limit_line() {
+    let key = meshtown_core::members::network_key::NetworkKey::generate()
+        .unwrap()
+        .encode();
+    let (_node, rx) = spawn_run(&["--no-config", "--key", &key]);
+    assert_version_line(&next_line(&rx));
+    let second = next_line(&rx);
+    assert!(second.contains("open files limit"), "second line: {second}");
+}
+
+#[test]
+fn run_without_key_still_starts_with_the_version() {
+    let (_node, rx) = spawn_run(&["--no-config"]);
+    assert_version_line(&next_line(&rx));
+}
+
+#[test]
+fn version_flag_stdout_is_one_line() {
+    let out = stdout_of(&["--version"]);
+    assert!(!out.contains("open files limit"), "stdout: {out}");
+    let lines: Vec<&str> = out.lines().filter(|l| !l.trim().is_empty()).collect();
+    assert_eq!(lines.len(), 1, "stdout: {out}");
+    assert_eq!(
+        lines[0].trim(),
+        format!("meshtown {}", env!("CARGO_PKG_VERSION"))
+    );
+}
+
 #[test]
 fn run_reports_open_files_limit() {
     let key = meshtown_core::members::network_key::NetworkKey::generate()
