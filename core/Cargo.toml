@@ -9,6 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 license.workspace = true
 description = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts"
+build = "build.rs"
 
 [lints]
 workspace = true
@@ -36,6 +37,8 @@ required-features = ["net-hyper"]
 test = true
 
 [dependencies]
+# Inflates the gzip-compressed embedded pages for clients that do not accept gzip.
+miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
 # 64-bit atomics for targets without native ones (32-bit MIPS).
 portable-atomic = { version = "1", features = ["fallback"] }
 rand = "0.10"
@@ -60,7 +63,7 @@ anyhow = "1"
 if-addrs = "0.13.4"
 httparse = "1.10"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = "0.3"
 icu_normalizer = { version = "2.3", default-features = false, features = ["compiled_data"] }
 axum = { version = "=0.8.9", default-features = false, features = ["tokio", "http1", "json", "query"] }
 hyper = { version = "=1.11.1", default-features = false, features = ["http1", "server"] }
@@ -73,9 +76,9 @@ url = "=2.5.8"
 # so the build hashes match and the builds are shared.
 crossbeam-utils = { version = "0.8", features = ["std"] }
 # hyper transport (townjump, pinned by revision): the `net-hyper` feature.
-townjump-dht = { git = "https://github.com/mesh-town/townjump", rev = "ae6e1361bdc545b5c1f51c2f452eaedfcea4870a", optional = true }
-townjump-dht-peeroxide = { git = "https://github.com/mesh-town/townjump", rev = "ae6e1361bdc545b5c1f51c2f452eaedfcea4870a", optional = true }
-townjump-keys = { git = "https://github.com/mesh-town/townjump", rev = "ae6e1361bdc545b5c1f51c2f452eaedfcea4870a", optional = true }
+townjump-dht = { git = "https://github.com/mesh-town/townjump", rev = "96d054504d9f9f2a8f7a0a77f418be4ba39782a0", optional = true }
+townjump-dht-peeroxide = { git = "https://github.com/mesh-town/townjump", rev = "96d054504d9f9f2a8f7a0a77f418be4ba39782a0", optional = true }
+townjump-keys = { git = "https://github.com/mesh-town/townjump", rev = "96d054504d9f9f2a8f7a0a77f418be4ba39782a0", optional = true }
 # Network change watcher: versions are pinned.
 netwatch = { version = "=0.19.3", optional = true }
 n0-watcher = { version = "=1.0.0", optional = true }
@@ -102,6 +105,10 @@ rustix = { version = "1", default-features = false, features = ["event", "net", 
 tikv-jemallocator = { version = "0.7", features = ["profiling"], optional = true }
 tikv-jemalloc-ctl = { version = "0.7", optional = true }
 
+[build-dependencies]
+# Compresses the embedded pages at build time (`build.rs`).
+flate2 = { version = "=1.1.10", default-features = false, features = ["rust_backend"] }
+
 [features]
 default = ["gui", "net-hyper"]
 # The node layer (all lib.rs modules except the core) on the hyper transport: lookup through HyperDHT, joining for members (net_hyper/, net_hyperdht/).
@@ -112,5 +119,5 @@ gui = ["dep:tray-icon"]
 
 [dev-dependencies]
 # Test network of the loop (tests only).
-peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "ae6e1361bdc545b5c1f51c2f452eaedfcea4870a" }
-libudx = { git = "https://github.com/mesh-town/townjump", rev = "ae6e1361bdc545b5c1f51c2f452eaedfcea4870a" }
+peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "96d054504d9f9f2a8f7a0a77f418be4ba39782a0" }
+libudx = { git = "https://github.com/mesh-town/townjump", rev = "96d054504d9f9f2a8f7a0a77f418be4ba39782a0" }

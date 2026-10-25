@@ -20,6 +20,10 @@ and one entry in the shared "path → content type" table (`PAGES` in the same f
 | `include_str!("../../web_gui/ui/css/NN-*.css")` (8 files) | `GET /css/NN-*.css` | `text/css; charset=utf-8` |
 | `include_str!("../../web_gui/ui/bundle/app.js")` | `GET /bundle/app.js` | `text/javascript; charset=utf-8` |
 
+At build time `core/build.rs` compresses these files with gzip; the binary holds only the compressed bodies.
+A page is answered with `Content-Encoding: gzip` when the request's `Accept-Encoding` allows gzip, and with the
+unpacked body otherwise (including when the header is absent); both answers carry `Vary: Accept-Encoding`.
+
 The listing of the `core/web_gui/ui/` directory is not served at any address: the handler knows exactly 10
 paths from the table (`PAGES`), and any other one (including the directory itself) gets a 404 `not_found`.
 

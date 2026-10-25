@@ -33,15 +33,23 @@ fn require_tray(tray: Option<TrayRef>) -> anyhow::Result<TrayRef> {
     tray.ok_or_else(|| anyhow::anyhow!(NO_TRAY_TEXT))
 }
 
-/// Sets up log output (`tracing`) to stderr; the default filter is warnings and above.
+/// Sets up log output (`tracing`) to stderr; the filter comes from `RUST_LOG`
+/// (`target=level` list), warnings and above when it is unset or invalid.
 fn init_tracing() {
-    tracing_subscriber::fmt()
-        .with_writer(std::io::stderr)
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")),
-        )
+    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt};
+    let filter = log_filter(std::env::var("RUST_LOG").ok().as_deref());
+    tracing_subscriber::registry()
+        .with(filter)
+        .with(fmt::layer().with_writer(std::io::stderr))
         .init();
+}
+
+/// Parses a `RUST_LOG` value; `None` or a parse error gives `warn` for every target.
+fn log_filter(raw: Option<&str>) -> tracing_subscriber::filter::Targets {
+    use tracing_subscriber::filter::{LevelFilter, Targets};
+    let fallback = || Targets::new().with_default(LevelFilter::WARN);
+    raw.and_then(|v| v.parse::<Targets>().ok())
+        .unwrap_or_else(fallback)
 }
 
 /// The process entry without a tray backend: no command means `run`.

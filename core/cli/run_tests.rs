@@ -143,3 +143,54 @@ mod require_tray {
         assert!(std::ptr::addr_eq(got, tray), "the same backend comes back");
     }
 }
+
+mod log_filter {
+    use super::super::log_filter;
+    use tracing::Level;
+    use tracing_subscriber::filter::Targets;
+
+    fn on(filter: &Targets, target: &str, level: Level) -> bool {
+        filter.would_enable(target, &level)
+    }
+
+    #[test]
+    fn unset_rust_log_gives_warn() {
+        let f = log_filter(None);
+
+        assert!(on(&f, "meshtown_core", Level::WARN));
+        assert!(!on(&f, "meshtown_core", Level::INFO));
+    }
+
+    #[test]
+    fn bare_level_applies_to_all() {
+        let f = log_filter(Some("info"));
+
+        assert!(on(&f, "meshtown_core", Level::INFO));
+        assert!(on(&f, "mainline::rpc", Level::INFO));
+        assert!(!on(&f, "meshtown_core", Level::DEBUG));
+    }
+
+    #[test]
+    fn target_list_values_parse() {
+        let f = log_filter(Some("info,mainline::rpc::socket=off"));
+        assert!(!on(&f, "mainline::rpc::socket", Level::ERROR));
+        assert!(on(&f, "meshtown_core", Level::INFO));
+
+        let f = log_filter(Some("warn,mainline::rpc::socket=error,bbr1_trace=info"));
+        assert!(!on(&f, "mainline::rpc::socket", Level::WARN));
+        assert!(on(&f, "mainline::rpc::socket", Level::ERROR));
+        assert!(on(&f, "bbr1_trace", Level::INFO));
+        assert!(on(&f, "other", Level::WARN));
+        assert!(!on(&f, "other", Level::INFO));
+    }
+
+    #[test]
+    fn invalid_value_falls_back_to_warn() {
+        for raw in ["foo=bogus", "foo[{field=val}]=debug"] {
+            let f = log_filter(Some(raw));
+
+            assert!(on(&f, "foo", Level::WARN), "{raw}");
+            assert!(!on(&f, "foo", Level::INFO), "{raw}");
+        }
+    }
+}
