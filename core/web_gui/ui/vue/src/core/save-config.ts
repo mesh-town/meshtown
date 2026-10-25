@@ -52,11 +52,23 @@ function deepRaw(value: unknown): unknown {
   return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, deepRaw(v)]));
 }
 
-async function putChanges(store: Store, changes: ConfigChanges, deps: ResolvedDeps, rev: number | null): Promise<void> {
+// Writes of one store go out one at a time: a write starts when the previous one has finished (well or not),
+// so it reads the revision and the config that the previous reply has left in the store.
+const queueTails = new WeakMap<object, Promise<void>>();
+
+function inOrder<T>(store: Store, run: () => Promise<T>): Promise<T> {
+  const key = toRaw(store);
+  const result = (queueTails.get(key) ?? Promise.resolve()).then(run);
+  queueTails.set(key, result.then(() => undefined, () => undefined));
+  return result;
+}
+
+// `rev` undefined: the store revision at the moment of sending.
+async function putChanges(store: Store, changes: ConfigChanges, deps: ResolvedDeps, rev?: number | null): Promise<void> {
   if (!store.config) throw new ApiError(0, "no_config", API_ERROR_TEXT.no_config);
   const config = structuredClone(toRaw(store.config));
   for (const [path, value] of Object.entries(changes)) setPath(config, path, deepRaw(value));
-  const res = await deps.api<ConfigResponse>("PUT", "/api/config", { rev, config });
+  const res = await deps.api<ConfigResponse>("PUT", "/api/config", { rev: rev === undefined ? store.configRev : rev, config });
   storeConfigReply(store, res);
 }
 
@@ -93,18 +105,18 @@ async function runSave(store: Store, deps: SaveDeps, save: (d: ResolvedDeps) => 
 
 // `deps = { api, busTarget }`: api is a (method, path, body) function, busTarget is where to send `meshtown:changed`.
 export function saveConfigFields(store: Store, changes: ConfigChanges, deps: SaveDeps = defaultSaveDeps): Promise<SaveResult> {
-  return runSave(store, deps, (d) => putWithRetry(store, changes, d));
+  return runSave(store, deps, (d) => inOrder(store, () => putWithRetry(store, changes, d)));
 }
 
 // A single PUT with no GET and no retry: the 409 is returned to the caller so that it can show the conflict.
-// `rev` defaults to the store revision; "save over" passes the revision from the 409 body.
+// `rev` defaults to the store revision at the moment of sending; "save over" passes the revision from the 409 body.
 export function putConfigOnce(
   store: Store,
   changes: ConfigChanges,
   deps: SaveDeps = defaultSaveDeps,
-  rev: number | null = store.configRev,
+  rev?: number | null,
 ): Promise<SaveResult> {
-  return runSave(store, deps, (d) => putChanges(store, changes, d, rev));
+  return runSave(store, deps, (d) => inOrder(store, () => putChanges(store, changes, d, rev)));
 }
 
 // 422 — the field text from the response body; anything else — "Couldn't save: <node text>".
@@ -152,7 +164,7 @@ export async function saveSlotFields(store: Store, slot: string, changes: Config
   if (slot === "main") return saveConfigFields(store, changes, deps);
   if (!store.slots[slot]?.config) return { ok: false, error: noConfig() };
   const d: ResolvedDeps = { ...defaultSaveDeps, ...deps };
-  const error = await putSlotWithRetry(store, slot, changes, d.api).then(() => null, (err: unknown) => err as ApiErrorLike);
+  const error = await inOrder(store, () => putSlotWithRetry(store, slot, changes, d.api)).then(() => null, (err: unknown) => err as ApiErrorLike);
   if (error) return { ok: false, error };
   const target = d.busTarget || (typeof document === "undefined" ? undefined : document);
   if (target) notifyChanged(target, "state");

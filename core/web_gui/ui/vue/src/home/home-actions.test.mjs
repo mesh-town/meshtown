@@ -60,13 +60,15 @@ describe("chooseExit, two quick clicks", () => {
       const first = chooseExit(w.form, w.store, "A", w.deps);
       w.form.exitChoice = "B"; // this is what the radio button's v-model does on the second click
       const second = chooseExit(w.form, w.store, "B", w.deps);
-      // when: A completed
+      // when: A completed (the first PUT starts a tick after the call)
+      await new Promise((r) => setImmediate(r));
       w.gates[0].resolve();
       await first;
       // then
       assert.equal(w.form.exitChoice, "B", "the radio button doesn't jump to A");
       assert.equal(w.form.exitSavesInFlight, 1);
-      // when: B completed
+      // when: B completed (its PUT starts once the first one is done)
+      await new Promise((r) => setImmediate(r));
       w.gates[1].resolve();
       await second;
       // then

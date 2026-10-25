@@ -4,6 +4,7 @@
 // In the Android app the way back is the app's "Start over" dialog: a link to an address the app intercepts.
 import { excludedByText } from "./excluded-by.ts";
 import { inAppPage } from "../home/browser-setup.ts";
+import { forDevice } from "../common/device.ts";
 import {
   EXCLUDED_APP_BUTTON, EXCLUDED_APP_TEXT, EXCLUDED_JOIN, EXCLUDED_LEFT_TEXT, EXCLUDED_BANNED_TEXT, EXCLUDED_REMOVED_TEXT, FORGOTTEN_CARD_TEXT, FORGOTTEN_JOIN, START_OVER_URL, excludedTitle,
 } from "./members-texts.ts";
@@ -15,7 +16,8 @@ const inApp = inAppPage();
 // In a Managed network an admin removes a member; in a Peer network the members ban one.
 const BODY = { left: EXCLUDED_LEFT_TEXT, banned: EXCLUDED_BANNED_TEXT, forgotten: FORGOTTEN_CARD_TEXT };
 const bannedText = (): string => (props.managed ? EXCLUDED_REMOVED_TEXT : EXCLUDED_BANNED_TEXT);
-const body = (): string => (props.by ? excludedByText(props.by, props.net) : props.variant === "banned" ? bannedText() : BODY[props.variant]);
+const rawBody = (): string => (props.by ? excludedByText(props.by, props.net) : props.variant === "banned" ? bannedText() : BODY[props.variant]);
+const body = (): string => forDevice(rawBody());
 // Removed from the member list: a plain invite is the way back, also in the app (no "Start over" there).
 const id = (name: string): string => (props.members ? "members-removed-" : "excluded-") + name;
 const startOver = (): boolean => inApp && props.variant !== "forgotten";

@@ -125,6 +125,7 @@
 .warn-card{background:var(--warn-bg);color:var(--warn-fg);border-color:var(--warn-fg);}
 details.removed>summary{cursor:pointer;color:var(--fg-muted);}
 .excluded-card{border-left:4px solid var(--red);}
+.excluded-card > .btn{display:inline-block;margin-top:10px;}
 .vote-reason{margin:6px 0;font-style:italic;overflow-wrap:anywhere;}
 .member-dialog label[for="member-reason"]{display:block;margin:12px 0 4px;}
 .member-dialog input#member-reason{width:100%;box-sizing:border-box;margin-bottom:8px;}
