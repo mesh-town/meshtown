@@ -59,6 +59,30 @@ mod leave {
     }
 }
 
+mod excluded_by_votes {
+    use super::*;
+
+    #[tokio::test]
+    async fn actions_after_exclusion_by_votes_are_refused() {
+        // given: a listed neighbour has voted me out (a pair needs one vote), and I know it
+        let world = setup(&[pid(2)]);
+        let (a, stranger, me) = (pid(2), pid(9), world.me);
+        world.given_vote(a, me, 100);
+        world.refresh().await;
+        assert_eq!(world.ledger().excluded[&me].how, How::Votes, "precondition");
+        for act in [
+            MemberAction::Admit(stranger),
+            MemberAction::Exclude(a, None),
+            MemberAction::Forget(a),
+        ] {
+            // when: I try to admit, exclude or forget
+            let result = world.apply(act.clone()).await;
+            // then: refused as "left", the same as after leaving on my own
+            assert_eq!(result, Err(ActionRefusal::Left), "{act:?}");
+        }
+    }
+}
+
 mod write_failure {
     use super::*;
 

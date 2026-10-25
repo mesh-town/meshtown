@@ -253,11 +253,21 @@ fn holders_pool(connected: &[PeerId], admins: Option<BTreeSet<PeerId>>) -> Vec<P
     admins.map_or_else(|| connected.to_vec(), |set| set.into_iter().collect())
 }
 
+/// True when this node is excluded (in any way) or forgotten, so it must not issue invites.
+fn me_out_of_network(src: &Source) -> bool {
+    let me = src.stack.me();
+    let verdicts = src.members.access().verdicts();
+    verdicts.is_some_and(|v| v.ledger.is_forgotten(&me) || v.ledger.excluded.contains_key(&me))
+}
+
 /// Builds the invite of a live node: own address plus the listed members (keys only; v3 dials by key).
 /// Does not touch the document — `Issued::commit` does that.
 pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     if src.stack.is_closed() {
         bail!("node was restarted into another network {NET_NAME} — the invite command is unavailable until the process restarts");
+    }
+    if me_out_of_network(src) {
+        bail!("this computer is no longer in the network, so it cannot invite anyone");
     }
     let admins = issuer::issuing_admins(src)?;
     let connected: Vec<PeerId> = src.members.ids().into_iter().collect();

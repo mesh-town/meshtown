@@ -5,7 +5,7 @@
 use super::*;
 use std::collections::BTreeSet;
 
-use crate::members::access::record::{block_key, encode, exclude_key, withdraw};
+use crate::members::access::record::{admit_key, block_key, encode, exclude_key, withdraw};
 use crate::transport::net::NodeSecret;
 
 mod restart {
@@ -117,6 +117,29 @@ mod never_admits {
         assert!(
             rig.admits().await.is_empty(),
             "a node that left admits nobody"
+        );
+        assert_eq!(out, 0);
+        assert!(rig.marker().await.is_some(), "the marker must be written");
+    }
+
+    #[tokio::test]
+    async fn excluded_by_votes_node_admits_nothing_at_boot() {
+        // given: a node with a prior life that two admitted neighbours have voted out (with the initial and
+        // the cached neighbour counted in, four are active and two votes are needed)
+        let rig = setup();
+        let (voter, voter2, initial, cached) = (pid(2), pid(5), pid(3), pid(4));
+        rig.given_prior_life().await;
+        rig.given_own_admit(voter, Via::Invite).await;
+        rig.given_own_admit(voter2, Via::Invite).await;
+        rig.given_vote_by(voter, rig.me, ago(DAY));
+        rig.given_vote_by(voter2, rig.me, ago(DAY));
+        // when: the first boot
+        let out = rig.when_boot(&[initial], &[cached], NOW).await;
+        // then: nothing new is admitted (only the earlier admits of the voters stay), the marker is written
+        assert_eq!(
+            rig.admits().await,
+            admits_of(&[(voter, Via::Invite), (voter2, Via::Invite)]),
+            "a node excluded by votes admits nobody"
         );
         assert_eq!(out, 0);
         assert!(rig.marker().await.is_some(), "the marker must be written");

@@ -188,8 +188,9 @@ async fn an_unexcluded_member_comes_back_without_a_restart() {
     act(&a, MemberAction::Exclude(b.id, None)).await;
     eventually("b is out", || !a.members.is_member(b.id)).await;
     let _ = b.domains.sync_shared_with(a.id).await;
+    // and: it keeps judging its neighbours by the ordinary rules, so a stays allowed for it
     eventually("b knows its own exclusion", || {
-        b.members.access().check(a.id) == Err(Deny::Left)
+        status_of(&b, &b) == "excluded" && b.members.access().check(a.id) == Ok(())
     })
     .await;
     // and: both redial terms have passed, so neither side has a dial in flight or waiting

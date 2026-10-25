@@ -121,7 +121,7 @@ mod order_of_reasons {
         let (s, mut v) = removed_setup();
         Arc::make_mut(&mut v.ledger)
             .excluded
-            .insert(s.m, by_votes());
+            .insert(s.m, left_by_myself());
         // then: everybody gets `Left`, c too
         assert_eq!(v.check(s.c), Err(Deny::Left));
     }
@@ -310,6 +310,11 @@ fn round(voters: &[PeerId], at_unix: Option<u64>) -> ForgetRound {
 #[rustfmt::skip]
 fn by_votes() -> Exclusion {
     Exclusion { how: How::Votes, at_micros: 10, voters: Vec::new() }
+}
+
+#[rustfmt::skip]
+fn left_by_myself() -> Exclusion {
+    Exclusion { how: How::Left, at_micros: 10, voters: Vec::new() }
 }
 
 fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {

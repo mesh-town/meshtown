@@ -66,9 +66,9 @@ mod responder {
 
     #[tokio::test]
     async fn responder_that_left_refuses_everyone_with_left() {
-        // given: B is excluded itself (it left); A is listed
+        // given: B left the network itself; A is listed
         let (a, b) = ids();
-        let fx = setup_with_views(AccessView::open(), view_with(b, &[a], &[b])).await;
+        let fx = setup_with_views(AccessView::open(), view_after_leaving(b, &[a])).await;
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: B closes with "left"
@@ -131,9 +131,9 @@ mod initiator {
 
     #[tokio::test]
     async fn initiator_that_left_refuses_everyone_with_left() {
-        // given: A is excluded itself (it left); B is listed
+        // given: A left the network itself; B is listed
         let (a, b) = ids();
-        let fx = setup_with_views(view_with(a, &[b], &[a]), AccessView::open()).await;
+        let fx = setup_with_views(view_after_leaving(a, &[b]), AccessView::open()).await;
         // when: A initiates, B responds
         let (initiated, responded) = fx.when_handshaking().await;
         // then: A closes with "left"
@@ -177,6 +177,9 @@ mod listed {
 
 #[path = "handshake_access_flow_tests.rs"]
 mod flow;
+
+#[path = "handshake_votes_tests.rs"]
+mod votes;
 
 // ---- helpers ----
 
@@ -227,6 +230,14 @@ fn view_of(v: Verdicts) -> AccessView {
 
 fn view_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> AccessView {
     view_of(verdicts_with(me, listed, excluded))
+}
+
+/// A view of `me` that left the network on its own (`How::Left`); `listed` are admitted.
+fn view_after_leaving(me: PeerId, listed: &[PeerId]) -> AccessView {
+    let mut v = verdicts_with(me, listed, &[me]);
+    let ledger = Arc::make_mut(&mut v.ledger);
+    ledger.excluded.get_mut(&me).expect("me is excluded").how = How::Left;
+    view_of(v)
 }
 
 /// The one refusal `ctx` has noted: about `peer`, by `by`, for `deny`.

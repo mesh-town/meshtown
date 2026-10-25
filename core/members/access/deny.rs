@@ -5,6 +5,7 @@ const WIRE_PREFIX: &str = "code 403: ";
 /// Why a node is not let in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Deny {
+    /// I left the network myself; an exclusion by votes does not use this reason.
     Left,
     Excluded,
     VotedByMe,
