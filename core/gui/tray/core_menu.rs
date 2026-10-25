@@ -18,8 +18,20 @@ impl Core {
             | MenuTarget::Add
             | MenuTarget::Notice(_)
             | MenuTarget::Members(_) => self.open_page(&target),
+            MenuTarget::Exit { .. } | MenuTarget::Directly => {
+                self.apply_click(&target);
+                self.send_node_cmds(&target);
+            }
             _ => self.send_node_cmds(&target),
         }
+    }
+
+    /// Shows the check marks the node will have after the click, before its snapshot arrives.
+    fn apply_click(&mut self, target: &MenuTarget) {
+        let Some(next) = self.last_exit.as_ref().map(|m| m.after_click(target)) else {
+            return;
+        };
+        self.apply_exits(next);
     }
 
     /// Opens the page at the place the target stands for.

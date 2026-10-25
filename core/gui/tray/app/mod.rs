@@ -23,6 +23,8 @@
 #[cfg(feature = "gui")]
 pub(crate) mod exit_menu;
 #[cfg(feature = "gui")]
+pub(crate) mod exit_menu_click;
+#[cfg(feature = "gui")]
 pub(crate) mod local_api;
 #[cfg(feature = "gui")]
 pub(crate) mod members_note;

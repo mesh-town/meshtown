@@ -60,3 +60,38 @@ fn add_and_notice_items_open_the_page_and_send_nothing() {
     assert!(opened[0].ends_with("peers"), "{opened:?}");
     assert!(!sent);
 }
+
+#[test]
+fn exit_click_updates_remembered_model_before_snapshot() {
+    use crate::gui::tray::app::exit_menu::{disabled_exit_menu, ExitItem};
+    use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+    let (node_tx, mut node_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (_tx, mut core) = channel(
+        crate::gui::tray::app::quit::QuitSignal::new(),
+        page,
+        node_tx,
+        &RECORDING,
+    );
+    let item = |id: &str, checked| ExitItem {
+        id_full: id.to_string(),
+        label: id.to_string(),
+        checked,
+        online: true,
+    };
+    let mut menu = disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings));
+    menu.enabled = true;
+    menu.items = vec![item("a", true), item("b", false)];
+    core.apply_exits(menu);
+
+    core.handle_menu("exit:b");
+
+    let marks: Vec<bool> = core
+        .last_exit
+        .unwrap()
+        .items
+        .iter()
+        .map(|i| i.checked)
+        .collect();
+    assert_eq!(marks, vec![false, true]);
+    assert!(node_rx.try_recv().is_ok());
+}
