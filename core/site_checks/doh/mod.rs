@@ -21,6 +21,12 @@ mod packet;
 mod resolver;
 mod unusable;
 
+#[cfg(test)]
+pub(crate) mod test_server;
+#[cfg(test)]
+#[path = "test_server_tests.rs"]
+mod test_server_tests;
+
 pub use resolver::{DnsAnswer, Resolver};
 pub use unusable::{is_fake_ip, is_unusable};
 
