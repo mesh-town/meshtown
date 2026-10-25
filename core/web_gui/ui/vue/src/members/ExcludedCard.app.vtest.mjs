@@ -34,6 +34,25 @@ describe("ExcludedCard in the app", () => {
     expect(wrapper.get("#excluded-card").text()).not.toContain("reset the app");
   });
 
+  it.each(["banned", "left", "forgotten"])("%s: the title names the phone, not the computer", (variant) => {
+    setup(variant);
+    const title = wrapper.get("h2").text();
+    expect(title).not.toContain("computer");
+    if (variant !== "left") expect(title).toContain("This phone was");
+  });
+
+  it("forgotten with an admin: the text says the admin removed this phone", () => {
+    setup("forgotten", undefined, "alice");
+    const text = wrapper.get("#excluded-card p").text();
+    expect(text).toContain("removed this phone");
+    expect(text).not.toContain("computer");
+  });
+
+  it("forgotten: the explanation says phone", () => {
+    setup("forgotten");
+    expect(wrapper.get("#excluded-card p").text()).not.toContain("computer");
+  });
+
   it("outside the app the join button stays", () => {
     setup("banned", "Mozilla/5.0 Chrome/130.0");
     expect(wrapper.find("#excluded-start-over").exists()).toBe(false);
@@ -41,7 +60,7 @@ describe("ExcludedCard in the app", () => {
   });
 });
 
-function setup(variant, userAgent = "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android") {
+function setup(variant, userAgent = "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android", by = null) {
   Object.defineProperty(navigator, "userAgent", { value: userAgent, configurable: true });
-  wrapper = mount(ExcludedCard, { props: { variant, net: "demo-network" }, attachTo: document.body });
+  wrapper = mount(ExcludedCard, { props: { variant, net: "demo-network", by }, attachTo: document.body });
 }

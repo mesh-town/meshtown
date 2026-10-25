@@ -48,8 +48,19 @@ fn settings_url_scheme() {
 #[test]
 fn hint_text_names_the_product() {
     let expected = format!(
-        "Turn on {} in System Settings: Menu Bar → Allow in the Menu Bar.",
+        "Open System Settings and switch {} on in the list of apps allowed in the menu bar.",
         meshtown_core::node::output::APP_NAME
     );
     assert_eq!(hint_text(), expected);
+}
+
+#[test]
+fn hint_text_names_no_settings_section() {
+    let text = hint_text();
+    assert!(!text.contains('→'), "{text}");
+    assert!(!text.contains("Allow in the Menu Bar"), "{text}");
+    assert!(
+        text.contains(meshtown_core::node::output::APP_NAME),
+        "{text}"
+    );
 }

@@ -1,6 +1,5 @@
 //! Parts of the snapshot that do not read the node: the status from the slot phase and the overlay of process fields.
 
-use super::{link_status, Collected};
 use crate::node::node_ctl::state::Phase;
 use crate::web_gui::{LogSummary, NodeSnapshot, NodeStatus};
 use crate::{node::output, node::telemetry};
@@ -29,13 +28,28 @@ impl ProcessFacts {
     }
 }
 
-/// NoNetwork → Offline, Starting → Starting, Stopping → Stopping, Up without a cache → Starting, Up with a cache → `link_status`.
-pub(in crate::node::node_ctl) fn status_of(phase: &Phase, cache: Option<&Collected>) -> NodeStatus {
+/// The status the slot phase fixes by itself, or `None` when the link decides (`link_status`).
+/// NoNetwork → Offline, Starting → Starting, Stopping → Stopping, Up without a cache → Starting,
+/// Up with a cache → `None`: the caller computes `link_status` from the live snapshot.
+pub(in crate::node::node_ctl) fn phase_status(
+    phase: &Phase,
+    has_cache: bool,
+) -> Option<NodeStatus> {
     match phase {
-        Phase::NoNetwork => NodeStatus::Offline,
-        Phase::Starting => NodeStatus::Starting,
-        Phase::Stopping => NodeStatus::Stopping,
-        Phase::Up => cache.map_or(NodeStatus::Starting, link_status),
+        Phase::NoNetwork => Some(NodeStatus::Offline),
+        Phase::Starting => Some(NodeStatus::Starting),
+        Phase::Stopping => Some(NodeStatus::Stopping),
+        Phase::Up => (!has_cache).then_some(NodeStatus::Starting),
+    }
+}
+
+/// Node status from a snapshot: online if there are network members or the relay is connected,
+/// otherwise offline. `Starting`/`Stopping` are decided by `phase_status`, not here.
+pub(crate) fn link_status(s: &NodeSnapshot) -> NodeStatus {
+    if s.members.count > 0 || s.transport.relay.connected {
+        NodeStatus::Online
+    } else {
+        NodeStatus::Offline
     }
 }
 

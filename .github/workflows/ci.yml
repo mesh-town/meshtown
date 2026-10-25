@@ -15,6 +15,9 @@ concurrency:
 env:
   CARGO_TERM_COLOR: always
   MSRV: "1.94"
+  # Toolchain of the test job and of its clippy run, pinned so that a new Rust release cannot turn `-D warnings` red
+  # without a change in the repository. Bump it deliberately and fix the new lints in the same commit.
+  CLIPPY_RUST: "1.99.1"
 
 jobs:
   test:
@@ -35,7 +38,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install toolchain
         shell: bash
-        run: rustup toolchain install stable --profile minimal --component clippy
+        run: |
+          rustup toolchain install "$CLIPPY_RUST" --profile minimal --component clippy
+          rustup default "$CLIPPY_RUST"
       - uses: Swatinem/rust-cache@v2
       # `crate-type = ["rlib", "dylib"]` is only for the fast local loop on macOS; a dylib hits the PE export
       # table limit on Windows, so the manifest of the Windows runner is built without it (release builds do the same).

@@ -14,7 +14,7 @@ use super::settings::TransportMode;
 #[derive(Clone, PartialEq)]
 pub struct NetSettings {
     pub network_key: Option<String>, // network.key       — only in the file
-    pub node_name: Option<String>, // node.name         — pass-through (read and saved, the node doesn't use it)
+    pub node_name: Option<String>, // node.name         — the node's display name, read at start by `pick_node_name`
     pub transport_mode: TransportMode, // transport.mode
     pub exit_enabled: bool,        // exit.enabled
     pub route_exits: Vec<PeerId>,  // route.exits

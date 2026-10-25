@@ -1,53 +1,76 @@
 use super::*;
 
-fn cache(members: u64, relay: bool) -> Collected {
-    let mut snap = NodeSnapshot::default();
-    snap.members.count = members as _;
-    snap.transport.relay.connected = relay;
-    Collected {
-        snap,
-        domains: Vec::new(),
-        partial: false,
+mod phase_decides {
+    use super::*;
+
+    #[test]
+    fn no_network_is_offline_with_or_without_cache() {
+        assert_eq!(
+            phase_status(&Phase::NoNetwork, false),
+            Some(NodeStatus::Offline)
+        );
+        assert_eq!(
+            phase_status(&Phase::NoNetwork, true),
+            Some(NodeStatus::Offline)
+        );
+    }
+
+    #[test]
+    fn starting_and_stopping_ignore_cache() {
+        for has_cache in [false, true] {
+            assert_eq!(
+                phase_status(&Phase::Starting, has_cache),
+                Some(NodeStatus::Starting),
+                "Starting with has_cache={has_cache}"
+            );
+            assert_eq!(
+                phase_status(&Phase::Stopping, has_cache),
+                Some(NodeStatus::Stopping),
+                "Stopping with has_cache={has_cache}"
+            );
+        }
+    }
+
+    #[test]
+    fn up_without_cache_is_starting() {
+        assert_eq!(phase_status(&Phase::Up, false), Some(NodeStatus::Starting));
+    }
+
+    #[test]
+    fn up_with_cache_is_left_to_the_link() {
+        assert_eq!(phase_status(&Phase::Up, true), None);
     }
 }
 
-#[test]
-fn no_network_is_offline_with_or_without_cache() {
-    assert_eq!(status_of(&Phase::NoNetwork, None), NodeStatus::Offline);
-    let c = cache(3, true);
-    assert_eq!(status_of(&Phase::NoNetwork, Some(&c)), NodeStatus::Offline);
+mod link_decides {
+    use super::*;
+
+    #[test]
+    fn link_without_members_or_relay_is_offline() {
+        assert_eq!(link_status(&snap(0, false)), NodeStatus::Offline);
+    }
+
+    #[test]
+    fn link_with_a_member_is_online() {
+        assert_eq!(link_status(&snap(1, false)), NodeStatus::Online);
+    }
+
+    #[test]
+    fn link_with_relay_only_is_online() {
+        assert_eq!(link_status(&snap(0, true)), NodeStatus::Online);
+    }
+
+    #[test]
+    fn link_with_member_and_relay_is_online() {
+        assert_eq!(link_status(&snap(1, true)), NodeStatus::Online);
+    }
 }
 
-#[test]
-fn starting_and_stopping_ignore_cache() {
-    let c = cache(3, true);
-    assert_eq!(status_of(&Phase::Starting, None), NodeStatus::Starting);
-    assert_eq!(status_of(&Phase::Starting, Some(&c)), NodeStatus::Starting);
-    assert_eq!(status_of(&Phase::Stopping, None), NodeStatus::Stopping);
-    assert_eq!(status_of(&Phase::Stopping, Some(&c)), NodeStatus::Stopping);
-}
-
-#[test]
-fn up_without_cache_is_starting() {
-    assert_eq!(status_of(&Phase::Up, None), NodeStatus::Starting);
-}
-
-#[test]
-fn up_with_empty_cache_is_offline() {
-    let c = cache(0, false);
-    assert_eq!(status_of(&Phase::Up, Some(&c)), NodeStatus::Offline);
-}
-
-#[test]
-fn up_with_members_is_online() {
-    let c = cache(2, false);
-    assert_eq!(status_of(&Phase::Up, Some(&c)), NodeStatus::Online);
-}
-
-#[test]
-fn up_with_relay_only_is_online() {
-    let c = cache(0, true);
-    assert_eq!(status_of(&Phase::Up, Some(&c)), NodeStatus::Online);
+fn snap(members: u64, relay: bool) -> NodeSnapshot {
+    let mut snap = NodeSnapshot::default();
+    snap.members.count = members as _;
+    snap.transport.relay.connected = relay;
+    snap
 }
 
 #[test]

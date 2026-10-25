@@ -3,11 +3,12 @@
 
 use crate::config::config_file::write_tmp_and_rename;
 use crate::node::output::say;
+use portable_atomic::AtomicU64;
 use std::collections::HashSet;
 use std::net::SocketAddrV4;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 const HEADER: &str = "townjump-nodes 1";

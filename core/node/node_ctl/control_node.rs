@@ -26,13 +26,13 @@ impl NodeCtl {
     }
 
     pub(super) fn snapshot_impl(&self) -> NodeSnapshot {
-        let (status, mut snap, node, was_stale, boot_id, uptime) = {
+        let (fixed, mut snap, node, was_stale, boot_id, uptime) = {
             let mut st = self
                 .ctl_shared
                 .ctl_state
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
-            let status = snapshot::status_of(&st.phase, st.cache.as_ref());
+            let fixed = snapshot::phase_status(&st.phase, st.cache.is_some());
             let snap = st
                 .cache
                 .as_ref()
@@ -42,7 +42,7 @@ impl NodeCtl {
             let stale = st.last_read.elapsed() > Duration::from_secs(5);
             st.last_read = Instant::now();
             (
-                status,
+                fixed,
                 snap,
                 node,
                 stale,
@@ -53,7 +53,6 @@ impl NodeCtl {
         if was_stale {
             self.ctl_shared.kick.notify_one();
         }
-        snap.node.status = status;
         if let Some(n) = &node {
             snap.node.id = output::short_peer_id(&n.id);
             snap.node.id_full = n.id.to_string();
@@ -61,6 +60,7 @@ impl NodeCtl {
         } else if let Some(face) = self.proxy_face() {
             snap.socks = snapshot::socks_of_face(&face.borrow());
         }
+        snap.node.status = fixed.unwrap_or_else(|| snapshot::link_status(&snap));
         self.overlay_web_urls(&mut snap);
         snap.boot_id = boot_id;
         snap.node.uptime_sec = uptime;
@@ -148,3 +148,7 @@ impl NodeCtl {
         self.ctl_shared.kick.notify_one();
     }
 }
+
+#[cfg(test)]
+#[path = "control_node_status_tests.rs"]
+mod status_tests;

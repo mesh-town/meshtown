@@ -6,7 +6,7 @@ use crate::web_gui::NodeControl;
 use std::time::Duration;
 use tokio::time::timeout;
 
-fn test_relaunch() -> crate::node::node_ctl::Relaunch {
+pub(super) fn test_relaunch() -> crate::node::node_ctl::Relaunch {
     crate::node::node_ctl::Relaunch {
         file: None,
         cli: crate::config::config_file::CliOverrides::default(),
@@ -24,7 +24,7 @@ mod network;
 mod switch;
 
 #[path = "lifecycle_proxy_support_tests.rs"]
-mod proxy_support;
+pub(super) mod proxy_support;
 
 #[path = "lifecycle_proxy_tests.rs"]
 mod proxy;
@@ -100,7 +100,7 @@ async fn run_after_key_bad_key_keeps_waiting() {
     );
 }
 
-fn key_text(b: u8) -> String {
+pub(super) fn key_text(b: u8) -> String {
     NetworkKey::from_bytes([b; 32]).encode()
 }
 /// Every cycle goes through `boot_cycle` and takes a new start id (no external network, loopback).
@@ -111,7 +111,7 @@ async fn each_boot_cycle_takes_new_boot_id() {
     let id0 = ctl.snapshot().boot_id;
     let mut prev = id0;
     for _ in 0..2 {
-        let node = boot_cycle(&cfg, &ctl, false).await.unwrap();
+        let node = boot_cycle(&cfg, &ctl, false).await.unwrap().expect("node");
         let id = ctl.snapshot().boot_id;
         assert_ne!(id, prev);
         prev = id;
@@ -121,12 +121,17 @@ async fn each_boot_cycle_takes_new_boot_id() {
 }
 
 /// A stop that arrives while the node starts survives `attach`: the snapshot says "stopping".
+/// The node is already started when the cycle is entered, so the outcome does not depend on how fast the start is.
 #[tokio::test]
 async fn stop_before_attach_keeps_stopping_status() {
     let ctl = NodeCtl::new(&Settings::default());
     let cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([5; 32]));
+    let started = start_node(cfg).await.expect("loopback start");
     ctl.stop_on_os_signal();
-    let node = boot_cycle(&cfg, &ctl, true).await.unwrap();
+    let node = boot_cycle_with(&ctl, true, async move { Ok(started) })
+        .await
+        .unwrap()
+        .expect("a finished start wins over the stop");
     assert_eq!(
         ctl.snapshot().node.status,
         crate::web_gui::NodeStatus::Stopping

@@ -10,6 +10,7 @@ fn ring_from_json(value: &serde_json::Value) -> Ring {
     ))
 }
 
+/// The roles one snapshot can show at once (an unavailable route, which yields `ExitDown`, has no active exit).
 const ALL_ROLES: [RingRole; 4] = [
     RingRole::ActiveExit,
     RingRole::ExitClient,
@@ -185,6 +186,14 @@ mod exit_clients_parse {
         let exits = json!([chosen("idA", Some(true))]);
         let snapshot = with_clients(state(peers, exit_route(exits)), &["idB"]);
         assert_eq!(roles_of(ring_from_json(&snapshot)), ALL_ROLES);
+    }
+
+    #[test]
+    fn unavailable_route_marks_selected_exits_down() {
+        let peers = vec![peer("idA", true), peer("idB", true)];
+        let route = json!({ "state": "unavailable", "exits": [chosen("idA", None)] });
+        let ring = ring_from_json(&state(peers, route));
+        assert_eq!(roles_of(ring), [RingRole::ExitDown, RingRole::Online]);
     }
 
     #[test]

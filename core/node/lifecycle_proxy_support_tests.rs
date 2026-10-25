@@ -32,7 +32,9 @@ pub(super) fn can_bind(port: u16) -> bool {
 
 /// Makes the node's shutdown wait at its last step (saving the replicas) until the returned gate is closed:
 /// the test then looks at the state of a shutdown that is certainly still running.
-pub(super) async fn hold_replica_flush(node: &mut RunningNode) -> Arc<tokio::sync::Semaphore> {
+pub(in crate::node::lifecycle) async fn hold_replica_flush(
+    node: &mut RunningNode,
+) -> Arc<tokio::sync::Semaphore> {
     let gate = Arc::new(tokio::sync::Semaphore::new(0));
     let held = |replica: Arc<dyn crate::transport::net::Replica>| -> Arc<dyn crate::transport::net::Replica> {
         Arc::new(HeldFlush {
