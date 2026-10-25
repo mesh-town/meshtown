@@ -191,6 +191,12 @@ pub(crate) async fn boot(tag: &str, key: &NetworkKey) -> Booted {
     boot_with_exit_hosts(tag, key, HashMap::new()).await
 }
 
+/// Like `boot`, but the node consults its membership list and keeps it fresh, as a live node does;
+/// `boot` leaves the list open.
+pub(crate) async fn boot_consulting_list(tag: &str, key: &NetworkKey) -> Booted {
+    boot_inner(tag, key, HashMap::new(), false).await
+}
+
 /// The hermetic command-line overrides shared by the boots with a network key.
 fn hermetic_overrides(key: &NetworkKey) -> CliOverrides {
     CliOverrides {
@@ -212,6 +218,15 @@ pub(crate) async fn boot_with_exit_hosts(
     tag: &str,
     key: &NetworkKey,
     hosts: HashMap<String, SocketAddr>,
+) -> Booted {
+    boot_inner(tag, key, hosts, true).await
+}
+
+async fn boot_inner(
+    tag: &str,
+    key: &NetworkKey,
+    hosts: HashMap<String, SocketAddr>,
+    open_list: bool,
 ) -> Booted {
     let dir = scratch(tag);
     let overrides = hermetic_overrides(key);
@@ -235,6 +250,7 @@ pub(crate) async fn boot_with_exit_hosts(
     let mut cfg = relaunch.node_config(&run.effective_settings, key.clone());
     cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
     cfg.exit_hosts = hosts;
+    cfg.open_list = open_list;
     let ctl = NodeCtl::new(&run.effective_settings);
     let front = seat_front(&ctl, &run).await;
     let host = host_of(ctl.clone(), &run, front.clone());
