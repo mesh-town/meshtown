@@ -149,3 +149,103 @@ mod unexclude {
     }
 }
 
+mod vote_at_moment {
+    use super::*;
+
+    #[tokio::test]
+    async fn exclude_writes_a_vote_at_moment() {
+        // given: me, a and b on the list
+        let world = setup(&[pid(2), pid(3)]);
+        let a = pid(2);
+        // when: I vote to exclude a
+        world.apply(MemberAction::Exclude(a, None)).await.unwrap();
+        // then: my record carries the moment mark
+        assert_eq!(my_vote(&world, a).await.via, VOTE_AT_MOMENT);
+    }
+
+    #[tokio::test]
+    async fn exclude_keeps_an_old_unmarked_vote() {
+        // given: three on the list; my old vote against a has no mark
+        let world = setup(&[pid(2), pid(3)]);
+        let a = pid(2);
+        world.given_vote(world.me, a, 100);
+        world.refresh().await;
+        // when: I vote against a again
+        let changed = world.apply(MemberAction::Exclude(a, None)).await;
+        // then: nothing is rewritten, the old record stays without the mark
+        assert_eq!(changed, Ok(false));
+        assert_eq!(my_vote(&world, a).await.via, Via::Invite);
+    }
+}
+
+mod after_growth {
+    use super::*;
+
+    #[tokio::test]
+    async fn exclusion_in_two_survives_a_later_invite() {
+        // given: me and b; my vote has excluded b, then c is admitted
+        let world = excluded_in_two_then_a_newcomer().await;
+        let (b, c) = (pid(2), pid(3));
+        // then: b stays excluded, it is not just my pending vote; c is a member
+        assert_eq!(world.verdict(b), Err(Deny::Excluded));
+        assert!(world.ledger().is_member(&c));
+    }
+
+    #[tokio::test]
+    async fn unexclude_after_growth_returns_node() {
+        // given: b is excluded by my vote alone in a network that has grown to three
+        let world = excluded_in_two_then_a_newcomer().await;
+        let b = pid(2);
+        // when: I take the vote back
+        let changed = world.apply(MemberAction::Unexclude(b)).await;
+        // then: b returns
+        assert_eq!(changed, Ok(true));
+        assert_eq!(world.verdict(b), Ok(()));
+    }
+
+    #[tokio::test]
+    async fn exclude_again_after_growth_needs_two_votes() {
+        // given: my vote at 200 s has excluded b in a network of two; c was admitted at 300 s
+        let world = setup(&[pid(2)]);
+        let (b, c) = (pid(2), pid(3));
+        world.given_vote_at_moment(world.me, b, 200);
+        world.given_admit_at(world.me, c, 300);
+        world.refresh().await;
+        assert_eq!(world.verdict(b), Err(Deny::Excluded));
+        // when: I take the vote back and vote again now
+        world.apply(MemberAction::Unexclude(b)).await.unwrap();
+        let changed = world.apply(MemberAction::Exclude(b, None)).await;
+        // then: three are active, so one vote only waits for the second
+        assert_eq!(changed, Ok(true));
+        assert_eq!(world.verdict(b), Err(Deny::VotedByMe));
+        assert_eq!(world.ledger().pending[&b].voters, vec![world.me]);
+    }
+}
+
+// --- helpers ---
+
+/// Me and b; I exclude b alone, then c is admitted a minute from now.
+async fn excluded_in_two_then_a_newcomer() -> World {
+    let world = setup(&[pid(2)]);
+    world
+        .apply(MemberAction::Exclude(pid(2), None))
+        .await
+        .unwrap();
+    world.given_admit_at(world.me, pid(3), unix_now() + 60);
+    world.refresh().await;
+    world
+}
+
+/// The decoded record of my own exclusion vote against `subject`.
+async fn my_vote(world: &World, subject: PeerId) -> AclValue {
+    let entry = world.mine(&world.shared, &exclude_key(&subject)).await;
+    match parse_entry(&entry.expect("my vote must be stored")) {
+        Parsed::Record { value, .. } => value,
+        other => panic!("not a record: {other:?}"),
+    }
+}
+
+fn unix_now() -> u64 {
+    let now = std::time::SystemTime::now();
+    now.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+}

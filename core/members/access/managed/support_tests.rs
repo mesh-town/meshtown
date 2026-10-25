@@ -88,6 +88,7 @@ impl Scene {
             voter,
             subject,
             ts_micros: at * SECOND,
+            at_moment: false,
         });
         self
     }

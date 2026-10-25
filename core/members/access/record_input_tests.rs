@@ -153,6 +153,65 @@ mod powers {
     }
 }
 
+mod moment_mark {
+    use super::*;
+    use crate::members::access::record::{Via, VOTE_AT_MOMENT};
+
+    #[test]
+    fn marked_exclude_becomes_vote_at_moment() {
+        // given: A votes against B with the moment mark
+        let (me, a, b) = (pid(1), pid(2), pid(3));
+        let entries = [entry(
+            a,
+            exclude_key(&b),
+            encode(&exclude_via(b, VOTE_AT_MOMENT)),
+            200,
+        )];
+        // when: the input is built
+        let (input, ignored) = tally_input(me, &entries);
+        // then: the vote is counted at its own moment
+        assert_eq!(vote_rows(&input), [(a, b, 200)]);
+        assert!(input.votes[0].at_moment, "the mark must reach the tally");
+        assert_eq!(ignored, 0);
+    }
+
+    #[test]
+    fn unmarked_exclude_is_counted_by_current_need() {
+        for via in [Via::None, Via::Invite, Via::Migration] {
+            // given: A votes against B with a via that is not the mark
+            let (me, a, b) = (pid(1), pid(2), pid(3));
+            let entries = [entry(a, exclude_key(&b), encode(&exclude_via(b, via)), 200)];
+            // when: the input is built
+            let (input, _) = tally_input(me, &entries);
+            // then: the vote has no mark
+            assert!(
+                !input.votes[0].at_moment,
+                "via {via:?} must not mark the vote"
+            );
+        }
+    }
+
+    #[test]
+    fn withdrawn_leave_is_not_at_moment() {
+        // given: A's tombstone under A's own exclusion key (A left)
+        let (me, a) = (pid(1), pid(2));
+        let entries = [entry(a, exclude_key(&a), vec![], 300)];
+        // when: the input is built
+        let (input, _) = tally_input(me, &entries);
+        // then: the leave is a vote against itself without the mark
+        assert_eq!(vote_rows(&input), [(a, a, 300)]);
+        assert!(!input.votes[0].at_moment);
+    }
+
+    fn exclude_via(subject: PeerId, via: Via) -> AclValue {
+        AclValue {
+            kind: AclKind::Exclude,
+            via,
+            ..admit_of(subject)
+        }
+    }
+}
+
 // --- helpers ---
 
 fn admit_rows(input: &TallyInput) -> Vec<(PeerId, PeerId)> {

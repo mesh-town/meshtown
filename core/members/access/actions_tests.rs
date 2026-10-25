@@ -10,6 +10,7 @@ use bytes::Bytes;
 use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
 use crate::members::access::record::{
     admit_key, block_key, encode, exclude_key, parse_entry, AclKind, AclValue, Parsed, Via,
+    VOTE_AT_MOMENT,
 };
 use crate::members::access::runtime::Access;
 use crate::members::access::tally::{How, Ledger};
@@ -129,6 +130,39 @@ impl World {
             author,
             key,
             value,
+            ts_micros,
+        });
+    }
+
+    /// An admit record of `author` for `subject` made at `made_unix`, written at the same time.
+    fn given_admit_at(&self, author: PeerId, subject: PeerId, made_unix: u64) {
+        let value = AclValue {
+            kind: AclKind::Admit,
+            subject,
+            via: Via::Invite,
+            made_unix,
+            note: String::new(),
+        };
+        self.put(author, admit_key(&subject), value, made_unix * 1_000_000);
+    }
+
+    /// An exclusion vote of `voter` against `subject` cast at `secs` seconds, with the moment mark.
+    fn given_vote_at_moment(&self, voter: PeerId, subject: PeerId, secs: u64) {
+        let value = AclValue {
+            kind: AclKind::Exclude,
+            subject,
+            via: VOTE_AT_MOMENT,
+            made_unix: secs,
+            note: String::new(),
+        };
+        self.put(voter, exclude_key(&subject), value, secs * 1_000_000);
+    }
+
+    fn put(&self, author: PeerId, key: Vec<u8>, value: AclValue, ts_micros: u64) {
+        self.shared.put_raw(ReplicaEntry {
+            author,
+            key,
+            value: Bytes::from(encode(&value)),
             ts_micros,
         });
     }

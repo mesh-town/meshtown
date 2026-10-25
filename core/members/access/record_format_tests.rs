@@ -40,6 +40,19 @@ fn golden_bytes_decode_to_the_same_value() {
     assert_eq!(decoded, Ok(admit_of(base())));
 }
 
+#[test]
+fn golden_bytes_of_exclude_at_moment_v1() {
+    // given: an exclusion vote with the moment mark
+    let value = exclude_at_moment_of(base());
+    // when: encoded
+    let bytes = encode(&value);
+    // then: the bytes equal the hand-laid constant: version 1, via 3, no extra bytes
+    assert_eq!(
+        bytes, GOLDEN_EXCLUDE_AT_MOMENT_V1,
+        "the mark is the via byte of version 1, nothing else"
+    );
+}
+
 // --- decode ---
 
 #[test]
@@ -83,4 +96,14 @@ fn enums_from_u8_reject_unknown_bytes() {
     assert_eq!(Via::from_u8(0), Some(Via::None));
     assert_eq!(Via::from_u8(3), Some(Via::Witness));
     assert_eq!((Via::from_u8(4), Via::from_u8(255)), (None, None));
+}
+
+#[test]
+fn exclude_at_moment_decodes_under_v1() {
+    // given: the golden bytes of an exclusion vote with the mark: version 1, via 3, no tail
+    // when: decoded by the version 1 reader
+    let decoded = decode(&GOLDEN_EXCLUDE_AT_MOMENT_V1);
+    // then: the value comes back whole, the mark is the via of a plain vote
+    assert_eq!(decoded, Ok(exclude_at_moment_of(base())));
+    assert_eq!(decoded.map(|v| v.via), Ok(Via::Witness));
 }

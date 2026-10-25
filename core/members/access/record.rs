@@ -4,6 +4,11 @@
 //! Value layout, version 1: `[ACL_VALUE_VERSION] ++ postcard(Body)` with the fields of `Body` frozen in
 //! order. Compatibility: there are no tail bytes at `v = 1` — extra bytes make the record invalid; a changed
 //! body means version 2. New values of `kind` may be added at version 1 (an old node ignores an unknown kind).
+//!
+//! An `Exclude` record whose `via` is `VOTE_AT_MOMENT` is counted against the exclusion threshold of the
+//! moment it was cast, so nodes admitted later do not raise it. Within version 1 no field is added: the
+//! `via` byte of an `Exclude` is otherwise unused, and a node that does not know the value reads the
+//! record as a plain vote. An `Exclude` with any other `via` is counted against the current threshold.
 
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +23,9 @@ use super::record_keys::{
     subject_of, ADMIT_PREFIX, EXCLUDE_PREFIX, FORGET_PREFIX, GRANT_PREFIX, REVOKE_PREFIX,
 };
 
+/// `via` of an `Exclude` record: the vote is counted against the threshold of its own moment.
+/// A node that predates it reads the record as an ordinary vote.
+pub const VOTE_AT_MOMENT: Via = Via::Witness;
 /// Version byte of the value layout.
 pub const ACL_VALUE_VERSION: u8 = 1;
 /// Longest note, in characters.

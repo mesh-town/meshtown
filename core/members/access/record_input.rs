@@ -4,7 +4,7 @@
 use crate::transport::net::{PeerId, ReplicaEntry};
 
 use super::authority::{power_of, PowerIn, Rules};
-use super::record::{exclude_key, parse_entry, AclKind, Parsed};
+use super::record::{exclude_key, parse_entry, AclKind, Parsed, VOTE_AT_MOMENT};
 use super::tally::{AdmitIn, ForgetIn, TallyInput, VoteIn};
 
 /// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
@@ -87,6 +87,7 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 voter: author,
                 subject: value.subject,
                 ts_micros,
+                at_moment: value.via == VOTE_AT_MOMENT,
             });
             0
         }
@@ -95,6 +96,7 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 voter: author,
                 subject: author,
                 ts_micros: e.ts_micros,
+                at_moment: false,
             });
             0
         }

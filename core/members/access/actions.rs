@@ -208,9 +208,12 @@ async fn exclude(a: &Access, v: &Verdicts, p: &PeerId, note: Option<&str>) -> Ne
     if v.ledger.excluded.contains_key(p) {
         return Ok(false);
     }
-    let vote = noted(AclKind::Exclude, *p, note.unwrap_or_default().to_owned());
+    let mut vote = noted(AclKind::Exclude, *p, note.unwrap_or_default().to_owned());
     if a.rules.is_managed() && *p != a.me {
         return record::rewrite(&*a.shared, &vote).await.map(|_| true);
+    }
+    if !a.rules.is_managed() {
+        vote.via = record::VOTE_AT_MOMENT;
     }
     record::ensure(&*a.shared, &vote).await
 }

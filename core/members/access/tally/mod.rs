@@ -38,6 +38,10 @@ mod cascade_tests;
 mod support;
 
 #[cfg(test)]
+#[path = "sticky_tests.rs"]
+mod sticky;
+
+#[cfg(test)]
 #[path = "forget_tests.rs"]
 mod forget_tests;
 

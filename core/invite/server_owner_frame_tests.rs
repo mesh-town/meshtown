@@ -248,6 +248,7 @@ fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
             voter: me,
             subject: owner,
             ts_micros: 10,
+            at_moment: false,
         }],
         forgets: Vec::new(),
         rules: Rules::Peer,
