@@ -64,15 +64,21 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
   // A stopped node is polled once per POLL_STOPPED_MS, a hidden tab does not lengthen that.
   const nextDelay = () => (conn.stopped ? POLL_STOPPED_MS : deps.isHidden() ? POLL_HIDDEN_MS : conn.backoffMs);
 
-  function schedule(delay: number): void {
+  function restartTimer(delay: number): void {
     deps.clearTimer(timer);
     timer = null;
     if (blocked()) return;
+    timer = deps.setTimer(pollOnce, delay);
+  }
+
+  function schedule(delay: number): void {
     if (inFlight) {
-      pollAgainAfterCurrent = pollAgainAfterCurrent || delay === 0;
+      deps.clearTimer(timer);
+      timer = null;
+      if (!blocked()) pollAgainAfterCurrent = pollAgainAfterCurrent || delay === 0;
       return;
     }
-    timer = deps.setTimer(pollOnce, delay);
+    restartTimer(delay);
   }
 
   function hideRestartNotice() {

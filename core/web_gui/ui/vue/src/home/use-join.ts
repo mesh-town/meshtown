@@ -40,12 +40,11 @@ export interface JoinView {
 // (waiting for members takes longer: its progress is shown by the node itself via `invite_join`).
 const SENT_WAITING_MS = 10 * 60 * 1000;
 
-function markSent<T extends JoinResult>(form: JoinForm, res: T, sent: Ref<JoinSent | null>, store: Store, deps: HomeDeps): T {
-  if (form.slot !== "main" || (res !== "joined" && res !== "waiting")) return res;
+function markSent(form: JoinForm, res: JoinResult, sent: Ref<JoinSent | null>, store: Store, deps: HomeDeps): void {
+  if (form.slot !== "main" || (res !== "joined" && res !== "waiting")) return;
   const mine: JoinSent = { bootIdAtSend: typeof store.state?.boot_id === "string" ? store.state.boot_id : null, waiting: res === "waiting" };
   sent.value = mine;
   deps.setTimer(() => { if (sent.value === mine) sent.value = null; }, res === "joined" ? JOIN_PROMISE_MS : SENT_WAITING_MS);
-  return res;
 }
 
 function titleText(hasNet: boolean, choice: JoinForm["choice"]): string {
@@ -59,7 +58,7 @@ export function useJoin(store: Store, deps: HomeDeps = defaultHomeDeps): JoinVie
   const home = inject(HOME_KEY, null);
   const sent = home ? home.joinSent : ref<JoinSent | null>(null);
   // The form's own button goes through the same hold: "sent" is what the progress block waits on.
-  const invite: InviteJoin = { ...base, submit: () => base.submit().then((res) => markSent(form, res, sent, store, deps)) };
+  const invite: InviteJoin = { ...base, submit: () => base.submit().then((res) => { markSent(form, res, sent, store, deps); return res; }) };
   const hasNet = computed(() => !!(store.state && store.state.network));
   const err = computed(() => form.inviteError);
   const showJoin = computed(() => hasNet.value || form.choice === "join");

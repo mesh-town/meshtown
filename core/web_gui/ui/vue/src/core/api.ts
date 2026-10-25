@@ -95,10 +95,14 @@ async function readJson(res: Response): Promise<any> { // any: the response body
 }
 
 // A 401 for a token that has already been replaced (for example "Revoke" in this tab) doesn't wake the bus: the page already has the new one.
+function notifyTokenRejected(d: ApiDeps, sentToken: string): void {
+  if (d.busTarget && d.getToken() === sentToken) notifyChanged(d.busTarget, "token");
+}
+
 async function failure(d: ApiDeps, res: Response, sentToken: string): Promise<ApiError> {
   const body = await readJson(res);
   if (res.status === 401) {
-    if (d.busTarget && d.getToken() === sentToken) notifyChanged(d.busTarget, "token");
+    notifyTokenRejected(d, sentToken);
     return new ApiError(401, "bad_token", API_ERROR_TEXT.bad_token, body);
   }
   const code = (body && body.error) || "http_" + res.status;

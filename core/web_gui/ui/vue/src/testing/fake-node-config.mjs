@@ -62,7 +62,7 @@ function applyWebIfaces(node, config) {
 /** `PUT /api/config` of the fake node. */
 export function putConfig(node, body) {
   if (body.rev !== node.rev) {
-    return { status: 409, body: { error: "stale_rev", message: "settings were changed in another tab or by the node itself", rev: node.rev, config: copy(node.config) } };
+    return { status: 409, body: { error: "stale_rev", message: "settings were changed in another tab or by Mesh Town itself", rev: node.rev, config: copy(node.config) } };
   }
   const invalid = invalidWebIfaces(node, body.config);
   if (invalid) return invalid;
