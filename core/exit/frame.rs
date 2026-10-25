@@ -22,12 +22,12 @@ pub const EXIT_CODE_CONNECT_FAILED: u8 = 3;
 /// The port is not allowed (the rule was removed, but the code stays in the protocol: old exits in the network still
 /// send it, and the requesting side prints its text).
 pub const EXIT_CODE_PORT_NOT_ALLOWED: u8 = 4;
-/// The node doesn't agree to be an exit.
+/// The member doesn't agree to be an exit.
 pub const EXIT_CODE_REFUSED: u8 = 5;
 /// The request could not be parsed.
 pub const EXIT_CODE_BAD_REQUEST: u8 = 6;
 /// The address is closed to exit: private network, loopback, link-local, multicast, service, or
-/// the node's own address. Old clients print "unknown reply
+/// the member's own address. Old clients print "unknown reply
 /// code" for it and still treat it as a refusal.
 pub const EXIT_CODE_ADDRESS_FORBIDDEN: u8 = 7;
 
@@ -39,10 +39,10 @@ pub fn exit_code_text(code: u8) -> &'static str {
         EXIT_CODE_NO_ADDRESS => "the domain's address was not obtained",
         EXIT_CODE_CONNECT_FAILED => "the connection to the domain didn't open",
         EXIT_CODE_PORT_NOT_ALLOWED => "port not allowed",
-        EXIT_CODE_REFUSED => "the node doesn't act as an exit for you",
+        EXIT_CODE_REFUSED => "this member doesn't act as an exit for you",
         EXIT_CODE_BAD_REQUEST => "the request could not be parsed",
         EXIT_CODE_ADDRESS_FORBIDDEN => {
-            "the address is closed to exit: local or service network, or the node's own address"
+            "the address is closed to exit: local or service network, or the member's own address"
         }
         _ => "unknown reply code",
     }

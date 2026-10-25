@@ -155,8 +155,20 @@ impl PeerConnPool {
         let conn = self.cell_connection(stack, peer).await?;
         let id = conn.stable_id();
         let _open_bi_waiter = OpenBiWaiterGuard::enter(&self.open_bi_waiter_count);
+        let pair = self.open_bi_in_time(&conn, peer, id).await?;
+        Ok((id, pair))
+    }
+
+    /// Opens a stream on `conn` within `open_timeout`. A failed `open` drops the connection `id` from the cell;
+    /// an expired deadline is a `StreamBusy` error (the connection stays).
+    async fn open_bi_in_time(
+        &self,
+        conn: &Arc<dyn PeerConn>,
+        peer: PeerId,
+        id: u64,
+    ) -> Result<StreamPair> {
         match timeout(self.open_timeout, conn.open()).await {
-            Ok(Ok(pair)) => Ok((id, pair)),
+            Ok(Ok(pair)) => Ok(pair),
             Ok(Err(e)) => {
                 self.forget(peer, id).await;
                 Err(anyhow!(

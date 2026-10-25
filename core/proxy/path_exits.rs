@@ -46,43 +46,69 @@ pub(super) async fn open_through_exits(
     let mut misses = Misses::default();
     let gateway = exit::is_gateway_target(target_text, port);
     for &peer in candidates {
-        let route_label = format!("exit {}", short_peer_id(&peer));
-        if gateway && cfg.pool.gateway_refused_recently(peer) {
-            misses.no_gateway = Some(remembered_gateway_refusal(peer, route_label));
-            continue;
+        match try_exit(cfg, peer, (target_text, port, gateway), &mut misses).await {
+            Attempt::Opened(link) => return Ok(link),
+            Attempt::Final(refusal) => return Err(refusal),
+            Attempt::Next => {}
         }
-        let (send, recv, code) =
-            match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
-                Ok(answer) => answer,
-                Err(e) => {
-                    misses.busy |= e.downcast_ref::<exit::StreamBusy>().is_some();
-                    misses.unanswered = true;
-                    say(
-                        "route",
-                        format!("exit {} did not answer: {e:#}", short_peer_id(&peer)),
-                    );
-                    continue;
-                }
-            };
-        if code == exit::EXIT_CODE_OK {
-            return Ok(ExitLink {
-                route_label,
-                peer,
-                send,
-                recv,
-            });
-        }
-        let gateway_refusal = gateway && code == exit::EXIT_CODE_ADDRESS_FORBIDDEN;
-        if gateway_refusal {
-            cfg.pool.note_gateway_refused(peer);
-        }
-        let outcome = exit_refusal(peer, code, route_label);
-        if !gateway_refusal {
-            return Err(OpenRefused::new(outcome));
-        }
-        misses.no_gateway = Some(OpenRefused::no_gateway(outcome));
     }
     Err(misses.into_refusal())
+}
+
+/// The result of asking one candidate exit.
+enum Attempt {
+    /// The exit opened the stream.
+    Opened(ExitLink),
+    /// The exit's answer ends the search.
+    Final(OpenRefused),
+    /// Try the next candidate.
+    Next,
+}
+
+/// One attempt: asks `peer` to connect to `(target_text, port, is_gateway_target)`
+/// and records in `misses` what a failed attempt leaves behind.
+async fn try_exit(
+    cfg: &ProxyConfig,
+    peer: PeerId,
+    (target_text, port, gateway): (&str, u16, bool),
+    misses: &mut Misses,
+) -> Attempt {
+    let route_label = format!("exit {}", short_peer_id(&peer));
+    if gateway && cfg.pool.gateway_refused_recently(peer) {
+        misses.no_gateway = Some(remembered_gateway_refusal(peer, route_label));
+        return Attempt::Next;
+    }
+    let (send, recv, code) =
+        match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
+            Ok(answer) => answer,
+            Err(e) => {
+                misses.busy |= e.downcast_ref::<exit::StreamBusy>().is_some();
+                misses.unanswered = true;
+                say(
+                    "route",
+                    format!("exit {} did not answer: {e:#}", short_peer_id(&peer)),
+                );
+                return Attempt::Next;
+            }
+        };
+    if code == exit::EXIT_CODE_OK {
+        return Attempt::Opened(ExitLink {
+            route_label,
+            peer,
+            send,
+            recv,
+        });
+    }
+    let gateway_refusal = gateway && code == exit::EXIT_CODE_ADDRESS_FORBIDDEN;
+    if gateway_refusal {
+        cfg.pool.note_gateway_refused(peer);
+    }
+    let outcome = exit_refusal(peer, code, route_label);
+    if !gateway_refusal {
+        return Attempt::Final(OpenRefused::new(outcome));
+    }
+    misses.no_gateway = Some(OpenRefused::no_gateway(outcome));
+    Attempt::Next
 }
 
 /// The refusal for the UDP gateway target on an exit that already refused it: the exit is not asked again.
