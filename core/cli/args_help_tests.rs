@@ -4,7 +4,7 @@ use clap::error::ErrorKind;
 
 use crate::cli::args::Cli;
 
-const ABOUT: &str = "Mesh Town — open sites through the computers of your network's members.";
+const ABOUT: &str = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts.";
 
 fn top() -> String {
     Cli::command().render_help().to_string()

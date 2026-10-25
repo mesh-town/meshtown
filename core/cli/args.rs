@@ -45,7 +45,7 @@ const HELP: &str = "{about}\n\nUsage: {usage}\n\n{all-args}{after-help}";
 #[command(
     name = "meshtown",
     version,
-    about = "Mesh Town — open sites through the computers of your network's members.",
+    about = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts.",
     help_template = HELP,
     override_usage = "meshtown [COMMAND]",
     subcommand_help_heading = "Commands",
