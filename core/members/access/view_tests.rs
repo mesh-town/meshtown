@@ -122,10 +122,10 @@ mod check_order {
             Err(Deny::Unlisted),
         ];
         assert_eq!(got, want, "results for A, B, C, D, X");
-        // given: now I am excluded myself, B too, and my own vote on C is set
+        // given: now I left myself, B is excluded too, and my own vote on C is set
         let view = view_of(Verdicts {
             my_votes: set(&[c]),
-            ..verdicts(m, ledger(&[a, c], &[m, b]))
+            ..verdicts(m, ledger_left(&[a, c], &[b], m))
         });
         // when / then: "left" comes before everything, whoever is asked
         let got = outcomes(&view, &[a, b, c, x]);
@@ -203,9 +203,9 @@ mod unlisted {
 
     #[test]
     fn everybody_gets_left_when_i_am_excluded() {
-        // given: I am excluded
+        // given: I left the network myself
         let Cast { m, a, x, .. } = cast();
-        let view = view_of(verdicts(m, ledger(&[a], &[m])));
+        let view = view_of(verdicts(m, ledger_left(&[a], &[], m)));
         // when / then
         assert_eq!(outcomes(&view, &[a, x]), vec![Err(Deny::Left); 2]);
     }
@@ -216,6 +216,9 @@ mod publishing;
 
 #[path = "view_allowed_tests.rs"]
 mod allowed;
+
+#[path = "view_votes_tests.rs"]
+mod votes;
 
 // ---- helpers ----
 
@@ -271,6 +274,19 @@ fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
         admins: Default::default(),
         closed: None,
     }
+}
+
+/// Like `ledger`, and `left` also left the network on its own.
+fn ledger_left(listed: &[PeerId], out: &[PeerId], left: PeerId) -> Ledger {
+    let mut l = ledger(listed, out);
+    l.admitted.insert(left);
+    let how = Exclusion {
+        how: How::Left,
+        at_micros: 10,
+        voters: vec![left],
+    };
+    l.excluded.insert(left, how);
+    l
 }
 
 /// Verdicts of `me` over `ledger` with no votes, no blocks.

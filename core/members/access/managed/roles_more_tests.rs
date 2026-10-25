@@ -158,6 +158,23 @@ mod leaving {
         assert!(r.members.contains(&pid(A)) && r.members.contains(&pid(B)));
         assert!(!r.members.contains(&pid(ROOT)) && !r.admins.contains(&pid(ROOT)));
     }
+
+    #[test]
+    fn owner_exclusion_is_by_votes_and_leave_is_left() {
+        // given: the root admits A and B, excludes A, and B leaves on its own
+        let mut scene = setup();
+        scene
+            .admit(10, pid(ROOT), pid(A))
+            .admit(11, pid(ROOT), pid(B))
+            .exclude(20, pid(ROOT), pid(A))
+            .leave(30, pid(B));
+        // when
+        let ledger = scene.ledger();
+        // then: the way out is told apart, and a member is not excluded at all
+        assert_eq!(ledger.how_excluded(&pid(A)), Some(How::Votes));
+        assert_eq!(ledger.how_excluded(&pid(B)), Some(How::Left));
+        assert_eq!(ledger.how_excluded(&pid(ROOT)), None);
+    }
 }
 
 mod closing {

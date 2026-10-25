@@ -115,4 +115,9 @@ impl Ledger {
     pub fn is_member(&self, p: &PeerId) -> bool {
         self.admitted.contains(p) && !self.excluded.contains_key(p) && !self.is_forgotten(p)
     }
+
+    /// The way `p` was excluded, or `None` when `p` is not excluded.
+    pub fn how_excluded(&self, p: &PeerId) -> Option<How> {
+        self.excluded.get(p).map(|e| e.how)
+    }
 }

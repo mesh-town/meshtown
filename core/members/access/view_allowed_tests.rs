@@ -26,9 +26,9 @@ mod publish_over_a_previous_view {
 
         #[test]
         fn withdrawn_own_exclusion_wakes_for_every_known_peer() {
-            // given: I am excluded, so everybody I know is refused as `Left`
+            // given: I left the network, so everybody I know is refused as `Left`
             let Cast { m, a, b, .. } = cast();
-            let (view, mut rx) = watched(verdicts(m, ledger(&[a, b], &[m])));
+            let (view, mut rx) = watched(verdicts(m, ledger_left(&[a, b], &[], m)));
             assert_eq!(view.check(a), Err(Deny::Left));
             assert_eq!(view.check(b), Err(Deny::Left));
             // when: my exclusion is gone

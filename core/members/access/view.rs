@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::members::access::tally::Ledger;
+use crate::members::access::tally::{How, Ledger};
 
 pub use super::deny::Deny;
 use crate::transport::net::PeerId;
@@ -85,7 +85,7 @@ impl Verdicts {
     fn early_deny(&self, peer: PeerId) -> Option<Deny> {
         let l = &self.ledger;
         let table = [
-            (l.excluded.contains_key(&self.me), Deny::Left),
+            (l.how_excluded(&self.me) == Some(How::Left), Deny::Left),
             (l.excluded.contains_key(&peer), Deny::Excluded),
             (self.my_votes.contains(&peer), Deny::VotedByMe),
             (self.blocks.contains(&peer), Deny::Blocked),

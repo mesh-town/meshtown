@@ -100,8 +100,8 @@ mod publish {
         let Cast { m, a, b, .. } = cast();
         let view = AccessView::open();
         view.publish(verdicts(m, ledger(&[m, a, b], &[])));
-        // when: I am excluded
-        let got = view.publish(verdicts(m, ledger(&[a, b], &[m])));
+        // when: I leave the network
+        let got = view.publish(verdicts(m, ledger_left(&[a, b], &[], m)));
         // then: everybody else is newly denied with "left", I am not in the list
         assert_eq!(denied(got), map(&[(a, Deny::Left), (b, Deny::Left)]));
     }
