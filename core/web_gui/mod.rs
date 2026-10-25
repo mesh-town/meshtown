@@ -22,6 +22,7 @@ mod cookie;
 mod guard;
 mod host_control;
 mod http;
+mod invite_qr;
 mod listener;
 mod members;
 mod net_brief;
@@ -42,8 +43,8 @@ pub use control::{
     NodeControl, PendingInvite, SaveKey, WebStartError,
 };
 pub use host_control::{
-    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, Notice, OpenedLocal,
-    SlotHandle,
+    single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, Notice,
+    OpenedLocal, SlotHandle,
 };
 pub use listener::start_web_page;
 pub use members::dto::{

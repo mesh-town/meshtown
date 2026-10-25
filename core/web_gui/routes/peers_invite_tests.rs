@@ -13,16 +13,19 @@ use crate::web_gui::auth::state::AuthState;
 use crate::web_gui::config_api::ConfigState;
 use crate::web_gui::control::{ActionError, NodeControl, PendingInvite};
 use crate::web_gui::http::ConnInfo;
+use crate::web_gui::invite_qr;
 use crate::web_gui::single_slot_host;
 use crate::web_gui::{App, LogPage, NodeSnapshot, WebShared};
 
 const PORT: u16 = 18767;
 const TOKEN: &str = "0123456789ABCDEFGHJKMNPQRSTVWXYZ0123456789ABCDEFGHJK";
 
-/// Remembers the note of every invite it was asked for (`None` — asked without a note).
+/// Remembers the note of every invite it was asked for (`None` — asked without a note);
+/// answers `Busy` instead of an invite when `busy` is set.
 #[derive(Default)]
 struct InviteNode {
     asked: Mutex<Vec<Option<String>>>,
+    busy: bool,
 }
 
 impl NodeControl for InviteNode {
@@ -64,6 +67,9 @@ impl NodeControl for InviteNode {
             .lock()
             .unwrap()
             .push(for_whom.map(str::to_string));
+        if self.busy {
+            return Err(ActionError::Busy("no network yet".to_string()));
+        }
         Ok(PendingInvite::ready("invite-text".to_string()))
     }
 }
@@ -171,4 +177,54 @@ async fn empty_label_means_none() {
     }
     // then: the node was always asked without a note
     assert_eq!(asked(&node), vec![None, None, None]);
+}
+
+#[tokio::test]
+async fn issued_invite_comes_with_its_qr() {
+    // given / when: an invite asked for without a note
+    let node = Arc::new(InviteNode::default());
+    let (status, body) = get(&node, "/api/network/invite").await;
+    // then: the usual fields plus the picture of that very invite
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["invite"], "invite-text");
+    assert_eq!(body["reach"], "issuer_only");
+    assert_eq!(
+        body["qr"].as_str(),
+        invite_qr::invite_qr_svg("invite-text").as_deref()
+    );
+    assert!(
+        body["qr"].as_str().is_some_and(|s| s.contains("<svg")),
+        "{body}"
+    );
+}
+
+#[tokio::test]
+async fn labelled_invite_comes_with_its_qr() {
+    // given / when: an invite asked for with a note
+    let node = Arc::new(InviteNode::default());
+    let (status, body) = get(&node, "/api/network/invite?for=Anna").await;
+    // then: the node got the note and the picture is the same as without it
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(asked(&node), vec![Some("Anna".to_string())]);
+    assert_eq!(
+        body["qr"].as_str(),
+        invite_qr::invite_qr_svg("invite-text").as_deref()
+    );
+    assert!(body["qr"].is_string(), "{body}");
+}
+
+#[tokio::test]
+async fn busy_node_answers_409_without_qr() {
+    // given: a node without a network
+    let node = Arc::new(InviteNode {
+        busy: true,
+        ..Default::default()
+    });
+    // when
+    let (status, body) = get(&node, "/api/network/invite").await;
+    // then: the refusal as before, with no picture and no invite
+    assert_eq!(status, StatusCode::CONFLICT);
+    assert_eq!(body["error"], "busy");
+    assert!(body.get("qr").is_none(), "{body}");
+    assert!(body.get("invite").is_none(), "{body}");
 }

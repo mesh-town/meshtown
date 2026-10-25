@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 
 use crate::invite::store::FOR_WHOM_MAX_CHARS;
 use crate::web_gui::http::{json_err, query_param};
+use crate::web_gui::invite_qr;
 use crate::web_gui::ActionError;
 
 use super::helpers::{action_error, body_obj};
@@ -90,7 +91,10 @@ pub(super) async fn network_invite_handler(SlotParam(slot): SlotParam, uri: Uri)
         Err(e) => return action_error(e),
     };
     match pending.finish_dealt().await {
-        Ok(dealt) => (StatusCode::OK, axum::Json(dealt.api_body())).into_response(),
+        Ok(dealt) => {
+            let body = invite_qr::with_qr(dealt.api_body());
+            (StatusCode::OK, axum::Json(body)).into_response()
+        }
         Err(e) => action_error(e),
     }
 }
