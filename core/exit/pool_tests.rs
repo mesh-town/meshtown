@@ -176,6 +176,42 @@ mod stream {
     }
 
     #[tokio::test]
+    async fn forget_with_stale_id_keeps_newer_connection() {
+        // given: the first connection was closed and replaced by a newer one in the cell
+        let fx = setup(Opts::default());
+        within("first stream", fx.pool.open_peer_stream(&fx.client, pid(2)))
+            .await
+            .expect("first stream opened");
+        let old_id = fx.cell_id().await.expect("first connection in the cell");
+        fx.probe.next().await.close(0, b"done");
+        within("new connection", fx.stream_until_second_connection()).await;
+        let new_id = fx.cell_id().await.expect("second connection in the cell");
+        assert_ne!(new_id, old_id, "the cell holds a new connection");
+
+        // when: the first connection is forgotten
+        fx.pool.forget(pid(2), old_id).await;
+
+        // then: the newer connection stays
+        assert_eq!(fx.cell_id().await, Some(new_id));
+    }
+
+    #[tokio::test]
+    async fn forget_with_own_id_empties_cell() {
+        // given: one connection in the cell
+        let fx = setup(Opts::default());
+        within("stream", fx.pool.open_peer_stream(&fx.client, pid(2)))
+            .await
+            .expect("stream opened");
+        let id = fx.cell_id().await.expect("connection in the cell");
+
+        // when: it is forgotten by its own id
+        fx.pool.forget(pid(2), id).await;
+
+        // then: the cell is empty
+        assert_eq!(fx.cell_id().await, None);
+    }
+
+    #[tokio::test]
     async fn failed_connect_leaves_slot_empty() {
         // given: the client doesn't know the peer's address, `connect` gives NoRoute
         let fx = setup(Opts { linked: false });
@@ -239,6 +275,12 @@ impl Fx {
     /// The client learns the exit's address.
     fn link(&self) {
         self.client.add_hints(self.server.invite_addrs()[0].clone());
+    }
+
+    /// `stable_id` of the connection in the exit's cell, if any.
+    async fn cell_id(&self) -> Option<u64> {
+        let map = self.pool.conns.lock().await;
+        map.get(&pid(2))?.get().map(|conn| conn.stable_id())
     }
 
     /// Asks for streams until the exit accepts a second connection.
