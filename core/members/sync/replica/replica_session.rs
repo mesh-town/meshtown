@@ -100,10 +100,20 @@ impl MeshReplica {
         generation_before: u64,
         session_result: NetResult<SessionTally>,
     ) {
+        self.save_after_session(generation_before, &session_result);
+        self.log_session_end(peer, session_result);
+    }
+
+    /// A failed session that merged some batches still announces the change and saves.
+    fn save_after_session(&self, generation_before: u64, session_result: &NetResult<SessionTally>) {
         if session_result.is_err() && self.lock().generation() > generation_before {
             self.emit(ReplicaEvent::RemoteChange);
             self.saver.save_debounced(self.state.clone());
         }
+    }
+
+    /// Logs a failed session and emits `Synced` with its outcome.
+    fn log_session_end(&self, peer: PeerId, session_result: NetResult<SessionTally>) {
         let outcome = session_result
             .map(|x| self.apply_exchange(peer, x))
             .map_err(|e| e.to_string());

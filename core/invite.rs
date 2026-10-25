@@ -26,6 +26,7 @@ use crate::transport::net_mainline::record::{entry_from_addr, RosterEntry};
 mod dealt;
 mod head;
 pub mod hold_wire;
+mod issued;
 mod issuer;
 mod known;
 mod parse;
@@ -40,6 +41,7 @@ mod store_admins;
 pub mod wire;
 pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};
+pub use issued::Issued;
 pub use issuer::NotAdmin;
 pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE};
 
@@ -186,46 +188,6 @@ pub fn build_keyed(
     ))
 }
 
-/// A built but not yet issued invite: the string is handed out only after the issue record is written into
-/// the network document (`commit`), otherwise members would not learn the secret.
-pub struct Issued {
-    /// Draft of the string without holders; the real string is given by `commit`.
-    pub text: String,
-    ledger: store::Ledger,
-    hash: String,
-    record: store::IssueRecord,
-    head: InviteHead,
-    own_addr: PeerAddr,
-    others: Vec<PeerId>,
-    rest: Vec<PeerId>,
-    primary: PrimaryIps,
-    stack: NetStack,
-    key: NetworkKey,
-}
-
-impl Issued {
-    /// Writes the issue record, collects the holders (members that saved their copy) and returns
-    /// the string with them first; if writing the issue record fails — there is no string.
-    pub async fn commit(self) -> Result<Dealt> {
-        let issuer = self.head.kind.root().map(|_| self.own_addr.id);
-        self.ledger
-            .issue_as(&self.hash, &self.record, issuer)
-            .await
-            .context("writing the invite into the network document failed")?;
-        let frame = hold_wire::hold_frame(
-            &self.key,
-            &self.head.secret.hash_bytes(),
-            self.head.made_unix,
-        );
-        let asked = spread::candidates(&self.others, self.own_addr.id);
-        let holders = spread::gather(&self.stack, frame, asked).await;
-        let ordered = spread::ordered(&holders, &self.own_addr, &self.rest);
-        let list = known::with_known(ordered, |id| self.stack.proven_addr(id));
-        let text = build_keyed(&self.head, &list[0], &list[1..], &self.primary)?;
-        Ok(Dealt { text, holders })
-    }
-}
-
 /// Own address for an invite and a snapshot: the node key and the hints of all stack transports, merged in order.
 pub(crate) fn own_addr(stack: &NetStack, me: PeerId) -> PeerAddr {
     let mut addr = PeerAddr::new(me);
@@ -264,7 +226,7 @@ fn me_out_of_network(src: &Source) -> bool {
 /// Does not touch the document — `Issued::commit` does that.
 pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     if src.stack.is_closed() {
-        bail!("node was restarted into another network {NET_NAME} — the invite command is unavailable until the process restarts");
+        bail!("{NET_NAME} was restarted into another network — the invite command is unavailable until the process restarts");
     }
     if me_out_of_network(src) {
         bail!("this computer is no longer in the network, so it cannot invite anyone");

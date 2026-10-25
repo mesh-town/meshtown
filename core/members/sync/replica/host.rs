@@ -53,6 +53,16 @@ fn quarantine_both(main: &Path) -> std::io::Result<PathBuf> {
     Ok(main.to_path_buf())
 }
 
+/// Moves a broken replica file (and its `.bak`) to quarantine and logs it.
+fn set_aside_broken(main: &Path, name: &str, mirror: bool) -> NetResult<()> {
+    let moved = quarantine_both(main).map_err(NetError::Io)?;
+    match mirror {
+        true => tracing::warn!("[sync] the domain list for the availability check is lost, starting with an empty one: the file was moved to {}", moved.display()),
+        false => tracing::error!("[sync] replica file {name} is damaged, moved to {}; starting without it", moved.display()),
+    }
+    Ok(())
+}
+
 /// Reads a replica file; on corruption both replicas go to quarantine and start empty
 /// (`"net"` — `error!`, the domain list for the availability check — `warn!`, it can be lost).
 fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> NetResult<Opened> {
@@ -66,11 +76,7 @@ fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> Net
     };
     let loaded = match file::load(path, &id) {
         Err(FileError::Broken { main, .. }) => {
-            let moved = quarantine_both(&main).map_err(NetError::Io)?;
-            match mirror {
-                true => tracing::warn!("[sync] the domain list for the availability check is lost, starting with an empty one: the file was moved to {}", moved.display()),
-                false => tracing::error!("[sync] replica file {name} is damaged, moved to {}; starting without it", moved.display()),
-            }
+            set_aside_broken(&main, name, mirror)?;
             Loaded::Fresh
         }
         other => other.map_err(|e| NetError::Config(format!("replica {name}: {e}")))?,
