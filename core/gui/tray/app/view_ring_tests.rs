@@ -10,7 +10,8 @@ const COLORS: [TrayColor; 4] = [
     TrayColor::GreenOutline,
 ];
 
-const ALL_ROLES: [RingRole; 4] = [
+const ALL_ROLES: [RingRole; 5] = [
+    RingRole::ExitDown,
     RingRole::ActiveExit,
     RingRole::ExitClient,
     RingRole::Online,
@@ -65,7 +66,7 @@ mod role_colours {
     }
 
     #[test]
-    fn four_roles_have_distinct_colours() {
+    fn five_roles_have_distinct_colours() {
         let colours: Vec<[u8; 3]> = ALL_ROLES.iter().map(|&role| role_rgb(role)).collect();
         for (i, a) in colours.iter().enumerate() {
             assert!(colours[i + 1..].iter().all(|b| a != b), "{colours:?}");
@@ -83,6 +84,7 @@ mod ring_counts {
             RingRole::Online,
             RingRole::ExitClient,
             RingRole::ActiveExit,
+            RingRole::ExitDown,
         ]);
         assert_eq!(roles_of(ring), ALL_ROLES);
     }
@@ -98,14 +100,15 @@ mod ring_counts {
 
     #[test]
     fn forty_peers_are_all_kept() {
-        let mut roles = vec![RingRole::ActiveExit];
+        let mut roles = vec![RingRole::ExitDown];
+        roles.push(RingRole::ActiveExit);
         roles.extend([RingRole::ExitClient; 3]);
         roles.extend([RingRole::Online; 20]);
-        roles.extend([RingRole::Offline; 16]);
+        roles.extend([RingRole::Offline; 15]);
         let ring = ring_of(&roles);
         assert_eq!(ring.len(), 40);
         let counts = ALL_ROLES.map(|role| ring.count(role));
-        assert_eq!(counts, [1, 3, 20, 16]);
+        assert_eq!(counts, [1, 1, 3, 20, 15]);
     }
 
     #[test]

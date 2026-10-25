@@ -241,10 +241,10 @@ pub(crate) fn proxy_on_host_port_text(host: &str, port: &str) -> String {
 pub fn hidden_icon_title_text() -> String {
     format!("The {APP_NAME} icon is hidden in the menu bar")
 }
-/// Dialog explanation: which switch to turn on in System Settings.
+/// Dialog explanation: which switch to turn on in System Settings (section names vary with the system language, so none is quoted).
 #[cfg(target_os = "macos")]
 pub fn hidden_icon_hint_text() -> String {
-    format!("Turn on {APP_NAME} in System Settings: Menu Bar → Allow in the Menu Bar.")
+    format!("Open System Settings and switch {APP_NAME} on in the list of apps allowed in the menu bar.")
 }
 /// First dialog button: open System Settings.
 #[cfg(target_os = "macos")]

@@ -5,7 +5,8 @@ use crate::gui::tray::app::view::{icon_rgba, TrayColor, View, ICON_SIDE_PX};
 use crate::gui::tray::app::view_ring::{ring_to_draw, RingRole, RING_ROLES};
 use std::f64::consts::{PI, TAU};
 
-const ALL_ROLES: [RingRole; 4] = [
+const ALL_ROLES: [RingRole; 5] = [
+    RingRole::ExitDown,
     RingRole::ActiveExit,
     RingRole::ExitClient,
     RingRole::Online,
@@ -13,11 +14,11 @@ const ALL_ROLES: [RingRole; 4] = [
 ];
 const SIDES: [u32; 3] = [36, 22, 16];
 
-/// Rings of 1, 2, 4 and 8 sectors: the 4-sector one has one role each, the 8-sector one has two each.
+/// Rings of 1, 2, 5 and 8 sectors: the 5-sector one has one role each, the 8-sector one has two each.
 const CASES: [(usize, &[RingRole]); 4] = [
     (1, &[RingRole::Online]),
     (2, &[RingRole::ActiveExit, RingRole::Online]),
-    (4, &ALL_ROLES),
+    (5, &ALL_ROLES),
     (
         8,
         &[

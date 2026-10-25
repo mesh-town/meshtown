@@ -106,6 +106,25 @@ mod serve_checkbox {
     }
 
     #[tokio::test(flavor = "multi_thread")]
+    async fn failed_exit_edit_forgets_last_exit_menu() {
+        let log: Arc<Mutex<Vec<String>>> = Arc::default();
+        let mut p = poller(
+            1,
+            std::path::PathBuf::from("/nonexistent/token"),
+            log.clone(),
+        );
+        assert!(p.last_exit_menu.is_some());
+
+        p.send_exit_edit(None, ExitEdit::Clear).await;
+
+        assert_eq!(p.last_exit_menu, None);
+        assert_eq!(
+            *log.lock().unwrap(),
+            vec!["exits: edit was not applied".to_string()]
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
     async fn serve_click_converges_to_snapshot() {
         let dir = temp_dir("poller-serve-converge");
         let (handle, _node) = start_fake_with_config(0, &dir).await;

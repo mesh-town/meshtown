@@ -35,7 +35,10 @@ impl Poller {
     /// and holding `&Poller` across `.await` in a future that `spawn` requires to be `Send` is not allowed — the same
     /// trick as in `tick`/`tick_own`/`tick_foreign` nearby.
     pub(super) async fn send_exit_edit(&mut self, slot: Option<&str>, edit: ExitEdit) {
-        if self.try_edit_once(slot, &edit).await || self.try_edit_once(slot, &edit).await {
+        let done = self.try_edit_once(slot, &edit).await || self.try_edit_once(slot, &edit).await;
+        // Whatever the outcome, the next tick sends the submenu again from the node snapshot.
+        self.last_exit_menu = None;
+        if done {
             return;
         }
         self.say("exits: edit was not applied".to_string());

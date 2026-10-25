@@ -107,6 +107,8 @@ pub struct Core {
     offline_nets: Vec<String>,
     /// Whether a ban vote (not only a join request) is pending in some shown network.
     removal_vote: bool,
+    /// The last applied "Exit via…" model, for the optimistic re-application on a click.
+    last_exit: Option<crate::gui::tray::app::exit_menu::ExitMenu>,
 }
 
 impl Core {
@@ -233,6 +235,7 @@ impl Core {
     /// `TrayCmd::ExitMenu`: remembers the chosen exit and proxy, rebuilds the
     /// "Exit via…" submenu and updates the status line/proxy item.
     fn apply_exits(&mut self, menu: crate::gui::tray::app::exit_menu::ExitMenu) {
+        self.last_exit = Some(menu.clone());
         self.route = menu.route.clone();
         self.proxy = menu.proxy.clone();
         self.serves_exit = menu.serves_exit;
@@ -301,6 +304,7 @@ pub(crate) fn channel(
         invite_slot: None,
         offline_nets: Vec::new(),
         removal_vote: false,
+        last_exit: None,
     };
     (tx, core)
 }
