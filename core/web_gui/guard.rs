@@ -14,6 +14,7 @@ use super::auth::tickets::Via;
 use super::http::{host_of, json_err, query_param, ConnInfo};
 use super::{cookie, App, WebShared};
 use crate::config::config_file::ListenAccess;
+use crate::node::output::NET_NAME;
 
 /// What the request used to prove the right to enter; put into the request extensions.
 #[derive(Clone, Debug)]
@@ -42,11 +43,12 @@ pub(crate) fn check_request(
 }
 
 fn bad_client_response(mode: ListenAccess) -> Response {
-    let text = match mode {
-        ListenAccess::Localhost => "the node page is open only from this computer",
-        ListenAccess::Localnet => "the node page is open only from the local network",
+    let place = match mode {
+        ListenAccess::Localhost => "this computer",
+        ListenAccess::Localnet => "the local network",
     };
-    json_err(StatusCode::FORBIDDEN, "bad_peer", text)
+    let text = format!("the {NET_NAME} page is open only from {place}");
+    json_err(StatusCode::FORBIDDEN, "bad_peer", &text)
 }
 
 fn check_client(conn: &ConnInfo, shared: &WebShared) -> Result<(), Response> {
@@ -95,8 +97,8 @@ fn check_origin(req: &Parts, host: &str) -> Result<(), Response> {
     if ok {
         return Ok(());
     }
-    let text = "the request didn't come from the node page";
-    Err(json_err(StatusCode::FORBIDDEN, "bad_origin", text))
+    let text = format!("the request didn't come from the {NET_NAME} page");
+    Err(json_err(StatusCode::FORBIDDEN, "bad_origin", &text))
 }
 
 fn check_credential(req: &Parts, shared: &WebShared) -> Result<Option<Credential>, Response> {

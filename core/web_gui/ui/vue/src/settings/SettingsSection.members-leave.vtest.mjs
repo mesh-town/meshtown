@@ -201,5 +201,5 @@ const leaveReply = (over = {}) => ({ ...membersReply(), left: true, announced: t
 
 const netBrief = (id, label) => ({
   id, label, id_hex: id + "-hex", status: "online", exit_enabled: false, proxy: false, route_state: "direct", exits: [],
-  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2,
+  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2, admission_refused: false,
 });

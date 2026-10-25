@@ -4,8 +4,8 @@ import { redactLine } from "./diag-redact.ts";
 
 describe("redactLine", () => {
   it("node page with a token: the address and the token are cut out", () => {
-    const out = redactLine("node page: http://127.0.0.1:7070/?token=abc");
-    assert.equal(out, "node page: http://‹address›/?token=‹hidden›");
+    const out = redactLine("Mesh Town page: http://127.0.0.1:7070/?token=abc");
+    assert.equal(out, "Mesh Town page: http://‹address›/?token=‹hidden›");
     assert.doesNotMatch(out, /abc|127\.0\.0\.1/);
   });
 

@@ -24,7 +24,7 @@ export function brief(id, over = {}) {
   return {
     id, label: id === MAIN ? "friends" : "my devices", id_hex: id === MAIN ? "3f2a01" : "9c0100", status: "online", exit_enabled: false,
     proxy: id === MAIN, route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0,
-    me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2, ...over,
+    me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2, admission_refused: false, ...over,
   };
 }
 

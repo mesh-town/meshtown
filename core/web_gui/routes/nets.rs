@@ -48,19 +48,19 @@ pub(super) async fn nets_post_handler(State(app): State<Arc<App>>, bytes: Bytes)
 pub(crate) fn host_error_response(err: HostError) -> Response {
     match err {
         HostError::TooManyNets => {
-            let message = format!("at most {MAX_NETS} networks on one node");
+            let message = format!("at most {MAX_NETS} networks on this computer");
             let body = json!({"error": "too_many_nets", "message": message, "limit": MAX_NETS});
             (StatusCode::CONFLICT, axum::Json(body)).into_response()
         }
         HostError::UnknownNet => json_err(
             StatusCode::NOT_FOUND,
             "unknown_net",
-            "no such network on this node",
+            "no such network on this computer",
         ),
         HostError::AlreadyAdded => json_err(
             StatusCode::CONFLICT,
             "net_already_added",
-            "this network is already on the node",
+            "this network is already on this computer",
         ),
         HostError::Busy(message) => json_err(StatusCode::CONFLICT, "busy", &message),
         HostError::Io(message) => json_err(StatusCode::INTERNAL_SERVER_ERROR, "internal", &message),

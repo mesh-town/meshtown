@@ -117,6 +117,7 @@ fn clone_args(a: &Args) -> Args {
     flags.push(format!("--seed={}", a.seed));
     flags.push(format!("--fast={}", a.fast));
     flags.push(format!("--offline-peers={}", a.offline_peers));
+    flags.push(format!("--no-exit-peers={}", a.no_exit_peers));
     flags.push(format!("--dht-nodes={}", a.dht_nodes));
     let toggles = [
         (a.no_network, "--no-network"),
@@ -126,6 +127,7 @@ fn clone_args(a: &Args) -> Args {
         (a.members_pending, "--members-pending"),
         (a.me_pending, "--me-pending"),
         (a.members_forget, "--members-forget"),
+        (a.admission_refused, "--admission-refused"),
     ];
     flags.extend(toggles.iter().filter(|t| t.0).map(|t| t.1.to_string()));
     if let Some(n) = a.ring_lines {

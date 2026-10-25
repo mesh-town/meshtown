@@ -9,6 +9,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Map, Value};
 
+use crate::node::output::NET_NAME;
 use crate::web_gui::http::json_err;
 use crate::web_gui::{ActionError, App};
 
@@ -113,7 +114,7 @@ pub(super) async fn reject_mutations_while_stopping(
         return json_err(
             StatusCode::SERVICE_UNAVAILABLE,
             "stopping",
-            "node is stopping",
+            &format!("{NET_NAME} is stopping"),
         );
     }
     next.run(req).await

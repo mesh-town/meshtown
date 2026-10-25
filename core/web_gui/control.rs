@@ -8,6 +8,7 @@ use serde::Serialize;
 
 use super::{LogPage, MembersReply, NetRoles, NodeSnapshot};
 use crate::invite::Dealt;
+use crate::node::output::NET_NAME;
 
 /// Writes the network key to the settings file: the page hands it to the node, the node calls it when the key is received.
 pub type SaveKey = Box<dyn FnOnce(&str) -> Result<(), String> + Send>;
@@ -182,7 +183,7 @@ pub enum WebStartError {
 impl std::fmt::Display for WebStartError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WebStartError::Disabled => write!(f, "the page is turned off in node settings"),
+            WebStartError::Disabled => write!(f, "the page is turned off in {NET_NAME} settings"),
             WebStartError::Bind { port, reason, kind } => {
                 let head = port_phrase(*port, *kind);
                 write!(f, "the page didn't start: {head} ({reason})")
@@ -219,7 +220,7 @@ impl WebStartError {
             WebStartError::Disabled => None,
             WebStartError::Bind { port, reason, kind } => Some(bind_line(*port, *kind, reason)),
             WebStartError::Random(reason) => Some(format!(
-                "the page didn't start: no random token obtained ({reason}) — the node is running without the page"
+                "the page didn't start: no random token obtained ({reason}) — {NET_NAME} is running without the page"
             )),
         }
     }
@@ -237,7 +238,7 @@ impl WebStartError {
 }
 
 fn bind_line(port: u16, kind: std::io::ErrorKind, reason: &str) -> String {
-    let tail = "the node is running without the page";
+    let tail = format!("{NET_NAME} is running without the page");
     if kind == std::io::ErrorKind::AddrInUse {
         return format!(
             "the page didn't start: {} — {tail}; another port: {}",

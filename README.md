@@ -72,7 +72,7 @@ an exit and serves only members of its network.
 1. [Install](#install) and start Mesh Town. Without arguments `meshtown` opens the tray app; in a terminal or on a
    server use `meshtown-cli`.
 2. Open the node page from the tray menu, or with the sign-in link printed at start
-   (`node page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
+   (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
    `meshtown run --invite mesh-invite2-…`).
 4. **Invite a member** on the page gives a single-use string for the next device or person.

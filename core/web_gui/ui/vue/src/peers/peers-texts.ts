@@ -91,11 +91,12 @@ export const ADMISSION_REFUSED_TITLE = (net: string): string => forDevice("This 
 const NO_ONE_ELSE = (net: string): string => `and no other member of "${net}" is online.`;
 export const ADMISSION_REFUSED_ONE = (name: string, net: string): string => `${name} refuses to let it in, ${NO_ONE_ELSE(net)}`;
 export const ADMISSION_REFUSED_MANY = (list: string, net: string): string => `${list} refuse to let it in, ${NO_ONE_ELSE(net)}`;
+export const ADMISSION_REFUSED_NONE = (net: string): string => `Members of "${net}" refuse to let it in, and no other member is online.`;
 const UNTIL_THEN = (net: string): string => ` Until then, sites won't open through "${net}".`;
 /** What to do: a Managed network lets in through an admin; in a Peer network the refusing members are asked. */
 export function admissionRefusedAsk(names: string[], net: string, managed: boolean): string {
   if (managed) return `Ask an admin of "${net}" ` + forDevice("to let this computer in.") + UNTIL_THEN(net);
-  const who = names.length === 1 ? names[0] : "one of them";
+  const who = names.length === 0 ? "a member" : names.length === 1 ? names[0] : "one of them";
   return `Ask ${who} ` + forDevice("to let this computer in.") + UNTIL_THEN(net);
 }
 

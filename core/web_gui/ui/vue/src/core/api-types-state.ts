@@ -140,9 +140,10 @@ export interface MembersInfo {
   count: number;
   gossip_neighbors: number;
   voting?: number; // rows with a pending ban vote
-  me_excluded?: boolean; // this node is no longer in the member list
-  admitting?: number; // join requests that wait for this node's confirmation
-  me_pending?: boolean; // this node waits for members to confirm it
+  me_excluded?: boolean; // this computer is no longer in the member list
+  admitting?: number; // join requests that wait for this computer's confirmation
+  me_pending?: boolean; // this computer waits for members to confirm it
+  admission_refused?: boolean; // the members turned this computer down
 }
 
 export interface SocksInfo {

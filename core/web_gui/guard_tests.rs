@@ -55,6 +55,13 @@ pub(super) async fn error_code(resp: Response) -> String {
     v["error"].as_str().unwrap().to_string()
 }
 
+pub(super) async fn error_message(resp: Response) -> String {
+    use http_body_util::BodyExt;
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let v: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    v["message"].as_str().unwrap().to_string()
+}
+
 pub(super) fn open_session(s: &WebShared) -> String {
     let mut t = s.auth.tickets.lock().unwrap();
     t.open_session(Via::Password, Instant::now()).unwrap()
@@ -185,6 +192,16 @@ mod localhost {
     }
 
     #[tokio::test]
+    async fn lan_peer_message_names_the_page() {
+        let p = get("/app.css", &[("host", &lo_host())]);
+        let err = check_request(&p, &lan_conn(), &shared(ListenAccess::Localhost)).unwrap_err();
+        assert_eq!(
+            error_message(err).await,
+            "the Mesh Town page is open only from this computer"
+        );
+    }
+
+    #[tokio::test]
     async fn lan_peer_with_wrong_host_bad_peer_first() {
         let p = get("http://evil.example/x", &[("host", "evil.example")]);
         let err = check_request(&p, &lan_conn(), &shared(ListenAccess::Localhost)).unwrap_err();
@@ -292,7 +309,10 @@ mod origin {
             &[("host", &lo_host()), ("x-meshtown-token", TOKEN)],
         );
         let err = check_request(&p, &lo(), &shared(ListenAccess::Localhost)).unwrap_err();
-        assert_eq!(error_code(err).await, "bad_origin");
+        assert_eq!(
+            error_message(err).await,
+            "the request didn't come from the Mesh Town page"
+        );
     }
 }
 

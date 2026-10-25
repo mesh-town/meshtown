@@ -43,7 +43,7 @@ mod listing {
     async fn get_on_busy_node_is_409_busy() {
         // given
         let fx = setup(Answer::Action(ActionError::Busy(
-            "node is starting".to_string(),
+            "Mesh Town is starting".to_string(),
         )));
         // when
         let reply = line(fx.get("/api/members").await);
@@ -73,13 +73,13 @@ mod node_errors {
     async fn busy_maps_to_409_busy() {
         // given
         let fx = setup(Answer::Action(ActionError::Busy(
-            "node is stopping".to_string(),
+            "Mesh Town is stopping".to_string(),
         )));
         // when
         let (status, body) = fx.post("/api/members/exclude", &id_body()).await;
         // then
         assert_eq!(line((status, body.clone())), "409 busy");
-        assert_eq!(body["message"], "node is stopping");
+        assert_eq!(body["message"], "Mesh Town is stopping");
     }
 
     #[tokio::test]

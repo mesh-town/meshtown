@@ -15,6 +15,7 @@ mod announce_text {
         assert!(text.contains("10 minutes"), "{text}");
         assert!(text.contains("single use"), "{text}");
         assert!(text.contains(&url(1)), "{text}");
+        assert!(text.starts_with("Mesh Town page: "), "{text}");
     }
 
     #[test]
@@ -22,6 +23,7 @@ mod announce_text {
         let text = announce_text(&[url(1)], true);
         assert!(text.contains("password sign-in"), "{text}");
         assert!(!text.contains("10 minutes"), "{text}");
+        assert!(text.starts_with("Mesh Town page: "), "{text}");
     }
 
     #[test]

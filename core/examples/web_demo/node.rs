@@ -20,6 +20,8 @@ pub(crate) struct DemoPeer {
     pub(crate) name: Option<String>,
     pub(crate) path: Option<PathKindView>,
     pub(crate) online: bool,
+    /// Whether the member offers an exit (`false` is reported as `exit: false`).
+    pub(crate) exit: bool,
 }
 
 pub(crate) struct DemoDomain {
@@ -37,6 +39,7 @@ pub(crate) struct DemoState {
     pub(crate) peers: Vec<DemoPeer>,
     pub(crate) domains: Vec<DemoDomain>,
     pub(crate) members: DemoMembers,
+    pub(crate) admission_refused: bool,
     pub(crate) settings: Settings,
     pub(crate) starting_until: Option<f64>,
     pub(crate) next_line_at: f64,
@@ -47,6 +50,10 @@ pub(crate) struct DemoState {
 /// (how many peers are offline and the DHT status).
 pub(crate) struct DemoNetworkOptions {
     pub(crate) offline_peers: u64,
+    /// `--no-exit-peers`: how many of the last peers do not offer an exit.
+    pub(crate) no_exit_peers: u64,
+    /// `--admission-refused`: this computer is kept out of the network.
+    pub(crate) admission_refused: bool,
     pub(crate) dht_joined: bool,
     pub(crate) dht_nodes: u64,
     /// `--members-second-vote`: a second member agrees to every ban proposal at once.
@@ -88,9 +95,10 @@ fn build_startup_log(ring_capacity: usize) -> LogRing {
 }
 
 /// Two fixed demo peers; `offline_peers` determines how many of them are shown offline.
-fn build_demo_peers(offline_peers: u64, _gen: &mut u64) -> Vec<DemoPeer> {
+pub(crate) fn build_demo_peers(offline_peers: u64, no_exit_peers: u64, _gen: &mut u64) -> Vec<DemoPeer> {
     let peer_count = 2u64;
     let offline_from = peer_count.saturating_sub(offline_peers.min(peer_count));
+    let exit_until = peer_count.saturating_sub(no_exit_peers.min(peer_count));
     // Detail 5: the member code in the "Members" table and in
     // `#route-state` when an exit is chosen must be one and the same code of one
     // and the same id — before, `id` came from an independent `gen_hex8`, now from
@@ -104,6 +112,7 @@ fn build_demo_peers(offline_peers: u64, _gen: &mut u64) -> Vec<DemoPeer> {
             name: Some("peer-one".to_string()),
             path: Some(PathKindView::Direct),
             online: 0 < offline_from,
+            exit: 0 < exit_until,
         },
         DemoPeer {
             id: output::short_peer_id(&peer_two_id_full),
@@ -111,6 +120,7 @@ fn build_demo_peers(offline_peers: u64, _gen: &mut u64) -> Vec<DemoPeer> {
             name: Some("peer-two".to_string()),
             path: Some(PathKindView::Relay),
             online: 1 < offline_from,
+            exit: 1 < exit_until,
         },
     ]
 }
@@ -131,12 +141,16 @@ fn build_demo_domains() -> Vec<DemoDomain> {
 fn build_demo_peers_and_domains(
     no_network: bool,
     offline_peers: u64,
+    no_exit_peers: u64,
     gen: &mut u64,
 ) -> (Vec<DemoPeer>, Vec<DemoDomain>) {
     if no_network {
         return (Vec::new(), Vec::new());
     }
-    (build_demo_peers(offline_peers, gen), build_demo_domains())
+    (
+        build_demo_peers(offline_peers, no_exit_peers, gen),
+        build_demo_domains(),
+    )
 }
 
 impl DemoNode {
@@ -151,8 +165,12 @@ impl DemoNode {
         let mut gen = if seed == 0 { 1 } else { seed };
         let boot_id = gen_hex8(&mut gen);
         let log = build_startup_log(ring_capacity);
-        let (peers, domains) =
-            build_demo_peers_and_domains(no_network, net_opts.offline_peers, &mut gen);
+        let (peers, domains) = build_demo_peers_and_domains(
+            no_network,
+            net_opts.offline_peers,
+            net_opts.no_exit_peers,
+            &mut gen,
+        );
         let members = DemoMembers::new(&peers, &net_opts);
 
         DemoNode {
@@ -165,6 +183,7 @@ impl DemoNode {
                 peers,
                 domains,
                 members,
+                admission_refused: net_opts.admission_refused,
                 settings,
                 starting_until: None,
                 next_line_at: 0.5,

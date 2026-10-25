@@ -13,12 +13,15 @@ fn peer(seed: u8, name: &str) -> DemoPeer {
         name: Some(name.to_string()),
         path: None,
         online: true,
+        exit: true,
     }
 }
 
 fn demo(mode: ManagedMode) -> DemoMembers {
     let opts = DemoNetworkOptions {
         offline_peers: 0,
+        no_exit_peers: 0,
+        admission_refused: false,
         dht_joined: false,
         dht_nodes: 0,
         members_second_vote: false,

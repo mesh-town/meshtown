@@ -37,6 +37,12 @@ pub(crate) struct Args {
     /// How many of the two demo peers (counting from the end of the list) to report as offline (`online: false`).
     #[arg(long, default_value_t = 0)]
     pub(crate) offline_peers: u64,
+    /// This computer is kept out of the network: `members.admission_refused` is true in the snapshot.
+    #[arg(long)]
+    pub(crate) admission_refused: bool,
+    /// How many of the two demo peers (counting from the end of the list) do not offer an exit (`exit: false`).
+    #[arg(long, default_value_t = 0)]
+    pub(crate) no_exit_peers: u64,
     /// `transport.dht.joined` in the snapshot (demo-only, for web-check).
     #[arg(long)]
     pub(crate) dht_joined: bool,
@@ -109,3 +115,7 @@ impl Args {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "args_tests.rs"]
+mod tests;

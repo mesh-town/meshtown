@@ -3,7 +3,7 @@
 // in `cardOrder` order) and "Setup" ("Three steps"). The shared `useHome` is passed to the cards through `provide`.
 import { computed, inject, provide } from "vue";
 import { STORE_KEY } from "../core/store.ts";
-import { netName } from "../core/slots.ts";
+import { netName, refusedFlag } from "../core/slots.ts";
 import BrowserCard from "./BrowserCard.vue";
 import { inAppPage } from "./browser-setup.ts";
 import HomeTabs from "./HomeTabs.vue";
@@ -46,12 +46,12 @@ const outOfNet = computed(() => excluded.value || removed.value);
       <HomeTabs />
       <div id="home-tabpanel" role="tabpanel" :aria-labelledby="'home-tab-' + activeTab">
         <template v-if="activeTab === 'wizard'">
-          <AdmissionRefused :members="store.members" :net='netName(store.nets, "main")' />
+          <AdmissionRefused :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
           <SetupWizard />
         </template>
         <template v-else>
           <UpdateBanner />
-          <AdmissionRefused :members="store.members" :net='netName(store.nets, "main")' />
+          <AdmissionRefused :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
           <StatePanel :panel="panel" :ring="ring" @pick-other="home.pickOther" @direct="home.chooseDirect" />
           <div v-if="chips.length" class="net-chips" id="home-chips">
             <a v-for="c in chips" :key="c.slot" class="chip net-chip" :href="peersHash(c.slot)" :title="c.short">{{ c.text }}</a>

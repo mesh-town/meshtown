@@ -17,6 +17,7 @@ describe("the refused-admission plate", () => {
     assert.ok(admissionRefusedAsk(["anna"], "family", false).startsWith('Ask anna to let this phone in.'));
     assert.ok(admissionRefusedAsk([], "family", true).startsWith('Ask an admin of "family" to let this phone in.'));
     noComputer(admissionRefusedAsk(["a", "b"], "family", false));
+    noComputer(admissionRefusedAsk([], "family", false));
   });
 
   it("on a desktop: the computer", () => {

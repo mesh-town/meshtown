@@ -11,6 +11,7 @@ use super::slot_param::SlotParam;
 use super::state_host::{apply_host, apply_notices, apply_slot};
 use super::state_net::{apply_net, net_state};
 use crate::web_gui::auth::iface_os::current_view;
+use crate::node::output::NET_NAME;
 use crate::web_gui::http::{json_err, ConnInfo};
 use crate::web_gui::net_brief::briefs;
 use crate::web_gui::{App, InviteJoinView, NetRoles, SlotHandle};
@@ -34,7 +35,7 @@ pub(super) async fn state_handler(
         return json_err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "internal",
-            "internal node error",
+            &format!("internal {NET_NAME} error"),
         );
     };
     // The slot's config lock is released by now; `briefs` takes the locks one by one.

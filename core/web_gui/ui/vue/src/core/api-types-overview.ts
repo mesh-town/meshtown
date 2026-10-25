@@ -24,6 +24,7 @@ export interface NetBrief {
   kind?: NetKind;
   me_admin?: boolean;
   can_invite?: boolean;
+  admission_refused: boolean; // the server says the members turned this computer down (no delay: the page waits)
 }
 
 export interface SlotEntry {

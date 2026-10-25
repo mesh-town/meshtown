@@ -66,6 +66,8 @@ pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> Demo
         args.no_network,
         DemoNetworkOptions {
             offline_peers: args.offline_peers,
+            no_exit_peers: args.no_exit_peers,
+            admission_refused: args.admission_refused,
             dht_joined: args.dht_joined,
             dht_nodes: args.dht_nodes,
             members_second_vote: args.members_second_vote,

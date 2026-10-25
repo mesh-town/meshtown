@@ -112,6 +112,10 @@ async fn host_errors_have_their_codes() {
 
         // then
         assert_eq!((status, body["error"].as_str()), (code, Some(name)));
+        if matches!(name, "too_many_nets" | "unknown_net" | "net_already_added") {
+            let message = body["message"].as_str().unwrap_or_default();
+            assert!(message.contains("on this computer"), "{name}: {message}");
+        }
     }
 }
 
