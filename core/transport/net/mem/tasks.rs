@@ -1,6 +1,7 @@
 //! Connection tasks of `mem`: the writer (frame queue → path) and the reader (path → frame parsing).
 //! The reader does not wait for the user: data goes into the stream buffer.
 
+use crate::transport::net::connect::PacketPath;
 use crate::transport::net::mem::conn::CODE_PATH_LOST;
 use crate::transport::net::mem::frame::Frame;
 use crate::transport::net::mem::shared::MemConnState;
@@ -39,13 +40,19 @@ pub(super) async fn write_loop(shared: Arc<MemConnState>, mut rx: mpsc::Unbounde
 }
 
 async fn send_one(shared: &MemConnState, frame: Frame) -> bool {
-    let pkt = frame.encode();
-    let len = pkt.len() as u64;
-    if shared.path.send(pkt).await.is_err() {
+    let Some(len) = send_encoded(&*shared.path, &frame).await else {
         return false;
-    }
+    };
     shared.sent_bytes_total.fetch_add(len, Ordering::Relaxed);
     true
+}
+
+/// Encodes the frame and sends it; returns the number of bytes sent, `None` if the path refused.
+async fn send_encoded(path: &dyn PacketPath, frame: &Frame) -> Option<u64> {
+    let pkt = frame.encode();
+    let len = pkt.len() as u64;
+    path.send(pkt).await.ok()?;
+    Some(len)
 }
 
 pub(super) async fn read_loop(shared: Arc<MemConnState>) {

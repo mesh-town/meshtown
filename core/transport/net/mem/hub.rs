@@ -73,6 +73,23 @@ fn cut_key(a: PeerId, b: PeerId) -> (PeerId, PeerId) {
 }
 
 impl HubState {
+    /// A pair of connected paths; the line is registered in both slots, dead lines are dropped.
+    fn pair_paths(
+        &mut self,
+        hub: &Arc<Hub>,
+        a: (PeerId, u64),
+        b: (PeerId, u64),
+    ) -> (MemPath, MemPath) {
+        let (mine, theirs) = MemPath::pair(hub, a, b);
+        for slot in [a.1, b.1] {
+            if let Some(s) = self.slots.get_mut(&slot) {
+                s.lines.retain(|w| w.strong_count() > 0);
+                s.lines.push(Arc::downgrade(mine.line()));
+            }
+        }
+        (mine, theirs)
+    }
+
     /// Removes a slot: the accept queue is closed, its lines are closed.
     fn remove(&mut self, slot: u64) {
         let Some(gone) = self.slots.remove(&slot) else {
@@ -187,15 +204,9 @@ impl Hub {
         if st.cuts.contains(&cut_key(me, to.id)) {
             return Err(NetError::NoRoute);
         }
-        let (mine, theirs) = MemPath::pair(&hub, (me, from), (to.id, target));
         let tslot = st.slots.get(&target).ok_or(NetError::NoRoute)?;
         let (queue, gone) = (tslot.queue.clone(), tslot.gone.subscribe());
-        for slot in [from, target] {
-            if let Some(s) = st.slots.get_mut(&slot) {
-                s.lines.retain(|w| w.strong_count() > 0);
-                s.lines.push(Arc::downgrade(mine.line()));
-            }
-        }
+        let (mine, theirs) = st.pair_paths(&hub, (me, from), (to.id, target));
         Ok((mine, theirs, queue, gone))
     }
 
