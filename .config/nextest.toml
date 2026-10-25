@@ -3,10 +3,16 @@ retries = 0
 fail-fast = false
 slow-timeout = { period = "15s", terminate-after = 4 }
 final-status-level = "slow"
+# On macOS, a test process can inherit the write end of another test's stdout/stderr pipe: the runner creates a pipe and
+# marks it close-on-exec in two steps, and a test spawned in between keeps the pipe open until that test exits.
+# The finished test is then reported as LEAK although it left nothing behind. Sibling tests mostly end within a
+# second, so the wait is longer than the default 100 ms; a real leak (a thread or a child process that outlives the test)
+# still shows up after it.
+leak-timeout = "1s"
 
-# The "64 MiB" case (hyper) takes tens of seconds in debug, and minutes under heavy machine load:
-# that is slow, not hung. The limit is above VOLUME_LIMIT (100 s), so that the
-# test's clear panic fires rather than a kill.
+# The "64 MiB" case (hyper) takes a few seconds in the dev profile (dependencies are built with optimizations, see
+# `[profile.dev.package."*"]` in Cargo.toml) and minutes under heavy machine load: that is slow, not hung. The limit
+# is above VOLUME_LIMIT (100 s), so that the test's clear panic fires rather than a kill.
 [[profile.default.overrides]]
 filter = 'test(sixty_four_mebibytes_arrive_intact)'
 slow-timeout = { period = "60s", terminate-after = 4 }
