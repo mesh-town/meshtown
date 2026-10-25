@@ -86,7 +86,7 @@ impl Poller {
     }
 
     /// A transition on the outcome of `start_policy`. `allow_spawn` is the decision at startup and
-    /// "Start Mesh Town"; when polling without a node, `Spawn` means "no node".
+    /// "Start Mesh Town"; when polling without a running Mesh Town, `Spawn` means "no node".
     pub(super) fn enter(
         &mut self,
         reply: Result<Reply, ApiError>,

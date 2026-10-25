@@ -10,11 +10,11 @@ pub const PORT_FRAME_VERSION: u8 = 1;
 
 /// The connection is open, bytes follow.
 pub const PORT_CODE_OK: u8 = 0;
-/// The node does not publish this port.
+/// The member does not publish this port.
 pub const PORT_CODE_NOT_PUBLISHED: u8 = 1;
-/// The port on the node does not respond.
+/// The port on the member's computer does not respond.
 pub const PORT_CODE_CONNECT_FAILED: u8 = 3;
-/// The node does not open this port for the requester.
+/// The member does not open this port for the requester.
 pub const PORT_CODE_REFUSED: u8 = 5;
 /// The request could not be parsed.
 pub const PORT_CODE_BAD_REQUEST: u8 = 6;
