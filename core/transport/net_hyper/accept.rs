@@ -9,6 +9,7 @@ use crate::transport::net::transport::PeerConn;
 use crate::transport::net_hyper::conn::{establish_accepted_session, HyperConn, StreamDialer};
 use crate::transport::net_hyper::gate::PeerGate;
 use crate::transport::net_hyper::keys::peer_of;
+use crate::transport::net_hyper::link::PathFacts;
 use crate::transport::net_hyper::table::{SessionKey, Sessions};
 use crate::transport::net_hyper::wire::{
     read_header, write_reply, Header, Owner, Reply, HEADER_LIMIT, REFUSE_NOT_MEMBER,
@@ -112,6 +113,7 @@ pub async fn accept_loop(mut incoming: Incoming, ctx: Arc<AcceptCtx>) {
 /// Parses the header of one connection; drops a foreign or slow one without a reply.
 async fn admit(conn: DhtConnection, ctx: Arc<AcceptCtx>) {
     let key = conn.remote_public_key;
+    let facts = PathFacts::accepted(&conn);
     let mut stream = conn.stream;
     let Ok(peer) = peer_of(&key) else { return };
     let Ok(Ok(header)) = timeout(HEADER_LIMIT, read_header(&mut stream)).await else {
@@ -121,7 +123,7 @@ async fn admit(conn: DhtConnection, ctx: Arc<AcceptCtx>) {
         Header::Open {
             session,
             service_name,
-        } => on_open(&ctx, peer, session, &service_name, stream).await,
+        } => on_open(&ctx, peer, session, &service_name, stream, facts).await,
         Header::Stream { session, owner } => on_stream(&ctx, peer, session, owner, stream).await,
     }
 }
@@ -132,6 +134,7 @@ async fn on_open(
     session: u64,
     service_name: &[u8],
     mut stream: Box<dyn Duplex>,
+    facts: PathFacts,
 ) {
     let Some(svc) = ctx.find(service_name) else {
         return refuse(&mut stream, REFUSE_UNSERVED).await;
@@ -148,6 +151,7 @@ async fn on_open(
     )
     .await;
     let Ok(conn) = made else { return };
+    conn.note_path(facts);
     ctx.track(&conn);
     let conn: Arc<dyn PeerConn> = conn;
     let _ = ctx.accepted_tx.send((svc, conn)).await;

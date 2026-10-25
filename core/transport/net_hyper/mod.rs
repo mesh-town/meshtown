@@ -23,3 +23,5 @@ mod contract_tests;
 mod probe_tests;
 #[cfg(test)]
 pub(crate) mod test_cluster;
+#[cfg(test)]
+pub(crate) mod test_direct;

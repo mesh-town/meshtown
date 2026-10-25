@@ -1,9 +1,13 @@
 //! Session counters and path/network information.
 
 use super::*;
+use crate::transport::net::addr::AddrHint;
 use crate::transport::net::link::PathKind;
 use std::io::ErrorKind;
+use std::net::SocketAddr;
+use std::time::Duration;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
+use townjump_dht::RttProbe;
 
 #[test]
 fn fresh_meter_reports_unknown_path() {
@@ -67,4 +71,80 @@ fn after_listen_ok_net_seen_true() {
 #[test]
 fn after_listen_err_net_seen_false() {
     assert_eq!(net_info(Some(false)).net_seen, Some(false));
+}
+
+mod path_facts {
+    use super::*;
+
+    #[test]
+    fn reports_remote_and_probe_rtt() {
+        // given
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        // when
+        meter.note_path(facts(Some(addr()), probe(Some(Duration::from_millis(7)))));
+        // then
+        let info = link_info(&meter);
+        assert_eq!(info.remote, Some(addr()));
+        assert_eq!(info.rtt, Some(Duration::from_millis(7)));
+        assert!(
+            matches!(info.hint(), Some(AddrHint::Ip(sa)) if sa == addr()),
+            "direct path with a known remote must hint its address"
+        );
+    }
+}
+
+mod probe_without_sample {
+    use super::*;
+
+    #[test]
+    fn reports_no_rtt() {
+        // given
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        // when
+        meter.note_path(facts(Some(addr()), probe(None)));
+        // then
+        let info = link_info(&meter);
+        assert_eq!(info.rtt, None);
+        assert_eq!(
+            info.remote,
+            Some(addr()),
+            "remote is independent of the probe"
+        );
+    }
+}
+
+mod note_path {
+    use super::*;
+
+    #[test]
+    fn second_call_is_ignored() {
+        // given
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        let other: SocketAddr = "127.0.0.1:10".parse().unwrap();
+        meter.note_path(facts(Some(addr()), probe(Some(Duration::from_millis(7)))));
+        // when
+        meter.note_path(facts(Some(other), probe(Some(Duration::from_millis(99)))));
+        // then
+        let info = link_info(&meter);
+        assert_eq!(info.remote, Some(addr()), "first remote wins");
+        assert_eq!(info.rtt, Some(Duration::from_millis(7)), "first probe wins");
+    }
+}
+
+fn addr() -> SocketAddr {
+    "127.0.0.1:9".parse().unwrap()
+}
+
+fn probe(sample: Option<Duration>) -> RttProbe {
+    Arc::new(move || sample)
+}
+
+fn facts(remote: Option<SocketAddr>, rtt: RttProbe) -> PathFacts {
+    PathFacts {
+        remote,
+        rtt: Some(rtt),
+    }
 }

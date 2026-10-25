@@ -78,6 +78,10 @@ pub trait Transport: Send + Sync {
     fn me(&self) -> PeerId;
     fn local_addr(&self) -> PeerAddr;
     fn can_reach(&self, to: &PeerAddr) -> bool;
+    /// An address of `peer` this transport itself dialed successfully — fit for an invite and the address cache.
+    fn proven_addr(&self, _peer: PeerId) -> Option<std::net::SocketAddr> {
+        None
+    }
     fn add_hints(&self, addr: &PeerAddr);
     fn set_relays(&self, relays: &[RelayRef]);
     /// Called before the first `accept` (the list of services to accept).

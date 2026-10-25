@@ -27,6 +27,7 @@ mod dealt;
 mod head;
 pub mod hold_wire;
 mod issuer;
+mod known;
 mod parse;
 pub mod proof;
 pub mod redeem;
@@ -206,7 +207,8 @@ impl Issued {
         );
         let asked = spread::candidates(&self.others, self.own_addr.id);
         let holders = spread::gather(&self.stack, frame, asked).await;
-        let list = spread::ordered(&holders, &self.own_addr, &self.rest);
+        let ordered = spread::ordered(&holders, &self.own_addr, &self.rest);
+        let list = known::with_known(ordered, |id| self.stack.proven_addr(id));
         let text = build_keyed(&self.head, &list[0], &list[1..], &self.primary)?;
         Ok(Dealt { text, holders })
     }
@@ -250,7 +252,8 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     let others = holders_pool(&connected, admins);
     let me_id = src.stack.me();
     let rest = spread::rest(&connected, &listed_members(src), me_id);
-    let rest_addr: Vec<PeerAddr> = rest.iter().copied().map(PeerAddr::new).collect();
+    let bare: Vec<PeerAddr> = rest.iter().copied().map(PeerAddr::new).collect();
+    let rest_addr = known::with_known(bare, |id| src.stack.proven_addr(id));
     let head = InviteHead {
         secret: InviteSecret::generate()?,
         network_id: src.key.subkeys().network_id,
