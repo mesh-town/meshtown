@@ -202,6 +202,17 @@ mod localhost {
     }
 
     #[tokio::test]
+    async fn public_peer_message_names_the_local_network() {
+        let p = get("/app.css", &[("host", &lo_host())]);
+        let public = conn("8.8.8.8:50000", &format!("127.0.0.1:{PORT}"));
+        let err = check_request(&p, &public, &shared(ListenAccess::Localnet)).unwrap_err();
+        assert_eq!(
+            error_message(err).await,
+            "the Mesh Town page is open only from the local network"
+        );
+    }
+
+    #[tokio::test]
     async fn lan_peer_with_wrong_host_bad_peer_first() {
         let p = get("http://evil.example/x", &[("host", "evil.example")]);
         let err = check_request(&p, &lan_conn(), &shared(ListenAccess::Localhost)).unwrap_err();

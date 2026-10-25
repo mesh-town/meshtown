@@ -119,3 +119,7 @@ pub(super) async fn reject_mutations_while_stopping(
     }
     next.run(req).await
 }
+
+#[cfg(test)]
+#[path = "helpers_tests.rs"]
+mod tests;

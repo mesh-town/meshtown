@@ -112,9 +112,14 @@ async fn host_errors_have_their_codes() {
 
         // then
         assert_eq!((status, body["error"].as_str()), (code, Some(name)));
-        if matches!(name, "too_many_nets" | "unknown_net" | "net_already_added") {
-            let message = body["message"].as_str().unwrap_or_default();
-            assert!(message.contains("on this computer"), "{name}: {message}");
+        let exact = match name {
+            "too_many_nets" => Some("at most 8 networks on this computer"),
+            "unknown_net" => Some("no such network on this computer"),
+            "net_already_added" => Some("this network is already on this computer"),
+            _ => None,
+        };
+        if let Some(text) = exact {
+            assert_eq!(body["message"].as_str(), Some(text), "{name}");
         }
     }
 }

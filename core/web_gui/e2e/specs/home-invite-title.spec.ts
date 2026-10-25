@@ -19,11 +19,12 @@ test.describe('home-invite-title', () => {
         el.textContent = text;
         (el as HTMLElement).hidden = false;
       }, COUNT_TEXT);
-      const title = await page.locator('#home-invite-title').boundingBox();
-      const count = await page.locator('#home-members-count').boundingBox();
-      if (!title || !count) throw new Error('the card has no title or no counter');
-      const apart = count.x >= title.x + title.width || count.y >= title.y + title.height;
-      expect(apart, `title ${JSON.stringify(title)} and counter ${JSON.stringify(count)} must not overlap`).toBe(true);
+      const apart = await page.evaluate(() => {
+        const title = document.querySelector('#home-invite-title')!.getBoundingClientRect();
+        const count = document.querySelector('#home-members-count')!.getBoundingClientRect();
+        return count.left >= title.right || count.top >= title.bottom;
+      });
+      expect(apart, 'the counter must not overlap the title').toBe(true);
     });
   }
 });
