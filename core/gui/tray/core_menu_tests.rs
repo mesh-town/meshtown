@@ -95,3 +95,54 @@ fn exit_click_updates_remembered_model_before_snapshot() {
     assert_eq!(marks, vec![false, true]);
     assert!(node_rx.try_recv().is_ok());
 }
+
+#[test]
+fn directly_click_clears_the_exit_of_the_chosen_network() {
+    use crate::gui::tray::app::exit_menu::{disabled_exit_menu, ExitItem};
+    use crate::gui::tray::app::nets_menu::{ExitGroup, NetMenu};
+    use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
+    let (node_tx, mut node_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (_tx, mut core) = channel(
+        crate::gui::tray::app::quit::QuitSignal::new(),
+        page,
+        node_tx,
+        &RECORDING,
+    );
+    let net = |slot: &str| NetMenu {
+        slot: slot.to_string(),
+        title: slot.to_string(),
+        joining: false,
+        online: true,
+        peers: Vec::new(),
+        peers_more: 0,
+        serves_exit: false,
+        voting: 0,
+        admitting: 0,
+        invite_admins_only: false,
+        label: slot.to_string(),
+    };
+    let group = |slot: &str, checked| ExitGroup {
+        slot: slot.to_string(),
+        title: slot.to_string(),
+        items: vec![ExitItem {
+            id_full: "peer".to_string(),
+            label: "peer".to_string(),
+            checked,
+            online: true,
+        }],
+    };
+    let mut menu = disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings));
+    menu.enabled = true;
+    menu.nets = vec![net("a"), net("b")];
+    menu.groups = vec![group("a", false), group("b", true)];
+    core.apply_exits(menu);
+
+    core.handle_menu("exit:");
+
+    assert_eq!(
+        node_rx.try_recv().ok(),
+        Some(NodeCmd::ClearExits(Some("b".to_string())))
+    );
+    assert!(node_rx.try_recv().is_err());
+    assert!(core.facts.nets.iter().all(|n| !n.exit_chosen));
+}

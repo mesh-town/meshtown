@@ -19,8 +19,10 @@ impl Core {
             | MenuTarget::Notice(_)
             | MenuTarget::Members(_) => self.open_page(&target),
             MenuTarget::Exit { .. } | MenuTarget::Directly => {
-                self.apply_click(&target);
+                // The commands are built from the facts as they are before the click: the
+                // optimistic redraw below rewrites them.
                 self.send_node_cmds(&target);
+                self.apply_click(&target);
             }
             _ => self.send_node_cmds(&target),
         }
