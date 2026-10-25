@@ -48,8 +48,17 @@ impl Poller {
     /// Whatever the outcome, the last model is forgotten so that the next tick sends the checkbox again
     /// from the node snapshot (it converges to the fact, not to the click).
     pub(super) async fn send_exit_server(&mut self, slot: Option<&str>, enable: bool) {
-        let done =
-            self.try_serve_once(slot, enable).await || self.try_serve_once(slot, enable).await;
+        let done = self.serve_with_retry(slot, enable).await;
+        self.show_serve_outcome(done, enable);
+    }
+
+    /// Two attempts of the checkbox edit; `true` if either was applied.
+    async fn serve_with_retry(&mut self, slot: Option<&str>, enable: bool) -> bool {
+        self.try_serve_once(slot, enable).await || self.try_serve_once(slot, enable).await
+    }
+
+    /// Accounts for the outcome of the checkbox edit: forgets the last submenu and shows the note.
+    fn show_serve_outcome(&mut self, done: bool, enable: bool) {
         self.last_exit_menu = None;
         if done {
             (self.send_serve_note)(ServeNote::Idle);

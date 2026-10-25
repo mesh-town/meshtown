@@ -49,12 +49,17 @@ impl Poller {
         self.forget_start_note(view.node);
         if self.last_view != Some(view) {
             let previous = self.last_view.replace(view);
-            (self.send_view)(view);
-            self.say_view(view, previous);
+            self.apply_view(view, previous);
         }
         if view.color == TrayColor::Grey {
             self.show_exits(disabled_exit_menu(self.proxy.clone()));
         }
+    }
+
+    /// Draws a changed view: it goes to the tray and into the log.
+    fn apply_view(&mut self, view: View, previous: Option<View>) {
+        (self.send_view)(view);
+        self.say_view(view, previous);
     }
 
     /// A log line about a view change; a change of only the speed disc produces no line (the icon
@@ -90,36 +95,45 @@ impl Poller {
     ) -> Phase {
         match start_policy(&reply) {
             StartDecision::Spawn if allow_spawn => self.start_own(),
-            StartDecision::Spawn => {
-                self.show(ABSENT_VIEW);
-                Phase::Absent
-            }
-            StartDecision::Attach => {
-                self.say(format!("node is already running on the port {}", self.port));
-                if let Ok(Reply::Ok(state)) = &reply {
-                    let (menu, view) = views_from_state_json(state, &self.proxy);
-                    self.show_exits(menu);
-                    self.show(view);
-                }
-                Phase::ForeignNode {
-                    failed_poll_count: 0,
-                }
-            }
-            StartDecision::PortBusy => {
-                if !was_busy {
-                    self.say(format!(
-                        "port {} is held by something other than a node: {}",
-                        self.port,
-                        reply_summary(&reply)
-                    ));
-                }
-                self.show(grey_view(
-                    PageState::PortBusy(self.port),
-                    NodeState::Unknown,
-                ));
-                Phase::PortBusy
-            }
+            StartDecision::Spawn => self.enter_spawn_absent(),
+            StartDecision::Attach => self.enter_attach(&reply),
+            StartDecision::PortBusy => self.enter_port_busy(&reply, was_busy),
         }
+    }
+
+    /// Polling without a node: the "Absent" phase.
+    fn enter_spawn_absent(&mut self) -> Phase {
+        self.show(ABSENT_VIEW);
+        Phase::Absent
+    }
+
+    /// A node already answers on the port: attach to it as a foreign one.
+    fn enter_attach(&mut self, reply: &Result<Reply, ApiError>) -> Phase {
+        self.say(format!("node is already running on the port {}", self.port));
+        if let Ok(Reply::Ok(state)) = reply {
+            let (menu, view) = views_from_state_json(state, &self.proxy);
+            self.show_exits(menu);
+            self.show(view);
+        }
+        Phase::ForeignNode {
+            failed_poll_count: 0,
+        }
+    }
+
+    /// The port is held by something other than a node.
+    fn enter_port_busy(&mut self, reply: &Result<Reply, ApiError>, was_busy: bool) -> Phase {
+        if !was_busy {
+            self.say(format!(
+                "port {} is held by something other than a node: {}",
+                self.port,
+                reply_summary(reply)
+            ));
+        }
+        self.show(grey_view(
+            PageState::PortBusy(self.port),
+            NodeState::Unknown,
+        ));
+        Phase::PortBusy
     }
 
     pub(super) fn start_own(&mut self) -> Phase {
@@ -184,18 +198,34 @@ impl Poller {
         else {
             unreachable!("tick_own is only for Phase::Own")
         };
-        let exited = match child.try_wait() {
-            Ok(Some(status)) => Some((child_status_text(&status), Some(status))),
-            Err(_) => Some((KILLED_BY_SIGNAL_TEXT.to_string(), None)),
-            Ok(None) => None,
-        };
-        if let Some((code, status)) = exited {
-            self.say(format!("node stopped, code {code}"));
-            self.note_child_exit(status);
+        if self.check_own_child(child) {
             *phase = Phase::Absent;
             self.show(ABSENT_VIEW);
             return Ok(());
         }
+        self.poll_own_node(*started_at, seen_200, quit_triggers)
+            .await
+    }
+
+    /// Checks whether our own child has exited; if so, logs it and notes the exit. Returns `true` on exit.
+    fn check_own_child(&mut self, child: &mut Child) -> bool {
+        let (code, status) = match child.try_wait() {
+            Ok(Some(status)) => (child_status_text(&status), Some(status)),
+            Err(_) => (KILLED_BY_SIGNAL_TEXT.to_string(), None),
+            Ok(None) => return false,
+        };
+        self.say(format!("node stopped, code {code}"));
+        self.note_child_exit(status);
+        true
+    }
+
+    /// A request to our own node and a view by patience/200.
+    async fn poll_own_node(
+        &mut self,
+        started_at: Instant,
+        seen_200: &mut bool,
+        quit_triggers: &mut QuitTriggers,
+    ) -> Result<(), QuitCause> {
         let reply = quit_triggers
             .race_with_quit(fetch_node_reply(
                 self.port,

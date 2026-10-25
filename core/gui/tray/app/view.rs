@@ -141,11 +141,11 @@ pub fn stop_enabled(node: NodeState) -> bool {
 /// The third part of the view-change line.
 pub fn node_state_phrase(node: NodeState) -> &'static str {
     match node {
-        NodeState::Unknown => "node not visible",
-        NodeState::Absent => "no node",
-        NodeState::Starting => "node is starting",
-        NodeState::Running => "node is running",
-        NodeState::Stopping => "node is stopping",
+        NodeState::Unknown => "Mesh Town not visible",
+        NodeState::Absent => "Mesh Town is not running",
+        NodeState::Starting => "Mesh Town is starting",
+        NodeState::Running => "Mesh Town is running",
+        NodeState::Stopping => "Mesh Town is stopping",
     }
 }
 

@@ -107,17 +107,9 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
     };
     let own_id = node.id_full.as_str();
 
-    let mut items: Vec<ExitItem> = Vec::new();
-    for exit in snap.route.exits.iter().filter_map(chosen_exit_item) {
-        push_unless_own_or_duplicate(&mut items, exit, own_id);
-    }
-    for item in advertising_exit_items(snap) {
-        push_unless_own_or_duplicate(&mut items, item, own_id);
-    }
-
     ExitMenu {
         enabled: !snap.members.me_excluded,
-        items,
+        items: exit_items(snap, own_id),
         route: route_line(&snap.route),
         proxy: ProxyState::of_snapshot(&snap.socks),
         serves_exit: snap.exit.enabled,
@@ -128,6 +120,18 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
         can_invite: true,
         notices: Vec::new(),
     }
+}
+
+/// The submenu items: chosen exits first, then advertising peers, without our own node and duplicates.
+fn exit_items(snap: &TraySnapshot, own_id: &str) -> Vec<ExitItem> {
+    let mut items: Vec<ExitItem> = Vec::new();
+    for exit in snap.route.exits.iter().filter_map(chosen_exit_item) {
+        push_unless_own_or_duplicate(&mut items, exit, own_id);
+    }
+    for item in advertising_exit_items(snap) {
+        push_unless_own_or_duplicate(&mut items, item, own_id);
+    }
+    items
 }
 
 /// `route.state`/`route.exits[]` of the snapshot → `RouteLine`. No `route` at all (an old snapshot) —
