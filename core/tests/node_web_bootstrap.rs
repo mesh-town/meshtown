@@ -232,8 +232,7 @@ async fn invite_busy_without_network() {
 mod invite_string_spent_by_another_node {
     use super::*;
 
-    const TEXT_USED: &str = "Another node has already joined with this invite — it is single-use. \
-        Ask a network member for a new one.";
+    const TEXT_USED: &str = "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.";
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn third_node_is_refused_with_the_used_text_and_stays_offline() {

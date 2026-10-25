@@ -16,9 +16,8 @@ pub const INVITE_TTL_SECS: u64 = 86_400;
 const CTX_INVITE_SECRET: &str = "meshtown invite secret v1";
 
 /// The refusal text for an expired invite.
-const TEXT_EXPIRED: &str =
-    "The invite was issued more than a day ago and is no longer valid. Ask a \
-    network member for a new one.";
+pub(crate) const TEXT_EXPIRED: &str =
+    "The invite has run out: it is valid for a day, and no member let this computer in during that time. Ask whoever sent it for a new one.";
 
 /// The one-time invite secret (32 bytes); it does not get into the log or `Debug`.
 #[derive(Clone, PartialEq, Eq)]

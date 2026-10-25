@@ -49,16 +49,18 @@ fn cached_ids(cache: &PeersCache) -> Vec<PeerId> {
 }
 
 pub(super) fn access_start(cfg: &NodeConfig, me: PeerId, cache: &PeersCache) -> AccessStart {
+    let rules = Rules::from(&cfg.net_kind);
     let boot = AccessBoot {
         me,
         initial: initial_ids(cfg),
         cached: cached_ids(cache),
         now_unix: unix_now(),
+        rules,
     };
     AccessStart {
         boot,
         open_list: cfg.open_list,
-        rules: Rules::from(&cfg.net_kind),
+        rules,
         invited_file: cfg.invited_peers_file.clone(),
     }
 }

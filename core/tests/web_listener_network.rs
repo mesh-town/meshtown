@@ -366,8 +366,7 @@ const TEXT_V2_INVITE: &str = "This invite is of an older format: such invites ar
 /// An invite string of format 2.
 const V2_INVITE: &str = "mesh-invite2-allk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmaoxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiaacad7aaaadia7qd34jvig";
 const TEXT_EXPIRED: &str =
-    "The invite was issued more than a day ago and is no longer valid. Ask a \
-    network member for a new one.";
+    "The invite has run out: it is valid for a day, and no member let this computer in during that time. Ask whoever sent it for a new one.";
 const HOUR: u64 = 3600;
 
 mod old_invite_string {

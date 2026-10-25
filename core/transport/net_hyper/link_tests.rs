@@ -148,3 +148,24 @@ fn facts(remote: Option<SocketAddr>, rtt: RttProbe) -> PathFacts {
         rtt: Some(rtt),
     }
 }
+
+#[test]
+fn path_text_names_the_rtt_in_ms() {
+    assert_eq!(
+        path_text_of(Some(Duration::from_millis(12))),
+        "hyper: direct UDX, rtt 12 ms"
+    );
+}
+
+#[test]
+fn path_text_without_a_probe_says_unknown() {
+    assert_eq!(path_text_of(None), "hyper: direct UDX, rtt unknown");
+}
+
+#[test]
+fn path_text_never_prints_zero_ms() {
+    assert_eq!(
+        path_text_of(Some(Duration::from_micros(300))),
+        "hyper: direct UDX, rtt 1 ms"
+    );
+}

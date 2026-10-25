@@ -17,3 +17,26 @@ fn not_from_admin_text_names_the_current_admins() {
         "This invite can't be used: whoever made it is not an admin of this network now. Ask an admin of the network for a new one."
     );
 }
+
+#[test]
+fn used_text_says_computer_and_whoever_sent_it() {
+    let text = RedeemError::Used.to_string();
+    assert!(
+        !text.contains("network member") && !text.contains("node"),
+        "{text}"
+    );
+    assert!(text.contains("whoever sent it"), "{text}");
+}
+
+#[test]
+fn expired_text_says_no_member_let_in() {
+    let text = RedeemError::Expired.to_string();
+    assert!(!text.contains("network member"), "{text}");
+    assert!(text.contains("no member let this computer in"), "{text}");
+    assert_eq!(text, crate::invite::head::TEXT_EXPIRED);
+}
+
+#[test]
+fn unknown_text_asks_whoever_sent_it() {
+    assert!(RedeemError::Unknown.to_string().contains("whoever sent it"));
+}

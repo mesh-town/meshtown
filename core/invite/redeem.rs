@@ -14,6 +14,7 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::{sleep, timeout};
 
+use super::head::TEXT_EXPIRED;
 use super::redeem_round::{round_outcome, Frames, Mode, Outcome};
 use super::wire::{parse_invite_reply, RedeemReply, REPLY_LEN};
 use super::{InviteHead, INVITE_TTL_SECS};
@@ -79,9 +80,9 @@ impl std::error::Error for RedeemError {}
 
 fn text_of(e: &RedeemError) -> String {
     match e {
-        RedeemError::Used => "Another node has already joined with this invite — it is single-use. Ask a network member for a new one.".into(),
-        RedeemError::Expired => "The invite was issued more than a day ago and is no longer valid. Ask a network member for a new one.".into(),
-        RedeemError::Unknown => "Network members don't know this invite: it was revoked, it has expired or the string is damaged. Ask a network member for a new one.".into(),
+        RedeemError::Used => "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.".into(),
+        RedeemError::Expired => TEXT_EXPIRED.into(),
+        RedeemError::Unknown => "Network members don't know this invite: it was revoked, it has expired or the string is damaged. Ask whoever sent it for a new one.".into(),
         RedeemError::WrongNetwork => "A member answered with the key of another network — the invite was not accepted.".into(),
         RedeemError::Excluded => "This computer can't rejoin this network. The invite wasn't used up — someone else can join with it.".into(),
         RedeemError::NotFromAdmin => "This invite can't be used: whoever made it is not an admin of this network now. Ask an admin of the network for a new one.".into(),

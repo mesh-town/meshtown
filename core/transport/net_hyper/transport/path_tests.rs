@@ -46,6 +46,31 @@ mod rtt {
             "no rtt at the accepting side"
         );
     }
+
+    #[tokio::test]
+    async fn path_text_of_a_live_session_has_the_rtt() {
+        // given
+        let cl = cluster(3).await;
+        let (s, n) = (serving(&cl, 1).await, serving(&cl, 2).await);
+        let ours = connect_within(&n, &PeerAddr::new(s.me()), Duration::from_secs(15))
+            .await
+            .expect("connection by key");
+        let (_, theirs) = timeout(STEP, s.accept())
+            .await
+            .expect("accept deadline")
+            .expect("incoming");
+        let _echo = spawn_echo(theirs.clone());
+        // when
+        let bad = echo_mismatches(&ours, 1, 64 << 10, Duration::from_secs(15)).await;
+        // then
+        assert!(bad.is_empty(), "echo did not match");
+        assert!(
+            becomes(FIVE_SECONDS, || ours.link().rtt.is_some()).await,
+            "no rtt at the dialing side"
+        );
+        let text = ours.path_text();
+        assert!(text.contains(" ms") && !text.contains("unknown"), "{text}");
+    }
 }
 
 mod accepted {

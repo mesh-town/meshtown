@@ -193,3 +193,18 @@ async fn an_open_list_leaves_the_invited_file() {
     node.shutdown().await;
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn access_start_carries_the_rules_of_the_net_kind() {
+    // given: a peer network and a managed one
+    let mut cfg = cfg_with_invite(&[]);
+    let cache = PeersCache::load(None, "net", 1_000);
+    let peer = access_start(&cfg, pid(1), &cache);
+    cfg.net_kind = crate::members::network_key::NetKind::Managed { root: pid(7) };
+    // when: the boot input is built for the managed one
+    let managed = access_start(&cfg, pid(1), &cache);
+    // then: the boot and the watcher get the same rules
+    assert_eq!((peer.boot.rules, peer.rules), (Rules::Peer, Rules::Peer));
+    let want = Rules::Managed { root: pid(7) };
+    assert_eq!((managed.boot.rules, managed.rules), (want, want));
+}

@@ -15,7 +15,7 @@ use crate::web_gui::{
 const TEXT_WAITING: &str =
     "Waiting for network members: as soon as anyone from the invite is online, the node will join the network.";
 const TEXT_EXPIRED: &str =
-    "The invite was issued more than a day ago and is no longer valid. Ask a network member for a new one.";
+    "The invite has run out: it is valid for a day, and no member let this computer in during that time. Ask whoever sent it for a new one.";
 
 mod without_invite {
     use super::*;

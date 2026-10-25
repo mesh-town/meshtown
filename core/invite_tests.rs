@@ -113,6 +113,15 @@ fn lengths_match_plan() {
     assert_eq!(s.chars().count(), 1129, "{s}");
 }
 
+/// A default route whose address is none of the test addresses: the cap of two addresses applies and the ranking
+/// is the same as without a route.
+fn routed() -> PrimaryIps {
+    PrimaryIps {
+        v4: Some("192.0.2.1".parse().unwrap()),
+        v6: None,
+    }
+}
+
 #[test]
 fn relay_drops_direct_addrs() {
     let me =
@@ -122,7 +131,7 @@ fn relay_drops_direct_addrs() {
         .with_ip_addr(SocketAddr::from(([10, 0, 0, 3], 4002)))
         .with_ip_addr(SocketAddr::from(([10, 0, 0, 4], 4003)));
     let neighbor = from_endpoint_addr(&neighbor);
-    let s = build_keyed(&head_made_at(NOW), &me, &[neighbor], &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), &me, &[neighbor], &routed()).unwrap();
     let parsed = parse(&s).unwrap();
     assert_eq!(parsed.peers.len(), 2);
     assert_eq!(
