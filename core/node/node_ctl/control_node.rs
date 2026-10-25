@@ -84,16 +84,21 @@ impl NodeCtl {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             match st.phase {
-                Phase::Stopping => return Err("node is stopping".to_string()),
+                Phase::Stopping => return Err(super::gates::stopping_text()),
                 _ => match &st.node {
                     Some(n) => n.clone(),
-                    None => return Err("node is not started yet".to_string()),
+                    None => {
+                        return Err(format!(
+                            "{} has not started yet",
+                            crate::node::output::NET_NAME
+                        ))
+                    }
                 },
             }
         };
         let addr = parse_peer_line(line)?;
         if node.id == addr.id {
-            return Err("this is the node's own address".to_string());
+            return Err("this address belongs to this computer".to_string());
         }
         let line_owned = line.trim().to_string();
         crate::node::output::spawn_on(&self.rt, async move {

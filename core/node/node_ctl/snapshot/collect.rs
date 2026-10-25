@@ -20,8 +20,9 @@ use crate::site_checks::geoip;
 use crate::web_gui::auth::access::{lan_addrs, IfaceAddr};
 use crate::web_gui::auth::iface_nets::admitted_lan;
 use crate::web_gui::auth::iface_os::current_view;
-use crate::web_gui::{MembersInfo, NodeSnapshot, PortsInfo, SocksInfo};
+use crate::web_gui::{MembersInfo, MembersReply, NodeSnapshot, PortsInfo, SocksInfo};
 
+use super::admission::admission_refused;
 use super::build::{build, socks_lan, Inputs};
 use super::doc_cache::{DocCache, DocParts};
 use super::ports::build_ports;
@@ -240,12 +241,10 @@ fn removed_of_verdicts(verdicts: Option<Arc<Verdicts>>) -> HashSet<PeerId> {
     v.removed_here().into_iter().collect()
 }
 
-/// The published verdicts as a summary for the page; nothing published yet — an empty one. Never recomputes.
-fn votes_of(node: &RunningNode) -> VoteSummary {
-    let Some(v) = node.access.view.verdicts() else {
-        return VoteSummary::default();
-    };
-    vote_summary(&members_reply(
+/// The member list built from the published verdicts; `None` until they are published. Never recomputes.
+fn reply_now(node: &RunningNode) -> Option<MembersReply> {
+    let v = node.access.view.verdicts()?;
+    Some(members_reply(
         &v,
         &node.members,
         &node.access.view.refusals(),
@@ -253,10 +252,18 @@ fn votes_of(node: &RunningNode) -> VoteSummary {
     ))
 }
 
+/// The published verdicts as a summary for the page; nothing published yet — an empty one.
+fn votes_of(node: &RunningNode) -> VoteSummary {
+    reply_now(node).map_or_else(VoteSummary::default, |r| vote_summary(&r))
+}
+
 /// Rewrites the members block of a snapshot from the live node: the count, the gossip neighbours and the
 /// votes are read at every call, so a page opened after a pause does not show a stale block.
 pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: &RunningNode) {
-    let votes = votes_of(node);
+    let reply = reply_now(node);
+    let votes = reply
+        .as_ref()
+        .map_or_else(VoteSummary::default, vote_summary);
     snap.members = MembersInfo {
         count: node.members.count() as u64,
         gossip_neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
@@ -264,6 +271,7 @@ pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: 
         me_excluded: votes.me_excluded,
         admitting: votes.admitting,
         me_pending: votes.me_pending,
+        admission_refused: reply.as_ref().is_some_and(admission_refused),
     };
 }
 
@@ -286,3 +294,7 @@ mod votes_tests;
 #[cfg(test)]
 #[path = "collect_removed_tests.rs"]
 mod removed_tests;
+
+#[cfg(test)]
+#[path = "collect_admission_tests.rs"]
+mod admission_tests;

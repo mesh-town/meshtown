@@ -13,7 +13,7 @@ use crate::web_gui::{
 };
 
 const TEXT_WAITING: &str =
-    "Waiting for network members: as soon as anyone from the invite is online, the node will join the network.";
+    "Waiting for network members: as soon as anyone from the invite is online, this computer will join the network.";
 const TEXT_EXPIRED: &str =
     "The invite has run out: it is valid for a day, and no member let this computer in during that time. Ask whoever sent it for a new one.";
 
@@ -194,7 +194,7 @@ mod node_is_stopping {
         // then
         assert_eq!(
             result,
-            Err(ActionError::Busy("node is stopping".to_string()))
+            Err(ActionError::Busy("Mesh Town is stopping".to_string()))
         );
     }
 }

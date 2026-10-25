@@ -20,7 +20,7 @@ fn test_addr(byte: u8) -> crate::transport::net::PeerAddr {
 #[tokio::test]
 async fn actions_before_attach_are_busy() {
     let ctl = NodeCtl::new(&Settings::default());
-    let busy_starting = ActionError::Busy("node is starting".to_string());
+    let busy_starting = ActionError::Busy("Mesh Town is starting".to_string());
     assert_eq!(ctl.find_exit("example.com"), Err(busy_starting.clone()));
     assert_eq!(ctl.check_domain("example.com"), Err(busy_starting.clone()));
     assert_eq!(ctl.check_all(), Err(busy_starting.clone()));
@@ -28,7 +28,7 @@ async fn actions_before_attach_are_busy() {
     assert_eq!(ctl.remove_domain("example.com"), Err(busy_starting));
     assert_eq!(
         ctl.add_peer_address("x@1.2.3.4:1"),
-        Err("node is not started yet".to_string())
+        Err("Mesh Town has not started yet".to_string())
     );
     let snap = ctl.snapshot();
     assert_eq!(snap.node.status, NodeStatus::Starting);
@@ -97,14 +97,14 @@ async fn no_network_is_offline_and_busy() {
     assert_eq!(
         ctl.invite_pending(None).err(),
         Some(ActionError::Busy(format!(
-            "the node has not joined the {0} network yet",
+            "this computer has not joined the {0} network yet",
             crate::node::output::NET_NAME
         )))
     );
     assert_eq!(
         ctl.find_exit("example.com"),
         Err(ActionError::Busy(format!(
-            "the node has not joined the {0} network yet: paste an invite from a network member or create your own",
+            "this computer has not joined the {0} network yet: paste an invite from a network member or create your own",
             crate::node::output::NET_NAME
         )))
     );
