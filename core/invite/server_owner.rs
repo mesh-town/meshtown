@@ -105,9 +105,11 @@ impl InviteServer {
         if self
             .access
             .verdicts()
-            .is_some_and(|v| v.ledger.is_forgotten(&v.me))
+            .is_some_and(|v| v.ledger.is_forgotten(&v.me) || v.ledger.excluded.contains_key(&v.me))
         {
-            return Some(RedeemCode::NotReady); // retryable: another holder can let the newcomer in
+            // the server itself is forgotten or excluded (the view never refuses its own key, so
+            // this must be checked here); retryable: another holder can let the newcomer in
+            return Some(RedeemCode::NotReady);
         }
         owner_code(self.checked(owner))
     }
@@ -200,3 +202,7 @@ mod forget_tests;
 #[cfg(test)]
 #[path = "server_owner_forget_more_tests.rs"]
 mod forget_more_tests;
+
+#[cfg(test)]
+#[path = "server_owner_excluded_tests.rs"]
+mod excluded_tests;
