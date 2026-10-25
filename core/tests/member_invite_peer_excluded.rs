@@ -49,7 +49,6 @@ async fn an_excluded_peer_is_refused_by_a_new_invite() {
         "the exclusion did not reach the first node"
     );
     // when: the excluded computer, no longer running as a node, redeems a new invite under its own key
-    // (a still-running excluded node would not know of its exclusion and could answer the invite itself)
     excluded.shutdown().await;
     let (_dealt, second) = deal(&a).await;
     let got = redeem_via(
