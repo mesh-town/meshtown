@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
 license.workspace = true
-description = "Mesh Town: open sites through the computers of your private peer-to-peer network, with a local SOCKS5/HTTP proxy, a node page and a tray app"
+description = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts"
 
 [lints]
 workspace = true
