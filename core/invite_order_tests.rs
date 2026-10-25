@@ -42,13 +42,14 @@ mod without_route_info {
     use super::*;
 
     #[test]
-    fn takes_first_two_by_number() {
+    fn keeps_all_three_candidates_by_number() {
         // given / when
         let ips = first_entry_addrs(&PrimaryIps::NONE);
         // then
         let want: Vec<SocketAddr> = vec![
             "10.20.30.2:54674".parse().unwrap(),
             "10.99.129.2:54674".parse().unwrap(),
+            "192.168.88.129:54674".parse().unwrap(),
         ];
         assert_eq!(ips, want);
     }
@@ -118,9 +119,9 @@ fn node_without_relay(ips: &[&str]) -> PeerAddr {
     from_endpoint_addr(&raw)
 }
 
-/// Builds an invite without a default route and extracts the IP addresses of the first record.
+/// Builds an invite with a route that matches none of the addresses and extracts the IP addresses of the first record.
 fn first_entry_addrs_of(me: &PeerAddr) -> Vec<SocketAddr> {
-    let s = build_keyed(&head_made_at(NOW), me, &[], &PrimaryIps::NONE).unwrap();
+    let s = build_keyed(&head_made_at(NOW), me, &[], &routed()).unwrap();
     crate::transport::net::endpoint_shim::to_endpoint_addr(&parse(&s).unwrap().peers[0])
         .ip_addrs()
         .copied()

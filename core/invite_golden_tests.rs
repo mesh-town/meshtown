@@ -68,7 +68,11 @@ fn golden_invite_with_relay_and_others_is_literal() {
         .with_ip_addr(ip("203.0.113.9:1"))
         .with_ip_addr(ip("[2001:db8::9]:1"));
     let other = from_endpoint_addr(&other);
-    let s = build_keyed(&head(), &me, &[me.clone(), other], &PrimaryIps::NONE).expect("build");
+    let routed = PrimaryIps {
+        v4: Some("192.0.2.1".parse().unwrap()),
+        v6: None,
+    };
+    let s = build_keyed(&head(), &me, &[me.clone(), other], &routed).expect("build");
     const INVITE: &str =
         "mesh-invite2-aplk27cqadd4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pr6hy7d4pahxytkqmawxlkmadavrbk35ks762pewibz2b3qxf462uyrsllycdjupob2rdiarm2duoryhgorpf5zgk3dbpexgk6dbnvygyzjpacapprgvay6uaf6d5bbyswusw4fkoti3p26jzgbmz4xmjfumydgvl4jk6rtayaacadfqa4ijaeasaainxaaaaaaaaaaaaaaaaaaasama67cnkbq";
     assert_eq!(s, INVITE);
