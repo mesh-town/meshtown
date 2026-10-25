@@ -28,3 +28,23 @@ fn texts_are_argv_not_script() {
         );
     }
 }
+
+#[test]
+fn bundle_uses_notification_center() {
+    assert!(in_bundle(
+        "/Applications/Mesh Town.app",
+        Some("app.example.tray")
+    ));
+}
+
+#[test]
+fn plain_binary_uses_osascript() {
+    assert!(!in_bundle("/usr/local/bin", None));
+    assert!(!in_bundle("/usr/local/bin", Some("app.example.tray")));
+}
+
+#[test]
+fn empty_identifier_is_not_a_bundle() {
+    assert!(!in_bundle("/Applications/Mesh Town.app", Some("")));
+    assert!(!in_bundle("/Applications/Mesh Town.app", None));
+}

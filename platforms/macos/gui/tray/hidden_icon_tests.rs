@@ -64,3 +64,20 @@ fn hint_text_names_no_settings_section() {
         "{text}"
     );
 }
+
+#[test]
+fn confirmed_hidden_needs_both_checks() {
+    assert!(confirmed_hidden(window(false, 0.0), window(false, 0.0)));
+}
+
+#[test]
+fn confirmed_hidden_first_visible_wins() {
+    assert!(!confirmed_hidden(window(true, 675.0), window(false, 0.0)));
+    assert!(!confirmed_hidden(window(false, 0.0), window(true, 675.0)));
+}
+
+#[test]
+fn confirmed_hidden_unknown_second() {
+    assert!(!confirmed_hidden(window(false, 0.0), None));
+    assert!(!confirmed_hidden(None, window(false, 0.0)));
+}

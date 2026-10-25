@@ -7,7 +7,7 @@ use crate::gui::tray::Core;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const NOTICE: Notice = Notice {
     title: "Title of the test",
@@ -81,6 +81,44 @@ mod run_notifier {
     #[test]
     fn nonzero_exit_is_failed() {
         let result = run_notifier("false", &[], &[]);
+
+        assert_eq!(result, Err(REASON_NOTIFY_FAILED));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn hung_notifier_is_killed_after_the_limit() {
+        let start = Instant::now();
+
+        let result = run_notifier_within("sleep", &["5"], &[], Duration::from_millis(200));
+
+        assert_eq!(result, Err(REASON_NOTIFY_FAILED));
+        assert!(
+            start.elapsed() < Duration::from_secs(2),
+            "{:?}",
+            start.elapsed()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn notifier_success_is_ok() {
+        let result = run_notifier_within("true", &[], &[], Duration::from_secs(5));
+
+        assert_eq!(result, Ok(()));
+    }
+
+    #[test]
+    fn missing_notifier_is_no_tool() {
+        let result = run_notifier_within("meshtown-no-such-tool", &[], &[], Duration::from_secs(1));
+
+        assert_eq!(result, Err(REASON_NOTIFY_NO_TOOL));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn failing_notifier_is_failed() {
+        let result = run_notifier_within("false", &[], &[], Duration::from_secs(5));
 
         assert_eq!(result, Err(REASON_NOTIFY_FAILED));
     }

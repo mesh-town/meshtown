@@ -99,12 +99,55 @@ mod paint {
 
     #[test]
     fn step_radius_matches_table() {
-        let one = painted(1, 12);
-        assert_eq!(pixel(&one, 18, 18)[3], 255);
-        assert_eq!(pixel(&one, 21, 18)[3], 0, "r = 3.5 > 2");
-        let six = painted(6, 12);
-        assert_eq!(pixel(&six, 18, 18)[3], 255);
-        assert_eq!(pixel(&six, 18 + 10, 18)[3], 0, "r = 10.5 > 9");
+        for step in 1..=6u8 {
+            let r = DISK_RADII_PX[usize::from(step) - 1];
+            let rgba = painted(step, 12);
+            let inside = 18 + (r - 1.5).floor() as u32;
+            let outside = 18 + (r + 0.5).ceil() as u32;
+            assert_eq!(pixel(&rgba, 18, 18)[3], 255, "step {step} centre");
+            assert_eq!(
+                pixel(&rgba, inside, 18)[3],
+                255,
+                "step {step} inside r = {r}"
+            );
+            assert_eq!(
+                pixel(&rgba, outside, 18)[3],
+                0,
+                "step {step} outside r = {r}"
+            );
+        }
+    }
+
+    /// The colour at `radius` px from the centre, `degrees` clockwise from twelve o'clock.
+    fn at_angle(rgba: &[u8], radius: f64, degrees: f64) -> [u8; 3] {
+        let a = degrees.to_radians();
+        let (x, y) = (18.0 + radius * a.sin(), 18.0 - radius * a.cos());
+        let p = pixel(rgba, x.floor() as u32, y.floor() as u32);
+        [p[0], p[1], p[2]]
+    }
+
+    /// Whether two colours are the same up to the rounding of the edge blending.
+    fn near(a: [u8; 3], b: [u8; 3]) -> bool {
+        a.iter().zip(b).all(|(x, y)| x.abs_diff(y) <= 3)
+    }
+
+    #[test]
+    fn tiny_share_sector_is_thirty_degrees() {
+        let rgba = painted(6, 1);
+        let blue = role_rgb(RingRole::ActiveExit);
+        let lilac = role_rgb(RingRole::ExitClient);
+        assert!(near(at_angle(&rgba, 6.0, 15.0), blue), "15.0 degrees");
+        assert!(near(at_angle(&rgba, 6.0, 22.0), blue), "22.0 degrees");
+        assert!(near(at_angle(&rgba, 6.0, 38.0), lilac), "38.0 degrees");
+        assert!(near(at_angle(&rgba, 6.0, 90.0), lilac), "90.0 degrees");
+        assert!(near(at_angle(&rgba, 6.0, -15.0), lilac), "-15.0 degrees");
+        let count = |c: [u8; 3]| {
+            rgba.chunks(4)
+                .filter(|p| p[3] == 255 && near([p[0], p[1], p[2]], c))
+                .count() as f64
+        };
+        let share = count(blue) / (count(blue) + count(lilac));
+        assert!((share - 1.0 / 12.0).abs() < 0.015, "blue share {share}");
     }
 
     #[test]

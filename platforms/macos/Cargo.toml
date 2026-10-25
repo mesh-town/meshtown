@@ -25,5 +25,6 @@ meshtown-core = { path = "../../core", features = ["gui"] }
 objc2 = "0.6.4"
 block2 = "0.6"
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["NSApplication", "NSRunningApplication", "NSWorkspace", "NSAlert", "NSStatusItem", "NSStatusBarButton", "NSButton", "NSControl", "NSView", "NSResponder", "NSWindow", "NSGraphics", "objc2-core-foundation"] }
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSURL"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["NSNotification", "NSString", "NSURL", "NSBundle", "NSError"] }
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = ["std", "block2", "UNUserNotificationCenter", "UNNotificationRequest", "UNNotificationContent", "UNNotificationSound", "UNNotification", "UNNotificationTrigger"] }
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFCGTypes", "CFRunLoop", "CFString", "block2"] }
