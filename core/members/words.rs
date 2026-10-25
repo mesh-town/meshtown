@@ -176,7 +176,12 @@ pub const MAX_NAME_BYTES: usize = MAX_NAME_CHARS * 4; // 256
 /// name), so there is nothing to store here and no error to report.
 pub fn default_node_name(id: &[u8; 32]) -> String {
     let words = tail_pool_vec();
+    let [first, second] = pick_word_indices(id);
+    format!("{}-{}", words[first], words[second])
+}
 
+/// Two distinct pool indices read from the stream derived from the key.
+fn pick_word_indices(id: &[u8; 32]) -> [usize; NAME_WORDS] {
     let mut hasher = blake3::Hasher::new_derive_key(NAME_CONTEXT);
     hasher.update(id);
     let mut reader = hasher.finalize_xof();
@@ -198,8 +203,7 @@ pub fn default_node_name(id: &[u8; 32]) -> String {
         }
         picked.push(idx);
     }
-
-    format!("{}-{}", words[picked[0]], words[picked[1]])
+    [picked[0], picked[1]]
 }
 
 /// A random node name: two distinct pool words joined by a hyphen (`finch-unwary`), unbiased — the same
