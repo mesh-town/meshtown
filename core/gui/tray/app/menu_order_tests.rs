@@ -82,6 +82,40 @@ mod middle_ids {
     }
 }
 
+mod has_network {
+    use super::*;
+
+    #[test]
+    fn a_menu_without_a_network_has_none() {
+        assert!(!has_network(&flat_menu()));
+    }
+
+    #[test]
+    fn a_disabled_menu_with_a_network_still_has_one() {
+        let mut menu = flat_menu();
+        menu.slot = Some("main".to_string());
+
+        assert!(!menu.enabled);
+        assert!(has_network(&menu));
+    }
+
+    #[test]
+    fn nested_networks_count_whether_or_not_the_menu_is_enabled() {
+        let mut menu = nested_menu(&[friends(), work()]);
+        menu.enabled = false;
+
+        assert!(has_network(&menu));
+    }
+
+    #[test]
+    fn an_excluded_member_has_no_add_item() {
+        let mut menu = nested_menu(&[friends(), work()]);
+        menu.members.me_excluded = true;
+
+        assert!(!has_network(&menu));
+    }
+}
+
 fn flat_menu() -> ExitMenu {
     disabled_exit_menu(ProxyState::Off(ProxyOff::DisabledInSettings))
 }

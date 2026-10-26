@@ -37,6 +37,13 @@
     .domain-card-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:4px 0;}
     .domain-card-who{flex:0 0 96px;color:var(--fg-muted);font-size:13px;}
     .domain-card .peer-chosen{color:var(--green);font-size:13px;}
+    /* A table with `.stack`: each row becomes a block, each cell says its column (`data-label`). */
+    table.stack{min-width:0;width:100%;}
+    table.stack thead{display:none;}
+    table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;min-width:0;}
+    table.stack tr{border:1px solid var(--border);border-radius:8px;padding:6px 10px;margin:8px 0;}
+    table.stack td{border:none;padding:4px 0;white-space:normal;overflow-wrap:anywhere;}
+    table.stack td[data-label]::before{content:attr(data-label);display:block;color:var(--fg-muted);font-size:12px;}
     /* narrow screen: the previous look */
     .btn-x{border:none;background:none;color:var(--fg-muted);font-size:16px;line-height:1;padding:2px 8px;}
   }

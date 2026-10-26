@@ -4,7 +4,7 @@
 import { describe, it, beforeEach } from "vitest";
 import { reactive } from "vue";
 import assert from "node:assert/strict";
-import { useNetBanner, resetNetBanner, arrivedSlots, watchArrivals } from "./add-net-banner.ts";
+import { bannerOutlived, useNetBanner, resetNetBanner, arrivedSlots, watchArrivals } from "./add-net-banner.ts";
 import { createdBanner, joinedBanner } from "./add-net-texts.ts";
 import { stayText } from "./add-net-actions.ts";
 
@@ -147,3 +147,24 @@ describe("watchArrivals", () => {
 function net(id, over = {}) {
   return { id, label: null, id_hex: null, joining: false, ...over };
 }
+
+describe("bannerOutlived", () => {
+  const banner = { slot: "k7q2xa", text: "You created it." };
+  const net = (id, peers_total) => ({ id, peers_total });
+
+  it("is false without a banner", () => {
+    assert.equal(bannerOutlived(null, [net("k7q2xa", 1)]), false);
+  });
+  it("is false while nobody else is in the network", () => {
+    assert.equal(bannerOutlived(banner, [net("k7q2xa", 0)]), false);
+  });
+  it("is true once someone joined", () => {
+    assert.equal(bannerOutlived(banner, [net("k7q2xa", 1)]), true);
+  });
+  it("is false when another network has a member", () => {
+    assert.equal(bannerOutlived(banner, [net("k7q2xa", 0), net("m3n4pq", 1)]), false);
+  });
+  it("is false when the slot is not in the list", () => {
+    assert.equal(bannerOutlived(banner, [net("m3n4pq", 3)]), false);
+  });
+});

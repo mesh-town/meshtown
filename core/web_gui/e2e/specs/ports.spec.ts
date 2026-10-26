@@ -199,3 +199,43 @@ test('123-ports-udp: "Networks" → "Shared services (ports)": publishing UDP 80
     await expect.poll(async () => (await cfg())?.published, { message: 'ports.published', timeout: 6000 }).toEqual([]);
   });
 });
+
+test('ports-shared-narrow: on 390 px shared ports fit without sideways scroll (demo)', async ({
+  app,
+  page,
+  targetKind,
+}) => {
+  test.skip(targetKind === 'node', 'the shared port row is a web_demo stub fixture; a real node has none');
+  const ports = new PortsSection(page);
+  await app.resize({ width: 390, height: 844 });
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
+  const row = ports.netRows.first();
+  const table = page.getByRole('table', { name: 'Ports shared with you' });
+
+  await test.step('the row is there and the header is hidden', async () => {
+    await expect.soft(row, 'no row').toBeVisible();
+    await expect.soft(table.getByRole('columnheader').first(), 'the header is still shown').toBeHidden();
+  });
+
+  await test.step('.table-scroll has no horizontal overflow', async () => {
+    const scroll = page.locator('.table-scroll').filter({ has: table });
+    const m = await scroll.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }));
+    expect.soft(m.scrollWidth, 'sideways scroll in the table').toBeLessThanOrEqual(m.clientWidth);
+  });
+
+  await test.step('the column 4 button is inside the window', async () => {
+    const button = ports.openButton(row);
+    await expect.soft(button).toBeVisible();
+    expect.soft(await app.right(button), 'the button goes beyond the window').toBeLessThanOrEqual(390);
+  });
+});
+
+test('ports-shared-wide: at 1280 the table keeps its header (demo)', async ({ app, page, targetKind }) => {
+  test.skip(targetKind === 'node', 'the shared port row is a web_demo stub fixture; a real node has none');
+  await app.resize({ width: 1280, height: 800 });
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
+  const table = page.getByRole('table', { name: 'Ports shared with you' });
+  await expect.soft(table.getByRole('columnheader')).toHaveText(['Member', 'Port', 'In the browser', 'In other programs']);
+});

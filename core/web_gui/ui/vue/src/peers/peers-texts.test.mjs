@@ -1,6 +1,6 @@
 /* Texts of the multi-network "Members" section: the tab labels, the tab head and the hint. */
 
-import { describe, it } from "vitest";
+import { afterEach, describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
 import {
   ADMISSION_REFUSED_NONE,
@@ -9,6 +9,9 @@ import {
   PEERS_NETS_HINT_KEY,
   PEERS_NETS_HINT_OK,
   PEERS_NEW_NET,
+  PEERS_TAB_BROKEN_SUB,
+  peersBrokenNet,
+  peersTabBrokenTitle,
   PEERS_TAB_JOINING,
   PEERS_TAB_JOINING_SUB,
   peersInviteTo,
@@ -81,6 +84,29 @@ describe("peersNetsHint", () => {
       peersNetsHint(3),
       "You’re now in 3 networks. Each network has its own tab here. " +
         "Your name, \"Let members open sites\" and \"Leave network\" are now in each network’s tab.",
+    );
+  });
+});
+
+describe("peersNetsHint in the app", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("the app hint does not name Let members open sites", () => {
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android" });
+    assert.equal(
+      peersNetsHint(2, true),
+      "You’re now in 2 networks. Each network has its own tab here. Your name and \"Leave network\" are now in each network’s tab.",
+    );
+  });
+});
+
+describe("the broken-network texts", () => {
+  it("name the tab and the reason", () => {
+    assert.equal(PEERS_TAB_BROKEN_SUB, "· can't start");
+    assert.equal(peersTabBrokenTitle("work"), "work — can't start: its saved settings can't be read");
+    assert.equal(
+      peersBrokenNet(),
+      "This network can't start: its saved settings can't be read, for example a network key from an older version. Ask an admin for a new invite to join it again.",
     );
   });
 });

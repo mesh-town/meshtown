@@ -73,7 +73,7 @@ function usedTextFor(it: NetPortItem): (local: number) => string {
   <div class="card">
     <h2>{{ PORTS_NET_TITLE }}</h2>
     <div class="table-scroll">
-      <table class="data" :aria-label="PORTS_NET_TITLE">
+      <table class="data stack" :aria-label="PORTS_NET_TITLE">
         <thead><tr><th>{{ PORTS_COL_PEER }}</th><th>{{ PORTS_COL_PORT }}</th><th>{{ PORTS_COL_BROWSER }}</th><th>{{ PORTS_COL_PROGRAMS }}</th></tr></thead>
         <tbody id="ports-net-tbody">
           <tr v-if="!net.length"><td colspan="4" class="hint">{{ EMPTY_NET }}</td></tr>

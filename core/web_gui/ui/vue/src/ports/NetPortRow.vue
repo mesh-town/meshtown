@@ -5,7 +5,7 @@ import { writeClipboard } from "../common/clipboard.ts";
 import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openErrorText, portStatusText } from "./ports-view.ts";
 import { lastErrorText } from "./ports-proto.ts";
 import {
-  PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
+  PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COL_BROWSER, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_PROGRAMS, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
   PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_PROTO_UDP, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
 } from "./ports-texts.ts";
 
@@ -67,9 +67,9 @@ function startChange(): void {
 
 <template>
   <tr :data-port-row="rowKey">
-    <td :title="row.node">{{ label }} <span class="badge" :class="{ 'badge-ok': online }">{{ online ? PORTS_ONLINE : PORTS_OFFLINE }}</span></td>
-    <td><span class="mono">{{ row.port }}</span><template v-if="udp"> <span class="badge badge-grey" data-port-proto="udp">{{ PORTS_PROTO_UDP }}</span></template><div v-if="row.name">{{ row.name }}</div></td>
-    <td>
+    <td :title="row.node" :data-label="PORTS_COL_PEER">{{ label }} <span class="badge" :class="{ 'badge-ok': online }">{{ online ? PORTS_ONLINE : PORTS_OFFLINE }}</span></td>
+    <td :data-label="PORTS_COL_PORT"><span class="mono">{{ row.port }}</span><template v-if="udp"> <span class="badge badge-grey" data-port-proto="udp">{{ PORTS_PROTO_UDP }}</span></template><div v-if="row.name">{{ row.name }}</div></td>
+    <td :data-label="PORTS_COL_BROWSER">
       <div class="addrcell">
         <span v-if="blocked" class="muted" :title="PORTS_NOT_FOR_BROWSER_TITLE">{{ PORTS_NOT_FOR_BROWSER }}</span>
         <template v-else-if="!udp && row.web_url">
@@ -78,7 +78,7 @@ function startChange(): void {
         </template>
       </div>
     </td>
-    <td>
+    <td :data-label="PORTS_COL_PROGRAMS">
       <div class="opencell">
         <div v-if="row.opened && row.opened.state === 'bind_failed'" class="field-error-text">{{ portStatusText(row) }}</div>
         <template v-if="row.opened && row.opened.state === 'bind_failed'">

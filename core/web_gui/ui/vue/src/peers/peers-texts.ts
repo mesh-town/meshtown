@@ -43,6 +43,12 @@ export const PEERS_TAB_JOINING_SUB = "· joining…";
 export const PEERS_ADMIN_BADGE = "Admin";
 export const PEERS_TAB_DELETED_SUB = "· deleted";
 export const PEERS_TAB_REFUSED_SUB = "· refused";
+export const PEERS_TAB_BROKEN_SUB = "· can't start";
+
+export const peersTabBrokenTitle = (net: string): string => `${net} — can't start: its saved settings can't be read`;
+
+export const peersBrokenNet = (): string =>
+  "This network can't start: its saved settings can't be read, for example a network key from an older version. Ask an admin for a new invite to join it again.";
 export const PEERS_NEW_NET = "New network";
 const PEERS_TAB_NO_CONN = "· no connection";
 export const PEERS_NETS_HINT_OK = "OK";
@@ -79,8 +85,9 @@ export function peersVotesTitle(n: number): string {
   return `${n} to confirm`;
 }
 
-export function peersNetsHint(n: number): string {
-  return `You’re now in ${n} networks. Each network has its own tab here. Your name, "Let members open sites" and "Leave network" are now in each network’s tab.`;
+export function peersNetsHint(n: number, inApp = false): string {
+  const own = inApp ? `Your name and "Leave network"` : `Your name, "Let members open sites" and "Leave network"`;
+  return `You’re now in ${n} networks. Each network has its own tab here. ${own} are now in each network’s tab.`;
 }
 
 /** How long the refusal has to stand before the plate shows: right after joining "0 online" is normal. */

@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { slotPath, isSlotId, visibleSlots, peersSlots, isRefused, isMulti, netName, refusedFlag } from "./slots.ts";
+import { slotPath, isSlotId, visibleSlots, peersSlots, brokenSlots, isRefused, isMulti, netName, refusedFlag } from "./slots.ts";
 
 const B = "k7q2xa";
 const C = "m3n4pq";
@@ -304,5 +304,22 @@ describe("refusedFlag", () => {
   });
   it("is false when there are no nets", () => {
     assert.equal(refusedFlag({ nets: [] }, "main"), false);
+  });
+});
+
+describe("a broken slot", () => {
+  const nets = () => [brief("main", { id_hex: "aaaa11" }), brief(B, { id_hex: null, label: null, status: "broken" })];
+  const noState = { [B]: { state: null } };
+
+  it("peersSlots lists a broken slot, visibleSlots and isMulti do not", () => {
+    const { nets: n, slots } = setup(nets(), noState);
+    assert.deepEqual(peersSlots(n, slots), ["main", B]);
+    assert.deepEqual(visibleSlots(n, slots), ["main"]);
+    assert.equal(isMulti({ nets: n, slots, config: null }), false);
+  });
+
+  it("brokenSlots skips main and live slots", () => {
+    const list = [brief("main", { status: "broken" }), brief(B, { status: "broken" }), brief(C, { status: "online", id_hex: "3f2a00" })];
+    assert.deepEqual(brokenSlots(list), [B]);
   });
 });

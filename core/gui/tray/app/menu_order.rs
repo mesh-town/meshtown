@@ -37,9 +37,10 @@ pub(crate) fn middle_ids(menu: &ExitMenu, has_network: bool) -> Vec<String> {
     ids
 }
 
-/// Whether the menu shows at least one network: "Add a network…" belongs only to such a menu.
+/// Whether the menu shows at least one network: "Add a network…" belongs only to such a menu, whether or not the
+/// network is connected right now (the other items are disabled then, adding a network is not).
 pub(crate) fn has_network(menu: &ExitMenu) -> bool {
-    menu.enabled && (menu.slot.is_some() || !menu.nets.is_empty())
+    !menu.members.me_excluded && (menu.slot.is_some() || !menu.nets.is_empty())
 }
 
 /// Where the request item goes in the live menu: right after the notes.

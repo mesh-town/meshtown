@@ -3,7 +3,7 @@
 //! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `crate::node::host`.
 
 use crate::config::config_file::{self, CliOverrides, ConfigSource};
-use crate::node::output::NET_NAME;
+use crate::node::output::{say, NET_NAME};
 use clap::parser::ValueSource;
 use clap::ArgMatches;
 
@@ -119,7 +119,7 @@ async fn prepare_run(
 /// The flags for the main network: a key of another network is not the main one, it goes to a slot.
 fn overrides_for_main(overrides: &CliOverrides, key_net: &KeyNet) -> CliOverrides {
     let mut main = overrides.clone();
-    if matches!(key_net, KeyNet::Add | KeyNet::Existing) {
+    if matches!(key_net, KeyNet::Add | KeyNet::Existing | KeyNet::Unreadable) {
         main.network_key = None;
     }
     main
@@ -137,7 +137,23 @@ fn add_key_net(
     if let (KeyNet::Add, Some(key)) = (key_net, cli_key) {
         add_net_slot(run, key, &args.initial_domains, &[], now)?;
     }
-    Ok(matches!(key_net, KeyNet::Add | KeyNet::Existing))
+    if let (KeyNet::Unreadable, Some(key)) = (key_net, cli_key) {
+        say_unreadable(key);
+    }
+    Ok(matches!(
+        key_net,
+        KeyNet::Add | KeyNet::Existing | KeyNet::Unreadable
+    ))
+}
+
+/// Tells in the log that `--key` did not parse and no network was added.
+fn say_unreadable(key: &str) {
+    if let Err(e) = crate::members::network_key::parse_user_input(key) {
+        say(
+            "network",
+            format!("the key given with --key did not parse: {e:#}; no network added"),
+        );
+    }
 }
 
 /// Collects the `run` subcommand flags into `CliOverrides`: what the person didn't type stays `None`
@@ -196,3 +212,7 @@ fn file_hint(r: &config_file::FileReport) -> String {
         None => "the settings file (not used)".to_string(),
     }
 }
+
+#[cfg(test)]
+#[path = "commands_tests.rs"]
+mod tests;

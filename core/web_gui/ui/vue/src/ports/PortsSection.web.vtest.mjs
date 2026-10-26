@@ -26,6 +26,13 @@ afterEach(() => {
 });
 
 describe("the table", () => {
+  it("each shared-port cell carries its column label", () => {
+    const { wrapper } = when_shown([row({})]);
+
+    expect(wrapper.get("table[aria-label='Ports shared with you']").classes()).toContain("stack");
+    expect(cellsOf(wrapper).map((td) => td.attributes("data-label"))).toEqual(["Member", "Port", "In the browser", "In other programs"]);
+  });
+
   it("is titled \"Ports shared with you\" and has the columns Member, Port, In the browser, In other programs", () => {
     const { wrapper } = when_shown([]);
 

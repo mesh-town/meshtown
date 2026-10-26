@@ -4,7 +4,7 @@ import { NEW_NET_NAME, isRefused, netName, peersSlots, visibleSlots } from "../c
 import type { Store } from "../core/store.ts";
 import type { NetBrief } from "../core/api-types.ts";
 import { slotVotes } from "./net-votes.ts";
-import { PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REFUSED_SUB, peersManagedTabSub, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
+import { PEERS_TAB_BROKEN_SUB, PEERS_TAB_DELETED_SUB, PEERS_TAB_JOINING_SUB, PEERS_TAB_REFUSED_SUB, peersManagedTabSub, peersTabBrokenTitle, peersTabSub, peersTabTitle, peersWhoText } from "./peers-texts.ts";
 
 export interface NetTab {
   slot: string;
@@ -33,8 +33,10 @@ function tabOf(store: Store, slot: string): NetTab {
   const online = b ? b.peers_online : 0;
   const total = b ? b.peers_total : 0;
   const waiting = b ? b.joining && b.id_hex == null : false;
-  const sub = refused ? PEERS_TAB_REFUSED_SUB : waiting ? PEERS_TAB_JOINING_SUB : subOf(store, slot, b, online, down);
-  return { slot, name, sub, title: peersTabTitle(name, online, total, down), votes: slotVotes(store, slot) };
+  const broken = !refused && !waiting && b?.status === "broken" && slot !== "main" && b.id_hex == null;
+  const sub = refused ? PEERS_TAB_REFUSED_SUB : waiting ? PEERS_TAB_JOINING_SUB : broken ? PEERS_TAB_BROKEN_SUB : subOf(store, slot, b, online, down);
+  const title = broken ? peersTabBrokenTitle(name) : peersTabTitle(name, online, total, down);
+  return { slot, name, sub, title, votes: slotVotes(store, slot) };
 }
 
 export const netTabs = (store: Store): NetTab[] => peersSlots(store.nets, store.slots).map((slot) => tabOf(store, slot));

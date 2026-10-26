@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The one "Join with an invite" form: the field, its error, what the string leads to, the button, the answer. The places
 // (Home, "Add another network", the tab of a network the computer left) give the ids, the title and the hint under the note.
-import { computed, inject } from "vue";
+import { computed, inject, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { peersHash } from "../shell/nav.ts";
 import { duplicateText, openNetText } from "./add-net-texts.ts";
@@ -22,6 +22,11 @@ const errorParts = computed(() => (form.inviteError ? highlightParts(form.invite
 const dupName = computed(() => netTitle(store.nets, form.dupSlot, form.netLabel));
 const showNote = computed(() => !!note.value && !form.inviteError && !(outcome.value === "here" && form.dupSlot));
 const describedBy = computed(() => `${props.ids.error} ${props.ids.note}`);
+
+// Editing the field withdraws the refusal of the string that was in it.
+watch(() => form.inviteInput, () => {
+  form.inviteError = null;
+});
 
 const setInput = (el: unknown): void => {
   input.value = el as HTMLInputElement | null;

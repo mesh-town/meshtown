@@ -173,7 +173,7 @@ fn an_old_key_in_the_file_is_reported_as_a_field_error() {
 }
 
 #[test]
-fn an_old_key_on_the_command_line_becomes_a_broken_slot_beside_the_good_main_key() {
+fn an_old_key_on_the_command_line_adds_no_slot_beside_the_good_main_key() {
     // given: a good key in the settings file and an outdated key on the command line
     let good = good_key();
     let old = format!("mesh1-{}", "a".repeat(52));
@@ -187,7 +187,10 @@ fn an_old_key_on_the_command_line_becomes_a_broken_slot_beside_the_good_main_key
         .expect("the page address was not printed");
     let port = page_port(&line);
     let token = read_token(&node);
-    // then: the process is alive, the good key runs the main network and the old one is a broken slot
+    // then: the process is alive, the journal says no network was added, the good key runs the main network
+    assert!(node
+        .wait_line("no network added", Duration::from_secs(10))
+        .is_some());
     assert!(node.child.try_wait().unwrap().is_none(), "exited early");
     let (code, state) = common::api(port, &token, "GET", "/api/state", None);
     assert_eq!(code, 200, "{state}");
@@ -195,8 +198,13 @@ fn an_old_key_on_the_command_line_becomes_a_broken_slot_beside_the_good_main_key
     let (code, overview) = common::api(port, &token, "GET", "/api/overview", None);
     assert_eq!(code, 200, "{overview}");
     let slots = overview["slots"].as_array().expect("slots");
-    assert!(slots.iter().any(|s| !s["state"].is_null()), "{overview}");
-    assert!(slots.iter().any(|s| s["state"].is_null()), "{overview}");
+    assert_eq!(slots.len(), 1, "{overview}");
+    assert!(!slots[0]["state"].is_null(), "{overview}");
+    assert_eq!(
+        overview["nets"].as_array().map(Vec::len),
+        Some(1),
+        "{overview}"
+    );
 }
 
 fn read_token(node: &NodeProc) -> String {

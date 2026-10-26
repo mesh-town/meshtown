@@ -100,6 +100,19 @@ describe("eight networks", () => {
   });
 });
 
+describe("the key error", () => {
+  it("an edit hides the key error", async () => {
+    const card = await setup();
+    fresh(card.node).routes["POST /api/network/join"] = { status: 422, body: { error: "invalid_key", message: "Old key" } };
+    await card.type("mesh1-oldkey");
+    await card.click("#add-net-btn");
+    expect(card.text("#add-net-error")).toBe("Old key");
+    expect(card.has("#add-net-error[hidden]")).toBe(false);
+    await card.type(INVITE);
+    expect(card.has("#add-net-error[hidden]")).toBe(true);
+  });
+});
+
 function eightNets() {
   const opts = twoNets();
   opts.slots.push({ id: FRESH });

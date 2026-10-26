@@ -22,11 +22,11 @@ pub(crate) fn net_offline_title_text(label: &str) -> String {
     format!("{label} — no connection")
 }
 
-/// The tail of a header of an administered network: `· managed`, for an admin `· managed, you're an admin`.
-pub(crate) fn managed_tail(admin: bool) -> &'static str {
+/// The tail of a header for an admin of the network: ` · you're an admin`; a member gets none.
+pub(crate) fn admin_tail(admin: bool) -> &'static str {
     match admin {
-        true => " · managed, you're an admin",
-        false => " · managed",
+        true => " · you're an admin",
+        false => "",
     }
 }
 

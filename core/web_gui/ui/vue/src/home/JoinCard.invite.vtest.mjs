@@ -126,4 +126,32 @@ describe("JoinCard > the one invite form", () => {
     await mounted.wrapper.get("#join-key-input").setValue(INVITE);
     expect(mounted.wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();
   });
+
+  describe("the server's key error", () => {
+    const OLD_KEY = "This key is from an older version. Ask an admin for a new invite.";
+    async function refused() {
+      api.mockImplementation(async (method, path) => {
+        if (path === "/api/network/join") throw new ApiError(422, "invalid_key", "x", { message: OLD_KEY });
+        return {};
+      });
+      mounted = mountSection(JoinCard, { state: baseState() });
+      await mounted.wrapper.get("#join-key-input").setValue("mesh1-oldkey");
+      await press(mounted.wrapper);
+      return mounted.wrapper;
+    }
+
+    it("the error stays until the field changes", async () => {
+      const wrapper = await refused();
+      expect(wrapper.get("#join-key-error").attributes("hidden")).toBeUndefined();
+      expect(wrapper.get("#join-key-error").text()).toBe(OLD_KEY);
+      await flushPromises();
+      expect(wrapper.get("#join-key-error").text()).toBe(OLD_KEY);
+    });
+
+    it("an edit hides the server's key error", async () => {
+      const wrapper = await refused();
+      await wrapper.get("#join-key-input").setValue("mesh-invite2-abc");
+      expect(wrapper.get("#join-key-error").attributes("hidden")).toBeDefined();
+    });
+  });
 });

@@ -161,6 +161,45 @@ mod member {
     }
 }
 
+mod before_the_node_runs {
+    use super::*;
+    use crate::members::network_key::format_managed_key;
+    use crate::transport::net::NodeSecret;
+    use crate::web_gui::test_host::config_with_key;
+
+    fn block(creator: &NodeSecret, me: &NodeSecret) -> Value {
+        let tail = crate::members::words::generate_tail().expect("a tail");
+        let key = format_managed_key(Some("work"), &tail, &creator.peer_id());
+        let mut state = config_with_key(Some(&key));
+        state.secret = me.clone();
+        state.network_block_with(None)
+    }
+
+    #[test]
+    fn before_the_node_runs_the_creator_is_the_only_admin() {
+        let me = NodeSecret::from_bytes(&[5u8; 32]);
+        let net = block(&me, &me);
+        let id = me.peer_id().to_string();
+        assert_eq!(net["me_role"], "admin", "{net}");
+        assert_eq!(net["admins"], json!([id]), "{net}");
+        assert_eq!(net["root"], json!(id), "{net}");
+    }
+
+    #[test]
+    fn before_the_node_runs_a_joiner_is_a_member_and_sees_the_creator() {
+        let creator = NodeSecret::from_bytes(&[5u8; 32]);
+        let me = NodeSecret::from_bytes(&[6u8; 32]);
+        let net = block(&creator, &me);
+        assert_eq!(net["me_role"], "member", "{net}");
+        assert_eq!(
+            net["admins"],
+            json!([creator.peer_id().to_string()]),
+            "{net}"
+        );
+        assert_eq!(net["can_invite"], false, "{net}");
+    }
+}
+
 // --- helpers ---
 
 /// `can_invite, can_remove, can_set_admins, can_delete_network, can_leave`, in this order.

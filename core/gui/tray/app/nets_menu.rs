@@ -3,7 +3,7 @@
 
 use super::exit_menu::{exit_menu_from_snapshot, ExitItem};
 use super::nets_texts::{
-    managed_tail, net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS,
+    admin_tail, net_offline_title_text, net_title_text, JOINING_TITLE, MAX_PEER_ROWS,
 };
 use super::overview::SlotView;
 use super::snapshot::{TrayPeer, TraySnapshot};
@@ -93,7 +93,7 @@ fn title_of(slot: &SlotView, label: &str) -> String {
         ),
         false => net_offline_title_text(label),
     };
-    format!("{base}{}", managed_tail(slot.admin))
+    format!("{base}{}", admin_tail(slot.admin))
 }
 
 fn peer_rows(snap: &TraySnapshot) -> Vec<PeerRow> {

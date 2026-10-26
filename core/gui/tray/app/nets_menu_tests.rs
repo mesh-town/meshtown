@@ -32,7 +32,7 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(title_of(net), "friends — 2 of 3 online · managed");
+        assert_eq!(title_of(net), "friends — 2 of 3 online");
     }
 
     #[test]
@@ -44,7 +44,7 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(title_of(net), "friends — 3 of 3 online · managed");
+        assert_eq!(title_of(net), "friends — 3 of 3 online");
     }
 
     #[test]
@@ -56,10 +56,7 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(
-            title_of(net),
-            "friends — 2 of 3 online, 1 to confirm · managed"
-        );
+        assert_eq!(title_of(net), "friends — 2 of 3 online, 1 to confirm");
     }
 
     #[test]
@@ -72,7 +69,7 @@ mod nets_from_slots {
 
         let nets = nets_from_slots(&visible(&[net]));
 
-        assert_eq!(nets[0].title, "my devices — no connection · managed");
+        assert_eq!(nets[0].title, "my devices — no connection");
         assert!(!nets[0].online, "an offline network is not online");
     }
 
@@ -157,7 +154,7 @@ mod nets_from_slots {
 
         let nets = nets_from_slots(&visible(&[net]));
 
-        assert_eq!(nets[0].title, "friends — 2 of 3 online · managed");
+        assert_eq!(nets[0].title, "friends — 2 of 3 online");
         assert!(nets[0].peers.is_empty() && !nets[0].serves_exit);
     }
 }
@@ -207,46 +204,40 @@ mod groups_from_slots {
     }
 }
 
-mod managed_titles {
+mod role_in_titles {
     use super::*;
     use serde_json::json;
 
     #[test]
-    fn member_of_a_managed_network_sees_managed_after_the_counts() {
+    fn a_member_title_has_no_tail() {
         let extra = json!({ "me_admin": false, "can_invite": false });
 
-        assert_eq!(
-            title_with(friends(), extra),
-            "friends — 2 of 3 online · managed"
-        );
+        assert_eq!(title_with(friends(), extra), "friends — 2 of 3 online");
     }
 
     #[test]
-    fn admin_of_a_managed_network_is_told_so() {
+    fn an_admin_is_told_so() {
         let extra = json!({ "me_admin": true, "can_invite": true });
 
         assert_eq!(
             title_with(friends(), extra),
-            "friends — 2 of 3 online · managed, you're an admin"
+            "friends — 2 of 3 online · you're an admin"
         );
     }
 
     #[test]
-    fn offline_managed_network_keeps_the_managed_tail() {
+    fn an_offline_member_title_has_no_tail() {
         let offline = NetSpec {
             status: "offline",
             ..friends()
         };
         let extra = json!({ "me_admin": false });
 
-        assert_eq!(
-            title_with(offline, extra),
-            "friends — no connection · managed"
-        );
+        assert_eq!(title_with(offline, extra), "friends — no connection");
     }
 
     #[test]
-    fn offline_managed_network_tells_the_admin_too() {
+    fn offline_titles_keep_the_admin_note() {
         let offline = NetSpec {
             status: "offline",
             ..friends()
@@ -255,7 +246,7 @@ mod managed_titles {
 
         assert_eq!(
             title_with(offline, extra),
-            "friends — no connection · managed, you're an admin"
+            "friends — no connection · you're an admin"
         );
     }
 
@@ -270,7 +261,7 @@ mod managed_titles {
 
         // then
         let title = nets_from_slots(&vis).remove(0).title;
-        assert_eq!(title, "friends — 2 of 3 online · managed, you're an admin");
+        assert_eq!(title, "friends — 2 of 3 online · you're an admin");
     }
 }
 

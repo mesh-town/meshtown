@@ -35,6 +35,21 @@ describe("a tab with a deletion notice of the same network", () => {
   });
 });
 
+describe("a broken slot", () => {
+  it("a broken slot says can't start", () => {
+    const { store } = setup([{ id: MAIN }, { id: "k7q2xa", brief: { id_hex: null, label: null, status: "broken", peers_online: 0, peers_total: 0 }, state: null }]);
+    const tab = netTabs(store).find((t) => t.slot === "k7q2xa");
+    expect(tab.sub).toBe("· can't start");
+    expect(tab.title).toBe(`${tab.name} — can't start: its saved settings can't be read`);
+  });
+
+  it("refused still wins over broken", () => {
+    const { store } = setup([{ id: MAIN }, { id: "k7q2xa", brief: { id_hex: null, status: "broken" }, state: { node: { invite_join: { state: "refused" } } } }]);
+    const tab = netTabs(store).find((t) => t.slot === "k7q2xa");
+    expect(tab.sub).toBe("· refused");
+  });
+});
+
 function tabOf(brief, notices = [], members = null) {
   const { store } = setup([{ id: MAIN, brief: { label: "work", id_hex: "9c0100", ...brief } }]);
   store.notices = notices;
