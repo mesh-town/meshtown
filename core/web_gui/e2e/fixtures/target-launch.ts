@@ -121,7 +121,7 @@ async function planLaunch(spec: LaunchSpec, port: number, socksPort?: number): P
       const key = await nodeKeygen(spec.bin, await keygenConfigPath(spec.workDir, plan.fileKind, configPath));
       return {
         readyTimeoutMs: READY_TIMEOUT_MS,
-        readyLogMarker: plan.fileKind === 'asis' ? '[node] meshtown ' : undefined,
+        readyLogMarker: plan.fileKind === 'asis' ? ', network ' : undefined,
         args: buildNodeArgs(key, configPath, port, plan),
         resolveToken: (workDir) => readNodeToken(workDir),
       };

@@ -121,6 +121,7 @@ test.describe('--me-excluded', () => {
 // The only admin cannot leave, so the case runs with a second admin next to this computer.
 test.describe('--second-admin', () => {
   test.use({ targetFlags: { extraArgs: ['--second-admin'] } });
+  test.skip(({ targetKind }) => targetKind === 'node', 'leaving is checked on the demo node, whose member list is fixed; skipped before the target starts');
 
   test('87-members-leave-settings: "Leave network…" in Settings → the dialog → the card "You left the network"', async ({ app, page, targetKind }) => {
     test.skip(targetKind === 'node', 'leaving is checked on the demo node, whose member list is fixed');

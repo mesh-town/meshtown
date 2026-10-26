@@ -83,7 +83,7 @@ export async function prepareNodeConfig(dir: string, fileKind: NodeFileKind): Pr
 export async function keygenConfigPath(dir: string, fileKind: NodeFileKind, configPath: string): Promise<string> {
   if (fileKind !== 'invalid' && fileKind !== 'unreadable') return configPath;
   const own = path.join(dir, 'keygen-identity.json');
-  await writeFile(own, JSON.stringify({ identity: IDENTITY }));
+  await writeFile(own, JSON.stringify({ identity: IDENTITY, config: { version: 1 } }));
   return own;
 }
 
