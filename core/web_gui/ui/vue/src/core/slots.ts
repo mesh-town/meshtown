@@ -37,11 +37,17 @@ export const refusedFlag = (store: { nets: NetBrief[] }, id: string): boolean =>
 export const isRefused = (nets: NetBrief[], slots: Record<string, SlotSlice>, id: string): boolean =>
   nets.some((n) => n.id === id && n.id_hex == null && !n.joining) && slots[id]?.state?.node?.invite_join?.state === "refused";
 
-// The slots the Members page lists as tabs: the visible ones and those with a refused join (until the user goes back).
+/** Slots the node could not start (saved settings unreadable): no state, listed as broken. `main` is not among them. */
+export function brokenSlots(nets: NetBrief[]): string[] {
+  return [...new Set(nets.filter((n) => n.status === "broken" && n.id !== "main").map((n) => n.id))];
+}
+
+// The slots the Members page lists as tabs: the visible ones, those with a refused join (until the user goes back) and the broken ones.
 export function peersSlots(nets: NetBrief[], slots: Record<string, SlotSlice>): string[] {
   const shown = visibleSlots(nets, slots).filter((id) => id !== "main" || nets.some((n) => n.id === "main" && holdsNetwork(n)));
   const refused = nets.map((n) => n.id).filter((id) => !shown.includes(id) && isRefused(nets, slots, id));
-  const all = [...shown, ...refused];
+  const broken = brokenSlots(nets).filter((id) => !shown.includes(id) && !refused.includes(id));
+  const all = [...shown, ...refused, ...broken];
   return all.length > 0 ? all : ["main"];
 }
 

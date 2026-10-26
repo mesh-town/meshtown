@@ -30,6 +30,8 @@ pub(crate) enum KeyNet {
     Add,
     /// Another network, but the node already holds the most networks it can.
     TooMany,
+    /// Another network's key that does not parse: no slot is added.
+    Unreadable,
 }
 
 /// Whether the two key texts are of the same network; an unparsable key is never the same.
@@ -61,6 +63,9 @@ pub(crate) fn plan_key_net(
     };
     if same_key_network(cli, file) {
         return KeyNet::Main;
+    }
+    if parse_user_input(cli).is_err() {
+        return KeyNet::Unreadable;
     }
     if in_slots(cli, slot_keys) {
         return KeyNet::Existing;

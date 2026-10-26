@@ -38,10 +38,10 @@ import AdmissionRefused from "./AdmissionRefused.vue";
 import { excludedByName } from "../members/excluded-by.ts";
 import { useInviteNote } from "./invite-note.ts";
 import { joiningTabs, netTabs, netWho } from "./net-tabs-view.ts";
-import { PEERS_LOADING, PEERS_NETS_HINT_OK, PEERS_NO_STORE, peersNetsHint } from "./peers-texts.ts";
+import { PEERS_LOADING, PEERS_NETS_HINT_OK, PEERS_NO_STORE, peersBrokenNet, peersNetsHint } from "./peers-texts.ts";
 import { useNetsHint } from "./use-nets-hint.ts";
 import AddNetCard from "../home/AddNetCard.vue";
-import { leadsToArrival, settleExpected, watchArrivals, useNetBanner } from "../home/add-net-banner.ts";
+import { bannerOutlived, leadsToArrival, settleExpected, watchArrivals, useNetBanner } from "../home/add-net-banner.ts";
 import { arrivedBannerText } from "../home/add-net-actions.ts";
 import { BANNER_OK, MAX_NETS } from "../home/add-net-texts.ts";
 import { peersHash } from "../shell/nav.ts";
@@ -68,6 +68,8 @@ const you = ref<InstanceType<typeof YouBlock> | null>(null);
 const hint = useNetsHint(() => visible.value.length);
 // The "added a network" banner sits on that network's tab; a join that waited for a member shows it on arrival.
 const { banner, show: showBanner, clear: clearBanner } = useNetBanner();
+// Somebody joined the network the banner is about: it goes for good.
+watch(() => bannerOutlived(banner.value, store.nets), (out) => out && clearBanner(), { immediate: true });
 // A form that waited for the network leads to its tab; a user who has gone elsewhere stays there.
 // A join that the members refused leads from the form to that network's card, which says so and offers "Back".
 watch(
@@ -83,6 +85,8 @@ watchArrivals(() => store.nets, (arrived) => {
   showBanner(arrived, arrivedBannerText(store, arrived));
   if (leadsToArrival(arrived, location.hash, store.peersTab)) location.hash = peersHash(arrived);
 });
+// A slot the node could not start: it has a tab but no state; the tab says why.
+const brokenHere = computed(() => slot.value !== "main" && store.nets.find((n) => n.id === slot.value)?.status === "broken" && !state.value);
 const waitingHere = computed(() => {
   const b = store.nets.find((n) => n.id === slot.value);
   return !!b && b.joining && b.id_hex == null && slot.value !== "main";
@@ -155,11 +159,12 @@ async function exitVia(idFull: string): Promise<void> {
 </script>
 
 <template>
-  <p v-if="!state && !addOnly" class="hint">{{ PEERS_LOADING }}</p>
+  <p v-if="!state && !addOnly && !brokenHere" class="hint">{{ PEERS_LOADING }}</p>
   <template v-else>
-    <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
+    <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length, inAppPage()) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" :sub="store.netSub" />
     <AddNetCard v-if="addOnly" />
+    <p v-else-if="brokenHere" class="hint" id="peers-broken-net">{{ peersBrokenNet() }}</p>
     <template v-else-if="excluded">
       <ExcludedCard members :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
       <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />

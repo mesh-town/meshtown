@@ -29,13 +29,15 @@ pub struct NetRoles {
 }
 
 impl NetRoles {
-    /// The roles known from the creator alone, before the node has a member list.
-    pub fn bare(root: &PeerId) -> NetRoles {
+    /// The roles known from the creator alone, before the node has a member list: the creator is
+    /// the only admin, anyone else is a member who sees the creator as the admin.
+    pub fn bare(root: &PeerId, me: &PeerId) -> NetRoles {
+        let me_admin = root == me;
         NetRoles {
             root: Some(root.to_string()),
-            me_admin: false,
-            admins: Vec::new(),
-            abilities: abilities_of(false, 0),
+            me_admin,
+            admins: vec![root.to_string()],
+            abilities: abilities_of(me_admin, 1),
             excluded_by: None,
         }
     }
@@ -116,7 +118,7 @@ impl ConfigState {
         let Some((mut value, root)) = self.network_parts() else {
             return Value::Null;
         };
-        let bare = NetRoles::bare(&root);
+        let bare = NetRoles::bare(&root, &self.secret.peer_id());
         let roles = roles.unwrap_or(&bare);
         if let Some(obj) = value.as_object_mut() {
             obj.extend(roles.fields().into_iter().map(|(k, v)| (k.to_string(), v)));

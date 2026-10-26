@@ -30,6 +30,11 @@ export function useNetBanner(): NetBannerApi {
   };
 }
 
+/** Somebody else is in the network the banner is about: its text has done its job. */
+export function bannerOutlived(banner: NetBanner | null, nets: NetBrief[]): boolean {
+  return banner !== null && nets.some((n) => n.id === banner.slot && n.peers_total > 0);
+}
+
 /** For tests. */
 export function resetNetBanner(): void {
   banner.value = null;

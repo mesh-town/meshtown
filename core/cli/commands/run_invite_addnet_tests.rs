@@ -60,6 +60,28 @@ mod planning_a_key {
     }
 
     #[test]
+    fn skips_a_key_that_does_not_parse() {
+        let short = format!("mesh1-{}", "a".repeat(40));
+        for bad in [short.as_str(), "garbage"] {
+            let out = plan_key_net(Some(bad), Some(&key_a()), &[]);
+            assert_eq!(out, KeyNet::Unreadable, "{bad}");
+        }
+    }
+
+    #[test]
+    fn skips_a_bad_key_before_counting_the_limit() {
+        let slots = vec![Some(key_c()); MAX_NETS - 1];
+        let out = plan_key_net(Some("garbage"), Some(&key_a()), &slots);
+        assert_eq!(out, KeyNet::Unreadable);
+    }
+
+    #[test]
+    fn a_bad_key_without_a_file_key_stays_main() {
+        let out = plan_key_net(Some("garbage"), None, &[]);
+        assert_eq!(out, KeyNet::Main);
+    }
+
+    #[test]
     fn has_nothing_to_decide_without_a_key() {
         assert_eq!(plan_key_net(None, Some(&key_a()), &[]), KeyNet::Main);
     }
