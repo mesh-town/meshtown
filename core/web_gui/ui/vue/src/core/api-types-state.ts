@@ -245,9 +245,13 @@ interface PortsInfo {
   network: NetPort[];
 }
 
+/** Transport of a published port. */
+export type PortProto = "tcp" | "udp";
+
 /** Own publication; `local` — whether the local port answered. */
 export interface OwnPort {
   port: number;
+  proto: PortProto;
   name: string;
   local: "unknown" | "ok" | "refused"; // a String in the code, the values come from the `OwnPort` comment
 }
@@ -258,6 +262,7 @@ export interface NetPort {
   node_name: string | null;
   online: boolean;
   port: number;
+  proto: PortProto;
   name: string;
   published: boolean;
   opened: OpenedPort | null;
@@ -268,6 +273,7 @@ interface OpenedPort {
   local: number;
   state: "listening" | "bind_failed"; // a String in the code, the values come from the `OpenedInfo` comment
   error: string | null;
+  last_error: "offline" | "not_opened" | "no_service" | "timed_out" | "failed" | "unsupported" | null; // why the member side could not be reached
 }
 
 export interface LogSummary {

@@ -9,13 +9,29 @@ export const PORTS_STATUS_OK = "responding";
 export const PORTS_STATUS_REFUSED = "not responding";
 export const PORTS_STATUS_UNKNOWN = "not checked yet";
 
-export function portsAlreadyPublishedText(port: number): string {
-  return "Port " + port + " is already published.";
+export const PORTS_PROTO_LABEL = "protocol";
+export const PORTS_PROTO_TCP = "TCP";
+export const PORTS_PROTO_UDP = "UDP";
+export const PORTS_STATUS_UDP = "not checked for UDP";
+
+const portPhrase = (port: number, proto: "tcp" | "udp"): string => (proto === "udp" ? "UDP port " : "Port ") + port;
+
+export function portsAlreadyPublishedText(port: number, proto: "tcp" | "udp" = "tcp"): string {
+  return portPhrase(port, proto) + " is already published.";
 }
 
-export function portsNotPublishedText(port: number): string {
-  return "Port " + port + " is not published.";
+export function portsNotPublishedText(port: number, proto: "tcp" | "udp" = "tcp"): string {
+  return portPhrase(port, proto) + " is not published.";
 }
+
+export const PORTS_LAST_ERROR_TEXT = {
+  unsupported: "The member runs an old version: UDP is not supported",
+  offline: "The member is offline",
+  not_opened: "The member has not shared this port with you",
+  no_service: "Nothing is listening on the member's port",
+  timed_out: "The member did not answer in time",
+  failed: "Couldn't reach the member's port",
+} as const;
 
 export const PORTS_AUDIENCE_ALL = "all members";
 export const PORTS_AUDIENCE_NOBODY = "nobody";
@@ -82,8 +98,8 @@ export const PORTS_OPENED = "open";
 export const PORTS_EDIT = "Edit";
 export const PORTS_UNPUBLISH = "Unpublish";
 
-export function portsEditTitleText(port: number): string {
-  return "Edit port " + port;
+export function portsEditTitleText(port: number, proto: "tcp" | "udp" = "tcp"): string {
+  return proto === "udp" ? "Edit UDP port " + port : "Edit port " + port;
 }
 
 export const PORTS_NAME_PLACEHOLDER = "name (optional)";

@@ -1,6 +1,6 @@
 /* Node API types: config `GET`/`PUT /api/config`, backup. Types only; the shared header and rules are in `api-types.ts`. */
 
-import type { ConfigFileState } from "./api-types-state.ts";
+import type { ConfigFileState, PortProto } from "./api-types-state.ts";
 
 // ---------------------------------------------------------------- config
 
@@ -37,6 +37,7 @@ interface ConfigNetworkView {
 /** Own port publication in the config; `for` — `"all"` or a list of full ids. */
 export interface PublishedPortConfig {
   port: number;
+  proto?: PortProto; // absent means "tcp"
   name: string;
   for: "all" | string[];
 }
@@ -45,6 +46,7 @@ export interface PublishedPortConfig {
 export interface OpenedPortConfig {
   node: string;
   port: number;
+  proto?: PortProto; // absent means "tcp"
   local: number;
 }
 

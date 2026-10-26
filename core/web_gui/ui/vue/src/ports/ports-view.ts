@@ -1,7 +1,7 @@
 /* Pure logic of the "Ports" section (`ports-view.ts`): the lists `ports.published` and `ports.opened`,
  * the row status text, the key of the "Network ports" row. */
 
-import type { NetPort, OwnPort, PeerInfo } from "../core/api-types.ts";
+import type { NetPort, OwnPort, PeerInfo, PortProto } from "../core/api-types.ts";
 import { isMulti, netConfig, netName, slotState, visibleSlots } from "../core/slots.ts";
 import { targetSlots } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
@@ -9,8 +9,10 @@ import type { ConfigDocument, OpenedPortConfig, PublishedPortConfig } from "../c
 import {
   PORTS_ADD_ERROR_NO_NODES, PORTS_ADD_ERROR_RANGE, PORTS_AUDIENCE_ALL, PORTS_AUDIENCE_NOBODY, PORTS_EMPTY_NET, PORTS_EMPTY_OWN,
   PORTS_OFFLINE, PORTS_ONLINE, PORTS_STATUS_OK, PORTS_STATUS_REFUSED, PORTS_STATUS_UNKNOWN, portsAlreadyPublishedText,
-  portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText, PORTS_NET_ALL, PORTS_NET_SEPARATOR, portsLocalUsedText, portsNetPeerText,
+  PORTS_STATUS_UDP, portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText, PORTS_NET_ALL, PORTS_NET_SEPARATOR, portsLocalUsedText, portsNetPeerText,
 } from "./ports-texts.ts";
+import { portKey, protoOf } from "./ports-proto.ts";
+export { lastErrorText, portKey, protoOf } from "./ports-proto.ts";
 
 export type PortsConfigKey = "published" | "opened";
 export interface PortsConfigLists {
@@ -38,17 +40,20 @@ export const EMPTY_NET = PORTS_EMPTY_NET;
 
 const OWN_STATUS_TEXT: Record<string, string> = { ok: PORTS_STATUS_OK, refused: PORTS_STATUS_REFUSED, unknown: PORTS_STATUS_UNKNOWN };
 
+const sameEntry = (port: number, proto: PortProto) => (p: { port: number; proto?: PortProto }) => p.port === port && protoOf(p) === proto;
+
 function inRange(port: number): boolean {
   return Number.isInteger(port) && port >= PORT_MIN && port <= PORT_MAX;
 }
 
 // Success — `{ list }`, refusal — `{ error: "text" }`. The source list is not changed.
 // `audience` — `"all"` or full node ids; an empty array is an error.
-export function publishedAfterAdd(list: PublishedPortConfig[], port: number, name: string, audience: "all" | string[] = "all"): PublishedAfterAdd {
+// A TCP entry carries no `proto` field (as the node returns it), a UDP one carries `proto: "udp"`.
+export function publishedAfterAdd(list: PublishedPortConfig[], port: number, name: string, audience: "all" | string[] = "all", proto: PortProto = "tcp"): PublishedAfterAdd {
   if (!inRange(port)) return { error: ADD_ERROR_RANGE };
-  if (list.some((p) => p.port === port)) return { error: portsAlreadyPublishedText(port) };
+  if (list.some(sameEntry(port, proto))) return { error: portsAlreadyPublishedText(port, proto) };
   if (Array.isArray(audience) && audience.length === 0) return { error: ADD_ERROR_NO_NODES };
-  return { list: list.concat([{ port, name, for: audience }]) };
+  return { list: list.concat([proto === "udp" ? { port, proto, name, for: audience } : { port, name, for: audience }]) };
 }
 
 // The first 10 characters of the full id.
@@ -92,14 +97,14 @@ export function audienceText(entry: Pick<PublishedPortConfig, "for"> | undefined
 
 // Editing the name and "shared with" of an already published entry; the port number is the key and does not change.
 // The source list is not changed, the order of entries stays.
-export function publishedAfterEdit(list: PublishedPortConfig[], port: number, name: string, audience: "all" | string[]): PublishedAfterAdd {
-  if (!list.some((p) => p.port === port)) return { error: portsNotPublishedText(port) };
+export function publishedAfterEdit(list: PublishedPortConfig[], port: number, name: string, audience: "all" | string[], proto: PortProto = "tcp"): PublishedAfterAdd {
+  if (!list.some(sameEntry(port, proto))) return { error: portsNotPublishedText(port, proto) };
   if (Array.isArray(audience) && audience.length === 0) return { error: ADD_ERROR_NO_NODES };
-  return { list: list.map((p) => (p.port === port ? { ...p, name, for: audience } : p)) };
+  return { list: list.map((p) => (sameEntry(port, proto)(p) ? { ...p, name, for: audience } : p)) };
 }
 
-export function publishedAfterRemove(list: PublishedPortConfig[], port: number): PublishedPortConfig[] {
-  return list.filter((p) => p.port !== port);
+export function publishedAfterRemove(list: PublishedPortConfig[], port: number, proto: PortProto = "tcp"): PublishedPortConfig[] {
+  return list.filter((p) => !sameEntry(port, proto)(p));
 }
 
 // The shift of the default local number: the member's port 80 opens on our side as 2080 (ports below 1024
@@ -124,21 +129,25 @@ function localPortOf(local: unknown, port: number, taken?: ReadonlySet<number>):
   return local === undefined || local === null || local === "" || !Number.isInteger(n) ? defaultLocalPort(port, taken) : n;
 }
 
-// The pair `(node, port)` already exists — its `local` is replaced (open on another number after a failure),
+// The triple `(node, proto, port)` already exists — its `local` is replaced (open on another number after a failure),
 // the order and the other entries stay; no such pair — the entry is appended to the end.
-export function openedAfterOpen(list: OpenedPortConfig[], node: string, port: number, local?: unknown, taken?: ReadonlySet<number>): OpenedPortConfig[] {
+export function openedAfterOpen(list: OpenedPortConfig[], node: string, port: number, local?: unknown, taken?: ReadonlySet<number>, proto: PortProto = "tcp"): OpenedPortConfig[] {
   const next = localPortOf(local, port, taken);
-  if (list.some((o) => o.node === node && o.port === port)) return list.map((o) => (o.node === node && o.port === port ? { ...o, local: next } : o));
-  return list.concat([{ node, port, local: next }]);
+  const same = sameOpened(node, port, proto);
+  if (list.some(same)) return list.map((o) => (same(o) ? { ...o, local: next } : o));
+  return list.concat([proto === "udp" ? { node, port, proto, local: next } : { node, port, local: next }]);
 }
 
-export function openedAfterClose(list: OpenedPortConfig[], node: string, port: number): OpenedPortConfig[] {
-  return list.filter((o) => !(o.node === node && o.port === port));
+const sameOpened = (node: string, port: number, proto: PortProto) => (o: OpenedPortConfig) => o.node === node && sameEntry(port, proto)(o);
+
+export function openedAfterClose(list: OpenedPortConfig[], node: string, port: number, proto: PortProto = "tcp"): OpenedPortConfig[] {
+  return list.filter((o) => !sameOpened(node, port, proto)(o));
 }
 
 // An own row (`OwnPort`) carries `local`; someone else's (`NetPort`) — `online` and `opened`.
-export function portStatusText(row: Pick<OwnPort, "local"> | NetPort): string {
+export function portStatusText(row: Pick<OwnPort, "local" | "proto"> | NetPort): string {
   if ("opened" in row && row.opened && row.opened.state === "bind_failed") return portsBindFailedText(row.opened.local);
+  if ("proto" in row && row.proto === "udp") return PORTS_STATUS_UDP;
   if ("local" in row && row.local !== undefined) return OWN_STATUS_TEXT[row.local] || OWN_STATUS_TEXT.unknown;
   return "online" in row && row.online === false ? PORTS_OFFLINE : PORTS_ONLINE;
 }
@@ -155,8 +164,8 @@ export function configPorts<K extends PortsConfigKey>(config: Pick<ConfigDocumen
 }
 
 // With several networks the key starts with the slot.
-export function netRowKey(r: Pick<NetPort, "node" | "port">, slot?: string): string {
-  return (slot ? slot + "/" : "") + r.node + "/" + r.port;
+export function netRowKey(r: { node: string; port: number; proto?: PortProto }, slot?: string): string {
+  return (slot ? slot + "/" : "") + r.node + "/" + portKey(protoOf(r), r.port);
 }
 
 // The node label in "Network ports"; without a name — "member <id>".
@@ -187,8 +196,8 @@ export function sameNameNodes(rows: Pick<NetPort, "node" | "node_name">[]): Set<
 
 interface SlotShare { slot: string; label: string; audience: "all" | string[] }
 /** One published port over all networks: where it is shared and with whom. */
-export interface MergedOwn { port: number; name: string; local: OwnPort["local"]; shared: SlotShare[] }
-interface PortRef { slot: string; node: string; port: number }
+export interface MergedOwn { port: number; proto: PortProto; name: string; local: OwnPort["local"]; shared: SlotShare[] }
+interface PortRef { slot: string; node: string; port: number; proto?: PortProto }
 export interface NetPortItem { slot: string; net: string | null; row: NetPort }
 export interface NetGroup { slot: string; label: string; candidates: AudienceCandidate[] }
 /** One network's choice in the form: "All members" or the checked members; nothing checked — not published there. */
@@ -205,14 +214,16 @@ function slotPeers(store: Store, slot: string): PeerInfo[] {
 
 // Rows by port number over the networks that hold a key, the main network first; the name is the first network's.
 export function mergeOwn(store: Store): MergedOwn[] {
-  const merged = new Map<number, MergedOwn>();
+  const merged = new Map<string, MergedOwn>();
   for (const slot of targetSlots(store)) {
     const rows = slotStateOf(store, slot)?.ports?.published ?? [];
     for (const e of configPorts(netConfig(store, slot), "published")) {
-      const row = rows.find((r) => r.port === e.port);
-      const m = merged.get(e.port) ?? { port: e.port, name: e.name ?? row?.name ?? "", local: row?.local ?? "unknown", shared: [] };
+      const proto = protoOf(e);
+      const key = portKey(proto, e.port);
+      const row = rows.find((r) => r.port === e.port && protoOf(r) === proto);
+      const m = merged.get(key) ?? { port: e.port, proto, name: e.name ?? row?.name ?? "", local: row?.local ?? "unknown", shared: [] };
       m.shared.push({ slot, label: netName(store.nets, slot), audience: e.for ?? "all" });
-      merged.set(e.port, m);
+      merged.set(key, m);
     }
   }
   return Array.from(merged.values());
@@ -236,10 +247,11 @@ export function peerNetLabel(label: string, net: string | null): string {
 }
 
 // Local numbers of opened ports over all visible networks, with the pair that holds each.
-export function takenLocals(store: Store, except?: PortRef): Map<number, PortRef> {
+// Only numbers of the given protocol count: TCP 2053 and UDP 2053 do not clash.
+export function takenLocals(store: Store, except?: PortRef, proto: PortProto = "tcp"): Map<number, PortRef> {
   const taken = new Map<number, PortRef>();
   for (const slot of visibleSlots(store.nets, store.slots)) {
-    for (const o of configPorts(netConfig(store, slot), "opened")) {
+    for (const o of configPorts(netConfig(store, slot), "opened").filter((x) => protoOf(x) === proto)) {
       if (except && except.slot === slot && except.node === o.node && except.port === o.port) continue;
       taken.set(o.local, { slot, node: o.node, port: o.port });
     }
