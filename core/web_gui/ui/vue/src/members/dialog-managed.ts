@@ -37,8 +37,6 @@ export const MANAGED_BUILDERS: Record<ManagedKind, (c: DialogContext) => Managed
   }),
 };
 
-const isManagedKind = (kind: string): kind is ManagedKind => kind in MANAGED_BUILDERS;
-
 // Only a removal names a member who may be my exit; the other kinds do not cut anything off.
 export const MANAGED_CALM: readonly string[] = ["make-admin", "give-up", "delete-net", "last-admin"];
 export const MANAGED_CALM_DANGER: readonly string[] = ["make-admin", "last-admin"];
