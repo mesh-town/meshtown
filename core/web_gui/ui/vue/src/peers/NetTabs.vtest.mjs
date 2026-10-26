@@ -96,12 +96,12 @@ describe("NetTabs", () => {
   });
 
   describe("the \"+\" tab", () => {
-    it("has the title \"Add network\"", () => {
-      expect(plusTab(render({ tabs: [FRIENDS, DEVICES] })).attributes("title")).toBe("Add network");
+    it("has the title \"Join or create another network\"", () => {
+      expect(plusTab(render({ tabs: [FRIENDS, DEVICES] })).attributes("title")).toBe("Join or create another network");
     });
 
     it("has an accessible name, also at the limit", () => {
-      expect(plusTab(render({ tabs: [FRIENDS] })).attributes("aria-label")).toBe("Add network");
+      expect(plusTab(render({ tabs: [FRIENDS] })).attributes("aria-label")).toBe("Join or create another network");
       expect(plusTab(render({ tabs: [FRIENDS], full: true })).attributes("aria-label")).toBe("Mesh Town can be in up to 8 networks at once");
     });
 

@@ -15,15 +15,15 @@ test.describe('27-home-create-network', () => {
     const net = app.netCard;
     await net.createNetwork(NET_TITLE);
 
-    await test.step('#create-box is collapsed, #join-key-input and #join-key-error are empty after "Create network"', async () => {
+    await test.step('#create-box is collapsed, #join-key-input is gone and #join-key-error is hidden after "Create network"', async () => {
       await expect.soft(net.createLabelInput).toBeHidden({ timeout: 6000 });
-      await expect.soft(app.joinCard.keyInput).toHaveValue('');
+      await expect.soft(app.joinCard.keyInput).toHaveCount(0);
       await expect.soft(app.joinCard.keyError).toBeHidden();
     });
 
-    await test.step('"Settings" (#net-join-slot) shows the "Add another network" card (#add-net-card) and "Home" has no join card', async () => {
-      await expect.soft(app.joinCard.addNetCard).toHaveCount(1);
-      await expect.soft(app.joinCard.addNetCard).toHaveAttribute('data-context', 'settings');
+    await test.step('"Settings" (#net-join-slot) links to the "+" tab ("Join or create another network") and "Home" has no join card', async () => {
+      await expect.soft(app.joinCard.addNetLink).toHaveCount(1);
+      await expect.soft(app.joinCard.addNetLink).toHaveText('Join or create another network');
       await expect.soft(app.joinCard.inHomeSlot).toHaveCount(0);
     });
 

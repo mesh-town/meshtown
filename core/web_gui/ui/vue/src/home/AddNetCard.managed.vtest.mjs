@@ -19,7 +19,7 @@ import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
 
 const FRESH = "neta22";
 const INVITE = "mesh1-ABCDEFGH";
-const CREATE_TOGGLE = "No invite? Create a new network ▸";
+const CREATE_TAB = "Create";
 const INSPECT = "/api/network/inspect";
 const MANAGED_LINE = 'Network "work" · Managed: admins decide who joins';
 const PEER_LINE = 'Network "work" · Peer: every member can invite';
@@ -45,7 +45,7 @@ describe("creating a network", () => {
   describe("the kind", () => {
     it("is offered, Peer chosen, once the form is in create mode", async () => {
       const card = await setup();
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       expect(card.exists("#kind-peer"), "the Peer card").toBe(true);
       expect(card.exists("#kind-managed"), "the Managed card").toBe(true);
       expect(card.get("#kind-peer").element.checked).toBe(true);
@@ -62,14 +62,14 @@ describe("creating a network", () => {
 
     it("goes away with the way back to join mode", async () => {
       const card = await setup();
-      await card.when.clicked(CREATE_TOGGLE);
-      await card.when.clicked("Have an invite? Join a network ▸");
+      await card.when.clicked(CREATE_TAB);
+      await card.when.clicked("Join");
       expect(card.exists("#kind-managed")).toBe(false);
     });
 
     it("Managed brings the warning with the typed name, Peer takes it away", async () => {
       const card = await setup();
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.typed("work");
       expect(card.exists("#kind-managed-warn")).toBe(false);
       await card.when.kindChosen("kind-managed");
@@ -83,7 +83,7 @@ describe("creating a network", () => {
     it("sends the name alone", async () => {
       const card = await setup();
       answersCreate(card.node);
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.typed("work");
       await card.when.clicked("Create network");
       expect(card.postedBodies()).toEqual([{}, { label: "work" }]);
@@ -94,7 +94,7 @@ describe("creating a network", () => {
     it("sends the name and the kind to the slot's own address", async () => {
       const card = await setup();
       answersCreate(card.node);
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.typed("work");
       await card.when.kindChosen("kind-managed");
       await card.when.clicked("Create network");
@@ -106,7 +106,7 @@ describe("creating a network", () => {
     it("then Peer again — the kind is not sent", async () => {
       const card = await setup();
       answersCreate(card.node);
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.typed("work");
       await card.when.kindChosen("kind-managed");
       await card.when.kindChosen("kind-peer");
@@ -117,7 +117,7 @@ describe("creating a network", () => {
     it("leaves a banner on the new tab: you are its admin", async () => {
       const card = await setup();
       answersCreate(card.node);
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.typed("work");
       await card.when.kindChosen("kind-managed");
       await card.when.clicked("Create network");
@@ -126,7 +126,7 @@ describe("creating a network", () => {
 
     it("an empty name is refused as before, nothing is sent", async () => {
       const card = await setup();
-      await card.when.clicked(CREATE_TOGGLE);
+      await card.when.clicked(CREATE_TAB);
       await card.when.kindChosen("kind-managed");
       await card.when.clicked("Create network");
       expect(card.alerts()).toEqual(['Enter a name, for example "family".']);
@@ -135,11 +135,11 @@ describe("creating a network", () => {
   });
 });
 
-describe.each(["peers", "settings"])("a pasted invite in the %s context", (context) => {
+describe("a pasted invite", () => {
   beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
 
   it("says nothing and asks nothing before the pause in typing is over", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Managed", id_hex: "ab12" });
     await card.when.typed(INVITE);
     expect(card.exists("#add-net-kind-preview")).toBe(false);
@@ -147,7 +147,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 
   it("then says that a Managed network is decided by admins", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Managed", id_hex: "ab12" });
     await card.when.typed(INVITE);
     await card.when.pauseOver();
@@ -156,7 +156,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 
   it("or that every member of a Peer network can invite", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Peer", id_hex: "ab12" });
     await card.when.typed(INVITE);
     await card.when.pauseOver();
@@ -164,7 +164,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 
   it("a key without a name has a line without a name", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: null, kind: "Managed", id_hex: "ab12" });
     await card.when.typed(INVITE);
     await card.when.pauseOver();
@@ -172,7 +172,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 
   it("an emptied field takes the line away", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Managed", id_hex: "ab12" });
     await card.when.typed(INVITE);
     await card.when.pauseOver();
@@ -181,16 +181,16 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 
   it("is not shown in create mode", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Managed", id_hex: "ab12" });
     await card.when.typed(INVITE);
     await card.when.pauseOver();
-    await card.when.clicked(CREATE_TOGGLE);
+    await card.when.clicked(CREATE_TAB);
     expect(card.exists("#add-net-kind-preview")).toBe(false);
   });
 
   it("does not change the join: the key alone goes to the slot", async () => {
-    const card = await setup({ context });
+    const card = await setup();
     answersInspect(card.node, { label: "work", kind: "Managed", id_hex: "ab12" });
     answersJoin(card.node);
     await card.when.typed(INVITE);
@@ -202,7 +202,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
 
   describe("the node refuses to describe it (422)", () => {
     it("there is no line and no error", async () => {
-      const card = await setup({ context });
+      const card = await setup();
       answersInspect(card.node, { status: 422, body: { error: "invalid_key", message: "Not an invite" } });
       await card.when.typed(INVITE);
       await card.when.pauseOver();
@@ -212,7 +212,7 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
     });
 
     it("\"Add network\" still works", async () => {
-      const card = await setup({ context });
+      const card = await setup();
       answersInspect(card.node, { status: 422, body: { error: "invalid_key", message: "Not an invite" } });
       answersJoin(card.node);
       await card.when.typed(INVITE);
@@ -224,13 +224,13 @@ describe.each(["peers", "settings"])("a pasted invite in the %s context", (conte
   });
 });
 
-async function setup({ context = "peers", opts = withFreshSlot(twoNets()) } = {}) {
+async function setup({ opts = withFreshSlot(twoNets()) } = {}) {
   const node = createFakeNode(opts);
   vi.stubGlobal("fetch", node.fetch);
   sessionStorage.setItem(TOKEN_KEY, "test-token");
   const store = createStore();
   acceptOverview(store, parseOverview(await api("GET", "/api/overview")));
-  const wrapper = mount(AddNetCard, { props: { context }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+  const wrapper = mount(AddNetCard, { attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   await settle();
   mounted = { wrapper, node };
   return cardOf(wrapper, node);

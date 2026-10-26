@@ -3,12 +3,12 @@ import type { Locator, Page } from '@playwright/test';
 import type { AppShell } from './app-shell';
 import { TabsBar } from './tabs-bar';
 
-/** Card region: the heading "Join with an invite" without a network, no card of this kind with one (the "Add another network" card takes its place). */
-const CARD_NAME = /^(Join with an invite|Add another network)/;
+/** Card region: the heading "Join with an invite" without a network, no card of this kind with one (a link to the "+" tab takes its place). */
+const CARD_NAME = /^(Join with an invite|Join or create another network)/;
 
 /**
  * The join card: the invite field, the "Join"/"Switch" button, the error line. The section draws it on
- * Home without a network and in "Settings → Network" (`#net-join-slot`) with one.
+ * Home without a network and, with a network, "Settings → Network" has only a link (`#net-join-slot`) to the "+" tab.
  */
 export class JoinCard {
   readonly keyInput: Locator;
@@ -20,8 +20,8 @@ export class JoinCard {
   readonly inNetSlot: Locator;
   /** The invite field inside the card on Settings. */
   readonly netSlotKeyInput: Locator;
-  /** The "Add another network" card in the Settings slot (`#net-join-slot`); it replaces the join card once a network exists. */
-  readonly addNetCard: Locator;
+  /** The link to the "+" tab in the Settings slot (`#net-join-slot`); it replaces the join card once a network exists. */
+  readonly addNetLink: Locator;
 
   constructor(page: Page) {
     this.keyInput = page.getByLabel('Invite you received');
@@ -32,7 +32,7 @@ export class JoinCard {
     this.inHomeSlot = tabs.panel('home').getByRole('region', { name: CARD_NAME, includeHidden: true });
     this.inNetSlot = tabs.panel('settings').getByRole('region', { name: CARD_NAME, includeHidden: true });
     this.netSlotKeyInput = this.inNetSlot.getByLabel('Invite you received');
-    this.addNetCard = page.locator('#net-join-slot #add-net-card[data-context="settings"]');
+    this.addNetLink = page.locator('#net-join-slot a[href="#peers/add"]');
   }
 
   /**

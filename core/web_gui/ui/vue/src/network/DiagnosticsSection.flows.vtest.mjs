@@ -25,13 +25,13 @@ async function openSpecialist(wrapper) {
 const headingsNamed = (wrapper, name) => wrapper.findAll("h1,h2,h3,h4,h5,h6").filter((h) => h.text().trim() === name);
 
 describe("texts of the join and key cards when a network exists", () => {
-  it("Settings offers \"Add another network\" instead of a switch, the \"Mesh Town network key\" card with a \"Show\" button", async () => {
+  it("Settings offers \"Join or create another network\" instead of a switch, the \"Mesh Town network key\" card with a \"Show\" button", async () => {
     const { wrapper } = await mountPage(makeNode());
     await openTab(wrapper, "settings");
 
     expect(headingsNamed(wrapper, "Switch to another network")).toHaveLength(0);
     expect(wrapper.find("#join-card").exists()).toBe(false);
-    expect(headingsNamed(wrapper, "Add another network")).toHaveLength(1);
+    expect(wrapper.get("#net-join-slot a").text()).toBe("Join or create another network");
 
     await openTab(wrapper, "network");
     await openSpecialist(wrapper);

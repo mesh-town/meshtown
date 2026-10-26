@@ -1,9 +1,10 @@
-import type { APIRequestContext } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
 
 import { test, expect } from '../fixtures/index';
 import type { MeshApi } from '../fixtures/api';
 import type { RunningTarget } from '../fixtures/target';
 import { InviteForm, NetTabs, OutOfNetCard, visiblePrimary } from '../pages/invite-form';
+import type { AppShell } from '../pages/app-shell';
 
 // One form takes an invite wherever the computer meets one: the node, not the user, picks the slot. Each case checks the tab
 // the user lands on and the slots the node ends up with, so a form that always joins the main network fails here.
@@ -68,6 +69,13 @@ async function inviteToNewNetwork(api: MeshApi, request: APIRequestContext, targ
 async function visibleNets(api: MeshApi): Promise<string[]> {
   const res = await api.getJson<NetsDoc>('/api/nets');
   return (res.body?.nets ?? []).filter((n) => n.id_hex !== null).map((n) => n.id);
+}
+
+/** The "+" tab of the Members page: the card that joins or creates another network. */
+async function openAddTab(app: AppShell, page: Page): Promise<void> {
+  await app.tabs.open('peers');
+  await new NetTabs(page).addTab.click();
+  await app.tabs.expectShown('peers');
 }
 
 test.describe('invite into a new network (demo, two networks)', () => {
@@ -148,11 +156,11 @@ test.describe('invite into a new network (demo, two networks)', () => {
   });
 });
 
-test('111-invite-already-here: your own invite in Settings says "already in", "Open" shows the members of that network, no slot is taken', async ({ app, page, api }) => {
+test('111-invite-already-here: your own invite on the "+" tab says "already in", "Open" shows the members of that network, no slot is taken', async ({ app, page, api }) => {
   const form = new InviteForm(page, 'add');
   const own = await inviteOf(api, null);
   const slotsBefore = await visibleNets(api);
-  await app.tabs.open('settings');
+  await openAddTab(app, page);
 
   await test.step('the pasted invite is marked as one of this computer\'s networks', async () => {
     await form.pasteAndInspect(own);
@@ -296,16 +304,16 @@ test.describe('the setup wizard (demo --no-network)', () => {
   });
 });
 
-test.describe('an invite pasted in Settings into another network (demo, two networks)', () => {
+test.describe('an invite pasted on the "+" tab into another network (demo, two networks)', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'a new network needs the demo registry; a real node has one network');
   test.use({ targetFlags: { extraArgs: ['--nets', '2'] } });
 
-  test('119-invite-settings-arrival: the tab of the new network opens, and Settings holds an empty form afterwards', async ({ app, page, api, request, target }) => {
+  test('119-invite-settings-arrival: the tab of the new network opens, and the "+" tab holds an empty form afterwards', async ({ app, page, api, request, target }) => {
     const tabs = new NetTabs(page);
     const form = new InviteForm(page, 'add');
     const { invite } = await inviteToNewNetwork(api, request, target);
     const before = await visibleNets(api);
-    await app.tabs.open('settings');
+    await openAddTab(app, page);
     await form.pasteAndInspect(invite);
     await form.submit();
 
@@ -319,8 +327,8 @@ test.describe('an invite pasted in Settings into another network (demo, two netw
       await expect(tabs.tab(added[0])).toHaveAttribute('aria-current', 'page');
     });
 
-    await test.step('back in Settings the form is empty and does not wait for the network any more', async () => {
-      await app.tabs.open('settings');
+    await test.step('back on the "+" tab the form is empty and does not wait for the network any more', async () => {
+      await openAddTab(app, page);
       await expect(form.input).toHaveValue('');
       await expect(page.getByText('Joining the network…')).toHaveCount(0);
     });
@@ -333,7 +341,7 @@ test.describe('an invite pasted in Settings into another network (demo, two netw
     const before = await visibleNets(api);
     await page.goto(`${target.origin}/?token=${target.token}&invite=${encodeURIComponent(invite)}`);
 
-    await test.step('the node is in a network: the page goes to "Add another network" with the field filled and read', async () => {
+    await test.step('the node is in a network: the page goes to the "+" tab with the field filled and read', async () => {
       await expect.poll(() => tabs.hash()).toBe('#peers/add');
       await expect(form.input).toHaveValue(invite);
       await expect(form.kindPreview).toBeVisible();
@@ -357,7 +365,7 @@ test.describe('an invite pasted in Settings into another network (demo, two netw
       const eighth = await post<SlotDoc>(request, target, `/api/net/${emptySlot}/network/create`, { label: 'filler' });
       expect(eighth.status, 'the empty slot becomes a network of its own').toBeLessThan(300);
       await expect.poll(async () => (await visibleNets(api)).length).toBe(8);
-      await app.tabs.open('settings');
+      await openAddTab(app, page);
       await form.paste(invite);
       await form.submit();
 
@@ -395,7 +403,7 @@ test.describe('the invite form in the phone app', () => {
 
   test('122-invite-scan-app: the form has a "Scan QR" link to the app scanner right after its button', async ({ app, page }) => {
     const form = new InviteForm(page, 'add');
-    await app.tabs.open('settings');
+    await openAddTab(app, page);
     await expect(form.button).toBeVisible();
 
     // no anchor: the link is a styled anchor with a custom-scheme address, told apart by its class
@@ -410,7 +418,7 @@ test.describe('the invite form in the phone app', () => {
 test.describe('the invite form in a browser', () => {
   test('122-invite-scan-browser: the form has its button and no "Scan QR" link', async ({ app, page }) => {
     const form = new InviteForm(page, 'add');
-    await app.tabs.open('settings');
+    await openAddTab(app, page);
     await expect(form.button).toBeVisible();
     await expect(page.locator(SCAN_LINK)).toHaveCount(0);
   });

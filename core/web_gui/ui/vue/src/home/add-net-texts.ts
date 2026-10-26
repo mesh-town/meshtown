@@ -1,4 +1,4 @@
-/* Texts of the "Add another network" form and of the banners shown after a network is added. */
+/* Texts of the "Join or create another network" form and of the banners shown after a network is added. */
 
 import type { NetKind } from "../core/api-types.ts";
 import { HOME_CREATE_BTN, HOME_CREATE_LABEL } from "./home-card-texts.ts";
@@ -6,15 +6,16 @@ import { HOME_CREATE_BTN, HOME_CREATE_LABEL } from "./home-card-texts.ts";
 /** The most networks the node holds at once. */
 export const MAX_NETS = 8;
 
-export const ADD_NET_TITLE = "Add another network";
-export const ADD_NET_LINK = "Add another network";
+export const ADD_NET_TITLE = "Join or create another network";
+export const ADD_NET_LINK = "Join or create another network";
+export const ADD_NET_TAB_JOIN = "Join";
+export const ADD_NET_TAB_CREATE = "Create";
+export const ADD_NET_TABS_LABEL = "Join or create";
 export const ADD_NET_CREATE_LABEL = HOME_CREATE_LABEL;
 export const ADD_NET_CREATE_PLACEHOLDER = "for example, family";
 export const ADD_NET_BTN = "Add network";
 export const ADD_NET_CREATE_BTN = HOME_CREATE_BTN;
 export const ADD_NET_CANCEL = "Cancel";
-export const ADD_NET_TO_CREATE = "No invite? Create a new network ▸";
-export const ADD_NET_TO_JOIN = "Have an invite? Join a network ▸";
 export const ADD_NET_WAITING = "Joining the network…";
 export const ADD_NET_WAITING_SUB = "This takes up to a minute. Your other networks keep working.";
 export const JOIN_NO_ANSWER = "No answer yet — the network's host may be offline.";

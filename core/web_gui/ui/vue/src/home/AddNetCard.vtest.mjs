@@ -1,4 +1,4 @@
-/* The "Add another network" form: one component for the Members page (`peers`) and for Settings (`settings`).
+/* The "Join or create another network" card with its Join / Create tabs.
  * The card runs on a fake node with two networks (A = `main` "friends", B = `k7q2xa` "my devices") and one empty slot that
  * `POST /api/nets` hands out; a network counts as taken once its slot holds a key (`id_hex`). */
 
@@ -24,8 +24,8 @@ const LIMIT_REFUSED = "This is a new network, so it can't be added until you lea
 const NEW_INVITE = "mesh-invite2-ABCDEFGH";
 const JOINING = "Joining the network…";
 const MINUTE = "This takes up to a minute. Your other networks keep working.";
-const CREATE_TOGGLE = "No invite? Create a new network ▸";
-const JOIN_TOGGLE = "Have an invite? Join a network ▸";
+const CREATE_TAB = "Create";
+const JOIN_TAB = "Join";
 
 let mounted;
 
@@ -40,39 +40,29 @@ afterEach(() => {
 });
 
 describe("the form", () => {
-  describe.each(["peers", "settings"])("in the %s context", (context) => {
+  describe("the card", () => {
     it("is titled and tells which networks you stay in", async () => {
-      const card = await setup({ context });
-      expect(card.text()).toContain("Add another network");
+      const card = await setup();
+      expect(card.text()).toContain("Join or create another network");
       expect(card.text()).toContain(STAY_BOTH);
     });
 
     it("asks for the invite in a field with a paste hint", async () => {
-      const card = await setup({ context });
+      const card = await setup();
       expect(card.text()).toContain("Invite you received");
       expect(card.visibleInput().attributes("placeholder")).toBe("Paste the invite here");
       expect(card.text()).toContain("Paste the entire invite. If a word has a typo, Mesh Town will highlight it.");
     });
 
-    it("has \"Add network\", \"Cancel\" and the way to create a network", async () => {
-      const card = await setup({ context });
-      expect(card.controlTexts()).toEqual(expect.arrayContaining(["Add network", "Cancel", CREATE_TOGGLE]));
+    it("has \"Add network\", \"Cancel\" and the Join and Create tabs", async () => {
+      const card = await setup();
+      expect(card.controlTexts()).toEqual(expect.arrayContaining(["Add network", "Cancel", JOIN_TAB, CREATE_TAB]));
     });
 
     it("sends nothing until a button is pressed", async () => {
-      const card = await setup({ context });
+      const card = await setup();
       expect(card.postedPaths()).toEqual([]);
     });
-  });
-
-  it("is the same in both contexts", async () => {
-    const inPeers = await setup({ context: "peers" });
-    const peersText = inPeers.text();
-    const peersControls = inPeers.controlTexts();
-    mounted.wrapper.unmount();
-    const inSettings = await setup({ context: "settings" });
-    expect(inSettings.text()).toBe(peersText);
-    expect(inSettings.controlTexts()).toEqual(peersControls);
   });
 
   it("names only the networks of the page: one network, one name", async () => {
@@ -84,34 +74,26 @@ describe("the form", () => {
 });
 
 describe("Cancel", () => {
-  it("in the peers context goes back to the first network's tab", async () => {
-    const card = await setup({ context: "peers" });
+  it("goes back to the first network's tab", async () => {
+    const card = await setup();
     await card.when.clicked("Cancel");
     expect(location.hash).toBe("#peers/" + NET_A);
     expect(card.postedPaths()).toEqual([]);
   });
 
-  it("in the settings context empties the form and stays on the page", async () => {
-    const card = await setup({ context: "settings" });
-    await card.when.typed(INVITE);
-    await card.when.clicked("Cancel");
-    expect(card.visibleInput().element.value).toBe("");
-    expect(location.hash).toBe("");
-    expect(card.postedPaths()).toEqual([]);
-  });
 });
 
 describe("a join that waits for members", () => {
-  describe.each(["peers", "settings"])("in the %s context", (context) => {
+  describe("the waiting card", () => {
     it("has the Cancel of the waiting join and no second Cancel of the form", async () => {
-      const card = await waiting({ context });
+      const card = await waiting();
       expect(card.exists("#net-join-cancel"), "Cancel of the join").toBe(true);
       expect(card.exists("#add-net-cancel"), "Cancel of the form").toBe(false);
       expect(card.controlTexts().filter((t) => t === "Cancel")).toHaveLength(1);
     });
 
     it("Cancel leaves the half-joined slot and sends nothing else", async () => {
-      const card = await waiting({ context });
+      const card = await waiting();
       await card.when.joinCancelled();
       expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/join", "/api/net/" + FRESH + "/members/leave"]);
       expect(card.postedBodies()).toEqual([{}, { key: INVITE }, { confirm: true }]);
@@ -119,7 +101,7 @@ describe("a join that waits for members", () => {
     });
 
     it("after Cancel the form is empty, in join mode, without the waiting line", async () => {
-      const card = await waiting({ context });
+      const card = await waiting();
       await card.when.joinCancelled();
       expect(card.visibleInput().element.value).toBe("");
       expect(card.visibleInput().attributes("placeholder")).toBe("Paste the invite here");
@@ -130,16 +112,10 @@ describe("a join that waits for members", () => {
     });
   });
 
-  it("in the peers context Cancel keeps the \"add\" tab", async () => {
-    const card = await waiting({ context: "peers" });
+  it("Cancel keeps the \"add\" tab", async () => {
+    const card = await waiting();
     await card.when.joinCancelled();
     expect(card.store.peersTab).toBe("add");
-  });
-
-  it("in the settings context Cancel leaves the address alone", async () => {
-    const card = await waiting({ context: "settings" });
-    await card.when.joinCancelled();
-    expect(location.hash).toBe("");
   });
 });
 
@@ -149,7 +125,8 @@ describe("eight networks", () => {
     expect(card.text()).toContain(LIMIT);
     expect(card.visibleInputs()).toHaveLength(1);
     expect(card.controlTexts()).toContain("Add network");
-    expect(card.controlTexts()).not.toContain(CREATE_TOGGLE);
+    expect(card.controlTexts()).not.toContain(CREATE_TAB);
+    expect(card.exists("#add-net-tab-create")).toBe(false);
     expect(card.postedPaths()).toEqual([]);
   });
 
@@ -159,11 +136,6 @@ describe("eight networks", () => {
     await card.when.clicked("Add network");
     expect(card.alerts()).toEqual([LIMIT_REFUSED]);
     expect(card.postedPaths()).toEqual([]);
-  });
-
-  it("shows the limit in the settings context too", async () => {
-    const card = await setup({ opts: eightNets(), context: "settings" });
-    expect(card.text()).toContain(LIMIT);
   });
 
   it("is not shown at seven", async () => {
@@ -273,14 +245,18 @@ describe("joining by invite", () => {
 });
 
 describe("creating a network", () => {
-  it("the link swaps the invite field for the name field and back", async () => {
+  it("the tabs swap the invite field for the name field with the kind choice, and back", async () => {
     const card = await setup();
-    await card.when.clicked(CREATE_TOGGLE);
+    await card.when.clicked(CREATE_TAB);
     expect(card.text()).toContain("Network name (members will see it in the invite)");
-    expect(card.controlTexts()).toEqual(expect.arrayContaining(["Create network", "Cancel", JOIN_TOGGLE]));
+    expect(card.controlTexts()).toEqual(expect.arrayContaining(["Create network", "Cancel", JOIN_TAB, CREATE_TAB]));
     expect(card.controlTexts()).not.toContain("Add network");
     expect(card.visibleInputs()).toHaveLength(1);
-    await card.when.clicked(JOIN_TOGGLE);
+    expect(card.exists("#add-net-label-input")).toBe(true);
+    expect(card.exists(".kind-picker"), "the kind choice").toBe(true);
+    expect(card.wrapper.get("#add-net-tab-create").attributes("aria-selected")).toBe("true");
+    await card.when.clicked(JOIN_TAB);
+    expect(card.wrapper.get("#add-net-tab-join").attributes("aria-selected")).toBe("true");
     expect(card.controlTexts()).toContain("Add network");
     expect(card.controlTexts()).not.toContain("Create network");
     expect(card.visibleInput().attributes("placeholder")).toBe("Paste the invite here");
@@ -289,7 +265,7 @@ describe("creating a network", () => {
   it("asks for a slot, then creates the network on the address of that slot", async () => {
     const card = await setup();
     fresh(card.node).routes["POST /api/network/create"] = { key: "mesh1-secret", label: "work", restart: false };
-    await card.when.clicked(CREATE_TOGGLE);
+    await card.when.clicked(CREATE_TAB);
     await card.when.typed("work");
     await card.when.clicked("Create network");
     expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/create"]);
@@ -299,20 +275,20 @@ describe("creating a network", () => {
 
   it("with an empty name says so and sends nothing", async () => {
     const card = await setup();
-    await card.when.clicked(CREATE_TOGGLE);
+    await card.when.clicked(CREATE_TAB);
     await card.when.clicked("Create network");
     expect(card.alerts()).toEqual(['Enter a name, for example "family".']);
     expect(card.postedPaths()).toEqual([]);
   });
 });
 
-async function setup({ context = "peers", opts = withFreshSlot(twoNets()) } = {}) {
+async function setup({ opts = withFreshSlot(twoNets()) } = {}) {
   const node = createFakeNode(opts);
   vi.stubGlobal("fetch", node.fetch);
   sessionStorage.setItem(TOKEN_KEY, "test-token");
   const store = createStore();
   acceptOverview(store, parseOverview(await api("GET", "/api/overview")));
-  const wrapper = mount(AddNetCard, { props: { context }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+  const wrapper = mount(AddNetCard, { attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   await settle();
   mounted = { wrapper, node };
   return cardOf(wrapper, node, store);
