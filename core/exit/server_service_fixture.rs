@@ -1,12 +1,23 @@
 //! Fixture of the exit handler tests on the mem stack: a client with a connection to an exit, local sites, requests.
 
 use super::*;
+use crate::exit::frame::encode_exit_request;
+use crate::exit::ExitLimits;
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{NetStack, NetStackBuilder, StreamPair};
+use std::time::{Duration, Instant};
+use tokio::net::TcpListener;
+use tokio::sync::Semaphore;
 
 /// Preconditions: who asks and what site it is.
 pub(super) struct Opts {
     pub enabled: bool,
     pub member: bool,
     pub site: Site,
+    pub limits: ExitLimits,
 }
 
 impl Default for Opts {
@@ -15,6 +26,7 @@ impl Default for Opts {
             enabled: true,
             member: true,
             site: Site::Silent,
+            limits: ExitLimits::unlimited(),
         }
     }
 }
@@ -32,10 +44,17 @@ pub(super) struct Fx {
     pub cfg: ExitConfig,
     pub conn: Arc<dyn PeerConn>,
     ended: Arc<Semaphore>,
+    accepts: Arc<std::sync::atomic::AtomicUsize>,
     _stacks: (NetStack, NetStack),
+    held: Option<crate::exit::limits::StreamSlot>,
 }
 
 impl Fx {
+    /// Keeps a place of the exit's limiter taken until the fixture is dropped.
+    pub(super) fn hold(&mut self, slot: crate::exit::limits::StreamSlot) {
+        self.held = Some(slot);
+    }
+
     /// A request: the whole frame, the reply is the first two bytes (up to `STEP`).
     pub(super) async fn ask(&self, frame: &[u8]) -> (StreamPair, [u8; 2]) {
         let mut pair = within("open", self.conn.open())
@@ -55,6 +74,31 @@ impl Fx {
         pair.send.shutdown().await.expect("client side closed");
         let reply = read_reply(&mut pair.recv).await;
         (pair, reply)
+    }
+
+    /// A request as `ask`, but the reply is read up to 2 bytes or to the end of the stream (a short reply ends early).
+    pub(super) async fn ask_raw(&self, frame: &[u8]) -> (StreamPair, Vec<u8>) {
+        let mut pair = within("open", self.conn.open())
+            .await
+            .expect("stream opened");
+        pair.send.write_all(frame).await.expect("frame sent");
+        let mut reply = Vec::new();
+        while reply.len() < 2 {
+            let mut chunk = [0u8; 2];
+            let n = within("exit reply", pair.recv.read(&mut chunk[..2 - reply.len()]))
+                .await
+                .expect("reply or end of stream");
+            if n == 0 {
+                break;
+            }
+            reply.extend_from_slice(&chunk[..n]);
+        }
+        (pair, reply)
+    }
+
+    /// How many TCP connections the local site has accepted so far.
+    pub(super) fn site_accepts(&self) -> usize {
+        self.accepts.load(Ordering::SeqCst)
     }
 
     /// Waits until the exit registers the client (registration happens after `EXIT_CODE_OK`).
@@ -80,8 +124,8 @@ impl Fx {
 }
 
 pub(super) async fn setup(opts: Opts) -> Fx {
-    let site = spawn_site(opts.site).await;
-    let cfg = exit_cfg(site);
+    let (site, accepts) = spawn_site(opts.site).await;
+    let cfg = exit_cfg(site, opts.limits.clone());
     cfg.enabled.store(opts.enabled, Ordering::Relaxed);
     if opts.member {
         cfg.members.add_verified_conn(pid(1));
@@ -109,12 +153,14 @@ pub(super) async fn setup(opts: Opts) -> Fx {
         cfg,
         conn,
         ended,
+        accepts,
         _stacks: (client, server),
+        held: None,
     }
 }
 
 /// Exit settings: the domain `site.test` leads to `site`.
-fn exit_cfg(site: SocketAddr) -> ExitConfig {
+fn exit_cfg(site: SocketAddr, limits: ExitLimits) -> ExitConfig {
     let resolver = Resolver::new(
         SocketAddr::from(([127, 0, 0, 1], 1)),
         HttpLimits::default(),
@@ -129,28 +175,35 @@ fn exit_cfg(site: SocketAddr) -> ExitConfig {
         host_overrides: Arc::new(HashMap::from([("site.test".to_string(), site)])),
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
+        limits,
     }
 }
 
-/// A local "site": one accepted connection.
-async fn spawn_site(kind: Site) -> SocketAddr {
+/// A local "site": accepts any number of connections and counts them.
+async fn spawn_site(kind: Site) -> (SocketAddr, Arc<std::sync::atomic::AtomicUsize>) {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("site listener");
     let addr = listener.local_addr().expect("site address");
+    let accepts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = accepts.clone();
     crate::node::output::spawn(async move {
-        let Ok((mut tcp, _)) = listener.accept().await else {
-            return;
-        };
-        match kind {
-            Site::Echo => {
-                let (mut r, mut w) = tcp.split();
-                let _ = tokio::io::copy(&mut r, &mut w).await;
-            }
-            Site::Silent => std::future::pending::<()>().await,
+        while let Ok((tcp, _)) = listener.accept().await {
+            counter.fetch_add(1, Ordering::SeqCst);
+            crate::node::output::spawn(serve_site_connection(kind, tcp));
         }
     });
-    addr
+    (addr, accepts)
+}
+
+async fn serve_site_connection(kind: Site, mut tcp: tokio::net::TcpStream) {
+    match kind {
+        Site::Echo => {
+            let (mut r, mut w) = tcp.split();
+            let _ = tokio::io::copy(&mut r, &mut w).await;
+        }
+        Site::Silent => std::future::pending::<()>().await,
+    }
 }
 
 /// A handler wrapper: raises a semaphore when `handle` returned.

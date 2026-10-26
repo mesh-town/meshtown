@@ -16,7 +16,7 @@ pub(super) fn scratch(name: &str) -> PathBuf {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static NEXT: portable_atomic::AtomicU64 = portable_atomic::AtomicU64::new(0);
     let seq = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!(
         "mesh-cfg-{name}-{}-{nanos}-{seq}",
@@ -40,6 +40,7 @@ pub(super) fn sample_settings() -> Settings {
         process: ProcessSettings {
             node_memory_warn_mib: 300,
             node_memory_exit_mib: 700,
+            exit_max_streams: 40,
             socks_enabled: false,
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,
@@ -108,6 +109,7 @@ pub(crate) fn all_changed() -> Settings {
         process: ProcessSettings {
             node_memory_warn_mib: 500,
             node_memory_exit_mib: 800,
+            exit_max_streams: 40,
             socks_enabled: false,
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,

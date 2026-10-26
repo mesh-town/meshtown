@@ -74,6 +74,7 @@ fn invalid_rest_cases() -> Vec<InvalidCase> {
         case("ports.published", json!(5), PUBLISHED),
         case("ports.opened", json!(5), OPENED),
         case("log.ring_lines", json!(1), "an integer 200…20000"),
+        case("exit.max_streams", json!(100_001), "an integer 0…100000"),
         case("autostart.enabled", json!("x"), OFF),
         case("full_tunnel.enabled", json!("x"), OFF),
     ]
@@ -148,7 +149,7 @@ mod put_all_editable_at_once {
         let patch = json!({
             "node": { "name": "Kitchen" },
             "web": { "access": "localhost" },
-            "exit": { "enabled": false },
+            "exit": { "enabled": false, "max_streams": 7 },
             "socks": { "enabled": false, "port": 1090 },
             "checks": {
                 "enabled": false, "interval_sec": 600,
@@ -170,6 +171,7 @@ mod put_all_editable_at_once {
             "node.name",
             "web.access",
             "exit.enabled",
+            "exit.max_streams",
             "socks.enabled",
             "socks.port",
             "checks.enabled",
@@ -218,6 +220,7 @@ mod internal_lists {
             "ports.published",
             "ports.opened",
             "log.ring_lines",
+            "exit.max_streams",
             "autostart.enabled",
             "full_tunnel.enabled",
         ];

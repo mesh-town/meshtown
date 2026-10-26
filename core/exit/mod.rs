@@ -21,19 +21,23 @@
 //! `udpgw` — UDP datagrams over one exit stream (the conventional target 240.0.0.1:7300);
 //! `traffic` — exit traffic speed per peer (a registry of samples for `/api/state`).
 
+mod ask_reply;
 mod clients;
 mod frame;
 mod gateway_memo;
+mod limits;
 mod outbound;
 mod pool;
 mod report;
 mod server;
 mod splice;
+mod stream_tasks;
 #[cfg(test)]
 pub(crate) mod test_support;
 pub mod traffic;
 mod udpgw;
 
+pub use ask_reply::ExitBusy;
 pub use clients::{Clients, EXIT_CLIENT_LINGER};
 pub use frame::{
     encode_exit_request, exit_code_text, parse_exit_request, EXIT_ALPN,
@@ -42,6 +46,8 @@ pub use frame::{
     EXIT_CODE_REFUSED, EXIT_PROTOCOL_VERSION, EXIT_TCP_CONNECT_TIMEOUT,
 };
 pub use gateway_memo::{GatewayMemo, GATEWAY_REFUSAL_TTL};
+pub(crate) use limits::rss_ceiling_kib;
+pub use limits::ExitLimits;
 pub use udpgw::{is_gateway_target, UDPGW_HOST, UDPGW_PORT};
 // Consumed by the node-side UDP bridge.
 pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOUT};

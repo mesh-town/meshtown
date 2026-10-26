@@ -3,19 +3,11 @@
 
 use super::*;
 use crate::exit::clients::EXIT_CLIENT_LINGER;
-use crate::exit::frame::{encode_exit_request, EXIT_CODE_ADDRESS_FORBIDDEN};
-use crate::site_checks::http_min::HttpLimits;
-use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
-use crate::transport::net::mem::MemNet;
-use crate::transport::net::service::EXIT;
-use crate::transport::net::{NetStack, NetStackBuilder, StreamPair};
+use crate::exit::frame::EXIT_CODE_ADDRESS_FORBIDDEN;
+use crate::transport::net::facade::test_support::{pid, within};
 use std::time::{Duration, Instant};
-use tokio::net::TcpListener;
-use tokio::sync::Semaphore;
 
-#[path = "server_service_fixture.rs"]
-mod fixture;
-use fixture::*;
+use super::service_fixture::*;
 
 mod refuses {
     use super::*;

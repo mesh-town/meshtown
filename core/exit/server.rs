@@ -18,12 +18,14 @@ use crate::site_checks::doh::Resolver;
 
 use super::clients::{Clients, ConnRef};
 use super::frame::{
-    parse_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED,
+    parse_exit_request, EXIT_BUSY_REPLY, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK, EXIT_CODE_REFUSED,
     EXIT_PROTOCOL_VERSION,
 };
+use super::limits::{Busy, ExitLimits};
 use super::outbound::{open_target, Refusal};
 use super::report;
 use super::splice::splice;
+use super::stream_tasks::StreamTasks;
 use super::traffic::{Direction, ExitTraffic};
 use super::udpgw;
 
@@ -48,6 +50,8 @@ pub struct ExitConfig {
     pub clients: Clients,
     /// Registry of exit traffic speed: incoming connections are counted as `ThroughUs`.
     pub traffic: ExitTraffic,
+    /// Live exit streams of the process against the stream limit and the memory guard.
+    pub limits: ExitLimits,
 }
 
 /// Handler of incoming exit service connections.
@@ -74,11 +78,14 @@ impl ServiceHandler for ExitService {
             cfg.traffic.watch(conn.clone(), Direction::ThroughUs);
             // The guard lives for the whole loop: once the connection closes or `handle` is dropped, the streams are forgotten at once.
             let conn_guard = cfg.clients.register_conn(peer);
+            // Declared after the guard, so on exit the stream tasks are aborted first: a stream outliving its
+            // connection would hold its slot and its socket to the target until the half-close grace ends.
+            let mut tasks = StreamTasks::default();
             // The connection closed — that is the normal end of work, not an error.
             while let Ok(pair) = conn.accept().await {
                 let cfg = cfg.clone();
                 let conn_ref = conn_guard.conn();
-                crate::node::output::spawn(async move {
+                let task = crate::node::output::spawn(async move {
                     if let Err(e) =
                         serve_exit_stream(cfg, peer, conn_ref, pair.send, pair.recv).await
                     {
@@ -88,6 +95,7 @@ impl ServiceHandler for ExitService {
                         );
                     }
                 });
+                tasks.push(task.abort_handle());
             }
         })
     }
@@ -170,6 +178,11 @@ async fn serve_exit_stream(
     else {
         return Ok(());
     };
+    // The slot lives until the end of this future, including when the task is aborted.
+    let _slot = match cfg.limits.try_admit() {
+        Ok(slot) => slot,
+        Err(busy) => return refuse_busy(&mut send, &peer, &cfg.limits, busy).await,
+    };
     if udpgw::is_gateway_target(&target_host, port) {
         return serve_gateway(cfg, peer, conn, send, recv).await;
     }
@@ -199,6 +212,32 @@ async fn refuse(send: &mut BoxSend, peer: &PeerId, refusal: Refusal) -> Result<(
     write_exit_reply(send, refusal.code).await
 }
 
+/// The short busy reply: the version byte, then the write side is closed so the client reads the end of the
+/// stream after it. The log line is rate-limited: under load refusals come by the hundreds per second.
+async fn refuse_busy(
+    send: &mut BoxSend,
+    peer: &PeerId,
+    limits: &ExitLimits,
+    busy: Busy,
+) -> Result<()> {
+    if let Some(refused) = limits.busy_line_due(std::time::Instant::now()) {
+        let held = match refused {
+            0 => String::new(),
+            n => format!(" (+{n} refused, not logged)"),
+        };
+        say(
+            "exit",
+            format!("{}: {}{held}", short_peer_id(peer), busy.line()),
+        );
+    }
+    send.write_all(&EXIT_BUSY_REPLY)
+        .await
+        .map_err(|e| anyhow!("exit reply wasn't sent: {e}"))?;
+    send.shutdown()
+        .await
+        .map_err(|e| anyhow!("exit reply wasn't finished: {e}"))
+}
+
 async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {
     send.write_all(&[EXIT_PROTOCOL_VERSION, code])
         .await
@@ -209,6 +248,12 @@ async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {
 #[cfg(test)]
 #[path = "server_frame_tests.rs"]
 mod frame_tests;
+#[cfg(test)]
+#[path = "server_limits_tests.rs"]
+mod limits_tests;
+#[cfg(test)]
+#[path = "server_service_fixture.rs"]
+mod service_fixture;
 #[cfg(test)]
 #[path = "server_service_tests.rs"]
 mod service_tests;

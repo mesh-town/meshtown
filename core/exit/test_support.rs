@@ -84,6 +84,7 @@ fn exit_config_at(server: SocketAddr, hosts: HashMap<String, SocketAddr>) -> Exi
         host_overrides: Arc::new(hosts),
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
+        limits: crate::exit::ExitLimits::unlimited(),
     }
 }
 

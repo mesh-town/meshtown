@@ -55,6 +55,7 @@ pub(super) fn build_stack(
         host_overrides: serve.exit_hosts.clone(),
         clients: serve.exit_clients.clone(),
         traffic: serve.exit_traffic.clone(),
+        limits: crate::exit::ExitLimits::process(),
     };
     let builder = served_builder(cfg, boot, wired, serve, exit_cfg, &domain_list_cell);
     let stack = with_discovery(builder, finding, sync_svcs)?;

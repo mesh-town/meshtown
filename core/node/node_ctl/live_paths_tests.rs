@@ -118,7 +118,7 @@ mod live_set {
 
     #[test]
     fn live_set_golden() {
-        // given: the set of live paths; then: exactly these 10
+        // given: the set of live paths; then: exactly these 11
         let expected: BTreeSet<&str> = [
             "exit.enabled",
             "checks.enabled",
@@ -128,6 +128,7 @@ mod live_set {
             "ports.published",
             "ports.opened",
             "log.ring_lines",
+            "exit.max_streams",
             "node.name",
             "proxy.net",
         ]
@@ -139,7 +140,7 @@ mod live_set {
         assert_eq!(actual, expected, "the set of live paths changed");
         assert_eq!(
             crate::config::config_file::fields::live_paths().len(),
-            10,
+            11,
             "the list has no duplicates"
         );
     }
@@ -156,7 +157,7 @@ mod handles_and_copy {
         let live: BTreeSet<&str> = fields::live_paths().into_iter().collect();
         assert_eq!(handles, live);
         assert_eq!(HANDLES.len(), live.len());
-        assert_eq!(HANDLES.len(), 10, "one handle per live path");
+        assert_eq!(HANDLES.len(), 11, "one handle per live path");
     }
 
     #[test]
@@ -170,6 +171,15 @@ mod handles_and_copy {
         assert_eq!(
             effective_settings.process.log_ring_lines,
             from.process.log_ring_lines
+        );
+        assert_eq!(
+            effective_settings.process.exit_max_streams, from.process.exit_max_streams,
+            "exit.max_streams is copied as a live field"
+        );
+        assert_ne!(
+            effective_settings.process.exit_max_streams,
+            Settings::default().process.exit_max_streams,
+            "the probe value differs from the default, so the copy is observable"
         );
         assert_eq!(
             effective_settings.process.proxy_net, from.process.proxy_net,
@@ -226,5 +236,46 @@ mod handles_and_copy {
             Settings::default().process.socks_port,
             "a non-live field is not copied"
         );
+    }
+}
+
+mod exit_max_streams_handle {
+    use super::*;
+    use crate::exit::ExitLimits;
+
+    #[test]
+    fn exit_max_streams_handle_sets_the_limit() {
+        // given: a limiter with the cap 5 and settings that ask for 7
+        let limits = ExitLimits::fixed(5);
+        let settings = settings_with_exit_max_streams(7);
+
+        // when: the handle's function is applied
+        apply_exit_max_streams(&limits, &settings);
+
+        // then: the cap follows the setting
+        assert_eq!(limits.max_streams(), 7);
+    }
+
+    #[test]
+    fn zero_setting_goes_back_to_the_automatic_cap() {
+        // given: a limiter configured with the setting 9 and the automatic cap 3
+        let limits = ExitLimits::fixed(1);
+        limits.configure(9, 3, 0);
+
+        // when: the setting becomes 0
+        apply_exit_max_streams(&limits, &settings_with_exit_max_streams(0));
+
+        // then: the automatic cap is back
+        assert_eq!(limits.max_streams(), 3);
+    }
+
+    fn settings_with_exit_max_streams(n: u64) -> Settings {
+        Settings {
+            process: ProcessSettings {
+                exit_max_streams: n,
+                ..ProcessSettings::default()
+            },
+            ..Settings::default()
+        }
     }
 }

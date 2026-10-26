@@ -11,7 +11,7 @@ use crate::transport::net::service::EXIT;
 use crate::transport::net::{
     BoxFuture, LinkInfo, NetError, NetResult, NetStack, NetStackBuilder, PeerConn, StreamPair,
 };
-use std::sync::atomic::AtomicU64;
+use portable_atomic::AtomicU64;
 use tokio::io::duplex;
 
 mod reply {
@@ -46,16 +46,18 @@ mod reply {
     }
 
     #[tokio::test]
-    async fn closed_after_one_byte_says_early_eof() {
-        // given: the exit sent one byte of a two-byte reply and closed the stream
+    async fn version_byte_then_eof_is_exit_busy() {
+        // given: the exit sent the version byte only and closed the stream (it has no free place)
         let fx = setup(&[EXIT_PROTOCOL_VERSION]);
 
         // when: the client asks for a stream
-        let text = fx.ask_error().await;
+        let err = fx.ask().await.err().expect("an ask error was expected");
 
-        // then: the same text
-        assert!(text.contains("reply not received"), "got: {text}");
-        assert!(text.contains("early eof"), "got: {text}");
+        // then: the error is `ExitBusy`, not a missing reply
+        assert!(
+            err.downcast_ref::<crate::exit::ExitBusy>().is_some(),
+            "got: {err:#}"
+        );
     }
 
     #[tokio::test]
@@ -151,6 +153,23 @@ mod kept {
 
         // then: the read fails, the connection stays in the cell
         assert!(text.contains("reply not received"), "got: {text}");
+        assert!(fx.slot_holds_planted().await, "the connection was dropped");
+    }
+
+    #[tokio::test]
+    async fn busy_reply_keeps_connection() {
+        // given: the exit answers with the version byte only over a healthy connection
+        let fx = setup(&[EXIT_PROTOCOL_VERSION]);
+        fx.plant(Rig::Pass).await;
+
+        // when: the client asks
+        let err = fx.ask().await.err().expect("an ask error was expected");
+
+        // then: the exit is busy, and the connection stays in the cell
+        assert!(
+            err.downcast_ref::<crate::exit::ExitBusy>().is_some(),
+            "got: {err:#}"
+        );
         assert!(fx.slot_holds_planted().await, "the connection was dropped");
     }
 

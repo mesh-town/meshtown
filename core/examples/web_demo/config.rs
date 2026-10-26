@@ -24,6 +24,7 @@ fn bad_value_for(path: &str) -> Option<(&'static str, &'static str, Value)> {
         "checks.interval_sec" => Some(("checks", "interval_sec", json!(5))),
         "probe.interval_sec" => Some(("probe", "interval_sec", json!(1))),
         "log.ring_lines" => Some(("log", "ring_lines", json!(10))),
+        "exit.max_streams" => Some(("exit", "max_streams", json!(-1))),
         "node.name" => Some(("node", "name", json!(""))),
         "checks.doh_server" => Some(("checks", "doh_server", json!("not-an-address"))),
         "exit.enabled" => Some(("exit", "enabled", json!("yes"))),

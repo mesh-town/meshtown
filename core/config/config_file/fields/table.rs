@@ -1,4 +1,4 @@
-//! The `FIELDS` table: 30 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
+//! The `FIELDS` table: 31 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
 //! Row order is the file output order (`render.rs`); computed rows sit in their own section.
 
 use crate::node::net_names;
@@ -44,6 +44,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("net.discovery", FileOnly, &NetNames { names_in_choice: |n| &mut n.discovery, allowed: net_names::discovery }),
     row!("net.sync", FileOnly, &NetSync),
     row!("exit.enabled", Live, slot!(net.exit_enabled, BoolKind)),
+    row!("exit.max_streams", Live, slot!(process.exit_max_streams, Int { min: 0, max: 100_000 })),
     row!("socks.enabled", RestartShown, slot!(process.socks_enabled, BoolKind)),
     row!("socks.port", RestartShown, slot!(process.socks_port, Port { min: 1024, max: 65535 })),
     row!("socks.access", RestartShown, slot!(process.socks_access, Choice { parse: ListenAccess::parse, name: ListenAccess::as_str, expected: "localhost or localnet" })),
