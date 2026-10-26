@@ -16,6 +16,11 @@ on:
         required: false
         type: string
         default: "1"
+      release_repo:
+        description: Repository whose release holds the binaries
+        required: false
+        type: string
+        default: mesh-town/meshtown-dist
   workflow_dispatch:
     inputs:
       tag:
@@ -27,6 +32,11 @@ on:
         required: false
         type: string
         default: "1"
+      release_repo:
+        description: Repository whose release holds the binaries
+        required: false
+        type: string
+        default: mesh-town/meshtown-dist
 
 permissions:
   contents: read
@@ -58,10 +68,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+          RELEASE_REPO: ${{ inputs.release_repo || github.repository }}
         run: |
           set -euo pipefail
           mkdir -p fetched
-          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir fetched \
+          gh release download "$TAG" --repo "$RELEASE_REPO" --dir fetched \
             --pattern 'meshtown-cli-*-linux-musl.tar.gz' --pattern SHA256SUMS
           (cd fetched && sha256sum -c --ignore-missing SHA256SUMS)
       - name: Unpack the binaries
