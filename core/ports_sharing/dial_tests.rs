@@ -49,6 +49,7 @@ async fn non_member_closes_fast() {
         &Members::default(),
         &target(id),
         accepted,
+        || {},
     )
     .await;
     assert!(t.elapsed() <= Duration::from_secs(1));

@@ -36,7 +36,10 @@ fn port_logger() -> Logger {
 
 /// Binds `127.0.0.1:<local>`; the first datagram of each new sender calls `connect` for its stream.
 /// A bind error (`AddrInUse` included) is returned at once.
-pub(crate) async fn open_udp_listener<F, Fut>(local: u16, connect: F) -> io::Result<UdpListenerHandle>
+pub(crate) async fn open_udp_listener<F, Fut>(
+    local: u16,
+    connect: F,
+) -> io::Result<UdpListenerHandle>
 where
     F: Fn() -> Fut + Send + Sync + 'static,
     Fut: Future<Output = io::Result<UdpSession>> + Send + 'static,

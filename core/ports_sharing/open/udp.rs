@@ -111,9 +111,12 @@ where
     F: Fn() -> SessionFuture + Clone + Send + Sync + 'static,
 {
     probe_wildcard_udp(local).map_err(|text| (text, true))?;
-    open_udp_listener(local, connect)
-        .await
-        .map_err(|e| (udp_bind_text(local, &e), e.kind() == io::ErrorKind::AddrInUse))
+    open_udp_listener(local, connect).await.map_err(|e| {
+        (
+            udp_bind_text(local, &e),
+            e.kind() == io::ErrorKind::AddrInUse,
+        )
+    })
 }
 
 /// What a new sender needs to get its stream; shared by all senders of the listener.
@@ -161,7 +164,9 @@ impl Dialer {
 
     fn too_many(&self) -> io::Error {
         let limit = MAX_SENDERS_PER_OPEN;
-        self.log_throttled(format!("too many senders (limit {limit}), datagram dropped"));
+        self.log_throttled(format!(
+            "too many senders (limit {limit}), datagram dropped"
+        ));
         refused("too many senders")
     }
 

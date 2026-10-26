@@ -33,7 +33,8 @@ pub use frame::{
     PORT_FRAME_VERSION, PORT_FRAME_VERSION_PROTO,
 };
 pub use record::{
-    decode_port_record, encode_port_record, port_from_key, port_key, port_prefix, PortRecord, PORT_RECORD_VERSION,
+    decode_port_record, encode_port_record, port_from_key, port_key, port_prefix, PortRecord,
+    PORT_RECORD_VERSION,
 };
 pub use server::port_service;
 pub use store::{PortView, PortsDoc};

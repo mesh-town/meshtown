@@ -8,7 +8,7 @@
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{ready, Context, Poll};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
@@ -40,7 +40,12 @@ pub struct UdpSession {
 }
 
 impl UdpSession {
-    pub fn new(send: BoxSend, recv: BoxRecv, idle: Duration, permit: Option<OwnedSemaphorePermit>) -> Self {
+    pub fn new(
+        send: BoxSend,
+        recv: BoxRecv,
+        idle: Duration,
+        permit: Option<OwnedSemaphorePermit>,
+    ) -> Self {
         UdpSession {
             send,
             recv,
@@ -63,11 +68,29 @@ fn session_error(kind: io::ErrorKind, what: &str) -> io::Error {
     io::Error::new(kind, format!("{UDP_SESSION_MARK}{what}"))
 }
 
+fn idle_error() -> io::Error {
+    session_error(io::ErrorKind::TimedOut, "idle")
+}
+
+/// Pending while the timer runs; when it fires, the session is marked idle and the error is ready.
+fn poll_idle(timer: Pin<&mut Sleep>, idled: &mut bool, cx: &mut Context<'_>) -> Poll<io::Error> {
+    ready!(timer.poll(cx));
+    *idled = true;
+    Poll::Ready(idle_error())
+}
+
 impl AsyncRead for UdpSession {
-    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<()>> {
         let this = &mut *self;
         if this.idled {
-            return Poll::Ready(Err(session_error(io::ErrorKind::TimedOut, "idle")));
+            return Poll::Ready(Err(idle_error()));
+        }
+        if buf.remaining() == 0 {
+            return Poll::Ready(Ok(()));
         }
         let before = buf.filled().len();
         match Pin::new(&mut this.recv).poll_read(cx, buf) {
@@ -79,22 +102,20 @@ impl AsyncRead for UdpSession {
                 Poll::Ready(Ok(()))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => match this.read_timer.as_mut().poll(cx) {
-                Poll::Ready(()) => {
-                    this.idled = true;
-                    Poll::Ready(Err(session_error(io::ErrorKind::TimedOut, "idle")))
-                }
-                Poll::Pending => Poll::Pending,
-            },
+            Poll::Pending => poll_idle(this.read_timer.as_mut(), &mut this.idled, cx).map(Err),
         }
     }
 }
 
 impl AsyncWrite for UdpSession {
-    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, data: &[u8]) -> Poll<io::Result<usize>> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+        data: &[u8],
+    ) -> Poll<io::Result<usize>> {
         let this = &mut *self;
         if this.idled {
-            return Poll::Ready(Err(session_error(io::ErrorKind::TimedOut, "idle")));
+            return Poll::Ready(Err(idle_error()));
         }
         match Pin::new(&mut this.send).poll_write(cx, data) {
             Poll::Ready(Ok(n)) => {
@@ -102,13 +123,7 @@ impl AsyncWrite for UdpSession {
                 Poll::Ready(Ok(n))
             }
             Poll::Ready(Err(e)) => Poll::Ready(Err(e)),
-            Poll::Pending => match this.write_timer.as_mut().poll(cx) {
-                Poll::Ready(()) => {
-                    this.idled = true;
-                    Poll::Ready(Err(session_error(io::ErrorKind::TimedOut, "idle")))
-                }
-                Poll::Pending => Poll::Pending,
-            },
+            Poll::Pending => poll_idle(this.write_timer.as_mut(), &mut this.idled, cx).map(Err),
         }
     }
 

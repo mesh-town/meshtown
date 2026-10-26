@@ -152,7 +152,10 @@ fn serve_towards(port: u16) -> (DuplexStream, JoinHandle<()>) {
     let (near, remote) = duplex(16 * 1024);
     let (recv, send) = split(near);
     let session = UdpSession::new(Box::new(send), Box::new(recv), IDLE, None);
-    (remote, crate::node::output::spawn(serve_udp_stream(session, port)))
+    (
+        remote,
+        crate::node::output::spawn(serve_udp_stream(session, port)),
+    )
 }
 
 impl Fixture {

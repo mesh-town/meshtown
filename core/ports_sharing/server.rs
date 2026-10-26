@@ -20,12 +20,13 @@ use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use super::frame::{
-    encode_port_reply, parse_port_request, request_tail_len, PortRequest, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED,
-    PORT_CODE_BUSY, PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED, port_code_text,
+    encode_port_reply, parse_port_request, port_code_text, request_tail_len, PortRequest,
+    PORT_CODE_BAD_REQUEST, PORT_CODE_BUSY, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
+    PORT_CODE_OK, PORT_CODE_REFUSED,
 };
-use super::udp::{serve_udp_stream, UdpSession, MAX_UDP_SESSIONS_SERVED, SERVE_IDLE};
 use super::table::{LocalState, PublishedPortsTable};
 use super::types::{Audience, Proto};
+use super::udp::{serve_udp_stream, UdpSession, MAX_UDP_SESSIONS_SERVED, SERVE_IDLE};
 use crate::exit::splice;
 use crate::members::membership::Members;
 use crate::node::output::say;
@@ -174,7 +175,9 @@ async fn serve_stream(
         let why = format!("port {port}: {}", port_code_text(code));
         return refuse(&mut send, &peer, &server.members, &why, code).await;
     }
-    let branch = req.proto.pick::<ServeBranch>(serve_tcp_boxed, serve_udp_boxed);
+    let branch = req
+        .proto
+        .pick::<ServeBranch>(serve_tcp_boxed, serve_udp_boxed);
     branch(server, peer, send, recv, port).await
 }
 
@@ -210,7 +213,9 @@ async fn serve_tcp(
     port: u16,
 ) -> Result<()> {
     let Some(tcp) = connect_loopback_port(port).await else {
-        server.table.set_local_state(Proto::Tcp, port, LocalState::Refused);
+        server
+            .table
+            .set_local_state(Proto::Tcp, port, LocalState::Refused);
         let why = format!("port {port} does not respond");
         return refuse(
             &mut send,
@@ -222,7 +227,9 @@ async fn serve_tcp(
         .await;
     };
     send_reply_code(&mut send, PORT_CODE_OK).await?;
-    server.table.set_local_state(Proto::Tcp, port, LocalState::Ok);
+    server
+        .table
+        .set_local_state(Proto::Tcp, port, LocalState::Ok);
     say(
         "port",
         format!("{}: port {port} opened", server.members.peer_label(peer)),
@@ -247,7 +254,10 @@ async fn serve_udp(
     send_reply_code(&mut send, PORT_CODE_OK).await?;
     say(
         "port",
-        format!("{}: port {port}/udp opened", server.members.peer_label(peer)),
+        format!(
+            "{}: port {port}/udp opened",
+            server.members.peer_label(peer)
+        ),
     );
     let session = UdpSession::new(send, recv, SERVE_IDLE, Some(permit));
     serve_udp_stream(session, port).await;

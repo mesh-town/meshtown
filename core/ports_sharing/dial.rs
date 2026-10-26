@@ -13,8 +13,8 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::frame::{
-    encode_port_request, parse_port_reply, PortRequest, port_code_text, PORT_CODE_CONNECT_FAILED,
-    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED, PORT_CODE_BAD_REQUEST,
+    encode_port_request, parse_port_reply, port_code_text, PortRequest, PORT_CODE_BAD_REQUEST,
+    PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
 };
 use super::types::{Opened, Proto};
 use crate::exit::{splice, PeerConnPool};
@@ -25,15 +25,17 @@ use crate::node::output::say;
 pub const DIAL_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Forwards an accepted TCP connection to a member's port. A refusal closes `tcp`, writes one `[port]`
-/// line and is returned to the caller (the listener keeps it as the last dial error).
+/// line and is returned to the caller (the listener keeps it as the last dial error). `on_dialed` runs as soon
+/// as the peer has accepted the stream, before the bytes are copied.
 pub async fn forward_to_peer_port(
     stack: &NetStack,
     pool: &PeerConnPool,
     members: &Members,
     target: &Opened,
     tcp: TcpStream,
+    on_dialed: impl FnOnce(),
 ) -> Result<(), PortDialError> {
-    forward_result(stack, pool, members, target, tcp, DIAL_TIMEOUT).await
+    forward_result(stack, pool, members, target, tcp, DIAL_TIMEOUT, on_dialed).await
 }
 
 /// The same with its own deadline and without the result — for fast tests.
@@ -46,7 +48,7 @@ pub(crate) async fn forward_to_peer_port_within(
     tcp: TcpStream,
     deadline: Duration,
 ) {
-    let _ = forward_result(stack, pool, members, target, tcp, deadline).await;
+    let _ = forward_result(stack, pool, members, target, tcp, deadline, || {}).await;
 }
 
 async fn forward_result(
@@ -56,6 +58,7 @@ async fn forward_result(
     target: &Opened,
     tcp: TcpStream,
     deadline: Duration,
+    on_dialed: impl FnOnce(),
 ) -> Result<(), PortDialError> {
     let log_prefix = format!(
         "127.0.0.1:{} → {}:{}",
@@ -69,6 +72,7 @@ async fn forward_result(
             Err(e)
         }
         Ok(stream) => {
+            on_dialed();
             splice(stream.send, stream.recv, tcp).await;
             Ok(())
         }

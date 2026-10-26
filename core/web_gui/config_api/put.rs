@@ -185,7 +185,8 @@ fn reject_taken_locals(
     for opened in fresh {
         if let Some(other) = taken
             .iter()
-            .find(|t| (t.proto, t.local) == (opened.proto, opened.local)) {
+            .find(|t| (t.proto, t.local) == (opened.proto, opened.local))
+        {
             let text = format!(
                 "local {}port {} is already opened in network \"{}\"",
                 opened.proto.pick("", "UDP "),

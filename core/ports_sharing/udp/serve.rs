@@ -79,7 +79,8 @@ where
         };
         let go_on = match event {
             Event::Stream(Ok(n)) if n > 0 => {
-                forward_to_port(socket, port, &mut decoder, &chunk[..n], &mut send_failed).await
+                forward_to_port(socket, port, &mut decoder, &chunk[..n], &mut send_failed).await;
+                buffer_in_bounds(&decoder, port)
             }
             Event::Socket(got) => {
                 unflushed = true;
@@ -100,7 +101,7 @@ async fn forward_to_port(
     decoder: &mut FrameDecoder,
     chunk: &[u8],
     send_failed: &mut bool,
-) -> bool {
+) {
     for body in decoder.push(chunk) {
         match socket.send(&body).await {
             Err(e) if !*send_failed => {
@@ -110,7 +111,28 @@ async fn forward_to_port(
             _ => {}
         }
     }
-    true
+}
+
+/// A frame header that announces more than any datagram can carry would let the buffer grow without limit.
+fn buffer_in_bounds(decoder: &FrameDecoder, port: u16) -> bool {
+    let in_bounds = decoder.buf.len() <= 4 + RECV_BUF;
+    if !in_bounds {
+        say(
+            "port",
+            format!("udp {port}: oversized frame, session closed"),
+        );
+    }
+    in_bounds
+}
+
+/// An error that only reports the closed port: the session goes on. Windows reports the ICMP refusal
+/// as a connection reset on the next receive.
+fn is_port_closed_echo(e: &io::Error) -> bool {
+    use io::ErrorKind::{ConnectionAborted, ConnectionRefused, ConnectionReset};
+    matches!(
+        e.kind(),
+        ConnectionRefused | ConnectionReset | ConnectionAborted
+    )
 }
 
 /// A datagram from the port becomes a frame; a refusal reported by an earlier send is not an end.
@@ -121,8 +143,11 @@ async fn forward_to_stream<W: AsyncWrite + Unpin>(
     dgram: &[u8],
 ) -> bool {
     match got {
-        Ok(n) => wr.write_all(&encode_frame(&dgram[..n.min(DATAGRAM_LIMIT)])).await.is_ok(),
-        Err(e) if e.kind() == io::ErrorKind::ConnectionRefused => true,
+        Ok(n) => wr
+            .write_all(&encode_frame(&dgram[..n.min(DATAGRAM_LIMIT)]))
+            .await
+            .is_ok(),
+        Err(e) if is_port_closed_echo(&e) => true,
         Err(e) => {
             say("port", format!("udp {port}: local socket error: {e}"));
             false
@@ -133,3 +158,7 @@ async fn forward_to_stream<W: AsyncWrite + Unpin>(
 #[cfg(test)]
 #[path = "serve_tests.rs"]
 mod serve_tests;
+
+#[cfg(test)]
+#[path = "serve_guard_tests.rs"]
+mod serve_guard_tests;

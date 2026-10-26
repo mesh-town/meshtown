@@ -1,9 +1,11 @@
 //! Listeners of other nodes' ports opened here (`Opener`): `127.0.0.1:<local>` → a stream to the publisher.
 //!
-//! What it does: reconciles the `Opened` list with the running listeners, binds ports synchronously,
+//! What it does: reconciles the `Opened` list with the running listeners, binds TCP ports synchronously (a UDP port
+//! is bound by its task right after the entry is made),
 //! hands every accepted connection to `dial::forward_to_peer_port`; closing a listener drops its connections.
 //! What it does not do: it does not decide who is a member (`Members`) and does not store the list in the config.
-//! The socket lies in a shared cell, not in a task: the port is released before the close returns.
+//! A TCP socket lies in a shared cell, not in a task: the port is released before the close returns. A UDP socket
+//! is owned by its task and is released shortly after the close, within `UDP_REBIND_WAIT`.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -38,7 +40,8 @@ pub(crate) struct Listener {
 }
 
 impl Listener {
-    /// Closes the socket before returning, then aborts the task (and with it all connections).
+    /// Closes a TCP socket before returning, then aborts the task (and with it all connections).
+    /// A UDP socket goes with its aborted task, shortly after.
     fn close(self) {
         if let Some(slot) = &self.slot {
             drop(lock(slot).take());
@@ -134,9 +137,7 @@ impl Opener {
     ) -> Vec<Entry> {
         let mut entries = Vec::new();
         for o in dedup(opened) {
-            let kept = old
-                .iter()
-                .position(|e| e.opened == o && e.is_listening());
+            let kept = old.iter().position(|e| e.opened == o && e.is_listening());
             entries.push(match kept {
                 Some(i) if !to_bind.contains(&o) => old.remove(i),
                 _ => self.bind_entry(inner, o),
@@ -195,8 +196,11 @@ fn close_matching(entries: &mut [Entry], close: &[Opened]) {
 }
 
 fn close_entry(e: &mut Entry) {
+    let was_listening = e.is_listening();
     if let Some(l) = e.listener.take() {
         l.close();
+    }
+    if was_listening {
         let suffix = e.opened.proto.pick("", "/udp");
         say(
             "port",
@@ -253,3 +257,7 @@ mod tests;
 #[cfg(test)]
 #[path = "open_udp_tests.rs"]
 mod udp_tests;
+
+#[cfg(test)]
+#[path = "open_reach_tests.rs"]
+mod reach_tests;

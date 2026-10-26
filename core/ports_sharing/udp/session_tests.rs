@@ -16,6 +16,22 @@ use super::*;
 const IDLE: Duration = Duration::from_secs(30);
 const SECOND: Duration = Duration::from_secs(1);
 
+mod empty_read_buffer {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn is_not_reported_as_a_closed_stream() {
+        // given: a session whose peer is silent but open
+        let (mut session, _peer) = session_over_duplex(IDLE, None);
+
+        // when: it is read into an empty buffer
+        let got = session.read(&mut []).await;
+
+        // then: the read returns zero bytes without an error
+        assert_eq!(got.unwrap(), 0);
+    }
+}
+
 mod without_traffic {
     use super::*;
 

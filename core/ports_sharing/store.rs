@@ -66,7 +66,9 @@ impl PortsDoc {
     pub async fn read_all(&self) -> Result<Vec<PortView>> {
         let entries = self.scan_ports().await?;
         let mut out: Vec<PortView> = entries.iter().filter_map(view_of).collect();
-        out.sort_by(|a, b| (a.author.as_bytes(), a.port, a.proto).cmp(&(b.author.as_bytes(), b.port, b.proto)));
+        out.sort_by(|a, b| {
+            (a.author.as_bytes(), a.port, a.proto).cmp(&(b.author.as_bytes(), b.port, b.proto))
+        });
         Ok(out)
     }
 

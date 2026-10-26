@@ -49,8 +49,14 @@ fn forward_handler(
         let (stack, members, pool) = (stack.clone(), members.clone(), pool.clone());
         let (target, reach) = (target.clone(), reach.clone());
         Box::pin(async move {
-            let result = forward_to_peer_port(&stack, &pool, &members, &target, tcp).await;
-            *lock(&reach) = result.err().map(|e| e.reach);
+            let dialed = reach.clone();
+            let result = forward_to_peer_port(&stack, &pool, &members, &target, tcp, move || {
+                *lock(&dialed) = None;
+            })
+            .await;
+            if let Err(e) = result {
+                *lock(&reach) = Some(e.reach);
+            }
         })
     }
 }

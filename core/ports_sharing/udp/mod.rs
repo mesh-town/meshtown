@@ -12,5 +12,6 @@ mod session;
 pub(crate) use pipe::{open_udp_listener, UdpListenerHandle};
 pub(crate) use serve::serve_udp_stream;
 pub(crate) use session::{
-    UdpSession, MAX_SENDERS_PER_OPEN, MAX_UDP_SESSIONS_SERVED, OPEN_IDLE, SERVE_IDLE, UDP_SESSION_MARK,
+    UdpSession, MAX_SENDERS_PER_OPEN, MAX_UDP_SESSIONS_SERVED, OPEN_IDLE, SERVE_IDLE,
+    UDP_SESSION_MARK,
 };

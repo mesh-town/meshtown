@@ -32,7 +32,10 @@ pub struct PublishedPortsTable {
 fn fresh_rows(list: Vec<Published>) -> Rows {
     let mut rows: Rows = Vec::new();
     for p in list {
-        if rows.iter().all(|(q, _)| (q.proto, q.port) != (p.proto, p.port)) {
+        if rows
+            .iter()
+            .all(|(q, _)| (q.proto, q.port) != (p.proto, p.port))
+        {
             rows.push((p, LocalState::Unknown));
         }
     }
@@ -41,7 +44,10 @@ fn fresh_rows(list: Vec<Published>) -> Rows {
 
 /// The status carries over only if the old row has the same protocol and port and the entry is entirely equal.
 fn kept_state(old: &Rows, p: &Published) -> LocalState {
-    match old.iter().find(|(q, _)| (q.proto, q.port) == (p.proto, p.port)) {
+    match old
+        .iter()
+        .find(|(q, _)| (q.proto, q.port) == (p.proto, p.port))
+    {
         Some((q, s)) if PortRecord::from(q) == PortRecord::from(p) => *s,
         _ => LocalState::Unknown,
     }
@@ -79,7 +85,10 @@ impl PublishedPortsTable {
     /// Records the result of a port check; if there is no such port (removed in a race), nothing, `changed` is not woken.
     pub fn set_local_state(&self, proto: Proto, port: u16, state: LocalState) {
         let mut rows = self.rows.lock().unwrap();
-        if let Some(row) = rows.iter_mut().find(|(p, _)| (p.proto, p.port) == (proto, port)) {
+        if let Some(row) = rows
+            .iter_mut()
+            .find(|(p, _)| (p.proto, p.port) == (proto, port))
+        {
             row.1 = state;
         }
     }

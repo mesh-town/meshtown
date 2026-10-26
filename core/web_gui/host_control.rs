@@ -6,8 +6,8 @@ use std::sync::{Arc, Mutex};
 use super::config_api::ConfigState;
 use super::control::NodeControl;
 use crate::config::config_file::NetSlotId;
-use crate::ports_sharing::types::Proto;
 pub use crate::node::host::Notice;
+use crate::ports_sharing::types::Proto;
 use crate::proxy::ProxyFront;
 
 /// One slot: its id, the node control surface and the config state the page edits for it.

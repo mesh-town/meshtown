@@ -23,10 +23,7 @@ fn local_text(s: LocalState) -> &'static str {
 
 /// A UDP port cannot be probed locally, so its state is always unknown.
 fn own_local(proto: Proto, s: LocalState) -> LocalState {
-    match proto {
-        Proto::Udp => LocalState::Unknown,
-        Proto::Tcp => s,
-    }
+    proto.pick(s, LocalState::Unknown)
 }
 
 fn opened_info(local: u16, st: &OpenState, last_error: Option<PortReach>) -> OpenedInfo {
