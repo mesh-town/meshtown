@@ -1,6 +1,7 @@
 //! Tests of the live-stream counter: the cap, the slot guard, the memory refusal and the refusal log pacing.
 
 use super::*;
+use std::time::Duration;
 
 mod admit {
     use super::*;
@@ -65,7 +66,7 @@ mod live {
     fn raising_the_limit_admits_again() {
         // given: a cap of 1 and its only place taken
         let limits = ExitLimits::fixed(1);
-        let _held = limits.try_admit().ok().expect("the first place");
+        let _held = limits.try_admit().expect("the first place");
         assert!(limits.try_admit().is_err(), "full");
 
         // when: the cap is raised to 2
@@ -97,7 +98,7 @@ mod slot {
     fn dropping_a_slot_frees_it() {
         // given: a cap of 1 and its place taken
         let limits = ExitLimits::fixed(1);
-        let held = limits.try_admit().ok().expect("the place");
+        let held = limits.try_admit().expect("the place");
         assert_eq!(limits.live(), 1);
 
         // when: the slot is dropped
@@ -112,7 +113,7 @@ mod slot {
     async fn aborted_task_frees_its_slot() {
         // given: a task that holds a slot and never ends
         let limits = ExitLimits::fixed(1);
-        let held = limits.try_admit().ok().expect("the place");
+        let held = limits.try_admit().expect("the place");
         let task = crate::transport::net::task_label::spawn(async move {
             let _slot = held;
             std::future::pending::<()>().await;

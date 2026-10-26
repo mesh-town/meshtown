@@ -221,13 +221,13 @@ async fn refuse_busy(
     busy: Busy,
 ) -> Result<()> {
     if let Some(refused) = limits.busy_line_due(std::time::Instant::now()) {
+        let held = match refused {
+            0 => String::new(),
+            n => format!(" (+{n} refused, not logged)"),
+        };
         say(
             "exit",
-            format!(
-                "{}: {} (+{refused} refused, not logged)",
-                short_peer_id(peer),
-                busy.line()
-            ),
+            format!("{}: {}{held}", short_peer_id(peer), busy.line()),
         );
     }
     send.write_all(&EXIT_BUSY_REPLY)
@@ -251,6 +251,9 @@ mod frame_tests;
 #[cfg(test)]
 #[path = "server_limits_tests.rs"]
 mod limits_tests;
+#[cfg(test)]
+#[path = "server_service_fixture.rs"]
+mod service_fixture;
 #[cfg(test)]
 #[path = "server_service_tests.rs"]
 mod service_tests;

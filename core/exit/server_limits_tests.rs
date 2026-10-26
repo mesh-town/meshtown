@@ -2,21 +2,13 @@
 //! one gets, when places come back. The fixture is the one of `server_service_tests.rs`.
 
 use super::*;
-use crate::exit::frame::{encode_exit_request, EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK};
+use crate::exit::frame::{EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK};
 use crate::exit::{ExitLimits, UDPGW_HOST, UDPGW_PORT};
-use crate::site_checks::http_min::HttpLimits;
-use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
-use crate::transport::net::mem::MemNet;
-use crate::transport::net::service::EXIT;
-use crate::transport::net::{NetStack, NetStackBuilder, StreamPair};
-use std::time::{Duration, Instant};
-use tokio::net::TcpListener;
-use tokio::sync::Semaphore;
+use crate::transport::net::facade::test_support::within;
+use crate::transport::net::StreamPair;
+use std::time::Duration;
 
-#[allow(dead_code, clippy::duplicate_mod)]
-#[path = "server_service_fixture.rs"]
-mod fixture;
-use fixture::*;
+use super::service_fixture::*;
 
 const BUSY: [u8; 1] = [EXIT_PROTOCOL_VERSION];
 const OPENED: [u8; 2] = [EXIT_PROTOCOL_VERSION, EXIT_CODE_OK];
@@ -212,9 +204,9 @@ fn full_opts() -> Opts {
 
 /// An exit whose only place is taken by someone else (the slot is held by the returned fixture's limiter).
 async fn setup_full(opts: Opts) -> Fx {
-    let fx = setup(opts).await;
-    let slot = fx.cfg.limits.try_admit().ok().expect("the only place");
-    std::mem::forget(slot);
+    let mut fx = setup(opts).await;
+    let slot = fx.cfg.limits.try_admit().expect("the only place");
+    fx.hold(slot);
     fx
 }
 

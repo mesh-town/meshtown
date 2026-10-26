@@ -7,9 +7,9 @@
 use crate::config::config_file::NODE_MEMORY_WARN_MIB_DEFAULT;
 
 /// Machines up to this size (KiB) get the small defaults.
-pub(crate) const SMALL_RAM_KIB: u64 = 131_072;
+const SMALL_RAM_KIB: u64 = 131_072;
 /// Machines up to this size (KiB) get the middle defaults.
-pub(crate) const MIDDLE_RAM_KIB: u64 = 524_288;
+const MIDDLE_RAM_KIB: u64 = 524_288;
 
 /// Defaults for one class of machines.
 #[derive(Clone, Copy, Debug, PartialEq)]

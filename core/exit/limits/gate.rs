@@ -1,16 +1,15 @@
 //! The counter of live exit streams: a cap, a slot guard and the reasons to refuse.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::sync::{Arc, OnceLock};
+use std::time::Instant;
 
+use super::line_rate::LineRate;
 use super::rss::RssGate;
 use crate::node::machine_memory::MemoryDefaults;
 
-/// Refusals are written to the log at most this often.
-const BUSY_LINE_EVERY: Duration = Duration::from_secs(10);
-
 /// Why a new stream is refused.
+#[derive(Debug)]
 pub(crate) enum Busy {
     Streams { live: u64, limit: u64 },
     Memory { rss_kib: u64, ceiling_kib: u64 },
@@ -39,8 +38,7 @@ struct Inner {
     limit: AtomicU64,
     auto: AtomicU64,
     rss: RssGate,
-    refused: AtomicU64,
-    last_line: Mutex<Option<Instant>>,
+    lines: LineRate,
 }
 
 /// Live exit streams of the process and the rules for admitting a new one.
@@ -48,7 +46,17 @@ struct Inner {
 pub struct ExitLimits(Arc<Inner>);
 
 /// A held place among the live streams; dropping it frees the place.
+#[derive(Debug)]
 pub(crate) struct StreamSlot(ExitLimits);
+
+impl std::fmt::Debug for ExitLimits {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExitLimits")
+            .field("live", &self.0.live.load(Ordering::Relaxed))
+            .field("limit", &self.0.limit.load(Ordering::Relaxed))
+            .finish()
+    }
+}
 
 impl Drop for StreamSlot {
     fn drop(&mut self) {
@@ -63,8 +71,7 @@ impl ExitLimits {
             limit: AtomicU64::new(limit),
             auto: AtomicU64::new(limit),
             rss,
-            refused: AtomicU64::new(0),
-            last_line: Mutex::new(None),
+            lines: LineRate::default(),
         }))
     }
 
@@ -77,14 +84,14 @@ impl ExitLimits {
     }
 
     /// Called once at process start. `setting` 0 means the automatic cap `auto`.
-    pub fn configure(&self, setting: u64, auto: u64, rss_ceiling_kib: u64) {
+    pub(crate) fn configure(&self, setting: u64, auto: u64, rss_ceiling_kib: u64) {
         self.0.auto.store(auto, Ordering::Relaxed);
         self.0.rss.set_ceiling(rss_ceiling_kib);
         self.set_max_streams(setting);
     }
 
     /// Changes the cap on the fly; open streams are not touched.
-    pub fn set_max_streams(&self, setting: u64) {
+    pub(crate) fn set_max_streams(&self, setting: u64) {
         let limit = match setting {
             0 => self.0.auto.load(Ordering::Relaxed),
             n => n,
@@ -92,7 +99,7 @@ impl ExitLimits {
         self.0.limit.store(limit, Ordering::Relaxed);
     }
 
-    pub fn max_streams(&self) -> u64 {
+    pub(crate) fn max_streams(&self) -> u64 {
         self.0.limit.load(Ordering::Relaxed)
     }
 
@@ -125,14 +132,7 @@ impl ExitLimits {
     /// `Some(refusals held back since the last line)` when a log line is due, else `None`
     /// (the refusal is counted for the next line).
     pub(crate) fn busy_line_due(&self, now: Instant) -> Option<u64> {
-        let mut last = self.0.last_line.lock().unwrap_or_else(|e| e.into_inner());
-        let due = last.is_none_or(|at| now.saturating_duration_since(at) >= BUSY_LINE_EVERY);
-        if !due {
-            self.0.refused.fetch_add(1, Ordering::Relaxed);
-            return None;
-        }
-        *last = Some(now);
-        Some(self.0.refused.swap(0, Ordering::Relaxed))
+        self.0.lines.due(now)
     }
 }
 

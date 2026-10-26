@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::limits::LineRate;
 use crate::transport::net::{BoxRecv, BoxSend, NetStack, PeerConn, PeerId, ServiceId, StreamPair};
 use anyhow::{anyhow, bail, Result};
 use tokio::sync::{Mutex as AsyncMutex, OnceCell};
@@ -70,6 +71,8 @@ pub struct PeerConnPool {
     traffic: Option<ExitTraffic>,
     /// Exits that refused the UDP gateway target.
     gateway: GatewayMemo,
+    /// Paces the client's "exit is busy" log lines.
+    busy_lines: Arc<LineRate>,
 }
 
 /// Guard of the waiting counter: +1 on creation, −1 on `Drop` (success, error, deadline, dropped future).
@@ -106,7 +109,13 @@ impl PeerConnPool {
             connect_wait: CONNECT_WAIT,
             traffic: None,
             gateway: GatewayMemo::default(),
+            busy_lines: Arc::default(),
         }
+    }
+
+    /// `Some(busy replies held back since the last line)` when a "busy" log line is due, else `None`.
+    pub(crate) fn busy_line_due(&self, now: std::time::Instant) -> Option<u64> {
+        self.busy_lines.due(now)
     }
 
     /// Whether `peer` refused the UDP gateway target recently (then it is not asked again for a while).

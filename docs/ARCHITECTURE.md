@@ -260,6 +260,10 @@ Reply, 2 bytes:
 | 0 | 1 | version, 1 |
 | 1 | 1 | code |
 
+Busy reply, 1 byte: the version byte, then the exit closes the stream for writing. The exit has no free stream
+slot (`exit.max_streams` or the memory guard). Clients that predate it read an unanswered request and try the next
+exit.
+
 The exit checks a request in four steps: permission (whether the requester is a member), frame parsing,
 the domain's address, the connection. The exit serves any domain on any port; the exit owner controls only
 `exit.enabled`. There is no personal data in the frame: no client string, no request path — the exit sees

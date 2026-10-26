@@ -1,7 +1,16 @@
 //! Fixture of the exit handler tests on the mem stack: a client with a connection to an exit, local sites, requests.
 
 use super::*;
+use crate::exit::frame::encode_exit_request;
 use crate::exit::ExitLimits;
+use crate::site_checks::http_min::HttpLimits;
+use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
+use crate::transport::net::mem::MemNet;
+use crate::transport::net::service::EXIT;
+use crate::transport::net::{NetStack, NetStackBuilder, StreamPair};
+use std::time::{Duration, Instant};
+use tokio::net::TcpListener;
+use tokio::sync::Semaphore;
 
 /// Preconditions: who asks and what site it is.
 pub(super) struct Opts {
@@ -37,9 +46,15 @@ pub(super) struct Fx {
     ended: Arc<Semaphore>,
     accepts: Arc<std::sync::atomic::AtomicUsize>,
     _stacks: (NetStack, NetStack),
+    held: Option<crate::exit::limits::StreamSlot>,
 }
 
 impl Fx {
+    /// Keeps a place of the exit's limiter taken until the fixture is dropped.
+    pub(super) fn hold(&mut self, slot: crate::exit::limits::StreamSlot) {
+        self.held = Some(slot);
+    }
+
     /// A request: the whole frame, the reply is the first two bytes (up to `STEP`).
     pub(super) async fn ask(&self, frame: &[u8]) -> (StreamPair, [u8; 2]) {
         let mut pair = within("open", self.conn.open())
@@ -140,6 +155,7 @@ pub(super) async fn setup(opts: Opts) -> Fx {
         ended,
         accepts,
         _stacks: (client, server),
+        held: None,
     }
 }
 

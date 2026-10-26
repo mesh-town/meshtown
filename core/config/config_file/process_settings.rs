@@ -5,7 +5,7 @@ use super::iface_filter::IfaceFilter;
 use super::settings::ListenAccess;
 use super::slot_store::NetSlotId;
 
-/// Factory default of `node.memory_warn_mib`, MiB. On a small machine this exact value means "choose by machine memory".
+/// Factory default of `node.memory_warn_mib`, MiB. On a machine with ≤512 MiB this exact value means "choose by machine memory".
 pub const NODE_MEMORY_WARN_MIB_DEFAULT: u64 = 400;
 
 /// The fields of the `config` document that the running node does not read: SOCKS, the page, the log,
