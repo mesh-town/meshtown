@@ -27,6 +27,19 @@ Run `platforms/android/build/build.sh` from the repository root. It needs `cargo
 `make android-test` runs the JVM unit tests of the shell (`platforms/android/gui/test.sh`): no emulator, NDK or Rust
 is needed, only the Android SDK (`ANDROID_HOME`) and JDK 17+.
 
+## Node log level
+
+Before starting the node, the service reads the first line of a file named `rust-log` and passes it to the node as
+`RUST_LOG`. It looks in the app's private data directory first, then in the external files directory, which `adb push`
+can write without `run-as`, even on a release build:
+
+```sh
+echo 'debug' > rust-log
+adb push rust-log /sdcard/Android/data/app.meshtown/files/
+```
+
+Restart the node from the app to apply it. Remove the file to return to the default level.
+
 ## What is used outside this directory
 
 Only `core/` (the node sources), `scripts/release/lib.sh`, `scripts/release/dist/` and the workspace root (`Cargo.toml`, `Cargo.lock`,
