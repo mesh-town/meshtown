@@ -3,20 +3,18 @@
 // assumed: this file is declared in `managed/mod.rs` as
 // `#[cfg(test)] #[path = "support_tests.rs"] mod support;`.
 
-use crate::members::access::authority::{Power, PowerIn, Rules};
+use crate::members::access::authority::{Power, PowerIn};
 use crate::members::access::record::Via;
-use crate::members::access::tally::{tally, AdmitIn, Ledger, TallyInput, VoteIn};
+use crate::members::access::tally::{tally, Ledger, TallyInput, VoteIn};
 use crate::transport::net::PeerId;
 
 /// Microseconds in a second: the scene counts time in seconds.
 const SECOND: u64 = 1_000_000;
 
-/// The records of one network under `Rules::Managed`, built step by step.
-/// An admission lands in `admits` and in `powers`, as the parser of a replica puts it.
+/// The records of one network of one network, built step by step.
 pub(super) struct Scene {
     pub(super) root: PeerId,
     me: PeerId,
-    admits: Vec<AdmitIn>,
     powers: Vec<PowerIn>,
     votes: Vec<VoteIn>,
 }
@@ -27,7 +25,6 @@ impl Scene {
         Scene {
             root,
             me: root,
-            admits: vec![],
             powers: vec![],
             votes: vec![],
         }
@@ -56,12 +53,6 @@ impl Scene {
         subject: PeerId,
         via: Via,
     ) -> &mut Scene {
-        self.admits.push(AdmitIn {
-            author,
-            subject,
-            via,
-            made_unix: at,
-        });
         self.power(at * SECOND, author, Power::Admit(via), subject)
     }
 
@@ -88,7 +79,6 @@ impl Scene {
             voter,
             subject,
             ts_micros: at * SECOND,
-            at_moment: false,
         });
         self
     }
@@ -114,19 +104,12 @@ impl Scene {
         self
     }
 
-    /// The input under the managed rules.
+    /// The input of the scene.
     pub(super) fn input(&self) -> TallyInput {
-        self.input_under(Rules::Managed { root: self.root })
-    }
-
-    /// The same records under other rules.
-    pub(super) fn input_under(&self, rules: Rules) -> TallyInput {
         TallyInput {
             me: self.me,
-            admits: self.admits.clone(),
+            root: self.root,
             votes: self.votes.clone(),
-            forgets: vec![],
-            rules,
             powers: self.powers.clone(),
         }
     }

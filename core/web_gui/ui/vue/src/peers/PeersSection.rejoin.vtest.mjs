@@ -16,12 +16,11 @@ const REFUSED = "The members of the network refused this computer.";
 beforeEach(() => localStorage.clear());
 afterEach(unmountPage);
 
-const removed = () => membersReply({ rows: [selfRow(), peerOneRow()], me_removed: true });
 const banned = () => membersReply({ rows: [selfRow(), peerOneRow()], me_excluded: true });
 
-describe("the tab of a removed or banned computer", () => {
+describe("the tab of a removed computer", () => {
   it("the button of the card opens the form in this tab and focuses its field", async () => {
-    const page = await openTab({ members: removed() });
+    const page = await openTab({ members: banned() });
     await page.click("#members-removed-join");
     expect(page.has("#rejoin-card")).toBe(true);
     expect(page.has("#members-removed-join"), "one main button on the screen").toBe(false);
@@ -30,14 +29,8 @@ describe("the tab of a removed or banned computer", () => {
     expect(page.text("#rejoin-title")).toBe('Join "my devices" again');
   });
 
-  it("a ban in a Peer network offers to join another network", async () => {
-    const page = await openTab({ members: banned() });
-    await page.click("#members-removed-join");
-    expect(page.text("#rejoin-title")).toBe("Join another network");
-  });
-
   it("the answer with the slot of the tab says so in the form", async () => {
-    const page = await openTab({ members: removed() });
+    const page = await openTab({ members: banned() });
     page.node.routes["POST /api/network/join"] = { label: "my devices", restart: false, slot: NET_B };
     await page.click("#members-removed-join");
     await page.type("#rejoin-input", INVITE);
@@ -94,7 +87,7 @@ describe("the tab of a removed or banned computer", () => {
   });
 
   it("another tab closes the form", async () => {
-    const page = await openTab({ members: removed() });
+    const page = await openTab({ members: banned() });
     await page.click("#members-removed-join");
     location.hash = "peers/" + NET_A;
     window.dispatchEvent(new HashChangeEvent("hashchange"));
@@ -103,7 +96,7 @@ describe("the tab of a removed or banned computer", () => {
   });
 
   it("the page never repeats an id", async () => {
-    const page = await openTab({ members: removed() });
+    const page = await openTab({ members: banned() });
     await page.click("#members-removed-join");
     const ids = [...page.wrapper.element.querySelectorAll("[id]")].map((el) => el.id);
     expect(ids.filter((id, i) => ids.indexOf(id) !== i)).toEqual([]);

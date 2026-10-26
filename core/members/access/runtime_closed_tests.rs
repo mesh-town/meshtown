@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 
-use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
 use crate::members::access::runtime::Access;
 use crate::members::access::tally::Closed;
@@ -27,7 +26,7 @@ mod managed_network {
     #[tokio::test]
     async fn is_open_before_any_close_record() {
         // given: a managed network with a member and no close record
-        let world = setup(Rules::Managed { root: root() });
+        let world = setup();
         // when
         world.refresh().await;
         // then
@@ -37,7 +36,7 @@ mod managed_network {
     #[tokio::test]
     async fn an_administrator_close_is_published() {
         // given: the root wrote a close record at second 5
-        let world = setup(Rules::Managed { root: root() });
+        let world = setup();
         world.given_close(5, root());
         // when
         world.refresh().await;
@@ -54,7 +53,7 @@ mod managed_network {
     #[tokio::test]
     async fn the_change_wakes_a_watcher_that_was_waiting() {
         // given: a receiver taken while the network is open
-        let world = setup(Rules::Managed { root: root() });
+        let world = setup();
         world.refresh().await;
         let mut rx = world.access.closed();
         rx.mark_unchanged();
@@ -68,7 +67,7 @@ mod managed_network {
     #[tokio::test]
     async fn a_refresh_without_news_does_not_wake_the_watcher() {
         // given: the network is closed and the watcher has seen it
-        let world = setup(Rules::Managed { root: root() });
+        let world = setup();
         world.given_close(5, root());
         world.refresh().await;
         let mut rx = world.access.closed();
@@ -82,22 +81,7 @@ mod managed_network {
     #[tokio::test]
     async fn a_close_of_a_non_administrator_stays_none() {
         // given: the plain member x wrote a close record
-        let world = setup(Rules::Managed { root: root() });
-        world.given_close(5, member());
-        // when
-        world.refresh().await;
-        // then
-        assert_eq!(world.closed_now(), None);
-    }
-}
-
-mod peer_network {
-    use super::*;
-
-    #[tokio::test]
-    async fn a_close_record_stays_none() {
-        // given: a peer network where the member x wrote a close record
-        let world = setup(Rules::Peer);
+        let world = setup();
         world.given_close(5, member());
         // when
         world.refresh().await;
@@ -122,8 +106,8 @@ struct World {
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
 
-/// A network under `rules`: the root admitted me and the member `x`.
-fn setup(rules: Rules) -> World {
+/// The root admitted me and the member `x`.
+fn setup() -> World {
     let net = MemSyncNet::new();
     let node = secret(1);
     let ctx = SyncCtx {
@@ -137,7 +121,7 @@ fn setup(rules: Rules) -> World {
         backend.replica_mem(REPLICA_DOMAINS).unwrap(),
     );
     let members = Members::with_access(AccessView::pending());
-    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members).with_rules(rules);
+    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members, root());
     let world = World {
         access,
         shared,

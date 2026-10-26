@@ -6,7 +6,7 @@ import { fieldErrorLine } from "../settings/settings-fields.ts";
 import { ABSENCE_TEXT, ALONE_INVITE_SHORT, ALONE_TEXT, NET_LOADING_TEXT, NO_CATALOG_SHORT, NOT_RESPONDING_TEXT, offlineOthersText, quotedNet } from "../common/words.ts";
 import { IDENTITY_DECLINED_NOTE, IDENTITY_PRESERVED_NOTE, IDENTITY_PROBLEM_NOTE, restartConsequenceText } from "./shell-texts.ts";
 import type { MembersReply } from "../members/members-types.ts";
-import { bannedStatusText, forgottenStatusText } from "../members/members-texts.ts";
+import { bannedStatusText } from "../members/members-texts.ts";
 import { forDevice } from "../common/device.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { statePanel } from "../home/home-view.ts";
@@ -70,13 +70,7 @@ function waitingLine(state: NodeState): StatusLine | null {
 // This computer was banned from the network (or left it) but the node still reports the network.
 function excludedLine(state: NodeState): StatusLine | null {
   if (!state.network || !(state.members && state.members.me_excluded)) return null;
-  return { level: "red", text: bannedStatusText(state.network.label, state.network.kind === "Managed") };
-}
-
-// This computer was removed from the member list: the same grey line as "not joined", only the lead network has it.
-function forgottenLine(state: NodeState, members: MembersReply | null): StatusLine | null {
-  if (!state.network || !(members && members.me_removed)) return null;
-  return grey(forgottenStatusText(state.network.label));
+  return { level: "red", text: bannedStatusText(state.network.label) };
 }
 
 // The node is looking for the network by invite (`invite_join`) — the header says the same as Home, not "not joined yet".
@@ -107,8 +101,8 @@ function joinedNetworkLine(state: NodeState & { network: NonNullable<NodeState["
 
 // `{ level: "green"|"red"|"grey", text }` — in the order of the branches. `route` (several networks) replaces
 // the "how sites open" part of the line of the leading network.
-export function statusLine(state: NodeState | null, conn: Conn, members: MembersReply | null = null, route: RouteHead | null = null, refused: Refused | null = null): StatusLine {
-  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || forgottenLine(state, members) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0], route, refused))) || grey(NOT_RESPONDING_TEXT);
+export function statusLine(state: NodeState | null, conn: Conn, _members: MembersReply | null = null, route: RouteHead | null = null, refused: Refused | null = null): StatusLine {
+  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0], route, refused))) || grey(NOT_RESPONDING_TEXT);
 }
 
 function capitalizeFirst(text: string): string {

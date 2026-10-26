@@ -55,3 +55,35 @@ fn make_unreadable(fx: &Fixture, id: &NetSlotId) {
 
 #[cfg(not(unix))]
 fn make_unreadable(_fx: &Fixture, _id: &NetSlotId) {}
+
+impl Fixture {
+    /// A well-formed slot file that holds `key` as its network key.
+    fn add_slot_with_key(&mut self, key: &str) -> NetSlotId {
+        let id = new_slot_id(&self.main_path()).expect("a free slot id");
+        let path = net_slot_path(&self.main_path(), &id).unwrap();
+        let secret = NodeSecret::from_bytes(&[self.seed; 32]);
+        let net = NetSettings {
+            network_key: Some(key.to_string()),
+            ..NetSettings::default()
+        };
+        save_net_file(&path, None, NOW, CREATED - 1, &secret, &net).expect("write the slot file");
+        id
+    }
+}
+
+#[tokio::test]
+async fn an_old_key_in_a_slot_is_marked_broken() {
+    let mut fx = setup(70);
+    let words = fx.add_slot_with_key("work--abacus-abdomen-0123456789abcdefghjkm");
+    let machine = fx.add_slot_with_key(&format!("mesh1-{}", "a".repeat(52)));
+    fx.when_started();
+    let mut want = vec![words.clone(), machine.clone()];
+    want.sort_by_key(|id| id.to_string());
+    assert_eq!(fx.slots.broken(), want);
+    for id in [&words, &machine] {
+        assert!(fx.not_started_line(id).is_some(), "a line for {id}");
+        let path = net_slot_path(&fx.main_path(), id).unwrap();
+        assert!(path.exists(), "the folder of {id} is kept");
+    }
+    fx.stop().await;
+}

@@ -1,7 +1,7 @@
 //! The refusal a responder gives at the handshake: the typed error context and how an initiator learns it.
 //!
 //! What it does: reads the close code of a connection the responder dropped, notes it in the access view and
-//! attaches it to the handshake error as `RefusedByPeer`; logs once per run that the list removed this node.
+//! attaches it to the handshake error as `RefusedByPeer`.
 //! Our own refusal is the error `RefusedByUs`.
 //! What it doesn't do: no handshake exchange itself (see `handshake`).
 
@@ -10,9 +10,8 @@ use std::time::Duration;
 
 use tokio::time::timeout;
 
-use crate::members::access::view::{AccessView, Deny, Side};
+use crate::members::access::view::{Deny, Side};
 use crate::members::membership::MemberContext;
-use crate::node::output::{say, NET_NAME};
 use crate::transport::net::PeerConn;
 
 /// Context of a handshake error: the responder closed the connection with this refusal.
@@ -42,22 +41,10 @@ pub(super) async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext)
     let _ = timeout(Duration::from_secs(1), conn.closed()).await;
     let reason = Deny::from_wire(&conn.close_reason());
     let access = ctx.members.access();
-    reason.iter().for_each(|deny| {
-        access.note_refusal(conn.peer(), Side::Them, *deny);
-        warn_if_removed(&access, *deny);
-    });
     reason
-}
-
-/// Logs the "removed from the list" notice once per run.
-fn warn_if_removed(access: &AccessView, deny: Deny) {
-    if deny != Deny::Forgotten || !access.first_removed_notice() {
-        return;
-    }
-    say(
-        "access",
-        format!("acl: members removed this computer from the member list; join again with an invite on the {NET_NAME} page"),
-    );
+        .iter()
+        .for_each(|deny| access.note_refusal(conn.peer(), Side::Them, *deny));
+    reason
 }
 
 /// A failed exchange: if the responder's refusal is not attached yet, learns it from the close frame.

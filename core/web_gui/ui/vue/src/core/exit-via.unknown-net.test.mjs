@@ -13,7 +13,7 @@ function setup() {
   const store = createStore();
   store.config = { route: { exits: [] }, proxy: { net: "gone" } };
   store.configRev = 5;
-  store.nets = [{ id: "main", label: "main", id_hex: "hex-main", status: "online", exit_enabled: false, proxy: true, route_state: "direct", exits: [], members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0 }];
+  store.nets = [{ id: "main", label: "main", id_hex: "hex-main", status: "online", exit_enabled: false, proxy: true, route_state: "direct", exits: [], joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0 }];
   store.lead = "main";
   const server = { puts: 0, gets: 0 };
   const api = async (method, path, body) => {

@@ -1,12 +1,15 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
 import type { MeshApi } from '../fixtures/api';
 import { patchMainState } from '../helpers/overview-route';
 import { MembersSection } from '../pages/members-section';
+import { SECOND_ADMIN_HINT } from '../pages/glossary';
 
-// Managed networks on the page. The demo node serves the same five members as in members.spec.ts; the flags below decide the kind and the roles:
-//   --managed         a Managed network, you are an admin and its creator, peer-one is the second admin, peer-two is an ordinary member;
-//   --managed-member  a Managed network, you are an ordinary member, peer-one and peer-two are the admins.
+// Managed networks on the page: every network is Managed. The demo node serves the same five members as in members.spec.ts;
+// the flags below decide the roles:
+//   (no flag)         you are the creator and the only admin, peer-one and peer-two are ordinary members;
+//   --second-admin    you are the creator, peer-one is the second admin, peer-two is an ordinary member;
+//   --role member     you are an ordinary member, peer-one and peer-two are the admins.
 // A real node cannot be put into a role on demand, so every case is for the demo only.
 
 const ADMIN_PEER = 'peer-one';
@@ -14,17 +17,13 @@ const PLAIN_PEER = 'peer-two';
 const SECOND_ADMIN = 'peer-two';
 
 const WORDS = {
-  kindPeer: 'Peer network',
-  kindManaged: 'Managed network',
-  finalHint: "You can't change this after the network is created.",
   adminBadge: 'Admin',
-  adminsLine: 'Managed network · Admins:',
+  adminsLine: 'Admins:',
   menuMakeAdmin: 'Make admin',
   menuMakeMember: 'Make regular member',
   menuRemove: 'Remove from network…',
   menuRemoveAdminsOnly: 'Remove from network (admins only)',
   menuBlock: 'Block on this computer…',
-  menuBan: 'Ban from network…',
   menuRename: 'Rename',
   menuLeave: 'Leave network…',
   menuGiveUp: 'Give up admin rights',
@@ -41,52 +40,76 @@ const WORDS = {
   makeAdminTitle: (name: string, net: string): string => `Make ${name} an admin of "${net}"?`,
   makeAdminStatus: (name: string): string => `${name} is now an admin of`,
   deleteTitle: (net: string): string => `Delete "${net}" for everyone?`,
-  managedWarning: (net: string): string =>
-    `If this computer's Mesh Town data is lost and nobody else is an admin, "${net}" can't be managed any more. Make a second admin soon.`,
 };
 
-test.describe('Managed network, picked on the create form (no network yet)', () => {
-  test.skip(({ targetKind }) => targetKind === 'node', 'the kind picker is checked on the demo node, which starts without a network here');
+test.describe('the create form (no network yet)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the create form is checked on the demo node, which starts without a network here');
   test.use({ targetFlags: { extraArgs: ['--no-network'] } });
 
-  test('104-managed-kind-picker: Peer is the default; Managed shows the warning with the typed name; "Create network" sends the kind', async ({
+  test('104-create-network-without-type: the form has no choice of type; "Create network" sends only the name; the new network shows the second-admin hint', async ({
     app,
     page,
   }) => {
-    const picker = new KindPicker(page);
+    const members = new MembersSection(page);
     await app.netCard.startCreate.click();
     await app.netCard.createLabelInput.fill('Office');
 
-    await test.step('Peer is chosen, the choice is final, no warning yet', async () => {
-      await expect(picker.peer).toBeChecked();
-      await expect(picker.managed).not.toBeChecked();
-      await expect(page.getByText(WORDS.finalHint)).toBeVisible();
-      await expect(picker.warning).toHaveCount(0);
+    await test.step('there is no choice of type on the form', async () => {
+      await expect(page.locator('[id^="kind-"]')).toHaveCount(0);
+      await expect(page.locator('label.kcard')).toHaveCount(0);
     });
 
-    await test.step('choosing Managed shows the warning that names the typed network', async () => {
-      await picker.choose(WORDS.kindManaged);
-      await expect(picker.managed).toBeChecked();
-      await expect(picker.warning).toHaveText(WORDS.managedWarning('Office'));
-    });
-
-    await test.step('going back to Peer takes the warning away', async () => {
-      await picker.choose(WORDS.kindPeer);
-      await expect(picker.warning).toHaveCount(0);
-    });
-
-    await test.step('"Create network" with Managed chosen sends the name and the kind', async () => {
-      await picker.choose(WORDS.kindManaged);
+    await test.step('"Create network" sends the name and nothing else', async () => {
       const created = page.waitForRequest((r) => r.method() === 'POST' && new URL(r.url()).pathname === '/api/network/create');
       await app.netCard.createButton.click();
-      expect((await created).postDataJSON()).toEqual({ label: 'Office', kind: 'Managed' });
+      expect((await created).postDataJSON()).toEqual({ label: 'Office' });
+    });
+
+    await test.step('you are the only admin of the new network: the Members tab asks for a second one', async () => {
+      await app.tabs.open('peers');
+      await expect(members.secondAdminHint).toBeVisible();
     });
   });
 });
 
-test.describe('--managed (you are an admin and the creator)', () => {
+test.describe('the second-admin hint (you are the creator and the only admin)', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'the roles are a flag of the demo node; skipped before the target starts');
-  test.use({ targetFlags: { extraArgs: ['--managed'] } });
+
+  test('124-second-admin-hint: the hint is shown at one admin, has no close button, and goes once "Make admin" gives the network a second one', async ({
+    app,
+    page,
+    api,
+  }) => {
+    const members = new MembersSection(page);
+    const net = await netLabel(api);
+    await app.tabs.open('peers');
+
+    await test.step('one admin: the hint says what to do, and it cannot be closed', async () => {
+      await expect(members.secondAdminHint).toBeVisible();
+      await expect(members.secondAdminHint).toHaveText(SECOND_ADMIN_HINT);
+      await expect(members.secondAdminHint.getByRole('button')).toHaveCount(0);
+    });
+
+    await test.step('Cancel in the "Make admin" dialog changes nothing: the hint stays', async () => {
+      await members.pick(ADMIN_PEER, WORDS.menuMakeAdmin);
+      await expect(members.dialogTitle(WORDS.makeAdminTitle(ADMIN_PEER, net))).toBeVisible();
+      await members.dialogButton(WORDS.dialogCancel).click();
+      await expect(members.dialog).toBeHidden();
+      await expect(members.secondAdminHint).toBeVisible();
+    });
+
+    await test.step('confirming: the second admin is there, the hint is gone', async () => {
+      await members.pick(ADMIN_PEER, WORDS.menuMakeAdmin);
+      await members.dialogButton(WORDS.makeAdminAction).click();
+      await expect(members.badge(ADMIN_PEER, WORDS.adminBadge)).toBeVisible();
+      await expect(members.secondAdminHint).toHaveCount(0);
+    });
+  });
+});
+
+test.describe('--second-admin (you are an admin and the creator, peer-one is the second admin)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the roles are a flag of the demo node; skipped before the target starts');
+  test.use({ targetFlags: { extraArgs: ['--second-admin'] } });
 
   test.describe('the Members tab', () => {
     test('105-managed-admins: the admins line and the "Admin" badge; the menu of someone else\'s row has the admin actions', async ({ app, page }) => {
@@ -107,13 +130,16 @@ test.describe('--managed (you are an admin and the creator)', () => {
         await expect(members.badge(PLAIN_PEER, WORDS.adminBadge)).toHaveCount(0);
       });
 
-      await test.step('an ordinary member: make admin, remove, block; no ban vote', async () => {
+      await test.step('an ordinary member: make admin, remove, block', async () => {
         await members.openMenu(PLAIN_PEER);
         await expect(item(page, WORDS.menuMakeAdmin)).toBeEnabled();
         await expect(item(page, WORDS.menuRemove)).toBeEnabled();
         await expect(item(page, WORDS.menuBlock)).toBeEnabled();
-        await expect(item(page, WORDS.menuBan)).toHaveCount(0);
         await page.keyboard.press('Escape');
+      });
+
+      await test.step('two admins: no hint to name a second one', async () => {
+        await expect(members.secondAdminHint).toHaveCount(0);
       });
 
       await test.step('another admin: the role can be taken back', async () => {
@@ -166,7 +192,7 @@ test.describe('--managed (you are an admin and the creator)', () => {
       });
 
       await test.step('the creator of the network: "Make regular member" is grey and says why', async () => {
-        // In --managed you are the creator, so the creator's row is never on screen: the state is rewritten so that peer-one is the creator.
+        // In the demo you are the creator, so the creator's row is never on screen: the state is rewritten so that peer-one is the creator.
         const creator = await idOf(api, ADMIN_PEER);
         await patchMainState<NetState>(page, (state) => ({ ...state, network: { ...state.network, root: creator } }));
         await app.open(target.origin, target.token);
@@ -230,9 +256,9 @@ test.describe('--managed (you are an admin and the creator)', () => {
   });
 });
 
-test.describe('--managed-member (you are an ordinary member)', () => {
+test.describe('--role member (you are an ordinary member)', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'the roles are a flag of the demo node; skipped before the target starts');
-  test.use({ targetFlags: { extraArgs: ['--managed-member'] } });
+  test.use({ targetFlags: { extraArgs: ['--role', 'member'] } });
 
   test('106-managed-member: a note instead of the invite button; the menus have the admin actions grey', async ({ app, page }) => {
     const members = new MembersSection(page);
@@ -244,6 +270,7 @@ test.describe('--managed-member (you are an ordinary member)', () => {
       await expect(panel.locator('#peers-invite-btn')).toHaveCount(0);
       await expect(page.locator('#admins-line')).toContainText(WORDS.adminsLine);
       await expect(ownRow(page).getByText(WORDS.adminBadge, { exact: true })).toHaveCount(0);
+      await expect(members.secondAdminHint).toHaveCount(0);
     });
 
     await test.step("an admin's row: block is there, remove is grey with the reason", async () => {
@@ -283,24 +310,6 @@ interface MembersDoc {
 
 interface StateDoc {
   network?: { label?: string | null } | null;
-}
-
-/** The kind choice of the create form: two radio cards and the warning under the Managed one. */
-class KindPicker {
-  readonly peer: Locator;
-  readonly managed: Locator;
-  readonly warning: Locator;
-
-  constructor(private readonly page: Page) {
-    this.peer = page.locator('#kind-peer');
-    this.managed = page.locator('#kind-managed');
-    this.warning = page.locator('#kind-managed-warn');
-  }
-
-  /** Clicks the card by its title; the radio itself is a 1px invisible input. */
-  async choose(title: string): Promise<void> {
-    await this.page.locator('label.kcard').filter({ hasText: title }).click();
-  }
 }
 
 /** The row of this computer in the member list. */

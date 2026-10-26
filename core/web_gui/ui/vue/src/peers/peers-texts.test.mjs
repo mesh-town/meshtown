@@ -24,11 +24,8 @@ describe("the refused-admission plate without names", () => {
   it("ADMISSION_REFUSED_NONE names the network", () => {
     assert.equal(ADMISSION_REFUSED_NONE("family"), 'Members of "family" refuse to let it in, and no other member is online.');
   });
-  it("the ask: a member when no name is known; one name; one of them", () => {
-    assert.ok(admissionRefusedAsk([], "family", false).startsWith("Ask a member "));
-    assert.ok(admissionRefusedAsk(["anna"], "family", false).startsWith("Ask anna "));
-    assert.ok(admissionRefusedAsk(["a", "b"], "family", false).startsWith("Ask one of them "));
-    assert.ok(admissionRefusedAsk([], "family", true).startsWith('Ask an admin of "family" '));
+  it("the ask goes to an admin", () => {
+    assert.ok(admissionRefusedAsk("family").startsWith('Ask an admin of "family" '));
   });
 });
 

@@ -11,7 +11,6 @@ use std::collections::BTreeSet;
 use crate::node::output::say;
 use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
 
-use super::authority::Rules;
 use super::boot_plan::{plan_admits, BootPlan};
 use super::record::{
     self, parse_entry, AclKind, AclValue, Parsed, Via, BLOCK_PREFIX, BOOT_KEY, BOOT_NOTE_ADMISSION,
@@ -26,8 +25,8 @@ pub struct AccessBoot {
     pub initial: Vec<PeerId>,
     pub cached: Vec<PeerId>,
     pub now_unix: u64,
-    /// The counting rules of the network: whose exclusions and admissions count.
-    pub rules: Rules,
+    /// The creator of the network.
+    pub root: PeerId,
 }
 
 /// The kind of run, for the log line.

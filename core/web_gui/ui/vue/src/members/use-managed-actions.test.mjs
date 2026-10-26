@@ -7,7 +7,7 @@ import { useManagedActions } from "./use-managed-actions.ts";
 import { PEER_FULL, SELF_FULL } from "../testing/section.mjs";
 import { membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
 
-const reply = () => membersReply({ rows: [selfRow({ admin: true }), peerOneRow({ admin: true })], kind: "Managed", admins: [SELF_FULL, PEER_FULL], me_admin: true });
+const reply = () => membersReply({ rows: [selfRow({ admin: true }), peerOneRow({ admin: true })], admins: [SELF_FULL, PEER_FULL], me_admin: true });
 
 function setup(api) {
   const store = { lead: "main", members: null, slots: {}, nets: [] };
@@ -23,7 +23,7 @@ describe("setAdmin", () => {
     const { actions, store, status, wake } = setup(api);
     await actions.setAdmin(PEER_FULL, true, "main");
     assert.deepEqual(api.mock.calls[0], ["POST", "/api/members/admin", { id: PEER_FULL, admin: true }]);
-    assert.equal(store.members.kind, "Managed");
+    assert.deepEqual(store.members.admins, [SELF_FULL, PEER_FULL]);
     assert.equal(status.value.text, 'boris is now an admin of "work"');
     assert.equal(wake.mock.calls.length, 1);
   });

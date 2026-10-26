@@ -5,17 +5,12 @@ const WIRE_PREFIX: &str = "code 403: ";
 /// Why a node is not let in.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Deny {
-    /// I left the network myself; an exclusion by votes does not use this reason.
+    /// I left the network myself.
     Left,
     Excluded,
-    VotedByMe,
     Blocked,
-    /// The node was removed from the network by enough votes.
-    Forgotten,
-    /// I proposed removing the node and the vote still stands.
-    RemovedByMe,
     Unlisted,
-    /// Only from the wire: the other side refused by its own vote or block.
+    /// Only from the wire: the other side refused by its own block.
     Refused,
 }
 
@@ -25,8 +20,7 @@ impl Deny {
         match self {
             Deny::Left => b"left",
             Deny::Excluded => b"excluded",
-            Deny::VotedByMe | Deny::RemovedByMe | Deny::Blocked | Deny::Refused => b"refused",
-            Deny::Forgotten => b"removed",
+            Deny::Blocked | Deny::Refused => b"refused",
             Deny::Unlisted => b"not admitted",
         }
     }
@@ -36,10 +30,7 @@ impl Deny {
         match self {
             Deny::Left => "left",
             Deny::Excluded => "excluded",
-            Deny::VotedByMe => "voted_by_me",
-            Deny::RemovedByMe => "removed_by_me",
             Deny::Blocked => "blocked",
-            Deny::Forgotten => "removed",
             Deny::Unlisted => "unlisted",
             Deny::Refused => "refused",
         }
@@ -51,7 +42,6 @@ impl Deny {
             "left" => Some(Deny::Left),
             "excluded" => Some(Deny::Excluded),
             "refused" => Some(Deny::Refused),
-            "removed" => Some(Deny::Forgotten),
             "not admitted" => Some(Deny::Unlisted),
             _ => None,
         }

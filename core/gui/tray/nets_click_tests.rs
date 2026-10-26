@@ -14,7 +14,7 @@ mod parse_menu_id {
     #[test]
     fn fixed_items_keep_their_ids() {
         assert_eq!(parse_menu_id("open"), MenuTarget::Open);
-        assert_eq!(parse_menu_id("vote"), MenuTarget::Vote);
+        assert_eq!(parse_menu_id("admit"), MenuTarget::Admit);
         assert_eq!(parse_menu_id("node"), MenuTarget::Node);
         assert_eq!(parse_menu_id("quit"), MenuTarget::Quit);
     }
@@ -281,7 +281,7 @@ mod node_cmd_for {
     fn targets_the_core_handles_itself_give_no_command() {
         let targets = [
             MenuTarget::Open,
-            MenuTarget::Vote,
+            MenuTarget::Admit,
             MenuTarget::Node,
             MenuTarget::Quit,
             MenuTarget::Members("ab12cd".into()),
@@ -306,7 +306,7 @@ fn facts(nets: &[(&str, bool, bool)]) -> MenuFacts {
     };
     MenuFacts {
         nets: nets.iter().map(net).collect(),
-        vote_slot: None,
+        admit_slot: None,
     }
 }
 

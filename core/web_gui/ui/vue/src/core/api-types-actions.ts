@@ -1,7 +1,6 @@
 /* Node API types: actions, network, token, error bodies. Types only; the shared header and rules are in `api-types.ts`. */
 
 import type { ConfigDocument, ConfigFileInfo, FieldError } from "./api-types-config.ts";
-import type { NetKind } from "./api-types-state.ts";
 
 // ---------------------------------------------------------------- actions and network
 
@@ -27,7 +26,7 @@ export interface InviteResponse {
 /** Invite reach: who will be able to let a newcomer in. */
 type InviteReach = "issuer_only" | "issuer_and_one" | "spread";
 
-/** Body of `POST /api/network/join`: a key, `mesh1-…` or an invite. */
+/** Body of `POST /api/network/join`: a key or an invite. */
 export interface JoinRequest {
   key: string;
 }
@@ -45,13 +44,11 @@ export interface JoinResponse {
 /** Body of `POST /api/network/create`. */
 export interface CreateNetworkRequest {
   label: string;
-  kind?: NetKind; // sent only for Managed
 }
 
 /** `POST /api/network/inspect`, 200: what a pasted invite leads to, before it is used. */
 export interface InspectResponse {
   label: string | null;
-  kind: NetKind;
   id_hex: string;
   /** For an invite: `new` — a slot will be taken, `return` — back into the slot that already holds this network, `here` — the node is in it. */
   place?: "new" | "return" | "here";

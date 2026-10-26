@@ -7,13 +7,12 @@ use axum::http::{Method, StatusCode};
 use serde_json::{json, Value};
 
 use crate::config::config_file::NetSlotId;
-use crate::members::network_key::format_key_string;
-use crate::members::words::generate_tail;
+use crate::members::network_key::test_net;
 use crate::web_gui::test_host::{config_with_key, send, slot_handle, test_app, FakeHost};
 use crate::web_gui::{HostControl, SlotHandle};
 
 fn new_key(label: &str) -> String {
-    format_key_string(Some(label), &generate_tail().unwrap())
+    test_net(label).text
 }
 
 struct Fixture {

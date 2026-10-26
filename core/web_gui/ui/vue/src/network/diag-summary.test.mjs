@@ -7,7 +7,7 @@ import { NET_NAME } from "../common/words.ts";
 import { diagnosticChecks } from "./diag-checks.ts";
 
 const SECRETS = {
-  masked: "mesh1-MASKEDSECRET",
+  masked: "mesh2-MASKEDSECRET",
   id_hex: "IDHEXSECRET0123",
   self_address: "203.0.113.77:41414",
   listen: "198.51.100.9:50505",
@@ -38,7 +38,7 @@ describe("buildSummary > whitelist", () => {
   });
 
   it("the invite and the key are not included", () => {
-    assert.doesNotMatch(summaryOf(secretState()), /mesh-invite[12]-|mesh1-/);
+    assert.doesNotMatch(summaryOf(secretState()), /mesh-invite[12]-|mesh2-/);
   });
 
   it("the version is the first line, then the status-light rows with icons", () => {

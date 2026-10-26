@@ -2,8 +2,8 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { GLOSSARY } from './glossary';
 
-/** Labels that can sit between a member's name and the country (ban vote, block). */
-const MEMBER_BADGES = 'Ban proposed|Blocked on this computer';
+/** Labels that can sit between a member's name and the country (block). */
+const MEMBER_BADGES = 'Blocked on this computer';
 
 /** What a member row action shows: "yes" — a button or a mark, "no" — refuses, "—" — nothing. */
 export type PeerExitAction = 'yes' | 'no' | '—';

@@ -8,7 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { visibleText } from "../testing/dom.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
-import { EXTRA_FULL, actionReply, extraRow, foreignVote, memberRow, membersReply, peerOneRow, peerTwoRow, selfRow } from "../testing/members-fixtures.mjs";
+import { EXTRA_FULL, actionReply, excludedInfo, memberRow, membersReply, pendingRow, peerOneRow, peerTwoRow, selfRow } from "../testing/members-fixtures.mjs";
 import { NET_A, NET_B, twoNets } from "../testing/overview-fixtures.mjs";
 import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { PEER2_FULL, SELF_FULL, baseConfig, baseState } from "../testing/section.mjs";
@@ -89,8 +89,8 @@ describe("two networks", () => {
       expect(page.tabNamed("my devices").text()).toContain("· no connection");
     });
 
-    it("counts the requests to confirm of each network in a circle, not the number the summary gives", async () => {
-      const page = await openTwo({ patchA: { members: votesOnPeerOne() }, patchB: bNet({ voting: 7, rows: twoVotes() }) });
+    it("counts the join requests of each network in a circle, not the number the summary gives", async () => {
+      const page = await openTwo({ patchA: { members: oneRequest() }, patchB: bNet({ admitting: 7, rows: twoRequests() }) });
       expect(page.circleOf("friends").text()).toBe("1");
       expect(page.circleOf("friends").attributes("title")).toBe("1 to confirm");
       expect(page.circleOf("my devices").text()).toBe("2");
@@ -185,7 +185,7 @@ describe("clicking the second tab", () => {
   });
 
   it("sends a member action to that network's address", async () => {
-    const page = await openTwo();
+    const page = await openTwo({ patchB: bNet() });
     page.node.slotList[1].routes["POST /api/members/exclude"] = () => actionReply(bMembers([laptop(true), phone(true)]));
     await page.whenTabClicked("my devices");
     await page.whenMemberBanned(EXTRA_FULL);
@@ -239,8 +239,8 @@ describe("the invite on the second tab", () => {
 
 describe("the status under the list", () => {
   it("belongs to the tab where the action was done: the other tab starts empty", async () => {
-    const page = await openTwo();
-    page.node.routes["POST /api/members/exclude"] = () => actionReply(votesOnPeerOne());
+    const page = await openTwo({ patchA: { members: oneRequest() } });
+    page.node.routes["POST /api/members/exclude"] = () => actionReply(afterRemoval());
     await page.whenMemberBanned(PEER_ONE_FULL);
     expect(page.status(), "the action on the first network left a line").not.toBe("");
     await page.whenTabClicked("my devices");
@@ -303,17 +303,18 @@ const phone = (online) => otherPeer(PEER2_FULL, "cccc3333", "pocket", online);
 const tablet = (online) => otherPeer(FULL_E, "eeee5555", "tablet", online);
 const rowOf = (p) => memberRow({ id: p.id, id_full: p.id_full, name: p.name, online: p.online });
 
-const bMembers = (others) => membersReply({ rows: [selfRow(), ...others.map(rowOf)] });
-const votesOnPeerOne = () => membersReply({ rows: [selfRow(), peerOneRow({ vote: foreignVote() }), peerTwoRow()] });
-const twoVotes = () => [selfRow(), extraRow({ vote: foreignVote() }), peerTwoRow({ id: "cccc3333", name: "pocket", online: true, vote: foreignVote() })];
+const bMembers = (others) => membersReply({ rows: [selfRow(), ...others.map(rowOf)], me_admin: true });
+const oneRequest = () => membersReply({ rows: [selfRow(), peerOneRow(), pendingRow()], me_admin: true });
+const twoRequests = () => [selfRow(), pendingRow(), pendingRow({ id: "ffff6666", id_full: "F".repeat(64) })];
+const afterRemoval = () => membersReply({ rows: [selfRow(), peerOneRow({ status: "excluded", excluded: excludedInfo() }), peerTwoRow()], me_admin: true });
 
-// The spec of B: `others` are its other members, `rows` replace the member rows, `voting` is the (unused) count of the summary.
-function bNet({ others = [laptop(true), phone(true)], rows = null, status = null, voting = 0, idHex = "net-bbbb", label = "my devices" } = {}) {
-  const base = baseState({ network: { id_hex: idHex, masked: "mesh1-••••-••••" }, peers: [selfPeer(), ...others] });
+// The spec of B: `others` are its other members, `rows` replace the member rows, `admitting` is the (unused) count of the summary.
+function bNet({ others = [laptop(true), phone(true)], rows = null, status = null, admitting = 0, idHex = "net-bbbb", label = "my devices" } = {}) {
+  const base = baseState({ network: { id_hex: idHex, masked: "mesh2-••••-••••" }, peers: [selfPeer(), ...others] });
   const node = status ? { ...base.node, status } : base.node;
-  const state = { ...base, node, members: { count: others.length, gossip_neighbors: 0, voting, me_excluded: false } };
+  const state = { ...base, node, members: { count: others.length, gossip_neighbors: 0, admitting, me_excluded: false } };
   const config = baseConfig({ ports: { published: [{ port: 8080, for: "all" }], opened: [] } });
-  return { label, id_hex: idHex, state, config, members: rows ? membersReply({ rows }) : bMembers(others) };
+  return { label, id_hex: idHex, state, config, members: rows ? membersReply({ rows, me_admin: true }) : bMembers(others) };
 }
 
 // The fixture's published port has no audience; real entries always have one.

@@ -10,13 +10,11 @@ import {
   EXTRA_FULL,
   excludedInfo,
   extraRow,
-  forgetInfo,
   membersReply,
   peerOneRow,
   peerTwoRow,
   selfRow,
   staleRow,
-  voteInfo,
 } from "../testing/members-fixtures.mjs";
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -69,32 +67,6 @@ describe("postMemberAction", () => {
     });
   });
 
-  describe("removal of a member", () => {
-    it.each(["forget", "unforget"])("%s: POST /api/members/%s with the id", async (action) => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, action, EXTRA_FULL);
-      assert.deepEqual(call(0), { method: "POST", path: "/api/members/" + action, body: { id: EXTRA_FULL } });
-    });
-
-    it("forget goes to the path of the slot, with { id }", async () => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, "forget", EXTRA_FULL, undefined, "n2");
-      assert.deepEqual(call(0), { method: "POST", path: "/api/net/n2/members/forget", body: { id: EXTRA_FULL } });
-    });
-
-    it("unforget goes to the path of the slot, with { id }", async () => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, "unforget", EXTRA_FULL, undefined, "n2");
-      assert.deepEqual(call(0), { method: "POST", path: "/api/net/n2/members/unforget", body: { id: EXTRA_FULL } });
-    });
-
-    it("a reason is never sent with forget", async () => {
-      const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
-      await postMemberAction(api, "forget", EXTRA_FULL, "lost laptop");
-      assert.deepEqual(call(0).body, { id: EXTRA_FULL });
-    });
-  });
-
   describe("the reason of a ban", () => {
     const bodyOf = async (action, id, reason) => {
       const { api, call } = setup({ reply: { ...membersReply(), changed: true } });
@@ -134,7 +106,7 @@ describe("postMemberAction", () => {
 
   describe("the result", () => {
     it("the parsed reply without `changed`, and `changed` next to it", async () => {
-      const reply = membersReply({ rows: [selfRow(), peerOneRow({ vote: voteInfo() })] });
+      const reply = membersReply({ rows: [selfRow(), peerOneRow({ admin: false })] });
       const { api } = setup({ reply: { ...reply, changed: true } });
       const result = await postMemberAction(api, "exclude", peerOneRow().id_full);
       assert.equal(result.changed, true);
@@ -182,7 +154,7 @@ function setup({ reply, fail } = {}) {
 function briefOf(id, label, over = {}) {
   return {
     id, label, id_hex: id === NET_A ? "net-aaaa" : "net-bbbb", status: "online", exit_enabled: false, proxy: id === NET_A,
-    route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
+    route_state: "direct", exits: [], joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
     peers_online: 1, peers_total: 2, ...over,
   };
 }

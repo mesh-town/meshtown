@@ -143,12 +143,12 @@ fn rates_of_wrong_type_are_none() {
 }
 
 #[test]
-fn members_read_voting_and_exclusion() {
-    let s = snap(json!({"members": {"voting": 3, "me_excluded": true, "count": 5}}));
+fn members_read_requests_and_exclusion() {
+    let s = snap(json!({"members": {"admitting": 3, "me_excluded": true, "count": 5}}));
     assert_eq!(
         s.members,
         TrayMembers {
-            voting: 3,
+            admitting: 3,
             me_excluded: true,
             ..TrayMembers::default()
         }
@@ -164,8 +164,8 @@ fn members_missing_or_foreign_types_give_defaults() {
             TrayMembers::default()
         );
     }
-    let s = snap(json!({"members": {"voting": "2", "me_excluded": "yes"}}));
+    let s = snap(json!({"members": {"admitting": "2", "me_excluded": "yes"}}));
     assert_eq!(s.members, TrayMembers::default());
-    let s = snap(json!({"members": {"voting": -1}}));
-    assert_eq!(s.members.voting, 0);
+    let s = snap(json!({"members": {"admitting": -1}}));
+    assert_eq!(s.members.admitting, 0);
 }

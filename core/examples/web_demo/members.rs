@@ -1,10 +1,9 @@
 //! Member list of the demo node: five fixed members and the rules of the member actions
-//! (exclusion votes, blocks, leaving). The JSON shape is built in `members_reply.rs`.
+//! (admission, exclusion, blocks, leaving). The JSON shape is built in `members_reply.rs`.
 
 use meshtown_core::web_gui::{ActionError, MemberActionReq, MemberError};
 
 use crate::managed::Roles;
-use crate::members_forget::ForgetState;
 use crate::node::{DemoNetworkOptions, DemoPeer};
 
 /// Stands for the demo node's own id inside the list (its real id follows `boot_id`, which can change).
@@ -14,17 +13,16 @@ const LOST_MSG: &str = "this computer is no longer in the network";
 
 pub(crate) struct Exit {
     pub(crate) how: &'static str,
+    /// Who removed the member: the administrators that did, or the member itself when it left.
     pub(crate) voters: Vec<String>,
 }
 
 pub(crate) enum Standing {
     Member,
-    /// Asked to join; `voters` holds the members that confirmed it.
+    /// Asked to join and waits for an administrator.
     Pending,
     Unlisted,
     Excluded(Exit),
-    /// Removed from the list by enough votes (see `members_forget.rs`).
-    Forgotten,
 }
 
 pub(crate) struct Entry {
@@ -33,27 +31,18 @@ pub(crate) struct Entry {
     pub(crate) name: Option<String>,
     pub(crate) online: bool,
     pub(crate) standing: Standing,
-    /// Pending exclusion votes (ids in time order); empty once the member is excluded.
-    pub(crate) voters: Vec<String>,
     pub(crate) blocked: bool,
-    /// Reason given with the first exclusion vote, if any.
-    pub(crate) reason: Option<String>,
     /// For whom the invitation of a pending node was made.
     pub(crate) label: Option<String>,
-    /// Signs of life and the circle of votes to remove the node.
-    pub(crate) forget: ForgetState,
 }
 
 pub(crate) struct DemoMembers {
     pub(crate) me_excluded: bool,
-    /// This computer was removed from the member list by the others (`--me-removed`).
-    pub(crate) me_removed: bool,
     /// This computer asked to join and waits for confirmations.
     pub(crate) me_pending: bool,
-    pub(crate) second_vote: bool,
     pub(crate) entries: Vec<Entry>,
-    /// Administrators and the creator of a managed network; `None` in a peer network.
-    pub(crate) roles: Option<Roles>,
+    /// Administrators and the creator of the network.
+    pub(crate) roles: Roles,
 }
 
 /// The demo id of a fake member: one byte repeated, so it is a valid 64-hex id.
@@ -74,11 +63,8 @@ pub(crate) fn entry(
         name: Some(name.to_string()),
         online,
         standing,
-        voters: Vec::new(),
         blocked: false,
-        reason: None,
         label: None,
-        forget: ForgetState::default(),
     }
 }
 
@@ -98,11 +84,8 @@ fn target_of(act: &MemberActionReq) -> Option<&str> {
         MemberActionReq::Exclude { id, .. }
         | MemberActionReq::Unexclude(id)
         | MemberActionReq::Admit(id)
-        | MemberActionReq::Unadmit(id)
         | MemberActionReq::Block(id)
         | MemberActionReq::Unblock(id)
-        | MemberActionReq::Forget(id)
-        | MemberActionReq::Unforget(id)
         | MemberActionReq::Grant(id)
         | MemberActionReq::Revoke(id) => Some(id),
         MemberActionReq::Leave | MemberActionReq::Close => None,
@@ -141,11 +124,10 @@ fn push_outsiders(entries: &mut Vec<Entry>, gone: Exit, with_pending: bool) {
 }
 
 impl DemoMembers {
-    /// You, `peer-one` (ordinary), `peer-two` (somebody else's ban proposal waits for a second voter),
-    /// `peer-three` (banned by votes) and `stray-laptop` (not in the list); with `--members-pending` also
-    /// `anna-laptop`, which `peer-one` has confirmed.
+    /// You, `peer-one` (ordinary), `peer-two`,
+    /// `peer-three` (banned) and `stray-laptop` (not in the list); with `--members-pending` also
+    /// `anna-laptop`, which waits for an administrator.
     pub(crate) fn new(peers: &[DemoPeer], opts: &DemoNetworkOptions) -> Self {
-        let (second_vote, me_excluded) = (opts.members_second_vote, opts.me_excluded);
         let mut entries = vec![entry(
             ME.to_string(),
             "".to_string(),
@@ -164,47 +146,25 @@ impl DemoMembers {
             )
         }));
         let ids: Vec<String> = entries.iter().skip(1).map(|e| e.id_full.clone()).collect();
-        if let [one, _] = ids.as_slice() {
-            entries[2].voters = vec![one.clone()];
-            entries[2].reason = Some("lost laptop".to_string());
-        }
+        let roles = Roles::new(opts.managed, &ids);
         let gone = Exit {
-            how: "votes",
-            voters: ids.clone(),
+            how: "removed",
+            voters: vec![roles.root.clone()],
         };
         push_outsiders(&mut entries, gone, opts.members_pending);
         let mut members = DemoMembers {
             me_excluded: false,
-            me_removed: opts.me_removed,
             me_pending: opts.me_pending,
-            second_vote,
             entries,
-            roles: Roles::new(opts.managed, &ids),
+            roles,
         };
-        if opts.members_forget {
-            members.push_forget_rows();
-        }
-        if me_excluded {
+        if opts.me_excluded {
             members.remove_me(Exit {
-                how: "votes",
+                how: "removed",
                 voters: ids.into_iter().take(1).collect(),
             });
         }
         members
-    }
-
-    /// Votes needed now: 1 while at most two members are in the list, otherwise 2.
-    pub(crate) fn need(&self) -> u8 {
-        let n = self
-            .entries
-            .iter()
-            .filter(|e| matches!(e.standing, Standing::Member))
-            .count();
-        if n <= 2 {
-            1
-        } else {
-            2
-        }
     }
 
     /// Applies an action; `Ok(changed)`.
@@ -236,13 +196,10 @@ impl DemoMembers {
             (_, Some(i)) if self.entries[i].id_full == ME => {
                 Err(refused("self_target", "use Leave for this computer"))
             }
-            (MemberActionReq::Exclude { reason, .. }, Some(i)) => self.exclude(i, reason.clone()),
+            (MemberActionReq::Exclude { .. }, Some(i)) => self.exclude(i),
             (MemberActionReq::Unexclude(_), Some(i)) => Ok(self.unexclude(i)),
             (MemberActionReq::Admit(_), Some(i)) => self.admit(i),
-            (MemberActionReq::Unadmit(_), Some(i)) => self.unadmit(i),
             (MemberActionReq::Block(_), Some(i)) => Ok(self.set_blocked(i, true)),
-            (MemberActionReq::Forget(_), Some(i)) => self.forget(i),
-            (MemberActionReq::Unforget(_), Some(i)) => self.unforget(i),
             (_, Some(i)) => Ok(self.set_blocked(i, false)),
         }
     }

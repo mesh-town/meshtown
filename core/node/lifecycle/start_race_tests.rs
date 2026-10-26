@@ -14,7 +14,6 @@ use tokio::time::{sleep, timeout, Instant};
 
 use super::{start_unless_stopped, ABANDONED_START_LIMIT, STOP_POLL};
 use crate::config::config_file::Settings;
-use crate::members::network_key::NetworkKey;
 use crate::node::node_ctl::{Cmd, NodeCtl};
 use crate::web_gui::NodeControl;
 
@@ -108,7 +107,7 @@ mod stop_during_a_hanging_start {
         // given: a hanging start and a network switch already waiting in the queue
         let fx = setup();
         fx.ctl
-            .switch_network(&NetworkKey::from_bytes([1; 32]).encode());
+            .switch_network(&crate::node::host::test_keys::managed_text(1));
 
         // when: a stop comes after it
         let (res, _) = fx

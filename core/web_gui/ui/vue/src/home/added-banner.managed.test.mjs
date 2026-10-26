@@ -1,5 +1,5 @@
-/* The banner after joining a Managed network in the live path: `addedBannerText` and `arrivedBannerText` take the names
- * of the admins from the slot's snapshot and member list; a Peer slot gets the plain sentence. */
+/* The banner after joining a network in the live path: `addedBannerText` and `arrivedBannerText` take the names
+ * of the admins from the slot's snapshot and member list; a slot without admins gets the plain sentence. */
 
 import { describe, expect, it } from "vitest";
 import { MAIN, setup } from "../core/overview-test-support.mjs";
@@ -19,25 +19,25 @@ function open(network) {
 }
 
 describe("arrivedBannerText", () => {
-  it("lists the admins of a Managed network by name", () => {
-    const store = open({ kind: "Managed", admins: [ANNA, BOB] });
+  it("lists the admins by name", () => {
+    const store = open({ admins: [ANNA, BOB] });
     expect(arrivedBannerText(store, MAIN)).toBe('You joined "friends". Only admins invite and remove members here. Admins: anna, bob.');
   });
 
   it("an admin the list does not know goes by the short id", () => {
-    const store = open({ kind: "Managed", admins: [ANNA, GHOST] });
+    const store = open({ admins: [ANNA, GHOST] });
     expect(arrivedBannerText(store, MAIN)).toContain("Admins: anna, d3d3d3d3.");
   });
 
-  it("a Peer network gets the plain sentence", () => {
+  it("a network with no known admins gets the plain sentence", () => {
     expect(arrivedBannerText(open({}), MAIN)).toBe('You joined "friends".');
   });
 });
 
 describe("addedBannerText", () => {
-  it("a finished join of a Managed network names the admins", () => {
-    const store = open({ kind: "Managed", admins: [ANNA] });
-    const form = { slot: MAIN, netLabel: "friends", kind: "Peer" };
+  it("a finished join names the admins", () => {
+    const store = open({ admins: [ANNA] });
+    const form = { slot: MAIN, netLabel: "friends" };
     expect(addedBannerText(store, form, "joined")).toBe('You joined "friends". Only admins invite and remove members here. Admins: anna.');
   });
 });

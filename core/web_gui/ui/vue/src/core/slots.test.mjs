@@ -274,7 +274,7 @@ describe("a refused join", () => {
 function brief(id, over = {}) {
   return {
     id, label: null, id_hex: null, status: "running", exit_enabled: false, proxy: id === "main",
-    route_state: "direct", exits: [], members_voting: 1, joining: false, members_admitting: 0,
+    route_state: "direct", exits: [], joining: false, members_admitting: 0,
     me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, admission_refused: false, ...over,
   };
 }

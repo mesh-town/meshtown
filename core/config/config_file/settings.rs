@@ -52,10 +52,10 @@ impl Settings {
     /// from the process block. The production start path goes only through this function.
     pub fn node_config(
         &self,
-        network_key: crate::members::network_key::NetworkKey,
+        key: crate::members::network_key::NetworkKeyInput,
         node_secret: NodeSecret,
     ) -> crate::node::NodeConfig {
-        let mut cfg = crate::node::NodeConfig::for_cli(network_key, &self.net);
+        let mut cfg = crate::node::NodeConfig::for_cli(key, &self.net);
         cfg.identity_secret = Some(node_secret);
         cfg
     }

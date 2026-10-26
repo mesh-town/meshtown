@@ -1,29 +1,13 @@
-//! The reasons of pending exclusions: what the first voter noted, when it is fit to show.
+//! The labels of admission requests: the note an admitting administrator left, when it is fit to show.
 //!
-//! What it does: picks, for each pending subject, the note of the first voter's `acl/exclude/<subject>`
-//! record and keeps it only if it is non-blank, within the limit and free of control characters.
+//! What it does: picks, for each requesting node, the newest note of an `acl/admit/<subject>` record written
+//! by an admitted author and keeps it only if it is non-blank, within the limit and free of control characters.
 //! What it doesn't do: no tally and no replica reads; the entries come from the caller's scan.
-
-use std::collections::BTreeMap;
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::record::{
-    admit_key, exclude_key, parse_entry, AclKind, AclValue, Parsed, MAX_NOTE_CHARS,
-};
+use super::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, MAX_NOTE_CHARS};
 use super::tally::Ledger;
-
-/// Per pending subject, the shown reason of its proposer.
-pub(super) fn reasons_of(ledger: &Ledger, entries: &[ReplicaEntry]) -> BTreeMap<PeerId, String> {
-    let reason = |(subject, pending): (&PeerId, &super::tally::PendingVote)| {
-        let proposer = pending.voters.first()?;
-        let entry = entries
-            .iter()
-            .find(|e| e.author == *proposer && e.key == exclude_key(subject))?;
-        Some((*subject, shown(note_of(entry)?)?))
-    };
-    ledger.pending.iter().filter_map(reason).collect()
-}
 
 /// Fills `Admission.label` of each request: the newest shown note among the admit records of admitted authors.
 pub(super) fn label_admissions(ledger: &mut Ledger, entries: &[ReplicaEntry]) {
@@ -67,13 +51,6 @@ fn admit_note(entry: &ReplicaEntry) -> Option<(u64, String)> {
                 },
             ..
         } if !note.trim().is_empty() => Some((made_unix, note)),
-        _ => None,
-    }
-}
-
-fn note_of(entry: &ReplicaEntry) -> Option<String> {
-    match parse_entry(entry) {
-        Parsed::Record { value, .. } => Some(value.note),
         _ => None,
     }
 }

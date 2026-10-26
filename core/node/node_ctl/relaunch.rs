@@ -8,7 +8,7 @@ use anyhow::Context;
 
 use crate::config::config_file::{CliOverrides, RunConfig, Settings, SettingsFile};
 use crate::config::docs_store;
-use crate::members::network_key::{self, NetworkKey};
+use crate::members::network_key::{self, NetworkKeyInput};
 use crate::members::peer_names;
 use crate::node::output::{say, NET_NAME};
 use crate::node::NodeConfig;
@@ -31,7 +31,7 @@ pub struct Relaunch {
 }
 
 impl Relaunch {
-    pub fn node_config(&self, s: &Settings, key: NetworkKey) -> NodeConfig {
+    pub fn node_config(&self, s: &Settings, key: NetworkKeyInput) -> NodeConfig {
         let mut cfg = s.node_config(key, self.secret.clone());
         cfg.initial_domains = self.initial_domains.clone();
         cfg.blocked_domains = self.blocked_domains.clone();
@@ -98,23 +98,11 @@ impl Relaunch {
         cli.network_key = None;
         cli.apply(&mut s);
         s.net.network_key = Some(key_text.to_string());
-        let mut cfg = self.node_config(&s, parsed.key.clone());
-        apply_key_input(&mut cfg, &parsed);
+        let mut cfg = self.node_config(&s, parsed);
         // A network entered at run time counts its list like a live node, also on the test network: the
         // invite's peers are written as witnesses by the start, so the first verdict does not cut their link.
         cfg.open_list = false;
         Ok((s, cfg))
-    }
-}
-
-/// Puts what the parsed key says (label, kind, reply secret) into `cfg`. An administered network always
-/// counts its membership list, even on the in-process test network that leaves the list open.
-pub(crate) fn apply_key_input(cfg: &mut NodeConfig, parsed: &network_key::NetworkKeyInput) {
-    cfg.network_label = parsed.label.clone();
-    cfg.net_kind = parsed.kind;
-    cfg.reply_secret = NetworkKey::from_bytes(parsed.reply_secret());
-    if cfg.net_kind.root().is_some() {
-        cfg.open_list = false;
     }
 }
 

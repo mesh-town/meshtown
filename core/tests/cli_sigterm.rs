@@ -17,7 +17,8 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
+use meshtown_core::transport::net::NodeSecret;
 
 /// The time from SIGTERM to the process exit.
 const EXIT_LIMIT: Duration = Duration::from_secs(5);
@@ -41,7 +42,7 @@ struct Proc {
 
 impl Proc {
     fn start() -> Proc {
-        let key = NetworkKey::generate().unwrap().encode();
+        let key = managed_key_text();
         let mut child = Command::new(env!("CARGO_BIN_EXE_meshtown"))
             .args(["run", "--no-config", "--key", &key, "--web-port", "0"])
             .args(["--no-checks", "--no-socks"])
@@ -201,4 +202,11 @@ fn sigterm_during_start_exits_quickly_with_zero_and_message() {
         "the process waited for the start to end: {:#?}",
         node.seen
     );
+}
+
+/// A Managed network key of a fresh base, created by an arbitrary node.
+fn managed_key_text() -> String {
+    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    let base = NetworkKey::generate().unwrap().to_bytes();
+    managed_key_with_label(None, &base, &root)
 }

@@ -9,8 +9,7 @@ use bytes::Bytes;
 
 use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
 use crate::members::access::record::{
-    admit_key, block_key, encode, exclude_key, parse_entry, AclKind, AclValue, Parsed, Via,
-    VOTE_AT_MOMENT,
+    admit_key, block_key, encode, exclude_key, grant_key, AclKind, AclValue, Via,
 };
 use crate::members::access::runtime::Access;
 use crate::members::access::tally::{How, Ledger};
@@ -23,20 +22,11 @@ use crate::transport::net::{
     BoxFuture, NetError, NetResult, PeerId, Replica, ReplicaEntry, ReplicaEvent, ReplicaId,
 };
 
-#[path = "actions_exclude_tests.rs"]
-mod exclude_and_unexclude;
-
 #[path = "actions_block_tests.rs"]
 mod block_and_self_target;
 
 #[path = "actions_leave_tests.rs"]
 mod leave_and_failure;
-
-#[path = "actions_reason_tests.rs"]
-mod reason_and_withdrawal;
-
-#[path = "actions_admit_tests.rs"]
-mod admit_and_unadmit;
 
 // --- setup and helpers ---
 
@@ -47,6 +37,11 @@ struct World {
     me: PeerId,
     fail_writes: Arc<AtomicBool>,
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
+}
+
+/// The creator of the network: another node, who admitted everybody and made `me` an administrator.
+fn root() -> PeerId {
+    pid(30)
 }
 
 /// The node (seed 1) with `listed` admitted by it; the view starts pending, as in a real start.
@@ -80,7 +75,7 @@ fn build(listed: &[PeerId], failing: bool) -> World {
         false => shared.clone(),
     };
     let members = Members::with_access(AccessView::pending());
-    let access = Access::from_parts(node.peer_id(), seen_by_access, own.clone(), members);
+    let access = Access::from_parts(node.peer_id(), seen_by_access, own.clone(), members, root());
     let world = World {
         access,
         shared,
@@ -89,7 +84,10 @@ fn build(listed: &[PeerId], failing: bool) -> World {
         fail_writes,
         _keep: (net, backend),
     };
-    listed.iter().for_each(|p| world.given_admit(world.me, *p));
+    // `me` is an administrator granted the role by the creator, so leaving is not the last admin's exit
+    world.given_admit(root(), world.me);
+    world.given_record(root(), grant_key(&world.me), AclKind::Grant, world.me, 2);
+    listed.iter().for_each(|p| world.given_admit(root(), *p));
     world
 }
 
@@ -97,17 +95,6 @@ impl World {
     /// An admit record of `author` for `subject` at a time long ago.
     fn given_admit(&self, author: PeerId, subject: PeerId) {
         self.given_record(author, admit_key(&subject), AclKind::Admit, subject, 1);
-    }
-
-    /// An exclusion vote of `voter` against `subject` at the given time.
-    fn given_vote(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
-        self.given_record(
-            voter,
-            exclude_key(&subject),
-            AclKind::Exclude,
-            subject,
-            ts_micros,
-        );
     }
 
     fn given_record(
@@ -130,39 +117,6 @@ impl World {
             author,
             key,
             value,
-            ts_micros,
-        });
-    }
-
-    /// An admit record of `author` for `subject` made at `made_unix`, written at the same time.
-    fn given_admit_at(&self, author: PeerId, subject: PeerId, made_unix: u64) {
-        let value = AclValue {
-            kind: AclKind::Admit,
-            subject,
-            via: Via::Invite,
-            made_unix,
-            note: String::new(),
-        };
-        self.put(author, admit_key(&subject), value, made_unix * 1_000_000);
-    }
-
-    /// An exclusion vote of `voter` against `subject` cast at `secs` seconds, with the moment mark.
-    fn given_vote_at_moment(&self, voter: PeerId, subject: PeerId, secs: u64) {
-        let value = AclValue {
-            kind: AclKind::Exclude,
-            subject,
-            via: VOTE_AT_MOMENT,
-            made_unix: secs,
-            note: String::new(),
-        };
-        self.put(voter, exclude_key(&subject), value, secs * 1_000_000);
-    }
-
-    fn put(&self, author: PeerId, key: Vec<u8>, value: AclValue, ts_micros: u64) {
-        self.shared.put_raw(ReplicaEntry {
-            author,
-            key,
-            value: Bytes::from(encode(&value)),
             ts_micros,
         });
     }
@@ -197,19 +151,6 @@ impl World {
         let all = replica.scan(key).await.unwrap();
         all.into_iter()
             .find(|e| e.author == self.me && e.key == key)
-    }
-
-    /// Subjects of my live exclusion votes.
-    async fn vote_subjects(&self) -> Vec<PeerId> {
-        let all = self.shared.scan(b"acl/exclude/").await.unwrap();
-        let mine = all
-            .iter()
-            .filter(|e| e.author == self.me && !e.is_tombstone());
-        mine.filter_map(|e| match parse_entry(e) {
-            Parsed::Record { value, .. } => Some(value.subject),
-            _ => None,
-        })
-        .collect()
     }
 
     async fn shared_entries(&self) -> Vec<ReplicaEntry> {

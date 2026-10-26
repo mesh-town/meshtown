@@ -13,7 +13,7 @@ describe("useDiagnostics > network key", () => {
     const w = await setupShown();
     await nextTick();
     assert.equal(w.d.networkKeyState.value.shown, true);
-    assert.equal(w.d.networkKeyState.value.full, "mesh1-FULLKEY");
+    assert.equal(w.d.networkKeyState.value.full, "mesh2-FULLKEY");
     w.unmount();
   });
 
@@ -60,7 +60,7 @@ describe("useDiagnostics > views", () => {
 function withNetwork(idHex) {
   return {
     node: { status: "online", uptime_sec: 60, version: "1.2.3" },
-    network: { label: "home", masked: "mesh1-aa", id_hex: idHex },
+    network: { label: "home", masked: "mesh2-aa", id_hex: idHex },
     log: { tail: [{ seq: 1, t: 1, tag: "x", text: "y" }], last_seq: 1 },
   };
 }
@@ -75,7 +75,7 @@ function setup() {
   const store = createStore();
   store.state = withNetwork("id-aaaa");
   const deps = {
-    api: async () => ({ key: "mesh1-FULLKEY" }),
+    api: async () => ({ key: "mesh2-FULLKEY" }),
     clipboard: null,
     setTimer: () => 1,
     clearTimer: () => {},
@@ -87,15 +87,15 @@ function setup() {
 describe("useDiagnostics > keyText", () => {
   it("the mask, after \"Show\" the full key, after \"Hide\" the mask, a network change — the mask of the new network", async () => {
     const w = setup();
-    assert.equal(w.d.keyText.value, "mesh1-aa");
+    assert.equal(w.d.keyText.value, "mesh2-aa");
     assert.equal(await w.d.toggleKey(), "shown");
-    assert.equal(w.d.keyText.value, "mesh1-FULLKEY");
+    assert.equal(w.d.keyText.value, "mesh2-FULLKEY");
     assert.equal(await w.d.toggleKey(), "hidden");
-    assert.equal(w.d.keyText.value, "mesh1-aa");
+    assert.equal(w.d.keyText.value, "mesh2-aa");
     await w.d.toggleKey();
-    w.store.state = { ...withNetwork("id-bbbb"), network: { label: "w", masked: "mesh1-bb", id_hex: "id-bbbb" } };
+    w.store.state = { ...withNetwork("id-bbbb"), network: { label: "w", masked: "mesh2-bb", id_hex: "id-bbbb" } };
     await nextTick();
-    assert.equal(w.d.keyText.value, "mesh1-bb");
+    assert.equal(w.d.keyText.value, "mesh2-bb");
     w.unmount();
   });
 });

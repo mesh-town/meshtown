@@ -95,11 +95,11 @@ describe("leaving a network from the Members tab (useMembersActions)", () => {
 
   describe("the node did not leave (left: false)", () => {
     it("the slice stays, the briefs of the reply replace `nets`", async () => {
-      const nets = [briefOf(NET_A, "friends"), briefOf(NET_B, "my devices", { members_voting: 1 })];
+      const nets = [briefOf(NET_A, "friends"), briefOf(NET_B, "my devices", { members_admitting: 1 })];
       const env = await setupPage(twoNets(), { leaveAnswer: { ...membersReply(), left: false, announced: false, nets } });
       await env.leave(NET_B);
       assert.ok(env.store.slots[NET_B], "the slice of B must stay");
-      assert.equal(env.store.nets[1].members_voting, 1);
+      assert.equal(env.store.nets[1].members_admitting, 1);
       assert.deepEqual(env.bus, ["state"]);
     });
 
@@ -282,7 +282,7 @@ function setup({ reply, fail } = {}) {
 function briefOf(id, label, over = {}) {
   return {
     id, label, id_hex: id === NET_A ? "net-aaaa" : "net-bbbb", status: "online", exit_enabled: false, proxy: id === NET_A,
-    route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
+    route_state: "direct", exits: [], joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
     peers_online: 1, peers_total: 2, ...over,
   };
 }

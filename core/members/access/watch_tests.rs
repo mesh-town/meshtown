@@ -11,7 +11,7 @@ use bytes::Bytes;
 
 use super::*;
 use crate::members::access::record::{
-    admit_key, decode, encode, exclude_key, AclKind, AclValue, Via,
+    admit_key, decode, encode, exclude_key, grant_key, AclKind, AclValue, Via,
 };
 use crate::members::access::view::{AccessView, Deny};
 use crate::members::membership::Members;
@@ -50,10 +50,11 @@ mod watcher {
 
     #[tokio::test]
     async fn remote_exclusion_publishes_and_cuts() {
-        // given: four nodes on the list, a connected; the watcher has published the view
+        // given: three nodes on the list, b an admin, a connected; the watcher has published the view
         let mut rig = setup();
-        let (a, b, c) = (pid(2), pid(3), pid(4));
-        [a, b, c].iter().for_each(|p| rig.given_admit(rig.me, *p));
+        let (a, b) = (pid(2), pid(3));
+        [a, b].iter().for_each(|p| rig.given_admit(rig.me, *p));
+        rig.given_grant(b);
         let link = rig.given_connection(2).await;
         rig.when_watching();
         eventually("a published view", || rig.view().verdicts().is_some()).await;
@@ -61,9 +62,8 @@ mod watcher {
             !link.conn.is_closed(),
             "a listed neighbour must stay connected"
         );
-        // when: b and c vote against a through the synchronization
-        rig.given_vote(b, a, 100);
-        rig.given_vote(c, a, 200);
+        // when: the admin b excludes a, and the record arrives through the synchronization
+        rig.given_exclusion(b, a, 100);
         // then: a is denied and its connection is closed with the reason of the denial
         eventually("the connection of a is cut", || link.conn.is_closed()).await;
         assert_eq!(rig.view().check(a), Err(Deny::Excluded));
@@ -106,11 +106,13 @@ mod witnesses {
 
     #[tokio::test]
     async fn witness_admits_only_connected_members() {
-        // given: b and d are admitted by me, both admitted a and c; a and the unlisted x are connected, c is not
+        // given: b and d are admins admitted by me, both admitted a and c; a and the unlisted x are connected, c is not
         let rig = setup();
         let (a, b, c, d, x) = (pid(2), pid(3), pid(4), pid(5), pid(9));
         rig.given_admit(rig.me, b);
         rig.given_admit(rig.me, d);
+        rig.given_grant(b);
+        rig.given_grant(d);
         rig.given_admit(b, a);
         rig.given_admit(b, c);
         rig.given_admit(d, a);
@@ -165,14 +167,14 @@ mod witnesses {
 
     #[tokio::test]
     async fn excluded_connected_node_gets_no_witness() {
-        // given: a is listed by b and c and excluded by the votes of b and me; connected
+        // given: a is listed by the admins b and c and excluded by b; connected
         let rig = setup();
         let (a, b, c) = (pid(2), pid(3), pid(4));
         [b, c].iter().for_each(|p| rig.given_admit(rig.me, *p));
+        [b, c].iter().for_each(|p| rig.given_grant(*p));
         rig.given_admit(b, a);
         rig.given_admit(c, a);
-        rig.given_vote(b, a, 100);
-        rig.given_vote(c, a, 200);
+        rig.given_exclusion(b, a, 100);
         rig.members.add_verified_conn(a);
         // when: the verdicts are recomputed
         rig.refresh().await;
@@ -216,7 +218,13 @@ fn setup() -> Rig {
     let shared = backend.replica_mem(REPLICA_NET).unwrap();
     let own = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let members = Members::with_access(AccessView::pending());
-    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members.clone());
+    let access = Access::from_parts(
+        node.peer_id(),
+        shared.clone(),
+        own,
+        members.clone(),
+        node.peer_id(),
+    );
     Rig {
         access: Arc::new(access),
         shared,
@@ -275,20 +283,35 @@ impl Rig {
         });
     }
 
+    /// An admission; the creator's come first, those of the administrators after the role was given.
     fn given_admit(&self, author: PeerId, subject: PeerId) {
+        let ts_micros = if author == self.me { 1 } else { 3 };
         self.given_record(
             author,
             admit_key(&subject),
             AclKind::Admit,
             subject,
             Via::Invite,
-            1,
+            ts_micros,
         );
     }
 
-    fn given_vote(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
+    /// The role of an administrator, given to `subject` by the creator (me).
+    fn given_grant(&self, subject: PeerId) {
         self.given_record(
-            voter,
+            self.me,
+            grant_key(&subject),
+            AclKind::Grant,
+            subject,
+            Via::None,
+            2,
+        );
+    }
+
+    /// An exclusion of `subject` written by `author` at `ts_micros`.
+    fn given_exclusion(&self, author: PeerId, subject: PeerId, ts_micros: u64) {
+        self.given_record(
+            author,
             exclude_key(&subject),
             AclKind::Exclude,
             subject,

@@ -3,10 +3,9 @@
 
 use std::collections::BTreeSet;
 
-use crate::members::access::authority::Rules;
 // assumed: the support module of the managed tests is `managed::support`.
 use crate::members::access::managed::support::{permutations, Scene};
-use crate::members::access::tally::{tally, How, Ledger, TallyInput};
+use crate::members::access::tally::{tally, How, Ledger};
 use crate::transport::net::contract::pid;
 use crate::transport::net::PeerId;
 
@@ -213,17 +212,10 @@ mod ledger_fields {
         assert_eq!(exclusion.voters, vec![pid(A)]);
         assert_eq!(ledger.excluded.len(), 1);
         assert!(ledger.closed.is_none());
-        // then: one vote is enough, and there are no vote circles
-        assert_eq!(ledger.need, 1);
-        assert!(ledger.pending.is_empty() && ledger.forgets.is_empty());
-        assert_eq!(ledger.forget_need, 1);
-        assert!(ledger.admit_unix.is_empty() && ledger.forget_marks.is_empty());
         // then: a request is a record of an admin that did not count; one admin answers it
         let requests: BTreeSet<PeerId> = ledger.admissions.keys().copied().collect();
         assert_eq!(requests, BTreeSet::from([w, z]));
-        let request = &ledger.admissions[&z];
-        assert_eq!((request.voters.len(), request.need), (0, 1));
-        assert_eq!(request.label, None);
+        assert_eq!(ledger.admissions[&z].label, None);
     }
 
     #[test]
@@ -238,29 +230,63 @@ mod ledger_fields {
     }
 }
 
-mod peer_rules {
+mod old_forget_records {
     use super::*;
+    use crate::members::access::record::tally_input;
+    use crate::members::access::record::{admit_key, encode, AclKind, AclValue, Via};
+    use crate::transport::net::ReplicaEntry;
+    use bytes::Bytes;
+
+    fn admit(author: u8, subject: u8, ts: u64) -> ReplicaEntry {
+        let value = AclValue {
+            kind: AclKind::Admit,
+            subject: pid(subject),
+            via: Via::Invite,
+            made_unix: ts,
+            note: String::new(),
+        };
+        ReplicaEntry {
+            author: pid(author),
+            key: admit_key(&pid(subject)),
+            value: Bytes::from(encode(&value)),
+            ts_micros: ts * 1_000_000,
+        }
+    }
+
+    /// A record of the removed kind 5, assembled by hand: version 1, kind 5, subject, via 0, time, empty note.
+    fn forget(author: u8, subject: u8) -> ReplicaEntry {
+        let mut value = vec![1, 5];
+        value.extend(pid(subject).as_bytes());
+        value.extend([0, 1, 0]);
+        ReplicaEntry {
+            author: pid(author),
+            key: forget_key_of(subject),
+            value: Bytes::from(value),
+            ts_micros: 50_000_000,
+        }
+    }
+
+    fn forget_key_of(subject: u8) -> Vec<u8> {
+        let mut key = b"acl/forget/".to_vec();
+        key.extend(pid(subject).to_string().as_bytes());
+        key
+    }
 
     #[test]
-    fn peer_rules_ignore_powers() {
-        // given: the same records read under the peer rules, with grants and a close among them
-        let mut scene = setup();
-        scene
-            .admit(10, pid(ROOT), pid(A))
-            .grant(20, pid(ROOT), pid(A))
-            .revoke(25, pid(ROOT), pid(B))
-            .close(30, pid(ROOT));
-        let with_powers = scene.input_under(Rules::Peer);
-        let without = TallyInput {
-            powers: vec![],
-            ..with_powers.clone()
-        };
+    fn old_forget_records_do_not_change_the_list() {
+        // given: the root, an admin A and a member B; then the same entries plus a kind 5 record
+        // about B written by the root
+        let plain = vec![admit(ROOT, A, 10), admit(ROOT, B, 11)];
+        let mut with_forget = plain.clone();
+        with_forget.push(forget(ROOT, B));
         // when
-        let ledger = tally(&with_powers);
-        // then: nobody is an admin, the network is open, and the ledger is the one without the powers
-        assert!(ledger.admins.is_empty());
-        assert!(ledger.closed.is_none());
-        assert_eq!(ledger, tally(&without));
+        let (first, first_ignored) = tally_input(pid(ROOT), pid(ROOT), &plain);
+        let (second, second_ignored) = tally_input(pid(ROOT), pid(ROOT), &with_forget);
+        let (a, b) = (tally(&first), tally(&second));
+        // then: the lists are equal, B is a member, and the old record is counted as ignored
+        assert_eq!(a, b);
+        assert!(b.is_member(&pid(B)));
+        assert_eq!(second_ignored, first_ignored + 1);
     }
 }
 

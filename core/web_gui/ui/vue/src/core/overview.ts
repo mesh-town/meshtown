@@ -18,10 +18,9 @@ const count = (v: unknown): number => (typeof v === "number" && Number.isFinite(
 const oneOf = (v: unknown, list: readonly string[]): string => (typeof v === "string" && list.includes(v) ? v : "unavailable");
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
-// The Managed fields of a brief; a Peer-only node sends none and the brief stays without them.
-function managedBrief(raw: Raw): Pick<NetBrief, "kind" | "me_admin" | "can_invite"> {
-  const out: Pick<NetBrief, "kind" | "me_admin" | "can_invite"> = {};
-  if (raw.kind === "Managed" || raw.kind === "Peer") out.kind = raw.kind;
+// The role fields of a brief; a node that does not send them leaves the brief without them.
+function managedBrief(raw: Raw): Pick<NetBrief, "me_admin" | "can_invite"> {
+  const out: Pick<NetBrief, "me_admin" | "can_invite"> = {};
   if (typeof raw.me_admin === "boolean") out.me_admin = raw.me_admin;
   if (typeof raw.can_invite === "boolean") out.can_invite = raw.can_invite;
   return out;
@@ -38,7 +37,6 @@ function parseBrief(raw: unknown): NetBrief | null {
     proxy: raw.proxy === true,
     route_state: oneOf(raw.route_state, ROUTE_STATES),
     exits: strings(raw.exits),
-    members_voting: count(raw.members_voting),
     joining: raw.joining === true,
     members_admitting: count(raw.members_admitting),
     me_excluded: raw.me_excluded === true,
@@ -82,7 +80,6 @@ const BROKEN: Omit<NetBrief, "id"> = {
   proxy: false,
   route_state: "unavailable",
   exits: [],
-  members_voting: 0,
   joining: false,
   members_admitting: 0,
   me_excluded: false,
@@ -105,7 +102,6 @@ export function briefFromState(id: string, state: NodeState | null, members: Mem
     proxy: id === "main",
     route_state: state.route?.state ?? "unavailable",
     exits: (state.route?.exits ?? []).map((e) => e.id_full),
-    members_voting: state.members?.voting ?? 0,
     joining: state.node?.invite_join?.state === "waiting",
     members_admitting: state.members?.admitting ?? 0,
     me_excluded: isMeExcluded(state, members),
@@ -117,11 +113,11 @@ export function briefFromState(id: string, state: NodeState | null, members: Mem
   };
 }
 
-// A node without `/api/overview` carries the Managed facts in the snapshot's `network`.
-function managedFromState(state: NodeState): Pick<NetBrief, "kind" | "me_admin" | "can_invite"> {
+// A node without `/api/overview` carries the role facts in the snapshot's `network`.
+function managedFromState(state: NodeState): Pick<NetBrief, "me_admin" | "can_invite"> {
   const net = state.network;
-  if (!net?.kind) return {};
-  return { kind: net.kind, me_admin: net.me_role === "admin", ...(net.can_invite === undefined ? {} : { can_invite: net.can_invite }) };
+  if (!net?.me_role) return {};
+  return { me_admin: net.me_role === "admin", ...(net.can_invite === undefined ? {} : { can_invite: net.can_invite }) };
 }
 
 /** The overview of a node that has no `/api/overview`: one slot, `main`. */

@@ -138,8 +138,8 @@ const selfPeer = () => ({ self: true, online: true, id: "aaaa1111", id_full: SEL
 const laptopPeer = () => ({ id: "dddd4444", id_full: EXTRA_FULL, name: "old-laptop", country: "NL", version: "0.1.0", online: true, path: "direct", rtt_ms: 20, exit: false });
 
 function netB() {
-  const base = baseState({ network: { id_hex: "net-bbbb", label: "my devices", masked: "mesh1-••••-••••" }, peers: [selfPeer(), laptopPeer()] });
-  const state = { ...base, members: { count: 1, gossip_neighbors: 0, voting: 0, me_excluded: false } };
+  const base = baseState({ network: { id_hex: "net-bbbb", label: "my devices", masked: "mesh2-••••-••••" }, peers: [selfPeer(), laptopPeer()] });
+  const state = { ...base, members: { count: 1, gossip_neighbors: 0, me_excluded: false } };
   return { state, members: membersReply({ rows: [selfRow(), extraRow()] }) };
 }
 
@@ -178,7 +178,7 @@ function leaveOfOnly(node) {
 
 const goneBrief = () => ({
   id: NET_A, label: null, id_hex: null, status: "running", exit_enabled: false, proxy: true, route_state: "direct", exits: [],
-  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0,
+  joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0,
 });
 
 function pageOf(node, wrapper) {

@@ -15,7 +15,7 @@ import {
 import { summaryLogPath } from "./diag-summary.ts";
 import { NET_NAME } from "../common/words.ts";
 
-const SECRET_KEY = "mesh1-FULLSECRETKEYVALUE";
+const SECRET_KEY = "mesh2-FULLSECRETKEYVALUE";
 
 describe("createDiagForm / createKeyState", () => {
   it("clean form", () => {
@@ -201,7 +201,7 @@ describe("toggleKey > network changed in flight", () => {
     const gate = deferred();
     w.deps.api = async () => gate.promise;
     const pending = toggleKey(w.key, w.store, w.deps);
-    w.store.state = { ...w.store.state, network: { label: "other", masked: "mesh1-bb", id_hex: "id-bbbb" } };
+    w.store.state = { ...w.store.state, network: { label: "other", masked: "mesh2-bb", id_hex: "id-bbbb" } };
     gate.resolve({ key: SECRET_KEY });
     assert.equal(await pending, "stale");
     assert.equal(w.key.full, null, "the key of the previous network must not remain");
@@ -265,7 +265,7 @@ function setup(over = {}) {
   w.store = {
     state: {
       node: { status: "online", uptime_sec: 60, version: "1.2.3" },
-      network: { label: "home", masked: "mesh1-aa", id_hex: "id-aaaa" },
+      network: { label: "home", masked: "mesh2-aa", id_hex: "id-aaaa" },
       transport: { relay: { connected: true }, dht: { joined: true }, self_addresses: ["1.1.1.1:1", "2.2.2.2:2"] },
       peers: [{ self: true, online: true }],
       route: { state: "direct", exits: [] },

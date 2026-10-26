@@ -96,7 +96,9 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
     ));
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     match cli.command {
-        CliCommand::Keygen { label, raw } => crate::cli::commands::keygen(label, raw),
+        CliCommand::Keygen { label, raw, config } => {
+            crate::cli::commands::keygen(label, raw, config)
+        }
         CliCommand::ConfigPath { config } => crate::cli::commands::config_path(config),
         CliCommand::Run(args) => {
             report_run_start(fd_note);

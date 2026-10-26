@@ -7,18 +7,13 @@ use serde::Serialize;
 pub struct MembersReply {
     pub me: String,
     pub me_excluded: bool,
-    /// The members removed this node from the member list.
-    pub me_removed: bool,
     /// This node waits for the confirmation of others and has been turned away for it.
     pub me_pending: bool,
-    pub need: u8,
-    /// `"Peer"` or `"Managed"`.
-    pub kind: &'static str,
-    /// Administrators of a managed network (full ids); empty in a peer network.
+    /// Administrators of the network (full ids).
     pub admins: Vec<String>,
     /// This node is an administrator.
     pub me_admin: bool,
-    /// The creator of a managed network (full id), whose role cannot be taken away; `null` in a peer network.
+    /// The creator of the network (full id), whose role cannot be taken away; set by `set_root`.
     pub root: Option<String>,
     /// The own request, shown only while `me_pending`.
     pub me_admission: Option<AdmissionInfo>,
@@ -30,24 +25,18 @@ pub struct MembersReply {
 }
 
 impl MembersReply {
-    /// Takes the kind and the creator from the rules of the network, not from the administrators seen.
-    pub fn set_kind(&mut self, kind: &crate::members::network_key::NetKind) {
-        self.root = kind.root().map(|r| r.to_string());
-        self.kind = match self.root {
-            Some(_) => "Managed",
-            None => "Peer",
-        };
+    /// Takes the creator from the key of the network, not from the administrators seen.
+    pub fn set_root(&mut self, root: &crate::transport::net::PeerId) {
+        self.root = Some(root.to_string());
     }
 }
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Counts {
     pub members: usize,
-    pub voting: usize,
     pub excluded: usize,
     pub unlisted: usize,
     pub pending: usize,
-    pub forgotten: usize,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -58,52 +47,23 @@ pub struct MemberRow {
     #[serde(rename = "self")]
     pub is_self: bool,
     pub online: bool,
-    /// The node is an administrator of a managed network.
+    /// The node is an administrator.
     pub admin: bool,
     pub status: &'static str,
-    pub vote: Option<VoteInfo>,
     pub excluded: Option<ExcludedInfo>,
     pub blocked_by_me: bool,
     pub denied_by_me: Option<&'static str>,
-    pub forget: Option<ForgetInfo>,
     /// Seconds since the last sign of life; set by `stamp_last_seen`.
     pub last_seen_sec: Option<u64>,
     pub last_refusal: Option<RefusalInfo>,
     pub admission: Option<AdmissionInfo>,
 }
 
-/// A request for the list that has not got all confirmations it needs.
+/// A request for the list that waits for an administrator.
 #[derive(Clone, Debug, Serialize)]
 pub struct AdmissionInfo {
-    pub votes: usize,
-    pub need: u8,
-    pub voters: Vec<String>,
-    pub mine: bool,
     /// The note of the invitation (for whom it was made); `null` when there is none.
     pub label: Option<String>,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct VoteInfo {
-    pub votes: usize,
-    pub need: u8,
-    pub proposed_by: String,
-    pub voters: Vec<String>,
-    pub mine: bool,
-    /// The reason noted by the first voter; `null` when there is none or it is not fit to show.
-    pub reason: Option<String>,
-}
-
-/// A circle of votes to remove a node from the member list.
-#[derive(Clone, Debug, Serialize)]
-pub struct ForgetInfo {
-    pub votes: usize,
-    pub need: u8,
-    pub proposed_by: String,
-    pub voters: Vec<String>,
-    pub mine: bool,
-    /// When the node was removed; `null` while the circle waits for more votes.
-    pub at_unix: Option<u64>,
 }
 
 #[derive(Clone, Debug, Serialize)]

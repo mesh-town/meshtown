@@ -16,7 +16,7 @@ import AddNetCard from "./AddNetCard.vue";
 
 const FRESH = "neta22";
 const INVITE = "mesh-invite2-ABCDEFGH";
-const WORD_KEY = "mesh1-ABCDEFGH";
+const WORD_KEY = "mesh2-ABCDEFGH";
 const LIMIT_ABOVE = "Mesh Town is in 8 networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.";
 const LIMIT_REFUSED = "This is a new network, so it can't be added until you leave one.";
 
@@ -79,7 +79,7 @@ describe("eight networks", () => {
 
   it("at the limit the card says it once: no note, the error under the field", async () => {
     const card = await setup({ opts: eightNets() });
-    card.node.routes["POST /api/network/inspect"] = { label: "work", kind: "Peer", id_hex: "bb", place: "new" };
+    card.node.routes["POST /api/network/inspect"] = { label: "work", id_hex: "bb", place: "new" };
     card.node.routes["POST /api/network/join"] = { status: 409, body: { error: "too_many_nets", limit: 8 } };
     await card.type(INVITE);
     await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);

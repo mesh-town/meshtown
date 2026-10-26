@@ -2,13 +2,8 @@
 //! Child of `boot_tests.rs`: `Rig`, `setup`, `NOW` and the other helpers are there.
 
 use super::*;
-use std::collections::BTreeSet;
 
-use crate::members::access::boot_plan::promotions;
-use crate::members::access::record::{
-    encode, exclude_key, tally_input, withdraw, BOOT_NOTE_ADMISSION,
-};
-use crate::members::access::tally::tally;
+use crate::members::access::record::{encode, exclude_key, withdraw, BOOT_NOTE_ADMISSION};
 
 /// A marker as the first stage wrote it: no flag.
 async fn given_old_marker(rig: &Rig) {
@@ -105,8 +100,7 @@ mod refusals {
         rig.given_own_admit(v2, Via::Invite).await;
         rig.given_own_admit(e, Via::Witness).await;
         rig.given_own_admit(b, Via::Witness).await;
-        given_vote(&rig, v1, e, 10);
-        given_vote(&rig, v2, e, 20);
+        given_vote(&rig, rig.me, e, 10);
         rig.given_block(b).await;
         // when: the boot
         rig.when_boot(&[], &[], NOW).await;
@@ -137,116 +131,4 @@ fn given_vote(rig: &Rig, voter: PeerId, subject: PeerId, ts_micros: u64) {
         value,
         ts_micros,
     });
-}
-
-type Row = (PeerId, PeerId, Via);
-
-fn snap_of(rows: &[Row]) -> Vec<ReplicaEntry> {
-    let entry = |&(author, subject, via): &Row| {
-        let value = AclValue {
-            kind: AclKind::Admit,
-            subject,
-            via,
-            made_unix: 111,
-            note: String::new(),
-        };
-        ReplicaEntry {
-            author,
-            key: admit_key(&subject),
-            value: Bytes::from(encode(&value)),
-            ts_micros: 1_000,
-        }
-    };
-    rows.iter().map(entry).collect()
-}
-
-/// The rows after each of `authors` has promoted its witnesses.
-fn promoted(rows: &[Row], authors: &[PeerId]) -> Vec<Row> {
-    let snap = snap_of(rows);
-    let mut out = rows.to_vec();
-    for me in authors {
-        let ledger = tally(&tally_input(*me, &snap).0);
-        let chosen = promotions(&snap, *me, &BTreeSet::new(), &ledger, &[]);
-        out.iter_mut()
-            .filter(|r| r.0 == *me && chosen.contains(&r.1))
-            .for_each(|r| r.2 = Via::None);
-    }
-    out
-}
-
-fn ledger_at(me: PeerId, rows: &[Row]) -> crate::members::access::tally::Ledger {
-    tally(&tally_input(me, &snap_of(rows)).0)
-}
-
-/// The network of the first stage: m invited a, a invited c, and everybody witnesses everybody.
-fn first_stage() -> [Row; 6] {
-    let (m, a, c) = (pid(1), pid(2), pid(3));
-    [
-        (m, a, Via::Invite),
-        (a, m, Via::Witness),
-        (a, c, Via::Invite),
-        (c, a, Via::Witness),
-        (c, m, Via::Witness),
-        (m, c, Via::Witness),
-    ]
-}
-
-mod network {
-    use super::*;
-
-    #[test]
-    fn founder_and_old_timers_admit_a_newcomer_view_without_clicks() {
-        // given: the first-stage network, a newcomer d with m and a in its string, invited by m
-        let (m, a, c, d) = (pid(1), pid(2), pid(3), pid(9));
-        let newcomer = [
-            (d, m, Via::Witness),
-            (d, a, Via::Witness),
-            (m, d, Via::Invite),
-        ];
-        // when: tallied at d, with and without the promotion of the old timers
-        let after = [&promoted(&first_stage(), &[m, a, c])[..], &newcomer].concat();
-        let before = [&first_stage()[..], &newcomer].concat();
-        let (with, without) = (ledger_at(d, &after), ledger_at(d, &before));
-        // then: a and c are members at d without a click, and the single vote of a admits c either way
-        assert!(with.is_member(&a) && with.is_member(&c));
-        assert!(without.is_member(&c) && without.admissions.is_empty());
-    }
-
-    #[test]
-    fn newcomer_with_one_member_in_the_string_sees_the_chain() {
-        // given: the same, but d knows only m
-        let (m, a, c, d) = (pid(1), pid(2), pid(3), pid(9));
-        let newcomer = [(d, m, Via::Witness), (m, d, Via::Invite)];
-        let rows = [&promoted(&first_stage(), &[m, a, c])[..], &newcomer].concat();
-        // when: tallied at d
-        let ledger = ledger_at(d, &rows);
-        // then: a and c are members, each admitted by the single vote of the previous one
-        assert!(ledger.is_member(&a) && ledger.is_member(&c));
-        assert!(ledger.admissions.is_empty());
-    }
-
-    #[test]
-    fn newcomer_with_the_whole_star_in_the_string_sees_it_without_clicks() {
-        // given: a invited b and c, the other witnesses are promoted; n holds a, b and c in its string, invited by a
-        let (a, b, c, n) = (pid(1), pid(2), pid(3), pid(9));
-        let star = [
-            (a, b, Via::Invite),
-            (a, c, Via::Invite),
-            (b, a, Via::None),
-            (c, a, Via::None),
-            (b, c, Via::None),
-            (c, b, Via::None),
-        ];
-        let newcomer = [
-            (n, a, Via::Witness),
-            (n, b, Via::Witness),
-            (n, c, Via::Witness),
-            (a, n, Via::Invite),
-        ];
-        // when: tallied at n
-        let ledger = ledger_at(n, &[&star[..], &newcomer].concat());
-        // then: b and c are members without a click; the vote of a admits n itself
-        assert!(ledger.is_member(&b) && ledger.is_member(&c) && ledger.is_member(&n));
-        assert!(ledger.admissions.is_empty());
-    }
 }

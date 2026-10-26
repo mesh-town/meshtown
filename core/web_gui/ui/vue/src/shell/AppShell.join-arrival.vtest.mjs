@@ -10,7 +10,7 @@ import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.
 import { baseConfig, baseState } from "../testing/section.mjs";
 
 const FRESH = "neta22";
-const KEY = "mesh1-ABCDEFGH";
+const KEY = "mesh2-ABCDEFGH";
 const MESSAGE = "The members did not accept this invite.";
 
 beforeEach(() => {
@@ -57,7 +57,7 @@ function becomesNetwork(slot) {
   slot.joining = false;
   slot.label = "work";
   slot.id_hex = "net-cccc";
-  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh1-••••-••••" }, peers: [] });
+  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh2-••••-••••" }, peers: [] });
   slot.routes["GET /api/members"] = membersReply({ rows: [selfRow()] });
 }
 

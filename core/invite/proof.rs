@@ -54,8 +54,8 @@ pub fn issue_note(entries: &[ReplicaEntry]) -> String {
 }
 
 /// Writes the owner's `admit` record (via the invite) into the shared document, with the invite's label.
-/// With `after` (the newest forget vote about the owner) the record is stamped later than it and overwrites
-/// an older one, so that the return outdates those votes.
+/// With `after` (the exclusion a returning owner outdates) the record is stamped later than it and overwrites
+/// an older one.
 pub async fn admit_owner(
     list: &DomainList,
     hash: &str,
@@ -84,7 +84,3 @@ pub async fn admit_owner(
 #[cfg(test)]
 #[path = "proof_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "proof_forget_tests.rs"]
-mod forget_tests;

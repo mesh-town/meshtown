@@ -10,7 +10,6 @@ use std::sync::Arc;
 use tokio::task::AbortHandle;
 
 use crate::config::config_file::forget_invited_peers;
-use crate::members::access::authority::Rules;
 use crate::members::access::boot::{run_boot, AccessBoot};
 use crate::members::access::runtime::Access;
 use crate::members::access::watch::spawn_access;
@@ -26,7 +25,7 @@ use crate::transport::peers_cache::PeersCache;
 pub(super) struct AccessStart {
     pub(super) boot: AccessBoot,
     pub(super) open_list: bool,
-    pub(super) rules: Rules,
+    pub(super) root: PeerId,
     pub(super) invited_file: Option<PathBuf>,
 }
 
@@ -49,18 +48,17 @@ fn cached_ids(cache: &PeersCache) -> Vec<PeerId> {
 }
 
 pub(super) fn access_start(cfg: &NodeConfig, me: PeerId, cache: &PeersCache) -> AccessStart {
-    let rules = Rules::from(&cfg.net_kind);
     let boot = AccessBoot {
         me,
         initial: initial_ids(cfg),
         cached: cached_ids(cache),
         now_unix: unix_now(),
-        rules,
+        root: cfg.net_root,
     };
     AccessStart {
         boot,
         open_list: cfg.open_list,
-        rules,
+        root: cfg.net_root,
         invited_file: cfg.invited_peers_file.clone(),
     }
 }
@@ -73,10 +71,10 @@ pub(super) async fn start_access(
     handles: &mut Vec<AbortHandle>,
 ) -> Arc<Access> {
     if st.open_list {
-        return Arc::new(Access::new(list, members).with_rules(st.rules));
+        return Arc::new(Access::new(list, members, st.root));
     }
     boot_or_say(list, &st.boot, st.invited_file.as_deref()).await;
-    let access = Arc::new(Access::new(list, members).with_rules(st.rules));
+    let access = Arc::new(Access::new(list, members, st.root));
     handles.extend(spawn_access(access.clone()));
     access
 }

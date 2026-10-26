@@ -106,7 +106,6 @@ export interface NetworkInfo {
   label: string | null; // key label; for a key without a label — null
   masked: string;
   id_hex: string;
-  kind?: NetKind; // absent — Peer
   me_role?: NetRole;
   admins?: string[]; // full ids of the admins
   root?: string; // full id of the member who created the network
@@ -118,8 +117,6 @@ export interface NetworkInfo {
   excluded_by?: string | { id: string; name: string };
 }
 
-/** How a network is governed: every member decides (Peer) or admins decide (Managed). */
-export type NetKind = "Peer" | "Managed";
 type NetRole = "admin" | "member";
 
 /** A note the node keeps until the page acknowledges it (`POST /api/notices/ack`). */
@@ -136,7 +133,6 @@ export interface Notice {
 interface MembersInfo {
   count: number;
   gossip_neighbors: number;
-  voting?: number; // rows with a pending ban vote
   me_excluded?: boolean; // this computer is no longer in the member list
   admitting?: number; // join requests that wait for this computer's confirmation
   me_pending?: boolean; // this computer waits for members to confirm it

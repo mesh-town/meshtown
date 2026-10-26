@@ -28,7 +28,7 @@ impl Issued {
     /// Writes the issue record, collects the holders (members that saved their copy) and returns
     /// the string with them first; if writing the issue record fails — there is no string.
     pub async fn commit(self) -> Result<Dealt> {
-        let issuer = self.head.kind.root().map(|_| self.own_addr.id);
+        let issuer = Some(self.own_addr.id);
         self.ledger
             .issue_as(&self.hash, &self.record, issuer)
             .await

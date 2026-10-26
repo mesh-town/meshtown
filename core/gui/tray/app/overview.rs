@@ -18,10 +18,7 @@ pub struct SlotView {
     pub status: String,
     pub peers_online: u32,
     pub peers_total: u32,
-    pub members_voting: u32,
     pub members_admitting: u32,
-    /// The network is administered (`kind` is `Managed`); a peer network is the default.
-    pub managed: bool,
     /// We are an admin of the network.
     pub admin: bool,
     /// We may issue invites here; an unreadable or missing flag never forbids it.
@@ -75,7 +72,6 @@ fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
     let state = state_of(&slot, slots);
     let own = state.get("network").unwrap_or(&Value::Null);
     SlotView {
-        managed: kind_of(net).or(kind_of(own)) == Some("Managed"),
         admin: opt_flag(net, "me_admin")
             .unwrap_or_else(|| own.get("me_role").and_then(Value::as_str) == Some("admin")),
         can_invite: opt_flag(net, "can_invite")
@@ -89,7 +85,6 @@ fn slot_view(net: &Value, slots: &[Value]) -> SlotView {
         status: text(net, "status").unwrap_or_default(),
         peers_online: count(net, "peers_online"),
         peers_total: count(net, "peers_total"),
-        members_voting: count(net, "members_voting"),
         members_admitting: count(net, "members_admitting"),
         state,
         slot,
@@ -104,10 +99,6 @@ fn state_of(slot: &str, slots: &[Value]) -> Value {
         .and_then(|s| s.get("state"))
         .cloned()
         .unwrap_or(Value::Null)
-}
-
-fn kind_of(v: &Value) -> Option<&str> {
-    v.get("kind").and_then(Value::as_str)
 }
 
 fn opt_flag(v: &Value, key: &str) -> Option<bool> {

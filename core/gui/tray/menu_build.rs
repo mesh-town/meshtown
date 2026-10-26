@@ -43,7 +43,7 @@ pub(super) fn view_icon(
 }
 
 /// The picture for a view, the membership facts and the idle ring memory: the grey ring of a node that is not
-/// running; the "vote waiting" mark replaces the disk.
+/// running; the "request waiting" mark replaces the disk.
 pub(super) fn picture_for(view: View, members: TrayMembers, idle: IdleRing) -> IconPicture {
     icon_picture(view)
         .with_idle(view, idle)
@@ -156,7 +156,7 @@ pub(super) struct TrayUi {
     pub(super) shown_icon_key: IconPicture,
     pub(super) exit_submenu: super::exit_menu::ExitUi,
     pub(super) actions: ActionsUi,
-    pub(super) vote: super::vote_item::VoteUi,
+    pub(super) admit: super::admit_item::AdmitUi,
     pub(super) nets: super::nets_ui::NetsUi,
     pub(super) extras: super::extras_ui::ExtrasUi,
 }

@@ -62,12 +62,7 @@ describe("statusLine with a held admission refusal", () => {
     it("excluded: the red ban line", () => {
       const got = statusLine(joined({ members: { me_excluded: true } }), createConn(), null, null, REFUSED);
       expect(got.level).toBe("red");
-      expect(got.text).toMatch(/^Banned from the network "family"/);
-    });
-
-    it("removed from the member list: the grey line", () => {
-      const got = statusLine(joined(), createConn(), membersReply({ me_removed: true }), null, REFUSED);
-      expect(got).toEqual({ level: "grey", text: "Removed from the member list \"family\" — ask a member for an invite" });
+      expect(got.text).toMatch(/^Removed from the network "family"/);
     });
 
     it("starting and stopping: grey wait lines", () => {

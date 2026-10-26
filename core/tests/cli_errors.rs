@@ -3,6 +3,9 @@
 
 use std::process::{Command, Output};
 
+use meshtown_core::invite::{INVITE_PREFIX, TEXT_V3_INVITE};
+use meshtown_core::members::network_key::LEGACY_KEY_TEXT;
+
 fn mesh(args: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_meshtown"))
         .args(args)
@@ -175,4 +178,53 @@ fn assert_same_help(word: &[&str], flag: &[&str]) {
         text(&by_word.stdout),
         text(&by_flag.stdout)
     );
+}
+
+// ---- Outdated keys and invites ----
+
+#[test]
+fn a_version_3_invite_exits_with_the_outdated_text() {
+    // given: an invite string whose version byte is 3
+    let invite = format!(
+        "{INVITE_PREFIX}{}",
+        data_encoding::BASE32_NOPAD
+            .encode(&[3, 1, 2, 3])
+            .to_ascii_lowercase()
+    );
+    // when
+    let out = mesh(&[
+        "run",
+        "--no-config",
+        "--invite",
+        &invite,
+        "--web-port",
+        "0",
+        "--no-checks",
+        "--no-socks",
+    ]);
+    // then
+    let err = text(&out.stderr);
+    assert_eq!(out.status.code(), Some(1), "stderr: {err}");
+    assert!(err.contains(TEXT_V3_INVITE), "stderr: {err}");
+}
+
+#[test]
+fn no_config_with_an_old_key_exits_with_the_outdated_text() {
+    // given: an old-form key and no settings file to fall back on
+    let key = format!("mesh1-{}", "a".repeat(52));
+    // when
+    let out = mesh(&[
+        "run",
+        "--no-config",
+        "--key",
+        &key,
+        "--web-port",
+        "0",
+        "--no-checks",
+        "--no-socks",
+    ]);
+    // then
+    let err = text(&out.stderr);
+    assert_eq!(out.status.code(), Some(1), "stderr: {err}");
+    assert!(err.contains(LEGACY_KEY_TEXT), "stderr: {err}");
 }

@@ -11,7 +11,7 @@ use std::time::Duration;
 use meshtown_core::invite::redeem::{redeem, Progress, RedeemError};
 use meshtown_core::invite::store::{IssueVerdict, Ledger};
 use meshtown_core::invite::{self, InviteHead};
-use meshtown_core::members::network_key::{managed_key, NetKind, NetworkKey};
+use meshtown_core::members::network_key::{managed_key, managed_key_with_label, NetworkKey};
 use meshtown_core::node::{self, NodeConfig, RunningNode};
 use meshtown_core::transport::net::mem::process_net;
 use meshtown_core::transport::net::{NodeSecret, PeerAddr, PeerId};
@@ -54,23 +54,43 @@ impl ManagedNet {
         }
     }
 
-    pub(crate) fn kind(&self) -> NetKind {
-        NetKind::Managed { root: self.root }
+    /// The text of the network key in the raw form, with the label: what a person pastes into the key field.
+    pub(crate) fn key_text(&self, label: &str) -> String {
+        managed_key_with_label(Some(label), &self.base.to_bytes(), &self.root)
     }
 
-    /// The creator's node; it answers redemptions with `reply` (the base, unless a test wants a lie).
-    pub(crate) async fn start_root(&self, reply: NetworkKey) -> RunningNode {
-        let mut cfg = managed_config(self.key.clone(), self.kind(), reply);
-        cfg.identity_secret = Some(self.root_secret.clone());
+    /// The config of a member started by hand: the permanent key of `seed`, the list consulted.
+    pub(crate) fn member_config(&self, seed: u8) -> NodeConfig {
+        let mut cfg = managed_config(self.key.clone(), self.root, self.base.clone());
+        cfg.identity_secret = Some(NodeSecret::from_bytes(&[seed; 32]));
+        cfg
+    }
+
+    /// A member under the permanent key of `seed`, with `peers` as the neighbours it dials.
+    pub(crate) async fn start_member(&self, seed: u8, peers: Vec<PeerAddr>) -> RunningNode {
+        let mut cfg = self.member_config(seed);
+        cfg.initial_peers = peers;
         node::start_node(cfg).await.unwrap()
+    }
+
+    /// The config of the creator's node; it answers redemptions with `reply` (the base, unless a test wants a lie).
+    pub(crate) fn root_config(&self, reply: NetworkKey) -> NodeConfig {
+        let mut cfg = managed_config(self.key.clone(), self.root, reply);
+        cfg.identity_secret = Some(self.root_secret.clone());
+        cfg
+    }
+
+    /// The creator's node.
+    pub(crate) async fn start_root(&self, reply: NetworkKey) -> RunningNode {
+        node::start_node(self.root_config(reply)).await.unwrap()
     }
 }
 
 /// A loopback config that consults the membership list and runs the Managed rules.
-fn managed_config(key: NetworkKey, kind: NetKind, reply: NetworkKey) -> NodeConfig {
+fn managed_config(key: NetworkKey, root: PeerId, reply: NetworkKey) -> NodeConfig {
     let mut cfg = NodeConfig::for_loopback_test(key);
     cfg.open_list = false;
-    cfg.net_kind = kind;
+    cfg.net_root = root;
     cfg.reply_secret = reply;
     cfg
 }
@@ -83,7 +103,7 @@ pub(crate) async fn start_joined(
     seed: u8,
     peers: Vec<PeerAddr>,
 ) -> RunningNode {
-    let mut cfg = managed_config(head.reply_key(answer), head.kind, answer.clone());
+    let mut cfg = managed_config(head.reply_key(answer), head.root, answer.clone());
     cfg.identity_secret = Some(NodeSecret::from_bytes(&[seed; 32]));
     cfg.initial_peers = peers;
     node::start_node(cfg).await.unwrap()

@@ -14,7 +14,7 @@ use std::time::Duration;
 use meshtown_core::members::network_key::NetworkKey;
 use serde_json::json;
 
-use common::{api, boot, teardown, wait_ready, Booted};
+use common::{api, boot_consulting_list, teardown, wait_ready, Booted};
 use nets_host::{boot_host, boot_host_empty, HostNode};
 
 const JOIN: &str = "/api/network/join";
@@ -37,7 +37,7 @@ fn net_ids(a: &HostNode) -> Vec<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_invite_to_a_new_network_takes_a_new_slot_without_naming_it() {
     let a = boot_host("slots-new-a", &NetworkKey::generate().unwrap()).await;
-    let b = boot("slots-new-b", &NetworkKey::generate().unwrap()).await;
+    let b = boot_consulting_list("slots-new-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
     let before = net_ids(&a).len();
 
@@ -56,7 +56,7 @@ async fn an_invite_to_a_new_network_takes_a_new_slot_without_naming_it() {
 async fn an_invite_to_a_network_already_here_names_its_slot() {
     let key = NetworkKey::generate().unwrap();
     let a = boot_host("slots-here-a", &key).await;
-    let b = boot("slots-here-b", &key).await;
+    let b = boot_consulting_list("slots-here-b", &key).await;
     wait_ready(&b).await;
 
     let (status, body) = a.post(JOIN, json!({"key": invite_of(&b)}));
@@ -72,7 +72,7 @@ async fn an_invite_to_a_network_already_here_names_its_slot() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn an_invite_to_a_left_slot_takes_another_new_slot() {
     let a = boot_host("slots-left-a", &NetworkKey::generate().unwrap()).await;
-    let b = boot("slots-left-b", &NetworkKey::generate().unwrap()).await;
+    let b = boot_consulting_list("slots-left-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
     let (status, body) = a.post(JOIN, json!({"key": invite_of(&b)}));
     assert_eq!(status, 202, "{body}");
@@ -95,7 +95,7 @@ async fn an_invite_to_a_left_slot_takes_another_new_slot() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_node_without_a_network_takes_the_invite_into_main() {
     let a = boot_host_empty("slots-empty-a").await;
-    let b = boot("slots-empty-b", &NetworkKey::generate().unwrap()).await;
+    let b = boot_consulting_list("slots-empty-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
 
     let (status, body) = a.post(JOIN, json!({"key": invite_of(&b)}));
@@ -110,7 +110,7 @@ async fn a_node_without_a_network_takes_the_invite_into_main() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_word_key_of_another_network_is_still_refused_on_main() {
     let a = boot_host("slots-key-a", &NetworkKey::generate().unwrap()).await;
-    let other = NetworkKey::generate().unwrap().encode();
+    let other = common::key_text(&NetworkKey::generate().unwrap());
 
     let (status, body) = a.post(JOIN, json!({"key": other}));
 

@@ -3,28 +3,18 @@
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::authority::{power_of, PowerIn, Rules};
-use super::record::{exclude_key, parse_entry, AclKind, Parsed, VOTE_AT_MOMENT};
-use super::tally::{AdmitIn, ForgetIn, TallyInput, VoteIn};
+use super::authority::{power_of, PowerIn};
+use super::record::{exclude_key, parse_entry, AclKind, Parsed};
+use super::tally::{TallyInput, VoteIn};
 
-/// Builds the tally input from the entries of the shared list: live admits and exclusions plus the
-/// tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored entries.
-pub fn tally_input(me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) {
-    tally_input_under(Rules::Peer, me, entries)
-}
-
-/// `tally_input` for a network counted by `rules`.
-pub fn tally_input_under(
-    rules: Rules,
-    me: PeerId,
-    entries: &[ReplicaEntry],
-) -> (TallyInput, usize) {
+/// Builds the tally input from the entries of the shared list: live records of power and exclusions
+/// plus the tombstone of an own self-exclusion (leaving is irreversible). Returns the count of ignored
+/// entries.
+pub fn tally_input(root: PeerId, me: PeerId, entries: &[ReplicaEntry]) -> (TallyInput, usize) {
     let mut input = TallyInput {
         me,
-        rules,
-        admits: Vec::new(),
+        root,
         votes: Vec::new(),
-        forgets: Vec::new(),
         powers: Vec::new(),
     };
     let mut ignored = 0;
@@ -61,23 +51,6 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
     push_power(input, &parsed);
     match parsed {
         Parsed::Ignored(_) => 1,
-        Parsed::Record { author, value, .. } if value.kind == AclKind::Admit => {
-            input.admits.push(AdmitIn {
-                author,
-                subject: value.subject,
-                via: value.via,
-                made_unix: value.made_unix,
-            });
-            0
-        }
-        Parsed::Record { author, value, .. } if value.kind == AclKind::Forget => {
-            input.forgets.push(ForgetIn {
-                author,
-                subject: value.subject,
-                made_unix: value.made_unix,
-            });
-            0
-        }
         Parsed::Record {
             author,
             ts_micros,
@@ -87,7 +60,6 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 voter: author,
                 subject: value.subject,
                 ts_micros,
-                at_moment: value.via == VOTE_AT_MOMENT,
             });
             0
         }
@@ -96,7 +68,6 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 voter: author,
                 subject: author,
                 ts_micros: e.ts_micros,
-                at_moment: false,
             });
             0
         }

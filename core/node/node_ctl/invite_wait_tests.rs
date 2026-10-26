@@ -135,7 +135,7 @@ mod waiting_is_cancelled_by {
         let fx = setup_waiting();
 
         // when
-        fx.ctl.switch_network("mesh1-aaaa");
+        fx.ctl.switch_network("mesh2-aaaa");
 
         // then
         assert_eq!(fx.ctl.invite_join(), None);
@@ -147,7 +147,7 @@ mod waiting_is_cancelled_by {
         let fx = setup_waiting();
 
         // when
-        fx.ctl.join_with_peers("mesh1-aaaa", vec![]);
+        fx.ctl.join_with_peers("mesh2-aaaa", vec![]);
 
         // then
         assert_eq!(fx.ctl.invite_join(), None);
@@ -172,7 +172,7 @@ mod waiting_is_cancelled_by {
         let fx = setup_waiting();
 
         // when
-        fx.ctl.switch_network("mesh1-aaaa");
+        fx.ctl.switch_network("mesh2-aaaa");
 
         // then
         assert_eq!(fx.saved(), Vec::<String>::new());
@@ -345,7 +345,7 @@ fn head(label: Option<&str>, made_unix: u64) -> InviteHead {
         network_id: [1, 2, 3, 4],
         label: label.map(str::to_string),
         made_unix,
-        kind: crate::members::network_key::NetKind::Peer,
+        root: crate::transport::net::contract::pid(7),
     }
 }
 

@@ -158,15 +158,6 @@ mod reason {
         let (_, seen) = seen_for(json!({"id": target(), "reason": "  noisy link "})).await;
         assert_eq!(seen, vec![format!("exclude:{}:noisy link", target())]);
     }
-
-    #[tokio::test]
-    async fn reply_vote_carries_the_reason_key() {
-        // given / when: the list reply of the fixture
-        let fx = setup(Answer::List(sample_reply()));
-        let (_, body) = fx.get("/api/members").await;
-        // then: the voting row has the key, the others have no vote at all
-        assert_eq!(body["members"][1]["vote"]["reason"], json!("noisy link"));
-    }
 }
 
 mod actions {

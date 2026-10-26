@@ -14,9 +14,9 @@ are agreed with the reporter.
 ## Scope notes
 
 - A Mesh Town network key lets its holder find the network's records in the DHT, see who its members are and pass
-  the handshake, but not join: a node gets in only when a member admits it to the member list (an invite does that at
+  the handshake, but not join: a node gets in only when an administrator admits it to the member list (an invite does that at
   once). A member can use the ports published to it and, if you are an exit, your connection; a node that should no
-  longer be in the network is voted out, and the key does not need to change. Keep keys secret and pass them through `MESHTOWN_KEY` or the settings file rather than the command line, where
+  longer be in the network is removed by an administrator, and the key does not need to change. Keep keys secret and pass them through `MESHTOWN_KEY` or the settings file rather than the command line, where
   other users of the computer can see them. An invite is single-use and expires after a day, but the string should
   still be handed over in person.
 - The settings file (`config.json`) holds the network key and the node secret; the node creates it with mode `0600`

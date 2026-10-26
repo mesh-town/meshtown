@@ -15,7 +15,10 @@ use crate::node::node_ctl::NodeCtl;
 use crate::transport::net::contract::pid;
 use crate::web_gui::{ConfigState, SlotHandle};
 
-const KEY: &str = "alpha--abacus-abdomen-0123456789abcdefghjkm";
+/// The text of the key of the network "alpha".
+fn key_text() -> String {
+    crate::members::network_key::managed_key_with_label(Some("alpha"), &[3; 32], &pid(3))
+}
 
 mod added_slot_with_a_closed_network {
     use super::*;
@@ -224,13 +227,13 @@ fn setup(opts: Opts) -> Fixture {
     let mut state = ConfigState::from_run(&run);
     if opts.main_key {
         let mut s = state.file_settings.clone();
-        s.net.network_key = Some(KEY.to_string());
+        s.net.network_key = Some(key_text());
         let rev =
             config_file::save_config_file(&path, Some(state.file_report.rev), 1, &state.secret, &s)
                 .unwrap();
         state.file_settings = s;
         state.file_report.rev = rev;
-        state.current_network_key = Some(KEY.to_string());
+        state.current_network_key = Some(key_text());
     }
     if opts.key_from_flag {
         state.cli_override_paths = vec!["network.key"];
@@ -304,7 +307,7 @@ impl Fixture {
     {
         let ctl = NodeCtl::new(&Settings::default());
         let mut state = ConfigState::from_run(&placeholder_run());
-        state.current_network_key = Some(KEY.to_string());
+        state.current_network_key = Some(key_text());
         let handle = SlotHandle {
             id: id_of(id),
             node: ctl.clone(),

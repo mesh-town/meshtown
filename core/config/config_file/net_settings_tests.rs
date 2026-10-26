@@ -1,5 +1,5 @@
 use super::*;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetworkKey, NetworkKeyInput};
 use crate::node::NodeConfig;
 use std::time::Duration;
 
@@ -14,7 +14,7 @@ fn with_key(key: Option<&str>) -> NetSettings {
 fn debug_hides_network_key() {
     // given: a network key with a secret part
     let n = with_key(Some("label--confidential"));
-    let cfg = NodeConfig::for_cli(NetworkKey::from_bytes([5u8; 32]), &n);
+    let cfg = NodeConfig::for_cli(key_input([5u8; 32]), &n);
     // when: printing {:?} of the settings and of the node config
     let texts = [format!("{n:?}"), format!("{cfg:?}")];
     // then: the secret is absent, the marker is present
@@ -52,4 +52,14 @@ fn intervals_are_seconds_of_net_block() {
 fn exit_is_off_by_default_only_on_android() {
     assert!(!default_exit_enabled(true));
     assert!(default_exit_enabled(false));
+}
+
+fn key_input(bytes: [u8; 32]) -> NetworkKeyInput {
+    NetworkKeyInput {
+        label: None,
+        key: NetworkKey::from_bytes(bytes),
+        from_words: false,
+        base: bytes,
+        root: crate::transport::net::NodeSecret::from_bytes(&[7; 32]).peer_id(),
+    }
 }

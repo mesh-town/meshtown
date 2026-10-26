@@ -18,11 +18,11 @@ function inviteNoteText(net: string, admins: string[]): string {
   return `Only admins can invite people to "${net}".${ask}`;
 }
 
-/** The plaque for a slot, or `null` when this computer may invite (Peer network, admin, no snapshot yet). */
+/** The plaque for a slot, or `null` when this computer may invite (admin, no snapshot yet). */
 function inviteNoteOf(store: Store, slot: string): string | null {
   const net = stateOf(store, slot)?.network;
   const brief = store.nets.find((n) => n.id === slot);
-  if (net?.kind !== "Managed" || (net.can_invite ?? brief?.can_invite) !== false) return null;
+  if ((net?.can_invite ?? brief?.can_invite) !== false) return null;
   return inviteNoteText(netName(store.nets, slot), adminNamesOf(store, slot) ?? []);
 }
 

@@ -37,7 +37,7 @@ function becomesNetwork(slot) {
   slot.joining = false;
   slot.label = "work";
   slot.id_hex = "net-cccc";
-  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh1-••••-••••" }, peers: [] });
+  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh2-••••-••••" }, peers: [] });
   slot.routes["GET /api/members"] = membersReply({ rows: [selfRow()] });
 }
 

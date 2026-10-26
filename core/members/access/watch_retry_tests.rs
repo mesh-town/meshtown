@@ -91,6 +91,7 @@ fn flaky_setup(failing: bool) -> Flaky {
         flaky.clone(),
         own,
         rig.members.clone(),
+        rig.me,
     ));
     Flaky { rig, flaky, access }
 }

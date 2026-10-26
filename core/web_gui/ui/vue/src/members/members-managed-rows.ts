@@ -1,4 +1,4 @@
-/* The `⋯` menu of a row of a managed network: roles instead of votes. Pure functions. */
+/* The `⋯` menu of a row of a managed network: roles and blocks. Pure functions. */
 
 import {
   MENU_DELETE_NETWORK, MENU_GIVE_UP, MENU_GIVE_UP_ONLY, MENU_MAKE_ADMIN, MENU_MAKE_MEMBER, MENU_REMOVE, MENU_REMOVE_ADMINS_ONLY, TITLE_ADMINS_ONLY,
@@ -31,7 +31,7 @@ function roleItem(row: MemberRow, ctx: MenuCtx): MenuItem {
 }
 
 function othersItems(row: MemberRow, ctx: MenuCtx): MenuItem[] {
-  if (row.status !== "member") return row.status === "forgotten" ? [] : [blockItem(row)];
+  if (row.status !== "member") return [blockItem(row)];
   if (ctx.meAdmin) return [roleItem(row, ctx), item("exclude", MENU_REMOVE, { danger: true }), blockItem(row)];
   return [blockItem(row), item("exclude", MENU_REMOVE_ADMINS_ONLY, { disabled: true, title: TITLE_ADMINS_ONLY })];
 }

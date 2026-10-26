@@ -21,7 +21,7 @@ fn reload_takes_the_net_block_from_the_slot_file_and_keeps_prev_process() {
     // when: the slot reloads under a new key
     let (s, _) = fx
         .relaunch
-        .reload(&NetworkKey::from_bytes([2u8; 32]).encode(), &prev)
+        .reload(&crate::node::host::test_keys::managed_text(2u8), &prev)
         .expect("reload of a slot");
     // then: the network block is the file's, the process block is the previous one
     assert_eq!(
@@ -40,7 +40,7 @@ fn reload_sees_a_new_value_written_to_the_slot_file() {
     let (s, _) = fx
         .relaunch
         .reload(
-            &NetworkKey::from_bytes([2u8; 32]).encode(),
+            &crate::node::host::test_keys::managed_text(2u8),
             &Settings::default(),
         )
         .expect("reload of a slot");
@@ -53,9 +53,10 @@ fn caches_are_placed_beside_the_slot_file() {
     // given: a slot whose file is in its own folder
     let fx = setup(SLOT_INTERVAL);
     // when: the node config is built
-    let cfg = fx
-        .relaunch
-        .node_config(&Settings::default(), NetworkKey::from_bytes([2u8; 32]));
+    let cfg = fx.relaunch.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(2),
+    );
     // then: the caches lie in the slot folder, not beside the main file
     let slot_dir = fx.path.parent().unwrap();
     assert_eq!(
@@ -70,10 +71,15 @@ fn dht_table_is_placed_beside_the_slot_file() {
     let fx = setup(SLOT_INTERVAL);
     let second_file = fx.dir.join("nets").join("cd4e5f").join("config.json");
     let second = slot_relaunch(&second_file);
-    let key = NetworkKey::from_bytes([2u8; 32]);
     // when: the node configs are built
-    let first_cfg = fx.relaunch.node_config(&Settings::default(), key.clone());
-    let second_cfg = second.node_config(&Settings::default(), key);
+    let first_cfg = fx.relaunch.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(2),
+    );
+    let second_cfg = second.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(2),
+    );
     // then: each slot has its own table file in its own folder
     let first_dir = fx.path.parent().unwrap();
     assert_eq!(

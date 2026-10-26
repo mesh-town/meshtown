@@ -31,7 +31,7 @@ pub struct ExitMenu {
     pub proxy: ProxyState,
     /// The checkbox "Allow opening sites via this computer": `exit.enabled` of the snapshot.
     pub serves_exit: bool,
-    /// `members` of the snapshot: the ban vote and our own exclusion (`members_note`).
+    /// `members` of the snapshot: the requests to join and our own exclusion (`members_note`).
     pub members: TrayMembers,
     /// The network the flat menu shows; `None` — the main network (or no network at all).
     pub slot: Option<String>,

@@ -34,19 +34,18 @@ describe("the plate on the tab", () => {
     expect(el.classes()).toContain("warn-card");
   });
 
-  it("one name in a Peer network: who refuses and whom to ask", async () => {
+  it("one name: who refuses and whom to ask", async () => {
     const el = await plate(names(["a"]));
     const text = el.text();
     expect(text).toContain("This computer can't connect to");
     expect(text).toContain("peer-a refuses to let it in, and no other member of");
-    expect(text).toContain("Ask peer-a to let this computer in.");
+    expect(text).toContain("Ask an admin of");
     expect(text).toContain("Until then, sites won't open through");
   });
 
-  it("several names: the list and `Ask one of them`", async () => {
+  it("several names: the list", async () => {
     const el = await plate(names(["a", "b"]));
     expect(el.text()).toContain("peer-a and peer-b refuse to let it in");
-    expect(el.text()).toContain("Ask one of them to let this computer in.");
   });
 
   it("more than three names: three and `and N more`", async () => {
@@ -54,16 +53,10 @@ describe("the plate on the tab", () => {
     expect(el.text()).toContain("peer-a, peer-b, peer-c and 2 more refuse to let it in");
   });
 
-  it("a Managed network asks an admin", async () => {
-    const el = await plate(names(["a"]), { kind: "Managed" });
-    expect(el.text()).toMatch(/Ask an admin of ".+" to let this computer in\./);
-    expect(el.text()).not.toContain("Ask peer-a");
-  });
-
   it("the reason \"unlisted\" gives no name: the plate says that members refuse", async () => {
     const el = await plate([peerOneRow(gone({ last_refusal: { side: "them", reason: "unlisted", at_unix: 1 } }))]);
     expect(el.text()).toContain("refuse to let it in, and no other member is online.");
-    expect(el.text()).toContain("Ask a member");
+    expect(el.text()).toContain("Ask an admin of");
   });
 
   it("the flag is off, though the list shows a refusal: no plate", async () => {

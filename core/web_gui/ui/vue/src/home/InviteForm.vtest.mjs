@@ -61,7 +61,7 @@ describe("InviteForm", () => {
   });
 
   it("the note under the field comes 500 ms after typing, from the answer's place", async () => {
-    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" } });
+    route({ "/api/network/inspect": { label: "family", id_hex: "aa", place: "here", slot: "neta22" } });
     mountForm();
     await wrapper.get("#x-input").setValue(INVITE);
     expect(wrapper.find("#x-note").exists()).toBe(false);
@@ -73,7 +73,7 @@ describe("InviteForm", () => {
 
   it("\"already in\": the block with the text and \"Open\" to the tab", async () => {
     route({
-      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa" },
+      "/api/network/inspect": { label: "family", id_hex: "aa" },
       "/api/network/join": () => { throw new ApiError(409, "net_already_added", "x", { slot: "neta22", label: "family" }); },
     });
     mountForm();
@@ -88,7 +88,7 @@ describe("InviteForm", () => {
   });
 
   it("the note and the Open link are divided by a space", async () => {
-    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" } });
+    route({ "/api/network/inspect": { label: "family", id_hex: "aa", place: "here", slot: "neta22" } });
     mountForm();
     await typeInvite();
     const text = wrapper.get("#x-note").text();
@@ -98,7 +98,7 @@ describe("InviteForm", () => {
 
   it("after a 409 \"already in\" the note is gone and Open is shown once", async () => {
     route({
-      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" },
+      "/api/network/inspect": { label: "family", id_hex: "aa", place: "here", slot: "neta22" },
       "/api/network/join": () => { throw new ApiError(409, "net_already_added", "x", { slot: "neta22", label: "family" }); },
     });
     mountForm();
@@ -113,7 +113,7 @@ describe("InviteForm", () => {
 
   it("the note goes away while an error stands under the field", async () => {
     route({
-      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" },
+      "/api/network/inspect": { label: "family", id_hex: "aa", place: "here", slot: "neta22" },
       "/api/network/join": () => { throw new ApiError(422, "invalid_key", "x", { message: "Bad key", word: null }); },
     });
     mountForm();
@@ -138,7 +138,7 @@ describe("InviteForm", () => {
   });
 
   it("done carries the slot of the answer", async () => {
-    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa" }, "/api/network/join": { label: "family", restart: true, slot: "neta22" } });
+    route({ "/api/network/inspect": { label: "family", id_hex: "aa" }, "/api/network/join": { label: "family", restart: true, slot: "neta22" } });
     mountForm();
     await typeInvite();
     await wrapper.get("#x-btn").trigger("click");
@@ -147,7 +147,7 @@ describe("InviteForm", () => {
   });
 
   it("a double click sends one request", async () => {
-    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa" }, "/api/network/join": { label: "family", restart: true, slot: "neta22" } });
+    route({ "/api/network/inspect": { label: "family", id_hex: "aa" }, "/api/network/join": { label: "family", restart: true, slot: "neta22" } });
     mountForm();
     await typeInvite();
     await wrapper.get("#x-btn").trigger("click");

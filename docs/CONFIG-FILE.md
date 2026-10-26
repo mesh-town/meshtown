@@ -190,7 +190,7 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
   "config": {
     "version": 1,
     "node":      { "name": "finch-unwary" },
-    "network":   { "key": "our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tzd6w5" },
+    "network":   { "key": "our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya" },
     "exit":      { "enabled": true, "max_streams": 0 },
     "socks":     { "enabled": true, "port": 1080 },
     "checks":    { "enabled": true, "interval_sec": 900,

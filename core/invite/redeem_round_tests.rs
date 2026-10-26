@@ -10,7 +10,7 @@ use crate::invite::redeem::RedeemError;
 use crate::invite::redeem_round::{round_outcome, Mode, Outcome};
 use crate::invite::wire::{RedeemCode, RedeemReply};
 use crate::invite::{InviteHead, InviteSecret};
-use crate::members::network_key::{managed_key, NetKind, NetworkKey};
+use crate::members::network_key::{managed_key, NetworkKey};
 use crate::transport::net::NodeSecret;
 
 const BASE: [u8; 32] = [1; 32];
@@ -108,20 +108,6 @@ mod answered_base {
             "{got:?}"
         );
     }
-
-    #[test]
-    fn of_a_peer_invite_is_compared_as_it_is() {
-        // given: a Peer invite: the answer is the key itself
-        let head = InviteHead {
-            network_id: NetworkKey::from_bytes(BASE).subkeys().network_id,
-            kind: NetKind::Peer,
-            ..managed_head()
-        };
-        // when
-        let got = round(&head, &[key(BASE)], Mode::Owner);
-        // then
-        assert!(matches!(got, Outcome::Key(_)), "{got:?}");
-    }
 }
 
 /// `round_outcome` over a head; the one place that knows how the head is passed.
@@ -136,7 +122,7 @@ fn managed_head() -> InviteHead {
         network_id: managed_key(&BASE, &creator()).subkeys().network_id,
         label: None,
         made_unix: 1_790_000_000,
-        kind: NetKind::Managed { root: creator() },
+        root: creator(),
     }
 }
 

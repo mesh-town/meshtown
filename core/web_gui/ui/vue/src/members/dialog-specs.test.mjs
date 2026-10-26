@@ -1,104 +1,31 @@
-/* `dialog-specs.ts`: the texts of the confirmation dialogs (`dialogSpec(kind, ctx)`), exactly as in the UI spec, section 2.2.
+/* `dialog-specs.ts`: the texts of the confirmation dialogs (`dialogSpec(kind, ctx)`) that are not about roles (those are in
+ * `dialog-specs.managed.test.mjs`).
  *
- * Contract fixed by these tests:
- *  - `dialogSpec(kind, ctx): { title: string, body: string[], hint?: string, action: string, danger: boolean }`
- *      `kind`: "ban" (3+ members, a proposal) | "ban-two" (a network of two, banned at once) | "ban-confirm" (the second vote)
- *      | "block" | "leave".
- *      `ctx`: `{ name, by?, net?, isMyExit? }` — `name`: the target as shown in the list (name or "member <id>") — the `{n}` of the
- *      texts; `by`: who proposed (only "ban-confirm"); `net`: the network name WITHOUT quotes (quotes are added by the spec;
- *      an absent/blank `net` drops the ' "..."' part, no "undefined" in any text); `isMyExit`: the target is my chosen exit.
- *  - `body` is a flat list of paragraphs, in this order. For "ban" the two bullet sentences are separate entries of `body`
- *      (the dialog may draw them as a list). The paragraph "{n} is your exit: ..." is the LAST entry of `body`, only when
- *      `isMyExit` is true and the kind is not "leave".
- *  - `hint` is a separate small paragraph under the body; absent (undefined) when the spec has none ("ban-two", "leave").
- *  - `action` is the label of the action button (the cancel button is always "Cancel" and is not part of the spec);
- *      `danger` is true for all of them but "admit" (the action button is red).
- *  - `spec.field?: { label: string, max: number }` — the optional text input the dialog draws before its buttons (the reason of a ban):
- *      present ONLY for "ban" (label "Reason (optional, members will see it)", max 80); absent (undefined) for "ban-two", "ban-confirm",
- *      "block" and "leave".
- *  - `ctx.reason?: string | null` — the reason the proposer gave. Only "ban-confirm" uses it: the line `Reason from {by}: "{reason}"` goes to
- *      `body` right after the main paragraph (before the "your exit" paragraph); no reason (absent, null, empty) — no line.
- *  - "forget" (a removal proposal), "forget-two" (the network of two, removed at once), "forget-confirm" (the second vote): `ctx` also has
- *      `seen?: number | null` (seconds since the member was last online, `null` = never), `other?: string` (the second member, "forget-two")
- *      and `banAtRisk?: boolean` (a pending ban would pass at once after this removal: the last line of the body of "forget-two" and
- *      "forget-confirm"). A hint "It was online recently" only for `seen` below a week. All three are red, none has a reason field.
- *  - The "ban-confirm" text has no time of the proposal after the network name. */
+ *  - `dialogSpec(kind, ctx): { title, body: string[], hint?, action, danger }`; `kind`: "admit" | "block" | "leave".
+ *    `ctx`: `{ name, net?, isMyExit?, label?, multi?, exitName? }` — `name`: the target as shown in the list; `net`: the network
+ *    name WITHOUT quotes (an absent or blank `net` drops the ' "..."' part, no "undefined" in any text).
+ *  - The paragraph "{n} is your exit: ..." is the LAST entry of `body`, only when `isMyExit` is true and the kind is not "leave".
+ *  - `danger` is true for all of them but "admit". No dialog here has a field. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { dialogSpec } from "./dialog-specs.ts";
 
-const KINDS = ["ban", "ban-two", "ban-confirm", "block", "leave", "forget", "forget-two", "forget-confirm"];
-const BAN_KINDS = ["ban", "ban-two", "ban-confirm"];
-const FORGET_KINDS = ["forget", "forget-two", "forget-confirm"];
-const ctx = (over = {}) => ({ name: "old-laptop", by: "peer-one", net: "family", isMyExit: false, ...over });
+const KINDS = ["admit", "block", "leave"];
+const ctx = (over = {}) => ({ name: "old-laptop", net: "family", isMyExit: false, ...over });
 const EXIT_PARAGRAPH = "old-laptop is your exit: after this, sites won't open until you choose another exit.";
 
-describe("ban (a proposal, 3+ members)", () => {
-  it("asks to ban the member from the network", () => {
-    assert.equal(spec("ban").title, "Ban old-laptop from the network?");
+describe("admit", () => {
+  it("asks to confirm the member joining, and the join is immediate", () => {
+    const s = spec("admit");
+    assert.equal(s.title, "Confirm old-laptop joining?");
+    assert.equal(s.body[0], 'old-laptop asked to join the network "family". After your confirmation it joins right away.');
+    assert.equal(s.action, "Confirm old-laptop");
+    assert.equal(s.danger, false);
   });
 
-  it("explains the two-member rule and what happens here and for everyone else", () => {
-    assert.deepEqual(spec("ban").body, [
-      'old-laptop will lose access to the network "family". This takes two members: you propose, and one more member confirms.',
-      "On this computer, old-laptop is blocked right away.",
-      "For everyone else, it's banned after a second member confirms. Its open connections are then cut.",
-    ]);
-  });
-
-  it("advises \"Block\" for the case of keeping the member away from this computer only", () => {
-    assert.equal(
-      spec("ban").hint,
-      'Use this if the computer is lost, stolen, or no longer used. To keep old-laptop away from this computer only, choose "Block on this computer" instead.',
-    );
-  });
-
-  it("the buttons: \"Propose ban\" (red) and Cancel", () => {
-    assert.equal(spec("ban").action, "Propose ban");
-    assert.equal(spec("ban").danger, true);
-  });
-});
-
-describe("ban-two (a network of two)", () => {
-  it("the same title as a proposal", () => {
-    assert.equal(spec("ban-two").title, "Ban old-laptop from the network?");
-  });
-
-  it("one paragraph: banned right away, can not be undone here", () => {
-    assert.deepEqual(spec("ban-two").body, [
-      "You and old-laptop are the only members, so old-laptop is banned right away and its open connections are cut. You can't undo this here.",
-    ]);
-  });
-
-  it("no hint", () => {
-    assert.ok(!spec("ban-two").hint, "hint: " + spec("ban-two").hint);
-  });
-
-  it("the button names the member: \"Ban old-laptop\" (red)", () => {
-    assert.equal(spec("ban-two").action, "Ban old-laptop");
-    assert.equal(spec("ban-two").danger, true);
-  });
-});
-
-describe("confirm (the second vote)", () => {
-  it("asks to confirm banning the member", () => {
-    assert.equal(spec("ban-confirm").title, "Confirm banning old-laptop?");
-  });
-
-  it("names the proposer, the network and the consequence of the second confirmation", () => {
-    assert.deepEqual(spec("ban-confirm").body, [
-      'peer-one proposed banning old-laptop from the network "family". Yours is the second confirmation: old-laptop will be banned for everyone right away and its open connections will be cut.',
-    ]);
-  });
-
-  it("advises to ask the proposer when unsure", () => {
-    assert.equal(spec("ban-confirm").hint, "Confirm only if you know why. If unsure, ask peer-one first.");
-  });
-
-  it("the button names the member: \"Ban old-laptop\" (red)", () => {
-    assert.equal(spec("ban-confirm").action, "Ban old-laptop");
-    assert.equal(spec("ban-confirm").danger, true);
+  it("adds the invite label line when there is one", () => {
+    assert.deepEqual(spec("admit", { label: "Anna's phone" }).body.slice(1), ['Invited as "Anna\'s phone"']);
   });
 });
 
@@ -113,10 +40,10 @@ describe("block", () => {
     ]);
   });
 
-  it("says that only this computer is affected and points to \"Ban from network\"", () => {
+  it("says that only this computer is affected and points to \"Remove from network\"", () => {
     assert.equal(
       spec("block").hint,
-      'Only this computer is affected: old-laptop stays in the network and keeps working with other members. To ban it for everyone, choose "Ban from network" instead.',
+      'Only this computer is affected: old-laptop stays in the network and keeps working with other members. To remove it for everyone, choose "Remove from network" instead.',
     );
   });
 
@@ -211,66 +138,12 @@ describe("leave in a page with one network is the same as before", () => {
     ]);
   });
 
-  it.each(["ban", "ban-two", "ban-confirm", "block"])("%s ignores `multi`", (kind) => {
+  it.each(["admit", "block"])("%s ignores `multi`", (kind) => {
     assert.deepEqual(spec(kind, { multi: true, exitName: "peer-one" }), spec(kind));
   });
 });
-
-describe("the reason field", () => {
-  it("ban (a proposal) has a field with the label and the limit of 80", () => {
-    assert.deepEqual(spec("ban").field, { label: "Reason (optional, members will see it)", max: 80 });
-  });
-
-  it.each(["ban-two", "ban-confirm", "block", "leave"])("%s has no field", (kind) => {
-    assert.equal(spec(kind).field, undefined, kind);
-  });
-
-  it("the field does not depend on the context", () => {
-    assert.deepEqual(spec("ban", { isMyExit: true, net: "", reason: "lost laptop" }).field, spec("ban").field);
-  });
-});
-
-describe("confirm (the second vote) with the reason of the proposer", () => {
-  const LINE = 'Reason from peer-one: "lost laptop"';
-
-  it("adds the reason line after the main paragraph", () => {
-    const plain = spec("ban-confirm").body;
-    assert.deepEqual(spec("ban-confirm", { reason: "lost laptop" }).body, [...plain, LINE]);
-  });
-
-  it("the line names the proposer given in the context", () => {
-    const body = spec("ban-confirm", { by: "router", reason: "lost laptop" }).body;
-    assert.equal(body.at(-1), 'Reason from router: "lost laptop"');
-  });
-
-  it("the reason line comes before the \"your exit\" paragraph", () => {
-    const plain = spec("ban-confirm").body;
-    assert.deepEqual(spec("ban-confirm", { reason: "lost laptop", isMyExit: true }).body, [...plain, LINE, EXIT_PARAGRAPH]);
-  });
-
-  it("the reason is taken as it is: quotes and markup are not changed", () => {
-    const body = spec("ban-confirm", { reason: '<b>"old"</b>' }).body;
-    assert.equal(body.at(-1), 'Reason from peer-one: "<b>"old"</b>"');
-  });
-
-  it.each([["absent", undefined], ["null", null], ["empty", ""]])("a reason that is %s adds no line", (_name, reason) => {
-    assert.deepEqual(spec("ban-confirm", { reason }).body, spec("ban-confirm").body);
-  });
-
-  it("the title, the hint and the button are not changed", () => {
-    const withReason = spec("ban-confirm", { reason: "lost laptop" });
-    assert.equal(withReason.title, spec("ban-confirm").title);
-    assert.equal(withReason.hint, spec("ban-confirm").hint);
-    assert.equal(withReason.action, spec("ban-confirm").action);
-  });
-
-  it.each(["ban", "ban-two", "block", "leave"])("%s ignores a reason in the context", (kind) => {
-    assert.deepEqual(spec(kind, { reason: "lost laptop" }), spec(kind));
-  });
-});
-
 describe("the target is my chosen exit", () => {
-  it.each(["ban", "ban-two", "ban-confirm", "block"])("%s: a warning paragraph is added at the end of the body", (kind) => {
+  it.each(["admit", "block"])("%s: a warning paragraph is added at the end of the body", (kind) => {
     const plain = spec(kind).body;
     const withExit = spec(kind, { isMyExit: true }).body;
     assert.deepEqual(withExit, [...plain, EXIT_PARAGRAPH]);
@@ -280,13 +153,6 @@ describe("the target is my chosen exit", () => {
     assert.deepEqual(spec("leave", { isMyExit: true }), spec("leave"));
   });
 
-  it("the rest of the spec is not changed", () => {
-    const withoutBody = (s) => ({ ...s, body: null });
-    for (const kind of ["ban", "ban-confirm", "block"]) {
-      assert.deepEqual(withoutBody(spec(kind, { isMyExit: true })), withoutBody(spec(kind)), kind);
-    }
-  });
-
   it("not my exit: the paragraph is absent", () => {
     for (const kind of KINDS) assert.ok(!spec(kind, { isMyExit: false }).body.includes(EXIT_PARAGRAPH), kind);
   });
@@ -294,34 +160,14 @@ describe("the target is my chosen exit", () => {
 
 describe("the names are taken from the context", () => {
   it("another member and another network", () => {
-    const other = spec("ban", { name: "member cccc3333", net: "office" });
-    assert.equal(other.title, "Ban member cccc3333 from the network?");
-    assert.ok(other.body[0].startsWith('member cccc3333 will lose access to the network "office".'), other.body[0]);
-    assert.ok(other.hint.includes("To keep member cccc3333 away from this computer only"), other.hint);
-    assert.equal(other.action, "Propose ban");
-  });
-
-  it("another proposer in the confirmation", () => {
-    const other = spec("ban-confirm", { by: "router" });
-    assert.ok(other.body[0].startsWith("router proposed banning old-laptop"), other.body[0]);
-    assert.ok(other.hint.endsWith("ask router first."), other.hint);
-  });
-});
-
-describe("the words of the ban dialogs", () => {
-  it.each(BAN_KINDS)("%s: no removal wording in the title, body, hint or button", (kind) => {
-    const s = spec(kind);
-    for (const text of [s.title, ...s.body, s.hint || "", s.action]) assert.ok(!/remov/i.test(text), kind + ": " + text);
-  });
-
-  it.each(FORGET_KINDS)("%s: no ban wording in the title, body, hint or button", (kind) => {
-    const s = spec(kind, { seen: 777600, other: "peer-one" });
-    for (const text of [s.title, ...s.body, s.hint || "", s.action]) assert.ok(!/\bban/i.test(text.replace(/A ban is waiting/g, "")), kind + ": " + text);
+    const other = spec("block", { name: "member cccc3333", net: "office" });
+    assert.equal(other.title, "Block member cccc3333 on this computer?");
+    assert.equal(other.action, "Block member cccc3333");
   });
 });
 
 describe("no network name in the context", () => {
-  it.each(["ban", "ban-confirm", "leave"])("%s: no empty quotes, no \"undefined\"", (kind) => {
+  it.each(["admit", "leave"])("%s: no empty quotes, no \"undefined\"", (kind) => {
     for (const net of [undefined, "", "   "]) {
       const s = spec(kind, { net });
       for (const text of [s.title, ...s.body, s.hint || ""]) {
@@ -332,25 +178,25 @@ describe("no network name in the context", () => {
   });
 });
 
-describe("every removal dialog is red", () => {
-  it.each(FORGET_KINDS)("%s: danger", (kind) => {
-    assert.equal(spec(kind, { seen: 777600, other: "peer-one" }).danger, true);
+describe("no vote wording", () => {
+  it.each(KINDS)("%s: no vote, proposal or second-member wording", (kind) => {
+    const s = spec(kind);
+    for (const text of [s.title, ...s.body, s.hint || "", s.action]) assert.ok(!/vot|propos|second member/i.test(text), kind + ": " + text);
   });
 });
 
 describe("any kind", () => {
-  it.each(KINDS)("%s: a title, a non-empty body of strings, an action label and a boolean danger", (kind) => {
+  it.each(KINDS)("%s: a title, a non-empty body of strings, an action label and a boolean danger, no field", (kind) => {
     const s = spec(kind);
     assert.equal(typeof s.title, "string");
     assert.ok(Array.isArray(s.body) && s.body.length > 0 && s.body.every((p) => typeof p === "string" && p.length > 0));
     assert.equal(typeof s.action, "string");
     assert.equal(typeof s.danger, "boolean");
+    assert.equal(s.field, undefined);
   });
 });
 
-// ---------------------------------------------------------------- setup
-
-// The spec of `kind` for the default context (a member "old-laptop" proposed for a ban by "peer-one" in the network "family").
+// The spec of `kind` for the default context (a member "old-laptop" in the network "family").
 function spec(kind, over = {}) {
   return dialogSpec(kind, ctx(over));
 }

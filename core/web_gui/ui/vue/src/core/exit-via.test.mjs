@@ -271,7 +271,7 @@ const asEntry = (item) => (typeof item === "string" ? { id: item, slot: "main" }
 function brief(id, over = {}) {
   return {
     id, label: id === "main" ? "friends" : "net " + id, id_hex: "hex-" + id, status: "running", exit_enabled: false, proxy: false,
-    route_state: "direct", exits: [], members_voting: 1, joining: false, members_admitting: 0,
+    route_state: "direct", exits: [], joining: false, members_admitting: 0,
     me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, ...over,
   };
 }

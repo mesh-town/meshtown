@@ -27,7 +27,7 @@ afterEach(() => {
 
 async function openForm(info) {
   api.mockImplementation(async (method, path) => {
-    if (path === "/api/network/inspect") return { label: "family", kind: "Peer", id_hex: "aa" };
+    if (path === "/api/network/inspect") return { label: "family", id_hex: "aa" };
     return { label: "family", restart: false, waiting: true, slot: "main" };
   });
   mounted = mountSection(SetupWizard, { state: lonely(info) });

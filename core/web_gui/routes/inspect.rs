@@ -8,8 +8,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
-use crate::members::network_key::{parse_user_input, NetKind};
-
+use crate::members::network_key::parse_user_input;
 use crate::web_gui::App;
 
 use super::helpers::{body_obj, invalid_key_response, map_string_field};
@@ -17,15 +16,8 @@ use super::join_target::place_of;
 
 const NOT_AN_INVITE: &str = "This doesn't look like an invite. Copy it from the network member again in full and paste it here.";
 
-fn kind_word(kind: &NetKind) -> &'static str {
-    match kind.root() {
-        Some(_) => "Managed",
-        None => "Peer",
-    }
-}
-
-fn answer(label: Option<String>, kind: &NetKind, id_hex: String) -> Response {
-    let body = json!({"label": label, "kind": kind_word(kind), "id_hex": id_hex});
+fn answer(label: Option<String>, id_hex: String) -> Response {
+    let body = json!({"label": label, "id_hex": id_hex});
     (StatusCode::OK, axum::Json(body)).into_response()
 }
 
@@ -40,7 +32,6 @@ async fn inspect_invite(app: &App, text: &str) -> Response {
     let place = place_of(app.host.as_ref(), &id_hex).await;
     let body = json!({
         "label": p.head.label,
-        "kind": kind_word(&p.head.kind),
         "id_hex": id_hex,
         "place": place.word(),
         "slot": place.slot().map(|s| s.to_string()),
@@ -57,7 +48,7 @@ fn strip_null_slot(mut body: serde_json::Value) -> serde_json::Value {
 
 fn inspect_key(text: &str) -> Response {
     match parse_user_input(text) {
-        Ok(i) => answer(i.label, &i.kind, i.key.subkeys().network_id_hex()),
+        Ok(i) => answer(i.label, i.key.subkeys().network_id_hex()),
         Err(e) => invalid_key_response(&e, NOT_AN_INVITE),
     }
 }

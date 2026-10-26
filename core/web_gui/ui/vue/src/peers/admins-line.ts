@@ -14,10 +14,10 @@ export function adminsLineText(admins: string[], me: string, names: Record<strin
   return `Managed network · Admins: ${list.join(", ")}`;
 }
 
-/** The display names of the admins of a Managed network in a slot; `undefined` for a Peer network or before the snapshot arrives. */
+/** The display names of the admins of a Managed network in a slot; `undefined` before the snapshot arrives. */
 export function adminNamesOf(store: Store, slot: string): string[] | undefined {
   const net = stateOf(store, slot)?.network;
-  if (net?.kind !== "Managed" || !net.admins?.length) return undefined;
+  if (!net?.admins?.length) return undefined;
   const names = displayNames(membersOf(store, slot));
   return net.admins.map((id) => nameFor(names, id));
 }

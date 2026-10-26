@@ -7,7 +7,8 @@ use crate::invite::server::InviteServer;
 use crate::invite::store::{issue_record, Ledger};
 use crate::invite::wire::{encode_invite_reply, RedeemCode, REQUEST_LEN};
 use crate::members::access::record::admit_key;
-use crate::members::access::view::AccessView;
+use crate::members::access::tally::Ledger as Votes;
+use crate::members::access::view::{AccessView, Verdicts};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::facade::test_support::{pid, secret, within};
 use crate::transport::net::mem::MemSyncNet;
@@ -128,6 +129,20 @@ mod old_server {
     }
 }
 
+/// The view of the member `pid(2)`, the administrator of its network.
+fn admin_view() -> AccessView {
+    let mut ledger = Votes::empty();
+    ledger.admitted.insert(pid(2));
+    ledger.admins.insert(pid(2));
+    let access = AccessView::open();
+    access.publish(Verdicts {
+        me: pid(2),
+        ledger: Arc::new(ledger),
+        blocks: Default::default(),
+    });
+    access
+}
+
 /// A member node with a real invite server over a filled in-memory list.
 struct Member {
     shared: Arc<dyn Replica>,
@@ -146,12 +161,12 @@ async fn member_with_the_invite(net: &Arc<MemNet>) -> Member {
     let list = DomainList::open(shared.clone(), own).await.unwrap();
     let record = issue_record(crate::transport::net_mainline::unix_now(), Some("Masha"));
     Ledger::of(&list)
-        .issue(&head().secret.hash_hex(), &record)
+        .issue_as(&head().secret.hash_hex(), &record, Some(pid(2)))
         .await
         .unwrap();
     let cell = Arc::new(OnceLock::new());
     drop(cell.set(list));
-    let server = InviteServer::new(own_key(), cell, AccessView::open());
+    let server = InviteServer::new(own_key(), cell, admin_view(), own_key());
     let stack = NetStackBuilder::new(secret(2))
         .transport(net.transport(&secret(2)))
         .serve(INVITE, Arc::new(server))

@@ -256,10 +256,10 @@ describe("Home with one network", () => {
 
 // The second network's `state`: others are online (default), all offline, or absent; `admitting` — requests to confirm.
 function stateB({ others = "online", admitting = 0 } = {}) {
-  const base = baseState({ network: { id_hex: "net-bbbb", masked: "mesh1-••••-••••" } });
+  const base = baseState({ network: { id_hex: "net-bbbb", masked: "mesh2-••••-••••" } });
   const me = base.peers.find((p) => p.self);
   const rest = others === "none" ? [] : base.peers.filter((p) => !p.self).map((p) => ({ ...p, online: others === "online" && p.id === "bbbb2222" }));
-  return { ...base, peers: [me, ...rest], members: { voting: 0, admitting, me_excluded: false, me_pending: false } };
+  return { ...base, peers: [me, ...rest], members: { admitting, me_excluded: false, me_pending: false } };
 }
 
 const exitPeer = (online) => ({ id: EXIT_ID, id_full: EXIT_FULL, name: "p", country: "NL", version: null, online, path: "direct", rtt_ms: 20, exit: true });

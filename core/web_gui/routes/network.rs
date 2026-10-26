@@ -9,7 +9,7 @@ use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::config::config_file::NetSlotId;
-use crate::members::network_key::{format_key_string, format_managed_key};
+use crate::members::network_key::format_managed_key;
 use crate::node::output::NET_NAME;
 use crate::transport::net::PeerId;
 use crate::web_gui::http::json_err;
@@ -104,29 +104,9 @@ fn adopt_created(
     Ok(key)
 }
 
-/// The `kind` field of a create request: missing means Peer; `true` for Managed.
-fn wants_managed(map: &serde_json::Map<String, serde_json::Value>) -> Result<bool, Response> {
-    match map.get("kind") {
-        None => Ok(false),
-        Some(serde_json::Value::String(k)) if k == "Peer" => Ok(false),
-        Some(serde_json::Value::String(k)) if k == "Managed" => Ok(true),
-        Some(_) => {
-            let body = json!({
-                "error": "invalid",
-                "message": "this network type is not known",
-                "fields": [{"path": "kind", "message": "must be \"Peer\" or \"Managed\""}],
-            });
-            Err((StatusCode::UNPROCESSABLE_ENTITY, axum::Json(body)).into_response())
-        }
-    }
-}
-
-/// The key text of a new network: the words form, with the creator's node id in a Managed one.
-fn new_key_text(label: &str, tail: &str, managed: bool, root: &PeerId) -> String {
-    if managed {
-        return format_managed_key(Some(label), tail, root);
-    }
-    format_key_string(Some(label), tail)
+/// The key text of a new network: the words form with the creator's node id.
+fn new_key_text(label: &str, tail: &str, root: &PeerId) -> String {
+    format_managed_key(Some(label), tail, root)
 }
 
 /// The "keep port publications" choice from the request body: `true` only for JSON `true`; a missing field,
@@ -200,10 +180,6 @@ pub(super) async fn network_create_handler(
         Err(resp) => return resp,
     };
     let keep_ports = wants_keep_ports(&map);
-    let managed = match wants_managed(&map) {
-        Ok(m) => m,
-        Err(resp) => return resp,
-    };
     let label = match crate::members::network_key::normalize_label(&label_input) {
         Ok(l) => l,
         Err(e) => {
@@ -225,7 +201,7 @@ pub(super) async fn network_create_handler(
             )
         }
     };
-    let make = |root: &PeerId| new_key_text(&label, &tail, managed, root);
+    let make = |root: &PeerId| new_key_text(&label, &tail, root);
     let key = match adopt_created(&app, &slot, make, keep_ports) {
         Ok(key) => key,
         Err(resp) => return resp,
@@ -249,3 +225,7 @@ mod present_tests;
 #[cfg(test)]
 #[path = "network_create_tests.rs"]
 mod create_tests;
+
+#[cfg(test)]
+#[path = "join_key_tests.rs"]
+mod join_key_tests;

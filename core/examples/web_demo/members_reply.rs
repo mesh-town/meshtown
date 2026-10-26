@@ -2,18 +2,14 @@
 
 use meshtown_core::web_gui::{
     AdmissionInfo, Counts, ExcludedInfo, MemberActionReq, MemberError, MemberRow, MembersReply,
-    NetRoles, NodeStatus, VoteInfo,
+    NetRoles, NodeStatus,
 };
 
 use meshtown_core::web_gui::ActionError;
 
 use crate::managed::own_id_as_me;
 use crate::members::{DemoMembers, Entry, Standing, ME};
-use crate::members_forget::{forget_info, last_seen};
 use crate::node::{DemoNode, DemoState};
-
-/// Confirmations that admit a newcomer, as the node counts them.
-const ADMIT_NEED: u8 = 1;
 
 const AT_UNIX: u64 = 1_792_400_000;
 
@@ -40,57 +36,34 @@ fn status_of(e: &Entry) -> &'static str {
         Standing::Pending => "pending",
         Standing::Unlisted => "unlisted",
         Standing::Excluded(_) => "excluded",
-        Standing::Forgotten => "forgotten",
     }
 }
 
 fn denied_by_me(m: &DemoMembers, e: &Entry) -> Option<&'static str> {
-    let mine = e.voters.iter().any(|v| v == ME);
     match (&e.standing, e.id_full == ME) {
         (_, true) => None,
         _ if m.me_excluded => Some("left"),
         (Standing::Excluded(_), _) => Some("excluded"),
-        _ if mine => Some("voted_by_me"),
         _ if e.blocked => Some("blocked"),
-        (Standing::Forgotten, _) => Some("removed"),
-        _ if e.forget.voters.iter().any(|v| v == ME) => Some("removed_by_me"),
         (Standing::Unlisted | Standing::Pending, _) => Some("unlisted"),
         _ => None,
     }
 }
 
-fn vote_of(m: &DemoMembers, e: &Entry, me: &str) -> Option<VoteInfo> {
-    let first = e.voters.first()?;
-    Some(VoteInfo {
-        votes: e.voters.len(),
-        need: m.need(),
-        proposed_by: resolve(first, me),
-        voters: resolve_all(&e.voters, me),
-        mine: e.voters.iter().any(|v| v == ME),
-        reason: e.reason.clone(),
-    })
-}
-
-fn admission_of(e: &Entry, me: &str) -> Option<AdmissionInfo> {
-    let waiting = matches!(e.standing, Standing::Pending).then_some(&e.voters)?;
-    Some(AdmissionInfo {
-        votes: waiting.len(),
-        need: ADMIT_NEED,
-        voters: resolve_all(waiting, me),
-        mine: waiting.iter().any(|v| v == ME),
+fn admission_of(e: &Entry) -> Option<AdmissionInfo> {
+    matches!(e.standing, Standing::Pending).then(|| AdmissionInfo {
         label: e.label.clone(),
     })
 }
 
-/// The own request of a computer that waits for a confirmation: no member has confirmed it yet.
+/// The own request of a computer that waits to be admitted.
 fn own_admission(m: &DemoMembers) -> Option<AdmissionInfo> {
-    m.me_pending.then(|| AdmissionInfo {
-        votes: 0,
-        need: ADMIT_NEED,
-        voters: Vec::new(),
-        mine: false,
-        label: None,
-    })
+    m.me_pending.then_some(AdmissionInfo { label: None })
+}
+
+/// Seconds since the last sign of life: zero while online, unknown otherwise.
+fn last_seen(e: &Entry) -> Option<u64> {
+    e.online.then_some(0)
 }
 
 fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
@@ -118,14 +91,12 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         online: e.online,
         admin: m.is_admin(&e.id_full),
         status: status_of(e),
-        vote: vote_of(m, e, me),
         excluded: excluded_of(e, me),
         blocked_by_me: e.blocked,
         denied_by_me: denied_by_me(m, e),
-        forget: forget_info(m, e, me_short),
         last_seen_sec: last_seen(e),
         last_refusal: None,
-        admission: admission_of(e, me),
+        admission: admission_of(e),
     }
 }
 
@@ -136,7 +107,6 @@ fn order_key(e: &Entry) -> (u8, u8, String, String) {
         Standing::Pending => 1,
         Standing::Unlisted => 2,
         Standing::Excluded(_) => 3,
-        Standing::Forgotten => 4,
     };
     let nameless = u8::from(e.name.is_none());
     (
@@ -151,28 +121,15 @@ fn counts(rows: &[MemberRow]) -> Counts {
     let n = |status: &str| rows.iter().filter(|r| r.status == status).count();
     Counts {
         members: n("member"),
-        voting: rows.iter().filter(|r| r.vote.is_some()).count(),
         excluded: n("excluded"),
         unlisted: n("unlisted"),
         pending: n("pending"),
-        forgotten: n("forgotten"),
-    }
-}
-
-fn kind_word(m: &DemoMembers) -> &'static str {
-    match m.roles {
-        Some(_) => "Managed",
-        None => "Peer",
     }
 }
 
 /// The administrators as full ids, ascending.
 fn admins_of(m: &DemoMembers, me: &str) -> Vec<String> {
-    let mut ids = m
-        .roles
-        .as_ref()
-        .map(|r| resolve_all(&r.admins, me))
-        .unwrap_or_default();
+    let mut ids = resolve_all(&m.roles.admins, me);
     ids.sort();
     ids
 }
@@ -190,14 +147,11 @@ pub(crate) fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>)
     MembersReply {
         me: me.clone(),
         me_excluded: m.me_excluded,
-        me_removed: m.me_removed,
         me_pending: m.me_pending,
         me_admission,
-        need: m.need(),
-        kind: kind_word(m),
         admins: admins_of(m, &me),
         me_admin: m.is_admin(ME),
-        root: m.roles.as_ref().map(|r| resolve(&r.root, &me)),
+        root: Some(resolve(&m.roles.root, &me)),
         counts,
         members,
         changed,
@@ -220,10 +174,9 @@ impl DemoNode {
         Ok(build_reply(&st.members, &st.boot_id, None))
     }
 
-    /// The roles of a managed demo network; `None` in a peer network.
+    /// The roles of the demo network.
     pub(crate) fn roles_of_node(&self) -> Option<NetRoles> {
         let st = self.state.lock().unwrap();
-        st.members.roles.as_ref()?;
         Some(NetRoles::from_reply(&build_reply(
             &st.members,
             &st.boot_id,
@@ -239,3 +192,7 @@ impl DemoNode {
         Ok(build_reply(&st.members, &st.boot_id, Some(changed)))
     }
 }
+
+#[cfg(test)]
+#[path = "members_reply_tests.rs"]
+mod tests;

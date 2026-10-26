@@ -1,51 +1,27 @@
-/* Members of a managed network: the `⋯` menu (`menuItems`), the root lookup (`isRoot`), the leave dialog choice (`leaveKind`)
- * and the voting switch (`votingHidden`). A peer network keeps its menus: `members-view-rows.test.mjs`.
+/* Members of a network: the `⋯` menu (`menuItems`), the root lookup (`isRoot`) and the leave dialog choice (`leaveKind`).
  *
- * Contract fixed by these tests (all four functions are reachable through `members-view.ts`):
- *  - `menuItems(row, ctx)`, `ctx = { me, managed?, meAdmin?, isRoot?, onlyAdmin? }`: `managed` — the network is managed,
- *      `meAdmin` — this computer is an admin, `isRoot(idFull) => boolean` — the row is the network creator, `onlyAdmin` — this
- *      computer is the only admin. Without `managed` the menu is the peer menu, whatever the other fields say.
- *      New item keys: "make-admin", "make-member", "give-up", "delete-network". No separator items; a disabled item has `disabled: true`.
- *      Managed, someone else's row, I am an admin: ["make-admin" | "make-member" (the row is an admin), "exclude", "block"];
- *        no vote, withdraw, waiting, unadmit or forget items. "make-member" is disabled on the creator; no `isRoot` — never disabled.
- *      Managed, someone else's row, I am not an admin: "block" and a disabled "exclude" ("Remove from network (admins only)").
- *      Managed, my row: an admin gets "rename", "give-up", "leave", "delete-network" (red); the only admin's "give-up" is disabled
+ * Contract fixed by these tests (all functions are reachable through `members-view.ts`):
+ *  - `menuItems(row, ctx)`, `ctx = { me, meAdmin?, isRoot?, onlyAdmin? }`: `meAdmin` — this computer is an admin,
+ *      `isRoot(idFull) => boolean` — the row is the network creator, `onlyAdmin` — this computer is the only admin.
+ *      Item keys: "make-admin", "make-member", "give-up", "delete-network", "exclude", "block", "unblock", "rename", "leave".
+ *      No separator items; a disabled item has `disabled: true`.
+ *      Someone else's row, I am an admin: ["make-admin" | "make-member" (the row is an admin), "exclude", "block"]; no other items. "make-member" is disabled on the creator; no `isRoot` — never disabled.
+ *      Someone else's row, I am not an admin: "block" and a disabled "exclude" ("Remove from network (admins only)").
+ *      My row: an admin gets "rename", "give-up", "leave", "delete-network" (red); the only admin's "give-up" is disabled
  *        and says so in its label; a plain member gets "rename", "leave".
  *  - `isRoot(info, idFull)`: `info.root === idFull`; no `info`, no `root` field — false.
  *  - `leaveKind(ctx)`, `ctx = { meAdmin?, canLeave?, onlyAdmin? }`: "last-admin" for an admin who cannot leave (`canLeave === false`)
- *      or is the only admin, otherwise "leave".
- *  - `votingHidden(reply)`: true for a managed network (`reply.kind === "Managed"`), false for a peer network, a reply without
- *      `kind` and no reply. */
+ *      or is the only admin, otherwise "leave". */
 
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
-import { isRoot, leaveKind, menuItems, votingHidden } from "./members-view.ts";
+import { isRoot, leaveKind, menuItems } from "./members-view.ts";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
-import { admissionInfo, extraRow, forgetInfo, foreignVote, peerOneRow, peerTwoRow, pendingRow, selfRow, excludedInfo, voteInfo } from "../testing/members-fixtures.mjs";
+import { admissionInfo, extraRow, peerOneRow, peerTwoRow, pendingRow, selfRow, excludedInfo } from "../testing/members-fixtures.mjs";
 
 const ME = SELF_FULL;
 
-describe("menuItems of a peer network", () => {
-  describe("the context knows nothing about kinds", () => {
-    it("someone else's member: block and ban", () => {
-      assert.deepEqual(keys(menuItems(peerOneRow(), { me: ME })), ["block", "exclude"]);
-    });
-
-    it("my row: rename and leave", () => {
-      assert.deepEqual(menuItems(selfRow(), { me: ME }).map((i) => i.label), ["Rename", "Leave network…"]);
-    });
-  });
-
-  describe("managed is false although the context carries admin data", () => {
-    it("the menu stays the peer menu", () => {
-      const ctx = { me: ME, managed: false, meAdmin: true, isRoot: () => true };
-      assert.deepEqual(keys(menuItems(peerOneRow({ admin: true }), ctx)), ["block", "exclude"]);
-      assert.deepEqual(keys(menuItems(selfRow({ admin: true }), ctx)), ["rename", "leave"]);
-    });
-  });
-});
-
-describe("menuItems of a managed network", () => {
+describe("menuItems", () => {
   describe("I am an admin, someone else's row is a plain member", () => {
     it("offers make admin, remove, block, in this order", () => {
       const items = menuItems(peerOneRow({ admin: false }), adminCtx());
@@ -58,19 +34,13 @@ describe("menuItems of a managed network", () => {
       assert.ok(items.every((i) => !i.disabled), "an item is disabled: " + JSON.stringify(items));
     });
 
-    it("an offline member gets no removal-by-vote item", () => {
-      const row = peerTwoRow({ online: false, forget: forgetInfo({ mine: false }), last_seen_sec: 9999999 });
+    it("an offline member gets the same items", () => {
+      const row = peerTwoRow({ online: false, last_seen_sec: 9999999 });
       assert.deepEqual(keys(menuItems(row, adminCtx())), ["make-admin", "exclude", "block"]);
     });
 
-    it("a stale ban vote on the row gives no withdraw or waiting item", () => {
-      for (const vote of [voteInfo(), foreignVote(), foreignVote({ mine: true })]) {
-        assert.deepEqual(keys(menuItems(peerOneRow({ vote }), adminCtx())), ["make-admin", "exclude", "block"]);
-      }
-    });
-
-    it("a stale admission on the row gives no withdraw-confirmation item", () => {
-      const row = peerOneRow({ admission: admissionInfo({ mine: true }) });
+    it("an admission on the row gives no extra item", () => {
+      const row = peerOneRow({ admission: admissionInfo() });
       assert.deepEqual(keys(menuItems(row, adminCtx())), ["make-admin", "exclude", "block"]);
     });
 
@@ -106,7 +76,7 @@ describe("menuItems of a managed network", () => {
     });
 
     it("without an isRoot the item is never disabled", () => {
-      const items = menuItems(peerOneRow({ admin: true }), { me: ME, managed: true, meAdmin: true });
+      const items = menuItems(peerOneRow({ admin: true }), { me: ME, meAdmin: true });
       assert.ok(!items.find((i) => i.key === "make-member").disabled);
     });
   });
@@ -172,14 +142,14 @@ describe("menuItems of a managed network", () => {
     });
   });
 
-  describe("the rows of a managed network never offer voting items", () => {
-    it("whatever the row, no withdraw, waiting, unadmit, forget or unforget", () => {
-      const banned = ["withdraw", "waiting", "unadmit", "forget", "unforget"];
-      const rows = [peerOneRow(), peerTwoRow({ online: false }), pendingRow(), peerOneRow({ vote: voteInfo() }), peerOneRow({ forget: forgetInfo() })];
+  describe("the rows only offer role and block items", () => {
+    it("whatever the row, no item outside role, block, remove and leave", () => {
+      const allowed = ["make-admin", "make-member", "exclude", "block", "unblock", "leave", "give-up", "rename", "delete-network"];
+      const rows = [peerOneRow(), peerTwoRow({ online: false }), pendingRow(), peerOneRow({ admission: admissionInfo() })];
       for (const ctx of [adminCtx(), memberCtx()]) {
         for (const row of rows) {
-          const found = keys(menuItems(row, ctx)).filter((k) => banned.includes(k));
-          assert.deepEqual(found, [], "voting items on " + JSON.stringify(row.status));
+          const found = keys(menuItems(row, ctx)).filter((k) => !allowed.includes(k));
+          assert.deepEqual(found, [], "unexpected items on " + JSON.stringify(row.status));
         }
       }
     });
@@ -238,40 +208,13 @@ describe("leaveKind", () => {
     });
   });
 
-  describe("a peer network", () => {
+  describe("no facts", () => {
     it("leaves with the usual dialog", () => {
       assert.equal(leaveKind({}), "leave");
     });
   });
 });
 
-describe("votingHidden", () => {
-  describe("a managed network", () => {
-    it("hides the vote banner and the vote texts", () => {
-      assert.equal(votingHidden({ kind: "Managed" }), true);
-    });
-  });
-
-  describe("a peer network", () => {
-    it("shows them", () => {
-      assert.equal(votingHidden({ kind: "Peer" }), false);
-    });
-  });
-
-  describe("an older node without a kind", () => {
-    it("shows them", () => {
-      assert.equal(votingHidden({}), false);
-    });
-  });
-
-  describe("the list is not known yet", () => {
-    it("shows them", () => {
-      assert.equal(votingHidden(null), false);
-      assert.equal(votingHidden(undefined), false);
-    });
-  });
-});
-
 const keys = (items) => items.map((i) => i.key);
-const adminCtx = (over = {}) => ({ me: ME, managed: true, meAdmin: true, ...over });
-const memberCtx = (over = {}) => ({ me: ME, managed: true, meAdmin: false, ...over });
+const adminCtx = (over = {}) => ({ me: ME, meAdmin: true, ...over });
+const memberCtx = (over = {}) => ({ me: ME, meAdmin: false, ...over });

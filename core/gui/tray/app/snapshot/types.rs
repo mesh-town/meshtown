@@ -45,13 +45,10 @@ pub struct TraySnapshot {
     pub members: TrayMembers,
 }
 
-/// The membership facts the tray shows: a running removal vote, requests to join and our own exclusion.
+/// The membership facts the tray shows: requests to join and our own exclusion.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
 #[serde(default)]
 pub struct TrayMembers {
-    /// `members.voting`: how many removal votes are in progress.
-    #[serde(deserialize_with = "lenient::u64_or_zero")]
-    pub voting: u64,
     /// `members.me_excluded`: this computer was removed from the network.
     #[serde(deserialize_with = "lenient::bool_or_false")]
     pub me_excluded: bool,

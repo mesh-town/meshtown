@@ -47,7 +47,7 @@ if (!injected) throw new Error(SHELL_NO_STORE);
 const store: Store = injected;
 const { conn, status, strip, identity, ready, applyToken, reloadConfig, resume } = useShell(store);
 useFavicon(store);
-// Bans and join requests waiting for this member's confirmation, summed over the networks.
+// Join requests waiting for this admin to let them in, summed over the networks.
 const votes = computed(() => totalVotes(store));
 const votesHref = computed(() => votesTarget(store));
 const { screen, hasSession, noPassword, loggedIn, passwordSet } = useAuth(conn);

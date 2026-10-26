@@ -5,9 +5,9 @@ use crate::gui::tray::app::exit_menu::exit_menu_from_snapshot;
 use crate::gui::tray::app::snapshot::TraySnapshot;
 use serde_json::json;
 
-fn members(voting: u64, me_excluded: bool) -> TrayMembers {
+fn members(admitting: u64, me_excluded: bool) -> TrayMembers {
     TrayMembers {
-        voting,
+        admitting,
         me_excluded,
         ..TrayMembers::default()
     }
@@ -18,7 +18,6 @@ fn asking(admitting: u64, me_pending: bool, me_excluded: bool) -> TrayMembers {
         admitting,
         me_pending,
         me_excluded,
-        ..TrayMembers::default()
     }
 }
 
@@ -39,21 +38,8 @@ fn excluded_line_absent_otherwise() {
 }
 
 #[test]
-fn vote_item_only_with_vote_and_not_excluded() {
-    let text = Some("Ban vote in progress — open Members…");
-    assert_eq!(vote_item_text(2, false), text);
-    assert_eq!(vote_item_text(0, false), None);
-    assert_eq!(vote_item_text(2, true), None);
-    assert_eq!(vote_item_text(0, true), None);
-}
-
-#[test]
-fn tooltip_gets_tail_only_during_a_vote() {
+fn tooltip_has_no_tail_without_requests() {
     assert_eq!(tooltip_text("Mesh Town", members(0, false)), "Mesh Town");
-    assert_eq!(
-        tooltip_text("Mesh Town", members(1, false)),
-        "Mesh Town · a ban vote is in progress"
-    );
 }
 
 #[test]
@@ -80,7 +66,7 @@ fn existing_anchor_is_replaced() {
 fn excluded_snapshot_disables_exit_menu_and_carries_members() {
     let snap = TraySnapshot::from_value(&json!({
         "node": {"status": "online", "id_full": "me"},
-        "members": {"voting": 2, "me_excluded": true}
+        "members": {"admitting": 2, "me_excluded": true}
     }));
     let menu = exit_menu_from_snapshot(&snap);
     assert!(!menu.enabled);
@@ -96,7 +82,7 @@ fn normal_snapshot_keeps_exit_menu_enabled() {
 }
 
 #[test]
-fn alert_wanted_with_vote_or_request_and_not_excluded() {
+fn alert_wanted_with_request_and_not_excluded() {
     assert!(!alert_wanted(members(0, false)));
     assert!(alert_wanted(members(2, false)));
     assert!(!alert_wanted(members(2, true)));
@@ -114,20 +100,11 @@ fn admit_item_shown_only_with_requests() {
     assert_eq!(admit_item_text(1, false), text);
     assert_eq!(admit_item_text(0, false), None);
     assert_eq!(admit_item_text(1, true), None);
-    // one menu slot: a ban vote wins over a request
-    assert_eq!(
-        members_item_text(TrayMembers {
-            voting: 1,
-            admitting: 1,
-            ..TrayMembers::default()
-        }),
-        vote_item_text(1, false)
-    );
     assert_eq!(members_item_text(asking(2, false, false)), text);
 }
 
 #[test]
-fn tooltip_tails_for_vote_request_and_pending() {
+fn tooltip_tails_for_request_and_pending() {
     assert_eq!(
         tooltip_text("Mesh Town", asking(1, false, false)),
         "Mesh Town · a node is waiting to join"
@@ -137,21 +114,20 @@ fn tooltip_tails_for_vote_request_and_pending() {
         "Mesh Town · waiting for members to confirm this computer"
     );
     let all = TrayMembers {
-        voting: 1,
         admitting: 1,
         me_pending: true,
         me_excluded: false,
     };
     assert_eq!(
         tooltip_text("Mesh Town", all),
-        "Mesh Town · a ban vote is in progress · a node is waiting to join · waiting for members to confirm this computer"
+        "Mesh Town · a node is waiting to join · waiting for members to confirm this computer"
     );
 }
 
 #[test]
-fn tray_members_reads_an_old_state() {
+fn tray_members_ignores_the_removed_vote_count() {
     let snap = TraySnapshot::from_value(&json!({"members": {"voting": 2, "me_excluded": false}}));
-    assert_eq!(snap.members, members(2, false));
+    assert_eq!(snap.members, members(0, false));
     let new = TraySnapshot::from_value(&json!({"members": {"admitting": 3, "me_pending": true}}));
     assert_eq!(
         new.members,
@@ -161,24 +137,4 @@ fn tray_members_reads_an_old_state() {
             ..TrayMembers::default()
         }
     );
-}
-
-mod ban_words {
-    use crate::gui::tray::app::nets_texts::vote_text;
-    use crate::gui::tray::app::tray_texts::{VOTE_ITEM_TEXT, VOTE_TOOLTIP_TAIL};
-
-    #[test]
-    fn item_says_ban_vote() {
-        assert_eq!(VOTE_ITEM_TEXT, "Ban vote in progress — open Members…");
-    }
-
-    #[test]
-    fn tooltip_tail_says_ban_vote() {
-        assert_eq!(VOTE_TOOLTIP_TAIL, " · a ban vote is in progress");
-    }
-
-    #[test]
-    fn item_of_a_named_network_says_ban_vote() {
-        assert_eq!(vote_text("work"), "Ban vote in work — open Members…");
-    }
 }

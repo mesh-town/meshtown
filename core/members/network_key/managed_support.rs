@@ -1,7 +1,5 @@
 //! Shared fixtures of the Managed network key tests: the golden strings and the small helpers.
 
-// path: `parse_user_input` is reached through the parent re-export, `parse_peer_only` through the sibling
-// `input` module (visible to descendants of `network_key`). Adjust if visibility changes.
 use super::*;
 use crate::members::network_key::parse_user_input;
 use crate::transport::net::NodeSecret;
@@ -14,11 +12,9 @@ pub(super) const ROOT52: &str = "5jfgyy7ctrjavpxvkb5rglwf7gkuo5vox27hxescd3vgsfc
 /// The creator's node id itself.
 pub(super) const ROOT_HEX: &str =
     "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c";
-/// What `TAIL` derives to: the key bytes of the Peer network and the base of the Managed one.
+/// What `TAIL` derives to: the base of the Managed key.
 pub(super) const BASE_HEX: &str =
     "daf2008f0eb0190eb5be32c55e9ad92084b54d4d0b57b5d2786c67933c4efee6";
-pub(super) const BASE_ID: &str = "f704ebff";
-pub(super) const BASE_MESH1: &str = "mesh1-3lzabdyowamq5nn6glcv5gwzecclktknbnl3lutynrtzgpco73ta";
 /// Key bytes and id of the Managed network made of `TAIL` and the creator `[7; 32]`.
 pub(super) const KEY_HEX: &str = "356cc856e9ee8cc150202a9e18dbab1a0d6f950ec6b075e76e03602ee4ec8671";
 pub(super) const KEY_ID: &str = "9d815c4a";
@@ -37,16 +33,6 @@ pub(super) const G3: &str = "mesh2-3lzabdyowamq5nn6glcv5gwzecclktknbnl3lutynrtzg
 pub(super) const G4: &str =
     "abacus-abdomen-0123456789abcdefghjkm-5jfgyy7ctrjavpxvkb5rglwf7gkuo5vox27hxescd3vgsfcg2iwa";
 
-/// The four Peer shapes of the same random part: text, label, read from words.
-pub(super) fn peer_forms() -> Vec<(String, Option<&'static str>, bool)> {
-    vec![
-        (format!("work--{TAIL}"), Some("work"), true),
-        (TAIL.to_string(), None, true),
-        (format!("work--{BASE_MESH1}"), Some("work"), false),
-        (BASE_MESH1.to_string(), None, false),
-    ]
-}
-
 pub(super) fn parse(text: &str) -> NetworkKeyInput {
     parse_user_input(text).unwrap_or_else(|e| panic!("{text}: {e}"))
 }
@@ -55,8 +41,7 @@ pub(super) fn parse(text: &str) -> NetworkKeyInput {
 pub(super) fn assert_managed(input: &NetworkKeyInput, label: Option<&str>, from_words: bool) {
     assert_eq!(input.label.as_deref(), label, "label");
     assert_eq!(input.from_words, from_words, "from_words");
-    assert_eq!(input.kind, NetKind::Managed { root: root_of(7) }, "kind");
-    assert_eq!(input.kind.root(), Some(root_of(7)), "root");
+    assert_eq!(input.root, root_of(7), "root");
     assert_eq!(HEXLOWER.encode(&input.base), BASE_HEX, "base");
     assert_eq!(HEXLOWER.encode(&input.key.to_bytes()), KEY_HEX, "key bytes");
     assert_eq!(input.key.subkeys().network_id_hex(), KEY_ID, "network id");
@@ -84,4 +69,27 @@ pub(super) fn off_curve_bytes() -> [u8; 32] {
         .map(|i| [i; 32])
         .find(|bytes| PeerId::from_bytes(bytes).is_err())
         .expect("some repeated byte pattern is off the curve")
+}
+
+/// A freshly made Managed network: its text, key, creator and the secret of the creator.
+pub(crate) struct TestNet {
+    /// The raw form with the label: `label--mesh2-…`.
+    pub text: String,
+    pub key: NetworkKey,
+    pub root: PeerId,
+    /// What the key is derived from; the secret an invite redemption answers with.
+    pub base: [u8; 32],
+}
+
+/// Makes a new Managed network under the label; every call gives a different one.
+pub(crate) fn test_net(label: &str) -> TestNet {
+    let root_secret = NodeSecret::generate();
+    let root = root_secret.peer_id();
+    let base = NetworkKey::generate().unwrap().to_bytes();
+    TestNet {
+        text: managed_key_with_label(Some(label), &base, &root),
+        key: managed_key(&base, &root),
+        root,
+        base,
+    }
 }

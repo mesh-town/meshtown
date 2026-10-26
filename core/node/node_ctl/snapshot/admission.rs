@@ -14,10 +14,10 @@ fn refuses(row: &MemberRow) -> bool {
         .is_some_and(|r| r.side == "them" && r.reason != "unlisted")
 }
 
-/// `true` when this computer is not excluded, removed or pending, no other member is online, and at least
+/// `true` when this computer is not excluded or pending, no other member is online, and at least
 /// one member refused it. No delay: the page waits before showing it.
 pub(in crate::node::node_ctl) fn admission_refused(reply: &MembersReply) -> bool {
-    if reply.me_excluded || reply.me_removed || reply.me_pending {
+    if reply.me_excluded || reply.me_pending {
         return false;
     }
     !others(reply).any(|m| m.online) && others(reply).any(refuses)

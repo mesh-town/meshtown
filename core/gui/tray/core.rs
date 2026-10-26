@@ -105,8 +105,6 @@ pub struct Core {
     invite_slot: Option<String>,
     /// Names of the shown networks that have no connection.
     offline_nets: Vec<String>,
-    /// Whether a ban vote (not only a join request) is pending in some shown network.
-    removal_vote: bool,
     /// The last applied "Exit via…" model, for the optimistic re-application on a click.
     last_exit: Option<crate::gui::tray::app::exit_menu::ExitMenu>,
 }
@@ -126,7 +124,7 @@ impl Core {
             &mut actions,
         )?;
 
-        let vote = super::vote_item::VoteUi::new(menu.clone());
+        let admit = super::admit_item::AdmitUi::new(menu.clone());
         let nets = super::nets_ui::NetsUi::new(menu.clone());
         let extras = super::extras_ui::ExtrasUi::new(menu.clone());
         let icon = super::menu_build::view_icon(&icons, self.icon_key())?;
@@ -150,7 +148,7 @@ impl Core {
             frames: FrameCache::new(),
             exit_submenu: exit,
             actions,
-            vote,
+            admit,
             nets,
             extras,
         });
@@ -248,7 +246,6 @@ impl Core {
             .filter(|n| !n.online && !n.joining)
             .map(|n| n.label.clone())
             .collect();
-        self.removal_vote = menu.nets.iter().any(|n| n.voting > 0);
         let note = self.net_invite_note();
         if let Some(ui) = &mut self.ui {
             ui.actions.apply_exit_menu(&menu);
@@ -303,7 +300,6 @@ pub(crate) fn channel(
         facts: MenuFacts::default(),
         invite_slot: None,
         offline_nets: Vec::new(),
-        removal_vote: false,
         last_exit: None,
     };
     (tx, core)

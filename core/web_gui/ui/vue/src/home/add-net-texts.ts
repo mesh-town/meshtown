@@ -1,6 +1,5 @@
 /* Texts of the "Join or create another network" form and of the banners shown after a network is added. */
 
-import type { NetKind } from "../core/api-types.ts";
 import { HOME_CREATE_BTN, HOME_CREATE_LABEL } from "./home-card-texts.ts";
 
 /** The most networks the node holds at once. */
@@ -42,7 +41,7 @@ export function stayText(names: string[]): string {
 }
 
 /** `via` — the exit the computer keeps using, when it is not direct: the member and the network it is in.
- * `admins` — the display names of the admins of a Managed network (absent for a Peer network). */
+ * `admins` — the display names of the admins of the network (absent while they are not known). */
 export function joinedBanner(net: string, via: { peer: string; net: string } | null, admins?: string[]): string {
   const managed = admins && admins.length > 0 ? ` Only admins invite and remove members here. Admins: ${admins.join(", ")}.` : "";
   const base = `You joined "${net}".${managed}`;
@@ -51,10 +50,7 @@ export function joinedBanner(net: string, via: { peer: string; net: string } | n
 
 const NOBODY_YET = (net: string): string => `Nobody else is here yet: use Invite to "${net}" to add a member.`;
 
-/** The banner after creating a network; Managed adds that the creator is its admin and should name a second one. */
-export function createdBanner(net: string, kind: NetKind = "Peer"): string {
-  if (kind === "Managed") {
-    return `You created "${net}" and you're its admin. ${NOBODY_YET(net)} Once someone joins, make a second member an admin (⋯ → Make admin): a network without an admin can't be managed.`;
-  }
-  return `You created "${net}". ${NOBODY_YET(net)}`;
+/** The banner after creating a network: the creator is its admin and should name a second one. */
+export function createdBanner(net: string): string {
+  return `You created "${net}" and you're its admin. ${NOBODY_YET(net)} Once someone joins, make a second member an admin (⋯ → Make admin): a network without an admin can't be managed.`;
 }

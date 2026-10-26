@@ -3,7 +3,7 @@
 use std::sync::{Arc, Mutex};
 
 use meshtown_core::config::config_file::{NetSlotId, RunConfig};
-use meshtown_core::members::network_key::format_key_string;
+use meshtown_core::members::network_key::format_managed_key;
 use meshtown_core::members::words;
 use meshtown_core::web_gui::{AddedSlot, ConfigState, HostControl, HostError, SlotHandle};
 
@@ -11,6 +11,7 @@ use clap::Parser;
 
 use crate::args::Args;
 use crate::background::run_background;
+use crate::managed::demo_root;
 use crate::node::DemoNode;
 
 /// Most networks one page shows.
@@ -44,7 +45,9 @@ fn run_for_net(run: &RunConfig, index: u8, with_network: bool) -> RunConfig {
     let key = with_network
         .then(|| words::generate_tail().ok())
         .flatten()
-        .map(|tail| format_key_string(Some(&format!("demo-network-{index}")), &tail));
+        .map(|tail| {
+            format_managed_key(Some(&format!("demo-network-{index}")), &tail, &demo_root())
+        });
     out.effective_settings.net.network_key = key.clone();
     out.file_settings.net.network_key = key;
     out
@@ -129,12 +132,11 @@ fn clone_args(a: &Args) -> Args {
     let toggles = [
         (a.no_network, "--no-network"),
         (a.dht_joined, "--dht-joined"),
-        (a.members_second_vote, "--members-second-vote"),
         (a.me_excluded, "--me-excluded"),
         (a.members_pending, "--members-pending"),
         (a.me_pending, "--me-pending"),
-        (a.members_forget, "--members-forget"),
         (a.admission_refused, "--admission-refused"),
+        (a.second_admin, "--second-admin"),
     ];
     flags.extend(toggles.iter().filter(|t| t.0).map(|t| t.1.to_string()));
     if let Some(n) = a.ring_lines {

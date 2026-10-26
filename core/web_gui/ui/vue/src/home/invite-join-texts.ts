@@ -14,8 +14,6 @@ export const NOTE_HERE = (net: string): string => `You're already in ${named(net
 export const NOTE_REMOVED = (net: string): string => `This invite brings ${forDevice("this computer")} back to ${named(net)}.`;
 export const NOTE_EXCLUDED_MANAGED = (net: string): string =>
   `This invite brings ${forDevice("this computer")} back to ${named(net)} if an admin of ${named(net)} made it.`;
-export const NOTE_BANNED_PEER = (net: string): string =>
-  `${forDevice("This computer")} can't rejoin ${named(net)}, so this invite won't work here. It won't be used up — someone else can join with it.`;
 export const NOTE_NEW_AT_LIMIT = `This is a new network, and Mesh Town is already in ${MAX_NETS}, the most it can be in. Leave a network first.`;
 
 /** The short error under the field of "Add" (the line above the field already says the rest). */

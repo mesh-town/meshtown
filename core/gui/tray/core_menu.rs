@@ -14,7 +14,7 @@ impl Core {
             // The status line, the proxy line, a network header or an unknown id — silently.
             MenuTarget::Unknown => {}
             MenuTarget::Open
-            | MenuTarget::Vote
+            | MenuTarget::Admit
             | MenuTarget::Add
             | MenuTarget::Notice(_)
             | MenuTarget::Members(_) => self.open_page(&target),

@@ -7,7 +7,7 @@ pub(crate) struct RunArgs {
     /// Invite to a network: a single-use string mesh-invite2-… from a running member (can be set with the MESHTOWN_INVITE variable).
     #[arg(long, env = "MESHTOWN_INVITE", hide_env = true, value_name = "TEXT")]
     pub(crate) invite: Option<String>,
-    /// Network key: "label--word-word-group" or mesh1-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).
+    /// Network key: a words key or mesh2-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).
     #[arg(long, env = "MESHTOWN_KEY", hide_env = true, value_name = "KEY")]
     pub(crate) key: Option<String>,
     /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable (default: next to the program or in the standard location).

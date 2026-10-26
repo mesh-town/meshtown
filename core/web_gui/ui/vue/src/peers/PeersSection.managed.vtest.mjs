@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { visibleText } from "../testing/dom.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
-import { ANNA_FULL, BOB_FULL, ID_HEX, ME_FULL, NET_NAME, managedMembers, managedNode, managedState, nodeConfig, peerNode, serveManaged } from "../testing/managed-fixtures.mjs";
+import { ANNA_FULL, BOB_FULL, ID_HEX, ME_FULL, NET_NAME, managedMembers, managedNode, managedState, nodeConfig, serveManaged } from "../testing/managed-fixtures.mjs";
 import { excludedInfo, memberRow } from "../testing/members-fixtures.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
 import { mountPage, settle, unmountPage } from "../testing/page.mjs";
@@ -32,10 +32,6 @@ describe("the Admin badge", () => {
     expect(page.badgesOf("finch-unwary")).not.toContain("Admin");
   });
 
-  it("is nowhere in a Peer network", async () => {
-    const page = await open(peerNode());
-    expect(page.listText()).not.toContain("Admin");
-  });
 });
 
 describe("the line of admins", () => {
@@ -47,11 +43,6 @@ describe("the line of admins", () => {
   it("a member computer sees the names only", async () => {
     const page = await open(managedNode({ meRole: "member", admins: [ANNA_FULL, BOB_FULL] }));
     expect(page.adminsLine()).toBe("Managed network · Admins: anna, bob");
-  });
-
-  it("is absent in a Peer network", async () => {
-    const page = await open(peerNode());
-    expect(page.wrapper.find("#admins-line").exists()).toBe(false);
   });
 });
 
@@ -77,14 +68,6 @@ describe("the invitation", () => {
   describe("an admin", () => {
     it("keeps the button and has no plaque", async () => {
       const page = await open(managedNode({ meRole: "admin" }));
-      expect(page.inviteButton().exists()).toBe(true);
-      expect(page.wrapper.find("#peers-invite-note").exists()).toBe(false);
-    });
-  });
-
-  describe("a Peer network", () => {
-    it("keeps the button and has no plaque", async () => {
-      const page = await open(peerNode());
       expect(page.inviteButton().exists()).toBe(true);
       expect(page.wrapper.find("#peers-invite-note").exists()).toBe(false);
     });
@@ -153,12 +136,12 @@ describe("a computer excluded by an admin", () => {
 
 function excludedNode(network) {
   const state = managedState({ meRole: "member", admins: [ANNA_FULL], network });
-  state.members = { count: 1, gossip_neighbors: 0, voting: 0, me_excluded: true };
+  state.members = { count: 1, gossip_neighbors: 0, me_excluded: true };
   const members = managedMembers(state);
   members.me_excluded = true;
   members.members = members.members.map((m) => (m.self ? memberRow({ ...m, status: "excluded", excluded: excludedInfo() }) : m));
   const node = createFakeNode({ state, config: nodeConfig(), slots: [{ id: "main", label: NET_NAME, id_hex: ID_HEX, members }] });
-  serveManaged(node, { brief: { kind: "Managed", me_admin: false, can_invite: false, me_excluded: true } });
+  serveManaged(node, { brief: { me_admin: false, can_invite: false, me_excluded: true } });
   return node;
 }
 
@@ -167,7 +150,7 @@ function openTwoManaged({ meRole, admins }) {
   const state = managedState({ meRole, admins, network: { id_hex: "net-bbbb" } });
   const opts = twoNets({ label: NET_NAME, state, members: managedMembers(state), id_hex: "net-bbbb" });
   const node = createFakeNode({ ...opts, config: nodeConfig() });
-  serveManaged(node, { briefs: { [NET_B]: { kind: "Managed", me_admin: meRole === "admin", can_invite: meRole === "admin" } } });
+  serveManaged(node, { briefs: { [NET_B]: { me_admin: meRole === "admin", can_invite: meRole === "admin" } } });
   node.routes["POST /api/network/delete"] = {};
   node.slotList.filter((s) => s !== node).forEach((s) => (s.routes["POST /api/network/delete"] = {}));
   return open(node, "peers/" + NET_B);

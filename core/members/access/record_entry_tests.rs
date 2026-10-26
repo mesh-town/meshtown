@@ -142,6 +142,7 @@ fn tagged_boot_marker_parses_as_a_boot_record() {
         }
     );
     let (input, ignored) = tally_input(
+        pid(9),
         a,
         &[entry(
             a,
@@ -153,7 +154,7 @@ fn tagged_boot_marker_parses_as_a_boot_record() {
             10,
         )],
     );
-    assert!(input.admits.is_empty() && input.votes.is_empty() && ignored == 0);
+    assert!(input.powers.is_empty() && input.votes.is_empty() && ignored == 0);
 }
 
 #[test]

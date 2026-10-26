@@ -10,7 +10,8 @@
 //! - `retire` — leaving a network: setting its folder or files aside;
 //! - `saved_slots` — starting the networks saved under `nets/`;
 //! - `slots` — the map of network slots the page and the signal reach the nodes through;
-//! - `signal` — the Ctrl-C/SIGTERM stop signal.
+//! - `signal` — the Ctrl-C/SIGTERM stop signal;
+//! - `test_keys` — key texts for the tests.
 
 mod add_slot;
 mod closed_watch;
@@ -24,6 +25,8 @@ mod run;
 mod saved_slots;
 pub(crate) mod signal;
 mod slots;
+#[cfg(test)]
+pub(crate) mod test_keys;
 
 pub use crate::config::config_file::NetSlotId;
 pub use notices::Notice;

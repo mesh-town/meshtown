@@ -27,7 +27,6 @@ mod parse_overview {
         // given
         let net = NetSpec {
             admitting: 1,
-            voting: 2,
             ..friends()
         };
 
@@ -40,7 +39,7 @@ mod parse_overview {
         assert!(s.proxy && !s.joining);
         assert_eq!(s.status, "online");
         assert_eq!((s.peers_online, s.peers_total), (2, 3));
-        assert_eq!((s.members_voting, s.members_admitting), (2, 1));
+        assert_eq!(s.members_admitting, 1);
     }
 
     #[test]
@@ -90,7 +89,7 @@ mod parse_overview {
         assert_eq!(s.label, None);
         assert!(!s.joining && !s.proxy);
         assert_eq!((s.peers_online, s.peers_total), (0, 0));
-        assert_eq!((s.members_voting, s.members_admitting), (0, 0));
+        assert_eq!(s.members_admitting, 0);
     }
 
     #[test]
@@ -116,92 +115,79 @@ mod managed_fields {
     use super::*;
 
     #[test]
-    fn summary_entry_carries_kind_admin_and_invite_right() {
+    fn an_entry_without_kind_reads_admin_and_invite_right() {
         // given
-        let json =
-            summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": false }));
+        let json = summary_with(json!({ "me_admin": true, "can_invite": false }));
 
         // when
         let s = first_slot(&json);
 
         // then
-        assert!(s.managed, "kind Managed");
         assert!(s.admin, "me_admin");
         assert!(!s.can_invite, "can_invite false is kept");
     }
 
     #[test]
-    fn no_fields_mean_a_peer_network_where_inviting_is_allowed() {
+    fn no_fields_mean_not_an_admin_where_inviting_is_allowed() {
         let s = first_slot(&summary_with(json!({})));
 
-        assert!(!s.managed && !s.admin);
+        assert!(!s.admin);
         assert!(s.can_invite, "an old node never forbids inviting");
     }
 
     #[test]
-    fn peer_kind_is_not_managed() {
-        let json = summary_with(json!({ "kind": "Peer", "me_admin": false, "can_invite": true }));
+    fn a_leftover_kind_field_is_ignored() {
+        let json = summary_with(json!({ "kind": "Peer", "me_admin": true, "can_invite": true }));
 
         let s = first_slot(&json);
 
-        assert!(!s.managed && !s.admin && s.can_invite);
-    }
-
-    #[test]
-    fn unknown_kind_reads_as_peer() {
-        let s = first_slot(&summary_with(json!({ "kind": "Council" })));
-
-        assert!(!s.managed);
+        assert!(s.admin && s.can_invite);
     }
 
     #[test]
     fn state_network_is_the_fallback_source() {
         // given
         let mut json = summary_with(json!({}));
-        json["slots"][0]["state"]["network"] =
-            json!({ "kind": "Managed", "me_role": "admin", "can_invite": false });
+        json["slots"][0]["state"]["network"] = json!({ "me_role": "admin", "can_invite": false });
 
         // when
         let s = first_slot(&json);
 
         // then
-        assert!(s.managed && s.admin);
+        assert!(s.admin);
         assert!(!s.can_invite);
     }
 
     #[test]
     fn member_role_in_the_state_is_not_admin() {
         let mut json = summary_with(json!({}));
-        json["slots"][0]["state"]["network"] =
-            json!({ "kind": "Managed", "me_role": "member", "can_invite": false });
+        json["slots"][0]["state"]["network"] = json!({ "me_role": "member", "can_invite": false });
 
         let s = first_slot(&json);
 
-        assert!(s.managed && !s.admin);
+        assert!(!s.admin);
     }
 
     #[test]
     fn summary_entry_wins_over_the_state() {
         // given
-        let mut json =
-            summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": true }));
-        json["slots"][0]["state"]["network"] =
-            json!({ "kind": "Peer", "me_role": "member", "can_invite": false });
+        let mut json = summary_with(json!({ "me_admin": true, "can_invite": true }));
+        json["slots"][0]["state"]["network"] = json!({ "me_role": "member", "can_invite": false });
 
         // when
         let s = first_slot(&json);
 
         // then
-        assert!(s.managed && s.admin && s.can_invite);
+        assert!(s.admin && s.can_invite);
     }
 
     #[test]
-    fn fields_of_foreign_types_become_peer_defaults() {
-        let json = summary_with(json!({ "kind": 5, "me_admin": "yes", "can_invite": "no" }));
+    fn fields_of_foreign_types_become_defaults() {
+        let json = summary_with(json!({ "me_admin": "yes", "can_invite": "no" }));
 
         let s = first_slot(&json);
 
-        assert!(!s.managed && !s.admin);
+        assert!(!s.admin);
         assert!(s.can_invite, "an unreadable flag does not forbid inviting");
     }
 }

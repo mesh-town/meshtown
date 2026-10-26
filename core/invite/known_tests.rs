@@ -10,7 +10,6 @@ use super::*;
 use crate::invite::{
     build_keyed, parse, InviteHead, InviteSecret, INVITE_PREFIX, MAX_INVITE_BYTES, MAX_INVITE_CHARS,
 };
-use crate::members::network_key::NetKind;
 use crate::transport::addr_order::PrimaryIps;
 use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
 
@@ -142,7 +141,7 @@ fn head() -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: None,
         made_unix: T,
-        kind: NetKind::Peer,
+        root: id(31),
     }
 }
 

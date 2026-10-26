@@ -226,7 +226,7 @@ mod value_layout {
     use super::*;
 
     #[test]
-    fn peer_value_is_the_old_bytes() {
+    fn plain_value_is_the_old_bytes() {
         // given
         let rec = issue_record(NOW, Some("Masha"));
         // when: no issuer

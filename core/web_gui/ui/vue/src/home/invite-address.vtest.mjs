@@ -12,7 +12,7 @@ import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
 const INVITE = "mesh-invite2-abc";
-const IN_NET = { ...STATE, network: { id_hex: "net-aaaa", masked: "mesh1-••••-••••" } };
+const IN_NET = { ...STATE, network: { id_hex: "net-aaaa", masked: "mesh2-••••-••••" } };
 
 // The address is read once per module: every test gets a fresh copy of the modules.
 async function fresh() {
@@ -74,7 +74,7 @@ describe("the preview of the invite from the address", () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     api.mockImplementation(async (method, path) => {
       if (path !== "/api/network/inspect") throw new Error("unexpected request " + path);
-      return { label: "family", kind: "Peer", id_hex: "aa", place: "here", slot: "neta22" };
+      return { label: "family", id_hex: "aa", place: "here", slot: "neta22" };
     });
     const { invite } = await fresh();
     const store = createStore();

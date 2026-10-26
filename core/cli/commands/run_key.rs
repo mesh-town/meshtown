@@ -2,31 +2,27 @@
 //! What is not here: choosing the launch branch and parsing flags — that is in `commands.rs`.
 
 use crate::config::config_file::{CliOverrides, RunConfig};
-use crate::members::network_key::{parse_user_input, NetworkKey};
+use crate::members::network_key::{parse_user_input, NetworkKeyInput};
 use crate::node::host::{Host, PageRole};
-use crate::node::output::NET_NAME;
+use crate::node::output::{say, NET_NAME};
 use crate::node::IdentityState;
-use anyhow::Context;
 
-use super::file_hint;
+use super::run_nokey::run_without_key;
 
-/// Parsing the network key: from a flag (`overrides.network_key`) or from the settings file (then the error
-/// names the file).
-pub(super) fn parse_run_key(
-    key_text: &str,
-    overrides: &CliOverrides,
-    run: &RunConfig,
-) -> anyhow::Result<crate::members::network_key::NetworkKeyInput> {
-    Ok(if overrides.network_key.is_none() {
-        parse_user_input(key_text).with_context(|| {
-            format!(
-                "Invalid network key from the settings file {}",
-                file_hint(&run.file_report)
-            )
-        })?
-    } else {
-        parse_user_input(key_text)?
-    })
+/// Parses the main network key. `Ok(None)` — the key does not parse but there is a settings file, so the node
+/// starts without a network and the page shows the field; without a file there is nothing to show, so it is an error.
+pub(super) fn main_key(key_text: &str, run: &RunConfig) -> anyhow::Result<Option<NetworkKeyInput>> {
+    match parse_user_input(key_text) {
+        Ok(parsed) => Ok(Some(parsed)),
+        Err(e) if run.file.is_none() => Err(e),
+        Err(e) => {
+            say(
+                "node",
+                format!("network key did not parse: {e:#}; starting without a network"),
+            );
+            Ok(None)
+        }
+    }
 }
 
 /// The "key is ready" log line — only for a key made of words.
@@ -60,18 +56,18 @@ pub(super) fn build_relaunch(
     }
 }
 
-/// Building `Relaunch` and `NodeConfig` for the first run (the label and addresses come from the invite, if there is one).
+/// Building `Relaunch` and `NodeConfig` for the first run (the label and addresses come from the key or the invite).
 pub(super) fn launch_parts(
     run: &RunConfig,
     overrides: CliOverrides,
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
-    network_key: NetworkKey,
-    label: Option<String>,
+    parsed: NetworkKeyInput,
     invited: Option<crate::invite::ParsedInvite>,
 ) -> (crate::node::node_ctl::Relaunch, crate::node::NodeConfig) {
     let relaunch = build_relaunch(run, overrides, initial_domains, blocked_domains);
-    let mut cfg = relaunch.node_config(&run.effective_settings, network_key);
+    let label = parsed.label.clone();
+    let mut cfg = relaunch.node_config(&run.effective_settings, parsed);
     cfg.identity = IdentityState::from_report(&run.file_report);
     let (invite_label, invite_peers) = match invited {
         Some(inv) => (inv.head.label, inv.peers),
@@ -97,32 +93,32 @@ async fn serve_node(
 }
 
 /// The branch where `run.effective_settings.network_key` is set: parses the key (from the flag or the file), starts
-/// the node page and the node itself.
+/// the node page and the node itself. A key from the file that does not parse starts the node without a network.
 pub(super) async fn run_with_key(
     key_text: String,
     overrides: CliOverrides,
-    run: RunConfig,
+    mut run: RunConfig,
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
     invited: Option<crate::invite::ParsedInvite>,
 ) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
-    let parsed = parse_run_key(&key_text, &overrides, &run)?;
-    let from_words = parsed.from_words;
-    let (kind, reply_secret) = (parsed.kind, NetworkKey::from_bytes(parsed.reply_secret()));
-    let label = parsed.label;
-    let network_key = parsed.key;
-    log_key_ready(started, from_words, label.as_deref());
-    let (relaunch, mut cfg) = launch_parts(
+    let Some(parsed) = main_key(&key_text, &run)? else {
+        run.effective_settings.net.network_key = None;
+        return run_without_key(overrides, run, initial_domains, blocked_domains).await;
+    };
+    log_key_ready(started, parsed.from_words, parsed.label.as_deref());
+    let (relaunch, cfg) = launch_parts(
         &run,
         overrides,
         initial_domains,
         blocked_domains,
-        network_key,
-        label,
+        parsed,
         invited,
     );
-    cfg.net_kind = kind;
-    cfg.reply_secret = reply_secret;
     serve_node(cfg, run, relaunch).await
 }
+
+#[cfg(test)]
+#[path = "run_key_tests.rs"]
+mod tests;

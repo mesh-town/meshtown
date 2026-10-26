@@ -5,7 +5,6 @@ use crate::config::config_file::{
     self, net_slot_path, new_slot_id, save_invited_peers, save_net_file, CliOverrides,
     ConfigSource, NetSettings, PathRule,
 };
-use crate::members::network_key::NetworkKey;
 use crate::transport::net::NodeSecret;
 
 const NOW: u64 = 1_790_000_000;
@@ -20,7 +19,7 @@ fn launch_of_slot(name: &str, peers: &[PeerAddr]) -> SlotLaunch {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     let overrides = CliOverrides {
-        network_key: Some(NetworkKey::from_bytes([61; 32]).encode()),
+        network_key: Some(crate::node::host::test_keys::managed_text(61)),
         ..CliOverrides::default()
     };
     let source = ConfigSource::File {
@@ -33,7 +32,7 @@ fn launch_of_slot(name: &str, peers: &[PeerAddr]) -> SlotLaunch {
     let id = new_slot_id(&main_path).expect("id");
     let path = net_slot_path(&main_path, &id).unwrap();
     let net = NetSettings {
-        network_key: Some(NetworkKey::from_bytes([62; 32]).encode()),
+        network_key: Some(crate::node::host::test_keys::managed_text(62)),
         ..NetSettings::default()
     };
     let secret = NodeSecret::from_bytes(&[62; 32]);

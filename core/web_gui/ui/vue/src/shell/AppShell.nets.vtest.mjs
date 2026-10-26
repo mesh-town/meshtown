@@ -1,11 +1,10 @@
 /* The requests-to-confirm counter of the shell with several networks: the "Members" tab chip and the header link `#strip-vote`
- * count the requests of every network together. A ban proposed by somebody else and a join request each count as one;
+ * count the requests of every network together. Each join request counts as one, for an admin only;
  * a network the computer was excluded from adds nothing. The link goes to the one network that has requests, otherwise to `#peers`.
  * With a single network the counter is the one the page always had. */
 
 import { afterEach, describe, expect, it } from "vitest";
-import { PEER2_FULL } from "../testing/section.mjs";
-import { foreignVote, membersReply, peerOneRow, peerTwoRow, pendingRow, selfRow } from "../testing/members-fixtures.mjs";
+import { membersReply, peerOneRow, pendingRow, selfRow } from "../testing/members-fixtures.mjs";
 import { openMembersPage, stateWith } from "../testing/members-page.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
@@ -69,30 +68,29 @@ describe("two networks", () => {
 
 describe("one network", () => {
   it("the chip and the link count its requests as before", async () => {
-    const rows = [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoRow({ name: "peer-two", vote: foreignVote() })];
-    const page = await openMembersPage({ members: membersReply({ rows }), state: stateWith({ voting: 2 }), tab: null });
+    const page = await openMembersPage({ members: twoRequests(), state: stateWith({ admitting: 2 }), tab: null });
     expect(page.text(CHIP)).toBe("2");
     expect(page.text(LINK)).toBe("2 requests to confirm");
     expect(page.attr(LINK, "href")).toBe("#peers");
   });
 
   it("an exclusion of this computer zeroes the counter", async () => {
-    const rows = [selfRow(), peerOneRow({ vote: foreignVote() })];
-    const page = await openMembersPage({ members: membersReply({ rows, me_excluded: true }), state: stateWith({ voting: 1 }), tab: null });
+    const rows = [selfRow(), peerOneRow(), pendingRow()];
+    const page = await openMembersPage({ members: membersReply({ rows, me_excluded: true, me_admin: true }), state: stateWith({ admitting: 1 }), tab: null });
     expect(page.has(CHIP)).toBe(false);
     expect(page.has(LINK)).toBe(false);
   });
 });
 
 // A member list without requests.
-const noRequests = (over = {}) => membersReply(over);
+const noRequests = (over = {}) => membersReply({ me_admin: true, ...over });
 
-// One ban of peer-two proposed by peer-one, which this computer has not joined yet.
-const oneRequest = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow(), peerTwoRow({ name: "peer-two", vote: foreignVote() })], ...over });
+// One join request for this admin.
+const oneRequest = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow(), pendingRow()], me_admin: true, ...over });
 
-// A ban proposed by peer-two and a join request: two things for this computer to confirm.
+// Two join requests for this admin.
 const twoRequests = (over = {}) =>
-  membersReply({ rows: [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoRow({ name: "peer-two" }), pendingRow()], ...over });
+  membersReply({ rows: [selfRow(), peerOneRow(), pendingRow(), pendingRow({ id: "ffff6666", id_full: "F".repeat(64) })], me_admin: true, ...over });
 
 // The page on a node with two networks: `a` and `b` are the member lists of the first and the second one.
 async function openTwoNets({ a, b }) {

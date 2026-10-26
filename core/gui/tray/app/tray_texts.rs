@@ -81,14 +81,10 @@ pub(crate) fn serve_disable_failed_text(reason: &str) -> String {
 pub(crate) fn status_absent_text() -> String {
     format!("{NET_NAME} is stopped — sites won't open through it")
 }
-/// Our own node was banned from the network by a vote: nothing opens through it.
+/// Our own node was removed from the network: nothing opens through it.
 pub(crate) fn status_excluded_text() -> String {
     format!("This computer is no longer in the network — sites won't open through {NET_NAME}")
 }
-/// The menu item shown while a ban vote is in progress; a click opens the members section.
-pub(crate) const VOTE_ITEM_TEXT: &str = "Ban vote in progress — open Members…";
-/// The tail of the icon hint while a ban vote is in progress.
-pub(crate) const VOTE_TOOLTIP_TAIL: &str = " · a ban vote is in progress";
 /// The menu item shown while a node waits to join; a click opens the members section.
 pub(crate) const ADMIT_ITEM_TEXT: &str = "A node is waiting to join — open Members…";
 /// The tail of the icon hint while a node waits to join.

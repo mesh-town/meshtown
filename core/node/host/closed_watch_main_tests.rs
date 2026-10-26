@@ -66,7 +66,7 @@ async fn a_key_from_a_flag_stays_and_the_deletion_is_noted() {
     fx.when_closed_main(Some(closing(5))).await;
     // then: no leave task, the key is kept, one note
     assert!(fx.slots.take_retiring().is_empty());
-    assert_eq!(fx.main_key(), Some(KEY.to_string()));
+    assert_eq!(fx.main_key(), Some(key_text()));
     assert_eq!(fx.notes().len(), 1);
 }
 

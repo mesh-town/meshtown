@@ -14,13 +14,13 @@ import assert from "node:assert/strict";
 import { ApiError } from "../core/api.ts";
 import { createStore } from "../core/store.ts";
 import { fetchMembers } from "./members-poll.ts";
-import { membersReply, peerOneRow, selfRow, voteInfo } from "../testing/members-fixtures.mjs";
+import { membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
-const NETWORK = { id_hex: "net-aaaa", masked: "mesh1-••••-••••" };
+const NETWORK = { id_hex: "net-aaaa", masked: "mesh2-••••-••••" };
 const STATE_WITH_NETWORK = { boot_id: "b1", network: NETWORK, peers: [] };
 const OLD_REPLY = membersReply({ rows: [selfRow()] });
-const NEW_REPLY = membersReply({ rows: [selfRow(), peerOneRow({ vote: voteInfo() })] });
+const NEW_REPLY = membersReply({ rows: [selfRow(), peerOneRow({ admin: false })] });
 
 describe("fetchMembers", () => {
   describe("the snapshot has no network", () => {

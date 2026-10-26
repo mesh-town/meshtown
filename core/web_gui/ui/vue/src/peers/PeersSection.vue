@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The "Members" section: the ban-vote banner, the member list (each row with its "⋯" menu), the line under the
-// list, the groups of nodes that are no longer in / not in the member list, the confirmation dialog. A computer that
+// The "Members" section: the second-admin hint, the member list (each row with its "⋯" menu), the line under the
+// list, the groups of nodes that are not in / no longer in the member list, the confirmation dialog. A computer that
 // is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
 import { computed, inject, nextTick, ref, watch } from "vue";
 import { isRefused, membersOf, netName, peersSlots, refusedFlag, stateOf } from "../core/slots.ts";
@@ -18,15 +18,10 @@ import { chosenOf } from "../home/exit-groups.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
-import PendingCard from "../members/PendingCard.vue";
 import PendingList from "../members/PendingList.vue";
-import StaleList from "../members/StaleList.vue";
-import ForgottenList from "../members/ForgottenList.vue";
 import ExcludedList from "../members/ExcludedList.vue";
 import UnlistedList from "../members/UnlistedList.vue";
-import VoteBanner from "../members/VoteBanner.vue";
-import { confirmable, displayNames, excludedVariant, isMeExcluded, isMeRemoved, managedFacts, memberById, meId, partitionRows, excludedRowLine, votingHidden } from "../members/members-view.ts";
-import { pendingProposal, proposalKey, pruneHidden } from "../members/vote-hidden.ts";
+import { displayNames, excludedVariant, isMeExcluded, managedFacts, memberById, meId, partitionRows, excludedRowLine } from "../members/members-view.ts";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import RejoinForm from "./RejoinForm.vue";
 import NetTabHead from "./NetTabHead.vue";
@@ -34,6 +29,7 @@ import NetTabs from "./NetTabs.vue";
 import PeerRow from "./PeerRow.vue";
 import YouBlock from "./YouBlock.vue";
 import AdminsLine from "./AdminsLine.vue";
+import SecondAdminHint from "./SecondAdminHint.vue";
 import DeletedBanner from "../members/DeletedBanner.vue";
 import AdmissionRefused from "./AdmissionRefused.vue";
 import { excludedByName } from "../members/excluded-by.ts";
@@ -88,9 +84,8 @@ const waitingHere = computed(() => {
 });
 // A join that the members refused: the slot has no network yet, the node says why.
 const refusedHere = computed(() => (slot.value === "main" || state.value?.network ? null : refusedText(state.value?.node?.invite_join)));
-const managedHere = computed(() => (store.nets.find((n) => n.id === slot.value)?.kind ?? state.value?.network?.kind) === "Managed");
-const { status, dialog, ask, pick } = useMembersActions(store, () => slot.value);
-const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
+const { status, dialog, pick } = useMembersActions(store, () => slot.value);
+const excluded = computed(() => isMeExcluded(state.value, members.value));
 const variant = computed(() => excludedVariant(members.value, meId(state.value)));
 const net = computed(() => netName(store.nets, slot.value));
 // The way back for an excluded or removed computer is a form under the card, in this tab: the card's button opens it.
@@ -104,35 +99,22 @@ async function openRejoin(): Promise<void> {
   await nextTick();
   rejoin.value?.focus();
 }
-const hidden = ref<string[]>([]); // "Not now": keys of the proposals hidden until they change or go away
-
 const me = computed(() => meId(state.value));
 const names = computed(() => displayNames(members.value));
-const parts = computed(() => partitionRows(orderedPeers(state.value && state.value.peers), members.value, me.value));
+const parts = computed(() => partitionRows(orderedPeers(state.value && state.value.peers), members.value));
 // A peer the member list does not know is shown as a plain row: no menu, no badge.
 const rows = computed(() => parts.value.active as PeerInfo[]);
 const excludedLines = computed(() => parts.value.excluded.map((m) => excludedRowLine(m, names.value)));
 const chosen = computed(() => chosenOf(store, slot.value, chosenExitIds(store)));
-// A managed network has no votes: no banner, no confirmation card.
-const noVotes = computed(() => votingHidden(members.value) || state.value?.network?.kind === "Managed");
-const adminIds = computed(() => (menuCtx.value.managed ? (members.value?.admins ?? state.value?.network?.admins ?? []) : []));
+const adminIds = computed(() => menuCtx.value.adminIds);
 const inviteNote = useInviteNote(store, () => slot.value);
 const excludedBy = computed(() => excludedByName(state.value?.network?.excluded_by));
 const menuCtx = computed(() => managedFacts(state.value?.network, members.value, me.value));
-const waiting = computed(() => (noVotes.value ? [] : confirmable(members.value, me.value)));
-const proposal = computed(() => pendingProposal(waiting.value, hidden.value));
-watch(waiting, (list) => (hidden.value = pruneHidden(hidden.value, list)));
-const later = (): void => {
-  if (proposal.value) hidden.value = [...hidden.value, proposalKey(proposal.value)];
-};
-const meVotes = computed(() => (members.value && members.value.me_admission ? members.value.me_admission.votes : 0));
-const meNeed = computed(() => (members.value && members.value.me_admission ? members.value.me_admission.need : (members.value ? members.value.need : 2)));
 const memberOf = (p: PeerInfo) => memberById(members.value, p.id_full);
 
-// Another tab: the proposals hidden on the old one mean nothing here; the line under the list is cleared
+// Another tab: the line under the list is cleared
 // unless the old tab is gone (a left network keeps its farewell line).
 watch(slot, (now, before) => {
-  hidden.value = [];
   rejoinOpen.value = false;
   if (before !== now && visible.value.includes(before)) status.value = { text: "", cls: "" };
 });
@@ -156,8 +138,8 @@ async function exitVia(idFull: string): Promise<void> {
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" />
     <template v-else-if="excluded">
-      <ExcludedCard members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
-      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />
+      <ExcludedCard members :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
+      <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />
       <p v-else-if="rejoinRefused" class="field-error-text" id="rejoin-refused" role="alert"><strong>{{ REFUSED_LEAD(quotedNet(net)) }}</strong> {{ rejoinRefused }}</p>
     </template>
     <JoiningCard v-else-if="waitingHere || refusedHere" :key="slot" :slot="slot" :refused="refusedHere ?? undefined" :lead="refusedLead(state?.node?.invite_join)" />
@@ -169,20 +151,17 @@ async function exitVia(idFull: string): Promise<void> {
       <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" 
 :multi="crowded" :note="inviteNote" />
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
+      <SecondAdminHint :only-admin="!!menuCtx.onlyAdmin" />
       <DeletedBanner />
       <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-sm" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
-      <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
-      <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />
       <div class="card">
         <ul class="peer-list" id="peers-list" role="list">
-          <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :list="members" :me="me" :names="names" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
+          <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :list="members" :me="me" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
         </ul>
         <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
       </div>
       <PendingList :rows="parts.pending" :me="me" @pick="pick" />
-      <StaleList :rows="parts.stale" :me="me" :ctx="menuCtx" @pick="pick" />
-      <ForgottenList :rows="parts.forgotten" :all="members ? members.members : []" :me="me" @pick="pick" />
       <ExcludedList :lines="excludedLines" />
       <UnlistedList :rows="parts.unlisted" @pick="pick" />
       <YouBlock v-if="multi" ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" @delete="pick('delete-network', me)" />

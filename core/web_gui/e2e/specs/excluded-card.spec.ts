@@ -12,7 +12,7 @@ async function gapBelowText(card: Locator): Promise<number> {
 }
 
 test.describe('excluded card spacing', () => {
-  test.skip(({ targetKind }) => targetKind === 'node', 'starting banned is a flag of the demo node; skipped before the target starts');
+  test.skip(({ targetKind }) => targetKind === 'node', 'starting removed is a flag of the demo node; skipped before the target starts');
   test.use({ targetFlags: { extraArgs: ['--me-excluded'] } });
 
   test('112-excluded-card-gap: the "Join with another invite" button keeps a gap from the text above it', async ({ app, page }) => {

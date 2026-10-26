@@ -148,16 +148,19 @@ pub(crate) enum CliCommand {
     /// Run Mesh Town in this window, without an icon
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown run [OPTIONS]")]
     Run(crate::cli::commands::RunArgs),
-    /// Print a new network key (advanced; most people join with an invite)
-    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown keygen [--raw] [LABEL]…")]
+    /// Print a new network key with this computer as its admin (advanced; most people create a network on the page or join with an invite)
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown keygen [--raw] [--config <PATH>] [LABEL]…")]
     Keygen {
         /// A network label, words separated by spaces: meshtown keygen our game. It doesn't affect the key.
         /// The random part is two words from the EFF list (CC BY 3.0 US) and a group of 21 characters.
         #[arg(value_name = "LABEL", help_heading = "Options")]
         label: Vec<String>,
-        /// Print the machine key mesh1-… (32 random bytes) instead of the key with words.
+        /// Print the machine key mesh2-… instead of the key with words.
         #[arg(long, conflicts_with = "label")]
         raw: bool,
+        /// Settings file (JSON) whose node identity becomes the network admin; can be set with the MESHTOWN_CONFIG variable.
+        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
+        config: Option<std::path::PathBuf>,
     },
     /// Print the path to the settings file
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config-path [--config <PATH>]")]

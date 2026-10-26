@@ -31,8 +31,7 @@ pub struct NetMenu {
     /// Members that are not in `peers` but exist (listed in the "and N more" line).
     pub peers_more: usize,
     pub serves_exit: bool,
-    /// Pending ban votes and join requests of the network.
-    pub voting: u32,
+    /// Join requests of the network that wait for an admin.
     pub admitting: u32,
     /// Administered network where we may not invite: the invite row is grey.
     pub invite_admins_only: bool,
@@ -75,9 +74,8 @@ fn net_menu(slot: &SlotView) -> NetMenu {
         peers,
         peers_more,
         serves_exit: snap.exit.enabled,
-        voting: slot.members_voting,
         admitting: slot.members_admitting,
-        invite_admins_only: slot.managed && !slot.can_invite,
+        invite_admins_only: !slot.can_invite,
         label,
     }
 }
@@ -95,10 +93,7 @@ fn title_of(slot: &SlotView, label: &str) -> String {
         ),
         false => net_offline_title_text(label),
     };
-    match slot.managed {
-        true => format!("{base}{}", managed_tail(slot.admin)),
-        false => base,
-    }
+    format!("{base}{}", managed_tail(slot.admin))
 }
 
 fn peer_rows(snap: &TraySnapshot) -> Vec<PeerRow> {

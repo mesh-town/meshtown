@@ -14,7 +14,7 @@ const held = useHeldRefusal(() => refusedNow(props.refused, props.members));
 
 const names = computed(() => held.value?.names ?? []);
 const what = computed(() => (names.value.length === 0 ? ADMISSION_REFUSED_NONE(props.net) : names.value.length === 1 ? ADMISSION_REFUSED_ONE(names.value[0], props.net) : ADMISSION_REFUSED_MANY(admissionRefusedList(names.value), props.net)));
-const ask = computed(() => admissionRefusedAsk(names.value, props.net, props.members?.kind === "Managed"));
+const ask = computed(() => admissionRefusedAsk(props.net));
 </script>
 
 <template>

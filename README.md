@@ -104,7 +104,7 @@ needs a confirmation. Gatekeeper, console-only Linux builds, router details, ver
 ## Safety
 
 - **Members are trusted.** A member can use your shared ports and, if you are an exit, your connection. Invite only
-  people you trust; the members vote a lost device out, the network key does not need to change.
+  people you trust; an administrator removes a lost device, the network key does not need to change.
 - **Keep the network key and `config.json` private.** The key alone does not let a node in, but it reveals the
   network's records in the DHT. Pass it through `MESHTOWN_KEY` or the settings file, not the command line.
 - **An exit lends your IP address** and sees which hosts members connect to. Turn it off with `--no-exit` or on the

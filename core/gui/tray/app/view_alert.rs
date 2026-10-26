@@ -1,4 +1,4 @@
-//! The "vote waiting" mark in the centre of the tray icon: an amber disc with a dark exclamation sign.
+//! The "request waiting" mark in the centre of the tray icon: an amber disc with a dark exclamation sign.
 //!
 //! What it does: `paint_alert` draws the mark over an RGBA raster (ring or solid circle) with 8×8
 //! subsampling and alpha blending, the same way `view_disk::paint_disk` draws the speed disk; the mark

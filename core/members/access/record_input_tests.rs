@@ -4,11 +4,12 @@
 use super::super::record::support_tests::{admit_of, entry, raw, Raw};
 use super::super::record::{admit_key, encode, exclude_key, AclKind, AclValue};
 use super::*;
+use crate::members::access::authority::{Power, PowerIn};
 use crate::transport::net::contract::pid;
 use crate::transport::net::PeerId;
 
 #[test]
-fn live_records_become_admits_and_votes() {
+fn live_records_become_powers_and_votes() {
     // given: A admits B (live) and A votes against B at 200
     let (me, a, b) = (pid(1), pid(2), pid(3));
     let vote = AclValue {
@@ -20,8 +21,8 @@ fn live_records_become_admits_and_votes() {
         entry(a, exclude_key(&b), encode(&vote), 200),
     ];
     // when: the input is built
-    let (input, ignored) = tally_input(me, &entries);
-    // then: one admit row, one vote row with the entry's time, nothing ignored
+    let (input, ignored) = tally_input(root(), me, &entries);
+    // then: one admission, one vote row with the entry's time, nothing ignored
     assert_eq!(input.me, me);
     assert_eq!(admit_rows(&input), [(a, b)]);
     assert_eq!(vote_rows(&input), [(a, b, 200)]);
@@ -34,7 +35,7 @@ fn withdrawn_self_exclusion_stays_left() {
     let (me, a) = (pid(1), pid(2));
     let entries = [entry(a, exclude_key(&a), vec![], 300)];
     // when: the input is built
-    let (input, ignored) = tally_input(me, &entries);
+    let (input, ignored) = tally_input(root(), me, &entries);
     // then: it still counts as a live vote of A against A (leaving is irreversible)
     assert_eq!(vote_rows(&input), [(a, a, 300)]);
     assert_eq!(ignored, 0);
@@ -49,7 +50,7 @@ fn withdrawn_vote_on_other_is_dropped() {
         entry(a, admit_key(&b), vec![], 310),
     ];
     // when: the input is built
-    let (input, ignored) = tally_input(me, &entries);
+    let (input, ignored) = tally_input(root(), me, &entries);
     // then: a withdrawn vote on someone else is gone, and so is a withdrawn admit; neither is garbage
     assert!(vote_rows(&input).is_empty() && admit_rows(&input).is_empty());
     assert_eq!(ignored, 0);
@@ -76,7 +77,7 @@ fn garbage_counts_as_ignored() {
         entry(a, admit_key(&e), encode(&admit_of(b)), 130),
     ];
     // when: the input is built
-    let (input, ignored) = tally_input(me, &entries);
+    let (input, ignored) = tally_input(root(), me, &entries);
     // then: only the good admit remains, and the three bad ones are counted
     assert_eq!(ignored, 3, "three entries are garbage");
     assert_eq!(admit_rows(&input), [(a, b)]);
@@ -84,7 +85,6 @@ fn garbage_counts_as_ignored() {
 
 mod powers {
     use super::*;
-    use crate::members::access::authority::{Power, PowerIn};
     use crate::members::access::record::{grant_key, revoke_key, Via, CLOSE_KEY};
 
     #[test]
@@ -114,9 +114,9 @@ mod powers {
             ),
         ];
         // when: the input is built
-        let (input, ignored) = tally_input(me, &entries);
+        let (input, ignored) = tally_input(root(), me, &entries);
         // then: every record is a record of power with the time of the entry (not the time inside
-        // the value); an admission is also an admit row as before
+        // the value); an admission is one of them
         let power = |power, subject, ts_micros| PowerIn {
             author: a,
             power,
@@ -146,76 +146,22 @@ mod powers {
             entry(a, admit_key(&b), vec![], 230),
         ];
         // when: the input is built
-        let (input, ignored) = tally_input(me, &entries);
+        let (input, ignored) = tally_input(root(), me, &entries);
         // then: a taken-back record is not a record of power; nobody counts it as garbage
         assert!(input.powers.is_empty() && admit_rows(&input).is_empty());
         assert_eq!(ignored, 0);
     }
 }
 
-mod moment_mark {
-    use super::*;
-    use crate::members::access::record::{Via, VOTE_AT_MOMENT};
-
-    #[test]
-    fn marked_exclude_becomes_vote_at_moment() {
-        // given: A votes against B with the moment mark
-        let (me, a, b) = (pid(1), pid(2), pid(3));
-        let entries = [entry(
-            a,
-            exclude_key(&b),
-            encode(&exclude_via(b, VOTE_AT_MOMENT)),
-            200,
-        )];
-        // when: the input is built
-        let (input, ignored) = tally_input(me, &entries);
-        // then: the vote is counted at its own moment
-        assert_eq!(vote_rows(&input), [(a, b, 200)]);
-        assert!(input.votes[0].at_moment, "the mark must reach the tally");
-        assert_eq!(ignored, 0);
-    }
-
-    #[test]
-    fn unmarked_exclude_is_counted_by_current_need() {
-        for via in [Via::None, Via::Invite, Via::Migration] {
-            // given: A votes against B with a via that is not the mark
-            let (me, a, b) = (pid(1), pid(2), pid(3));
-            let entries = [entry(a, exclude_key(&b), encode(&exclude_via(b, via)), 200)];
-            // when: the input is built
-            let (input, _) = tally_input(me, &entries);
-            // then: the vote has no mark
-            assert!(
-                !input.votes[0].at_moment,
-                "via {via:?} must not mark the vote"
-            );
-        }
-    }
-
-    #[test]
-    fn withdrawn_leave_is_not_at_moment() {
-        // given: A's tombstone under A's own exclusion key (A left)
-        let (me, a) = (pid(1), pid(2));
-        let entries = [entry(a, exclude_key(&a), vec![], 300)];
-        // when: the input is built
-        let (input, _) = tally_input(me, &entries);
-        // then: the leave is a vote against itself without the mark
-        assert_eq!(vote_rows(&input), [(a, a, 300)]);
-        assert!(!input.votes[0].at_moment);
-    }
-
-    fn exclude_via(subject: PeerId, via: Via) -> AclValue {
-        AclValue {
-            kind: AclKind::Exclude,
-            via,
-            ..admit_of(subject)
-        }
-    }
-}
-
 // --- helpers ---
 
+fn root() -> PeerId {
+    pid(9)
+}
+
 fn admit_rows(input: &TallyInput) -> Vec<(PeerId, PeerId)> {
-    input.admits.iter().map(|a| (a.author, a.subject)).collect()
+    let admit = |p: &PowerIn| matches!(p.power, Power::Admit(_)).then_some((p.author, p.subject));
+    input.powers.iter().filter_map(admit).collect()
 }
 
 fn vote_rows(input: &TallyInput) -> Vec<(PeerId, PeerId, u64)> {

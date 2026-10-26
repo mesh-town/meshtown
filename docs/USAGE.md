@@ -14,11 +14,12 @@ tray type `meshtown-cli` instead, for example `meshtown-cli run …`. The hints 
 way it was started.
 
 ```sh
-meshtown keygen our gaming room       # network key: label + random part
+meshtown keygen our gaming room       # key of a new network: label + random part; this node is its administrator
 meshtown keygen                       # the same without a label
-meshtown keygen --raw                 # machine key mesh1-… for scripts
+meshtown keygen --raw                 # machine key mesh2-… for scripts
+meshtown keygen [--config PATH]       # --config picks the settings file whose node identity becomes the creator
 meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
-MESHTOWN_KEY="our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5" \
+MESHTOWN_KEY="<key from keygen or from an administrator>" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
   [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
   [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
@@ -28,7 +29,7 @@ MESHTOWN_KEY="our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tz01g5" \
 
 ### The network key
 
-`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group` or a machine key `mesh1-…`. If neither
+`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group-<creator>` or a machine key `mesh2-…`. A key of the older format (`mesh1-…`, or three words with a group) is no longer accepted; ask a network administrator for a new invite. If neither
 is given, the node reads the `network.key` field of the [settings file](#settings-file). If there is no key there
 either, `--no-config` makes this an error right away; otherwise the node starts anyway and waits for you to join a
 network from the page (see [First run without a key](#first-run-without-a-key)).
@@ -160,33 +161,28 @@ On the page, the "Invite a member" button on "Home" puts the same string on the 
 
 ## Managed networks
 
-A network has one of two types, chosen when it is created and never changed afterwards.
+A network is administered: administrators decide who is in and who is out. Only an administrator can invite a person,
+remove a member, make another member an administrator or delete the network. Everyone else sees the list of members and
+uses the network as usual.
 
-- **Peer** (the default): every member can invite people, and removing a member takes the votes of two members.
-- **Managed**: administrators decide who is in and who is out. Only an administrator can invite a person, remove a
-  member, make another member an administrator or delete the network. Everyone else sees the list of members and
-  uses the network as usual.
+The creator of a network is its first administrator and the *root*: the root keeps the role for good and cannot be made a
+regular member. Right after creation the creator is the only administrator, and the page advises making a second member
+an administrator, so that the network can still be managed if the creator's computer is lost. A key or an invite of the
+older format is refused with a message that it comes from an older version.
 
-The creator of a Managed network is its first administrator and the *root*: the root keeps the role for good and
-cannot be made a regular member. A key or an invite of a Managed network is not understood by a program that does not
-know Managed networks, so such a program refuses it instead of joining a network of another kind.
+**Create.** On the page, "Add a network" (or "Join or create a network" when there is none) asks for a name and creates
+the network. The tray menu has the item `Add a network…`, which opens the same form.
 
-**Create.** On the page, "Add a network" (or "Join or create a network" when there is none) asks "Who can invite and
-remove members?" and offers *Peer network* (selected) and *Managed network*. The tray menu has the item
-`Add a network…`, which opens the same form. A node that joins by a key or an invite sees the type of the network
-before it joins.
-
-**Invite.** Only an administrator can issue an invite to a Managed network; for anyone else the button is replaced by
+**Invite.** Only an administrator can issue an invite; for anyone else the button is replaced by
 a note naming the administrators, and the tray item is disabled. An invite that was not made by an administrator is
 refused when it is redeemed.
 
 **Administrators.** In the member list an administrator opens the `⋯` menu of a row and picks `Make admin` or
 `Make regular member`. An administrator can give up their own role (`Give up admin rights`) unless they are the only
 one; the last administrator cannot leave or give up the role, and is offered to make another member an administrator
-or to delete the network. A Managed network without any administrator cannot be managed, so make a second one soon.
+or to delete the network. Make a second administrator soon.
 
-**Remove.** An administrator picks `Remove from network…` for a member. One administrator's decision is enough, with
-no voting; the removed node is disconnected from all members and needs a new invite to come back. The removed node
+**Remove.** An administrator picks `Remove from network…` for a member. One administrator's decision is enough; the removed node is disconnected from all members and needs a new invite to come back. The removed node
 sees which administrator removed it.
 
 **Delete for everyone.** `Delete network for everyone…` (the administrator's own row) asks to type the network name.
@@ -338,16 +334,6 @@ The node page has a "Home" tab with the essentials for a simple setup (state, jo
 hint, node name, permission to be an exit for other members) and six more tabs: "Members", "Site checks", "Ports",
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
 the tabs become a horizontal strip. The "Ports" tab is described in [Published ports](#published-ports).
-
-**Removing a member that is offline.** On the "Members" tab, a member that is not connected has a "Remove from network…"
-item. It differs from "Ban from network…": a ban forbids the node to enter and is held by the votes of the whole
-network, while removal only cleans the list of nodes that have not been around for a long time and does not stop
-them from coming back. Removal is a vote of your node and passes at the same threshold as a ban: one vote while at
-most two nodes are active, otherwise two. A pending proposal shows to the others as "Confirm removal…" and is
-withdrawn with "Undo removal". Removed nodes are listed in the group "Removed from the member list"; nodes offline
-for more than a week are collected in "Offline for over a week" and are removed one at a time, nothing is removed
-automatically. A removed node sees the card "This computer was removed from the member list" and returns with a new
-invite, keeping the same computer key.
 
 The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
 which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo

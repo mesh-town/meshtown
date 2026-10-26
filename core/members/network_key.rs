@@ -1,20 +1,20 @@
-//! Network key: the human form "label--two-words-group", the machine form `mesh1-…`, subkeys.
+//! Network key: the words form `label--word-word-group-<root>`, the raw form `label--mesh2-…`, subkeys.
 //!
 //! What it does: parses a key typed by a human: to the left of the first `--` is a label (for the
 //! human only, it does not affect the key), to the right is a random part of two EFF-list words and a group of
-//! 21 characters, from which a fast hash (SHA-256 with a constant salt) derives the 32 key bytes;
-//! a `mesh1-…` string is parsed as ready 32 bytes; derives seven subkeys from the key.
+//! 21 characters, from which a fast hash (SHA-256 with a constant salt) derives the base of the key, followed by
+//! the node id of the network creator (`managed.rs`); derives seven subkeys from the key. A key of an older
+//! Mesh Town is recognized and refused with its own text (`input.rs`).
 //! What it doesn't do: it neither stores the key on disk nor prints it; there is no slow key derivation function
 //! (Argon2id) any more — the entropy of the random part is known exactly and equals 130.8 bits.
 //! Protocol: the rules of `normalize_dashed`, `CTX_TAIL_SALT` and the composition of the random part must not
-//! change — a different result means a different network; pinned by a reference test.
-//! A Managed network key (`managed.rs`) is a different network from any Peer key: the derivation rule and the `mesh2-` form
-//! must not change either.
+//! change — a different result means a different network; pinned by a reference test. The derivation of a
+//! Managed key and the `mesh2-` form must not change either.
 //! Links: `peer_record`, `dht`, `handshake`, `node` take subkeys from `SubKeys`;
 //! `main` calls `parse_user_input`; `words` provides the word list and the part checks.
 
 use anyhow::{anyhow, Result};
-use data_encoding::{BASE32_NOPAD, BASE32_NOPAD_NOCASE, HEXLOWER};
+use data_encoding::HEXLOWER;
 use icu_normalizer::ComposingNormalizerBorrowed;
 use ring::rand::{SecureRandom, SystemRandom};
 
@@ -22,10 +22,11 @@ use crate::node::output::NET_NAME;
 
 mod input;
 mod managed;
-pub use input::{key_from_tail, parse_user_input, BadWord};
+pub use input::{key_from_tail, parse_user_input, BadWord, LegacyKey, LEGACY_KEY_TEXT};
+#[cfg(test)]
+pub(crate) use managed::support::test_net;
 pub use managed::{
-    format_managed_key, managed_key, managed_key_with_label, parse_managed, NetKind,
-    NetworkKeyInput,
+    format_managed_key, managed_key, managed_key_with_label, parse_managed, NetworkKeyInput,
 };
 // Only for the reference test `derive_tail_is_deterministic_and_input_sensitive` in
 // `network_key_tests.rs`: the function itself remained a detail of `input` and is not exposed.
@@ -33,9 +34,6 @@ pub use managed::{
 use crate::members::words::is_tail_word;
 #[cfg(test)]
 use input::derive_tail_bytes;
-
-/// Prefix of the encoded network key.
-pub const KEY_PREFIX: &str = "mesh1-";
 
 const CTX_DHT_SIGNING: &str = "meshtown dht signing key v1";
 const CTX_DHT_SALT: &str = "meshtown dht salt v1";
@@ -122,40 +120,6 @@ impl NetworkKey {
         self.0
     }
 
-    /// Encodes the network key into the text form `mesh1-<base32>`.
-    pub fn encode(&self) -> String {
-        format!(
-            "{}{}",
-            KEY_PREFIX,
-            BASE32_NOPAD.encode(&self.0).to_ascii_lowercase()
-        )
-    }
-
-    /// Parses the text form of the network key (the machine form of the key), allowing surrounding spaces and
-    /// any case.
-    pub fn parse(input: &str) -> Result<NetworkKey> {
-        if !Self::looks_like_encoded_key(input) {
-            return Err(anyhow!("the key must start with mesh1-"));
-        }
-        let body = &input.trim()[KEY_PREFIX.len()..];
-        let decoded = BASE32_NOPAD_NOCASE
-            .decode(body.as_bytes())
-            .map_err(|e| anyhow!("the key does not decode from base32: {e}"))?;
-        if decoded.len() != 32 {
-            return Err(anyhow!("the key must be 32 bytes, got {}", decoded.len()));
-        }
-        let mut bytes = [0u8; 32];
-        bytes.copy_from_slice(&decoded);
-        Ok(NetworkKey(bytes))
-    }
-
-    /// Whether the string (after trimming spaces) starts with `mesh1-` in any case.
-    pub fn looks_like_encoded_key(input: &str) -> bool {
-        let b = input.trim().as_bytes();
-        b.len() >= KEY_PREFIX.len()
-            && b[..KEY_PREFIX.len()].eq_ignore_ascii_case(KEY_PREFIX.as_bytes())
-    }
-
     /// Derives seven subkeys for different purposes from the network key.
     pub fn subkeys(&self) -> SubKeys {
         let dht_signing_seed = blake3::derive_key(CTX_DHT_SIGNING, &self.0);
@@ -179,21 +143,6 @@ impl NetworkKey {
             network_id,
         }
     }
-}
-
-/// Builds the key in the human form: "label--random-part" or just the random part.
-pub fn format_key_string(label: Option<&str>, tail: &str) -> String {
-    match label {
-        Some(l) => format!("{l}{LABEL_SEPARATOR}{tail}"),
-        None => tail.to_string(),
-    }
-}
-
-/// Builds a key with a label in the encoded form ("label--mesh1-…" or just "mesh1-…").
-/// The inverse operation is `parse_user_input`: `parse_user_input(&key_with_label(l, k))`
-/// returns the same `k` and the same `l`.
-pub fn key_with_label(label: Option<&str>, key: &NetworkKey) -> String {
-    format_key_string(label, &key.encode())
 }
 
 /// Subkeys derived from the network key.

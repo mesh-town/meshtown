@@ -1,21 +1,17 @@
-//! The member list for the web page: rows, statuses, votes, exclusions, refusals.
+//! The member list for the web page: rows, statuses, exclusions, refusals.
 //!
 //! What it does: turns the verdicts, the connection state and the last refusals into the reply of
 //! `GET /api/members`.
 //! What it doesn't do: no replica reads and no decisions; every verdict comes from `Verdicts::check`.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::members::membership::Members;
 use crate::node::output::short_peer_id;
 use crate::transport::net::PeerId;
-use crate::web_gui::{
-    AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
-};
+use crate::web_gui::{AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo};
 
-use super::abilities::{admins_of, kind_of};
-pub use super::report_forget::stamp_last_seen;
-use super::report_forget::{forget_info, me_removed};
+use super::abilities::admins_of;
 use super::tally::How;
 use super::view::{Deny, Refusal, Side, Verdicts};
 
@@ -24,9 +20,7 @@ fn all_ids(v: &Verdicts, members: &Members, refusals: &[(PeerId, Refusal)]) -> B
     let mut ids: BTreeSet<PeerId> = v.ledger.admitted.clone();
     ids.extend(v.ledger.excluded.keys().copied());
     ids.extend(v.ledger.admissions.keys().copied());
-    ids.extend(v.my_votes.iter().copied());
     ids.extend(v.blocks.iter().copied());
-    ids.extend(v.ledger.forgets.keys().copied());
     ids.extend(members.names().into_keys());
     ids.extend(members.ids());
     ids.extend(refusals.iter().map(|(p, _)| *p));
@@ -38,15 +32,13 @@ fn status_of(v: &Verdicts, p: &PeerId) -> &'static str {
     let waiting = v.ledger.admissions.contains_key(p);
     match (
         v.ledger.excluded.contains_key(p),
-        v.ledger.is_forgotten(p),
         v.ledger.admitted.contains(p),
         waiting,
     ) {
         (true, ..) => "excluded",
-        (false, true, ..) => "forgotten",
-        (false, false, true, _) => "member",
-        (false, false, false, true) => "pending",
-        (false, false, false, false) => "unlisted",
+        (false, true, _) => "member",
+        (false, false, true) => "pending",
+        (false, false, false) => "unlisted",
     }
 }
 
@@ -54,30 +46,9 @@ fn full(ids: &[PeerId]) -> Vec<String> {
     ids.iter().map(|p| p.to_string()).collect()
 }
 
-fn vote_of(v: &Verdicts, p: &PeerId) -> Option<VoteInfo> {
-    let pending = v
-        .ledger
-        .pending
-        .get(p)
-        .filter(|_| status_of(v, p) == "member")?;
-    let proposed_by = pending.voters.first()?.to_string();
-    Some(VoteInfo {
-        votes: pending.voters.len(),
-        need: pending.need,
-        proposed_by,
-        voters: full(&pending.voters),
-        mine: pending.voters.contains(&v.me),
-        reason: v.reasons.get(p).cloned(),
-    })
-}
-
 fn admission_of(v: &Verdicts, p: &PeerId) -> Option<AdmissionInfo> {
     let a = v.ledger.admissions.get(p)?;
     Some(AdmissionInfo {
-        votes: a.voters.len(),
-        need: a.need,
-        voters: full(&a.voters),
-        mine: a.voters.contains(&v.me),
         label: a.label.clone(),
     })
 }
@@ -97,7 +68,7 @@ fn me_admission_of(v: &Verdicts, refusals: &[(PeerId, Refusal)]) -> Option<Admis
 fn excluded_of(v: &Verdicts, p: &PeerId) -> Option<ExcludedInfo> {
     let e = v.ledger.excluded.get(p)?;
     let how = match e.how {
-        How::Votes => "votes",
+        How::Votes => "removed",
         How::Left => "left",
     };
     Some(ExcludedInfo {
@@ -135,26 +106,23 @@ fn row(
         online: p == v.me || online.contains(&p),
         admin: v.ledger.is_admin(&p),
         status: status_of(v, &p),
-        vote: vote_of(v, &p),
         excluded: excluded_of(v, &p),
         blocked_by_me: v.blocks.contains(&p),
         denied_by_me: v.check(p).err().map(|d| d.code()),
-        forget: forget_info(v, &p),
         last_seen_sec: None,
         last_refusal: refusal_of(refusals, &p),
         admission: admission_of(v, &p).filter(|_| p != v.me),
     }
 }
 
-/// Own row first, then members, pending, unlisted, forgotten, excluded; by name (nameless last), then by id.
+/// Own row first, then members, pending, unlisted, excluded; by name (nameless last), then by id.
 fn order_key(r: &MemberRow) -> (u8, u8, bool, String, String) {
     let rank = match (r.is_self, r.status) {
         (true, _) => 0,
         (_, "member") => 1,
         (_, "pending") => 2,
         (_, "unlisted") => 3,
-        (_, "forgotten") => 4,
-        _ => 5,
+        _ => 4,
     };
     (
         rank,
@@ -172,11 +140,9 @@ fn count_status(rows: &[MemberRow], status: &str) -> usize {
 fn counts_of(rows: &[MemberRow]) -> Counts {
     Counts {
         members: count_status(rows, "member"),
-        voting: rows.iter().filter(|r| r.vote.is_some()).count(),
         excluded: count_status(rows, "excluded"),
         unlisted: count_status(rows, "unlisted"),
         pending: count_status(rows, "pending"),
-        forgotten: count_status(rows, "forgotten"),
     }
 }
 
@@ -197,11 +163,8 @@ pub fn members_reply(
     MembersReply {
         me: v.me.to_string(),
         me_excluded: v.ledger.excluded.contains_key(&v.me),
-        me_removed: me_removed(v, members, refusals),
         me_pending: me_admission.is_some(),
         me_admission,
-        need: v.ledger.need,
-        kind: kind_of(v),
         admins: admins_of(v),
         me_admin: v.ledger.is_admin(&v.me),
         root: None,
@@ -211,45 +174,28 @@ pub fn members_reply(
     }
 }
 
-/// What the state snapshot says about the list: how many nodes wait for my vote and whether I am out.
+/// What the state snapshot says about the list: how many requests wait for my confirmation and whether I am out.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct VoteSummary {
-    pub voting: u64,
     pub me_excluded: bool,
     /// Requests of other nodes that wait for my confirmation.
     pub admitting: u64,
     pub me_pending: bool,
 }
 
-/// True for a row whose confirmation this node can still add: a listed node with a pending vote that is
-/// neither mine nor proposed by me, and not my own row.
-fn awaits_my_vote(r: &MemberRow, me: &str) -> bool {
-    let Some(vote) = r.vote.as_ref().filter(|_| r.status == "member") else {
-        return false;
-    };
-    !vote.mine && vote.proposed_by != me && r.id_full != me
-}
-
 /// True for a waiting request this node has not confirmed yet.
 fn awaits_my_confirmation(r: &MemberRow) -> bool {
-    let unconfirmed = r.admission.as_ref().is_some_and(|a| !a.mine);
-    r.status == "pending" && !r.is_self && unconfirmed
+    r.status == "pending" && !r.is_self
 }
 
 /// Counts the rows that wait for this node's confirmation.
 pub fn vote_summary(r: &MembersReply) -> VoteSummary {
-    let voting = r
-        .members
-        .iter()
-        .filter(|row| awaits_my_vote(row, &r.me))
-        .count() as u64;
     let admitting = r
         .members
         .iter()
         .filter(|row| awaits_my_confirmation(row))
         .count() as u64;
     VoteSummary {
-        voting,
         me_excluded: r.me_excluded,
         admitting,
         me_pending: r.me_pending,
@@ -268,6 +214,13 @@ mod summary_tests;
 #[path = "report_admission_tests.rs"]
 mod admission_tests;
 
-#[cfg(test)]
-#[path = "report_forget_tests.rs"]
-mod forget_tests;
+/// Sets `last_seen_sec` of each row from the map of ages (seconds since the last sign of life) by id.
+pub fn stamp_last_seen(reply: &mut MembersReply, seen: &BTreeMap<PeerId, u64>) {
+    for row in &mut reply.members {
+        row.last_seen_sec = row
+            .id_full
+            .parse::<PeerId>()
+            .ok()
+            .and_then(|p| seen.get(&p).copied());
+    }
+}

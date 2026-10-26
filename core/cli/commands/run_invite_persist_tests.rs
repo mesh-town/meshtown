@@ -2,7 +2,7 @@ use super::*;
 use crate::config::config_file::{CliOverrides, ConfigSource, PathRule};
 use std::path::PathBuf;
 
-const KEY: &str = "mesh1-key-for-the-test";
+const KEY: &str = "mesh2-key-for-the-test";
 
 /// A directory for the settings file; removed in `Drop`.
 struct Dir(PathBuf);

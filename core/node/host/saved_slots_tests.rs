@@ -10,7 +10,6 @@ use crate::config::config_file::{
     self, net_slot_path, new_slot_id, save_net_file, CliOverrides, ConfigSource, NetSettings,
     NetSlotId, PathRule, RunConfig,
 };
-use crate::members::network_key::NetworkKey;
 use crate::node::guard_sources::GuardSources;
 use crate::node::host::MAX_NETS;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
@@ -195,9 +194,10 @@ impl Fixture {
     /// Writes a slot file whose network key is `seed + offset`; offset 0 is the key of the main network.
     fn add_slot(&mut self, offset: u8, created_unix: u64) -> NetSlotId {
         let id = new_slot_id(&self.main_path()).expect("a free slot id");
-        let key = NetworkKey::from_bytes([self.seed + offset; 32]);
         let net = NetSettings {
-            network_key: Some(key.encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(
+                self.seed + offset,
+            )),
             checks_enabled: false,
             ..NetSettings::default()
         };
@@ -279,7 +279,7 @@ fn setup(seed: u8) -> Fixture {
     ));
     std::fs::create_dir_all(&dir).expect("temporary test directory");
     let overrides = CliOverrides {
-        network_key: Some(NetworkKey::from_bytes([seed; 32]).encode()),
+        network_key: Some(crate::node::host::test_keys::managed_text(seed)),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(0),
@@ -345,7 +345,7 @@ mod without_a_settings_file {
         // given: `--no-config`: no settings file, and no `nets` folder
         let fx = setup(190);
         let overrides = CliOverrides {
-            network_key: Some(NetworkKey::from_bytes([190; 32]).encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(190)),
             ..CliOverrides::default()
         };
         let main = config_file::prepare(&ConfigSource::Disabled, &overrides, true, 0)

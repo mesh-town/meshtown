@@ -17,7 +17,7 @@ use crate::web_gui::control::{
 };
 use crate::web_gui::http::ConnInfo;
 use crate::web_gui::members::dto::{
-    Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
+    AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo,
 };
 use crate::web_gui::single_slot_host;
 use crate::web_gui::{App, LogPage, NodeSnapshot, WebShared};
@@ -115,11 +115,8 @@ impl NodeControl for FakeNode {
             } => format!("exclude:{id}:{r}"),
             MemberActionReq::Unexclude(id) => format!("unexclude:{id}"),
             MemberActionReq::Admit(id) => format!("admit:{id}"),
-            MemberActionReq::Unadmit(id) => format!("unadmit:{id}"),
             MemberActionReq::Block(id) => format!("block:{id}"),
             MemberActionReq::Unblock(id) => format!("unblock:{id}"),
-            MemberActionReq::Forget(id) => format!("forget:{id}"),
-            MemberActionReq::Unforget(id) => format!("unforget:{id}"),
             MemberActionReq::Grant(id) => format!("grant:{id}"),
             MemberActionReq::Revoke(id) => format!("revoke:{id}"),
             MemberActionReq::Close => "close".to_string(),
@@ -265,11 +262,9 @@ fn row(prefix: &str, name: Option<&str>, status: &'static str) -> MemberRow {
         online: true,
         admin: false,
         status,
-        vote: None,
         excluded: None,
         blocked_by_me: false,
         denied_by_me: None,
-        forget: None,
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
@@ -278,39 +273,26 @@ fn row(prefix: &str, name: Option<&str>, status: &'static str) -> MemberRow {
 
 fn sample_counts() -> Counts {
     Counts {
-        members: 3,
-        voting: 1,
+        members: 2,
         excluded: 1,
-        unlisted: 1,
-        pending: 0,
-        forgotten: 0,
+        unlisted: 0,
+        pending: 1,
     }
 }
 
-/// The documented example: me, a member with my pending vote, an excluded node.
+/// The documented example: me, a request that waits for confirmation, an excluded node.
 pub(super) fn sample_reply() -> MembersReply {
     let (me, router) = (full("a1b2c3d4"), full("e5f6a7b8"));
-    let voting = VoteInfo {
-        votes: 1,
-        need: 2,
-        proposed_by: me.clone(),
-        voters: vec![me.clone()],
-        mine: true,
-        reason: Some("noisy link".to_string()),
-    };
     let gone = ExcludedInfo {
-        how: "votes",
+        how: "removed",
         at_unix: 1_792_400_000,
         voters: vec![me.clone(), router],
     };
     MembersReply {
         me,
         me_excluded: false,
-        me_removed: false,
         me_pending: false,
         me_admission: None,
-        need: 2,
-        kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
         root: None,
@@ -322,9 +304,10 @@ pub(super) fn sample_reply() -> MembersReply {
                 ..row("a1b2c3d4", Some("laptop"), "member")
             },
             MemberRow {
-                vote: Some(voting),
-                denied_by_me: Some("voted_by_me"),
-                ..row("e5f6a7b8", Some("router"), "member")
+                admission: Some(AdmissionInfo {
+                    label: Some("router".to_string()),
+                }),
+                ..row("e5f6a7b8", Some("router"), "pending")
             },
             MemberRow {
                 online: false,
@@ -346,20 +329,19 @@ pub(super) fn sample_reply() -> MembersReply {
 pub(super) fn golden() -> Value {
     let (me, router) = (full("a1b2c3d4"), full("e5f6a7b8"));
     json!({
-        "me": me, "me_excluded": false, "me_removed": false, "me_pending": false, "need": 2, "kind": "Peer", "admins": [], "me_admin": false, "root": null, "me_admission": null,
-        "counts": {"members": 3, "voting": 1, "excluded": 1, "unlisted": 1, "pending": 0, "forgotten": 0},
+        "me": me, "me_excluded": false, "me_pending": false, "admins": [], "me_admin": false, "root": null, "me_admission": null,
+        "counts": {"members": 2, "excluded": 1, "unlisted": 0, "pending": 1},
         "members": [
             {"id": "a1b2c3d4", "id_full": me, "name": "laptop", "self": true, "online": true, "admin": false,
-             "status": "member", "vote": null, "excluded": null,
-             "blocked_by_me": false, "denied_by_me": null, "forget": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
+             "status": "member", "excluded": null,
+             "blocked_by_me": false, "denied_by_me": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
             {"id": "e5f6a7b8", "id_full": router, "name": "router", "self": false, "online": true, "admin": false,
-             "status": "member",
-             "vote": {"votes": 1, "need": 2, "proposed_by": me, "voters": [me], "mine": true, "reason": "noisy link"},
-             "excluded": null, "blocked_by_me": false, "denied_by_me": "voted_by_me", "forget": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
+             "status": "pending", "excluded": null, "blocked_by_me": false, "denied_by_me": null,
+             "last_seen_sec": null, "last_refusal": null, "admission": {"label": "router"}},
             {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false, "admin": false,
-             "status": "excluded", "vote": null,
-             "excluded": {"how": "votes", "at_unix": 1_792_400_000u64, "voters": [me, router]},
-             "blocked_by_me": false, "denied_by_me": "excluded", "forget": null, "last_seen_sec": null,
+             "status": "excluded",
+             "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "voters": [me, router]},
+             "blocked_by_me": false, "denied_by_me": "excluded", "last_seen_sec": null,
              "last_refusal": {"side": "me", "reason": "excluded", "at_unix": 1_792_400_100u64}, "admission": null}
         ]
     })

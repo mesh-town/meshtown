@@ -15,7 +15,7 @@ use super::view_ring::{ring_to_draw, Ring, RingRole};
 use super::view_ring_paint::ring_rgba_lit;
 
 /// The icon picture: color, ring of sectors (`None` means a solid icon), the speed disk in the centre
-/// (only with a ring) and the "vote waiting" mark that replaces the disk.
+/// (only with a ring) and the "request waiting" mark that replaces the disk.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct IconPicture {
     pub color: TrayColor,
@@ -79,7 +79,7 @@ impl IconPicture {
         }
     }
 
-    /// The picture with the "vote waiting" mark when `alert` is true (the disk is dropped); otherwise unchanged.
+    /// The picture with the "request waiting" mark when `alert` is true (the disk is dropped); otherwise unchanged.
     pub fn with_alert(self, alert: bool) -> Self {
         match alert {
             true => Self {

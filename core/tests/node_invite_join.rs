@@ -43,12 +43,12 @@ mod fresh_invite_with_the_issuer_online {
         assert_eq!(saved.len(), 1, "save must be called exactly once");
         let parsed = parse_user_input(&saved[0].text).expect("a parseable key went to save");
         assert_eq!(
-            parsed.key.encode(),
-            rig.key.encode(),
+            parsed.base,
+            rig.key.to_bytes(),
             "the member's key, not a foreign one"
         );
         assert!(
-            saved[0].text.starts_with("Masha--mesh1-"),
+            saved[0].text.starts_with("Masha--mesh2-"),
             "the label from the string must come before the key, got the start {:?}",
             saved[0].text.chars().take(14).collect::<String>()
         );
@@ -156,7 +156,7 @@ mod invite_already_used_by_another_node {
         assert_eq!(second.ctl.invite_join(), Some(refused));
 
         // when
-        second.ctl.switch_network("mesh1-aaaa");
+        second.ctl.switch_network("mesh2-aaaa");
 
         // then
         assert_eq!(second.ctl.invite_join(), None);

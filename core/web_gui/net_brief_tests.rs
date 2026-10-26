@@ -1,5 +1,4 @@
 use super::*;
-use crate::members::network_key::NetworkKey;
 use crate::web_gui::test_host::{config_with_key, slot_handle, FakeHost, SnapNode};
 use crate::web_gui::{ChosenExit, MembersInfo, NodeRuntime, PeerInfo, RouteState};
 
@@ -25,7 +24,6 @@ fn rich_snapshot() -> crate::web_gui::NodeSnapshot {
             }],
         },
         members: MembersInfo {
-            voting: 4,
             admitting: 2,
             me_excluded: true,
             me_pending: true,
@@ -46,7 +44,7 @@ fn handle(id: &str, snap: crate::web_gui::NodeSnapshot, key: Option<&str>) -> Sl
 #[test]
 fn fields_come_from_the_snapshot_and_the_key() {
     // given
-    let key = NetworkKey::generate().unwrap().encode();
+    let key = crate::node::host::test_keys::managed_text(1);
     let host = FakeHost::new(vec![handle("main", rich_snapshot(), Some(&key))]);
 
     // when
@@ -60,7 +58,7 @@ fn fields_come_from_the_snapshot_and_the_key() {
     assert!(b.exit_enabled);
     assert_eq!(b.route_state, "exit");
     assert_eq!(b.exits, vec!["ee".repeat(32)]);
-    assert_eq!((b.members_voting, b.members_admitting), (4, 2));
+    assert_eq!(b.members_admitting, 2);
     assert!(b.me_excluded && b.me_pending && !b.joining);
     assert_eq!((b.peers_online, b.peers_total), (1, 2));
     assert!(b.admission_refused);
@@ -262,7 +260,7 @@ fn a_broken_slot_comes_last_with_its_fixed_fields() {
         !b.admission_refused,
         "a broken slot never reports a refusal"
     );
-    assert_eq!((b.peers_total, b.members_voting), (0, 0));
+    assert_eq!(b.peers_total, 0);
 }
 
 #[test]
@@ -283,14 +281,12 @@ fn the_json_keeps_the_field_order() {
         "proxy",
         "route_state",
         "exits",
-        "members_voting",
         "joining",
         "members_admitting",
         "me_excluded",
         "me_pending",
         "peers_online",
         "peers_total",
-        "kind",
         "me_admin",
         "can_invite",
         "admission_refused",

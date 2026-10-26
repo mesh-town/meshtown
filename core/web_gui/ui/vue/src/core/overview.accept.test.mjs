@@ -215,7 +215,7 @@ describe("briefFromState", () => {
     const n = briefFromState(B, null, null);
     assert.equal(n.status, "broken");
     assert.equal(n.route_state, "unavailable");
-    assert.deepEqual([n.peers_online, n.peers_total, n.members_voting, n.joining, n.me_excluded], [0, 0, 0, false, false]);
+    assert.deepEqual([n.peers_online, n.peers_total, n.joining, n.me_excluded], [0, 0, false, false]);
   });
 });
 
@@ -241,9 +241,9 @@ describe("putSlotMembers", () => {
   describe("the lead slot", () => {
     it("updates the slice and store.members", () => {
       const w = setup(twoSpecs());
-      putSlotMembers(w.store, MAIN, membersReply({ need: 3 }));
-      assert.equal(w.store.slots[MAIN].members.need, 3);
-      assert.equal(w.store.members.need, 3);
+      putSlotMembers(w.store, MAIN, membersReply({ me_pending: true }));
+      assert.equal(w.store.slots[MAIN].members.me_pending, true);
+      assert.equal(w.store.members.me_pending, true);
     });
   });
 
@@ -251,8 +251,8 @@ describe("putSlotMembers", () => {
     it("updates only the slice", () => {
       const w = setup(twoSpecs());
       const before = w.store.members;
-      putSlotMembers(w.store, B, membersReply({ need: 5 }));
-      assert.equal(w.store.slots[B].members.need, 5);
+      putSlotMembers(w.store, B, membersReply({ me_pending: true }));
+      assert.equal(w.store.slots[B].members.me_pending, true);
       assert.equal(w.store.members, before);
     });
   });

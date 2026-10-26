@@ -159,14 +159,13 @@ all fields are required; `null` is allowed where marked):
     "label": "our-gaming-room",
     "masked": "our-gaming-room--••••••••••••••••••••••••••••••••••",
     "id_hex": "9c1e...",
-    "kind": "Peer",
-    "root": null,
-    "me_role": "member",
-    "admins": [],
-    "can_invite": true, "can_remove": true, "can_set_admins": false, "can_delete_network": false, "can_leave": true,
+    "root": "0652…",
+    "me_role": "admin",
+    "admins": ["0652…"],
+    "can_invite": true, "can_remove": true, "can_set_admins": true, "can_delete_network": true, "can_leave": true,
     "excluded_by": null
   },
-  "members": { "count": 3, "gossip_neighbors": 2, "voting": 0, "me_excluded": false, "admission_refused": false },
+  "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
   "transport": {
@@ -338,19 +337,17 @@ Exact enum values:
   `waiting` — the node is looking for members from the string, `refused` — a final refusal with the text `message`;
   it disappears when the node has joined the network, and on a new join, network creation or stop. More in
   `WEB-API-config.md`, section "The `node.invite_join` field and single-use invites".
-- `network` — `null` when the node has no readable key. Besides `label`, `masked` and `id_hex` it says what kind of
-  network this is and what this node may do in it:
-  - `kind`: `"Peer"` or `"Managed"` (the type is fixed when the network is created); no `kind` in a reply of an older node means `Peer`.
-  - `root`: the full id of the creator of a Managed network (an administrator who cannot lose the role); `null` for Peer.
-  - `me_role`: `"admin"` or `"member"`; always `"member"` in Peer.
-  - `admins`: full ids of the administrators in ascending order; `[]` for Peer.
-  - `can_invite`, `can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`: the actions open to this node. For Peer
-    they are `true, true, false, false, true`; in Managed the first four are `true` for an administrator only, and `can_set_admins`
-    is `false` for a regular member. A node that has no member list yet gets the flags from the key alone: in Managed everything is
+- `network` — `null` when the node has no readable key. Besides `label`, `masked` and `id_hex` it says who runs the
+  network and what this node may do in it:
+  - `root`: the full id of the creator of the network (an administrator who cannot lose the role).
+  - `me_role`: `"admin"` or `"member"`.
+  - `admins`: full ids of the administrators in ascending order.
+  - `can_invite`, `can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`: the actions open to this node. The first four
+    are `true` for an administrator only. A node that has no member list yet gets the flags from the key alone: everything is
     `false` except `can_leave`. The page shows no control whose flag is off.
-  - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator of a Managed network excluded this node (`name` is the known
+  - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator excluded this node (`name` is the known
     member name, else the short id); `null` otherwise, and after the node left on its own.
-- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network (the key is absent in Peer).
+- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network.
 - `peers[].id_full` — the full identifier of **each** node, not only the own one (unlike
   `node.id_full` above): it is needed as a `route.exits` value when choosing exits on the page and in
   the tray (the checkbox puts `p.id_full` into the list), not only for the tooltip. In the page text it is not shown on
@@ -491,7 +488,7 @@ network is `main`. A slot may be empty: it waits for a key (see `network/join` a
 
 **Route classes.** The network routes (`state`, `config`, `peer-addresses`, `network/key`,
 `network/invite`, `network/join`, `network/create`, `domains`, `actions/find-exit`, `actions/check-domain`,
-`actions/check-all`, `actions/restart`, `network/inspect`, `network/delete`, `members` and `members/{exclude,unexclude,admit,unadmit,block,unblock,forget,unforget,leave,admin}`)
+`actions/check-all`, `actions/restart`, `network/inspect`, `network/delete`, `members` and `members/{exclude,unexclude,admit,block,unblock,leave,admin}`)
 exist twice: under `/api` for the primary network and under `/api/net/{slot}` for any network. All other
 routes are process routes and exist once, without a prefix. `/api/net/{slot}/log` does not exist (404
 `not_found`): the log is one for the process, filter it with `?net=`. The address of a slot that was left or
@@ -506,10 +503,10 @@ does not exist is 404 `unknown_net`.
 | `status` | the node status of the slot, or `broken` |
 | `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot — the one named by `proxy.net` of the primary config (`main` by default), whose network the local proxy (SOCKS, HTTP, PAC, system proxy) goes through; `false` for the others and for broken slots. If `proxy.net` names a network that is not loaded, `proxy` is `false` everywhere and the proxy refuses connections. A slot that is the proxy slot but not `online` makes the proxy refuse until it is up. The answer to a `PUT` that changes `route.exits` (non-empty) of a slot, or `proxy.net` of the primary config, is sent after the proxy has been switched; if the switch fails the answer is still 200 and the summary shows the truth, so take it from `proxy`, not from the `PUT` answer |
 | `route_state`, `exits` | how traffic is routed and the exits in use; `route_state` is `direct`, `exit`, `unavailable` or `removed` (no exit can be used and every exit in `route.exits` is removed from the network) |
-| `members_voting`, `members_admitting` | member counts |
+| `members_admitting` | the number of nodes waiting to be admitted |
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
-| `kind`, `me_admin`, `can_invite` | the type of the network (`"Peer"` or `"Managed"`), whether this node is an administrator, whether it may invite. A broken slot: `"Peer", false, false`; a slot without a key: `"Peer", false, true` |
+| `me_admin`, `can_invite` | whether this node is an administrator, whether it may invite. A broken slot: `false, false`; a slot without a key: `false, true` |
 | `admission_refused` | `true` when this computer is kept out: it is not excluded, removed or pending, no other member is online, and at least one member refused it (`last_refusal.side == "them"`, reason not `unlisted`). No delay: the page waits before showing it. The same value is `state.members.admission_refused`. `false` for a broken slot |
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters

@@ -34,7 +34,7 @@ impl NodeCtl {
             .node
             .clone()?;
         let v = node.access.view.verdicts()?;
-        Some(NetRoles::of(&node.net_kind, &v, &node.members))
+        Some(NetRoles::of(&node.net_root, &v, &node.members))
     }
 
     pub(super) fn member_action_impl(&self, req: MemberActionReq) -> MemberFuture {
@@ -71,11 +71,8 @@ pub(super) fn parse_action(req: MemberActionReq) -> Result<MemberAction, MemberE
         }
         MemberActionReq::Unexclude(id) => Ok(MemberAction::Unexclude(parse_id(&id)?)),
         MemberActionReq::Admit(id) => Ok(MemberAction::Admit(parse_id(&id)?)),
-        MemberActionReq::Unadmit(id) => Ok(MemberAction::Unadmit(parse_id(&id)?)),
         MemberActionReq::Block(id) => Ok(MemberAction::Block(parse_id(&id)?)),
         MemberActionReq::Unblock(id) => Ok(MemberAction::Unblock(parse_id(&id)?)),
-        MemberActionReq::Forget(id) => Ok(MemberAction::Forget(parse_id(&id)?)),
-        MemberActionReq::Unforget(id) => Ok(MemberAction::Unforget(parse_id(&id)?)),
         MemberActionReq::Grant(id) => Ok(MemberAction::Grant(parse_id(&id)?)),
         MemberActionReq::Revoke(id) => Ok(MemberAction::Revoke(parse_id(&id)?)),
         MemberActionReq::Close => Ok(MemberAction::Close),
@@ -99,23 +96,10 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
         ActionRefusal::NotPending => {
             refused("not_pending", "This member isn't waiting for confirmation")
         }
-        ActionRefusal::NotConfirmed => refused(
-            "not_confirmed",
-            "You haven't confirmed this member, or they have already joined",
-        ),
-        ActionRefusal::Online => refused("online", "This member is connected right now"),
-        ActionRefusal::NotForgotten => {
-            refused("not_forgotten", "You haven't proposed removing this member")
-        }
         ActionRefusal::NotAdmin => refused("not_admin", "only admins can do this in this network"),
         ActionRefusal::LastAdmin => refused(
             "last_admin",
             "you are the only admin: make another member an admin or delete the network",
-        ),
-        ActionRefusal::NotManaged => refused("not_managed", "this network has no admins"),
-        ActionRefusal::PeerOnly => refused(
-            "peer_only",
-            "removal votes exist only in networks without admins",
         ),
         ActionRefusal::Closed => refused("network_deleted", "this network has been deleted"),
         ActionRefusal::Write(m) => MemberError::Action(ActionError::Internal(m)),
@@ -130,7 +114,6 @@ async fn run_action(node: &RunningNode, act: MemberAction) -> Result<MembersRepl
 async fn reply_of(node: &RunningNode, changed: Option<bool>) -> Result<MembersReply, MemberError> {
     let v = verdicts_of(node).await?;
     let mut reply = members_reply(&v, &node.members, &node.access.view.refusals(), changed);
-    reply.set_kind(&node.net_kind);
     stamp_last_seen(&mut reply, &seen_ages(node, unix_now()).await);
     Ok(reply)
 }

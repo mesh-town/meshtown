@@ -43,7 +43,7 @@ impl Fx {
     }
 
     pub fn remove(&self, id: &str) {
-        self.node(id).set_members(Ok(members_reply(true)));
+        self.node(id).snapshot.lock().unwrap().node.status = NodeStatus::Offline;
     }
 }
 
@@ -78,7 +78,7 @@ async fn absent_with_main_busy_is_fresh() {
 async fn active_is_here() {
     let b = word_key("beta");
     let f = fx(&[("main", Some(&word_key("alpha"))), ("ab2c3d", Some(&b))]);
-    f.node("ab2c3d").set_members(Ok(members_reply(false)));
+    f.node("ab2c3d").set_members(Ok(members_reply()));
     let place = place_of(f.host.as_ref(), &id_hex(&b)).await;
     let want = Place::Here {
         slot: slot("ab2c3d"),

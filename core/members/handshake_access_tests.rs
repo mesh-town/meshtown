@@ -45,26 +45,6 @@ mod responder {
     }
 
     #[tokio::test]
-    async fn responder_that_voted_against_initiator_says_only_refused() {
-        // given: B voted against A, A is still listed
-        let (a, b) = ids();
-        let voted = Verdicts {
-            my_votes: set(&[a]),
-            ..verdicts_with(b, &[a], &[])
-        };
-        let fx = setup_with_views(AccessView::open(), view_of(voted)).await;
-        // when: A initiates, B responds
-        let (initiated, responded) = fx.when_handshaking().await;
-        // then: the wire reason does not reveal the vote, B's own record does
-        assert!(
-            responded.is_err() && initiated.is_err(),
-            "{initiated:?} / {responded:?}"
-        );
-        fx.res.then_closed_with(403, b"refused");
-        then_refusal(&fx.res.ctx, a, Refuser::Me, Deny::VotedByMe);
-    }
-
-    #[tokio::test]
     async fn responder_that_left_refuses_everyone_with_left() {
         // given: B left the network itself; A is listed
         let (a, b) = ids();
@@ -194,10 +174,6 @@ fn ids() -> (PeerId, PeerId) {
     (pid(SEED_A), pid(SEED_B))
 }
 
-fn set(ids: &[PeerId]) -> BTreeSet<PeerId> {
-    ids.iter().copied().collect()
-}
-
 /// Verdicts of `me`: `listed` are admitted, `excluded` are admitted and then excluded by votes; no votes, no blocks.
 fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts {
     let by_votes = || Exclusion {
@@ -208,22 +184,14 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
-        pending: BTreeMap::new(),
-        need: 1,
         admissions: BTreeMap::new(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
         admins: Default::default(),
         closed: None,
     };
     Verdicts {
         me,
         ledger: Arc::new(ledger),
-        my_votes: BTreeSet::new(),
         blocks: BTreeSet::new(),
-        reasons: Default::default(),
     }
 }
 

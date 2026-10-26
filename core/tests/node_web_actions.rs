@@ -93,7 +93,7 @@ async fn switch_network_gets_new_boot_id_without_shrinking_log() {
         &booted.token,
         "POST",
         "/api/network/join",
-        Some(json!({"key": key2.encode()})),
+        Some(json!({"key": common::key_text(&key2)})),
     );
     assert_eq!(status, 202, "join must return 202");
     assert_eq!(body["restart"], json!(true));
@@ -137,7 +137,7 @@ async fn join_on_a_node_with_a_network_is_refused() {
         &booted.token,
         "POST",
         "/api/network/join",
-        Some(json!({"key": key2.encode()})),
+        Some(json!({"key": common::key_text(&key2)})),
     );
     assert_eq!(status, 409);
     assert_eq!(body["error"], json!("network_present"));
@@ -161,7 +161,10 @@ async fn peers_show_second_node_online() {
     let booted = boot("peers-a", &key).await;
     wait_ready(&booted).await;
 
-    let b = node::start_node(NodeConfig::for_loopback_test(key.clone()))
+    let derived = meshtown_core::members::network_key::parse_user_input(&common::key_text(&key))
+        .expect("a managed key")
+        .key;
+    let b = node::start_node(NodeConfig::for_loopback_test(derived))
         .await
         .expect("node b must come up");
     // there is no port on `mem`: the IP hint can be anything, the node is found by key (KeyedMem)

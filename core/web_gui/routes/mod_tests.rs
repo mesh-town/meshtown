@@ -6,7 +6,7 @@ use super::pages::PAGES;
 use crate::web_gui::test_host::send;
 use crate::web_gui::test_host::{config_with_key, slot_handle, test_app, FakeHost, SnapNode};
 
-const NET_PATHS: [&str; 20] = [
+const NET_PATHS: [&str; 19] = [
     "state",
     "config",
     "peer-addresses",
@@ -23,7 +23,6 @@ const NET_PATHS: [&str; 20] = [
     "members/exclude",
     "members/unexclude",
     "members/admit",
-    "members/unadmit",
     "members/block",
     "members/unblock",
     "members/leave",
@@ -84,7 +83,7 @@ async fn net_paths_answer_under_both_prefixes() {
     }
     // then
     assert_eq!(
-        found, 40,
+        found, 38,
         "network paths found under /api and /api/net/<slot>"
     );
 }
@@ -107,10 +106,10 @@ async fn process_paths_answer_once_and_not_under_a_slot() {
 }
 
 #[test]
-fn the_route_count_is_sixty_three() {
+fn the_route_count_is_sixty_one() {
     assert_eq!(
         PAGES.len() + 2 * NET_PATHS.len() + PROCESS_PATHS.len(),
-        63,
+        61,
         "pages, network paths twice, process paths"
     );
 }

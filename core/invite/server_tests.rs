@@ -6,7 +6,7 @@
 //! are not needed. The client is a second `mem` node that assembles frames itself; the handler
 //! `ServiceHandler::handle` is run in the test's task, to see when it finished.
 //!
-//! assumption: `InviteServer::new(key, list, access)`, a private field `slots: Arc<Semaphore>` with
+//! assumption: `InviteServer::new(key, list, access, reply_secret)`, a private field `slots: Arc<Semaphore>` with
 //! `MAX_REDEEMS` slots, `ServiceHandler::handle(&self, conn) -> BoxFuture<'static, ()>`; the handler
 //! reads the request from the stream, releases the slot right after the answer and waits for `conn.closed()` (≤ 5 s).
 
@@ -21,7 +21,7 @@ use crate::invite::wire::{
 use crate::invite::wire::{encode_owner_request, OWNER_REQUEST_LEN};
 use crate::invite::InviteSecret;
 use crate::members::access::view::AccessView;
-use crate::members::network_key::{NetKind, NetworkKey};
+use crate::members::network_key::NetworkKey;
 use crate::proxy::domains::DomainList;
 use crate::transport::net::facade::test_support::{pid, secret, within};
 use crate::transport::net::{
@@ -192,6 +192,46 @@ mod hold_frame_answers {
     }
 }
 
+mod may_serve {
+    use super::*;
+    use crate::members::access::tally::Ledger as Votes;
+    use crate::members::access::view::Verdicts;
+
+    /// The server's view where `admins` are the administrators and the server itself is a member.
+    fn view_with_admins(admins: &[PeerId]) -> AccessView {
+        let mut ledger = Votes::empty();
+        ledger.admitted.insert(pid(2));
+        ledger.admins.extend(admins.iter().copied());
+        let access = AccessView::open();
+        access.publish(Verdicts {
+            me: pid(2),
+            ledger: Arc::new(ledger),
+            blocks: Default::default(),
+        });
+        access
+    }
+
+    #[tokio::test]
+    async fn an_admin_serves() {
+        // given: the server is an administrator
+        let fx = setup(Opts {
+            access: view_with_admins(&[pid(2)]),
+            ..Opts::default()
+        });
+        assert!(fx.server.may_serve());
+    }
+
+    #[tokio::test]
+    async fn a_member_does_not() {
+        // given: the server is a member and somebody else is the administrator
+        let fx = setup(Opts {
+            access: view_with_admins(&[pid(3)]),
+            ..Opts::default()
+        });
+        assert!(!fx.server.may_serve());
+    }
+}
+
 /// The network key with which `setup` builds the server.
 const KEY: [u8; 32] = [1; 32];
 
@@ -206,12 +246,10 @@ fn signed_hold(key: [u8; 32]) -> [u8; HOLD_LEN] {
 struct Opts {
     /// All `MAX_REDEEMS` slots are taken before the first request.
     slots_full: bool,
-    /// What the server asks about the newcomer's key; `open` (lets everyone in) by default.
+    /// What the server asks about the newcomer's key; `open` (no verdicts yet) by default.
     access: AccessView,
     /// The filled domain list; none by default (the cell stays empty).
     list: Option<DomainList>,
-    /// The kind of the network; a Peer one by default.
-    kind: NetKind,
 }
 
 /// The server on node B of the `mem` network and the client on node A.
@@ -230,8 +268,8 @@ fn setup(opts: Opts) -> Fixture {
     inbox.serve(&[INVITE]);
     let cell = Arc::new(OnceLock::new());
     opts.list.into_iter().for_each(|list| drop(cell.set(list)));
-    let server = InviteServer::new(NetworkKey::from_bytes(KEY), cell, opts.access)
-        .of_kind(opts.kind, NetworkKey::from_bytes(KEY));
+    let key = NetworkKey::from_bytes(KEY);
+    let server = InviteServer::new(key.clone(), cell, opts.access, key);
     let held = match opts.slots_full {
         true => take_all_slots(&server),
         false => Vec::new(),

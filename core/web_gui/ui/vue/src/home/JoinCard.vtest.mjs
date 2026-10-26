@@ -98,6 +98,26 @@ describe("JoinCard", () => {
     expect(wrapper.get("#create-box").attributes("hidden")).toBeUndefined();
   });
 
+  describe("join", () => {
+    it("shows the outdated key text from the server", async () => {
+      const text = "This network key is from an older Mesh Town and no longer works. Ask a network admin for a new invite.";
+      api.mockRejectedValue(new ApiError(422, "invalid_key", "x", { message: text }));
+      const { wrapper } = await mountHomeJoin();
+      await wrapper.get("#join-key-input").setValue("mesh2-ABCDEFGH");
+      await wrapper.get("#join-btn").trigger("click");
+      await flushPromises();
+      expect(wrapper.get("#join-key-error").text()).toBe(text);
+    });
+  });
+
+  describe("create", () => {
+    it("has no type picker", () => {
+      const { wrapper } = mountJoin({ state: baseState() });
+      expect(wrapper.find("#create-box [id^=kind-]").exists()).toBe(false);
+      expect(wrapper.find(".kind-picker").exists()).toBe(false);
+    });
+  });
+
   it("with a network \"Create\" is not the primary button", () => {
     const { wrapper } = mountJoin({ state: baseState() });
     expect(wrapper.get("#create-btn").classes()).not.toContain("btn-primary");

@@ -9,7 +9,7 @@ use crate::gui::tray::app::members_note::with_anchor;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MenuTarget {
     Open,
-    Vote,
+    Admit,
     /// "Add a network…": opens the add form of the page.
     Add,
     /// A deleted-network note, by its number: opens the member list.
@@ -40,8 +40,8 @@ pub struct NetFact {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MenuFacts {
     pub nets: Vec<NetFact>,
-    /// The network a click on the "vote" item opens the members page of.
-    pub vote_slot: Option<String>,
+    /// The network a click on the "request" item opens the members page of.
+    pub admit_slot: Option<String>,
 }
 
 /// An item id → its target. An unknown or empty id is `Unknown`.
@@ -55,7 +55,7 @@ pub fn parse_menu_id(id: &str) -> MenuTarget {
 fn plain_target(id: &str) -> MenuTarget {
     match id {
         "open" => MenuTarget::Open,
-        "vote" => MenuTarget::Vote,
+        "admit" => MenuTarget::Admit,
         "add" => MenuTarget::Add,
         "node" => MenuTarget::Node,
         "quit" => MenuTarget::Quit,
@@ -92,7 +92,7 @@ fn exit_target(rest: &str) -> MenuTarget {
     }
 }
 
-/// The facts of a menu: its networks (only for two or more), which of them have a chosen exit, and the vote network.
+/// The facts of a menu: its networks (only for two or more), which of them have a chosen exit, and the network with a request.
 pub fn menu_facts(menu: &ExitMenu) -> MenuFacts {
     let nets = menu
         .nets
@@ -104,11 +104,10 @@ pub fn menu_facts(menu: &ExitMenu) -> MenuFacts {
             exit_chosen: exit_chosen(menu, &net.slot),
         })
         .collect();
-    let voting = menu.nets.iter().find(|n| n.voting > 0);
     let admitting = menu.nets.iter().find(|n| n.admitting > 0);
     MenuFacts {
         nets,
-        vote_slot: voting.or(admitting).map(|n| n.slot.clone()),
+        admit_slot: admitting.map(|n| n.slot.clone()),
     }
 }
 
@@ -122,15 +121,15 @@ pub fn link_for(target: &MenuTarget, base: &str, facts: &MenuFacts) -> Option<St
     match target {
         MenuTarget::Open => Some(base.to_string()),
         MenuTarget::Members(slot) => Some(with_anchor(base, &format!("peers/{slot}"))),
-        MenuTarget::Vote => Some(with_anchor(base, &vote_anchor(facts))),
+        MenuTarget::Admit => Some(with_anchor(base, &admit_anchor(facts))),
         MenuTarget::Add => Some(with_anchor(base, "peers/add")),
         MenuTarget::Notice(_) => Some(with_anchor(base, "peers")),
         _ => None,
     }
 }
 
-fn vote_anchor(facts: &MenuFacts) -> String {
-    match (&facts.vote_slot, facts.nets.len() >= 2) {
+fn admit_anchor(facts: &MenuFacts) -> String {
+    match (&facts.admit_slot, facts.nets.len() >= 2) {
         (Some(slot), true) => format!("peers/{slot}"),
         _ => "peers".to_string(),
     }

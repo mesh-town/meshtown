@@ -1,4 +1,4 @@
-/* `members-view.ts`, part 1: lookups, the "can I confirm" rules, the grouping of rows, dates and the "excluded" lines.
+/* `members-view.ts`, part 1: lookups, the grouping of rows, dates and the "excluded" lines.
  * (Row decoration and the `⋯` menu are in `members-view-rows.test.mjs`.) All functions are pure, named exports of `./members-view.ts`.
  *
  * Contract fixed by these tests:
@@ -6,31 +6,20 @@
  *    `id_full` of this node. A "peer" is an item of `state.peers` (`PeerInfo`).
  *  - `memberById(members, idFull): MemberRow | null` — `null` when `members` is null or the id is unknown.
  *  - `meId(state): string` — `state.node.id_full`; `""` when there is no state or no node.
- *  - `canConfirm(m, me): boolean` — strictly `true`/`false` (never a vote object); `false` for a null/undefined `m`.
- *  - `confirmable(members, me): MemberRow[]` — rows with `canConfirm`, in the order of `members.members`; `[]` for null members.
  *  - `isMeExcluded(state, members): boolean` — `state.members.me_excluded || members.me_excluded`, both may be missing/null.
  *  - `excludedVariant(members, me): "left" | "banned"` — "left" only when my own row has `excluded.how === "left"`.
  *  - `displayNames(members): Record<id_full, string>` — name, or the short `id` for a nameless/blank-named member; `{}` for null.
- *      (It builds the `names` argument of `excludedRowLine` and `rowDecor`.)
- *  - `partitionRows(peers, members, me): { active, pending, unlisted, excluded, forgotten, stale }`:
+ *  - `partitionRows(peers, members): { active, pending, unlisted, excluded }`:
  *      `active` holds the peers with status "member" (the same objects as in `peers`, order kept) and, appended in the order of
  *      `members`, a minimal row `{ id, id_full, name, online, self }` copied from the member row for a member absent from `peers`;
- *      `unlisted` and `excluded` hold `MemberRow`s of `members` (status "unlisted" / "excluded", order of `members`) — they are
- *      drawn from the member data (`UnlistedList.vue` / `ExcludedList.vue`), whether or not the node is among the peers.
- *      A peer unknown to `members` stays in `active`. `members == null`: `{ active: peers, pending: [], unlisted: [], excluded: [], forgotten: [], stale: [] }`.
- *  - `partitionRows` also returns `forgotten` (`status "forgotten"` or my own waiting round, see `inForgottenGroup`) and `stale`
- *      (`isStale`: a member that is not me, offline, with `last_seen_sec` null or over `STALE_AFTER_SECS`, not in `forgotten`);
- *      both are `MemberRow`s of `members` in the order of the reply and are taken out of `active` (peers and list-only members alike).
- *  - `forgottenRowLine(m, rows, timeZone?)`: "Removed by {a} and {b} on 19 Oct" (voters are short ids, named through `rows`), or
- *      "Waiting for one more member to confirm" while the round is not complete.
+ *      `unlisted` and `excluded` hold `MemberRow`s of `members` (order of `members`). A peer unknown to `members` stays in `active`.
+ *      `members == null`: `{ active: peers, pending: [], unlisted: [], excluded: [] }`. An offline member stays in `active`.
  *  - `shortDate(unix, timeZone?): string` — "19 Oct" (day without a leading zero, English short month); a non-number gives "".
  *  - `excludedRowLine(m, names, timeZone?): string`; `names` is a `displayNames` object; an unknown id falls back to its first 8 chars. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
-  canConfirm,
-  confirmable,
   displayNames,
   excludedVariant,
   isMeExcluded,
@@ -38,11 +27,7 @@ import {
   memberById,
   partitionRows,
   excludedRowLine,
-  forgottenRowLine,
-  inForgottenGroup,
-  isStale,
   shortDate,
-  STALE_AFTER_SECS,
 } from "./members-view.ts";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
 import {
@@ -50,14 +35,10 @@ import {
   EXTRA_FULL,
   excludedInfo,
   extraRow,
-  foreignVote,
-  forgetInfo,
   membersReply,
   peerOneRow,
   peerTwoRow,
   selfRow,
-  staleRow,
-  voteInfo,
 } from "../testing/members-fixtures.mjs";
 
 const ME = SELF_FULL;
@@ -89,49 +70,6 @@ describe("meId", () => {
   });
 });
 
-describe("canConfirm", () => {
-  describe("a vote of someone else on a member", () => {
-    it("I can confirm it", () => {
-      assert.equal(canConfirm(peerOneRow({ vote: voteInfo({ proposed_by: PEER2_FULL, mine: false }) }), ME), true);
-    });
-  });
-
-  describe("I can not confirm", () => {
-    it.each([
-      ["there is no vote", peerOneRow()],
-      ["the vote is already mine", peerOneRow({ vote: voteInfo({ proposed_by: PEER2_FULL, mine: true }) })],
-      ["I proposed it", peerOneRow({ vote: voteInfo({ proposed_by: ME, mine: false }) })],
-      ["I am the target", selfRow({ vote: foreignVote() })],
-      ["the row is excluded", peerOneRow({ status: "excluded", vote: foreignVote() })],
-      ["the row is not in the list", peerOneRow({ status: "unlisted", vote: foreignVote() })],
-    ])("%s", (_name, row) => {
-      assert.equal(canConfirm(row, ME), false);
-    });
-
-    it("no row", () => {
-      assert.equal(canConfirm(null, ME), false);
-      assert.equal(canConfirm(undefined, ME), false);
-    });
-  });
-});
-
-describe("confirmable", () => {
-  it("only the rows I can confirm, in the order of the list", () => {
-    const reply = membersReply({
-      rows: [selfRow({ vote: foreignVote() }), peerOneRow({ vote: foreignVote() }), peerTwoRow({ vote: voteInfo() }), extraRow({ vote: foreignVote() })],
-    });
-    assert.deepEqual(ids(confirmable(reply, ME)), [PEER_FULL, EXTRA_FULL]);
-  });
-
-  it("no votes: empty", () => {
-    assert.deepEqual(confirmable(membersReply(), ME), []);
-  });
-
-  it("no members: empty", () => {
-    assert.deepEqual(confirmable(null, ME), []);
-  });
-});
-
 describe("isMeExcluded", () => {
   it.each([
     ["the summary of the snapshot says so", { members: { me_excluded: true } }, membersReply(), true],
@@ -153,8 +91,8 @@ describe("excludedVariant", () => {
     assert.equal(excludedVariant(reply, ME), "left");
   });
 
-  it("my own row says I was banned by votes: banned", () => {
-    const reply = membersReply({ rows: [selfRow({ status: "excluded", excluded: excludedInfo({ how: "votes" }) })] });
+  it("my own row says I was banned by an admin: banned", () => {
+    const reply = membersReply({ rows: [selfRow({ status: "excluded", excluded: excludedInfo({ how: "removed" }) })] });
     assert.equal(excludedVariant(reply, ME), "banned");
   });
 
@@ -177,65 +115,6 @@ describe("displayNames", () => {
 
   it("no members: an empty object", () => {
     assert.deepEqual(displayNames(null), {});
-  });
-});
-
-describe("isStale", () => {
-  it("an offline member seen over a week ago", () => {
-    assert.equal(isStale(staleRow("old-desktop", 777600), ME), true);
-  });
-
-  it.each([
-    ["never seen", staleRow("ghost-key", null), true],
-    ["exactly a week", staleRow("week-old", 604800), false],
-    ["a second over", staleRow("week-old", 604801), true],
-    ["online", peerOneRow({ online: true, last_seen_sec: 777600 }), false],
-    ["not a member", extraRow({ status: "pending", online: false, last_seen_sec: 777600 }), false],
-    ["me", selfRow({ online: false, last_seen_sec: 777600 }), false],
-  ])("%s: %s", (_name, row, expected) => {
-    assert.equal(isStale(row, ME), expected);
-  });
-});
-
-describe("inForgottenGroup", () => {
-  it("the status \"forgotten\"", () => {
-    assert.equal(inForgottenGroup(peerOneRow({ status: "forgotten", forget: forgetInfo({ at_unix: AT_UNIX }) })), true);
-  });
-
-  it("my waiting round on a member", () => {
-    assert.equal(inForgottenGroup(peerOneRow({ forget: forgetInfo({ mine: true }) })), true);
-  });
-
-  it("a round of somebody else on a member: not", () => {
-    assert.equal(inForgottenGroup(peerOneRow({ forget: forgetInfo() })), false);
-  });
-
-  it("an ordinary member: not", () => {
-    assert.equal(inForgottenGroup(peerOneRow()), false);
-  });
-});
-
-describe("forgottenRowLine", () => {
-  const rows = [selfRow(), peerOneRow(), peerTwoRow({ name: "router" })];
-  const gone = (over = {}) => extraRow({ status: "forgotten", online: false, forget: forgetInfo({ votes: 2, mine: true, voters: ["aaaa1111", "bbbb2222"], at_unix: AT_UNIX, ...over }) });
-
-  it("a forgotten member names both voters by the names of the rows and the date", () => {
-    assert.equal(forgottenRowLine(gone(), rows, "UTC"), "Removed by finch-unwary and peer-one on 19 Oct");
-  });
-
-  it("a voter whose row has no name is shown by the short id", () => {
-    const row = gone({ voters: ["bbbb2222", "cccc3333"] });
-    const nameless = [selfRow(), peerOneRow(), peerTwoRow({ name: null })];
-    assert.equal(forgottenRowLine(row, nameless, "UTC"), "Removed by peer-one and cccc3333 on 19 Oct");
-  });
-
-  it("a single voter has no \"and\"", () => {
-    assert.equal(forgottenRowLine(gone({ voters: ["bbbb2222"] }), rows, "UTC"), "Removed by peer-one on 19 Oct");
-  });
-
-  it("a round that waits for one more member says so", () => {
-    const waiting = extraRow({ online: false, forget: forgetInfo({ mine: true, voters: ["aaaa1111"], at_unix: null }) });
-    assert.equal(forgottenRowLine(waiting, rows, "UTC"), "Waiting for one more member to confirm");
   });
 });
 
@@ -263,27 +142,33 @@ describe("shortDate", () => {
 describe("excludedRowLine", () => {
   const names = { [SELF_FULL]: "finch-unwary", [PEER_FULL]: "peer-one" };
 
-  describe("banned by votes", () => {
+  describe("removed by an admin", () => {
     it("lists the date and both voters", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by finch-unwary and peer-one");
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, PEER_FULL] }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and peer-one");
     });
 
     it("a nameless member is shown by its short id", () => {
-      const row = peerTwoRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "cccc3333 · banned on 19 Oct · by finch-unwary and peer-one");
+      const row = peerTwoRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, PEER_FULL] }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "cccc3333 · removed on 19 Oct · by finch-unwary and peer-one");
     });
 
-    // NOTE: one voter happens in a network of two (need = 1); the wording is "by {a}".
     it("a single voter: no \"and\"", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by peer-one");
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [PEER_FULL] }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by peer-one");
     });
 
     // NOTE: a voter that is in neither the peers nor the list — the first 8 characters of the id are the likely fallback.
     it("a voter nobody knows is shown by the start of its id", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "votes", voters: [SELF_FULL, "e".repeat(64)] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · banned on 19 Oct · by finch-unwary and eeeeeeee");
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, "e".repeat(64)] }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and eeeeeeee");
+    });
+  });
+
+  describe("no admin is known", () => {
+    it("drops the \"by\" part", () => {
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [] }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct");
     });
   });
 

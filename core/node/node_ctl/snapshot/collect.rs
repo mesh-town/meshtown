@@ -4,12 +4,10 @@
 use crate::transport::net::PeerId;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use crate::config::config_file::{IfaceFilter, ListenAccess};
 use crate::members::access::report::{members_reply, vote_summary, VoteSummary};
-use crate::members::access::view::Verdicts;
 use crate::members::stale_peers;
 use crate::node::node_state;
 use crate::node::program_version;
@@ -160,7 +158,6 @@ pub(crate) async fn collect(
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
         votes: votes_of(node),
         excluded: excluded_of(node),
-        removed: removed_of(node),
         socks: face.addr,
         socks_access: socks_access_of(&face),
         socks_ifaces: face.ifaces,
@@ -226,19 +223,6 @@ fn excluded_of(node: &RunningNode) -> HashSet<PeerId> {
     v.ledger.excluded.keys().copied().collect()
 }
 
-/// Nodes hidden from this node's member list; nothing published yet — an empty set.
-fn removed_of(node: &RunningNode) -> HashSet<PeerId> {
-    removed_of_verdicts(node.access.view.verdicts())
-}
-
-/// The pure part of `removed_of`.
-fn removed_of_verdicts(verdicts: Option<Arc<Verdicts>>) -> HashSet<PeerId> {
-    let Some(v) = verdicts else {
-        return HashSet::new();
-    };
-    v.removed_here().into_iter().collect()
-}
-
 /// The member list built from the published verdicts; `None` until they are published. Never recomputes.
 fn reply_now(node: &RunningNode) -> Option<MembersReply> {
     let v = node.access.view.verdicts()?;
@@ -256,7 +240,7 @@ fn votes_of(node: &RunningNode) -> VoteSummary {
 }
 
 /// Rewrites the members block of a snapshot from the live node: the count, the gossip neighbours and the
-/// votes are read at every call, so a page opened after a pause does not show a stale block.
+/// pending requests are read at every call, so a page opened after a pause does not show a stale block.
 pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: &RunningNode) {
     let reply = reply_now(node);
     let votes = reply
@@ -265,7 +249,6 @@ pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: 
     snap.members = MembersInfo {
         count: node.members.count() as u64,
         gossip_neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,
-        voting: votes.voting,
         me_excluded: votes.me_excluded,
         admitting: votes.admitting,
         me_pending: votes.me_pending,
@@ -284,14 +267,6 @@ mod country_tests;
 #[cfg(test)]
 #[path = "collect_program_version_tests.rs"]
 mod program_version_tests;
-
-#[cfg(test)]
-#[path = "collect_votes_tests.rs"]
-mod votes_tests;
-
-#[cfg(test)]
-#[path = "collect_removed_tests.rs"]
-mod removed_tests;
 
 #[cfg(test)]
 #[path = "collect_admission_tests.rs"]

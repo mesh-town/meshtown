@@ -91,9 +91,8 @@ fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Val
 }
 
 /// `peers[].role` in a managed network: `"admin"` for the listed administrators, `"member"` for the rest.
-/// A peer network has no such key.
 fn apply_peer_roles(value: &mut Value, roles: Option<&NetRoles>) {
-    let Some(roles) = roles.filter(|r| r.managed) else {
+    let Some(roles) = roles else {
         return;
     };
     let Some(peers) = value.get_mut("peers").and_then(Value::as_array_mut) else {

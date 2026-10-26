@@ -1,10 +1,10 @@
 /* The "Leave network" row of Settings with a Managed network. A single network of an admin gets a red
  * "Delete network for everyone…" next to the leave button; with two or more networks the row is replaced by a pointer text
- * `To leave or delete a network, open Members → its tab.`; a plain member and a Peer network get no delete button. After the
+ * `To leave or delete a network, open Members → its tab.`; a plain member gets no delete button. After the
  * deletion the admin sees `You deleted "<net>". All members have left it.` with OK. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ANNA_FULL, NET_NAME, managedNode, peerNode } from "../testing/managed-fixtures.mjs";
+import { ANNA_FULL, NET_NAME, managedNode } from "../testing/managed-fixtures.mjs";
 import { mountPage, settle, unmountPage } from "../testing/page.mjs";
 
 const DELETE_LABEL = "Delete network for everyone…";
@@ -43,14 +43,6 @@ describe("one Managed network", () => {
       expect(page.leaveButton().exists()).toBe(true);
       expect(page.deleteButton().exists()).toBe(false);
     });
-  });
-});
-
-describe("a Peer network", () => {
-  it("has no delete button", async () => {
-    const page = await open(peerNode());
-    expect(page.leaveButton().exists()).toBe(true);
-    expect(page.deleteButton().exists()).toBe(false);
   });
 });
 

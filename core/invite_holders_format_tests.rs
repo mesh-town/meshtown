@@ -29,13 +29,13 @@ fn head() -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: None,
         made_unix: T,
-        kind: NetKind::Peer,
+        root: id(31),
     }
 }
 
 #[test]
-fn v3_body_without_holders_is_accepted() {
-    // given: v3 with a single creator
+fn v4_body_without_holders_is_accepted() {
+    // given: v4 with a single creator
     let s = build_keyed(&head(), &with_ip(1), &[], &PrimaryIps::NONE).unwrap();
     // then: parsing gives one record
     let parsed = parse(&s).unwrap();
@@ -44,7 +44,7 @@ fn v3_body_without_holders_is_accepted() {
 }
 
 #[test]
-fn v3_with_key_only_holders_first_keeps_order_and_hints() {
+fn v4_with_key_only_holders_first_keeps_order_and_hints() {
     // given: two holders without hints, a creator with a hint, one other
     let (h1, h2, me, o) = (key_only(1), key_only(2), with_ip(3), key_only(4));
     // when: holders first

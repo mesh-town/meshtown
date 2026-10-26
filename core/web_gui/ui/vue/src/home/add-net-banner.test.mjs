@@ -83,7 +83,7 @@ describe("joinedBanner", () => {
 describe("createdBanner", () => {
   it("says which network was created and where to invite from", () => {
     const text = createdBanner("family");
-    assert.ok(text.startsWith("You created \"family\"."), text);
+    assert.ok(text.startsWith("You created \"family\" and you're its admin."), text);
     assert.ok(text.includes("Invite to \"family\""), text);
   });
 });

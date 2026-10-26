@@ -38,12 +38,10 @@ pub(super) struct Inputs<'a> {
     /// (`self_name`).
     pub peer_names: HashMap<PeerId, String>,
     pub neighbors: u64,
-    /// Nodes waiting for this node's vote and whether this node is out (`access::report::vote_summary`).
+    /// Requests waiting for this node's confirmation and whether this node is out (`access::report::vote_summary`).
     pub votes: VoteSummary,
     /// Nodes with an exclusion record in the verdicts; empty while nothing is published.
     pub excluded: HashSet<PeerId>,
-    /// Nodes hidden from `peers[]`: forgotten ones and those of this node's own pending forget votes.
-    pub removed: HashSet<PeerId>,
     pub socks: Option<SocketAddr>,
     /// Proxy access mode and this machine's address on the local network (only with `localnet`).
     pub socks_access: (ListenAccess, Vec<IfaceAddr>),
@@ -92,7 +90,6 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
         members: MembersInfo {
             count: i.members.len() as u64,
             gossip_neighbors: i.neighbors,
-            voting: i.votes.voting,
             me_excluded: i.votes.me_excluded,
             admitting: i.votes.admitting,
             me_pending: i.votes.me_pending,
@@ -289,7 +286,3 @@ mod stale_tests;
 #[cfg(test)]
 #[path = "pac_url_tests.rs"]
 mod pac_url_tests;
-
-#[cfg(test)]
-#[path = "build_removed_tests.rs"]
-mod removed_tests;

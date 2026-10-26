@@ -8,7 +8,7 @@ import DiagnosticsSection from "./DiagnosticsSection.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
-const FULL = "mesh1-FULLKEYFULLKEY";
+const FULL = "mesh2-FULLKEYFULLKEY";
 let mounted;
 const mountDiag = () => (mounted = mountSection(DiagnosticsSection));
 const keyText = (w) => w.get("#netkey").text();
@@ -19,7 +19,7 @@ afterEach(() => mounted.wrapper.unmount());
 describe("NetKeyCard", () => {
   it("before the click — the network mask and the \"Show\" button", () => {
     const { wrapper } = mountDiag();
-    expect(keyText(wrapper)).toBe("mesh1-••••-••••");
+    expect(keyText(wrapper)).toBe("mesh2-••••-••••");
     expect(keyBtn(wrapper).text()).toBe("Show");
   });
 
@@ -38,7 +38,7 @@ describe("NetKeyCard", () => {
     expect(keyText(wrapper)).toBe(FULL);
     expect(keyBtn(wrapper).text()).toBe("Hide");
     await keyBtn(wrapper).trigger("click");
-    expect(keyText(wrapper)).toBe("mesh1-••••-••••");
+    expect(keyText(wrapper)).toBe("mesh2-••••-••••");
     expect(keyBtn(wrapper).text()).toBe("Show");
   });
 
@@ -48,7 +48,7 @@ describe("NetKeyCard", () => {
     await keyBtn(wrapper).trigger("click");
     await flushPromises();
     expect(wrapper.get("#net-key-card [role=status]").text()).toBe("Couldn't get the network key: the node responded with an error 500");
-    expect(keyText(wrapper)).toBe("mesh1-••••-••••");
+    expect(keyText(wrapper)).toBe("mesh2-••••-••••");
   });
 
   it("network.id_hex changes in the snapshot — the key is under the mask again", async () => {
@@ -57,9 +57,9 @@ describe("NetKeyCard", () => {
     await keyBtn(wrapper).trigger("click");
     await flushPromises();
     expect(keyText(wrapper)).toBe(FULL);
-    store.state = baseState({ network: { id_hex: "net-bbbb", masked: "mesh1-••••-2222" } });
+    store.state = baseState({ network: { id_hex: "net-bbbb", masked: "mesh2-••••-2222" } });
     await flushPromises();
-    expect(keyText(wrapper)).toBe("mesh1-••••-2222");
+    expect(keyText(wrapper)).toBe("mesh2-••••-2222");
     expect(keyBtn(wrapper).text()).toBe("Show");
   });
 });

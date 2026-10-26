@@ -14,7 +14,8 @@ use crate::config::config_file::test_support::{
 };
 use crate::config::config_file::time::stamp_utc;
 use crate::config::config_file::FILE_NAME;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::managed_key_with_label;
+use crate::transport::net::NodeSecret;
 
 const NOW: u64 = 1_790_278_867;
 
@@ -48,7 +49,11 @@ fn file_mode(path: &std::path::Path) -> u32 {
 fn bad_secret_startup_write_keeps_copy() {
     let dir = scratch("copy-bad-secret");
     let file = dir.join(FILE_NAME);
-    let key = NetworkKey::from_bytes([7u8; 32]).encode();
+    let key = managed_key_with_label(
+        None,
+        &[7u8; 32],
+        &NodeSecret::from_bytes(&[1u8; 32]).peer_id(),
+    );
     let text = format!(
         r#"{{"rev": 3, "identity": {{"secret": "broken"}},
         "config": {{"version": 1, "network": {{"key": "{key}"}}}}}}"#
@@ -84,6 +89,11 @@ fn bad_secret_startup_write_keeps_copy() {
         Some(key.as_str())
     );
     assert_eq!(after.rev, 4);
+    assert_key_parsed(&run);
+}
+
+/// The start report shows a persistent identity and no error on the network key.
+fn assert_key_parsed(run: &RunConfig) {
     assert!(
         !run.file_report
             .field_errors
@@ -206,7 +216,11 @@ fn copy_failure_keeps_original() {
     let text = format!(
         r#"{{"rev": 3, "identity": {{"secret": "broken"}},
         "config": {{"version": 1, "network": {{"key": "{}"}}}}}}"#,
-        NetworkKey::from_bytes([7u8; 32]).encode()
+        managed_key_with_label(
+            None,
+            &[7u8; 32],
+            &NodeSecret::from_bytes(&[1u8; 32]).peer_id()
+        )
     );
     std::fs::write(&file, &text).expect("writing the test file");
     let taken = format!("{FILE_NAME}.bad-{}", stamp_utc(NOW));
