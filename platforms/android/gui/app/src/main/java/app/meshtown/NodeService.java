@@ -6,7 +6,9 @@ import android.net.VpnService;
 import android.os.SystemClock;
 import android.os.IBinder;
 import android.util.Log;
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 
 /** Foreground service that owns the node process and keeps the status notification fresh. */
 public class NodeService extends Service {
@@ -124,11 +126,37 @@ public class NodeService extends Service {
             ProcessBuilder pb = new ProcessBuilder(bin.getPath(), "run", "--config", new File(dir, "config.json").getPath());
             pb.directory(dir);
             pb.environment().put("HOME", dir.getPath());
+            String rustLog = readRustLog(dir);
+            if (rustLog != null) {
+                pb.environment().put("RUST_LOG", rustLog);
+            }
             pb.redirectErrorStream(true);
             pb.redirectOutput(new File(dir, "node.log"));
             node = pb.start();
         } catch (Exception e) {
             Log.e(TAG, "node start failed", e);
+        }
+    }
+
+    /** Log filter from a `rust-log` file: the app's private dir first, then the external files dir. */
+    private String readRustLog(File dir) {
+        String value = readFirstLine(new File(dir, "rust-log"));
+        if (value != null) {
+            return value;
+        }
+        File external = getExternalFilesDir(null);
+        return external == null ? null : readFirstLine(new File(external, "rust-log"));
+    }
+
+    private static String readFirstLine(File f) {
+        if (!f.isFile()) {
+            return null;
+        }
+        try (BufferedReader r = new BufferedReader(new FileReader(f))) {
+            String line = r.readLine();
+            return line == null || line.trim().isEmpty() ? null : line.trim();
+        } catch (Exception e) {
+            return null;
         }
     }
 
