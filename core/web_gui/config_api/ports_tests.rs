@@ -53,7 +53,7 @@ fn put_ports_duplicate_port_is_invalid() {
     let fields = v["fields"].as_array().unwrap();
     assert!(fields.iter().any(|f| {
         f["path"] == "ports.published"
-            && f["message"] == "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids"
+            && f["message"] == "a list of publications {port, proto, name, for} without repeated (proto, port), up to 64, proto is \"tcp\" (default) or \"udp\", for is \"all\" or a list of ids"
     }));
     assert!(node.applied.lock().unwrap().is_empty());
     cleanup(&dir);

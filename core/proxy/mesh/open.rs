@@ -80,7 +80,9 @@ async fn refused(ask: &Ask<'_>, reach: PortReach) -> OpenedUpstream {
     match reach {
         PortReach::Offline => ask.offline().await,
         PortReach::NotOpened => ask.not_opened().await,
-        PortReach::NoService | PortReach::Failed | PortReach::Unsupported => ask.no_service(false).await,
+        PortReach::NoService | PortReach::Failed | PortReach::Unsupported => {
+            ask.no_service(false).await
+        }
         PortReach::TimedOut => ask.no_service(true).await,
     }
 }

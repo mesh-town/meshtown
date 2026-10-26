@@ -7,15 +7,14 @@ use std::time::Duration;
 
 use crate::exit::PeerConnPool;
 use crate::members::membership::Members;
+use crate::ports_sharing::test_support::{linked, scripted};
 use crate::ports_sharing::{
     dial_peer_port, port_code_text, port_service, Audience, PortDialError, PortReach, PortStream,
     Proto, Published, PublishedPortsTable, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
     PORT_CODE_REFUSED, PORT_FRAME_VERSION,
 };
-use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
-use crate::transport::net::{
-    BoxFuture, MemNet, NetStack, NetStackBuilder, PeerConn, ServiceHandler, StreamPair, PORT,
-};
+use crate::transport::net::facade::test_support::{pid, within, Probe, STEP};
+use crate::transport::net::{BoxFuture, MemNet, NetStack, PeerConn, ServiceHandler, PORT};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const UNKNOWN_CODE: u8 = 6;
@@ -206,22 +205,6 @@ impl Fixture {
     }
 }
 
-/// Node `seed` on network `net` with handler `handler` on `PORT`.
-fn node(net: &MemNet, seed: u8, handler: Arc<dyn ServiceHandler>) -> NetStack {
-    NetStackBuilder::new(secret(seed))
-        .transport(net.transport(&secret(seed)))
-        .serve(PORT, handler)
-        .build()
-        .expect("stack was built")
-}
-
-/// A (seed 1) knows the address of B (seed 2, `handler` on `PORT`).
-fn linked(net: &MemNet, handler: Arc<dyn ServiceHandler>) -> (NetStack, NetStack) {
-    let (a, b) = (node(net, 1, Probe::new()), node(net, 2, handler));
-    a.add_hints(b.invite_addrs()[0].clone());
-    (a, b)
-}
-
 /// Ports handler of B: A is a member, `port` is published to everyone.
 fn serving(port: u16) -> Arc<dyn ServiceHandler> {
     let members = Members::default();
@@ -233,25 +216,6 @@ fn serving(port: u16) -> Arc<dyn ServiceHandler> {
         audience: Audience::All,
     };
     port_service(members, PublishedPortsTable::new(vec![row]))
-}
-
-/// Peer scenario: on each stream reads 3 bytes of the request, writes `reply` and closes the stream.
-struct Scripted(Vec<u8>);
-
-fn scripted(reply: &[u8]) -> Arc<dyn ServiceHandler> {
-    Arc::new(Scripted(reply.to_vec()))
-}
-
-impl ServiceHandler for Scripted {
-    fn handle(&self, conn: Arc<dyn PeerConn>) -> BoxFuture<'static, ()> {
-        let reply = self.0.clone();
-        Box::pin(async move {
-            while let Ok(StreamPair { mut send, mut recv }) = conn.accept().await {
-                let _ = recv.read_exact(&mut [0u8; 3]).await;
-                let _ = send.write_all(&reply).await;
-            }
-        })
-    }
 }
 
 /// Peer scenario: counts the streams it accepted and keeps them open without ever replying.

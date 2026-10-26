@@ -110,7 +110,7 @@ mod peer_cuts_answer {
 
         // when: A asks for a port
         let pool = PeerConnPool::new(PORT);
-        let asked = request_port_stream(&a, &pool, pid(2), 80);
+        let asked = request_port_stream(&a, &pool, pid(2), PortRequest { proto: Proto::Tcp, port: 80 });
         let asked = within("ask_port", asked).await;
 
         // then: an error with the early-end text

@@ -108,6 +108,28 @@ mod the_network_name {
     }
 }
 
+mod the_protocol {
+    use super::*;
+
+    #[test]
+    fn keeps_the_protocol_of_each_local() {
+        // given: B opens `local 9000` over UDP
+        let slots = vec![
+            slot(A, Some(&key_with_label("home")), &[]),
+            udp_slot(B, Some(&key_with_label("work")), 9000),
+        ];
+        // when
+        let got = opened_locals_of(slots, &id(A));
+        // then
+        let expected = OpenedLocal {
+            local: 9000,
+            proto: Proto::Udp,
+            net: "work".to_string(),
+        };
+        assert_eq!(got, vec![expected]);
+    }
+}
+
 fn id(text: &str) -> NetSlotId {
     NetSlotId::parse(text).expect("a valid slot id")
 }
@@ -129,8 +151,22 @@ fn id_head(key: &str) -> String {
 fn local(local: u16, net: &str) -> OpenedLocal {
     OpenedLocal {
         local,
+        proto: Proto::Tcp,
         net: net.to_string(),
     }
+}
+
+/// A slot working with `key` (if any) whose settings open one local UDP port.
+fn udp_slot(slot_id: &str, key: Option<&str>, local: u16) -> SlotHandle {
+    let node = NodeSecret::from_bytes(&[5u8; 32]).peer_id();
+    let mut state = config_with_key(key);
+    state.file_settings.net.ports_opened = vec![Opened {
+        proto: Proto::Udp,
+        node,
+        port: 53,
+        local,
+    }];
+    slot_handle(slot_id, SnapNode::new(Default::default()), state)
 }
 
 /// A slot working with `key` (if any) whose settings open the given local ports.

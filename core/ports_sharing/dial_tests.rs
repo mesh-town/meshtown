@@ -43,7 +43,7 @@ async fn non_member_closes_fast() {
     let id = pid(6);
     let (client, accepted) = pair().await;
     let t = Instant::now();
-    forward_to_peer_port(
+    let _ = forward_to_peer_port(
         &stack,
         &PeerConnPool::new(PORT),
         &Members::default(),

@@ -156,3 +156,6 @@ fn bind_failed_carries_error_text() {
 
 #[path = "ports_web_url_tests.rs"]
 mod web_url;
+
+#[path = "ports_udp_tests.rs"]
+mod udp;

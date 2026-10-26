@@ -6,15 +6,14 @@
 //! The socket lies in a shared cell, not in a task: the port is released before the close returns.
 
 use std::collections::HashMap;
-use std::future::Future;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::transport::net::{NetStack, PeerId, PORT};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 
-use super::dial::{forward_to_peer_port, PortReach};
+use super::dial::PortReach;
 use super::types::Opened;
 use crate::exit::PeerConnPool;
 use crate::members::membership::Members;
@@ -28,16 +27,22 @@ pub enum OpenState {
 }
 
 type Slot = Arc<Mutex<Option<TcpListener>>>;
-/// A running listener: a cell with the socket and the accepting task.
+type State = Arc<Mutex<OpenState>>;
+type Reach = Arc<Mutex<Option<PortReach>>>;
+
+/// A running listener: a cell with the socket and the accepting task. A UDP listener has no cell: its
+/// task owns the socket and releases it when aborted.
 pub(crate) struct Listener {
-    slot: Slot,
+    slot: Option<Slot>,
     task: AbortHandle,
 }
 
 impl Listener {
     /// Closes the socket before returning, then aborts the task (and with it all connections).
     fn close(self) {
-        drop(lock(&self.slot).take());
+        if let Some(slot) = &self.slot {
+            drop(lock(slot).take());
+        }
         self.task.abort();
     }
 }
@@ -48,9 +53,21 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 
 struct Entry {
     opened: Opened,
-    state: OpenState,
+    state: State,
+    /// The result of the last dial: the refusal, or `None` after a success.
+    reach: Reach,
     listener: Option<Listener>,
 }
+
+impl Entry {
+    /// A bound listener; a UDP bind can fail after the entry is made, which the state shows.
+    fn is_listening(&self) -> bool {
+        self.listener.is_some() && *lock(&self.state) == OpenState::Listening
+    }
+}
+
+/// Starts the listener of one entry; `None` when the bind failed at once (the state says why).
+type BindFn = fn(&Arc<Shared>, Opened, PeerConnPool, State, Reach) -> Option<Listener>;
 
 #[derive(Default)]
 struct Inner {
@@ -119,7 +136,7 @@ impl Opener {
         for o in dedup(opened) {
             let kept = old
                 .iter()
-                .position(|e| e.opened == o && e.listener.is_some());
+                .position(|e| e.opened == o && e.is_listening());
             entries.push(match kept {
                 Some(i) if !to_bind.contains(&o) => old.remove(i),
                 _ => self.bind_entry(inner, o),
@@ -129,46 +146,20 @@ impl Opener {
     }
 
     fn bind_entry(&self, inner: &mut Inner, o: Opened) -> Entry {
-        let bound = bind_loopback(o.local);
         let pool = inner
             .pools
             .entry(o.node)
             .or_insert_with(|| PeerConnPool::new(PORT))
             .clone();
-        match bound {
-            Ok(l) => {
-                say("port", format!("127.0.0.1:{}: opened", o.local));
-                let conn = self.forward_handler(pool, o.clone());
-                Entry {
-                    opened: o,
-                    state: OpenState::Listening,
-                    listener: Some(spawn_listener(l, conn)),
-                }
-            }
-            Err(text) => {
-                say("port", format!("127.0.0.1:{}: not opened: {text}", o.local));
-                Entry {
-                    opened: o,
-                    state: OpenState::BindFailed(text),
-                    listener: None,
-                }
-            }
-        }
-    }
-
-    fn forward_handler(
-        &self,
-        pool: PeerConnPool,
-        target: Opened,
-    ) -> impl Fn(TcpStream) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send>> + Send + 'static
-    {
-        let (stack, members) = (self.0.stack.clone(), self.0.members.clone());
-        move |tcp| {
-            let (stack, members, pool, target) =
-                (stack.clone(), members.clone(), pool.clone(), target.clone());
-            Box::pin(
-                async move { forward_to_peer_port(&stack, &pool, &members, &target, tcp).await },
-            )
+        let state: State = Arc::new(Mutex::new(OpenState::Listening));
+        let reach: Reach = Arc::new(Mutex::new(None));
+        let bind: BindFn = o.proto.pick(bind_tcp_entry, udp::bind_udp_entry);
+        let listener = bind(&self.0, o.clone(), pool, state.clone(), reach.clone());
+        Entry {
+            opened: o,
+            state,
+            reach,
+            listener,
         }
     }
 
@@ -178,7 +169,7 @@ impl Opener {
         inner
             .entries
             .iter()
-            .map(|e| (e.opened.clone(), e.state.clone(), None))
+            .map(|e| (e.opened.clone(), lock(&e.state).clone(), *lock(&e.reach)))
             .collect()
     }
 
@@ -192,7 +183,7 @@ impl Opener {
 fn listening_of(entries: &[Entry]) -> Vec<Opened> {
     entries
         .iter()
-        .filter(|e| e.listener.is_some())
+        .filter(|e| e.is_listening())
         .map(|e| e.opened.clone())
         .collect()
 }
@@ -206,7 +197,11 @@ fn close_matching(entries: &mut [Entry], close: &[Opened]) {
 fn close_entry(e: &mut Entry) {
     if let Some(l) = e.listener.take() {
         l.close();
-        say("port", format!("127.0.0.1:{}: closed", e.opened.local));
+        let suffix = e.opened.proto.pick("", "/udp");
+        say(
+            "port",
+            format!("127.0.0.1:{}{suffix}: closed", e.opened.local),
+        );
     }
 }
 
@@ -246,8 +241,15 @@ pub(crate) fn listener_changes(
 }
 
 mod listen;
-use listen::{bind_loopback, spawn_listener};
+mod udp;
+use listen::bind_tcp_entry;
+#[cfg(test)]
+use listen::spawn_listener;
 
 #[cfg(test)]
 #[path = "open_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "open_udp_tests.rs"]
+mod udp_tests;

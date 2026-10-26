@@ -137,8 +137,8 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `probe.interval_sec` | `--probe-interval` | 300 | `settings.probe_interval()` (`core/config/config_file/net_settings.rs`) |
 | `probe.full_cycle` | `--probe-full-cycle` | `false` | 1 MiB in the probe round to all peers; without the flag — only to the chosen exit (`route.exits`) |
 | `route.exits` | no flag | `[]` | `settings.route_exits` (`core/config/config_file/net_settings.rs`) |
-| `ports.published` | no flag | `[]` | `settings.ports_published` (`core/config/config_file/net_settings.rs`) |
-| `ports.opened` | no flag | `[]` | `settings.ports_opened` (`core/config/config_file/net_settings.rs`) |
+| `ports.published` | no flag | `[]` (items `{port, proto, name, for}`, `proto` `"tcp"` by default, written only for UDP) | `settings.ports_published` (`core/config/config_file/net_settings.rs`) |
+| `ports.opened` | no flag | `[]` (items `{node, port, proto, local}`, `proto` as above) | `settings.ports_opened` (`core/config/config_file/net_settings.rs`) |
 | `web.enabled` | no flag | `true` | `core/web_gui` |
 | `web.port` | `--web-port` | 7777 | `core/web_gui` |
 | `web.access` | no flag (command `meshtown access localhost\|localnet`) | `"localnet"` | `core/web_gui/auth/access.rs` (section 8.1) |

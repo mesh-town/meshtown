@@ -7,7 +7,7 @@ use crate::proxy::MeshAddress;
 use crate::transport::net::PeerId;
 
 use crate::ports_sharing::open::OpenState;
-use crate::ports_sharing::{LocalState, Opened, PortReach, PortView, Published};
+use crate::ports_sharing::{LocalState, Opened, PortReach, PortView, Proto, Published};
 use crate::web_gui::{NetPort, OpenedInfo, OwnPort, PortsInfo};
 
 type Own = Vec<(Published, LocalState)>;
@@ -21,26 +21,36 @@ fn local_text(s: LocalState) -> &'static str {
     }
 }
 
-fn opened_info(local: u16, st: &OpenState) -> OpenedInfo {
+/// A UDP port cannot be probed locally, so its state is always unknown.
+fn own_local(proto: Proto, s: LocalState) -> LocalState {
+    match proto {
+        Proto::Udp => LocalState::Unknown,
+        Proto::Tcp => s,
+    }
+}
+
+fn opened_info(local: u16, st: &OpenState, last_error: Option<PortReach>) -> OpenedInfo {
     match st {
         OpenState::Listening => OpenedInfo {
             local,
             state: "listening".into(),
             error: None,
+            last_error,
         },
         OpenState::BindFailed(e) => OpenedInfo {
             local,
             state: "bind_failed".into(),
             error: Some(e.clone()),
+            last_error,
         },
     }
 }
 
-fn find_opened(opened: &OpenedNow, node: PeerId, port: u16) -> Option<OpenedInfo> {
+fn find_opened(opened: &OpenedNow, node: PeerId, proto: Proto, port: u16) -> Option<OpenedInfo> {
     opened
         .iter()
-        .find(|(o, _, _)| o.node == node && o.port == port)
-        .map(|(o, st, _)| opened_info(o.local, st))
+        .find(|(o, _, _)| o.node == node && o.proto == proto && o.port == port)
+        .map(|(o, st, reach)| opened_info(o.local, st, *reach))
 }
 
 /// The name of a record opened to node `own_id`, with a readable value; otherwise `None`.
@@ -50,6 +60,7 @@ fn public_name(v: &PortView, own_id: PeerId) -> Option<&str> {
 
 fn row(
     node: PeerId,
+    proto: Proto,
     port: u16,
     name: Option<&str>,
     ctx: &Ctx<'_>,
@@ -60,6 +71,7 @@ fn row(
         node_name: ctx.names.get(&node).cloned(),
         online: ctx.online.contains(&node),
         port,
+        proto,
         name: name.unwrap_or_default().to_string(),
         published: name.is_some(),
         opened,
@@ -75,7 +87,7 @@ pub(in crate::node::node_ctl) fn overlay_web_urls(rows: &mut [NetPort], addresse
 
 fn web_url_of(row: &NetPort, addresses: &[MeshAddress]) -> Option<String> {
     let address = addresses.iter().find(|a| a.peer.to_string() == row.node)?;
-    row.published.then(|| address.url(row.port))
+    (row.published && row.proto == Proto::Tcp).then(|| address.url(row.port))
 }
 
 struct Ctx<'a> {
@@ -99,28 +111,30 @@ pub(super) fn build_ports(
         .into_iter()
         .map(|(p, s)| OwnPort {
             port: p.port,
+            proto: p.proto,
             name: p.name,
-            local: local_text(s).into(),
+            local: local_text(own_local(p.proto, s)).into(),
         })
         .collect();
     let mut network = Vec::new();
-    let mut seen: HashSet<(PeerId, u16)> = HashSet::new();
+    let mut seen: HashSet<(PeerId, Proto, u16)> = HashSet::new();
     for v in views.iter().filter(|v| v.author != own_id) {
-        let op = find_opened(&opened, v.author, v.port);
+        let op = find_opened(&opened, v.author, v.proto, v.port);
         let name = public_name(v, own_id);
         if (name.is_some() && online.contains(&v.author)) || op.is_some() {
-            seen.insert((v.author, v.port));
-            network.push(row(v.author, v.port, name, &ctx, op));
+            seen.insert((v.author, v.proto, v.port));
+            network.push(row(v.author, v.proto, v.port, name, &ctx, op));
         }
     }
-    for (o, st, _) in opened.iter().filter(|(o, _, _)| o.node != own_id) {
-        if seen.insert((o.node, o.port)) {
+    for (o, st, reach) in opened.iter().filter(|(o, _, _)| o.node != own_id) {
+        if seen.insert((o.node, o.proto, o.port)) {
             network.push(row(
                 o.node,
+                o.proto,
                 o.port,
                 None,
                 &ctx,
-                Some(opened_info(o.local, st)),
+                Some(opened_info(o.local, st, *reach)),
             ));
         }
     }

@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use serde_json::Value;
 
 use crate::node::net_names;
-use crate::ports_sharing::types::{Audience, Opened, Published};
+use crate::ports_sharing::types::{Audience, Opened, Proto, Published};
 use crate::transport::net::{NetChoice, PeerId};
 
 use super::super::parse_fields::push_field_error;
@@ -18,9 +18,9 @@ use super::value::{FieldValue, Kind};
 const MAX_PEERS: usize = 64;
 const EXPECTED_PEERS: &str = "a list of node ids without repeats, up to 64";
 const EXPECTED_PUBLISHED: &str =
-    "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
+    "a list of publications {port, proto, name, for} without repeated (proto, port), up to 64, proto is \"tcp\" (default) or \"udp\", for is \"all\" or a list of ids";
 const EXPECTED_OPENED: &str =
-    "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
+    "a list of {node, port, proto, local} without repeats of (node, proto, port) and (proto, local), up to 64, proto is \"tcp\" (default) or \"udp\"";
 
 /// A list of node ids without repeats, up to 64; order is kept.
 pub(crate) struct PeerList;
@@ -83,26 +83,31 @@ impl Kind<Vec<Opened>> for OpenedList {
     }
 }
 
-/// A publication in the file: `port`, `name`, `for` (key order is set by `ConfigDoc`).
+/// A publication in the file: `port`, `proto` (UDP only), `name`, `for` (key order is set by `ConfigDoc`).
 #[derive(serde::Serialize)]
 struct PublishedOut {
     port: u16,
+    #[serde(skip_serializing_if = "Proto::is_tcp")]
+    proto: Proto,
     name: String,
     #[serde(rename = "for")]
     audience: Value,
 }
 
-/// An opened port in the file: `node`, `port`, `local`.
+/// An opened port in the file: `node`, `port`, `proto` (UDP only), `local`.
 #[derive(serde::Serialize)]
 struct OpenedOut {
     node: String,
     port: u16,
+    #[serde(skip_serializing_if = "Proto::is_tcp")]
+    proto: Proto,
     local: u16,
 }
 
 fn published_json(p: &Published) -> Value {
     let out = PublishedOut {
         port: p.port,
+        proto: p.proto,
         name: p.name.clone(),
         audience: audience_json(&p.audience),
     };
@@ -113,6 +118,7 @@ fn opened_json(o: &Opened) -> Value {
     let out = OpenedOut {
         node: o.node.to_string(),
         port: o.port,
+        proto: o.proto,
         local: o.local,
     };
     serde_json::to_value(out).unwrap_or(Value::Null)

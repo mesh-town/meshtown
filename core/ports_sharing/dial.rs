@@ -14,7 +14,7 @@ use tokio::time::timeout;
 
 use super::frame::{
     encode_port_request, parse_port_reply, PortRequest, port_code_text, PORT_CODE_CONNECT_FAILED,
-    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
+    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED, PORT_CODE_BAD_REQUEST,
 };
 use super::types::{Opened, Proto};
 use crate::exit::{splice, PeerConnPool};
@@ -24,18 +24,20 @@ use crate::node::output::say;
 /// Deadline for the dial, the request and the reply; when it expires, the TCP connection is closed.
 pub const DIAL_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Forwards an accepted TCP connection to a member's port.
+/// Forwards an accepted TCP connection to a member's port. A refusal closes `tcp`, writes one `[port]`
+/// line and is returned to the caller (the listener keeps it as the last dial error).
 pub async fn forward_to_peer_port(
     stack: &NetStack,
     pool: &PeerConnPool,
     members: &Members,
     target: &Opened,
     tcp: TcpStream,
-) {
-    forward_to_peer_port_within(stack, pool, members, target, tcp, DIAL_TIMEOUT).await
+) -> Result<(), PortDialError> {
+    forward_result(stack, pool, members, target, tcp, DIAL_TIMEOUT).await
 }
 
-/// The same with its own deadline — for fast tests. Any refusal closes `tcp` and writes one `[port]` line.
+/// The same with its own deadline and without the result — for fast tests.
+#[cfg(test)]
 pub(crate) async fn forward_to_peer_port_within(
     stack: &NetStack,
     pool: &PeerConnPool,
@@ -44,6 +46,17 @@ pub(crate) async fn forward_to_peer_port_within(
     tcp: TcpStream,
     deadline: Duration,
 ) {
+    let _ = forward_result(stack, pool, members, target, tcp, deadline).await;
+}
+
+async fn forward_result(
+    stack: &NetStack,
+    pool: &PeerConnPool,
+    members: &Members,
+    target: &Opened,
+    tcp: TcpStream,
+    deadline: Duration,
+) -> Result<(), PortDialError> {
     let log_prefix = format!(
         "127.0.0.1:{} → {}:{}",
         target.local,
@@ -51,9 +64,13 @@ pub(crate) async fn forward_to_peer_port_within(
         target.port
     );
     match dial_peer_port(stack, pool, members, target.node, target.port, deadline).await {
-        Err(e) => say("port", format!("{log_prefix}: {}", e.text)),
+        Err(e) => {
+            say("port", format!("{log_prefix}: {}", e.text));
+            Err(e)
+        }
         Ok(stream) => {
             splice(stream.send, stream.recv, tcp).await;
+            Ok(())
         }
     }
 }
@@ -98,7 +115,7 @@ impl PortDialError {
     }
 }
 
-/// Opens a ports stream to `node:port` and reads the reply, within `deadline`. Does not retry, does not log.
+/// Opens a TCP ports stream to `node:port` and reads the reply, within `deadline`.
 pub async fn dial_peer_port(
     stack: &NetStack,
     pool: &PeerConnPool,
@@ -107,14 +124,30 @@ pub async fn dial_peer_port(
     port: u16,
     deadline: Duration,
 ) -> Result<PortStream, PortDialError> {
+    let req = PortRequest {
+        proto: Proto::Tcp,
+        port,
+    };
+    dial_peer(stack, pool, members, node, req, deadline).await
+}
+
+/// Opens a ports stream for `req` to `node` and reads the reply, within `deadline`. Does not retry, does not log.
+pub async fn dial_peer(
+    stack: &NetStack,
+    pool: &PeerConnPool,
+    members: &Members,
+    node: PeerId,
+    req: PortRequest,
+    deadline: Duration,
+) -> Result<PortStream, PortDialError> {
     if !members.is_member(node) {
         return Err(PortDialError::new(PortReach::Offline, "member is offline"));
     }
-    let reply = timeout(deadline, request_port_stream(stack, pool, node, port)).await;
+    let reply = timeout(deadline, request_port_stream(stack, pool, node, req)).await;
     match reply {
         Err(_) => Err(timed_out(deadline)),
         Ok(Err(e)) => Err(PortDialError::new(PortReach::Failed, e.to_string())),
-        Ok(Ok((_, _, code))) if code != PORT_CODE_OK => Err(refusal(code)),
+        Ok(Ok((_, _, code))) if code != PORT_CODE_OK => Err(refusal(code, req.proto)),
         Ok(Ok((send, recv, _))) => Ok(PortStream { send, recv }),
     }
 }
@@ -124,10 +157,16 @@ fn timed_out(deadline: Duration) -> PortDialError {
     PortDialError::new(PortReach::TimedOut, text)
 }
 
-fn refusal(code: u8) -> PortDialError {
+/// A node that answers a UDP request with "bad request" does not know the UDP frame.
+const UNSUPPORTED_UDP_TEXT: &str = "the node does not support UDP ports (it runs an older version)";
+
+fn refusal(code: u8, proto: Proto) -> PortDialError {
     let reach = match code {
         PORT_CODE_NOT_PUBLISHED | PORT_CODE_REFUSED => PortReach::NotOpened,
         PORT_CODE_CONNECT_FAILED => PortReach::NoService,
+        PORT_CODE_BAD_REQUEST if !proto.is_tcp() => {
+            return PortDialError::new(PortReach::Unsupported, UNSUPPORTED_UDP_TEXT);
+        }
         _ => PortReach::Failed,
     };
     PortDialError::new(reach, port_code_text(code))
@@ -138,14 +177,11 @@ async fn request_port_stream(
     stack: &NetStack,
     pool: &PeerConnPool,
     node: PeerId,
-    port: u16,
+    req: PortRequest,
 ) -> Result<(BoxSend, BoxRecv, u8)> {
     let crate::transport::net::StreamPair { mut send, mut recv } =
         pool.open_peer_stream(stack, node).await?;
-    send.write_all(&encode_port_request(PortRequest {
-        proto: Proto::Tcp,
-        port,
-    }))
+    send.write_all(&encode_port_request(req))
         .await
         .map_err(|e| anyhow!("request not sent: {e}"))?;
     let mut answer = [0u8; 2];
@@ -169,3 +205,7 @@ mod forward_tests;
 #[cfg(test)]
 #[path = "dial_peer_tests.rs"]
 mod dial_peer_tests;
+
+#[cfg(test)]
+#[path = "dial_udp_tests.rs"]
+mod udp_tests;

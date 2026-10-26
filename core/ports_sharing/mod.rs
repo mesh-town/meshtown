@@ -20,6 +20,10 @@ pub mod server;
 pub mod store;
 pub mod table;
 pub mod types;
+mod udp;
+
+#[cfg(test)]
+pub(crate) mod test_support;
 
 pub use dial::{dial_peer_port, PortDialError, PortReach, PortStream};
 pub use frame::{

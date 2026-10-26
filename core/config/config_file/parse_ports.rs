@@ -30,6 +30,14 @@ fn audience_of(v: &Value) -> Option<Audience> {
     }
 }
 
+/// `proto` is optional (TCP when absent); only the strings `"tcp"` and `"udp"` are accepted.
+fn proto_of(v: &Value) -> Option<Proto> {
+    match v.get("proto") {
+        None => Some(Proto::Tcp),
+        Some(p) => Proto::parse(p.as_str()?),
+    }
+}
+
 fn name_of(v: &Value) -> Option<String> {
     match v.get("name") {
         None => Some(String::new()),
@@ -41,7 +49,7 @@ fn name_of(v: &Value) -> Option<String> {
 fn published_one(v: &Value) -> Option<Published> {
     Some(Published {
         port: port_of(v, "port")?,
-        proto: Proto::Tcp,
+        proto: proto_of(v)?,
         name: name_of(v)?,
         audience: audience_of(v)?,
     })
@@ -50,7 +58,7 @@ fn published_one(v: &Value) -> Option<Published> {
 pub(super) fn parse_published_list(a: &[Value]) -> Option<Vec<Published>> {
     let list = a.iter().map(published_one).collect::<Option<Vec<_>>>()?;
     let mut seen = HashSet::new();
-    let unique = list.iter().all(|p| seen.insert(p.port));
+    let unique = list.iter().all(|p| seen.insert((p.proto, p.port)));
     (list.len() <= MAX_PORT_LIST_ENTRIES && unique).then_some(list)
 }
 
@@ -58,7 +66,7 @@ fn opened_one(v: &Value) -> Option<Opened> {
     Some(Opened {
         node: peer_id_of(v.get("node")?)?,
         port: port_of(v, "port")?,
-        proto: Proto::Tcp,
+        proto: proto_of(v)?,
         local: port_of(v, "local")?,
     })
 }
@@ -69,7 +77,7 @@ pub(super) fn parse_opened_list(a: &[Value]) -> Option<Vec<Opened>> {
     let mut locals = HashSet::new();
     let unique = list
         .iter()
-        .all(|o| pairs.insert((o.node, o.port)) & locals.insert(o.local));
+        .all(|o| pairs.insert((o.node, o.proto, o.port)) & locals.insert((o.proto, o.local)));
     (list.len() <= MAX_PORT_LIST_ENTRIES && unique).then_some(list)
 }
 
