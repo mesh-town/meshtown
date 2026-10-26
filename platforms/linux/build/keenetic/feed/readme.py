@@ -13,7 +13,7 @@ traffic out through a trusted member's connection. Main repository and documenta
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Package feed of [Mesh Town]({code}) for Keenetic routers with [Entware](https://entware.net). CI builds it from the
-releases of `github.com/mesh-town/meshtown`; the feed holds only the latest version. The packages are not signed
+releases of `github.com/mesh-town/meshtown-dist`; the feed holds only the latest version. The packages are not signed
 (Entware does not check signatures).
 
 Not tested on a live KeeneticOS router yet: the package is checked on Entware under emulation only.

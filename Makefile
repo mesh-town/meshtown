@@ -1,4 +1,4 @@
-.PHONY: help build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test fmt-check clippy clippy-full core-check features-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
+.PHONY: help dist-urls build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test fmt-check clippy clippy-full core-check features-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
 
 # One cargo build per host at a time — make -j does not break that.
 .NOTPARALLEL:
@@ -94,7 +94,8 @@ help:
 	@echo "make core-check                — core without the node layer: clippy and tests --lib --no-default-features (cargo test --no-default-features without --lib is unsupported — it needs the node)"
 	@echo "make features-check             — node without tray (--no-default-features --features net-hyper): clippy and net_names/gate tests; run when editing cfg"
 	@echo "make boundary                   — core/platform boundary: manifests, include paths and platform scripts stay on their side"
-	@echo "make check                      — test + test-py + test-js + web-typecheck + web-bundle-check + clippy-full + core-check + net-boundary + boundary"
+	@echo "make check                      — test + test-py + test-dist + dist-urls + test-js + web-typecheck + web-bundle-check + clippy-full + core-check + net-boundary + boundary"
+	@echo "make dist-urls                   — no download or latest-version address points at the source repository"
 	@echo "make web-demo                   — demo node for the page (fake data, no real node build): http://127.0.0.1:$(WEB_PORT)/?token=$(WEB_TOKEN)"
 	@echo "make web-check                  — Playwright battery (e2e) on web_demo, builds without tray itself (ONLY=\"14 18\" — case numbers or names separated by spaces; JOBS=<N> — workers, 4 by default for demo, 1 for node; HEADED=1 — browser window)"
 	@echo "make web-check-node             — the same battery on a real meshtown node (builds without tray itself)"
@@ -168,10 +169,15 @@ test-py:
 	python3 -m unittest discover -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/debian -t platforms/linux/build/debian -p 'test_*.py'
 
+# Nobody downloads releases or asks for the latest version from the source repository.
+dist-urls:
+	python3 scripts/checks/check_dist_urls.py
+
 # The publishing script of the distribution repository, against a local bare repository.
 test-dist:
 	scripts/release/dist/publish_test.sh
 	bash scripts/release/lib_test.sh
+	scripts/release/dist/release_test.sh
 
 UI := core/web_gui/ui
 VUE := $(UI)/vue
@@ -238,7 +244,7 @@ features-check:
 
 # -k: a red target does not abort the rest — the battery shows all red ones in one go.
 check:
-	$(MAKE) -k test test-py test-dist test-js web-typecheck web-bundle-check fmt-check clippy-full core-check net-boundary boundary
+	$(MAKE) -k test test-py test-dist dist-urls test-js web-typecheck web-bundle-check fmt-check clippy-full core-check net-boundary boundary
 
 # Network core boundary: core/transport/net has no foreign network crates and no paths outside the core;
 # no path within the core boundary names foreign network crates; townjump crates live only in net_hyper/.

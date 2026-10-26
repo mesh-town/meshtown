@@ -1,0 +1,9 @@
+# Mesh Town @VERSION@
+
+Prebuilt binaries and installers of Mesh Town @VERSION@ for macOS, Windows, Linux and OpenWrt routers.
+
+- macOS: `MeshTown-macos-<arch>-@VERSION@.zip`
+- Windows: `meshtown-@VERSION@-x86_64-pc-windows-msvc.zip` (with the tray icon) and the `meshtown-cli-…` archive (console only)
+- Linux, OpenWrt and Keenetic: `meshtown-<version>-<target>.tar.gz` and `meshtown-cli-<version>-<target>.tar.gz`
+
+Check a download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missing`) before running it.
