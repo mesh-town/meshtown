@@ -39,6 +39,7 @@ mod time;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+pub use crate::node::machine_memory::NODE_MEMORY_WARN_MIB_DEFAULT;
 pub use iface_filter::IfaceFilter;
 pub use net_file::{
     load_net_file, parse_net_text, render_net_file, save_net_file, LoadedNetFile, ParsedNetFile,
@@ -51,7 +52,7 @@ pub use path::{
     PathEnv, PathRule,
 };
 pub use presence::has_field;
-pub use process_settings::{ProcessSettings, NODE_MEMORY_WARN_MIB_DEFAULT};
+pub use process_settings::ProcessSettings;
 pub use render::render_config_file;
 pub use report::{FieldError, FileReport, FileState};
 pub use retired::log_retired;

@@ -4,7 +4,11 @@
 //! for small, middle and large machines.
 //! What it doesn't do: it doesn't watch the memory of the process (see `telemetry` and `guard`).
 
-use crate::config::config_file::NODE_MEMORY_WARN_MIB_DEFAULT;
+// Most callers live in the node layer; the core without it keeps only the tier table.
+#![cfg_attr(not(feature = "net-hyper"), allow(dead_code))]
+
+/// Factory default of `node.memory_warn_mib`, MiB. On a machine with ≤512 MiB this exact value means "choose by machine memory".
+pub const NODE_MEMORY_WARN_MIB_DEFAULT: u64 = 400;
 
 /// Machines up to this size (KiB) get the small defaults.
 const SMALL_RAM_KIB: u64 = 131_072;
