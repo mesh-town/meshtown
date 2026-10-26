@@ -245,3 +245,7 @@ mod foreign_tests;
 #[cfg(test)]
 #[path = "poller_misc_tests.rs"]
 mod misc_tests;
+
+#[cfg(test)]
+#[path = "poller_offline_nets_tests.rs"]
+mod offline_nets_tests;
