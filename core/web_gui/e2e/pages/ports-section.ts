@@ -5,6 +5,7 @@ export class PortsSection {
   readonly addPort: Locator;
   readonly addName: Locator;
   readonly addButton: Locator;
+  readonly addProto: Locator;
   readonly audienceAll: Locator;
   readonly audienceNodes: Locator;
   readonly ownBody: Locator;
@@ -14,6 +15,7 @@ export class PortsSection {
     // Field names are their placeholders ("port", "name (optional)"); exact — the "Ports shared with you" rows have a "port number on this computer" field.
     this.addPort = page.getByRole('spinbutton', { name: 'port', exact: true });
     this.addName = page.getByRole('textbox', { name: 'name (optional)' });
+    this.addProto = page.getByRole('combobox', { name: 'protocol' });
     this.addButton = page.getByRole('button', { name: 'Publish', exact: true });
     this.audienceAll = page.getByRole('radio', { name: 'All members' });
     this.audienceNodes = page.getByRole('radio', { name: 'Selected members' });
@@ -25,7 +27,8 @@ export class PortsSection {
       .filter({ has: page.getByRole('button', { name: /^(Open on this computer|Close)$/ }) });
   }
 
-  async publish(port: string, name: string): Promise<void> {
+  async publish(port: string, name: string, proto: 'tcp' | 'udp' = 'tcp'): Promise<void> {
+    await this.addProto.selectOption(proto);
     await this.addPort.fill(port);
     await this.addName.fill(name);
     await this.addButton.click();
@@ -50,6 +53,16 @@ export class PortsSection {
 
   copyLocalButton(row: Locator, local: string): Locator {
     return row.getByRole('button', { name: `Copy address 127.0.0.1:${local}`, exact: true });
+  }
+
+  /** The row of a published port in "My published ports" by number and protocol (the UDP one has a badge). */
+  ownRow(port: string, proto: 'tcp' | 'udp'): Locator {
+    const rows = this.ownBody.getByRole('row').filter({ hasText: port });
+    return proto === 'udp' ? rows.filter({ has: this.udpBadge }) : rows.filter({ hasNot: this.udpBadge });
+  }
+
+  get udpBadge(): Locator {
+    return this.page.locator('[data-port-proto="udp"]');
   }
 
   /** Card titles in page order. */

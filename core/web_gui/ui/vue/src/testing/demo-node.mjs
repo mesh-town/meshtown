@@ -10,6 +10,8 @@ export const STRANGER_ID = "eeee5555";
 
 const DEMO_PORT = 9000;
 const DEMO_PORT_NAME = "demo-web";
+const DEMO_UDP_PORT = 5353;
+const DEMO_UDP_NAME = "demo-dns";
 const LOG_LINES = 10;
 
 const peers = () => [
@@ -27,15 +29,18 @@ const domains = () => ["example.org", "example.com", "x.com"].map((name) => ({
 
 const networkPorts = () => [{
   node: DEMO_PEER_ONE.id_full, node_name: DEMO_PEER_ONE.name, online: true, port: DEMO_PORT, name: DEMO_PORT_NAME,
-  published: true, opened: { local: DEMO_PORT, state: "listening", error: null },
-  web_url: "http://" + DEMO_PEER_ONE.name + ".meshtown:" + DEMO_PORT,
+  published: true, opened: { local: DEMO_PORT, state: "listening", error: null, last_error: null },
+  web_url: "http://" + DEMO_PEER_ONE.name + ".meshtown:" + DEMO_PORT, proto: "tcp",
+}, {
+  node: DEMO_PEER_ONE.id_full, node_name: DEMO_PEER_ONE.name, online: true, port: DEMO_UDP_PORT, proto: "udp", name: DEMO_UDP_NAME,
+  published: true, opened: null, web_url: null,
 }];
 
 export function demoLog(n = LOG_LINES) {
   return Array.from({ length: n }, (_, i) => ({ seq: i + 1, t: i * 0.5, tag: "node", text: "start: " + (i + 1) + " ready" }));
 }
 
-/** A demo node snapshot in a network: its own node `finch-unwary`, peer-one, peer-two, three domains, port 9000 "demo-web". */
+/** A demo node snapshot in a network: its own node `finch-unwary`, peer-one, peer-two, three domains, port 9000 "demo-web" (TCP) and 5353 "demo-dns" (UDP). */
 export function demoState(over = {}) {
   const tail = demoLog().slice(-2);
   const base = baseState();

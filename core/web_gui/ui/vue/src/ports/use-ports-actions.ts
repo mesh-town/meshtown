@@ -14,7 +14,8 @@ import type { NetAudiences, PortsConfigKey, PortsConfigLists } from "./ports-vie
 import {
   ADD_ERROR_NO_NODES, configPorts, netRowKey, openedAfterClose, openedAfterOpen, publishedAfterAdd, publishedAfterEdit, publishedAfterRemove, takenLocals,
 } from "./ports-view.ts";
-import type { PublishedPortConfig } from "../core/api-types.ts";
+import type { PortProto, PublishedPortConfig } from "../core/api-types.ts";
+import { protoOf } from "./ports-proto.ts";
 
 // The node snapshot is rebuilt once a second: the second poll after saving catches the fresh one.
 const SNAPSHOT_SETTLE_MS = 1200;
@@ -35,11 +36,11 @@ interface PortsActions {
   saving: Ref<boolean>;
   /** Refusals of "Open" and "Close" by the row key (`netRowKey`). */
   openErrors: Ref<Record<string, string>>;
-  publish: (portValue: unknown, nameValue: unknown, audience?: PortAudience) => Promise<boolean>;
-  edit: (port: number, nameValue: unknown, audience: PortAudience) => Promise<boolean>;
-  unpublish: (port: number) => Promise<boolean>;
-  openNetPort: (slot: string, node: string, port: number, local?: unknown) => Promise<boolean>;
-  closeNetPort: (slot: string, node: string, port: number) => Promise<boolean>;
+  publish: (portValue: unknown, nameValue: unknown, audience?: PortAudience, proto?: PortProto) => Promise<boolean>;
+  edit: (port: number, nameValue: unknown, audience: PortAudience, proto?: PortProto) => Promise<boolean>;
+  unpublish: (port: number, proto?: PortProto) => Promise<boolean>;
+  openNetPort: (slot: string, node: string, port: number, local?: unknown, proto?: PortProto) => Promise<boolean>;
+  closeNetPort: (slot: string, node: string, port: number, proto?: PortProto) => Promise<boolean>;
 }
 
 function defaultBusTarget(): EventTarget | undefined {
@@ -99,31 +100,31 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   }
 
   // Success — true (the form is cleared); a validation error — the text in `addError`, no request.
-  async function publish(portValue: unknown, nameValue: unknown, audience: PortAudience = "all"): Promise<boolean> {
+  async function publish(portValue: unknown, nameValue: unknown, audience: PortAudience = "all", proto: PortProto = "tcp"): Promise<boolean> {
     if (saving.value) return false;
     const port = Number(portValue);
     const name = String(nameValue ?? "").trim();
-    if (isNetAudiences(audience)) return publishNets(port, name, audience);
-    const res = publishedAfterAdd(current("published"), port, name, audience);
+    if (isNetAudiences(audience)) return publishNets(port, name, audience, proto);
+    const res = publishedAfterAdd(current("published"), port, name, audience, proto);
     addError.value = res.error || "";
     if (!res.list) return false;
     return save("published", res.list);
   }
 
   // Editing the name and "shared with": a validation error — the text in `editError`, no request.
-  async function edit(port: number, nameValue: unknown, audience: PortAudience): Promise<boolean> {
+  async function edit(port: number, nameValue: unknown, audience: PortAudience, proto: PortProto = "tcp"): Promise<boolean> {
     if (saving.value) return false;
     const name = String(nameValue ?? "").trim();
-    if (isNetAudiences(audience)) return editNets(port, name, audience);
-    const res = publishedAfterEdit(current("published"), port, name, audience);
+    if (isNetAudiences(audience)) return editNets(port, name, audience, proto);
+    const res = publishedAfterEdit(current("published"), port, name, audience, proto);
     editError.value = res.error || "";
     if (!res.list) return false;
     return save("published", res.list, editError);
   }
 
-  function unpublish(port: number): Promise<boolean> {
-    if (isMulti(store)) return writeNets(targetSlots(store).map((slot) => ({ slot, list: publishedAfterRemove(listOf(slot), port) })));
-    return save("published", publishedAfterRemove(current("published"), port));
+  function unpublish(port: number, proto: PortProto = "tcp"): Promise<boolean> {
+    if (isMulti(store)) return writeNets(targetSlots(store).map((slot) => ({ slot, list: publishedAfterRemove(listOf(slot), port, proto) })));
+    return save("published", publishedAfterRemove(current("published"), port, proto));
   }
 
   // ---- Several networks: each network gets its own list, only the changed ones are written ----
@@ -131,33 +132,33 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   const listOf = (slot: string): PublishedPortConfig[] => configPorts(netConfig(store, slot), "published");
 
   // One network's new list for `audience`: null — not published there.
-  function listFor(slot: string, port: number, name: string, audience: "all" | string[] | null | undefined, adding: boolean) {
+  function listFor(slot: string, port: number, proto: PortProto, name: string, audience: "all" | string[] | null | undefined, adding: boolean) {
     const list = listOf(slot);
-    const has = list.some((p) => p.port === port);
-    if (audience == null) return { list: has ? publishedAfterRemove(list, port) : list };
-    return has && !adding ? publishedAfterEdit(list, port, name, audience) : publishedAfterAdd(list, port, name, audience);
+    const has = list.some((p) => p.port === port && protoOf(p) === proto);
+    if (audience == null) return { list: has ? publishedAfterRemove(list, port, proto) : list };
+    return has && !adding ? publishedAfterEdit(list, port, name, audience, proto) : publishedAfterAdd(list, port, name, audience, proto);
   }
 
-  function planNets(port: number, name: string, audiences: NetAudiences, adding: boolean): { changes: SlotList[]; error?: string } {
+  function planNets(port: number, proto: PortProto, name: string, audiences: NetAudiences, adding: boolean): { changes: SlotList[]; error?: string } {
     const changes: SlotList[] = [];
     for (const slot of targetSlots(store)) {
-      const res = listFor(slot, port, name, audiences[slot], adding);
+      const res = listFor(slot, port, proto, name, audiences[slot], adding);
       if (res.error) return { changes, error: res.error };
       if (JSON.stringify(res.list) !== JSON.stringify(listOf(slot))) changes.push({ slot, list: res.list as PublishedPortConfig[] });
     }
     const none = targetSlots(store).every((slot) => audiences[slot] == null);
-    if (none) return { changes, error: publishedAfterAdd([], port, name, []).error || ADD_ERROR_NO_NODES };
+    if (none) return { changes, error: publishedAfterAdd([], port, name, [], proto).error || ADD_ERROR_NO_NODES };
     return { changes };
   }
 
-  async function publishNets(port: number, name: string, audiences: NetAudiences): Promise<boolean> {
-    const plan = planNets(port, name, audiences, true);
+  async function publishNets(port: number, name: string, audiences: NetAudiences, proto: PortProto): Promise<boolean> {
+    const plan = planNets(port, proto, name, audiences, true);
     addError.value = plan.error || "";
     return plan.error ? false : writeNets(plan.changes);
   }
 
-  async function editNets(port: number, name: string, audiences: NetAudiences): Promise<boolean> {
-    const plan = planNets(port, name, audiences, false);
+  async function editNets(port: number, name: string, audiences: NetAudiences, proto: PortProto): Promise<boolean> {
+    const plan = planNets(port, proto, name, audiences, false);
     editError.value = plan.error || "";
     return plan.error ? false : writeNets(plan.changes, editError);
   }
@@ -179,10 +180,10 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   }
 
   // "Open" and "Close" write the list of the row's own network; a refusal stays at the row.
-  async function saveOpened(slot: string, node: string, port: number, list: PortsConfigLists["opened"]): Promise<boolean> {
+  async function saveOpened(slot: string, node: string, port: number, proto: PortProto, list: PortsConfigLists["opened"]): Promise<boolean> {
     if (saving.value) return false;
     saving.value = true;
-    const key = netRowKey({ node, port }, isMulti(store) ? slot : undefined);
+    const key = netRowKey({ node, port, proto }, isMulti(store) ? slot : undefined);
     try {
       const changes = { "ports.opened": list };
       const res = await saveSlotFields(store, slot, changes, deps);
@@ -198,13 +199,13 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
 
   const openedOf = (slot: string) => configPorts(netConfig(store, slot), "opened");
 
-  function openNetPort(slot: string, node: string, port: number, local?: unknown): Promise<boolean> {
-    const taken = new Set(takenLocals(store, { slot, node, port }).keys());
-    return saveOpened(slot, node, port, openedAfterOpen(openedOf(slot), node, port, local, taken));
+  function openNetPort(slot: string, node: string, port: number, local?: unknown, proto: PortProto = "tcp"): Promise<boolean> {
+    const taken = new Set(takenLocals(store, { slot, node, port }, proto).keys());
+    return saveOpened(slot, node, port, proto, openedAfterOpen(openedOf(slot), node, port, local, taken, proto));
   }
 
-  function closeNetPort(slot: string, node: string, port: number): Promise<boolean> {
-    return saveOpened(slot, node, port, openedAfterClose(openedOf(slot), node, port));
+  function closeNetPort(slot: string, node: string, port: number, proto: PortProto = "tcp"): Promise<boolean> {
+    return saveOpened(slot, node, port, proto, openedAfterClose(openedOf(slot), node, port, proto));
   }
 
   return { saveStatus, addError, editError, saving, openErrors, publish, edit, unpublish, openNetPort, closeNetPort };

@@ -1,13 +1,16 @@
 //! The `ports` section of the demo node's snapshot: its own publications come from the settings (after a PUT `/api/config`
 //! `apply_config` puts the new list there), while "Network ports" is one fixture: the first demo member
-//! publishes port 9000. A port opened here (`ports.opened`) is shown as listening.
+//! publishes TCP port 9000 and a UDP port 5353. A port opened here (`ports.opened`) is shown as listening.
 
+use meshtown_core::ports_sharing::Proto;
 use meshtown_core::web_gui::{NetPort, OpenedInfo, OwnPort, PortsInfo};
 
 use crate::node::DemoState;
 
 const FIXTURE_PORT: u16 = 9000;
 const FIXTURE_NAME: &str = "demo-web";
+const FIXTURE_UDP_PORT: u16 = 5353;
+const FIXTURE_UDP_NAME: &str = "demo-dns";
 
 fn own_rows(st: &DemoState) -> Vec<OwnPort> {
     st.settings
@@ -16,19 +19,19 @@ fn own_rows(st: &DemoState) -> Vec<OwnPort> {
         .iter()
         .map(|p| OwnPort {
             port: p.port,
-            proto: meshtown_core::ports_sharing::Proto::Tcp,
+            proto: p.proto,
             name: p.name.clone(),
             local: "unknown".to_string(),
         })
         .collect()
 }
 
-fn opened_info(st: &DemoState, node: &str, port: u16) -> Option<OpenedInfo> {
+fn opened_info(st: &DemoState, node: &str, proto: Proto, port: u16) -> Option<OpenedInfo> {
     st.settings
         .net
         .ports_opened
         .iter()
-        .find(|o| o.node.to_string() == node && o.port == port)
+        .find(|o| o.node.to_string() == node && o.proto == proto && o.port == port)
         .map(|o| OpenedInfo {
             local: o.local,
             state: "listening".to_string(),
@@ -37,28 +40,34 @@ fn opened_info(st: &DemoState, node: &str, port: u16) -> Option<OpenedInfo> {
         })
 }
 
+fn fixture_row(st: &DemoState, proto: Proto, port: u16, name: &str) -> Option<NetPort> {
+    let p = st.peers.first()?;
+    let node = p.id_full.to_string();
+    let web_url = match (proto, p.name.as_ref()) {
+        (Proto::Tcp, Some(n)) => Some(format!("http://{n}.meshtown:{port}")),
+        _ => None,
+    };
+    Some(NetPort {
+        opened: opened_info(st, &node, proto, port),
+        node,
+        node_name: p.name.clone(),
+        online: p.online,
+        port,
+        proto,
+        name: name.to_string(),
+        published: true,
+        web_url,
+    })
+}
+
 fn fixture_rows(st: &DemoState) -> Vec<NetPort> {
-    st.peers
-        .first()
-        .map(|p| {
-            let node = p.id_full.to_string();
-            NetPort {
-                opened: opened_info(st, &node, FIXTURE_PORT),
-                node,
-                node_name: p.name.clone(),
-                online: p.online,
-                port: FIXTURE_PORT,
-                proto: meshtown_core::ports_sharing::Proto::Tcp,
-                name: FIXTURE_NAME.to_string(),
-                published: true,
-                web_url: p
-                    .name
-                    .as_ref()
-                    .map(|n| format!("http://{n}.meshtown:{FIXTURE_PORT}")),
-            }
-        })
-        .into_iter()
-        .collect()
+    [
+        fixture_row(st, Proto::Tcp, FIXTURE_PORT, FIXTURE_NAME),
+        fixture_row(st, Proto::Udp, FIXTURE_UDP_PORT, FIXTURE_UDP_NAME),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
 }
 
 pub(crate) fn demo_ports(st: &DemoState) -> PortsInfo {

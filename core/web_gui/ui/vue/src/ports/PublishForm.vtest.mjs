@@ -42,7 +42,7 @@ describe("PublishForm", () => {
     await wrapper.get("#port-add-audience-nodes").setValue();
     await wrapper.get('[data-port-audience-node="' + B + '"]').setValue(true);
     await wrapper.get("#port-add-btn").trigger("click");
-    expect(publish).toHaveBeenCalledWith(8081, "web", [B]);
+    expect(publish).toHaveBeenCalledWith(8081, "web", [B], "tcp");
   });
 
   it("success — the form is reset to \"All members\"", async () => {
