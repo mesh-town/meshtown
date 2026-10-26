@@ -14,6 +14,6 @@ const notices = computed(() => sortedNotices(store.notices));
 
 <template>
   <div v-if="notices.length > 0" id="notice-banner" class="warn-strip notice-banner" role="alert">
-    <p v-for="n in notices" :key="n.id" class="notice-line">{{ noticeText(n) }} <button type="button" class="btn btn-small" id="notice-ok" @click="ackNotice(store, n.id)">{{ NOTICE_OK }}</button></p>
+    <p v-for="n in notices" :key="n.id" class="notice-line">{{ noticeText(n) }} <button type="button" class="btn btn-sm" id="notice-ok" @click="ackNotice(store, n.id)">{{ NOTICE_OK }}</button></p>
   </div>
 </template>

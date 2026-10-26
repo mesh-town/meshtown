@@ -8,5 +8,5 @@ onUnmounted(clear);
 </script>
 
 <template>
-  <p v-if="deleted !== null" class="hint net-banner" id="deleted-net-banner" role="status">{{ deletedBannerText(deleted) }} <button type="button" class="btn btn-small" id="deleted-net-ok" @click="clear">{{ DELETED_OK }}</button></p>
+  <p v-if="deleted !== null" class="hint net-banner" id="deleted-net-banner" role="status">{{ deletedBannerText(deleted) }} <button type="button" class="btn btn-sm" id="deleted-net-ok" @click="clear">{{ DELETED_OK }}</button></p>
 </template>
