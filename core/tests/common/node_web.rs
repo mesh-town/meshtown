@@ -251,6 +251,28 @@ pub(crate) async fn boot_with_exit_hosts(
     boot_inner(tag, key, hosts, true).await
 }
 
+/// The node config of a test boot: no geoip, the given exit hosts, and the creator's secret for loopback networks.
+fn test_node_config(
+    relaunch: &Relaunch,
+    run: &config_file::RunConfig,
+    key: &NetworkKey,
+    hosts: HashMap<String, SocketAddr>,
+    open_list: bool,
+) -> node::NodeConfig {
+    let mut cfg = relaunch.node_config(
+        &run.effective_settings,
+        meshtown_core::members::network_key::parse_user_input(&key_text(key))
+            .expect("a managed key"),
+    );
+    cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
+    cfg.exit_hosts = hosts;
+    cfg.open_list = open_list;
+    if !open_list {
+        cfg.identity_secret = Some(NodeSecret::from_bytes(&[31; 32])); // the creator of the loopback networks
+    }
+    cfg
+}
+
 async fn boot_inner(
     tag: &str,
     key: &NetworkKey,
@@ -276,17 +298,7 @@ async fn boot_inner(
         initial_domains: Vec::new(),
         blocked_domains: Vec::new(),
     };
-    let mut cfg = relaunch.node_config(
-        &run.effective_settings,
-        meshtown_core::members::network_key::parse_user_input(&key_text(key))
-            .expect("a managed key"),
-    );
-    cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
-    cfg.exit_hosts = hosts;
-    cfg.open_list = open_list;
-    if !open_list {
-        cfg.identity_secret = Some(NodeSecret::from_bytes(&[31; 32])); // the creator of the loopback networks
-    }
+    let cfg = test_node_config(&relaunch, &run, key, hosts, open_list);
     let ctl = NodeCtl::new(&run.effective_settings);
     let front = seat_front(&ctl, &run).await;
     let host = host_of(ctl.clone(), &run, front.clone());

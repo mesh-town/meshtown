@@ -121,19 +121,18 @@ fn decode_invite_body(text: &str) -> Result<Vec<u8>> {
             once more"
         );
     }
-    if bytes[0] == 2 {
-        bail!(TEXT_V2_INVITE);
-    }
-    if bytes[0] == 3 {
-        bail!(TEXT_V3_INVITE);
-    }
-    if bytes[0] != INVITE_MANAGED_VERSION {
-        bail!(
-            "invite of a different format ({}) — update the program",
-            bytes[0]
-        );
-    }
+    check_invite_version(bytes[0])?;
     Ok(bytes)
+}
+
+/// Refuses invites whose leading version byte is not the managed one.
+fn check_invite_version(version: u8) -> Result<()> {
+    match version {
+        2 => bail!(TEXT_V2_INVITE),
+        3 => bail!(TEXT_V3_INVITE),
+        INVITE_MANAGED_VERSION => Ok(()),
+        other => bail!("invite of a different format ({other}) — update the program"),
+    }
 }
 
 /// Parses member entries into addresses; a broken entry becomes a note, not an error —

@@ -204,7 +204,7 @@ fn a_version_3_invite_exits_with_the_outdated_text() {
     ]);
     // then
     let err = text(&out.stderr);
-    assert_ne!(out.status.code(), Some(0), "stderr: {err}");
+    assert_eq!(out.status.code(), Some(1), "stderr: {err}");
     assert!(err.contains(TEXT_V3_INVITE), "stderr: {err}");
 }
 

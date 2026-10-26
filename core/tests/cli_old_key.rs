@@ -14,6 +14,9 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
+use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
+use meshtown_core::transport::net::NodeSecret;
+
 struct NodeProc {
     child: Child,
     lines: Receiver<String>,
@@ -23,6 +26,11 @@ struct NodeProc {
 
 impl NodeProc {
     fn start(config_json: &str) -> NodeProc {
+        NodeProc::start_with(config_json, &[])
+    }
+
+    /// Starts the node on the settings file `config_json` with extra command-line flags.
+    fn start_with(config_json: &str, extra: &[&str]) -> NodeProc {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
@@ -34,6 +42,7 @@ impl NodeProc {
             .args(["run", "--config"])
             .arg(dir.join("config.json"))
             .args(["--web-port", "0", "--no-checks", "--no-socks"])
+            .args(extra)
             .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
             .env_remove("MESHTOWN_KEY")
             .env_remove("MESHTOWN_INVITE")
@@ -138,4 +147,68 @@ fn an_old_key_in_the_file_starts_the_node_without_a_network() {
     let (code, state) = common::api(port, &token, "GET", "/api/state", None);
     assert_eq!(code, 200, "{state}");
     assert!(!state["network"].is_null(), "{state}");
+}
+
+#[test]
+fn an_old_key_in_the_file_is_reported_as_a_field_error() {
+    // given: a settings file with a key in the outdated three-word form
+    let key = format!("mesh1-{}", "a".repeat(52));
+    let config = format!(
+        r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{key}"}}}}}}"#
+    );
+    // when: the node starts and the page asks for the settings
+    let mut node = NodeProc::start(&config);
+    let line = node
+        .wait_line("?token=", Duration::from_secs(30))
+        .expect("the page address was not printed");
+    let port = page_port(&line);
+    let token = read_token(&node);
+    let (code, body) = common::api(port, &token, "GET", "/api/config", None);
+    // then: the file block names the field that did not parse
+    assert_eq!(code, 200, "{body}");
+    let errors = body["file"]["field_errors"]
+        .as_array()
+        .expect("field errors");
+    assert!(errors.iter().any(|e| e["path"] == "network.key"), "{body}");
+}
+
+#[test]
+fn an_old_key_on_the_command_line_becomes_a_broken_slot_beside_the_good_main_key() {
+    // given: a good key in the settings file and an outdated key on the command line
+    let good = good_key();
+    let old = format!("mesh1-{}", "a".repeat(52));
+    let config = format!(
+        r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{good}"}}}}}}"#
+    );
+    // when: the node starts
+    let mut node = NodeProc::start_with(&config, &["--key", &old]);
+    let line = node
+        .wait_line("?token=", Duration::from_secs(30))
+        .expect("the page address was not printed");
+    let port = page_port(&line);
+    let token = read_token(&node);
+    // then: the process is alive, the good key runs the main network and the old one is a broken slot
+    assert!(node.child.try_wait().unwrap().is_none(), "exited early");
+    let (code, state) = common::api(port, &token, "GET", "/api/state", None);
+    assert_eq!(code, 200, "{state}");
+    assert!(!state["network"].is_null(), "{state}");
+    let (code, overview) = common::api(port, &token, "GET", "/api/overview", None);
+    assert_eq!(code, 200, "{overview}");
+    let slots = overview["slots"].as_array().expect("slots");
+    assert!(slots.iter().any(|s| !s["state"].is_null()), "{overview}");
+    assert!(slots.iter().any(|s| s["state"].is_null()), "{overview}");
+}
+
+fn read_token(node: &NodeProc) -> String {
+    std::fs::read_to_string(node.dir.join("web-token"))
+        .expect("web-token")
+        .trim()
+        .to_string()
+}
+
+/// A valid Managed network key of a fresh base.
+fn good_key() -> String {
+    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    let base = NetworkKey::generate().unwrap().to_bytes();
+    managed_key_with_label(None, &base, &root)
 }

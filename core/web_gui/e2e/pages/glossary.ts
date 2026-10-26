@@ -91,7 +91,6 @@ export const MEMBERS_WORDS = {
   badgePending: 'Waiting to join',
   admitAria: (name: string): string => `Confirm joining: ${name}`,
   labelLine: 'Invited as "Anna\'s laptop"',
-  meWaiting: 'This computer is waiting for an admin to let it in.',
   admitTitle: (name: string): string => `Confirm ${name} joining?`,
   admittedStatus: (name: string): string => `${name} joined the network.`,
 } as const;

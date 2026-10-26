@@ -18,7 +18,6 @@ fn asking(admitting: u64, me_pending: bool, me_excluded: bool) -> TrayMembers {
         admitting,
         me_pending,
         me_excluded,
-        ..TrayMembers::default()
     }
 }
 

@@ -347,7 +347,7 @@ Exact enum values:
     `false` except `can_leave`. The page shows no control whose flag is off.
   - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator excluded this node (`name` is the known
     member name, else the short id); `null` otherwise, and after the node left on its own.
-- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network (the key is absent in Peer).
+- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network.
 - `peers[].id_full` — the full identifier of **each** node, not only the own one (unlike
   `node.id_full` above): it is needed as a `route.exits` value when choosing exits on the page and in
   the tray (the checkbox puts `p.id_full` into the list), not only for the tooltip. In the page text it is not shown on

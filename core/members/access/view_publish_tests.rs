@@ -243,11 +243,9 @@ mod wire {
     #[test]
     fn a_block_reaches_the_other_side_as_refused() {
         // given: the reason that stays private
-        for deny in [Deny::Blocked] {
-            // when / then: the other side only learns that it was refused
-            let text = on_the_wire(deny);
-            assert_eq!(Deny::from_wire(&text), Some(Deny::Refused), "text {text:?}");
-        }
+        // when / then: the other side only learns that it was refused
+        let text = on_the_wire(Deny::Blocked);
+        assert_eq!(Deny::from_wire(&text), Some(Deny::Refused), "text {text:?}");
     }
 
     #[test]

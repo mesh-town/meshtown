@@ -89,6 +89,11 @@ fn bad_secret_startup_write_keeps_copy() {
         Some(key.as_str())
     );
     assert_eq!(after.rev, 4);
+    assert_key_parsed(&run);
+}
+
+/// The start report shows a persistent identity and no error on the network key.
+fn assert_key_parsed(run: &RunConfig) {
     assert!(
         !run.file_report
             .field_errors

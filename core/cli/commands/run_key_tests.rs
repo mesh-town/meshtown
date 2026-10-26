@@ -66,7 +66,7 @@ mod main_key {
         // given: a run without a settings file
         let run = run_from(&ConfigSource::Disabled);
         // when
-        let err = main_key(&old_key(), &run).err().expect("an error");
+        let err = main_key(&old_key(), &run).expect_err("an error");
         // then: the reason is the outdated-key text, with no fallback line
         assert_eq!(format!("{err:#}"), LEGACY_KEY_TEXT);
         assert!(!journal_has(&format!("{LEGACY_KEY_TEXT}{FALLBACK_TAIL}")));

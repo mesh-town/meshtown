@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 use meshtown_core::invite::{build_keyed, InviteHead, InviteSecret};
-use meshtown_core::members::network_key::{managed_key_with_label, parse_user_input, NetworkKey};
+use meshtown_core::members::network_key::{managed_key_with_label, parse_user_input};
 use meshtown_core::transport::addr_order::PrimaryIps;
 use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
 use meshtown_core::web_gui::{ActionError, NodeControl, SaveKey};
@@ -19,7 +19,11 @@ fn registry() -> &'static Mutex<HashMap<[u8; 4], String>> {
     static KNOWN: OnceLock<Mutex<HashMap<[u8; 4], String>>> = OnceLock::new();
     KNOWN.get_or_init(|| {
         let key = fallback_key();
-        let id = NetworkKey::from_bytes([0x42; 32]).subkeys().network_id;
+        let id = parse_user_input(&key)
+            .expect("the fallback key parses")
+            .key
+            .subkeys()
+            .network_id;
         Mutex::new(HashMap::from([(id, key)]))
     })
 }

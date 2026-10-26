@@ -11,7 +11,6 @@ export class MembersSection {
   readonly excludedCard: Locator;
   readonly leftCard: Locator;
   readonly pendingList: Locator;
-  readonly pendingCard: Locator;
   readonly status: Locator;
 
   constructor(private readonly page: Page) {
@@ -25,7 +24,6 @@ export class MembersSection {
     this.leftCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.leftTitle }) });
     this.pendingList = page.locator('#members-pending-list');
     // no anchor: the text a waiting computer sees about itself
-    this.pendingCard = page.getByText(W.meWaiting).first();
     this.status = page.getByRole('status').filter({ hasText: /\S/ });
   }
 

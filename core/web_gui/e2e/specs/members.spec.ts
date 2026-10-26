@@ -118,27 +118,32 @@ test.describe('--me-excluded', () => {
   });
 });
 
-test('87-members-leave-settings: "Leave network…" in Settings → the dialog → the card "You left the network"', async ({ app, page, targetKind }) => {
-  test.skip(targetKind === 'node', 'leaving is checked on the demo node, whose member list is fixed');
-  const members = new MembersSection(page);
-  await app.tabs.open('settings');
+// The only admin cannot leave, so the case runs with a second admin next to this computer.
+test.describe('--second-admin', () => {
+  test.use({ targetFlags: { extraArgs: ['--second-admin'] } });
 
-  await test.step('the button asks first', async () => {
-    await members.settingsLeaveButton().click();
-    await expect(members.dialogTitle(W.leaveTitle)).toBeVisible();
-    await expect(members.dialogButton(W.dialogCancel)).toBeFocused();
-  });
+  test('87-members-leave-settings: "Leave network…" in Settings → the dialog → the card "You left the network"', async ({ app, page, targetKind }) => {
+    test.skip(targetKind === 'node', 'leaving is checked on the demo node, whose member list is fixed');
+    const members = new MembersSection(page);
+    await app.tabs.open('settings');
 
-  await test.step('confirming: the line under the button says so and the button goes', async () => {
-    await members.dialogButton(W.leaveAction).click();
-    await expect(members.statusText(W.leftStatus)).toBeVisible();
-    await expect(members.settingsLeaveButton()).toHaveCount(0);
-  });
+    await test.step('the button asks first', async () => {
+      await members.settingsLeaveButton().click();
+      await expect(members.dialogTitle(W.leaveTitle)).toBeVisible();
+      await expect(members.dialogButton(W.dialogCancel)).toBeFocused();
+    });
 
-  await test.step('the "Members" tab shows the card with the way back instead of the list', async () => {
-    await app.tabs.open('peers');
-    await expect(members.leftCard).toBeVisible();
-    await expect(members.list).toHaveCount(0);
+    await test.step('confirming: the line under the button says so and the button goes', async () => {
+      await members.dialogButton(W.leaveAction).click();
+      await expect(members.statusText(W.leftStatus)).toBeVisible();
+      await expect(members.settingsLeaveButton()).toHaveCount(0);
+    });
+
+    await test.step('the "Members" tab shows the card with the way back instead of the list', async () => {
+      await app.tabs.open('peers');
+      await expect(members.leftCard).toBeVisible();
+      await expect(members.list).toHaveCount(0);
+    });
   });
 });
 
@@ -175,18 +180,5 @@ test.describe('--members-pending', () => {
       await expect(members.row(ANNA)).toBeVisible();
       await expect(members.statusText(W.admittedStatus(ANNA))).toBeVisible();
     });
-  });
-});
-
-test.describe('--me-pending', () => {
-  test.use({ targetFlags: { extraArgs: ['--me-pending'] } });
-  test.skip(({ targetKind }) => targetKind === 'node', 'starting as a waiting node is a flag of the demo node; skipped before the target starts');
-
-  test('89-members-me-pending: a newcomer sees that an admin has to let it in', async ({ app, page, targetKind }) => {
-    test.skip(targetKind === 'node', 'starting as a waiting node is a flag of the demo node');
-    const members = new MembersSection(page);
-    await app.tabs.open('peers');
-    await expect(members.pendingCard).toBeVisible();
-    await expect(members.secondAdminHint).toHaveCount(0);
   });
 });

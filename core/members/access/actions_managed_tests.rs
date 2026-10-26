@@ -6,7 +6,7 @@
 
 use super::support::*;
 use crate::members::access::actions::{ActionRefusal, MemberAction};
-use crate::members::access::record::{exclude_key, parse_entry, Parsed, Via};
+use crate::members::access::record::{exclude_key, parse_entry, AclKind, Parsed, Via};
 
 mod member_without_power {
     use super::*;
@@ -44,6 +44,19 @@ mod member_without_power {
         let world = setup(Seat::Member);
         let result = world.apply(MemberAction::Close).await;
         assert_eq!(result, Err(ActionRefusal::NotAdmin));
+    }
+
+    #[tokio::test]
+    async fn a_revoked_admin_cannot_exclude() {
+        // given: I was an administrator and the root took the role back
+        let world = setup(Seat::Admin);
+        world.given_record(3, world.root, AclKind::Revoke, world.me);
+        let before = world.shared_entries().await;
+        // when: I try to exclude a member
+        let result = world.apply(MemberAction::Exclude(member(), None)).await;
+        // then: refused, and nothing is written
+        assert_eq!(result, Err(ActionRefusal::NotAdmin));
+        assert_eq!(world.shared_entries().await, before);
     }
 
     #[tokio::test]
