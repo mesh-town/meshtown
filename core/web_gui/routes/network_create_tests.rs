@@ -1,8 +1,5 @@
-//! Creating a network on a slot (`POST /api/network/create`): the `kind` field and where the creator of a
-//! Managed network comes from.
-
-// helper: the tests mount this file next to `network_present_tests.rs`, e.g.
-// `#[cfg(test)] #[path = "network_create_tests.rs"] mod create_tests;` in `network.rs`.
+//! Creating a network on a slot (`POST /api/network/create`): the network is always Managed, the `kind` field
+//! is ignored, and the creator is the node id of the secret the slot works with.
 
 use std::path::PathBuf;
 
@@ -12,7 +9,7 @@ use serde_json::{json, Value};
 use crate::config::config_file::{
     self, load_config_file, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, SecretRead,
 };
-use crate::members::network_key::{parse_user_input, NetKind};
+use crate::members::network_key::{format_managed_key, parse_user_input};
 use crate::transport::net::{NodeSecret, PeerId};
 use crate::web_gui::test_host::{config_with_key, send, slot_handle, test_app, FakeHost, SnapNode};
 use crate::web_gui::{ConfigState, SlotHandle};
@@ -22,7 +19,7 @@ const MAIN_SEED: u8 = 3;
 /// Node secret of the slot that was added afterwards.
 const ADDED_SEED: u8 = 4;
 
-mod create_managed_root_is_slot_secret {
+mod create_root_is_slot_secret {
     use super::*;
 
     #[tokio::test]
@@ -31,19 +28,11 @@ mod create_managed_root_is_slot_secret {
         let f = setup(Opts::default());
         // when
         let (status, reply) = f
-            .when_create(
-                "/api/network/create",
-                json!({"label": "gamma", "kind": "Managed"}),
-            )
+            .when_create("/api/network/create", json!({"label": "gamma"}))
             .await;
         // then
         assert_eq!(status, StatusCode::OK, "{reply}");
-        assert_eq!(
-            f.then_kind_of(&reply),
-            NetKind::Managed {
-                root: root_of(MAIN_SEED)
-            }
-        );
+        assert_eq!(f.then_root_of(&reply), root_of(MAIN_SEED));
     }
 
     #[tokio::test]
@@ -55,19 +44,11 @@ mod create_managed_root_is_slot_secret {
         });
         // when
         let (status, reply) = f
-            .when_create(
-                "/api/network/create",
-                json!({"label": "gamma", "kind": "Managed"}),
-            )
+            .when_create("/api/network/create", json!({"label": "gamma"}))
             .await;
         // then
         assert_eq!(status, StatusCode::OK, "{reply}");
-        assert_eq!(
-            f.then_kind_of(&reply),
-            NetKind::Managed {
-                root: root_of(MAIN_SEED)
-            }
-        );
+        assert_eq!(f.then_root_of(&reply), root_of(MAIN_SEED));
         let stored = NodeSecret::from_bytes(&f.then_file_secret());
         assert_eq!(
             stored.peer_id(),
@@ -82,10 +63,7 @@ mod create_managed_root_is_slot_secret {
         let f = setup(Opts::default());
         // when
         let (_, reply) = f
-            .when_create(
-                "/api/network/create",
-                json!({"label": "gamma", "kind": "Managed"}),
-            )
+            .when_create("/api/network/create", json!({"label": "gamma"}))
             .await;
         // then
         assert_eq!(
@@ -95,33 +73,25 @@ mod create_managed_root_is_slot_secret {
     }
 }
 
-mod create_managed_on_added_slot {
+mod create_on_added_slot {
     use super::*;
 
     #[tokio::test]
     async fn the_creator_is_the_secret_of_the_added_slot_not_of_the_primary_one() {
         // given: the primary slot works with a network, the added one is empty and has its own secret
         let f = setup(Opts {
-            main_network: Some("alpha--abacus-abdomen-0123456789abcdefghjkm".to_string()),
+            main_network: Some(existing_key()),
             ..Opts::default()
         });
         // when
         let (status, reply) = f
-            .when_create(
-                "/api/net/ab2c3d/network/create",
-                json!({"label": "gamma", "kind": "Managed"}),
-            )
+            .when_create("/api/net/ab2c3d/network/create", json!({"label": "gamma"}))
             .await;
         // then
         assert_eq!(status, StatusCode::OK, "{reply}");
-        let kind = f.then_kind_of(&reply);
-        assert_eq!(
-            kind,
-            NetKind::Managed {
-                root: root_of(ADDED_SEED)
-            }
-        );
-        assert_ne!(kind.root(), Some(root_of(MAIN_SEED)));
+        let root = f.then_root_of(&reply);
+        assert_eq!(root, root_of(ADDED_SEED));
+        assert_ne!(root, root_of(MAIN_SEED));
         assert_eq!(
             f.key_of(&f.added),
             Some(reply["key"].as_str().unwrap().to_string())
@@ -131,27 +101,24 @@ mod create_managed_on_added_slot {
     #[tokio::test]
     async fn the_primary_slot_keeps_its_network() {
         // given
-        let key = "alpha--abacus-abdomen-0123456789abcdefghjkm".to_string();
+        let key = existing_key();
         let f = setup(Opts {
             main_network: Some(key.clone()),
             ..Opts::default()
         });
         // when
-        f.when_create(
-            "/api/net/ab2c3d/network/create",
-            json!({"label": "gamma", "kind": "Managed"}),
-        )
-        .await;
+        f.when_create("/api/net/ab2c3d/network/create", json!({"label": "gamma"}))
+            .await;
         // then
         assert_eq!(f.key_of(&f.main), Some(key));
     }
 }
 
-mod create_without_kind_is_peer {
+mod create_without_kind {
     use super::*;
 
     #[tokio::test]
-    async fn the_key_is_a_peer_key_of_the_old_shape() {
+    async fn makes_a_managed_network_owned_by_me() {
         // given
         let f = setup(Opts::default());
         // when
@@ -160,84 +127,77 @@ mod create_without_kind_is_peer {
             .await;
         // then
         assert_eq!(status, StatusCode::OK, "{reply}");
-        assert_eq!(f.then_kind_of(&reply), NetKind::Peer);
+        assert_eq!(f.then_root_of(&reply), root_of(MAIN_SEED));
         assert_eq!(
             random_part_count(&reply),
-            3,
-            "label--word-word-group: {reply}"
+            4,
+            "label--word-word-group-root: {reply}"
         );
     }
 }
 
-mod create_kind_peer {
+mod create_with_kind {
     use super::*;
 
     #[tokio::test]
-    async fn the_key_is_a_peer_key_of_the_old_shape() {
+    async fn managed_is_ignored() {
+        assert_kind_is_ignored(json!("Managed")).await;
+    }
+
+    #[tokio::test]
+    async fn peer_is_ignored() {
+        assert_kind_is_ignored(json!("Peer")).await;
+    }
+
+    #[tokio::test]
+    async fn a_non_string_kind_is_ignored() {
+        assert_kind_is_ignored(json!(42)).await;
+    }
+
+    async fn assert_kind_is_ignored(kind: Value) {
         // given
         let f = setup(Opts::default());
         // when
         let (status, reply) = f
             .when_create(
                 "/api/network/create",
-                json!({"label": "gamma", "kind": "Peer"}),
+                json!({"label": "gamma", "kind": kind}),
             )
             .await;
         // then
-        assert_eq!(status, StatusCode::OK, "{reply}");
-        assert_eq!(f.then_kind_of(&reply), NetKind::Peer);
-        assert_eq!(
-            random_part_count(&reply),
-            3,
-            "label--word-word-group: {reply}"
-        );
+        assert_eq!(status, StatusCode::OK, "kind {kind}: {reply}");
+        assert_eq!(f.then_root_of(&reply), root_of(MAIN_SEED), "kind {kind}");
     }
 }
 
-mod create_bad_kind {
+mod create_refusals {
     use super::*;
 
     #[tokio::test]
-    async fn a_value_that_is_not_a_kind_is_refused_on_the_kind_field() {
-        for kind in [json!("bogus"), json!(5), Value::Null] {
-            // given
-            let f = setup(Opts::default());
-            // when
-            let (status, reply) = f
-                .when_create(
-                    "/api/network/create",
-                    json!({"label": "gamma", "kind": kind}),
-                )
-                .await;
-            // then
-            assert_eq!(
-                status,
-                StatusCode::UNPROCESSABLE_ENTITY,
-                "kind {kind}: {reply}"
-            );
-            assert_eq!(reply["error"], "invalid", "kind {kind}");
-            let fields = reply["fields"].as_array().expect("fields is a list");
-            assert_eq!(fields.len(), 1, "kind {kind}: {reply}");
-            assert_eq!(fields[0]["path"], "kind", "kind {kind}");
-            assert!(
-                fields[0]["message"].as_str().is_some_and(|m| !m.is_empty()),
-                "kind {kind}: the field has a message: {reply}"
-            );
-        }
-    }
-
-    #[tokio::test]
-    async fn nothing_is_written_to_the_slot() {
+    async fn an_empty_label_is_refused() {
         // given
         let f = setup(Opts::default());
         // when
-        f.when_create(
-            "/api/network/create",
-            json!({"label": "gamma", "kind": "bogus"}),
-        )
-        .await;
+        let (status, reply) = f
+            .when_create("/api/network/create", json!({"label": ""}))
+            .await;
         // then
-        assert_eq!(f.key_of(&f.main), None);
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{reply}");
+        assert_eq!(f.key_of(&f.main), None, "no network was created");
+    }
+
+    #[tokio::test]
+    async fn a_label_without_letters_is_refused_on_the_label_field() {
+        // given
+        let f = setup(Opts::default());
+        // when
+        let (status, reply) = f
+            .when_create("/api/network/create", json!({"label": "!!!"}))
+            .await;
+        // then
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY, "{reply}");
+        assert_eq!(reply["fields"][0]["path"], "label", "{reply}");
+        assert_eq!(f.key_of(&f.main), None, "no network was created");
     }
 }
 
@@ -284,10 +244,10 @@ impl Fixture {
         send(&self.router, Method::POST, path, &body.to_string()).await
     }
 
-    /// The kind of the key the response carries.
-    fn then_kind_of(&self, reply: &Value) -> NetKind {
+    /// The creator named by the key the response carries.
+    fn then_root_of(&self, reply: &Value) -> PeerId {
         let key = reply["key"].as_str().expect("the response has a key");
-        parse_user_input(key).expect("the returned key parses").kind
+        parse_user_input(key).expect("the returned key parses").root
     }
 
     fn key_of(&self, slot: &SlotHandle) -> Option<String> {
@@ -317,6 +277,15 @@ impl Drop for Fixture {
             let _ = std::fs::remove_dir_all(dir);
         }
     }
+}
+
+/// A key of a network the primary slot already works with.
+fn existing_key() -> String {
+    format_managed_key(
+        Some("alpha"),
+        "abacus-abdomen-0123456789abcdefghjkm",
+        &root_of(9),
+    )
 }
 
 fn root_of(seed: u8) -> PeerId {

@@ -13,7 +13,7 @@ const MAIN_REV = 5;
 
 const brief = (id, over = {}) => ({
   id, label: id, id_hex: "hex-" + id, status: "running", exit_enabled: false, proxy: false, route_state: "direct", exits: [],
-  members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, ...over,
+  joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0, ...over,
 });
 
 // `bump` — how far a write into network B moves the revision of the primary config on the server.

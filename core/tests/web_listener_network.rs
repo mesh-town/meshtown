@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 
 use meshtown_core::config::config_file::{self, LoadedConfigFile, NetSettings, Settings};
 use meshtown_core::invite::{self, InviteHead, InviteSecret};
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::network_key::{managed_key, NetworkKey};
 use meshtown_core::ports_sharing::{Audience, Proto, Published};
 use meshtown_core::transport::addr_order::PrimaryIps;
 use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
@@ -54,7 +54,7 @@ async fn network_join_bad_word_reports_word_field() {
         &token,
         "POST",
         "/api/network/join",
-        Some(json!({"key": "finch-zzqq-k7m2q9x4rb8vhn3tz01g5"})),
+        Some(json!({"key": misspelled_words_key()})),
     );
     assert_eq!(status, 422);
     assert_eq!(
@@ -74,8 +74,8 @@ fn assert_stored_island_key(dir: &std::path::Path) {
         LoadedConfigFile::Parsed(p) => {
             let stored = p.settings.net.network_key.unwrap_or_default();
             assert!(
-                stored.starts_with("island--mesh1-"),
-                "the key in the file must start with \"island--mesh1-\""
+                stored.starts_with("island--mesh2-"),
+                "the key in the file must start with \"island--mesh2-\""
             );
         }
         other => panic!("expected Loaded::Parsed, got {other:?}"),
@@ -172,10 +172,19 @@ async fn network_join_rejects_broken_invite() {
 
 // ---- network switch with port publications ----
 
+/// A Managed key in the words form whose first word is replaced by `zzqq`, which is not in the word list.
+fn misspelled_words_key() -> String {
+    let key = words_key("finch");
+    let (label, rest) = key.split_once("--").expect("a labelled key");
+    let first = rest.split('-').next().expect("a first word");
+    format!("{label}--{}", rest.replacen(first, "zzqq", 1))
+}
+
 /// A key of the form "label--words", the way the page sends it.
 fn words_key(label: &str) -> String {
     let tail = meshtown_core::members::words::generate_tail().unwrap();
-    meshtown_core::members::network_key::format_key_string(Some(label), &tail)
+    let root = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
+    meshtown_core::members::network_key::format_managed_key(Some(label), &tail, &root)
 }
 
 /// Writes into `dir/config.json` `ports.published = [8080 All "web"]` — before `run_config` — and, when
@@ -519,12 +528,13 @@ impl Web {
 
 /// The head of an invite of network `key` with the label "island" and a one-time stub secret.
 fn invite_head(key: &NetworkKey, made_unix: u64) -> InviteHead {
+    let root = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
     InviteHead {
         secret: InviteSecret::from_bytes([0x42; 32]),
-        network_id: key.subkeys().network_id,
+        network_id: managed_key(&key.to_bytes(), &root).subkeys().network_id,
         label: Some("island".to_string()),
         made_unix,
-        kind: meshtown_core::members::network_key::NetKind::Peer,
+        root,
     }
 }
 

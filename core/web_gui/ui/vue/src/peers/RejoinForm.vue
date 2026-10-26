@@ -4,14 +4,14 @@
 import { computed, inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import InviteForm from "../home/InviteForm.vue";
-import { HOME_ASK_ADMIN_HINT, HOME_ASK_MEMBER_HINT, HOME_NO_RETURN_HINT } from "../home/home-card-texts.ts";
+import { HOME_ASK_ADMIN_HINT } from "../home/home-card-texts.ts";
 import { quotedNet } from "../common/words.ts";
-import { REFUSED_LEAD, REJOIN_OTHER, REJOIN_TITLE } from "../home/invite-join-texts.ts";
+import { REFUSED_LEAD, REJOIN_TITLE } from "../home/invite-join-texts.ts";
 import { useArrival, useInviteJoin } from "../home/use-invite-join.ts";
 import type { InviteFormIds } from "../home/use-invite-join.ts";
 import type { InviteOutcome } from "../home/invite-join-actions.ts";
 
-const props = defineProps<{ slot: string; net: string; variant: "banned" | "left" | "forgotten"; managed: boolean; refused?: string | null }>();
+const props = defineProps<{ slot: string; net: string; variant: "banned" | "left"; refused?: string | null }>();
 const emit = defineEmits<{ attempt: [] }>();
 const store = inject(STORE_KEY)!;
 const invite = useInviteJoin(store, { kind: "rejoin", slot: props.slot });
@@ -24,13 +24,8 @@ const baseIds: InviteFormIds = {
 // The waiting line is stale once the join is refused: the refusal under the button replaces it.
 const ids = computed<InviteFormIds>(() => (props.refused ? { ...baseIds, status: "" } : baseIds));
 
-// A Peer network does not take back a computer the members banned or that left; any other case gets its own title.
-const sameAgain = computed(() => props.variant === "forgotten" || props.managed);
-const title = computed(() => (sameAgain.value ? REJOIN_TITLE(props.net) : REJOIN_OTHER));
-const hint = computed(() => {
-  if (!sameAgain.value) return HOME_NO_RETURN_HINT(props.net);
-  return (props.managed ? HOME_ASK_ADMIN_HINT : HOME_ASK_MEMBER_HINT)(props.net);
-});
+const title = computed(() => REJOIN_TITLE(props.net));
+const hint = computed(() => HOME_ASK_ADMIN_HINT(props.net));
 const arrived = (outcome: InviteOutcome, slot: string | null): void => {
   if (slot && slot !== props.slot) arrival(outcome, invite.form);
 };

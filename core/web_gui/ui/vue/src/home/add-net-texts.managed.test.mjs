@@ -1,5 +1,5 @@
-/* The banner after joining a Managed network: `You joined "<net>". Only admins invite and remove members here. Admins: <a>, <b>.`
- * `joinedBanner(net, via, admins)` takes the admins' display names as the third argument; without it (Peer) the banner is as before.
+/* The banner after joining a network: `You joined "<net>". Only admins invite and remove members here. Admins: <a>, <b>.`
+ * `joinedBanner(net, via, admins)` takes the admins' display names as the third argument; without it the banner is as before.
  * The exit tail (`Your exit hasn't changed: ...`) stays where it was and is not duplicated. */
 
 import { describe, expect, it } from "vitest";
@@ -10,17 +10,17 @@ const VIA = { peer: "peer-one", net: "friends" };
 const TAIL = "Your exit hasn't changed: sites still open via peer-one (friends).";
 
 describe("joinedBanner", () => {
-  describe("a Peer network", () => {
+  describe("without admins", () => {
     it("is the plain sentence", () => {
       expect(joinedBanner("work", null)).toBe('You joined "work".');
     });
 
-    it("an empty list of admins is a Peer network too", () => {
+    it("an empty list of admins is the same", () => {
       expect(joinedBanner("work", null, [])).toBe('You joined "work".');
     });
   });
 
-  describe("a Managed network", () => {
+  describe("with admins", () => {
     it("says who invites and lists the admins", () => {
       expect(joinedBanner("work", null, ["anna", "bob"])).toBe(MANAGED);
     });
@@ -37,7 +37,7 @@ describe("joinedBanner", () => {
     });
   });
 
-  it("a Peer network with an exit keeps the old text exactly", () => {
+  it("without admins an exit keeps the old text exactly", () => {
     expect(joinedBanner("work", VIA)).toBe(`You joined "work". ${TAIL}`);
   });
 });

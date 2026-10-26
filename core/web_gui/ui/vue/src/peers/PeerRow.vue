@@ -1,17 +1,17 @@
 <script setup lang="ts">
 // One row of the member list: the name and id, the connection, the main action and (with a member list) the
-// ban-vote badge, extra lines and the "⋯" menu. Only reports what was chosen; the parent acts.
+// badge, extra lines and the "⋯" menu. Only reports what was chosen; the parent acts.
 import { computed } from "vue";
 import type { NodeState, PeerInfo } from "../core/api-types.ts";
 import { EXIT_VIA_HIM, peerName } from "../common/words.ts";
 import MemberMenu from "../members/MemberMenu.vue";
-import { ACTION_CONFIRM_BAN, ACTION_UNBLOCK, confirmAria, unblockAria } from "../members/members-texts.ts";
+import { ACTION_UNBLOCK, unblockAria } from "../members/members-texts.ts";
 import type { MemberRow, MembersReply } from "../members/members-types.ts";
 import { managedFacts, menuItems, rowDecor } from "../members/members-view.ts";
 import { PEERS_ADMIN_BADGE, PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
 import { countryCell, olderMark, olderTitle, peerAction, peerMetaText, versionText } from "./peers-view.ts";
 
-const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; names?: Record<string, string>; multi?: boolean; list?: MembersReply | null }>();
+const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; multi?: boolean; list?: MembersReply | null }>();
 const emit = defineEmits<{ (e: "exit-via", idFull: string): void; (e: "member-pick", key: string, idFull: string): void }>();
 
 // In a multi-network page "Edit" opens the rename dialog instead of following the link.
@@ -21,7 +21,7 @@ function onRename(e: Event): void {
   emit("member-pick", "rename", props.peer.id_full);
 }
 
-const decor = computed(() => rowDecor(props.peer, props.member, props.me || "", props.names || {}));
+const decor = computed(() => rowDecor(props.peer, props.member, props.me || ""));
 const items = computed(() => (props.member ? menuItems(props.member, managedFacts(props.state.network, props.list, props.me || "")) : []));
 const action = computed(() => peerAction(props.peer, props.chosen, !!(props.member && props.member.blocked_by_me)));
 const meta = computed(() => peerMetaText(props.peer, props.state));
@@ -41,8 +41,7 @@ const rowTitle = computed(() => (props.peer.self && props.state.node.id_full) ||
       <span v-else-if="action.kind === 'chosen-down'" class="peer-chosen">{{ PEERS_CHOSEN_DOWN }}</span>
       <button v-else-if="action.kind === 'button'" type="button" class="btn btn-sm" :data-exit-via="peer.id_full" :aria-label="EXIT_VIA_HIM + ': ' + name" @click="emit('exit-via', peer.id_full)">{{ EXIT_VIA_HIM }}</button>
       <span v-else-if="action.kind === 'refused'" class="peer-note">{{ PEERS_REFUSED }}</span>
-      <button v-if="decor.mainAction === 'confirm'" type="button" class="btn btn-sm btn-primary" data-member-action="confirm" :aria-label="confirmAria(name)" @click="emit('member-pick', 'confirm', peer.id_full)">{{ ACTION_CONFIRM_BAN }}</button>
-      <button v-else-if="decor.mainAction === 'unblock'" type="button" class="btn btn-sm" data-member-action="unblock" :aria-label="unblockAria(name)" @click="emit('member-pick', 'unblock', peer.id_full)">{{ ACTION_UNBLOCK }}</button>
+      <button v-if="decor.mainAction === 'unblock'" type="button" class="btn btn-sm" data-member-action="unblock" :aria-label="unblockAria(name)" @click="emit('member-pick', 'unblock', peer.id_full)">{{ ACTION_UNBLOCK }}</button>
       <MemberMenu v-if="items.length > 0" :id="peer.id_full" :name="name" :items="items" @pick="(key) => emit('member-pick', key, peer.id_full)" />
     </span>
   </li>

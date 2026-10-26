@@ -11,7 +11,7 @@ use meshtown_core::invite::redeem::RedeemError;
 use meshtown_core::invite::store::{issue_record, IssueVerdict, Ledger};
 use meshtown_core::invite::{self, InviteHead, InviteSecret, NotAdmin};
 use meshtown_core::members::access::actions::{apply, MemberAction};
-use meshtown_core::members::network_key::{NetKind, NetworkKey};
+use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::RunningNode;
 use meshtown_core::transport::net::NodeSecret;
 use meshtown_core::transport::net_mainline::unix_now;
@@ -49,11 +49,10 @@ mod creator_invites {
         let answer = redeem_as(FIRST_SEED, &parsed.head, &parsed.peers)
             .await
             .expect("the creator's invite must be redeemed");
-        // then: the invite names the Managed kind and the answered base gives the network's id
+        // then: the invite names the creator and the answered base gives the network's id
         assert_eq!(
-            parsed.head.kind,
-            net.kind(),
-            "the invite must carry the kind"
+            parsed.head.root, net.root,
+            "the invite must carry the creator"
         );
         assert_eq!(
             parsed.head.reply_key(&answer).subkeys().network_id,
@@ -216,6 +215,6 @@ fn forged_head(net: &ManagedNet) -> InviteHead {
         network_id: net.key.subkeys().network_id,
         label: None,
         made_unix: unix_now(),
-        kind: NetKind::Managed { root: net.root },
+        root: net.root,
     }
 }

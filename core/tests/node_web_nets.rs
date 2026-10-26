@@ -14,7 +14,7 @@ use meshtown_core::members::network_key::NetworkKey;
 use serde_json::{json, Value};
 
 use common::{
-    api, boot, boot_consulting_list, boot_without_key, teardown, wait_ready, wait_until, Booted,
+    api, boot_consulting_list, boot_without_key, teardown, wait_ready, wait_until, Booted,
 };
 use nets_host::{boot_host, HostNode};
 
@@ -79,7 +79,7 @@ fn lists_a_member_that_left(b: &Booted) -> bool {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn second_network_joins_a_new_slot_and_a_duplicate_is_refused() {
     let a = boot_host("dup-a", &NetworkKey::generate().unwrap()).await;
-    let b = boot("dup-b", &NetworkKey::generate().unwrap()).await;
+    let b = boot_consulting_list("dup-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
 
     let slot = add_slot(&a);
@@ -124,7 +124,7 @@ async fn second_network_joins_a_new_slot_and_a_duplicate_is_refused() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn leaving_an_added_slot_drops_it_and_keeps_main() {
     let a = boot_host("slot-a", &NetworkKey::generate().unwrap()).await;
-    let b = boot("slot-b", &NetworkKey::generate().unwrap()).await;
+    let b = boot_consulting_list("slot-b", &NetworkKey::generate().unwrap()).await;
     wait_ready(&b).await;
     let slot = add_slot(&a);
     join_slot(&a, &slot, &invite_of(&b)).await;
@@ -184,7 +184,7 @@ async fn leaving_an_added_slot_is_seen_by_its_network() {
 async fn main_network_left_and_entered_again_gets_a_new_peer_id() {
     let key = NetworkKey::generate().unwrap();
     let a = boot_host("main-a", &key).await;
-    let b = boot("main-b", &key).await;
+    let b = boot_consulting_list("main-b", &key).await;
     wait_ready(&b).await;
     let (_, before) = a.get("/api/members");
     let old_id = before["me"].as_str().expect("own id").to_string();

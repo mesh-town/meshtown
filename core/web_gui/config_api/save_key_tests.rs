@@ -20,8 +20,7 @@ fn temp_dir() -> PathBuf {
 }
 
 fn fresh_key(label: &str) -> String {
-    let tail = crate::members::words::generate_tail().unwrap();
-    crate::members::network_key::format_key_string(Some(label), &tail)
+    crate::members::network_key::test_net(label).text
 }
 
 fn published() -> Vec<Published> {

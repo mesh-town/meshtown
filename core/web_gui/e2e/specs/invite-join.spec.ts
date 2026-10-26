@@ -3,7 +3,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
 import type { MeshApi } from '../fixtures/api';
 import type { RunningTarget } from '../fixtures/target';
-import { InviteForm, NetTabs, OutOfNetCard, visiblePrimary } from '../pages/invite-form';
+import { InviteForm, NetTabs, OutOfNetCard } from '../pages/invite-form';
 import type { AppShell } from '../pages/app-shell';
 
 // One form takes an invite wherever the computer meets one: the node, not the user, picks the slot. Each case checks the tab
@@ -187,49 +187,8 @@ test('111-invite-already-here: your own invite on the "+" tab says "already in",
   });
 });
 
-test.describe('this computer removed from the member list (demo --me-removed)', () => {
-  test.skip(({ targetKind }) => targetKind === 'node', 'a real node starts alone and is never removed');
-  test.use({ targetFlags: { extraArgs: ['--me-removed'] } });
-
-  test('112-invite-return-removed: on Home the invite field is open at once, your own invite is read as a way back', async ({ app, page, api }) => {
-    const card = new OutOfNetCard(page, 'home');
-    const form = new InviteForm(page, 'home');
-    const own = await inviteOf(api, null);
-
-    await test.step('given: Home shows the card of a removed computer', async () => {
-      await app.tabs.open('home');
-      await expect(card.card).toBeVisible();
-    });
-
-    await test.step('the form is open at once: no card button, the field is shown, Join is the only primary button', async () => {
-      await expect(card.joinButton).toHaveCount(0);
-      await expect(form.input).toBeVisible();
-      await expect(visiblePrimary(page)).toHaveCount(1);
-      await expect(form.button).toHaveClass(/btn-primary/);
-    });
-
-    await test.step('the own invite is read as a way back into the same network', async () => {
-      await form.pasteAndInspect(own);
-      await expect(form.placeNote).toContainText('brings this computer back');
-    });
-  });
-
-  test('117-invite-return-removed-joins: the own invite takes the removed computer back into its network, no second network appears', async ({ app, page, api }) => {
-    const card = new OutOfNetCard(page, 'home');
-    const form = new InviteForm(page, 'home');
-    const own = await inviteOf(api, null);
-    const slotsBefore = await visibleNets(api);
-    await app.tabs.open('home');
-    await expect(card.joinButton).toHaveCount(0);
-    await form.pasteAndInspect(own);
-    await form.submit();
-    await expect(card.card).toHaveCount(0);
-    expect(await visibleNets(api)).toEqual(slotsBefore);
-  });
-});
-
-test.describe('this computer banned in the second network (demo --nets 2 --me-excluded)', () => {
-  test.skip(({ targetKind }) => targetKind === 'node', 'a real node has one network and is never banned at the start');
+test.describe('this computer removed from the second network (demo --nets 2 --me-excluded)', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'a real node has one network and is never removed at the start');
   test.use({ targetFlags: { extraArgs: ['--nets', '2', '--me-excluded'] } });
 
   test('113-invite-excluded-tab: the card button of a network tab opens the form on that tab and puts the cursor into it', async ({ app, page }) => {
@@ -239,7 +198,7 @@ test.describe('this computer banned in the second network (demo --nets 2 --me-ex
     await app.tabs.open('peers');
     const second = (await tabs.slots())[1];
 
-    await test.step('given: the second tab shows the card of a banned computer', async () => {
+    await test.step('given: the second tab shows the card of a removed computer', async () => {
       await tabs.tab(second).click();
       await expect.poll(() => tabs.hash()).toBe(`#peers/${second}`);
       await expect(card.card).toBeVisible();
@@ -254,7 +213,7 @@ test.describe('this computer banned in the second network (demo --nets 2 --me-ex
     });
   });
 
-  test('118-invite-excluded-tab-joins: the invite of the banned network brings the computer back in this slot only', async ({ app, page, api }) => {
+  test('118-invite-excluded-tab-joins: the invite of the removed network brings the computer back in this slot only', async ({ app, page, api }) => {
     const tabs = new NetTabs(page);
     const card = new OutOfNetCard(page, 'members');
     const form = new InviteForm(page, 'rejoin');

@@ -14,18 +14,22 @@ use meshtown_core::invite::redeem::RedeemError;
 use meshtown_core::invite::store::IssueVerdict;
 use meshtown_core::invite::INVITE_TTL_SECS;
 use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::node::{self, NodeConfig};
+use meshtown_core::node;
 use meshtown_core::transport::net_mainline::unix_now;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
 use common::{
-    addr_of, fresh_head, loopback_addr, quick_opts, record_issue, redeem_via, setup, setup_serving,
-    short_opts, start, stranger_id, wait_members, wait_until, wait_verdict, ENTRY_LIMIT_SECS, HOUR,
+    addr_of, fresh_head, loopback_addr, member_config, quick_opts, record_issue, redeem_via, setup,
+    setup_serving, short_opts, start, start_second_admin, stranger_id, wait_until, wait_verdict,
+    ENTRY_LIMIT_SECS, HOUR, OWNER_SEED,
 };
 
 /// Rounds in the simultaneous-repeat test: a race without the server lock doesn't show up in every round.
 const ROUNDS: u32 = 12;
+/// The permanent keys of the second admin and of the newcomer (the one the redemption proved).
+const SECOND_SEED: u8 = 41;
+const NEWCOMER_SEED: u8 = OWNER_SEED;
 
 mod entry {
     use super::*;
@@ -42,7 +46,7 @@ mod entry {
             let got = rig.redeem(&head).await;
             // then
             let got = got.expect("a fresh secret must yield the network key");
-            assert_eq!(got.encode(), rig.key.encode());
+            assert_eq!(got.to_bytes(), rig.key.to_bytes());
         }
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -55,7 +59,7 @@ mod entry {
                 .redeem(&head)
                 .await
                 .expect("a fresh secret must yield the network key");
-            let mut cfg = NodeConfig::for_loopback_test(got);
+            let mut cfg = member_config(&got, NEWCOMER_SEED);
             cfg.initial_peers = vec![rig.addr.clone()];
             let newcomer = node::start_node(cfg).await.unwrap();
             // then
@@ -141,9 +145,7 @@ mod repeat_of_spent_secret {
         async fn is_refused_as_used_once_the_stamp_has_arrived() {
             // given: A issued, B saw the issue, N1 joined through A, B saw the label
             let rig = setup().await;
-            let b = start(&rig.key).await;
-            rig.a.introduce(addr_of(&b)).await;
-            wait_members(&rig.a, &b).await;
+            let b = start_second_admin(&rig.a, &rig.key, SECOND_SEED).await;
             let head = rig.issue(unix_now()).await;
             assert!(
                 wait_verdict(&b, &head, IssueVerdict::Grant, 15).await,

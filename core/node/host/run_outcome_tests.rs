@@ -101,7 +101,7 @@ fn setup_run(tag: &str) -> RunFx {
     std::fs::create_dir_all(&dir).unwrap();
     let cli = CliOverrides {
         web_port: Some(free_port()),
-        network_key: Some(NetworkKey::from_bytes([71; 32]).encode()),
+        network_key: Some(crate::node::host::test_keys::managed_text(71)),
         checks_enabled: Some(false),
         ..CliOverrides::default()
     };
@@ -138,7 +138,7 @@ impl RunFx {
         let main_path = self.dir.join(config_file::FILE_NAME);
         let id = new_slot_id(&main_path).expect("a free slot id");
         let net = NetSettings {
-            network_key: Some(NetworkKey::from_bytes([72; 32]).encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(72)),
             checks_enabled: false,
             ..NetSettings::default()
         };

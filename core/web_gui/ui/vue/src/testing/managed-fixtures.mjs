@@ -1,6 +1,5 @@
-/* Fixtures of a Managed network for the page tests: one network "work" on a fake node, its snapshot (`network.kind`,
- * `network.me_role`, `network.admins`, `network.can_*`, `peers[].role`), its member list (`kind`, `admins`, `me_admin`,
- * `MemberRow.admin`) and the overview extras the fake node does not know (`nets[].kind`, `nets[].me_admin`, `nets[].can_invite`,
+/* Fixtures of a Managed network for the page tests: one network "work" on a fake node, its snapshot (`network.me_role`,
+ * `network.admins`, `network.can_*`, `peers[].role`), its member list (`admins`, `me_admin`, `MemberRow.admin`) and the overview extras the fake node does not know (`nets[].me_admin`, `nets[].can_invite`,
  * `notices[]`, `POST /api/notices/ack`).
  *
  * `managedNode({ meRole, admins, canInvite, network, notices, brief })` is a node with the single network "work" where this
@@ -40,7 +39,7 @@ export function managedState({ meRole = "admin", admins = [ME_FULL, ANNA_FULL], 
   ];
   return baseState({
     network: {
-      id_hex: ID_HEX, masked: "mesh1-••••-••••", kind: "Managed", me_role: meRole, admins, root: admins[0],
+      id_hex: ID_HEX, masked: "mesh2-••••-••••", me_role: meRole, admins, root: admins[0],
       can_invite: canInvite, can_remove: isAdmin, can_set_admins: isAdmin, can_delete_network: isAdmin, can_leave: true, ...network,
     },
     peers,
@@ -52,7 +51,7 @@ export function managedMembers(state) {
   const net = state.network;
   const rows = state.peers.map((p) =>
     memberRow({ id: p.id, id_full: p.id_full, name: p.name || null, self: Boolean(p.self), online: p.online, admin: p.role === "admin" }));
-  return membersReply({ rows, kind: "Managed", admins: net.admins, me_admin: net.me_role === "admin" });
+  return membersReply({ rows, admins: net.admins, me_admin: net.me_role === "admin" });
 }
 
 export const nodeConfig = () => baseConfig({ ports: { published: [{ port: 8080, for: "all" }], opened: [] } });
@@ -84,16 +83,6 @@ export function managedNode({ notices = [], brief = {}, ...stateOpts } = {}) {
     state, config: nodeConfig(), slots: [{ id: "main", label: NET_NAME, id_hex: ID_HEX, members: managedMembers(state) }],
   });
   const meAdmin = state.network.me_role === "admin";
-  node.served = serveManaged(node, { brief: { kind: "Managed", me_admin: meAdmin, can_invite: state.network.can_invite, ...brief }, notices });
-  return node;
-}
-
-/** A node with a plain Peer network (no managed fields anywhere) and optional notices. */
-export function peerNode({ notices = [] } = {}) {
-  const state = baseState({ network: { id_hex: ID_HEX, masked: "mesh1-••••-••••" } });
-  const node = createFakeNode({
-    state, config: nodeConfig(), slots: [{ id: "main", label: NET_NAME, id_hex: ID_HEX, members: membersReply() }],
-  });
-  node.served = serveManaged(node, { notices });
+  node.served = serveManaged(node, { brief: { me_admin: meAdmin, can_invite: state.network.can_invite, ...brief }, notices });
   return node;
 }

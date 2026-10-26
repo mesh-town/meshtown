@@ -82,7 +82,7 @@ describe("useHome > automatic exit", () => {
 
 const brief = (id) => ({
   id, label: id, id_hex: "hex-" + id, status: "running", exit_enabled: false, proxy: id === "main", route_state: "direct", exits: [],
-  members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1,
+  joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1,
 });
 
 // Two networks, the proxy in the primary one; network B has the same state.

@@ -15,7 +15,7 @@ use crate::invite::wire::{
     encode_invite_reply, encode_invite_request, RedeemCode, RedeemReply, REPLY_LEN, REQUEST_LEN,
 };
 use crate::invite::{InviteHead, InviteSecret};
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{managed_key, NetworkKey};
 use crate::transport::net::facade::test_support::{addr, pid, secret, within, Spy};
 use crate::transport::net::mem::conn::MemConn;
 use crate::transport::net::NodeSecret;
@@ -294,19 +294,22 @@ async fn answer(conn: &dyn PeerConn, reply: [u8; REPLY_LEN]) -> io::Result<()> {
     send.shutdown().await
 }
 
-/// The key of the network the invite was issued from.
+/// The base of the key of the network the invite was issued from: what a member answers with.
 pub(super) fn own_key() -> NetworkKey {
     NetworkKey::from_bytes([1; 32])
 }
 
-/// The head of an invite of the network `own_key()`, just issued.
+/// The head of an invite of the network made from `own_key()`, just issued.
 pub(super) fn head() -> InviteHead {
+    let root = NodeSecret::from_bytes(&[7; 32]).peer_id();
     InviteHead {
         secret: InviteSecret::from_bytes([9; 32]),
-        network_id: own_key().subkeys().network_id,
+        network_id: managed_key(&own_key().to_bytes(), &root)
+            .subkeys()
+            .network_id,
         label: None,
         made_unix: unix_now(),
-        kind: crate::members::network_key::NetKind::Peer,
+        root,
     }
 }
 
@@ -344,8 +347,8 @@ fn ms(n: u64) -> Duration {
 fn assert_key(got: Result<NetworkKey, RedeemError>, want: &NetworkKey) {
     match got {
         Ok(key) => assert_eq!(
-            key.encode(),
-            want.encode(),
+            key.to_bytes(),
+            want.to_bytes(),
             "got a key of the wrong network"
         ),
         Err(e) => panic!("expected a key, but joining ended with an error: {e:?}"),

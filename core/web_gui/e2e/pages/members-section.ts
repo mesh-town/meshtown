@@ -2,10 +2,10 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import { MEMBERS_WORDS as W } from './glossary';
 
-/** The member list of the "Members" tab: rows with the "⋯" menu, the ban-vote banner, the groups of former members, the confirmation dialog. */
+/** The member list of the "Members" tab: rows with the "⋯" menu, the second-admin hint, the group of former members, the confirmation dialog. */
 export class MembersSection {
   readonly list: Locator;
-  readonly banner: Locator;
+  readonly secondAdminHint: Locator;
   readonly dialog: Locator;
   readonly excludedList: Locator;
   readonly excludedCard: Locator;
@@ -13,24 +13,19 @@ export class MembersSection {
   readonly pendingList: Locator;
   readonly pendingCard: Locator;
   readonly status: Locator;
-  readonly staleList: Locator;
-  readonly forgottenList: Locator;
-  readonly forgottenCard: Locator;
 
   constructor(private readonly page: Page) {
     // no anchor: the member list has no accessible name
     this.list = page.locator('#peers-list');
-    this.banner = page.getByRole('region', { name: /proposes banning/ });
+    this.secondAdminHint = page.locator('#second-admin-hint');
     this.dialog = page.getByRole('alertdialog');
     // no anchor: a closed <details> has no role with a name; the summary text is found inside it
     this.excludedList = page.locator('details').filter({ hasText: 'No longer in the network' });
     this.excludedCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.excludedTitle }) });
     this.leftCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.leftTitle }) });
     this.pendingList = page.locator('#members-pending-list');
-    this.pendingCard = page.locator('#members-pending-card');
-    this.staleList = page.locator('#stale-list');
-    this.forgottenList = page.locator('#forgotten-list');
-    this.forgottenCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.forgottenTitle }) });
+    // no anchor: the text a waiting computer sees about itself
+    this.pendingCard = page.getByText(W.meWaiting).first();
     this.status = page.getByRole('status').filter({ hasText: /\S/ });
   }
 
@@ -42,11 +37,6 @@ export class MembersSection {
   /** The row of a node that waits for confirmations, by name. */
   pendingRow(name: string): Locator {
     return this.pendingList.getByRole('listitem').filter({ has: this.page.getByText(name, { exact: true }) });
-  }
-
-  /** The row of a member inside a group under the list (`#stale-list`, `#forgotten-list`). */
-  groupRow(group: Locator, name: string): Locator {
-    return group.getByRole('listitem').filter({ has: this.page.getByText(name, { exact: true }) });
   }
 
   /** The action button of the open confirmation dialog. */
@@ -80,11 +70,6 @@ export class MembersSection {
 
   dialogButton(label: string): Locator {
     return this.dialog.getByRole('button', { name: label, exact: true });
-  }
-
-  /** The optional reason field of the ban dialog. */
-  reasonField(): Locator {
-    return this.dialog.getByLabel(W.reasonLabel, { exact: true });
   }
 
   /** The "Leave network…" button of the Settings tab (the own row of the member list has the same item in its menu). */

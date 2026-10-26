@@ -282,8 +282,7 @@ mod flat_menu_of_a_managed_network {
     #[test]
     fn member_cannot_invite() {
         // given
-        let json =
-            summary_with(json!({ "kind": "Managed", "me_admin": false, "can_invite": false }));
+        let json = summary_with(json!({ "me_admin": false, "can_invite": false }));
 
         // when
         let (menu, _) = views_from_state_json(&json, &plan());
@@ -294,7 +293,7 @@ mod flat_menu_of_a_managed_network {
 
     #[test]
     fn admin_can_invite() {
-        let json = summary_with(json!({ "kind": "Managed", "me_admin": true, "can_invite": true }));
+        let json = summary_with(json!({ "me_admin": true, "can_invite": true }));
 
         let (menu, _) = views_from_state_json(&json, &plan());
 

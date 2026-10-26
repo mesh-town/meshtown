@@ -5,9 +5,9 @@ use std::collections::BTreeSet;
 use crate::transport::net::{PeerId, ReplicaEntry};
 
 use super::boot::{AccessBoot, MAX_BOOT_ADMITS};
-use super::record::{tally_input_under, AclKind, Via};
+use super::record::{tally_input, AclKind};
 use super::subjects::{live_subjects, withdrawn_subjects, witnessed_subjects};
-use super::tally::{tally, AdmitIn, Ledger};
+use super::tally::{tally, Ledger};
 
 /// What a boot is going to write.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -34,8 +34,6 @@ fn refused_set(
 ) -> BTreeSet<PeerId> {
     let mut out = live_subjects(snap, me, AclKind::Admit);
     out.extend(live_subjects(snap, me, AclKind::Exclude));
-    out.extend(live_subjects(snap, me, AclKind::Forget));
-    out.extend(ledger.forgets.keys().filter(|p| ledger.is_forgotten(p)));
     out.extend(withdrawn_subjects(snap, me, AclKind::Admit));
     out.extend(ledger.excluded.keys().copied());
     out.extend(blocks.iter().copied());
@@ -58,11 +56,7 @@ pub(super) fn promotions(
     out.extend(witness.iter().copied());
     let refused = live_subjects(snap, me, AclKind::Exclude);
     out.retain(|p| {
-        *p != me
-            && !refused.contains(p)
-            && !blocks.contains(p)
-            && !ledger.excluded.contains_key(p)
-            && !ledger.forgets.contains_key(p)
+        *p != me && !refused.contains(p) && !blocks.contains(p) && !ledger.excluded.contains_key(p)
     });
     out.into_iter().collect()
 }
@@ -92,13 +86,7 @@ pub(super) fn plan_admits(
     b: &AccessBoot,
 ) -> BootPlan {
     let witness = unique(b.initial.iter().chain(&b.cached).copied());
-    let (mut input, ignored) = tally_input_under(b.rules, b.me, snap);
-    input.admits.extend(witness.iter().map(|s| AdmitIn {
-        author: b.me,
-        subject: *s,
-        via: Via::Witness,
-        made_unix: b.now_unix,
-    }));
+    let (input, ignored) = tally_input(b.root, b.me, snap);
     let ledger = tally(&input);
     let me_left = ledger.excluded.contains_key(&b.me);
     let refused = refused_set(snap, b.me, blocks, &ledger);
@@ -115,7 +103,3 @@ pub(super) fn plan_admits(
 #[cfg(test)]
 #[path = "boot_managed_tests.rs"]
 mod managed_tests;
-
-#[cfg(test)]
-#[path = "boot_forget_tests.rs"]
-mod forget_tests;

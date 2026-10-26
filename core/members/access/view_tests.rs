@@ -102,12 +102,11 @@ mod check_order {
     use super::*;
 
     #[test]
-    fn check_order_left_excluded_voted_blocked_unlisted() {
-        // given: B is excluded, voted against and blocked; C is voted against and blocked; D is blocked and
+    fn check_order_left_excluded_blocked_unlisted() {
+        // given: B is excluded and blocked; C is blocked; D is blocked and
         // not listed; X is not listed; A is plain
         let Cast { m, a, b, c, d, x } = cast();
         let view = view_of(Verdicts {
-            my_votes: set(&[b, c]),
             blocks: set(&[b, c, d]),
             ..verdicts(m, ledger(&[m, a, c], &[b]))
         });
@@ -117,14 +116,13 @@ mod check_order {
         let want = vec![
             Ok(()),
             Err(Deny::Excluded),
-            Err(Deny::VotedByMe),
+            Err(Deny::Blocked),
             Err(Deny::Blocked),
             Err(Deny::Unlisted),
         ];
         assert_eq!(got, want, "results for A, B, C, D, X");
-        // given: now I left myself, B is excluded too, and my own vote on C is set
+        // given: now I left myself, B is excluded too
         let view = view_of(Verdicts {
-            my_votes: set(&[c]),
             ..verdicts(m, ledger_left(&[a, c], &[b], m))
         });
         // when / then: "left" comes before everything, whoever is asked
@@ -134,10 +132,9 @@ mod check_order {
 
     #[test]
     fn self_is_allowed_whatever_the_verdicts_say() {
-        // given: I am excluded, and also voted against and blocked by my own record
+        // given: I am excluded, and also blocked by my own record
         let Cast { m, a, .. } = cast();
         let view = view_of(Verdicts {
-            my_votes: set(&[m]),
             blocks: set(&[m]),
             ..verdicts(m, ledger(&[a], &[m]))
         });
@@ -181,24 +178,16 @@ mod unlisted {
     }
 
     #[test]
-    fn excluded_voted_or_blocked_keep_their_own_reason() {
-        // given: B is excluded, C is voted against by me, D is blocked by me
-        let Cast { m, a, b, c, d, .. } = cast();
+    fn excluded_or_blocked_keep_their_own_reason() {
+        // given: B is excluded, D is blocked by me
+        let Cast { m, a, b, d, .. } = cast();
         let view = view_of(Verdicts {
-            my_votes: set(&[c]),
             blocks: set(&[d]),
             ..verdicts(m, ledger(&[m, a], &[b]))
         });
         // when / then
-        let got = outcomes(&view, &[b, c, d]);
-        assert_eq!(
-            got,
-            vec![
-                Err(Deny::Excluded),
-                Err(Deny::VotedByMe),
-                Err(Deny::Blocked)
-            ]
-        );
+        let got = outcomes(&view, &[b, d]);
+        assert_eq!(got, vec![Err(Deny::Excluded), Err(Deny::Blocked)]);
     }
 
     #[test]
@@ -216,9 +205,6 @@ mod publishing;
 
 #[path = "view_allowed_tests.rs"]
 mod allowed;
-
-#[path = "view_votes_tests.rs"]
-mod votes;
 
 // ---- helpers ----
 
@@ -264,13 +250,7 @@ fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
     Ledger {
         admitted: listed.iter().chain(out).copied().collect(),
         excluded: out.iter().map(|p| (*p, by_votes())).collect(),
-        pending: BTreeMap::new(),
-        need: 1,
         admissions: BTreeMap::new(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
         admins: Default::default(),
         closed: None,
     }
@@ -294,9 +274,7 @@ fn verdicts(me: PeerId, ledger: Ledger) -> Verdicts {
     Verdicts {
         me,
         ledger: Arc::new(ledger),
-        my_votes: BTreeSet::new(),
         blocks: BTreeSet::new(),
-        reasons: Default::default(),
     }
 }
 

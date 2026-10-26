@@ -48,6 +48,10 @@ export function resolveNodePlan(extraArgs: readonly string[], socksPort?: number
 // and does not rewrite the file at startup (otherwise `chmod 0o444` would be undone in the node's first second of life).
 const ZERO_SECRET_BASE64 = Buffer.alloc(32).toString('base64');
 
+// `keygen` roots the key at the identity of the config file and refuses a file without one; a valid secret in every JSON
+// view of the file also keeps `prepare` from rewriting it, so the field errors and the read-only file stay as written.
+const IDENTITY = { secret: ZERO_SECRET_BASE64 };
+
 // e2e does not listen on the local network: `web.access` defaults to `localnet`.
 const WEB_LOCAL = { access: 'localhost' };
 
@@ -56,13 +60,13 @@ function nodeConfigText(fileKind: NodeFileKind): string {
     case 'invalid':
       return '{not json';
     case 'field-error':
-      return JSON.stringify({ config: { version: 1, web: WEB_LOCAL, socks: { port: 80 } } });
+      return JSON.stringify({ identity: IDENTITY, config: { version: 1, web: WEB_LOCAL, socks: { port: 80 } } });
     case 'readonly':
-      return JSON.stringify({ identity: { secret: ZERO_SECRET_BASE64 }, config: { version: 1, web: WEB_LOCAL } });
+      return JSON.stringify({ identity: IDENTITY, config: { version: 1, web: WEB_LOCAL } });
     case 'asis':
     case 'unreadable':
     case 'no-key':
-      return JSON.stringify({ config: { version: 1, web: WEB_LOCAL } });
+      return JSON.stringify({ identity: IDENTITY, config: { version: 1, web: WEB_LOCAL } });
   }
 }
 
@@ -74,9 +78,18 @@ export async function prepareNodeConfig(dir: string, fileKind: NodeFileKind): Pr
   return configPath;
 }
 
-export async function nodeKeygen(bin: string): Promise<string> {
+// The config file `keygen` reads. `invalid` and `unreadable` files cannot be read by it, so it gets a small valid file of its own
+// (the same identity): the key only has to be well formed, the node under test does not need to be its root.
+export async function keygenConfigPath(dir: string, fileKind: NodeFileKind, configPath: string): Promise<string> {
+  if (fileKind !== 'invalid' && fileKind !== 'unreadable') return configPath;
+  const own = path.join(dir, 'keygen-identity.json');
+  await writeFile(own, JSON.stringify({ identity: IDENTITY }));
+  return own;
+}
+
+export async function nodeKeygen(bin: string, configPath: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync(bin, ['keygen', '--raw']);
+    const { stdout } = await execFileAsync(bin, ['keygen', '--raw', '--config', configPath]);
     return stdout.trim();
   } catch (err) {
     throw new Error(`meshtown keygen --raw: ${execErrorMessage(err)}`);

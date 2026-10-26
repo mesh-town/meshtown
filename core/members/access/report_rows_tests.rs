@@ -67,75 +67,18 @@ mod fields {
     use super::*;
 
     #[test]
-    fn pending_vote_fields_match_contract() {
-        // given: four members; b has proposed to exclude a: one vote of two
-        let (a, b) = (pid(2), pid(3));
-        let mut w = world(&[a, b, pid(4)], &[]);
-        w.pending(a, vec![b], 2);
-        // when
-        let row = w.row(a);
-        // then: the contract fields of the voting
-        let vote = row.vote.expect("a vote in progress");
-        assert_eq!((vote.votes, vote.need), (1, 2));
-        assert_eq!(vote.proposed_by, b.to_string());
-        assert_eq!(vote.voters, vec![b.to_string()]);
-        assert!(!vote.mine, "my vote is not among them");
-        assert_eq!(
-            row.status, "member",
-            "a pending vote does not change the status"
-        );
-    }
-
-    #[test]
-    fn vote_reason_comes_from_the_verdicts() {
-        // given: b proposed to exclude a and a reason is known for a; c has a vote without a reason
-        let (a, b, c) = (pid(2), pid(3), pid(4));
-        let mut w = world(&[a, b, c, pid(5)], &[]);
-        w.pending(a, vec![b], 2);
-        w.pending(c, vec![b], 2);
-        w.verdicts.reasons.insert(a, "noisy link".to_string());
-        // when / then: the reason shows for a only
-        assert_eq!(
-            w.row(a).vote.expect("a vote in progress").reason.as_deref(),
-            Some("noisy link")
-        );
-        assert_eq!(w.row(c).vote.expect("a vote in progress").reason, None);
-        let json = serde_json::to_value(w.row(c).vote).unwrap();
-        assert!(
-            json.get("reason").is_some_and(|r| r.is_null()),
-            "the key must be present as null: {json}"
-        );
-    }
-
-    #[test]
-    fn my_vote_is_marked_mine_and_denies_locally() {
-        // given: I proposed to exclude a
-        let (a, me) = (pid(2), pid(1));
-        let mut w = world(&[a, pid(3), pid(4)], &[]);
-        w.pending(a, vec![me], 2);
-        w.verdicts.my_votes.insert(a);
-        // when
-        let row = w.row(a);
-        // then: marked as mine and refused at my side at once
-        assert!(row.vote.expect("a vote in progress").mine);
-        assert_eq!(row.denied_by_me, Some("voted_by_me"));
-    }
-
-    #[test]
     fn excluded_row_fields_match_contract() {
         // given: c was excluded by the votes of a and b
         let (a, b, c) = (pid(2), pid(3), pid(4));
         let mut w = world(&[a, b], &[c]);
         w.exclude(c, How::Votes, vec![a, b]);
-        w.pending(c, vec![a], 2);
         // when
         let row = w.row(c);
-        // then: the exclusion carries the contract fields; a vote is not shown for an excluded node
+        // then: the exclusion carries the contract fields
         let info = row.excluded.expect("exclusion info");
-        assert_eq!((info.how, info.at_unix), ("votes", AT_UNIX));
+        assert_eq!((info.how, info.at_unix), ("removed", AT_UNIX));
         assert_eq!(info.voters, vec![a.to_string(), b.to_string()]);
         assert_eq!(row.status, "excluded");
-        assert!(row.vote.is_none(), "a vote for an excluded node");
     }
 
     #[test]

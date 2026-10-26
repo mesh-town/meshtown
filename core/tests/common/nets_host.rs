@@ -15,7 +15,7 @@ use meshtown_core::node::{self, output, IdentityState};
 use meshtown_core::web_gui::TOKEN_FILE_NAME;
 use serde_json::{json, Value};
 
-use crate::common::{api, wait_until};
+use crate::common::{api, key_text, wait_until};
 
 /// A node run by the process host, with its page.
 pub(crate) struct HostNode {
@@ -45,7 +45,7 @@ pub(crate) async fn boot_host(tag: &str, key: &NetworkKey) -> HostNode {
     let dir = scratch_dir(tag);
     let port = free_port();
     let overrides = CliOverrides {
-        network_key: Some(key.encode()),
+        network_key: Some(key_text(key)),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(port),
@@ -66,7 +66,11 @@ pub(crate) async fn boot_host(tag: &str, key: &NetworkKey) -> HostNode {
         initial_domains: Vec::new(),
         blocked_domains: Vec::new(),
     };
-    let mut cfg = relaunch.node_config(&run.effective_settings, key.clone());
+    let mut cfg = relaunch.node_config(
+        &run.effective_settings,
+        meshtown_core::members::network_key::parse_user_input(&key_text(key))
+            .expect("a managed key"),
+    );
     cfg.geoip = false;
     cfg.identity = meshtown_core::node::IdentityState::from_report(&run.file_report);
     let ctl = NodeCtl::new(&run.effective_settings);

@@ -13,7 +13,9 @@ use std::time::Duration;
 use meshtown_core::members::network_key::NetworkKey;
 use serde_json::{json, Value};
 
-use common::{api, boot, boot_without_key, teardown, wait_ready, wait_until, Booted};
+use common::{
+    api, boot_consulting_list, boot_without_key, teardown, wait_ready, wait_until, Booted,
+};
 
 /// (1) A node without a key: right after coming up `node.status == "offline"`, `network == null` —
 /// the value is read directly from `phase` in `snapshot()`, without waiting.
@@ -53,7 +55,7 @@ async fn join_leaves_offline_state_without_key() {
         &booted.token,
         "POST",
         "/api/network/join",
-        Some(json!({"key": key.encode()})),
+        Some(json!({"key": common::key_text(&key)})),
     );
     assert_eq!(status, 202, "join must return 202");
     assert_eq!(body["restart"], json!(true));
@@ -72,7 +74,7 @@ async fn join_leaves_offline_state_without_key() {
 /// joins with it through `POST /api/network/join` → appears among B's `peers` with `online: true`
 /// and with the exit flag announced by A (a foreign row gets the same `exit` as A's own row
 /// from A's `/api/state`), while B's own file gets A's key without a label
-/// (`key_with_label(None, &key) == key.encode()`). A's address in the invite that B receives is
+/// (the raw Managed form of the base and the root). A's address in the invite that B receives is
 /// a loopback one (`loopback_invite`): host addresses are unreachable when the default route fails.
 /// Fetches A's invite (`GET /api/network/invite`) and its own row from `peers`.
 /// Returns (invite, A's short id, A's exit flag).
@@ -187,7 +189,7 @@ fn assert_peer_a_seen_by_b_and_key_saved(
     let v: Value = serde_json::from_slice(&raw).expect("B's config file must be JSON");
     assert_eq!(
         v["config"]["network"]["key"],
-        json!(key.encode()),
+        json!(common::key_text(key)),
         "the key in B's file must have no label"
     );
 }
@@ -195,7 +197,7 @@ fn assert_peer_a_seen_by_b_and_key_saved(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invite_join_shows_peer_and_saves_mesh1_key() {
     let key = NetworkKey::generate().unwrap();
-    let a = boot("invite-a", &key).await;
+    let a = boot_consulting_list("invite-a", &key).await;
     wait_ready(&a).await;
 
     let (invite, short_a, exit_a) = create_invite_and_self_info(&a);
@@ -274,7 +276,7 @@ struct SpentString {
 
 async fn setup_spent_string() -> SpentString {
     let key = NetworkKey::generate().unwrap();
-    let a = boot("spent-a", &key).await;
+    let a = boot_consulting_list("spent-a", &key).await;
     wait_ready(&a).await;
     let (invite, short_a, exit_a) = create_invite_and_self_info(&a);
     let b = boot_without_key("spent-b").await;

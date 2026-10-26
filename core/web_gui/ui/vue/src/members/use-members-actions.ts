@@ -17,9 +17,9 @@ import type { DialogKind, DialogSpec } from "./dialog-specs.ts";
 import { FAILED, INFO, errorCode, failureText } from "./action-status.ts";
 import { leaveNet, postMemberAction } from "./members-api.ts";
 import { useManagedActions } from "./use-managed-actions.ts";
-import { admittedStatus, blockedStatus, confirmedStatus, leftNetworkStatus, banProposedStatus, bannedStatus, forgetProposedStatus, forgottenStatus, unforgottenStatus, unadmittedStatus, withdrawnStatus } from "./members-texts.ts";
-import type { MemberAction, MembersReply } from "./members-types.ts";
-import { banAtRisk, displayNames, leaveKind, managedFacts, meId, memberById, onlyOtherMember } from "./members-view.ts";
+import { admittedStatus, blockedStatus, bannedStatus, leftNetworkStatus } from "./members-texts.ts";
+import type { MemberAction } from "./members-types.ts";
+import { displayNames, leaveKind, managedFacts, meId, memberById } from "./members-view.ts";
 
 /** What `ConfirmDialog` exposes outward through `defineExpose`. */
 interface DialogHandle {
@@ -41,7 +41,7 @@ interface MembersActions {
   pick: (key: string, idFull: string) => Promise<void>;
 }
 
-const ACTION_OF: Partial<Record<DialogKind, MemberAction>> = { ban: "exclude", "ban-two": "exclude", "ban-confirm": "exclude", "ban-managed": "exclude", admit: "admit", block: "block", leave: "leave", forget: "forget", "forget-two": "forget", "forget-confirm": "forget" };
+const ACTION_OF: Partial<Record<DialogKind, MemberAction>> = { "ban-managed": "exclude", admit: "admit", block: "block", leave: "leave" };
 
 export function useMembersActions(store: Store, slot: () => string = () => store.lead, deps: MembersActionsDeps = {}): MembersActions {
   const status = ref<ExitSaveStatus>({ text: "", cls: "" });
@@ -55,13 +55,10 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   // `from` is the network the dialog names: the action must go to the same one after the window closes.
   function context(kind: DialogKind, idFull: string, from: string) {
     const row = memberById(membersOf(store, from), idFull);
-    const by = row && row.vote ? nameOf(row.vote.proposed_by, from) : undefined;
     const label = row && row.admission ? row.admission.label : null;
     const members = membersOf(store, from);
     const exitHere = kind === "delete-net" ? exitInNet(from, true) : null;
-    const other = onlyOtherMember(members, meId(stateOf(store, from)), idFull);
-    const risk = banAtRisk(members, idFull);
-    return { name: nameOf(idFull, from), by, seen: row ? row.last_seen_sec : null, other: other ? nameOf(other, from) : undefined, banAtRisk: risk, label, reason: row && row.vote ? row.vote.reason : null, net: net(from), isMyExit: exitHere ? true : chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitHere || exitInNet(from), members: members?.counts.members };
+    return { name: nameOf(idFull, from), label, net: net(from), isMyExit: exitHere ? true : chosenExitIds(store).includes(idFull), multi: multi(), exitName: exitHere || exitInNet(from), members: members?.counts.members };
   }
 
   // My exit, when it is a member of this network.
@@ -78,18 +75,14 @@ export function useMembersActions(store: Store, slot: () => string = () => store
   const managed = useManagedActions({ store, call, status, wake, nameOf, net });
 
   // The line under the list after an accepted action, by action.
-  function doneText(action: MemberAction, idFull: string, reply: MembersReply, from: string): string {
+  function doneText(action: MemberAction, idFull: string, from: string): string {
     const name = nameOf(idFull, from);
-    const row = memberById(reply, idFull);
     const done: Record<MemberAction, () => string> = {
       unblock: () => "",
-      unexclude: () => withdrawnStatus(name, row?.blocked_by_me === true),
+      unexclude: () => "",
       block: () => blockedStatus(name),
-      unadmit: () => unadmittedStatus(name),
-      admit: () => (row?.status === "member" ? admittedStatus(name) : confirmedStatus(name)),
-      exclude: () => (row?.status === "excluded" ? bannedStatus(name) : banProposedStatus(name)),
-      forget: () => (row?.status === "forgotten" ? forgottenStatus(name) : forgetProposedStatus(name)),
-      unforget: () => unforgottenStatus(name),
+      admit: () => admittedStatus(name),
+      exclude: () => bannedStatus(name),
       leave: () => "",
     };
     return done[action]();
@@ -114,7 +107,7 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     const { reply } = await postMemberAction(call, action, idFull, reason, from);
     putSlotMembers(store, from, reply);
     if (from === store.lead) store.members = reply;
-    status.value = INFO(doneText(action, idFull, reply, from));
+    status.value = INFO(doneText(action, idFull, from));
     wake();
   }
 
@@ -146,33 +139,16 @@ export function useMembersActions(store: Store, slot: () => string = () => store
     else if (kind === "last-admin" && dialog.value?.alt?.()) await ask("delete-net", idFull);
   }
 
-  // The dialog for removing an offline node: the second vote confirms, a two-member network removes at once.
-  function forgetKind(idFull: string): DialogKind {
-    const members = membersOf(store, slot());
-    if (memberById(members, idFull)?.forget) return "forget-confirm";
-    return members?.need === 1 ? "forget-two" : "forget";
-  }
-
-  function excludeKind(): DialogKind {
-    if (facts().managed) return "ban-managed";
-    return membersOf(store, slot())?.need === 1 ? "ban-two" : "ban";
-  }
-
   const pickers: Record<string, (idFull: string) => Promise<void>> = {
     block: (id) => ask("block", id),
-    confirm: (id) => ask("ban-confirm", id),
     admit: (id) => ask("admit", id),
-    unadmit: (id) => run("unadmit", id),
-    forget: (id) => ask(forgetKind(id), id),
-    unforget: (id) => run("unforget", id),
-    exclude: (id) => ask(excludeKind(), id),
+    exclude: (id) => ask("ban-managed", id),
     leave: () => ask(leaveKind(facts()), meId(stateOf(store, slot()))),
     "make-admin": (id) => ask("make-admin", id),
     "make-member": (id) => managed.setAdmin(id, false, slot()),
     "give-up": (id) => ask("give-up", id),
     "delete-network": (id) => ask("delete-net", id),
     unblock: (id) => run("unblock", id),
-    withdraw: (id) => run("unexclude", id),
     rename: async () => navigateTo("#home"),
   };
 

@@ -17,13 +17,18 @@ use meshtown_core::invite::redeem::RedeemError;
 use meshtown_core::invite::store::{IssueVerdict, Ledger};
 use meshtown_core::invite::{self, ParsedInvite, Source};
 use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::node::{self, RunningNode};
 use meshtown_core::transport::net::PeerAddr;
 use meshtown_core::transport::net_mainline::unix_now;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
-use common::{loopback_addr, quick_opts, redeem_via, wait_until, ENTRY_LIMIT_SECS};
+#[path = "common/managed_net.rs"]
+mod managed;
+#[path = "common/invite_mesh.rs"]
+mod mesh;
+use common::{loopback_addr, quick_opts, redeem_via, wait_until, ENTRY_LIMIT_SECS, OWNER_SEED};
+use managed::{start_joined, wait_can_invite, ManagedNet};
 
 const LABEL: &str = "island";
 
@@ -73,7 +78,7 @@ mod string_made_by_the_issuer {
             // when
             let parsed = issuer.when_invite_is_issued().await;
             // then
-            assert_eq!(parsed.head.network_id, issuer.key.subkeys().network_id);
+            assert_eq!(parsed.head.network_id, issuer.net.key.subkeys().network_id);
             assert_eq!(parsed.head.label.as_deref(), Some(LABEL));
             assert_eq!(
                 parsed.peers[0].id, issuer.a.id,
@@ -99,7 +104,7 @@ mod string_made_by_the_issuer {
             let bytes = BASE32_NOPAD_NOCASE
                 .decode(body.as_bytes())
                 .expect("the string body is base32");
-            let key = issuer.key.to_bytes();
+            let key = issuer.net.base.to_bytes();
             assert!(
                 !bytes.windows(32).any(|w| w == key.as_slice()),
                 "the invite string must not contain the network key bytes"
@@ -120,7 +125,7 @@ mod newcomer_with_the_string {
         let got = issuer.when_newcomer_redeems(&parsed).await;
         // then
         let got = got.expect("a string with a fresh secret must yield the network key");
-        assert_eq!(got.encode(), issuer.key.encode());
+        assert_eq!(got.to_bytes(), issuer.net.base.to_bytes());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -165,20 +170,19 @@ mod newcomer_with_the_string {
 // setup and helpers
 // ============================================================================================
 
-/// The admitter node A: a network key, the network label `LABEL`, a `mem` network without DHT.
+/// The admitter node A, the creator of a Managed network: the label `LABEL`, a `mem` network without DHT.
 struct Issuer {
-    key: NetworkKey,
+    net: ManagedNet,
     a: RunningNode,
 }
 
 async fn setup() -> Issuer {
-    let key = NetworkKey::generate().unwrap();
-    let cfg = NodeConfig {
-        network_label: Some(LABEL.to_string()),
-        ..NodeConfig::for_loopback_test(key.clone())
-    };
+    let net = ManagedNet::new();
+    let mut cfg = net.root_config(net.base.clone());
+    cfg.network_label = Some(LABEL.to_string());
     let a = node::start_node(cfg).await.unwrap();
-    Issuer { key, a }
+    wait_can_invite(&a).await;
+    Issuer { net, a }
 }
 
 impl Issuer {
@@ -188,7 +192,7 @@ impl Issuer {
             stack: self.a.stack.clone(),
             members: self.a.members.clone(),
             key: self.a.network_key.clone(),
-            kind: self.a.net_kind,
+            root: self.a.net_root,
             reply_secret: self.a.reply_secret.clone(),
             label: self.a.network_label.clone(),
             domains: self.a.domains.clone(),
@@ -241,8 +245,7 @@ impl Issuer {
             .when_newcomer_redeems(parsed)
             .await
             .expect("a string with a fresh secret must yield a key");
-        let mut cfg = NodeConfig::for_loopback_test(key);
-        cfg.initial_peers = vec![self.entry_addr(parsed)];
-        node::start_node(cfg).await.unwrap()
+        let peers = vec![self.entry_addr(parsed)];
+        start_joined(&parsed.head, &key, OWNER_SEED, peers).await
     }
 }

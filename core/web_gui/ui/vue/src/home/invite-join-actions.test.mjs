@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import { ApiError } from "../core/api.ts";
 import { createJoinForm } from "./join-actions.ts";
 import { sendInvite, placeNote, isInvite } from "./invite-join-actions.ts";
-import { NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET, ADD_NET_LIMIT_HERE } from "./invite-join-texts.ts";
+import { NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET, ADD_NET_LIMIT_HERE } from "./invite-join-texts.ts";
 
 const INVITE = "mesh-invite2-abc";
-const WORD_KEY = "mesh1-abc";
+const WORD_KEY = "mesh2-abc";
 const JOIN = "/api/network/join";
 
 // `table` — "METHOD path" → reply, or a function (it may throw an ApiError).
@@ -128,7 +128,7 @@ describe("sendInvite > guards", () => {
 
   it("isInvite looks at the trimmed start", () => {
     assert.equal(isInvite("  mesh-invite2-x"), true);
-    assert.equal(isInvite("mesh1-x"), false);
+    assert.equal(isInvite("mesh2-x"), false);
   });
 });
 
@@ -137,7 +137,7 @@ describe("placeNote", () => {
     { id: "neta22", label: "family", id_hex: "aa", me_excluded: true },
     { id: "netb33", label: "work", id_hex: "bb", me_excluded: false },
   ];
-  const reply = (over) => ({ label: "family", kind: "Peer", id_hex: "aa", ...over });
+  const reply = (over) => ({ label: "family", id_hex: "aa", ...over });
 
   it("here — the name of the slot", () => {
     assert.equal(placeNote(reply({ place: "here", slot: "netb33" }), nets), NOTE_HERE("work"));
@@ -145,9 +145,8 @@ describe("placeNote", () => {
   it("return of a removed computer", () => {
     assert.equal(placeNote(reply({ place: "return", slot: "netb33" }), nets), NOTE_REMOVED("work"));
   });
-  it("return of an excluded computer: Managed and Peer", () => {
-    assert.equal(placeNote(reply({ place: "return", slot: "neta22", kind: "Managed" }), nets), NOTE_EXCLUDED_MANAGED("family"));
-    assert.equal(placeNote(reply({ place: "return", slot: "neta22" }), nets), NOTE_BANNED_PEER("family"));
+  it("return of an excluded computer", () => {
+    assert.equal(placeNote(reply({ place: "return", slot: "neta22" }), nets), NOTE_EXCLUDED_MANAGED("family"));
   });
   it("new, no place, a key — nothing; new at the limit — the limit note", () => {
     assert.equal(placeNote(reply({ place: "new" }), nets), "");

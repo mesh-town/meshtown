@@ -42,9 +42,9 @@ Paths are from the repository root; a path ending in `/` is a directory.
 | `core/transport/net_mainline/record.rs` | format and encryption of the record (member list); no networking |
 | `core/transport/transfer_probe.rs` | volume probe over an established connection |
 | `core/transport/peers_cache.rs` | cache of last seen peer addresses |
-| `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), machine form mesh1-…, derived subkeys |
-| `core/members/network_key/managed.rs` | the kind of a network (`NetKind`), the Managed key that carries the creator's node id, its text forms |
-| `core/members/access/authority.rs` | counting rules of a network (`Rules::Peer`, `Rules::Managed`) and the standing of a node |
+| `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), derived subkeys; recognizes a key of an older format and refuses it |
+| `core/members/network_key/managed.rs` | the key that carries the creator's node id, its text forms |
+| `core/members/access/authority.rs` | the standing of a node |
 | `core/members/access/managed/` | the tally of an administered network: roles, exclusions, closing of the network |
 | `core/members/access/abilities.rs` | what this node may do in its network (flags for the page and the tray) |
 | `core/members/words.rs`, `core/members/wordlist/` | EFF word list, word pool, the random part of the key and its validation |
@@ -180,28 +180,21 @@ Argon2id is not used at all: the program sets the entropy, not a human, it is kn
 exactly and equals 130.8 bits — there is nothing to brute-force, and a slow key derivation function is not
 needed here. Pinned by the known-answer test `key_from_tail_known_answer`.
 
-The machine form `mesh1-…` (32 random bytes in base32) remains the second valid input
-and is printed by the command `meshtown keygen --raw`.
+The machine form `mesh2-…` is the second valid input and is printed by `meshtown keygen --raw`. A key of the older
+format (`mesh1-…`, or three words with a group) is not accepted: the parser recognizes it and answers that the key comes
+from an older version and that an administrator has to send a new invite. An invite of the older format is refused the
+same way.
 
-## Network types: Peer and Managed
+## Network administration
 
-A network has a type that is part of its key and does not change. `NetKind::Peer` is the default: the key alone lets a
-node in and every admitted node votes. `NetKind::Managed { root }` is derived from a random base and the node id of the
-creator (`root`), so another creator gives another network. A Managed key has its own text forms (`label--word-word-group-<root>`
-for people, `label--mesh2-…` for the machine form); neither is understood by the Peer parser, so an older program refuses
-such a key instead of joining as a Peer. An invite of a Managed network is a version 4 invite: it carries the kind
-and the root next to the label and the addresses (`core/invite/parse.rs`), and an older program does not accept it.
-Only one place asks the kind: `NetKind::root()`.
+Every network is administered. Its key is derived from a random base and the node id of the creator (`root`), so another
+creator gives another network. The human form is `label--word-word-group-<root>`, the machine form `mesh2-…`. An invite is a
+version 4 invite: it carries the root next to the label and the addresses (`core/invite/parse.rs`).
 
-Who decides is the job of `Rules` (`core/members/access/authority.rs`):
-
-| | `Rules::Peer` | `Rules::Managed { root }` |
-|---|---|---|
-| where the admitted closure starts | this node | the root |
-| votes to remove a node (`need`) | 1 while at most two nodes are active, else 2 | always 1 |
-| whose admission records count | those of the admission origins that count elsewhere, and this node's own | any, except a witness's |
-| roles | none | administrators; the root is one for good |
-| `forget` of an offline node by votes | available | refused (`peer_only`) |
+The creator is the root and the only administrator at first; the page advises making a second member an administrator, so
+that the network can still be managed if the creator's computer is lost. The admitted closure starts at the root, any
+administrator's admission record counts (except a witness's), and one administrator decides on removing a node. The root
+stays an administrator for good.
 
 The roles live in the signed record of the network as records of power (`Grant`, `Revoke`, `Close`) next to the
 admissions. The tally (`core/members/access/managed/`) replays them in order: a record counts when its author is an
@@ -213,9 +206,8 @@ off, and the actions check the same rules again (`access::actions`), so a stale 
 
 ## Protocols
 
-- **Network key** (`core/members/network_key.rs`): the human form is `label--word-word-group` (the label does not
-  affect the key), the machine form is `mesh1-` + 52 lowercase base32 characters (32 bytes
-  of secret); all other keys are subkeys via `blake3::derive_key` with different contexts.
+- **Network key** (`core/members/network_key.rs`): the human form is `label--word-word-group-<root>` (the label does not
+  affect the key), the machine form is `mesh2-…`, both with the creator's node id; all other keys are subkeys via `blake3::derive_key` with different contexts.
 - **DHT record** (format in `core/transport/net_mainline/record.rs`, publishing and reading in
   `core/transport/net_hyperdht/`): a mutable record whose signing key and salt come from subkeys; the value is
   `nonce(12) ‖ ChaCha20-Poly1305(postcard(Roster))`, ≤ 990 bytes. The roster holds node keys (up to 16 entries); an

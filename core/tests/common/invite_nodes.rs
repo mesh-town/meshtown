@@ -8,7 +8,9 @@ use std::time::Duration;
 use meshtown_core::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
 use meshtown_core::invite::store::{issue_record, IssueVerdict, Ledger};
 use meshtown_core::invite::{InviteHead, InviteSecret};
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::access::actions::{apply, MemberAction};
+use meshtown_core::members::access::record::{ensure, AclKind, AclValue, Via};
+use meshtown_core::members::network_key::{managed_key, NetworkKey};
 use meshtown_core::node::{self, NodeConfig, RunningNode};
 use meshtown_core::transport::net::mem::process_net;
 use meshtown_core::transport::net::{NodeSecret, PeerAddr, PeerId};
@@ -20,6 +22,8 @@ pub(crate) const ENTRY_LIMIT_SECS: u64 = 20;
 pub(crate) const HOUR: u64 = 3600;
 /// The seed of the joining node's permanent key in `redeem_via`.
 pub(crate) const OWNER_SEED: u8 = 5;
+/// The seed of the creator's permanent key: the loopback root.
+const ROOT_SEED: u8 = 31;
 
 /// Node A of the network and everything the tests need about it.
 pub(crate) struct Rig {
@@ -74,26 +78,104 @@ impl Rig {
     }
 }
 
-pub(crate) async fn start(key: &NetworkKey) -> RunningNode {
-    node::start_node(NodeConfig::for_loopback_test(key.clone()))
-        .await
-        .unwrap()
+/// The config of a node of the Managed network whose base is `base` and whose creator is the loopback root: the
+/// list is consulted, the permanent key is that of `seed`.
+pub(crate) fn member_config(base: &NetworkKey, seed: u8) -> NodeConfig {
+    let key = managed_key(&base.to_bytes(), &loopback_root());
+    let mut cfg = NodeConfig::for_loopback_test(key);
+    cfg.open_list = false;
+    cfg.net_root = loopback_root();
+    cfg.reply_secret = base.clone();
+    cfg.identity_secret = Some(NodeSecret::from_bytes(&[seed; 32]));
+    cfg
 }
 
+/// The creator of the Managed network whose base is `base`; returns once it may issue invites.
+pub(crate) async fn start(base: &NetworkKey) -> RunningNode {
+    let node = node::start_node(member_config(base, ROOT_SEED))
+        .await
+        .unwrap();
+    let ready = || meshtown_core::invite::make(&source_of(&node), None).is_ok();
+    assert!(
+        wait_until(Duration::from_secs(10), ready).await,
+        "the creator did not become able to invite within 10 s"
+    );
+    node
+}
+
+/// A second admin next to `root`: the creator admits the member of `seed`, introduces itself and makes it an admin.
+pub(crate) async fn start_second_admin(
+    root: &RunningNode,
+    base: &NetworkKey,
+    seed: u8,
+) -> RunningNode {
+    let id = NodeSecret::from_bytes(&[seed; 32]).peer_id();
+    let value = AclValue {
+        kind: AclKind::Admit,
+        subject: id,
+        via: Via::None,
+        made_unix: unix_now(),
+        note: String::new(),
+    };
+    ensure(root.domains.shared_replica().as_ref(), &value)
+        .await
+        .unwrap();
+    root.access.refresh().await.unwrap();
+    let b = node::start_node(member_config(base, seed)).await.unwrap();
+    root.introduce(addr_of(&b)).await;
+    wait_members(root, &b).await;
+    let granted = apply(&root.access, MemberAction::Grant(b.id)).await;
+    assert_eq!(
+        granted,
+        Ok(true),
+        "the creator must make the member an admin"
+    );
+    let ready = || meshtown_core::invite::make(&source_of(&b), None).is_ok();
+    assert!(
+        wait_until(Duration::from_secs(10), ready).await,
+        "the second admin did not become able to invite within 10 s"
+    );
+    b
+}
+
+/// What `RunningNode::invite_source` (it is `pub(crate)`) assembles from the node's public fields.
+fn source_of(node: &RunningNode) -> meshtown_core::invite::Source {
+    meshtown_core::invite::Source {
+        stack: node.stack.clone(),
+        members: node.members.clone(),
+        key: node.network_key.clone(),
+        root: node.net_root,
+        reply_secret: node.reply_secret.clone(),
+        label: node.network_label.clone(),
+        domains: node.domains.clone(),
+    }
+}
+
+/// The creator of every loopback test network: the fixed root of `NodeConfig::for_loopback_test`.
+pub(crate) fn loopback_root() -> PeerId {
+    NodeSecret::from_bytes(&[31; 32]).peer_id()
+}
+
+/// A head of the network whose base is `key` and whose creator is the loopback root.
 pub(crate) fn fresh_head(key: &NetworkKey, made_unix: u64) -> InviteHead {
+    let root = loopback_root();
     InviteHead {
         secret: InviteSecret::generate().unwrap(),
-        network_id: key.subkeys().network_id,
+        network_id: managed_key(&key.to_bytes(), &root).subkeys().network_id,
         label: None,
         made_unix,
-        kind: meshtown_core::members::network_key::NetKind::Peer,
+        root,
     }
 }
 
 pub(crate) async fn record_issue(node: &RunningNode, head: &InviteHead, made_unix: u64) {
     let ledger = Ledger::of(&node.domains);
     ledger
-        .issue(&head.secret.hash_hex(), &issue_record(made_unix, None))
+        .issue_as(
+            &head.secret.hash_hex(),
+            &issue_record(made_unix, None),
+            Some(node.id),
+        )
         .await
         .unwrap();
 }

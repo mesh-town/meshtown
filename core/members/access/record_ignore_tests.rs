@@ -2,6 +2,7 @@
 
 use super::support_tests::*;
 use super::*;
+use crate::transport::net::contract::pid;
 
 #[test]
 fn ignores_unknown_version() {
@@ -23,9 +24,9 @@ fn ignores_unknown_version() {
 
 #[test]
 fn ignores_unknown_kind() {
-    // given: kinds outside 1..=5 and a via outside 0..=3 in otherwise good bodies
+    // given: kinds outside the known set (5 is retired) and a via outside 0..=3 in otherwise good bodies
     // when / then: the kind and the via are told apart
-    for kind in [0, 9, 255] {
+    for kind in [0, 5, 9, 255] {
         let bytes = raw(Raw {
             kind,
             ..Raw::default()
@@ -98,4 +99,24 @@ fn ignores_subject_off_curve() {
     });
     // when / then: the subject is rejected as such, not as a generic postcard error
     assert_eq!(decode(&bytes), Err(Ignored::BadSubject));
+}
+
+#[test]
+fn a_kind_5_record_is_ignored_as_unknown() {
+    // given: an old record by hand, without `encode`: the key `acl/forget/<hex>` and a version 1 body of
+    // kind 5 about a live node
+    let subject = pid(2);
+    let mut key = b"acl/forget/".to_vec();
+    key.extend(subject.to_string().as_bytes());
+    let body = raw(Raw {
+        kind: 5,
+        subject: *subject.as_bytes(),
+        ..Raw::default()
+    });
+    // when
+    let parsed = parse_entry(&entry(pid(3), key, body.clone(), 10));
+    // then: nothing counts it: the kind is unknown, and so is the entry
+    assert_eq!(AclKind::from_u8(5), None);
+    assert_eq!(decode(&body), Err(Ignored::UnknownKind));
+    assert!(matches!(parsed, Parsed::Ignored(_)), "{parsed:?}");
 }

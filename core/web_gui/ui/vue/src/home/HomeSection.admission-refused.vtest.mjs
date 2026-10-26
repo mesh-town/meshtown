@@ -21,7 +21,7 @@ describe("the plate on Home", () => {
     await vi.advanceTimersByTimeAsync(ADMISSION_REFUSED_DELAY_MS);
     const plate = page.wrapper.get("#home-root #admission-refused");
     expect(plate.text()).toContain("peer-one refuses to let it in");
-    expect(plate.text()).toContain("Ask peer-one to let this computer in.");
+    expect(plate.text()).toContain("to let this computer in.");
   });
 
   it("the flag is off and the list shows a refusal: no plate", async () => {

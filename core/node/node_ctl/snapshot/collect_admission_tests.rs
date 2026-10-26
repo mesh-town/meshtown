@@ -89,18 +89,10 @@ fn list_of_one(me: PeerId) -> Verdicts {
         ledger: Arc::new(Ledger {
             admitted: BTreeSet::from([me]),
             excluded: BTreeMap::new(),
-            pending: BTreeMap::new(),
-            need: 1,
             admissions: BTreeMap::new(),
-            forgets: Default::default(),
-            admit_unix: Default::default(),
-            forget_marks: Default::default(),
-            forget_need: 1,
             admins: Default::default(),
             closed: None,
         }),
-        my_votes: BTreeSet::new(),
         blocks: BTreeSet::new(),
-        reasons: BTreeMap::new(),
     }
 }

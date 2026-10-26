@@ -47,7 +47,7 @@ afterEach(() => {
 describe("JoinCard > the one invite form", () => {
   it("`main` was removed: the note says the invite brings the computer back, the join enters `main`", async () => {
     route({
-      "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "main-hex", place: "return", slot: "main" },
+      "/api/network/inspect": { label: "family", id_hex: "main-hex", place: "return", slot: "main" },
       "/api/network/join": { label: "family", restart: true, slot: "main" },
     });
     mounted = mountSection(JoinCard, { state: baseState() });
@@ -61,7 +61,7 @@ describe("JoinCard > the one invite form", () => {
 
   it("`main` is excluded, the invite is for another network: the page goes to the new tab with a banner and promises no restart", async () => {
     route({
-      "/api/network/inspect": { label: "other", kind: "Peer", id_hex: "bb" },
+      "/api/network/inspect": { label: "other", id_hex: "bb" },
       "/api/network/join": { label: "other", restart: true, slot: "neta22" },
     });
     mounted = mountSection(JoinCard, { state: baseState() });
@@ -77,7 +77,7 @@ describe("JoinCard > the one invite form", () => {
 
   it("an invite to another network from Home leads to its tab when it arrives", async () => {
     route({
-      "/api/network/inspect": { label: "other", kind: "Peer", id_hex: "bb" },
+      "/api/network/inspect": { label: "other", id_hex: "bb" },
       "/api/network/join": { label: null, restart: false, waiting: true, slot: "neta22" },
     });
     mounted = mountSection(JoinCard, { state: baseState() });
@@ -91,7 +91,7 @@ describe("JoinCard > the one invite form", () => {
 
   it("at the limit the note goes away when the error appears", async () => {
     api.mockImplementation(async (method, path) => {
-      if (path === "/api/network/inspect") return { label: "other", kind: "Peer", id_hex: "bb", place: "new" };
+      if (path === "/api/network/inspect") return { label: "other", id_hex: "bb", place: "new" };
       throw new ApiError(409, "too_many_nets", "x", { limit: 8 });
     });
     mounted = mountSection(JoinCard, { state: baseState() });
@@ -106,7 +106,7 @@ describe("JoinCard > the one invite form", () => {
 
   it("the setup: a Managed invite shows the join progress", async () => {
     route({
-      "/api/network/inspect": { label: "firm", kind: "Managed", id_hex: "cc" },
+      "/api/network/inspect": { label: "firm", id_hex: "cc" },
       "/api/network/join": { label: "firm", restart: true, slot: "main" },
     });
     mounted = mountSection(SetupWizard, { state: baseState({ network: null, peers: [] }) });
@@ -117,11 +117,11 @@ describe("JoinCard > the one invite form", () => {
   });
 
   it("a word key in the field of a node with a network: the hint says it replaces the network; an invite has no hint", async () => {
-    route({ "/api/network/inspect": { label: "family", kind: "Peer", id_hex: "aa" } });
+    route({ "/api/network/inspect": { label: "family", id_hex: "aa" } });
     mounted = mountSection(JoinCard, { state: baseState() });
     mounted.store.nets = [brief("main", "family")];
     expect(mounted.wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();
-    await mounted.wrapper.get("#join-key-input").setValue("mesh1-abc");
+    await mounted.wrapper.get("#join-key-input").setValue("mesh2-abc");
     expect(mounted.wrapper.get("#net-restart-hint").text()).toContain("replaces");
     await mounted.wrapper.get("#join-key-input").setValue(INVITE);
     expect(mounted.wrapper.get("#net-restart-hint").attributes("hidden")).toBeDefined();

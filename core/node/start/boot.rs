@@ -8,7 +8,7 @@ use crate::transport::net::{NodeSecret, PeerId, Transport};
 use anyhow::Result;
 use data_encoding::HEXLOWER;
 
-use crate::members::network_key::{NetKind, NetworkKey, SubKeys};
+use crate::members::network_key::{NetworkKey, SubKeys};
 use crate::members::words::trim_and_validate_node_name;
 use crate::node::node_name::effective_node_name;
 use crate::node::output::{say, short_peer_id};
@@ -34,7 +34,7 @@ pub(super) struct Boot {
     pub(super) name: String,
     pub(super) identity: IdentityState,
     pub(super) network_key: NetworkKey,
-    pub(super) net_kind: NetKind,
+    pub(super) net_root: PeerId,
     pub(super) reply_secret: NetworkKey,
     pub(super) network_label: Option<String>,
     pub(super) telemetry: Arc<Telemetry>,
@@ -61,7 +61,7 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
         name,
         identity,
         network_key: cfg.network_key.clone(),
-        net_kind: cfg.net_kind,
+        net_root: cfg.net_root,
         reply_secret: cfg.reply_secret.clone(),
         network_label: cfg.network_label.clone(),
         telemetry,

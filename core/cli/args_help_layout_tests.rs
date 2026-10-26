@@ -20,7 +20,7 @@ const LINE_LIMIT: usize = 160;
 // The texts are fixed. `clap` drops the trailing period of a one-paragraph description, so
 // the help lines are compared without it (`ends_with_text`).
 const INVITE: &str = "Invite to a network: a single-use string mesh-invite2-… from a running member (can be set with the MESHTOWN_INVITE variable).";
-const KEY: &str = "Network key: \"label--word-word-group\" or mesh1-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).";
+const KEY: &str = "Network key: a words key or mesh2-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).";
 const RUN_CONFIG: &str = "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable (default: next to the program or in the standard location).";
 const CONFIG_PATH_CONFIG: &str =
     "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.";

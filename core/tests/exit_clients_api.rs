@@ -24,14 +24,16 @@ use std::time::Duration;
 
 use meshtown_core::exit::{self, PeerConnPool};
 use meshtown_core::invite;
+use meshtown_core::invite::redeem::{redeem, RedeemOpts};
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
-use meshtown_core::transport::net::PeerId;
+use meshtown_core::transport::net::mem::process_net;
 use meshtown_core::transport::net::{BoxRecv, BoxSend};
+use meshtown_core::transport::net::{NodeSecret, PeerId};
 use serde_json::{json, Value};
 use tokio::net::TcpListener;
 
-use common::{api, boot_with_exit_hosts, teardown, wait_ready, wait_until, Booted};
+use common::{api, boot_consulting_with_exit_hosts, teardown, wait_ready, wait_until, Booted};
 
 const MEMBER_WITHIN: Duration = Duration::from_secs(20);
 const LISTED_WITHIN: Duration = Duration::from_secs(10);
@@ -46,9 +48,9 @@ async fn state_lists_exit_client_after_ok_stream() {
     let key = NetworkKey::generate().unwrap();
     let site = silent_site().await;
     let hosts = HashMap::from([(SITE_NAME.to_string(), site)]);
-    let b = boot_with_exit_hosts("exit-clients-b", &key, hosts).await;
+    let b = boot_consulting_with_exit_hosts("exit-clients-b", &key, hosts).await;
     wait_ready(&b).await;
-    let (a, id_b) = join_client(&b, &key).await;
+    let (a, id_b) = join_client(&b).await;
     let id_a = a.id.to_string();
     wait_b_sees_member(&b, &id_a).await;
     then_exit_on_without_clients(&b);
@@ -107,9 +109,9 @@ fn exit_of(node: &Booted) -> Value {
     state["exit"].clone()
 }
 
-/// Starts A with the network key and joins it to the network by B's invite; waits until A recognizes B
+/// Starts A and joins it to the network by B's invite; waits until A recognizes B
 /// as a member. Returns A and B's id.
-async fn join_client(b: &Booted, key: &NetworkKey) -> (RunningNode, PeerId) {
+async fn join_client(b: &Booted) -> (RunningNode, PeerId) {
     let (status, body) = api(b.port, &b.token, "GET", "/api/network/invite", None);
     assert_eq!(status, 200, "B's invite must be assembled");
     let text = body["invite"].as_str().expect("invite is a string");
@@ -117,7 +119,24 @@ async fn join_client(b: &Booted, key: &NetworkKey) -> (RunningNode, PeerId) {
     let addr_b = parsed.peers[0].clone();
     let id_b = addr_b.id;
 
-    let mut cfg = NodeConfig::for_loopback_test(key.clone());
+    let owner = NodeSecret::from_bytes(&[7; 32]);
+    let transport = node::bind_ephemeral(Some(&process_net())).await.unwrap();
+    let opts = RedeemOpts::for_head(&parsed.head);
+    let answer = redeem(
+        &parsed.head,
+        &parsed.peers,
+        &opts,
+        &|_| {},
+        transport,
+        &owner,
+    )
+    .await
+    .expect("B's invite must be redeemed");
+    let mut cfg = NodeConfig::for_loopback_test(parsed.head.reply_key(&answer));
+    cfg.open_list = false;
+    cfg.net_root = parsed.head.root;
+    cfg.reply_secret = answer;
+    cfg.identity_secret = Some(owner);
     cfg.settings.exit_enabled = false;
     let a = node::start_node(cfg).await.expect("A must start");
     a.introduce(addr_b).await;

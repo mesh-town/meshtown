@@ -61,7 +61,7 @@ mod a_node_that_is_up_without_the_first_snapshot {
     async fn an_action_waits_for_the_first_snapshot() {
         let fx = setup(Given::UpWithoutSnapshot).await;
 
-        let act = fx.when_forget_self().await.unwrap_err();
+        let act = fx.when_block_self().await.unwrap_err();
         let exit = fx.ctl.find_exit("example.com").unwrap_err();
 
         let starting = format!("{NET_NAME} is starting");
@@ -171,9 +171,9 @@ impl Fixture {
         self.ctl.member_action(MemberActionReq::Leave).await
     }
 
-    async fn when_forget_self(&self) -> Result<MembersReply, MemberError> {
+    async fn when_block_self(&self) -> Result<MembersReply, MemberError> {
         let own = self.own_id().to_string();
-        self.ctl.member_action(MemberActionReq::Forget(own)).await
+        self.ctl.member_action(MemberActionReq::Block(own)).await
     }
 
     async fn finish(self) {

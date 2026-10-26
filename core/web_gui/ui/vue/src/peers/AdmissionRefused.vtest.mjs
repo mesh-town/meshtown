@@ -33,7 +33,7 @@ describe("AdmissionRefused", () => {
     const wrapper = mount(AdmissionRefused, { props: { refused: true, members: null, net: "family" } });
     await vi.advanceTimersByTimeAsync(ADMISSION_REFUSED_DELAY_MS);
     expect(wrapper.get("#admission-refused").text()).toContain('Members of "family" refuse to let it in, and no other member is online.');
-    expect(wrapper.get("#admission-refused").text()).toContain("Ask a member");
+    expect(wrapper.get("#admission-refused").text()).toContain("Ask an admin of");
     wrapper.unmount();
   });
 

@@ -24,7 +24,7 @@ use super::wire::{
 };
 use super::INVITE_TTL_SECS;
 use crate::members::access::view::AccessView;
-use crate::members::network_key::{NetKind, NetworkKey};
+use crate::members::network_key::NetworkKey;
 use crate::node::output::{say, short_peer_id};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::{BoxFuture, BoxSend, NetError, PeerConn, PeerId, ServiceHandler};
@@ -47,8 +47,7 @@ pub struct InviteServer {
     pub(super) key: NetworkKey,
     pub(super) list: Arc<OnceLock<DomainList>>,
     pub(super) access: AccessView,
-    /// The kind of the network and the secret a redemption answers with (equal to `key` in a Peer network).
-    pub(super) kind: NetKind,
+    /// The secret a redemption answers with: the base of the network key.
     pub(super) reply_secret: NetworkKey,
     slots: Arc<Semaphore>,
     pub(super) gate: Arc<tokio::sync::Mutex<()>>,
@@ -56,40 +55,32 @@ pub struct InviteServer {
 
 impl InviteServer {
     /// The server for this network's key; `list` is filled after the document is opened; `access` says
-    /// whether this node may let a newcomer's permanent key in.
-    pub fn new(key: NetworkKey, list: Arc<OnceLock<DomainList>>, access: AccessView) -> Self {
+    /// whether this node may let a newcomer's permanent key in; `reply_secret` is what a redemption answers with.
+    pub fn new(
+        key: NetworkKey,
+        list: Arc<OnceLock<DomainList>>,
+        access: AccessView,
+        reply_secret: NetworkKey,
+    ) -> Self {
         InviteServer {
-            reply_secret: key.clone(),
+            reply_secret,
             key,
             list,
             access,
-            kind: NetKind::Peer,
             slots: Arc::new(Semaphore::new(MAX_REDEEMS)),
             gate: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 
-    /// Marks the server as the one of a Managed network (or states the kind again): admin-only rules and the
-    /// secret redemptions answer with.
-    pub fn of_kind(mut self, kind: NetKind, reply_secret: NetworkKey) -> Self {
-        self.kind = kind;
-        self.reply_secret = reply_secret;
-        self
-    }
-
-    /// Whether this node may take part in issuing: always in a Peer network, only an admin in a Managed one.
+    /// Whether this node may take part in issuing: only an admin.
     pub(super) fn may_serve(&self) -> bool {
-        if self.kind.root().is_none() {
-            return true;
-        }
         self.access
             .verdicts()
             .is_some_and(|v| v.ledger.is_admin(&v.me))
     }
 
-    /// The authors whose invite records count: `None` in a Peer network, the admins in a Managed one.
+    /// The authors whose invite records count: the admins; `None` while there are no verdicts yet.
     pub(super) fn record_authors(&self) -> Option<BTreeSet<PeerId>> {
-        self.kind.root()?;
         let verdicts = self.access.verdicts()?;
         Some(verdicts.ledger.admins.clone())
     }
@@ -124,7 +115,7 @@ impl InviteServer {
     }
 
     /// The code for a "save" request: signature and kind, future time, deadline, the list, the sender, one's own
-    /// copy of the entry. In a Managed network a sender that is not an admin is refused with `NotFromAdmin`
+    /// copy of the entry. A sender that is not an admin is refused with `NotFromAdmin`
     /// and nothing is written; otherwise the copy names the sender as the issuer.
     async fn decide_hold(&self, req: &[u8; HOLD_LEN], transport: PeerId) -> RedeemCode {
         let Some(hold) = parse_hold(&self.key, req) else {
@@ -152,11 +143,8 @@ impl InviteServer {
         }
     }
 
-    /// Who the copy names as the issuer: nobody in a Peer network, the sender in a Managed one if it is an admin.
+    /// Who the copy names as the issuer: the sender, if it is an admin.
     fn hold_issuer(&self, transport: PeerId) -> Result<Option<PeerId>, RedeemCode> {
-        if self.kind.root().is_none() {
-            return Ok(None);
-        }
         let admins = self.record_authors();
         match admins.is_some_and(|a| a.contains(&transport)) {
             true => Ok(Some(transport)),
@@ -248,10 +236,9 @@ pub fn invite_service(
     key: NetworkKey,
     list: Arc<OnceLock<DomainList>>,
     access: AccessView,
-    kind: NetKind,
     reply_secret: NetworkKey,
 ) -> Arc<dyn ServiceHandler> {
-    Arc::new(InviteServer::new(key, list, access).of_kind(kind, reply_secret))
+    Arc::new(InviteServer::new(key, list, access, reply_secret))
 }
 
 impl ServiceHandler for InviteServer {

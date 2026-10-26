@@ -23,7 +23,6 @@ mod invites;
 mod managed;
 mod members;
 mod members_act;
-mod members_forget;
 mod members_reply;
 mod node;
 mod overrides;
@@ -70,13 +69,10 @@ pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> Demo
             admission_refused: args.admission_refused,
             dht_joined: args.dht_joined,
             dht_nodes: args.dht_nodes,
-            members_second_vote: args.members_second_vote,
             me_excluded: args.me_excluded,
             members_pending: args.members_pending,
             me_pending: args.me_pending,
-            members_forget: args.members_forget,
-            me_removed: args.me_removed,
-            managed: args.managed_mode(),
+            managed: args.demo_role(),
         },
         run.effective_settings.clone(),
     )

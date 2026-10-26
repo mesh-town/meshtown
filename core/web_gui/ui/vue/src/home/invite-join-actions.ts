@@ -8,7 +8,7 @@ import { joinOnNewSlot } from "./add-net-actions.ts";
 import type { AddNetResult } from "./add-net-actions.ts";
 import { ask, beginJoin, postJoin } from "./join-actions.ts";
 import type { JoinForm, JoinResult } from "./join-actions.ts";
-import { ADD_NET_LIMIT_HERE, NOTE_BANNED_PEER, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET } from "./invite-join-texts.ts";
+import { ADD_NET_LIMIT_HERE, NOTE_EXCLUDED_MANAGED, NOTE_HERE, NOTE_NEW_AT_LIMIT, NOTE_REMOVED, NOTE_THIS_NET } from "./invite-join-texts.ts";
 
 export type InviteOutcome = "joined" | "waiting" | "here" | "limit" | "failed" | "empty" | "skipped";
 export type InviteFormState = JoinForm;
@@ -54,14 +54,9 @@ export function netTitle(nets: NetBrief[], slot: string | undefined, label: stri
 
 const bannedHere = (reply: InspectResponse, nets: NetBrief[]): boolean => nets.some((n) => n.id === reply.slot && n.me_excluded);
 
-/** The invite leads back to a Peer network that banned this computer: the members' refusal is already known. */
-export function refusalForeseen(reply: InspectResponse | null | undefined, nets: NetBrief[]): boolean {
-  return !!reply && reply.place === "return" && reply.kind !== "Managed" && bannedHere(reply, nets);
-}
-
 function returnNote(reply: InspectResponse, nets: NetBrief[], name: string): string {
   if (!bannedHere(reply, nets)) return NOTE_REMOVED(name);
-  return refusalForeseen(reply, nets) ? NOTE_BANNED_PEER(name) : NOTE_EXCLUDED_MANAGED(name);
+  return NOTE_EXCLUDED_MANAGED(name);
 }
 
 /** The line under the field about the place the invite leads to; empty for a new network (unless the node is at its limit) and for a key. */

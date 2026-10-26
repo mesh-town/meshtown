@@ -1,4 +1,4 @@
-//! The rule "this computer is kept out" (`admission.rs`): not excluded, removed or pending, no other member
+//! The rule "this computer is kept out" (`admission.rs`): not excluded or pending, no other member
 //! online, and at least one member refused it for a reason other than "unlisted". The reply is built by hand;
 //! `me` is the node with seed 1 and is always online.
 
@@ -14,12 +14,6 @@ mod my_own_status {
         // given: a member that refuses me, and my own exclusion
         let reply = reply(vec![me(), refuser(2)], Me::Excluded);
         // when / then
-        assert!(!admission_refused(&reply));
-    }
-
-    #[test]
-    fn removed_me_is_not_a_refusal() {
-        let reply = reply(vec![me(), refuser(2)], Me::Removed);
         assert!(!admission_refused(&reply));
     }
 
@@ -96,7 +90,7 @@ mod whose_and_which_refusal {
 
     #[test]
     fn other_reasons_count() {
-        for reason in ["refused", "removed", "left", "excluded"] {
+        for reason in ["refused", "left", "excluded"] {
             let reply = reply(vec![me(), refuser_for(2, reason)], Me::Listed);
             assert!(admission_refused(&reply), "reason {reason}");
         }
@@ -123,7 +117,6 @@ mod whose_and_which_refusal {
 enum Me {
     Listed,
     Excluded,
-    Removed,
     Pending,
 }
 
@@ -165,11 +158,9 @@ fn other(seed: u8, online: bool) -> MemberRow {
         online,
         admin: false,
         status: "member",
-        vote: None,
         excluded: None,
         blocked_by_me: false,
         denied_by_me: None,
-        forget: None,
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
@@ -179,23 +170,18 @@ fn other(seed: u8, online: bool) -> MemberRow {
 fn reply(rows: Vec<MemberRow>, status: Me) -> MembersReply {
     let counts = Counts {
         members: 0,
-        voting: 0,
         excluded: 0,
         unlisted: 0,
         pending: 0,
-        forgotten: 0,
     };
     MembersReply {
         me: pid(1).to_string(),
         me_excluded: matches!(status, Me::Excluded),
-        me_removed: matches!(status, Me::Removed),
         me_pending: matches!(status, Me::Pending),
-        kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
         root: None,
         me_admission: None,
-        need: 2,
         counts,
         members: rows,
         changed: None,

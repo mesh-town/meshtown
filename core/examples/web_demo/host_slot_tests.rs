@@ -105,7 +105,7 @@ mod leaving_a_network {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn the_second_slot_disappears_from_the_summary() {
-        let demo = setup(2).await;
+        let demo = setup_with(2, &["--second-admin"]).await;
         let second = demo.slot_ids()[1].clone();
 
         let (status, body) = demo.leave(&second).await;
@@ -122,7 +122,7 @@ mod leaving_a_network {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn the_host_forgets_the_slot() {
-        let demo = setup(2).await;
+        let demo = setup_with(2, &["--second-admin"]).await;
         let second = demo.slot_ids()[1].clone();
 
         demo.leave(&second).await;

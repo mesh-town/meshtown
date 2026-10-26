@@ -1,12 +1,10 @@
-//! The boot plan under the counting rules of the network: an exclusion written by the root counts in a managed
-//! network and is ignored (the root is not an admitted author) under peer rules.
+//! The boot plan in a network with a root: an exclusion written by the root counts.
 
 use std::collections::BTreeSet;
 
 use bytes::Bytes;
 
 use super::*;
-use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
 use crate::transport::net::contract::pid;
 use crate::transport::net::{PeerId, ReplicaEntry};
@@ -37,38 +35,29 @@ fn excluded_by_root(root: PeerId, subject: PeerId) -> Vec<ReplicaEntry> {
     ]
 }
 
-fn plan_under(rules: Rules, snap: &[ReplicaEntry], me: PeerId, cached: &[PeerId]) -> BootPlan {
+fn plan_under(root: PeerId, snap: &[ReplicaEntry], me: PeerId, cached: &[PeerId]) -> BootPlan {
     let boot = AccessBoot {
         me,
         initial: Vec::new(),
         cached: cached.to_vec(),
         now_unix: NOW,
-        rules,
+        root,
     };
     plan_admits(snap, &BTreeSet::new(), &boot)
 }
 
 #[test]
-fn managed_rules_honour_the_roots_exclusion() {
+fn the_roots_exclusion_is_honoured() {
     let (root, me, x, y) = (pid(9), pid(1), pid(2), pid(3));
     let snap = excluded_by_root(root, x);
-    let plan = plan_under(Rules::Managed { root }, &snap, me, &[x, y]);
+    let plan = plan_under(root, &snap, me, &[x, y]);
     assert_eq!(plan.witness, vec![y]);
 }
 
 #[test]
-fn peer_rules_ignore_the_roots_exclusion() {
-    let (root, me, x, y) = (pid(9), pid(1), pid(2), pid(3));
-    let snap = excluded_by_root(root, x);
-    let plan = plan_under(Rules::Peer, &snap, me, &[x, y]);
-    assert_eq!(plan.witness, vec![x, y]);
-}
-
-#[test]
-fn managed_root_exclusion_of_me_leaves_the_node() {
+fn the_roots_exclusion_of_me_leaves_the_node() {
     let (root, me, x) = (pid(9), pid(1), pid(2));
     let snap = excluded_by_root(root, me);
-    let managed = plan_under(Rules::Managed { root }, &snap, me, &[x]);
-    assert!(managed.me_left && managed.witness.is_empty());
-    assert!(!plan_under(Rules::Peer, &snap, me, &[x]).me_left);
+    let plan = plan_under(root, &snap, me, &[x]);
+    assert!(plan.me_left && plan.witness.is_empty());
 }

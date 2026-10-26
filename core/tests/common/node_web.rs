@@ -13,12 +13,13 @@ use std::time::{Duration, Instant};
 
 use meshtown_core::config::config_file::NetSlotId;
 use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
 use meshtown_core::node::host::Host;
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
 use meshtown_core::node::output;
 use meshtown_core::node::{self, IdentityState};
 use meshtown_core::proxy::ProxyFront;
+use meshtown_core::transport::net::NodeSecret;
 use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
 use serde_json::{json, Value};
 use tokio::time::sleep;
@@ -189,16 +190,47 @@ pub(crate) async fn boot(tag: &str, key: &NetworkKey) -> Booted {
     boot_with_exit_hosts(tag, key, HashMap::new()).await
 }
 
-/// Like `boot`, but the node consults its membership list and keeps it fresh, as a live node does;
-/// `boot` leaves the list open.
+/// Like `boot`, but the node is the creator of its Managed network and consults its membership list, as a live
+/// node does (`boot` leaves the list open); returns once the node can hand out an invite.
 pub(crate) async fn boot_consulting_list(tag: &str, key: &NetworkKey) -> Booted {
-    boot_inner(tag, key, HashMap::new(), false).await
+    boot_consulting_with_exit_hosts(tag, key, HashMap::new()).await
+}
+
+/// `boot_consulting_list` with a table of exit hosts (see `boot_with_exit_hosts`).
+pub(crate) async fn boot_consulting_with_exit_hosts(
+    tag: &str,
+    key: &NetworkKey,
+    hosts: HashMap<String, SocketAddr>,
+) -> Booted {
+    let booted = boot_inner(tag, key, hosts, false).await;
+    let can_invite = || {
+        api(
+            booted.port,
+            &booted.token,
+            "GET",
+            "/api/network/invite",
+            None,
+        )
+        .0 == 200
+    };
+    assert!(
+        wait_until(Duration::from_secs(10), can_invite).await,
+        "the creator did not become able to invite within 10 s"
+    );
+    booted
+}
+
+/// The text of the Managed network whose base is `key`, created by the fixed root of the loopback tests:
+/// what a person pastes into the key field.
+pub(crate) fn key_text(key: &NetworkKey) -> String {
+    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    managed_key_with_label(None, &key.to_bytes(), &root)
 }
 
 /// The hermetic command-line overrides shared by the boots with a network key.
 fn hermetic_overrides(key: &NetworkKey) -> CliOverrides {
     CliOverrides {
-        network_key: Some(key.encode()),
+        network_key: Some(key_text(key)),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(0),
@@ -244,10 +276,17 @@ async fn boot_inner(
         initial_domains: Vec::new(),
         blocked_domains: Vec::new(),
     };
-    let mut cfg = relaunch.node_config(&run.effective_settings, key.clone());
+    let mut cfg = relaunch.node_config(
+        &run.effective_settings,
+        meshtown_core::members::network_key::parse_user_input(&key_text(key))
+            .expect("a managed key"),
+    );
     cfg.geoip = false; // node tests must not reach out to the internet for geoip sources.
     cfg.exit_hosts = hosts;
     cfg.open_list = open_list;
+    if !open_list {
+        cfg.identity_secret = Some(NodeSecret::from_bytes(&[31; 32])); // the creator of the loopback networks
+    }
     let ctl = NodeCtl::new(&run.effective_settings);
     let front = seat_front(&ctl, &run).await;
     let host = host_of(ctl.clone(), &run, front.clone());

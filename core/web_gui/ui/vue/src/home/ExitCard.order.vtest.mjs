@@ -21,10 +21,10 @@ function mountCard() {
   const store = createStore();
   const me = baseState().peers.find((p) => p.self);
   const peers = IDS.map((full, i) => ({ id: full.slice(0, 8).toLowerCase(), id_full: full, name: "m" + i, country: null, version: null, online: true, path: "direct", rtt_ms: 20, exit: true }));
-  const state = baseState({ network: { id_hex: "hex-main", label: "main", masked: "mesh1-••••-••••" }, peers: [me, ...peers], route: { state: "direct", exits: [] }, config_rev: 1 });
+  const state = baseState({ network: { id_hex: "hex-main", label: "main", masked: "mesh2-••••-••••" }, peers: [me, ...peers], route: { state: "direct", exits: [] }, config_rev: 1 });
   acceptOverview(store, {
     api: 2,
-    nets: [{ id: "main", label: "main", id_hex: "hex-main", status: "online", exit_enabled: false, proxy: true, route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1, state }],
+    nets: [{ id: "main", label: "main", id_hex: "hex-main", status: "online", exit_enabled: false, proxy: true, route_state: "direct", exits: [], joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1, state }],
     slots: [{ slot: "main", state, members: null }],
     restart_slots: [],
   });

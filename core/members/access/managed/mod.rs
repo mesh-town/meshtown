@@ -7,7 +7,7 @@ mod closure;
 mod events;
 mod roles;
 
-pub(in crate::members::access) use closure::tally;
+pub use closure::tally;
 
 #[cfg(test)]
 #[path = "support_tests.rs"]

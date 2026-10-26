@@ -1,5 +1,5 @@
-//! Parses human input into a network key: the random part made of words, the machine form `mesh1-…`, or a pair of them
-//! with a label through `--`. Encoding of the key itself and subkeys are in `network_key.rs`.
+//! Parses human input into a network key: the words form or the raw form of a Managed key, with a label through `--`.
+//! A key of an older Mesh Town is recognized and refused with its own text. Subkeys are in `network_key.rs`.
 
 use anyhow::{anyhow, Result};
 use ring::digest;
@@ -9,8 +9,11 @@ use crate::members::words::{
 };
 use crate::node::output::NET_NAME;
 
-use super::managed::{parse_managed, NetKind, NetworkKeyInput as KeyInput};
+use super::managed::{parse_managed, NetworkKeyInput as KeyInput};
 use super::{normalize_dashed, normalize_label, NetworkKey, CTX_TAIL_SALT, LABEL_SEPARATOR};
+
+/// Prefix of the machine form of a key of an older Mesh Town.
+const LEGACY_PREFIX: &str = "mesh1-";
 
 /// Fast hash of the normalized random part: SHA-256(salt ‖ 0x0A ‖ part) → 32 bytes.
 /// A slow derivation function isn't needed: the program sets the entropy, and it is 130.8 bits.
@@ -75,15 +78,6 @@ pub fn key_from_tail(tail: &str) -> Result<NetworkKey> {
     Ok(NetworkKey::from_bytes(derive_tail_bytes(&canonical)))
 }
 
-/// Parsed Peer input: the label (for display only) and the network key.
-#[derive(Debug)]
-pub(super) struct NetworkKeyInput {
-    pub label: Option<String>,
-    pub key: NetworkKey,
-    /// The key was derived from the random part, not parsed from `mesh1-…`.
-    pub from_words: bool,
-}
-
 /// Whether a string without a label looks like the random part of a key.
 /// Two signs, either is enough: the group of characters is in place (then a word may have
 /// been copied with a typo) or both words are from the list (then the group may have been copied with a typo).
@@ -94,93 +88,74 @@ fn looks_like_tail(parts: &[&str]) -> bool {
             || parts[..TAIL_WORDS].iter().all(|w| is_tail_word(w)))
 }
 
-/// Input with the label separator: `label--tail`, where the tail is an encoded key or key words.
-fn parse_labelled(raw_label: &str, raw_tail: &str) -> Result<NetworkKeyInput> {
-    let label = if normalize_dashed(raw_label).is_empty() {
-        None
-    } else {
-        Some(normalize_label(raw_label)?)
+/// Shown for a key from an older Mesh Town.
+pub const LEGACY_KEY_TEXT: &str =
+    "This network key is from an older Mesh Town and no longer works. Ask a network admin for a new invite.";
+
+/// The error of a key from an older Mesh Town; its text is `LEGACY_KEY_TEXT`.
+#[derive(Debug)]
+pub struct LegacyKey;
+
+impl std::fmt::Display for LegacyKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(LEGACY_KEY_TEXT)
+    }
+}
+
+impl std::error::Error for LegacyKey {}
+
+/// Whether the right part of a key (after the label) is shaped like a key of an older Mesh Town:
+/// a machine form starting with `mesh1-`, or three parts of the random part.
+fn looks_legacy(rest: &str) -> bool {
+    let machine = rest.trim().as_bytes();
+    if machine.len() >= LEGACY_PREFIX.len()
+        && machine[..LEGACY_PREFIX.len()].eq_ignore_ascii_case(LEGACY_PREFIX.as_bytes())
+    {
+        return true;
+    }
+    let normalized = normalize_dashed(rest);
+    let parts: Vec<&str> = normalized.split('-').filter(|p| !p.is_empty()).collect();
+    looks_like_tail(&parts)
+}
+
+/// The error for input that is neither a key nor a key of an older Mesh Town.
+fn not_a_key(trimmed: &str) -> anyhow::Error {
+    let Some((raw_label, raw_tail)) = trimmed.split_once(LABEL_SEPARATOR) else {
+        return no_label_error(trimmed);
     };
-    // The right part is an encoded key (`label--mesh1-…`: this is how a key from an invite
-    // lands in the settings — its words can't be restored from its bytes, and the label mustn't be lost).
-    let tail_trimmed = raw_tail.trim();
-    if NetworkKey::looks_like_encoded_key(tail_trimmed) {
-        let key = NetworkKey::parse(tail_trimmed)?;
-        return Ok(NetworkKeyInput {
-            label,
-            key,
-            from_words: false,
-        });
-    }
-    let tail = normalize_dashed(raw_tail);
-    if tail.is_empty() {
-        return Err(anyhow!(
-            "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
-            cmd = crate::cli::program_name::program_name()
-        ));
-    }
-    let key = key_from_tail(&tail)?;
-    Ok(NetworkKeyInput {
-        label,
-        key,
-        from_words: true,
-    })
-}
-
-/// Parses Peer input: "label--random-part", "random-part" or the machine `mesh1-…`.
-pub(super) fn parse_peer_only(input: &str) -> Result<NetworkKeyInput> {
-    let trimmed = input.trim();
-    if trimmed.is_empty() {
-        return Err(anyhow!(
-            "{NET_NAME} network key is not set: pass it with --key or the MESHTOWN_KEY variable. Make a new key with: {cmd} keygen <label>, for example {cmd} keygen my network",
-            cmd = crate::cli::program_name::program_name()
-        ));
-    }
-    // The check for "--" goes before the check for "mesh1-": otherwise the label "mesh1 test" would give
-    // the key "mesh1-test--…", it would go to parse and the person would get an error about base32.
-    if let Some((raw_label, raw_tail)) = trimmed.split_once(LABEL_SEPARATOR) {
-        return parse_labelled(raw_label, raw_tail);
-    }
-    if NetworkKey::looks_like_encoded_key(trimmed) {
-        let key = NetworkKey::parse(trimmed)?;
-        return Ok(NetworkKeyInput {
-            label: None,
-            key,
-            from_words: false,
-        });
-    }
-    let tail = normalize_dashed(trimmed);
-    if tail.is_empty() {
-        return Err(anyhow!(
-            "{NET_NAME} network key has no letters or digits left. The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
-            cmd = crate::cli::program_name::program_name()
-        ));
-    }
-    let parts: Vec<&str> = tail.split('-').filter(|p| !p.is_empty()).collect();
-    if !looks_like_tail(&parts) {
-        return Err(anyhow!(
-            "the key has no random part: it looks like only the label \"{tail}\" was given. The whole key looks like this: {tail}--word-word-group-of-characters. Make a new key with: {cmd} keygen {tail}",
-            cmd = crate::cli::program_name::program_name()
-        ));
-    }
-    let key = key_from_tail(&tail)?;
-    Ok(NetworkKeyInput {
-        label: None,
-        key,
-        from_words: true,
-    })
-}
-
-impl From<NetworkKeyInput> for KeyInput {
-    fn from(peer: NetworkKeyInput) -> KeyInput {
-        KeyInput {
-            base: peer.key.to_bytes(),
-            label: peer.label,
-            key: peer.key,
-            from_words: peer.from_words,
-            kind: NetKind::Peer,
+    if !normalize_dashed(raw_label).is_empty() {
+        if let Err(e) = normalize_label(raw_label) {
+            return e;
         }
     }
+    labelled_error(raw_tail)
+}
+
+fn labelled_error(raw_tail: &str) -> anyhow::Error {
+    let tail = normalize_dashed(raw_tail);
+    if tail.is_empty() {
+        return anyhow!(
+            "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
+            cmd = crate::cli::program_name::program_name()
+        );
+    }
+    key_from_tail(&tail)
+        .err()
+        .unwrap_or_else(|| LegacyKey.into())
+}
+
+fn no_label_error(trimmed: &str) -> anyhow::Error {
+    let tail = normalize_dashed(trimmed);
+    if tail.is_empty() {
+        return anyhow!(
+            "{NET_NAME} network key has no letters or digits left. The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
+            cmd = crate::cli::program_name::program_name()
+        );
+    }
+    anyhow!(
+        "the key has no random part: it looks like only the label \"{tail}\" was given. The whole key looks like this: {tail}--word-word-group-of-characters. Make a new key with: {cmd} keygen {tail}",
+        cmd = crate::cli::program_name::program_name()
+    )
 }
 
 /// The label left of the first `--`, normalized; none if it is empty.
@@ -201,12 +176,34 @@ fn parse_managed_input(trimmed: &str) -> Option<Result<KeyInput>> {
     Some(label.and(found))
 }
 
-/// Parses human input: a Peer or a Managed key, with or without a label.
+/// The text after the first `--`, or the whole input.
+fn right_part(trimmed: &str) -> &str {
+    trimmed
+        .split_once(LABEL_SEPARATOR)
+        .map_or(trimmed, |(_, rest)| rest)
+}
+
+fn not_set() -> anyhow::Error {
+    anyhow!(
+        "{NET_NAME} network key is not set: pass it with --key or the MESHTOWN_KEY variable. Make a new key with: {cmd} keygen <label>, for example {cmd} keygen my network",
+        cmd = crate::cli::program_name::program_name()
+    )
+}
+
+/// Parses human input: a Managed key in the words or the raw form, with or without a label. A key of an
+/// older Mesh Town is refused with `LegacyKey`.
 pub fn parse_user_input(input: &str) -> Result<KeyInput> {
-    if let Some(found) = parse_managed_input(input.trim()) {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err(not_set());
+    }
+    if let Some(found) = parse_managed_input(trimmed) {
         return found;
     }
-    parse_peer_only(input).map(KeyInput::from)
+    if looks_legacy(right_part(trimmed)) {
+        return Err(LegacyKey.into());
+    }
+    Err(not_a_key(trimmed))
 }
 
 impl NetworkKey {
@@ -215,3 +212,7 @@ impl NetworkKey {
         parse_user_input(input).map(|i| i.key)
     }
 }
+
+#[cfg(test)]
+#[path = "input_legacy_tests.rs"]
+mod legacy_tests;

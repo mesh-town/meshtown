@@ -70,10 +70,6 @@ pub(crate) fn open_members_text(label: &str) -> String {
     format!("Open Members of \"{label}\"…")
 }
 
-pub(crate) fn vote_text(label: &str) -> String {
-    format!("Ban vote in {label} — open Members…")
-}
-
 /// The note about a network an admin deleted; a note without a name says "A network".
 pub(crate) fn net_deleted_text(label: &str) -> String {
     match label.trim() {

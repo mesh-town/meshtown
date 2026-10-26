@@ -20,37 +20,24 @@ describe("ExcludedCard in the app", () => {
     expect(wrapper.find("#excluded-join").exists()).toBe(false);
   });
 
-  it.each(["banned", "left"])("%s: explains that the phone was banned and what to do — leave and reset the app", (variant) => {
+  it.each(["banned", "left"])("%s: explains that the phone was removed and what to do — leave and reset the app", (variant) => {
     setup(variant);
     const text = wrapper.get("#excluded-card").text();
-    expect(text).toContain("This phone was banned from the network. Leave the network and reset the app to join with a new invite.");
+    expect(text).toContain("This phone was removed from the network. Leave the network and reset the app to join with a new invite.");
     expect(text).not.toContain("Start over");
   });
 
-  it("forgotten: no reset link, the ordinary text and the join button stay", () => {
-    setup("forgotten");
-    expect(wrapper.find("#excluded-start-over").exists()).toBe(false);
-    expect(wrapper.find("#excluded-join").exists()).toBe(true);
-    expect(wrapper.get("#excluded-card").text()).not.toContain("reset the app");
-  });
-
-  it.each(["banned", "left", "forgotten"])("%s: the title names the phone, not the computer", (variant) => {
+  it.each(["banned", "left"])("%s: the title names the phone, not the computer", (variant) => {
     setup(variant);
     const title = wrapper.get("h2").text();
     expect(title).not.toContain("computer");
     if (variant !== "left") expect(title).toContain("This phone was");
   });
 
-  it("forgotten with an admin: the text says the admin removed this phone", () => {
-    setup("forgotten", undefined, "alice");
-    const text = wrapper.get("#excluded-card p").text();
-    expect(text).toContain("removed this phone");
-    expect(text).not.toContain("computer");
-  });
-
-  it("forgotten: the explanation says phone", () => {
-    setup("forgotten");
-    expect(wrapper.get("#excluded-card p").text()).not.toContain("computer");
+  it("with an admin named: the app still shows the reset link and the title names the phone", () => {
+    setup("banned", undefined, "alice");
+    expect(wrapper.find("#excluded-start-over").exists()).toBe(true);
+    expect(wrapper.get("h2").text()).toContain("This phone was");
   });
 
   it("outside the app the join button stays", () => {

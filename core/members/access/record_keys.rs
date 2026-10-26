@@ -7,7 +7,6 @@ use super::record::BLOCK_PREFIX;
 
 pub(super) const ADMIT_PREFIX: &[u8] = b"acl/admit/";
 pub(super) const EXCLUDE_PREFIX: &[u8] = b"acl/exclude/";
-pub(super) const FORGET_PREFIX: &[u8] = b"acl/forget/";
 pub(super) const GRANT_PREFIX: &[u8] = b"acl/admin/";
 pub(super) const REVOKE_PREFIX: &[u8] = b"acl/unadmin/";
 
@@ -25,11 +24,6 @@ pub fn admit_key(subject: &PeerId) -> Vec<u8> {
 /// Key `acl/exclude/<hex>`.
 pub fn exclude_key(subject: &PeerId) -> Vec<u8> {
     key_with(EXCLUDE_PREFIX, subject)
-}
-
-/// Key `acl/forget/<hex>`.
-pub fn forget_key(subject: &PeerId) -> Vec<u8> {
-    key_with(FORGET_PREFIX, subject)
 }
 
 /// Key `acl/admin/<hex>`.

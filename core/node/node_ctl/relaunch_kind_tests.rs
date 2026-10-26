@@ -1,5 +1,6 @@
 use super::*;
-use crate::members::network_key::{key_with_label, managed_key_with_label, NetworkKey};
+use crate::members::network_key::parse_user_input;
+use crate::members::network_key::test_net;
 use crate::transport::net::NodeSecret;
 
 fn test_relaunch() -> Relaunch {
@@ -14,29 +15,30 @@ fn test_relaunch() -> Relaunch {
 }
 
 #[test]
-fn a_managed_key_keeps_the_list_counted_on_the_test_network() {
+fn reload_counts_the_list_on_the_test_network() {
     // given: a relaunch on the in-process test network
     let relaunch = test_relaunch();
-    let creator = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
-    let key = managed_key_with_label(None, &[3u8; 32], &creator);
-    // when: the node is reloaded with a Managed key
+    let net = test_net("Office");
+    // when: the node is reloaded with a key
     let (_, cfg) = relaunch
-        .reload(&key, &Settings::default())
-        .expect("reload a managed key");
+        .reload(&net.text, &Settings::default())
+        .expect("reload a key");
     // then: the list is counted, so the roles of the members reach the node
-    assert!(!cfg.open_list, "a managed network must count its list");
-    assert!(cfg.net_kind.root().is_some());
+    assert!(
+        !cfg.open_list,
+        "a network entered at run time must count its list"
+    );
+    assert_eq!(cfg.net_root, net.root);
 }
 
 #[test]
-fn a_peer_key_counts_the_list_on_the_test_network() {
-    // given: the same relaunch
+fn a_slot_on_the_test_network_keeps_the_list_open() {
+    // given: a relaunch on the in-process test network and a key
     let relaunch = test_relaunch();
-    let key = key_with_label(None, &NetworkKey::from_bytes([5u8; 32]));
-    // when: the node is reloaded with a plain key
-    let (_, cfg) = relaunch
-        .reload(&key, &Settings::default())
-        .expect("reload a plain key");
-    // then: the list is counted like on a live node
-    assert!(!cfg.open_list);
+    let net = test_net("Office");
+    let input = parse_user_input(&net.text).expect("parse");
+    // when: the start settings of a slot are built
+    let cfg = relaunch.node_config(&Settings::default(), input);
+    // then: the test network leaves the list open
+    assert!(cfg.open_list);
 }

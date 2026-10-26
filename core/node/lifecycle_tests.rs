@@ -101,7 +101,7 @@ async fn run_after_key_bad_key_keeps_waiting() {
 }
 
 pub(super) fn key_text(b: u8) -> String {
-    NetworkKey::from_bytes([b; 32]).encode()
+    crate::node::host::test_keys::managed_text(b)
 }
 /// Every cycle goes through `boot_cycle` and takes a new start id (no external network, loopback).
 #[tokio::test]

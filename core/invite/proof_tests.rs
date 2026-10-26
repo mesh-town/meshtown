@@ -347,3 +347,65 @@ impl Node {
         all.iter().filter(|e| !e.is_tombstone()).count()
     }
 }
+
+mod after_an_exclusion {
+    use super::*;
+
+    /// The admit time of `pid(7)` after admitting it twice: first at `NOW`, then with `after` at `later`.
+    async fn second_admit_time(after: Option<u64>, later: u64) -> u64 {
+        let node = setup().await;
+        let hash = invite(1).hash_hex();
+        admit_owner(&node.list, &hash, pid(7), None, NOW)
+            .await
+            .unwrap();
+        admit_owner(&node.list, &hash, pid(7), after, later)
+            .await
+            .unwrap();
+        assert_eq!(node.live_admits().await, 1);
+        node.admit_of(pid(7))
+            .await
+            .expect("no admit record")
+            .made_unix
+    }
+
+    #[tokio::test]
+    async fn writes_a_second_after_it() {
+        // given: an owner excluded at NOW + 500 while the clock is still behind it
+        // when: it comes back by an invite
+        let made = second_admit_time(Some(NOW + 500), NOW + 10).await;
+        // then: the new record is one second later than the exclusion
+        assert_eq!(made, NOW + 501);
+    }
+
+    #[tokio::test]
+    async fn rewrites_an_older_admit() {
+        // given: an owner admitted at NOW and excluded at NOW + 5
+        // when: it comes back well after the exclusion
+        let made = second_admit_time(Some(NOW + 5), NOW + 100).await;
+        // then: the old record is replaced by one made at the clock
+        assert_eq!(made, NOW + 100);
+    }
+
+    #[tokio::test]
+    async fn keeps_now_when_now_is_later() {
+        // given: a node with no admit of the owner and an exclusion older than the clock
+        let node = setup().await;
+        // when: the owner is admitted with the exclusion time
+        admit_owner(
+            &node.list,
+            &invite(1).hash_hex(),
+            pid(7),
+            Some(NOW + 5),
+            NOW + 100,
+        )
+        .await
+        .unwrap();
+        // then: the record carries the current time
+        let made = node
+            .admit_of(pid(7))
+            .await
+            .expect("no admit record")
+            .made_unix;
+        assert_eq!(made, NOW + 100);
+    }
+}

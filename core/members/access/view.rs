@@ -5,8 +5,7 @@
 //! the first time on each publication, and keeps the last refusal per node for the status page.
 //! What it doesn't do: no tally, no replica, no I/O; closing connections is `Members::cut`.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -49,10 +48,7 @@ impl Refusal {
 pub struct Verdicts {
     pub me: PeerId,
     pub ledger: Arc<Ledger>,
-    pub my_votes: BTreeSet<PeerId>,
     pub blocks: BTreeSet<PeerId>,
-    /// Per pending subject: the reason noted by the first voter, when it is fit to show.
-    pub reasons: BTreeMap<PeerId, String>,
 }
 
 fn unix_now() -> u64 {
@@ -68,54 +64,21 @@ impl Verdicts {
         if peer == self.me {
             return Ok(());
         }
-        match self.first_deny(peer) {
+        match self.early_deny(peer) {
             Some(deny) => Err(deny),
             None => self.check_listed(peer),
         }
     }
 
-    /// The first refusal in contract order; my own forget votes are looked at last.
-    fn first_deny(&self, peer: PeerId) -> Option<Deny> {
-        self.early_deny(peer).or_else(|| {
-            let mine = self.my_forget_subjects().any(|p| p == peer);
-            mine.then_some(Deny::RemovedByMe)
-        })
-    }
-
+    /// The first refusal in contract order.
     fn early_deny(&self, peer: PeerId) -> Option<Deny> {
         let l = &self.ledger;
         let table = [
             (l.how_excluded(&self.me) == Some(How::Left), Deny::Left),
             (l.excluded.contains_key(&peer), Deny::Excluded),
-            (self.my_votes.contains(&peer), Deny::VotedByMe),
             (self.blocks.contains(&peer), Deny::Blocked),
-            (l.is_forgotten(&peer), Deny::Forgotten),
         ];
         table.iter().find(|(hit, _)| *hit).map(|(_, deny)| *deny)
-    }
-
-    /// Subjects of live forget circles that I voted in, without myself.
-    fn my_forget_subjects(&self) -> impl Iterator<Item = PeerId> + '_ {
-        let me = self.me;
-        let circles = self.ledger.forgets.iter();
-        let mine = circles.filter(move |(_, round)| round.voters.contains(&me));
-        mine.map(|(p, _)| *p).filter(move |p| *p != me)
-    }
-
-    /// Subjects of live forget circles that I voted in: hidden from me at once, before the circle completes.
-    pub fn my_forgets(&self) -> BTreeSet<PeerId> {
-        self.my_forget_subjects().collect()
-    }
-
-    /// Subjects hidden from this node: forgotten ones and those of its own pending forget votes.
-    pub fn removed_here(&self) -> BTreeSet<PeerId> {
-        let circles = self.ledger.forgets.iter();
-        let forgotten = circles
-            .filter(|(_, r)| r.at_unix.is_some())
-            .map(|(p, _)| *p);
-        let mut hidden: BTreeSet<PeerId> = self.my_forget_subjects().chain(forgotten).collect();
-        hidden.remove(&self.me);
-        hidden
     }
 
     fn check_listed(&self, peer: PeerId) -> Result<(), Deny> {
@@ -129,9 +92,8 @@ impl Verdicts {
     pub(super) fn known(&self) -> BTreeSet<PeerId> {
         let l = &self.ledger;
         let listed = l.admitted.iter().chain(l.excluded.keys());
-        let listed = listed.chain(&self.my_votes).chain(&self.blocks);
         listed
-            .chain(l.forgets.keys())
+            .chain(&self.blocks)
             .filter(|p| **p != self.me)
             .copied()
             .collect()
@@ -143,7 +105,6 @@ struct Inner {
     ready: tokio::sync::watch::Sender<bool>,
     refusals: Mutex<Vec<(PeerId, Refusal)>>,
     recompute: Arc<tokio::sync::Mutex<()>>,
-    removed_noted: AtomicBool,
     allowed: tokio::sync::watch::Sender<u64>,
 }
 
@@ -177,7 +138,6 @@ impl AccessView {
                 ready: tx,
                 refusals: Mutex::new(Vec::new()),
                 recompute: Arc::new(tokio::sync::Mutex::new(())),
-                removed_noted: AtomicBool::new(false),
                 allowed: tokio::sync::watch::channel(0).0,
             }),
         }
@@ -260,11 +220,6 @@ impl AccessView {
         self.inner.refusals.lock().unwrap().clone()
     }
 
-    /// `true` only on the first call: the "removed from the list" line is logged once per run.
-    pub fn first_removed_notice(&self) -> bool {
-        !self.inner.removed_noted.swap(true, Ordering::Relaxed)
-    }
-
     /// Serialises recomputations of the verdicts.
     pub fn recompute_lock(&self) -> Arc<tokio::sync::Mutex<()>> {
         self.inner.recompute.clone()
@@ -274,11 +229,3 @@ impl AccessView {
 #[cfg(test)]
 #[path = "view_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "view_forget_tests.rs"]
-mod forget_tests;
-
-#[cfg(test)]
-#[path = "view_removed_here_tests.rs"]
-mod removed_here_tests;

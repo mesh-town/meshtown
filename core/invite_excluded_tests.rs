@@ -1,12 +1,12 @@
-//! Tests of `invite::make` for a node that is no longer in the network: one that was voted out, one that
-//! left on its own and one that was removed makes no invite, while a listed node still does. Child module of
+//! Tests of `invite::make` for a node that is no longer in the network: one that was excluded and one that
+//! left on its own makes no invite, while a listed node still does. Child module of
 //! `invite_tests.rs`.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crate::invite::{make, OutOfNetwork};
-use crate::members::access::tally::{Exclusion, ForgetRound, How, Ledger};
+use crate::members::access::tally::{Exclusion, How, Ledger};
 use crate::members::access::view::Verdicts;
 use crate::members::network_key::NetworkKey;
 use crate::node::{start_node, NodeConfig, RunningNode};
@@ -30,15 +30,6 @@ mod an_excluded_node_makes_no_invite {
     async fn when_it_left_on_its_own() {
         // given: the node knows it left the network
         let node = given_node(Standing::Left).await;
-        // when / then
-        then_refused(&node);
-        node.shutdown().await;
-    }
-
-    #[tokio::test]
-    async fn when_it_was_forgotten() {
-        // given: the node knows the others removed it from the network
-        let node = given_node(Standing::Forgotten).await;
         // when / then
         then_refused(&node);
         node.shutdown().await;
@@ -67,7 +58,6 @@ enum Standing {
     Listed,
     VotedOut,
     Left,
-    Forgotten,
 }
 
 /// A running node whose published verdicts put it in the given standing.
@@ -81,24 +71,13 @@ async fn given_node(standing: Standing) -> RunningNode {
 
 /// A ledger with `me` and one more member, `me` standing as told.
 fn ledger_of(me: PeerId, standing: Standing) -> Ledger {
-    let mut ledger = Ledger {
-        admitted: [me, neighbour()].into_iter().collect(),
-        excluded: BTreeMap::new(),
-        pending: BTreeMap::new(),
-        need: 1,
-        admissions: BTreeMap::new(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
-        admins: Default::default(),
-        closed: None,
-    };
+    let mut ledger = Ledger::empty();
+    ledger.admitted = [me, neighbour()].into_iter().collect();
+    ledger.admins = [me].into_iter().collect();
     match standing {
         Standing::Listed => {}
         Standing::VotedOut => exclude(&mut ledger, me, How::Votes),
         Standing::Left => exclude(&mut ledger, me, How::Left),
-        Standing::Forgotten => forget(&mut ledger, me),
     }
     ledger
 }
@@ -112,14 +91,6 @@ fn exclude(ledger: &mut Ledger, who: PeerId, how: How) {
     ledger.excluded.insert(who, exclusion);
 }
 
-fn forget(ledger: &mut Ledger, who: PeerId) {
-    let round = ForgetRound {
-        voters: vec![neighbour()],
-        at_unix: Some(5),
-    };
-    ledger.forgets.insert(who, round);
-}
-
 fn neighbour() -> PeerId {
     NodeSecret::from_bytes(&[2; 32]).peer_id()
 }
@@ -128,9 +99,7 @@ fn verdicts_of(me: PeerId, ledger: Ledger) -> Verdicts {
     Verdicts {
         me,
         ledger: Arc::new(ledger),
-        my_votes: BTreeSet::new(),
         blocks: BTreeSet::new(),
-        reasons: Default::default(),
     }
 }
 

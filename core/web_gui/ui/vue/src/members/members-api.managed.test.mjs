@@ -5,10 +5,10 @@
  *      resolves `{ reply, changed }` like `postMemberAction` (the reply has no `changed` key); a rejection propagates; an unreadable
  *      reply rejects with an Error.
  *  - `deleteNetwork(api, slot)`: one `POST slotPath(slot, "network/delete")` with `{ confirm: true }`; a rejection propagates.
- *  - `parseMembers` keeps `kind` ("Peer" | "Managed"), `admins` (full ids), `me_admin` and the row's `admin`; a peer reply
- *      gets none of these keys (the parsed reply stays structurally equal to the raw one).
- *  - `memberErrorText(err)` for an error with a code and no message of the node: `not_admin`, `last_admin`, `not_managed` and
- *      `peer_only` are whole sentences without the "Couldn't update the member list:" prefix; `not_member` keeps its old reason.
+ *  - `parseMembers` keeps `admins` (full ids), `me_admin` and the row's `admin`; a reply without them gets none of these
+ *      keys (the parsed reply stays structurally equal to the raw one). There is no `kind`: every network is managed.
+ *  - `memberErrorText(err)` for an error with a code and no message of the node: `not_admin` and `last_admin`
+ *      are whole sentences without the "Couldn't update the member list:" prefix; `not_member` keeps its old reason.
  *      A message of the node still wins and gets the old prefix. */
 
 import { describe, it, vi } from "vitest";
@@ -21,7 +21,7 @@ import { membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.m
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const managedReply = (over = {}) =>
-  membersReply({ rows: [selfRow({ admin: true }), peerOneRow({ admin: false })], kind: "Managed", admins: [SELF_FULL], me_admin: true, ...over });
+  membersReply({ rows: [selfRow({ admin: true }), peerOneRow({ admin: false })], admins: [SELF_FULL], me_admin: true, ...over });
 
 describe("postAdmin", () => {
   describe("the main network", () => {
@@ -54,7 +54,6 @@ describe("postAdmin", () => {
       const result = await postAdmin(api, PEER_FULL, true);
       assert.equal(result.changed, true);
       assert.ok(!("changed" in result.reply), "the reply carries `changed`");
-      assert.equal(result.reply.kind, "Managed");
       assert.deepEqual(result.reply.admins, [SELF_FULL]);
     });
 
@@ -105,9 +104,8 @@ describe("deleteNetwork", () => {
 
 describe("parseMembers of a managed network", () => {
   describe("a full managed reply", () => {
-    it("keeps the kind, the admins and my role", () => {
+    it("keeps the admins and my role", () => {
       const parsed = parseMembers(managedReply());
-      assert.equal(parsed.kind, "Managed");
       assert.deepEqual(parsed.admins, [SELF_FULL]);
       assert.equal(parsed.me_admin, true);
     });
@@ -133,10 +131,10 @@ describe("parseMembers of a managed network", () => {
       assert.ok(!("me_admin" in parseMembers(managedReply({ me_admin: "yes" }))));
     });
 
-    it("an unknown `kind` is dropped, the list stays readable", () => {
+    it("a `kind` of an old node is not passed on", () => {
       const parsed = parseMembers(managedReply({ kind: "Hybrid" }));
       assert.ok(parsed, "the list was not parsed");
-      assert.ok(parsed.kind === undefined || parsed.kind === "Peer", "an unknown kind survived: " + parsed.kind);
+      assert.ok(!("kind" in parsed), "kind survived: " + parsed.kind);
     });
 
     it("a row `admin` that is not a boolean is dropped", () => {
@@ -145,10 +143,10 @@ describe("parseMembers of a managed network", () => {
     });
   });
 
-  describe("a peer reply", () => {
-    it("gets none of the managed keys", () => {
+  describe("a reply without admins", () => {
+    it("gets none of the admin keys", () => {
       const parsed = parseMembers(membersReply());
-      for (const key of ["kind", "admins", "me_admin"]) assert.ok(!(key in parsed), key + " was added");
+      for (const key of ["admins", "me_admin"]) assert.ok(!(key in parsed), key + " was added");
       assert.ok(parsed.members.every((r) => !("admin" in r)), "a row got `admin`");
     });
 
@@ -157,15 +155,10 @@ describe("parseMembers of a managed network", () => {
     });
   });
 
-  describe("a peer reply that says so", () => {
-    it("keeps kind Peer", () => {
-      assert.equal(parseMembers(membersReply({ kind: "Peer" })).kind, "Peer");
-    });
-  });
 });
 
 describe("memberErrorText of a managed network", () => {
-  const NEW_CODES = ["not_admin", "last_admin", "not_managed", "peer_only"];
+  const NEW_CODES = ["not_admin", "last_admin"];
 
   describe("only a code", () => {
     it("last_admin: tells what to do instead", () => {
@@ -177,14 +170,6 @@ describe("memberErrorText of a managed network", () => {
 
     it("not_admin: says it is for admins", () => {
       assert.equal(memberErrorText(new ApiError(409, "not_admin")), "Only admins can do this.");
-    });
-
-    it("not_managed: says the network has no admins", () => {
-      assert.equal(memberErrorText(new ApiError(409, "not_managed")), "This is a peer network: it has no admins.");
-    });
-
-    it("peer_only: says it works in a peer network only", () => {
-      assert.equal(memberErrorText(new ApiError(409, "peer_only")), "This only works in a peer network.");
     });
 
     it("not_member keeps the old reason", () => {

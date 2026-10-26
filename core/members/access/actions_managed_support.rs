@@ -5,7 +5,6 @@ use std::sync::Arc;
 use bytes::Bytes;
 
 use crate::members::access::actions::{apply, ActionRefusal, MemberAction};
-use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
 use crate::members::access::runtime::Access;
 use crate::members::access::tally::Ledger;
@@ -55,7 +54,7 @@ pub(super) fn setup(seat: Seat) -> World {
         Seat::Root => me,
         _ => pid(2),
     };
-    let world = build(Rules::Managed { root });
+    let world = build(root);
     world.given_admit(1, root, member());
     match seat {
         Seat::Root => {}
@@ -68,14 +67,7 @@ pub(super) fn setup(seat: Seat) -> World {
     world
 }
 
-/// A peer network where `me` admitted the member `x`.
-pub(super) fn setup_peer() -> World {
-    let world = build(Rules::Peer);
-    world.given_admit(1, world.me, member());
-    world
-}
-
-pub(super) fn build(rules: Rules) -> World {
+pub(super) fn build(root: PeerId) -> World {
     let net = MemSyncNet::new();
     let node = secret(1);
     let ctx = SyncCtx {
@@ -89,12 +81,12 @@ pub(super) fn build(rules: Rules) -> World {
         backend.replica_mem(REPLICA_DOMAINS).unwrap(),
     );
     let members = Members::with_access(AccessView::pending());
-    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members).with_rules(rules);
+    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members, root);
     World {
         access,
         shared,
         me: node.peer_id(),
-        root: rules.root().unwrap_or(node.peer_id()),
+        root,
         _keep: (net, backend),
     }
 }
@@ -109,12 +101,12 @@ impl World {
         self.given_record(at, author, AclKind::Grant, subject);
     }
 
-    /// An exclusion vote of `author` against `subject` at second `at`.
+    /// An exclusion of `author` against `subject` at second `at`.
     pub(super) fn given_exclude(&self, at: u64, author: PeerId, subject: PeerId) {
         self.given_record(at, author, AclKind::Exclude, subject);
     }
 
-    /// `who` leaves: an exclusion vote against itself.
+    /// `who` leaves: an exclusion of itself.
     pub(super) fn given_leave(&self, at: u64, who: PeerId) {
         self.given_exclude(at, who, who);
     }

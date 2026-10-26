@@ -6,7 +6,6 @@ use crate::members::access::actions::{ActionRefusal, MemberAction};
 use crate::members::access::record::{exclude_key, AclKind};
 use crate::members::access::report::members_reply;
 use crate::members::access::view::Deny;
-use crate::transport::net::contract::pid;
 use crate::transport::net::PeerId;
 use crate::web_gui::MemberRow;
 
@@ -147,31 +146,6 @@ async fn unexclude_after_the_return_keeps_the_node_in() {
         "the node must stay a member"
     );
     assert_eq!(world.verdict(member()), Ok(()));
-}
-
-#[tokio::test]
-async fn in_a_peer_network_a_later_admit_does_not_bring_the_node_back() {
-    // given: a network of two; I excluded the member at 5 and admitted it again at 6
-    let world = setup_peer();
-    world.given_exclude(EXCLUDED_AT, world.me, member());
-    world.given_admit(6, world.me, member());
-    // when
-    world.refresh().await;
-    // then: the exclusion is stronger than the later admission
-    assert_eq!(world.verdict(member()), Err(Deny::Excluded));
-}
-
-#[tokio::test]
-async fn in_a_peer_network_the_own_vote_still_refuses_after_an_admit() {
-    // given: three on the list, so one vote only proposes; my vote at 5, another member's admit at 6
-    let world = setup_peer();
-    world.given_admit(1, world.me, pid(5));
-    world.given_exclude(EXCLUDED_AT, world.me, member());
-    world.given_admit(6, pid(5), member());
-    // when
-    world.refresh().await;
-    // then
-    assert_eq!(world.verdict(member()), Err(Deny::VotedByMe));
 }
 
 #[tokio::test]

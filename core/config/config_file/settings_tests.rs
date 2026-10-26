@@ -1,7 +1,8 @@
 use super::*;
 use crate::config::config_file::test_support::test_secret;
 use crate::config::config_file::NetSettings;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetworkKey, NetworkKeyInput};
+use crate::transport::net::NodeSecret;
 use std::net::SocketAddr;
 use std::time::Duration;
 
@@ -98,7 +99,7 @@ fn debug_hides_key() {
 
 #[test]
 fn node_config_carries_identity_secret() {
-    let key = NetworkKey::generate().expect("network key");
+    let key = key();
     let cfg = Settings::default().node_config(key, test_secret());
     assert!(cfg.identity_secret.is_some());
 }
@@ -106,7 +107,7 @@ fn node_config_carries_identity_secret() {
 #[test]
 fn node_config_keeps_node_name_and_secret() {
     // given: settings with a node name and a node secret
-    let key = NetworkKey::generate().expect("network key");
+    let key = key();
     let s = Settings {
         net: NetSettings {
             node_name: Some("n".to_string()),
@@ -135,7 +136,7 @@ fn node_config_keeps_node_name_and_secret() {
 #[test]
 fn fills_process_part_from_process_block() {
     // given: a process block with a SOCKS port and memory thresholds, a node name in the network block
-    let key = NetworkKey::generate().expect("network key");
+    let key = key();
     let s = Settings {
         process: crate::config::config_file::ProcessSettings {
             socks_enabled: false,
@@ -226,7 +227,7 @@ fn debug_shows_net() {
 #[test]
 fn node_config_carries_net() {
     // given: settings with the chosen sync "mem"
-    let key = NetworkKey::generate().expect("network key");
+    let key = key();
     let net = crate::transport::net::NetChoice {
         sync: "mem".to_string(),
         ..Settings::default().net.net_choice
@@ -245,4 +246,15 @@ fn node_config_carries_net() {
         cfg.settings.net_choice.sync, "mem",
         "net was not carried into NodeConfig"
     );
+}
+
+fn key() -> NetworkKeyInput {
+    let key = NetworkKey::generate().expect("network key");
+    NetworkKeyInput {
+        label: None,
+        base: key.to_bytes(),
+        key,
+        from_words: false,
+        root: NodeSecret::from_bytes(&[7; 32]).peer_id(),
+    }
 }

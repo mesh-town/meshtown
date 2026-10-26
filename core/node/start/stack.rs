@@ -95,7 +95,6 @@ fn served_builder(
                 cfg.network_key.clone(),
                 domain_list_cell.clone(),
                 wired.members.access(),
-                cfg.net_kind,
                 cfg.reply_secret.clone(),
             ),
         )

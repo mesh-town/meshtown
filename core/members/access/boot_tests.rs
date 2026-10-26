@@ -107,6 +107,51 @@ mod first_start {
     }
 }
 
+mod old_records {
+    use super::*;
+
+    /// A record of the retired kind 5 about `subject`, assembled by hand: version 1, kind, subject, via, time, note.
+    fn kind_5(rig: &Rig, author: PeerId, subject: PeerId) {
+        let mut value = vec![1, 5];
+        value.extend(subject.as_bytes());
+        value.extend([0, 1, 0]);
+        let mut key = b"acl/forget/".to_vec();
+        key.extend(subject.to_string().as_bytes());
+        rig.shared.put_raw(ReplicaEntry {
+            author,
+            key,
+            value: Bytes::from(value),
+            ts_micros: 5,
+        });
+    }
+
+    #[tokio::test]
+    async fn a_journal_with_old_forget_records_boots() {
+        // given: two kind 5 records about a live participant, one by a stranger and one by me
+        let rig = setup();
+        let (x, stranger) = (pid(2), pid(3));
+        rig.given_own_admit(x, Via::Invite).await;
+        kind_5(&rig, stranger, x);
+        kind_5(&rig, rig.me, x);
+        // when: the first boot, with the participant among the neighbours
+        rig.when_boot(&[], &[x], NOW).await;
+        // then: it succeeds, the marker is written, the participant is witnessed, two records are ignored
+        assert!(rig.marker().await.is_some(), "the marker must be written");
+        let witnessed = rig.shared.get(rig.me, &admit_key(&x)).await.unwrap();
+        assert!(witnessed.is_some(), "the participant must stay admitted");
+        let snap = rig.shared.scan(b"").await.unwrap();
+        let boot = AccessBoot {
+            me: rig.me,
+            initial: vec![],
+            cached: vec![x],
+            now_unix: NOW,
+            root: rig.me,
+        };
+        let plan = plan_admits(&snap, &BTreeSet::new(), &boot);
+        assert_eq!(plan.ignored, 2);
+    }
+}
+
 mod marker {
     use super::*;
 
@@ -250,7 +295,7 @@ impl Rig {
             initial: initial.to_vec(),
             cached: cached.to_vec(),
             now_unix,
-            rules: Rules::Peer,
+            root: self.me,
         };
         run_boot(&*self.shared, &*self.own, &boot)
             .await

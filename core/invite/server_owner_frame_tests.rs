@@ -10,9 +10,7 @@ use std::time::{Duration, Instant};
 use super::*;
 use crate::invite::store::{issue_record, IssueVerdict, Ledger};
 use crate::members::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
-use crate::members::access::tally::{
-    tally, AdmitIn, Exclusion, How, Ledger as Votes, Rules, TallyInput, VoteIn,
-};
+use crate::members::access::tally::{Exclusion, How, Ledger as Votes};
 use crate::members::access::view::Verdicts;
 use crate::transport::net::mem::{MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
@@ -24,7 +22,7 @@ mod legacy_frame {
     #[tokio::test]
     async fn kind_1_gets_bad_request_and_no_claim() {
         // given: an issued invite and an open access view
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         let session = node.fx.when_client_connects().await;
         // when: an old client sends the 33-byte kind 1 frame with the right secret
         let reply = session.when_asks(&valid_frame()).await;
@@ -40,7 +38,7 @@ mod owner_frame {
     #[tokio::test]
     async fn owner_frame_admits_owner_then_burns() {
         // given: an issued invite "Masha"
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         // when: the owner presents it
         let reply = node.when_owner_asks(&secret(7)).await;
         // then: the key, the server's own admit of the owner by invite with the note, and the used mark
@@ -70,7 +68,7 @@ mod owner_frame {
     #[tokio::test]
     async fn bad_proof_gets_bad_request_and_no_claim() {
         // given: a frame whose signature is damaged
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         let mut frame = owner_frame(&secret(7), &issued(), pid(1));
         frame[100] ^= 1;
         let session = node.fx.when_client_connects().await;
@@ -84,7 +82,7 @@ mod owner_frame {
     #[tokio::test]
     async fn proof_for_other_transport_gets_bad_request() {
         // given: a proof made for another transport id than the one that connects
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         let session = node.fx.when_client_connects().await;
         // when: the client replays a frame signed for pid(9)
         let reply = session
@@ -96,34 +94,26 @@ mod owner_frame {
     }
 
     #[tokio::test]
-    async fn excluded_owner_gets_excluded_and_invite_unspent() {
-        // given: a network of two where the server voted its newcomer out
-        let node = setup_node(excluded_view(server_id(), pid(7))).await;
-        // when: the excluded owner presents the invite
+    async fn excluded_owner_comes_back_by_the_invite() {
+        // given: the owner was excluded from the network
+        let node = setup_node(view(&[server_id(), pid(7)], &[pid(7)], &[])).await;
+        // when: the excluded owner presents a new invite
         let reply = node.when_owner_asks(&secret(7)).await;
-        // then: Excluded, and the invite is still unspent
-        assert_refused(reply, RedeemCode::Excluded);
-        node.then_invite_unspent().await;
-        // when: the same secret comes with another key
-        let again = node.when_owner_asks(&secret(8)).await;
-        // then: the invite works for the new key
-        assert_key(again);
+        // then: the key, a fresh admit record and the used mark
+        assert_key(reply);
+        assert!(node.admit_of(pid(7)).await.is_some(), "no admit record");
+        assert_eq!(
+            node.count("invite-used/").await,
+            1,
+            "the invite was not burned"
+        );
     }
 
     #[tokio::test]
     async fn blocked_owner_gets_not_ready() {
         // given: the server blocked this owner locally
-        let node = setup_node(view(&[server_id(), pid(7)], &[], &[], &[pid(7)])).await;
+        let node = setup_node(view(&[server_id(), pid(7)], &[], &[pid(7)])).await;
         // when / then: a retryable refusal: another holder may decide otherwise
-        assert_refused(node.when_owner_asks(&secret(7)).await, RedeemCode::NotReady);
-        node.then_invite_unspent().await;
-    }
-
-    #[tokio::test]
-    async fn owner_voted_by_me_gets_not_ready() {
-        // given: the server voted against this owner, the vote is not enough to exclude
-        let node = setup_node(view(&[server_id(), pid(7)], &[], &[pid(7)], &[])).await;
-        // when / then
         assert_refused(node.when_owner_asks(&secret(7)).await, RedeemCode::NotReady);
         node.then_invite_unspent().await;
     }
@@ -131,7 +121,7 @@ mod owner_frame {
     #[tokio::test]
     async fn server_that_left_gets_not_ready() {
         // given: the server itself is excluded (it left the network)
-        let node = setup_node(view(&[server_id()], &[server_id()], &[], &[])).await;
+        let node = setup_node(view(&[server_id()], &[server_id()], &[])).await;
         // when / then: it does not hand out keys, but another holder may
         assert_refused(node.when_owner_asks(&secret(7)).await, RedeemCode::NotReady);
         node.then_invite_unspent().await;
@@ -157,7 +147,7 @@ mod owner_frame {
     #[tokio::test]
     async fn short_owner_frame_ends_the_handler() {
         // given: 100 of 129 bytes and the end of the stream
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         let mut session = node.fx.when_client_connects().await;
         let frame = owner_frame(&secret(7), &issued(), pid(1));
         // when
@@ -174,7 +164,7 @@ mod owner_frame {
     #[tokio::test]
     async fn repeat_after_ok_is_used() {
         // given: the invite is redeemed once
-        let node = setup_node(AccessView::open()).await;
+        let node = setup_node(admin_view()).await;
         assert_key(node.when_owner_asks(&secret(7)).await);
         // when: the same owner presents it again
         let again = node.when_owner_asks(&secret(7)).await;
@@ -203,67 +193,27 @@ fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
     Votes {
         admitted: admitted.iter().copied().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
-        pending: Default::default(),
-        need: 1,
         admissions: Default::default(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
-        admins: Default::default(),
+        admins: BTreeSet::from([server_id()]),
         closed: None,
     }
 }
 
-/// An open view that has published the server's verdicts over the given facts.
-fn view(
-    admitted: &[PeerId],
-    excluded: &[PeerId],
-    my_votes: &[PeerId],
-    blocks: &[PeerId],
-) -> AccessView {
+/// A view that has published the server's verdicts (the server is the admin) over the given facts.
+fn view(admitted: &[PeerId], excluded: &[PeerId], blocks: &[PeerId]) -> AccessView {
     let verdicts = Verdicts {
         me: server_id(),
         ledger: Arc::new(ledger_of(admitted, excluded)),
-        my_votes: my_votes.iter().copied().collect(),
         blocks: blocks.iter().copied().collect::<BTreeSet<_>>(),
-        reasons: Default::default(),
     };
     let access = AccessView::open();
     access.publish(verdicts);
     access
 }
 
-/// The view of a network of two, `me` and `owner`, where `me` voted `owner` out (the tally decides).
-fn excluded_view(me: PeerId, owner: PeerId) -> AccessView {
-    let input = TallyInput {
-        me,
-        admits: vec![AdmitIn {
-            author: me,
-            subject: owner,
-            via: Via::Invite,
-            made_unix: 0,
-        }],
-        votes: vec![VoteIn {
-            voter: me,
-            subject: owner,
-            ts_micros: 10,
-            at_moment: false,
-        }],
-        forgets: Vec::new(),
-        rules: Rules::Peer,
-        powers: vec![],
-    };
-    let verdicts = Verdicts {
-        me,
-        ledger: Arc::new(tally(&input)),
-        my_votes: BTreeSet::from([owner]),
-        blocks: BTreeSet::new(),
-        reasons: Default::default(),
-    };
-    let access = AccessView::open();
-    access.publish(verdicts);
-    access
+/// The view of a network where the server is the only admin and member.
+fn admin_view() -> AccessView {
+    view(&[server_id()], &[], &[])
 }
 
 fn assert_key(reply: Option<RedeemReply>) {
@@ -296,7 +246,7 @@ async fn setup_node(access: AccessView) -> Node {
     let list = DomainList::open(shared.clone(), own).await.unwrap();
     let record = issue_record(crate::transport::net_mainline::unix_now(), Some("Masha"));
     Ledger::of(&list)
-        .issue(&issued().hash_hex(), &record)
+        .issue_as(&issued().hash_hex(), &record, Some(pid(2)))
         .await
         .unwrap();
     let fx = setup(Opts {

@@ -61,7 +61,7 @@ pub(crate) fn state_json(s: &StateSpec) -> Value {
         "route": {"state": route, "exits": exits},
         "exit": {"enabled": s.serves_exit, "clients": []},
         "socks": {"enabled": s.socks.is_some(), "listen": s.socks},
-        "members": {"voting": 0, "admitting": 0},
+        "members": {"admitting": 0},
     })
 }
 
@@ -75,7 +75,6 @@ pub(crate) struct NetSpec<'a> {
     pub(crate) joining: bool,
     pub(crate) peers_online: u32,
     pub(crate) peers_total: u32,
-    pub(crate) voting: u32,
     pub(crate) admitting: u32,
     pub(crate) route_state: &'a str,
     pub(crate) exits: Vec<&'a str>,
@@ -93,7 +92,6 @@ impl Default for NetSpec<'_> {
             joining: false,
             peers_online: 2,
             peers_total: 3,
-            voting: 0,
             admitting: 0,
             route_state: "direct",
             exits: vec![],
@@ -139,7 +137,7 @@ pub(crate) fn overview_json(specs: &[NetSpec]) -> Value {
         json!({
             "id": n.id, "label": n.label, "id_hex": n.id_hex, "status": n.status, "exit_enabled": false,
             "proxy": n.proxy, "route_state": n.route_state, "exits": n.exits,
-            "members_voting": n.voting, "joining": n.joining, "members_admitting": n.admitting,
+            "joining": n.joining, "members_admitting": n.admitting,
             "me_excluded": false, "me_pending": false,
             "peers_online": n.peers_online, "peers_total": n.peers_total,
         })

@@ -71,7 +71,7 @@ async fn switch_network_clears_the_refusal() {
     fx.wait_refused().await;
 
     // when
-    fx.ctl.switch_network("mesh1-aaaa");
+    fx.ctl.switch_network("mesh2-aaaa");
 
     // then
     assert_eq!(fx.ctl.invite_join(), None);

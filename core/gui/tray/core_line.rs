@@ -5,7 +5,7 @@
 use super::{Core, InviteNote, ServeNote};
 use crate::gui::tray::app::members_note;
 use crate::gui::tray::app::nets_texts::{
-    admit_text, invite_copied_line, invite_copied_text, no_connection_tail, vote_text,
+    admit_text, invite_copied_line, invite_copied_text, no_connection_tail,
 };
 use crate::gui::tray::app::start_note::{start_note_hint, StartNote};
 use crate::gui::tray::app::tray_actions;
@@ -76,27 +76,25 @@ impl Core {
         }
     }
 
-    /// The text of the vote item: with several networks it names the network the vote or request is in.
-    fn vote_item_text(&self) -> Option<String> {
+    /// The text of the request item: with several networks it names the network the request is in.
+    fn admit_item_text(&self) -> Option<String> {
         let plain = members_note::members_item_text(self.members)?;
-        let named = self.vote_net_label();
-        let text = match named {
-            Some((label, true)) => vote_text(label),
-            Some((label, false)) => admit_text(label),
+        let text = match self.admit_net_label() {
+            Some(label) => admit_text(label),
             None => plain.to_string(),
         };
         Some(text)
     }
 
-    /// The label of the network the vote item points at, and whether it is a ban vote (otherwise a join request).
-    fn vote_net_label(&self) -> Option<(&str, bool)> {
+    /// The label of the network the request item points at (several networks only).
+    fn admit_net_label(&self) -> Option<&str> {
         let facts = &self.facts;
         let slot = facts
-            .vote_slot
+            .admit_slot
             .as_deref()
             .filter(|_| facts.nets.len() >= 2)?;
         let net = facts.nets.iter().find(|n| n.slot == slot)?;
-        Some((net.label.as_str(), self.removal_vote))
+        Some(net.label.as_str())
     }
 
     /// The node's refusal reason is visible only for `Absent`: the note arrives before the view.
@@ -148,7 +146,7 @@ impl Core {
     pub(super) fn refresh_ui(&mut self) {
         let status_text = self.menu_first_line();
         let tooltip = members_note::tooltip_text(&status_text, self.members) + &self.offline_tail();
-        let vote_text = self.vote_item_text();
+        let admit_text = self.admit_item_text();
         let proxy_text = proxy_item_text(&self.proxy);
         let open_text =
             start_note_hint(self.shown_start_note()).unwrap_or_else(|| page_text(self.view));
@@ -166,7 +164,7 @@ impl Core {
             .set_enabled(start_enabled(self.view.node) || stop_enabled(self.view.node));
         ui.proxy_item.set_text(&proxy_text);
         let note_ids = ui.extras.note_ids();
-        ui.vote.apply(vote_text.as_deref(), &note_ids);
+        ui.admit.apply(admit_text.as_deref(), &note_ids);
     }
 }
 

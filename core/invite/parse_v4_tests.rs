@@ -1,4 +1,4 @@
-//! Tests of the invite string of format 4 (a Managed network: the body of format 3 plus the network kind and the
+//! Tests of the invite string of format 4 (the body, then the network kind and the
 //! creator's node id): layout, parsing and refusals (`parse.rs`).
 
 use std::net::SocketAddr;
@@ -7,7 +7,6 @@ use data_encoding::BASE32_NOPAD;
 
 use super::*;
 use crate::invite::{build_keyed, INVITE_PREFIX, MAX_INVITE_BYTES, MAX_INVITE_CHARS};
-use crate::members::network_key::NetKind;
 use crate::transport::addr_order::PrimaryIps;
 use crate::transport::net::endpoint_shim::{from_endpoint_addr, EndpointAddr};
 use crate::transport::net::{NodeSecret, PeerAddr, PeerId};
@@ -24,19 +23,19 @@ mod v4_roundtrip {
     use super::*;
 
     #[test]
-    fn keeps_the_kind_and_the_creator() {
+    fn a_managed_invite_parses_with_its_root() {
         // given
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         // when
         let parsed = parse(&rig.text).expect("a version 4 invite parses");
         // then
-        assert_eq!(parsed.head.kind, NetKind::Managed { root: rig.root });
+        assert_eq!(parsed.head.root, rig.root);
     }
 
     #[test]
     fn keeps_the_head_and_the_members() {
         // given
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         // when
         let parsed = parse(&rig.text).expect("a version 4 invite parses");
         // then
@@ -47,45 +46,28 @@ mod v4_roundtrip {
         let ids: Vec<PeerId> = parsed.peers.iter().map(|a| a.id).collect();
         assert_eq!(ids, vec![peer(1), peer(2)]);
     }
-
-    #[test]
-    fn a_peer_invite_still_parses_as_peer() {
-        // given
-        let rig = setup(Kind::Peer);
-        // when
-        let parsed = parse(&rig.text).expect("a version 3 invite parses");
-        // then
-        assert_eq!(parsed.head.kind, NetKind::Peer);
-        assert_eq!(body_of(&rig.text)[0], 3);
-    }
 }
 
 mod v4_layout {
     use super::*;
 
     #[test]
-    fn is_version_four_then_the_v3_body_then_kind_and_creator() {
-        // given: the same head and members issued as Peer (version 3) and as Managed (version 4)
-        let managed = setup(Kind::Managed);
-        let as_peer = InviteHead {
-            kind: NetKind::Peer,
-            ..managed.head.clone()
-        };
-        let v3 = build_text(&as_peer);
+    fn is_version_four_then_the_body_then_kind_and_creator() {
+        // given
+        let rig = setup();
         // when
-        let v4 = body_of(&managed.text);
+        let body = body_of(&rig.text);
         // then
-        let mut want = vec![4u8];
-        want.extend_from_slice(&body_of(&v3)[1..]);
-        want.push(KIND_MANAGED);
-        want.extend_from_slice(managed.root.as_bytes());
-        assert_eq!(v4, want);
+        let tail = &body[body.len() - ROOT_LEN - 1..];
+        assert_eq!(body[0], 4);
+        assert_eq!(tail[0], KIND_MANAGED);
+        assert_eq!(&tail[1..], rig.root.as_bytes());
     }
 
     #[test]
     fn keeps_the_invite_prefix() {
         // given / when
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         // then
         assert!(rig.text.starts_with(INVITE_PREFIX), "{}", rig.text);
     }
@@ -95,9 +77,9 @@ mod v4_refusals {
     use super::*;
 
     #[test]
-    fn unknown_kind_asks_to_update() {
+    fn an_unknown_kind_byte_is_a_different_format() {
         // given
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         let mut body = body_of(&rig.text);
         let at = body.len() - ROOT_LEN - 1;
         assert_eq!(body[at], KIND_MANAGED, "the kind byte precedes the creator");
@@ -107,7 +89,7 @@ mod v4_refusals {
         // then
         let text = format!("{err:#}");
         assert!(
-            text.contains("unknown network type (2)") && text.contains("update the program"),
+            text.contains("different format (4/2)") && text.contains("update the program"),
             "{text}"
         );
     }
@@ -120,7 +102,7 @@ mod v4_refusals {
             PeerId::from_bytes(&off).is_err(),
             "the test needs an id that `PeerId::from_bytes` refuses"
         );
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         let mut body = body_of(&rig.text);
         let from = body.len() - ROOT_LEN;
         body[from..].copy_from_slice(&off);
@@ -137,7 +119,7 @@ mod v4_refusals {
     #[test]
     fn cut_off_creator_is_a_damaged_invite() {
         // given
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         let mut body = body_of(&rig.text);
         body.truncate(body.len() - 10);
         // when
@@ -154,7 +136,7 @@ mod v5_different_format {
     #[test]
     fn is_refused_with_the_format_number() {
         // given
-        let rig = setup(Kind::Managed);
+        let rig = setup();
         let mut body = body_of(&rig.text);
         body[0] = 5;
         // when
@@ -167,9 +149,6 @@ mod v5_different_format {
         );
     }
 }
-
-// assumed: the format-3-only decoder of the previous program can't be called from here (`decode_invite_body`
-// takes both versions now), so "version 4 gives `different format (4)` there" is not tested.
 
 mod v4_worst_case_fits {
     use super::*;
@@ -212,12 +191,6 @@ mod v4_worst_case_fits {
     }
 }
 
-#[derive(Clone, Copy)]
-enum Kind {
-    Peer,
-    Managed,
-}
-
 struct Rig {
     head: InviteHead,
     root: PeerId,
@@ -235,17 +208,13 @@ fn managed_head(label: Option<&str>) -> InviteHead {
         network_id: [0xaa, 0xbb, 0xcc, 0xdd],
         label: label.map(str::to_string),
         made_unix: T,
-        kind: NetKind::Managed { root: peer(7) },
+        root: peer(7),
     }
 }
 
-/// An invite of the given kind with two members; Managed names `peer(7)` as the creator.
-fn setup(kind: Kind) -> Rig {
-    let mut head = managed_head(Some("work"));
-    head.kind = match kind {
-        Kind::Peer => NetKind::Peer,
-        Kind::Managed => head.kind,
-    };
+/// An invite with two members; `peer(7)` is the creator.
+fn setup() -> Rig {
+    let head = managed_head(Some("work"));
     let text = build_text(&head);
     Rig {
         head,

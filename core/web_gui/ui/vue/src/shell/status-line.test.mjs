@@ -141,20 +141,12 @@ describe("statusLine", () => {
   });
 });
 
-// This computer was removed from the member list: the node still reports the network, the header goes grey.
-describe("statusLine of a computer removed from the member list", () => {
-  const REMOVED = () => membersReply({ me_removed: true });
-
-  it("grey_line_when_me_removed", () => {
-    const got = statusLine(node("running"), createConn(), REMOVED());
-    assert.deepEqual(got, { level: "grey", text: "Removed from the member list \"family\" \u2014 ask a member for an invite" });
-  });
-
-  it("ban_line_wins_over_removed: a ban stays red", () => {
-    const banned = node("running", { members: { me_excluded: true } });
-    const got = statusLine(banned, createConn(), REMOVED());
+// An admin removed this computer: the node still reports the network, the header goes red.
+describe("statusLine of a computer removed by an admin", () => {
+  it("red_line_when_me_excluded", () => {
+    const got = statusLine(node("running", { members: { me_excluded: true } }), createConn());
     assert.equal(got.level, "red");
-    assert.match(got.text, /^Banned from the network "family"/);
+    assert.match(got.text, /^Removed from the network "family" by an admin/);
   });
 
   describe("no_line_without_members", () => {
@@ -176,12 +168,12 @@ describe("statusLine of a computer removed from the member list", () => {
   });
 
   it("without a network the header says it is not joined", () => {
-    const got = statusLine(node("running", { network: null }), createConn(), REMOVED());
+    const got = statusLine(node("running", { network: null }), createConn(), membersReply({ me_excluded: true }));
     assert.deepEqual(got, { level: "grey", text: "You haven't joined a Mesh Town network yet" });
   });
 
   it("a node that does not answer is still reported as such", () => {
-    assert.deepEqual(statusLine(null, createConn(), REMOVED()), { level: "grey", text: "Mesh Town is not responding" });
+    assert.deepEqual(statusLine(null, createConn(), membersReply({ me_excluded: true })), { level: "grey", text: "Mesh Town is not responding" });
   });
 });
 

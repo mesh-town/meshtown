@@ -12,7 +12,6 @@ use tokio::sync::watch;
 
 use super::*;
 use crate::config::config_file::Settings;
-use crate::members::access::authority::Rules;
 use crate::members::access::record::{encode, key_for, AclKind, AclValue, Via};
 use crate::members::access::view::AccessView;
 use crate::members::membership::Members;
@@ -193,8 +192,7 @@ fn open_network() -> Network {
         backend.replica_mem(REPLICA_DOMAINS).unwrap(),
     );
     let members = Members::with_access(AccessView::pending());
-    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members)
-        .with_rules(Rules::Managed { root: root() });
+    let access = Access::from_parts(node.peer_id(), shared.clone(), own, members, root());
     let network = Network {
         access: Arc::new(access),
         shared,

@@ -28,7 +28,7 @@ const peerOf = (full, exit) => ({ id: full.slice(0, 8).toLowerCase(), id_full: f
 
 function stateOf(slot, peers) {
   const me = baseState().peers.find((p) => p.self);
-  return baseState({ network: { id_hex: "hex-" + slot, label: slot, masked: "mesh1-••••-••••" }, peers: [me, ...peers], route: { state: "direct", exits: [] }, config_rev: 1 });
+  return baseState({ network: { id_hex: "hex-" + slot, label: slot, masked: "mesh2-••••-••••" }, peers: [me, ...peers], route: { state: "direct", exits: [] }, config_rev: 1 });
 }
 
 function mountCard(peersOf) {
@@ -36,7 +36,7 @@ function mountCard(peersOf) {
   const states = NETS.map(([slot]) => stateOf(slot, peersOf(slot)));
   acceptOverview(store, {
     api: 2,
-    nets: NETS.map(([id, label], i) => ({ id, label, id_hex: "hex-" + id, status: "online", exit_enabled: false, proxy: id === "main", route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1, state: states[i] })),
+    nets: NETS.map(([id, label], i) => ({ id, label, id_hex: "hex-" + id, status: "online", exit_enabled: false, proxy: id === "main", route_state: "direct", exits: [], joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 1, state: states[i] })),
     slots: NETS.map(([slot], i) => ({ slot, state: states[i], members: null })),
     restart_slots: [],
   });

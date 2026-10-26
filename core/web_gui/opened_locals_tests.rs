@@ -1,7 +1,7 @@
 //! `opened_locals_of`: the `local` ports other slots have opened, each with the name of its network.
 
 use super::*;
-use crate::members::network_key::{format_key_string, parse_user_input};
+use crate::members::network_key::{format_managed_key, parse_user_input};
 use crate::members::words::generate_tail;
 use crate::ports_sharing::{Opened, Proto};
 use crate::transport::net::NodeSecret;
@@ -81,7 +81,7 @@ mod the_network_name {
     #[test]
     fn without_a_label_is_network_and_the_first_four_characters_of_the_id() {
         // given: the key of B has no label
-        let key_b = format_key_string(None, &generate_tail().unwrap());
+        let key_b = format_managed_key(None, &generate_tail().unwrap(), &creator());
         let slots = vec![
             slot(A, Some(&key_with_label("home")), &[]),
             slot(B, Some(&key_b), &[9000]),
@@ -130,12 +130,16 @@ mod the_protocol {
     }
 }
 
+fn creator() -> crate::transport::net::PeerId {
+    NodeSecret::from_bytes(&[7; 32]).peer_id()
+}
+
 fn id(text: &str) -> NetSlotId {
     NetSlotId::parse(text).expect("a valid slot id")
 }
 
 fn key_with_label(label: &str) -> String {
-    format_key_string(Some(label), &generate_tail().unwrap())
+    format_managed_key(Some(label), &generate_tail().unwrap(), &creator())
 }
 
 /// The first four characters of the network id a key stands for.

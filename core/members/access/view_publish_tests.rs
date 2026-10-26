@@ -67,21 +67,6 @@ mod publish {
     }
 
     #[test]
-    fn publish_reports_my_vote_on_a_listed_member() {
-        // given: A and B are listed and allowed
-        let Cast { m, a, b, .. } = cast();
-        let view = AccessView::open();
-        view.publish(verdicts(m, ledger(&[m, a, b], &[])));
-        // when: my vote against A is published (the threshold is not reached, A stays listed)
-        let got = view.publish(Verdicts {
-            my_votes: set(&[a]),
-            ..verdicts(m, ledger(&[m, a, b], &[]))
-        });
-        // then: A is newly denied as "voted by me"
-        assert_eq!(denied(got), map(&[(a, Deny::VotedByMe)]));
-    }
-
-    #[test]
     fn publish_returns_a_node_that_dropped_off_the_list() {
         // A node that is in neither ledger set of the new view (a cascade removed it) is reported as well.
         // given: D was listed in the previous view
@@ -256,9 +241,9 @@ mod wire {
     }
 
     #[test]
-    fn my_vote_and_block_reach_the_other_side_as_refused() {
-        // given: the two reasons that stay private
-        for deny in [Deny::VotedByMe, Deny::Blocked] {
+    fn a_block_reaches_the_other_side_as_refused() {
+        // given: the reason that stays private
+        for deny in [Deny::Blocked] {
             // when / then: the other side only learns that it was refused
             let text = on_the_wire(deny);
             assert_eq!(Deny::from_wire(&text), Some(Deny::Refused), "text {text:?}");
@@ -271,7 +256,6 @@ mod wire {
         assert_eq!(Deny::Unlisted.wire_reason(), b"not admitted");
         assert_eq!(Deny::Excluded.wire_reason(), b"excluded");
         assert_eq!(Deny::Left.wire_reason(), b"left");
-        assert_eq!(Deny::VotedByMe.wire_reason(), b"refused");
         assert_eq!(Deny::Blocked.wire_reason(), b"refused");
         assert_eq!(Deny::Refused.wire_reason(), b"refused");
         assert_eq!(ACCESS_CLOSE_CODE, 403);
@@ -301,7 +285,6 @@ mod wire {
         // given / when / then
         assert_eq!(Deny::Left.code(), "left");
         assert_eq!(Deny::Excluded.code(), "excluded");
-        assert_eq!(Deny::VotedByMe.code(), "voted_by_me");
         assert_eq!(Deny::Blocked.code(), "blocked");
         assert_eq!(Deny::Unlisted.code(), "unlisted");
         assert_eq!(Deny::Refused.code(), "refused");

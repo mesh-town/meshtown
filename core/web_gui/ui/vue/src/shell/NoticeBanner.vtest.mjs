@@ -4,7 +4,7 @@
  * The notices ride on the overview (`notices[]`) into `store.notices`. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { deletedNotice, managedNode, peerNode } from "../testing/managed-fixtures.mjs";
+import { deletedNotice, managedNode } from "../testing/managed-fixtures.mjs";
 import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 
 const TEXT = '"family" was deleted by an admin (anna). This computer has left it.';
@@ -15,19 +15,19 @@ afterEach(() => unmountPage());
 describe("a notice about a deleted network", () => {
   describe("on the Members tab", () => {
     it("shows the strip with the admin's name and OK", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice()] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice()] }), "peers");
       expect(page.strip().attributes("role")).toBe("alert");
       expect(page.strip().text()).toContain(TEXT);
       expect(page.ok().text()).toBe("OK");
     });
 
     it("an empty admin name leaves the name out", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice({ by_name: "" })] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice({ by_name: "" })] }), "peers");
       expect(page.strip().text()).toContain('"family" was deleted by an admin. This computer has left it.');
     });
 
     it("a null admin name leaves the name out too", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice({ by_name: null })] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice({ by_name: null })] }), "peers");
       expect(page.strip().text()).not.toContain("(");
     });
   });
@@ -41,19 +41,19 @@ describe("a notice about a deleted network", () => {
 
   describe("OK", () => {
     it("acknowledges the notice by id", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice({ id: 42 })] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice({ id: 42 })] }), "peers");
       await page.whenOkClicked();
       expect(page.acks()).toEqual([{ id: 42 }]);
     });
 
     it("makes the strip disappear", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice()] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice()] }), "peers");
       await page.whenOkClicked();
       expect(page.wrapper.find("#notice-banner").exists()).toBe(false);
     });
 
     it("stays away after the next poll", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice()] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice()] }), "peers");
       await page.whenOkClicked();
       await polls(page.node, 1);
       expect(page.wrapper.find("#notice-banner").exists()).toBe(false);
@@ -64,21 +64,21 @@ describe("a notice about a deleted network", () => {
     it("are listed from the oldest to the newest", async () => {
       const older = deletedNotice({ id: 1, label: "first", at_unix: 1792400000 });
       const newer = deletedNotice({ id: 2, label: "second", at_unix: 1792500000 });
-      const page = await open(peerNode({ notices: [newer, older] }), "peers");
+      const page = await open(managedNode({ notices: [newer, older] }), "peers");
       const text = page.strip().text();
       expect(text.indexOf('"first"'), "the older one comes first").toBeGreaterThanOrEqual(0);
       expect(text.indexOf('"first"')).toBeLessThan(text.indexOf('"second"'));
     });
 
     it("each has its own OK", async () => {
-      const page = await open(peerNode({ notices: [deletedNotice({ id: 1 }), deletedNotice({ id: 2, label: "second" })] }), "peers");
+      const page = await open(managedNode({ notices: [deletedNotice({ id: 1 }), deletedNotice({ id: 2, label: "second" })] }), "peers");
       expect(page.wrapper.findAll("#notice-ok")).toHaveLength(2);
     });
   });
 
   describe("no notices", () => {
     it("no strip", async () => {
-      const page = await open(peerNode(), "peers");
+      const page = await open(managedNode(), "peers");
       expect(page.wrapper.find("#notice-banner").exists()).toBe(false);
     });
   });

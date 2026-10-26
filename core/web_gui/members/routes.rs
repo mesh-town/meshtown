@@ -20,15 +20,12 @@ use super::leave::leave_handler;
 
 /// Registers the member routes of one network under `base` (`/api` or `/api/net/{slot}`).
 pub(crate) fn register_members(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
-    let actions: [(&str, MethodRouter<Arc<App>>); 10] = [
+    let actions: [(&str, MethodRouter<Arc<App>>); 7] = [
         ("exclude", post(exclude_handler)),
         ("unexclude", post(unexclude_handler)),
         ("admit", post(admit_handler)),
-        ("unadmit", post(unadmit_handler)),
         ("block", post(block_handler)),
         ("unblock", post(unblock_handler)),
-        ("forget", post(forget_handler)),
-        ("unforget", post(unforget_handler)),
         ("leave", post(leave_handler)),
         ("admin", post(admin_handler)),
     ];
@@ -102,7 +99,7 @@ async fn id_action(
     }
 }
 
-/// Longest reason of an exclusion vote, in characters.
+/// Longest reason of an exclusion, in characters.
 const MAX_REASON_CHARS: usize = 80;
 
 /// The optional `reason`: absent or `null` is none; a blank string is none; a non-string, a long one or
@@ -162,10 +159,6 @@ async fn admit_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     id_action(&slot, &bytes, MemberActionReq::Admit).await
 }
 
-async fn unadmit_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
-    id_action(&slot, &bytes, MemberActionReq::Unadmit).await
-}
-
 async fn block_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     id_action(&slot, &bytes, MemberActionReq::Block).await
 }
@@ -205,14 +198,6 @@ async fn delete_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
     }
 }
 
-async fn forget_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
-    id_action(&slot, &bytes, MemberActionReq::Forget).await
-}
-
-async fn unforget_handler(SlotParam(slot): SlotParam, bytes: Bytes) -> Response {
-    id_action(&slot, &bytes, MemberActionReq::Unforget).await
-}
-
 #[cfg(test)]
 #[path = "routes_tests.rs"]
 mod tests;
@@ -228,18 +213,6 @@ mod fixture;
 #[cfg(test)]
 #[path = "routes_admit_tests.rs"]
 mod admit_tests;
-
-#[cfg(test)]
-#[path = "routes_forget_tests.rs"]
-mod forget_tests;
-
-#[cfg(test)]
-#[path = "routes_forget_slot_tests.rs"]
-mod forget_slot_tests;
-
-#[cfg(test)]
-#[path = "routes_forget_support_tests.rs"]
-mod forget_support;
 
 #[cfg(test)]
 #[path = "routes_admin_tests.rs"]

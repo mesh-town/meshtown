@@ -1,15 +1,19 @@
 //! The membership list across a restart of a node that was excluded or left: on loopback, with the list
 //! consulted (`open_list = false`) and the restarted node keeping its lists on disk under the same identity.
-//! A node excluded by votes that is pardoned after a restart comes back by itself; a node that left stays out;
+//! A node excluded by the creator that is pardoned after a restart comes back by itself; a node that left stays out;
 //! a restarted node under an exclusion stays out.
 //!
-//! What it does: two nodes admit each other, one of them is excluded or leaves, restarts with the same key and
+//! What it does: the creator admits a member, one of them is excluded or leaves, restarts with the same key and
 //! directory and is introduced again. Every wait runs under an external deadline.
 //! What it does not do: no web layer and no more than two nodes. Each test uses its own node keys, because
 //! the tests share one process network.
 
-#[path = "common/socks_pair.rs"]
+#[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/managed_net.rs"]
+mod managed;
+#[path = "common/invite_mesh.rs"]
+mod mesh;
 
 use std::path::PathBuf;
 use std::time::Duration;
@@ -18,13 +22,29 @@ use meshtown_core::members::access::actions::{apply, MemberAction};
 use meshtown_core::members::access::record::{ensure, AclKind, AclValue, Via};
 use meshtown_core::members::access::report::members_reply;
 use meshtown_core::members::access::view::Deny;
-use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
-use meshtown_core::transport::net::NodeSecret;
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use meshtown_core::transport::net_mainline::unix_now;
-use tokio::time::{sleep, timeout};
+use tokio::time::{sleep, timeout, Instant};
 
-use common::{introduce, wait_member};
+use managed::ManagedNet;
+
+/// `a` dials `b`.
+async fn introduce(a: &RunningNode, b: &RunningNode) {
+    a.introduce(PeerAddr::new(b.id)).await;
+}
+
+/// Waits until the node recognizes the given one as a member.
+async fn wait_member(node: &RunningNode, who: PeerId, limit: Duration) {
+    let deadline = Instant::now() + limit;
+    while Instant::now() < deadline {
+        if node.members.is_member(who) {
+            return;
+        }
+        sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the handshake did not happen within {limit:?}");
+}
 
 /// The external deadline of one wait.
 const LIMIT: Duration = Duration::from_secs(15);
@@ -39,7 +59,8 @@ mod pardoned_after_a_restart {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn a_pardoned_node_comes_back_after_a_restart() {
         // given: a connected pair, a excluded b, b knows it and was restarted with the same directory
-        let (a, b, cfg) = pair(31, 32).await;
+        let net = ManagedNet::new();
+        let (a, b, cfg) = pair(&net, 32).await;
         let b = given_excluded_and_restarted(&a, b, &cfg).await;
         eventually("b still knows its exclusion", || knows_own_exclusion(&b)).await;
         // when: a withdraws the exclusion, and nobody syncs by hand
@@ -58,7 +79,8 @@ mod staying_out_after_a_restart {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn a_node_that_left_stays_out_after_a_restart() {
         // given: a connected pair, b left, a sees that b left on its own, b was restarted
-        let (a, b, cfg) = pair(33, 34).await;
+        let net = ManagedNet::new();
+        let (a, b, cfg) = pair(&net, 34).await;
         act(&b, MemberAction::Leave).await;
         let _ = b.domains.sync_shared_with(a.id).await;
         eventually("a sees that b left", || b_left(&a, &b)).await;
@@ -75,7 +97,8 @@ mod staying_out_after_a_restart {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn a_restarted_node_under_exclusion_stays_out() {
         // given: a connected pair, a excluded b, b knows it and was restarted
-        let (a, b, cfg) = pair(35, 36).await;
+        let net = ManagedNet::new();
+        let (a, b, cfg) = pair(&net, 36).await;
         let b = given_excluded_and_restarted(&a, b, &cfg).await;
         // when: b is introduced to a and given time
         sleep(WATCH).await;
@@ -89,11 +112,9 @@ mod staying_out_after_a_restart {
 
 // ---- helpers ----
 
-/// A node with a fixed identity (by `tag`) and its own store directory, so that a restart brings it back as it was.
-fn restartable_cfg(key: &NetworkKey, tag: u8) -> NodeConfig {
-    let mut cfg = NodeConfig::for_loopback_test(key.clone());
-    cfg.open_list = false;
-    cfg.identity_secret = Some(NodeSecret::from_bytes(&[tag; 32]));
+/// A member with a fixed identity (by `tag`) and its own store directory, so that a restart brings it back as it was.
+fn restartable_cfg(net: &ManagedNet, tag: u8) -> NodeConfig {
+    let mut cfg = net.member_config(tag);
     cfg.docs_store_dir = Some(scratch_store_dir(tag));
     cfg
 }
@@ -118,14 +139,11 @@ async fn restart(cfg: &NodeConfig, node: RunningNode) -> RunningNode {
     node::start_node(cfg.clone()).await.unwrap()
 }
 
-/// A connected pair: `a` is plain, `b` is restartable under the key `tag_b`; the config of `b` comes back too.
-async fn pair(tag_a: u8, tag_b: u8) -> (RunningNode, RunningNode, NodeConfig) {
-    let key = NetworkKey::generate().unwrap();
-    let mut plain = NodeConfig::for_loopback_test(key.clone());
-    plain.open_list = false;
-    plain.identity_secret = Some(NodeSecret::from_bytes(&[tag_a; 32]));
-    let cfg_b = restartable_cfg(&key, tag_b);
-    let a = node::start_node(plain).await.unwrap();
+/// A connected pair: `a` is the creator, `b` is a restartable member under the key `tag_b`; the config of `b`
+/// comes back too.
+async fn pair(net: &ManagedNet, tag_b: u8) -> (RunningNode, RunningNode, NodeConfig) {
+    let cfg_b = restartable_cfg(net, tag_b);
+    let a = net.start_root(net.base.clone()).await;
     let b = node::start_node(cfg_b.clone()).await.unwrap();
     connected_pair(&a, &b).await;
     (a, b, cfg_b)
@@ -151,7 +169,7 @@ fn knows_own_exclusion(b: &RunningNode) -> bool {
     status_of(b, b) == "excluded"
 }
 
-/// `a` sees that `b` left on its own rather than being voted out.
+/// `a` sees that `b` left on its own rather than being excluded.
 fn b_left(a: &RunningNode, b: &RunningNode) -> bool {
     // before the first publication after a restart there is no verdict yet: not seen
     let Some(verdicts) = a.members.access().verdicts() else {
@@ -182,7 +200,7 @@ async fn eventually_within(limit: Duration, what: &str, cond: impl Fn() -> bool)
         .unwrap_or_else(|_| panic!("did not happen within {limit:?}: {what}"));
 }
 
-/// `a` writes its admission of `b` into its own copy of the shared list.
+/// The creator `a` writes its admission of `b` into its own copy of the shared list.
 async fn admit(a: &RunningNode, b: &RunningNode) {
     let value = AclValue {
         kind: AclKind::Admit,
@@ -217,12 +235,10 @@ fn status_of(a: &RunningNode, who: &RunningNode) -> String {
         .unwrap_or_default()
 }
 
-/// Mutual admissions, a recompute on each side and a connection between them.
+/// The creator's admission, a recompute and a connection between the two.
 async fn connected_pair(a: &RunningNode, b: &RunningNode) {
     admit(a, b).await;
-    admit(b, a).await;
     refresh(a).await;
-    refresh(b).await;
     introduce(a, b).await;
     wait_member(a, b.id, LIMIT).await;
     wait_member(b, a.id, LIMIT).await;

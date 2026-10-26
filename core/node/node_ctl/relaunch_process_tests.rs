@@ -33,8 +33,8 @@ fn settings_with_process_block() -> Settings {
     }
 }
 
-fn key() -> NetworkKey {
-    NetworkKey::from_bytes([41u8; 32])
+fn key() -> crate::members::network_key::NetworkKeyInput {
+    crate::node::host::test_keys::key_input(41)
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_net_replaces_only_choice() {
     // when: rebuilding the node config
     let cfg = r.node_config(&s, key());
     // then: the network choice — as with loopback, the process part and other network fields — from the settings
-    let loopback = NodeConfig::for_loopback_test(key()).settings.net_choice;
+    let loopback = NodeConfig::for_loopback_test(key().key).settings.net_choice;
     assert_eq!(cfg.settings.net_choice, loopback);
     assert_eq!(
         cfg.settings,

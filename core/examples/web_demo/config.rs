@@ -5,10 +5,11 @@ use std::path::{Path, PathBuf};
 use serde_json::{json, Value};
 
 use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
-use meshtown_core::members::network_key::format_key_string;
+use meshtown_core::members::network_key::format_managed_key;
 use meshtown_core::members::words;
 
 use crate::args::{Args, FileState, IdentityMode};
+use crate::managed::demo_root;
 use crate::overrides::parse_cli_overrides;
 
 // ============================================================================================
@@ -40,9 +41,10 @@ fn prepare_declined_config(
     now: u64,
 ) -> anyhow::Result<(config_file::RunConfig, Option<PathBuf>)> {
     if !args.no_network {
-        cli.network_key = Some(format_key_string(
+        cli.network_key = Some(format_managed_key(
             Some("demo-network"),
             &words::generate_tail()?,
+            &demo_root(),
         ));
     }
     let run = config_file::prepare(&ConfigSource::Disabled, cli, false, now)?;
@@ -92,9 +94,10 @@ fn write_config_fields(config_path: &Path, args: &Args) -> anyhow::Result<()> {
     // The demo node does not open the page to the local network: e2e only connects from this machine.
     doc["config"]["web"]["access"] = json!("localhost");
     if !args.no_network {
-        doc["config"]["network"]["key"] = json!(format_key_string(
+        doc["config"]["network"]["key"] = json!(format_managed_key(
             Some("demo-network"),
-            &words::generate_tail()?
+            &words::generate_tail()?,
+            &demo_root(),
         ));
     }
     apply_field_errors(&mut doc, args);

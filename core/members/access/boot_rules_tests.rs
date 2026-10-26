@@ -5,7 +5,7 @@
 use super::*;
 use std::collections::BTreeSet;
 
-use crate::members::access::record::{admit_key, block_key, encode, exclude_key, withdraw};
+use crate::members::access::record::{admit_key, block_key, withdraw};
 use crate::transport::net::NodeSecret;
 
 mod restart {
@@ -55,16 +55,13 @@ mod never_admits {
 
     #[tokio::test]
     async fn never_admits_excluded_voted_or_blocked() {
-        // given: V1 and V2 are admitted by me; E is excluded by their two votes, W carries my own vote,
+        // given: V1 and V2 are admitted by me; E and W carry my own vote,
         // B is blocked on this node; all of them are known neighbours, together with a clean node N
         let rig = setup();
         let (v1, v2, e, w, b, n) = (pid(2), pid(3), pid(4), pid(5), pid(6), pid(7));
         rig.given_own_admit(v1, Via::Invite).await;
         rig.given_own_admit(v2, Via::Invite).await;
-        rig.given_admit_by(v1, e);
-        rig.given_admit_by(v1, w);
-        rig.given_vote_by(v1, e, 10);
-        rig.given_vote_by(v2, e, 20);
+        rig.given_own_vote(e).await;
         rig.given_own_vote(w).await;
         rig.given_block(b).await;
         // when: the boot runs with all of them (and the node itself) as neighbours
@@ -90,20 +87,6 @@ mod never_admits {
     }
 
     #[tokio::test]
-    async fn exclusion_by_not_yet_admitted_voters_is_respected() {
-        // given: V1 and V2 are cached neighbours (not admitted yet) and have voted against S, who is cached too
-        let rig = setup();
-        let (v1, v2, s) = (pid(2), pid(3), pid(4));
-        rig.given_vote_by(v1, s, ago(2 * DAY));
-        rig.given_vote_by(v2, s, ago(DAY));
-        // when: the first boot
-        rig.when_boot(&[], &[v1, v2, s], NOW).await;
-        // then: the voters are admitted and their votes count: S is excluded, so S is not admitted
-        let want = admits_of(&[(v1, Via::Witness), (v2, Via::Witness)]);
-        assert_eq!(rig.admits().await, want, "S must stay out");
-    }
-
-    #[tokio::test]
     async fn left_node_admits_nothing() {
         // given: a node with a prior life that has excluded itself, with neighbours and a recent author around
         let rig = setup();
@@ -117,29 +100,6 @@ mod never_admits {
         assert!(
             rig.admits().await.is_empty(),
             "a node that left admits nobody"
-        );
-        assert_eq!(out, 0);
-        assert!(rig.marker().await.is_some(), "the marker must be written");
-    }
-
-    #[tokio::test]
-    async fn excluded_by_votes_node_admits_nothing_at_boot() {
-        // given: a node with a prior life that two admitted neighbours have voted out (with the initial and
-        // the cached neighbour counted in, four are active and two votes are needed)
-        let rig = setup();
-        let (voter, voter2, initial, cached) = (pid(2), pid(5), pid(3), pid(4));
-        rig.given_prior_life().await;
-        rig.given_own_admit(voter, Via::Invite).await;
-        rig.given_own_admit(voter2, Via::Invite).await;
-        rig.given_vote_by(voter, rig.me, ago(DAY));
-        rig.given_vote_by(voter2, rig.me, ago(DAY));
-        // when: the first boot
-        let out = rig.when_boot(&[initial], &[cached], NOW).await;
-        // then: nothing new is admitted (only the earlier admits of the voters stay), the marker is written
-        assert_eq!(
-            rig.admits().await,
-            admits_of(&[(voter, Via::Invite), (voter2, Via::Invite)]),
-            "a node excluded by votes admits nobody"
         );
         assert_eq!(out, 0);
         assert!(rig.marker().await.is_some(), "the marker must be written");
@@ -159,7 +119,7 @@ mod ceiling {
             initial: vec![],
             cached: cached.clone(),
             now_unix: NOW,
-            rules: Rules::Peer,
+            root: rig.me,
         };
         // when: the plan is made
         let plan = plan_admits(&[], &BTreeSet::new(), &boot);
@@ -256,40 +216,6 @@ mod log_line {
 // --- helpers ---
 
 impl Rig {
-    /// An admit record written by another author.
-    fn given_admit_by(&self, author: PeerId, subject: PeerId) {
-        let value = AclValue {
-            kind: AclKind::Admit,
-            subject,
-            via: Via::Invite,
-            made_unix: 111,
-            note: String::new(),
-        };
-        self.given_list_record(author, admit_key(&subject), &value, 1_000);
-    }
-
-    /// An exclusion vote written by another author at the given time.
-    fn given_vote_by(&self, voter: PeerId, subject: PeerId, ts_micros: u64) {
-        let value = AclValue {
-            kind: AclKind::Exclude,
-            subject,
-            via: Via::None,
-            made_unix: 111,
-            note: String::new(),
-        };
-        self.given_list_record(voter, exclude_key(&subject), &value, ts_micros);
-    }
-
-    fn given_list_record(&self, author: PeerId, key: Vec<u8>, value: &AclValue, ts_micros: u64) {
-        let value = Bytes::from(encode(value));
-        self.shared.put_raw(ReplicaEntry {
-            author,
-            key,
-            value,
-            ts_micros,
-        });
-    }
-
     /// My own vote to exclude the subject (the subject may be the node itself: leaving).
     async fn given_own_vote(&self, subject: PeerId) {
         let value = AclValue {

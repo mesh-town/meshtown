@@ -46,7 +46,6 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         peer_names: HashMap::new(),
         chosen_exits: Vec::new(),
         excluded: HashSet::new(),
-        removed: HashSet::new(),
         domain_names: Vec::new(),
         check_views: Vec::new(),
         in_progress: HashSet::new(),

@@ -36,7 +36,6 @@ pub(crate) mod snapshot;
 
 pub(crate) use live_paths::apply_log_capacity;
 pub use peer_addr::peer_lines;
-pub(crate) use relaunch::apply_key_input;
 pub use relaunch::Relaunch;
 pub(crate) use state::Cmd;
 pub use state::NodeCtl;

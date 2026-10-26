@@ -94,7 +94,7 @@ fn views_from_overview(all: &[SlotView], tray_proxy_plan: &ProxyState) -> (ExitM
     let snap = TraySnapshot::from_value(&main.state);
     let mut menu = exit_menu_from_snapshot(&snap);
     menu.slot = Some(main.slot.clone());
-    menu.can_invite = !main.managed || main.can_invite;
+    menu.can_invite = main.can_invite;
     menu.proxy = proxy_of(all, &snap).with_flag_reason_from(tray_proxy_plan);
     if vis.len() >= 2 {
         nest(&mut menu, &vis, main);
@@ -117,13 +117,12 @@ fn proxy_of(all: &[SlotView], shown: &TraySnapshot) -> ProxyState {
     }
 }
 
-/// Two or more networks: submenus and exit groups instead of the flat list, votes summed over the networks.
+/// Two or more networks: submenus and exit groups instead of the flat list, requests summed over the networks.
 fn nest(menu: &mut ExitMenu, vis: &[SlotView], main: &SlotView) {
     menu.slot = None;
     menu.items = Vec::new();
     menu.nets = nets_from_slots(vis);
     menu.groups = groups_from_slots(vis);
-    menu.members.voting = vis.iter().map(|s| u64::from(s.members_voting)).sum();
     menu.members.admitting = vis.iter().map(|s| u64::from(s.members_admitting)).sum();
     menu.route = via_in_net(menu.route.clone(), main);
 }

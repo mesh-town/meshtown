@@ -40,8 +40,6 @@ pub enum NodeStatus {
 pub struct MembersInfo {
     pub count: u64,
     pub gossip_neighbors: u64,
-    /// Listed nodes that wait for this node's confirmation.
-    pub voting: u64,
     /// This node has been excluded or has left.
     pub me_excluded: bool,
     /// Requests to join that wait for this node's confirmation.

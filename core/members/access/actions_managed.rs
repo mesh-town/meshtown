@@ -1,45 +1,23 @@
 //! Member actions of a managed network: who may do what, and the records of the role actions.
 //!
-//! What it does: `gate` answers the refusals that depend on the kind of the network and the role of this
+//! What it does: `gate` answers the refusals that depend on the state of the network and the role of this
 //! node; `grant`, `revoke` and `close` write the records of power.
-//! What it doesn't do: the checks shared by all networks and the votes of a peer network live in
-//! `actions`.
+//! What it doesn't do: the checks shared by all actions live in `actions`.
 
 use crate::transport::net::{NetResult, PeerId};
 use crate::transport::net_mainline::unix_now;
 
 use super::actions::{ActionRefusal, MemberAction};
-use super::authority::Rules;
 use super::record::{self, AclKind, AclValue, Via};
 use super::runtime::Access;
 use super::view::Verdicts;
 
 type Refusal = Result<(), ActionRefusal>;
 
-/// The refusals of the network kind, before the checks shared by all networks.
-pub(super) fn gate(me: PeerId, rules: Rules, v: &Verdicts, act: &MemberAction) -> Refusal {
-    match rules.root() {
-        Some(root) => managed_gate(me, root, v, act),
-        None => peer_gate(act),
-    }
-}
-
-/// A network without administrators knows no role actions.
-fn peer_gate(act: &MemberAction) -> Refusal {
-    match act {
-        MemberAction::Grant(_) | MemberAction::Revoke(_) | MemberAction::Close => {
-            Err(ActionRefusal::NotManaged)
-        }
-        _ => Ok(()),
-    }
-}
-
-fn managed_gate(me: PeerId, root: PeerId, v: &Verdicts, act: &MemberAction) -> Refusal {
+/// The refusals of the network state and of the role, before the checks shared by all actions.
+pub(super) fn gate(me: PeerId, root: PeerId, v: &Verdicts, act: &MemberAction) -> Refusal {
     if v.ledger.closed.is_some() {
         return Err(ActionRefusal::Closed);
-    }
-    if matches!(act, MemberAction::Forget(_) | MemberAction::Unforget(_)) {
-        return Err(ActionRefusal::PeerOnly);
     }
     if v.ledger.excluded.contains_key(&me) {
         return Ok(());
@@ -52,8 +30,8 @@ fn managed_gate(me: PeerId, root: PeerId, v: &Verdicts, act: &MemberAction) -> R
 }
 
 /// Whether the admission is the return of an excluded node: an administrator needs no request for it.
-pub(super) fn returns(rules: Rules, v: &Verdicts, p: &PeerId) -> bool {
-    rules.is_managed() && v.ledger.excluded.contains_key(p)
+pub(super) fn returns(v: &Verdicts, p: &PeerId) -> bool {
+    v.ledger.excluded.contains_key(p)
 }
 
 fn is_last_admin(me: PeerId, v: &Verdicts) -> bool {

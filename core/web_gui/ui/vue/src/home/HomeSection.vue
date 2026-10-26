@@ -13,7 +13,6 @@ import InviteCard from "./InviteCard.vue";
 import JoinCard from "./JoinCard.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
 import { useExcluded } from "../members/use-excluded.ts";
-import { isMeRemoved } from "../members/members-view.ts";
 import SetupWizard from "./SetupWizard.vue";
 import StatePanel from "./StatePanel.vue";
 import UpdateBanner from "./UpdateBanner.vue";
@@ -30,17 +29,14 @@ provide(HOME_KEY, home);
 const { activeTab, panel, ring, order, multi, chips } = home;
 // A computer that is out of the network: the card and the way back (an invite) instead of the usual cards.
 const { excluded, variant, net } = useExcluded(store);
-const removed = computed(() => isMeRemoved(store.members));
-const managedHere = computed(() => store.state?.network?.kind === "Managed");
-const outOfNet = computed(() => excluded.value || removed.value);
 </script>
 
 <template>
   <div id="home-root">
     <div v-if="store.state === null" class="card"><p class="hint">{{ HOME_LOADING }}</p></div>
-    <template v-else-if="outOfNet">
-      <ExcludedCard form-open :variant="variant" :net="net" :managed="managedHere" />
-      <div class="card"><JoinCard :removed="removed && !excluded" /></div>
+    <template v-else-if="excluded">
+      <ExcludedCard form-open :variant="variant" :net="net" />
+      <div class="card"><JoinCard /></div>
     </template>
     <template v-else>
       <HomeTabs />

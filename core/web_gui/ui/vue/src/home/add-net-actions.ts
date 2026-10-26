@@ -86,9 +86,7 @@ async function giveBack(form: AddNetForm, deps: HomeDeps, slot: string): Promise
   }
 }
 
-// A Peer network is created exactly as before: the kind rides along only when it is Managed.
-const createBody = (form: AddNetForm): CreateNetworkRequest =>
-  form.kind === "Managed" ? { label: form.label.trim(), kind: form.kind } : { label: form.label.trim() };
+const createBody = (form: AddNetForm): CreateNetworkRequest => ({ label: form.label.trim() });
 
 async function send(form: AddNetForm, deps: HomeDeps, mode: AddNetMode): Promise<AddNetResult> {
   const taken = await deps.api<TakenSlot>("POST", "/api/nets", {});
@@ -159,7 +157,7 @@ function joinedName(store: Store, form: AddNetForm): string {
 
 /** The banner text for a finished add; `null` — nothing to say (the join is still waiting, or it failed). */
 export function addedBannerText(store: Store, form: AddNetForm, result: AddNetResult): string | null {
-  if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET, form.kind);
+  if (result === "created") return createdBanner(form.netLabel || PEERS_NEW_NET);
   return result === "joined" ? joinedBanner(joinedName(store, form), currentExitVia(store), adminNamesOf(store, form.slot ?? "")) : null;
 }
 

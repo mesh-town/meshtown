@@ -18,7 +18,7 @@ const chosenOf = (full) => ({ id: full.slice(0, 8).toLowerCase(), id_full: full,
 function stateOfSpec(spec) {
   const me = baseState().peers.find((p) => p.self);
   return baseState({
-    network: { id_hex: "hex-" + spec.id, label: spec.label, masked: "mesh1-••••-••••" },
+    network: { id_hex: "hex-" + spec.id, label: spec.label, masked: "mesh2-••••-••••" },
     peers: [me, ...spec.offers.map(peerOf)],
     route: { state: spec.exits.length ? "exit" : "direct", exits: spec.exits.map(chosenOf) },
     config_rev: 1,
@@ -28,7 +28,7 @@ function stateOfSpec(spec) {
 function briefOf(spec, state) {
   return {
     id: spec.id, label: spec.label, id_hex: "hex-" + spec.id, status: "online", exit_enabled: false, proxy: spec.proxy,
-    route_state: state.route.state, exits: spec.exits, members_voting: 0, joining: false, members_admitting: 0,
+    route_state: state.route.state, exits: spec.exits, joining: false, members_admitting: 0,
     me_excluded: false, me_pending: false, peers_online: spec.offers.length, peers_total: spec.offers.length,
   };
 }

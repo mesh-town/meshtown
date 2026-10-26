@@ -286,7 +286,7 @@ describe("addedBannerText", () => {
   it("created — the banner names the typed network and points to the invite", async () => {
     const w = setup({ label: "family" });
     const result = await addNetwork(w.form, w.store, w.deps, "create");
-    assert.match(addedBannerText(w.store, w.form, result), /^You created "family"\./);
+    assert.match(addedBannerText(w.store, w.form, result), /^You created "family" and you.re its admin\./);
   });
 
   it("waiting, duplicate, limit, failed, empty — no banner", async () => {

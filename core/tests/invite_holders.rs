@@ -13,7 +13,6 @@ use std::time::Duration;
 use meshtown_core::invite::redeem::RedeemError;
 use meshtown_core::invite::store::{IssueVerdict, Ledger};
 use meshtown_core::invite::Reach;
-use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::RunningNode;
 use meshtown_core::transport::net::{PeerAddr, PeerId};
 use meshtown_core::transport::net_mainline::unix_now;
@@ -21,12 +20,15 @@ use tokio::time::sleep;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/managed_net.rs"]
+mod managed;
 #[path = "common/invite_mesh.rs"]
 mod mesh;
 use common::{
     addr_of, fresh_head, quick_opts, record_issue, redeem_via, short_opts, wait_verdict,
     ENTRY_LIMIT_SECS,
 };
+use managed::ManagedNet;
 use mesh::{deal, mesh};
 
 /// Rounds in the two-newcomer test: the race doesn't show up in every round.
@@ -38,8 +40,8 @@ mod three_nodes_and_the_issuer_gone {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn newcomer_enters_through_a_holder_when_the_issuer_is_gone() {
         // given: three nodes in the network, one of them issued a string
-        let key = NetworkKey::generate().unwrap();
-        let mut nodes = mesh(&key, 3).await;
+        let net = ManagedNet::new();
+        let mut nodes = mesh(&net, 3).await;
         let (dealt, parsed) = deal(&nodes[0]).await;
         assert_eq!(
             dealt.holders.len(),
@@ -74,14 +76,14 @@ mod three_nodes_and_the_issuer_gone {
         .await;
         // then
         let got = got.expect("the newcomer must join through a holder");
-        assert_eq!(got.encode(), key.encode());
+        assert_eq!(got.to_bytes(), net.base.to_bytes());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn holder_keeps_its_own_copy() {
         // given
-        let key = NetworkKey::generate().unwrap();
-        let nodes = mesh(&key, 3).await;
+        let net = ManagedNet::new();
+        let nodes = mesh(&net, 3).await;
         // when
         let (dealt, parsed) = deal(&nodes[0]).await;
         // then: each holder has its issue record in its document
@@ -109,8 +111,8 @@ mod two_newcomers {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn two_newcomers_through_two_holders_get_one_key() {
         // given: three nodes, a fresh string on every round
-        let key = NetworkKey::generate().unwrap();
-        let nodes = mesh(&key, 3).await;
+        let net = ManagedNet::new();
+        let nodes = mesh(&net, 3).await;
         for round in 0..ROUNDS {
             let (_, parsed) = deal(&nodes[0]).await;
             let head = &parsed.head;
@@ -145,11 +147,11 @@ mod two_newcomers {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn rival_claim_of_a_smaller_id_holds_the_larger_back() {
         // given: two nodes ordered by id; the issue is recorded at both
-        let key = NetworkKey::generate().unwrap();
-        let mut nodes = mesh(&key, 2).await;
+        let net = ManagedNet::new();
+        let mut nodes = mesh(&net, 2).await;
         nodes.sort_by_key(|n| *n.id.as_bytes());
         let (small, large) = (&nodes[0], &nodes[1]);
-        let head = fresh_head(&key, unix_now());
+        let head = fresh_head(&net.base, unix_now());
         record_issue(small, &head, unix_now()).await;
         record_issue(large, &head, unix_now()).await;
         // when: the smaller writes a claim, the larger saw it, the newcomer comes to the larger
@@ -198,8 +200,8 @@ mod few_members_online {
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn one_member_online_gives_issuer_and_one() {
         // given: the creator and one member
-        let key = NetworkKey::generate().unwrap();
-        let nodes = mesh(&key, 2).await;
+        let net = ManagedNet::new();
+        let nodes = mesh(&net, 2).await;
         // when
         let (dealt, parsed) = deal(&nodes[0]).await;
         // then
@@ -211,8 +213,8 @@ mod few_members_online {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn alone_gives_issuer_only_and_issuer_first() {
         // given: the only node of the network
-        let key = NetworkKey::generate().unwrap();
-        let nodes = mesh(&key, 1).await;
+        let net = ManagedNet::new();
+        let nodes = mesh(&net, 1).await;
         // when
         let (dealt, parsed) = deal(&nodes[0]).await;
         // then

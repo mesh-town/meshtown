@@ -2,40 +2,32 @@
 //! the redeemer is admitted by the issuer's record, then both sides see each other as members,
 //! while an outsider with the same network key stays out.
 //!
-//! What it does: three loopback nodes of one network, one invitation issued and redeemed with a
+//! What it does: three loopback nodes of one Managed network, one invitation issued and redeemed with a
 //! permanent key, then a node started with that key and the peers from the invitation.
 //! What it does not do: no web layer, no relay; every wait has a ceiling so a hang fails the test.
 
 use std::time::Duration;
 
-use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::node::{self, NodeConfig, RunningNode};
+use meshtown_core::node::RunningNode;
 use meshtown_core::transport::net::NodeSecret;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/managed_net.rs"]
+mod managed;
 #[path = "common/invite_mesh.rs"]
 mod mesh;
 use common::{quick_opts, redeem_via, wait_until, ENTRY_LIMIT_SECS, OWNER_SEED};
+use managed::{start_joined, wait_can_invite, ManagedNet};
 use mesh::deal;
+
+/// The seed of the permanent key of the node that has no invitation.
+const OUTSIDER_SEED: u8 = 6;
 
 /// The ceiling of one wait for a membership change.
 const LIMIT: Duration = Duration::from_secs(20);
 /// How long the outsider is watched after the newcomer has joined.
 const WATCH: Duration = Duration::from_secs(3);
-
-/// A node that consults the membership list, with no SOCKS listener.
-async fn start_listed(
-    key: &NetworkKey,
-    owner: Option<NodeSecret>,
-    peers: Vec<meshtown_core::transport::net::PeerAddr>,
-) -> RunningNode {
-    let mut cfg = NodeConfig::for_loopback_test(key.clone());
-    cfg.open_list = false;
-    cfg.identity_secret = owner;
-    cfg.initial_peers = peers;
-    node::start_node(cfg).await.unwrap()
-}
 
 async fn wait_member(node: &RunningNode, who: meshtown_core::transport::net::PeerId, what: &str) {
     let seen = || node.members.is_member(who);
@@ -47,11 +39,12 @@ async fn wait_member(node: &RunningNode, who: meshtown_core::transport::net::Pee
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn invite_v2_admits_the_newcomer_while_the_list_is_on() {
-    // given: node A with the list on, an invitation issued by it, and an outsider F with the same key
-    let key = NetworkKey::generate().unwrap();
-    let a = start_listed(&key, None, Vec::new()).await;
+    // given: the creator A with the list on, an invitation issued by it, and an outsider F of the same network
+    let net = ManagedNet::new();
+    let a = net.start_root(net.base.clone()).await;
+    wait_can_invite(&a).await;
     let (_dealt, parsed) = deal(&a).await;
-    let outsider = start_listed(&key, None, parsed.peers.clone()).await;
+    let outsider = net.start_member(OUTSIDER_SEED, parsed.peers.clone()).await;
     let owner = NodeSecret::from_bytes(&[OWNER_SEED; 32]);
     let owner_id = owner.peer_id();
 
@@ -64,8 +57,8 @@ async fn invite_v2_admits_the_newcomer_while_the_list_is_on() {
     .await;
     let granted = got.expect("the invitation must be redeemed while the list is on");
     assert_eq!(
-        granted.subkeys().network_id,
-        key.subkeys().network_id,
+        parsed.head.reply_key(&granted).subkeys().network_id,
+        net.key.subkeys().network_id,
         "the granted key must be the network's"
     );
 
@@ -77,7 +70,7 @@ async fn invite_v2_admits_the_newcomer_while_the_list_is_on() {
     );
 
     // when: the redeemer starts as a node with the granted key and the peers of the invitation
-    let newcomer = start_listed(&granted, Some(owner), parsed.peers.clone()).await;
+    let newcomer = start_joined(&parsed.head, &granted, OWNER_SEED, parsed.peers.clone()).await;
     assert_eq!(
         newcomer.id, owner_id,
         "the node must run under the redeemer's permanent key"

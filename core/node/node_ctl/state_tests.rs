@@ -114,12 +114,12 @@ async fn no_network_is_offline_and_busy() {
 async fn join_from_no_network_goes_starting() {
     let ctl = NodeCtl::new_without_network(&Settings::default());
     let p1 = test_addr(1);
-    ctl.join_with_peers("mesh1-abc", vec![p1.clone()]);
+    ctl.join_with_peers("mesh2-abc", vec![p1.clone()]);
     assert_eq!(ctl.snapshot().node.status, NodeStatus::Starting);
     assert_eq!(
         ctl.next_command().await,
         Cmd::Switch {
-            key: "mesh1-abc".to_string(),
+            key: "mesh2-abc".to_string(),
             peers: vec![p1]
         }
     );
@@ -248,13 +248,21 @@ mod node_name_path {
     }
 }
 
+/// The node that is the creator, and so an admin, of the test network, once it has judged the list.
+async fn start_root(key: NetworkKey) -> RunningNode {
+    let mut cfg = NodeConfig::for_loopback_test(key);
+    cfg.open_list = false;
+    cfg.identity_secret = Some(crate::transport::net::NodeSecret::from_bytes(&[31; 32]));
+    let node = crate::node::start_node(cfg).await.unwrap();
+    node.members.access().ready().await;
+    node
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invite_from_attached_node_parses_back() {
     let ctl = NodeCtl::new(&Settings::default());
     let key = NetworkKey::generate().unwrap();
-    let node = crate::node::start_node(NodeConfig::for_loopback_test(key.clone()))
-        .await
-        .unwrap();
+    let node = start_root(key.clone()).await;
     ctl.attach(&node);
 
     let invite = ctl

@@ -1,7 +1,5 @@
 //! Tests of the Managed network key: both text forms, derivation, and the golden strings (`managed.rs`).
 
-// path: `parse_user_input` is reached through the parent re-export, `parse_peer_only` through the sibling
-// `input` module (visible to descendants of `network_key`). Adjust if visibility changes.
 use super::support::*;
 use super::*;
 use crate::members::network_key::{parse_user_input, BadWord};
@@ -92,7 +90,7 @@ mod forms_agree {
         // then
         assert_eq!(words.key.to_bytes(), raw.key.to_bytes());
         assert_eq!(words.base, raw.base);
-        assert_eq!(words.kind, raw.kind);
+        assert_eq!(words.root, raw.root);
     }
 
     #[test]
@@ -126,7 +124,7 @@ mod other_root_other_network {
         // when
         let input = parse(&text);
         // then
-        assert_eq!(input.kind, NetKind::Managed { root: other });
+        assert_eq!(input.root, other);
         assert_eq!(HEXLOWER.encode(&input.key.to_bytes()), OTHER_KEY_HEX);
         assert_eq!(input.key.subkeys().network_id_hex(), OTHER_KEY_ID);
     }
@@ -154,5 +152,32 @@ mod other_root_other_network {
         ));
         // then
         assert_eq!(HEXLOWER.encode(&raw.key.to_bytes()), OTHER_KEY_HEX);
+    }
+}
+
+mod test_net_helper {
+    use super::*;
+    use crate::members::network_key::test_net;
+
+    #[test]
+    fn test_net_text_parses_back() {
+        // given
+        let net = test_net("a");
+        // when
+        let input = parse_user_input(&net.text).unwrap();
+        // then
+        assert_eq!(input.key.to_bytes(), net.key.to_bytes());
+        assert_eq!(input.root, net.root);
+        assert_eq!(input.base, net.base);
+        assert_eq!(input.label.as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn every_call_makes_another_network() {
+        // when
+        let (one, two) = (test_net("a"), test_net("a"));
+        // then
+        assert_ne!(one.key.to_bytes(), two.key.to_bytes());
+        assert_ne!(one.root, two.root);
     }
 }

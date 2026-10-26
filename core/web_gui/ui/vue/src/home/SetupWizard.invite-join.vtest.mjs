@@ -24,7 +24,7 @@ afterEach(() => {
 describe("SetupWizard > an invite that waits", () => {
   it("waiting: the progress block, then the network is in and the wizard hands over", async () => {
     api.mockImplementation(async (method, path) => {
-      if (path === "/api/network/inspect") return { label: "family", kind: "Peer", id_hex: "aa" };
+      if (path === "/api/network/inspect") return { label: "family", id_hex: "aa" };
       return { label: "family", restart: false, waiting: true, slot: "main" };
     });
     mounted = mountSection(SetupWizard, { state: baseState({ network: null, peers: [] }) });

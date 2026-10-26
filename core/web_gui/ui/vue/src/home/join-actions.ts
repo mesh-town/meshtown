@@ -3,7 +3,7 @@
 
 import { watch } from "vue";
 import { forDevice } from "../common/device.ts";
-import type { NetKind, CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
+import type { CreateNetworkRequest, CreateNetworkResponse, JoinRequest, JoinResponse } from "../core/api-types.ts";
 import type { ApiErrorLike } from "../core/api.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps, writeSetupMark } from "./home-actions.ts";
@@ -12,7 +12,7 @@ import { ADD_NET_LIMIT, createdBanner } from "./add-net-texts.ts";
 import { failText, quotedNet, upperFirst } from "../common/words.ts";
 import {
   HOME_CREATE_FAILED, HOME_INVITE_EMPTY, HOME_INVITE_INVALID, HOME_JOIN_ACTION, HOME_LABEL_EMPTY, JOIN_STALLED, JOIN_STALLED_SILENT,
-  JOIN_WAITING, createdNoticeText, joinedStatusText, waitingStatusText,
+  JOIN_WAITING, joinedStatusText, waitingStatusText,
 } from "./home-flow-texts.ts";
 
 const INVITE_EMPTY = HOME_INVITE_EMPTY;
@@ -44,8 +44,6 @@ export interface JoinForm {
   choice: "" | "join" | "create";
   busy: "" | "join" | "create";
   status: string;
-  /** The kind of the network the create form makes; the join forms never send it. */
-  kind: NetKind;
   /** The slot the last join went to, the slot of an "already in" answer, and the name the node gave the network. */
   slot?: string;
   dupSlot?: string;
@@ -59,7 +57,7 @@ export type JoinResult = "skipped" | "empty" | "joined" | "waiting" | "here" | "
 type RequestBody = JoinRequest | CreateNetworkRequest;
 
 export function createJoinForm(): JoinForm {
-  return { inviteInput: "", inviteError: null, label: "", labelError: null, choice: "", busy: "", status: "", kind: "Peer" };
+  return { inviteInput: "", inviteError: null, label: "", labelError: null, choice: "", busy: "", status: "" };
 }
 
 // Body of the word highlight in the key error without raw HTML: `[{ text, highlighted }]`.
@@ -76,11 +74,6 @@ function markerParts(message: string, word: string, marker: string, idx: number)
     { text: marker, highlighted: true },
     { text: message.slice(idx + marker.length), highlighted: false },
   ];
-}
-
-// Text for `form.status` after creating a network.
-function createdNotice(label: unknown): string {
-  return createdNoticeText(quotedNet(label));
 }
 
 const asking = new WeakSet<JoinForm>();
@@ -257,7 +250,7 @@ function createDone(form: JoinForm, res: CreateNetworkResponse | null, label: st
   form.inviteInput = "";
   form.inviteError = null;
   const name = (res && res.label) || label;
-  form.status = form.kind === "Managed" ? createdBanner(name, "Managed") : createdNotice(name);
+  form.status = createdBanner(name);
   writeMark(mark, deps);
   return "created";
 }
@@ -274,11 +267,10 @@ export function createNetwork(form: JoinForm, store: Store, deps: HomeDeps = def
   return ask(form, () => startCreate(form, store, deps));
 }
 
-// A Peer network is created exactly as before: the kind rides along only when it is Managed.
-const createBody = (form: JoinForm, label: string): CreateNetworkRequest => (form.kind === "Managed" ? { label, kind: "Managed" } : { label });
+const createBody = (label: string): CreateNetworkRequest => ({ label });
 
 function startCreate(form: JoinForm, store: Store, deps: HomeDeps): Promise<JoinResult> | "empty" {
   const label = form.label.trim();
   form.labelError = label ? null : LABEL_EMPTY;
-  return label ? sendCreate(form, label, createBody(form, label), markFor(store), deps) : "empty";
+  return label ? sendCreate(form, label, createBody(label), markFor(store), deps) : "empty";
 }

@@ -16,10 +16,9 @@ use crate::proxy::domains::DomainList;
 use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
 use crate::transport::net_mainline::unix_now;
 
-use super::authority::Rules;
-use super::reasons::{label_admissions, reasons_of};
-use super::record::{self, tally_input_under, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
-use super::subjects::{live_subjects, my_votes_under};
+use super::reasons::label_admissions;
+use super::record::{self, tally_input, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
+use super::subjects::live_subjects;
 use super::tally::{tally, Closed};
 use super::view::{AccessView, Verdicts};
 
@@ -30,7 +29,7 @@ pub struct Access {
     pub(crate) own: Arc<dyn Replica>,
     pub(crate) me: PeerId,
     pub(crate) members: Members,
-    pub(crate) rules: Rules,
+    pub(crate) root: PeerId,
     ignored_logged: AtomicUsize,
     /// The closing of the network by an administrator, as the last recompute saw it.
     closed_tx: watch::Sender<Option<Closed>>,
@@ -43,12 +42,13 @@ struct Scan {
 }
 
 impl Access {
-    pub fn new(list: &DomainList, members: &Members) -> Access {
+    pub fn new(list: &DomainList, members: &Members, root: PeerId) -> Access {
         Access::from_parts(
             list.me(),
             list.shared_replica(),
             list.own_replica(),
             members.clone(),
+            root,
         )
     }
 
@@ -57,6 +57,7 @@ impl Access {
         shared: Arc<dyn Replica>,
         own: Arc<dyn Replica>,
         members: Members,
+        root: PeerId,
     ) -> Access {
         Access {
             view: members.access(),
@@ -64,16 +65,10 @@ impl Access {
             own,
             me,
             members,
-            rules: Rules::Peer,
+            root,
             ignored_logged: AtomicUsize::new(0),
             closed_tx: watch::channel(None).0,
         }
-    }
-
-    /// The same node counted by other rules.
-    pub fn with_rules(mut self, rules: Rules) -> Access {
-        self.rules = rules;
-        self
     }
 
     /// The closing of the network: `Some` once an administrator's close is counted. It changes only
@@ -102,20 +97,16 @@ impl Access {
 
     async fn recompute(&self) -> NetResult<Arc<Verdicts>> {
         let scan = self.scan().await?;
-        let (input, ignored) = tally_input_under(self.rules, self.me, &scan.acl);
+        let (input, ignored) = tally_input(self.root, self.me, &scan.acl);
         self.log_ignored(ignored);
         let blocks = live_subjects(&scan.blocks, self.me, AclKind::Block);
         let mut ledger = tally(&input);
         label_admissions(&mut ledger, &scan.acl);
-        let my_votes = my_votes_under(self.rules, &scan.acl, self.me, &ledger.excluded);
-        let reasons = reasons_of(&ledger, &scan.acl);
         let closed = ledger.closed.clone();
         let verdicts = Verdicts {
             me: self.me,
             ledger: Arc::new(ledger),
-            my_votes,
             blocks,
-            reasons,
         };
         let denied = self.view.publish(verdicts.clone());
         self.closed_tx.send_if_modified(|seen| {

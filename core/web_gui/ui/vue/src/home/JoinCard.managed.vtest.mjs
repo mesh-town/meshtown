@@ -1,5 +1,4 @@
-/* The join card with network kinds: the choice of the kind when creating (Peer unless another is chosen) and the line that says
- * what a pasted invite leads to. The node is a stub `api` that records every call; the pause in typing runs on fake timers. */
+/* The join card: creating a network (the name only is sent) and the line that says what a pasted invite leads to. The node is a stub `api` that records every call; the pause in typing runs on fake timers. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -14,7 +13,6 @@ const INVITE = "mesh-invite2-ABCDEFGH";
 const INSPECT = "/api/network/inspect";
 const CREATE = "/api/network/create";
 const MANAGED_LINE = 'Network "work" · Managed: admins decide who joins';
-const PEER_LINE = 'Network "work" · Peer: every member can invite';
 const MANAGED_STATUS =
   'You created "work" and you\'re its admin. Nobody else is here yet: use Invite to "work" to add a member. ' +
   "Once someone joins, make a second member an admin (⋯ → Make admin): a network without an admin can't be managed.";
@@ -32,124 +30,49 @@ afterEach(() => {
 });
 
 describe("creating a network", () => {
-  describe("the kind", () => {
-    it("is offered in the create form, Peer chosen", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      expect(card.wrapper.find("#create-box #kind-peer").exists(), "the Peer card in the create form").toBe(true);
-      expect(card.wrapper.find("#create-box #kind-managed").exists(), "the Managed card in the create form").toBe(true);
-      expect(card.wrapper.get("#kind-peer").element.checked).toBe(true);
-      expect(card.wrapper.get("#kind-managed").element.checked).toBe(false);
-    });
-
-    it("is not offered in the join form", async () => {
-      const card = await setup(nodeAnswering());
-      expect(card.wrapper.find("#join-box #kind-peer").exists()).toBe(false);
-      expect(card.wrapper.find("#join-box #kind-managed").exists()).toBe(false);
-    });
-
-    it("the warning is there only while Managed is chosen", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      expect(card.wrapper.find("#kind-managed-warn").exists()).toBe(false);
-      await card.when.kindChosen("kind-managed");
-      expect(card.wrapper.find("#kind-managed-warn").exists()).toBe(true);
-      await card.when.kindChosen("kind-peer");
-      expect(card.wrapper.find("#kind-managed-warn").exists()).toBe(false);
-    });
-
-    it("the warning names the typed network", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.kindChosen("kind-managed");
-      expect(card.wrapper.get("#kind-managed-warn").text()).toContain('"work" can\'t be managed any more');
-    });
+  it("sends the name alone", async () => {
+    const card = await setup(nodeAnswering());
+    await card.when.createOpened();
+    await card.when.nameTyped("work");
+    await card.when.createClicked();
+    expect(card.bodiesTo(CREATE)).toEqual([{ label: "work" }]);
   });
 
-  describe("Peer, the default", () => {
-    it("sends the name alone", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.createClicked();
-      expect(card.bodiesTo(CREATE)).toEqual([{ label: "work" }]);
-    });
-
-    it("the status after creating is the former short sentence", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.createClicked();
-      expect(card.wrapper.get("#join-status").text()).toBe('Network "work" created.');
-    });
+  it("the status says you are the admin and asks for a second admin", async () => {
+    const card = await setup(nodeAnswering());
+    await card.when.createOpened();
+    await card.when.nameTyped("work");
+    await card.when.createClicked();
+    expect(card.wrapper.get("#join-status").text()).toBe(MANAGED_STATUS);
   });
 
-  describe("Managed chosen", () => {
-    it("sends the name and the kind", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.kindChosen("kind-managed");
-      await card.when.createClicked();
-      expect(card.bodiesTo(CREATE)).toEqual([{ label: "work", kind: "Managed" }]);
-    });
-
-    it("then Peer again — the kind is not sent", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.kindChosen("kind-managed");
-      await card.when.kindChosen("kind-peer");
-      await card.when.createClicked();
-      expect(card.bodiesTo(CREATE)).toEqual([{ label: "work" }]);
-    });
-
-    it("the status says you are its admin and asks for a second admin", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.nameTyped("work");
-      await card.when.kindChosen("kind-managed");
-      await card.when.createClicked();
-      expect(card.wrapper.get("#join-status").text()).toBe(MANAGED_STATUS);
-    });
-
-    it("an empty name is refused as before, nothing is sent", async () => {
-      const card = await setup(nodeAnswering());
-      await card.when.createOpened();
-      await card.when.kindChosen("kind-managed");
-      await card.when.createClicked();
-      expect(card.wrapper.get("#create-label-error").text()).toBe('Enter a name, for example "family".');
-      expect(card.bodiesTo(CREATE)).toEqual([]);
-    });
+  it("an empty name is refused, nothing is sent", async () => {
+    const card = await setup(nodeAnswering());
+    await card.when.createOpened();
+    await card.when.createClicked();
+    expect(card.wrapper.get("#create-label-error").text()).toBe('Enter a name, for example "family".');
+    expect(card.bodiesTo(CREATE)).toEqual([]);
   });
 });
 
 describe("a pasted invite", () => {
   it("says nothing and asks nothing before the pause in typing is over", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Managed", id_hex: "ab12" } }));
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }));
     await card.when.inviteTyped(INVITE);
     expect(card.wrapper.find("#join-kind-preview").exists()).toBe(false);
     expect(card.bodiesTo(INSPECT)).toEqual([]);
   });
 
   it("then says that a Managed network is decided by admins", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Managed", id_hex: "ab12" } }));
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }));
     await card.when.inviteTyped(INVITE);
     await card.when.pauseOver();
     expect(card.wrapper.get("#join-kind-preview").text()).toBe(MANAGED_LINE);
     expect(card.bodiesTo(INSPECT)).toEqual([{ key: INVITE }]);
   });
 
-  it("or that every member of a Peer network can invite", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Peer", id_hex: "ab12" } }));
-    await card.when.inviteTyped(INVITE);
-    await card.when.pauseOver();
-    expect(card.wrapper.get("#join-kind-preview").text()).toBe(PEER_LINE);
-  });
-
   it("an emptied field takes the line away", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Managed", id_hex: "ab12" } }));
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }));
     await card.when.inviteTyped(INVITE);
     await card.when.pauseOver();
     await card.when.inviteTyped("");
@@ -157,7 +80,7 @@ describe("a pasted invite", () => {
   });
 
   it("does not change the join: the key alone is sent", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Managed", id_hex: "ab12" } }));
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }));
     await card.when.inviteTyped(INVITE);
     await card.when.pauseOver();
     await card.when.joinClicked();
@@ -177,23 +100,20 @@ describe("a pasted invite", () => {
 });
 
 describe("the other modes of the card", () => {
-  it("with a network a pasted invite is described, and the create form still offers the kind", async () => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Managed", id_hex: "ab12" } }), { state: baseState() });
+  it("with a network a pasted invite is described", async () => {
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }), { state: baseState() });
+    await card.when.inviteTyped(INVITE);
+    await card.when.pauseOver();
+    expect(card.wrapper.get("#join-kind-preview").text()).toBe(MANAGED_LINE);
+  });
+
+  it.each([{ quiet: true }, { removed: true }])("with %o the preview works and the create form has no type choice", async (props) => {
+    const card = await setup(nodeAnswering({ inspect: { label: "work", id_hex: "ab12" } }), { ...NO_NET, props });
     await card.when.inviteTyped(INVITE);
     await card.when.pauseOver();
     expect(card.wrapper.get("#join-kind-preview").text()).toBe(MANAGED_LINE);
     await card.when.createOpened();
-    expect(card.wrapper.get("#kind-peer").element.checked).toBe(true);
-  });
-
-  it.each([{ quiet: true }, { removed: true }])("with %o the kind picker and the preview work", async (props) => {
-    const card = await setup(nodeAnswering({ inspect: { label: "work", kind: "Peer", id_hex: "ab12" } }), { ...NO_NET, props });
-    await card.when.inviteTyped(INVITE);
-    await card.when.pauseOver();
-    expect(card.wrapper.get("#join-kind-preview").text()).toBe(PEER_LINE);
-    await card.when.createOpened();
-    expect(card.wrapper.get("#kind-peer").element.checked).toBe(true);
-    expect(card.wrapper.find("#kind-managed").exists()).toBe(true);
+    expect(card.wrapper.find("[id^=kind-]").exists()).toBe(false);
   });
 });
 
@@ -212,7 +132,7 @@ async function setup(answers, detail = NO_NET) {
 function nodeAnswering({ inspect = new ApiError(404, "not_found") } = {}) {
   return (method, path, body) => {
     if (path === INSPECT) return inspect;
-    if (path === CREATE) return { key: "mesh1-secret", label: body.label, restart: false };
+    if (path === CREATE) return { key: "mesh2-secret", label: body.label, restart: false };
     if (path === "/api/network/join") return { label: "work", restart: false };
     return new Error("unexpected request " + method + " " + path);
   };
@@ -236,11 +156,6 @@ function cardOf({ wrapper, store }) {
       },
       async nameTyped(value) {
         await wrapper.get("#create-label-input").setValue(value);
-      },
-      // Clicks the card (its label), as a person does: the label forwards the click to the radio.
-      async kindChosen(id) {
-        wrapper.get("#" + id).element.closest("label").click();
-        await flushPromises();
       },
       async pauseOver() {
         await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS + 1);

@@ -12,12 +12,12 @@ import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { PEER_FULL, baseConfig, baseState } from "../testing/section.mjs";
 
 const FRESH = "neta22";
-const INVITE = "mesh1-ABCDEFGH";
+const INVITE = "mesh2-ABCDEFGH";
 const ADD_LINK = "Join or create another network";
 const CREATE_TAB = "Create";
 const JOINED = 'You joined "work".';
 const EXIT_TAIL = "Your exit hasn't changed: sites still open via peer-one (friends).";
-const CREATED = 'You created "work". Nobody else is here yet: use Invite to "work" to add a member.';
+const CREATED = 'You created "work" and you\'re its admin. Nobody else is here yet: use Invite to "work" to add a member. Once someone joins, make a second member an admin (\u22ef \u2192 Make admin): a network without an admin can\'t be managed.';
 
 beforeEach(() => {
   localStorage.clear();
@@ -53,12 +53,11 @@ describe("one network", () => {
     expect(page.selectedName()).toBe("+");
   });
 
-  it("Join shows the invite form, Create the name field and the kind choice", async () => {
+  it("Join shows the invite form, Create the name field", async () => {
     const page = await openOne("peers/add");
     expect(page.card().find("#add-net-input").exists()).toBe(true);
     await page.whenClicked(CREATE_TAB);
     expect(page.card().find("#add-net-label-input").exists()).toBe(true);
-    expect(page.card().find(".kind-picker").exists()).toBe(true);
     await page.whenClicked("Join");
     expect(page.card().find("#add-net-input").exists()).toBe(true);
   });
@@ -290,7 +289,7 @@ function becomesNetwork(slot) {
   slot.joining = false;
   slot.label = "work";
   slot.id_hex = "net-cccc";
-  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh1-••••-••••" }, peers: [] });
+  slot.state = baseState({ network: { id_hex: "net-cccc", masked: "mesh2-••••-••••" }, peers: [] });
   slot.routes["GET /api/members"] = membersReply({ rows: [selfRow()] });
 }
 
@@ -298,7 +297,7 @@ function scriptSlot(slot, { waiting, duplicate }) {
   if (duplicate) slot.routes["POST /api/network/join"] = { status: 409, body: { error: "net_already_added", slot: NET_B } };
   else if (waiting) slot.routes["POST /api/network/join"] = () => { slot.joining = waiting !== "unseen"; return { label: null, restart: false, waiting: true }; };
   else slot.routes["POST /api/network/join"] = () => { becomesNetwork(slot); return { label: "work", restart: false }; };
-  slot.routes["POST /api/network/create"] = () => { becomesNetwork(slot); return { key: "mesh1-secret", label: "work", restart: false }; };
+  slot.routes["POST /api/network/create"] = () => { becomesNetwork(slot); return { key: "mesh2-secret", label: "work", restart: false }; };
 }
 
 async function openOne(hash = "peers") {

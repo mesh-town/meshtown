@@ -92,7 +92,7 @@ function overviewOf(ids, keyless) {
   const brief = (id) => ({
     id, label: id === "main" ? "friends" : "my devices", id_hex: keyless.includes(id) ? null : "net-" + id,
     status: "online", exit_enabled: false, proxy: id === "main", route_state: "direct", exits: [],
-    members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
+    joining: false, members_admitting: 0, me_excluded: false, me_pending: false,
     peers_online: 0, peers_total: 0,
   });
   const entry = (id) => ({ slot: id, state: { ...STATE, boot_id: "boot-" + id }, members: null });

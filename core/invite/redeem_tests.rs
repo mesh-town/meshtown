@@ -10,7 +10,7 @@ use crate::transport::net::{NodeSecret, PeerId};
 
 use super::*;
 use crate::invite::wire::{RedeemCode, RedeemReply};
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{managed_key, NetworkKey};
 
 mod round_outcome_cases {
     use super::*;
@@ -21,7 +21,10 @@ mod round_outcome_cases {
         #[test]
         fn single_answer_gives_the_key() {
             let got = round(&[key(own_key())]);
-            assert_eq!(key_of(got).map(|k| k.encode()), Some(own_key().encode()));
+            assert_eq!(
+                key_of(got).map(|k| k.to_bytes()),
+                Some(own_key().to_bytes())
+            );
         }
 
         #[test]
@@ -33,14 +36,14 @@ mod round_outcome_cases {
                 key(own_key()),
             ];
             let got = key_of(round(&answers));
-            assert_eq!(got.map(|k| k.encode()), Some(own_key().encode()));
+            assert_eq!(got.map(|k| k.to_bytes()), Some(own_key().to_bytes()));
         }
 
         #[test]
         fn before_other_answers_gives_the_key() {
             let answers = [key(own_key()), SILENT, refused(RedeemCode::Unknown)];
             let got = key_of(round(&answers));
-            assert_eq!(got.map(|k| k.encode()), Some(own_key().encode()));
+            assert_eq!(got.map(|k| k.to_bytes()), Some(own_key().to_bytes()));
         }
     }
 
@@ -316,7 +319,7 @@ fn round(answers: &[Option<RedeemReply>]) -> Outcome {
 }
 
 fn round_in(answers: &[Option<RedeemReply>], mode: Mode) -> Outcome {
-    round_outcome(answers, &peer_head(), mode)
+    round_outcome(answers, &head(), mode)
 }
 
 fn is_fallback(o: &Outcome) -> bool {
@@ -356,17 +359,20 @@ fn key(k: NetworkKey) -> Option<RedeemReply> {
     Some(RedeemReply::Key(k))
 }
 
-/// The key of the network the invite was issued from.
-fn peer_head() -> InviteHead {
+/// The head of an invite into the network made from `own_key()` and the creator `id(7)`.
+fn head() -> InviteHead {
     InviteHead {
         secret: crate::invite::InviteSecret::from_bytes([1; 32]),
-        network_id: own_key().subkeys().network_id,
+        network_id: managed_key(&own_key().to_bytes(), &id(7))
+            .subkeys()
+            .network_id,
         label: None,
         made_unix: 0,
-        kind: crate::members::network_key::NetKind::Peer,
+        root: id(7),
     }
 }
 
+/// The base of the network key: what a member answers with.
 fn own_key() -> NetworkKey {
     NetworkKey::from_bytes([1; 32])
 }

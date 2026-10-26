@@ -177,7 +177,7 @@ function brief(s) {
   const others = peers.filter((p) => !p.self);
   return {
     id: s.id, label: s.keyless ? null : s.label, id_hex: s.keyless ? null : "key-" + s.id, status: "online", exit_enabled: false,
-    proxy: s.proxy ?? s.id === "main", route_state: "direct", exits: [], members_voting: 0, joining: false, members_admitting: 0,
+    proxy: s.proxy ?? s.id === "main", route_state: "direct", exits: [], joining: false, members_admitting: 0,
     me_excluded: false, me_pending: false, peers_online: others.filter((p) => p.online).length, peers_total: others.length,
   };
 }

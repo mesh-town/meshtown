@@ -116,7 +116,6 @@ fn directly_click_clears_the_exit_of_the_chosen_network() {
         peers: Vec::new(),
         peers_more: 0,
         serves_exit: false,
-        voting: 0,
         admitting: 0,
         invite_admins_only: false,
         label: slot.to_string(),

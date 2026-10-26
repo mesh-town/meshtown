@@ -10,11 +10,10 @@ fn test_secret(byte: u8) -> NodeSecret {
 /// checks that the key argument beats the file and cli, and the rest comes from the file.
 fn assert_reload_with_file_merges_cli_and_key(dir: &std::path::Path, new_key_text: &str) {
     let file = dir.join("config.json");
-    let old_key = NetworkKey::from_bytes([1u8; 32]);
 
     let file_settings = Settings {
         net: crate::config::config_file::NetSettings {
-            network_key: Some(old_key.encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(1)),
             exit_enabled: true,
             node_name: Some("from-file".to_string()),
             ..crate::config::config_file::NetSettings::default()
@@ -96,7 +95,7 @@ fn relaunch_reload_merges_file_cli_and_new_key() {
     let dir =
         std::env::temp_dir().join(format!("mesh-node-ctl-test-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temporary test directory");
-    let new_key_text = NetworkKey::from_bytes([2u8; 32]).encode();
+    let new_key_text = crate::node::host::test_keys::managed_text(2u8);
 
     assert_reload_with_file_merges_cli_and_key(&dir, &new_key_text);
     assert_reload_without_path_keeps_prev_and_rejects_garbage(&new_key_text);
@@ -125,7 +124,7 @@ fn node_config_sets_peers_cache_beside_config_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([8u8; 32]);
+    let key = crate::node::host::test_keys::key_input(8);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.peers_cache_path,
@@ -146,7 +145,7 @@ fn node_config_leaves_peers_cache_none_without_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([9u8; 32]);
+    let key = crate::node::host::test_keys::key_input(9);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.peers_cache_path, None,
@@ -175,7 +174,7 @@ fn node_config_sets_peer_names_beside_config_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([15u8; 32]);
+    let key = crate::node::host::test_keys::key_input(15);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.peer_names_path,
@@ -196,7 +195,7 @@ fn node_config_leaves_peer_names_none_without_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([17u8; 32]);
+    let key = crate::node::host::test_keys::key_input(17);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.peer_names_path, None,
@@ -225,7 +224,7 @@ fn node_config_sets_docs_store_beside_config_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([11u8; 32]);
+    let key = crate::node::host::test_keys::key_input(11);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.docs_store_dir,
@@ -246,7 +245,7 @@ fn node_config_leaves_docs_store_none_without_path() {
         blocked_domains: Vec::new(),
         test_net: None,
     };
-    let key = NetworkKey::from_bytes([13u8; 32]);
+    let key = crate::node::host::test_keys::key_input(13);
     let cfg = relaunch.node_config(&Settings::default(), key);
     assert_eq!(
         cfg.docs_store_dir, None,
@@ -275,7 +274,10 @@ fn node_config_sets_dht_table_beside_config_path() {
         test_net: None,
     };
     // when: the node config is built
-    let cfg = relaunch.node_config(&Settings::default(), NetworkKey::from_bytes([19u8; 32]));
+    let cfg = relaunch.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(19),
+    );
     // then: the DHT table file is next to the config file
     assert_eq!(
         cfg.dht_table_path,
@@ -297,7 +299,10 @@ fn node_config_leaves_dht_table_none_without_path() {
         test_net: None,
     };
     // when: the node config is built
-    let cfg = relaunch.node_config(&Settings::default(), NetworkKey::from_bytes([21u8; 32]));
+    let cfg = relaunch.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(21),
+    );
     // then: the DHT table is off
     assert_eq!(
         cfg.dht_table_path, None,
@@ -307,7 +312,6 @@ fn node_config_leaves_dht_table_none_without_path() {
 
 #[test]
 fn relaunch_reload_keeps_label() {
-    let key = NetworkKey::from_bytes([5u8; 32]);
     let relaunch = Relaunch {
         file: None,
         cli: CliOverrides::default(),
@@ -318,13 +322,14 @@ fn relaunch_reload_keeps_label() {
     };
     let prev = Settings::default();
 
-    let with_label = network_key::key_with_label(Some("our-game"), &key);
+    let root = test_secret(6).peer_id();
+    let with_label = network_key::managed_key_with_label(Some("our-game"), &[5u8; 32], &root);
     let (_, cfg) = relaunch
         .reload(&with_label, &prev)
         .expect("reload with a label");
     assert_eq!(cfg.network_label, Some("our-game".to_string()));
 
-    let without_label = network_key::key_with_label(None, &key);
+    let without_label = network_key::managed_key_with_label(None, &[5u8; 32], &root);
     let (_, cfg2) = relaunch
         .reload(&without_label, &prev)
         .expect("reload without a label");
@@ -344,7 +349,10 @@ fn node_config_with_test_net_runs_on_mem() {
         test_net: Some(net.clone()),
     };
     // when: build the node config
-    let cfg = relaunch.node_config(&Settings::default(), NetworkKey::from_bytes([31u8; 32]));
+    let cfg = relaunch.node_config(
+        &Settings::default(),
+        crate::node::host::test_keys::key_input(31),
+    );
     // then: the mem transport and the same Arc of the network
     assert_eq!(cfg.settings.net_choice.transports, vec!["mem"]);
     assert!(std::sync::Arc::ptr_eq(cfg.test_net.as_ref().unwrap(), &net));

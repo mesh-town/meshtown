@@ -80,7 +80,7 @@ async fn marker_synced_in_after_the_read_makes_the_run_start_over() {
         initial: vec![],
         cached: vec![],
         now_unix: NOW,
-        rules: Rules::Peer,
+        root: rig.me,
     };
     // when: one boot
     run_boot(&late, &*rig.own, &boot).await.unwrap();
@@ -114,7 +114,7 @@ async fn boot_over(rig: &Rig, spy: &Spy, cached: &[PeerId]) -> NetResult<usize> 
         initial: vec![],
         cached: cached.to_vec(),
         now_unix: NOW,
-        rules: Rules::Peer,
+        root: rig.me,
     };
     run_boot(spy, &*rig.own, &boot).await
 }

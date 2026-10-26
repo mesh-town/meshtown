@@ -18,7 +18,7 @@ const PICTURE = "#invite-qr";
 const NOTE = "#invite-qr-too-long";
 const VALUE = '[aria-label="Invite to send"]';
 const OTHER_NET = { id_hex: "net-bbbb", label: "other" };
-const MANAGED_NO_RIGHT = { id_hex: "net-aaaa", label: "work", kind: "Managed", can_invite: false };
+const MANAGED_NO_RIGHT = { id_hex: "net-aaaa", label: "work", can_invite: false };
 let mounted;
 
 beforeEach(() => api.mockReset());

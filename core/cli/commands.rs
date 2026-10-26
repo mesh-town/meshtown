@@ -1,10 +1,8 @@
-//! Execution of the console subcommands: `keygen`, `config-path`, `run`. Flag parsing is in `cli.rs`.
+//! Execution of the console subcommands: `config-path`, `run` (`keygen` is in `keygen.rs`). Flag parsing is in `cli.rs`.
 //! Here: building `CliOverrides` from flags, preparing the start of the config file and choosing the branch;
 //! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `crate::node::host`.
 
 use crate::config::config_file::{self, CliOverrides, ConfigSource};
-use crate::members::network_key::{format_key_string, normalize_label, NetworkKey};
-use crate::members::words::generate_tail;
 use crate::node::output::NET_NAME;
 use clap::parser::ValueSource;
 use clap::ArgMatches;
@@ -13,6 +11,7 @@ use crate::cli::args::{is_flag_typed, toggle_from_flag_pair};
 
 pub(crate) mod access;
 pub(crate) mod ifaces;
+mod keygen;
 mod node_link;
 pub(crate) mod password;
 mod run_args;
@@ -21,26 +20,11 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
+pub(crate) use keygen::keygen;
 pub(crate) use run_args::RunArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
-
-/// The `keygen` command: prints a new network key — with words (default) or the machine one with `--raw`.
-pub(crate) fn keygen(label: Vec<String>, raw: bool) -> anyhow::Result<()> {
-    if raw {
-        println!("{}", NetworkKey::generate()?.encode());
-        return Ok(());
-    }
-    let tail = generate_tail()?;
-    let label = if label.is_empty() {
-        None
-    } else {
-        Some(normalize_label(&label.join(" "))?)
-    };
-    println!("{}", format_key_string(label.as_deref(), &tail));
-    Ok(())
-}
 
 /// The `config-path` command: prints the path to the config file and starts nothing.
 pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<()> {
@@ -100,9 +84,8 @@ async fn launch_prepared(
         }
         None if args.no_config => {
             anyhow::bail!(
-                "the {NET_NAME} network key is not set: provide it with --key, the MESHTOWN_KEY variable or the network.key field of {}, or join with an invite: --invite \"<invite>\". A new key is printed by: {cmd} keygen <label>, for example {cmd} keygen our network",
-                file_hint(&run.file_report),
-                cmd = crate::cli::program_name::program_name()
+                "the {NET_NAME} network key is not set: provide it with --key, the MESHTOWN_KEY variable or the network.key field of {}, or join with an invite: --invite \"<invite>\".",
+                file_hint(&run.file_report)
             )
         }
         None => run_without_key(overrides, run, args.initial_domains, args.blocked_domains).await,

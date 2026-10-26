@@ -74,8 +74,6 @@ export const waitingStatusText = (netQuoted: string): string =>
   "Invite sent. Waiting for a member of" + netQuoted + forDevice(" to come online and let this computer in — this page will update.");
 export const HOME_JOIN_ACTION = "join the network";
 export const HOME_CREATE_FAILED = "Couldn't create the network — try again";
-export const createdNoticeText = (netQuoted: string): string =>
-  "Network" + netQuoted + " created.";
 export const joinedStatusText = (netQuoted: string): string =>
   "Done: " + NET_NAME + " is restarting and joining the network" + netQuoted +
   ". The status will appear here in a few seconds.";

@@ -313,22 +313,14 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),
-        pending: BTreeMap::new(),
-        need: 1,
         admissions: BTreeMap::new(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
         admins: Default::default(),
         closed: None,
     };
     Verdicts {
         me,
         ledger: Arc::new(ledger),
-        my_votes: BTreeSet::new(),
         blocks: BTreeSet::new(),
-        reasons: Default::default(),
     }
 }
 

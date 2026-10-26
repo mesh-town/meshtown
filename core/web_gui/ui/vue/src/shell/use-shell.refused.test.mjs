@@ -11,7 +11,7 @@ afterEach(() => vi.useRealTimers());
 const NET = { label: "family", id_hex: "3f2a01", short: "3f2a", members: 2 };
 const net = (admission_refused) => ({
   id: "main", label: "family", id_hex: "3f2a01", status: "online", exit_enabled: false, proxy: true, route_state: "direct", exits: [],
-  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 1, admission_refused,
+  joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 1, admission_refused,
 });
 
 async function mounted(flag) {

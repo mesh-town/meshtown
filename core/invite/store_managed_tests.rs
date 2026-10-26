@@ -1,5 +1,5 @@
 //! Tests of the invite verdict under the rules of a Managed network (`Ledger::verdict` with a set of admins):
-//! only the records written by administrators count; in a Peer network (no set) every author counts.
+//! only the records written by administrators count; with no set of admins yet every author counts.
 //! The issue records themselves (issuer, holder copies, old formats) are in `store_managed_issue_tests.rs`.
 //!
 //! The ledger sits on an in-memory replica where records of several authors are put by hand.
@@ -95,16 +95,16 @@ mod claim_records {
     }
 }
 
-mod peer_rules {
+mod no_admin_list {
     use super::*;
 
     #[tokio::test]
     async fn issue_of_any_author_grants() {
-        // given: no admin set (a Peer network); a Peer node writes the v1 record
+        // given: no admin set yet; a stranger writes a plain record
         let rig = setup().await;
         rig.given_v1_issue_by(stranger(), NOW - 10);
         // when
-        let got = rig.when_judged_as_peer().await;
+        let got = rig.when_judged_without_admins().await;
         // then
         assert_eq!(got, IssueVerdict::Grant);
     }
@@ -116,7 +116,7 @@ mod peer_rules {
         rig.given_v1_issue_by(stranger(), NOW - 10);
         rig.given_used_by(stranger());
         // when
-        let got = rig.when_judged_as_peer().await;
+        let got = rig.when_judged_without_admins().await;
         // then
         assert_eq!(got, IssueVerdict::Used);
     }
@@ -126,7 +126,7 @@ mod peer_rules {
         // given
         let rig = setup().await;
         // when
-        let got = rig.when_judged_as_peer().await;
+        let got = rig.when_judged_without_admins().await;
         // then
         assert_eq!(got, IssueVerdict::Unknown);
     }
@@ -168,7 +168,7 @@ impl Rig {
         self.put(holder, ISSUE_PREFIX, value);
     }
 
-    /// The record a Peer node writes: v1, no issuer in it.
+    /// A plain record: v1, no issuer in it.
     fn given_v1_issue_by(&self, author: PeerId, made_unix: u64) {
         let value = postcard::to_stdvec(&issue_record(made_unix, None)).unwrap();
         self.put(author, ISSUE_PREFIX, value);
@@ -206,7 +206,7 @@ impl Rig {
         self.ledger.verdict(HASH, NOW, Some(&set)).await
     }
 
-    async fn when_judged_as_peer(&self) -> IssueVerdict {
+    async fn when_judged_without_admins(&self) -> IssueVerdict {
         self.ledger.verdict(HASH, NOW, None).await
     }
 }

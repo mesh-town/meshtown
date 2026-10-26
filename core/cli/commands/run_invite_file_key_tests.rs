@@ -7,7 +7,7 @@ mod of_the_same_network {
     fn keeps_the_key_and_does_not_spend_the_invite() {
         // given
         let opts = Opts {
-            file_key: Some(net_a().encode()),
+            file_key: Some(text_a()),
             ..Opts::default()
         };
         // when
@@ -20,7 +20,11 @@ mod of_the_same_network {
     fn keeps_the_key_written_with_a_label() {
         // given
         let opts = Opts {
-            file_key: Some(key_with_label(Some("our-game"), &net_a())),
+            file_key: Some(managed_key_with_label(
+                Some("our-game"),
+                &[9u8; 32],
+                &creator(),
+            )),
             ..Opts::default()
         };
         // when
@@ -37,7 +41,7 @@ mod of_another_network {
     fn adds_a_network_slot() {
         // given
         let opts = Opts {
-            file_key: Some(net_b().encode()),
+            file_key: Some(text_b()),
             ..Opts::default()
         };
         // when
@@ -50,8 +54,8 @@ mod of_another_network {
     fn adds_a_network_slot_beside_other_slots() {
         // given: the plan has no input that could replace the file's key
         let opts = Opts {
-            file_key: Some(net_b().encode()),
-            slot_keys: vec![Some(net_c().encode())],
+            file_key: Some(text_b()),
+            slot_keys: vec![Some(text_c())],
             ..Opts::default()
         };
         // when

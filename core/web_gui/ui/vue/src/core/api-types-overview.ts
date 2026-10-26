@@ -2,7 +2,7 @@
 
 import type { MembersReply } from "../members/members-types.ts";
 import type { ConfigDocument, ConfigMeta } from "./api-types-config.ts";
-import type { NetKind, NodeState, Notice } from "./api-types-state.ts";
+import type { NodeState, Notice } from "./api-types-state.ts";
 
 /** One network as listed by `nets`; field order follows the JSON. */
 export interface NetBrief {
@@ -14,14 +14,12 @@ export interface NetBrief {
   proxy: boolean;
   route_state: string;
   exits: string[];
-  members_voting: number;
   joining: boolean;
   members_admitting: number;
   me_excluded: boolean;
   me_pending: boolean;
   peers_online: number;
   peers_total: number;
-  kind?: NetKind;
   me_admin?: boolean;
   can_invite?: boolean;
   admission_refused: boolean; // the server says the members turned this computer down (no delay: the page waits)

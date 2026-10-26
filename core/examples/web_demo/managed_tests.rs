@@ -17,19 +17,16 @@ fn peer(seed: u8, name: &str) -> DemoPeer {
     }
 }
 
-fn demo(mode: ManagedMode) -> DemoMembers {
+fn demo(mode: DemoRole) -> DemoMembers {
     let opts = DemoNetworkOptions {
         offline_peers: 0,
         no_exit_peers: 0,
         admission_refused: false,
         dht_joined: false,
         dht_nodes: 0,
-        members_second_vote: false,
         me_excluded: false,
-        members_pending: false,
+        members_pending: true,
         me_pending: false,
-        members_forget: false,
-        me_removed: false,
         managed: mode,
     };
     DemoMembers::new(&[peer(2, "peer-one"), peer(3, "peer-two")], &opts)
@@ -49,27 +46,21 @@ fn code(res: Result<bool, MemberError>) -> &'static str {
 }
 
 #[test]
-fn peer_mode_has_no_roles_and_refuses_role_actions() {
-    let mut m = demo(ManagedMode::Peer);
-    let one = id_of(&m, "peer-one");
-    assert!(m.roles.is_none());
-    assert_eq!(code(m.apply(&Act::Grant(one.clone()))), "not_managed");
-    assert_eq!(code(m.apply(&Act::Revoke(one))), "not_managed");
-    assert_eq!(code(m.apply(&Act::Close)), "not_managed");
+fn default_mode_makes_me_the_only_admin() {
+    let m = demo(DemoRole::Root);
     let reply = build_reply(&m, "abcd1234", None);
-    assert_eq!(
-        (reply.kind, reply.root, reply.me_admin),
-        ("Peer", None, false)
-    );
-    assert!(reply.admins.is_empty() && reply.members.iter().all(|r| !r.admin));
+    let me = demo_self_id_full("abcd1234");
+    assert_eq!(reply.root.as_deref(), Some(me.as_str()));
+    assert!(reply.me_admin);
+    assert_eq!(reply.admins, [me]);
+    assert_eq!(reply.members.iter().filter(|r| r.admin).count(), 1);
 }
 
 #[test]
-fn admin_mode_makes_me_the_root_with_one_more_admin() {
-    let m = demo(ManagedMode::Admin);
+fn second_admin_adds_the_first_peer() {
+    let m = demo(DemoRole::SecondAdmin);
     let reply = build_reply(&m, "abcd1234", None);
     let me = demo_self_id_full("abcd1234");
-    assert_eq!(reply.kind, "Managed");
     assert_eq!(reply.root.as_deref(), Some(me.as_str()));
     assert!(reply.me_admin);
     let mut want = vec![me, id_of(&m, "peer-one")];
@@ -86,7 +77,7 @@ fn admin_mode_makes_me_the_root_with_one_more_admin() {
 
 #[test]
 fn member_mode_leaves_two_other_admins() {
-    let m = demo(ManagedMode::Member);
+    let m = demo(DemoRole::Member);
     let reply = build_reply(&m, "abcd1234", None);
     assert!(!reply.me_admin);
     assert_eq!(reply.root.as_deref(), Some(id_of(&m, "peer-one").as_str()));
@@ -96,7 +87,7 @@ fn member_mode_leaves_two_other_admins() {
 
 #[test]
 fn a_plain_member_cannot_use_power_actions() {
-    let mut m = demo(ManagedMode::Member);
+    let mut m = demo(DemoRole::Member);
     let two = id_of(&m, "peer-two");
     assert_eq!(code(m.apply(&Act::Grant(two.clone()))), "not_admin");
     assert_eq!(code(m.apply(&Act::Revoke(two))), "not_admin");
@@ -105,7 +96,7 @@ fn a_plain_member_cannot_use_power_actions() {
 
 #[test]
 fn grant_and_revoke_change_the_admins() {
-    let mut m = demo(ManagedMode::Admin);
+    let mut m = demo(DemoRole::Root);
     let two = id_of(&m, "peer-two");
     assert_eq!(code(m.apply(&Act::Grant(two.clone()))), "ok");
     assert!(m.is_admin(&two));
@@ -116,7 +107,7 @@ fn grant_and_revoke_change_the_admins() {
 
 #[test]
 fn the_root_keeps_the_role() {
-    let mut m = demo(ManagedMode::Admin);
+    let mut m = demo(DemoRole::Root);
     let me = demo_self_id_full("abcd1234");
     let act = crate::managed::own_id_as_me(Act::Revoke(me), "abcd1234");
     assert_eq!(code(m.apply(&act)), "not_admin");
@@ -124,35 +115,25 @@ fn the_root_keeps_the_role() {
 
 #[test]
 fn the_last_admin_cannot_give_up_or_leave() {
-    let mut m = demo(ManagedMode::Admin);
+    let mut m = demo(DemoRole::Root);
     let one = id_of(&m, "peer-one");
     m.apply(&Act::Revoke(one)).unwrap();
     assert_eq!(code(m.apply(&Act::Leave)), "last_admin");
-    let mut r = m.roles.take().unwrap();
-    r.root = id_of(&m, "peer-one");
-    m.roles = Some(r);
+    m.roles.root = id_of(&m, "peer-one");
     let act = crate::managed::own_id_as_me(Act::Revoke(demo_self_id_full("abcd1234")), "abcd1234");
     assert_eq!(code(m.apply(&act)), "last_admin");
 }
 
 #[test]
 fn grant_needs_a_listed_member() {
-    let mut m = demo(ManagedMode::Admin);
+    let mut m = demo(DemoRole::Root);
     let gone = id_of(&m, "peer-three");
     assert_eq!(code(m.apply(&Act::Grant(gone))), "not_member");
 }
 
 #[test]
-fn forgetting_is_peer_only() {
-    let mut m = demo(ManagedMode::Admin);
-    let one = id_of(&m, "peer-one");
-    assert_eq!(code(m.apply(&Act::Forget(one.clone()))), "peer_only");
-    assert_eq!(code(m.apply(&Act::Unforget(one))), "peer_only");
-}
-
-#[test]
 fn close_empties_the_list_and_refuses_everything() {
-    let mut m = demo(ManagedMode::Admin);
+    let mut m = demo(DemoRole::Root);
     assert_eq!(code(m.apply(&Act::Close)), "ok");
     let one = id_of(&m, "peer-one");
     assert_eq!(code(m.apply(&Act::Grant(one.clone()))), "network_deleted");
@@ -161,4 +142,46 @@ fn close_empties_the_list_and_refuses_everything() {
     let reply = build_reply(&m, "abcd1234", None);
     assert!(reply.members.is_empty());
     assert_eq!(reply.counts.members, 0);
+}
+
+#[test]
+fn an_exclusion_by_an_admin_takes_effect_at_once() {
+    let mut m = demo(DemoRole::Root);
+    let two = id_of(&m, "peer-two");
+    assert_eq!(
+        code(m.apply(&Act::Exclude {
+            id: two.clone(),
+            reason: None
+        })),
+        "ok"
+    );
+    let reply = build_reply(&m, "abcd1234", None);
+    let row = reply.members.iter().find(|r| r.id_full == two).unwrap();
+    assert_eq!(row.status, "excluded");
+    assert!(m.apply(&Act::Unexclude(two)).unwrap());
+}
+
+#[test]
+fn a_waiting_node_is_admitted_at_once() {
+    let mut m = demo(DemoRole::Root);
+    let anna = id_of(&m, "anna-laptop");
+    assert_eq!(code(m.apply(&Act::Admit(anna.clone()))), "ok");
+    let reply = build_reply(&m, "abcd1234", None);
+    let row = reply.members.iter().find(|r| r.id_full == anna).unwrap();
+    assert_eq!(row.status, "member");
+}
+
+#[test]
+fn a_plain_member_cannot_exclude_or_admit() {
+    let mut m = demo(DemoRole::Member);
+    let two = id_of(&m, "peer-two");
+    let anna = id_of(&m, "anna-laptop");
+    assert_eq!(
+        code(m.apply(&Act::Exclude {
+            id: two,
+            reason: None
+        })),
+        "not_admin"
+    );
+    assert_eq!(code(m.apply(&Act::Admit(anna))), "not_admin");
 }

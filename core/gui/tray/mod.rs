@@ -22,6 +22,7 @@
 //! — only `TrayCmd`, `QuitSignal`, `LinkFn`, `NodeCmdTx`; it looks at `app::view`/`app::quit`.
 
 mod actions_ui;
+mod admit_item;
 pub(crate) mod app;
 mod backend;
 mod clipboard;
@@ -37,7 +38,6 @@ mod notify;
 mod spin;
 #[cfg(test)]
 pub(crate) mod test_tray;
-mod vote_item;
 
 pub use crate::node::output::APP_NAME;
 pub use app::quit::exit_now;

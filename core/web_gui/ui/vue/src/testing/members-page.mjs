@@ -21,17 +21,17 @@ export const NET = "demo-network";
 
 const DIALOG = 'dialog[aria-labelledby="confirm-title"]';
 
-// You, peer-one and peer-two (the three of `demoState`); `over` is merged into the reply (`need`, `me_excluded` …).
+// You, peer-one and peer-two (the three of `demoState`); `over` is merged into the reply (`me_excluded` …).
 export const threeMembers = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow(), peerTwoNamed()], ...over });
 export const peerTwoNamed = (over = {}) => peerTwoRow({ name: TWO.name, online: true, ...over });
 
-// Only you and peer-one: `need` is 1, a single confirmation removes.
-export const twoMembers = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow()], need: 1, ...over });
+// Only you and peer-one.
+export const twoMembers = (over = {}) => membersReply({ rows: [selfRow(), peerOneRow()], ...over });
 
 // `/api/state` of the demo node with the members summary of the contract.
 export const stateWith = (summary = {}) => {
   const state = demoState();
-  return { ...state, members: { count: state.peers.length, gossip_neighbors: 0, voting: 0, me_excluded: false, ...summary } };
+  return { ...state, members: { count: state.peers.length, gossip_neighbors: 0, me_excluded: false, ...summary } };
 };
 
 // `exits`: the exit members chosen in the config (`route.exits`), e.g. `[PEER_FULL]` — then peer-one "is your exit".

@@ -1,12 +1,11 @@
-//! Tests of the member-list web API for administered networks: `members/admin`, `network/delete`, the
-//! refusal of `members/forget`, and the fields of the member list that tell the kind of the network and
-//! its administrators. Driven through the real router with a fake node (`fixture`).
+//! Tests of the member-list web API for administered networks: `members/admin`, `network/delete`
+//! and the fields of the member list that tell its administrators. Driven through the real router with a fake node (`fixture`).
 
 // assumed: this file is declared in `routes.rs` as
 // `#[cfg(test)] #[path = "routes_admin_tests.rs"] mod admin_tests;`.
 // helper: `routes_fixture_tests.rs` needs the arms `MemberActionReq::Grant(id) => "grant:<id>"`,
 // `Revoke(id) => "revoke:<id>"` and `Close => "close"` in `FakeNode::member_action`, the new fields of
-// `MembersReply` (`kind: "Peer"`, `admins: vec![]`, `me_admin: false`) in `sample_reply`, and `admin: false`
+// `MembersReply` (`admins: vec![]`, `me_admin: false`) in `sample_reply`, and `admin: false`
 // in `row`. The fake node answers canned replies, so the administrator rules themselves are tested at
 // `Access` (`actions_managed_tests.rs`); here the route, the body checks and the error mapping are.
 
@@ -83,13 +82,6 @@ mod make_admin {
     }
 
     #[tokio::test]
-    async fn a_peer_network_is_refused_as_not_managed() {
-        let fx = setup(refused("not_managed"));
-        let reply = line(fx.post("/api/members/admin", &admin_body(true)).await);
-        assert_eq!(reply, "409 not_managed");
-    }
-
-    #[tokio::test]
     async fn a_node_that_is_not_a_member_is_refused_as_not_member() {
         let fx = setup(refused("not_member"));
         let reply = line(fx.post("/api/members/admin", &admin_body(true)).await);
@@ -149,38 +141,19 @@ mod delete_network {
         let reply = line(fx.post("/api/network/delete", r#"{"confirm":true}"#).await);
         assert_eq!(reply, "409 not_admin");
     }
-
-    #[tokio::test]
-    async fn a_peer_network_is_refused_as_not_managed() {
-        let fx = setup(refused("not_managed"));
-        let reply = line(fx.post("/api/network/delete", r#"{"confirm":true}"#).await);
-        assert_eq!(reply, "409 not_managed");
-    }
-}
-
-mod forget_in_a_managed_network {
-    use super::*;
-
-    #[tokio::test]
-    async fn is_refused_as_peer_only() {
-        let fx = setup(refused("peer_only"));
-        let reply = line(fx.post("/api/members/forget", &id_body()).await);
-        assert_eq!(reply, "409 peer_only");
-    }
 }
 
 mod list_fields {
     use super::*;
 
     #[tokio::test]
-    async fn a_managed_list_names_the_kind_the_administrators_and_my_role() {
+    async fn the_list_names_the_administrators_and_my_role() {
         // given: I am an administrator, and so is the second row
         let fx = setup(Answer::List(managed_reply(&[full_id("a1b2c3d4")])));
         // when
         let (status, body) = fx.get("/api/members").await;
         // then
         assert_eq!(status, StatusCode::OK, "{body}");
-        assert_eq!(body["kind"], "Managed");
         assert_eq!(body["admins"], json!([full_id("a1b2c3d4")]));
         assert_eq!(body["me_admin"], true);
     }
@@ -202,41 +175,13 @@ mod list_fields {
             .collect();
         assert_eq!(admin_flags, [&json!(true), &json!(false), &json!(false)]);
     }
-
-    #[tokio::test]
-    async fn a_peer_list_has_no_administrators() {
-        // given
-        let reply = MembersReply {
-            kind: "Peer",
-            admins: vec![],
-            me_admin: false,
-            root: None,
-            ..sample_reply()
-        };
-        let fx = setup(Answer::List(reply));
-        // when
-        let (_, body) = fx.get("/api/members").await;
-        // then
-        assert_eq!(body["kind"], "Peer");
-        assert_eq!(body["admins"], json!([]));
-        assert_eq!(body["me_admin"], false);
-        assert!(
-            body["members"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .all(|row| row["admin"] == false),
-            "no row of a peer list is an administrator: {body}"
-        );
-    }
 }
 
 // --- helpers ---
 
-/// A managed list where I am an administrator; `admins` are the full ids of the administrators.
+/// A list where I am an administrator; `admins` are the full ids of the administrators.
 fn managed_reply(admins: &[String]) -> MembersReply {
     MembersReply {
-        kind: "Managed",
         admins: admins.to_vec(),
         me_admin: true,
         root: None,

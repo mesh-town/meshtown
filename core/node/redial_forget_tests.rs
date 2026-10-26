@@ -1,40 +1,15 @@
 //! Tests of forgetting members cut by the prune (`Redial::forget`) and the long pause after a series of failures
 //! (`redial_pause` from attempt 9). Synchronous, time is `Instant::now()` plus manual shifts.
 
-use std::collections::HashSet;
-use std::net::SocketAddr;
 use std::time::Duration;
 
-use crate::transport::net::{AddrHint, NodeSecret, PeerAddr, PeerId};
+use crate::transport::net::{NodeSecret, PeerId};
 use tokio::time::Instant;
 
 use super::*;
 
 fn id(byte: u8) -> PeerId {
     NodeSecret::from_bytes(&[byte; 32]).peer_id()
-}
-
-fn addr(byte: u8) -> PeerAddr {
-    let socket: SocketAddr = format!("203.0.113.{byte}:4001").parse().unwrap();
-    PeerAddr {
-        id: id(byte),
-        hints: vec![AddrHint::Ip(socket)],
-    }
-}
-
-/// A `Redial` where two ids, 1 and 2, wait for the first pause (rnd 0).
-fn two_waiting(now: Instant) -> Redial {
-    let mut redial = Redial::default();
-    for b in [1u8, 2] {
-        redial.found(addr(b));
-        redial.started(id(b));
-        redial.failed(id(b), now, 0, false);
-    }
-    redial
-}
-
-fn set(bytes: &[u8]) -> HashSet<PeerId> {
-    bytes.iter().map(|b| id(*b)).collect()
 }
 
 mod pause {
@@ -77,58 +52,6 @@ mod pause {
     }
 }
 
-mod forget {
-    use super::*;
-
-    #[test]
-    fn forgotten_is_not_due_and_others_stay() {
-        let now = Instant::now();
-        let mut redial = two_waiting(now);
-        redial.forget(&set(&[1]));
-        let due = redial.take_due(now + Duration::from_secs(10));
-        assert_eq!(due.iter().map(|d| d.0.id).collect::<Vec<_>>(), vec![id(2)]);
-    }
-
-    #[test]
-    fn next_due_none_when_only_forgotten_waited() {
-        let now = Instant::now();
-        let mut redial = Redial::default();
-        redial.found(addr(1));
-        redial.started(id(1));
-        redial.failed(id(1), now, 0, false);
-        assert!(redial.next_due().is_some());
-        redial.forget(&set(&[1]));
-        assert_eq!(redial.next_due(), None);
-    }
-
-    #[test]
-    fn found_after_forget_starts_from_attempt_1() {
-        let now = Instant::now();
-        let mut redial = Redial::default();
-        redial.found(addr(1));
-        for _ in 0..5 {
-            redial.failed(id(1), now, 0, false);
-        }
-        redial.forget(&set(&[1]));
-        assert_eq!(redial.found(addr(1)), Some((addr(1), 1)));
-    }
-
-    #[test]
-    fn failure_of_dialing_forgotten_recreates_record() {
-        // the dial was going to the cut member: its outcome creates the entry again (allowed), the prune will remove it again
-        let now = Instant::now();
-        let mut redial = Redial::default();
-        redial.found(addr(1));
-        redial.started(id(1));
-        redial.forget(&set(&[1]));
-        let (attempt, _) = redial.failed(id(1), now, 0, false);
-        assert_eq!(attempt, 1);
-        assert!(redial.next_due().is_some());
-        redial.forget(&set(&[1]));
-        assert_eq!(redial.next_due(), None);
-    }
-}
-
 mod unlisted {
     use super::*;
 
@@ -160,39 +83,10 @@ mod unlisted {
 /// A refusal that is not `Unlisted` (the member was removed from the list) gets the ordinary ladder: the pause
 /// grows as for any failure and, after `REDIAL_LONG_AFTER` attempts, goes to `REDIAL_LONG`. Driven through
 /// `PeerDialer::on_dial_failed`, which decides what the refusal means for the pause.
-mod removed_refusal {
+mod refusals {
     use super::dial_support::{setup, Fixture};
     use super::*;
     use crate::members::access::view::Deny;
-
-    #[tokio::test]
-    async fn removed_refusal_uses_long_ladder() {
-        // given: a dialer whose peer refuses every dial as removed
-        let mut fx = setup().await;
-        // when: the refusal repeats past the ordinary attempts
-        fx.when_refused_times(Deny::Forgotten, REDIAL_LONG_AFTER + 1);
-        // then: the pause before the next attempt is the long one
-        fx.then_next_pause_between(REDIAL_LONG, REDIAL_LONG + REDIAL_LONG / 4);
-        fx.close().await;
-    }
-
-    #[tokio::test]
-    async fn removed_by_me_refusal_uses_long_ladder() {
-        let mut fx = setup().await;
-        fx.when_refused_times(Deny::RemovedByMe, REDIAL_LONG_AFTER + 1);
-        fx.then_next_pause_between(REDIAL_LONG, REDIAL_LONG + REDIAL_LONG / 4);
-        fx.close().await;
-    }
-
-    #[tokio::test]
-    async fn removed_refusal_keeps_ordinary_pause_for_first_attempts() {
-        // given / when: exactly `REDIAL_LONG_AFTER` refusals as removed
-        let mut fx = setup().await;
-        fx.when_refused_times(Deny::Forgotten, REDIAL_LONG_AFTER);
-        // then: the pause is still capped by the ordinary ladder (with the random addition)
-        fx.then_next_pause_between(REDIAL_CAP, REDIAL_CAP + REDIAL_CAP / 4);
-        fx.close().await;
-    }
 
     #[tokio::test]
     async fn unlisted_refusal_never_reaches_long_pause() {

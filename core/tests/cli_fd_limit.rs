@@ -116,9 +116,7 @@ fn assert_version_line(line: &str) {
 
 #[test]
 fn run_prints_version_before_the_limit_line() {
-    let key = meshtown_core::members::network_key::NetworkKey::generate()
-        .unwrap()
-        .encode();
+    let key = managed_key_text();
     let (_node, rx) = spawn_run(&["--no-config", "--key", &key]);
     assert_version_line(&next_line(&rx));
     let second = next_line(&rx);
@@ -145,9 +143,7 @@ fn version_flag_stdout_is_one_line() {
 
 #[test]
 fn run_reports_open_files_limit() {
-    let key = meshtown_core::members::network_key::NetworkKey::generate()
-        .unwrap()
-        .encode();
+    let key = managed_key_text();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
     cmd.args(["run", "--no-config", "--key", &key, "--web-port", "0"])
         .args(["--no-checks", "--no-socks"])
@@ -180,4 +176,13 @@ fn run_reports_open_files_limit() {
             }
         }
     }
+}
+
+/// A Managed network key of a fresh base, created by an arbitrary node.
+fn managed_key_text() -> String {
+    use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
+    use meshtown_core::transport::net::NodeSecret;
+    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    let base = NetworkKey::generate().unwrap().to_bytes();
+    managed_key_with_label(None, &base, &root)
 }

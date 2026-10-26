@@ -63,12 +63,8 @@ fn other_requests_map_to_their_actions() {
         MemberAction::Unblock(id)
     );
     assert_eq!(
-        parse_action(MemberActionReq::Admit(text.clone())).unwrap(),
+        parse_action(MemberActionReq::Admit(text)).unwrap(),
         MemberAction::Admit(id)
-    );
-    assert_eq!(
-        parse_action(MemberActionReq::Unadmit(text)).unwrap(),
-        MemberAction::Unadmit(id)
     );
     assert!(is_invalid(
         &parse_action(MemberActionReq::Admit("nope".to_string())).unwrap_err()
@@ -85,7 +81,6 @@ fn refusals_map_to_codes() {
     assert_eq!(code_of(ActionRefusal::NotMember), "not_member");
     assert_eq!(code_of(ActionRefusal::Left), "left");
     assert_eq!(code_of(ActionRefusal::NotPending), "not_pending");
-    assert_eq!(code_of(ActionRefusal::NotConfirmed), "not_confirmed");
 }
 
 #[test]
@@ -111,117 +106,33 @@ async fn members_without_a_running_node_is_busy() {
     );
 }
 
-mod parse_action_forget {
+mod refusal_codes {
     use super::*;
 
     #[test]
-    fn forget_request_becomes_forget_action() {
-        let id = pid(4);
-        let act = parse_action(MemberActionReq::Forget(id.to_string())).unwrap();
-        assert_eq!(act, MemberAction::Forget(id));
-    }
-
-    #[test]
-    fn unforget_request_becomes_unforget_action() {
-        let id = pid(5);
-        let act = parse_action(MemberActionReq::Unforget(id.to_string())).unwrap();
-        assert_eq!(act, MemberAction::Unforget(id));
-    }
-
-    #[test]
-    fn id_is_trimmed_like_for_other_actions() {
-        let id = pid(6);
-        let act = parse_action(MemberActionReq::Forget(format!("  {id} "))).unwrap();
-        assert_eq!(act, MemberAction::Forget(id));
-    }
-
-    #[test]
-    fn forget_with_bad_id_is_invalid() {
-        let err = parse_action(MemberActionReq::Forget("not-an-id".to_string())).unwrap_err();
-        assert!(is_invalid(&err), "{err:?}");
-    }
-
-    #[test]
-    fn unforget_with_empty_id_is_invalid() {
-        let err = parse_action(MemberActionReq::Unforget(String::new())).unwrap_err();
-        assert!(is_invalid(&err), "{err:?}");
-    }
-}
-
-mod refusal_error_forget {
-    use super::*;
-
-    #[test]
-    fn online_is_refused_with_code_online() {
-        let (code, message) = refused_parts(ActionRefusal::Online);
-        assert_eq!(code, "online");
-        assert!(!message.is_empty(), "the page shows the message");
-    }
-
-    #[test]
-    fn not_forgotten_is_refused_with_code_not_forgotten() {
-        let (code, message) = refused_parts(ActionRefusal::NotForgotten);
-        assert_eq!(code, "not_forgotten");
-        assert!(!message.is_empty(), "the page shows the message");
-    }
-
-    #[test]
-    fn new_codes_differ_from_each_other_and_from_old_ones() {
-        let codes: Vec<&str> = [
+    fn every_code_is_distinct_and_carries_a_message() {
+        let all = [
             ActionRefusal::SelfTarget,
             ActionRefusal::NotMember,
             ActionRefusal::Left,
             ActionRefusal::NotPending,
-            ActionRefusal::NotConfirmed,
-            ActionRefusal::Online,
-            ActionRefusal::NotForgotten,
-        ]
-        .into_iter()
-        .map(|r| refused_parts(r).0)
-        .collect();
+        ];
+        let parts: Vec<_> = all.into_iter().map(refused_parts).collect();
+        let codes: Vec<&str> = parts.iter().map(|(code, _)| *code).collect();
         let unique: std::collections::BTreeSet<_> = codes.iter().collect();
         assert_eq!(unique.len(), codes.len(), "codes: {codes:?}");
+        assert!(parts.iter().all(|(_, message)| !message.is_empty()));
     }
 }
 
-mod forget_through_the_node {
+mod an_action_through_the_node {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn forget_of_own_node_is_refused_self_target() {
+    async fn a_bad_id_is_invalid_before_the_node_is_asked() {
         let fx = setup(Opts::default()).await;
         let err = fx
-            .when_action(MemberActionReq::Forget(fx.node.id.to_string()))
-            .await;
-        assert_eq!(refusal_code(&err), "self_target");
-        fx.finish().await;
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn forget_of_unknown_node_is_refused_not_member() {
-        let fx = setup(Opts::default()).await;
-        let err = fx
-            .when_action(MemberActionReq::Forget(pid(9).to_string()))
-            .await;
-        assert_eq!(refusal_code(&err), "not_member");
-        fx.finish().await;
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn unforget_without_own_vote_is_refused_not_forgotten() {
-        let fx = setup(Opts::default()).await;
-        let err = fx
-            .when_action(MemberActionReq::Unforget(pid(9).to_string()))
-            .await;
-        assert_eq!(refusal_code(&err), "not_forgotten");
-        fx.finish().await;
-    }
-
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn forget_with_bad_id_is_invalid_before_the_node_is_asked() {
-        let fx = setup(Opts::default()).await;
-        let err = fx
-            .when_action(MemberActionReq::Forget("zz".to_string()))
+            .when_action(MemberActionReq::Block("zz".to_string()))
             .await;
         assert!(is_invalid(&err), "{err:?}");
         fx.finish().await;
@@ -366,13 +277,6 @@ impl Fixture {
 fn refused_parts(r: ActionRefusal) -> (&'static str, String) {
     match refusal_error(r) {
         MemberError::Refused { code, message } => (code, message),
-        other => panic!("not a refusal: {other:?}"),
-    }
-}
-
-fn refusal_code(e: &MemberError) -> &'static str {
-    match e {
-        MemberError::Refused { code, .. } => code,
         other => panic!("not a refusal: {other:?}"),
     }
 }

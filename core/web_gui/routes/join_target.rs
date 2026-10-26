@@ -80,7 +80,7 @@ async fn needs_return(host: &dyn HostControl, slot: &NetSlotId) -> bool {
         return false;
     };
     match handle.node.members().await {
-        Ok(reply) => reply.me_removed,
+        Ok(_) => false,
         Err(_) => handle.node.snapshot().node.status == NodeStatus::Offline,
     }
 }

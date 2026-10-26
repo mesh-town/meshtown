@@ -105,11 +105,11 @@ pub trait NodeControl: Send + Sync {
     fn members(&self) -> MemberFuture {
         not_implemented()
     }
-    /// The kind of the network and what this node may do in it; `None` — the node has published nothing yet.
+    /// What this node may do in the network; `None` — the node has published nothing yet.
     fn net_roles(&self) -> Option<NetRoles> {
         None
     }
-    /// A member action (exclude, unexclude, block, unblock, forget, unforget, leave); the reply is the list after it.
+    /// A member action (exclude, unexclude, block, unblock, leave); the reply is the list after it.
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {
         let _ = act;
         not_implemented()
@@ -143,11 +143,8 @@ pub enum MemberActionReq {
     },
     Unexclude(String),
     Admit(String),
-    Unadmit(String),
     Block(String),
     Unblock(String),
-    Forget(String),
-    Unforget(String),
     /// Make the node an administrator of a managed network.
     Grant(String),
     /// Take the administrator role away.

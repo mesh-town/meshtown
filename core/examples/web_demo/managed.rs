@@ -1,19 +1,21 @@
-//! Roles of a managed demo network: the administrators, the creator (root) and the deleted state, plus the
-//! refusals the real node gives for the role actions. A peer network has no `Roles` at all.
+//! Roles of the demo network, which is always managed: the administrators, the creator (root) and the deleted
+//! state, plus the refusals the real node gives for the role actions.
 
+use meshtown_core::transport::net::{NodeSecret, PeerId};
 use meshtown_core::web_gui::{MemberActionReq, MemberError};
 
 use crate::members::{refused, DemoMembers, Standing, ME};
 use crate::members_reply::demo_self_id_full;
 
-/// What the demo plays: a peer network, a managed one that I created, or a managed one I only joined.
+/// What the demo plays; the network is managed in every case.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum ManagedMode {
+pub(crate) enum DemoRole {
+    /// I am the creator (root) and the only administrator.
     #[default]
-    Peer,
-    /// I am the creator and an administrator; one more member is an administrator.
-    Admin,
-    /// I am an ordinary member; two other members are administrators, the first one is the creator.
+    Root,
+    /// I am the creator and an administrator; the first listed peer is an administrator too.
+    SecondAdmin,
+    /// I am an ordinary member; the two listed peers are administrators, the first one is the creator.
     Member,
 }
 
@@ -24,20 +26,27 @@ pub(crate) struct Roles {
     pub(crate) closed: bool,
 }
 
+/// The node id the demo keys and invites name as the creator of the network.
+pub(crate) fn demo_root() -> PeerId {
+    NodeSecret::from_bytes(&[7; 32]).peer_id()
+}
+
 impl Roles {
-    /// `others` are the ids of the two listed peers, in list order.
-    pub(crate) fn new(mode: ManagedMode, others: &[String]) -> Option<Roles> {
-        let [one, two] = others else { return None };
-        let (root, admins) = match mode {
-            ManagedMode::Peer => return None,
-            ManagedMode::Admin => (ME, vec![ME, one]),
-            ManagedMode::Member => (one.as_str(), vec![one.as_str(), two]),
+    /// `others` are the ids of the listed peers, in list order (empty without a network).
+    pub(crate) fn new(role: DemoRole, others: &[String]) -> Roles {
+        let first = others.first().map(String::as_str);
+        let (root, admins) = match (role, first) {
+            (DemoRole::Root, _) | (DemoRole::SecondAdmin, None) | (DemoRole::Member, None) => {
+                (ME, vec![ME])
+            }
+            (DemoRole::SecondAdmin, Some(one)) => (ME, vec![ME, one]),
+            (DemoRole::Member, Some(one)) => (one, others.iter().map(String::as_str).collect()),
         };
-        Some(Roles {
+        Roles {
             root: root.to_string(),
             admins: admins.into_iter().map(str::to_string).collect(),
             closed: false,
-        })
+        }
     }
 }
 
@@ -51,22 +60,13 @@ pub(crate) fn own_id_as_me(act: MemberActionReq, boot_id: &str) -> MemberActionR
     }
 }
 
-fn is_role_act(act: &MemberActionReq) -> bool {
-    matches!(
-        act,
-        MemberActionReq::Grant(_) | MemberActionReq::Revoke(_) | MemberActionReq::Close
-    )
-}
-
 impl DemoMembers {
     pub(crate) fn is_admin(&self, id: &str) -> bool {
-        self.roles
-            .as_ref()
-            .is_some_and(|r| r.admins.iter().any(|a| a == id))
+        self.roles.admins.iter().any(|a| a == id)
     }
 
     pub(crate) fn is_closed(&self) -> bool {
-        self.roles.as_ref().is_some_and(|r| r.closed)
+        self.roles.closed
     }
 
     fn listed(&self, id: &str) -> bool {
@@ -78,19 +78,11 @@ impl DemoMembers {
         }
     }
 
-    /// The refusals that depend on the kind of the network and on my role, before everything else.
+    /// The refusals that depend on my role, before everything else.
     pub(crate) fn gate(&self, act: &MemberActionReq) -> Result<(), MemberError> {
-        let Some(roles) = &self.roles else {
-            return peer_gate(act);
-        };
+        let roles = &self.roles;
         if roles.closed {
             return Err(refused("network_deleted", "this network has been deleted"));
-        }
-        if matches!(
-            act,
-            MemberActionReq::Forget(_) | MemberActionReq::Unforget(_)
-        ) {
-            return Err(refused("peer_only", "only a peer network forgets members"));
         }
         if self.me_excluded {
             return Ok(());
@@ -105,7 +97,7 @@ impl DemoMembers {
     }
 
     fn is_last_admin(&self, id: &str) -> bool {
-        self.is_admin(id) && self.roles.as_ref().is_some_and(|r| r.admins.len() == 1)
+        self.is_admin(id) && self.roles.admins.len() == 1
     }
 
     /// Actions of power: administrators only, and never against the creator.
@@ -132,7 +124,7 @@ impl DemoMembers {
 
     /// Grant, revoke and delete; `None` for the actions that are not about roles.
     pub(crate) fn role_act(&mut self, act: &MemberActionReq) -> Option<bool> {
-        let roles = self.roles.as_mut()?;
+        let roles = &mut self.roles;
         match act {
             MemberActionReq::Grant(id) if !roles.admins.contains(id) => {
                 roles.admins.push(id.clone());
@@ -149,13 +141,6 @@ impl DemoMembers {
             MemberActionReq::Grant(_) | MemberActionReq::Revoke(_) => Some(false),
             _ => None,
         }
-    }
-}
-
-fn peer_gate(act: &MemberActionReq) -> Result<(), MemberError> {
-    match is_role_act(act) {
-        true => Err(refused("not_managed", "this is a peer network")),
-        false => Ok(()),
     }
 }
 

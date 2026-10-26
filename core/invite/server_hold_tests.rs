@@ -2,8 +2,8 @@
 //! record and whose name the copy carries.
 //!
 //! The server is a real `InviteServer` over a filled in-memory domain list; the client is the transport
-//! `pid(1)`, the server (the holder) is `pid(2)`. In a Managed network only an admin's HOLD is kept, and the copy
-//! names the sender as the issuer; in a Peer network every HOLD is kept as a plain v1 record.
+//! `pid(1)`, the server (the holder) is `pid(2)`. Only an admin's HOLD is kept, and the copy names the sender
+//! as the issuer.
 
 use std::collections::BTreeSet;
 
@@ -20,16 +20,26 @@ use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET}
 use crate::transport::net::{Replica, ReplicaEntry};
 use crate::transport::net_mainline::unix_now;
 
-mod managed_holder {
+mod holder {
     use super::*;
 
     mod hold_from_a_non_admin {
         use super::*;
 
         #[tokio::test]
+        async fn a_non_admin_sender_is_refused() {
+            // given: the holder is an admin, the sender is not
+            let holder = setup_holder(admins_view(&[pid(2)])).await;
+            // when
+            let code = holder.when_hold_arrives(unix_now()).await;
+            // then
+            assert_eq!(code, Some(RedeemCode::NotFromAdmin));
+        }
+
+        #[tokio::test]
         async fn is_refused_and_writes_nothing() {
             // given: the holder is an admin, the sender is not
-            let holder = setup_holder(managed(), admins_view(&[pid(2)])).await;
+            let holder = setup_holder(admins_view(&[pid(2)])).await;
             // when
             let code = holder.when_hold_arrives(unix_now()).await;
             // then
@@ -44,9 +54,20 @@ mod managed_holder {
         use super::*;
 
         #[tokio::test]
+        async fn an_admin_sender_is_held() {
+            // given: the sender and the holder are both admins
+            let holder = setup_holder(admins_view(&[pid(1), pid(2)])).await;
+            // when
+            let code = holder.when_hold_arrives(unix_now()).await;
+            // then
+            assert_eq!(code, Some(RedeemCode::Ok));
+            assert!(holder.record_value().await.is_some());
+        }
+
+        #[tokio::test]
         async fn keeps_a_copy_on_behalf_of_the_sender() {
             // given: the sender and the holder are both admins
-            let holder = setup_holder(managed(), admins_view(&[pid(1), pid(2)])).await;
+            let holder = setup_holder(admins_view(&[pid(1), pid(2)])).await;
             // when
             let code = holder.when_hold_arrives(unix_now()).await;
             // then: the copy is the holder's record that names the sender, not the holder, as the issuer
@@ -66,7 +87,7 @@ mod managed_holder {
         #[tokio::test]
         async fn naming_an_admin_issuer_is_refused_and_does_not_grant() {
             // given: a member wrote the record itself, naming an admin as the issuer
-            let holder = setup_holder(managed(), admins_view(&[pid(2)])).await;
+            let holder = setup_holder(admins_view(&[pid(2)])).await;
             let value = issue_value(&issue_record(unix_now(), None), Some(pid(2))).unwrap();
             holder.given_record_by(pid(1), value);
             // when: the same member asks the holder to keep a copy
@@ -82,7 +103,7 @@ mod managed_holder {
         #[tokio::test]
         async fn without_an_issuer_is_refused_and_does_not_grant() {
             // given: a member wrote a plain record
-            let holder = setup_holder(managed(), admins_view(&[pid(2)])).await;
+            let holder = setup_holder(admins_view(&[pid(2)])).await;
             let value = postcard::to_stdvec(&issue_record(unix_now(), None)).unwrap();
             holder.given_record_by(pid(1), value);
             // when
@@ -102,7 +123,7 @@ mod managed_holder {
         #[tokio::test]
         async fn gets_not_ready_rather_than_not_from_admin() {
             // given: a Managed holder that has no published list of admins yet
-            let holder = setup_holder(managed(), AccessView::open()).await;
+            let holder = setup_holder(AccessView::open()).await;
             // when
             let code = holder.when_hold_arrives(unix_now()).await;
             // then: not ready, nothing written
@@ -113,7 +134,7 @@ mod managed_holder {
         #[tokio::test]
         async fn expired_frame_is_answered_before_not_ready() {
             // given: the same holder, a frame older than the invite lifetime
-            let holder = setup_holder(managed(), AccessView::open()).await;
+            let holder = setup_holder(AccessView::open()).await;
             let made = unix_now() - crate::invite::INVITE_TTL_SECS - 10;
             // when
             let code = holder.when_hold_arrives(made).await;
@@ -123,56 +144,22 @@ mod managed_holder {
     }
 }
 
-mod peer_holder {
-    use super::*;
-
-    mod any_hold {
-        use super::*;
-
-        #[tokio::test]
-        async fn keeps_the_old_record_bytes() {
-            // given: a Peer network, everyone is let in
-            let holder = setup_holder(NetKind::Peer, AccessView::open()).await;
-            let made_unix = unix_now() - 100;
-            // when
-            let code = holder.when_hold_arrives(made_unix).await;
-            // then: the stored value is the v1 record exactly as it was always encoded
-            assert_eq!(code, Some(RedeemCode::Ok));
-            let want = postcard::to_stdvec(&issue_record(made_unix, None)).unwrap();
-            assert_eq!(holder.record_value().await, Some(want));
-        }
-    }
-}
-
 /// The secret hash the HOLD frames ask to keep.
 const HASH: [u8; 32] = [5; 32];
-
-/// The Managed kind whose creator is the holder.
-fn managed() -> NetKind {
-    NetKind::Managed { root: pid(2) }
-}
 
 /// A view of the holder (`pid(2)`) that has published the given admins.
 fn admins_view(admins: &[PeerId]) -> AccessView {
     let ledger = Votes {
         admitted: admins.iter().copied().collect(),
         excluded: Default::default(),
-        pending: Default::default(),
-        need: 1,
         admissions: Default::default(),
-        forgets: Default::default(),
-        admit_unix: Default::default(),
-        forget_marks: Default::default(),
-        forget_need: 1,
         admins: admins.iter().copied().collect(),
         closed: None,
     };
     let verdicts = Verdicts {
         me: pid(2),
         ledger: Arc::new(ledger),
-        my_votes: Default::default(),
         blocks: Default::default(),
-        reasons: Default::default(),
     };
     let access = AccessView::open();
     access.publish(verdicts);
@@ -188,7 +175,7 @@ struct Holder {
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
 
-async fn setup_holder(kind: NetKind, access: AccessView) -> Holder {
+async fn setup_holder(access: AccessView) -> Holder {
     let net = MemSyncNet::new();
     let backend = net.backend(SyncCtx {
         secret: secret(2),
@@ -202,7 +189,6 @@ async fn setup_holder(kind: NetKind, access: AccessView) -> Holder {
     let fx = setup(Opts {
         access,
         list: Some(list.clone()),
-        kind,
         ..Opts::default()
     });
     Holder {

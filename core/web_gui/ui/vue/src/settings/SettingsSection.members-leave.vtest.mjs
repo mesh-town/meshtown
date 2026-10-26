@@ -38,7 +38,7 @@ describe("Settings: leaving the network", () => {
     });
 
     it("a network with no name: the hint says \"the network\"", () => {
-      const { wrapper } = mountSettings({ network: { id_hex: "net-aaaa", masked: "mesh1-••••-••••" } });
+      const { wrapper } = mountSettings({ network: { id_hex: "net-aaaa", masked: "mesh2-••••-••••" } });
       expect(wrapper.get("#settings-leave-row .hint").text()).toBe("Disconnect this computer from the network for good. You'll need a new invite to come back.");
     });
 
@@ -201,5 +201,5 @@ const leaveReply = (over = {}) => ({ ...membersReply(), left: true, announced: t
 
 const netBrief = (id, label) => ({
   id, label, id_hex: id + "-hex", status: "online", exit_enabled: false, proxy: false, route_state: "direct", exits: [],
-  members_voting: 0, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2, admission_refused: false,
+  joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 1, peers_total: 2, admission_refused: false,
 });

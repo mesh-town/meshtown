@@ -1,14 +1,18 @@
 //! The membership list on two real nodes over loopback, with the list consulted (`open_list = false`):
-//! without admissions the neighbours stay out and the refusal is shown; after mutual admissions they see each
-//! other; an exclusion vote removes a node and withdrawing it brings the node back, also when both sides had
+//! without admissions the neighbours stay out and the refusal is shown; after the creator's admission they see each
+//! other; an exclusion removes a node and withdrawing it brings the node back, also when both sides had
 //! already given up dialing each other.
 //!
-//! What it does: both nodes share one network key and are tied together with `introduce`. Every wait runs under an
+//! What it does: the creator and the member share one Managed network and are tied together with `introduce`. Every wait runs under an
 //! external deadline (`LIMIT`), so a hang fails the test instead of the run.
-//! What it does not do: no web layer and no more than two nodes (the vote threshold is the job of the unit tests).
+//! What it does not do: no web layer and no more than two nodes.
 
-#[path = "common/socks_pair.rs"]
+#[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/managed_net.rs"]
+mod managed;
+#[path = "common/invite_mesh.rs"]
+mod mesh;
 
 use std::time::Duration;
 
@@ -16,25 +20,40 @@ use meshtown_core::members::access::actions::{apply, MemberAction};
 use meshtown_core::members::access::record::{ensure, AclKind, AclValue, Via};
 use meshtown_core::members::access::report::members_reply;
 use meshtown_core::members::access::view::Deny;
-use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::node::{self, output, NodeConfig, RunningNode};
+use meshtown_core::node::{output, RunningNode};
+use meshtown_core::transport::net::{PeerAddr, PeerId};
 use meshtown_core::transport::net_mainline::unix_now;
-use tokio::time::{sleep, timeout};
+use tokio::time::{sleep, timeout, Instant};
 
-use common::{introduce, wait_member};
+use managed::ManagedNet;
+
+/// `a` dials `b`.
+async fn introduce(a: &RunningNode, b: &RunningNode) {
+    a.introduce(PeerAddr::new(b.id)).await;
+}
+
+/// Waits until the node recognizes the given one as a member.
+async fn wait_member(node: &RunningNode, who: PeerId, limit: Duration) {
+    let deadline = Instant::now() + limit;
+    while Instant::now() < deadline {
+        if node.members.is_member(who) {
+            return;
+        }
+        sleep(Duration::from_millis(50)).await;
+    }
+    panic!("the handshake did not happen within {limit:?}");
+}
 
 /// The external deadline of one wait.
 const LIMIT: Duration = Duration::from_secs(15);
 
-async fn start(key: &NetworkKey) -> RunningNode {
-    let mut cfg = NodeConfig::for_loopback_test(key.clone());
-    cfg.open_list = false;
-    node::start_node(cfg).await.unwrap()
-}
+/// The seed of the member's permanent key.
+const MEMBER_SEED: u8 = 32;
 
-async fn pair() -> (RunningNode, RunningNode) {
-    let key = NetworkKey::generate().unwrap();
-    (start(&key).await, start(&key).await)
+/// The creator and a member that nobody has admitted yet.
+async fn pair(net: &ManagedNet) -> (RunningNode, RunningNode) {
+    let a = net.start_root(net.base.clone()).await;
+    (a, net.start_member(MEMBER_SEED, Vec::new()).await)
 }
 
 /// Polls `cond` until it holds or `LIMIT` ends.
@@ -49,7 +68,7 @@ async fn eventually(what: &str, cond: impl Fn() -> bool) {
         .unwrap_or_else(|_| panic!("did not happen within {LIMIT:?}: {what}"));
 }
 
-/// `a` writes its admission of `b` into its own copy of the shared list.
+/// The creator `a` writes its admission of `b` into its own copy of the shared list.
 async fn admit(a: &RunningNode, b: &RunningNode) {
     let value = AclValue {
         kind: AclKind::Admit,
@@ -81,12 +100,10 @@ fn status_of(a: &RunningNode, who: &RunningNode) -> String {
         .unwrap_or_default()
 }
 
-/// Mutual admissions, a recompute on each side and a connection between them.
+/// The creator's admission, a recompute and a connection between the two.
 async fn connected_pair(a: &RunningNode, b: &RunningNode) {
     admit(a, b).await;
-    admit(b, a).await;
     refresh(a).await;
-    refresh(b).await;
     introduce(a, b).await;
     wait_member(a, b.id, LIMIT).await;
     wait_member(b, a.id, LIMIT).await;
@@ -117,8 +134,9 @@ async fn shut(a: RunningNode, b: RunningNode) {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn unlisted_neighbours_are_refused_and_listed_ones_connect() {
-    // given: two nodes with no admissions
-    let (a, b) = pair().await;
+    // given: the creator and a member with no admission
+    let net = ManagedNet::new();
+    let (a, b) = pair(&net).await;
     // when: they are introduced
     introduce(&a, &b).await;
     // then: a records the refusal of b as unlisted and does not count b as a member
@@ -131,11 +149,9 @@ async fn unlisted_neighbours_are_refused_and_listed_ones_connect() {
     };
     eventually("a refuses b as unlisted", refused).await;
     assert!(!a.members.is_member(b.id));
-    // when: both write their admissions and recompute
+    // when: the creator writes its admission and recomputes
     admit(&a, &b).await;
-    admit(&b, &a).await;
     refresh(&a).await;
-    refresh(&b).await;
     introduce(&a, &b).await;
     introduce(&b, &a).await;
     // then: they see each other
@@ -145,16 +161,15 @@ async fn unlisted_neighbours_are_refused_and_listed_ones_connect() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn an_exclusion_vote_removes_a_member_and_withdrawing_it_restores() {
-    // given: two nodes that admitted each other and are connected
-    let (a, b) = pair().await;
+async fn an_exclusion_removes_a_member_and_withdrawing_it_restores() {
+    // given: the creator and a member it admitted, connected
+    let net = ManagedNet::new();
+    let (a, b) = pair(&net).await;
     admit(&a, &b).await;
-    admit(&b, &a).await;
     refresh(&a).await;
-    refresh(&b).await;
     introduce(&a, &b).await;
     wait_member(&a, b.id, LIMIT).await;
-    // when: a votes to exclude b
+    // when: a excludes b
     let changed = timeout(
         LIMIT,
         apply(
@@ -163,11 +178,11 @@ async fn an_exclusion_vote_removes_a_member_and_withdrawing_it_restores() {
         ),
     )
     .await;
-    assert_eq!(changed.expect("the vote in time"), Ok(true));
+    assert_eq!(changed.expect("the exclusion in time"), Ok(true));
     // then: b is no longer a member of a and the list shows it as excluded
     eventually("b is out", || !a.members.is_member(b.id)).await;
     assert_eq!(status_of(&a, &b), "excluded");
-    // when: the vote is withdrawn
+    // when: the exclusion is withdrawn
     let back = timeout(LIMIT, apply(&a.access, MemberAction::Unexclude(b.id))).await;
     assert_eq!(back.expect("the withdrawal in time"), Ok(true));
     // then: b is listed again
@@ -183,7 +198,8 @@ async fn an_exclusion_vote_removes_a_member_and_withdrawing_it_restores() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_unexcluded_member_comes_back_without_a_restart() {
     // given: a and b are members of each other, a excludes b, and b has learned that it was excluded
-    let (a, b) = pair().await;
+    let net = ManagedNet::new();
+    let (a, b) = pair(&net).await;
     connected_pair(&a, &b).await;
     act(&a, MemberAction::Exclude(b.id, None)).await;
     eventually("b is out", || !a.members.is_member(b.id)).await;

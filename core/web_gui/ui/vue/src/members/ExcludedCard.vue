@@ -6,33 +6,30 @@ import { excludedByText } from "./excluded-by.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { forDevice } from "../common/device.ts";
 import {
-  EXCLUDED_APP_BUTTON, EXCLUDED_APP_TEXT, EXCLUDED_JOIN, EXCLUDED_LEFT_TEXT, EXCLUDED_BANNED_TEXT, EXCLUDED_REMOVED_TEXT, FORGOTTEN_CARD_TEXT, FORGOTTEN_JOIN, START_OVER_URL, excludedTitle,
+  EXCLUDED_APP_BUTTON, EXCLUDED_APP_TEXT, EXCLUDED_JOIN, EXCLUDED_LEFT_TEXT, EXCLUDED_REMOVED_TEXT, START_OVER_URL, excludedTitle,
 } from "./members-texts.ts";
 
 // `members` — the card on the Members page: its ids differ from the Home card, both pages live in one document.
-const props = defineProps<{ variant: "banned" | "left" | "forgotten"; net: string; by?: string | null; members?: boolean; managed?: boolean; formOpen?: boolean }>();
+const props = defineProps<{ variant: "banned" | "left"; net: string; by?: string | null; members?: boolean; formOpen?: boolean }>();
 defineEmits<{ (e: "join"): void }>();
 const inApp = inAppPage();
-// In a Managed network an admin removes a member; in a Peer network the members ban one.
-const BODY = { left: EXCLUDED_LEFT_TEXT, banned: EXCLUDED_BANNED_TEXT, forgotten: FORGOTTEN_CARD_TEXT };
-const bannedText = (): string => (props.managed ? EXCLUDED_REMOVED_TEXT : EXCLUDED_BANNED_TEXT);
-const rawBody = (): string => (props.by ? excludedByText(props.by, props.net) : props.variant === "banned" ? bannedText() : BODY[props.variant]);
+// An admin removed the computer, or it left on its own.
+const rawBody = (): string => (props.by ? excludedByText(props.by, props.net) : props.variant === "banned" ? EXCLUDED_REMOVED_TEXT : EXCLUDED_LEFT_TEXT);
 const body = (): string => forDevice(rawBody());
-// Removed from the member list: a plain invite is the way back, also in the app (no "Start over" there).
 const id = (name: string): string => (props.members ? "members-removed-" : "excluded-") + name;
-const startOver = (): boolean => inApp && props.variant !== "forgotten";
+const startOver = (): boolean => inApp;
 </script>
 
 <template>
   <section :id="id('card')" class="card excluded-card" role="status">
-    <h2>{{ excludedTitle(variant, net, managed) }}</h2>
+    <h2>{{ excludedTitle(variant, net) }}</h2>
     <template v-if="startOver()">
       <p>{{ EXCLUDED_APP_TEXT }}</p>
       <a :id="id('start-over')" class="btn btn-primary" role="button" :href="START_OVER_URL">{{ EXCLUDED_APP_BUTTON }}</a>
     </template>
     <template v-else>
       <p>{{ body() }}</p>
-      <button v-if="!formOpen" :id="id('join')" type="button" class="btn btn-primary" @click="$emit('join')">{{ props.variant === "forgotten" ? FORGOTTEN_JOIN : EXCLUDED_JOIN }}</button>
+      <button v-if="!formOpen" :id="id('join')" type="button" class="btn btn-primary" @click="$emit('join')">{{ EXCLUDED_JOIN }}</button>
     </template>
   </section>
 </template>

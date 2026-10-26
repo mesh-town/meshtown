@@ -6,7 +6,6 @@ import type { Ref } from "vue";
 import { api as defaultApi } from "../core/api.ts";
 import type { ApiFn } from "../core/api.ts";
 import type { InspectResponse } from "../core/api-types.ts";
-import { previewManaged, previewPeer } from "./net-kind-texts.ts";
 
 /** How long the field must stay unchanged before the node is asked. */
 export const INSPECT_DELAY_MS = 500;
@@ -29,7 +28,9 @@ export async function inspectKey(api: ApiFn, key: string): Promise<InspectRespon
   }
 }
 
-export const previewText = (reply: InspectResponse): string => (reply.kind === "Managed" ? previewManaged(reply.label) : previewPeer(reply.label));
+const named = (label: string | null): string => (label ? `Network "${label}"` : "Network");
+
+export const previewText = (reply: InspectResponse): string => `${named(reply.label)} · Managed: admins decide who joins`;
 
 /** `preview` is the one-line text for the string in the field, empty while there is none; a stale answer is dropped. */
 export function useInspectPreview(getKey: () => string, api: ApiFn = defaultApi, timers: InspectTimers = pageTimers): { preview: Ref<string>; reply: Ref<InspectResponse | null> } {

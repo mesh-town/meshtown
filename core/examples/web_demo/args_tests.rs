@@ -1,6 +1,7 @@
 use clap::Parser;
 
 use super::Args;
+use crate::managed::DemoRole;
 use crate::node::build_demo_peers;
 
 #[test]
@@ -24,4 +25,16 @@ fn the_last_peers_do_not_offer_an_exit() {
         .map(|p| p.exit)
         .collect();
     assert_eq!(exits, [true, false]);
+}
+
+#[test]
+fn the_role_flags_pick_the_demo_role() {
+    let role = |flags: &[&str]| {
+        let mut argv = vec!["web_demo"];
+        argv.extend_from_slice(flags);
+        Args::parse_from(argv).demo_role()
+    };
+    assert_eq!(role(&[]), DemoRole::Root);
+    assert_eq!(role(&["--second-admin"]), DemoRole::SecondAdmin);
+    assert_eq!(role(&["--role", "member"]), DemoRole::Member);
 }

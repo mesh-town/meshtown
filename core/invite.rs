@@ -16,7 +16,7 @@ use data_encoding::BASE32_NOPAD;
 use serde::{Deserialize, Serialize};
 
 use crate::members::membership::Members;
-use crate::members::network_key::{NetKind, NetworkKey};
+use crate::members::network_key::NetworkKey;
 use crate::node::output::NET_NAME;
 use crate::transport::addr_order::{truncate_ranked, PrimaryIps};
 use crate::transport::net::{NetStack, PeerAddr, PeerId};
@@ -43,7 +43,7 @@ pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};
 pub use issued::Issued;
 pub use issuer::{NotAdmin, OutOfNetwork};
-pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE};
+pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE, TEXT_V3_INVITE};
 
 /// Prefix of the invite string; carries the format number.
 pub const INVITE_PREFIX: &str = "mesh-invite2-";
@@ -61,11 +61,8 @@ pub const MAX_INVITE_CHARS: usize = 4_000;
 /// Limit of the invite size in bytes (before base32).
 pub const MAX_INVITE_BYTES: usize = 2_000;
 
-/// Format number of the invite: a member record without relay and addresses is legal and means
-/// "dial by key".
-const INVITE_KEYED_VERSION: u8 = 3;
-
-/// Format number of the invite of a Managed network: the v3 body plus the network kind and creator.
+/// Format number of the invite: the body plus the network kind and creator. A member record without
+/// relay and addresses is legal and means "dial by key".
 const INVITE_MANAGED_VERSION: u8 = 4;
 
 /// The `kind` byte of a Managed network in a version 4 invite.
@@ -82,7 +79,7 @@ struct Invite {
     peers: Vec<RosterEntry>,
 }
 
-/// Internal form of a version 4 invite: the version 3 body (its `version` is 4), then the network kind
+/// Internal form of a version 4 invite: the body (its `version` is 4), then the network kind
 /// and the 32 bytes of the network creator.
 #[derive(Serialize, Deserialize)]
 struct InviteV4 {
@@ -105,9 +102,9 @@ pub struct Source {
     pub stack: NetStack,
     pub members: Members,
     pub key: NetworkKey,
-    /// The kind of the network the node is in.
-    pub kind: NetKind,
-    /// The secret an invite redemption answers with; equals `key` in a Peer network.
+    /// The creator of the network the node is in.
+    pub root: PeerId,
+    /// The secret an invite redemption answers with: the base of the network key.
     pub reply_secret: NetworkKey,
     pub label: Option<String>,
     /// The node's domain list: provides the network's shared document and the author for issue records.
@@ -158,23 +155,19 @@ pub fn build_keyed(
         }
         peers.push(record_for_addr(addr, head.made_unix, primary));
     }
-    let root = head.kind.root();
     let body = Invite {
-        version: root.map_or(INVITE_KEYED_VERSION, |_| INVITE_MANAGED_VERSION),
+        version: INVITE_MANAGED_VERSION,
         network_id: head.network_id,
         label: head.label.clone(),
         secret: *head.secret.as_bytes(),
         made_unix: head.made_unix,
         peers,
     };
-    let bytes = match root {
-        None => postcard::to_allocvec(&body),
-        Some(root) => postcard::to_allocvec(&InviteV4 {
-            body,
-            kind: INVITE_KIND_MANAGED,
-            root: *root.as_bytes(),
-        }),
-    }
+    let bytes = postcard::to_allocvec(&InviteV4 {
+        body,
+        kind: INVITE_KIND_MANAGED,
+        root: *head.root.as_bytes(),
+    })
     .context("could not write postcard")?;
     if bytes.len() > MAX_INVITE_BYTES {
         bail!(
@@ -210,19 +203,14 @@ fn listed_members(src: &Source) -> BTreeSet<PeerId> {
         .collect()
 }
 
-/// Whom to ask to keep the invite: the connected members in a Peer network, the listed admins in a Managed one.
-fn holders_pool(connected: &[PeerId], admins: Option<BTreeSet<PeerId>>) -> Vec<PeerId> {
-    admins.map_or_else(|| connected.to_vec(), |set| set.into_iter().collect())
-}
-
-/// True when this node is excluded (in any way) or forgotten, so it must not issue invites.
+/// True when this node is excluded, so it must not issue invites.
 fn me_out_of_network(src: &Source) -> bool {
     let me = src.stack.me();
     let verdicts = src.members.access().verdicts();
-    verdicts.is_some_and(|v| v.ledger.is_forgotten(&me) || v.ledger.excluded.contains_key(&me))
+    verdicts.is_some_and(|v| v.ledger.excluded.contains_key(&me))
 }
 
-/// Builds the invite of a live node: own address plus the listed members (keys only; v3 dials by key).
+/// Builds the invite of a live node: own address plus the listed members (keys only: dialing goes by key).
 /// Does not touch the document — `Issued::commit` does that.
 pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     if src.stack.is_closed() {
@@ -233,7 +221,7 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
     }
     let admins = issuer::issuing_admins(src)?;
     let connected: Vec<PeerId> = src.members.ids().into_iter().collect();
-    let others = holders_pool(&connected, admins);
+    let others: Vec<PeerId> = admins.into_iter().collect();
     let me_id = src.stack.me();
     let rest = spread::rest(&connected, &listed_members(src), me_id);
     let bare: Vec<PeerAddr> = rest.iter().copied().map(PeerAddr::new).collect();
@@ -243,7 +231,7 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
         network_id: src.key.subkeys().network_id,
         label: src.label.clone(),
         made_unix: net_mainline::unix_now(),
-        kind: src.kind,
+        root: src.root,
     };
     let me = own_addr(&src.stack, src.stack.me());
     let primary = PrimaryIps::probe();
@@ -276,8 +264,8 @@ mod noroute_tests;
 mod golden_tests;
 
 #[cfg(test)]
-#[path = "invite_v3_tests.rs"]
-mod v3_tests;
+#[path = "invite_members_tests.rs"]
+mod members_tests;
 
 #[cfg(test)]
 #[path = "invite_holders_format_tests.rs"]

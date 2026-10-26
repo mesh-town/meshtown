@@ -33,7 +33,7 @@ type Verdict = (RedeemCode, Option<NetworkKey>);
 /// Refusals by this node's own vote or block are retryable: another holder may decide differently.
 fn owner_code(r: Result<(), Deny>) -> Option<RedeemCode> {
     match r {
-        Ok(()) | Err(Deny::Unlisted | Deny::Forgotten | Deny::RemovedByMe) => None,
+        Ok(()) | Err(Deny::Unlisted) => None,
         Err(Deny::Excluded) => Some(RedeemCode::Excluded),
         Err(why) => {
             say(
@@ -86,10 +86,10 @@ impl InviteServer {
         self.settle_and_grant(list, &ledger, &hash, req.owner).await
     }
 
-    /// The view's verdict on the owner; in a Managed network an excluded key may come back by a new invite.
+    /// The view's verdict on the owner; an excluded key may come back by a new invite.
     fn checked(&self, owner: PeerId) -> Result<(), Deny> {
         match self.access.check(owner) {
-            Err(Deny::Excluded) if self.kind.root().is_some() => Ok(()),
+            Err(Deny::Excluded) => Ok(()),
             other => other,
         }
     }
@@ -105,9 +105,9 @@ impl InviteServer {
         if self
             .access
             .verdicts()
-            .is_some_and(|v| v.ledger.is_forgotten(&v.me) || v.ledger.excluded.contains_key(&v.me))
+            .is_some_and(|v| v.ledger.excluded.contains_key(&v.me))
         {
-            // the server itself is forgotten or excluded (the view never refuses its own key, so
+            // the server itself is excluded (the view never refuses its own key, so
             // this must be checked here); retryable: another holder can let the newcomer in
             return Some(RedeemCode::NotReady);
         }
@@ -128,18 +128,6 @@ impl InviteServer {
             .claim(hash, now_unix)
             .await
             .map_err(|_| RedeemCode::Internal)
-    }
-
-    /// The newest forget vote about the owner in this node's view of the list.
-    fn forget_mark(&self, owner: &PeerId) -> Option<u64> {
-        self.access.verdicts()?.ledger.forget_mark(owner)
-    }
-
-    /// The time the owner's record must be later than: the newest forget vote, or in a Managed network
-    /// the exclusion that a returning key outdates.
-    fn rewrite_after(&self, owner: &PeerId) -> Option<u64> {
-        let excluded = self.kind.root().and_then(|_| self.excluded_secs(owner));
-        self.forget_mark(owner).max(excluded)
     }
 
     /// When the owner's exclusion was written, in seconds.
@@ -172,7 +160,7 @@ impl InviteServer {
         if settle(ledger.me(), &rivals) == Settle::Yield {
             return (RedeemCode::Busy, None);
         }
-        let after = self.rewrite_after(&owner);
+        let after = self.excluded_secs(&owner);
         if let Err(e) = admit_owner(list, hash, owner, after, now_unix).await {
             say("invite", format!("couldn't write the member record: {e:#}"));
             return (RedeemCode::Internal, None);
@@ -199,12 +187,8 @@ fn log_owner(who: &str, owner: PeerId, code: RedeemCode) {
 }
 
 #[cfg(test)]
-#[path = "server_owner_forget_tests.rs"]
-mod forget_tests;
-
-#[cfg(test)]
-#[path = "server_owner_forget_more_tests.rs"]
-mod forget_more_tests;
+#[path = "server_owner_support.rs"]
+mod support;
 
 #[cfg(test)]
 #[path = "server_owner_excluded_tests.rs"]

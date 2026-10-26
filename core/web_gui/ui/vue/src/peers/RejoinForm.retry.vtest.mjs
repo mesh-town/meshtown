@@ -20,29 +20,16 @@ beforeEach(() => {
 afterEach(unmountPage);
 
 const banned = () => membersReply({ rows: [selfRow(), peerOneRow()], me_excluded: true });
-const removed = () => membersReply({ rows: [selfRow(), peerOneRow()], me_removed: true });
 
-describe("the join from the form of a left network", () => {
-  it("a ban in a Peer network: the invite leads back to it, so no waiting line", async () => {
-    const page = await openTab({ members: banned(), inspect: { label: "my devices", kind: "Peer", id_hex: "net-bbbb", place: "return", slot: NET_B } });
-    await page.send();
-    expect(page.hidden("#rejoin-status")).toBe(true);
-  });
-
-  it("a removed computer: the waiting line stays", async () => {
-    const page = await openTab({ members: removed(), inspect: { label: "my devices", kind: "Peer", id_hex: "net-bbbb", place: "return", slot: NET_B } });
-    await page.send();
-    expect(page.text("#rejoin-status")).toContain("Invite sent");
-  });
-
-  it("a Managed network that excluded the computer: the waiting line stays", async () => {
-    const page = await openTab({ members: banned(), kind: "Managed", inspect: { label: "my devices", kind: "Managed", id_hex: "net-bbbb", place: "return", slot: NET_B } });
+describe("the join from the form of a removed computer", () => {
+  it("a network that removed the computer: the waiting line stays", async () => {
+    const page = await openTab({ members: banned(), inspect: { label: "my devices", id_hex: "net-bbbb", place: "return", slot: NET_B } });
     await page.send();
     expect(page.text("#rejoin-status")).toContain("Invite sent");
   });
 
   it("an invite to another network: the waiting line stays", async () => {
-    const page = await openTab({ members: banned(), inspect: { label: "work", kind: "Peer", id_hex: "net-cccc", place: "new" } });
+    const page = await openTab({ members: banned(), inspect: { label: "work", id_hex: "net-cccc", place: "new" } });
     await page.send();
     expect(page.text("#rejoin-status")).toContain("Invite sent");
   });
@@ -74,12 +61,12 @@ describe("the join from the form of a left network", () => {
   });
 });
 
-async function openTab({ members, kind = "Peer", inspect = null, invite_join = null }) {
+async function openTab({ members, inspect = null, invite_join = null }) {
   const opts = twoNets();
   const b = opts.slots[1];
   b.members = members;
   const excluded = members.me_excluded === true;
-  b.state = { ...b.state, network: { ...b.state.network, kind }, members: { count: 2, gossip_neighbors: 0, voting: 0, me_excluded: excluded }, node: { ...b.state.node, invite_join } };
+  b.state = { ...b.state, network: { ...b.state.network }, members: { count: 2, gossip_neighbors: 0, me_excluded: excluded }, node: { ...b.state.node, invite_join } };
   const node = createFakeNode({ ...opts, config: baseConfig({ ports: { published: [{ port: 8080, for: "all" }], opened: [] } }) });
   node.routes["POST /api/network/join"] = { label: "my devices", restart: false, waiting: true, slot: NET_B };
   if (inspect) node.routes["POST /api/network/inspect"] = inspect;

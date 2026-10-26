@@ -69,3 +69,7 @@ pub(super) fn join_by_invite_response(
     )
         .into_response()
 }
+
+#[cfg(test)]
+#[path = "network_invite_tests.rs"]
+mod tests;

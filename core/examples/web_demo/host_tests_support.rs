@@ -29,16 +29,15 @@ pub(crate) struct Demo {
 
 /// `--nets <nets>`; the page starts on port 0 with the fixed token.
 pub(crate) async fn setup(nets: u8) -> Demo {
+    setup_with(nets, &[]).await
+}
+
+/// `setup` with more flags, for example `--second-admin` so that this computer is not the last administrator.
+pub(crate) async fn setup_with(nets: u8, more: &[&str]) -> Demo {
     let turn = ONE_AT_A_TIME.lock().await;
-    let flags = [
-        "web_demo",
-        "--nets",
-        &nets.to_string(),
-        "--port",
-        "0",
-        "--token",
-        TOKEN,
-    ];
+    let nets = nets.to_string();
+    let mut flags = vec!["web_demo", "--nets", &nets, "--port", "0", "--token", TOKEN];
+    flags.extend_from_slice(more);
     let args = Args::parse_from(flags);
     let (run, dir) = prepare_demo_config(&args, 1_700_000_000).expect("demo config");
     let main_node = Arc::new(crate::build_demo_node(&args, &run));

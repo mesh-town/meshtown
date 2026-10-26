@@ -43,7 +43,7 @@ function brief(slot) {
   return {
     id: slot.id, label: slot.label, id_hex: slot.id_hex, status: state.node?.status ?? "running", exit_enabled: Boolean(state.exit?.enabled),
     proxy: slot.proxy ?? slot.id === MAIN, route_state: state.route?.state ?? "direct", exits: (state.route?.exits || []).map((e) => e.id_full),
-    members_voting: state.members?.voting ?? 0, joining: slot.joining ?? false, members_admitting: state.members?.admitting ?? 0,
+    joining: slot.joining ?? false, members_admitting: state.members?.admitting ?? 0,
     me_excluded: state.members?.me_excluded ?? false, me_pending: state.members?.me_pending ?? false, admission_refused: state.members?.admission_refused ?? false,
     peers_online: peers.filter((p) => p.online).length, peers_total: peers.length,
   };
@@ -92,7 +92,7 @@ export function addNet(node) {
 }
 
 function leaveReply(node, slot) {
-  const members = slot.members ?? { members: [], counts: { members: 0, voting: 0, excluded: 0, unlisted: 0, pending: 0 } };
+  const members = slot.members ?? { members: [], counts: { members: 0, excluded: 0, unlisted: 0, pending: 0 } };
   if (slot.id !== MAIN) node.slotList = node.slotList.filter((s) => s !== slot);
   return reply(200, { left: true, announced: false, nets: briefs(node), ...copy(members) });
 }

@@ -18,7 +18,7 @@ export function baseState(over = {}) {
   return {
     boot_id: "boot-1",
     node: { id: "aaaa1111", id_full: SELF_FULL, web_addr: "127.0.0.1:7070", version: OWN_VERSION },
-    network: { id_hex: "net-aaaa", masked: "mesh1-••••-••••" },
+    network: { id_hex: "net-aaaa", masked: "mesh2-••••-••••" },
     exit: { enabled: true },
     peers: [
       { id: "bbbb2222", id_full: PEER_FULL, name: "peer-one", country: "DE", version: OLD_VERSION, online: true, path: "direct", rtt_ms: 30, exit: true },

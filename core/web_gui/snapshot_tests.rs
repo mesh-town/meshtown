@@ -7,7 +7,7 @@
 //! The `socks.pac_url` key was added by hand — a new field, the old keys were
 //! not touched.
 //! The `peers[].through_peer_bps` and `peers[].through_us_bps` keys were added by hand — new fields, the old keys were not touched.
-//! The `members.voting` and `members.me_excluded` keys were added by hand — new fields,
+//! The `members.me_excluded` key was added by hand — a new field,
 //! the old keys were not touched.
 
 use super::*;
@@ -39,7 +39,6 @@ const DEFAULT_KEYS: &[&str] = &[
     "members.gossip_neighbors",
     "members.me_excluded",
     "members.me_pending",
-    "members.voting",
     "node",
     "node.id",
     "node.id_full",
@@ -119,7 +118,6 @@ const FILLED_KEYS: &[&str] = &[
     "members.gossip_neighbors",
     "members.me_excluded",
     "members.me_pending",
-    "members.voting",
     "node",
     "node.id",
     "node.id_full",

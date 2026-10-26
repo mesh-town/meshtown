@@ -99,9 +99,9 @@ describe("parseOverview", () => {
     });
     it("negative or non-finite counts become 0", () => {
       const raw = rawOverview();
-      Object.assign(raw.nets[0], { peers_online: -3, peers_total: "7", members_voting: null });
+      Object.assign(raw.nets[0], { peers_online: -3, peers_total: "7" });
       const n = parseOverview(raw).nets[0];
-      assert.deepEqual([n.peers_online, n.peers_total, n.members_voting], [0, 0, 0]);
+      assert.deepEqual([n.peers_online, n.peers_total], [0, 0]);
     });
     it("exits keeps only strings", () => {
       const raw = rawOverview();

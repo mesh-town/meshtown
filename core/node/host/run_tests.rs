@@ -11,7 +11,6 @@ use crate::config::config_file::{
     self, net_slot_path, new_slot_id, save_net_file, CliOverrides, ConfigSource, ListenAccess,
     NetSettings, NetSlotId, PathRule, RunConfig,
 };
-use crate::members::network_key::NetworkKey;
 use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{log_page, log_summary, say, set_log_capacity, with_net};
@@ -363,7 +362,8 @@ mod busy_proxy_port {
         // given: a key and a port that somebody holds
         let (busy, port) = busy_port();
         let mut run = run_config(free_port());
-        run.effective_settings.net.network_key = Some(NetworkKey::generate().unwrap().encode());
+        run.effective_settings.net.network_key =
+            Some(crate::node::host::test_keys::managed_text(99));
         run.effective_settings.process.socks_port = port;
         let ran = Arc::new(AtomicBool::new(false));
         let flag = ran.clone();
@@ -545,7 +545,7 @@ fn fresh_host_dir(tag: &str) -> PathBuf {
 async fn setup_host(tag: &str) -> HostFx {
     let dir = fresh_host_dir(tag);
     let cli = CliOverrides {
-        network_key: Some(NetworkKey::from_bytes([61; 32]).encode()),
+        network_key: Some(crate::node::host::test_keys::managed_text(61)),
         checks_enabled: Some(false),
         ..CliOverrides::default()
     };
@@ -602,7 +602,7 @@ impl HostFx {
         let main_path = self.dir.join(config_file::FILE_NAME);
         let id = new_slot_id(&main_path).expect("a free slot id");
         let net = NetSettings {
-            network_key: Some(NetworkKey::from_bytes([62; 32]).encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(62)),
             checks_enabled: false,
             ..NetSettings::default()
         };

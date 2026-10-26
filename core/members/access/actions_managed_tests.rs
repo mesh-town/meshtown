@@ -1,6 +1,6 @@
 //! Tests of the member actions in an administered network (`actions.rs`): who may do what, the refusals,
 //! and the records the administrator actions write. Each test runs against a real in-memory shared
-//! replica with the verdicts recomputed by `Access` under `Rules::Managed`.
+//! replica with the verdicts recomputed by `Access`.
 //! Nodes: `me` (seed 1) and the root (seed 2, or `me` itself), the member `x` (3), the other administrator
 //! `other_admin` (4) and the `outsider` (9), who is never admitted.
 
@@ -75,56 +75,6 @@ mod member_without_power {
     async fn leaving_stays_open() {
         let world = setup(Seat::Member);
         assert_eq!(world.apply(MemberAction::Leave).await, Ok(true));
-    }
-}
-
-mod forget_votes {
-    use super::*;
-
-    #[tokio::test]
-    async fn forget_is_peer_only_for_the_administrator() {
-        let world = setup(Seat::Root);
-        let result = world.apply(MemberAction::Forget(member())).await;
-        assert_eq!(result, Err(ActionRefusal::PeerOnly));
-    }
-
-    #[tokio::test]
-    async fn unforget_is_peer_only_for_the_administrator() {
-        let world = setup(Seat::Root);
-        let result = world.apply(MemberAction::Unforget(member())).await;
-        assert_eq!(result, Err(ActionRefusal::PeerOnly));
-    }
-}
-
-mod peer_network {
-    use super::*;
-
-    #[tokio::test]
-    async fn grant_is_not_managed() {
-        let world = setup_peer();
-        let result = world.apply(MemberAction::Grant(member())).await;
-        assert_eq!(result, Err(ActionRefusal::NotManaged));
-    }
-
-    #[tokio::test]
-    async fn revoke_is_not_managed() {
-        let world = setup_peer();
-        let result = world.apply(MemberAction::Revoke(member())).await;
-        assert_eq!(result, Err(ActionRefusal::NotManaged));
-    }
-
-    #[tokio::test]
-    async fn close_is_not_managed() {
-        let world = setup_peer();
-        let result = world.apply(MemberAction::Close).await;
-        assert_eq!(result, Err(ActionRefusal::NotManaged));
-    }
-
-    #[tokio::test]
-    async fn the_peer_actions_work_as_before() {
-        let world = setup_peer();
-        let result = world.apply(MemberAction::Exclude(member(), None)).await;
-        assert_eq!(result, Ok(true));
     }
 }
 

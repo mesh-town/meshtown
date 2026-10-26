@@ -74,10 +74,8 @@ impl Rig {
             .windows(8)
             .any(|piece| body.windows(8).any(|w| w == piece));
         assert!(!leaked, "a piece of the network key is in the invite body");
-        assert!(
-            !invite.contains(&self.key.encode()),
-            "the key mesh1-… is in the string"
-        );
+        let hex = data_encoding::HEXLOWER.encode(&bytes);
+        assert!(!invite.contains(&hex), "the key is in the string as hex");
     }
 
     async fn shutdown(self) {
@@ -89,9 +87,7 @@ impl Rig {
 async fn setup() -> Rig {
     let ctl = NodeCtl::new(&Settings::default());
     let key = NetworkKey::generate().unwrap();
-    let node = crate::node::start_node(NodeConfig::for_loopback_test(key.clone()))
-        .await
-        .unwrap();
+    let node = start_root(key.clone()).await;
     ctl.attach(&node);
     Rig { ctl, key, node }
 }

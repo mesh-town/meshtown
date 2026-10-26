@@ -15,7 +15,7 @@ async fn accept_does_not_call_save_when_the_wait_was_replaced() {
         )
     };
     assert_eq!(invite.as_deref(), Some("Alice"));
-    fx.ctl.switch_network("mesh1-aaaa");
+    fx.ctl.switch_network("mesh2-aaaa");
     assert_eq!(fx.ctl.invite_join(), None);
 
     // when: the key arrives after the cancel
@@ -29,7 +29,7 @@ async fn accept_does_not_call_save_when_the_wait_was_replaced() {
         test_net: None,
         owner: None,
     };
-    job.accept("mesh1-late".to_string());
+    job.accept("mesh2-late".to_string());
 
     // then: the settings file is untouched
     assert_eq!(

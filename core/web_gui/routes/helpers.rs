@@ -9,6 +9,7 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Map, Value};
 
+use crate::members::network_key::{BadWord, LegacyKey, LEGACY_KEY_TEXT};
 use crate::node::output::NET_NAME;
 use crate::web_gui::http::json_err;
 use crate::web_gui::{ActionError, App};
@@ -54,11 +55,16 @@ pub(super) fn map_string_field(map: &Map<String, Value>, name: &str) -> Result<S
 }
 
 /// 422 `invalid_key`: `word` only when `err` wraps `BadWord` (`err.downcast_ref`),
-/// otherwise there is no field at all (not `null`); `message` comes from `BadWord`, otherwise `fallback_message`.
+/// otherwise there is no field at all (not `null`); `message` comes from `BadWord`, or is the outdated-key
+/// text for a `LegacyKey`, otherwise `fallback_message`.
 pub(super) fn invalid_key_response(err: &anyhow::Error, fallback_message: &str) -> Response {
-    let body = match err.downcast_ref::<crate::members::network_key::BadWord>() {
-        Some(bad) => json!({"error": "invalid_key", "message": bad.message, "word": bad.word}),
-        None => json!({"error": "invalid_key", "message": fallback_message}),
+    let body = match (
+        err.downcast_ref::<BadWord>(),
+        err.downcast_ref::<LegacyKey>(),
+    ) {
+        (Some(bad), _) => json!({"error": "invalid_key", "message": bad.message, "word": bad.word}),
+        (None, Some(_)) => json!({"error": "invalid_key", "message": LEGACY_KEY_TEXT}),
+        (None, None) => json!({"error": "invalid_key", "message": fallback_message}),
     };
     (StatusCode::UNPROCESSABLE_ENTITY, axum::Json(body)).into_response()
 }

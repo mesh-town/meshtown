@@ -11,9 +11,7 @@ use std::time::Duration;
 use meshtown_core::config::config_file::{
     self, save_config_file, CliOverrides, ConfigSource, ListenAccess, PathRule,
 };
-use meshtown_core::members::network_key::{
-    managed_key, managed_key_with_label, NetKind, NetworkKey,
-};
+use meshtown_core::members::network_key::{managed_key_with_label, parse_user_input, NetworkKey};
 use meshtown_core::node::host::{Host, PageRole};
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
 use meshtown_core::node::{self, output, IdentityState};
@@ -245,10 +243,10 @@ async fn boot_root(base: &[u8; 32]) -> Hosted {
     let p = prepare("close-root", Some(&key));
     let creator = p.run.secret.peer_id();
     let relaunch = p.relaunch.clone();
-    let mut cfg = relaunch.node_config(&p.run.effective_settings, managed_key(base, &creator));
+    let input = parse_user_input(&key(creator)).expect("the key of the creator parses");
+    let mut cfg = relaunch.node_config(&p.run.effective_settings, input);
     cfg.geoip = false;
     cfg.open_list = false;
-    cfg.net_kind = NetKind::Managed { root: creator };
     cfg.reply_secret = NetworkKey::from_bytes(*base);
     cfg.identity = IdentityState::from_report(&p.run.file_report);
     let ctl = NodeCtl::new(&p.run.effective_settings);

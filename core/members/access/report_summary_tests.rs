@@ -1,22 +1,11 @@
-//! Tests of `vote_summary` (`report.rs`): only the rows that wait for this node's confirmation are counted.
+//! Tests of `vote_summary` (`report.rs`): only the pending rows of other nodes are counted as waiting.
 //! The reply is built by hand; `me` is the node with seed 1.
 
 use super::*;
 use crate::transport::net::contract::pid;
-use crate::web_gui::{Counts, MemberRow, MembersReply, VoteInfo};
+use crate::web_gui::{Counts, MemberRow, MembersReply};
 
-fn vote(proposed_by: PeerId, mine: bool) -> VoteInfo {
-    VoteInfo {
-        votes: 1,
-        need: 2,
-        proposed_by: proposed_by.to_string(),
-        voters: vec![],
-        mine,
-        reason: None,
-    }
-}
-
-fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
+fn row(id: PeerId, status: &'static str) -> MemberRow {
     MemberRow {
         id: String::new(),
         id_full: id.to_string(),
@@ -25,11 +14,9 @@ fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
         online: true,
         admin: false,
         status,
-        vote,
         excluded: None,
         blocked_by_me: false,
         denied_by_me: None,
-        forget: None,
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
@@ -39,72 +26,46 @@ fn row(id: PeerId, status: &'static str, vote: Option<VoteInfo>) -> MemberRow {
 fn reply(rows: Vec<MemberRow>, me_excluded: bool) -> MembersReply {
     let counts = Counts {
         members: 0,
-        voting: 0,
         excluded: 0,
         unlisted: 0,
         pending: 0,
-        forgotten: 0,
     };
     MembersReply {
         me: pid(1).to_string(),
         me_excluded,
-        me_removed: false,
         me_pending: false,
-        kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
         root: None,
         me_admission: None,
-        need: 2,
         counts,
         members: rows,
         changed: None,
     }
 }
 
-fn voting(rows: Vec<MemberRow>) -> u64 {
-    vote_summary(&reply(rows, false)).voting
+fn admitting(rows: Vec<MemberRow>) -> u64 {
+    vote_summary(&reply(rows, false)).admitting
 }
 
 #[test]
-fn counts_a_pending_vote_of_another_node() {
-    // given: a listed node with a vote that someone else proposed
-    let rows = vec![row(pid(2), "member", Some(vote(pid(3), false)))];
-    // when / then: it waits for me
-    assert_eq!(voting(rows), 1);
+fn counts_a_request_of_another_node() {
+    assert_eq!(admitting(vec![row(pid(2), "pending")]), 1);
 }
 
 #[test]
-fn skips_a_vote_that_is_mine() {
-    assert_eq!(
-        voting(vec![row(pid(2), "member", Some(vote(pid(3), true)))]),
-        0
-    );
-}
-
-#[test]
-fn skips_a_vote_proposed_by_me() {
-    assert_eq!(
-        voting(vec![row(pid(2), "member", Some(vote(pid(1), false)))]),
-        0
-    );
-}
-
-#[test]
-fn skips_excluded_and_unlisted_rows() {
+fn skips_members_excluded_and_unlisted_rows() {
     let rows = vec![
-        row(pid(2), "excluded", Some(vote(pid(3), false))),
-        row(pid(4), "unlisted", Some(vote(pid(3), false))),
+        row(pid(2), "member"),
+        row(pid(3), "excluded"),
+        row(pid(4), "unlisted"),
     ];
-    assert_eq!(voting(rows), 0);
+    assert_eq!(admitting(rows), 0);
 }
 
 #[test]
 fn skips_my_own_row() {
-    assert_eq!(
-        voting(vec![row(pid(1), "member", Some(vote(pid(3), false)))]),
-        0
-    );
+    assert_eq!(admitting(vec![row(pid(1), "pending")]), 0);
 }
 
 #[test]
@@ -112,7 +73,6 @@ fn empty_list_counts_nothing_and_carries_the_exclusion_flag() {
     assert_eq!(
         vote_summary(&reply(vec![], false)),
         VoteSummary {
-            voting: 0,
             me_excluded: false,
             admitting: 0,
             me_pending: false
@@ -121,7 +81,6 @@ fn empty_list_counts_nothing_and_carries_the_exclusion_flag() {
     assert_eq!(
         vote_summary(&reply(vec![], true)),
         VoteSummary {
-            voting: 0,
             me_excluded: true,
             admitting: 0,
             me_pending: false

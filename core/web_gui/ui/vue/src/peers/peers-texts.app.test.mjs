@@ -14,16 +14,13 @@ describe("the refused-admission plate", () => {
   it("in the app: the phone", () => {
     given(APP_UA);
     assert.equal(ADMISSION_REFUSED_TITLE("family"), 'This phone can\'t connect to "family"');
-    assert.ok(admissionRefusedAsk(["anna"], "family", false).startsWith('Ask anna to let this phone in.'));
-    assert.ok(admissionRefusedAsk([], "family", true).startsWith('Ask an admin of "family" to let this phone in.'));
-    noComputer(admissionRefusedAsk(["a", "b"], "family", false));
-    noComputer(admissionRefusedAsk([], "family", false));
+    assert.ok(admissionRefusedAsk("family").startsWith('Ask an admin of "family" to let this phone in.'));
+    noComputer(admissionRefusedAsk("family"));
   });
 
   it("on a desktop: the computer", () => {
     given(DESKTOP_UA);
     assert.equal(ADMISSION_REFUSED_TITLE("family"), 'This computer can\'t connect to "family"');
-    assert.ok(admissionRefusedAsk(["anna"], "family", false).startsWith("Ask anna to let this computer in."));
-    assert.ok(admissionRefusedAsk([], "family", true).startsWith('Ask an admin of "family" to let this computer in.'));
+    assert.ok(admissionRefusedAsk("family").startsWith('Ask an admin of "family" to let this computer in.'));
   });
 });

@@ -43,7 +43,6 @@ export const PEERS_TAB_JOINING_SUB = "· joining…";
 export const PEERS_ADMIN_BADGE = "Admin";
 export const PEERS_TAB_DELETED_SUB = "· deleted";
 export const PEERS_TAB_REFUSED_SUB = "· refused";
-export const PEERS_TAB_REMOVED_SUB = "· removed";
 export const PEERS_NEW_NET = "New network";
 const PEERS_TAB_NO_CONN = "· no connection";
 export const PEERS_NETS_HINT_OK = "OK";
@@ -93,11 +92,9 @@ export const ADMISSION_REFUSED_ONE = (name: string, net: string): string => `${n
 export const ADMISSION_REFUSED_MANY = (list: string, net: string): string => `${list} refuse to let it in, ${NO_ONE_ELSE(net)}`;
 export const ADMISSION_REFUSED_NONE = (net: string): string => `Members of "${net}" refuse to let it in, and no other member is online.`;
 const UNTIL_THEN = (net: string): string => ` Until then, sites won't open through "${net}".`;
-/** What to do: a Managed network lets in through an admin; in a Peer network the refusing members are asked. */
-export function admissionRefusedAsk(names: string[], net: string, managed: boolean): string {
-  if (managed) return `Ask an admin of "${net}" ` + forDevice("to let this computer in.") + UNTIL_THEN(net);
-  const who = names.length === 0 ? "a member" : names.length === 1 ? names[0] : "one of them";
-  return `Ask ${who} ` + forDevice("to let this computer in.") + UNTIL_THEN(net);
+/** What to do: an admin lets the computer in. */
+export function admissionRefusedAsk(net: string): string {
+  return `Ask an admin of "${net}" ` + forDevice("to let this computer in.") + UNTIL_THEN(net);
 }
 
 // 'a' · 'a and b' · 'a, b and c' · 'a, b, c and 2 more'

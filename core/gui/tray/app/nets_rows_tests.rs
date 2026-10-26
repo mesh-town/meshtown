@@ -272,7 +272,7 @@ mod invite_in_managed_network {
     #[test]
     fn member_gets_a_grey_row_instead_of_the_invite() {
         // given
-        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let extra = json!({ "me_admin": false, "can_invite": false });
         let net = managed_net(extra);
 
         // when
@@ -287,7 +287,7 @@ mod invite_in_managed_network {
 
     #[test]
     fn admin_keeps_the_usual_invite() {
-        let extra = json!({ "kind": "Managed", "me_admin": true, "can_invite": true });
+        let extra = json!({ "me_admin": true, "can_invite": true });
         let net = managed_net(extra);
 
         let rows = net_rows(&net, None);
@@ -298,8 +298,8 @@ mod invite_in_managed_network {
     }
 
     #[test]
-    fn peer_network_row_is_the_usual_invite() {
-        let extra = json!({ "kind": "Peer", "me_admin": false, "can_invite": true });
+    fn a_network_that_allows_inviting_shows_the_usual_invite() {
+        let extra = json!({ "me_admin": false, "can_invite": true });
         let net = managed_net(extra);
 
         let rows = net_rows(&net, None);
@@ -311,7 +311,7 @@ mod invite_in_managed_network {
     #[test]
     fn grey_row_keeps_the_place_and_the_layout_key() {
         // given
-        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let extra = json!({ "me_admin": false, "can_invite": false });
         let managed = managed_net(extra);
         let peer = nets_of(&[friends()]).remove(0);
 
@@ -326,7 +326,7 @@ mod invite_in_managed_network {
 
     #[test]
     fn other_rows_of_a_managed_member_stay_usable() {
-        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let extra = json!({ "me_admin": false, "can_invite": false });
         let net = managed_net(extra);
 
         let rows = net_rows(&net, None);

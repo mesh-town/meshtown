@@ -4,28 +4,16 @@
 //! Value layout, version 1: `[ACL_VALUE_VERSION] ++ postcard(Body)` with the fields of `Body` frozen in
 //! order. Compatibility: there are no tail bytes at `v = 1` — extra bytes make the record invalid; a changed
 //! body means version 2. New values of `kind` may be added at version 1 (an old node ignores an unknown kind).
-//!
-//! An `Exclude` record whose `via` is `VOTE_AT_MOMENT` is counted against the exclusion threshold of the
-//! moment it was cast, so nodes admitted later do not raise it. Within version 1 no field is added: the
-//! `via` byte of an `Exclude` is otherwise unused, and a node that does not know the value reads the
-//! record as a plain vote. An `Exclude` with any other `via` is counted against the current threshold.
 
 use serde::{Deserialize, Serialize};
 
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-pub use super::record_input::{tally_input, tally_input_under};
+pub use super::record_input::tally_input;
 pub use super::record_io::{ensure, put, rewrite, withdraw};
-pub use super::record_keys::{
-    admit_key, block_key, exclude_key, forget_key, grant_key, revoke_key,
-};
-use super::record_keys::{
-    subject_of, ADMIT_PREFIX, EXCLUDE_PREFIX, FORGET_PREFIX, GRANT_PREFIX, REVOKE_PREFIX,
-};
+pub use super::record_keys::{admit_key, block_key, exclude_key, grant_key, revoke_key};
+use super::record_keys::{subject_of, ADMIT_PREFIX, EXCLUDE_PREFIX, GRANT_PREFIX, REVOKE_PREFIX};
 
-/// `via` of an `Exclude` record: the vote is counted against the threshold of its own moment.
-/// A node that predates it reads the record as an ordinary vote.
-pub const VOTE_AT_MOMENT: Via = Via::Witness;
 /// Version byte of the value layout.
 pub const ACL_VALUE_VERSION: u8 = 1;
 /// Longest note, in characters.
@@ -42,6 +30,8 @@ pub const BOOT_NOTE_ADMISSION: &str = "admission-v2";
 pub const CLOSE_KEY: &[u8] = b"acl/close";
 
 /// What a record says.
+///
+/// 5 is reserved: journals may still hold records of that kind and they must stay unknown.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AclKind {
@@ -49,7 +39,6 @@ pub enum AclKind {
     Exclude = 2,
     Block = 3,
     Boot = 4,
-    Forget = 5,
     Grant = 6,
     Revoke = 7,
     Close = 8,
@@ -62,7 +51,6 @@ impl AclKind {
             AclKind::Exclude,
             AclKind::Block,
             AclKind::Boot,
-            AclKind::Forget,
             AclKind::Grant,
             AclKind::Revoke,
             AclKind::Close,
@@ -163,7 +151,6 @@ pub fn key_for(kind: AclKind, subject: &PeerId) -> Vec<u8> {
     match kind {
         AclKind::Admit => admit_key(subject),
         AclKind::Exclude => exclude_key(subject),
-        AclKind::Forget => forget_key(subject),
         AclKind::Block => block_key(subject),
         AclKind::Boot => BOOT_KEY.to_vec(),
         AclKind::Grant => grant_key(subject),
@@ -182,13 +169,11 @@ pub(super) fn parse_key(key: &[u8]) -> Option<(AclKind, Option<PeerId>)> {
     }
     let admit = subject_of(key, ADMIT_PREFIX).map(|s| (AclKind::Admit, s));
     let exclude = || subject_of(key, EXCLUDE_PREFIX).map(|s| (AclKind::Exclude, s));
-    let forget = || subject_of(key, FORGET_PREFIX).map(|s| (AclKind::Forget, s));
     let block = || subject_of(key, BLOCK_PREFIX).map(|s| (AclKind::Block, s));
     let grant = || subject_of(key, GRANT_PREFIX).map(|s| (AclKind::Grant, s));
     let revoke = || subject_of(key, REVOKE_PREFIX).map(|s| (AclKind::Revoke, s));
     let (kind, subject) = admit
         .or_else(exclude)
-        .or_else(forget)
         .or_else(block)
         .or_else(grant)
         .or_else(revoke)?;
@@ -289,7 +274,3 @@ mod entry_tests;
 #[cfg(test)]
 #[path = "record_write_tests.rs"]
 mod write_tests;
-
-#[cfg(test)]
-#[path = "record_forget_tests.rs"]
-mod forget_tests;

@@ -8,7 +8,8 @@ use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::time::{Duration, Instant};
 
-use meshtown_core::members::network_key::NetworkKey;
+use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
+use meshtown_core::transport::net::NodeSecret;
 
 /// The time from launch to the end of the start phase.
 const START_LIMIT: Duration = Duration::from_secs(30);
@@ -37,7 +38,7 @@ impl Proc {
         ));
         std::fs::create_dir_all(&dir).expect("temporary directory");
         std::fs::write(dir.join("config.json"), config_json).expect("settings file");
-        let key = NetworkKey::generate().unwrap().encode();
+        let key = managed_key_text();
         let mut child = Command::new(env!("CARGO_BIN_EXE_meshtown"))
             .args(["run", "--config"])
             .arg(dir.join("config.json"))
@@ -122,4 +123,11 @@ fn old_config_with_transport_mode_starts_and_warns() {
         "no warning in {:?}",
         node.seen
     );
+}
+
+/// A Managed network key of a fresh base, created by an arbitrary node.
+fn managed_key_text() -> String {
+    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    let base = NetworkKey::generate().unwrap().to_bytes();
+    managed_key_with_label(None, &base, &root)
 }

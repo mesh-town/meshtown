@@ -1,4 +1,4 @@
-//! Tests of the member-list web API for requests to join: the `admit` and `unadmit` routes and the JSON of a
+//! Tests of the member-list web API for requests to join: the `admit` route and the JSON of a
 //! waiting node. Driven through the real router with a fake node (`fixture`).
 
 use axum::http::StatusCode;
@@ -8,7 +8,7 @@ use super::fixture::*;
 use crate::web_gui::members::dto::{AdmissionInfo, MembersReply};
 use crate::web_gui::ActionError;
 
-const ACTIONS: [&str; 2] = ["admit", "unadmit"];
+const ACTIONS: [&str; 1] = ["admit"];
 
 #[tokio::test]
 async fn admit_route_maps_codes() {
@@ -47,34 +47,6 @@ async fn admit_route_maps_codes() {
 }
 
 #[tokio::test]
-async fn unadmit_route_maps_codes() {
-    // given / when / then
-    let fx = setup(Answer::List(sample_reply()));
-    assert_eq!(
-        line(fx.post("/api/members/unadmit", "{}").await),
-        "400 bad_request"
-    );
-    assert_eq!(
-        line(fx.post("/api/members/unadmit", &id_body()).await),
-        "200 -"
-    );
-    assert_eq!(fx.seen(), vec![format!("unadmit:{}", target())]);
-    let refused = setup(Answer::Refused {
-        code: "not_confirmed",
-        message: "You haven't confirmed this member",
-    });
-    assert_eq!(
-        line(refused.post("/api/members/unadmit", &id_body()).await),
-        "409 not_confirmed"
-    );
-    let internal = setup(Answer::Action(ActionError::Internal("write".to_string())));
-    assert_eq!(
-        line(internal.post("/api/members/unadmit", &id_body()).await),
-        "500 internal"
-    );
-}
-
-#[tokio::test]
 async fn admit_routes_accept_only_post() {
     // given / when / then: a GET is a wrong method, not a 404
     let fx = setup(Answer::List(sample_reply()));
@@ -88,21 +60,11 @@ async fn admit_routes_accept_only_post() {
 fn members_json_has_admission_fields() {
     // given: a reply with one waiting node and my own request
     let waiting = AdmissionInfo {
-        votes: 1,
-        need: 2,
-        voters: vec!["ab".repeat(32)],
-        mine: false,
         label: Some("Anna's laptop".into()),
     };
     let mut reply = sample_reply();
     reply.me_pending = true;
-    reply.me_admission = Some(AdmissionInfo {
-        votes: 0,
-        need: 2,
-        voters: vec![],
-        mine: false,
-        label: None,
-    });
+    reply.me_admission = Some(AdmissionInfo { label: None });
     reply.counts.pending = 1;
     reply.members[1].status = "pending";
     reply.members[1].admission = Some(waiting);
@@ -110,16 +72,12 @@ fn members_json_has_admission_fields() {
     let json = serde_json::to_value(&reply).unwrap();
     // then: the keys of the contract are all there
     assert_eq!(json["me_pending"], json!(true));
-    assert_eq!(
-        json["me_admission"],
-        json!({"votes": 0, "need": 2, "voters": [], "mine": false, "label": null})
-    );
+    assert_eq!(json["me_admission"], json!({"label": null}));
     assert_eq!(json["counts"]["pending"], json!(1));
     let row = &json["members"][1];
     assert_eq!(row["status"], json!("pending"));
     assert_eq!(row["admission"]["label"], json!("Anna's laptop"));
-    assert_eq!(row["admission"]["voters"], json!(["ab".repeat(32)]));
-    assert_eq!(row["admission"].as_object().unwrap().len(), 5);
+    assert_eq!(row["admission"].as_object().unwrap().len(), 1);
 }
 
 #[test]

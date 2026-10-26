@@ -15,7 +15,7 @@ const domain = (name) => ({ name, checks: {} });
 const published = (port) => ({ port, name: "web" + port, shared_with: "all" });
 
 function netState(idHex, over = {}) {
-  const base = baseState({ network: { id_hex: idHex, masked: "mesh1-••••-••••" }, domains: [domain("example.org")] });
+  const base = baseState({ network: { id_hex: idHex, masked: "mesh2-••••-••••" }, domains: [domain("example.org")] });
   return { ...base, ports: { published: [published(8080)], network: [] }, ...over };
 }
 

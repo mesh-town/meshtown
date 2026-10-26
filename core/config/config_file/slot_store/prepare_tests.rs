@@ -4,7 +4,8 @@ use crate::config::config_file::{
     load_net_file, prepare, save_config_file, stamp_utc, CliOverrides, ConfigSource, LoadedNetFile,
     PathRule, RunConfig, SecretRead, Settings, FILE_NAME,
 };
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::managed_key_with_label;
+use crate::transport::net::NodeSecret;
 use std::path::PathBuf;
 
 const NOW: u64 = 1_790_278_867;
@@ -183,10 +184,10 @@ mod refused_slot {
 
     #[test]
     fn network_key_that_does_not_parse() {
-        let config = r#", "network": {"key": "mesh1-short"}"#;
+        let config = r#", "network": {"key": "mesh2-short"}"#;
         let err = assert_refused_and_untouched(&slot_text(&secret_line(), config));
         assert!(
-            !err.contains("mesh1-short"),
+            !err.contains("mesh2-short"),
             "the key value is in the message: {err}"
         );
     }
@@ -302,7 +303,7 @@ fn slot_id(text: &str) -> NetSlotId {
 }
 
 fn key() -> String {
-    NetworkKey::from_bytes([5; 32]).encode()
+    managed_key_with_label(None, &[5; 32], &NodeSecret::from_bytes(&[1; 32]).peer_id())
 }
 
 fn secret_line() -> String {

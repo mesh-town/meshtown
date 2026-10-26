@@ -42,7 +42,6 @@ describe("the words people read", () => {
   });
 
   it("the lines of the table", () => {
-    assert.equal(invite.NOTE_BANNED_PEER("n"), 'This computer can\'t rejoin "n", so this invite won\'t work here. It won\'t be used up \u2014 someone else can join with it.');
     assert.equal(card.HOME_NO_RETURN_HINT("n"), 'This computer can\'t rejoin "n". To keep using Mesh Town, paste an invite to another network.');
     assert.equal(invite.NOTE_NEW_AT_LIMIT, "This is a new network, and Mesh Town is already in 8, the most it can be in. Leave a network first.");
     assert.equal(invite.ADD_NET_LIMIT_HERE, "This is a new network, so it can't be added until you leave one.");

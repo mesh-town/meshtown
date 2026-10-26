@@ -3,9 +3,10 @@
 
 use super::*;
 use crate::config::config_file::NetSettings;
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::{NetworkKey, NetworkKeyInput};
 use crate::site_checks::doh::DEFAULT_DOH;
 use crate::transport::net::NetChoice;
+use crate::transport::net::NodeSecret;
 use std::time::Duration;
 
 mod for_loopback_test {
@@ -55,6 +56,19 @@ mod for_loopback_test {
     }
 
     #[test]
+    fn is_open_with_the_fixed_root() {
+        // given: a network key
+        let key = key();
+        // when: the preset for loopback tests is built
+        let cfg = NodeConfig::for_loopback_test(key.clone());
+        // then: the root is the fixed test node, the reply secret is the key itself, the list is open
+        assert_eq!(cfg.net_root, loopback_root(), "fixed root");
+        assert_eq!(cfg.reply_secret.to_bytes(), key.to_bytes(), "reply secret");
+        assert_eq!(cfg.network_key.to_bytes(), key.to_bytes(), "network key");
+        assert!(cfg.open_list, "the list is open");
+    }
+
+    #[test]
     fn keeps_non_copy_fields() {
         // given: a network key
         let key = key();
@@ -87,7 +101,7 @@ mod for_cli {
             ..NetSettings::default()
         };
         // when: the preset for the CLI is built
-        let cfg = NodeConfig::for_cli(key(), &s);
+        let cfg = NodeConfig::for_cli(input(), &s);
         // then: the settings are passed as they are, the rest are the live node's defaults
         assert_eq!(cfg.settings, s, "settings must come in unchanged");
         assert_eq!(
@@ -97,6 +111,25 @@ mod for_cli {
         );
         assert!(cfg.geoip, "the country is asked of external sources");
         assert!(cfg.test_net.is_none(), "the mem network is for tests only");
+    }
+
+    #[test]
+    fn takes_root_label_and_reply_from_the_key() {
+        // given: a key input whose base differs from the key bytes
+        let (input, again) = (input(), input());
+        // when: the preset for the CLI is built
+        let cfg = NodeConfig::for_cli(again, &NetSettings::default());
+        // then: the key, the root, the label and the reply secret all come from the input
+        assert_eq!(cfg.network_key.to_bytes(), input.key.to_bytes(), "key");
+        assert_eq!(cfg.net_root, input.root, "root");
+        assert_eq!(cfg.network_label.as_deref(), Some("Office"), "label");
+        assert_eq!(
+            cfg.reply_secret.to_bytes(),
+            input.reply_secret(),
+            "reply secret"
+        );
+        // and: the live node counts the list
+        assert!(!cfg.open_list, "the list is counted, not open");
     }
 
     #[test]
@@ -112,7 +145,7 @@ mod for_cli {
             ..NetSettings::default()
         };
         // when: the CLI preset is built by reference
-        let cfg = NodeConfig::for_cli(key(), &n);
+        let cfg = NodeConfig::for_cli(input(), &n);
         // then: the config holds an equal copy, and the original settings stay with the caller
         assert_eq!(
             cfg.settings, n,
@@ -132,4 +165,14 @@ fn key() -> NetworkKey {
 
 fn names(list: &[&str]) -> Vec<String> {
     list.iter().map(|s| s.to_string()).collect()
+}
+
+fn input() -> NetworkKeyInput {
+    NetworkKeyInput {
+        label: Some("Office".to_string()),
+        key: NetworkKey::from_bytes([4; 32]),
+        from_words: false,
+        base: [3; 32],
+        root: NodeSecret::from_bytes(&[9; 32]).peer_id(),
+    }
 }

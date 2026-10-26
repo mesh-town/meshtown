@@ -18,21 +18,16 @@ fn reply(changed: Option<bool>) -> MembersReply {
     MembersReply {
         me: "me".to_string(),
         me_excluded: false,
-        me_removed: false,
         me_pending: false,
-        need: 1,
-        kind: "Peer",
         admins: Vec::new(),
         me_admin: false,
         root: None,
         me_admission: None,
         counts: Counts {
             members: 1,
-            voting: 1,
             excluded: 0,
             unlisted: 0,
             pending: 0,
-            forgotten: 0,
         },
         members: Vec::new(),
         changed,
@@ -255,7 +250,6 @@ async fn a_broken_slot_is_retired_without_the_node() {
     );
     assert_eq!(body["members"], json!([]));
     assert_eq!(body["me_excluded"], false);
-    assert_eq!(body["need"], 2);
     assert_eq!(body["counts"]["members"], 0);
     assert_eq!(state, StatusCode::NOT_FOUND);
     assert_eq!(state_body["error"], "unknown_net");

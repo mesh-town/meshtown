@@ -1,6 +1,6 @@
 //! Tests of the order of the menu items that come and go with the node's state: the notes right after "Open Mesh Town…"
 //! and the "Add a network…" item after the network block.
-// OPEN: `menu_order` is a pure description of the order that `menu_build`, `vote_item` and `nets_ui` follow when they
+// OPEN: `menu_order` is a pure description of the order that `menu_build`, `admit_item` and `nets_ui` follow when they
 // insert widgets; the tests need `top_ids` and `middle_ids` with the signatures used below.
 
 use super::*;
@@ -19,13 +19,13 @@ mod top_ids {
     }
 
     #[test]
-    fn vote_comes_right_after_open() {
-        assert_eq!(top_ids(&[], true), ["status", "open", "vote"]);
+    fn request_comes_right_after_open() {
+        assert_eq!(top_ids(&[], true), ["status", "open", "admit"]);
     }
 
     #[test]
-    fn deleted_network_note_is_between_open_and_vote() {
-        assert_eq!(top_ids(&[4], true), ["status", "open", "notice:4", "vote"]);
+    fn deleted_network_note_is_between_open_and_request() {
+        assert_eq!(top_ids(&[4], true), ["status", "open", "notice:4", "admit"]);
     }
 
     #[test]
@@ -37,7 +37,7 @@ mod top_ids {
     fn several_notes_keep_their_order() {
         assert_eq!(
             top_ids(&[4, 9], true),
-            ["status", "open", "notice:4", "notice:9", "vote"]
+            ["status", "open", "notice:4", "notice:9", "admit"]
         );
     }
 }

@@ -10,7 +10,6 @@ use crate::config::config_file::{
     prepare_net_slot, save_net_file, CliOverrides, ConfigSource, LoadedConfigFile, LoadedNetFile,
     NetSettings, PathRule, RunConfig, Settings,
 };
-use crate::members::network_key::NetworkKey;
 use crate::node::node_ctl::NodeCtl;
 use crate::node::output::{log_page, log_summary};
 use crate::proxy::ProxySeat;
@@ -254,7 +253,7 @@ impl Fixture {
         let main = self.main_file();
         let id = new_slot_id(&main).unwrap();
         let net = NetSettings {
-            network_key: Some(NetworkKey::from_bytes([seed; 32]).encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(seed)),
             checks_enabled: false,
             route_exits: exits,
             ..NetSettings::default()

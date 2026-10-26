@@ -8,20 +8,20 @@ import { INSPECT_DELAY_MS, inspectKey, previewText, useInspectPreview } from "./
 
 const KEY = "mesh-invite2-alpha-beta-gamma";
 const OTHER = "mesh-invite2-delta-epsilon-zeta";
-const MANAGED_WORK = { label: "work", kind: "Managed", id_hex: "ab12" };
-const PEER_HOME = { label: "home", kind: "Peer", id_hex: "cd34" };
-const MANAGED_LINE = 'Network "work" · Managed: admins decide who joins';
-const PEER_LINE = 'Network "home" · Peer: every member can invite';
+const WORK = { label: "work", id_hex: "ab12" };
+const HOME = { label: "home", id_hex: "cd34" };
+const HOME_LINE = 'Network "home" · Managed: admins decide who joins';
+const LINE = 'Network "work" · Managed: admins decide who joins';
 
 describe("inspectKey", () => {
   it("posts the key to the inspect address and returns the node's answer", async () => {
-    const w = setup({ answers: [MANAGED_WORK] });
-    assert.deepEqual(await inspectKey(w.api, KEY), MANAGED_WORK);
+    const w = setup({ answers: [WORK] });
+    assert.deepEqual(await inspectKey(w.api, KEY), WORK);
     assert.deepEqual(w.requests, [{ method: "POST", path: "/api/network/inspect", body: { key: KEY } }]);
   });
 
   it("an answer without a name comes back with a null label", async () => {
-    const w = setup({ answers: [{ label: null, kind: "Peer", id_hex: "ef56" }] });
+    const w = setup({ answers: [{ label: null, id_hex: "ef56" }] });
     assert.equal((await inspectKey(w.api, KEY)).label, null);
   });
 
@@ -45,17 +45,12 @@ describe("inspectKey", () => {
 
 describe("previewText", () => {
   describe("a named network", () => {
-    it("Managed — admins decide who joins", () => assert.equal(previewText(MANAGED_WORK), MANAGED_LINE));
-    it("Peer — every member can invite", () => assert.equal(previewText(PEER_HOME), PEER_LINE));
+    it("admins decide who joins", () => assert.equal(previewText(WORK), LINE));
   });
 
   describe("a network without a name", () => {
-    it("Managed — no empty quotes", () => {
-      assert.equal(previewText({ ...MANAGED_WORK, label: null }), "Network · Managed: admins decide who joins");
-    });
-
-    it("Peer — no empty quotes", () => {
-      assert.equal(previewText({ ...PEER_HOME, label: null }), "Network · Peer: every member can invite");
+    it("no empty quotes", () => {
+      assert.equal(previewText({ ...WORK, label: null }), "Network · Managed: admins decide who joins");
     });
   });
 });
@@ -63,7 +58,7 @@ describe("previewText", () => {
 describe("useInspectPreview", () => {
   describe("typing", () => {
     it("asks nothing and shows nothing until the pause is over", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed(KEY);
+      const w = await setup({ answers: [WORK] }).typed(KEY);
       assert.deepEqual(w.requests, []);
       assert.equal(w.preview.value, "");
       assert.equal(w.timers.pending().length, 1, "one timer is waiting");
@@ -71,20 +66,20 @@ describe("useInspectPreview", () => {
     });
 
     it("after the pause shows the text of the answer", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed(KEY);
+      const w = await setup({ answers: [WORK] }).typed(KEY);
       await w.pauseOver();
-      assert.equal(w.preview.value, MANAGED_LINE);
+      assert.equal(w.preview.value, LINE);
       assert.deepEqual(w.requests.map((r) => r.body), [{ key: KEY }]);
     });
 
-    it("a Peer network gets its own line", async () => {
-      const w = await setup({ answers: [PEER_HOME] }).typed(KEY);
+    it("each network gets a line with its own name", async () => {
+      const w = await setup({ answers: [HOME] }).typed(KEY);
       await w.pauseOver();
-      assert.equal(w.preview.value, PEER_LINE);
+      assert.equal(w.preview.value, HOME_LINE);
     });
 
     it("keys typed in quick succession cost one request, for the last one", async () => {
-      const w = setup({ answers: [MANAGED_WORK] });
+      const w = setup({ answers: [WORK] });
       await w.typed("mesh-inv");
       await w.typed("mesh-invite2-alp");
       await w.typed(KEY);
@@ -94,35 +89,35 @@ describe("useInspectPreview", () => {
     });
 
     it("the pause constant is the one the timer is set with", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed(KEY);
+      const w = await setup({ answers: [WORK] }).typed(KEY);
       assert.equal(w.timers.pending()[0].ms, INSPECT_DELAY_MS);
     });
   });
 
   it("a value already in the field is inspected", async () => {
-    const w = setup({ answers: [MANAGED_WORK], initial: KEY });
+    const w = setup({ answers: [WORK], initial: KEY });
     assert.equal(w.timers.pending().length, 1, "the pause is running without a keystroke");
     await w.pauseOver();
     assert.deepEqual(w.requests.map((r) => r.body), [{ key: KEY }]);
-    assert.equal(w.preview.value, MANAGED_LINE);
+    assert.equal(w.preview.value, LINE);
   });
 
   describe("an empty field", () => {
     it("never asks", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed("");
+      const w = await setup({ answers: [WORK] }).typed("");
       await w.pauseOver();
       assert.deepEqual(w.requests, []);
       assert.equal(w.preview.value, "");
     });
 
     it("spaces only — never asks", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed("   ");
+      const w = await setup({ answers: [WORK] }).typed("   ");
       await w.pauseOver();
       assert.deepEqual(w.requests, []);
     });
 
     it("emptying the field removes the line at once", async () => {
-      const w = await setup({ answers: [MANAGED_WORK] }).typed(KEY);
+      const w = await setup({ answers: [WORK] }).typed(KEY);
       await w.pauseOver();
       await w.typed("");
       assert.equal(w.preview.value, "");
@@ -131,18 +126,18 @@ describe("useInspectPreview", () => {
 
   describe("the field changes after the line is shown", () => {
     it("the old line goes at once: it describes another string", async () => {
-      const w = await setup({ answers: [MANAGED_WORK, PEER_HOME] }).typed(KEY);
+      const w = await setup({ answers: [WORK, HOME] }).typed(KEY);
       await w.pauseOver();
       await w.typed(OTHER);
       assert.equal(w.preview.value, "");
     });
 
     it("the new string gets its own line after its pause", async () => {
-      const w = await setup({ answers: [MANAGED_WORK, PEER_HOME] }).typed(KEY);
+      const w = await setup({ answers: [WORK, HOME] }).typed(KEY);
       await w.pauseOver();
       await w.typed(OTHER);
       await w.pauseOver();
-      assert.equal(w.preview.value, PEER_LINE);
+      assert.equal(w.preview.value, HOME_LINE);
     });
   });
 
@@ -151,7 +146,7 @@ describe("useInspectPreview", () => {
       const w = await setup({ deferred: true }).typed(KEY);
       await w.pauseOver();
       await w.typed(OTHER);
-      await w.answer(0, MANAGED_WORK);
+      await w.answer(0, WORK);
       assert.equal(w.preview.value, "");
     });
 
@@ -160,16 +155,16 @@ describe("useInspectPreview", () => {
       await w.pauseOver();
       await w.typed(OTHER);
       await w.pauseOver();
-      await w.answer(1, PEER_HOME);
-      await w.answer(0, MANAGED_WORK);
-      assert.equal(w.preview.value, PEER_LINE);
+      await w.answer(1, HOME);
+      await w.answer(0, WORK);
+      assert.equal(w.preview.value, HOME_LINE);
     });
 
     it("after the field was emptied — nothing is shown", async () => {
       const w = await setup({ deferred: true }).typed(KEY);
       await w.pauseOver();
       await w.typed("");
-      await w.answer(0, MANAGED_WORK);
+      await w.answer(0, WORK);
       assert.equal(w.preview.value, "");
     });
   });
@@ -182,7 +177,7 @@ describe("useInspectPreview", () => {
     });
 
     it("after a line was shown, a refused string leaves no line of the earlier one", async () => {
-      const w = await setup({ answers: [MANAGED_WORK, refused(422, "invalid_key")] }).typed(KEY);
+      const w = await setup({ answers: [WORK, refused(422, "invalid_key")] }).typed(KEY);
       await w.pauseOver();
       await w.typed(OTHER);
       await w.pauseOver();
@@ -190,12 +185,12 @@ describe("useInspectPreview", () => {
     });
 
     it("a node that is down — no line, and a later string is still asked", async () => {
-      const w = await setup({ answers: [new TypeError("Failed to fetch"), MANAGED_WORK] }).typed(KEY);
+      const w = await setup({ answers: [new TypeError("Failed to fetch"), WORK] }).typed(KEY);
       await w.pauseOver();
       assert.equal(w.preview.value, "");
       await w.typed(OTHER);
       await w.pauseOver();
-      assert.equal(w.preview.value, MANAGED_LINE);
+      assert.equal(w.preview.value, LINE);
     });
   });
 });

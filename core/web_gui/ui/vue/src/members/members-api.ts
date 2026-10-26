@@ -7,11 +7,11 @@ import type { LeaveReply } from "../core/api-types.ts";
 import { NET_NAME, errReason, failText } from "../common/words.ts";
 import { forDevice } from "../common/device.ts";
 import { cleanReason } from "./member-reason.ts";
-import type { AdmissionInfo, ExcludedInfo, ForgetInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo, VoteInfo } from "./members-types.ts";
+import type { AdmissionInfo, ExcludedInfo, MemberAction, MemberCounts, MemberRow, MembersReply, MemberStatus, RefusalInfo } from "./members-types.ts";
 
 type Raw = Record<string, unknown>;
 
-const STATUSES: readonly string[] = ["member", "pending", "unlisted", "excluded", "forgotten"];
+const STATUSES: readonly string[] = ["member", "pending", "unlisted", "excluded"];
 const ACTION = "update the member list";
 
 const isObj = (v: unknown): v is Raw => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -20,27 +20,15 @@ const bool = (v: unknown): boolean => v === true;
 const num = (v: unknown, dflt: number): number => (typeof v === "number" && Number.isFinite(v) ? v : dflt);
 const ids = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
 
-function parseVote(v: unknown): VoteInfo | null {
-  if (!isObj(v)) return null;
-  const reason = typeof v.reason === "string" && v.reason.trim() ? v.reason : null;
-  return { votes: num(v.votes, 0), need: num(v.need, 2), proposed_by: str(v.proposed_by, ""), voters: ids(v.voters), mine: bool(v.mine), reason };
-}
-
 function parseAdmission(v: unknown): AdmissionInfo | null {
   if (!isObj(v)) return null;
   const label = typeof v.label === "string" && v.label.trim() ? v.label : null;
-  return { votes: num(v.votes, 0), need: num(v.need, 2), voters: ids(v.voters), mine: bool(v.mine), label };
+  return { label };
 }
 
 function parseExcluded(v: unknown): ExcludedInfo | null {
   if (!isObj(v)) return null;
-  return { how: v.how === "left" ? "left" : "votes", at_unix: num(v.at_unix, 0), voters: ids(v.voters) };
-}
-
-function parseForget(v: unknown): ForgetInfo | null {
-  if (!isObj(v)) return null;
-  const at = typeof v.at_unix === "number" && Number.isFinite(v.at_unix) ? v.at_unix : null;
-  return { votes: num(v.votes, 0), need: num(v.need, 2), proposed_by: str(v.proposed_by, ""), voters: ids(v.voters), mine: bool(v.mine), at_unix: at };
+  return { how: v.how === "left" ? "left" : "removed", at_unix: num(v.at_unix, 0), voters: ids(v.voters) };
 }
 
 function parseRefusal(v: unknown): RefusalInfo | null {
@@ -58,13 +46,11 @@ function parseRow(v: unknown): MemberRow | null {
     self: bool(v.self),
     online: bool(v.online),
     status: v.status as MemberStatus,
-    vote: parseVote(v.vote),
     excluded: parseExcluded(v.excluded),
     blocked_by_me: bool(v.blocked_by_me),
     denied_by_me: typeof v.denied_by_me === "string" ? v.denied_by_me : null,
     last_refusal: parseRefusal(v.last_refusal),
     admission: parseAdmission(v.admission),
-    forget: parseForget(v.forget),
     last_seen_sec: typeof v.last_seen_sec === "number" && Number.isFinite(v.last_seen_sec) ? v.last_seen_sec : null,
     ...(typeof v.admin === "boolean" ? { admin: v.admin } : {}),
   };
@@ -75,11 +61,9 @@ function parseCounts(raw: unknown, rows: MemberRow[]): MemberCounts {
   const count = (pred: (r: MemberRow) => boolean): number => rows.filter(pred).length;
   return {
     members: num(c.members, count((r) => r.status === "member")),
-    voting: num(c.voting, count((r) => r.vote !== null)),
     excluded: num(c.excluded, count((r) => r.status === "excluded")),
     unlisted: num(c.unlisted, count((r) => r.status === "unlisted")),
     pending: num(c.pending, count((r) => r.status === "pending")),
-    forgotten: num(c.forgotten, count((r) => r.status === "forgotten")),
   };
 }
 
@@ -87,19 +71,15 @@ function parseCounts(raw: unknown, rows: MemberRow[]): MemberCounts {
 export function parseMembers(raw: unknown): MembersReply | null {
   if (!isObj(raw) || !Array.isArray(raw.members)) return null;
   const rows = raw.members.map(parseRow).filter((r): r is MemberRow => r !== null);
-  const need = typeof raw.need === "number" && Number.isInteger(raw.need) && raw.need >= 1 ? raw.need : 2;
   const reply: MembersReply = {
     me: str(raw.me, ""),
     me_excluded: bool(raw.me_excluded),
-    me_removed: bool(raw.me_removed),
     me_pending: bool(raw.me_pending),
     me_admission: parseAdmission(raw.me_admission),
-    need,
     counts: parseCounts(raw.counts, rows),
     members: rows,
   };
   if (typeof raw.changed === "boolean") reply.changed = raw.changed;
-  if (raw.kind === "Peer" || raw.kind === "Managed") reply.kind = raw.kind;
   if (Array.isArray(raw.admins)) reply.admins = ids(raw.admins);
   if (typeof raw.me_admin === "boolean") reply.me_admin = raw.me_admin;
   return reply;
@@ -156,8 +136,6 @@ export async function leaveNet(api: ApiFn, slot: string): Promise<LeaveReply> {
 const SENTENCES: Record<string, string> = {
   not_admin: "Only admins can do this.",
   last_admin: "You're the only admin: make another member an admin or delete the network.",
-  not_managed: "This is a peer network: it has no admins.",
-  peer_only: "This only works in a peer network.",
 };
 
 const REASONS: Record<string, string> = {
@@ -167,7 +145,6 @@ const REASONS: Record<string, string> = {
   busy: NET_NAME + " is starting",
   invalid: "the member id is not valid",
   not_pending: "this member isn't waiting for confirmation",
-  not_confirmed: "you haven't confirmed this member, or they have already joined",
   internal: NET_NAME + " couldn't write the member list",
 };
 

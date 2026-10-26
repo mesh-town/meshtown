@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import { expect } from '@playwright/test';
 
 import { forgetPid, e2eOutDir, recordPid } from './orphans';
-import { buildNodeArgs, nodeKeygen, prepareNodeConfig, resolveNodePlan } from './node-config';
+import { buildNodeArgs, keygenConfigPath, nodeKeygen, prepareNodeConfig, resolveNodePlan } from './node-config';
 import type { RunningTarget, TargetFlags, TargetKind } from './target';
 
 export interface LaunchSpec {
@@ -118,7 +118,7 @@ async function planLaunch(spec: LaunchSpec, port: number, socksPort?: number): P
     case 'node': {
       const plan = resolveNodePlan(spec.flags.extraArgs, socksPort);
       const configPath = await prepareNodeConfig(spec.workDir, plan.fileKind);
-      const key = await nodeKeygen(spec.bin);
+      const key = await nodeKeygen(spec.bin, await keygenConfigPath(spec.workDir, plan.fileKind, configPath));
       return {
         readyTimeoutMs: READY_TIMEOUT_MS,
         readyLogMarker: plan.fileKind === 'asis' ? '[node] meshtown ' : undefined,

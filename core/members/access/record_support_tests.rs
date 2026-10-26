@@ -17,24 +17,24 @@ pub(in crate::members::access) const GOLDEN_ADMIT_V1: [u8; 47] = [
     0x06, 0x6c, 0x61, 0x70, 0x74, 0x6f, 0x70, // note: length 6, "laptop"
 ];
 
-/// The same layout as the admit golden, for an `Exclude` carrying the moment mark: kind 2, via 3 (`Witness`).
-pub(in crate::members::access) const GOLDEN_EXCLUDE_AT_MOMENT_V1: [u8; 47] = [
+/// The same layout as the admit golden, for an `Exclude` with via 3 (`Witness`): kind 2.
+pub(in crate::members::access) const GOLDEN_EXCLUDE_WITNESS_V1: [u8; 47] = [
     0x01, // version
     0x02, // kind: Exclude
     // subject: 32 bytes, the base point
     0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
     0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-    0x03, // via: Witness, the moment mark
+    0x03, // via: Witness
     0x80, 0xb5, 0xd7, 0xd6, 0x06, // made_unix 1_792_400_000, LEB128
     0x06, 0x6c, 0x61, 0x70, 0x74, 0x6f, 0x70, // note: length 6, "laptop"
 ];
 
-/// The value of the golden test of the moment mark, for the given subject.
-pub(in crate::members::access) fn exclude_at_moment_of(subject: PeerId) -> AclValue {
+/// The value of the Witness exclude golden test, for the given subject.
+pub(in crate::members::access) fn exclude_witness_of(subject: PeerId) -> AclValue {
     AclValue {
         kind: AclKind::Exclude,
         subject,
-        via: VOTE_AT_MOMENT,
+        via: Via::Witness,
         made_unix: 1_792_400_000,
         note: "laptop".to_string(),
     }

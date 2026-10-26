@@ -21,7 +21,7 @@ fn run_switch(stop: bool) -> (ControlFlow<CycleEnd>, NodeConfig) {
         ctl.stop_on_os_signal();
     }
     let mut cfg = NodeConfig::for_loopback_test(NetworkKey::from_bytes([1; 32]));
-    let key = NetworkKey::from_bytes([2; 32]).encode();
+    let key = crate::node::host::test_keys::managed_text(2);
     let cmd = Cmd::Switch {
         key,
         peers: Vec::new(),
@@ -41,8 +41,8 @@ async fn restart_without_stop_continues_with_new_cfg() {
     let (flow, cfg) = run_switch(false);
     assert!(flow.is_continue());
     assert_eq!(
-        cfg.network_key.encode(),
-        NetworkKey::from_bytes([2; 32]).encode()
+        cfg.network_key.to_bytes(),
+        crate::node::host::test_keys::key_input(2).key.to_bytes()
     );
 }
 

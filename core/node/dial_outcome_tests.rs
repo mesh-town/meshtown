@@ -13,15 +13,7 @@ mod of {
 
     #[test]
     fn keeps_every_local_reason() {
-        for deny in [
-            Deny::Left,
-            Deny::Excluded,
-            Deny::VotedByMe,
-            Deny::Blocked,
-            Deny::Forgotten,
-            Deny::RemovedByMe,
-            Deny::Unlisted,
-        ] {
+        for deny in [Deny::Left, Deny::Excluded, Deny::Blocked, Deny::Unlisted] {
             // given: our own list refused the peer with this reason
             let e = anyhow::Error::from(RefusedByUs(deny));
 

@@ -39,11 +39,11 @@ mod link_for {
     }
 
     #[test]
-    fn vote_with_two_networks_points_at_the_network_with_the_vote() {
+    fn admit_with_two_networks_points_at_the_network_with_the_request() {
         let mut facts = facts(&[("main", false, false), ("ab12cd", false, false)]);
-        facts.vote_slot = Some("ab12cd".into());
+        facts.admit_slot = Some("ab12cd".into());
 
-        let link = link_for(&MenuTarget::Vote, BASE, &facts);
+        let link = link_for(&MenuTarget::Admit, BASE, &facts);
 
         assert_eq!(
             link.as_deref(),
@@ -52,8 +52,8 @@ mod link_for {
     }
 
     #[test]
-    fn vote_with_one_network_points_at_the_member_list() {
-        let link = link_for(&MenuTarget::Vote, BASE, &MenuFacts::default());
+    fn admit_with_one_network_points_at_the_member_list() {
+        let link = link_for(&MenuTarget::Admit, BASE, &MenuFacts::default());
 
         assert_eq!(
             link.as_deref(),
@@ -62,10 +62,10 @@ mod link_for {
     }
 
     #[test]
-    fn vote_with_two_networks_and_no_slot_points_at_the_member_list() {
+    fn admit_with_two_networks_and_no_slot_points_at_the_member_list() {
         let facts = facts(&[("main", false, false), ("ab12cd", false, false)]);
 
-        let link = link_for(&MenuTarget::Vote, BASE, &facts);
+        let link = link_for(&MenuTarget::Admit, BASE, &facts);
 
         assert_eq!(
             link.as_deref(),
@@ -119,40 +119,23 @@ mod menu_facts {
     }
 
     #[test]
-    fn vote_slot_is_the_first_network_with_a_vote() {
-        let first = NetSpec {
-            voting: 1,
-            admitting: 1,
-            ..friends()
-        };
-        let second = NetSpec {
-            voting: 1,
-            ..work()
-        };
-
-        let f = menu_facts(&menu_of(&[first, second]));
-
-        assert_eq!(f.vote_slot.as_deref(), Some("main"));
-    }
-
-    #[test]
-    fn vote_beats_a_waiting_node_in_an_earlier_network() {
+    fn admit_slot_is_the_first_network_with_a_request() {
         let first = NetSpec {
             admitting: 1,
             ..friends()
         };
         let second = NetSpec {
-            voting: 1,
+            admitting: 1,
             ..work()
         };
 
         let f = menu_facts(&menu_of(&[first, second]));
 
-        assert_eq!(f.vote_slot.as_deref(), Some("ab12cd"));
+        assert_eq!(f.admit_slot.as_deref(), Some("main"));
     }
 
     #[test]
-    fn without_a_vote_a_waiting_node_picks_the_network() {
+    fn a_waiting_node_picks_the_network() {
         let second = NetSpec {
             admitting: 1,
             ..work()
@@ -160,12 +143,12 @@ mod menu_facts {
 
         let f = menu_facts(&menu_of(&[friends(), second]));
 
-        assert_eq!(f.vote_slot.as_deref(), Some("ab12cd"));
+        assert_eq!(f.admit_slot.as_deref(), Some("ab12cd"));
     }
 
     #[test]
-    fn quiet_networks_have_no_vote_slot() {
-        assert_eq!(menu_facts(&menu_of(&[friends(), work()])).vote_slot, None);
+    fn quiet_networks_have_no_admit_slot() {
+        assert_eq!(menu_facts(&menu_of(&[friends(), work()])).admit_slot, None);
     }
 }
 
@@ -206,11 +189,11 @@ mod added_items {
     }
 
     #[test]
-    fn deleted_network_note_does_not_depend_on_the_vote_network() {
-        let mut with_vote = facts(&[("main", false, false), ("ab12cd", false, false)]);
-        with_vote.vote_slot = Some("ab12cd".into());
+    fn deleted_network_note_does_not_depend_on_the_admit_network() {
+        let mut with_request = facts(&[("main", false, false), ("ab12cd", false, false)]);
+        with_request.admit_slot = Some("ab12cd".into());
 
-        let link = link_for(&MenuTarget::Notice(7), BASE, &with_vote);
+        let link = link_for(&MenuTarget::Notice(7), BASE, &with_request);
 
         assert_eq!(
             link.as_deref(),

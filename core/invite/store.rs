@@ -207,7 +207,7 @@ impl Ledger {
     }
 
     /// Returns the verdict for the secret's hash; a document query error gives `NotReady`. `admins` is
-    /// `None` in a Peer network; in a Managed one only records written by an admin on behalf of an admin count.
+    /// `None` — no list of admins yet: every record counts; otherwise only records written by an admin on behalf of an admin count.
     pub async fn verdict(
         &self,
         hash: &str,

@@ -1,49 +1,8 @@
-//! Network key tests: encoding, subkeys, parsing of human input (`network_key.rs`).
+//! Network key tests: subkeys, derivation from the random part, parsing of human input (`network_key.rs`).
 
 use anyhow::Context;
 
 use super::*;
-
-#[test]
-fn key_roundtrip() {
-    let key = NetworkKey::generate().unwrap();
-    let encoded = key.encode();
-    let parsed = NetworkKey::parse(&encoded).unwrap();
-    assert_eq!(key.0, parsed.0);
-}
-
-#[test]
-fn rejects_wrong_prefix() {
-    let err = NetworkKey::parse("wrong1-aaaaaaaa").unwrap_err();
-    assert!(err.to_string().contains("mesh1-"));
-}
-
-#[test]
-fn rejects_bad_characters() {
-    let bad = format!("{}{}", KEY_PREFIX, "1".repeat(52));
-    let err = NetworkKey::parse(&bad).unwrap_err();
-    assert!(err.to_string().contains("base32"));
-}
-
-#[test]
-fn rejects_wrong_length() {
-    let bytes = [7u8; 31];
-    let encoded = format!(
-        "{}{}",
-        KEY_PREFIX,
-        BASE32_NOPAD.encode(&bytes).to_ascii_lowercase()
-    );
-    let err = NetworkKey::parse(&encoded).unwrap_err();
-    assert!(err.to_string().contains("32 bytes"));
-}
-
-#[test]
-fn accepts_uppercase_and_spaces() {
-    let key = NetworkKey::generate().unwrap();
-    let padded = format!("  {}  ", key.encode().to_uppercase());
-    let parsed = NetworkKey::parse(&padded).unwrap();
-    assert_eq!(key.0, parsed.0);
-}
 
 #[test]
 fn subkeys_are_deterministic_and_distinct() {
@@ -72,29 +31,9 @@ fn subkeys_are_deterministic_and_distinct() {
     assert_ne!(s1.dht_signing_seed, s3.dht_signing_seed);
 }
 
-#[test]
-fn parse_does_not_panic_on_multibyte() {
-    assert!(NetworkKey::parse("abcdeøøøø").is_err());
-    assert!(!NetworkKey::looks_like_encoded_key("abcdeøøøø"));
-}
-
-#[test]
-fn user_input_routes_mesh1_prefix_to_parse() {
-    let key = NetworkKey::generate().unwrap();
-    let padded = format!("  {}  ", key.encode().to_uppercase());
-    assert_eq!(NetworkKey::from_user_input(&padded).unwrap().0, key.0);
-    let err =
-        NetworkKey::from_user_input("Mesh1-this is not a key, but a long phrase").unwrap_err();
-    assert!(err.to_string().contains("base32"), "{err}");
-    let err = NetworkKey::from_user_input("   ").unwrap_err();
-    assert!(err.to_string().contains("meshtown keygen"), "{err}");
-}
-
-/// Protocol reference: recompute with `printf 'meshtown network key tail v1\n%s' <tail> | shasum -a 256`;
-/// `KAT_ENCODED` is `mesh1-` plus the base32 (lowercase, no padding) of the hash.
+/// Protocol reference: recompute with `printf 'meshtown network key tail v1\n%s' <tail> | shasum -a 256`.
 const KAT_TAIL: &str = "finch-unwary-k7m2q9x4rb8vhn3tz01g5";
 const KAT_HEX: &str = "bbabafe34d70062c4b1ee7cfe9232ce2a05b254b9d8025afe2b4868da2e6a1c0";
-const KAT_ENCODED: &str = "mesh1-xov27y2noadcysy647h6sizm4kqfwjkltwacll7cwsdi3ixguhaa";
 
 #[test]
 fn normalize_dashed_rules() {
@@ -139,14 +78,18 @@ fn derive_tail_is_deterministic_and_input_sensitive() {
     assert_ne!(derive_tail_bytes(""), derive_tail_bytes("a"));
 }
 
+/// A creator for the Managed forms of the test keys.
+fn root() -> crate::transport::net::PeerId {
+    test_net("x").root
+}
+
 #[test]
 fn splits_on_first_double_dash() {
-    let err = parse_user_input(&format!("a--b--{KAT_TAIL}"))
-        .unwrap_err()
-        .to_string();
-    assert!(err.contains('4') && err.contains('3'), "{err}"); // 4 parts: "b" landed in the random one
+    let text = format!("a--b--{}", format_managed_key(None, KAT_TAIL, &root()));
+    let err = parse_user_input(&text).unwrap_err().to_string();
+    assert!(err.contains('5') && err.contains('3'), "{err}"); // 5 parts: "b" landed in the random one
     assert_eq!(
-        parse_user_input(&format!("our--{KAT_TAIL}"))
+        parse_user_input(&format_managed_key(Some("our"), KAT_TAIL, &root()))
             .unwrap()
             .label
             .as_deref(),
@@ -156,9 +99,11 @@ fn splits_on_first_double_dash() {
 
 #[test]
 fn label_does_not_change_key() {
-    let a = parse_user_input(&format!("our-gaming-room--{KAT_TAIL}")).unwrap();
-    let b = parse_user_input(&format!("other label--{KAT_TAIL}")).unwrap();
-    let c = parse_user_input(KAT_TAIL).unwrap();
+    let root = root();
+    let text = |label| format_managed_key(label, KAT_TAIL, &root);
+    let a = parse_user_input(&text(Some("our-gaming-room"))).unwrap();
+    let b = parse_user_input(&text(Some("other label"))).unwrap();
+    let c = parse_user_input(&text(None)).unwrap();
     assert_eq!(a.key.0, b.key.0);
     assert_eq!(a.key.0, c.key.0);
     assert_eq!(
@@ -183,7 +128,7 @@ fn word_error_names_only_the_bad_word() {
 
 #[test]
 fn bad_chunk_is_not_echoed() {
-    let bad = format!("{KAT_TAIL}x");
+    let bad = format_managed_key(None, &format!("{KAT_TAIL}x"), &root());
     let err = parse_user_input(&bad).unwrap_err().to_string();
     assert!(err.contains("21"), "{err}");
     assert!(err.contains("22"), "{err}");
@@ -197,13 +142,6 @@ fn label_without_tail_is_rejected() {
     assert!(err.contains("our-gaming-room"), "{err}");
     assert!(err.contains("keygen"), "{err}");
     assert!(is_tail_word("gaming") && !is_tail_word("our") && !is_tail_word("room"));
-}
-
-#[test]
-fn tail_without_label_is_accepted() {
-    let parsed = parse_user_input(KAT_TAIL).unwrap();
-    assert!(parsed.label.is_none());
-    assert!(parsed.from_words);
 }
 
 #[test]
@@ -222,7 +160,6 @@ fn key_from_tail_known_answer() {
         KAT_HEX,
         "the reference changed — this breaks all networks"
     );
-    assert_eq!(k.encode(), KAT_ENCODED);
 }
 
 #[test]
@@ -240,10 +177,12 @@ fn key_from_tail_normalizes_input() {
 fn generated_key_roundtrips() {
     for _ in 0..50 {
         let tail = crate::members::words::generate_tail().unwrap();
-        let s = format_key_string(Some("our network"), &tail);
+        let root = crate::transport::net::NodeSecret::generate().peer_id();
+        let s = format_managed_key(Some("our network"), &tail, &root);
         let parsed = parse_user_input(&s).unwrap();
         assert_eq!(parsed.label.as_deref(), Some("our-network"));
-        assert_eq!(parsed.key.0, key_from_tail(&tail).unwrap().0);
+        assert_eq!(parsed.root, root);
+        assert_eq!(parsed.base, key_from_tail(&tail).unwrap().0);
     }
 }
 
@@ -270,39 +209,17 @@ fn bad_word_downcasts_from_question_mark_and_context() {
 }
 
 #[test]
-fn key_with_label_round_trips() {
-    let key = NetworkKey::generate().unwrap();
-    let with_label = key_with_label(Some("our network"), &key);
-    let parsed = parse_user_input(&with_label).unwrap();
-    assert_eq!(parsed.key.encode(), key.encode());
+fn managed_key_with_label_round_trips() {
+    let net = test_net("our network");
+    let parsed = parse_user_input(&net.text).unwrap();
+    assert_eq!(parsed.key.0, net.key.0);
     assert_eq!(parsed.label.as_deref(), Some("our-network"));
     assert!(!parsed.from_words);
 
-    let without_label = key_with_label(None, &key);
-    assert_eq!(without_label, key.encode());
+    let without_label = managed_key_with_label(None, &net.base, &net.root);
     let parsed = parse_user_input(&without_label).unwrap();
-    assert_eq!(parsed.key.encode(), key.encode());
+    assert_eq!(parsed.key.0, net.key.0);
     assert_eq!(parsed.label, None);
-    assert!(!parsed.from_words);
-}
-
-#[test]
-fn label_with_encoded_tail_is_parsed_as_key_not_words() {
-    let key = NetworkKey::generate().unwrap();
-    let input = format!("label--{}", key.encode().to_uppercase());
-    let parsed = parse_user_input(&input).unwrap();
-    assert_eq!(parsed.key.encode(), key.encode());
-    assert_eq!(parsed.label.as_deref(), Some("label"));
-    assert!(!parsed.from_words);
-}
-
-#[test]
-fn label_looking_like_mesh1_is_not_parsed_as_key() {
-    let parsed = parse_user_input(&format!("mesh1-test--{KAT_TAIL}")).unwrap();
-    assert_eq!(parsed.label.as_deref(), Some("mesh1-test"));
-    assert_eq!(parsed.key.0, key_from_tail(KAT_TAIL).unwrap().0);
-    let err = parse_user_input("mesh1-11111111").unwrap_err().to_string();
-    assert!(err.contains("base32"), "{err}");
 }
 
 #[test]

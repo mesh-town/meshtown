@@ -48,9 +48,7 @@ pub use host_control::{
     OpenedLocal, SlotHandle,
 };
 pub use listener::start_web_page;
-pub use members::dto::{
-    AdmissionInfo, Counts, ExcludedInfo, ForgetInfo, MemberRow, MembersReply, RefusalInfo, VoteInfo,
-};
+pub use members::dto::{AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo};
 pub use options::{WebHandle, WebOptions, WebShared, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 pub use ring::LogRing;
 pub use snapshot::*;

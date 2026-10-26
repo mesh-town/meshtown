@@ -11,10 +11,10 @@ use std::path::{Path, PathBuf};
 use meshtown_core::config::config_file::{
     self, net_slot_path, CliOverrides, ConfigSource, NetSlotId, PathRule, RunConfig,
 };
-use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::host::{Host, PageRole};
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
 use meshtown_core::node::output::{log_page, log_summary};
+use meshtown_core::transport::net::NodeSecret;
 
 const BROKEN_TEXT: &str = "this is not a slot file";
 
@@ -99,7 +99,11 @@ fn setup(tag: &str) -> Fixture {
     let dir = std::env::temp_dir().join(format!("mesh-net-slots-{tag}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temporary test directory");
     let overrides = CliOverrides {
-        network_key: Some(NetworkKey::from_bytes([4u8; 32]).encode()),
+        network_key: Some(meshtown_core::members::network_key::managed_key_with_label(
+            None,
+            &[4u8; 32],
+            &NodeSecret::from_bytes(&[31; 32]).peer_id(),
+        )),
         ..CliOverrides::default()
     };
     let source = ConfigSource::File {

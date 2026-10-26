@@ -19,7 +19,7 @@ fn decoded_body_has_no_key_text() {
     // given
     let net_key = distinctive_key();
     let body = decoded_body(&invite_of_network(&net_key));
-    let key_text = net_key.encode();
+    let key_text = managed_key_with_label(None, &net_key.to_bytes(), &root());
     let key_base32 = BASE32_NOPAD.encode(&net_key.to_bytes());
     // then
     for needle in [
@@ -48,8 +48,8 @@ fn string_has_no_key_base32() {
         "the string has the network key in base32"
     );
     assert!(
-        !s.contains(&net_key.encode()),
-        "the string has the network key mesh1-…"
+        !s.contains(&managed_key_with_label(None, &net_key.to_bytes(), &root())),
+        "the string has the network key text"
     );
 }
 

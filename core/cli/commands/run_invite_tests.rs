@@ -3,7 +3,8 @@
 
 use super::*;
 use crate::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
-use crate::members::network_key::{key_with_label, NetworkKey};
+use crate::members::network_key::{managed_key_with_label, parse_user_input, NetworkKey};
+use crate::transport::net::{NodeSecret, PeerId};
 
 const NOW: u64 = 1_790_000_000;
 const HOUR: u64 = 3_600;
@@ -20,8 +21,8 @@ mod without_invite {
         // given
         let opts = Opts {
             with_invite: false,
-            cli_key: Some(net_b().encode()),
-            file_key: Some(net_b().encode()),
+            cli_key: Some(text_b()),
+            file_key: Some(text_b()),
             ..Opts::default()
         };
         // when
@@ -62,7 +63,7 @@ mod key_from_flag {
         fn keeps_the_key_and_does_not_spend_the_invite() {
             // given
             let opts = Opts {
-                cli_key: Some(net_a().encode()),
+                cli_key: Some(text_a()),
                 ..Opts::default()
             };
             // when
@@ -75,7 +76,11 @@ mod key_from_flag {
         fn keeps_the_key_written_with_a_label() {
             // given
             let opts = Opts {
-                cli_key: Some(key_with_label(Some("our-game"), &net_a())),
+                cli_key: Some(managed_key_with_label(
+                    Some("our-game"),
+                    &[9u8; 32],
+                    &creator(),
+                )),
                 ..Opts::default()
             };
             // when
@@ -92,7 +97,7 @@ mod key_from_flag {
         fn refuses_and_says_the_invite_is_not_spent() {
             // given
             let opts = Opts {
-                cli_key: Some(net_b().encode()),
+                cli_key: Some(text_b()),
                 ..Opts::default()
             };
             // when
@@ -107,8 +112,8 @@ mod key_from_flag {
         fn refuses_even_when_the_file_holds_another_network() {
             // given: the key from --key and the invite disagree whatever the file holds
             let opts = Opts {
-                cli_key: Some(net_b().encode()),
-                file_key: Some(net_b().encode()),
+                cli_key: Some(text_b()),
+                file_key: Some(text_b()),
                 ..Opts::default()
             };
             // when
@@ -128,8 +133,8 @@ mod network_slots {
     #[test]
     fn keeps_the_key_when_the_network_has_a_slot() {
         let out = plan(Opts {
-            file_key: Some(net_b().encode()),
-            slot_keys: vec![None, Some(net_a().encode())],
+            file_key: Some(text_b()),
+            slot_keys: vec![None, Some(text_a())],
             ..Opts::default()
         });
         assert!(matches!(out, Outcome::KeepKey), "{out:?}");
@@ -137,9 +142,9 @@ mod network_slots {
 
     #[test]
     fn refuses_at_the_limit_and_says_the_invite_is_not_spent() {
-        let full = vec![Some(net_c().encode()); MAX_NETS - 1];
+        let full = vec![Some(text_c()); MAX_NETS - 1];
         let text = plan(Opts {
-            file_key: Some(net_b().encode()),
+            file_key: Some(text_b()),
             slot_keys: full,
             ..Opts::default()
         })
@@ -150,9 +155,9 @@ mod network_slots {
 
     #[test]
     fn adds_a_network_one_below_the_limit() {
-        let almost = vec![Some(net_c().encode()); MAX_NETS - 2];
+        let almost = vec![Some(text_c()); MAX_NETS - 2];
         let out = plan(Opts {
-            file_key: Some(net_b().encode()),
+            file_key: Some(text_b()),
             slot_keys: almost,
             ..Opts::default()
         });
@@ -193,7 +198,7 @@ mod expired_invite {
     fn refuses_even_when_the_invite_would_add_a_network() {
         // given: without the expiry this would be a join as a separate network
         let opts = Opts {
-            file_key: Some(net_b().encode()),
+            file_key: Some(text_b()),
             now: NOW + 25 * HOUR,
             ..Opts::default()
         };
@@ -303,16 +308,29 @@ fn secret() -> InviteSecret {
     InviteSecret::from_bytes([0xC7; 32])
 }
 
+/// The creator of the test networks.
+fn creator() -> PeerId {
+    NodeSecret::from_bytes(&[1u8; 32]).peer_id()
+}
+
+fn text_of(seed: u8) -> String {
+    managed_key_with_label(None, &[seed; 32], &creator())
+}
+
+fn text_a() -> String {
+    text_of(9)
+}
+
+fn text_b() -> String {
+    text_of(8)
+}
+
+fn text_c() -> String {
+    text_of(7)
+}
+
 fn net_a() -> NetworkKey {
-    NetworkKey::from_bytes([9u8; 32])
-}
-
-fn net_b() -> NetworkKey {
-    NetworkKey::from_bytes([8u8; 32])
-}
-
-fn net_c() -> NetworkKey {
-    NetworkKey::from_bytes([7u8; 32])
+    parse_user_input(&text_a()).unwrap().key
 }
 
 fn invite_of_net_a() -> ParsedInvite {
@@ -322,7 +340,7 @@ fn invite_of_net_a() -> ParsedInvite {
             network_id: net_a().subkeys().network_id,
             label: None,
             made_unix: NOW,
-            kind: crate::members::network_key::NetKind::Peer,
+            root: creator(),
         },
         peers: vec![],
         warnings: vec![],

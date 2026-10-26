@@ -20,7 +20,7 @@ const exitPeer = (idFull, name) => ({ id: idFull.slice(0, 8).toLowerCase(), id_f
 
 function netB(exits = []) {
   const peers = [exitPeer(FULL_ONE, "laptop"), exitPeer(FULL_TWO, "phone")];
-  const base = baseState({ network: { id_hex: "net-bbbb", masked: "mesh1-••••-••••" }, peers: [baseState().peers.find((p) => p.self), ...peers] });
+  const base = baseState({ network: { id_hex: "net-bbbb", masked: "mesh2-••••-••••" }, peers: [baseState().peers.find((p) => p.self), ...peers] });
   const state = { ...base, route: { state: exits.length ? "exit" : "direct", exits: exits.map((id) => ({ ...peers.find((p) => p.id_full === id), active: true })) } };
   const rows = [selfRow(), ...peers.map((p) => memberRow({ id: p.id, id_full: p.id_full, name: p.name, online: true }))];
   return { state, config: baseConfig({ route: { exits } }), members: membersReply({ rows }) };

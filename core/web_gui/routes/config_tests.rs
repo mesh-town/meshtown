@@ -7,8 +7,7 @@ use axum::http::{Method, StatusCode};
 use serde_json::{json, Value};
 
 use crate::config::config_file::{self, CliOverrides, ConfigSource, ListenAccess, PathRule};
-use crate::members::network_key::format_key_string;
-use crate::members::words::generate_tail;
+use crate::members::network_key::test_net;
 use crate::ports_sharing::{Opened, Proto};
 use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{send, slot_handle, test_app, FakeHost, SnapNode};
@@ -238,7 +237,7 @@ fn opens(local: u16) -> Value {
 }
 
 fn labelled_key(label: &str) -> String {
-    format_key_string(Some(label), &generate_tail().unwrap())
+    test_net(label).text
 }
 
 fn setup() -> Fixture {

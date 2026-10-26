@@ -6,9 +6,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::config::config_file::NetSettings;
-use crate::transport::net::{NodeSecret, PeerAddr};
+use crate::transport::net::{NodeSecret, PeerAddr, PeerId};
 
-use crate::members::network_key::{NetKind, NetworkKey};
+use crate::members::network_key::{NetworkKey, NetworkKeyInput};
 
 use super::identity::{IdentityState, TemporaryReason};
 
@@ -40,9 +40,9 @@ pub struct NodeConfig {
     pub invited_peers_file: Option<PathBuf>,
     /// The network label from the invite or the settings file.
     pub network_label: Option<String>,
-    /// The kind of the network (Peer unless the key says otherwise).
-    pub net_kind: NetKind,
-    /// The secret an invite redemption answers with; equals `network_key` in a Peer network.
+    /// The root of the network: its first admin, from the key.
+    pub net_root: PeerId,
+    /// The secret an invite redemption answers with.
     pub reply_secret: NetworkKey,
     /// File of the peer address cache; `None` — the cache is off (tests, `--no-config`).
     pub peers_cache_path: Option<PathBuf>,
@@ -67,40 +67,60 @@ pub struct NodeConfig {
 impl NodeConfig {
     /// Node settings for the CLI: `settings` are cloned, the rest are the live node's defaults.
     /// The live path goes through `Settings::node_config`, here SOCKS is off.
-    pub fn for_cli(key: NetworkKey, settings: &NetSettings) -> NodeConfig {
-        NodeConfig {
-            reply_secret: key.clone(),
-            network_key: key,
-            settings: settings.clone(),
-            probe_first_delay: Duration::from_secs(10),
-            initial_domains: vec![],
-            geoip: true,
-            proxy_face: None,
-            blocked_domains: Vec::new(),
-            exit_hosts: HashMap::new(),
-            identity_secret: None,
-            identity: IdentityState::Temporary(TemporaryReason::Declined),
-            initial_peers: vec![],
-            invited_peers_file: None,
-            network_label: None,
-            net_kind: NetKind::Peer,
-            peers_cache_path: None,
-            docs_store_dir: None,
-            peer_names_path: None,
-            dht_table_path: None,
-            test_net: None,
-            open_list: false,
-        }
+    pub fn for_cli(key: NetworkKeyInput, settings: &NetSettings) -> NodeConfig {
+        let reply = NetworkKey::from_bytes(key.reply_secret());
+        let mut cfg = assemble(key.key.clone(), key.root, reply, settings);
+        cfg.network_label = key.label;
+        cfg
     }
 
     /// Node settings for tests: the `mem` transport of a per-process shared network, no DHT and no relay.
     pub fn for_loopback_test(key: NetworkKey) -> NodeConfig {
-        let mut cfg = NodeConfig::for_cli(key, &loopback_settings());
+        let reply = key.clone();
+        let mut cfg = assemble(key, loopback_root(), reply, &loopback_settings());
         cfg.probe_first_delay = Duration::from_secs(0);
         cfg.geoip = false;
         cfg.test_net = Some(crate::transport::net::mem::process_net());
         cfg.open_list = true;
         cfg
+    }
+}
+
+/// The node that is the root of every loopback test network.
+#[doc(hidden)]
+pub fn loopback_root() -> PeerId {
+    NodeSecret::from_bytes(&[31; 32]).peer_id()
+}
+
+/// The common body of the presets: live defaults around the key, its root and the reply secret.
+fn assemble(
+    key: NetworkKey,
+    root: PeerId,
+    reply: NetworkKey,
+    settings: &NetSettings,
+) -> NodeConfig {
+    NodeConfig {
+        reply_secret: reply,
+        network_key: key,
+        settings: settings.clone(),
+        probe_first_delay: Duration::from_secs(10),
+        initial_domains: vec![],
+        geoip: true,
+        proxy_face: None,
+        blocked_domains: Vec::new(),
+        exit_hosts: HashMap::new(),
+        identity_secret: None,
+        identity: IdentityState::Temporary(TemporaryReason::Declined),
+        initial_peers: vec![],
+        invited_peers_file: None,
+        network_label: None,
+        net_root: root,
+        peers_cache_path: None,
+        docs_store_dir: None,
+        peer_names_path: None,
+        dht_table_path: None,
+        test_net: None,
+        open_list: false,
     }
 }
 

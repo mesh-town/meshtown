@@ -49,14 +49,6 @@ mod publish_over_a_previous_view {
             let listed = || ledger(&[m, a], &[]);
             let cases = [
                 (
-                    "voted by me",
-                    Verdicts {
-                        my_votes: set(&[a]),
-                        ..verdicts(m, listed())
-                    },
-                    Deny::VotedByMe,
-                ),
-                (
                     "blocked",
                     Verdicts {
                         blocks: set(&[a]),

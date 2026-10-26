@@ -211,7 +211,7 @@ describe("log by network", () => {
 function net(id, label, idHex) {
   return {
     id, label, id_hex: idHex, status: "online", exit_enabled: false, proxy: id === NET_A, route_state: "direct", exits: [],
-    members_voting: 1, joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0,
+    joining: false, members_admitting: 0, me_excluded: false, me_pending: false, peers_online: 0, peers_total: 0,
   };
 }
 

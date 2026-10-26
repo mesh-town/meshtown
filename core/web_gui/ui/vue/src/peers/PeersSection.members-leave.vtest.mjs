@@ -70,25 +70,24 @@ describe("leaving the network", () => {
   });
 });
 
-describe("this computer was banned by the members", () => {
+describe("this computer was removed by an admin", () => {
   it("the Members tab shows the card instead of the list, with the title and the text", async () => {
     const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
-    expect(page.text("#excluded-card")).toContain('This computer was banned from the network "demo-network"');
-    expect(page.text("#excluded-card")).toContain("Members of the network banned it. Sites no longer open through Mesh Town");
+    expect(page.text("#excluded-card")).toContain('This computer was removed from the network "demo-network"');
+    expect(page.text("#excluded-card")).toContain("An admin removed it. Sites no longer open through Mesh Town");
     expect(page.attr("#excluded-card", "role")).toBe("status");
     expect(page.has("#peers-list")).toBe(false);
     expect(page.has("[data-member-menu]")).toBe(false);
-    expect(page.has("#vote-banner")).toBe(false);
   });
 
   it("the Home tab shows the same card", async () => {
     const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }), tab: "home" });
-    expect(page.text("#excluded-card")).toContain('This computer was banned from the network "demo-network"');
+    expect(page.text("#excluded-card")).toContain('This computer was removed from the network "demo-network"');
   });
 
   it("the header says it too", async () => {
     const page = await openMembersPage({ members: excludedMe(), state: stateWith({ me_excluded: true }) });
-    expect(page.statusLine()).toContain('Banned from the network "demo-network" — sites won\'t open through Mesh Town');
+    expect(page.statusLine()).toContain('Removed from the network "demo-network" by an admin — sites won\'t open through Mesh Town');
   });
 
   it("Home has no card button: the invite field is already open under the card", async () => {
@@ -216,7 +215,7 @@ async function leave(page) {
 const mineExcluded = (how, voters) =>
   selfRow({ status: "excluded", online: false, denied_by_me: how === "left" ? "left" : "excluded", excluded: excludedInfo({ how, voters }) });
 
-const excludedMe = () => membersReply({ rows: [mineExcluded("votes", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true, need: 2 });
+const excludedMe = () => membersReply({ rows: [mineExcluded("removed", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true });
 const leftMe = () => membersReply({ rows: [mineExcluded("left", []), peerOneRow(), peerTwoNamed()], me_excluded: true });
 
 
@@ -244,8 +243,8 @@ const selfPeer = () => ({ self: true, online: true, id: "aaaa1111", id_full: SEL
 const laptopPeer = () => ({ id: "dddd4444", id_full: EXTRA_FULL, name: "old-laptop", country: "NL", version: "0.1.0", online: true, path: "direct", rtt_ms: 20, exit: false });
 
 function twoNetsWithExit(exit) {
-  const base = baseState({ network: { id_hex: "net-bbbb", label: "my devices", masked: "mesh1-••••-••••" }, peers: [selfPeer(), laptopPeer()] });
-  const secondNet = { state: { ...base, members: { count: 1, gossip_neighbors: 0, voting: 0, me_excluded: false } }, members: membersReply({ rows: [selfRow(), extraRow()] }) };
+  const base = baseState({ network: { id_hex: "net-bbbb", label: "my devices", masked: "mesh2-••••-••••" }, peers: [selfPeer(), laptopPeer()] });
+  const secondNet = { state: { ...base, members: { count: 1, gossip_neighbors: 0, me_excluded: false } }, members: membersReply({ rows: [selfRow(), extraRow()] }) };
   const opts = twoNets(secondNet);
   const route = { exits: exit ? [exit] : [] };
   return { ...opts, state: { ...opts.state, network: { ...opts.state.network, label: "friends" } }, config: baseConfig({ route, ports: { published: [{ port: 8080, for: "all" }], opened: [] } }) };

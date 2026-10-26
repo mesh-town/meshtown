@@ -103,7 +103,7 @@ mod without_key {
         let fx = setup_without_key();
         let id0 = fx.ctl.snapshot().boot_id;
         fx.ctl
-            .join_with_peers(&NetworkKey::from_bytes([65; 32]).encode(), vec![]);
+            .join_with_peers(&crate::node::host::test_keys::managed_text(65), vec![]);
         fx.ctl.stop();
 
         // when

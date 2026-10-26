@@ -1,5 +1,5 @@
 /* Members texts about this device inside the app: "phone" instead of "computer"; on a desktop the words stay. A name that
- * comes from the node is never rewritten, and "the computer" of a lost device in the ban hint stays. */
+ * comes from the node is never rewritten, and "the computer" of the joiner to recognise stays. */
 
 import { afterEach, describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
@@ -21,13 +21,9 @@ const ctx = { me: ME };
 
 describe("status texts", () => {
   const cases = [
-    ["banProposedStatus", () => t.banProposedStatus("old-laptop"), "old-laptop is already blocked on this"],
-    ["withdrawnStatus", () => t.withdrawnStatus("old-laptop", false), "old-laptop is no longer blocked on this"],
     ["blockedStatus", () => t.blockedStatus("old-laptop"), "old-laptop is blocked on this"],
-    ["meWaitingText", () => t.meWaitingText(1, 2), "This %s is waiting for network members"],
+    ["meWaitingText", () => t.meWaitingText(), "This %s is waiting for an admin"],
     ["leftNetworkStatus", () => t.leftNetworkStatus("net", false), "may still see this %s in their list"],
-    ["forgetNeedTwoLine", () => t.forgetNeedTwoLine("old-laptop"), "On this %s, old-laptop is hidden"],
-    ["forgetProposedStatus", () => t.forgetProposedStatus("old-laptop"), "old-laptop is hidden on this %s."],
     ["deleteNetBody", () => deleteNetBody(3, "net"), "this %s too."],
   ];
   it.each(cases)("%s: the app says phone, the desktop says computer", (_n, make, part) => {
@@ -44,16 +40,8 @@ describe("status texts", () => {
   });
 });
 
-describe("the forgotten card text", () => {
-  it("has no device word and no key", () => {
-    given(DESKTOP_UA);
-    noComputer(t.FORGOTTEN_CARD_TEXT);
-    assert.ok(!/key/.test(t.FORGOTTEN_CARD_TEXT));
-  });
-});
-
 describe("rows and menus", () => {
-  it("the blocked badge and the line of a vote name the phone in the app, the computer on a desktop", () => {
+  it("the blocked badge names the phone in the app, the computer on a desktop", () => {
     given(APP_UA);
     const row = blockedRow();
     assert.equal(rowDecor({ id_full: row.id_full }, row, ME).badge.text, "Blocked on this phone");
@@ -80,16 +68,6 @@ describe("dialogs", () => {
     assert.ok(text("block").includes("on this phone?"), text("block"));
     given(DESKTOP_UA);
     assert.ok(text("block").includes("on this computer?"));
-  });
-
-  it("ban: the own part is the phone, the lost device stays a computer", () => {
-    given(APP_UA);
-    const s = text("ban");
-    assert.ok(s.includes("On this phone, old-laptop is blocked right away."), s);
-    assert.ok(s.includes("if the computer is lost"), s);
-    assert.ok(s.includes('away from this phone only, choose "Block on this phone"'), s);
-    given(DESKTOP_UA);
-    assert.ok(text("ban").includes("On this computer, old-laptop"));
   });
 
   it("admit: the recognised joiner stays a computer", () => {

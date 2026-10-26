@@ -4,7 +4,7 @@ import { putRouteExits, type Peer } from '../helpers/route-exits-api';
 const SETTLE_MS = 10000;
 
 // The header status line is one line and does not change the height of the bar when an exit is chosen
-// (the route phrase changes, the line stays short and the vote badge stays on the same row).
+// (the route phrase changes, the line stays short).
 for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
   test.describe(`status-line-stable ${viewport.width}`, () => {
     test.skip(({ targetKind }) => targetKind !== 'demo', 'members with an exit are needed: only the demo provides them');

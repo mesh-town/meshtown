@@ -276,7 +276,7 @@ function pick(rows, key) {
 function snapshot(over = {}) {
   return {
     node: { status: "online", uptime_sec: 60 },
-    network: { label: "home", masked: "mesh1-xx", id_hex: "aa11" },
+    network: { label: "home", masked: "mesh2-xx", id_hex: "aa11" },
     transport: { relay: { connected: true, url: "r" }, dht: { joined: true }, listen_udp: [] },
     peers: [{ self: true, online: true }, { id: "a", online: true }],
     route: { state: "direct", exits: [] },

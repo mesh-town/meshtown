@@ -32,7 +32,7 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(title_of(net), "friends — 2 of 3 online");
+        assert_eq!(title_of(net), "friends — 2 of 3 online · managed");
     }
 
     #[test]
@@ -44,7 +44,7 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(title_of(net), "friends — 3 of 3 online");
+        assert_eq!(title_of(net), "friends — 3 of 3 online · managed");
     }
 
     #[test]
@@ -56,7 +56,10 @@ mod nets_from_slots {
             ..friends()
         };
 
-        assert_eq!(title_of(net), "friends — 2 of 3 online, 1 to confirm");
+        assert_eq!(
+            title_of(net),
+            "friends — 2 of 3 online, 1 to confirm · managed"
+        );
     }
 
     #[test]
@@ -69,7 +72,7 @@ mod nets_from_slots {
 
         let nets = nets_from_slots(&visible(&[net]));
 
-        assert_eq!(nets[0].title, "my devices — no connection");
+        assert_eq!(nets[0].title, "my devices — no connection · managed");
         assert!(!nets[0].online, "an offline network is not online");
     }
 
@@ -134,16 +137,15 @@ mod nets_from_slots {
     }
 
     #[test]
-    fn vote_and_waiting_counts_come_from_the_summary() {
+    fn waiting_count_comes_from_the_summary() {
         let net = NetSpec {
-            voting: 1,
             admitting: 2,
             ..friends()
         };
 
         let nets = nets_from_slots(&visible(&[net]));
 
-        assert_eq!((nets[0].voting, nets[0].admitting), (1, 2));
+        assert_eq!(nets[0].admitting, 2);
     }
 
     #[test]
@@ -155,7 +157,7 @@ mod nets_from_slots {
 
         let nets = nets_from_slots(&visible(&[net]));
 
-        assert_eq!(nets[0].title, "friends — 2 of 3 online");
+        assert_eq!(nets[0].title, "friends — 2 of 3 online · managed");
         assert!(nets[0].peers.is_empty() && !nets[0].serves_exit);
     }
 }
@@ -211,7 +213,7 @@ mod managed_titles {
 
     #[test]
     fn member_of_a_managed_network_sees_managed_after_the_counts() {
-        let extra = json!({ "kind": "Managed", "me_admin": false, "can_invite": false });
+        let extra = json!({ "me_admin": false, "can_invite": false });
 
         assert_eq!(
             title_with(friends(), extra),
@@ -221,7 +223,7 @@ mod managed_titles {
 
     #[test]
     fn admin_of_a_managed_network_is_told_so() {
-        let extra = json!({ "kind": "Managed", "me_admin": true, "can_invite": true });
+        let extra = json!({ "me_admin": true, "can_invite": true });
 
         assert_eq!(
             title_with(friends(), extra),
@@ -235,7 +237,7 @@ mod managed_titles {
             status: "offline",
             ..friends()
         };
-        let extra = json!({ "kind": "Managed", "me_admin": false });
+        let extra = json!({ "me_admin": false });
 
         assert_eq!(
             title_with(offline, extra),
@@ -249,7 +251,7 @@ mod managed_titles {
             status: "offline",
             ..friends()
         };
-        let extra = json!({ "kind": "Managed", "me_admin": true });
+        let extra = json!({ "me_admin": true });
 
         assert_eq!(
             title_with(offline, extra),
@@ -258,10 +260,10 @@ mod managed_titles {
     }
 
     #[test]
-    fn managed_state_in_the_slot_is_enough_for_the_tail() {
-        // given: no kind in the summary entry, only in the state of the slot
+    fn the_role_in_the_slot_state_is_enough_for_the_tail() {
+        // given: no role in the summary entry, only in the state of the slot
         let mut json = overview_json(&[friends()]);
-        json["slots"][0]["state"]["network"] = json!({ "kind": "Managed", "me_role": "admin" });
+        json["slots"][0]["state"]["network"] = json!({ "me_role": "admin" });
 
         // when
         let vis = visible_slots(parse_overview(&json).expect("a summary"));
@@ -269,24 +271,6 @@ mod managed_titles {
         // then
         let title = nets_from_slots(&vis).remove(0).title;
         assert_eq!(title, "friends — 2 of 3 online · managed, you're an admin");
-    }
-
-    #[test]
-    fn peer_network_title_is_unchanged() {
-        let extra = json!({ "kind": "Peer", "me_admin": false, "can_invite": true });
-
-        assert_eq!(title_with(friends(), extra), "friends — 2 of 3 online");
-        assert_eq!(title_of(friends()), "friends — 2 of 3 online");
-    }
-
-    #[test]
-    fn offline_peer_network_title_is_unchanged() {
-        let offline = NetSpec {
-            status: "offline",
-            ..friends()
-        };
-
-        assert_eq!(title_of(offline), "friends — no connection");
     }
 }
 

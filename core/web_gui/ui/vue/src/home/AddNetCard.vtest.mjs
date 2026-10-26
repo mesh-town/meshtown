@@ -15,9 +15,10 @@ import { NET_A, NET_B, twoNets } from "../testing/overview-fixtures.mjs";
 import { settle } from "../testing/page.mjs";
 import { baseState } from "../testing/section.mjs";
 import AddNetCard from "./AddNetCard.vue";
+import { resetNetBanner, useNetBanner } from "./add-net-banner.ts";
 
 const FRESH = "neta22";
-const INVITE = "mesh1-ABCDEFGH";
+const INVITE = "mesh2-ABCDEFGH";
 const STAY_BOTH = 'You stay in "friends" and "my devices". The new network gets its own tab in Members.';
 const LIMIT = "Mesh Town is in 8 networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.";
 const LIMIT_REFUSED = "This is a new network, so it can't be added until you leave one.";
@@ -245,7 +246,7 @@ describe("joining by invite", () => {
 });
 
 describe("creating a network", () => {
-  it("the tabs swap the invite field for the name field with the kind choice, and back", async () => {
+  it("the tabs swap the invite field for the name field, and back", async () => {
     const card = await setup();
     await card.when.clicked(CREATE_TAB);
     expect(card.text()).toContain("Network name (members will see it in the invite)");
@@ -253,7 +254,7 @@ describe("creating a network", () => {
     expect(card.controlTexts()).not.toContain("Add network");
     expect(card.visibleInputs()).toHaveLength(1);
     expect(card.exists("#add-net-label-input")).toBe(true);
-    expect(card.exists(".kind-picker"), "the kind choice").toBe(true);
+    expect(card.exists("[id^=kind-]"), "no type choice").toBe(false);
     expect(card.wrapper.get("#add-net-tab-create").attributes("aria-selected")).toBe("true");
     await card.when.clicked(JOIN_TAB);
     expect(card.wrapper.get("#add-net-tab-join").attributes("aria-selected")).toBe("true");
@@ -264,13 +265,35 @@ describe("creating a network", () => {
 
   it("asks for a slot, then creates the network on the address of that slot", async () => {
     const card = await setup();
-    fresh(card.node).routes["POST /api/network/create"] = { key: "mesh1-secret", label: "work", restart: false };
+    fresh(card.node).routes["POST /api/network/create"] = { key: "mesh2-secret", label: "work", restart: false };
     await card.when.clicked(CREATE_TAB);
     await card.when.typed("work");
     await card.when.clicked("Create network");
     expect(card.postedPaths()).toEqual(["/api/nets", "/api/net/" + FRESH + "/network/create"]);
     expect(card.postedBodies()).toEqual([{}, { label: "work" }]);
     expect(card.wrapper.emitted("done")).toEqual([["created", FRESH]]);
+  });
+
+  it("sends only the label", async () => {
+    const card = await setup();
+    fresh(card.node).routes["POST /api/network/create"] = { key: "mesh2-secret", label: "work", restart: false };
+    await card.when.clicked(CREATE_TAB);
+    await card.when.typed("  work ");
+    await card.when.clicked("Create network");
+    expect(card.exists("[id^=kind-]"), "no type choice").toBe(false);
+    expect(card.postedBodies()).toEqual([{}, { label: "work" }]);
+  });
+
+  it("shows the server error and no created banner", async () => {
+    resetNetBanner();
+    const card = await setup();
+    fresh(card.node).routes["POST /api/network/create"] = { status: 422, body: { error: "invalid", message: "name is taken" } };
+    await card.when.clicked(CREATE_TAB);
+    await card.when.typed("work");
+    await card.when.clicked("Create network");
+    expect(card.alerts()).toEqual(["Name is taken"]);
+    expect(useNetBanner().banner.value).toBeNull();
+    expect(card.wrapper.emitted("done")).toEqual([["failed", null]]);
   });
 
   it("with an empty name says so and sends nothing", async () => {
@@ -365,7 +388,7 @@ function becomesNetwork(slot, label, idHex) {
   slot.joining = false;
   slot.label = label;
   slot.id_hex = idHex;
-  slot.state = baseState({ network: { id_hex: idHex, masked: "mesh1-••••-••••" }, peers: [] });
+  slot.state = baseState({ network: { id_hex: idHex, masked: "mesh2-••••-••••" }, peers: [] });
   slot.routes["GET /api/members"] = membersReply({ rows: [selfRow()] });
 }
 

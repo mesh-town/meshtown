@@ -8,7 +8,7 @@
  *  - Only "delete-net" has an input (`field: { label, max }`): the name of the network typed to confirm.
  *  - "last-admin" has a second action button next to the main one: `spec.alt = { label, danger }`; the cancel button is never part
  *      of a spec. No other kind has `alt`.
- *  - The generic "{name} is your exit" paragraph is added to "ban-managed" like to the peer bans, and to no other new kind. */
+ *  - The generic "{name} is your exit" paragraph is added to "ban-managed", and to no other new kind. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -164,7 +164,7 @@ describe("last-admin", () => {
 
 describe("the other kinds", () => {
   it("have no second button", () => {
-    for (const kind of ["make-admin", "give-up", "ban-managed", "delete-net", "ban", "block", "leave"]) {
+    for (const kind of ["make-admin", "give-up", "ban-managed", "delete-net", "block", "leave"]) {
       assert.equal(spec(kind).alt, undefined, kind + " has a second button");
     }
   });

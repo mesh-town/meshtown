@@ -279,7 +279,7 @@ impl Fixture {
         let main = self.main_file();
         let id = new_slot_id(&main).unwrap();
         let net = NetSettings {
-            network_key: Some(NetworkKey::from_bytes([seed; 32]).encode()),
+            network_key: Some(crate::node::host::test_keys::managed_text(seed)),
             checks_enabled: false,
             route_exits: exits.iter().map(|s| peer(*s)).collect(),
             ..NetSettings::default()

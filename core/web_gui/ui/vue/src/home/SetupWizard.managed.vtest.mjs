@@ -1,47 +1,48 @@
-/* The setup's first step with network kinds: "Create a new network" opens the create form with the kind chosen as Peer. */
+/* The setup's first step: "Create a new network" opens a create form with no choice of type, and the request carries the name only. */
 
 import { nextTick } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { flushPromises } from "@vue/test-utils";
+import { api } from "../core/api.ts";
 import { baseState, mountSection } from "../testing/section.mjs";
 import SetupWizard from "./SetupWizard.vue";
 
+vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
+
 let mounted;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  api.mockReset();
+  api.mockResolvedValue({ key: "mesh2-secret", label: "work", restart: false });
+});
 afterEach(() => mounted.wrapper.unmount());
 
-describe("SetupWizard > step 1, no network > the kind of the new network", () => {
-  describe("before a choice", () => {
-    it("no kind is offered", () => {
-      const { wrapper } = mountWizard();
-      expect(wrapper.find("#kind-peer").exists()).toBe(false);
-      expect(wrapper.find("#kind-managed").exists()).toBe(false);
-    });
+describe("SetupWizard > step 1, no network > creating a network", () => {
+  it("the first screen offers no type", () => {
+    const { wrapper } = mountWizard();
+    expect(wrapper.find("[id^=kind-]").exists()).toBe(false);
   });
 
-  describe("after \"Create a new network\"", () => {
-    it("the picker is in the create form with Peer chosen", async () => {
-      const { wrapper } = await createOpened();
-      expect(wrapper.find("#create-box #kind-peer").exists(), "the Peer card in the create form").toBe(true);
-      expect(wrapper.find("#create-box #kind-managed").exists(), "the Managed card in the create form").toBe(true);
-      expect(wrapper.get("#kind-peer").element.checked).toBe(true);
-      expect(wrapper.get("#kind-managed").element.checked).toBe(false);
-    });
-
-    it("the warning about Managed is not shown yet", async () => {
-      const { wrapper } = await createOpened();
-      expect(wrapper.find("#kind-managed-warn").exists()).toBe(false);
-    });
+  it("the create form has no type picker", async () => {
+    const { wrapper } = await createOpened();
+    expect(wrapper.find("#create-box").exists()).toBe(true);
+    expect(wrapper.find("[id^=kind-]").exists()).toBe(false);
   });
 
-  describe("after \"Join with an invite\"", () => {
-    it("the picker is not in the join form", async () => {
-      const { wrapper } = mountWizard();
-      await wrapper.get("#home-start-join-btn").trigger("click");
-      await nextTick();
-      expect(wrapper.find("#join-box #kind-peer").exists()).toBe(false);
-      expect(wrapper.find("#join-box #kind-managed").exists()).toBe(false);
-    });
+  it("creates without a type: the request carries the name only", async () => {
+    const { wrapper } = await createOpened();
+    await wrapper.get("#create-label-input").setValue("work");
+    await wrapper.get("#create-btn").trigger("click");
+    await flushPromises();
+    expect(api.mock.calls.filter((c) => c[1] === "/api/network/create").map((c) => c[2])).toEqual([{ label: "work" }]);
+  });
+
+  it("the join form has no type picker either", async () => {
+    const { wrapper } = mountWizard();
+    await wrapper.get("#home-start-join-btn").trigger("click");
+    await nextTick();
+    expect(wrapper.find("#join-box [id^=kind-]").exists()).toBe(false);
   });
 });
 

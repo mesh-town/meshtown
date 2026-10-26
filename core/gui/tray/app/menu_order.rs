@@ -1,25 +1,25 @@
-//! The order of the menu items that come and go with the node's state, as plain data. `vote_item`, `extras_ui` and
+//! The order of the menu items that come and go with the node's state, as plain data. `admit_item`, `extras_ui` and
 //! `nets_ui` put their widgets at the places this file names, so the order is decided here and tested without `muda`.
 //!
-//! Top of the menu: the status line, "Open Mesh Town…", one note per deleted network, the vote item.
+//! Top of the menu: the status line, "Open Mesh Town…", one note per deleted network, the request item.
 //! Middle of the menu: the network submenus (or, for one network, the invite item and the checkbox), then "Add a network…".
 
 use super::exit_menu::ExitMenu;
+use crate::gui::tray::admit_item::MENU_ADMIT;
 use crate::gui::tray::core::{MENU_INVITE, MENU_OPEN, MENU_SERVE, MENU_STATUS};
 use crate::gui::tray::extras_ui::MENU_ADD;
-use crate::gui::tray::vote_item::MENU_VOTE;
 
 /// Prefix of the id of a network submenu; the slot follows.
 pub(crate) const NET_MENU_PREFIX: &str = "net-menu:";
 /// Prefix of the id of a deleted-network note; the note number follows.
 pub(crate) const NOTICE_PREFIX: &str = "notice:";
 
-/// The ids at the top of the menu: status, open, a note per number in `notice_ids`, then the vote item when shown.
-pub(crate) fn top_ids(notice_ids: &[u64], vote: bool) -> Vec<String> {
+/// The ids at the top of the menu: status, open, a note per number in `notice_ids`, then the request item when shown.
+pub(crate) fn top_ids(notice_ids: &[u64], admit: bool) -> Vec<String> {
     let mut ids = vec![MENU_STATUS.to_string(), MENU_OPEN.to_string()];
     ids.extend(notice_ids.iter().map(|id| notice_id(*id)));
-    if vote {
-        ids.push(MENU_VOTE.to_string());
+    if admit {
+        ids.push(MENU_ADMIT.to_string());
     }
     ids
 }
@@ -42,8 +42,8 @@ pub(crate) fn has_network(menu: &ExitMenu) -> bool {
     menu.enabled && (menu.slot.is_some() || !menu.nets.is_empty())
 }
 
-/// Where the vote item goes in the live menu: right after the notes.
-pub(crate) fn vote_position(notice_ids: &[u64]) -> usize {
+/// Where the request item goes in the live menu: right after the notes.
+pub(crate) fn admit_position(notice_ids: &[u64]) -> usize {
     top_ids(notice_ids, false).len()
 }
 

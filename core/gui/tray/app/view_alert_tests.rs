@@ -1,4 +1,4 @@
-//! Tests of the "vote waiting" mark: the centre, the untouched rim, no disk colors.
+//! Tests of the "request waiting" mark: the centre, the untouched rim, no disk colors.
 
 use super::*;
 use crate::gui::tray::app::view::{icon_rgba, TrayColor, ICON_SIDE_PX};

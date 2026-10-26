@@ -1,4 +1,5 @@
 use super::*;
+use crate::node::host::test_keys::key_input;
 use crate::transport::net::NodeSecret;
 
 fn peer(b: u8) -> PeerAddr {
@@ -6,8 +7,8 @@ fn peer(b: u8) -> PeerAddr {
 }
 
 fn old_cfg() -> NodeConfig {
-    let mut cfg =
-        test_relaunch().node_config(&Settings::default(), NetworkKey::from_bytes([1; 32]));
+    let key = key_input(1);
+    let mut cfg = test_relaunch().node_config(&Settings::default(), key);
     cfg.identity = IdentityState::Persistent;
     cfg.initial_peers = vec![peer(1)];
     cfg
@@ -54,7 +55,7 @@ async fn apply_switch_good_key_takes_identity_and_peers() {
     .unwrap();
     assert_eq!(cfg.identity, IdentityState::Persistent);
     assert_eq!(cfg.initial_peers, vec![peer(2)]);
-    assert_eq!(cfg.network_key.encode(), key_text(2));
+    assert_eq!(cfg.network_key.to_bytes(), key_input(2).key.to_bytes());
     assert_eq!(settings.net.network_key, Some(key_text(2)));
 }
 
@@ -67,7 +68,7 @@ fn run_after(cmd: Cmd) -> (ControlFlow<CycleEnd>, NodeConfig) {
 }
 
 fn assert_old(cfg: &NodeConfig) {
-    assert_eq!(cfg.network_key.encode(), key_text(1));
+    assert_eq!(cfg.network_key.to_bytes(), key_input(1).key.to_bytes());
     assert_eq!(cfg.identity, IdentityState::Persistent);
     assert_eq!(cfg.initial_peers, vec![peer(1)]);
 }
@@ -96,7 +97,7 @@ async fn after_command_good_key_replaces_cfg_keeps_identity() {
         peers: vec![peer(2)],
     });
     assert!(flow.is_continue());
-    assert_eq!(cfg.network_key.encode(), key_text(2));
+    assert_eq!(cfg.network_key.to_bytes(), key_input(2).key.to_bytes());
     assert_eq!(cfg.identity, IdentityState::Persistent);
     assert_eq!(cfg.initial_peers, vec![peer(2)]);
 }

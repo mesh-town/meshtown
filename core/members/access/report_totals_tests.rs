@@ -8,11 +8,10 @@ mod denied_by_me_codes {
 
     #[test]
     fn denied_by_me_codes() {
-        // given: a is a member, b is excluded, c is blocked, d is unlisted, e has my vote, f is excluded and blocked
+        // given: a is a member, b is excluded, c is blocked, d is unlisted, f is excluded and blocked
         let (a, b, c, d, e, f) = (pid(2), pid(3), pid(4), pid(5), pid(6), pid(7));
         let mut w = world(&[a, c, e], &[b, f]);
         w.verdicts.blocks.extend([c, f]);
-        w.verdicts.my_votes.insert(e);
         w.members.set_name(d, "stranger".into());
         // when / then: the codes follow the order of the check
         let codes: Vec<_> = [pid(1), a, b, c, d, e, f]
@@ -27,7 +26,7 @@ mod denied_by_me_codes {
                 Some("excluded"),
                 Some("blocked"),
                 Some("unlisted"),
-                Some("voted_by_me"),
+                None,
                 Some("excluded")
             ]
         );
@@ -63,7 +62,7 @@ mod refusals {
 
     #[test]
     fn refusal_from_them_is_reported() {
-        // given: a refused me at the handshake with his vote or block
+        // given: a refused me at the handshake with his block
         let a = pid(2);
         let mut w = world(&[a], &[]);
         w.refusal(a, Side::Them, Deny::Refused);
@@ -106,32 +105,24 @@ mod totals {
 
     #[test]
     fn counts_follow_the_rows() {
-        // given: me and a, b, c listed, d excluded, e unlisted; a has a pending vote
+        // given: me and a, b, c listed, d excluded, e unlisted
         let (a, b, c, d, e) = (pid(2), pid(3), pid(4), pid(5), pid(6));
-        let mut w = world(&[a, b, c], &[d]);
+        let w = world(&[a, b, c], &[d]);
         w.members.set_name(e, "stranger".into());
-        w.pending(a, vec![b], 2);
         // when
         let counts = w.reply().counts;
         // then: members include me
         assert_eq!(
-            (
-                counts.members,
-                counts.voting,
-                counts.excluded,
-                counts.unlisted
-            ),
-            (4, 1, 1, 1)
+            (counts.members, counts.excluded, counts.unlisted),
+            (4, 1, 1)
         );
     }
 
     #[test]
-    fn need_and_changed_are_passed_through() {
-        // given: a list that needs one vote
-        let mut w = world(&[pid(2)], &[]);
-        w.ledger.need = 1;
+    fn changed_is_passed_through() {
+        // given: a list of two
+        let w = world(&[pid(2)], &[]);
         // when / then
-        assert_eq!(w.reply().need, 1);
         assert_eq!(w.reply().changed, None);
         assert_eq!(
             members_reply(&w.verdicts(), &w.members, &[], Some(false)).changed,

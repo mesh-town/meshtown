@@ -14,8 +14,9 @@ use super::super::tally::{Admission, Ledger, TallyInput};
 use super::events::{events, Act, Event, EventKey};
 use super::roles::Replay;
 
-/// Computes the ledger of the node `input.me` in a network created by `root`.
-pub fn tally(root: PeerId, input: &TallyInput) -> Ledger {
+/// Computes the ledger of the node `input.me` in a network created by `input.root`.
+pub fn tally(input: &TallyInput) -> Ledger {
+    let root = input.root;
     let all = events(input);
     let limit = all.iter().filter(|e| e.act == Act::Exclude).count() + 1;
     let mut pinned: BTreeSet<EventKey> = BTreeSet::new();
@@ -49,11 +50,7 @@ fn requests(root: PeerId, replay: &Replay, all: &[Event]) -> BTreeMap<PeerId, Ad
         let known = replay.members.contains(&s) || replay.excluded.contains_key(&s);
         e.act == Act::Admit && replay.admins.contains(&e.author) && s != root && !known
     };
-    let ask = || Admission {
-        voters: Vec::new(),
-        need: 1,
-        label: None,
-    };
+    let ask = || Admission { label: None };
     all.iter()
         .filter(open)
         .map(|e| (e.subject, ask()))
@@ -66,13 +63,7 @@ fn ledger(root: PeerId, me: PeerId, replay: &Replay, all: &[Event]) -> Ledger {
     Ledger {
         admitted,
         excluded: replay.excluded.clone(),
-        pending: BTreeMap::new(),
-        need: 1,
         admissions: requests(root, replay, all),
-        forgets: BTreeMap::new(),
-        admit_unix: BTreeMap::new(),
-        forget_marks: BTreeMap::new(),
-        forget_need: 1,
         admins: replay.admins.clone(),
         closed: replay.closed.clone(),
     }

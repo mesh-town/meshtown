@@ -1,9 +1,9 @@
 /* The invite card on Home (`#home-invite`) in a Managed network: a member who is not an admin gets the plaque
  * `Only admins can invite people to "<net>". Ask <a> or <b> to send an invite.` (`#peers-invite-note`) instead of the button
- * and the "For whom" field; an admin and a Peer network keep both. */
+ * and the "For whom" field; an admin keeps both. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { ANNA_FULL, BOB_FULL, managedNode, peerNode } from "../testing/managed-fixtures.mjs";
+import { ANNA_FULL, BOB_FULL, managedNode } from "../testing/managed-fixtures.mjs";
 import { mountPage, unmountPage } from "../testing/page.mjs";
 
 beforeEach(() => localStorage.clear());
@@ -31,15 +31,6 @@ describe("a member who is not an admin", () => {
 describe("an admin", () => {
   it("keeps the button and the For whom field", async () => {
     const card = await open(managedNode({ meRole: "admin" }));
-    expect(card.button().exists()).toBe(true);
-    expect(card.root().find("#invite-for-input").exists()).toBe(true);
-    expect(card.root().find("#peers-invite-note").exists()).toBe(false);
-  });
-});
-
-describe("a Peer network", () => {
-  it("keeps the button and the For whom field", async () => {
-    const card = await open(peerNode());
     expect(card.button().exists()).toBe(true);
     expect(card.root().find("#invite-for-input").exists()).toBe(true);
     expect(card.root().find("#peers-invite-note").exists()).toBe(false);

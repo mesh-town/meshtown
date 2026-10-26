@@ -2,6 +2,7 @@
 
 use std::net::{Ipv6Addr, SocketAddr};
 
+use crate::members::network_key::{managed_key, managed_key_with_label};
 use crate::transport::net::endpoint_shim::from_endpoint_addr;
 use crate::transport::net::endpoint_shim::{EndpointAddr, RelayUrl};
 use crate::transport::net::{NodeSecret, PeerAddr, PeerId};
@@ -37,8 +38,24 @@ fn ipv6_pair(n: u8) -> PeerAddr {
     from_endpoint_addr(&EndpointAddr::new(id(n)).with_ip_addr(a).with_ip_addr(b))
 }
 
-fn key() -> NetworkKey {
+/// The creator of the test network.
+fn root() -> PeerId {
+    id(31)
+}
+
+/// The base of the test network key: what a redemption reply carries.
+fn base_key() -> NetworkKey {
     NetworkKey::from_bytes([9u8; 32])
+}
+
+/// The key of the test network: the base and its creator.
+fn key() -> NetworkKey {
+    managed_key(&base_key().to_bytes(), &root())
+}
+
+/// The text of the test network key in the form a person enters, with an optional label.
+fn key_text(label: Option<&str>) -> String {
+    managed_key_with_label(label, &base_key().to_bytes(), &root())
 }
 
 #[test]
@@ -83,14 +100,14 @@ fn me_first_and_at_most_five() {
     assert_eq!(ids, vec![id(1), id(2), id(3), id(4), id(5)]);
 }
 
-// The lengths come from a run: the previous 677/692/1122 plus 4 bytes of the network marker (key and secret are both
-// 32 bytes) make 684/698/1129 characters with the same number of members; if the format changes, the numbers change.
+// The lengths come from a run: the head carries the 32-byte creator id besides the network marker, which makes
+// 737/751/1181 characters with the same number of members; if the format changes, the numbers change.
 #[test]
 fn lengths_match_plan() {
     let me = with_relay(1);
     let others: Vec<PeerAddr> = (2..=5).map(with_relay).collect();
     let s = build_keyed(&head_made_at(NOW), &me, &others, &PrimaryIps::NONE).unwrap();
-    assert_eq!(s.chars().count(), 684, "{s}");
+    assert_eq!(s.chars().count(), 737, "{s}");
 
     let s = build_keyed(
         &head_with_label("our-game"),
@@ -99,7 +116,7 @@ fn lengths_match_plan() {
         &PrimaryIps::NONE,
     )
     .unwrap();
-    assert_eq!(s.chars().count(), 698, "{s}");
+    assert_eq!(s.chars().count(), 751, "{s}");
 
     let me6 = ipv6_pair(1);
     let others6: Vec<PeerAddr> = (2..=5).map(ipv6_pair).collect();
@@ -110,7 +127,7 @@ fn lengths_match_plan() {
         &PrimaryIps::NONE,
     )
     .unwrap();
-    assert_eq!(s.chars().count(), 1129, "{s}");
+    assert_eq!(s.chars().count(), 1181, "{s}");
 }
 
 /// A default route whose address is none of the test addresses: the cap of two addresses applies and the ranking
@@ -188,7 +205,7 @@ fn parse_rejects_garbage() {
     .unwrap();
     let body = &real[INVITE_PREFIX.len()..];
     let mut bytes = BASE32_NOPAD_NOCASE.decode(body.as_bytes()).unwrap();
-    // version 3 is now legal (a key invite); "foreign format" is 5
+    // version 4 is the current one; "foreign format" is 5
     bytes[0] = 5;
     let corrupted = format!(
         "{INVITE_PREFIX}{}",
@@ -283,7 +300,7 @@ fn head_made_at(made_unix: u64) -> InviteHead {
         network_id: key().subkeys().network_id,
         label: None,
         made_unix,
-        kind: NetKind::Peer,
+        root: root(),
     }
 }
 

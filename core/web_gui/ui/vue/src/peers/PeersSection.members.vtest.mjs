@@ -1,6 +1,6 @@
 /* The "Members" tab with the member list (written before the code: red until it exists): the whole page on a fake node.
  * Here: an older node without the list, the rows and their menus, nodes that are not in the list, a failing list request.
- * The other flows: `PeersSection.members-vote.vtest.mjs` (propose / confirm a ban), `…-block.vtest.mjs` (block, errors, the dialog),
+ * The other flows: `…-block.vtest.mjs` (block, errors, the dialog),
  * `…-leave.vtest.mjs` (leaving, the excluded screen).
  *
  * Contract of the page (see `testing/members-page.mjs` for the helpers):
@@ -13,8 +13,8 @@
 
 import { afterEach, describe, expect, it } from "vitest";
 import { PEER2_FULL, PEER_FULL, SELF_FULL } from "../testing/section.mjs";
-import { EXTRA_FULL, extraRow, foreignVote, membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
-import { ME, ONE, STRAY, TWO, openMembersPage, peerTwoNamed, stateWith } from "../testing/members-page.mjs";
+import { EXTRA_FULL, extraRow, membersReply, peerOneRow, selfRow } from "../testing/members-fixtures.mjs";
+import { ME, ONE, STRAY, TWO, openMembersPage, peerTwoNamed, stateWith, threeMembers } from "../testing/members-page.mjs";
 import { unmountPage } from "../testing/page.mjs";
 
 const NOT_RESPONDING = "is not responding";
@@ -29,7 +29,6 @@ describe("a node of an older version (no member list: GET /api/members answers 4
     expect(page.has("[data-exit-via]")).toBe(true);
     expect(page.has("[data-member-menu]")).toBe(false);
     expect(page.has(".peer-badge")).toBe(false);
-    expect(page.has("#vote-banner")).toBe(false);
     expect(page.has("#excluded-list")).toBe(false);
     expect(page.has("#unlisted-list")).toBe(false);
   });
@@ -63,10 +62,10 @@ describe("a node with the member list", () => {
     }
   });
 
-  it("the menu of another member: block on this computer, ban from the network", async () => {
-    const page = await openMembersPage();
+  it("the menu of another member for an admin: make admin, remove, block", async () => {
+    const page = await openMembersPage({ members: threeMembers({ me_admin: true }) });
     await page.openMenu(PEER_FULL);
-    expect(page.menuLabels()).toEqual(["Block on this computer…", "Ban from network…"]);
+    expect(page.menuLabels()).toEqual(["Make admin", "Remove from network…", "Block on this computer…"]);
   });
 
   it("the menu of your own row: rename, leave the network", async () => {
@@ -75,11 +74,10 @@ describe("a node with the member list", () => {
     expect(page.menuLabels()).toEqual(["Rename", "Leave network…"]);
   });
 
-  it("an ordinary row has no badge and no ban text", async () => {
+  it("an ordinary row has no badge and no removal text", async () => {
     const page = await openMembersPage();
     expect(page.badge(ONE.code)).toBeNull();
     expect(page.lines(ONE.code)).toEqual([]);
-    expect(page.has("#vote-banner")).toBe(false);
     expect(page.has("#excluded-list")).toBe(false);
   });
 
@@ -101,19 +99,10 @@ describe("the toggles survive polling", () => {
   });
 
   it("an open menu stays open after a poll", async () => {
-    const page = await openMembersPage();
+    const page = await openMembersPage({ members: threeMembers({ me_admin: true }) });
     await page.openMenu(PEER_FULL);
     await page.waitPolls(1);
-    expect(page.menuLabels()).toEqual(["Block on this computer…", "Ban from network…"]);
-  });
-
-  it("a vote that appears in a later reply of the list shows on the row, the toggle stays", async () => {
-    const page = await openMembersPage();
-    const toggle = page.wrapper.get('button[data-member-menu="' + PEER_FULL + '"]').element;
-    page.members(membersReply({ rows: [selfRow(), peerOneRow({ vote: foreignVote({ proposed_by: PEER2_FULL, voters: [PEER2_FULL] }) }), peerTwoNamed()] }));
-    await page.waitPolls(1);
-    expect(page.badge(ONE.code)).toBe("Ban proposed");
-    expect(page.wrapper.get('button[data-member-menu="' + PEER_FULL + '"]').element).toBe(toggle);
+    expect(page.menuLabels()).toEqual(["Make admin", "Remove from network…", "Block on this computer…"]);
   });
 });
 

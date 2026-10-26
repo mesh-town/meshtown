@@ -53,7 +53,7 @@ describe("the Home tab is not rebuilt by polling", () => {
 
 describe("the \"Three steps\" setup after creating a network", () => {
   const createRoute = (body, node) => {
-    node.state.network = { id_hex: "net-new", masked: "mesh1-••••", label: body.label };
+    node.state.network = { id_hex: "net-new", masked: "mesh2-••••", label: body.label };
     return { label: body.label };
   };
   const wizard = (wrapper) => wrapper.find('[aria-labelledby="home-wizard-title"]');

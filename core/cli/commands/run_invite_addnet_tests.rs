@@ -1,20 +1,26 @@
 use super::*;
 use crate::config::config_file::load_invited_peers;
 use crate::config::config_file::{CliOverrides, PathRule, SecretRead};
-use crate::members::network_key::NetworkKey;
+use crate::members::network_key::managed_key_with_label;
 use crate::members::sync::replica::file::Bak;
+use crate::transport::net::NodeSecret as CreatorSecret;
 use std::path::PathBuf;
 
+fn text_of(seed: u8) -> String {
+    let creator = CreatorSecret::from_bytes(&[1u8; 32]).peer_id();
+    managed_key_with_label(None, &[seed; 32], &creator)
+}
+
 fn key_a() -> String {
-    NetworkKey::from_bytes([9u8; 32]).encode()
+    text_of(9)
 }
 
 fn key_b() -> String {
-    NetworkKey::from_bytes([8u8; 32]).encode()
+    text_of(8)
 }
 
 fn key_c() -> String {
-    NetworkKey::from_bytes([7u8; 32]).encode()
+    text_of(7)
 }
 
 mod planning_a_key {

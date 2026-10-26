@@ -108,9 +108,9 @@ describe("joinNetwork", () => {
       assert.equal(w.form.status, JOIN_WAITING);
     });
 
-    it("response without waiting (mesh1- key) — the usual \"Done\" and the deadline", async () => {
+    it("response without waiting (mesh2- key) — the usual \"Done\" and the deadline", async () => {
       const w = setup({ reply: { label: "family", restart: true } });
-      w.form.inviteInput = "mesh1-abc";
+      w.form.inviteInput = "mesh2-abc";
       assert.equal(await joinNetwork(w.form, w.store, w.deps), "joined");
       assert.equal(w.timers.length, 1);
     });
@@ -205,12 +205,12 @@ describe("createNetwork", () => {
       assert.doesNotMatch(JSON.stringify(w.form), /SECRETKEY/);
     });
 
-    it("node reports the created network: no notice for \"Invite a member\" is put on Home, form.status is the short sentence", async () => {
+    it("node reports the created network: no notice for \"Invite a member\" is put on Home, form.status names the network and the admin role", async () => {
       const w = setup({ reply: { key: "k", label: "family" } });
       w.form.label = "family";
       await createNetwork(w.form, w.store, w.deps);
       assert.deepEqual(w.notices, [], "the invite card's status stays empty after creation");
-      assert.equal(w.form.status, "Network \"family\" created.");
+      assert.ok(w.form.status.startsWith("You created \"family\" and you're its admin."), w.form.status);
       assert.doesNotMatch(w.form.status, /SECRET|null|Click|Invite a member/);
     });
 
@@ -225,7 +225,7 @@ describe("createNetwork", () => {
       const w = setup({ reply: { key: "k", label: "family" }, noNotice: true });
       w.form.label = "family";
       await createNetwork(w.form, w.store, w.deps);
-      assert.equal(w.form.status, "Network \"family\" created.");
+      assert.ok(w.form.status.startsWith("You created \"family\" and you're its admin."), w.form.status);
     });
 
     it("storage unavailable — the network is created anyway, no exception", async () => {
