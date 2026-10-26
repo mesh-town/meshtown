@@ -9,6 +9,9 @@ use anyhow::{bail, Context, Result};
 pub const EXIT_ALPN: &[u8] = b"meshtown/exit/1";
 /// Version of the request and reply frame.
 pub const EXIT_PROTOCOL_VERSION: u8 = 1;
+/// Short reply: the exit has no free stream slot. Only the version byte is written and the stream is closed for
+/// writing; clients that don't know it see an unanswered request and go on to the next exit.
+pub const EXIT_BUSY_REPLY: [u8; 1] = [EXIT_PROTOCOL_VERSION];
 pub const EXIT_TCP_CONNECT_TIMEOUT: Duration = Duration::from_secs(8);
 
 /// The connection is open, bytes follow.

@@ -126,6 +126,8 @@ keys in the written file. The column "Read in the node" below is where the node 
 |---|---|---|---|
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
+| `exit.max_streams` | no flag | `0` (by machine memory: 20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise) | `process.exit_max_streams` (`core/config/config_file/process_settings.rs`); the ceiling on open exit streams for the whole process, 0…100000. Beyond it a new stream is refused as busy and clients try another exit. Takes effect at once; open streams are not cut |
+| `node.memory_warn_mib` | no flag | `400` (by machine memory: 24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise) | `process.node_memory_warn_mib`; memory guard summary threshold, MiB, `0` = off. The default `400` means "by machine memory", so an explicit 400 on a machine with ≤512 MiB also counts as automatic. On such machines the exit also refuses new streams near this value; above 512 MiB with the default 400 it refuses only by the stream limit |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
 | `proxy.net` | no flag | `main` | which network's exit the local proxy uses |
@@ -189,7 +191,7 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
     "version": 1,
     "node":      { "name": "finch-unwary" },
     "network":   { "key": "our-gaming-room--finch-unwary-k7m2q9x4rb8vhn3tzd6w5" },
-    "exit":      { "enabled": true },
+    "exit":      { "enabled": true, "max_streams": 0 },
     "socks":     { "enabled": true, "port": 1080 },
     "checks":    { "enabled": true, "interval_sec": 900,
                    "doh_server": "1.1.1.1:443", "provider_dns": null },
@@ -483,7 +485,7 @@ folder without `config.json`. The node reads `nets/` at startup, only when the m
 - **Only network settings.** `config` holds the network rows (network key, node name, transport, exit, routes,
   ports, checks, domains and the like) and nothing else. Every slot has its own identity secret and its own
   files beside it (peer cache, peer names, replica).
-- **Process keys are ignored.** `socks.*`, `proxy.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
+- **Process keys are ignored.** `exit.max_streams`, `socks.*`, `proxy.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
   `full_tunnel.*` always come from the main file. If such keys are found in a slot file (for example a copy of
   the main file) they are not an error: one log line names them, and they disappear on the next write.
 - **Command-line flags** that belong to a network (`--key`, `--exit` and the like) apply to the main network only;

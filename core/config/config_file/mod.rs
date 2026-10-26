@@ -51,7 +51,7 @@ pub use path::{
     PathEnv, PathRule,
 };
 pub use presence::has_field;
-pub use process_settings::ProcessSettings;
+pub use process_settings::{ProcessSettings, NODE_MEMORY_WARN_MIB_DEFAULT};
 pub use render::render_config_file;
 pub use report::{FieldError, FileReport, FileState};
 pub use retired::log_retired;

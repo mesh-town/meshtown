@@ -7,8 +7,13 @@ use std::path::{Path, PathBuf};
 use tokio::runtime::Handle;
 
 use crate::config::config_file::ProcessSettings;
+use crate::exit::{rss_ceiling_kib, ExitLimits};
 use crate::node::guard::{start_memory_guard, GuardHandle, MemoryLimitsKib};
 use crate::node::guard_sources::GuardSources;
+use crate::node::machine_memory::{
+    effective_warn_mib, for_ram, machine_ram_kib, memory_line, rss_guard_warn_mib, MemoryDefaults,
+};
+use crate::node::output::say;
 
 /// The process memory guard and its summary sources.
 pub struct ProcessServices {
@@ -21,8 +26,11 @@ impl ProcessServices {
     /// `dump_dir` is where heap profile dumps go.
     pub fn start(process: &ProcessSettings, dump_dir: PathBuf) -> ProcessServices {
         let sources = GuardSources::default();
-        let limits =
-            MemoryLimitsKib::from_mib(process.node_memory_warn_mib, process.node_memory_exit_mib);
+        let ram = machine_ram_kib();
+        let defaults = for_ram(ram);
+        let warn = effective_warn_mib(process.node_memory_warn_mib, defaults);
+        let limits = MemoryLimitsKib::from_mib(warn, process.node_memory_exit_mib);
+        configure_exit_limits(process, defaults, ram, warn);
         let guard = start_memory_guard(limits, sources.clone(), Handle::current(), dump_dir);
         ProcessServices { guard, sources }
     }
@@ -42,6 +50,23 @@ impl ProcessServices {
     pub(crate) fn guard_handle(&self) -> Option<GuardHandle> {
         self.guard.clone()
     }
+}
+
+/// Sets the process-wide exit stream limit and the RSS ceiling, and logs the memory defaults in force.
+fn configure_exit_limits(
+    process: &ProcessSettings,
+    defaults: MemoryDefaults,
+    ram: Option<u64>,
+    warn: u64,
+) {
+    let guard_warn = rss_guard_warn_mib(process.node_memory_warn_mib, defaults);
+    let limits = ExitLimits::process();
+    limits.configure(
+        process.exit_max_streams,
+        defaults.max_streams,
+        rss_ceiling_kib(guard_warn),
+    );
+    say("node", memory_line(ram, limits.max_streams(), warn));
 }
 
 /// The directory for heap profile dumps: next to the settings file, otherwise the current directory.

@@ -110,7 +110,8 @@ const BODY_TEXT: &str = r#"{
       "provider_dns": "[::1]:53"
     },
     "exit": {
-      "enabled": false
+      "enabled": false,
+      "max_streams": 0
     },
     "full_tunnel": {
       "available": false,

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::*;
+use crate::exit::test_support::Scripted;
 use crate::exit::{PeerConnPool, EXIT_CODE_OK, EXIT_PROTOCOL_VERSION};
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
@@ -58,6 +59,66 @@ mod skipping {
         let refused = res.err().expect("the exit is busy");
         assert_eq!(refused.outcome.route_label, "no route");
         assert_eq!(refused.outcome.result, BUSY_TEXT);
+    }
+}
+
+mod short_reply {
+    use super::*;
+
+    const SILENT_TEXT: &str = "refused: the selected exits did not answer";
+
+    /// given: the first exit answers with the version byte only, the second is alive; when `open_through_exits`,
+    /// then the route is the second exit.
+    #[tokio::test]
+    async fn through_exits_busy_reply_moves_to_next_exit() {
+        let busy: Arc<dyn ServiceHandler> = Arc::new(Scripted::new(&[EXIT_PROTOCOL_VERSION]));
+        let ok: Arc<dyn ServiceHandler> = Arc::new(AlwaysOk);
+        let queue = std::sync::Mutex::new(vec![ok, busy]);
+        let cfg = config_with(&[], || queue.lock().unwrap().pop().expect("two exits")).await;
+
+        let res = within(
+            "open_through_exits",
+            open_through_exits(&cfg, &[pid(2), pid(3)], "example.com", 443),
+        )
+        .await;
+
+        let opened = res.ok().expect("the second exit answers");
+        assert_eq!(
+            opened.route_label,
+            format!("exit {}", short_peer_id(&pid(3)))
+        );
+    }
+
+    /// given: the only exit answers with the version byte only; when `open_through_exits`, then a refusal "busy".
+    #[tokio::test]
+    async fn through_exits_only_busy_reply_is_refused_as_busy() {
+        let cfg = config_with(&[], || Arc::new(Scripted::new(&[EXIT_PROTOCOL_VERSION]))).await;
+
+        let res = within(
+            "open_through_exits",
+            open_through_exits(&cfg, &[pid(2)], "example.com", 443),
+        )
+        .await;
+
+        let refused = res.err().expect("the exit is busy");
+        assert_eq!(refused.outcome.route_label, "no route");
+        assert_eq!(refused.outcome.result, BUSY_TEXT);
+    }
+
+    /// given: the only exit closes the stream without a single byte; when `open_through_exits`, then the refusal
+    /// says the exit did not answer, not that it is busy.
+    #[tokio::test]
+    async fn through_exits_silent_close_is_not_busy() {
+        let cfg = config_with(&[], || Arc::new(Scripted::new(&[]))).await;
+
+        let res = within(
+            "open_through_exits",
+            open_through_exits(&cfg, &[pid(2)], "example.com", 443),
+        )
+        .await;
+
+        let refused = res.err().expect("the exit did not answer");
+        assert_eq!(refused.outcome.result, SILENT_TEXT);
     }
 }
 

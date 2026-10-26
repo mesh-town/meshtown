@@ -29,6 +29,10 @@ fn defaults_match_config_file_md() {
     assert!(s.process.web_enabled);
     assert_eq!(s.process.web_port, 7777);
     assert_eq!(s.process.log_ring_lines, 2000);
+    assert_eq!(
+        s.process.exit_max_streams, 0,
+        "exit.max_streams defaults to 0 (by machine memory)"
+    );
     assert!(!s.process.autostart_enabled);
     assert!(!s.process.full_tunnel_enabled);
 }

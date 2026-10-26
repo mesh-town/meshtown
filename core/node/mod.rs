@@ -26,6 +26,7 @@ pub(crate) mod fd_limit;
 pub mod host;
 #[cfg(any(test, all(target_arch = "arm", target_env = "musl")))]
 pub mod libm_shim;
+pub(crate) mod machine_memory;
 #[cfg(feature = "net-hyper")]
 pub mod node_ctl;
 #[cfg(feature = "net-hyper")]

@@ -40,6 +40,7 @@ pub(super) fn sample_settings() -> Settings {
         process: ProcessSettings {
             node_memory_warn_mib: 300,
             node_memory_exit_mib: 700,
+            exit_max_streams: 40,
             socks_enabled: false,
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,
@@ -108,6 +109,7 @@ pub(crate) fn all_changed() -> Settings {
         process: ProcessSettings {
             node_memory_warn_mib: 500,
             node_memory_exit_mib: 800,
+            exit_max_streams: 40,
             socks_enabled: false,
             socks_port: 1090,
             socks_access: super::ListenAccess::Localnet,

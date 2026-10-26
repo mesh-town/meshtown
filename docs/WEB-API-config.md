@@ -8,7 +8,7 @@ Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6�
 
 ### 1.6 `GET /api/config` — config
 
-For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`socks.*`,
+For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`exit.max_streams`, `socks.*`,
 `web.*`, `log.*`, `node.memory_*`, `autostart.*`, `full_tunnel.*`) show the primary network's values and are
 listed in `read_only`; `cli_overrides` lists the
 network fields set by launch flags (every flag except `--key` applies to added networks too). A `PUT` leaves them as they are without an error, writes only
@@ -267,7 +267,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
   "node":      { "name": "finch-unwary" },
   "network":   { "label": "our-gaming-room",
                  "masked": "our-gaming-room--••••••••••••••••••••••••••••••••••" },
-  "exit":      { "enabled": true },
+  "exit":      { "enabled": true, "max_streams": 0 },
   "socks":     { "enabled": true, "port": 1080 },
   "checks":    { "enabled": true, "interval_sec": 900,
                  "doh_server": "1.1.1.1:443", "provider_dns": null },
@@ -290,6 +290,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `network.label` | string | — | read-only | — | — | "Diagnostics" → "Mesh Town network key"; "Home" → the "Network" card |
 | `network.masked` | string | — | read-only; the label, `--` and one `•` per character of the tail (34 for the `finch-unwary` example) | — | — (the key is not shown) | "Diagnostics" → "Mesh Town network key" |
 | `exit.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` | "Home" → "This computer" → "Allow other members to open sites through this computer"; "Members" → a switch on the own row; "Home" → the "Exit via…" card |
+| `exit.max_streams` | integer | 0 | 0…100000; `0` = by machine memory (20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise); process-wide, shared by all networks | no (on the fly; open streams are not cut) | `core/exit/limits/`, `core/node/node_ctl/live_paths.rs` | no input field |
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
 | `socks.port` | integer | 1080 | 1024…65535; a busy port — 422 | **yes** | `core/node/config.rs`, `core/cli/commands.rs` | "Settings" → "Proxy port (SOCKS5 and HTTP)"; the port belongs to the process (one proxy listener for all networks), not to a slot |
 | `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config an id of a network that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
@@ -305,6 +306,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `web.access` | string `"localhost"` or `"localnet"` | `"localnet"` | an unknown value — 422 `invalid`; **not** in `restart_fields`: narrowing (`localnet` → `localhost`) takes effect at once (the node stops admitting peers from the network), widening with a socket on `127.0.0.1` takes effect after the process restarts, and the divergence is visible in `GET /api/auth/status` (`access` ≠ `listening`, `WEB-API.md` 1.10). The "Restart" button (a network restart) does not reopen the page listener | — | `core/web_gui/auth/access.rs` | "Settings" → "Who can access the settings page" (explanation: this is only about access to the node settings, not to the network or traffic) |
 | `web.port` | integer | 7777 | 1024…65535; read-only (in `read_only`, which is why it is not in `restart_fields`) | — | — | page header, no input field |
 | `log.ring_lines` | integer | 2000 | 200…20000 | no | — (2,000 lines) | caption under the log window, no input field |
+| `node.memory_warn_mib` | integer | 400 | 0…1048576, MiB; `0` = off; `400` means "by machine memory" (24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise), so an explicit 400 on a machine with ≤512 MiB also counts as automatic; on such machines the exit also refuses new streams near this value, above 512 MiB with the default 400 it refuses only by the stream limit | file only | `core/node/host/process.rs` | not shown |
 | `autostart.enabled` | boolean | `false` | `true` with `available: false` → 422 `not_available` | — (cannot be enabled) | — | "Settings", the switch is gray |
 | `autostart.available` | boolean | `false` | read-only | — | — | controls the gray look of the switch |
 | `autostart.reason` | string | "will appear together with the service" | read-only | — | — | caption under the switch |

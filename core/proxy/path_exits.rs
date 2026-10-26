@@ -12,7 +12,7 @@ use super::{exit_refusal, ExitLink, OpenRefused};
 /// What the candidates that did not open a stream left behind.
 #[derive(Default)]
 struct Misses {
-    /// At least one `open_bi` timed out (the exit is online but its streams are busy).
+    /// At least one `open_bi` timed out or an exit answered that it has no free slot (the exit is online but busy).
     busy: bool,
     /// At least one candidate did not answer at all.
     unanswered: bool,
@@ -82,7 +82,7 @@ async fn try_exit(
         match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
             Ok(answer) => answer,
             Err(e) => {
-                misses.busy |= e.downcast_ref::<exit::StreamBusy>().is_some();
+                misses.busy |= is_busy(&e);
                 misses.unanswered = true;
                 say(
                     "route",
@@ -120,6 +120,11 @@ fn remembered_gateway_refusal(peer: PeerId, route_label: String) -> OpenRefused 
     );
     let reason = format!("code {code} — {}", exit::exit_code_text(code));
     OpenRefused::no_gateway(ProxyOutcome::refused(route_label, reason))
+}
+
+/// The error says the exit is online but has no stream for us: the `open_bi` deadline or the exit's short reply.
+fn is_busy(e: &anyhow::Error) -> bool {
+    e.downcast_ref::<exit::StreamBusy>().is_some() || e.downcast_ref::<exit::ExitBusy>().is_some()
 }
 
 /// The refusal reason when no exit answered: `any_exit_stream_busy` — at least one `open_bi` timed out

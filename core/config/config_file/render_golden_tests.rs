@@ -46,7 +46,8 @@ const DEFAULTS_TEXT: &str = r#"{
     },
     "network": {},
     "exit": {
-      "enabled": true
+      "enabled": true,
+      "max_streams": 0
     },
     "socks": {
       "enabled": true,
@@ -115,7 +116,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
       "sync": "mem"
     },
     "exit": {
-      "enabled": false
+      "enabled": false,
+      "max_streams": 40
     },
     "socks": {
       "enabled": false,

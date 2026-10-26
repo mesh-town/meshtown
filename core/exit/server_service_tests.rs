@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tokio::sync::Semaphore;
 
+#[allow(dead_code, clippy::duplicate_mod)]
 #[path = "server_service_fixture.rs"]
 mod fixture;
 use fixture::*;
