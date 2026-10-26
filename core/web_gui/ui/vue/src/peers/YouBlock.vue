@@ -77,8 +77,8 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <h2 id="you-title">{{ youTitle(net) }}</h2>
     <label class="field-label" for="you-name">{{ youNameLabel(net) }}</label>
     <input id="you-name" ref="input" v-model="draft" type="text" class="input" :placeholder="YOU_NAME_PLACEHOLDER" :disabled="nameAccess.readOnly" @focus="focused = true" @input="nameStatus = NO_STATUS" @blur="onBlur" @keydown.enter.prevent="onEnter">
-    <p class="hint">{{ youNameHint(net) }}</p>
     <p v-if="sameFrom" class="hint"><a href="#" id="you-same-name" @click.prevent="useSame">{{ youSameName(netName(store.nets, first)) }}</a></p>
+    <p class="hint">{{ youNameHint(net) }}</p>
     <p class="setting-desc cli-note" id="you-name-cli-note" :hidden="!nameAccess.cliNote">{{ nameAccess.cliNote }}</p>
     <p class="field-status" :class="nameStatus.cls" id="you-name-status" role="status" :hidden="!nameStatus.text">{{ nameStatus.text }}</p>
     <label class="toggle-inline home-exit-toggle">
