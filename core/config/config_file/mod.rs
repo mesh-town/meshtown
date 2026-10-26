@@ -39,6 +39,7 @@ mod time;
 #[cfg(test)]
 pub(crate) mod test_support;
 
+pub use crate::node::machine_memory::NODE_MEMORY_WARN_MIB_DEFAULT;
 pub use iface_filter::IfaceFilter;
 pub use net_file::{
     load_net_file, parse_net_text, render_net_file, save_net_file, LoadedNetFile, ParsedNetFile,

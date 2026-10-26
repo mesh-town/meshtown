@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::limits::LineRate;
 use crate::transport::net::{BoxRecv, BoxSend, NetStack, PeerConn, PeerId, ServiceId, StreamPair};
 use anyhow::{anyhow, bail, Result};
 use tokio::sync::{Mutex as AsyncMutex, OnceCell};
@@ -13,7 +14,8 @@ use tokio::time::timeout;
 
 use crate::node::output::short_peer_id;
 
-use super::frame::{encode_exit_request, EXIT_PROTOCOL_VERSION};
+use super::ask_reply::read_exit_reply;
+use super::frame::encode_exit_request;
 use super::gateway_memo::GatewayMemo;
 use super::traffic::{Direction, ExitTraffic};
 
@@ -30,7 +32,7 @@ pub const CONNECT_WAIT: Duration = Duration::from_secs(20);
 
 /// The `open_bi` deadline passed: the connection is alive, but all exit streams are busy. It is carried inside
 /// `anyhow::Error`; the caller finds it via `downcast_ref` and tells "exit overloaded"
-/// from "exit is not responding".
+/// from "exit is not responding". The exit's own short reply (`ExitBusy`) is the second such sign.
 #[derive(Debug)]
 pub struct StreamBusy {
     /// Short exit id.
@@ -69,6 +71,8 @@ pub struct PeerConnPool {
     traffic: Option<ExitTraffic>,
     /// Exits that refused the UDP gateway target.
     gateway: GatewayMemo,
+    /// Paces the client's "exit is busy" log lines.
+    busy_lines: Arc<LineRate>,
 }
 
 /// Guard of the waiting counter: +1 on creation, −1 on `Drop` (success, error, deadline, dropped future).
@@ -105,7 +109,13 @@ impl PeerConnPool {
             connect_wait: CONNECT_WAIT,
             traffic: None,
             gateway: GatewayMemo::default(),
+            busy_lines: Arc::default(),
         }
+    }
+
+    /// `Some(busy replies held back since the last line)` when a "busy" log line is due, else `None`.
+    pub(crate) fn busy_line_due(&self, now: std::time::Instant) -> Option<u64> {
+        self.busy_lines.due(now)
     }
 
     /// Whether `peer` refused the UDP gateway target recently (then it is not asked again for a while).
@@ -257,26 +267,23 @@ pub async fn ask_exit_to_connect(
     target_host: &str,
     port: u16,
 ) -> Result<(BoxSend, BoxRecv, u8)> {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::io::AsyncWriteExt;
     let (id, StreamPair { mut send, mut recv }) = pool.open_stream(stack, peer).await?;
     let frame = encode_exit_request(target_host, port)?;
     if let Err(e) = send.write_all(&frame).await {
         pool.forget(peer, id).await;
         bail!("request not sent: {e}");
     }
-    let mut answer = [0u8; 2];
-    recv.read_exact(&mut answer)
-        .await
-        .map_err(|e| anyhow!("reply not received: {e}"))?;
-    if answer[0] != EXIT_PROTOCOL_VERSION {
-        bail!("unsupported exit reply version: {}", answer[0]);
-    }
-    Ok((send, recv, answer[1]))
+    let code = read_exit_reply(&mut recv, &peer).await?;
+    Ok((send, recv, code))
 }
 
 #[cfg(test)]
 #[path = "pool_ask_tests.rs"]
 mod ask_tests;
+#[cfg(test)]
+#[path = "pool_reply_tests.rs"]
+mod reply_tests;
 #[cfg(test)]
 #[path = "pool_tests.rs"]
 mod tests;

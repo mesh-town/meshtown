@@ -25,6 +25,7 @@ fn cfg(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
         host_overrides: Arc::new(overrides),
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
+        limits: crate::exit::ExitLimits::unlimited(),
     };
     cfg.members.add_verified_conn(pid(1));
     cfg

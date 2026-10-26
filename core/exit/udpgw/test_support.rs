@@ -36,6 +36,7 @@ pub(super) fn cfg_with(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
         host_overrides: Arc::new(overrides),
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
+        limits: crate::exit::ExitLimits::unlimited(),
     }
 }
 
