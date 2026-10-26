@@ -44,14 +44,15 @@ impl Poller {
     /// A view change: if the new one differs from the last, it goes to the tray and into the log. A grey view means the node is not
     /// running: the exits submenu is turned off in the same step, so there is no need to call `show_exits` separately on
     /// every grey view — all `View`s assembled by hand in the module are always grey, and
-    /// green/red come only from `views_from_state_json`.
+    /// green/red come only from `views_from_state_json`. A grey view of a ready page comes from a node reply
+    /// too (every network is offline): its menu was sent just before and stays.
     pub(super) fn show(&mut self, view: View) {
         self.forget_start_note(view.node);
         if self.last_view != Some(view) {
             let previous = self.last_view.replace(view);
             self.apply_view(view, previous);
         }
-        if view.color == TrayColor::Grey {
+        if view.color == TrayColor::Grey && view.page != PageState::Ready {
             self.show_exits(disabled_exit_menu(self.proxy.clone()));
         }
     }
