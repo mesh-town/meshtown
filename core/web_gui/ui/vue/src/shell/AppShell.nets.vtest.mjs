@@ -1,4 +1,4 @@
-/* The requests-to-confirm counter of the shell with several networks: the "Members" tab chip and the header link `#strip-vote`
+/* The requests-to-confirm counter of the shell with several networks: the "Networks" tab chip and the header link `#strip-vote`
  * count the requests of every network together. Each join request counts as one, for an admin only;
  * a network the computer was excluded from adds nothing. The link goes to the one network that has requests, otherwise to `#peers`.
  * With a single network the counter is the one the page always had. */

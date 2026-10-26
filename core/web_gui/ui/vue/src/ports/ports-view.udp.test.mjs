@@ -1,4 +1,4 @@
-/* Pure logic of the "Ports" section for the two protocols (`ports-view.ts`): TCP and UDP ports with the same number are
+/* Pure logic of Shared services for the two protocols (`ports-view.ts`): TCP and UDP ports with the same number are
  * different entries, a missing protocol reads as TCP, a TCP entry carries no `proto` field and a UDP one carries "udp". */
 
 import { describe, it } from "vitest";

@@ -88,6 +88,44 @@ describe("several networks", () => {
   });
 });
 
+describe("the \"+\" tab has no sub-tabs", () => {
+  it("add — no subtabs, with one network", async () => {
+    const page = await openOne("peers/add");
+    expect(page.card().exists()).toBe(true);
+    expect(page.wrapper.find("#net-subtabs").exists(), "sub-tab row").toBe(false);
+    expect(page.wrapper.find("#net-subpanel").exists(), "sub-tab panel").toBe(false);
+  });
+
+  it("add — no subtabs, with two networks", async () => {
+    const page = await openTwo("peers/add");
+    expect(page.wrapper.find("#net-subtabs").exists(), "sub-tab row").toBe(false);
+    expect(page.wrapper.find("#net-subpanel").exists(), "sub-tab panel").toBe(false);
+  });
+
+  it("\"+\" opened from Shared services leaves the sub-tabs behind", async () => {
+    const page = await openTwo("peers/main/services");
+    expect(page.wrapper.find("#net-subtabs").exists(), "precondition: sub-tabs on a network tab").toBe(true);
+    await page.whenPlusClicked();
+    expect(location.hash).toBe("#peers/add");
+    expect(page.card().exists()).toBe(true);
+    expect(page.wrapper.find("#net-subtabs").exists()).toBe(false);
+  });
+
+  it("\"Cancel\" goes back to a network tab with its sub-tabs", async () => {
+    const page = await openTwo("peers/add");
+    await page.whenClicked("Cancel");
+    await page.hashChanged();
+    expect(page.wrapper.find("#net-subtabs").exists()).toBe(true);
+  });
+
+  it("a joined network opens on Members, not on a section left from before", async () => {
+    const page = await openTwo("peers/add");
+    await page.whenJoined();
+    expect(location.hash).toBe("#peers/" + FRESH);
+    expect(page.wrapper.get("#net-sub-members").attributes("aria-selected")).toBe("true");
+  });
+});
+
 describe("joining by invite", () => {
   describe("success", () => {
     it("from one network: the new tab opens with the banner", async () => {

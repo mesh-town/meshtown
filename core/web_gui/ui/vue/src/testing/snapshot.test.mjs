@@ -33,6 +33,7 @@ describe("applySnapshot", () => {
         notices: [],
         lead: "main",
         peersTab: null,
+        netSub: "members",
         source: null,
       });
     });

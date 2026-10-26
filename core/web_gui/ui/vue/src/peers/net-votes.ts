@@ -13,7 +13,7 @@ export function slotVotes(store: Store, slot: string): number {
   return admittable(members, meId(state)).length;
 }
 
-// The sum over the visible networks (the badge of the Members tab and of the top bar).
+// The sum over the visible networks (the badge of the Networks tab and of the top bar).
 export function totalVotes(store: Store): number {
   return visibleSlots(store.nets, store.slots).reduce((sum, slot) => sum + slotVotes(store, slot), 0);
 }

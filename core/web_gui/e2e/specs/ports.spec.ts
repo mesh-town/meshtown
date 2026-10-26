@@ -1,4 +1,5 @@
 import { test, expect } from '../fixtures/index';
+import { NetSubTabs } from '../pages/net-subtabs';
 import { PortsSection } from '../pages/ports-section';
 
 interface PortsCfg {
@@ -13,7 +14,7 @@ interface UdpCfg {
   config?: { ports?: { published?: UdpEntry[]; opened?: UdpEntry[] } };
 }
 
-test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', async ({
+test('48-ports-tab: "Networks" → "Shared services (ports)": "Open" and "Close" a port of another member', async ({
   app,
   api,
   page,
@@ -22,7 +23,8 @@ test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', a
   test.skip(targetKind === 'node', 'the "Ports shared with you" row is a web_demo stub fixture; a real node has none');
   const ports = new PortsSection(page);
   const cfg = async () => (await api.getJson<PortsCfg>('/api/config')).body?.config?.ports;
-  await app.tabs.open('ports');
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
   const row = ports.netRows.first();
 
   await test.step('"Ports shared with you" has a stub row', async () => {
@@ -55,14 +57,15 @@ test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', a
   });
 });
 
-test('ports-web-address: tab "Ports": a member\'s port has a link in the browser column and a "Copy" button (demo)', async ({
+test('ports-web-address: "Networks" → "Shared services (ports)": a member\'s port has a link in the browser column and a "Copy" button (demo)', async ({
   app,
   page,
   targetKind,
 }) => {
   test.skip(targetKind === 'node', 'the shared port row is a web_demo stub fixture; a real node has none');
   const ports = new PortsSection(page);
-  await app.tabs.open('ports');
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
   await page.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => undefined }, configurable: true });
   });
@@ -90,16 +93,17 @@ test('ports-web-address: tab "Ports": a member\'s port has a link in the browser
   });
 });
 
-test('57-ports-publish-unpublish: tab "Ports": publishing 8080 via the form, a row in "My published ports" and "Unpublish" (demo and real node)', async ({
+test('57-ports-publish-unpublish: "Networks" → "Shared services (ports)": publishing 8080 via the form, a row in "My published ports" and "Unpublish" (demo and real node)', async ({
   app,
   api,
   page,
 }) => {
   const ports = new PortsSection(page);
   const cfg = async () => (await api.getJson<PortsCfg>('/api/config')).body?.config?.ports;
-  await app.tabs.open('ports');
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
 
-  await test.step('"Publish" 8080: a row in "My published ports" and an entry in ports.published', async () => {
+  await test.step('"Publish port" 8080: a row in "My published ports" and an entry in ports.published', async () => {
     await ports.publish('8080', 'webcheck-web');
     await expect.soft(ports.ownBody, 'a row in "My published ports"').toContainText('8080', { timeout: 6000 });
     await expect
@@ -116,14 +120,15 @@ test('57-ports-publish-unpublish: tab "Ports": publishing 8080 via the form, a r
   });
 });
 
-test('74-ports-publish-nodes: tab "Ports": publishing 8081 only to the selected node peer-one, "Shared with" in the table and "Unpublish" (demo)', async ({
+test('74-ports-publish-nodes: "Networks" → "Shared services (ports)": publishing 8081 only to the selected node peer-one, "Shared with" in the table and "Unpublish" (demo)', async ({
   app,
   page,
   targetKind,
 }) => {
   test.skip(targetKind === 'node', 'nodes peer-one and peer-two are a web_demo stub fixture; a real node has other members');
   const ports = new PortsSection(page);
-  await app.tabs.open('ports');
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
 
   await test.step('"Selected members", tick peer-one, "Publish" 8081: PUT /api/config has an entry with its full id', async () => {
     await ports.audienceNodes.check();
@@ -148,7 +153,7 @@ test('74-ports-publish-nodes: tab "Ports": publishing 8081 only to the selected 
   });
 });
 
-test('123-ports-udp: tab "Ports": publishing UDP 8080 next to TCP 8080, the UDP badge, "Open" and "Close" of the shared UDP row, "Unpublish" (demo)', async ({
+test('123-ports-udp: "Networks" → "Shared services (ports)": publishing UDP 8080 next to TCP 8080, the UDP badge, "Open" and "Close" of the shared UDP row, "Unpublish" (demo)', async ({
   app,
   api,
   page,
@@ -157,7 +162,8 @@ test('123-ports-udp: tab "Ports": publishing UDP 8080 next to TCP 8080, the UDP 
   test.skip(targetKind === 'node', 'the shared UDP row is a web_demo stub fixture; a real node has none');
   const ports = new PortsSection(page);
   const cfg = async () => (await api.getJson<UdpCfg>('/api/config')).body?.config?.ports;
-  await app.tabs.open('ports');
+  await app.tabs.open('peers');
+  await new NetSubTabs(page).open('services');
 
   await test.step('"Publish" TCP 8080 and UDP 8080: two rows, the badge only on the UDP one, PUT has proto "udp"', async () => {
     await ports.publish('8080', 'udp-web');

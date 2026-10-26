@@ -123,7 +123,7 @@ test('17-peer-exit: nodes of other members have exit — a text and a button in 
   });
 });
 
-test('44-peer-code-matches-route-state: .peer-code of a member in the "Members" list = the code of the same member in #route-state when it is chosen as the exit', async ({
+test('44-peer-code-matches-route-state: .peer-code of a member in the Members list = the code of the same member in #route-state when it is chosen as the exit', async ({
   app,
   api,
   page,

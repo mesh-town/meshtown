@@ -3,7 +3,7 @@ import { GLOSSARY } from '../pages/glossary';
 import { SECTIONS } from '../pages/tabs-bar';
 
 const VIEWPORT = { width: 1280, height: 800 };
-const TAB_LABELS = ['Home', /^Members\d*$/, 'Site checks', 'Ports', 'Diagnostics', 'Log', 'Settings'];
+const TAB_LABELS = ['Home', /^Networks\d*$/, 'Site checks', 'Diagnostics', 'Log', 'Settings'];
 
 test('19-home-first-screen: a newcomer\'s first screen fits in 800px without "Advanced" and without #nav', async ({
   app,
@@ -33,7 +33,7 @@ test('19-home-first-screen: a newcomer\'s first screen fits in 800px without "Ad
     await expect(app.exitCard.card.getByText(GLOSSARY.exitExplain)).toBeVisible();
   });
 
-  await test.step('"Home" is active by default: #sec-home is visible, six panels are hidden', async () => {
+  await test.step('"Home" is active by default: #sec-home is visible, five panels are hidden', async () => {
     await expect.soft(app.tabs.panel('home')).toBeVisible();
     for (const section of SECTIONS.filter((s) => s !== 'home')) {
       // A panel must be in the DOM (hidden): a missing one does not count as "hidden".
@@ -42,7 +42,7 @@ test('19-home-first-screen: a newcomer\'s first screen fits in 800px without "Ad
     }
   });
 
-  await test.step('#tabs: seven tabs, labels verbatim in order', async () => {
+  await test.step('#tabs: six tabs, labels verbatim in order', async () => {
     await expect.soft(app.homePanel.tabList).toHaveCount(1);
     await expect.soft(app.homePanel.tabItems).toHaveText(TAB_LABELS);
   });

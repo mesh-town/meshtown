@@ -9,7 +9,7 @@ import AppShell from "./AppShell.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
-const NAMES = ["Home", "Members", "Site checks", "Ports", "Diagnostics", "Log", "Settings"];
+const NAMES = ["Home", "Networks", "Site checks", "Diagnostics", "Log", "Settings"];
 let mounted;
 
 beforeEach(() => {
@@ -27,11 +27,11 @@ afterEach(() => {
 
 describe("AppShell", () => {
   describe("tabs and panels", () => {
-    it("seven role=tab tabs and seven tabpanels named after the tabs", async () => {
+    it("six role=tab tabs and six tabpanels named after the tabs, the second is Networks", async () => {
       const { wrapper } = await mountShell();
       expect(wrapper.findAll("#tabs [role=tab]").map((t) => t.text())).toEqual(NAMES);
       const panels = wrapper.findAll("[role=tabpanel][id^=sec-]");
-      expect(panels).toHaveLength(7);
+      expect(panels).toHaveLength(6);
       const labelled = panels.map((p) => wrapper.get("#" + p.attributes("aria-labelledby")).text());
       expect(labelled).toEqual(NAMES);
     });
@@ -47,10 +47,19 @@ describe("AppShell", () => {
     });
 
     it("the starting section — from the address hash", async () => {
+      location.hash = "#network";
+      const { wrapper, store } = await mountShell();
+      expect(store.activeSection).toBe("network");
+      expect(wrapper.get("#sec-network").attributes("hidden")).toBeUndefined();
+    });
+
+    it("the old #ports hash opens the Networks panel, there is no ports panel", async () => {
       location.hash = "#ports";
       const { wrapper, store } = await mountShell();
-      expect(store.activeSection).toBe("ports");
-      expect(wrapper.get("#sec-ports").attributes("hidden")).toBeUndefined();
+      expect(store.activeSection).toBe("peers");
+      expect(wrapper.get("#sec-peers").attributes("hidden")).toBeUndefined();
+      expect(wrapper.find("#sec-ports").exists()).toBe(false);
+      expect(wrapper.find("#tab-ports").exists()).toBe(false);
     });
 
     it("\"Settings\" starts with a hint about \"after restart\" fields", async () => {

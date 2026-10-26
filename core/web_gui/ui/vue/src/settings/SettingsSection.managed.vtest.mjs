@@ -1,6 +1,6 @@
 /* The "Leave network" row of Settings with a Managed network. A single network of an admin gets a red
  * "Delete network for everyone…" next to the leave button; with two or more networks the row is replaced by a pointer text
- * `To leave or delete a network, open Members → its tab.`; a plain member gets no delete button. After the
+ * `To leave or delete a network, open Networks → its tab → Device settings.`; a plain member gets no delete button. After the
  * deletion the admin sees `You deleted "<net>". All members have left it.` with OK. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";

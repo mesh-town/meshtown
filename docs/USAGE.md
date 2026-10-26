@@ -295,12 +295,13 @@ A member can publish a port of a program that runs on this computer and listens 
 server, a file share. All members of the network, or only the members you select, see the port and can open it. It is
 not shown to anyone else and does not open for them.
 
-Everything is on the "Ports" tab of the node page, in two cards. In "My published ports" you enter a port (1 to
+Everything is in the "Shared services (ports)" section of a network's tab on the "Networks" page, in two cards, and
+concerns that network only. In "My published ports" you enter a port (1 to
 65535), an optional name (up to 64 characters) and "Shared with": "All members" or "Selected members", then press
-"Publish". Each row shows a status: "responding", "not responding" (nothing listens on the port) or "not checked yet".
+"Publish port". Each row shows a status: "responding", "not responding" (nothing listens on the port) or "not checked yet".
 "Edit" changes the name and the audience, "Unpublish" removes the publication.
 
-"Ports shared with you" lists the ports other members published to you. Click an address to open it in a browser set up
+"Ports shared with you" lists the ports other members of this network published to you. Click an address to open it in a browser set up
 to use Mesh Town; type addresses with `http://`. For other programs press "Open on this computer": the node starts a
 TCP listener on `127.0.0.1:<number>`, by default the member's port plus 2000 (80 becomes 2080); you can type another
 number. "Close" stops the listener. If the number is busy, the row says to choose another number. Browsers refuse some
@@ -331,9 +332,16 @@ On the other member, `dig @127.0.0.1 -p 2053 example.com` then goes through the 
 ## Node page
 
 The node page has a "Home" tab with the essentials for a simple setup (state, joining a network, exit choice, proxy
-hint, node name, permission to be an exit for other members) and six more tabs: "Members", "Site checks", "Ports",
+hint, node name, permission to be an exit for other members) and five more tabs: "Networks", "Site checks",
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
-the tabs become a horizontal strip. The "Ports" tab is described in [Published ports](#published-ports).
+the tabs become a horizontal strip.
+
+The "Networks" tab has one tab per network and "+" to add a network. Inside a network's tab there are three sections:
+"Members" (the member list, invitations and requests), "Shared services (ports)" (publishing and opening ports, see
+[Published ports](#published-ports)) and "Device settings" (your name in this network, offering an exit to its members,
+leaving or deleting the network). The address is `#peers/<network>/<section>` (`members`, `services`, `device`; without
+the last part, Members opens); the old `#ports` address opens Shared services of the main network. In the mobile app only
+"Members" and "Device settings" are shown.
 
 The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
 which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo

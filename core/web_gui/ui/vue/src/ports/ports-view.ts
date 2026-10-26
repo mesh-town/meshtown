@@ -1,15 +1,14 @@
-/* Pure logic of the "Ports" section (`ports-view.ts`): the lists `ports.published` and `ports.opened`,
+/* Pure logic of the "Shared services (ports)" section (`ports-view.ts`): the lists `ports.published` and `ports.opened`,
  * the row status text, the key of the "Network ports" row. */
 
 import type { NetPort, OwnPort, PeerInfo, PortProto } from "../core/api-types.ts";
-import { isMulti, netConfig, netName, slotState, visibleSlots } from "../core/slots.ts";
-import { targetSlots } from "../core/save-config.ts";
+import { netConfig, stateOf, visibleSlots } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import type { ConfigDocument, OpenedPortConfig, PublishedPortConfig } from "../core/api-types.ts";
 import {
   PORTS_ADD_ERROR_NO_NODES, PORTS_ADD_ERROR_RANGE, PORTS_AUDIENCE_ALL, PORTS_AUDIENCE_NOBODY, PORTS_EMPTY_NET, PORTS_EMPTY_OWN,
   PORTS_OFFLINE, PORTS_ONLINE, PORTS_STATUS_OK, PORTS_STATUS_REFUSED, PORTS_STATUS_UNKNOWN, portsAlreadyPublishedText,
-  PORTS_STATUS_UDP, portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText, PORTS_NET_ALL, PORTS_NET_SEPARATOR, portsLocalUsedText, portsNetPeerText,
+  PORTS_STATUS_UDP, portsBindFailedText, portsNodeLabelText, portsNotPublishedText, portsOpenErrorText, portsLocalOwnerText, portsLocalUsedText,
 } from "./ports-texts.ts";
 import { portKey, protoOf } from "./ports-proto.ts";
 export { lastErrorText, portKey, protoOf } from "./ports-proto.ts";
@@ -192,58 +191,19 @@ export function sameNameNodes(rows: Pick<NetPort, "node" | "node_name">[]): Set<
   return new Set(same.flatMap((nodes) => Array.from(nodes)));
 }
 
-// ---- Several networks ----
+// ---- Per network ----
 
-interface SlotShare { slot: string; label: string; audience: "all" | string[] }
-/** One published port over all networks: where it is shared and with whom. */
-export interface MergedOwn { port: number; proto: PortProto; name: string; local: OwnPort["local"]; shared: SlotShare[] }
 interface PortRef { slot: string; node: string; port: number; proto?: PortProto }
-export interface NetPortItem { slot: string; net: string | null; row: NetPort }
-export interface NetGroup { slot: string; label: string; candidates: AudienceCandidate[] }
-/** One network's choice in the form: "All members" or the checked members; nothing checked — not published there. */
-export interface NetSelection { all: boolean; ids: string[] }
-export type NetAudiences = Record<string, "all" | string[] | null>;
+export interface NetPortItem { slot: string; row: NetPort }
 
-function slotStateOf(store: Store, slot: string) {
-  return slotState(store, slot) ?? (slot === store.lead ? store.state : null);
+/** The ports this device publishes in one network, as the node reports them. */
+export function ownRows(store: Store, slot: string): OwnPort[] {
+  return stateOf(store, slot)?.ports?.published ?? [];
 }
 
-function slotPeers(store: Store, slot: string): PeerInfo[] {
-  return slotStateOf(store, slot)?.peers ?? [];
-}
-
-// Rows by port number over the networks that hold a key, the main network first; the name is the first network's.
-export function mergeOwn(store: Store): MergedOwn[] {
-  const merged = new Map<string, MergedOwn>();
-  for (const slot of targetSlots(store)) {
-    const rows = slotStateOf(store, slot)?.ports?.published ?? [];
-    for (const e of configPorts(netConfig(store, slot), "published")) {
-      const proto = protoOf(e);
-      const key = portKey(proto, e.port);
-      const row = rows.find((r) => r.port === e.port && protoOf(r) === proto);
-      const m = merged.get(key) ?? { port: e.port, proto, name: e.name ?? row?.name ?? "", local: row?.local ?? "unknown", shared: [] };
-      m.shared.push({ slot, label: netName(store.nets, slot), audience: e.for ?? "all" });
-      merged.set(key, m);
-    }
-  }
-  return Array.from(merged.values());
-}
-
-// "friends: all · my devices: alice, bob"
-export function mergedAudienceText(store: Store, m: MergedOwn): string {
-  const who = (s: SlotShare) => (s.audience === "all" ? PORTS_NET_ALL : audienceText({ for: s.audience }, slotPeers(store, s.slot)));
-  return m.shared.map((s) => s.label + ": " + who(s)).join(PORTS_NET_SEPARATOR);
-}
-
-// Members' ports by network; the network name is set only when there are several.
-export function netPortItems(store: Store): NetPortItem[] {
-  if (!isMulti(store)) return (store.state?.ports?.network ?? []).map((row) => ({ slot: store.lead, net: null, row }));
-  return visibleSlots(store.nets, store.slots).flatMap((slot) =>
-    (slotStateOf(store, slot)?.ports?.network ?? []).map((row) => ({ slot, net: netName(store.nets, slot), row })));
-}
-
-export function peerNetLabel(label: string, net: string | null): string {
-  return net ? portsNetPeerText(label, net) : label;
+/** The members' ports of one network. */
+export function netPortItems(store: Store, slot: string): NetPortItem[] {
+  return (stateOf(store, slot)?.ports?.network ?? []).map((row) => ({ slot, row }));
 }
 
 // Local numbers of opened ports over all visible networks, with the pair that holds each.
@@ -260,24 +220,5 @@ export function takenLocals(store: Store, except?: PortRef, proto: PortProto = "
 }
 
 export function localUsedText(local: number, by: { peerLabel: string; net: string | null }): string {
-  return portsLocalUsedText(local, peerNetLabel(by.peerLabel, by.net));
-}
-
-// The groups of the form: a network that holds a key with its candidate members (`extra` — ids no longer among the members).
-export function netGroups(store: Store, extra: Record<string, string[]> = {}): NetGroup[] {
-  return targetSlots(store).map((slot) => ({ slot, label: netName(store.nets, slot), candidates: audienceCandidatesWith(slotPeers(store, slot), extra[slot] ?? []) }));
-}
-
-export function selectionOf(audience: "all" | string[] | undefined): NetSelection {
-  return audience === undefined ? { all: false, ids: [] } : audience === "all" ? { all: true, ids: [] } : { all: false, ids: [...audience] };
-}
-
-export function audiencesOf(groups: NetGroup[], selection: Record<string, NetSelection>): NetAudiences {
-  const out: NetAudiences = {};
-  for (const g of groups) {
-    const sel = selection[g.slot] ?? { all: false, ids: [] };
-    const ids = g.candidates.filter((c) => sel.ids.includes(c.idFull)).map((c) => c.idFull);
-    out[g.slot] = sel.all ? "all" : ids.length > 0 ? ids : null;
-  }
-  return out;
+  return portsLocalUsedText(local, portsLocalOwnerText(by.peerLabel, by.net));
 }

@@ -1,4 +1,4 @@
-/* Exit choice across networks: the "Exit via …" buttons of "Members", "Site checks" and "Home".
+/* Exit choice across networks: the "Exit via …" buttons of "Networks", "Site checks" and "Home".
  * The browser proxy follows one network (`brief.proxy`); an exit picked in another network moves it there. */
 
 import type { SaveDeps } from "./save-config.ts";

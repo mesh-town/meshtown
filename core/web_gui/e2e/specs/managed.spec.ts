@@ -65,7 +65,7 @@ test.describe('the create form (no network yet)', () => {
       expect((await created).postDataJSON()).toEqual({ label: 'Office' });
     });
 
-    await test.step('you are the only admin of the new network: the Members tab asks for a second one', async () => {
+    await test.step('you are the only admin of the new network: the Members section asks for a second one', async () => {
       await app.tabs.open('peers');
       await expect(members.secondAdminHint).toBeVisible();
     });
@@ -111,7 +111,7 @@ test.describe('--second-admin (you are an admin and the creator, peer-one is the
   test.skip(({ targetKind }) => targetKind === 'node', 'the roles are a flag of the demo node; skipped before the target starts');
   test.use({ targetFlags: { extraArgs: ['--second-admin'] } });
 
-  test.describe('the Members tab', () => {
+  test.describe('the Members section', () => {
     test('105-managed-admins: the admins line and the "Admin" badge; the menu of someone else\'s row has the admin actions', async ({ app, page }) => {
       const members = new MembersSection(page);
       await app.tabs.open('peers');

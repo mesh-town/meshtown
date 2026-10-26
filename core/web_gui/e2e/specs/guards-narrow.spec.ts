@@ -60,7 +60,7 @@ test('12-guards: the target rejects a foreign Host, a foreign Origin and a reque
   });
 });
 
-test('13-narrow: 390×844: none of the seven sections is cut off by width', async ({ app }) => {
+test('13-narrow: 390×844: none of the six sections is cut off by width', async ({ app }) => {
   await app.resize({ width: 390, height: 844 });
 
   await test.step('section "home" is not wider than the screen', async () => {

@@ -64,7 +64,7 @@ export class InviteForm {
   }
 }
 
-/** The tab row of the Members section: one tab per visible network and the "+" tab. */
+/** The tab row of the Networks section: one tab per visible network and the "+" tab. */
 export class NetTabs {
   readonly row: Locator;
   readonly slotTabs: Locator;
@@ -91,7 +91,7 @@ export class NetTabs {
   }
 }
 
-/** The card of a computer that is out of a network, on Home (`excluded-*`) or on the Members tab (`members-removed-*`). */
+/** The card of a computer that is out of a network, on Home (`excluded-*`) or on the Networks tab (`members-removed-*`). */
 export class OutOfNetCard {
   readonly card: Locator;
   readonly joinButton: Locator;

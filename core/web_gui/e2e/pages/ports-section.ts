@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 
-/** The "Ports" tab (port publishing). */
+/** The "Shared services (ports)" sub-tab of a network (port publishing); open it with `NetSubTabs`. */
 export class PortsSection {
   readonly addPort: Locator;
   readonly addName: Locator;
@@ -16,7 +16,7 @@ export class PortsSection {
     this.addPort = page.getByRole('spinbutton', { name: 'port', exact: true });
     this.addName = page.getByRole('textbox', { name: 'name (optional)' });
     this.addProto = page.getByRole('combobox', { name: 'protocol' });
-    this.addButton = page.getByRole('button', { name: 'Publish', exact: true });
+    this.addButton = page.getByRole('button', { name: 'Publish port', exact: true });
     this.audienceAll = page.getByRole('radio', { name: 'All members' });
     this.audienceNodes = page.getByRole('radio', { name: 'Selected members' });
     // Tables are told apart by their accessible name (`aria-label` on `<table>`).

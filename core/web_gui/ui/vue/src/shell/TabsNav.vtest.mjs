@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import TabsNav from "./TabsNav.vue";
 
-const NAMES = ["Home", "Members", "Site checks", "Ports", "Diagnostics", "Log", "Settings"];
+const NAMES = ["Home", "Networks", "Site checks", "Diagnostics", "Log", "Settings"];
 let wrapper;
 
 afterEach(() => {
@@ -14,10 +14,17 @@ afterEach(() => {
 
 describe("TabsNav", () => {
   describe("markup", () => {
-    it("a tablist with the network logo and seven role=tab tabs in page order", () => {
+    it("a tablist with the network logo and six role=tab tabs in page order, the second is Networks", () => {
       wrapper = mountNav({ active: "home" });
       expect(wrapper.get("[role=tablist]").get(".brand-name").text()).toBe("Mesh Town");
       expect(wrapper.findAll("[role=tab]").map((t) => t.text())).toEqual(NAMES);
+    });
+
+    it("there is no Ports tab, and #tab-peers is the Networks link", () => {
+      wrapper = mountNav({ active: "home" });
+      expect(wrapper.find("#tab-ports").exists()).toBe(false);
+      expect(wrapper.get("#tab-peers").text()).toBe("Networks");
+      expect(wrapper.get("#tab-peers").attributes("href")).toBe("#peers");
     });
 
     it("a tab is a link to the section hash and controls its panel", () => {
@@ -32,7 +39,7 @@ describe("TabsNav", () => {
     it("aria-selected and class active only on it", () => {
       wrapper = mountNav({ active: "peers" });
       const selected = wrapper.findAll("[role=tab]").filter((t) => t.attributes("aria-selected") === "true");
-      expect(selected.map((t) => t.text())).toEqual(["Members"]);
+      expect(selected.map((t) => t.text())).toEqual(["Networks"]);
       expect(wrapper.findAll(".tab.active")).toHaveLength(1);
       expect(wrapper.get("#tab-peers").classes()).toContain("active");
     });

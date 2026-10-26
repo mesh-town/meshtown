@@ -1,10 +1,10 @@
-/* An end-to-end case of the "Ports" tab without a binary and a browser (moved from e2e: ports 56): the whole page on
+/* An end-to-end case of the Shared services panel without a binary and a browser (moved from e2e: ports 56): the whole page on
  * a fake node. Visibility is judged by `hidden`/`style`: happy-dom does not compute styles. */
 
 import { afterEach, describe, expect, it } from "vitest";
 import { demoConfig, demoState } from "../testing/demo-node.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
-import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.mjs";
+import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { shown } from "../testing/dom.mjs";
 
 const LOCAL_PORT = "39123";
@@ -18,8 +18,7 @@ describe("ports element survives poll", () => {
     state.ports.network[0].opened = null;
     const node = createFakeNode({ state, config: demoConfig() });
     node.routes["PUT /api/config"] = (body) => nodeAppliesPut(node, body);
-    const { wrapper } = await mountPage(node);
-    await openTab(wrapper, "ports");
+    const { wrapper } = await mountPage(node, { hash: "peers/main/services" });
     const row = wrapper.get("#ports-net-tbody tr");
     expect(shown(row.element)).toBe(true);
     const input = row.get("input");

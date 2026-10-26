@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The one confirmation dialog of the Members tab (ban, confirm, block, leave, roles, deleting the network): a native modal `<dialog>`.
+// The one confirmation dialog of the Members pane of a network tab (ban, confirm, block, leave, roles, deleting the network): a native modal `<dialog>`.
 // `ask(spec)` resolves true only for the action button; Cancel, Esc, a click on the backdrop or the removal of the
 // component answer false. Does not call the API: the caller acts on the answer. Cancel takes the focus on open.
 // A spec with `field` also draws a one-line reason input; `reason()` gives its cleaned text for the last opening.

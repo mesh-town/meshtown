@@ -1,4 +1,4 @@
-/* The "Members" tab on a node with several networks: the whole page on a fake node with two slots.
+/* The "Networks" tab on a node with several networks: the whole page on a fake node with two slots.
  * Network A is `main` ("friends", peer-one online, peer-two offline), network B is `k7q2xa` ("my devices", two other members online).
  * Contract: the tab row is `.ntabs a` (the last one is the "+"), the header of the current tab is `#peers-tabhead`
  * (its button asks for an invite), the list and the status line are the ones of the single-network page.
@@ -191,6 +191,29 @@ describe("clicking the second tab", () => {
     await page.whenMemberBanned(EXTRA_FULL);
     expect(page.posted("/api/net/" + NET_B + "/members/exclude")).toEqual([{ id: EXTRA_FULL }]);
     expect(page.posted("/api/members/exclude"), "nothing for the first network").toEqual([]);
+  });
+
+  it("keeps the open section: on Shared services the second tab opens Shared services of that network", async () => {
+    const page = await openTwo({ hash: "peers/main/services" });
+    await page.whenTabClicked("my devices");
+    expect(location.hash).toBe("#peers/" + NET_B + "/services");
+    expect(page.selectedName()).toContain("my devices");
+    expect(page.wrapper.get("#net-sub-services").attributes("aria-selected")).toBe("true");
+    expect(page.wrapper.find("#peers-list").exists(), "not the member list").toBe(false);
+  });
+
+  it("keeps Device settings too", async () => {
+    const page = await openTwo({ hash: "peers/main/device" });
+    await page.whenTabClicked("my devices");
+    expect(location.hash).toBe("#peers/" + NET_B + "/device");
+    expect(page.wrapper.get("#you-block").text()).toContain("my devices");
+  });
+
+  it("each network has its own sub-tabs row under its head", async () => {
+    const page = await openTwo({ hash: "peers/" + NET_B });
+    expect(page.wrapper.findAll("#net-subtabs")).toHaveLength(1);
+    const after = page.tabHead().element.compareDocumentPosition(page.wrapper.get("#net-subtabs").element);
+    expect(after & Node.DOCUMENT_POSITION_FOLLOWING, "the head comes before the sub-tabs").toBeTruthy();
   });
 
   it("returns to the first network when the address goes back", async () => {

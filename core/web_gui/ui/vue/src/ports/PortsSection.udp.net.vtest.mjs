@@ -22,6 +22,7 @@ const udpRow = (over = {}) => ({ ...tcpRow(), proto: "udp", ...over });
 
 let mounted;
 const mountNet = (network, opened = []) => (mounted = mountSection(PortsSection, {
+  props: { slot: "main" },
   state: baseState({ ports: { published: [], network } }),
   config: baseConfig({ ports: { published: [], opened } }),
 }));

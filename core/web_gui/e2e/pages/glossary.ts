@@ -64,7 +64,7 @@ export function peerLabel(p: LabelPeer, withAnonymousTag = false, all: LabelPeer
 export const SECOND_ADMIN_HINT =
   'You are the only admin of this network. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.';
 
-/** Texts of the member-list part of the "Members" tab (removing, blocks, leaving, waiting to join). */
+/** Texts of the member-list part of the Members sub-tab of the "Networks" tab (removing, blocks, leaving, waiting to join). */
 export const MEMBERS_WORDS = {
   menuBlock: 'Block on this computer…',
   menuRemove: 'Remove from network…',

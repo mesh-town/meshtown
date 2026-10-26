@@ -24,8 +24,8 @@ test.describe('two networks (demo --nets 2)', () => {
     test.describe(vp.name, () => {
       test.use({ viewport: { width: vp.width, height: vp.height } });
 
-      test(`multi-net-members-row-${vp.width}: Members shows the tab row and "+"; the second tab sets #peers/<slot>, "Back" returns to the first`, async ({ page, app, target }) => {
-        await test.step('given: Members is open', async () => {
+      test(`multi-net-members-row-${vp.width}: Networks shows the tab row and "+"; the second tab sets #peers/<slot>, "Back" returns to the first`, async ({ page, app, target }) => {
+        await test.step('given: Networks is open', async () => {
           await app.open(target.origin, target.token);
           await page.goto(`${target.origin}/#peers`);
           await app.tabs.expectShown('peers');
@@ -78,10 +78,10 @@ test.describe('two networks (demo --nets 2)', () => {
         });
       });
 
-      test(`multi-net-home-settings-${vp.width}: Home lists the networks and "Open Members" leads to the tab; Settings has a link to the "+" tab and no join card`, async ({ page, app, target }) => {
+      test(`multi-net-home-settings-${vp.width}: Home lists the networks and "Open in Networks" leads to the tab; Settings has a link to the "+" tab and no join card`, async ({ page, app, target }) => {
         await app.open(target.origin, target.token);
 
-        await test.step('Home shows a row per network; "Open Members" goes to that network tab', async () => {
+        await test.step('Home shows a row per network; "Open in Networks" goes to that network tab', async () => {
           await app.tabs.expectShown('home');
           const rows = page.locator('#home-nets .net-row');
           await expect(rows).toHaveCount(2);
@@ -103,7 +103,7 @@ test.describe('two networks (demo --nets 2)', () => {
   }
 });
 
-test('multi-net-single-network: with one network Members shows its tab and "+"', async ({ page, app, target }) => {
+test('multi-net-single-network: with one network Networks shows its tab and "+"', async ({ page, app, target }) => {
   await app.open(target.origin, target.token);
   await page.goto(`${target.origin}/#peers`);
   await app.tabs.expectShown('peers');

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The tab bar: the network logo and seven tab links (on a narrow screen four tabs and a "More" menu);
+// The tab bar: the network logo and six tab links (on a narrow screen four tabs and a "More" menu);
 // the active one scrolls into the visible part.
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useNarrow } from "../common/use-narrow.ts";

@@ -21,13 +21,13 @@ describe("TabsNav on a narrow screen", () => {
       expect(nav.text()).not.toContain("Mesh Town");
     });
 
-    it("shows Home, Members, Sites, Settings and the \"More ▾\" button", () => {
+    it("shows Home, Networks, Sites, Settings and the \"More ▾\" button", () => {
       const { nav } = setup({ active: "home" });
-      expect(tabLabels(nav)).toEqual(["Home", "Members", "Sites", "Settings"]);
+      expect(tabLabels(nav)).toEqual(["Home", "Networks", "Sites", "Settings"]);
       expect(moreButton(nav).text()).toBe("More ▾");
     });
 
-    it("keeps the request counter on Members", () => {
+    it("keeps the request counter on Networks", () => {
       const { nav } = setup({ active: "home", votes: 2 });
       expect(nav.get("#tab-peers .chip").text()).toBe("2");
     });
@@ -44,13 +44,13 @@ describe("TabsNav on a narrow screen", () => {
       expect(menuOpen(nav)).toBe(false);
     });
 
-    it("opens on click and lists Ports, Diagnostics, Log as links to their sections", async () => {
+    it("opens on click and lists Diagnostics and Log as links to their sections", async () => {
       const { nav } = setup({ active: "home" });
       await moreButton(nav).trigger("click");
       const items = nav.get("[role=menu]").findAll("[role=menuitem]");
-      expect(items.map((i) => i.text())).toEqual(["Ports", "Diagnostics", "Log"]);
-      expect(items.map((i) => i.attributes("id"))).toEqual(["tab-ports", "tab-network", "tab-log"]);
-      expect(items.map((i) => i.attributes("href"))).toEqual(["#ports", "#network", "#log"]);
+      expect(items.map((i) => i.text())).toEqual(["Diagnostics", "Log"]);
+      expect(items.map((i) => i.attributes("id"))).toEqual(["tab-network", "tab-log"]);
+      expect(items.map((i) => i.attributes("href"))).toEqual(["#network", "#log"]);
     });
 
     it("a second click on \"More\" closes it", async () => {
@@ -63,7 +63,7 @@ describe("TabsNav on a narrow screen", () => {
     it("a click on an item closes it", async () => {
       const { nav } = setup({ active: "home" });
       await moreButton(nav).trigger("click");
-      await nav.get("#tab-ports").trigger("click");
+      await nav.get("#tab-network").trigger("click");
       expect(menuOpen(nav)).toBe(false);
     });
 
@@ -95,8 +95,6 @@ describe("TabsNav on a narrow screen", () => {
 
     it("another menu section gives its own name", () => {
       expect(moreButton(setup({ active: "network" }).nav).text()).toBe("Diagnostics ▾");
-      wrapper.unmount();
-      expect(moreButton(setup({ active: "ports" }).nav).text()).toBe("Ports ▾");
     });
   });
 
@@ -115,17 +113,17 @@ describe("TabsNav on a narrow screen", () => {
       const { nav } = setup({ active: "home" });
       expect(moreButton(nav)).toBeUndefined();
       expect(nav.find("[role=menu]").exists()).toBe(false);
-      expect(tabLabels(nav)).toEqual(["Home", "Members", "Settings"]);
+      expect(tabLabels(nav)).toEqual(["Home", "Networks", "Settings"]);
     });
   });
 
   describe("the window is resized", () => {
-    it("growing to a wide window brings back the logo and all seven tabs", async () => {
+    it("growing to a wide window brings back the logo and all six tabs", async () => {
       const { nav, media } = setup({ active: "home" });
       media.change(false);
       await nav.vm.$nextTick();
       expect(nav.find(".tabs-brand").exists()).toBe(true);
-      expect(tabLabels(nav)).toEqual(["Home", "Members", "Site checks", "Ports", "Diagnostics", "Log", "Settings"]);
+      expect(tabLabels(nav)).toEqual(["Home", "Networks", "Site checks", "Diagnostics", "Log", "Settings"]);
       expect(moreButton(nav)).toBeUndefined();
     });
   });

@@ -26,6 +26,7 @@ function show() {
   written = [];
   Object.defineProperty(navigator, "clipboard", { value: { writeText: async (s) => void written.push(s) }, configurable: true });
   mounted = mountSection(PortsSection, {
+    props: { slot: "main" },
     state: baseState({ ports: { published: [], network: [NET_ROW] } }),
     config: baseConfig({ ports: { published: [], opened: [{ node: NODE, port: 80, local: 2080 }] } }),
   });

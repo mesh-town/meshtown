@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import type { OwnPort, PeerInfo, PortProto, PublishedPortConfig } from "../core/api-types.ts";
-import type { NetGroup } from "./ports-view.ts";
 import type { PortAudience } from "./use-ports-actions.ts";
 import PortEditRow from "./PortEditRow.vue";
 import { portStatusText } from "./ports-view.ts";
@@ -18,10 +17,8 @@ const props = withDefaults(defineProps<{
   busy: boolean;
   editing: boolean;
   editError: string;
-  groups?: NetGroup[];
-  shared?: Record<string, "all" | string[]>;
   save: (port: number, name: unknown, audience: PortAudience, proto: PortProto) => Promise<boolean>;
-}>(), { proto: "tcp", groups: undefined, shared: undefined });
+}>(), { proto: "tcp" });
 const key = computed(() => portKey(props.proto, props.row.port));
 const emit = defineEmits<{ (e: "edit"): void; (e: "cancel"): void; (e: "saved"): void; (e: "unpublish"): void }>();
 </script>
@@ -37,5 +34,5 @@ const emit = defineEmits<{ (e: "edit"): void; (e: "cancel"): void; (e: "saved"):
       <button type="button" class="btn btn-sm" :data-port-unpublish="key" :disabled="busy" @click="emit('unpublish')">{{ PORTS_UNPUBLISH }}</button>
     </td>
   </tr>
-  <PortEditRow v-if="editing" :port="row.port" :proto="proto" :entry="entry" :peers="peers" :busy="busy" :error="editError" :groups="groups" :shared="shared" :save="save" @cancel="emit('cancel')" @saved="emit('saved')" />
+  <PortEditRow v-if="editing" :port="row.port" :proto="proto" :entry="entry" :peers="peers" :busy="busy" :error="editError" :save="save" @cancel="emit('cancel')" @saved="emit('saved')" />
 </template>

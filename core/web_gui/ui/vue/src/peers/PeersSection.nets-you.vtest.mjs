@@ -1,10 +1,10 @@
-/* The "Members" tab on a node with several networks: the "Rename" entry points and leaving a network.
+/* The "Networks" tab on a node with several networks: the "Rename" entry points and leaving a network.
  * Network A is `main` ("friends", peer-one and peer-two), network B is `k7q2xa` ("my devices", one other member: old-laptop).
- * Contract: with two or more networks "Rename" (the link of your row and the item of its menu) focuses the name field of the
- * "You in" block, `#you-name`, and leaves the address alone; with one network it opens Home (`#home`) as before.
+ * Contract: with two or more networks "Rename" (the link of your row and the item of its menu) opens Device settings of the
+ * network on show (`#peers/<slot>/device`) and focuses the name field of the "You in" block, `#you-name`; with one network it opens Home (`#home`) as before.
  * Leaving B sends one `POST /api/net/k7q2xa/members/leave {confirm:true}`, drops the tab of B and keeps the phrase under the list. */
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { EXTRA_FULL, extraRow, membersReply, selfRow } from "../testing/members-fixtures.mjs";
 import { NET_A, NET_B, twoNets } from "../testing/overview-fixtures.mjs";
@@ -19,26 +19,32 @@ afterEach(unmountPage);
 
 describe("rename", () => {
   describe("two networks", () => {
-    it("the link of your row focuses the name field of the network on show and keeps the address", async () => {
+    it("the link of your row opens Device settings of the network on show and focuses the name field", async () => {
       const page = await setup({ hash: "peers/" + NET_B });
-      const before = location.hash;
       await page.whenRenameLinkClicked();
+      expect(location.hash).toBe("#peers/" + NET_B + "/device");
+      expect(page.has("#you-block"), "Device settings are open").toBe(true);
       expect(page.focusedId()).toBe("you-name");
-      expect(location.hash).toBe(before);
     });
 
-    it("the menu item focuses the name field and keeps the address", async () => {
+    it("the menu item opens Device settings and focuses the name field", async () => {
       const page = await setup({ hash: "peers/" + NET_B });
-      const before = location.hash;
       await page.whenMenuItemPicked("rename");
+      expect(location.hash).toBe("#peers/" + NET_B + "/device");
       expect(page.focusedId()).toBe("you-name");
-      expect(location.hash).toBe(before);
     });
 
     it("works on the first network too", async () => {
       const page = await setup();
       await page.whenRenameLinkClicked();
+      expect(location.hash).toBe("#peers/main/device");
       expect(page.focusedId()).toBe("you-name");
+    });
+
+    it("already in Device settings — just focuses the name field", async () => {
+      const page = await setup({ hash: "peers/" + NET_B + "/device" });
+      expect(page.has("#you-block")).toBe(true);
+      expect(page.has("#peers-list"), "there is no member row to rename from").toBe(false);
     });
   });
 
@@ -103,6 +109,15 @@ describe("leaving the second network", () => {
       expect(page.codes()).toContain("dddd4444");
       expect(page.callsOf("DELETE")).toEqual([]);
     });
+  });
+});
+
+describe("leaving from Device settings", () => {
+  it("\"Leave network…\" of the second network sends one confirmation to its address", async () => {
+    const page = await setup({ hash: "peers/" + NET_B + "/device" });
+    await page.whenLeaveFromDevice();
+    expect(page.leaveBodies(NET_B)).toEqual([{ confirm: true }]);
+    expect(page.leaveBodies(NET_A), "the first network is not asked").toEqual([]);
   });
 });
 
@@ -183,11 +198,17 @@ const goneBrief = () => ({
 
 function pageOf(node, wrapper) {
   const click = async (w) => { await w.trigger("click"); await settle(); };
+  const hashChanged = async () => {
+    window.dispatchEvent(new HashChangeEvent("hashchange"));
+    await vi.advanceTimersByTimeAsync(0);
+    await settle();
+  };
   const renameLink = () => wrapper.findAll("#peers-list .peer-self a").find((a) => a.text() === "Rename");
   const menuButton = () => wrapper.get('#peers-list button[data-member-menu="' + SELF_FULL + '"]');
   const whenMenuItemPicked = async (key) => {
     await click(menuButton());
     await click(wrapper.get('[role="menu"] [data-member-item="' + key + '"]'));
+    await hashChanged();
   };
   return {
     node, wrapper, renameLink, whenMenuItemPicked,
@@ -199,7 +220,11 @@ function pageOf(node, wrapper) {
     statusIsError: () => wrapper.get("#peers-exit-status").classes().includes("field-error-text"),
     callsOf: (method) => node.calls.filter((c) => c.method === method),
     leaveBodies: (slot) => node.calls.filter((c) => c.method === "POST" && c.path === "/api/net/" + slot + "/members/leave").map((c) => c.body),
-    whenRenameLinkClicked: () => click(renameLink()),
+    whenRenameLinkClicked: async () => { await click(renameLink()); await hashChanged(); },
+    whenLeaveFromDevice: async () => {
+      await click(wrapper.get("#you-leave"));
+      await click(wrapper.get("#member-confirm-yes"));
+    },
     async whenLeaveConfirmed() {
       await whenMenuItemPicked("leave");
       await click(wrapper.get("#member-confirm-yes"));

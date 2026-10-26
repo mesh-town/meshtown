@@ -1,4 +1,4 @@
-/* Actions of a managed network on the Members tab: roles and deleting the network. The dialog and the removal
+/* Actions of a managed network in the Members pane of a network tab: roles and deleting the network. The dialog and the removal
  * (`members/exclude`) are in `use-members-actions.ts`. */
 
 import type { Ref } from "vue";

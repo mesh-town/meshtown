@@ -37,7 +37,7 @@ export function stayText(names: string[]): string {
   const quoted = names.map((n) => `"${n}"`);
   const last = quoted.pop();
   const list = last === undefined ? "" : quoted.length === 0 ? last : `${quoted.join(", ")} and ${last}`;
-  return `You stay in ${list}. The new network gets its own tab in Members.`;
+  return `You stay in ${list}. The new network gets its own tab in Networks.`;
 }
 
 /** `via` — the exit the computer keeps using, when it is not direct: the member and the network it is in.

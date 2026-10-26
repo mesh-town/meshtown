@@ -5,11 +5,10 @@ import { NET_NAME } from "../common/words.ts";
 export const SHELL_NO_STORE = "AppShell: store not provided (STORE_KEY)";
 
 export const SHELL_TAB_HOME = "Home";
-export const SHELL_TAB_PEERS = "Members";
+export const SHELL_TAB_PEERS = "Networks";
 export const SHELL_TAB_DOMAINS = "Site checks";
 export const SHELL_TAB_DOMAINS_NARROW = "Sites";
 export const SHELL_TAB_MORE = "More";
-export const SHELL_TAB_PORTS = "Ports";
 export const SHELL_TAB_NETWORK = "Diagnostics";
 export const SHELL_TAB_LOG = "Log";
 export const SHELL_TAB_SETTINGS = "Settings";

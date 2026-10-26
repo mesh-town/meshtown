@@ -9,10 +9,16 @@ import { ADD_ERROR_NO_NODES } from "./ports-view.ts";
 
 const PUB = [{ port: 80, name: "site", for: "all" }];
 
-function setup({ ports = { published: PUB, opened: [] }, fail = null, delay = false } = {}) {
+const SLOT = "k7q2xa";
+const SLOT_PUB = [{ port: 9000, name: "db", for: "all" }];
+
+// `slot` — the network the actions work on (`w.on.slot` changes it later); the slot "k7q2xa" has its own config in the store.
+function setup({ ports = { published: PUB, opened: [] }, fail = null, delay = false, slot = "main" } = {}) {
   const store = createStore();
   store.config = { ports, other: 1 };
   store.configRev = 3;
+  store.slots[SLOT] = { id: SLOT, brief: null, state: null, members: null, config: { ports: { published: SLOT_PUB, opened: [] }, other: 2 }, configRev: 5, configMeta: null, bootId: null };
+  const on = { slot };
   const calls = [];
   const api = async (method, path, body) => {
     const sent = JSON.parse(JSON.stringify(body));
@@ -26,8 +32,8 @@ function setup({ ports = { published: PUB, opened: [] }, fail = null, delay = fa
   target.addEventListener("meshtown:changed", (ev) => changed.push(ev.detail.what));
   const timers = [];
   const setTimer = (fn, ms) => timers.push({ fn, ms });
-  const actions = usePortsActions(store, { api, busTarget: target, setTimer });
-  return { store, calls, actions, changed, timers };
+  const actions = usePortsActions(store, () => on.slot, { api, busTarget: target, setTimer });
+  return { store, calls, actions, changed, timers, on };
 }
 
 describe("publish", () => {
@@ -234,5 +240,114 @@ describe("edit: node refusal", () => {
     assert.equal(w.actions.saveStatus.value.cls, "field-error-text");
     assert.match(w.actions.saveStatus.value.text, /^Couldn't save: /);
     assert.equal(w.actions.editError.value, "");
+  });
+});
+
+describe("which config is written", () => {
+  describe("the main network", () => {
+    it("main → saveConfigFields: PUT /api/config with the main list", async () => {
+      const w = setup({ slot: "main" });
+      assert.equal(await w.actions.publish(8080, "web"), true);
+      assert.equal(w.calls.length, 1);
+      assert.deepEqual([w.calls[0].method, w.calls[0].path], ["PUT", "/api/config"]);
+      assert.deepEqual(w.calls[0].body.config.ports.published, [...PUB, { port: 8080, name: "web", for: "all" }]);
+    });
+
+    it("the other network's config is left alone", async () => {
+      const w = setup({ slot: "main" });
+      await w.actions.publish(8080, "web");
+      assert.deepEqual(w.store.slots[SLOT].config.ports.published, SLOT_PUB);
+    });
+  });
+
+  describe("another network", () => {
+    it("saveSlotFields: PUT /api/net/<slot>/config with the list of that network", async () => {
+      const w = setup({ slot: SLOT });
+      assert.equal(await w.actions.publish(8080, "web", ["aa"]), true);
+      assert.equal(w.calls.length, 1);
+      assert.deepEqual([w.calls[0].method, w.calls[0].path], ["PUT", "/api/net/" + SLOT + "/config"]);
+      assert.deepEqual(w.calls[0].body.config.ports.published, [...SLOT_PUB, { port: 8080, name: "web", for: ["aa"] }]);
+      assert.equal(w.calls[0].body.config.other, 2, "the rest of that network's config is kept");
+    });
+
+    it("the main config is left alone", async () => {
+      const w = setup({ slot: SLOT });
+      await w.actions.publish(8080, "web");
+      assert.deepEqual(w.store.config.ports.published, PUB);
+      assert.equal(w.store.configRev, 3);
+    });
+
+    it("a port published in the main network can be published here: the check is against this network's list", async () => {
+      const w = setup({ slot: SLOT });
+      assert.equal(await w.actions.publish(80, "site"), true);
+      assert.equal(w.actions.addError.value, "");
+      assert.deepEqual(w.calls[0].body.config.ports.published.map((p) => p.port), [9000, 80]);
+    });
+
+    it("a port published in this network is a form error, no request", async () => {
+      const w = setup({ slot: SLOT });
+      assert.equal(await w.actions.publish(9000, ""), false);
+      assert.equal(w.actions.addError.value, "Port 9000 is already published.");
+      assert.equal(w.calls.length, 0);
+    });
+
+    it("edit writes the entry of this network only", async () => {
+      const w = setup({ slot: SLOT });
+      assert.equal(await w.actions.edit(9000, " renamed ", ["AA"]), true);
+      assert.equal(w.calls[0].path, "/api/net/" + SLOT + "/config");
+      assert.deepEqual(w.calls[0].body.config.ports.published, [{ port: 9000, name: "renamed", for: ["AA"] }]);
+    });
+
+    it("edit of a port that only the main network has: an error, no request", async () => {
+      const w = setup({ slot: SLOT });
+      assert.equal(await w.actions.edit(80, "x", "all"), false);
+      assert.equal(w.actions.editError.value, "Port 80 is not published.");
+      assert.equal(w.calls.length, 0);
+    });
+
+    it("unpublish removes the port from this network's list only", async () => {
+      const w = setup({ slot: SLOT });
+      await w.actions.unpublish(9000);
+      assert.equal(w.calls.length, 1);
+      assert.equal(w.calls[0].path, "/api/net/" + SLOT + "/config");
+      assert.deepEqual(w.calls[0].body.config.ports.published, []);
+      assert.deepEqual(w.store.config.ports.published, PUB);
+    });
+
+    it("the slot is read when the action runs, so a panel switched to another network writes there", async () => {
+      const w = setup({ slot: "main" });
+      w.on.slot = SLOT;
+      await w.actions.publish(8080, "web");
+      assert.equal(w.calls[0].path, "/api/net/" + SLOT + "/config");
+    });
+  });
+
+  describe("node refusal in another network", () => {
+    it("publish: false, the error in the shared status, only that network's address was asked", async () => {
+      const w = setup({ slot: SLOT, fail: new ApiError(409, "conflict", "refused") });
+      assert.equal(await w.actions.publish(8080, "web"), false);
+      assert.equal(w.actions.saveStatus.value.cls, "field-error-text");
+      assert.match(w.actions.saveStatus.value.text, /^Couldn't save: /);
+      assert.deepEqual(w.calls.map((c) => c.path), ["/api/net/" + SLOT + "/config"]);
+    });
+
+    it("edit: the refusal text is in editError only", async () => {
+      const w = setup({ slot: SLOT, fail: new ApiError(500, "boom", "disk is full") });
+      assert.equal(await w.actions.edit(9000, "x", "all"), false);
+      assert.match(w.actions.editError.value, /^Couldn't save: /);
+      assert.equal(w.actions.saveStatus.value.text, "");
+    });
+  });
+
+  describe("open and close", () => {
+    it("write the network named in the call, whatever network the actions work on", async () => {
+      const w = setup({ slot: "main" });
+      await w.actions.openNetPort(SLOT, "ab", 8080, "");
+      assert.equal(w.calls[0].path, "/api/net/" + SLOT + "/config");
+      assert.deepEqual(w.calls[0].body.config.ports.opened, [{ node: "ab", port: 8080, local: 10080 }]);
+      await w.actions.closeNetPort(SLOT, "ab", 8080);
+      assert.deepEqual(w.calls[1].body.config.ports.opened, []);
+      assert.deepEqual(w.store.config.ports.opened, []);
+    });
   });
 });

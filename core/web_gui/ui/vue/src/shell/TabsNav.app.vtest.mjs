@@ -1,4 +1,4 @@
-/* The tab bar inside the Android app: no "Site checks", "Ports", "Diagnostics", "Log" and no network name block. */
+/* The tab bar inside the Android app: no "Site checks", "Diagnostics", "Log" and no network name block. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
@@ -16,7 +16,7 @@ afterEach(() => {
 describe("TabsNav in the app", () => {
   it("three tabs, the desktop-only ones are absent", () => {
     wrapper = mount(TabsNav, { props: { active: "home" }, attachTo: document.body });
-    expect(wrapper.findAll("[role=tab]").map((t) => t.text())).toEqual(["Home", "Members", "Settings"]);
+    expect(wrapper.findAll("[role=tab]").map((t) => t.text())).toEqual(["Home", "Networks", "Settings"]);
   });
 
   it("no network name block", () => {

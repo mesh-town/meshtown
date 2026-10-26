@@ -1,21 +1,20 @@
-/* Actions of the "Ports" section: publish, unpublish, "Open" and "Close". The list is edited by the pure
+/* Actions of the "Shared services (ports)" section: publish, unpublish, "Open" and "Close". The list is edited by the pure
  * functions of `ports-view.ts`, saved by `saveConfigFields`; the result stays with the form until the next edit. */
 
 import { ref } from "vue";
 import type { Ref } from "vue";
 import type { Store } from "../core/store.ts";
 import { notifyChanged } from "../core/bridge.ts";
-import { eachSlot, fieldErrorText, saveConfigFields, saveSlotFields, slotFailureText, targetSlots } from "../core/save-config.ts";
-import { isMulti, netConfig } from "../core/slots.ts";
+import { fieldErrorText, saveConfigFields, saveSlotFields } from "../core/save-config.ts";
+import { netConfig } from "../core/slots.ts";
 import type { SaveDeps } from "../core/save-config.ts";
 import type { ExitSaveStatus } from "../core/exit-via.ts";
 import { CORE_SAVED } from "../core/core-texts.ts";
-import type { NetAudiences, PortsConfigKey, PortsConfigLists } from "./ports-view.ts";
+import type { PortsConfigKey, PortsConfigLists } from "./ports-view.ts";
 import {
-  ADD_ERROR_NO_NODES, configPorts, netRowKey, openedAfterClose, openedAfterOpen, publishedAfterAdd, publishedAfterEdit, publishedAfterRemove, takenLocals,
+  configPorts, netRowKey, openedAfterClose, openedAfterOpen, publishedAfterAdd, publishedAfterEdit, publishedAfterRemove, takenLocals,
 } from "./ports-view.ts";
-import type { PortProto, PublishedPortConfig } from "../core/api-types.ts";
-import { protoOf } from "./ports-proto.ts";
+import type { PortProto } from "../core/api-types.ts";
 
 // The node snapshot is rebuilt once a second: the second poll after saving catches the fresh one.
 const SNAPSHOT_SETTLE_MS = 1200;
@@ -23,11 +22,8 @@ const SNAPSHOT_SETTLE_MS = 1200;
 /** `deps` — as in `saveConfigFields`, plus `setTimer` to be replaced in tests. */
 type PortsDeps = SaveDeps & { setTimer?: (fn: () => void, ms: number) => unknown };
 
-/** One network's choice ("all" / "all" or ids) or, with several networks, the choice per network (`null` — not published there). */
-export type PortAudience = "all" | string[] | NetAudiences;
-
-const isNetAudiences = (a: PortAudience): a is NetAudiences => a !== "all" && !Array.isArray(a);
-type SlotList = { slot: string; list: PublishedPortConfig[] };
+/** "All members" or the ids of the chosen members. */
+export type PortAudience = "all" | string[];
 
 interface PortsActions {
   saveStatus: Ref<ExitSaveStatus>;
@@ -47,8 +43,9 @@ function defaultBusTarget(): EventTarget | undefined {
   return typeof document === "undefined" ? undefined : document;
 }
 
-// `deps` — as in `saveConfigFields` (`{ api, busTarget }`); in tests a fake `api`.
-export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
+// `slot` — the network the lists belong to (read when an action starts); `deps` — as in `saveConfigFields`
+// (`{ api, busTarget }`); in tests a fake `api`.
+export function usePortsActions(store: Store, slot: () => string, deps?: PortsDeps): PortsActions {
   const saveStatus = ref<ExitSaveStatus>({ text: "", cls: "" });
   const addError = ref<string>("");
   const editError = ref<string>("");
@@ -60,7 +57,7 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   // The list from the store is a reactive proxy; `saveConfigFields` unwraps the proxy itself (`deepRaw`),
   // so a plain array goes into the request.
   function current<K extends PortsConfigKey>(key: K): PortsConfigLists[K] {
-    return configPorts(store.config, key);
+    return configPorts(netConfig(store, slot()), key);
   }
 
   function notifyState(): void {
@@ -78,7 +75,8 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   // A refusal goes to the shared status, or to `refusal` when the caller shows it elsewhere.
   async function doSave(key: PortsConfigKey, list: PortsConfigLists[PortsConfigKey], refusal?: Ref<string>): Promise<boolean> {
     const changes = { ["ports." + key]: list };
-    const res = await saveConfigFields(store, changes, deps);
+    const net = slot();
+    const res = net === "main" ? await saveConfigFields(store, changes, deps) : await saveSlotFields(store, net, changes, deps);
     if (!res.ok && refusal) refusal.value = fieldErrorText(res.error, changes);
     else saveStatus.value = res.ok
       ? { text: CORE_SAVED, cls: "saved" }
@@ -104,7 +102,6 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
     if (saving.value) return false;
     const port = Number(portValue);
     const name = String(nameValue ?? "").trim();
-    if (isNetAudiences(audience)) return publishNets(port, name, audience, proto);
     const res = publishedAfterAdd(current("published"), port, name, audience, proto);
     addError.value = res.error || "";
     if (!res.list) return false;
@@ -115,7 +112,6 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   async function edit(port: number, nameValue: unknown, audience: PortAudience, proto: PortProto = "tcp"): Promise<boolean> {
     if (saving.value) return false;
     const name = String(nameValue ?? "").trim();
-    if (isNetAudiences(audience)) return editNets(port, name, audience, proto);
     const res = publishedAfterEdit(current("published"), port, name, audience, proto);
     editError.value = res.error || "";
     if (!res.list) return false;
@@ -123,67 +119,14 @@ export function usePortsActions(store: Store, deps?: PortsDeps): PortsActions {
   }
 
   function unpublish(port: number, proto: PortProto = "tcp"): Promise<boolean> {
-    if (isMulti(store)) return writeNets(targetSlots(store).map((slot) => ({ slot, list: publishedAfterRemove(listOf(slot), port, proto) })));
     return save("published", publishedAfterRemove(current("published"), port, proto));
-  }
-
-  // ---- Several networks: each network gets its own list, only the changed ones are written ----
-
-  const listOf = (slot: string): PublishedPortConfig[] => configPorts(netConfig(store, slot), "published");
-
-  // One network's new list for `audience`: null — not published there.
-  function listFor(slot: string, port: number, proto: PortProto, name: string, audience: "all" | string[] | null | undefined, adding: boolean) {
-    const list = listOf(slot);
-    const has = list.some((p) => p.port === port && protoOf(p) === proto);
-    if (audience == null) return { list: has ? publishedAfterRemove(list, port, proto) : list };
-    return has && !adding ? publishedAfterEdit(list, port, name, audience, proto) : publishedAfterAdd(list, port, name, audience, proto);
-  }
-
-  function planNets(port: number, proto: PortProto, name: string, audiences: NetAudiences, adding: boolean): { changes: SlotList[]; error?: string } {
-    const changes: SlotList[] = [];
-    for (const slot of targetSlots(store)) {
-      const res = listFor(slot, port, proto, name, audiences[slot], adding);
-      if (res.error) return { changes, error: res.error };
-      if (JSON.stringify(res.list) !== JSON.stringify(listOf(slot))) changes.push({ slot, list: res.list as PublishedPortConfig[] });
-    }
-    const none = targetSlots(store).every((slot) => audiences[slot] == null);
-    if (none) return { changes, error: publishedAfterAdd([], port, name, [], proto).error || ADD_ERROR_NO_NODES };
-    return { changes };
-  }
-
-  async function publishNets(port: number, name: string, audiences: NetAudiences, proto: PortProto): Promise<boolean> {
-    const plan = planNets(port, proto, name, audiences, true);
-    addError.value = plan.error || "";
-    return plan.error ? false : writeNets(plan.changes);
-  }
-
-  async function editNets(port: number, name: string, audiences: NetAudiences, proto: PortProto): Promise<boolean> {
-    const plan = planNets(port, proto, name, audiences, false);
-    editError.value = plan.error || "";
-    return plan.error ? false : writeNets(plan.changes, editError);
-  }
-
-  async function writeNets(changes: SlotList[], refusal?: Ref<string>): Promise<boolean> {
-    if (saving.value) return false;
-    saving.value = true;
-    try {
-      const lists = Object.fromEntries(changes.map((c) => [c.slot, c.list]));
-      const failures = await eachSlot(store, changes.map((c) => c.slot), (slot) => saveSlotFields(store, slot, { "ports.published": lists[slot] }, deps));
-      const text = failures.map(slotFailureText).join(" ");
-      if (failures.length > 0 && refusal) refusal.value = text;
-      else saveStatus.value = failures.length === 0 ? { text: CORE_SAVED, cls: "saved" } : { text, cls: "field-error-text" };
-      if (failures.length < changes.length) refreshState();
-      return failures.length === 0;
-    } finally {
-      saving.value = false;
-    }
   }
 
   // "Open" and "Close" write the list of the row's own network; a refusal stays at the row.
   async function saveOpened(slot: string, node: string, port: number, proto: PortProto, list: PortsConfigLists["opened"]): Promise<boolean> {
     if (saving.value) return false;
     saving.value = true;
-    const key = netRowKey({ node, port, proto }, isMulti(store) ? slot : undefined);
+    const key = netRowKey({ node, port, proto });
     try {
       const changes = { "ports.opened": list };
       const res = await saveSlotFields(store, slot, changes, deps);

@@ -19,7 +19,7 @@ import { resetNetBanner, useNetBanner } from "./add-net-banner.ts";
 
 const FRESH = "neta22";
 const INVITE = "mesh2-ABCDEFGH";
-const STAY_BOTH = 'You stay in "friends" and "my devices". The new network gets its own tab in Members.';
+const STAY_BOTH = 'You stay in "friends" and "my devices". The new network gets its own tab in Networks.';
 const LIMIT = "Mesh Town is in 8 networks, the most it can be in. To join a new one, leave a network first. You can still rejoin one of these.";
 const LIMIT_REFUSED = "This is a new network, so it can't be added until you leave one.";
 const NEW_INVITE = "mesh-invite2-ABCDEFGH";
@@ -70,7 +70,7 @@ describe("the form", () => {
     const opts = withFreshSlot(twoNets());
     opts.slots = [opts.slots[0], opts.slots[2]];
     const card = await setup({ opts });
-    expect(card.text()).toContain('You stay in "friends". The new network gets its own tab in Members.');
+    expect(card.text()).toContain('You stay in "friends". The new network gets its own tab in Networks.');
   });
 });
 

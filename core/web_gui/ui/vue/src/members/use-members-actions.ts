@@ -1,4 +1,4 @@
-/* Actions of the Members tab: ask in the dialog, send to `POST /api/members/<action>`, keep the answer in
+/* Actions of the Members pane of a network tab: ask in the dialog, send to `POST /api/members/<action>`, keep the answer in
  * `store.members`, wake the poller, and produce the line under the list. Does not draw anything. */
 
 import { ref } from "vue";

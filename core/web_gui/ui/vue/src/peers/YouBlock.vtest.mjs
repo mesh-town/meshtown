@@ -1,6 +1,6 @@
-/* The "You in <network>" block of a network tab: the whole page on a fake node with two networks.
+/* The "You in <network>" block, the Device settings section of a network tab: the whole page on a fake node with two networks.
  * Network A is `main` ("friends"), this computer is called "alice-box" in it; network B is `k7q2xa` ("my devices"), the name there is
- * "bob-box". Contract: the block is `#you-block` (one per tab), the name field `#you-name`, the link that copies the name of the
+ * "bob-box". Contract: the block is `#you-block` (the Device settings section, `#peers/<slot>/device`, also with one network), the name field `#you-name`, the link that copies the name of the
  * first network `#you-same-name` (not on the first network), the switch "let members open sites" `#you-exit-toggle`.
  * Everything the block saves goes to the address of its own network and never to `PUT /api/config`. */
 
@@ -22,17 +22,17 @@ afterEach(() => unmountPage());
 
 describe("on the first network", () => {
   it("is titled with the name of the network", async () => {
-    const page = await openTwo({ hash: "peers" });
+    const page = await openTwo({ hash: "peers/main/device" });
     expect(page.title()).toBe('You in "friends"');
   });
 
   it("shows the name of this computer in that network", async () => {
-    const page = await openTwo({ hash: "peers" });
+    const page = await openTwo({ hash: "peers/main/device" });
     expect(page.nameField().element.value).toBe(NAME_A);
   });
 
   it("has no link to use the name of the first network", async () => {
-    const page = await openTwo({ hash: "peers" });
+    const page = await openTwo({ hash: "peers/main/device" });
     expect(page.sameNameLink().exists()).toBe(false);
   });
 });
@@ -55,8 +55,50 @@ describe("on the second network", () => {
 });
 
 describe("one network", () => {
-  it("has no block, the name is edited on Home", async () => {
+  it("has the block in Device settings, with the name of this computer", async () => {
     const page = await openOne();
+    expect(page.block().exists()).toBe(true);
+    expect(page.nameField().element.value).toBe(NAME_A);
+  });
+
+  it("one network: no same-name link", async () => {
+    const page = await openOne();
+    expect(page.sameNameLink().exists()).toBe(false);
+  });
+
+  it("still offers the switch and \"Leave network…\"", async () => {
+    const page = await openOne();
+    expect(page.exitToggle().exists()).toBe(true);
+    expect(page.leaveButton()).toBeTruthy();
+  });
+});
+
+describe("in the phone app", () => {
+  beforeEach(() => setUa("Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile MeshTownApp/Android"));
+  afterEach(() => Reflect.deleteProperty(navigator, "userAgent"));
+
+  it("app: no exit toggle, no caption and no status of it", async () => {
+    const page = await openTwo();
+    expect(page.exitToggle().exists()).toBe(false);
+    expect(page.wrapper.find("#you-exit-hint").exists()).toBe(false);
+    expect(page.wrapper.find("#you-exit-status").exists()).toBe(false);
+  });
+
+  it("still has the name field and the way out", async () => {
+    const page = await openTwo();
+    expect(page.nameField().exists()).toBe(true);
+    expect(page.leaveButton()).toBeTruthy();
+  });
+});
+
+describe("the block lives in Device settings only", () => {
+  it("is not on Members", async () => {
+    const page = await openTwo({ hash: "peers/" + NET_B });
+    expect(page.block().exists()).toBe(false);
+  });
+
+  it("is not on Shared services", async () => {
+    const page = await openTwo({ hash: "peers/" + NET_B + "/services" });
     expect(page.block().exists()).toBe(false);
   });
 });
@@ -205,7 +247,7 @@ describe("\"Leave network…\"", () => {
   });
 
   it("on the first tab asks to leave the first network", async () => {
-    const page = await openTwo({ hash: "peers" });
+    const page = await openTwo({ hash: "peers/main/device" });
     await page.whenLeaveClicked();
     expect(page.dialogTitle()).toBe('Leave "friends"?');
   });
@@ -217,6 +259,7 @@ describe("\"Leave network…\"", () => {
   });
 });
 
+const setUa = (ua) => Object.defineProperty(navigator, "userAgent", { value: ua, configurable: true });
 const compact = (text) => text.replace(/\s+/g, " ").trim();
 const withNames = (opts) => {
   opts.config = baseConfig({ ports: { published: [{ port: 8080, for: "all" }], opened: [] }, node: { name: NAME_A }, exit: { enabled: true } });
@@ -239,7 +282,7 @@ function arrange(node, { readOnly, staleOnSave }) {
   }
 }
 
-async function openTwo({ hash = "peers/" + NET_B, readOnly = [], staleOnSave = false } = {}) {
+async function openTwo({ hash = "peers/" + NET_B + "/device", readOnly = [], staleOnSave = false } = {}) {
   const node = createFakeNode(withNames(twoNets(networkB())));
   arrange(node, { readOnly, staleOnSave });
   return pageOf(node, await mountPage(node, { hash }));
@@ -248,7 +291,7 @@ async function openTwo({ hash = "peers/" + NET_B, readOnly = [], staleOnSave = f
 async function openOne() {
   const opts = withNames(twoNets(networkB()));
   const node = createFakeNode({ ...opts, slots: [opts.slots[0]] });
-  return pageOf(node, await mountPage(node, { hash: "peers" }));
+  return pageOf(node, await mountPage(node, { hash: "peers/main/device" }));
 }
 
 function pageOf(node, { wrapper, store }) {
@@ -260,7 +303,8 @@ function pageOf(node, { wrapper, store }) {
     title: () => compact(wrapper.get("#you-block h2").text()),
     nameField: () => wrapper.get("#you-name"),
     sameNameLink: () => wrapper.find("#you-same-name"),
-    exitToggle: () => wrapper.get("#you-exit-toggle"),
+    exitToggle: () => wrapper.find("#you-exit-toggle"),
+    leaveButton,
     nameStatus: () => compact(wrapper.get("#you-name-status").text()),
     exitHint: () => compact(wrapper.get("#you-exit-hint").text()),
     dialogTitle: () => compact(wrapper.get("#confirm-title").text()),

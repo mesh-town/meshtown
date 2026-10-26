@@ -29,6 +29,7 @@ const snapshot = (store, row) => applySnapshot(store, { state: baseState({ ports
 
 let mounted;
 const mountNet = (row, proto) => (mounted = mountSection(PortsSection, {
+  props: { slot: "main" },
   state: baseState({ ports: { published: [], network: [row] } }),
   config: baseConfig({ ports: { published: [], opened: row.opened ? [entry(proto)] : [] } }),
 }));

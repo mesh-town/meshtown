@@ -17,6 +17,17 @@ const mountForm = (peers = PEERS, publish = vi.fn(async () => true)) => {
 afterEach(() => wrapper.unmount());
 
 describe("PublishForm", () => {
+  it("the button reads \"Publish port\"", () => {
+    mountForm();
+    expect(wrapper.get("#port-add-btn").text()).toBe("Publish port");
+  });
+
+  it("there is one audience choice, not a group per network", () => {
+    mountForm();
+    expect(wrapper.findAll("fieldset.port-audience")).toHaveLength(1);
+    expect(wrapper.findAll("#port-add-audience-all")).toHaveLength(1);
+  });
+
   it("by default \"All members\", no node list", () => {
     mountForm();
     expect(wrapper.get("#port-add-audience-all").element.checked).toBe(true);
@@ -35,7 +46,7 @@ describe("PublishForm", () => {
     expect(wrapper.find('[data-port-audience-node="' + "A".repeat(64) + '"]').exists()).toBe(false);
   });
 
-  it("check a node and \"Publish\" — publish(port, name, [id_full])", async () => {
+  it("check a node and \"Publish port\" — publish(port, name, [id_full])", async () => {
     const publish = mountForm();
     await wrapper.get("#port-add-port").setValue("8081");
     await wrapper.get("#port-add-name").setValue("web");
