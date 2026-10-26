@@ -1,16 +1,13 @@
 /* Texts of the "Add another network" form and of the banners shown after a network is added. */
 
 import type { NetKind } from "../core/api-types.ts";
-import { HOME_CREATE_BTN, HOME_CREATE_LABEL, HOME_JOIN_FIELD_LABEL, HOME_JOIN_PASTE_HINT, HOME_JOIN_PLACEHOLDER } from "./home-card-texts.ts";
+import { HOME_CREATE_BTN, HOME_CREATE_LABEL } from "./home-card-texts.ts";
 
 /** The most networks the node holds at once. */
 export const MAX_NETS = 8;
 
 export const ADD_NET_TITLE = "Add another network";
 export const ADD_NET_LINK = "Add another network";
-const ADD_NET_JOIN_LABEL = HOME_JOIN_FIELD_LABEL;
-const ADD_NET_JOIN_PLACEHOLDER = HOME_JOIN_PLACEHOLDER;
-const ADD_NET_JOIN_HINT = HOME_JOIN_PASTE_HINT;
 export const ADD_NET_CREATE_LABEL = HOME_CREATE_LABEL;
 export const ADD_NET_CREATE_PLACEHOLDER = "for example, family";
 export const ADD_NET_BTN = "Add network";
@@ -30,7 +27,6 @@ export const JOIN_NO_ANSWER_MS = 60_000;
 export const ADD_NET_LIMIT = `This invite is for a new network, and Mesh Town is already in ${MAX_NETS}. Leave a network, then paste the invite again.`;
 export const ADD_NET_BUSY = "Adding…";
 export const ADD_NET_ACTION = "add the network";
-const ADD_NET_CREATE_ACTION = "create the network";
 export const BANNER_OK = "OK";
 
 export const duplicateText = (net: string): string => `You're already in "${net}" — this invite isn't needed. Keep it for someone else.`;

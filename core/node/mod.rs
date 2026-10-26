@@ -47,6 +47,8 @@ mod config;
 #[cfg(feature = "net-hyper")]
 mod dial;
 #[cfg(feature = "net-hyper")]
+mod dial_outcome;
+#[cfg(feature = "net-hyper")]
 mod discovery_sources;
 #[cfg(feature = "net-hyper")]
 mod doc_changes;

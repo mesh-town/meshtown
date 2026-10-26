@@ -206,9 +206,9 @@ fn hermetic_overrides(key: &NetworkKey) -> CliOverrides {
     }
 }
 
-/// Hermetic settings: `--no-relay` (no relay and no DHT publishing), `--no-checks`, `--socks-port 0`,
-/// `--web-port 0` — the same `overrides` that go both to `prepare` and to `Relaunch.cli`, as in
-/// `main.rs:184-208`. `hosts` is a test table
+/// Boots a node with the hermetic settings of `hermetic_overrides` (the network key, checks off,
+/// `--socks-port 0`, `--web-port 0`); the same `overrides` go both to `prepare` and to `Relaunch.cli`.
+/// `hosts` is a test table
 /// of exit hosts (`NodeConfig.exit_hosts`): a name → an address bypassing DNS and the address filter; it
 /// can't be set from working paths (`main.rs`, config), so only here.
 pub(crate) async fn boot_with_exit_hosts(

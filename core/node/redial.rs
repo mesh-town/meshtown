@@ -166,6 +166,16 @@ impl Redial {
         Duration::ZERO
     }
 
+    /// We refused the peer: idle until `wake_idle` if access still denies it, due now if it already lets it in;
+    /// the ladder is reset.
+    pub(super) fn refused_by_us(&mut self, id: PeerId, now: Instant, allowed: bool) {
+        if allowed {
+            self.down_now(id, now);
+            return;
+        }
+        self.up(id);
+    }
+
     /// Moves every idle id for which `wake` holds to "due now"; failures and address stay. Waiting and
     /// dialing ids are skipped (the predicate isn't asked). Returns the woken ids.
     pub(super) fn wake_idle(&mut self, now: Instant, wake: impl Fn(PeerId) -> bool) -> Vec<PeerId> {
@@ -221,3 +231,7 @@ mod forget_tests;
 #[cfg(test)]
 #[path = "redial_wake_tests.rs"]
 mod wake_tests;
+
+#[cfg(test)]
+#[path = "redial_own_refusal_tests.rs"]
+mod own_refusal_tests;

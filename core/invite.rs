@@ -42,7 +42,7 @@ pub mod wire;
 pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};
 pub use issued::Issued;
-pub use issuer::NotAdmin;
+pub use issuer::{NotAdmin, OutOfNetwork};
 pub use parse::{looks_like_invite, parse, TEXT_V2_INVITE};
 
 /// Prefix of the invite string; carries the format number.
@@ -229,7 +229,7 @@ pub fn make(src: &Source, for_whom: Option<&str>) -> Result<Issued> {
         bail!("{NET_NAME} was restarted into another network — the invite command is unavailable until the process restarts");
     }
     if me_out_of_network(src) {
-        bail!("this computer is no longer in the network, so it cannot invite anyone");
+        return Err(OutOfNetwork.into());
     }
     let admins = issuer::issuing_admins(src)?;
     let connected: Vec<PeerId> = src.members.ids().into_iter().collect();

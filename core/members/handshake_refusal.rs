@@ -2,6 +2,7 @@
 //!
 //! What it does: reads the close code of a connection the responder dropped, notes it in the access view and
 //! attaches it to the handshake error as `RefusedByPeer`; logs once per run that the list removed this node.
+//! Our own refusal is the error `RefusedByUs`.
 //! What it doesn't do: no handshake exchange itself (see `handshake`).
 
 use std::sync::Arc;
@@ -23,6 +24,18 @@ impl std::fmt::Display for RefusedByPeer {
         write!(f, "peer refused us: {}", self.0.code())
     }
 }
+
+/// A handshake error: our membership list refused the peer.
+#[derive(Debug, Clone, Copy)]
+pub struct RefusedByUs(pub Deny);
+
+impl std::fmt::Display for RefusedByUs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "peer refused by the membership list: {}", self.0.code())
+    }
+}
+
+impl std::error::Error for RefusedByUs {}
 
 /// The responder did not answer: if it closed with a refusal, remember it (the close frame may arrive a moment later).
 pub(super) async fn learn_refusal(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Option<Deny> {
