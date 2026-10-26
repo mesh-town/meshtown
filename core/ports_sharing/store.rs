@@ -6,9 +6,9 @@ use anyhow::Result;
 use std::sync::Arc;
 
 use super::record::{
-    decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX,
+    decode_port_record, encode_port_record, port_from_key, port_key, port_prefix, PortRecord,
 };
-use super::types::Published;
+use super::types::{Proto, Published};
 
 /// The publications document over a replica (our own author is `r.me()`).
 #[derive(Clone)]
@@ -21,6 +21,7 @@ pub struct PortsDoc {
 pub struct PortView {
     pub author: PeerId,
     pub port: u16,
+    pub proto: Proto,
     pub record: Option<PortRecord>,
 }
 
@@ -29,27 +30,27 @@ impl PortsDoc {
         PortsDoc { r }
     }
 
-    /// Writes a publication entry under `port/tcp/<port>/`.
+    /// Writes a publication entry under `port/<proto>/<port>/`.
     pub async fn publish(&self, p: &Published) -> Result<()> {
         let value = encode_port_record(&PortRecord::from(p));
         self.r
-            .set_own(&port_key(p.port), value.into())
+            .set_own(&port_key(p.proto, p.port), value.into())
             .await
             .map_err(NetError::into_anyhow)?;
         Ok(())
     }
 
     /// Removes a publication by the exact key with a slash; if there was no port, a harmless tombstone.
-    pub async fn unpublish(&self, port: u16) -> Result<()> {
+    pub async fn unpublish(&self, proto: Proto, port: u16) -> Result<()> {
         self.r
-            .del_own(&port_key(port))
+            .del_own(&port_key(proto, port))
             .await
             .map_err(NetError::into_anyhow)?;
         Ok(())
     }
 
-    /// Ports of our own live entries (not tombstones), ascending; the value is not read.
-    pub async fn own_ports(&self) -> Result<Vec<u16>> {
+    /// Protocol and port of our own live entries (not tombstones), ascending; the value is not read.
+    pub async fn own_ports(&self) -> Result<Vec<(Proto, u16)>> {
         let entries = self.scan_ports().await?;
         let me = self.r.me();
         let mut ports = Vec::new();
@@ -65,26 +66,31 @@ impl PortsDoc {
     pub async fn read_all(&self) -> Result<Vec<PortView>> {
         let entries = self.scan_ports().await?;
         let mut out: Vec<PortView> = entries.iter().filter_map(view_of).collect();
-        out.sort_by(|a, b| (a.author.as_bytes(), a.port).cmp(&(b.author.as_bytes(), b.port)));
+        out.sort_by(|a, b| (a.author.as_bytes(), a.port, a.proto).cmp(&(b.author.as_bytes(), b.port, b.proto)));
         Ok(out)
     }
 
     /// Live publication entries of all authors.
     async fn scan_ports(&self) -> Result<Vec<ReplicaEntry>> {
-        let entries = self
-            .r
-            .scan(PORT_PREFIX.as_bytes())
-            .await
-            .map_err(NetError::into_anyhow)?;
-        Ok(live(entries))
+        let mut all = Vec::new();
+        for proto in Proto::ALL {
+            let entries = self
+                .r
+                .scan(port_prefix(proto).as_bytes())
+                .await
+                .map_err(NetError::into_anyhow)?;
+            all.extend(live(entries));
+        }
+        Ok(all)
     }
 }
 
 fn view_of(entry: &ReplicaEntry) -> Option<PortView> {
-    let port = port_from_key(&entry.key)?;
+    let (proto, port) = port_from_key(&entry.key)?;
     Some(PortView {
         author: entry.author,
         port,
+        proto,
         record: decode_port_record(&entry.value),
     })
 }

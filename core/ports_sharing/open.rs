@@ -14,7 +14,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Handle;
 use tokio::task::AbortHandle;
 
-use super::dial::forward_to_peer_port;
+use super::dial::{forward_to_peer_port, PortReach};
 use super::types::Opened;
 use crate::exit::PeerConnPool;
 use crate::members::membership::Members;
@@ -173,12 +173,12 @@ impl Opener {
     }
 
     /// Snapshot of the bind results in the order of the last reconcile.
-    pub fn bind_states(&self) -> Vec<(Opened, OpenState)> {
+    pub fn bind_states(&self) -> Vec<(Opened, OpenState, Option<PortReach>)> {
         let inner = lock(&self.0.inner);
         inner
             .entries
             .iter()
-            .map(|e| (e.opened.clone(), e.state.clone()))
+            .map(|e| (e.opened.clone(), e.state.clone(), None))
             .collect()
     }
 

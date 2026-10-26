@@ -9,7 +9,7 @@ use crate::exit::PeerConnPool;
 use crate::members::membership::Members;
 use crate::ports_sharing::{
     dial_peer_port, port_code_text, port_service, Audience, PortDialError, PortReach, PortStream,
-    Published, PublishedPortsTable, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
+    Proto, Published, PublishedPortsTable, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
     PORT_CODE_REFUSED, PORT_FRAME_VERSION,
 };
 use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
@@ -227,6 +227,7 @@ fn serving(port: u16) -> Arc<dyn ServiceHandler> {
     let members = Members::default();
     members.add_verified_conn(pid(1));
     let row = Published {
+        proto: Proto::Tcp,
         port,
         name: "echo".into(),
         audience: Audience::All,

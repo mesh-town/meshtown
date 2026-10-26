@@ -7,7 +7,7 @@ use crate::transport::net::PeerId;
 use serde_json::Value;
 
 use crate::ports_sharing::types::{
-    Audience, Opened, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES,
+    Audience, Opened, Proto, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES,
 };
 
 fn port_of(v: &Value, key: &str) -> Option<u16> {
@@ -41,6 +41,7 @@ fn name_of(v: &Value) -> Option<String> {
 fn published_one(v: &Value) -> Option<Published> {
     Some(Published {
         port: port_of(v, "port")?,
+        proto: Proto::Tcp,
         name: name_of(v)?,
         audience: audience_of(v)?,
     })
@@ -57,6 +58,7 @@ fn opened_one(v: &Value) -> Option<Opened> {
     Some(Opened {
         node: peer_id_of(v.get("node")?)?,
         port: port_of(v, "port")?,
+        proto: Proto::Tcp,
         local: port_of(v, "local")?,
     })
 }

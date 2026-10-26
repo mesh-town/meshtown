@@ -1,5 +1,6 @@
 use super::*;
 use crate::config::config_file::{NetSettings, ProcessSettings};
+use crate::ports_sharing::types::Proto;
 use crate::transport::net::NodeSecret;
 
 #[test]
@@ -83,11 +84,13 @@ fn ports_paths_are_live() {
     let from = Settings {
         net: NetSettings {
             ports_published: vec![crate::ports_sharing::Published {
+                proto: Proto::Tcp,
                 port: 8080,
                 name: "web".into(),
                 audience: crate::ports_sharing::Audience::All,
             }],
             ports_opened: vec![crate::ports_sharing::Opened {
+                proto: Proto::Tcp,
                 node: a,
                 port: 80,
                 local: 8081,

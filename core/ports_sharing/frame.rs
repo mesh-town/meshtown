@@ -3,6 +3,8 @@
 
 use anyhow::{bail, Result};
 
+use super::types::Proto;
+
 /// ALPN of the port publication protocol.
 pub const PORT_ALPN: &[u8] = b"meshtown/port/1";
 /// Version of the request and reply frame.
@@ -18,26 +20,60 @@ pub const PORT_CODE_CONNECT_FAILED: u8 = 3;
 pub const PORT_CODE_REFUSED: u8 = 5;
 /// The request could not be parsed.
 pub const PORT_CODE_BAD_REQUEST: u8 = 6;
+/// The publishing node serves too many UDP sessions already.
+pub const PORT_CODE_BUSY: u8 = 7;
+/// Version of a request frame that carries the protocol byte.
+pub const PORT_FRAME_VERSION_PROTO: u8 = 2;
 
-/// Request frame: version and port (most significant byte first). The port is not validated.
-pub fn encode_port_request(port: u16) -> [u8; 3] {
-    let p = port.to_be_bytes();
-    [PORT_FRAME_VERSION, p[0], p[1]]
+/// A request: the protocol and the port of the publishing node.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PortRequest {
+    pub proto: Proto,
+    pub port: u16,
 }
 
-/// Parsing a request frame: a length other than 3, a foreign version and port 0 are errors.
-pub fn parse_port_request(buf: &[u8]) -> Result<u16> {
-    if buf.len() != 3 {
-        bail!("request frame is not three bytes: {}", buf.len());
+/// Request frame, the port most significant byte first: TCP is `[1, hi, lo]` (understood by every node),
+/// UDP is `[2, proto, hi, lo]`. The port is not validated.
+pub fn encode_port_request(req: PortRequest) -> Vec<u8> {
+    let p = req.port.to_be_bytes();
+    if req.proto.is_tcp() {
+        return vec![PORT_FRAME_VERSION, p[0], p[1]];
     }
-    if buf[0] != PORT_FRAME_VERSION {
-        bail!("foreign request frame version: {}", buf[0]);
+    vec![PORT_FRAME_VERSION_PROTO, req.proto.wire(), p[0], p[1]]
+}
+
+/// How many bytes follow the first three of a request: 1 for version 2, otherwise 0.
+pub fn request_tail_len(head: &[u8; 3]) -> usize {
+    usize::from(head[0] == PORT_FRAME_VERSION_PROTO)
+}
+
+/// Parsing a request frame: version 1 is three bytes (TCP), version 2 is four bytes; any other
+/// version or length, an unknown protocol byte and port 0 are errors.
+pub fn parse_port_request(buf: &[u8]) -> Result<PortRequest> {
+    match (buf.first(), buf.len()) {
+        (Some(&PORT_FRAME_VERSION), 3) => request_of(Proto::Tcp, [buf[1], buf[2]]),
+        (Some(&PORT_FRAME_VERSION_PROTO), 4) => request_v2(buf),
+        (Some(&v), n) if v == PORT_FRAME_VERSION || v == PORT_FRAME_VERSION_PROTO => {
+            bail!("request frame of version {v} has a wrong length: {n}")
+        }
+        (Some(&v), _) => bail!("foreign request frame version: {v}"),
+        (None, _) => bail!("empty request frame"),
     }
-    let port = u16::from_be_bytes([buf[1], buf[2]]);
+}
+
+fn request_v2(buf: &[u8]) -> Result<PortRequest> {
+    let Some(proto) = Proto::from_wire(buf[1]) else {
+        bail!("unknown protocol byte in the request frame: {}", buf[1]);
+    };
+    request_of(proto, [buf[2], buf[3]])
+}
+
+fn request_of(proto: Proto, port: [u8; 2]) -> Result<PortRequest> {
+    let port = u16::from_be_bytes(port);
     if port == 0 {
         bail!("port 0 in the request frame");
     }
-    Ok(port)
+    Ok(PortRequest { proto, port })
 }
 
 /// Reply frame: version and code.
@@ -64,6 +100,7 @@ pub fn port_code_text(code: u8) -> &'static str {
         PORT_CODE_CONNECT_FAILED => "the port does not respond",
         PORT_CODE_REFUSED => "access to this port is not allowed",
         PORT_CODE_BAD_REQUEST => "request could not be parsed",
+        PORT_CODE_BUSY => "too many UDP sessions",
         _ => "unknown reply code",
     }
 }

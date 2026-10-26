@@ -13,10 +13,10 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use super::frame::{
-    encode_port_request, parse_port_reply, port_code_text, PORT_CODE_CONNECT_FAILED,
+    encode_port_request, parse_port_reply, PortRequest, port_code_text, PORT_CODE_CONNECT_FAILED,
     PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
 };
-use super::types::Opened;
+use super::types::{Opened, Proto};
 use crate::exit::{splice, PeerConnPool};
 use crate::members::membership::Members;
 use crate::node::output::say;
@@ -65,7 +65,8 @@ pub struct PortStream {
 }
 
 /// Why a port could not be reached.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PortReach {
     /// The node is not a member.
     Offline,
@@ -77,6 +78,8 @@ pub enum PortReach {
     TimedOut,
     /// Any other failure.
     Failed,
+    /// The node does not support UDP ports.
+    Unsupported,
 }
 
 /// A refusal: its class and the human-readable text.
@@ -139,7 +142,10 @@ async fn request_port_stream(
 ) -> Result<(BoxSend, BoxRecv, u8)> {
     let crate::transport::net::StreamPair { mut send, mut recv } =
         pool.open_peer_stream(stack, node).await?;
-    send.write_all(&encode_port_request(port))
+    send.write_all(&encode_port_request(PortRequest {
+        proto: Proto::Tcp,
+        port,
+    }))
         .await
         .map_err(|e| anyhow!("request not sent: {e}"))?;
     let mut answer = [0u8; 2];

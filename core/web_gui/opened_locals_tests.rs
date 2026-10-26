@@ -3,7 +3,7 @@
 use super::*;
 use crate::members::network_key::{format_key_string, parse_user_input};
 use crate::members::words::generate_tail;
-use crate::ports_sharing::Opened;
+use crate::ports_sharing::{Opened, Proto};
 use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{config_with_key, slot_handle, SnapNode};
 
@@ -140,6 +140,7 @@ fn slot(slot_id: &str, key: Option<&str>, locals: &[u16]) -> SlotHandle {
     state.file_settings.net.ports_opened = locals
         .iter()
         .map(|&local| Opened {
+            proto: Proto::Tcp,
             node,
             port: 80,
             local,

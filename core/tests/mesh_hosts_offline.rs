@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig};
-use meshtown_core::ports_sharing::{Audience, Published};
+use meshtown_core::ports_sharing::{Audience, Proto, Published};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::{sleep, Instant};
@@ -51,6 +51,7 @@ async fn ask_offline(audience: Audience) -> (u16, String) {
     cfg_a.settings.exit_enabled = false;
     cfg_a.settings.node_name = Some(NAME.to_string());
     cfg_a.settings.ports_published = vec![Published {
+        proto: Proto::Tcp,
         port: PORT,
         name: "web".into(),
         audience,

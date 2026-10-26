@@ -157,10 +157,11 @@ async fn collect_takes_cached_peer_name_from_peer_names_file() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn collect_shows_own_published_port() {
-    use crate::ports_sharing::{Audience, Published};
+    use crate::ports_sharing::{Audience, Proto, Published};
     let key = NetworkKey::generate().unwrap();
     let mut cfg = NodeConfig::for_loopback_test(key);
     cfg.settings.ports_published = vec![Published {
+        proto: Proto::Tcp,
         port: 8080,
         name: "web".into(),
         audience: Audience::All,

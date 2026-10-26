@@ -9,6 +9,7 @@ use tokio::net::TcpStream;
 
 use super::*;
 use crate::node::output::{log_page, log_summary};
+use crate::ports_sharing::types::Proto;
 
 fn node(n: u8) -> PeerId {
     pid(n)
@@ -16,6 +17,7 @@ fn node(n: u8) -> PeerId {
 
 fn op(n: u8, local: u16) -> Opened {
     Opened {
+        proto: Proto::Tcp,
         node: node(n),
         port: 80,
         local,
@@ -40,7 +42,7 @@ fn free_port() -> u16 {
 fn state_of(o: &Opener, local: u16) -> OpenState {
     o.bind_states()
         .into_iter()
-        .find(|(x, _)| x.local == local)
+        .find(|(x, _, _)| x.local == local)
         .unwrap()
         .1
 }
@@ -174,7 +176,7 @@ async fn local_zero_rejected() {
 async fn states_follow_input() {
     let (o, a, b) = (opener().await, free_port(), free_port());
     o.reconcile_listeners(vec![op(1, b), op(1, a), op(1, b)]);
-    let got: Vec<u16> = o.bind_states().iter().map(|(x, _)| x.local).collect();
+    let got: Vec<u16> = o.bind_states().iter().map(|(x, _, _)| x.local).collect();
     assert_eq!(got, vec![b, a]);
 }
 

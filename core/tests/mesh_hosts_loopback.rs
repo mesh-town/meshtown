@@ -17,7 +17,7 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
-use meshtown_core::ports_sharing::{Audience, Published};
+use meshtown_core::ports_sharing::{Audience, Proto, Published};
 use meshtown_core::proxy::socks5;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -102,6 +102,7 @@ mod empty_nodes_audience {
         // given: A publishes P for the explicit list of nodes, and the list is empty.
         let echo = echo_site().await;
         let published = Published {
+            proto: Proto::Tcp,
             port: echo.port(),
             name: "echo".to_string(),
             audience: Audience::Nodes(vec![]),
@@ -226,6 +227,7 @@ async fn setup(published: Vec<Published>) -> Mesh {
 
 fn all(port: u16, name: &str) -> Published {
     Published {
+        proto: Proto::Tcp,
         port,
         name: name.to_string(),
         audience: Audience::All,

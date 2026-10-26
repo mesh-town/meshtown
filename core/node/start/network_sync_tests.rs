@@ -5,7 +5,7 @@
 
 use crate::invite::store::{issue_record, IssueVerdict, Ledger};
 use crate::node::node_state::{announce_exit, own_value, read_exit_flags, read_values};
-use crate::ports_sharing::{Audience, PortsDoc, Published};
+use crate::ports_sharing::{Audience, PortsDoc, Proto, Published};
 use crate::proxy::domains::{DomainList, LIST_PREFIX};
 use crate::transport::net::contract::{SEED_A, SEED_B, STEP};
 use crate::transport::net::mem::{sync_ctor as mem_ctor, MemNet, MemSyncNet};
@@ -305,6 +305,7 @@ async fn open_list(sync: &dyn SyncBackend) -> DomainList {
 
 fn published(port: u16, name: &str) -> Published {
     Published {
+        proto: Proto::Tcp,
         port,
         name: name.to_string(),
         audience: Audience::All,

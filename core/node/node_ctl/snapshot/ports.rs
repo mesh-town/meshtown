@@ -7,11 +7,11 @@ use crate::proxy::MeshAddress;
 use crate::transport::net::PeerId;
 
 use crate::ports_sharing::open::OpenState;
-use crate::ports_sharing::{LocalState, Opened, PortView, Published};
+use crate::ports_sharing::{LocalState, Opened, PortReach, PortView, Published};
 use crate::web_gui::{NetPort, OpenedInfo, OwnPort, PortsInfo};
 
 type Own = Vec<(Published, LocalState)>;
-type OpenedNow = Vec<(Opened, OpenState)>;
+type OpenedNow = Vec<(Opened, OpenState, Option<PortReach>)>;
 
 fn local_text(s: LocalState) -> &'static str {
     match s {
@@ -39,8 +39,8 @@ fn opened_info(local: u16, st: &OpenState) -> OpenedInfo {
 fn find_opened(opened: &OpenedNow, node: PeerId, port: u16) -> Option<OpenedInfo> {
     opened
         .iter()
-        .find(|(o, _)| o.node == node && o.port == port)
-        .map(|(o, st)| opened_info(o.local, st))
+        .find(|(o, _, _)| o.node == node && o.port == port)
+        .map(|(o, st, _)| opened_info(o.local, st))
 }
 
 /// The name of a record opened to node `own_id`, with a readable value; otherwise `None`.
@@ -113,7 +113,7 @@ pub(super) fn build_ports(
             network.push(row(v.author, v.port, name, &ctx, op));
         }
     }
-    for (o, st) in opened.iter().filter(|(o, _)| o.node != own_id) {
+    for (o, st, _) in opened.iter().filter(|(o, _, _)| o.node != own_id) {
         if seen.insert((o.node, o.port)) {
             network.push(row(
                 o.node,

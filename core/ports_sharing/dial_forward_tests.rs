@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use crate::node::output::{log_page, log_summary};
 use crate::ports_sharing::{
-    port_code_text, port_service, Audience, Published, PublishedPortsTable,
+    port_code_text, port_service, Audience, Proto, Published, PublishedPortsTable,
     PORT_CODE_NOT_PUBLISHED, PORT_FRAME_VERSION,
 };
 use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
@@ -162,6 +162,7 @@ async fn setup(opts: Opts) -> Fixture {
     members.add_verified_conn(pid(2));
     let (client, accepted) = pair().await;
     let target = Opened {
+        proto: Proto::Tcp,
         node: pid(2),
         port: opts.port,
         local: opts.local,
@@ -242,6 +243,7 @@ fn serving(port: u16) -> Arc<dyn ServiceHandler> {
     let members = Members::default();
     members.add_verified_conn(pid(1));
     let row = Published {
+        proto: Proto::Tcp,
         port,
         name: "echo".into(),
         audience: Audience::All,

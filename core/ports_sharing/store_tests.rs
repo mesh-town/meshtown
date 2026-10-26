@@ -7,7 +7,7 @@ use bytes::Bytes;
 use std::sync::Arc;
 
 use super::*;
-use crate::ports_sharing::types::Audience;
+use crate::ports_sharing::types::{Audience, Proto};
 
 mod own_port {
     use super::*;
@@ -24,7 +24,7 @@ mod own_port {
         assert_eq!((views[0].author, views[0].port), (r.me, 8080));
         let rec = views[0].record.clone().unwrap();
         assert_eq!((rec.v, rec.name.as_str()), (1, "web"));
-        assert_eq!(r.doc.own_ports().await.unwrap(), [8080]);
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Tcp, 8080)]);
     }
 }
 
@@ -37,7 +37,7 @@ mod remove {
         let r = setup();
         r.doc.publish(&p(8080, "")).await.unwrap();
         // when: the publication is removed
-        r.doc.unpublish(8080).await.unwrap();
+        r.doc.unpublish(Proto::Tcp, 8080).await.unwrap();
         // then: the tombstone is visible neither in the overview nor in our own ports
         assert!(r.doc.read_all().await.unwrap().is_empty());
         assert!(r.doc.own_ports().await.unwrap().is_empty());
@@ -50,9 +50,9 @@ mod remove {
         r.doc.publish(&p(80, "")).await.unwrap();
         r.doc.publish(&p(8080, "")).await.unwrap();
         // when: port 80 is removed
-        r.doc.unpublish(80).await.unwrap();
+        r.doc.unpublish(Proto::Tcp, 80).await.unwrap();
         // then: port 8080 is still there
-        assert_eq!(r.doc.own_ports().await.unwrap(), [8080]);
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Tcp, 8080)]);
     }
 }
 
@@ -63,7 +63,8 @@ mod bad_value {
     async fn junk_bytes_give_closed_record_but_port_stays_listed() {
         // given: the replica holds unreadable bytes under the key of port 81
         let r = setup();
-        r.set_own_raw(&port_key(81), &[0xFF, 0xFF]).await;
+        r.set_own_raw(&port_key(Proto::Tcp, 81), &[0xFF, 0xFF])
+            .await;
         // when: we read the overview
         let views = r.doc.read_all().await.unwrap();
         // then: the entry is there, but without a parsed value; the port counts as our own
@@ -71,7 +72,7 @@ mod bad_value {
             (views.len(), views[0].port, views[0].record.clone()),
             (1, 81, None)
         );
-        assert!(r.doc.own_ports().await.unwrap().contains(&81));
+        assert!(r.doc.own_ports().await.unwrap().contains(&(Proto::Tcp, 81)));
     }
 
     #[tokio::test]
@@ -98,7 +99,7 @@ mod foreign_author {
         let other = peer(4);
         r.put_foreign(
             other,
-            &port_key(9000),
+            &port_key(Proto::Tcp, 9000),
             &encode_port_record(&PortRecord::from(&p(9000, "t"))),
         );
         // when: we read the overview
@@ -117,7 +118,7 @@ mod foreign_author {
     async fn tombstone_leaves_no_view() {
         // given: only a tombstone for a port key arrived from a second author
         let r = setup();
-        r.put_foreign(peer(4), &port_key(9000), b"");
+        r.put_foreign(peer(4), &port_key(Proto::Tcp, 9000), b"");
         // when: we read the overview
         // then: empty
         assert!(r.doc.read_all().await.unwrap().is_empty());
@@ -130,12 +131,147 @@ mod foreign_author {
         r.doc.publish(&p(80, "")).await.unwrap();
         r.put_foreign(
             peer(4),
-            &port_key(9000),
+            &port_key(Proto::Tcp, 9000),
             &encode_port_record(&PortRecord::from(&p(9000, ""))),
         );
         // when: we ask for our own ports
         // then: only 80
-        assert_eq!(r.doc.own_ports().await.unwrap(), [80]);
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Tcp, 80)]);
+    }
+}
+
+mod two_protocols {
+    use super::*;
+
+    #[tokio::test]
+    async fn read_all_returns_both_protocols() {
+        // given: TCP 53 and UDP 53 of one node are published
+        let r = setup();
+        r.doc.publish(&pp(Proto::Udp, 53, "dns-udp")).await.unwrap();
+        r.doc.publish(&pp(Proto::Tcp, 53, "dns-tcp")).await.unwrap();
+        // when: we read the overview
+        let views = r.doc.read_all().await.unwrap();
+        // then: two entries, TCP first for the same port, each with its own value
+        let rows: Vec<(Proto, u16, Option<String>)> = views
+            .iter()
+            .map(|v| (v.proto, v.port, v.record.as_ref().map(|x| x.name.clone())))
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                (Proto::Tcp, 53, Some("dns-tcp".to_string())),
+                (Proto::Udp, 53, Some("dns-udp".to_string()))
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn own_ports_lists_pairs_of_both_protocols() {
+        // given: UDP 53, TCP 80 and TCP 53 are published
+        let r = setup();
+        r.doc.publish(&pp(Proto::Udp, 53, "")).await.unwrap();
+        r.doc.publish(&p(80, "")).await.unwrap();
+        r.doc.publish(&p(53, "")).await.unwrap();
+        // when: we ask for our own ports
+        // then: pairs, ordered by protocol and then port
+        assert_eq!(
+            r.doc.own_ports().await.unwrap(),
+            [(Proto::Tcp, 53), (Proto::Tcp, 80), (Proto::Udp, 53)]
+        );
+    }
+
+    #[tokio::test]
+    async fn udp_record_is_written_under_the_udp_key() {
+        // given: an empty replica
+        let r = setup();
+        // when: UDP 53 is published
+        r.doc.publish(&pp(Proto::Udp, 53, "dns")).await.unwrap();
+        // then: the document holds exactly the key `port/udp/53/`
+        let entries = r.rep.scan(b"port/").await.unwrap();
+        let keys: Vec<Vec<u8>> = live(entries).into_iter().map(|e| e.key).collect();
+        assert_eq!(keys, [b"port/udp/53/".to_vec()]);
+    }
+
+    #[tokio::test]
+    async fn tcp_prefix_scan_skips_udp_records() {
+        // given: only a UDP record is published (what an older node would scan for)
+        let r = setup();
+        r.doc.publish(&pp(Proto::Udp, 53, "dns")).await.unwrap();
+        // when: the old prefix `port/tcp/` is scanned
+        let entries = r
+            .rep
+            .scan(port_prefix(Proto::Tcp).as_bytes())
+            .await
+            .unwrap();
+        // then: nothing is found
+        assert!(
+            entries.is_empty(),
+            "a UDP record is visible under port/tcp/"
+        );
+    }
+
+    #[tokio::test]
+    async fn unpublishing_udp_keeps_tcp_of_the_same_number() {
+        // given: TCP 53 and UDP 53 are published
+        let r = setup();
+        r.doc.publish(&p(53, "")).await.unwrap();
+        r.doc.publish(&pp(Proto::Udp, 53, "")).await.unwrap();
+        // when: UDP 53 is removed
+        r.doc.unpublish(Proto::Udp, 53).await.unwrap();
+        // then: TCP 53 is still there, UDP 53 is gone
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Tcp, 53)]);
+        let views = r.doc.read_all().await.unwrap();
+        assert_eq!(
+            views.iter().map(|v| v.proto).collect::<Vec<_>>(),
+            [Proto::Tcp]
+        );
+    }
+
+    #[tokio::test]
+    async fn unpublishing_tcp_keeps_udp_of_the_same_number() {
+        let r = setup();
+        r.doc.publish(&p(53, "")).await.unwrap();
+        r.doc.publish(&pp(Proto::Udp, 53, "")).await.unwrap();
+        r.doc.unpublish(Proto::Tcp, 53).await.unwrap();
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Udp, 53)]);
+    }
+
+    #[tokio::test]
+    async fn foreign_udp_record_is_seen_with_its_protocol() {
+        // given: a second author has UDP 9000 published, we have nothing
+        let r = setup();
+        let other = peer(4);
+        r.put_foreign(
+            other,
+            &port_key(Proto::Udp, 9000),
+            &encode_port_record(&PortRecord::from(&pp(Proto::Udp, 9000, "t"))),
+        );
+        // when: we read the overview and our own ports
+        let views = r.doc.read_all().await.unwrap();
+        // then: one UDP entry of that author, and nothing counts as ours
+        assert_eq!(
+            (views[0].author, views[0].port, views[0].proto),
+            (other, 9000, Proto::Udp)
+        );
+        assert!(r.doc.own_ports().await.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn junk_udp_value_keeps_the_port_listed_without_a_record() {
+        let r = setup();
+        r.set_own_raw(&port_key(Proto::Udp, 81), &[0xFF, 0xFF])
+            .await;
+        let views = r.doc.read_all().await.unwrap();
+        assert_eq!(
+            (
+                views.len(),
+                views[0].proto,
+                views[0].port,
+                views[0].record.clone()
+            ),
+            (1, Proto::Udp, 81, None)
+        );
+        assert_eq!(r.doc.own_ports().await.unwrap(), [(Proto::Udp, 81)]);
     }
 }
 
@@ -189,8 +325,13 @@ fn peer(seed: u8) -> PeerId {
 }
 
 fn p(port: u16, name: &str) -> Published {
+    pp(Proto::Tcp, port, name)
+}
+
+fn pp(proto: Proto, port: u16, name: &str) -> Published {
     Published {
         port,
+        proto,
         name: name.into(),
         audience: Audience::All,
     }

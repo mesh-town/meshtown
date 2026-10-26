@@ -4,7 +4,9 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::ports_sharing::{encode_port_request, Published, PORT_FRAME_VERSION};
+use crate::ports_sharing::{
+    encode_port_request, PortRequest, Proto, Published, PORT_FRAME_VERSION,
+};
 use crate::transport::net::facade::test_support::{pid, secret, within, Probe, STEP};
 use crate::transport::net::{
     MemNet, NetStack, NetStackBuilder, PeerConn, ServiceHandler, StreamPair, PORT,
@@ -30,7 +32,7 @@ mod non_member {
 
         // when: A asks for a port
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(port)).await;
+        ask.says(&tcp_request(port)).await;
 
         // then: refusal, and nobody connected to the port
         assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_REFUSED]);
@@ -51,7 +53,7 @@ mod unpublished_port {
 
         // when: A asks for a port that is not in the table
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(8080)).await;
+        ask.says(&tcp_request(8080)).await;
 
         // then: "not published"
         assert_eq!(
@@ -76,7 +78,7 @@ mod nodes_audience {
 
         // when: A asks for a port
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(port)).await;
+        ask.says(&tcp_request(port)).await;
 
         // then: "open" and the echo
         assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_OK]);
@@ -96,7 +98,7 @@ mod nodes_audience {
 
         // when: A asks for a port
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(port)).await;
+        ask.says(&tcp_request(port)).await;
 
         // then: refusal, nobody connected to the port
         assert_eq!(ask.hears(2).await, [PORT_FRAME_VERSION, PORT_CODE_REFUSED]);
@@ -161,7 +163,7 @@ mod published_port {
 
         // when: A asks for a port and sends "ping"
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(port)).await;
+        ask.says(&tcp_request(port)).await;
         let code = ask.hears(2).await;
         ask.says(b"ping").await;
 
@@ -179,7 +181,7 @@ mod published_port {
 
         // when: A asks for a port
         let mut ask = fx.when_opens_stream().await;
-        ask.says(&encode_port_request(port)).await;
+        ask.says(&tcp_request(port)).await;
 
         // then: "port does not respond", Refused in the table
         assert_eq!(
@@ -195,7 +197,7 @@ mod published_port {
         let (first_port, second_port) = (echo_listener().await, echo_listener().await);
         let fx = setup(Opts::publishing(&[first_port, second_port])).await;
         let mut first = fx.when_opens_stream().await;
-        first.says(&encode_port_request(first_port)).await;
+        first.says(&tcp_request(first_port)).await;
         assert_eq!(
             first.hears(2).await,
             [PORT_FRAME_VERSION, PORT_CODE_OK],
@@ -204,7 +206,7 @@ mod published_port {
 
         // when: a second stream goes over the same connection
         let mut second = fx.when_opens_stream().await;
-        second.says(&encode_port_request(second_port)).await;
+        second.says(&tcp_request(second_port)).await;
 
         // then: the second is answered and works, without waiting for the first to end
         assert_eq!(
@@ -323,8 +325,17 @@ impl Client {
     }
 }
 
+/// A version 1 (TCP) request frame for `port`.
+fn tcp_request(port: u16) -> Vec<u8> {
+    encode_port_request(PortRequest {
+        proto: Proto::Tcp,
+        port,
+    })
+}
+
 fn published(port: u16, audience: Audience) -> Published {
     Published {
+        proto: Proto::Tcp,
         port,
         name: format!("p{port}"),
         audience,

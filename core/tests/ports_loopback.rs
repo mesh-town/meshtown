@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::{self, NodeConfig, RunningNode};
-use meshtown_core::ports_sharing::{Audience, LocalState, Opened, Published};
+use meshtown_core::ports_sharing::{Audience, LocalState, Opened, Proto, Published};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::{sleep, timeout, Instant};
@@ -23,6 +23,7 @@ use common::{echo_site, introduce, wait_member};
 
 fn all(port: u16, name: &str) -> Published {
     Published {
+        proto: Proto::Tcp,
         port,
         name: name.to_string(),
         audience: Audience::All,
@@ -94,6 +95,7 @@ async fn assert_closed_without_data(local: u16) {
 
 fn opened(a: &RunningNode, port: u16, local: u16) -> Vec<Opened> {
     vec![Opened {
+        proto: Proto::Tcp,
         node: a.id,
         port,
         local,
@@ -158,7 +160,7 @@ async fn removing_80_keeps_8080() {
 
     // when the announcer has run / then own = [8080], B has 8080 and not 80 (the key's slash).
     wait_for(Duration::from_secs(10), "own = [8080]", || async {
-        a.ports_doc.own_ports().await.unwrap() == vec![8080]
+        a.ports_doc.own_ports().await.unwrap() == vec![(Proto::Tcp, 8080)]
     })
     .await;
     wait_for(Duration::from_secs(10), "only 8080 at B", || async {
@@ -172,12 +174,14 @@ async fn nodes_audience_is_refused_for_unlisted_node() {
     // given: A publishes with Nodes([A]) — B is not in the list.
     let site = echo_site().await;
     let p = Published {
+        proto: Proto::Tcp,
         port: site.port(),
         name: "private".into(),
         audience: Audience::Nodes(vec![]),
     };
     let (a, b) = pair_ports(vec![p]).await;
     let p = Published {
+        proto: Proto::Tcp,
         audience: Audience::Nodes(vec![a.id]),
         ..all(site.port(), "private")
     };

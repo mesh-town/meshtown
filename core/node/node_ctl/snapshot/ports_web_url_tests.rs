@@ -101,7 +101,7 @@ mod overlay {
     #[test]
     fn unpublished_port_opened_here_gets_no_link() {
         // given: a port opened here, but the author has no record for this node
-        let op = vec![(opened(id(A), 80, 9000), OpenState::Listening)];
+        let op = vec![(opened(id(A), 80, 9000), OpenState::Listening, None)];
         let mut rows = run(&[], &[A], op).network;
         assert!(!rows[0].published, "the fixture must be an unpublished row");
 
@@ -133,7 +133,7 @@ mod overlay {
     #[test]
     fn clears_a_link_of_a_port_that_is_no_longer_shared() {
         // given: a stale link on an unpublished row
-        let op = vec![(opened(id(A), 80, 9000), OpenState::Listening)];
+        let op = vec![(opened(id(A), 80, 9000), OpenState::Listening, None)];
         let mut rows = run(&[], &[A], op).network;
         rows[0].web_url = Some("http://stale.meshtown".into());
 
