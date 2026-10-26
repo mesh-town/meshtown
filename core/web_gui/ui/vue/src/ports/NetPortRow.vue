@@ -98,7 +98,7 @@ function startChange(): void {
         <template v-else-if="row.opened">
           <span class="mono">{{ portsLocalAddress(row.opened.local) }}</span>
           <button type="button" class="btn btn-sm" :aria-label="portsCopyAddressLabel(portsLocalAddress(row.opened.local))" @click="copy(portsLocalAddress(row.opened.local))">{{ copied === portsLocalAddress(row.opened.local) ? PORTS_COPIED : PORTS_COPY }}</button>
-          <span class="badge badge-ok">{{ PORTS_OPENED }}</span>
+          <span class="badge" :class="{ 'badge-ok': !lastError }">{{ PORTS_OPENED }}</span>
           <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
           <button type="button" class="linkbtn" :data-port-change="rowKey" :disabled="busy" @click="startChange">{{ PORTS_CHANGE_NUMBER }}</button>
           <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>

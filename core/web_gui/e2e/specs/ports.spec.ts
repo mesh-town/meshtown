@@ -5,6 +5,14 @@ interface PortsCfg {
   config?: { ports?: { published?: { port?: number }[]; opened?: { local?: number }[] } };
 }
 
+interface UdpEntry {
+  port?: number;
+  proto?: string;
+}
+interface UdpCfg {
+  config?: { ports?: { published?: UdpEntry[]; opened?: UdpEntry[] } };
+}
+
 test('48-ports-tab: tab "Ports": "Open" and "Close" a port of another member', async ({
   app,
   api,
@@ -137,5 +145,51 @@ test('74-ports-publish-nodes: tab "Ports": publishing 8081 only to the selected 
     const row = ports.ownBody.getByRole('row').filter({ hasText: '8081' });
     await row.getByRole('button', { name: 'Unpublish' }).click();
     await expect.soft(ports.ownBody, 'the row is still there').not.toContainText('8081', { timeout: 6000 });
+  });
+});
+
+test('123-ports-udp: tab "Ports": publishing UDP 8080 next to TCP 8080, the UDP badge, "Open" and "Close" of the shared UDP row, "Unpublish" (demo)', async ({
+  app,
+  api,
+  page,
+  targetKind,
+}) => {
+  test.skip(targetKind === 'node', 'the shared UDP row is a web_demo stub fixture; a real node has none');
+  const ports = new PortsSection(page);
+  const cfg = async () => (await api.getJson<UdpCfg>('/api/config')).body?.config?.ports;
+  await app.tabs.open('ports');
+
+  await test.step('"Publish" TCP 8080 and UDP 8080: two rows, the badge only on the UDP one, PUT has proto "udp"', async () => {
+    await ports.publish('8080', 'udp-web');
+    await expect(ports.ownRow('8080', 'tcp'), 'TCP row').toHaveCount(1, { timeout: 6000 });
+    await expect(ports.addPort, 'the form is cleared after publishing').toHaveValue('');
+    const put = page.waitForRequest((r) => new URL(r.url()).pathname === '/api/config' && r.method() === 'PUT');
+    await ports.publish('8080', 'udp-echo', 'udp');
+    const body = (await put).postDataJSON() as { config?: { ports?: { published?: UdpEntry[] } } };
+    const entry = body.config?.ports?.published?.find((p) => p.proto === 'udp');
+    expect.soft(entry?.port, JSON.stringify(entry)).toBe(8080);
+    await expect.soft(ports.ownRow('8080', 'tcp'), 'TCP row').toHaveCount(1, { timeout: 6000 });
+    await expect.soft(ports.ownRow('8080', 'udp'), 'UDP row').toHaveCount(1, { timeout: 6000 });
+    await expect.soft(ports.udpBadge, 'only the UDP rows have the badge').toHaveCount(2);
+  });
+
+  await test.step('the shared UDP row (demo-dns 5353) has the badge; "Open" puts proto "udp", "Close" removes it', async () => {
+    const row = ports.netRows.filter({ has: ports.udpBadge });
+    await expect.soft(row, 'one shared UDP row').toHaveCount(1);
+    await expect.soft(row.getByRole('link'), 'no browser link for UDP').toHaveCount(0);
+    await ports.openButton(row).click();
+    await expect
+      .poll(async () => (await cfg())?.opened?.map((o) => [o.proto, o.port]), { message: 'ports.opened', timeout: 6000 })
+      .toEqual([['udp', 5353]]);
+    await ports.closeButton(row).click();
+    await expect.poll(async () => (await cfg())?.opened, { message: 'ports.opened is empty', timeout: 6000 }).toEqual([]);
+  });
+
+  await test.step('"Unpublish" of the UDP row leaves the TCP one', async () => {
+    await ports.ownRow('8080', 'udp').getByRole('button', { name: 'Unpublish' }).click();
+    await expect.soft(ports.ownRow('8080', 'udp'), 'UDP row is still there').toHaveCount(0, { timeout: 6000 });
+    await expect.soft(ports.ownRow('8080', 'tcp'), 'TCP row is gone too').toHaveCount(1);
+    await ports.ownRow('8080', 'tcp').getByRole('button', { name: 'Unpublish' }).click();
+    await expect.poll(async () => (await cfg())?.published, { message: 'ports.published', timeout: 6000 }).toEqual([]);
   });
 });
