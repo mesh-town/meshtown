@@ -242,6 +242,12 @@ all fields are required; `null` is allowed where marked):
         "port": 80, "proto": "tcp", "name": "site", "published": true,
         "opened": { "local": 9000, "state": "listening", "error": null, "last_error": null },
         "web_url": "http://home-box.meshtown"
+      },
+      {
+        "node": "1bd2ec32a56f...", "node_name": null, "online": true,
+        "port": 53, "proto": "udp", "name": "dns", "published": true,
+        "opened": { "local": 2053, "state": "listening", "error": null, "last_error": "unsupported" },
+        "web_url": null
       }
     ]
   },
