@@ -200,7 +200,11 @@ fn an_old_key_on_the_command_line_adds_no_slot_beside_the_good_main_key() {
     let slots = overview["slots"].as_array().expect("slots");
     assert_eq!(slots.len(), 1, "{overview}");
     assert!(!slots[0]["state"].is_null(), "{overview}");
-    assert_eq!(overview["nets"].as_array().map(Vec::len), Some(1), "{overview}");
+    assert_eq!(
+        overview["nets"].as_array().map(Vec::len),
+        Some(1),
+        "{overview}"
+    );
 }
 
 fn read_token(node: &NodeProc) -> String {
