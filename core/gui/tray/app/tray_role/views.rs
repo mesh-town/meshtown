@@ -167,3 +167,7 @@ mod tests;
 #[cfg(test)]
 #[path = "views_fallback_tests.rs"]
 mod fallback_tests;
+
+#[cfg(test)]
+#[path = "views_offline_tests.rs"]
+mod offline_tests;

@@ -1,0 +1,535 @@
+{
+ "api": 2,
+ "nets": [
+  {
+   "admission_refused": false,
+   "can_invite": true,
+   "exit_enabled": true,
+   "exits": [],
+   "id": "main",
+   "id_hex": "8bb5828b",
+   "joining": false,
+   "label": "alpha",
+   "me_admin": true,
+   "me_excluded": false,
+   "me_pending": false,
+   "members_admitting": 0,
+   "peers_online": 0,
+   "peers_total": 0,
+   "proxy": true,
+   "route_state": "direct",
+   "status": "offline"
+  },
+  {
+   "admission_refused": false,
+   "can_invite": true,
+   "exit_enabled": true,
+   "exits": [],
+   "id": "d443z7",
+   "id_hex": "d28a8407",
+   "joining": false,
+   "label": "beta",
+   "me_admin": true,
+   "me_excluded": false,
+   "me_pending": false,
+   "members_admitting": 0,
+   "peers_online": 0,
+   "peers_total": 0,
+   "proxy": false,
+   "route_state": "direct",
+   "status": "offline"
+  }
+ ],
+ "notices": [],
+ "restart_slots": [],
+ "slots": [
+  {
+   "members": {
+    "admins": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "counts": {
+     "excluded": 0,
+     "members": 1,
+     "pending": 0,
+     "unlisted": 0
+    },
+    "me": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "me_admin": true,
+    "me_admission": null,
+    "me_excluded": false,
+    "me_pending": false,
+    "members": [
+     {
+      "admin": true,
+      "admission": null,
+      "blocked_by_me": false,
+      "denied_by_me": null,
+      "excluded": null,
+      "id": "aaaaaaaaaa",
+      "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "last_refusal": null,
+      "last_seen_sec": 5,
+      "name": null,
+      "online": true,
+      "self": true,
+      "status": "member"
+     }
+    ],
+    "root": null
+   },
+   "slot": "main",
+   "state": {
+    "api": 2,
+    "boot_id": "7e2db1a6",
+    "config_rev": 2,
+    "domains": [],
+    "exit": {
+     "clients": [],
+     "domains": 0,
+     "enabled": true
+    },
+    "log": {
+     "first_seq": 1,
+     "last_seq": 39,
+     "ring_lines": 2000,
+     "tags": [
+      "access",
+      "checks",
+      "config",
+      "console",
+      "docs",
+      "exit",
+      "geo",
+      "guard",
+      "host",
+      "hyper",
+      "node",
+      "socks",
+      "web"
+     ],
+     "tail": [
+      {
+       "seq": 34,
+       "t": 19.1,
+       "tag": "exit",
+       "text": "announced to peers: exit on"
+      },
+      {
+       "seq": 35,
+       "t": 19.1,
+       "tag": "docs",
+       "text": "announced program version 0.3.161 to peers"
+      },
+      {
+       "seq": 36,
+       "t": 19.1,
+       "tag": "checks",
+       "text": "checks disabled: DoH 1.1.1.1:443, interval 900 s, first check of a new domain within 65 s"
+      },
+      {
+       "seq": 37,
+       "t": 19.1,
+       "tag": "console",
+       "text": "input closed, console commands unavailable"
+      },
+      {
+       "seq": 38,
+       "t": 19.1,
+       "tag": "docs",
+       "text": "name \"buffalo-croon\" written to the network document"
+      },
+      {
+       "seq": 39,
+       "t": 19.2,
+       "tag": "geo",
+       "text": "country TH from ipwho.is"
+      }
+     ]
+    },
+    "members": {
+     "admission_refused": false,
+     "admitting": 0,
+     "count": 0,
+     "gossip_neighbors": 0,
+     "me_excluded": false,
+     "me_pending": false
+    },
+    "network": {
+     "admins": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ],
+     "can_delete_network": true,
+     "can_invite": true,
+     "can_leave": false,
+     "can_remove": true,
+     "can_set_admins": true,
+     "excluded_by": null,
+     "id_hex": "8bb5828b",
+     "label": "alpha",
+     "masked": "alpha--••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••",
+     "me_role": "admin",
+     "root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "node": {
+     "id": "aaaaaaaaaa",
+     "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "identity": "persistent",
+     "identity_reason": null,
+     "invite_join": null,
+     "networks": [
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": true,
+       "name": "en0",
+       "open": true,
+       "present": true
+      },
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": false,
+       "kind": "virtual",
+       "name": "bridge100",
+       "open": true,
+       "present": true
+      },
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": false,
+       "kind": "virtual",
+       "name": "bridge101",
+       "open": true,
+       "present": true
+      }
+     ],
+     "networks_side": "web",
+     "router": false,
+     "rss_kib": 36256,
+     "rss_peak_kib": 36256,
+     "status": "offline",
+     "uptime_sec": 11,
+     "version": "0.3.161",
+     "via_iface": null,
+     "web_addr": "127.0.0.1:17931"
+    },
+    "now": 22.5,
+    "peers": [
+     {
+      "checked": 0,
+      "country": "TH",
+      "exit": true,
+      "id": "aaaaaaaaaa",
+      "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "last_seen_sec": 0,
+      "name": "deluxe-ecologist",
+      "online": true,
+      "path": null,
+      "role": "admin",
+      "rtt_ms": null,
+      "self": true,
+      "stale": false,
+      "through_peer_bps": 0,
+      "through_us_bps": 0,
+      "version": "0.3.161"
+     }
+    ],
+    "ports": {
+     "network": [],
+     "published": []
+    },
+    "restart_pending": [],
+    "route": {
+     "exits": [],
+     "state": "direct"
+    },
+    "slot": "main",
+    "socks": {
+     "access": "localhost",
+     "enabled": false,
+     "ifaces": null,
+     "lan": [],
+     "listen": null,
+     "pac_url": null
+    },
+    "transport": {
+     "dht": {
+      "joined": false,
+      "last_publish_sec": null,
+      "nodes": 0
+     },
+     "listen_udp": [],
+     "nat": "",
+     "record": {
+      "published": false,
+      "read_sec": null,
+      "ttl_sec": 900
+     },
+     "relay": {
+      "connected": false,
+      "url": null
+     },
+     "self_addresses": [],
+     "self_path": null
+    },
+    "web": {
+     "access": "localnet",
+     "ifaces": null,
+     "listening": "localnet"
+    }
+   }
+  },
+  {
+   "members": {
+    "admins": [
+     "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ],
+    "counts": {
+     "excluded": 0,
+     "members": 1,
+     "pending": 0,
+     "unlisted": 0
+    },
+    "me": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "me_admin": true,
+    "me_admission": null,
+    "me_excluded": false,
+    "me_pending": false,
+    "members": [
+     {
+      "admin": true,
+      "admission": null,
+      "blocked_by_me": false,
+      "denied_by_me": null,
+      "excluded": null,
+      "id": "aaaaaaaaaa",
+      "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "last_refusal": null,
+      "last_seen_sec": 3,
+      "name": null,
+      "online": true,
+      "self": true,
+      "status": "member"
+     }
+    ],
+    "root": null
+   },
+   "slot": "d443z7",
+   "state": {
+    "api": 2,
+    "boot_id": "7ddba2a6",
+    "config_rev": 1,
+    "domains": [],
+    "exit": {
+     "clients": [],
+     "domains": 0,
+     "enabled": true
+    },
+    "log": {
+     "first_seq": 1,
+     "last_seq": 39,
+     "ring_lines": 2000,
+     "tags": [
+      "access",
+      "checks",
+      "config",
+      "console",
+      "docs",
+      "exit",
+      "geo",
+      "guard",
+      "host",
+      "hyper",
+      "node",
+      "socks",
+      "web"
+     ],
+     "tail": [
+      {
+       "seq": 34,
+       "t": 19.1,
+       "tag": "exit",
+       "text": "announced to peers: exit on"
+      },
+      {
+       "seq": 35,
+       "t": 19.1,
+       "tag": "docs",
+       "text": "announced program version 0.3.161 to peers"
+      },
+      {
+       "seq": 36,
+       "t": 19.1,
+       "tag": "checks",
+       "text": "checks disabled: DoH 1.1.1.1:443, interval 900 s, first check of a new domain within 65 s"
+      },
+      {
+       "seq": 37,
+       "t": 19.1,
+       "tag": "console",
+       "text": "input closed, console commands unavailable"
+      },
+      {
+       "seq": 38,
+       "t": 19.1,
+       "tag": "docs",
+       "text": "name \"buffalo-croon\" written to the network document"
+      },
+      {
+       "seq": 39,
+       "t": 19.2,
+       "tag": "geo",
+       "text": "country TH from ipwho.is"
+      }
+     ]
+    },
+    "members": {
+     "admission_refused": false,
+     "admitting": 0,
+     "count": 0,
+     "gossip_neighbors": 0,
+     "me_excluded": false,
+     "me_pending": false
+    },
+    "network": {
+     "admins": [
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+     ],
+     "can_delete_network": true,
+     "can_invite": true,
+     "can_leave": false,
+     "can_remove": true,
+     "can_set_admins": true,
+     "excluded_by": null,
+     "id_hex": "d28a8407",
+     "label": "beta",
+     "masked": "beta--••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••",
+     "me_role": "admin",
+     "root": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "node": {
+     "id": "aaaaaaaaaa",
+     "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+     "identity": "persistent",
+     "identity_reason": null,
+     "invite_join": null,
+     "networks": [
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": true,
+       "name": "en0",
+       "open": true,
+       "present": true
+      },
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": false,
+       "kind": "virtual",
+       "name": "bridge100",
+       "open": true,
+       "present": true
+      },
+      {
+       "addrs": [
+        "192.0.2.1"
+       ],
+       "by": "auto",
+       "default_route": false,
+       "kind": "virtual",
+       "name": "bridge101",
+       "open": true,
+       "present": true
+      }
+     ],
+     "networks_side": "web",
+     "router": false,
+     "rss_kib": 36320,
+     "rss_peak_kib": 36320,
+     "status": "offline",
+     "uptime_sec": 8,
+     "version": "0.3.161",
+     "via_iface": null,
+     "web_addr": "127.0.0.1:17931"
+    },
+    "now": 22.5,
+    "peers": [
+     {
+      "checked": 0,
+      "country": null,
+      "exit": true,
+      "id": "aaaaaaaaaa",
+      "id_full": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "last_seen_sec": 0,
+      "name": "buffalo-croon",
+      "online": true,
+      "path": null,
+      "role": "admin",
+      "rtt_ms": null,
+      "self": true,
+      "stale": false,
+      "through_peer_bps": 0,
+      "through_us_bps": 0,
+      "version": "0.3.161"
+     }
+    ],
+    "ports": {
+     "network": [],
+     "published": []
+    },
+    "restart_pending": [],
+    "route": {
+     "exits": [],
+     "state": "direct"
+    },
+    "slot": "d443z7",
+    "socks": {
+     "access": "localhost",
+     "enabled": false,
+     "ifaces": null,
+     "lan": [],
+     "listen": null,
+     "pac_url": null
+    },
+    "transport": {
+     "dht": {
+      "joined": false,
+      "last_publish_sec": null,
+      "nodes": 0
+     },
+     "listen_udp": [],
+     "nat": "",
+     "record": {
+      "published": false,
+      "read_sec": null,
+      "ttl_sec": 900
+     },
+     "relay": {
+      "connected": false,
+      "url": null
+     },
+     "self_addresses": [],
+     "self_path": null
+    },
+    "web": {
+     "access": "localnet",
+     "ifaces": null,
+     "listening": "localnet"
+    }
+   }
+  }
+ ]
+}
