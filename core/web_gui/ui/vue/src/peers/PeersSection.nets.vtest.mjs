@@ -26,9 +26,13 @@ afterEach(() => {
 });
 
 describe("one network", () => {
-  it("has no row of tabs", async () => {
+  it("has a row of its own tab, active, and \"+\"", async () => {
     const page = await openOne();
-    expect(page.tabs()).toHaveLength(0);
+    expect(page.tabs()).toHaveLength(2);
+    expect(page.tabs()[0].classes()).toContain("active");
+    expect(page.tabs()[0].attributes("aria-current")).toBe("page");
+    expect(page.tabs()[1].text()).toBe("+");
+    expect(page.wrapper.find("#peers-nets-hint").exists(), "no hint with one network").toBe(false);
   });
 
   it("offers \"Invite a member\" above the list", async () => {
@@ -159,7 +163,7 @@ describe("two networks", () => {
       const page = await openTwo();
       page.node.slotList = page.node.slotList.filter((s) => s.id !== NET_B);
       await polls(page.node, 2);
-      expect(page.tabs(), "the row is gone").toHaveLength(0);
+      expect(page.tabs(), "only the network and \"+\" are left").toHaveLength(2);
       expect(localStorage.getItem(HINT_KEY)).toBeNull();
     });
   });
@@ -246,7 +250,7 @@ describe("the status under the list", () => {
   it("after leaving the second network keeps the phrase on the first one", async () => {
     const page = await openTwo({ hash: "peers/" + NET_B });
     await page.whenLeft();
-    expect(page.tabs(), "the row is gone with one network left").toHaveLength(0);
+    expect(page.tabs(), "only the network and \"+\" are left").toHaveLength(2);
     expect(page.codes()).toContain("bbbb2222");
     expect(page.status()).toContain("You left the network");
     await polls(page.node, 1);
@@ -255,9 +259,10 @@ describe("the status under the list", () => {
 });
 
 describe("the first slot holds no network", () => {
-  it("shows no row of tabs and the members of the other network", async () => {
+  it("shows the other network as the only tab and its members", async () => {
     const page = await openHiddenMain();
-    expect(page.tabs()).toHaveLength(0);
+    expect(page.tabs()).toHaveLength(2);
+    expect(page.tabs()[0].classes()).toContain("active");
     expect(page.codes()).toContain("dddd4444");
     expect(page.tabHead().get("button").text()).toBe("Invite a member");
   });
@@ -270,7 +275,7 @@ describe("the first slot holds no network", () => {
 
   it("shows the other network at #peers/main too", async () => {
     const page = await openHiddenMain("peers/main");
-    expect(page.tabs()).toHaveLength(0);
+    expect(page.tabs()).toHaveLength(2);
     expect(page.codes()).toContain("dddd4444");
   });
 });

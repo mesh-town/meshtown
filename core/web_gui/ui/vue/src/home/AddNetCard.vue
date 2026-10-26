@@ -1,7 +1,7 @@
 <script setup lang="ts">
-// The "Add another network" form: join with an invite or create a network, in a new slot. One component for two places —
-// under the Members list (`peers`) and in Settings → Network (`settings`); only "Cancel" differs. On success it moves to
-// the new network's tab and leaves a banner there; a join that waits for a member shows its progress in place.
+// The "Join or create another network" card: two tabs, "Join" with an invite or "Create" a network, in a new slot. It
+// replaces the member list on the "+" tab. On success it moves to the new network's tab and leaves a banner there;
+// a join that waits for a member shows its progress in place.
 import { computed, inject, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { netName, visibleSlots } from "../core/slots.ts";
@@ -20,10 +20,9 @@ import { useArrival, useInviteJoin } from "./use-invite-join.ts";
 import type { InviteFormIds } from "./use-invite-join.ts";
 import {
   ADD_NET_BTN, ADD_NET_BUSY, ADD_NET_CANCEL, ADD_NET_CREATE_BTN, ADD_NET_CREATE_LABEL, ADD_NET_CREATE_PLACEHOLDER,
-  ADD_NET_TITLE, ADD_NET_TO_CREATE, ADD_NET_TO_JOIN,
+  ADD_NET_TAB_CREATE, ADD_NET_TAB_JOIN, ADD_NET_TABS_LABEL, ADD_NET_TITLE,
 } from "./add-net-texts.ts";
 
-const props = defineProps<{ context: "peers" | "settings" }>();
 const emit = defineEmits<{ done: [result: AddNetResult, slot: string | null] }>();
 const store = inject(STORE_KEY)!;
 const invite = useInviteJoin(store, { kind: "add" });
@@ -56,8 +55,8 @@ async function create(): Promise<void> {
   emit("done", result, result === "created" ? slot : null);
 }
 
-function toggle(): void {
-  mode.value = creating.value ? "join" : "create";
+function pickMode(next: AddNetMode): void {
+  mode.value = next;
   form.inviteError = null;
   form.labelError = null;
   outcome.value = "";
@@ -78,23 +77,23 @@ watch(
 );
 
 function cancel(): void {
-  if (props.context === "peers") {
-    location.hash = peersHash(store.lead);
-    return;
-  }
-  resetForm();
+  location.hash = peersHash(store.lead);
 }
 
 // A waiting join was cancelled: the form starts over and stays open.
 function cancelled(): void {
   resetForm();
-  if (props.context === "peers") store.peersTab = "add";
+  store.peersTab = "add";
 }
 </script>
 
 <template>
-  <div class="card" id="add-net-card" role="region" aria-labelledby="add-net-title" :data-context="context">
+  <div class="card" id="add-net-card" role="region" aria-labelledby="add-net-title">
     <div class="step-head"><h2 id="add-net-title">{{ ADD_NET_TITLE }}</h2></div>
+    <div v-if="!limited" class="home-tabs" role="tablist" :aria-label="ADD_NET_TABS_LABEL">
+      <button type="button" class="home-tab" :class="{ active: !creating }" id="add-net-tab-join" role="tab" :aria-selected="!creating ? 'true' : 'false'" @click="pickMode('join')">{{ ADD_NET_TAB_JOIN }}</button>
+      <button type="button" class="home-tab" :class="{ active: creating }" id="add-net-tab-create" role="tab" :aria-selected="creating ? 'true' : 'false'" @click="pickMode('create')">{{ ADD_NET_TAB_CREATE }}</button>
+    </div>
     <p v-if="limited" class="hint" id="add-net-limit" role="status">{{ ADD_NET_LIMIT_INVITE }}</p>
     <p v-if="!limited" class="hint" id="add-net-stay">{{ stayText(names) }}</p>
     <InviteForm v-if="!creating" :join="invite" :ids="ids" :button="ADD_NET_BTN" :busy="ADD_NET_BUSY" @done="joined" />
@@ -110,7 +109,6 @@ function cancelled(): void {
     <div class="btn-row">
       <button v-if="outcome !== 'waiting'" type="button" class="btn" id="add-net-cancel" @click="cancel">{{ ADD_NET_CANCEL }}</button>
     </div>
-    <a v-if="!limited" href="#" class="link-more" id="add-net-toggle" @click.prevent="toggle">{{ creating ? ADD_NET_TO_JOIN : ADD_NET_TO_CREATE }}</a>
     <div v-if="outcome === 'waiting' && form.slot" id="add-net-waiting">
       <JoiningCard :slot="form.slot" @cancelled="cancelled" />
     </div>

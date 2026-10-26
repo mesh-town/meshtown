@@ -44,10 +44,10 @@ function membersText(peers) {
 }
 
 describe("there were members, but all are offline", () => {
-  it("the join card is not on Home; Settings offers the add-network card; \"Invite a member\" is visible", async () => {
+  it("the join card is not on Home; Settings links to the add-network tab; \"Invite a member\" is visible", async () => {
     const { wrapper } = await mountPage(nodeOf({ peers: offlinePeers(2) }));
 
-    expect(wrapper.get("#net-join-slot").findAll("#add-net-card")).toHaveLength(1);
+    expect(wrapper.get("#net-join-slot").findAll("a[href='#peers/add']")).toHaveLength(1);
     expect(wrapper.get("#sec-home").findAll("#join-card")).toHaveLength(0);
     const invite = wrapper.get("#netkey-invite-btn");
     expect(shown(invite.element)).toBe(true);

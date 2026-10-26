@@ -10,7 +10,7 @@ const IDS: Record<InviteFormPlace, { input: string; button: string; error: strin
 };
 
 /**
- * One instance of the invite form: on Home / in the wizard (`home`), in "Add another network" (`add`, Settings and the "+" tab),
+ * One instance of the invite form: on Home / in the wizard (`home`), in "Join or create another network" (`add`, the "+" tab),
  * under the card of a network tab this computer is out of (`rejoin`). Several forms share the document, so every locator
  * takes the visible one.
  */

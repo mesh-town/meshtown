@@ -70,7 +70,7 @@ describe("eight networks", () => {
     const card = await setup({ opts: eightNets() });
     expect(card.text("#add-net-limit")).toBe(LIMIT_ABOVE);
     expect(card.has("#add-net-input")).toBe(true);
-    expect(card.has("#add-net-toggle")).toBe(false);
+    expect(card.has("#add-net-tab-create")).toBe(false);
     card.node.routes["POST /api/network/join"] = { status: 409, body: { error: "too_many_nets", limit: 8 } };
     await card.type(INVITE);
     await card.click("#add-net-btn");
@@ -116,7 +116,7 @@ async function setup({ opts = withFresh(twoNets()) } = {}) {
   sessionStorage.setItem(TOKEN_KEY, "test-token");
   const store = createStore();
   acceptOverview(store, parseOverview(await api("GET", "/api/overview")));
-  const wrapper = mount(AddNetCard, { props: { context: "peers" }, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+  const wrapper = mount(AddNetCard, { attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   await settle();
   mounted = { wrapper, node };
   const root = () => wrapper.get("#add-net-card");

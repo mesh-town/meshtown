@@ -1,4 +1,4 @@
-/* A join from Settings → "Add another network" that waits for a member: when the slot arrives (or is refused) the page leads to
+/* A join from the "+" tab that waits for a member: when the slot arrives (or is refused) the page leads to
  * its tab if the user is still where he sent the form from; a user who went elsewhere stays there. The whole page, a fake node. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,21 +19,21 @@ beforeEach(() => {
 });
 afterEach(unmountPage);
 
-describe("Settings: a join that waits for a member", () => {
-  it("Settings: a waiting join leads to the new tab and the card starts over", async () => {
-    const page = await sentFromSettings();
+describe("The "+" tab: a join that waits for a member", () => {
+  it("a waiting join leads to the new tab and the card starts over", async () => {
+    const page = await sentFromAddTab();
     expect(page.wrapper.find("#add-net-waiting").exists(), "the waiting card is shown first").toBe(true);
     page.arrives();
     await polls(page.node, 1);
     await page.hashChanged();
     expect(location.hash).toBe("#peers/" + FRESH);
-    await page.goTo("settings");
+    await page.goTo("peers/add");
     expect(page.wrapper.find("#add-net-waiting").exists()).toBe(false);
-    expect(page.wrapper.get("#sec-settings #add-net-input").element.value).toBe("");
+    expect(page.wrapper.get("#sec-peers #add-net-input").element.value).toBe("");
   });
 
-  it("the user who left Settings stays where he is, the banner waits on the tab", async () => {
-    const page = await sentFromSettings();
+  it("the user who left the "+" tab stays where he is, the banner waits on the tab", async () => {
+    const page = await sentFromAddTab();
     await openTab(page.wrapper, "home");
     page.arrives();
     await polls(page.node, 1);
@@ -42,8 +42,8 @@ describe("Settings: a join that waits for a member", () => {
     expect(useNetBanner().banner.value?.slot).toBe(FRESH);
   });
 
-  it("Settings: a refused join leads to the card of that slot with the refusal and \"Back\"", async () => {
-    const page = await sentFromSettings();
+  it("a refused join leads to the card of that slot with the refusal and \"Back\"", async () => {
+    const page = await sentFromAddTab();
     page.refuses();
     await polls(page.node, 1);
     await page.hashChanged();
@@ -66,21 +66,21 @@ function refuse(slot) {
   slot.state = { ...slot.state, node: { ...slot.state.node, invite_join: { state: "refused", message: MESSAGE } } };
 }
 
-// The page on Settings with a word key sent to a new slot that answers "waiting".
-async function sentFromSettings() {
+// The page on the "+" tab with a word key sent to a new slot that answers "waiting".
+async function sentFromAddTab() {
   const opts = { ...twoNets(), config: baseConfig({ ports: { published: [{ port: 8080, for: "all" }], opened: [] } }) };
   opts.slots.push({ id: FRESH });
   const node = createFakeNode(opts);
   const slot = node.slotList.find((s) => s.id === FRESH);
   slot.routes["POST /api/network/join"] = () => { slot.joining = true; return { label: null, restart: false, waiting: true }; };
-  const { wrapper } = await mountPage(node, { hash: "settings" });
+  const { wrapper } = await mountPage(node, { hash: "peers/add" });
   const hashChanged = async () => {
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     await vi.advanceTimersByTimeAsync(0);
     await settle();
   };
-  await wrapper.get("#sec-settings #add-net-input").setValue(KEY);
-  await wrapper.get("#sec-settings #add-net-btn").trigger("click");
+  await wrapper.get("#sec-peers #add-net-input").setValue(KEY);
+  await wrapper.get("#sec-peers #add-net-btn").trigger("click");
   await vi.advanceTimersByTimeAsync(0);
   await settle();
   await polls(node, 1);

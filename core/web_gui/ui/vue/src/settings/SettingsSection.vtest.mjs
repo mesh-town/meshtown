@@ -114,13 +114,16 @@ describe("SettingsSection", () => {
   });
 
   describe("joining another network", () => {
-    it("with a network in the slot, the \"Add another network\" card instead of the join card", async () => {
+    it("with a network in the slot, the \"Join or create another network\" link to the \"+\" tab instead of the join card", async () => {
       const { wrapper, store } = mountSettings();
       store.nets = [{ id: "main", label: "friends", id_hex: "ab12cd34", joining: false }];
       await flushPromises();
       const slot = wrapper.get("#net-join-slot");
       expect(slot.find("#join-card").exists()).toBe(false);
-      expect(slot.get("#add-net-title").text()).toBe("Add another network");
+      expect(slot.find("#add-net-card").exists()).toBe(false);
+      const link = slot.get("a");
+      expect(link.text()).toBe("Join or create another network");
+      expect(link.attributes("href")).toBe("#peers/add");
     });
 
     it("with no network there is no join card in \"Settings\": it is on \"Home\"", () => {

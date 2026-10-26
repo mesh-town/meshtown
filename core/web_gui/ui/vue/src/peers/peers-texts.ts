@@ -35,7 +35,7 @@ export const PEERS_REFUSED = "Not available as an exit";
 // Several networks: the tab row, the tab header, the hint.
 export const PEERS_INVITE_ONE = "Invite a member";
 export const PEERS_INVITE_COPIED = "Invite copied. It works once, for 24 hours — send it to one person in a private message.";
-export const PEERS_TAB_ADD = "Add network";
+export const PEERS_TAB_ADD = "Join or create another network";
 export const PEERS_TAB_ADD_FULL = "Mesh Town can be in up to 8 networks at once";
 export const PEERS_TAB_ADD_MARK = "+";
 export const PEERS_TAB_JOINING = "Joining the network…";

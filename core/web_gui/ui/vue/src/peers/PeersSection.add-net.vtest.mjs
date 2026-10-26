@@ -1,4 +1,4 @@
-/* Adding a network from the "Members" page: the link under the list of a single network, the "+" tab of several, the form
+/* Adding a network from the "Members" page: the "+" tab, always after the tabs of the networks, the form
  * (`#add-net-card`), the banner on the tab of the new network. The whole page runs on a fake node with A = `main` "friends",
  * B = `k7q2xa` "my devices" and one empty slot that `POST /api/nets` hands out; a join gives that slot the label "work". */
 
@@ -13,8 +13,8 @@ import { PEER_FULL, baseConfig, baseState } from "../testing/section.mjs";
 
 const FRESH = "neta22";
 const INVITE = "mesh1-ABCDEFGH";
-const ADD_LINK = "Add another network";
-const CREATE_TOGGLE = "No invite? Create a new network ▸";
+const ADD_LINK = "Join or create another network";
+const CREATE_TAB = "Create";
 const JOINED = 'You joined "work".';
 const EXIT_TAIL = "Your exit hasn't changed: sites still open via peer-one (friends).";
 const CREATED = 'You created "work". Nobody else is here yet: use Invite to "work" to add a member.';
@@ -26,27 +26,41 @@ beforeEach(() => {
 afterEach(unmountPage);
 
 describe("one network", () => {
-  it("offers \"Add another network\" under the list, without the form", async () => {
+  it("shows the row: the tab of the network, active and leading to its list, and \"+\"", async () => {
     const page = await openOne();
-    expect(page.link().attributes("href")).toBe("#peers/add");
+    expect(page.tabs()).toHaveLength(2);
+    expect(page.selectedName()).toContain("friends");
+    expect(page.tabs()[0].attributes("href")).toBe("#peers/" + page.store.lead);
+    expect(page.tabs()[1].attributes("href")).toBe("#peers/add");
+    expect(page.link().exists(), "no link under the list").toBe(false);
     expect(page.card().exists(), "the form comes after the click").toBe(false);
-    expect(page.isAfter(page.list().element, page.link().element), "the link follows the list").toBe(true);
   });
 
-  it("the link opens the form under the list, the list stays", async () => {
+  it("\"+\" opens the card instead of the list", async () => {
     const page = await openOne();
-    await page.whenLinkClicked();
+    await page.whenPlusClicked();
     expect(location.hash).toBe("#peers/add");
     expect(page.card().exists()).toBe(true);
-    expect(page.codes(), "the members are still there").toContain("bbbb2222");
-    expect(page.isAfter(page.list().element, page.card().element), "the form follows the list").toBe(true);
+    expect(page.wrapper.find("#peers-list").exists(), "list").toBe(false);
+    expect(page.selectedName()).toBe("+");
   });
 
-  it("opened by the address, shows the form the same way", async () => {
+  it("opened by the address, shows the card and not the list", async () => {
     const page = await openOne("peers/add");
     expect(page.card().exists()).toBe(true);
-    expect(page.codes()).toContain("bbbb2222");
-    expect(page.tabs(), "no row of tabs yet").toHaveLength(0);
+    expect(page.wrapper.find("#peers-list").exists(), "list").toBe(false);
+    expect(page.tabs(), "friends and \"+\"").toHaveLength(2);
+    expect(page.selectedName()).toBe("+");
+  });
+
+  it("Join shows the invite form, Create the name field and the kind choice", async () => {
+    const page = await openOne("peers/add");
+    expect(page.card().find("#add-net-input").exists()).toBe(true);
+    await page.whenClicked(CREATE_TAB);
+    expect(page.card().find("#add-net-label-input").exists()).toBe(true);
+    expect(page.card().find(".kind-picker").exists()).toBe(true);
+    await page.whenClicked("Join");
+    expect(page.card().find("#add-net-input").exists()).toBe(true);
   });
 });
 
@@ -309,7 +323,7 @@ function pageOf(node, wrapper, store) {
   const section = () => wrapper.get("#sec-peers");
   const tabs = () => wrapper.findAll("#sec-peers .ntabs a");
   const tabNamed = (name) => tabs().find((t) => compact(t.text()).startsWith(name));
-  const card = () => wrapper.find("#add-net-card[data-context=\"peers\"]");
+  const card = () => wrapper.find("#add-net-card");
   const buttonIn = (root, name) => root.findAll("button, a").find((b) => compact(b.text()) === name);
   const hashChanged = async () => {
     window.dispatchEvent(new HashChangeEvent("hashchange"));
@@ -368,7 +382,7 @@ function pageOf(node, wrapper, store) {
       await polls(node, 1);
     },
     async whenCreated(name) {
-      await whenClicked(CREATE_TOGGLE);
+      await whenClicked(CREATE_TAB);
       await typed(name);
       await whenClicked("Create network");
       await hashChanged();

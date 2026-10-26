@@ -44,7 +44,7 @@ import { useNetsHint } from "./use-nets-hint.ts";
 import AddNetCard from "../home/AddNetCard.vue";
 import { leadsToArrival, settleExpected, watchArrivals, useNetBanner } from "../home/add-net-banner.ts";
 import { arrivedBannerText } from "../home/add-net-actions.ts";
-import { ADD_NET_LINK, BANNER_OK, MAX_NETS } from "../home/add-net-texts.ts";
+import { BANNER_OK, MAX_NETS } from "../home/add-net-texts.ts";
 import { peersHash } from "../shell/nav.ts";
 import { orderedPeers } from "./peers-view.ts";
 
@@ -55,7 +55,9 @@ const store: Store = injected;
 const visible = computed(() => peersSlots(store.nets, store.slots));
 const multi = computed(() => visible.value.length >= 2);
 const joining = computed(() => joiningTabs(store));
-const showRow = computed(() => multi.value || joining.value.length > 0);
+// The row of tabs: the "multi" look (heads, hint) stays for several networks or a join in progress.
+const crowded = computed(() => multi.value || joining.value.length > 0);
+const showRow = computed(() => visible.value.length > 0 || joining.value.length > 0);
 const addOnly = computed(() => showRow.value && store.peersTab === "add");
 const slot = computed(() => (multi.value ? (store.peersTab && visible.value.includes(store.peersTab) ? store.peersTab : visible.value[0]) : store.lead));
 const state = computed(() => stateOf(store, slot.value));
@@ -87,7 +89,6 @@ const waitingHere = computed(() => {
 // A join that the members refused: the slot has no network yet, the node says why.
 const refusedHere = computed(() => (slot.value === "main" || state.value?.network ? null : refusedText(state.value?.node?.invite_join)));
 const managedHere = computed(() => (store.nets.find((n) => n.id === slot.value)?.kind ?? state.value?.network?.kind) === "Managed");
-const addHere = computed(() => !showRow.value && store.peersTab === "add");
 const { status, dialog, ask, pick } = useMembersActions(store, () => slot.value);
 const excluded = computed(() => isMeExcluded(state.value, members.value) || isMeRemoved(members.value));
 const variant = computed(() => excludedVariant(members.value, meId(state.value)));
@@ -153,7 +154,7 @@ async function exitVia(idFull: string): Promise<void> {
   <template v-else>
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
-    <AddNetCard v-if="addOnly" context="peers" />
+    <AddNetCard v-if="addOnly" />
     <template v-else-if="excluded">
       <ExcludedCard members :managed="managedHere" :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
       <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :managed="managedHere" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />
@@ -166,7 +167,7 @@ async function exitVia(idFull: string): Promise<void> {
     </template>
     <template v-else>
       <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" 
-:multi="showRow" :note="inviteNote" />
+:multi="crowded" :note="inviteNote" />
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
       <DeletedBanner />
       <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
@@ -184,8 +185,6 @@ async function exitVia(idFull: string): Promise<void> {
       <ForgottenList :rows="parts.forgotten" :all="members ? members.members : []" :me="me" @pick="pick" />
       <ExcludedList :lines="excludedLines" />
       <UnlistedList :rows="parts.unlisted" @pick="pick" />
-      <AddNetCard v-if="addHere" context="peers" />
-      <p v-else-if="!showRow" class="addlink"><a class="quiet" id="peers-add-link" :href="peersHash('add')">{{ ADD_NET_LINK }}</a></p>
       <YouBlock v-if="multi" ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" @delete="pick('delete-network', me)" />
     </template>
     <ConfirmDialog ref="dialog" />

@@ -56,7 +56,7 @@ test.describe('two networks (demo --nets 2)', () => {
         });
       });
 
-      test(`multi-net-add-tab-${vp.width}: "+" opens the "Add another network" form, "Cancel" returns to a network tab`, async ({ page, app, target }) => {
+      test(`multi-net-add-tab-${vp.width}: "+" opens the "Join or create another network" card, "Cancel" returns to a network tab`, async ({ page, app, target }) => {
         await app.open(target.origin, target.token);
         await page.goto(`${target.origin}/#peers`);
         await app.tabs.expectShown('peers');
@@ -64,7 +64,8 @@ test.describe('two networks (demo --nets 2)', () => {
         await test.step('"+" opens the form', async () => {
           await addTab(page).click();
           await expect.poll(() => hash(page)).toBe('#peers/add');
-          await expect(page.getByRole('heading', { name: 'Add another network' })).toBeVisible();
+          await expect(page.getByRole('heading', { name: 'Join or create another network' })).toBeVisible();
+          await expect(page.locator('#peers-list')).toHaveCount(0);
           await expect(page.locator('#add-net-input:visible')).toBeVisible();
         });
 
@@ -77,7 +78,7 @@ test.describe('two networks (demo --nets 2)', () => {
         });
       });
 
-      test(`multi-net-home-settings-${vp.width}: Home lists the networks and "Open Members" leads to the tab; Settings has "Add another network" and no join card`, async ({ page, app, target }) => {
+      test(`multi-net-home-settings-${vp.width}: Home lists the networks and "Open Members" leads to the tab; Settings has a link to the "+" tab and no join card`, async ({ page, app, target }) => {
         await app.open(target.origin, target.token);
 
         await test.step('Home shows a row per network; "Open Members" goes to that network tab', async () => {
@@ -94,8 +95,7 @@ test.describe('two networks (demo --nets 2)', () => {
         await test.step('Settings: the add-network card is there, the join card is not', async () => {
           await page.goto(`${target.origin}/#settings`);
           await app.tabs.expectShown('settings');
-          await expect(page.locator('#add-net-card:visible')).toBeVisible();
-          await expect(page.getByRole('heading', { name: 'Add another network' })).toBeVisible();
+          await expect(page.locator('#net-join-slot a[href="#peers/add"]')).toHaveText('Join or create another network');
           await expect(page.locator('#join-card')).toHaveCount(0);
         });
       });
@@ -103,10 +103,11 @@ test.describe('two networks (demo --nets 2)', () => {
   }
 });
 
-test('multi-net-single-network: with one network Members has no tab row', async ({ page, app, target }) => {
+test('multi-net-single-network: with one network Members shows its tab and "+"', async ({ page, app, target }) => {
   await app.open(target.origin, target.token);
   await page.goto(`${target.origin}/#peers`);
   await app.tabs.expectShown('peers');
   await expect(page.locator('#peers-list')).toBeVisible();
-  await expect(tabs(page)).toHaveCount(0);
+  await expect(slotTabs(page)).toHaveCount(1);
+  await expect(addTab(page)).toBeVisible();
 });

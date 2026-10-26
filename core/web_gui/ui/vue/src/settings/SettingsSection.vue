@@ -14,7 +14,8 @@ import ConfirmDialog from "../members/ConfirmDialog.vue";
 import { useMembersActions } from "../members/use-members-actions.ts";
 import { meId } from "../members/members-ids.ts";
 import NodeNameField from "../home/NodeNameField.vue";
-import AddNetCard from "../home/AddNetCard.vue";
+import { ADD_NET_LINK } from "../home/add-net-texts.ts";
+import { peersHash } from "../shell/nav.ts";
 import SettingField from "./SettingField.vue";
 import SettingsSaveBar from "./SettingsSaveBar.vue";
 import PasswordRow from "../login/PasswordRow.vue";
@@ -111,7 +112,7 @@ const onToggle = (ev: Event): void => { s.form.expertOpen = (ev.target as HTMLDe
 
     <div class="card" id="settings-net-card">
       <h2>{{ SETTINGS_NET_TITLE }}</h2>
-      <div id="net-join-slot"><AddNetCard v-if="hasKeyNet && !excluded" context="settings" /></div>
+      <p v-if="hasKeyNet && !excluded" class="addlink" id="net-join-slot"><a class="quiet" id="settings-add-net-link" :href="peersHash('add')">{{ ADD_NET_LINK }}</a></p>
       <button type="button" class="btn btn-danger" id="stop-node-btn" @click="s.stop">{{ SETTINGS_STOP_PREFIX }}{{ NET_NAME }}</button>
       <p class="hint">{{ multi ? SETTINGS_STOP_ALL : "" }}{{ inAppPage() ? STOPPED_NOTE_APP : STOPPED_NOTE }}</p>
       <DeletedBanner />

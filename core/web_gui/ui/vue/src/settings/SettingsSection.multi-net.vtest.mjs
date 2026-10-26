@@ -1,6 +1,6 @@
 /* "Settings" on a node with two networks (A = `main`, B = "my devices"): shared fields are written to every network that
  * holds a key, the main config first; a refusal of B keeps the fields unsaved; restart goes to each network that waits for it;
- * the network card offers "Add another network" instead of the join form. With one network the page keeps its former requests.
+ * the network card links to the "+" tab instead of the join form. With one network the page keeps its former requests.
  * The whole page runs on a fake node. */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -156,15 +156,15 @@ describe("SettingsSection.nets", () => {
   });
 
   describe("the network card", () => {
-    it("offers \"Add another network\" and no join form when there are two networks", async () => {
+    it("links to the \"+\" tab and has no join form when there are two networks", async () => {
       const { wrapper } = await setup();
-      expect(section(wrapper).find("#add-net-card").exists(), "add-network card").toBe(true);
+      expect(section(wrapper).get("#net-join-slot a").attributes("href"), "link to the + tab").toBe("#peers/add");
       expect(section(wrapper).find("#join-card").exists(), "join card").toBe(false);
     });
 
     it("does the same when there is one network", async () => {
       const { wrapper } = await setup({ nets: oneNet() });
-      expect(section(wrapper).find("#add-net-card").exists(), "add-network card").toBe(true);
+      expect(section(wrapper).get("#net-join-slot a").attributes("href"), "link to the + tab").toBe("#peers/add");
       expect(section(wrapper).find("#join-card").exists(), "join card").toBe(false);
     });
   });
