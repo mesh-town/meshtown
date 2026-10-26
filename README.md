@@ -55,8 +55,8 @@ What you give up: Mesh Town connects TCP ports of programs, not whole IP network
 
 ## Not for you if
 
-- you need a whole subnet, a virtual network interface or UDP ports: Mesh Town shares TCP ports of programs running
-  on the device itself;
+- you need a whole subnet or a virtual network interface, or want to share a UDP port: Mesh Town shares TCP ports of
+  programs running on the device itself;
 - you need it on an iPhone or iPad;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
 
@@ -65,7 +65,8 @@ What you give up: Mesh Town connects TCP ports of programs, not whole IP network
 A member can let the others send traffic out through its internet connection. Point a browser or a program at the
 local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port) and its connections leave from that member's address — for
 example, to reach a service that accepts connections only from your office or home IP. A member decides whether to be
-an exit and serves only members of its network.
+an exit and serves only members of its network. SOCKS5 carries UDP too (`UDP ASSOCIATE`), so QUIC and voice calls can
+go out the same way.
 
 ## Quick start
 
@@ -115,7 +116,7 @@ More in [SECURITY.md](SECURITY.md).
 
 ## Limitations
 
-- TCP ports of programs on the device itself; no TUN, no subnet, no UDP ports.
+- TCP ports of programs on the device itself; no TUN, no subnet, no UDP port sharing (UDP goes only through an exit).
 - A SOCKS5/HTTP proxy, not a system-wide tunnel: the program must be able to use a proxy or connect to
   `127.0.0.1:<port>`.
 - The exit is picked from a list you set, one hop, no traffic accounting; IPv6 only through an exit.
