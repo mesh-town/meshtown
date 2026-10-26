@@ -89,7 +89,9 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <p class="setting-desc cli-note" id="you-exit-cli-note" :hidden="!exitAccess.cliNote">{{ exitAccess.cliNote }}</p>
     <p class="field-status" :class="exitStatus.cls" id="you-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
     <p class="hint">{{ youLeaveHint(net) }}</p>
-    <button type="button" class="btn btn-danger" id="you-leave" @click="emit('leave')">{{ YOU_LEAVE_BTN }}</button>
-    <button v-if="canDelete" type="button" class="btn btn-danger" id="you-delete-net-btn" @click="emit('delete')">{{ MENU_DELETE_NETWORK }}</button>
+    <div class="btn-row">
+      <button type="button" class="btn btn-danger" id="you-leave" @click="emit('leave')">{{ YOU_LEAVE_BTN }}</button>
+      <button v-if="canDelete" type="button" class="btn btn-danger" id="you-delete-net-btn" @click="emit('delete')">{{ MENU_DELETE_NETWORK }}</button>
+    </div>
   </div>
 </template>

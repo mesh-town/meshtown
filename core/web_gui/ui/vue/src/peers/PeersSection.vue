@@ -152,7 +152,7 @@ async function exitVia(idFull: string): Promise<void> {
 <template>
   <p v-if="!state && !addOnly" class="hint">{{ PEERS_LOADING }}</p>
   <template v-else>
-    <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-small" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
+    <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
     <AddNetCard v-if="addOnly" />
     <template v-else-if="excluded">
@@ -171,7 +171,7 @@ async function exitVia(idFull: string): Promise<void> {
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
       <DeletedBanner />
       <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
-      <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-small" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
+      <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-sm" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <PendingCard v-if="members && members.me_pending && !noVotes" :votes="meVotes" :need="meNeed" />
       <VoteBanner v-if="proposal && proposal.vote" :by="names[proposal.vote.proposed_by] || proposal.vote.proposed_by.slice(0, 8)" :target="names[proposal.id_full]" :reason="proposal.vote.reason" @confirm="ask('ban-confirm', proposal.id_full)" @later="later" />
       <div class="card">
