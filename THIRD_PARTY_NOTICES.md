@@ -8,7 +8,7 @@ material.
 - Upstream: https://github.com/mesh-town/townjump (a Rust port of Holesail 2.4.4)
 - License: AGPL-3.0-only
 - Used as a git dependency, pinned by revision in `core/Cargo.toml` (crates `townjump-dht`, `townjump-dht-peeroxide`,
-  `townjump-keys`, `peeroxide-dht`, `libudx`). Its own notices are in that repository.
+  `townjump-keys`, `townjump-pipe`, `townjump-logger`, `peeroxide-dht`, `libudx`). Its own notices are in that repository.
 
 ## peeroxide-dht and libudx (through townjump)
 
@@ -52,7 +52,7 @@ Rust dependencies in `Cargo.lock` are distributed under their own licenses, list
 | `Zlib` | `zlib-rs` |
 | `Apache-2.0 AND MIT` | `dpi` |
 | `Apache-2.0 WITH LLVM-exception` | `target-lexicon` |
-| `AGPL-3.0-only` | `townjump-dht`, `townjump-dht-peeroxide`, `townjump-keys` (see "townjump" above) |
+| `AGPL-3.0-only` | `townjump-dht`, `townjump-dht-peeroxide`, `townjump-keys`, `townjump-pipe`, `townjump-logger` (see "townjump" above) |
 | `Unlicense` | `ksni` |
 | `MIT AND BSD-3-Clause` | `matchit` |
 | `(MIT OR Apache-2.0) AND Unicode-3.0` | `unicode-ident` |

@@ -310,11 +310,26 @@ TCP listener on `127.0.0.1:<number>`, by default the member's port plus 2000 (80
 number. "Close" stops the listener. If the number is busy, the row says to choose another number. Browsers refuse some
 ports on principle; such a row is marked "not for the browser" and can only be used through "Open on this computer".
 
-The same data lives in the settings file, per network: `ports.published` is a list of `{port, name, for}`, where `for`
-is `"all"` or a list of full node ids, and `ports.opened` is a list of `{node, port, local}`. Both hold up to 64
-entries; `port` is unique in `ports.published`, `local` is unique in `ports.opened` and across all networks of the
-node. Opening a `local` port that another network of the node already uses is refused with 422 and the text
-`local port L is already opened in network "<name>"`. See [CONFIG-FILE.md](CONFIG-FILE.md) and
+A port is TCP or UDP; choose the protocol when you publish. For a UDP port the node starts a UDP listener on
+`127.0.0.1:<number>` instead, and the row has no browser address. The status of a UDP publication is always "not
+checked". If the publishing node is too old to serve UDP, the row says so after the first attempt. A TCP and a UDP
+port of the same number are two separate publications. Limits and behavior of UDP ports: [Limitations](LIMITATIONS.md).
+
+The same data lives in the settings file, per network: `ports.published` is a list of `{port, proto, name, for}`, where `for`
+is `"all"` or a list of full node ids, and `ports.opened` is a list of `{node, port, proto, local}`. `proto` is
+`"tcp"` (the default when absent) or `"udp"`. Both lists hold up to 64 entries; `(proto, port)` is unique in
+`ports.published`, `(proto, local)` is unique in `ports.opened` and across all networks of the node. Opening a `local` port that another network of the node already uses is refused with 422 and the text
+`local port L is already opened in network "<name>"` (`local UDP port L …` for UDP). Example: publish a DNS server
+listening on `127.0.0.1:53`, and open it on another member as `127.0.0.1:2053`:
+
+```json
+"ports": {
+  "published": [ { "port": 53, "proto": "udp", "name": "dns", "for": "all" } ],
+  "opened":    [ { "node": "<full node id>", "port": 53, "proto": "udp", "local": 2053 } ]
+}
+```
+
+On the other member, `dig @127.0.0.1 -p 2053 example.com` then goes through the network. See [CONFIG-FILE.md](CONFIG-FILE.md) and
 [WEB-API-config.md](WEB-API-config.md). There are no command-line flags for ports: use the page or the settings file.
 
 ## Node page
@@ -415,6 +430,6 @@ Every line is `+<seconds>s [tag] text`. The tags:
 | `[route]` | the chosen path for a domain: itself, a member, or a refusal with a reason |
 | `[exit]` | working as an exit: whose requests were accepted and how they ended |
 | `[get]` | the result of the `get` command |
-| `[port]` | port forwarding between members (`ports.published` and opened local ports): opened, closed, failed |
+| `[port]` | port forwarding between members (`ports.published` and opened local ports): opened, closed, failed, UDP sessions |
 | `[guard]` | the memory and stall watchdog: a periodic summary, a heap profile, a stall or exit report |
 | `[tray]` | the tray app: node start and stop, errors |

@@ -51,12 +51,12 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers.
 | A tunnel or relay service | An account with the provider, your traffic through its servers | No account, no provider in the middle |
 | A mesh network with a coordination server | An account or a self-hosted coordination server every device signs in to | The member list lives with the members |
 
-What you give up: Mesh Town connects TCP ports of programs, not whole IP networks — see [Limitations](#limitations).
+What you give up: Mesh Town connects TCP and UDP ports of programs, not whole IP networks — see [Limitations](#limitations).
 
 ## Not for you if
 
-- you need a whole subnet or a virtual network interface, or want to share a UDP port: Mesh Town shares TCP ports of
-  programs running on the device itself;
+- you need a whole subnet or a virtual network interface: Mesh Town shares TCP and UDP ports of programs running on
+  the device itself;
 - you need it on an iPhone or iPad;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
 
@@ -116,7 +116,7 @@ More in [SECURITY.md](SECURITY.md).
 
 ## Limitations
 
-- TCP ports of programs on the device itself; no TUN, no subnet, no UDP port sharing (UDP goes only through an exit).
+- TCP and UDP ports of programs on the device itself; no TUN, no subnet.
 - A SOCKS5/HTTP proxy, not a system-wide tunnel: the program must be able to use a proxy or connect to
   `127.0.0.1:<port>`.
 - The exit is picked from a list you set, one hop, no traffic accounting; IPv6 only through an exit.

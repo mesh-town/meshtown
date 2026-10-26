@@ -16,7 +16,7 @@ use super::record::PortRecord;
 use super::server::connect_loopback_port;
 use super::store::PortsDoc;
 use super::table::{LocalState, PublishedPortsTable};
-use super::types::Published;
+use super::types::{Proto, Published};
 use crate::node::output::say;
 
 /// Retry after a document error and the ceiling of waiting for the signal.
@@ -25,17 +25,17 @@ const RETRY_AFTER: Duration = Duration::from_secs(30);
 /// What to write and what to remove: the difference between the list and the last announced one.
 pub(crate) fn diff_published(
     published: &[Published],
-    announced: &HashMap<u16, PortRecord>,
-) -> (Vec<Published>, Vec<u16>) {
+    announced: &HashMap<(Proto, u16), PortRecord>,
+) -> (Vec<Published>, Vec<(Proto, u16)>) {
     let write = published
         .iter()
-        .filter(|p| announced.get(&p.port) != Some(&PortRecord::from(*p)))
+        .filter(|p| announced.get(&(p.proto, p.port)) != Some(&PortRecord::from(*p)))
         .cloned()
         .collect();
-    let mut remove: Vec<u16> = announced
+    let mut remove: Vec<(Proto, u16)> = announced
         .keys()
         .copied()
-        .filter(|port| published.iter().all(|p| p.port != *port))
+        .filter(|key| published.iter().all(|p| (p.proto, p.port) != *key))
         .collect();
     remove.sort_unstable();
     (write, remove)
@@ -44,7 +44,7 @@ pub(crate) fn diff_published(
 /// The announcer's endless loop.
 pub async fn run_announce(store: PortsDoc, table: PublishedPortsTable) {
     let changed = table.changed_signal();
-    let mut announced: HashMap<u16, PortRecord> = HashMap::new();
+    let mut announced: HashMap<(Proto, u16), PortRecord> = HashMap::new();
     let mut has_cleaned_stale = false;
     loop {
         if let Err(e) = cycle(&store, &table, &mut announced, &mut has_cleaned_stale).await {
@@ -57,7 +57,7 @@ pub async fn run_announce(store: PortsDoc, table: PublishedPortsTable) {
 async fn cycle(
     store: &PortsDoc,
     table: &PublishedPortsTable,
-    announced: &mut HashMap<u16, PortRecord>,
+    announced: &mut HashMap<(Proto, u16), PortRecord>,
     has_cleaned_stale: &mut bool,
 ) -> Result<()> {
     let published: Vec<Published> = table
@@ -71,26 +71,33 @@ async fn cycle(
     }
     let (write, remove) = diff_published(&published, announced);
     for p in write {
-        let local_state = match connect_loopback_port(p.port).await {
-            Some(_) => LocalState::Ok,
-            None => LocalState::Refused,
-        };
-        table.set_local_state(p.port, local_state);
+        if p.proto.is_tcp() {
+            check_local_port(table, &p).await;
+        }
         store.publish(&p).await?;
-        announced.insert(p.port, PortRecord::from(&p));
+        announced.insert((p.proto, p.port), PortRecord::from(&p));
     }
-    for port in remove {
-        store.unpublish(port).await?;
-        announced.remove(&port);
+    for (proto, port) in remove {
+        store.unpublish(proto, port).await?;
+        announced.remove(&(proto, port));
     }
     Ok(())
 }
 
+/// Checks a TCP port of this device and records the result; a UDP port cannot be checked.
+async fn check_local_port(table: &PublishedPortsTable, p: &Published) {
+    let local_state = match connect_loopback_port(p.port).await {
+        Some(_) => LocalState::Ok,
+        None => LocalState::Refused,
+    };
+    table.set_local_state(p.proto, p.port, local_state);
+}
+
 /// Removes our own live entries that are not in the table.
 async fn remove_unlisted_records(store: &PortsDoc, published: &[Published]) -> Result<()> {
-    for port in store.own_ports().await? {
-        if published.iter().all(|p| p.port != port) {
-            store.unpublish(port).await?;
+    for (proto, port) in store.own_ports().await? {
+        if published.iter().all(|p| (p.proto, p.port) != (proto, port)) {
+            store.unpublish(proto, port).await?;
         }
     }
     Ok(())

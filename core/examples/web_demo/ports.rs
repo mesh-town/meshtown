@@ -16,6 +16,7 @@ fn own_rows(st: &DemoState) -> Vec<OwnPort> {
         .iter()
         .map(|p| OwnPort {
             port: p.port,
+            proto: meshtown_core::ports_sharing::Proto::Tcp,
             name: p.name.clone(),
             local: "unknown".to_string(),
         })
@@ -32,6 +33,7 @@ fn opened_info(st: &DemoState, node: &str, port: u16) -> Option<OpenedInfo> {
             local: o.local,
             state: "listening".to_string(),
             error: None,
+            last_error: None,
         })
 }
 
@@ -46,6 +48,7 @@ fn fixture_rows(st: &DemoState) -> Vec<NetPort> {
                 node_name: p.name.clone(),
                 online: p.online,
                 port: FIXTURE_PORT,
+                proto: meshtown_core::ports_sharing::Proto::Tcp,
                 name: FIXTURE_NAME.to_string(),
                 published: true,
                 web_url: p

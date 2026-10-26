@@ -232,13 +232,22 @@ all fields are required; `null` is allowed where marked):
     ]
   },
   "ports": {
-    "published": [{ "port": 8080, "name": "web", "local": "ok" }],
+    "published": [
+      { "port": 8080, "proto": "tcp", "name": "web", "local": "ok" },
+      { "port": 53, "proto": "udp", "name": "dns", "local": "unknown" }
+    ],
     "network": [
       {
         "node": "1bd2ec32a56f...", "node_name": null, "online": true,
-        "port": 80, "name": "site", "published": true,
-        "opened": { "local": 9000, "state": "listening", "error": null },
+        "port": 80, "proto": "tcp", "name": "site", "published": true,
+        "opened": { "local": 9000, "state": "listening", "error": null, "last_error": null },
         "web_url": "http://home-box.meshtown"
+      },
+      {
+        "node": "1bd2ec32a56f...", "node_name": null, "online": true,
+        "port": 53, "proto": "udp", "name": "dns", "published": true,
+        "opened": { "local": 2053, "state": "listening", "error": null, "last_error": "unsupported" },
+        "web_url": null
       }
     ]
   },
@@ -362,12 +371,16 @@ Exact enum values:
   node is currently the first suitable candidate (`true` for at most one list element), `removed` — present
   and `true` when the network's member list holds an exclusion of this node (it is no longer in the network;
   such an exit is also `online: false`).
-- `ports.published[]` — own publications; `local`: `"unknown"` (not checked), `"ok"` (the port responds),
-  `"refused"` (does not respond). `ports.network[]` — ports of other nodes: entries with
+- `ports.published[]` — own publications; `proto`: `"tcp"` or `"udp"`; `local`: `"unknown"` (not checked), `"ok"` (the port responds),
+  `"refused"` (does not respond); for UDP it is always `"unknown"`. `ports.network[]` — ports of other nodes: entries with
   the scope "all" and a readable value while the author is in the network (`online` — the same flag as in
   `peers[]`), plus everything opened here (`opened`: `state` `"listening"` or `"bind_failed"`,
-  `error` — the error text). `published: false` — the port is open here, but there is no valid record
-  for everyone; `node` — the full identifier; `web_url` — the link to the port at the member's mesh address (`http://<name>.meshtown`, with `:port` unless the port is 80, `https://` for 443), `null` when the port is not shared with this node (`published: false`) or no proxy answers mesh addresses. Own publications are not in `network`.
+  `error` — the bind error text, only with `bind_failed`; `last_error` — the outcome of the last failed attempt to
+  reach the publishing node: `null` (none yet, or the last attempt succeeded), `"offline"`, `"not_opened"`,
+  `"no_service"`, `"timed_out"`, `"failed"` or `"unsupported"` — the node does not support UDP ports; for UDP the
+  attempt is made when a new sender's first datagram arrives). A row is identified by `(node, proto, port)`: TCP 53
+  and UDP 53 of one node are two rows. `proto` is `"tcp"` or `"udp"` in every row. `published: false` — the port is open here, but there is no valid record
+  for everyone; `node` — the full identifier; `web_url` — always `null` for UDP; otherwise the link to the port at the member's mesh address (`http://<name>.meshtown`, with `:port` unless the port is 80, `https://` for 443), `null` when the port is not shared with this node (`published: false`) or no proxy answers mesh addresses. Own publications are not in `network`.
 - `log.tail` — exactly the last 6 lines, for the "Recent events" card on "Home".
 - `boot_id` — random 8 hexadecimal characters, new on every process start.
   A change of `boot_id` means the node restarted: the page clears the log and rereads the config.

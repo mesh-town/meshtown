@@ -16,14 +16,17 @@ use crate::transport::net::{
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
+use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
 use super::frame::{
-    encode_port_reply, parse_port_request, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED,
-    PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
+    encode_port_reply, parse_port_request, port_code_text, request_tail_len, PortRequest,
+    PORT_CODE_BAD_REQUEST, PORT_CODE_BUSY, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
+    PORT_CODE_OK, PORT_CODE_REFUSED,
 };
 use super::table::{LocalState, PublishedPortsTable};
-use super::types::Audience;
+use super::types::{Audience, Proto};
+use super::udp::{serve_udp_stream, UdpSession, MAX_UDP_SESSIONS_SERVED, SERVE_IDLE};
 use crate::exit::splice;
 use crate::members::membership::Members;
 use crate::node::output::say;
@@ -39,11 +42,17 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 pub struct PortServer {
     pub members: Members,
     pub table: PublishedPortsTable,
+    /// Slots of simultaneously served UDP sessions (`MAX_UDP_SESSIONS_SERVED`).
+    pub udp_sessions: Arc<Semaphore>,
 }
 
 /// Ports handler for `NetStack`.
 pub fn port_service(members: Members, table: PublishedPortsTable) -> Arc<dyn ServiceHandler> {
-    Arc::new(PortServer { members, table })
+    Arc::new(PortServer {
+        members,
+        table,
+        udp_sessions: Arc::new(Semaphore::new(MAX_UDP_SESSIONS_SERVED)),
+    })
 }
 
 impl ServiceHandler for PortServer {
@@ -110,13 +119,17 @@ pub async fn connect_loopback_port(port: u16) -> Option<TcpStream> {
     timeout(LOCAL_CONNECT_TIMEOUT, both).await.ok().flatten()
 }
 
-async fn read_port_request(recv: &mut BoxRecv) -> Option<u16> {
-    let mut buf = [0u8; 3];
-    timeout(REQUEST_TIMEOUT, recv.read_exact(&mut buf))
-        .await
-        .ok()?
-        .ok()?;
-    parse_port_request(&buf).ok()
+async fn read_port_request(recv: &mut BoxRecv) -> Option<PortRequest> {
+    let mut head = [0u8; 3];
+    let mut tail = [0u8; 1];
+    let read = async {
+        recv.read_exact(&mut head).await?;
+        let n = request_tail_len(&head);
+        recv.read_exact(&mut tail[..n]).await?;
+        Ok::<usize, std::io::Error>(n)
+    };
+    let n = timeout(REQUEST_TIMEOUT, read).await.ok()?.ok()?;
+    parse_port_request(&[&head[..], &tail[..n]].concat()).ok()
 }
 
 async fn send_reply_code(send: &mut BoxSend, code: u8) -> Result<()> {
@@ -145,7 +158,7 @@ async fn serve_stream(
     mut send: BoxSend,
     mut recv: BoxRecv,
 ) -> Result<()> {
-    let Some(port) = read_port_request(&mut recv).await else {
+    let Some(req) = read_port_request(&mut recv).await else {
         return refuse(
             &mut send,
             &peer,
@@ -155,14 +168,54 @@ async fn serve_stream(
         )
         .await;
     };
-    let audience = server.table.audience_of(port);
+    let port = req.port;
+    let audience = server.table.audience_of(req.proto, port);
     if let Err(code) = admit_port_request(server.members.is_member(peer), audience.as_ref(), &peer)
     {
-        let why = format!("port {port}: {}", super::frame::port_code_text(code));
+        let why = format!("port {port}: {}", port_code_text(code));
         return refuse(&mut send, &peer, &server.members, &why, code).await;
     }
+    let branch = req
+        .proto
+        .pick::<ServeBranch>(serve_tcp_boxed, serve_udp_boxed);
+    branch(server, peer, send, recv, port).await
+}
+
+/// One protocol branch of `serve_stream`: the request is already admitted.
+type ServeBranch = fn(PortServer, PeerId, BoxSend, BoxRecv, u16) -> BoxFuture<'static, Result<()>>;
+
+fn serve_tcp_boxed(
+    server: PortServer,
+    peer: PeerId,
+    send: BoxSend,
+    recv: BoxRecv,
+    port: u16,
+) -> BoxFuture<'static, Result<()>> {
+    Box::pin(async move { serve_tcp(&server, peer, send, recv, port).await })
+}
+
+fn serve_udp_boxed(
+    server: PortServer,
+    peer: PeerId,
+    send: BoxSend,
+    recv: BoxRecv,
+    port: u16,
+) -> BoxFuture<'static, Result<()>> {
+    Box::pin(async move { serve_udp(&server, peer, send, recv, port).await })
+}
+
+/// TCP branch: a connection to our own loopback and copying bytes.
+async fn serve_tcp(
+    server: &PortServer,
+    peer: PeerId,
+    mut send: BoxSend,
+    recv: BoxRecv,
+    port: u16,
+) -> Result<()> {
     let Some(tcp) = connect_loopback_port(port).await else {
-        server.table.set_local_state(port, LocalState::Refused);
+        server
+            .table
+            .set_local_state(Proto::Tcp, port, LocalState::Refused);
         let why = format!("port {port} does not respond");
         return refuse(
             &mut send,
@@ -174,12 +227,40 @@ async fn serve_stream(
         .await;
     };
     send_reply_code(&mut send, PORT_CODE_OK).await?;
-    server.table.set_local_state(port, LocalState::Ok);
+    server
+        .table
+        .set_local_state(Proto::Tcp, port, LocalState::Ok);
     say(
         "port",
         format!("{}: port {port} opened", server.members.peer_label(peer)),
     );
     let _ = splice(send, recv, tcp).await;
+    Ok(())
+}
+
+/// UDP branch: a session slot, the reply, then datagrams in frames until the stream ends. No local check:
+/// a UDP port cannot be probed.
+async fn serve_udp(
+    server: &PortServer,
+    peer: PeerId,
+    mut send: BoxSend,
+    recv: BoxRecv,
+    port: u16,
+) -> Result<()> {
+    let Ok(permit) = server.udp_sessions.clone().try_acquire_owned() else {
+        let why = format!("port {port}/udp: {}", port_code_text(PORT_CODE_BUSY));
+        return refuse(&mut send, &peer, &server.members, &why, PORT_CODE_BUSY).await;
+    };
+    send_reply_code(&mut send, PORT_CODE_OK).await?;
+    say(
+        "port",
+        format!(
+            "{}: port {port}/udp opened",
+            server.members.peer_label(peer)
+        ),
+    );
+    let session = UdpSession::new(send, recv, SERVE_IDLE, Some(permit));
+    serve_udp_stream(session, port).await;
     Ok(())
 }
 
@@ -190,3 +271,7 @@ mod tests;
 #[cfg(test)]
 #[path = "server_stream_tests.rs"]
 mod stream_tests;
+
+#[cfg(test)]
+#[path = "server_udp_tests.rs"]
+mod udp_tests;

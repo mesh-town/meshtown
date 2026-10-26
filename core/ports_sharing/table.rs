@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use tokio::sync::Notify;
 
 use super::record::PortRecord;
-use super::types::{Audience, Published};
+use super::types::{Audience, Proto, Published};
 
 /// Result of the last check of the port on this device.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,20 +28,26 @@ pub struct PublishedPortsTable {
     changed: Arc<Notify>,
 }
 
-/// Removes port duplicates (the first one wins), all statuses are `Unknown`.
+/// Removes duplicates of (protocol, port) (the first one wins), all statuses are `Unknown`.
 fn fresh_rows(list: Vec<Published>) -> Rows {
     let mut rows: Rows = Vec::new();
     for p in list {
-        if rows.iter().all(|(q, _)| q.port != p.port) {
+        if rows
+            .iter()
+            .all(|(q, _)| (q.proto, q.port) != (p.proto, p.port))
+        {
             rows.push((p, LocalState::Unknown));
         }
     }
     rows
 }
 
-/// The status carries over only if the old row has the same port and the entry is entirely equal.
+/// The status carries over only if the old row has the same protocol and port and the entry is entirely equal.
 fn kept_state(old: &Rows, p: &Published) -> LocalState {
-    match old.iter().find(|(q, _)| q.port == p.port) {
+    match old
+        .iter()
+        .find(|(q, _)| (q.proto, q.port) == (p.proto, p.port))
+    {
         Some((q, s)) if PortRecord::from(q) == PortRecord::from(p) => *s,
         _ => LocalState::Unknown,
     }
@@ -69,17 +75,20 @@ impl PublishedPortsTable {
     }
 
     /// The recipient circle of a port; `None` if the port is not published.
-    pub fn audience_of(&self, port: u16) -> Option<Audience> {
+    pub fn audience_of(&self, proto: Proto, port: u16) -> Option<Audience> {
         let rows = self.rows.lock().unwrap();
         rows.iter()
-            .find(|(p, _)| p.port == port)
+            .find(|(p, _)| (p.proto, p.port) == (proto, port))
             .map(|(p, _)| p.audience.clone())
     }
 
     /// Records the result of a port check; if there is no such port (removed in a race), nothing, `changed` is not woken.
-    pub fn set_local_state(&self, port: u16, state: LocalState) {
+    pub fn set_local_state(&self, proto: Proto, port: u16, state: LocalState) {
         let mut rows = self.rows.lock().unwrap();
-        if let Some(row) = rows.iter_mut().find(|(p, _)| p.port == port) {
+        if let Some(row) = rows
+            .iter_mut()
+            .find(|(p, _)| (p.proto, p.port) == (proto, port))
+        {
             row.1 = state;
         }
     }

@@ -8,9 +8,9 @@ use super::*;
 use crate::config::config_file::fields;
 use crate::transport::net::NodeSecret;
 
-const PUBLISHED: &str = "a list of publications {port, name, for} without repeated ports, up to 64, for is \"all\" or a list of ids";
+const PUBLISHED: &str = "a list of publications {port, proto, name, for} without repeated (proto, port), up to 64, proto is \"tcp\" (default) or \"udp\", for is \"all\" or a list of ids";
 const OPENED: &str =
-    "a list of {node, port, local} without repeats of (node, port) and local, up to 64";
+    "a list of {node, port, proto, local} without repeats of (node, proto, port) and (proto, local), up to 64, proto is \"tcp\" (default) or \"udp\"";
 const IFACES: &str =
     "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
 const FLAG: &str = "true or false";

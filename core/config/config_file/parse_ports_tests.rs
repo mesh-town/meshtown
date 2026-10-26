@@ -1,5 +1,5 @@
 use crate::config::config_file::parse_text;
-use crate::ports_sharing::types::Audience;
+use crate::ports_sharing::types::{Audience, Proto};
 use crate::transport::net::{NodeSecret, PeerId};
 
 fn id(n: u8) -> PeerId {
@@ -157,3 +157,6 @@ fn bad_opened_lists_are_rejected_whole() {
         assert_eq!(p.field_errors[0].field_path, "ports.opened", "{why}");
     }
 }
+
+#[path = "parse_ports_proto_tests.rs"]
+mod proto;

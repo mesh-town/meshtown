@@ -7,6 +7,7 @@ use super::config_api::ConfigState;
 use super::control::NodeControl;
 use crate::config::config_file::NetSlotId;
 pub use crate::node::host::Notice;
+use crate::ports_sharing::types::Proto;
 use crate::proxy::ProxyFront;
 
 /// One slot: its id, the node control surface and the config state the page edits for it.
@@ -38,6 +39,7 @@ pub struct AddedSlot {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OpenedLocal {
     pub local: u16,
+    pub proto: Proto,
     pub net: String,
 }
 
@@ -99,6 +101,7 @@ pub(crate) fn opened_locals_of(slots: Vec<SlotHandle>, except: &NetSlotId) -> Ve
         let opened = cfg.file_settings.net.ports_opened.iter();
         out.extend(opened.map(|o| OpenedLocal {
             local: o.local,
+            proto: o.proto,
             net: net.clone(),
         }));
     }

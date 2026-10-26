@@ -1,29 +1,36 @@
-//! Key and value of a publication entry in the shared document: `port/tcp/<port>/` and postcard
+//! Key and value of a publication entry in the shared document: `port/<proto>/<port>/` and postcard
 //! `PortRecord`. Pure functions without a network — checked by `record_tests.rs`.
 
 use serde::{Deserialize, Serialize};
 
 use crate::transport::net::PeerId;
 
-use super::types::{Audience, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};
+use super::types::{Audience, Proto, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};
 
-/// Prefix of publication keys in the document.
-pub const PORT_PREFIX: &str = "port/tcp/";
 /// Version of the entry value layout.
 pub const PORT_RECORD_VERSION: u8 = 1;
 
-/// Entry key `port/tcp/<port>/`; the trailing `/` is required: `del` removes all keys with
-/// the prefix, and `port/tcp/80` without a slash would remove `8080` too.
-pub fn port_key(port: u16) -> Vec<u8> {
-    format!("{PORT_PREFIX}{port}/").into_bytes()
+const PORT_PREFIXES: [&str; 2] = ["port/tcp/", "port/udp/"];
+
+/// Prefix of the publication keys of a protocol: `port/tcp/` or `port/udp/`.
+pub fn port_prefix(proto: Proto) -> &'static str {
+    PORT_PREFIXES[proto as usize]
 }
 
-/// Port from the key `port/tcp/<port>/`; strict: no leading zeros or signs, 0 and foreign keys give `None`.
-pub fn port_from_key(key: &[u8]) -> Option<u16> {
+/// Entry key `port/<proto>/<port>/`; the trailing `/` is required: `del` removes all keys with
+/// the prefix, and `port/tcp/80` without a slash would remove `8080` too.
+pub fn port_key(proto: Proto, port: u16) -> Vec<u8> {
+    format!("{}{port}/", port_prefix(proto)).into_bytes()
+}
+
+/// Protocol and port from a key; strict: no leading zeros or signs, 0 and foreign keys give `None`.
+pub fn port_from_key(key: &[u8]) -> Option<(Proto, u16)> {
     let text = std::str::from_utf8(key).ok()?;
-    let digits = text.strip_prefix(PORT_PREFIX)?.strip_suffix('/')?;
-    let port: u16 = digits.parse().ok()?;
-    (port != 0 && port_key(port) == key).then_some(port)
+    Proto::ALL.into_iter().find_map(|proto| {
+        let digits = text.strip_prefix(port_prefix(proto))?.strip_suffix('/')?;
+        let port: u16 = digits.parse().ok()?;
+        (port != 0 && port_key(proto, port) == key).then_some((proto, port))
+    })
 }
 
 /// Entry value in the document. postcard 1.1.3 layout: `v` — 1 byte; `name` — a varint of

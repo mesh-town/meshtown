@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use crate::config::config_file::{self, CliOverrides, ConfigSource, ListenAccess, PathRule};
 use crate::members::network_key::format_key_string;
 use crate::members::words::generate_tail;
-use crate::ports_sharing::Opened;
+use crate::ports_sharing::{Opened, Proto};
 use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{send, slot_handle, test_app, FakeHost, SnapNode};
 use crate::web_gui::{App, ConfigState, HostControl};
@@ -210,6 +210,7 @@ impl Fixture {
             .unwrap();
         let node = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
         let opened = Opened {
+            proto: Proto::Tcp,
             node,
             port: 80,
             local,

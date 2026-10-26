@@ -267,6 +267,7 @@ pub struct PortsInfo {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct OwnPort {
     pub port: u16,
+    pub proto: crate::ports_sharing::Proto,
     pub name: String,
     pub local: String,
 }
@@ -278,6 +279,7 @@ pub struct NetPort {
     pub node_name: Option<String>,
     pub online: bool,
     pub port: u16,
+    pub proto: crate::ports_sharing::Proto,
     pub name: String,
     pub published: bool,
     pub opened: Option<OpenedInfo>,
@@ -292,6 +294,8 @@ pub struct OpenedInfo {
     pub local: u16,
     pub state: String,
     pub error: Option<String>,
+    /// Outcome of the last failed attempt to reach the publisher; `None` after a success or before any attempt.
+    pub last_error: Option<crate::ports_sharing::PortReach>,
 }
 
 #[cfg(test)]

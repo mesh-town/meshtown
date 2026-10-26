@@ -11,6 +11,7 @@
 //! the old keys were not touched.
 
 use super::*;
+use crate::ports_sharing::{PortReach, Proto};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -151,15 +152,18 @@ const FILLED_KEYS: &[&str] = &[
     "ports.network[].online",
     "ports.network[].opened",
     "ports.network[].opened.error",
+    "ports.network[].opened.last_error",
     "ports.network[].opened.local",
     "ports.network[].opened.state",
     "ports.network[].port",
+    "ports.network[].proto",
     "ports.network[].published",
     "ports.network[].web_url",
     "ports.published",
     "ports.published[].local",
     "ports.published[].name",
     "ports.published[].port",
+    "ports.published[].proto",
     "route",
     "route.exits",
     "route.exits[].active",
@@ -401,12 +405,14 @@ fn filled_ports() -> PortsInfo {
         local: 1,
         state: text("bind_failed"),
         error: Some(text("busy")),
+        last_error: Some(PortReach::Unsupported),
     };
     let network = NetPort {
         node: text("node"),
         node_name: Some(text("peer")),
         online: true,
         port: 1,
+        proto: Proto::Udp,
         name: text("web"),
         published: true,
         opened: Some(opened),
@@ -415,6 +421,7 @@ fn filled_ports() -> PortsInfo {
     PortsInfo {
         published: vec![OwnPort {
             port: 1,
+            proto: Proto::Tcp,
             name: text("web"),
             local: text("ok"),
         }],

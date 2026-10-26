@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use super::settings::Settings;
 use super::{LoadedConfigFile, ParsedConfigFile, SecretRead};
 use super::{NetSettings, ProcessSettings};
+use crate::ports_sharing::types::Proto;
 
 /// A temporary test directory; removed with `remove_dir_all` at the end of the test.
 pub(super) fn scratch(name: &str) -> PathBuf {
@@ -65,6 +66,7 @@ pub(super) fn sample_settings() -> Settings {
             probe_full_cycle: false,
             route_exits: vec![NodeSecret::from_bytes(&[9u8; 32]).peer_id()],
             ports_published: vec![crate::ports_sharing::types::Published {
+                proto: Proto::Tcp,
                 port: 8080,
                 name: "網".to_string(),
                 audience: crate::ports_sharing::types::Audience::All,
@@ -83,11 +85,13 @@ fn changed_published() -> Vec<crate::ports_sharing::types::Published> {
     let peer = peer_of;
     vec![
         crate::ports_sharing::types::Published {
+            proto: Proto::Tcp,
             port: 8080,
             name: "網".to_string(),
             audience: crate::ports_sharing::types::Audience::All,
         },
         crate::ports_sharing::types::Published {
+            proto: Proto::Tcp,
             port: 9090,
             name: "二番".to_string(),
             audience: crate::ports_sharing::types::Audience::Nodes(vec![peer(11)]),
@@ -131,6 +135,7 @@ pub(crate) fn all_changed() -> Settings {
             route_exits: vec![peer(9), peer(10)],
             ports_published: changed_published(),
             ports_opened: vec![crate::ports_sharing::types::Opened {
+                proto: Proto::Tcp,
                 node: peer(12),
                 port: 80,
                 local: 8081,

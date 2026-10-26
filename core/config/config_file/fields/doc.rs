@@ -18,8 +18,8 @@ use super::{
 const DROPPED_WHEN_EMPTY: [&str; 2] = ["net", "proxy"];
 
 /// Key order in objects inside lists (`serde_json` without `preserve_order` sorts them
-/// alphabetically): `ports.published` — port, name, for; `ports.opened` — node, port, local.
-const KEY_ORDER: [&str; 5] = ["node", "port", "name", "for", "local"];
+/// alphabetically): `ports.published` — port, proto, name, for; `ports.opened` — node, port, proto, local.
+const KEY_ORDER: [&str; 6] = ["node", "port", "proto", "name", "for", "local"];
 
 /// The `config` section of the document: `version`, then the sections in table order.
 pub(crate) struct ConfigDoc<'a>(pub &'a Settings);

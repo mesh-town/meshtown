@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use meshtown_core::config::config_file::{self, LoadedConfigFile, NetSettings, Settings};
 use meshtown_core::invite::{self, InviteHead, InviteSecret};
 use meshtown_core::members::network_key::NetworkKey;
-use meshtown_core::ports_sharing::{Audience, Published};
+use meshtown_core::ports_sharing::{Audience, Proto, Published};
 use meshtown_core::transport::addr_order::PrimaryIps;
 use meshtown_core::transport::net::{AddrHint, NodeSecret, PeerAddr};
 use meshtown_core::transport::net_mainline::unix_now;
@@ -186,6 +186,7 @@ fn write_file_with_ports(dir: &std::path::Path, with_key: bool) {
         net: NetSettings {
             network_key: key_a,
             ports_published: vec![Published {
+                proto: Proto::Tcp,
                 port: 8080,
                 name: "web".to_string(),
                 audience: Audience::All,

@@ -2069,6 +2069,8 @@ dependencies = [
  "townjump-dht",
  "townjump-dht-peeroxide",
  "townjump-keys",
+ "townjump-logger",
+ "townjump-pipe",
  "tracing",
  "tracing-subscriber",
  "tray-icon",
@@ -3798,6 +3800,24 @@ dependencies = [
  "hex",
  "sha2 0.10.9",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "townjump-logger"
+version = "0.1.0"
+source = "git+https://github.com/mesh-town/townjump?rev=f70a0a924905bbce8be8a046e73bece4ecb782c1#f70a0a924905bbce8be8a046e73bece4ecb782c1"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "townjump-pipe"
+version = "0.1.0"
+source = "git+https://github.com/mesh-town/townjump?rev=f70a0a924905bbce8be8a046e73bece4ecb782c1#f70a0a924905bbce8be8a046e73bece4ecb782c1"
+dependencies = [
+ "portable-atomic",
+ "tokio",
+ "townjump-logger",
 ]
 
 [[package]]

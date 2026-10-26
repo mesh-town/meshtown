@@ -20,18 +20,23 @@ pub mod server;
 pub mod store;
 pub mod table;
 pub mod types;
+mod udp;
+
+#[cfg(test)]
+pub(crate) mod test_support;
 
 pub use dial::{dial_peer_port, PortDialError, PortReach, PortStream};
 pub use frame::{
     encode_port_reply, encode_port_request, parse_port_reply, parse_port_request, port_code_text,
-    PORT_ALPN, PORT_CODE_BAD_REQUEST, PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED,
-    PORT_CODE_OK, PORT_CODE_REFUSED, PORT_FRAME_VERSION,
+    request_tail_len, PortRequest, PORT_ALPN, PORT_CODE_BAD_REQUEST, PORT_CODE_BUSY,
+    PORT_CODE_CONNECT_FAILED, PORT_CODE_NOT_PUBLISHED, PORT_CODE_OK, PORT_CODE_REFUSED,
+    PORT_FRAME_VERSION, PORT_FRAME_VERSION_PROTO,
 };
 pub use record::{
-    decode_port_record, encode_port_record, port_from_key, port_key, PortRecord, PORT_PREFIX,
+    decode_port_record, encode_port_record, port_from_key, port_key, port_prefix, PortRecord,
     PORT_RECORD_VERSION,
 };
 pub use server::port_service;
 pub use store::{PortView, PortsDoc};
 pub use table::{LocalState, PublishedPortsTable};
-pub use types::{Audience, Opened, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};
+pub use types::{Audience, Opened, Proto, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};

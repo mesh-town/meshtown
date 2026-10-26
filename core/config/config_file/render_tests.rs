@@ -59,23 +59,26 @@ fn route_exits_roundtrip_keeps_order() {
 
 #[test]
 fn ports_roundtrip_and_for_always_written() {
-    use crate::ports_sharing::types::{Audience, Opened, Published};
+    use crate::ports_sharing::types::{Audience, Opened, Proto, Published};
     let a = NodeSecret::from_bytes(&[3u8; 32]).peer_id();
     let settings = Settings {
         net: NetSettings {
             ports_published: vec![
                 Published {
+                    proto: Proto::Tcp,
                     port: 8080,
                     name: "web".to_string(),
                     audience: Audience::All,
                 },
                 Published {
+                    proto: Proto::Tcp,
                     port: 22,
                     name: String::new(),
                     audience: Audience::Nodes(vec![a]),
                 },
             ],
             ports_opened: vec![Opened {
+                proto: Proto::Tcp,
                 node: a,
                 port: 8080,
                 local: 9090,

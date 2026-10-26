@@ -10,6 +10,7 @@ use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 
 use super::*;
+use crate::ports_sharing::types::Proto;
 
 /// A TCP pair: the client half and the accepted one.
 async fn pair() -> (TcpStream, TcpStream) {
@@ -28,6 +29,7 @@ async fn assert_eof(mut client: TcpStream) {
 
 fn target(id: PeerId) -> Opened {
     Opened {
+        proto: Proto::Tcp,
         node: id,
         port: 80,
         local: 1,
@@ -41,12 +43,13 @@ async fn non_member_closes_fast() {
     let id = pid(6);
     let (client, accepted) = pair().await;
     let t = Instant::now();
-    forward_to_peer_port(
+    let _ = forward_to_peer_port(
         &stack,
         &PeerConnPool::new(PORT),
         &Members::default(),
         &target(id),
         accepted,
+        || {},
     )
     .await;
     assert!(t.elapsed() <= Duration::from_secs(1));

@@ -1,6 +1,7 @@
 //! Tests of the publication entry key and value (`record.rs`).
 
 use super::*;
+use crate::ports_sharing::types::Proto;
 use crate::transport::net::{NodeSecret, PeerId};
 
 fn id() -> PeerId {
@@ -42,9 +43,12 @@ fn public_key_layout_in_postcard() {
 #[test]
 fn key_roundtrip() {
     for port in [1u16, 80, 65535] {
-        assert_eq!(port_from_key(&port_key(port)), Some(port));
+        assert_eq!(
+            port_from_key(&port_key(Proto::Tcp, port)),
+            Some((Proto::Tcp, port))
+        );
     }
-    assert_eq!(port_key(80), b"port/tcp/80/".to_vec());
+    assert_eq!(port_key(Proto::Tcp, 80), b"port/tcp/80/".to_vec());
 }
 
 #[test]
@@ -59,10 +63,15 @@ fn record_roundtrip() {
 
 #[test]
 fn key_rejects_malformed() {
-    let bad: [&[u8]; 12] = [
+    let bad: [&[u8]; 17] = [
         b"port/tcp/080/",
         b"port/tcp/80",
-        b"port/udp/80/",
+        b"port/udp/080/",
+        b"port/udp/80",
+        b"port/udp/0/",
+        b"port/udp/65536/",
+        b"port/udp/+80/",
+        b"port/udp/80/x/",
         b"port/tcp/0/",
         b"port/tcp/65536/",
         b"port/tcp/70000/",
@@ -181,6 +190,7 @@ fn decode_ignores_tail() {
 fn record_from_published() {
     let p = Published {
         port: 80,
+        proto: Proto::Tcp,
         name: "web".into(),
         audience: Audience::All,
     };
@@ -229,4 +239,92 @@ fn golden_audience_nodes_postcard_is_raw_32_bytes_per_key() {
         postcard::from_bytes::<Audience>(&[0x00]).expect("parse"),
         Audience::All
     );
+}
+
+mod protocol_in_key {
+    use super::*;
+
+    #[test]
+    fn prefixes_are_one_per_protocol() {
+        assert_eq!(port_prefix(Proto::Tcp), "port/tcp/");
+        assert_eq!(port_prefix(Proto::Udp), "port/udp/");
+    }
+
+    #[test]
+    fn udp_key_lies_outside_the_tcp_prefix() {
+        // given: the key of UDP port 53
+        let key = port_key(Proto::Udp, 53);
+        // then: the layout is `port/udp/53/`, and a scan of the TCP prefix would not reach it
+        assert_eq!(key, b"port/udp/53/".to_vec());
+        assert!(!key.starts_with(port_prefix(Proto::Tcp).as_bytes()));
+        assert!(key.starts_with(port_prefix(Proto::Udp).as_bytes()));
+    }
+
+    #[test]
+    fn same_port_has_different_keys_per_protocol() {
+        assert_ne!(port_key(Proto::Tcp, 53), port_key(Proto::Udp, 53));
+    }
+
+    #[test]
+    fn key_round_trips_for_each_protocol() {
+        for proto in Proto::ALL {
+            for port in [1u16, 53, 80, 65535] {
+                assert_eq!(
+                    port_from_key(&port_key(proto, port)),
+                    Some((proto, port)),
+                    "{proto:?} {port}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn foreign_prefix_is_not_a_port() {
+        let foreign: [&[u8]; 9] = [
+            b"port/sctp/80/",
+            b"port/TCP/80/",
+            b"port/80/",
+            b"port/tcp80/",
+            b"port//80/",
+            b"tcp/80/",
+            b"port/",
+            b"",
+            b"ports/udp/80/",
+        ];
+        for key in foreign {
+            assert_eq!(port_from_key(key), None, "key {key:?}");
+        }
+    }
+
+    #[test]
+    fn port_0_is_not_a_port_for_any_protocol() {
+        for proto in Proto::ALL {
+            assert_eq!(port_from_key(&port_key(proto, 0)), None, "{proto:?}");
+        }
+    }
+}
+
+mod record_value {
+    use super::*;
+
+    #[test]
+    fn protocol_is_not_part_of_the_value() {
+        // given: the same name and circle published over TCP and over UDP
+        let tcp = Published {
+            port: 53,
+            proto: Proto::Tcp,
+            name: "dns".into(),
+            audience: Audience::All,
+        };
+        let udp = Published {
+            proto: Proto::Udp,
+            ..tcp.clone()
+        };
+        // then: the entry values are identical, the protocol lives in the key only
+        assert_eq!(PortRecord::from(&udp), PortRecord::from(&tcp));
+        assert_eq!(
+            encode_port_record(&PortRecord::from(&udp)),
+            encode_port_record(&PortRecord::from(&tcp))
+        );
+    }
 }

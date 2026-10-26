@@ -181,12 +181,17 @@ fn reject_taken_locals(
         .net
         .ports_opened
         .iter()
-        .filter(|o| !old.iter().any(|p| p.local == o.local));
+        .filter(|o| !old.iter().any(|p| (p.proto, p.local) == (o.proto, o.local)));
     for opened in fresh {
-        if let Some(other) = taken.iter().find(|t| t.local == opened.local) {
+        if let Some(other) = taken
+            .iter()
+            .find(|t| (t.proto, t.local) == (opened.proto, opened.local))
+        {
             let text = format!(
-                "local port {} is already opened in network \"{}\"",
-                other.local, other.net
+                "local {}port {} is already opened in network \"{}\"",
+                opened.proto.pick("", "UDP "),
+                other.local,
+                other.net
             );
             return Err(state.invalid_response(vec![field_entry("ports.opened", &text)]));
         }

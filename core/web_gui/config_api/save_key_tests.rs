@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::config::config_file::{
     self, CliOverrides, ConfigSource, LoadedConfigFile, PathRule, Settings,
 };
-use crate::ports_sharing::{Audience, Opened, Published};
+use crate::ports_sharing::{Audience, Opened, Proto, Published};
 
 use super::ConfigState;
 
@@ -26,6 +26,7 @@ fn fresh_key(label: &str) -> String {
 
 fn published() -> Vec<Published> {
     vec![Published {
+        proto: Proto::Tcp,
         port: 8080,
         name: "web".into(),
         audience: Audience::All,
@@ -35,6 +36,7 @@ fn published() -> Vec<Published> {
 fn opened() -> Vec<Opened> {
     let node = NodeSecret::from_bytes(&[3u8; 32]).peer_id();
     vec![Opened {
+        proto: Proto::Tcp,
         node,
         port: 80,
         local: 8081,

@@ -242,14 +242,14 @@ check:
 
 # Network core boundary: core/transport/net has no foreign network crates and no paths outside the core;
 # no path within the core boundary names foreign network crates; townjump crates live only in net_hyper/.
-# H4: townjump crates (townjump_*, peeroxide_*, libudx) live only in net_hyper/; `net_hyper::` outside net_hyper/ only in node/start/.
+# H4: townjump crates (townjump_*, peeroxide_*, libudx) live only in net_hyper/ (the framed UDP pipe: only ports_sharing/udp/pipe.rs); `net_hyper::` outside net_hyper/ only in node/start/.
 # H5: net_hyperdht does not name net_hyper, mainline, townjump or peeroxide — only the RecordStore trait and common types.
 net-boundary:
 	@test -d core/transport/net || { echo "net-boundary: core/transport/net is missing" >&2; exit 1; }
 	@! rg -n -g '!*_tests.rs' -e '\b(mainline|rustls|tokio_rustls|simple_dns|n0_future|axum|hyper\w*|tower\w*|url)::' -e '\bcrate::(\{|\w+)' -e '\bsuper::super\b' core/transport/net | rg -v 'crate::transport::net\b'
 	@test -d core/transport/net_hyperdht || { echo "net-boundary: core/transport/net_hyperdht is missing" >&2; exit 1; }
 	@! rg -n -g '!*_tests.rs' '\b(net_hyper|mainline|townjump_\w+|peeroxide_\w+)::' core/transport/net_hyperdht
-	@! rg -n -e '\b(townjump_\w+|peeroxide_\w+|libudx)::' core -g '!**/net_hyper/**'
+	@! rg -n -e '\b(townjump_\w+|peeroxide_\w+|libudx)::' core -g '!**/net_hyper/**' -g '!**/ports_sharing/udp/pipe.rs'
 	@test -d core || { echo "net-boundary: core is missing" >&2; exit 1; }
 	@! rg -n '\bnet_hyper::' core -g '!**/net_hyper/**' -g '!**/node/start/**'
 

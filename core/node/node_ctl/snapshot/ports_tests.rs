@@ -4,7 +4,7 @@ use super::*;
 
 use crate::transport::net::{NodeSecret, PeerId};
 
-use crate::ports_sharing::{Audience, PortRecord};
+use crate::ports_sharing::{Audience, PortRecord, Proto};
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()
@@ -12,6 +12,7 @@ fn id(n: u8) -> PeerId {
 
 fn view(author: PeerId, port: u16, audience: Option<Audience>) -> PortView {
     PortView {
+        proto: Proto::Tcp,
         author,
         port,
         record: audience.map(|audience| PortRecord {
@@ -23,7 +24,12 @@ fn view(author: PeerId, port: u16, audience: Option<Audience>) -> PortView {
 }
 
 fn opened(node: PeerId, port: u16, local: u16) -> Opened {
-    Opened { node, port, local }
+    Opened {
+        node,
+        port,
+        proto: Proto::Tcp,
+        local,
+    }
 }
 
 const ME: u8 = 1;
@@ -37,6 +43,7 @@ fn run(views: &[PortView], online: &[u8], op: OpenedNow) -> PortsInfo {
 #[test]
 fn own_published_carry_local_state() {
     let p = |port| Published {
+        proto: Proto::Tcp,
         port,
         name: "x".into(),
         audience: Audience::All,
@@ -63,7 +70,7 @@ fn offline_author_not_opened_has_no_row() {
 
 #[test]
 fn offline_author_opened_here_keeps_row() {
-    let op = vec![(opened(id(A), 80, 9000), OpenState::Listening)];
+    let op = vec![(opened(id(A), 80, 9000), OpenState::Listening, None)];
     let info = run(&[view(id(A), 80, Some(Audience::All))], &[], op);
     assert_eq!(info.network.len(), 1);
     assert!(!info.network[0].online);
@@ -86,8 +93,8 @@ fn nodes_without_me_or_missing_record_opened_here_is_unpublished_row() {
         view(id(A), 81, None),
     ];
     let op = vec![
-        (opened(id(A), 80, 9000), OpenState::Listening),
-        (opened(id(A), 81, 9001), OpenState::Listening),
+        (opened(id(A), 80, 9000), OpenState::Listening, None),
+        (opened(id(A), 81, 9001), OpenState::Listening, None),
     ];
     let info = run(&views, &[A], op);
     assert_eq!(info.network.len(), 2);
@@ -126,7 +133,7 @@ fn own_record_is_not_in_network() {
 
 #[test]
 fn opened_without_record_is_unpublished_row() {
-    let op = vec![(opened(id(A), 80, 9000), OpenState::Listening)];
+    let op = vec![(opened(id(A), 80, 9000), OpenState::Listening, None)];
     let info = run(&[], &[A], op);
     assert_eq!(info.network.len(), 1);
     assert!(!info.network[0].published);
@@ -139,6 +146,7 @@ fn bind_failed_carries_error_text() {
     let op = vec![(
         opened(id(A), 80, 9000),
         OpenState::BindFailed("busy".into()),
+        None,
     )];
     let info = run(&[view(id(A), 80, Some(Audience::All))], &[A], op);
     let o = info.network[0].opened.as_ref().unwrap();
@@ -148,3 +156,6 @@ fn bind_failed_carries_error_text() {
 
 #[path = "ports_web_url_tests.rs"]
 mod web_url;
+
+#[path = "ports_udp_tests.rs"]
+mod udp;
