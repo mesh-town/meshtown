@@ -1,6 +1,6 @@
 use super::*;
 use crate::config::config_file::test_support::test_secret;
-use crate::config::config_file::{NetSettings, SecretRead, TransportMode};
+use crate::config::config_file::{NetSettings, SecretRead};
 
 const SECRET_B64: &str = "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=";
 const CREATED: u64 = 1_792_749_600;
@@ -163,7 +163,6 @@ const COMPLETE_CONFIG: &str = r#"{
     "version": 1,
     "node": {"name": "kitchen"},
     "network": {"key": "label--test-key-not-real"},
-    "transport": {"mode": "relay_only"},
     "exit": {"enabled": false},
     "probe": {"interval_sec": 120}
 }"#;
@@ -172,7 +171,6 @@ fn complete_net() -> NetSettings {
     NetSettings {
         node_name: Some("kitchen".to_string()),
         network_key: Some("label--test-key-not-real".to_string()),
-        transport_mode: TransportMode::RelayOnly,
         exit_enabled: false,
         probe_interval_sec: 120,
         ..NetSettings::default()

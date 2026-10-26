@@ -22,7 +22,7 @@ fn case(path: &'static str, bad: Value, text: &str) -> InvalidCase {
     (path, bad, text.to_string())
 }
 
-/// 17 editable paths: a bad value and the 422 text in `fields[0].message`.
+/// 16 editable paths: a bad value and the 422 text in `fields[0].message`.
 fn invalid_cases() -> Vec<InvalidCase> {
     let mut cases = invalid_front_cases();
     cases.extend(invalid_rest_cases());
@@ -38,11 +38,6 @@ fn invalid_front_cases() -> Vec<InvalidCase> {
         ),
         case("web.access", json!("public"), "localhost or localnet"),
         case("web.ifaces", json!("br-lan"), IFACES),
-        case(
-            "transport.mode",
-            json!("bogus"),
-            "direct_and_relay, relay_only or no_relay",
-        ),
         case("exit.enabled", json!("x"), FLAG),
         case("socks.enabled", json!("x"), FLAG),
         case("socks.port", json!(80), "a port 1024…65535"),
@@ -135,7 +130,6 @@ mod get_body_lists {
             "socks.port",
             "socks.access",
             "socks.ifaces",
-            "transport.mode",
             "checks.doh_server",
             "checks.provider_dns",
         ];
@@ -154,7 +148,6 @@ mod put_all_editable_at_once {
         let patch = json!({
             "node": { "name": "Kitchen" },
             "web": { "access": "localhost" },
-            "transport": { "mode": "relay_only" },
             "exit": { "enabled": false },
             "socks": { "enabled": false, "port": 1090 },
             "checks": {
@@ -176,7 +169,6 @@ mod put_all_editable_at_once {
         let changed = [
             "node.name",
             "web.access",
-            "transport.mode",
             "exit.enabled",
             "socks.enabled",
             "socks.port",
@@ -193,7 +185,6 @@ mod put_all_editable_at_once {
         let pending = [
             "socks.enabled",
             "socks.port",
-            "transport.mode",
             "checks.doh_server",
             "checks.provider_dns",
         ];
@@ -212,7 +203,6 @@ mod internal_lists {
             "node.name",
             "web.access",
             "web.ifaces",
-            "transport.mode",
             "exit.enabled",
             "socks.enabled",
             "socks.port",
@@ -236,7 +226,6 @@ mod internal_lists {
             "socks.port",
             "socks.access",
             "socks.ifaces",
-            "transport.mode",
             "checks.doh_server",
             "checks.provider_dns",
         ];

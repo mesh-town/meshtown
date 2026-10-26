@@ -189,7 +189,7 @@ function slotState(s) {
     config_rev: 1,
     node: { id: "node-" + s.id, status: "online", uptime_sec: s.uptime ?? 60 },
     network: s.keyless ? null : { label: s.label, masked: "m", id_hex: "key-" + s.id },
-    transport: { mode: "direct_and_relay", relay: { connected: true, url: "r" }, dht: { joined: s.dht !== false }, listen_udp: [] },
+    transport: { relay: { connected: true, url: "r" }, dht: { joined: s.dht !== false }, listen_udp: [] },
     peers,
     route: s.route || { state: "direct", exits: [] },
     socks: { enabled: true, listen: s.socks || "127.0.0.1:1080" },

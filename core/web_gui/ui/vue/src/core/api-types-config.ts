@@ -1,6 +1,6 @@
 /* Node API types: config `GET`/`PUT /api/config`, backup. Types only; the shared header and rules are in `api-types.ts`. */
 
-import type { ConfigFileState, TransportMode } from "./api-types-state.ts";
+import type { ConfigFileState } from "./api-types-state.ts";
 
 // ---------------------------------------------------------------- config
 
@@ -10,9 +10,6 @@ export interface ConfigDocument {
   version: number;
   node: { name: string | null }; // null — no name in the file
   network: ConfigNetworkView; // read-only
-  transport: {
-    mode: TransportMode;
-  };
   dht: { bootstrap: string[] };
   exit: { enabled: boolean };
   socks: { enabled: boolean; port: number; access: "localhost" | "localnet"; ifaces: string[] }; // ifaces: [] — automatic, ["*"] — all networks

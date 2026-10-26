@@ -9,8 +9,8 @@ use crate::node::RunningNode;
 use super::snapshot;
 use super::state::NodeCtlShared;
 
-/// Loop of the background snapshot task: once a second (or sooner, on `kick`) it reads `effective_settings.node_name`/
-/// `effective_settings.transport_mode` under the lock, decides whether to skip a collection (`last_read` is older than 5 s and
+/// Loop of the background snapshot task: once a second (or sooner, on `kick`) it reads `effective_settings.node_name`
+/// under the lock, decides whether to skip a collection (`last_read` is older than 5 s and
 /// it is not the first tick after `attach`), picks the own name through [`snapshot_self_name`] (the effective
 /// settings, or otherwise the name the node was started under), calls `collect`, and puts the result into `cache`
 /// only if the generation has not changed (otherwise the task is outdated — `detach`/a new `attach`
@@ -23,7 +23,7 @@ pub(super) async fn snapshot_task(
     let mut is_first_tick = true;
     let mut doc_cache = snapshot::DocCache::default();
     loop {
-        let (should_collect, name, mode) = {
+        let (should_collect, name) = {
             let st = ctl_shared
                 .ctl_state
                 .lock()
@@ -35,13 +35,12 @@ pub(super) async fn snapshot_task(
             (
                 is_first_tick || !page_idle,
                 st.effective_settings.net.node_name.clone(),
-                st.effective_settings.net.transport_mode.as_str(),
             )
         };
         if should_collect {
             let self_name = snapshot_self_name(name.as_deref(), &node.name_at_start);
             let mut collected =
-                snapshot::collect(&node, Some(self_name.as_str()), mode, &mut doc_cache).await;
+                snapshot::collect(&node, Some(self_name.as_str()), &mut doc_cache).await;
             let mut st = ctl_shared
                 .ctl_state
                 .lock()

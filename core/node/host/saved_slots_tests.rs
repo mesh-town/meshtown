@@ -8,7 +8,7 @@ use std::time::Duration;
 use super::super::HostSlots;
 use crate::config::config_file::{
     self, net_slot_path, new_slot_id, save_net_file, CliOverrides, ConfigSource, NetSettings,
-    NetSlotId, PathRule, RunConfig, TransportMode,
+    NetSlotId, PathRule, RunConfig,
 };
 use crate::members::network_key::NetworkKey;
 use crate::node::guard_sources::GuardSources;
@@ -198,7 +198,6 @@ impl Fixture {
         let key = NetworkKey::from_bytes([self.seed + offset; 32]);
         let net = NetSettings {
             network_key: Some(key.encode()),
-            transport_mode: TransportMode::NoRelay,
             checks_enabled: false,
             ..NetSettings::default()
         };
@@ -281,7 +280,6 @@ fn setup(seed: u8) -> Fixture {
     std::fs::create_dir_all(&dir).expect("temporary test directory");
     let overrides = CliOverrides {
         network_key: Some(NetworkKey::from_bytes([seed; 32]).encode()),
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(0),

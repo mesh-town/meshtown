@@ -29,7 +29,6 @@ fn busy_socks_port_names_flag_and_port() {
         &key,
         "--web-port",
         "0",
-        "--no-relay",
         "--no-checks",
         "--socks-port",
         &port,

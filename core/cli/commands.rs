@@ -2,7 +2,7 @@
 //! Here: building `CliOverrides` from flags, preparing the start of the config file and choosing the branch;
 //! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `crate::node::host`.
 
-use crate::config::config_file::{self, CliOverrides, ConfigSource, TransportMode};
+use crate::config::config_file::{self, CliOverrides, ConfigSource};
 use crate::members::network_key::{format_key_string, normalize_label, NetworkKey};
 use crate::members::words::generate_tail;
 use crate::node::output::NET_NAME;
@@ -167,13 +167,6 @@ fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
                 Some(ValueSource::CommandLine | ValueSource::EnvVariable)
             )
         }),
-        transport_mode: if args.relay_only {
-            Some(TransportMode::RelayOnly)
-        } else if args.no_relay {
-            Some(TransportMode::NoRelay)
-        } else {
-            None
-        },
         exit_enabled: toggle_from_flag_pair(args.exit, args.no_exit),
         socks_enabled: toggle_from_flag_pair(args.socks, args.no_socks),
         socks_port: args.socks_port.filter(|_| is_flag_typed(m, "socks_port")),

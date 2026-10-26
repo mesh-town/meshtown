@@ -38,7 +38,7 @@ impl Proc {
         let mut command = Command::new(env!("CARGO_BIN_EXE_meshtown"));
         command
             .args(["run", "--no-config", "--key", &key, "--web-port", "0"])
-            .args(["--no-relay", "--no-checks", "--no-socks"])
+            .args(["--no-checks", "--no-socks"])
             .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
             .env_remove("MESHTOWN_KEY")
             .env_remove("MESHTOWN_INVITE")

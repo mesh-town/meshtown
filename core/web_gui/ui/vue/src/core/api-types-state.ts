@@ -8,9 +8,6 @@ type NodeStatus = "starting" | "online" | "offline" | "stopping";
 /** Path to a member and the node's own path to the network (`PathKind`). */
 export type PathKind = "direct" | "relay";
 
-/** Transport mode (`TransportMode::as_str`, `config_file/settings.rs`). */
-export type TransportMode = "direct_and_relay" | "relay_only" | "no_relay";
-
 /** Domain check verdict (`VerdictKind`, snake_case). */
 export type Verdict = "ok" | "dns_mismatch" | "network_blocked" | "site_geoblock" | "antibot" | "down";
 
@@ -163,7 +160,6 @@ interface ExitInfo {
 }
 
 export interface TransportInfo {
-  mode: string; // actually TransportMode, but it is a String in `snapshot.rs`
   self_path: PathKind | null;
   relay: RelayInfo;
   nat: string; // text in English

@@ -1,9 +1,9 @@
-//! The `FIELDS` table: 31 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
+//! The `FIELDS` table: 30 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
 //! Row order is the file output order (`render.rs`); computed rows sit in their own section.
 
 use crate::node::net_names;
 
-use super::super::settings::{ListenAccess, TransportMode};
+use super::super::settings::ListenAccess;
 use super::kinds_ifaces::IfaceNames;
 use super::kinds_list::{NetNames, NetSync, OpenedList, PeerList, PublishedList};
 use super::kinds_scalar::{
@@ -40,7 +40,6 @@ pub(crate) static FIELDS: &[Field] = &[
     row!(redacted "network.key", FileOnly, slot!(net.network_key, NetKey)),
     row!("network.label", ReadOnly, &Computed(Block::Net)),
     row!("network.masked", ReadOnly, &Computed(Block::Net)),
-    row!("transport.mode", RestartShown, slot!(net.transport_mode, Choice { parse: TransportMode::parse, name: TransportMode::as_str, expected: "direct_and_relay, relay_only or no_relay" })),
     row!("net.transports", FileOnly, &NetNames { names_in_choice: |n| &mut n.transports, allowed: net_names::transports }),
     row!("net.discovery", FileOnly, &NetNames { names_in_choice: |n| &mut n.discovery, allowed: net_names::discovery }),
     row!("net.sync", FileOnly, &NetSync),

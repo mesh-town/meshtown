@@ -19,12 +19,6 @@ pub(crate) struct RunArgs {
     /// Write the flags you typed to the settings file and keep running.
     #[arg(long)]
     pub(crate) save_config: bool,
-    /// Only via a relay server, no direct connections.
-    #[arg(long, conflicts_with = "no_relay")]
-    pub(crate) relay_only: bool,
-    /// Only direct connections, no relay server.
-    #[arg(long)]
-    pub(crate) no_relay: bool,
     /// How often to test speed to members, in seconds (default: 300).
     #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(5..=86400))]
     pub(crate) probe_interval: Option<u64>,

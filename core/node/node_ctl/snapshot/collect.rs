@@ -135,7 +135,6 @@ fn with_own_version(
 pub(crate) async fn collect(
     node: &RunningNode,
     self_name: Option<&str>,
-    mode: &str,
     cache: &mut DocCache,
 ) -> Collected {
     let now_unix = unix_now();
@@ -156,7 +155,6 @@ pub(crate) async fn collect(
         id: node.id,
         me: node.domains.me(),
         self_name,
-        mode,
         members: node.members.ids(),
         peer_names: node.members.names(),
         neighbors: node.gossip_neighbor_count.load(Ordering::Relaxed) as u64,

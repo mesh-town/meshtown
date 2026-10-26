@@ -8,7 +8,7 @@ use super::*;
 use crate::config::config_file::{
     self, list_net_slots, load_config_file, load_net_file, net_slot_path, new_slot_id,
     prepare_net_slot, save_net_file, CliOverrides, ConfigSource, LoadedConfigFile, LoadedNetFile,
-    NetSettings, PathRule, RunConfig, Settings, TransportMode,
+    NetSettings, PathRule, RunConfig, Settings,
 };
 use crate::members::network_key::NetworkKey;
 use crate::node::node_ctl::NodeCtl;
@@ -255,7 +255,6 @@ impl Fixture {
         let id = new_slot_id(&main).unwrap();
         let net = NetSettings {
             network_key: Some(NetworkKey::from_bytes([seed; 32]).encode()),
-            transport_mode: TransportMode::NoRelay,
             checks_enabled: false,
             route_exits: exits,
             ..NetSettings::default()

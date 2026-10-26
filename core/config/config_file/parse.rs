@@ -32,7 +32,13 @@ pub struct ParsedConfigFile {
     pub field_errors: Vec<FieldError>,
     /// Paths of unknown fields, for one log line.
     pub unknown_paths: Vec<String>,
+    /// Paths of retired fields (`RETIRED`): accepted, ignored and dropped on the next write.
+    pub retired_paths: Vec<String>,
 }
+
+/// Fields that no longer exist: found in a file, they are ignored and reported apart from the unknown ones.
+/// Paths are `section.key`, without the `config.` prefix.
+const RETIRED: &[&str] = &["transport.mode"];
 
 /// What is on disk. One value per launch and short-lived, so the large `ParsedConfigFile` is not boxed.
 #[derive(Debug)]
@@ -124,11 +130,16 @@ fn check_sections_are_objects(cfg: &Value, errs: &mut Vec<FieldError>) {
     }
 }
 
-/// Unknown fields: the root, `config`, the sections. Computed keys are part of `known_keys`.
-fn collect_unknown(root_obj: &serde_json::Map<String, Value>, cfg: &Value) -> Vec<String> {
+/// Unknown and retired fields: the root, `config`, the sections. Computed keys are part of `known_keys`.
+/// Returns `(unknown, retired)`.
+fn collect_unknown(
+    root_obj: &serde_json::Map<String, Value>,
+    cfg: &Value,
+) -> (Vec<String>, Vec<String>) {
     let mut unknown = unknown_root_keys(root_obj);
-    unknown.extend(unknown_config_paths(cfg));
-    unknown
+    let (unknown_in_config, retired) = unknown_config_paths(cfg);
+    unknown.extend(unknown_in_config);
+    (unknown, retired)
 }
 
 /// Keys of the root object that are not part of the file envelope.
@@ -140,18 +151,19 @@ fn unknown_root_keys(root_obj: &serde_json::Map<String, Value>) -> Vec<String> {
         .collect()
 }
 
-/// Paths (`config.<key>` and `config.<section>.<key>`) of the unknown fields inside `config`.
-fn unknown_config_paths(cfg: &Value) -> Vec<String> {
+/// Paths (`config.<key>` and `config.<section>.<key>`) of the unknown and of the retired fields inside `config`.
+fn unknown_config_paths(cfg: &Value) -> (Vec<String>, Vec<String>) {
     let mut unknown: Vec<String> = Vec::new();
+    let mut retired: Vec<String> = Vec::new();
     let Some(cfg_obj) = cfg.as_object() else {
-        return unknown;
+        return (unknown, retired);
     };
     for (k, v) in cfg_obj {
         if k == "version" {
             continue;
         }
         if !fields::section_names().contains(&k.as_str()) {
-            unknown.push(format!("config.{k}"));
+            split_retired_section(k, v, &mut unknown, &mut retired);
             continue;
         }
         if let Some(sec_obj) = v.as_object() {
@@ -162,7 +174,31 @@ fn unknown_config_paths(cfg: &Value) -> Vec<String> {
             }
         }
     }
-    unknown
+    (unknown, retired)
+}
+
+/// A section the table does not know: when it holds a retired key, its keys are listed one by one
+/// (retired apart from unknown); otherwise the whole section is one unknown path.
+fn split_retired_section(
+    section: &str,
+    value: &Value,
+    unknown: &mut Vec<String>,
+    retired: &mut Vec<String>,
+) {
+    let is_retired = |key: &String| RETIRED.contains(&format!("{section}.{key}").as_str());
+    let keys: Vec<&String> = value.as_object().map_or(vec![], |o| o.keys().collect());
+    if !keys.iter().any(|k| is_retired(k)) {
+        unknown.push(format!("config.{section}"));
+        return;
+    }
+    for key in keys {
+        let path = format!("config.{section}.{key}");
+        if is_retired(key) {
+            retired.push(path);
+        } else {
+            unknown.push(path);
+        }
+    }
 }
 
 /// Parses the file text. `Err` is the `invalid` state (the reason text is in English).
@@ -188,7 +224,7 @@ pub fn parse_text(text: &str) -> Result<ParsedConfigFile, String> {
     let secret = read_secret(root_obj, &mut errs);
     check_sections_are_objects(cfg, &mut errs);
     let settings = build_settings(cfg, &mut errs);
-    let unknown_paths = collect_unknown(root_obj, cfg);
+    let (unknown_paths, retired_paths) = collect_unknown(root_obj, cfg);
 
     Ok(ParsedConfigFile {
         rev,
@@ -196,6 +232,7 @@ pub fn parse_text(text: &str) -> Result<ParsedConfigFile, String> {
         settings,
         field_errors: errs,
         unknown_paths,
+        retired_paths,
     })
 }
 
@@ -223,6 +260,10 @@ mod tests;
 #[cfg(test)]
 #[path = "parse_json_error_tests.rs"]
 mod json_error_tests;
+
+#[cfg(test)]
+#[path = "parse_retired_tests.rs"]
+mod retired_tests;
 
 #[cfg(test)]
 #[path = "parse_golden_tests.rs"]

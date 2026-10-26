@@ -86,7 +86,6 @@ pub struct ExitInfo {
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct TransportInfo {
-    pub mode: String,
     pub self_path: Option<PathKindView>,
     pub relay: RelayInfo,
     pub nat: String,

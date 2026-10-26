@@ -266,7 +266,7 @@ function setup(over = {}) {
     state: {
       node: { status: "online", uptime_sec: 60, version: "1.2.3" },
       network: { label: "home", masked: "mesh1-aa", id_hex: "id-aaaa" },
-      transport: { mode: "direct_and_relay", relay: { connected: true }, dht: { joined: true }, self_addresses: ["1.1.1.1:1", "2.2.2.2:2"] },
+      transport: { relay: { connected: true }, dht: { joined: true }, self_addresses: ["1.1.1.1:1", "2.2.2.2:2"] },
       peers: [{ self: true, online: true }],
       route: { state: "direct", exits: [] },
       socks: { enabled: true, listen: "127.0.0.1:1080" },

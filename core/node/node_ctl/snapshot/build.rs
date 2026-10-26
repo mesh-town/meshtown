@@ -33,7 +33,6 @@ pub(super) struct Inputs<'a> {
     pub id: PeerId,
     pub me: PeerId,
     pub self_name: Option<&'a str>,
-    pub mode: &'a str,
     pub members: HashSet<PeerId>,
     /// Names of other members — a copy of `Members::names()`; the own name arrives separately
     /// (`self_name`).
@@ -163,7 +162,6 @@ fn build_transport(i: &Inputs<'_>) -> TransportInfo {
         .map(secs_ago);
 
     TransportInfo {
-        mode: i.mode.to_string(),
         self_path: compute_self_path(i),
         relay: RelayInfo {
             connected: false,

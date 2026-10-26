@@ -12,9 +12,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use meshtown_core::config::config_file::NetSlotId;
-use meshtown_core::config::config_file::{
-    self, CliOverrides, ConfigSource, PathRule, TransportMode,
-};
+use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::host::Host;
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
@@ -201,7 +199,6 @@ pub(crate) async fn boot_consulting_list(tag: &str, key: &NetworkKey) -> Booted 
 fn hermetic_overrides(key: &NetworkKey) -> CliOverrides {
     CliOverrides {
         network_key: Some(key.encode()),
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(0),
@@ -282,7 +279,6 @@ async fn boot_inner(
 pub(crate) async fn boot_without_key(tag: &str) -> Booted {
     let dir = scratch(tag);
     let overrides = CliOverrides {
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(0),

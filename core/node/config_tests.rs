@@ -2,7 +2,7 @@
 //! Read the `cargo test` output as a phrase: `for_loopback_test::keeps_old_preset_values`.
 
 use super::*;
-use crate::config::config_file::{NetSettings, TransportMode};
+use crate::config::config_file::NetSettings;
 use crate::members::network_key::NetworkKey;
 use crate::site_checks::doh::DEFAULT_DOH;
 use crate::transport::net::NetChoice;
@@ -19,8 +19,6 @@ mod for_loopback_test {
         let cfg = NodeConfig::for_loopback_test(key);
         let s = &cfg.settings;
         // then: the settings are the same as the copy fields of `NodeConfig` had before moving to `settings`
-        assert!(!s.uses_relay(), "loopback without relay");
-        assert!(!s.is_relay_only(), "loopback is not relay_only");
         assert_eq!(
             s.probe_interval(),
             Duration::from_secs(3600),
@@ -84,7 +82,6 @@ mod for_cli {
     fn takes_settings_whole() {
         // given: settings that differ from the defaults
         let s = NetSettings {
-            transport_mode: TransportMode::RelayOnly,
             probe_interval_sec: 77,
             node_name: Some("x".to_string()),
             ..NetSettings::default()

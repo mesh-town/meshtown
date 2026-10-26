@@ -144,13 +144,13 @@ fn addr_and_opt_addr() {
 
 #[test]
 fn choice_parses_and_rejects() {
-    use crate::config::config_file::settings::TransportMode;
-    let s = assert_ok("transport", "mode", json!("relay_only"));
-    assert_eq!(s.net.transport_mode, TransportMode::RelayOnly);
-    let want = "file has \"x\", expected direct_and_relay, relay_only or no_relay; using default direct_and_relay";
-    assert_eq!(message("transport", "mode", json!("x")), want);
+    use crate::config::config_file::settings::ListenAccess;
+    let s = assert_ok("socks", "access", json!("localnet"));
+    assert_eq!(s.process.socks_access, ListenAccess::Localnet);
+    let want = "file has \"x\", expected localhost or localnet; using default localhost";
+    assert_eq!(message("socks", "access", json!("x")), want);
     assert!(
-        read("transport", "mode", json!(null)).1.len() == 1,
+        read("socks", "access", json!(null)).1.len() == 1,
         "null for Choice is an error"
     );
 }
@@ -237,10 +237,6 @@ fn expected_of_rows_literal() {
     assert_eq!(
         want("node.name"),
         "a string up to 64 characters, not empty after trimming whitespace"
-    );
-    assert_eq!(
-        want("transport.mode"),
-        "direct_and_relay, relay_only or no_relay"
     );
     assert_eq!(want("web.access"), "localhost or localnet");
     assert_eq!(

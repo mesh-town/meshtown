@@ -81,7 +81,7 @@ describe("diagnosticChecks > directory", () => {
 describe("diagnosticChecks > without a relay row", () => {
   it("relay is not shown in any relay state", () => {
     for (const relay of [{ connected: true, url: "r" }, { connected: false, url: null }]) {
-      const st = snapshot({ transport: { mode: "no_relay", relay, dht: { joined: true } } });
+      const st = snapshot({ transport: { relay, dht: { joined: true } } });
       assert.ok(!keys(diagnosticChecks(st)).includes("relay"));
     }
   });
@@ -277,7 +277,7 @@ function snapshot(over = {}) {
   return {
     node: { status: "online", uptime_sec: 60 },
     network: { label: "home", masked: "mesh1-xx", id_hex: "aa11" },
-    transport: { mode: "direct_and_relay", relay: { connected: true, url: "r" }, dht: { joined: true }, listen_udp: [] },
+    transport: { relay: { connected: true, url: "r" }, dht: { joined: true }, listen_udp: [] },
     peers: [{ self: true, online: true }, { id: "a", online: true }],
     route: { state: "direct", exits: [] },
     socks: { enabled: true, listen: "127.0.0.1:1080" },

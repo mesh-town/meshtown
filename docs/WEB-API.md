@@ -170,7 +170,6 @@ all fields are required; `null` is allowed where marked):
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
   "transport": {
-    "mode": "direct_and_relay",
     "self_path": "direct",
     "relay": { "connected": true, "url": "relay.example.net" },
     "nat": "address-restricted cone",
@@ -286,8 +285,6 @@ Exact enum values:
   to `persistent_identity`, `CONFIG-FILE.md`). The page gets all three values
   as **structured fields, not by parsing the text** of `message`: the text is written for a person and
   changes freely, and a behavior branch must not depend on it.
-- `transport.mode`: `"direct_and_relay"`, `"relay_only"`, `"no_relay"`. The display texts are taken
-  from `core/node/start/boot.rs`: "direct + relay", "relay only", "no relay".
 - `peers[].name` — the node name (`config.node.name`, section 2, `WEB-API-config.md`): its own or one changed by the person,
   including non-Latin scripts. **The field is optional**: the name may be absent or empty —
   then the page shows `id`. The own name is always there, while others' names arrive through the shared network

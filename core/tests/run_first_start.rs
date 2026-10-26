@@ -47,7 +47,6 @@ impl NodeProc {
             .args([
                 "--web-port",
                 &web_port.to_string(),
-                "--no-relay",
                 "--no-checks",
                 "--no-socks",
             ])

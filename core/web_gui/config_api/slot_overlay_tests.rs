@@ -68,13 +68,13 @@ mod launch_flags {
         // given: a slot state with a process flag and a network flag
         let dir = temp_dir("flags-mixed");
         let mut state = state_in(&dir);
-        state.cli_override_paths = vec!["socks.port", "transport.mode"];
+        state.cli_override_paths = vec!["socks.port", "exit.enabled"];
         // when: the process block is overlaid
         state.overlay_process(&process());
         // then: the page still reads the network flag as "set by a flag"
         assert_eq!(
             state.config_get_body()["cli_overrides"],
-            json!(["transport.mode"])
+            json!(["exit.enabled"])
         );
         let _ = std::fs::remove_dir_all(dir);
     }

@@ -45,9 +45,7 @@ describe("fields", () => {
       assert.equal(titleOf("checks.interval_sec"), "How often to check sites");
     });
 
-    it("there is no relay mode choice (transport.mode is hidden)", () => {
-      const all = [...MAIN_FIELDS, ...EXPERT_FIELDS, ...PAGE_FIELDS].map((f) => f.path);
-      assert.ok(!all.includes("transport.mode"));
+    it("there is no relay mode choice", () => {
       assert.ok(!MAIN_FIELDS.some((f) => /relay/.test(f.title + (f.desc || ""))));
     });
   });

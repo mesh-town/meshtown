@@ -8,7 +8,6 @@ use crate::transport::net::{NodeSecret, PeerId, Transport};
 use anyhow::Result;
 use data_encoding::HEXLOWER;
 
-use crate::config::config_file::NetSettings;
 use crate::members::network_key::{NetKind, NetworkKey, SubKeys};
 use crate::members::words::trim_and_validate_node_name;
 use crate::node::node_name::effective_node_name;
@@ -49,7 +48,7 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
     let id = secret.peer_id();
     let (name, name_check) = pick_node_name(cfg, id);
     let identity = cfg.identity;
-    log_identity_banner(cfg, &subkeys, id, &name, name_check, identity);
+    log_identity_banner(&subkeys, id, &name, name_check, identity);
     let telemetry = Telemetry::new();
     Ok(Boot {
         background_abort_handles: Vec::new(),
@@ -89,9 +88,8 @@ fn pick_node_name(cfg: &NodeConfig, id: PeerId) -> (String, Option<Result<&str, 
     (name, name_check)
 }
 
-/// The start lines: version, network, node, identity; parsing the name from the settings file, the relay mode.
+/// The start lines: version, network, node, identity; parsing the name from the settings file.
 fn log_identity_banner(
-    cfg: &NodeConfig,
     subkeys: &SubKeys,
     id: PeerId,
     name: &str,
@@ -99,13 +97,12 @@ fn log_identity_banner(
     identity: IdentityState,
 ) {
     let net_id_hex = subkeys.network_id_hex();
-    let lines = identity_lines(&cfg.settings, &net_id_hex, id, name, name_check, identity);
+    let lines = identity_lines(&net_id_hex, id, name, name_check, identity);
     lines.into_iter().for_each(|line| say("node", line));
 }
 
-/// The banner lines in order: the banner, "name is not suitable" (if any), the identity text (if any), the mode.
+/// The banner lines in order: the banner, "name is not suitable" (if any), the identity text (if any).
 fn identity_lines(
-    settings: &NetSettings,
     net_id_hex: &str,
     id: PeerId,
     name: &str,
@@ -116,7 +113,6 @@ fn identity_lines(
         Some(banner_line(net_id_hex, id, name, identity)),
         bad_name_line(name_check, name),
         identity.warning_text(),
-        Some(mode_line(settings)),
     ]
     .into_iter()
     .flatten()
@@ -144,22 +140,6 @@ fn bad_name_line(name_check: Option<Result<&str, &'static str>>, name: &str) -> 
         "name from the settings file (node.name) is not valid: {why}; \
 using name \"{name}\" for this run"
     ))
-}
-
-/// The transport mode line.
-fn mode_line(settings: &NetSettings) -> String {
-    let mode = mode_word(settings);
-    format!("mode: {mode}")
-}
-
-fn mode_word(settings: &NetSettings) -> &'static str {
-    if !settings.uses_relay() {
-        return "no relay";
-    }
-    if settings.is_relay_only() {
-        return "relay only";
-    }
-    "direct + relay"
 }
 
 #[cfg(test)]

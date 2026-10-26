@@ -41,7 +41,7 @@ mod own_row {
             "precondition: the document holds the own record — not the build version"
         );
         // when: the snapshot is built
-        let collected = collect(&node, None, "direct_and_relay", &mut DocCache::default()).await;
+        let collected = collect(&node, None, &mut DocCache::default()).await;
         // then: the own row shows the build version, not the document one
         assert_eq!(
             row_version(&collected, &node.id.to_string()),
@@ -138,7 +138,7 @@ async fn wait_neighbor_version(node: &RunningNode, other: &RunningNode, want: &s
 async fn collect_until_row(node: &RunningNode, other: &RunningNode) -> Collected {
     let deadline = Instant::now() + SYNC_LIMIT;
     loop {
-        let collected = collect(node, None, "direct_and_relay", &mut DocCache::default()).await;
+        let collected = collect(node, None, &mut DocCache::default()).await;
         let has_row = collected
             .snap
             .peers

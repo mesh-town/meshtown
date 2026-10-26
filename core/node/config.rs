@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::config::config_file::{NetSettings, TransportMode};
+use crate::config::config_file::NetSettings;
 use crate::transport::net::{NodeSecret, PeerAddr};
 
 use crate::members::network_key::{NetKind, NetworkKey};
@@ -104,10 +104,9 @@ impl NodeConfig {
     }
 }
 
-/// `NetSettings` of the loopback preset: no relay and no checks, the `mem` network.
+/// `NetSettings` of the loopback preset: no checks, the `mem` network.
 fn loopback_settings() -> NetSettings {
     NetSettings {
-        transport_mode: TransportMode::NoRelay,
         probe_interval_sec: 3600,
         checks_enabled: false,
         net_choice: crate::transport::net::NetChoice {

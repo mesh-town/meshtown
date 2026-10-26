@@ -22,6 +22,8 @@ pub struct ParsedNetFile {
     pub field_errors: Vec<FieldError>,
     /// Paths of unknown fields, for one log line.
     pub unknown_paths: Vec<String>,
+    /// Retired fields found in the file; they are ignored and disappear on the next write.
+    pub retired_paths: Vec<String>,
     /// Process keys found in the file; they are ignored and disappear on the next write.
     pub process_paths: Vec<String>,
 }
@@ -99,6 +101,7 @@ pub fn parse_net_text(text: &str) -> Result<ParsedNetFile, String> {
         net: p.settings.net,
         field_errors,
         unknown_paths,
+        retired_paths: p.retired_paths,
         process_paths: collect_process_paths(&cfg),
     })
 }

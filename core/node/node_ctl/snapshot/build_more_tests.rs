@@ -130,13 +130,12 @@ fn link_status_online_or_offline() {
     assert_eq!(link_status(&collected3.snap), NodeStatus::Offline);
 }
 
-// 11. Collected.domains == list; checking from in_progress; transport.mode == mode.
+// 11. Collected.domains == list; checking from in_progress.
 #[test]
-fn collected_domains_checking_blocked_and_mode() {
+fn collected_domains_checking_and_blocked() {
     let my_id = pair(1);
     let blocked_domain = "blocked.com".to_string();
     let mut inputs = base(my_id);
-    inputs.mode = "relay_only";
     inputs.domain_names = vec!["checking.com".to_string(), blocked_domain.clone()];
     inputs.in_progress = ["checking.com".to_string()].into_iter().collect();
 
@@ -145,7 +144,6 @@ fn collected_domains_checking_blocked_and_mode() {
         collected.domains,
         vec!["checking.com".to_string(), blocked_domain.clone()]
     );
-    assert_eq!(collected.snap.transport.mode, "relay_only");
 
     let checking = collected
         .snap

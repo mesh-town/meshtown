@@ -10,12 +10,12 @@ mod every_stored_field_bad {
 
     #[test]
     fn parse_messages_golden() {
-        // given: a file where all 26 stored paths are wrong (type, bound, a 65-character name,
+        // given: a file where all 25 stored paths are wrong (type, bound, a 65-character name,
         // a `socks.port` value longer than 40 characters)
         let config = all_bad_config();
         // when: parse_text; then: the (path, message) pairs in path order equal the literal
         let actual = messages_of(config);
-        assert_eq!(actual.len(), 26, "one error per path: {actual:?}");
+        assert_eq!(actual.len(), 25, "one error per path: {actual:?}");
         assert_eq!(actual, expected_messages());
     }
 }
@@ -128,13 +128,12 @@ fn messages_of(config: Value) -> Vec<(String, String)> {
     list
 }
 
-/// A config where all 26 stored paths are wrong.
+/// A config where all 25 stored paths are wrong.
 fn all_bad_config() -> Value {
     let long_value = "9".repeat(50);
     json!({
         "node": { "name": "語".repeat(65), "memory_warn_mib": "x", "memory_exit_mib": "x" },
         "network": { "key": 5 },
-        "transport": { "mode": "bogus" },
         "exit": { "enabled": "x" },
         "socks": { "enabled": "x", "port": long_value },
         "checks": { "enabled": "x", "interval_sec": 1, "doh_server": "nope", "provider_dns": 5 },
@@ -218,7 +217,6 @@ fn expected_messages() -> Vec<(String, String)> {
         e("route.exits", r#"file has ["bad"], expected a list of node ids without repeats, up to 64; using default []"#),
         e("socks.enabled", r#"file has "x", expected true or false; using default true"#),
         e("socks.port", r#"file has "999999999999999999999999999999999999999, expected a port 1024…65535; using default 1080"#),
-        e("transport.mode", r#"file has "bogus", expected direct_and_relay, relay_only or no_relay; using default direct_and_relay"#),
         e("web.access", r#"file has "public", expected localhost or localnet; using default localnet"#),
         e("web.enabled", r#"file has "x", expected true or false; using default true"#),
         e("web.port", r#"file has 80, expected a port 1024…65535; using default 7777"#),

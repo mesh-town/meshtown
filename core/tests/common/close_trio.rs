@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use meshtown_core::config::config_file::{
-    self, save_config_file, CliOverrides, ConfigSource, ListenAccess, PathRule, TransportMode,
+    self, save_config_file, CliOverrides, ConfigSource, ListenAccess, PathRule,
 };
 use meshtown_core::members::network_key::{
     managed_key, managed_key_with_label, NetKind, NetworkKey,
@@ -186,7 +186,6 @@ fn prepare(tag: &str, key: Option<&dyn Fn(PeerId) -> String>) -> Prepared {
     let dir = scratch_dir(tag);
     let port = free_port();
     let overrides = CliOverrides {
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(port),

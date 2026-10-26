@@ -43,7 +43,6 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         id,
         me: id,
         self_name: None,
-        mode: "direct_and_relay",
         members: HashSet::new(),
         peer_names: HashMap::new(),
         neighbors: 0,

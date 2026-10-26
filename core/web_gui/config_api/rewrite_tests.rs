@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::config::config_file::{
     self, CliOverrides, ConfigSource, IfaceFilter, ListenAccess, LoadedSettings, MainFile,
-    PathRule, SaveError, Settings, SettingsFile, TransportMode,
+    PathRule, SaveError, Settings, SettingsFile,
 };
 use crate::transport::net::{NodeSecret, PeerId};
 use crate::web_gui::{ActionError, LogPage, NodeControl, NodeSnapshot};
@@ -249,10 +249,10 @@ mod settle_socks_baseline {
         fn stay_pending() {
             let mut fx = setup(Opts::default());
             fx.file_has_socks(true, 1090, ListenAccess::Localhost, IfaceFilter::Auto);
-            fx.state.file_settings.net.transport_mode = TransportMode::RelayOnly;
+            fx.state.file_settings.net.doh_server = "9.9.9.9:443".parse().unwrap();
             let applied = fx.state.file_settings.process.clone();
             fx.state.settle_socks_baseline(&applied);
-            assert_eq!(fx.pending(), vec!["transport.mode"]);
+            assert_eq!(fx.pending(), vec!["checks.doh_server"]);
         }
     }
 }

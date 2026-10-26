@@ -7,9 +7,7 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use meshtown_core::config::config_file::{
-    self, CliOverrides, ConfigSource, PathRule, TransportMode,
-};
+use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule};
 use meshtown_core::members::network_key::NetworkKey;
 use meshtown_core::node::host::{Host, PageRole};
 use meshtown_core::node::node_ctl::{NodeCtl, Relaunch};
@@ -48,7 +46,6 @@ pub(crate) async fn boot_host(tag: &str, key: &NetworkKey) -> HostNode {
     let port = free_port();
     let overrides = CliOverrides {
         network_key: Some(key.encode()),
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(port),
@@ -93,7 +90,6 @@ pub(crate) async fn boot_host_empty(tag: &str) -> HostNode {
     let dir = scratch_dir(tag);
     let port = free_port();
     let overrides = CliOverrides {
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         socks_port: Some(0),
         web_port: Some(port),

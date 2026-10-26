@@ -102,7 +102,6 @@ fn setup_run(tag: &str) -> RunFx {
     let cli = CliOverrides {
         web_port: Some(free_port()),
         network_key: Some(NetworkKey::from_bytes([71; 32]).encode()),
-        transport_mode: Some(TransportMode::NoRelay),
         checks_enabled: Some(false),
         ..CliOverrides::default()
     };
@@ -140,7 +139,6 @@ impl RunFx {
         let id = new_slot_id(&main_path).expect("a free slot id");
         let net = NetSettings {
             network_key: Some(NetworkKey::from_bytes([72; 32]).encode()),
-            transport_mode: TransportMode::NoRelay,
             checks_enabled: false,
             ..NetSettings::default()
         };

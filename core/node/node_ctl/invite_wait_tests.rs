@@ -5,7 +5,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::config::config_file::{Settings, TransportMode};
+use crate::config::config_file::Settings;
 use crate::invite::{InviteHead, InviteSecret, INVITE_TTL_SECS};
 use crate::node::node_ctl::NodeCtl;
 use crate::web_gui::{
@@ -313,7 +313,6 @@ fn setup() -> Fixture {
 fn setup_with(owner: Option<crate::transport::net::NodeSecret>) -> Fixture {
     let settings = Settings {
         net: crate::config::config_file::NetSettings {
-            transport_mode: TransportMode::NoRelay,
             ..crate::config::config_file::NetSettings::default()
         },
         ..Settings::default()
