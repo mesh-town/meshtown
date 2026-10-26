@@ -1,6 +1,7 @@
 //! The counter of live exit streams: a cap, a slot guard and the reasons to refuse.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use portable_atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 

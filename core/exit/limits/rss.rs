@@ -1,6 +1,7 @@
 //! Process memory check for the exit: a cached reading compared with a ceiling.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use portable_atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 

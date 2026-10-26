@@ -11,7 +11,7 @@ use crate::transport::net::service::EXIT;
 use crate::transport::net::{
     BoxFuture, LinkInfo, NetError, NetResult, NetStack, NetStackBuilder, PeerConn, StreamPair,
 };
-use std::sync::atomic::AtomicU64;
+use portable_atomic::AtomicU64;
 use tokio::io::duplex;
 
 mod reply {
