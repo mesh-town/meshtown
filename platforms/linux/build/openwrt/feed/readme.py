@@ -12,7 +12,7 @@ traffic out through a trusted member's connection. Main repository and documenta
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Signed package feed of [Mesh Town]({code}) for OpenWrt. CI builds it from the releases of
-`github.com/mesh-town/meshtown`; the feed holds only the latest version.
+`github.com/mesh-town/meshtown-dist`; the feed holds only the latest version.
 
 ## Install
 

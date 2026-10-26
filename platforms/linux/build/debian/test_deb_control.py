@@ -37,7 +37,7 @@ class Control(unittest.TestCase):
         self.assertEqual(fields["Maintainer"], deb.MAINTAINER)
         self.assertEqual(fields["Section"], "net")
         self.assertEqual(fields["Priority"], "optional")
-        self.assertEqual(fields["Homepage"], deb.URL)
+        self.assertEqual(fields["Homepage"], "https://github.com/mesh-town/meshtown-dist")
 
     def test_has_no_dependencies(self):
         # given

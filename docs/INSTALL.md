@@ -99,7 +99,7 @@ The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edit
 
 ## Release archives
 
-[GitHub Releases](https://github.com/mesh-town/meshtown/releases) have versioned archives for macOS (`MeshTown.app`
+[GitHub Releases](https://github.com/mesh-town/meshtown-dist/releases) have versioned archives for macOS (`MeshTown.app`
 in `MeshTown-macos-arm64-<version>.zip` and `MeshTown-macos-x86_64-<version>.zip`), Linux (x86_64 and aarch64, static
 musl builds, `.tar.gz`), Windows (x86_64, `.zip`), console-only builds for 32-bit ARM and MIPS Linux, and
 `SHA256SUMS`. Every platform has a `meshtown-cli-…` archive without the tray; the other archives are the tray builds.
