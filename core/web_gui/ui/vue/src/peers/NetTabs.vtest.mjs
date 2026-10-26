@@ -31,6 +31,29 @@ describe("NetTabs", () => {
       expect(plusTab(row).attributes("href")).toBe("#peers/add");
     });
 
+    it("links keep the section", () => {
+      const row = render({ tabs: [FRIENDS, DEVICES], sub: "services" });
+      expect(tab(row, "friends").attributes("href")).toBe("#peers/main/services");
+      expect(tab(row, "my devices").attributes("href")).toBe("#peers/k7q2xa/services");
+      expect(row.get("a.ntab.add").attributes("href")).toBe("#peers/add");
+    });
+
+    it("links keep the Device settings section too", () => {
+      const row = render({ tabs: [FRIENDS, DEVICES], sub: "device" });
+      expect(tab(row, "my devices").attributes("href")).toBe("#peers/k7q2xa/device");
+    });
+
+    it("on Members the links have no section tail", () => {
+      const row = render({ tabs: [FRIENDS, DEVICES], sub: "members" });
+      expect(tab(row, "friends").attributes("href")).toBe("#peers/main");
+    });
+
+    it("the section changes — the links follow", async () => {
+      const row = render({ tabs: [FRIENDS, DEVICES], sub: "members" });
+      await row.setProps({ sub: "services" });
+      expect(tab(row, "friends").attributes("href")).toBe("#peers/main/services");
+    });
+
     it("marks only the active tab as selected", () => {
       const row = render({ tabs: [FRIENDS, DEVICES], active: "k7q2xa" });
       expect(tab(row, "friends").attributes("aria-current")).toBeUndefined();
@@ -138,7 +161,7 @@ describe("NetTabs", () => {
 });
 
 function render(props) {
-  wrapper = mount(NetTabs, { props: { tabs: [], active: "main", joining: [], full: false, ...props } });
+  wrapper = mount(NetTabs, { props: { tabs: [], active: "main", joining: [], full: false, sub: "members", ...props } });
   return wrapper;
 }
 

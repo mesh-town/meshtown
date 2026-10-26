@@ -1,4 +1,4 @@
-/* The pointer text in Settings with several networks: leaving and deleting are on the Members tab. */
+/* The pointer text in Settings with several networks: leaving and deleting are in Device settings of the network tab. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
@@ -18,7 +18,7 @@ async function pointer() {
 }
 
 describe("with several networks", () => {
-  it("leaving or deleting is on the Members tab", async () => {
-    expect(await pointer()).toBe("To leave or delete a network, open Members → its tab.");
+  it("leaving or deleting is in Device settings", async () => {
+    expect(await pointer()).toBe("To leave or delete a network, open Networks → its tab → Device settings.");
   });
 });

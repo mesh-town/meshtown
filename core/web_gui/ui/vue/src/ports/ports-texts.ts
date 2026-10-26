@@ -1,4 +1,4 @@
-// Texts of the "Ports" section: publications, network ports, form captions and errors.
+// Texts of the "Shared services (ports)" section: publications, network ports, form captions and errors.
 
 export const PORTS_ADD_ERROR_RANGE = "A port is a number from 1 to 65535.";
 export const PORTS_ADD_ERROR_NO_NODES = "Select at least one member.";
@@ -106,19 +106,12 @@ export const PORTS_NAME_PLACEHOLDER = "name (optional)";
 export const PORTS_SAVE = "Save";
 export const PORTS_CANCEL = "Cancel";
 export const PORTS_PORT_PLACEHOLDER = "port";
-export const PORTS_PUBLISH = "Publish";
-
-export const PORTS_NET_ALL = "all";
-export const PORTS_NET_SEPARATOR = " · ";
+export const PORTS_PUBLISH = "Publish port";
 
 export function portsLocalUsedText(local: number, by: string): string {
   return local + " is already used by " + by;
 }
 
-export function portsNetPeerText(peer: string, net: string): string {
-  return peer + " (" + net + ")";
-}
-
-export function portsNetGroupText(net: string): string {
-  return net + ":";
+export function portsLocalOwnerText(peer: string, net: string | null): string {
+  return net ? peer + " (" + net + ")" : peer;
 }

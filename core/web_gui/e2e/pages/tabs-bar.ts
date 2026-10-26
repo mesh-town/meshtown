@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 
-export const SECTIONS = ['home', 'peers', 'domains', 'ports', 'network', 'log', 'settings'] as const;
+export const SECTIONS = ['home', 'peers', 'domains', 'network', 'log', 'settings'] as const;
 export type Section = (typeof SECTIONS)[number];
 
 const EXPECT_SHOWN_TIMEOUT_MS = 2000;
@@ -8,9 +8,8 @@ const EXPECT_SHOWN_TIMEOUT_MS = 2000;
 /** Section → visible tab name; the only place where names are listed. */
 export const TAB_NAMES: Record<Section, string> = {
   home: 'Home',
-  peers: 'Members',
+  peers: 'Networks',
   domains: 'Site checks',
-  ports: 'Ports',
   network: 'Diagnostics',
   log: 'Log',
   settings: 'Settings',
@@ -18,7 +17,7 @@ export const TAB_NAMES: Record<Section, string> = {
 
 /** Narrow screen (`max-width: 720px`): the rare sections hide under the "More ▾" button and "Site checks" is called "Sites". */
 export const NARROW_MAX_WIDTH = 720;
-export const NARROW_MORE: readonly Section[] = ['ports', 'network', 'log'];
+export const NARROW_MORE: readonly Section[] = ['network', 'log'];
 const NARROW_TAB_NAMES: Partial<Record<Section, string>> = { domains: 'Sites' };
 
 /** Tab strip (`role=tablist`) and navigation between page sections. */
@@ -48,12 +47,12 @@ export class TabsBar {
     return new RegExp(`^(${names})(\\s|$)`);
   }
 
-  /** The tab by name; "Members" can carry the counter of requests that wait for this node ("Members 1 request needs your confirmation"). On a narrow screen a "More" section is an item of the open menu. */
+  /** The tab by name; "Networks" can carry the counter of requests that wait for this node ("Networks 1 request needs your confirmation"). On a narrow screen a "More" section is an item of the open menu. */
   tab(section: Section): Locator {
     if (this.underMore(section)) {
       return this.page.locator(`#tab-${section}`);
     }
-    return this.page.getByRole('tab', { name: this.nameOf(section) });
+    return this.root.getByRole('tab', { name: this.nameOf(section) });
   }
 
   /** Returns the section panel by tab name (`aria-labelledby`); hidden panels are counted by the cases, hence `includeHidden`. */

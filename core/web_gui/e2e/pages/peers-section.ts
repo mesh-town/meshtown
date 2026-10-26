@@ -8,7 +8,7 @@ const MEMBER_BADGES = 'Blocked on this computer';
 /** What a member row action shows: "yes" — a button or a mark, "no" — refuses, "—" — nothing. */
 export type PeerExitAction = 'yes' | 'no' | '—';
 
-/** The "Members" section: the list of people (`ul#peers-list`); rows are found by code (`p.id` from `/api/state`). */
+/** The Members sub-tab of "Networks": the list of people (`ul#peers-list`); rows are found by code (`p.id` from `/api/state`). */
 export class PeersSection {
   readonly list: Locator;
   readonly items: Locator;

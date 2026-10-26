@@ -1,12 +1,13 @@
-/* "Ports" with several networks and the two protocols: publishing, editing and opening a UDP port writes `proto: "udp"` into
- * the config of each network involved, never touches the TCP entry of the same number, and a local number taken by one
- * protocol is not reported as busy for the other. The fake node has two networks: A = "friends", B = "my devices". */
+/* The Shared services panel of one network of several, with the two protocols: publishing, editing and unpublishing a UDP
+ * port writes `proto: "udp"` into the config of that network only and never touches the TCP entry of the same number, and a
+ * local number taken by one protocol is not reported as busy for the other. The fake node has two networks:
+ * A = "friends" (the main slot), B = "my devices". */
 
-import { DOMWrapper, mount } from "@vue/test-utils";
+import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
-import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.mjs";
+import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { SELF_FULL } from "../testing/section.mjs";
 import PublishForm from "./PublishForm.vue";
 
@@ -24,82 +25,62 @@ describe("UDP in several networks", () => {
 
   describe("two networks", () => {
     describe("publishing", () => {
-      it("writes a UDP entry into each ticked network and leaves the TCP entry of the same number alone", async () => {
-        const { wrapper, node } = await setup({ a: { own: [TCP] }, b: { own: [TCP] } });
+      it("writes a UDP entry into the open network only and leaves its TCP entry of the same number alone", async () => {
+        const { wrapper, node } = await setup(NET_B, { a: { own: [TCP] }, b: { own: [TCP] } });
         await when_publishing(wrapper, 53, "dns-udp", "udp");
-        expect(putPaths(node)).toEqual([PUT_A, PUT_B]);
-        for (const path of [PUT_A, PUT_B]) {
-          expect(publishedOf(node, path)).toEqual([TCP, { port: 53, proto: "udp", name: "dns-udp", for: "all" }]);
-        }
+        expect(putPaths(node)).toEqual([PUT_B]);
+        expect(publishedOf(node, PUT_B)).toEqual([TCP, UDP]);
       });
 
-      it("a TCP port of that number in only one network does not block UDP in the other", async () => {
-        const { wrapper, node } = await setup({ a: { own: [TCP] } });
+      it("a TCP port of that number in the other network does not block UDP here", async () => {
+        const { wrapper, node } = await setup(NET_B, { a: { own: [TCP] } });
         await when_publishing(wrapper, 53, "dns-udp", "udp");
-        expect(publishedOf(node, PUT_A)).toEqual([TCP, UDP]);
+        expect(putPaths(node)).toEqual([PUT_B]);
         expect(publishedOf(node, PUT_B)).toEqual([UDP]);
       });
 
       it("a TCP publication of the same number still carries no proto field", async () => {
-        const { wrapper, node } = await setup({ a: { own: [UDP] }, b: { own: [UDP] } });
+        const { wrapper, node } = await setup(NET_B, { b: { own: [UDP] } });
         await when_publishing(wrapper, 53, "dns-tcp", "tcp");
         const written = publishedOf(node, PUT_B);
         expect(written).toHaveLength(2);
         expect("proto" in written.find((p) => p.name === "dns-tcp")).toBe(false);
         expect(written.find((p) => p.name === "dns-udp").proto).toBe("udp");
       });
+
+      it("in the main network goes to the main config", async () => {
+        const { wrapper, node } = await setup("main", { b: { own: [TCP] } });
+        await when_publishing(wrapper, 53, "dns-udp", "udp");
+        expect(putPaths(node)).toEqual([PUT_A]);
+        expect(publishedOf(node, PUT_A)).toEqual([UDP]);
+      });
     });
 
     describe("editing", () => {
-      it("the UDP name changes in every network with proto kept, and the TCP entries stay", async () => {
-        const { wrapper, node } = await setup({ a: { own: [TCP, UDP] }, b: { own: [TCP, UDP] } });
+      it("the UDP name changes with proto kept in the open network only, and the TCP entries stay", async () => {
+        const { wrapper, node } = await setup(NET_B, { a: { own: [TCP, UDP] }, b: { own: [TCP, UDP] } });
         await wrapper.get('[data-port-edit="53/udp"]').trigger("click");
         await settle();
         await wrapper.get('[data-port-edit-name="53/udp"]').setValue("resolver");
         await wrapper.get("[data-port-edit-save]").trigger("click");
         await settle();
-        expect(putPaths(node)).toEqual([PUT_A, PUT_B]);
-        for (const path of [PUT_A, PUT_B]) {
-          expect(publishedOf(node, path)).toEqual([TCP, { port: 53, proto: "udp", name: "resolver", for: "all" }]);
-        }
-      });
-
-      it("the editor of the UDP row shows a group per network", async () => {
-        const { wrapper } = await setup({ a: { own: [TCP, UDP] }, b: { own: [UDP] } });
-        await wrapper.get('[data-port-edit="53/udp"]').trigger("click");
-        await settle();
-        const text = flat(scopeOf(wrapper.get("[data-port-edit-save]").element));
-        expect(text).toContain("friends:");
-        expect(text).toContain("my devices:");
-      });
-
-      it("ticking a network that has only the TCP entry of that number adds the UDP entry there and keeps the TCP one", async () => {
-        const { wrapper, node } = await setup({ a: { own: [TCP, UDP] }, b: { own: [TCP] } });
-        await wrapper.get('[data-port-edit="53/udp"]').trigger("click");
-        await settle();
-        const scope = scopeOf(wrapper.get("[data-port-edit-save]").element);
-        await tick(boxIn(scope, "my devices", "All members"), true);
-        await wrapper.get("[data-port-edit-save]").trigger("click");
-        await settle();
-        expect(publishedOf(node, PUT_B)).toEqual([TCP, UDP]);
+        expect(putPaths(node)).toEqual([PUT_B]);
+        expect(publishedOf(node, PUT_B)).toEqual([TCP, { port: 53, proto: "udp", name: "resolver", for: "all" }]);
       });
 
       it("the editor of the UDP row is filled from the UDP audience, not the TCP one of the same number", async () => {
-        const { wrapper } = await setup({ a: { own: [TCP, UDP] }, b: { own: [{ ...TCP, for: [ALICE] }, UDP] } });
+        const { wrapper } = await setup(NET_B, { b: { own: [{ ...TCP, for: [ALICE] }, UDP] } });
         await wrapper.get('[data-port-edit="53/udp"]').trigger("click");
         await settle();
-        const scope = scopeOf(wrapper.get("[data-port-edit-save]").element);
-        expect(boxIn(scope, "my devices", "All members").checked).toBe(true);
-        expect(boxIn(scope, "my devices", "alice").checked).toBe(false);
+        expect(wrapper.get("#port-edit-53-udp-audience-all").element.checked).toBe(true);
+        expect(wrapper.find("#port-edit-53-udp-audience-list").exists()).toBe(false);
       });
+    });
 
-      it("unticking the second network on the UDP editor removes UDP only there; the TCP entry of that network stays", async () => {
-        const { wrapper, node } = await setup({ a: { own: [TCP, UDP] }, b: { own: [TCP, UDP] } });
-        await wrapper.get('[data-port-edit="53/udp"]').trigger("click");
-        await settle();
-        const scope = scopeOf(wrapper.get("[data-port-edit-save]").element);
-        await tick(boxIn(scope, "my devices", "All members"), false);
-        await wrapper.get("[data-port-edit-save]").trigger("click");
+    describe("unpublishing", () => {
+      it("removes the UDP entry from the open network only; its TCP entry and the other network stay", async () => {
+        const { wrapper, node } = await setup(NET_B, { a: { own: [TCP, UDP] }, b: { own: [TCP, UDP] } });
+        await wrapper.get('[data-port-unpublish="53/udp"]').trigger("click");
         await settle();
         expect(putPaths(node)).toEqual([PUT_B]);
         expect(publishedOf(node, PUT_B)).toEqual([TCP]);
@@ -108,7 +89,7 @@ describe("UDP in several networks", () => {
 
     describe("local numbers already taken", () => {
       it("TCP 53 opened on 2053 in one network: UDP 53 of the other network is not reported as busy", async () => {
-        const { wrapper } = await setup({
+        const { wrapper } = await setup(NET_B, {
           a: { rows: [netRow(PEER_ONE, 53, null, listening(2053))], opened: [{ node: PEER_ONE, port: 53, local: 2053 }] },
           b: { rows: [netRow(ALICE, 53, "udp")] },
         });
@@ -118,7 +99,7 @@ describe("UDP in several networks", () => {
       });
 
       it("the same TCP number is reported as busy on a TCP row of the other network", async () => {
-        const { wrapper } = await setup({
+        const { wrapper } = await setup(NET_B, {
           a: { rows: [netRow(PEER_ONE, 53, null, listening(2053))], opened: [{ node: PEER_ONE, port: 53, local: 2053 }] },
           b: { rows: [netRow(ALICE, 53, null)] },
         });
@@ -127,8 +108,8 @@ describe("UDP in several networks", () => {
         expect(tcpRow.get("input[type=number]").element.value).toBe("2054");
       });
 
-      it("UDP 53 opened on 5353 in one network: TCP 53 of the other network is not reported as busy", async () => {
-        const { wrapper } = await setup({
+      it("UDP 53 opened on 2053 in one network: TCP 53 of the other network is not reported as busy", async () => {
+        const { wrapper } = await setup(NET_B, {
           a: { rows: [netRow(PEER_ONE, 53, "udp", listening(2053))], opened: [{ node: PEER_ONE, port: 53, proto: "udp", local: 2053 }] },
           b: { rows: [netRow(ALICE, 53, null)] },
         });
@@ -138,7 +119,7 @@ describe("UDP in several networks", () => {
       });
 
       it("UDP 53 opened on 2053 in one network: UDP 53 of the other network is reported as busy", async () => {
-        const { wrapper } = await setup({
+        const { wrapper } = await setup(NET_B, {
           a: { rows: [netRow(PEER_ONE, 53, "udp", listening(2053))], opened: [{ node: PEER_ONE, port: 53, proto: "udp", local: 2053 }] },
           b: { rows: [netRow(ALICE, 53, "udp")] },
         });
@@ -191,13 +172,13 @@ const peersOfB = () => [
   { id: "a11ce000", id_full: ALICE, name: "alice", country: "DE", online: true },
 ];
 
-async function setup({ a = {}, b = {} } = {}) {
+/** The page on a node with two networks, opened on Shared services of `slot`, the slot configs loaded. */
+async function setup(slot, { a = {}, b = {} } = {}) {
   const opts = twoNets();
   applySide(opts.state, opts.config, a);
   applySide(opts.slots[1].state, opts.slots[1].config, { peers: peersOfB(), ...b });
   const node = createFakeNode(opts);
-  const { wrapper } = await mountPage(node);
-  await openTab(wrapper, "ports");
+  const { wrapper } = await mountPage(node, { hash: "peers/" + slot + "/services" });
   await polls(node, 1);
   return { wrapper, node };
 }
@@ -206,29 +187,11 @@ const puts = (node) => node.calls.filter((c) => c.method === "PUT");
 const putPaths = (node) => puts(node).map((c) => c.path);
 const publishedOf = (node, path) => puts(node).filter((c) => c.path === path).at(-1).body.config.ports.published;
 
-const tick = (input, on) => new DOMWrapper(input).setValue(on);
-const boxesOf = (scope) => [...scope.querySelectorAll("input[type=checkbox]")];
-
-function scopeOf(el) {
-  let cur = el.parentElement;
-  while (cur && boxesOf(cur).length === 0) cur = cur.parentElement;
-  return cur;
-}
-
-function boxIn(scope, net, text) {
-  const marker = [...scope.querySelectorAll("*")].find((e) => e.children.length === 0 && e.textContent.trim() === net + ":");
-  const label = [...scopeOf(marker).querySelectorAll("label")].find((l) => l.textContent.includes(text));
-  return label.querySelector("input[type=checkbox]");
-}
-
-/** Fills the publish form with "All members" ticked in both networks and the given protocol, then presses "Publish". */
+/** Fills the publish form with the given protocol and presses "Publish port"; the audience stays "All members". */
 async function when_publishing(wrapper, port, name, proto) {
   await wrapper.get("#port-add-port").setValue(String(port));
   await wrapper.get("#port-add-name").setValue(name);
   await wrapper.get("#port-add-proto").setValue(proto);
-  const scope = scopeOf(wrapper.get("#port-add-btn").element);
-  for (const box of boxesOf(scope)) await tick(box, false);
-  for (const net of ["friends", "my devices"]) await tick(boxIn(scope, net, "All members"), true);
   await wrapper.get("#port-add-btn").trigger("click");
   await settle();
 }

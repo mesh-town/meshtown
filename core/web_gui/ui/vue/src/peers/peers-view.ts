@@ -1,4 +1,4 @@
-/* The "Members" section: pure logic of the list. A row is a dot, the name and
+/* The Members pane of a network tab: pure logic of the list. A row is a dot, the name and
  * id, the connection, the action. */
 
 import { agoText } from "../common/words.ts";

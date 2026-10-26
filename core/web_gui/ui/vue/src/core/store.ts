@@ -2,6 +2,7 @@
 
 import { reactive } from "vue";
 import type { InjectionKey } from "vue";
+import type { NetSub } from "../shell/net-subs.ts";
 import type { MembersReply } from "../members/members-types.ts";
 import type { ConfigFileInfo, ConfigDocument, ConfigMeta, NetBrief, NodeState, Notice, SlotSlice } from "./api-types.ts";
 
@@ -24,6 +25,7 @@ interface StoreState {
   notices: Notice[]; // notes the node keeps until they are acknowledged
   lead: string; // the leading slot: `state` and `members` are its
   peersTab: string | null;
+  netSub: NetSub; // the sub-tab of a network tab, from the address only
   source: "overview" | "legacy" | null; // which request the last accepted snapshot came from
 }
 
@@ -48,6 +50,7 @@ export function createStore(): Store {
     notices: [],
     lead: "main",
     peersTab: null,
+    netSub: "members",
     source: null,
   });
 }

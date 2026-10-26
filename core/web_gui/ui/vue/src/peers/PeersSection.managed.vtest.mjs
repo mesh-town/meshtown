@@ -153,7 +153,7 @@ function openTwoManaged({ meRole, admins }) {
   serveManaged(node, { briefs: { [NET_B]: { me_admin: meRole === "admin", can_invite: meRole === "admin" } } });
   node.routes["POST /api/network/delete"] = {};
   node.slotList.filter((s) => s !== node).forEach((s) => (s.routes["POST /api/network/delete"] = {}));
-  return open(node, "peers/" + NET_B);
+  return open(node, "peers/" + NET_B + "/device");
 }
 
 async function open(node, hash = "peers") {

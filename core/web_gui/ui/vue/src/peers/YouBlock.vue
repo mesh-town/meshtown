@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The "You in <network>" block of a network tab (shown with several networks): this computer's name in that
-// network, the "open sites through this computer" switch and the way out of the network. The name is saved on
+// The "Device settings" block of a network tab: this computer's name in that network, the "open sites through
+// this computer" switch (not in the phone app) and the way out of the network. The name is saved on
 // Enter and when leaving the field; the parent acts on `leave`.
 import { computed, inject, ref, watch } from "vue";
 import { fieldErrorText, saveSlotFields } from "../core/save-config.ts";
@@ -9,6 +9,7 @@ import { STORE_KEY } from "../core/store.ts";
 import type { ConfigDocument } from "../core/api-types.ts";
 import type { FieldStatus } from "../home/home-actions.ts";
 import { HOME_SAVED } from "../home/home-flow-texts.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 import { exitServerHint } from "../home/home-words.ts";
 import { configFieldAccess, nodeNameFieldValue } from "../home/home-view.ts";
 import { getPath } from "../settings/settings-fields.ts";
@@ -22,6 +23,7 @@ const emit = defineEmits<{ (e: "leave"): void; (e: "delete"): void }>();
 const store = inject(STORE_KEY);
 if (!store) throw new Error(PEERS_NO_STORE);
 
+const inApp = inAppPage();
 const NO_STATUS: FieldStatus = { text: "", cls: "" };
 const net = computed(() => netName(store.nets, props.slot));
 const visible = computed(() => visibleSlots(store.nets, store.slots));
@@ -81,6 +83,7 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <p class="hint">{{ youNameHint(net) }}</p>
     <p class="setting-desc cli-note" id="you-name-cli-note" :hidden="!nameAccess.cliNote">{{ nameAccess.cliNote }}</p>
     <p class="field-status" :class="nameStatus.cls" id="you-name-status" role="status" :hidden="!nameStatus.text">{{ nameStatus.text }}</p>
+    <template v-if="!inApp">
     <label class="toggle-inline home-exit-toggle">
       <span class="toggle-inline-text">{{ youExitLabel(net) }}</span>
       <span class="toggle"><input id="you-exit-toggle" type="checkbox" :checked="exitOn" :disabled="exitAccess.readOnly" @change="onToggle"><span class="toggle-track"></span></span>
@@ -88,6 +91,7 @@ defineExpose({ focusName: (): void => input.value?.focus() });
     <p class="hint" id="you-exit-hint">{{ exitOn ? exitServerHint(true, net) : youExitOff(net) }}</p>
     <p class="setting-desc cli-note" id="you-exit-cli-note" :hidden="!exitAccess.cliNote">{{ exitAccess.cliNote }}</p>
     <p class="field-status" :class="exitStatus.cls" id="you-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
+    </template>
     <p class="hint">{{ youLeaveHint(net) }}</p>
     <div class="btn-row">
       <button type="button" class="btn btn-danger" id="you-leave" @click="emit('leave')">{{ YOU_LEAVE_BTN }}</button>

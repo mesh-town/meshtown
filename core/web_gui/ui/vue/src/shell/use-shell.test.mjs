@@ -85,11 +85,15 @@ describe("hash navigation", () => {
     assert.equal(build({ hash: "#nope" }).store.activeSection, "home");
   });
 
+  it("the old #ports hash — the Networks section", () => {
+    assert.equal(build({ hash: "#ports" }).store.activeSection, "peers");
+  });
+
   it("hashchange — a new section and scroll to top", async () => {
     const w = await mountShell();
-    w.deps.hash = "#ports";
+    w.deps.hash = "#network";
     w.win.fire("hashchange");
-    assert.equal(w.store.activeSection, "ports");
+    assert.equal(w.store.activeSection, "network");
     assert.equal(w.scrolled, 1);
     w.deps.hash = "#nope";
     w.win.fire("hashchange");

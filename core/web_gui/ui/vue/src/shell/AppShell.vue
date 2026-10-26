@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The page skeleton: the connection and identity strips, tabs, the header with the status line, seven sections.
+// The page skeleton: the connection and identity strips, tabs, the header with the status line, six sections.
 // All sections are mounted at once, visibility is `hidden`; the "section → component" dictionary is here
 // (`nav.ts` does not import `.vue`: it is loaded by the node project without the vue plugin).
 import { computed, inject } from "vue";
@@ -11,7 +11,6 @@ import HomeSection from "../home/HomeSection.vue";
 import LogSection from "../log/LogSection.vue";
 import DiagnosticsSection from "../network/DiagnosticsSection.vue";
 import PeersSection from "../peers/PeersSection.vue";
-import PortsSection from "../ports/PortsSection.vue";
 import LoginScreen from "../login/LoginScreen.vue";
 import SetupScreen from "../login/SetupScreen.vue";
 import { totalVotes, votesTarget } from "../peers/net-votes.ts";
@@ -36,7 +35,6 @@ const VIEWS: Record<SectionId, Component> = {
   home: HomeSection,
   peers: PeersSection,
   domains: DomainsSection,
-  ports: PortsSection,
   network: DiagnosticsSection,
   log: LogSection,
   settings: SettingsSection,

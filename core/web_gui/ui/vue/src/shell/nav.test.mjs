@@ -16,6 +16,11 @@ describe("parseHash", () => {
     assert.equal(parseHash("#overview"), "home");
   });
 
+  it("#ports → peers", () => {
+    assert.equal(parseHash("#ports"), "peers");
+    assert.equal(parseHash("ports"), "peers", "without the hash sign");
+  });
+
   it("a garbage, empty or missing hash — null", () => {
     assert.equal(parseHash("#bogus"), null, "garbage");
     assert.equal(parseHash(""), null, "empty");
@@ -25,14 +30,14 @@ describe("parseHash", () => {
 });
 
 describe("SECTION_VIEWS", () => {
-  it("seven sections in tab order", () => {
-    assert.deepEqual(SECTIONS, ["home", "peers", "domains", "ports", "network", "log", "settings"]);
+  it("six sections in tab order, ports is not one of them", () => {
+    assert.deepEqual(SECTIONS, ["home", "peers", "domains", "network", "log", "settings"]);
     assert.deepEqual(SECTION_VIEWS.map((v) => v.id), SECTIONS);
   });
 
-  it("tab labels are the old ones, as in the page markup", () => {
+  it("tab labels: the peers section is called Networks", () => {
     assert.deepEqual(SECTION_VIEWS.map((v) => v.tab), [
-      "Home", "Members", "Site checks", "Ports", "Diagnostics", "Log", "Settings",
+      "Home", "Networks", "Site checks", "Diagnostics", "Log", "Settings",
     ]);
   });
 
@@ -44,7 +49,7 @@ describe("SECTION_VIEWS", () => {
 describe("sectionViews", () => {
   it("on a computer — all sections", () => assert.deepEqual(sectionViews(false), SECTION_VIEWS));
 
-  it("in the phone app — without site checks and ports", () => {
+  it("in the phone app — without site checks, diagnostics and log", () => {
     assert.deepEqual(sectionViews(true).map((v) => v.id), ["home", "peers", "settings"]);
   });
 });
@@ -57,14 +62,14 @@ describe("openableSection", () => {
 });
 
 describe("splitTabs", () => {
-  it("the \"More\" sections are ports, diagnostics and log", () => {
-    assert.deepEqual(NARROW_MORE, ["ports", "network", "log"]);
+  it("the \"More\" sections are diagnostics and log", () => {
+    assert.deepEqual(NARROW_MORE, ["network", "log"]);
   });
 
-  it("on a computer — four main tabs and three under \"More\", in tab order", () => {
+  it("on a computer — four main tabs and two under \"More\", in tab order", () => {
     const { main, more } = splitTabs(sectionViews(false));
     assert.deepEqual(main.map((v) => v.id), ["home", "peers", "domains", "settings"]);
-    assert.deepEqual(more.map((v) => v.id), ["ports", "network", "log"]);
+    assert.deepEqual(more.map((v) => v.id), ["network", "log"]);
   });
 
   it("in the phone app — nothing is left for \"More\"", () => {
@@ -75,7 +80,7 @@ describe("splitTabs", () => {
 
   it("the views are the same objects, not copies", () => {
     const { more } = splitTabs(SECTION_VIEWS);
-    assert.equal(more[0], SECTION_VIEWS.find((v) => v.id === "ports"));
+    assert.equal(more[0], SECTION_VIEWS.find((v) => v.id === "network"));
   });
 });
 
@@ -102,6 +107,11 @@ describe("peers tab in the hash", () => {
   });
 
   describe("openableSection", () => {
+    it("#ports opens the networks section, on a computer and in the phone app", () => {
+      assert.equal(openableSection("#ports", false), "peers");
+      assert.equal(openableSection("#ports", true), "peers");
+    });
+
     it("a hash with a net tail opens the members section", () => {
       assert.equal(openableSection(`#peers/${NET_B}`, false), "peers");
     });
@@ -137,6 +147,17 @@ describe("peers tab in the hash", () => {
       assert.equal(peersTail("#peers/k7q2xa/extra"), null, "a second segment");
     });
 
+    it("a subsection after the net still gives the net", () => {
+      assert.equal(peersTail("#peers/main/services"), "main");
+      assert.equal(peersTail(`#peers/${NET_B}/device`), NET_B);
+      assert.equal(peersTail(`#peers/${NET_B}/members`), NET_B);
+    });
+
+    it("an unknown subsection — null", () => {
+      assert.equal(peersTail(`#peers/${NET_B}/bogus`), null);
+      assert.equal(peersTail(`#peers/${NET_B}/services/more`), null);
+    });
+
     it("a tail on another section — null", () => {
       assert.equal(peersTail("#home"), null);
       assert.equal(peersTail(`#home/${NET_B}`), null);
@@ -155,12 +176,37 @@ describe("peers tab in the hash", () => {
       assert.equal(peersHash("add"), "#peers/add");
     });
 
+    it("members is the default subsection and writes no tail", () => {
+      assert.equal(peersHash(NET_B, "members"), `#peers/${NET_B}`);
+      assert.equal(peersHash("main", "members"), "#peers/main");
+    });
+
+    it("services and device are written after the net", () => {
+      assert.equal(peersHash(NET_B, "services"), `#peers/${NET_B}/services`);
+      assert.equal(peersHash("main", "device"), "#peers/main/device");
+    });
+
+    it("no tab — the bare section, whatever the subsection", () => {
+      assert.equal(peersHash(null, "services"), "#peers");
+    });
+
+    it("add has no subsection", () => {
+      assert.equal(peersHash("add"), "#peers/add");
+    });
+
     it("what peersHash writes, peersTail and parseHash read back", () => {
       for (const t of ["main", NET_B, "add"]) {
         assert.equal(peersTail(peersHash(t)), t, t);
         assert.equal(parseHash(peersHash(t)), "peers", t);
       }
       assert.equal(peersTail(peersHash(null)), null);
+    });
+
+    it("the net survives every subsection round trip", () => {
+      for (const sub of ["members", "services", "device"]) {
+        assert.equal(peersTail(peersHash(NET_B, sub)), NET_B, sub);
+        assert.equal(parseHash(peersHash(NET_B, sub)), "peers", sub);
+      }
     });
   });
 

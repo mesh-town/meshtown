@@ -1,4 +1,4 @@
-// Texts of the "Members" section: connection, the old-version mark, action captions.
+// Texts of the "Networks" tab: connection, the old-version mark, action captions.
 
 import { forDevice } from "../common/device.ts";
 
@@ -105,3 +105,9 @@ export function admissionRefusedList(names: string[]): string {
   const last = shown.pop();
   return shown.length === 0 ? (last ?? "") : `${shown.join(", ")} and ${last}`;
 }
+
+// Sub-tabs of a network tab.
+export const NET_SUB_MEMBERS = "Members";
+export const NET_SUB_SERVICES = "Shared services (ports)";
+export const NET_SUB_DEVICE = "Device settings";
+export const NET_SUBS_LABEL = "Network sections";

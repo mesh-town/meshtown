@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// The "Members" section: the second-admin hint, the member list (each row with its "⋯" menu), the line under the
-// list, the groups of nodes that are not in / no longer in the member list, the confirmation dialog. A computer that
-// is out of the network sees the "excluded" card instead. Without a member list (older node) it is the plain list.
+// The "Networks" tab: the row of networks and, for the network on show, its head and three sub-tabs. Members: the
+// member list (each row with its "⋯" menu), the line under the list, the groups of nodes that are not in / no longer
+// in the member list. Shared services: the ports. Device settings: this computer's name, exit and the way out.
+// A computer that is out of the network sees the "excluded" card instead, a join in progress its own card.
 import { computed, inject, nextTick, ref, watch } from "vue";
 import { isRefused, membersOf, netName, peersSlots, refusedFlag, stateOf } from "../core/slots.ts";
 import { saveExitIn } from "../core/exit-via.ts";
@@ -28,6 +29,8 @@ import NetTabHead from "./NetTabHead.vue";
 import NetTabs from "./NetTabs.vue";
 import PeerRow from "./PeerRow.vue";
 import YouBlock from "./YouBlock.vue";
+import NetSubTabs from "./NetSubTabs.vue";
+import PortsSection from "../ports/PortsSection.vue";
 import AdminsLine from "./AdminsLine.vue";
 import SecondAdminHint from "./SecondAdminHint.vue";
 import DeletedBanner from "../members/DeletedBanner.vue";
@@ -42,6 +45,8 @@ import { leadsToArrival, settleExpected, watchArrivals, useNetBanner } from "../
 import { arrivedBannerText } from "../home/add-net-actions.ts";
 import { BANNER_OK, MAX_NETS } from "../home/add-net-texts.ts";
 import { peersHash } from "../shell/nav.ts";
+import { netSubViews } from "../shell/net-subs.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 import { orderedPeers } from "./peers-view.ts";
 
 const injected = inject(STORE_KEY);
@@ -119,10 +124,28 @@ watch(slot, (now, before) => {
   if (before !== now && visible.value.includes(before)) status.value = { text: "", cls: "" };
 });
 
-// "Rename" with several networks leads to the name field of this tab; with one network it is the Home tab.
+const subs = computed(() => netSubViews(inAppPage()).map((v) => v.id));
+
+// "Rename" with several networks opens Device settings of this tab and focuses the name field; with one network it is the Home tab.
+async function focusNameSoon(): Promise<void> {
+  await nextTick();
+  you.value?.focusName();
+}
 function onPick(key: string, idFull: string): void {
-  if (key === "rename" && multi.value && you.value) you.value.focusName();
-  else pick(key, idFull);
+  if (key !== "rename" || !multi.value) {
+    pick(key, idFull);
+    return;
+  }
+  if (store.netSub === "device") {
+    void focusNameSoon();
+    return;
+  }
+  const stop = watch(() => store.netSub, (now) => {
+    if (now !== "device") return;
+    stop();
+    void focusNameSoon();
+  });
+  location.hash = peersHash(slot.value, "device");
 }
 
 // The "Use as exit" button makes this member the only exit.
@@ -135,7 +158,7 @@ async function exitVia(idFull: string): Promise<void> {
   <p v-if="!state && !addOnly" class="hint">{{ PEERS_LOADING }}</p>
   <template v-else>
     <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
-    <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" />
+    <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" :sub="store.netSub" />
     <AddNetCard v-if="addOnly" />
     <template v-else-if="excluded">
       <ExcludedCard members :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
@@ -155,16 +178,22 @@ async function exitVia(idFull: string): Promise<void> {
       <DeletedBanner />
       <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-sm" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
-      <div class="card">
-        <ul class="peer-list" id="peers-list" role="list">
-          <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :list="members" :me="me" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
-        </ul>
-        <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
+      <NetSubTabs :slot="slot" :active="store.netSub" :subs="subs" />
+      <div id="net-subpanel" role="tabpanel" :aria-labelledby="'net-sub-' + store.netSub">
+        <template v-if="store.netSub === 'members'">
+          <div class="card">
+            <ul class="peer-list" id="peers-list" role="list">
+              <PeerRow v-for="p in rows" :key="p.id_full || p.id" :peer="p" :state="state!" :chosen="chosen" :member="memberOf(p)" :list="members" :me="me" :multi="multi" @exit-via="exitVia" @member-pick="onPick" />
+            </ul>
+            <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
+          </div>
+          <PendingList :rows="parts.pending" :me="me" @pick="pick" />
+          <ExcludedList :lines="excludedLines" />
+          <UnlistedList :rows="parts.unlisted" @pick="pick" />
+        </template>
+        <PortsSection v-else-if="store.netSub === 'services'" :key="slot" :slot="slot" />
+        <YouBlock v-else ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" @delete="pick('delete-network', me)" />
       </div>
-      <PendingList :rows="parts.pending" :me="me" @pick="pick" />
-      <ExcludedList :lines="excludedLines" />
-      <UnlistedList :rows="parts.unlisted" @pick="pick" />
-      <YouBlock v-if="multi" ref="you" :key="slot" :slot="slot" @leave="pick('leave', me)" @delete="pick('delete-network', me)" />
     </template>
     <ConfirmDialog ref="dialog" />
   </template>

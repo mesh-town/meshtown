@@ -31,7 +31,7 @@ afterEach(() => {
 describe("AppShell on a narrow screen", () => {
   it("the section heading says \"Sites\", the others keep their names", async () => {
     const { wrapper } = await mountShell(true);
-    expect(wrapper.findAll(".tab-title").map((t) => t.text())).toEqual(["Members", "Sites", "Ports", "Diagnostics", "Log", "Settings"]);
+    expect(wrapper.findAll(".tab-title").map((t) => t.text())).toEqual(["Networks", "Sites", "Diagnostics", "Log", "Settings"]);
   });
 
   it("the tab says \"Sites\" and labels its panel", async () => {

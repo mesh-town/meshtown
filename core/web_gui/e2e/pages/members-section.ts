@@ -2,7 +2,7 @@ import { expect, type Locator, type Page } from '@playwright/test';
 
 import { MEMBERS_WORDS as W } from './glossary';
 
-/** The member list of the "Members" tab: rows with the "⋯" menu, the second-admin hint, the group of former members, the confirmation dialog. */
+/** The member list of the Members sub-tab of the "Networks" tab: rows with the "⋯" menu, the second-admin hint, the group of former members, the confirmation dialog. */
 export class MembersSection {
   readonly list: Locator;
   readonly secondAdminHint: Locator;
@@ -79,9 +79,9 @@ export class MembersSection {
     return this.row(name).getByText(text, { exact: true });
   }
 
-  /** The counter on the "Members" tab. */
+  /** The counter on the "Networks" tab. */
   tabChip(count = 1): Locator {
-    return this.page.getByRole('tab', { name: /^Members/ }).getByLabel(W.chipLabelOf(count));
+    return this.page.getByRole('tab', { name: /^Networks/ }).getByLabel(W.chipLabelOf(count));
   }
 
   /** The text of a status line under the list. */

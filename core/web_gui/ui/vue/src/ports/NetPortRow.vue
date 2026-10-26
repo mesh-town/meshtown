@@ -2,25 +2,22 @@
 import { computed, ref } from "vue";
 import type { NetPort } from "../core/api-types.ts";
 import { writeClipboard } from "../common/clipboard.ts";
-import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openErrorText, peerNetLabel, portStatusText } from "./ports-view.ts";
+import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openErrorText, portStatusText } from "./ports-view.ts";
 import { lastErrorText } from "./ports-proto.ts";
 import {
   PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
   PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_PROTO_UDP, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
 } from "./ports-texts.ts";
 
-// With several networks: `slot` and `net` (the network name) tell the rows of different networks apart, `taken` holds the local
-// numbers already opened anywhere, `usedText(local)` says by whom a number is used ("" — free), `error` is the refusal of "Open"/"Close".
+// `taken` holds the local numbers already opened in any network, `usedText(local)` says by whom a number is used ("" — free), `error` is the refusal of "Open"/"Close".
 const props = withDefaults(defineProps<{
   row: NetPort;
   busy?: boolean;
-  slot?: string;
-  net?: string | null;
   taken?: ReadonlySet<number>;
   usedText?: (local: number) => string;
   error?: string;
   sameName?: boolean;
-}>(), { busy: false, slot: undefined, net: null, taken: undefined, usedText: undefined, error: "", sameName: false });
+}>(), { busy: false, taken: undefined, usedText: undefined, error: "", sameName: false });
 const emit = defineEmits<{
   (e: "open", row: NetPort, local: number | string): void;
   (e: "close", row: NetPort): void;
@@ -29,8 +26,8 @@ const emit = defineEmits<{
 // The local number entered stays in the row: a poll does not erase the draft, but a row that disappeared and came back
 // starts over with `defaultLocalPort(row.port)`.
 const draft = ref<number | string>(defaultLocalPort(props.row.port, props.taken));
-const rowKey = computed(() => netRowKey(props.row, props.net ? props.slot : undefined));
-const label = computed(() => peerNetLabel(nodeLabel(props.row), props.net));
+const rowKey = computed(() => netRowKey(props.row));
+const label = computed(() => nodeLabel(props.row));
 // The hint under "Open": the typed number, or the usual one (member's port plus 2000) that the field skipped, is used by another row.
 const draftUsed = computed(() => {
   const used = props.usedText;

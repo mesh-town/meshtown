@@ -17,7 +17,7 @@ test('95-narrow-tabs-bar: 390×844: the strip has no horizontal overflow and no 
     await expect.soft(app.tabs.root, 'the logo block is still in the strip').not.toContainText('Mesh Town');
   });
 
-  await test.step('Home, Members, Sites, Settings and "More ▾" are inside the window', async () => {
+  await test.step('Home, Networks, Sites, Settings and "More ▾" are inside the window', async () => {
     await expect.soft(app.tabs.moreButton, 'the "More ▾" button').toHaveText('More ▾');
     for (const section of ['home', 'peers', 'domains', 'settings'] as const) {
       await expect.soft(app.tabs.tab(section), `tab ${section} is visible`).toBeVisible();
@@ -26,9 +26,9 @@ test('95-narrow-tabs-bar: 390×844: the strip has no horizontal overflow and no 
     expect.soft(await app.right(app.tabs.moreButton), 'the "More ▾" button goes beyond the window').toBeLessThanOrEqual(WIDTH);
   });
 
-  await test.step('the menu lists Ports, Diagnostics, Log and stays inside the window', async () => {
+  await test.step('the menu lists Diagnostics, Log and stays inside the window', async () => {
     await app.tabs.moreButton.click();
-    await expect.soft(app.tabs.menuItems, 'menu items').toHaveText(['Ports', 'Diagnostics', 'Log']);
+    await expect.soft(app.tabs.menuItems, 'menu items').toHaveText(['Diagnostics', 'Log']);
     expect.soft(await app.right(app.tabs.menu), 'the menu goes beyond the window').toBeLessThanOrEqual(WIDTH);
   });
 

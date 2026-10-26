@@ -71,7 +71,7 @@ async function visibleNets(api: MeshApi): Promise<string[]> {
   return (res.body?.nets ?? []).filter((n) => n.id_hex !== null).map((n) => n.id);
 }
 
-/** The "+" tab of the Members page: the card that joins or creates another network. */
+/** The "+" tab of the Networks page: the card that joins or creates another network. */
 async function openAddTab(app: AppShell, page: Page): Promise<void> {
   await app.tabs.open('peers');
   await new NetTabs(page).addTab.click();
@@ -176,7 +176,7 @@ test('111-invite-already-here: your own invite on the "+" tab says "already in",
     await expect(page.getByText(/Open "/).filter({ visible: true }), 'one "Open" on the screen').toHaveCount(1);
   });
 
-  await test.step('"Open" leads to the Members tab of that network', async () => {
+  await test.step('"Open" leads to the Networks tab of that network', async () => {
     await form.openButton.click();
     await app.tabs.expectShown('peers');
     await expect.poll(() => page.evaluate(() => location.hash)).toBe('#peers/main');

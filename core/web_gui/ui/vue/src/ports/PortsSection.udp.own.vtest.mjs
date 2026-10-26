@@ -16,6 +16,7 @@ const UDP_ENTRY = { port: 53, proto: "udp", name: "dns-udp", for: "all" };
 
 let mounted;
 const mountPorts = () => (mounted = mountSection(PortsSection, {
+  props: { slot: "main" },
   state: baseState({ ports: { published: [TCP_ROW, UDP_ROW], network: [] } }),
   config: baseConfig({ ports: { published: [TCP_ENTRY, UDP_ENTRY], opened: [] } }),
 }));
@@ -57,6 +58,7 @@ describe("own ports with the same number in TCP and UDP", () => {
 
     it("the UDP status stays unchecked when local is refused", () => {
       mounted = mountSection(PortsSection, {
+        props: { slot: "main" },
         state: baseState({ ports: { published: [{ ...UDP_ROW, local: "refused" }], network: [] } }),
         config: baseConfig({ ports: { published: [UDP_ENTRY], opened: [] } }),
       });
@@ -187,6 +189,7 @@ describe("own ports with the same number in TCP and UDP", () => {
 
 describe("publishing through the form", () => {
   const mountWith = (published) => (mounted = mountSection(PortsSection, {
+    props: { slot: "main" },
     state: baseState({ ports: { published: published.map((p) => ({ ...p, local: "ok" })), network: [] } }),
     config: baseConfig({ ports: { published, opened: [] } }),
   }));

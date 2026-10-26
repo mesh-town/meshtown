@@ -58,6 +58,7 @@ afterEach(() => { mounted.wrapper.unmount(); api.mockReset(); });
 
 function mountPorts() {
   mounted = mountSection(PortsSection, {
+    props: { slot: "main" },
     state: baseState({ ports: { published: OWN, network: [] } }),
     config: baseConfig({ ports: { published: OWN.map(({ port, name, for: f }) => ({ port, name, for: f })), opened: [] } }),
   });

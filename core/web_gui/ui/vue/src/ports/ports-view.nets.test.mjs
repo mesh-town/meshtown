@@ -1,4 +1,5 @@
-/* The "Ports" section across several networks: taken local numbers, published ports of every network, per-network audiences. */
+/* Shared services across several networks: taken local numbers are counted over all networks, the published and shared
+ * rows are those of one network. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -110,6 +111,14 @@ describe("takenLocals", () => {
     });
   });
 
+  describe("a pair of a network other than the one being edited", () => {
+    it("is still taken: 127.0.0.1 is one per computer", () => {
+      const store = twoNetStore({ a: [{ node: "NODE-A", port: 80, local: 2080 }], b: [] });
+      const taken = view.takenLocals(store, { slot: "k7q2xa", node: "NODE-B", port: 9000 });
+      assert.equal(taken.has(2080), true);
+    });
+  });
+
   describe("no opened ports", () => {
     it("is empty", () => {
       assert.equal(view.takenLocals(twoNetStore({ a: [], b: [] })).size, 0);
@@ -117,108 +126,80 @@ describe("takenLocals", () => {
   });
 });
 
-describe("my published ports across networks", () => {
-  describe("port 8080 is published in both networks", () => {
-    it("is one row, shared in both, the main network first", () => {
-      const rows = view.mergeOwn(publishStore({ a: [pub(8080, "web", "all")], b: [pub(8080, "site", ["ID-PEER-B"])] }));
-      assert.equal(rows.length, 1);
-      assert.equal(rows[0].port, 8080);
-      assert.equal(rows[0].name, "web", "the name of the first network");
-      assert.deepEqual(rows[0].shared.map((s) => s.slot), ["main", "k7q2xa"]);
-      assert.deepEqual(rows[0].shared.map((s) => s.audience), ["all", ["ID-PEER-B"]]);
+describe("ownRows", () => {
+  describe("two networks", () => {
+    it("is the published list of the given network's state only", () => {
+      const store = publishStore({ a: [], b: [] });
+      store.slots.main.state.ports.published = [{ port: 8080, name: "web", local: "ok" }];
+      store.slots.k7q2xa.state.ports.published = [{ port: 9090, name: "db", local: "ok" }];
+      assert.deepEqual(view.ownRows(store, "k7q2xa").map((r) => r.port), [9090]);
+      assert.deepEqual(view.ownRows(store, "main").map((r) => r.port), [8080]);
     });
 
-    // The "all" part of the cell uses PORTS_AUDIENCE_ALL ("all members").
-    it("the cell groups the audience by network", () => {
-      const store = publishStore({ a: [pub(8080, "web", "all")], b: [pub(8080, "web", ["ID-PEER-B"])] });
-      const row = view.mergeOwn(store)[0];
-      assert.equal(view.mergedAudienceText(store, row), "friends: all · my devices: alice");
-    });
-  });
-
-  describe("port 7070 is published in the second network only", () => {
-    it("is one row shared in that network only", () => {
-      const rows = view.mergeOwn(publishStore({ a: [], b: [pub(7070, "db", "all")] }));
-      assert.equal(rows.length, 1);
-      assert.deepEqual(rows[0].shared.map((s) => s.slot), ["k7q2xa"]);
+    it("the same port number published in both networks is a row in each, not merged", () => {
+      const store = publishStore({ a: [], b: [] });
+      store.slots.main.state.ports.published = [{ port: 8080, name: "web", local: "ok" }];
+      store.slots.k7q2xa.state.ports.published = [{ port: 8080, name: "site", local: "refused" }];
+      assert.deepEqual(view.ownRows(store, "main").map((r) => [r.name, r.local]), [["web", "ok"]]);
+      assert.deepEqual(view.ownRows(store, "k7q2xa").map((r) => [r.name, r.local]), [["site", "refused"]]);
     });
   });
 
-  describe("different ports in different networks", () => {
-    it("are separate rows", () => {
-      const rows = view.mergeOwn(publishStore({ a: [pub(80, "a", "all")], b: [pub(81, "b", "all")] }));
-      assert.deepEqual(rows.map((r) => r.port), [80, 81]);
+  describe("a network without published ports", () => {
+    it("is an empty list", () => {
+      assert.deepEqual(view.ownRows(publishStore({ a: [], b: [] }), "k7q2xa"), []);
     });
   });
 
-  describe("the status", () => {
-    it("is the one of the first network that has the row", () => {
-      const store = publishStore({ a: [], b: [pub(7070, "db", "all")] });
-      store.slots.k7q2xa.state.ports.published = [{ port: 7070, name: "db", local: "ok" }];
-      assert.equal(view.mergeOwn(store)[0].local, "ok");
-    });
-  });
-});
-
-describe("per-network audience of the form", () => {
-  describe("netGroups", () => {
-    it("is one group per network that holds a key, with that network's members as candidates", () => {
-      const groups = view.netGroups(publishStore({ a: [], b: [] }));
-      assert.deepEqual(groups.map((g) => g.slot), ["main", "k7q2xa"]);
-      assert.deepEqual(groups.map((g) => g.label), ["friends", "my devices"]);
-      assert.deepEqual(groups[0].candidates, []);
-      assert.deepEqual(groups[1].candidates.map((c) => c.idFull), ["ID-PEER-B"]);
-    });
-  });
-
-  describe("audiencesOf", () => {
-    const groups = view.netGroups(publishStore({ a: [], b: [] }));
-
-    it("a network with nothing checked gets null: the port is not published there", () => {
-      const res = view.audiencesOf(groups, { main: { all: true, ids: [] }, k7q2xa: { all: false, ids: [] } });
-      assert.deepEqual(res, { main: "all", k7q2xa: null });
-    });
-
-    it("a network with checked members gets their ids, a network without a choice gets null", () => {
-      const res = view.audiencesOf(groups, { k7q2xa: { all: false, ids: ["ID-PEER-B"] } });
-      assert.deepEqual(res, { main: null, k7q2xa: ["ID-PEER-B"] });
-    });
-
-    it("checked ids that are not among the network's members are dropped", () => {
-      const res = view.audiencesOf(groups, { k7q2xa: { all: false, ids: ["ID-GONE"] } });
-      assert.equal(res.k7q2xa, null);
-    });
-  });
-
-  describe("selectionOf", () => {
-    it("maps the audience of an existing entry to a choice, and a missing entry to nothing checked", () => {
-      assert.deepEqual(view.selectionOf("all"), { all: true, ids: [] });
-      assert.deepEqual(view.selectionOf(["x"]), { all: false, ids: ["x"] });
-      assert.deepEqual(view.selectionOf(undefined), { all: false, ids: [] });
+  describe("a network whose state has not arrived", () => {
+    it("is an empty list", () => {
+      const store = publishStore({ a: [], b: [] });
+      store.slots.k7q2xa.state = null;
+      assert.deepEqual(view.ownRows(store, "k7q2xa"), []);
     });
   });
 });
 
 describe("ports shared with you across networks", () => {
-  describe("two networks", () => {
-    it("rows stay per network and carry the network name; the same member in both is two rows", () => {
+  const row = { node: "NODE-X", node_name: "bob", online: true, port: 80, name: "", published: true, opened: null };
+  const other = { node: "NODE-Y", node_name: "carol", online: true, port: 90, name: "", published: true, opened: null };
+
+  describe("netPortItems(store, slot)", () => {
+    it("holds the rows of the given network only", () => {
       const store = publishStore({ a: [], b: [] });
-      const row = { node: "NODE-X", node_name: "bob", online: true, port: 80, name: "", published: true, opened: null };
       store.slots.main.state.ports.network = [row];
-      store.slots.k7q2xa.state.ports.network = [row];
-      const items = view.netPortItems(store);
-      assert.deepEqual(items.map((i) => [i.slot, i.net]), [["main", "friends"], ["k7q2xa", "my devices"]]);
+      store.slots.k7q2xa.state.ports.network = [other];
+      assert.deepEqual(view.netPortItems(store, "k7q2xa"), [{ slot: "k7q2xa", row: other }]);
+      assert.deepEqual(view.netPortItems(store, "main"), [{ slot: "main", row }]);
     });
 
-    it("the member label is \"<peer> (<net>)\"", () => {
-      assert.equal(view.peerNetLabel("bob", "my devices"), "bob (my devices)");
+    it("the same member in both networks is one item in each", () => {
+      const store = publishStore({ a: [], b: [] });
+      store.slots.main.state.ports.network = [row];
+      store.slots.k7q2xa.state.ports.network = [row];
+      assert.equal(view.netPortItems(store, "main").length, 1);
+      assert.equal(view.netPortItems(store, "k7q2xa").length, 1);
+    });
+
+    it("an item carries no network name", () => {
+      const store = publishStore({ a: [], b: [] });
+      store.slots.k7q2xa.state.ports.network = [row];
+      assert.deepEqual(Object.keys(view.netPortItems(store, "k7q2xa")[0]).sort(), ["row", "slot"]);
+    });
+
+    it("a network with no shared ports is empty", () => {
+      assert.deepEqual(view.netPortItems(publishStore({ a: [], b: [] }), "k7q2xa"), []);
     });
   });
 
   describe("the row key", () => {
-    it("includes the slot, so the same node and port in two networks do not collide", () => {
+    it("includes the slot when given, so the same node and port in two networks do not collide", () => {
       assert.notEqual(netRowKey({ node: "ab", port: 80 }, "main"), netRowKey({ node: "ab", port: 80 }, "k7q2xa"));
       assert.equal(netRowKey({ node: "ab", port: 80 }, "k7q2xa"), "k7q2xa/ab/80");
+    });
+
+    it("is node/port without a slot", () => {
+      assert.equal(netRowKey({ node: "ab", port: 80 }), "ab/80");
     });
   });
 });
@@ -245,6 +226,7 @@ function twoNetStore({ a, b, publishedA = [], publishedB = [], peersA = [], peer
   store.nets = nets;
   store.config = { ports: { published: publishedA, opened: a } };
   store.slots.main = slice(nets[0], store.config, peersA);
+  store.state = store.slots.main.state;
   store.slots.k7q2xa = slice(nets[1], { ports: { published: publishedB, opened: b } }, peersB);
   return store;
 }

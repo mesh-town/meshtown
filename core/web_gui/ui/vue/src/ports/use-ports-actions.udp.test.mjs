@@ -1,4 +1,4 @@
-/* `use-ports-actions.ts` for the two protocols: the PUT body of publish, edit, unpublish, open and close — a TCP entry has
+/* `use-ports-actions.ts` (on the main network) for the two protocols: the PUT body of publish, edit, unpublish, open and close — a TCP entry has
  * no `proto` field, a UDP one has `proto: "udp"`, and an action on one protocol never touches the other. */
 
 import { describe, it } from "vitest";
@@ -24,7 +24,7 @@ function setup({ published = [], opened = [], fail = null } = {}) {
     if (node.fail) throw node.fail;
     return { config: sent.config, rev: body.rev + 1 };
   };
-  const actions = usePortsActions(store, { api, busTarget: new EventTarget(), setTimer: () => {} });
+  const actions = usePortsActions(store, () => "main", { api, busTarget: new EventTarget(), setTimer: () => {} });
   return { store, calls, actions, node };
 }
 

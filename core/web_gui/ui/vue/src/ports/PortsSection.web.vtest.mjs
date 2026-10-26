@@ -1,5 +1,5 @@
 /* "Ports shared with you": a member's port as a link at its `.meshtown` address, the "Copy" button, ports a browser refuses,
- * members with the same name, the column set and the hints. One network: rows come straight from `ports.network`. */
+ * members with the same name, the column set and the hints. The panel is opened on the main network: its rows come from `ports.network`. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
@@ -233,6 +233,7 @@ function when_shown(rows, { clipboard = "works" } = {}) {
   const writeText = clipboard === "works" ? async (s) => void written.push(s) : async () => { throw new Error("denied"); };
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
   mounted = mountSection(PortsSection, {
+    props: { slot: "main" },
     state: baseState({ ports: { published: [], network: rows } }),
     config: baseConfig({ ports: { published: [], opened: [] } }),
   });

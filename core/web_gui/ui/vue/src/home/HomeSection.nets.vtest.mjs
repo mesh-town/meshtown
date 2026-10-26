@@ -1,5 +1,5 @@
 /* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one row per network with the member count and
- * "Open Members", the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
+ * "Open in Networks", the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
  * With one network the page keeps its former look and requests. The whole page runs on a fake node. */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,7 +10,7 @@ import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { shown } from "../testing/dom.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
 
-const OPEN_MEMBERS = "Open Members";
+const OPEN_MEMBERS = "Open in Networks";
 const NET_A_NAME = "friends";
 const NET_B_NAME = "my devices";
 const EXIT_ID = "dddd4444";
@@ -23,7 +23,7 @@ afterEach(unmountPage);
 
 describe("Home with two networks", () => {
   describe("the page is open", () => {
-    it("has one row per network, each with an \"Open Members\" button", async () => {
+    it("has one row per network, each with an \"Open in Networks\" button", async () => {
       const { wrapper } = await setup();
       expect(openButtons(wrapper)).toHaveLength(2);
       expect(rowsOf(wrapper).map((r) => r.text())).toEqual([expect.stringContaining(NET_A_NAME), expect.stringContaining(NET_B_NAME)]);
@@ -34,12 +34,12 @@ describe("Home with two networks", () => {
       for (const row of rowsOf(wrapper)) expect(flat(row), "1 of 2 members online").toContain("1 of 2 online");
     });
 
-    it("\"Open Members\" of the second row leads to the tab of that network", async () => {
+    it("\"Open in Networks\" of the second row leads to the tab of that network", async () => {
       const { wrapper } = await setup();
       expect(await targetOf(openButtons(wrapper)[1])).toBe("#peers/" + NET_B);
     });
 
-    it("\"Open Members\" of the first row leads to the tab of the main network", async () => {
+    it("\"Open in Networks\" of the first row leads to the tab of the main network", async () => {
       const { wrapper } = await setup();
       expect(await targetOf(openButtons(wrapper)[0])).toBe("#peers/main");
     });
@@ -330,7 +330,7 @@ const buttonsWith = (wrapper, text) => clickables(wrapper).filter((el) => flat(e
 const startingWith = (wrapper, text) => clickables(wrapper).filter((el) => flat(el).startsWith(text));
 const openButtons = (wrapper) => buttonsWith(wrapper, OPEN_MEMBERS);
 
-// A row of the networks list: the nearest ancestor of an "Open Members" button that holds no other such button.
+// A row of the networks list: the nearest ancestor of an "Open in Networks" button that holds no other such button.
 function rowsOf(wrapper) {
   return openButtons(wrapper).map((button) => {
     let row = button.element;
@@ -343,7 +343,7 @@ const countOpen = (el) => [...el.querySelectorAll("a, button")].filter((b) => b.
 
 const dotOf = (row) => row.find('[class*="dot"]')?.className ?? "";
 
-// Where an "Open Members" link or chip leads: its `href`, or the hash after a click when it is a button.
+// Where an "Open in Networks" link or chip leads: its `href`, or the hash after a click when it is a button.
 async function targetOf(wrapperEl) {
   const href = wrapperEl.attributes("href");
   if (href) return href;

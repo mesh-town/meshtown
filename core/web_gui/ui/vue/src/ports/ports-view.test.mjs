@@ -1,4 +1,4 @@
-/* Pure logic of the "Ports" section (`ports-view.ts`): the row
+/* Pure logic of Shared services (`ports-view.ts`): the row
  * lists, status texts, the row key and the computer label. */
 
 import { describe, it } from "vitest";

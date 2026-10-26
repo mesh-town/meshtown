@@ -8,6 +8,7 @@ import { setToken } from "../core/token.ts";
 import { absence, createConn, stripView } from "./conn.ts";
 import type { Conn, Strip, StripViewKind } from "./conn.ts";
 import { openableSection, peersHash, peersTail, pickPeersTab } from "./nav.ts";
+import { peersSub, pickNetSub } from "./net-subs.ts";
 import { addressInvite } from "../home/use-invite-join.ts";
 import { inAppPage } from "../home/browser-setup.ts";
 import { useHeldRefusal } from "../peers/use-held-refusal.ts";
@@ -48,6 +49,7 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   watch(() => absence(conn), (a) => { store.absence = a; }, { immediate: true, flush: "sync" });
   store.activeSection = openableSection(deps.hash, inAppPage());
   let wanted = peersTail(deps.hash);
+  store.netSub = pickNetSub(peersSub(deps.hash), inAppPage());
 
   // Before the first snapshot the wanted tab is kept as is; later it must be a visible slot (or "add").
   const syncPeersTab = (): void => {
@@ -78,6 +80,7 @@ export function useShell(store: Store, deps: ShellDeps = defaultShellDeps): Shel
   const onHash = () => {
     store.activeSection = openableSection(deps.hash, inAppPage());
     wanted = peersTail(deps.hash);
+    store.netSub = pickNetSub(peersSub(deps.hash), inAppPage());
     syncPeersTab();
     deps.scrollToTop();
   };

@@ -297,7 +297,7 @@ Exact enum values:
   including non-Latin scripts. **The field is optional**: the name may be absent or empty —
   then the page shows `id`. The own name is always there, while others' names arrive through the shared network
   document and are matched with peers not instantly, so for the first minutes after joining the network some
-  members will have no names; the page must cope with that. The page shows the name in "Members"
+  members will have no names; the page must cope with that. The page shows the name in "Networks"
   instead of the bare `id`; the tooltip (`title`) with the full `id_full` stays only on the own row,
   as described below.
 - `peers[].path`: `"direct"`, `"relay"`, `null` (no path or it is ourselves).
@@ -331,7 +331,7 @@ Exact enum values:
   with one function.
 - `node.version` — the binary version string; shown in the header caption next to the address.
   `node.id_full` — the full node identifier; shown only as a tooltip (`title`)
-  on the own row in "Members", it is not in the page text.
+  on the own row in "Networks", it is not in the page text.
 - `node.invite_join` — `null` or `{"state": "waiting"|"refused", "message", "label", "expires_unix"}`:
   progress of joining by a single-use invite (`POST /api/network/join` with a `mesh-invite2-…` string).
   `waiting` — the node is looking for members from the string, `refused` — a final refusal with the text `message`;

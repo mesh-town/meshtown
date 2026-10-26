@@ -19,7 +19,7 @@ const B_LABEL = "my devices";
 const INTERVAL = "900";
 const NEW_PORT = "1081";
 const REFUSAL = "disk is full";
-const NAME_PER_NET = "Your name is set for each network: Members → the network's tab.";
+const NAME_PER_NET = "Your name is set for each network: Networks → the network's tab → Device settings.";
 const CAPTION = "Applies to all your networks.";
 const PARTIAL = "some networks did not accept it";
 
@@ -170,7 +170,7 @@ describe("SettingsSection.nets", () => {
   });
 
   describe("the node name", () => {
-    it("is replaced by a pointer to Members when there are two networks", async () => {
+    it("is replaced by a pointer to Networks when there are two networks", async () => {
       const { wrapper } = await setup();
       expect(section(wrapper).find("#settings-node-name").exists(), "name field").toBe(false);
       expect(flat(section(wrapper))).toContain(NAME_PER_NET);

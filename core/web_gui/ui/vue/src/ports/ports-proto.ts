@@ -1,4 +1,4 @@
-/* Protocol helpers of the "Ports" section: a missing `proto` means TCP, the key of a port, the member-side error text. */
+/* Protocol helpers of the "Shared services" section: a missing `proto` means TCP, the key of a port, the member-side error text. */
 
 import type { NetPort, PortProto } from "../core/api-types.ts";
 import { PORTS_LAST_ERROR_TEXT } from "./ports-texts.ts";

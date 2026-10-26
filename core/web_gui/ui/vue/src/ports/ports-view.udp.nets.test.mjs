@@ -1,5 +1,5 @@
-/* The "Ports" section across several networks for the two protocols (`ports-view.ts`): taken local numbers are counted per
- * protocol, published ports merge by protocol and number. */
+/* Shared services across several networks for the two protocols (`ports-view.ts`): taken local numbers are counted per
+ * protocol over all networks, own and shared rows of a network keep TCP and UDP of one number apart. */
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
@@ -56,38 +56,50 @@ describe("takenLocals", () => {
   });
 });
 
-describe("mergeOwn", () => {
+describe("ownRows", () => {
   it("TCP and UDP of the same number are two rows, each with its protocol", () => {
-    const store = ownStore({ a: [TCP_DNS, UDP_DNS], b: [] });
-    const rows = view.mergeOwn(store);
+    const state = [{ port: 53, name: "dns", local: "ok" }, { port: 53, proto: "udp", name: "dns", local: "ok" }];
+    const rows = view.ownRows(ownStore({ a: [TCP_DNS, UDP_DNS], b: [], state }), "main");
     assert.equal(rows.length, 2);
     assert.deepEqual(rows.map((r) => view.protoOf(r)), ["tcp", "udp"]);
     assert.deepEqual(rows.map((r) => r.port), [53, 53]);
   });
 
-  it("UDP published in both networks is one row shared in both", () => {
+  it("UDP published in both networks is a row in each network, not one merged row", () => {
     const store = ownStore({ a: [UDP_DNS], b: [{ ...UDP_DNS, for: ["ID-PEER-B"] }] });
-    const rows = view.mergeOwn(store);
-    assert.equal(rows.length, 1);
-    assert.equal(view.protoOf(rows[0]), "udp");
-    assert.deepEqual(rows[0].shared.map((s) => s.slot), ["main", "k7q2xa"]);
+    store.slots.main.state.ports.published = [{ port: 53, proto: "udp", name: "dns", local: "ok" }];
+    store.slots.k7q2xa.state.ports.published = [{ port: 53, proto: "udp", name: "dns", local: "ok" }];
+    assert.equal(view.ownRows(store, "main").length, 1);
+    assert.equal(view.ownRows(store, "k7q2xa").length, 1);
   });
 
-  it("TCP in one network and UDP of the same number in the other are two rows", () => {
-    const rows = view.mergeOwn(ownStore({ a: [TCP_DNS], b: [UDP_DNS] }));
-    assert.equal(rows.length, 2);
-    assert.deepEqual(rows.map((r) => [view.protoOf(r), r.shared.map((s) => s.slot)]), [["tcp", ["main"]], ["udp", ["k7q2xa"]]]);
+  it("TCP in one network and UDP of the same number in the other are one row in each", () => {
+    const store = ownStore({ a: [TCP_DNS], b: [UDP_DNS] });
+    store.slots.main.state.ports.published = [{ port: 53, name: "dns", local: "ok" }];
+    store.slots.k7q2xa.state.ports.published = [{ port: 53, proto: "udp", name: "dns", local: "ok" }];
+    assert.deepEqual(view.ownRows(store, "main").map((r) => view.protoOf(r)), ["tcp"]);
+    assert.deepEqual(view.ownRows(store, "k7q2xa").map((r) => view.protoOf(r)), ["udp"]);
   });
 
-  it("each row takes the local status of its own protocol", () => {
+  it("each row keeps the local status of its own protocol", () => {
     const state = [{ port: 53, name: "dns", local: "refused" }, { port: 53, proto: "udp", name: "dns", local: "ok" }];
-    const rows = view.mergeOwn(ownStore({ a: [TCP_DNS, UDP_DNS], b: [], state }));
+    const rows = view.ownRows(ownStore({ a: [TCP_DNS, UDP_DNS], b: [], state }), "main");
     assert.deepEqual(rows.map((r) => r.local), ["refused", "ok"]);
   });
 
   it("an entry without proto is a TCP row", () => {
-    const rows = view.mergeOwn(ownStore({ a: [TCP_DNS], b: [] }));
+    const state = [{ port: 53, name: "dns", local: "ok" }];
+    const rows = view.ownRows(ownStore({ a: [TCP_DNS], b: [], state }), "main");
     assert.equal(view.protoOf(rows[0]), "tcp");
+  });
+});
+
+describe("netPortItems for the two protocols", () => {
+  it("TCP and UDP rows of one member and number are two items of the network", () => {
+    const store = storeWith([]);
+    const base = { node: "ab", node_name: "finch", port: 53, name: "", published: true, online: true, opened: null };
+    store.slots.main.state.ports.network = [{ ...base, proto: "tcp" }, { ...base, proto: "udp" }];
+    assert.deepEqual(view.netPortItems(store, "main").map((i) => view.protoOf(i.row)), ["tcp", "udp"]);
   });
 });
 
@@ -114,6 +126,7 @@ function storeWith(opened) {
   store.nets = nets;
   store.config = { ports: { published: [], opened } };
   store.slots.main = slice(nets[0], store.config, []);
+  store.state = store.slots.main.state;
   store.slots.k7q2xa = slice(nets[1], { ports: { published: [], opened: [] } }, []);
   return store;
 }
@@ -126,6 +139,7 @@ function ownStore({ a, b, state = [] }) {
   store.nets = nets;
   store.config = { ports: { published: a, opened: [] } };
   store.slots.main = slice(nets[0], store.config, [], state);
+  store.state = store.slots.main.state;
   store.slots.k7q2xa = slice(nets[1], { ports: { published: b, opened: [] } }, [peerB]);
   return store;
 }

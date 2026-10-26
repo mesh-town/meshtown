@@ -20,7 +20,7 @@ export class TopPanel {
     this.oldHeader = page.getByRole('banner');
     // the status line is a live region `role="status"` in the column header (`banner`)
     this.statusLine = page.getByRole('banner').getByRole('status');
-    // the phrase also occurs in sections ("Members") — look only inside the status line
+    // the phrase also occurs in sections ("Networks") — look only inside the status line
     this.noNetworkStatus = this.statusLine.filter({ hasText: new RegExp(`^\\s*You haven't joined a ${NET_NAME} network yet\\s*$`) });
   }
 

@@ -90,15 +90,15 @@ describe("createdBanner", () => {
 
 describe("stayText", () => {
   it("one network — its name", () => {
-    assert.equal(stayText(["a"]), "You stay in \"a\". The new network gets its own tab in Members.");
+    assert.equal(stayText(["a"]), "You stay in \"a\". The new network gets its own tab in Networks.");
   });
 
   it("two networks — joined by \"and\"", () => {
-    assert.equal(stayText(["a", "b"]), "You stay in \"a\" and \"b\". The new network gets its own tab in Members.");
+    assert.equal(stayText(["a", "b"]), "You stay in \"a\" and \"b\". The new network gets its own tab in Networks.");
   });
 
   it("three networks — commas, then \"and\" before the last", () => {
-    assert.equal(stayText(["a", "b", "c"]), "You stay in \"a\", \"b\" and \"c\". The new network gets its own tab in Members.");
+    assert.equal(stayText(["a", "b", "c"]), "You stay in \"a\", \"b\" and \"c\". The new network gets its own tab in Networks.");
   });
 });
 

@@ -10,6 +10,7 @@ vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }))
 const OWN = [{ port: 8080, name: "web", for: "all", local: "ok" }, { port: 9090, name: "db", for: "all", local: "ok" }];
 let mounted;
 const mountPorts = () => (mounted = mountSection(PortsSection, {
+  props: { slot: "main" },
   state: baseState({ ports: { published: OWN, network: [] } }),
   config: baseConfig({ ports: { published: OWN.map(({ port, name, for: f }) => ({ port, name, for: f })), opened: [] } }),
 }));
@@ -46,6 +47,7 @@ describe("PortsSection", () => {
   describe("who the port is open for", () => {
     it("the \"Shared with\" column: \"all members\" for for: all and the node name for for: [id]", () => {
       mounted = mountSection(PortsSection, {
+        props: { slot: "main" },
         state: baseState({ ports: { published: OWN, network: [] } }),
         config: baseConfig({ ports: { published: [{ port: 8080, name: "web", for: "all" }, { port: 9090, name: "db", for: [PEER_FULL] }], opened: [] } }),
       });
@@ -74,6 +76,7 @@ describe("PortsSection", () => {
   describe("network ports", () => {
     const row = (opened) => ({ node: "ab", node_name: "finch", port: 80, name: "luci", published: true, online: true, opened });
     const mountNet = (opened, openedCfg = []) => (mounted = mountSection(PortsSection, {
+      props: { slot: "main" },
       state: baseState({ ports: { published: [], network: [row(opened)] } }),
       config: baseConfig({ ports: { published: [], opened: openedCfg } }),
     }));

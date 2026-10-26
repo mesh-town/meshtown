@@ -77,7 +77,7 @@ go out the same way.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
    `meshtown run --invite mesh-invite2-…`).
 4. **Invite a member** on the page gives a single-use string for the next device or person.
-5. Share a port on the **Ports** tab, or open one a member shared. With the browser using the proxy from step 6, a
+5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using the proxy from step 6, a
    shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
 6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
    names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`.

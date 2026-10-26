@@ -9,6 +9,7 @@ vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }))
 const OWN = [{ port: 8080, name: "web", for: "all", local: "ok" }, { port: 9090, name: "db", for: "all", local: "ok" }];
 let mounted;
 const mountPorts = () => (mounted = mountSection(PortsSection, {
+  props: { slot: "main" },
   state: baseState({ ports: { published: OWN, network: [] } }),
   config: baseConfig({ ports: { published: OWN.map(({ port, name, for: f }) => ({ port, name, for: f })), opened: [] } }),
 }));

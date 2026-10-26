@@ -22,7 +22,7 @@ async function netLabel(api: MeshApi): Promise<string> {
   return label as string;
 }
 
-test('79-members-list: the "Members" tab: the other rows have the "⋯" menu; the removed member is in the folded group', async ({
+test('79-members-list: the Members section: the other rows have the "⋯" menu; the removed member is in the folded group', async ({
   app,
   page,
   targetKind,
@@ -140,7 +140,7 @@ test.describe('--second-admin', () => {
       await expect(members.settingsLeaveButton()).toHaveCount(0);
     });
 
-    await test.step('the "Members" tab shows the card with the way back instead of the list', async () => {
+    await test.step('the Members section shows the card with the way back instead of the list', async () => {
       await app.tabs.open('peers');
       await expect(members.leftCard).toBeVisible();
       await expect(members.list).toHaveCount(0);
