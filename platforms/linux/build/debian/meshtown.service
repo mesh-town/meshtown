@@ -1,6 +1,6 @@
 [Unit]
 Description=Mesh Town node
-Documentation=https://github.com/mesh-town/meshtown
+Documentation=https://github.com/mesh-town/meshtown-dist
 After=network-online.target
 Wants=network-online.target
 

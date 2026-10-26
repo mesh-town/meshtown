@@ -27,6 +27,6 @@ of every file under their version numbers.
 | Keenetic routers (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh`, run on the router over SSH |
 | Homebrew (macOS) | `brew install mesh-town/meshtown/meshtown` |
 
-Other builds (armv7, MIPS) are attached to the [releases](https://github.com/mesh-town/meshtown/releases) of the main
+Other builds (armv7, MIPS) are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this
 repository. Every folder has a `SHA256SUMS` file and a README with the install notes and the list of versions. The
 source code and the build workflows are in the [main repository](https://github.com/mesh-town/meshtown).

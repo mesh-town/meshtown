@@ -61,7 +61,7 @@ class PackageMetadata(unittest.TestCase):
         # then
         self.assertEqual(info["license"], "AGPL-3.0-only")
         self.assertEqual(info["maintainer"], "Mesh Town <340663027+mesh-town@users.noreply.github.com>")
-        self.assertEqual(info["url"], "https://github.com/mesh-town/meshtown")
+        self.assertEqual(info["url"], "https://github.com/mesh-town/meshtown-dist")
 
     def test_has_the_four_maintainer_scripts_and_no_others(self):
         # given
