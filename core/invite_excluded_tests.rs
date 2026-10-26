@@ -5,7 +5,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
-use crate::invite::make;
+use crate::invite::{make, OutOfNetwork};
 use crate::members::access::tally::{Exclusion, ForgetRound, How, Ledger};
 use crate::members::access::view::Verdicts;
 use crate::members::network_key::NetworkKey;
@@ -139,6 +139,10 @@ fn then_refused(node: &RunningNode) {
     let Err(error) = make(&node.invite_source(), None) else {
         panic!("a node out of the network must not make an invite");
     };
+    assert!(
+        error.downcast_ref::<OutOfNetwork>().is_some(),
+        "unexpected refusal: {error:#}"
+    );
     let text = error.to_string();
     assert!(text.contains(REFUSAL), "unexpected refusal: {text}");
 }

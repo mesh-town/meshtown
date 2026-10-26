@@ -1,4 +1,4 @@
-//! Who may issue an invite: in a Managed network only an admin.
+//! Who may issue an invite: in a Managed network only an admin, and never a node that left the network.
 //!
 //! What it does: tells a Peer network (no restriction) from a Managed one and, in the latter, checks that this
 //! node is an admin and lists the admins the view lets in (they alone are asked to keep the invite).
@@ -22,6 +22,18 @@ impl fmt::Display for NotAdmin {
 }
 
 impl std::error::Error for NotAdmin {}
+
+/// The refusal of an issue: this node left the network, was excluded or forgotten.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OutOfNetwork;
+
+impl fmt::Display for OutOfNetwork {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("this computer is no longer in the network, so it cannot invite anyone")
+    }
+}
+
+impl std::error::Error for OutOfNetwork {}
 
 /// `None` in a Peer network; in a Managed one the listed admins, or `NotAdmin` when this node is not one.
 pub(super) fn issuing_admins(src: &Source) -> Result<Option<BTreeSet<PeerId>>, NotAdmin> {
