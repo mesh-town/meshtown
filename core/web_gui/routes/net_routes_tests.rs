@@ -292,7 +292,7 @@ impl Drop for ExitChoice {
 }
 
 fn setup_exit_choice() -> ExitChoice {
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static COUNTER: portable_atomic::AtomicU64 = portable_atomic::AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("net-routes-{}-{n}", std::process::id()));
     let main = file_slot("main", &dir.join("main"), None);

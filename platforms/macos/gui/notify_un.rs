@@ -3,6 +3,9 @@
 //! `show` is called from the `tray-notify` worker thread and blocks it: every asynchronous answer of the center is awaited
 //! on a channel for a bounded time, so a stuck permission prompt cannot hang the worker forever.
 
+// macOS targets are 64-bit; the portable crate is a core-only dependency.
+#![allow(clippy::disallowed_types)]
+
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::OnceLock;

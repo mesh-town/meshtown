@@ -242,7 +242,7 @@ fn labelled_key(label: &str) -> String {
 }
 
 fn setup() -> Fixture {
-    static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static COUNTER: portable_atomic::AtomicU64 = portable_atomic::AtomicU64::new(0);
     let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = std::env::temp_dir().join(format!("routes-config-{}-{n}", std::process::id()));
     let main = file_slot("main", &dir.join("main"), Some(&labelled_key("home")));

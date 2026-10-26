@@ -4,8 +4,9 @@
 //! What it does: boots the creator, lets two nodes in by an invite from the page, makes one an administrator.
 //! What it doesn't do: no assertions about the close itself; the tests own them.
 
+use portable_atomic::AtomicU64;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use meshtown_core::config::config_file::{
