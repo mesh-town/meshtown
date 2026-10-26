@@ -110,6 +110,8 @@ mod initiator {
         // then: A noted its own refusal, nobody became a member
         then_refusal(&fx.ini.ctx, b, Refuser::Me, Deny::Excluded);
         fx.then_nobody_is_member();
+        // then: the error says it is our own refusal, not the peer's
+        then_own_refusal(&initiated, Deny::Excluded);
     }
 
     #[tokio::test]
@@ -127,6 +129,8 @@ mod initiator {
         fx.ini.then_closed_with(403, b"not admitted");
         then_refusal(&fx.ini.ctx, b, Refuser::Me, Deny::Unlisted);
         fx.then_nobody_is_member();
+        // then: the error says it is our own refusal, not the peer's
+        then_own_refusal(&initiated, Deny::Unlisted);
     }
 
     #[tokio::test]
@@ -143,6 +147,8 @@ mod initiator {
         );
         fx.ini.then_closed_with(403, b"left");
         then_refusal(&fx.ini.ctx, b, Refuser::Me, Deny::Left);
+        // then: the error says it is our own refusal, not the peer's
+        then_own_refusal(&initiated, Deny::Left);
     }
 }
 
@@ -238,6 +244,22 @@ fn view_after_leaving(me: PeerId, listed: &[PeerId]) -> AccessView {
     let ledger = Arc::make_mut(&mut v.ledger);
     ledger.excluded.get_mut(&me).expect("me is excluded").how = How::Left;
     view_of(v)
+}
+
+/// The handshake error is our own refusal with this reason, and does not claim that the peer refused.
+fn then_own_refusal(result: &anyhow::Result<impl std::fmt::Debug>, deny: Deny) {
+    let err = result.as_ref().unwrap_err();
+    assert_eq!(
+        err.downcast_ref::<crate::members::handshake::RefusedByUs>()
+            .map(|r| r.0),
+        Some(deny),
+        "error chain: {err:#}"
+    );
+    assert!(
+        err.downcast_ref::<crate::members::handshake::RefusedByPeer>()
+            .is_none(),
+        "the error must not say the peer refused: {err:#}"
+    );
 }
 
 /// The one refusal `ctx` has noted: about `peer`, by `by`, for `deny`.

@@ -19,8 +19,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
 pub use super::handshake_name::{name_frame, parse_name_tail};
-pub use super::handshake_refusal::RefusedByPeer;
 use super::handshake_refusal::{learn_refusal, typed_refusal, with_refusal};
+pub use super::handshake_refusal::{RefusedByPeer, RefusedByUs};
 use crate::members::access::view::{Side, ACCESS_CLOSE_CODE};
 use crate::members::membership::{self, MemberContext, MemberEvent};
 use crate::members::network_key::fill_random;
@@ -76,7 +76,7 @@ async fn admit_peer(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()>
     };
     access.note_refusal(conn.peer(), Side::Me, deny);
     conn.close(ACCESS_CLOSE_CODE, deny.wire_reason());
-    bail!("peer refused by the membership list: {}", deny.code())
+    Err(RefusedByUs(deny).into())
 }
 
 /// Reads the responder's nonce and tag; a failed read may mean the responder refused us.

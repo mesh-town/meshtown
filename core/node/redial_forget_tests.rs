@@ -209,7 +209,7 @@ mod removed_refusal {
                 self.dialer.on_dial_failed(crate::node::dial::DialFailed {
                     peer: self.peer,
                     reason: "refused".to_string(),
-                    refusal: Some(deny),
+                    refusal: crate::node::dial::DialRefusal::ByPeer(deny),
                 });
             }
         }

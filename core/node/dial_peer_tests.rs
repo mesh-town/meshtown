@@ -101,6 +101,31 @@ mod down_reason {
     }
 }
 
+mod refused_by_us {
+    use super::*;
+
+    #[tokio::test]
+    async fn own_refusal_with_access_open_redials_at_once() {
+        // given: our list lets B in (the default list is open), so a refusal by it is a stale verdict
+        let mut fx = setup(Opts::default()).await;
+
+        // when: a dial of B fails because our own list refused it
+        fx.dialer.on_dial_failed(DialFailed {
+            peer: pid(SEED_B),
+            reason: "refused".into(),
+            refusal: DialRefusal::ByUs(Deny::Excluded),
+        });
+
+        // then: the retry is due at once, not after the first step of the pause ladder
+        let due = fx.dialer.next_redial_at().expect("attempt scheduled");
+        assert!(
+            due <= Instant::now() + Duration::from_secs(1),
+            "the retry must not wait for the ladder"
+        );
+        fx.close().await;
+    }
+}
+
 // ---- helpers ----
 
 #[derive(Default)]

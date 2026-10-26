@@ -17,21 +17,15 @@ use tokio::sync::mpsc;
 use tokio::time::{timeout, Instant};
 
 use crate::members::access::view::Deny;
-use crate::members::handshake::{self, RefusedByPeer};
+use crate::members::handshake;
 use crate::members::membership::{self, MemberContext};
 use crate::members::network_key::fill_random;
 use crate::node::output::{say, short_peer_id};
 
+use super::dial_outcome::{report_failure, say_initiator_success};
 use super::redial::{is_loud, Redial};
 
-/// A dial failure (failed connection, 15 s timeout, handshake refusal) — the text of today's
-/// log line instead of the line itself; `PeerDialer::on_dial_failed` prints it loudly or quietly.
-pub(super) struct DialFailed {
-    pub(super) peer: PeerId,
-    pub(super) reason: String,
-    /// The other side refused us with this reason, if it did.
-    pub(super) refusal: Option<Deny>,
-}
+pub(super) use super::dial_outcome::{DialFailed, DialRefusal};
 
 /// Dialing every known member that isn't connected yet: addresses from `on_addr_found`, failures from
 /// the `DialFailed` channel, retries by the `Redial` deadline.
@@ -101,17 +95,23 @@ impl PeerDialer {
     /// Handles a dial failure: the member is already confirmed another way (an incoming counter-call) —
     /// just cancels the retry without a line; otherwise counts the next attempt and pause, with a line
     /// on the first three attempts and on powers of two.
+    /// A refusal by our own list skips the ladder: see `wait_until_allowed`.
     pub(super) fn on_dial_failed(&mut self, f: DialFailed) {
         if self.ctx.members.is_member(f.peer) {
             self.redial.up(f.peer);
             return;
         }
-        let (attempt, pause) = self.redial.failed(
-            f.peer,
-            Instant::now(),
-            random_u32(),
-            f.refusal == Some(Deny::Unlisted),
-        );
+        match f.refusal {
+            DialRefusal::ByUs(_) => self.wait_until_allowed(&f),
+            other => self.back_off(&f, other == DialRefusal::ByPeer(Deny::Unlisted)),
+        }
+    }
+
+    /// Counts the next attempt and pause, with a line on the first three attempts and on powers of two.
+    fn back_off(&mut self, f: &DialFailed, unlisted: bool) {
+        let (attempt, pause) = self
+            .redial
+            .failed(f.peer, Instant::now(), random_u32(), unlisted);
         if is_loud(attempt) {
             say(
                 "auth",
@@ -122,6 +122,16 @@ impl PeerDialer {
                 ),
             );
         }
+    }
+
+    /// Our own list refused the peer: no pause ladder, the dial waits until access allows it.
+    fn wait_until_allowed(&mut self, f: &DialFailed) {
+        say(
+            "auth",
+            format!("{}; redialing once access allows it", f.reason),
+        );
+        let allowed = self.ctx.members.access().allows(f.peer);
+        self.redial.refused_by_us(f.peer, Instant::now(), allowed);
     }
 
     pub(super) fn dial_due_peers(&mut self) {
@@ -206,45 +216,6 @@ fn random_u32() -> u32 {
     u32::from_le_bytes(bytes)
 }
 
-/// Clears the "dial in progress" mark and sends the failure to the `failed` channel with the same text;
-/// `PeerDialer::on_dial_failed` decides whether to show it loudly or quietly. The order is the same in all three failure places
-/// of `dial_peer`: first `end_dial`, then the send — a dial of the same id raised at that moment
-/// will find `Members::dialing` already free, not busy.
-fn report_failure(
-    ctx: &MemberContext,
-    failed: &mpsc::UnboundedSender<DialFailed>,
-    peer: PeerId,
-    reason: String,
-    refusal: Option<Deny>,
-) {
-    ctx.members.end_dial(peer);
-    let _ = failed.send(DialFailed {
-        peer,
-        reason,
-        refusal,
-    });
-}
-
-/// Suffix for the handshake success line: empty on the first attempt, otherwise the attempt number.
-fn success_suffix(attempt: u32) -> String {
-    if attempt <= 1 {
-        return String::new();
-    }
-    format!(", attempt {attempt}")
-}
-
-/// Logs a successful handshake in which this node was the initiator.
-fn say_initiator_success(peer: &PeerId, attempt: u32) {
-    say(
-        "auth",
-        format!(
-            "handshake with {}: success (I am the initiator{})",
-            short_peer_id(peer),
-            success_suffix(attempt)
-        ),
-    );
-}
-
 /// Dials the discovered member and runs the handshake as the initiator. A failure goes
 /// not as a log line but through the `failed` channel with the same text (`report_failure`) —
 /// `PeerDialer::on_dial_failed` decides, loudly or quietly.
@@ -266,7 +237,7 @@ async fn dial_peer(
                 &failed,
                 peer,
                 format!("no connection to {}: {e}", short_peer_id(&peer)),
-                None,
+                DialRefusal::NotRefused,
             );
             return;
         }
@@ -279,7 +250,7 @@ async fn dial_peer(
                     "no connection to {}: didn't finish within 15 s",
                     short_peer_id(&peer)
                 ),
-                None,
+                DialRefusal::NotRefused,
             );
             return;
         }
@@ -297,7 +268,7 @@ async fn dial_peer(
                 &failed,
                 peer,
                 format!("handshake with {}: refused — {e:#}", short_peer_id(&peer)),
-                e.downcast_ref::<RefusedByPeer>().map(|r| r.0),
+                DialRefusal::of(&e),
             );
         }
     }
