@@ -18,6 +18,13 @@ describe("netSubViews", () => {
   });
 
   describe("in the phone app", () => {
+    it("has no services section but keeps members and device", () => {
+      const ids = netSubViews(true).map((s) => s.id);
+      assert.ok(!ids.includes("services"), "services is hidden");
+      assert.ok(ids.includes("members"), "members stays");
+      assert.ok(ids.includes("device"), "device stays");
+    });
+
     it("two sections: Members and Device settings, services is hidden", () => {
       assert.deepEqual(netSubViews(true), [
         { id: "members", label: "Members" },

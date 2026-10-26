@@ -104,6 +104,20 @@ describe("Shared services of the second network", () => {
     });
   });
 
+  describe("refusal and a switch of network", () => {
+    it("a refusal shown on the second network is not shown after moving to the first", async () => {
+      const { wrapper, node } = await setup(NET_B);
+      node.fail = { path: PUT_B, status: 409, body: REFUSAL };
+      await when_publishing(wrapper, 9090, "db");
+      expect(wrapper.get("#ports-status").text()).toContain(REFUSAL.message);
+      location.hash = "peers/main/services";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      await settle();
+      expect(wrapper.get("#ports-status").text()).not.toContain(REFUSAL.message);
+      expect(wrapper.get("#port-add-port").element.value, "the form is empty on the other network").toBe("");
+    });
+  });
+
   describe("edit and unpublish", () => {
     it("the name changes in the config of this network only", async () => {
       const { wrapper, node } = await setup(NET_B, { a: { own: [own(8080, "web", "all")] }, b: { own: [own(8080, "web", "all")] } });
