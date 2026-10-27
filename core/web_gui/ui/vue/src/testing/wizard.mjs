@@ -56,8 +56,14 @@ export function unmountWizard(mounted) {
   Reflect.deleteProperty(navigator, "clipboard");
 }
 
-/** The id of the screen the wizard shows now (`data-step` of `#wizard-screen`). */
+/** The screen the wizard shows now (`data-step` of `#wizard-screen`): `choices`, `join`, `exit` or `connect`. */
 export const step = (wrapper) => wrapper.get("#wizard-screen").attributes("data-step");
+
+/** The ids of the rows of the questions page, top to bottom (`scope`, `os`, `browser`, `guide`). */
+export const rows = (wrapper) => wrapper.findAll(".wizard-row").map((r) => r.attributes("data-step"));
+
+/** The open step: the last row of the questions page, or the screen when it is not the questions page. */
+export const cursor = (wrapper) => rows(wrapper).at(-1) ?? step(wrapper);
 
 /** The text of the step indicator, e.g. "Step 2 of 6". */
 export const progress = (wrapper) => wrapper.get("#wizard-progress").text();
@@ -78,15 +84,13 @@ export async function click(wrapper, selector) {
 }
 
 /**
- * Walks forward to the guide screen: on the os and browser screens the tile of `os`/`browser` is clicked when given,
- * everywhere else Next is pressed (so the scope must be remembered or the walk fails on a missing Next).
+ * Brings the questions page to the instruction: the tile of `scope`, `os` and `browser` is clicked when given.
+ * A scope that is not remembered must be given, or the instruction row never opens.
  */
-export async function toGuide(wrapper, { os, browser } = {}) {
-  for (let i = 0; i < 6 && step(wrapper) !== "guide"; i += 1) {
-    const here = step(wrapper);
-    const tile = here === "os" ? os : here === "browser" ? browser : undefined;
-    await click(wrapper, tile ? "#" + here + "-" + tile : "#wizard-next");
-  }
+export async function toGuide(wrapper, { scope, os, browser } = {}) {
+  if (scope) await click(wrapper, "#scope-" + scope);
+  if (os) await click(wrapper, "#os-" + os);
+  if (browser) await click(wrapper, "#browser-" + browser);
 }
 
 /** Element text without the hover tips of the terms, whitespace collapsed. */

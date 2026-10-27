@@ -12,7 +12,10 @@ export const WIZARD_TEXT = {
   browserQuestion: 'Which browser do you use?',
 } as const;
 
-export type WizardStep = 'join' | 'scope' | 'os' | 'browser' | 'guide' | 'exit' | 'connect';
+/** A screen of the wizard: the questions page, or one of the single steps. */
+export type WizardScreen = 'choices' | 'join' | 'exit' | 'connect';
+/** A row of the questions page. */
+export type WizardRow = 'scope' | 'os' | 'browser' | 'guide';
 export type WizardScope = 'system' | 'browser';
 export type WizardOs = 'mac' | 'windows' | 'linux' | 'android' | 'ios';
 export type WizardBrowser = 'chrome' | 'edge' | 'safari' | 'firefox' | 'other';
@@ -22,18 +25,22 @@ export type WizardTile = `scope-${WizardScope}` | `os-${WizardOs}` | `browser-${
 const SETUP_MARK_KEY = 'meshtown.homeSetup';
 
 /**
- * The step-by-step setup on Home ("Setup" tab): one screen at a time, with a progress line, a question,
- * choice tiles and Back / Next / Skip / Finish. The Overview tab next to it is here too, to leave the setup.
+ * The step-by-step setup on Home ("Setup" tab): one page with the questions one under another (the next row opens
+ * when the one above is answered), then the exit screen; a progress line, choice tiles and Back / Next / Skip / Finish. The Overview tab next to it is here too, to leave the setup.
  */
 export class HomeWizard {
   readonly region: Locator;
   /** The "Setup" and "Overview" tabs of Home. */
   readonly setupTab: Locator;
   readonly overviewTab: Locator;
-  /** The screen container; its `data-step` names the current step. */
+  /** The screen container; its `data-step` names the current screen. */
   readonly screen: Locator;
-  /** The heading of the current screen (it takes the focus after a step change). */
+  /** The heading of the exit or connect screen (it takes the focus after a screen change). */
   readonly question: Locator;
+  /** The rows of the questions page, top to bottom; the last one is the open step. */
+  readonly rows: Locator;
+  /** The strip of steps beside (or above) the screen. */
+  readonly strip: Locator;
   /** "Step N of M". */
   readonly progress: Locator;
   /** "✓ You joined the network …" — on the first screen after joining. */
@@ -55,6 +62,8 @@ export class HomeWizard {
     // anchor — id: the screen container and the heading have no role or label of their own
     this.screen = this.region.locator('#wizard-screen');
     this.question = this.region.locator('#wizard-q');
+    this.rows = this.region.locator('#wizard-screen .wizard-row');
+    this.strip = this.region.locator('#wizard-strip');
     this.progress = this.region.locator('#wizard-progress');
     this.joined = this.region.locator('#wizard-joined');
     this.backButton = this.region.getByRole('button', { name: 'Back', exact: true });
@@ -101,27 +110,34 @@ export class HomeWizard {
     await this.finishButton.click();
   }
 
-  async expectStep(step: WizardStep): Promise<void> {
-    await expect(this.screen).toHaveAttribute('data-step', step);
+  async expectScreen(screen: WizardScreen): Promise<void> {
+    await expect(this.screen).toHaveAttribute('data-step', screen);
+  }
+
+  /** The heading of a row of the questions page. */
+  rowHeading(row: WizardRow): Locator {
+    // anchor — id: the heading has no label of its own besides its (long) question
+    return this.region.locator(`#wizard-q-${row}`);
+  }
+
+  /** The questions page is open and its last (open) row is `row`. */
+  async expectCursor(row: WizardRow): Promise<void> {
+    await this.expectScreen('choices');
+    await expect(this.rows.last()).toHaveAttribute('data-step', row);
   }
 
   /**
-   * From the first question to the instruction. A tile leads on at once. With scope "browser" the system question
-   * is skipped, so `os` is not used there; on a phone system there is no browser question (`browser` is not used).
+   * From the first question to the instruction. The answer to the scope opens every row below it (the system and the
+   * browser are detected); a tile of `os` and `browser` is then pressed when given. Not used with scope "browser": `os`;
+   * on a phone system there is no browser row.
    */
   async toGuide(scope: WizardScope, os: WizardOs, browser: WizardBrowser | null = null): Promise<void> {
-    await this.expectStep('scope');
+    await this.expectCursor('scope');
     await this.tile(`scope-${scope}`).click();
-    const phone = scope === 'system' && (os === 'android' || os === 'ios');
-    if (scope === 'system') {
-      await this.expectStep('os');
-      await this.tile(`os-${os}`).click();
-    }
-    if (!phone && browser) {
-      await this.expectStep('browser');
-      await this.tile(`browser-${browser}`).click();
-    }
-    await this.expectStep('guide');
+    await this.expectCursor('guide');
+    if (scope === 'system') await this.tile(`os-${os}`).click();
+    if (browser && !(scope === 'system' && (os === 'android' || os === 'ios'))) await this.tile(`browser-${browser}`).click();
+    await this.expectCursor('guide');
   }
 
   /** The setup mark kept by the page (`null` — none). */
