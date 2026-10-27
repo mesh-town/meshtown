@@ -191,3 +191,30 @@ impl Fixture {
         );
     }
 }
+
+mod relay_line {
+    use super::*;
+
+    #[test]
+    fn appearing_key_says_serving() {
+        // when
+        let line = relay_line(None, Some([1; 32]));
+        // then
+        let want = format!("serving as relay for members of network {NET_NAME}");
+        assert_eq!(line, Some(want));
+    }
+
+    #[test]
+    fn vanishing_key_says_stopped() {
+        assert_eq!(
+            relay_line(Some([1; 32]), None),
+            Some("stopped serving as relay".to_string())
+        );
+    }
+
+    #[test]
+    fn unchanged_state_is_silent() {
+        assert_eq!(relay_line(None, None), None);
+        assert_eq!(relay_line(Some([1; 32]), Some([2; 32])), None);
+    }
+}

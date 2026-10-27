@@ -155,7 +155,7 @@ impl Host {
             return HostStep::Stay;
         };
         let key = node.public_key();
-        tracing::info!("relay: serving this network as {}", short(&key));
+        tracing::debug!("relay: serving this network as {}", short(&key));
         state.started(key);
         *relay = Some(node);
         HostStep::Advertise(key)

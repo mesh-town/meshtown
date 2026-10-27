@@ -8,9 +8,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::members::membership::Members;
 use crate::node::output::{say, short_peer_id};
 use crate::node::telemetry::Telemetry;
-use crate::transport::net::{AddrHint, NetStack, PathWatch, PeerAddr, PeerConn, PeerId};
+use crate::transport::net::{
+    AddrHint, NetStack, PathKind, PathWatch, PeerAddr, PeerConn, PeerId, RelayRef,
+};
 use crate::web_gui::PathKindView;
 
 fn rtt_ms(rtt: Option<Duration>) -> Option<u64> {
@@ -37,6 +40,31 @@ pub(crate) fn record_peer_up(
     hint
 }
 
+/// The log line for a connection that runs through a relay; `None` for any other path.
+fn relay_connect_line(
+    who: &str,
+    path: &PathKind,
+    label: impl Fn(PeerId) -> String,
+) -> Option<String> {
+    let PathKind::Relayed(relay) = path else {
+        return None;
+    };
+    let via = match relay {
+        RelayRef::Peer(id) => label(*id),
+        RelayRef::Url(url) => url.clone(),
+    };
+    Some(format!("connected to {who} via relay of {via}"))
+}
+
+/// Prints a `[relay]` line when the new connection runs through a relay.
+pub(crate) fn say_if_relayed(conn: &dyn PeerConn, members: &Members) {
+    let who = members.peer_label(conn.peer());
+    let line = relay_connect_line(&who, &conn.link().path, |id| members.peer_label(id));
+    if let Some(line) = line {
+        say("relay", line);
+    }
+}
+
 /// Prints a line on every change of the chosen path until the connection closes and writes the same path
 /// into the node's telemetry.
 pub(crate) async fn watch_path(mut watch: Box<dyn PathWatch>, peer: PeerId, tel: Arc<Telemetry>) {
@@ -49,6 +77,10 @@ pub(crate) async fn watch_path(mut watch: Box<dyn PathWatch>, peer: PeerId, tel:
 #[cfg(test)]
 #[path = "peer_path_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "peer_path_relay_tests.rs"]
+mod relay_tests;
 
 #[cfg(test)]
 #[path = "peer_path_hint_tests.rs"]
