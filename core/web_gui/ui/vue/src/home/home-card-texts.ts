@@ -75,6 +75,7 @@ export const HOME_WIZARD_JOIN_BTN = "Join with an invite";
 export const HOME_WIZARD_CREATE_BTN = "Create a new network";
 export const HOME_WIZARD_TITLE = "Three steps to open a blocked site";
 export const HOME_WIZARD_JOINED = "✓ You joined the network";
+export const HOME_WIZARD_JOINED_NOT_RUNNING = "The network is saved, but " + NET_NAME + " isn't running yet";
 export const HOME_WIZARD_STEP_BROWSER = "Set up your browser";
 export const HOME_WIZARD_BROWSER_DONE = "Done, my browser is set up";
 export const HOME_WIZARD_STEP_EXIT = "Choose an exit";
