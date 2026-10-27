@@ -77,6 +77,7 @@ fn build_web_app(
         host,
         token_dir: opts.token_dir.clone(),
         stopping: std::sync::atomic::AtomicBool::new(false),
+        pending_invites: Default::default(),
     });
     let router = super::routes::router(app.clone());
     (app, router)

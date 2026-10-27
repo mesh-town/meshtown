@@ -84,6 +84,7 @@ async fn get(node: &Arc<InviteNode>, path: &str) -> (StatusCode, Value) {
         host: single_slot_host(node.clone(), ConfigState::from_run(&run)),
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
+        pending_invites: Default::default(),
     });
     let host = format!("127.0.0.1:{PORT}");
     let req = Request::builder()

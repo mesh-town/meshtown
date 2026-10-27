@@ -61,6 +61,9 @@ pub(crate) struct App {
     pub host: Arc<dyn HostControl>,
     pub token_dir: Option<PathBuf>,
     pub stopping: std::sync::atomic::AtomicBool,
+    /// Network id (hex) of an invite already sent -> the slot that waits for it.
+    pub pending_invites:
+        std::sync::Mutex<std::collections::HashMap<String, crate::config::config_file::NetSlotId>>,
 }
 
 pub(crate) fn now_unix() -> u64 {
