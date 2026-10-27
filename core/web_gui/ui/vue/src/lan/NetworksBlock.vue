@@ -3,6 +3,7 @@
 import { inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { BTN_CANCEL, BTN_SAVE } from "./nets-labels.ts";
+import { forDevice } from "../common/device.ts";
 import { AUTO_BTN, AUTO_NOTE, EMPTY_HINT, HERE_NOTE, NETS_NO_STORE, NETS_SUB, NETS_TAG, NETS_TITLE, WARN_PROVIDER } from "./nets-texts.ts";
 import NetsSaved from "./NetsSaved.vue";
 import { useNets } from "./use-nets.ts";
@@ -35,7 +36,7 @@ async function done(ok: boolean): Promise<void> {
         <span class="net-main"><span class="net-name">{{ r.title }}</span><span class="net-note"><template v-if="r.hint">{{ r.hint }} · </template><code>{{ r.code }}</code></span></span>
         <span v-if="r.badge" class="net-badge">{{ r.badge }}</span>
       </label>
-      <div v-if="r.locked && n.hereNote.value" id="nets-here-note" class="net-here-note">{{ HERE_NOTE }}</div>
+      <div v-if="r.locked && n.hereNote.value" id="nets-here-note" class="net-here-note">{{ forDevice(HERE_NOTE) }}</div>
       <div v-if="r.warn" :id="'net-warn-' + r.name" class="net-warn">{{ WARN_PROVIDER }}</div>
     </template>
     <div class="nets-foot">

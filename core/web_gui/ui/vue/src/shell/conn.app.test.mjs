@@ -1,6 +1,6 @@
 /* `conn.ts::onStopping` inside the Android app (the user agent carries `MeshTownApp/`): the "stopped" strip tells to open
  * the app instead of the tray icon. The choice is made when the strip is set, not when the module loads. The wrong-origin and
- * bad-token strips keep their wording: the app opens the page itself. */
+ * bad-token strips point to the app too. */
 
 import { describe, it, vi } from "vitest";
 import assert from "node:assert/strict";
@@ -47,20 +47,21 @@ describe("onStopping", () => {
 });
 
 describe("the other strips in the app", () => {
-  it("onBadOrigin keeps the wording about the icon", () => {
+  it("onBadOrigin says to open the app", () => {
     given(APP_UA);
     const conn = createConn();
     vi.spyOn(console, "warn").mockImplementation(() => {});
     onBadOrigin(conn, null);
-    assert.equal(conn.strip.text, "The page was opened from the wrong address — open it from the Mesh Town icon near the clock");
+    assert.equal(conn.strip.text, "The page was opened from the wrong address — open it from the Mesh Town app");
   });
 
-  it("onBadToken keeps its wording", () => {
+  it("onBadToken says to open the app", () => {
     given(APP_UA);
     const conn = createConn();
     onBadToken(conn);
     assert.equal(conn.strip.kind, "bad_token");
-    assert.ok(conn.strip.text.includes("icon near the clock"), conn.strip.text);
+    assert.ok(conn.strip.text.includes("from the Mesh Town app"), conn.strip.text);
+    assert.ok(!conn.strip.text.includes("near the clock"), conn.strip.text);
   });
 });
 

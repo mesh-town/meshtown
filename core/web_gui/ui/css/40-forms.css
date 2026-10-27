@@ -35,7 +35,7 @@
   .btn-sm{padding:4px 10px;font-size:12px;}
   .linkbtn{border:0;background:none;padding:0 4px;font:inherit;font-size:12px;color:var(--accent);text-decoration:underline;cursor:pointer;}
   .linkbtn:disabled{opacity:.5;cursor:default;}
-  .btn:disabled,.btn-x:disabled{opacity:.5;cursor:default;}
+  .btn:disabled,.btn-x:disabled,input.exit-choice:disabled{opacity:.5;cursor:default;}
   .addrcell{display:flex;flex-wrap:nowrap;gap:4px 8px;align-items:center;}
   .addrcell .mono{white-space:nowrap;}
   .opencell{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;}

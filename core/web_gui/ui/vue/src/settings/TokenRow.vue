@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // An access token row: show/hide and revoke.
-import { SETTINGS_TOKEN_DESC, SETTINGS_TOKEN_HIDE, SETTINGS_TOKEN_REVOKE, SETTINGS_TOKEN_SHOW, SETTINGS_TOKEN_TITLE } from "./settings-texts.ts";
+import { settingsTokenDescText, SETTINGS_TOKEN_HIDE, SETTINGS_TOKEN_REVOKE, SETTINGS_TOKEN_SHOW, SETTINGS_TOKEN_TITLE } from "./settings-texts.ts";
 
 withDefaults(defineProps<{ revealed?: boolean; token?: string }>(), { revealed: false, token: "" });
 defineEmits<{ (e: "toggle"): void; (e: "rotate"): void }>();
@@ -10,7 +10,7 @@ defineEmits<{ (e: "toggle"): void; (e: "rotate"): void }>();
   <div class="setting-row">
     <div class="setting-text">
       <div class="setting-title">{{ SETTINGS_TOKEN_TITLE }}</div>
-      <div class="setting-desc">{{ SETTINGS_TOKEN_DESC }}</div>
+      <div class="setting-desc">{{ settingsTokenDescText() }}</div>
     </div>
     <div class="setting-control">
       <code class="mono" id="token-display">{{ revealed ? token : "••••••••" }}</code>

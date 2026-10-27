@@ -56,7 +56,7 @@
   .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-right:8px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:600;}
   .wizard-step.pending .step-num{background:var(--grey);color:var(--bg-elev);}
   .step-pick{display:inline-flex;align-items:center;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer;}
-  .step-pick:disabled{cursor:default;} .step-pick:not(:disabled):hover{text-decoration:underline;}
+  .step-pick:disabled{opacity:.5;cursor:default;} .step-pick:not(:disabled):hover{text-decoration:underline;}
   .input-wide{width:100%;}
   #wizard-connect-step{margin:12px 0 0;color:var(--fg-muted);} #wizard-connect-step .step-num{background:var(--grey);color:var(--bg-elev);}
   .wizard-card + #home-phone-card{margin-top:-2px;}

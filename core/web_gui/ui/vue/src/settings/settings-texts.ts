@@ -2,6 +2,8 @@
 
 import { NET_NAME } from "../common/words.ts";
 import { forDevice } from "../common/device.ts";
+import { STOPPED_NOTE, STOPPED_NOTE_APP } from "../common/pac-texts.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 
 // --- Page ---
 export const SETTINGS_STORE_MISSING = "STORE_KEY not provided";
@@ -30,6 +32,9 @@ export const SETTINGS_SAME_NETS_LINK = "change";
 // --- Field row, token ---
 export const SETTINGS_RESTART_BADGE = "after restart";
 export const SETTINGS_TOKEN_TITLE = "Persistent " + NET_NAME + " token";
+export const stoppedNoteText = (): string => (inAppPage() ? STOPPED_NOTE_APP : STOPPED_NOTE);
+export const SETTINGS_TOKEN_DESC_APP = "Used by scripts. You don't need it to sign in: use your password.";
+export const settingsTokenDescText = (): string => (inAppPage() ? SETTINGS_TOKEN_DESC_APP : SETTINGS_TOKEN_DESC);
 export const SETTINGS_TOKEN_DESC = "Used by the tray icon and scripts. You don't need it to sign in: use your password or the link with a temporary token that Mesh Town prints at startup.";
 export const SETTINGS_TOKEN_HIDE = "Hide";
 export const SETTINGS_TOKEN_SHOW = "Show";
