@@ -270,6 +270,7 @@ Exact enum values:
   started without a network key and waiting for a network (`network: null`, below).
 - `node.start_error`: a string with the reason when the last start (a join or a restart) failed and the process
   went back to waiting for a network (`status` is `"offline"`); `null` otherwise. A new start clears it.
+- `members.closed`: `true` when an administrator has closed the network to new members (read from the access ledger; `false` while the node is not attached to a network).
 - `node.identity`: `"persistent"` — the node saved its identity and after a restart will remain the same
   network member; `"temporary"` — it did not save it, and after a restart other members will see this computer as a new member.
   With `"temporary"`, `node.identity_reason` is filled in, otherwise it is `null`. There are three values:
@@ -510,7 +511,6 @@ does not exist is 404 `unknown_net`.
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded; its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
 | `me_admin`, `can_invite` | whether this node is an administrator, whether it may invite. A broken slot: `false, false`; a slot without a key: `false, true` |
-| `closed` | `true` when an administrator has closed the network to new members; the same value is `state.members.closed` |
 | `admission_refused` | `true` when this computer is kept out: it is not excluded, removed or pending, no other member is online, and at least one member refused it (`last_refusal.side == "them"`, reason not `unlisted`). No delay: the page waits before showing it. The same value is `state.members.admission_refused`. `false` for a broken slot |
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters
