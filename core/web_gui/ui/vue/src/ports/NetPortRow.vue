@@ -6,7 +6,7 @@ import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openError
 import { lastErrorText } from "./ports-proto.ts";
 import {
   PORTS_CANCEL, PORTS_CHANGE_HINT, PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COL_BROWSER, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_PROGRAMS, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
-  PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_PROTO_UDP, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
+  PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_OPENING, PORTS_PROTO_UDP, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
 } from "./ports-texts.ts";
 
 // `taken` holds the local numbers already opened in any network, `usedText(local)` says by whom a number is used ("" — free), `error` is the refusal of "Open"/"Close".
@@ -44,6 +44,8 @@ const blocked = computed(() => props.row.proto !== "udp" && isBrowserBlockedPort
 const online = computed(() => props.row.online);
 const udp = computed(() => props.row.proto === "udp");
 const lastError = computed(() => lastErrorText(props.row));
+// A UDP socket still being taken is "binding": not green yet, and the number cannot be changed meanwhile.
+const isListening = computed(() => props.row.opened?.state !== "binding");
 
 async function copy(text: string): Promise<void> {
   if (!(await writeClipboard({ clipboard: navigator.clipboard }, text))) return;
@@ -102,9 +104,9 @@ function cancelChange(): void {
         <template v-else-if="row.opened">
           <span class="mono">{{ portsLocalAddress(row.opened.local) }}</span>
           <button type="button" class="btn btn-sm" :aria-label="portsCopyAddressLabel(portsLocalAddress(row.opened.local))" @click="copy(portsLocalAddress(row.opened.local))">{{ copied === portsLocalAddress(row.opened.local) ? PORTS_COPIED : PORTS_COPY }}</button>
-          <span class="badge" :class="{ 'badge-ok': !lastError }">{{ PORTS_OPENED }}</span>
+          <span class="badge" :class="{ 'badge-ok': isListening && !lastError }">{{ isListening ? PORTS_OPENED : PORTS_OPENING }}</span>
           <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
-          <button type="button" class="linkbtn" :data-port-change="rowKey" :disabled="busy" @click="startChange">{{ PORTS_CHANGE_NUMBER }}</button>
+          <button v-if="isListening" type="button" class="linkbtn" :data-port-change="rowKey" :disabled="busy" @click="startChange">{{ PORTS_CHANGE_NUMBER }}</button>
           <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
           <div v-if="openedUsed" class="hint">{{ openedUsed }}</div>
           <div v-if="lastError" class="field-error-text" :data-port-last-error="rowKey">{{ lastError }}</div>

@@ -35,7 +35,7 @@ const LOG_EVERY: Duration = Duration::from_secs(10);
 
 type SessionFuture = Pin<Box<dyn Future<Output = io::Result<UdpSession>> + Send>>;
 
-/// Starts the UDP listener task. The entry is `Listening` until the task reports a bind failure.
+/// Starts the UDP listener task. The entry is `Binding` until the task reports the socket taken (`Listening`) or a bind failure.
 pub(super) fn bind_udp_entry(
     shared: &Arc<Shared>,
     o: Opened,
@@ -59,6 +59,7 @@ pub(super) fn bind_udp_entry(
         let dialer = dialer.clone();
         Box::pin(async move { dialer.session().await })
     };
+    *lock(&state) = OpenState::Binding;
     let task = crate::node::output::spawn(hold_listener(local, label, state, connect));
     Some(Listener {
         slot: None,
@@ -73,6 +74,7 @@ where
 {
     match open_with_retry(local, connect).await {
         Ok(handle) => {
+            *lock(&state) = OpenState::Listening;
             say("port", format!("127.0.0.1:{local}/udp: opened"));
             let _held: UdpListenerHandle = handle;
             std::future::pending::<()>().await

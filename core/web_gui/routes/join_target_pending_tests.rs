@@ -168,7 +168,12 @@ async fn the_answer_to_a_repeat_names_the_same_slot() {
 #[tokio::test]
 async fn a_repeat_is_not_sent_to_a_slot_waiting_for_another_network() {
     const Z: &str = "ef6a7b";
-    let f = fx(&[("main", Some(&word_key("alpha"))), (X, None), (Y, None), (Z, None)]);
+    let f = fx(&[
+        ("main", Some(&word_key("alpha"))),
+        (X, None),
+        (Y, None),
+        (Z, None),
+    ]);
     wait(&f, X, InviteJoinState::Refused);
     wait(&f, Y, InviteJoinState::Waiting);
     set_add(&f, Z);
