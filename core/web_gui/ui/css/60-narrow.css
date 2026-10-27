@@ -53,3 +53,6 @@
     .exit-row,.port-audience-row{min-height:44px;}
     .exit-row input,.port-audience-row input{width:20px;height:20px;}
   }
+  @media (max-width:599px){
+    #scope-seg .btn,#browser-seg .btn,#os-seg .btn{min-height:44px;}
+  }

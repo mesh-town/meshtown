@@ -55,3 +55,16 @@ test('82-contrast: scope buttons differ by fill', async ({ app, page, targetKind
   expect(await fill('#scope-system')).not.toBe(await fill('#scope-browser'));
   await expect(page.locator('#scope-system')).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('83-contrast: scope, system and browser segments are separate buttons at least 36px tall', async ({ app, page, targetKind }) => {
+  test.skip(targetKind === 'node', 'the demo is enough');
+  await new NetsBlock(page).openWizard();
+  await app.proxyCard.pickScope('system');
+  await app.proxyCard.manualToggle.click();
+  for (const seg of ['#scope-seg', '#os-seg', '#browser-seg']) {
+    const boxes = await page.locator(seg + ' .btn').evaluateAll((els) => els.map((e) => ({ h: e.getBoundingClientRect().height, r: getComputedStyle(e).borderTopLeftRadius, m: getComputedStyle(e).marginLeft })));
+    expect(boxes.length, seg).toBeGreaterThan(1);
+    for (const b of boxes) expect(b, seg).toMatchObject({ r: '7px', m: '0px' });
+    for (const b of boxes) expect(b.h, seg).toBeGreaterThanOrEqual(36);
+  }
+});
