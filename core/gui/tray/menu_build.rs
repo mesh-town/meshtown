@@ -139,6 +139,27 @@ pub(super) fn install_menu_handler(tx: CmdTx) {
     ));
 }
 
+/// Whether the icon event is a button press: the moment before the system opens the menu.
+pub(super) fn is_press(event: &tray_icon::TrayIconEvent) -> bool {
+    matches!(
+        event,
+        tray_icon::TrayIconEvent::Click {
+            button_state: tray_icon::MouseButtonState::Down,
+            ..
+        }
+    )
+}
+
+/// Installs the icon press handler: sends `TrayCmd::MenuOpened` through the same `CmdTx`, so the menu can be
+/// refreshed before it is shown. The platform sends no such event on Linux — there the handler is idle.
+pub(super) fn install_tray_handler(tx: CmdTx) {
+    tray_icon::TrayIconEvent::set_event_handler(Some(move |event: tray_icon::TrayIconEvent| {
+        if is_press(&event) {
+            tx.send(TrayCmd::MenuOpened);
+        }
+    }));
+}
+
 /// The raised icon and its parts: the icon itself, the menu items that change text/availability on every
 /// `TrayCmd::Update`/`TrayCmd::ExitMenu` (status, "Open Mesh Town…", node, proxy), the icon cache by
 /// color (the index is `TrayColor as usize`), the built spinner frames, the key of the installed picture, the exits

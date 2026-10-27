@@ -18,6 +18,11 @@ pub(super) fn changes_node_state(cmd: &NodeCmd) -> bool {
     )
 }
 
+/// Whether the command asks for a snapshot right away: node edits and an explicit refresh.
+pub(super) fn wants_snapshot(cmd: &NodeCmd) -> bool {
+    changes_node_state(cmd) || matches!(cmd, NodeCmd::Refresh)
+}
+
 /// A tray menu command: dispatched by phase.
 pub(super) async fn on_cmd(
     poller: &mut Poller,
@@ -64,5 +69,11 @@ pub(super) async fn on_cmd(
             Ok(phase)
         }
         NodeCmd::SetExitServer { .. } => Ok(phase),
+        // Only the tick reset in `step` matters: nothing to send, the phase stays.
+        NodeCmd::Refresh => Ok(phase),
     }
 }
+
+#[cfg(test)]
+#[path = "poller_cmd_tests.rs"]
+mod tests;

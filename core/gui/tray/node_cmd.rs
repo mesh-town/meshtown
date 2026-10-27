@@ -20,6 +20,8 @@ pub enum NodeCmd {
     },
     /// Copy the invite of a network to the clipboard — a click on "Invite a member".
     CopyInvite(Option<String>),
+    /// Fetch a fresh snapshot now — the menu is about to open.
+    Refresh,
 }
 
 /// Sender of commands to the node poller.

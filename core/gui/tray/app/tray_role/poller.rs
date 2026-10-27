@@ -18,7 +18,7 @@ use crate::gui::tray::NodeCmd;
 
 use super::overview_poll::{fetch_node_reply, OverviewGate};
 use super::poll_types::{CopyFn, NotifyFn, Once, PollEnv, PollTiming};
-use super::poller_cmd::{changes_node_state, on_cmd};
+use super::poller_cmd::{on_cmd, wants_snapshot};
 use super::poller_phase::Phase;
 use super::start_fail::StartFail;
 use super::views::grey_view;
@@ -211,10 +211,10 @@ async fn step(
             Ok(phase)
         }
         PollEvent::Cmd(Some(cmd)) => {
-            let edits = changes_node_state(&cmd);
+            let edits = wants_snapshot(&cmd);
             let next = on_cmd(poller, phase, quit_triggers, cmds, cmd).await;
             if edits {
-                // Polling runs every 10 s: after a node edit the next tick comes right away, not after the period.
+                // Polling runs every 10 s: after a node edit or a menu open the next tick comes right away, not after the period.
                 ticker.reset_immediately();
             }
             next
