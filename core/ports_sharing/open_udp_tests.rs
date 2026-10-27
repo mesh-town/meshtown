@@ -34,7 +34,7 @@ mod udp_entry {
 
         // then: the port is taken and the state is "listening"
         eventually("the UDP port is taken", || udp_taken(local)).await;
-        assert_eq!(fx.state(Proto::Udp, local), OpenState::Listening);
+        crate::ports_sharing::open::udp_binding_tests::listens(&fx, local).await;
     }
 
     #[tokio::test]
@@ -48,7 +48,8 @@ mod udp_entry {
         fx.opener
             .reconcile_listeners(vec![entry(Proto::Udp, 53, local)]);
 
-        // then: soon the state is "bind failed" with the reason
+        // then: first it is binding, soon the state is "bind failed" with the reason
+        assert_eq!(fx.state(Proto::Udp, local), OpenState::Binding);
         eventually("bind failed", || {
             matches!(fx.state(Proto::Udp, local), OpenState::BindFailed(_))
         })
@@ -95,7 +96,7 @@ mod udp_entry {
         // then: both listen
         eventually("the UDP port is taken", || udp_taken(local)).await;
         assert_eq!(fx.state(Proto::Tcp, local), OpenState::Listening);
-        assert_eq!(fx.state(Proto::Udp, local), OpenState::Listening);
+        crate::ports_sharing::open::udp_binding_tests::listens(&fx, local).await;
         assert!(
             TcpStream::connect(("127.0.0.1", local)).await.is_ok(),
             "TCP does not listen"
@@ -238,7 +239,7 @@ mod dial_result {
 }
 
 /// What the node on the other side of the opener does.
-enum Peer {
+pub(super) enum Peer {
     /// Accepts streams and never replies.
     Silent,
     /// Counts streams and never replies.
@@ -250,13 +251,13 @@ enum Peer {
 }
 
 /// A (seed 1) holds the opener; B (seed 2) is `peer`. The node B is a member of A if `member`.
-struct Fixture {
-    opener: Opener,
+pub(super) struct Fixture {
+    pub(super) opener: Opener,
     members: Members,
     _keep: (Arc<MemNet>, NetStack),
 }
 
-async fn setup(peer: Peer, member: bool) -> Fixture {
+pub(super) async fn setup(peer: Peer, member: bool) -> Fixture {
     let handler: Arc<dyn ServiceHandler> = match peer {
         Peer::Silent => Counting::new().handler(),
         Peer::Counting(c) => c.handler(),
@@ -286,7 +287,7 @@ impl Fixture {
         (state, reach)
     }
 
-    fn state(&self, proto: Proto, local: u16) -> OpenState {
+    pub(super) fn state(&self, proto: Proto, local: u16) -> OpenState {
         self.row(proto, local).0
     }
 
@@ -314,7 +315,7 @@ async fn counting_listener() -> (Fixture, Counting, u16) {
     (fx, streams, local)
 }
 
-fn entry(proto: Proto, port: u16, local: u16) -> Opened {
+pub(super) fn entry(proto: Proto, port: u16, local: u16) -> Opened {
     Opened {
         node: pid(2),
         port,
@@ -339,7 +340,7 @@ async fn hears(sender: &UdpSocket) -> Vec<u8> {
 }
 
 /// The local UDP port is held by somebody: a second bind fails.
-fn udp_taken(local: u16) -> bool {
+pub(super) fn udp_taken(local: u16) -> bool {
     std::net::UdpSocket::bind(("127.0.0.1", local)).is_err()
 }
 
@@ -357,7 +358,7 @@ fn bind_failed_text(local: u16) -> String {
 }
 
 /// Waits (polling every 20 ms, up to `LIMIT`) until `cond` holds.
-async fn eventually(what: &str, mut cond: impl FnMut() -> bool) {
+pub(super) async fn eventually(what: &str, mut cond: impl FnMut() -> bool) {
     let start = tokio::time::Instant::now();
     while !cond() {
         assert!(start.elapsed() < LIMIT, "timed out after {LIMIT:?}: {what}");
@@ -367,7 +368,7 @@ async fn eventually(what: &str, mut cond: impl FnMut() -> bool) {
 
 /// Peer scenario: counts the streams it accepted and keeps them open without ever replying.
 #[derive(Clone)]
-struct Counting(Arc<AtomicUsize>);
+pub(super) struct Counting(Arc<AtomicUsize>);
 
 impl Counting {
     fn new() -> Self {

@@ -24,6 +24,8 @@ use crate::node::output::say;
 /// Result of binding one `Opened` entry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OpenState {
+    /// A UDP socket is not taken yet: a busy port is retried for a short time.
+    Binding,
     Listening,
     BindFailed(String),
 }
@@ -63,9 +65,14 @@ struct Entry {
 }
 
 impl Entry {
-    /// A bound listener; a UDP bind can fail after the entry is made, which the state shows.
-    fn is_listening(&self) -> bool {
-        self.listener.is_some() && *lock(&self.state) == OpenState::Listening
+    /// A live listener, bound or still binding; a UDP bind can fail after the entry is made, which the state shows.
+    /// A binding entry counts: re-creating it would leave the old task running next to the new one.
+    fn is_active(&self) -> bool {
+        let live = matches!(
+            *lock(&self.state),
+            OpenState::Binding | OpenState::Listening
+        );
+        self.listener.is_some() && live
     }
 }
 
@@ -137,7 +144,7 @@ impl Opener {
     ) -> Vec<Entry> {
         let mut entries = Vec::new();
         for o in dedup(opened) {
-            let kept = old.iter().position(|e| e.opened == o && e.is_listening());
+            let kept = old.iter().position(|e| e.opened == o && e.is_active());
             entries.push(match kept {
                 Some(i) if !to_bind.contains(&o) => old.remove(i),
                 _ => self.bind_entry(inner, o),
@@ -184,7 +191,7 @@ impl Opener {
 fn listening_of(entries: &[Entry]) -> Vec<Opened> {
     entries
         .iter()
-        .filter(|e| e.is_listening())
+        .filter(|e| e.is_active())
         .map(|e| e.opened.clone())
         .collect()
 }
@@ -196,7 +203,7 @@ fn close_matching(entries: &mut [Entry], close: &[Opened]) {
 }
 
 fn close_entry(e: &mut Entry) {
-    let was_listening = e.is_listening();
+    let was_listening = e.listener.is_some() && *lock(&e.state) == OpenState::Listening;
     if let Some(l) = e.listener.take() {
         l.close();
     }
@@ -257,6 +264,10 @@ mod tests;
 #[cfg(test)]
 #[path = "open_udp_tests.rs"]
 mod udp_tests;
+
+#[cfg(test)]
+#[path = "open_udp_binding_tests.rs"]
+mod udp_binding_tests;
 
 #[cfg(test)]
 #[path = "open_reach_tests.rs"]

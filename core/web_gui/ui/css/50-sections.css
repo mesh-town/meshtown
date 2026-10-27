@@ -46,6 +46,7 @@
   .exit-row,.port-audience-row{display:flex;align-items:center;gap:10px;min-height:34px;padding:4px 10px;margin:2px 0;font-size:13px;border:1px solid transparent;border-radius:8px;cursor:pointer;}
   .exit-row input,.port-audience-row input{margin:0;flex-shrink:0;}
   .exit-row:has(input:checked),.port-audience-row:has(input:checked){border-color:var(--accent);background:var(--accent-soft);}
+  .exit-row:has(input:disabled),.port-audience-row:has(input:disabled){cursor:default;}
   .port-audience{border:0;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:2px;}
   /* The editor of a published port sits on a backing so it is not confused with the publish form below. */
   .port-edit{padding:12px;margin:4px 0;border:1px solid var(--border);border-radius:8px;background:var(--bg-sunken);}

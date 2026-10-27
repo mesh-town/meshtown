@@ -288,7 +288,7 @@ pub struct NetPort {
     pub web_url: Option<String>,
 }
 
-/// A port open here; `state` is `"listening"` or `"bind_failed"`.
+/// A port open here; `state` is `"binding"` (a UDP socket is being taken), `"listening"` or `"bind_failed"`.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub struct OpenedInfo {
     pub local: u16,
