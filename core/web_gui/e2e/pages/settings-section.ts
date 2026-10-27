@@ -25,6 +25,8 @@ export class SettingsSection {
   readonly saveBar: Locator;
   // id: a toggle without a label or name, `field-checks-enabled`.
   readonly checksEnabled: Locator;
+  // id: a toggle without a label or name, `field-socks-strict`.
+  readonly socksStrict: Locator;
   // id: a list without a label or name, `field-checks-interval_sec`.
   readonly checksInterval: Locator;
   readonly resetButton: Locator;
@@ -57,6 +59,7 @@ export class SettingsSection {
     // exact: next to it in the conflict strip there is "Save my changes over them".
     this.saveButton = this.root.getByRole('button', { name: 'Save', exact: true });
     this.saveBar = page.locator('#settings-save-bar');
+    this.socksStrict = page.locator('#field-socks-strict');
     this.checksEnabled = page.locator('#field-checks-enabled');
     this.checksInterval = page.locator('#field-checks-interval_sec');
     this.resetButton = this.root.getByRole('button', { name: 'Discard changes' });

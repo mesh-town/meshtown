@@ -45,6 +45,17 @@ describe("SettingsSection", () => {
     expect(store.configRev).toBe(2);
   });
 
+  it("the strict-mode switch: \"Save\" sends {socks.strict: true}", async () => {
+    api.mockImplementation(async (_m, _p, body) => ({ config: body.config, rev: 2 }));
+    const { wrapper } = mountSettings();
+    await wrapper.get("#field-socks-strict").setValue(true);
+    await wrapper.get("#settings-save-btn").trigger("click");
+    await flushPromises();
+    const [method, path, body] = api.mock.calls[0];
+    expect([method, path]).toEqual(["PUT", "/api/config"]);
+    expect(body.config.socks.strict).toBe(true);
+  });
+
   it("a 409 response — conflict card with two buttons, no retry", async () => {
     api.mockRejectedValue(new ApiError(409, "stale_rev", "stale", { rev: 5 }));
     const { wrapper } = mountSettings();

@@ -23,6 +23,10 @@ export class HomeProxyCard {
   /** The pressed system button (`aria-pressed="true"`) — exactly one. */
   readonly osPressed: Locator;
 
+  /** The scope question's two buttons: "In the whole system" and "Only in the browser". */
+  readonly scopeSystem: Locator;
+  readonly scopeBrowser: Locator;
+
   constructor(page: Page) {
     this.card = page.getByRole('region', { name: 'Connect the browser to Mesh Town', exact: true });
     // anchor — id: the hint paragraph has no role or label; its bottom is measured
@@ -33,8 +37,15 @@ export class HomeProxyCard {
     this.manualToggle = page.locator('#manual-toggle');
     this.manualSetup = page.locator('#proxy-setup');
     this.copyPortButton = page.locator('#socks-copy-port-btn');
+    this.scopeSystem = page.locator('#scope-system');
+    this.scopeBrowser = page.locator('#scope-browser');
     this.osGroup = page.locator('#os-seg');
     this.osButtons = this.osGroup.getByRole('button');
     this.osPressed = this.osGroup.getByRole('button', { pressed: true });
+  }
+
+  /** Answers "Where should the proxy work?" so that the system steps or the Firefox steps appear. */
+  async pickScope(scope: 'system' | 'browser'): Promise<void> {
+    await (scope === 'system' ? this.scopeSystem : this.scopeBrowser).click();
   }
 }

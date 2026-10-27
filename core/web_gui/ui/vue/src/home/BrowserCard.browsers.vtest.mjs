@@ -21,7 +21,10 @@ const SAFARI_ONLY_MAC = "Safari exists only on macOS. Choose another browser her
 const NO_SAFARI = ["chrome", "edge", "firefox"];
 let mounted;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+});
 afterEach(() => {
   mounted.wrapper.unmount();
   Reflect.deleteProperty(navigator, "userAgent");

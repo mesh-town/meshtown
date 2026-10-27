@@ -27,9 +27,9 @@ afterEach(() => {
 
 describe("inside the Android app", () => {
   describe("the setup card", () => {
-    it("the title is \"Three steps to open a blocked site\"", () => {
+    it("the title is \"Three steps to get started\"", () => {
       const { wrapper } = mountWizard();
-      expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to open a blocked site");
+      expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to get started");
     });
 
     it("step 1 says the network is joined, with its name", () => {

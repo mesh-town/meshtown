@@ -11,6 +11,7 @@ import ExitCard from "./ExitCard.vue";
 import InviteCard from "./InviteCard.vue";
 import JoinCard from "./JoinCard.vue";
 import NodeNameField from "./NodeNameField.vue";
+import StrictChoice from "./StrictChoice.vue";
 import ThisComputerCard from "./ThisComputerCard.vue";
 import type { SetupMark } from "./home-actions.ts";
 import { shownStep } from "./home-view.ts";
@@ -94,6 +95,7 @@ async function startCreate(): Promise<void> {
       <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-2" :disabled="!pickable(2)" :aria-current="step === 2 ? 'step' : undefined" @click="picked = 2"><span class="step-num" aria-hidden="true">2</span>{{ HOME_WIZARD_STEP_BROWSER }}</button></h3></div>
       <template v-if="step === 2 && !startFailed">
         <BrowserCard bare />
+        <StrictChoice />
         <div class="btn-row"><button type="button" class="btn btn-primary" @click="finish('exit')">{{ HOME_WIZARD_BROWSER_DONE }}</button></div>
       </template>
     </div>

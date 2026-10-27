@@ -18,11 +18,12 @@ import {
 
 describe("fields", () => {
   describe("\"Main\"", () => {
-    it("six paths in the fixed order, proxy access — after the port", () => {
+    it("seven paths in the fixed order, proxy access — after the port", () => {
       assert.deepEqual(MAIN_FIELDS.map((f) => f.path), [
         "autostart.enabled",
         "socks.enabled",
         "socks.port",
+        "socks.strict",
         "socks.access",
         "checks.enabled",
         "checks.interval_sec",
@@ -38,6 +39,14 @@ describe("fields", () => {
       assert.match(f.desc, /proxy has no password/);
       assert.match(f.desc, /after Mesh Town restarts/);
       assert.deepEqual(collectChanges({ "socks.access": "localnet" }, MAIN_FIELDS), { "socks.access": "localnet" });
+    });
+
+    it("socks.strict: a switch right after the port, with the explanation", () => {
+      const f = MAIN_FIELDS.find((x) => x.path === "socks.strict");
+      assert.equal(f.kind, "toggle");
+      assert.equal(f.title, "Strict mode");
+      assert.equal(f.desc, "When Mesh Town isn't running, sites stay closed instead of opening directly — for services that refuse sign-ins from another country.");
+      assert.deepEqual(collectChanges({ "socks.strict": true }, MAIN_FIELDS), { "socks.strict": true });
     });
 
     it("check titles say \"sites\", not \"domains\"", () => {

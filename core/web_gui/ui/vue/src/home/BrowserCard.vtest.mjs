@@ -17,7 +17,10 @@ const OFF_HINT = "The browser proxy is off — turn it on in \"Settings\"";
 const SETUP_MARK = "meshtown.homeSetup";
 let mounted;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+});
 afterEach(() => mounted.wrapper.unmount());
 
 describe("BrowserCard", () => {

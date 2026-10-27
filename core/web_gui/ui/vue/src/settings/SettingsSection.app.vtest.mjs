@@ -12,7 +12,7 @@ vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }))
 const APP_UA = "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android";
 const DESKTOP_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36";
 const META = { read_only: [], restart_fields: [], restart_pending: [], cli_overrides: [] };
-const NOTE_APP = "While Mesh Town is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, open the Mesh Town app.";
+const NOTE_APP = "While Mesh Town is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds. To start it again, open the Mesh Town app.";
 let mounted;
 
 beforeEach(() => vi.useFakeTimers());

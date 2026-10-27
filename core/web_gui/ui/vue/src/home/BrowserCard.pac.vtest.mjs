@@ -23,7 +23,10 @@ const PORT_NOTE = "Clipboard unavailable — select the port in the step and cop
 const HOST_NOTE = "Clipboard unavailable — select the address in the step and copy it manually.";
 let mounted;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+});
 afterEach(() => {
   mounted.wrapper.unmount();
   Reflect.deleteProperty(navigator, "userAgent");

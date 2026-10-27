@@ -146,15 +146,41 @@ describe("stopping the node", () => {
   it("STOPPED_NOTE — what the browser sees while the node is stopped, and how to start again", () => {
     assert.equal(
       STOPPED_NOTE,
-      `While ${NET_NAME} is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, use the ${NET_NAME} icon near the clock → "Start ${NET_NAME}".`,
+      `While ${NET_NAME} is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds. To start it again, use the ${NET_NAME} icon near the clock → "Start ${NET_NAME}".`,
     );
+  });
+
+  it("the stop texts say nothing about forbidden or unblocked sites", () => {
+    for (const t of [STOPPED_NOTE, texts.STOPPED_NOTE_APP, CONFIRM_STOP_TEXT]) assert.ok(!/vpn|block|bypass/i.test(t), t);
   });
 
   it("CONFIRM_STOP_TEXT — warning in the confirmation dialog", () => {
     assert.equal(
       CONFIRM_STOP_TEXT,
-      `Stop ${NET_NAME}? While it is stopped, sites in the browser don't open (local addresses do); after it starts, they come back in about 15 seconds.`,
+      `Stop ${NET_NAME}? While it is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds.`,
     );
+  });
+});
+
+describe("proxy scope choice", () => {
+  it("the question and the two answers", () => {
+    assert.equal(texts.SCOPE_QUESTION, "Where should the proxy work?");
+    assert.equal(texts.SCOPE_SYSTEM, "In the whole system");
+    assert.equal(texts.SCOPE_BROWSER, "Only in the browser");
+  });
+
+  it("FIREFOX_STEPS — copy, Settings, Network Settings, the automatic URL, OK", () => {
+    assert.deepEqual(texts.FIREFOX_STEPS, [
+      "Click \"Copy address\" above.",
+      "In Firefox open \"Settings\" → \"General\" and scroll down to \"Network Settings\".",
+      "Click \"Settings…\".",
+      "Choose \"Automatic proxy configuration URL\" and paste the address into the field below it.",
+      "Click \"OK\".",
+    ]);
+  });
+
+  it("BROWSER_SCOPE_NOTE — other browsers follow the system setting", () => {
+    assert.equal(texts.BROWSER_SCOPE_NOTE, "Chrome, Edge and Safari use the system setting — for them choose \"In the whole system\".");
   });
 });
 
