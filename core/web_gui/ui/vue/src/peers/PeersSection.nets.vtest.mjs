@@ -253,7 +253,7 @@ describe("the invite on the second tab", () => {
 
   it("when the node cannot make it, says that the invite is not ready", async () => {
     const page = await openTwo({ hash: "peers/" + NET_B });
-    page.node.slotList[1].routes["GET /api/network/invite"] = { status: 503, body: { error: "unavailable" } };
+    page.node.slotList[1].routes["GET /api/network/invite"] = { status: 409, body: { error: "busy" } };
     await page.whenInviteClicked();
     expect(page.sectionText()).toContain("The invite isn't ready yet");
     expect(page.sectionText()).not.toContain(COPIED);

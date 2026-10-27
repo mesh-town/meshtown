@@ -57,6 +57,12 @@ export const clipboardFallbackText = (kindWord: string): string =>
 // invite-actions.ts
 export const HOME_INVITE_UNAVAILABLE = "The invite isn't ready yet — " + NET_NAME +
   " is still joining the network. Try again in a minute.";
+export const HOME_INVITE_NOT_ADMIN = "Only an administrator of this network can create invitations.";
+export const HOME_INVITE_NOT_IN_NETWORK = "This device is no longer in this network, so it can't create invitations.";
+export const HOME_INVITE_BAD_NAME = "The name for this invitation is too long or has unsupported characters. Use a shorter plain name.";
+export const HOME_INVITE_UNREACHABLE = "Couldn't reach " + NET_NAME + " on this device. Check that it is running, then try again.";
+export const HOME_INVITE_FAILED_PLAIN = "Couldn't create the invitation. Try again in a minute.";
+export const homeInviteFailed = (message: string): string => "Couldn't create the invitation: " + message.replace(/[.\s]+$/, "") + ".";
 export const HOME_INVITE_COPIED = "✓ Invite copied — paste it into a private message";
 export const HOME_INVITE_MANUAL = "Clipboard unavailable — select the invite below and copy it manually.";
 export const HOME_INVITE_STALE = "The network changed — click \"Invite a member\" again.";

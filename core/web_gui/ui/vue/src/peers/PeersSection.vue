@@ -181,7 +181,7 @@ async function exitVia(idFull: string): Promise<void> {
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
       <SecondAdminHint :only-admin="!!menuCtx.onlyAdmin" />
       <DeletedBanner />
-      <AdmissionRefused :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
+      <AdmissionRefused :active="store.activeSection === 'peers'" :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-sm" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>
       <NetSubTabs :slot="slot" :active="store.netSub" :subs="subs" />
       <div id="net-subpanel" role="tabpanel" :aria-labelledby="'net-sub-' + store.netSub">

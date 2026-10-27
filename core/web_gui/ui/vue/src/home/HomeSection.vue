@@ -41,13 +41,14 @@ const { excluded, variant, net } = useExcluded(store);
     <template v-else>
       <HomeTabs />
       <div id="home-tabpanel" role="tabpanel" :aria-labelledby="'home-tab-' + activeTab">
+        <!-- Every tab keeps its own plate mounted (the 15-second count goes on), but only the active tab draws it: the id must be unique. -->
         <template v-if="activeTab === 'wizard'">
-          <AdmissionRefused :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
+          <AdmissionRefused :active="store.activeSection === 'home'" :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
           <SetupWizard />
         </template>
         <template v-else>
           <UpdateBanner />
-          <AdmissionRefused :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
+          <AdmissionRefused :active="store.activeSection === 'home'" :refused="refusedFlag(store, 'main')" :members="store.members" :net='netName(store.nets, "main")' />
           <StatePanel :panel="panel" :ring="ring" @pick-other="home.pickOther" @direct="home.chooseDirect" />
           <div v-if="chips.length" class="net-chips" id="home-chips">
             <a v-for="c in chips" :key="c.slot" class="chip net-chip" :href="peersHash(c.slot)" :title="c.short">{{ c.text }}</a>

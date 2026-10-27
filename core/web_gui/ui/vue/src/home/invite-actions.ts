@@ -6,10 +6,12 @@ import { slotPath, stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { defaultHomeDeps } from "./home-actions.ts";
 import type { HomeDeps } from "./home-actions.ts";
+import { ApiError } from "../core/api.ts";
 import { writeClipboard } from "../common/clipboard.ts";
 import { forDevice } from "../common/device.ts";
 import {
-  HOME_INVITE_COPIED, HOME_INVITE_MANUAL, HOME_INVITE_STALE, HOME_INVITE_UNAVAILABLE, HOME_REACH_ISSUER_AND_ONE, HOME_REACH_ISSUER_ONLY,
+  HOME_INVITE_BAD_NAME, HOME_INVITE_COPIED, HOME_INVITE_FAILED_PLAIN, HOME_INVITE_MANUAL, HOME_INVITE_NOT_ADMIN, HOME_INVITE_NOT_IN_NETWORK,
+  HOME_INVITE_STALE, HOME_INVITE_UNAVAILABLE, HOME_INVITE_UNREACHABLE, HOME_REACH_ISSUER_AND_ONE, HOME_REACH_ISSUER_ONLY, homeInviteFailed,
 } from "./home-flow-texts.ts";
 
 const UNAVAILABLE = HOME_INVITE_UNAVAILABLE;
@@ -70,11 +72,26 @@ function invitePath(forWhom: string, slot = "main"): string {
   return slotPath(slot, "network/invite") + (label ? "?for=" + encodeURIComponent(label) : "");
 }
 
+// The text for a refused request, by the node's reply code; an unknown code quotes the node's message.
+const REFUSAL_TEXTS: Record<string, string> = {
+  busy: UNAVAILABLE,
+  not_admin: HOME_INVITE_NOT_ADMIN,
+  not_in_network: HOME_INVITE_NOT_IN_NETWORK,
+  invalid: HOME_INVITE_BAD_NAME,
+  network: HOME_INVITE_UNREACHABLE,
+};
+
+export function inviteFailureText(err: unknown): string {
+  const known = err instanceof ApiError ? REFUSAL_TEXTS[err.code] : HOME_INVITE_UNREACHABLE;
+  if (known) return forDevice(known);
+  const message = err instanceof ApiError ? err.message.trim() : "";
+  return forDevice(message ? homeInviteFailed(message) : HOME_INVITE_FAILED_PLAIN);
+}
+
 async function fetchInvite(inv: InviteState, store: Store, slot: string, netId: string, deps: InviteDeps, forWhom: string): Promise<InviteResult> {
-  // A failed request gives the same text as an empty response.
-  const res = await deps.api<InviteResponse>("GET", invitePath(forWhom, slot)).catch(() => null);
-  if (res && res.invite) return showInvite(inv, store, slot, netId, res, deps);
-  inv.status = UNAVAILABLE;
+  const reply = await deps.api<InviteResponse>("GET", invitePath(forWhom, slot)).then((res) => ({ res, err: null }), (err: unknown) => ({ res: null, err }));
+  if (reply.res && reply.res.invite) return showInvite(inv, store, slot, netId, reply.res, deps);
+  inv.status = reply.err === null ? UNAVAILABLE : inviteFailureText(reply.err);
   return "failed";
 }
 
