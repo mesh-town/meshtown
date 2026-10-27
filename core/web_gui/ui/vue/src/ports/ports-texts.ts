@@ -5,6 +5,7 @@ export const PORTS_ADD_ERROR_NO_NODES = "Select at least one member.";
 export const PORTS_EMPTY_OWN = "— nothing published";
 export const PORTS_EMPTY_NET = "— no member has shared ports with you yet";
 
+export const PORTS_OPENING = "opening…";
 export const PORTS_STATUS_OK = "responding";
 export const PORTS_STATUS_REFUSED = "not responding";
 export const PORTS_STATUS_UNKNOWN = "not checked yet";

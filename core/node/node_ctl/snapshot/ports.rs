@@ -28,6 +28,12 @@ fn own_local(proto: Proto, s: LocalState) -> LocalState {
 
 fn opened_info(local: u16, st: &OpenState, last_error: Option<PortReach>) -> OpenedInfo {
     match st {
+        OpenState::Binding => OpenedInfo {
+            local,
+            state: "binding".into(),
+            error: None,
+            last_error,
+        },
         OpenState::Listening => OpenedInfo {
             local,
             state: "listening".into(),

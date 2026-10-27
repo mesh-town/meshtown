@@ -262,6 +262,19 @@ mod last_error {
         );
         assert_eq!(o.last_error, Some(PortReach::TimedOut));
     }
+
+    #[test]
+    fn binding_state_in_snapshot() {
+        // given: a UDP entry whose socket is still being taken
+        let op = vec![(opened_over(Proto::Udp, 53, 2053), OpenState::Binding, None)];
+
+        // when
+        let info = run(&[view_over(Proto::Udp, A, 53)], &[A], op);
+
+        // then: the state is "binding" and there is no bind error
+        let o = info.network[0].opened.as_ref().expect("opened");
+        assert_eq!((o.state.as_str(), o.error.as_deref()), ("binding", None));
+    }
 }
 
 fn published(proto: Proto, port: u16) -> Published {

@@ -270,7 +270,7 @@ export interface NetPort {
 
 interface OpenedPort {
   local: number;
-  state: "listening" | "bind_failed"; // a String in the code, the values come from the `OpenedInfo` comment
+  state: "binding" | "listening" | "bind_failed"; // a String in the code, the values come from the `OpenedInfo` comment
   error: string | null;
   last_error: "offline" | "not_opened" | "no_service" | "timed_out" | "failed" | "unsupported" | null; // why the member side could not be reached
 }

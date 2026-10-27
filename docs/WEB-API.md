@@ -374,7 +374,7 @@ Exact enum values:
 - `ports.published[]` — own publications; `proto`: `"tcp"` or `"udp"`; `local`: `"unknown"` (not checked), `"ok"` (the port responds),
   `"refused"` (does not respond); for UDP it is always `"unknown"`. `ports.network[]` — ports of other nodes: entries with
   the scope "all" and a readable value while the author is in the network (`online` — the same flag as in
-  `peers[]`), plus everything opened here (`opened`: `state` `"listening"` or `"bind_failed"`,
+  `peers[]`), plus everything opened here (`opened`: `state` `"binding"` (a UDP socket is still being taken), `"listening"` or `"bind_failed"`,
   `error` — the bind error text, only with `bind_failed`; `last_error` — the outcome of the last failed attempt to
   reach the publishing node: `null` (none yet, or the last attempt succeeded), `"offline"`, `"not_opened"`,
   `"no_service"`, `"timed_out"`, `"failed"` or `"unsupported"` — the node does not support UDP ports; for UDP the
