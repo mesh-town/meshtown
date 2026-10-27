@@ -8,8 +8,8 @@ TEMPLATE = """# Mesh Town packages for Keenetic (Entware)
 **[Mesh Town](https://mesh-town.github.io/)** — reach your home server, NAS or office PC from anywhere: no port
 forwarding, no central server, no accounts.
 
-Mesh Town links your own computers, phones and routers directly to each other, so you can open the web panel of a
-NAS, SSH into a home server or connect to a work PC by remote desktop from any network. Free and open source, for
+Mesh Town links your own computers, phones and routers directly to each other, so you can open a NAS web
+panel, SSH into a home server or connect to a work PC by remote desktop from any network. Free and open source, for
 macOS, Windows, Linux, Android and OpenWrt or Keenetic routers. Website:
 [mesh-town.github.io](https://mesh-town.github.io/) · source and documentation:
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).

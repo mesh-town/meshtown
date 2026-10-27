@@ -38,7 +38,7 @@ pub(in crate::proxy) async fn open_udp_route(cfg: &ProxyConfig) -> Result<UdpRou
             say("udp", format!("{e:#}"));
             return Err(failure(ProxyOutcome::refused(
                 "no route",
-                "the list of exits could not be read",
+                "the exit list could not be read",
             )));
         }
     };

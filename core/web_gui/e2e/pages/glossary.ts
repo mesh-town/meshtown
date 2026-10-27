@@ -62,7 +62,7 @@ export function peerLabel(p: LabelPeer, withAnonymousTag = false, all: LabelPeer
 
 /** The hint above the member list while this computer is the only admin of the network (the id of its element is `#second-admin-hint`). */
 export const SECOND_ADMIN_HINT =
-  'You are the only admin of this network. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.';
+  'You are the only network admin. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.';
 
 /** Texts of the member-list part of the Members sub-tab of the "Networks" tab (removing, blocks, leaving, waiting to join). */
 export const MEMBERS_WORDS = {

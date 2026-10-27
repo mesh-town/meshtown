@@ -23,15 +23,15 @@ export const DIALOG_CANCEL = "Cancel";
 export const CHIP_TITLE = "Members need your confirmation";
 export const PENDING_TITLE = "Waiting to join the network";
 export const EXCLUDED_BANNED_TEXT =
-  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network.";
+  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask a network admin.";
 export const EXCLUDED_REMOVED_TEXT =
-  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.";
+  "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask a network admin for a new invite.";
 export const EXCLUDED_LEFT_TEXT = "To use " + NET_NAME + " again, join a network with an invite from one of its members.";
 export const EXCLUDED_JOIN = "Join with another invite";
 
 // The hint above the member list while the creator is the only admin.
 export const SECOND_ADMIN_HINT =
-  "You are the only admin of this network. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.";
+  "You are the only network admin. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.";
 
 export const unblockAria = (name: string): string => "Unblock " + name;
 export const moreActionsLabel = (name: string): string => "More actions for " + name;

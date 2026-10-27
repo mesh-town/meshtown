@@ -20,7 +20,7 @@ pub const TEXT_V3_INVITE: &str =
     "This invite is from an older Mesh Town. Ask a network admin for a new one.";
 
 /// The refusal text for an invite of format 2 (issued by an older program).
-pub const TEXT_V2_INVITE: &str = "This invite is of an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
+pub const TEXT_V2_INVITE: &str = "This invite uses an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program.";
 
 /// Whether the string (after trimming whitespace) starts with `INVITE_PREFIX` or `OLD_INVITE_PREFIX` in
 /// any case — without parsing and without checking for broken data, only telling a key from
@@ -72,7 +72,7 @@ fn unreadable() -> anyhow::Error {
 /// The creator of a version 4 invite: the kind byte must be Managed, the creator a curve point.
 fn managed_root(kind: u8, root: &[u8; 32]) -> Result<PeerId> {
     if kind != INVITE_KIND_MANAGED {
-        bail!("invite of a different format (4/{kind}) — update the program");
+        bail!("an invite in a different format (4/{kind}) — update the program");
     }
     let root = PeerId::from_bytes(root).map_err(|_| {
         anyhow!("invite is damaged: the network creator key is not valid — ask for a new one")
@@ -131,7 +131,7 @@ fn check_invite_version(version: u8) -> Result<()> {
         2 => bail!(TEXT_V2_INVITE),
         3 => bail!(TEXT_V3_INVITE),
         INVITE_MANAGED_VERSION => Ok(()),
-        other => bail!("invite of a different format ({other}) — update the program"),
+        other => bail!("an invite in a different format ({other}) — update the program"),
     }
 }
 
