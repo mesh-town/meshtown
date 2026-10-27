@@ -1,4 +1,4 @@
-/* The strict-mode question under the browser card in the setup: marked by the node state, a click writes
+/* The strict-mode question (shown under "More options" in the setup): marked by the node state, a click writes
  * `socks.strict`, a refusal shows an error and returns the radio to the state. */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,12 +35,11 @@ describe("StrictChoice", () => {
     expect(checked(mountChoice(strict).wrapper)).toEqual(expected);
   });
 
-  it("starts collapsed under \"More options\"", () => {
+  it("the root is a fieldset with the legend, not a collapsible block", () => {
     const { wrapper } = mountChoice(false);
-    const details = wrapper.get("details#more-options");
-    expect(details.attributes("open")).toBeUndefined();
-    expect(details.get("summary").text()).toBe("More options");
-    expect(details.find("fieldset#strict-choice").exists()).toBe(true);
+    expect(wrapper.get("#strict-choice").element.tagName).toBe("FIELDSET");
+    expect(wrapper.find("details").exists()).toBe(false);
+    expect(wrapper.get("#strict-choice > legend").attributes("id")).toBe("strict-q");
   });
 
   it("proxy off: hidden", () => {
@@ -51,7 +50,6 @@ describe("StrictChoice", () => {
   it("a click on the second answer sends {socks.strict: true}", async () => {
     api.mockImplementation(async (_m, _p, body) => ({ config: body.config, rev: 2 }));
     const { wrapper } = mountChoice(false);
-    await wrapper.get("#more-options > summary").trigger("click");
     await wrapper.get("#strict-on").setValue(true);
     await flushPromises();
     const [method, path, body] = api.mock.calls.find((c) => c[0] === "PUT");

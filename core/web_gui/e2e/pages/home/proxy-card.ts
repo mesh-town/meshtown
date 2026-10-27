@@ -17,7 +17,7 @@ export class HomeProxyCard {
   /** The manual block: browser, steps, "Copy address" and "Copy port"; in the DOM only when expanded. */
   readonly manualSetup: Locator;
   readonly copyPortButton: Locator;
-  /** The "Your system" group and its four buttons (macOS, Windows, Linux, Phone). */
+  /** The "Your system" group and its five buttons (macOS, Windows, Linux, Android, iOS). */
   readonly osGroup: Locator;
   readonly osButtons: Locator;
   /** The pressed system button (`aria-pressed="true"`) — exactly one. */
@@ -44,7 +44,7 @@ export class HomeProxyCard {
     this.osPressed = this.osGroup.getByRole('button', { pressed: true });
   }
 
-  /** Answers "Where should the proxy work?" so that the system steps or the Firefox steps appear. */
+  /** Answers "Where should Mesh Town open sites?" on the Overview card so that the system steps or the Firefox steps appear. */
   async pickScope(scope: 'system' | 'browser'): Promise<void> {
     await (scope === 'system' ? this.scopeSystem : this.scopeBrowser).click();
   }

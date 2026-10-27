@@ -3,7 +3,7 @@
 import { computed, inject, ref, watch } from "vue";
 import { STORE_KEY } from "../core/store.ts";
 import { fieldErrorText, saveConfigFields } from "../core/save-config.ts";
-import { HOME_WIZARD_MORE, HOME_WIZARD_STRICT_OFF, HOME_WIZARD_STRICT_ON, HOME_WIZARD_STRICT_Q } from "./home-card-texts.ts";
+import { HOME_WIZARD_STRICT_OFF, HOME_WIZARD_STRICT_ON, HOME_WIZARD_STRICT_Q } from "./home-card-texts.ts";
 import { proxyView } from "./browser-setup.ts";
 
 const store = inject(STORE_KEY)!;
@@ -29,13 +29,10 @@ async function choose(strict: boolean): Promise<void> {
 </script>
 
 <template>
-  <details v-if="visible" id="more-options" class="more-options">
-  <summary>{{ HOME_WIZARD_MORE }}</summary>
-  <fieldset id="strict-choice" class="strict-choice">
+  <fieldset v-if="visible" id="strict-choice" class="strict-choice">
     <legend id="strict-q">{{ HOME_WIZARD_STRICT_Q }}</legend>
     <label class="exit-row"><input type="radio" name="strict-choice" id="strict-off" :checked="!shown" @change="choose(false)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_OFF }}</span></label>
     <label class="exit-row"><input type="radio" name="strict-choice" id="strict-on" :checked="shown" @change="choose(true)"><span class="exit-label-text">{{ HOME_WIZARD_STRICT_ON }}</span></label>
     <p v-if="error" id="strict-error" class="field-error-text" role="alert">{{ error }}</p>
   </fieldset>
-  </details>
 </template>

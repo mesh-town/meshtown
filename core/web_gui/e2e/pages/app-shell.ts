@@ -10,6 +10,7 @@ import { HomeNetCard } from './home/net-card';
 import { HomeExitCard } from './home/exit-card';
 import { HomeNameCard } from './home/name-card';
 import { HomeProxyCard } from './home/proxy-card';
+import { HomeWizard } from './home/wizard';
 import { gotoReady } from './ready';
 
 const RESIZE_TIMEOUT_MS = 3000;
@@ -28,6 +29,7 @@ export class AppShell {
   readonly exitCard: HomeExitCard;
   readonly nameCard: HomeNameCard;
   readonly proxyCard: HomeProxyCard;
+  readonly wizard: HomeWizard;
 
   constructor(private readonly page: Page) {
     this.tabs = new TabsBar(page);
@@ -41,6 +43,7 @@ export class AppShell {
     this.exitCard = new HomeExitCard(page);
     this.nameCard = new HomeNameCard(page);
     this.proxyCard = new HomeProxyCard(page);
+    this.wizard = new HomeWizard(page);
   }
 
   /** Opens the page at the target's address and waits until it is ready (a timeout is a failure). */

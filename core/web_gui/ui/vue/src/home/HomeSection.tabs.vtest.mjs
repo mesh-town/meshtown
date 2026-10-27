@@ -13,6 +13,11 @@ const clickButton = async (w, text) => {
   await w.findAll("button").find((b) => b.text() === text).trigger("click");
   await flushPromises();
 };
+const stepOf = (w) => w.get("#wizard-screen").attributes("data-step");
+const clickById = async (w, selector) => {
+  await w.get(selector).trigger("click");
+  await flushPromises();
+};
 let mounted;
 
 beforeEach(() => localStorage.clear());
@@ -45,18 +50,33 @@ describe("HomeSection > tabs, no network", () => {
 });
 
 describe("HomeSection > tabs, network exists, no label", () => {
-  it("\"Main\" is open; \"Setup\" shows step 2, \"Done\" leads to step 3, then \"Main\" again", async () => {
+  it("\"Main\" is open; \"Setup\" shows the second screen, \"Next\" leads to the exit screen, \"Finish\" returns to \"Main\"", async () => {
     const { wrapper } = mountHome(baseState());
     expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
     await tab(wrapper, "wizard").trigger("click");
-    expect(wrapper.text()).toContain("✓ You joined the network");
-    expect(wrapper.findAll("button").some((b) => b.text() === "Done, my browser is set up")).toBe(true);
-    await clickButton(wrapper, "Done, my browser is set up");
+    expect(stepOf(wrapper)).toBe("scope");
+    expect(wrapper.get("#wizard-joined").text()).toContain("✓ You joined the network");
+    await clickById(wrapper, "#wizard-next");
+    expect(stepOf(wrapper)).toBe("exit");
     expect(tab(wrapper, "wizard").attributes("aria-selected")).toBe("true");
-    await clickButton(wrapper, "Done");
+    expect(wrapper.get("#wizard-next").text()).toBe("Finish");
+    await clickById(wrapper, "#wizard-next");
     expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
     expect(wrapper.find(".wizard-card").exists()).toBe(false);
     expect(localStorage.getItem("meshtown.homeSetup")).toBe("done");
+  });
+
+  it("\"Open step-by-step setup\" on \"Main\" opens \"Setup\" at the scope question, a remembered answer does not skip it", async () => {
+    localStorage.setItem("meshtown.homeSetup", "done");
+    localStorage.setItem("meshtown.proxyScope", "browser");
+    const { wrapper } = mountHome(baseState({ socks: { enabled: true, listen: "127.0.0.1:1080" } }));
+    expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
+    await clickButton(wrapper, "Open step-by-step setup");
+    expect(tab(wrapper, "wizard").attributes("aria-selected")).toBe("true");
+    expect(stepOf(wrapper)).toBe("scope");
+    expect(wrapper.get("#scope-browser").attributes("aria-pressed"), "the remembered answer is shown pressed").toBe("true");
+    expect(wrapper.get("#scope-system").attributes("aria-pressed")).toBe("false");
+    expect(localStorage.getItem("meshtown.homeSetup")).toBe("browser");
   });
 });
 

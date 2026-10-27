@@ -9,7 +9,7 @@ import { useHomeContext } from "./use-home.ts";
 import { useInvite } from "./use-invite.ts";
 import { useInviteNote } from "../peers/invite-note.ts";
 
-defineProps<{ full?: boolean }>();
+defineProps<{ full?: boolean; quiet?: boolean }>();
 const store = inject(STORE_KEY)!;
 const { hasNet, members, netStatus, notice } = useHomeContext(store);
 const { inviteText, inviteQr, busy, status, warning, forWhom, request } = useInvite(store);
@@ -23,7 +23,7 @@ const note = useInviteNote(store, () => store.lead);
     <template v-else>
       <label for="invite-for-input" class="hint">{{ HOME_INVITE_FOR_LABEL }}</label>
       <input id="invite-for-input" v-model="forWhom" type="text" class="input input-wide" maxlength="64" autocomplete="off" @keydown.enter.prevent="request" />
-      <div class="btn-row"><button type="button" class="btn btn-primary" id="netkey-invite-btn" :disabled="busy" @click="request">{{ HOME_INVITE_BTN }}</button></div>
+      <div class="btn-row"><button type="button" :class="quiet ? 'btn' : 'btn btn-primary'" id="netkey-invite-btn" :disabled="busy" @click="request">{{ HOME_INVITE_BTN }}</button></div>
     </template>
     <p class="hint" id="home-members-count" :hidden="!members">{{ members }}</p>
     <p class="hint" id="home-net-status" :hidden="!netStatus">{{ netStatus }}</p>

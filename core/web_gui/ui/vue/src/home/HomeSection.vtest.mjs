@@ -16,13 +16,15 @@ beforeEach(() => localStorage.clear());
 afterEach(() => mounted.wrapper.unmount());
 
 describe("HomeSection > no network", () => {
-  it("the \"You haven't joined\" panel, two buttons, no form before a click, steps 2 and 3 wait, no status panel", () => {
+  it("the \"You haven't joined\" panel, two buttons, no form before a click, the join screen has no navigation, no status panel", () => {
     const { wrapper } = mountHome({ state: baseState({ network: null, peers: [] }) });
     expect(wrapper.find("#join-card").exists()).toBe(false);
     expect(wrapper.get("#home-start-title").text()).toBe("You haven't joined a Mesh Town network yet");
     expect(wrapper.get("#home-start-join-btn").text()).toBe("Join with an invite");
     expect(wrapper.get("#home-start-create-btn").text()).toBe("Create a new network");
-    expect(wrapper.findAll(".wizard-step.pending")).toHaveLength(2);
+    expect(wrapper.get("#wizard-screen").attributes("data-step")).toBe("join");
+    expect(wrapper.find("#wizard-back").exists(), "no Back on the first screen").toBe(false);
+    expect(wrapper.find("#wizard-next").exists(), "the join screen has its own buttons").toBe(false);
     expect(wrapper.find(PANEL).exists()).toBe(false);
   });
 });

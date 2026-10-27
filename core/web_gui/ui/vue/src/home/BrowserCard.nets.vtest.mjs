@@ -1,5 +1,5 @@
 /* The "Connect the browser" card on a router and on a laptop with a choice of networks: the PAC address and
- * the intro paragraph, the networks summary in step 2, the line of addresses for other devices. The rest is in `BrowserCard.vtest.mjs`. */
+ * the intro paragraph, the line of addresses for other devices. The rest is in `BrowserCard.vtest.mjs`. */
 
 import { afterEach, describe, expect, it } from "vitest";
 import { PAC_INTRO } from "../common/pac-texts.ts";
@@ -19,16 +19,9 @@ describe("BrowserCard > choice of networks", () => {
       expect(wrapper.get("#proxy-hint").text()).toBe(PAC_INTRO_ROUTER);
     });
 
-    it("the networks summary is in step 2 right after the \"why the address\" explanation", () => {
+    it("order: the \"why the address\" note and the address line come before the \"While Exit via… is set\" note", () => {
       const { wrapper } = setup(routerState());
-      const why = wrapper.get("#pac-why").element;
-      const summary = wrapper.get("#nets-summary").element;
-      expect(why.compareDocumentPosition(summary) & Node.DOCUMENT_POSITION_FOLLOWING, "summary after #pac-why").toBeTruthy();
-    });
-
-    it("order: the summary and the address line come before the \"While Exit via… is set\" note", () => {
-      const { wrapper } = setup(routerState());
-      const order = ["#pac-why", "#nets-summary", "#proxy-lan", "#pac-no-exit"].map((id) => wrapper.get(id).element);
+      const order = ["#pac-why", "#proxy-lan", "#pac-no-exit"].map((id) => wrapper.get(id).element);
       order.slice(1).forEach((el, i) => expect(order[i].compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING, el.id).toBeTruthy());
     });
 
@@ -38,8 +31,8 @@ describe("BrowserCard > choice of networks", () => {
       expect(wrapper.find("#proxy-lan-hint").exists()).toBe(false);
     });
 
-    it("not the setup (no bare): there is no networks summary in the card", () => {
-      const { wrapper } = setup(routerState(), {});
+    it("there is no networks summary in the card", () => {
+      const { wrapper } = setup(routerState());
       expect(wrapper.find("#nets-summary").exists()).toBe(false);
     });
   });
@@ -58,12 +51,11 @@ describe("BrowserCard > choice of networks", () => {
   });
 
   describe("router, proxy only for this computer", () => {
-    it("the PAC address is unchanged (loopback), the paragraph is unchanged, no line for other devices; instead of the summary — \"router only\"", () => {
+    it("the PAC address is unchanged (loopback), the paragraph is unchanged, no line for other devices", () => {
       const { wrapper } = setup(routerState({ access: "localhost" }));
       expect(wrapper.get("#pac-url-text").text()).toBe("http://127.0.0.1:1080/proxy.pac");
       expect(wrapper.get("#proxy-hint").text()).toBe(PAC_INTRO);
       expect(wrapper.find("#proxy-lan").exists()).toBe(false);
-      expect(wrapper.find("#router-only").exists()).toBe(true);
     });
   });
 
@@ -89,6 +81,6 @@ describe("BrowserCard > choice of networks", () => {
   });
 });
 
-function setup(state, props = { bare: true }) {
-  return (mounted = mountWithNode(BrowserCard, state, { props }));
+function setup(state) {
+  return (mounted = mountWithNode(BrowserCard, state));
 }

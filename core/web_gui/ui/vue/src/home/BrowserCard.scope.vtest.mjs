@@ -30,6 +30,8 @@ describe("BrowserCard > scope question", () => {
     expect(wrapper.get("#scope-q").text()).toBe(SCOPE_QUESTION);
     expect(wrapper.get("#scope-system").text()).toBe(SCOPE_SYSTEM);
     expect(wrapper.get("#scope-browser").text()).toBe(SCOPE_BROWSER);
+    expect(wrapper.get("#scope-system").text()).toBe("All apps on this computer (recommended)");
+    expect(wrapper.get("#scope-browser").text()).toBe("Only in one browser");
     expect(pressed(wrapper)).toEqual([]);
     expect(wrapper.get("#pac-url-text").text()).toBe("http://127.0.0.1:1080/proxy.pac");
     for (const id of ["#pac-steps", "#os-seg", "#firefox-steps", "#browser-scope-note", "#manual-toggle", "#proxy-setup"]) {

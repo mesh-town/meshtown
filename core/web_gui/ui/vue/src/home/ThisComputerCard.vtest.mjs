@@ -15,10 +15,10 @@ beforeEach(() => localStorage.clear());
 afterEach(() => mounted.wrapper.unmount());
 
 describe("ThisComputerCard", () => {
-  it("the \"This computer\" region, the field is labeled \"Name of this computer\"", () => {
+  it("the \"This computer\" region, the field is labeled \"This computer's name\"", () => {
     const { wrapper } = mountComputer();
     expect(wrapper.get("#home-computer").attributes("role")).toBe("region");
-    expect(wrapper.get('label[for="field-node-name"]').text()).toBe("Name of this computer");
+    expect(wrapper.get('label[for="field-node-name"]').text()).toBe("This computer's name");
     expect(wrapper.get("#field-node-name").element.value).toBe("finch-unwary");
   });
 

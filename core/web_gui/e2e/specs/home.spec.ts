@@ -1,5 +1,6 @@
 import { test, expect } from '../fixtures/index';
 import { GLOSSARY } from '../pages/glossary';
+import { WIZARD_TEXT } from '../pages/home/wizard';
 import { SECTIONS } from '../pages/tabs-bar';
 
 const VIEWPORT = { width: 1280, height: 800 };
@@ -64,14 +65,20 @@ test('76-home-pac-card: the browser card — the PAC auto-config address is visi
     await expect.soft(card.copyButton).toHaveText('Copy address');
   });
 
-  await test.step('before the scope answer there are no steps; "In the whole system" shows them', async () => {
+  await test.step('the scope question offers "All apps on this computer (recommended)" and "Only in one browser"', async () => {
+    await expect.soft(card.card.getByText(WIZARD_TEXT.scopeQuestion)).toBeVisible();
+    await expect.soft(card.scopeSystem).toHaveText(WIZARD_TEXT.scopeSystem);
+    await expect.soft(card.scopeBrowser).toHaveText(WIZARD_TEXT.scopeBrowser);
+  });
+
+  await test.step('before the scope answer there are no steps; "All apps on this computer" shows them', async () => {
     await expect.soft(card.osGroup).toHaveCount(0);
     await card.pickScope('system');
   });
 
-  await test.step('the "Your system" group: four buttons, exactly one pressed', async () => {
+  await test.step('the "Your system" group: five buttons, exactly one pressed', async () => {
     await expect.soft(card.osGroup).toBeVisible();
-    await expect.soft(card.osButtons).toHaveCount(4);
+    await expect.soft(card.osButtons).toHaveCount(5);
     await expect.soft(card.osPressed).toHaveCount(1);
   });
 

@@ -3,7 +3,7 @@
  * functions. */
 
 import type { NodeState } from "../core/api-types.ts";
-import { PAC_INTRO, PHONE_SOON } from "../common/pac-texts.ts";
+import { PAC_INTRO } from "../common/pac-texts.ts";
 import { lanView, routerPacUrl, type LanView } from "../lan/nets-view.ts";
 import { PAC_INTRO_ROUTER } from "../lan/nets-texts.ts";
 import {
@@ -14,7 +14,7 @@ import {
 import { pacBlock, type PacBlock } from "./pac-setup.ts";
 
 export type BrowserId = "chrome" | "edge" | "safari" | "firefox";
-export type OsId = "windows" | "mac" | "linux" | "phone";
+export type OsId = "windows" | "mac" | "linux" | "android" | "ios";
 export type StepValue = "host" | "port" | "lan" | "pac";
 /** The page is open inside the Android app: its WebView appends `MeshTownApp/` to the user agent. */
 export const isAppUserAgent = (userAgent: string): boolean => userAgent.includes("MeshTownApp/");
@@ -51,7 +51,8 @@ export function detectBrowser(ua: string): BrowserId {
 }
 
 export function detectOs(ua: string): OsId {
-  if (/iPhone|iPad|iPod|Android/.test(ua)) return "phone";
+  if (/Android/.test(ua)) return "android";
+  if (/iPhone|iPad|iPod/.test(ua)) return "ios";
   if (/Windows/.test(ua)) return "windows";
   return /Macintosh|Mac OS X/.test(ua) ? "mac" : "linux";
 }
@@ -99,7 +100,7 @@ function linuxSteps(): BrowserStep[] {
 const OS_STEPS = new Map<OsId, () => BrowserStep[]>([["mac", macSteps], ["windows", windowsSteps]]);
 
 export function browserSteps(browser: BrowserId, os: OsId): BrowserStep[] {
-  if (os === "phone") return [{ text: PHONE_SOON }];
+  if (os === "android" || os === "ios") return [];
   if (browser === "firefox") return firefoxSteps();
   if (browser === "safari" && os !== "mac") return [{ text: SAFARI_ONLY_MAC }];
   return (OS_STEPS.get(os) || linuxSteps)();
@@ -108,7 +109,7 @@ export function browserSteps(browser: BrowserId, os: OsId): BrowserStep[] {
 // The warning — only where the steps change a system setting: not for Firefox and not for
 // Safari outside macOS.
 export function browserWarnText(browser: BrowserId, os: OsId): string {
-  if (browser === "firefox" || os === "phone") return "";
+  if (browser === "firefox" || os === "android" || os === "ios") return "";
   return browser === "safari" && os !== "mac" ? "" : BROWSER_WARN;
 }
 

@@ -3,7 +3,6 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { PHONE_SOON } from "../common/pac-texts.ts";
 import {
   browserSteps, browserWarnText, detectBrowser, detectOs, isAppUserAgent, proxyState, proxyView, splitHostPort,
 } from "./browser-setup.ts";
@@ -44,12 +43,18 @@ describe("detectBrowser and detectOs", () => {
 });
 
 describe("detectOs, phones", () => {
-  describe("phone or tablet userAgent", () => {
-    for (const key of ["iphoneSafari", "ipadSafari", "ipodSafari", "androidChrome"]) {
-      it(`${key}: "phone", not mac ("like Mac OS X") and not linux ("Linux; Android")`, () => {
-        assert.equal(detectOs(UA[key]), "phone");
+  describe("iPhone, iPad, iPod userAgent", () => {
+    for (const key of ["iphoneSafari", "ipadSafari", "ipodSafari"]) {
+      it(`${key}: ios, not mac ("like Mac OS X")`, () => {
+        assert.equal(detectOs(UA[key]), "ios");
       });
     }
+  });
+
+  describe("Android userAgent", () => {
+    it('androidChrome: android, not linux ("Linux; Android")', () => {
+      assert.equal(detectOs(UA.androidChrome), "android");
+    });
   });
 
   describe("computer userAgent", () => {
@@ -99,10 +104,12 @@ describe("browserSteps", () => {
   });
 });
 
-describe("browserSteps, phone", () => {
-  it("any browser — one PHONE_SOON line, no values to copy", () => {
-    for (const browser of ["chrome", "edge", "safari", "firefox"]) {
-      assert.deepEqual(browserSteps(browser, "phone"), [{ text: PHONE_SOON }], browser);
+describe("browserSteps, phones", () => {
+  it("android and ios, any browser — no values to copy", () => {
+    for (const os of ["android", "ios"]) {
+      for (const browser of ["chrome", "edge", "safari", "firefox"]) {
+        assert.ok(browserSteps(browser, os).every((s) => !s.copyKind), `${browser} on ${os}`);
+      }
     }
   });
 });
@@ -126,8 +133,10 @@ describe("warning", () => {
     assert.equal(browserWarnText("chrome", "mac"), BROWSER_WARN);
   });
 
-  it("on a phone — empty for any browser (no steps, we don't change the setting)", () => {
-    for (const b of ["chrome", "edge", "safari", "firefox"]) assert.equal(browserWarnText(b, "phone"), "", b);
+  it("on android and ios — empty for any browser (we don't change the setting)", () => {
+    for (const os of ["android", "ios"]) {
+      for (const b of ["chrome", "edge", "safari", "firefox"]) assert.equal(browserWarnText(b, os), "", `${b} on ${os}`);
+    }
   });
 });
 
@@ -247,18 +256,24 @@ describe("proxyState", () => {
       assert.equal(proxyState(on, null, UA.edgeWin, null).os, "windows");
     });
 
-    it("phone userAgent and no choice — os \"phone\", pac with a stub, steps are PHONE_SOON, no warning", () => {
+    it("iPhone userAgent and no choice — os ios, the pac block of ios, no warning", () => {
       const v = proxyState(on, null, UA.iphoneSafari);
-      assert.equal(v.os, "phone");
-      assert.deepEqual(v.pac, pacBlock("phone"));
-      assert.deepEqual(v.steps, [{ text: PHONE_SOON }]);
+      assert.equal(v.os, "ios");
+      assert.deepEqual(v.pac, pacBlock("ios"));
       assert.equal(v.warn, "");
     });
 
-    it("\"Phone\" was chosen on a computer — manual steps and warning as for a phone", () => {
-      const v = proxyState(on, "chrome", UA.chromeMac, "phone");
-      assert.equal(v.os, "phone");
-      assert.deepEqual(v.steps, [{ text: PHONE_SOON }]);
+    it("Android userAgent and no choice — os android, the pac block of android, no warning", () => {
+      const v = proxyState(on, null, UA.androidChrome);
+      assert.equal(v.os, "android");
+      assert.deepEqual(v.pac, pacBlock("android"));
+      assert.equal(v.warn, "");
+    });
+
+    it("android was chosen on a computer — the phone block and no warning", () => {
+      const v = proxyState(on, "chrome", UA.chromeMac, "android");
+      assert.equal(v.os, "android");
+      assert.deepEqual(v.pac, pacBlock("android"));
       assert.equal(v.warn, "");
     });
 

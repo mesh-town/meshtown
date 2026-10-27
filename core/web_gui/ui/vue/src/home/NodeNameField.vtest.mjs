@@ -17,7 +17,7 @@ describe("NodeNameField", () => {
   it("without the prop — the ids of the field, status and note are based on \"field-node-name\"", () => {
     const { wrapper } = mountField();
     expect(wrapper.get("#field-node-name").element.value).toBe("finch-unwary");
-    expect(wrapper.get('label[for="field-node-name"]').text()).toBe("Name of this computer");
+    expect(wrapper.get('label[for="field-node-name"]').text()).toBe("This computer's name");
     expect(wrapper.find("#field-node-name-status").exists()).toBe(true);
     expect(wrapper.find("#field-node-name-cli-note").exists()).toBe(true);
   });

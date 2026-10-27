@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The "Name of this computer" field: saved on Enter and when leaving the field. Sits on "Home" and in
+// The "This computer's name" field: saved on Enter and when leaving the field. Sits on "Home" and in
 // "Settings"; `idBase` separates the ids because all the page sections are mounted at once.
 import { inject } from "vue";
 import { STORE_KEY } from "../core/store.ts";

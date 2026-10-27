@@ -5,8 +5,8 @@ export const NETS_OPEN_MEMBERS = "Open in Networks";
 export const NETS_NO_CONNECTION = "no connection";
 export const NETS_JUST_YOU = "just you";
 export const NETS_EXIT_ALL = "(one exit for all your networks)";
-export const NETS_EXIT_NONE_IN = "No member of this network offers an exit yet.";
-export const NETS_EXIT_NO_NET = "Sites won't open: you're no longer in the network of the chosen exit. Pick an exit or \"Directly\".";
+export const NETS_EXIT_NONE_IN = "No network member offers an exit yet.";
+export const NETS_EXIT_NO_NET = "Sites won't open: you're no longer in the chosen exit's network. Pick an exit or \"Directly\".";
 export const NETS_EXIT_NOT_OFFERED = (name: string): string => `${name} no longer offers an exit, so sites won't open. Pick another exit or "Directly".`;
 export const NETS_DIRECT = "Sites open directly";
 

@@ -5,7 +5,7 @@ export interface ToggleLayout {
   justifyContent: string;
 }
 
-/** The "Name of this computer" and "Allow other members to open sites through this computer" cards on Home. */
+/** The "This computer's name" and "Allow other members to open sites through this computer" cards on Home. */
 export class HomeNameCard {
   readonly nameField: Locator;
   readonly nameStatus: Locator;
@@ -14,7 +14,7 @@ export class HomeNameCard {
   readonly exitToggleRow: Locator;
 
   constructor(page: Page) {
-    this.nameField = page.getByRole('textbox', { name: 'Name of this computer' });
+    this.nameField = page.getByRole('textbox', { name: "This computer's name" });
     // anchor — id: the card has several `role="status"` paragraphs; the status of exactly this field is needed
     this.nameStatus = page.locator('#field-node-name-status');
     this.exitToggle = page.getByRole('checkbox', { name: /^Allow other members to open sites through/ });

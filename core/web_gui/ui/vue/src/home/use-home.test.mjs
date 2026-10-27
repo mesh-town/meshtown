@@ -170,11 +170,11 @@ describe("useHome > browser connection via PAC", () => {
       w.unmount();
     });
 
-    it("\"phone\" on a computer — a placeholder without steps", () => {
+    it("\"android\" on a computer — the phone block of Android", () => {
       const w = setup(PROXY_ON, { userAgent: UA_MAC });
-      w.h.pickOs("phone");
-      assert.equal(w.h.proxy.value.os, "phone");
-      assert.deepEqual(w.h.proxy.value.pac, pacBlock("phone"));
+      w.h.pickOs("android");
+      assert.equal(w.h.proxy.value.os, "android");
+      assert.deepEqual(w.h.proxy.value.pac, pacBlock("android"));
       w.unmount();
     });
 

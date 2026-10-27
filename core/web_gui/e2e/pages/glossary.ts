@@ -26,7 +26,7 @@ export const GLOSSARY = {
   /** Hint under the exit list on Home (single choice). */
   exitListHint:
     'Sites go through the one member you choose. If that member goes offline, sites may not open or may open directly until you choose another.',
-  /** Step 1 of the Home setup after joining the network (without a network label). */
+  /** The first line of the Home setup after joining the network (without a network label). */
   wizardJoined: '✓ You joined the network',
   /** A field set at startup (`--cli-override`): the common part of the note. On Home, and for a field without an effective value, it is "… — can't be changed here"; in Settings, for a field with a value, it is "in file: … · currently in effect: … — set at startup…". */
   cliOverrideNote: 'set at startup',
