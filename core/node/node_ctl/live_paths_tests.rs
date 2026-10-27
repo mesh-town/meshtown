@@ -253,12 +253,12 @@ mod strict_handle {
             },
             ..Settings::default()
         };
-        apply_pac_strict(&on);
-        let seen = crate::proxy::pac_strict();
-        // then: the flag follows (and is put back)
-        apply_pac_strict(&Settings::default());
-        assert!(seen);
-        assert!(!crate::proxy::pac_strict());
+        let seen = std::cell::Cell::new(None);
+        apply_pac_strict(&on, |v| seen.set(Some(v)));
+        assert_eq!(seen.get(), Some(true));
+        // then: the default settings hand over `false`
+        apply_pac_strict(&Settings::default(), |v| seen.set(Some(v)));
+        assert_eq!(seen.get(), Some(false));
     }
 }
 

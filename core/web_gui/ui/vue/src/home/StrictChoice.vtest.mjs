@@ -60,4 +60,17 @@ describe("StrictChoice", () => {
     expect(wrapper.get("#strict-error").text()).not.toBe("");
     expect(checked(wrapper)).toEqual([true, false]);
   });
+
+  it("a refusal, then a successful retry: the error goes away, the radio is on the new value", async () => {
+    api.mockRejectedValueOnce(new ApiError(500, "write_failed", "disk full"));
+    api.mockImplementation(async (_m, _p, body) => ({ config: body.config, rev: 2 }));
+    const { wrapper } = mountChoice(false);
+    await wrapper.get("#strict-on").setValue(true);
+    await flushPromises();
+    expect(wrapper.find("#strict-error").exists()).toBe(true);
+    await wrapper.get("#strict-on").setValue(true);
+    await flushPromises();
+    expect(wrapper.find("#strict-error").exists()).toBe(false);
+    expect(checked(wrapper)).toEqual([false, true]);
+  });
 });
