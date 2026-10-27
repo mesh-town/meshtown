@@ -75,12 +75,15 @@ go out the same way.
 2. Open the node page from the tray menu, or with the sign-in link printed at start
    (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
-   `meshtown run --invite mesh-invite2-…`).
+   `meshtown run --invite mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
 4. **Invite a member** on the page gives a single-use string for the next device or person.
 5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using the proxy from step 6, a
    shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
 6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
-   names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`.
+   names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`. Instead of typing the address, a browser can take
+   the node's auto-config file, `http://127.0.0.1:1080/proxy.pac` (the setup assistant on the page asks whether to set
+   it up for the whole system or for a browser). With `socks.strict` on, ordinary sites stay closed while the node is
+   not running instead of opening directly ([docs/CONFIG-FILE.md](docs/CONFIG-FILE.md)).
 
 Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md).
 
@@ -88,11 +91,11 @@ Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md
 
 | System | Command or file |
 |---|---|
-| macOS | `brew install mesh-town/meshtown/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
+| macOS | `brew install mesh-town/macos/meshtown`, or a zip from [meshtown-dist](https://github.com/mesh-town/meshtown-dist) |
 | Windows | [meshtown.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe) (tray) or [meshtown-cli.exe](https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe) |
 | Linux | [x86_64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz) · [aarch64](https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz) |
 | Debian, Ubuntu | [meshtown_amd64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_amd64.deb) · [meshtown_arm64.deb](https://mesh-town.github.io/meshtown-dist/linux/debian/meshtown_arm64.deb), then `sudo apt install ./meshtown_<arch>.deb`; updates come with `apt upgrade` ([details](docs/INSTALL.md#debian-ubuntu-apt)) |
-| Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) |
+| Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) (arm64-v8a, Android 7.0 or newer) |
 | OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
 | Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |
 
@@ -116,7 +119,8 @@ More in [SECURITY.md](SECURITY.md).
 
 ## Limitations
 
-- TCP and UDP ports of programs on the device itself; no TUN, no subnet.
+- TCP and UDP ports of programs on the device itself; no TUN, no subnet on desktops and routers. On Android the app
+  takes the phone's traffic through the system VPN service and hands it to the node's proxy (tun2proxy).
 - A SOCKS5/HTTP proxy, not a system-wide tunnel: the program must be able to use a proxy or connect to
   `127.0.0.1:<port>`.
 - The exit is picked from a list you set, one hop, no traffic accounting; IPv6 only through an exit.

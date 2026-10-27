@@ -8,14 +8,14 @@ in [README.md](../README.md#install).
 **Homebrew** (Apple silicon and Intel) is the easiest way:
 
 ```sh
-brew install mesh-town/meshtown/meshtown
+brew install mesh-town/macos/meshtown
 ```
 
 Then `meshtown` opens the tray app, and `meshtown` with arguments works as the command-line program. The formula also
 installs `meshtown-cli`, the node in a terminal until Ctrl+C. To update: `brew upgrade meshtown`.
 
 Homebrew 7 refuses formulas from a tap it does not trust yet; the full name above trusts the formula. If you prefer
-`brew tap mesh-town/meshtown` first, run `brew trust mesh-town/meshtown` before `brew install meshtown`.
+`brew tap mesh-town/macos` first, run `brew trust mesh-town/macos` before `brew install meshtown`.
 
 **Without Homebrew**, download [MeshTown-macos-arm64.zip](https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-arm64.zip)
 (Apple silicon) or [MeshTown-macos-x86_64.zip](https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-x86_64.zip)
