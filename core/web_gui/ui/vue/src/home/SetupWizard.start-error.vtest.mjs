@@ -56,3 +56,18 @@ function mountWizard(state, mark) {
   if (mark) localStorage.setItem(MARK, mark);
   return (mounted = mountSection(SetupWizard, { state }));
 }
+
+describe("SetupWizard > failed start heading", () => {
+  it("wizard_start_error_step_is_not_marked_done", () => {
+    const failed = { node: { ...baseState().node, start_error: "port 1091 for the browser proxy is in use" } };
+    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, ...failed }), "browser");
+    const step = wrapper.get("h3").element.closest(".wizard-step");
+    expect(step.classList.contains("done")).toBe(false);
+    expect(step.classList.contains("failed")).toBe(true);
+  });
+
+  it("wizard_joined_step_stays_done", () => {
+    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, node: { ...baseState().node, start_error: null } }), "browser");
+    expect(wrapper.get("h3").element.closest(".wizard-step").classList.contains("done")).toBe(true);
+  });
+});

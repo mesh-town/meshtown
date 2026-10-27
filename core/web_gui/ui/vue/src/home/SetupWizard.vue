@@ -85,7 +85,7 @@ async function startCreate(): Promise<void> {
   </div>
   <div class="card wizard-card" role="region" aria-labelledby="home-wizard-title">
     <h2 id="home-wizard-title">{{ HOME_WIZARD_TITLE }}</h2>
-    <div class="wizard-step" :class="{ done: hasNet }">
+    <div class="wizard-step" :class="{ done: hasNet && !startFailed, failed: hasNet && startFailed }">
       <h3 v-if="hasNet && startFailed">{{ HOME_WIZARD_JOINED_NOT_RUNNING }}</h3>
       <h3 v-else-if="hasNet">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</h3>
       <div v-else class="step-head"><span v-if="running" class="spinner" aria-hidden="true"></span><span v-else class="step-num" aria-hidden="true">1</span><h3>{{ stepHead }}</h3></div>
