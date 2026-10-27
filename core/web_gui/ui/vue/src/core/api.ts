@@ -5,13 +5,15 @@ import type { ApiErrorBodyLoose } from "./api-types.ts";
 import { notifyChanged } from "./bridge.ts";
 import { getToken } from "./token.ts";
 import { NOT_RESPONDING_TEXT } from "../common/words.ts";
-import { CORE_API_BAD_TOKEN, CORE_API_NO_CONFIG, CORE_API_TIMEOUT, coreApiHttpText } from "./core-texts.ts";
+import { coreApiBadTokenText, CORE_API_NO_CONFIG, CORE_API_TIMEOUT, coreApiHttpText } from "./core-texts.ts";
 
 // Texts for people: the code in `ApiError.code` stays machine-readable, `message` holds an English phrase.
 export const API_ERROR_TEXT = {
   timeout: CORE_API_TIMEOUT,
   network: NOT_RESPONDING_TEXT,
-  bad_token: CORE_API_BAD_TOKEN,
+  get bad_token(): string {
+    return coreApiBadTokenText();
+  },
   no_config: CORE_API_NO_CONFIG,
   http: coreApiHttpText,
 };

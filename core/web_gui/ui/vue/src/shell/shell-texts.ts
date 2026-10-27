@@ -1,6 +1,7 @@
 // Shell texts: tabs and section titles, connection strips, tab captions.
 
 import { NET_NAME } from "../common/words.ts";
+import { inAppPage } from "../home/browser-setup.ts";
 
 export const SHELL_NO_STORE = "AppShell: store not provided (STORE_KEY)";
 
@@ -15,6 +16,8 @@ export const SHELL_TAB_SETTINGS = "Settings";
 
 export const SHELL_RESTARTED = NET_NAME + " is responding again";
 export const SHELL_BAD_ORIGIN = "The page was opened from the wrong address — open it from the " + NET_NAME + " icon near the clock";
+export const SHELL_BAD_ORIGIN_APP = "The page was opened from the wrong address — open it from the " + NET_NAME + " app";
+export const shellBadOriginText = (): string => (inAppPage() ? SHELL_BAD_ORIGIN_APP : SHELL_BAD_ORIGIN);
 export const SHELL_STOPPED = NET_NAME + " is stopped — start it: the " + NET_NAME + " icon near the clock → \"Start " + NET_NAME + "\". You don't need to refresh the page.";
 export const SHELL_STOPPED_APP = NET_NAME + " is stopped — start it: open the " + NET_NAME + " app. You don't need to refresh the page.";
 export const SHELL_CHANGED = "Settings were changed in another tab or by " + NET_NAME + " itself";

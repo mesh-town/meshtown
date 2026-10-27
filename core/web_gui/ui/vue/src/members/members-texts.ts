@@ -47,6 +47,8 @@ export const unlistedSummary = (n: number): string => "Not in the member list ("
 
 export const bannedStatus = (name: string): string => name + " was removed from the network.";
 export const leftStatus = (name: string): string => name + " left the network.";
+/** The hint above the member list for the only admin: the phone in the app. */
+export const secondAdminHintText = (): string => forDevice(SECOND_ADMIN_HINT);
 export const blockedStatus = (name: string): string => name + forDevice(" is blocked on this computer.");
 
 export const stripVoteShortText = (n: number): string => n + " to confirm";
