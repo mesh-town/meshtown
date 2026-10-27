@@ -58,7 +58,7 @@ describe("just after the join started", () => {
 });
 
 describe("the members refused the join", () => {
-  const MESSAGE = "This invite can't be used: whoever made it is not an admin of this network now. Ask an admin of the network for a new one.";
+  const MESSAGE = "This invite can't be used: whoever made it is not a network admin now. Ask a network admin for a new one.";
 
   it("shows the node message verbatim instead of the waiting lines", async () => {
     const card = await setup(MESSAGE);
