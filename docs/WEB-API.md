@@ -49,9 +49,13 @@ must match it character for character: field names, error codes, enum values.
      connection was accepted on, with `:<port>` (or without the port if it is 80): `127.0.0.1:7777`
      when opened from this machine, `192.168.1.5:7777` when opened from the network. Otherwise — 403 `bad_host`.
      Names, including `http://localhost:7777`, are rejected here (DNS rebinding protection), and this is
-     the expected behavior. A request with an absolute-form target (`GET http://… HTTP/1.1`) is also `bad_host`.
+     the expected behavior. The one exception: when the client address is loopback (`127.0.0.0/8`, `::1`),
+     `Host` may instead be `<label>.meshtown` or `<label>.meshtown:<port>` (one label of `a-z`, `0-9`, `-`,
+     1–63 characters, letter case ignored; port 1–65535) — this is how a page published by a node opens
+     through the mesh proxy. From any other client such a name is still `bad_host`. A request with an
+     absolute-form target (`GET http://… HTTP/1.1`) is also `bad_host`.
   3. **`Origin`** — for all methods except `GET` and `HEAD`, it is required and must be exactly
-     `http://<Host>` (the same `Host` as in item 2). Otherwise — 403 `bad_origin`. For `GET`/`HEAD`
+     `http://<Host>` (the same `Host` as in item 2, including an accepted `.meshtown` name). Otherwise — 403 `bad_origin`. For `GET`/`HEAD`
      a missing `Origin` is allowed (a plain navigation by address), and a present one is checked the same way.
      The session now lives in a cookie, so `Origin` also protects against a request from a foreign page: it is
      required not only on `POST`/`PUT`/`DELETE` but on any state-changing method.

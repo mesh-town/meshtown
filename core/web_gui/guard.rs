@@ -1,5 +1,6 @@
 //! Guard for every request: peer → absolute-form target → `Host` → `Origin` → credentials.
 
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -11,6 +12,7 @@ use axum::response::Response;
 use super::auth::access::is_client_allowed;
 use super::auth::iface_os::current_view;
 use super::auth::tickets::Via;
+use super::host_name::{is_loopback_client, is_mesh_host_name};
 use super::http::{host_of, json_err, query_param, ConnInfo};
 use super::{cookie, App, WebShared};
 use crate::config::config_file::ListenAccess;
@@ -37,7 +39,7 @@ pub(crate) fn check_request(
     check_client(conn, shared)?;
     let host = host_of(conn.local.ip(), conn.local.port());
     check_absolute_form(&req.uri, &host)?;
-    check_host(req, &host)?;
+    let host = check_host(req, &host, conn.client_addr.ip())?;
     check_origin(req, &host)?;
     check_credential(req, shared)
 }
@@ -73,17 +75,25 @@ fn check_absolute_form(uri: &Uri, host: &str) -> Result<(), Response> {
     Ok(())
 }
 
-/// The `Host` header — exactly one value, equal to the literal of the socket's local address.
-fn check_host(req: &Parts, host: &str) -> Result<(), Response> {
+/// The `Host` header — exactly one value: the literal of the socket's local address or, for a loopback
+/// client only, a `<label>.meshtown[:<port>]` name. Returns the accepted value.
+fn check_host(req: &Parts, host: &str, client: IpAddr) -> Result<String, Response> {
     let mut values = req.headers.get_all(axum::http::header::HOST).iter();
-    let first_ok = values.next().and_then(|v| v.to_str().ok()) == Some(host);
-    if first_ok && values.next().is_none() {
-        return Ok(());
+    let first = values.next().and_then(|v| v.to_str().ok());
+    let single = values.next().is_none();
+    match first {
+        Some(value) if single && value == host => Ok(host.to_string()),
+        Some(value) if single && is_mesh_name_for(value, client) => Ok(value.to_string()),
+        _ => Err(bad_host_response(host)),
     }
-    Err(bad_host_response(host))
 }
 
-/// `Origin` is required on all methods except `GET`/`HEAD`; when present it equals `http://<Host>`.
+fn is_mesh_name_for(value: &str, client: IpAddr) -> bool {
+    is_loopback_client(client) && is_mesh_host_name(value)
+}
+
+/// `Origin` is required on all methods except `GET`/`HEAD`; when present it equals `http://<Host>`
+/// for the `Host` accepted by `check_host`.
 fn check_origin(req: &Parts, host: &str) -> Result<(), Response> {
     let origin = req
         .headers
@@ -185,3 +195,7 @@ mod tests;
 #[cfg(test)]
 #[path = "guard_session_tests.rs"]
 mod session_tests;
+
+#[cfg(test)]
+#[path = "guard_mesh_name_tests.rs"]
+mod mesh_name_tests;

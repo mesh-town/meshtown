@@ -21,6 +21,7 @@ mod control;
 mod cookie;
 mod guard;
 mod host_control;
+mod host_name;
 mod http;
 mod invite_qr;
 mod listener;
