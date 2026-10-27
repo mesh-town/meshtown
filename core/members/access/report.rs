@@ -146,6 +146,17 @@ fn counts_of(rows: &[MemberRow]) -> Counts {
     }
 }
 
+/// True when no other node is online and some other node turned this one away as excluded.
+fn excluded_by_refusals(rows: &[MemberRow]) -> bool {
+    let others = || rows.iter().filter(|r| !r.is_self);
+    let refused = |r: &MemberRow| {
+        r.last_refusal
+            .as_ref()
+            .is_some_and(|f| f.side == "them" && f.reason == "excluded")
+    };
+    !others().any(|r| r.online) && others().any(refused)
+}
+
 /// The reply of `GET /api/members`; `changed` is set for replies to actions.
 pub fn members_reply(
     v: &Verdicts,
@@ -162,7 +173,7 @@ pub fn members_reply(
     let me_admission = me_admission_of(v, refusals);
     MembersReply {
         me: v.me.to_string(),
-        me_excluded: v.ledger.excluded.contains_key(&v.me),
+        me_excluded: v.ledger.excluded.contains_key(&v.me) || excluded_by_refusals(&rows),
         me_pending: me_admission.is_some(),
         me_admission,
         admins: admins_of(v),

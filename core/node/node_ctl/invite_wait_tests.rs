@@ -274,7 +274,7 @@ impl Fixture {
 
     fn recording_save(&self) -> SaveKey {
         let saved = self.saved.clone();
-        Box::new(move |text| {
+        Box::new(move |text, _| {
             saved.lock().unwrap().push(text.to_string());
             Ok(())
         })

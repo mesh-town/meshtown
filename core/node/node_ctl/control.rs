@@ -77,7 +77,7 @@ impl NodeControl for NodeCtl {
                 .unwrap_or_else(|e| e.into_inner());
             invite_wait::cancel(&mut st);
         }
-        begin_network_switch(&self.ctl_shared, &self.cmd_tx, key, peers);
+        begin_network_switch(&self.ctl_shared, &self.cmd_tx, key, peers, None);
     }
 
     fn join_by_invite(
@@ -125,6 +125,7 @@ pub(super) fn begin_network_switch(
     cmd_tx: &UnboundedSender<Cmd>,
     key: &str,
     peers: Vec<crate::transport::net::PeerAddr>,
+    secret: Option<crate::transport::net::NodeSecret>,
 ) {
     let mut st = ctl_shared
         .ctl_state
@@ -148,6 +149,7 @@ pub(super) fn begin_network_switch(
     let _ = cmd_tx.send(Cmd::Switch {
         key: key.to_string(),
         peers,
+        secret,
     });
     say("node", switch_line(from_no_network, peers_count));
 }

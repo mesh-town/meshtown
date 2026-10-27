@@ -59,12 +59,17 @@ pub(super) fn after_command(
     cfg: &mut NodeConfig,
     settings: &mut Settings,
     ctl: &NodeCtl,
-    relaunch: &Relaunch,
+    relaunch: &mut Relaunch,
 ) -> ControlFlow<CycleEnd> {
     let (key, peers) = match cmd {
         Cmd::Stop => return ControlFlow::Break(CycleEnd::Stopped),
         Cmd::LeaveNet { secret } => return ControlFlow::Break(CycleEnd::LeftNet { secret }),
-        Cmd::Switch { key, peers } => (key, peers),
+        Cmd::Switch { key, peers, secret } => {
+            if let Some(secret) = secret {
+                *relaunch = adopt_identity(ctl, relaunch, secret);
+            }
+            (key, peers)
+        }
     };
     match apply_switch(&key, peers, cfg.identity, settings, ctl, relaunch) {
         Ok(new_cfg) => *cfg = new_cfg,
@@ -86,14 +91,19 @@ pub(super) fn forget_network(
     settings: &mut Settings,
     ctl: &NodeCtl,
     relaunch: &Relaunch,
-    secret: crate::transport::net::NodeSecret,
+    secret: NodeSecret,
 ) -> Relaunch {
     settings.net.network_key = None;
     settings.net.route_exits.clear();
     settings.net.ports_published.clear();
-    ctl.set_owner_secret(secret.clone());
     ctl.replace_effective_settings(settings);
     ctl.mark_no_network();
+    adopt_identity(ctl, relaunch, secret)
+}
+
+/// Takes a new node key: the control object and the start copy get it, the remembered node id is dropped.
+pub(super) fn adopt_identity(ctl: &NodeCtl, relaunch: &Relaunch, secret: NodeSecret) -> Relaunch {
+    ctl.set_owner_secret(secret.clone());
     ctl.forget_node_id();
     Relaunch {
         secret,

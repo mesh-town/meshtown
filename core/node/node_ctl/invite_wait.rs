@@ -15,7 +15,9 @@ use tokio::task::AbortHandle;
 use super::control::begin_network_switch;
 use super::state::{Cmd, NodeCtl, NodeCtlShared, NodeCtlState, Phase};
 use crate::invite::redeem::{redeem, RedeemError, RedeemOpts};
+use crate::invite::rekey::redeem_or_rekey;
 use crate::invite::{check_fresh, InviteHead, NotAdmin, OutOfNetwork, INVITE_TTL_SECS};
+use crate::members::network_key::NetworkKey;
 use crate::node::output::say;
 use crate::transport::net::{NodeSecret, PeerAddr};
 use crate::web_gui::{ActionError, InviteJoinState, InviteJoinView, PendingInvite, SaveKey};
@@ -174,16 +176,17 @@ impl Job {
                 "this computer's own key is not known".to_string(),
             ));
         };
-        let opts = RedeemOpts::for_head(&self.head);
-        let transport = match crate::node::bind_ephemeral(self.test_net.as_ref()).await {
-            Ok(t) => t,
-            Err(e) => return self.refuse(RedeemError::Bind(format!("{e:#}"))),
+        let fresh = || {
+            crate::config::config_file::new_secret()
+                .map_err(|e| RedeemError::Bind(format!("{e:#}")))
         };
-        let result = redeem(&self.head, &self.peers, &opts, &|_| {}, transport, &owner).await;
+        let (head, peers, net) = (&self.head, &self.peers, self.test_net.as_ref());
+        let result =
+            redeem_or_rekey(&owner, fresh, |secret| attempt(head, peers, net, secret)).await;
         match result {
-            Ok(key) => {
-                let text = self.head.key_text(&key);
-                self.accept(text)
+            Ok(done) => {
+                let text = self.head.key_text(&done.key);
+                self.accept(text, done.new_owner)
             }
             Err(why) => self.refuse(why),
         }
@@ -191,18 +194,31 @@ impl Job {
 
     /// Key received: clearing the slot if the generation matches (a cancelled wait writes
     /// nothing), writing to the file (if that fails — a journal line, the node still joins), joining the network
-    /// with the addresses from the string.
-    fn accept(self, key_text: String) {
+    /// with the addresses from the string. A new node key (the old one was refused as excluded) is stored with
+    /// the network key and handed to the node in the same command.
+    fn accept(self, key_text: String, new_owner: Option<NodeSecret>) {
         if !release(&self.ctl_shared, self.invite_gen) {
             return;
         }
-        if let Err(e) = (self.save)(&key_text) {
+        if new_owner.is_some() {
+            say(
+                "node",
+                "the network refused this computer's key as excluded; joined with a new key",
+            );
+        }
+        if let Err(e) = (self.save)(&key_text, new_owner.as_ref()) {
             say(
                 "node",
                 format!("network key was not saved to the settings file: {e}"),
             );
         }
-        begin_network_switch(&self.ctl_shared, &self.cmd_tx, &key_text, self.peers);
+        begin_network_switch(
+            &self.ctl_shared,
+            &self.cmd_tx,
+            &key_text,
+            self.peers,
+            new_owner,
+        );
     }
 
     /// Final refusal: if the generation matches, the slot becomes `Refused` without a task.
@@ -225,6 +241,20 @@ impl Job {
         drop(st);
         say("node", format!("joining by invite was rejected: {why}"));
     }
+}
+
+/// One redeem attempt with `owner` on its own ephemeral transport.
+async fn attempt(
+    head: &InviteHead,
+    peers: &[PeerAddr],
+    net: Option<&Arc<crate::transport::net::mem::MemNet>>,
+    owner: NodeSecret,
+) -> Result<NetworkKey, RedeemError> {
+    let opts = RedeemOpts::for_head(head);
+    let transport = crate::node::bind_ephemeral(net)
+        .await
+        .map_err(|e| RedeemError::Bind(format!("{e:#}")))?;
+    redeem(head, peers, &opts, &|_| {}, transport, &owner).await
 }
 
 /// Clears the slot of this generation; `false` — it has already been replaced or cancelled.
@@ -250,3 +280,7 @@ mod tests;
 #[cfg(test)]
 #[path = "invite_wait_error_tests.rs"]
 mod error_tests;
+
+#[cfg(test)]
+#[path = "invite_wait_rekey_tests.rs"]
+mod rekey_tests;

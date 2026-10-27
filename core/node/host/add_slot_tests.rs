@@ -276,7 +276,7 @@ async fn join_right_after_add_slot_has_owner() {
         root: crate::transport::net::contract::pid(7),
     };
     slot.node
-        .join_by_invite(head, vec![], Box::new(|_| Ok(())))
+        .join_by_invite(head, vec![], Box::new(|_, _| Ok(())))
         .unwrap();
     tokio::time::sleep(std::time::Duration::from_millis(300)).await;
     let view = slot.node.invite_join().expect("the wait is on");

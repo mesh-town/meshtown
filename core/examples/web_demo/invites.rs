@@ -88,7 +88,7 @@ pub(crate) fn enter(node: &DemoNode, head: &InviteHead, save: SaveKey) -> Result
             "the demo does not know this network".to_string(),
         ));
     };
-    if let Err(e) = save(&key) {
+    if let Err(e) = save(&key, None) {
         let t = node.state.lock().unwrap().t;
         node.push_log(t, "node", format!("the network key was not saved: {e}"));
     }

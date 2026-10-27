@@ -184,3 +184,94 @@ fn drop_network_with_keep_file_leaves_the_file_byte_for_byte() {
     assert_eq!(state.current_network_key, None);
     assert_eq!(state.file_settings.net.network_key, None);
 }
+
+mod adopt_secret {
+    use super::*;
+    use crate::config::config_file::SecretRead;
+
+    fn file_secret(dir: &Path) -> NodeSecret {
+        match config_file::load_config_file(&dir.join("config.json")) {
+            LoadedConfigFile::Parsed(p) => match p.secret {
+                SecretRead::Valid(s) => s,
+                other => panic!("the file must hold a valid secret: {other:?}"),
+            },
+            _ => panic!("the settings file can't be read"),
+        }
+    }
+
+    fn new_secret() -> NodeSecret {
+        NodeSecret::from_bytes(&[77u8; 32])
+    }
+
+    #[test]
+    fn adopt_secret_then_save_keeps_the_name_and_writes_the_new_secret() {
+        // given: a file with a node name
+        let dir = temp_dir();
+        let mut state = state_with_file(&dir, &fresh_key("a"));
+        let mut named = state.file_settings.clone();
+        named.net.node_name = Some("kitchen".to_string());
+        let path = dir.join("config.json");
+        let rev = config_file::save_config_file(
+            &path,
+            Some(state.file_report.rev),
+            2,
+            &state.secret,
+            &named,
+        )
+        .unwrap();
+        state.file_settings = named;
+        state.file_report.rev = rev;
+        // when
+        state.adopt_secret(new_secret());
+        assert!(state.save_network_key(&fresh_key("b"), false).is_ok());
+        // then
+        assert_eq!(file_secret(&dir).peer_id(), new_secret().peer_id());
+        assert_eq!(
+            file_settings(&dir).net.node_name.as_deref(),
+            Some("kitchen")
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn adopt_secret_without_a_file_changes_memory_only() {
+        // given
+        let dir = temp_dir();
+        let mut state = state_with_file(&dir, &fresh_key("a"));
+        state.file = None;
+        let before = std::fs::read(dir.join("config.json")).unwrap();
+        // when
+        state.adopt_secret(new_secret());
+        assert!(state.save_network_key(&fresh_key("b"), false).is_ok());
+        // then
+        assert_eq!(state.secret.peer_id(), new_secret().peer_id());
+        assert_eq!(
+            std::fs::read(dir.join("config.json")).unwrap(),
+            before,
+            "no file was written"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn adopt_secret_survives_a_failed_write() {
+        use std::os::unix::fs::PermissionsExt;
+        // given: a directory the file cannot be replaced in
+        let dir = temp_dir();
+        let mut state = state_with_file(&dir, &fresh_key("a"));
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
+        // when
+        state.adopt_secret(new_secret());
+        let saved = state.save_network_key(&fresh_key("b"), false);
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        // then: the error goes up, the memory has the key the running node has
+        if saved.is_ok() {
+            // running as a user that ignores directory permissions: nothing to check
+            let _ = std::fs::remove_dir_all(&dir);
+            return;
+        }
+        assert_eq!(state.secret.peer_id(), new_secret().peer_id());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}

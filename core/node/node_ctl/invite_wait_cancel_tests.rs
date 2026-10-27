@@ -29,7 +29,7 @@ async fn accept_does_not_call_save_when_the_wait_was_replaced() {
         test_net: None,
         owner: None,
     };
-    job.accept("mesh2-late".to_string());
+    job.accept("mesh2-late".to_string(), None);
 
     // then: the settings file is untouched
     assert_eq!(

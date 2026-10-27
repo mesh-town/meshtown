@@ -1,6 +1,7 @@
 use super::*;
 use crate::node::host::test_keys::key_input;
 use crate::transport::net::NodeSecret;
+use crate::web_gui::NodeControl;
 
 fn peer(b: u8) -> PeerAddr {
     PeerAddr::new(NodeSecret::from_bytes(&[b; 32]).peer_id())
@@ -63,7 +64,7 @@ fn run_after(cmd: Cmd) -> (ControlFlow<CycleEnd>, NodeConfig) {
     let mut settings = old_settings();
     let ctl = NodeCtl::new_without_network(&settings);
     let mut cfg = old_cfg();
-    let flow = after_command(cmd, &mut cfg, &mut settings, &ctl, &test_relaunch());
+    let flow = after_command(cmd, &mut cfg, &mut settings, &ctl, &mut test_relaunch());
     (flow, cfg)
 }
 
@@ -85,6 +86,7 @@ async fn after_command_bad_key_keeps_old_cfg() {
     let (flow, cfg) = run_after(Cmd::Switch {
         key: "not a key at all".into(),
         peers: vec![peer(2)],
+        secret: None,
     });
     assert!(flow.is_continue());
     assert_old(&cfg);
@@ -95,9 +97,42 @@ async fn after_command_good_key_replaces_cfg_keeps_identity() {
     let (flow, cfg) = run_after(Cmd::Switch {
         key: key_text(2),
         peers: vec![peer(2)],
+        secret: None,
     });
     assert!(flow.is_continue());
     assert_eq!(cfg.network_key.to_bytes(), key_input(2).key.to_bytes());
     assert_eq!(cfg.identity, IdentityState::Persistent);
     assert_eq!(cfg.initial_peers, vec![peer(2)]);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn waiting_switch_with_a_secret_starts_with_the_new_id() {
+    // given: a node without a network, waiting for the first key
+    let settings = Settings::default();
+    let ctl = NodeCtl::new_without_network(&settings);
+    let mut relaunch = test_relaunch();
+    relaunch.test_net = Some(crate::transport::net::mem::MemNet::new());
+    let run = crate::node::output::spawn(run_node_awaiting_key(
+        settings,
+        IdentityState::Persistent,
+        ctl.clone(),
+        relaunch,
+    ));
+    let new = NodeSecret::from_bytes(&[42u8; 32]);
+    // when: a key arrives together with a new node key
+    ctl.switch_network_as(&crate::node::host::test_keys::managed_text(2), new.clone());
+    // then: the node comes up under the new key's id
+    let want = new.peer_id().to_string();
+    let seen = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        while ctl.snapshot().node.id_full != want {
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        }
+    })
+    .await;
+    ctl.stop_on_os_signal();
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(5), run).await;
+    assert!(
+        seen.is_ok(),
+        "the node must start with the id of the new key"
+    );
 }

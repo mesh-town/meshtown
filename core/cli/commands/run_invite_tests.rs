@@ -353,3 +353,6 @@ fn invite_of_net_a() -> ParsedInvite {
 
 #[path = "run_invite_persist_tests.rs"]
 mod persisting_the_key;
+
+#[path = "run_invite_rekey_tests.rs"]
+mod rekeying;

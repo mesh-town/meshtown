@@ -28,10 +28,6 @@ export const EXCLUDED_REMOVED_TEXT =
   "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.";
 export const EXCLUDED_LEFT_TEXT = "To use " + NET_NAME + " again, join a network with an invite from one of its members.";
 export const EXCLUDED_JOIN = "Join with another invite";
-// In the Android app: the way back is the app's own "Leave network and reset…" menu item, reached through this address.
-export const EXCLUDED_APP_TEXT = "This phone was removed from the network. Leave the network and reset the app to join with a new invite.";
-export const EXCLUDED_APP_BUTTON = "Leave network and reset…";
-export const START_OVER_URL = "meshtown-app://start-over";
 
 // The hint above the member list while the creator is the only admin.
 export const SECOND_ADMIN_HINT =

@@ -9,9 +9,11 @@ use serde::Serialize;
 use super::{LogPage, MembersReply, NetRoles, NodeSnapshot};
 use crate::invite::Dealt;
 use crate::node::output::NET_NAME;
+use crate::transport::net::NodeSecret;
 
-/// Writes the network key to the settings file: the page hands it to the node, the node calls it when the key is received.
-pub type SaveKey = Box<dyn FnOnce(&str) -> Result<(), String> + Send>;
+/// Writes the network key to the settings file (and the new node key, if the join changed it): the page hands it
+/// to the node, the node calls it when the key is received.
+pub type SaveKey = Box<dyn FnOnce(&str, Option<&NodeSecret>) -> Result<(), String> + Send>;
 
 /// Invite-join state for `/api/state` (`node.invite_join`).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

@@ -21,7 +21,9 @@ use start_race::start_unless_stopped;
 
 mod command;
 mod start_race;
-use command::{after_command, apply_switch, fall_back_to_waiting, forget_network, CycleEnd};
+use command::{
+    adopt_identity, after_command, apply_switch, fall_back_to_waiting, forget_network, CycleEnd,
+};
 
 #[cfg(test)]
 use crate::transport::net::PeerAddr;
@@ -35,11 +37,11 @@ pub async fn run_node_with_ctl(
     mut cfg: NodeConfig,
     mut settings: crate::config::config_file::Settings,
     ctl: Arc<crate::node::node_ctl::NodeCtl>,
-    relaunch: crate::node::node_ctl::Relaunch,
+    mut relaunch: crate::node::node_ctl::Relaunch,
 ) -> Result<()> {
     ctl.set_test_net(relaunch.test_net.clone());
     ctl.set_owner_secret(relaunch.secret.clone());
-    match run_cycles(&mut cfg, &mut settings, &ctl, &relaunch).await? {
+    match run_cycles(&mut cfg, &mut settings, &ctl, &mut relaunch).await? {
         CycleEnd::Stopped => Ok(()),
         CycleEnd::LeftNet { secret } => {
             let relaunch = forget_network(&mut settings, &ctl, &relaunch, secret);
@@ -85,7 +87,7 @@ pub async fn run_network(
 
 /// Wait loop before the first start: a `Stop` that lands while a switch is applied also exits before the boot. `Stop` — exit (from the page or Ctrl-C/SIGTERM, already
 /// turned into `Stop` by the signal task of the host); `LeaveNet` — forget the network and keep waiting;
-/// `Switch { key, peers }` — `relaunch.reload`, on success — move to `run_cycles` with the invite's addresses
+/// `Switch { key, peers, secret }` — `relaunch.reload`, on success — move to `run_cycles` with the invite's addresses
 /// for this start; on failure — back to `NoNetwork`, keep waiting. A start that fails (an error or
 /// `StartFailed`) also falls back to `NoNetwork` with the reason and keeps waiting.
 async fn wait_then_run(
@@ -101,12 +103,15 @@ async fn wait_then_run(
             Cmd::LeaveNet { secret } => {
                 relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
             }
-            Cmd::Switch { key, peers } => {
+            Cmd::Switch { key, peers, secret } => {
+                if let Some(secret) = secret {
+                    relaunch = adopt_identity(ctl, &relaunch, secret);
+                }
                 ctl.mark_starting();
                 match apply_switch(&key, peers, identity, &mut settings, ctl, &relaunch) {
                     Ok(_) if ctl.stop_requested() => return Ok(()),
                     Ok(mut cfg) => {
-                        match run_cycles(&mut cfg, &mut settings, ctl, &relaunch).await {
+                        match run_cycles(&mut cfg, &mut settings, ctl, &mut relaunch).await {
                             Ok(CycleEnd::Stopped) => return Ok(()),
                             Ok(CycleEnd::LeftNet { secret }) => {
                                 relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
@@ -150,7 +155,7 @@ async fn run_cycles(
     cfg: &mut NodeConfig,
     settings: &mut Settings,
     ctl: &Arc<NodeCtl>,
-    relaunch: &Relaunch,
+    relaunch: &mut Relaunch,
 ) -> Result<CycleEnd> {
     let mut first_cycle = true;
     loop {

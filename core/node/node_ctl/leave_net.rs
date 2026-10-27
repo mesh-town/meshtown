@@ -14,8 +14,21 @@ impl PartialEq for Cmd {
             (Cmd::LeaveNet { secret: a }, Cmd::LeaveNet { secret: b }) => {
                 a.peer_id() == b.peer_id()
             }
-            (Cmd::Switch { key: k1, peers: p1 }, Cmd::Switch { key: k2, peers: p2 }) => {
-                k1 == k2 && p1 == p2
+            (
+                Cmd::Switch {
+                    key: k1,
+                    peers: p1,
+                    secret: s1,
+                },
+                Cmd::Switch {
+                    key: k2,
+                    peers: p2,
+                    secret: s2,
+                },
+            ) => {
+                k1 == k2
+                    && p1 == p2
+                    && s1.as_ref().map(NodeSecret::peer_id) == s2.as_ref().map(NodeSecret::peer_id)
             }
             _ => false,
         }

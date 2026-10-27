@@ -187,7 +187,7 @@ impl NodeControl for TestNode {
     ) -> Result<(), ActionError> {
         self.push_call("join_by_invite");
         if let Some(text) = self.key_for_save.lock().unwrap().clone() {
-            let _ = save(&text);
+            let _ = save(&text, None);
         }
         Ok(())
     }

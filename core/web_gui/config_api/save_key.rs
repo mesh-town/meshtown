@@ -12,6 +12,11 @@ use super::settings_access::write_loaded;
 use super::state::ConfigState;
 
 impl ConfigState {
+    /// Takes a new node key: the next write of the settings file stores it.
+    pub(crate) fn adopt_secret(&mut self, secret: NodeSecret) {
+        self.secret = secret;
+    }
+
     pub(crate) fn save_network_key(&mut self, key: &str, keep_ports: bool) -> Result<(), Response> {
         let Some(file) = self.file.clone() else {
             crate::node::output::say(

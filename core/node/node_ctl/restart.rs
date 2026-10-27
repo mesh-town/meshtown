@@ -39,7 +39,11 @@ impl NodeCtl {
             st.start_error = None;
             key
         };
-        let _ = self.cmd_tx.send(Cmd::Switch { key, peers: vec![] });
+        let _ = self.cmd_tx.send(Cmd::Switch {
+            key,
+            peers: vec![],
+            secret: None,
+        });
         Ok(())
     }
 

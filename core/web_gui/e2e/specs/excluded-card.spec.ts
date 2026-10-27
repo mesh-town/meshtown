@@ -25,11 +25,13 @@ test.describe('excluded card spacing', () => {
   test.describe('in the app', () => {
     test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android' });
 
-    test('113-excluded-card-app: the reset link keeps a gap and the card speaks of the phone', async ({ app, page }) => {
-        const card = page.locator('#members-removed-card');
+    test('113-excluded-card-app: the join button keeps a gap, no reset link, and the card speaks of the phone', async ({ app, page }) => {
+      const card = page.locator('#members-removed-card');
       await app.tabs.open('peers');
-      await expect(card.getByRole('button', { name: /Leave network and reset/ })).toBeVisible();
+      await expect(card.getByRole('button', { name: 'Join with another invite' })).toBeVisible();
+      await expect(card.getByRole('link')).toHaveCount(0);
       await expect(card.getByRole('heading')).toContainText('This phone');
+      await expect(card.locator('p')).toContainText('this phone');
       expect(await gapBelowText(card)).toBeGreaterThanOrEqual(MIN_GAP);
     });
   });

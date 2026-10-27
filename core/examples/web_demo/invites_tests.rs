@@ -50,7 +50,7 @@ fn a_known_network_is_entered_and_saved() {
     let result = node.join_by_invite(
         invite.head,
         invite.peers,
-        Box::new(move |k| {
+        Box::new(move |k, _| {
             *sink.lock().unwrap() = Some(k.to_string());
             Ok(())
         }),
@@ -69,7 +69,7 @@ fn an_unknown_network_is_refused() {
     let invite = parse(&super::invite_for(&key).expect("invite")).expect("parsed");
     let node = node_with(None);
 
-    let result = node.join_by_invite(invite.head, invite.peers, Box::new(|_| Ok(())));
+    let result = node.join_by_invite(invite.head, invite.peers, Box::new(|_, _| Ok(())));
 
     assert!(matches!(result, Err(ActionError::Invalid(_))), "{result:?}");
 }

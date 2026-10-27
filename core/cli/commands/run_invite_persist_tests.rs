@@ -5,10 +5,10 @@ use std::path::PathBuf;
 const KEY: &str = "mesh2-key-for-the-test";
 
 /// A directory for the settings file; removed in `Drop`.
-struct Dir(PathBuf);
+pub(super) struct Dir(PathBuf);
 
 impl Dir {
-    fn new(name: &str) -> Dir {
+    pub(super) fn new(name: &str) -> Dir {
         let dir =
             std::env::temp_dir().join(format!("run_invite_tests-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
@@ -28,7 +28,7 @@ impl Drop for Dir {
 }
 
 /// A run with a settings file created in `dir`.
-fn run_with_file(dir: &Dir) -> RunConfig {
+pub(super) fn run_with_file(dir: &Dir) -> RunConfig {
     let source = ConfigSource::File {
         path: dir.file(),
         may_create: true,

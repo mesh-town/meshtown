@@ -125,6 +125,7 @@ mod commands_that_do_not_interrupt_a_start {
         let want = Cmd::Switch {
             key: key_text(9),
             peers: Vec::new(),
+            secret: None,
         };
         assert_eq!(cmd, want);
     }
