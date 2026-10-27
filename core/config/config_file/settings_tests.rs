@@ -262,3 +262,24 @@ fn key() -> NetworkKeyInput {
         root: NodeSecret::from_bytes(&[7; 32]).peer_id(),
     }
 }
+
+#[test]
+fn socks_strict_defaults_false_and_is_read_back() {
+    let parse = |text: &str| crate::config::config_file::parse_text(text).expect("parsing");
+    let absent = parse(r#"{"config":{"version":1}}"#);
+    assert!(!absent.settings.process.socks_strict);
+    let on = parse(r#"{"config":{"version":1,"socks":{"strict":true}}}"#);
+    assert!(on.settings.process.socks_strict);
+    assert_eq!(on.field_errors, vec![]);
+    assert!(on.unknown_paths.is_empty(), "{:?}", on.unknown_paths);
+}
+
+#[test]
+fn socks_strict_rejects_a_non_bool() {
+    let p = crate::config::config_file::parse_text(
+        r#"{"config":{"version":1,"socks":{"strict":"yes"}}}"#,
+    )
+    .expect("parsing");
+    assert!(!p.settings.process.socks_strict);
+    assert_eq!(p.field_errors.len(), 1, "{:?}", p.field_errors);
+}

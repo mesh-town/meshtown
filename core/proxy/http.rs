@@ -14,7 +14,9 @@ use super::http_head::{
 };
 use super::mesh;
 use super::outcome::{outcome_line, ProxyOutcome};
-use super::pac::{pac_proxy_list, pac_reply, pac_script, PacRequest, PAC_PATH};
+use super::pac::{
+    pac_proxy_list, pac_reply, pac_route_list, pac_script, pac_strict, PacRequest, PAC_PATH,
+};
 use super::path;
 use super::serve::{ProxyConfig, NO_PROXY_NETWORK};
 
@@ -98,16 +100,14 @@ async fn forward(
 
 /// Serves the PAC; the port in the path line is the listener's actual port.
 async fn serve_pac(mut stream: TcpStream, request: PacRequest) -> Result<()> {
-    let proxy_list = pac_proxy_list(stream.local_addr()?, false);
-    let script = pac_script(&proxy_list, &proxy_list);
+    let addr = stream.local_addr()?;
+    let route = pac_route_list(addr, pac_strict());
+    let script = pac_script(&route, &pac_proxy_list(addr));
     stream
         .write_all(&pac_reply(&script, request.head_only))
         .await?;
     let method = if request.head_only { "HEAD" } else { "GET" };
-    say(
-        "http",
-        format!("PAC served: {method} {PAC_PATH} → {proxy_list}"),
-    );
+    say("http", format!("PAC served: {method} {PAC_PATH} → {route}"));
     Ok(())
 }
 

@@ -80,21 +80,54 @@ mod route_line {
         // given
         let proxy = addr("127.0.0.1:41234");
         // when
-        let line = pac_proxy_list(proxy, false);
+        let line = pac_proxy_list(proxy);
         // then
         assert_eq!(line, "SOCKS5 127.0.0.1:41234; PROXY 127.0.0.1:41234");
     }
 
     #[test]
-    fn direct_only_is_bare_direct() {
-        let line = pac_proxy_list(addr("127.0.0.1:41234"), true);
-        assert_eq!(line, "DIRECT");
+    fn route_list_ends_with_direct_unless_strict() {
+        // given: port 41234; when: not strict
+        let line = pac_route_list(addr("127.0.0.1:41234"), false);
+        // then
+        assert_eq!(
+            line,
+            "SOCKS5 127.0.0.1:41234; PROXY 127.0.0.1:41234; DIRECT"
+        );
+    }
+
+    #[test]
+    fn strict_route_list_has_no_direct() {
+        let line = pac_route_list(addr("127.0.0.1:41234"), true);
+        assert_eq!(line, "SOCKS5 127.0.0.1:41234; PROXY 127.0.0.1:41234");
+    }
+
+    #[test]
+    fn script_keeps_direct_for_ordinary_sites_only() {
+        // given: both lists in the script
+        let proxy = addr("127.0.0.1:41234");
+        let script = pac_script(&pac_route_list(proxy, false), &pac_proxy_list(proxy));
+        // then: the route return has the tail, the mesh branch does not
+        assert!(
+            script.contains("return \"SOCKS5 127.0.0.1:41234; PROXY 127.0.0.1:41234; DIRECT\";")
+        );
+        assert!(script.contains("return \"SOCKS5 127.0.0.1:41234; PROXY 127.0.0.1:41234\";"));
+    }
+
+    #[test]
+    fn strict_flag_round_trips() {
+        // given/when: the flag is set; then: it reads back, and goes back to false at once
+        set_pac_strict(true);
+        let on = pac_strict();
+        set_pac_strict(false);
+        assert!(on);
+        assert!(!pac_strict());
     }
 
     #[test]
     fn lan_address_goes_into_line_as_is() {
         // `localnet` mode: the PAC for a network device carries the address the connection arrived on
-        let line = pac_proxy_list(addr("192.168.1.5:1080"), false);
+        let line = pac_proxy_list(addr("192.168.1.5:1080"));
         assert_eq!(line, "SOCKS5 192.168.1.5:1080; PROXY 192.168.1.5:1080");
     }
 }
@@ -249,7 +282,7 @@ mod pac_reply {
     #[test]
     fn head_keeps_length_and_drops_body() {
         // given
-        let script = pac_script(&pac_proxy_list(addr("127.0.0.1:1080"), false), "DIRECT");
+        let script = pac_script(&pac_proxy_list(addr("127.0.0.1:1080")), "DIRECT");
         let (get_head, _) = split_reply(&pac_reply(&script, false));
         // when
         let (head, body) = split_reply(&pac_reply(&script, true));

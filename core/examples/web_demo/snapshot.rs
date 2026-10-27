@@ -186,6 +186,7 @@ fn build_socks_info(st: &DemoState) -> SocksInfo {
         access: st.settings.process.socks_access.as_str().to_string(),
         lan: Vec::new(),
         ifaces: None,
+        strict: st.settings.process.socks_strict,
     }
 }
 

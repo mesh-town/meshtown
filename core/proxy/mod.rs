@@ -56,7 +56,7 @@ pub use get::get_via_socks;
 #[cfg(feature = "net-hyper")]
 pub use outcome::{outcome_line, ProxyOutcome};
 #[cfg(feature = "net-hyper")]
-pub use pac::pac_url;
+pub use pac::{pac_strict, pac_url, set_pac_strict};
 #[cfg(feature = "net-hyper")]
 pub use serve::{
     bind_proxy_listener, listen_ip, BindError, ProxyConfig, DEFAULT_SOCKS_PORT,

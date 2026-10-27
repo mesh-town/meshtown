@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 fn paths_unique() {
     // given: the whole table
     let set: BTreeSet<&str> = FIELDS.iter().map(|f| f.field_path).collect();
-    // then: 38 rows, no repeats
-    assert_eq!(FIELDS.len(), 38);
+    // then: 39 rows, no repeats
+    assert_eq!(FIELDS.len(), 39);
     assert_eq!(set.len(), FIELDS.len(), "a path is repeated");
 }
 
@@ -195,8 +195,9 @@ mod proxy_net_row {
     #[test]
     fn sits_right_after_socks_ifaces() {
         // given: the row order is the file output order
-        // then: `proxy.net` follows `socks.ifaces` and precedes `checks.enabled`
-        assert_eq!(position_of("proxy.net"), position_of("socks.ifaces") + 1);
+        // then: `socks.strict` follows `socks.ifaces`, `proxy.net` follows it and precedes `checks.enabled`
+        assert_eq!(position_of("socks.strict"), position_of("socks.ifaces") + 1);
+        assert_eq!(position_of("proxy.net"), position_of("socks.strict") + 1);
         assert_eq!(position_of("checks.enabled"), position_of("proxy.net") + 1);
     }
 
@@ -208,8 +209,8 @@ mod proxy_net_row {
             .iter()
             .filter(|f| f.value.is_stored_in_settings())
             .count();
-        // then: 32 stored paths, 6 computed, 38 rows in all
-        assert_eq!(stored, 32, "stored rows");
+        // then: 33 stored paths, 6 computed, 39 rows in all
+        assert_eq!(stored, 33, "stored rows");
         assert_eq!(FIELDS.len() - stored, 6, "computed rows");
     }
 }

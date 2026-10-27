@@ -171,7 +171,7 @@ all fields are required; `null` is allowed where marked):
     "excluded_by": null
   },
   "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
-  "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
+  "socks": { "enabled": true, "listen": "127.0.0.1:1080", "strict": false },
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
   "transport": {
     "self_path": "direct",

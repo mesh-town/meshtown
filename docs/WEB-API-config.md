@@ -267,7 +267,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
   "network":   { "label": "our-gaming-room",
                  "masked": "our-gaming-room--••••••••••••••••••••••••••••••••••" },
   "exit":      { "enabled": true, "max_streams": 0 },
-  "socks":     { "enabled": true, "port": 1080 },
+  "socks":     { "enabled": true, "port": 1080, "strict": false },
   "checks":    { "enabled": true, "interval_sec": 900,
                  "doh_server": "1.1.1.1:443", "provider_dns": null },
   "probe":     { "interval_sec": 300, "full_cycle": false },
@@ -291,6 +291,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `exit.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` | "Home" → "This computer" → "Allow other members to open sites through this computer"; "Members" → a switch on the own row; "Home" → the "Exit via…" card |
 | `exit.max_streams` | integer | 0 | 0…100000; `0` = by machine memory (20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise); process-wide, shared by all networks | no (on the fly; open streams are not cut) | `core/exit/limits/`, `core/node/node_ctl/live_paths.rs` | no input field |
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
+| `socks.strict` | boolean | `false` | — | no (applies at once) | `core/proxy/pac.rs` | "Settings" → "Strict mode" |
 | `socks.port` | integer | 1080 | 1024…65535; a busy port — 422 | **yes** | `core/node/config.rs`, `core/cli/commands.rs` | "Settings" → "Proxy port (SOCKS5 and HTTP)"; the port belongs to the process (one proxy listener for all networks), not to a slot |
 | `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config an id of a network that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
 | `checks.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-checks` flag) | "Settings", the "Check sites from the list" row — next to the interval |

@@ -278,10 +278,15 @@ mod pac_file {
             lossy(&reply)
         );
         let port = proxy.port();
-        let route = format!("SOCKS5 127.0.0.1:{port}; PROXY 127.0.0.1:{port}");
+        let mesh = format!("SOCKS5 127.0.0.1:{port}; PROXY 127.0.0.1:{port}");
+        let route = format!("return \"{mesh}; DIRECT\";");
         assert!(
             body.contains(&route),
             "the body has no path line {route:?}: {body}"
+        );
+        assert!(
+            body.contains(&format!("return \"{mesh}\";")),
+            "the body has no mesh line {mesh:?}: {body}"
         );
         drop(node);
     }

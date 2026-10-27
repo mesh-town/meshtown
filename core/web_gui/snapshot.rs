@@ -67,6 +67,8 @@ pub struct SocksInfo {
     pub ifaces: Option<Vec<String>>,
     /// PAC address on the proxy port; `None` — the proxy is off.
     pub pac_url: Option<String>,
+    /// `socks.strict`: the PAC has no `DIRECT` fallback for ordinary sites.
+    pub strict: bool,
 }
 
 /// Proxy address for the network's other devices and the name of the interface it belongs to.

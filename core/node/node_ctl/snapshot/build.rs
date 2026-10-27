@@ -103,6 +103,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             access: i.socks_access.0.as_str().to_string(),
             lan: socks_lan(i.socks, i.socks_access.1.clone()),
             ifaces: i.socks_ifaces.to_state(),
+            strict: crate::proxy::pac_strict(),
         },
         exit: ExitInfo {
             enabled: i.exit_on,

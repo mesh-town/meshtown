@@ -53,7 +53,8 @@ const DEFAULTS_TEXT: &str = r#"{
       "enabled": true,
       "port": 1080,
       "access": "localhost",
-      "ifaces": []
+      "ifaces": [],
+      "strict": false
     },
     "checks": {
       "enabled": true,
@@ -126,7 +127,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
       "access": "localnet",
       "ifaces": [
         "br-lan"
-      ]
+      ],
+      "strict": true
     },
     "proxy": {
       "net": "ab2c3d"
