@@ -21,7 +21,7 @@ import { useRefusalGate } from "./use-refusal-gate.ts";
 import { useJoin } from "./use-join.ts";
 import { refusedLead } from "./join-wait.ts";
 import {
-  HOME_WIZARD_BROWSER_DONE, HOME_WIZARD_CREATE_BTN, HOME_WIZARD_DONE, HOME_WIZARD_HEAD_JOIN, HOME_WIZARD_INVITE_HINT, HOME_WIZARD_JOIN_BTN,
+  HOME_WIZARD_BROWSER_DONE, HOME_WIZARD_CHANGE, HOME_WIZARD_CREATE_BTN, HOME_WIZARD_DONE, HOME_WIZARD_HEAD_JOIN, HOME_WIZARD_INVITE_HINT, HOME_WIZARD_JOIN_BTN,
   HOME_WIZARD_JOINED, HOME_WIZARD_JOINED_NOT_RUNNING, HOME_WIZARD_NOT_JOINED, HOME_WIZARD_STEP_BROWSER, HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT, HOME_WIZARD_TITLE,
   HOME_PHONE_TITLE,
 } from "./home-card-texts.ts";
@@ -78,7 +78,7 @@ async function startCreate(): Promise<void> {
     <p v-if="progress" class="field-error-text" id="join-refused" role="status" aria-live="polite"><strong v-if="lead">{{ lead }}</strong>{{ lead ? " " : "" }}{{ progress.main }}</p>
     <p class="hint">{{ HOME_WIZARD_INVITE_HINT }}</p>
     <div class="btn-row">
-      <button type="button" :class="['btn', { 'btn-primary': !j.form.choice }]" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
+      <button type="button" class="btn btn-primary" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
       <button type="button" class="btn" id="home-start-create-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'create'" @click="startCreate">{{ HOME_WIZARD_CREATE_BTN }}</button>
     </div>
     <JoinCard v-if="j.form.choice" :join="j" quiet @attempt="refusal.dismiss" />
@@ -92,11 +92,11 @@ async function startCreate(): Promise<void> {
       <div v-else class="step-head"><span v-if="running" class="spinner" aria-hidden="true"></span><span v-else class="step-num" aria-hidden="true">1</span><h3>{{ stepHead }}</h3></div>
     </div>
     <div v-if="!inApp" class="wizard-step" :class="{ pending: step < 2, done: step > 2 }">
-      <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-2" :disabled="!pickable(2)" :aria-current="step === 2 ? 'step' : undefined" @click="picked = 2"><span class="step-num" aria-hidden="true">2</span>{{ HOME_WIZARD_STEP_BROWSER }}</button></h3></div>
+      <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-2" :disabled="!pickable(2)" :aria-current="step === 2 ? 'step' : undefined" @click="picked = 2"><span class="step-num" aria-hidden="true">{{ step > 2 ? "✓" : 2 }}</span>{{ HOME_WIZARD_STEP_BROWSER }}</button><span v-if="step > 2" class="step-change" aria-hidden="true">{{ HOME_WIZARD_CHANGE }}</span></h3></div>
       <template v-if="step === 2 && !startFailed">
         <BrowserCard bare />
-        <StrictChoice />
         <div class="btn-row"><button type="button" class="btn btn-primary" @click="finish('exit')">{{ HOME_WIZARD_BROWSER_DONE }}</button></div>
+        <StrictChoice />
       </template>
     </div>
     <div class="wizard-step" :class="{ pending: step < 3 }">

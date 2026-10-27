@@ -35,6 +35,14 @@ describe("StrictChoice", () => {
     expect(checked(mountChoice(strict).wrapper)).toEqual(expected);
   });
 
+  it("starts collapsed under \"More options\"", () => {
+    const { wrapper } = mountChoice(false);
+    const details = wrapper.get("details#more-options");
+    expect(details.attributes("open")).toBeUndefined();
+    expect(details.get("summary").text()).toBe("More options");
+    expect(details.find("fieldset#strict-choice").exists()).toBe(true);
+  });
+
   it("proxy off: hidden", () => {
     const { wrapper } = mountChoice(false, baseState({ socks: { enabled: false, listen: null, pac_url: null } }));
     expect(wrapper.find("#strict-choice").exists()).toBe(false);
@@ -43,6 +51,7 @@ describe("StrictChoice", () => {
   it("a click on the second answer sends {socks.strict: true}", async () => {
     api.mockImplementation(async (_m, _p, body) => ({ config: body.config, rev: 2 }));
     const { wrapper } = mountChoice(false);
+    await wrapper.get("#more-options > summary").trigger("click");
     await wrapper.get("#strict-on").setValue(true);
     await flushPromises();
     const [method, path, body] = api.mock.calls.find((c) => c[0] === "PUT");
