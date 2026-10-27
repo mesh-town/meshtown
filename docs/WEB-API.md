@@ -151,6 +151,7 @@ all fields are required; `null` is allowed where marked):
     "uptime_sec": 67320,
     "rss_kib": 14648,
     "rss_peak_kib": 16486,
+    "start_error": null,
     "web_addr": "127.0.0.1:7777",
     "identity": "persistent",
     "identity_reason": null
@@ -267,6 +268,8 @@ Exact enum values:
 
 - `node.status`: `"starting"`, `"online"`, `"offline"`, `"stopping"`. `"offline"` also covers a node
   started without a network key and waiting for a network (`network: null`, below).
+- `node.start_error`: a string with the reason when the last start (a join or a restart) failed and the process
+  went back to waiting for a network (`status` is `"offline"`); `null` otherwise. A new start clears it.
 - `node.identity`: `"persistent"` — the node saved its identity and after a restart will remain the same
   network member; `"temporary"` — it did not save it, and after a restart other members will see this computer as a new member.
   With `"temporary"`, `node.identity_reason` is filled in, otherwise it is `null`. There are three values:

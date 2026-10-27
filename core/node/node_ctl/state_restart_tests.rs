@@ -28,6 +28,31 @@ mod from_up_with_key {
     }
 }
 
+mod after_a_failed_start {
+    use super::*;
+
+    /// given a start that failed and left the node waiting with the saved key, when the page restarts it,
+    /// then the key is sent again in a `Switch`.
+    #[tokio::test]
+    async fn restart_after_a_failed_start_sends_switch_with_the_saved_key() {
+        // given
+        let ctl = setup(Phase::Starting, Some(KEY_TEXT));
+        ctl.fall_back_to_no_network("port is busy".to_string());
+        // when
+        let res = ctl.request_restart();
+        // then
+        assert_eq!(res, Ok(()));
+        assert_eq!(phase_name(&ctl), "Starting");
+        assert_eq!(
+            ctl.next_command().await,
+            Cmd::Switch {
+                key: KEY_TEXT.to_string(),
+                peers: vec![]
+            }
+        );
+    }
+}
+
 mod refused {
     use super::*;
 

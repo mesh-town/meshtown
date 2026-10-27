@@ -10,6 +10,10 @@ export const STATUS_NETWORK_SEP = " · network ";
 export const STATUS_THIS_COMPUTER = "this computer";
 export const STATUS_HIM = "this computer";
 
+export function statusStartFailedText(reason: string): string {
+  return NET_NAME + " couldn't start: " + reason + ". Details are on the \"Log\" tab.";
+}
+
 export function statusOnlineOthersText(n: number): string {
   return n + " " + plural(n, "member", "members") + " online";
 }

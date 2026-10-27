@@ -76,6 +76,8 @@ export interface NodeRuntime {
   uptime_sec: number;
   rss_kib: number;
   rss_peak_kib: number;
+  /** Why the last start failed; `null` when it did not. */
+  start_error: string | null;
   // The fields below are inserted by `apply_state_extras` (`routes/state.rs`) on top of the serde struct.
   version: string;
   web_addr: string; // "127.0.0.1:<port>"

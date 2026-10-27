@@ -151,6 +151,7 @@ fn build_node_runtime(st: &DemoState) -> NodeRuntime {
         uptime_sec: st.t as u64,
         rss_kib: 8192,
         rss_peak_kib: 9000,
+        start_error: None,
     }
 }
 

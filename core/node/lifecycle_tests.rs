@@ -29,6 +29,9 @@ pub(super) mod proxy_support;
 #[path = "lifecycle_proxy_tests.rs"]
 mod proxy;
 
+#[path = "lifecycle_fallback_tests.rs"]
+mod fallback;
+
 /// (a) `stop()` before calling `run_node_awaiting_key`, (b) `stop()` 50 ms after `spawn` — both times
 /// `Ok(())` within a `timeout` of 2 s.
 #[tokio::test]

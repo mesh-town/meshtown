@@ -21,7 +21,7 @@ use start_race::start_unless_stopped;
 
 mod command;
 mod start_race;
-use command::{after_command, apply_switch, CycleEnd};
+use command::{after_command, apply_switch, fall_back_to_waiting, CycleEnd};
 
 #[cfg(test)]
 use crate::transport::net::PeerAddr;
@@ -43,6 +43,10 @@ pub async fn run_node_with_ctl(
         CycleEnd::Stopped => Ok(()),
         CycleEnd::LeftNet { secret } => {
             let relaunch = forget_network(&mut settings, &ctl, &relaunch, secret);
+            wait_then_run(settings, cfg.identity, &ctl, &relaunch).await
+        }
+        CycleEnd::StartFailed(e) => {
+            fall_back_to_waiting(&ctl, &e);
             wait_then_run(settings, cfg.identity, &ctl, &relaunch).await
         }
     }
@@ -100,10 +104,10 @@ pub async fn run_network(
 }
 
 /// Wait loop before the first start: a `Stop` that lands while a switch is applied also exits before the boot. `Stop` — exit (from the page or Ctrl-C/SIGTERM, already
-/// turned into `Stop` by the signal task of the host); `Switch { key, peers }` — `relaunch.reload`, on success
-/// — move to `run_cycles` with the invite's addresses for this start; on failure — back to
-/// `NoNetwork`, keep waiting (a failure of `start_node` itself on the first cycle after that
-/// is `run_cycles`' business, passed up the same way as for a start with a key).
+/// turned into `Stop` by the signal task of the host); `LeaveNet` — forget the network and keep waiting;
+/// `Switch { key, peers }` — `relaunch.reload`, on success — move to `run_cycles` with the invite's addresses
+/// for this start; on failure — back to `NoNetwork`, keep waiting. A start that fails (an error or
+/// `StartFailed`) also falls back to `NoNetwork` with the reason and keeps waiting.
 async fn wait_then_run(
     mut settings: Settings,
     identity: IdentityState,
@@ -114,18 +118,22 @@ async fn wait_then_run(
     loop {
         match ctl.next_command().await {
             Cmd::Stop => return Ok(()),
-            Cmd::LeaveNet { .. } => {}
+            Cmd::LeaveNet { secret } => {
+                relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
+            }
             Cmd::Switch { key, peers } => {
                 ctl.mark_starting();
                 match apply_switch(&key, peers, identity, &mut settings, ctl, &relaunch) {
                     Ok(_) if ctl.stop_requested() => return Ok(()),
-                    Ok(mut cfg) => match run_cycles(&mut cfg, &mut settings, ctl, &relaunch).await?
-                    {
-                        CycleEnd::Stopped => return Ok(()),
-                        CycleEnd::LeftNet { secret } => {
-                            relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
+                    Ok(mut cfg) => {
+                        match run_cycles(&mut cfg, &mut settings, ctl, &relaunch).await {
+                            Ok(CycleEnd::Stopped) => return Ok(()),
+                            Ok(CycleEnd::LeftNet { secret }) => {
+                                relaunch = forget_network(&mut settings, ctl, &relaunch, secret);
+                            }
+                            Ok(CycleEnd::StartFailed(e)) | Err(e) => fall_back_to_waiting(ctl, &e),
                         }
-                    },
+                    }
                     Err(e) => {
                         say(
                             "node",
@@ -170,9 +178,11 @@ async fn run_cycles(
             return Ok(CycleEnd::Stopped);
         }
         cfg.proxy_face = ctl.proxy_face();
-        apply_proxy(settings, ctl, first_cycle).await?;
-        let Some(node) = boot_cycle(cfg, ctl, first_cycle).await? else {
-            return Ok(CycleEnd::Stopped);
+        let node = match start_cycle(cfg, settings, ctl, first_cycle).await {
+            Ok(Some(node)) => node,
+            Ok(None) => return Ok(CycleEnd::Stopped),
+            Err(e) if first_cycle => return Err(e),
+            Err(e) => return Ok(CycleEnd::StartFailed(e)),
         };
         let cmd = serve_until_command(node, ctl).await;
         if let ControlFlow::Break(end) = after_command(cmd, cfg, settings, ctl, relaunch) {
@@ -180,6 +190,17 @@ async fn run_cycles(
         }
         first_cycle = false;
     }
+}
+
+/// The proxy to the settings, then the boot: an error of either ends the cycle as a failed start.
+async fn start_cycle(
+    cfg: &NodeConfig,
+    settings: &Settings,
+    ctl: &NodeCtl,
+    first_cycle: bool,
+) -> Result<Option<RunningNode>> {
+    apply_proxy(settings, ctl).await?;
+    boot_cycle(cfg, ctl, first_cycle).await
 }
 
 /// Start of a cycle: `start_node(cfg.clone())` through `boot_cycle_with`.
@@ -192,8 +213,7 @@ async fn boot_cycle(
 }
 
 /// Start of a cycle: `ctl.renew_boot_stamp()`, the start itself (a stop request interrupts it: `None`, the
-/// start is closed in the background); on error — `detach(Stopping)`, the line "restart failed: {e:#}" only
-/// if `!first_cycle`, the error goes up; on success — the console on the first cycle, `ctl.attach(&node)`,
+/// start is closed in the background); on error — `detach(Stopping)`, the error goes up; on success — the console on the first cycle, `ctl.attach(&node)`,
 /// `ctl.node_up(&node)`.
 async fn boot_cycle_with(
     ctl: &NodeCtl,
@@ -208,7 +228,7 @@ async fn boot_cycle_with(
             say("node", "start interrupted by a stop");
             return Ok(None);
         }
-        Err(e) => return Err(cycle_failed(ctl, first_cycle, e)),
+        Err(e) => return Err(cycle_failed(ctl, e)),
     };
     if first_cycle {
         spawn_console_on_first_cycle(&node, ctl);
@@ -218,22 +238,18 @@ async fn boot_cycle_with(
     Ok(Some(node))
 }
 
-/// A cycle could not start: the proxy gives up the node, `detach(Stopping)`, the line "restart failed: {e:#}"
-/// only if `!first_cycle`; the error goes up.
-fn cycle_failed(ctl: &NodeCtl, first_cycle: bool, e: anyhow::Error) -> anyhow::Error {
+/// A cycle could not start: the proxy gives up the node, `detach(Stopping)`; the error goes up.
+fn cycle_failed(ctl: &NodeCtl, e: anyhow::Error) -> anyhow::Error {
     ctl.node_down();
     ctl.detach(crate::web_gui::NodeStatus::Stopping);
-    if !first_cycle {
-        say("node", format!("restart failed: {e:#}"));
-    }
     e
 }
 
 /// Brings the process listener to the settings before a cycle; a failure ends the cycle like a failed start.
-async fn apply_proxy(settings: &Settings, ctl: &NodeCtl, first_cycle: bool) -> Result<()> {
+async fn apply_proxy(settings: &Settings, ctl: &NodeCtl) -> Result<()> {
     match ctl.apply_process_proxy(&settings.process).await {
         Ok(()) => Ok(()),
-        Err(e) => Err(cycle_failed(ctl, first_cycle, e)),
+        Err(e) => Err(cycle_failed(ctl, e)),
     }
 }
 

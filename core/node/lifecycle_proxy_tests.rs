@@ -181,7 +181,7 @@ impl Cycle {
     /// The start of a cycle the way `run_cycles` does it: the process proxy is brought to the settings
     /// the cycle comes up with, then the node boots.
     async fn start_cycle(&self, socks_port: u16, mark: u8) -> Result<RunningNode> {
-        apply_proxy(&settings_on(socks_port), &self.ctl, false).await?;
+        apply_proxy(&settings_on(socks_port), &self.ctl).await?;
         let started = boot_cycle(&self.node_config(mark), &self.ctl, false).await?;
         Ok(started.expect("no stop was requested"))
     }

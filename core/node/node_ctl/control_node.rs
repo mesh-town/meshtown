@@ -26,7 +26,7 @@ impl NodeCtl {
     }
 
     pub(super) fn snapshot_impl(&self) -> NodeSnapshot {
-        let (fixed, mut snap, node, was_stale, boot_id, uptime) = {
+        let (fixed, mut snap, node, was_stale, boot_id, uptime, start_error) = {
             let mut st = self
                 .ctl_shared
                 .ctl_state
@@ -48,6 +48,7 @@ impl NodeCtl {
                 stale,
                 st.boot.id().to_string(),
                 st.boot.uptime_sec(),
+                super::restart::start_error_of(&st),
             )
         };
         if was_stale {
@@ -64,6 +65,7 @@ impl NodeCtl {
         self.overlay_web_urls(&mut snap);
         snap.boot_id = boot_id;
         snap.node.uptime_sec = uptime;
+        snap.node.start_error = start_error;
         snapshot::overlay_process(&mut snap, snapshot::ProcessFacts::collect());
         snap
     }

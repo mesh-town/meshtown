@@ -15,7 +15,21 @@ use super::super::identity::IdentityState;
 /// Why the cycle loop ended: a stop, or the node left its network and takes a new identity.
 pub(super) enum CycleEnd {
     Stopped,
-    LeftNet { secret: NodeSecret },
+    LeftNet {
+        secret: NodeSecret,
+    },
+    /// A cycle after the first could not start; the caller falls back to waiting for a network.
+    StartFailed(anyhow::Error),
+}
+
+/// A start failed and the process stays up: one log line, then the node waits for a network again with the
+/// reason kept for the page.
+pub(super) fn fall_back_to_waiting(ctl: &NodeCtl, e: &anyhow::Error) {
+    say(
+        "node",
+        format!("start failed: {e:#}; the node is still waiting for a network"),
+    );
+    ctl.fall_back_to_no_network(format!("{e:#}"));
 }
 
 /// Handles `Switch`: `relaunch.reload`, on success — the new settings into `settings`, a new cfg with the passed

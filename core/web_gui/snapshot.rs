@@ -24,6 +24,8 @@ pub struct NodeRuntime {
     pub uptime_sec: u64,
     pub rss_kib: u64,
     pub rss_peak_kib: u64,
+    /// Why the last start failed while the node waits for a network; `null` otherwise.
+    pub start_error: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]

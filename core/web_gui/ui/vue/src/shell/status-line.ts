@@ -15,7 +15,7 @@ import type { RouteHead } from "../home/route-line.ts";
 import { netPhase } from "../home/home-words.ts";
 import { joinProgress } from "../home/join-progress.ts";
 import type { NetPhase } from "../home/home-words.ts";
-import { STATUS_HIM, STATUS_NETWORK_SEP, STATUS_NOT_JOINED, STATUS_STARTING, STATUS_STOPPING, STATUS_THIS_COMPUTER, statusOnlineOthersText } from "./status-texts.ts";
+import { STATUS_HIM, STATUS_NETWORK_SEP, STATUS_NOT_JOINED, STATUS_STARTING, STATUS_STOPPING, STATUS_THIS_COMPUTER, statusOnlineOthersText, statusStartFailedText } from "./status-texts.ts";
 
 import type { Refused } from "../peers/admission-refused.ts";
 export type { Refused };
@@ -73,6 +73,13 @@ function excludedLine(state: NodeState): StatusLine | null {
   return { level: "red", text: bannedStatusText(state.network.label) };
 }
 
+// The last start failed: the node fell back to "no network" and keeps the reason.
+function startFailedLine(state: NodeState): StatusLine | null {
+  const reason = state.node && state.node.start_error;
+  if (!reason) return null;
+  return { level: "red", text: statusStartFailedText(reason) };
+}
+
 // The node is looking for the network by invite (`invite_join`) — the header says the same as Home, not "not joined yet".
 function noNetworkLine(state: NodeState): StatusLine | null {
   if (state.network) return null;
@@ -102,7 +109,7 @@ function joinedNetworkLine(state: NodeState & { network: NonNullable<NodeState["
 // `{ level: "green"|"red"|"grey", text }` — in the order of the branches. `route` (several networks) replaces
 // the "how sites open" part of the line of the leading network.
 export function statusLine(state: NodeState | null, conn: Conn, _members: MembersReply | null = null, route: RouteHead | null = null, refused: Refused | null = null): StatusLine {
-  return absenceLine(state, conn) || (state && (waitingLine(state) || noNetworkLine(state) || excludedLine(state) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0], route, refused))) || grey(NOT_RESPONDING_TEXT);
+  return absenceLine(state, conn) || (state && (waitingLine(state) || startFailedLine(state) || noNetworkLine(state) || excludedLine(state) || joinedNetworkLine(state as Parameters<typeof joinedNetworkLine>[0], route, refused))) || grey(NOT_RESPONDING_TEXT);
 }
 
 function capitalizeFirst(text: string): string {
