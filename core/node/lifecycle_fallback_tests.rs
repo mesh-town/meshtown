@@ -142,6 +142,43 @@ mod first_start_of_a_run {
     }
 }
 
+mod start_error_text {
+    use super::*;
+
+    fn reason_after_fallback(e: anyhow::Error) -> String {
+        let ctl = NodeCtl::new(&Settings::default());
+        fall_back_to_waiting(&ctl, &e);
+        ctl.start_error().expect("a start error")
+    }
+
+    /// given a failure whose message ends with a dot, then the kept reason has no trailing dot and no "..".
+    #[tokio::test]
+    async fn start_error_drops_trailing_dot() {
+        let e = anyhow::Error::new(crate::proxy::BindError {
+            port: 1091,
+            io_error_kind: std::io::ErrorKind::AddrInUse,
+            os_message: "Address already in use (os error 98)".into(),
+        });
+        assert!(
+            e.to_string().ends_with('.'),
+            "the source message ends with a dot"
+        );
+
+        let reason = reason_after_fallback(e);
+
+        assert!(!reason.ends_with('.'), "{reason}");
+        assert!(!reason.contains(".."), "{reason}");
+        assert!(reason.contains("1091"), "{reason}");
+    }
+
+    /// given a message without a final dot, it stays as is; a dot in the middle stays too.
+    #[tokio::test]
+    async fn start_error_without_dot_unchanged() {
+        assert_eq!(reason_after_fallback(anyhow::anyhow!("no port")), "no port");
+        assert_eq!(reason_after_fallback(anyhow::anyhow!("a. b.")), "a. b");
+    }
+}
+
 /// The run under test: its controller, the port another program holds, and the task.
 struct Fx {
     ctl: Arc<NodeCtl>,

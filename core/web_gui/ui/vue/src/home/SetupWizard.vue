@@ -21,7 +21,7 @@ import { useJoin } from "./use-join.ts";
 import { refusedLead } from "./join-wait.ts";
 import {
   HOME_WIZARD_BROWSER_DONE, HOME_WIZARD_CREATE_BTN, HOME_WIZARD_DONE, HOME_WIZARD_HEAD_JOIN, HOME_WIZARD_INVITE_HINT, HOME_WIZARD_JOIN_BTN,
-  HOME_WIZARD_JOINED, HOME_WIZARD_NOT_JOINED, HOME_WIZARD_STEP_BROWSER, HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT, HOME_WIZARD_TITLE,
+  HOME_WIZARD_JOINED, HOME_WIZARD_JOINED_NOT_RUNNING, HOME_WIZARD_NOT_JOINED, HOME_WIZARD_STEP_BROWSER, HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT, HOME_WIZARD_TITLE,
   HOME_PHONE_TITLE,
 } from "./home-card-texts.ts";
 
@@ -40,6 +40,8 @@ const finish = (mark: SetupMark): void => {
   picked.value = null;
   h.setMark(mark);
 };
+// A failed start: the network is saved but the node is not running, so the browser and exit setup would point at nothing.
+const startFailed = computed(() => !!store.state?.node?.start_error);
 const j = useJoin(store);
 // The join progress phase: searching and joining replace the buttons with a progress block; a node refusal is text above the buttons.
 const refusal = useRefusalGate(() => store.state?.node?.invite_join);
@@ -84,19 +86,20 @@ async function startCreate(): Promise<void> {
   <div class="card wizard-card" role="region" aria-labelledby="home-wizard-title">
     <h2 id="home-wizard-title">{{ HOME_WIZARD_TITLE }}</h2>
     <div class="wizard-step" :class="{ done: hasNet }">
-      <h3 v-if="hasNet">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</h3>
+      <h3 v-if="hasNet && startFailed">{{ HOME_WIZARD_JOINED_NOT_RUNNING }}</h3>
+      <h3 v-else-if="hasNet">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</h3>
       <div v-else class="step-head"><span v-if="running" class="spinner" aria-hidden="true"></span><span v-else class="step-num" aria-hidden="true">1</span><h3>{{ stepHead }}</h3></div>
     </div>
     <div v-if="!inApp" class="wizard-step" :class="{ pending: step < 2, done: step > 2 }">
       <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-2" :disabled="!pickable(2)" :aria-current="step === 2 ? 'step' : undefined" @click="picked = 2"><span class="step-num" aria-hidden="true">2</span>{{ HOME_WIZARD_STEP_BROWSER }}</button></h3></div>
-      <template v-if="step === 2">
+      <template v-if="step === 2 && !startFailed">
         <BrowserCard bare />
         <div class="btn-row"><button type="button" class="btn btn-primary" @click="finish('exit')">{{ HOME_WIZARD_BROWSER_DONE }}</button></div>
       </template>
     </div>
     <div class="wizard-step" :class="{ pending: step < 3 }">
       <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-3" :disabled="!pickable(3)" :aria-current="step === 3 ? 'step' : undefined" @click="picked = 3"><span class="step-num" aria-hidden="true">{{ inApp ? 2 : 3 }}</span>{{ HOME_WIZARD_STEP_EXIT }}</button></h3></div>
-      <template v-if="step === 3">
+      <template v-if="step === 3 && !startFailed">
         <ExitCard bare />
         <ThisComputerCard v-if="!inApp" bare />
         <div v-if="inApp" class="step-head step-static" id="wizard-connect-step"><span class="step-num" aria-hidden="true">3</span>{{ HOME_WIZARD_STEP_CONNECT }}</div>

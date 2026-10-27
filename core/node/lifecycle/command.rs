@@ -25,11 +25,12 @@ pub(super) enum CycleEnd {
 /// A start failed and the process stays up: one log line, then the node waits for a network again with the
 /// reason kept for the page.
 pub(super) fn fall_back_to_waiting(ctl: &NodeCtl, e: &anyhow::Error) {
+    let reason = format!("{e:#}").trim_end_matches('.').to_string();
     say(
         "node",
-        format!("start failed: {e:#}; the node is still waiting for a network"),
+        format!("start failed: {reason}; the node is still waiting for a network"),
     );
-    ctl.fall_back_to_no_network(format!("{e:#}"));
+    ctl.fall_back_to_no_network(reason);
 }
 
 /// Handles `Switch`: `relaunch.reload`, on success — the new settings into `settings`, a new cfg with the passed
