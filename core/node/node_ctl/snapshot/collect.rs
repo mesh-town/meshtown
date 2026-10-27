@@ -253,6 +253,11 @@ pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: 
         admitting: votes.admitting,
         me_pending: votes.me_pending,
         admission_refused: reply.as_ref().is_some_and(admission_refused),
+        closed: node
+            .access
+            .view
+            .verdicts()
+            .is_some_and(|v| v.ledger.closed.is_some()),
     };
 }
 

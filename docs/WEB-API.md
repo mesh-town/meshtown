@@ -151,6 +151,7 @@ all fields are required; `null` is allowed where marked):
     "uptime_sec": 67320,
     "rss_kib": 14648,
     "rss_peak_kib": 16486,
+    "start_error": null,
     "web_addr": "127.0.0.1:7777",
     "identity": "persistent",
     "identity_reason": null
@@ -165,7 +166,7 @@ all fields are required; `null` is allowed where marked):
     "can_invite": true, "can_remove": true, "can_set_admins": true, "can_delete_network": true, "can_leave": true,
     "excluded_by": null
   },
-  "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false },
+  "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080" },
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
   "transport": {
@@ -267,6 +268,9 @@ Exact enum values:
 
 - `node.status`: `"starting"`, `"online"`, `"offline"`, `"stopping"`. `"offline"` also covers a node
   started without a network key and waiting for a network (`network: null`, below).
+- `node.start_error`: a string with the reason when the last start (a join or a restart) failed and the process
+  went back to waiting for a network (`status` is `"offline"`); `null` otherwise. A new start clears it.
+- `members.closed`: `true` when an administrator has closed the network to new members (read from the access ledger; `false` while the node is not attached to a network).
 - `node.identity`: `"persistent"` — the node saved its identity and after a restart will remain the same
   network member; `"temporary"` — it did not save it, and after a restart other members will see this computer as a new member.
   With `"temporary"`, `node.identity_reason` is filled in, otherwise it is `null`. There are three values:

@@ -151,6 +151,7 @@ fn build_node_runtime(st: &DemoState) -> NodeRuntime {
         uptime_sec: st.t as u64,
         rss_kib: 8192,
         rss_peak_kib: 9000,
+        start_error: None,
     }
 }
 
@@ -162,6 +163,7 @@ fn build_members_info(st: &DemoState) -> MembersInfo {
         admitting: 0,
         me_pending: false,
         admission_refused: st.admission_refused,
+        closed: false,
     }
 }
 

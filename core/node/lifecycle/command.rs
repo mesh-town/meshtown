@@ -15,7 +15,21 @@ use super::super::identity::IdentityState;
 /// Why the cycle loop ended: a stop, or the node left its network and takes a new identity.
 pub(super) enum CycleEnd {
     Stopped,
-    LeftNet { secret: NodeSecret },
+    LeftNet {
+        secret: NodeSecret,
+    },
+    /// A cycle after the first could not start; the caller falls back to waiting for a network.
+    StartFailed(anyhow::Error),
+}
+
+/// A start failed and the process stays up: one log line, then the node waits for a network again with the
+/// reason kept for the page.
+pub(super) fn fall_back_to_waiting(ctl: &NodeCtl, e: &anyhow::Error) {
+    say(
+        "node",
+        format!("start failed: {e:#}; the node is still waiting for a network"),
+    );
+    ctl.fall_back_to_no_network(format!("{e:#}"));
 }
 
 /// Handles `Switch`: `relaunch.reload`, on success — the new settings into `settings`, a new cfg with the passed
@@ -64,3 +78,24 @@ pub(super) fn after_command(
 #[cfg(test)]
 #[path = "command_tests.rs"]
 mod tests;
+
+/// The node left its network: the old lists and the remembered node id are dropped, the new identity goes
+/// to the control object and the start settings copy; the node returns to waiting for a key.
+pub(super) fn forget_network(
+    settings: &mut Settings,
+    ctl: &NodeCtl,
+    relaunch: &Relaunch,
+    secret: crate::transport::net::NodeSecret,
+) -> Relaunch {
+    settings.net.network_key = None;
+    settings.net.route_exits.clear();
+    settings.net.ports_published.clear();
+    ctl.set_owner_secret(secret.clone());
+    ctl.replace_effective_settings(settings);
+    ctl.mark_no_network();
+    ctl.forget_node_id();
+    Relaunch {
+        secret,
+        ..relaunch.clone()
+    }
+}

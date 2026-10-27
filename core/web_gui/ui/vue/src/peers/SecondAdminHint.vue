@@ -3,9 +3,9 @@
 import { secondAdminHintText } from "../members/members-texts.ts";
 import { SECOND_ADMIN_HINT_ID, secondAdminHintShown } from "./second-admin-hint.ts";
 
-const props = defineProps<{ onlyAdmin: boolean }>();
+const props = defineProps<{ onlyAdmin: boolean; closed?: boolean }>();
 </script>
 
 <template>
-  <p v-if="secondAdminHintShown(props.onlyAdmin)" :id="SECOND_ADMIN_HINT_ID" class="hint second-admin-hint" role="status">{{ secondAdminHintText() }}</p>
+  <p v-if="secondAdminHintShown(props.onlyAdmin, props.closed)" :id="SECOND_ADMIN_HINT_ID" class="hint second-admin-hint" role="status">{{ secondAdminHintText() }}</p>
 </template>

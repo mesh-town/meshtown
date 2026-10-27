@@ -9,6 +9,7 @@
 //! The `peers[].through_peer_bps` and `peers[].through_us_bps` keys were added by hand — new fields, the old keys were not touched.
 //! The `members.me_excluded` key was added by hand — a new field,
 //! the old keys were not touched.
+//! The `members.closed` key was added by hand in the same way.
 
 use super::*;
 use crate::ports_sharing::{PortReach, Proto};
@@ -35,6 +36,7 @@ const DEFAULT_KEYS: &[&str] = &[
     "members",
     "members.admission_refused",
     "members.admitting",
+    "members.closed",
     "members.count",
     "members.gossip_neighbors",
     "members.me_excluded",
@@ -44,6 +46,7 @@ const DEFAULT_KEYS: &[&str] = &[
     "node.id_full",
     "node.rss_kib",
     "node.rss_peak_kib",
+    "node.start_error",
     "node.status",
     "node.uptime_sec",
     "now",
@@ -114,6 +117,7 @@ const FILLED_KEYS: &[&str] = &[
     "members",
     "members.admission_refused",
     "members.admitting",
+    "members.closed",
     "members.count",
     "members.gossip_neighbors",
     "members.me_excluded",
@@ -123,6 +127,7 @@ const FILLED_KEYS: &[&str] = &[
     "node.id_full",
     "node.rss_kib",
     "node.rss_peak_kib",
+    "node.start_error",
     "node.status",
     "node.uptime_sec",
     "now",

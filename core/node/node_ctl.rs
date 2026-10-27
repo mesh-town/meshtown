@@ -11,7 +11,7 @@
 //! `control.rs` — the page actions (`impl web_gui::NodeControl`); `invite_wait.rs` — waiting for
 //! a sign-in by invite; `task.rs` — the background snapshot collection;
 //! `live_paths.rs` — which settings paths take effect without a restart; `relaunch.rs` — rebuilding
-//! `NodeConfig` when the network changes; `peer_addr.rs` — member address strings and their parsing;
+//! `NodeConfig` when the network changes; `restart.rs` — restart and the fall back to waiting after a failed start; `peer_addr.rs` — member address strings and their parsing;
 //! `snapshot.rs` — collecting `NodeSnapshot` from a running node.
 
 mod boot_stamp;
@@ -23,12 +23,14 @@ mod control_node;
 mod gates;
 mod guard_link;
 mod invite_wait;
+mod last_id;
 mod leave_net;
 mod live_paths;
 mod members_seen;
 mod peer_addr;
 mod proxy_link;
 mod relaunch;
+mod restart;
 mod state;
 mod task;
 

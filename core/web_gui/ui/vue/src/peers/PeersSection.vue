@@ -179,7 +179,7 @@ async function exitVia(idFull: string): Promise<void> {
       <NetTabHead :key="slot" :slot="slot" :name="netName(store.nets, slot)" :who="netWho(store, slot)" 
 :multi="crowded" :note="inviteNote" />
       <AdminsLine v-if="adminIds.length > 0" :admins="adminIds" :me="me" :names="names" />
-      <SecondAdminHint :only-admin="!!menuCtx.onlyAdmin" />
+      <SecondAdminHint :only-admin="!!menuCtx.onlyAdmin" :closed="state?.members?.closed" />
       <DeletedBanner />
       <AdmissionRefused :active="store.activeSection === 'peers'" :refused="refusedFlag(store, slot)" :members="members" :net="netName(store.nets, slot)" />
       <p v-if="banner && banner.slot === slot" class="hint net-banner" id="peers-net-banner" role="status">{{ banner.text }} <button type="button" class="btn btn-sm" id="peers-net-banner-ok" @click="clearBanner">{{ BANNER_OK }}</button></p>

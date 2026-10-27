@@ -59,6 +59,20 @@ describe("statusLine", () => {
     });
   });
 
+  describe("start failed", () => {
+    it("shows the reason and points to the Log tab", () => {
+      const got = statusLine(node("running", { node: { status: "running", start_error: "port busy" } }), createConn());
+      assert.equal(got.level, "red");
+      assert.ok(got.text.includes("port busy"));
+      assert.ok(got.text.includes("Log"));
+    });
+
+    it("empty reason falls through to no network", () => {
+      const got = statusLine(node("running", { network: null, node: { status: "running", start_error: "" } }), createConn());
+      assert.deepEqual(got, { level: "grey", text: "You haven't joined a Mesh Town network yet" });
+    });
+  });
+
   describe("network present", () => {
     it("direct — green dot, \"Sites open directly…\", label and member count", () => {
       const got = statusLine(node("running", { route: { state: "direct" }, peers: online(2) }), createConn());

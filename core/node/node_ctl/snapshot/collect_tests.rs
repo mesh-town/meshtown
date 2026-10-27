@@ -343,3 +343,7 @@ async fn socks_of(node: &crate::node::RunningNode) -> crate::web_gui::SocksInfo 
         .snap
         .socks
 }
+
+/// The `closed` flag of the members block.
+#[path = "collect_closed_tests.rs"]
+mod closed;

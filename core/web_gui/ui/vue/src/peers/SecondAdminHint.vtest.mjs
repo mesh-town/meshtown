@@ -10,9 +10,9 @@ import { ANNA_FULL, ME_FULL, managedState } from "../testing/managed-fixtures.mj
 let wrapper;
 afterEach(() => wrapper.unmount());
 
-const hintFor = (meRole, admins) => {
+const hintFor = (meRole, admins, closed) => {
   const facts = managedFacts(managedState({ meRole, admins }).network, null, ME_FULL);
-  wrapper = mount(SecondAdminHint, { props: { onlyAdmin: !!facts.onlyAdmin } });
+  wrapper = mount(SecondAdminHint, { props: { onlyAdmin: !!facts.onlyAdmin, closed } });
   return wrapper.find("#second-admin-hint");
 };
 
@@ -27,6 +27,16 @@ describe("SecondAdminHint", () => {
     it("has no close button", () => {
       hintFor("admin", [ME_FULL]);
       expect(wrapper.find("button").exists()).toBe(false);
+    });
+  });
+
+  describe("closed network", () => {
+    it("is hidden in a closed network", () => {
+      expect(hintFor("admin", [ME_FULL], true).exists()).toBe(false);
+    });
+
+    it("is shown when the node does not report closed", () => {
+      expect(hintFor("admin", [ME_FULL], undefined).exists()).toBe(true);
     });
   });
 

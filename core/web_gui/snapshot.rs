@@ -24,6 +24,8 @@ pub struct NodeRuntime {
     pub uptime_sec: u64,
     pub rss_kib: u64,
     pub rss_peak_kib: u64,
+    /// Why the last start failed while the node waits for a network; `null` otherwise.
+    pub start_error: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
@@ -48,6 +50,8 @@ pub struct MembersInfo {
     pub me_pending: bool,
     /// This computer is kept out: no other member is online and one of them refused it (see `docs/WEB-API.md`).
     pub admission_refused: bool,
+    /// An administrator has closed the network to new members.
+    pub closed: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

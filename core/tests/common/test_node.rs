@@ -85,6 +85,7 @@ impl NodeControl for TestNode {
                 uptime_sec: 42,
                 rss_kib: 12_345,
                 rss_peak_kib: 12_345,
+                start_error: None,
             },
             transport: TransportInfo {
                 self_addresses: vec!["254b24c7d9@192.168.1.14:47821".to_string()],

@@ -76,6 +76,8 @@ export interface NodeRuntime {
   uptime_sec: number;
   rss_kib: number;
   rss_peak_kib: number;
+  /** Why the last start failed; `null` when it did not. */
+  start_error: string | null;
   // The fields below are inserted by `apply_state_extras` (`routes/state.rs`) on top of the serde struct.
   version: string;
   web_addr: string; // "127.0.0.1:<port>"
@@ -136,6 +138,7 @@ interface MembersInfo {
   me_excluded?: boolean; // this computer is no longer in the member list
   admitting?: number; // join requests that wait for this computer's confirmation
   me_pending?: boolean; // this computer waits for members to confirm it
+  closed?: boolean; // an administrator has closed the network to new members
   admission_refused?: boolean; // the members turned this computer down
 }
 

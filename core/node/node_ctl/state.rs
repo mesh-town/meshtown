@@ -12,7 +12,9 @@ use crate::config::config_file::Settings;
 use crate::members::access::tally::Closed;
 use crate::node::RunningNode;
 use crate::transport::net::PeerAddr;
-use crate::web_gui::{ActionError, NodeStatus};
+#[cfg(test)]
+use crate::web_gui::ActionError;
+use crate::web_gui::NodeStatus;
 
 use super::closed_feed::abort_task;
 use super::invite_wait::InviteWait;
@@ -73,6 +75,10 @@ pub(super) struct NodeCtlState {
     pub(super) test_net: Option<Arc<crate::transport::net::mem::MemNet>>,
     /// The node's permanent key (from `Relaunch.secret`): proves ownership when joining by invite.
     pub(super) owner: Option<crate::transport::net::NodeSecret>,
+    /// Why the last start failed; set by the fall back to `NoNetwork`, cleared when a start begins.
+    pub(super) start_error: Option<String>,
+    /// Short and full id of the last attached node; kept across `detach`, dropped on leaving a network.
+    pub(super) last_id: Option<(String, String)>,
 }
 
 pub(super) struct NodeCtlShared {
@@ -139,6 +145,8 @@ impl NodeCtl {
                     invite_gen: 0,
                     test_net: None,
                     owner: None,
+                    start_error: None,
+                    last_id: None,
                 }),
                 kick: Notify::new(),
                 closed: watch::channel(None).0,
@@ -186,6 +194,7 @@ impl NodeCtl {
             st.snapshot_gen += 1;
             abort_task(&mut st.closed_task);
             st.node = Some(node.clone());
+            super::last_id::remember_id(&mut st, &node);
             st.cache = None;
             if !matches!(st.phase, Phase::Stopping) {
                 st.phase = Phase::Up;
@@ -279,33 +288,6 @@ impl NodeCtl {
         let _ = self.cmd_tx.send(Cmd::Stop);
     }
 
-    /// Restart in the same process: only from `Up`, `Cmd::Switch` with the current key (the join path
-    /// rereads the config file and applies the CLI flags). Other phases — `Busy`.
-    pub(super) fn request_restart(&self) -> Result<(), ActionError> {
-        let key = {
-            let mut st = self
-                .ctl_shared
-                .ctl_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            match st.phase {
-                Phase::Up => {}
-                Phase::NoNetwork => {
-                    return Err(ActionError::NoNetwork(super::gates::no_network_text()))
-                }
-                Phase::Starting => return Err(super::gates::busy_starting()),
-                Phase::Stopping => return Err(super::gates::busy_stopping()),
-            }
-            let Some(key) = st.effective_settings.net.network_key.clone() else {
-                return Err(ActionError::Internal("network key is unknown".to_string()));
-            };
-            st.phase = Phase::Starting;
-            key
-        };
-        let _ = self.cmd_tx.send(Cmd::Switch { key, peers: vec![] });
-        Ok(())
-    }
-
     /// A new cycle: a new `boot_id`, `uptime_sec` from zero; called by `run_cycles` before every `start`,
     /// does not touch log lines. The snapshot before the first call carries the id of cycle zero — that is how it was
     /// before the stamp moved out of `output`; do not make the first call conditional.
@@ -327,6 +309,7 @@ impl NodeCtl {
             .ctl_state
             .lock()
             .unwrap_or_else(|e| e.into_inner());
+        st.start_error = None;
         if matches!(st.phase, Phase::NoNetwork) {
             st.phase = Phase::Starting;
         }
@@ -343,6 +326,16 @@ impl NodeCtl {
         if matches!(st.phase, Phase::Starting) {
             st.phase = Phase::NoNetwork;
         }
+    }
+
+    /// Drops the remembered node id: the node has left its network.
+    pub(crate) fn forget_node_id(&self) {
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        st.last_id = None;
     }
 
     /// Known domain names from the last collection — only for the `check_domain`/`check_all` gates.
