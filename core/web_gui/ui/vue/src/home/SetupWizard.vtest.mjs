@@ -57,7 +57,7 @@ describe("SetupWizard > step 1, no network", () => {
 });
 
 describe("SetupWizard > primary button", () => {
-  it("before a choice the primary one is \"Join…\"", () => {
+  it("join button stays primary: before a choice", () => {
     const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
     expect(wrapper.get("#home-start-join-btn").classes()).toContain("btn-primary");
   });
@@ -66,7 +66,7 @@ describe("SetupWizard > primary button", () => {
     const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
     await wrapper.get("#home-start-create-btn").trigger("click");
     await nextTick();
-    expect(wrapper.get("#home-start-join-btn").classes()).not.toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").classes(), "join button stays primary: after Create").toContain("btn-primary");
     expect(wrapper.get("#create-btn").classes()).toContain("btn-primary");
   });
 
@@ -75,7 +75,8 @@ describe("SetupWizard > primary button", () => {
     await wrapper.get("#home-start-join-btn").trigger("click");
     await nextTick();
     expect(wrapper.get("#join-btn").classes()).toContain("btn-primary");
-    expect(wrapper.get("#home-start-join-btn").classes()).not.toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").classes(), "join button stays primary: after Join").toContain("btn-primary");
+    expect(wrapper.get("#home-start-join-btn").attributes("aria-expanded")).toBe("true");
   });
 });
 
@@ -99,13 +100,20 @@ describe("SetupWizard > step 2, mark \"browser\"", () => {
     expect(wrapper.find("#socks-copy-port-btn").exists()).toBe(true);
   });
 
-  it("step 2 carries the strict-mode question under the browser card, before the Done button", () => {
+  it("more options after done button: the strict-mode question is the last element of step 2", () => {
     const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
     const html = wrapper.html();
     expect(wrapper.find("#strict-choice").exists()).toBe(true);
-    expect(html.indexOf("strict-choice")).toBeGreaterThan(html.indexOf("pac-row"));
-    expect(html.indexOf("strict-choice")).toBeLessThan(html.indexOf("Done, my browser is set up"));
+    expect(html.indexOf("more-options")).toBeGreaterThan(html.indexOf("pac-row"));
+    expect(html.indexOf("more-options")).toBeGreaterThan(html.indexOf("Done, my browser is set up"));
+    expect(wrapper.get("#more-options").element.nextElementSibling).toBeNull();
     expect(wrapper.get("#wizard-step-2").text()).toBe("2Set up your browser");
+  });
+
+  it("step 2 badge and Change link: step 2 shows the number and no link", () => {
+    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
+    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("2");
+    expect(wrapper.find(".step-change").exists()).toBe(false);
   });
 
   it("\"Done, my browser is set up\" sets the exit mark and opens step 3", async () => {
@@ -190,10 +198,23 @@ describe("SetupWizard > exit step while looking for members", () => {
 });
 
 describe("SetupWizard > the browser version stays as it was", () => {
+  it("step 2 badge and Change link: step 3 shows a check mark and the link", () => {
+    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
+    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("✓");
+    expect(wrapper.get(".step-change").text()).toBe("Change");
+    expect(wrapper.get(".step-change").attributes("aria-hidden")).toBe("true");
+  });
+
+  it("step 2 badge and Change link: step 1 (no network) shows the number and no link", () => {
+    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("2");
+    expect(wrapper.find(".step-change").exists()).toBe(false);
+  });
+
   it("the title is \"Three steps to get started\", step 2 is the browser, step 3 is \"3Choose an exit\"", () => {
     const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
     expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to get started");
-    expect(wrapper.get("#wizard-step-2").text()).toBe("2Set up your browser");
+    expect(wrapper.get("#wizard-step-2").text()).toBe("✓Set up your browser");
     expect(wrapper.get("#wizard-step-3").text()).toBe("3Choose an exit");
   });
 

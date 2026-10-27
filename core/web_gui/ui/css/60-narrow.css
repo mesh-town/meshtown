@@ -48,3 +48,11 @@
     .btn-x{border:none;background:none;color:var(--fg-muted);font-size:16px;line-height:1;padding:2px 8px;}
   }
 
+  /* Radio and checkbox rows: a thumb-sized row and a 20px control. */
+  @media (max-width:599px){
+    .exit-row,.port-audience-row{min-height:44px;}
+    .exit-row input,.port-audience-row input{width:20px;height:20px;}
+  }
+  @media (max-width:599px){
+    #scope-seg .btn,#browser-seg .btn,#os-seg .btn{min-height:44px;}
+  }

@@ -42,7 +42,7 @@ test('115-btn-text-underline: at 390 px the text button of a domain card is unde
   expect.soft(icon, 'icon button').not.toContain('underline');
 });
 
-test('116-disabled-link-controls: a disabled .linkbtn, .nets-link, .step-pick and exit radio look dimmed, active ones are unchanged', async ({ app, page }) => {
+test('116-disabled-link-controls: a disabled .linkbtn, .nets-link and exit radio look dimmed, a disabled .step-pick keeps full opacity and a plain cursor, active ones are unchanged', async ({ app, page }) => {
   void app;
   await addMarkup(
     page,
@@ -51,9 +51,11 @@ test('116-disabled-link-controls: a disabled .linkbtn, .nets-link, .step-pick an
       '<button id="p-sp-off" class="step-pick" disabled>E</button><button id="p-sp-on" class="step-pick">F</button>' +
       '<input id="p-ec-off" type="radio" class="exit-choice" disabled><input id="p-ec-on" type="radio" class="exit-choice">',
   );
-  for (const id of ['p-lb-off', 'p-nl-off', 'p-sp-off', 'p-ec-off']) {
+  for (const id of ['p-lb-off', 'p-nl-off', 'p-ec-off']) {
     expect.soft(await style(page, `#${id}`, ['opacity', 'cursor']), id).toEqual(['0.5', 'default']);
   }
+  // A step title is dimmed by colour, not by opacity, so the current step stays readable.
+  expect.soft(await style(page, '#p-sp-off', ['opacity', 'cursor']), 'p-sp-off').toEqual(['1', 'default']);
   for (const id of ['p-lb-on', 'p-nl-on', 'p-sp-on', 'p-ec-on']) {
     expect.soft((await style(page, `#${id}`, ['opacity']))[0], id).toBe('1');
   }
