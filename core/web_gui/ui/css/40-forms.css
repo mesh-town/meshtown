@@ -67,7 +67,7 @@
   #scope-seg .btn,#browser-seg .btn,#os-seg .btn{flex:1 1 auto;min-width:0;min-height:40px;border-radius:7px;border-color:var(--control-border);}
   #os-seg .btn{padding-left:6px;padding-right:6px;}
   #browser-seg .btn[aria-pressed="true"],#os-seg .btn[aria-pressed="true"],#scope-seg .btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);position:relative;}
-  #scope-seg .btn[aria-pressed="true"]::before{content:"\2713 ";}
+  #scope-seg .btn[aria-pressed="true"]::before{content:"\2713\00a0";}
   #proxy-steps,#pac-steps{margin:10px 0 0;padding-left:20px;} #proxy-steps li,#pac-steps li{margin-top:6px;} #proxy-steps .btn{margin-left:4px;}
   /* PAC address: label, code block and button in one row; on a narrow screen the button wraps under the address. */
   #pac-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:10px 0 0;}
