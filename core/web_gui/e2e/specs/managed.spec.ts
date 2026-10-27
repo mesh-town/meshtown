@@ -29,7 +29,7 @@ const WORDS = {
   menuGiveUp: 'Give up admin rights',
   menuGiveUpOnly: "Give up admin rights (you're the only admin)",
   menuDelete: 'Delete network for everyone…',
-  titleCreator: 'The creator of the network stays an admin',
+  titleCreator: 'The network creator stays an admin',
   titleOnlyAdmin: 'Make another member an admin first',
   titleAdminsOnly: 'Only admins can do this',
   inviteNote: 'Only admins can invite people to',

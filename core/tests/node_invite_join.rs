@@ -22,7 +22,7 @@ use common::{fresh_head, record_issue, setup, wait_until, Rig, ENTRY_LIMIT_SECS}
 
 const TEXT_USED: &str = "Another computer has already joined with this invite — it is single-use. Ask whoever sent it for a new one.";
 const TEXT_WRONG_NETWORK: &str =
-    "A member answered with the key of another network — the invite was not accepted.";
+    "A member answered with another network's key — the invite was not accepted.";
 
 mod fresh_invite_with_the_issuer_online {
     use super::*;

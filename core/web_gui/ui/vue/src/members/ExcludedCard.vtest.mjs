@@ -37,7 +37,7 @@ describe("ExcludedCard", () => {
       setup({ variant: "banned" });
       const text = wrapper.get("#excluded-card").text();
       expect(text).toContain("An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer.");
-      expect(text).toContain("ask an admin of the network for a new invite.");
+      expect(text).toContain("ask a network admin for a new invite.");
     });
   });
 

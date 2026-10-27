@@ -10,7 +10,7 @@ export const MENU_REMOVE = "Remove from network…";
 export const MENU_REMOVE_ADMINS_ONLY = "Remove from network (admins only)";
 export const MENU_DELETE_NETWORK = "Delete network for everyone…";
 export const TITLE_ADMINS_ONLY = "Only admins can do this";
-export const TITLE_CREATOR = "The creator of the network stays an admin";
+export const TITLE_CREATOR = "The network creator stays an admin";
 export const TITLE_ONLY_ADMIN = "Make another member an admin first";
 
 export const makeAdminTitle = (name: string, net: string): string => "Make " + name + ' an admin of "' + net + '"?';

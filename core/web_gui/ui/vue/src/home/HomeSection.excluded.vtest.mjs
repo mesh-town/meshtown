@@ -31,7 +31,7 @@ describe("a banned computer on Home", () => {
     await settle();
     const text = visibleText(wrapper.get("#excluded-card").element).replace(/\s+/g, " ");
     expect(text).toContain(REMOVED);
-      expect(text).toContain("ask an admin of the network for a new invite");
+      expect(text).toContain("ask a network admin for a new invite");
     expect(text).not.toContain("contact a member");
   });
 
