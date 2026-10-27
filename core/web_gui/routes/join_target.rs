@@ -15,6 +15,7 @@ use crate::web_gui::{App, HostControl, NodeStatus, SlotHandle};
 use super::nets::host_error_response;
 use super::network::{join_by_key_response, join_request};
 use super::network_invite::{join_by_invite_response, net_already_added};
+use super::pending_invites::{forget, remember, waiting_slot};
 
 /// Where an invite to a network goes.
 #[derive(Debug, PartialEq, Eq)]
@@ -30,6 +31,8 @@ pub(super) enum Place {
     Main,
     /// A new network and the primary slot is busy: it needs a slot of its own.
     Fresh,
+    /// A slot is already waiting for an invite to this network; the repeat replaces that wait.
+    Waiting(NetSlotId),
 }
 
 impl Place {
@@ -38,14 +41,14 @@ impl Place {
         match self {
             Place::Here { .. } => "here",
             Place::Return(_) => "return",
-            Place::Main | Place::Fresh => "new",
+            Place::Main | Place::Fresh | Place::Waiting(_) => "new",
         }
     }
 
     /// The slot the place names, if it names one.
     pub(super) fn slot(&self) -> Option<&NetSlotId> {
         match self {
-            Place::Here { slot, .. } | Place::Return(slot) => Some(slot),
+            Place::Here { slot, .. } | Place::Return(slot) | Place::Waiting(slot) => Some(slot),
             Place::Main | Place::Fresh => None,
         }
     }
@@ -103,7 +106,7 @@ fn place_of_new(host: &dyn HostControl) -> Place {
 }
 
 /// Adds a slot, joins it, and gives it back when the node refuses at once (not when it was handed back empty).
-fn join_in_fresh_slot(app: &Arc<App>, text: &str, keep_ports: bool) -> Response {
+fn join_in_fresh_slot(app: &Arc<App>, id_hex: &str, text: &str, keep_ports: bool) -> Response {
     let added = match app.host.add_slot() {
         Ok(a) => a,
         Err(e) => return host_error_response(e),
@@ -115,7 +118,7 @@ fn join_in_fresh_slot(app: &Arc<App>, text: &str, keep_ports: bool) -> Response 
     if added.fresh && !resp.status().is_success() {
         give_back(app, &slot);
     }
-    resp
+    note_if_accepted(app, id_hex, &slot.id, resp)
 }
 
 fn give_back(app: &Arc<App>, slot: &SlotHandle) {
@@ -131,6 +134,34 @@ fn join_in_slot(app: &Arc<App>, id: &NetSlotId, text: &str, keep_ports: bool) ->
     }
 }
 
+/// Joins `id` with the invite and, when the node took it, notes the slot as waiting for that network.
+fn join_and_note(
+    app: &Arc<App>,
+    id_hex: &str,
+    id: &NetSlotId,
+    text: &str,
+    keep_ports: bool,
+) -> Response {
+    let resp = join_in_slot(app, id, text, keep_ports);
+    note_if_accepted(app, id_hex, id, resp)
+}
+
+fn note_if_accepted(app: &Arc<App>, id_hex: &str, id: &NetSlotId, resp: Response) -> Response {
+    if resp.status().is_success() {
+        remember(app, id_hex, id.clone());
+    }
+    resp
+}
+
+/// The place for an invite: the slot that already waits for it, else what `place_of` picks. A note that
+/// no longer holds is dropped by `waiting_slot`.
+async fn choose_place(app: &Arc<App>, id_hex: &str) -> Place {
+    match waiting_slot(app, id_hex) {
+        Some(slot) => Place::Waiting(slot),
+        None => place_of(app.host.as_ref(), id_hex).await,
+    }
+}
+
 /// The invite goes to the slot `place_of` picks; the answer names the slot.
 async fn join_by_invite_auto(app: &Arc<App>, text: &str, keep_ports: bool) -> Response {
     let parsed = match crate::invite::parse(text) {
@@ -141,11 +172,16 @@ async fn join_by_invite_auto(app: &Arc<App>, text: &str, keep_ports: bool) -> Re
         return super::helpers::invalid_key_response(&e, &format!("{e:#}"));
     }
     let id_hex = data_encoding::HEXLOWER.encode(&parsed.head.network_id);
-    match place_of(app.host.as_ref(), &id_hex).await {
-        Place::Here { slot, label } => net_already_added(&slot, label),
-        Place::Return(slot) => join_in_slot(app, &slot, text, keep_ports),
-        Place::Main => join_in_slot(app, &NetSlotId::main(), text, keep_ports),
-        Place::Fresh => join_in_fresh_slot(app, text, keep_ports),
+    match choose_place(app, &id_hex).await {
+        Place::Here { slot, label } => {
+            forget(app, &id_hex);
+            net_already_added(&slot, label)
+        }
+        Place::Return(slot) | Place::Waiting(slot) => {
+            join_and_note(app, &id_hex, &slot, text, keep_ports)
+        }
+        Place::Main => join_and_note(app, &id_hex, &NetSlotId::main(), text, keep_ports),
+        Place::Fresh => join_in_fresh_slot(app, &id_hex, text, keep_ports),
     }
 }
 
@@ -170,3 +206,7 @@ mod tests;
 #[cfg(test)]
 #[path = "join_target_route_tests.rs"]
 mod route_tests;
+
+#[cfg(test)]
+#[path = "join_target_pending_tests.rs"]
+mod pending_tests;

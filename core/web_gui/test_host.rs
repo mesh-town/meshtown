@@ -318,6 +318,7 @@ pub(crate) fn test_app(host: Arc<dyn HostControl>) -> (Router, Arc<App>) {
         host,
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
+        pending_invites: Default::default(),
     });
     (super::routes::router(app.clone()), app)
 }

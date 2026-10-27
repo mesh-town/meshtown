@@ -191,6 +191,7 @@ fn fixture(node: Arc<dyn NodeControl>, seen: Seen) -> Fixture {
         host: single_slot_host(node, config),
         token_dir: None,
         stopping: std::sync::atomic::AtomicBool::new(false),
+        pending_invites: Default::default(),
     });
     Fixture {
         router: crate::web_gui::routes::router(app.clone()),
