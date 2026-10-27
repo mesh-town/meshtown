@@ -78,3 +78,20 @@ export function markOnEnter(step: StepId): SetupMark | null {
 export function joinedLineOn(ctx: WizardCtx, cur: StepId): boolean {
   return ctx.hasNet && wizardPath(ctx)[1] === cur;
 }
+
+export type StripState = "done" | "current" | "open" | "locked";
+export interface StripStep { id: StepId; state: StripState }
+
+function stripState(ctx: WizardCtx, id: StepId, i: number, at: number, visited: ReadonlySet<StepId>): StripState {
+  if (i === at) return "current";
+  if (id === "join" && ctx.hasNet) return "done";
+  if (i < at) return "done";
+  return visited.has(id) ? "open" : "locked";
+}
+
+/** The clickable strip over the path: what each step is now (passed, current, seen before, not reached yet). */
+export function stripSteps(ctx: WizardCtx, cur: StepId, visited: ReadonlySet<StepId>): StripStep[] {
+  const path = wizardPath(ctx);
+  const at = path.indexOf(cur);
+  return path.map((id, i) => ({ id, state: stripState(ctx, id, i, at, visited) }));
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The step-by-step setup: a progress line, one question per screen, Back / Next. The path and the answers live in `useWizard`.
+// The step-by-step setup: a strip of steps, one question per screen, Back / Next. The path and the answers live in `useWizard`.
 import { computed, inject, nextTick, watch } from "vue";
 import { PAC_OS_LIST } from "./pac-setup.ts";
 import { SCOPE_BROWSER, SCOPE_SYSTEM } from "../common/pac-texts.ts";
@@ -17,6 +17,7 @@ import StepChoice from "./wizard/StepChoice.vue";
 import StepExit from "./wizard/StepExit.vue";
 import StepGuide from "./wizard/StepGuide.vue";
 import StepJoin from "./wizard/StepJoin.vue";
+import StepStrip from "./wizard/StepStrip.vue";
 import { browserTiles } from "./wizard/guide-content.ts";
 import { useWizard } from "./wizard/use-wizard.ts";
 import { WIZ_BACK, WIZ_FINISH, WIZ_NEXT, WIZ_PROGRESS, WIZ_QUESTIONS, WIZ_SKIP } from "./wizard/wizard-texts.ts";
@@ -52,7 +53,8 @@ watch(w.step, async () => {
     <h2 id="home-wizard-title">{{ HOME_WIZARD_TITLE }}</h2>
     <div v-if="startFailed" class="wizard-step failed"><h3>{{ HOME_WIZARD_JOINED_NOT_RUNNING }}</h3></div>
     <template v-else>
-      <p id="wizard-progress">{{ WIZ_PROGRESS(w.progress.value.n, w.progress.value.m) }}</p>
+      <StepStrip :steps="w.strip.value" :has-net="hasNet" @go="w.goStep" />
+      <p id="wizard-progress" class="sr-only">{{ WIZ_PROGRESS(w.progress.value.n, w.progress.value.m) }}</p>
       <p v-if="w.joined.value" id="wizard-joined">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</p>
       <div id="wizard-screen" :data-step="w.step.value">
         <h3 v-if="w.step.value !== 'join'" id="wizard-q" tabindex="-1">{{ question }}</h3>
@@ -68,7 +70,7 @@ watch(w.step, async () => {
         <p v-else-if="w.step.value === 'connect'" id="wizard-connect-step">{{ HOME_WIZARD_STEP_CONNECT }}</p>
       </div>
       <div v-if="w.step.value !== 'join'" class="wizard-nav">
-        <button v-if="w.back.value" type="button" class="link-more" id="wizard-back" @click="w.goBack">{{ WIZ_BACK }}</button>
+        <button v-if="w.back.value" type="button" class="link-more" id="wizard-back" @click="w.goBack"><span aria-hidden="true">←</span> {{ WIZ_BACK }}</button>
         <button v-if="w.nav.value === 'skip'" type="button" class="link-more" id="wizard-skip" @click="w.skip">{{ WIZ_SKIP }}</button>
         <button v-else-if="w.nav.value" type="button" class="btn btn-primary" id="wizard-next" @click="w.nav.value === 'next' ? w.goNext() : w.finish()">{{ nextText }}</button>
       </div>

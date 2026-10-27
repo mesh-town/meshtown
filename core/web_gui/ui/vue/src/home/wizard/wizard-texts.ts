@@ -7,6 +7,10 @@ import { HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT } from "../home-card-te
 
 export const WIZ_PROGRESS = (n: number, m: number): string => `Step ${n} of ${m}`;
 export const WIZ_BACK = "Back";
+export const WIZ_STRIP_LABEL = "Setup steps";
+export const WIZ_STEP_NAMES: Record<StepId, string> = {
+  join: "Join", scope: "Apps", os: "System", browser: "Browser", guide: "Set up", exit: "Exit", connect: "Connect",
+};
 export const WIZ_NEXT = "Next";
 export const WIZ_SKIP = "Skip this step";
 export const WIZ_FINISH = "Finish";

@@ -4,7 +4,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
-  isPhoneOs, joinedLineOn, markOnEnter, navKind, nextStep, prevStep, startStep, stepProgress, validStep, wizardPath,
+  isPhoneOs, joinedLineOn, markOnEnter, navKind, nextStep, prevStep, startStep, stepProgress, stripSteps, validStep, wizardPath,
 } from "./wizard-steps.ts";
 
 const ctx = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, scope: "system", os: "mac", skipped: false, ...over });
@@ -205,5 +205,38 @@ describe("joinedLineOn", () => {
 
   it("given no network, then the joined line is not shown", () => {
     assert.equal(joinedLineOn(ctx({ hasNet: false }), "scope"), false);
+  });
+});
+
+describe("stripSteps", () => {
+  const states = (c, cur, seen = []) => stripSteps(c, cur, new Set(seen)).map((t) => `${t.id}:${t.state}`);
+
+  it("given the os step on macOS, then joined and scope are done, the rest locked", () => {
+    assert.deepEqual(states(ctx(), "os"), [
+      "join:done", "scope:done", "os:current", "browser:locked", "guide:locked", "exit:locked",
+    ]);
+  });
+
+  it("given a step right of the current one was seen, then it is open", () => {
+    assert.deepEqual(states(ctx(), "scope", ["scope", "os", "browser"]), [
+      "join:done", "scope:current", "os:open", "browser:open", "guide:locked", "exit:locked",
+    ]);
+  });
+
+  it("given the scope switched to one browser, then the os step leaves the strip", () => {
+    const ids = stripSteps(ctx({ scope: "browser" }), "scope", new Set(["os"])).map((t) => t.id);
+    assert.deepEqual(ids, ["join", "scope", "browser", "guide", "exit"]);
+  });
+
+  it("given the question was skipped, then the strip is join, scope, exit", () => {
+    assert.deepEqual(states(ctx({ scope: null, skipped: true }), "exit", ["exit"]), ["join:done", "scope:done", "exit:current"]);
+  });
+
+  it("given the app page, then the strip is join, exit, connect", () => {
+    assert.deepEqual(states(ctx({ inApp: true }), "exit"), ["join:done", "exit:current", "connect:locked"]);
+  });
+
+  it("given no network on the join step, then join is current", () => {
+    assert.equal(states(ctx({ hasNet: false }), "join")[0], "join:current");
   });
 });
