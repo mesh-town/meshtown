@@ -56,6 +56,9 @@ impl HostSlots {
             node: ctl.clone(),
             config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
         };
+        // Set before the task runs: a join started right after the slot is added reads these.
+        ctl.set_test_net(relaunch.test_net.clone());
+        ctl.set_owner_secret(relaunch.secret.clone());
         let cycle = logged(id, run_network(start, run, ctl.clone(), relaunch));
         self.push_slot(handle, ctl, cycle)
     }
