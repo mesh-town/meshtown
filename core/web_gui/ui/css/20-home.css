@@ -59,6 +59,18 @@
   #wizard-screen > * + *{margin-top:12px;}
   .wizard-nav{display:flex;justify-content:space-between;gap:12px;margin-top:16px;}
   #wizard-progress{font-size:13px;color:var(--fg-muted);}
+  .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  #wizard-strip{display:flex;align-items:center;list-style:none;margin:10px 0 0;padding:0;gap:0;}
+  #wizard-strip .strip-step{display:flex;align-items:center;min-width:0;margin:0;}
+  #wizard-strip .strip-step + .strip-step::before{content:"";display:block;width:16px;min-width:6px;flex:0 1 16px;height:1px;background:var(--border);margin:0 6px;}
+  #wizard-strip .strip-step > *{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:13px;color:var(--fg-muted);background:none;border:0;padding:2px 0;white-space:nowrap;}
+  #wizard-strip button{cursor:pointer;} #wizard-strip button:hover .strip-name{color:var(--fg);} #wizard-strip button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px;}
+  #wizard-strip .strip-dot{display:inline-flex;align-items:center;justify-content:center;flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--border);font-size:12px;font-weight:600;}
+  #wizard-strip .done{color:var(--green);} #wizard-strip .done .strip-dot{border-color:var(--green);color:var(--green);}
+  #wizard-strip .open .strip-dot{border-color:var(--fg-muted);}
+  #wizard-strip .current > *{color:var(--fg);font-weight:600;} #wizard-strip .current .strip-dot{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);}
+  #wizard-strip .locked .strip-dot{border-style:dashed;} #wizard-strip .locked .strip-name{font-weight:400;}
+  @media (max-width:520px){ #wizard-strip .strip-step:not(.current) .strip-name{display:none;} #wizard-strip .strip-step + .strip-step::before{width:8px;flex-basis:8px;margin:0 4px;} }
   #wizard-joined{color:var(--green);}
   #wizard-q:focus{outline:none;}
   #wizard-progress,#wizard-joined,#wizard-q{margin-top:10px;} #wizard-q{margin-bottom:0;} #wizard-screen{margin-top:12px;}
