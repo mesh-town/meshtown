@@ -1,7 +1,7 @@
 //! The "start → run → stop or restart" loops: `run` is a thin wrapper for starting without a network
 //! switch, `run_node_with_ctl`/`run_node_awaiting_key` do it with one, and `run_network` picks between
-//! them by whether the first key is already known. The stop signal belongs to the
-//! process host (`host::signal`); `run` starts its own, since it has no host.
+//! them by whether the first key is already known. The stop signal belongs to the process host
+//! (`host::signal`); `run` starts its own, since it has no host.
 
 use std::sync::Arc;
 
@@ -21,7 +21,7 @@ use start_race::start_unless_stopped;
 
 mod command;
 mod start_race;
-use command::{after_command, apply_switch, fall_back_to_waiting, CycleEnd};
+use command::{after_command, apply_switch, fall_back_to_waiting, forget_network, CycleEnd};
 
 #[cfg(test)]
 use crate::transport::net::PeerAddr;
@@ -49,26 +49,6 @@ pub async fn run_node_with_ctl(
             fall_back_to_waiting(&ctl, &e);
             wait_then_run(settings, cfg.identity, &ctl, &relaunch).await
         }
-    }
-}
-
-/// The node left its network: the old network's lists are dropped from the settings, the new identity goes
-/// to the control object and into a copy of the start settings; the node returns to waiting for a key.
-fn forget_network(
-    settings: &mut Settings,
-    ctl: &NodeCtl,
-    relaunch: &Relaunch,
-    secret: crate::transport::net::NodeSecret,
-) -> Relaunch {
-    settings.net.network_key = None;
-    settings.net.route_exits.clear();
-    settings.net.ports_published.clear();
-    ctl.set_owner_secret(secret.clone());
-    ctl.replace_effective_settings(settings);
-    ctl.mark_no_network();
-    Relaunch {
-        secret,
-        ..relaunch.clone()
     }
 }
 

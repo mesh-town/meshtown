@@ -23,6 +23,7 @@ mod control_node;
 mod gates;
 mod guard_link;
 mod invite_wait;
+mod last_id;
 mod leave_net;
 mod live_paths;
 mod members_seen;

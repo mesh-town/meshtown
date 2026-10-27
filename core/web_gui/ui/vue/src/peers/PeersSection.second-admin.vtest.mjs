@@ -43,6 +43,13 @@ describe("the second-admin hint on the page", () => {
     expect(page.menuKeys()).not.toContain("make-admin");
   });
 
+  it("is hidden in a closed network", async () => {
+    const node = managedNode({ meRole: "admin", admins: [ME_FULL] });
+    node.state.members = { ...node.state.members, closed: true };
+    const page = await open(node);
+    expect(page.has(HINT)).toBe(false);
+  });
+
   it("is not shown to a member", async () => {
     const page = await open(managedNode({ meRole: "member", admins: [ANNA_FULL] }));
     expect(page.has(HINT)).toBe(false);

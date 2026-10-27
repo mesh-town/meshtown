@@ -50,6 +50,8 @@ pub struct MembersInfo {
     pub me_pending: bool,
     /// This computer is kept out: no other member is online and one of them refused it (see `docs/WEB-API.md`).
     pub admission_refused: bool,
+    /// An administrator has closed the network to new members.
+    pub closed: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

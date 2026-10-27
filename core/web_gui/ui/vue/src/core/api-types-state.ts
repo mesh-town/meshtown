@@ -138,6 +138,7 @@ interface MembersInfo {
   me_excluded?: boolean; // this computer is no longer in the member list
   admitting?: number; // join requests that wait for this computer's confirmation
   me_pending?: boolean; // this computer waits for members to confirm it
+  closed?: boolean; // an administrator has closed the network to new members
   admission_refused?: boolean; // the members turned this computer down
 }
 

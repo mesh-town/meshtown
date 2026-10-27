@@ -78,3 +78,24 @@ pub(super) fn after_command(
 #[cfg(test)]
 #[path = "command_tests.rs"]
 mod tests;
+
+/// The node left its network: the old lists and the remembered node id are dropped, the new identity goes
+/// to the control object and the start settings copy; the node returns to waiting for a key.
+pub(super) fn forget_network(
+    settings: &mut Settings,
+    ctl: &NodeCtl,
+    relaunch: &Relaunch,
+    secret: crate::transport::net::NodeSecret,
+) -> Relaunch {
+    settings.net.network_key = None;
+    settings.net.route_exits.clear();
+    settings.net.ports_published.clear();
+    ctl.set_owner_secret(secret.clone());
+    ctl.replace_effective_settings(settings);
+    ctl.mark_no_network();
+    ctl.forget_node_id();
+    Relaunch {
+        secret,
+        ..relaunch.clone()
+    }
+}

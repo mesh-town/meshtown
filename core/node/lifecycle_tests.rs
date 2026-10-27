@@ -17,6 +17,9 @@ pub(super) fn test_relaunch() -> crate::node::node_ctl::Relaunch {
     }
 }
 
+#[path = "lifecycle_forget_tests.rs"]
+mod forget;
+
 #[path = "lifecycle_network_tests.rs"]
 mod network;
 

@@ -77,6 +77,8 @@ pub(super) struct NodeCtlState {
     pub(super) owner: Option<crate::transport::net::NodeSecret>,
     /// Why the last start failed; set by the fall back to `NoNetwork`, cleared when a start begins.
     pub(super) start_error: Option<String>,
+    /// Short and full id of the last attached node; kept across `detach`, dropped on leaving a network.
+    pub(super) last_id: Option<(String, String)>,
 }
 
 pub(super) struct NodeCtlShared {
@@ -144,6 +146,7 @@ impl NodeCtl {
                     test_net: None,
                     owner: None,
                     start_error: None,
+                    last_id: None,
                 }),
                 kick: Notify::new(),
                 closed: watch::channel(None).0,
@@ -191,6 +194,7 @@ impl NodeCtl {
             st.snapshot_gen += 1;
             abort_task(&mut st.closed_task);
             st.node = Some(node.clone());
+            super::last_id::remember_id(&mut st, &node);
             st.cache = None;
             if !matches!(st.phase, Phase::Stopping) {
                 st.phase = Phase::Up;
@@ -322,6 +326,16 @@ impl NodeCtl {
         if matches!(st.phase, Phase::Starting) {
             st.phase = Phase::NoNetwork;
         }
+    }
+
+    /// Drops the remembered node id: the node has left its network.
+    pub(crate) fn forget_node_id(&self) {
+        let mut st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        st.last_id = None;
     }
 
     /// Known domain names from the last collection — only for the `check_domain`/`check_all` gates.

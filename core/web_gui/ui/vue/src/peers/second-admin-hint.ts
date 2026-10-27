@@ -2,5 +2,6 @@
 
 export const SECOND_ADMIN_HINT_ID = "second-admin-hint";
 
-/** `onlyAdmin` is `meAdmin && adminIds.length === 1` from `managedFacts`; two admins or a plain member hide the hint. */
-export const secondAdminHintShown = (onlyAdmin: boolean | undefined): boolean => !!onlyAdmin;
+/** `onlyAdmin` is `meAdmin && adminIds.length === 1` from `managedFacts`; two admins or a plain member hide the hint.
+ *  A closed network (`closed === true`) hides it too: nobody new can join, so a second admin is not urged. */
+export const secondAdminHintShown = (onlyAdmin: boolean | undefined, closed?: boolean): boolean => !!onlyAdmin && closed !== true;

@@ -163,6 +163,7 @@ fn build_members_info(st: &DemoState) -> MembersInfo {
         admitting: 0,
         me_pending: false,
         admission_refused: st.admission_refused,
+        closed: false,
     }
 }
 
