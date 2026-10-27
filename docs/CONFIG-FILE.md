@@ -130,6 +130,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `node.memory_warn_mib` | no flag | `400` (by machine memory: 24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise) | `process.node_memory_warn_mib`; memory guard summary threshold, MiB, `0` = off. The default `400` means "by machine memory", so an explicit 400 on a machine with ≤512 MiB also counts as automatic. On such machines the exit also refuses new streams near this value; above 512 MiB with the default 400 it refuses only by the stream limit |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
+| `socks.strict` | no flag | `false` | `process.socks_strict`; when `false`, the auto-config (PAC) file ends the route of ordinary sites with `DIRECT`, so they open directly while the node is not running; when `true` they stay closed. Takes effect at once |
 | `proxy.net` | no flag | `main` | which network's exit the local proxy uses |
 | `checks.enabled` | `--checks` / `--no-checks` | `true` | `settings.checks_enabled` (`core/config/config_file/net_settings.rs`) |
 | `checks.interval_sec` | `--check-interval` | 900 | `settings.check_interval()` (`core/config/config_file/net_settings.rs`) |
@@ -192,7 +193,7 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
     "node":      { "name": "finch-unwary" },
     "network":   { "key": "our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya" },
     "exit":      { "enabled": true, "max_streams": 0 },
-    "socks":     { "enabled": true, "port": 1080 },
+    "socks":     { "enabled": true, "port": 1080, "strict": false },
     "checks":    { "enabled": true, "interval_sec": 900,
                    "doh_server": "1.1.1.1:443", "provider_dns": null },
     "probe":     { "interval_sec": 300, "full_cycle": false },

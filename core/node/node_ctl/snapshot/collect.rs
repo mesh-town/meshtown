@@ -212,6 +212,7 @@ pub(in crate::node::node_ctl) fn socks_of_face(face: &ProxyFace) -> SocksInfo {
         access: access.as_str().to_string(),
         lan: socks_lan(face.addr, lan),
         ifaces: face.ifaces.to_state(),
+        strict: crate::proxy::pac_strict(),
     }
 }
 

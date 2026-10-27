@@ -9,7 +9,9 @@ use crate::config::config_file::Settings;
 use crate::node::output::{self, say};
 use crate::web_gui::NodeSnapshot;
 
-use super::live_paths::{apply_log_capacity, apply_pending_handles, copy_live_paths};
+use super::live_paths::{
+    apply_log_capacity, apply_pac_strict, apply_pending_handles, copy_live_paths,
+};
 use super::peer_addr::parse_peer_line;
 use super::snapshot;
 use super::state::{NodeCtl, Phase};
@@ -139,6 +141,9 @@ impl NodeCtl {
         };
         if live.contains(&"log.ring_lines") {
             apply_log_capacity(&effective_settings);
+        }
+        if live.contains(&"socks.strict") {
+            apply_pac_strict(&effective_settings, crate::proxy::set_pac_strict);
         }
         if let Some(n) = &node {
             apply_pending_handles(n, &live, &effective_settings);

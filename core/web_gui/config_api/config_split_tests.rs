@@ -174,7 +174,8 @@ const BODY_TEXT: &str = r#"{
       "access": "localnet",
       "enabled": false,
       "ifaces": [],
-      "port": 1090
+      "port": 1090,
+      "strict": false
     },
     "version": 1,
     "web": {

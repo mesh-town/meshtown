@@ -207,3 +207,10 @@ fn socks_ifaces_comes_from_the_filter() {
     assert_eq!(build(i).snap.socks.ifaces, Some(vec!["br-lan".to_string()]));
     assert_eq!(build(base(pair(1))).snap.socks.ifaces, None);
 }
+
+#[test]
+fn socks_strict_is_in_the_state_json() {
+    let snap = build(base(pair(1))).snap;
+    let json = serde_json::to_value(&snap.socks).expect("serializes");
+    assert!(json["strict"].is_boolean(), "{json}");
+}

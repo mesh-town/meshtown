@@ -43,6 +43,7 @@ fn invalid_front_cases() -> Vec<InvalidCase> {
         case("socks.port", json!(80), "a port 1024…65535"),
         case("socks.access", json!("public"), "localhost or localnet"),
         case("socks.ifaces", json!("br-lan"), IFACES),
+        case("socks.strict", json!("yes"), FLAG),
     ]
 }
 
@@ -210,6 +211,7 @@ mod internal_lists {
             "socks.port",
             "socks.access",
             "socks.ifaces",
+            "socks.strict",
             "checks.enabled",
             "checks.interval_sec",
             "checks.doh_server",

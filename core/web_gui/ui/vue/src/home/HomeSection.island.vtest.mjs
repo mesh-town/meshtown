@@ -15,7 +15,10 @@ const BARE_THROUGH_NETWORK = /through the network(?! Mesh Town)/;
 const OTHER_TABS = ["peers", "domains", "network", "log", "settings"];
 const LISTEN = "127.0.0.1:1080";
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+});
 afterEach(unmountPage);
 
 const makeNode = (over = {}) => createFakeNode({ state: demoState(), config: demoConfig(), ...over });

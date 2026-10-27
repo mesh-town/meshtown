@@ -10,7 +10,10 @@ const MARK = "meshtown.homeSetup";
 const WITH_PROXY = { socks: { enabled: true, listen: "127.0.0.1:1080" } };
 let mounted;
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+});
 afterEach(() => mounted.wrapper.unmount());
 
 describe("SetupWizard > step 1, no network", () => {
@@ -96,6 +99,15 @@ describe("SetupWizard > step 2, mark \"browser\"", () => {
     expect(wrapper.find("#socks-copy-port-btn").exists()).toBe(true);
   });
 
+  it("step 2 carries the strict-mode question under the browser card, before the Done button", () => {
+    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
+    const html = wrapper.html();
+    expect(wrapper.find("#strict-choice").exists()).toBe(true);
+    expect(html.indexOf("strict-choice")).toBeGreaterThan(html.indexOf("pac-row"));
+    expect(html.indexOf("strict-choice")).toBeLessThan(html.indexOf("Done, my browser is set up"));
+    expect(wrapper.get("#wizard-step-2").text()).toBe("2Set up your browser");
+  });
+
   it("\"Done, my browser is set up\" sets the exit mark and opens step 3", async () => {
     const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
     const done = wrapper.findAll("button").find((b) => b.text() === "Done, my browser is set up");
@@ -178,9 +190,9 @@ describe("SetupWizard > exit step while looking for members", () => {
 });
 
 describe("SetupWizard > the browser version stays as it was", () => {
-  it("the title is \"Three steps to open a blocked site\", step 2 is the browser, step 3 is \"3Choose an exit\"", () => {
+  it("the title is \"Three steps to get started\", step 2 is the browser, step 3 is \"3Choose an exit\"", () => {
     const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to open a blocked site");
+    expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to get started");
     expect(wrapper.get("#wizard-step-2").text()).toBe("2Set up your browser");
     expect(wrapper.get("#wizard-step-3").text()).toBe("3Choose an exit");
   });

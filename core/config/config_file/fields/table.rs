@@ -51,6 +51,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("socks.port", RestartShown, slot!(process.socks_port, Port { min: 1024, max: 65535 })),
     row!("socks.access", RestartShown, slot!(process.socks_access, Choice { parse: ListenAccess::parse, name: ListenAccess::as_str, expected: "localhost or localnet" })),
     row!("socks.ifaces", RestartShown, slot!(process.socks_ifaces, IfaceNames)),
+    row!("socks.strict", Live, slot!(process.socks_strict, BoolKind)),
     row!("proxy.net", Live, slot!(process.proxy_net, SlotRef)),
     row!("checks.enabled", Live, slot!(net.checks_enabled, BoolKind)),
     row!("checks.interval_sec", Live, slot!(net.check_interval_sec, Int { min: 30, max: 86_400 })),

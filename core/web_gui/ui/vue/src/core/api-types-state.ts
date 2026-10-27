@@ -148,6 +148,7 @@ export interface SocksInfo {
   access?: "localhost" | "localnet"; // `socks.access`
   lan?: { addr: string; iface: string }[]; // addresses for other devices on the network; [] — the proxy is closed to the network
   ifaces?: string[] | null; // effective filter: null — auto, ["*"] — all; the saved one — GET /api/config
+  strict?: boolean; // `socks.strict`: how the PAC answers now — true: no direct fallback; absent — false
   pac_url: string | null; // PAC address on the proxy port ("http://127.0.0.1:1080/proxy.pac"); null — the proxy is off
 }
 

@@ -2,7 +2,7 @@
  * `api.js`, poller and store; the config PUT is checked by the request body in `node.calls`. Visibility is judged by the
  * `hidden`/`style` attribute: happy-dom doesn't compute styles. The `#status-line` tail is not asserted (it stays in e2e). */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PAC_INTRO, PAC_TITLE } from "../common/pac-texts.ts";
 import { demoConfig, demoState } from "../testing/demo-node.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
@@ -14,6 +14,7 @@ const STRANGER_LABEL = STRANGER_ID.slice(0, 10);
 const LISTEN = "127.0.0.1:1080";
 const EMPTY_KEY_HINT = "Paste the invite first.";
 
+beforeEach(() => localStorage.setItem("meshtown.proxyScope", "system")); // the scope question is answered
 afterEach(unmountPage);
 
 const makeNode = (over = {}) => createFakeNode({ state: demoState(), config: demoConfig(), ...over });

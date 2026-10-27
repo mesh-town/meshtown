@@ -142,14 +142,14 @@ describe("stopNode", () => {
     assert.ok(w.confirms[0].startsWith("Stop " + NET_NAME + "?"));
   });
 
-  it("confirm: the full CONFIRM_STOP_TEXT text — sites in the browser don't open", async () => {
+  it("confirm: the full CONFIRM_STOP_TEXT text — sites in the browser open directly", async () => {
     const w = setup({ script: [], confirm: false });
     await stopNode(w.form, w.deps);
     assert.equal(w.confirms.length, 1);
     assert.equal(w.confirms[0], CONFIRM_STOP_TEXT);
     assert.equal(
       w.confirms[0],
-      `Stop ${NET_NAME}? While it is stopped, sites in the browser don't open (local addresses do); after it starts, they come back in about 15 seconds.`,
+      `Stop ${NET_NAME}? While it is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds.`,
     );
   });
 

@@ -21,11 +21,16 @@ pub(super) fn apply_exit_max_streams(limits: &ExitLimits, s: &Settings) {
     limits.set_max_streams(s.process.exit_max_streams);
 }
 
+/// Hands `socks.strict` to `set` (the PAC flag of the proxy front); a parameter keeps tests off the global flag.
+pub(super) fn apply_pac_strict(s: &Settings, set: impl FnOnce(bool)) {
+    set(s.process.socks_strict);
+}
+
 /// A live-path handle: carries a value from `effective_settings` into the running node.
 type Handle = fn(&RunningNode, &Settings);
 
 /// Live-setting handles by path; the set of paths equals `fields::live_paths()` (test `handles_equal_live`).
-const HANDLES: [(&str, Handle); 11] = [
+const HANDLES: [(&str, Handle); 12] = [
     ("exit.enabled", |n, e| {
         n.set_exit_enabled(e.net.exit_enabled)
     }),
@@ -54,6 +59,10 @@ const HANDLES: [(&str, Handle); 11] = [
     // A process-wide handle, not the node's: the stream limit is shared by every network.
     ("exit.max_streams", |_, e| {
         apply_exit_max_streams(&ExitLimits::process(), e)
+    }),
+    // A process-wide flag, not the node's: the PAC of the one proxy front reads it on every request.
+    ("socks.strict", |_, e| {
+        apply_pac_strict(e, crate::proxy::set_pac_strict)
     }),
     // The proxy front reads the setting itself; nothing to push into the node.
     ("proxy.net", |_, _| {}),

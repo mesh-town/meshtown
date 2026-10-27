@@ -2,6 +2,7 @@
 //! I/O and the listener port are in `http.rs`; the script text is in `pac.js` next to it.
 
 use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 /// The PAC path on the proxy port.
 pub(super) const PAC_PATH: &str = "/proxy.pac";
@@ -28,12 +29,31 @@ pub(super) fn pac_request(method: &str, path: &str) -> Option<PacRequest> {
     Some(PacRequest { head_only })
 }
 
-/// The route string for the browser: `DIRECT` or a node (SOCKS5, then HTTP proxy; without a `DIRECT` tail).
-pub(super) fn pac_proxy_list(proxy: SocketAddr, direct_only: bool) -> String {
-    if direct_only {
-        return "DIRECT".to_string();
-    }
+/// The route string for mesh names: a node (SOCKS5, then HTTP proxy), never a `DIRECT` tail.
+pub(super) fn pac_proxy_list(proxy: SocketAddr) -> String {
     format!("SOCKS5 {proxy}; PROXY {proxy}")
+}
+
+/// The route string for ordinary hosts: the node, plus a `DIRECT` tail unless `strict`.
+pub(super) fn pac_route_list(proxy: SocketAddr, strict: bool) -> String {
+    let list = pac_proxy_list(proxy);
+    if strict {
+        return list;
+    }
+    format!("{list}; DIRECT")
+}
+
+/// Strict mode: ordinary hosts have no `DIRECT` fallback when the node does not answer.
+static PAC_STRICT: AtomicBool = AtomicBool::new(false);
+
+/// Sets strict mode for every PAC served from now on.
+pub fn set_pac_strict(on: bool) {
+    PAC_STRICT.store(on, Ordering::Relaxed);
+}
+
+/// Whether the PAC currently omits the `DIRECT` fallback.
+pub fn pac_strict() -> bool {
+    PAC_STRICT.load(Ordering::Relaxed)
 }
 
 /// The PAC script: `route` for ordinary hosts, `mesh` for mesh names (`meshtown`, `*.meshtown`).

@@ -64,6 +64,11 @@ test('76-home-pac-card: the browser card — the PAC auto-config address is visi
     await expect.soft(card.copyButton).toHaveText('Copy address');
   });
 
+  await test.step('before the scope answer there are no steps; "In the whole system" shows them', async () => {
+    await expect.soft(card.osGroup).toHaveCount(0);
+    await card.pickScope('system');
+  });
+
   await test.step('the "Your system" group: four buttons, exactly one pressed', async () => {
     await expect.soft(card.osGroup).toBeVisible();
     await expect.soft(card.osButtons).toHaveCount(4);

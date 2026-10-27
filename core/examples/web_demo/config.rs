@@ -29,6 +29,7 @@ fn bad_value_for(path: &str) -> Option<(&'static str, &'static str, Value)> {
         "checks.doh_server" => Some(("checks", "doh_server", json!("not-an-address"))),
         "exit.enabled" => Some(("exit", "enabled", json!("yes"))),
         "socks.enabled" => Some(("socks", "enabled", json!("yes"))),
+        "socks.strict" => Some(("socks", "strict", json!("yes"))),
         "checks.enabled" => Some(("checks", "enabled", json!("yes"))),
         "checks.provider_dns" => Some(("checks", "provider_dns", json!("x"))),
         _ => None,

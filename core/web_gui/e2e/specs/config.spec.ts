@@ -6,7 +6,7 @@ interface ConfigReply {
   file?: { message?: string };
 }
 interface StateReply {
-  socks?: { listen?: string };
+  socks?: { listen?: string; strict?: boolean };
   node?: { identity?: string; identity_reason?: string };
 }
 
@@ -102,6 +102,31 @@ test.describe('10-identity: --identity persistent/declined/file_problem: node.id
       });
     });
   }
+});
+
+test('socks-strict: the strict-mode switch in Settings is saved and the node state reports it (WEB-API-config.md, socks.strict)', async ({
+  app,
+  api,
+}) => {
+  const strictOf = async (): Promise<boolean | undefined> => {
+    const state = await api.getJson<StateReply>('/api/state');
+    return state.body?.socks?.strict;
+  };
+
+  await test.step('GET /api/state: socks.strict is not on by default', async () => {
+    expect.soft((await strictOf()) ?? false).toBe(false);
+  });
+
+  await test.step('Settings: the switch is turned on and saved', async () => {
+    await app.tabs.open('settings');
+    await app.settings.socksStrict.check();
+    await app.settings.saveButton.click();
+    await expect.soft(app.settings.savedMessage).toBeVisible();
+  });
+
+  await test.step('GET /api/state: socks.strict is true', async () => {
+    await expect.poll(strictOf, { timeout: 10000, intervals: [50, 100, 200] }).toBe(true);
+  });
 });
 
 test('43-settings-dirty-marker-and-intro: the unsaved-settings marker is readable without hovering — text, not only color; one shared restart hint instead of a repeat on every field', async ({

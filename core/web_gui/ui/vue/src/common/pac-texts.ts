@@ -27,9 +27,21 @@ export const MANUAL_BROWSER_HINT = "Firefox is configured separately — choose 
 export const MANUAL_BROWSER_HINT_NO_SAFARI = "Firefox is configured separately — choose it below. The steps are the same for Chrome and Edge.";
 export const WIZARD_AGAIN = "Open step-by-step setup";
 
-export const STOPPED_NOTE = `While ${NET_NAME} is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, use the ${NET_NAME} icon near the clock → "Start ${NET_NAME}".`;
-export const STOPPED_NOTE_APP = `While ${NET_NAME} is stopped, sites in the browser don't open (local addresses do). After it starts, sites come back in about 15 seconds. To start it again, open the ${NET_NAME} app.`;
-export const CONFIRM_STOP_TEXT = `Stop ${NET_NAME}? While it is stopped, sites in the browser don't open (local addresses do); after it starts, they come back in about 15 seconds.`;
+export const STOPPED_NOTE = `While ${NET_NAME} is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds. To start it again, use the ${NET_NAME} icon near the clock → "Start ${NET_NAME}".`;
+export const STOPPED_NOTE_APP = `While ${NET_NAME} is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds. To start it again, open the ${NET_NAME} app.`;
+export const CONFIRM_STOP_TEXT = `Stop ${NET_NAME}? While it is stopped, sites in the browser open directly, without an exit; in strict mode they don't open at all (local addresses do). After it starts, everything comes back in about 15 seconds.`;
+
+export const SCOPE_QUESTION = "Where should the proxy work?";
+export const SCOPE_SYSTEM = "In the whole system";
+export const SCOPE_BROWSER = "Only in the browser";
+export const FIREFOX_STEPS: string[] = [
+  "Click \"Copy address\" above.",
+  "In Firefox open \"Settings\" → \"General\" and scroll down to \"Network Settings\".",
+  "Click \"Settings…\".",
+  "Choose \"Automatic proxy configuration URL\" and paste the address into the field below it.",
+  "Click \"OK\".",
+];
+export const BROWSER_SCOPE_NOTE = "Chrome, Edge and Safari use the system setting — for them choose \"In the whole system\".";
 
 export const MAC_STEPS: string[] = [
   "Click \"Copy address\" above.",

@@ -118,7 +118,7 @@ mod live_set {
 
     #[test]
     fn live_set_golden() {
-        // given: the set of live paths; then: exactly these 11
+        // given: the set of live paths; then: exactly these 12
         let expected: BTreeSet<&str> = [
             "exit.enabled",
             "checks.enabled",
@@ -131,6 +131,7 @@ mod live_set {
             "exit.max_streams",
             "node.name",
             "proxy.net",
+            "socks.strict",
         ]
         .into_iter()
         .collect();
@@ -140,7 +141,7 @@ mod live_set {
         assert_eq!(actual, expected, "the set of live paths changed");
         assert_eq!(
             crate::config::config_file::fields::live_paths().len(),
-            11,
+            12,
             "the list has no duplicates"
         );
     }
@@ -157,7 +158,7 @@ mod handles_and_copy {
         let live: BTreeSet<&str> = fields::live_paths().into_iter().collect();
         assert_eq!(handles, live);
         assert_eq!(HANDLES.len(), live.len());
-        assert_eq!(HANDLES.len(), 11, "one handle per live path");
+        assert_eq!(HANDLES.len(), 12, "one handle per live path");
     }
 
     #[test]
@@ -236,6 +237,28 @@ mod handles_and_copy {
             Settings::default().process.socks_port,
             "a non-live field is not copied"
         );
+    }
+}
+
+mod strict_handle {
+    use super::*;
+
+    #[test]
+    fn strict_handle_sets_pac_flag() {
+        // given: settings asking for strict mode; when: the handle's function is applied
+        let on = Settings {
+            process: ProcessSettings {
+                socks_strict: true,
+                ..ProcessSettings::default()
+            },
+            ..Settings::default()
+        };
+        let seen = std::cell::Cell::new(None);
+        apply_pac_strict(&on, |v| seen.set(Some(v)));
+        assert_eq!(seen.get(), Some(true));
+        // then: the default settings hand over `false`
+        apply_pac_strict(&Settings::default(), |v| seen.set(Some(v)));
+        assert_eq!(seen.get(), Some(false));
     }
 }
 

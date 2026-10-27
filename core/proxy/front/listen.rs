@@ -60,6 +60,7 @@ pub struct ProxyFront(Arc<Inner>);
 impl ProxyFront {
     /// Takes the port from the settings (nothing is taken if the proxy is off). A busy port is a `BindError`.
     pub async fn bind(settings: &ProcessSettings) -> Result<ProxyFront> {
+        crate::proxy::set_pac_strict(settings.socks_strict);
         let front = ProxyFront(Arc::new(Inner {
             target: watch::channel(None).0,
             face: watch::channel(ProxyFace::OFF).0,
