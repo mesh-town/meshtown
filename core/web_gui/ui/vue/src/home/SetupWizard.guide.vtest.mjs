@@ -138,6 +138,7 @@ describe("SetupWizard > guide > phones", () => {
     expect(wrapper.get("#guide-intro").text()).toBe(ANDROID_INTRO);
     expect(items(wrapper, "#pac-steps > li").slice(1)).toEqual(ANDROID_STEPS);
     expect(wrapper.get("#pac-steps > li").text()).toContain("On the phone, download the Mesh Town app:");
+    expect(wrapper.get("#pac-steps > li").text()).toContain("app: meshtown.apk");
     expect(wrapper.find("#pac-copy-btn").exists()).toBe(false);
     expect(wrapper.find("#pac-url-text").exists()).toBe(false);
     expect(wrapper.find("#more-options").exists()).toBe(false);

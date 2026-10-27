@@ -28,7 +28,7 @@ const router = computed(() => isRouter(store.state ?? {}));
       <NetworksSummary v-if="router" />
     </li>
     <li v-for="(s, i) in guide.steps" :key="i">
-      <TermText :text="s.text" /><template v-if="s.href"> <a id="guide-app-link" :href="s.href" target="_blank" rel="noopener">{{ WIZ_APP_LINK }}</a></template>
+      <TermText :text="s.text" /><template v-if="s.href">{{ " " }}<a id="guide-app-link" :href="s.href" target="_blank" rel="noopener">{{ WIZ_APP_LINK }}</a></template>
     </li>
   </ol>
   <p v-for="(t, i) in guide.small" :key="'s' + i" class="hint pac-small"><TermText :text="t" /></p>
