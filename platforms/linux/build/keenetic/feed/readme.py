@@ -5,11 +5,13 @@ ENTWARE_HELP = "https://support.keenetic.com/titan/kn-1811/en/20980.html"
 
 TEMPLATE = """# Mesh Town packages for Keenetic (Entware)
 
-**Mesh Town** connects your computers, phones and routers into a private network and lets you reach the services
-running on them from anywhere — SSH, RDP, the web panel of a NAS or router — with no port forwarding, no public IP,
-no central server and no account to create. Nodes find each other on the public DHT and connect directly, and keep
-reconnecting when a device changes networks. A member can also act as an exit node: a local SOCKS5/HTTP proxy sends
-traffic out through a trusted member's connection. Main repository and documentation:
+**[Mesh Town](https://mesh-town.github.io/)** — reach your home server, NAS or office PC from anywhere: no port
+forwarding, no central server, no accounts.
+
+Mesh Town links your own computers, phones and routers directly to each other, so you can open the web panel of a
+NAS, SSH into a home server or connect to a work PC by remote desktop from any network. Free and open source, for
+macOS, Windows, Linux, Android and OpenWrt or Keenetic routers. Website:
+[mesh-town.github.io](https://mesh-town.github.io/) · source and documentation:
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Package feed of [Mesh Town]({code}) for Keenetic routers with [Entware](https://entware.net). CI builds it from the
