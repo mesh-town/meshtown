@@ -164,3 +164,20 @@ async fn the_answer_to_a_repeat_names_the_same_slot() {
     let second = invite(&router, &b).await.1;
     assert_eq!((&first["slot"], &second["slot"]), (&json!(X), &json!(X)));
 }
+
+#[tokio::test]
+async fn a_repeat_is_not_sent_to_a_slot_waiting_for_another_network() {
+    const Z: &str = "ef6a7b";
+    let f = fx(&[("main", Some(&word_key("alpha"))), (X, None), (Y, None), (Z, None)]);
+    wait(&f, X, InviteJoinState::Refused);
+    wait(&f, Y, InviteJoinState::Waiting);
+    set_add(&f, Z);
+    let (router, app) = start(&f);
+    let (b, c) = (word_key("beta"), word_key("gamma"));
+    remember(&app, &id_hex(&b), slot(X));
+    remember(&app, &id_hex(&c), slot(Y));
+    let (status, body) = invite(&router, &b).await;
+    assert_eq!(status, StatusCode::ACCEPTED, "{body}");
+    assert_eq!((joins_of(&f, X), joins_of(&f, Y)), (0, 0), "{body}");
+    assert_eq!(noted(&app, &c), Some(slot(Y)));
+}
