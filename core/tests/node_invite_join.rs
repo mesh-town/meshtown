@@ -232,7 +232,7 @@ impl Newcomer {
         let ctl = self.ctl.clone();
         let saves = self.saves.clone();
         let result = self.save_result.clone();
-        Box::new(move |text| {
+        Box::new(move |text, _| {
             let status_then = ctl.snapshot().node.status;
             saves.lock().unwrap().push(Saved {
                 text: text.to_string(),

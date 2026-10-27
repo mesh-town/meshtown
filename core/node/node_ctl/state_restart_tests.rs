@@ -22,7 +22,8 @@ mod from_up_with_key {
             ctl.next_command().await,
             Cmd::Switch {
                 key: KEY_TEXT.to_string(),
-                peers: vec![]
+                peers: vec![],
+                secret: None,
             }
         );
     }
@@ -47,7 +48,8 @@ mod after_a_failed_start {
             ctl.next_command().await,
             Cmd::Switch {
                 key: KEY_TEXT.to_string(),
-                peers: vec![]
+                peers: vec![],
+                secret: None,
             }
         );
     }

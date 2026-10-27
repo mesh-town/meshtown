@@ -45,7 +45,8 @@ async fn next_command_folds_switch_and_stop() {
         ctl.next_command().await,
         Cmd::Switch {
             key: "b".to_string(),
-            peers: vec![]
+            peers: vec![],
+            secret: None,
         }
     );
 
@@ -75,7 +76,8 @@ async fn next_command_keeps_peers_of_last_switch() {
         ctl.next_command().await,
         Cmd::Switch {
             key: "b".to_string(),
-            peers: vec![p2.clone()]
+            peers: vec![p2.clone()],
+            secret: None,
         }
     );
 
@@ -85,7 +87,8 @@ async fn next_command_keeps_peers_of_last_switch() {
         ctl.next_command().await,
         Cmd::Switch {
             key: "d".to_string(),
-            peers: vec![]
+            peers: vec![],
+            secret: None,
         }
     );
 }
@@ -120,7 +123,8 @@ async fn join_from_no_network_goes_starting() {
         ctl.next_command().await,
         Cmd::Switch {
             key: "mesh2-abc".to_string(),
-            peers: vec![p1]
+            peers: vec![p1],
+            secret: None,
         }
     );
 }
@@ -384,3 +388,7 @@ mod socks_without_a_node {
         .expect("a free loopback port")
     }
 }
+
+/// Two queued switches fold into one: the later network key, the earlier node key unless a later one is given.
+#[path = "state_switch_tests.rs"]
+mod merged_switches;

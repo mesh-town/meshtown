@@ -10,6 +10,7 @@ fn switch() -> Cmd {
     Cmd::Switch {
         key: "label--0123456789abcdef".to_string(),
         peers: Vec::<PeerAddr>::new(),
+        secret: None,
     }
 }
 

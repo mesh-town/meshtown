@@ -107,6 +107,15 @@ describe("this computer was removed by an admin", () => {
     expect(page.has("#excluded-card")).toBe(true);
   });
 
+  it("`me_excluded` by refusals alone gets the removed wording", async () => {
+    const refusing = peerOneRow({ online: false, last_refusal: { side: "them", reason: "excluded", at_unix: 1 } });
+    const members = membersReply({ rows: [selfRow(), refusing], me_excluded: true });
+    const page = await openMembersPage({ members, state: stateWith({ me_excluded: true }) });
+    expect(page.text("#excluded-card")).toContain('This computer was removed from the network "demo-network"');
+    expect(page.text("#excluded-card")).toContain("An admin removed it. Sites no longer open through Mesh Town");
+    expect(page.text("#excluded-card")).not.toContain("You left the network");
+  });
+
   // NOTE: no `excluded` info on my own row (the reason is unknown): the card still shows, its wording is not asserted.
   it("an unknown reason: the card still shows", async () => {
     const page = await openMembersPage({ members: membersReply({ me_excluded: true }), state: stateWith({ me_excluded: true }) });

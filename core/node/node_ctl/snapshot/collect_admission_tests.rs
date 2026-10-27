@@ -42,8 +42,8 @@ mod a_lone_node_refused_by_a_stranger {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn overlay_reports_a_refusal_of_a_stranger() {
-        // given: a published list of one and a stranger that turned this node away as excluded
-        let node = node_refused_by_stranger(Deny::Excluded).await;
+        // given: a published list of one and a stranger that turned this node away by its own block
+        let node = node_refused_by_stranger(Deny::Refused).await;
         let mut snap = NodeSnapshot::default();
 
         // when
@@ -51,6 +51,24 @@ mod a_lone_node_refused_by_a_stranger {
 
         // then
         assert!(snap.members.admission_refused);
+        node.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn an_excluded_refusal_marks_me_excluded_not_refused() {
+        // given: nobody is online and a stranger turned this node away as excluded
+        let node = node_refused_by_stranger(Deny::Excluded).await;
+        let mut snap = NodeSnapshot::default();
+
+        // when
+        overlay_members(&mut snap, &node);
+
+        // then: the node knows it is out of the network, which is not a plain refusal
+        assert!(
+            snap.members.me_excluded,
+            "the node must learn it was excluded"
+        );
+        assert!(!snap.members.admission_refused);
         node.shutdown().await;
     }
 

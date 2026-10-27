@@ -155,7 +155,7 @@ async fn stop_before_the_loop_takes_no_boot() {
     ctl.stop_on_os_signal();
     let res = timeout(
         Duration::from_secs(20),
-        run_cycles(&mut cfg, &mut settings, &ctl, &test_relaunch()),
+        run_cycles(&mut cfg, &mut settings, &ctl, &mut test_relaunch()),
     )
     .await
     .expect("loop must leave");
@@ -176,7 +176,7 @@ async fn leave_net_ends_cycles_and_clears_network_settings() {
     ctl.request_leave_net(new_secret.clone()).unwrap();
     let res = timeout(
         Duration::from_secs(20),
-        run_cycles(&mut cfg, &mut settings, &ctl, &test_relaunch()),
+        run_cycles(&mut cfg, &mut settings, &ctl, &mut test_relaunch()),
     )
     .await
     .expect("loop must leave")

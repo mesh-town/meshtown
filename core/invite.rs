@@ -33,11 +33,14 @@ mod parse;
 pub mod proof;
 pub mod redeem;
 mod redeem_round;
+pub mod rekey;
 pub mod server;
 mod server_owner;
 mod spread;
 pub mod store;
 mod store_admins;
+#[cfg(test)]
+pub(crate) mod test_responder;
 pub mod wire;
 pub use dealt::{Dealt, Reach};
 pub use head::{check_fresh, hash_hex_of, same_network, InviteHead, InviteSecret, INVITE_TTL_SECS};

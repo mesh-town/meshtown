@@ -11,10 +11,14 @@ import { baseConfig, baseState } from "../testing/section.mjs";
 const INVITE = "mesh-invite2-ABCDEFGH";
 const CORE_TEXT = "This computer can't rejoin this network. The invite wasn't used up \u2014 someone else can join with it.";
 const LEAD = "Couldn't join \"my devices\". ";
+const APP_AGENT = "Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android";
 const REFUSED = "The members of the network refused this computer.";
 
 beforeEach(() => localStorage.clear());
-afterEach(unmountPage);
+afterEach(() => {
+  unmountPage();
+  Reflect.deleteProperty(navigator, "userAgent");
+});
 
 const banned = () => membersReply({ rows: [selfRow(), peerOneRow()], me_excluded: true });
 
@@ -27,6 +31,16 @@ describe("the tab of a removed computer", () => {
     expect(page.focusedId()).toBe("rejoin-input");
     expect(location.hash).toBe("#peers/" + NET_B);
     expect(page.text("#rejoin-title")).toBe('Join "my devices" again');
+  });
+
+  it("in the app the card button opens the form too", async () => {
+    Object.defineProperty(navigator, "userAgent", { value: APP_AGENT, configurable: true });
+    const page = await openTab({ members: banned() });
+    expect(page.has("#members-removed-start-over"), "no reset link").toBe(false);
+    await page.click("#members-removed-join");
+    expect(page.has("#rejoin-card")).toBe(true);
+    expect(page.has("#members-removed-join"), "one main button on the screen").toBe(false);
+    expect(page.focusedId()).toBe("rejoin-input");
   });
 
   it("the answer with the slot of the tab says so in the form", async () => {

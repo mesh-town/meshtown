@@ -163,6 +163,14 @@ describe("statusLine of a computer removed by an admin", () => {
     assert.match(got.text, /^Removed from the network "family" by an admin/);
   });
 
+  it("an excluded node with refusals shows the removed line", () => {
+    const refused = { names: ["peer-one"] };
+    const got = statusLine(node("running", { members: { me_excluded: true } }), createConn(), null, null, refused);
+    assert.equal(got.level, "red");
+    assert.match(got.text, /^Removed from the network "family" by an admin/);
+    assert.doesNotMatch(got.text, /^Sites won't open/);
+  });
+
   describe("no_line_without_members", () => {
     it("members not given: the usual line of the network", () => {
       const got = statusLine(node("running"), createConn());

@@ -5,13 +5,18 @@
 use portable_atomic::AtomicU64;
 use std::path::Path;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
-use crate::config::config_file::{self, LoadedConfigFile, RunConfig, SaveError, Settings};
+use crate::config::config_file::{
+    self, new_secret, LoadedConfigFile, RunConfig, SaveError, Settings,
+};
 use crate::invite::redeem::{redeem, Progress, RedeemError, RedeemOpts};
+use crate::invite::rekey::redeem_or_rekey;
 use crate::invite::{check_fresh, same_network, ParsedInvite};
+use crate::members::network_key::NetworkKey;
 use crate::node::host::MAX_NETS;
 use crate::node::output::{say, NET_NAME};
-use crate::transport::net::NodeSecret;
+use crate::transport::net::{MemNet, NodeSecret};
 
 use super::run_invite_addnet::{
     net_limit_reached, prepare_new_slot, save_prepared_slot, saved_slot_keys,
@@ -121,8 +126,11 @@ async fn add_redeemed_net(
     typed_domains: &[String],
     now: u64,
 ) -> anyhow::Result<()> {
-    let slot = prepare_new_slot(run, now)?;
-    let text = redeem_text(p, &slot.run.secret).await?;
+    let mut slot = prepare_new_slot(run, now)?;
+    let (text, new_owner) = redeem_text(p, &slot.run.secret, None).await?;
+    if let Some(new) = new_owner {
+        slot.run.secret = new;
+    }
     say("invite", "network key received, adding the network");
     if let Err(why) = save_prepared_slot(run, slot, &text, typed_domains, &p.peers, now) {
         say(
@@ -139,24 +147,62 @@ pub(crate) async fn redeem_for_run(
     run: &mut RunConfig,
     now: u64,
 ) -> anyhow::Result<()> {
-    let text = redeem_text(p, &run.secret).await?;
+    redeem_for_run_on(p, run, now, None).await
+}
+
+/// `redeem_for_run` over the given in-memory network (tests) or the real one.
+async fn redeem_for_run_on(
+    p: &ParsedInvite,
+    run: &mut RunConfig,
+    now: u64,
+    net: Option<&Arc<MemNet>>,
+) -> anyhow::Result<()> {
+    let (text, new_owner) = redeem_text(p, &run.secret, net).await?;
+    if let Some(new) = new_owner {
+        run.secret = new;
+    }
     run.effective_settings.net.network_key = Some(text.clone());
     say("invite", "network key received, joining the network");
     persist_key(run, &text, now)
 }
 
-/// Waits for the key from the members, redeeming the invite with `secret`, and returns it as the text a settings file holds.
-async fn redeem_text(p: &ParsedInvite, secret: &NodeSecret) -> anyhow::Result<String> {
+/// Waits for the key from the members, redeeming the invite with `secret`, and returns it as the text a settings
+/// file holds. When the network refused `secret` as excluded, the invite is redeemed again with a fresh key,
+/// which is returned as well.
+async fn redeem_text(
+    p: &ParsedInvite,
+    secret: &NodeSecret,
+    net: Option<&Arc<MemNet>>,
+) -> anyhow::Result<(String, Option<NodeSecret>)> {
     say("invite", TEXT_WAITING);
     let opts = RedeemOpts::for_head(&p.head);
     let last = AtomicU64::new(0);
-    let note = move |pr: Progress| report_progress(&last, pr);
-    let transport = crate::node::bind_ephemeral(None)
+    let note = |pr: Progress| report_progress(&last, pr);
+    let fresh = || new_secret().map_err(|e| RedeemError::Bind(format!("{e:#}")));
+    let attempt = |owner: NodeSecret| attempt(p, &opts, &note, net, owner);
+    let done = redeem_or_rekey(secret, fresh, attempt).await?;
+    if done.new_owner.is_some() {
+        say("invite", REKEY_NOTE);
+    }
+    Ok((p.head.key_text(&done.key), done.new_owner))
+}
+
+/// One redeem attempt with `owner` on its own ephemeral transport.
+async fn attempt(
+    p: &ParsedInvite,
+    opts: &RedeemOpts,
+    note: &(dyn Fn(Progress) + Send + Sync),
+    net: Option<&Arc<MemNet>>,
+    owner: NodeSecret,
+) -> Result<NetworkKey, RedeemError> {
+    let transport = crate::node::bind_ephemeral(net)
         .await
         .map_err(|e| RedeemError::Bind(format!("{e:#}")))?;
-    let key = redeem(&p.head, &p.peers, &opts, &note, transport, secret).await?;
-    Ok(p.head.key_text(&key))
+    redeem(&p.head, &p.peers, opts, note, transport, &owner).await
 }
+
+const REKEY_NOTE: &str =
+    "the network refused this computer's key as excluded; joined with a new key";
 
 /// A progress line: only when the pause between rounds has changed.
 fn report_progress(last: &AtomicU64, pr: Progress) {

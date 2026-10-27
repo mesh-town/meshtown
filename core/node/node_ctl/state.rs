@@ -43,6 +43,7 @@ pub(crate) enum Cmd {
     Switch {
         key: String,
         peers: Vec<PeerAddr>,
+        secret: Option<crate::transport::net::NodeSecret>,
     },
 }
 
@@ -181,6 +182,30 @@ impl NodeCtl {
         st.owner = Some(secret);
     }
 
+    /// Switches the network and hands the node a new permanent key in the same command (tests).
+    #[cfg(test)]
+    pub(crate) fn switch_network_as(&self, key: &str, secret: crate::transport::net::NodeSecret) {
+        let peers = Vec::new();
+        super::control::begin_network_switch(
+            &self.ctl_shared,
+            &self.cmd_tx,
+            key,
+            peers,
+            Some(secret),
+        );
+    }
+
+    /// The remembered permanent key (tests).
+    #[cfg(test)]
+    pub(crate) fn owner_secret(&self) -> Option<crate::transport::net::NodeSecret> {
+        let st = self
+            .ctl_shared
+            .ctl_state
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        st.owner.clone()
+    }
+
     /// The node is up: the snapshot task generation grows, deferred live paths are applied,
     /// and the background collection starts.
     pub(crate) fn attach(&self, node: &RunningNode) {
@@ -252,6 +277,13 @@ impl NodeCtl {
                 (_, Cmd::Stop) => Cmd::Stop,
                 (Cmd::Stop, _) => Cmd::Stop,
                 (leave @ Cmd::LeaveNet { .. }, Cmd::Switch { .. }) => leave,
+                (Cmd::Switch { secret: early, .. }, Cmd::Switch { key, peers, secret }) => {
+                    Cmd::Switch {
+                        key,
+                        peers,
+                        secret: secret.or(early),
+                    }
+                }
                 (_, other) => other,
             };
         }

@@ -1,12 +1,13 @@
 //! Sign-in by an invite string and the "already on the node" answer.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 
 use crate::config::config_file::NetSlotId;
+use crate::web_gui::config_api::ConfigState;
 use crate::web_gui::net_brief::briefs;
 use crate::web_gui::{App, HostControl, SaveKey, SlotHandle};
 
@@ -53,11 +54,7 @@ pub(super) fn join_by_invite_response(
     drop(adopt);
     let label = parsed.head.label.clone();
     let config = slot.config.clone();
-    let save: SaveKey = Box::new(move |key| {
-        let mut cfg = config.lock().unwrap_or_else(|e| e.into_inner());
-        cfg.save_network_key(key, keep_ports)
-            .map_err(|_| "settings file not written".to_string())
-    });
+    let save = save_key_of(config, keep_ports);
     if let Err(e) = slot.node.join_by_invite(parsed.head, parsed.peers, save) {
         return action_error(e);
     }
@@ -68,6 +65,18 @@ pub(super) fn join_by_invite_response(
         ),
     )
         .into_response()
+}
+
+/// The closure that stores a received network key, and a new node key if the join changed it.
+pub(super) fn save_key_of(config: Arc<Mutex<ConfigState>>, keep_ports: bool) -> SaveKey {
+    Box::new(move |key, new_owner| {
+        let mut cfg = config.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(secret) = new_owner {
+            cfg.adopt_secret(secret.clone());
+        }
+        cfg.save_network_key(key, keep_ports)
+            .map_err(|_| "settings file not written".to_string())
+    })
 }
 
 #[cfg(test)]
