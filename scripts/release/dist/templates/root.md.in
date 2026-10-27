@@ -25,7 +25,7 @@ of every file under their version numbers.
 | Android | https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk |
 | Routers (OpenWrt) | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh`, run on the router as root |
 | Keenetic routers (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh`, run on the router over SSH |
-| Homebrew (macOS) | `brew install mesh-town/meshtown/meshtown` |
+| Homebrew (macOS) | `brew install mesh-town/macos/meshtown` |
 
 Other builds (armv7, MIPS) are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this
 repository. Every folder has a `SHA256SUMS` file and a README with the install notes and the list of versions. The
