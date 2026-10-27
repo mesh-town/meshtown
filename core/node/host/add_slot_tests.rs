@@ -254,3 +254,32 @@ mod slot_with_an_invite_join {
         slots.push_slot(handle, ctl, async { Ok(()) }).unwrap();
     }
 }
+
+/// A join started in the same turn as `add_slot`, before the slot task has run, still knows its owner key.
+#[tokio::test]
+async fn join_right_after_add_slot_has_owner() {
+    use crate::invite::{InviteHead, InviteSecret};
+    use crate::web_gui::InviteJoinState;
+
+    let fx = busy_map();
+    let added = fx.slots.add_slot().unwrap();
+    let slot = fx.slots.slot(&added.id).expect("the slot is in the map");
+    let made_unix = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let head = InviteHead {
+        secret: InviteSecret::generate().unwrap(),
+        network_id: [1, 2, 3, 4],
+        label: None,
+        made_unix,
+        root: crate::transport::net::contract::pid(7),
+    };
+    slot.node
+        .join_by_invite(head, vec![], Box::new(|_| Ok(())))
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    let view = slot.node.invite_join().expect("the wait is on");
+    assert_eq!(view.state, InviteJoinState::Waiting, "{}", view.message);
+    fx.slots.stop_all();
+}
