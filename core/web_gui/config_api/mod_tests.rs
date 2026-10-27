@@ -240,6 +240,10 @@ mod put_tests;
 mod put_retired_tests;
 
 #[cfg(test)]
+#[path = "mod_put_relay_tests.rs"]
+mod put_relay_tests;
+
+#[cfg(test)]
 #[path = "ports_tests.rs"]
 mod ports_tests;
 

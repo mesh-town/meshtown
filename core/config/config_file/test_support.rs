@@ -74,6 +74,7 @@ pub(super) fn sample_settings() -> Settings {
             }],
             ports_opened: vec![],
             net_choice: crate::node::net_names::default_choice(),
+            relay: super::RelayMode::Network,
         },
     }
 }
@@ -147,6 +148,7 @@ pub(crate) fn all_changed() -> Settings {
                 discovery: vec!["cache".to_string(), "invite".to_string()],
                 sync: "mem".to_string(),
             },
+            relay: super::RelayMode::Off,
         },
     }
 }

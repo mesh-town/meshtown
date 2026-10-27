@@ -1,4 +1,4 @@
-use crate::config::config_file::{parse_text, ParsedConfigFile};
+use crate::config::config_file::{parse_text, ParsedConfigFile, RelayMode};
 use crate::node::net_names;
 use crate::transport::net::NetChoice;
 
@@ -216,6 +216,73 @@ fn unknown_key_in_net_reported() {
     );
     assert_eq!(p.field_errors, vec![]);
     assert_eq!(p.settings.net.net_choice, net_names::default_choice());
+}
+
+#[test]
+fn relay_missing_is_network() {
+    // given: a net section without the relay field, and a config without a net section
+    // when: parsing
+    let with_section = parse_net("{}");
+    let without_section = parse_without_net();
+    // then: relaying through network members is on, nothing is reported
+    assert_eq!(with_section.settings.net.relay, RelayMode::Network);
+    assert_eq!(without_section.settings.net.relay, RelayMode::Network);
+    assert_eq!(with_section.field_errors, vec![]);
+    assert_eq!(without_section.field_errors, vec![]);
+}
+
+#[test]
+fn relay_off_taken() {
+    // given: "relay": "off"
+    // when: parsing
+    let p = parse_net(r#"{"relay": "off"}"#);
+    // then: relay is off, relay is a known key, the other fields stay default
+    assert_eq!(p.settings.net.relay, RelayMode::Off);
+    assert_eq!(p.field_errors, vec![]);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "relay is a known key: {:?}",
+        p.unknown_paths
+    );
+    assert_eq!(p.settings.net.net_choice, net_names::default_choice());
+}
+
+#[test]
+fn relay_network_taken() {
+    // given: "relay": "network"
+    // when: parsing
+    let p = parse_net(r#"{"relay": "network"}"#);
+    // then: relay is network with no complaints
+    assert_eq!(p.settings.net.relay, RelayMode::Network);
+    assert_eq!(p.field_errors, vec![]);
+    assert!(
+        p.unknown_paths.is_empty(),
+        "relay is a known key: {:?}",
+        p.unknown_paths
+    );
+}
+
+#[test]
+fn relay_unknown_is_error_and_default() {
+    // given: "relay": "any" — a value this version does not know
+    // when: parsing
+    let p = parse_net(r#"{"relay": "any"}"#);
+    // then: one net.relay error, the mode is the default, neighbors are untouched
+    assert_eq!(p.field_errors.len(), 1, "{:?}", p.field_errors);
+    assert_eq!(p.field_errors[0].field_path, "net.relay");
+    assert_eq!(p.settings.net.relay, RelayMode::Network);
+    assert_eq!(p.settings.net.net_choice, net_names::default_choice());
+}
+
+#[test]
+fn relay_not_string_is_error_and_default() {
+    // given: "relay": true
+    // when: parsing
+    let p = parse_net(r#"{"relay": true}"#);
+    // then: one net.relay error, the mode is the default
+    assert_eq!(p.field_errors.len(), 1, "{:?}", p.field_errors);
+    assert_eq!(p.field_errors[0].field_path, "net.relay");
+    assert_eq!(p.settings.net.relay, RelayMode::Network);
 }
 
 /// Parses a document where the `net` section is `net` (the text of a JSON value).

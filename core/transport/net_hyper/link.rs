@@ -1,6 +1,7 @@
-//! Session counters and path and network information for display. For now the path is always "direct UDX",
-//! the window is unknown; rtt comes from the connection probe.
+//! Session counters and path and network information for display. The path is "direct UDX", or "relayed" when
+//! the dial went through a relay of a network member; the window is unknown; rtt comes from the connection probe.
 
+use crate::transport::net::addr::RelayRef;
 use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
 use portable_atomic::AtomicU64;
 use std::io;
@@ -17,6 +18,8 @@ use townjump_dht::{DhtConnection, RttProbe};
 pub struct PathFacts {
     pub remote: Option<SocketAddr>,
     pub rtt: Option<RttProbe>,
+    /// The relay the session was dialed through (`None` for a direct session).
+    pub relay: Option<RelayRef>,
 }
 
 impl PathFacts {
@@ -25,6 +28,7 @@ impl PathFacts {
         PathFacts {
             remote: via.map(SocketAddr::V4),
             rtt: conn.rtt_probe(),
+            relay: None,
         }
     }
 
@@ -33,6 +37,7 @@ impl PathFacts {
         PathFacts {
             remote: None,
             rtt: conn.rtt_probe(),
+            relay: None,
         }
     }
 }
@@ -90,11 +95,21 @@ pub fn link_info(meter: &LinkMeter) -> LinkInfo {
     }
 }
 
-/// Path line of a session: the round-trip time in whole milliseconds (at least 1), or `unknown`.
-pub fn path_text_of(rtt: Option<std::time::Duration>) -> String {
-    match rtt {
-        Some(d) => format!("hyper: direct UDX, rtt {} ms", d.as_millis().max(1)),
-        None => "hyper: direct UDX, rtt unknown".to_string(),
+/// Path line of a session: the round-trip time in whole milliseconds (at least 1), or `unknown`;
+/// `relay` names the member whose relay carried the session.
+pub fn path_text_of(rtt: Option<std::time::Duration>, relay: Option<RelayRef>) -> String {
+    let rtt = match rtt {
+        Some(d) => format!("rtt {} ms", d.as_millis().max(1)),
+        None => "rtt unknown".to_string(),
+    };
+    format!("hyper: {}, {rtt}", route_text(relay))
+}
+
+fn route_text(relay: Option<RelayRef>) -> String {
+    match relay {
+        None => "direct UDX".to_string(),
+        Some(RelayRef::Peer(id)) => format!("relayed via member {}", id.fmt_short()),
+        Some(RelayRef::Url(url)) => format!("relayed via {url}"),
     }
 }
 
@@ -105,9 +120,13 @@ fn probed_rtt(meter: &LinkMeter) -> Option<std::time::Duration> {
 
 fn path_of(meter: &LinkMeter) -> PathKind {
     if meter.established.load(Relaxed) {
-        return PathKind::Direct;
+        return relay_of(meter).map_or(PathKind::Direct, PathKind::Relayed);
     }
     PathKind::Unknown
+}
+
+fn relay_of(meter: &LinkMeter) -> Option<RelayRef> {
+    meter.path.get()?.relay.clone()
 }
 
 /// Network information of the node: `seen` is the `listen` outcome (`None` — not known yet).

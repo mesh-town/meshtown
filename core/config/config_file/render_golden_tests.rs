@@ -113,7 +113,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
         "cache",
         "invite"
       ],
-      "sync": "mem"
+      "sync": "mem",
+      "relay": "off"
     },
     "exit": {
       "enabled": false,

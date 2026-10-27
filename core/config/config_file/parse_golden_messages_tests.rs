@@ -10,12 +10,12 @@ mod every_stored_field_bad {
 
     #[test]
     fn parse_messages_golden() {
-        // given: a file where all 26 stored paths are wrong (type, bound, a 65-character name,
+        // given: a file where all 27 stored paths are wrong (type, bound, a 65-character name,
         // a `socks.port` value longer than 40 characters)
         let config = all_bad_config();
         // when: parse_text; then: the (path, message) pairs in path order equal the literal
         let actual = messages_of(config);
-        assert_eq!(actual.len(), 26, "one error per path: {actual:?}");
+        assert_eq!(actual.len(), 27, "one error per path: {actual:?}");
         assert_eq!(actual, expected_messages());
     }
 }
@@ -128,7 +128,7 @@ fn messages_of(config: Value) -> Vec<(String, String)> {
     list
 }
 
-/// A config where all 26 stored paths are wrong.
+/// A config where all 27 stored paths are wrong.
 fn all_bad_config() -> Value {
     let long_value = "9".repeat(50);
     json!({
@@ -144,7 +144,7 @@ fn all_bad_config() -> Value {
         "log": { "ring_lines": 1 },
         "autostart": { "enabled": true },
         "full_tunnel": { "enabled": "x" },
-        "net": { "transports": [], "discovery": ["zzz"], "sync": "nope" }
+        "net": { "transports": [], "discovery": ["zzz"], "sync": "nope", "relay": "nope" }
     })
 }
 
@@ -199,6 +199,7 @@ fn expected_messages() -> Vec<(String, String)> {
                 net_names::default_choice().discovery.join(", ")
             ),
         ),
+        e("net.relay", r#"file has "nope", expected off or network; using default network"#),
         e("net.sync", r#"file has "nope", expected one of: mem, mesh; using default mesh"#),
         e(
             "net.transports",

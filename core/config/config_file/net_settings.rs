@@ -7,6 +7,8 @@ use std::time::Duration;
 use crate::ports_sharing::types::{Opened, Published};
 use crate::transport::net::{NetChoice, PeerId};
 
+use super::relay_mode::RelayMode;
+
 /// The network fields of the `config` document, all filled in. Defaults live only in `Default`.
 /// `Debug` is hand-written, without the network key: otherwise `{:?}` of `NodeConfig` would print it in full.
 #[derive(Clone, PartialEq)]
@@ -25,6 +27,7 @@ pub struct NetSettings {
     pub probe_interval_sec: u64,   // probe.interval_sec
     pub probe_full_cycle: bool,    // probe.full_cycle — 1 MiB to all peers, not only to the exit
     pub net_choice: NetChoice,     // net.{transports,discovery,sync} — choice of the network stack
+    pub relay: RelayMode,          // net.relay — relaying inside the network
 }
 
 /// A phone does not serve as an exit unless the user turns it on; every other platform does.
@@ -50,6 +53,7 @@ impl Default for NetSettings {
             probe_interval_sec: 300,
             probe_full_cycle: false,
             net_choice: crate::node::net_names::default_choice(),
+            relay: RelayMode::default(),
         }
     }
 }
@@ -72,6 +76,7 @@ impl std::fmt::Debug for NetSettings {
             .field("probe_interval_sec", &self.probe_interval_sec)
             .field("probe_full_cycle", &self.probe_full_cycle)
             .field("net_choice", &self.net_choice)
+            .field("relay", &self.relay)
             .finish()
     }
 }

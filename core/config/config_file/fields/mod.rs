@@ -4,6 +4,7 @@ mod doc;
 mod kinds_ifaces;
 mod kinds_list;
 mod kinds_named;
+mod kinds_relay;
 mod kinds_scalar;
 mod kinds_text;
 mod row;

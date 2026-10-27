@@ -146,7 +146,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `web.access` | no flag (command `meshtown access localhost\|localnet`) | `"localnet"` | `core/web_gui/auth/access.rs` (section 8.1) |
 | `log.ring_lines` | no flag | 2000 | `core/web_gui` |
 | `node.name` | no flag | a name from a pair of pool words (`words.rs`) | node identity |
-| `net.transports`, `net.discovery`, `net.sync` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"` | section 8.3 |
+| `net.transports`, `net.discovery`, `net.sync`, `net.relay` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"`, `"network"` | section 8.3 |
 
 `network.key` is the only file field that is not in the page document (section 4). There is never a default key:
 with no flag and no line in the file, the node comes up without a network.
@@ -453,6 +453,9 @@ An optional section: what the node uses to talk over the network. No section or 
 - `sync` — replica sync (how the node exchanges the network's shared state); the string `"mesh"` (default):
   its own topic membership (flooding over the node's connections) and its own records (signed by the author, reconciled with
   peers), stored as files in the `replica/` directory.
+- `relay` — relaying inside the network: `"network"` (default) lets the node reach a member through another member of
+  the same network that has a public address, and lets it serve as such a relay; `"off"` does neither. Changed by
+  restarting the node.
 - An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning
   and the default for the whole field; the node starts. An unknown key in `net` goes to the log, as everywhere.
 - There is no command-line flag; the page neither shows nor edits the section; `PUT /api/config` stores
@@ -460,7 +463,7 @@ An optional section: what the node uses to talk over the network. No section or 
 - **Where the section sits.** Like the other settings sections, `net` is inside the file's `"config"` field, for example
   `{"config": {…, "net": {"sync": "mem"}}}`. At the top level of the file the node skips it with the line "unknown
   fields … net" and does not change the choice.
-- **Written only as differences from the build default:** a field equal to the default is not written, and if all three
+- **Written only as differences from the build default:** a field equal to the default is not written, and if all four
   are equal there is no section either. The reason: a future change of the default must not be frozen by a written
   value. This is an exception to the rule of section 8 "the file is completed on the next write".
   An old binary loses the `net` section on write (section 8, unknown field).
