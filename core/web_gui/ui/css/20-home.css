@@ -52,6 +52,7 @@
   .wizard-step{padding:10px 0;border-top:1px solid var(--border);}
   .wizard-step.pending{opacity:.55;}
   .wizard-step.done{color:var(--green);}
+  .wizard-step.failed{color:var(--orange);}
   .step-head{display:flex;align-items:center;margin-bottom:10px;} .step-head h2,.step-head h3{margin:0;}
   .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-right:8px;border-radius:50%;background:var(--accent);color:var(--accent-fg);font-size:12px;font-weight:600;}
   .wizard-step.pending .step-num{background:var(--grey);color:var(--bg-elev);}
