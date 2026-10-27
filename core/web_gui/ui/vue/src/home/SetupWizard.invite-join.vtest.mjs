@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
 import { baseState } from "../testing/section.mjs";
-import { PAC_URL, mountWizard, step, unmountWizard } from "../testing/wizard.mjs";
+import { PAC_URL, cursor, mountWizard, step, unmountWizard } from "../testing/wizard.mjs";
 import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
@@ -34,7 +34,7 @@ describe("SetupWizard > an invite that waits", () => {
     store.state = joinedState();
     await flushPromises();
     expect(wrapper.find("#home-start-choice").exists()).toBe(false);
-    expect(step(wrapper)).toBe("scope");
+    expect(cursor(wrapper)).toBe("scope");
   });
 
   it("the invite card is not offered while there is no network", async () => {

@@ -7,7 +7,7 @@ import {
 } from "../common/pac-texts.ts";
 import { laptopState, routerState, netsConfig } from "../testing/nets-states.mjs";
 import {
-  ANDROID_CHROME, IPHONE_SAFARI, PAC_URL, SCOPE_KEY, click, mountWizard, plain, progress, step, toGuide, unmountWizard,
+  ANDROID_CHROME, IPHONE_SAFARI, PAC_URL, SCOPE_KEY, click, cursor, mountWizard, plain, progress, rows, toGuide, unmountWizard,
 } from "../testing/wizard.mjs";
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "./update-texts.ts";
 import { TERM_TIPS } from "./wizard/term-hints.ts";
@@ -45,10 +45,10 @@ describe("SetupWizard > guide > all apps", () => {
   it("the guide is titled by the browser and shows its steps after the system ones", async () => {
     const { wrapper } = mount();
     await toGuide(wrapper, { browser: "edge" });
-    expect(wrapper.get("#wizard-q").text()).toBe("Set up Edge");
+    expect(wrapper.get("#wizard-q-guide").text()).toBe("Set up Edge");
     expect(wrapper.get("#guide-browser-title").text()).toBe("Edge");
     expect(items(wrapper, "#browser-steps > li")).toHaveLength(2);
-    expect(step(wrapper)).toBe("guide");
+    expect(cursor(wrapper)).toBe("guide");
   });
 
   it("the Chrome line about GNOME and KDE shows on Linux only", async () => {
@@ -117,12 +117,13 @@ describe("SetupWizard > guide > only in one browser", () => {
     expectOnlyTheSwitch(wrapper);
   });
 
-  it("switch to all apps returns to the system question", async () => {
+  it("switch to all apps opens the system question", async () => {
     const { wrapper } = mount({ scope: "browser" });
     await toGuide(wrapper, { browser: "chrome" });
     await click(wrapper, "#guide-to-system");
-    expect(step(wrapper)).toBe("os");
-    expect(progress(wrapper)).toBe("Step 3 of 6");
+    expect(rows(wrapper)).toEqual(["scope", "os", "browser", "guide"]);
+    expect(document.activeElement).toBe(wrapper.get("#wizard-q-os").element);
+    expect(progress(wrapper)).toBe("Step 5 of 6");
     expect(localStorage.getItem(SCOPE_KEY)).toBe("system");
   });
 });
@@ -171,7 +172,7 @@ describe("SetupWizard > guide > extras", () => {
     await toGuide(wrapper);
     await click(wrapper, "#manual-toggle");
     expect(wrapper.find("#proxy-setup").exists()).toBe(true);
-    expect(wrapper.find("#browser-seg").exists(), "the browser comes from the wizard").toBe(false);
+    expect(wrapper.find("#proxy-setup #browser-seg").exists(), "the browser comes from the wizard").toBe(false);
   });
 });
 

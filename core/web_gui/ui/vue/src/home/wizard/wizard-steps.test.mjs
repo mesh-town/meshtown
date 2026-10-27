@@ -4,7 +4,7 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
-  isPhoneOs, joinedLineOn, markOnEnter, navKind, nextStep, prevStep, startStep, stepProgress, stripSteps, validStep, wizardPath,
+  isPhoneOs, joinedLineOn, markOnEnter, navKind, nextStep, prevStep, reanchor, screenOf, settleStep, startStep, stepProgress, stripSteps, validStep, visibleRows, wizardPath,
 } from "./wizard-steps.ts";
 
 const ctx = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, scope: "system", os: "mac", skipped: false, ...over });
@@ -66,16 +66,24 @@ describe("startStep", () => {
     assert.equal(startStep(ctx(), "exit"), "exit");
   });
 
-  it("given the browser mark, then the start is scope", () => {
-    assert.equal(startStep(ctx(), "browser"), "scope");
+  it("given the browser mark and no scope answer, then the start is scope", () => {
+    assert.equal(startStep(ctx({ scope: null }), "browser"), "scope");
   });
 
-  it("given no mark, then the start is scope", () => {
-    assert.equal(startStep(ctx(), null), "scope");
+  it("given no mark and no scope answer, then the start is scope", () => {
+    assert.equal(startStep(ctx({ scope: null }), null), "scope");
   });
 
   it("given an unknown mark, then it is treated as no mark and the start is scope", () => {
-    assert.equal(startStep(ctx(), "garbage"), "scope");
+    assert.equal(startStep(ctx({ scope: null }), "garbage"), "scope");
+  });
+
+  it("given a remembered scope, then the answered rows are passed and the start is the instruction", () => {
+    assert.equal(startStep(ctx(), null), "guide");
+  });
+
+  it("given the proxy off, then the start is scope even with a remembered answer", () => {
+    assert.equal(startStep(ctx({ proxyOn: false }), null), "scope");
   });
 });
 
@@ -85,7 +93,7 @@ describe("validStep", () => {
   });
 
   it("given the join step after the network appeared, then the wizard moves to the start step", () => {
-    assert.equal(validStep(ctx(), "join", null), "scope");
+    assert.equal(validStep(ctx({ scope: null }), "join", null), "scope");
   });
 
   it("given the join step and the exit mark after the network appeared, then it moves to exit", () => {
@@ -152,8 +160,16 @@ describe("navKind", () => {
     assert.equal(navKind(ctx({ scope: null }), "scope"), "skip");
   });
 
-  it("given the scope step with an answer, then the button is next", () => {
-    assert.equal(navKind(ctx({ scope: "system" }), "scope"), "next");
+  it("given the scope step with an answer, then there is no forward button", () => {
+    assert.equal(navKind(ctx({ scope: "system" }), "scope"), null);
+  });
+
+  it("given the os or browser question, then there is no forward button", () => {
+    assert.deepEqual([navKind(ctx(), "os"), navKind(ctx(), "browser")], [null, null]);
+  });
+
+  it("given the instruction, then the button is next", () => {
+    assert.equal(navKind(ctx(), "guide"), "next");
   });
 
   it("given the scope step with the proxy off, then the button is next", () => {
@@ -199,8 +215,12 @@ describe("joinedLineOn", () => {
     assert.equal(joinedLineOn(ctx(), "scope"), true);
   });
 
-  it("given the network and the third step of the path, then the joined line is not shown", () => {
-    assert.equal(joinedLineOn(ctx(), "os"), false);
+  it("given the network and a later row of the questions page, then the joined line is still shown", () => {
+    assert.equal(joinedLineOn(ctx(), "os"), true);
+  });
+
+  it("given the network and the exit screen, then the joined line is not shown", () => {
+    assert.equal(joinedLineOn(ctx(), "exit"), false);
   });
 
   it("given no network, then the joined line is not shown", () => {
@@ -238,5 +258,67 @@ describe("stripSteps", () => {
 
   it("given no network on the join step, then join is current", () => {
     assert.equal(states(ctx({ hasNet: false }), "join")[0], "join:current");
+  });
+});
+
+describe("screenOf", () => {
+  it("given the questions and the instruction, then they share the choices screen", () => {
+    assert.deepEqual(["scope", "os", "browser", "guide"].map(screenOf), ["choices", "choices", "choices", "choices"]);
+  });
+
+  it("given join, exit and connect, then each has its own screen", () => {
+    assert.deepEqual(["join", "exit", "connect"].map(screenOf), ["join", "exit", "connect"]);
+  });
+});
+
+describe("visibleRows", () => {
+  it("given the cursor on the first question, then only that row is shown", () => {
+    assert.deepEqual(visibleRows(ctx(), "scope"), ["scope"]);
+  });
+
+  it("given the cursor on the browser question, then the rows down to it are shown", () => {
+    assert.deepEqual(visibleRows(ctx(), "browser"), ["scope", "os", "browser"]);
+  });
+
+  it("given the cursor on the instruction, then every row is shown", () => {
+    assert.deepEqual(visibleRows(ctx(), "guide"), ["scope", "os", "browser", "guide"]);
+  });
+
+  it("given the browser scope, then the system row is not among the rows", () => {
+    assert.deepEqual(visibleRows(ctx({ scope: "browser" }), "guide"), ["scope", "browser", "guide"]);
+  });
+
+  it("given the exit screen, then all the rows of the path are returned", () => {
+    assert.deepEqual(visibleRows(ctx(), "exit"), ["scope", "os", "browser", "guide"]);
+  });
+
+  it("given the app page, then there are no rows", () => {
+    assert.deepEqual(visibleRows(ctx({ inApp: true }), "exit"), []);
+  });
+});
+
+describe("reanchor", () => {
+  it("given the cursor step left the path, then the next step still on the path is taken", () => {
+    const before = wizardPath(ctx());
+    assert.equal(reanchor(before, wizardPath(ctx({ scope: "browser" })), "os"), "browser");
+  });
+
+  it("given the cursor step stays on the path, then it is kept", () => {
+    const before = wizardPath(ctx());
+    assert.equal(reanchor(before, wizardPath(ctx({ scope: "browser" })), "guide"), "guide");
+  });
+});
+
+describe("settleStep", () => {
+  it("given no scope answer, then the cursor stays on scope", () => {
+    assert.equal(settleStep(ctx({ scope: null }), "scope"), "scope");
+  });
+
+  it("given an answered scope, then the cursor passes os and browser to the instruction", () => {
+    assert.equal(settleStep(ctx(), "scope"), "guide");
+  });
+
+  it("given the proxy off, then the cursor stays on scope", () => {
+    assert.equal(settleStep(ctx({ proxyOn: false }), "scope"), "scope");
   });
 });

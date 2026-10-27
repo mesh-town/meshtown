@@ -54,7 +54,7 @@ describe("HomeSection > tabs, network exists, no label", () => {
     const { wrapper } = mountHome(baseState());
     expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
     await tab(wrapper, "wizard").trigger("click");
-    expect(stepOf(wrapper)).toBe("scope");
+    expect(stepOf(wrapper)).toBe("choices");
     expect(wrapper.get("#wizard-joined").text()).toContain("✓ You joined the network");
     await clickById(wrapper, "#wizard-next");
     expect(stepOf(wrapper)).toBe("exit");
@@ -73,7 +73,7 @@ describe("HomeSection > tabs, network exists, no label", () => {
     expect(tab(wrapper, "main").attributes("aria-selected")).toBe("true");
     await clickButton(wrapper, "Open step-by-step setup");
     expect(tab(wrapper, "wizard").attributes("aria-selected")).toBe("true");
-    expect(stepOf(wrapper)).toBe("scope");
+    expect(stepOf(wrapper)).toBe("choices");
     expect(wrapper.get("#scope-browser").attributes("aria-pressed"), "the remembered answer is shown pressed").toBe("true");
     expect(wrapper.get("#scope-system").attributes("aria-pressed")).toBe("false");
     expect(localStorage.getItem("meshtown.homeSetup")).toBe("browser");

@@ -31,7 +31,7 @@ test.describe('27-home-create-network', () => {
     await test.step('on "Home" the setup is on its second step: "✓ You joined the network", the question about the scope', async () => {
       await expect.soft(app.wizard.joined).toContainText(GLOSSARY.wizardJoined);
       await expect.soft(app.wizard.progress).toHaveText(/^Step 2 of \d$/);
-      await expect.soft(app.wizard.question).toHaveText(WIZARD_TEXT.scopeQuestion);
+      await expect.soft(app.wizard.rowHeading('scope')).toHaveText(WIZARD_TEXT.scopeQuestion);
     });
 
     await test.step('the invite card is under the setup — #netkey-invite-btn is visible, #invite-status is empty (no "Click Invite a member" notice)', async () => {

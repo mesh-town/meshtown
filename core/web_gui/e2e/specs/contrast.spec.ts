@@ -21,26 +21,21 @@ for (const theme of ['dark', 'light'] as const) {
     };
     await wizard.open();
 
-    await test.step('scope screen: the progress line, the tiles and the skip link', async () => {
-      await wizard.expectStep('scope');
-      await measure(WIZARD, 'scope screen');
+    await test.step('scope row alone: the tiles and the skip link', async () => {
+      await wizard.expectCursor('scope');
+      await measure(WIZARD, 'scope row');
     });
 
-    await test.step('system screen: the tiles (one pressed) and the Back and Next buttons', async () => {
+    await test.step('questions page: the answered rows (quieter headings, tiles pressed) and the Next button', async () => {
       await wizard.tile('scope-system').click();
-      await wizard.expectStep('os');
-      await measure(WIZARD, 'system screen');
-    });
-
-    await test.step('browser screen: the tiles and the Back and Next buttons', async () => {
-      await wizard.tile('os-mac').click();
-      await wizard.expectStep('browser');
-      await measure(WIZARD, 'browser screen');
+      await wizard.expectCursor('guide');
+      await measure(WIZARD, 'questions page');
     });
 
     await test.step('instruction: "More options" and the manual block expanded, a term hint open', async () => {
+      await wizard.tile('os-mac').click();
       await wizard.tile('browser-chrome').click();
-      await wizard.expectStep('guide');
+      await wizard.expectCursor('guide');
       await wizard.moreOptionsSummary.click();
       await app.proxyCard.manualToggle.click();
       await wizard.terms.first().focus();
@@ -50,7 +45,7 @@ for (const theme of ['dark', 'light'] as const) {
 
     await test.step('exit screen', async () => {
       await wizard.next();
-      await wizard.expectStep('exit');
+      await wizard.expectScreen('exit');
       await measure(WIZARD, 'exit screen');
     });
 
@@ -70,8 +65,7 @@ test('82-contrast: scope buttons differ by fill', async ({ app, page, targetKind
   const wizard = app.wizard;
   await wizard.open();
   await wizard.tile('scope-system').click();
-  await wizard.back();
-  await wizard.expectStep('scope');
+  await wizard.expectCursor('guide');
   const fill = (id: string): Promise<string> => page.locator(id).evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(await fill('#scope-system')).not.toBe(await fill('#scope-browser'));
   await expect(wizard.tile('scope-system')).toHaveAttribute('aria-pressed', 'true');

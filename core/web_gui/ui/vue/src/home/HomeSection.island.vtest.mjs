@@ -77,7 +77,7 @@ describe("the step-by-step setup after creating a network", () => {
 
     expect(wizard(wrapper).text()).toContain("✓ You joined the network");
     const screen = wizard(wrapper).get("#wizard-screen");
-    expect(screen.attributes("data-step")).toBe("scope");
+    expect(screen.attributes("data-step")).toBe("choices");
     expect(shown(screen.element)).toBe(true);
     expect(shown(wizard(wrapper).get("#wizard-next").element)).toBe(true);
 
