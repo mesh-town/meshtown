@@ -5,6 +5,7 @@ use std::sync::Arc;
 use bytes::Bytes;
 use tokio::sync::watch;
 
+use crate::node::output::{say, NET_NAME};
 use crate::node::start::relay_candidates::RELAY_ADVERT_KEY;
 use crate::transport::net::{NetResult, Replica};
 
@@ -14,8 +15,13 @@ pub(crate) async fn advertise_relay(
     mut keys: watch::Receiver<Option<[u8; 32]>>,
     replica: Arc<dyn Replica>,
 ) {
+    let mut prev = None;
     loop {
         let key = *keys.borrow_and_update();
+        if let Some(line) = relay_line(prev, key) {
+            say("relay", line);
+        }
+        prev = key;
         let done = apply(key, &*replica).await;
         if let Err(e) = done {
             tracing::warn!("relay: updating the advert failed: {e}");
@@ -23,6 +29,17 @@ pub(crate) async fn advertise_relay(
         if keys.changed().await.is_err() {
             return;
         }
+    }
+}
+
+/// The log line for a change of the relay key; `None` while the node stays in the same state.
+fn relay_line(prev: Option<[u8; 32]>, now: Option<[u8; 32]>) -> Option<String> {
+    match (prev, now) {
+        (None, Some(_)) => Some(format!(
+            "serving as relay for members of network {NET_NAME}"
+        )),
+        (Some(_), None) => Some("stopped serving as relay".to_string()),
+        _ => None,
     }
 }
 

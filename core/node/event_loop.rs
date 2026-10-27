@@ -268,6 +268,7 @@ impl LoopState {
         );
         self.dialer.on_peer_up(peer);
         let selected = peer_path::record_peer_up(&*conn, &loop_ctx.stack, &loop_ctx.telemetry);
+        peer_path::say_if_relayed(&*conn, &loop_ctx.members);
         remember_peer_and_save(&mut self.cache, peer, selected);
         self.names.remember_member_and_save(&loop_ctx.members, peer);
         crate::node::output::spawn(peer_path::watch_path(

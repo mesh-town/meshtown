@@ -124,7 +124,7 @@ impl NodeDialer {
         match outcome {
             Ok((_, Phase::Relay)) => {
                 self.relay.book.succeeded(to, cand, Instant::now());
-                tracing::info!("connected to {to} via relay of {}", cand.member);
+                tracing::debug!("connected to {to} via relay of {}", cand.member);
             }
             Err(NetError::Closed) | Ok((_, Phase::Direct)) => {}
             Err(e) => {

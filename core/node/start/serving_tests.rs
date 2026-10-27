@@ -12,7 +12,7 @@ fn exit_line_names_both_modes() {
             crate::node::output::NET_NAME
         )
     );
-    assert_eq!(exit_line(false), "not serving as exit (--no-exit)");
+    assert_eq!(exit_line(false), "not serving as exit");
 }
 
 #[test]

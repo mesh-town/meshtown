@@ -239,7 +239,7 @@ fn exit_line(exit_enabled: bool) -> String {
             "serving as exit for members of network {}",
             crate::node::output::NET_NAME
         ),
-        false => "not serving as exit (--no-exit)".to_string(),
+        false => "not serving as exit".to_string(),
     }
 }
 
