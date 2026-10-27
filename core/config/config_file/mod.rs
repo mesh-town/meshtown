@@ -27,6 +27,7 @@ mod parse_ports;
 mod path;
 mod presence;
 mod process_settings;
+mod relay_mode;
 mod render;
 mod report;
 mod retired;
@@ -53,6 +54,7 @@ pub use path::{
 };
 pub use presence::has_field;
 pub use process_settings::ProcessSettings;
+pub use relay_mode::RelayMode;
 pub use render::render_config_file;
 pub use report::{FieldError, FileReport, FileState};
 pub use retired::log_retired;

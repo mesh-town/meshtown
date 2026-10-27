@@ -15,16 +15,17 @@ use crate::transport::net_hyper::gate::{Admit, PeerGate};
 use crate::transport::net_hyper::link::net_info;
 use crate::transport::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
 use crate::transport::net_hyper::records::HyperRecords;
+use crate::transport::net_hyper::relay::RelayHost;
 use crate::transport::net_hyperdht::RecordStore;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 use tokio::time::timeout;
 use townjump_dht::{Dht, DhtError, DhtServer, KeyPair};
-use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideServer};
+use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
 
 mod bind;
 mod dialer;
@@ -32,7 +33,9 @@ mod factory;
 mod held;
 mod hints;
 mod own_addr;
+mod phases;
 mod race;
+mod relay;
 
 #[cfg(test)]
 mod direct_fallback_tests;
@@ -40,13 +43,25 @@ mod direct_fallback_tests;
 mod direct_tests;
 #[cfg(test)]
 mod path_tests;
+#[cfg(test)]
+mod relay_api_tests;
+#[cfg(test)]
+mod relayed_dial_tests;
 
 use dialer::NodeDialer;
+#[cfg(test)]
+pub(crate) use relay::DialFaults;
 
 /// Transport name in the config and in the registry.
 pub const KIND: &str = "hyper";
 /// Limit of one `connect`: lookup, hole punching, handshake and `Ack`.
 const CONNECT_LIMIT: Duration = Duration::from_secs(10);
+/// How long the direct phase of a dial with a relay candidate may take.
+const DIRECT_LIMIT: Duration = Duration::from_secs(5);
+/// How long the relay phase may take.
+const RELAY_LIMIT: Duration = Duration::from_secs(8);
+/// Limit of one `connect` that may take both phases and the `Ack`.
+const RELAYED_CONNECT_LIMIT: Duration = Duration::from_secs(14);
 /// How many incoming sessions wait for `accept`.
 const ACCEPT_QUEUE: usize = 64;
 /// How many dials run at once (fewer than the 16 slots of the townjump server queue).
@@ -76,6 +91,16 @@ pub struct HyperTransport {
     closed: watch::Sender<bool>,
     close_started: AtomicBool,
     saver: Option<TableSaver>,
+    relay_host: Mutex<Option<RelayHost>>,
+    relay_factory: PeeroxideFactory,
+}
+
+/// The limit of one `connect`: the relay phase needs more time, so it applies only when a source is set.
+pub(crate) fn connect_limit(has_source: bool) -> Duration {
+    match has_source {
+        true => RELAYED_CONNECT_LIMIT,
+        false => CONNECT_LIMIT,
+    }
 }
 
 pub fn dht_error_to_net_error(e: DhtError) -> NetError {
@@ -188,7 +213,13 @@ impl HyperTransport {
         if let Some(saver) = &self.saver {
             saver.finish().await;
         }
-        let _ = self.node.destroy().await;
+        let host = self.host_slot().take();
+        let stop_host = async {
+            if let Some(host) = host {
+                host.close().await;
+            }
+        };
+        let _ = tokio::join!(stop_host, self.node.destroy());
         self.closed.send_replace(true);
     }
 }
@@ -236,9 +267,12 @@ impl Transport for HyperTransport {
     ) -> BoxFuture<'_, NetResult<Arc<dyn PeerConn>>> {
         let to = to.clone();
         Box::pin(async move {
-            timeout(CONNECT_LIMIT, self.connect_inner(to, svc))
-                .await
-                .map_err(|_| NetError::Timeout)?
+            timeout(
+                connect_limit(self.dialer.relay.has_source()),
+                self.connect_inner(to, svc),
+            )
+            .await
+            .map_err(|_| NetError::Timeout)?
         })
     }
 

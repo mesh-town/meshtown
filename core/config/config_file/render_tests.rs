@@ -1,7 +1,7 @@
 use super::*;
 use crate::config::config_file::settings::Settings;
 use crate::config::config_file::test_support::test_secret;
-use crate::config::config_file::{NetSettings, ProcessSettings};
+use crate::config::config_file::{NetSettings, ProcessSettings, RelayMode};
 use crate::transport::net::{NetChoice, NodeSecret, PeerId};
 
 #[test]
@@ -230,6 +230,50 @@ fn explicit_default_dropped_on_write() {
         !config.contains_key("net"),
         "the explicit default stayed in the file: {config:?}"
     );
+}
+
+#[test]
+fn relay_default_is_not_written() {
+    // given: settings with the default relay mode
+    let settings = Settings::default();
+    // when: render_config_file
+    let doc = rendered(&settings);
+    // then: the file has no relay field, and no net section at all
+    assert_eq!(settings.net.relay, RelayMode::Network);
+    assert!(
+        doc["config"]["net"]["relay"].is_null(),
+        "the default relay mode was written: {}",
+        doc["config"]
+    );
+}
+
+#[test]
+fn relay_off_is_written() {
+    // given: relaying is switched off
+    let settings = settings_with_relay(RelayMode::Off);
+    // when: render_config_file
+    let doc = rendered(&settings);
+    // then: net holds exactly the relay field
+    assert_eq!(doc["config"]["net"], serde_json::json!({"relay": "off"}));
+}
+
+#[test]
+fn relay_off_round_trips_through_the_page_file() {
+    // given: relaying is switched off
+    let settings = settings_with_relay(RelayMode::Off);
+    // when: render, then parse the output
+    let text = render_config_file(1, 0, &test_secret(), &settings);
+    let parsed =
+        crate::config::config_file::parse_text(&text).expect("parsing render's own output");
+    // then: the mode is read back, no complaints
+    assert_eq!(parsed.settings.net.relay, RelayMode::Off);
+    assert!(parsed.field_errors.is_empty(), "{:?}", parsed.field_errors);
+}
+
+fn settings_with_relay(relay: RelayMode) -> Settings {
+    let mut settings = Settings::default();
+    settings.net.relay = relay;
+    settings
 }
 
 /// Returns default settings with the network choice modified by `change`.

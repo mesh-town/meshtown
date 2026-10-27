@@ -181,15 +181,19 @@ fn build_transport(i: &Inputs<'_>) -> TransportInfo {
     }
 }
 
-/// Path to itself: `Direct` if at least one member has a `Direct` path (established by `hyper`); otherwise `None`.
+/// Path to itself: `Direct` if at least one member has a `Direct` path (established by `hyper`); otherwise `Relay`
+/// if at least one member is reached through a relay; otherwise `None`.
 fn compute_self_path(i: &Inputs<'_>) -> Option<PathKindView> {
-    let direct = |id: &PeerId| {
-        i.telemetry
-            .peers
-            .get(id)
-            .is_some_and(|l| l.path == Some(PathKindView::Direct))
+    let has = |kind: PathKindView| {
+        i.members.iter().any(|id: &PeerId| {
+            i.telemetry
+                .peers
+                .get(id)
+                .is_some_and(|l| l.path == Some(kind))
+        })
     };
-    i.members.iter().any(direct).then_some(PathKindView::Direct)
+    let direct = has(PathKindView::Direct).then_some(PathKindView::Direct);
+    direct.or_else(|| has(PathKindView::Relay).then_some(PathKindView::Relay))
 }
 
 /// Builds the domain list in `domain_names` order; `checks` is a map of short id → record (`None` if

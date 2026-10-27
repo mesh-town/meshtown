@@ -70,48 +70,76 @@ fn self_addresses_order_and_roundtrip() {
     assert_eq!(rest_relay.parse::<RelayUrl>().unwrap(), relay);
 }
 
-// 9. self_path: Direct for an established hyper, otherwise None.
-#[test]
-fn self_path_direct_or_none() {
-    let my_id = pair(1);
-    let friend_id = pair(2);
-    let mut inputs = base(my_id);
-    inputs.members = [friend_id].into_iter().collect();
-    inputs.telemetry.peers.insert(
-        friend_id,
-        crate::node::telemetry::PeerLive {
-            online: true,
-            path: Some(PathKindView::Direct),
-            rtt_ms: Some(5),
-            last_seen: Instant::now(),
-        },
-    );
-    let collected = build(inputs);
-    assert_eq!(
-        collected.snap.transport.self_path,
-        Some(PathKindView::Direct)
-    );
+// 9. self_path: the path to itself follows the paths of the members: a direct one wins, else a relayed one,
+//    else nothing.
+mod self_path {
+    use super::*;
 
-    let mut inputs2 = base(my_id);
-    inputs2.members = [friend_id].into_iter().collect();
-    inputs2.telemetry.peers.insert(
-        friend_id,
-        crate::node::telemetry::PeerLive {
-            online: true,
-            path: Some(PathKindView::Relay),
-            rtt_ms: Some(80),
-            last_seen: Instant::now(),
-        },
-    );
-    let collected2 = build(inputs2);
-    assert_eq!(
-        collected2.snap.transport.self_path, None,
-        "the node's own relay path does not count"
-    );
+    #[test]
+    fn self_path_direct_wins() {
+        // given: one member over a relay, another one direct
+        let inputs = with_paths(&[(2, PathKindView::Relay), (3, PathKindView::Direct)]);
+        // when
+        let collected = build(inputs);
+        // then
+        assert_eq!(
+            collected.snap.transport.self_path,
+            Some(PathKindView::Direct)
+        );
+    }
 
-    let inputs4 = base(my_id);
-    let collected4 = build(inputs4);
-    assert_eq!(collected4.snap.transport.self_path, None);
+    #[test]
+    fn self_path_relay_when_only_relayed_peers() {
+        // given: the only live member is reached through a relay
+        let inputs = with_paths(&[(2, PathKindView::Relay)]);
+        // when
+        let collected = build(inputs);
+        // then
+        assert_eq!(
+            collected.snap.transport.self_path,
+            Some(PathKindView::Relay)
+        );
+    }
+
+    #[test]
+    fn self_path_null_without_peers() {
+        // given: no member has a path
+        let inputs = base(pair(1));
+        // when
+        let collected = build(inputs);
+        // then
+        assert_eq!(collected.snap.transport.self_path, None);
+    }
+
+    #[test]
+    fn self_path_null_for_a_member_without_a_path() {
+        // given: a member is known but has no established path
+        let mut inputs = with_paths(&[]);
+        inputs.members = [pair(2)].into_iter().collect();
+        // when
+        let collected = build(inputs);
+        // then
+        assert_eq!(collected.snap.transport.self_path, None);
+    }
+}
+
+/// Inputs of node 1 whose members, by seed, have the given paths.
+fn with_paths(paths: &[(u8, PathKindView)]) -> Inputs<'static> {
+    let mut inputs = base(pair(1));
+    for (seed, path) in paths {
+        let id = pair(*seed);
+        inputs.members.insert(id);
+        inputs.telemetry.peers.insert(
+            id,
+            crate::node::telemetry::PeerLive {
+                online: true,
+                path: Some(*path),
+                rtt_ms: Some(5),
+                last_seen: Instant::now(),
+            },
+        );
+    }
+    inputs
 }
 
 // 10. link_status (on the snapshot): members > 0 → Online; relay only → Online; nothing →

@@ -2,6 +2,7 @@
 
 use super::factory::factory_for;
 use super::hints::HintBook;
+use super::relay::RelayDial;
 use super::{
     dht_error_to_net_error, run_listen, HyperOpts, HyperTransport, NodeDialer, ACCEPT_QUEUE,
     DIAL_SLOTS,
@@ -22,6 +23,7 @@ impl HyperTransport {
     pub async fn bind(secret: NodeSecret, opts: HyperOpts) -> NetResult<Arc<Self>> {
         let kp = key_pair(&secret);
         let factory = factory_for(opts.bootstrap, opts.table_file.as_deref());
+        let relay_factory = factory.clone();
         let node = Arc::new(
             factory
                 .create(Some(kp.clone()))
@@ -46,6 +48,7 @@ impl HyperTransport {
             node: node.clone(),
             slots: Arc::new(Semaphore::new(DIAL_SLOTS)),
             hints: HintBook::default(),
+            relay: RelayDial::default(),
         });
         let ctx = Arc::new(AcceptCtx::new(dialer.clone(), accepted_tx, gate.clone()));
         let this = Arc::new(Self {
@@ -60,6 +63,8 @@ impl HyperTransport {
             closed: watch::channel(false).0,
             close_started: AtomicBool::new(false),
             saver,
+            relay_host: std::sync::Mutex::new(None),
+            relay_factory,
         });
         this.start_transport_tasks(incoming, kp, opts.watch_net)
             .await;

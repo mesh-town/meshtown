@@ -29,6 +29,7 @@ use super::access_wiring::{start_access, AccessStart};
 use super::boot::Boot;
 use super::network::Net;
 use super::proxy_wiring::proxy_config_of;
+use super::transports_relay::wire_relay;
 
 /// The domain list, checks, path choice and the proxy configuration — everything that is set up to receive traffic.
 pub(super) struct Serving {
@@ -53,6 +54,20 @@ fn spawn_announcements(boot: &mut Boot, domain_list: &DomainList, net: &Net) {
         .push(crate::invite::store::spawn_sweeper(Ledger::of(domain_list)));
 }
 
+/// Wires relay through members on the `hyper` transport, if there is one; the advert task joins the node's tasks.
+fn wire_relay_in(cfg: &NodeConfig, boot: &mut Boot, net: &Net, domain_list: &DomainList) {
+    let Some(hyper) = boot.hyper.clone() else {
+        return;
+    };
+    let task = wire_relay(
+        &hyper,
+        cfg.settings.relay,
+        &net.members,
+        domain_list.shared_replica(),
+    );
+    boot.background_abort_handles.push(task.abort_handle());
+}
+
 /// The node's country poll goes through the first transport (the list is non-empty after `check_transport_names`).
 fn spawn_country_check(cfg: &NodeConfig, boot: &mut Boot, domain_list: &DomainList) {
     let Some(transport) = boot.transports.first().filter(|_| cfg.geoip) else {
@@ -72,6 +87,7 @@ pub(super) async fn setup_serving(
     let (domain_list, doc_changes, access) =
         open_domain_list(net, access, &mut boot.background_abort_handles).await?;
     spawn_announcements(boot, &domain_list, net);
+    wire_relay_in(cfg, boot, net, &domain_list);
     spawn_country_check(cfg, boot, &domain_list);
 
     let checks = setup_checks(cfg, net, &domain_list, &mut boot.background_abort_handles).await?;

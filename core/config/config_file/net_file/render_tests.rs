@@ -98,6 +98,51 @@ mod created_unix {
     }
 }
 
+mod relay_mode {
+    use super::*;
+    use crate::config::config_file::RelayMode;
+
+    #[test]
+    fn off_is_not_a_default_and_is_written() {
+        // given: net settings with relaying switched off
+        let net = NetSettings {
+            relay: RelayMode::Off,
+            ..NetSettings::default()
+        };
+        // when: rendered
+        let section = config_value(&render(&net), "net");
+        // then: the net section holds the relay field
+        assert_eq!(section["relay"], "off");
+    }
+
+    #[test]
+    fn relay_off_round_trips() {
+        // given: net settings with relaying switched off
+        let net = NetSettings {
+            relay: RelayMode::Off,
+            ..NetSettings::default()
+        };
+        // when: rendered and parsed back
+        let p = parse_net_text(&render(&net)).expect("the rendered text parses");
+        // then: the mode survives and nothing is reported
+        assert_eq!(p.net.relay, RelayMode::Off);
+        assert!(p.field_errors.is_empty(), "{:?}", p.field_errors);
+    }
+
+    #[test]
+    fn default_mode_is_not_written() {
+        // given: default net settings
+        let net = NetSettings::default();
+        // when: rendered
+        let section = config_value(&render(&net), "net");
+        // then: no relay field
+        assert!(
+            section["relay"].is_null(),
+            "written at its default: {section}"
+        );
+    }
+}
+
 fn render(net: &NetSettings) -> String {
     render_net_file(1, NOW, CREATED, &test_secret(), net)
 }
@@ -175,7 +220,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
         "cache",
         "invite"
       ],
-      "sync": "mem"
+      "sync": "mem",
+      "relay": "off"
     },
     "exit": {
       "enabled": false

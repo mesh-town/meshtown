@@ -14,7 +14,7 @@ pub use establish::{establish_accepted_session, establish_dialed_session};
 
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
-use crate::transport::net::link::LinkInfo;
+use crate::transport::net::link::{LinkInfo, PathKind};
 use crate::transport::net::stream::{BoxFuture, StreamPair};
 use crate::transport::net::transport::PeerConn;
 use crate::transport::net_hyper::link::{link_info, path_text_of, LinkMeter, Metered, PathFacts};
@@ -224,7 +224,12 @@ impl PeerConn for HyperConn {
     }
 
     fn path_text(&self) -> String {
-        path_text_of(link_info(&self.core.meter).rtt)
+        let info = link_info(&self.core.meter);
+        let relay = match info.path {
+            PathKind::Relayed(r) => Some(r),
+            _ => None,
+        };
+        path_text_of(info.rtt, relay)
     }
 
     fn path_lines(&self) -> Vec<String> {

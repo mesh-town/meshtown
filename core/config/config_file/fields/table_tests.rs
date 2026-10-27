@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 fn paths_unique() {
     // given: the whole table
     let set: BTreeSet<&str> = FIELDS.iter().map(|f| f.field_path).collect();
-    // then: 37 rows, no repeats
-    assert_eq!(FIELDS.len(), 37);
+    // then: 38 rows, no repeats
+    assert_eq!(FIELDS.len(), 38);
     assert_eq!(set.len(), FIELDS.len(), "a path is repeated");
 }
 
@@ -208,8 +208,8 @@ mod proxy_net_row {
             .iter()
             .filter(|f| f.value.is_stored_in_settings())
             .count();
-        // then: 31 stored paths, 6 computed, 37 rows in all
-        assert_eq!(stored, 31, "stored rows");
+        // then: 32 stored paths, 6 computed, 38 rows in all
+        assert_eq!(stored, 32, "stored rows");
         assert_eq!(FIELDS.len() - stored, 6, "computed rows");
     }
 }

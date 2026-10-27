@@ -1,7 +1,9 @@
 //! Session counters and path/network information.
 
 use super::*;
-use crate::transport::net::addr::AddrHint;
+use crate::transport::net::addr::{AddrHint, RelayRef};
+use crate::transport::net::contract::pid;
+use crate::transport::net::id::PeerId;
 use crate::transport::net::link::PathKind;
 use std::io::ErrorKind;
 use std::net::SocketAddr;
@@ -146,26 +148,95 @@ fn facts(remote: Option<SocketAddr>, rtt: RttProbe) -> PathFacts {
     PathFacts {
         remote,
         rtt: Some(rtt),
+        relay: None,
     }
 }
 
 #[test]
 fn path_text_names_the_rtt_in_ms() {
     assert_eq!(
-        path_text_of(Some(Duration::from_millis(12))),
+        path_text_of(Some(Duration::from_millis(12)), None),
         "hyper: direct UDX, rtt 12 ms"
     );
 }
 
 #[test]
 fn path_text_without_a_probe_says_unknown() {
-    assert_eq!(path_text_of(None), "hyper: direct UDX, rtt unknown");
+    assert_eq!(path_text_of(None, None), "hyper: direct UDX, rtt unknown");
 }
 
 #[test]
 fn path_text_never_prints_zero_ms() {
     assert_eq!(
-        path_text_of(Some(Duration::from_micros(300))),
+        path_text_of(Some(Duration::from_micros(300)), None),
         "hyper: direct UDX, rtt 1 ms"
     );
+}
+
+mod relayed_session {
+    use super::*;
+
+    #[test]
+    fn relayed_facts_give_relayed_path_and_text() {
+        // given: a session dialed through the relay of a member
+        let member = pid(7);
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        let rtt = probe(Some(Duration::from_millis(12)));
+        // when
+        meter.note_path(relayed_facts(member, rtt));
+        // then
+        let info = link_info(&meter);
+        assert!(
+            matches!(&info.path, PathKind::Relayed(RelayRef::Peer(p)) if *p == member),
+            "path is {:?}",
+            info.path
+        );
+        let text = path_text_of(info.rtt, Some(RelayRef::Peer(member)));
+        assert!(
+            text.starts_with("hyper: relayed via member "),
+            "text is {text:?}"
+        );
+        assert!(text.ends_with(", rtt 12 ms"), "text is {text:?}");
+    }
+
+    #[test]
+    fn a_relayed_session_has_no_remote_address() {
+        // given
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        // when
+        meter.note_path(relayed_facts(pid(7), probe(None)));
+        // then: the address of a relay is not the address of the peer
+        assert_eq!(link_info(&meter).remote, None);
+    }
+
+    #[test]
+    fn an_unestablished_relayed_session_is_unknown() {
+        // given
+        let meter = LinkMeter::new();
+        // when
+        meter.note_path(relayed_facts(pid(7), probe(None)));
+        // then
+        assert!(matches!(link_info(&meter).path, PathKind::Unknown));
+    }
+
+    #[test]
+    fn a_direct_session_keeps_the_direct_path() {
+        // given
+        let meter = LinkMeter::new();
+        meter.mark_established();
+        // when
+        meter.note_path(facts(Some(addr()), probe(None)));
+        // then
+        assert!(matches!(link_info(&meter).path, PathKind::Direct));
+    }
+}
+
+fn relayed_facts(member: PeerId, rtt: RttProbe) -> PathFacts {
+    PathFacts {
+        remote: None,
+        rtt: Some(rtt),
+        relay: Some(RelayRef::Peer(member)),
+    }
 }

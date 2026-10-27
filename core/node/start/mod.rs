@@ -22,11 +22,13 @@ mod entry;
 mod network;
 mod preload;
 mod proxy_wiring;
+pub(in crate::node) mod relay_candidates;
 mod serving;
 mod stack;
 mod transports;
 mod transports_hyper;
 pub(in crate::node) mod transports_mem;
+mod transports_relay;
 
 use boot::boot_endpoint;
 use entry::wire_entry_points;
