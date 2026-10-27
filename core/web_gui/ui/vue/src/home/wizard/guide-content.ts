@@ -7,7 +7,7 @@ import type { ProxyScope } from "../proxy-scope.ts";
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "../update-texts.ts";
 import { isPhoneOs } from "./wizard-steps.ts";
 import type { WizBrowser } from "./wizard-steps.ts";
-import { ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, BROWSER_NAMES, WIZ_APP_ITEM, WIZ_GUIDE_TITLE, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
+import { ALL_APPS_CHROME_CLOSE, ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, BROWSER_NAMES, WIZ_APP_ITEM, WIZ_GUIDE_TITLE, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
 
 export interface GuideStep {
   text: string;
@@ -71,13 +71,19 @@ function browserGuide(browser: WizBrowser, title: string): Guide {
   return { ...BLANK, title, copy: true, steps: FIREFOX_STEPS.map((text) => ({ text })), more: true };
 }
 
+function browserSteps(os: OsId, browser: WizBrowser): string[] {
+  const steps = ALL_APPS_STEPS[browser];
+  if (browser !== "chrome" || os === "mac") return steps;
+  return [...steps.slice(0, -1), ALL_APPS_CHROME_CLOSE];
+}
+
 function systemGuide(os: OsId, browser: WizBrowser, title: string): Guide {
   const block = pacBlock(os);
   const linuxChrome = browser === "chrome" && os === "linux" ? [ALL_APPS_CHROME_LINUX] : [];
   return {
     ...BLANK, title, copy: true, more: true,
     steps: block.steps.map((text) => ({ text })), small: block.small,
-    browserTitle: BROWSER_NAMES[browser], browserSteps: ALL_APPS_STEPS[browser], browserSmall: linuxChrome,
+    browserTitle: BROWSER_NAMES[browser], browserSteps: browserSteps(os, browser), browserSmall: linuxChrome,
   };
 }
 

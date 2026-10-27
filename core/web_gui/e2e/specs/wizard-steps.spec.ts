@@ -110,3 +110,43 @@ test.describe('the setup wizard of a node in a network', () => {
     });
   });
 });
+
+test.describe('layout of the wizard screens', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the proxy is on in the demo node snapshot; on a real node it depends on startup flags');
+
+  test('128-wizard-exit-spacing: on the exit screen the name hint is at least 8px above the "Allow other members" row', async ({ app, page }) => {
+    const wizard = app.wizard;
+    await wizard.open();
+    await wizard.toGuide('system', 'mac', 'chrome');
+    await wizard.next();
+    await wizard.expectStep('exit');
+    const hint = page.locator('#wizard-screen').getByText('Others see you by this name');
+    const row = page.locator('#wizard-screen .home-exit-toggle');
+    await expect(row).toBeVisible();
+    const [h, r] = [await hint.boundingBox(), await row.boundingBox()];
+    expect(r!.y - (h!.y + h!.height)).toBeGreaterThanOrEqual(8);
+  });
+
+  for (const width of [1280, 390]) {
+    for (const term of ['first', 'last'] as const) {
+      test(`129-wizard-term-tip-${width}-${term}: the hint of a term opens at the word and stays inside the window at ${width}px`, async ({ app, page }) => {
+        const wizard = app.wizard;
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ colorScheme: 'light' });
+        await wizard.open();
+        await wizard.toGuide('system', 'mac', 'chrome');
+        await wizard.moreOptionsSummary.click();
+        await app.proxyCard.manualToggle.click();
+        const word = wizard.terms[term]();
+        await word.focus();
+        await expect(wizard.tooltip).toBeVisible();
+        const [w, t] = [await word.boundingBox(), await wizard.tooltip.boundingBox()];
+        expect(Math.abs(t!.x - w!.x)).toBeLessThanOrEqual(width === 1280 && 40 || 280);
+        expect(t!.x + t!.width).toBeLessThanOrEqual(width);
+        expect(t!.x).toBeGreaterThanOrEqual(0);
+        expect(t!.y).toBeGreaterThanOrEqual(w!.y + w!.height - 2);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+      });
+    }
+  }
+});

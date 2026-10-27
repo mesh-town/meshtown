@@ -51,6 +51,8 @@ export const ALL_APPS_STEPS: Record<WizBrowser, string[]> = {
   ],
   other: [`Opera, Brave, Vivaldi, Arc and Yandex Browser use the system setting, like Chrome. In Opera, turn off its built-in VPN — otherwise sites bypass ${NET_NAME}.`],
 };
+// Chrome has no Quit command on Windows and Linux: all windows are closed from the menu.
+export const ALL_APPS_CHROME_CLOSE = "If Chrome was open, close all its windows (menu ⋮ → Exit) and open it again.";
 export const ALL_APPS_CHROME_LINUX = "On Linux, Chrome follows the GNOME or KDE proxy setting.";
 
 export const WIZ_ONE_BROWSER = (name: string): string =>

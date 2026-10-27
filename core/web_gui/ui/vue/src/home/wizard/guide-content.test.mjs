@@ -7,7 +7,7 @@ import { ANDROID_INTRO, ANDROID_STEPS, FIREFOX_STEPS, IOS_NO_APP } from "../../c
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "../update-texts.ts";
 import { pacBlock } from "../pac-setup.ts";
 import { browserTiles, defaultBrowser, guideFor, manualBrowser } from "./guide-content.ts";
-import { ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, WIZ_APP_ITEM, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
+import { ALL_APPS_CHROME_CLOSE, ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, WIZ_APP_ITEM, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
 
 const BROWSERS = ["chrome", "edge", "safari", "firefox", "other"];
 const ids = (tiles) => tiles.map(([id]) => id);
@@ -27,6 +27,15 @@ describe("guideFor", () => {
     for (const browser of BROWSERS) {
       it(`given system on mac with ${browser}, then the browser steps are taken verbatim`, () => {
         assert.deepEqual(guideFor("system", "mac", browser).browserSteps, ALL_APPS_STEPS[browser]);
+      });
+    }
+
+    for (const os of ["windows", "linux"]) {
+      it(`given system on ${os} with Chrome, then the last step closes the windows from the menu instead of quitting`, () => {
+        const steps = guideFor("system", os, "chrome").browserSteps;
+        assert.deepEqual(steps, [ALL_APPS_STEPS.chrome[0], ALL_APPS_CHROME_CLOSE]);
+        assert.ok(!steps.join(" ").includes("quit"));
+        assert.match(ALL_APPS_CHROME_CLOSE, /Exit/);
       });
     }
 
