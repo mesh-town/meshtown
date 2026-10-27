@@ -40,7 +40,7 @@ mod spin;
 pub(crate) mod test_tray;
 
 pub use crate::node::output::APP_NAME;
-pub use app::quit::exit_now;
+pub use app::quit::{exit_now, QuitSignal};
 #[cfg(target_os = "macos")]
 pub use app::tray_texts::{
     hidden_icon_hint_text, hidden_icon_title_text, HIDDEN_ICON_LATER_TEXT,

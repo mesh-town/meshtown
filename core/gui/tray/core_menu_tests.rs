@@ -49,6 +49,25 @@ fn click(id: &str) -> (Vec<String>, bool) {
     (opened, node_rx.try_recv().is_ok())
 }
 
+/// Sends `cmd` through a fresh `Core` and returns the commands that reached the node.
+fn sent_node_cmds(cmd: TrayCmd) -> Vec<NodeCmd> {
+    let (node_tx, mut node_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (tx, mut core) = channel(
+        crate::gui::tray::app::quit::QuitSignal::new(),
+        page,
+        node_tx,
+        &RECORDING,
+    );
+    tx.send(cmd);
+    assert_eq!(core.drain_commands(), None);
+    std::iter::from_fn(|| node_rx.try_recv().ok()).collect()
+}
+
+#[test]
+fn menu_open_asks_for_snapshot() {
+    assert_eq!(sent_node_cmds(TrayCmd::MenuOpened), vec![NodeCmd::Refresh]);
+}
+
 #[test]
 fn add_and_notice_items_open_the_page_and_send_nothing() {
     let (opened, sent) = click("add");

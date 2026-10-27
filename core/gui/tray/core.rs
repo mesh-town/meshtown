@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use super::actions_ui::ActionsUi;
 use super::backend::TrayBackend;
 use super::frame_cache::FrameCache;
-use super::menu_build::{build_icons, build_menu, install_menu_handler, TrayUi};
+use super::menu_build::{
+    build_icons, build_menu, install_menu_handler, install_tray_handler, TrayUi,
+};
 use super::nets_click::{menu_facts, MenuFacts};
 use super::spin::Spin;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
@@ -41,6 +43,8 @@ pub(crate) enum TrayCmd {
     Update(crate::gui::tray::app::view::View),
     ExitMenu(crate::gui::tray::app::exit_menu::ExitMenu),
     Menu(String),
+    /// The icon was pressed and the menu is about to open.
+    MenuOpened,
     /// What the invite item shows (the "copied" label, a refusal reason, or idle).
     Invite(InviteNote),
     /// Note on the "Allow sites to open via this computer" checkbox (edit failure or idle).
@@ -136,6 +140,7 @@ impl Core {
             .map_err(|e| e.to_string())?;
 
         install_menu_handler(self.tx.clone());
+        install_tray_handler(self.tx.clone());
 
         self.ui = Some(TrayUi {
             tray_icon_handle: tray,
@@ -199,6 +204,10 @@ impl Core {
             }
             TrayCmd::Menu(id) => {
                 self.handle_menu(&id);
+                None
+            }
+            TrayCmd::MenuOpened => {
+                self.refresh_node();
                 None
             }
             TrayCmd::Invite(note) => {

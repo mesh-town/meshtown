@@ -53,3 +53,38 @@ fn proxy_item_text_no_port_falls_back() {
 fn quit_text_is_an_action() {
     assert_eq!(quit_text(), "Quit Mesh Town");
 }
+
+fn click_event(button_state: tray_icon::MouseButtonState) -> tray_icon::TrayIconEvent {
+    tray_icon::TrayIconEvent::Click {
+        id: tray_icon::TrayIconId::new("t"),
+        position: Default::default(),
+        rect: Default::default(),
+        button: tray_icon::MouseButton::Left,
+        button_state,
+    }
+}
+
+fn plain_event(
+    make: fn(
+        tray_icon::TrayIconId,
+        tray_icon::dpi::PhysicalPosition<f64>,
+        tray_icon::Rect,
+    ) -> tray_icon::TrayIconEvent,
+) -> tray_icon::TrayIconEvent {
+    make(
+        tray_icon::TrayIconId::new("t"),
+        Default::default(),
+        Default::default(),
+    )
+}
+
+#[test]
+fn is_press_only_on_button_down() {
+    use tray_icon::{MouseButtonState, TrayIconEvent};
+    assert!(is_press(&click_event(MouseButtonState::Down)));
+    assert!(!is_press(&click_event(MouseButtonState::Up)));
+    let enter = plain_event(|id, position, rect| TrayIconEvent::Enter { id, position, rect });
+    let moved = plain_event(|id, position, rect| TrayIconEvent::Move { id, position, rect });
+    assert!(!is_press(&enter));
+    assert!(!is_press(&moved));
+}
