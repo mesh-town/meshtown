@@ -1,4 +1,5 @@
 use super::*;
+use std::future::Future;
 
 #[test]
 fn wake_without_block_is_noop() {
@@ -13,6 +14,11 @@ fn terminate_reply_later_when_quit_known() {
     let quit = QuitSignal::new();
     let reply = terminate_reply(Some(&quit));
     assert_eq!(reply, NSApplicationTerminateReply::TerminateLater);
+    // `request()` was called: a single poll of `wait()` is already ready.
+    let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+    let mut wait = std::pin::pin!(quit.wait());
+    let seen = wait.as_mut().poll(&mut cx);
+    assert!(seen.is_ready(), "the quit was not requested");
 }
 
 #[test]
