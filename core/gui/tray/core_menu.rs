@@ -66,6 +66,12 @@ impl Core {
         }
     }
 
+    /// A handle that raises the same "Quit" request as the menu item; the platform loop keeps a clone for
+    /// quit requests that do not come through the menu.
+    pub fn quit_signal(&self) -> crate::gui::tray::QuitSignal {
+        self.quit.clone()
+    }
+
     fn click_node(&self) {
         // The poller has already exited — nobody needs the command: silently. The node is moving to
         // Starting/Stopping — the command is not sent.

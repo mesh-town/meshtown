@@ -6,7 +6,8 @@
 //! block and drains the queue; `wake` from any thread puts this block onto the main
 //! `CFRunLoop` and wakes it.
 //! What it does not do: it does not build the menu or print itself (that is `Core` and `log_tray`), does not end the
-//! process by anything other than `exit_now` on `TrayCmd::QuitWithCode`, and does not know about the node or the page.
+//! process by anything other than `exit_now` on `TrayCmd::QuitWithCode` (`applicationShouldTerminate:` only raises the
+//! tray's own quit request and defers the termination), and does not know about the node or the page.
 //! Links: `Core`, `exit_now`; the model is
 //! a separate repaint probe.
 
@@ -18,12 +19,13 @@ use objc2::rc::Retained;
 use objc2::runtime::{NSObject, NSObjectProtocol, ProtocolObject, Sel};
 use objc2::{define_class, msg_send, sel, MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{
-    NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate, NSStatusItem,
+    NSApplication, NSApplicationActivationPolicy, NSApplicationDelegate,
+    NSApplicationTerminateReply, NSStatusItem,
 };
 use objc2_core_foundation::{kCFRunLoopCommonModes, CFRunLoop, CFType};
 use objc2_foundation::NSNotification;
 
-use meshtown_core::gui::tray::{exit_now, log_tray, Core};
+use meshtown_core::gui::tray::{exit_now, log_tray, Core, QuitSignal};
 
 thread_local! {
     /// The main thread's `Core`: after `attach_ui` it holds a `TrayIcon` (`!Send`), so the storage is
@@ -44,6 +46,10 @@ thread_local! {
 struct SendSyncBlock(RcBlock<dyn Fn()>);
 unsafe impl Send for SendSyncBlock {}
 unsafe impl Sync for SendSyncBlock {}
+
+/// The tray's quit request, set in `run` before the loop starts; the delegate must not reach for `CORE` (it may be
+/// borrowed while a command is handled).
+static QUIT: OnceLock<QuitSignal> = OnceLock::new();
 
 /// Set once in the delegate after `attach_ui`; before that `wake()` does nothing.
 static WAKE_BLOCK: OnceLock<SendSyncBlock> = OnceLock::new();
@@ -87,6 +93,13 @@ define_class!(
             // AppKit does not make a second call; if it did happen — silently keep the first block.
             let _ = WAKE_BLOCK.set(SendSyncBlock(block));
             drain_on_main();
+        }
+
+        // SAFETY: the signature is correct.
+        #[unsafe(method(applicationShouldTerminate:))]
+        fn should_terminate(&self, _sender: &NSApplication) -> NSApplicationTerminateReply {
+            log_tray("quit: Apple Event");
+            terminate_reply(QUIT.get())
         }
     }
 
@@ -139,6 +152,7 @@ pub(crate) fn run(core: Core) -> ! {
     let Some(mtm) = MainThreadMarker::new() else {
         fallback(core, "not the main thread");
     };
+    let _ = QUIT.set(core.quit_signal());
     CORE.with(|cell| *cell.borrow_mut() = Some(core));
 
     let app = NSApplication::sharedApplication(mtm);
@@ -152,6 +166,16 @@ pub(crate) fn run(core: Core) -> ! {
         Some(core) => fallback(core, "the macOS loop stopped"),
         None => exit_now(1),
     }
+}
+
+/// The answer to a system quit request (Apple Event, logout, shutdown): with a known tray quit — raise it and defer, the
+/// process ends by `exit_now` when the node has stopped; without one — nothing to wait for.
+fn terminate_reply(quit: Option<&QuitSignal>) -> NSApplicationTerminateReply {
+    let Some(quit) = quit else {
+        return NSApplicationTerminateReply::TerminateNow;
+    };
+    quit.request();
+    NSApplicationTerminateReply::TerminateLater
 }
 
 /// The native status item of the raised icon, for the "hidden" check; `None` until `attach_ui`.
