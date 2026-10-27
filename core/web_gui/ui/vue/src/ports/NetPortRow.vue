@@ -5,7 +5,7 @@ import { writeClipboard } from "../common/clipboard.ts";
 import { defaultLocalPort, isBrowserBlockedPort, netRowKey, nodeLabel, openErrorText, portStatusText } from "./ports-view.ts";
 import { lastErrorText } from "./ports-proto.ts";
 import {
-  PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COL_BROWSER, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_PROGRAMS, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
+  PORTS_CANCEL, PORTS_CHANGE_HINT, PORTS_CHANGE_NUMBER, PORTS_CLOSE, PORTS_COL_BROWSER, PORTS_COL_PEER, PORTS_COL_PORT, PORTS_COL_PROGRAMS, PORTS_COPIED, PORTS_COPY, PORTS_LOCAL_PORT_LABEL, PORTS_LOCAL_PORT_TITLE, PORTS_NOT_FOR_BROWSER, PORTS_NOT_FOR_BROWSER_TITLE, PORTS_OFFLINE, PORTS_ONLINE, PORTS_OPEN,
   PORTS_OPEN_TITLE, PORTS_OPENED, PORTS_PROTO_UDP, PORTS_SAME_NAME_TITLE, portsCopyAddressLabel, portsLocalAddress,
 } from "./ports-texts.ts";
 
@@ -63,6 +63,11 @@ function startChange(): void {
   if (props.row.opened) draft.value = props.row.opened.local;
   changing.value = true;
 }
+// Leaving the mode without saving: nothing is sent, the next start begins from the opened number.
+function cancelChange(): void {
+  draft.value = defaultLocalPort(props.row.port, props.taken);
+  changing.value = false;
+}
 </script>
 
 <template>
@@ -79,7 +84,7 @@ function startChange(): void {
       </div>
     </td>
     <td :data-label="PORTS_COL_PROGRAMS">
-      <div class="opencell">
+      <div class="opencell" :class="{ changing: !!row.opened && row.opened.state !== 'bind_failed' && changing }">
         <div v-if="row.opened && row.opened.state === 'bind_failed'" class="field-error-text">{{ portStatusText(row) }}</div>
         <template v-if="row.opened && row.opened.state === 'bind_failed'">
           <div v-if="row.opened.error" class="field-error-text">{{ openErrorText(row.opened.error) }}</div>
@@ -88,8 +93,10 @@ function startChange(): void {
           <button type="button" class="btn btn-sm" :data-port-close="rowKey" :disabled="busy" @click="emit('close', row)">{{ PORTS_CLOSE }}</button>
         </template>
         <template v-else-if="row.opened && changing">
-          <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :aria-label="PORTS_LOCAL_PORT_LABEL" :title="PORTS_LOCAL_PORT_TITLE">
+          <div class="hint change-hint">{{ PORTS_CHANGE_HINT }}</div>
+          <input v-model="draft" type="number" class="input input-port" min="1" max="65535" :data-port-local="rowKey" :aria-label="PORTS_LOCAL_PORT_LABEL" :title="PORTS_LOCAL_PORT_TITLE" @keydown.esc="cancelChange">
           <button type="button" class="btn btn-sm" :data-port-open="rowKey" :title="PORTS_OPEN_TITLE" :disabled="!row.published || busy" @click="open">{{ PORTS_OPEN }}</button>
+          <button type="button" class="linkbtn" data-port-cancel :disabled="busy" @click="cancelChange">{{ PORTS_CANCEL }}</button>
           <div v-if="lastError" class="field-error-text" :data-port-last-error="rowKey">{{ lastError }}</div>
         </template>
         <template v-else-if="row.opened">

@@ -84,6 +84,7 @@ export const PORTS_AUDIENCE_PICK_NODES = "Selected members";
 export const PORTS_NO_PEERS = "There are no other members in the network yet";
 
 export const PORTS_CHANGE_NUMBER = "Change number";
+export const PORTS_CHANGE_HINT = "New number on this device";
 export const PORTS_LOCAL_PORT_LABEL = "port number on this computer";
 
 export function portsLocalAddress(local: number): string {

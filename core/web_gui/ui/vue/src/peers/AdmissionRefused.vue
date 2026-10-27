@@ -9,7 +9,8 @@ import {
   ADMISSION_REFUSED_MANY, ADMISSION_REFUSED_NONE, ADMISSION_REFUSED_ONE, ADMISSION_REFUSED_TITLE, admissionRefusedAsk, admissionRefusedList,
 } from "./peers-texts.ts";
 
-const props = defineProps<{ refused: boolean; members: MembersReply | null | undefined; net: string }>();
+// `active` — the tab with this plate is the shown one: all tabs stay in the document, and the id must occur once.
+const props = withDefaults(defineProps<{ refused: boolean; members: MembersReply | null | undefined; net: string; active?: boolean }>(), { active: true });
 const held = useHeldRefusal(() => refusedNow(props.refused, props.members));
 
 const names = computed(() => held.value?.names ?? []);
@@ -18,7 +19,7 @@ const ask = computed(() => admissionRefusedAsk(props.net));
 </script>
 
 <template>
-  <section v-if="held" id="admission-refused" class="card warn-card" role="status">
+  <section v-if="held && active" id="admission-refused" class="card warn-card" role="status">
     <h2>{{ ADMISSION_REFUSED_TITLE(net) }}</h2>
     <p>{{ what }}</p>
     <p>{{ ask }}</p>

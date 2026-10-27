@@ -40,6 +40,9 @@
   .addrcell .mono{white-space:nowrap;}
   .opencell{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;}
   .opencell .field-error-text,.opencell .hint{flex-basis:100%;}
+  .opencell .field-error-text{white-space:normal;overflow-wrap:anywhere;min-width:0;}
+  .opencell.changing{padding:6px 8px;border:1px solid var(--accent);border-radius:7px;background:var(--bg-elev);}
+  .opencell .change-hint{margin:0;}
   .btn-x{border:1px solid var(--border);background:var(--bg-elev);color:var(--fg);padding:7px 14px;border-radius:7px;font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;}
   .btn-x:hover{border-color:var(--red);color:var(--red);}
   .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
