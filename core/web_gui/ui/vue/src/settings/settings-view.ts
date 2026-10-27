@@ -86,6 +86,12 @@ export function restartTargets(store: Pick<Store, "restartSlots" | "configMeta" 
   return restartPending(store.configMeta) ? ["main"] : [];
 }
 
+// A failed start reported the outcome of an attempt begun after the restart was asked: `start_error` is set and the
+// node's `boot_id` is not the one seen at the request (a stale error of the previous attempt keeps the old id).
+export function failedAfterAsk(state: Store["state"], askedBoot: string | null): boolean {
+  return !!state?.node?.start_error && state.boot_id !== askedBoot;
+}
+
 // The part of the changes that every network keeps in step.
 export function sharedChanges(changes: ConfigChanges): ConfigChanges {
   return Object.fromEntries(Object.entries(changes).filter(([path]) => SHARED_PATHS.includes(path)));
