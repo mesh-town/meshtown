@@ -2,6 +2,8 @@
 
 **Reach your devices from anywhere — no port forwarding, no central server, no accounts.**
 
+**Website: [mesh-town.github.io](https://mesh-town.github.io/)** — what it does, how it works and how to install, on one page.
+
 Mesh Town connects your computers, phones and routers into a private network and lets you reach the services running
 on them — SSH to a home server, RDP to the office machine, the web panel of a NAS or router — from a café, a train or
 another country. A web interface opens by a link: with the browser set to use the node's proxy, a shared port is at
