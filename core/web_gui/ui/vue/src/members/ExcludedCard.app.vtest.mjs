@@ -30,7 +30,7 @@ describe("ExcludedCard in the app", () => {
   it("banned: the text says who can help and that a new invite is needed", () => {
     setup("banned");
     expect(wrapper.get("#excluded-card p").text()).toBe(
-      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this phone. If you think this is a mistake, ask an admin of the network for a new invite.",
+      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this phone. If you think this is a mistake, ask a network admin for a new invite.",
     );
   });
 

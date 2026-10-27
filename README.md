@@ -5,7 +5,7 @@
 **Website: [mesh-town.github.io](https://mesh-town.github.io/)** — what it does, how it works and how to install, on one page.
 
 Mesh Town connects your computers, phones and routers into a private network and lets you reach the services running
-on them — SSH to a home server, RDP to the office machine, the web panel of a NAS or router — from a café, a train or
+on them — SSH to a home server, RDP to the office machine, a NAS or router web panel — from a café, a train or
 another country. A web interface opens by a link: with the browser set to use the node's proxy, a shared port is at
 `http://<device-name>.meshtown`. No public IP to get, no routing to configure, no server to keep running, no account to
 create in someone else's service.
@@ -49,15 +49,15 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers.
 | The usual way | What it takes | With Mesh Town |
 |---|---|---|
 | Port forwarding and dynamic DNS | A public IP (not available behind a carrier's NAT), a rule on every router, the service open to the whole internet | Nothing to open: only members reach the port |
-| A tunnel server of your own | A machine with a public IP, its keys and routing, keeping it up | No server: members connect to each other directly |
+| Your own tunnel server | A machine with a public IP, its keys and routing, keeping it up | No server: members connect to each other directly |
 | A tunnel or relay service | An account with the provider, your traffic through its servers | No account, no provider in the middle |
 | A mesh network with a coordination server | An account or a self-hosted coordination server every device signs in to | The member list lives with the members |
 
-What you give up: Mesh Town connects TCP and UDP ports of programs, not whole IP networks — see [Limitations](#limitations).
+What you give up: Mesh Town connects TCP and UDP program ports, not whole IP networks — see [Limitations](#limitations).
 
 ## Not for you if
 
-- you need a whole subnet or a virtual network interface: Mesh Town shares TCP and UDP ports of programs running on
+- you need a whole subnet or a virtual network interface: Mesh Town shares TCP and UDP program ports running on
   the device itself;
 - you need it on an iPhone or iPad;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
@@ -121,7 +121,7 @@ More in [SECURITY.md](SECURITY.md).
 
 ## Limitations
 
-- TCP and UDP ports of programs on the device itself; no TUN, no subnet on desktops and routers. On Android the app
+- TCP and UDP program ports on the device itself; no TUN, no subnet on desktops and routers. On Android the app
   takes the phone's traffic through the system VPN service and hands it to the node's proxy (tun2proxy).
 - A SOCKS5/HTTP proxy, not a system-wide tunnel: the program must be able to use a proxy or connect to
   `127.0.0.1:<port>`.
@@ -149,7 +149,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, protocols, data flow.
 - [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md) — the settings file.
 - [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md),
-  [docs/WEB-API-members.md](docs/WEB-API-members.md), [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md) — the HTTP API of the node page.
+  [docs/WEB-API-members.md](docs/WEB-API-members.md), [docs/WEB-API-embedding.md](docs/WEB-API-embedding.md) — the node page's HTTP API.
 - [docs/INSTALL.md](docs/INSTALL.md), [docs/BUILDING.md](docs/BUILDING.md), [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
 - [CHANGELOG.md](CHANGELOG.md), [SECURITY.md](SECURITY.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 

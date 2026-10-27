@@ -85,7 +85,7 @@ pub(super) async fn open_chosen_route(
             say(tag, format!("{e:#}"));
             return Err(OpenRefused::new(ProxyOutcome::refused(
                 "no route",
-                "the list of exits could not be read",
+                "the exit list could not be read",
             )));
         }
     };

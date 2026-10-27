@@ -149,7 +149,7 @@ describe("the screen of an excluded computer", () => {
   it("the text and the button", () => {
     assert.equal(
       t.EXCLUDED_REMOVED_TEXT,
-      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask an admin of the network for a new invite.",
+      "An admin removed it. Sites no longer open through Mesh Town, and members can't reach this computer. If you think this is a mistake, ask a network admin for a new invite.",
     );
     assert.equal(t.EXCLUDED_JOIN, "Join with another invite");
   });
@@ -170,7 +170,7 @@ describe("the hint for the only admin", () => {
   it("says what to do and where", () => {
     assert.equal(
       t.SECOND_ADMIN_HINT,
-      "You are the only admin of this network. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.",
+      "You are the only network admin. Make another member an admin (⋯ → Make admin) so the network can still be managed if this computer is lost.",
     );
   });
 });

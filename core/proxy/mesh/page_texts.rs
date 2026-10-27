@@ -27,7 +27,7 @@ pub(super) const PAGE_H1_AMBIGUOUS: &str = "{count} members match {host}";
 pub(super) const PAGE_BODY_AMBIGUOUS: &str = "Pick one below. Each of these addresses always leads to the same member — bookmark it instead of {host}.";
 pub(super) const PAGE_COPY_ADDRESS_LABEL: &str = "Copy address {url}";
 pub(super) const PAGE_HINT_AMBIGUOUS: &str =
-    "The Ports tab of Mesh Town shows the network of each member that shared ports with you.";
+    "The Ports tab of Mesh Town shows each member's network, for members that shared ports with you.";
 
 pub(super) const PAGE_TITLE_NOT_OPENED: &str = "Port {port} isn't shared with you · {host}";
 pub(super) const PAGE_H1_NOT_OPENED: &str = "{name} hasn't shared port {port} with you";
