@@ -40,7 +40,7 @@ pub(super) fn write_new_settings(
     mut new: Settings,
     loaded: LoadedSettings,
     file: &dyn SettingsFile,
-    rev_in: u64,
+    (rev_in, reapply_opened): (u64, bool),
     node: &dyn NodeControl,
 ) -> (Response, Option<ProxyPick>) {
     new.net.network_key = state.file_settings.net.network_key.clone();
@@ -55,7 +55,9 @@ pub(super) fn write_new_settings(
         .collect();
 
     match perform_write(state, file, &loaded, rev_in, &new) {
-        Ok(new_rev) => finish_successful_write(state, node, new, new_rev, changed),
+        Ok(new_rev) => {
+            finish_successful_write(state, node, new, new_rev, (changed, reapply_opened))
+        }
         Err(SaveError::StaleRev(_)) => (respond_to_stale_write(state, file), None),
         Err(SaveError::Io(t)) => (state.config_write_failed(&t), None),
     }
@@ -78,7 +80,7 @@ fn finish_successful_write(
     node: &dyn NodeControl,
     new: Settings,
     new_rev: u64,
-    changed: Vec<&'static str>,
+    (changed, reapply_opened): (Vec<&'static str>, bool),
 ) -> (Response, Option<ProxyPick>) {
     let pick = proxy_pick(&new, &changed);
     state.file_settings = new;
@@ -93,6 +95,7 @@ fn finish_successful_write(
     let apply_now: Vec<&'static str> = changed
         .iter()
         .copied()
+        .chain((reapply_opened && !changed.contains(&"ports.opened")).then_some("ports.opened"))
         .filter(|&f| !restart_paths.contains(&f) && !state.cli_override_paths.contains(&f))
         .collect();
     if !apply_now.is_empty() {

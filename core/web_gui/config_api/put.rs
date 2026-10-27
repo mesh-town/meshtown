@@ -18,7 +18,7 @@ use crate::web_gui::NodeControl;
 use super::put_merge::{merge_with_config, parse_merged_settings, reject_unavailable_fields};
 use super::put_write::{write_new_settings, ProxyPick};
 use super::state::ConfigState;
-use super::support::field_entry;
+use super::support::{field_entry, get_path};
 
 impl ConfigState {
     /// A write without a connection (self-lockout is not checked): needed by tests.
@@ -62,12 +62,14 @@ impl ConfigState {
         let new = parse_merged_settings(self, &merged)?;
         reject_web_lockout(self, &new, conn)?;
         reject_taken_locals(self, &new, taken)?;
+        // An opened list in the body is re-applied even if unchanged, so failed binds are retried.
+        let reapply_opened = get_path(&config_in, "ports.opened").is_some();
         Ok(write_new_settings(
             self,
             new,
             loaded,
             file.as_ref(),
-            rev_in,
+            (rev_in, reapply_opened),
             node,
         ))
     }

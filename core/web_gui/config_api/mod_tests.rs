@@ -254,3 +254,7 @@ mod put_golden_tests;
 #[cfg(test)]
 #[path = "put_lockout_tests.rs"]
 mod put_lockout_tests;
+
+#[cfg(test)]
+#[path = "put_reapply_tests.rs"]
+mod put_reapply_tests;
