@@ -63,9 +63,10 @@
   .name-row{display:flex;gap:8px;align-items:center;} .name-row .input{flex:1;min-width:0;}
 
   .home-tabs{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px;border-bottom:1px solid var(--border);}
-  .home-tab{font:inherit;font-size:14px;padding:6px 14px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;background:none;color:var(--fg-muted);cursor:pointer;}
-  .home-tab:hover{color:var(--fg);}
-  .home-tab.active{color:var(--fg);font-weight:600;border-bottom-color:var(--accent);}
+  .hint + .home-tabs{margin-top:var(--tabs-gap);}
+  .home-tab{font:inherit;font-size:14px;padding:6px 14px;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;border-radius:8px 8px 0 0;background:var(--bg-sunken);color:var(--accent);cursor:pointer;}
+  .home-tab:hover{background:var(--accent-soft);color:var(--accent);}
+  .home-tab.active{background:none;color:var(--fg);font-weight:600;border-bottom-color:var(--accent);cursor:default;}
   .home-tab:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;}
   .spinner{display:inline-block;flex-shrink:0;box-sizing:border-box;width:16px;height:16px;margin-right:8px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:mesh-spin 1s linear infinite;}
   .state-panel .state-spinner{margin:2px 0 0;}
