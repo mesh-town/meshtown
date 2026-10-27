@@ -45,6 +45,27 @@ fn discard_pending_cmds(cmds: &mut UnboundedReceiver<NodeCmd>) {
     while cmds.try_recv().is_ok() {}
 }
 
+/// Whether the node should get SIGTERM before the HTTP stop: only a node that has not served a page yet (it may
+/// ignore the request for a while), and only where the signal exists.
+fn signals_first(seen_200: bool, unix: bool) -> bool {
+    unix && !seen_200
+}
+
+/// SIGTERM to the child; the node shuts down by it on its own. Nothing happens off Unix.
+#[cfg(unix)]
+fn send_term(child: &Child) -> Result<(), std::io::Error> {
+    // SAFETY: plain `kill(2)` with the pid of a child that `try_wait` has just reported as not yet reaped.
+    match unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) } {
+        0 => Ok(()),
+        _ => Err(std::io::Error::last_os_error()),
+    }
+}
+
+#[cfg(not(unix))]
+fn send_term(_child: &Child) -> Result<(), std::io::Error> {
+    Ok(())
+}
+
 impl Poller {
     /// "Stop Mesh Town": the procedure with the "button" cause and a transition on its outcome. Commands that arrive
     /// during the procedure are discarded before the outcome line and view (`discard_pending_cmds`).
@@ -56,7 +77,8 @@ impl Poller {
         match phase {
             Phase::OwnNode { mut child, .. } => {
                 self.show(STOPPING_VIEW);
-                let end = self.stop_own(&mut child).await;
+                // The button keeps the HTTP-only path in every phase.
+                let end = self.stop_own(&mut child, true).await;
                 let code = match end {
                     OwnStopOutcome::Gone(code) => code,
                     OwnStopOutcome::Killed => KILLED_BY_SIGNAL_TEXT.to_string(),
@@ -98,8 +120,10 @@ impl Poller {
     }
 
     /// The "Stop" procedure for our own node: `POST` until accepted, `try_wait` until the deadline, otherwise `kill`.
-    async fn stop_own(&mut self, child: &mut Child) -> OwnStopOutcome {
+    /// A node that has not served a page yet (`seen_200` is false) first gets SIGTERM, once.
+    async fn stop_own(&mut self, child: &mut Child, seen_200: bool) -> OwnStopOutcome {
         let deadline = Instant::now() + self.timing.stop_wait;
+        let mut term_pending = signals_first(seen_200, cfg!(unix));
         let mut accepted = false;
         let mut last_post: Option<Instant> = None;
         loop {
@@ -107,6 +131,11 @@ impl Poller {
                 Ok(Some(status)) => return OwnStopOutcome::Gone(child_status_text(&status)),
                 Err(_) => return OwnStopOutcome::Gone(KILLED_BY_SIGNAL_TEXT.to_string()),
                 Ok(None) => {}
+            }
+            if std::mem::take(&mut term_pending) {
+                if let Err(e) = send_term(child) {
+                    self.say(format!("could not send SIGTERM to the node: {e}"));
+                }
             }
             let now = Instant::now();
             if now >= deadline {
@@ -189,9 +218,13 @@ impl Poller {
             self.say("signal: quit".to_string());
         }
         match phase {
-            Phase::OwnNode { mut child, .. } => {
+            Phase::OwnNode {
+                mut child,
+                seen_200,
+                ..
+            } => {
                 self.show(STOPPING_VIEW);
-                match self.stop_own(&mut child).await {
+                match self.stop_own(&mut child, seen_200).await {
                     OwnStopOutcome::Gone(code) => {
                         self.say(format!("node stopped via \"Quit\", code {code}"));
                         0
@@ -212,3 +245,7 @@ impl Poller {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "poller_stop_tests.rs"]
+mod tests;

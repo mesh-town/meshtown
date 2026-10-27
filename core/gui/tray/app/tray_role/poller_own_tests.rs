@@ -76,7 +76,7 @@ async fn poller_own_start_after_stop() {
     assert_eq!(pids.len(), 2, "second spawn call");
     assert_ne!(pids[0], pids[1], "new pid");
     rig.quit();
-    assert_eq!(rig.code().await, 1, "the second one was killed");
+    assert_eq!(rig.code().await, 0, "the second one ended by SIGTERM");
     assert!(!alive(pids[0]) && !alive(pids[1]), "both are dead");
 }
 
@@ -93,8 +93,9 @@ async fn poller_own_quit_stops() {
     rig.quit();
     rig.probe.log("node stopped via \"Quit\", code signal");
     assert!(!rig.probe.logged("signal: quit"));
+    assert!(!rig.probe.logged("killing it"), "SIGTERM was enough");
     let code = rig.code().await;
-    assert_eq!(code, 1);
+    assert_eq!(code, 0);
     assert!(!alive(kids.pids()[0]), "the child is dead");
 }
 
@@ -110,6 +111,26 @@ async fn poller_own_signal_stops() {
     rig.probe.log("node started, pid");
     rig.signal();
     rig.probe.log("signal: quit");
+    rig.probe.log("node stopped via \"Quit\", code signal");
+    assert!(!rig.probe.logged("killing it"), "SIGTERM was enough");
+    assert_eq!(rig.code().await, 0);
+    assert!(!alive(kids.pids()[0]), "the child is dead");
+}
+
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+async fn poller_own_quit_kills_when_term_ignored() {
+    let kids = Kids::default();
+    let _reaper = Reaper(kids.clone());
+    let dir = temp_dir("own-quit-ignore");
+    let port = refused_port().await;
+    let spawn = spawn_cmd(&kids, "sh", &["-c", "trap '' TERM; exec sleep 30"]);
+    let mut rig = Rig::start(port, dir.join("web-token"), true, spawn);
+    rig.probe.log("node started, pid");
+    // Let the shell install the trap and exec before the signal arrives.
+    tokio::time::sleep(Duration::from_millis(400)).await;
+    rig.quit();
+    rig.probe.log("killing it");
     rig.probe.log("node stopped via \"Quit\", code signal");
     assert_eq!(rig.code().await, 1);
     assert!(!alive(kids.pids()[0]), "the child is dead");
