@@ -2,6 +2,7 @@ import { test, expect } from '../fixtures/index';
 import { GLOSSARY, peerLabel } from '../pages/glossary';
 import { POLL_TIMEOUT_MS, expectConfigExits, type StateDoc, type Peer } from '../helpers/route-exits-api';
 import { HomeSection } from '../pages/home/section';
+import { WIZARD_TEXT } from '../pages/home/wizard';
 import { TabsBar } from '../pages/tabs-bar';
 
 const NET_TITLE = 'webcheck-created-net';
@@ -27,9 +28,10 @@ test.describe('27-home-create-network', () => {
       await expect.soft(app.joinCard.inHomeSlot).toHaveCount(0);
     });
 
-    await test.step('on "Home" the setup is on step 2: "✓ You joined the network", "Set up your browser"', async () => {
-      await expect.soft(app.homePanel.wizard).toContainText(GLOSSARY.wizardJoined);
-      await expect.soft(app.homePanel.wizard.getByRole('heading', { name: /Set up your browser/ })).toBeVisible();
+    await test.step('on "Home" the setup is on its second step: "✓ You joined the network", the question about the scope', async () => {
+      await expect.soft(app.wizard.joined).toContainText(GLOSSARY.wizardJoined);
+      await expect.soft(app.wizard.progress).toHaveText(/^Step 2 of \d$/);
+      await expect.soft(app.wizard.question).toHaveText(WIZARD_TEXT.scopeQuestion);
     });
 
     await test.step('the invite card is under the setup — #netkey-invite-btn is visible, #invite-status is empty (no "Click Invite a member" notice)', async () => {

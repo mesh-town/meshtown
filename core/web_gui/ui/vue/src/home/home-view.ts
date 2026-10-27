@@ -86,11 +86,6 @@ export function activeTabOf(explicit: HomeTab | null, mode: HomeMode): HomeTab {
   return explicit || (mode === "wizard" ? "wizard" : "main");
 }
 
-// The step to show in the setup: a completed setup opened by hand is shown from the second step.
-export function shownStep(step: number): number {
-  return step || 2;
-}
-
 // The join form always lives on Home; with a network, Settings offers the "add another network" card instead.
 export function joinPlace(_state: Snapshot): "settings" | "home" {
   return "home";

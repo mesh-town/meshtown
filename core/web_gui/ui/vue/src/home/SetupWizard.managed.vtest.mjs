@@ -1,26 +1,25 @@
-/* The setup's first step: "Create a new network" opens a create form with no choice of type, and the request carries the name only. */
+/* The join screen: "Create a new network" opens a create form with no choice of type, and the request carries the name only. */
 
 import { nextTick } from "vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
-import { baseState, mountSection } from "../testing/section.mjs";
-import SetupWizard from "./SetupWizard.vue";
+import { mountWizard, step, unmountWizard } from "../testing/wizard.mjs";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
 let mounted;
 
 beforeEach(() => {
-  localStorage.clear();
   api.mockReset();
   api.mockResolvedValue({ key: "mesh2-secret", label: "work", restart: false });
 });
-afterEach(() => mounted.wrapper.unmount());
+afterEach(() => unmountWizard(mounted));
 
-describe("SetupWizard > step 1, no network > creating a network", () => {
+describe("SetupWizard > join screen > creating a network", () => {
   it("the first screen offers no type", () => {
-    const { wrapper } = mountWizard();
+    const { wrapper } = mountNoNetwork();
+    expect(step(wrapper)).toBe("join");
     expect(wrapper.find("[id^=kind-]").exists()).toBe(false);
   });
 
@@ -39,7 +38,7 @@ describe("SetupWizard > step 1, no network > creating a network", () => {
   });
 
   it("the join form has no type picker either", async () => {
-    const { wrapper } = mountWizard();
+    const { wrapper } = mountNoNetwork();
     await wrapper.get("#home-start-join-btn").trigger("click");
     await nextTick();
     expect(wrapper.find("#join-box [id^=kind-]").exists()).toBe(false);
@@ -47,12 +46,12 @@ describe("SetupWizard > step 1, no network > creating a network", () => {
 });
 
 async function createOpened() {
-  const res = mountWizard();
+  const res = mountNoNetwork();
   await res.wrapper.get("#home-start-create-btn").trigger("click");
   await nextTick();
   return res;
 }
 
-function mountWizard() {
-  return (mounted = mountSection(SetupWizard, { state: baseState({ network: null, peers: [] }) }));
+function mountNoNetwork() {
+  return (mounted = mountWizard({ hasNet: false }));
 }

@@ -1,11 +1,11 @@
-/* The setup wizard hides a refusal the user has seen once a new attempt starts, and shows it again if it comes back. */
+/* The join screen hides a refusal the user has seen once a new attempt starts, and shows it again if it comes back. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
-import { baseState, mountSection } from "../testing/section.mjs";
+import { baseState } from "../testing/section.mjs";
+import { mountWizard, step, unmountWizard } from "../testing/wizard.mjs";
 import { INSPECT_DELAY_MS } from "./inspect-preview.ts";
-import SetupWizard from "./SetupWizard.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
@@ -17,31 +17,12 @@ let mounted;
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   api.mockReset();
-  localStorage.clear();
   location.hash = "";
 });
 afterEach(() => {
-  mounted.wrapper.unmount();
+  unmountWizard(mounted);
   vi.useRealTimers();
 });
-
-async function openForm(info) {
-  api.mockImplementation(async (method, path) => {
-    if (path === "/api/network/inspect") return { label: "family", id_hex: "aa" };
-    return { label: "family", restart: false, waiting: true, slot: "main" };
-  });
-  mounted = mountSection(SetupWizard, { state: lonely(info) });
-  await mounted.wrapper.get("#home-start-join-btn").trigger("click");
-  return mounted;
-}
-
-async function pasteAndJoin(wrapper) {
-  await wrapper.get("#join-key-input").setValue("mesh-invite2-abc");
-  await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);
-  await flushPromises();
-  await wrapper.get("#join-btn").trigger("click");
-  await flushPromises();
-}
 
 describe("SetupWizard > refusal gate", () => {
   it("a refusal without a new attempt is shown with its lead", async () => {
@@ -80,12 +61,36 @@ describe("SetupWizard > refusal gate", () => {
     expect(wrapper.get("#join-refused").text()).toContain("The network is full.");
   });
 
-  it("a successful join after a refusal leaves no refusal and the wizard hands over", async () => {
+  it("a refusal keeps the wizard on the join screen", async () => {
+    const { wrapper } = await openForm(REFUSED);
+    expect(step(wrapper)).toBe("join");
+  });
+
+  it("a successful join after a refusal leaves no refusal and the wizard moves on", async () => {
     const { wrapper, store } = await openForm(REFUSED);
     await pasteAndJoin(wrapper);
     store.state = baseState();
     await flushPromises();
     expect(wrapper.find("#join-refused").exists()).toBe(false);
     expect(wrapper.find("#home-start-choice").exists()).toBe(false);
+    expect(step(wrapper)).not.toBe("join");
   });
 });
+
+async function openForm(info) {
+  api.mockImplementation(async (method, path) => {
+    if (path === "/api/network/inspect") return { label: "family", id_hex: "aa" };
+    return { label: "family", restart: false, waiting: true, slot: "main" };
+  });
+  mounted = mountWizard({ hasNet: false, state: lonely(info) });
+  await mounted.wrapper.get("#home-start-join-btn").trigger("click");
+  return mounted;
+}
+
+async function pasteAndJoin(wrapper) {
+  await wrapper.get("#join-key-input").setValue("mesh-invite2-abc");
+  await vi.advanceTimersByTimeAsync(INSPECT_DELAY_MS);
+  await flushPromises();
+  await wrapper.get("#join-btn").trigger("click");
+  await flushPromises();
+}

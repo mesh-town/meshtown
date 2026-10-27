@@ -3,7 +3,7 @@
  * The notice after creating a network (`notice`) lives here, not in the join card: when a network appears the card
  * moves to "Settings", while the text stays in "Invite a member". */
 
-import { computed, inject, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, inject, onUnmounted, provide, reactive, ref, watch } from "vue";
 import type { ComputedRef, InjectionKey, Ref } from "vue";
 import type { ConfigDocument, ConfigMeta, NetBrief, NetworkInfo } from "../core/api-types.ts";
 import { isMulti, membersOf, netConfig, netName, stateOf, visibleSlots } from "../core/slots.ts";
@@ -26,7 +26,7 @@ import {
   readSetupMark, saveExitServer, saveName, writeSetupMark,
 } from "./home-actions.ts";
 import type { ExitSaveResult, HomeDeps, HomeForm, SetupMark } from "./home-actions.ts";
-import { activeTabOf, cardOrder, configFieldAccess, HOME_ORDER, homeMode, netRowView, nodeNameFieldValue, statePanel, statusChips, wizardStep } from "./home-view.ts";
+import { activeTabOf, cardOrder, configFieldAccess, HOME_ORDER, homeMode, netRowView, nodeNameFieldValue, statePanel, statusChips } from "./home-view.ts";
 import type { CardKey, HomeMode, HomeTab, NetRowView, PanelCtx, StatusChip, StatePanelView } from "./home-view.ts";
 import { ringView } from "./ring-view.ts";
 import type { RingView } from "./ring-view.ts";
@@ -61,7 +61,6 @@ export interface HomeContext {
   hasNet: ComputedRef<boolean>;
   searching: ComputedRef<boolean>;
   mode: ComputedRef<HomeMode>;
-  wizardStepNumber: ComputedRef<number>;
   homeTab: Ref<HomeTab | null>;
   activeTab: ComputedRef<HomeTab>;
   joinSent: Ref<JoinSent | null>;
@@ -233,7 +232,6 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     hasNet: computed(() => !!netOf(store)),
     searching: computed(() => noPeersYet(store.state)),
     mode,
-    wizardStepNumber: computed(() => wizardStep(store.state, setupMark.value)),
     homeTab,
     activeTab: computed(() => activeTabOf(homeTab.value, mode.value)),
     joinSent, progress, panel,
@@ -264,7 +262,11 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
   };
 }
 
-// Cards take the section's shared `useHome`; those mounted on their own create their own.
+// Cards take the section's shared `useHome`; one mounted on its own creates its own and shares it with its children.
 export function useHomeContext(store: Store): HomeContext {
-  return inject(HOME_KEY, null) || useHome(store);
+  const shared = inject(HOME_KEY, null);
+  if (shared) return shared;
+  const own = useHome(store);
+  provide(HOME_KEY, own);
+  return own;
 }

@@ -16,7 +16,7 @@ beforeEach(() => { localStorage.clear(); api.mockReset(); });
 afterEach(() => mounted.wrapper.unmount());
 
 describe("HomeSection > join progress, setup", () => {
-  it("waiting: the progress block role=status, no join buttons, step 1 — \"Looking for the network…\"", () => {
+  it("waiting: the progress block role=status, no join buttons, still on the join screen", () => {
     const { wrapper } = mountHome(lonely(INFO));
     const block = wrapper.get(".join-progress");
     expect(block.attributes("role")).toBe("status");
@@ -25,8 +25,8 @@ describe("HomeSection > join progress, setup", () => {
     expect(block.get(".join-progress-main").text()).toBe("Looking for the network \"family\"…");
     expect(wrapper.find("#home-start-join-btn").exists()).toBe(false);
     expect(wrapper.find("#join-card").exists()).toBe(false);
-    expect(wrapper.get(".wizard-step .step-head").text()).toBe("Looking for the network…");
-    expect(wrapper.findAll(".wizard-step")[0].find(".step-num").exists()).toBe(false);
+    expect(wrapper.get("#wizard-screen").attributes("data-step")).toBe("join");
+    expect(wrapper.get("#wizard-screen").find(".join-progress").exists(), "the progress block is on the join screen").toBe(true);
   });
 
   it("refused: the error text once and the join buttons are back", () => {
@@ -45,7 +45,7 @@ describe("HomeSection > join progress, setup", () => {
     await wrapper.get("#join-btn").trigger("click");
     await flushPromises();
     expect(wrapper.get(".join-progress-main").text()).toBe("Joining the network…");
-    expect(wrapper.get(".wizard-step .step-head").text()).toBe("Joining the network…");
+    expect(wrapper.get("#wizard-screen").attributes("data-step")).toBe("join");
     store.state = baseState({ boot_id: "boot-2" });
     await flushPromises();
     expect(wrapper.find(".join-progress").exists()).toBe(false);

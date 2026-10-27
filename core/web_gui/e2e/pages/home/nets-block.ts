@@ -4,7 +4,7 @@ import { NET_NAME } from '../glossary';
 
 /** Texts of the network choice, verbatim as the page shows them. */
 export const NETS_TEXT = {
-  /** Block heading (in Settings and in the step 2 expansion). */
+  /** Block heading (in Settings and in the setup instruction). */
   title: 'Which local networks can connect',
   /** Names by role on the router. */
   homeNet: 'Home network',
@@ -14,7 +14,7 @@ export const NETS_TEXT = {
   badgeHere: 'you are here now',
   /** Under the list, while no list is set (the automatic choice is in effect). */
   autoNote: 'The networks are currently chosen automatically.',
-  /** The step 2 summary in automatic mode (the "Edit" button next to it). */
+  /** The setup summary in automatic mode (the "Edit" button next to it). */
   summaryAuto: 'The proxy is open for: Home network. The ISP network is closed automatically.',
   /** A warning under the checked ISP network. */
   warnProvider:
@@ -22,7 +22,7 @@ export const NETS_TEXT = {
   /** A note under the network through which the page is open. */
   hereNote:
     "This page is open through this network — you can't deselect it here. Open the page from another network or from this computer itself.",
-  /** The intro paragraph of step 2 on the router and the former one on the laptop. */
+  /** The intro paragraph of the Overview card on the router and the former one on the laptop. */
   pacIntroRouter: `Enter this address once in the proxy settings of a phone or computer connected to the router. After that, the browser opens sites through ${NET_NAME} by itself whenever you choose an exit. No password needed.`,
   pacIntroLaptop: `Enter this address once in your computer's proxy settings. After that, the browser opens sites through ${NET_NAME} by itself whenever you choose an exit. No password needed.`,
 } as const;
@@ -38,19 +38,16 @@ export interface Rgba {
 const RGB_PATTERN = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/;
 
 /**
- * Network choice for the proxy and the page: the step 2 summary of the setup on the router
- * with the "Edit" button that expands the network list, and the same list in Settings. The
- * "Setup" tab is here too: the summary lives only in step 2 of the setup.
- * The PAC address and the step's intro paragraph are in `HomeProxyCard` (`app.proxyCard.addressText`, `.hint`).
+ * Network choice for the proxy and the page: the summary on the router (in the setup instruction)
+ * with the "Edit" button that expands the network list, and the same list in Settings. The "Setup" tab is `HomeWizard`.
+ * The PAC address and the intro paragraph of the Overview card are in `HomeProxyCard` (`app.proxyCard.addressText`, `.hint`).
  */
 export class NetsBlock {
-  /** The "Setup" tab on Home: without a setup mark it opens step 2. */
-  readonly wizardTab: Locator;
   // no anchor: the summary is a paragraph without a role or label, and its text is the subject of the check, so it cannot be found by it
   readonly summary: Locator;
   /** "Edit" in the summary; `aria-expanded` shows whether the network list is expanded. */
   readonly editButton: Locator;
-  // no anchor: the block root has no role or label, `nets-block`; in Settings and in step 2 it is the same
+  // no anchor: the block root has no role or label, `nets-block`; in Settings and in the setup instruction it is the same
   readonly block: Locator;
   /** The block heading is found by text, not by `id`: the block's absence is checked with it too. */
   readonly title: Locator;
@@ -66,7 +63,6 @@ export class NetsBlock {
   readonly webAccess: Locator;
 
   constructor(private readonly page: Page) {
-    this.wizardTab = page.getByRole('tab', { name: 'Setup', exact: true });
     this.summary = page.locator('#nets-summary');
     this.editButton = page.getByRole('button', { name: 'Edit', exact: true });
     this.block = page.locator('#nets-block');
@@ -77,11 +73,6 @@ export class NetsBlock {
     this.sameNets = page.locator('#same-nets');
     this.socksAccess = page.getByRole('combobox', { name: 'Who can use the proxy' });
     this.webAccess = page.getByRole('combobox', { name: 'Who can access the settings page' });
-  }
-
-  /** Opens the "Setup" tab of Home: for a node in a network without a setup mark this is step 2. */
-  async openWizard(): Promise<void> {
-    await this.wizardTab.click();
   }
 
   /**

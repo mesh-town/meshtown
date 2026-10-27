@@ -1,38 +1,56 @@
-/* The "Three steps" setup: which steps are active, the "Done" buttons set a mark in localStorage. */
+/* The setup wizard shell and its join and exit screens: the title and the region, the first screen without a network
+ * (the join and create forms), the exit screen. Moving between screens is in `SetupWizard.flow.vtest.mjs`. */
 
 import { nextTick } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { baseState, mountSection } from "../testing/section.mjs";
-import SetupWizard from "./SetupWizard.vue";
+import { afterEach, describe, expect, it } from "vitest";
+import { baseState } from "../testing/section.mjs";
+import { mountWizard, step, unmountWizard } from "../testing/wizard.mjs";
 
 const REGION = '[role="region"][aria-labelledby="home-wizard-title"]';
-const MARK = "meshtown.homeSetup";
-const WITH_PROXY = { socks: { enabled: true, listen: "127.0.0.1:1080" } };
 let mounted;
+const mount = (opts) => (mounted = mountWizard(opts));
 
-beforeEach(() => {
-  localStorage.clear();
-  localStorage.setItem("meshtown.proxyScope", "system"); // the scope question is answered; its own tests are in BrowserCard.scope.vtest.mjs
+afterEach(() => unmountWizard(mounted));
+
+describe("SetupWizard > the shell", () => {
+  it("a region titled \"Set up Mesh Town\" holds the screen", () => {
+    const { wrapper } = mount({ mark: "browser" });
+    expect(wrapper.get(REGION).get("#home-wizard-title").text()).toBe("Set up Mesh Town");
+    expect(wrapper.get(REGION).find("#wizard-screen").exists()).toBe(true);
+  });
+
+  it("no list of steps: neither the old step buttons nor the badges", () => {
+    const { wrapper } = mount({ mark: "browser" });
+    expect(wrapper.find(".step-num").exists()).toBe(false);
+    expect(wrapper.find("#wizard-step-2").exists()).toBe(false);
+    expect(wrapper.find("#wizard-step-3").exists()).toBe(false);
+  });
+
+  it("in a network the join screen is gone and the invite sits under the setup", () => {
+    const { wrapper } = mount({ mark: "browser" });
+    expect(wrapper.find("#home-start-choice").exists()).toBe(false);
+    expect(wrapper.find("#pac-row").exists(), "the address is in the guide, not in the question").toBe(false);
+    expect(wrapper.find("#netkey-invite-btn").exists()).toBe(true);
+    expect(wrapper.get(REGION).find("#netkey-invite-btn").exists(), "outside the setup region").toBe(false);
+  });
 });
-afterEach(() => mounted.wrapper.unmount());
 
-describe("SetupWizard > step 1, no network", () => {
-  it("first screen: the \"You haven't joined\" panel, two buttons, no form, steps 2 and 3 wait", () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
-    const panel = wrapper.get("#home-start-choice");
-    expect(panel.attributes("role")).toBe("region");
+describe("SetupWizard > join screen, no network", () => {
+  it("first screen: the \"You haven't joined\" panel, two buttons, no form, no navigation", () => {
+    const { wrapper } = mount({ hasNet: false });
+    expect(step(wrapper)).toBe("join");
     expect(wrapper.get("#home-start-title").text()).toBe("You haven't joined a Mesh Town network yet");
     expect(wrapper.get("#home-start-join-btn").text()).toBe("Join with an invite");
     expect(wrapper.get("#home-start-create-btn").text()).toBe("Create a new network");
     expect(wrapper.find("#join-card").exists()).toBe(false);
-    expect(wrapper.find(REGION).exists()).toBe(true);
-    expect(wrapper.findAll(".wizard-step.pending")).toHaveLength(2);
+    expect(wrapper.find("#wizard-joined").exists()).toBe(false);
+    expect(wrapper.find(".wizard-nav").exists()).toBe(false);
     expect(wrapper.find("#netkey-invite-btn").exists(), "nowhere to invite").toBe(false);
     expect(wrapper.find("#pac-row").exists(), "the browser is connected after joining the network").toBe(false);
   });
 
   it("\"Join with an invite\": the invite field is visible, no creation, focus in the field", async () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    const { wrapper } = mount({ hasNet: false });
     const btn = wrapper.get("#home-start-join-btn");
     await btn.trigger("click");
     await nextTick();
@@ -44,7 +62,7 @@ describe("SetupWizard > step 1, no network", () => {
   });
 
   it("\"Create a new network\": the name is visible, no invite; \"Join…\" swaps the forms", async () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    const { wrapper } = mount({ hasNet: false });
     await wrapper.get("#home-start-create-btn").trigger("click");
     await nextTick();
     expect(wrapper.get("#create-box").attributes("hidden")).toBeUndefined();
@@ -56,14 +74,14 @@ describe("SetupWizard > step 1, no network", () => {
   });
 });
 
-describe("SetupWizard > primary button", () => {
+describe("SetupWizard > join screen > primary button", () => {
   it("join button stays primary: before a choice", () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    const { wrapper } = mount({ hasNet: false });
     expect(wrapper.get("#home-start-join-btn").classes()).toContain("btn-primary");
   });
 
   it("after \"Create a new network\" the primary one is \"Create\" in the form", async () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    const { wrapper } = mount({ hasNet: false });
     await wrapper.get("#home-start-create-btn").trigger("click");
     await nextTick();
     expect(wrapper.get("#home-start-join-btn").classes(), "join button stays primary: after Create").toContain("btn-primary");
@@ -71,7 +89,7 @@ describe("SetupWizard > primary button", () => {
   });
 
   it("after \"Join…\" the primary one is \"Join\" in the form", async () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
+    const { wrapper } = mount({ hasNet: false });
     await wrapper.get("#home-start-join-btn").trigger("click");
     await nextTick();
     expect(wrapper.get("#join-btn").classes()).toContain("btn-primary");
@@ -80,162 +98,46 @@ describe("SetupWizard > primary button", () => {
   });
 });
 
-describe("SetupWizard > step 2, mark \"browser\"", () => {
-  it("Z1 absent, \"You joined the network\", the browser steps, the invite under the setup", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    expect(wrapper.find("#home-start-choice").exists()).toBe(false);
-    expect(wrapper.text()).toContain("✓ You joined the network");
-    expect(wrapper.find("#pac-row").exists()).toBe(true);
-    expect(wrapper.find("#pac-copy-btn").exists()).toBe(true);
-    expect(wrapper.find("#manual-toggle").exists()).toBe(true);
-    expect(wrapper.find("#netkey-invite-btn").exists()).toBe(true);
-  });
-
-  it("the PAC address is built from socks.listen, the manual steps are collapsed, and \"Not working?\" expands them", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    expect(wrapper.get("#pac-url-text").text()).toBe("http://127.0.0.1:1080/proxy.pac");
-    expect(wrapper.find("#proxy-setup").exists(), "before the click on #manual-toggle").toBe(false);
-    await wrapper.get("#manual-toggle").trigger("click");
-    expect(wrapper.find("#proxy-setup").exists()).toBe(true);
-    expect(wrapper.find("#socks-copy-port-btn").exists()).toBe(true);
-  });
-
-  it("more options after done button: the strict-mode question is the last element of step 2", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    const html = wrapper.html();
-    expect(wrapper.find("#strict-choice").exists()).toBe(true);
-    expect(html.indexOf("more-options")).toBeGreaterThan(html.indexOf("pac-row"));
-    expect(html.indexOf("more-options")).toBeGreaterThan(html.indexOf("Done, my browser is set up"));
-    expect(wrapper.get("#more-options").element.nextElementSibling).toBeNull();
-    expect(wrapper.get("#wizard-step-2").text()).toBe("2Set up your browser");
-  });
-
-  it("step 2 badge and Change link: step 2 shows the number and no link", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("2");
-    expect(wrapper.find(".step-change").exists()).toBe(false);
-  });
-
-  it("\"Done, my browser is set up\" sets the exit mark and opens step 3", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    const done = wrapper.findAll("button").find((b) => b.text() === "Done, my browser is set up");
-    await done.trigger("click");
-    expect(localStorage.getItem(MARK)).toBe("exit");
-    expect(wrapper.find("#home-exit").exists()).toBe(true);
-    expect(wrapper.find("#field-node-name").exists()).toBe(true);
-  });
-});
-
-describe("SetupWizard > step 3, mark \"exit\"", () => {
-  it("the title \"Choose an exit\" and the exit phrase under it", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    expect(wrapper.text()).toContain("Choose an exit");
+describe("SetupWizard > exit screen", () => {
+  it("the question \"Choose an exit\" and the exit phrase under it", () => {
+    const { wrapper } = mount({ mark: "exit" });
+    expect(step(wrapper)).toBe("exit");
+    expect(wrapper.get("#wizard-q").text()).toBe("Choose an exit");
     expect(wrapper.get("#exit-explain").text()).toContain("An exit is a member whose internet");
   });
 
-  it("the PAC address line is gone — it is only in step 2", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
+  it("the address and the manual setup are not on this screen", () => {
+    const { wrapper } = mount({ mark: "exit" });
     expect(wrapper.find("#pac-row").exists()).toBe(false);
     expect(wrapper.find("#manual-toggle").exists()).toBe(false);
   });
 
-  it("\"Done\" sets the done mark", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    const done = wrapper.findAll("button").find((b) => b.text() === "Done");
-    await done.trigger("click");
-    expect(localStorage.getItem(MARK)).toBe("done");
-  });
-});
-
-describe("SetupWizard > choosing a step by clicking the title", () => {
-  it("without a network the titles of steps 2 and 3 are not clickable", () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
-    expect(wrapper.get("#wizard-step-2").attributes("disabled")).toBeDefined();
-    expect(wrapper.get("#wizard-step-3").attributes("disabled")).toBeDefined();
-  });
-
-  it("in a network: a click on step 3 and back on step 2 changes the step, doesn't touch the mark", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "browser");
-    expect(wrapper.get("#wizard-step-2").attributes("aria-current")).toBe("step");
-    await wrapper.get("#wizard-step-3").trigger("click");
-    expect(wrapper.find("#home-exit").exists()).toBe(true);
-    expect(wrapper.find("#pac-row").exists()).toBe(false);
-    expect(wrapper.get("#wizard-step-3").attributes("aria-current")).toBe("step");
-    await wrapper.get("#wizard-step-2").trigger("click");
-    expect(wrapper.find("#pac-row").exists()).toBe(true);
-    expect(wrapper.find("#home-exit").exists()).toBe(false);
-    expect(localStorage.getItem(MARK)).toBe("browser");
-  });
-
-  it("a completed setup: step 3 opens by a click, the done mark stays", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "done");
-    await wrapper.get("#wizard-step-3").trigger("click");
-    expect(wrapper.find("#home-exit").exists()).toBe(true);
-    expect(localStorage.getItem(MARK)).toBe("done");
-  });
-
-  it("after choosing step 2 \"Done, my browser is set up\" leads to step 3", async () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    await wrapper.get("#wizard-step-2").trigger("click");
-    const done = wrapper.findAll("button").find((b) => b.text() === "Done, my browser is set up");
-    await done.trigger("click");
-    expect(wrapper.find("#home-exit").exists()).toBe(true);
-    expect(localStorage.getItem(MARK)).toBe("exit");
-  });
-});
-
-describe("SetupWizard > exit step while looking for members", () => {
-  it("joined but alone: a spinner and \"Looking for other members\"; with members — the usual choice", () => {
-    const self = baseState().peers.filter((p) => p.self);
-    const alone = mountWizard(baseState({ ...WITH_PROXY, peers: self }), "exit");
-    expect(alone.wrapper.get("#exit-searching .spinner").exists()).toBe(true);
-    expect(alone.wrapper.get("#exit-searching").text()).toContain("Looking for other members");
-    alone.wrapper.unmount();
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    expect(wrapper.find("#exit-searching").exists()).toBe(false);
-    expect(wrapper.find(".exit-choice").exists()).toBe(true);
-  });
-});
-
-describe("SetupWizard > the browser version stays as it was", () => {
-  it("step 2 badge and Change link: step 3 shows a check mark and the link", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("✓");
-    expect(wrapper.get(".step-change").text()).toBe("Change");
-    expect(wrapper.get(".step-change").attributes("aria-hidden")).toBe("true");
-  });
-
-  it("step 2 badge and Change link: step 1 (no network) shows the number and no link", () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [] }));
-    expect(wrapper.get("#wizard-step-2 .step-num").text()).toBe("2");
-    expect(wrapper.find(".step-change").exists()).toBe(false);
-  });
-
-  it("the title is \"Three steps to get started\", step 2 is the browser, step 3 is \"3Choose an exit\"", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to get started");
-    expect(wrapper.get("#wizard-step-2").text()).toBe("✓Set up your browser");
-    expect(wrapper.get("#wizard-step-3").text()).toBe("3Choose an exit");
-  });
-
-  it("the name of the computer is inside step 3, there is no separate phone card and no \"Tap Connect\" row", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
+  it("the name of the computer is on the screen under \"This computer\"; no phone card, no \"Tap Connect\"", () => {
+    const { wrapper } = mount({ mark: "exit" });
+    expect(wrapper.get("#wizard-screen h4").text()).toBe("This computer");
     expect(wrapper.get(REGION).find("#field-node-name").exists()).toBe(true);
-    expect(wrapper.get("label[for=field-node-name]").text()).toBe("Name of this computer");
+    expect(wrapper.get("label[for=field-node-name]").text()).toBe("This computer's name");
     expect(wrapper.find("#home-phone-card").exists()).toBe(false);
     expect(wrapper.find("#wizard-connect-step").exists()).toBe(false);
     expect(wrapper.text()).not.toContain("Tap Connect");
   });
 
-  it("the name field has no \"Save\" button, \"Done\" is still there", () => {
-    const { wrapper } = mountWizard(baseState(WITH_PROXY), "exit");
-    const texts = wrapper.findAll("button").map((b) => b.text());
+  it("the name field has no \"Save\" button, \"Finish\" is the last one", () => {
+    const { wrapper } = mount({ mark: "exit" });
+    const texts = wrapper.get(REGION).findAll("button").map((b) => b.text());
     expect(texts).not.toContain("Save");
-    expect(texts).toContain("Done");
+    expect(texts).toContain("Finish");
+    expect(texts).not.toContain("Done");
+  });
+
+  it("joined but alone: a spinner and \"Looking for other members\"; with members — the usual choice", () => {
+    const self = baseState().peers.filter((p) => p.self);
+    const alone = mount({ mark: "exit", over: { peers: self } });
+    expect(alone.wrapper.get("#exit-searching .spinner").exists()).toBe(true);
+    expect(alone.wrapper.get("#exit-searching").text()).toContain("Looking for other members");
+    unmountWizard(alone);
+    const { wrapper } = mount({ mark: "exit" });
+    expect(wrapper.find("#exit-searching").exists()).toBe(false);
+    expect(wrapper.find(".exit-choice").exists()).toBe(true);
   });
 });
-
-function mountWizard(state, mark) {
-  if (mark) localStorage.setItem(MARK, mark);
-  return (mounted = mountSection(SetupWizard, { state }));
-}

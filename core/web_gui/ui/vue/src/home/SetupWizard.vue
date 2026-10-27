@@ -1,117 +1,82 @@
 <script setup lang="ts">
-// The "Three steps" setup (without a network or after joining/creating a network from this page): join, browser, exit.
-// The join form is driven by the setup (`useJoin`), so that the buttons "Join the network with an invite" and "Create a new network"
-// above open it.
-import { computed, inject, nextTick, ref } from "vue";
+// The step-by-step setup: a progress line, one question per screen, Back / Next. The path and the answers live in `useWizard`.
+import { computed, inject, nextTick, watch } from "vue";
+import { PAC_OS_LIST } from "./pac-setup.ts";
+import { SCOPE_BROWSER, SCOPE_SYSTEM } from "../common/pac-texts.ts";
 import { quotedNet } from "../common/words.ts";
 import { STORE_KEY } from "../core/store.ts";
-import BrowserCard from "./BrowserCard.vue";
 import { inAppPage } from "./browser-setup.ts";
-import ExitCard from "./ExitCard.vue";
 import InviteCard from "./InviteCard.vue";
-import JoinCard from "./JoinCard.vue";
 import NodeNameField from "./NodeNameField.vue";
-import StrictChoice from "./StrictChoice.vue";
-import ThisComputerCard from "./ThisComputerCard.vue";
-import type { SetupMark } from "./home-actions.ts";
-import { shownStep } from "./home-view.ts";
-import { useHomeContext } from "./use-home.ts";
-import { PROGRESS_HEAD, joinProgress } from "./join-progress.ts";
-import { useRefusalGate } from "./use-refusal-gate.ts";
-import { useJoin } from "./use-join.ts";
-import { refusedLead } from "./join-wait.ts";
 import {
-  HOME_WIZARD_BROWSER_DONE, HOME_WIZARD_CHANGE, HOME_WIZARD_CREATE_BTN, HOME_WIZARD_DONE, HOME_WIZARD_HEAD_JOIN, HOME_WIZARD_INVITE_HINT, HOME_WIZARD_JOIN_BTN,
-  HOME_WIZARD_JOINED, HOME_WIZARD_JOINED_NOT_RUNNING, HOME_WIZARD_NOT_JOINED, HOME_WIZARD_STEP_BROWSER, HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_STEP_EXIT, HOME_WIZARD_TITLE,
-  HOME_PHONE_TITLE,
+  HOME_PHONE_TITLE, HOME_PROXY_OFF, HOME_PROXY_OFF_LINK, HOME_WIZARD_DONE, HOME_WIZARD_JOINED, HOME_WIZARD_JOINED_NOT_RUNNING,
+  HOME_WIZARD_STEP_CONNECT, HOME_WIZARD_TITLE,
 } from "./home-card-texts.ts";
+import { useHomeContext } from "./use-home.ts";
+import StepChoice from "./wizard/StepChoice.vue";
+import StepExit from "./wizard/StepExit.vue";
+import StepGuide from "./wizard/StepGuide.vue";
+import StepJoin from "./wizard/StepJoin.vue";
+import { browserTiles } from "./wizard/guide-content.ts";
+import { useWizard } from "./wizard/use-wizard.ts";
+import { WIZ_BACK, WIZ_FINISH, WIZ_NEXT, WIZ_PROGRESS, WIZ_QUESTIONS, WIZ_SKIP } from "./wizard/wizard-texts.ts";
 
 const store = inject(STORE_KEY)!;
-const { wizardStepNumber: rawStep, hasNet, networkLabel, ...h } = useHomeContext(store);
-// The step chosen by clicking the title (in a network — 2 or 3); lives until "Done", doesn't write the mark.
-const picked = ref<number | null>(null);
-// In the Android app the browser needs no setup: the browser step is hidden and the exit step is numbered 2.
+const { hasNet, networkLabel } = useHomeContext(store);
+const w = useWizard(store);
 const inApp = inAppPage();
-const step = computed(() => {
-  const n = picked.value ?? shownStep(rawStep.value);
-  return inApp && n === 2 ? 3 : n;
+// A failed start: the network is saved but the node is not running, so the setup would point at nothing.
+const startFailed = computed(() => hasNet.value && !!store.state?.node?.start_error);
+const scopeOptions = [
+  { id: "system", domId: "scope-system", label: SCOPE_SYSTEM },
+  { id: "browser", domId: "scope-browser", label: SCOPE_BROWSER },
+];
+const osOptions = PAC_OS_LIST.map(([id, label]) => ({ id, domId: `os-${id}`, label }));
+const browserOptions = computed(() => browserTiles(w.os.value).map(([id, label]) => ({ id, domId: `browser-${id}`, label })));
+const question = computed(() => {
+  const s = w.step.value;
+  if (s === "guide") return w.guide.value.title;
+  return s === "join" ? "" : WIZ_QUESTIONS[s];
 });
-const pickable = (n: number): boolean => hasNet.value && step.value !== n;
-const finish = (mark: SetupMark): void => {
-  picked.value = null;
-  h.setMark(mark);
-};
-// A failed start: the network is saved but the node is not running, so the browser and exit setup would point at nothing.
-const startFailed = computed(() => !!store.state?.node?.start_error);
-const j = useJoin(store);
-// The join progress phase: searching and joining replace the buttons with a progress block; a node refusal is text above the buttons.
-const refusal = useRefusalGate(() => store.state?.node?.invite_join);
-const maskedState = computed(() => ({ ...store.state, node: { ...store.state?.node, invite_join: refusal.info.value } }) as typeof store.state);
-const progress = computed(() => joinProgress(maskedState.value, j.sent.value, store.absence ?? null));
-const lead = computed(() => refusedLead(refusal.info.value));
-const running = computed(() => (progress.value && progress.value.phase !== "refused" ? progress.value : null));
-const stepHead = computed(() => (running.value ? PROGRESS_HEAD[running.value.phase as "searching" | "entering"] : HOME_WIZARD_HEAD_JOIN));
+const nextText = computed(() => ({ next: WIZ_NEXT, finish: WIZ_FINISH, done: HOME_WIZARD_DONE, skip: "" })[w.nav.value ?? "next"]);
 
-const focusField = (id: string): void => document.getElementById(id)?.focus();
-
-async function startJoin(): Promise<void> {
-  j.openJoin();
+// Move the focus to the question after a step change (not on mount).
+watch(w.step, async () => {
   await nextTick();
-  focusField("join-key-input");
-}
-
-async function startCreate(): Promise<void> {
-  j.openCreate();
-  await nextTick();
-  focusField("create-label-input");
-}
+  document.getElementById("wizard-q")?.focus();
+});
 </script>
 
 <template>
-  <div v-if="step === 1" class="card wizard-card" id="home-start-choice" role="region" aria-labelledby="home-start-title">
-    <div v-if="running" class="join-progress" role="status" aria-live="polite">
-      <span class="spinner spinner-big" aria-hidden="true"></span>
-      <div><div class="join-progress-main" id="home-start-title">{{ running.main }}</div><div class="join-progress-sub">{{ running.sub }}</div></div>
-    </div>
-    <template v-else>
-    <h1 id="home-start-title">{{ HOME_WIZARD_NOT_JOINED }}</h1>
-    <p v-if="progress" class="field-error-text" id="join-refused" role="status" aria-live="polite"><strong v-if="lead">{{ lead }}</strong>{{ lead ? " " : "" }}{{ progress.main }}</p>
-    <p class="hint">{{ HOME_WIZARD_INVITE_HINT }}</p>
-    <div class="btn-row">
-      <button type="button" class="btn btn-primary" id="home-start-join-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'join'" @click="startJoin">{{ HOME_WIZARD_JOIN_BTN }}</button>
-      <button type="button" class="btn" id="home-start-create-btn" aria-controls="join-card" :aria-expanded="j.form.choice === 'create'" @click="startCreate">{{ HOME_WIZARD_CREATE_BTN }}</button>
-    </div>
-    <JoinCard v-if="j.form.choice" :join="j" quiet @attempt="refusal.dismiss" />
-    </template>
-  </div>
   <div class="card wizard-card" role="region" aria-labelledby="home-wizard-title">
     <h2 id="home-wizard-title">{{ HOME_WIZARD_TITLE }}</h2>
-    <div class="wizard-step" :class="{ done: hasNet && !startFailed, failed: hasNet && startFailed }">
-      <h3 v-if="hasNet && startFailed">{{ HOME_WIZARD_JOINED_NOT_RUNNING }}</h3>
-      <h3 v-else-if="hasNet">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</h3>
-      <div v-else class="step-head"><span v-if="running" class="spinner" aria-hidden="true"></span><span v-else class="step-num" aria-hidden="true">1</span><h3>{{ stepHead }}</h3></div>
-    </div>
-    <div v-if="!inApp" class="wizard-step" :class="{ pending: step < 2, done: step > 2 }">
-      <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-2" :disabled="!pickable(2)" :aria-current="step === 2 ? 'step' : undefined" @click="picked = 2"><span class="step-num" aria-hidden="true">{{ step > 2 ? "✓" : 2 }}</span>{{ HOME_WIZARD_STEP_BROWSER }}</button><span v-if="step > 2" class="step-change" aria-hidden="true">{{ HOME_WIZARD_CHANGE }}</span></h3></div>
-      <template v-if="step === 2 && !startFailed">
-        <BrowserCard bare />
-        <div class="btn-row"><button type="button" class="btn btn-primary" @click="finish('exit')">{{ HOME_WIZARD_BROWSER_DONE }}</button></div>
-        <StrictChoice />
-      </template>
-    </div>
-    <div class="wizard-step" :class="{ pending: step < 3 }">
-      <div class="step-head"><h3><button type="button" class="step-pick" id="wizard-step-3" :disabled="!pickable(3)" :aria-current="step === 3 ? 'step' : undefined" @click="picked = 3"><span class="step-num" aria-hidden="true">{{ inApp ? 2 : 3 }}</span>{{ HOME_WIZARD_STEP_EXIT }}</button></h3></div>
-      <template v-if="step === 3 && !startFailed">
-        <ExitCard bare />
-        <ThisComputerCard v-if="!inApp" bare />
-        <div v-if="inApp" class="step-head step-static" id="wizard-connect-step"><span class="step-num" aria-hidden="true">3</span>{{ HOME_WIZARD_STEP_CONNECT }}</div>
-        <div class="btn-row"><button type="button" class="btn btn-primary" @click="finish('done')">{{ HOME_WIZARD_DONE }}</button></div>
-      </template>
-    </div>
+    <div v-if="startFailed" class="wizard-step failed"><h3>{{ HOME_WIZARD_JOINED_NOT_RUNNING }}</h3></div>
+    <template v-else>
+      <p id="wizard-progress">{{ WIZ_PROGRESS(w.progress.value.n, w.progress.value.m) }}</p>
+      <p v-if="w.joined.value" id="wizard-joined">{{ HOME_WIZARD_JOINED }}{{ quotedNet(networkLabel) }}</p>
+      <div id="wizard-screen" :data-step="w.step.value">
+        <h3 v-if="w.step.value !== 'join'" id="wizard-q" tabindex="-1">{{ question }}</h3>
+        <StepJoin v-if="w.step.value === 'join'" />
+        <template v-else-if="w.step.value === 'scope'">
+          <p v-if="!w.ctx.value.proxyOn" id="proxy-hint">{{ HOME_PROXY_OFF }} <a href="#settings">{{ HOME_PROXY_OFF_LINK }}</a></p>
+          <StepChoice v-else group-id="scope-seg" :options="scopeOptions" :picked="w.scope.value" @pick="(id) => w.pickScope(id as 'system' | 'browser')" />
+        </template>
+        <StepChoice v-else-if="w.step.value === 'os'" group-id="os-seg" :options="osOptions" :picked="w.os.value" @pick="(id) => w.pickOs(id as typeof w.os.value)" />
+        <StepChoice v-else-if="w.step.value === 'browser'" group-id="browser-seg" :options="browserOptions" :picked="w.browser.value" @pick="(id) => w.pickBrowser(id as typeof w.browser.value)" />
+        <StepGuide v-else-if="w.step.value === 'guide'" :guide="w.guide.value" @to-system="w.toSystem" />
+        <StepExit v-else-if="w.step.value === 'exit'" :in-app="inApp" />
+        <p v-else-if="w.step.value === 'connect'" id="wizard-connect-step">{{ HOME_WIZARD_STEP_CONNECT }}</p>
+      </div>
+      <div v-if="w.step.value !== 'join'" class="wizard-nav">
+        <button v-if="w.back.value" type="button" class="link-more" id="wizard-back" @click="w.goBack">{{ WIZ_BACK }}</button>
+        <button v-if="w.nav.value === 'skip'" type="button" class="link-more" id="wizard-skip" @click="w.skip">{{ WIZ_SKIP }}</button>
+        <button v-else-if="w.nav.value" type="button" class="btn btn-primary" id="wizard-next" @click="w.nav.value === 'next' ? w.goNext() : w.finish()">{{ nextText }}</button>
+      </div>
+    </template>
   </div>
-  <div v-if="inApp && step > 1" class="card" id="home-phone-card" role="region" aria-labelledby="home-phone-title">
+  <div v-if="inApp && hasNet" class="card" id="home-phone-card" role="region" aria-labelledby="home-phone-title">
     <h2 id="home-phone-title">{{ HOME_PHONE_TITLE }}</h2>
     <NodeNameField with-save />
   </div>
-  <InviteCard v-if="step > 1" />
+  <InviteCard v-if="hasNet" quiet />
 </template>

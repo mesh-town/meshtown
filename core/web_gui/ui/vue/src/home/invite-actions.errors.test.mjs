@@ -17,7 +17,7 @@ async function failWith(fail, response) {
 
 const CASES = [
   ["409 busy keeps the \"isn't ready yet\" text", new ApiError(409, "busy", "busy"), /^The invite isn't ready yet/],
-  ["409 not_admin names the administrator", new ApiError(409, "not_admin", "x"), /^Only an administrator of this network can create invitations\.$/],
+  ["409 not_admin names the administrator", new ApiError(409, "not_admin", "x"), /^Only a network administrator can create invitations\.$/],
   ["409 not_in_network says the device left", new ApiError(409, "not_in_network", "x"), /^This device is no longer in this network, so it can't create invitations\.$/],
   ["422 invalid asks for a shorter name", new ApiError(422, "invalid", "x"), /^The name for this invitation is too long or has unsupported characters\. Use a shorter plain name\.$/],
   ["no reply (network) says Mesh Town is unreachable", new ApiError(0, "network", "Failed to fetch"), /^Couldn't reach Mesh Town on this device\. Check that it is running, then try again\.$/],

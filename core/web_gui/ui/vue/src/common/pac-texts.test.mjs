@@ -7,10 +7,11 @@ import assert from "node:assert/strict";
 import { NET_NAME } from "./words.ts";
 import * as texts from "./pac-texts.ts";
 import {
+  ANDROID_INTRO, ANDROID_STEPS, IOS_NO_APP,
   CONFIRM_STOP_TEXT, HOST_COPY_ARIA, LINUX_SMALL, LINUX_STEPS, MAC_SMALL, MAC_STEPS, MANUAL_BROWSER_HINT, MANUAL_BROWSER_HINT_NO_SAFARI, MANUAL_INTRO_BASE,
   MANUAL_TAIL_LINUX, MANUAL_TAIL_MAC, MANUAL_TAIL_WINDOWS, MANUAL_TOGGLE, MANUAL_TOGGLE_OPEN, OS_LABEL, WIZARD_AGAIN,
-  PAC_ADDR_LABEL, PAC_COPY_ARIA, PAC_COPY_FALLBACK, PAC_INTRO, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, PHONE_SOON, STOPPED_NOTE,
-  WINDOWS_SOON,
+  PAC_ADDR_LABEL, PAC_COPY_ARIA, PAC_COPY_FALLBACK, PAC_INTRO, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, STOPPED_NOTE,
+  WINDOWS_SMALL, WINDOWS_STEPS,
 } from "./pac-texts.ts";
 
 describe("card header", () => {
@@ -28,7 +29,7 @@ describe("card header", () => {
 
 describe("auto-config address", () => {
   it("PAC_ADDR_LABEL — label before the address", () => {
-    assert.equal(PAC_ADDR_LABEL, "Auto-config address (PAC):");
+    assert.equal(PAC_ADDR_LABEL, "Setup address (PAC):");
   });
 
   it("PAC_WHY — why the address is needed", () => {
@@ -50,15 +51,51 @@ describe("system choice", () => {
     assert.equal(OS_LABEL, "Your system:");
   });
 
-  it("WINDOWS_SOON — no Windows steps yet, points to manual setup", () => {
+  it("the old placeholders for Windows and phones are no longer among the exports", () => {
+    assert.ok(!("WINDOWS_SOON" in texts), "Windows has real steps now");
+    assert.ok(!("PHONE_SOON" in texts), "the phone is split into Android and iOS");
+  });
+});
+
+describe("Windows steps", () => {
+  it("WINDOWS_STEPS — four steps verbatim (the copy-address step is drawn by the wizard)", () => {
+    assert.deepEqual(WINDOWS_STEPS, [
+      "Open \"Settings\" → \"Network & internet\" → \"Proxy\".",
+      "Next to \"Use setup script\", click \"Set up\".",
+      "Turn on \"Use setup script\", paste the address into \"Script address\" and click \"Save\".",
+      "If \"Use a proxy server\" under \"Manual proxy setup\" is on (for example, from earlier " + NET_NAME + " instructions), turn it off.",
+    ]);
+  });
+
+  it("WINDOWS_SMALL — one small line for Windows 10", () => {
+    assert.deepEqual(WINDOWS_SMALL, [
+      "On Windows 10: \"Settings\" → \"Network & Internet\" → \"Proxy\" — turn on \"Use setup script\", paste the address into \"Script address\" and click \"Save\".",
+    ]);
+  });
+});
+
+describe("phone texts", () => {
+  it("ANDROID_INTRO — on Android the phone joins by itself", () => {
     assert.equal(
-      WINDOWS_SOON,
-      "We are still checking the steps for Windows — for now use \"Not working? Set up manually\" below.",
+      ANDROID_INTRO,
+      `On Android, ${NET_NAME} is an app — the phone joins the network by itself and doesn't need this computer.`,
     );
   });
 
-  it("PHONE_SOON — iPhone and Android coming soon", () => {
-    assert.equal(PHONE_SOON, "iPhone and Android are coming soon. For now, connect the browser on your computer.");
+  it("ANDROID_STEPS — four steps after the app download line, verbatim", () => {
+    assert.deepEqual(ANDROID_STEPS, [
+      "Open the downloaded file. If Android asks, allow installing apps from your browser.",
+      "On this computer, create an invite for the phone: \"Network invite\" below → \"Invite a member\". Send it to the phone — each invite works once.",
+      "In the app, tap \"Join with an invite\" and paste the invite.",
+      "Choose an exit and tap \"Connect\" at the bottom of the screen.",
+    ]);
+  });
+
+  it("IOS_NO_APP — honest line, no steps through the computer", () => {
+    assert.equal(
+      IOS_NO_APP,
+      `There is no ${NET_NAME} app for iPhone and iPad yet. For now, use ${NET_NAME} on a computer or an Android phone.`,
+    );
   });
 });
 
@@ -90,10 +127,10 @@ describe("manual setup", () => {
   });
 
   describe("manual block intro — common part and a per-system tail", () => {
-    it("MANUAL_INTRO_BASE — for programs without auto-config: SOCKS5, address and port", () => {
+    it("MANUAL_INTRO_BASE — for programs without the setup address: server, port, SOCKS5", () => {
       assert.equal(
         MANUAL_INTRO_BASE,
-        "For programs that don't support automatic setup, enter the proxy by hand — type SOCKS5, with the address and port below.",
+        "Some programs can't use the setup address. Enter the server and port by hand, proxy type \"SOCKS5\". First turn off the setup address if you entered it above.",
       );
     });
 
@@ -164,14 +201,13 @@ describe("stopping the node", () => {
 
 describe("proxy scope choice", () => {
   it("the question and the two answers", () => {
-    assert.equal(texts.SCOPE_QUESTION, "Where should the proxy work?");
-    assert.equal(texts.SCOPE_SYSTEM, "In the whole system");
-    assert.equal(texts.SCOPE_BROWSER, "Only in the browser");
+    assert.equal(texts.SCOPE_QUESTION, `Where should ${NET_NAME} open sites?`);
+    assert.equal(texts.SCOPE_SYSTEM, "All apps on this computer (recommended)");
+    assert.equal(texts.SCOPE_BROWSER, "Only in one browser");
   });
 
-  it("FIREFOX_STEPS — copy, Settings, Network Settings, the automatic URL, OK", () => {
+  it("FIREFOX_STEPS — Settings, Network Settings, the automatic URL, OK; no copy step", () => {
     assert.deepEqual(texts.FIREFOX_STEPS, [
-      "Click \"Copy address\" above.",
       "In Firefox open \"Settings\" → \"General\" and scroll down to \"Network Settings\".",
       "Click \"Settings…\".",
       "Choose \"Automatic proxy configuration URL\" and paste the address into the field below it.",
@@ -185,9 +221,8 @@ describe("proxy scope choice", () => {
 });
 
 describe("macOS steps", () => {
-  it("MAC_STEPS — six steps verbatim (OK in Latin letters, as in the system)", () => {
+  it("MAC_STEPS — five steps verbatim, no copy step (OK in Latin letters, as in the system)", () => {
     assert.deepEqual(MAC_STEPS, [
-      "Click \"Copy address\" above.",
       "Open \"System Settings\" → \"Network\" and choose your connection (Wi‑Fi or Ethernet).",
       "Click \"Details…\" and open \"Proxies\".",
       `If \"SOCKS proxy\" is on (for example, from earlier ${NET_NAME} instructions), turn it off.`,
@@ -205,18 +240,17 @@ describe("macOS steps", () => {
 });
 
 describe("Linux steps", () => {
-  it("LINUX_STEPS — four steps, steps 1–3 as for GNOME 45 and newer", () => {
-    assert.equal(LINUX_STEPS.length, 4, "same number of steps as before");
-    assert.deepEqual(LINUX_STEPS.slice(0, 3), [
-      "Click \"Copy address\" above.",
+  it("LINUX_STEPS — three steps, no copy step, steps 1–2 as for GNOME 45 and newer", () => {
+    assert.equal(LINUX_STEPS.length, 3, "one less than before: the copy step moved out of the list");
+    assert.deepEqual(LINUX_STEPS.slice(0, 2), [
       "Open \"Settings\" → \"Network\" → \"Proxy\".",
       "Turn on \"Network Proxy\", choose \"Automatic\" in the \"Configuration\" list and paste the address into the \"Configuration URL\" field.",
     ]);
   });
 
-  it("LINUX_STEPS[3] — \"Save\" in the window header and a caveat: GNOME 44 has no such button", () => {
+  it("LINUX_STEPS[2] — \"Save\" in the window header and a caveat: GNOME 44 has no such button", () => {
     assert.equal(
-      LINUX_STEPS[3],
+      LINUX_STEPS[2],
       "Click \"Save\" in the window header. GNOME 44 has no such button — the address is applied immediately.",
     );
   });
@@ -257,10 +291,16 @@ describe("non-breaking hyphen in \"Wi\u2011Fi\"", () => {
 });
 
 describe("type of the step constants", () => {
-  it("all four arrays are non-empty arrays of strings", () => {
-    for (const list of [MAC_STEPS, MAC_SMALL, LINUX_STEPS, LINUX_SMALL]) {
+  it("all step arrays are non-empty arrays of strings", () => {
+    for (const list of [MAC_STEPS, MAC_SMALL, LINUX_STEPS, LINUX_SMALL, WINDOWS_STEPS, ANDROID_STEPS, texts.FIREFOX_STEPS]) {
       assert.ok(Array.isArray(list) && list.length > 0, "an array of strings");
       assert.ok(list.every((s) => typeof s === "string" && s.length > 0), "every string is non-empty");
+    }
+  });
+
+  it("no OS step list starts with the copy-address step (the card draws its own address row)", () => {
+    for (const list of [MAC_STEPS, LINUX_STEPS, texts.FIREFOX_STEPS, WINDOWS_STEPS, ANDROID_STEPS]) {
+      assert.ok(!list[0].includes("Copy address"), "first step: " + list[0]);
     }
   });
 });

@@ -9,6 +9,7 @@ import { createStore, STORE_KEY } from "../core/store.ts";
 import { applySnapshot } from "../testing/snapshot.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
 import BrowserCard from "./BrowserCard.vue";
+import { TERM_TIPS } from "./wizard/term-hints.ts";
 
 const LISTEN = "127.0.0.1:1080";
 const PAC_URL = "http://127.0.0.1:1081/proxy.pac"; // the port is deliberately not the listen one: the address is taken from the field, not assembled
@@ -38,9 +39,20 @@ describe("BrowserCard", () => {
     describe("auto-config address", () => {
       it("is taken from socks.pac_url and sits in a row with a label and the \"Copy address\" button", () => {
         const row = mountBrowser().wrapper.get("#pac-row");
-        expect(row.text()).toContain(PAC_ADDR_LABEL);
+        expect(textWithoutTips(row)).toContain(PAC_ADDR_LABEL);
         expect(row.get("#pac-url-text").text()).toBe(PAC_URL);
         expect(row.get("#pac-copy-btn").text()).toBe("Copy address");
+      });
+
+      it("the label names the term PAC: a focusable word with a tooltip that explains it", () => {
+        const row = mountBrowser().wrapper.get("#pac-row");
+        const term = row.get("span.term");
+        expect(term.text().startsWith("PAC"), "the term is the word PAC").toBe(true);
+        expect(term.attributes("tabindex")).toBe("0");
+        const tip = term.get('[role="tooltip"]');
+        expect(tip.text()).toBe(TERM_TIPS.PAC);
+        expect(term.attributes("aria-describedby")).toBe(tip.attributes("id"));
+        expect(textWithoutTips(row)).toContain(PAC_ADDR_LABEL);
       });
 
       it("no pac_url field in the snapshot — http://<listen>/proxy.pac", () => {
@@ -108,7 +120,7 @@ describe("BrowserCard", () => {
         expect(toggle.text()).toBe(MANUAL_TOGGLE_OPEN);
         const setup = wrapper.get("#proxy-setup");
         // in happy-dom the system is detected as Linux (userAgent without "Macintosh", "Windows" and "Android")
-        expect(setup.get("#proxy-manual-intro").text()).toBe(MANUAL_INTRO_BASE + " " + MANUAL_TAIL_LINUX);
+        expect(introText(setup)).toBe(MANUAL_INTRO_BASE + " " + MANUAL_TAIL_LINUX);
         expect(setup.find("#browser-seg").exists()).toBe(true);
         expect(setup.find("#proxy-steps").exists()).toBe(true);
         expect(setup.get("#proxy-browser-hint").text()).toBe(MANUAL_BROWSER_HINT_NO_SAFARI); // there is no Safari button on Linux
@@ -161,23 +173,6 @@ describe("BrowserCard", () => {
     });
   });
 
-  describe("bare (setup step 2)", () => {
-    it("without a header, a card frame and \"Go through the steps in the setup\"", () => {
-      const { wrapper } = mountBrowser(baseState(PROXY_ON), { bare: true });
-      expect(wrapper.find("#home-proxy-title").exists()).toBe(false);
-      expect(wrapper.find("h2").exists()).toBe(false);
-      expect(wrapper.get("#home-proxy").classes()).not.toContain("card");
-      expect(wrapper.text()).not.toContain(WIZARD_AGAIN);
-    });
-
-    it("the PAC address and the manual setup button are in place, the manual block is collapsed", () => {
-      const { wrapper } = mountBrowser(baseState(PROXY_ON), { bare: true });
-      expect(wrapper.get("#pac-row").text()).toContain(PAC_URL);
-      expect(wrapper.get("#manual-toggle").attributes("aria-expanded")).toBe("false");
-      expect(wrapper.find("#proxy-setup").exists()).toBe(false);
-    });
-  });
-
   describe("proxy off", () => {
     it("a line \"The browser proxy is off\" with a link to \"Settings\", the header is unchanged", () => {
       const { wrapper } = mountBrowser(baseState({ socks: { enabled: false, listen: null } }));
@@ -211,4 +206,18 @@ function mountBrowser(state = baseState(PROXY_ON), props = {}, config = baseConf
   applySnapshot(store, { state, config, configRev: 1 });
   const wrapper = mount(BrowserCard, { props, attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
   return (mounted = { wrapper, store });
+}
+
+// The visible text of an element without the tooltip texts of its terms.
+function textWithoutTips(wrapper) {
+  const copy = wrapper.element.cloneNode(true);
+  copy.querySelectorAll('[role="tooltip"]').forEach((tip) => tip.remove());
+  return copy.textContent.replace(/\s+/g, " ").trim();
+}
+
+// The intro text without the tooltip texts of its terms.
+function introText(scope) {
+  const copy = scope.get("#proxy-manual-intro").element.cloneNode(true);
+  copy.querySelectorAll('[role="tooltip"]').forEach((tip) => tip.remove());
+  return copy.textContent.trim();
 }

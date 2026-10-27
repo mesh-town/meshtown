@@ -15,7 +15,7 @@ export class HomeSection {
   readonly statePanel: Locator;
   /** The main text of the status panel — where sites go right now. */
   readonly routeState: Locator;
-  /** The "Three steps…" setup (without a network and after joining, until the steps are done). */
+  /** The "Set up Mesh Town" setup (without a network and after joining, until it is finished); its screens are `HomeWizard`. */
   readonly wizard: Locator;
   readonly tabList: Locator;
   readonly tabItems: Locator;
@@ -28,7 +28,7 @@ export class HomeSection {
     this.statePanel = this.root.getByRole('region', { name: 'How sites open right now' });
     // the panel's main text is the only place with an id: it has neither a role nor a label
     this.routeState = this.statePanel.locator('#route-state');
-    this.wizard = this.root.getByRole('region', { name: /^Three steps/ });
+    this.wizard = this.root.getByRole('region', { name: 'Set up Mesh Town', exact: true });
     this.tabList = page.locator('nav#tabs');
     this.tabItems = this.tabList.getByRole('tab');
   }

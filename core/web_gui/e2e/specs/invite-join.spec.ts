@@ -253,7 +253,8 @@ test.describe('the setup wizard (demo --no-network)', () => {
     });
 
     await test.step('the wizard says the computer joined, and the node reports a network', async () => {
-      await expect(app.homePanel.wizard).toContainText('✓ You joined the network');
+      await expect(app.wizard.joined).toContainText('✓ You joined the network');
+      await expect(app.wizard.progress).toHaveText(/^Step 2 of \d$/);
       await expect.poll(async () => (await api.getJson<{ network?: unknown }>('/api/state')).body?.network).toBeTruthy();
     });
 
@@ -349,7 +350,7 @@ test.describe('an invite in the address, no network yet (demo --no-network)', ()
     await expect(form.input).toHaveValue(invite);
     await expect(form.kindPreview).toBeVisible();
     await form.submit();
-    await expect(app.homePanel.wizard).toContainText('✓ You joined the network');
+    await expect(app.wizard.joined).toContainText('✓ You joined the network');
   });
 });
 

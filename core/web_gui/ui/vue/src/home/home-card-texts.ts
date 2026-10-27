@@ -62,8 +62,8 @@ export const HOME_CREATE_BUSY = "Creating…";
 export const HOME_CREATE_BTN = "Create network";
 
 // NodeNameField
-export const HOME_NAME_LABEL = "Name of this computer";
-export const HOME_NAME_LABEL_PHONE = "Name of this phone";
+export const HOME_NAME_LABEL = "This computer's name";
+export const HOME_NAME_LABEL_PHONE = "This phone's name";
 export const HOME_NAME_PLACEHOLDER = "for example, Home laptop";
 export const HOME_NAME_HINT = "Others see you by this name; leave it empty for a random one.";
 
@@ -73,15 +73,12 @@ export const HOME_WIZARD_NOT_JOINED = "You haven't joined a " + NET_NAME + " net
 export const HOME_WIZARD_INVITE_HINT = "Got an invite? Join that network. No invite? Create your own network and invite people you trust.";
 export const HOME_WIZARD_JOIN_BTN = "Join with an invite";
 export const HOME_WIZARD_CREATE_BTN = "Create a new network";
-export const HOME_WIZARD_TITLE = "Three steps to get started";
+export const HOME_WIZARD_TITLE = "Set up " + NET_NAME;
 export const HOME_WIZARD_JOINED = "✓ You joined the network";
 export const HOME_WIZARD_JOINED_NOT_RUNNING = "The network is saved, but " + NET_NAME + " isn't running yet";
-export const HOME_WIZARD_STEP_BROWSER = "Set up your browser";
-export const HOME_WIZARD_BROWSER_DONE = "Done, my browser is set up";
 export const HOME_WIZARD_STEP_EXIT = "Choose an exit";
 export const HOME_WIZARD_DONE = "Done";
 export const HOME_WIZARD_STEP_CONNECT = "Tap Connect at the bottom of the screen";
-export const HOME_WIZARD_CHANGE = "Change";
 export const HOME_WIZARD_MORE = "More options";
 export const HOME_WIZARD_STRICT_Q = "If " + NET_NAME + " isn't running:";
 export const HOME_WIZARD_STRICT_OFF = "Open sites directly (recommended)";

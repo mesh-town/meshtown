@@ -72,7 +72,7 @@ describe("the \"Connect the browser to Mesh Town\" card in #home-proxy", () => {
     expect(card.get("#pac-url-text").text()).toBe(PAC_ADDRESS);
     expect(card.findAll("#pac-copy-btn")).toHaveLength(1);
     const systems = card.get('[role="group"]#os-seg').findAll("button");
-    expect(systems).toHaveLength(4);
+    expect(systems, "Windows, macOS, Linux, Android, iOS").toHaveLength(5);
     expect(systems.filter((b) => b.attributes("aria-pressed") === "true")).toHaveLength(1);
     expect(card.find("#proxy-setup").exists(), "the manual block is collapsed").toBe(false);
     expect(card.text()).not.toContain("How to set up");

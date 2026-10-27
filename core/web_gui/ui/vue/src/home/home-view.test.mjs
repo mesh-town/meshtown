@@ -5,7 +5,7 @@ import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import { NET_NAME } from "../common/words.ts";
 import {
-  activeTabOf, cardOrder, configFieldAccess, HOME_ORDER, homeMode, joinPlace, nodeNameFieldValue, ORDERS, shownStep, statePanel, wizardStep,
+  activeTabOf, cardOrder, configFieldAccess, HOME_ORDER, homeMode, joinPlace, nodeNameFieldValue, ORDERS, statePanel, wizardStep,
 } from "./home-view.ts";
 
 describe("homeMode and wizardStep", () => {
@@ -306,7 +306,7 @@ describe("configFieldAccess", () => {
   });
 });
 
-describe("activeTabOf and shownStep", () => {
+describe("activeTabOf", () => {
   it("without an explicit choice the tab follows the mode", () => {
     assert.equal(activeTabOf(null, "wizard"), "wizard");
     assert.equal(activeTabOf(null, "normal"), "main");
@@ -315,11 +315,5 @@ describe("activeTabOf and shownStep", () => {
   it("an explicit choice wins over the mode", () => {
     assert.equal(activeTabOf("main", "wizard"), "main");
     assert.equal(activeTabOf("wizard", "normal"), "wizard");
-  });
-
-  it("a completed setup is shown from step 2, the other steps as they are", () => {
-    assert.equal(shownStep(0), 2);
-    assert.equal(shownStep(1), 1);
-    assert.equal(shownStep(3), 3);
   });
 });

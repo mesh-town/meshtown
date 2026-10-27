@@ -10,7 +10,7 @@ import { NETS_TEXT, NetsBlock, type Rgba } from '../pages/home/nets-block';
 const NARROW = { width: 390, height: 844 };
 const ROUTER_PAC = 'http://192.168.88.1:1080/proxy.pac';
 
-test('77-nets-router-wizard: a router with two networks — setup step 2: the PAC address of the home network, the summary "The proxy is open for: Home network. The ISP network is closed automatically.", "Edit" expands the list, ticking the ISP network gives a yellow warning, the "you are here now" network cannot be unticked, no horizontal scroll at 390', async ({
+test('77-nets-router-wizard: a router with two networks — the Overview card and the setup instruction show the PAC address of the home network, the summary "The proxy is open for: Home network. The ISP network is closed automatically.", "Edit" expands the list, ticking the ISP network gives a yellow warning, the "you are here now" network cannot be unticked, no horizontal scroll at 390', async ({
   page,
   target,
   app,
@@ -18,19 +18,25 @@ test('77-nets-router-wizard: a router with two networks — setup step 2: the PA
 }) => {
   test.skip(targetKind === 'node', 'the state mock turns the demo into a router; a real node does not pretend to be a router');
   const nets = new NetsBlock(page);
-  const wizard = app.homePanel.wizard;
+  const wizard = app.wizard;
   const { homeNet, providerNet } = NETS_TEXT;
 
-  await test.step('given: the page sees a router with networks br-lan (open) and eth0 (ISP network, closed automatically); setup step 2 is open', async () => {
+  await test.step('given: the page sees a router with networks br-lan (open) and eth0 (ISP network, closed automatically); the Overview tab is open', async () => {
     await pretendState(page, routerState);
     await app.open(target.origin, target.token);
-    await nets.openWizard();
-    await expect(wizard.getByRole('heading', { name: /Set up your browser/ })).toBeVisible();
+    await wizard.openOverview();
   });
 
-  await test.step('setup step 2 shows the PAC address of the home network (not 127.0.0.1) and the paragraph "…of a phone or computer connected to the router"', async () => {
+  await test.step('the Overview card shows the PAC address of the home network (not 127.0.0.1) and the paragraph "…of a phone or computer connected to the router"', async () => {
     await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
     await expect.soft(app.proxyCard.hint).toHaveText(NETS_TEXT.pacIntroRouter);
+  });
+
+  await test.step('the setup instruction shows the same address; the intro paragraph stays on Overview', async () => {
+    await wizard.open();
+    await wizard.toGuide('system', 'linux', 'firefox');
+    await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
+    await expect.soft(app.proxyCard.hint).toHaveCount(0);
   });
 
   await test.step('the summary "The proxy is open for: Home network. The ISP network is closed automatically." with an "Edit" button; the list is collapsed', async () => {
@@ -86,7 +92,7 @@ test('77-nets-router-wizard: a router with two networks — setup step 2: the PA
   });
 });
 
-test('78-nets-laptop-quiet: a laptop with one network — step 2 has no networks summary, the "Which local networks can connect" block is neither on Home nor in "Settings"', async ({
+test('78-nets-laptop-quiet: a laptop with one network — the setup instruction has no networks summary, the "Which local networks can connect" block is neither on Home nor in "Settings"', async ({
   page,
   target,
   app,
@@ -101,16 +107,17 @@ test('78-nets-laptop-quiet: a laptop with one network — step 2 has no networks
     await app.open(target.origin, target.token);
   });
 
-  await test.step('"Home → Overview": the browser card is in place, no networks block', async () => {
+  await test.step('"Home → Overview": the browser card is in place with the old paragraph and the address (127.0.0.1), no networks block', async () => {
     await expect.soft(app.proxyCard.card).toBeVisible();
+    await expect.soft(app.proxyCard.hint).toHaveText(NETS_TEXT.pacIntroLaptop);
+    await expect.soft(app.proxyCard.addressText).toHaveText(/^http:\/\/127\.0\.0\.1:\d+\/proxy\.pac$/);
     await expect.soft(nets.block).toHaveCount(0);
     await expect.soft(nets.title).toHaveCount(0);
   });
 
-  await test.step('setup step 2: the paragraph and the address are the old ones (127.0.0.1), no summary and no "Edit"', async () => {
-    await nets.openWizard();
-    await expect(app.homePanel.wizard.getByRole('heading', { name: /Set up your browser/ })).toBeVisible();
-    await expect.soft(app.proxyCard.hint).toHaveText(NETS_TEXT.pacIntroLaptop);
+  await test.step('the setup instruction: the address is the old one (127.0.0.1), no summary and no "Edit"', async () => {
+    await app.wizard.open();
+    await app.wizard.toGuide('system', 'linux', 'firefox');
     await expect.soft(app.proxyCard.addressText).toHaveText(/^http:\/\/127\.0\.0\.1:\d+\/proxy\.pac$/);
     await expect.soft(nets.summary).toHaveCount(0);
     await expect.soft(nets.editButton).toHaveCount(0);

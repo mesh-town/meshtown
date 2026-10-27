@@ -1,110 +1,125 @@
-/* The "Three steps" setup and the main tab inside the Android app (user agent with `MeshTownApp/`): no browser setup,
- * the third step is a hint about the Connect button, the phone name lives in its own card under the setup. */
+/* The setup wizard and the main tab inside the Android app (user agent with `MeshTownApp/`): no browser setup, the path is
+ * join, exit, connect; the last screen is a hint about the Connect button, the phone name lives in its own card under the setup. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
 import { apiTable, baseConfig, baseState, mountSection } from "../testing/section.mjs";
+import { APP_UA, MARK_KEY, click, mountWizard, progress, step, unmountWizard } from "../testing/wizard.mjs";
 import HomeSection from "./HomeSection.vue";
-import SetupWizard from "./SetupWizard.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
-const MARK = "meshtown.homeSetup";
 const WIZARD = '[role="region"][aria-labelledby="home-wizard-title"]';
-const FAMILY = { id_hex: "net-aaaa", label: "family" };
 let mounted;
-const setUa = (ua) => Object.defineProperty(navigator, "userAgent", { value: ua, configurable: true });
 
 beforeEach(() => {
-  localStorage.clear();
-  setUa("Mozilla/5.0 (Linux; Android 14) Chrome/120 Mobile MeshTownApp/Android");
+  api.mockReset();
 });
-afterEach(() => {
-  mounted.wrapper.unmount();
-  Reflect.deleteProperty(navigator, "userAgent");
-});
+afterEach(() => unmountWizard(mounted));
 
 describe("inside the Android app", () => {
-  describe("the setup card", () => {
-    it("the title is \"Three steps to get started\"", () => {
-      const { wrapper } = mountWizard();
-      expect(wrapper.get("#home-wizard-title").text()).toBe("Three steps to get started");
+  describe("the setup", () => {
+    it("the title is \"Set up Mesh Town\"", () => {
+      const { wrapper } = mountApp();
+      expect(wrapper.get("#home-wizard-title").text()).toBe("Set up Mesh Town");
     });
 
-    it("step 1 says the network is joined, with its name", () => {
-      const { wrapper } = mountWizard();
-      expect(wrapper.get(WIZARD).text()).toContain("✓ You joined the network \"family\"");
+    it("the first screen says the network is joined, with its name", () => {
+      const { wrapper } = mountApp();
+      expect(wrapper.get("#wizard-joined").text()).toBe("✓ You joined the network \"family\"");
     });
 
-    it("step 2 is \"Choose an exit\" with the exit list, and there is no browser step", () => {
-      const { wrapper } = mountWizard();
-      expect(wrapper.find("#wizard-step-2").exists()).toBe(false);
-      expect(wrapper.get("#wizard-step-3").text()).toBe("2Choose an exit");
+    it("app path is join, exit, connect with Done", async () => {
+      const { wrapper } = mountApp();
+      expect([step(wrapper), progress(wrapper)]).toEqual(["exit", "Step 2 of 3"]);
+      expect(wrapper.get("#wizard-next").text()).toBe("Next");
+      await click(wrapper, "#wizard-next");
+      expect([step(wrapper), progress(wrapper)]).toEqual(["connect", "Step 3 of 3"]);
+      expect(wrapper.get("#wizard-next").text()).toBe("Done");
+    });
+
+    it("the exit screen is \"Choose an exit\" with the exit list, and there is no browser setup", () => {
+      const { wrapper } = mountApp();
+      expect(wrapper.get("#wizard-q").text()).toBe("Choose an exit");
       expect(wrapper.get("#exit-explain").text()).toContain("An exit is a member whose internet");
       expect(wrapper.text()).not.toContain("Set up your browser");
       expect(wrapper.find("#pac-row").exists()).toBe(false);
+      expect(wrapper.find("#scope-seg").exists()).toBe(false);
     });
 
-    it("step 2 has no name field: the name is in its own card", () => {
-      const { wrapper } = mountWizard();
+    it("the exit screen has no \"This computer\" block and no name field: the name is in its own card", () => {
+      const { wrapper } = mountApp();
       expect(wrapper.get(WIZARD).find("#field-node-name").exists()).toBe(false);
       expect(wrapper.get(WIZARD).text()).not.toContain("Name of this");
+      expect(wrapper.get(WIZARD).text()).not.toContain("This computer");
     });
 
-    it("the wizard has no exit server switch", async () => {
-      const { wrapper } = mountWizard();
-      await wrapper.get("#wizard-step-3").trigger("click");
+    it("the wizard has no exit server switch", () => {
+      const { wrapper } = mountApp();
       expect(wrapper.find("#field-exit-enabled").exists()).toBe(false);
+    });
+
+    it("there is no way back from the first screen in a network", () => {
+      const { wrapper } = mountApp();
+      expect(wrapper.find("#wizard-back").exists()).toBe(false);
     });
   });
 
-  describe("step 3: Tap Connect", () => {
-    it("is a row numbered 3 with the words \"Tap Connect at the bottom of the screen\"", () => {
-      const { wrapper } = mountWizard();
-      const row = wrapper.get("#wizard-connect-step");
-      expect(row.text()).toBe("3Tap Connect at the bottom of the screen");
-      expect(row.get(".step-num").text()).toBe("3");
+  describe("the Tap Connect screen", () => {
+    it("says \"Tap Connect at the bottom of the screen\"", async () => {
+      const { wrapper } = await mountConnect();
+      expect(wrapper.get("#wizard-connect-step").text()).toBe("Tap Connect at the bottom of the screen");
     });
 
-    it("has no check mark and no button: it only tells where to tap", () => {
-      const { wrapper } = mountWizard();
+    it("has no check mark and no button of its own: it only tells where to tap", async () => {
+      const { wrapper } = await mountConnect();
       const row = wrapper.get("#wizard-connect-step");
       expect(row.text()).not.toContain("✓");
-      expect(row.element.tagName, "the row itself is not a button").not.toBe("BUTTON");
+      expect(row.element.tagName, "the line itself is not a button").not.toBe("BUTTON");
       expect(row.find("button").exists()).toBe(false);
     });
 
-    it("a click on the row changes nothing: the exit step stays open, the mark is not written", async () => {
-      const { wrapper } = mountWizard();
-      await wrapper.get("#wizard-connect-step").trigger("click");
-      expect(wrapper.find("#home-exit").exists()).toBe(true);
-      expect(localStorage.getItem(MARK)).toBeNull();
+    it("a click on the line changes nothing: the screen stays, the mark is not written", async () => {
+      const { wrapper } = await mountConnect();
+      await click(wrapper, "#wizard-connect-step");
+      expect(step(wrapper)).toBe("connect");
+      expect(localStorage.getItem(MARK_KEY)).toBeNull();
     });
 
-    it("\"Done\" stays under step 3: without it the setup never finishes in the app", async () => {
-      // The setup ends only by the mark written from "Done"; nothing else writes it, so the button is kept.
-      const { wrapper } = mountWizard();
-      const done = wrapper.findAll("button").filter((b) => b.text() === "Done");
+    it("Back returns to the exit screen", async () => {
+      const { wrapper } = await mountConnect();
+      await click(wrapper, "#wizard-back");
+      expect(step(wrapper)).toBe("exit");
+    });
+
+    it("\"Done\" is the only way to finish in the app and writes the done mark", async () => {
+      const { wrapper } = await mountConnect();
+      const done = wrapper.get(WIZARD).findAll("button").filter((b) => b.text() === "Done");
       expect(done).toHaveLength(1);
       await done[0].trigger("click");
-      expect(localStorage.getItem(MARK)).toBe("done");
+      expect(localStorage.getItem(MARK_KEY)).toBe("done");
     });
   });
 
   describe("the phone card under the setup", () => {
     it("is a separate card outside the setup card, titled \"This phone\"", () => {
-      const { wrapper } = mountWizard();
+      const { wrapper } = mountApp();
       const card = wrapper.get("#home-phone-card");
       expect(card.element.closest(WIZARD), "not inside the setup card").toBeNull();
       expect(card.get("h2").text()).toBe("This phone");
       expect(card.classes()).toContain("card");
     });
 
-    it("holds the field \"Name of this phone\", the hint and a \"Save\" button after the field", () => {
-      const { wrapper } = mountWizard();
+    it("is absent while the network is not joined", () => {
+      const { wrapper } = (mounted = mountWizard({ inApp: true, hasNet: false }));
+      expect(wrapper.find("#home-phone-card").exists()).toBe(false);
+    });
+
+    it("holds the field \"This phone's name\", the hint and a \"Save\" button after the field", () => {
+      const { wrapper } = mountApp();
       const card = wrapper.get("#home-phone-card");
-      expect(card.get("label[for=field-node-name]").text()).toBe("Name of this phone");
+      expect(card.get("label[for=field-node-name]").text()).toBe("This phone's name");
       expect(card.get("#field-node-name").element.value).toBe("finch-unwary");
       expect(card.text()).toContain("Others see you by this name; leave it empty for a random one.");
       const save = saveButton(card);
@@ -114,19 +129,19 @@ describe("inside the Android app", () => {
     });
 
     it("has no \"Allow others\" switch", () => {
-      const { wrapper } = mountWizard();
+      const { wrapper } = mountApp();
       expect(wrapper.get("#home-phone-card").find("#field-exit-enabled").exists()).toBe(false);
     });
 
     it("no green \"Saved\" before saving", () => {
-      const { wrapper } = mountWizard();
+      const { wrapper } = mountApp();
       expect(wrapper.get("#field-node-name-status").text()).toBe("");
       expect(wrapper.get("#field-node-name-status").attributes("hidden")).toBeDefined();
     });
 
     it("\"Save\" sends the new name and shows a green \"Saved\"", async () => {
       api.mockImplementation(apiTable({ "PUT /api/config": (body) => ({ config: body.config, rev: 2 }) }));
-      const { wrapper } = mountWizard();
+      const { wrapper } = mountApp();
       await wrapper.get("#field-node-name").setValue("my-phone");
       await saveButton(wrapper.get("#home-phone-card")).trigger("click");
       await flushPromises();
@@ -138,7 +153,7 @@ describe("inside the Android app", () => {
     });
 
     it("\"Save\" with an unchanged name sends nothing", async () => {
-      const { wrapper } = mountWizard();
+      const { wrapper } = mountApp();
       await saveButton(wrapper.get("#home-phone-card")).trigger("click");
       await flushPromises();
       expect(nameCalls()).toHaveLength(0);
@@ -147,21 +162,33 @@ describe("inside the Android app", () => {
 
   describe("the main tab", () => {
     it("has no browser card", () => {
+      setAppUserAgent();
       mounted = mountSection(HomeSection, { config: baseConfig(), state: baseState() });
       expect(mounted.wrapper.text()).not.toContain("Set up manually");
       expect(mounted.wrapper.text()).not.toContain("coming soon");
     });
 
     it("the name field says phone and the exit server switch is absent", () => {
+      setAppUserAgent();
       mounted = mountSection(HomeSection, { config: baseConfig(), state: baseState() });
-      expect(mounted.wrapper.find("label[for=field-node-name]").text()).toBe("Name of this phone");
+      expect(mounted.wrapper.find("label[for=field-node-name]").text()).toBe("This phone's name");
       expect(mounted.wrapper.find("#field-exit-enabled").exists()).toBe(false);
     });
   });
 });
 
-function mountWizard() {
-  return (mounted = mountSection(SetupWizard, { state: baseState({ network: FAMILY }) }));
+function setAppUserAgent() {
+  Object.defineProperty(navigator, "userAgent", { value: APP_UA, configurable: true });
+}
+
+function mountApp() {
+  return (mounted = mountWizard({ inApp: true, label: "family" }));
+}
+
+async function mountConnect() {
+  const res = mountApp();
+  await click(res.wrapper, "#wizard-next");
+  return res;
 }
 
 // Mounting the exit list may auto-pick an exit with its own PUT; only the calls that carry the node name count.

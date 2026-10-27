@@ -1,73 +1,66 @@
-/* The setup after a failed start: the node keeps the saved network but is not running, so the browser and exit steps are hidden. */
+/* The setup after a failed start: the node keeps the saved network but is not running, so the wizard shows only the failed line
+ * (no screen, no navigation) instead of questions that would point at nothing. */
 
 import { nextTick } from "vue";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { baseState, mountSection } from "../testing/section.mjs";
-import SetupWizard from "./SetupWizard.vue";
+import { afterEach, describe, expect, it } from "vitest";
+import { mountWizard, unmountWizard } from "../testing/wizard.mjs";
 import { HOME_WIZARD_JOINED, HOME_WIZARD_JOINED_NOT_RUNNING } from "./home-card-texts.ts";
 
-const MARK = "meshtown.homeSetup";
-const WITH_PROXY = { socks: { enabled: true, listen: "127.0.0.1:1080", pac_url: "http://127.0.0.1:1080/proxy.pac" } };
-const FAILED = { node: { ...baseState().node, start_error: "port 1091 for the browser proxy is in use" } };
 let mounted;
+const mount = (opts) => (mounted = mountWizard(opts));
 
-beforeEach(() => localStorage.clear());
-afterEach(() => mounted.wrapper.unmount());
+afterEach(() => unmountWizard(mounted));
 
 describe("SetupWizard > failed start", () => {
-  it("wizard_step2_shows_browser_card_without_start_error", () => {
-    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, node: { ...baseState().node, start_error: null } }), "browser");
-    expect(wrapper.find("#pac-row").exists()).toBe(true);
-    expect(wrapper.text()).toContain(HOME_WIZARD_JOINED);
-  });
-
-  it("wizard_start_error_hides_browser_card_and_pac", () => {
-    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, ...FAILED }), "browser");
-    expect(wrapper.find("#pac-row").exists()).toBe(false);
-    expect(wrapper.text()).not.toContain("proxy.pac");
-    expect(wrapper.text()).toContain(HOME_WIZARD_JOINED_NOT_RUNNING);
+  it("failed start shows only the failed line", () => {
+    const { wrapper } = mount({ mark: "browser", startError: true });
+    expect(wrapper.get(".wizard-step.failed h3").text()).toBe(HOME_WIZARD_JOINED_NOT_RUNNING);
+    expect(wrapper.find("#wizard-screen").exists()).toBe(false);
+    expect(wrapper.find("#wizard-q").exists()).toBe(false);
+    expect(wrapper.find(".wizard-nav").exists()).toBe(false);
+    expect(wrapper.find("#wizard-joined").exists()).toBe(false);
     expect(wrapper.text()).not.toContain(HOME_WIZARD_JOINED);
   });
 
-  it("wizard_start_error_hides_exit_card", () => {
-    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, ...FAILED }), "exit");
+  it("failed start leaves no address and no setup steps", () => {
+    const { wrapper } = mount({ mark: "browser", scope: "system", startError: true });
+    expect(wrapper.find("#pac-row").exists()).toBe(false);
+    expect(wrapper.find("#pac-url-text").exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("proxy.pac");
+  });
+
+  it("failed start on the exit mark leaves no exit list, name field or buttons", () => {
+    const { wrapper } = mount({ mark: "exit", startError: true });
     expect(wrapper.find("#home-exit").exists()).toBe(false);
     expect(wrapper.find("#field-node-name").exists()).toBe(false);
-    expect(wrapper.findAll("button").map((b) => b.text())).not.toContain("Done");
+    expect(wrapper.findAll("button").map((b) => b.text())).not.toContain("Finish");
   });
 
-  it("wizard_start_error_cleared_restores_cards", async () => {
-    const { wrapper, store } = mountWizard(baseState({ ...WITH_PROXY, ...FAILED }), "browser");
-    expect(wrapper.find("#pac-row").exists()).toBe(false);
+  it("the failed line is not marked done", () => {
+    const { wrapper } = mount({ mark: "browser", startError: true });
+    const step = wrapper.get(".wizard-step.failed");
+    expect(step.classes()).not.toContain("done");
+  });
+
+  it("without a start error the screen is there and the joined line is not the failed one", () => {
+    const { wrapper } = mount({ mark: "browser" });
+    expect(wrapper.find("#wizard-screen").exists()).toBe(true);
+    expect(wrapper.find(".wizard-step.failed").exists()).toBe(false);
+    expect(wrapper.get("#wizard-joined").text()).toContain(HOME_WIZARD_JOINED);
+  });
+
+  it("a cleared start error brings the screen back", async () => {
+    const { wrapper, store } = mount({ mark: "browser", startError: true });
+    expect(wrapper.find("#wizard-screen").exists()).toBe(false);
     store.state.node.start_error = null;
     await nextTick();
-    expect(wrapper.find("#pac-row").exists()).toBe(true);
-    expect(wrapper.text()).toContain(HOME_WIZARD_JOINED);
+    expect(wrapper.find("#wizard-screen").exists()).toBe(true);
+    expect(wrapper.find(".wizard-step.failed").exists()).toBe(false);
   });
 
-  it("wizard_no_net_ignores_start_error", () => {
-    const { wrapper } = mountWizard(baseState({ network: null, peers: [], ...FAILED }));
+  it("without a network a start error is ignored: the join screen stays", () => {
+    const { wrapper } = mount({ hasNet: false, startError: true });
     expect(wrapper.find("#home-start-choice").exists()).toBe(true);
     expect(wrapper.text()).not.toContain(HOME_WIZARD_JOINED_NOT_RUNNING);
-  });
-});
-
-function mountWizard(state, mark) {
-  if (mark) localStorage.setItem(MARK, mark);
-  return (mounted = mountSection(SetupWizard, { state }));
-}
-
-describe("SetupWizard > failed start heading", () => {
-  it("wizard_start_error_step_is_not_marked_done", () => {
-    const failed = { node: { ...baseState().node, start_error: "port 1091 for the browser proxy is in use" } };
-    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, ...failed }), "browser");
-    const step = wrapper.get("h3").element.closest(".wizard-step");
-    expect(step.classList.contains("done")).toBe(false);
-    expect(step.classList.contains("failed")).toBe(true);
-  });
-
-  it("wizard_joined_step_stays_done", () => {
-    const { wrapper } = mountWizard(baseState({ ...WITH_PROXY, node: { ...baseState().node, start_error: null } }), "browser");
-    expect(wrapper.get("h3").element.closest(".wizard-step").classList.contains("done")).toBe(true);
   });
 });

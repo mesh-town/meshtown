@@ -54,7 +54,7 @@ describe("the Home tab is not rebuilt by polling", () => {
   });
 });
 
-describe("the \"Three steps\" setup after creating a network", () => {
+describe("the step-by-step setup after creating a network", () => {
   const createRoute = (body, node) => {
     node.state.network = { id_hex: "net-new", masked: "mesh2-••••", label: body.label };
     return { label: body.label };
@@ -70,22 +70,24 @@ describe("the \"Three steps\" setup after creating a network", () => {
     await polls(node, 1);
   }
 
-  it("step 2, \"Done, my browser is set up\", step 3, \"Done\" — the status panel; after a reload there is no setup", async () => {
+  it("the second screen, \"Next\", the exit screen, \"Finish\" — the status panel; after a reload there is no setup", async () => {
     const node = makeNode({ state: noNetState(), routes: { "POST /api/network/create": createRoute } });
     const { wrapper } = await mountPage(node);
     await createNet(wrapper, node);
 
     expect(wizard(wrapper).text()).toContain("✓ You joined the network");
-    const step2 = wizard(wrapper).findAll("h3").find((h) => /Set up your browser/.test(h.text()));
-    expect(step2 && shown(step2.element)).toBe(true);
-    expect(shown(buttonByText(wizard(wrapper), "Done, my browser is set up").element)).toBe(true);
+    const screen = wizard(wrapper).get("#wizard-screen");
+    expect(screen.attributes("data-step")).toBe("scope");
+    expect(shown(screen.element)).toBe(true);
+    expect(shown(wizard(wrapper).get("#wizard-next").element)).toBe(true);
 
-    await buttonByText(wizard(wrapper), "Done, my browser is set up").trigger("click");
+    await wizard(wrapper).get("#wizard-next").trigger("click");
+    expect(wizard(wrapper).get("#wizard-screen").attributes("data-step")).toBe("exit");
     const radio = wizard(wrapper).get("#exit-direct");
     expect(shown(radio.element)).toBe(true);
     expect(radio.element.closest("label").textContent.trim()).toMatch(/^Directly/);
 
-    await buttonByText(wizard(wrapper), "Done").trigger("click");
+    await buttonByText(wizard(wrapper), "Finish").trigger("click");
     expect(wizard(wrapper).exists()).toBe(false);
     expect(statePanel(wrapper).exists() && shown(statePanel(wrapper).element)).toBe(true);
 

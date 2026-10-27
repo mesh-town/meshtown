@@ -6,8 +6,9 @@
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
-  HOST_COPY_ARIA, LINUX_SMALL, LINUX_STEPS, MAC_SMALL, MAC_STEPS, MANUAL_BROWSER_HINT, MANUAL_BROWSER_HINT_NO_SAFARI, MANUAL_INTRO_BASE, MANUAL_TAIL_LINUX,
-  MANUAL_TAIL_MAC, MANUAL_TAIL_WINDOWS, PAC_COPY_ARIA, PHONE_SOON, WINDOWS_SOON,
+  ANDROID_INTRO, ANDROID_STEPS, HOST_COPY_ARIA, IOS_NO_APP, LINUX_SMALL, LINUX_STEPS, MAC_SMALL, MAC_STEPS, MANUAL_BROWSER_HINT,
+  MANUAL_BROWSER_HINT_NO_SAFARI, MANUAL_INTRO_BASE, MANUAL_TAIL_LINUX, MANUAL_TAIL_MAC, MANUAL_TAIL_WINDOWS, PAC_COPY_ARIA,
+  WINDOWS_SMALL, WINDOWS_STEPS,
 } from "../common/pac-texts.ts";
 import { BROWSER_IDS } from "./browser-setup.ts";
 import { browserList, copyAriaLabel, manualAvailable, manualBrowserHint, manualIntro, PAC_OS_LIST, pacBlock } from "./pac-setup.ts";
@@ -16,12 +17,13 @@ const WITH_SAFARI = [["chrome", "Chrome"], ["edge", "Edge"], ["safari", "Safari"
 const WITHOUT_SAFARI = [["chrome", "Chrome"], ["edge", "Edge"], ["firefox", "Firefox"]];
 
 describe("PAC_OS_LIST", () => {
-  it("four systems in the order macOS, Windows, Linux, Phone — id and button caption", () => {
+  it("five systems in the order macOS, Windows, Linux, Android, iOS — id and button caption", () => {
     assert.deepEqual(PAC_OS_LIST, [
       ["mac", "macOS"],
       ["windows", "Windows"],
       ["linux", "Linux"],
-      ["phone", "Phone"],
+      ["android", "Android"],
+      ["ios", "iOS"],
     ]);
   });
 });
@@ -40,18 +42,24 @@ describe("pacBlock", () => {
   });
 
   describe("Windows", () => {
-    it("no steps or small lines, the WINDOWS_SOON placeholder", () => {
-      assert.deepEqual(pacBlock("windows"), { steps: [], small: [], note: WINDOWS_SOON });
+    it("WINDOWS_STEPS steps, WINDOWS_SMALL small lines, no placeholder", () => {
+      assert.deepEqual(pacBlock("windows"), { steps: WINDOWS_STEPS, small: WINDOWS_SMALL, note: "" });
     });
   });
 
-  describe("Phone", () => {
-    it("no steps or small lines, the PHONE_SOON placeholder", () => {
-      assert.deepEqual(pacBlock("phone"), { steps: [], small: [], note: PHONE_SOON });
+  describe("Android", () => {
+    it("ANDROID_STEPS steps, no small lines, the intro as the note", () => {
+      assert.deepEqual(pacBlock("android"), { steps: ANDROID_STEPS, small: [], note: ANDROID_INTRO });
     });
   });
 
-  describe("each of the four systems", () => {
+  describe("iOS", () => {
+    it("no steps or small lines, only the line that there is no app", () => {
+      assert.deepEqual(pacBlock("ios"), { steps: [], small: [], note: IOS_NO_APP });
+    });
+  });
+
+  describe("each of the five systems", () => {
     it("gives exactly the keys steps, small, note: arrays of strings and a string", () => {
       for (const [os] of PAC_OS_LIST) {
         const block = pacBlock(os);
@@ -61,10 +69,13 @@ describe("pacBlock", () => {
       }
     });
 
-    it("either steps or a placeholder — not both", () => {
+    it("every system has steps or a note; the computers have steps and no note", () => {
       for (const [os] of PAC_OS_LIST) {
         const block = pacBlock(os);
-        assert.equal(block.steps.length > 0, block.note === "", os + ": there are steps if and only if there is no placeholder");
+        assert.ok(block.steps.length > 0 || block.note !== "", os + ": something to show");
+      }
+      for (const os of ["mac", "windows", "linux"]) {
+        assert.ok(pacBlock(os).steps.length > 0 && pacBlock(os).note === "", os);
       }
     });
   });
@@ -75,13 +86,14 @@ describe("manualAvailable", () => {
     for (const os of ["mac", "windows", "linux"]) assert.equal(manualAvailable(os), true, os);
   });
 
-  it("phone — no manual block (there are no steps for the phone, \"soon\" is already said above)", () => {
-    assert.equal(manualAvailable("phone"), false);
+  it("android and ios — no manual block (the phone has its own way)", () => {
+    assert.equal(manualAvailable("android"), false);
+    assert.equal(manualAvailable("ios"), false);
   });
 
-  it("false for exactly one system of four", () => {
+  it("false for exactly two systems of five", () => {
     const off = PAC_OS_LIST.map(([os]) => os).filter((os) => !manualAvailable(os));
-    assert.deepEqual(off, ["phone"]);
+    assert.deepEqual(off, ["android", "ios"]);
   });
 });
 
@@ -96,11 +108,8 @@ describe("manualIntro", () => {
   describe("Linux", () => {
     it("common part, a space and the tail about switching auto-config to manual mode", () => {
       assert.equal(manualIntro("linux"), MANUAL_INTRO_BASE + " " + MANUAL_TAIL_LINUX);
-      assert.equal(
-        manualIntro("linux"),
-        "For programs that don't support automatic setup, enter the proxy by hand — type SOCKS5, with the address and port below. " +
-          "If you turned on auto-config following the steps above, first switch it to manual mode.",
-      );
+      assert.ok(manualIntro("linux").startsWith(MANUAL_INTRO_BASE), "starts with the common part");
+      assert.ok(manualIntro("linux").endsWith(MANUAL_TAIL_LINUX), "ends with the Linux tail");
     });
 
     it("the mode item name is not quoted: GNOME 43 has \"Automatic\", 44+ has \"Automatically\"", () => {
@@ -113,22 +122,19 @@ describe("manualIntro", () => {
     it("common part, a space and the tail about auto-config already turned on", () => {
       assert.equal(manualIntro("windows"), MANUAL_INTRO_BASE + " " + MANUAL_TAIL_WINDOWS);
     });
-
-    it("no word \"above\": there are no Windows steps above the manual block", () => {
-      assert.ok(!manualIntro("windows").includes("above"), manualIntro("windows"));
-    });
   });
 
-  describe("Phone", () => {
+  describe("Android and iOS", () => {
     it("only the common part, no tail (the block is hidden, the function still answers)", () => {
-      assert.equal(manualIntro("phone"), MANUAL_INTRO_BASE);
+      assert.equal(manualIntro("android"), MANUAL_INTRO_BASE);
+      assert.equal(manualIntro("ios"), MANUAL_INTRO_BASE);
     });
   });
 
-  describe("each of the four systems", () => {
-    it("starts with the common part: enter the proxy manually — SOCKS5, address and port", () => {
+  describe("each of the five systems", () => {
+    it("starts with the common part: enter the server and port by hand — SOCKS5", () => {
       for (const [os] of PAC_OS_LIST) {
-        assert.ok(manualIntro(os).startsWith("For programs that don't support automatic setup, enter the proxy by hand"), os);
+        assert.ok(manualIntro(os).startsWith(MANUAL_INTRO_BASE), os);
         assert.ok(manualIntro(os).includes("SOCKS5"), os);
       }
     });
@@ -147,21 +153,21 @@ describe("browserList", () => {
     });
   });
 
-  describe("Windows, Linux, Phone", () => {
+  describe("Windows, Linux, Android, iOS", () => {
     it("no Safari (it exists only on macOS), the other three in the same order: Chrome, Edge, Firefox", () => {
-      for (const os of ["windows", "linux", "phone"]) assert.deepEqual(browserList(os), WITHOUT_SAFARI, os);
+      for (const os of ["windows", "linux", "android", "ios"]) assert.deepEqual(browserList(os), WITHOUT_SAFARI, os);
     });
 
     it("id \"safari\" is absent among the buttons", () => {
-      for (const os of ["windows", "linux", "phone"]) {
+      for (const os of ["windows", "linux", "android", "ios"]) {
         assert.ok(!browserList(os).some(([id]) => id === "safari"), os);
         assert.ok(!browserList(os).some(([, name]) => name === "Safari"), os);
       }
     });
   });
 
-  describe("each of the four systems", () => {
-    it("Safari only on macOS: exactly one system of four", () => {
+  describe("each of the five systems", () => {
+    it("Safari only on macOS: exactly one system of five", () => {
       const withSafari = PAC_OS_LIST.map(([os]) => os).filter((os) => browserList(os).some(([id]) => id === "safari"));
       assert.deepEqual(withSafari, ["mac"]);
     });
@@ -175,7 +181,7 @@ describe("browserList", () => {
       }
     });
 
-    it("Chrome, Edge and Firefox are on all four", () => {
+    it("Chrome, Edge and Firefox are on all five", () => {
       for (const [os] of PAC_OS_LIST) {
         const ids = browserList(os).map(([id]) => id);
         for (const id of ["chrome", "edge", "firefox"]) assert.ok(ids.includes(id), os + ": no " + id);
@@ -190,8 +196,8 @@ describe("manualBrowserHint", () => {
     assert.ok(manualBrowserHint("mac").includes("Safari"));
   });
 
-  it("Windows, Linux, Phone — MANUAL_BROWSER_HINT_NO_SAFARI (about Chrome and Edge)", () => {
-    for (const os of ["windows", "linux", "phone"]) {
+  it("Windows, Linux, Android, iOS — MANUAL_BROWSER_HINT_NO_SAFARI (about Chrome and Edge)", () => {
+    for (const os of ["windows", "linux", "android", "ios"]) {
       assert.equal(manualBrowserHint(os), MANUAL_BROWSER_HINT_NO_SAFARI, os);
       assert.ok(!manualBrowserHint(os).includes("Safari"), os);
     }

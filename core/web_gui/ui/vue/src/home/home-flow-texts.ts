@@ -11,7 +11,6 @@ export const HOME_EXIT_NOT_OFFERED = "not an exit";
 export const HOME_LINK_DIRECT = "direct";
 export const HOME_LINK_RELAY = "via relay server";
 export const rttMsText = (ms: number): string => ms + " ms";
-export const HOME_OS_PHONE = "Phone";
 
 // browser-setup.ts
 export const HOME_BROWSER_WARN = "This is a system-wide setting: other programs that use it will also go through " + NET_NAME + ".";
@@ -57,7 +56,7 @@ export const clipboardFallbackText = (kindWord: string): string =>
 // invite-actions.ts
 export const HOME_INVITE_UNAVAILABLE = "The invite isn't ready yet — " + NET_NAME +
   " is still joining the network. Try again in a minute.";
-export const HOME_INVITE_NOT_ADMIN = "Only an administrator of this network can create invitations.";
+export const HOME_INVITE_NOT_ADMIN = "Only a network administrator can create invitations.";
 export const HOME_INVITE_NOT_IN_NETWORK = "This device is no longer in this network, so it can't create invitations.";
 export const HOME_INVITE_BAD_NAME = "The name for this invitation is too long or has unsupported characters. Use a shorter plain name.";
 export const HOME_INVITE_UNREACHABLE = "Couldn't reach " + NET_NAME + " on this device. Check that it is running, then try again.";
@@ -75,7 +74,7 @@ export const HOME_INVITE_INVALID = "This doesn't look like an invite. Copy the w
 export const HOME_LABEL_EMPTY = "Enter a name, for example \"family\".";
 export const JOIN_STALLED = "Something went wrong: " + NET_NAME + " didn't respond after joining the network. What happened is on the \"Log\" tab.";
 export const JOIN_STALLED_SILENT = "Something went wrong: " + NET_NAME + " didn't respond after joining the network. What happened is in the meshtown.log file next to the settings file or in the terminal window you started " + NET_NAME + " from.";
-export const JOIN_WAITING = "Invite sent. Waiting for a member of this network to come online and let this computer in — this page will update.";
+export const JOIN_WAITING = "Invite sent. Waiting for a network member to come online and let this computer in — this page will update.";
 export const waitingStatusText = (netQuoted: string): string =>
   "Invite sent. Waiting for a member of" + netQuoted + forDevice(" to come online and let this computer in — this page will update.");
 export const HOME_JOIN_ACTION = "join the network";
