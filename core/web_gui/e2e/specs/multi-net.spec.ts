@@ -78,15 +78,15 @@ test.describe('two networks (demo --nets 2)', () => {
         });
       });
 
-      test(`multi-net-home-settings-${vp.width}: Home lists the networks and "Open in Networks" leads to the tab; Settings has a link to the "+" tab and no join card`, async ({ page, app, target }) => {
+      test(`multi-net-home-settings-${vp.width}: Home lists the networks and a network row leads to the tab; Settings has a link to the "+" tab and no join card`, async ({ page, app, target }) => {
         await app.open(target.origin, target.token);
 
-        await test.step('Home shows a row per network; "Open in Networks" goes to that network tab', async () => {
+        await test.step('Home shows a row per network; clicking a row goes to that network tab', async () => {
           await app.tabs.expectShown('home');
-          const rows = page.locator('#home-nets .net-row');
+          const rows = page.locator('#home-nets a.home-net-row');
           await expect(rows).toHaveCount(2);
           const SECOND = (await rows.nth(1).getAttribute('data-slot'))!;
-          await rows.nth(1).locator('a.net-row-open').click();
+          await rows.nth(1).click();
           await app.tabs.expectShown('peers');
           await expect.poll(() => hash(page)).toBe(`#peers/${SECOND}`);
           await expect(tab(page, SECOND)).toHaveAttribute('aria-current', 'page');

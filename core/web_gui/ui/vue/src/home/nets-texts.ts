@@ -1,7 +1,6 @@
 /* Home strings that appear with two or more networks. */
 
-export const NETS_CARD_ARIA = "Your networks";
-export const NETS_OPEN_MEMBERS = "Open in Networks";
+export const NETS_CARD_TITLE = "Your networks";
 export const NETS_NO_CONNECTION = "no connection";
 export const NETS_JUST_YOU = "just you";
 export const NETS_EXIT_ALL = "(one exit for all your networks)";
