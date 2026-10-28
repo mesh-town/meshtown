@@ -8,7 +8,7 @@ import StepChoice from "./StepChoice.vue";
 import StepGuide from "./StepGuide.vue";
 import { browserTiles } from "./guide-content.ts";
 import type { WizardView } from "./use-wizard.ts";
-import { WIZ_QUESTIONS } from "./wizard-texts.ts";
+import { WIZ_Q_DEVICE, WIZ_QUESTIONS } from "./wizard-texts.ts";
 
 const props = defineProps<{ w: WizardView }>();
 const scopeOptions = [
@@ -17,7 +17,11 @@ const scopeOptions = [
 ];
 const osOptions = PAC_OS_LIST.map(([id, label]) => ({ id, domId: `os-${id}`, label }));
 const browserOptions = computed(() => browserTiles(props.w.os.value).map(([id, label]) => ({ id, domId: `browser-${id}`, label })));
-const title = (id: string): string => (id === "guide" ? props.w.guide.value.title : WIZ_QUESTIONS[id as "scope" | "os" | "browser"]);
+function title(id: string): string {
+  if (id === "guide") return props.w.guide.value.title;
+  if (id === "os" && props.w.router.value) return WIZ_Q_DEVICE;
+  return WIZ_QUESTIONS[id as "scope" | "os" | "browser"];
+}
 // A row above the cursor already has its answer: its heading is quieter.
 const answeredRow = (id: string): boolean => id !== props.w.step.value;
 </script>

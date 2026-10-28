@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { laptopState, laptopVpnState, routerGuestState, routerState } from "../testing/nets-states.mjs";
 import {
-  AUTO_PAYLOAD, blockWhere, draftNames, isDirty, isRouter, lanView, networksOf, openBySaved, routerPacUrl, sameNetsLine, savePayload, summaryView, viaIface,
+  AUTO_PAYLOAD, blockWhere, draftNames, isDirty, isRouter, lanMode, lanView, networksOf, openBySaved, routerPacUrl, sameNetsLine, savePayload, summaryView, viaIface,
 } from "./nets-view.ts";
 
 const cfg = (socks, web, ifaces = []) => ({ socks: { access: socks, ifaces }, web: { access: web } });
@@ -187,6 +187,22 @@ describe("nets-view", () => {
     it("the interface name is not shown in the line", () => {
       const text = JSON.stringify(lanView(routerGuestState({ ifaces: ["br-lan", "br-guest"] })));
       expect(text).not.toMatch(/br-lan|br-guest|eth0/);
+    });
+  });
+
+  describe("lanMode: how other devices reach the proxy", () => {
+    it("a router — router, open or not", () => {
+      expect(lanMode(routerState())).toBe("router");
+      expect(lanMode(routerState({ access: "localhost" }))).toBe("router");
+    });
+
+    it("not a router, open to the local network with an address — shared", () => {
+      expect(lanMode(laptopState({ access: "localnet" }))).toBe("shared");
+    });
+
+    it("not a router, closed or without addresses — none", () => {
+      expect(lanMode(laptopState({ access: "localhost" }))).toBe("none");
+      expect(lanMode({ node: {}, socks: { enabled: true, access: "localnet", lan: [] } })).toBe("none");
     });
   });
 

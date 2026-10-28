@@ -16,6 +16,7 @@ export interface WizardCtx {
   scope: ProxyScope | null;
   os: OsId;
   skipped: boolean;
+  router: boolean;
 }
 
 export function isPhoneOs(os: OsId): boolean {
@@ -31,6 +32,7 @@ function scopePath(ctx: WizardCtx): StepId[] {
 export function wizardPath(ctx: WizardCtx): StepId[] {
   if (ctx.inApp) return ["join", "exit", "connect"];
   if (!ctx.proxyOn || ctx.skipped) return ["join", "scope", "exit"];
+  if (ctx.router) return ["join", "os", "guide", "exit"];
   return ["join", ...scopePath(ctx)];
 }
 
@@ -55,7 +57,7 @@ export function startStep(ctx: WizardCtx, mark: string | null): StepId {
 
 export function validStep(ctx: WizardCtx, cur: StepId, mark: string | null): StepId {
   const joinedAlready = cur === "join" && ctx.hasNet;
-  const guideWithoutScope = cur === "guide" && ctx.scope === null;
+  const guideWithoutScope = cur === "guide" && ctx.scope === null && !ctx.router;
   if (joinedAlready || guideWithoutScope || !wizardPath(ctx).includes(cur)) return startStep(ctx, mark);
   return cur;
 }

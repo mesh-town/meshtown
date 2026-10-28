@@ -101,6 +101,14 @@ export function lanView(state: NetsInput): LanView | null {
   return { kind: home ? "home" : "single", items, hint: "" };
 }
 
+/** How other devices reach the proxy: this node is the router, this node shares it with the local network, or not at all. */
+export type LanMode = "router" | "shared" | "none";
+
+export function lanMode(state: NetsInput): LanMode {
+  if (isRouter(state)) return "router";
+  return lanView(state) !== null ? "shared" : "none";
+}
+
 export function savePayload(names: string[]): { "socks.ifaces": string[]; "web.ifaces": string[] } {
   return { "socks.ifaces": [...names], "web.ifaces": [...names] };
 }

@@ -8,7 +8,7 @@ import { applyEvent, ctxOf, freshCursor, guideOf, shownBrowser, shownOs, stepOf 
 import { stripSteps, visibleRows, wizardPath } from "./wizard-steps.ts";
 
 const STEPS = ["join", "scope", "os", "browser", "guide", "exit", "connect"];
-const env = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, mark: null, uaOs: "mac", uaBrowser: "chrome", ...over });
+const env = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, mark: null, lan: "none", uaOs: "mac", uaBrowser: "chrome", ...over });
 const state = (over = {}) => ({ scope: null, os: null, pick: null, ...freshCursor(), ...over });
 
 const EVENTS = [
@@ -47,8 +47,10 @@ function check(before, after, e, ev) {
   assert.equal(strip.filter((t) => t.state === "current").length, 1, "one current step " + label);
   const { rows, os, browser } = rowsPressed(after, e);
   if (rows.includes("browser")) assert.ok(browserTiles(shownOs(after, e)).some(([id]) => id === shownBrowser(after, e)), "the pressed browser has a tile " + label);
-  if (rows.includes("guide")) assert.notEqual(after.scope, null, "the instruction has a scope " + label);
-  if (rows.includes("guide")) assert.deepEqual(guideOf(after, e), guideFor(after.scope, os, browser), "the instruction follows the rows " + label);
+  if (rows.includes("guide") && e.lan !== "router") assert.notEqual(after.scope, null, "the instruction has a scope " + label);
+  const question = ctx.proxyOn && !after.skipped;
+  if (e.lan === "router" && question) assert.ok(!rows.includes("scope") && !rows.includes("browser"), "no scope or browser row on a router " + label);
+  if (rows.includes("guide")) assert.deepEqual(guideOf(after, e), guideFor(after.scope ?? "system", os, browser, e.lan), "the instruction follows the rows " + label);
   for (const key of ["scope", "os", "pick"]) {
     if (!(TOUCHED[ev.kind] ?? []).includes(key)) assert.equal(after[key], before[key], key + " is not touched by " + ev.kind);
   }
@@ -70,6 +72,7 @@ describe("wizard machine: chains of events", () => {
     ["a remembered scope", state({ scope: "system" }), env()],
     ["a remembered browser scope and pick", state({ scope: "browser", pick: "safari" }), env()],
     ["the proxy off", state(), env({ proxyOn: false })],
+    ["a router", state(), env({ lan: "router" })],
   ];
   for (const [name, s, e] of starts) {
     it(`given ${name}, then every chain of three events keeps the invariants`, () => {
@@ -120,5 +123,23 @@ describe("wizard machine: the cases of the dossier", () => {
     const answers = state({ scope: "browser", pick: "safari" });
     const g = guideOf(answers, env({ uaOs: "windows", uaBrowser: "edge" }));
     assert.equal(g.title, "Set up Edge");
+  });
+});
+
+describe("wizard machine: on a router", () => {
+  const router = env({ lan: "router" });
+
+  it("given a router and the system iOS, then the instruction is for connecting an iPhone to the router", () => {
+    const s = run(state({ scope: "browser" }), router, [{ kind: "os", value: "ios" }]);
+    assert.equal(shownOs(s, router), "ios");
+    assert.equal(guideOf(s, router).title, "Connect an iPhone or iPad to the router");
+  });
+
+  it("given a router and a fresh cursor, then the cursor is the instruction", () => {
+    assert.equal(stepOf(state(), router), "guide");
+  });
+
+  it("given a router, then the detected system is shown until one is chosen", () => {
+    assert.equal(shownOs(state({ scope: "browser" }), router), "mac");
   });
 });
