@@ -70,7 +70,7 @@ public class StatusTextTest {
     public void noticeWhenConnected() {
         StatusText.Notice n = StatusText.notice(DIRECT, true);
         assertEquals("Connected", n.title);
-        assertEquals("Sites open directly. Choose an exit in the app to open blocked sites.", n.text);
+        assertEquals("Sites open directly. Choose an exit in the app to open sites through it.", n.text);
         assertEquals("Sites open via peer-one", StatusText.notice(VIA, true).text);
         assertEquals("Connected", StatusText.notice(VIA, true).title);
     }
