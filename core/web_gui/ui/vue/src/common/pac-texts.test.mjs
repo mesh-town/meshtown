@@ -215,8 +215,10 @@ describe("proxy scope choice", () => {
     ]);
   });
 
-  it("BROWSER_SCOPE_NOTE — other browsers follow the system setting", () => {
-    assert.equal(texts.BROWSER_SCOPE_NOTE, "Chrome, Edge and Safari use the system setting — for them choose \"In the whole system\".");
+  it("the Other-browser texts point to the system setting and to a proxy extension", () => {
+    assert.match(texts.OTHER_BROWSER_NO_PROXY, /use the system one/);
+    assert.match(texts.OTHER_BROWSER_EXTENSION, /proxy extension/);
+    assert.match(texts.OTHER_BROWSER_SAFARI, /Safari has no proxy extensions/);
   });
 });
 
