@@ -30,6 +30,7 @@ public class TunnelService extends VpnService {
         if (!running) {
             running = true;
             TunnelTile.refresh(this);
+            NodeService.wake();
             // Without an intent the system started us (always-on VPN): make sure the node is up too.
             if (intent == null) {
                 startForegroundService(new Intent(this, NodeService.class));
@@ -73,6 +74,7 @@ public class TunnelService extends VpnService {
     private synchronized void shutdown() {
         running = false;
         TunnelTile.refresh(this);
+        NodeService.wake();
         Tun2proxy.stop();
         if (bridge != null) {
             try {

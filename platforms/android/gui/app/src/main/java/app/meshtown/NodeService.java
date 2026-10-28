@@ -17,7 +17,8 @@ public class NodeService extends Service {
     static final String ACTION_DISCONNECT = "app.meshtown.DISCONNECT";
     static final String ACTION_QUIT = "app.meshtown.QUIT";
     private static final String TAG = "MeshTown";
-    private static final long POLL_MS = 3000;
+    /** Guarded wait of the poll loop; {@link #wake()} cuts the wait short. */
+    private static final Object POLL_LOCK = new Object();
 
     /** Latest snapshot, read by the activity. */
     static volatile NodeState state = NodeState.UNREACHABLE;
@@ -25,6 +26,15 @@ public class NodeService extends Service {
     static volatile boolean quitRequested;
     /** Whether Connect is offered (see {@link ConnectGate}); read by the activity and the tile. */
     static volatile boolean canConnect;
+    /** Whether the activity is on screen; a hidden app with the tunnel off polls the node rarely. */
+    static volatile boolean appVisible;
+
+    /** Ends the current wait of the poll loop so a change of pace or a new command shows at once. */
+    static void wake() {
+        synchronized (POLL_LOCK) {
+            POLL_LOCK.notifyAll();
+        }
+    }
 
     private Process node;
     private StatusNotifier notifier;
@@ -53,6 +63,7 @@ public class NodeService extends Service {
         }
         quitRequested = false;
         handle(action);
+        wake();
         if (poller == null) {
             startNode();
             poller = new Thread(this::pollLoop, "mesh-poll");
@@ -181,12 +192,18 @@ public class NodeService extends Service {
         while (!stopping) {
             try {
                 tick();
-                Thread.sleep(POLL_MS);
+                pause();
             } catch (InterruptedException e) {
                 return;
             } catch (RuntimeException e) {
                 Log.e(TAG, "poll failed", e);
             }
+        }
+    }
+
+    private static void pause() throws InterruptedException {
+        synchronized (POLL_LOCK) {
+            POLL_LOCK.wait(PollPace.nodePollMs(TunnelService.running, appVisible));
         }
     }
 
