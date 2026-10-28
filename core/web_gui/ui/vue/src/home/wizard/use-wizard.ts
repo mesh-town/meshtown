@@ -1,16 +1,17 @@
-/* The setup wizard state: a cursor over the step path computed from the answers, and the actions that move it. */
+/* The setup wizard on the page: the answers and the cursor live in the section's `form`; `applyEvent` computes every
+ * move, this file feeds it the environment and carries out what a move needs (the answers, the mark, the focus). */
 
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, watch } from "vue";
 import type { ComputedRef } from "vue";
 import type { Store } from "../../core/store.ts";
 import { detectBrowser, detectOs, inAppPage, proxyView } from "../browser-setup.ts";
 import type { OsId } from "../browser-setup.ts";
-import { readProxyScope, writeProxyScope } from "../proxy-scope.ts";
 import type { ProxyScope } from "../proxy-scope.ts";
 import { useHomeContext } from "../use-home.ts";
-import { defaultBrowser, guideFor, manualBrowser } from "./guide-content.ts";
 import type { Guide } from "./guide-content.ts";
-import { joinedLineOn, markOnEnter, navKind, nextStep, prevStep, reanchor, screenOf, settleStep, stepProgress, stripSteps, validStep, visibleRows, wizardPath } from "./wizard-steps.ts";
+import { applyEvent, ctxOf, guideOf, shownBrowser, shownOs, stepOf } from "./wizard-machine.ts";
+import type { WizardEnv, WizardEvent, WizardState } from "./wizard-machine.ts";
+import { joinedLineOn, markOnEnter, navKind, prevStep, screenOf, stepProgress, stripSteps, visibleRows } from "./wizard-steps.ts";
 import type { NavKind, ScreenId, StepId, StripStep, WizBrowser, WizardCtx } from "./wizard-steps.ts";
 
 export interface WizardView {
@@ -49,24 +50,17 @@ const userAgent = (): string => (typeof navigator === "undefined" ? "" : navigat
 
 export function useWizard(store: Store): WizardView {
   const { form, hasNet, setupMark, ...h } = useHomeContext(store);
-  const storage = typeof localStorage === "undefined" ? null : localStorage;
   const inApp = inAppPage();
-  const raw = ref<StepId>("join");
-  const scopeRef = ref<ProxyScope | null>(readProxyScope(storage));
-  const skipped = ref(false);
-  const pickedBrowser = ref<WizBrowser | null>(null);
-
-  const os = computed<OsId>(() => form.browser.os ?? detectOs(userAgent()));
-  const ctx = computed<WizardCtx>(() => ({
-    hasNet: hasNet.value, inApp, proxyOn: proxyView(store.state).on, scope: scopeRef.value, os: os.value, skipped: skipped.value,
+  const env = computed<WizardEnv>(() => ({
+    hasNet: hasNet.value, inApp, proxyOn: proxyView(store.state).on, mark: setupMark.value,
+    uaOs: detectOs(userAgent()), uaBrowser: detectBrowser(userAgent()),
   }));
-  const step = computed(() => validStep(ctx.value, raw.value, setupMark.value));
-  const browser = computed<WizBrowser>(() => pickedBrowser.value ?? defaultBrowser(os.value, detectBrowser(userAgent())));
-  const guide = computed(() => guideFor(scopeRef.value ?? "system", os.value, browser.value));
+  const state = computed<WizardState>(() => ({ scope: form.browser.scope, os: form.browser.os, pick: form.browser.pick, ...form.wizard }));
+  const ctx = computed<WizardCtx>(() => ctxOf(state.value, env.value));
+  const step = computed(() => stepOf(state.value, env.value));
+  const strip = computed(() => stripSteps(ctx.value, step.value, new Set(form.wizard.visited)));
 
-  const visited = ref<Set<StepId>>(new Set());
-  watch(step, (s) => { visited.value = new Set(visited.value).add(s); }, { immediate: true });
-  const strip = computed(() => stripSteps(ctx.value, step.value, visited.value));
+  watch(step, (s) => { if (!form.wizard.visited.includes(s)) form.wizard.visited = [...form.wizard.visited, s]; }, { immediate: true });
 
   // After a step change the focus goes to the heading of the new row (or of the new screen); not on mount.
   let pendingFocus: StepId | null = null;
@@ -78,63 +72,49 @@ export function useWizard(store: Store): WizardView {
 
   const focusSoon = (id: StepId): void => { void nextTick(() => focusById(`wizard-q-${id}`)); };
 
-  const goTo = (target: StepId | null): void => {
-    if (!target) return;
-    raw.value = target;
-    const mark = markOnEnter(target);
+  // The focus a strip click asks for: a row of the questions page, reached from another screen once the page is open.
+  const focusStrip = (id: StepId): void => {
+    if (screenOf(id) !== "choices" || !strip.value.some((t) => t.id === id && t.state !== "locked" && t.state !== "current")) return;
+    if (screenOf(step.value) === "choices") focusById(`wizard-q-${id}`);
+    else pendingFocus = id;
+  };
+
+  const commitAnswers = (before: WizardState, after: WizardState): void => {
+    if (after.scope !== before.scope && after.scope) h.pickScope(after.scope);
+    if (after.os !== before.os && after.os) h.pickOs(after.os);
+    if (after.pick !== before.pick && after.pick) h.pickWizBrowser(after.pick);
+  };
+
+  const dispatch = (ev: WizardEvent): void => {
+    const before = state.value;
+    const from = step.value;
+    const after = applyEvent(before, env.value, ev);
+    if (ev.kind === "strip") focusStrip(ev.id);
+    commitAnswers(before, after);
+    form.wizard = { at: after.at, skipped: after.skipped, visited: after.visited };
+    const mark = from === step.value ? null : markOnEnter(step.value);
     if (mark) h.setMark(mark);
-  };
-  const goNext = (): void => {
-    const next = nextStep(ctx.value, step.value);
-    goTo(next && settleStep(ctx.value, next));
-  };
-  // Records an answer in row `row`: only the row under the cursor opens the next one; the path may change under the cursor.
-  const answer = (row: StepId, apply: () => void): void => {
-    const before = wizardPath(ctx.value);
-    const cur = step.value;
-    apply();
-    const kept = reanchor(before, wizardPath(ctx.value), cur);
-    raw.value = kept;
-    if (row === cur) goNext();
-  };
-  const setScope = (s: ProxyScope): void => {
-    scopeRef.value = s;
-    writeProxyScope(s, storage);
-  };
-
-  // A row of the questions page: reached from the exit screen the page opens at its last row.
-  const goRow = (id: StepId): void => {
-    const lastRow = prevStep(ctx.value, "exit");
-    if (screenOf(step.value) !== "choices" && lastRow) {
-      pendingFocus = id;
-      goTo(lastRow);
-      return;
-    }
-    if (!visibleRows(ctx.value, step.value).includes(id)) goTo(id);
-    focusById(`wizard-q-${id}`);
-  };
-
-  const goStep = (id: StepId): void => {
-    const target = strip.value.find((t) => t.id === id);
-    const reachable = target?.state === "open" || (target?.state === "done" && id !== "join");
-    if (reachable && screenOf(id) === "choices") goRow(id);
-    else if (reachable) goTo(id);
+    if (ev.kind === "toSystem") focusSoon("os");
   };
 
   return {
-    step, strip, goStep, rows: computed(() => visibleRows(ctx.value, step.value)), screen: computed(() => screenOf(step.value)), ctx, os, browser, guide,
+    step, strip, ctx, goStep: (id) => dispatch({ kind: "strip", id }),
+    rows: computed(() => visibleRows(ctx.value, step.value)), screen: computed(() => screenOf(step.value)),
+    os: computed(() => shownOs(state.value, env.value)),
+    browser: computed(() => shownBrowser(state.value, env.value)),
+    guide: computed(() => guideOf(state.value, env.value)),
     progress: computed(() => stepProgress(ctx.value, step.value)),
     back: computed(() => screenOf(step.value) !== "choices" && prevStep(ctx.value, step.value) !== null),
     nav: computed(() => navKind(ctx.value, step.value)),
-    scope: computed(() => scopeRef.value),
+    scope: computed(() => form.browser.scope),
     joined: computed(() => joinedLineOn(ctx.value, step.value)),
-    pickScope: (s) => answer("scope", () => { setScope(s); skipped.value = false; }),
-    pickOs: (o) => answer("os", () => h.pickOs(o)),
-    pickBrowser: (b) => answer("browser", () => { pickedBrowser.value = b; h.pickBrowser(manualBrowser(b)); }),
-    goNext,
-    goBack: () => goTo(prevStep(ctx.value, step.value)),
-    skip: () => { skipped.value = true; goTo("exit"); },
-    toSystem: () => { setScope("system"); skipped.value = false; focusSoon("os"); },
+    pickScope: (value) => dispatch({ kind: "scope", value }),
+    pickOs: (value) => dispatch({ kind: "os", value }),
+    pickBrowser: (value) => dispatch({ kind: "browser", value }),
+    goNext: () => dispatch({ kind: "next" }),
+    goBack: () => dispatch({ kind: "back" }),
+    skip: () => dispatch({ kind: "skip" }),
+    toSystem: () => dispatch({ kind: "toSystem" }),
     finish: () => h.setMark("done"),
   };
 }

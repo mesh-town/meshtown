@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // "Connect the browser": the PAC address with copying, the system and steps, the manual block (SOCKS5) under a disclosure.
-import { computed, inject, ref } from "vue";
+import { computed, inject } from "vue";
 import type { StepValue } from "./browser-setup.ts";
 import {
   BROWSER_SCOPE_NOTE, FIREFOX_STEPS, OS_LABEL, PAC_ADDR_LABEL, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, SCOPE_BROWSER,
@@ -14,8 +14,6 @@ import {
   HOME_COPIED, HOME_COPY_ADDR, HOME_COPY_PORT, HOME_COPY_SHORT, HOME_LAN_LEAD_HOME, HOME_LAN_LEAD_MULTI,
   HOME_LAN_LEAD_SINGLE, HOME_LAN_TYPE, HOME_OS_GROUP_LABEL, HOME_PROXY_OFF, HOME_PROXY_OFF_LINK,
 } from "./home-card-texts.ts";
-import { readProxyScope, writeProxyScope } from "./proxy-scope.ts";
-import type { ProxyScope } from "./proxy-scope.ts";
 import { useHomeContext } from "./use-home.ts";
 import TermText from "./wizard/TermText.vue";
 
@@ -24,13 +22,8 @@ const OS_IDS: Record<string, string> = { mac: "os-mac", windows: "os-windows", l
 const store = inject(STORE_KEY)!;
 const { form, proxy, ...h } = useHomeContext(store);
 const router = computed(() => isRouter(store.state ?? {}));
-const SCOPES: [ProxyScope, string][] = [["system", SCOPE_SYSTEM], ["browser", SCOPE_BROWSER]];
-const storage = typeof localStorage === "undefined" ? null : localStorage;
-const scope = ref<ProxyScope | null>(readProxyScope(storage));
-const pickScope = (value: ProxyScope): void => {
-  scope.value = value;
-  writeProxyScope(value, storage);
-};
+const SCOPES: [NonNullable<typeof form.browser.scope>, string][] = [["system", SCOPE_SYSTEM], ["browser", SCOPE_BROWSER]];
+const scope = computed(() => form.browser.scope);
 const LAN_LEAD = { legacy: HOME_LAN_LEAD_SINGLE, single: HOME_LAN_LEAD_SINGLE, home: HOME_LAN_LEAD_HOME, multi: HOME_LAN_LEAD_MULTI };
 </script>
 
@@ -52,7 +45,7 @@ const LAN_LEAD = { legacy: HOME_LAN_LEAD_SINGLE, single: HOME_LAN_LEAD_SINGLE, h
       <p v-if="!form.exitChoice && router" class="hint" id="pac-no-exit">{{ PAC_NO_EXIT_NOTE }}</p>
       <span id="scope-q">{{ SCOPE_QUESTION }}</span>
       <div id="scope-seg" role="group" aria-labelledby="scope-q">
-        <button v-for="[id, name] in SCOPES" :key="id" type="button" class="btn btn-sm" :id="'scope-' + id" :aria-pressed="scope === id" @click="pickScope(id)">{{ name }}</button>
+        <button v-for="[id, name] in SCOPES" :key="id" type="button" class="btn btn-sm" :id="'scope-' + id" :aria-pressed="scope === id" @click="h.pickScope(id)">{{ name }}</button>
       </div>
       <template v-if="scope === 'system'">
         <span id="os-label">{{ OS_LABEL }}</span>

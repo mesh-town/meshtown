@@ -55,7 +55,8 @@ export function startStep(ctx: WizardCtx, mark: string | null): StepId {
 
 export function validStep(ctx: WizardCtx, cur: StepId, mark: string | null): StepId {
   const joinedAlready = cur === "join" && ctx.hasNet;
-  if (joinedAlready || !wizardPath(ctx).includes(cur)) return startStep(ctx, mark);
+  const guideWithoutScope = cur === "guide" && ctx.scope === null;
+  if (joinedAlready || guideWithoutScope || !wizardPath(ctx).includes(cur)) return startStep(ctx, mark);
   return cur;
 }
 

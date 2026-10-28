@@ -80,7 +80,7 @@ describe("guide items and warnings", () => {
   });
 
   it("the warning when no exit is chosen", () => {
-    assert.equal(texts.WIZ_EXIT_DIRECT_WARN, "Blocked sites won't open until you choose a member above.");
+    assert.equal(texts.WIZ_EXIT_DIRECT_WARN, "Sites open directly until you choose a member above.");
   });
 });
 

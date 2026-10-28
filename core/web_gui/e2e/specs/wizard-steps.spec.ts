@@ -96,6 +96,59 @@ test.describe('the setup wizard of a node in a network', () => {
   });
 });
 
+// Safari exists only on macOS: the page detects the system from the user agent, so the cases below fix it.
+const MAC_SAFARI = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15';
+
+test.describe('the answers of the setup wizard', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the proxy is on in the demo node snapshot; on a real node it depends on startup flags');
+  test.use({ userAgent: MAC_SAFARI });
+
+  test('131-wizard-answers: one browser → Safari → all apps gives the all-apps instruction; the system and the sub-tab change keep the answers shown', async ({ app, page }) => {
+    const wizard = app.wizard;
+    const pressed = (id: Parameters<typeof wizard.tile>[0]) => expect.soft(wizard.tile(id)).toHaveAttribute('aria-pressed', 'true');
+
+    await test.step('given: one browser, Safari pressed — the instruction is for Safari', async () => {
+      await wizard.open();
+      await wizard.toGuide('browser', 'mac', 'safari');
+      await pressed('browser-safari');
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up Safari');
+    });
+
+    await test.step('when "Set up for all apps" is clicked, then the instruction is for all apps on macOS and the browser row is gone', async () => {
+      await wizard.region.locator('#guide-to-system').click();
+      await wizard.expectCursor('guide');
+      await pressed('scope-system');
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up all apps on macOS');
+      await expect.soft(wizard.tile('browser-safari')).toHaveCount(0);
+    });
+
+    await test.step('when the system is Windows and then one browser again, then the browser row shows this computer\'s Safari', async () => {
+      await wizard.tile('os-windows').click();
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up all apps on Windows');
+      await wizard.tile('scope-browser').click();
+      await pressed('browser-safari');
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up Safari');
+    });
+
+    await test.step('when Firefox is chosen and the tab goes to Overview and back, then Firefox is still pressed under the same instruction', async () => {
+      await wizard.tile('browser-firefox').click();
+      await wizard.openOverview();
+      await wizard.open();
+      await wizard.expectCursor('guide');
+      await pressed('browser-firefox');
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up Firefox');
+    });
+
+    await test.step('when the page is reloaded, then the Setup tab opens on the instruction with Firefox pressed', async () => {
+      await page.reload();
+      await wizard.open();
+      await wizard.expectCursor('guide');
+      await pressed('browser-firefox');
+      await expect.soft(wizard.rowHeading('guide')).toHaveText('Set up Firefox');
+    });
+  });
+});
+
 test.describe('layout of the wizard screens', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'the proxy is on in the demo node snapshot; on a real node it depends on startup flags');
 

@@ -4,13 +4,11 @@ import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openMembersPage, stateWith } from "../testing/members-page.mjs";
 import { openTab, polls, unmountPage } from "../testing/page.mjs";
+import { flushPromises } from "@vue/test-utils";
 import { ADMISSION_REFUSED_DELAY_MS } from "../peers/peers-texts.ts";
-
-beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
-afterEach(() => {
-  unmountPage();
-  vi.useRealTimers();
-});
+import { baseConfig, baseState, mountSection } from "../testing/section.mjs";
+import { MAC_CHROME, pressedTiles } from "../testing/wizard.mjs";
+import HomeSection from "./HomeSection.vue";
 
 const read = (name) => JSON.parse(readFileSync(new URL("../testing/" + name, import.meta.url), "utf8"));
 const MEMBERS = read("refused-node.members.json");
@@ -27,6 +25,12 @@ async function setFlag(page, refused) {
 }
 
 describe("the plate while switching tabs", () => {
+  beforeEach(() => vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] }));
+  afterEach(() => {
+    unmountPage();
+    vi.useRealTimers();
+  });
+
   it("keeps the plate when switching Overview to Setup", async () => {
     const page = await openRefused();
     await vi.advanceTimersByTimeAsync(ADMISSION_REFUSED_DELAY_MS);
@@ -66,5 +70,65 @@ describe("the plate while switching tabs", () => {
     expect(plates(page)).toHaveLength(0);
     await vi.advanceTimersByTimeAsync(ADMISSION_REFUSED_DELAY_MS);
     expect(plates(page)).toHaveLength(1);
+  });
+});
+
+describe("answers survive", () => {
+  const PROXY_ON = { socks: { enabled: true, listen: "127.0.0.1:1080", pac_url: "http://127.0.0.1:1080/proxy.pac" } };
+  let home;
+
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem("meshtown.homeSetup", "done");
+    Object.defineProperty(navigator, "userAgent", { value: MAC_CHROME, configurable: true });
+  });
+  afterEach(() => {
+    home?.wrapper.unmount();
+    home = null;
+    Reflect.deleteProperty(navigator, "userAgent");
+  });
+
+  const mountHome = () => (home = mountSection(HomeSection, { config: baseConfig(), state: baseState(PROXY_ON) }));
+  const click = async (selector) => {
+    await home.wrapper.get(selector).trigger("click");
+    await flushPromises();
+  };
+  const rowIds = () => home.wrapper.findAll(".wizard-row").map((r) => r.attributes("data-step"));
+
+  it("Firefox picked in the one-browser mode is still pressed after Main and back to Setup, on the instruction", async () => {
+    mountHome();
+    await click("#home-tab-wizard");
+    await click("#scope-browser");
+    await click("#browser-firefox");
+    expect(pressedTiles(home.wrapper, "browser-seg")).toEqual(["firefox"]);
+    await click("#home-tab-main");
+    await click("#home-tab-wizard");
+    expect(pressedTiles(home.wrapper, "browser-seg")).toEqual(["firefox"]);
+    expect(pressedTiles(home.wrapper, "scope-seg")).toEqual(["browser"]);
+    expect(rowIds().at(-1)).toBe("guide");
+  });
+
+  it("the browser picked survives a reload of the page: the same storage, a new section", async () => {
+    mountHome();
+    await click("#home-tab-wizard");
+    await click("#scope-browser");
+    await click("#browser-firefox");
+    home.wrapper.unmount();
+    mountHome();
+    await click("#home-tab-wizard");
+    expect(pressedTiles(home.wrapper, "browser-seg")).toEqual(["firefox"]);
+    expect(rowIds().at(-1)).toBe("guide");
+  });
+
+  it("the system picked survives a reload as well, the detected one is not written", async () => {
+    mountHome();
+    await click("#home-tab-wizard");
+    expect(localStorage.getItem("meshtown.proxyOs")).toBeNull();
+    await click("#scope-system");
+    await click("#os-windows");
+    home.wrapper.unmount();
+    mountHome();
+    await click("#home-tab-wizard");
+    expect(pressedTiles(home.wrapper, "os-seg")).toEqual(["windows"]);
   });
 });

@@ -3,11 +3,14 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
+import { defineComponent, h, provide } from "vue";
 import { BROWSER_SCOPE_NOTE, FIREFOX_STEPS, SCOPE_BROWSER, SCOPE_QUESTION, SCOPE_SYSTEM } from "../common/pac-texts.ts";
 import { createStore, STORE_KEY } from "../core/store.ts";
 import { applySnapshot } from "../testing/snapshot.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
 import BrowserCard from "./BrowserCard.vue";
+import SetupWizard from "./SetupWizard.vue";
+import { HOME_KEY, useHome } from "./use-home.ts";
 
 const PROXY_ON = { socks: { enabled: true, listen: "127.0.0.1:1080", pac_url: "http://127.0.0.1:1080/proxy.pac" } };
 const KEY = "meshtown.proxyScope";
@@ -94,5 +97,20 @@ describe("BrowserCard > scope question", () => {
     const wrapper = mountCard();
     expect(pressed(wrapper)).toEqual([]);
     expect(wrapper.find("#firefox-steps").exists()).toBe(false);
+  });
+
+  it("the scope picked on the card is the one the wizard shows: one answer for both", async () => {
+    const store = createStore();
+    applySnapshot(store, { state: baseState(PROXY_ON), config: baseConfig(), configRev: 1 });
+    const Both = defineComponent({
+      setup() {
+        provide(HOME_KEY, useHome(store));
+        return () => [h(BrowserCard), h(SetupWizard)];
+      },
+    });
+    mounted = mount(Both, { attachTo: document.body, global: { provide: { [STORE_KEY]: store } } });
+    await mounted.get("#home-proxy #scope-browser").trigger("click");
+    expect(mounted.get("#wizard-screen #scope-browser").attributes("aria-pressed")).toBe("true");
+    expect(mounted.get("#wizard-screen #scope-system").attributes("aria-pressed")).toBe("false");
   });
 });

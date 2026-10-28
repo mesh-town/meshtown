@@ -303,6 +303,6 @@ describe("SetupWizard > a page storage that refuses to write", () => {
     await click(wrapper, "#wizard-next");
     expect(step(wrapper)).toBe("exit");
     await click(wrapper, "#wizard-next");
-    expect(step(wrapper)).toBe("exit");
+    expect(step(wrapper), "Finish starts the wizard over: the cursor is derived from the answers again").toBe("choices");
   });
 });

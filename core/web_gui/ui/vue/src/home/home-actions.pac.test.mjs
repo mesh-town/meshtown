@@ -12,8 +12,12 @@ const PAC_URL = "http://127.0.0.1:1080/proxy.pac";
 describe("createHomeForm, the browser card", () => {
   it("no system chosen (os: null), no foreign note (noteKind: \"\"), the block is collapsed", () => {
     assert.deepEqual(createHomeForm().browser, {
-      choice: null, os: null, open: false, copied: "", note: "", noteKind: "",
+      choice: null, os: null, scope: null, pick: null, open: false, copied: "", note: "", noteKind: "",
     });
+  });
+
+  it("the wizard starts at its first step, nothing visited", () => {
+    assert.deepEqual(createHomeForm().wizard, { at: "join", skipped: false, visited: [] });
   });
 });
 
