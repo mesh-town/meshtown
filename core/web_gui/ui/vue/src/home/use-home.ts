@@ -15,6 +15,11 @@ import type { ExitGroup } from "./exit-groups.ts";
 import { routeLine } from "./route-line.ts";
 import { getPath } from "../settings/settings-fields.ts";
 import { isAppUserAgent, proxyState } from "./browser-setup.ts";
+import { loadAnswers, saveBrowser, saveOs, writeProxyScope } from "./proxy-scope.ts";
+import type { ProxyScope } from "./proxy-scope.ts";
+import { manualBrowser } from "./wizard/guide-content.ts";
+import { freshCursor } from "./wizard/wizard-machine.ts";
+import type { WizBrowser } from "./wizard/wizard-steps.ts";
 import type { BrowserId, OsId, ProxyState, StepValue } from "./browser-setup.ts";
 import { exitWarning, memberExits, warnPanel } from "../members/exit-members.ts";
 import type { ExitWarning } from "../members/exit-members.ts";
@@ -90,6 +95,9 @@ export interface HomeContext {
   copy: (kind: StepValue) => Promise<"fallback" | "copied">;
   pickBrowser: (id: BrowserId) => void;
   pickOs: (id: OsId) => void;
+  pickScope: (scope: ProxyScope) => void;
+  /** The browser clicked in the wizard: the answer and the manual block's browser at once. */
+  pickWizBrowser: (browser: WizBrowser) => void;
   toggleBrowser: () => void;
   pickOther: () => void;
   setMark: (mark: SetupMark) => void;
@@ -150,13 +158,15 @@ function syncExit(form: HomeForm, value: string): void {
 }
 
 // An explicit tab choice lives until reload; "Done" in the setup resets it — "Main" opens.
-function useMark(store: Store, deps: HomeDeps, homeTab: Ref<HomeTab | null>): { setupMark: Ref<string | null>; setMark: (mark: SetupMark) => void } {
+// "Set up again" and "Done" start the wizard over: its cursor is derived from the answers again.
+function useMark(store: Store, deps: HomeDeps, homeTab: Ref<HomeTab | null>, form: HomeForm): { setupMark: Ref<string | null>; setMark: (mark: SetupMark) => void } {
   const setupMark = ref<string | null>(readSetupMark(deps.storage));
   const reread = () => { setupMark.value = readSetupMark(deps.storage) || setupMark.value; };
   const setMark = (mark: SetupMark): void => {
     writeSetupMark(mark, deps.storage);
     setupMark.value = mark;
     if (mark === "done") homeTab.value = null;
+    if (mark !== "exit") form.wizard = freshCursor();
   };
   watch(() => store.state, reread);
   return { setupMark, setMark };
@@ -166,6 +176,14 @@ function useNotice(store: Store): Ref<string> {
   const notice = ref("");
   watch(() => netIdOf(store), (id, prev) => { if (prev && id !== prev) notice.value = ""; });
   return notice;
+}
+
+// The form with the wizard's answers remembered from earlier visits; what was only detected is not remembered.
+function seededForm(deps: HomeDeps): HomeForm {
+  const form = createHomeForm();
+  const { scope, os, pick } = loadAnswers(deps.storage);
+  Object.assign(form.browser, { scope, os, pick, choice: pick && manualBrowser(pick) });
+  return form;
 }
 
 // Proxy off — an empty string (there are no buttons then).
@@ -200,9 +218,9 @@ function leadRemembered(store: Store, deps: HomeDeps): string[] {
 }
 
 export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeContext {
-  const form = reactive(createHomeForm());
+  const form = reactive(seededForm(deps));
   const homeTab = ref<HomeTab | null>(null);
-  const { setupMark, setMark } = useMark(store, deps, homeTab);
+  const { setupMark, setMark } = useMark(store, deps, homeTab, form);
   const mode = computed(() => homeMode(store.state, setupMark.value));
   const notice = useNotice(store);
   const chosen = computed(() => chosenExitIds(store));
@@ -255,7 +273,13 @@ export function useHome(store: Store, deps: HomeDeps = defaultHomeDeps): HomeCon
     saveExitServer: (checked: boolean) => saveExitServer(form, store, checked, deps),
     copy: (kind: StepValue) => copyValue(form, kind, proxyCopyText(proxyOf(store, form, deps), kind), deps),
     pickBrowser: (id: BrowserId) => { form.browser.choice = id; },
-    pickOs: (id: OsId) => { form.browser.os = id; },
+    pickOs: (id: OsId) => { form.browser.os = id; saveOs(id, deps.storage); },
+    pickScope: (scope: ProxyScope) => { form.browser.scope = scope; writeProxyScope(scope, deps.storage); },
+    pickWizBrowser: (browser: WizBrowser) => {
+      form.browser.pick = browser;
+      form.browser.choice = manualBrowser(browser);
+      saveBrowser(browser, deps.storage);
+    },
     toggleBrowser: () => { form.browser.open = !form.browser.open; },
     pickOther: () => deps.focus(otherSelector(groups.value, multi.value)),
     setMark,

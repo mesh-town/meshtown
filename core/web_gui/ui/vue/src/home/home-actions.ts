@@ -8,6 +8,10 @@ import type { SaveResult, ConfigChanges } from "../core/save-config.ts";
 import type { Store } from "../core/store.ts";
 import { PAC_COPY_FALLBACK } from "../common/pac-texts.ts";
 import type { BrowserId, OsId, StepValue } from "./browser-setup.ts";
+import type { ProxyScope } from "./proxy-scope.ts";
+import { freshCursor } from "./wizard/wizard-machine.ts";
+import type { WizardCursor } from "./wizard/wizard-machine.ts";
+import type { WizBrowser } from "./wizard/wizard-steps.ts";
 import { saveSlotFields, fieldErrorText } from "../core/save-config.ts";
 import { exitChoiceValue, rememberCurrentExit, saveDirect, saveExitIn } from "../core/exit-via.ts";
 import { parseExitValue } from "./exit-list.ts";
@@ -52,7 +56,13 @@ export interface HomeForm {
   findError: string;
   name: { draft: string; original: string; focused: boolean; status: FieldStatus };
   exitServerStatus: FieldStatus;
-  browser: { choice: BrowserId | null; os: OsId | null; open: boolean; copied: "" | StepValue; note: string; noteKind: "" | StepValue };
+  /** `scope`, `os` and `pick` are the wizard's answers (also read by the Main card); `choice` is the manual block's browser. */
+  browser: {
+    choice: BrowserId | null; os: OsId | null; scope: ProxyScope | null; pick: WizBrowser | null;
+    open: boolean; copied: "" | StepValue; note: string; noteKind: "" | StepValue;
+  };
+  /** The wizard's cursor; it lives as long as the section, so a sub-tab switch keeps the place. */
+  wizard: WizardCursor;
 }
 
 export type ExitSaveResult = "saved" | "failed";
@@ -91,7 +101,8 @@ export function createHomeForm(): HomeForm {
     findError: "",
     name: { draft: "", original: "", focused: false, status: noStatus() },
     exitServerStatus: noStatus(),
-    browser: { choice: null, os: null, open: false, copied: "", note: "", noteKind: "" },
+    browser: { choice: null, os: null, scope: null, pick: null, open: false, copied: "", note: "", noteKind: "" },
+    wizard: freshCursor(),
   };
 }
 
