@@ -4,7 +4,7 @@
 // in the member list. Shared services: the ports. Device settings: this computer's name, exit and the way out.
 // A computer that is out of the network sees the "excluded" card instead, a join in progress its own card.
 import { computed, inject, nextTick, ref, watch } from "vue";
-import { isRefused, membersOf, netName, peersSlots, refusedFlag, stateOf } from "../core/slots.ts";
+import { isRefused, membersOf, netName, networkSlots, peersSlots, refusedFlag, stateOf } from "../core/slots.ts";
 import { saveExitIn } from "../core/exit-via.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
@@ -55,6 +55,8 @@ const store: Store = injected;
 // The network on show: with several networks the chosen tab, otherwise the leading one.
 const visible = computed(() => peersSlots(store.nets, store.slots));
 const multi = computed(() => visible.value.length >= 2);
+// The hint counts running networks only: a broken slot has a tab but is not a network.
+const networks = computed(() => networkSlots(store.nets, visible.value));
 const joining = computed(() => joiningTabs(store));
 // The row of tabs: the "multi" look (heads, hint) stays for several networks or a join in progress.
 const crowded = computed(() => multi.value || joining.value.length > 0);
@@ -65,7 +67,7 @@ const state = computed(() => stateOf(store, slot.value));
 const members = computed(() => membersOf(store, slot.value));
 const tabs = computed(() => netTabs(store));
 const you = ref<InstanceType<typeof YouBlock> | null>(null);
-const hint = useNetsHint(() => visible.value.length);
+const hint = useNetsHint(() => networks.value.length);
 // The "added a network" banner sits on that network's tab; a join that waited for a member shows it on arrival.
 const { banner, show: showBanner, clear: clearBanner } = useNetBanner();
 // Somebody joined the network the banner is about: it goes for good.
@@ -161,7 +163,7 @@ async function exitVia(idFull: string): Promise<void> {
 <template>
   <p v-if="!state && !addOnly && !brokenHere" class="hint">{{ PEERS_LOADING }}</p>
   <template v-else>
-    <p v-if="multi && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(visible.length, inAppPage()) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
+    <p v-if="networks.length >= 2 && !hint.seen.value" class="hint nets-hint" id="peers-nets-hint">{{ peersNetsHint(networks.length, inAppPage()) }} <button type="button" class="btn btn-sm" id="peers-nets-hint-ok" @click="hint.dismiss">{{ PEERS_NETS_HINT_OK }}</button></p>
     <NetTabs v-if="showRow" :tabs="tabs" :active="addOnly ? 'add' : slot" :joining="joining" :full="visible.length >= MAX_NETS" :sub="store.netSub" />
     <AddNetCard v-if="addOnly" />
     <p v-else-if="brokenHere" class="hint" id="peers-broken-net">{{ peersBrokenNet() }}</p>

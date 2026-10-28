@@ -112,7 +112,13 @@ async fn prepare_run(
     let typed = &args.initial_domains;
     let invited =
         run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, typed, now).await?;
-    let added = add_key_net(&key_net, cli_key.as_deref(), &run, args, now)?;
+    let added = add_key_net(
+        &key_net,
+        cli_key.as_deref(),
+        &run,
+        &args.initial_domains,
+        now,
+    )?;
     Ok((run, overrides, invited.filter(|_| !added)))
 }
 
@@ -131,11 +137,11 @@ fn add_key_net(
     key_net: &KeyNet,
     cli_key: Option<&str>,
     run: &config_file::RunConfig,
-    args: &RunArgs,
+    domains: &[String],
     now: u64,
 ) -> anyhow::Result<bool> {
     if let (KeyNet::Add, Some(key)) = (key_net, cli_key) {
-        add_net_slot(run, key, &args.initial_domains, &[], now)?;
+        add_net_slot(run, key, domains, &[], now)?;
     }
     if let (KeyNet::Unreadable, Some(key)) = (key_net, cli_key) {
         say_unreadable(key);

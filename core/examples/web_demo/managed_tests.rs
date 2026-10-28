@@ -26,7 +26,6 @@ fn demo(mode: DemoRole) -> DemoMembers {
         dht_nodes: 0,
         me_excluded: false,
         members_pending: true,
-        me_pending: false,
         managed: mode,
     };
     DemoMembers::new(&[peer(2, "peer-one"), peer(3, "peer-two")], &opts)

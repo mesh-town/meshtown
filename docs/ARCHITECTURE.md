@@ -341,7 +341,7 @@ place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
 
 - One DHT record holds up to 16 member keys (after that the oldest are pushed out).
 - Relay needs a member with a public address: it starts about twenty minutes after that node starts, and a network of nodes that are all behind NAT has none.
-- Node names are not unique; an invite is reusable and secret exactly like the network key.
+- Node names are not unique; an invite is single-use and valid for a day, and whoever presents it first joins, so send it to one person in a private message.
 - Without a settings file (`--no-config`), the domain list lives in memory and is lost when the whole
   network restarts.
 - The author of records is the node key: with a key from the settings file the author is the same across runs, with

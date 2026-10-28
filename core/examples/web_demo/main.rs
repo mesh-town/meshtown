@@ -71,7 +71,6 @@ pub(crate) fn build_demo_node(args: &Args, run: &config_file::RunConfig) -> Demo
             dht_nodes: args.dht_nodes,
             me_excluded: args.me_excluded,
             members_pending: args.members_pending,
-            me_pending: args.me_pending,
             managed: args.demo_role(),
         },
         run.effective_settings.clone(),

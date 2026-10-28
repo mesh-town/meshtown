@@ -2,7 +2,7 @@
 
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
-import { slotPath, isSlotId, visibleSlots, peersSlots, brokenSlots, isRefused, isMulti, netName, refusedFlag } from "./slots.ts";
+import { slotPath, isSlotId, visibleSlots, peersSlots, brokenSlots, networkSlots, isRefused, isMulti, netName, refusedFlag } from "./slots.ts";
 
 const B = "k7q2xa";
 const C = "m3n4pq";
@@ -321,5 +321,11 @@ describe("a broken slot", () => {
   it("brokenSlots skips main and live slots", () => {
     const list = [brief("main", { status: "broken" }), brief(B, { status: "broken" }), brief(C, { status: "online", id_hex: "3f2a00" })];
     assert.deepEqual(brokenSlots(list), [B]);
+  });
+
+  it("networkSlots does not count a broken slot as a network", () => {
+    const { nets: n, slots } = setup(nets(), noState);
+    assert.deepEqual(networkSlots(n, peersSlots(n, slots)), ["main"]);
+    assert.deepEqual(networkSlots(n, ["main", C]), ["main", C]);
   });
 });

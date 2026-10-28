@@ -56,11 +56,6 @@ fn admission_of(e: &Entry) -> Option<AdmissionInfo> {
     })
 }
 
-/// The own request of a computer that waits to be admitted.
-fn own_admission(m: &DemoMembers) -> Option<AdmissionInfo> {
-    m.me_pending.then_some(AdmissionInfo { label: None })
-}
-
 /// Seconds since the last sign of life: zero while online, unknown otherwise.
 fn last_seen(e: &Entry) -> Option<u64> {
     e.online.then_some(0)
@@ -143,12 +138,12 @@ pub(crate) fn build_reply(m: &DemoMembers, boot_id: &str, changed: Option<bool>)
         .filter(|_| !m.is_closed())
         .map(|e| row(m, e, &me, boot_id))
         .collect();
-    let (counts, me_admission) = (counts(&members), own_admission(m));
+    let counts = counts(&members);
     MembersReply {
         me: me.clone(),
         me_excluded: m.me_excluded,
-        me_pending: m.me_pending,
-        me_admission,
+        me_pending: false,
+        me_admission: None,
         admins: admins_of(m, &me),
         me_admin: m.is_admin(ME),
         root: Some(resolve(&m.roles.root, &me)),

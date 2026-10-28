@@ -22,7 +22,6 @@ const ctx = { me: ME };
 describe("status texts", () => {
   const cases = [
     ["blockedStatus", () => t.blockedStatus("old-laptop"), "old-laptop is blocked on this"],
-    ["meWaitingText", () => t.meWaitingText(), "This %s is waiting for an admin"],
     ["leftNetworkStatus", () => t.leftNetworkStatus("net", false), "may still see this %s in their list"],
     ["deleteNetBody", () => deleteNetBody(3, "net"), "this %s too."],
   ];

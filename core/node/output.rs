@@ -37,6 +37,7 @@ pub struct Journal {
     start: Instant,
     ring: Mutex<LogRing>,
     multi: AtomicBool,
+    to_stderr: AtomicBool,
 }
 
 impl Journal {
@@ -46,6 +47,7 @@ impl Journal {
             start: Instant::now(),
             ring: Mutex::new(LogRing::new(capacity)),
             multi: AtomicBool::new(false),
+            to_stderr: AtomicBool::new(false),
         }
     }
 
@@ -60,12 +62,25 @@ impl Journal {
         let t = self.uptime_secs();
         let net = current_net();
         let shown = self.multi.load(Ordering::Relaxed) && net.is_some();
-        match (shown, &net) {
-            (true, Some(id)) => println!("+{t:>7.1}s [{tag}] [{id}] {text}"),
-            _ => println!("+{t:>7.1}s [{tag}] {text}"),
-        }
+        let line = match (shown, &net) {
+            (true, Some(id)) => format!("+{t:>7.1}s [{tag}] [{id}] {text}"),
+            _ => format!("+{t:>7.1}s [{tag}] {text}"),
+        };
+        self.print(&line);
         self.ring()
             .push_labeled(t, tag, text.to_string(), net, shown);
+    }
+
+    /// Sends console lines to stderr instead of stdout, for commands whose stdout is data.
+    pub fn log_to_stderr(&self) {
+        self.to_stderr.store(true, Ordering::Relaxed);
+    }
+
+    fn print(&self, line: &str) {
+        match self.to_stderr.load(Ordering::Relaxed) {
+            true => eprintln!("{line}"),
+            false => println!("{line}"),
+        }
     }
 
     /// Seconds since the log was created — the same scale `say` prints.
@@ -98,6 +113,11 @@ static JOURNAL: LazyLock<Journal> = LazyLock::new(|| Journal::new(DEFAULT_RING_C
 /// Prints an output line with a tag and text and puts the same line into the log ring.
 pub fn say(tag: &str, text: impl std::fmt::Display) {
     JOURNAL.say(tag, text);
+}
+
+/// Sends the console lines of the process to stderr (`keygen` keeps stdout for the key).
+pub fn log_to_stderr() {
+    JOURNAL.log_to_stderr();
 }
 
 /// A short representation of the node identifier.

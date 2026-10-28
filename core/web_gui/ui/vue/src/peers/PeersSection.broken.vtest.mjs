@@ -50,4 +50,10 @@ describe("a broken slot", () => {
     expect(page.wrapper.find("#peers-broken-net").exists()).toBe(false);
     expect(page.wrapper.find("#peers-list").exists()).toBe(true);
   });
+
+  it("does not count the broken slot in the hint about several networks", async () => {
+    const page = await open("peers/" + NET_A);
+    expect(page.wrapper.find("#peers-nets-hint").exists()).toBe(false);
+    expect(page.wrapper.get("#sec-peers").text()).not.toContain("You’re now in");
+  });
 });

@@ -15,6 +15,7 @@ use crate::transport::net::PeerId;
 
 /// Prints one key line: the words form by default, the machine form `mesh2-…` with `--raw`.
 pub(crate) fn keygen(label: Vec<String>, raw: bool, config: Option<PathBuf>) -> anyhow::Result<()> {
+    crate::node::output::log_to_stderr();
     let root = node_identity(config.as_deref(), super::now_unix())?;
     println!("{}", new_key(&label, raw, &root)?);
     Ok(())
@@ -53,12 +54,41 @@ fn node_identity(config: Option<&Path>, now: u64) -> anyhow::Result<PeerId> {
 
 fn identity_at(path: &Path, now: u64) -> anyhow::Result<PeerId> {
     match config_file::load_config_file(path) {
-        LoadedConfigFile::Parsed(p) => parsed_identity(path, p),
+        LoadedConfigFile::Parsed(p) => {
+            warn_loose_dir(path);
+            parsed_identity(path, p)
+        }
         LoadedConfigFile::Absent => create_identity(path, now),
         LoadedConfigFile::Unreadable(why) | LoadedConfigFile::Invalid(why) => {
             anyhow::bail!("settings file is unusable: {why}")
         }
     }
+}
+
+/// Prints the warning of `loose_dir_warning` to stderr: stdout carries the key alone.
+fn warn_loose_dir(file: &Path) {
+    if let Some(warning) = loose_dir_warning(file) {
+        eprintln!("{warning}");
+    }
+}
+
+/// A warning when the directory of the settings file is open to more than its owner (Unix only).
+#[cfg(unix)]
+fn loose_dir_warning(file: &Path) -> Option<String> {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = file.parent().filter(|d| !d.as_os_str().is_empty())?;
+    let mode = std::fs::metadata(dir).ok()?.permissions().mode() & 0o777;
+    (mode & 0o077 != 0).then(|| {
+        format!(
+            "warning: directory {} is accessible to more than its owner (mode 0{mode:o}) and holds the node secret; set it to 0700",
+            dir.display()
+        )
+    })
+}
+
+#[cfg(not(unix))]
+fn loose_dir_warning(_file: &Path) -> Option<String> {
+    None
 }
 
 fn parsed_identity(path: &Path, p: ParsedConfigFile) -> anyhow::Result<PeerId> {

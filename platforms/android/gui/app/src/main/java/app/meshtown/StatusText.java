@@ -72,7 +72,7 @@ final class StatusText {
         if ("unavailable".equals(s.route)) {
             return exitOffline(s);
         }
-        return new Notice("Connected", "Sites open directly. Choose an exit in the app to open blocked sites.");
+        return new Notice("Connected", "Sites open directly. Choose an exit in the app to open sites through it.");
     }
 
     /** The alert for an exit that went offline. */

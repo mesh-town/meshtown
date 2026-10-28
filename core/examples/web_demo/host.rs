@@ -134,7 +134,6 @@ fn clone_args(a: &Args) -> Args {
         (a.dht_joined, "--dht-joined"),
         (a.me_excluded, "--me-excluded"),
         (a.members_pending, "--members-pending"),
-        (a.me_pending, "--me-pending"),
         (a.admission_refused, "--admission-refused"),
         (a.second_admin, "--second-admin"),
     ];

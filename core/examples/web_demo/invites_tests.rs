@@ -23,7 +23,6 @@ fn node_with(key: Option<String>) -> DemoNode {
         dht_joined: false,
         dht_nodes: 0,
         members_pending: false,
-        me_pending: false,
         me_excluded: true,
         managed: Default::default(),
     };

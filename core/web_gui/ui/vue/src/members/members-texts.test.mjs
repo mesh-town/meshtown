@@ -156,10 +156,6 @@ describe("the screen of an excluded computer", () => {
 });
 
 describe("join request texts", () => {
-  it("the waiting computer names an admin, no numbers", () => {
-    assert.equal(t.meWaitingText(), "This computer is waiting for an admin to let it in.");
-  });
-
   it("fixed words", () => {
     assert.equal(t.PENDING_TITLE, "Waiting to join the network");
     assert.equal(t.labelLine("Anna"), 'Invited as "Anna"');

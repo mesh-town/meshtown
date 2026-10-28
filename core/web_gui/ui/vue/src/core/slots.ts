@@ -51,6 +51,12 @@ export function peersSlots(nets: NetBrief[], slots: Record<string, SlotSlice>): 
   return all.length > 0 ? all : ["main"];
 }
 
+/** The tabs that stand for a running network: a broken slot (a `--key` without a key) is a tab but not a network. */
+export const networkSlots = (nets: NetBrief[], ids: string[]): string[] => {
+  const broken = brokenSlots(nets);
+  return ids.filter((id) => !broken.includes(id));
+};
+
 export function isMulti(store: SlotsHost): boolean {
   return visibleSlots(store.nets, store.slots).length >= 2;
 }

@@ -38,8 +38,6 @@ pub(crate) struct Entry {
 
 pub(crate) struct DemoMembers {
     pub(crate) me_excluded: bool,
-    /// This computer asked to join and waits for confirmations.
-    pub(crate) me_pending: bool,
     pub(crate) entries: Vec<Entry>,
     /// Administrators and the creator of the network.
     pub(crate) roles: Roles,
@@ -154,7 +152,6 @@ impl DemoMembers {
         push_outsiders(&mut entries, gone, opts.members_pending);
         let mut members = DemoMembers {
             me_excluded: false,
-            me_pending: opts.me_pending,
             entries,
             roles,
         };

@@ -133,3 +133,28 @@ mod with_an_invalid_file {
         assert_eq!(std::fs::read(dir.file()).unwrap(), b"not json");
     }
 }
+
+#[cfg(unix)]
+mod directory_permissions {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn set_mode(dir: &Dir, mode: u32) {
+        std::fs::set_permissions(&dir.0, std::fs::Permissions::from_mode(mode)).unwrap();
+    }
+
+    #[test]
+    fn a_wide_directory_gets_a_warning() {
+        let dir = Dir::new("wide");
+        set_mode(&dir, 0o755);
+        let warning = loose_dir_warning(&dir.file()).expect("warning");
+        assert!(warning.contains("mode 0755"), "{warning}");
+    }
+
+    #[test]
+    fn a_private_directory_gets_none() {
+        let dir = Dir::new("private");
+        set_mode(&dir, 0o700);
+        assert_eq!(loose_dir_warning(&dir.file()), None);
+    }
+}

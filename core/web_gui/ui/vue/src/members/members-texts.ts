@@ -51,7 +51,6 @@ export const stripVoteShortText = (n: number): string => n + " to confirm";
 export const stripVoteText = (n: number): string => (n === 1 ? "1 request to confirm" : n + " requests to confirm");
 export const chipLabel = (n: number): string => (n === 1 ? "1 request needs your confirmation" : n + " requests need your confirmation");
 
-export const meWaitingText = (): string => forDevice("This computer is waiting for an admin to let it in.");
 export const admittedStatus = (name: string): string => name + " joined the network.";
 export const labelLine = (label: string): string => "Invited as \"" + label + "\"";
 export const admitAria = (name: string): string => "Confirm joining: " + name;
