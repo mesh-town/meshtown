@@ -6,11 +6,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { baseConfig, baseState, mountSection } from "../testing/section.mjs";
 import {
-  MARK_KEY, SCOPE_KEY, brokenStorage, click, cursor, mountWizard, pressedTiles, progress, rows, step, tiles, toGuide, unmountWizard,
+  LINUX_FIREFOX, MARK_KEY, SCOPE_KEY, brokenStorage, click, cursor, mountWizard, pressedTiles, progress, rows, step, tiles, toGuide, unmountWizard, WINDOWS_EDGE,
 } from "../testing/wizard.mjs";
 import HomeSection from "./HomeSection.vue";
 
-const MAC_SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+const LINUX_SAFARI = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
 const WITH_PROXY = { socks: { enabled: true, listen: "127.0.0.1:1080" } };
 let mounted;
 const mount = (opts) => (mounted = mountWizard(opts));
@@ -21,26 +21,26 @@ describe("SetupWizard > start", () => {
   it("starts on the join screen without Back", () => {
     const { wrapper } = mount({ hasNet: false });
     expect(step(wrapper)).toBe("join");
-    expect(progress(wrapper)).toBe("Step 1 of 6");
+    expect(progress(wrapper)).toBe("Step 1 of 5");
     expect(wrapper.find("#wizard-back").exists()).toBe(false);
     expect(wrapper.find("#wizard-next").exists(), "the join screen has its own buttons").toBe(false);
   });
 
-  it("joining a network moves on to the scope question as step 2 of 6, with the joined line and no Back", async () => {
+  it("joining a network moves on to the scope question as step 2 of 5, with the joined line and no Back", async () => {
     const { wrapper, store } = mount({ hasNet: false });
     store.state = baseState({ ...WITH_PROXY, network: { id_hex: "net-aaaa", label: "family" } });
     await flushPromises();
     expect(cursor(wrapper)).toBe("scope");
-    expect(progress(wrapper)).toBe("Step 2 of 6");
+    expect(progress(wrapper)).toBe("Step 2 of 5");
     expect(wrapper.get("#wizard-joined").text()).toBe("✓ You joined the network \"family\"");
     expect(wrapper.find("#wizard-back").exists()).toBe(false);
   });
 
-  it("opens the scope question as step 2 of 6", () => {
+  it("opens the scope question as step 2 of 5", () => {
     const { wrapper } = mount({ mark: "browser" });
     expect(step(wrapper)).toBe("choices");
     expect(rows(wrapper), "no row below the open question").toEqual(["scope"]);
-    expect(progress(wrapper)).toBe("Step 2 of 6");
+    expect(progress(wrapper)).toBe("Step 2 of 5");
     expect(wrapper.get("#wizard-q-scope").text()).toBe("Where should Mesh Town open sites?");
     expect(tiles(wrapper, "scope-seg")).toEqual(["All apps on this computer (recommended)", "Only in one browser"]);
   });
@@ -54,8 +54,8 @@ describe("SetupWizard > start", () => {
 
   it("a remembered scope counts as answered: every row down to the instruction is open", () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
-    expect(rows(wrapper)).toEqual(["scope", "os", "browser", "guide"]);
-    expect(progress(wrapper)).toBe("Step 5 of 6");
+    expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
+    expect(progress(wrapper)).toBe("Step 4 of 5");
   });
 
   it("a finished setup opens the scope question again instead of jumping ahead", () => {
@@ -66,7 +66,7 @@ describe("SetupWizard > start", () => {
   it("the exit mark opens the exit screen", () => {
     const { wrapper } = mount({ mark: "exit" });
     expect(step(wrapper)).toBe("exit");
-    expect(progress(wrapper)).toBe("Step 6 of 6");
+    expect(progress(wrapper)).toBe("Step 5 of 5");
   });
 });
 
@@ -74,11 +74,11 @@ describe("SetupWizard > scope", () => {
   it("system choice opens the system question and the rows below it", async () => {
     const { wrapper } = mount({ mark: "browser" });
     await click(wrapper, "#scope-system");
-    expect(rows(wrapper)).toEqual(["scope", "os", "browser", "guide"]);
-    expect(progress(wrapper)).toBe("Step 5 of 6");
+    expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
+    expect(progress(wrapper)).toBe("Step 4 of 5");
   });
 
-  it("browser choice skips the system question, step count drops to 5", async () => {
+  it("browser choice swaps the system question for the browser one, step count stays 5", async () => {
     const { wrapper } = mount({ mark: "browser" });
     await click(wrapper, "#scope-browser");
     expect(rows(wrapper)).toEqual(["scope", "browser", "guide"]);
@@ -128,20 +128,22 @@ describe("SetupWizard > system and browser", () => {
     expect(pressedTiles(wrapper, "os-seg")).toEqual(["mac"]);
   });
 
-  it("choosing Android removes the browser question, step count is 5", async () => {
+  it("the all-apps path has no browser question, whatever the system", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
-    await toGuide(wrapper, { os: "android" });
-    expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
+    for (const os of ["windows", "linux", "android", "mac"]) {
+      await toGuide(wrapper, { os });
+      expect(rows(wrapper), os).toEqual(["scope", "os", "guide"]);
+      expect(wrapper.find("#browser-seg").exists(), os).toBe(false);
+    }
     expect(progress(wrapper)).toBe("Step 4 of 5");
   });
 
   it.each([
-    ["mac", ["Safari", "Chrome", "Firefox", "Edge", "Other"]],
-    ["windows", ["Chrome", "Edge", "Firefox", "Other"]],
-    ["linux", ["Firefox", "Chrome", "Other"]],
-  ])("the browser tiles of %s", async (os, names) => {
-    const { wrapper } = mount({ mark: "browser", scope: "system" });
-    await click(wrapper, "#os-" + os);
+    ["mac", undefined, ["Safari", "Chrome", "Firefox", "Edge", "Other"]],
+    ["windows", WINDOWS_EDGE, ["Chrome", "Edge", "Firefox", "Other"]],
+    ["linux", LINUX_FIREFOX, ["Firefox", "Chrome", "Other"]],
+  ])("the browser tiles of %s", (os, ua, names) => {
+    const { wrapper } = mount({ mark: "browser", scope: "browser", ua });
     expect(tiles(wrapper, "browser-seg")).toEqual(names);
   });
 
@@ -151,8 +153,7 @@ describe("SetupWizard > system and browser", () => {
   });
 
   it("a browser the system does not offer falls back to Other", async () => {
-    const { wrapper } = mount({ mark: "browser", scope: "system", ua: MAC_SAFARI });
-    await click(wrapper, "#os-linux");
+    const { wrapper } = mount({ mark: "browser", scope: "browser", ua: LINUX_SAFARI });
     expect(pressedTiles(wrapper, "browser-seg")).toEqual(["other"]);
   });
 
@@ -166,9 +167,8 @@ describe("SetupWizard > system and browser", () => {
   it("an answer in an upper row keeps the rows below and does not move the cursor", async () => {
     const { wrapper } = mount({ mark: "browser", scope: "system" });
     await click(wrapper, "#os-windows");
-    expect(rows(wrapper)).toEqual(["scope", "os", "browser", "guide"]);
+    expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
     expect(pressedTiles(wrapper, "os-seg")).toEqual(["windows"]);
-    expect(pressedTiles(wrapper, "browser-seg")).not.toEqual([]);
   });
 
   it("switching the scope to one browser removes the system row and keeps the instruction", async () => {
@@ -181,7 +181,7 @@ describe("SetupWizard > system and browser", () => {
 
 describe("SetupWizard > Back", () => {
   it("back returns to the previous answer kept pressed", async () => {
-    const { wrapper } = mount({ mark: "browser", scope: "system" });
+    const { wrapper } = mount({ mark: "browser", scope: "browser" });
     await toGuide(wrapper, { browser: "firefox" });
     await click(wrapper, "#wizard-next");
     await click(wrapper, "#wizard-back");
@@ -251,7 +251,7 @@ describe("SetupWizard > the step counter", () => {
     const seen = [cursor(wrapper) + ":" + progress(wrapper)];
     await click(wrapper, "#wizard-next");
     seen.push(cursor(wrapper) + ":" + progress(wrapper));
-    expect(seen).toEqual(["guide:Step 5 of 6", "exit:Step 6 of 6"]);
+    expect(seen).toEqual(["guide:Step 4 of 5", "exit:Step 5 of 5"]);
   });
 });
 

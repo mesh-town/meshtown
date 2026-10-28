@@ -7,7 +7,7 @@ import { ANDROID_INTRO, ANDROID_STEPS, FIREFOX_STEPS, IOS_NO_APP } from "../../c
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "../update-texts.ts";
 import { pacBlock } from "../pac-setup.ts";
 import { browserTiles, defaultBrowser, guideFor, manualBrowser } from "./guide-content.ts";
-import { ALL_APPS_CHROME_CLOSE, ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, WIZ_APP_ITEM, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
+import { ALL_APPS_BROWSER_STEPS, ALL_APPS_BROWSERS_TITLE, ALL_APPS_LINUX_SMALL, WIZ_APP_ITEM, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
 
 const BROWSERS = ["chrome", "edge", "safari", "firefox", "other"];
 const ids = (tiles) => tiles.map(([id]) => id);
@@ -25,28 +25,29 @@ describe("guideFor", () => {
     }
 
     for (const browser of BROWSERS) {
-      it(`given system on mac with ${browser}, then the browser steps are taken verbatim`, () => {
-        assert.deepEqual(guideFor("system", "mac", browser).browserSteps, ALL_APPS_STEPS[browser]);
+      it(`given system on mac with ${browser}, then the instruction is the same`, () => {
+        assert.deepEqual(guideFor("system", "mac", browser), guideFor("system", "mac", "chrome"));
       });
     }
 
-    for (const os of ["windows", "linux"]) {
-      it(`given system on ${os} with Chrome, then the last step closes the windows from the menu instead of quitting`, () => {
-        const steps = guideFor("system", os, "chrome").browserSteps;
-        assert.deepEqual(steps, [ALL_APPS_STEPS.chrome[0], ALL_APPS_CHROME_CLOSE]);
-        assert.ok(!steps.join(" ").includes("quit"));
-        assert.match(ALL_APPS_CHROME_CLOSE, /Exit/);
+    for (const [os, label] of [["mac", "macOS"], ["windows", "Windows"], ["linux", "Linux"]]) {
+      it(`given system on ${os}, then the title names the system and the browser block is constant`, () => {
+        const g = guideFor("system", os, "firefox");
+        assert.equal(g.title, `Set up all apps on ${label}`);
+        assert.equal(g.browserTitle, ALL_APPS_BROWSERS_TITLE);
+        assert.deepEqual(g.browserSteps, ALL_APPS_BROWSER_STEPS);
       });
     }
 
-    it("given system on Linux with Chrome, then the small Chrome line is present", () => {
-      // The line is expected in `browserSmall` (the small lines of the browser block).
-      assert.ok(guideFor("system", "linux", "chrome").browserSmall.includes(ALL_APPS_CHROME_LINUX));
+    it("given system on Linux, then the small Chromium line is present", () => {
+      assert.deepEqual(guideFor("system", "linux", "chrome").browserSmall, [ALL_APPS_LINUX_SMALL]);
     });
 
-    it("given system on macOS with Chrome, then the small Chrome line is absent", () => {
-      assert.ok(!guideFor("system", "mac", "chrome").browserSmall.includes(ALL_APPS_CHROME_LINUX));
-    });
+    for (const os of ["mac", "windows"]) {
+      it(`given system on ${os}, then the small Chromium line is absent`, () => {
+        assert.deepEqual(guideFor("system", os, "chrome").browserSmall, []);
+      });
+    }
   });
 
   describe("only in one browser", () => {
@@ -67,11 +68,11 @@ describe("guideFor", () => {
       });
     }
 
-    it("given another browser, then the intro speaks about this browser", () => {
+    it("given another browser, then the address is shown with the intro and the switch to all apps", () => {
       const g = guideFor("browser", "mac", "other");
       assert.equal(g.intro, WIZ_ONE_BROWSER_OTHER);
       assert.equal(g.toSystem, true);
-      assert.equal(g.copy, false);
+      assert.equal(g.copy, true);
       assert.equal(g.more, false);
     });
   });

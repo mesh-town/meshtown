@@ -96,48 +96,22 @@ describe("manual setup toggle", () => {
   });
 });
 
-describe("all apps on this computer, per browser", () => {
-  it("Chrome: two steps", () => {
-    assert.deepEqual(texts.ALL_APPS_STEPS.chrome, [
-      "Chrome uses the system setting from the steps above — there is nothing to change in Chrome itself.",
-      "If Chrome was open, quit it completely and open it again.",
+describe("all apps on this computer", () => {
+  it("the title names the system", () => {
+    assert.equal(texts.WIZ_ALL_APPS_TITLE("macOS"), "Set up all apps on macOS");
+  });
+
+  it("the browsers block", () => {
+    assert.equal(texts.ALL_APPS_BROWSERS_TITLE, "Browsers");
+    assert.deepEqual(texts.ALL_APPS_BROWSER_STEPS, [
+      "Chrome, Edge, Safari, Opera, Brave and most other browsers use this system setting — there is nothing to change in them. If a browser was open, close it completely and open it again.",
+      "Firefox: open \"Settings\" → \"General\" → \"Network Settings\" → \"Settings…\" and make sure \"Use system proxy settings\" is selected (it is the default).",
+      `Opera: turn off its built-in VPN — otherwise sites bypass ${NET_NAME}.`,
     ]);
   });
 
-  it("Edge: two steps", () => {
-    assert.deepEqual(texts.ALL_APPS_STEPS.edge, [
-      "Edge uses the system setting from the steps above — there is nothing to change in Edge itself.",
-      "If Edge was open, close all its windows and open it again.",
-    ]);
-  });
-
-  it("Safari: two steps", () => {
-    assert.deepEqual(texts.ALL_APPS_STEPS.safari, [
-      "Safari always uses the system setting from the steps above — there is nothing to change in Safari.",
-      "If Safari was open, quit it (\"Safari\" → \"Quit Safari\") and open it again.",
-    ]);
-  });
-
-  it("Firefox: three steps", () => {
-    assert.deepEqual(texts.ALL_APPS_STEPS.firefox, [
-      "Open Firefox \"Settings\" → \"General\", scroll down to \"Network Settings\" and click \"Settings…\".",
-      "Make sure \"Use system proxy settings\" is selected — it is the default.",
-      "Click \"OK\".",
-    ]);
-  });
-
-  it("Other: one line that names the product through NET_NAME", () => {
-    assert.deepEqual(texts.ALL_APPS_STEPS.other, [
-      `Opera, Brave, Vivaldi, Arc and Yandex Browser use the system setting, like Chrome. In Opera, turn off its built-in VPN — otherwise sites bypass ${NET_NAME}.`,
-    ]);
-  });
-
-  it("one entry for every browser tile", () => {
-    assert.deepEqual(Object.keys(texts.ALL_APPS_STEPS).sort(), Object.keys(texts.BROWSER_NAMES).sort());
-  });
-
-  it("the small Linux line for Chrome", () => {
-    assert.equal(texts.ALL_APPS_CHROME_LINUX, "On Linux, Chrome follows the GNOME or KDE proxy setting.");
+  it("the small Linux line", () => {
+    assert.equal(texts.ALL_APPS_LINUX_SMALL, "On Linux, Chrome and other Chromium-based browsers follow the GNOME or KDE proxy setting.");
   });
 });
 
@@ -156,8 +130,10 @@ describe("only in one browser", () => {
   });
 
   it("the text for an unnamed browser (Other)", () => {
-    const expected = `This browser has no proxy setting of its own — it always uses the system one. To use ${NET_NAME} in this browser, set it up for all apps on this computer.`;
-    assert.ok(Object.values(texts).includes(expected), "the \"This browser\" variant is exported");
+    assert.equal(
+      texts.WIZ_ONE_BROWSER_OTHER,
+      "Most browsers (Opera, Brave, Vivaldi, Arc, Yandex Browser) have no proxy setting of their own and use the system one — set up all apps on this computer. If your browser has its own proxy setting (Firefox-based browsers do), paste the PAC address into it instead.",
+    );
   });
 
   it("the switch button", () => {
@@ -176,6 +152,6 @@ describe("the product name", () => {
 
   it("the texts that mention the product use the current NET_NAME", () => {
     assert.ok(texts.WIZ_ONE_BROWSER("Edge").includes(NET_NAME));
-    assert.ok(texts.ALL_APPS_STEPS.other[0].includes(NET_NAME));
+    assert.ok(texts.ALL_APPS_BROWSER_STEPS[2].includes(NET_NAME));
   });
 });

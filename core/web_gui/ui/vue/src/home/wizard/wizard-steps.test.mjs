@@ -29,12 +29,18 @@ describe("wizardPath", () => {
   });
 
   describe("scope is the whole system", () => {
-    it("given system on macOS, then the path has os, browser and guide", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "mac" })), ["join", "scope", "os", "browser", "guide", "exit"]);
+    it("given system on macOS, then the path has os and guide, no browser", () => {
+      assert.deepEqual(wizardPath(ctx({ scope: "system", os: "mac" })), ["join", "scope", "os", "guide", "exit"]);
     });
 
-    it("given no answer yet on macOS, then the path is the recommended one with six steps", () => {
-      assert.deepEqual(wizardPath(ctx({ scope: null, os: "mac" })), ["join", "scope", "os", "browser", "guide", "exit"]);
+    it("given no answer yet on macOS, then the path is the recommended one without browser", () => {
+      assert.deepEqual(wizardPath(ctx({ scope: null, os: "mac" })), ["join", "scope", "os", "guide", "exit"]);
+    });
+
+    it("given system on any computer, then the path has no browser step", () => {
+      for (const os of ["mac", "windows", "linux"]) {
+        assert.ok(!wizardPath(ctx({ scope: "system", os })).includes("browser"), os);
+      }
     });
 
     it("given system on Android, then there is no browser step", () => {
@@ -43,6 +49,10 @@ describe("wizardPath", () => {
   });
 
   describe("scope is one browser", () => {
+    it("given browser on macOS, then the path is scope, browser, guide, exit", () => {
+      assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "mac" })), ["join", "scope", "browser", "guide", "exit"]);
+    });
+
     it("given browser on Linux, then there is no os step", () => {
       assert.deepEqual(wizardPath(ctx({ scope: "browser", os: "linux" })), ["join", "scope", "browser", "guide", "exit"]);
     });
@@ -110,11 +120,15 @@ describe("validStep", () => {
 });
 
 describe("nextStep and prevStep", () => {
-  it("given the os step on a six-step path, then next is browser", () => {
-    assert.equal(nextStep(ctx(), "os"), "browser");
+  it("given the os step on the all-apps path, then next is the instruction", () => {
+    assert.equal(nextStep(ctx(), "os"), "guide");
   });
 
-  it("given the os step on a six-step path, then prev is scope", () => {
+  it("given the scope step of the browser path, then next is browser", () => {
+    assert.equal(nextStep(ctx({ scope: "browser" }), "scope"), "browser");
+  });
+
+  it("given the os step on the all-apps path, then prev is scope", () => {
     assert.equal(prevStep(ctx(), "os"), "scope");
   });
 
@@ -138,12 +152,12 @@ describe("nextStep and prevStep", () => {
 });
 
 describe("stepProgress", () => {
-  it("given the guide step on a six-step path, then it is step 5 of 6", () => {
-    assert.deepEqual(stepProgress(ctx(), "guide"), { n: 5, m: 6 });
+  it("given the guide step on the all-apps path, then it is step 4 of 5", () => {
+    assert.deepEqual(stepProgress(ctx(), "guide"), { n: 4, m: 5 });
   });
 
   it("given the join step, then it counts as step 1", () => {
-    assert.deepEqual(stepProgress(ctx({ hasNet: false }), "join"), { n: 1, m: 6 });
+    assert.deepEqual(stepProgress(ctx({ hasNet: false }), "join"), { n: 1, m: 5 });
   });
 
   it("given a step outside the path, then n is 1 and m is the path length", () => {
@@ -233,13 +247,13 @@ describe("stripSteps", () => {
 
   it("given the os step on macOS, then joined and scope are done, the rest locked", () => {
     assert.deepEqual(states(ctx(), "os"), [
-      "join:done", "scope:done", "os:current", "browser:locked", "guide:locked", "exit:locked",
+      "join:done", "scope:done", "os:current", "guide:locked", "exit:locked",
     ]);
   });
 
   it("given a step right of the current one was seen, then it is open", () => {
-    assert.deepEqual(states(ctx(), "scope", ["scope", "os", "browser"]), [
-      "join:done", "scope:current", "os:open", "browser:open", "guide:locked", "exit:locked",
+    assert.deepEqual(states(ctx({ scope: "browser" }), "scope", ["scope", "browser"]), [
+      "join:done", "scope:current", "browser:open", "guide:locked", "exit:locked",
     ]);
   });
 
@@ -277,11 +291,11 @@ describe("visibleRows", () => {
   });
 
   it("given the cursor on the browser question, then the rows down to it are shown", () => {
-    assert.deepEqual(visibleRows(ctx(), "browser"), ["scope", "os", "browser"]);
+    assert.deepEqual(visibleRows(ctx({ scope: "browser" }), "browser"), ["scope", "browser"]);
   });
 
   it("given the cursor on the instruction, then every row is shown", () => {
-    assert.deepEqual(visibleRows(ctx(), "guide"), ["scope", "os", "browser", "guide"]);
+    assert.deepEqual(visibleRows(ctx(), "guide"), ["scope", "os", "guide"]);
   });
 
   it("given the browser scope, then the system row is not among the rows", () => {
@@ -289,7 +303,7 @@ describe("visibleRows", () => {
   });
 
   it("given the exit screen, then all the rows of the path are returned", () => {
-    assert.deepEqual(visibleRows(ctx(), "exit"), ["scope", "os", "browser", "guide"]);
+    assert.deepEqual(visibleRows(ctx(), "exit"), ["scope", "os", "guide"]);
   });
 
   it("given the app page, then there are no rows", () => {
@@ -300,7 +314,7 @@ describe("visibleRows", () => {
 describe("reanchor", () => {
   it("given the cursor step left the path, then the next step still on the path is taken", () => {
     const before = wizardPath(ctx());
-    assert.equal(reanchor(before, wizardPath(ctx({ scope: "browser" })), "os"), "browser");
+    assert.equal(reanchor(before, wizardPath(ctx({ scope: "browser" })), "os"), "guide");
   });
 
   it("given the cursor step stays on the path, then it is kept", () => {
@@ -314,7 +328,7 @@ describe("settleStep", () => {
     assert.equal(settleStep(ctx({ scope: null }), "scope"), "scope");
   });
 
-  it("given an answered scope, then the cursor passes os and browser to the instruction", () => {
+  it("given an answered scope, then the cursor passes os to the instruction", () => {
     assert.equal(settleStep(ctx(), "scope"), "guide");
   });
 

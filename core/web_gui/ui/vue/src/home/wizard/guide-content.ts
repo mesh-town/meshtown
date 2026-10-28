@@ -7,7 +7,7 @@ import type { ProxyScope } from "../proxy-scope.ts";
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "../update-texts.ts";
 import { isPhoneOs } from "./wizard-steps.ts";
 import type { WizBrowser } from "./wizard-steps.ts";
-import { ALL_APPS_CHROME_CLOSE, ALL_APPS_CHROME_LINUX, ALL_APPS_STEPS, BROWSER_NAMES, WIZ_APP_ITEM, WIZ_GUIDE_TITLE, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
+import { ALL_APPS_BROWSER_STEPS, ALL_APPS_BROWSERS_TITLE, ALL_APPS_LINUX_SMALL, BROWSER_NAMES, WIZ_ALL_APPS_TITLE, WIZ_APP_ITEM, WIZ_GUIDE_TITLE, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard-texts.ts";
 
 export interface GuideStep {
   text: string;
@@ -62,33 +62,24 @@ function phoneGuide(os: OsId): Guide {
   return { ...BLANK, title, intro: ANDROID_INTRO, steps };
 }
 
-function oneBrowserIntro(browser: WizBrowser): string {
-  return browser === "other" ? WIZ_ONE_BROWSER_OTHER : WIZ_ONE_BROWSER(BROWSER_NAMES[browser]);
-}
-
 function browserGuide(browser: WizBrowser, title: string): Guide {
-  if (browser !== "firefox") return { ...BLANK, title, intro: oneBrowserIntro(browser), toSystem: true };
+  if (browser === "other") return { ...BLANK, title, copy: true, intro: WIZ_ONE_BROWSER_OTHER, toSystem: true };
+  if (browser !== "firefox") return { ...BLANK, title, intro: WIZ_ONE_BROWSER(BROWSER_NAMES[browser]), toSystem: true };
   return { ...BLANK, title, copy: true, steps: FIREFOX_STEPS.map((text) => ({ text })), more: true };
 }
 
-function browserSteps(os: OsId, browser: WizBrowser): string[] {
-  const steps = ALL_APPS_STEPS[browser];
-  if (browser !== "chrome" || os === "mac") return steps;
-  return [...steps.slice(0, -1), ALL_APPS_CHROME_CLOSE];
-}
-
-function systemGuide(os: OsId, browser: WizBrowser, title: string): Guide {
+function systemGuide(os: OsId): Guide {
   const block = pacBlock(os);
-  const linuxChrome = browser === "chrome" && os === "linux" ? [ALL_APPS_CHROME_LINUX] : [];
   return {
-    ...BLANK, title, copy: true, more: true,
+    ...BLANK, title: WIZ_ALL_APPS_TITLE(osLabel(os)), copy: true, more: true,
     steps: block.steps.map((text) => ({ text })), small: block.small,
-    browserTitle: BROWSER_NAMES[browser], browserSteps: browserSteps(os, browser), browserSmall: linuxChrome,
+    browserTitle: ALL_APPS_BROWSERS_TITLE, browserSteps: ALL_APPS_BROWSER_STEPS,
+    browserSmall: os === "linux" ? [ALL_APPS_LINUX_SMALL] : [],
   };
 }
 
 export function guideFor(scope: ProxyScope, os: OsId, browser: WizBrowser): Guide {
   if (isPhoneOs(os)) return phoneGuide(os);
-  const title = WIZ_GUIDE_TITLE(browser === "other" ? "your browser" : BROWSER_NAMES[browser]);
-  return scope === "browser" ? browserGuide(browser, title) : systemGuide(os, browser, title);
+  if (scope !== "browser") return systemGuide(os);
+  return browserGuide(browser, WIZ_GUIDE_TITLE(browser === "other" ? "your browser" : BROWSER_NAMES[browser]));
 }

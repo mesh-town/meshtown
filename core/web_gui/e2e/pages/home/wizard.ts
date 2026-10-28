@@ -128,15 +128,14 @@ export class HomeWizard {
 
   /**
    * From the first question to the instruction. The answer to the scope opens every row below it (the system and the
-   * browser are detected); a tile of `os` and `browser` is then pressed when given. Not used with scope "browser": `os`;
-   * on a phone system there is no browser row.
+   * browser are detected); a tile of `os` (scope "system") or `browser` (scope "browser") is then pressed when given.
    */
   async toGuide(scope: WizardScope, os: WizardOs, browser: WizardBrowser | null = null): Promise<void> {
     await this.expectCursor('scope');
     await this.tile(`scope-${scope}`).click();
     await this.expectCursor('guide');
     if (scope === 'system') await this.tile(`os-${os}`).click();
-    if (browser && !(scope === 'system' && (os === 'android' || os === 'ios'))) await this.tile(`browser-${browser}`).click();
+    if (browser && scope === 'browser') await this.tile(`browser-${browser}`).click();
     await this.expectCursor('guide');
   }
 

@@ -34,7 +34,7 @@ test('77-nets-router-wizard: a router with two networks — the Overview card an
 
   await test.step('the setup instruction shows the same address; the intro paragraph stays on Overview', async () => {
     await wizard.open();
-    await wizard.toGuide('system', 'linux', 'firefox');
+    await wizard.toGuide('system', 'linux');
     await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
     await expect.soft(app.proxyCard.hint).toHaveCount(0);
   });
@@ -117,7 +117,7 @@ test('78-nets-laptop-quiet: a laptop with one network — the setup instruction 
 
   await test.step('the setup instruction: the address is the old one (127.0.0.1), no summary and no "Edit"', async () => {
     await app.wizard.open();
-    await app.wizard.toGuide('system', 'linux', 'firefox');
+    await app.wizard.toGuide('system', 'linux');
     await expect.soft(app.proxyCard.addressText).toHaveText(/^http:\/\/127\.0\.0\.1:\d+\/proxy\.pac$/);
     await expect.soft(nets.summary).toHaveCount(0);
     await expect.soft(nets.editButton).toHaveCount(0);
