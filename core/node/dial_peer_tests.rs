@@ -2,6 +2,8 @@
 //! `redial_tests.rs`; here only the decision "whether to start a dial" and the failure text.
 
 use super::*;
+use crate::members::access::tally::Ledger;
+use crate::members::access::view::Verdicts;
 use crate::members::membership::{MemberContext, MemberEvent, Members};
 use crate::node::start::transports_mem::KeyedMem;
 use crate::transport::net::contract::{must_finish, must_finish_within, pid, SEED_A, SEED_B};
@@ -10,6 +12,7 @@ use crate::transport::net::PeerAddr;
 use crate::transport::net::{NetStack, NetStackBuilder, NodeSecret, Transport, AUTH};
 use crate::transport::transfer_probe::ProbeSettings;
 use portable_atomic::AtomicU64;
+use std::collections::BTreeSet;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -121,6 +124,31 @@ mod refused_by_us {
         assert!(
             due <= Instant::now() + Duration::from_secs(1),
             "the retry must not wait for the ladder"
+        );
+        fx.close().await;
+    }
+
+    #[tokio::test]
+    async fn own_refusal_with_access_closed_waits_without_a_retry() {
+        // given: our list denies B (blocked), so the refusal is current
+        let mut fx = setup(Opts::default()).await;
+        fx.members.access().publish(Verdicts {
+            me: pid(SEED_A),
+            ledger: Arc::new(Ledger::empty()),
+            blocks: BTreeSet::from([pid(SEED_B)]),
+        });
+
+        // when: a dial of B fails because our own list refused it
+        fx.dialer.on_dial_failed(DialFailed {
+            peer: pid(SEED_B),
+            reason: "refused".into(),
+            refusal: DialRefusal::ByUs(Deny::Blocked),
+        });
+
+        // then: no retry is scheduled; the dial waits until access lets B in
+        assert!(
+            fx.dialer.next_redial_at().is_none(),
+            "no retry while B is denied"
         );
         fx.close().await;
     }
