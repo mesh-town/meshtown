@@ -63,9 +63,6 @@ pub(crate) struct Args {
     /// A node that asked to join waits in the list for an administrator.
     #[arg(long)]
     pub(crate) members_pending: bool,
-    /// Start as a computer that asked to join and waits to be admitted (`me_pending` in the member list).
-    #[arg(long)]
-    pub(crate) me_pending: bool,
     /// Both demo peers are administrators next to this computer (the creator and root).
     #[arg(long)]
     pub(crate) second_admin: bool,

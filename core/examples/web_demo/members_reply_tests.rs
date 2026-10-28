@@ -14,7 +14,6 @@ fn reply() -> Value {
         dht_joined: false,
         dht_nodes: 0,
         members_pending: true,
-        me_pending: false,
         me_excluded: false,
         managed: Default::default(),
     };

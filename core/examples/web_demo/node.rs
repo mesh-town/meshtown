@@ -60,8 +60,6 @@ pub(crate) struct DemoNetworkOptions {
     pub(crate) me_excluded: bool,
     /// `--members-pending`: a node that asked to join waits for an administrator.
     pub(crate) members_pending: bool,
-    /// `--me-pending`: the node itself waits for an administrator.
-    pub(crate) me_pending: bool,
     /// `--second-admin` / `--role`: who the administrators of the network are.
     pub(crate) managed: DemoRole,
 }
