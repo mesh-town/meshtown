@@ -34,7 +34,6 @@ for (const theme of ['dark', 'light'] as const) {
 
     await test.step('instruction: "More options" and the manual block expanded, a term hint open', async () => {
       await wizard.tile('os-mac').click();
-      await wizard.tile('browser-chrome').click();
       await wizard.expectCursor('guide');
       await wizard.moreOptionsSummary.click();
       await app.proxyCard.manualToggle.click();
@@ -75,12 +74,15 @@ test('83-contrast: scope, system and browser segments are separate buttons at le
   test.skip(targetKind === 'node', 'the demo is enough');
   const wizard = app.wizard;
   await wizard.open();
+  const none = async (): Promise<void> => {};
+  const toBrowserRow = async (): Promise<void> => { await wizard.tile('scope-browser').click(); };
   const screens = [
-    { seg: '#scope-seg', leave: 'scope-system' },
-    { seg: '#os-seg', leave: 'os-mac' },
-    { seg: '#browser-seg', leave: 'browser-chrome' },
+    { seg: '#scope-seg', leave: 'scope-system', enter: none },
+    { seg: '#os-seg', leave: 'os-mac', enter: none },
+    { seg: '#browser-seg', leave: 'browser-chrome', enter: toBrowserRow },
   ] as const;
-  for (const { seg, leave } of screens) {
+  for (const { seg, leave, enter } of screens) {
+    await enter();
     const boxes = await segmentBoxes(page, seg);
     expect(boxes.length, seg).toBeGreaterThan(1);
     for (const b of boxes) expect(b, seg).toMatchObject({ r: '7px', m: '0px' });

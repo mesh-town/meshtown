@@ -24,7 +24,7 @@ export function isPhoneOs(os: OsId): boolean {
 
 function scopePath(ctx: WizardCtx): StepId[] {
   const withOs: StepId[] = ctx.scope === "browser" ? [] : ["os"];
-  const withBrowser: StepId[] = isPhoneOs(ctx.os) ? [] : ["browser"];
+  const withBrowser: StepId[] = ctx.scope === "browser" && !isPhoneOs(ctx.os) ? ["browser"] : [];
   return ["scope", ...withOs, ...withBrowser, "guide", "exit"];
 }
 

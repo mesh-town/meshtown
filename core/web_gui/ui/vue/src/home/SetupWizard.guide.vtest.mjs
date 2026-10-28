@@ -11,7 +11,7 @@ import {
 } from "../testing/wizard.mjs";
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "./update-texts.ts";
 import { TERM_TIPS } from "./wizard/term-hints.ts";
-import { WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard/wizard-texts.ts";
+import { ALL_APPS_BROWSER_STEPS, ALL_APPS_LINUX_SMALL, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard/wizard-texts.ts";
 
 let mounted;
 const mount = (opts) => (mounted = mountWizard({ mark: "browser", scope: "system", ...opts }));
@@ -42,23 +42,29 @@ describe("SetupWizard > guide > all apps", () => {
     expect(first.get("#pac-copy-btn").text()).toBe("Copy address");
   });
 
-  it("the guide is titled by the browser and shows its steps after the system ones", async () => {
+  it.each([["mac", "macOS"], ["windows", "Windows"], ["linux", "Linux"]])("the guide is titled by the system, %s", async (os, label) => {
     const { wrapper } = mount();
-    await toGuide(wrapper, { browser: "edge" });
-    expect(wrapper.get("#wizard-q-guide").text()).toBe("Set up Edge");
-    expect(wrapper.get("#guide-browser-title").text()).toBe("Edge");
-    expect(items(wrapper, "#browser-steps > li")).toHaveLength(2);
+    await toGuide(wrapper, { os });
+    expect(wrapper.get("#wizard-q-guide").text()).toBe(`Set up all apps on ${label}`);
+    expect(wrapper.find("#browser-seg").exists(), "no browser question").toBe(false);
+  });
+
+  it("the browsers block is the same for every system and names the browsers", async () => {
+    const { wrapper } = mount();
+    await toGuide(wrapper, { os: "mac" });
+    expect(wrapper.get("#guide-browser-title").text()).toBe("Browsers");
+    expect(items(wrapper, "#browser-steps > li")).toEqual(ALL_APPS_BROWSER_STEPS);
     expect(cursor(wrapper)).toBe("guide");
   });
 
-  it("the Chrome line about GNOME and KDE shows on Linux only", async () => {
+  it("the Chromium line about GNOME and KDE shows on Linux only", async () => {
     const linux = mount();
-    await toGuide(linux.wrapper, { os: "linux", browser: "chrome" });
-    expect(smallLines(linux.wrapper).some((t) => t.startsWith("On Linux, Chrome follows"))).toBe(true);
+    await toGuide(linux.wrapper, { os: "linux" });
+    expect(smallLines(linux.wrapper)).toContain(ALL_APPS_LINUX_SMALL);
     unmountWizard(linux);
     const { wrapper } = mount();
-    await toGuide(wrapper, { os: "mac", browser: "chrome" });
-    expect(smallLines(wrapper).some((t) => t.startsWith("On Linux, Chrome follows"))).toBe(false);
+    await toGuide(wrapper, { os: "mac" });
+    expect(smallLines(wrapper)).not.toContain(ALL_APPS_LINUX_SMALL);
   });
 
   it("the word PAC is a focusable term with its tip", async () => {
@@ -110,20 +116,22 @@ describe("SetupWizard > guide > only in one browser", () => {
     expectOnlyTheSwitch(wrapper);
   });
 
-  it("other explains it uses the system setting and offers all apps", async () => {
+  it("other shows the address next to the switch to all apps", async () => {
     const { wrapper } = mount({ scope: "browser" });
     await toGuide(wrapper, { browser: "other" });
-    expect(wrapper.get("#guide-intro").text()).toBe(WIZ_ONE_BROWSER_OTHER);
-    expectOnlyTheSwitch(wrapper);
+    expect(plain(wrapper.get("#guide-intro"))).toBe(WIZ_ONE_BROWSER_OTHER);
+    expect(wrapper.get("#pac-url-text").text()).toBe(PAC_URL);
+    expect(wrapper.find("#pac-copy-btn").exists()).toBe(true);
+    expect(wrapper.get("#guide-to-system").text()).toBe("Set up for all apps");
   });
 
   it("switch to all apps opens the system question", async () => {
     const { wrapper } = mount({ scope: "browser" });
     await toGuide(wrapper, { browser: "chrome" });
     await click(wrapper, "#guide-to-system");
-    expect(rows(wrapper)).toEqual(["scope", "os", "browser", "guide"]);
+    expect(rows(wrapper)).toEqual(["scope", "os", "guide"]);
     expect(document.activeElement).toBe(wrapper.get("#wizard-q-os").element);
-    expect(progress(wrapper)).toBe("Step 5 of 6");
+    expect(progress(wrapper)).toBe("Step 4 of 5");
     expect(localStorage.getItem(SCOPE_KEY)).toBe("system");
   });
 });

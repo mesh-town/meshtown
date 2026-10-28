@@ -7,38 +7,37 @@ import { WIZARD_TEXT } from '../pages/home/wizard';
 test.describe('the setup wizard of a node in a network', () => {
   test.skip(({ targetKind }) => targetKind === 'node', 'the proxy is on in the demo node snapshot; on a real node it depends on startup flags');
 
-  test('125-wizard-steps: all apps → instruction opens under the answers → Next → exit → Finish: the progress counts 2, 5, 6 of 6, the instruction shows the address, Finish opens Overview and keeps the done mark', async ({ app }) => {
+  test('125-wizard-steps: all apps → instruction opens under the answers → Next → exit → Finish: the progress counts 2, 4, 5 of 5, the instruction shows the address, Finish opens Overview and keeps the done mark', async ({ app, page }) => {
     const wizard = app.wizard;
 
-    await test.step('given: a node in a network, the Setup tab is open — only the scope question, step 2 of 6', async () => {
+    await test.step('given: a node in a network, the Setup tab is open — only the scope question, step 2 of 5', async () => {
       await wizard.open();
       await wizard.expectCursor('scope');
       await expect.soft(wizard.rows).toHaveCount(1);
       await expect.soft(wizard.rowHeading('scope')).toHaveText(WIZARD_TEXT.scopeQuestion);
-      await expect.soft(wizard.progress).toHaveText('Step 2 of 6');
+      await expect.soft(wizard.progress).toHaveText('Step 2 of 5');
     });
 
-    await test.step('when "All apps" is chosen, then the system, browser and instruction rows open under it, step 5 of 6', async () => {
+    await test.step('when "All apps" is chosen, then the system and instruction rows open under it, step 4 of 5', async () => {
       await wizard.tile('scope-system').click();
       await wizard.expectCursor('guide');
-      await expect.soft(wizard.rows).toHaveCount(4);
+      await expect.soft(wizard.rows).toHaveCount(3);
       await expect.soft(wizard.rowHeading('os')).toHaveText(WIZARD_TEXT.osQuestion);
-      await expect.soft(wizard.rowHeading('browser')).toHaveText(WIZARD_TEXT.browserQuestion);
-      await expect.soft(wizard.progress).toHaveText('Step 5 of 6');
+      await expect.soft(wizard.rows.filter({ has: page.locator('#browser-seg') })).toHaveCount(0);
+      await expect.soft(wizard.progress).toHaveText('Step 4 of 5');
       await expect.soft(wizard.nextButton).toBeVisible();
     });
 
-    await test.step('when macOS and Chrome are chosen in the rows above, then the instruction stays open and shows the setup address', async () => {
+    await test.step('when macOS is chosen in the row above, then the instruction stays open and shows the setup address', async () => {
       await wizard.tile('os-mac').click();
-      await wizard.tile('browser-chrome').click();
       await wizard.expectCursor('guide');
       await expect.soft(app.proxyCard.addressText).toHaveText(/^http:\/\/127\.0\.0\.1:\d+\/proxy\.pac$/);
     });
 
-    await test.step('when Next is clicked, then the exit screen is the last one, step 6 of 6, and the exit mark is kept', async () => {
+    await test.step('when Next is clicked, then the exit screen is the last one, step 5 of 5, and the exit mark is kept', async () => {
       await wizard.next();
       await wizard.expectScreen('exit');
-      await expect.soft(wizard.progress).toHaveText('Step 6 of 6');
+      await expect.soft(wizard.progress).toHaveText('Step 5 of 5');
       await expect.poll(() => wizard.setupMark()).toBe('exit');
     });
 
@@ -56,7 +55,7 @@ test.describe('the setup wizard of a node in a network', () => {
 
     await test.step('given: the instruction for all apps on macOS in Chrome; the hint is hidden', async () => {
       await wizard.open();
-      await wizard.toGuide('system', 'mac', 'chrome');
+      await wizard.toGuide('system', 'mac');
       await expect.soft(wizard.tooltip).toBeHidden();
     });
 
@@ -78,10 +77,10 @@ test.describe('the setup wizard of a node in a network', () => {
   test('127-wizard-back: Back on the exit screen returns to the page with the earlier choices pressed; the questions page has no Back', async ({ app }) => {
     const wizard = app.wizard;
 
-    await test.step('given: Windows and Edge are chosen (not the defaults of the browser in use), the instruction is open; no Back on the page', async () => {
+    await test.step('given: Windows is chosen (not the default of the system in use), the instruction is open; no Back on the page', async () => {
       await wizard.open();
       await expect.soft(wizard.backButton, 'the questions page in a network').toHaveCount(0);
-      await wizard.toGuide('system', 'windows', 'edge');
+      await wizard.toGuide('system', 'windows');
       await expect.soft(wizard.backButton).toHaveCount(0);
     });
 
@@ -90,8 +89,6 @@ test.describe('the setup wizard of a node in a network', () => {
       await wizard.expectScreen('exit');
       await wizard.back();
       await wizard.expectCursor('guide');
-      await expect.soft(wizard.tile('browser-edge')).toHaveAttribute('aria-pressed', 'true');
-      await expect.soft(wizard.tile('browser-chrome')).toHaveAttribute('aria-pressed', 'false');
       await expect.soft(wizard.tile('os-windows')).toHaveAttribute('aria-pressed', 'true');
       await expect.soft(wizard.tile('os-mac')).toHaveAttribute('aria-pressed', 'false');
       await expect.soft(wizard.tile('scope-system')).toHaveAttribute('aria-pressed', 'true');
@@ -105,7 +102,7 @@ test.describe('layout of the wizard screens', () => {
   test('128-wizard-exit-spacing: on the exit screen the name hint is at least 8px above the "Allow other members" row', async ({ app, page }) => {
     const wizard = app.wizard;
     await wizard.open();
-    await wizard.toGuide('system', 'mac', 'chrome');
+    await wizard.toGuide('system', 'mac');
     await wizard.next();
     await wizard.expectScreen('exit');
     const hint = page.locator('#wizard-screen').getByText('Others see you by this name');
@@ -119,7 +116,7 @@ test.describe('layout of the wizard screens', () => {
     const wizard = app.wizard;
     await page.setViewportSize({ width: 1280, height: 900 });
     await wizard.open();
-    await wizard.toGuide('system', 'mac', 'chrome');
+    await wizard.toGuide('system', 'mac');
     const [wide, wideRows] = [await wizard.strip.boundingBox(), await wizard.screen.boundingBox()];
     expect(wide!.x + wide!.width).toBeLessThanOrEqual(wideRows!.x);
     await page.setViewportSize({ width: 390, height: 900 });
@@ -135,7 +132,7 @@ test.describe('layout of the wizard screens', () => {
         await page.setViewportSize({ width, height: 900 });
         await page.emulateMedia({ colorScheme: 'light' });
         await wizard.open();
-        await wizard.toGuide('system', 'mac', 'chrome');
+        await wizard.toGuide('system', 'mac');
         await wizard.moreOptionsSummary.click();
         await app.proxyCard.manualToggle.click();
         const word = wizard.terms[term]();

@@ -14,7 +14,7 @@ describe("SetupWizard > strip", () => {
   it("shows the named steps with the current one marked", () => {
     const { wrapper } = mount();
     expect(wrapper.get("#wizard-strip").attributes("aria-label")).toBe("Setup steps");
-    expect(names(wrapper)).toEqual(["✓Join", "✓Apps", "✓System", "✓Browser", "5Set up", "6Exit"]);
+    expect(names(wrapper)).toEqual(["✓Join", "✓Apps", "✓System", "4Set up", "5Exit"]);
     expect(wrapper.get("#wizard-strip-guide").attributes("aria-current")).toBe("step");
   });
 
@@ -66,6 +66,6 @@ describe("SetupWizard > strip", () => {
   it("the strip is gone when the start failed, and the progress line stays for readers", () => {
     const { wrapper } = mount({ startError: true });
     expect(wrapper.find("#wizard-strip").exists()).toBe(false);
-    expect(mount().wrapper.get("#wizard-progress").text()).toBe("Step 5 of 6");
+    expect(mount().wrapper.get("#wizard-progress").text()).toBe("Step 4 of 5");
   });
 });
