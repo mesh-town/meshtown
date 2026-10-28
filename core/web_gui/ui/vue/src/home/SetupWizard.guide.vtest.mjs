@@ -9,7 +9,9 @@ import { laptopState, routerState, netsConfig } from "../testing/nets-states.mjs
 import {
   ANDROID_CHROME, IPHONE_SAFARI, PAC_URL, SCOPE_KEY, click, cursor, mountWizard, plain, progress, rows, toGuide, unmountWizard,
 } from "../testing/wizard.mjs";
+import { SETTINGS_SOCKS_LOCALNET } from "../settings/settings-texts.ts";
 import { UPDATE_ANDROID_DOWNLOAD_URL } from "./update-texts.ts";
+import { IOS_ROUTER_LINK, IOS_VIA_COMPUTER, SITE_DEVICES_URL } from "./wizard/device-texts.ts";
 import { TERM_TIPS } from "./wizard/term-hints.ts";
 import { ALL_APPS_BROWSER_STEPS, ALL_APPS_LINUX_SMALL, WIZ_ONE_BROWSER, WIZ_ONE_BROWSER_OTHER } from "./wizard/wizard-texts.ts";
 
@@ -153,14 +155,24 @@ describe("SetupWizard > guide > phones", () => {
     expect(wrapper.find("#more-options").exists()).toBe(false);
   });
 
-  it("ios shows only the no-app line", async () => {
+  it("ios without a router points to the router guide and to sharing this computer's proxy", async () => {
     const { wrapper } = mount({ ua: IPHONE_SAFARI });
     await toGuide(wrapper);
     expect(wrapper.get("#guide-intro").text()).toBe(IOS_NO_APP);
-    expect(wrapper.find("#pac-steps").exists()).toBe(false);
-    expect(wrapper.find("#guide-app-link").exists()).toBe(false);
+    const link = wrapper.get("#guide-app-link");
+    expect(link.attributes("href")).toBe(SITE_DEVICES_URL);
+    expect(link.text()).toBe(IOS_ROUTER_LINK);
+    expect(items(wrapper, "#pac-steps > li")[1]).toContain(SETTINGS_SOCKS_LOCALNET);
     expect(wrapper.find("#pac-copy-btn").exists()).toBe(false);
     expect(wrapper.find("#more-options").exists()).toBe(false);
+  });
+
+  it("ios on a computer that shares its proxy shows the address to enter on the iPhone", async () => {
+    const state = laptopState({ access: "localnet" });
+    const { wrapper } = mount({ ua: IPHONE_SAFARI, state, config: netsConfig(state) });
+    await toGuide(wrapper);
+    expect(wrapper.get("#guide-intro").text()).toBe(IOS_VIA_COMPUTER);
+    expect(wrapper.find("#pac-copy-btn").exists()).toBe(true);
   });
 });
 

@@ -91,10 +91,10 @@ describe("phone texts", () => {
     ]);
   });
 
-  it("IOS_NO_APP — honest line, no steps through the computer", () => {
+  it("IOS_NO_APP — no app, but a router or a computer on the same Wi‑Fi works", () => {
     assert.equal(
       IOS_NO_APP,
-      `There is no ${NET_NAME} app for iPhone and iPad yet. For now, use ${NET_NAME} on a computer or an Android phone.`,
+      `There is no ${NET_NAME} app for iPhone and iPad. They can still open sites through ${NET_NAME} on your router or on a computer on the same Wi‑Fi.`,
     );
   });
 });

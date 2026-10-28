@@ -16,6 +16,7 @@ export const WIZ_SKIP = "Skip this step";
 export const WIZ_FINISH = "Finish";
 
 export const WIZ_Q_OS = "Which system are you setting up?";
+export const WIZ_Q_DEVICE = "Which device are you connecting to the router?";
 export const WIZ_Q_BROWSER = "Which browser do you use?";
 export const WIZ_QUESTIONS: Record<Exclude<StepId, "join" | "guide">, string> = {
   scope: SCOPE_QUESTION,

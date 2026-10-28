@@ -2,6 +2,7 @@
 // functions that derive everything shown (the path, the pressed tiles, the instruction). No framework imports.
 
 import type { BrowserId, OsId } from "../browser-setup.ts";
+import type { LanMode } from "../../lan/nets-view.ts";
 import type { ProxyScope } from "../proxy-scope.ts";
 import { browserTiles, defaultBrowser, guideFor } from "./guide-content.ts";
 import type { Guide } from "./guide-content.ts";
@@ -29,6 +30,7 @@ export interface WizardEnv {
   inApp: boolean;
   proxyOn: boolean;
   mark: string | null;
+  lan: LanMode;
   uaOs: OsId;
   uaBrowser: BrowserId;
 }
@@ -47,8 +49,10 @@ export function freshCursor(): WizardCursor {
   return { at: "join", skipped: false, visited: [] };
 }
 
-/** The system shown: the answer, or the detected one; in "one browser" there is no system row, so the detected one. */
+/** The system shown: the answer, or the detected one; in "one browser" there is no system row, so the detected one
+ * (on a router the system row is always there: it names the device being connected). */
 export function shownOs(s: WizardState, env: WizardEnv): OsId {
+  if (env.lan === "router") return s.os ?? env.uaOs;
   if (s.scope === "browser") return env.uaOs;
   return s.os ?? env.uaOs;
 }
@@ -61,7 +65,7 @@ export function shownBrowser(s: WizardState, env: WizardEnv): WizBrowser {
 }
 
 export function ctxOf(s: WizardState, env: WizardEnv): WizardCtx {
-  return { hasNet: env.hasNet, inApp: env.inApp, proxyOn: env.proxyOn, scope: s.scope, os: shownOs(s, env), skipped: s.skipped };
+  return { hasNet: env.hasNet, inApp: env.inApp, proxyOn: env.proxyOn, scope: s.scope, os: shownOs(s, env), skipped: s.skipped, router: env.lan === "router" };
 }
 
 export function stepOf(s: WizardState, env: WizardEnv): StepId {
@@ -69,7 +73,7 @@ export function stepOf(s: WizardState, env: WizardEnv): StepId {
 }
 
 export function guideOf(s: WizardState, env: WizardEnv): Guide {
-  return guideFor(s.scope ?? "system", shownOs(s, env), shownBrowser(s, env));
+  return guideFor(s.scope ?? "system", shownOs(s, env), shownBrowser(s, env), env.lan);
 }
 
 function advance(s: WizardState, env: WizardEnv): WizardState {

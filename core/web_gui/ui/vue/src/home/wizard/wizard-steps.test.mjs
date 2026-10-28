@@ -7,7 +7,7 @@ import {
   isPhoneOs, joinedLineOn, markOnEnter, navKind, nextStep, prevStep, reanchor, screenOf, settleStep, startStep, stepProgress, stripSteps, validStep, visibleRows, wizardPath,
 } from "./wizard-steps.ts";
 
-const ctx = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, scope: "system", os: "mac", skipped: false, ...over });
+const ctx = (over = {}) => ({ hasNet: true, inApp: false, proxyOn: true, scope: "system", os: "mac", skipped: false, router: false, ...over });
 
 describe("wizardPath", () => {
   describe("in the app", () => {
@@ -338,5 +338,25 @@ describe("settleStep", () => {
 
   it("given the proxy off, then the cursor stays on scope", () => {
     assert.equal(settleStep(ctx({ proxyOn: false }), "scope"), "scope");
+  });
+});
+
+describe("on a router", () => {
+  it("given the proxy on, then the path is join, os, guide, exit whatever the scope", () => {
+    for (const scope of [null, "system", "browser"]) {
+      assert.deepEqual(wizardPath(ctx({ router: true, scope })), ["join", "os", "guide", "exit"], String(scope));
+    }
+  });
+
+  it("given no scope and the cursor on guide, then the cursor stays", () => {
+    assert.equal(validStep(ctx({ router: true, scope: null }), "guide", null), "guide");
+  });
+
+  it("given the proxy off, then the path is join, scope, exit", () => {
+    assert.deepEqual(wizardPath(ctx({ router: true, proxyOn: false })), ["join", "scope", "exit"]);
+  });
+
+  it("given no router, no scope and the cursor on guide, then the cursor goes back to the start", () => {
+    assert.notEqual(validStep(ctx({ scope: null }), "guide", null), "guide");
   });
 });

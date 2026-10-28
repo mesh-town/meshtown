@@ -16,7 +16,7 @@ CONF="$CONF_DIR/config.json"
 EXIT_FLAG=
 
 # Proxy and PAC for home network devices (earlier --no-socks was used).
-# There is no flag: enabled state and access come from config.json — socks.enabled=true, socks.access=localnet
+# There is no flag: enabled state and access come from config.json — socks.enabled=true, socks.access (localhost by default; the node page or config.json opens it for br-lan)
 # (port 1080 listens on the br-lan network too, PAC — http://<router address on br-lan>:1080/proxy.pac).
 # Inbound from wan is closed by the OpenWrt firewall (zone wan: input REJECT) and, on top of it, by the interface list
 # socks.ifaces/web.ifaces (see start_service: br-lan seeding; without a list the node's automation cuts WAN off). --no-socks

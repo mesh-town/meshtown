@@ -34,7 +34,8 @@ test('77-nets-router-wizard: a router with two networks — the Overview card an
 
   await test.step('the setup instruction shows the same address; the intro paragraph stays on Overview', async () => {
     await wizard.open();
-    await wizard.toGuide('system', 'linux');
+    await wizard.expectCursor('guide');
+    await wizard.tile('os-linux').click();
     await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
     await expect.soft(app.proxyCard.hint).toHaveCount(0);
   });
@@ -135,6 +136,49 @@ test('78-nets-laptop-quiet: a laptop with one network — the setup instruction 
     await expect.soft(nets.sameNets).toHaveCount(0);
   });
 });
+
+test('132-nets-router-devices: on a router the setup asks which device is connected (no scope or browser question), starts at the instruction with the router address, an iPhone gets the Wi-Fi steps, a Mac gets the system proxy steps', async ({
+  page,
+  target,
+  app,
+  targetKind,
+}) => {
+  test.skip(targetKind === 'node', 'the state mock turns the demo into a router; a real node does not pretend to be a router');
+  const wizard = app.wizard;
+
+  await test.step('given: the page sees a router; the Setup tab is open', async () => {
+    await pretendState(page, routerState);
+    await app.open(target.origin, target.token);
+    await wizard.open();
+  });
+
+  await test.step('the questions page has the rows "device" and the instruction, and no scope or browser question', async () => {
+    await expect.soft(wizard.rows).toHaveCount(2);
+    await expect.soft(wizard.rowHeading('os')).toHaveText('Which device are you connecting to the router?');
+    await expect.soft(wizard.tile('scope-browser')).toHaveCount(0);
+    await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
+  });
+
+  await test.step('the iPhone tile: the instruction is titled for the iPhone and lists the Wi-Fi settings steps', async () => {
+    await wizard.tile('os-ios').click();
+    await expect.soft(wizard.rowHeading('guide')).toHaveText('Connect an iPhone or iPad to the router');
+    await expect.soft(wizard.region.locator('#pac-steps')).toContainText('Configure Proxy');
+    await snapshot(page, 'router-ios');
+  });
+
+  await test.step('the Mac tile: the instruction is titled for the Mac and lists the system proxy steps', async () => {
+    await wizard.tile('os-mac').click();
+    await expect.soft(wizard.rowHeading('guide')).toHaveText('Connect a Mac to the router');
+    await expect.soft(app.proxyCard.addressText).toHaveText(ROUTER_PAC);
+    await snapshot(page, 'router-mac');
+  });
+});
+
+/** Saves a screenshot of the page into the directory named by `E2E_SHOTS_DIR`, when it is set. */
+async function snapshot(page: Page, name: string): Promise<void> {
+  const dir = process.env.E2E_SHOTS_DIR;
+  if (dir) await page.screenshot({ path: `${dir}/${name}.png`, fullPage: true });
+}
 
 interface StateDoc {
   node?: object;

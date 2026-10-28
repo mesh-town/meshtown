@@ -4,6 +4,7 @@
 import { computed, nextTick, watch } from "vue";
 import type { ComputedRef } from "vue";
 import type { Store } from "../../core/store.ts";
+import { lanMode } from "../../lan/nets-view.ts";
 import { detectBrowser, detectOs, inAppPage, proxyView } from "../browser-setup.ts";
 import type { OsId } from "../browser-setup.ts";
 import type { ProxyScope } from "../proxy-scope.ts";
@@ -19,6 +20,7 @@ export interface WizardView {
   screen: ComputedRef<ScreenId>;
   rows: ComputedRef<StepId[]>;
   ctx: ComputedRef<WizardCtx>;
+  router: ComputedRef<boolean>;
   progress: ComputedRef<{ n: number; m: number }>;
   strip: ComputedRef<StripStep[]>;
   back: ComputedRef<boolean>;
@@ -52,7 +54,7 @@ export function useWizard(store: Store): WizardView {
   const { form, hasNet, setupMark, ...h } = useHomeContext(store);
   const inApp = inAppPage();
   const env = computed<WizardEnv>(() => ({
-    hasNet: hasNet.value, inApp, proxyOn: proxyView(store.state).on, mark: setupMark.value,
+    hasNet: hasNet.value, inApp, proxyOn: proxyView(store.state).on, mark: setupMark.value, lan: lanMode(store.state ?? {}),
     uaOs: detectOs(userAgent()), uaBrowser: detectBrowser(userAgent()),
   }));
   const state = computed<WizardState>(() => ({ scope: form.browser.scope, os: form.browser.os, pick: form.browser.pick, ...form.wizard }));
@@ -98,7 +100,7 @@ export function useWizard(store: Store): WizardView {
   };
 
   return {
-    step, strip, ctx, goStep: (id) => dispatch({ kind: "strip", id }),
+    step, strip, ctx, router: computed(() => env.value.lan === "router"), goStep: (id) => dispatch({ kind: "strip", id }),
     rows: computed(() => visibleRows(ctx.value, step.value)), screen: computed(() => screenOf(step.value)),
     os: computed(() => shownOs(state.value, env.value)),
     browser: computed(() => shownBrowser(state.value, env.value)),
