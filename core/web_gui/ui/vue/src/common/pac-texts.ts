@@ -61,7 +61,7 @@ export const BROWSER_FIREFOX = "Firefox";
 export const BROWSER_OTHER = "Other browser";
 export const OTHER_BROWSER_NO_PROXY = "Chrome, Edge, Brave and other Chromium browsers, as well as Safari, have no proxy setting of their own — they use the system one.";
 export const OTHER_BROWSER_EASIEST = "Easiest: choose";
-export const OTHER_BROWSER_EXTENSION = "To keep other apps off Mesh Town, install a proxy extension in the browser (for example, FoxyProxy for Chrome and Edge), choose its PAC / \"auto-configuration URL\" mode and paste the address above.";
+export const OTHER_BROWSER_EXTENSION = "To keep other apps off " + NET_NAME + ", install a proxy extension in the browser (for example, FoxyProxy for Chrome and Edge), choose its PAC / \"auto-configuration URL\" mode and paste the address above.";
 export const OTHER_BROWSER_SAFARI = "Safari has no proxy extensions — use the system setting.";
 
 export const MAC_STEPS: string[] = [
