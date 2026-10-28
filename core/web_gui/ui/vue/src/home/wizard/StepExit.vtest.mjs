@@ -1,5 +1,5 @@
 /* The wizard exit screen: the exit list, this computer's own switch (not inside the app), and a warning while
- * blocked sites have no exit. */
+ * sites open directly. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { baseConfig, baseState, mountSection, PEER_FULL } from "../../testing/section.mjs";
@@ -8,7 +8,7 @@ import StepExit from "./StepExit.vue";
 vi.mock("../../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
 
 const COMPUTER_TITLE = "This computer";
-const WARNING = "Blocked sites won't open until you choose a member above.";
+const WARNING = "Sites open directly until you choose a member above.";
 let mounted;
 
 beforeEach(() => localStorage.clear());
@@ -36,7 +36,7 @@ describe("StepExit", () => {
   });
 
   describe("no exit is chosen (\"As usual\")", () => {
-    it("warns that blocked sites will not open", () => {
+    it("warns that sites open directly", () => {
       const { wrapper } = setup({ inApp: false });
       expect(wrapper.get("#exit-direct").element.checked, "the precondition: directly").toBe(true);
       expect(wrapper.get("#exit-direct-warn").text()).toBe(WARNING);

@@ -31,7 +31,7 @@ export const BROWSER_NAMES: Record<WizBrowser, string> = { chrome: "Chrome", edg
 export const WIZ_COPY_ITEM = "Copy this address (PAC):";
 export const WIZ_APP_LINK = "meshtown.apk";
 export const WIZ_APP_ITEM = `On the phone, download the ${NET_NAME} app:`;
-export const WIZ_EXIT_DIRECT_WARN = "Blocked sites won't open until you choose a member above.";
+export const WIZ_EXIT_DIRECT_WARN = "Sites open directly until you choose a member above.";
 export const MANUAL_TOGGLE_HAND = "Set up by hand (if the steps above didn't work) ▸";
 export const MANUAL_TOGGLE_HAND_OPEN = "Set up by hand (if the steps above didn't work) ▾";
 

@@ -37,7 +37,7 @@ export const HOME_LINUX_MANUAL = "Choose manual configuration and fill in \"SOCK
 // exit-list.ts, home-view.ts
 export const HOME_WAIT_STARTING = NET_NAME + " is starting…";
 export const HOME_WAIT_STOPPING = NET_NAME + " is stopping…";
-export const HOME_DIRECT_PICK = "To open a blocked site, choose a member below.";
+export const HOME_DIRECT_PICK = "Sites that don't open directly will open once you choose a member below.";
 export const HOME_DIRECT_NONE = "No member offers their connection as an exit yet.";
 export const HOME_EXIT_CHOSEN_FALLBACK = "the chosen member";
 export const HOME_EXITS_OFFLINE = "The chosen members are offline";

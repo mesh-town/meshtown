@@ -117,6 +117,10 @@ describe("validStep", () => {
   it("given the join step and no network, then it stays on join", () => {
     assert.equal(validStep(ctx({ hasNet: false }), "join", null), "join");
   });
+
+  it("given the instruction and no scope answer, then the cursor goes to the start step", () => {
+    assert.equal(validStep(ctx({ scope: null }), "guide", null), "scope");
+  });
 });
 
 describe("nextStep and prevStep", () => {

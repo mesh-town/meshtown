@@ -90,7 +90,7 @@ describe("statePanel", () => {
     it("state direct and there is an exit member — offers to choose it", () => {
       const p = statePanel(snap({ route: { state: "direct", exits: [] }, peers: [SELF, peer({ exit: true })] }));
       assert.equal(p.main, "In the browser, sites open directly");
-      assert.equal(p.sub, "To open a blocked site, choose a member below.");
+      assert.equal(p.sub, "Sites that don't open directly will open once you choose a member below.");
     });
 
     it("state direct and no one allowed opening sites through them — an explanation instead of an offer", () => {

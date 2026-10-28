@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Wizard exit screen: the member to route blocked sites through, and (in a browser) this computer's own switch.
+// Wizard exit screen: the member to route sites through, and (in a browser) this computer's own switch.
 import { inject } from "vue";
 import { STORE_KEY } from "../../core/store.ts";
 import ExitCard from "../ExitCard.vue";
