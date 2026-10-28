@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // "Connect the browser": the PAC address with copying, the system and steps, the manual block (SOCKS5) under a disclosure.
 import { computed, inject } from "vue";
-import type { StepValue } from "./browser-setup.ts";
+import { detectBrowser, type StepValue } from "./browser-setup.ts";
 import {
-  BROWSER_SCOPE_NOTE, FIREFOX_STEPS, OS_LABEL, PAC_ADDR_LABEL, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, SCOPE_BROWSER,
+  BROWSER_FIREFOX, BROWSER_LABEL, BROWSER_OTHER, FIREFOX_STEPS, OTHER_BROWSER_EASIEST, OTHER_BROWSER_EXTENSION,
+  OTHER_BROWSER_NO_PROXY, OTHER_BROWSER_SAFARI, OS_LABEL, PAC_ADDR_LABEL, PAC_NO_EXIT_NOTE, PAC_TITLE, PAC_WHY, SCOPE_BROWSER,
   SCOPE_QUESTION, SCOPE_SYSTEM, WIZARD_AGAIN,
 } from "../common/pac-texts.ts";
 import { STORE_KEY } from "../core/store.ts";
@@ -24,6 +25,10 @@ const { form, proxy, ...h } = useHomeContext(store);
 const router = computed(() => isRouter(store.state ?? {}));
 const SCOPES: [NonNullable<typeof form.browser.scope>, string][] = [["system", SCOPE_SYSTEM], ["browser", SCOPE_BROWSER]];
 const scope = computed(() => form.browser.scope);
+const BROWSERS: ["firefox" | "other", string][] = [["firefox", BROWSER_FIREFOX], ["other", BROWSER_OTHER]];
+const detected = typeof navigator === "undefined" ? "firefox" : detectBrowser(navigator.userAgent || "");
+// Saved answer first (firefox stays firefox, anything else is "other"), then the browser the page runs in.
+const browserKind = computed(() => ((form.browser.pick ?? detected) === "firefox" ? "firefox" : "other"));
 const LAN_LEAD = { legacy: HOME_LAN_LEAD_SINGLE, single: HOME_LAN_LEAD_SINGLE, home: HOME_LAN_LEAD_HOME, multi: HOME_LAN_LEAD_MULTI };
 </script>
 
@@ -59,10 +64,19 @@ const LAN_LEAD = { legacy: HOME_LAN_LEAD_SINGLE, single: HOME_LAN_LEAD_SINGLE, h
         <p v-for="(t, i) in proxy.pac.small" :key="i" class="hint pac-small">{{ t }}</p>
       </template>
       <template v-else-if="scope === 'browser'">
-        <ol id="firefox-steps">
+        <span id="browser-label">{{ BROWSER_LABEL }}</span>
+        <div id="browser-seg" role="group" aria-labelledby="browser-label">
+          <button v-for="[id, name] in BROWSERS" :key="id" type="button" class="btn btn-sm" :id="'browser-' + id" :aria-pressed="browserKind === id" @click="h.pickWizBrowser(id)">{{ name }}</button>
+        </div>
+        <ol v-if="browserKind === 'firefox'" id="firefox-steps">
           <li v-for="(t, i) in FIREFOX_STEPS" :key="i">{{ t }}</li>
         </ol>
-        <p class="hint" id="browser-scope-note">{{ BROWSER_SCOPE_NOTE }}</p>
+        <div v-else id="browser-other-steps">
+          <p class="hint">{{ OTHER_BROWSER_NO_PROXY }}</p>
+          <p class="hint">{{ OTHER_BROWSER_EASIEST }} <button type="button" class="link-more" id="browser-to-system" @click="h.pickScope('system')">{{ SCOPE_SYSTEM }}</button> above.</p>
+          <p class="hint">{{ OTHER_BROWSER_EXTENSION }}</p>
+          <p class="hint">{{ OTHER_BROWSER_SAFARI }}</p>
+        </div>
       </template>
     </template>
     <ManualSetup v-if="scope" />

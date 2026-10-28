@@ -4,7 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent, h, provide } from "vue";
-import { BROWSER_SCOPE_NOTE, FIREFOX_STEPS, SCOPE_BROWSER, SCOPE_QUESTION, SCOPE_SYSTEM } from "../common/pac-texts.ts";
+import { FIREFOX_STEPS, SCOPE_BROWSER, SCOPE_QUESTION, SCOPE_SYSTEM } from "../common/pac-texts.ts";
 import { createStore, STORE_KEY } from "../core/store.ts";
 import { applySnapshot } from "../testing/snapshot.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
@@ -37,7 +37,7 @@ describe("BrowserCard > scope question", () => {
     expect(wrapper.get("#scope-browser").text()).toBe("Only in one browser");
     expect(pressed(wrapper)).toEqual([]);
     expect(wrapper.get("#pac-url-text").text()).toBe("http://127.0.0.1:1080/proxy.pac");
-    for (const id of ["#pac-steps", "#os-seg", "#firefox-steps", "#browser-scope-note", "#manual-toggle", "#proxy-setup"]) {
+    for (const id of ["#pac-steps", "#os-seg", "#firefox-steps", "#manual-toggle", "#proxy-setup"]) {
       expect(wrapper.find(id).exists(), id).toBe(false);
     }
   });
@@ -56,12 +56,12 @@ describe("BrowserCard > scope question", () => {
     expect(wrapper.find("#firefox-steps").exists()).toBe(false);
   });
 
-  it("browser: the Firefox steps, the note about other browsers and the manual link; no system steps", async () => {
+  it("browser: the Firefox steps and the manual link; no system steps", async () => {
     const wrapper = mountCard();
     await wrapper.get("#scope-browser").trigger("click");
     expect(pressed(wrapper)).toEqual(["browser"]);
     expect(wrapper.findAll("#firefox-steps li").map((li) => li.text())).toEqual(FIREFOX_STEPS);
-    expect(wrapper.get("#browser-scope-note").text()).toBe(BROWSER_SCOPE_NOTE);
+    expect(wrapper.find("#browser-other-steps").exists()).toBe(false);
     expect(wrapper.find("#manual-toggle").exists()).toBe(true);
     for (const id of ["#pac-steps", "#os-seg"]) expect(wrapper.find(id).exists(), id).toBe(false);
   });
