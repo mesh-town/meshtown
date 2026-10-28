@@ -29,7 +29,7 @@ export const ANDROID_STEPS: string[] = [
   "In the app, tap \"Join with an invite\" and paste the invite.",
   "Choose an exit and tap \"Connect\" at the bottom of the screen.",
 ];
-export const IOS_NO_APP = `There is no ${NET_NAME} app for iPhone and iPad yet. For now, use ${NET_NAME} on a computer or an Android phone.`;
+export const IOS_NO_APP = `There is no ${NET_NAME} app for iPhone and iPad. They can still open sites through ${NET_NAME} on your router or on a computer on the same Wi‑Fi.`;
 
 export const MANUAL_TOGGLE = "Not working? Set up manually ▸";
 export const MANUAL_TOGGLE_OPEN = "Not working? Set up manually ▾";

@@ -59,7 +59,7 @@ What you give up: Mesh Town connects TCP and UDP program ports, not whole IP net
 
 - you need a whole subnet or a virtual network interface: Mesh Town shares TCP and UDP program ports running on
   the device itself;
-- you need it on an iPhone or iPad;
+- you need it on an iPhone or iPad without a router or a computer running it on the same Wi‑Fi;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
 
 ## Also: use a member as an exit node

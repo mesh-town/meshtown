@@ -161,8 +161,7 @@ the node gets a new identity on the next install). `disable` removes both links 
 
 ## Exit for other members
 
-In the script `SOCKS_FLAG=` is empty: whether the proxy is on comes from `config.json`. The proxy on the router
-is on for the home network — `socks.enabled: true`, `socks.access: "localnet"`, port 1080 by default: the node listens on
+In the script `SOCKS_FLAG=` is empty: whether the proxy is on comes from `config.json`. The proxy on the router starts open only to the router itself (`socks.access: "localhost"`, the default). To let phones and computers at home use it, open the node page, go through the setup steps and click "Open for the home network", or set `"socks": {"access": "localnet"}` in `/etc/meshtown/config.json` and restart the service. Then the node listens on
 `0.0.0.0:1080`, lets in only private addresses (loopback, `10/8`, `172.16/12`, `192.168/16`, `169.254/16`; tailscale addresses
 `100.64/10` it cuts off itself) and serves a PAC at `http://<router address on br-lan>:1080/proxy.pac` (on the router —
 `http://192.168.1.1:1080/proxy.pac`; the address in the PAC is the one the request came to). The proxy has no password, so the port
