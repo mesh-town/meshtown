@@ -1,5 +1,4 @@
-/* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one row per network with the member count and
- * "Open in Networks", the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
+/* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one row (a link to the network tab) per network with the member count, the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
  * With one network the page keeps its former look and requests. The whole page runs on a fake node. */
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,7 +9,6 @@ import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { shown } from "../testing/dom.mjs";
 import { baseConfig, baseState } from "../testing/section.mjs";
 
-const OPEN_MEMBERS = "Open in Networks";
 const NET_A_NAME = "friends";
 const NET_B_NAME = "my devices";
 const EXIT_ID = "dddd4444";
@@ -23,10 +21,18 @@ afterEach(unmountPage);
 
 describe("Home with two networks", () => {
   describe("the page is open", () => {
-    it("has one row per network, each with an \"Open in Networks\" button", async () => {
+    it("has one row per network, each row being a link", async () => {
       const { wrapper } = await setup();
-      expect(openButtons(wrapper)).toHaveLength(2);
+      expect(netLinks(wrapper)).toHaveLength(2);
       expect(rowsOf(wrapper).map((r) => r.text())).toEqual([expect.stringContaining(NET_A_NAME), expect.stringContaining(NET_B_NAME)]);
+    });
+
+    it("titles the card \"Your networks\" and has no separate open button in a row", async () => {
+      const { wrapper } = await setup();
+      expect(wrapper.get("#home-nets-title").text()).toBe("Your networks");
+      expect(wrapper.get("#home-nets").attributes("aria-labelledby")).toBe("home-nets-title");
+      expect(wrapper.findAll("#home-nets .btn")).toHaveLength(0);
+      expect(wrapper.findAll("#home-nets a")).toHaveLength(2);
     });
 
     it("tells in each row how many members are online", async () => {
@@ -34,14 +40,14 @@ describe("Home with two networks", () => {
       for (const row of rowsOf(wrapper)) expect(flat(row), "1 of 2 members online").toContain("1 of 2 online");
     });
 
-    it("\"Open in Networks\" of the second row leads to the tab of that network", async () => {
+    it("the second row leads to the tab of that network", async () => {
       const { wrapper } = await setup();
-      expect(await targetOf(openButtons(wrapper)[1])).toBe("#peers/" + NET_B);
+      expect(await targetOf(netLinks(wrapper)[1])).toBe("#peers/" + NET_B);
     });
 
-    it("\"Open in Networks\" of the first row leads to the tab of the main network", async () => {
+    it("the first row leads to the tab of the main network", async () => {
       const { wrapper } = await setup();
-      expect(await targetOf(openButtons(wrapper)[0])).toBe("#peers/main");
+      expect(await targetOf(netLinks(wrapper)[0])).toBe("#peers/main");
     });
 
     it("shows no ring, no invite card and no \"This computer\" card", async () => {
@@ -203,7 +209,7 @@ describe("Home with one network", () => {
       expect(wrapper.find(".ring-mark").exists(), "ring").toBe(true);
       expect(wrapper.find("#home-invite").exists(), "invite").toBe(true);
       expect(wrapper.find("#home-computer").exists(), "this computer").toBe(true);
-      expect(openButtons(wrapper)).toHaveLength(0);
+      expect(netLinks(wrapper)).toHaveLength(0);
     });
 
     it("has the former exit card: no network in the title, both paragraphs are there", async () => {
@@ -249,7 +255,7 @@ describe("Home with one network", () => {
 
     it("the page shows no network rows", async () => {
       const { wrapper } = await setupSecondOnly();
-      expect(openButtons(wrapper)).toHaveLength(0);
+      expect(netLinks(wrapper)).toHaveLength(0);
     });
   });
 });
@@ -326,24 +332,15 @@ async function setupSecondOnly() {
 
 const flat = (w) => w.text().replace(/\s+/g, " ").trim();
 const clickables = (wrapper) => wrapper.findAll("a, button");
-const buttonsWith = (wrapper, text) => clickables(wrapper).filter((el) => flat(el) === text);
 const startingWith = (wrapper, text) => clickables(wrapper).filter((el) => flat(el).startsWith(text));
-const openButtons = (wrapper) => buttonsWith(wrapper, OPEN_MEMBERS);
+const netLinks = (wrapper) => wrapper.findAll("#home-nets a[data-slot]");
 
-// A row of the networks list: the nearest ancestor of an "Open in Networks" button that holds no other such button.
-function rowsOf(wrapper) {
-  return openButtons(wrapper).map((button) => {
-    let row = button.element;
-    while (row.parentElement && row.parentElement.querySelectorAll("a, button").length > 0 && countOpen(row.parentElement) === 1) row = row.parentElement;
-    return { text: () => row.textContent, element: row, find: (sel) => row.querySelector(sel) };
-  });
-}
-
-const countOpen = (el) => [...el.querySelectorAll("a, button")].filter((b) => b.textContent.trim() === OPEN_MEMBERS).length;
+// A row of the networks list: the link itself.
+const rowsOf = (wrapper) => netLinks(wrapper).map((link) => ({ text: () => link.element.textContent, element: link.element, find: (sel) => link.element.querySelector(sel) }));
 
 const dotOf = (row) => row.find('[class*="dot"]')?.className ?? "";
 
-// Where an "Open in Networks" link or chip leads: its `href`, or the hash after a click when it is a button.
+// Where a network row link or chip leads: its `href`, or the hash after a click when it is a button.
 async function targetOf(wrapperEl) {
   const href = wrapperEl.attributes("href");
   if (href) return href;
