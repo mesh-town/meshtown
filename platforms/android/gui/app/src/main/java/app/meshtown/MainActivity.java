@@ -118,7 +118,6 @@ public class MainActivity extends Activity {
         takeInvite(getIntent());
         NodeService.quitRequested = false;
         startForegroundService(new Intent(this, NodeService.class));
-        refresh();
         UpdateInstaller.startIfRequested(this, getIntent());
     }
 
@@ -235,6 +234,27 @@ public class MainActivity extends Activity {
             loadPage();
         }
         button.postDelayed(refresh, 2000);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        NodeService.appVisible = true;
+        NodeService.wake();
+        web.onResume();
+        web.resumeTimers();
+        button.removeCallbacks(refresh);
+        refresh();
+    }
+
+    /** Hidden: stop the refresh loop and freeze the page's timers, which poll the node too. */
+    @Override
+    protected void onStop() {
+        NodeService.appVisible = false;
+        button.removeCallbacks(refresh);
+        web.onPause();
+        web.pauseTimers();
+        super.onStop();
     }
 
     @Override
