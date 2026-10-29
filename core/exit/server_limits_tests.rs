@@ -3,6 +3,7 @@
 
 use super::*;
 use crate::exit::frame::{EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK};
+use crate::exit::windowed_copy::stub::pattern;
 use crate::exit::{ExitLimits, UDPGW_HOST, UDPGW_PORT};
 use crate::transport::net::facade::test_support::within;
 use crate::transport::net::StreamPair;
@@ -215,6 +216,7 @@ mod window {
 
         // when: the window is switched on
         fx.cfg.limits.set_stream_window(64);
+        assert_eq!(fx.cfg.limits.stream_window_bytes(), 65_536);
 
         // then: the open stream still carries bytes, and a new one opens and carries bytes too
         assert_eq!(&echo(&mut first, b"one!").await, b"one!");
@@ -275,11 +277,4 @@ async fn wait_live(fx: &Fx, n: u64, limit: Duration) {
         "live streams stayed at {}",
         fx.cfg.limits.live()
     );
-}
-
-/// `len` bytes that don't repeat within a window, so a lost or shifted byte shows.
-fn pattern(len: usize) -> Vec<u8> {
-    (0..len)
-        .map(|i| u8::try_from(i % 251).unwrap_or(0))
-        .collect()
 }

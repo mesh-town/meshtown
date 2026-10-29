@@ -26,7 +26,7 @@ pub struct ProcessSettings {
     pub node_memory_warn_mib: u64, // node.memory_warn_mib — memory guard summary threshold, MiB; 0 — off
     pub node_memory_exit_mib: u64, // node.memory_exit_mib — memory guard exit threshold, MiB; 0 — off
     pub exit_max_streams: u64, // exit.max_streams — open exit streams per process; 0 = by machine memory
-    pub exit_stream_window_kib: u64, // exit.stream_window_kib — unacknowledged bytes per exit stream toward the client, KiB; 0 = by machine memory
+    pub exit_stream_window_kib: u64, // exit.stream_window_kib — unacked bytes per exit stream to the client, KiB; 0 = by machine memory
 }
 
 impl Default for ProcessSettings {

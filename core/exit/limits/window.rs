@@ -7,12 +7,12 @@
 use portable_atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
-/// Smallest non-zero window, KiB: a smaller one would stall a stream on every round trip.
-pub(crate) const STREAM_WINDOW_FLOOR_KIB: u64 = 64;
+/// Smallest non-zero window, KiB: below it one stream gets too slow: about window ÷ round-trip time.
+const STREAM_WINDOW_FLOOR_KIB: u64 = 64;
 
 /// The window in bytes. `setting_kib` 0 takes `tier_kib`; any other value is at least
 /// `STREAM_WINDOW_FLOOR_KIB`. A result of 0 means no window.
-pub(crate) fn window_bytes(setting_kib: u64, tier_kib: u64) -> usize {
+fn window_bytes(setting_kib: u64, tier_kib: u64) -> usize {
     let kib = match setting_kib {
         0 => tier_kib,
         n => n.max(STREAM_WINDOW_FLOOR_KIB),
@@ -22,7 +22,7 @@ pub(crate) fn window_bytes(setting_kib: u64, tier_kib: u64) -> usize {
 
 /// The current window: the setting from the config file and the default of the memory tier.
 #[derive(Default)]
-pub(crate) struct StreamWindow {
+pub(super) struct StreamWindow {
     setting_kib: AtomicU64,
     tier_kib: AtomicU64,
 }

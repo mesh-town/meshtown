@@ -3,7 +3,7 @@
 //! a flush waits. The client stream is the stub of `windowed_copy_stub.rs`; the wires are those of `splice_tests.rs`.
 
 use super::*;
-use crate::exit::windowed_copy::stub::{ack_writer, AckHandle, AckMode};
+use crate::exit::windowed_copy::stub::{ack_writer, pattern, AckHandle, AckMode};
 
 /// What the site sends in the `preloaded` tests: fits the socket buffers, so the exit reads it without stalling.
 const SITE_BYTES: usize = 48 * 1024;
@@ -189,11 +189,4 @@ async fn exchange(w: &mut Wires, up: &[u8], down: &[u8]) -> (Vec<u8>, Vec<u8>) {
     })
     .await;
     (at_site, at_client)
-}
-
-/// `len` bytes that don't repeat within a window, so a lost or shifted byte shows.
-fn pattern(len: usize) -> Vec<u8> {
-    (0..len)
-        .map(|i| u8::try_from(i % 251).unwrap_or(0))
-        .collect()
 }

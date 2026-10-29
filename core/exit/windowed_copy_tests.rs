@@ -2,7 +2,7 @@
 //! at the end of the stream and on the reader's pause, failures and cancellation. The writer is the stub of
 //! `windowed_copy_stub.rs`, whose `flush` waits for an acknowledgement like the transport's does.
 
-use super::stub::{ack_writer, AckMode, AckWriter};
+use super::stub::{ack_writer, pattern, AckMode, AckWriter};
 use super::*;
 use std::io::{self, Cursor, ErrorKind};
 use std::time::Duration;
@@ -87,6 +87,32 @@ mod with_window {
         // then: the next window is let through
         acks.wait_written(2 * WINDOW, PATIENCE).await;
         copy.abort();
+    }
+
+    #[tokio::test]
+    async fn partial_writes_still_fill_the_window() {
+        // given: a writer that takes at most 1000 bytes per write and waits for acknowledgements
+        let data = pattern(MIB);
+        let (writer, acks) = ack_writer(AckMode::Manual);
+        acks.cap_writes(1000);
+        let copy = start_copy(data.clone(), writer, WINDOW);
+
+        // when: nothing is acknowledged
+        acks.wait_written(WINDOW, PATIENCE).await;
+        tokio::time::sleep(QUIET).await;
+
+        // then: the copy stands on the window, not on a smaller amount counted from the read size
+        assert_eq!(acks.written_len(), WINDOW, "the window was not filled");
+        assert!(!copy.is_finished(), "the copy must wait, not end");
+
+        // when: the writer keeps acknowledging until the end
+        while !copy.is_finished() {
+            acks.ack_all();
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+
+        // then: every byte arrived unchanged
+        assert_eq!(acks.written(), data, "the bytes arrive unchanged");
     }
 
     #[tokio::test]
@@ -277,13 +303,6 @@ mod failures {
 const MIB: usize = 1024 * KIB;
 
 type Copy = JoinHandle<io::Result<u64>>;
-
-/// `len` bytes that don't repeat within a window, so a lost or shifted byte shows.
-fn pattern(len: usize) -> Vec<u8> {
-    (0..len)
-        .map(|i| u8::try_from(i % 251).unwrap_or(0))
-        .collect()
-}
 
 /// A copy of `data` into `writer` running in its own task.
 fn start_copy(data: Vec<u8>, writer: AckWriter, window: usize) -> Copy {

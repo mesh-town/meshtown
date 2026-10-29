@@ -1,6 +1,6 @@
 //! A test writer that behaves like a transport whose `flush` waits for the peer's acknowledgement.
 //!
-//! `AckWriter` accepts every byte it is given and counts the bytes not yet acknowledged. In `Manual` mode
+//! `AckWriter` accepts every byte it is given (or at most `cap_writes` per write) and counts the bytes not yet acknowledged. In `Manual` mode
 //! `poll_flush` stays pending until the test calls `AckHandle::ack_all`; in `Auto` mode every flush settles
 //! at once. `tokio::io::duplex` cannot stand in for it: its flush never waits.
 
@@ -28,6 +28,7 @@ struct State {
     flushes: usize,
     flush_error: Option<io::ErrorKind>,
     write_error: Option<io::ErrorKind>,
+    write_cap: Option<usize>,
     flush_waker: Option<Waker>,
 }
 
@@ -67,10 +68,11 @@ impl AsyncWrite for AckWriter {
         if let Some(kind) = st.write_error {
             return Poll::Ready(Err(io::Error::new(kind, "injected write failure")));
         }
-        st.written.extend_from_slice(buf);
-        st.unacked += buf.len();
+        let take = st.write_cap.map_or(buf.len(), |cap| cap.min(buf.len()));
+        st.written.extend_from_slice(&buf[..take]);
+        st.unacked += take;
         st.max_unacked = st.max_unacked.max(st.unacked);
-        Poll::Ready(Ok(buf.len()))
+        Poll::Ready(Ok(take))
     }
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
@@ -110,6 +112,11 @@ impl AckHandle {
     /// Every following write fails with `kind`.
     pub(crate) fn fail_write(&self, kind: io::ErrorKind) {
         lock(&self.state).write_error = Some(kind);
+    }
+
+    /// Every following write takes at most `n` bytes, like a transport with little room left.
+    pub(crate) fn cap_writes(&self, n: usize) {
+        lock(&self.state).write_cap = Some(n);
     }
 
     /// Everything accepted so far.
@@ -161,4 +168,11 @@ impl AckHandle {
             self.flushes()
         );
     }
+}
+
+/// `len` bytes that don't repeat within a window, so a lost or shifted byte shows.
+pub(crate) fn pattern(len: usize) -> Vec<u8> {
+    (0..len)
+        .map(|i| u8::try_from(i % 251).unwrap_or(0))
+        .collect()
 }

@@ -52,7 +52,7 @@ impl ProcessServices {
     }
 }
 
-/// Sets the process-wide exit stream limit and the RSS ceiling, and logs the memory defaults in force.
+/// Sets the exit stream limit, the RSS ceiling and the stream window on `limits`, and logs the memory defaults in force.
 fn configure_exit_limits(
     limits: &ExitLimits,
     process: &ProcessSettings,
