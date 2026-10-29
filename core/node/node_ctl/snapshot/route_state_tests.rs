@@ -38,6 +38,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         ),
         socks_ifaces: Default::default(),
         exit_on: false,
+        exit_iface: None,
         exit_clients: Vec::new(),
         exit_rates: HashMap::new(),
         exits: serving,

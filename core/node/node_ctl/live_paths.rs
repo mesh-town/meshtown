@@ -30,9 +30,12 @@ pub(super) fn apply_pac_strict(s: &Settings, set: impl FnOnce(bool)) {
 type Handle = fn(&RunningNode, &Settings);
 
 /// Live-setting handles by path; the set of paths equals `fields::live_paths()` (test `handles_equal_live`).
-const HANDLES: [(&str, Handle); 12] = [
+const HANDLES: [(&str, Handle); 13] = [
     ("exit.enabled", |n, e| {
         n.set_exit_enabled(e.net.exit_enabled)
+    }),
+    ("exit.interface", |n, e| {
+        n.set_exit_interface(e.net.exit_interface.as_deref())
     }),
     ("checks.enabled", |n, e| {
         n.set_checks_enabled(e.net.checks_enabled)

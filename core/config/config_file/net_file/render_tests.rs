@@ -224,7 +224,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
       "relay": "off"
     },
     "exit": {
-      "enabled": false
+      "enabled": false,
+      "interface": "wg0"
     },
     "checks": {
       "enabled": false,

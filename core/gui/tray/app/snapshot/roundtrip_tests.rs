@@ -63,6 +63,7 @@ fn full_snapshot() -> NodeSnapshot {
             enabled: true,
             domains: 1,
             clients: vec!["c1".into(), "c2".into()],
+            interface: None,
         },
         peers: full_peers(),
         route: RouteState {

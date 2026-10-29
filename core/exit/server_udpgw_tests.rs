@@ -26,6 +26,7 @@ fn cfg(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
         limits: crate::exit::ExitLimits::unlimited(),
+        iface: crate::iface_bind::OutIface::default(),
     };
     cfg.members.add_verified_conn(pid(1));
     cfg

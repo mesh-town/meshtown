@@ -86,6 +86,8 @@ pub struct ExitInfo {
     /// open exit stream, or it closed less than 30 s ago. Network members only, in
     /// ascending string order; `[]` — no clients or the exit is off (the field is always present).
     pub clients: Vec<String>,
+    /// The interface exit connections are bound to and its state; `null` — the system routing table.
+    pub interface: Option<crate::iface_bind::ExitIfaceInfo>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

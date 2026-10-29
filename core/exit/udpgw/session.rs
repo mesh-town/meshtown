@@ -14,6 +14,7 @@ use tokio::time::{sleep_until, Instant};
 use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
 use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
 use crate::exit::server::ExitConfig;
+use crate::iface_bind::{bind_udp, check};
 use crate::node::output::{say, short_peer_id};
 use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
@@ -39,6 +40,8 @@ struct Session {
     sock: Arc<UdpSocket>,
     last: Arc<Mutex<Instant>>,
     task: JoinHandle<()>,
+    /// The interface the socket was opened with; a different current value reopens the session.
+    iface: Option<Arc<str>>,
 }
 
 impl Drop for Session {
@@ -178,17 +181,47 @@ impl Gateway {
         }
     }
 
-    /// The live session of `conn_id`, created on first use; `None` over the limit or if no socket opened.
+    /// The live session of `conn_id`, created on first use; `None` over the limit, if the exit's interface
+    /// cannot be used, or if no socket opened. A session opened with another interface than the current
+    /// one is closed and opened again.
     fn session(&mut self, conn_id: u16, dest: SocketAddr) -> Option<&Session> {
         self.sessions.retain(|_, s| !s.task.is_finished());
+        let iface = self.cfg.iface.current();
+        if self
+            .sessions
+            .get(&conn_id)
+            .is_some_and(|s| s.iface != iface)
+        {
+            self.sessions.remove(&conn_id);
+        }
         if !self.sessions.contains_key(&conn_id) {
             if self.sessions.len() >= self.limits.max_sessions {
                 return None;
             }
-            let session = open_session(conn_id, dest, self.limits.idle, self.replies.clone())?;
+            if !self.iface_usable(conn_id, iface.as_deref()) {
+                return None;
+            }
+            let replies = self.replies.clone();
+            let session = open_session(conn_id, dest, self.limits.idle, replies, iface.as_deref())?;
             self.sessions.insert(conn_id, session);
         }
         self.sessions.get(&conn_id)
+    }
+
+    /// Whether sockets can be bound to the interface; a refusal is logged once per `conn_id`.
+    fn iface_usable(&mut self, conn_id: u16, iface: Option<&str>) -> bool {
+        let Some(name) = iface else { return true };
+        let Err(e) = check(name) else { return true };
+        if self.refused.insert(conn_id) {
+            say(
+                "exit",
+                format!(
+                    "{}: udpgw {conn_id}: exit {e}; not sent through other networks",
+                    short_peer_id(&self.peer)
+                ),
+            );
+        }
+        false
     }
 }
 
@@ -197,13 +230,9 @@ fn open_session(
     dest: SocketAddr,
     idle: Duration,
     replies: mpsc::Sender<Vec<u8>>,
+    iface: Option<&str>,
 ) -> Option<Session> {
-    let local: SocketAddr = if dest.is_ipv4() {
-        ([0, 0, 0, 0], 0).into()
-    } else {
-        ([0u16; 8], 0).into()
-    };
-    let std_sock = std::net::UdpSocket::bind(local).ok()?;
+    let std_sock = bind_udp(dest, iface).ok()?;
     std_sock.set_nonblocking(true).ok()?;
     let sock = Arc::new(UdpSocket::from_std(std_sock).ok()?);
     let last = Arc::new(Mutex::new(Instant::now()));
@@ -214,7 +243,13 @@ fn open_session(
         idle,
         replies,
     ));
-    Some(Session { sock, last, task })
+    let iface = iface.map(Arc::from);
+    Some(Session {
+        sock,
+        last,
+        task,
+        iface,
+    })
 }
 
 /// Turns datagrams arriving at the session socket into reply frames until the session is idle.
@@ -246,6 +281,9 @@ async fn pump_replies(
     }
 }
 
+#[cfg(test)]
+#[path = "iface_tests.rs"]
+mod iface_tests;
 #[cfg(test)]
 #[path = "session_tests.rs"]
 mod tests;

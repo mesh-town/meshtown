@@ -16,18 +16,19 @@ pub struct NetSettings {
     pub network_key: Option<String>, // network.key       — only in the file
     pub node_name: Option<String>, // node.name         — the node's display name, read at start by `pick_node_name`
     pub exit_enabled: bool,        // exit.enabled
-    pub route_exits: Vec<PeerId>,  // route.exits
+    pub exit_interface: Option<String>, // exit.interface — outgoing interface of the exit; `None` — any network
+    pub route_exits: Vec<PeerId>,       // route.exits
     pub ports_published: Vec<Published>, // ports.published
-    pub ports_opened: Vec<Opened>, // ports.opened
-    pub checks_enabled: bool,      // checks.enabled
-    pub check_interval_sec: u64,   // checks.interval_sec
-    pub doh_server: SocketAddr,    // checks.doh_server
+    pub ports_opened: Vec<Opened>,      // ports.opened
+    pub checks_enabled: bool,           // checks.enabled
+    pub check_interval_sec: u64,        // checks.interval_sec
+    pub doh_server: SocketAddr,         // checks.doh_server
     pub provider_dns: Option<SocketAddr>, // checks.provider_dns
-    pub geo_markers: Vec<String>,  // checks.geo_markers — extra region-stub phrases, lowercase
-    pub probe_interval_sec: u64,   // probe.interval_sec
-    pub probe_full_cycle: bool,    // probe.full_cycle — 1 MiB to all peers, not only to the exit
-    pub net_choice: NetChoice,     // net.{transports,discovery,sync} — choice of the network stack
-    pub relay: RelayMode,          // net.relay — relaying inside the network
+    pub geo_markers: Vec<String>,       // checks.geo_markers — extra region-stub phrases, lowercase
+    pub probe_interval_sec: u64,        // probe.interval_sec
+    pub probe_full_cycle: bool, // probe.full_cycle — 1 MiB to all peers, not only to the exit
+    pub net_choice: NetChoice,  // net.{transports,discovery,sync} — choice of the network stack
+    pub relay: RelayMode,       // net.relay — relaying inside the network
 }
 
 /// A phone does not serve as an exit unless the user turns it on; every other platform does.
@@ -42,6 +43,7 @@ impl Default for NetSettings {
             network_key: None,
             node_name: None,
             exit_enabled: default_exit_enabled(cfg!(target_os = "android")),
+            exit_interface: None,
             route_exits: vec![],
             ports_published: vec![],
             ports_opened: vec![],
@@ -65,6 +67,7 @@ impl std::fmt::Debug for NetSettings {
             .field("network_key", &key)
             .field("node_name", &self.node_name)
             .field("exit_enabled", &self.exit_enabled)
+            .field("exit_interface", &self.exit_interface)
             .field("route_exits", &self.route_exits)
             .field("ports_published", &self.ports_published)
             .field("ports_opened", &self.ports_opened)
@@ -96,3 +99,7 @@ impl NetSettings {
 #[cfg(test)]
 #[path = "net_settings_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "exit_iface_tests.rs"]
+mod exit_iface_tests;

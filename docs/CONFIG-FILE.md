@@ -127,6 +127,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
 | `exit.max_streams` | no flag | `0` (by machine memory: 20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise) | `process.exit_max_streams` (`core/config/config_file/process_settings.rs`); the ceiling on open exit streams for the whole process, 0…100000. Beyond it a new stream is refused as busy and clients try another exit. Takes effect at once; open streams are not cut |
+| `exit.interface` | no flag | `null` (any network) | `settings.exit_interface` (`core/config/config_file/net_settings.rs`); the name of the interface exit connections are bound to, 1–64 bytes, see "Exit through another VPN" below. Takes effect at once; open connections keep their path |
 | `node.memory_warn_mib` | no flag | `400` (by machine memory: 24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise) | `process.node_memory_warn_mib`; memory guard summary threshold, MiB, `0` = off. The default `400` means "by machine memory", so an explicit 400 on a machine with ≤512 MiB also counts as automatic. On such machines the exit also refuses new streams near this value; above 512 MiB with the default 400 it refuses only by the stream limit |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
@@ -151,6 +152,15 @@ keys in the written file. The column "Read in the node" below is where the node 
 
 `network.key` is the only file field that is not in the page document (section 4). There is never a default key:
 with no flag and no line in the file, the node comes up without a network.
+
+### Exit through another VPN
+
+`exit.interface` makes the node send what it opens for other members only through the named interface, for example
+another VPN (`"wg0"`, `"utun4"`). The binding covers the TCP connections to sites, the UDP sessions and the exit's own DNS
+queries. It does not cover the links between nodes, the site checks and the direct local proxy: they use the regular
+routing table. If the interface is missing, down or cannot be bound, the exit refuses the connection (reply code 8)
+instead of falling back to the regular network, so nothing leaks. On Linux kernels before 5.7 the binding needs the
+`CAP_NET_RAW` capability. Code: `core/iface_bind/`, `core/exit/outbound/dial.rs`.
 
 ### `checks.geo_markers`
 
@@ -192,7 +202,7 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
     "version": 1,
     "node":      { "name": "finch-unwary" },
     "network":   { "key": "our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya" },
-    "exit":      { "enabled": true, "max_streams": 0 },
+    "exit":      { "enabled": true, "max_streams": 0, "interface": "wg0" },
     "socks":     { "enabled": true, "port": 1080, "strict": false },
     "checks":    { "enabled": true, "interval_sec": 900,
                    "doh_server": "1.1.1.1:443", "provider_dns": null },

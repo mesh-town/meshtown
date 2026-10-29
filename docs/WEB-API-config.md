@@ -170,7 +170,7 @@ written in the file does not block saving other fields.
 The order of errors in `fields` is the field order in the file. The error text for an editable field is the `put_text`
 of the table row, if it is set (for `ports.published`, `ports.opened`),
 otherwise the expected value of the form: `node.name` — "a string of at most 64 characters, non-empty after trimming
-whitespace", `web.access` — "localhost or
+whitespace", `exit.interface` — "an interface name (1–64 bytes, no control characters) or null — any network", `web.access` — "localhost or
 localnet", `autostart.enabled` with a wrong type — "true or false", `full_tunnel.enabled` with a wrong type — "false (enabling is not available in
 this build)". For non-editable paths — the raw file parse message; `version` — "only version 1
 is supported", a path without a dot — "an object was expected".
@@ -271,7 +271,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
   "node":      { "name": "finch-unwary" },
   "network":   { "label": "our-gaming-room",
                  "masked": "our-gaming-room--••••••••••••••••••••••••••••••••••" },
-  "exit":      { "enabled": true, "max_streams": 0 },
+  "exit":      { "enabled": true, "max_streams": 0, "interface": "wg0" },
   "socks":     { "enabled": true, "port": 1080, "strict": false },
   "checks":    { "enabled": true, "interval_sec": 900,
                  "doh_server": "1.1.1.1:443", "provider_dns": null },
@@ -294,6 +294,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `network.masked` | string | — | read-only; the label, `--` and one `•` per character of the tail (34 for the `finch-unwary` example) | — | — (the key is not shown) | "Diagnostics" → "Mesh Town network key" |
 | `exit.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` | "Home" → "This computer" → "Allow other members to open sites through this computer"; "Members" → a switch on the own row; "Home" → the "Exit via…" card |
 | `exit.max_streams` | integer | 0 | 0…100000; `0` = by machine memory (20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise); process-wide, shared by all networks | no (on the fly; open streams are not cut) | `core/exit/limits/`, `core/node/node_ctl/live_paths.rs` | no input field |
+| `exit.interface` | string or null | `null` (any network) | 1–64 bytes, no control characters; `null` = the regular routing table | no (on the fly; open connections keep their path) | `core/iface_bind/`, `core/node/node_ctl/live_paths.rs` | Network tab → Device settings → Send exit traffic through |
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
 | `socks.strict` | boolean | `false` | — | no (applies at once) | `core/proxy/pac.rs` | "Settings" → "Strict mode" |
 | `socks.port` | integer | 1080 | 1024…65535; a busy port — 422 | **yes** | `core/node/config.rs`, `core/cli/commands.rs` | "Settings" → "Proxy port (SOCKS5 and HTTP)"; the port belongs to the process (one proxy listener for all networks), not to a slot |

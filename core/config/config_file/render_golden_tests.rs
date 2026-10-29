@@ -119,7 +119,8 @@ const ALL_CHANGED_TEXT: &str = r#"{
     },
     "exit": {
       "enabled": false,
-      "max_streams": 40
+      "max_streams": 40,
+      "interface": "wg0"
     },
     "socks": {
       "enabled": false,

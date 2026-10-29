@@ -17,6 +17,7 @@ use super::refusal::Refusal;
 use super::target::{literal_address, v4_answer, v6_answer, NameAnswer, AAAA_LOOKUP_TIMEOUT};
 use crate::exit::frame::EXIT_TCP_CONNECT_TIMEOUT;
 use crate::exit::server::ExitConfig;
+use crate::iface_bind::{check, connect_tcp};
 
 /// How long the connection phase takes in all and how long one attempt may take unless it is the last one.
 #[derive(Clone, Copy)]
@@ -55,7 +56,14 @@ pub(in crate::exit) async fn open_target(
     target_host: &str,
     port: u16,
 ) -> std::result::Result<TcpStream, Refusal> {
-    open_target_with(cfg, target_host, port, BUDGET, TcpStream::connect).await
+    let name = cfg.iface.current();
+    if let Some(n) = name.as_deref() {
+        check(n).map_err(|e| Refusal::interface_unavailable(target_host, &e))?;
+    }
+    open_target_with(cfg, target_host, port, BUDGET, |addr| {
+        connect_tcp(addr, name.clone())
+    })
+    .await
 }
 
 /// The same with the connection made by `connect`. The test table `host_overrides` is used as is; an IP literal

@@ -37,6 +37,7 @@ pub(super) fn cfg_with(overrides: HashMap<String, SocketAddr>) -> ExitConfig {
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
         limits: crate::exit::ExitLimits::unlimited(),
+        iface: crate::iface_bind::OutIface::default(),
     }
 }
 

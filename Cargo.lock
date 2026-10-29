@@ -2060,6 +2060,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simple-dns",
+ "socket2",
  "tikv-jemalloc-ctl",
  "tikv-jemallocator",
  "tokio",

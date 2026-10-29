@@ -13,6 +13,7 @@ use tokio::net::{TcpStream, UdpSocket};
 use tokio::time::timeout;
 use tokio_rustls::TlsConnector;
 
+use crate::iface_bind::{connect_tcp, OutIface};
 use crate::node::tcp_tune::disable_nagle;
 use crate::site_checks::http_min::{self, HttpGetRequest, HttpLimits};
 
@@ -36,6 +37,8 @@ pub struct Resolver {
     user_agent: String,
     /// Address cache for `resolve_cached`; clones of the resolver share it.
     cache: Arc<Mutex<DnsCache>>,
+    /// The interface DoH connections are bound to (`None` — the system routing table).
+    iface: Option<OutIface>,
 }
 
 impl Resolver {
@@ -47,7 +50,27 @@ impl Resolver {
             limits,
             user_agent,
             cache: Arc::new(Mutex::new(DnsCache::new(CACHE_ENTRIES))),
+            iface: None,
         })
+    }
+
+    /// A copy with its own cache whose DoH connections are bound to `iface` (read on every connection).
+    pub fn bound_copy(&self, iface: OutIface) -> Resolver {
+        Resolver {
+            cache: Arc::new(Mutex::new(DnsCache::new(CACHE_ENTRIES))),
+            iface: Some(iface),
+            ..self.clone()
+        }
+    }
+
+    /// Forgets every cached address.
+    pub fn clear_cache(&self) {
+        self.cache().clear();
+    }
+
+    /// The interface DoH connections are bound to, if this resolver is a bound copy.
+    pub fn iface(&self) -> Option<&OutIface> {
+        self.iface.as_ref()
     }
 
     /// Like `new`, but with a ready TLS config (own trust anchors) — for tests against a loopback server.
@@ -64,6 +87,7 @@ impl Resolver {
             limits,
             user_agent,
             cache: Arc::new(Mutex::new(DnsCache::new(CACHE_ENTRIES))),
+            iface: None,
         }
     }
 
@@ -194,12 +218,19 @@ impl Resolver {
         parse_answer(&resp.body, domain)
     }
 
+    fn bound_name(&self) -> Option<Arc<str>> {
+        self.iface.as_ref().and_then(OutIface::current)
+    }
+
     /// TCP and TLS to the DoH server, each step under `limits.connect`.
     async fn open_tls(&self) -> Result<tokio_rustls::client::TlsStream<TcpStream>> {
-        let tcp = timeout(self.limits.connect, TcpStream::connect(self.server))
-            .await
-            .context("timeout connecting to the DoH server")?
-            .context("connection to the DoH server")?;
+        let tcp = timeout(
+            self.limits.connect,
+            connect_tcp(self.server, self.bound_name()),
+        )
+        .await
+        .context("timeout connecting to the DoH server")?
+        .context("connection to the DoH server")?;
         disable_nagle(&tcp);
         let connector = TlsConnector::from(self.tls.clone());
         let name = ServerName::from(self.server.ip());
@@ -240,6 +271,9 @@ impl Resolver {
     }
 }
 
+#[cfg(test)]
+#[path = "resolver_bound_tests.rs"]
+mod bound_tests;
 #[cfg(test)]
 #[path = "resolver_tests.rs"]
 mod tests;

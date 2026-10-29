@@ -118,7 +118,7 @@ mod live_set {
 
     #[test]
     fn live_set_golden() {
-        // given: the set of live paths; then: exactly these 12
+        // given: the set of live paths; then: exactly these 13
         let expected: BTreeSet<&str> = [
             "exit.enabled",
             "checks.enabled",
@@ -129,6 +129,7 @@ mod live_set {
             "ports.opened",
             "log.ring_lines",
             "exit.max_streams",
+            "exit.interface",
             "node.name",
             "proxy.net",
             "socks.strict",
@@ -141,7 +142,7 @@ mod live_set {
         assert_eq!(actual, expected, "the set of live paths changed");
         assert_eq!(
             crate::config::config_file::fields::live_paths().len(),
-            12,
+            13,
             "the list has no duplicates"
         );
     }
@@ -158,7 +159,7 @@ mod handles_and_copy {
         let live: BTreeSet<&str> = fields::live_paths().into_iter().collect();
         assert_eq!(handles, live);
         assert_eq!(HANDLES.len(), live.len());
-        assert_eq!(HANDLES.len(), 12, "one handle per live path");
+        assert_eq!(HANDLES.len(), 13, "one handle per live path");
     }
 
     #[test]
