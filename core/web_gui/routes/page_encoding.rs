@@ -1,18 +1,11 @@
-//! Content coding of the static pages: parsing of `Accept-Encoding` and unpacking of the embedded
-//! gzip bodies (a 10-byte header without optional fields, a raw deflate stream, an 8-byte trailer).
+//! Content coding of the static pages: parsing of `Accept-Encoding` and the content coding of the
+//! embedded gzip bodies (unpacking is `crate::gzip`).
 
 use axum::http::{header, HeaderMap};
 
 #[cfg(test)]
 #[path = "page_encoding_tests.rs"]
 mod tests;
-
-/// The embedded gzip body is malformed.
-#[derive(Debug)]
-pub(super) struct InflateError;
-
-const HEADER_LEN: usize = 10;
-const TRAILER_LEN: usize = 8;
 
 /// Whether the client accepts `gzip`: an element `gzip` or `*` with a non-zero `q` in any
 /// `Accept-Encoding` line; an explicit `gzip;q=0` is a refusal even next to `*`.
@@ -40,17 +33,4 @@ fn element(raw: &str) -> (String, bool) {
 
 fn q_is_non_zero(q: &str) -> bool {
     q.chars().any(|c| c.is_ascii_digit() && c != '0')
-}
-
-/// Unpacks a gzip body made without optional header fields; the unpacked length must match `ISIZE`.
-pub(super) fn inflate_gzip(gz: &[u8]) -> Result<Vec<u8>, InflateError> {
-    let valid = gz.len() >= HEADER_LEN + TRAILER_LEN && gz[..4] == [0x1f, 0x8b, 0x08, 0];
-    let body = valid
-        .then(|| &gz[HEADER_LEN..gz.len() - TRAILER_LEN])
-        .ok_or(InflateError)?;
-    let out = miniz_oxide::inflate::decompress_to_vec(body).map_err(|_| InflateError)?;
-    let isize_bytes: [u8; 4] = gz[gz.len() - 4..].try_into().map_err(|_| InflateError)?;
-    (out.len() as u32 == u32::from_le_bytes(isize_bytes))
-        .then_some(out)
-        .ok_or(InflateError)
 }

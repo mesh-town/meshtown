@@ -27,6 +27,7 @@ pub mod cli;
 pub mod config;
 #[cfg(feature = "net-hyper")]
 pub mod exit;
+pub mod gzip;
 pub mod http_url;
 #[cfg(feature = "net-hyper")]
 pub mod invite;

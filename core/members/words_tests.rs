@@ -3,11 +3,31 @@
 use super::*;
 use data_encoding::HEXLOWER;
 
+/// The source list file: lines "number<TAB>word".
+const SOURCE_WORDLIST: &str = include_str!("wordlist/eff_large_wordlist.txt");
+/// The SHA-256 of the source list file.
+const WORDLIST_SHA256: &str = "addd35536511597a02fa0a9ff1e5284677b8883b83e986e43f15a3db996b903e";
+/// The SHA-256 of the second column of the source (the words in file order) joined with `\n`,
+/// without a trailing `\n`. Computed from the source file, independent of how the words are embedded.
+const WORDS_SHA256: &str = "abae49761b88f3f1ba31ef944bea1f61b795a3cd7e1cfb7d276ed45bf77967ba";
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    HEXLOWER.encode(ring::digest::digest(&ring::digest::SHA256, bytes).as_ref())
+}
+
+/// The word column of the source file, in file order.
+fn source_words() -> Vec<&'static str> {
+    SOURCE_WORDLIST
+        .lines()
+        .filter_map(|line| line.split('\t').nth(1))
+        .map(str::trim)
+        .collect()
+}
+
 #[test]
 fn wordlist_has_7776_distinct_words() {
-    let sum = ring::digest::digest(&ring::digest::SHA256, EFF_LARGE_WORDLIST.as_bytes());
-    assert_eq!(HEXLOWER.encode(sum.as_ref()), WORDLIST_SHA256);
-    assert_eq!(EFF_LARGE_WORDLIST.lines().count(), WORDLIST_LEN);
+    assert_eq!(sha256_hex(SOURCE_WORDLIST.as_bytes()), WORDLIST_SHA256);
+    assert_eq!(SOURCE_WORDLIST.lines().count(), WORDLIST_LEN);
     assert_eq!(wordlist().len(), WORDLIST_LEN);
     assert_eq!(tail_pool().len(), TAIL_POOL_LEN);
     assert_eq!(WORDLIST_LEN - TAIL_POOL_LEN, 4);
@@ -17,6 +37,35 @@ fn wordlist_has_7776_distinct_words() {
             "word {w:?}"
         );
     }
+}
+
+#[test]
+fn embedded_words_equal_source_column() {
+    let source = source_words();
+    let embedded = wordlist();
+    assert_eq!(source.len(), WORDLIST_LEN);
+    assert_eq!(embedded.len(), WORDLIST_LEN);
+    for (i, (want, got)) in source.iter().zip(embedded).enumerate() {
+        assert_eq!(want, got, "word at position {i}");
+    }
+}
+
+#[test]
+fn embedded_words_digest_is_stable() {
+    assert_eq!(
+        sha256_hex(wordlist().join("\n").as_bytes()),
+        WORDS_SHA256,
+        "the order or the content of the embedded words changed"
+    );
+}
+
+#[test]
+fn fixed_positions_hold_known_words() {
+    assert_eq!(wordlist()[0], "abacus");
+    assert_eq!(wordlist()[3887], "massive");
+    assert_eq!(wordlist()[7775], "zoom");
+    assert_eq!(tail_pool_vec()[0], "abacus");
+    assert_eq!(tail_pool_vec()[7771], "zoom");
 }
 
 #[test]
