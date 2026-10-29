@@ -16,6 +16,7 @@
 //! `test_tray.rs` — a backend stub for tests;
 //! `spin.rs` — the spinner of a starting node (frame number, the ticker thread `tray-spin`);
 //! `frame_cache.rs` — built spinner frames kept by picture;
+//! `icon_retry.rs` — retrying the icon raise with growing pauses (`raise_with_retry`, `IconHost`); `core_wait.rs` — `Core::recv_for`, the pause that handles commands;
 //! `core_menu.rs` — `Core::handle_menu`, a click on a menu item (a child module of `core`);
 //! the tray loop of each OS lives in its platform crate and reaches this module through `Core`.
 //! Links: called from `app::tray_role`; `core` knows nothing about the node, the page or `meshtown`
@@ -30,6 +31,7 @@ mod core;
 mod exit_menu;
 mod extras_ui;
 mod frame_cache;
+mod icon_retry;
 mod menu_build;
 mod nets_click;
 mod nets_ui;
@@ -51,4 +53,5 @@ pub use clipboard::{copy_via, ClipboardTool};
 pub(crate) use core::MENU_OPEN;
 pub(crate) use core::{channel, run, NodeCmd, TrayCmd};
 pub use core::{log_tray, Core};
+pub use icon_retry::{raise_with_retry, IconHost, Raise, RetryPlan};
 pub use notify::{run_notifier, REASON_NOTIFY_FAILED, REASON_NOTIFY_NO_TOOL};

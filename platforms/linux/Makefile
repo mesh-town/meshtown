@@ -1,4 +1,4 @@
-.PHONY: build test run package
+.PHONY: build test run package tray-e2e
 
 # Platform commands for the Linux crate (meshtown-linux); run from here or through the root Makefile (`make linux-<target>`).
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../..)
@@ -16,3 +16,7 @@ run:
 
 package:
 	cd $(ROOT) && ./platforms/linux/build/build.sh $(KIND)
+
+# Tray icon end-to-end test with a fake StatusNotifierWatcher, in an arm64 container.
+tray-e2e:
+	$(ROOT)/platforms/linux/tray-e2e.sh

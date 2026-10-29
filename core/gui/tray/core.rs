@@ -115,7 +115,7 @@ pub struct Core {
 
 impl Core {
     /// Raises the icon and the menu once: an icon cache by color, the menu, `MenuEvent::set_event_handler`.
-    /// A repeated call is not expected — callers (02/05/06) call it exactly once.
+    /// A repeat after `Err` is allowed: on `Err` nothing is stored; after `Ok` do not call it again.
     pub fn attach_ui(&mut self) -> Result<(), String> {
         let icons = build_icons()?;
         let exit = super::exit_menu::ExitUi::build()?;
@@ -158,6 +158,9 @@ impl Core {
             extras,
         });
         self.refresh_ui();
+        if let Some(menu) = self.last_exit.take() {
+            self.apply_exits(menu);
+        }
         Ok(())
     }
 
@@ -332,6 +335,9 @@ mod menu;
 
 #[path = "core_line.rs"]
 mod line;
+
+#[path = "core_wait.rs"]
+mod wait;
 
 #[cfg(test)]
 #[path = "core_tests.rs"]

@@ -2085,6 +2085,8 @@ name = "meshtown-linux"
 version = "0.3.195"
 dependencies = [
  "meshtown-core",
+ "tray-icon",
+ "zbus",
 ]
 
 [[package]]
