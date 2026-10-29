@@ -103,6 +103,11 @@ fn normalize_extracts_host_from_url() {
         (" example.com. ", "example.com"),
         ("https://bücher.example/", "xn--bcher-kva.example"),
         ("例え.テスト", "xn--r8jz45g.xn--zckzah"),
+        ("ελλάδα.gr", "xn--hxakic4aa.gr"),
+        (
+            "他们为什么不说中文.example",
+            "xn--ihqwcrb4cv8a8dqg056pqjye.example",
+        ),
         ("1.2.3.4", "1.2.3.4"),
     ] {
         assert_eq!(normalize_domain(input).unwrap(), want, "input \"{input}\"");

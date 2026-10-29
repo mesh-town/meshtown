@@ -180,9 +180,8 @@ fn ip_of(hint: &AddrHint) -> Option<SocketAddr> {
 pub fn entry_to_addr(e: &RosterEntry) -> Result<PeerAddr> {
     let mut addr = PeerAddr::new(PeerId::from_bytes(&e.id)?);
     if let Some(relay) = &e.relay {
-        let url = url::Url::parse(relay).context("Failed to parse relay URL")?;
-        addr.hints
-            .push(AddrHint::Relay(RelayRef::Url(url.to_string())));
+        let url = crate::http_url::normalize(relay).context("Failed to parse relay URL")?;
+        addr.hints.push(AddrHint::Relay(RelayRef::Url(url)));
     }
     let mut ips: Vec<SocketAddr> = e.addrs.clone();
     ips.sort();

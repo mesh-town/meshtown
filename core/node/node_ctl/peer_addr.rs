@@ -50,11 +50,10 @@ pub(crate) fn parse_peer_line(line: &str) -> Result<PeerAddr, String> {
         return Ok(addr);
     }
     if addr_part.starts_with("http://") || addr_part.starts_with("https://") {
-        let url = url::Url::parse(addr_part).map_err(|_| {
+        let url = crate::http_url::normalize(addr_part).map_err(|_| {
             "couldn't parse the address: an ip:port or a relay url is needed".to_string()
         })?;
-        addr.hints
-            .push(AddrHint::Relay(RelayRef::Url(url.to_string())));
+        addr.hints.push(AddrHint::Relay(RelayRef::Url(url)));
         return Ok(addr);
     }
     Err("couldn't parse the address: an ip:port or a relay url is needed".to_string())
