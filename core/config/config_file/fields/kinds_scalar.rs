@@ -81,7 +81,7 @@ fn number_in<T: TryFrom<u64> + PartialOrd>(v: &Value, min: &T, max: &T) -> Optio
         .filter(|n| n >= min && n <= max)
 }
 
-/// `autostart.enabled` and `full_tunnel.enabled`: cannot be turned on (`true`) for now.
+/// `full_tunnel.enabled`: cannot be turned on (`true`) for now.
 pub(crate) struct OffOnly;
 
 impl Kind<bool> for OffOnly {

@@ -9,6 +9,7 @@
 //! `rewrite.rs` — writing the settings of a slot on the page's own initiative; `slot_overlay.rs` — the process block of an added slot;
 //! `settings_access.rs` — the write through the slot's `SettingsFile`.
 
+mod autostart;
 mod network_block;
 mod put;
 mod put_merge;

@@ -238,16 +238,19 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
 - **`saved_at`** — UTC, ISO-8601, for humans only; the node does not parse it.
 - **"Read only" is about the page, not about the file.** Fields the node computes itself are not stored:
   `network.label` and `network.masked` (from the network key), `autostart.available`,
-  `autostart.reason`, `full_tunnel.available`, `full_tunnel.reason` (build flags). On write
+  `autostart.reason` (filled by the node: build and system state), `full_tunnel.available`,
+  `full_tunnel.reason` (build flags). On write
   they are not saved, on read they are silently ignored — "read
   only" is no reason to reject a document.
 - **`web.enabled` is an exception: in `read_only`, but stored in the file.** The page does not change it
   (having turned itself off, it could not turn itself back on), yet it remains a setting: it is switched by
   editing the file by hand while the node is stopped — it has no flag. Dropping it
   on write is not allowed — a node without a screen on a router is configured exactly this way.
-- **`autostart.enabled` and `full_tunnel.enabled` are in the file** (they are settings, not build
-  flags), but while `available: false` enabling is rejected with the code `not_available`, and
-  only `false` gets into the file.
+- **`full_tunnel.enabled` is in the file** (a setting, not a build flag), but while `available: false`
+  enabling is rejected with the code `not_available`, and only `false` gets into the file.
+- **`autostart.enabled` is in the file and accepts `true`.** It stores the last choice made on the page; the file
+  value alone never creates or removes the login entry. Only a save from the page does that, and the value shown on
+  the page is read from the system.
 
 ---
 

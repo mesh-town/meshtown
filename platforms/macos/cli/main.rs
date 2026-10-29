@@ -2,6 +2,7 @@
 
 #[cfg(target_os = "macos")]
 fn main() -> std::process::ExitCode {
+    meshtown_core::autostart::install(&meshtown_macos::AUTOSTART);
     meshtown_core::cli::run::run_with_tray(&meshtown_macos::TRAY)
 }
 

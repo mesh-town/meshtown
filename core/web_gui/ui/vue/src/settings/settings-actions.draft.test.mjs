@@ -211,6 +211,17 @@ describe("saveDraft", () => {
       assert.equal(w.form.errors["autostart.enabled"], "unavailable");
     });
 
+    it("not_available — the next successful save clears the error", async () => {
+      const fields = [{ path: "autostart.enabled", message: "unavailable" }];
+      const w = setup({ script: [fail("not_available", 409, { fields }), put200()] });
+      editField(w.form, "autostart.enabled", true);
+      await saveDraft(w.form, w.store, w.deps);
+      assert.equal(w.form.errors["autostart.enabled"], "unavailable");
+      editField(w.form, "autostart.enabled", false);
+      assert.equal(await saveDraft(w.form, w.store, w.deps), "saved");
+      assert.deepEqual(plain(w.form.errors), {});
+    });
+
     it("a new attempt replaces the previous errors", async () => {
       const w = setup({ script: [fail("invalid", 422, { fields: [{ path: "socks.port", message: "in use" }] }), put200()] });
       editField(w.form, "socks.port", "1");

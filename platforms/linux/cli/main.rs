@@ -2,6 +2,7 @@
 
 #[cfg(target_os = "linux")]
 fn main() -> std::process::ExitCode {
+    meshtown_core::autostart::install(&meshtown_linux::AUTOSTART);
     meshtown_core::cli::run::run_with_tray(&meshtown_linux::TRAY)
 }
 

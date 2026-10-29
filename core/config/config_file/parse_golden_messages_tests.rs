@@ -142,7 +142,7 @@ fn all_bad_config() -> Value {
         "ports": { "published": 5, "opened": 5 },
         "web": { "enabled": "x", "port": 80, "access": "public" },
         "log": { "ring_lines": 1 },
-        "autostart": { "enabled": true },
+        "autostart": { "enabled": "x" },
         "full_tunnel": { "enabled": "x" },
         "net": { "transports": [], "discovery": ["zzz"], "sync": "nope", "relay": "nope" }
     })
@@ -182,7 +182,7 @@ fn expected_unknown() -> Vec<String> {
 /// The expected texts for `all_bad_config()`; the names in `net.*` depend on the build features.
 fn expected_messages() -> Vec<(String, String)> {
     vec![
-        e("autostart.enabled", r#"file has true, expected false (enabling is unavailable in this build); using default false"#),
+        e("autostart.enabled", r#"file has "x", expected true or false; using default false"#),
         e("checks.doh_server", r#"file has "nope", expected a string like address:port; using default 1.1.1.1:443"#),
         e("checks.enabled", r#"file has "x", expected true or false; using default true"#),
         e("checks.interval_sec", r#"file has 1, expected an integer 30…86400; using default 900"#),

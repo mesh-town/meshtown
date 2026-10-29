@@ -111,14 +111,14 @@ fn port_bounds() {
 
 #[test]
 fn off_only_rejects_true() {
-    // given: autostart.enabled; false passes, true is an error, default false
+    // given: full_tunnel.enabled; false passes, true is an error, default false
     assert!(
-        !assert_ok("autostart", "enabled", json!(false))
+        !assert_ok("full_tunnel", "enabled", json!(false))
             .process
-            .autostart_enabled
+            .full_tunnel_enabled
     );
-    let (s, errs) = read("autostart", "enabled", json!(true));
-    assert!(!s.process.autostart_enabled);
+    let (s, errs) = read("full_tunnel", "enabled", json!(true));
+    assert!(!s.process.full_tunnel_enabled);
     let want = "file has true, expected false (enabling is unavailable in this build); using default false";
     assert_eq!(errs[0].1, want);
 }
@@ -239,10 +239,7 @@ fn expected_of_rows_literal() {
         "a string up to 64 characters, not empty after trimming whitespace"
     );
     assert_eq!(want("web.access"), "localhost or localnet");
-    assert_eq!(
-        want("autostart.enabled"),
-        "false (enabling is unavailable in this build)"
-    );
+    assert_eq!(want("autostart.enabled"), "true or false");
     assert_eq!(want("node.memory_exit_mib"), "an integer 0…1048576");
     assert_eq!(want("socks.port"), "a port 1024…65535");
     assert_eq!(want("network.label"), "", "a computed row has no text");

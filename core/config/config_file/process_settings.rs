@@ -21,7 +21,7 @@ pub struct ProcessSettings {
     pub web_access: ListenAccess, // web.access      — who may open the page
     pub web_ifaces: IfaceFilter, // web.ifaces — over which networks the page may be opened
     pub log_ring_lines: u64, // log.ring_lines    — pass-through
-    pub autostart_enabled: bool, // autostart.enabled — pass-through, always false
+    pub autostart_enabled: bool, // autostart.enabled — last choice from the page; the login entry in the system is the source of truth
     pub full_tunnel_enabled: bool, // full_tunnel.enabled — pass-through, always false
     pub node_memory_warn_mib: u64, // node.memory_warn_mib — memory guard summary threshold, MiB; 0 — off
     pub node_memory_exit_mib: u64, // node.memory_exit_mib — memory guard exit threshold, MiB; 0 — off

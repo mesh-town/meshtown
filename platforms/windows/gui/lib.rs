@@ -2,10 +2,12 @@
 
 #![cfg(target_os = "windows")]
 
+mod autostart;
 mod backend;
 mod clipboard;
 mod notify;
 mod open_url;
 mod tray;
 
+pub use autostart::{WindowsAutostart, AUTOSTART};
 pub use backend::{WindowsTray, TRAY};

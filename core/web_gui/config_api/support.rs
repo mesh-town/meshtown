@@ -5,7 +5,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::Value;
 
-pub(crate) const AUTOSTART_REASON: &str = "coming in a later version";
+pub(crate) const AUTOSTART_REASON: &str = "only in the desktop app with the tray icon";
 pub(crate) const FULL_TUNNEL_REASON: &str = "coming in a later version";
 
 /// Descent along path parts via `Value::get`.

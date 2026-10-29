@@ -96,6 +96,7 @@ fn finish_successful_write(
         .iter()
         .copied()
         .chain((reapply_opened && !changed.contains(&"ports.opened")).then_some("ports.opened"))
+        .filter(|&f| f != "autostart.enabled")
         .filter(|&f| !restart_paths.contains(&f) && !state.cli_override_paths.contains(&f))
         .collect();
     if !apply_now.is_empty() {

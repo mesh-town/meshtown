@@ -167,12 +167,11 @@ fn computed_fields_ignored_silently() {
 }
 
 #[test]
-fn autostart_true_rejected() {
+fn autostart_true_is_read() {
     let text = r#"{"config": {"version":1, "autostart": {"enabled": true}}}"#;
     let p = parse_text(text).expect("parse");
-    assert!(!p.settings.process.autostart_enabled);
-    assert_eq!(p.field_errors.len(), 1);
-    assert_eq!(p.field_errors[0].field_path, "autostart.enabled");
+    assert!(p.settings.process.autostart_enabled);
+    assert!(p.field_errors.is_empty(), "{:?}", p.field_errors);
 }
 
 #[test]

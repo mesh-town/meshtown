@@ -105,9 +105,8 @@ fn all_changed_differs_in_every_row() {
 
 #[test]
 fn render_read_roundtrip() {
-    // given: `all_changed()` with flags turned off (parsing rejects `true`)
+    // given: `all_changed()` with `full_tunnel` turned off (parsing rejects `true`)
     let mut s = crate::config::config_file::test_support::all_changed();
-    s.process.autostart_enabled = false;
     s.process.full_tunnel_enabled = false;
     // when: render and parse
     let secret = crate::transport::net::NodeSecret::from_bytes(&[7; 32]);
