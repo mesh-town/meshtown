@@ -4,7 +4,7 @@
 //! The nodes use the fork API of the DHT directly, because the public wrapper does not expose the
 //! knobs that close the direct path (the punch filter, `local_connection`).
 
-use super::test_cluster::cluster;
+use super::test_cluster::cluster_on;
 use libudx::UdxRuntime;
 use peeroxide_dht::blind_relay::BlindRelayServer;
 use peeroxide_dht::crypto::hash;
@@ -27,13 +27,14 @@ mod relay_contract {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn closed_direct_path_carries_data_through_the_relay() {
-        // given: a relay on a LAN address, a firewalled echo server, and a firewalled client that vetoes every punch
-        let cl = cluster(4).await;
+        // given: a relay, a firewalled echo server, and a firewalled client that vetoes every punch, all on one LAN address
+        // (a socket bound to a LAN address cannot send to loopback on some systems, and the other way round)
         let lan = lan_address();
+        let cl = cluster_on(&lan, 4).await;
         let relay = start_relay(cl.bootstrap(), &lan).await;
-        let server = start_echo_server(cl.bootstrap()).await;
-        let client = start_node(cl.bootstrap(), "127.0.0.1", true, true).await;
-        wait_until_findable(&relay.key.public_key, cl.bootstrap()).await;
+        let server = start_echo_server(cl.bootstrap(), &lan).await;
+        let client = start_node(cl.bootstrap(), &lan, true, true).await;
+        wait_until_findable(&relay.key.public_key, cl.bootstrap(), &lan).await;
         // when: the client connects to the server through the relay and sends a payload
         let mut conn = connect_through(&client, &server.key, relay.key.public_key).await;
         let sent: Vec<u8> = (0..PAYLOAD_LEN).map(|i| (i % 251) as u8).collect();
@@ -109,8 +110,8 @@ async fn start_relay(bootstrap: Vec<String>, host: &str) -> Relay {
 }
 
 /// A firewalled server that echoes everything of its first connection.
-async fn start_echo_server(bootstrap: Vec<String>) -> EchoServer {
-    let node = start_node(bootstrap, "127.0.0.1", true, true).await;
+async fn start_echo_server(bootstrap: Vec<String>, host: &str) -> EchoServer {
+    let node = start_node(bootstrap, host, true, true).await;
     let key = KeyPair::from_seed([0x72; 32]);
     let shared = UdxRuntime::shared(node.rt.handle());
     let (server, mut incoming) = Server::new(
@@ -136,8 +137,8 @@ async fn start_echo_server(bootstrap: Vec<String>) -> EchoServer {
 }
 
 /// Waits until the DHT finds the relay by its key: before that nobody can connect through it.
-async fn wait_until_findable(relay_key: &[u8; 32], bootstrap: Vec<String>) {
-    let looker = start_node(bootstrap, "127.0.0.1", true, false).await;
+async fn wait_until_findable(relay_key: &[u8; 32], bootstrap: Vec<String>, host: &str) {
+    let looker = start_node(bootstrap, host, true, false).await;
     for _ in 0..50 {
         if matches!(looker.handle.find_peer(hash(relay_key)).await, Ok(Some(_))) {
             return;
