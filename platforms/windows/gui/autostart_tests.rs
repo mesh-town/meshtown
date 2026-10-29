@@ -37,3 +37,17 @@ fn enable_then_disable_in_test_subkey() {
     delete_tree(&entry.approved_key);
     delete_tree(&root);
 }
+
+#[test]
+fn static_handle_reads_state_without_writing() {
+    let backend: &'static dyn AutostartBackend = &AUTOSTART;
+
+    assert!(backend.state().is_ok(), "reading the login entry succeeds");
+}
+
+#[test]
+fn install_registers_the_static_handle() {
+    meshtown_core::autostart::install(&AUTOSTART);
+
+    assert!(meshtown_core::autostart::installed().is_some());
+}

@@ -41,3 +41,17 @@ fn bundle_uses_its_identifier_as_label() {
     );
     assert!(entry.text.contains("/Applications/Mesh Town.app"));
 }
+
+#[test]
+fn static_handle_reads_state_without_writing() {
+    let backend: &'static dyn AutostartBackend = &AUTOSTART;
+
+    assert!(backend.state().is_ok(), "reading the login entry succeeds");
+}
+
+#[test]
+fn install_registers_the_static_handle() {
+    meshtown_core::autostart::install(&AUTOSTART);
+
+    assert!(meshtown_core::autostart::installed().is_some());
+}
