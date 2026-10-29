@@ -8,6 +8,7 @@ pub mod gate;
 pub mod keys;
 pub mod link;
 mod netchange;
+mod path_watch;
 mod records;
 mod relay;
 pub mod table;

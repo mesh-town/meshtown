@@ -12,7 +12,8 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use townjump_dht::{DhtConnection, RttProbe};
+use tokio::sync::watch;
+use townjump_dht::{DhtConnection, RelayPath, RttProbe};
 
 /// What is known about the path of a session once it is set up.
 #[derive(Clone, Default)]
@@ -21,6 +22,8 @@ pub struct PathFacts {
     pub rtt: Option<RttProbe>,
     /// The relay the session was dialed through (`None` for a direct session).
     pub relay: Option<RelayRef>,
+    /// The relay path of the connection, if it runs through a relay; turns `Direct` when the data moves off the relay.
+    pub relay_path: Option<watch::Receiver<RelayPath>>,
 }
 
 impl PathFacts {
@@ -30,6 +33,7 @@ impl PathFacts {
             remote: via.map(SocketAddr::V4),
             rtt: conn.rtt_probe(),
             relay: relay_label(None, conn.is_relayed()),
+            relay_path: conn.relay_path(),
         }
     }
 
@@ -40,6 +44,17 @@ impl PathFacts {
             remote: None,
             rtt: conn.rtt_probe(),
             relay: relay_label(None, conn.is_relayed()),
+            relay_path: conn.relay_path(),
+        }
+    }
+}
+
+impl PathFacts {
+    /// The relay the data flows through right now: `None` once the connection has moved to the direct path.
+    pub fn relay_now(&self) -> Option<RelayRef> {
+        match self.relay_path.as_ref().map(|p| *p.borrow()) {
+            Some(RelayPath::Direct) => None,
+            _ => self.relay.clone(),
         }
     }
 }
@@ -78,6 +93,11 @@ impl LinkMeter {
     /// Records the path facts; the first call wins.
     pub fn note_path(&self, facts: PathFacts) {
         let _ = self.path.set(facts);
+    }
+
+    /// The relay path of the session, if it was set up through a relay.
+    pub fn relay_path(&self) -> Option<watch::Receiver<RelayPath>> {
+        self.path.get()?.relay_path.clone()
     }
 
     /// The session is closed: data streams answer `ConnectionAborted` from now on.
@@ -139,7 +159,7 @@ fn path_of(meter: &LinkMeter) -> PathKind {
 }
 
 fn relay_of(meter: &LinkMeter) -> Option<RelayRef> {
-    meter.path.get()?.relay.clone()
+    meter.path.get()?.relay_now()
 }
 
 /// Network information of the node: `seen` is the `listen` outcome (`None` — not known yet).

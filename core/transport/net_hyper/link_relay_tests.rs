@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::transport::net::contract::pid;
+use townjump_dht::RelayPath;
 
 mod relay_label {
     use super::*;
@@ -56,4 +57,39 @@ mod route_text {
         // then
         assert_eq!(text, "relayed via a relay server");
     }
+}
+
+mod relay_now {
+    use super::*;
+
+    #[test]
+    fn relay_now_drops_the_relay_after_the_switch() {
+        // given: a session dialed through a member's relay, still relayed
+        let member = pid(7);
+        let (tx, facts) = relayed_facts(RelayRef::Peer(member));
+        assert_eq!(facts.relay_now(), Some(RelayRef::Peer(member)), "relayed: the label is kept");
+        // when: the connection moves to the direct path
+        tx.send(RelayPath::Direct).unwrap();
+        // then: the session no longer carries a relay label
+        assert_eq!(facts.relay_now(), None, "direct after the switch: no relay label");
+    }
+
+    #[test]
+    fn relay_now_of_a_direct_session_is_none() {
+        // given: a session that was never relayed
+        let facts = PathFacts::default();
+        // when / then
+        assert_eq!(facts.relay_now(), None);
+    }
+}
+
+/// Path facts of a session on `relay`, with a live path source that starts at `Relayed`.
+fn relayed_facts(relay: RelayRef) -> (tokio::sync::watch::Sender<RelayPath>, PathFacts) {
+    let (tx, rx) = tokio::sync::watch::channel(RelayPath::Relayed);
+    let facts = PathFacts {
+        relay: Some(relay),
+        relay_path: Some(rx),
+        ..Default::default()
+    };
+    (tx, facts)
 }

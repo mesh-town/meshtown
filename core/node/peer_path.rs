@@ -50,11 +50,11 @@ fn relay_connect_line(
         return None;
     };
     let via = match relay {
-        RelayRef::Peer(id) => label(*id),
-        RelayRef::Url(url) => url.clone(),
+        RelayRef::Peer(id) => format!("relay of {}", label(*id)),
+        RelayRef::Url(url) => format!("relay of {url}"),
         RelayRef::Unnamed => "a relay server".to_string(),
     };
-    Some(format!("connected to {who} via relay of {via}"))
+    Some(format!("connected to {who} via {via}"))
 }
 
 /// Prints a `[relay]` line when the new connection runs through a relay.

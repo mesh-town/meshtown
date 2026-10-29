@@ -149,6 +149,7 @@ fn facts(remote: Option<SocketAddr>, rtt: RttProbe) -> PathFacts {
         remote,
         rtt: Some(rtt),
         relay: None,
+        relay_path: None,
     }
 }
 
@@ -238,5 +239,6 @@ fn relayed_facts(member: PeerId, rtt: RttProbe) -> PathFacts {
         remote: None,
         rtt: Some(rtt),
         relay: Some(RelayRef::Peer(member)),
+        relay_path: None,
     }
 }
