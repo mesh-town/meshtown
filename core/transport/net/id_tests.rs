@@ -41,6 +41,38 @@ mod key_derivation {
     }
 }
 
+mod rfc8032_vectors {
+    use super::*;
+
+    fn bytes64(text: &str) -> [u8; 64] {
+        let v = HEXLOWER.decode(text.as_bytes()).expect("hex");
+        v.try_into().expect("64 bytes")
+    }
+
+    #[test]
+    fn rfc8032_test1_signature_is_the_published_one() {
+        let sig_hex = "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b";
+        let secret = NodeSecret::from_bytes(&hex32(RFC_SEED_HEX));
+        let sig = secret.sign(b"");
+        assert_eq!(to_hex(&sig), sig_hex, "signing is deterministic and matches the RFC");
+        assert!(secret.peer_id().verify(b"", &bytes64(sig_hex)));
+    }
+
+    #[test]
+    fn rfc8032_test2_signature_verifies_and_tampered_fails() {
+        let seed = "4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb";
+        let public = "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c";
+        let sig_hex = "92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00";
+        let id = PeerId::from_bytes(&hex32(public)).expect("valid key");
+        assert_eq!(NodeSecret::from_bytes(&hex32(seed)).peer_id(), id);
+        let sig = bytes64(sig_hex);
+        assert!(id.verify(&[0x72], &sig), "published signature verifies");
+        let mut bad = sig;
+        bad[10] ^= 1;
+        assert!(!id.verify(&[0x72], &bad), "a changed byte must fail");
+    }
+}
+
 mod sign {
     use super::*;
 
