@@ -196,10 +196,15 @@ fn build_exit_info(st: &DemoState) -> ExitInfo {
         enabled: st.settings.net.exit_enabled,
         domains: st.domains.len() as u64,
         clients: Vec::new(),
-        interface: st.settings.net.exit_interface.as_ref().map(|name| ExitIfaceInfo {
-            name: name.clone(),
-            state: iface_bind::state_of(name),
-        }),
+        interface: st
+            .settings
+            .net
+            .exit_interface
+            .as_ref()
+            .map(|name| ExitIfaceInfo {
+                name: name.clone(),
+                state: iface_bind::state_of(name),
+            }),
     }
 }
 

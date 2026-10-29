@@ -252,11 +252,11 @@ async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {
 #[path = "server_frame_tests.rs"]
 mod frame_tests;
 #[cfg(test)]
-#[path = "server_iface_tests.rs"]
-mod server_iface_tests;
-#[cfg(test)]
 #[path = "server_limits_tests.rs"]
 mod limits_tests;
+#[cfg(test)]
+#[path = "server_iface_tests.rs"]
+mod server_iface_tests;
 #[cfg(test)]
 #[path = "server_service_fixture.rs"]
 mod service_fixture;

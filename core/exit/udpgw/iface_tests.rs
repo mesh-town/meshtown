@@ -59,7 +59,10 @@ mod unavailable_interface {
         // then: no session is opened, nothing is answered, and the conn_id is recorded as refused
         assert!(gateway.sessions.is_empty(), "no socket may open");
         assert!(queue.try_recv().is_err(), "nothing is sent back");
-        assert!(gateway.refused.contains(&7), "the refusal is recorded once per conn_id");
+        assert!(
+            gateway.refused.contains(&7),
+            "the refusal is recorded once per conn_id"
+        );
     }
 
     #[tokio::test]
@@ -77,7 +80,10 @@ mod unavailable_interface {
         client.send(&to_echo(5, b"two")).await;
 
         // then: the old session is not reused: the datagram is dropped
-        assert!(client.silent().await, "a session of the old interface must not carry on");
+        assert!(
+            client.silent().await,
+            "a session of the old interface must not carry on"
+        );
 
         // when: the interface comes back
         iface.set(Some(&name));
@@ -144,7 +150,9 @@ fn bindable_loopback() -> Option<String> {
 
 #[cfg(target_os = "linux")]
 fn then_bound_to(sock: &UdpSocket, name: &str) {
-    let device = socket2::SockRef::from(sock).device().expect("device option");
+    let device = socket2::SockRef::from(sock)
+        .device()
+        .expect("device option");
     assert_eq!(device, Some(name.as_bytes().to_vec()), "bound device");
 }
 

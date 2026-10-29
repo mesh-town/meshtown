@@ -139,7 +139,10 @@ impl RunningNode {
             return;
         }
         self.exit_resolver.clear_cache();
-        say("exit", format!("exit interface: {}", name.unwrap_or("any network")));
+        say(
+            "exit",
+            format!("exit interface: {}", name.unwrap_or("any network")),
+        );
     }
 
     /// A live handle: turns scheduled checks on or off without restarting the node.

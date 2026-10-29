@@ -47,7 +47,8 @@ impl Kind<Option<String>> for ExitIface {
         (clean && name_ok(name)).then(|| Some(name.to_string()))
     }
     fn expected(&self) -> String {
-        "an interface name (1\u{2013}64 bytes, no control characters) or null \u{2014} any network".to_string()
+        "an interface name (1\u{2013}64 bytes, no control characters) or null \u{2014} any network"
+            .to_string()
     }
     fn default_text(&self, _: &Option<String>) -> String {
         "any network".to_string()

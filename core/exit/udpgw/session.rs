@@ -12,9 +12,9 @@ use tokio::task::JoinHandle;
 use tokio::time::{sleep_until, Instant};
 
 use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
-use crate::iface_bind::{bind_udp, check};
 use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
 use crate::exit::server::ExitConfig;
+use crate::iface_bind::{bind_udp, check};
 use crate::node::output::{say, short_peer_id};
 use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
@@ -187,7 +187,11 @@ impl Gateway {
     fn session(&mut self, conn_id: u16, dest: SocketAddr) -> Option<&Session> {
         self.sessions.retain(|_, s| !s.task.is_finished());
         let iface = self.cfg.iface.current();
-        if self.sessions.get(&conn_id).is_some_and(|s| s.iface != iface) {
+        if self
+            .sessions
+            .get(&conn_id)
+            .is_some_and(|s| s.iface != iface)
+        {
             self.sessions.remove(&conn_id);
         }
         if !self.sessions.contains_key(&conn_id) {
@@ -240,7 +244,12 @@ fn open_session(
         replies,
     ));
     let iface = iface.map(Arc::from);
-    Some(Session { sock, last, task, iface })
+    Some(Session {
+        sock,
+        last,
+        task,
+        iface,
+    })
 }
 
 /// Turns datagrams arriving at the session socket into reply frames until the session is idle.

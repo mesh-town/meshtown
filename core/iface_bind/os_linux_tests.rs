@@ -1,6 +1,6 @@
 use super::*;
-use crate::iface_bind::IfaceState;
 use crate::iface_bind::test_support::{loopback_name, MISSING_IFACE};
+use crate::iface_bind::IfaceState;
 use socket2::{Domain, SockRef, Socket, Type};
 use std::io;
 
@@ -15,7 +15,10 @@ mod bind_socket {
         if !bound(&sock, &name, false) {
             return;
         }
-        assert_eq!(SockRef::from(&sock).device().unwrap(), Some(name.into_bytes()));
+        assert_eq!(
+            SockRef::from(&sock).device().unwrap(),
+            Some(name.into_bytes())
+        );
     }
 
     // given an IPv6 socket, when bound to loopback, then the kernel reports that device
@@ -29,7 +32,10 @@ mod bind_socket {
         if !bound(&sock, &name, true) {
             return;
         }
-        assert_eq!(SockRef::from(&sock).device().unwrap(), Some(name.into_bytes()));
+        assert_eq!(
+            SockRef::from(&sock).device().unwrap(),
+            Some(name.into_bytes())
+        );
     }
 
     // given a missing interface, when binding, then the error kind is NotFound

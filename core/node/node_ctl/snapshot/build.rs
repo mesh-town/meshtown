@@ -111,9 +111,11 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             enabled: i.exit_on,
             domains: i.domain_names.len() as u64,
             clients: exit_clients(&i),
-            interface: i.exit_iface.as_ref().map(|(name, state)| crate::iface_bind::ExitIfaceInfo {
-                name: name.clone(),
-                state: *state,
+            interface: i.exit_iface.as_ref().map(|(name, state)| {
+                crate::iface_bind::ExitIfaceInfo {
+                    name: name.clone(),
+                    state: *state,
+                }
             }),
         },
         transport,

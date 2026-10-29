@@ -11,13 +11,13 @@ use tokio::sync::{mpsc, Notify};
 
 use crate::exit::ExitConfig;
 use crate::iface_bind::OutIface;
-use crate::site_checks::doh::Resolver;
 use crate::proxy::domains::DomainList;
+use crate::site_checks::doh::Resolver;
 
 use super::boot::Boot;
-use crate::node::output::say;
 use super::network::{ServeParts, Wired};
 use crate::node::config::NodeConfig;
+use crate::node::output::say;
 
 /// The discovery sources and the `found` tap that feeds the node's main loop.
 pub(super) type Finding = (Vec<Arc<dyn Discovery>>, mpsc::Sender<PeerAddr>);

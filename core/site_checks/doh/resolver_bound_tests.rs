@@ -22,9 +22,18 @@ mod cache {
         seed(&copy, "copy.test");
 
         // then: neither sees the other's entry
-        assert!(copy.resolve_cached("seeded.test").await.is_err(), "the parent's entry is not shared");
-        assert!(parent.resolve_cached("copy.test").await.is_err(), "the copy's entry is not shared");
-        assert_eq!(parent.resolve_cached("seeded.test").await.unwrap(), vec![SEEDED]);
+        assert!(
+            copy.resolve_cached("seeded.test").await.is_err(),
+            "the parent's entry is not shared"
+        );
+        assert!(
+            parent.resolve_cached("copy.test").await.is_err(),
+            "the copy's entry is not shared"
+        );
+        assert_eq!(
+            parent.resolve_cached("seeded.test").await.unwrap(),
+            vec![SEEDED]
+        );
     }
 
     #[tokio::test]
@@ -32,7 +41,10 @@ mod cache {
         // given: a copy with a cached entry that is served without network
         let copy = dead_resolver().bound_copy(OutIface::default());
         seed(&copy, "seeded.test");
-        assert_eq!(copy.resolve_cached("seeded.test").await.unwrap(), vec![SEEDED]);
+        assert_eq!(
+            copy.resolve_cached("seeded.test").await.unwrap(),
+            vec![SEEDED]
+        );
 
         // when: the cache is cleared
         copy.clear_cache();
@@ -49,14 +61,20 @@ mod bound_to_interface {
     async fn bound_to_missing_never_reaches_server() {
         // given: a DoH server and a copy bound to an interface that doesn't exist
         let doh = TestDoh::start().await;
-        let copy = doh.resolver().bound_copy(OutIface::new(Some(MISSING_IFACE)));
+        let copy = doh
+            .resolver()
+            .bound_copy(OutIface::new(Some(MISSING_IFACE)));
 
         // when: a name is resolved
         let result = copy.resolve_cached("host.test").await;
 
         // then: it fails and the server got no query
         assert!(result.is_err(), "no answer through a missing interface");
-        assert!(doh.queries().is_empty(), "the server must see nothing: {:?}", doh.queries());
+        assert!(
+            doh.queries().is_empty(),
+            "the server must see nothing: {:?}",
+            doh.queries()
+        );
     }
 
     #[tokio::test]
@@ -84,7 +102,9 @@ mod bound_to_interface {
         let doh = TestDoh::start().await;
         let iface = OutIface::new(Some(&name));
         let copy = doh.resolver().bound_copy(iface.clone());
-        copy.resolve_cached("host.test").await.expect("resolved through loopback");
+        copy.resolve_cached("host.test")
+            .await
+            .expect("resolved through loopback");
 
         // when: the interface is switched to a missing one and the cache is cleared
         iface.set(Some(MISSING_IFACE));
@@ -109,7 +129,10 @@ mod parent {
 
         // then: the parent has no binding and still reaches the server
         assert!(parent.iface.is_none(), "the original is not bound");
-        assert_eq!(parent.resolve_cached("host.test").await.unwrap(), vec![ANSWER_V4]);
+        assert_eq!(
+            parent.resolve_cached("host.test").await.unwrap(),
+            vec![ANSWER_V4]
+        );
     }
 }
 

@@ -63,7 +63,9 @@ fn loopback_index() -> u32 {
     let name = loopback_name();
     let all = if_addrs::get_if_addrs().unwrap();
     let found = all.into_iter().find(|i| i.name == name && i.ip().is_ipv4());
-    found.and_then(|i| i.index).expect("loopback interface index")
+    found
+        .and_then(|i| i.index)
+        .expect("loopback interface index")
 }
 
 fn read_option(sock: &Socket, level: i32, option: i32) -> u32 {

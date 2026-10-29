@@ -59,9 +59,7 @@ pub(super) fn state_of(name: &str) -> IfaceState {
 fn set_unicast_if(sock: &socket2::Socket, level: i32, option: i32, value: u32) -> io::Result<()> {
     let raw = sock.as_raw_socket() as usize;
     // SAFETY: `raw` is a live socket owned by `sock`; the pointer and length describe `value`.
-    let rc = unsafe {
-        setsockopt(raw, level, option, (&value as *const u32).cast::<u8>(), 4)
-    };
+    let rc = unsafe { setsockopt(raw, level, option, (&value as *const u32).cast::<u8>(), 4) };
     match rc {
         SOCKET_ERROR => Err(io::Error::last_os_error()),
         _ => Ok(()),

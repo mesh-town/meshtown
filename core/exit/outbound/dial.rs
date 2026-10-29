@@ -12,12 +12,12 @@ use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
-use crate::iface_bind::{check, connect_tcp};
 use super::address_guard::is_own_address;
 use super::refusal::Refusal;
 use super::target::{literal_address, v4_answer, v6_answer, NameAnswer, AAAA_LOOKUP_TIMEOUT};
 use crate::exit::frame::EXIT_TCP_CONNECT_TIMEOUT;
 use crate::exit::server::ExitConfig;
+use crate::iface_bind::{check, connect_tcp};
 
 /// How long the connection phase takes in all and how long one attempt may take unless it is the last one.
 #[derive(Clone, Copy)]

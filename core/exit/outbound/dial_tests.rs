@@ -130,7 +130,11 @@ mod via_interface {
 
         // then: code 8 and a log line naming the target, the interface and the guarantee
         assert_eq!(refusal.code, EXIT_CODE_INTERFACE_DOWN);
-        for part in ["bound.test", MISSING_IFACE, "not sent through other networks"] {
+        for part in [
+            "bound.test",
+            MISSING_IFACE,
+            "not sent through other networks",
+        ] {
             assert!(
                 refusal.line.contains(part),
                 "the log line has {part:?}: {}",

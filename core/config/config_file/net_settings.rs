@@ -17,18 +17,18 @@ pub struct NetSettings {
     pub node_name: Option<String>, // node.name         — the node's display name, read at start by `pick_node_name`
     pub exit_enabled: bool,        // exit.enabled
     pub exit_interface: Option<String>, // exit.interface — outgoing interface of the exit; `None` — any network
-    pub route_exits: Vec<PeerId>,  // route.exits
+    pub route_exits: Vec<PeerId>,       // route.exits
     pub ports_published: Vec<Published>, // ports.published
-    pub ports_opened: Vec<Opened>, // ports.opened
-    pub checks_enabled: bool,      // checks.enabled
-    pub check_interval_sec: u64,   // checks.interval_sec
-    pub doh_server: SocketAddr,    // checks.doh_server
+    pub ports_opened: Vec<Opened>,      // ports.opened
+    pub checks_enabled: bool,           // checks.enabled
+    pub check_interval_sec: u64,        // checks.interval_sec
+    pub doh_server: SocketAddr,         // checks.doh_server
     pub provider_dns: Option<SocketAddr>, // checks.provider_dns
-    pub geo_markers: Vec<String>,  // checks.geo_markers — extra region-stub phrases, lowercase
-    pub probe_interval_sec: u64,   // probe.interval_sec
-    pub probe_full_cycle: bool,    // probe.full_cycle — 1 MiB to all peers, not only to the exit
-    pub net_choice: NetChoice,     // net.{transports,discovery,sync} — choice of the network stack
-    pub relay: RelayMode,          // net.relay — relaying inside the network
+    pub geo_markers: Vec<String>,       // checks.geo_markers — extra region-stub phrases, lowercase
+    pub probe_interval_sec: u64,        // probe.interval_sec
+    pub probe_full_cycle: bool, // probe.full_cycle — 1 MiB to all peers, not only to the exit
+    pub net_choice: NetChoice,  // net.{transports,discovery,sync} — choice of the network stack
+    pub relay: RelayMode,       // net.relay — relaying inside the network
 }
 
 /// A phone does not serve as an exit unless the user turns it on; every other platform does.

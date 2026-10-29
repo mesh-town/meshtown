@@ -15,7 +15,10 @@ mod out_iface {
         // given a name, when the handle is built, then the name is current
         #[test]
         fn name_is_current() {
-            assert_eq!(current_text(&OutIface::new(Some("wg0"))), Some("wg0".into()));
+            assert_eq!(
+                current_text(&OutIface::new(Some("wg0"))),
+                Some("wg0".into())
+            );
         }
     }
 
@@ -58,7 +61,10 @@ mod out_iface {
             let iface = OutIface::new(Some("wg0"));
             poison(&iface);
             assert_eq!(current_text(&iface), Some("wg0".into()));
-            assert!(iface.set(Some("wg1")), "set works after a panic in another thread");
+            assert!(
+                iface.set(Some("wg1")),
+                "set works after a panic in another thread"
+            );
             assert_eq!(current_text(&iface), Some("wg1".into()));
         }
     }

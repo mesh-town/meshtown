@@ -54,14 +54,20 @@ mod classify_maps_error_kinds {
     #[test]
     fn permission_denied_is_no_permission() {
         let err = classify("wg0", io::Error::from(io::ErrorKind::PermissionDenied));
-        assert!(matches!(&err, BindError::NoPermission(n) if n == "wg0"), "{err:?}");
+        assert!(
+            matches!(&err, BindError::NoPermission(n) if n == "wg0"),
+            "{err:?}"
+        );
     }
 
     // given a not-found error, when classified, then it is Missing with the name
     #[test]
     fn not_found_is_missing() {
         let err = classify("wg0", io::Error::from(io::ErrorKind::NotFound));
-        assert!(matches!(&err, BindError::Missing(n) if n == "wg0"), "{err:?}");
+        assert!(
+            matches!(&err, BindError::Missing(n) if n == "wg0"),
+            "{err:?}"
+        );
     }
 
     // given an unsupported error, when classified, then it is Unsupported
@@ -89,7 +95,10 @@ mod tcp {
         let (listener, addr) = listen_v4().await;
         let stream = connect_tcp(addr, None).await;
         assert!(stream.is_ok(), "plain connect failed: {stream:?}");
-        assert!(accepts_within(listener, WAIT).await, "listener saw no connection");
+        assert!(
+            accepts_within(listener, WAIT).await,
+            "listener saw no connection"
+        );
     }
 
     // given the loopback interface, when connecting to a local listener, then the listener accepts
@@ -98,7 +107,10 @@ mod tcp {
         let (listener, addr) = listen_v4().await;
         let stream = connect_tcp(addr, named(&loopback_name())).await;
         assert!(stream.is_ok(), "bound connect failed: {stream:?}");
-        assert!(accepts_within(listener, WAIT).await, "listener saw no connection");
+        assert!(
+            accepts_within(listener, WAIT).await,
+            "listener saw no connection"
+        );
     }
 
     // given a missing interface, when connecting, then it fails and the listener sees nothing
@@ -106,7 +118,10 @@ mod tcp {
     async fn tcp_bound_to_missing_never_reaches_listener() {
         let (listener, addr) = listen_v4().await;
         let result = connect_tcp(addr, named(MISSING_IFACE)).await;
-        assert!(result.is_err(), "connect through a missing interface must fail");
+        assert!(
+            result.is_err(),
+            "connect through a missing interface must fail"
+        );
         assert!(
             !accepts_within(listener, QUIET).await,
             "the listener must not receive a connection"
@@ -123,7 +138,10 @@ mod tcp {
         let addr = listener.local_addr().unwrap();
         let stream = connect_tcp(addr, named(&loopback_name())).await;
         assert!(stream.is_ok(), "bound IPv6 connect failed: {stream:?}");
-        assert!(accepts_within(listener, WAIT).await, "listener saw no connection");
+        assert!(
+            accepts_within(listener, WAIT).await,
+            "listener saw no connection"
+        );
     }
 }
 
@@ -153,7 +171,10 @@ mod udp {
     fn udp_bound_to_missing_fails() {
         let (_server, addr) = echo_server();
         let result = bind_udp(addr, Some(MISSING_IFACE));
-        assert!(result.is_err(), "bind through a missing interface must fail");
+        assert!(
+            result.is_err(),
+            "bind through a missing interface must fail"
+        );
     }
 
     // given an IPv6 destination, when binding without interface, then the socket is IPv6
@@ -180,7 +201,9 @@ async fn listen_v4() -> (TcpListener, SocketAddr) {
 
 /// Whether the listener accepts a connection within `limit`.
 async fn accepts_within(listener: TcpListener, limit: Duration) -> bool {
-    tokio::time::timeout(limit, listener.accept()).await.is_ok_and(|r| r.is_ok())
+    tokio::time::timeout(limit, listener.accept())
+        .await
+        .is_ok_and(|r| r.is_ok())
 }
 
 fn echo_server() -> (UdpSocket, SocketAddr) {

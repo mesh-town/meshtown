@@ -1,6 +1,6 @@
 use super::*;
-use crate::iface_bind::IfaceState;
 use crate::iface_bind::test_support::{loopback_name, MISSING_IFACE};
+use crate::iface_bind::IfaceState;
 use socket2::{Domain, SockRef, Socket, Type};
 use std::ffi::CString;
 use std::io;

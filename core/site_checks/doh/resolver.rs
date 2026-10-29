@@ -224,10 +224,13 @@ impl Resolver {
 
     /// TCP and TLS to the DoH server, each step under `limits.connect`.
     async fn open_tls(&self) -> Result<tokio_rustls::client::TlsStream<TcpStream>> {
-        let tcp = timeout(self.limits.connect, connect_tcp(self.server, self.bound_name()))
-            .await
-            .context("timeout connecting to the DoH server")?
-            .context("connection to the DoH server")?;
+        let tcp = timeout(
+            self.limits.connect,
+            connect_tcp(self.server, self.bound_name()),
+        )
+        .await
+        .context("timeout connecting to the DoH server")?
+        .context("connection to the DoH server")?;
         disable_nagle(&tcp);
         let connector = TlsConnector::from(self.tls.clone());
         let name = ServerName::from(self.server.ip());

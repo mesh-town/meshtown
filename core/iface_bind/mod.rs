@@ -11,7 +11,12 @@ mod unix_flags;
 #[cfg_attr(target_os = "macos", path = "os_macos.rs")]
 #[cfg_attr(target_os = "windows", path = "os_windows.rs")]
 #[cfg_attr(
-    not(any(target_os = "linux", target_os = "android", target_os = "macos", target_os = "windows")),
+    not(any(
+        target_os = "linux",
+        target_os = "android",
+        target_os = "macos",
+        target_os = "windows"
+    )),
     path = "os_other.rs"
 )]
 mod os;

@@ -16,7 +16,10 @@ impl OutIface {
 
     /// The current interface name, if one is set.
     pub fn current(&self) -> Option<Arc<str>> {
-        self.0.read().unwrap_or_else(PoisonError::into_inner).clone()
+        self.0
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
     }
 
     /// Replaces the value; returns `true` when it differs from the previous one.
