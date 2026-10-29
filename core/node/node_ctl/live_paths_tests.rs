@@ -118,7 +118,7 @@ mod live_set {
 
     #[test]
     fn live_set_golden() {
-        // given: the set of live paths; then: exactly these 13
+        // given: the set of live paths; then: exactly these 14
         let expected: BTreeSet<&str> = [
             "exit.enabled",
             "checks.enabled",
@@ -129,6 +129,7 @@ mod live_set {
             "ports.opened",
             "log.ring_lines",
             "exit.max_streams",
+            "exit.stream_window_kib",
             "exit.interface",
             "node.name",
             "proxy.net",
@@ -142,7 +143,7 @@ mod live_set {
         assert_eq!(actual, expected, "the set of live paths changed");
         assert_eq!(
             crate::config::config_file::fields::live_paths().len(),
-            13,
+            14,
             "the list has no duplicates"
         );
     }
@@ -159,7 +160,7 @@ mod handles_and_copy {
         let live: BTreeSet<&str> = fields::live_paths().into_iter().collect();
         assert_eq!(handles, live);
         assert_eq!(HANDLES.len(), live.len());
-        assert_eq!(HANDLES.len(), 13, "one handle per live path");
+        assert_eq!(HANDLES.len(), 14, "one handle per live path");
     }
 
     #[test]
@@ -181,6 +182,15 @@ mod handles_and_copy {
         assert_ne!(
             effective_settings.process.exit_max_streams,
             Settings::default().process.exit_max_streams,
+            "the probe value differs from the default, so the copy is observable"
+        );
+        assert_eq!(
+            effective_settings.process.exit_stream_window_kib, from.process.exit_stream_window_kib,
+            "exit.stream_window_kib is copied as a live field"
+        );
+        assert_ne!(
+            effective_settings.process.exit_stream_window_kib,
+            Settings::default().process.exit_stream_window_kib,
             "the probe value differs from the default, so the copy is observable"
         );
         assert_eq!(
@@ -297,6 +307,47 @@ mod exit_max_streams_handle {
         Settings {
             process: ProcessSettings {
                 exit_max_streams: n,
+                ..ProcessSettings::default()
+            },
+            ..Settings::default()
+        }
+    }
+}
+
+mod exit_stream_window_handle {
+    use super::*;
+    use crate::exit::ExitLimits;
+
+    #[test]
+    fn handle_sets_the_window() {
+        // given: a limiter without a window and settings that ask for 256 KiB
+        let limits = ExitLimits::fixed(5);
+        let settings = settings_with_exit_stream_window(256);
+
+        // when: the handle's function is applied
+        apply_exit_stream_window(&limits, &settings);
+
+        // then: new streams get that window
+        assert_eq!(limits.stream_window_bytes(), 262_144);
+    }
+
+    #[test]
+    fn zero_goes_back_to_the_tier_window() {
+        // given: a limiter with the setting 256 KiB and a tier of 128 KiB
+        let limits = ExitLimits::fixed(1);
+        limits.configure_window(256, 128);
+
+        // when: the setting becomes 0
+        apply_exit_stream_window(&limits, &settings_with_exit_stream_window(0));
+
+        // then: the tier's window is back
+        assert_eq!(limits.stream_window_bytes(), 131_072);
+    }
+
+    fn settings_with_exit_stream_window(kib: u64) -> Settings {
+        Settings {
+            process: ProcessSettings {
+                exit_stream_window_kib: kib,
                 ..ProcessSettings::default()
             },
             ..Settings::default()

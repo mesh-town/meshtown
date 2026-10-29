@@ -47,6 +47,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("net.relay", FileOnly, &NetRelay),
     row!("exit.enabled", Live, slot!(net.exit_enabled, BoolKind)),
     row!("exit.max_streams", Live, slot!(process.exit_max_streams, Int { min: 0, max: 100_000 })),
+    row!("exit.stream_window_kib", Live, slot!(process.exit_stream_window_kib, Int { min: 0, max: 65_536 })),
     row!("exit.interface", Live, slot!(net.exit_interface, ExitIface)),
     row!("socks.enabled", RestartShown, slot!(process.socks_enabled, BoolKind)),
     row!("socks.port", RestartShown, slot!(process.socks_port, Port { min: 1024, max: 65535 })),

@@ -10,10 +10,10 @@ use crate::node::machine_memory::NODE_MEMORY_WARN_MIB_DEFAULT;
 /// the memory guard, the pass-through `autostart`/`full_tunnel`. Defaults live only in `Default`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProcessSettings {
-    pub socks_enabled: bool,        // socks.enabled
-    pub socks_port: u16,            // socks.port
-    pub socks_access: ListenAccess, // socks.access   — who may use the proxy
-    pub socks_ifaces: IfaceFilter,  // socks.ifaces — over which networks the proxy may be used
+    pub socks_enabled: bool,         // socks.enabled
+    pub socks_port: u16,             // socks.port
+    pub socks_access: ListenAccess,  // socks.access   — who may use the proxy
+    pub socks_ifaces: IfaceFilter,   // socks.ifaces — over which networks the proxy may be used
     pub socks_strict: bool, // socks.strict — no direct fallback in the PAC when the node is down
     pub proxy_net: NetSlotId, // proxy.net — which network's exit the local proxy uses
     pub web_enabled: bool,  // web.enabled       — pass-through
@@ -26,6 +26,7 @@ pub struct ProcessSettings {
     pub node_memory_warn_mib: u64, // node.memory_warn_mib — memory guard summary threshold, MiB; 0 — off
     pub node_memory_exit_mib: u64, // node.memory_exit_mib — memory guard exit threshold, MiB; 0 — off
     pub exit_max_streams: u64, // exit.max_streams — open exit streams per process; 0 = by machine memory
+    pub exit_stream_window_kib: u64, // exit.stream_window_kib — unacknowledged bytes per exit stream toward the client, KiB; 0 = by machine memory
 }
 
 impl Default for ProcessSettings {
@@ -48,6 +49,7 @@ impl Default for ProcessSettings {
             node_memory_warn_mib: NODE_MEMORY_WARN_MIB_DEFAULT,
             node_memory_exit_mib: 900,
             exit_max_streams: 0,
+            exit_stream_window_kib: 0,
         }
     }
 }

@@ -182,6 +182,48 @@ mod limits {
     }
 }
 
+mod window {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_windowed_exit_stream_echoes_byte_exact() {
+        // given: an exit with a window of 64 KiB and an echo site
+        let limits = ExitLimits::fixed(10);
+        limits.configure_window(64, 0);
+        let fx = setup(Opts {
+            site: Site::Echo,
+            limits,
+            ..Opts::default()
+        })
+        .await;
+        let (mut pair, reply) = fx.ask(&request("site.test", 80)).await;
+        assert_eq!(reply, OPENED);
+
+        // when: 128 KiB (twice the window, within the transport's own) go there and back
+        let bytes = pattern(128 * 1024);
+        let back = echo(&mut pair, &bytes).await;
+
+        // then: the same bytes come back
+        assert!(back == bytes, "the echoed bytes differ from the sent ones");
+    }
+
+    #[tokio::test]
+    async fn changing_the_window_keeps_open_streams_flowing() {
+        // given: an exit without a window and a stream open on it
+        let fx = setup_with(10, Site::Echo).await;
+        let (mut first, _) = fx.ask(&request("site.test", 80)).await;
+
+        // when: the window is switched on
+        fx.cfg.limits.set_stream_window(64);
+
+        // then: the open stream still carries bytes, and a new one opens and carries bytes too
+        assert_eq!(&echo(&mut first, b"one!").await, b"one!");
+        let (mut second, reply) = fx.ask(&request("site.test", 80)).await;
+        assert_eq!(reply, OPENED);
+        assert_eq!(&echo(&mut second, b"two!").await, b"two!");
+    }
+}
+
 // ---- setup and helpers ----
 
 /// An exit with the cap `max_streams` and the given kind of site.
@@ -233,4 +275,11 @@ async fn wait_live(fx: &Fx, n: u64, limit: Duration) {
         "live streams stayed at {}",
         fx.cfg.limits.live()
     );
+}
+
+/// `len` bytes that don't repeat within a window, so a lost or shifted byte shows.
+fn pattern(len: usize) -> Vec<u8> {
+    (0..len)
+        .map(|i| u8::try_from(i % 251).unwrap_or(0))
+        .collect()
 }

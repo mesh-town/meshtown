@@ -8,7 +8,7 @@ Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6�
 
 ### 1.6 `GET /api/config` — config
 
-For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`exit.max_streams`, `socks.*`,
+For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`exit.max_streams`, `exit.stream_window_kib`, `socks.*`,
 `web.*`, `log.*`, `node.memory_*`, `autostart.*`, `full_tunnel.*`) show the primary network's values and are
 listed in `read_only`; `cli_overrides` lists the
 network fields set by launch flags (every flag except `--key` applies to added networks too). A `PUT` leaves them as they are without an error, writes only
@@ -294,6 +294,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `network.masked` | string | — | read-only; the label, `--` and one `•` per character of the tail (34 for the `finch-unwary` example) | — | — (the key is not shown) | "Diagnostics" → "Mesh Town network key" |
 | `exit.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` | "Home" → "This computer" → "Allow other members to open sites through this computer"; "Members" → a switch on the own row; "Home" → the "Exit via…" card |
 | `exit.max_streams` | integer | 0 | 0…100000; `0` = by machine memory (20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise); process-wide, shared by all networks | no (on the fly; open streams are not cut) | `core/exit/limits/`, `core/node/node_ctl/live_paths.rs` | no input field |
+| `exit.stream_window_kib` | integer | 0 | 0…65536; `0` = by machine memory (128 on ≤128 MiB, off otherwise); below 64 counts as 64; process-wide, shared by all networks | no (on the fly; new streams only) | `core/exit/limits/`, `core/node/node_ctl/live_paths.rs` | no input field |
 | `exit.interface` | string or null | `null` (any network) | 1–64 bytes, no control characters; `null` = the regular routing table | no (on the fly; open connections keep their path) | `core/iface_bind/`, `core/node/node_ctl/live_paths.rs` | Network tab → Device settings → Send exit traffic through |
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
 | `socks.strict` | boolean | `false` | — | no (applies at once) | `core/proxy/pac.rs` | "Settings" → "Strict mode" |

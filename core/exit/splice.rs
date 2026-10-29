@@ -3,6 +3,7 @@
 
 use std::time::Duration;
 
+use super::windowed_copy::copy_windowed;
 use crate::transport::net::{BoxRecv, BoxSend};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
@@ -49,8 +50,19 @@ impl Drop for AbortBothOnDrop {
 /// `tokio::io::copy` returned; there are no separate counters. A direction that was cut by `abort`
 /// after `HALF_CLOSE_GRACE` expired yields no number and counts as zero — in the log this shows
 /// as "0 bytes" for the unfinished direction. Dropping the `splice()` future itself removes
-/// both subtasks through `AbortBothOnDrop`.
-pub async fn splice(mut send: BoxSend, mut recv: BoxRecv, tcp: TcpStream) -> (u64, u64) {
+/// both subtasks through `AbortBothOnDrop`. No cap on the bytes toward the QUIC stream.
+pub async fn splice(send: BoxSend, recv: BoxRecv, tcp: TcpStream) -> (u64, u64) {
+    splice_windowed(send, recv, tcp, 0).await
+}
+
+/// `splice` with a cap on the bytes written into the QUIC stream before waiting for them to be
+/// acknowledged: `window` is that cap in bytes; 0 — no cap.
+pub(crate) async fn splice_windowed(
+    mut send: BoxSend,
+    mut recv: BoxRecv,
+    tcp: TcpStream,
+    window: usize,
+) -> (u64, u64) {
     // The trait is needed for shutdown on the TCP half and on the sending half of the stream.
     use tokio::io::AsyncWriteExt;
 
@@ -63,7 +75,9 @@ pub async fn splice(mut send: BoxSend, mut recv: BoxRecv, tcp: TcpStream) -> (u6
         n
     });
     let mut tcp_to_quic_task = crate::node::output::spawn(async move {
-        let n = tokio::io::copy(&mut tcp_read, &mut send).await.unwrap_or(0);
+        let n = copy_windowed(&mut tcp_read, &mut send, window)
+            .await
+            .unwrap_or(0);
         let _ = send.shutdown().await;
         n
     });

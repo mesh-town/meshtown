@@ -47,7 +47,8 @@ const DEFAULTS_TEXT: &str = r#"{
     "network": {},
     "exit": {
       "enabled": true,
-      "max_streams": 0
+      "max_streams": 0,
+      "stream_window_kib": 0
     },
     "socks": {
       "enabled": true,
@@ -120,6 +121,7 @@ const ALL_CHANGED_TEXT: &str = r#"{
     "exit": {
       "enabled": false,
       "max_streams": 40,
+      "stream_window_kib": 256,
       "interface": "wg0"
     },
     "socks": {

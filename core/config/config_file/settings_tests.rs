@@ -34,6 +34,10 @@ fn defaults_match_config_file_md() {
         s.process.exit_max_streams, 0,
         "exit.max_streams defaults to 0 (by machine memory)"
     );
+    assert_eq!(
+        s.process.exit_stream_window_kib, 0,
+        "exit.stream_window_kib defaults to 0 (by machine memory)"
+    );
     assert!(!s.process.autostart_enabled);
     assert!(!s.process.full_tunnel_enabled);
 }

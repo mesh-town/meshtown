@@ -77,6 +77,11 @@ fn invalid_rest_cases() -> Vec<InvalidCase> {
         case("log.ring_lines", json!(1), "an integer 200…20000"),
         case("exit.max_streams", json!(100_001), "an integer 0…100000"),
         case(
+            "exit.stream_window_kib",
+            json!(65_537),
+            "an integer 0…65536",
+        ),
+        case(
             "exit.interface",
             json!(""),
             "an interface name (1–64 bytes, no control characters) or null — any network",
@@ -150,12 +155,12 @@ mod put_all_editable_at_once {
 
     #[test]
     fn put_changed_and_pending_golden() {
-        // given: valid non-default values for 15 paths (without autostart and full_tunnel)
+        // given: valid non-default values for 16 paths (without autostart and full_tunnel)
         let id = NodeSecret::from_bytes(&[1u8; 32]).peer_id().to_string();
         let patch = json!({
             "node": { "name": "Kitchen" },
             "web": { "access": "localhost" },
-            "exit": { "enabled": false, "max_streams": 7 },
+            "exit": { "enabled": false, "max_streams": 7, "stream_window_kib": 256 },
             "socks": { "enabled": false, "port": 1090 },
             "checks": {
                 "enabled": false, "interval_sec": 600,
@@ -171,13 +176,14 @@ mod put_all_editable_at_once {
         });
         // when: one PUT
         let (status, v) = put_one(patch);
-        // then: `changed` — all 15, `restart_pending` — exactly the 5 paths that need a restart
+        // then: `changed` — all 16, `restart_pending` — exactly the 5 paths that need a restart
         assert_eq!(status, StatusCode::OK, "{v}");
         let changed = [
             "node.name",
             "web.access",
             "exit.enabled",
             "exit.max_streams",
+            "exit.stream_window_kib",
             "socks.enabled",
             "socks.port",
             "checks.enabled",
@@ -228,6 +234,7 @@ mod internal_lists {
             "ports.opened",
             "log.ring_lines",
             "exit.max_streams",
+            "exit.stream_window_kib",
             "exit.interface",
             "autostart.enabled",
             "full_tunnel.enabled",

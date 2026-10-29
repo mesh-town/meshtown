@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use super::line_rate::LineRate;
 use super::rss::RssGate;
+use super::window::StreamWindow;
 use crate::node::machine_memory::MemoryDefaults;
 
 /// Why a new stream is refused.
@@ -40,6 +41,7 @@ struct Inner {
     auto: AtomicU64,
     rss: RssGate,
     lines: LineRate,
+    window: StreamWindow,
 }
 
 /// Live exit streams of the process and the rules for admitting a new one.
@@ -73,6 +75,7 @@ impl ExitLimits {
             auto: AtomicU64::new(limit),
             rss,
             lines: LineRate::default(),
+            window: StreamWindow::default(),
         }))
     }
 
@@ -102,6 +105,21 @@ impl ExitLimits {
 
     pub(crate) fn max_streams(&self) -> u64 {
         self.0.limit.load(Ordering::Relaxed)
+    }
+
+    /// Called once at process start. `setting_kib` 0 means the tier default `tier_kib`; 0 there means no window.
+    pub(crate) fn configure_window(&self, setting_kib: u64, tier_kib: u64) {
+        self.0.window.configure(setting_kib, tier_kib);
+    }
+
+    /// Changes the stream window on the fly; open streams keep the window they started with.
+    pub(crate) fn set_stream_window(&self, setting_kib: u64) {
+        self.0.window.set(setting_kib);
+    }
+
+    /// The cap on unacknowledged bytes toward the client for a stream being opened; 0 means none.
+    pub(crate) fn stream_window_bytes(&self) -> usize {
+        self.0.window.bytes()
     }
 
     /// Takes a place for a new stream: the cap first, then the process memory.

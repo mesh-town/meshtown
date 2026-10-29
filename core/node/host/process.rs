@@ -30,7 +30,7 @@ impl ProcessServices {
         let defaults = for_ram(ram);
         let warn = effective_warn_mib(process.node_memory_warn_mib, defaults);
         let limits = MemoryLimitsKib::from_mib(warn, process.node_memory_exit_mib);
-        configure_exit_limits(process, defaults, ram, warn);
+        configure_exit_limits(&ExitLimits::process(), process, defaults, ram, warn);
         let guard = start_memory_guard(limits, sources.clone(), Handle::current(), dump_dir);
         ProcessServices { guard, sources }
     }
@@ -54,18 +54,19 @@ impl ProcessServices {
 
 /// Sets the process-wide exit stream limit and the RSS ceiling, and logs the memory defaults in force.
 fn configure_exit_limits(
+    limits: &ExitLimits,
     process: &ProcessSettings,
     defaults: MemoryDefaults,
     ram: Option<u64>,
     warn: u64,
 ) {
     let guard_warn = rss_guard_warn_mib(process.node_memory_warn_mib, defaults);
-    let limits = ExitLimits::process();
     limits.configure(
         process.exit_max_streams,
         defaults.max_streams,
         rss_ceiling_kib(guard_warn),
     );
+    limits.configure_window(process.exit_stream_window_kib, defaults.stream_window_kib);
     say("node", memory_line(ram, limits.max_streams(), warn));
 }
 

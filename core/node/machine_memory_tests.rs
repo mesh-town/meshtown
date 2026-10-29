@@ -13,25 +13,28 @@ mod defaults {
             (
                 MemoryDefaults::SMALL.max_streams,
                 MemoryDefaults::SMALL.warn_mib,
-                MemoryDefaults::SMALL.rss_guard
+                MemoryDefaults::SMALL.rss_guard,
+                MemoryDefaults::SMALL.stream_window_kib
             ),
-            (20, 24, true)
+            (20, 24, true, 128)
         );
         assert_eq!(
             (
                 MemoryDefaults::MIDDLE.max_streams,
                 MemoryDefaults::MIDDLE.warn_mib,
-                MemoryDefaults::MIDDLE.rss_guard
+                MemoryDefaults::MIDDLE.rss_guard,
+                MemoryDefaults::MIDDLE.stream_window_kib
             ),
-            (50, 64, true)
+            (50, 64, true, 0)
         );
         assert_eq!(
             (
                 MemoryDefaults::LARGE.max_streams,
                 MemoryDefaults::LARGE.warn_mib,
-                MemoryDefaults::LARGE.rss_guard
+                MemoryDefaults::LARGE.rss_guard,
+                MemoryDefaults::LARGE.stream_window_kib
             ),
-            (200, 400, false)
+            (200, 400, false, 0)
         );
     }
 

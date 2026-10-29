@@ -25,7 +25,7 @@ use super::frame::{
 use super::limits::{Busy, ExitLimits};
 use super::outbound::{open_target, Refusal};
 use super::report;
-use super::splice::splice;
+use super::splice::splice_windowed;
 use super::stream_tasks::StreamTasks;
 use super::traffic::{Direction, ExitTraffic};
 use super::udpgw;
@@ -205,7 +205,7 @@ async fn serve_exit_stream(
         format!("{}: {target_host}:{port} opened", short_peer_id(&peer)),
     );
     // Byte counts are needed only by the requesting side, the exit doesn't print them.
-    let _ = splice(send, recv, tcp).await;
+    let _ = splice_windowed(send, recv, tcp, cfg.limits.stream_window_bytes()).await;
     Ok(())
 }
 
