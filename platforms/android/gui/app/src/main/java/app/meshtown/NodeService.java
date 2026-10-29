@@ -26,6 +26,8 @@ public class NodeService extends Service {
     static volatile boolean quitRequested;
     /** Whether Connect is offered (see {@link ConnectGate}); read by the activity and the tile. */
     static volatile boolean canConnect;
+    /** Whether a connection through the chosen path was opened (see {@link PathGate}); read by the activity and the tile. */
+    static volatile boolean pathReady;
     /** Whether the activity is on screen; a hidden app with the tunnel off polls the node rarely. */
     static volatile boolean appVisible;
 
@@ -43,6 +45,7 @@ public class NodeService extends Service {
     private volatile boolean restoreTunnel;
     private boolean exitWasLost;
     private final ConnectGate gate = new ConnectGate();
+    private final PathGate path = new PathGate();
     private String shown = "";
 
     @Override
@@ -51,12 +54,18 @@ public class NodeService extends Service {
     }
 
     @Override
+    public void onCreate() {
+        super.onCreate();
+        pathReady = false;
+    }
+
+    @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         if (notifier == null) {
             notifier = new StatusNotifier(this);
         }
-        startForeground(StatusNotifier.ID, notifier.status(StatusText.notice(NodeState.UNREACHABLE, false), false, false));
+        startForeground(StatusNotifier.ID, notifier.status(StatusText.notice(NodeState.UNREACHABLE, false, false), false, false));
         if (ACTION_QUIT.equals(action)) {
             quit();
             return START_NOT_STICKY;
@@ -110,6 +119,8 @@ public class NodeService extends Service {
         stopNode();
         state = NodeState.UNREACHABLE;
         gate.update(state, 0);
+        path.observe(state, false);
+        pathReady = false;
         canConnect = false;
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
@@ -222,8 +233,38 @@ public class NodeService extends Service {
             startTunnel();
         }
         boolean vpnOn = TunnelService.running;
+        path.observe(s, vpnOn);
+        publishPath();
+        startProbe();
         announceExit(s, vpnOn);
-        show(StatusText.notice(s, vpnOn), vpnOn, canConnect);
+        show(StatusText.notice(s, vpnOn, pathReady), vpnOn, canConnect);
+    }
+
+    private void publishPath() {
+        boolean ready = path.ready();
+        if (ready != pathReady) {
+            pathReady = ready;
+            TunnelTile.refresh(this);
+        }
+    }
+
+    /** Opens a probe connection through the local proxy when one is due; the result wakes the poll loop. */
+    private void startProbe() {
+        PathGate.Attempt a = path.begin();
+        if (a == null) {
+            return;
+        }
+        Thread t = new Thread(() -> {
+            boolean ok = PathProbe.connect("127.0.0.1", TunnelService.SOCKS_PORT, PathProbe.target(a.number),
+                    PathProbe.TARGET_PORT, PathProbe.TIMEOUT_MS);
+            path.finish(a.key, ok);
+            if (ok) {
+                Log.i(TAG, "path ready: " + a.key);
+                wake();
+            }
+        }, "mesh-probe");
+        t.setDaemon(true);
+        t.start();
     }
 
     /** One alert on the online -> offline transition of the chosen exit, not on every poll. */

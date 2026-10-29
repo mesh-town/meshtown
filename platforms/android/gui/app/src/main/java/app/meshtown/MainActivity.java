@@ -224,7 +224,7 @@ public class MainActivity extends Activity {
         boolean enabled = on || NodeService.canConnect;
         button.setEnabled(enabled);
         tintButton(on, enabled);
-        showStrip(StatusText.strip(s, NodeService.canConnect, on));
+        showStrip(StatusText.strip(s, NodeService.canConnect, on, NodeService.pathReady));
         if (!s.reachable) {
             loaded = false;
             showSplash(Splash.message(SystemClock.elapsedRealtime() - waitingSince));

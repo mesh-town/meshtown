@@ -35,8 +35,27 @@ final class StatusText {
         }
     }
 
+    /** Where the tunnel stands while it is on; picked once, then every text switches on it. */
+    private enum Phase { STARTING, WAITING, CHECKING_EXIT, CHECKING_DIRECT, READY_EXIT, READY_DIRECT }
+
+    private static Phase phase(NodeState s, boolean pathReady) {
+        if (!s.reachable) {
+            return Phase.STARTING;
+        }
+        if ("unavailable".equals(s.route)) {
+            return Phase.WAITING;
+        }
+        if ("exit".equals(s.route)) {
+            return pathReady ? Phase.READY_EXIT : Phase.CHECKING_EXIT;
+        }
+        if (s.exitChosen) {
+            return Phase.CHECKING_EXIT;
+        }
+        return pathReady ? Phase.READY_DIRECT : Phase.CHECKING_DIRECT;
+    }
+
     /** The line above the Connect button. */
-    static Line strip(NodeState s, boolean canConnect, boolean vpnOn) {
+    static Line strip(NodeState s, boolean canConnect, boolean vpnOn, boolean pathReady) {
         if (s.excluded) {
             return new Line(NodeState.EXCLUDED_TEXT, 0);
         }
@@ -44,35 +63,54 @@ final class StatusText {
             return new Line("Join or create a network first", 0);
         }
         if (vpnOn) {
-            return connected(s);
+            return connected(s, phase(s, pathReady));
         }
         return new Line(canConnect ? "Ready. Tap Connect to open sites through Mesh Town"
                 : "Looking for other members…", 0);
     }
 
-    private static Line connected(NodeState s) {
-        if ("exit".equals(s.route)) {
-            return new Line(DOT + "Connected via " + s.exitLabel(), GREEN);
+    private static Line connected(NodeState s, Phase phase) {
+        switch (phase) {
+            case WAITING:
+                return new Line(DOT + "Waiting for " + s.exitLabel() + DASH
+                        + "choose another exit if it stays offline", ORANGE);
+            case CHECKING_EXIT:
+                return new Line(DOT + "Connecting via " + s.exitLabel() + "…", ORANGE);
+            case READY_EXIT:
+                return new Line(DOT + "Connected via " + s.exitLabel(), GREEN);
+            case READY_DIRECT:
+                return new Line(DOT + "Connected · sites open directly" + DASH + "choose an exit above", GREEN);
+            default:
+                return new Line(DOT + "Connecting…", ORANGE);
         }
-        if ("unavailable".equals(s.route)) {
-            return new Line(DOT + "Connected, but " + s.exitLabel() + " is offline" + DASH + "choose another exit",
-                    ORANGE);
-        }
-        return new Line(DOT + "Connected · sites open directly" + DASH + "choose an exit above", GREEN);
     }
 
     /** The status notification: the title is the state, the text says where sites open. */
-    static Notice notice(NodeState s, boolean vpnOn) {
+    static Notice notice(NodeState s, boolean vpnOn, boolean pathReady) {
+        if (vpnOn && !s.reachable) {
+            return new Notice("Connecting…", s.describe(false));
+        }
         if (!vpnOn || !s.inNetwork) {
             return new Notice("Not connected", s.describe(false));
         }
-        if ("exit".equals(s.route)) {
-            return new Notice("Connected", "Sites open via " + s.exitLabel());
+        return connectedNotice(s, phase(s, pathReady));
+    }
+
+    private static Notice connectedNotice(NodeState s, Phase phase) {
+        switch (phase) {
+            case WAITING:
+                return new Notice("Waiting for exit", "Waiting for " + s.exitLabel() + DASH
+                        + "choose another exit if it stays offline");
+            case CHECKING_EXIT:
+                return new Notice("Connecting…", "Checking the path through " + s.exitLabel());
+            case READY_EXIT:
+                return new Notice("Connected", "Sites open via " + s.exitLabel());
+            case READY_DIRECT:
+                return new Notice("Connected",
+                        "Sites open directly. Choose an exit in the app to open sites through it.");
+            default:
+                return new Notice("Connecting…", "Checking the connection");
         }
-        if ("unavailable".equals(s.route)) {
-            return exitOffline(s);
-        }
-        return new Notice("Connected", "Sites open directly. Choose an exit in the app to open sites through it.");
     }
 
     /** The alert for an exit that went offline. */
@@ -81,12 +119,27 @@ final class StatusText {
     }
 
     /** Subtitle of the Quick Settings tile. */
-    static String tileSubtitle(NodeState s, boolean vpnOn) {
+    static String tileSubtitle(NodeState s, boolean vpnOn, boolean pathReady) {
         if (!vpnOn) {
             return "Off";
         }
-        boolean viaExit = s.inNetwork && ("exit".equals(s.route) || "unavailable".equals(s.route));
-        return "On · " + (viaExit ? s.exitLabel() : "directly");
+        if (s.reachable && !s.inNetwork) {
+            return "On · directly";
+        }
+        return tileOn(s, phase(s, pathReady));
+    }
+
+    private static String tileOn(NodeState s, Phase phase) {
+        switch (phase) {
+            case WAITING:
+                return "Waiting for " + s.exitLabel();
+            case READY_EXIT:
+                return "On · " + s.exitLabel();
+            case READY_DIRECT:
+                return "On · directly";
+            default:
+                return "Connecting…";
+        }
     }
 
     /** Menu item that wipes the app: it leaves the network when there is one. */
