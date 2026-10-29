@@ -709,10 +709,8 @@ fn entry_error_names_the_running_node() {
     };
     let text = super::entry_errors::entry_error_text(&e, true).to_string();
     assert!(text.contains("already running on port 7777"), "{text}");
-    assert!(
-        text.contains("run: meshtown open") || text.contains(" open."),
-        "{text}"
-    );
+    assert!(text.contains(" open. There is no need"), "{text}");
+    assert!(!text.contains("password reset"), "{text}");
     assert!(!text.contains("Another port"), "{text}");
     let plain = super::entry_errors::entry_error_text(&e, false).to_string();
     assert!(plain.contains("Another port"), "{plain}");

@@ -241,4 +241,42 @@ async fn open_without_node_fails_with_hint() {
     let o = mesh(&["open", "--print"], &dir, free_port());
     assert_ne!(o.status.code(), Some(0));
     assert!(err(&o).contains("start it first"), "stderr: {}", err(&o));
+    assert!(!out(&o).contains("http://"), "stdout: {}", out(&o));
+    cleanup(&dir);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_without_token_hints_sudo() {
+    let rig = rig("cli-open-notoken").await;
+    std::fs::remove_file(rig.dir.join("web-token")).expect("token removal");
+    let o = mesh(&["open", "--print"], &rig.dir, rig.port);
+    assert_eq!(o.status.code(), Some(1), "stdout: {}", out(&o));
+    let text = err(&o);
+    assert!(
+        text.contains("web-token") && text.contains("sudo"),
+        "stderr: {text}"
+    );
+    assert!(
+        !out(&o).contains("http://"),
+        "an address was printed on refusal"
+    );
+    finish(rig).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_with_wrong_token_is_refused() {
+    let rig = rig("cli-open-403").await;
+    std::fs::write(rig.dir.join("web-token"), "wrong-token\n").expect("token substitution");
+    let o = mesh(&["open", "--print"], &rig.dir, rig.port);
+    assert_eq!(o.status.code(), Some(1), "stdout: {}", out(&o));
+    let text = err(&o);
+    assert!(
+        text.contains("refused the sign-in link") && !text.contains("sudo"),
+        "stderr: {text}"
+    );
+    assert!(
+        !out(&o).contains("http://"),
+        "an address was printed on refusal"
+    );
+    finish(rig).await;
 }
