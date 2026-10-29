@@ -35,8 +35,117 @@ final class StatusText {
         }
     }
 
+    /** Where the tunnel stands while it is on; each constant carries its own texts. */
+    private enum Phase {
+        STARTING {
+            Line line(NodeState s) {
+                return new Line(DOT + "Connecting…", ORANGE);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Connecting…", s.describe(false));
+            }
+
+            String tile(NodeState s) {
+                return "Connecting…";
+            }
+        },
+        WAITING {
+            Line line(NodeState s) {
+                return new Line(DOT + waiting(s), ORANGE);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Waiting for exit", waiting(s));
+            }
+
+            String tile(NodeState s) {
+                return "Waiting for " + s.exitLabel();
+            }
+        },
+        CHECKING_EXIT {
+            Line line(NodeState s) {
+                return new Line(DOT + "Connecting via " + s.exitLabel() + "…", ORANGE);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Connecting…", "Checking the path through " + s.exitLabel());
+            }
+
+            String tile(NodeState s) {
+                return "Connecting…";
+            }
+        },
+        CHECKING_DIRECT {
+            Line line(NodeState s) {
+                return new Line(DOT + "Connecting…", ORANGE);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Connecting…", "Checking the connection");
+            }
+
+            String tile(NodeState s) {
+                return "Connecting…";
+            }
+        },
+        READY_EXIT {
+            Line line(NodeState s) {
+                return new Line(DOT + "Connected via " + s.exitLabel(), GREEN);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Connected", "Sites open via " + s.exitLabel());
+            }
+
+            String tile(NodeState s) {
+                return "On · " + s.exitLabel();
+            }
+        },
+        READY_DIRECT {
+            Line line(NodeState s) {
+                return new Line(DOT + "Connected · sites open directly" + DASH + "choose an exit above", GREEN);
+            }
+
+            Notice notice(NodeState s) {
+                return new Notice("Connected",
+                        "Sites open directly. Choose an exit in the app to open sites through it.");
+            }
+
+            String tile(NodeState s) {
+                return "On · directly";
+            }
+        };
+
+        abstract Line line(NodeState s);
+
+        abstract Notice notice(NodeState s);
+
+        abstract String tile(NodeState s);
+    }
+
+    private static String waiting(NodeState s) {
+        return "Waiting for " + s.exitLabel() + DASH + "choose another exit if it stays offline";
+    }
+
+    private static Phase phase(NodeState s, boolean pathReady) {
+        if (!s.reachable) {
+            return Phase.STARTING;
+        }
+        if ("unavailable".equals(s.route)) {
+            return Phase.WAITING;
+        }
+        if ("exit".equals(s.route)) {
+            return pathReady ? Phase.READY_EXIT : Phase.CHECKING_EXIT;
+        }
+        if (s.exitChosen) {
+            return Phase.CHECKING_EXIT;
+        }
+        return pathReady ? Phase.READY_DIRECT : Phase.CHECKING_DIRECT;
+    }
+
     /** The line above the Connect button. */
-    static Line strip(NodeState s, boolean canConnect, boolean vpnOn) {
+    static Line strip(NodeState s, boolean canConnect, boolean vpnOn, boolean pathReady) {
         if (s.excluded) {
             return new Line(NodeState.EXCLUDED_TEXT, 0);
         }
@@ -44,35 +153,21 @@ final class StatusText {
             return new Line("Join or create a network first", 0);
         }
         if (vpnOn) {
-            return connected(s);
+            return phase(s, pathReady).line(s);
         }
         return new Line(canConnect ? "Ready. Tap Connect to open sites through Mesh Town"
                 : "Looking for other members…", 0);
     }
 
-    private static Line connected(NodeState s) {
-        if ("exit".equals(s.route)) {
-            return new Line(DOT + "Connected via " + s.exitLabel(), GREEN);
-        }
-        if ("unavailable".equals(s.route)) {
-            return new Line(DOT + "Connected, but " + s.exitLabel() + " is offline" + DASH + "choose another exit",
-                    ORANGE);
-        }
-        return new Line(DOT + "Connected · sites open directly" + DASH + "choose an exit above", GREEN);
-    }
-
     /** The status notification: the title is the state, the text says where sites open. */
-    static Notice notice(NodeState s, boolean vpnOn) {
+    static Notice notice(NodeState s, boolean vpnOn, boolean pathReady) {
+        if (vpnOn && !s.reachable) {
+            return new Notice("Connecting…", s.describe(false));
+        }
         if (!vpnOn || !s.inNetwork) {
             return new Notice("Not connected", s.describe(false));
         }
-        if ("exit".equals(s.route)) {
-            return new Notice("Connected", "Sites open via " + s.exitLabel());
-        }
-        if ("unavailable".equals(s.route)) {
-            return exitOffline(s);
-        }
-        return new Notice("Connected", "Sites open directly. Choose an exit in the app to open sites through it.");
+        return phase(s, pathReady).notice(s);
     }
 
     /** The alert for an exit that went offline. */
@@ -81,12 +176,14 @@ final class StatusText {
     }
 
     /** Subtitle of the Quick Settings tile. */
-    static String tileSubtitle(NodeState s, boolean vpnOn) {
+    static String tileSubtitle(NodeState s, boolean vpnOn, boolean pathReady) {
         if (!vpnOn) {
             return "Off";
         }
-        boolean viaExit = s.inNetwork && ("exit".equals(s.route) || "unavailable".equals(s.route));
-        return "On · " + (viaExit ? s.exitLabel() : "directly");
+        if (s.reachable && !s.inNetwork) {
+            return "On · directly";
+        }
+        return phase(s, pathReady).tile(s);
     }
 
     /** Menu item that wipes the app: it leaves the network when there is one. */

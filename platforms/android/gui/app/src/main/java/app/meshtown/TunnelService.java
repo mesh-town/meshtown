@@ -10,7 +10,7 @@ import com.github.shadowsocks.bg.Tun2proxy;
 public class TunnelService extends VpnService {
     static final String ACTION_STOP = "app.meshtown.STOP";
     private static final String TAG = "MeshTown";
-    private static final int SOCKS_PORT = 1080;
+    static final int SOCKS_PORT = 1080;
     /** The DNS server given to the system; the pool of made-up answer addresses must not contain it. */
     private static final String DNS_SERVER = "198.18.0.1";
     private static final String FAKE_IP_POOL = "198.19.0.0/16";
