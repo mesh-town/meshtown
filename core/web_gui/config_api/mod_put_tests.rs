@@ -34,10 +34,9 @@ fn put_autostart_enabled_is_not_available() {
     let (status, v) = body_json(resp);
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(v["error"], "not_available");
-    // The text does not name the number of a nonexistent module —
-    // one common wording "coming in a later version" for both refusal reasons.
+    // The text does not name a service module number.
     assert_eq!(
-        v["message"], "coming in a later version",
+        v["message"], "only in the desktop app with the tray icon",
         "the refusal text must not mention a service module, {v:?}"
     );
     cleanup(&dir);
@@ -54,7 +53,7 @@ fn put_full_tunnel_enabled_is_not_available() {
     let (status, v) = body_json(resp);
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(v["error"], "not_available");
-    // The same common text as for autostart — does not mention TUN or a module number.
+    // The text does not mention TUN or a module number.
     assert_eq!(
         v["message"], "coming in a later version",
         "the refusal text must not mention the TUN module, {v:?}"

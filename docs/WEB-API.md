@@ -111,7 +111,7 @@ The full list of codes:
 | 413 | `too_large` | the body is larger than 256 KiB |
 | 422 | `invalid` | the document failed validation; the body has `fields` |
 | 422 | `invalid_key` | the network key did not parse; the body has `word` — the word that tripped it, if the error is in a word |
-| 422 | `not_available` | enabling something this build does not have yet (autostart, full tunnel) |
+| 422 | `not_available` | enabling something this build does not have (full tunnel, start at login without the tray) or the system refused to create or remove the login entry |
 | 429 | `too_many_attempts` | too many failed sign-in attempts from this address; the `Retry-After` header is the seconds until the next attempt (1.10) |
 | 429 | `rate_limited` | too often; the body has `retry_after_sec`. Reserved for a future rate limit — neither the node nor the demo node returns it now, but the page must understand it as a temporary refusal and not show the "Mesh Town is not responding" banner |
 | 503 | `stopping` | the node is already stopping |

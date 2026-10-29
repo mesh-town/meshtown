@@ -100,7 +100,7 @@ const BODY_TEXT: &str = r#"{
     "autostart": {
       "available": false,
       "enabled": false,
-      "reason": "coming in a later version"
+      "reason": "only in the desktop app with the tray icon"
     },
     "checks": {
       "doh_server": "9.9.9.9:443",

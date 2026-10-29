@@ -22,6 +22,7 @@
 //! the rest is behind the `net-hyper` feature. A new module goes into the core part only if
 //! it does not refer to the node layer.
 
+pub mod autostart;
 pub mod cli;
 pub mod config;
 #[cfg(feature = "net-hyper")]

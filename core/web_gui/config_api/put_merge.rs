@@ -7,8 +7,9 @@ use serde_json::Value;
 
 use crate::config::config_file::{self, fields, ParsedConfigFile, Settings};
 
+use super::autostart::autostart_view;
 use super::state::ConfigState;
-use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
+use super::support::{field_entry, get_path, json_response, FULL_TUNNEL_REASON};
 
 /// Step 6: the request patch is laid over the current document; read-only sections (`network`, `web`,
 /// the service fields `autostart`/`full_tunnel`) are returned to the values from the file — whatever the client
@@ -62,30 +63,34 @@ fn merged_web_ifaces(mobj: &serde_json::Map<String, Value>, state: &ConfigState)
     }
 }
 
-/// Step 7: `autostart.enabled`/`full_tunnel.enabled` are unavailable in this build.
-pub(super) fn reject_unavailable_fields(merged: &Value) -> Result<(), Response> {
-    let mut blocked: Vec<(&'static str, &'static str)> = Vec::new();
+/// Step 7: `autostart.enabled` without a backend and `full_tunnel.enabled` are unavailable in this build.
+pub(super) fn reject_unavailable_fields(
+    state: &ConfigState,
+    merged: &Value,
+) -> Result<(), Response> {
+    let mut blocked: Vec<(&'static str, String)> = Vec::new();
     if get_path(merged, "autostart.enabled")
         .and_then(Value::as_bool)
         .unwrap_or(false)
+        && !autostart_view(state.autostart).available
     {
-        blocked.push(("autostart.enabled", AUTOSTART_REASON));
+        blocked.push(("autostart.enabled", autostart_view(state.autostart).reason));
     }
     if get_path(merged, "full_tunnel.enabled")
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        blocked.push(("full_tunnel.enabled", FULL_TUNNEL_REASON));
+        blocked.push(("full_tunnel.enabled", FULL_TUNNEL_REASON.to_string()));
     }
     if blocked.is_empty() {
         return Ok(());
     }
-    let message = blocked[0].1;
+    let message = blocked[0].1.clone();
     let fields = blocked
         .iter()
         .map(|(p, _)| field_entry(p, "unavailable in this build"))
         .collect();
-    Err(not_available_response(message, fields))
+    Err(not_available_response(&message, fields))
 }
 
 /// Step 8: the merged document is a valid `config_file` (version 1, no errors except `rev`/`identity`,
@@ -150,7 +155,7 @@ fn invalid_text(path: &str, raw: &str) -> String {
     }
 }
 
-fn not_available_response(message: &str, fields: Vec<Value>) -> Response {
+pub(super) fn not_available_response(message: &str, fields: Vec<Value>) -> Response {
     json_response(
         StatusCode::UNPROCESSABLE_ENTITY,
         serde_json::json!({

@@ -46,8 +46,9 @@ the network fields to the slot's file, and answers 409 `busy` while the slot has
   By this list the page writes a warning **before** saving, not after. `web.port` is not in this
   list, although it would require a restart: it is in `read_only`, not changed from the page at all,
   and a row in `restart_fields` would be dead. It will appear there when the field becomes editable.
-  For the same reason `autostart.enabled` and `full_tunnel.enabled` are not in the list — turning them on
-  is rejected with the `not_available` code.
+  For the same reason `full_tunnel.enabled` is not in the list — turning it on is rejected with the
+  `not_available` code. `autostart.enabled` is not in the list either: it takes effect at once, when the
+  login entry is created or removed.
 - `restart_pending` — fields that are already saved but not yet applied (the node has not been restarted).
   By them the page keeps a bar "takes effect after the node restarts".
 - `cli_overrides` — fields overridden by the flags the node is currently started with (for example,
@@ -170,7 +171,7 @@ The order of errors in `fields` is the field order in the file. The error text f
 of the table row, if it is set (for `ports.published`, `ports.opened`),
 otherwise the expected value of the form: `node.name` — "a string of at most 64 characters, non-empty after trimming
 whitespace", `web.access` — "localhost or
-localnet", `autostart.enabled` and `full_tunnel.enabled` with a wrong type — "false (enabling is not available in
+localnet", `autostart.enabled` with a wrong type — "true or false", `full_tunnel.enabled` with a wrong type — "false (enabling is not available in
 this build)". For non-editable paths — the raw file parse message; `version` — "only version 1
 is supported", a path without a dot — "an object was expected".
 
@@ -182,10 +183,14 @@ Enabling something unavailable, 422 `not_available`:
 ```json
 {
   "error": "not_available",
-  "message": "autostart will appear together with the service",
-  "fields": [{ "path": "autostart.enabled", "message": "not available in this build" }]
+  "message": "only in the desktop app with the tray icon",
+  "fields": [{ "path": "autostart.enabled", "message": "only in the desktop app with the tray icon" }]
 }
 ```
+
+The same code and shape are used when the system refuses to create or remove the login entry; `message` is then
+`could not turn on start at login: <system error>` or `could not turn off start at login: <system error>`, and
+nothing is saved.
 
 ### 1.8 Actions
 
@@ -275,8 +280,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
   "ports":     { "published": [], "opened": [] },
   "web":       { "enabled": true, "port": 7777, "access": "localnet" },
   "log":       { "ring_lines": 2000 },
-  "autostart": { "enabled": false, "available": false,
-                 "reason": "will appear together with the service" },
+  "autostart": { "enabled": false, "available": true, "reason": "" },
   "full_tunnel": { "enabled": false, "available": false,
                  "reason": "will appear together with TUN" }
 }
@@ -307,16 +311,25 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `web.port` | integer | 7777 | 1024…65535; read-only (in `read_only`, which is why it is not in `restart_fields`) | — | — | page header, no input field |
 | `log.ring_lines` | integer | 2000 | 200…20000 | no | — (2,000 lines) | caption under the log window, no input field |
 | `node.memory_warn_mib` | integer | 400 | 0…1048576, MiB; `0` = off; `400` means "by machine memory" (24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise), so an explicit 400 on a machine with ≤512 MiB also counts as automatic; on such machines the exit also refuses new streams near this value, above 512 MiB with the default 400 it refuses only by the stream limit | file only | `core/node/host/process.rs` | not shown |
-| `autostart.enabled` | boolean | `false` | `true` with `available: false` → 422 `not_available` | — (cannot be enabled) | — | "Settings", the switch is gray |
-| `autostart.available` | boolean | `false` | read-only | — | — | controls the gray look of the switch |
-| `autostart.reason` | string | "will appear together with the service" | read-only | — | — | caption under the switch |
+| `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the login entry of the current user), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied at once) | — | "Settings", the switch |
+| `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the gray look of the switch |
+| `autostart.reason` | string | "" when available, otherwise "only in the desktop app with the tray icon" or "could not read the login entry: <error>" | read-only | — | — | caption under the switch |
 | `full_tunnel.enabled` | boolean | `false` | as for `autostart.enabled` | — (cannot be enabled) | — | "Settings", the switch is gray |
 | `full_tunnel.available` | boolean | `false` | read-only | — | — | gray look |
 | `full_tunnel.reason` | string | "will appear together with TUN" | read-only | — | the same | caption |
 
-`autostart.enabled` and `full_tunnel.enabled` are stored in the file (these are settings that a person
-may set in advance), while `autostart.available`, `autostart.reason`, `full_tunnel.available`,
-`full_tunnel.reason` are not: these are build flags, and the node fills them itself on every start.
+`full_tunnel.enabled` is stored in the file (a setting that a person may set in advance), while
+`full_tunnel.available`, `full_tunnel.reason`, `autostart.available`, `autostart.reason` are not: the node fills
+them itself on every start.
+
+`autostart.enabled` is stored in the file only as a mirror of the last choice made on the page. The file does not
+manage the login entry: the node never creates or removes it from the file value, only on a save from the page. The
+source of truth is the system, so the value shown always comes from there. The entry lives at:
+
+- macOS: `~/Library/LaunchAgents/<label>.plist` (the label is the app bundle identifier, or `local.meshtown` outside
+  the `.app`);
+- Linux: `$XDG_CONFIG_HOME/autostart/meshtown.desktop` (`~/.config/autostart/meshtown.desktop` by default);
+- Windows: the value `Mesh Town` under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 What is **not** in the config and why: the page token, the network key, the node's
 domain list, `blocked_domains` (`core/node/config.rs` — a debug flag, there is no place for it on the page).

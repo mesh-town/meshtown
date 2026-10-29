@@ -76,7 +76,7 @@ fn invalid_rest_cases() -> Vec<InvalidCase> {
         case("ports.opened", json!(5), OPENED),
         case("log.ring_lines", json!(1), "an integer 200…20000"),
         case("exit.max_streams", json!(100_001), "an integer 0…100000"),
-        case("autostart.enabled", json!("x"), OFF),
+        case("autostart.enabled", json!("x"), FLAG),
         case("full_tunnel.enabled", json!("x"), OFF),
     ]
 }

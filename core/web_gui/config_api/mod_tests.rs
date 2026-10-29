@@ -137,6 +137,10 @@ fn document_without_key() {
     assert!(crate::members::words::is_tail_word(parts[0]), "{name}");
     assert!(crate::members::words::is_tail_word(parts[1]), "{name}");
     assert_eq!(doc["autostart"]["available"], Value::Bool(false));
+    assert_eq!(
+        doc["autostart"]["reason"],
+        "only in the desktop app with the tray icon"
+    );
     cleanup(&dir);
 }
 
@@ -262,3 +266,7 @@ mod put_lockout_tests;
 #[cfg(test)]
 #[path = "put_reapply_tests.rs"]
 mod put_reapply_tests;
+
+#[cfg(test)]
+#[path = "mod_autostart_tests.rs"]
+mod autostart_tests;

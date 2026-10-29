@@ -2,6 +2,7 @@
 //! the `stale_rev`/`invalid`/`config_write_failed` responses. Editing fields is in `put.rs`/`save_key.rs`
 //! of this same folder, shared constants and small helpers are in `support.rs`.
 
+use crate::autostart::AutostartBackend;
 use crate::node::output::NET_NAME;
 use crate::transport::net::NodeSecret;
 use std::path::{Path, PathBuf};
@@ -13,7 +14,8 @@ use serde_json::Value;
 
 use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings, SettingsFile};
 
-use super::support::{field_entry, get_path, json_response, AUTOSTART_REASON, FULL_TUNNEL_REASON};
+use super::autostart::{autostart_view, fill_autostart};
+use super::support::{field_entry, get_path, json_response, FULL_TUNNEL_REASON};
 
 pub struct ConfigState {
     pub file: Option<Arc<dyn SettingsFile>>, // settings file; None — the node runs without a file
@@ -24,6 +26,7 @@ pub struct ConfigState {
     pub cli_override_paths: Vec<&'static str>, // fields set by launch flags
     pub current_network_key: Option<String>, // network key the node works with now
     pub last_boot_id: Option<String>, // boot_id from the node's last snapshot
+    pub(crate) autostart: Option<&'static dyn AutostartBackend>, // login entry backend; None — the build has none
     pub(super) process_overlaid: bool, // an added slot: the process block is the primary slot's, not editable here
 }
 
@@ -38,6 +41,7 @@ impl ConfigState {
             cli_override_paths: run_config.cli_override_paths.clone(),
             current_network_key: run_config.effective_settings.net.network_key.clone(),
             last_boot_id: None,
+            autostart: crate::autostart::installed(),
             process_overlaid: false,
         }
     }
@@ -74,14 +78,15 @@ impl ConfigState {
                 node.insert("name".to_string(), Value::Null);
             }
         }
-        for (section, reason) in [
-            ("autostart", AUTOSTART_REASON),
-            ("full_tunnel", FULL_TUNNEL_REASON),
-        ] {
-            if let Some(sec) = obj.get_mut(section).and_then(Value::as_object_mut) {
-                sec.insert("available".to_string(), Value::Bool(false));
-                sec.insert("reason".to_string(), Value::String(reason.to_string()));
-            }
+        if let Some(sec) = obj.get_mut("autostart").and_then(Value::as_object_mut) {
+            fill_autostart(sec, &autostart_view(self.autostart));
+        }
+        if let Some(sec) = obj.get_mut("full_tunnel").and_then(Value::as_object_mut) {
+            sec.insert("available".to_string(), Value::Bool(false));
+            sec.insert(
+                "reason".to_string(),
+                Value::String(FULL_TUNNEL_REASON.to_string()),
+            );
         }
     }
 
