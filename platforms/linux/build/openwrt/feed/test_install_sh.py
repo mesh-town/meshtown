@@ -185,6 +185,25 @@ class FeedWithoutTheRoutersLabel(unittest.TestCase):
                 self.assertEqual([c for c in router.calls() if not c.startswith("wget")], [])
 
 
+class MipsLabel(unittest.TestCase):
+    def test_mips_label_goes_into_the_index_path(self):
+        label = "mipsel_24kc"
+        cases = (
+            ("apk", f"apk/{label}/packages.adb", "etc/apk/repositories.d/customfeeds.list", f"{BASE}/apk/{label}/packages.adb"),
+            ("opkg", f"opkg/{label}/Packages.gz", "etc/opkg/customfeeds.conf", f"src/gz meshtown {BASE}/opkg/{label}"),
+        )
+        for manager, index, config, line in cases:
+            with self.subTest(manager=manager):
+                # given: a router whose DISTRIB_ARCH is a MIPS label, the feed has that label
+                router = setup(self, manager, arch=label)
+                # when
+                result = router.when_install()
+                # then
+                self.assertEqual(result.code, 0, result.err)
+                self.assertIn(f"{BASE}/{index}", router.fetched())
+                self.assertIn(line, router.read(config))
+
+
 class NotAnOpenwrtSystem(unittest.TestCase):
     def test_stops_with_an_error_before_touching_anything(self):
         # given
@@ -239,17 +258,17 @@ class Router:
         return {str(p.relative_to(self.root)): p.read_bytes() for p in self.root.rglob("*") if p.is_file()}
 
 
-def setup(test, manager, with_index=True, manual_install=False):
-    """A fake router running `manager` (apk or opkg) with install.sh rewritten to live under its root."""
+def setup(test, manager, with_index=True, manual_install=False, arch=ARCH):
+    """A fake router of architecture `arch` running `manager` (apk or opkg), install.sh rewritten to live under its root."""
     tmp = tmpdir(test)
     router = Router(tmp, manager)
-    write(router.root / "etc/openwrt_release", f"DISTRIB_ID='OpenWrt'\nDISTRIB_ARCH='{ARCH}'\n")
+    write(router.root / "etc/openwrt_release", f"DISTRIB_ID='OpenWrt'\nDISTRIB_ARCH='{arch}'\n")
     write(router.root / "etc/apk/repositories.d/distfeeds.list", "https://downloads.example.org/packages.adb\n")
     write(router.root / "etc/opkg/distfeeds.conf", "src/gz base https://downloads.example.org/base\n")
     write(router.feed / "meshtown-apk.pem", "apk-public-key\n")
     write(router.feed / "meshtown-usign.pub", "usign-public-key\n")
     for name in (INDEX_FILES[manager] if with_index else []):
-        write(router.feed / name.format(arch=ARCH), "index\n")
+        write(router.feed / name.format(arch=arch), "index\n")
     write(router.payload / "binary", "new binary\n", mode=0o755)
     write(router.payload / "init.d", PACKAGE_INIT, mode=0o755)
     if manual_install:

@@ -1,10 +1,12 @@
-"""OpenWrt package architecture labels (the initial set) and ELF checks for the binaries that go into the feed."""
+"""OpenWrt package architecture labels and ELF checks for the binaries that go into the feed."""
 import struct
 from pathlib import Path
 
 AARCH64 = "aarch64-unknown-linux-musl"
 X86_64 = "x86_64-unknown-linux-musl"
 ARMV7 = "armv7-unknown-linux-musleabi"
+MIPS = "mips-unknown-linux-musl"
+MIPSEL = "mipsel-unknown-linux-musl"
 
 LABELS = {
     "aarch64_cortex-a53": AARCH64,
@@ -21,9 +23,13 @@ LABELS = {
     "arm_cortex-a9_neon": ARMV7,
     "arm_cortex-a9_vfpv3-d16": ARMV7,
     "arm_cortex-a15_neon-vfpv4": ARMV7,
+    "mips_24kc": MIPS,
+    "mipsel_24kc": MIPSEL,
+    "mipsel_74kc": MIPSEL,
+    "mipsel_24kc_24kf": MIPSEL,
 }
 
-TRIPLE_MACHINE = {AARCH64: "aarch64", X86_64: "x86_64", ARMV7: "arm"}
+TRIPLE_MACHINE = {AARCH64: "aarch64", X86_64: "x86_64", ARMV7: "arm", MIPS: "mips", MIPSEL: "mipsel"}
 
 _E_MACHINE = {183: "aarch64", 40: "arm", 62: "x86_64"}
 _EM_MIPS = 8

@@ -30,8 +30,17 @@ BUILD_FEED = FEED_DIR / "build_feed.py"
 AARCH64 = "aarch64-unknown-linux-musl"
 X86_64 = "x86_64-unknown-linux-musl"
 ARMV7 = "armv7-unknown-linux-musleabi"
-TRIPLE_MACHINES = {AARCH64: "aarch64", X86_64: "x86_64", ARMV7: "arm"}
-# The 14 stage-1 labels and the Rust target each one is built from.
+MIPS = "mips-unknown-linux-musl"
+MIPSEL = "mipsel-unknown-linux-musl"
+TRIPLE_MACHINES = {AARCH64: "aarch64", X86_64: "x86_64", ARMV7: "arm", MIPS: "mips", MIPSEL: "mipsel"}
+# The MIPS32 release 2 labels and the Rust target each one is built from.
+MIPS_LABELS = {
+    "mips_24kc": MIPS,
+    "mipsel_24kc": MIPSEL,
+    "mipsel_74kc": MIPSEL,
+    "mipsel_24kc_24kf": MIPSEL,
+}
+# All 18 labels and the Rust target each one is built from.
 EXPECTED_LABELS = {
     "aarch64_cortex-a53": AARCH64,
     "aarch64_cortex-a72": AARCH64,
@@ -47,6 +56,7 @@ EXPECTED_LABELS = {
     "arm_cortex-a9_neon": ARMV7,
     "arm_cortex-a9_vfpv3-d16": ARMV7,
     "arm_cortex-a15_neon-vfpv4": ARMV7,
+    **MIPS_LABELS,
 }
 # Files of the package (path without the leading slash) and their modes.
 PACKAGE_FILES = {

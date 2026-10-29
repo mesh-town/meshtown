@@ -10,22 +10,24 @@ from feed_fixtures import EXPECTED_LABELS, TRIPLE_MACHINES, fake_elf, tmpdir
 
 
 class LabelTable(unittest.TestCase):
-    def test_has_exactly_the_14_stage_1_labels_with_their_rust_targets(self):
+    def test_has_exactly_the_18_labels_with_their_rust_targets(self):
         # given: the expected table, copied into the fixtures
         # when
         table = dict(targets.LABELS)
         # then
         self.assertEqual(table, EXPECTED_LABELS)
 
-    def test_has_no_mips_and_no_later_labels(self):
+    def test_has_no_mips32r1_and_no_later_labels(self):
         # given
         labels = set(targets.LABELS)
         later = {"arm_arm926ej-s", "arm_arm1176jzf-s_vfp", "arm_fa526", "arm_xscale"}
+        mips32r1 = {"mips_mips32", "mipsel_mips32"}
         # when
-        offending = [name for name in labels if "mips" in name or name.startswith(("i386", "powerpc", "riscv"))]
+        offending = [name for name in labels if name.startswith(("i386", "powerpc", "riscv"))]
         # then
-        self.assertEqual(offending, [], "mips, i386, ppc and riscv labels are not in the initial set")
-        self.assertEqual(labels & later, set(), "armv5/v6 labels are not in the initial set")
+        self.assertEqual(labels & mips32r1, set(), "MIPS32 release 1 needs another build: no label for it")
+        self.assertEqual(offending, [], "i386, ppc and riscv labels are not in the set")
+        self.assertEqual(labels & later, set(), "armv5/v6 labels are not in the set")
 
     def test_every_rust_target_has_a_machine(self):
         # given

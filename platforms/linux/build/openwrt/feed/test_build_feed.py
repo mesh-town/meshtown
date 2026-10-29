@@ -15,9 +15,13 @@ from pathlib import Path
 import keys
 from feed_fixtures import (
     AARCH64,
+    MIPS,
+    MIPS_LABELS,
+    MIPSEL,
     X86_64,
     Unpacked,
     apk_or_skip,
+    control_fields,
     dummy_keys,
     fake_elf,
     listing,
@@ -140,6 +144,59 @@ class OnlyIpk(unittest.TestCase):
         self.assertEqual(done.code, 0, done.err)
         self.assertNotIn("apk", listing(feed.out))
         self.assertIn("opkg", listing(feed.out))
+
+
+class MipsLabels(unittest.TestCase):
+    def test_mips_binaries_give_the_four_mips_labels(self):
+        # given: one big-endian and one little-endian binary
+        feed = setup(self, machines={MIPS: "mips", MIPSEL: "mipsel"})
+        # when
+        done = feed.when_built("--only", "ipk", *feed.ephemeral())
+        # then
+        self.assertEqual(done.code, 0, done.err)
+        self.assertEqual(listing(feed.out / "opkg"), sorted(MIPS_LABELS))
+        self.assertEqual(sorted(MIPS_LABELS), ["mips_24kc", "mipsel_24kc", "mipsel_24kc_24kf", "mipsel_74kc"])
+
+    def test_mips_labels_get_an_apk_directory_too(self):
+        # given
+        feed = setup(self, machines={MIPS: "mips", MIPSEL: "mipsel"})
+        root_or_skip()
+        # when
+        done = feed.when_built(*feed.ephemeral(with_apk=True))
+        # then
+        self.assertEqual(done.code, 0, done.err)
+        self.assertEqual(listing(feed.out / "apk"), sorted(MIPS_LABELS))
+        for label in MIPS_LABELS:
+            self.assertEqual(listing(feed.out / "apk" / label), ["meshtown-0.2.7-r1.apk", "packages.adb"], label)
+
+    def test_without_mips_binaries_no_mips_label_is_built(self):
+        # given: only aarch64 and x86_64 binaries
+        feed = setup(self)
+        # when
+        done = feed.when_built("--only", "ipk", *feed.ephemeral())
+        # then
+        self.assertEqual(done.code, 0, done.err)
+        self.assertEqual([x for x in listing(feed.out / "opkg") if x.startswith("mips")], [])
+
+    def test_big_endian_binary_under_the_mipsel_triple_is_refused(self):
+        # given: a big-endian file given for the little-endian target
+        feed = setup(self, machines={MIPSEL: "mips"})
+        # when
+        done = feed.when_refused()
+        # then
+        self.assertEqual(done.code, 2, done.err)
+        self.assertIn("is a mips binary", done.err)
+
+    def test_package_architecture_is_the_mips_label(self):
+        # given
+        feed = setup(self, machines={MIPS: "mips", MIPSEL: "mipsel"})
+        # when
+        feed.when_built("--only", "ipk", *feed.ephemeral())
+        # then
+        for label in MIPS_LABELS:
+            with self.subTest(label=label):
+                package = feed.out / "opkg" / label / f"meshtown_0.2.7-r1_{label}.ipk"
+                self.assertEqual(control_fields(Unpacked(package).control_text())["Architecture"], label)
 
 
 class Refusals(unittest.TestCase):
