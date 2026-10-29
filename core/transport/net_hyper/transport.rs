@@ -93,6 +93,7 @@ pub struct HyperTransport {
     saver: Option<TableSaver>,
     relay_host: Mutex<Option<RelayHost>>,
     relay_factory: PeeroxideFactory,
+    relay_identity: KeyPair,
 }
 
 /// The limit of one `connect`: the relay phase needs more time, so it applies only when a source is set.

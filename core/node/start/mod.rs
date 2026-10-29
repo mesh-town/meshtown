@@ -29,6 +29,8 @@ mod transports;
 mod transports_hyper;
 pub(in crate::node) mod transports_mem;
 mod transports_relay;
+#[cfg(all(test, feature = "net-hyper"))]
+mod relay_admit_tests;
 
 use boot::boot_endpoint;
 use entry::wire_entry_points;

@@ -14,7 +14,7 @@ pub mod table;
 pub mod transport;
 pub mod wire;
 
-pub use relay::{RelayCandidate, RelaySource};
+pub use relay::{RelayAdmit, RelayCandidate, RelaySource};
 pub use transport::{HyperOpts, HyperTransport, KIND};
 
 #[cfg(test)]

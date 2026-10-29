@@ -4,13 +4,14 @@ use super::HyperTransport;
 use crate::transport::net::id::PeerId;
 use crate::transport::net_hyper::relay::host::{StartRelay, RELAY_MODE_POLL};
 use crate::transport::net_hyper::relay::{
-    spawn_host, RelayBook, RelayCandidate, RelayHost, RelaySource,
+    relay_opts, spawn_host, RelayAdmit, RelayBook, RelayCandidate, RelayHost, RelaySource,
 };
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::sync::{MutexGuard, RwLock};
 use tokio::sync::watch;
 use townjump_dht::{Dht, NodeMode};
+use townjump_dht_peeroxide::RelayOpts;
 
 /// Dial-side relay state: the candidate source and the memory of which relay worked.
 #[derive(Default)]
@@ -99,7 +100,8 @@ impl HyperTransport {
 
     /// Starts the relay node of this member (once) and returns its announced key:
     /// `Some` while the relay is announced, `None` otherwise. After `close` nothing starts.
-    pub fn serve_relay(&self) -> watch::Receiver<Option<[u8; 32]>> {
+    /// Only peers `admit` accepts may pair through the relay; a second call keeps the first `admit`.
+    pub fn serve_relay(&self, admit: RelayAdmit) -> watch::Receiver<Option<[u8; 32]>> {
         let mut slot = self.host_slot();
         if let Some(host) = slot.as_ref() {
             return host.keys();
@@ -107,7 +109,7 @@ impl HyperTransport {
         if self.close_started.load(Ordering::SeqCst) {
             return watch::channel(None).1;
         }
-        let host = self.spawn_relay_host();
+        let host = self.spawn_relay_host(admit);
         let keys = host.keys();
         *slot = Some(host);
         keys
@@ -117,13 +119,20 @@ impl HyperTransport {
         self.relay_host.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    fn spawn_relay_host(&self) -> RelayHost {
+    /// Options of the relay node: the permanent relay key and the admission check.
+    pub(super) fn relay_opts_for(&self, admit: RelayAdmit) -> RelayOpts {
+        relay_opts(self.relay_identity.clone(), admit)
+    }
+
+    fn spawn_relay_host(&self, admit: RelayAdmit) -> RelayHost {
         let node = self.node.clone();
         let mode: Arc<dyn Fn() -> NodeMode + Send + Sync> = Arc::new(move || node.node_mode());
         let factory = self.relay_factory.clone();
+        let opts = self.relay_opts_for(admit);
         let start: StartRelay = Arc::new(move || {
             let factory = factory.clone();
-            Box::pin(async move { factory.create_relay(None).await })
+            let opts = opts.clone();
+            Box::pin(async move { factory.create_relay_with(opts).await })
         });
         spawn_host(mode, start, RELAY_MODE_POLL)
     }

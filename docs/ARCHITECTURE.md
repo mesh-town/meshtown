@@ -5,8 +5,8 @@
 A node with a given network key finds other nodes with the same key through a record in the public DHT
 (HyperDHT), checks with a secret that they know the same key (handshake), and keeps a connection with them over
 the `hyper` transport: an adapter to the townjump library, which does NAT hole punching. When a direct connection
-does not come up, the dial falls back to a relay run by another member of the same network that has a public address
-(the member advertises its relay key as the record `relay/v1` in the network's replica; setting `net.relay`, `network`
+does not come up, the dial falls back to a relay run by another member of the same network that has a public address; such a
+relay pairs only members of its own network (the member advertises its relay key as the record `relay/v1` in the network's replica; setting `net.relay`, `network`
 by default, `off` disables both calling and serving). The receiving side does not see the relay and reports `direct`. The nodes share a topic
 (membership by flooding) and a replica of signed records (domain list, check results, port publications). Once per
 interval a volume probe (16 KiB / 256 KiB / 1 MiB) runs over a connection to find out whether the transport passes
