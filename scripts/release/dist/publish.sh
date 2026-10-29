@@ -2,9 +2,10 @@
 # publish.sh <src-dir> <version>
 # Publishes builds as one orphan commit on branch main of the distribution repository (force push: the history is not
 # kept). <src-dir> holds folders per system (macos, windows, linux, android) with files <stem>-<version>.<ext>. The
-# folders present in <src-dir> are updated: each kind of file keeps its four (keep) newest versions plus <stem>.<ext>,
-# a copy of the newest one. The other folders, and the older files, are taken from the current main of the repository
-# unchanged. Every folder gets SHA256SUMS and README.md; the root gets README.md and version.txt.
+# folders present in <src-dir> are updated: each file is stored as <stem>.<ext>, without a version in the name, and the
+# versioned copies left by earlier publications are removed from every folder. The other folders are taken from the
+# current main of the repository unchanged. Earlier versions live in the releases of the repository. Every folder gets
+# SHA256SUMS and README.md; the root gets README.md and version.txt.
 # A folder linux/debian/ in <src-dir> is an apt repository: its packages go to pool/, dists/ is rebuilt and signed
 # with the key file MESHTOWN_APT_KEY (required then; MESHTOWN_APT_PUBKEY overrides the public key). Without it in
 # <src-dir>, linux/debian/ comes from the current main. The root gets an empty .nojekyll: Pages serves the tree as is.
@@ -19,7 +20,7 @@ fi
 src="$1" version="$2"
 url="${MESHTOWN_DIST_PUBLISH_URL:-git@github.com:mesh-town/meshtown-dist.git}"
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-keep=4
+deb_keep=4
 folders="macos windows linux android"
 # shellcheck source=lib.sh
 . "$here/lib.sh"
@@ -54,6 +55,9 @@ if [ -n "$heads" ]; then
   rm -rf "$prev/repo/.git"
   cp -R "$prev/repo/." "$work/"
 fi
+for folder in $folders; do
+  if [ -d "$work/$folder" ]; then strip_versions "$work/$folder"; fi
+done
 
 published=0
 for folder in $folders; do
@@ -62,7 +66,9 @@ for folder in $folders; do
     count=0
     for f in "$src/$folder"/*-"$version".*; do
       if [ -f "$f" ]; then
-        cp "$f" "$work/$folder/"
+        name="${f##*/}"
+        if [[ "$name" =~ $dist_name_re ]]; then name="${BASH_REMATCH[1]}.${BASH_REMATCH[3]}"; fi
+        cp "$f" "$work/$folder/$name"
         count=$((count + 1))
       fi
     done
@@ -71,16 +77,13 @@ for folder in $folders; do
       exit 1
     fi
     published=$((published + 1))
-    while IFS= read -r kind; do
-      refresh_kind "$work/$folder" "${kind%|*}" "${kind#*|}" "$keep"
-    done < <(kinds_in "$work/$folder")
     write_sums "$work/$folder"
-    versions_table "$work/$folder" "$folder" > "$prev/table"
+    files_table "$work/$folder" "$folder" > "$prev/table"
     render "$here/templates/$folder.md.in" "$version" "$prev/table" > "$work/$folder/README.md"
   fi
 done
 if [ -d "$deb_src" ]; then
-  deb_args=("$work/linux/debian" "$deb_src" --keep "$keep" --key "$MESHTOWN_APT_KEY")
+  deb_args=("$work/linux/debian" "$deb_src" --keep "$deb_keep" --key "$MESHTOWN_APT_KEY")
   if [ -n "${MESHTOWN_APT_PUBKEY:-}" ]; then deb_args+=(--pubkey "$MESHTOWN_APT_PUBKEY"); fi
   python3 "$here/../../../platforms/linux/build/debian/apt_repo.py" update "${deb_args[@]}"
   write_sums "$work/linux/debian"
