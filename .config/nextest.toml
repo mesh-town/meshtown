@@ -32,8 +32,14 @@ retries = { backoff = "fixed", count = 2, delay = "30s" }
 # alone they finish quickly. The "64 MiB" case joins the group in its own override above.
 [test-groups]
 heavy-net = { max-threads = 1 }
+# Dials through a relay on a LAN-address cluster: the pairing needs a few seconds of quiet CPU, so these run one at a time.
+lan-relay = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = 'test(hundred_streams_echo_every_byte)'
 slow-timeout = { period = "60s", terminate-after = 4 }
 test-group = 'heavy-net'
+
+[[profile.default.overrides]]
+filter = 'test(/relayed_dial_tests::/)'
+test-group = 'lan-relay'

@@ -1,5 +1,5 @@
-//! Helpers for the relay tests: a relay node on a loopback cluster, a check that a relay was asked
-//! to pair, and a fixed list of relay candidates.
+//! Helpers for the relay tests: a relay node on a loopback cluster, checks that a relay was asked
+//! to pair and that it matched a pairing, and a fixed list of relay candidates.
 
 use super::{RelayCandidate, RelaySource};
 use crate::transport::net::addr::RelayRef;
@@ -13,7 +13,7 @@ use townjump_dht_peeroxide::PeeroxideFactory;
 /// A running relay node, named here so that tests outside the transport need no townjump import.
 pub(crate) use townjump_dht_peeroxide::PeeroxideRelay;
 
-/// How often `asked_within` looks at the relay counters.
+/// How often `asked_within` and `matched_within` look at the relay counters.
 const ASK_POLL: Duration = Duration::from_millis(100);
 
 /// A relay node that is part of the cluster, with a random key.
@@ -32,6 +32,20 @@ pub(crate) async fn asked_within(relay: &PeeroxideRelay, limit: Duration) -> boo
     let deadline = Instant::now() + limit;
     loop {
         if relay.stats().pairings_requested >= 1 {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(ASK_POLL).await;
+    }
+}
+
+/// Whether `relay` matches at least one pairing, i.e. carries a link, within `limit`.
+pub(crate) async fn matched_within(relay: &PeeroxideRelay, limit: Duration) -> bool {
+    let deadline = Instant::now() + limit;
+    loop {
+        if relay.stats().pairings_matched >= 1 {
             return true;
         }
         if Instant::now() >= deadline {

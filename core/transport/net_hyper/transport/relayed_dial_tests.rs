@@ -10,10 +10,10 @@ use crate::transport::net::id::PeerId;
 use crate::transport::net::link::PathKind;
 use crate::transport::net::transport::{PeerConn, Transport};
 use crate::transport::net_hyper::relay::RelayCandidate;
-use crate::transport::net_hyper::test_cluster::{cluster, Cluster};
+use crate::transport::net_hyper::test_cluster::{cluster_on, lan_address, Cluster};
 use crate::transport::net_hyper::test_direct::{connect_within, serving};
 use crate::transport::net_hyper::test_relay::{
-    asked_within, candidate, fixed_source, relay_on, relayed_via,
+    asked_within, candidate, fixed_source, matched_within, relay_on, relayed_via,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -83,6 +83,22 @@ mod direct_path_is_broken {
     }
 
     #[tokio::test]
+    async fn vetoed_punch_still_links_through_the_relay() {
+        // given: hole punching is vetoed, so only the relay can carry the link
+        let fx = setup(Source::Members(1)).await;
+        fx.break_direct(&[]);
+        // when
+        let conn = fx.dial().await.expect("connection through the relay");
+        // then
+        let path = conn.link().path;
+        assert!(relayed_via(&path, fx.members[0]), "path is {path:?}");
+        assert!(
+            matched_within(&fx.relays[0], DIAL).await,
+            "the relay matched no pairing, so the link did not go through it"
+        );
+    }
+
+    #[tokio::test]
     async fn failed_relay_moves_to_the_next_member() {
         // given: the first member's relay is down, the second works
         let fx = setup(Source::Members(2)).await;
@@ -142,7 +158,7 @@ struct Fixture {
 
 /// Nodes A and B on a loopback cluster, and `Source::Members(n)` relays that A knows as candidates.
 async fn setup(source: Source) -> Fixture {
-    let cl = cluster(4).await;
+    let cl = cluster_on(&lan_address(), 4).await;
     let a = serving(&cl, 1).await;
     let b = serving(&cl, 2).await;
     let count = match source {
