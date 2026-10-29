@@ -129,4 +129,100 @@ public class PathGateTest {
         assertTrue(g.ready());
         assertNull(g.begin());
     }
+
+    private static NodeState unreachableButInNetwork() {
+        return new NodeState(false, true, false, "exit", "a", true, false, false, true);
+    }
+
+    @Test
+    public void excludedNodeDoesNotProbeAndResets() {
+        NodeState removed = NodeState.parse("{" + NET + ",\"members\":{\"me_excluded\":true}}");
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, true);
+        g.observe(removed, true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void excludedFlagAloneBlocksProbe() {
+        NodeState removed = new NodeState(true, true, true, "exit", "a", true, false, false, true);
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, true);
+        g.observe(removed, true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void unavailableRouteAloneResetsAndBlocksProbe() {
+        NodeState lost = new NodeState(true, true, false, "unavailable", "a", true, false, false, false);
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, true);
+        g.observe(lost, true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void unreachableNodeInNetworkResetsAndBlocksProbe() {
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, true);
+        g.observe(unreachableButInNetwork(), true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void unreachableNodeInNetworkDoesNotStartProbe() {
+        PathGate g = new PathGate();
+        g.observe(unreachableButInNetwork(), true);
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void resultForForeignKeyKeepsProbeInFlight() {
+        PathGate g = on(VIA_A);
+        assertNotNull(g.begin());
+        g.finish("exit|other", true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void resultForOldKeyNeverMakesNewKeyReady() {
+        PathGate g = on(VIA_A);
+        String oldKey = g.begin().key;
+        g.observe(VIA_B, true);
+        assertNotNull(g.begin());
+        g.finish(oldKey, true);
+        assertFalse(g.ready());
+        assertNull(g.begin());
+    }
+
+    @Test
+    public void exitReturningAfterUnavailableProbesAgainFromZero() {
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, false);
+        g.observe(LOST, true);
+        assertNull(g.begin());
+        g.observe(VIA_A, true);
+        PathGate.Attempt again = g.begin();
+        assertNotNull(again);
+        assertEquals(0, again.number);
+        g.finish(again.key, true);
+        assertTrue(g.ready());
+    }
+
+    @Test
+    public void retryAfterFailureThenSuccessBecomesReady() {
+        PathGate g = on(VIA_A);
+        g.finish(g.begin().key, false);
+        assertFalse(g.ready());
+        PathGate.Attempt second = g.begin();
+        assertEquals(1, second.number);
+        g.finish(second.key, true);
+        assertTrue(g.ready());
+        assertNull(g.begin());
+    }
 }
