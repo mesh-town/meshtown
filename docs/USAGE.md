@@ -53,6 +53,19 @@ starts the tray icon (the `meshtown-cli` build has no tray: `meshtown-cli run â€
 log goes to `meshtown.log` and the tray's to `meshtown-tray.log` in the settings directory; Linux does not write
 these files. For the macOS package itself see [platforms/macos/build/README.md](../platforms/macos/build/README.md).
 
+## Start at login
+
+The "Start at login" switch on the Settings page of the node page makes the tray start when you sign in. It is
+available in the tray builds (the macOS `.app`, the `gui` builds for Linux and Windows). The switch creates or
+removes a per-user entry, which you can also remove by hand:
+
+- macOS: `~/Library/LaunchAgents/<label>.plist` (a LaunchAgent);
+- Linux: `~/.config/autostart/meshtown.desktop` (or under `$XDG_CONFIG_HOME`);
+- Windows: the value `Mesh Town` under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`.
+
+If you switch the entry off in the system settings, the page shows the switch as off. On Windows a console window may
+flash briefly at sign-in.
+
 ## Settings file
 
 The node settings live in `config.json`: the network key, the node secret (the permanent node identifier is derived

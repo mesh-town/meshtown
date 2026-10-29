@@ -2,6 +2,7 @@
 
 #![cfg(target_os = "macos")]
 
+mod autostart;
 mod backend;
 mod clipboard;
 mod notify;
@@ -9,4 +10,5 @@ mod notify_un;
 mod open_url;
 mod tray;
 
+pub use autostart::{MacosAutostart, AUTOSTART};
 pub use backend::{MacosTray, TRAY};

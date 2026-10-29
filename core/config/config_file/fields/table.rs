@@ -68,7 +68,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("web.access", EditOnly, slot!(process.web_access, Choice { parse: ListenAccess::parse, name: ListenAccess::as_str, expected: "localhost or localnet" })),
     row!("web.ifaces", EditOnly, slot!(process.web_ifaces, IfaceNames)),
     row!("log.ring_lines", Live, slot!(process.log_ring_lines, Int { min: 200, max: 20_000 })),
-    row!("autostart.enabled", EditOnly, slot!(process.autostart_enabled, OffOnly)),
+    row!("autostart.enabled", EditOnly, slot!(process.autostart_enabled, BoolKind)),
     row!("autostart.available", ReadOnly, &Computed(Block::Process)),
     row!("autostart.reason", ReadOnly, &Computed(Block::Process)),
     row!("full_tunnel.enabled", EditOnly, slot!(process.full_tunnel_enabled, OffOnly)),
