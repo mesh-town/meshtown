@@ -55,8 +55,10 @@ settings are kept. The lines added to `/etc/sysupgrade.conf` by step 4 of the ma
 | aarch64 | `aarch64_cortex-a53`, `aarch64_cortex-a72`, `aarch64_cortex-a76`, `aarch64_generic` |
 | x86_64 | `x86_64` |
 | ARMv7 (soft-float build, no FPU instructions) | `arm_cortex-a5_vfpv4`, `arm_cortex-a7`, `arm_cortex-a7_neon-vfpv4`, `arm_cortex-a7_vfpv4`, `arm_cortex-a8_vfpv3`, `arm_cortex-a9`, `arm_cortex-a9_neon`, `arm_cortex-a9_vfpv3-d16`, `arm_cortex-a15_neon-vfpv4` |
+| MIPS big-endian (soft-float build, MIPS32 release 2) | `mips_24kc` |
+| MIPS little-endian (soft-float build, MIPS32 release 2) | `mipsel_24kc`, `mipsel_74kc`, `mipsel_24kc_24kf` |
 
-Not in the feed yet: MIPS, ARMv5/v6, 32-bit x86. For these (or if the feed is unreachable) use the manual way below.
+Not in the feed yet: ARMv5/v6, 32-bit x86, MIPS32 release 1 (`mips_mips32`, `mipsel_mips32`: the MIPS build uses MIPS32 release 2 instructions, which a release 1 core does not execute). For these (or if the feed is unreachable) use the manual way below.
 
 **Keys.** The feed is signed: `opkg` indexes with `usign` (`meshtown-usign.pub`), `apk` indexes with an EC P-256 key
 (`meshtown-apk.pem`). Both public keys are in the feed root and in `platforms/linux/build/openwrt/keys/` of the repository; compare the

@@ -121,29 +121,8 @@ jobs:
           TAG: ${{ inputs.tag }}
           STRICT: ${{ inputs.strict }}
         run: |
-          set -euo pipefail
-          version="${TAG#v}"
-          mkdir -p bins
-          args=()
-          for triple in aarch64-unknown-linux-musl x86_64-unknown-linux-musl armv7-unknown-linux-musleabi; do
-            base="meshtown-cli-${version}-${triple}"
-            if [ ! -f "fetched/${base}.tar.gz" ]; then
-              if [ "$STRICT" = true ]; then
-                echo "::error::release ${TAG} has no ${base}.tar.gz"
-                exit 1
-              fi
-              echo "::warning::release ${TAG} has no ${base}.tar.gz; its labels are skipped"
-              continue
-            fi
-            mkdir -p "bins/${triple}"
-            tar -xzf "fetched/${base}.tar.gz" -C "bins/${triple}"
-            args+=(--bin "${triple}=bins/${triple}/${base}/meshtown-cli")
-          done
-          if [ "${#args[@]}" -eq 0 ]; then
-            echo "::error::no target archives found"
-            exit 1
-          fi
-          printf '%s\n' "${args[@]}" > bin-args.txt
+          python3 platforms/linux/build/openwrt/feed/unpack_bins.py --fetched fetched --out bins \
+            --tag "$TAG" --args-file bin-args.txt --strict "$STRICT"
       - name: Build the feed
         env:
           TAG: ${{ inputs.tag }}

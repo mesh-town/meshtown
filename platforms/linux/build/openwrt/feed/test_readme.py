@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from readme import render_readme
+from feed_fixtures import MIPS_LABELS
 from test_build_feed import BASE, FIVE_LABELS, setup
 
 
@@ -18,6 +19,15 @@ class RenderReadme(unittest.TestCase):
         # then
         self.assertIn(f"wget -O- {BASE}/install.sh | sh", text)
         for label in FIVE_LABELS:
+            self.assertIn(f"`{label}`", text)
+
+    def test_lists_mips_labels_when_built(self):
+        # given: the five labels and the four MIPS ones
+        labels = FIVE_LABELS + sorted(MIPS_LABELS)
+        # when
+        text = render_readme(BASE, labels)
+        # then
+        for label in MIPS_LABELS:
             self.assertIn(f"`{label}`", text)
 
     def test_has_no_unfilled_placeholders(self):
