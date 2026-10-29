@@ -22,7 +22,9 @@ pub fn normalize(input: &str) -> Result<String, UrlError> {
     let (raw, port) = split_host_port(authority)?;
     let host = host_to_ascii(raw)?;
     check_tail(tail)?;
-    let port = port.filter(|p| *p != default).map_or(String::new(), |p| format!(":{p}"));
+    let port = port
+        .filter(|p| *p != default)
+        .map_or(String::new(), |p| format!(":{p}"));
     Ok(format!("{scheme}://{host}{port}{}", with_root(tail)))
 }
 
@@ -43,7 +45,9 @@ fn with_root(tail: &str) -> String {
 
 /// Path, query and fragment must be kept byte for byte, so nothing that `url` would escape.
 fn check_tail(tail: &str) -> Result<(), UrlError> {
-    let clean = tail.chars().all(|c| c.is_ascii_graphic() && !"\"<>^`{}".contains(c));
+    let clean = tail
+        .chars()
+        .all(|c| c.is_ascii_graphic() && !"\"<>^`{}".contains(c));
     let path = &tail[..tail.find(['?', '#']).unwrap_or(tail.len())];
     let query = tail.strip_prefix(path).unwrap_or("");
     let quoted = query.split('#').next().is_some_and(|q| q.contains('\''));
@@ -55,7 +59,10 @@ fn check_tail(tail: &str) -> Result<(), UrlError> {
 
 fn is_dot_segment(segment: &str) -> bool {
     let lower = segment.to_ascii_lowercase();
-    matches!(lower.as_str(), "." | ".." | "%2e" | ".%2e" | "%2e." | "%2e%2e")
+    matches!(
+        lower.as_str(),
+        "." | ".." | "%2e" | ".%2e" | "%2e." | "%2e%2e"
+    )
 }
 
 #[cfg(test)]

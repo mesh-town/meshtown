@@ -9,9 +9,13 @@ use icu_normalizer::ComposingNormalizerBorrowed;
 /// The host of an address with any scheme (or none): scheme, login, port, path, `?` and `#`
 /// are dropped. IPv6 comes back in brackets.
 pub fn host(input: &str) -> Result<String, UrlError> {
-    let rest = input.split_once("://").map_or(Ok(input), |(scheme, rest)| {
-        valid_scheme(scheme).then_some(rest).ok_or(UrlError("bad scheme"))
-    })?;
+    let rest = input
+        .split_once("://")
+        .map_or(Ok(input), |(scheme, rest)| {
+            valid_scheme(scheme)
+                .then_some(rest)
+                .ok_or(UrlError("bad scheme"))
+        })?;
     let authority = &rest[..rest.find(['/', '?', '#', '\\']).unwrap_or(rest.len())];
     let host_port = authority.rsplit_once('@').map_or(authority, |(_, hp)| hp);
     let (raw, _port) = split_host_port(host_port)?;
@@ -30,14 +34,20 @@ pub(super) fn split_host_port(host_port: &str) -> Result<(&str, Option<u16>), Ur
         let end = host_port.find(']').ok_or(UrlError("unclosed bracket"))?;
         host_port.split_at(end + 1)
     } else {
-        host_port.find(':').map_or((host_port, ""), |i| host_port.split_at(i))
+        host_port
+            .find(':')
+            .map_or((host_port, ""), |i| host_port.split_at(i))
     };
     Ok((raw, parse_port(tail)?))
 }
 
 fn parse_port(tail: &str) -> Result<Option<u16>, UrlError> {
     let Some(digits) = tail.strip_prefix(':') else {
-        return if tail.is_empty() { Ok(None) } else { Err(UrlError("bad port")) };
+        return if tail.is_empty() {
+            Ok(None)
+        } else {
+            Err(UrlError("bad port"))
+        };
     };
     let numeric = digits.bytes().all(|b| b.is_ascii_digit());
     match (numeric, digits.is_empty()) {
@@ -52,7 +62,9 @@ pub(crate) fn host_to_ascii(raw: &str) -> Result<String, UrlError> {
     let Some(inner) = raw.strip_prefix('[') else {
         return domain(raw);
     };
-    let inner = inner.strip_suffix(']').ok_or(UrlError("unclosed bracket"))?;
+    let inner = inner
+        .strip_suffix(']')
+        .ok_or(UrlError("unclosed bracket"))?;
     ip::ipv6(inner)
 }
 
@@ -98,7 +110,11 @@ fn label_to_ascii(label: &str) -> Result<String, UrlError> {
 /// NFKC, per-character lowercase (no context rules, as in UTS 46), NFKC again.
 fn map_label(label: &str) -> String {
     let nfkc = ComposingNormalizerBorrowed::new_nfkc();
-    let kept: String = nfkc.normalize(label).chars().filter(|c| !ignored(*c)).collect();
+    let kept: String = nfkc
+        .normalize(label)
+        .chars()
+        .filter(|c| !ignored(*c))
+        .collect();
     let lower: String = kept.chars().flat_map(char::to_lowercase).collect();
     nfkc.normalize(&lower).into_owned()
 }

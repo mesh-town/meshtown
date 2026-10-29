@@ -16,7 +16,11 @@ fn compressed(groups: &[u16; 8], start: usize, len: usize) -> String {
     if len < 2 {
         return join(groups);
     }
-    format!("{}::{}", join(&groups[..start]), join(&groups[start + len..]))
+    format!(
+        "{}::{}",
+        join(&groups[..start]),
+        join(&groups[start + len..])
+    )
 }
 
 fn join(groups: &[u16]) -> String {
@@ -27,7 +31,11 @@ fn join(groups: &[u16]) -> String {
 fn longest_zero_run(groups: &[u16; 8]) -> (usize, usize) {
     let (mut best, mut cur) = ((0, 0), (0, 0));
     for (i, g) in groups.iter().enumerate() {
-        cur = if *g == 0 { (cur.0, cur.1 + 1) } else { (i + 1, 0) };
+        cur = if *g == 0 {
+            (cur.0, cur.1 + 1)
+        } else {
+            (i + 1, 0)
+        };
         if cur.1 > best.1 {
             best = cur;
         }
