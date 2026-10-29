@@ -7,10 +7,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { NET_A, twoNets } from "../testing/overview-fixtures.mjs";
-import { mountPage, settle, unmountPage } from "../testing/page.mjs";
+import { mountPage, polls, settle, unmountPage } from "../testing/page.mjs";
 import { baseConfig } from "../testing/section.mjs";
 
 const REFUSED_TEXT = "Local port 5353 is already in use";
+const DOWN_TEXT = "wg0 is down — exit connections are refused";
 const MISSING_TEXT = "wg9 is not on this computer — exit connections are refused";
 const NETWORKS = [
   { name: "en0", addrs: ["192.168.1.10"], default_route: true, present: true, open: false, by: "auto" },
@@ -55,6 +56,27 @@ describe("exit is on", () => {
   it("warns under the field when the chosen interface is missing", async () => {
     const page = await open({ iface: "wg9", info: { name: "wg9", state: "missing" } });
     expect(page.stateText()).toBe(MISSING_TEXT);
+  });
+
+  it("warns under the field when the chosen interface is down", async () => {
+    const page = await open({ iface: "wg0", info: { name: "wg0", state: "down" } });
+    expect(page.stateText()).toBe(DOWN_TEXT);
+  });
+});
+
+describe("warning follows the next snapshot", () => {
+  it("missing warning goes away when the interface is back", async () => {
+    const page = await open({ iface: "wg9", info: { name: "wg9", state: "missing" } });
+    expect(page.stateText()).toBe(MISSING_TEXT);
+    await page.whenReported({ name: "wg9", state: "up" });
+    expect(page.stateText()).toBe("");
+  });
+
+  it("down warning goes away when the interface is back", async () => {
+    const page = await open({ iface: "wg0", info: { name: "wg0", state: "down" } });
+    expect(page.stateText()).toBe(DOWN_TEXT);
+    await page.whenReported({ name: "wg0", state: "up" });
+    expect(page.stateText()).toBe("");
   });
 });
 
@@ -181,6 +203,10 @@ function pageOf(node, { wrapper, store }) {
     stateText: () => textOf("#you-exit-iface-state"),
     status: () => textOf("#you-exit-iface-status"),
     puts: () => node.calls.filter((c) => c.method === "PUT" && c.path === "/api/config").map((c) => c.body),
+    async whenReported(info) {
+      node.state = { ...node.state, exit: { ...node.state.exit, interface: info } };
+      await polls(node, 1);
+    },
     async whenPicked(value) {
       await field().setValue(value);
       await vi.advanceTimersByTimeAsync(0);

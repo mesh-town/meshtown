@@ -94,6 +94,41 @@ mod unavailable_interface {
     }
 }
 
+mod same_interface {
+    use super::*;
+
+    #[tokio::test]
+    async fn same_interface_keeps_the_session() {
+        // when: the same conn_id asks for a session twice without a switch, with no interface
+        // then: both calls return the very same socket
+        assert_session_reused(None).await;
+
+        // and the same holds bound to loopback (skipped where binding to a device is refused)
+        if let Some(name) = bindable_loopback() {
+            assert_session_reused(Some(&name)).await;
+        }
+    }
+
+    async fn assert_session_reused(iface: Option<&str>) {
+        let (mut gateway, _queue) = gateway_via(iface).await;
+        let dest: SocketAddr = "127.0.0.1:9".parse().expect("address");
+        let first = gateway
+            .session(5, dest)
+            .expect("first session")
+            .sock
+            .clone();
+        let second = gateway
+            .session(5, dest)
+            .expect("second session")
+            .sock
+            .clone();
+        assert!(
+            Arc::ptr_eq(&first, &second),
+            "iface {iface:?}: the session was reopened"
+        );
+    }
+}
+
 /// A datagram for the local echo, named `echo.test`.
 fn to_echo(conn_id: u16, data: &[u8]) -> Frame {
     Frame {
