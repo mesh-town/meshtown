@@ -22,3 +22,7 @@ path = "cli/main.rs"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 meshtown-core = { path = "../../core", features = ["gui"] }
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+tray-icon = { version = "0.25.1", default-features = false, features = ["ksni"] }
+zbus = "5.19.0"

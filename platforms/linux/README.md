@@ -20,6 +20,7 @@ Run from the repository root as `make linux-<target>`, or `make -C platforms/lin
 | `test` | `cargo nextest run -p meshtown-linux` |
 | `run` | `cargo run -p meshtown-linux -- $(ARGS)` |
 | `package` | `platforms/linux/build/build.sh $(KIND)` |
+| `tray-e2e` | `platforms/linux/tray-e2e.sh`: the tray test against a fake StatusNotifierWatcher, in an arm64 container |
 
 `KIND` is `gui` (default) or `cli`. `build.sh` also takes `arm64_cli` and `armv7_cli`. The release files go to
 `dist/` (`meshtown-linux-gui-<version>`, `meshtown-linux-cli-<version>`, ...). The root targets
