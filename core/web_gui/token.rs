@@ -60,6 +60,7 @@ pub(crate) fn write_atomic(dir: &Path, token: &str) -> std::io::Result<()> {
 }
 
 /// The log order and texts are fixed.
+#[cfg(test)]
 pub(crate) fn resolve_web_token(
     dir: Option<&Path>,
     fixed_token: Option<String>,
@@ -67,7 +68,12 @@ pub(crate) fn resolve_web_token(
     if let Some(token) = fixed_token {
         return Ok(persist_fixed_token(dir, token));
     }
+    resolve_stored_token(dir)
+}
 
+/// The node's own token: read from the file, or generated and written. Needs no fixed token, so it is
+/// safe to run before the port opens.
+pub(crate) fn resolve_stored_token(dir: Option<&Path>) -> Result<String, String> {
     let Some(dir) = dir else {
         crate::node::output::say(
             "web",
@@ -86,7 +92,7 @@ pub(crate) fn resolve_web_token(
 
 /// The token came from outside (for example, from the CLI) — saves it to disk when possible, but returns it
 /// in any case: a write error must not get in the way of startup.
-fn persist_fixed_token(dir: Option<&Path>, token: String) -> String {
+pub(crate) fn persist_fixed_token(dir: Option<&Path>, token: String) -> String {
     if let Some(dir) = dir {
         if let Err(e) = write_atomic(dir, &token) {
             let path = dir.join(super::TOKEN_FILE_NAME);

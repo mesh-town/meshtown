@@ -171,6 +171,39 @@ async fn busy_port_is_error() {
     cleanup(&dir);
 }
 
+/// A failed bind leaves the node's token on disk (a second start must recognise the running node by it);
+/// a fixed token is not written when the port is busy.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn busy_port_token_file_order() {
+    let dir = scratch("busytoken");
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("occupy the port");
+    let busy_port = listener.local_addr().unwrap().port();
+    let run = run_config(&dir);
+    let opts = |fixed: Option<String>| WebOptions {
+        enabled: true,
+        port: busy_port,
+        token_dir: Some(dir.clone()),
+        fixed_token: fixed,
+        drain: DEFAULT_DRAIN,
+    };
+    let path = dir.join(TOKEN_FILE_NAME);
+
+    let first = web_gui::start_web_page(opts(None), &run, host_of(Arc::new(TestNode::new()), &run));
+    assert!(matches!(first.await, Err(WebStartError::Bind { .. })));
+    let written = std::fs::read_to_string(&path).expect("token written before the bind");
+    let again = web_gui::start_web_page(opts(None), &run, host_of(Arc::new(TestNode::new()), &run));
+    assert!(again.await.is_err());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), written);
+
+    let fixed = Some("fixed-token".to_string());
+    let third =
+        web_gui::start_web_page(opts(fixed), &run, host_of(Arc::new(TestNode::new()), &run));
+    assert!(third.await.is_err());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), written);
+    drop(listener);
+    cleanup(&dir);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn stop_then_503() {
     let dir = scratch("stopthen503");

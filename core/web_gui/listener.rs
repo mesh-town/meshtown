@@ -22,18 +22,12 @@ pub async fn start_web_page(
         return Err(WebStartError::Disabled);
     }
 
+    let stored = stored_token_before_bind(&opts)?;
+
     let (listener, port) =
         bind_listener(run_config.effective_settings.process.web_access, opts.port).await?;
 
-    let token = match token::resolve_web_token(opts.token_dir.as_deref(), opts.fixed_token.clone())
-    {
-        Ok(token) => token,
-        Err(reason) => {
-            let err = WebStartError::Random(reason);
-            crate::node::output::say("web", err.to_string());
-            return Err(err);
-        }
-    };
+    let token = token_after_bind(&opts, stored);
 
     let (app, router) = build_web_app(&opts, run_config, host, port, token);
 
@@ -55,6 +49,32 @@ pub async fn start_web_page(
         stop: stop_tx,
         task,
     })
+}
+
+/// The node's own token is on disk before the port opens: a second start with the same settings, seeing
+/// the busy port, must already find the token to recognise the running node. A fixed token waits for the bind.
+fn stored_token_before_bind(opts: &WebOptions) -> Result<Option<String>, WebStartError> {
+    if opts.fixed_token.is_some() {
+        return Ok(None);
+    }
+    match token::resolve_stored_token(opts.token_dir.as_deref()) {
+        Ok(token) => Ok(Some(token)),
+        Err(reason) => {
+            let err = WebStartError::Random(reason);
+            crate::node::output::say("web", err.to_string());
+            Err(err)
+        }
+    }
+}
+
+/// The token for the running page: the one resolved before the bind, or the fixed one saved now that the
+/// port is ours (a failed second start must not overwrite the token of the running node).
+fn token_after_bind(opts: &WebOptions, stored: Option<String>) -> String {
+    let fixed = opts
+        .fixed_token
+        .clone()
+        .map(|t| token::persist_fixed_token(opts.token_dir.as_deref(), t));
+    stored.or(fixed).unwrap_or_default()
 }
 
 /// Builds the shared state, the app and the router for the page listening on `port`.
