@@ -81,7 +81,7 @@ help:
 	@echo "make test                       — cargo nextest run (no nextest — cargo test)"
 	@echo "make test-cargo                 — cargo test (old path, no nextest)"
 	@echo "make test-one T=<name> [TARGET_DIR=…] — one Rust test with the same flags and cache as make test"
-	@echo "make test-py                    — unittest over scripts/{battery,changed_tests,checks}/test_*.py and platforms/linux/build/openwrt/feed/test_*.py and platforms/linux/build/{keenetic/feed,debian}/test_*.py"
+	@echo "make test-py                    — unittest over scripts/{battery,changed_tests,checks}/test_*.py and platforms/linux/build/openwrt/feed/test_*.py and platforms/linux/build/{keenetic/feed,debian,container}/test_*.py"
 	@echo "make test-js                    — vitest: *.test.mjs logic (node environment) and *.vtest.mjs components (happy-dom)"
 	@echo "make test-vue                   — components only (vitest --project dom): core/web_gui/ui/vue/src/**/*.vtest.mjs"
 	@echo "make web-build                  — build the page (Vite): core/web_gui/ui/vue → core/web_gui/ui/bundle/app.js (committed)"
@@ -166,6 +166,7 @@ test-py:
 	python3 -m unittest discover -s scripts/changed_tests -t scripts/changed_tests -p 'test_*.py'
 	python3 -m unittest discover -s scripts/checks -t scripts/checks -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/openwrt/feed -t platforms/linux/build/openwrt/feed -p 'test_*.py'
+	python3 -m unittest discover -s platforms/linux/build/container -t platforms/linux/build/container -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/keenetic/feed -t platforms/linux/build/keenetic/feed -p 'test_*.py'
 	python3 -m unittest discover -s platforms/linux/build/debian -t platforms/linux/build/debian -p 'test_*.py'
 

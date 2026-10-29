@@ -142,6 +142,19 @@ jobs:
       pkg_release: "1"
     secrets: inherit
 
+  container-image:
+    name: Container image
+    needs: [check-tag, dist-release]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/container-image.yml
+    with:
+      tag: ${{ github.ref_name }}
+      release_repo: ${{ needs.dist-release.outputs.repo }}
+      push: true
+    secrets: inherit
+
   android:
     name: Android APK
     needs: [check-tag, publish]

@@ -97,6 +97,10 @@ The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edit
   `/opt/etc/init.d/S99meshtown` starts on boot. To update: `opkg update && opkg upgrade meshtown`. Not tested on a live
   KeeneticOS router yet.
 
+- **MikroTik** (RouterOS 7.21 or newer, ARM, ARM64 or x86 model with the `container` package). The node runs as a
+  container from the image `ghcr.io/mesh-town/meshtown`; the commands for the network, the storage and the first start
+  are in [MIKROTIK.md](MIKROTIK.md). MIPS models cannot run containers.
+
 ## Release archives
 
 [GitHub Releases](https://github.com/mesh-town/meshtown-dist/releases) have versioned archives for macOS (`MeshTown.app`
