@@ -286,3 +286,7 @@ mod program_version_tests;
 #[cfg(test)]
 #[path = "collect_admission_tests.rs"]
 mod admission_tests;
+
+#[cfg(test)]
+#[path = "collect_iface_tests.rs"]
+mod iface_tests;
