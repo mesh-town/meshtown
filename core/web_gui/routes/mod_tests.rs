@@ -28,7 +28,7 @@ const NET_PATHS: [&str; 19] = [
     "members/leave",
 ];
 
-const PROCESS_PATHS: [&str; 12] = [
+const PROCESS_PATHS: [&str; 13] = [
     "/api/log",
     "/api/log/download",
     "/api/actions/stop",
@@ -37,6 +37,7 @@ const PROCESS_PATHS: [&str; 12] = [
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/reset",
+    "/api/auth/link",
     "/api/auth/password",
     "/api/token/rotate",
     "/api/nets",
@@ -101,15 +102,15 @@ async fn process_paths_answer_once_and_not_under_a_slot() {
         prefixed += usize::from(path_exists(&router, &slotted).await);
     }
     // then
-    assert_eq!(found, 12, "process paths");
+    assert_eq!(found, 13, "process paths");
     assert_eq!(prefixed, 0, "process paths under a slot prefix");
 }
 
 #[test]
-fn the_route_count_is_sixty_one() {
+fn the_route_count_is_sixty_two() {
     assert_eq!(
         PAGES.len() + 2 * NET_PATHS.len() + PROCESS_PATHS.len(),
-        61,
+        62,
         "pages, network paths twice, process paths"
     );
 }

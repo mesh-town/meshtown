@@ -187,6 +187,19 @@ pub(crate) enum CliCommand {
         #[arg(long, value_name = "PORT")]
         web_port: Option<u16>,
     },
+    /// Open the Mesh Town page in the browser, or print a sign-in link
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown open [--print] [--config <PATH>] [--web-port <PORT>]")]
+    Open {
+        /// Only print the link, don't start a browser.
+        #[arg(long)]
+        print: bool,
+        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
+        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
+        config: Option<std::path::PathBuf>,
+        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
+        #[arg(long, value_name = "PORT")]
+        web_port: Option<u16>,
+    },
     /// Who can open the Mesh Town page: localhost (this computer only) or localnet (the local network too)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access <localhost|localnet> [--config <PATH>] [--web-port <PORT>]")]
     Access {

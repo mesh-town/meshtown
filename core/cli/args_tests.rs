@@ -247,3 +247,31 @@ mod after_help {
         assert!(after_help_text(false).contains("Mesh Town starts"));
     }
 }
+
+#[test]
+fn open_parses_plain_and_with_flags() {
+    let m = Cli::command()
+        .try_get_matches_from(to_os(&["meshtown", "open"]))
+        .expect("open parses");
+    match Cli::from_arg_matches(&m).expect("parse").command {
+        CliCommand::Open {
+            print, web_port, ..
+        } => assert!(!print && web_port.is_none()),
+        _ => panic!("expected open"),
+    }
+    let m = Cli::command()
+        .try_get_matches_from(to_os(&[
+            "meshtown",
+            "open",
+            "--print",
+            "--web-port",
+            "7778",
+        ]))
+        .expect("open --print parses");
+    match Cli::from_arg_matches(&m).expect("parse").command {
+        CliCommand::Open {
+            print, web_port, ..
+        } => assert!(print && web_port == Some(7778)),
+        _ => panic!("expected open"),
+    }
+}

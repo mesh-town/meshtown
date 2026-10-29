@@ -366,6 +366,12 @@ temporary token instead.
 
 ### Signing in, access and password reset
 
+- **Open the page.** `meshtown open [--print] [--config PATH] [--web-port N]` asks the running node for a sign-in link,
+  starts the browser on it and prints the addresses. Without a password the link carries a one-time token (10 minutes);
+  with a password the address is plain. The browser is not started as root, in an SSH session, or on Linux without a
+  display, and with `--print`; the link is only printed then. As a service, run it with `sudo` so it can read `web-token`.
+  The command does not change the password or end sessions.
+
 - **First sign-in.** While no password is set, the node prints an address with a temporary token at every start. The
   token is single-use and lives 10 minutes, for example `http://127.0.0.1:7777/?token=…` (in `localnet` mode there are
   two addresses: this computer and the one in the local network). Open it, and the page exchanges the token for a

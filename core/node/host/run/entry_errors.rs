@@ -61,7 +61,7 @@ pub(super) fn entry_error_text(e: &WebStartError, node_on_port: bool) -> anyhow:
 fn already_running_error(port: u16) -> anyhow::Error {
     let program = crate::cli::program_name::program_name();
     anyhow::anyhow!(
-        "{NET_NAME}: another copy is already running on port {port} (for example, as a service). Its page is on port {port} of this device (http://<device address>:{port}/). To get a new sign-in link, run: {program} password reset. There is no need to start a second copy."
+        "{NET_NAME}: another copy is already running on port {port} (for example, as a service). Its page is on port {port} of this device (http://<device address>:{port}/). To get a new sign-in link, run: {program} open. There is no need to start a second copy."
     )
 }
 
