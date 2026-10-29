@@ -270,3 +270,11 @@ mod put_reapply_tests;
 #[cfg(test)]
 #[path = "mod_autostart_tests.rs"]
 mod autostart_tests;
+
+#[cfg(test)]
+#[path = "exit_iface_put_tests.rs"]
+mod exit_iface_put_tests;
+
+#[cfg(test)]
+#[path = "exit_iface_get_tests.rs"]
+mod exit_iface_get_tests;

@@ -172,7 +172,7 @@ all fields are required; `null` is allowed where marked):
   },
   "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080", "strict": false },
-  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
+  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"], "interface": null },
   "transport": {
     "self_path": "direct",
     "relay": { "connected": true, "url": "relay.example.net" },
@@ -325,6 +325,9 @@ Exact enum values:
   differs; `null` — the member has not announced it (a build before this field, the record has not arrived yet) or
   announced an invalid one. It is shown for an offline member too — the last announced. Comparing
   versions is the page's concern.
+- `exit.interface` — `null` when exit traffic uses the regular routing table, otherwise `{"name": "wg0", "state": …}`, where
+  `state` is `up`, `down`, `missing` (no such interface on this machine) or `unsupported` (this system cannot bind
+  to an interface). Anything but `up` means exit connections are refused (reply code 8).
 - `exit.clients` — full ids (`id_full`) of members who are currently going to the internet through this
   node: there is an open exit stream or it closed less than 30 s ago; network members only, in
   ascending order, `[]` — no clients or exit is off. A client that dropped without closing the

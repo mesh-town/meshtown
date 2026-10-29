@@ -12,6 +12,7 @@ use std::time::{Duration, Instant};
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 
+use crate::iface_bind::{check, connect_tcp};
 use super::address_guard::is_own_address;
 use super::refusal::Refusal;
 use super::target::{literal_address, v4_answer, v6_answer, NameAnswer, AAAA_LOOKUP_TIMEOUT};
@@ -55,7 +56,14 @@ pub(in crate::exit) async fn open_target(
     target_host: &str,
     port: u16,
 ) -> std::result::Result<TcpStream, Refusal> {
-    open_target_with(cfg, target_host, port, BUDGET, TcpStream::connect).await
+    let name = cfg.iface.current();
+    if let Some(n) = name.as_deref() {
+        check(n).map_err(|e| Refusal::interface_unavailable(target_host, &e))?;
+    }
+    open_target_with(cfg, target_host, port, BUDGET, |addr| {
+        connect_tcp(addr, name.clone())
+    })
+    .await
 }
 
 /// The same with the connection made by `connect`. The test table `host_overrides` is used as is; an IP literal

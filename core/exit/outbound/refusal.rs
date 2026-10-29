@@ -3,8 +3,10 @@
 use std::net::SocketAddr;
 
 use crate::exit::frame::{
-    EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_NO_ADDRESS,
+    EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_CODE_CONNECT_FAILED, EXIT_CODE_INTERFACE_DOWN,
+    EXIT_CODE_NO_ADDRESS,
 };
+use crate::iface_bind::BindError;
 
 /// The reply code for the member and the tail of the log line (`refuse` adds the short id).
 #[derive(Debug)]
@@ -34,6 +36,14 @@ impl Refusal {
         Refusal {
             code: EXIT_CODE_CONNECT_FAILED,
             line: format!("{target_host} ({last}) — connection didn't open ({tried} tried)"),
+        }
+    }
+
+    /// The exit's interface cannot be used: nothing is sent through other networks.
+    pub(super) fn interface_unavailable(target_host: &str, e: &BindError) -> Refusal {
+        Refusal {
+            code: EXIT_CODE_INTERFACE_DOWN,
+            line: format!("{target_host} — exit {e}; not sent through other networks"),
         }
     }
 }

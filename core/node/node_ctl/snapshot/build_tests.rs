@@ -55,6 +55,7 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         ),
         socks_ifaces: Default::default(),
         exit_on: false,
+        exit_iface: None,
         exit_clients: Vec::new(),
         exit_rates: HashMap::new(),
         exits: HashMap::new(),

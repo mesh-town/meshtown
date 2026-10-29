@@ -162,6 +162,7 @@ pub(crate) async fn collect(
         socks_access: socks_access_of(&face),
         socks_ifaces: face.ifaces,
         exit_on: node.exit_on.load(Ordering::Relaxed),
+        exit_iface: exit_iface_of(node),
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
         exits,
@@ -183,6 +184,14 @@ pub(crate) async fn collect(
     collected.snap.ports = ports_of(node, &port_views);
     collected.partial = partial;
     collected
+}
+
+/// The configured exit interface with its live state, if any.
+fn exit_iface_of(node: &RunningNode) -> Option<(String, crate::iface_bind::IfaceState)> {
+    node.exit_iface.current().map(|n| {
+        let state = crate::iface_bind::state_of(&n);
+        (n.to_string(), state)
+    })
 }
 
 /// The published ports with their live state on this node.

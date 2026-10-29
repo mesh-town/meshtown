@@ -16,6 +16,7 @@ pub struct NetSettings {
     pub network_key: Option<String>, // network.key       — only in the file
     pub node_name: Option<String>, // node.name         — the node's display name, read at start by `pick_node_name`
     pub exit_enabled: bool,        // exit.enabled
+    pub exit_interface: Option<String>, // exit.interface — outgoing interface of the exit; `None` — any network
     pub route_exits: Vec<PeerId>,  // route.exits
     pub ports_published: Vec<Published>, // ports.published
     pub ports_opened: Vec<Opened>, // ports.opened
@@ -42,6 +43,7 @@ impl Default for NetSettings {
             network_key: None,
             node_name: None,
             exit_enabled: default_exit_enabled(cfg!(target_os = "android")),
+            exit_interface: None,
             route_exits: vec![],
             ports_published: vec![],
             ports_opened: vec![],
@@ -65,6 +67,7 @@ impl std::fmt::Debug for NetSettings {
             .field("network_key", &key)
             .field("node_name", &self.node_name)
             .field("exit_enabled", &self.exit_enabled)
+            .field("exit_interface", &self.exit_interface)
             .field("route_exits", &self.route_exits)
             .field("ports_published", &self.ports_published)
             .field("ports_opened", &self.ports_opened)
@@ -96,3 +99,7 @@ impl NetSettings {
 #[cfg(test)]
 #[path = "net_settings_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "exit_iface_tests.rs"]
+mod exit_iface_tests;

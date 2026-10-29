@@ -76,6 +76,8 @@ fn assemble_running(
         proxy: serving.proxy,
         proxy_face,
         exit_on: net.exit_on,
+        exit_iface: net.exit_iface,
+        exit_resolver: net.exit_resolver,
         exit_clients: net.exit_clients,
         exit_traffic: net.exit_traffic,
         route: serving.route,

@@ -48,6 +48,8 @@ pub(super) struct Inputs<'a> {
     /// Network filter the proxy was started with (`socks.ifaces`).
     pub socks_ifaces: crate::config::config_file::IfaceFilter,
     pub exit_on: bool,
+    /// The exit's outgoing interface and its state; `None` — the system routing table.
+    pub exit_iface: Option<(String, crate::iface_bind::IfaceState)>,
     /// Raw list of exit clients from the `exit::Clients` registry: unordered, may include non-members.
     pub exit_clients: Vec<PeerId>,
     /// Exit traffic rate per peer, bytes/s (`exit::ExitTraffic::rates_at`).
@@ -109,6 +111,10 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             enabled: i.exit_on,
             domains: i.domain_names.len() as u64,
             clients: exit_clients(&i),
+            interface: i.exit_iface.as_ref().map(|(name, state)| crate::iface_bind::ExitIfaceInfo {
+                name: name.clone(),
+                state: *state,
+            }),
         },
         transport,
         peers,

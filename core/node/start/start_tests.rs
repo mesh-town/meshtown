@@ -402,3 +402,6 @@ async fn http_connect(proxy: std::net::SocketAddr) -> String {
         .unwrap();
     String::from_utf8_lossy(&answer).into_owned()
 }
+
+#[path = "start_iface_tests.rs"]
+mod iface;

@@ -224,3 +224,46 @@ mod exit_rates {
         assert_eq!((me.through_peer_bps, me.through_us_bps), (0, 0));
     }
 }
+
+mod exit_interface_from_inputs {
+    use super::*;
+    use crate::iface_bind::IfaceState;
+
+    #[test]
+    fn none_gives_no_interface() {
+        // given: inputs without an exit interface
+        let inputs = base(pair(1));
+        // when
+        let snap = build(inputs).snap;
+        // then
+        assert!(snap.exit.interface.is_none(), "{:?}", snap.exit.interface);
+    }
+
+    #[test]
+    fn name_and_state_reach_the_exit_block() {
+        // given: an interface that is down
+        let mut inputs = base(pair(1));
+        inputs.exit_iface = Some(("wg0".to_string(), IfaceState::Down));
+        // when
+        let snap = build(inputs).snap;
+        // then
+        let info = snap.exit.interface.expect("the interface is shown");
+        assert_eq!(info.name, "wg0");
+        assert_eq!(info.state, IfaceState::Down);
+    }
+
+    #[test]
+    fn is_shown_even_when_the_exit_is_off() {
+        // given: the exit is off but a name is set
+        let mut inputs = base(pair(1));
+        inputs.exit_on = false;
+        inputs.exit_iface = Some(("wg0".to_string(), IfaceState::Missing));
+        // when
+        let snap = build(inputs).snap;
+        // then: the setting is not hidden by the switch
+        assert_eq!(
+            snap.exit.interface.map(|i| i.state),
+            Some(IfaceState::Missing)
+        );
+    }
+}

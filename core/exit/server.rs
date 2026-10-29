@@ -10,6 +10,7 @@ use crate::transport::net::{BoxFuture, BoxRecv, BoxSend, PeerConn, PeerId, Servi
 use anyhow::{anyhow, Result};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::iface_bind::OutIface;
 use crate::members::membership::Members;
 use crate::node::output::{say, short_peer_id};
 use crate::node::tcp_tune::disable_nagle;
@@ -52,6 +53,8 @@ pub struct ExitConfig {
     pub traffic: ExitTraffic,
     /// Live exit streams of the process against the stream limit and the memory guard.
     pub limits: ExitLimits,
+    /// The interface exit connections are bound to; `None` means the system routing table.
+    pub iface: OutIface,
 }
 
 /// Handler of incoming exit service connections.
@@ -248,6 +251,9 @@ async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {
 #[cfg(test)]
 #[path = "server_frame_tests.rs"]
 mod frame_tests;
+#[cfg(test)]
+#[path = "server_iface_tests.rs"]
+mod server_iface_tests;
 #[cfg(test)]
 #[path = "server_limits_tests.rs"]
 mod limits_tests;

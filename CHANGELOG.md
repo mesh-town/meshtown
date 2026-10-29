@@ -5,6 +5,12 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Exit: the optional `exit.interface` setting sends a node's exit traffic (sites, UDP, its DNS) only through the chosen
+  interface, for example another VPN. If the interface is missing or down, exit connections are refused (reply code 8)
+  instead of using the regular network.
+
 ### Changed
 
 - The Homebrew tap is renamed to `mesh-town/homebrew-macos`: install with `brew install mesh-town/macos/meshtown`.

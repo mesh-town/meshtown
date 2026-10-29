@@ -116,6 +116,11 @@ impl DnsCache {
         self.entries.remove(key);
     }
 
+    /// Forgets every name.
+    pub(super) fn clear(&mut self) {
+        self.entries.clear();
+    }
+
     /// A live entry; an expired one is removed.
     fn live(&mut self, key: &str, now: Instant) -> Option<&mut Entry> {
         if self.entries.get(key)?.expires <= now {

@@ -23,6 +23,7 @@
 //! it does not refer to the node layer.
 
 pub mod autostart;
+pub mod iface_bind;
 pub mod cli;
 pub mod config;
 #[cfg(feature = "net-hyper")]
