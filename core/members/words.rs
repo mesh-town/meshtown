@@ -23,11 +23,8 @@ use anyhow::{anyhow, Result};
 
 use crate::members::network_key::fill_random;
 
-/// The built-in EFF list as is: lines "number<TAB>word".
-const EFF_LARGE_WORDLIST: &str = include_str!("wordlist/eff_large_wordlist.txt");
-/// The SHA-256 of the list file, recorded at download on 2026-09-22.
-#[cfg(test)]
-const WORDLIST_SHA256: &str = "addd35536511597a02fa0a9ff1e5284677b8883b83e986e43f15a3db996b903e";
+/// The built-in list without the dice column: gzip of the words joined by `\n`, made by `build.rs`.
+const WORDS_GZ: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/wordlist/words.txt.gz"));
 
 /// The number of words in the list file.
 pub const WORDLIST_LEN: usize = 7_776;
@@ -47,13 +44,12 @@ pub const TAIL_ALPHABET: &str = "0123456789abcdefghjkmnpqrstvwxyz";
 const UNBIASED_LIMIT: u16 = 62_176;
 
 fn wordlist() -> &'static [&'static str] {
+    static TEXT: OnceLock<String> = OnceLock::new();
     static WORDS: OnceLock<Vec<&'static str>> = OnceLock::new();
     WORDS.get_or_init(|| {
-        EFF_LARGE_WORDLIST
-            .lines()
-            .filter_map(|line| line.split('\t').nth(1))
-            .map(str::trim)
-            .collect()
+        let bytes = crate::gzip::inflate_gzip(WORDS_GZ).expect("embedded word list inflates");
+        let text = String::from_utf8(bytes).expect("embedded word list is UTF-8");
+        TEXT.get_or_init(|| text).split('\n').collect()
     })
 }
 

@@ -10,7 +10,8 @@ use axum::routing::get;
 use axum::Router;
 
 use super::helpers::bad_method;
-use super::page_encoding::{accepts_gzip, inflate_gzip};
+use super::page_encoding::accepts_gzip;
+use crate::gzip::inflate_gzip;
 use crate::web_gui::App;
 
 #[cfg(test)]

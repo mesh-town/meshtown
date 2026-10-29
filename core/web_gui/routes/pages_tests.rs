@@ -4,7 +4,7 @@ use axum::body::to_bytes;
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
 
 use super::{serve_page, CSS, JS, PAGES};
-use crate::web_gui::routes::page_encoding::inflate_gzip;
+use crate::gzip::inflate_gzip;
 
 mod bundle_app_js {
     use super::*;

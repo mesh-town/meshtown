@@ -38,18 +38,9 @@ fn host_from_input(input: &str) -> Result<String> {
     if s.is_empty() {
         return Ok(String::new());
     }
-    let full = if s.contains("://") {
-        s.to_string()
-    } else {
-        format!("http://{s}")
-    };
-    let url = url::Url::parse(&full).map_err(|_| {
+    crate::http_url::host(s).map_err(|_| {
         anyhow::anyhow!("couldn't parse \"{s}\" as a domain; you can paste the full page address — the domain will be taken from it")
-    })?;
-    match url.host_str() {
-        Some(h) => Ok(h.to_string()),
-        None => bail!("no domain in \"{s}\""),
-    }
+    })
 }
 
 /// Normalizes a domain or explains why it doesn't fit.

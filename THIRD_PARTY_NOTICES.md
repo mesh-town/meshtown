@@ -20,7 +20,7 @@ material.
 
 - Source: https://www.eff.org/dice, © Electronic Frontier Foundation
 - License: Creative Commons Attribution 3.0 United States (CC BY 3.0 US), https://creativecommons.org/licenses/by/3.0/us/
-- Embedded unchanged as `core/members/wordlist/eff_large_wordlist.txt`; details are in `core/members/wordlist/NOTICE.md`.
+- The words of `core/members/wordlist/eff_large_wordlist.txt` are embedded in compressed form, in the same order and without the dice numbers; details are in `core/members/wordlist/NOTICE.md`.
 
 ## Vue 3.5.43
 

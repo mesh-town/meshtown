@@ -59,7 +59,7 @@ postcard = { version = "1.1", features = ["use-std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", default-features = false, features = ["std"] }
 data-encoding = "2.11"
-ed25519-dalek = "3"
+ed25519-dalek = "2"
 zeroize = "1"
 bytes = "1"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "net", "sync", "io-util"] }
@@ -77,7 +77,6 @@ hyper-util = { version = "=0.1.20", default-features = false, features = ["tokio
 http-body-util = "=0.1.5"
 tower = { version = "=0.5.3", default-features = false, features = ["util"] }
 tower-http = { version = "=0.6.11", default-features = false, features = ["set-header"] }
-url = "=2.5.8"
 # Pinning the features of shared packages: both feature configurations ask them for the same features,
 # so the build hashes match and the builds are shared.
 crossbeam-utils = { version = "0.8", features = ["std"] }
@@ -126,6 +125,8 @@ heap-prof = ["dep:tikv-jemallocator", "dep:tikv-jemalloc-ctl"]
 gui = ["dep:tray-icon"]
 
 [dev-dependencies]
+# Reference implementation for the differential tests of `http_url` (tests only).
+url = "=2.5.8"
 # Test network of the loop (tests only).
 peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
 libudx = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
