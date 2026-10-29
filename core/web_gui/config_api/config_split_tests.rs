@@ -111,7 +111,8 @@ const BODY_TEXT: &str = r#"{
     },
     "exit": {
       "enabled": false,
-      "max_streams": 0
+      "max_streams": 0,
+      "stream_window_kib": 0
     },
     "full_tunnel": {
       "available": false,

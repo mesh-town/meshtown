@@ -5,11 +5,12 @@
 //! What it doesn't do: it doesn't touch open streams and doesn't read the machine memory size.
 //!
 //! Files: `gate` — the counter, the slot guard and the busy reasons; `rss` — the cached process
-//! memory check and the ceiling formula.
+//! memory check and the ceiling formula; `window` — the cap on unacknowledged bytes per stream.
 
 mod gate;
 mod line_rate;
 mod rss;
+mod window;
 
 pub(crate) use gate::Busy;
 pub use gate::ExitLimits;

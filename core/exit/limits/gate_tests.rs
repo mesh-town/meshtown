@@ -198,3 +198,30 @@ mod busy_text {
         assert_eq!(text, "busy: memory 30 MiB, ceiling 23 MiB");
     }
 }
+
+mod stream_window {
+    use super::*;
+
+    #[test]
+    fn new_limits_have_no_window() {
+        // given: a limiter nobody configured a window for
+        let limits = ExitLimits::fixed(5);
+
+        // then: streams open without a window
+        assert_eq!(limits.stream_window_bytes(), 0);
+    }
+
+    #[test]
+    fn set_is_seen_by_the_next_read() {
+        // given: a limiter with the setting 0 and a tier of 128 KiB
+        let limits = ExitLimits::fixed(5);
+        limits.configure_window(0, 128);
+        assert_eq!(limits.stream_window_bytes(), 131_072);
+
+        // when: the setting changes on the fly
+        limits.set_stream_window(256);
+
+        // then: the next stream to open reads the new window
+        assert_eq!(limits.stream_window_bytes(), 262_144);
+    }
+}

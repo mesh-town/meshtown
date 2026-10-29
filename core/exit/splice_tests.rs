@@ -1,4 +1,5 @@
-//! Tests for `splice` (`splice.rs`): the other side's grace period, closing the halves, byte counting, dropping the future.
+//! Tests for `splice` (`splice.rs`): the other side's grace period, closing the halves, byte counting, dropping the future,
+//! the cap on unacknowledged bytes toward the stream (`splice_windowed`).
 //! Stream boxes are `tokio::io::duplex`, `tcp` is a paired `TcpListener` on `127.0.0.1:0`.
 
 use super::*;
@@ -148,6 +149,9 @@ mod dropped_future {
     }
 }
 
+#[path = "splice_window_tests.rs"]
+mod window;
+
 /// Wire ends of `splice`: what the client and the site see, and the task itself.
 struct Wires {
     /// The client writes here — this is `splice`'s `recv`.
@@ -161,20 +165,44 @@ struct Wires {
 
 /// A running `splice` on a `duplex` pair and a tcp pair.
 async fn setup() -> Wires {
-    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listener");
-    let addr = listener.local_addr().expect("listener address");
-    let (tcp, accepted) = tokio::join!(TcpStream::connect(addr), listener.accept());
-    let tcp = tcp.expect("connection to the listener");
-    let (site, _) = accepted.expect("accepting the connection");
+    setup_with(None).await
+}
+
+/// Like `setup`, with `splice_windowed` when a window is given.
+async fn setup_with(window: Option<usize>) -> Wires {
+    let (tcp, site) = tcp_pair().await;
     let (client_out, recv_side) = duplex(64 * 1024);
     let (send_side, client_in) = duplex(64 * 1024);
     let (send, recv): (BoxSend, BoxRecv) = (Box::new(send_side), Box::new(recv_side));
-    let task = crate::node::output::spawn(splice(send, recv, tcp));
+    let task = run_splice(send, recv, tcp, window);
     Wires {
         client_out,
         client_in,
         site,
         task,
+    }
+}
+
+/// A connected loopback pair: the end for `splice` and the end of the site.
+async fn tcp_pair() -> (TcpStream, TcpStream) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("listener");
+    let addr = listener.local_addr().expect("listener address");
+    let (tcp, accepted) = tokio::join!(TcpStream::connect(addr), listener.accept());
+    let tcp = tcp.expect("connection to the listener");
+    let (site, _) = accepted.expect("accepting the connection");
+    (tcp, site)
+}
+
+/// `splice` in its own task: without a window — the public one, otherwise `splice_windowed`.
+fn run_splice(
+    send: BoxSend,
+    recv: BoxRecv,
+    tcp: TcpStream,
+    window: Option<usize>,
+) -> JoinHandle<(u64, u64)> {
+    match window {
+        None => crate::node::output::spawn(splice(send, recv, tcp)),
+        Some(w) => crate::node::output::spawn(splice_windowed(send, recv, tcp, w)),
     }
 }
 

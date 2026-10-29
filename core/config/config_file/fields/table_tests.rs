@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 fn paths_unique() {
     // given: the whole table
     let set: BTreeSet<&str> = FIELDS.iter().map(|f| f.field_path).collect();
-    // then: 40 rows, no repeats
-    assert_eq!(FIELDS.len(), 40);
+    // then: 41 rows, no repeats
+    assert_eq!(FIELDS.len(), 41);
     assert_eq!(set.len(), FIELDS.len(), "a path is repeated");
 }
 
@@ -170,6 +170,39 @@ mod exit_max_streams_row {
     }
 }
 
+mod exit_stream_window_kib_row {
+    use super::super::super::row::{Block, Mode};
+    use super::FIELDS;
+
+    fn position_of(path: &str) -> usize {
+        FIELDS
+            .iter()
+            .position(|f| f.field_path == path)
+            .unwrap_or_else(|| panic!("no row {path}"))
+    }
+
+    #[test]
+    fn is_a_live_process_row() {
+        // given: the `exit.stream_window_kib` row
+        let row = &FIELDS[position_of("exit.stream_window_kib")];
+        // then: it applies without a restart, is editable and belongs to the process block
+        assert_eq!(row.mode, Mode::Live);
+        assert!(row.mode.is_editable(), "the key is editable");
+        assert_eq!(row.block(), Block::Process);
+        assert_eq!((row.section(), row.key()), ("exit", "stream_window_kib"));
+    }
+
+    #[test]
+    fn sits_right_after_exit_max_streams() {
+        // given: the row order is the file output order
+        // then: the `exit` section stays contiguous and the window follows `exit.max_streams`
+        assert_eq!(
+            position_of("exit.stream_window_kib"),
+            position_of("exit.max_streams") + 1
+        );
+    }
+}
+
 mod proxy_net_row {
     use super::super::super::row::{Block, Mode};
     use super::FIELDS;
@@ -208,8 +241,8 @@ mod proxy_net_row {
             .iter()
             .filter(|f| f.value.is_stored_in_settings())
             .count();
-        // then: 34 stored paths, 6 computed, 40 rows in all
-        assert_eq!(stored, 34, "stored rows");
+        // then: 35 stored paths, 6 computed, 41 rows in all
+        assert_eq!(stored, 35, "stored rows");
         assert_eq!(FIELDS.len() - stored, 6, "computed rows");
     }
 }

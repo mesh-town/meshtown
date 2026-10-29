@@ -19,6 +19,8 @@ const MIDDLE_RAM_KIB: u64 = 524_288;
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct MemoryDefaults {
     pub max_streams: u64,
+    /// Cap on unacknowledged bytes per exit stream toward the client, KiB; 0 = none.
+    pub stream_window_kib: u64,
     pub warn_mib: u64,
     /// The exit refuses new streams near the warning level.
     pub rss_guard: bool,
@@ -27,16 +29,19 @@ pub(crate) struct MemoryDefaults {
 impl MemoryDefaults {
     pub(crate) const SMALL: MemoryDefaults = MemoryDefaults {
         max_streams: 20,
+        stream_window_kib: 128,
         warn_mib: 24,
         rss_guard: true,
     };
     pub(crate) const MIDDLE: MemoryDefaults = MemoryDefaults {
         max_streams: 50,
+        stream_window_kib: 0,
         warn_mib: 64,
         rss_guard: true,
     };
     pub(crate) const LARGE: MemoryDefaults = MemoryDefaults {
         max_streams: 200,
+        stream_window_kib: 0,
         warn_mib: NODE_MEMORY_WARN_MIB_DEFAULT,
         rss_guard: false,
     };

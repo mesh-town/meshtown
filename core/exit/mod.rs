@@ -36,6 +36,7 @@ mod stream_tasks;
 pub(crate) mod test_support;
 pub mod traffic;
 mod udpgw;
+mod windowed_copy;
 
 pub use ask_reply::ExitBusy;
 pub use clients::{Clients, EXIT_CLIENT_LINGER};

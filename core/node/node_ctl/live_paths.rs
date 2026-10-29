@@ -21,6 +21,11 @@ pub(super) fn apply_exit_max_streams(limits: &ExitLimits, s: &Settings) {
     limits.set_max_streams(s.process.exit_max_streams);
 }
 
+/// Sets the exit stream window from the settings (`0` means the machine-memory default); open streams keep theirs.
+pub(super) fn apply_exit_stream_window(limits: &ExitLimits, s: &Settings) {
+    limits.set_stream_window(s.process.exit_stream_window_kib);
+}
+
 /// Hands `socks.strict` to `set` (the PAC flag of the proxy front); a parameter keeps tests off the global flag.
 pub(super) fn apply_pac_strict(s: &Settings, set: impl FnOnce(bool)) {
     set(s.process.socks_strict);
@@ -30,7 +35,7 @@ pub(super) fn apply_pac_strict(s: &Settings, set: impl FnOnce(bool)) {
 type Handle = fn(&RunningNode, &Settings);
 
 /// Live-setting handles by path; the set of paths equals `fields::live_paths()` (test `handles_equal_live`).
-const HANDLES: [(&str, Handle); 13] = [
+const HANDLES: [(&str, Handle); 14] = [
     ("exit.enabled", |n, e| {
         n.set_exit_enabled(e.net.exit_enabled)
     }),
@@ -62,6 +67,10 @@ const HANDLES: [(&str, Handle); 13] = [
     // A process-wide handle, not the node's: the stream limit is shared by every network.
     ("exit.max_streams", |_, e| {
         apply_exit_max_streams(&ExitLimits::process(), e)
+    }),
+    // A process-wide handle, not the node's: the stream window is shared by every network.
+    ("exit.stream_window_kib", |_, e| {
+        apply_exit_stream_window(&ExitLimits::process(), e)
     }),
     // A process-wide flag, not the node's: the PAC of the one proxy front reads it on every request.
     ("socks.strict", |_, e| {
