@@ -15,7 +15,7 @@ use meshtown_core::node::{self, output, IdentityState};
 use meshtown_core::web_gui::TOKEN_FILE_NAME;
 use serde_json::{json, Value};
 
-use crate::common::{api, key_text, wait_until};
+use crate::common::{api, key_text, port_open, wait_until};
 
 /// A node run by the process host, with its page.
 pub(crate) struct HostNode {
@@ -147,6 +147,9 @@ async fn wait_token(dir: &std::path::Path) -> String {
 
 async fn wait_page(node: &HostNode) {
     let ok = wait_until(Duration::from_secs(10), || {
+        if !port_open(node.port) {
+            return false;
+        }
         let (status, v) = node.get("/api/state");
         status == 200 && v["node"]["status"] != json!("starting")
     })

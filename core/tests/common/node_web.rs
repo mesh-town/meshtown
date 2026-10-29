@@ -90,6 +90,12 @@ fn parse_response(raw_bytes: &[u8]) -> Resp {
     Resp { status, body }
 }
 
+/// Whether something is listening on the loopback `port` right now. The page writes its token file before it
+/// binds, so a token file alone does not mean the port is open.
+pub(crate) fn port_open(port: u16) -> bool {
+    TcpStream::connect(("127.0.0.1", port)).is_ok()
+}
+
 /// Opens a `TcpStream`, writes `bytes`, reads to the end of the stream (or to a total timeout of 5 s).
 fn raw(port: u16, bytes: &[u8]) -> Vec<u8> {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("raw: connect");
@@ -220,10 +226,16 @@ pub(crate) async fn boot_consulting_with_exit_hosts(
     booted
 }
 
+/// The creator of the loopback network `key`, one per key. Tests of one binary share the in-process network and
+/// run in parallel: a creator identity common to all of them would make their nodes one peer for each other.
+pub(crate) fn creator_secret(key: &NetworkKey) -> NodeSecret {
+    NodeSecret::from_bytes(&key.to_bytes())
+}
+
 /// The text of the Managed network whose base is `key`, created by the fixed root of the loopback tests:
 /// what a person pastes into the key field.
 pub(crate) fn key_text(key: &NetworkKey) -> String {
-    let root = NodeSecret::from_bytes(&[31; 32]).peer_id();
+    let root = creator_secret(key).peer_id();
     managed_key_with_label(None, &key.to_bytes(), &root)
 }
 
@@ -268,7 +280,7 @@ fn test_node_config(
     cfg.exit_hosts = hosts;
     cfg.open_list = open_list;
     if !open_list {
-        cfg.identity_secret = Some(NodeSecret::from_bytes(&[31; 32])); // the creator of the loopback networks
+        cfg.identity_secret = Some(creator_secret(key)); // the creator of the loopback network
     }
     cfg
 }

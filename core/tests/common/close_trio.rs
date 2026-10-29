@@ -22,7 +22,7 @@ use meshtown_core::transport::net_mainline::unix_now;
 use meshtown_core::web_gui::TOKEN_FILE_NAME;
 use serde_json::{json, Value};
 
-use super::common::{api, wait_until};
+use super::common::{api, port_open, wait_until};
 
 /// How long a view or a record may take to spread.
 pub const VIEW_LIMIT: Duration = Duration::from_secs(25);
@@ -330,6 +330,9 @@ async fn wait_token(dir: &Path) -> String {
 
 async fn wait_page(node: &Hosted) {
     let up = wait_until(Duration::from_secs(10), || {
+        if !port_open(node.port) {
+            return false;
+        }
         let (status, v) = node.get("/api/state");
         status == 200 && v["node"]["status"] != json!("starting")
     })

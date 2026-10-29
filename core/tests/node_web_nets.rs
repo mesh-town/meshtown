@@ -32,7 +32,7 @@ fn add_slot(a: &HostNode) -> String {
     body["slot"].as_str().expect("slot id").to_string()
 }
 
-/// Enters the network of `invite` in `slot` and waits until the slot lists another online member.
+/// Enters the network of `invite` in `slot` and waits until the slot lists another online member and its node is up.
 async fn join_slot(a: &HostNode, slot: &str, invite: &str) {
     let path = format!("/api/net/{slot}/network/join");
     let (status, body) = a.post(&path, json!({"key": invite}));
@@ -40,6 +40,13 @@ async fn join_slot(a: &HostNode, slot: &str, invite: &str) {
     let members = format!("/api/net/{slot}/members");
     let ok = wait_until(Duration::from_secs(20), || other_listed(&a.get(&members).1)).await;
     assert!(ok, "the slot never listed another member");
+    // The list shows the invite's peer before the slot's node has finished starting; commands are refused until then.
+    let state = format!("/api/net/{slot}/state");
+    let started = wait_until(Duration::from_secs(20), || {
+        a.get(&state).1["node"]["status"] != json!("starting")
+    })
+    .await;
+    assert!(started, "the slot's node never finished starting");
 }
 
 /// Whether the member list has a row other than the node's own.
