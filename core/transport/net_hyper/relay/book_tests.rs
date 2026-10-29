@@ -205,6 +205,7 @@ fn cand(seed: u8) -> RelayCandidate {
     RelayCandidate {
         member: pid(seed),
         relay: [seed; 32],
+        address: None,
     }
 }
 

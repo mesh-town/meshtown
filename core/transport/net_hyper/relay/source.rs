@@ -2,13 +2,32 @@
 
 use crate::transport::net::id::PeerId;
 use crate::transport::net::stream::BoxFuture;
+use std::net::SocketAddrV4;
 use std::sync::Arc;
+use townjump_dht::RelayAddress;
 
-/// A network member that runs a relay: the member and the key of its relay node.
+/// What a relay publishes about itself: the key of its node and the public address clients reach it at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RelayAdvert {
+    pub key: [u8; 32],
+    pub address: SocketAddrV4,
+}
+
+impl From<RelayAddress> for RelayAdvert {
+    fn from(a: RelayAddress) -> Self {
+        Self {
+            key: a.public_key,
+            address: a.addr,
+        }
+    }
+}
+
+/// A network member that runs a relay: the member, the key of its relay node and, when advertised, its address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RelayCandidate {
     pub member: PeerId,
     pub relay: [u8; 32],
+    pub address: Option<SocketAddrV4>,
 }
 
 /// Candidates for a dial to the given peer, sorted by member. Empty — no relay is tried.

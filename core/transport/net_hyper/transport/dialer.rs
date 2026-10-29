@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::timeout;
-use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex, RelayThrough};
+use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex, RelayAddress, RelayThrough};
 use townjump_dht_peeroxide::PeeroxideDht;
 
 pub(super) struct NodeDialer {
@@ -35,9 +35,18 @@ pub(super) struct NodeDialer {
 /// Options of a dial that pairs through the relay of `cand`. With `vetoed` (tests only) the
 /// hole punch is refused, so the connection can only come through the relay.
 pub(super) fn relay_connect_opts(cand: &RelayCandidate, vetoed: bool) -> ConnectOpts {
+    let relay_addresses = cand
+        .address
+        .map(|addr| RelayAddress {
+            public_key: cand.relay,
+            addr,
+        })
+        .into_iter()
+        .collect();
     let opts = ConnectOpts {
         reusable_socket: true,
         relay_through: Some(RelayThrough::Key(cand.relay)),
+        relay_addresses,
         ..Default::default()
     };
     veto_punch(opts, vetoed)

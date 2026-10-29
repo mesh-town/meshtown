@@ -104,6 +104,7 @@ pub(crate) fn candidate(member: PeerId, relay: &PeeroxideRelay) -> RelayCandidat
     RelayCandidate {
         member,
         relay: relay.public_key(),
+        address: None,
     }
 }
 

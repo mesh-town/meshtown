@@ -38,6 +38,8 @@ mod race;
 mod relay;
 
 #[cfg(test)]
+mod connect_opts_tests;
+#[cfg(test)]
 mod direct_fallback_tests;
 #[cfg(test)]
 mod direct_tests;
