@@ -8,6 +8,8 @@ use std::net::SocketAddr;
 pub enum RelayRef {
     Url(String),
     Peer(PeerId),
+    /// A relay of unknown owner: the receiving side knows only that the session is relayed.
+    Unnamed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]

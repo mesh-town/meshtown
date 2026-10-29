@@ -52,6 +52,7 @@ fn relay_connect_line(
     let via = match relay {
         RelayRef::Peer(id) => label(*id),
         RelayRef::Url(url) => url.clone(),
+        RelayRef::Unnamed => "a relay server".to_string(),
     };
     Some(format!("connected to {who} via relay of {via}"))
 }

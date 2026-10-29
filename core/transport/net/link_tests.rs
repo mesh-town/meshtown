@@ -48,6 +48,16 @@ fn hint_relayed_ignores_remote() {
 }
 
 #[test]
+fn unnamed_relay_gives_no_hint() {
+    // given: a relayed path whose relay is unknown, and the address is known too
+    let info = link(PathKind::Relayed(RelayRef::Unnamed), Some(remote()));
+    // when: we ask for a hint
+    let hint = info.hint();
+    // then: there is nothing to dial again, and the address is not used instead
+    assert_eq!(hint, None, "an unnamed relay is not an address");
+}
+
+#[test]
 fn hint_unknown_is_none() {
     // given: no path chosen, the address is known just in case
     let info = link(PathKind::Unknown, Some(remote()));

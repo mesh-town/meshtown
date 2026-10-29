@@ -15,7 +15,7 @@ use crate::transport::net::mem::{MemReplica, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
 use crate::transport::net::transport::{PeerConn, Transport};
 use crate::transport::net::{PeerId, ReplicaEntry};
-use crate::transport::net_hyper::test_cluster::{cluster, Cluster};
+use crate::transport::net_hyper::test_cluster::{cluster, cluster_on, lan_address, Cluster};
 use crate::transport::net_hyper::test_direct::{connect_within, serving};
 use crate::transport::net_hyper::test_relay::{
     asked_within, fixed_source, relay_on, relayed_via, PeeroxideRelay,
@@ -185,7 +185,7 @@ struct Setup {
 
 impl Setup {
     async fn new() -> Setup {
-        let cl = cluster(5).await;
+        let cl = cluster_on(&lan_address(), 5).await;
         let (a, b) = (serving(&cl, A).await, serving(&cl, B).await);
         let (relay_c, relay_f) = (relay_on(&cl).await, relay_on(&cl).await);
         let (f, c) = ordered_pair(20, 21);

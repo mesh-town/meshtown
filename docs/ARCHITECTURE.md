@@ -7,7 +7,7 @@ A node with a given network key finds other nodes with the same key through a re
 the `hyper` transport: an adapter to the townjump library, which does NAT hole punching. When a direct connection
 does not come up, the dial falls back to a relay run by another member of the same network that has a public address; such a
 relay pairs only members of its own network (the member advertises its relay key and public address as the record `relay/v1` in the network's replica, the address in the tail after the 32-byte key, which older readers ignore; a relay is advertised only after it has checked that its address is reachable from outside, and is closed and retried later if that does not happen; setting `net.relay`, `network`
-by default, `off` disables both calling and serving). The receiving side does not see the relay and reports `direct`. The nodes share a topic
+by default, `off` disables both calling and serving). The receiving side sees that the session is relayed (not by whom) and reports `relay`. The nodes share a topic
 (membership by flooding) and a replica of signed records (domain list, check results, port publications). Once per
 interval a volume probe (16 KiB / 256 KiB / 1 MiB) runs over a connection to find out whether the transport passes
 through the network it runs in.

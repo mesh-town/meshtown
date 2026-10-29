@@ -2,6 +2,7 @@
 //! the dial went through a relay of a network member; the window is unknown; rtt comes from the connection probe.
 
 use crate::transport::net::addr::RelayRef;
+use crate::transport::net::id::PeerId;
 use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
 use portable_atomic::AtomicU64;
 use std::io;
@@ -28,17 +29,28 @@ impl PathFacts {
         PathFacts {
             remote: via.map(SocketAddr::V4),
             rtt: conn.rtt_probe(),
-            relay: None,
+            relay: relay_label(None, conn.is_relayed()),
         }
     }
 
     /// Incoming session: the source address of a handshake is not a dialable address, so it is not kept.
+    /// The relay, if any, is not known by name.
     pub fn accepted(conn: &DhtConnection) -> PathFacts {
         PathFacts {
             remote: None,
             rtt: conn.rtt_probe(),
-            relay: None,
+            relay: relay_label(None, conn.is_relayed()),
         }
+    }
+}
+
+/// The relay label of a session: `through` is the member whose relay the dial went through; a session that
+/// is not relayed has none, whatever the dial tried.
+pub fn relay_label(through: Option<PeerId>, relayed: bool) -> Option<RelayRef> {
+    match (relayed, through) {
+        (false, _) => None,
+        (true, Some(id)) => Some(RelayRef::Peer(id)),
+        (true, None) => Some(RelayRef::Unnamed),
     }
 }
 
@@ -110,6 +122,7 @@ fn route_text(relay: Option<RelayRef>) -> String {
         None => "direct UDX".to_string(),
         Some(RelayRef::Peer(id)) => format!("relayed via member {}", id.fmt_short()),
         Some(RelayRef::Url(url)) => format!("relayed via {url}"),
+        Some(RelayRef::Unnamed) => "relayed via a relay server".to_string(),
     }
 }
 
@@ -197,3 +210,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for Metered<S> {
 #[cfg(test)]
 #[path = "link_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "link_relay_tests.rs"]
+mod relay_tests;

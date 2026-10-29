@@ -6,13 +6,12 @@ use super::phases::{direct_then_relay, Phase};
 use super::race::first_ok;
 use super::relay::RelayDial;
 use super::{dht_error_to_net_error, CONNECT_LIMIT, DIRECT_LIMIT, RELAY_LIMIT};
-use crate::transport::net::addr::RelayRef;
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net_hyper::conn::StreamDialer;
 use crate::transport::net_hyper::keys::peer_of;
-use crate::transport::net_hyper::link::PathFacts;
+use crate::transport::net_hyper::link::{relay_label, PathFacts};
 use crate::transport::net_hyper::relay::{RelayCandidate, RelayPick};
 use std::net::SocketAddrV4;
 use std::sync::Arc;
@@ -76,7 +75,7 @@ fn held(
     through: Option<PeerId>,
 ) -> (Box<dyn Duplex>, PathFacts) {
     let mut facts = PathFacts::dialed(&reached.conn, reached.via);
-    facts.relay = through.map(RelayRef::Peer);
+    facts.relay = relay_label(through, reached.conn.is_relayed());
     (Box::new(Held::new(reached.conn.stream, slot)), facts)
 }
 
