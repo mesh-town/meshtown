@@ -215,3 +215,30 @@ fn access_bogus_value_is_cli_error() {
     );
     cleanup(&dir);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_print_shows_loopback_and_keeps_password() {
+    let rig = rig("cli-open-print").await;
+    let o = mesh(&["open", "--print"], &rig.dir, rig.port);
+    assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
+    let text = out(&o);
+    assert!(text.contains("127.0.0.1"), "no loopback address: {text}");
+    assert!(text.contains("page password"), "no password hint: {text}");
+    assert!(
+        password_file(&rig.dir).exists(),
+        "password file was removed"
+    );
+    assert!(
+        !text.contains(&file_token(&rig.dir)),
+        "permanent token in the output"
+    );
+    finish(rig).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn open_without_node_fails_with_hint() {
+    let dir = scratch("cli-open-off");
+    let o = mesh(&["open", "--print"], &dir, free_port());
+    assert_ne!(o.status.code(), Some(0));
+    assert!(err(&o).contains("start it first"), "stderr: {}", err(&o));
+}

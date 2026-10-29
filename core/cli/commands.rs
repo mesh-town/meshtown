@@ -10,9 +10,11 @@ use clap::ArgMatches;
 use crate::cli::args::{is_flag_typed, toggle_from_flag_pair};
 
 pub(crate) mod access;
+mod browser;
 pub(crate) mod ifaces;
 mod keygen;
 mod node_link;
+pub(crate) mod open;
 pub(crate) mod password;
 mod run_args;
 mod run_invite;

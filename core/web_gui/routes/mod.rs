@@ -238,6 +238,10 @@ fn register_auth(router: Router<Arc<App>>) -> Router<Arc<App>> {
             post(auth::reset_handler).fallback(bad_method),
         )
         .route(
+            "/api/auth/link",
+            post(auth::link_handler).fallback(bad_method),
+        )
+        .route(
             "/api/auth/password",
             put(auth_password::password_put_handler).fallback(bad_method),
         )

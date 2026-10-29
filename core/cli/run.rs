@@ -110,6 +110,11 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
             web_port,
             action: crate::cli::args::PasswordAction::Reset,
         } => crate::cli::commands::password::run_password_command(config, web_port),
+        CliCommand::Open {
+            print,
+            config,
+            web_port,
+        } => crate::cli::commands::open::run_open_command(config, web_port, print),
         CliCommand::Access {
             config,
             web_port,
