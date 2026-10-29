@@ -2,7 +2,7 @@
 
 Builds of [Mesh Town](https://github.com/mesh-town/meshtown) for macOS: `MeshTown-macos-arm64.zip` for Apple silicon
 and `MeshTown-macos-x86_64.zip` for Intel. The files without a version are the latest version (@VERSION@ at the last
-publication); the four latest versions of each are also kept under their version numbers.
+publication). Earlier versions are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this repository.
 
 ## Install
 
@@ -13,6 +13,6 @@ publication); the four latest versions of each are also kept under their version
 
 Check the download against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS --ignore-missing`) before running it.
 
-## Versions
+## Files
 
 @TABLE@

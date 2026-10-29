@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # publish_test.sh: runs publish.sh against a local bare repository and checks the result.
 # Publishes 0.3.8 ... 0.3.13, 0.3.13 again, then only android/ 0.3.14; with gpg also an apt repository in linux/debian/.
+# Every folder holds only the files without a version in the name, with the content of the latest publication.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -67,16 +68,13 @@ for k in "${kinds[@]}"; do
   folder="${k%%/*}" rest="${k#*/}" stem="${rest%/*}" ext="${rest##*/}"
   d="$clone/$folder"
   [ -f "$d/README.md" ] || fail "$folder/README.md"
-  if [ "$folder" = android ]; then newest=0.3.14 expect="0.3.14 0.3.13 0.3.12 0.3.11"; else
-    newest=0.3.13 expect="0.3.13 0.3.12 0.3.11 0.3.10"
-  fi
-  got="$(cd "$d" && ls -- "$stem"-[0-9]*."$ext" | sed -e "s/^$stem-//" -e "s/\\.$ext\$//" | sort -t. -k2,2nr -k3,3nr | tr '\n' ' ')"
-  [ "$got" = "$expect " ] || fail "$folder/$stem versions: '$got', want '$expect'"
-  cmp "$d/$stem.$ext" "$d/$stem-$newest.$ext" || fail "$folder/$stem.$ext is not the newest"
-  grep -q "$stem-$newest.$ext" "$d/README.md" || fail "$folder/README.md lacks $stem-$newest.$ext"
+  if [ "$folder" = android ]; then newest=0.3.14; else newest=0.3.13; fi
+  [ "$(cat "$d/$stem.$ext")" = "fake $stem $newest" ] || fail "$folder/$stem.$ext is not the newest"
+  grep -q "$stem.$ext" "$d/README.md" || fail "$folder/README.md lacks $stem.$ext"
 done
 
 for folder in macos windows linux android; do
+  [ -z "$(find "$clone/$folder" -maxdepth 1 -name '*-[0-9]*.[0-9]*.[0-9]*.*')" ] || fail "versioned names in $folder"
   sums_check "$clone/$folder" || fail "SHA256SUMS in $folder"
   [ "$(grep -c . "$clone/$folder/SHA256SUMS")" = "$(find "$clone/$folder" -maxdepth 1 -type f ! -name SHA256SUMS ! -name README.md | wc -l | tr -d ' ')" ] \
     || fail "SHA256SUMS in $folder does not list every file"
@@ -90,16 +88,30 @@ for folder in macos windows linux; do
   diff -r "$clone/$folder" "$tmp/again/$folder" > /dev/null || fail "$folder changed by a partial publication"
 done
 [ "$prev_commit" != "$(git -C "$tmp/again" rev-parse HEAD)" ] || fail "no new commit"
-[ -f "$tmp/again/android/meshtown-0.3.14.apk" ] || fail "android 0.3.14 lost"
+[ "$(cat "$tmp/again/android/meshtown.apk")" = "fake meshtown 0.3.14" ] || fail "android 0.3.14 lost"
 
 # A partial publication leaves the other folders as they were: android has to survive the one above, too.
 publish 0.3.15 android
 git clone -q "$MESHTOWN_DIST_PUBLISH_URL" "$tmp/last"
 diff -r "$tmp/again/macos" "$tmp/last/macos" > /dev/null || fail "macos changed by android 0.3.15"
-[ ! -f "$tmp/last/android/meshtown-0.3.11.apk" ] || fail "android 0.3.11 must be pruned"
-[ -f "$tmp/last/android/meshtown-0.3.15.apk" ] || fail "android 0.3.15 missing"
+[ "$(cat "$tmp/last/android/meshtown.apk")" = "fake meshtown 0.3.15" ] || fail "android 0.3.15 missing"
 
 [ -f "$tmp/last/.nojekyll" ] || fail ".nojekyll lost after a partial publication"
+
+# Stray versioned copies are removed from every folder, also from those left out of the publication.
+stray_remote="$tmp/stray.git"
+git init -q --bare -b main "$stray_remote"
+git clone -q "$stray_remote" "$tmp/stray" 2> /dev/null
+mkdir -p "$tmp/stray/macos" "$tmp/stray/windows"
+printf 'old\n' > "$tmp/stray/macos/MeshTown-macos-arm64-0.3.1.zip"
+printf 'old\n' > "$tmp/stray/windows/meshtown-0.3.1.exe"
+git -C "$tmp/stray" add -A
+git -C "$tmp/stray" -c user.name=t -c user.email=t@example.com commit -q -m seed
+git -C "$tmp/stray" push -q origin HEAD:main
+MESHTOWN_DIST_PUBLISH_URL="file://$stray_remote" publish 0.3.16 macos
+git clone -q "file://$stray_remote" "$tmp/stray-after"
+[ ! -e "$tmp/stray-after/macos/MeshTown-macos-arm64-0.3.1.zip" ] || fail "stray versioned copies are removed from macos"
+[ ! -e "$tmp/stray-after/windows/meshtown-0.3.1.exe" ] || fail "stray versioned copies are removed from all folders"
 
 # The apt repository: linux/debian/ built from fake archives, signed with a throwaway key.
 debian_test() {

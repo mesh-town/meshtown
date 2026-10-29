@@ -10,8 +10,8 @@ macOS, Windows, Linux, Android and OpenWrt or Keenetic routers. Website:
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Builds of [Mesh Town](https://github.com/mesh-town/meshtown) for every system. The files without a version in the
-name are always the latest version (@VERSION@ at the last publication); each folder also keeps the four latest versions
-of every file under their version numbers.
+name are always the latest version (@VERSION@ at the last publication).
+Earlier versions are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this repository.
 
 | System | Download |
 |---|---|
@@ -30,5 +30,5 @@ of every file under their version numbers.
 | Homebrew (macOS) | `brew install mesh-town/macos/meshtown` |
 
 Other builds (armv7, MIPS) are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this
-repository. Every folder has a `SHA256SUMS` file and a README with the install notes and the version list. The
+repository. Every folder has a `SHA256SUMS` file and a README with the install notes and the file list. The
 source code and the build workflows are in the [main repository](https://github.com/mesh-town/meshtown).

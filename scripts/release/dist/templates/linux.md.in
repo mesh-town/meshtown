@@ -2,8 +2,8 @@
 
 Static (musl) builds of [Mesh Town](https://github.com/mesh-town/meshtown) for x86_64 and aarch64:
 `meshtown-linux-<arch>.tar.gz` (with the tray icon) and `meshtown-cli-linux-<arch>.tar.gz` (console only). The files
-without a version are the latest version (@VERSION@ at the last publication); the four latest versions of each are
-also kept under their version numbers.
+without a version are the latest version (@VERSION@ at the last publication).
+Earlier versions are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this repository.
 
 ## Install
 
@@ -16,6 +16,6 @@ Check the download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missi
 
 The [`debian/`](debian/README.md) folder is an apt repository with a signed `.deb` package for amd64 and arm64.
 
-## Versions
+## Files
 
 @TABLE@
