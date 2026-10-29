@@ -4,11 +4,10 @@
 //! The nodes use the fork API of the DHT directly, because the public wrapper does not expose the
 //! knobs that close the direct path (the punch filter, `local_connection`).
 
-use super::test_cluster::cluster_on;
+use super::test_cluster::{cluster_on, lan_address};
 use libudx::UdxRuntime;
 use peeroxide_dht::blind_relay::BlindRelayServer;
 use peeroxide_dht::crypto::hash;
-use peeroxide_dht::holepuncher::Holepuncher;
 use peeroxide_dht::hyperdht::{
     spawn, ConnectOpts, HolepunchFilter, HyperDhtConfig, HyperDhtHandle, KeyPair, PeerConnection,
     RelayPath, RelayThrough, ServerEvent,
@@ -59,7 +58,7 @@ struct Relay {
     key: KeyPair,
     server: BlindRelayServer,
     _rt: UdxRuntime,
-    _task: tokio::task::JoinHandle<()>,
+    _task: peeroxide_dht::relay_service::RelayServiceHandle,
 }
 
 struct EchoServer {
@@ -80,15 +79,6 @@ async fn start_node(bootstrap: Vec<String>, host: &str, firewalled: bool, epheme
     let (_task, handle, events) = spawn(&rt, config).await.expect("node start");
     handle.bootstrapped().await.expect("node warmed up");
     Node { rt, handle, events }
-}
-
-/// The first non-loopback IPv4 address of this machine: a relay there is reachable by address.
-fn lan_address() -> String {
-    Holepuncher::local_addresses(0)
-        .into_iter()
-        .map(|a| a.host)
-        .find(|h| !h.starts_with("127."))
-        .expect("a non-loopback IPv4 address")
 }
 
 async fn start_relay(bootstrap: Vec<String>, host: &str) -> Relay {

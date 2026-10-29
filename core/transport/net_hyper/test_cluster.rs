@@ -1,6 +1,7 @@
 //! Test DHT network on one address (loopback by default): several nodes, the first one is the bootstrap for the rest.
 //! Modeled on the cluster from the peeroxide-dht fork tests (host = 127.0.0.1, firewalled = false).
 use libudx::UdxRuntime;
+use peeroxide_dht::holepuncher::Holepuncher;
 use peeroxide_dht::hyperdht::{spawn, HyperDhtConfig, HyperDhtError, HyperDhtHandle, ServerEvent};
 use peeroxide_dht::rpc::DhtConfig;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -66,4 +67,13 @@ pub async fn cluster_on(host: &str, size: usize) -> Cluster {
         bootstrap,
         _nodes: nodes,
     }
+}
+
+/// The first non-loopback IPv4 address of this machine: a relay there is reachable by address.
+pub(crate) fn lan_address() -> String {
+    Holepuncher::local_addresses(0)
+        .into_iter()
+        .map(|a| a.host)
+        .find(|h| !h.starts_with("127."))
+        .expect("a non-loopback IPv4 address")
 }

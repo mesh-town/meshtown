@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::timeout;
-use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex};
+use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex, RelayThrough};
 use townjump_dht_peeroxide::PeeroxideDht;
 
 pub(super) struct NodeDialer {
@@ -30,6 +30,34 @@ pub(super) struct NodeDialer {
     pub(super) hints: HintBook,
     /// Relay candidates for dials and the memory of which relay worked.
     pub(super) relay: RelayDial,
+}
+
+/// Options of a dial that pairs through the relay of `cand`. With `vetoed` (tests only) the
+/// hole punch is refused, so the connection can only come through the relay.
+pub(super) fn relay_connect_opts(cand: &RelayCandidate, vetoed: bool) -> ConnectOpts {
+    let opts = ConnectOpts {
+        reusable_socket: true,
+        relay_through: Some(RelayThrough::Key(cand.relay)),
+        ..Default::default()
+    };
+    veto_punch(opts, vetoed)
+}
+
+#[cfg(test)]
+fn veto_punch(opts: ConnectOpts, vetoed: bool) -> ConnectOpts {
+    if !vetoed {
+        return opts;
+    }
+    ConnectOpts {
+        holepunch: Some(Arc::new(|_| false)),
+        local_connection: false,
+        ..opts
+    }
+}
+
+#[cfg(not(test))]
+fn veto_punch(opts: ConnectOpts, _vetoed: bool) -> ConnectOpts {
+    opts
 }
 
 /// Packs a reached connection with its slot; `through` is the member whose relay carried it.
@@ -138,14 +166,11 @@ impl NodeDialer {
         if self.relay.relay_fails(&cand.relay) {
             return Err(NetError::NoRoute);
         }
-        self.by_key_via(to, cand.relay).await
+        self.by_key_via(to, cand).await
     }
 
-    async fn by_key_via(&self, to: PeerId, relay: [u8; 32]) -> NetResult<Reached> {
-        let opts = ConnectOpts {
-            reusable_socket: true,
-            relay_through: Some(relay),
-        };
+    async fn by_key_via(&self, to: PeerId, cand: RelayCandidate) -> NetResult<Reached> {
+        let opts = relay_connect_opts(&cand, self.relay.direct_fails());
         let conn = self
             .node
             .connect(*to.as_bytes(), opts)

@@ -81,11 +81,11 @@ tower-http = { version = "=0.6.11", default-features = false, features = ["set-h
 # so the build hashes match and the builds are shared.
 crossbeam-utils = { version = "0.8", features = ["std"] }
 # hyper transport (townjump, pinned by revision): the `net-hyper` feature.
-townjump-dht = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1", optional = true }
-townjump-dht-peeroxide = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1", optional = true }
-townjump-keys = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1", optional = true }
-townjump-pipe = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
-townjump-logger = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
+townjump-dht = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb", optional = true }
+townjump-dht-peeroxide = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb", optional = true }
+townjump-keys = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb", optional = true }
+townjump-pipe = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb" }
+townjump-logger = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb" }
 # Network change watcher: versions are pinned.
 netwatch = { version = "=0.19.3", optional = true }
 n0-watcher = { version = "=1.0.0", optional = true }
@@ -128,5 +128,5 @@ gui = ["dep:tray-icon"]
 # Reference implementation for the differential tests of `http_url` (tests only).
 url = "=2.5.8"
 # Test network of the loop (tests only).
-peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
-libudx = { git = "https://github.com/mesh-town/townjump", rev = "f70a0a924905bbce8be8a046e73bece4ecb782c1" }
+peeroxide-dht = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb" }
+libudx = { git = "https://github.com/mesh-town/townjump", rev = "25b53c78121ca609dc2c0494a056cda5c80a26fb" }
