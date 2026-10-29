@@ -157,7 +157,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 
 The DHT and transport come from [townjump](https://github.com/mesh-town/townjump), a Rust port of
 [Holesail](https://github.com/holesail/holesail). The word list in network keys is the EFF Large Wordlist for
-Passphrases (CC BY 3.0 US, embedded unchanged, see `core/members/wordlist/NOTICE.md`). The page is built with
+Passphrases (CC BY 3.0 US, the words are embedded in compressed form with the dice numbers dropped, see `core/members/wordlist/NOTICE.md`). The page is built with
 [Vue](https://vuejs.org/). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 AGPL-3.0-only, see [LICENSE](LICENSE).
