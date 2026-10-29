@@ -1,39 +1,40 @@
-//! Publishing this node's own relay key to the network: the record `relay/v1` in the shared replica.
+//! Publishing this node's own relay (key and public address) to the network: the record `relay/v1` in the shared replica.
 
 use std::sync::Arc;
 
-use bytes::Bytes;
 use tokio::sync::watch;
 
 use crate::node::output::{say, NET_NAME};
-use crate::node::start::relay_candidates::RELAY_ADVERT_KEY;
+use crate::node::start::relay_candidates::{encode_relay_value, RELAY_ADVERT_KEY};
 use crate::transport::net::{NetResult, Replica};
+use crate::transport::net_hyper::RelayAdvert;
 
-/// Keeps the advert in step with the relay keys: `Some` writes it, `None` retracts it. Ends when the sender is
-/// dropped. Replica errors are logged; the next key change writes again.
+/// Keeps the advert in step with the relay: `Some` writes it, `None` retracts it. Ends when the sender is
+/// dropped. Replica errors are logged; the next change writes again.
 pub(crate) async fn advertise_relay(
-    mut keys: watch::Receiver<Option<[u8; 32]>>,
+    mut adverts: watch::Receiver<Option<RelayAdvert>>,
     replica: Arc<dyn Replica>,
 ) {
     let mut prev = None;
     loop {
-        let key = *keys.borrow_and_update();
-        if let Some(line) = relay_line(prev, key) {
+        let advert = *adverts.borrow_and_update();
+        if let Some(line) = relay_line(prev, advert) {
             say("relay", line);
         }
-        prev = key;
-        let done = apply(key, &*replica).await;
+        prev = advert;
+        let done = apply(advert, &*replica).await;
         if let Err(e) = done {
             tracing::warn!("relay: updating the advert failed: {e}");
         }
-        if keys.changed().await.is_err() {
+        if adverts.changed().await.is_err() {
             return;
         }
     }
 }
 
-/// The log line for a change of the relay key; `None` while the node stays in the same state.
-fn relay_line(prev: Option<[u8; 32]>, now: Option<[u8; 32]>) -> Option<String> {
+/// The log line for the relay appearing or going; `None` while the node stays in the same state
+/// (a new address alone is not announced).
+fn relay_line(prev: Option<RelayAdvert>, now: Option<RelayAdvert>) -> Option<String> {
     match (prev, now) {
         (None, Some(_)) => Some(format!(
             "serving as relay for members of network {NET_NAME}"
@@ -43,12 +44,12 @@ fn relay_line(prev: Option<[u8; 32]>, now: Option<[u8; 32]>) -> Option<String> {
     }
 }
 
-/// Writes or retracts the advert for the current key.
-async fn apply(key: Option<[u8; 32]>, replica: &dyn Replica) -> NetResult<()> {
-    match key {
-        Some(k) => {
+/// Writes or retracts the advert for the current relay.
+async fn apply(advert: Option<RelayAdvert>, replica: &dyn Replica) -> NetResult<()> {
+    match advert {
+        Some(a) => {
             replica
-                .set_own(RELAY_ADVERT_KEY, Bytes::copy_from_slice(&k))
+                .set_own(RELAY_ADVERT_KEY, encode_relay_value(&a))
                 .await
         }
         None => retract_relay(replica).await,

@@ -469,7 +469,7 @@ An optional section: what the node uses to talk over the network. No section or 
   its own topic membership (flooding over the node's connections) and its own records (signed by the author, reconciled with
   peers), stored as files in the `replica/` directory.
 - `relay` — relaying inside the network: `"network"` (default) lets the node reach a member through another member of
-  the same network that has a public address, and lets it serve as such a relay, which pairs only members of its own network; `"off"` does neither. Changed by
+  the same network that has a public address, and lets it serve as such a relay, which pairs only members of its own network (the relay checks its own reachability and is advertised only once its public address is confirmed); `"off"` does neither. Changed by
   restarting the node.
 - An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning
   and the default for the whole field; the node starts. An unknown key in `net` goes to the log, as everywhere.

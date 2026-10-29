@@ -1,14 +1,15 @@
-//! The relay host: when a node serves a relay, the step table, and the task that follows the node mode.
+//! The relay host: when a node serves a relay and the task that follows the node mode (the step table is in
+//! `host_reach_tests.rs`).
 
 use super::*;
 use crate::transport::net_hyper::test_cluster::{cluster, Cluster};
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use townjump_dht_peeroxide::PeeroxideFactory;
 
 const POLL: Duration = Duration::from_millis(50);
 const WAIT: Duration = Duration::from_secs(60);
-const KEY: [u8; 32] = [9; 32];
 
 mod relay_wanted {
     use super::*;
@@ -29,71 +30,17 @@ mod relay_wanted {
     }
 }
 
-mod step {
-    use super::*;
-
-    #[test]
-    fn fresh_state_starts_when_wanted() {
-        assert_eq!(HostState::default().step(true), HostStep::Start);
-    }
-
-    #[test]
-    fn fresh_state_stays_when_not_wanted() {
-        assert_eq!(HostState::default().step(false), HostStep::Stay);
-    }
-
-    #[test]
-    fn started_but_not_announced_advertises_when_wanted() {
-        let state = started_state();
-        assert_eq!(state.step(true), HostStep::Advertise(KEY));
-    }
-
-    #[test]
-    fn announced_and_wanted_stays() {
-        let mut state = started_state();
-        state.advertised(true);
-        assert_eq!(state.step(true), HostStep::Stay);
-    }
-
-    #[test]
-    fn announced_and_not_wanted_retracts() {
-        let mut state = started_state();
-        state.advertised(true);
-        assert_eq!(state.step(false), HostStep::Retract);
-    }
-
-    #[test]
-    fn retracted_and_not_wanted_stays() {
-        let mut state = started_state();
-        state.advertised(true);
-        state.advertised(false);
-        assert_eq!(state.step(false), HostStep::Stay);
-    }
-
-    #[test]
-    fn public_again_advertises_without_a_second_start() {
-        // given: a relay that was announced, retracted when the node lost its public address
-        let mut state = started_state();
-        state.advertised(true);
-        state.advertised(false);
-        // when: the node is public again
-        let step = state.step(true);
-        // then: the same relay is announced, no new start
-        assert_eq!(step, HostStep::Advertise(KEY));
-    }
-}
-
 mod spawned_host {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    async fn spawn_starts_and_reports_its_key() {
+    async fn spawn_starts_and_reports_its_advert() {
         // given: a public node
         let mut rig = rig(true, 0).await;
         // when: the host runs
-        let key = rig.next_key().await;
-        // then: the announced key is the key of the one relay that was started
-        assert_eq!(rig.started(), vec![key]);
+        let advert = rig.next_advert().await;
+        // then: the announced advert is the one of the single relay that was started
+        assert_eq!(rig.started(), vec![advert]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -102,7 +49,7 @@ mod spawned_host {
         let rig = rig(false, 0).await;
         // when: several polls pass
         tokio::time::sleep(POLL * 6).await;
-        // then: no relay was started and no key is announced
+        // then: no relay was started and nothing is announced
         assert_eq!(rig.attempts.load(Ordering::SeqCst), 0);
         assert_eq!(*rig.host.keys().borrow(), None);
     }
@@ -112,31 +59,31 @@ mod spawned_host {
         // given: a public node whose first relay start fails
         let mut rig = rig(true, 1).await;
         // when: the host runs
-        let key = rig.next_key().await;
+        let advert = rig.next_advert().await;
         // then: the second attempt succeeded and announced its relay
         assert_eq!(rig.attempts.load(Ordering::SeqCst), 2);
-        assert_eq!(rig.started(), vec![key]);
+        assert_eq!(rig.started(), vec![advert]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn losing_and_regaining_a_public_address_keeps_one_relay() {
-        // given: a running host that announced its key
+        // given: a running host that announced its advert
         let mut rig = rig(true, 0).await;
-        let key = rig.next_key().await;
+        let advert = rig.next_advert().await;
         // when: the node becomes firewalled, then public again
         rig.public.store(false, Ordering::SeqCst);
         rig.wait_for_none().await;
         rig.public.store(true, Ordering::SeqCst);
-        // then: the same key is announced again and the relay was started once
-        assert_eq!(rig.next_key().await, key);
-        assert_eq!(rig.started(), vec![key]);
+        // then: the same advert is announced again and the relay was started once
+        assert_eq!(rig.next_advert().await, advert);
+        assert_eq!(rig.started(), vec![advert]);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn close_reports_none_and_closes_the_relay() {
-        // given: a running host that announced its key
+        // given: a running host that announced its advert
         let mut rig = rig(true, 0).await;
-        rig.next_key().await;
+        rig.next_advert().await;
         let mut keys = rig.host.keys();
         // when: the host is closed
         rig.host.close().await;
@@ -174,30 +121,30 @@ struct Rig {
     host: RelayHost,
     public: Arc<AtomicBool>,
     attempts: Arc<AtomicUsize>,
-    started: Arc<Mutex<Vec<[u8; 32]>>>,
+    started: Arc<Mutex<Vec<RelayAdvert>>>,
     _cluster: Cluster,
 }
 
 impl Rig {
-    /// Waits until a key is announced and returns it.
-    async fn next_key(&mut self) -> [u8; 32] {
-        let mut keys = self.host.keys();
-        let seen = tokio::time::timeout(WAIT, keys.wait_for(|k| k.is_some())).await;
-        let key = *seen
-            .expect("a key was announced")
+    /// Waits until an advert is announced and returns it.
+    async fn next_advert(&mut self) -> RelayAdvert {
+        let mut adverts = self.host.keys();
+        let seen = tokio::time::timeout(WAIT, adverts.wait_for(|a| a.is_some())).await;
+        let advert = *seen
+            .expect("an advert was announced")
             .expect("the host is alive");
-        key.expect("a key")
+        advert.expect("an advert")
     }
 
     async fn wait_for_none(&mut self) {
-        let mut keys = self.host.keys();
-        let seen = tokio::time::timeout(WAIT, keys.wait_for(|k| k.is_none())).await;
-        seen.expect("the key was retracted")
+        let mut adverts = self.host.keys();
+        let seen = tokio::time::timeout(WAIT, adverts.wait_for(|a| a.is_none())).await;
+        seen.expect("the advert was retracted")
             .expect("the host is alive");
     }
 
-    /// Keys of the relays that started.
-    fn started(&self) -> Vec<[u8; 32]> {
+    /// Adverts (key and loopback address) of the relays that started.
+    fn started(&self) -> Vec<RelayAdvert> {
         self.started.lock().unwrap().clone()
     }
 }
@@ -230,7 +177,7 @@ fn start_fn(
     bootstrap: Vec<String>,
     fail_first: usize,
     attempts: Arc<AtomicUsize>,
-    started: Arc<Mutex<Vec<[u8; 32]>>>,
+    started: Arc<Mutex<Vec<RelayAdvert>>>,
 ) -> StartRelay {
     Arc::new(move || {
         let n = attempts.fetch_add(1, Ordering::SeqCst);
@@ -244,7 +191,12 @@ fn start_fn(
                 ..Default::default()
             };
             let relay = factory.create_relay(None).await?;
-            started.lock().unwrap().push(relay.public_key());
+            let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, relay.local_port());
+            let advert = RelayAdvert {
+                key: relay.public_key(),
+                address,
+            };
+            started.lock().unwrap().push(advert);
             Ok(relay)
         })
     })
@@ -257,10 +209,4 @@ fn mode(persistent: bool, firewalled: bool) -> NodeMode {
         firewalled,
         address: None,
     }
-}
-
-fn started_state() -> HostState {
-    let mut state = HostState::default();
-    state.started(KEY);
-    state
 }

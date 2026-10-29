@@ -102,6 +102,17 @@ mod options {
     }
 
     #[test]
+    fn reachability_is_checked() {
+        // given / when
+        let opts = relay_opts(key_pair(&secret(9)), Arc::new(|_| true));
+        // then
+        assert!(
+            !opts.assume_open,
+            "the relay is assumed open without a check"
+        );
+    }
+
+    #[test]
     fn firewall_is_set() {
         // given / when
         let opts = relay_opts(key_pair(&secret(9)), Arc::new(|_| true));

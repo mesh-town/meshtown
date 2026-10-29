@@ -24,7 +24,6 @@ pub(crate) const RELAY_ADVERT_KEY: &[u8] = b"relay/v1";
 const ADVERT_LEN: usize = 38;
 
 /// The advert value: the relay key, then its IPv4 address and big-endian UDP port.
-#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn encode_relay_value(advert: &RelayAdvert) -> Bytes {
     let mut value = Vec::with_capacity(ADVERT_LEN);
     value.extend_from_slice(&advert.key);

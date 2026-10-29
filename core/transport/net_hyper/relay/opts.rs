@@ -25,7 +25,7 @@ pub(crate) fn relay_opts(identity: KeyPair, admit: RelayAdmit) -> RelayOpts {
         firewall: Some(firewall),
         announce: RELAY_ANNOUNCE,
         port: 0,
-        assume_open: true,
+        assume_open: false,
     }
 }
 

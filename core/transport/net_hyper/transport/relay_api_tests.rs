@@ -71,17 +71,17 @@ mod relay_host {
         // given: a running host; this node is not public, so it starts no relay and only the stop is checked
         let cl = cluster(3).await;
         let t = serving(&cl, 1).await;
-        let mut keys = t.serve_relay(admit_all());
+        let mut adverts = t.serve_relay(admit_all());
         // when
         let closed = timeout(CLOSE_WITHIN, t.close()).await;
         // then
         assert!(closed.is_ok(), "close did not finish in time");
-        let ended = timeout(CLOSE_WITHIN, keys.changed()).await;
+        let ended = timeout(CLOSE_WITHIN, adverts.changed()).await;
         assert!(
             matches!(ended, Ok(Err(_))),
-            "the key channel stayed open: {ended:?}"
+            "the advert channel stayed open: {ended:?}"
         );
-        assert_eq!(*keys.borrow(), None);
+        assert_eq!(*adverts.borrow(), None);
     }
 
     #[tokio::test]
@@ -91,10 +91,10 @@ mod relay_host {
         let t = serving(&cl, 1).await;
         t.close().await;
         // when
-        let mut keys = t.serve_relay(admit_all());
+        let mut adverts = t.serve_relay(admit_all());
         // then
-        assert_eq!(*keys.borrow(), None);
-        let ended = timeout(CLOSE_WITHIN, keys.changed()).await;
+        assert_eq!(*adverts.borrow(), None);
+        let ended = timeout(CLOSE_WITHIN, adverts.changed()).await;
         assert!(
             matches!(ended, Ok(Err(_))),
             "a relay host started after close: {ended:?}"
@@ -131,6 +131,21 @@ mod relay_opts_for {
         let opts = t.relay_opts_for(admit_all());
         // then
         assert_eq!(opts.identity, Some(relay_key_pair(&secret(1))));
+        t.close().await;
+    }
+
+    #[tokio::test]
+    async fn relay_opts_check_reachability() {
+        // given
+        let cl = cluster(3).await;
+        let t = serving(&cl, 1).await;
+        // when
+        let opts = t.relay_opts_for(admit_all());
+        // then
+        assert!(
+            !opts.assume_open,
+            "the relay would announce an address it never checked"
+        );
         t.close().await;
     }
 

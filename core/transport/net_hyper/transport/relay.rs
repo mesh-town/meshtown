@@ -4,7 +4,8 @@ use super::HyperTransport;
 use crate::transport::net::id::PeerId;
 use crate::transport::net_hyper::relay::host::{StartRelay, RELAY_MODE_POLL};
 use crate::transport::net_hyper::relay::{
-    relay_opts, spawn_host, RelayAdmit, RelayBook, RelayCandidate, RelayHost, RelaySource,
+    relay_opts, spawn_host, RelayAdmit, RelayAdvert, RelayBook, RelayCandidate, RelayHost,
+    RelaySource,
 };
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -98,10 +99,11 @@ impl HyperTransport {
         self.dialer.relay.set_source(source);
     }
 
-    /// Starts the relay node of this member (once) and returns its announced key:
-    /// `Some` while the relay is announced, `None` otherwise. After `close` nothing starts.
+    /// Starts the relay node of this member and returns its announcement: the relay key and the public address
+    /// the relay has checked, `Some` while announced, `None` otherwise; a relay that finds no address is
+    /// closed and started again later. After `close` nothing starts.
     /// Only peers `admit` accepts may pair through the relay; a second call keeps the first `admit`.
-    pub fn serve_relay(&self, admit: RelayAdmit) -> watch::Receiver<Option<[u8; 32]>> {
+    pub fn serve_relay(&self, admit: RelayAdmit) -> watch::Receiver<Option<RelayAdvert>> {
         let mut slot = self.host_slot();
         if let Some(host) = slot.as_ref() {
             return host.keys();
