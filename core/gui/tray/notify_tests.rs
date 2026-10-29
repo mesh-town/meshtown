@@ -7,7 +7,7 @@ use crate::gui::tray::Core;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 const NOTICE: Notice = Notice {
     title: "Title of the test",
@@ -88,7 +88,7 @@ mod run_notifier {
     #[cfg(unix)]
     #[test]
     fn hung_notifier_is_killed_after_the_limit() {
-        let start = Instant::now();
+        let start = std::time::Instant::now();
 
         let result = run_notifier_within("sleep", &["5"], &[], Duration::from_millis(200));
 
