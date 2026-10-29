@@ -14,7 +14,7 @@ pub enum IfaceFilter {
 }
 
 /// An interface name: non-empty, up to 64 bytes, no control characters, not `*` (which may only be alone in the list).
-fn name_ok(name: &str) -> bool {
+pub(crate) fn name_ok(name: &str) -> bool {
     let sized = !name.is_empty() && name.len() <= MAX_NAME_BYTES;
     sized && name != "*" && !name.chars().any(char::is_control)
 }

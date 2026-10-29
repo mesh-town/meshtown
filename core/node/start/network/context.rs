@@ -69,7 +69,8 @@ fn new_members(
 }
 
 /// Blocked domains, check settings and the node's shared resolver (one
-/// resolver for checks, for the exit and for the direct proxy path).
+/// resolver for checks and for the direct proxy path; the exit uses a copy
+/// of it with its own cache, bound to the exit interface).
 pub(super) fn build_resolver_context(
     cfg: &NodeConfig,
 ) -> Result<(

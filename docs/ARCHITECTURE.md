@@ -236,7 +236,8 @@ in the shared list (the exit never sends it; the requesting side still prints it
 3 — the connection did not open, 4 — port not allowed (the exit never sends it; the requesting side prints its
 text), 5 — the node does not work as an exit for you, 6 — the request could not be parsed, 7 — the address is
 closed to exit (private network, loopback, link-local, multicast, service, or the member's own address;
-`EXIT_CODE_ADDRESS_FORBIDDEN`, `core/exit/frame.rs`).
+`EXIT_CODE_ADDRESS_FORBIDDEN`, `core/exit/frame.rs`), 8 — the interface the exit is bound to (`exit.interface`) is missing,
+down or cannot be bound (`EXIT_CODE_INTERFACE_DOWN`); the answer is final, the client does not try other exits.
 
 Request frame, 4 + N bytes:
 

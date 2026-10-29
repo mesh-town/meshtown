@@ -29,6 +29,7 @@ pub mod config;
 pub mod exit;
 pub mod gzip;
 pub mod http_url;
+pub mod iface_bind;
 #[cfg(feature = "net-hyper")]
 pub mod invite;
 pub mod members;

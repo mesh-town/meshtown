@@ -1,10 +1,10 @@
-//! The `FIELDS` table: 32 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
+//! The `FIELDS` table: 34 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
 //! Row order is the file output order (`render.rs`); computed rows sit in their own section.
 
 use crate::node::net_names;
 
 use super::super::settings::ListenAccess;
-use super::kinds_ifaces::IfaceNames;
+use super::kinds_ifaces::{ExitIface, IfaceNames};
 use super::kinds_list::{NetNames, NetSync, OpenedList, PeerList, PublishedList};
 use super::kinds_relay::NetRelay;
 use super::kinds_scalar::{
@@ -47,6 +47,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("net.relay", FileOnly, &NetRelay),
     row!("exit.enabled", Live, slot!(net.exit_enabled, BoolKind)),
     row!("exit.max_streams", Live, slot!(process.exit_max_streams, Int { min: 0, max: 100_000 })),
+    row!("exit.interface", Live, slot!(net.exit_interface, ExitIface)),
     row!("socks.enabled", RestartShown, slot!(process.socks_enabled, BoolKind)),
     row!("socks.port", RestartShown, slot!(process.socks_port, Port { min: 1024, max: 65535 })),
     row!("socks.access", RestartShown, slot!(process.socks_access, Choice { parse: ListenAccess::parse, name: ListenAccess::as_str, expected: "localhost or localnet" })),

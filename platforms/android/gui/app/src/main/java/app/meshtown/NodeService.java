@@ -28,7 +28,7 @@ public class NodeService extends Service {
     static volatile boolean canConnect;
     /** Whether a connection through the chosen path was opened (see {@link PathGate}); read by the activity and the tile. */
     static volatile boolean pathReady;
-    /** Whether the activity is on screen; a hidden app with the tunnel off polls the node rarely. */
+    /** Whether the activity is on screen; a hidden app with the tunnel off and no restore pending polls the node rarely. */
     static volatile boolean appVisible;
 
     /** Ends the current wait of the poll loop so a change of pace or a new command shows at once. */
@@ -42,7 +42,7 @@ public class NodeService extends Service {
     private StatusNotifier notifier;
     private Thread poller;
     private volatile boolean stopping;
-    private volatile boolean restoreTunnel;
+    private final RestoreGate restore = new RestoreGate();
     private boolean exitWasLost;
     private final ConnectGate gate = new ConnectGate();
     private final PathGate path = new PathGate();
@@ -83,7 +83,8 @@ public class NodeService extends Service {
 
     private void handle(String action) {
         if (ACTION_BOOT.equals(action)) {
-            restoreTunnel = Prefs.vpnWanted(this) && VpnService.prepare(this) == null;
+            restore.arm(Prefs.vpnWanted(this) && VpnService.prepare(this) == null,
+                    SystemClock.elapsedRealtime());
         } else if (ACTION_CONNECT.equals(action)) {
             connectFromNotification();
         } else if (ACTION_DISCONNECT.equals(action)) {
@@ -212,9 +213,9 @@ public class NodeService extends Service {
         }
     }
 
-    private static void pause() throws InterruptedException {
+    private void pause() throws InterruptedException {
         synchronized (POLL_LOCK) {
-            POLL_LOCK.wait(PollPace.nodePollMs(TunnelService.running, appVisible));
+            POLL_LOCK.wait(PollPace.nodePollMs(TunnelService.running, appVisible, restore.holding()));
         }
     }
 
@@ -224,17 +225,18 @@ public class NodeService extends Service {
         }
         NodeState s = NodeApi.fetchState(this);
         state = s;
-        canConnect = gate.update(s, SystemClock.elapsedRealtime());
+        long now = SystemClock.elapsedRealtime();
+        canConnect = gate.update(s, now);
         if (s.reachable && Prefs.namePending(this)) {
             applyPhoneName();
         }
-        if (restoreTunnel && s.inNetwork && !TunnelService.running) {
-            restoreTunnel = false;
+        boolean vpnOn = TunnelService.running;
+        path.observe(s, vpnOn || restore.holding());
+        publishPath();
+        if (restore.update(Prefs.vpnWanted(this), s, vpnOn, path.ready(), now)) {
+            Log.i(TAG, "restore: starting tunnel, path ready=" + path.ready());
             startTunnel();
         }
-        boolean vpnOn = TunnelService.running;
-        path.observe(s, vpnOn);
-        publishPath();
         startProbe();
         announceExit(s, vpnOn);
         show(StatusText.notice(s, vpnOn, pathReady), vpnOn, canConnect);
@@ -250,14 +252,14 @@ public class NodeService extends Service {
 
     /** Opens a probe connection through the local proxy when one is due; the result wakes the poll loop. */
     private void startProbe() {
-        PathGate.Attempt a = path.begin();
+        PathGate.Attempt a = path.begin(SystemClock.elapsedRealtime());
         if (a == null) {
             return;
         }
         Thread t = new Thread(() -> {
             boolean ok = PathProbe.connect("127.0.0.1", TunnelService.SOCKS_PORT, PathProbe.target(a.number),
                     PathProbe.TARGET_PORT, PathProbe.TIMEOUT_MS);
-            path.finish(a.key, ok);
+            path.finish(a.key, ok, SystemClock.elapsedRealtime());
             if (ok) {
                 Log.i(TAG, "path ready: " + a.key);
                 wake();

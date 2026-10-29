@@ -10,11 +10,14 @@ use anyhow::Result;
 use tokio::sync::{mpsc, Notify};
 
 use crate::exit::ExitConfig;
+use crate::iface_bind::OutIface;
 use crate::proxy::domains::DomainList;
+use crate::site_checks::doh::Resolver;
 
 use super::boot::Boot;
 use super::network::{ServeParts, Wired};
 use crate::node::config::NodeConfig;
+use crate::node::output::say;
 
 /// The discovery sources and the `found` tap that feeds the node's main loop.
 pub(super) type Finding = (Vec<Arc<dyn Discovery>>, mpsc::Sender<PeerAddr>);
@@ -27,6 +30,10 @@ pub(super) type SyncServices = Vec<(svc::ServiceId, Arc<dyn ServiceHandler>)>;
 pub(super) struct Built {
     pub(super) exit_on: Arc<AtomicBool>,
     pub(super) exit_announce_wakeup: Arc<Notify>,
+    /// The interface exit connections are bound to, shared with the exit handler.
+    pub(super) exit_iface: OutIface,
+    /// The exit's own resolver: bound to `exit_iface`, with its own cache.
+    pub(super) exit_resolver: Arc<Resolver>,
     pub(super) domain_list_cell: Arc<OnceLock<DomainList>>,
     pub(super) stack: NetStack,
 }
@@ -47,21 +54,29 @@ pub(super) fn build_stack(
     // The domain list opens later, but the exit handler is needed by the stack right now: we give
     // it a cell that we fill right after the list opens.
     let domain_list_cell: Arc<OnceLock<DomainList>> = Arc::new(OnceLock::new());
+    let exit_iface = OutIface::new(cfg.settings.exit_interface.as_deref());
+    if let Some(name) = cfg.settings.exit_interface.as_deref() {
+        say("exit", format!("exit interface: {name}"));
+    }
+    let exit_resolver = Arc::new(serve.resolver.bound_copy(exit_iface.clone()));
     let exit_cfg = ExitConfig {
         enabled: exit_on.clone(),
         members: wired.members.clone(),
         list: domain_list_cell.clone(),
-        resolver: serve.resolver.clone(),
+        resolver: exit_resolver.clone(),
         host_overrides: serve.exit_hosts.clone(),
         clients: serve.exit_clients.clone(),
         traffic: serve.exit_traffic.clone(),
         limits: crate::exit::ExitLimits::process(),
+        iface: exit_iface.clone(),
     };
     let builder = served_builder(cfg, boot, wired, serve, exit_cfg, &domain_list_cell);
     let stack = with_discovery(builder, finding, sync_svcs)?;
     Ok(Built {
         exit_on,
         exit_announce_wakeup,
+        exit_iface,
+        exit_resolver,
         domain_list_cell,
         stack,
     })

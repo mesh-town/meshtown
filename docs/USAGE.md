@@ -256,7 +256,8 @@ way. There is no automatic choice by country or operator.
 **Working as an exit.** Independently of its own `route.exits`, a node serves other members as an exit. It accepts a
 request only from someone who has passed the handshake, and serves any domain on any port if the address is public.
 Private, loopback, link-local, CGNAT and multicast addresses and the member's own address are refused (code 7). Turn
-the exit off with `--no-exit`, with `exit off` in the console, or on the node page.
+the exit off with `--no-exit`, with `exit off` in the console, or on the node page. The interface exit traffic leaves through
+is set only in the settings (`exit.interface`, see [CONFIG-FILE.md](CONFIG-FILE.md)).
 
 `--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
 local network too). `--probe-full-cycle` is a testing flag: it tests speed with 1 MiB to all members, not only the
@@ -365,6 +366,12 @@ file next to the settings file (the tray and scripts read it), but does not prin
 temporary token instead.
 
 ### Signing in, access and password reset
+
+- **Open the page.** `meshtown open [--print] [--config PATH] [--web-port N]` asks the running node for a sign-in link,
+  starts the browser on it and prints the addresses. Without a password the link carries a one-time token (10 minutes);
+  with a password the address is plain. The browser is not started as root, in an SSH session, or on Linux without a
+  display, and with `--print`; the link is only printed then. As a service, run it with `sudo` so it can read `web-token`.
+  The command does not change the password or end sessions.
 
 - **First sign-in.** While no password is set, the node prints an address with a temporary token at every start. The
   token is single-use and lives 10 minutes, for example `http://127.0.0.1:7777/?token=…` (in `localnet` mode there are

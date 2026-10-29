@@ -101,7 +101,7 @@ The full list of codes:
 | 403 | `bad_peer` | the peer address is not admitted by the current access mode (1.1, item 1) |
 | 403 | `bad_host` | a foreign `Host` or an absolute-form target |
 | 403 | `bad_origin` | a foreign or missing `Origin` on a state-changing method |
-| 403 | `token_only` | a password reset goes only with the persistent token in the header (1.10) |
+| 403 | `token_only` | a password reset or a sign-in link goes only with the persistent token in the header (1.10) |
 | 404 | `not_found` | unknown address |
 | 405 | `bad_method` | the method is not supported at this address |
 | 409 | `no_password` | sign-in by password, but no password is set or the file is unreadable (1.10) |
@@ -172,7 +172,7 @@ all fields are required; `null` is allowed where marked):
   },
   "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080", "strict": false },
-  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"] },
+  "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"], "interface": null },
   "transport": {
     "self_path": "direct",
     "relay": { "connected": true, "url": "relay.example.net" },
@@ -325,6 +325,9 @@ Exact enum values:
   differs; `null` — the member has not announced it (a build before this field, the record has not arrived yet) or
   announced an invalid one. It is shown for an offline member too — the last announced. Comparing
   versions is the page's concern.
+- `exit.interface` — `null` when exit traffic uses the regular routing table, otherwise `{"name": "wg0", "state": …}`, where
+  `state` is `up`, `down`, `missing` (no such interface on this machine) or `unsupported` (this system cannot bind
+  to an interface). Anything but `up` means exit connections are refused (reply code 8).
 - `exit.clients` — full ids (`id_full`) of members who are currently going to the internet through this
   node: there is an open exit stream or it closed less than 30 s ago; network members only, in
   ascending order, `[]` — no clients or exit is off. A client that dropped without closing the
@@ -452,6 +455,7 @@ output, `"password"` — a password; `null` — the request has no credentials.
 | POST `/api/auth/logout` | any | `{}` | 200 `{}` and `Set-Cookie` with `Max-Age=0` | — |
 | PUT `/api/auth/password` | session or token | `{"password":"…"}`, 8–256 characters | 200 `{"password_set":true}` | 400 `bad_request`, 400 `bad_password_format`, 409 `no_storage`, 500 `internal` |
 | POST `/api/auth/reset` | only `X-Meshtown-Token` | empty | 200 `{"urls":[…],"expires_sec":600}` | 403 `token_only`, 500 `internal` |
+| POST `/api/auth/link` | only `X-Meshtown-Token` | empty | 200 `{"urls":[…],"expires_sec":600,"password_set":bool}` | 403 `token_only` |
 
 What it means:
 
@@ -475,6 +479,9 @@ What it means:
   previously issued live temporary tokens, then issues a new one (after the reset only it works) and returns sign-in addresses with it (with `localnet` — two: `127.0.0.1` and
   the address on the local network, if found). Only with the persistent token in the header: a cookie and `?token=`
   do not work. The attempt limiter does not count this endpoint.
+- **`link`** — the same as `meshtown open`: returns sign-in addresses without changing the password, sessions or
+  earlier temporary tokens. With no password set the addresses carry a new temporary token; with a password set they
+  have no token (`password_set:true`). Only with the persistent token in the header.
 - **`logout`** — closes the request's session and erases the cookie; without a session — just erases the cookie.
 - `POST /api/token/rotate` (1.8 in `WEB-API-config.md`) invalidates all sessions except the request's own session.
 

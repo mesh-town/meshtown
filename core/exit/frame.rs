@@ -33,6 +33,9 @@ pub const EXIT_CODE_BAD_REQUEST: u8 = 6;
 /// the member's own address. Old clients print "unknown reply
 /// code" for it and still treat it as a refusal.
 pub const EXIT_CODE_ADDRESS_FORBIDDEN: u8 = 7;
+/// The exit is set to send its connections through an interface that is missing, down or cannot be
+/// bound; nothing was sent through other networks. Old clients print "unknown reply code" for it.
+pub const EXIT_CODE_INTERFACE_DOWN: u8 = 8;
 
 /// Returns a human-readable name for a reply code.
 pub fn exit_code_text(code: u8) -> &'static str {
@@ -47,6 +50,7 @@ pub fn exit_code_text(code: u8) -> &'static str {
         EXIT_CODE_ADDRESS_FORBIDDEN => {
             "the address is closed to exit: local or service network, or the member's own address"
         }
+        EXIT_CODE_INTERFACE_DOWN => "exit's outgoing interface is unavailable",
         _ => "unknown reply code",
     }
 }

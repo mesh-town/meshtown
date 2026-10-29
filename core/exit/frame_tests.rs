@@ -44,6 +44,7 @@ fn every_code_has_text() {
         EXIT_CODE_REFUSED,
         EXIT_CODE_BAD_REQUEST,
         EXIT_CODE_ADDRESS_FORBIDDEN,
+        EXIT_CODE_INTERFACE_DOWN,
     ] {
         assert_ne!(exit_code_text(code), "unknown reply code");
     }
@@ -89,4 +90,31 @@ fn refused_and_forbidden_texts_say_member_not_node() {
     for code in [EXIT_CODE_REFUSED, EXIT_CODE_ADDRESS_FORBIDDEN] {
         assert!(!exit_code_text(code).contains("node"));
     }
+}
+
+#[test]
+fn interface_down_text() {
+    let earlier = [
+        EXIT_CODE_OK,
+        EXIT_CODE_NOT_IN_LIST,
+        EXIT_CODE_NO_ADDRESS,
+        EXIT_CODE_CONNECT_FAILED,
+        EXIT_CODE_PORT_NOT_ALLOWED,
+        EXIT_CODE_REFUSED,
+        EXIT_CODE_BAD_REQUEST,
+        EXIT_CODE_ADDRESS_FORBIDDEN,
+    ];
+
+    assert_eq!(
+        EXIT_CODE_INTERFACE_DOWN, 8,
+        "the code number is part of the protocol: older clients know 0..=7"
+    );
+    assert!(
+        !earlier.contains(&EXIT_CODE_INTERFACE_DOWN),
+        "code 8 must not coincide with any earlier one"
+    );
+    assert_eq!(
+        exit_code_text(EXIT_CODE_INTERFACE_DOWN),
+        "exit's outgoing interface is unavailable"
+    );
 }

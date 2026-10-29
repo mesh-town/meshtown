@@ -65,6 +65,17 @@ jobs:
       strict: false
       from_artifacts: true
 
+  container:
+    name: Container image (dry run)
+    needs: [version, build]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/container-image.yml
+    with:
+      tag: v${{ needs.version.outputs.version }}
+      from_artifacts: true
+      push: false
+
   android:
     name: Android APK (trial build)
     permissions:

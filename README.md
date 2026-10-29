@@ -10,7 +10,7 @@ another country. A web interface opens by a link: with the browser set to use th
 `http://<device-name>.meshtown`. No public IP to get, no routing to configure, no server to keep running, no account to
 create in someone else's service.
 
-Runs on macOS, Windows, Linux, Android, and OpenWrt or Keenetic routers.
+Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik routers.
 
 **Contents:** [Who it is for](#who-it-is-for) · [Why it fits](#why-it-fits) · [How it differs](#how-it-differs) ·
 [Not for you if](#not-for-you-if) · [Exit node](#also-use-a-member-as-an-exit-node) · [Quick start](#quick-start) ·
@@ -100,6 +100,7 @@ Every option, the settings file and the node page: [docs/USAGE.md](docs/USAGE.md
 | Android | [meshtown.apk](https://github.com/mesh-town/meshtown-dist/raw/main/android/meshtown.apk) (arm64-v8a, Android 7.0 or newer) |
 | OpenWrt | `wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh \| sh` |
 | Keenetic (Entware) | `wget -O- https://mesh-town.github.io/meshtown-keenetic/install.sh \| sh` |
+| MikroTik (RouterOS 7) | container image `ghcr.io/mesh-town/meshtown:latest` ([setup](docs/MIKROTIK.md)) |
 
 On every system `meshtown` is the build with the tray icon and `meshtown-cli` the node in a terminal; they share
 settings, so run one at a time. The macOS zip and the Windows binary are not notarized or signed, so the first launch

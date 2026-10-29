@@ -85,6 +85,7 @@ fn exit_config_at(server: SocketAddr, hosts: HashMap<String, SocketAddr>) -> Exi
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
         limits: crate::exit::ExitLimits::unlimited(),
+        iface: crate::iface_bind::OutIface::default(),
     }
 }
 

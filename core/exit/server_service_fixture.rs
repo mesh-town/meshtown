@@ -161,6 +161,11 @@ pub(super) async fn setup(opts: Opts) -> Fx {
 
 /// Exit settings: the domain `site.test` leads to `site`.
 fn exit_cfg(site: SocketAddr, limits: ExitLimits) -> ExitConfig {
+    exit_cfg_via(site, limits, OutIface::default())
+}
+
+/// The same with the exit bound to `iface`.
+fn exit_cfg_via(site: SocketAddr, limits: ExitLimits, iface: OutIface) -> ExitConfig {
     let resolver = Resolver::new(
         SocketAddr::from(([127, 0, 0, 1], 1)),
         HttpLimits::default(),
@@ -176,6 +181,7 @@ fn exit_cfg(site: SocketAddr, limits: ExitLimits) -> ExitConfig {
         clients: Clients::default(),
         traffic: ExitTraffic::default(),
         limits,
+        iface,
     }
 }
 

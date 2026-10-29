@@ -241,3 +241,18 @@ pub(super) async fn reset_handler(State(app): State<Arc<App>>, headers: HeaderMa
     let body = json!({"urls": app.shared.issue_entry_urls(), "expires_sec": RESET_EXPIRES_SEC});
     (StatusCode::OK, axum::Json(body)).into_response()
 }
+
+/// A sign-in link for the page without touching the password, sessions or issued temporary tokens.
+/// Only with the permanent token in the header, like the reset.
+pub(super) async fn link_handler(State(app): State<Arc<App>>, headers: HeaderMap) -> Response {
+    if !header_token_matches(&app, &headers) {
+        let text = "sign-in link only with the permanent token in the header";
+        return json_err(StatusCode::FORBIDDEN, "token_only", text);
+    }
+    let body = json!({
+        "urls": app.shared.issue_entry_urls(),
+        "expires_sec": RESET_EXPIRES_SEC,
+        "password_set": app.shared.auth.password_set(),
+    });
+    (StatusCode::OK, axum::Json(body)).into_response()
+}

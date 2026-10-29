@@ -11,7 +11,7 @@ export interface ConfigDocument {
   node: { name: string | null }; // null — no name in the file
   network: ConfigNetworkView; // read-only
   dht: { bootstrap: string[] };
-  exit: { enabled: boolean };
+  exit: { enabled: boolean; max_streams?: number; interface?: string | null };
   socks: { enabled: boolean; port: number; access: "localhost" | "localnet"; ifaces: string[] }; // ifaces: [] — automatic, ["*"] — all networks
   checks: {
     enabled: boolean;

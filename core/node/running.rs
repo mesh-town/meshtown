@@ -11,6 +11,7 @@ use crate::transport::net::{PeerAddr, PeerId};
 use tokio::sync::{mpsc, watch, Notify};
 
 use crate::exit::{Clients, ExitTraffic};
+use crate::iface_bind::OutIface;
 use crate::members::membership::Members;
 use crate::members::network_key::NetworkKey;
 use crate::node::node_name::effective_node_name;
@@ -21,6 +22,7 @@ use crate::ports_sharing::{Opened, PortsDoc, Published, PublishedPortsTable};
 use crate::proxy::domains::DomainList;
 use crate::proxy::route::RouteCtx;
 use crate::site_checks::checks::Checks;
+use crate::site_checks::doh::Resolver;
 
 use super::identity::IdentityState;
 
@@ -45,6 +47,10 @@ pub struct RunningNode {
     pub(crate) proxy_face: watch::Receiver<crate::proxy::ProxyFace>,
     /// The switch for exit work: the console flips it without restarting the node.
     pub exit_on: Arc<AtomicBool>,
+    /// The interface the exit connects through; shared with the exit service.
+    pub exit_iface: OutIface,
+    /// The exit's own name resolver (bound to `exit_iface`, with its own cache).
+    pub exit_resolver: Arc<Resolver>,
     /// The registry of exit clients: who is going online through this node right now; read by `collect`.
     pub exit_clients: Clients,
     /// The registry of exit traffic speed per peer; read by `collect`.
@@ -124,6 +130,19 @@ impl RunningNode {
     pub fn set_exit_enabled(&self, on: bool) {
         self.exit_on.store(on, Ordering::Relaxed);
         self.exit_announce_wakeup.notify_one();
+    }
+
+    /// A live handle: the exit's outgoing interface (`None` — any network); the next exit stream and
+    /// DNS lookup use it. The same value as before — no noise.
+    pub fn set_exit_interface(&self, name: Option<&str>) {
+        if !self.exit_iface.set(name) {
+            return;
+        }
+        self.exit_resolver.clear_cache();
+        say(
+            "exit",
+            format!("exit interface: {}", name.unwrap_or("any network")),
+        );
     }
 
     /// A live handle: turns scheduled checks on or off without restarting the node.

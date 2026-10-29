@@ -90,6 +90,7 @@ fn unknown_text_lists_commands() {
             "keygen",
             "config-path",
             "password",
+            "open",
             "access",
             "ifaces"
         ]
@@ -102,6 +103,7 @@ fn unknown_text_lists_commands() {
             "keygen",
             "config-path",
             "password",
+            "open",
             "access",
             "ifaces"
         ]

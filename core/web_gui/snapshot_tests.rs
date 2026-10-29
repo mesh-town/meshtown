@@ -10,6 +10,7 @@
 //! The `members.me_excluded` key was added by hand — a new field,
 //! the old keys were not touched.
 //! The `members.closed` key was added by hand in the same way.
+//! The `exit.interface` key (and its `name`, `state`) was added by hand in the same way.
 
 use super::*;
 use crate::ports_sharing::{PortReach, Proto};
@@ -27,6 +28,7 @@ const DEFAULT_KEYS: &[&str] = &[
     "exit.clients",
     "exit.domains",
     "exit.enabled",
+    "exit.interface",
     "log",
     "log.first_seq",
     "log.last_seq",
@@ -105,6 +107,9 @@ const FILLED_KEYS: &[&str] = &[
     "exit.clients",
     "exit.domains",
     "exit.enabled",
+    "exit.interface",
+    "exit.interface.name",
+    "exit.interface.state",
     "log",
     "log.first_seq",
     "log.last_seq",
@@ -336,6 +341,10 @@ fn filled_snapshot() -> NodeSnapshot {
             enabled: true,
             domains: 1,
             clients: vec![text("client")],
+            interface: Some(crate::iface_bind::ExitIfaceInfo {
+                name: text("wg0"),
+                state: crate::iface_bind::IfaceState::Up,
+            }),
         },
         transport: filled_transport(),
         peers: vec![filled_peer()],
@@ -433,3 +442,6 @@ fn filled_ports() -> PortsInfo {
         network: vec![network],
     }
 }
+
+#[path = "snapshot_iface_tests.rs"]
+mod iface;

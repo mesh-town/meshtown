@@ -1,5 +1,7 @@
 /* Node API types: enums, the `GET /api/state` snapshot, the `GET /api/log` log. Types only; the shared header and rules are in `api-types.ts`. */
 
+import type { ExitIfaceInfo } from "./api-types-exit.ts";
+
 // ---------------------------------------------------------------- shared enums
 
 /** `node.status` (`NodeStatus`, `snapshot.rs`). */
@@ -157,6 +159,8 @@ interface ExitInfo {
   domains: number;
   /** Full ids of the members going to the internet through this node; `[]` — nobody. */
   clients: string[];
+  /** The interface exit traffic is bound to; `null` or no key — any network. */
+  interface?: ExitIfaceInfo | null;
 }
 
 export interface TransportInfo {
