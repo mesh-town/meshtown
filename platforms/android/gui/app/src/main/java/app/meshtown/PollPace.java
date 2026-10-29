@@ -7,8 +7,11 @@ final class PollPace {
 
     private PollPace() {}
 
-    /** The tunnel needs a fresh notification, the screen needs a fresh page; with neither, poll rarely. */
-    static long nodePollMs(boolean tunnelOn, boolean appVisible) {
-        return tunnelOn || appVisible ? FAST_MS : SLOW_MS;
+    /**
+     * The tunnel needs a fresh notification, the screen needs a fresh page, a pending tunnel restore
+     * needs fresh path probes; with none of them, poll rarely.
+     */
+    static long nodePollMs(boolean tunnelOn, boolean appVisible, boolean restoring) {
+        return tunnelOn || appVisible || restoring ? FAST_MS : SLOW_MS;
     }
 }
