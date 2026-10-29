@@ -55,9 +55,6 @@ final class PathGate {
             return;
         }
         inFlight = null;
-        if (!probeKey.equals(key)) {
-            return;
-        }
         if (ok) {
             ready = true;
         } else {
