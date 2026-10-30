@@ -38,6 +38,9 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik router
   host, no server of ours your network depends on.
 - **No accounts.** A network is a secret key and a member list signed by the members. A newcomer joins with a
   single-use invite from a member. No device limit.
+- **No root or administrator rights to run.** No virtual network adapter, no kernel driver, no change to the system
+  routes: the node is an ordinary program, and its proxy listens on a port above 1024. Only installing a system
+  package (`apt`, the Windows installer) asks for rights once; on Android the app asks for the usual VPN permission.
 - **You choose who sees what.** A port is shared with all members or with selected ones.
 - **Web interfaces open by a link.** With the browser using the node's proxy, the panel of a router, a NAS or a home
   automation box is at `http://<device-name>.meshtown`, no IP addresses to remember.
