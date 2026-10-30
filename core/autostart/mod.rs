@@ -13,7 +13,9 @@ mod run_key;
 #[cfg(test)]
 pub(crate) mod fake;
 
-pub use backend::{install, installed, plan_change, AutostartBackend, Change, EntryState};
+pub use backend::{
+    install, installed, plan_change, refresh_on_start, AutostartBackend, Change, EntryState,
+};
 pub use desktop_file::{desktop_entry, desktop_entry_path, desktop_exec_arg, desktop_switched_off};
 pub use file_entry::FileEntry;
 pub use launch_agent::{

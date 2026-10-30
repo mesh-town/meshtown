@@ -17,6 +17,7 @@ use crate::gui::tray::{NodeCmd, TrayCmd};
 
 use crate::config::config_file::ListenAccess;
 
+use super::autostart_refresh::refresh_autostart;
 use super::poll_types::{PollEnv, PollTiming};
 use super::poller::poll_node;
 use super::start_fail::{busy_proxy_port, StartFail};
@@ -45,6 +46,7 @@ static PAGE_PORT_AND_TOKEN_PATH: OnceLock<(u16, PathBuf)> = OnceLock::new();
 pub fn run_tray(args: TrayArgs, tray: &'static dyn crate::gui::tray::TrayBackend) -> ! {
     preflight();
     let (settings, token_path) = read_config_or_exit(args.config.as_deref());
+    refresh_autostart();
     let port = args.web_port.unwrap_or(settings.process.web_port);
     let _ = PAGE_PORT_AND_TOKEN_PATH.set((port, token_path.clone()));
 

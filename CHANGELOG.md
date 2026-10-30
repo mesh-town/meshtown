@@ -7,6 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Tray: at start, a start-at-login entry that leads to another copy of the program is rewritten to the running one.
 - Exit: a per-stream cap on data not yet acknowledged by the client (`exit.stream_window_kib`; 128 KiB on machines with up to
   128 MiB of RAM, off otherwise), so a few fast downloads cannot fill a small router's memory.
 - Exit: the optional `exit.interface` setting sends a node's exit traffic (sites, UDP, its DNS) only through the chosen

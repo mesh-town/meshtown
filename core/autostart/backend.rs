@@ -50,6 +50,16 @@ pub trait AutostartBackend: Sync + Send {
     fn disable(&self) -> Result<(), String>;
 }
 
+/// Rewrites a stale login entry (it points at another copy of the program) for the running
+/// binary. Returns `true` if it rewrote. An absent, switched-off or current entry is left alone.
+pub fn refresh_on_start(backend: &dyn AutostartBackend) -> Result<bool, String> {
+    if backend.state()? != EntryState::Stale {
+        return Ok(false);
+    }
+    backend.enable()?;
+    Ok(true)
+}
+
 static INSTALLED: OnceLock<&'static dyn AutostartBackend> = OnceLock::new();
 
 /// Registers the backend for this process; a second call is ignored.
