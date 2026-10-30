@@ -31,6 +31,13 @@ for f in MeshTown.MeshTown.yaml MeshTown.MeshTown.locale.en-US.yaml MeshTown.Mes
   grep -q '@[A-Z_]*@' "$dir/$f" && fail "$f: placeholder left"
 done
 [ "$(cat "$dir"/*.yaml | grep -h '^ManifestVersion:' | sort -u | wc -l | tr -d ' ')" = 1 ] || fail "ManifestVersion differs"
+# winget validate warns about a manifest without the schema header of its type and manifest version.
+mv_="$(sed -n 's/^ManifestVersion: //p' "$dir/MeshTown.MeshTown.yaml")"
+for pair in MeshTown.MeshTown.yaml:version MeshTown.MeshTown.locale.en-US.yaml:defaultLocale \
+  MeshTown.MeshTown.installer.yaml:installer; do
+  grep -qxF "# yaml-language-server: \$schema=https://aka.ms/winget-manifest.${pair#*:}.$mv_.schema.json" \
+    "$dir/${pair%%:*}" || fail "${pair%%:*}: schema header"
+done
 inst="$dir/MeshTown.MeshTown.installer.yaml"
 grep -qx "  InstallerUrl: $url" "$inst" || fail "InstallerUrl"
 grep -qx "  InstallerSha256: $want_sha" "$inst" || fail "InstallerSha256, want $want_sha"

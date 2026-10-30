@@ -1,4 +1,6 @@
 # Created from a template; see scripts/release/winget/winget.sh
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.@MANIFEST_VERSION@.schema.json
+
 PackageIdentifier: MeshTown.MeshTown
 PackageVersion: @VERSION@
 InstallerType: nullsoft
