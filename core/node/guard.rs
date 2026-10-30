@@ -13,14 +13,13 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{mpsc, Arc};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use tokio::runtime::Handle;
 
 use crate::node::alloc::{heap_prof_dump, heap_prof_state};
 use crate::node::guard_sources::{GuardSources, NodeHandles};
 use crate::node::output::{say, short_peer_id};
-use crate::node::telemetry;
 use crate::transport::net::PeerConn;
 
 /// Measurement period.
@@ -246,6 +245,10 @@ fn start_thread(run: impl FnOnce(Stopper) + Send + 'static) -> Option<GuardHandl
     }
 }
 
+#[path = "guard_watch.rs"]
+mod watch_loop;
+use watch_loop::watch;
+
 /// Starts the `mem-guard` thread; both thresholds `0` — doesn't start it (`None`).
 pub(crate) fn start_memory_guard(
     limits: MemoryLimitsKib,
@@ -266,49 +269,6 @@ pub(crate) fn start_memory_guard(
         last_dump_rss_kib,
     };
     start_thread(move |stop| watch(limits, &sum, &stop))
-}
-
-/// Thread loop: measure, decide, print. Takes nobody's locks: only `rss_kib`,
-/// `decide_memory_action`, `say` and `exit`; the summary runs in a separate thread.
-fn watch(limits: MemoryLimitsKib, sum: &SummaryJob, stop: &Stopper) {
-    let mut prev_rss_kib = 0;
-    let mut last_report: Option<Instant> = None;
-    let mut summary_started_at = Instant::now();
-    loop {
-        if !stop.sleep_tick_unless_stopped() {
-            return;
-        }
-        let rss_kib = telemetry::rss_kib().0;
-        let since = last_report.map_or(Duration::MAX, |t| t.elapsed());
-        let action = decide_memory_action(rss_kib, prev_rss_kib, limits, since);
-        if action != MemoryAction::Quiet {
-            last_report = Some(Instant::now());
-        }
-        let summary_done_rx = match action {
-            MemoryAction::Quiet => None,
-            _ => sum.start_summary_thread(rss_kib, prev_rss_kib, action == MemoryAction::Report),
-        };
-        if summary_done_rx.is_some() {
-            summary_started_at = Instant::now();
-        } else if action != MemoryAction::Quiet {
-            say(
-                "guard",
-                stalled_text(
-                    rss_kib,
-                    prev_rss_kib,
-                    summary_started_at.elapsed().as_secs(),
-                ),
-            );
-        }
-        if action == MemoryAction::Exit {
-            if let Some(rx) = summary_done_rx {
-                let _ = rx.recv_timeout(EXIT_WAIT);
-            }
-            say("guard", exit_text(rss_kib, limits));
-            std::process::exit(EXIT_CODE);
-        }
-        prev_rss_kib = rss_kib;
-    }
 }
 
 /// Summary: the header and a line for every path of every member connection. Without a node
