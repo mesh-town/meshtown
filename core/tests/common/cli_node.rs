@@ -199,10 +199,9 @@ fn page_port(line: &str) -> u16 {
     rest[..end].parse().expect("port")
 }
 
-/// Runs the program with exactly `args` and the isolated environment, in `dir`.
-pub fn cli_bare(args: &[&str], dir: &Path) -> Output {
+/// Runs the program with no arguments and the isolated environment, in `dir`.
+pub fn cli_no_args(dir: &Path) -> Output {
     isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), dir)
-        .args(args)
         .current_dir(dir)
         .output()
         .expect("start meshtown")

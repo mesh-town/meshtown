@@ -243,6 +243,7 @@ core-check:
 features-check:
 	$(CARGO) clippy --all-targets --no-default-features --features $(NODE_FEATURES) -- -D warnings
 	$(CARGO) test --lib --no-default-features --features $(NODE_FEATURES) -- net_names gate no_args
+	$(CARGO) test -p meshtown-core --no-default-features --features $(NODE_FEATURES) --test cli_client
 
 # -k: a red target does not abort the rest — the battery shows all red ones in one go.
 check:

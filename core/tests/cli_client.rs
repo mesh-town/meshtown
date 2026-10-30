@@ -12,7 +12,7 @@ use cli_node::{free_port, scratch_dir, stderr as err, stdout as out, CliNode};
 #[test]
 fn no_args_prints_help_exit_0() {
     let dir = scratch_dir("no-args");
-    let o = cli_node::cli_bare(&[], &dir);
+    let o = cli_node::cli_no_args(&dir);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     assert!(out(&o).contains("Global options:"), "stdout: {}", out(&o));
     assert!(err(&o).is_empty(), "stderr: {}", err(&o));

@@ -12,5 +12,10 @@ mod target;
 
 pub(crate) use api_error::ApiError;
 pub(crate) use node::{query_escape, Node};
+// Re-exported for the commands that print tables and pick a network.
+#[allow(unused_imports)]
+pub(crate) use node::pick_net;
 pub(crate) use print::print_json;
+#[allow(unused_imports)]
+pub(crate) use print::print_table;
 pub(crate) use target::{LinkError, Target};
