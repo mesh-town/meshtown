@@ -1,0 +1,6 @@
+# Created from a template; see scripts/release/winget/winget.sh
+PackageIdentifier: MeshTown.MeshTown
+PackageVersion: @VERSION@
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: @MANIFEST_VERSION@

@@ -17,7 +17,8 @@ Earlier versions are attached to the [releases](https://github.com/mesh-town/mes
 |---|---|
 | macOS, Apple silicon | https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-arm64.zip |
 | macOS, Intel | https://github.com/mesh-town/meshtown-dist/raw/main/macos/MeshTown-macos-x86_64.zip |
-| Windows, with the tray icon | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe |
+| Windows, installer | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-setup.exe |
+| Windows, with the tray icon, no installation | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown.exe |
 | Windows, console only | https://github.com/mesh-town/meshtown-dist/raw/main/windows/meshtown-cli.exe |
 | Linux, x86_64 | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-x86_64.tar.gz |
 | Linux, aarch64 | https://github.com/mesh-town/meshtown-dist/raw/main/linux/meshtown-linux-aarch64.tar.gz |
