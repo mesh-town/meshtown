@@ -364,3 +364,27 @@ fn assert_rejected(bytes: &[u8]) {
         "unfit name accepted: {bytes:?}"
     );
 }
+
+/// `name_attempt_line`: the journal text for the outcome of a publish attempt.
+mod name_attempt_line {
+    use super::*;
+
+    #[test]
+    fn written() {
+        let line = name_attempt_line("a", &Ok(true)).expect("a line");
+        assert!(line.contains("\"a\""), "{line}");
+        assert!(line.contains("written to the network document"), "{line}");
+    }
+
+    #[test]
+    fn already_current() {
+        assert_eq!(name_attempt_line("a", &Ok(false)), None);
+    }
+
+    #[test]
+    fn failed() {
+        let line = name_attempt_line("a", &Err(anyhow::anyhow!("boom"))).expect("a line");
+        assert!(line.contains("name not written"), "{line}");
+        assert!(line.contains("boom"), "{line}");
+    }
+}

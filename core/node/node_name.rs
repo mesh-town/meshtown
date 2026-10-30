@@ -96,26 +96,22 @@ pub(crate) fn names_to_apply(
     out
 }
 
+/// Journal text for the outcome of one publish attempt; `None` — the record already matched.
+fn name_attempt_line(name: &str, attempt: &Result<bool>) -> Option<String> {
+    match attempt {
+        Ok(true) => Some(format!("name \"{name}\" written to the network document")),
+        Ok(false) => None,
+        Err(e) => Some(format!("name not written to the network document: {e:#}")),
+    }
+}
+
 /// One publisher pass: the name written from the channel; `true` — written or already matched.
 async fn announce_once(r: &dyn Replica, name: &str) -> bool {
-    match ensure_node_name(r, name).await {
-        Ok(written) => {
-            written.then(|| {
-                say(
-                    "docs",
-                    format!("name \"{name}\" written to the network document"),
-                )
-            });
-            true
-        }
-        Err(e) => {
-            say(
-                "docs",
-                format!("name not written to the network document: {e:#}"),
-            );
-            false
-        }
+    let attempt = ensure_node_name(r, name).await;
+    if let Some(line) = name_attempt_line(name, &attempt) {
+        say("docs", line);
     }
+    attempt.is_ok()
 }
 
 /// Publisher: keeps its record equal to the effective name — writes at start and on every
