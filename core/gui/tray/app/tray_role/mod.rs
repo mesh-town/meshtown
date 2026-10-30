@@ -16,6 +16,7 @@
 //! `poller::poll_node` and gets the exit code back from it; the poller itself knows nothing of `crate::gui::tray`.
 
 mod api;
+mod autostart_refresh;
 mod config_doc;
 mod first_run;
 mod overview_poll;

@@ -74,3 +74,41 @@ mod fake_backend {
         assert_eq!(backend.state(), Ok(EntryState::Absent));
     }
 }
+
+mod refresh_on_start {
+    use super::*;
+
+    #[test]
+    fn stale_entry_is_rewritten() {
+        let backend = fake::leaked(EntryState::Stale);
+        assert_eq!(refresh_on_start(backend), Ok(true));
+        assert_eq!(backend.calls(), ["state", "enable"]);
+    }
+
+    #[test]
+    fn other_states_are_left_alone() {
+        for state in [
+            EntryState::Absent,
+            EntryState::SwitchedOff,
+            EntryState::Current,
+        ] {
+            let backend = fake::leaked(state);
+            assert_eq!(refresh_on_start(backend), Ok(false), "{state:?}");
+            assert_eq!(backend.calls(), ["state"], "{state:?}");
+        }
+    }
+
+    #[test]
+    fn state_error_skips_enable() {
+        let backend = fake::leaked_with(Err("boom".into()), Ok(()), Ok(()));
+        assert_eq!(refresh_on_start(backend), Err("boom".to_string()));
+        assert_eq!(backend.calls(), ["state"]);
+    }
+
+    #[test]
+    fn enable_error_is_reported() {
+        let backend = fake::leaked_with(Ok(EntryState::Stale), Err("denied".into()), Ok(()));
+        assert_eq!(refresh_on_start(backend), Err("denied".to_string()));
+        assert_eq!(backend.calls(), ["state", "enable"]);
+    }
+}
