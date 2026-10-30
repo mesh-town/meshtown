@@ -1,0 +1,14 @@
+# Created from a template; see scripts/release/winget/winget.sh
+PackageIdentifier: MeshTown.MeshTown
+PackageVersion: @VERSION@
+InstallerType: nullsoft
+Scope: machine
+ElevationRequirement: elevatesSelf
+UpgradeBehavior: install
+Installers:
+- Architecture: x64
+  InstallerUrl: @INSTALLER_URL@
+  InstallerSha256: @INSTALLER_SHA256@
+  ProductCode: MeshTown
+ManifestType: installer
+ManifestVersion: @MANIFEST_VERSION@

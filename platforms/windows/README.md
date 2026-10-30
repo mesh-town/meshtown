@@ -19,6 +19,7 @@ Run from the repository root as `make windows-<target>`, or `make -C platforms/w
 | `test` | `cargo nextest run -p meshtown-windows` |
 | `run` | `cargo run -p meshtown-windows -- $(ARGS)` |
 | `package` | `platforms/windows/build/build.sh $(KIND)` |
+| `installer` | `build.sh gui`, then `platforms/windows/build/installer.sh`: `dist/meshtown-setup-<version>.exe` (NSIS) |
 
 `KIND` is `gui` (default) or `cli`. The release files go to `dist/` (`meshtown-windows-gui-<version>.exe`,
 `meshtown-windows-cli-<version>.exe`). The root targets `make build_windows_cli` and `make build_windows_gui` call the

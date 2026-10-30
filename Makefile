@@ -179,6 +179,7 @@ test-dist:
 	scripts/release/dist/publish_test.sh
 	bash scripts/release/lib_test.sh
 	scripts/release/dist/release_test.sh
+	scripts/release/winget/winget_test.sh
 
 UI := core/web_gui/ui
 VUE := $(UI)/vue

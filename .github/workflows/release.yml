@@ -74,6 +74,8 @@ jobs:
         working-directory: dist
         run: |
           set -euo pipefail
+          # The installer job may finish before this one; the installer ships only with the dist release.
+          rm -f meshtown-setup-*.exe
           sha256sum -- *.tar.gz *.zip > SHA256SUMS
           # The Homebrew tap reads exactly these lines: "<sha256>  <name>".
           grep -q "  MeshTown-macos-arm64-${VERSION}.zip$" SHA256SUMS
@@ -86,9 +88,38 @@ jobs:
             --verify-tag \
             --generate-notes
 
+  windows-installer:
+    name: Windows installer
+    needs: [check-tag, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: asset-x86_64-pc-windows-msvc
+          path: win
+      - name: Build the installer
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y nsis
+          unzip -q "win/meshtown-${VERSION}-x86_64-pc-windows-msvc.zip" -d unpacked
+          mkdir -p out
+          DIST="$PWD/out" platforms/windows/build/installer.sh "unpacked/meshtown-${VERSION}-x86_64-pc-windows-msvc/meshtown.exe"
+          ls -l out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-windows-installer
+          path: out/meshtown-setup-${{ needs.check-tag.outputs.version }}.exe
+          if-no-files-found: error
+
   dist-release:
     name: release in the distribution repository
-    needs: [check-tag, build]
+    needs: [check-tag, build, windows-installer]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -107,9 +138,10 @@ jobs:
         working-directory: assets
         run: |
           set -euo pipefail
-          sha256sum -- *.tar.gz *.zip > SHA256SUMS
+          sha256sum -- *.tar.gz *.zip *.exe > SHA256SUMS
           # The Homebrew tap reads exactly these lines: "<sha256>  <name>".
           grep -q "  MeshTown-macos-arm64-${VERSION}.zip$" SHA256SUMS
+          grep -q "  meshtown-setup-${VERSION}.exe$" SHA256SUMS
           cat SHA256SUMS
       - name: Create release
         id: release
@@ -168,7 +200,7 @@ jobs:
 
   dist:
     name: Distribution repository
-    needs: [check-tag, publish, android]
+    needs: [check-tag, publish, android, windows-installer]
     # A failed Android build must not stop the other systems: android/ is then left as it is.
     if: ${{ !cancelled() && needs.publish.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -209,6 +241,7 @@ jobs:
           unzip -q "assets/meshtown-cli-${VERSION}-${win}.zip" -d unpacked
           cp "unpacked/meshtown-${VERSION}-${win}/meshtown.exe" "dist-src/windows/meshtown-${VERSION}.exe"
           cp "unpacked/meshtown-cli-${VERSION}-${win}/meshtown-cli.exe" "dist-src/windows/meshtown-cli-${VERSION}.exe"
+          cp "assets/meshtown-setup-${VERSION}.exe" "dist-src/windows/meshtown-setup-${VERSION}.exe"
           for arch in x86_64 aarch64; do
             cp "assets/meshtown-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-linux-${arch}-${VERSION}.tar.gz"
             cp "assets/meshtown-cli-${VERSION}-${arch}-unknown-linux-musl.tar.gz" "dist-src/linux/meshtown-cli-linux-${arch}-${VERSION}.tar.gz"
@@ -257,3 +290,33 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/mesh-town/homebrew-macos/dispatches \
             -d "{\"event_type\":\"release\",\"client_payload\":{\"version\":\"${VERSION}\"}}"
+
+  winget:
+    name: winget pull request
+    needs: [check-tag, dist-release]
+    if: needs.dist-release.outputs.repo == 'mesh-town/meshtown-dist'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      # A classic token with the public_repo scope; komac opens the pull request in microsoft/winget-pkgs with it.
+      GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      KOMAC_VERSION: "2.17.1"
+      KOMAC_SHA256: e694e79cd451afabf47bead66ed34586fef4814f7b94e4b61a098f419978d5d7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install komac
+        if: env.GITHUB_TOKEN != ''
+        run: |
+          set -euo pipefail
+          name="komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$name" "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/$name"
+          echo "${KOMAC_SHA256}  $RUNNER_TEMP/$name" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/komac"
+          tar -xzf "$RUNNER_TEMP/$name" -C "$RUNNER_TEMP/komac"
+          bin="$(find "$RUNNER_TEMP/komac" -type f -name komac | head -n 1)"
+          chmod +x "$bin"
+          dirname "$bin" >> "$GITHUB_PATH"
+      - name: Open the pull request
+        run: scripts/release/winget/winget.sh submit "$VERSION"
