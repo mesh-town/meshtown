@@ -22,8 +22,28 @@ pub(super) fn prepare_parsed(
     cli: &CliOverrides,
     save_config: bool,
     now_unix: u64,
-    mut report: FileReport,
+    report: FileReport,
 ) -> anyhow::Result<PrepareOutcome> {
+    let (mut outcome, need) = outcome_from_parsed(p, cli, save_config, report)?;
+    rewrite_if_needed(path, now_unix, save_config, need, &mut outcome);
+    outcome.file_summary = format!("{} (read)", path.display());
+    Ok(outcome)
+}
+
+/// What was read from the file and is needed to decide whether to rewrite it.
+struct RewriteNeed {
+    rev: u64,
+    lossy: bool,
+    secret_is_new: bool,
+}
+
+/// Builds the outcome from the parsed file: field errors, network key, flags, secret.
+fn outcome_from_parsed(
+    p: ParsedConfigFile,
+    cli: &CliOverrides,
+    save_config: bool,
+    mut report: FileReport,
+) -> anyhow::Result<(PrepareOutcome, RewriteNeed)> {
     let ParsedConfigFile {
         rev,
         secret: secret_read,
@@ -48,24 +68,37 @@ pub(super) fn prepare_parsed(
     let mut outcome = PrepareOutcome::new(file_settings, report, String::new(), secret);
     outcome.unknown_paths = unknown_paths;
     outcome.retired_paths = retired_paths;
+    let need = RewriteNeed {
+        rev,
+        lossy,
+        secret_is_new,
+    };
+    Ok((outcome, need))
+}
 
-    if secret_is_new || save_config {
-        let result = rewrite_parsed_file(RewriteCtx {
-            path,
-            now_unix,
-            rev,
-            secret: &outcome.secret,
-            file_settings: &outcome.file_settings,
-            lossy,
-            secret_is_new,
-            save_config,
-        });
-        apply_rewrite_result(&mut outcome, result);
-    } else {
+/// Rewrites the file when the secret is new or flags are saved; otherwise only probes writability.
+fn rewrite_if_needed(
+    path: &Path,
+    now_unix: u64,
+    save_config: bool,
+    need: RewriteNeed,
+    outcome: &mut PrepareOutcome,
+) {
+    if !(need.secret_is_new || save_config) {
         outcome.report.writable = super::helpers::is_probably_writable(path);
+        return;
     }
-    outcome.file_summary = format!("{} (read)", path.display());
-    Ok(outcome)
+    let result = rewrite_parsed_file(RewriteCtx {
+        path,
+        now_unix,
+        rev: need.rev,
+        secret: &outcome.secret,
+        file_settings: &outcome.file_settings,
+        lossy: need.lossy,
+        secret_is_new: need.secret_is_new,
+        save_config,
+    });
+    apply_rewrite_result(outcome, result);
 }
 
 /// Adds a field error when the network key in the file does not parse.
