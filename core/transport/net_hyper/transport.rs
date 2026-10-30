@@ -38,6 +38,8 @@ mod race;
 mod relay;
 
 #[cfg(test)]
+mod connect_opts_tests;
+#[cfg(test)]
 mod direct_fallback_tests;
 #[cfg(test)]
 mod direct_tests;
@@ -93,6 +95,7 @@ pub struct HyperTransport {
     saver: Option<TableSaver>,
     relay_host: Mutex<Option<RelayHost>>,
     relay_factory: PeeroxideFactory,
+    relay_identity: KeyPair,
 }
 
 /// The limit of one `connect`: the relay phase needs more time, so it applies only when a source is set.

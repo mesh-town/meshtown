@@ -23,3 +23,13 @@ fn from_net_maps_direct_relayed_unknown() {
         (Some(PathKindView::Direct), Some(PathKindView::Relay), None)
     );
 }
+
+#[test]
+fn unnamed_relay_shows_as_relay() {
+    // given: the receiving side of a relayed link: the relay is not known by name
+    let path = NetPath::Relayed(RelayRef::Unnamed);
+    // when
+    let view = PathKindView::from_net(&path);
+    // then
+    assert_eq!(view, Some(PathKindView::Relay));
+}

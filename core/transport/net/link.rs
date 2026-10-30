@@ -30,12 +30,20 @@ impl LinkInfo {
     /// Address hint for the chosen path: direct with a known address — `Ip`, through a relay — `Relay`.
     pub fn hint(&self) -> Option<AddrHint> {
         if let PathKind::Relayed(r) = &self.path {
-            return Some(AddrHint::Relay(r.clone()));
+            return relay_hint(r);
         }
         match (&self.path, self.remote) {
             (PathKind::Direct, Some(sa)) => Some(AddrHint::Ip(sa)),
             _ => None,
         }
+    }
+}
+
+/// A relay with a name can be dialed again; an unnamed one gives no address.
+fn relay_hint(relay: &RelayRef) -> Option<AddrHint> {
+    match relay {
+        RelayRef::Unnamed => None,
+        named => Some(AddrHint::Relay(named.clone())),
     }
 }
 

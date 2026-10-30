@@ -6,20 +6,19 @@ use super::phases::{direct_then_relay, Phase};
 use super::race::first_ok;
 use super::relay::RelayDial;
 use super::{dht_error_to_net_error, CONNECT_LIMIT, DIRECT_LIMIT, RELAY_LIMIT};
-use crate::transport::net::addr::RelayRef;
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net_hyper::conn::StreamDialer;
 use crate::transport::net_hyper::keys::peer_of;
-use crate::transport::net_hyper::link::PathFacts;
+use crate::transport::net_hyper::link::{relay_label, PathFacts};
 use crate::transport::net_hyper::relay::{RelayCandidate, RelayPick};
 use std::net::SocketAddrV4;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::time::timeout;
-use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex, RelayThrough};
+use townjump_dht::{ConnectOpts, Dht, DhtConnection, Duplex, RelayAddress, RelayThrough};
 use townjump_dht_peeroxide::PeeroxideDht;
 
 pub(super) struct NodeDialer {
@@ -35,9 +34,18 @@ pub(super) struct NodeDialer {
 /// Options of a dial that pairs through the relay of `cand`. With `vetoed` (tests only) the
 /// hole punch is refused, so the connection can only come through the relay.
 pub(super) fn relay_connect_opts(cand: &RelayCandidate, vetoed: bool) -> ConnectOpts {
+    let relay_addresses = cand
+        .address
+        .map(|addr| RelayAddress {
+            public_key: cand.relay,
+            addr,
+        })
+        .into_iter()
+        .collect();
     let opts = ConnectOpts {
         reusable_socket: true,
         relay_through: Some(RelayThrough::Key(cand.relay)),
+        relay_addresses,
         ..Default::default()
     };
     veto_punch(opts, vetoed)
@@ -67,7 +75,7 @@ fn held(
     through: Option<PeerId>,
 ) -> (Box<dyn Duplex>, PathFacts) {
     let mut facts = PathFacts::dialed(&reached.conn, reached.via);
-    facts.relay = through.map(RelayRef::Peer);
+    facts.relay = relay_label(through, reached.conn.is_relayed());
     (Box::new(Held::new(reached.conn.stream, slot)), facts)
 }
 

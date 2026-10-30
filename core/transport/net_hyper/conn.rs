@@ -16,8 +16,9 @@ use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
 use crate::transport::net::link::{LinkInfo, PathKind};
 use crate::transport::net::stream::{BoxFuture, StreamPair};
-use crate::transport::net::transport::PeerConn;
+use crate::transport::net::transport::{PathWatch, PeerConn};
 use crate::transport::net_hyper::link::{link_info, path_text_of, LinkMeter, Metered, PathFacts};
+use crate::transport::net_hyper::path_watch::RelayPathWatch;
 use crate::transport::net_hyper::table::{SessionKey, Sessions};
 use crate::transport::net_hyper::wire::Ctrl;
 use crate::transport::net_hyper::wire::REASON_MAX_BYTES;
@@ -221,6 +222,10 @@ impl PeerConn for HyperConn {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+
+    fn path_watch(&self) -> Box<dyn PathWatch> {
+        Box::new(RelayPathWatch::new(self.core.meter.relay_path()))
     }
 
     fn path_text(&self) -> String {

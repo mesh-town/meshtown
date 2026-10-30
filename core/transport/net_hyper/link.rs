@@ -2,6 +2,7 @@
 //! the dial went through a relay of a network member; the window is unknown; rtt comes from the connection probe.
 
 use crate::transport::net::addr::RelayRef;
+use crate::transport::net::id::PeerId;
 use crate::transport::net::link::{LinkInfo, NetInfo, PathKind};
 use portable_atomic::AtomicU64;
 use std::io;
@@ -11,7 +12,8 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use std::sync::{Arc, OnceLock};
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use townjump_dht::{DhtConnection, RttProbe};
+use tokio::sync::watch;
+use townjump_dht::{DhtConnection, RelayPath, RttProbe};
 
 /// What is known about the path of a session once it is set up.
 #[derive(Clone, Default)]
@@ -20,6 +22,8 @@ pub struct PathFacts {
     pub rtt: Option<RttProbe>,
     /// The relay the session was dialed through (`None` for a direct session).
     pub relay: Option<RelayRef>,
+    /// The relay path of the connection, if it runs through a relay; turns `Direct` when the data moves off the relay.
+    pub relay_path: Option<watch::Receiver<RelayPath>>,
 }
 
 impl PathFacts {
@@ -28,17 +32,40 @@ impl PathFacts {
         PathFacts {
             remote: via.map(SocketAddr::V4),
             rtt: conn.rtt_probe(),
-            relay: None,
+            relay: relay_label(None, conn.is_relayed()),
+            relay_path: conn.relay_path(),
         }
     }
 
     /// Incoming session: the source address of a handshake is not a dialable address, so it is not kept.
+    /// The relay, if any, is not known by name.
     pub fn accepted(conn: &DhtConnection) -> PathFacts {
         PathFacts {
             remote: None,
             rtt: conn.rtt_probe(),
-            relay: None,
+            relay: relay_label(None, conn.is_relayed()),
+            relay_path: conn.relay_path(),
         }
+    }
+}
+
+impl PathFacts {
+    /// The relay the data flows through right now: `None` once the connection has moved to the direct path.
+    pub fn relay_now(&self) -> Option<RelayRef> {
+        match self.relay_path.as_ref().map(|p| *p.borrow()) {
+            Some(RelayPath::Direct) => None,
+            _ => self.relay.clone(),
+        }
+    }
+}
+
+/// The relay label of a session: `through` is the member whose relay the dial went through; a session that
+/// is not relayed has none, whatever the dial tried.
+pub fn relay_label(through: Option<PeerId>, relayed: bool) -> Option<RelayRef> {
+    match (relayed, through) {
+        (false, _) => None,
+        (true, Some(id)) => Some(RelayRef::Peer(id)),
+        (true, None) => Some(RelayRef::Unnamed),
     }
 }
 
@@ -66,6 +93,11 @@ impl LinkMeter {
     /// Records the path facts; the first call wins.
     pub fn note_path(&self, facts: PathFacts) {
         let _ = self.path.set(facts);
+    }
+
+    /// The relay path of the session, if it was set up through a relay.
+    pub fn relay_path(&self) -> Option<watch::Receiver<RelayPath>> {
+        self.path.get()?.relay_path.clone()
     }
 
     /// The session is closed: data streams answer `ConnectionAborted` from now on.
@@ -110,6 +142,7 @@ fn route_text(relay: Option<RelayRef>) -> String {
         None => "direct UDX".to_string(),
         Some(RelayRef::Peer(id)) => format!("relayed via member {}", id.fmt_short()),
         Some(RelayRef::Url(url)) => format!("relayed via {url}"),
+        Some(RelayRef::Unnamed) => "relayed via a relay server".to_string(),
     }
 }
 
@@ -126,7 +159,7 @@ fn path_of(meter: &LinkMeter) -> PathKind {
 }
 
 fn relay_of(meter: &LinkMeter) -> Option<RelayRef> {
-    meter.path.get()?.relay.clone()
+    meter.path.get()?.relay_now()
 }
 
 /// Network information of the node: `seen` is the `listen` outcome (`None` — not known yet).
@@ -197,3 +230,7 @@ impl<S: AsyncWrite + Unpin> AsyncWrite for Metered<S> {
 #[cfg(test)]
 #[path = "link_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "link_relay_tests.rs"]
+mod relay_tests;

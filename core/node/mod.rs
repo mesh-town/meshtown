@@ -72,8 +72,6 @@ mod redial;
 #[cfg(feature = "net-hyper")]
 mod rejoin;
 #[cfg(feature = "net-hyper")]
-mod relay_advert;
-#[cfg(feature = "net-hyper")]
 mod running;
 #[cfg(feature = "net-hyper")]
 #[cfg(feature = "net-hyper")]

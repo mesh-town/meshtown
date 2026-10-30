@@ -12,7 +12,7 @@ use crate::transport::net::id::NodeSecret;
 use crate::transport::net_hyper::accept::{accept_loop, AcceptCtx};
 use crate::transport::net_hyper::dht_table::TableSaver;
 use crate::transport::net_hyper::gate::PeerGate;
-use crate::transport::net_hyper::keys::key_pair;
+use crate::transport::net_hyper::keys::{key_pair, relay_key_pair};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::{mpsc, watch, Semaphore};
@@ -65,6 +65,7 @@ impl HyperTransport {
             saver,
             relay_host: std::sync::Mutex::new(None),
             relay_factory,
+            relay_identity: relay_key_pair(&secret),
         });
         this.start_transport_tasks(incoming, kp, opts.watch_net)
             .await;

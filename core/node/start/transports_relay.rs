@@ -5,12 +5,13 @@ use std::sync::Arc;
 
 use tokio::task::JoinHandle;
 
+use super::relay_advert::{advertise_relay, retract_relay};
 use crate::config::config_file::RelayMode;
+use crate::members::access::view::AccessView;
 use crate::members::membership::Members;
-use crate::node::relay_advert::{advertise_relay, retract_relay};
 use crate::node::start::relay_candidates::relay_source;
 use crate::transport::net::Replica;
-use crate::transport::net_hyper::HyperTransport;
+use crate::transport::net_hyper::{HyperTransport, RelayAdmit};
 
 /// `Off`: no source and the own advert is retracted. `Network`: the source reads the adverts of the network's
 /// replica and the own relay, once it runs, is advertised there. The task goes to the node's background handles.
@@ -42,7 +43,15 @@ fn advertise_task(
 ) -> JoinHandle<()> {
     let source = relay_source(members.clone(), replica.clone(), replica.me());
     hyper.set_relay_source(Some(source));
-    crate::node::output::spawn(advertise_relay(hyper.serve_relay(), replica))
+    crate::node::output::spawn(advertise_relay(
+        hyper.serve_relay(admit_of(members.access())),
+        replica,
+    ))
+}
+
+/// Admission for the own relay: only nodes the network's current verdicts allow; read afresh at every pairing.
+fn admit_of(access: AccessView) -> RelayAdmit {
+    Arc::new(move |peer| access.allows(peer))
 }
 
 #[cfg(all(test, feature = "net-hyper"))]

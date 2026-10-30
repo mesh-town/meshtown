@@ -134,14 +134,15 @@ mod advert_value {
 
     #[test]
     fn long_value_gives_first_32_bytes() {
-        // given: the tail is room for a future address
+        // given: the tail past the key is an address and room for a future field
         let fx = setup(&[5]);
         let mut value = vec![7; 32];
         value.extend_from_slice(&[9; 8]);
         // when
         let got = fx.candidates(&[(5, value)]);
-        // then
-        assert_eq!(got, vec![candidate(5, 7)]);
+        // then: the key is the first 32 bytes whatever follows
+        let keys: Vec<[u8; 32]> = got.iter().map(|c| c.relay).collect();
+        assert_eq!(keys, vec![key(7)]);
     }
 }
 
@@ -265,6 +266,7 @@ fn candidate(member: u8, relay: u8) -> RelayCandidate {
     RelayCandidate {
         member: peer(member),
         relay: key(relay),
+        address: None,
     }
 }
 

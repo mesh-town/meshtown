@@ -41,5 +41,5 @@ slow-timeout = { period = "60s", terminate-after = 4 }
 test-group = 'heavy-net'
 
 [[profile.default.overrides]]
-filter = 'test(/relayed_dial_tests::/)'
+filter = 'test(/relayed_dial_tests::|relay_admit_tests::|relay_contract_tests::|relay_path_tests::|relay_wiring::/)'
 test-group = 'lan-relay'

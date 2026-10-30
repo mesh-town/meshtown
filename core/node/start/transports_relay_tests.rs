@@ -3,7 +3,7 @@
 //! decides whether a candidate source is set and whether the own advert stays.
 
 use super::*;
-use crate::members::access::tally::Ledger;
+use crate::members::access::tally::{Exclusion, How, Ledger};
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::node::node_state::own_value;
 use crate::node::start::relay_candidates::relay_source;
@@ -15,7 +15,7 @@ use crate::transport::net::mem::{MemReplica, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
 use crate::transport::net::transport::{PeerConn, Transport};
 use crate::transport::net::{PeerId, ReplicaEntry};
-use crate::transport::net_hyper::test_cluster::{cluster, Cluster};
+use crate::transport::net_hyper::test_cluster::{cluster, cluster_on, lan_address, Cluster};
 use crate::transport::net_hyper::test_direct::{connect_within, serving};
 use crate::transport::net_hyper::test_relay::{
     asked_within, fixed_source, relay_on, relayed_via, PeeroxideRelay,
@@ -109,6 +109,58 @@ mod relay_wiring {
     }
 }
 
+mod admit_of {
+    use super::*;
+
+    #[test]
+    fn excluded_member_is_refused() {
+        // given: X was on the list and was excluded by a vote
+        let x = peer(30);
+        let access = access_of(&[peer(B), x], &[x]);
+        // when
+        let admit = admit_of(access);
+        // then
+        assert!(!admit(x), "an excluded member may pair through the relay");
+        assert!(admit(peer(B)), "a member in good standing was refused");
+    }
+
+    #[test]
+    fn ledger_member_without_a_link_is_admitted() {
+        // given: B is on the list but has no verified connection to this node
+        let members = members_of(&[peer(B)], &[]);
+        // when
+        let admit = admit_of(members.access());
+        // then
+        assert!(admit(peer(B)), "a listed member without a link was refused");
+        assert!(!admit(peer(31)), "a node outside the list may pair");
+    }
+
+    #[test]
+    fn admit_follows_new_verdicts() {
+        // given: an admission made while the list admitted B
+        let access = access_of(&[peer(B)], &[]);
+        let admit = admit_of(access.clone());
+        assert!(admit(peer(B)), "B is on the list");
+        // when: new verdicts come without B
+        access.publish(verdicts_of(&[], &[]));
+        // then
+        assert!(
+            !admit(peer(B)),
+            "the admission kept answering by old verdicts"
+        );
+    }
+
+    #[test]
+    fn everyone_passes_before_the_first_verdicts() {
+        // given: no verdicts published yet
+        let access = AccessView::pending();
+        // when
+        let admit = admit_of(access);
+        // then
+        assert!(admit(peer(32)), "the relay refused before any verdict");
+    }
+}
+
 // --- setup and helpers ---
 
 /// A loopback cluster with one serving node of the given seed.
@@ -133,7 +185,7 @@ struct Setup {
 
 impl Setup {
     async fn new() -> Setup {
-        let cl = cluster(5).await;
+        let cl = cluster_on(&lan_address(), 5).await;
         let (a, b) = (serving(&cl, A).await, serving(&cl, B).await);
         let (relay_c, relay_f) = (relay_on(&cl).await, relay_on(&cl).await);
         let (f, c) = ordered_pair(20, 21);
@@ -175,19 +227,36 @@ fn ordered_pair(x: u8, y: u8) -> (PeerId, PeerId) {
 
 /// `Members` of node A: the list admits `admitted` (and A), verified connections are to `connected`.
 fn members_of(admitted: &[PeerId], connected: &[PeerId]) -> Members {
-    let mut ledger = Ledger::empty();
-    ledger.admitted = admitted.iter().copied().chain([peer(A)]).collect();
-    let view = AccessView::open();
-    view.publish(Verdicts {
-        me: peer(A),
-        ledger: Arc::new(ledger),
-        blocks: BTreeSet::new(),
-    });
-    let members = Members::with_access(view);
+    let members = Members::with_access(access_of(admitted, &[]));
     for id in connected {
         members.add_verified_conn(*id);
     }
     members
+}
+
+/// A view that has published verdicts: `admitted` are on the list (A too), `excluded` of them are excluded.
+fn access_of(admitted: &[PeerId], excluded: &[PeerId]) -> AccessView {
+    let view = AccessView::open();
+    view.publish(verdicts_of(admitted, excluded));
+    view
+}
+
+fn verdicts_of(admitted: &[PeerId], excluded: &[PeerId]) -> Verdicts {
+    let mut ledger = Ledger::empty();
+    ledger.admitted = admitted.iter().copied().chain([peer(A)]).collect();
+    for id in excluded {
+        let gone = Exclusion {
+            how: How::Votes,
+            at_micros: 1,
+            voters: vec![],
+        };
+        ledger.excluded.insert(*id, gone);
+    }
+    Verdicts {
+        me: peer(A),
+        ledger: Arc::new(ledger),
+        blocks: BTreeSet::new(),
+    }
 }
 
 fn peer(seed: u8) -> PeerId {

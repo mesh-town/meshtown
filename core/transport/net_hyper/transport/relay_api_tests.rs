@@ -2,9 +2,11 @@
 //! switch, and the relay host that ends with the transport.
 
 use super::*;
+use crate::transport::net::contract::secret;
+use crate::transport::net_hyper::keys::relay_key_pair;
 use crate::transport::net_hyper::test_cluster::cluster;
 use crate::transport::net_hyper::test_direct::serving;
-use crate::transport::net_hyper::test_relay::fixed_source;
+use crate::transport::net_hyper::test_relay::{admit_all, fixed_source};
 use tokio::time::timeout;
 
 const CLOSE_WITHIN: Duration = Duration::from_secs(3);
@@ -69,17 +71,17 @@ mod relay_host {
         // given: a running host; this node is not public, so it starts no relay and only the stop is checked
         let cl = cluster(3).await;
         let t = serving(&cl, 1).await;
-        let mut keys = t.serve_relay();
+        let mut adverts = t.serve_relay(admit_all());
         // when
         let closed = timeout(CLOSE_WITHIN, t.close()).await;
         // then
         assert!(closed.is_ok(), "close did not finish in time");
-        let ended = timeout(CLOSE_WITHIN, keys.changed()).await;
+        let ended = timeout(CLOSE_WITHIN, adverts.changed()).await;
         assert!(
             matches!(ended, Ok(Err(_))),
-            "the key channel stayed open: {ended:?}"
+            "the advert channel stayed open: {ended:?}"
         );
-        assert_eq!(*keys.borrow(), None);
+        assert_eq!(*adverts.borrow(), None);
     }
 
     #[tokio::test]
@@ -89,10 +91,10 @@ mod relay_host {
         let t = serving(&cl, 1).await;
         t.close().await;
         // when
-        let mut keys = t.serve_relay();
+        let mut adverts = t.serve_relay(admit_all());
         // then
-        assert_eq!(*keys.borrow(), None);
-        let ended = timeout(CLOSE_WITHIN, keys.changed()).await;
+        assert_eq!(*adverts.borrow(), None);
+        let ended = timeout(CLOSE_WITHIN, adverts.changed()).await;
         assert!(
             matches!(ended, Ok(Err(_))),
             "a relay host started after close: {ended:?}"
@@ -104,9 +106,9 @@ mod relay_host {
         // given
         let cl = cluster(3).await;
         let t = serving(&cl, 1).await;
-        let _first = t.serve_relay();
+        let _first = t.serve_relay(admit_all());
         // when
-        let mut second = t.serve_relay();
+        let mut second = t.serve_relay(admit_all());
         t.close().await;
         // then: the second receiver follows the same host, so it ends with it
         let ended = timeout(CLOSE_WITHIN, second.changed()).await;
@@ -114,5 +116,63 @@ mod relay_host {
             matches!(ended, Ok(Err(_))),
             "the second receiver is not tied to the host: {ended:?}"
         );
+    }
+}
+
+mod relay_opts_for {
+    use super::*;
+
+    #[tokio::test]
+    async fn relay_opts_carry_the_seed_key() {
+        // given
+        let cl = cluster(3).await;
+        let t = serving(&cl, 1).await;
+        // when
+        let opts = t.relay_opts_for(admit_all());
+        // then
+        assert_eq!(opts.identity, Some(relay_key_pair(&secret(1))));
+        t.close().await;
+    }
+
+    #[tokio::test]
+    async fn relay_opts_check_reachability() {
+        // given
+        let cl = cluster(3).await;
+        let t = serving(&cl, 1).await;
+        // when
+        let opts = t.relay_opts_for(admit_all());
+        // then
+        assert!(
+            !opts.assume_open,
+            "the relay would announce an address it never checked"
+        );
+        t.close().await;
+    }
+
+    #[tokio::test]
+    async fn relay_key_is_not_the_node_key() {
+        // given
+        let cl = cluster(3).await;
+        let t = serving(&cl, 1).await;
+        // when
+        let opts = t.relay_opts_for(admit_all());
+        // then
+        let key = opts.identity.expect("the relay has a key").public_key;
+        assert_ne!(&key, t.me().as_bytes(), "the relay runs under the node key");
+        t.close().await;
+    }
+
+    #[tokio::test]
+    async fn relay_opts_refuse_whom_admit_refuses() {
+        // given: an admission that lets nobody in
+        let cl = cluster(3).await;
+        let t = serving(&cl, 1).await;
+        let opts = t.relay_opts_for(Arc::new(|_| false));
+        let firewall = opts.firewall.expect("the relay has a firewall");
+        // when
+        let refused = firewall(secret(1).peer_id().as_bytes());
+        // then
+        assert!(refused, "a peer passed an admission that refuses everyone");
+        t.close().await;
     }
 }

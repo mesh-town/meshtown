@@ -28,6 +28,20 @@ fn relayed_by_url_names_the_url() {
 }
 
 #[test]
+fn relayed_by_unnamed_relay_says_relay_server() {
+    // given: a path through a relay nobody knows the owner of (the receiving side)
+    let path = PathKind::Relayed(RelayRef::Unnamed);
+    // when
+    let line = relay_connect_line("alice", &path, |_| unreachable!());
+    // then
+    let line = line.expect("a relayed path has a line");
+    assert!(
+        line.starts_with("connected to alice via ") && line.ends_with("a relay server"),
+        "line is {line:?}"
+    );
+}
+
+#[test]
 fn direct_and_unknown_paths_are_silent() {
     for path in [PathKind::Direct, PathKind::Unknown] {
         assert_eq!(relay_connect_line("alice", &path, |_| String::new()), None);

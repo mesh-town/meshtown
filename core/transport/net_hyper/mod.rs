@@ -8,13 +8,14 @@ pub mod gate;
 pub mod keys;
 pub mod link;
 mod netchange;
+mod path_watch;
 mod records;
 mod relay;
 pub mod table;
 pub mod transport;
 pub mod wire;
 
-pub use relay::{RelayCandidate, RelaySource};
+pub use relay::{RelayAdmit, RelayAdvert, RelayCandidate, RelaySource};
 pub use transport::{HyperOpts, HyperTransport, KIND};
 
 #[cfg(test)]
