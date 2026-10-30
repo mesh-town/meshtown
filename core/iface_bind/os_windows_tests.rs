@@ -16,7 +16,7 @@ mod bind_socket {
     fn unicast_if_reads_back() {
         let sock = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
         bind_socket(&sock, &loopback_name(), false).expect("bind to loopback");
-        let raw = read_option(&sock, IPPROTO_IP as i32, IP_UNICAST_IF as i32);
+        let raw = read_option(&sock, IPPROTO_IP, IP_UNICAST_IF);
         assert_eq!(raw, loopback_index().to_be());
     }
 
@@ -28,7 +28,7 @@ mod bind_socket {
             return;
         };
         bind_socket(&sock, &loopback_name(), true).expect("bind to loopback");
-        let raw = read_option(&sock, IPPROTO_IPV6 as i32, IPV6_UNICAST_IF as i32);
+        let raw = read_option(&sock, IPPROTO_IPV6, IPV6_UNICAST_IF);
         assert_eq!(raw, loopback_index());
     }
 
