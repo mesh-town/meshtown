@@ -59,6 +59,8 @@ class Sources:
     main_rs: str
     tests: dict[str, str]
     examples: dict[str, str]
+    # Text of changed files by path; a file missing here is read from disk (deleted file → empty text).
+    texts: dict[str, str] = field(default_factory=dict)
 
 def _read_text(path: Path) -> str:
     try:
@@ -164,6 +166,8 @@ class Selection:
     web_typecheck: bool = False
     bundle_check: bool = False
     android: bool = False
+    linux_check: bool = False
+    features_check: bool = False
     lib_modules: set[str] = field(default_factory=set)
     integration: set[str] = field(default_factory=set)
     reasons: list[str] = field(default_factory=list)
@@ -276,11 +280,38 @@ def _select_one(path: str, src: Sources, sel: Selection) -> str:
     sel.full = sel.py = sel.js = True
     return "full + py + js (catch-all)"
 
+LINUX_CFG_RE = re.compile(r'target_os\s*=\s*"linux"')
+FEATURE_CFG_RE = re.compile(r"\bcfg(?:_attr)?\(.*\bfeature\s*=")
+
+def _text_of(path: str, src: Sources) -> str:
+    return src.texts[path] if path in src.texts else _read_text(Path(path))
+
+def _wants_linux_check(path: str, src: Sources) -> bool:
+    if path.startswith("platforms/linux/") or path.rsplit("/", 1)[-1] in ("Cargo.toml", "Cargo.lock"):
+        return True
+    return path.endswith(".rs") and LINUX_CFG_RE.search(_text_of(path, src)) is not None
+
+def _wants_features_check(path: str, src: Sources) -> bool:
+    if path == f"{CORE}/Cargo.toml":
+        return True
+    return path.endswith(".rs") and FEATURE_CFG_RE.search(_text_of(path, src)) is not None
+
+def _select_checks(path: str, src: Sources, sel: Selection) -> None:
+    """The container build (`make linux-check`) and the feature-set pass (`make features-check`) are chosen by
+    path and by cfg text of the changed file, on top of the test rules."""
+    if _wants_linux_check(path, src):
+        sel.linux_check = True
+        sel.reasons.append(f"{path} → linux-check")
+    if _wants_features_check(path, src):
+        sel.features_check = True
+        sel.reasons.append(f"{path} → features-check")
+
 def select(paths: list[str], src: Sources) -> Selection:
     sel = Selection()
     for path in paths:
         what = _select_one(path, src, sel)
         sel.reasons.append(f"{path} → {what}")
+        _select_checks(path, src, sel)
     return sel
 
 def _rust_parts(sel: Selection) -> list[str]:
@@ -328,6 +359,10 @@ def commands(sel: Selection) -> list[list[str]]:
         cmds.append(["make", "web-check-lint"])
     if sel.android:
         cmds.append(["make", "android-test"])
+    if sel.features_check:
+        cmds.append(["make", "features-check"])
+    if sel.linux_check:
+        cmds.append(["make", "linux-check"])
     return cmds
 
 def _execute(cmd: list[str]) -> int:

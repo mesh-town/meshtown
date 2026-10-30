@@ -62,6 +62,11 @@ jobs:
           tool: cargo-nextest
       - name: Test
         run: cargo nextest run --workspace --locked
+      - name: Test (no tray)
+        if: runner.os == 'Linux'
+        run: |
+          cargo test --locked --lib --no-default-features --features net-hyper -- net_names gate no_args
+          cargo test --locked -p meshtown-core --no-default-features --features net-hyper --test cli_client
 
   web:
     name: web (page, browser battery)

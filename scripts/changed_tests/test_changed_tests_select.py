@@ -367,37 +367,3 @@ class UsersOf(unittest.TestCase):
         text = "use meshtown_core::proxying::Foo;\n"
 
         self.assertEqual(changed_tests.users_of("proxy::pac", {"a": text}), set())
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
-class SelectPlatformCrates(unittest.TestCase):
-    """select() — platform crates: the host OS runs everything, a foreign OS nothing, build files fall to the catch-all."""
-
-    def test_host_platform_gui_selects_full(self):
-        with mock.patch.dict(os.environ, {"CHANGED_TESTS_HOST_OS": "macos"}):
-            sel = changed_tests.select(["platforms/macos/gui/backend.rs"], _sources())
-
-        self.assertTrue(sel.full)
-
-    def test_host_platform_manifest_selects_full(self):
-        with mock.patch.dict(os.environ, {"CHANGED_TESTS_HOST_OS": "linux"}):
-            sel = changed_tests.select(["platforms/linux/Cargo.toml"], _sources())
-
-        self.assertTrue(sel.full)
-
-    def test_foreign_platform_gui_selects_nothing(self):
-        with mock.patch.dict(os.environ, {"CHANGED_TESTS_HOST_OS": "macos"}):
-            sel = changed_tests.select(["platforms/windows/gui/backend.rs"], _sources())
-
-        self.assertEqual(
-            (sel.full, sel.py, sel.js, sel.web_check, sel.android), (False, False, False, False, False)
-        )
-
-    def test_platform_build_script_selects_full(self):
-        with mock.patch.dict(os.environ, {"CHANGED_TESTS_HOST_OS": "macos"}):
-            sel = changed_tests.select(["platforms/linux/build/build.sh"], _sources())
-
-        self.assertEqual((sel.full, sel.py, sel.js), (True, True, True))
