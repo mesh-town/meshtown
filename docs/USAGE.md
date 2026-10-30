@@ -371,7 +371,9 @@ temporary token instead.
   starts the browser on it and prints the addresses. Without a password the link carries a one-time token (10 minutes);
   with a password the address is plain. The browser is not started as root, in an SSH session, or on Linux without a
   display, and with `--print`; the link is only printed then. As a service, run it with `sudo` so it can read `web-token`.
-  The command does not change the password or end sessions.
+  The command does not change the password or end sessions. Standard output holds the addresses only, one per line; the
+  notes (that the browser was not started, how long the link lives) go to standard error. If nothing answers on the page
+  port, the command exits with code 3; `--web-port N` points it at another port.
 
 - **First sign-in.** While no password is set, the node prints an address with a temporary token at every start. The
   token is single-use and lives 10 minutes, for example `http://127.0.0.1:7777/?token=…` (in `localnet` mode there are
@@ -390,6 +392,7 @@ temporary token instead.
   ends all sessions and invalidates all earlier temporary tokens, then prints an address with a new temporary token
   (valid 10 minutes, once). On a stopped node it just deletes the file, and the address appears at the next start. On
   a running node the command talks to it with the permanent token from `web-token` next to the settings file.
+  The address is the only thing on standard output; the confirmation goes to standard error.
 - **Brute-force protection.** Five wrong passwords or tokens in a row from one address cause a one-minute block, and
   each further failure doubles it, up to 15 minutes. A session lives 7 days, and a node restart signs everyone out.
 - **Limits.** The page is served over HTTP without TLS: on a local network the password, token and cookie travel in

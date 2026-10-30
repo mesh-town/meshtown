@@ -271,3 +271,23 @@ mod error_forms {
         }
     }
 }
+
+/// The help of `help`, `--help` and a start with no arguments (no tray) is one text.
+#[test]
+fn help_word_and_flag_and_empty_argv_print_the_same() {
+    use crate::cli::args::{with_default_subcommand, Cli};
+    use crate::cli::test_args::to_os;
+    let render = |args: Vec<std::ffi::OsString>| {
+        let err = Cli::command().try_get_matches_from(args).expect_err("help");
+        assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+        err.render().to_string()
+    };
+    let commands: Vec<String> = Cli::command()
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .collect();
+    let word = help_args(&to_os(&["meshtown", "help"]), &commands).expect("help word");
+    let flag = render(to_os(&["meshtown", "--help"]));
+    assert_eq!(render(word), flag);
+    assert_eq!(render(with_default_subcommand(to_os(&["meshtown"]), false)), flag);
+}

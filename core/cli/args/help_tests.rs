@@ -2,6 +2,7 @@
 
 use clap::error::ErrorKind;
 
+use super::root_help;
 use crate::cli::args::Cli;
 
 const ABOUT: &str = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts.";
@@ -272,5 +273,44 @@ fn env_hidden_but_read() {
             arg.is_hide_env_set(),
             "{id}: the variable is not hidden in the help"
         );
+    }
+}
+
+fn small(names: &[&'static str]) -> clap::Command {
+    names.iter().fold(clap::Command::new("meshtown").about("About text"), |cmd, n| {
+        cmd.subcommand(clap::Command::new(*n).about("Does a thing"))
+    })
+}
+
+#[test]
+fn name_missing_from_command_is_not_printed() {
+    let help = root_help(&small(&["run", "status"]), false);
+    assert!(help.contains("Start:\n  run "), "{help}");
+    assert!(!help.contains("  network "), "{help}");
+    assert!(!help.contains("Network:"), "{help}");
+    assert!(!help.contains("  join "), "{help}");
+}
+
+#[test]
+fn command_missing_from_table_goes_to_other() {
+    let help = root_help(&small(&["run", "keygen"]), false);
+    let other = help.find("Other:\n  keygen ").unwrap_or_else(|| panic!("{help}"));
+    assert!(help.find("Start:").expect("Start") < other, "{help}");
+}
+
+#[test]
+fn root_help_lists_global_options() {
+    let help = top();
+    let block = help.split("Global options:").nth(1).unwrap_or_else(|| panic!("{help}"));
+    for flag in [
+        "--config <PATH>",
+        "--web-port <PORT>",
+        "--net <NETWORK>",
+        "--json",
+        "--yes",
+        "-h, --help",
+        "-V, --version",
+    ] {
+        assert!(block.contains(flag), "no {flag}:\n{help}");
     }
 }

@@ -1,12 +1,14 @@
 //! The `open` subcommand: asks the running node for a sign-in link (`POST /api/auth/link`), opens it in the browser
 //! when that makes sense and always prints the addresses. Addresses can carry a token, so they go only through
-//! `println!`, not `output::say` (which writes to the `/api/log` log).
+//! `println!`, not `output::say` (which writes to the `/api/log` log). Standard output holds the addresses only;
+//! the notes go to standard error.
 
 use serde_json::Value;
 
 use super::browser;
 use super::client::{LinkError, Target};
 use crate::cli::args::Globals;
+use crate::cli::exit::NotRunning;
 use crate::node::output::NET_NAME;
 
 /// The facts that decide whether a browser can be started from this process.
@@ -59,21 +61,18 @@ pub(super) fn may_start_browser(env: &BrowserEnv) -> Result<(), &'static str> {
 pub(crate) async fn run_open_command(print_only: bool, g: &Globals) -> anyhow::Result<()> {
     g.allow("open", &[])?;
     let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;
-    open(&target, print_only).map_err(anyhow::Error::msg)
+    open(&target, print_only)
 }
 
-fn open(t: &Target, print_only: bool) -> Result<(), String> {
+fn open(t: &Target, print_only: bool) -> anyhow::Result<()> {
     match t.call("POST", "/api/auth/link", Some("{}")) {
         Ok((200, body)) => {
             present(&body, print_only);
             Ok(())
         }
-        Ok((code, body)) => Err(refusal(t, code, &body)),
-        Err(LinkError::NotRunning) => Err(format!(
-            "{NET_NAME} isn't running on port {}; start it first, or pass --web-port <PORT>",
-            t.port
-        )),
-        Err(LinkError::Other(e)) => Err(e),
+        Ok((code, body)) => Err(anyhow::Error::msg(refusal(t, code, &body))),
+        Err(LinkError::NotRunning) => Err(anyhow::Error::new(NotRunning { port: t.port })),
+        Err(LinkError::Other(e)) => Err(anyhow::Error::msg(e)),
     }
 }
 
@@ -90,9 +89,9 @@ fn present(body: &str, print_only: bool) {
         println!("{url}");
     }
     if let Some(note) = note {
-        println!("{note}");
+        eprintln!("{note}");
     }
-    println!("{}", tail(json["password_set"].as_bool().unwrap_or(false)));
+    eprintln!("{}", tail(json["password_set"].as_bool().unwrap_or(false)));
 }
 
 /// Tries to start the browser; returns a line to print when it was not started.
