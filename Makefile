@@ -242,7 +242,7 @@ core-check:
 # Not part of `check`: run when editing cfg.
 features-check:
 	$(CARGO) clippy --all-targets --no-default-features --features $(NODE_FEATURES) -- -D warnings
-	$(CARGO) test --lib --no-default-features --features $(NODE_FEATURES) -- net_names gate
+	$(CARGO) test --lib --no-default-features --features $(NODE_FEATURES) -- net_names gate no_args
 
 # -k: a red target does not abort the rest — the battery shows all red ones in one go.
 check:

@@ -159,8 +159,10 @@ mod classify_kind {
         }
 
         #[test]
-        fn no_command_stays_clap() {
-            assert_eq!(classify(&parse_err(&[])), ParseFail::LeaveToClap);
+        fn no_command_gets_error_form() {
+            let err = parse_err(&["--config", "x"]);
+            assert_eq!(err.kind(), clap::error::ErrorKind::MissingSubcommand);
+            assert_eq!(classify(&err), ParseFail::Other);
         }
     }
 }

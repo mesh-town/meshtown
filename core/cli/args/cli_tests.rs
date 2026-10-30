@@ -20,6 +20,17 @@ fn no_args_is_help_without_tray() {
     assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
 }
 
+/// The build without the tray: no arguments print the root help to stdout (what the binary does with code 0).
+#[cfg(not(feature = "gui"))]
+#[test]
+fn no_args_prints_root_help_in_this_build() {
+    let err = Cli::command()
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"]), HAS_TRAY))
+        .expect_err("no tray in this build - the help");
+    assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+    assert!(err.to_string().contains("Global options:"), "{err}");
+}
+
 #[cfg(feature = "gui")]
 #[test]
 fn no_args_is_tray_with_tray() {
