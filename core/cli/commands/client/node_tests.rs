@@ -58,7 +58,10 @@ fn pick_net_two_matches_lists_networks() {
         {"id": "b", "label": "same", "id_hex": "2222"},
     ]});
     let text = pick_net(&both, "SAME").expect_err("two matches");
-    assert!(text.contains("matches several networks: Same (a), same (b)"), "{text}");
+    assert!(
+        text.contains("matches several networks: Same (a), same (b)"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -87,7 +90,9 @@ fn query_escape_keeps_unreserved_escapes_utf8() {
 
 #[test]
 fn require_net_two_nets_without_net_is_usage() {
-    let e = node(two_nets(), false).require_net("leave").expect_err("usage");
+    let e = node(two_nets(), false)
+        .require_net("leave")
+        .expect_err("usage");
     assert!(e.downcast_ref::<UsageError>().is_some());
     assert!(e.to_string().contains("Home (main), Work (n2)"), "{e}");
 }

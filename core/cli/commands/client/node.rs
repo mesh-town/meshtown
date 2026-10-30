@@ -70,9 +70,8 @@ impl Node {
 
     /// Changes settings: reads the revision, writes `patch`; a stale revision is retried once.
     pub(crate) fn put_config(&self, patch: &Value) -> anyhow::Result<Value> {
-        let mut call = |method: &str, path: &str, body: Option<&Value>| {
-            self.call(method, path, body)
-        };
+        let mut call =
+            |method: &str, path: &str, body: Option<&Value>| self.call(method, path, body);
         put_with_retry(&mut call, &self.base, patch)
     }
 }
@@ -96,8 +95,9 @@ fn request(
 fn reply_value(status: u16, reply: &str) -> anyhow::Result<Value> {
     match (status / 100, reply.trim().is_empty()) {
         (2, true) => Ok(Value::Null),
-        (2, false) => serde_json::from_str(reply)
-            .map_err(|e| anyhow::anyhow!("the reply is not JSON: {e}")),
+        (2, false) => {
+            serde_json::from_str(reply).map_err(|e| anyhow::anyhow!("the reply is not JSON: {e}"))
+        }
         _ => Err(anyhow::Error::new(ApiError::from_reply(status, reply))),
     }
 }
@@ -114,7 +114,11 @@ fn describe_nets(nets: &Value) -> String {
         let label = n["label"].as_str().unwrap_or("(no label)");
         format!("{label} ({})", n["id"].as_str().unwrap_or("?"))
     };
-    net_list(nets).iter().map(one).collect::<Vec<_>>().join(", ")
+    net_list(nets)
+        .iter()
+        .map(one)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// `/api` for the main network, `/api/net/{slot}` for the others.
@@ -129,14 +133,18 @@ pub(crate) fn pick_net(nets: &Value, wanted: &str) -> Result<String, String> {
     let list = net_list(nets);
     let by_id = |n: &Value| n["id"].as_str() == Some(wanted);
     let by_label = |n: &Value| {
-        n["label"].as_str().is_some_and(|l| l.to_lowercase() == wanted.to_lowercase())
+        n["label"]
+            .as_str()
+            .is_some_and(|l| l.to_lowercase() == wanted.to_lowercase())
     };
     let by_hex = |n: &Value| {
         let hex = n["id_hex"].as_str().unwrap_or("");
         wanted.chars().count() >= 4 && hex.to_lowercase().starts_with(&wanted.to_lowercase())
     };
     let steps: [&dyn Fn(&Value) -> bool; 3] = [&by_id, &by_label, &by_hex];
-    let found = steps.iter().map(|f| list.iter().filter(|n| f(n)).collect::<Vec<_>>());
+    let found = steps
+        .iter()
+        .map(|f| list.iter().filter(|n| f(n)).collect::<Vec<_>>());
     match found.into_iter().find(|hits| !hits.is_empty()) {
         Some(hits) if hits.len() == 1 => Ok(hits[0]["id"].as_str().unwrap_or("main").to_string()),
         Some(_) => Err(format!(

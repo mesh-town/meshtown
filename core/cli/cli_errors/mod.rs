@@ -6,10 +6,10 @@
 mod classify;
 mod text;
 
-pub(crate) use classify::parse_or_exit;
-#[cfg(test)]
-pub(crate) use text::bad_value_text;
 #[cfg(test)]
 pub(crate) use classify::classify as classify_for_tests;
+pub(crate) use classify::parse_or_exit;
 #[cfg(test)]
 pub(crate) use classify::ParseFail as ParseFailForTests;
+#[cfg(test)]
+pub(crate) use text::bad_value_text;

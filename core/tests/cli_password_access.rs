@@ -61,7 +61,11 @@ async fn reset_live_prints_temp_url_and_removes_file() {
         text.lines().all(|l| l.starts_with("http://")),
         "stdout holds more than addresses: {text}"
     );
-    assert!(err(&o).contains("10 minutes"), "no validity period: {}", err(&o));
+    assert!(
+        err(&o).contains("10 minutes"),
+        "no validity period: {}",
+        err(&o)
+    );
     assert!(
         !password_file(&rig.dir).exists(),
         "password file is still there"

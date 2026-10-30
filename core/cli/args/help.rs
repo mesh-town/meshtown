@@ -69,7 +69,10 @@ fn grouped(rows: &[Row]) -> Vec<(&'static str, Vec<&Row>)> {
             .collect()
     };
     let known: Vec<&str> = GROUPS.iter().flat_map(|g| g.1.iter().copied()).collect();
-    let rest: Vec<&Row> = rows.iter().filter(|r| !known.contains(&r.0.as_str())).collect();
+    let rest: Vec<&Row> = rows
+        .iter()
+        .filter(|r| !known.contains(&r.0.as_str()))
+        .collect();
     let mut groups: Vec<(&'static str, Vec<&Row>)> =
         GROUPS.iter().map(|(h, names)| (*h, pick(names))).collect();
     groups.push((OTHER, rest));
@@ -100,7 +103,12 @@ fn global_rows(cmd: &clap::Command) -> Vec<Row> {
     let flags = GLOBAL_IDS
         .iter()
         .filter_map(|id| cmd.get_arguments().find(|a| a.get_id() == *id))
-        .map(|a| (flag_text(a), a.get_help().map(|h| h.to_string()).unwrap_or_default()));
+        .map(|a| {
+            (
+                flag_text(a),
+                a.get_help().map(|h| h.to_string()).unwrap_or_default(),
+            )
+        });
     let help = with_program_name(HELP_HINT, program_name());
     let tail = [
         ("-h, --help".to_string(), help),
@@ -116,7 +124,10 @@ pub(super) fn root_help(cmd: &clap::Command, has_tray: bool) -> String {
     let mut out = format!("{about}\n\nUsage: {} [COMMAND]\n", program_name());
     let rows = command_rows(cmd);
     for (heading, group) in grouped(&rows) {
-        out.push_str(&format!("\n{heading}:\n{}\n", table_lines(group).join("\n")));
+        out.push_str(&format!(
+            "\n{heading}:\n{}\n",
+            table_lines(group).join("\n")
+        ));
     }
     let globals = global_rows(cmd);
     out.push_str(&format!(

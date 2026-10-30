@@ -29,7 +29,11 @@ fn table_lines(head: &[&str], rows: &[Vec<String>]) -> Vec<String> {
 
 fn column_width(head: &[String], rows: &[Vec<String>], column: usize) -> usize {
     let cell = |r: &[String]| r.get(column).map_or(0, |c| c.chars().count());
-    rows.iter().map(|r| cell(r)).chain([cell(head)]).max().unwrap_or(0)
+    rows.iter()
+        .map(|r| cell(r))
+        .chain([cell(head)])
+        .max()
+        .unwrap_or(0)
 }
 
 fn join_cells(cells: &[String], widths: &[usize]) -> String {

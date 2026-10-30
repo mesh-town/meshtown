@@ -267,7 +267,11 @@ mod error_forms {
     #[test]
     fn help_and_version_stay_clap() {
         for args in [&["--help"][..], &["-V"], &["status", "--help"]] {
-            assert_eq!(classify(&parse_err(args)), ParseFail::LeaveToClap, "{args:?}");
+            assert_eq!(
+                classify(&parse_err(args)),
+                ParseFail::LeaveToClap,
+                "{args:?}"
+            );
         }
     }
 }
@@ -289,5 +293,8 @@ fn help_word_and_flag_and_empty_argv_print_the_same() {
     let word = help_args(&to_os(&["meshtown", "help"]), &commands).expect("help word");
     let flag = render(to_os(&["meshtown", "--help"]));
     assert_eq!(render(word), flag);
-    assert_eq!(render(with_default_subcommand(to_os(&["meshtown"]), false)), flag);
+    assert_eq!(
+        render(with_default_subcommand(to_os(&["meshtown"]), false)),
+        flag
+    );
 }

@@ -25,11 +25,23 @@ pub(super) const RENAMED: &[Renamed] = &[
     row(&["run", "--domain"], "run --site"),
     row(&["run", "--block-domain"], "run --block-site"),
     row(&["run", "--save-config"], "config set <PATH> <VALUE>"),
-    row(&["run", "--probe-interval"], "run --set probe.interval_sec=<SECONDS>"),
-    row(&["run", "--probe-full-cycle"], "run --set probe.full_cycle=true"),
-    row(&["run", "--check-interval"], "run --set checks.interval_sec=<SECONDS>"),
+    row(
+        &["run", "--probe-interval"],
+        "run --set probe.interval_sec=<SECONDS>",
+    ),
+    row(
+        &["run", "--probe-full-cycle"],
+        "run --set probe.full_cycle=true",
+    ),
+    row(
+        &["run", "--check-interval"],
+        "run --set checks.interval_sec=<SECONDS>",
+    ),
     row(&["run", "--check-doh"], "run --set checks.doh_server=<URL>"),
-    row(&["run", "--provider-dns"], "run --set checks.provider_dns=<ADDR>"),
+    row(
+        &["run", "--provider-dns"],
+        "run --set checks.provider_dns=<ADDR>",
+    ),
     row(&["run", "--checks"], "run --set checks.enabled=true"),
     row(&["run", "--no-checks"], "run --set checks.enabled=false"),
 ];

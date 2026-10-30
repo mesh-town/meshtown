@@ -4,7 +4,6 @@ use super::*;
 use crate::cli::args::is_flag_typed;
 use crate::cli::cli_errors::{classify_for_tests as classify, ParseFailForTests as ParseFail};
 
-
 use crate::cli::exit::exit_code;
 use crate::cli::test_args::{globals_of, parse_err, parse_ok};
 use clap::error::ErrorKind;
@@ -33,7 +32,10 @@ fn config_reads_meshtown_config_env() {
         .get_arguments()
         .find(|a| a.get_id() == "config")
         .expect("config");
-    assert_eq!(arg.get_env().and_then(|e| e.to_str()), Some("MESHTOWN_CONFIG"));
+    assert_eq!(
+        arg.get_env().and_then(|e| e.to_str()),
+        Some("MESHTOWN_CONFIG")
+    );
     assert!(arg.is_hide_env_set());
 }
 
@@ -90,7 +92,10 @@ fn allow_passes_when_flag_absent() {
 #[test]
 fn require_yes_refuses_without_yes() {
     let text = usage_text(Globals::default().require_yes("leave"));
-    assert!(text.contains("leave removes data; add --yes to confirm"), "{text}");
+    assert!(
+        text.contains("leave removes data; add --yes to confirm"),
+        "{text}"
+    );
 }
 
 #[test]
@@ -108,5 +113,7 @@ fn tray_web_port_zero_is_usage_error() {
     let g = globals_of(&["tray", "--web-port", "0"]);
     let text = usage_text(g.allow("tray", &[]));
     assert!(text.contains("use a port from 1 to 65535"), "{text}");
-    assert!(globals_of(&["tray", "--web-port", "65535"]).allow("tray", &[]).is_ok());
+    assert!(globals_of(&["tray", "--web-port", "65535"])
+        .allow("tray", &[])
+        .is_ok());
 }

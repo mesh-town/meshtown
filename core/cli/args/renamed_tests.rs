@@ -22,7 +22,10 @@ fn flag_row_matches_only_under_its_command() {
         hint(&["meshtown", "run", "--domain", "a.com"]),
         Some("run --site")
     );
-    assert_eq!(hint(&["meshtown", "run", "--domain=a.com"]), Some("run --site"));
+    assert_eq!(
+        hint(&["meshtown", "run", "--domain=a.com"]),
+        Some("run --site")
+    );
     assert_eq!(hint(&["meshtown", "status", "--domain", "a.com"]), None);
     assert_eq!(hint(&["meshtown", "--domain", "run"]), None);
 }

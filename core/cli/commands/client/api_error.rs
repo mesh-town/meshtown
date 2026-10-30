@@ -33,9 +33,9 @@ impl ApiError {
     fn advice(&self) -> Option<String> {
         match (refusal_advice(&self.code), self.status) {
             (Some(advice), _) => Some(advice),
-            (None, 401) => Some(
-                "Run it as the user that runs Mesh Town, or pass --config.".to_string(),
-            ),
+            (None, 401) => {
+                Some("Run it as the user that runs Mesh Town, or pass --config.".to_string())
+            }
             _ => None,
         }
     }
@@ -64,15 +64,19 @@ pub(crate) fn refusal_advice(code: &str) -> Option<String> {
         "not_admin" => "Ask an administrator of this network.".to_string(),
         "self_target" => format!("Pick another member from `{prog} member list`."),
         "not_member" | "left" => format!("Run `{prog} member list` to see who is in the network."),
-        "not_pending" => format!(
-            "Waiting members have the status `pending` in `{prog} member list`."
-        ),
-        "last_admin" => format!(
-            "Make another member an administrator first: `{prog} member admin <member>`."
-        ),
+        "not_pending" => {
+            format!("Waiting members have the status `pending` in `{prog} member list`.")
+        }
+        "last_admin" => {
+            format!("Make another member an administrator first: `{prog} member admin <member>`.")
+        }
         "network_deleted" | "unknown_net" => format!("See `{prog} network list`."),
-        "network_present" => format!("Pick another network with --net, or see `{prog} network list`."),
-        "net_already_added" => format!("This network is already on this computer: `{prog} network list`."),
+        "network_present" => {
+            format!("Pick another network with --net, or see `{prog} network list`.")
+        }
+        "net_already_added" => {
+            format!("This network is already on this computer: `{prog} network list`.")
+        }
         "too_many_nets" => format!("Remove a network first: `{prog} leave --net <network> --yes`."),
         "busy" => "Try again in a moment.".to_string(),
         "stopping" => format!("{NET_NAME} is shutting down; start it again when it has stopped."),

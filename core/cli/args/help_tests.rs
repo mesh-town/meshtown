@@ -131,10 +131,7 @@ fn footer_names_default() {
         help.contains("Join a network with a member's invite:"),
         "{help}"
     );
-    assert!(
-        help.contains("meshtown join \"<invite>\""),
-        "{help}"
-    );
+    assert!(help.contains("meshtown join \"<invite>\""), "{help}");
 }
 
 #[cfg(not(feature = "gui"))]
@@ -146,10 +143,7 @@ fn footer_names_default() {
         "{help}"
     );
     assert!(!help.contains("  tray "), "{help}");
-    assert!(
-        help.contains("meshtown join \"<invite>\""),
-        "{help}"
-    );
+    assert!(help.contains("meshtown join \"<invite>\""), "{help}");
 }
 
 #[test]
@@ -263,10 +257,7 @@ fn help_word_is_not_a_command() {
 fn env_hidden_but_read() {
     let cmd = Cli::command();
     let run = cmd.find_subcommand("run").expect("run");
-    for (id, var) in [
-        ("key", "MESHTOWN_KEY"),
-        ("invite", "MESHTOWN_INVITE"),
-    ] {
+    for (id, var) in [("key", "MESHTOWN_KEY"), ("invite", "MESHTOWN_INVITE")] {
         let arg = run.get_arguments().find(|a| a.get_id() == id).expect(id);
         assert_eq!(arg.get_env().and_then(|e| e.to_str()), Some(var), "{id}");
         assert!(
@@ -277,9 +268,10 @@ fn env_hidden_but_read() {
 }
 
 fn small(names: &[&'static str]) -> clap::Command {
-    names.iter().fold(clap::Command::new("meshtown").about("About text"), |cmd, n| {
-        cmd.subcommand(clap::Command::new(*n).about("Does a thing"))
-    })
+    names.iter().fold(
+        clap::Command::new("meshtown").about("About text"),
+        |cmd, n| cmd.subcommand(clap::Command::new(*n).about("Does a thing")),
+    )
 }
 
 #[test]
@@ -294,14 +286,19 @@ fn name_missing_from_command_is_not_printed() {
 #[test]
 fn command_missing_from_table_goes_to_other() {
     let help = root_help(&small(&["run", "keygen"]), false);
-    let other = help.find("Other:\n  keygen ").unwrap_or_else(|| panic!("{help}"));
+    let other = help
+        .find("Other:\n  keygen ")
+        .unwrap_or_else(|| panic!("{help}"));
     assert!(help.find("Start:").expect("Start") < other, "{help}");
 }
 
 #[test]
 fn root_help_lists_global_options() {
     let help = top();
-    let block = help.split("Global options:").nth(1).unwrap_or_else(|| panic!("{help}"));
+    let block = help
+        .split("Global options:")
+        .nth(1)
+        .unwrap_or_else(|| panic!("{help}"));
     for flag in [
         "--config <PATH>",
         "--web-port <PORT>",

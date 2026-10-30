@@ -2,9 +2,7 @@
 
 use std::ffi::OsString;
 
-use super::text::{
-    bad_flag_text, bad_value_text, other_text, renamed_text, unknown_command_text,
-};
+use super::text::{bad_flag_text, bad_value_text, other_text, renamed_text, unknown_command_text};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{ArgMatches, Command};
 
@@ -70,8 +68,12 @@ fn refine(fail: ParseFail, err: &clap::Error, args: &[OsString]) -> ParseFail {
         fail,
         ParseFail::UnknownCommand(_) | ParseFail::BadFlag | ParseFail::BadValue
     );
-    let found = renamed_hint(args)
-        .filter(|row| replaced && offending_words(err).iter().any(|w| Some(&w.as_str()) == row.old.last()));
+    let found = renamed_hint(args).filter(|row| {
+        replaced
+            && offending_words(err)
+                .iter()
+                .any(|w| Some(&w.as_str()) == row.old.last())
+    });
     match found {
         Some(row) => ParseFail::Renamed(row),
         None => fail,

@@ -35,16 +35,16 @@ pub(crate) mod status;
 pub(crate) mod stop;
 pub(crate) use access::ifaces;
 pub(crate) use config::config_path;
-pub(crate) use network::keygen;
 pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;
 pub(crate) use leave::LeaveArgs;
+pub(crate) use network::keygen;
 pub(crate) use run_args::RunArgs;
-pub(crate) use status::StatusArgs;
-pub(crate) use stop::StopArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
+pub(crate) use status::StatusArgs;
+pub(crate) use stop::StopArgs;
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {

@@ -134,7 +134,9 @@ fn ifaces_parses_names_and_flags() {
     let cli = Cli::from_arg_matches(&m).expect("parse");
     assert_eq!(cli.globals.config, Some(std::path::PathBuf::from("/x")));
     match cli.command {
-        CliCommand::Ifaces { names, if_unset, .. } => {
+        CliCommand::Ifaces {
+            names, if_unset, ..
+        } => {
             assert_eq!(names, ["br-lan"]);
             assert!(if_unset);
         }

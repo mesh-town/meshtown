@@ -171,12 +171,35 @@ mod config_path_help {
 
 #[cfg(feature = "gui")]
 fn sub_names() -> Vec<&'static str> {
-    vec!["tray", "run", "join", "status", "stop", "invite", "leave", "keygen", "config-path", "password", "access"]
+    vec![
+        "tray",
+        "run",
+        "join",
+        "status",
+        "stop",
+        "invite",
+        "leave",
+        "keygen",
+        "config-path",
+        "password",
+        "access",
+    ]
 }
 
 #[cfg(not(feature = "gui"))]
 fn sub_names() -> Vec<&'static str> {
-    vec!["run", "join", "status", "stop", "invite", "leave", "keygen", "config-path", "password", "access"]
+    vec![
+        "run",
+        "join",
+        "status",
+        "stop",
+        "invite",
+        "leave",
+        "keygen",
+        "config-path",
+        "password",
+        "access",
+    ]
 }
 
 /// Help as the program prints it: through the `DisplayHelp` error on `--help`.

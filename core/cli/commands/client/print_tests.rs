@@ -12,10 +12,7 @@ fn print_table_aligns_by_chars() {
         &["NAME", "STATE"],
         &[row(&["café", "online"]), row(&["a", "offline"])],
     );
-    assert_eq!(
-        lines,
-        vec!["NAME  STATE", "café  online", "a     offline"]
-    );
+    assert_eq!(lines, vec!["NAME  STATE", "café  online", "a     offline"]);
 }
 
 #[test]

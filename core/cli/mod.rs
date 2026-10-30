@@ -19,10 +19,10 @@ pub(crate) mod commands;
 #[cfg(feature = "net-hyper")]
 pub mod console;
 #[cfg(feature = "net-hyper")]
+pub(crate) mod exit;
+#[cfg(feature = "net-hyper")]
 pub(crate) mod os_console;
 pub mod program_name;
-#[cfg(feature = "net-hyper")]
-pub(crate) mod exit;
 #[cfg(feature = "net-hyper")]
 pub mod run;
 #[cfg(feature = "net-hyper")]

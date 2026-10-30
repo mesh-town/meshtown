@@ -119,7 +119,11 @@ fn clap_sentence(err: &clap::Error) -> String {
         false => format!("{head}: {}", items.join(", ")),
     };
     let mut chars = sentence.chars();
-    let capital: String = chars.next().into_iter().flat_map(char::to_uppercase).collect();
+    let capital: String = chars
+        .next()
+        .into_iter()
+        .flat_map(char::to_uppercase)
+        .collect();
     format!("{capital}{}.", chars.as_str())
 }
 

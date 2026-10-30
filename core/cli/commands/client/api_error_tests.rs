@@ -4,7 +4,10 @@ use super::*;
 
 #[test]
 fn api_error_text_uses_message() {
-    let e = ApiError::from_reply(409, r#"{"error":"not_admin","message":"only admins can do this"}"#);
+    let e = ApiError::from_reply(
+        409,
+        r#"{"error":"not_admin","message":"only admins can do this"}"#,
+    );
     assert_eq!(e.code, "not_admin");
     let text = e.to_string();
     assert!(text.starts_with("only admins can do this. "), "{text}");
@@ -20,11 +23,22 @@ fn api_error_without_message_names_status() {
 
 #[test]
 fn refusal_advice_names_next_step() {
-    for code in ["not_admin", "self_target", "last_admin", "network_deleted", "too_many_nets"] {
+    for code in [
+        "not_admin",
+        "self_target",
+        "last_admin",
+        "network_deleted",
+        "too_many_nets",
+    ] {
         let advice = refusal_advice(code).unwrap_or_default();
-        assert!(advice.ends_with('.') && advice.len() > 10, "{code}: {advice}");
+        assert!(
+            advice.ends_with('.') && advice.len() > 10,
+            "{code}: {advice}"
+        );
     }
-    assert!(refusal_advice("last_admin").unwrap_or_default().contains("member admin"));
+    assert!(refusal_advice("last_admin")
+        .unwrap_or_default()
+        .contains("member admin"));
 }
 
 #[test]
