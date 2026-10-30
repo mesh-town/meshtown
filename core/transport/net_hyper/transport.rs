@@ -12,7 +12,7 @@ use crate::transport::net_hyper::accept::{AcceptCtx, Accepted};
 use crate::transport::net_hyper::conn::establish_dialed_session;
 use crate::transport::net_hyper::dht_table::TableSaver;
 use crate::transport::net_hyper::gate::{Admit, PeerGate};
-use crate::transport::net_hyper::link::net_info;
+use crate::transport::net_hyper::link::{net_info, PathFacts};
 use crate::transport::net_hyper::netchange::{spawn as spawn_netchange, DhtReact};
 use crate::transport::net_hyper::records::HyperRecords;
 use crate::transport::net_hyper::relay::RelayHost;
@@ -24,7 +24,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tokio::sync::{mpsc, watch};
 use tokio::time::timeout;
-use townjump_dht::{Dht, DhtError, DhtServer, KeyPair};
+use townjump_dht::{Dht, DhtError, DhtServer, Duplex, KeyPair};
 use townjump_dht_peeroxide::{PeeroxideDht, PeeroxideFactory, PeeroxideServer};
 
 mod bind;
@@ -176,10 +176,20 @@ impl HyperTransport {
     async fn connect_inner(&self, to: PeerAddr, svc: ServiceId) -> NetResult<Arc<dyn PeerConn>> {
         self.check_dial_allowed(&to).await?;
         let (ctrl, facts) = self.dialer.dial_with_path(to.id).await?;
+        self.start_dialed_session(to.id, svc, ctrl, facts).await
+    }
+
+    async fn start_dialed_session(
+        &self,
+        to: PeerId,
+        svc: ServiceId,
+        ctrl: Box<dyn Duplex>,
+        facts: PathFacts,
+    ) -> NetResult<Arc<dyn PeerConn>> {
         let session = new_session()?;
         let stream_dialer = self.dialer.clone();
         let conn = establish_dialed_session(
-            to.id,
+            to,
             session,
             svc.as_bytes(),
             ctrl,

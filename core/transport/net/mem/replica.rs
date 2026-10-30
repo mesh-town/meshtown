@@ -1,11 +1,13 @@
 //! The `mem` replica: in-memory entries of a node, merging by time, live broadcast to peers and a one-off reconciliation.
 //! Peers are weak references: replicas do not keep each other alive.
 
+mod exchange;
+
 use super::sync_hub::MemSyncNet;
 use crate::transport::net::error::{NetError, NetResult};
 use crate::transport::net::id::PeerId;
 use crate::transport::net::replica::{
-    Replica, ReplicaEntry, ReplicaEvent, ReplicaId, SyncCount, MAX_VALUE_BYTES,
+    Replica, ReplicaEntry, ReplicaEvent, ReplicaId, MAX_VALUE_BYTES,
 };
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net::sync_backend::REPLICA_DOMAINS;
@@ -204,19 +206,6 @@ impl MemReplica {
         }
     }
 
-    /// Exchange of all entries in both directions, getting acquainted and the final events.
-    fn exchange(&self, other: &Arc<MemReplica>) {
-        let (mine, theirs) = (self.snapshot(), other.snapshot());
-        let received = self.merge_all(theirs);
-        let sent = other.merge_all(mine);
-        self.add_neighbor(other);
-        if let Some(me) = self.this.upgrade() {
-            other.add_neighbor(&me);
-        }
-        self.emit(synced(other.me, received, sent));
-        other.emit(synced(self.me, sent, received));
-    }
-
     fn add_neighbor(&self, other: &Arc<MemReplica>) {
         let mut state = self.lock();
         let known = state.neighbors.iter().any(|n| n.0 == other.me);
@@ -230,13 +219,6 @@ impl MemReplica {
                 up: true,
             });
         }
-    }
-}
-
-fn synced(peer: PeerId, received: u64, sent: u64) -> ReplicaEvent {
-    ReplicaEvent::Synced {
-        peer,
-        outcome: Ok(SyncCount { received, sent }),
     }
 }
 
