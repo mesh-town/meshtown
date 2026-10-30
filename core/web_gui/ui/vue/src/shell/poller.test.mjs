@@ -277,6 +277,19 @@ describe("schedule and stop", () => {
     assert.equal(env.count("GET /api/overview"), 2);
   });
 
+  it("schedule(2000) during a request drops the pending timer", async () => {
+    const env = setup({ configRev: 1 });
+    env.hold("GET /api/overview", () => ({ api: 1, nets: [], slots: [{ slot: "main", state: stateReply() }], restart_slots: [] }));
+    env.poller.schedule(2000);
+    const first = env.poller.pollOnce();
+    env.poller.schedule(2000);
+    assert.equal(env.active().length, 0);
+    env.release();
+    await first;
+    assert.equal(env.active().length, 1);
+    assert.equal(env.count("GET /api/overview"), 1);
+  });
+
   it("stop() during a request — the timer is not set after the response", async () => {
     const env = setup({ configRev: 1 });
     env.hold("GET /api/overview", () => ({ api: 1, nets: [], slots: [{ slot: "main", state: stateReply() }], restart_slots: [] }));
