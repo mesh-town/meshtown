@@ -121,7 +121,7 @@ pub fn node_log_tail() -> Option<String> {
 /// Whether the `run` child needs a separate log `meshtown.log`: on Windows always (after
 /// `FreeConsole` no inherited parent handles remain), on macOS only if the tray's stderr
 /// is not a terminal (the same check that decides the redirect in `init`). The only caller is
-/// `tray_role::run::spawn_child`.
+/// `tray_role::run::attach_node_log`.
 #[cfg(all(feature = "gui", any(windows, target_os = "macos")))]
 pub fn child_needs_node_log() -> bool {
     #[cfg(windows)]

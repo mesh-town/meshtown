@@ -249,3 +249,14 @@ fn access_flag_after_dashes_beats_settings() {
         "parsing failed — taken from the file"
     );
 }
+
+#[test]
+fn child_command_runs_this_binary_with_the_given_args() {
+    let argv: Vec<OsString> = ["run", "--web-port", "0"].map(OsString::from).to_vec();
+    let cmd = child_command(&argv).unwrap();
+    assert_eq!(
+        cmd.get_program(),
+        std::env::current_exe().unwrap().as_os_str()
+    );
+    assert_eq!(cmd.get_args().collect::<Vec<_>>(), argv);
+}
