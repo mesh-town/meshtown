@@ -19,7 +19,7 @@ fn hint_lines() {
     say(
         "node",
         format!(
-            "Got an invite? You can also join from the terminal: press Ctrl+C, then run {} run --invite \"<invite>\"",
+            "Got an invite? In another terminal run: {} join \"<invite>\"",
             crate::cli::program_name::program_name()
         ),
     );
