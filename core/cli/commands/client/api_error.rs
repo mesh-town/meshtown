@@ -13,6 +13,8 @@ pub(crate) struct ApiError {
     pub status: u16,
     pub code: String,
     pub message: String,
+    // the settings commands read the whole refusal body
+    #[allow(dead_code)]
     pub body: Value,
 }
 

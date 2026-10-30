@@ -10,6 +10,8 @@ use crate::cli::exit::{NotRunning, UsageError};
 use crate::cli::program_name::program_name;
 
 /// A request function: method, path and body; the reply body or an error.
+// used by the settings commands
+#[allow(dead_code)]
 type Call<'a> = dyn FnMut(&str, &str, Option<&Value>) -> anyhow::Result<Value> + 'a;
 
 /// The node found on its page port.
@@ -69,6 +71,8 @@ impl Node {
     }
 
     /// Changes settings: reads the revision, writes `patch`; a stale revision is retried once.
+    // used by the settings commands
+    #[allow(dead_code)]
     pub(crate) fn put_config(&self, patch: &Value) -> anyhow::Result<Value> {
         let mut call =
             |method: &str, path: &str, body: Option<&Value>| self.call(method, path, body);
@@ -172,6 +176,8 @@ pub(crate) fn query_escape(s: &str) -> String {
 
 /// `GET {base}/config` for the revision, then `PUT {base}/config`; a `stale_rev` answer is retried once with
 /// the revision it carries, a second one is returned.
+// used by the settings commands
+#[allow(dead_code)]
 pub(super) fn put_with_retry(
     call: &mut Call<'_>,
     base: &str,
@@ -193,6 +199,8 @@ pub(super) fn put_with_retry(
 }
 
 /// The revision a `stale_rev` refusal carries.
+// used by the settings commands
+#[allow(dead_code)]
 fn stale_rev(e: &anyhow::Error) -> Option<u64> {
     let refused = e.chain().find_map(|c| c.downcast_ref::<ApiError>())?;
     match refused.code.as_str() {
