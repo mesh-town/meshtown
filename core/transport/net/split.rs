@@ -111,8 +111,16 @@ impl SplitTransport {
     }
 
     async fn close_inner(&self) {
+        self.stop_accepting().await;
+        self.wait_accept_loop().await;
+    }
+
+    async fn stop_accepting(&self) {
         self.closed.store(true, Ordering::Release);
         self.connector.close().await;
+    }
+
+    async fn wait_accept_loop(&self) {
         let task = self.task.lock().unwrap_or_else(|e| e.into_inner()).take();
         if let Some(task) = task {
             let _ = task.await;

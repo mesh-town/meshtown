@@ -120,6 +120,22 @@ mod close {
     }
 
     #[tokio::test]
+    async fn close_waits_for_the_accept_loop() {
+        let fx = setup(Opts {
+            serve: Some(vec![SVC]),
+            ..Opts::default()
+        });
+
+        fx.transport.close().await;
+
+        let res = timeout(Duration::ZERO, fx.transport.accept()).await;
+        assert!(
+            matches!(res, Ok(None)),
+            "after close, accept must end at once"
+        );
+    }
+
+    #[tokio::test]
     async fn an_accept_already_waiting_ends_with_none() {
         let fx = setup(Opts {
             serve: Some(vec![SVC]),
