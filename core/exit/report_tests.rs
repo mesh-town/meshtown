@@ -3,7 +3,9 @@ use crate::node::output::log_page;
 use crate::transport::net::facade::test_support::{pid, secret, within, Probe, Spy};
 use crate::transport::net::mem::MemNet;
 use crate::transport::net::service::EXIT;
-use crate::transport::net::{NetStack, NetStackBuilder};
+use crate::transport::net::{
+    BoxFuture, LinkInfo, NetResult, NetStack, NetStackBuilder, StreamPair,
+};
 
 #[test]
 fn exit_line_silent_without_traffic() {
@@ -27,6 +29,60 @@ fn exit_line_hyper_path_without_congestion_has_no_tail() {
         line.ends_with("path: hyper: direct UDX, rtt unknown"),
         "got: {line}"
     );
+}
+
+/// A connection with fixed counters; nothing else is used by the statistics line.
+struct Counters(u64, u64);
+
+impl PeerConn for Counters {
+    fn peer(&self) -> PeerId {
+        pid(2)
+    }
+    fn stable_id(&self) -> u64 {
+        0
+    }
+    fn open(&self) -> BoxFuture<'_, NetResult<StreamPair>> {
+        unimplemented!()
+    }
+    fn accept(&self) -> BoxFuture<'_, NetResult<StreamPair>> {
+        unimplemented!()
+    }
+    fn link(&self) -> LinkInfo {
+        LinkInfo {
+            sent_bytes: self.0,
+            stream_frames: self.1,
+            ..LinkInfo::default()
+        }
+    }
+    fn close(&self, _code: u32, _reason: &[u8]) {}
+    fn closed(&self) -> BoxFuture<'_, ()> {
+        Box::pin(async {})
+    }
+}
+
+#[test]
+fn sent_since_subtracts_previous_snapshot() {
+    assert_eq!(sent_since((400, 1), (1000, 4)), (600, 3));
+}
+
+#[test]
+fn sent_since_saturates_when_counters_drop() {
+    assert_eq!(sent_since((500, 5), (100, 2)), (0, 0));
+}
+
+#[test]
+fn link_stats_line_reports_delta_and_moves_prev() {
+    let mut prev = (400, 1);
+    let line = link_stats_line(&Counters(1000, 4), "peer", &mut prev).expect("line");
+    assert!(line.contains("peer: sent 600 bytes"), "got: {line}");
+    assert_eq!(prev, (1000, 4));
+}
+
+#[test]
+fn link_stats_line_silent_when_no_new_frames() {
+    let mut prev = (900, 4);
+    assert_eq!(link_stats_line(&Counters(1000, 4), "peer", &mut prev), None);
+    assert_eq!(prev, (1000, 4));
 }
 
 mod watch {

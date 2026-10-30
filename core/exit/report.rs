@@ -58,15 +58,24 @@ pub(super) async fn log_link_stats_while_open(
         if conn.is_closed() {
             break;
         }
-        let now = sent_bytes_and_stream_frames(&*conn);
-        let bytes = now.0.saturating_sub(prev.0);
-        let stream_frames = now.1.saturating_sub(prev.1);
-        prev = now;
-        let (path, congestion) = (conn.path_text(), conn.congestion_text());
-        if let Some(line) = exit_line(&peer_text, bytes, stream_frames, &path, &congestion) {
+        if let Some(line) = link_stats_line(&*conn, &peer_text, &mut prev) {
             say(tag, line);
         }
     }
+}
+
+/// Counter growth since the previous snapshot, per component; a counter that went back counts as zero.
+fn sent_since(prev: (u64, u64), now: (u64, u64)) -> (u64, u64) {
+    (now.0.saturating_sub(prev.0), now.1.saturating_sub(prev.1))
+}
+
+/// Takes a snapshot, moves `prev` to it and returns the period line, if there was traffic.
+fn link_stats_line(conn: &dyn PeerConn, peer_text: &str, prev: &mut (u64, u64)) -> Option<String> {
+    let now = sent_bytes_and_stream_frames(conn);
+    let (bytes, stream_frames) = sent_since(*prev, now);
+    *prev = now;
+    let (path, congestion) = (conn.path_text(), conn.congestion_text());
+    exit_line(peer_text, bytes, stream_frames, &path, &congestion)
 }
 
 #[cfg(test)]
