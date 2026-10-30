@@ -19,6 +19,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from cargo_version import base_text_reader, drop_version_only
+
 CORE = "core"
 # Entries of `core/` that are not library modules and have their own rules.
 NON_MODULE_TOPS = {"tests", "examples", "Cargo.toml"}
@@ -385,7 +387,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     src = load_sources(Path("."))
-    sel = select(changed_files(args.base), src)
+    paths = drop_version_only(changed_files(args.base), base_text_reader(args.base), Path("."))
+    sel = select(paths, src)
     for reason in sel.reasons:
         print(reason)
     cmds = commands(sel)
