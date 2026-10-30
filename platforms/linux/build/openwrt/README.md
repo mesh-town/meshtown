@@ -118,7 +118,7 @@ Step 3a, networks for the proxy and the page: seeding works on a fresh install t
 the init script creates it itself (the same way as the node's first start) with `["br-lan"]` in both fields (see "Networks" below), so
 no manual command is needed after the first start. It remains a way to change the choice later:
 
-    ssh $ROUTER 'meshtown ifaces --config /etc/meshtown/config.json "$(uci -q get network.lan.device)" && /etc/init.d/meshtown restart'
+    ssh $ROUTER 'meshtown access ifaces --config /etc/meshtown/config.json "$(uci -q get network.lan.device)" && /etc/init.d/meshtown restart'
 
 By this point the node is running, so the command goes through its page (written immediately, and `socks.ifaces` takes effect after a
 restart). It is also the way to bring back the "home network only" choice if it was changed.
@@ -131,9 +131,8 @@ The `/etc/rc.d/*` links are needed as separate lines: `sysupgrade -l` does not s
 
 ### Joining an existing network
 
-Before the first `start` (or after `stop`): `MESHTOWN_KEY=<network key> /usr/bin/meshtown run --config /etc/meshtown/config.json
---save-config` in the foreground, Ctrl-C after a few seconds (the key is written to `config.json`; the node shuts down in about
-3 s more), then `start`. The key looks like `word-word--…` (the node prints it when it creates a network; the `mesh1-…` format is
+Before the first `start` (or after `stop`): `/usr/bin/meshtown join --config /etc/meshtown/config.json <network key>`
+(the key is written to `config.json`), then `start`. The key looks like `word-word--…` (the node prints it when it creates a network; the `mesh1-…` format is
 accepted too). The key is not written into the script: it would be visible in `ps` and in the script file.
 
 ## Check
@@ -175,7 +174,7 @@ In the script `EXIT_FLAG=` is empty: the exit role comes from `config.json` (`ex
 exit for other members and is switched by the checkbox "Allow other members to open sites through this computer"
 on the node page. The exit does not let traffic through to the home network or the router itself: it cuts off private addresses.
 `EXIT_FLAG=--no-exit` or `--exit` pin the role over the file, and the checkbox then has no effect.
-A router installed earlier with `--no-exit --save-config` may have written `exit.enabled: false` to `config.json` — then after
+A router installed earlier with `--no-exit` saved to the file may have written `exit.enabled: false` to `config.json` — then after
 replacing the script and `restart`, turn the checkbox on the page on once.
 **Networks (interfaces).** Which router networks are let in to the proxy (port 1080) and the node page (port 7777) is decided by the fields
 `socks.ifaces` and `web.ifaces` in `config.json`, given as interface names (`br-lan`, `br-guest`, `eth0`). The field has
@@ -183,7 +182,7 @@ three states: no key or `[]` — automatic (on a router the node itself closes t
 WAN, and opens the other private networks, including the guest `br-guest`); `["*"]` — no restrictions; `["br-lan"]` —
 only those. An explicit list beats the automatic mode. This is the second line after the firewall: the port on WAN stays visible (the connection is
 accepted and closed at once with no reply), but the node will not serve a request from WAN. Before starting, the init script calls
-`meshtown ifaces --if-unset <lan device>`: it writes `["br-lan"]` to both fields **only if the file has neither
+`meshtown access ifaces --if-unset <lan device>`: it writes `["br-lan"]` to both fields **only if the file has neither
 of the two keys**; if there is no file (a fresh install), it creates it with these values; an unreadable file is left alone. So after an update the router will let in only `br-lan` (guest and WAN closed), while a choice made on the page
 (the "ISP network" checkbox and others) and a restored automatic mode survive a restart. The script takes the device from
 `uci -q get network.lan.device`, on OpenWrt 19.07 from `network.lan.type = bridge` (`br-lan`); if not found — no seeding,
@@ -194,7 +193,7 @@ the automatic mode works. Check:
 
 (`ip_forward` equals 1 — forwarding is on, the automatic mode treats the machine as a router; `logread` has the seeding line and the reasons
 for refusals; the `jsonfilter` path depends on the file section — if empty, open the file and look for the `ifaces` keys). To return
-the automatic choice — `meshtown ifaces --config /etc/meshtown/config.json auto` and `restart` (the script is silent after that:
+the automatic choice — `meshtown access ifaces --config /etc/meshtown/config.json auto` and `restart` (the script is silent after that:
 the key is in the file, even if `[]`); to return the person's "home network only" choice — the same command with `br-lan`
 instead of `auto`; all networks — `'*'`.
 
@@ -220,7 +219,7 @@ For the exit role the script already has `limits nofile="4096 4096"` (one descri
   **On a router the `localnet` mode relies on the WAN firewall** (the node relies on the firewall):
   the peer filter accepts any private address, and if the ISP gave the router a private WAN address (`10/8`, `172.16/12`),
   neighbors on the ISP network would pass the filter; OpenWrt drops inbound on WAN by default — do not open port 7777
-  on WAN with a rule, and when in doubt set `meshtown access localhost`.
+  on WAN with a rule, and when in doubt set `meshtown access page localhost`.
   On top of the firewall the page is restricted by `web.ifaces` (the same as for the proxy, the "Networks" paragraph above): `br-lan` is let in,
   WAN and guest are not; a `web.ifaces` write from the page that would close the page itself for the current device is rejected (422).
 
@@ -242,7 +241,7 @@ Beyond the table, what the installation affects:
 - **log:** the new network key (first start) and the node page link with the token (every start) can be read in `logread`;
 - **space on the overlay:** about 10 MB of binary plus a growing `/etc/meshtown/docs-store/` (its size and the NAND wear from the write rate
   were not measured);
-- **joining an existing network** (`--save-config`) rewrites `config.json` (network key, exit flag) — a separate step;
+- **joining an existing network** (`meshtown join`) writes the network key to `config.json` — a separate step;
 - **rebooting the router** to test autostart is a separate permission, not needed for the installation.
 
 Unchanged: `/etc/config/*`, `uci`, firewall, routes, interfaces, packages (`opkg`), other services; the installation needs neither

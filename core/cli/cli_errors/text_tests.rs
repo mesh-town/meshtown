@@ -193,8 +193,8 @@ mod other_form {
 
     #[test]
     fn other_text_has_no_lowercase_error_prefix() {
-        let err = parse_err(&["ifaces"]);
-        let text = other_text(&err, Some("ifaces"));
+        let err = parse_err(&["access", "ifaces"]);
+        let text = other_text(&err, Some("access"));
         assert!(text.starts_with("Error: "), "{text}");
         assert!(!text.contains("error:"), "{text}");
         assert!(text.contains("See all options: "), "{text}");

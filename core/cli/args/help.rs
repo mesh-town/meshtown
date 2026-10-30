@@ -144,7 +144,7 @@ pub(super) fn with_program_name(text: &str, name: &str) -> String {
 }
 
 /// The help template of the top level and subcommands: the word "Usage:" as text (`{usage-heading}` gives `Usage:`).
-pub(super) const HELP: &str = "{about}\n\nUsage: {usage}\n\n{all-args}{after-help}";
+pub(crate) const HELP: &str = "{about}\n\nUsage: {usage}\n\n{all-args}{after-help}";
 
 /// The order of the last lines of the "Options:" section: after all the others, `-h` before `-V`.
 pub(super) const HELP_ORDER: usize = 10_000;

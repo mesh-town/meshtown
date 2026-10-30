@@ -49,7 +49,7 @@ pub(crate) struct RunArgs {
     #[arg(long, value_name = "PORT", value_parser = clap::value_parser!(u16).range(1024..))]
     pub(crate) socks_port: Option<u16>,
     /// Who can reach the proxy: `localhost` (this computer only) or `localnet` (the local network too).
-    #[arg(long, value_name = "MODE", value_parser = crate::cli::args::parse_access)]
+    #[arg(long, value_name = "MODE", value_parser = crate::cli::commands::access::parse_access)]
     pub(crate) socks_access: Option<crate::config::config_file::ListenAccess>,
     /// Start the local proxy (SOCKS5 and HTTP).
     #[arg(long, overrides_with = "no_socks")]

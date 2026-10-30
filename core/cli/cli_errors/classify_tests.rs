@@ -40,12 +40,11 @@ fn unknown_text_lists_commands() {
             "stop",
             "invite",
             "leave",
+            "access",
             "keygen",
             "config-path",
             "password",
-            "open",
-            "access",
-            "ifaces"
+            "open"
         ]
     );
     #[cfg(not(feature = "gui"))]
@@ -58,12 +57,11 @@ fn unknown_text_lists_commands() {
             "stop",
             "invite",
             "leave",
+            "access",
             "keygen",
             "config-path",
             "password",
-            "open",
-            "access",
-            "ifaces"
+            "open"
         ]
     );
     assert_eq!(
@@ -246,14 +244,7 @@ fn strings(names: &[&str]) -> Vec<String> {
 
 /// The subcommand `typed_command` found among the three visible ones.
 fn typed(args: &[&str]) -> Option<String> {
-    let visible = strings(&[
-        "run",
-        "keygen",
-        "config-path",
-        "password",
-        "access",
-        "ifaces",
-    ]);
+    let visible = strings(&["run", "keygen", "config-path", "password", "access"]);
     typed_command(&os(args), &visible)
 }
 
@@ -262,7 +253,7 @@ mod error_forms {
 
     #[test]
     fn missing_required_argument_is_capitalized_error() {
-        let err = parse_err(&["ifaces"]);
+        let err = parse_err(&["access", "ifaces"]);
         assert_eq!(classify(&err), ParseFail::Other);
     }
 

@@ -119,6 +119,7 @@ async fn execute(
         CliCommand::Invite(args) => crate::cli::commands::invite::run(args, g).await,
         CliCommand::Leave(args) => crate::cli::commands::leave::run(args, g).await,
         // group: access
+        CliCommand::Access(args) => crate::cli::commands::access::run(args, g).await,
         // group: config
         // group: member
         // group: network
@@ -126,19 +127,6 @@ async fn execute(
             action: crate::cli::args::PasswordAction::Reset,
         } => crate::cli::commands::password::run_password_command(g).await,
         CliCommand::Open { print } => crate::cli::commands::open::run_open_command(print, g).await,
-        CliCommand::Access { mode } => {
-            g.allow("access", &[])?;
-            crate::cli::commands::access::run_access_command(g.config.clone(), g.web_port, mode)
-        }
-        CliCommand::Ifaces { names, if_unset } => {
-            g.allow("ifaces", &[])?;
-            crate::cli::commands::ifaces::run_ifaces_command(
-                g.config.clone(),
-                g.web_port,
-                names,
-                if_unset,
-            )
-        }
         CliCommand::ConfigPath => {
             g.allow("config-path", &[])?;
             crate::cli::commands::config_path(g.config.clone())

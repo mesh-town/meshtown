@@ -53,7 +53,7 @@ pub(super) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admiss
         None => "automatic".to_string(),
     };
     format!(
-        "{client_addr}: refused, interface \"{iface}\": {why} (socks.ifaces: {list}); change: the {NET_NAME} page or `{} ifaces`",
+        "{client_addr}: refused, interface \"{iface}\": {why} (socks.ifaces: {list}); change: the {NET_NAME} page or `{} access ifaces`",
         crate::cli::program_name::program_name()
     )
 }

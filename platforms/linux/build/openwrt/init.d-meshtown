@@ -29,12 +29,12 @@ start_service() {
 
 	# Seeding the list of interfaces allowed to the proxy and the page: the subcommand writes the lan device (usually br-lan)
 	# into socks.ifaces and web.ifaces ONCE — only if the file has neither key (--if-unset).
-	# After that the node page or 'meshtown ifaces' makes the choice; the list has no start flags. The device is
+	# After that the node page or 'meshtown access ifaces' makes the choice; the list has no start flags. The device is
 	# network.lan.device (OpenWrt 21.02+), for 19.07 the bridge network.lan.type=bridge → br-lan. If not found —
 	# no seeding, the node's automation works. A subcommand error does not stop the start.
 	LAN_DEV="$(uci -q get network.lan.device)"
 	[ -z "$LAN_DEV" ] && [ "$(uci -q get network.lan.type)" = bridge ] && LAN_DEV=br-lan
-	[ -n "$LAN_DEV" ] && { "$PROG" ifaces --config "$CONF" --if-unset "$LAN_DEV" 2>&1 | logger -t meshtown; }
+	[ -n "$LAN_DEV" ] && { "$PROG" access ifaces --config "$CONF" --if-unset "$LAN_DEV" 2>&1 | logger -t meshtown; }
 
 	procd_open_instance
 	# explicit 'run': the default of a tray build is 'tray', and without a screen it exits with code 1

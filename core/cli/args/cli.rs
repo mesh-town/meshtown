@@ -55,16 +55,21 @@ impl Cli {
             })
             .mut_arg("version", |a| a.display_order(HELP_ORDER + 1));
         let cmd = rename_commands(cmd, program_name());
-        let names: Vec<String> = cmd
-            .get_subcommands()
-            .map(|c| c.get_name().to_string())
-            .collect();
-        let cmd = names.iter().fold(cmd, |cmd, name| {
-            cmd.mut_subcommand(name, |sub| sub.arg(sub_help_flag()))
-        });
+        let cmd = with_help_flags(cmd);
         let text = root_help(&cmd, has_tray());
         cmd.override_help(text)
     }
+}
+
+/// Gives every subcommand, nested ones too, its own `-h, --help` line.
+fn with_help_flags(cmd: clap::Command) -> clap::Command {
+    let names: Vec<String> = cmd
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .collect();
+    names.iter().fold(cmd, |cmd, name| {
+        cmd.mut_subcommand(name, |sub| with_help_flags(sub).arg(sub_help_flag()))
+    })
 }
 
 // `Run` has twenty-odd flags; the value is created once per process, so its size doesn't matter.
@@ -94,6 +99,9 @@ pub(crate) enum CliCommand {
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown leave --yes")]
     Leave(crate::cli::commands::LeaveArgs),
     // group: access
+    /// Show who can reach the Mesh Town page and proxy, or change it
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access [COMMAND]")]
+    Access(crate::cli::commands::access::AccessArgs),
     // group: config
     // group: member
     // group: network
@@ -130,35 +138,12 @@ pub(crate) enum CliCommand {
         #[arg(long)]
         print: bool,
     },
-    /// Who can open the Mesh Town page: localhost (this computer only) or localnet (the local network too)
-    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access <localhost|localnet> [--config <PATH>] [--web-port <PORT>]")]
-    Access {
-        /// Mode: localhost or localnet.
-        #[arg(value_name = "MODE", value_parser = parse_access, help_heading = "Options")]
-        mode: crate::config::config_file::ListenAccess,
-    },
-    /// Which networks Mesh Town accepts connections from: interface names, auto (automatic) or '*' (no restriction)
-    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown ifaces <NAME>... [--if-unset] [--config <PATH>] [--web-port <PORT>]")]
-    Ifaces {
-        /// Interface names (br-lan), the single word auto (automatic) or '*' (no restriction).
-        #[arg(value_name = "NAME", required = true, num_args = 1.., help_heading = "Options")]
-        names: Vec<String>,
-        /// Write only if the file has neither socks.ifaces nor web.ifaces yet (for autostart).
-        #[arg(long)]
-        if_unset: bool,
-    },
 }
 
 /// The only action on the page password.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
 pub(crate) enum PasswordAction {
     Reset,
-}
-
-/// Parses the `access` mode: the error names the allowed values.
-pub(crate) fn parse_access(s: &str) -> Result<crate::config::config_file::ListenAccess, String> {
-    crate::config::config_file::ListenAccess::parse(s)
-        .ok_or_else(|| "allowed: localhost, localnet".to_string())
 }
 
 /// Whether a flag was typed by a person (rather than taken from a default). The identifier is the field name, not `--flag`.

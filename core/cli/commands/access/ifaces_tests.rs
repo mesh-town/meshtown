@@ -1,5 +1,5 @@
 use super::*;
-use crate::config::config_file::Settings;
+use crate::config::config_file::{LoadedConfigFile, SecretRead, Settings};
 
 fn names(v: &[&str]) -> Vec<String> {
     v.iter().map(|s| s.to_string()).collect()
@@ -12,12 +12,8 @@ fn scratch(name: &str) -> std::path::PathBuf {
     dir
 }
 
-fn target(dir: &std::path::Path) -> Target {
-    Target {
-        path: dir.join("config.json"),
-        dir: dir.to_path_buf(),
-        port: 1,
-    }
+fn target(dir: &std::path::Path) -> std::path::PathBuf {
+    dir.join("config.json")
 }
 
 #[test]
@@ -84,14 +80,10 @@ fn seed_writes_when_no_keys_and_always_without_flag() {
 #[test]
 fn create_writes_file_with_names_and_defaults() {
     let dir = scratch("create");
-    let t = Target {
-        path: dir.join("sub").join("config.json"),
-        dir: dir.clone(),
-        port: 1,
-    };
+    let t = dir.join("sub").join("config.json");
     let filter = IfaceFilter::Only(names(&["br-lan"]));
     create_seeded(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t) else {
         panic!("the file did not parse")
     };
     assert_eq!(p.rev, 1);
@@ -108,8 +100,8 @@ fn create_writes_file_with_names_and_defaults() {
     {
         use std::os::unix::fs::PermissionsExt;
         let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
-        assert_eq!(mode(&t.path), 0o600);
-        assert_eq!(mode(t.path.parent().unwrap()), 0o700);
+        assert_eq!(mode(&t), 0o600);
+        assert_eq!(mode(t.parent().unwrap()), 0o700);
     }
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -118,9 +110,9 @@ fn create_writes_file_with_names_and_defaults() {
 fn create_refuses_existing_file() {
     let dir = scratch("create-exists");
     let t = target(&dir);
-    std::fs::write(&t.path, "not json").unwrap();
+    std::fs::write(&t, "not json").unwrap();
     assert!(create_seeded(&t, &IfaceFilter::Any).is_err());
-    assert_eq!(std::fs::read_to_string(&t.path).unwrap(), "not json");
+    assert_eq!(std::fs::read_to_string(&t).unwrap(), "not json");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -129,11 +121,11 @@ fn create_skipped_when_empty_list_present() {
     let dir = scratch("create-skip");
     let t = target(&dir);
     let secret = config_file::new_secret().unwrap();
-    config_file::save_config_file(&t.path, None, 1, &secret, &Settings::default()).unwrap();
-    let before = std::fs::read(&t.path).unwrap();
-    let read = read_file(&t.path);
+    config_file::save_config_file(&t, None, 1, &secret, &Settings::default()).unwrap();
+    let before = std::fs::read(&t).unwrap();
+    let read = read_file(&t);
     assert!(matches!(seed_decision(true, &read), Seed::Skip(_)));
-    assert_eq!(std::fs::read(&t.path).unwrap(), before);
+    assert_eq!(std::fs::read(&t).unwrap(), before);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -142,19 +134,19 @@ fn create_seeds_existing_file_without_keys() {
     let dir = scratch("create-nokeys");
     let t = target(&dir);
     let secret = config_file::new_secret().unwrap();
-    config_file::save_config_file(&t.path, None, 1, &secret, &Settings::default()).unwrap();
-    let mut doc: Value = serde_json::from_str(&std::fs::read_to_string(&t.path).unwrap()).unwrap();
+    config_file::save_config_file(&t, None, 1, &secret, &Settings::default()).unwrap();
+    let mut doc: Value = serde_json::from_str(&std::fs::read_to_string(&t).unwrap()).unwrap();
     for section in ["socks", "web"] {
         doc["config"][section]
             .as_object_mut()
             .unwrap()
             .remove("ifaces");
     }
-    std::fs::write(&t.path, doc.to_string()).unwrap();
+    std::fs::write(&t, doc.to_string()).unwrap();
     let filter = IfaceFilter::Only(names(&["br-lan"]));
-    assert_eq!(seed_decision(true, &read_file(&t.path)), Seed::Write);
+    assert_eq!(seed_decision(true, &read_file(&t)), Seed::Write);
     offline(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t) else {
         panic!("the file did not parse")
     };
     assert_eq!(p.settings.process.socks_ifaces, filter);
@@ -167,10 +159,10 @@ fn offline_writes_both_fields_and_bumps_rev() {
     let dir = scratch("offline");
     let t = target(&dir);
     let secret = config_file::new_secret().unwrap();
-    config_file::save_config_file(&t.path, None, 1, &secret, &Settings::default()).unwrap();
+    config_file::save_config_file(&t, None, 1, &secret, &Settings::default()).unwrap();
     let filter = IfaceFilter::Only(names(&["br-lan"]));
     offline(&t, &filter).unwrap();
-    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t.path) else {
+    let LoadedConfigFile::Parsed(p) = config_file::load_config_file(&t) else {
         panic!("the file did not parse")
     };
     assert_eq!(p.rev, 2);
@@ -184,6 +176,6 @@ fn offline_without_file_creates_nothing() {
     let dir = scratch("absent");
     let t = target(&dir);
     assert!(offline(&t, &IfaceFilter::Any).is_err());
-    assert!(!t.path.exists());
+    assert!(!t.exists());
     let _ = std::fs::remove_dir_all(&dir);
 }

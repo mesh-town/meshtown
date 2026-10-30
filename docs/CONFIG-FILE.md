@@ -146,7 +146,7 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `ports.opened` | no flag | `[]` (items `{node, port, proto, local}`, `proto` as above) | `settings.ports_opened` (`core/config/config_file/net_settings.rs`) |
 | `web.enabled` | no flag | `true` | `core/web_gui` |
 | `web.port` | `--web-port` | 7777 | `core/web_gui` |
-| `web.access` | no flag (command `meshtown access localhost\|localnet`) | `"localnet"` | `core/web_gui/auth/access.rs` (section 8.1) |
+| `web.access` | no flag (command `meshtown access page localhost\|localnet`) | `"localnet"` | `core/web_gui/auth/access.rs` (section 8.1) |
 | `log.ring_lines` | no flag | 2000 | `core/web_gui` |
 | `node.name` | no flag | a name from a pair of pool words (`words.rs`) | node identity |
 | `net.transports`, `net.discovery`, `net.sync`, `net.relay` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"`, `"network"` | section 8.3 |
@@ -428,7 +428,7 @@ error: the value is replaced with the default, the error goes to `field_errors`.
 open the node's settings page: `localhost` — only this machine, `localnet` — also devices on the
 local network (private addresses `10/8`, `172.16/12`, `192.168/16`, `169.254/16`). It is not about the Mesh Town
 network and not about traffic. It is changed from the page (`PUT /api/config`) or by the command
-`meshtown access localhost|localnet`; on a stopped node the command writes the field to the file itself.
+`meshtown access page localhost|localnet`; on a stopped node the command writes the field to the file itself.
 
 ### 8.2 The `web-password` file
 

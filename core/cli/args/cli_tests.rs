@@ -106,7 +106,7 @@ fn empty_argv_untouched() {
 }
 
 #[test]
-fn password_reset_and_access_parse() {
+fn password_reset_parses() {
     let m = Cli::command()
         .try_get_matches_from(to_os(&[
             "meshtown",
@@ -119,69 +119,6 @@ fn password_reset_and_access_parse() {
     let cli = Cli::from_arg_matches(&m).expect("parse");
     assert_eq!(cli.globals.web_port, Some(7001));
     assert!(matches!(cli.command, CliCommand::Password { .. }));
-    let m = Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "access", "localhost"]))
-        .expect("access parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Access { mode, .. } => {
-            assert_eq!(mode, crate::config::config_file::ListenAccess::Localhost)
-        }
-        _ => panic!("expected access"),
-    }
-}
-
-#[test]
-fn ifaces_parses_names_and_flags() {
-    let m = Cli::command()
-        .try_get_matches_from(to_os(&[
-            "meshtown",
-            "ifaces",
-            "br-lan",
-            "--if-unset",
-            "--config",
-            "/x",
-        ]))
-        .expect("ifaces parses");
-    let cli = Cli::from_arg_matches(&m).expect("parse");
-    assert_eq!(cli.globals.config, Some(std::path::PathBuf::from("/x")));
-    match cli.command {
-        CliCommand::Ifaces {
-            names, if_unset, ..
-        } => {
-            assert_eq!(names, ["br-lan"]);
-            assert!(if_unset);
-        }
-        _ => panic!("expected ifaces"),
-    }
-    let m = Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "ifaces", "auto"]))
-        .expect("ifaces auto parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Ifaces {
-            names, if_unset, ..
-        } => assert_eq!((names, if_unset), (vec!["auto".to_string()], false)),
-        _ => panic!("expected ifaces"),
-    }
-}
-
-#[test]
-fn ifaces_without_names_is_error() {
-    assert!(Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "ifaces"]))
-        .is_err());
-}
-
-#[test]
-fn access_bogus_mode_is_bad_value_with_choices() {
-    let e = Cli::command()
-        .try_get_matches_from(to_os(&["meshtown", "access", "everyone"]))
-        .expect_err("invalid mode");
-    assert_eq!(e.kind(), ErrorKind::ValueValidation);
-    let text = crate::cli::cli_errors::bad_value_text(&e, Some("access"));
-    assert!(
-        text.contains("localhost") && text.contains("localnet"),
-        "{text}"
-    );
 }
 
 #[test]
