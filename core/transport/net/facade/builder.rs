@@ -92,14 +92,8 @@ impl NetStackBuilder {
         let me = self.secret.peer_id();
         let table = Arc::new(ServiceTable(self.services));
         self.transports.iter().for_each(|t| t.serve(&table.ids()));
-        let mut mux = DiscoveryMux::new(self.discovery_priority);
-        self.discovery.into_iter().for_each(|d| mux.add(d));
-        if let Some(tx) = self.found_tap {
-            mux.set_found_tap(tx);
-        }
-        let mux = Arc::new(mux);
-        let hints = mux.subscribe();
-        mux.start();
+        let (mux, hints) =
+            Self::start_discovery_mux(self.discovery, self.discovery_priority, self.found_tap);
         let handler_tasks = Arc::new(HandlerSet::default());
         let tasks = Self::spawn_stack_tasks(hints, me, &self.transports, &table, &handler_tasks);
         Ok(NetStack(Arc::new(NetStackShared {
@@ -111,6 +105,21 @@ impl NetStackBuilder {
             closed: AtomicBool::new(false),
             close_gate: tokio::sync::Mutex::new(false),
         })))
+    }
+
+    /// Subscribes to the hints first, then starts the sources.
+    fn start_discovery_mux(
+        discovery: Vec<Arc<dyn Discovery>>,
+        priority: Vec<&'static str>,
+        found_tap: Option<mpsc::Sender<PeerAddr>>,
+    ) -> (Arc<DiscoveryMux>, broadcast::Receiver<PeerAddr>) {
+        let mut mux = DiscoveryMux::new(priority);
+        discovery.into_iter().for_each(|d| mux.add(d));
+        found_tap.into_iter().for_each(|tx| mux.set_found_tap(tx));
+        let mux = Arc::new(mux);
+        let hints = mux.subscribe();
+        mux.start();
+        (mux, hints)
     }
 
     /// The hint forwarder and one accept loop per transport.
