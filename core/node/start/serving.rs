@@ -192,7 +192,7 @@ async fn start_domain_background(
     access
 }
 
-/// Builds `Checks`, starts their background task and adds the initial domains (the task
+/// Starts the background task of `Checks` and adds the initial domains (the task
 /// always starts, whether it is enabled is checked on every tick inside it).
 async fn setup_checks(
     cfg: &NodeConfig,
@@ -200,19 +200,24 @@ async fn setup_checks(
     domain_list: &DomainList,
     background_abort_handles: &mut Vec<tokio::task::AbortHandle>,
 ) -> Result<Checks> {
-    let schedule = Schedule::with_base_interval(cfg.settings.check_interval());
-    let checks = Checks::new(
-        domain_list.clone(),
-        net.resolver.clone(),
-        net.check_cfg.clone(),
-        schedule,
-        cfg.settings.checks_enabled,
-    );
+    let checks = new_checks(cfg, net, domain_list);
     // The task always starts: whether it is enabled is checked on every tick inside it.
     background_abort_handles
         .push(crate::node::output::spawn(checks::run_checks(checks.clone())).abort_handle());
     add_typed_domains(cfg, domain_list).await?;
     Ok(checks)
+}
+
+/// `Checks` with the schedule from the settings.
+fn new_checks(cfg: &NodeConfig, net: &Net, domain_list: &DomainList) -> Checks {
+    let schedule = Schedule::with_base_interval(cfg.settings.check_interval());
+    Checks::new(
+        domain_list.clone(),
+        net.resolver.clone(),
+        net.check_cfg.clone(),
+        schedule,
+        cfg.settings.checks_enabled,
+    )
 }
 
 /// Adds the domains given at start to the list and writes a line for each.

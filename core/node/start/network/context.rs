@@ -34,25 +34,39 @@ pub(super) fn build_member_context(
     MemberContext,
 ) {
     let (members, event_rx, event_tx) = new_members(access);
-    let ok_probe_count = Arc::new(AtomicUsize::new(0));
-    // The live probe interval handle: the same `Arc` that goes into `ProbeSettings` and into
-    // `RunningNode.probe_interval_secs` at the end of `start`.
-    let probe_interval_secs = Arc::new(AtomicU64::new(start_probe_interval_secs.max(1)));
+    let probe = new_probe_settings(
+        probe_first_delay,
+        start_probe_interval_secs,
+        (exits, full_cycle),
+    );
+    let ok_probe_count = probe.ok_probe_count.clone();
+    let probe_interval_secs = probe.interval_secs.clone();
     let ctx = MemberContext {
         own_id: id,
         handshake_key: subkeys.handshake_key,
         members: members.clone(),
         events: event_tx,
-        probe: ProbeSettings {
-            first_delay: probe_first_delay,
-            interval_secs: probe_interval_secs.clone(),
-            ok_probe_count: ok_probe_count.clone(),
-            exits,
-            full_cycle,
-        },
+        probe,
         own_name_tx: tokio::sync::watch::channel(name).0,
     };
     (members, event_rx, ok_probe_count, probe_interval_secs, ctx)
+}
+
+/// Volume-probe settings with fresh counters.
+fn new_probe_settings(
+    first_delay: Duration,
+    start_interval_secs: u64,
+    (exits, full_cycle): (watch::Receiver<Vec<PeerId>>, bool),
+) -> ProbeSettings {
+    // The live probe interval handle: the same `Arc` goes into `ProbeSettings` and, through the
+    // caller, into `RunningNode.probe_interval_secs` at the end of `start`.
+    ProbeSettings {
+        first_delay,
+        interval_secs: Arc::new(AtomicU64::new(start_interval_secs.max(1))),
+        ok_probe_count: Arc::new(AtomicUsize::new(0)),
+        exits,
+        full_cycle,
+    }
 }
 
 /// `Members` with the given access view and the channel of their events.
@@ -103,3 +117,7 @@ fn check_settings(cfg: &NodeConfig) -> (Arc<HashSet<String>>, CheckConfig) {
     };
     (blocked_domains, check_cfg)
 }
+
+#[cfg(test)]
+#[path = "context_tests.rs"]
+mod tests;

@@ -1,4 +1,5 @@
 use super::*;
+use std::time::Instant;
 
 const LIM: MemoryLimitsKib = MemoryLimitsKib {
     warn_kib: 400 * 1024,
