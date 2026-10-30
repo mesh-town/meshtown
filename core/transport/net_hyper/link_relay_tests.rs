@@ -67,11 +67,19 @@ mod relay_now {
         // given: a session dialed through a member's relay, still relayed
         let member = pid(7);
         let (tx, facts) = relayed_facts(RelayRef::Peer(member));
-        assert_eq!(facts.relay_now(), Some(RelayRef::Peer(member)), "relayed: the label is kept");
+        assert_eq!(
+            facts.relay_now(),
+            Some(RelayRef::Peer(member)),
+            "relayed: the label is kept"
+        );
         // when: the connection moves to the direct path
         tx.send(RelayPath::Direct).unwrap();
         // then: the session no longer carries a relay label
-        assert_eq!(facts.relay_now(), None, "direct after the switch: no relay label");
+        assert_eq!(
+            facts.relay_now(),
+            None,
+            "direct after the switch: no relay label"
+        );
     }
 
     #[test]

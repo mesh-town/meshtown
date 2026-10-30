@@ -2,13 +2,13 @@
 //! retracts it, a new one overwrites it, and nothing is written when there is nothing to retract.
 
 use super::*;
-use crate::node::start::relay_candidates::decode_relay_value;
-use bytes::Bytes;
-use std::net::{Ipv4Addr, SocketAddrV4};
 use crate::node::node_state::own_value;
+use crate::node::start::relay_candidates::decode_relay_value;
 use crate::transport::net::contract::secret;
 use crate::transport::net::mem::{MemReplica, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+use bytes::Bytes;
+use std::net::{Ipv4Addr, SocketAddrV4};
 use std::time::Duration;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};

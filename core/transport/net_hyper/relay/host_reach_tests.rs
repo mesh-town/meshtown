@@ -256,8 +256,8 @@ fn start_with(relay: PeeroxideRelay) -> StartRelay {
     let slot = Arc::new(Mutex::new(Some(relay)));
     Arc::new(move || {
         let taken = slot.lock().unwrap().take();
-        Box::pin(async move {
-            taken.ok_or_else(|| DhtError::Backend("relay already taken".into()))
-        })
+        Box::pin(
+            async move { taken.ok_or_else(|| DhtError::Backend("relay already taken".into())) },
+        )
     })
 }

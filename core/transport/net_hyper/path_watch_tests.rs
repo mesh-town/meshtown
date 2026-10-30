@@ -27,7 +27,10 @@ mod relayed_session {
             let first = next_within(&mut watch, PROMPT).await;
             // then: one change to the direct path, with an unknown rtt and a log line
             let change = first.expect("the switch must be reported");
-            assert!(matches!(change.path, PathKind::Direct), "the path must be direct");
+            assert!(
+                matches!(change.path, PathKind::Direct),
+                "the path must be direct"
+            );
             assert!(change.rtt.is_none(), "the watch has no rtt of its own");
             assert!(
                 change.log_line.contains("direct"),
@@ -35,7 +38,10 @@ mod relayed_session {
                 change.log_line
             );
             // and: nothing more is reported while the source stays open
-            assert!(next_within(&mut watch, SILENT).await.is_none(), "the switch is reported once");
+            assert!(
+                next_within(&mut watch, SILENT).await.is_none(),
+                "the switch is reported once"
+            );
         }
     }
 
@@ -49,7 +55,10 @@ mod relayed_session {
             // when
             let change = next_within(&mut watch, SILENT).await;
             // then
-            assert!(change.is_none(), "a relayed session has no change to report");
+            assert!(
+                change.is_none(),
+                "a relayed session has no change to report"
+            );
         }
     }
 
@@ -63,8 +72,14 @@ mod relayed_session {
             // when: the source goes away without a switch
             drop(tx);
             // then: the watch ends, and stays ended
-            assert!(ends_within(&mut watch, PROMPT).await, "a closed source must end the watch");
-            assert!(ends_within(&mut watch, PROMPT).await, "an ended watch stays ended");
+            assert!(
+                ends_within(&mut watch, PROMPT).await,
+                "a closed source must end the watch"
+            );
+            assert!(
+                ends_within(&mut watch, PROMPT).await,
+                "an ended watch stays ended"
+            );
         }
     }
 }
@@ -80,7 +95,10 @@ mod direct_session {
         let change = next_within(&mut watch, PROMPT).await;
         // then: the move is reported at once, not lost
         let change = change.expect("a path that is already direct must be reported");
-        assert!(matches!(change.path, PathKind::Direct), "the path must be direct");
+        assert!(
+            matches!(change.path, PathKind::Direct),
+            "the path must be direct"
+        );
     }
 }
 
@@ -92,8 +110,14 @@ mod session_without_relay {
         // given: a session that was not set up through a relay has no path source
         let mut watch = RelayPathWatch::new(None);
         // when / then
-        assert!(ends_within(&mut watch, PROMPT).await, "no source: the watch must end at once");
-        assert!(ends_within(&mut watch, PROMPT).await, "an ended watch stays ended");
+        assert!(
+            ends_within(&mut watch, PROMPT).await,
+            "no source: the watch must end at once"
+        );
+        assert!(
+            ends_within(&mut watch, PROMPT).await,
+            "an ended watch stays ended"
+        );
     }
 }
 
@@ -105,7 +129,10 @@ fn setup(initial: RelayPath) -> (watch::Sender<RelayPath>, RelayPathWatch) {
 
 /// The next change, or `None` when the watch ends or says nothing within `limit`.
 async fn next_within(watch: &mut RelayPathWatch, limit: Duration) -> Option<PathChange> {
-    tokio::time::timeout(limit, watch.next()).await.ok().flatten()
+    tokio::time::timeout(limit, watch.next())
+        .await
+        .ok()
+        .flatten()
 }
 
 /// Whether `next` answers `None` within `limit` (silence is not an end).

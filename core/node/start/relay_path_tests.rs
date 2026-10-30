@@ -70,10 +70,7 @@ struct Fixture {
 async fn setup() -> Fixture {
     let cluster = cluster_on(&lan_address(), 4).await;
     let (a, b) = (serving(&cluster, A).await, serving(&cluster, B).await);
-    let admitted = [A, B]
-        .iter()
-        .map(|s| secret(*s).peer_id())
-        .collect();
+    let admitted = [A, B].iter().map(|s| secret(*s).peer_id()).collect();
     let relay = relay_admitting(&cluster, C, Arc::new(std::sync::Mutex::new(admitted))).await;
     let member = pid(40);
     a.set_relay_source(Some(fixed_source(vec![candidate(member, &relay)])));
