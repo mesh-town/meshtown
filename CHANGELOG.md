@@ -12,6 +12,11 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Exit: the optional `exit.interface` setting sends a node's exit traffic (sites, UDP, its DNS) only through the chosen
   interface, for example another VPN. If the interface is missing or down, exit connections are refused (reply code 8)
   instead of using the regular network.
+- Relay: a member's relay now pairs only members of its own network, so nobody outside the network can use it.
+- Relay: a member's relay key is the same after every restart.
+- Relay: a member advertises itself as a relay, together with its public address, only after it has confirmed that the
+  address is reachable from outside; otherwise it closes the relay and tries again later.
+- Relay: the receiving side also shows a relayed neighbour as `relay` in the node state.
 
 ### Changed
 

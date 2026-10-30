@@ -29,7 +29,8 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik router
 ## Why it fits
 
 - **No port forwarding, no NAT rules, no public IP.** Nodes find each other and connect directly; nothing on your
-  router is opened to the internet.
+  router is opened to the internet. Where a direct connection is impossible, a member with a public address
+  passes the traffic on, encrypted end to end.
 - **Keeps working when you change networks.** Wi-Fi, mobile data, a hotel network: the node notices the switch and
   reconnects to the other members within seconds. Connections open at that moment are closed and reopened by the
   program.
