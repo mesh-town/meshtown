@@ -45,3 +45,39 @@ fn join_key_without_node_writes_file() {
     assert!(stderr(&out).contains("Saved to"), "{}", stderr(&out));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn join_same_key_again_says_already() {
+    // given: a running node that has joined the network of the key
+    let node = CliNode::start(&[]);
+    let key = key_with_label("our-room");
+    let first = node.cli(&["join", &key]);
+    assert_eq!(first.status.code(), Some(0), "{}", stderr(&first));
+    // when: the same key is joined again
+    let out = node.cli(&["join", &key]);
+    // then: exit 0, "already", nothing reconnects
+    assert_eq!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert!(
+        stderr(&out).contains("already in this network"),
+        "{}",
+        stderr(&out)
+    );
+    assert!(!stderr(&out).contains("Joined"), "{}", stderr(&out));
+}
+
+#[test]
+fn join_garbage_is_a_usage_error() {
+    let node = CliNode::start(&[]);
+    let out = node.cli(&["join", "garbage string"]);
+    assert_eq!(out.status.code(), Some(2), "{}", stderr(&out));
+    assert!(stderr(&out).contains("invite"), "{}", stderr(&out));
+    assert!(!stderr(&out).contains("keygen"), "{}", stderr(&out));
+}
+
+#[test]
+fn join_help_names_the_default_once() {
+    let node = CliNode::start(&[]);
+    let out = node.cli(&["join", "--help"]);
+    let text = stdout(&out);
+    assert_eq!(text.matches("120").count(), 1, "{text}");
+}

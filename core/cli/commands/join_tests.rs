@@ -79,3 +79,28 @@ fn live_answer_other_refusal_fails() {
     assert_eq!(live_answer(&refusal(422, "invalid_key")), LiveAnswer::Fail);
     assert_eq!(live_answer(&anyhow::anyhow!("plain")), LiveAnswer::Fail);
 }
+
+#[test]
+fn network_listed_finds_a_slot_with_the_network() {
+    let nets =
+        json!({"nets": [{"id": "main", "id_hex": null}, {"id": "x1", "id_hex": "9c1e55aa"}]});
+    assert!(network_listed(&nets, "9c1e55aa0011"));
+    assert!(!network_listed(&nets, "aaaaaaaa0011"));
+}
+
+#[test]
+fn network_listed_ignores_empty_slots() {
+    let nets = json!({"nets": [{"id": "main", "id_hex": null}, {"id": "x1", "id_hex": ""}]});
+    assert!(!network_listed(&nets, "9c1e55aa"));
+    assert!(!network_listed(&json!({"nets": []}), "9c1e55aa"));
+}
+
+#[test]
+fn unreadable_text_is_a_usage_error_with_an_invite_hint() {
+    let e = parse_text("garbage string").err().expect("not a key");
+    assert!(e.downcast_ref::<UsageError>().is_some());
+    let text = e.to_string();
+    assert!(text.contains("invite"), "{text}");
+    assert!(!text.contains("keygen"), "{text}");
+    assert!(!text.contains('\n'), "{text}");
+}

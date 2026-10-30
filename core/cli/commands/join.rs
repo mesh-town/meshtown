@@ -9,7 +9,7 @@ use tokio::time::{sleep, Instant};
 use super::client::{ApiError, Node};
 use super::join_offline::{run_offline, JoinText};
 use crate::cli::args::Globals;
-use crate::cli::exit::NotRunning;
+use crate::cli::exit::{NotRunning, UsageError};
 use crate::cli::program_name::program_name;
 
 /// Arguments of `join`.
@@ -18,7 +18,7 @@ pub(crate) struct JoinArgs {
     /// A member's invite (mesh-invite2-…) or a network key (words or mesh2-…).
     #[arg(value_name = "INVITE_OR_KEY", help_heading = "Options")]
     pub(crate) text: String,
-    /// How long to wait for a member to answer an invite, in seconds (default: 120).
+    /// How long to wait for a member to answer an invite, in seconds.
     #[arg(long, value_name = "SECONDS", default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=3600))]
     pub(crate) timeout: u64,
 }
@@ -32,19 +32,62 @@ pub(crate) async fn run(args: JoinArgs, g: &Globals) -> anyhow::Result<()> {
     g.allow("join", &[])?;
     let text = parse_text(&args.text)?;
     match Node::connect(g) {
-        Ok(node) => join_live(&node, &args, &text).await,
-        Err(e) if is_not_running(&e) => run_offline(g, text, args.timeout).await,
+        Ok(node) => Box::pin(join_live(&node, &args, &text)).await,
+        Err(e) if is_not_running(&e) => Box::pin(run_offline(g, text, args.timeout)).await,
         Err(e) => Err(e),
     }
 }
 
-/// An invite or a key, parsed; an unreadable text is an error with the reason.
+/// An invite or a key, parsed; a text that is neither is a usage error, an old-format key keeps its own message.
 fn parse_text(text: &str) -> anyhow::Result<JoinText> {
     if crate::invite::looks_like_invite(text) {
         return Ok(JoinText::Invite(crate::invite::parse(text)?));
     }
-    crate::members::network_key::parse_user_input(text)?;
-    Ok(JoinText::Key(text.trim().to_string()))
+    match crate::members::network_key::parse_user_input(text) {
+        Ok(_) => Ok(JoinText::Key(text.trim().to_string())),
+        Err(e)
+            if e.downcast_ref::<crate::members::network_key::LegacyKey>()
+                .is_some() =>
+        {
+            Err(e)
+        }
+        Err(_) => Err(anyhow::Error::new(UsageError(not_joinable_text()))),
+    }
+}
+
+fn not_joinable_text() -> String {
+    format!(
+        "this is neither an invite nor a network key. Ask a member of the network for an invite: `{} invite` on their node",
+        program_name()
+    )
+}
+
+/// Hex identifier of the network a key belongs to; none for an invite, whose network is known after the exchange.
+fn key_network(text: &JoinText) -> Option<String> {
+    match text {
+        JoinText::Key(key) => crate::members::network_key::parse_user_input(key)
+            .ok()
+            .map(|k| k.key.subkeys().network_id_hex()),
+        JoinText::Invite(_) => None,
+    }
+}
+
+/// Whether a slot in the `/api/nets` reply already works with the network `net_hex`.
+pub(super) fn network_listed(nets: &Value, net_hex: &str) -> bool {
+    let list = nets.get("nets").unwrap_or(nets);
+    let listed = list.as_array().into_iter().flatten();
+    let known = listed.filter_map(|n| n["id_hex"].as_str());
+    known
+        .filter(|hex| !hex.is_empty())
+        .any(|hex| net_hex.starts_with(hex))
+}
+
+fn already_joined(node: &Node, text: &JoinText) -> anyhow::Result<bool> {
+    let Some(net) = key_network(text) else {
+        return Ok(false);
+    };
+    let nets = node.call("GET", "/api/nets", None)?;
+    Ok(network_listed(&nets, &net))
 }
 
 fn is_not_running(e: &anyhow::Error) -> bool {
@@ -99,7 +142,12 @@ fn request_join(node: &Node, text: &str) -> anyhow::Result<Option<Value>> {
     let second = match first {
         Attempt::NeedSlot => {
             let slot = new_slot(node)?;
-            attempt(node, &format!("/api/net/{slot}/network/join"), &body)?
+            let tried = attempt(node, &format!("/api/net/{slot}/network/join"), &body);
+            match &tried {
+                Ok(Attempt::Accepted(_)) => {}
+                _ => drop_slot(node, &slot),
+            }
+            tried?
         }
         other => other,
     };
@@ -110,6 +158,12 @@ fn request_join(node: &Node, text: &str) -> anyhow::Result<Option<Value>> {
     }
 }
 
+/// Removes the empty slot made for a join that was not accepted; a failure here is not worth reporting.
+fn drop_slot(node: &Node, slot: &str) {
+    let path = format!("/api/net/{slot}/members/leave");
+    let _ = node.call("POST", &path, Some(&json!({ "confirm": true })));
+}
+
 fn new_slot(node: &Node) -> anyhow::Result<String> {
     let reply = node.call("POST", "/api/nets", Some(&json!({})))?;
     let slot = reply["slot"].as_str();
@@ -118,6 +172,10 @@ fn new_slot(node: &Node) -> anyhow::Result<String> {
 }
 
 async fn join_live(node: &Node, args: &JoinArgs, text: &JoinText) -> anyhow::Result<()> {
+    if already_joined(node, text)? {
+        eprintln!("already in this network");
+        return Ok(());
+    }
     let Some(reply) = request_join(node, args.text.trim())? else {
         eprintln!("already in this network");
         return Ok(());
