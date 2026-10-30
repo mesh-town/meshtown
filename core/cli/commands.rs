@@ -18,6 +18,7 @@ mod client;
 mod config;
 pub(crate) mod invite;
 pub(crate) mod join;
+mod join_offline;
 pub(crate) mod leave;
 // group: member
 // group: network
@@ -99,6 +100,14 @@ async fn launch_prepared(
 struct StartInput<'a> {
     save_config: bool,
     domains: &'a [String],
+}
+
+impl StartInput<'static> {
+    /// `join` without a node: the flags are not saved and there are no typed domains.
+    const JOIN: StartInput<'static> = StartInput {
+        save_config: false,
+        domains: &[],
+    };
 }
 
 /// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
