@@ -119,7 +119,7 @@ needs a confirmation. Gatekeeper, console-only Linux builds, router details, ver
   network's records in the DHT. Pass it through `MESHTOWN_KEY` or the settings file, not the command line.
 - **An exit lends your IP address** and sees which hosts members connect to. Turn it off with `--no-exit` or on the
   node page.
-- **The node page is plain HTTP** and by default reachable from your local network; set `meshtown access localhost`
+- **The node page is plain HTTP** and by default reachable from your local network; set `meshtown access page localhost`
   on a network you do not trust. Never share the page port.
 
 More in [SECURITY.md](SECURITY.md).

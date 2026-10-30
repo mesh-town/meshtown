@@ -18,7 +18,7 @@ export NO_COLOR
 # when the config has neither key, with the LAN bridge of Keenetic ("Home network", br0).
 meshtown_prepare() {
 	mkdir -p "$CONF_DIR" && chmod 0700 "$CONF_DIR"
-	/opt/bin/meshtown ifaces --config "$CONF" --if-unset br0
+	/opt/bin/meshtown access ifaces --config "$CONF" --if-unset br0
 }
 
 . /opt/etc/init.d/rc.func

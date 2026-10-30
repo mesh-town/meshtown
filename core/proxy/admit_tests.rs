@@ -150,7 +150,7 @@ fn iface_deny_text_names_iface_reason_and_command() {
     assert!(text.contains("192.168.1.7"), "{text}");
     assert!(text.contains("eth0"), "{text}");
     assert!(text.contains(v.why.meta().2), "{text}");
-    assert!(text.contains("meshtown ifaces"), "{text}");
+    assert!(text.contains("meshtown access ifaces"), "{text}");
     assert!(text.contains("the Mesh Town page or"), "{text}");
 }
 

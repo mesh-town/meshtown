@@ -33,7 +33,6 @@ mod run_key;
 mod run_nokey;
 pub(crate) mod status;
 pub(crate) mod stop;
-pub(crate) use access::ifaces;
 pub(crate) use config::config_path;
 pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;

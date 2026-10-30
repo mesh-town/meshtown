@@ -19,7 +19,7 @@ meshtown keygen                       # the same without a label
 meshtown keygen --raw                 # machine key mesh2-… for scripts
 meshtown keygen [--config PATH]       # --config picks the settings file whose node identity becomes the creator
 meshtown join "<invite or key>" [--timeout SECONDS]   # join a network on the running node, or write it into the settings file
-meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
+meshtown access ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="<key from keygen or from an administrator>" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
   [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
@@ -275,14 +275,19 @@ the exit off with `--no-exit`, with `exit off` in the console, or on the node pa
 is set only in the settings (`exit.interface`, see [CONFIG-FILE.md](CONFIG-FILE.md)).
 
 `--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
-local network too). `--probe-full-cycle` is a testing flag: it tests speed with 1 MiB to all members, not only the
+local network too); on a running node change it with `meshtown access proxy localhost|localnet`, which restarts the
+proxy. `--probe-full-cycle` is a testing flag: it tests speed with 1 MiB to all members, not only the
 chosen exit.
 
-`meshtown ifaces NAME...` sets which networks (interfaces) the node accepts connections from, for the proxy and the
+`meshtown access ifaces NAME...` sets which networks (interfaces) the node accepts connections from, for the proxy and the
 page at once (`socks.ifaces` and `web.ifaces`). `NAME` is an interface name such as `br-lan`, the single word
 `auto` (automatic) or `*` (no restriction). If the node is running, the command applies the change through
 `PUT /api/config`; otherwise it writes the settings file (`--config PATH`; `--web-port N` names the running node's
 page). With `--if-unset` it writes only when the file has neither field yet, which suits autostart scripts.
+
+`meshtown access` with no action prints who can reach the page and the proxy and on which networks (`page localnet`,
+`proxy localhost`, `ifaces auto`); `--json` prints the same four values in the shape of the `config` document.
+`meshtown access page localhost|localnet` and `meshtown access proxy localhost|localnet` change the first two.
 
 `--block-domain SITE` (repeatable) only feeds the site checks (below): it makes the node treat the domain as blocked
 without checking it. It does not affect the path choice.
@@ -401,7 +406,7 @@ temporary token instead.
 - **Access** (`web.access`) decides who can open the page. `localhost` means only this computer; `localnet` (the
   default) also admits devices of the local network (private addresses `10/8`, `172.16/12`, `192.168/16`,
   `169.254/16`). This is only about access to the node settings, not to the Mesh Town network or its traffic. Change
-  it on the page or with `meshtown access localhost|localnet [--config PATH] [--web-port N]`. Narrowing applies at
+  it on the page or with `meshtown access page localhost|localnet [--config PATH] [--web-port N]`. Narrowing applies at
   once, widening after a restart.
 - **Forgot the password.** `meshtown password reset [--config PATH] [--web-port N]` deletes the `web-password` file,
   ends all sessions and invalidates all earlier temporary tokens, then prints an address with a new temporary token

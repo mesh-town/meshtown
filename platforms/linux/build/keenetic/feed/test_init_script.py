@@ -52,7 +52,7 @@ class InitScript(unittest.TestCase):
         _, calls, mode, root = run_script(self)
         # then
         self.assertEqual(mode, 0o700)
-        self.assertEqual(calls, [f"meshtown ifaces --config {root}/opt/etc/meshtown/config.json --if-unset br0"])
+        self.assertEqual(calls, [f"meshtown access ifaces --config {root}/opt/etc/meshtown/config.json --if-unset br0"])
 
     def test_is_valid_posix_shell(self):
         # given / when

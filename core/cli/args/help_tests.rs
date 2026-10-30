@@ -25,14 +25,7 @@ fn sub_help(name: &str) -> String {
 }
 
 fn sub_names() -> Vec<&'static str> {
-    let mut v = vec![
-        "run",
-        "keygen",
-        "config-path",
-        "password",
-        "access",
-        "ifaces",
-    ];
+    let mut v = vec!["run", "keygen", "config-path", "password", "access"];
     if cfg!(feature = "gui") {
         v.push("tray");
     }
@@ -51,7 +44,7 @@ fn top_help_speaks_english() {
             "Print a new network key",
             "Print the path to the settings file",
             "Reset the Mesh Town page password",
-            "Who can open the Mesh Town page",
+            "Show who can reach the Mesh Town page and proxy",
             "Show help (for one command: meshtown run --help)",
             "Show version",
         ] {
@@ -104,7 +97,6 @@ fn groups_in_order() {
         "  access ",
         "  keygen ",
         "  config-path ",
-        "  ifaces ",
     ];
     let pos: Vec<usize> = names
         .iter()

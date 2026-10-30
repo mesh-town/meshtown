@@ -1,4 +1,4 @@
-//! The `password reset` and `access` subcommands of the real binary against a real listener
+//! The `password reset` and `open` subcommands of the real binary against a real listener
 //! (`web::start_web_page` on loopback). The listener's token directory is the settings file directory, as for the node.
 //! Tokens do not get into the `assert!` texts.
 
@@ -12,11 +12,10 @@ mod common;
 use std::path::{Path, PathBuf};
 
 use meshtown_core::web_gui::{WebHandle, DEFAULT_DRAIN};
-use serde_json::Value;
 
 use auth_common::{file_token, write_password, PASSWORD_OK};
 use cli_node::{cli_in as mesh, free_port, stderr as err, stdout as out};
-use common::{api, cleanup, run_config, scratch, start_web};
+use common::{cleanup, run_config, scratch, start_web};
 
 struct Rig {
     dir: PathBuf,
@@ -40,11 +39,6 @@ async fn finish(rig: Rig) {
 
 fn password_file(dir: &Path) -> PathBuf {
     dir.join("web-password")
-}
-
-fn config_json(dir: &Path) -> Value {
-    let text = std::fs::read_to_string(dir.join("config.json")).expect("config.json");
-    serde_json::from_str(&text).expect("JSON")
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -122,82 +116,6 @@ async fn reset_with_wrong_token_exit_1_file_kept() {
         "password file was deleted"
     );
     finish(rig).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn access_live_localhost_is_immediate() {
-    let rig = rig("cli-access-now").await;
-    let o = mesh(&["access", "localhost"], &rig.dir, rig.port);
-    assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(
-        out(&o).contains("takes effect immediately"),
-        "stdout: {}",
-        out(&o)
-    );
-    let token = file_token(&rig.dir);
-    let (_, st) = api(rig.port, &token, "GET", "/api/auth/status", None);
-    assert_eq!(st["access"], "localhost", "{st}");
-    finish(rig).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn access_live_localnet_needs_restart() {
-    let rig = rig("cli-access-later").await;
-    let o = mesh(&["access", "localnet"], &rig.dir, rig.port);
-    assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(
-        out(&o).contains("after Mesh Town restarts"),
-        "stdout: {}",
-        out(&o)
-    );
-    let token = file_token(&rig.dir);
-    let (_, st) = api(rig.port, &token, "GET", "/api/auth/status", None);
-    assert_eq!(st["access"], "localnet", "{st}");
-    assert_eq!(st["listening"], "localhost", "{st}");
-    finish(rig).await;
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn access_without_node_writes_field() {
-    let dir = scratch("cli-access-off");
-    let _ = run_config(&dir);
-    let before = config_json(&dir);
-    let o = mesh(&["access", "localhost"], &dir, free_port());
-    assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(
-        out(&o).contains("applies at startup"),
-        "stdout: {}",
-        out(&o)
-    );
-    let after = config_json(&dir);
-    assert_eq!(after["config"]["web"]["access"], "localhost", "{after}");
-    assert!(
-        after["rev"].as_u64() > before["rev"].as_u64(),
-        "rev did not grow: {before} -> {after}"
-    );
-    cleanup(&dir);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn access_without_node_and_without_file_is_error() {
-    let dir = scratch("cli-access-nofile");
-    let o = mesh(&["access", "localhost"], &dir, free_port());
-    assert_eq!(o.status.code(), Some(1), "stdout: {}", out(&o));
-    assert!(err(&o).contains("no settings file"), "stderr: {}", err(&o));
-    cleanup(&dir);
-}
-
-#[test]
-fn access_bogus_value_is_cli_error() {
-    let dir = scratch("cli-access-bogus");
-    let o = mesh(&["access", "everyone"], &dir, free_port());
-    assert_eq!(o.status.code(), Some(2), "stdout: {}", out(&o));
-    let text = err(&o);
-    assert!(
-        text.contains("localhost") && text.contains("localnet"),
-        "stderr: {text}"
-    );
-    cleanup(&dir);
 }
 
 #[tokio::test(flavor = "multi_thread")]
