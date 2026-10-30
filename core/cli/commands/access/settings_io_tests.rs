@@ -70,10 +70,7 @@ fn edit_file_refuses_missing_secret() {
         s.process.web_access = ListenAccess::Localhost
     });
     let text = e.unwrap_err().to_string();
-    assert!(
-        text.contains("no valid key") || text.contains("unusable"),
-        "{text}"
-    );
+    assert!(text.contains("no valid key"), "{text}");
     assert_eq!(std::fs::read(&path).unwrap(), before);
     let _ = std::fs::remove_dir_all(&dir);
 }

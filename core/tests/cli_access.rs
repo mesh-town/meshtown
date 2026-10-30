@@ -142,6 +142,28 @@ fn restart_when_ready(node: &CliNode) -> std::process::Output {
 }
 
 #[test]
+fn proxy_restart_refused_is_code_1_and_keeps_value() {
+    let port = free_port().to_string();
+    let node = CliNode::start(&["--socks", "--socks-port", &port]);
+    let o = node.cli(&["access", "proxy", "localnet"]);
+    assert_eq!(o.status.code(), Some(1), "stderr: {}", err(&o));
+    let text = err(&o);
+    assert!(
+        text.contains("the setting is saved but the proxy was not restarted"),
+        "stderr: {text}"
+    );
+    assert!(!text.contains("refused (code"), "stderr: {text}");
+    assert_eq!(out(&o), "");
+    let shown = node.cli(&["access"]);
+    assert_eq!(shown.status.code(), Some(0), "stderr: {}", err(&shown));
+    assert!(
+        lines(&shown).contains(&"proxy localnet".to_string()),
+        "{}",
+        out(&shown)
+    );
+}
+
+#[test]
 fn proxy_live_restarts_real_node() {
     let port = free_port().to_string();
     let config = format!(
