@@ -1,8 +1,10 @@
-//! The relay node of this member: started while its owner looks public, announced to the network once the relay
-//! has checked its own address, closed when no address shows up, and stopped with the transport.
+//! The relay node of this member: started while its owner may serve one, announced to the network once the relay
+//! has measured its reachability (with its address when open, by key alone behind a consistent NAT), closed when
+//! it turns out unfit or shows nothing in time, and stopped with the transport.
 
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net::task_label;
+use crate::transport::net_hyper::relay::served::{Offer, ServedRelay};
 use crate::transport::net_hyper::relay::RelayAdvert;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -16,18 +18,19 @@ pub(crate) const RELAY_MODE_POLL: Duration = Duration::from_secs(30);
 /// How long `close` waits for the host task: the relay's own 5 s close plus a margin.
 const HOST_CLOSE_WAIT: Duration = Duration::from_secs(6);
 
-/// How long a running relay may stay without a checked public address before it is closed.
+/// How long a running relay may stay without a conclusive reachability reading before it is closed.
 pub(crate) const REACH_GRACE: Duration = Duration::from_secs(90);
 /// How long after closing an unreachable relay the next one may start.
 pub(crate) const RELAY_RETRY: Duration = Duration::from_secs(600);
 
 /// Starts the relay node.
-pub(crate) type StartRelay =
-    Arc<dyn Fn() -> BoxFuture<'static, Result<PeeroxideRelay, DhtError>> + Send + Sync>;
+pub(crate) type StartRelay<R = PeeroxideRelay> =
+    Arc<dyn Fn() -> BoxFuture<'static, Result<R, DhtError>> + Send + Sync>;
 
-/// A relay is served by public (not firewalled) persistent nodes only.
+/// A relay is tried by every node that adapts its mode to the network, and by public (not firewalled)
+/// persistent nodes; whether the relay is fit to serve is judged by its own reachability reading.
 pub(crate) fn relay_wanted(mode: &NodeMode) -> bool {
-    mode.persistent && !mode.firewalled
+    mode.adaptive || (mode.persistent && !mode.firewalled)
 }
 
 /// What the host does next.
@@ -40,25 +43,26 @@ pub(crate) enum HostStep {
     Stay,
 }
 
-/// What the host has done so far: the relay starts, is announced once its address is checked, and is closed
-/// when no address shows up in time.
+/// What the host has done so far: the relay starts, is announced once its reachability is known, and is closed
+/// when it is unfit or shows nothing in time.
 #[derive(Debug, Default)]
 pub(crate) struct HostState {
     running: bool,
     advertised: Option<RelayAdvert>,
-    /// When the wait for an address began: the start of the relay or the loss of the address.
+    /// When the wait for a reading began: the start of the relay or the loss of the offer.
     since: Option<Instant>,
     /// No new relay starts before this moment.
     retry_at: Option<Instant>,
 }
 
 impl HostState {
-    pub(crate) fn step(&self, wanted: bool, seen: Option<RelayAdvert>, now: Instant) -> HostStep {
-        match (self.running, wanted, self.advertised, seen) {
+    pub(crate) fn step(&self, wanted: bool, offer: Offer, now: Instant) -> HostStep {
+        match (self.running, wanted, self.advertised, offer) {
             (false, true, ..) => self.start_or_wait(now),
-            (true, true, prev, Some(s)) if prev != Some(s) => HostStep::Advertise(s),
-            (true, true, Some(_), None) | (true, false, Some(_), _) => HostStep::Retract,
-            (true, true, None, None) if self.grace_over(now) => HostStep::Restart,
+            (true, _, _, Offer::Unfit) => HostStep::Restart,
+            (true, true, prev, Offer::Serve(s)) if prev != Some(s) => HostStep::Advertise(s),
+            (true, true, Some(_), Offer::Wait) | (true, false, Some(_), _) => HostStep::Retract,
+            (true, true, None, Offer::Wait) if self.grace_over(now) => HostStep::Restart,
             _ => HostStep::Stay,
         }
     }
@@ -101,7 +105,7 @@ pub(crate) struct RelayHost {
 }
 
 impl RelayHost {
-    /// The announced relay (key and address): `Some` while announced, `None` otherwise.
+    /// The announced relay (key and, when it has one, address): `Some` while announced, `None` otherwise.
     pub(crate) fn keys(&self) -> watch::Receiver<Option<RelayAdvert>> {
         self.keys.clone()
     }
@@ -120,9 +124,9 @@ impl RelayHost {
 }
 
 /// Starts the host task: a step right away and then once per `poll`.
-pub(crate) fn spawn_host(
+pub(crate) fn spawn_host<R: ServedRelay>(
     mode: Arc<dyn Fn() -> NodeMode + Send + Sync>,
-    start: StartRelay,
+    start: StartRelay<R>,
     poll: Duration,
 ) -> RelayHost {
     let (keys_tx, keys) = watch::channel(None);
@@ -137,14 +141,14 @@ pub(crate) fn spawn_host(
     RelayHost { keys, stop, task }
 }
 
-struct Host {
+struct Host<R: ServedRelay> {
     mode: Arc<dyn Fn() -> NodeMode + Send + Sync>,
-    start: StartRelay,
+    start: StartRelay<R>,
     keys: watch::Sender<Option<RelayAdvert>>,
     stop: watch::Receiver<bool>,
 }
 
-impl Host {
+impl<R: ServedRelay> Host<R> {
     async fn run(mut self, poll: Duration) {
         let mut state = HostState::default();
         let mut relay = None;
@@ -165,18 +169,18 @@ impl Host {
         tokio::time::timeout(poll, stop).await.is_ok()
     }
 
-    async fn tick(&mut self, state: &mut HostState, relay: &mut Option<PeeroxideRelay>) {
+    async fn tick(&mut self, state: &mut HostState, relay: &mut Option<R>) {
         let wanted = relay_wanted(&(self.mode)());
-        let mut step = state.step(wanted, seen_address(relay).await, Instant::now());
+        let mut step = state.step(wanted, offer(relay).await, Instant::now());
         if step == HostStep::Start {
             self.start_relay(state, relay).await;
-            step = state.step(wanted, seen_address(relay).await, Instant::now());
+            step = state.step(wanted, offer(relay).await, Instant::now());
         }
         self.apply(state, relay, step).await;
     }
 
     /// Starts the relay unless stopped meanwhile; a failed start is retried at the next tick.
-    async fn start_relay(&mut self, state: &mut HostState, relay: &mut Option<PeeroxideRelay>) {
+    async fn start_relay(&mut self, state: &mut HostState, relay: &mut Option<R>) {
         let outcome = tokio::select! {
             _ = self.stop.wait_for(|s| *s) => return,
             outcome = (self.start)() => outcome,
@@ -185,17 +189,12 @@ impl Host {
         let Ok(node) = started else {
             return;
         };
-        tracing::debug!("relay: started as {}", short(&node.public_key()));
+        tracing::debug!("relay: started as {}", short(&node.key()));
         state.started(Instant::now());
         *relay = Some(node);
     }
 
-    async fn apply(
-        &self,
-        state: &mut HostState,
-        relay: &mut Option<PeeroxideRelay>,
-        step: HostStep,
-    ) {
+    async fn apply(&self, state: &mut HostState, relay: &mut Option<R>, step: HostStep) {
         match step {
             HostStep::Advertise(advert) => self.announce(state, Some(advert)),
             HostStep::Retract => self.announce(state, None),
@@ -209,23 +208,26 @@ impl Host {
         self.keys.send_replace(advert);
     }
 
-    /// Closes the relay that found no address; the next one starts after `RELAY_RETRY`.
-    async fn restart(&self, state: &mut HostState, relay: &mut Option<PeeroxideRelay>) {
-        tracing::warn!("relay: no public address confirmed, closing the relay");
+    /// Closes the relay that is unfit or shows nothing; the next one starts after `RELAY_RETRY`.
+    async fn restart(&self, state: &mut HostState, relay: &mut Option<R>) {
+        tracing::debug!(
+            "relay: not reachable from outside through this network, closing the relay"
+        );
         self.keys.send_replace(None);
         close_relay(relay.take()).await;
         state.stopped(Instant::now());
     }
 }
 
-/// The address the running relay has confirmed; none while unknown or when the relay cannot tell.
-async fn seen_address(relay: &Option<PeeroxideRelay>) -> Option<RelayAdvert> {
-    let node = relay.as_ref()?;
-    let address = node.relay_address().await.ok().flatten();
-    address.map(RelayAdvert::from)
+/// What the running relay can be announced as; `Wait` while there is no relay.
+async fn offer<R: ServedRelay>(relay: &Option<R>) -> Offer {
+    match relay {
+        Some(node) => node.offer().await,
+        None => Offer::Wait,
+    }
 }
 
-async fn close_relay(relay: Option<PeeroxideRelay>) {
+async fn close_relay<R: ServedRelay>(relay: Option<R>) {
     if let Some(node) = relay {
         node.close().await;
     }
@@ -242,3 +244,7 @@ mod tests;
 #[cfg(test)]
 #[path = "host_reach_tests.rs"]
 mod reach_tests;
+
+#[cfg(test)]
+#[path = "host_nat_tests.rs"]
+mod nat_tests;

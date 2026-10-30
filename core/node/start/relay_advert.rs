@@ -1,4 +1,4 @@
-//! Publishing this node's own relay (key and public address) to the network: the record `relay/v1` in the shared replica.
+//! Publishing this node's own relay (key and, when public, address) to the network: the record `relay/v1` in the shared replica.
 
 use std::sync::Arc;
 
@@ -36,6 +36,9 @@ pub(crate) async fn advertise_relay(
 /// (a new address alone is not announced).
 fn relay_line(prev: Option<RelayAdvert>, now: Option<RelayAdvert>) -> Option<String> {
     match (prev, now) {
+        (None, Some(RelayAdvert { address: None, .. })) => Some(format!(
+            "serving as relay for members of network {NET_NAME}, behind NAT (reached by key)"
+        )),
         (None, Some(_)) => Some(format!(
             "serving as relay for members of network {NET_NAME}"
         )),
@@ -68,3 +71,7 @@ pub(crate) async fn retract_relay(replica: &dyn Replica) -> NetResult<()> {
 #[cfg(test)]
 #[path = "relay_advert_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "relay_advert_key_tests.rs"]
+mod key_tests;

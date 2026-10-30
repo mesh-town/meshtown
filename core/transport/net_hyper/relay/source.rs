@@ -6,18 +6,19 @@ use std::net::SocketAddrV4;
 use std::sync::Arc;
 use townjump_dht::RelayAddress;
 
-/// What a relay publishes about itself: the key of its node and the public address clients reach it at.
+/// What a relay publishes about itself: the key of its node and, when it has one, the public address clients
+/// reach it at. Without an address clients find the relay by its key.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RelayAdvert {
     pub key: [u8; 32],
-    pub address: SocketAddrV4,
+    pub address: Option<SocketAddrV4>,
 }
 
 impl From<RelayAddress> for RelayAdvert {
     fn from(a: RelayAddress) -> Self {
         Self {
             key: a.public_key,
-            address: a.addr,
+            address: Some(a.addr),
         }
     }
 }

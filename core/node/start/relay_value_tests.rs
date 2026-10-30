@@ -101,7 +101,7 @@ mod writing {
         assert_eq!(value.len(), 38);
         assert_eq!(
             decode_relay_value(&value),
-            Some((advert.key, Some(advert.address)))
+            Some((advert.key, advert.address))
         );
     }
 
@@ -143,7 +143,7 @@ mod candidate_of_an_advert {
         assert_eq!(
             got,
             vec![
-                expected(5, advert.key, Some(advert.address)),
+                expected(5, advert.key, advert.address),
                 expected(6, [KEY; 32], None),
             ]
         );
@@ -164,7 +164,7 @@ fn addr(octets: [u8; 4], port: u16) -> SocketAddrV4 {
 fn advert_at(octets: [u8; 4], port: u16) -> RelayAdvert {
     RelayAdvert {
         key: [KEY; 32],
-        address: addr(octets, port),
+        address: Some(addr(octets, port)),
     }
 }
 

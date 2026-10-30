@@ -194,7 +194,7 @@ fn start_fn(
             let address = SocketAddrV4::new(Ipv4Addr::LOCALHOST, relay.local_port());
             let advert = RelayAdvert {
                 key: relay.public_key(),
-                address,
+                address: Some(address),
             };
             started.lock().unwrap().push(advert);
             Ok(relay)

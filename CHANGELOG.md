@@ -17,6 +17,10 @@ and the project uses [Semantic Versioning](https://semver.org/).
 - Relay: a member's relay key is the same after every restart.
 - Relay: a member advertises itself as a relay, together with its public address, only after it has confirmed that the
   address is reachable from outside; otherwise it closes the relay and tries again later.
+- Relay: any member, including a phone, now serves as a relay except one behind a NAT with random port mapping. A member
+  behind a NAT with stable ports is advertised by its key alone and dialled through the DHT with hole punching; one behind
+  a random NAT closes its relay and tries again after 600 seconds. `net.relay = "off"` still turns relaying off.
+  A public member that moves behind a NAT keeps its old address in the advert until restart.
 - Relay: the receiving side also shows a relayed neighbour as `relay` in the node state.
 
 ### Changed
