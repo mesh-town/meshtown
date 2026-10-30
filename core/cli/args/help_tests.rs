@@ -25,7 +25,7 @@ fn sub_help(name: &str) -> String {
 }
 
 fn sub_names() -> Vec<&'static str> {
-    let mut v = vec!["run", "keygen", "config-path", "password", "access"];
+    let mut v = vec!["run", "network", "config-path", "password", "access"];
     if cfg!(feature = "gui") {
         v.push("tray");
     }
@@ -41,7 +41,7 @@ fn top_help_speaks_english() {
             "Start:",
             "Global options:",
             "Run Mesh Town in this window, without an icon",
-            "Print a new network key",
+            "List, create, show, inspect and delete the networks",
             "Print the path to the settings file",
             "Reset the Mesh Town page password",
             "Show who can reach the Mesh Town page and proxy",
@@ -92,10 +92,10 @@ fn groups_in_order() {
         "  status ",
         "  stop ",
         "  invite ",
+        "  network ",
         "  open ",
         "  password ",
         "  access ",
-        "  keygen ",
         "  config-path ",
     ];
     let pos: Vec<usize> = names
@@ -277,9 +277,9 @@ fn name_missing_from_command_is_not_printed() {
 
 #[test]
 fn command_missing_from_table_goes_to_other() {
-    let help = root_help(&small(&["run", "keygen"]), false);
+    let help = root_help(&small(&["run", "bogus"]), false);
     let other = help
-        .find("Other:\n  keygen ")
+        .find("Other:\n  bogus ")
         .unwrap_or_else(|| panic!("{help}"));
     assert!(help.find("Start:").expect("Start") < other, "{help}");
 }

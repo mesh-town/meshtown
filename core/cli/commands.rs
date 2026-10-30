@@ -22,7 +22,7 @@ mod join_offline;
 pub(crate) mod leave;
 // group: member
 // group: network
-mod network;
+pub(crate) mod network;
 pub(crate) mod open;
 pub(crate) mod password;
 mod run_args;
@@ -37,7 +37,6 @@ pub(crate) use config::config_path;
 pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;
 pub(crate) use leave::LeaveArgs;
-pub(crate) use network::keygen;
 pub(crate) use run_args::RunArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;

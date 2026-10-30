@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import { expect } from '@playwright/test';
 
 import { forgetPid, e2eOutDir, recordPid } from './orphans';
-import { buildNodeArgs, keygenConfigPath, nodeKeygen, prepareNodeConfig, resolveNodePlan } from './node-config';
+import { buildNodeArgs, keyConfigPath, nodeNewKey, prepareNodeConfig, resolveNodePlan } from './node-config';
 import type { RunningTarget, TargetFlags, TargetKind } from './target';
 
 export interface LaunchSpec {
@@ -102,7 +102,7 @@ const READY_TIMEOUT_MS = 20000;
 
 // The only place that parses the target kind (Five Lines of Code — one enum parse for the whole file):
 // the rest of the code (launchTarget, spawnChild, raceReady…) gets a ready LaunchPlan, and `spec.kind` is
-// no longer checked. Node specifics (config and keygen) are in `node-config.ts`; the plan from the flags
+// no longer checked. Node specifics (config and key) are in `node-config.ts`; the plan from the flags
 // is assembled here, in its branch.
 async function planLaunch(spec: LaunchSpec, port: number, socksPort?: number): Promise<LaunchPlan> {
   const flags = withSocksOverride(spec.flags, socksPort);
@@ -118,7 +118,7 @@ async function planLaunch(spec: LaunchSpec, port: number, socksPort?: number): P
     case 'node': {
       const plan = resolveNodePlan(spec.flags.extraArgs, socksPort);
       const configPath = await prepareNodeConfig(spec.workDir, plan.fileKind);
-      const key = await nodeKeygen(spec.bin, await keygenConfigPath(spec.workDir, plan.fileKind, configPath));
+      const key = await nodeNewKey(spec.bin, await keyConfigPath(spec.workDir, plan.fileKind, configPath));
       return {
         readyTimeoutMs: READY_TIMEOUT_MS,
         readyLogMarker: plan.fileKind === 'asis' ? ', network ' : undefined,

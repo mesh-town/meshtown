@@ -3,7 +3,7 @@
 //! What it does: parses the command line arguments (`cli.rs`) and passes them to the subcommand
 //! executor (`commands.rs`): `run`, `join`, `status`, `stop` and the other commands.
 //! What it doesn't do: it holds no node business logic — that is in the `meshtown` library;
-//! it prints the network key nowhere except `keygen`, which creates it.
+//! it prints the network key nowhere except `network create` and `network key`.
 //! Starting with no arguments substitutes one itself (`crate::cli::args::with_default_subcommand`):
 //! the help when the process has no tray backend, `tray` when the platform binary handed one in.
 //! Links: `commands` calls `crate::members::network_key`, `crate::members::words`,
@@ -123,6 +123,7 @@ async fn execute(
         // group: config
         // group: member
         // group: network
+        CliCommand::Network(args) => crate::cli::commands::network::run(args, g).await,
         CliCommand::Password {
             action: crate::cli::args::PasswordAction::Reset,
         } => crate::cli::commands::password::run_password_command(g).await,
@@ -130,10 +131,6 @@ async fn execute(
         CliCommand::ConfigPath => {
             g.allow("config-path", &[])?;
             crate::cli::commands::config_path(g.config.clone())
-        }
-        CliCommand::Keygen { label, raw } => {
-            g.allow("keygen", &[])?;
-            crate::cli::commands::keygen(label, raw, g.config.clone())
         }
         #[cfg(feature = "gui")]
         CliCommand::Tray(args) => {

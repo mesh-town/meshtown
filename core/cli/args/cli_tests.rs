@@ -47,13 +47,13 @@ fn no_args_is_tray_with_tray() {
 fn explicit_subcommand_kept() {
     let m = Cli::command()
         .try_get_matches_from(with_default_subcommand(
-            to_os(&["meshtown", "keygen"]),
+            to_os(&["meshtown", "config-path"]),
             HAS_TRAY,
         ))
-        .expect("keygen parses");
+        .expect("config-path parses");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
-        CliCommand::Keygen { .. }
+        CliCommand::ConfigPath
     ));
 
     let m = Cli::command()
@@ -154,7 +154,7 @@ mod default_subcommand {
 
     #[test]
     fn explicit_subcommand_is_kept_with_tray() {
-        let args = to_os(&["meshtown", "keygen"]);
+        let args = to_os(&["meshtown", "config-path"]);
 
         let got = with_default_subcommand(args.clone(), true);
 

@@ -20,8 +20,8 @@ mod bad_flag_message {
     #[test]
     fn tail_follows_the_typed_command() {
         assert_eq!(
-            flag_text(&["keygen", "--bogus"], Some("keygen")),
-            "Error: unknown option \"--bogus\". See all options: meshtown keygen --help"
+            flag_text(&["network", "--bogus"], Some("network")),
+            "Error: unknown option \"--bogus\". See all options: meshtown network --help"
         );
     }
 

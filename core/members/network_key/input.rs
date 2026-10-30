@@ -53,7 +53,7 @@ pub fn key_from_tail(tail: &str) -> Result<NetworkKey> {
     let parts: Vec<&str> = normalized.split('-').filter(|p| !p.is_empty()).collect();
     if parts.len() != TAIL_PARTS {
         return Err(anyhow!(
-            "the random part of the key has {TAIL_WORDS} words and a group of characters, joined by hyphens ({TAIL_PARTS} parts in all), but got {}. The key is split at the first \"--\": the label is on the left, the random part on the right. Make a new key with: {cmd} keygen <label>",
+            "the random part of the key has {TAIL_WORDS} words and a group of characters, joined by hyphens ({TAIL_PARTS} parts in all), but got {}. The key is split at the first \"--\": the label is on the left, the random part on the right. Make a new key with: {cmd} network create --key-only <label>",
             parts.len(),
             cmd = crate::cli::program_name::program_name()
         ));
@@ -135,7 +135,7 @@ fn labelled_error(raw_tail: &str) -> anyhow::Error {
     let tail = normalize_dashed(raw_tail);
     if tail.is_empty() {
         return anyhow!(
-            "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
+            "there is no random part of the key after \"--\". The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} network create --key-only <label>",
             cmd = crate::cli::program_name::program_name()
         );
     }
@@ -148,12 +148,12 @@ fn no_label_error(trimmed: &str) -> anyhow::Error {
     let tail = normalize_dashed(trimmed);
     if tail.is_empty() {
         return anyhow!(
-            "{NET_NAME} network key has no letters or digits left. The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} keygen <label>",
+            "{NET_NAME} network key has no letters or digits left. The key looks like this: label--word-word-group-of-characters. Make a new key with: {cmd} network create --key-only <label>",
             cmd = crate::cli::program_name::program_name()
         );
     }
     anyhow!(
-        "the key has no random part: it looks like only the label \"{tail}\" was given. The whole key looks like this: {tail}--word-word-group-of-characters. Make a new key with: {cmd} keygen {tail}",
+        "the key has no random part: it looks like only the label \"{tail}\" was given. The whole key looks like this: {tail}--word-word-group-of-characters. Make a new key with: {cmd} network create --key-only {tail}",
         cmd = crate::cli::program_name::program_name()
     )
 }
@@ -185,7 +185,7 @@ fn right_part(trimmed: &str) -> &str {
 
 fn not_set() -> anyhow::Error {
     anyhow!(
-        "{NET_NAME} network key is not set: pass it with --key or the MESHTOWN_KEY variable. Make a new key with: {cmd} keygen <label>, for example {cmd} keygen my network",
+        "{NET_NAME} network key is not set: pass it with --key or the MESHTOWN_KEY variable. Make a new key with: {cmd} network create --key-only <label>, for example {cmd} network create --key-only my network",
         cmd = crate::cli::program_name::program_name()
     )
 }

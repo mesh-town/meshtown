@@ -6,8 +6,8 @@ use std::time::Duration;
 use serde_json::{json, Value};
 use tokio::time::{sleep, Instant};
 
-use super::client::{ApiError, Node};
-use super::join_offline::{run_offline, JoinText};
+use super::client::{ApiError, Node, Target};
+use super::join_offline::{busy_text, run_offline, JoinText};
 use crate::cli::args::Globals;
 use crate::cli::exit::{NotRunning, UsageError};
 use crate::cli::program_name::program_name;
@@ -34,6 +34,7 @@ pub(crate) async fn run(args: JoinArgs, g: &Globals) -> anyhow::Result<()> {
     match Node::connect(g) {
         Ok(node) => Box::pin(join_live(&node, &args, &text)).await,
         Err(e) if is_not_running(&e) => Box::pin(run_offline(g, text, args.timeout)).await,
+        Err(e) if is_dropped_link(&e) => Err(page_port_busy(g, e)),
         Err(e) => Err(e),
     }
 }
@@ -92,6 +93,28 @@ fn already_joined(node: &Node, text: &JoinText) -> anyhow::Result<bool> {
 
 fn is_not_running(e: &anyhow::Error) -> bool {
     e.chain().any(|c| c.downcast_ref::<NotRunning>().is_some())
+}
+
+/// Whether the connection to the page port was reset, closed or answered by something that is not a node:
+/// another `join` holds the port and has just let go of it.
+fn is_dropped_link(e: &anyhow::Error) -> bool {
+    let text = format!("{e:#}").to_lowercase();
+    [
+        "reset by peer",
+        "broken pipe",
+        "connection aborted",
+        "did not reply over http",
+    ]
+    .iter()
+    .any(|sign| text.contains(sign))
+}
+
+/// The error of a busy page port: the same words as when `join` cannot hold the port itself.
+fn page_port_busy(g: &Globals, cause: anyhow::Error) -> anyhow::Error {
+    match Target::resolve(g.config.clone(), g.web_port) {
+        Ok(target) => anyhow::anyhow!(busy_text(target.port)),
+        Err(_) => cause,
+    }
 }
 
 /// What a refusal of the join request means for the command.

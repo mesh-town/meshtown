@@ -2,13 +2,15 @@ use super::*;
 use crate::config::config_file::{CliOverrides, ConfigSource, PathRule, Settings};
 use crate::members::network_key::parse_user_input;
 use crate::transport::net::NodeSecret;
+use std::path::PathBuf;
 
 /// A directory for the settings file; removed in `Drop`.
 struct Dir(PathBuf);
 
 impl Dir {
     fn new(name: &str) -> Dir {
-        let dir = std::env::temp_dir().join(format!("keygen_tests-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("key_only_tests-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Dir(dir)
@@ -66,6 +68,28 @@ mod with_an_identity_in_the_file {
             assert!(text.starts_with("mesh2-"), "{text}");
             assert_eq!(parse_user_input(&text).expect("parses").root, me);
         }
+
+        #[test]
+        fn raw_keeps_the_label() {
+            // given: a file with an identity
+            let dir = Dir::new("raw-label");
+            let me = write_file_with_secret(&dir.file(), 9);
+            // when: a raw key is made with a label
+            let root = node_identity(Some(&dir.file()), 5).expect("identity");
+            let text = new_key(&["our".into(), "game".into()], true, &root).expect("key");
+            // then: the label stays before the machine form, the root is the node
+            assert!(text.starts_with("our-game--mesh2-"), "{text}");
+            let parsed = parse_user_input(&text).expect("parses");
+            assert_eq!(parsed.root, me);
+            assert_eq!(parsed.label.as_deref(), Some("our-game"));
+        }
+
+        #[test]
+        fn raw_without_label_has_no_separator() {
+            let root = NodeSecret::from_bytes(&[9; 32]).peer_id();
+            let text = new_key(&[], true, &root).expect("key");
+            assert!(!text.contains("--"), "{text}");
+        }
     }
 }
 
@@ -77,7 +101,7 @@ mod without_a_file {
         // given: no file
         let dir = Dir::new("fresh");
         assert!(!dir.file().exists());
-        // when: keygen takes the identity, then the first run prepares the same file
+        // when: the key command takes the identity, then the first run prepares the same file
         let root = node_identity(Some(&dir.file()), 5).expect("identity");
         let source = ConfigSource::File {
             path: dir.file(),
@@ -85,7 +109,7 @@ mod without_a_file {
             rule: PathRule::Explicit,
         };
         let run = config_file::prepare(&source, &CliOverrides::default(), true, 6).expect("run");
-        // then: the file exists and run has the identity keygen used
+        // then: the file exists and run has the identity the key command used
         assert!(dir.file().exists());
         assert_eq!(run.secret.peer_id(), root);
     }

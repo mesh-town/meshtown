@@ -48,7 +48,7 @@ export function resolveNodePlan(extraArgs: readonly string[], socksPort?: number
 // and does not rewrite the file at startup (otherwise `chmod 0o444` would be undone in the node's first second of life).
 const ZERO_SECRET_BASE64 = Buffer.alloc(32).toString('base64');
 
-// `keygen` roots the key at the identity of the config file and refuses a file without one; a valid secret in every JSON
+// `network create --key-only` roots the key at the identity of the config file and refuses a file without one; a valid secret in every JSON
 // view of the file also keeps `prepare` from rewriting it, so the field errors and the read-only file stay as written.
 const IDENTITY = { secret: ZERO_SECRET_BASE64 };
 
@@ -78,21 +78,21 @@ export async function prepareNodeConfig(dir: string, fileKind: NodeFileKind): Pr
   return configPath;
 }
 
-// The config file `keygen` reads. `invalid` and `unreadable` files cannot be read by it, so it gets a small valid file of its own
+// The config file `network create --key-only` reads. `invalid` and `unreadable` files cannot be read by it, so it gets a small valid file of its own
 // (the same identity): the key only has to be well formed, the node under test does not need to be its root.
-export async function keygenConfigPath(dir: string, fileKind: NodeFileKind, configPath: string): Promise<string> {
+export async function keyConfigPath(dir: string, fileKind: NodeFileKind, configPath: string): Promise<string> {
   if (fileKind !== 'invalid' && fileKind !== 'unreadable') return configPath;
-  const own = path.join(dir, 'keygen-identity.json');
+  const own = path.join(dir, 'key-identity.json');
   await writeFile(own, JSON.stringify({ identity: IDENTITY, config: { version: 1 } }));
   return own;
 }
 
-export async function nodeKeygen(bin: string, configPath: string): Promise<string> {
+export async function nodeNewKey(bin: string, configPath: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync(bin, ['keygen', '--raw', '--config', configPath]);
+    const { stdout } = await execFileAsync(bin, ['network', 'create', '--key-only', '--raw', '--config', configPath]);
     return stdout.trim();
   } catch (err) {
-    throw new Error(`meshtown keygen --raw: ${execErrorMessage(err)}`);
+    throw new Error(`meshtown network create --key-only --raw: ${execErrorMessage(err)}`);
   }
 }
 
@@ -104,7 +104,7 @@ function execErrorMessage(err: unknown): string {
 }
 
 // The key is always passed with the `--key` flag, except for `no-key`: the node starts with no key at all
-// (`--no-network`). Keygen still runs in that case,
+// (`--no-network`). Making the key still runs in that case,
 // and `buildNodeArgs` simply does not add `--key`.
 export function buildNodeArgs(key: string, configPath: string, port: number, plan: NodePlan): string[] {
   const keyArgs = plan.fileKind === 'no-key' ? [] : ['--key', key];

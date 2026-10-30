@@ -2,7 +2,7 @@
 //!
 //! - `args` - the clap argument definitions and the default subcommand.
 //! - `cli_errors` - user-facing texts for command line errors.
-//! - `commands` - the executors of the subcommands (`keygen`, `run`, `config-path`, ...).
+//! - `commands` - the executors of the subcommands (`run`, `network`, `config-path`, ...).
 //! - `exit` - exit codes and the one form of error text.
 //! - `console` - the node console: commands from standard input.
 //! - `os_console` - console output by process role and OS.

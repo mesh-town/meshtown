@@ -41,12 +41,13 @@ fn access_mode_row_needs_both_words() {
 }
 
 #[test]
-fn live_old_name_still_parses() {
+fn replaced_name_no_longer_parses_and_has_a_hint() {
     // The table only names what was replaced; a name that still parses never reaches it.
-    let (cli, _) = crate::cli::test_args::parse_ok(&["keygen"]);
-    assert!(matches!(
-        cli.command,
-        crate::cli::args::CliCommand::Keygen { .. }
-    ));
-    assert!(hint(&["meshtown", "keygen"]).is_some());
+    let refused = crate::cli::args::Cli::command().try_get_matches_from(["meshtown", "keygen"]);
+    assert!(refused.is_err());
+    assert_eq!(
+        hint(&["meshtown", "keygen"]),
+        Some("network create --key-only")
+    );
+    assert!(hint(&["meshtown", "network", "create"]).is_none());
 }

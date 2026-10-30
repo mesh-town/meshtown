@@ -65,7 +65,7 @@ Paths are from the repository root; a path ending in `/` is a directory.
 | `core/site_checks/` | reachability checks: `http_min.rs` (minimal HTTP/1.1 client), `doh/` (own resolver), `reachability/`, `checks/` (records in the replica, schedule), `geoip/` |
 | `core/config/config_file/` | settings file: reading, writing, merging with flags, node secret |
 | `core/invite/` | invite string: building, parsing, issuing and redeeming |
-| `core/cli/` | command-line parsing and subcommands (`keygen`, `run`, `ifaces`, …), node console |
+| `core/cli/` | command-line parsing and subcommands (`run`, `join`, `network`, `member`, …), node console |
 | `core/web_gui/` | the node's web page (`ui/`, Vue) and its HTTP API |
 | `core/gui/` | tray support code used by the platform crates (feature `gui`) |
 | `platforms/<os>/` | the desktop app of one operating system: tray, packaging (see "Crates") |
@@ -182,7 +182,7 @@ Argon2id is not used at all: the program sets the entropy, not a human, it is kn
 exactly and equals 130.8 bits — there is nothing to brute-force, and a slow key derivation function is not
 needed here. Pinned by the known-answer test `key_from_tail_known_answer`.
 
-The machine form `mesh2-…` is the second valid input and is printed by `meshtown keygen --raw`. A key of the older
+The machine form `mesh2-…` is the second valid input and is printed by `meshtown network create --key-only --raw` and `meshtown network key --raw`. A key of the older
 format (`mesh1-…`, or three words with a group) is not accepted: the parser recognizes it and answers that the key comes
 from an older version and that an administrator has to send a new invite. An invite of the older format is refused the
 same way.
