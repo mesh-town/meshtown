@@ -176,7 +176,7 @@ mod typed_command_word {
     }
 
     #[test]
-    fn finds_keygen() {
+    fn finds_network() {
         assert_eq!(
             typed(&["meshtown", "network", "--raw"]),
             Some("network".to_string())
