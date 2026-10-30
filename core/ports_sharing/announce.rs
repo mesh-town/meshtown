@@ -60,16 +60,43 @@ async fn cycle(
     announced: &mut HashMap<(Proto, u16), PortRecord>,
     has_cleaned_stale: &mut bool,
 ) -> Result<()> {
-    let published: Vec<Published> = table
+    let published = published_ports(table);
+    remove_unlisted_once(store, &published, has_cleaned_stale).await?;
+    let (write, remove) = diff_published(&published, announced);
+    publish_changed(store, table, write, announced).await?;
+    unpublish_dropped(store, remove, announced).await
+}
+
+/// The list of publications from the table, without their states.
+fn published_ports(table: &PublishedPortsTable) -> Vec<Published> {
+    table
         .published_with_state()
         .into_iter()
         .map(|(p, _)| p)
-        .collect();
-    if !*has_cleaned_stale {
-        remove_unlisted_records(store, &published).await?;
-        *has_cleaned_stale = true;
+        .collect()
+}
+
+/// Removes our unlisted records on the first successful call only; after an error it stays pending.
+async fn remove_unlisted_once(
+    store: &PortsDoc,
+    published: &[Published],
+    has_cleaned_stale: &mut bool,
+) -> Result<()> {
+    if *has_cleaned_stale {
+        return Ok(());
     }
-    let (write, remove) = diff_published(&published, announced);
+    remove_unlisted_records(store, published).await?;
+    *has_cleaned_stale = true;
+    Ok(())
+}
+
+/// Writes the changed publications, checking the local state of TCP ports first.
+async fn publish_changed(
+    store: &PortsDoc,
+    table: &PublishedPortsTable,
+    write: Vec<Published>,
+    announced: &mut HashMap<(Proto, u16), PortRecord>,
+) -> Result<()> {
     for p in write {
         if p.proto.is_tcp() {
             check_local_port(table, &p).await;
@@ -77,6 +104,15 @@ async fn cycle(
         store.publish(&p).await?;
         announced.insert((p.proto, p.port), PortRecord::from(&p));
     }
+    Ok(())
+}
+
+/// Removes the publications that left the table.
+async fn unpublish_dropped(
+    store: &PortsDoc,
+    remove: Vec<(Proto, u16)>,
+    announced: &mut HashMap<(Proto, u16), PortRecord>,
+) -> Result<()> {
     for (proto, port) in remove {
         store.unpublish(proto, port).await?;
         announced.remove(&(proto, port));
