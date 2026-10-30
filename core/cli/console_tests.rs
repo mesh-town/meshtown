@@ -58,3 +58,23 @@ mod invite_line_cases {
         }
     }
 }
+
+/// `print_dealt_invite`: two journal lines under the `invite` tag, the second is the reach note.
+#[test]
+fn dealt_invite_logs_notes_and_reach() {
+    let first_new_seq = crate::node::output::log_page(0, 1).last_seq;
+    let dealt = crate::invite::Dealt {
+        text: "the-string".to_string(),
+        holders: Vec::new(),
+    };
+    print_dealt_invite(&dealt);
+    let page = crate::node::output::log_page(first_new_seq, 100_000);
+    let lines: Vec<String> = page
+        .lines
+        .into_iter()
+        .filter(|l| l.tag == "invite")
+        .map(|l| l.text)
+        .collect();
+    assert_eq!(lines.len(), 2, "{lines:?}");
+    assert_eq!(lines[1], dealt.reach().console_line());
+}
