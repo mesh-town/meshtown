@@ -3,7 +3,7 @@
 //! to the page, reading `web-token`, child processes; `poll_types.rs` — timeouts and `PollEnv` between
 //! startup and the poller; `api.rs` — talking to the node over HTTP and the start policy; `views.rs` —
 //! ready and under-construction tray views; `poller.rs` — the poller's main loop (event selection);
-//! `poller_phase.rs` — the phase and transitions on the node's reply; `poller_stop.rs` — the "Stop" and
+//! `poller_phase.rs` — the phase and transitions on the node's reply; `poller_view.rs` — drawing a changed view and the exits submenu; `poller_stop.rs` — the "Stop" and
 //! "Quit" procedures; `poller_exit.rs` — editing the list of selected exits on a command from the submenu and the "Allow opening sites
 //! via this computer" checkbox (`exit.enabled`);
 //! `poller_invite.rs` — "Invite a member": the node's invite to the clipboard
@@ -26,6 +26,7 @@ mod poller_exit;
 mod poller_invite;
 mod poller_phase;
 mod poller_stop;
+mod poller_view;
 mod run;
 mod start_fail;
 mod views;

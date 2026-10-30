@@ -5,10 +5,9 @@ use std::process::Child;
 
 use tokio::time::Instant;
 
-use crate::gui::tray::app::exit_menu::{disabled_exit_menu, ExitMenu};
 use crate::gui::tray::app::local_api::{ApiError, Reply};
 use crate::gui::tray::app::start_note::StartNote;
-use crate::gui::tray::app::view::{self, NodeState, PageState, TrayColor, View};
+use crate::gui::tray::app::view::{NodeState, PageState};
 
 use super::api::{
     child_status_text, reply_summary, start_policy, StartDecision, KILLED_BY_SIGNAL_TEXT,
@@ -39,51 +38,6 @@ pub(super) enum Phase {
 impl Poller {
     pub(super) fn say(&self, line: String) {
         (self.log)(line);
-    }
-
-    /// A view change: if the new one differs from the last, it goes to the tray and into the log. A grey view means the node is not
-    /// running: the exits submenu is turned off in the same step, so there is no need to call `show_exits` separately on
-    /// every grey view — all `View`s assembled by hand in the module are always grey, and
-    /// green/red come only from `views_from_state_json`. A grey view of a ready page comes from a node reply
-    /// too (every network is offline): its menu was sent just before and stays.
-    pub(super) fn show(&mut self, view: View) {
-        self.forget_start_note(view.node);
-        if self.last_view != Some(view) {
-            let previous = self.last_view.replace(view);
-            self.apply_view(view, previous);
-        }
-        if view.color == TrayColor::Grey && view.page != PageState::Ready {
-            self.show_exits(disabled_exit_menu(self.proxy.clone()));
-        }
-    }
-
-    /// Draws a changed view: it goes to the tray and into the log.
-    fn apply_view(&mut self, view: View, previous: Option<View>) {
-        (self.send_view)(view);
-        self.say_view(view, previous);
-    }
-
-    /// A log line about a view change; a change of only the speed disc produces no line (the icon
-    /// is redrawn, the log is not cluttered).
-    fn say_view(&self, view: View, previous: Option<View>) {
-        if previous.map(|p| View { disk: None, ..p }) == Some(View { disk: None, ..view }) {
-            return;
-        }
-        self.say(format!(
-            "{:?}; {}; {}",
-            view.color,
-            view::page_text(view),
-            view::node_state_phrase(view.node)
-        ));
-    }
-
-    /// The exits submenu: if the new one differs from the last, it goes to the tray.
-    pub(super) fn show_exits(&mut self, menu: ExitMenu) {
-        if self.last_exit_menu == Some(menu.clone()) {
-            return;
-        }
-        self.last_exit_menu = Some(menu.clone());
-        (self.send_exit_menu)(menu);
     }
 
     /// A transition on the outcome of `start_policy`. `allow_spawn` is the decision at startup and

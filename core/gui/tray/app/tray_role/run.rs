@@ -214,6 +214,15 @@ fn parse_run_args(run_args: &[OsString]) -> Option<RunArgs> {
 
 /// Real child launch: the same binary, stdin is null; no groups and no detaching.
 fn spawn_child(argv: &[OsString]) -> std::io::Result<Child> {
+    #[cfg_attr(not(any(windows, target_os = "macos")), allow(unused_mut))]
+    let mut cmd = child_command(argv)?;
+    #[cfg(any(windows, target_os = "macos"))]
+    attach_node_log(&mut cmd);
+    cmd.spawn()
+}
+
+/// The command that starts this binary with the given arguments and a null stdin.
+fn child_command(argv: &[OsString]) -> std::io::Result<std::process::Command> {
     let mut cmd = std::process::Command::new(std::env::current_exe()?);
     cmd.args(argv).stdin(std::process::Stdio::null());
     #[cfg(windows)]
@@ -221,25 +230,34 @@ fn spawn_child(argv: &[OsString]) -> std::io::Result<Child> {
         use std::os::windows::process::CommandExt as _;
         cmd.creation_flags(windows_sys::Win32::System::Threading::CREATE_NO_WINDOW);
     }
-    #[cfg(any(windows, target_os = "macos"))]
-    if crate::cli::os_console::child_needs_node_log() {
-        let log = crate::cli::os_console::open_node_log().and_then(|out| {
-            let err = out.try_clone()?;
-            Ok((out, err))
-        });
-        match log {
-            Ok((out, err)) => {
-                cmd.stdout(std::process::Stdio::from(out))
-                    .stderr(std::process::Stdio::from(err));
-            }
-            Err(e) => {
-                say(format!("couldn't open the node log: {e}"));
-                cmd.stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::null());
-            }
+    Ok(cmd)
+}
+
+/// Sends the child's output to the node log when it needs one; without the log, the output is dropped.
+#[cfg(any(windows, target_os = "macos"))]
+fn attach_node_log(cmd: &mut std::process::Command) {
+    if !crate::cli::os_console::child_needs_node_log() {
+        return;
+    }
+    match node_log_pair() {
+        Ok((out, err)) => {
+            cmd.stdout(std::process::Stdio::from(out))
+                .stderr(std::process::Stdio::from(err));
+        }
+        Err(e) => {
+            say(format!("couldn't open the node log: {e}"));
+            cmd.stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null());
         }
     }
-    cmd.spawn()
+}
+
+/// Two handles to the node log: one for stdout, one for stderr.
+#[cfg(any(windows, target_os = "macos"))]
+fn node_log_pair() -> std::io::Result<(std::fs::File, std::fs::File)> {
+    let out = crate::cli::os_console::open_node_log()?;
+    let err = out.try_clone()?;
+    Ok((out, err))
 }
 
 /// SIGINT/SIGTERM (Unix), Ctrl-C (Windows); SIGHUP is not caught.
