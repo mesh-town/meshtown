@@ -1,45 +1,17 @@
-//! Command line parsing for the app (`clap`): subcommands, their flags and `ArgMatches` handling.
-//! What it does: defines `Cli`, `CliCommand`, the helpers `is_flag_typed`/`toggle_from_flag_pair` that tell a typed
-//! flag from a default, and the default subcommand substitution (`with_default_subcommand`) —
-//! starting with no arguments behaves like `tray` (a build with the tray) or `run` (without it). What it
-//! doesn't do: it doesn't execute subcommands — that is `commands.rs`; `main.rs` only parses the flags and
-//! passes them there.
+//! The clap definitions of the app: `Cli`, `CliCommand`, the helpers `is_flag_typed`/`toggle_from_flag_pair` that
+//! tell a typed flag from a default, and the default subcommand substitution (`with_default_subcommand`):
+//! starting with no arguments behaves like `tray` (a build with the tray) or `run` (without it).
+//! It does not execute subcommands; that is `commands`.
 
 use std::ffi::OsString;
 
-use crate::cli::program_name::{program_name, DEFAULT_PROGRAM_NAME};
+use super::help::{
+    after_help_text, has_tray, rename_commands, sub_help_flag, with_program_name, HELP, HELP_HINT,
+    HELP_ORDER,
+};
+use crate::cli::program_name::program_name;
 use clap::parser::ValueSource;
-use clap::{Arg, ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
-
-/// Whether this process has a tray backend; set once at startup, before the arguments are parsed.
-static HAS_TRAY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-
-/// Records whether a tray backend was handed to the process (the first call wins).
-pub(crate) fn set_has_tray(has_tray: bool) {
-    let _ = HAS_TRAY.set(has_tray);
-}
-
-/// Whether the help text should describe the tray start; before `set_has_tray` (tests) it follows the
-/// `gui` feature.
-fn has_tray() -> bool {
-    HAS_TRAY.get().copied().unwrap_or(cfg!(feature = "gui"))
-}
-
-/// The footer of the top-level help: what a start with no command does, and how to join a network.
-pub(crate) fn after_help_text(has_tray: bool) -> &'static str {
-    match has_tray {
-        true => "With no command, the Mesh Town icon starts next to the clock.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
-        false => "With no command, Mesh Town starts.\nJoin a network with a member's invite:\n  meshtown run --invite \"<invite>\"",
-    }
-}
-
-/// Replaces the word `meshtown` that starts a command in a help text with `name`.
-fn with_program_name(text: &str, name: &str) -> String {
-    text.replace("meshtown ", &format!("{name} "))
-}
-
-/// The help template of the top level and subcommands: the word "Usage:" as text (`{usage-heading}` gives `Usage:`).
-const HELP: &str = "{about}\n\nUsage: {usage}\n\n{all-args}{after-help}";
+use clap::{ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(
@@ -70,9 +42,6 @@ pub(crate) struct Cli {
     version: Option<bool>,
 }
 
-/// The order of the last lines of the "Options:" section: after all the others, `-h` before `-V`.
-const HELP_ORDER: usize = 10_000;
-
 impl Cli {
     /// Describes the command line for parsing and help. A wrapper over the derived `command()`:
     /// every subcommand has its own `-h, --help` line ("Show help") last in the
@@ -97,46 +66,6 @@ impl Cli {
     }
 }
 
-/// The description of the top level `-h`, with the command name replaced at build time.
-const HELP_HINT: &str = "Show help (for one command: meshtown run --help)";
-
-/// Puts `name` into the usage line and the examples of the top level and of every subcommand.
-fn rename_commands(cmd: clap::Command, name: &str) -> clap::Command {
-    if name == DEFAULT_PROGRAM_NAME {
-        return cmd;
-    }
-    let names: Vec<String> = cmd
-        .get_subcommands()
-        .map(|c| c.get_name().to_string())
-        .collect();
-    let cmd = rename_texts(cmd, name);
-    names.iter().fold(cmd, |cmd, sub| {
-        cmd.mut_subcommand(sub, |c| rename_texts(c, name))
-    })
-}
-
-/// Replaces the command name in one command's `override_usage` and `after_help`.
-fn rename_texts(cmd: clap::Command, name: &str) -> clap::Command {
-    let usage = cmd
-        .get_overridden_usage()
-        .map(|u| with_program_name(&u.to_string(), name));
-    let after = cmd
-        .get_after_help()
-        .map(|u| with_program_name(&u.to_string(), name));
-    let cmd = usage.into_iter().fold(cmd, |c, u| c.override_usage(u));
-    after.into_iter().fold(cmd, |c, a| c.after_help(a))
-}
-
-/// The `-h, --help` line of a subcommand: its own, so it doesn't inherit the top level description.
-fn sub_help_flag() -> Arg {
-    Arg::new("help")
-        .short('h')
-        .long("help")
-        .help("Show help")
-        .action(ArgAction::Help)
-        .display_order(HELP_ORDER)
-}
-
 // `Run` has twenty-odd flags; the value is created once per process, so its size doesn't matter.
 #[allow(clippy::large_enum_variant)]
 #[derive(Subcommand)]
@@ -148,6 +77,10 @@ pub(crate) enum CliCommand {
     /// Run Mesh Town in this window, without an icon
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown run [OPTIONS]")]
     Run(crate::cli::commands::RunArgs),
+    // group: access
+    // group: config
+    // group: member
+    // group: network
     /// Print a new network key with this computer as its admin (advanced; most people create a network on the page or join with an invite)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown keygen [--raw] [--config <PATH>] [LABEL]…")]
     Keygen {
@@ -276,13 +209,5 @@ pub(crate) fn with_default_subcommand(
 }
 
 #[cfg(test)]
-#[path = "args_tests.rs"]
+#[path = "cli_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "args_help_tests.rs"]
-mod help_tests;
-
-#[cfg(test)]
-#[path = "args_help_layout_tests.rs"]
-mod help_layout_tests;

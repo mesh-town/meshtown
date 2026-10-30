@@ -26,3 +26,5 @@ pub mod run;
 pub(crate) mod runtime;
 #[cfg(feature = "net-hyper")]
 pub(crate) mod stop_signals;
+#[cfg(all(test, feature = "net-hyper"))]
+pub(crate) mod test_args;

@@ -5,7 +5,7 @@
 use serde_json::Value;
 
 use super::browser;
-use super::node_link::{LinkError, Target};
+use super::client::{LinkError, Target};
 use crate::node::output::NET_NAME;
 
 /// The facts that decide whether a browser can be started from this process.

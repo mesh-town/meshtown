@@ -2,15 +2,9 @@
 
 use super::*;
 use crate::cli::args::Cli;
+use crate::cli::cli_errors::text::{error_report, unknown_command_text};
+use crate::cli::test_args::{parse_err, to_os as os};
 use crate::proxy::BindError;
-
-fn parse_err(args: &[&str]) -> clap::Error {
-    let mut all = vec!["meshtown"];
-    all.extend_from_slice(args);
-    Cli::command()
-        .try_get_matches_from(all)
-        .expect_err("parsing must refuse")
-}
 
 fn busy(port: u16) -> anyhow::Error {
     anyhow::Error::new(BindError {
@@ -279,10 +273,6 @@ mod typed_command_word {
 }
 
 // ---- helpers of the new tests ----
-
-fn os(args: &[&str]) -> Vec<std::ffi::OsString> {
-    args.iter().map(std::ffi::OsString::from).collect()
-}
 
 fn strings(names: &[&str]) -> Vec<String> {
     names.iter().map(|n| n.to_string()).collect()

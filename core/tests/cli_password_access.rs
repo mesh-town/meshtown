@@ -4,16 +4,18 @@
 
 #[path = "common/web_auth.rs"]
 mod auth_common;
+#[path = "common/cli_node.rs"]
+mod cli_node;
 #[path = "common/web_listener.rs"]
 mod common;
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
 
 use meshtown_core::web_gui::{WebHandle, DEFAULT_DRAIN};
 use serde_json::Value;
 
 use auth_common::{file_token, write_password, PASSWORD_OK};
+use cli_node::{cli_in as mesh, free_port, stderr as err, stdout as out};
 use common::{api, cleanup, run_config, scratch, start_web};
 
 struct Rig {
@@ -34,33 +36,6 @@ async fn rig(tag: &str) -> Rig {
 async fn finish(rig: Rig) {
     rig.handle.shutdown(DEFAULT_DRAIN).await;
     cleanup(&rig.dir);
-}
-
-/// A port nobody is listening on right now.
-fn free_port() -> u16 {
-    let l = std::net::TcpListener::bind("127.0.0.1:0").expect("port");
-    l.local_addr().unwrap().port()
-}
-
-fn mesh(args: &[&str], dir: &Path, port: u16) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_meshtown"))
-        .args(args)
-        .arg("--config")
-        .arg(dir.join("config.json"))
-        .args(["--web-port", &port.to_string()])
-        .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
-        .env_remove("MESHTOWN_KEY")
-        .env_remove("MESHTOWN_INVITE")
-        .output()
-        .expect("start meshtown")
-}
-
-fn out(o: &Output) -> String {
-    String::from_utf8_lossy(&o.stdout).into_owned()
-}
-
-fn err(o: &Output) -> String {
-    String::from_utf8_lossy(&o.stderr).into_owned()
 }
 
 fn password_file(dir: &Path) -> PathBuf {

@@ -5,113 +5,17 @@
 //! and `POST /api/network/create` makes a network afterwards.
 //! What it doesn't do: it doesn't check the other outdated forms (see `cli_errors.rs` for the command line).
 
+#[path = "common/cli_node.rs"]
+mod cli_node;
 #[path = "common/node_web.rs"]
 mod common;
 
-use std::io::{BufRead, BufReader};
-use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
-use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
-use std::time::{Duration, Instant};
+use cli_node::CliNode;
+
+use std::time::Duration;
 
 use meshtown_core::members::network_key::{managed_key_with_label, NetworkKey};
 use meshtown_core::transport::net::NodeSecret;
-
-struct NodeProc {
-    child: Child,
-    lines: Receiver<String>,
-    seen: Vec<String>,
-    dir: PathBuf,
-}
-
-impl NodeProc {
-    fn start(config_json: &str) -> NodeProc {
-        NodeProc::start_with(config_json, &[])
-    }
-
-    /// Starts the node on the settings file `config_json` with extra command-line flags.
-    fn start_with(config_json: &str, extra: &[&str]) -> NodeProc {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .subsec_nanos();
-        let dir = std::env::temp_dir().join(format!("mesh-old-key-{}-{nanos}", std::process::id()));
-        std::fs::create_dir_all(&dir).expect("temporary directory");
-        std::fs::write(dir.join("config.json"), config_json).expect("settings file");
-        let mut child = Command::new(env!("CARGO_BIN_EXE_meshtown"))
-            .args(["run", "--config"])
-            .arg(dir.join("config.json"))
-            .args(["--web-port", "0", "--no-checks", "--no-socks"])
-            .args(extra)
-            .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
-            .env_remove("MESHTOWN_KEY")
-            .env_remove("MESHTOWN_INVITE")
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .expect("start meshtown");
-        let (tx, rx) = channel();
-        pump(child.stdout.take().unwrap(), tx.clone());
-        pump(child.stderr.take().unwrap(), tx);
-        NodeProc {
-            child,
-            lines: rx,
-            seen: Vec::new(),
-            dir,
-        }
-    }
-
-    /// Waits for a line with `needle`; the lines read are accumulated in `seen`.
-    fn wait_line(&mut self, needle: &str, limit: Duration) -> Option<String> {
-        if let Some(old) = self.seen.iter().find(|l| l.contains(needle)) {
-            return Some(old.clone());
-        }
-        let deadline = Instant::now() + limit;
-        loop {
-            let left = deadline.saturating_duration_since(Instant::now());
-            match self.lines.recv_timeout(left) {
-                Ok(line) => {
-                    self.seen.push(line.clone());
-                    if line.contains(needle) {
-                        return Some(line);
-                    }
-                }
-                Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => return None,
-            }
-        }
-    }
-}
-
-impl Drop for NodeProc {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        let _ = std::fs::remove_dir_all(&self.dir);
-    }
-}
-
-fn pump(stream: impl std::io::Read + Send + 'static, tx: std::sync::mpsc::Sender<String>) {
-    std::thread::spawn(move || {
-        for line in BufReader::new(stream).lines().map_while(Result::ok) {
-            if tx.send(line).is_err() {
-                break;
-            }
-        }
-    });
-}
-
-/// The port from the page address line.
-fn page_port(line: &str) -> u16 {
-    let url = line.split("http://").nth(1).expect("address in the line");
-    let rest = url
-        .strip_prefix("127.0.0.1:")
-        .expect("address on 127.0.0.1");
-    let end = rest
-        .find(|c: char| !c.is_ascii_digit())
-        .unwrap_or(rest.len());
-    rest[..end].parse().expect("port")
-}
 
 #[test]
 fn an_old_key_in_the_file_starts_the_node_without_a_network() {
@@ -121,11 +25,8 @@ fn an_old_key_in_the_file_starts_the_node_without_a_network() {
         r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{key}"}}}}}}"#
     );
     // when: the node starts
-    let mut node = NodeProc::start(&config);
-    let line = node
-        .wait_line("?token=", Duration::from_secs(30))
-        .expect("the page address was not printed");
-    let port = page_port(&line);
+    let mut node = CliNode::start_with_config(&config, &[]);
+    let port = node.port;
     let log = node
         .wait_line("network key did not parse: ", Duration::from_secs(10))
         .expect("the journal line about the key");
@@ -157,11 +58,8 @@ fn an_old_key_in_the_file_is_reported_as_a_field_error() {
         r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{key}"}}}}}}"#
     );
     // when: the node starts and the page asks for the settings
-    let mut node = NodeProc::start(&config);
-    let line = node
-        .wait_line("?token=", Duration::from_secs(30))
-        .expect("the page address was not printed");
-    let port = page_port(&line);
+    let node = CliNode::start_with_config(&config, &[]);
+    let port = node.port;
     let token = read_token(&node);
     let (code, body) = common::api(port, &token, "GET", "/api/config", None);
     // then: the file block names the field that did not parse
@@ -181,11 +79,8 @@ fn an_old_key_on_the_command_line_adds_no_slot_beside_the_good_main_key() {
         r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{good}"}}}}}}"#
     );
     // when: the node starts
-    let mut node = NodeProc::start_with(&config, &["--key", &old]);
-    let line = node
-        .wait_line("?token=", Duration::from_secs(30))
-        .expect("the page address was not printed");
-    let port = page_port(&line);
+    let mut node = CliNode::start_with_config(&config, &["--key", &old]);
+    let port = node.port;
     let token = read_token(&node);
     // then: the process is alive, the journal says no network was added, the good key runs the main network
     assert!(node
@@ -207,11 +102,8 @@ fn an_old_key_on_the_command_line_adds_no_slot_beside_the_good_main_key() {
     );
 }
 
-fn read_token(node: &NodeProc) -> String {
-    std::fs::read_to_string(node.dir.join("web-token"))
-        .expect("web-token")
-        .trim()
-        .to_string()
+fn read_token(node: &CliNode) -> String {
+    node.token()
 }
 
 /// A valid Managed network key of a fresh base.

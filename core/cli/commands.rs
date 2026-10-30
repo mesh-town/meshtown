@@ -1,4 +1,5 @@
-//! Execution of the console subcommands: `config-path`, `run` (`keygen` is in `keygen.rs`). Flag parsing is in `cli.rs`.
+//! Execution of the console subcommands: the `run` start here, the other commands in their own folders
+//! (`access`, `network`, `config`) and files. Flag parsing is in `args`.
 //! Here: building `CliOverrides` from flags, preparing the start of the config file and choosing the branch;
 //! the branches themselves are `run_key` (with a key) and `run_nokey` (without a key), the page and the node are in `crate::node::host`.
 
@@ -9,11 +10,15 @@ use clap::ArgMatches;
 
 use crate::cli::args::{is_flag_typed, toggle_from_flag_pair};
 
+// group: access
 pub(crate) mod access;
 mod browser;
-pub(crate) mod ifaces;
-mod keygen;
-mod node_link;
+// group: config
+mod client;
+mod config;
+// group: member
+// group: network
+mod network;
 pub(crate) mod open;
 pub(crate) mod password;
 mod run_args;
@@ -22,31 +27,13 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
-pub(crate) use keygen::keygen;
+pub(crate) use access::ifaces;
+pub(crate) use config::config_path;
+pub(crate) use network::keygen;
 pub(crate) use run_args::RunArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
-
-/// The `config-path` command: prints the path to the config file and starts nothing.
-pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<()> {
-    match config_file::resolve_config_source(
-        config.as_deref(),
-        &config_file::current_env().as_path_env(),
-    ) {
-        ConfigSource::File { path, .. } => {
-            println!("{}", path.display());
-            Ok(())
-        }
-        ConfigSource::Nowhere(why) => {
-            anyhow::bail!("no place for the settings file: {why}")
-        }
-        // `config-path` doesn't know `--no-config`, so we can't get here; we don't go on silently.
-        ConfigSource::Disabled => {
-            anyhow::bail!("no place for the settings file: the settings file is disabled")
-        }
-    }
-}
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {
@@ -61,7 +48,11 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
         .transpose()?;
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
-    let (run, overrides, invited) = prepare_run(&args, overrides, invited, &source, now).await?;
+    let start = StartInput {
+        save_config: args.save_config,
+        domains: &args.initial_domains,
+    };
+    let (run, overrides, invited) = prepare_run(&start, overrides, invited, &source, now).await?;
     launch_prepared(args, overrides, run, invited).await
 }
 
@@ -94,10 +85,16 @@ async fn launch_prepared(
     }
 }
 
+/// What preparing a run needs from the command line: whether to save the flags, and the domains typed.
+struct StartInput<'a> {
+    save_config: bool,
+    domains: &'a [String],
+}
+
 /// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
 /// Returns the run, the flags for the main network and the invite that belongs to the main network.
 async fn prepare_run(
-    args: &RunArgs,
+    start: &StartInput<'_>,
     overrides: CliOverrides,
     invited: Option<crate::invite::ParsedInvite>,
     source: &ConfigSource,
@@ -110,17 +107,11 @@ async fn prepare_run(
     let cli_key = overrides.network_key.clone();
     let key_net = plan_cli_key(source, cli_key.as_deref())?;
     let overrides = overrides_for_main(&overrides, &key_net);
-    let mut run = config_file::prepare(source, &overrides, args.save_config, now)?;
-    let typed = &args.initial_domains;
+    let mut run = config_file::prepare(source, &overrides, start.save_config, now)?;
+    let typed = start.domains;
     let invited =
         run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, typed, now).await?;
-    let added = add_key_net(
-        &key_net,
-        cli_key.as_deref(),
-        &run,
-        &args.initial_domains,
-        now,
-    )?;
+    let added = add_key_net(&key_net, cli_key.as_deref(), &run, start.domains, now)?;
     Ok((run, overrides, invited.filter(|_| !added)))
 }
 

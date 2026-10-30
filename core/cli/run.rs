@@ -126,6 +126,10 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
             config,
             web_port,
         } => crate::cli::commands::ifaces::run_ifaces_command(config, web_port, names, if_unset),
+        // group: access
+        // group: config
+        // group: member
+        // group: network
         #[cfg(feature = "gui")]
         CliCommand::Tray(args) => {
             crate::node::fd_limit::report(fd_note);

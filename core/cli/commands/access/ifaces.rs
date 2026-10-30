@@ -8,7 +8,7 @@ use crate::config::config_file::{
 };
 use serde_json::{json, Value};
 
-use super::node_link::{LinkError, Target};
+use crate::cli::commands::client::{LinkError, Target};
 use crate::node::output::NET_NAME;
 
 const EXPECTED: &str = "a list of interface names without repeats was expected (auto — automatic, '*' — no restriction)";
@@ -63,7 +63,7 @@ pub(super) fn create_seeded(t: &Target, filter: &IfaceFilter) -> Result<(), Stri
     if t.path.symlink_metadata().is_ok() {
         return Err("settings file already exists: creation cancelled".into());
     }
-    let fresh = config_file::create_fresh(&t.path, super::now_unix(), |s| {
+    let fresh = config_file::create_fresh(&t.path, super::super::now_unix(), |s| {
         s.process.socks_ifaces = filter.clone();
         s.process.web_ifaces = filter.clone();
     })
@@ -179,8 +179,14 @@ fn write_fields(t: &Target, p: ParsedConfigFile, filter: &IfaceFilter) -> Result
     let mut settings = p.settings;
     settings.process.socks_ifaces = filter.clone();
     settings.process.web_ifaces = filter.clone();
-    config_file::save_config_file(&t.path, Some(p.rev), super::now_unix(), &secret, &settings)
-        .map_err(|e| format!("settings file was not saved: {e:?}"))?;
+    config_file::save_config_file(
+        &t.path,
+        Some(p.rev),
+        super::super::now_unix(),
+        &secret,
+        &settings,
+    )
+    .map_err(|e| format!("settings file was not saved: {e:?}"))?;
     println!(
         "Interface list saved: {} ({NET_NAME} is not running: applies at startup).",
         describe(filter)
