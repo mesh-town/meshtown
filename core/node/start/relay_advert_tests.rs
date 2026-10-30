@@ -41,8 +41,14 @@ mod advertise_relay {
         let value = fx.raw_advert().await.expect("a record");
         assert_eq!(value.len(), 38, "the record has an unexpected length");
         assert_eq!(&value[..32], &wanted.key);
-        assert_eq!(&value[32..36], &wanted.address.ip().octets());
-        assert_eq!(&value[36..38], &wanted.address.port().to_be_bytes());
+        assert_eq!(
+            &value[32..36],
+            &wanted.address.expect("an address").ip().octets()
+        );
+        assert_eq!(
+            &value[36..38],
+            &wanted.address.expect("an address").port().to_be_bytes()
+        );
         task.abort();
     }
 
@@ -79,7 +85,7 @@ mod advertise_relay {
         fx.expect_advert(Some(advert(4))).await;
         // when: the same relay reports a new address
         let moved = RelayAdvert {
-            address: SocketAddrV4::new(Ipv4Addr::new(10, 9, 9, 9), 5000),
+            address: Some(SocketAddrV4::new(Ipv4Addr::new(10, 9, 9, 9), 5000)),
             ..advert(4)
         };
         adverts.send(Some(moved)).expect("the task listens");
@@ -216,14 +222,11 @@ impl Fixture {
         own.map(|(value, _)| value)
     }
 
-    /// The own advert as a reader sees it: `None` when there is no live record or it has no address.
+    /// The own advert as a reader sees it: `None` when there is no live record.
     async fn advert(&self) -> Option<RelayAdvert> {
         let value = self.raw_advert().await?;
         let (key, address) = decode_relay_value(&value)?;
-        Some(RelayAdvert {
-            key,
-            address: address?,
-        })
+        Some(RelayAdvert { key, address })
     }
 
     /// Waits until the own advert is `want`.
@@ -246,7 +249,10 @@ impl Fixture {
 fn advert(n: u8) -> RelayAdvert {
     RelayAdvert {
         key: [n; 32],
-        address: SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, n), 4000 + u16::from(n)),
+        address: Some(SocketAddrV4::new(
+            Ipv4Addr::new(10, 0, 0, n),
+            4000 + u16::from(n),
+        )),
     }
 }
 

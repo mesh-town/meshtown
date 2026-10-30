@@ -18,7 +18,7 @@ mod not_running {
         // given
         let state = HostState::default();
         // when
-        let step = state.step(true, None, Instant::now());
+        let step = state.step(true, Offer::Wait, Instant::now());
         // then
         assert_eq!(step, HostStep::Start);
     }
@@ -26,7 +26,7 @@ mod not_running {
     #[test]
     fn fresh_unwanted_node_stays() {
         assert_eq!(
-            HostState::default().step(false, None, Instant::now()),
+            HostState::default().step(false, Offer::Wait, Instant::now()),
             HostStep::Stay
         );
     }
@@ -37,8 +37,8 @@ mod not_running {
         let closed_at = Instant::now();
         let state = stopped_at(closed_at);
         // when
-        let early = state.step(true, None, closed_at + RELAY_RETRY - SECOND);
-        let due = state.step(true, None, closed_at + RELAY_RETRY);
+        let early = state.step(true, Offer::Wait, closed_at + RELAY_RETRY - SECOND);
+        let due = state.step(true, Offer::Wait, closed_at + RELAY_RETRY);
         // then
         assert_eq!(early, HostStep::Stay, "a relay started inside the window");
         assert_eq!(due, HostStep::Start, "no relay after the window");
@@ -50,7 +50,7 @@ mod not_running {
         let closed_at = Instant::now();
         let state = stopped_at(closed_at);
         // when
-        let step = state.step(false, None, closed_at + RELAY_RETRY);
+        let step = state.step(false, Offer::Wait, closed_at + RELAY_RETRY);
         // then
         assert_eq!(step, HostStep::Stay);
     }
@@ -65,7 +65,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = running_at(t0);
         // when
-        let step = state.step(true, Some(advert(1)), t0 + SECOND);
+        let step = state.step(true, Offer::Serve(advert(1)), t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Advertise(advert(1)));
     }
@@ -76,7 +76,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = advertising_at(advert(1), t0);
         // when: the relay reports another one
-        let step = state.step(true, Some(advert(2)), t0 + SECOND);
+        let step = state.step(true, Offer::Serve(advert(2)), t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Advertise(advert(2)));
     }
@@ -87,7 +87,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = advertising_at(advert(1), t0);
         // when
-        let step = state.step(true, Some(advert(1)), t0 + SECOND);
+        let step = state.step(true, Offer::Serve(advert(1)), t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Stay);
     }
@@ -98,7 +98,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = advertising_at(advert(1), t0);
         // when: the relay no longer knows it
-        let step = state.step(true, None, t0 + SECOND);
+        let step = state.step(true, Offer::Wait, t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Retract);
     }
@@ -109,7 +109,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = retracted_at(advert(1), t0);
         // when
-        let step = state.step(true, Some(advert(1)), t0 + SECOND);
+        let step = state.step(true, Offer::Serve(advert(1)), t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Advertise(advert(1)));
     }
@@ -120,7 +120,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = running_at(t0);
         // when
-        let step = state.step(true, None, t0 + REACH_GRACE);
+        let step = state.step(true, Offer::Wait, t0 + REACH_GRACE);
         // then
         assert_eq!(step, HostStep::Restart);
     }
@@ -131,7 +131,7 @@ mod running_and_wanted {
         let t0 = Instant::now();
         let state = running_at(t0);
         // when
-        let step = state.step(true, None, t0 + REACH_GRACE - SECOND);
+        let step = state.step(true, Offer::Wait, t0 + REACH_GRACE - SECOND);
         // then
         assert_eq!(step, HostStep::Stay);
     }
@@ -143,7 +143,7 @@ mod running_and_wanted {
         let retracted = started + REACH_GRACE * 2;
         let state = retracted_at(advert(1), retracted);
         // when: a full grace has passed since the start but not since the retraction
-        let step = state.step(true, None, retracted + REACH_GRACE - SECOND);
+        let step = state.step(true, Offer::Wait, retracted + REACH_GRACE - SECOND);
         // then
         assert_eq!(step, HostStep::Stay, "the grace was counted from the start");
     }
@@ -158,7 +158,7 @@ mod running_and_unwanted {
         let t0 = Instant::now();
         let state = advertising_at(advert(1), t0);
         // when: the node is not public any more, the relay still reports the address
-        let step = state.step(false, Some(advert(1)), t0 + SECOND);
+        let step = state.step(false, Offer::Serve(advert(1)), t0 + SECOND);
         // then
         assert_eq!(step, HostStep::Retract);
     }
@@ -169,7 +169,7 @@ mod running_and_unwanted {
         let t0 = Instant::now();
         let state = running_at(t0);
         // when
-        let step = state.step(false, None, t0 + REACH_GRACE * 2);
+        let step = state.step(false, Offer::Wait, t0 + REACH_GRACE * 2);
         // then: the mode decides, not the wait for an address
         assert_eq!(step, HostStep::Stay);
     }
@@ -185,7 +185,7 @@ mod spawned_host {
         let relay = relay_on(&cl).await;
         let want = RelayAdvert {
             key: relay.public_key(),
-            address: SocketAddrV4::new(Ipv4Addr::LOCALHOST, relay.local_port()),
+            address: Some(SocketAddrV4::new(Ipv4Addr::LOCALHOST, relay.local_port())),
         };
         let host = spawn_host(
             Arc::new(public_mode),
@@ -210,7 +210,10 @@ mod spawned_host {
 fn advert(n: u8) -> RelayAdvert {
     RelayAdvert {
         key: [n; 32],
-        address: SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, n), 4000 + u16::from(n)),
+        address: Some(SocketAddrV4::new(
+            Ipv4Addr::new(10, 0, 0, n),
+            4000 + u16::from(n),
+        )),
     }
 }
 

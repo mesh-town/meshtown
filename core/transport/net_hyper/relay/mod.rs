@@ -3,6 +3,7 @@
 pub(crate) mod book;
 pub(crate) mod host;
 pub(crate) mod opts;
+pub(crate) mod served;
 mod source;
 
 pub(crate) use book::{RelayBook, RelayPick};
