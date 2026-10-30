@@ -1,5 +1,6 @@
 //! The host of the node's two replicas: reads their files (after the `docs-store/` handling) and hands them out by name.
 
+use super::entry::WireEntry;
 use super::file::{self, FileError, ImportMark, Loaded};
 use super::ids::{domains_id, net_id};
 use super::import;
@@ -63,25 +64,24 @@ fn set_aside_broken(main: &Path, name: &str, mirror: bool) -> NetResult<()> {
     Ok(())
 }
 
-/// Reads a replica file; on corruption both replicas go to quarantine and start empty
-/// (`"net"` — `error!`, the domain list for the availability check — `warn!`, it can be lost).
-fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> NetResult<Opened> {
-    let mirror = name == REPLICA_DOMAINS;
-    let policy = |main_ok| {
-        if mirror {
-            BakPolicy::Mirror
-        } else {
-            BakPolicy::FirstSave { main_ok }
-        }
-    };
-    let loaded = match file::load(path, &id) {
+/// Loads the file; a broken one goes to quarantine and counts as absent.
+fn load_replica_file(path: &Path, id: &ReplicaId, name: &str, mirror: bool) -> NetResult<Loaded> {
+    match file::load(path, id) {
         Err(FileError::Broken { main, .. }) => {
             set_aside_broken(&main, name, mirror)?;
-            Loaded::Fresh
+            Ok(Loaded::Fresh)
         }
-        other => other.map_err(|e| NetError::Config(format!("replica {name}: {e}")))?,
-    };
-    let (mark, entries, main_ok) = match loaded {
+        other => other.map_err(|e| NetError::Config(format!("replica {name}: {e}"))),
+    }
+}
+
+/// Splits a loaded file into mark, entries and whether the main file was intact.
+fn unpack_loaded(
+    loaded: Loaded,
+    name: &str,
+    path: &Path,
+) -> (Option<ImportMark>, Vec<WireEntry>, bool) {
+    match loaded {
         Loaded::Fresh => (None, vec![], false),
         Loaded::Main(m, e) => (m, e, true),
         Loaded::Backup(m, e) => {
@@ -91,15 +91,37 @@ fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> Net
             );
             (m, e, false)
         }
-    };
-    let (state, rejected) = State::from_entries(id, secret.peer_id(), entries);
-    if rejected > 0 {
-        tracing::warn!("[sync] replica {name}: entries with a bad signature were dropped while reading the file: {rejected}");
     }
+}
+
+/// Logs the entries dropped for a bad signature while reading.
+fn warn_rejected(name: &str, rejected: u32) {
+    if rejected == 0 {
+        return;
+    }
+    tracing::warn!("[sync] replica {name}: entries with a bad signature were dropped while reading the file: {rejected}");
+}
+
+/// The `.bak` policy: the domain list mirrors, the rest keeps the first intact main file.
+fn bak_policy(mirror: bool, main_ok: bool) -> BakPolicy {
+    if mirror {
+        return BakPolicy::Mirror;
+    }
+    BakPolicy::FirstSave { main_ok }
+}
+
+/// Reads a replica file; on corruption both replicas go to quarantine and start empty
+/// (`"net"` — `error!`, the domain list for the availability check — `warn!`, it can be lost).
+fn read_file(path: &Path, id: ReplicaId, secret: &NodeSecret, name: &str) -> NetResult<Opened> {
+    let mirror = name == REPLICA_DOMAINS;
+    let loaded = load_replica_file(path, &id, name, mirror)?;
+    let (mark, entries, main_ok) = unpack_loaded(loaded, name, path);
+    let (state, rejected) = State::from_entries(id, secret.peer_id(), entries);
+    warn_rejected(name, rejected);
     Ok(Opened {
         state,
         mark,
-        policy: policy(main_ok),
+        policy: bak_policy(mirror, main_ok),
     })
 }
 
@@ -175,3 +197,7 @@ impl ReplicaHost {
         let _ = self.wiring.flood.set(flood);
     }
 }
+
+#[cfg(test)]
+#[path = "host_tests.rs"]
+mod tests;
