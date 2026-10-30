@@ -1,11 +1,11 @@
 //! The process entry of the Mesh Town console app (called by the `meshtown` binary).
 //!
 //! What it does: parses the command line arguments (`cli.rs`) and passes them to the subcommand
-//! executor (`commands.rs`): `keygen`, `run` or `config-path`.
+//! executor (`commands.rs`): `run`, `join`, `status`, `stop` and the other commands.
 //! What it doesn't do: it holds no node business logic — that is in the `meshtown` library;
 //! it prints the network key nowhere except `keygen`, which creates it.
-//! Starting with no subcommand substitutes one itself (`crate::cli::args::with_default_subcommand`):
-//! `run` when the process has no tray backend, `tray` when the platform binary handed one in.
+//! Starting with no arguments substitutes one itself (`crate::cli::args::with_default_subcommand`):
+//! the help when the process has no tray backend, `tray` when the platform binary handed one in.
 //! Links: `commands` calls `crate::members::network_key`, `crate::members::words`,
 //! `crate::invite` and `crate::node`; the node console commands are in `crate::proxy::domains`.
 
@@ -52,7 +52,7 @@ fn log_filter(raw: Option<&str>) -> tracing_subscriber::filter::Targets {
         .unwrap_or_else(fallback)
 }
 
-/// The process entry without a tray backend: no command means `run`.
+/// The process entry without a tray backend: no command prints the help.
 pub fn run() -> std::process::ExitCode {
     start(None)
 }
@@ -77,16 +77,14 @@ async fn start_async(tray: Option<TrayRef>) -> std::process::ExitCode {
     match dispatch(fd_note, tray).await {
         Ok(()) => std::process::ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("{}", crate::cli::cli_errors::error_report(&e));
-            std::process::ExitCode::from(1)
+            eprintln!("{}", crate::cli::exit::error_report(&e));
+            crate::cli::exit::exit_code(&e)
         }
     }
 }
 
-/// Parses the arguments and executes the subcommand; `main` prints the error (`crate::cli::cli_errors::error_report`).
+/// Parses the arguments and executes the subcommand; `start_async` prints the error and picks the exit code.
 async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Result<()> {
-    #[cfg(not(feature = "gui"))]
-    let _ = tray;
     if let Some(argv0) = std::env::args_os().next() {
         crate::cli::program_name::set_program_name(&argv0);
     }
@@ -95,45 +93,65 @@ async fn dispatch(fd_note: Option<String>, tray: Option<TrayRef>) -> anyhow::Res
         tray.is_some(),
     ));
     let cli = Cli::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    execute(cli, &matches, fd_note, tray).await
+}
+
+/// Runs the command the line named. Each command refuses the global options it doesn't use.
+async fn execute(
+    cli: Cli,
+    matches: &clap::ArgMatches,
+    fd_note: Option<String>,
+    tray: Option<TrayRef>,
+) -> anyhow::Result<()> {
+    #[cfg(not(feature = "gui"))]
+    let _ = tray;
+    let g = &cli.globals;
     match cli.command {
-        CliCommand::Keygen { label, raw, config } => {
-            crate::cli::commands::keygen(label, raw, config)
-        }
-        CliCommand::ConfigPath { config } => crate::cli::commands::config_path(config),
         CliCommand::Run(args) => {
+            g.allow("run", &[])?;
             report_run_start(fd_note);
             let m = matches.subcommand_matches("run").expect("run subcommand");
-            crate::cli::commands::run_node_command(args, m).await
+            crate::cli::commands::run_node_command(args.with_globals(g), m).await
         }
-        CliCommand::Password {
-            config,
-            web_port,
-            action: crate::cli::args::PasswordAction::Reset,
-        } => crate::cli::commands::password::run_password_command(config, web_port),
-        CliCommand::Open {
-            print,
-            config,
-            web_port,
-        } => crate::cli::commands::open::run_open_command(config, web_port, print),
-        CliCommand::Access {
-            config,
-            web_port,
-            mode,
-        } => crate::cli::commands::access::run_access_command(config, web_port, mode),
-        CliCommand::Ifaces {
-            names,
-            if_unset,
-            config,
-            web_port,
-        } => crate::cli::commands::ifaces::run_ifaces_command(config, web_port, names, if_unset),
+        CliCommand::Join(args) => crate::cli::commands::join::run(args, g).await,
+        CliCommand::Status(args) => crate::cli::commands::status::run(args, g).await,
+        CliCommand::Stop(args) => crate::cli::commands::stop::run(args, g).await,
+        CliCommand::Invite(args) => crate::cli::commands::invite::run(args, g).await,
+        CliCommand::Leave(args) => crate::cli::commands::leave::run(args, g).await,
         // group: access
         // group: config
         // group: member
         // group: network
+        CliCommand::Password {
+            action: crate::cli::args::PasswordAction::Reset,
+        } => crate::cli::commands::password::run_password_command(g).await,
+        CliCommand::Open { print } => crate::cli::commands::open::run_open_command(print, g).await,
+        CliCommand::Access { mode } => {
+            g.allow("access", &[])?;
+            crate::cli::commands::access::run_access_command(g.config.clone(), g.web_port, mode)
+        }
+        CliCommand::Ifaces { names, if_unset } => {
+            g.allow("ifaces", &[])?;
+            crate::cli::commands::ifaces::run_ifaces_command(
+                g.config.clone(),
+                g.web_port,
+                names,
+                if_unset,
+            )
+        }
+        CliCommand::ConfigPath => {
+            g.allow("config-path", &[])?;
+            crate::cli::commands::config_path(g.config.clone())
+        }
+        CliCommand::Keygen { label, raw } => {
+            g.allow("keygen", &[])?;
+            crate::cli::commands::keygen(label, raw, g.config.clone())
+        }
         #[cfg(feature = "gui")]
         CliCommand::Tray(args) => {
+            g.allow("tray", &[])?;
             crate::node::fd_limit::report(fd_note);
-            crate::gui::tray::app::tray_role::run_tray(args, require_tray(tray)?)
+            crate::gui::tray::app::tray_role::run_tray(args, g, require_tray(tray)?)
         }
     }
 }

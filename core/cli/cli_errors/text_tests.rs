@@ -130,8 +130,8 @@ mod bad_value_message {
     #[test]
     fn tail_follows_the_typed_command() {
         assert_eq!(
-            value_text(&["tray", "--web-port", "0"], Some("tray")),
-            "Error: invalid value \"0\" for --web-port: use a number from 1 to 65535. See all options: meshtown tray --help"
+            value_text(&["tray", "--web-port", "70000"], Some("tray")),
+            "Error: invalid value \"70000\" for --web-port: use a number from 0 to 65535. See all options: meshtown tray --help"
         );
     }
 
@@ -186,4 +186,17 @@ fn flag_text(args: &[&str], command: Option<&str>) -> String {
 /// The text about a wrong value for the typed command (without the program name in `args`).
 fn value_text(args: &[&str], command: Option<&str>) -> String {
     bad_value_text(&parse_err(args), command)
+}
+
+mod other_form {
+    use super::*;
+
+    #[test]
+    fn other_text_has_no_lowercase_error_prefix() {
+        let err = parse_err(&["ifaces"]);
+        let text = other_text(&err, Some("ifaces"));
+        assert!(text.starts_with("Error: "), "{text}");
+        assert!(!text.contains("error:"), "{text}");
+        assert!(text.contains("See all options: "), "{text}");
+    }
 }

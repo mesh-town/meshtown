@@ -5,14 +5,13 @@
 use serde_json::Value;
 
 use super::client::{LinkError, Target};
+use crate::cli::args::Globals;
 use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and resets the password.
-pub(crate) fn run_password_command(
-    config: Option<std::path::PathBuf>,
-    web_port: Option<u16>,
-) -> anyhow::Result<()> {
-    let target = Target::resolve(config, web_port).map_err(anyhow::Error::msg)?;
+pub(crate) async fn run_password_command(g: &Globals) -> anyhow::Result<()> {
+    g.allow("password", &[])?;
+    let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;
     reset(&target).map_err(anyhow::Error::msg)
 }
 

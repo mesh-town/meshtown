@@ -20,26 +20,22 @@ fn parse(argv: &[&str]) -> Result<TrayArgs, clap::Error> {
 #[test]
 fn child_args_empty_is_run() {
     let args = TrayArgs {
-        config: None,
-        web_port: None,
         run_args: Vec::new(),
     };
-    assert_eq!(child_args(&args), vec![OsString::from("run")]);
+    assert_eq!(
+        child_args(&args, &Globals::default()),
+        vec![OsString::from("run")]
+    );
 }
 
 #[test]
 fn child_args_order() {
-    let args = parse(&[
-        "--config",
-        "/c/mesh.toml",
-        "--web-port",
-        "7071",
-        "--",
-        "--key",
-        "K",
-        "--no-socks",
-    ])
-    .expect("parse");
+    let args = parse(&["--", "--key", "K", "--no-socks"]).expect("parse");
+    let g = Globals {
+        config: Some(PathBuf::from("/c/mesh.toml")),
+        web_port: Some(7071),
+        ..Globals::default()
+    };
     let want: Vec<OsString> = [
         "run",
         "--config",
@@ -53,16 +49,7 @@ fn child_args_order() {
     .iter()
     .map(OsString::from)
     .collect();
-    assert_eq!(child_args(&args), want);
-}
-
-#[test]
-fn web_port_zero_rejected() {
-    let err = parse(&["--web-port", "0"])
-        .err()
-        .expect("0 is not accepted");
-    assert_eq!(err.exit_code(), 2);
-    assert!(parse(&["--web-port", "65535"]).is_ok());
+    assert_eq!(child_args(&args, &g), want);
 }
 
 #[test]
@@ -198,13 +185,13 @@ fn socks_flags_are_what_the_child_gets() {
     // The menu names what `run` will see in the child's arguments.
     let port = parse(&["--", "--socks-port", "1081"]).expect("parse");
     assert_eq!(proxy_plan_for(1080, true, &port.run_args), Ok(1081));
-    assert!(child_args(&port).contains(&OsString::from("1081")));
+    assert!(child_args(&port, &Globals::default()).contains(&OsString::from("1081")));
     let off = parse(&["--", "--no-socks"]).expect("parse");
     assert_eq!(
         proxy_plan_for(1080, true, &off.run_args),
         Err(ProxyOff::NoSocksFlag)
     );
-    assert!(child_args(&off).contains(&OsString::from("--no-socks")));
+    assert!(child_args(&off, &Globals::default()).contains(&OsString::from("--no-socks")));
 }
 
 #[test]

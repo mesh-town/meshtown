@@ -12,14 +12,18 @@ const EXIT_GRACE: Duration = Duration::from_secs(5);
 /// The poller environment: port and token, child launch, showing in the tray via `send`, quit signals.
 pub(super) fn build_poll_env(
     target: (u16, PathBuf),
-    (settings, args): (&crate::config::config_file::Settings, &TrayArgs),
+    (settings, args, g): (
+        &crate::config::config_file::Settings,
+        &TrayArgs,
+        &crate::cli::args::Globals,
+    ),
     cmds: tokio::sync::mpsc::UnboundedReceiver<NodeCmd>,
     quit: QuitSignal,
     send: impl Fn(TrayCmd) + Clone + Send + 'static,
     tray: &'static dyn crate::gui::tray::TrayBackend,
 ) -> PollEnv {
     let (port, token_path) = target;
-    let argv = child_args(args);
+    let argv = child_args(args, g);
     let proxy_plan = proxy_plan_for(
         settings.process.socks_port,
         settings.process.socks_enabled,

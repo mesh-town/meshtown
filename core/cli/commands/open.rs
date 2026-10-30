@@ -6,6 +6,7 @@ use serde_json::Value;
 
 use super::browser;
 use super::client::{LinkError, Target};
+use crate::cli::args::Globals;
 use crate::node::output::NET_NAME;
 
 /// The facts that decide whether a browser can be started from this process.
@@ -55,12 +56,9 @@ pub(super) fn may_start_browser(env: &BrowserEnv) -> Result<(), &'static str> {
 }
 
 /// Entry point from `main`.
-pub(crate) fn run_open_command(
-    config: Option<std::path::PathBuf>,
-    web_port: Option<u16>,
-    print_only: bool,
-) -> anyhow::Result<()> {
-    let target = Target::resolve(config, web_port).map_err(anyhow::Error::msg)?;
+pub(crate) async fn run_open_command(print_only: bool, g: &Globals) -> anyhow::Result<()> {
+    g.allow("open", &[])?;
+    let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;
     open(&target, print_only).map_err(anyhow::Error::msg)
 }
 

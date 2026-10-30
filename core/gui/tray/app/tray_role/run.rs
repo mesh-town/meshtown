@@ -9,7 +9,7 @@ use std::sync::OnceLock;
 
 use clap::{Args as _, FromArgMatches as _};
 
-use crate::cli::args::toggle_from_flag_pair;
+use crate::cli::args::{toggle_from_flag_pair, Globals};
 use crate::cli::commands::RunArgs;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
 use crate::gui::tray::app::quit::{exit_now, QuitSignal};
@@ -24,13 +24,6 @@ use super::start_fail::{busy_proxy_port, StartFail};
 
 #[derive(clap::Args)]
 pub struct TrayArgs {
-    /// Settings file (as for run); can be set with the MESHTOWN_CONFIG variable.
-    #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-    config: Option<PathBuf>,
-    /// Port of the node page on 127.0.0.1 (default 7777).
-    // 0 in `run` means a random port, and the tray would not find it: only 1..=65535.
-    #[arg(long, value_name = "PORT", value_parser = clap::value_parser!(u16).range(1..=65535))]
-    web_port: Option<u16>,
     /// Node options, as for meshtown run; written after --.
     #[arg(last = true, value_name = "RUN_OPTIONS")]
     run_args: Vec<OsString>,
@@ -43,11 +36,15 @@ use env::{build_poll_env, spawn_poller};
 /// Node port and the path to `web-token` — for `page_url()` (set once in `run_tray`).
 static PAGE_PORT_AND_TOKEN_PATH: OnceLock<(u16, PathBuf)> = OnceLock::new();
 
-pub fn run_tray(args: TrayArgs, tray: &'static dyn crate::gui::tray::TrayBackend) -> ! {
+pub fn run_tray(
+    args: TrayArgs,
+    g: &Globals,
+    tray: &'static dyn crate::gui::tray::TrayBackend,
+) -> ! {
     preflight();
-    let (settings, token_path) = read_config_or_exit(args.config.as_deref());
+    let (settings, token_path) = read_config_or_exit(g.config.as_deref());
     refresh_autostart();
-    let port = args.web_port.unwrap_or(settings.process.web_port);
+    let port = g.web_port.unwrap_or(settings.process.web_port);
     let _ = PAGE_PORT_AND_TOKEN_PATH.set((port, token_path.clone()));
 
     let quit = QuitSignal::new();
@@ -56,7 +53,7 @@ pub fn run_tray(args: TrayArgs, tray: &'static dyn crate::gui::tray::TrayBackend
     let send = tx.clone();
     let env = build_poll_env(
         (port, token_path),
-        (&settings, &args),
+        (&settings, &args, g),
         node_rx,
         quit,
         move |cmd| send.send(cmd),
@@ -152,13 +149,13 @@ fn page_url_for(port: u16, token_path: &Path) -> Option<String> {
 }
 
 /// The child's arguments: `run`, `--config`, `--web-port`, then everything after `--` as is.
-fn child_args(args: &TrayArgs) -> Vec<OsString> {
+fn child_args(args: &TrayArgs, g: &Globals) -> Vec<OsString> {
     let mut out = vec![OsString::from("run")];
-    if let Some(config) = &args.config {
+    if let Some(config) = &g.config {
         out.push("--config".into());
         out.push(config.clone().into_os_string());
     }
-    if let Some(port) = args.web_port {
+    if let Some(port) = g.web_port {
         out.push("--web-port".into());
         out.push(port.to_string().into());
     }

@@ -2,11 +2,13 @@
 
 use std::ffi::OsString;
 
-use super::text::{bad_flag_text, bad_value_text, unknown_command_text};
+use super::text::{
+    bad_flag_text, bad_value_text, other_text, renamed_text, unknown_command_text,
+};
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 use clap::{ArgMatches, Command};
 
-use crate::cli::args::Cli;
+use crate::cli::args::{renamed_hint, Cli, Renamed};
 
 /// What command line parsing said when it refused.
 #[derive(Debug, PartialEq, Eq)]
@@ -19,24 +21,60 @@ pub(crate) enum ParseFail {
     BadFlag,
     /// A wrong option value or an option without a value: `ValueValidation`, `InvalidValue`.
     BadValue,
-    /// Everything else (`--help`, `--version`): as `clap` decides.
+    /// A command or option that was replaced: the row of the table with what to type now.
+    Renamed(&'static Renamed),
+    /// Any other refusal: a missing argument, a conflict, no command.
+    Other,
+    /// `--help`, `--version` and the help of a command that lacks an argument: as `clap` decides.
     LeaveToClap,
 }
 
-/// The reason parsing refused: the word `help`, an unknown command or something else.
+/// The reason parsing refused: the word `help`, an unknown command, a wrong option or value, or something else.
 pub(crate) fn classify(err: &clap::Error) -> ParseFail {
     match err.kind() {
         ErrorKind::UnknownArgument => return ParseFail::BadFlag,
         ErrorKind::ValueValidation | ErrorKind::InvalidValue => return ParseFail::BadValue,
-        _ => {}
+        ErrorKind::DisplayHelp
+        | ErrorKind::DisplayVersion
+        | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => return ParseFail::LeaveToClap,
+        ErrorKind::InvalidSubcommand => {}
+        _ => return ParseFail::Other,
     }
-    let word = match err.get(ContextKind::InvalidSubcommand) {
-        Some(ContextValue::String(name)) if err.kind() == ErrorKind::InvalidSubcommand => name,
-        _ => return ParseFail::LeaveToClap,
-    };
-    match word.as_str() {
-        "help" => ParseFail::HelpWord,
-        name => ParseFail::UnknownCommand(name.to_string()),
+    match err.get(ContextKind::InvalidSubcommand) {
+        Some(ContextValue::String(word)) if word == "help" => ParseFail::HelpWord,
+        Some(ContextValue::String(name)) => ParseFail::UnknownCommand(name.to_string()),
+        _ => ParseFail::Other,
+    }
+}
+
+/// The strings `clap` names as the cause of a refusal: the unknown command, option or value.
+fn offending_words(err: &clap::Error) -> Vec<String> {
+    [
+        ContextKind::InvalidSubcommand,
+        ContextKind::InvalidArg,
+        ContextKind::InvalidValue,
+    ]
+    .into_iter()
+    .filter_map(|kind| match err.get(kind) {
+        Some(ContextValue::String(text)) => text.split(' ').next().map(str::to_string),
+        _ => None,
+    })
+    .collect()
+}
+
+/// Replaces an unknown command, option or value with the row of `RENAMED` when the refused word is the
+/// last word of that row: a name that is still alive never gets there, and an unrelated mistake in the
+/// same command line keeps its own text.
+fn refine(fail: ParseFail, err: &clap::Error, args: &[OsString]) -> ParseFail {
+    let replaced = matches!(
+        fail,
+        ParseFail::UnknownCommand(_) | ParseFail::BadFlag | ParseFail::BadValue
+    );
+    let found = renamed_hint(args)
+        .filter(|row| replaced && offending_words(err).iter().any(|w| Some(&w.as_str()) == row.old.last()));
+    match found {
+        Some(row) => ParseFail::Renamed(row),
+        None => fail,
     }
 }
 
@@ -94,8 +132,8 @@ fn print_help_word(args: &[OsString], commands: &[String]) -> ! {
     }
 }
 
-/// Parses the arguments; on refusal answers itself and exits: help — stdout/0, an unknown command,
-/// a wrong option and value — stderr/2, anything else — as `clap`.
+/// Parses the arguments; on refusal answers itself and exits: help — stdout/0, anything else the app
+/// words itself — stderr/2 in the form `Error: …`.
 pub(crate) fn parse_or_exit(args: Vec<OsString>) -> ArgMatches {
     let err = match Cli::command().try_get_matches_from(&args) {
         Ok(matches) => return matches,
@@ -103,14 +141,27 @@ pub(crate) fn parse_or_exit(args: Vec<OsString>) -> ArgMatches {
     };
     let commands = command_names(&Cli::command());
     let typed = typed_command(&args, &commands);
-    match classify(&err) {
+    match refine(classify(&err), &err, &args) {
         ParseFail::HelpWord => print_help_word(&args, &commands),
         ParseFail::UnknownCommand(name) => {
             exit_with_error_text(&unknown_command_text(&name, &commands))
         }
         ParseFail::BadFlag => exit_with_error_text(&bad_flag_text(&err, typed.as_deref())),
         ParseFail::BadValue => exit_with_error_text(&bad_value_text(&err, typed.as_deref())),
-        ParseFail::LeaveToClap => err.exit(),
+        ParseFail::Renamed(row) => exit_with_error_text(&renamed_text(row)),
+        ParseFail::Other => exit_with_error_text(&other_text(&err, typed.as_deref())),
+        ParseFail::LeaveToClap => leave_to_clap(&err),
+    }
+}
+
+/// Help and version go to stdout with code 0; the help of a command that lacks an argument is the same.
+fn leave_to_clap(err: &clap::Error) -> ! {
+    match err.kind() {
+        ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
+            print!("{}", err.render());
+            std::process::exit(0)
+        }
+        _ => err.exit(),
     }
 }
 

@@ -1,25 +1,10 @@
-//! Texts of the command line errors: the report of a subcommand error and the lines for an unknown command,
-//! a wrong option and a wrong value.
+//! Texts of the command line errors: the lines for an unknown command, a wrong option, a wrong value
+//! and any other refusal of parsing.
 
-use crate::proxy::BindError;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 
-/// The word error texts start with: a text that already begins with it gets no prefix.
-const PREFIX: &str = "Error";
-
-/// The report of a subcommand error: `Error: reason: deeper`; if the proxy port is busy — a second line with advice.
-pub(crate) fn error_report(e: &anyhow::Error) -> String {
-    let text = format!("{e:#}");
-    let head = if text.starts_with(&format!("{PREFIX}: ")) {
-        text
-    } else {
-        format!("{PREFIX}: {text}")
-    };
-    match e.chain().find_map(|c| c.downcast_ref::<BindError>()) {
-        Some(bind) => format!("{head}\n{}", bind.advice()),
-        None => head,
-    }
-}
+use crate::cli::args::Renamed;
+use crate::cli::exit::PREFIX;
 
 /// Two lines about an unknown command: what is wrong and which ones exist.
 pub(crate) fn unknown_command_text(name: &str, commands: &[String]) -> String {
@@ -104,6 +89,43 @@ pub(crate) fn bad_value_text(err: &clap::Error, command: Option<&str>) -> String
         .map(|r| format!(": {r}"))
         .unwrap_or_default();
     format!("{PREFIX}: invalid value \"{value}\" for {flag}{why}. {tail}")
+}
+
+/// The text for a command or option that was replaced: what was typed and what to type now.
+pub(crate) fn renamed_text(row: &Renamed) -> String {
+    let prog = crate::cli::program_name::program_name();
+    format!(
+        "{PREFIX}: \"{}\" isn't available any more. Use: {prog} {}",
+        row.old.join(" "),
+        row.new
+    )
+}
+
+/// The first line of a clap error as a sentence: without `error: `, capitalized, ending with a period.
+/// A line that ends with a colon introduces a list of indented lines, which join it with commas.
+fn clap_sentence(err: &clap::Error) -> String {
+    let plain = err.to_string();
+    let mut lines = plain.lines();
+    let first = lines.next().unwrap_or("");
+    let first = first.strip_prefix("error: ").unwrap_or(first);
+    let items: Vec<&str> = lines
+        .map(str::trim)
+        .take_while(|l| !l.is_empty())
+        .filter(|_| first.ends_with(':'))
+        .collect();
+    let head = first.trim_end_matches([':', '.']);
+    let sentence = match items.is_empty() {
+        true => head.to_string(),
+        false => format!("{head}: {}", items.join(", ")),
+    };
+    let mut chars = sentence.chars();
+    let capital: String = chars.next().into_iter().flat_map(char::to_uppercase).collect();
+    format!("{capital}{}.", chars.as_str())
+}
+
+/// The text for any other refusal of parsing: a missing argument, a conflict, no command.
+pub(crate) fn other_text(err: &clap::Error, command: Option<&str>) -> String {
+    format!("{PREFIX}: {} {}", clap_sentence(err), tail_text(command))
 }
 
 #[cfg(test)]

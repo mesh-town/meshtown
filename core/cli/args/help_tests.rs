@@ -44,8 +44,8 @@ fn top_help_speaks_english() {
         for want in [
             ABOUT,
             "Usage: meshtown [COMMAND]",
-            "Commands:",
-            "Options:",
+            "Start:",
+            "Global options:",
             "Run Mesh Town in this window, without an icon",
             "Print a new network key",
             "Print the path to the settings file",
@@ -79,7 +79,7 @@ fn top_help_has_no_clap_defaults() {
 #[test]
 fn top_help_headings_appear_once() {
     for help in [top(), top_long()] {
-        for heading in ["Usage:", "Commands:", "Options:"] {
+        for heading in ["Usage:", "Start:", "Global options:"] {
             assert_eq!(
                 help.matches(heading).count(),
                 1,
@@ -90,19 +90,21 @@ fn top_help_headings_appear_once() {
 }
 
 #[test]
-fn commands_in_order() {
+fn groups_in_order() {
     let help = top();
-    let mut names = vec![
+    let names = vec![
         "  run ",
-        "  keygen ",
-        "  config-path ",
+        "  join ",
+        "  status ",
+        "  stop ",
+        "  invite ",
+        "  open ",
         "  password ",
         "  access ",
+        "  keygen ",
+        "  config-path ",
         "  ifaces ",
     ];
-    if cfg!(feature = "gui") {
-        names.insert(0, "  tray ");
-    }
     let pos: Vec<usize> = names
         .iter()
         .map(|n| {
@@ -129,7 +131,7 @@ fn footer_names_default() {
         "{help}"
     );
     assert!(
-        help.contains("meshtown run --invite \"<invite>\""),
+        help.contains("meshtown join \"<invite>\""),
         "{help}"
     );
 }
@@ -139,12 +141,12 @@ fn footer_names_default() {
 fn footer_names_default() {
     let help = top();
     assert!(
-        help.contains("With no command, Mesh Town starts."),
+        help.contains("Run `meshtown run` to start the node"),
         "{help}"
     );
     assert!(!help.contains("  tray "), "{help}");
     assert!(
-        help.contains("meshtown run --invite \"<invite>\""),
+        help.contains("meshtown join \"<invite>\""),
         "{help}"
     );
 }
@@ -171,7 +173,7 @@ fn sub_help_speaks_english() {
 }
 
 /// Value names allowed in the help: from the dictionary (`<KEY>`, `<SECONDS>`…).
-const LABELS: [&str; 8] = [
+const LABELS: [&str; 10] = [
     "TEXT",
     "KEY",
     "PATH",
@@ -180,6 +182,8 @@ const LABELS: [&str; 8] = [
     "ADDR:PORT",
     "PORT",
     "MODE",
+    "NETWORK",
+    "INVITE_OR_KEY",
 ];
 
 /// Labels in angle brackets in the text that are not among the allowed value names.
@@ -261,7 +265,6 @@ fn env_hidden_but_read() {
     for (id, var) in [
         ("key", "MESHTOWN_KEY"),
         ("invite", "MESHTOWN_INVITE"),
-        ("config", "MESHTOWN_CONFIG"),
     ] {
         let arg = run.get_arguments().find(|a| a.get_id() == id).expect(id);
         assert_eq!(arg.get_env().and_then(|e| e.to_str()), Some(var), "{id}");

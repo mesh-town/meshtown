@@ -16,6 +16,9 @@ mod browser;
 // group: config
 mod client;
 mod config;
+pub(crate) mod invite;
+pub(crate) mod join;
+pub(crate) mod leave;
 // group: member
 // group: network
 mod network;
@@ -27,10 +30,17 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
+pub(crate) mod status;
+pub(crate) mod stop;
 pub(crate) use access::ifaces;
 pub(crate) use config::config_path;
 pub(crate) use network::keygen;
+pub(crate) use invite::InviteArgs;
+pub(crate) use join::JoinArgs;
+pub(crate) use leave::LeaveArgs;
 pub(crate) use run_args::RunArgs;
+pub(crate) use status::StatusArgs;
+pub(crate) use stop::StopArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;

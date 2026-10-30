@@ -22,8 +22,6 @@ const LINE_LIMIT: usize = 160;
 const INVITE: &str = "Invite to a network: a single-use string mesh-invite2-… from a running member (can be set with the MESHTOWN_INVITE variable).";
 const KEY: &str = "Network key: a words key or mesh2-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).";
 const RUN_CONFIG: &str = "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable (default: next to the program or in the standard location).";
-const CONFIG_PATH_CONFIG: &str =
-    "Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.";
 
 /// Subcommand help: each has its own `-h, --help` line, with no reference to another command's help.
 mod subcommand_help {
@@ -108,7 +106,7 @@ mod top_help {
             let n = section.len();
             assert!(
                 n >= 2,
-                "the \"Options:\" section has fewer than two lines:\n{help}"
+                "the \"Global options:\" section has fewer than two lines:\n{help}"
             );
             let (before_last, last) = (section[n - 2].trim_start(), section[n - 1].trim_start());
             assert!(
@@ -158,14 +156,14 @@ mod run_help {
     }
 }
 
-/// `config-path --help`: `--config` is shorter than in `run`.
+/// `config-path --help`: `--config` is a global option, the same text as in `run`.
 mod config_path_help {
     use super::*;
 
     #[test]
     fn config_line_has_contract_text() {
         let line = line_of(&sub_help("config-path"), "--config");
-        assert!(ends_with_text(&line, CONFIG_PATH_CONFIG), "{line}");
+        assert!(ends_with_text(&line, RUN_CONFIG), "{line}");
     }
 }
 
@@ -173,12 +171,12 @@ mod config_path_help {
 
 #[cfg(feature = "gui")]
 fn sub_names() -> Vec<&'static str> {
-    vec!["tray", "run", "keygen", "config-path", "password", "access"]
+    vec!["tray", "run", "join", "status", "stop", "invite", "leave", "keygen", "config-path", "password", "access"]
 }
 
 #[cfg(not(feature = "gui"))]
 fn sub_names() -> Vec<&'static str> {
-    vec!["run", "keygen", "config-path", "password", "access"]
+    vec!["run", "join", "status", "stop", "invite", "leave", "keygen", "config-path", "password", "access"]
 }
 
 /// Help as the program prints it: through the `DisplayHelp` error on `--help`.
@@ -203,7 +201,7 @@ fn sub_help(name: &str) -> String {
 /// Lines of the "Options:" section without blank ones: from the heading to the first blank line or the end of the text.
 fn options_section(help: &str) -> Vec<&str> {
     help.lines()
-        .skip_while(|l| *l != "Options:")
+        .skip_while(|l| *l != "Options:" && *l != "Global options:")
         .skip(1)
         .take_while(|l| !l.trim().is_empty())
         .collect()
