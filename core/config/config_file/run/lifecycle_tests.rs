@@ -61,6 +61,29 @@ fn first_run_creates_defaults_not_flags() {
 }
 
 #[test]
+fn clean_file_without_save_config_is_only_probed() {
+    let dir = scratch("clean-probed");
+    let file = dir.join(FILE_NAME);
+    let cli = CliOverrides::default();
+    prepare(&explicit(&file), &cli, false, NOW).expect("prepare 1");
+    let before = std::fs::read(&file).expect("reading the file");
+    let rev = parsed(&file).rev;
+    let out = super::sources::prepare_file(&file, true, &cli, false, NOW + 1).expect("prepare 2");
+    let after = std::fs::read(&file).expect("reading the file again");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(out.report.writable);
+    assert_eq!(out.report.rev, rev);
+    assert!(!out.secret_written);
+    assert_eq!(out.kept_copy_path, None);
+    assert!(
+        out.file_summary.ends_with(" (read)"),
+        "{}",
+        out.file_summary
+    );
+    assert_eq!(before, after);
+}
+
+#[test]
 fn second_run_same_secret() {
     let dir = scratch("second-run");
     let file = dir.join(FILE_NAME);
