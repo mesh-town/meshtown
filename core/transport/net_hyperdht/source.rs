@@ -66,9 +66,17 @@ impl HyperDhtDiscovery {
     /// One round: the publisher writes and returns the written roster, the reader reads (no record — empty).
     async fn round(&self) -> NetResult<Roster> {
         let Some(me) = self.me else {
-            let got = roster::read(&*self.store, &self.keys).await?;
-            return Ok(got.map_or_else(empty_roster, |g| g.0));
+            return self.read_round().await;
         };
+        self.publish_round(me).await
+    }
+
+    async fn read_round(&self) -> NetResult<Roster> {
+        let got = roster::read(&*self.store, &self.keys).await?;
+        Ok(got.map_or_else(empty_roster, |g| g.0))
+    }
+
+    async fn publish_round(&self, me: PeerId) -> NetResult<Roster> {
         let (unix, ms) = now_unix_secs_and_ms();
         roster::publish_round(&*self.store, &self.keys, me, unix, ms).await
     }
