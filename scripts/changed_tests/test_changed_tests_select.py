@@ -98,6 +98,18 @@ class SelectLibModules(unittest.TestCase):
                 self.assertFalse(sel.whole_bin)
                 self.assertEqual(sel.lib_modules, {module})
 
+    def test_cli_edit_selects_every_cli_integration_test(self):
+        src = _sources(tests={"cli_join_live": "", "cli_client": "", "loopback": ""})
+        for path in ("core/cli/commands/join.rs", "core/cli/commands/join_tests.rs", "core/cli/main.rs"):
+            with self.subTest(path=path):
+                sel = changed_tests.select([path], src)
+                self.assertEqual(sel.integration, {"cli_join_live", "cli_client"})
+
+    def test_edit_outside_cli_does_not_select_cli_integration_tests(self):
+        src = _sources(tests={"cli_client": "", "loopback": ""})
+        sel = changed_tests.select(["core/members/words.rs"], src)
+        self.assertEqual(sel.integration, set())
+
     def test_lib_rs_selects_full(self):
         sel = changed_tests.select(["core/lib.rs"], _sources())
 

@@ -221,7 +221,14 @@ def _select_platform_crate(name: str, sel: Selection) -> str:
         return "full (host platform crate)"
     return "no-op (foreign platform crate)"
 
+def _select_command_line_tests(path: str, src: Sources, sel: Selection) -> None:
+    """An edit under `core/cli/` selects every `cli_*` integration test: they run the real binary and name no
+    library module, so the usual text search does not find them."""
+    if path.startswith(f"{CORE}/cli/"):
+        sel.integration |= {name for name in src.tests if name.startswith("cli_")}
+
 def _select_one(path: str, src: Sources, sel: Selection) -> str:
+    _select_command_line_tests(path, src, sel)
     if path == BIN_MAIN:
         sel.whole_bin = True
         return "whole_bin"

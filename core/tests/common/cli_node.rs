@@ -37,7 +37,7 @@ impl CliNode {
         CliNode::start_in(dir, extra)
     }
 
-    fn start_in(dir: PathBuf, extra: &[&str]) -> CliNode {
+    pub fn start_in(dir: PathBuf, extra: &[&str]) -> CliNode {
         let mut child = isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), &dir)
             .args(["run", "--config"])
             .arg(dir.join("config.json"))
@@ -83,6 +83,12 @@ impl CliNode {
                 Err(RecvTimeoutError::Timeout | RecvTimeoutError::Disconnected) => return None,
             }
         }
+    }
+
+    /// How many lines with `needle` the node has printed once it has been quiet for `settle`.
+    pub fn count_lines(&mut self, needle: &str, settle: Duration) -> usize {
+        let _ = self.wait_line("\u{0}never", settle);
+        self.seen.iter().filter(|l| l.contains(needle)).count()
     }
 
     /// Waits for the process to exit; `None` if it is still running after `limit`.
@@ -204,5 +210,20 @@ pub fn cli_no_args(dir: &Path) -> Output {
     isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), dir)
         .current_dir(dir)
         .output()
+        .expect("start meshtown")
+}
+
+/// Starts a client command without waiting for it: `--config <dir>/config.json --web-port <port>` are appended and
+/// both output streams are piped. The caller kills it.
+pub fn spawn_cli(args: &[&str], dir: &Path, port: u16) -> Child {
+    isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), dir)
+        .args(args)
+        .arg("--config")
+        .arg(dir.join("config.json"))
+        .args(["--web-port", &port.to_string()])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .expect("start meshtown")
 }
