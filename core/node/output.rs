@@ -115,7 +115,7 @@ pub fn say(tag: &str, text: impl std::fmt::Display) {
     JOURNAL.say(tag, text);
 }
 
-/// Sends the console lines of the process to stderr (`keygen` keeps stdout for the key).
+/// Sends the console lines of the process to stderr (`network create --key-only` keeps stdout for the key).
 pub fn log_to_stderr() {
     JOURNAL.log_to_stderr();
 }

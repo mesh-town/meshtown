@@ -44,8 +44,20 @@ fn stdout_of(args: &[&str]) -> String {
 }
 
 #[test]
-fn keygen_raw_stdout_is_one_line() {
-    let out = stdout_of(&["keygen", "--raw"]);
+fn key_only_raw_stdout_is_one_line() {
+    let dir = std::env::temp_dir().join(format!("cli_fd_limit-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temporary directory");
+    let config = dir.join("config.json");
+    let args = [
+        "network",
+        "create",
+        "--key-only",
+        "--raw",
+        "--config",
+        config.to_str().unwrap(),
+    ];
+    let out = stdout_of(&args);
+    let _ = std::fs::remove_dir_all(&dir);
     assert!(!out.contains("open files limit"), "stdout: {out}");
     let lines: Vec<&str> = out.lines().filter(|l| !l.trim().is_empty()).collect();
     assert_eq!(lines.len(), 1, "stdout: {out}");

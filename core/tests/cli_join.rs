@@ -71,7 +71,7 @@ fn join_garbage_is_a_usage_error() {
     let out = node.cli(&["join", "garbage string"]);
     assert_eq!(out.status.code(), Some(2), "{}", stderr(&out));
     assert!(stderr(&out).contains("invite"), "{}", stderr(&out));
-    assert!(!stderr(&out).contains("keygen"), "{}", stderr(&out));
+    assert!(!stderr(&out).contains("--key-only"), "{}", stderr(&out));
 }
 
 #[test]

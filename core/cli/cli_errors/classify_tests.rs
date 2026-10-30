@@ -41,7 +41,7 @@ fn unknown_text_lists_commands() {
             "invite",
             "leave",
             "access",
-            "keygen",
+            "network",
             "config-path",
             "password",
             "open"
@@ -58,7 +58,7 @@ fn unknown_text_lists_commands() {
             "invite",
             "leave",
             "access",
-            "keygen",
+            "network",
             "config-path",
             "password",
             "open"
@@ -91,9 +91,9 @@ mod classify_kind {
         }
 
         #[test]
-        fn in_keygen_is_bad_flag() {
+        fn in_config_path_is_bad_flag() {
             assert_eq!(
-                classify(&parse_err(&["keygen", "--bogus"])),
+                classify(&parse_err(&["config-path", "--bogus"])),
                 ParseFail::BadFlag
             );
         }
@@ -178,8 +178,8 @@ mod typed_command_word {
     #[test]
     fn finds_keygen() {
         assert_eq!(
-            typed(&["meshtown", "keygen", "--raw"]),
-            Some("keygen".to_string())
+            typed(&["meshtown", "network", "--raw"]),
+            Some("network".to_string())
         );
     }
 
@@ -210,20 +210,20 @@ mod typed_command_word {
 
     #[test]
     fn takes_the_first_of_several() {
-        let args = ["meshtown", "keygen", "run"];
-        assert_eq!(typed(&args), Some("keygen".to_string()));
+        let args = ["meshtown", "network", "run"];
+        assert_eq!(typed(&args), Some("network".to_string()));
     }
 
     #[test]
     fn program_name_is_not_a_command() {
         assert_eq!(typed(&["run"]), None);
-        assert_eq!(typed(&["run", "keygen"]), Some("keygen".to_string()));
+        assert_eq!(typed(&["run", "network"]), Some("network".to_string()));
     }
 
     #[test]
     fn hidden_command_is_not_found() {
         let visible = strings(&["run", "config-path"]);
-        assert_eq!(typed_command(&os(&["meshtown", "keygen"]), &visible), None);
+        assert_eq!(typed_command(&os(&["meshtown", "network"]), &visible), None);
     }
 
     #[test]
@@ -244,7 +244,7 @@ fn strings(names: &[&str]) -> Vec<String> {
 
 /// The subcommand `typed_command` found among the three visible ones.
 fn typed(args: &[&str]) -> Option<String> {
-    let visible = strings(&["run", "keygen", "config-path", "password", "access"]);
+    let visible = strings(&["run", "network", "config-path", "password", "access"]);
     typed_command(&os(args), &visible)
 }
 

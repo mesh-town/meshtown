@@ -140,7 +140,7 @@ fn label_without_tail_is_rejected() {
     let err = parse_user_input("our gaming room").unwrap_err().to_string();
     assert!(err.contains("only the label"), "{err}");
     assert!(err.contains("our-gaming-room"), "{err}");
-    assert!(err.contains("keygen"), "{err}");
+    assert!(err.contains("network create --key-only"), "{err}");
     assert!(is_tail_word("gaming") && !is_tail_word("our") && !is_tail_word("room"));
 }
 

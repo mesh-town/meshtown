@@ -101,6 +101,56 @@ fn unreadable_text_is_a_usage_error_with_an_invite_hint() {
     assert!(e.downcast_ref::<UsageError>().is_some());
     let text = e.to_string();
     assert!(text.contains("invite"), "{text}");
-    assert!(!text.contains("keygen"), "{text}");
+    assert!(!text.contains("--key-only"), "{text}");
     assert!(!text.contains('\n'), "{text}");
+}
+
+/// A listener that accepts each connection and closes it at once, the way a neighbouring `join` lets go of
+/// the page port.
+fn closing_listener() -> u16 {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in listener.incoming().take(4) {
+            drop(stream);
+        }
+    });
+    port
+}
+
+#[tokio::test]
+async fn a_port_that_drops_the_connection_gives_the_busy_advice() {
+    // given: the page port answers by closing every connection
+    let port = closing_listener();
+    let dir = std::env::temp_dir().join(format!("join_drop-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let g = Globals {
+        config: Some(dir.join("config.json")),
+        web_port: Some(port),
+        ..Globals::default()
+    };
+    let key = crate::members::network_key::managed_key_with_label(
+        None,
+        &[7; 32],
+        &crate::transport::net::NodeSecret::from_bytes(&[1; 32]).peer_id(),
+    );
+    let args = JoinArgs {
+        text: key,
+        timeout: 5,
+    };
+    // when
+    let err = run(args, &g).await.expect_err("refused");
+    let _ = std::fs::remove_dir_all(&dir);
+    // then: the advice of a busy port, not the socket error
+    let text = format!("{err:#}");
+    assert!(text.contains(&format!("port {port} is in use")), "{text}");
+    assert!(text.contains("run join again"), "{text}");
+    assert!(!text.contains("reset"), "{text}");
+}
+
+#[test]
+fn only_a_dropped_link_counts_as_busy() {
+    let reset = anyhow::anyhow!("connection to Mesh Town: Connection reset by peer (os error 54)");
+    assert!(is_dropped_link(&reset));
+    assert!(!is_dropped_link(&anyhow::anyhow!("no such network")));
 }

@@ -105,17 +105,9 @@ pub(crate) enum CliCommand {
     // group: config
     // group: member
     // group: network
-    /// Print a new network key with this computer as its admin (advanced; most people create a network on the page or join with an invite)
-    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown keygen [--raw] [--config <PATH>] [LABEL]…")]
-    Keygen {
-        /// A network label, words separated by spaces: meshtown keygen our game. It doesn't affect the key.
-        /// The random part is two words from the EFF list (CC BY 3.0 US) and a group of 21 characters.
-        #[arg(value_name = "LABEL", help_heading = "Options")]
-        label: Vec<String>,
-        /// Print the machine key mesh2-… instead of the key with words.
-        #[arg(long, conflicts_with = "label")]
-        raw: bool,
-    },
+    /// List, create, show, inspect and delete the networks of this computer
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown network <COMMAND>")]
+    Network(crate::cli::commands::network::NetworkArgs),
     /// Print the path to the settings file
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config-path [--config <PATH>]")]
     ConfigPath,

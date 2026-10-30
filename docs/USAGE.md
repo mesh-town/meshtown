@@ -14,13 +14,15 @@ tray type `meshtown-cli` instead, for example `meshtown-cli run …`. The hints 
 way it was started.
 
 ```sh
-meshtown keygen our gaming room       # key of a new network: label + random part; this node is its administrator
-meshtown keygen                       # the same without a label
-meshtown keygen --raw                 # machine key mesh2-… for scripts
-meshtown keygen [--config PATH]       # --config picks the settings file whose node identity becomes the creator
+meshtown network create our gaming room   # new network on the running node; this node is its administrator (a second one goes to a new slot)
+meshtown network create --key-only [--raw] [LABEL]...   # only print a key, no running node: the settings file gives the administrator
+meshtown network list                 # the networks of this computer (--json for the node's reply)
+meshtown network key [--raw]          # the key of the network (--raw: the machine form mesh2-… of the same network)
+meshtown network inspect "<key or invite>"   # what a key or an invite is, without joining
+meshtown network delete --yes [--net NETWORK]   # delete the network for everyone (administrators only)
 meshtown join "<invite or key>" [--timeout SECONDS]   # join a network on the running node, or write it into the settings file
 meshtown access ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
-MESHTOWN_KEY="<key from keygen or from an administrator>" \
+MESHTOWN_KEY="<key from network create --key-only or from an administrator>" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
   [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
   [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
@@ -125,7 +127,7 @@ one-time token while no password is set), then two more lines, and waits:
 
 Join through the page with "Join with an invite" or "Create a new network" on the "Home" tab. The node then starts
 for real, without restarting the process. The node never creates a network on its own: a key appears only through a
-button on the page, `join` or `keygen`.
+button on the page, `join` or `network create`.
 
 With `--no-config` and no key it is an error right away, without waiting. It is also an error right away if the page
 did not come up (for example, the `--web-port` port is busy) and there is no key.
@@ -200,6 +202,13 @@ older format is refused with a message that it comes from an older version.
 
 **Create.** On the page, "Add a network" (or "Join or create a network" when there is none) asks for a name and creates
 the network. The tray menu has the item `Add a network…`, which opens the same form.
+
+**Command line.** `meshtown network create <label>` creates a network on the running node and prints its key; when the
+node already has one, the new network goes to a second slot (`--net <slot>` names a slot explicitly). `network create
+--key-only` needs no node: it creates the settings file when there is none and prints a key whose first administrator is
+this computer; `--raw` prints the machine form. `network list` shows the slots, `network key` prints the saved key
+(`--raw` for the machine form of the same network), `network inspect` explains a key or an invite, and `network delete
+--yes` deletes a network for everyone.
 
 **Invite.** Only an administrator can issue an invite; for anyone else the button is replaced by
 a note naming the administrators, and the tray item is disabled. An invite that was not made by an administrator is

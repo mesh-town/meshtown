@@ -1,7 +1,7 @@
-//! The `keygen` command: prints a new network key whose root, the first admin, is the node identity of the
-//! settings file (the same identity `run` takes from it).
+//! `network create --key-only`: prints a new network key whose root, the first admin, is the node identity of the
+//! settings file (the same identity `run` takes from it). It needs no running node.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use crate::config::config_file::{
     self, ConfigSource, LoadedConfigFile, ParsedConfigFile, SecretRead,
@@ -14,30 +14,30 @@ use crate::node::output::NET_NAME;
 use crate::transport::net::PeerId;
 
 /// Prints one key line: the words form by default, the machine form `mesh2-…` with `--raw`.
-pub(crate) fn keygen(label: Vec<String>, raw: bool, config: Option<PathBuf>) -> anyhow::Result<()> {
+pub(super) fn key_only(label: &[String], raw: bool, config: Option<&Path>) -> anyhow::Result<()> {
     crate::node::output::log_to_stderr();
-    let root = node_identity(config.as_deref(), super::super::now_unix())?;
-    println!("{}", new_key(&label, raw, &root)?);
+    let root = node_identity(config, super::super::now_unix())?;
+    println!("{}", new_key(label, raw, &root)?);
     Ok(())
 }
 
 fn new_key(label: &[String], raw: bool, root: &PeerId) -> anyhow::Result<String> {
-    if raw {
-        return Ok(managed_key_with_label(
-            None,
-            &NetworkKey::generate()?.to_bytes(),
-            root,
-        ));
-    }
     let label = match label.is_empty() {
         true => None,
         false => Some(normalize_label(&label.join(" "))?),
     };
-    Ok(format_managed_key(
-        label.as_deref(),
-        &generate_tail()?,
-        root,
-    ))
+    match raw {
+        true => Ok(managed_key_with_label(
+            label.as_deref(),
+            &NetworkKey::generate()?.to_bytes(),
+            root,
+        )),
+        false => Ok(format_managed_key(
+            label.as_deref(),
+            &generate_tail()?,
+            root,
+        )),
+    }
 }
 
 /// The node identity of the settings file; a missing file is created, the way the first `run` does it.
@@ -95,8 +95,9 @@ fn parsed_identity(path: &Path, p: ParsedConfigFile) -> anyhow::Result<PeerId> {
     match p.secret {
         SecretRead::Valid(secret) => Ok(secret.peer_id()),
         SecretRead::Missing | SecretRead::Bad(_) => anyhow::bail!(
-            "the settings file {} has no identity for this computer yet: start {NET_NAME} once ({} run), then run keygen again",
+            "the settings file {} has no identity for this computer yet: start {NET_NAME} once ({} run), then run `{} network create --key-only` again",
             path.display(),
+            crate::cli::program_name::program_name(),
             crate::cli::program_name::program_name()
         ),
     }

@@ -87,6 +87,11 @@ fn report(joined: &Joined) {
     );
 }
 
+/// The refusal for a page port that something else holds.
+pub(super) fn busy_text(port: u16) -> String {
+    format!("port {port} is in use: Mesh Town may be starting; run join again in a minute")
+}
+
 /// Takes the page port for the exchange. A busy port means a node is starting or running there.
 pub(super) fn hold_page_port(path: &Path, port: u16) -> anyhow::Result<TcpListener> {
     let access = match load_config_file(path) {
@@ -94,9 +99,7 @@ pub(super) fn hold_page_port(path: &Path, port: u16) -> anyhow::Result<TcpListen
         _ => Settings::default().process.web_access,
     };
     TcpListener::bind((bind_ip(access), port)).map_err(|e| match e.kind() {
-        std::io::ErrorKind::AddrInUse => anyhow::anyhow!(
-            "port {port} is in use: Mesh Town may be starting; run join again in a minute"
-        ),
+        std::io::ErrorKind::AddrInUse => anyhow::anyhow!(busy_text(port)),
         _ => anyhow::anyhow!("cannot hold port {port} while joining: {e}"),
     })
 }

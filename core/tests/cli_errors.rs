@@ -24,7 +24,19 @@ fn text(bytes: &[u8]) -> String {
 fn busy_socks_port_names_flag_and_port() {
     let holder = std::net::TcpListener::bind("127.0.0.1:0").expect("port");
     let port = holder.local_addr().unwrap().port().to_string();
-    let key = text(&mesh(&["keygen", "--raw"]).stdout).trim().to_string();
+    let dir = std::env::temp_dir().join(format!("cli_errors-key-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("temporary directory");
+    let config = dir.join("config.json");
+    let made = mesh(&[
+        "network",
+        "create",
+        "--key-only",
+        "--raw",
+        "--config",
+        config.to_str().unwrap(),
+    ]);
+    let _ = std::fs::remove_dir_all(&dir);
+    let key = text(&made.stdout).trim().to_string();
     let out = mesh(&[
         "run",
         "--no-config",
@@ -80,11 +92,11 @@ mod bad_parameter {
         }
 
         #[test]
-        fn in_keygen_points_to_keygen_help() {
-            let out = mesh(&["keygen", "--bogus-flag"]);
+        fn in_config_path_points_to_its_help() {
+            let out = mesh(&["config-path", "--bogus-flag"]);
             assert_refused_with(
                 &out,
-                "Error: unknown option \"--bogus-flag\". See all options: meshtown keygen --help",
+                "Error: unknown option \"--bogus-flag\". See all options: meshtown config-path --help",
             );
         }
     }
@@ -121,11 +133,6 @@ mod help_word {
     #[test]
     fn run_prints_what_run_help_flag_prints() {
         assert_same_help(&["help", "run"], &["run", "--help"]);
-    }
-
-    #[test]
-    fn keygen_prints_what_keygen_help_flag_prints() {
-        assert_same_help(&["help", "keygen"], &["keygen", "--help"]);
     }
 
     #[test]
