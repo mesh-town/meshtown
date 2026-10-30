@@ -1,4 +1,4 @@
-//! How the `password` and `access` subcommands connect to a running node: where to go (settings file, port,
+//! How the console subcommands connect to a running node: where to go (settings file, port,
 //! token); the HTTP/1.0 client itself is `web_gui::probe`. A refused connection is named separately
 //! (`NotRunning`) — then the command writes to disk itself.
 
@@ -7,21 +7,21 @@ use std::time::Duration;
 
 use crate::config::config_file::{self, ConfigSource, LoadedConfigFile, Settings};
 use crate::web_gui::probe;
-pub(super) use crate::web_gui::probe::LinkError;
+pub(crate) use crate::web_gui::probe::LinkError;
 use crate::web_gui::TOKEN_FILE_NAME;
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Where to go: the settings file, its directory (where `web-token` and `web-password` also live) and the page port.
-pub(super) struct Target {
-    pub(super) path: PathBuf,
-    pub(super) dir: PathBuf,
-    pub(super) port: u16,
+pub(crate) struct Target {
+    pub(crate) path: PathBuf,
+    pub(crate) dir: PathBuf,
+    pub(crate) port: u16,
 }
 
 impl Target {
     /// The settings file is the same as for `config-path`; the port is `--web-port`, otherwise `web.port` from the file, otherwise the default.
-    pub(super) fn resolve(
+    pub(crate) fn resolve(
         config: Option<PathBuf>,
         web_port: Option<u16>,
     ) -> Result<Target, String> {
@@ -45,12 +45,12 @@ impl Target {
     }
 
     /// The permanent token from `web-token`; if there is no file, it is empty (the node will refuse, not us).
-    pub(super) fn token(&self) -> String {
+    pub(crate) fn token(&self) -> String {
         let text = std::fs::read_to_string(self.dir.join(TOKEN_FILE_NAME)).unwrap_or_default();
         text.trim().to_string()
     }
 
-    pub(super) fn call(
+    pub(crate) fn call(
         &self,
         method: &str,
         path: &str,
@@ -68,7 +68,7 @@ fn file_port(path: &std::path::Path) -> u16 {
 }
 
 /// One request to the node: the response code and the body. `Host` and `Origin` are `127.0.0.1:<port>`, the token is in the header.
-pub(super) fn call(
+fn call(
     port: u16,
     token: &str,
     method: &str,

@@ -7,14 +7,10 @@ use clap::error::ErrorKind;
 use clap::FromArgMatches;
 
 use crate::cli::args::{after_help_text, with_default_subcommand, Cli, CliCommand};
+use crate::cli::test_args::to_os;
 
 /// The tray flag for tests that only check that the default does not interfere: the build's own.
 const HAS_TRAY: bool = cfg!(feature = "gui");
-
-/// `&str` → `OsString`, shorter at the call site.
-fn to_os(args: &[&str]) -> Vec<OsString> {
-    args.iter().map(OsString::from).collect()
-}
 
 #[test]
 fn no_args_is_run_without_tray() {

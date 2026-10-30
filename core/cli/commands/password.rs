@@ -4,7 +4,7 @@
 
 use serde_json::Value;
 
-use super::node_link::{LinkError, Target};
+use super::client::{LinkError, Target};
 use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and resets the password.

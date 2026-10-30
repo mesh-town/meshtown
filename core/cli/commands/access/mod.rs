@@ -7,7 +7,9 @@ use crate::config::config_file::{
 };
 use serde_json::{json, Value};
 
-use super::node_link::{LinkError, Target};
+use super::client::{LinkError, Target};
+
+pub(crate) mod ifaces;
 use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and sets the access mode.

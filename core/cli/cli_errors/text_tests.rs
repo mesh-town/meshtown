@@ -1,10 +1,9 @@
 //! Tests of the texts for a wrong option and a wrong value (`cli_errors.rs`:
 //! `bad_flag_text` with the hint about a similar option, `bad_value_text`). Included from
-//! `cli_errors.rs` as `text_tests`. It takes nothing from the neighboring `cli_errors_tests.rs`:
-//! `parse_err` is a short copy from there.
+//! `cli_errors` as `text_tests`.
 
 use super::*;
-use crate::cli::args::Cli;
+use crate::cli::test_args::parse_err;
 
 /// The text about a wrong option: `bad_flag_text`.
 mod bad_flag_message {
@@ -178,14 +177,6 @@ mod no_english {
 }
 
 // ---- helpers ----
-
-fn parse_err(args: &[&str]) -> clap::Error {
-    let mut all = vec!["meshtown"];
-    all.extend_from_slice(args);
-    Cli::command()
-        .try_get_matches_from(all)
-        .expect_err("parsing must refuse")
-}
 
 /// The text about a wrong option for the typed command (without the program name in `args`).
 fn flag_text(args: &[&str], command: Option<&str>) -> String {

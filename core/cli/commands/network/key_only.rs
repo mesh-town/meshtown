@@ -16,7 +16,7 @@ use crate::transport::net::PeerId;
 /// Prints one key line: the words form by default, the machine form `mesh2-…` with `--raw`.
 pub(crate) fn keygen(label: Vec<String>, raw: bool, config: Option<PathBuf>) -> anyhow::Result<()> {
     crate::node::output::log_to_stderr();
-    let root = node_identity(config.as_deref(), super::now_unix())?;
+    let root = node_identity(config.as_deref(), super::super::now_unix())?;
     println!("{}", new_key(&label, raw, &root)?);
     Ok(())
 }
@@ -111,5 +111,5 @@ fn create_identity(path: &Path, now: u64) -> anyhow::Result<PeerId> {
 }
 
 #[cfg(test)]
-#[path = "keygen_tests.rs"]
+#[path = "key_only_tests.rs"]
 mod tests;

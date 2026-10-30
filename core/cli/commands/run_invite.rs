@@ -226,7 +226,7 @@ run needs a new invite";
 
 /// Writes the received key into the settings file itself (only `network.key` changes, the run flags
 /// do not get into the file) and updates `run.file_settings` and the revision. A failure is a warning, the run goes on.
-fn persist_key(run: &mut RunConfig, key_text: &str, now: u64) -> anyhow::Result<()> {
+pub(super) fn persist_key(run: &mut RunConfig, key_text: &str, now: u64) -> anyhow::Result<()> {
     let Some(path) = run.file_report.path.clone() else {
         say("invite", TEXT_NO_FILE);
         return Ok(());
