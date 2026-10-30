@@ -1,6 +1,7 @@
 //! First start of `meshtown run` without a network key: the real binary, not a bypass via `commands::run_node_command`.
 //! The node does not create a network — it brings up the page, waits for sign-in and leaves the settings file without a key.
-//! With the page turned off in the file, it exits with an error and a hint about `--invite`.
+//! With the page open, the node prints a hint about `join "<invite>"`; with the page turned off in the file, it exits
+//! with an error and a hint about `--invite`.
 
 #[path = "common/node_web.rs"]
 mod common;
@@ -29,10 +30,11 @@ impl NodeProc {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .subsec_nanos();
+        static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let dir = std::env::temp_dir().join(format!(
-            "mesh-first-start-{tag}-{}-{}",
-            std::process::id(),
-            nanos
+            "mesh-first-start-{tag}-{}-{nanos}-{n}",
+            std::process::id()
         ));
         std::fs::create_dir_all(&dir).expect("temporary directory");
         std::fs::write(dir.join("config.json"), config_json).expect("settings file");
@@ -176,8 +178,8 @@ fn run_without_key_waits_on_page_and_keeps_file_keyless() {
     node.wait_line("You haven't joined a", Duration::from_secs(10))
         .expect("the \"You haven't joined a\" line did not appear");
     let hint = node
-        .wait_line("--invite", Duration::from_secs(10))
-        .expect("hint about --invite");
+        .wait_line("join \"<invite>\"", Duration::from_secs(10))
+        .expect("hint about `join`");
     assert!(
         hint.contains("[node]"),
         "second line is from [node]: {hint}"

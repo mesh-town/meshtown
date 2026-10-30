@@ -1,18 +1,18 @@
 //! The `password reset` subcommand: resets the node page password. If the node is running, it asks the node through
 //! `POST /api/auth/reset` and prints the addresses with a temporary token; if not, it deletes the password file itself.
 //! Tokens and addresses with a token go only through `println!`, not `output::say` (which writes to the `/api/log` log).
+//! Standard output holds the addresses only; the notes go to standard error.
 
 use serde_json::Value;
 
 use super::client::{LinkError, Target};
+use crate::cli::args::Globals;
 use crate::node::output::NET_NAME;
 
 /// Entry point from `main`: finds the node and resets the password.
-pub(crate) fn run_password_command(
-    config: Option<std::path::PathBuf>,
-    web_port: Option<u16>,
-) -> anyhow::Result<()> {
-    let target = Target::resolve(config, web_port).map_err(anyhow::Error::msg)?;
+pub(crate) async fn run_password_command(g: &Globals) -> anyhow::Result<()> {
+    g.allow("password", &[])?;
+    let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;
     reset(&target).map_err(anyhow::Error::msg)
 }
 
@@ -39,7 +39,7 @@ fn print_urls(body: &str) {
     {
         println!("{url}");
     }
-    println!("Password reset. The link works once, for 10 minutes.");
+    eprintln!("Password reset. The link works once, for 10 minutes.");
 }
 
 fn refusal(t: &Target, code: u16, body: &str) -> String {
@@ -59,7 +59,7 @@ fn remove_offline(t: &Target) -> Result<(), String> {
             t.dir.display()
         ));
     }
-    println!("Password reset. {NET_NAME} isn't running: it will print a one-time sign-in link when it starts.");
-    println!("If {NET_NAME} runs on another page port, repeat with --web-port <PORT>.");
+    eprintln!("Password reset. {NET_NAME} isn't running: it will print a one-time sign-in link when it starts.");
+    eprintln!("If {NET_NAME} runs on another page port, repeat with --web-port <PORT>.");
     Ok(())
 }

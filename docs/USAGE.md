@@ -18,6 +18,7 @@ meshtown keygen our gaming room       # key of a new network: label + random par
 meshtown keygen                       # the same without a label
 meshtown keygen --raw                 # machine key mesh2-… for scripts
 meshtown keygen [--config PATH]       # --config picks the settings file whose node identity becomes the creator
+meshtown join "<invite or key>" [--timeout SECONDS]   # join a network on the running node, or write it into the settings file
 meshtown ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="<key from keygen or from an administrator>" \
   meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
@@ -26,6 +27,20 @@ MESHTOWN_KEY="<key from keygen or from an administrator>" \
   [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
   [--web-port N]
 ```
+
+### Joining from the terminal
+
+`meshtown join "<invite or key>"` joins a network without opening the page. It finds a running node on the page port
+(`--web-port`, otherwise `web.port` of the settings file, otherwise 7777) and asks it to join; with an invite it waits
+up to `--timeout` seconds (1 to 3600, default 120) for a member to answer. The label of the network is printed on
+stdout; progress and hints go to stderr. If this computer is already in another network, the new one is added as a
+separate network; if it is already in this one, the command says so and changes nothing.
+
+When no node answers on the port, `join` writes the network into the settings file itself: a key at once, an invite
+after a member answers (the same time limit). It holds the page port while it works, so a node started at that moment
+reports the port busy instead of running beside it; if the port is busy, run `join` again in a minute. Start the node
+afterwards with `meshtown run`, the service or the icon. A settings file that cannot be read is left untouched and the
+command fails. Exit codes: 0 joined (or already in the network), 1 refused, expired or timed out, 2 wrong usage.
 
 ### The network key
 
@@ -106,11 +121,11 @@ up. When the page is up the node prints the line `Mesh Town page: <address> — 
 one-time token while no password is set), then two more lines, and waits:
 
     [node] You haven't joined a Mesh Town network yet. Open the Mesh Town page (its address is printed above) and click "Join with an invite" or "Create a new network".
-    [node] Got an invite? You can also join from the terminal: press Ctrl+C, then run meshtown run --invite "<invite>"
+    [node] Got an invite? In another terminal run: meshtown join "<invite>"
 
 Join through the page with "Join with an invite" or "Create a new network" on the "Home" tab. The node then starts
 for real, without restarting the process. The node never creates a network on its own: a key appears only through a
-button on the page, `--invite` or `keygen`.
+button on the page, `join` or `keygen`.
 
 With `--no-config` and no key it is an error right away, without waiting. It is also an error right away if the page
 did not come up (for example, the `--web-port` port is busy) and there is no key.
@@ -371,7 +386,9 @@ temporary token instead.
   starts the browser on it and prints the addresses. Without a password the link carries a one-time token (10 minutes);
   with a password the address is plain. The browser is not started as root, in an SSH session, or on Linux without a
   display, and with `--print`; the link is only printed then. As a service, run it with `sudo` so it can read `web-token`.
-  The command does not change the password or end sessions.
+  The command does not change the password or end sessions. Standard output holds the addresses only, one per line; the
+  notes (that the browser was not started, how long the link lives) go to standard error. If nothing answers on the page
+  port, the command exits with code 3; `--web-port N` points it at another port.
 
 - **First sign-in.** While no password is set, the node prints an address with a temporary token at every start. The
   token is single-use and lives 10 minutes, for example `http://127.0.0.1:7777/?token=…` (in `localnet` mode there are
@@ -390,6 +407,7 @@ temporary token instead.
   ends all sessions and invalidates all earlier temporary tokens, then prints an address with a new temporary token
   (valid 10 minutes, once). On a stopped node it just deletes the file, and the address appears at the next start. On
   a running node the command talks to it with the permanent token from `web-token` next to the settings file.
+  The address is the only thing on standard output; the confirmation goes to standard error.
 - **Brute-force protection.** Five wrong passwords or tokens in a row from one address cause a one-minute block, and
   each further failure doubles it, up to 15 minutes. A session lives 7 days, and a node restart signs everyone out.
 - **Limits.** The page is served over HTTP without TLS: on a local network the password, token and cookie travel in

@@ -146,13 +146,17 @@ fn isolated(command: Command, dir: &Path) -> Command {
     command
 }
 
-/// A fresh empty directory in the system temporary directory.
+/// A fresh empty directory in the system temporary directory. Tests of one binary run in parallel threads of the
+/// same process and the clock may repeat a reading, so a counter keeps the names apart.
 pub fn scratch_dir(tag: &str) -> PathBuf {
+    static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("mesh-cli-{tag}-{}-{nanos}", std::process::id()));
+    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir =
+        std::env::temp_dir().join(format!("mesh-cli-{tag}-{}-{nanos}-{n}", std::process::id()));
     std::fs::create_dir_all(&dir).expect("temporary directory");
     dir
 }
@@ -193,4 +197,12 @@ fn page_port(line: &str) -> u16 {
         .find(|c: char| !c.is_ascii_digit())
         .unwrap_or(rest.len());
     rest[..end].parse().expect("port")
+}
+
+/// Runs the program with no arguments and the isolated environment, in `dir`.
+pub fn cli_no_args(dir: &Path) -> Output {
+    isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), dir)
+        .current_dir(dir)
+        .output()
+        .expect("start meshtown")
 }

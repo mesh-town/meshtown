@@ -1,12 +1,10 @@
-//! The clap definitions of the app: `Cli`, `CliCommand`, the helpers `is_flag_typed`/`toggle_from_flag_pair` that
-//! tell a typed flag from a default, and the default subcommand substitution (`with_default_subcommand`):
-//! starting with no arguments behaves like `tray` (a build with the tray) or `run` (without it).
+//! The clap definitions of the app: `Cli`, `CliCommand` and the helpers `is_flag_typed`/`toggle_from_flag_pair`
+//! that tell a typed flag from a default.
 //! It does not execute subcommands; that is `commands`.
 
-use std::ffi::OsString;
-
+use super::globals::Globals;
 use super::help::{
-    after_help_text, has_tray, rename_commands, sub_help_flag, with_program_name, HELP, HELP_HINT,
+    has_tray, rename_commands, root_help, sub_help_flag, with_program_name, HELP, HELP_HINT,
     HELP_ORDER,
 };
 use crate::cli::program_name::program_name;
@@ -29,6 +27,8 @@ use clap::{ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub(crate) command: CliCommand,
+    #[command(flatten)]
+    pub(crate) globals: Globals,
     // `global = true` on `-h` is required: without it `meshtown run --help` fails with
     // "unexpected argument '--help' found", because the subcommand's own help template cancels
     // its own `-h`. `-V` can't be global: clap 4.6.7 panics at build
@@ -53,16 +53,17 @@ impl Cli {
                 a.display_order(HELP_ORDER)
                     .help(with_program_name(HELP_HINT, program_name()))
             })
-            .mut_arg("version", |a| a.display_order(HELP_ORDER + 1))
-            .after_help(after_help_text(has_tray()));
+            .mut_arg("version", |a| a.display_order(HELP_ORDER + 1));
         let cmd = rename_commands(cmd, program_name());
         let names: Vec<String> = cmd
             .get_subcommands()
             .map(|c| c.get_name().to_string())
             .collect();
-        names.iter().fold(cmd, |cmd, name| {
+        let cmd = names.iter().fold(cmd, |cmd, name| {
             cmd.mut_subcommand(name, |sub| sub.arg(sub_help_flag()))
-        })
+        });
+        let text = root_help(&cmd, has_tray());
+        cmd.override_help(text)
     }
 }
 
@@ -77,6 +78,21 @@ pub(crate) enum CliCommand {
     /// Run Mesh Town in this window, without an icon
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown run [OPTIONS]")]
     Run(crate::cli::commands::RunArgs),
+    /// Join a network with a member's invite or a network key
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown join [--timeout <SECONDS>] <INVITE_OR_KEY>")]
+    Join(crate::cli::commands::JoinArgs),
+    /// Show the networks of the running Mesh Town and whether they are online
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown status [--wait-online [--timeout <SECONDS>]]")]
+    Status(crate::cli::commands::StatusArgs),
+    /// Stop the running Mesh Town
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown stop")]
+    Stop(crate::cli::commands::StopArgs),
+    /// Print a single-use invite to the network, to hand to one person
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown invite [--for <NOTE>]")]
+    Invite(crate::cli::commands::InviteArgs),
+    /// Leave the network and delete its data on this computer
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown leave --yes")]
+    Leave(crate::cli::commands::LeaveArgs),
     // group: access
     // group: config
     // group: member
@@ -91,17 +107,10 @@ pub(crate) enum CliCommand {
         /// Print the machine key mesh2-… instead of the key with words.
         #[arg(long, conflicts_with = "label")]
         raw: bool,
-        /// Settings file (JSON) whose node identity becomes the network admin; can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
     },
     /// Print the path to the settings file
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config-path [--config <PATH>]")]
-    ConfigPath {
-        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
-    },
+    ConfigPath,
     /// Reset the Mesh Town page password and print a one-time sign-in link
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown password reset [--config <PATH>] [--web-port <PORT>]")]
     Password {
@@ -113,12 +122,6 @@ pub(crate) enum CliCommand {
             help_heading = "Options"
         )]
         action: PasswordAction,
-        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
-        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
-        #[arg(long, value_name = "PORT")]
-        web_port: Option<u16>,
     },
     /// Open the Mesh Town page in the browser, or print a sign-in link
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown open [--print] [--config <PATH>] [--web-port <PORT>]")]
@@ -126,12 +129,6 @@ pub(crate) enum CliCommand {
         /// Only print the link, don't start a browser.
         #[arg(long)]
         print: bool,
-        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
-        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
-        #[arg(long, value_name = "PORT")]
-        web_port: Option<u16>,
     },
     /// Who can open the Mesh Town page: localhost (this computer only) or localnet (the local network too)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access <localhost|localnet> [--config <PATH>] [--web-port <PORT>]")]
@@ -139,12 +136,6 @@ pub(crate) enum CliCommand {
         /// Mode: localhost or localnet.
         #[arg(value_name = "MODE", value_parser = parse_access, help_heading = "Options")]
         mode: crate::config::config_file::ListenAccess,
-        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
-        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
-        #[arg(long, value_name = "PORT")]
-        web_port: Option<u16>,
     },
     /// Which networks Mesh Town accepts connections from: interface names, auto (automatic) or '*' (no restriction)
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown ifaces <NAME>... [--if-unset] [--config <PATH>] [--web-port <PORT>]")]
@@ -155,12 +146,6 @@ pub(crate) enum CliCommand {
         /// Write only if the file has neither socks.ifaces nor web.ifaces yet (for autostart).
         #[arg(long)]
         if_unset: bool,
-        /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable.
-        #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
-        config: Option<std::path::PathBuf>,
-        /// Port of the running Mesh Town page, if it isn't from the settings (default: 7777).
-        #[arg(long, value_name = "PORT")]
-        web_port: Option<u16>,
     },
 }
 
@@ -191,21 +176,6 @@ pub(crate) fn toggle_from_flag_pair(on: bool, off: bool) -> Option<bool> {
     } else {
         None
     }
-}
-
-/// If `args` is exactly the program name (one element, no flags or subcommand), appends
-/// `tray` when `has_tray`, otherwise `run`; otherwise returns it as is (an empty list too). The substitution
-/// happens before `clap` parses, so the value sources (`ValueSource`) don't change: `run` with no
-/// arguments looks to `is_flag_typed`/`toggle_from_flag_pair` the same as a `run` subcommand typed by a person.
-pub(crate) fn with_default_subcommand(
-    args: impl IntoIterator<Item = OsString>,
-    has_tray: bool,
-) -> Vec<OsString> {
-    let mut args: Vec<OsString> = args.into_iter().collect();
-    if args.len() == 1 {
-        args.push(OsString::from(if has_tray { "tray" } else { "run" }));
-    }
-    args
 }
 
 #[cfg(test)]

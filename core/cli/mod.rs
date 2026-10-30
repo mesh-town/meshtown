@@ -3,6 +3,7 @@
 //! - `args` - the clap argument definitions and the default subcommand.
 //! - `cli_errors` - user-facing texts for command line errors.
 //! - `commands` - the executors of the subcommands (`keygen`, `run`, `config-path`, ...).
+//! - `exit` - exit codes and the one form of error text.
 //! - `console` - the node console: commands from standard input.
 //! - `os_console` - console output by process role and OS.
 //! - `program_name` - the name the program was started under.
@@ -17,6 +18,8 @@ pub(crate) mod cli_errors;
 pub(crate) mod commands;
 #[cfg(feature = "net-hyper")]
 pub mod console;
+#[cfg(feature = "net-hyper")]
+pub(crate) mod exit;
 #[cfg(feature = "net-hyper")]
 pub(crate) mod os_console;
 pub mod program_name;

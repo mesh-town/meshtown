@@ -13,23 +13,22 @@ use crate::cli::test_args::to_os;
 const HAS_TRAY: bool = cfg!(feature = "gui");
 
 #[test]
-fn no_args_is_run_without_tray() {
-    use crate::cli::args::is_flag_typed;
-
-    let m = Cli::command()
+fn no_args_is_help_without_tray() {
+    let err = Cli::command()
         .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"]), false))
-        .expect("no subcommand and no tray — run");
-    let run_m = m
-        .subcommand_matches("run")
-        .expect("run subcommand substituted");
-    assert!(
-        !is_flag_typed(run_m, "socks_port"),
-        "the default must not look typed"
-    );
-    assert!(matches!(
-        Cli::from_arg_matches(&m).expect("parse").command,
-        CliCommand::Run(_)
-    ));
+        .expect_err("no subcommand and no tray - the help");
+    assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+}
+
+/// The build without the tray: no arguments print the root help to stdout (what the binary does with code 0).
+#[cfg(not(feature = "gui"))]
+#[test]
+fn no_args_prints_root_help_in_this_build() {
+    let err = Cli::command()
+        .try_get_matches_from(with_default_subcommand(to_os(&["meshtown"]), HAS_TRAY))
+        .expect_err("no tray in this build - the help");
+    assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+    assert!(err.to_string().contains("Global options:"), "{err}");
 }
 
 #[cfg(feature = "gui")]
@@ -65,7 +64,7 @@ fn explicit_subcommand_kept() {
         .expect("config-path parses");
     assert!(matches!(
         Cli::from_arg_matches(&m).expect("parse").command,
-        CliCommand::ConfigPath { .. }
+        CliCommand::ConfigPath
     ));
 
     let m = Cli::command()
@@ -74,10 +73,9 @@ fn explicit_subcommand_kept() {
             HAS_TRAY,
         ))
         .expect("run --web-port 7000 parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Run(args) => assert_eq!(args.web_port, Some(7000)),
-        _ => panic!("expected the run subcommand"),
-    }
+    let cli = Cli::from_arg_matches(&m).expect("parse");
+    assert_eq!(cli.globals.web_port, Some(7000));
+    assert!(matches!(cli.command, CliCommand::Run(_)));
 }
 
 #[test]
@@ -118,10 +116,9 @@ fn password_reset_and_access_parse() {
             "7001",
         ]))
         .expect("password reset parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Password { web_port, .. } => assert_eq!(web_port, Some(7001)),
-        _ => panic!("expected password"),
-    }
+    let cli = Cli::from_arg_matches(&m).expect("parse");
+    assert_eq!(cli.globals.web_port, Some(7001));
+    assert!(matches!(cli.command, CliCommand::Password { .. }));
     let m = Cli::command()
         .try_get_matches_from(to_os(&["meshtown", "access", "localhost"]))
         .expect("access parses");
@@ -145,16 +142,14 @@ fn ifaces_parses_names_and_flags() {
             "/x",
         ]))
         .expect("ifaces parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
+    let cli = Cli::from_arg_matches(&m).expect("parse");
+    assert_eq!(cli.globals.config, Some(std::path::PathBuf::from("/x")));
+    match cli.command {
         CliCommand::Ifaces {
-            names,
-            if_unset,
-            config,
-            ..
+            names, if_unset, ..
         } => {
             assert_eq!(names, ["br-lan"]);
             assert!(if_unset);
-            assert_eq!(config, Some(std::path::PathBuf::from("/x")));
         }
         _ => panic!("expected ifaces"),
     }
@@ -200,7 +195,7 @@ mod default_subcommand {
     use super::*;
 
     #[test]
-    fn default_subcommand_without_tray_is_run() {
+    fn default_subcommand_without_tray_is_help() {
         // given
         let args = to_os(&["meshtown"]);
 
@@ -208,7 +203,7 @@ mod default_subcommand {
         let got = with_default_subcommand(args, false);
 
         // then
-        assert_eq!(got.get(1), Some(&OsString::from("run")));
+        assert_eq!(got.get(1), Some(&OsString::from("--help")));
     }
 
     #[test]
@@ -240,7 +235,7 @@ mod after_help {
 
     #[test]
     fn after_help_names_mesh_town_without_tray() {
-        assert!(after_help_text(false).contains("Mesh Town starts"));
+        assert!(after_help_text(false).contains("meshtown run"));
     }
 }
 
@@ -249,10 +244,9 @@ fn open_parses_plain_and_with_flags() {
     let m = Cli::command()
         .try_get_matches_from(to_os(&["meshtown", "open"]))
         .expect("open parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Open {
-            print, web_port, ..
-        } => assert!(!print && web_port.is_none()),
+    let cli = Cli::from_arg_matches(&m).expect("parse");
+    match cli.command {
+        CliCommand::Open { print, .. } => assert!(!print && cli.globals.web_port.is_none()),
         _ => panic!("expected open"),
     }
     let m = Cli::command()
@@ -264,10 +258,30 @@ fn open_parses_plain_and_with_flags() {
             "7778",
         ]))
         .expect("open --print parses");
-    match Cli::from_arg_matches(&m).expect("parse").command {
-        CliCommand::Open {
-            print, web_port, ..
-        } => assert!(print && web_port == Some(7778)),
+    let cli = Cli::from_arg_matches(&m).expect("parse");
+    match cli.command {
+        CliCommand::Open { print, .. } => assert!(print && cli.globals.web_port == Some(7778)),
         _ => panic!("expected open"),
     }
+}
+
+#[test]
+fn status_join_invite_leave_stop_parse() {
+    use crate::cli::test_args::parse_ok;
+    let (cli, _) = parse_ok(&["status", "--wait-online", "--timeout", "5"]);
+    assert!(matches!(cli.command, CliCommand::Status(_)));
+    let (cli, _) = parse_ok(&["join", "abc"]);
+    assert!(matches!(cli.command, CliCommand::Join(_)));
+    let (cli, _) = parse_ok(&["invite", "--for", "Ann"]);
+    assert!(matches!(cli.command, CliCommand::Invite(_)));
+    let (cli, _) = parse_ok(&["leave", "--yes"]);
+    assert!(cli.globals.yes && matches!(cli.command, CliCommand::Leave(_)));
+    let (cli, _) = parse_ok(&["stop"]);
+    assert!(matches!(cli.command, CliCommand::Stop(_)));
+}
+
+#[test]
+fn timeout_without_wait_online_is_refused() {
+    let err = crate::cli::test_args::parse_err(&["status", "--timeout", "5"]);
+    assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
 }

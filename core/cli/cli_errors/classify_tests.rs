@@ -1,55 +1,9 @@
-//! Tests of the command line error texts (`cli_errors.rs`): the error report and the handling of a wrong command.
+//! Tests of the classification of refused command lines (`classify.rs`) and of the commands named in them.
 
 use super::*;
 use crate::cli::args::Cli;
-use crate::cli::cli_errors::text::{error_report, unknown_command_text};
+use crate::cli::cli_errors::text::unknown_command_text;
 use crate::cli::test_args::{parse_err, to_os as os};
-use crate::proxy::BindError;
-
-fn busy(port: u16) -> anyhow::Error {
-    anyhow::Error::new(BindError {
-        port,
-        io_error_kind: std::io::ErrorKind::AddrInUse,
-        os_message: "Address already in use (os error 48)".into(),
-    })
-}
-
-#[test]
-fn report_joins_causes() {
-    let e = anyhow::anyhow!("a").context("b");
-    assert_eq!(error_report(&e), "Error: b: a");
-}
-
-#[test]
-fn report_keeps_own_prefix() {
-    let e = anyhow::anyhow!("x").context("Error: already marked");
-    let text = error_report(&e);
-    assert_eq!(text, "Error: already marked: x");
-}
-
-#[test]
-fn report_adds_prefix_to_text_starting_with_error_word() {
-    let e = anyhow::anyhow!("x").context("Errors in the file");
-    assert_eq!(error_report(&e), "Error: Errors in the file: x");
-}
-
-#[test]
-fn report_adds_proxy_advice() {
-    let text = error_report(&busy(1080));
-    assert_eq!(
-        text,
-        "Error: port 1080 for the browser proxy is in use by another program (Address already in use (os error 48)).\n\
-         Close it or start Mesh Town on another port: meshtown run --socks-port 1081"
-    );
-}
-
-#[test]
-fn report_adds_advice_under_context() {
-    let text = error_report(&busy(1080).context("starting the node"));
-    assert!(text.starts_with("Error: starting the node: port 1080"));
-    assert!(text.ends_with("--socks-port 1081"));
-    assert_eq!(text.lines().count(), 2);
-}
 
 #[test]
 fn classify_unknown_command() {
@@ -81,6 +35,11 @@ fn unknown_text_lists_commands() {
         [
             "tray",
             "run",
+            "join",
+            "status",
+            "stop",
+            "invite",
+            "leave",
             "keygen",
             "config-path",
             "password",
@@ -94,6 +53,11 @@ fn unknown_text_lists_commands() {
         names,
         [
             "run",
+            "join",
+            "status",
+            "stop",
+            "invite",
+            "leave",
             "keygen",
             "config-path",
             "password",
@@ -189,14 +153,16 @@ mod classify_kind {
         }
 
         #[test]
-        fn conflicting_flags_stay_clap() {
+        fn conflicting_flags_get_error_form() {
             let err = parse_err(&["run", "--no-config", "--save-config"]);
-            assert_eq!(classify(&err), ParseFail::LeaveToClap);
+            assert_eq!(classify(&err), ParseFail::Other);
         }
 
         #[test]
-        fn no_command_stays_clap() {
-            assert_eq!(classify(&parse_err(&[])), ParseFail::LeaveToClap);
+        fn no_command_gets_error_form() {
+            let err = parse_err(&["--config", "x"]);
+            assert_eq!(err.kind(), clap::error::ErrorKind::MissingSubcommand);
+            assert_eq!(classify(&err), ParseFail::Other);
         }
     }
 }
@@ -289,4 +255,48 @@ fn typed(args: &[&str]) -> Option<String> {
         "ifaces",
     ]);
     typed_command(&os(args), &visible)
+}
+
+mod error_forms {
+    use super::*;
+
+    #[test]
+    fn missing_required_argument_is_capitalized_error() {
+        let err = parse_err(&["ifaces"]);
+        assert_eq!(classify(&err), ParseFail::Other);
+    }
+
+    #[test]
+    fn help_and_version_stay_clap() {
+        for args in [&["--help"][..], &["-V"], &["status", "--help"]] {
+            assert_eq!(
+                classify(&parse_err(args)),
+                ParseFail::LeaveToClap,
+                "{args:?}"
+            );
+        }
+    }
+}
+
+/// The help of `help`, `--help` and a start with no arguments (no tray) is one text.
+#[test]
+fn help_word_and_flag_and_empty_argv_print_the_same() {
+    use crate::cli::args::{with_default_subcommand, Cli};
+    use crate::cli::test_args::to_os;
+    let render = |args: Vec<std::ffi::OsString>| {
+        let err = Cli::command().try_get_matches_from(args).expect_err("help");
+        assert_eq!(err.kind(), clap::error::ErrorKind::DisplayHelp);
+        err.render().to_string()
+    };
+    let commands: Vec<String> = Cli::command()
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .collect();
+    let word = help_args(&to_os(&["meshtown", "help"]), &commands).expect("help word");
+    let flag = render(to_os(&["meshtown", "--help"]));
+    assert_eq!(render(word), flag);
+    assert_eq!(
+        render(with_default_subcommand(to_os(&["meshtown"]), false)),
+        flag
+    );
 }

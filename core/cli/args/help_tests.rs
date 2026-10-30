@@ -2,6 +2,7 @@
 
 use clap::error::ErrorKind;
 
+use super::root_help;
 use crate::cli::args::Cli;
 
 const ABOUT: &str = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts.";
@@ -44,8 +45,8 @@ fn top_help_speaks_english() {
         for want in [
             ABOUT,
             "Usage: meshtown [COMMAND]",
-            "Commands:",
-            "Options:",
+            "Start:",
+            "Global options:",
             "Run Mesh Town in this window, without an icon",
             "Print a new network key",
             "Print the path to the settings file",
@@ -79,7 +80,7 @@ fn top_help_has_no_clap_defaults() {
 #[test]
 fn top_help_headings_appear_once() {
     for help in [top(), top_long()] {
-        for heading in ["Usage:", "Commands:", "Options:"] {
+        for heading in ["Usage:", "Start:", "Global options:"] {
             assert_eq!(
                 help.matches(heading).count(),
                 1,
@@ -90,19 +91,21 @@ fn top_help_headings_appear_once() {
 }
 
 #[test]
-fn commands_in_order() {
+fn groups_in_order() {
     let help = top();
-    let mut names = vec![
+    let names = vec![
         "  run ",
-        "  keygen ",
-        "  config-path ",
+        "  join ",
+        "  status ",
+        "  stop ",
+        "  invite ",
+        "  open ",
         "  password ",
         "  access ",
+        "  keygen ",
+        "  config-path ",
         "  ifaces ",
     ];
-    if cfg!(feature = "gui") {
-        names.insert(0, "  tray ");
-    }
     let pos: Vec<usize> = names
         .iter()
         .map(|n| {
@@ -128,10 +131,7 @@ fn footer_names_default() {
         help.contains("Join a network with a member's invite:"),
         "{help}"
     );
-    assert!(
-        help.contains("meshtown run --invite \"<invite>\""),
-        "{help}"
-    );
+    assert!(help.contains("meshtown join \"<invite>\""), "{help}");
 }
 
 #[cfg(not(feature = "gui"))]
@@ -139,14 +139,11 @@ fn footer_names_default() {
 fn footer_names_default() {
     let help = top();
     assert!(
-        help.contains("With no command, Mesh Town starts."),
+        help.contains("Run `meshtown run` to start the node"),
         "{help}"
     );
     assert!(!help.contains("  tray "), "{help}");
-    assert!(
-        help.contains("meshtown run --invite \"<invite>\""),
-        "{help}"
-    );
+    assert!(help.contains("meshtown join \"<invite>\""), "{help}");
 }
 
 #[test]
@@ -171,7 +168,7 @@ fn sub_help_speaks_english() {
 }
 
 /// Value names allowed in the help: from the dictionary (`<KEY>`, `<SECONDS>`…).
-const LABELS: [&str; 8] = [
+const LABELS: [&str; 10] = [
     "TEXT",
     "KEY",
     "PATH",
@@ -180,6 +177,8 @@ const LABELS: [&str; 8] = [
     "ADDR:PORT",
     "PORT",
     "MODE",
+    "NETWORK",
+    "INVITE_OR_KEY",
 ];
 
 /// Labels in angle brackets in the text that are not among the allowed value names.
@@ -258,16 +257,57 @@ fn help_word_is_not_a_command() {
 fn env_hidden_but_read() {
     let cmd = Cli::command();
     let run = cmd.find_subcommand("run").expect("run");
-    for (id, var) in [
-        ("key", "MESHTOWN_KEY"),
-        ("invite", "MESHTOWN_INVITE"),
-        ("config", "MESHTOWN_CONFIG"),
-    ] {
+    for (id, var) in [("key", "MESHTOWN_KEY"), ("invite", "MESHTOWN_INVITE")] {
         let arg = run.get_arguments().find(|a| a.get_id() == id).expect(id);
         assert_eq!(arg.get_env().and_then(|e| e.to_str()), Some(var), "{id}");
         assert!(
             arg.is_hide_env_set(),
             "{id}: the variable is not hidden in the help"
         );
+    }
+}
+
+fn small(names: &[&'static str]) -> clap::Command {
+    names.iter().fold(
+        clap::Command::new("meshtown").about("About text"),
+        |cmd, n| cmd.subcommand(clap::Command::new(*n).about("Does a thing")),
+    )
+}
+
+#[test]
+fn name_missing_from_command_is_not_printed() {
+    let help = root_help(&small(&["run", "status"]), false);
+    assert!(help.contains("Start:\n  run "), "{help}");
+    assert!(!help.contains("  network "), "{help}");
+    assert!(!help.contains("Network:"), "{help}");
+    assert!(!help.contains("  join "), "{help}");
+}
+
+#[test]
+fn command_missing_from_table_goes_to_other() {
+    let help = root_help(&small(&["run", "keygen"]), false);
+    let other = help
+        .find("Other:\n  keygen ")
+        .unwrap_or_else(|| panic!("{help}"));
+    assert!(help.find("Start:").expect("Start") < other, "{help}");
+}
+
+#[test]
+fn root_help_lists_global_options() {
+    let help = top();
+    let block = help
+        .split("Global options:")
+        .nth(1)
+        .unwrap_or_else(|| panic!("{help}"));
+    for flag in [
+        "--config <PATH>",
+        "--web-port <PORT>",
+        "--net <NETWORK>",
+        "--json",
+        "--yes",
+        "-h, --help",
+        "-V, --version",
+    ] {
+        assert!(block.contains(flag), "no {flag}:\n{help}");
     }
 }

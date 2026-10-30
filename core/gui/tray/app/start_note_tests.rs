@@ -20,7 +20,7 @@ async fn real_bind_error_is_proxy_was_busy() {
     .unwrap_err();
     let log = format!(
         "+ 0.1s [node] start\n{}\n",
-        crate::cli::cli_errors::error_report(&e)
+        crate::cli::exit::error_report(&e)
     );
     assert_eq!(
         start_note_from(Some(1), Some(&log)),

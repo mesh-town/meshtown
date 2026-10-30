@@ -57,7 +57,15 @@ async fn reset_live_prints_temp_url_and_removes_file() {
         text.contains("?token="),
         "no address with a temporary token"
     );
-    assert!(text.contains("10 minutes"), "no validity period: {text}");
+    assert!(
+        text.lines().all(|l| l.starts_with("http://")),
+        "stdout holds more than addresses: {text}"
+    );
+    assert!(
+        err(&o).contains("10 minutes"),
+        "no validity period: {}",
+        err(&o)
+    );
     assert!(
         !password_file(&rig.dir).exists(),
         "password file is still there"
@@ -76,10 +84,11 @@ async fn reset_without_node_removes_file_exit_0() {
     let o = mesh(&["password", "reset"], &dir, free_port());
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     assert!(
-        out(&o).contains("Mesh Town isn't running"),
-        "stdout: {}",
-        out(&o)
+        err(&o).contains("Mesh Town isn't running"),
+        "stderr: {}",
+        err(&o)
     );
+    assert!(out(&o).is_empty(), "stdout: {}", out(&o));
     assert!(
         !password_file(&dir).exists(),
         "password file is still there"
@@ -198,7 +207,11 @@ async fn open_print_shows_loopback_and_keeps_password() {
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
     let text = out(&o);
     assert!(text.contains("127.0.0.1"), "no loopback address: {text}");
-    assert!(text.contains("page password"), "no password hint: {text}");
+    assert!(
+        text.lines().all(|l| l.starts_with("http://")),
+        "stdout holds more than addresses: {text}"
+    );
+    assert!(err(&o).contains("page password"), "stderr: {}", err(&o));
     assert!(
         password_file(&rig.dir).exists(),
         "password file was removed"
@@ -214,8 +227,8 @@ async fn open_print_shows_loopback_and_keeps_password() {
 async fn open_without_node_fails_with_hint() {
     let dir = scratch("cli-open-off");
     let o = mesh(&["open", "--print"], &dir, free_port());
-    assert_ne!(o.status.code(), Some(0));
-    assert!(err(&o).contains("start it first"), "stderr: {}", err(&o));
+    assert_eq!(o.status.code(), Some(3), "stdout: {}", out(&o));
+    assert!(err(&o).contains("--web-port"), "stderr: {}", err(&o));
     assert!(!out(&o).contains("http://"), "stdout: {}", out(&o));
     cleanup(&dir);
 }

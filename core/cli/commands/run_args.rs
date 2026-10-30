@@ -1,5 +1,7 @@
 //! Arguments of the `run` subcommand (see `commands.rs`, `cli.rs`).
 
+use crate::cli::args::Globals;
+
 /// Arguments of the `run` subcommand, parsed by `clap` directly (they used to be fields of `cli::CliCommand::Run`,
 /// now the variant's only field is `Run(RunArgs)`).
 #[derive(clap::Args)]
@@ -10,8 +12,8 @@ pub(crate) struct RunArgs {
     /// Network key: a words key or mesh2-… (can be set with the MESHTOWN_KEY variable) (default: from the settings file).
     #[arg(long, env = "MESHTOWN_KEY", hide_env = true, value_name = "KEY")]
     pub(crate) key: Option<String>,
-    /// Settings file (JSON); can be set with the MESHTOWN_CONFIG variable (default: next to the program or in the standard location).
-    #[arg(long, value_name = "PATH", env = "MESHTOWN_CONFIG", hide_env = true)]
+    /// The settings file: filled from the global `--config` by `with_globals`.
+    #[arg(skip)]
     pub(crate) config: Option<std::path::PathBuf>,
     /// Do not read or write the settings file: only defaults and flags.
     #[arg(long, conflicts_with = "save_config")]
@@ -64,7 +66,18 @@ pub(crate) struct RunArgs {
     /// Treat a site as blocked for you, without checking. Can be repeated.
     #[arg(long = "block-domain", value_name = "SITE")]
     pub(crate) blocked_domains: Vec<String>,
-    /// Port of the Mesh Town page on 127.0.0.1 (default: 7777).
-    #[arg(long, value_name = "PORT")]
+    /// The page port: filled from the global `--web-port` by `with_globals`.
+    #[arg(skip)]
     pub(crate) web_port: Option<u16>,
+}
+
+impl RunArgs {
+    /// Takes the settings file and the page port from the global options.
+    pub(crate) fn with_globals(self, g: &Globals) -> RunArgs {
+        RunArgs {
+            config: g.config.clone(),
+            web_port: g.web_port,
+            ..self
+        }
+    }
 }

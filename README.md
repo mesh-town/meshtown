@@ -81,7 +81,7 @@ go out the same way.
 2. Open the node page from the tray menu, or with the sign-in link printed at start
    (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
-   `meshtown run --invite mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
+   `meshtown join mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
 4. **Invite a member** on the page gives a single-use string for the next device or person.
 5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using the proxy from step 6, a
    shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.

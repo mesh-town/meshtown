@@ -16,6 +16,10 @@ mod browser;
 // group: config
 mod client;
 mod config;
+pub(crate) mod invite;
+pub(crate) mod join;
+mod join_offline;
+pub(crate) mod leave;
 // group: member
 // group: network
 mod network;
@@ -27,13 +31,20 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
+pub(crate) mod status;
+pub(crate) mod stop;
 pub(crate) use access::ifaces;
 pub(crate) use config::config_path;
+pub(crate) use invite::InviteArgs;
+pub(crate) use join::JoinArgs;
+pub(crate) use leave::LeaveArgs;
 pub(crate) use network::keygen;
 pub(crate) use run_args::RunArgs;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
+pub(crate) use status::StatusArgs;
+pub(crate) use stop::StopArgs;
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {
@@ -89,6 +100,14 @@ async fn launch_prepared(
 struct StartInput<'a> {
     save_config: bool,
     domains: &'a [String],
+}
+
+impl StartInput<'static> {
+    /// `join` without a node: the flags are not saved and there are no typed domains.
+    const JOIN: StartInput<'static> = StartInput {
+        save_config: false,
+        domains: &[],
+    };
 }
 
 /// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
