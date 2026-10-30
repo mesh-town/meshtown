@@ -117,8 +117,8 @@ impl NodeControl for NodeCtl {
 }
 
 /// Body of joining a network. From `Stopping` — a refusal, no command is sent. From `NoNetwork`, `Starting`, `Up` —
-/// phase `Starting`, command to the channel; the journal line depends on the previous phase (first join or
-/// restart) and on whether addresses came with the invite. Does not touch the invite wait:
+/// phase `Starting` (see [`mark_starting`]), command to the channel; the journal line depends on the previous phase
+/// (first join or restart) and on whether addresses came with the invite. Does not touch the invite wait:
 /// its task calls this function itself.
 pub(super) fn begin_network_switch(
     ctl_shared: &NodeCtlShared,
@@ -127,12 +127,7 @@ pub(super) fn begin_network_switch(
     peers: Vec<crate::transport::net::PeerAddr>,
     secret: Option<crate::transport::net::NodeSecret>,
 ) {
-    let mut st = ctl_shared
-        .ctl_state
-        .lock()
-        .unwrap_or_else(|e| e.into_inner());
-    if matches!(st.phase, Phase::Stopping) {
-        drop(st);
+    let Some(from_no_network) = mark_starting(ctl_shared) else {
         say(
             "node",
             format!(
@@ -141,10 +136,7 @@ pub(super) fn begin_network_switch(
             ),
         );
         return;
-    }
-    let from_no_network = matches!(st.phase, Phase::NoNetwork);
-    st.phase = Phase::Starting;
-    drop(st);
+    };
     let peers_count = peers.len();
     let _ = cmd_tx.send(Cmd::Switch {
         key: key.to_string(),
@@ -152,6 +144,20 @@ pub(super) fn begin_network_switch(
         secret,
     });
     say("node", switch_line(from_no_network, peers_count));
+}
+
+/// Moves the phase to `Starting` under the lock; `None` while stopping, otherwise whether it came from `NoNetwork`.
+fn mark_starting(ctl_shared: &NodeCtlShared) -> Option<bool> {
+    let mut st = ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if matches!(st.phase, Phase::Stopping) {
+        return None;
+    }
+    let from_no_network = matches!(st.phase, Phase::NoNetwork);
+    st.phase = Phase::Starting;
+    Some(from_no_network)
 }
 
 /// The journal line for a network switch: first join or restart, plus the number of addresses from the invite.

@@ -37,6 +37,56 @@ fn in_progress_blocks_second_try_begin() {
     assert!(in_progress.try_begin("example.com"));
 }
 
+mod remember_verdict {
+    use super::*;
+
+    fn fresh() -> DomainState {
+        DomainState {
+            next_at: Instant::now(),
+            last_verdict: None,
+            same_verdict_streak: 0,
+        }
+    }
+
+    #[test]
+    fn same_grows() {
+        let mut s = fresh();
+        s.remember_verdict(CheckVerdict::Ok);
+        s.remember_verdict(CheckVerdict::Ok);
+        assert_eq!(s.same_verdict_streak, 1);
+    }
+
+    #[test]
+    fn capped() {
+        let mut s = fresh();
+        for _ in 0..6 {
+            s.remember_verdict(CheckVerdict::Ok);
+        }
+        assert_eq!(s.same_verdict_streak, 4);
+    }
+
+    #[test]
+    fn other_resets() {
+        let mut s = fresh();
+        s.remember_verdict(CheckVerdict::Ok);
+        s.remember_verdict(CheckVerdict::Down);
+        assert_eq!(s.same_verdict_streak, 0);
+        assert_eq!(s.last_verdict, Some(CheckVerdict::Down));
+    }
+}
+
+mod backoff_interval {
+    use super::*;
+
+    #[test]
+    fn doubles_per_streak_up_to_max() {
+        let schedule = Schedule::default();
+        assert_eq!(schedule.backoff_interval(0), Duration::from_secs(300));
+        assert_eq!(schedule.backoff_interval(2), Duration::from_secs(1200));
+        assert_eq!(schedule.backoff_interval(4), Duration::from_secs(3600));
+    }
+}
+
 fn peer(seed: u8) -> PeerId {
     NodeSecret::from_bytes(&[seed; 32]).peer_id()
 }

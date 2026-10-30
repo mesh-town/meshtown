@@ -6,15 +6,12 @@ use std::time::Duration;
 
 use crate::node::RunningNode;
 
-use super::snapshot;
+use super::snapshot::{self, Collected};
 use super::state::NodeCtlShared;
 
-/// Loop of the background snapshot task: once a second (or sooner, on `kick`) it reads `effective_settings.node_name`
-/// under the lock, decides whether to skip a collection (`last_read` is older than 5 s and
-/// it is not the first tick after `attach`), picks the own name through [`snapshot_self_name`] (the effective
-/// settings, or otherwise the name the node was started under), calls `collect`, and puts the result into `cache`
-/// only if the generation has not changed (otherwise the task is outdated — `detach`/a new `attach`
-/// overtakes it).
+/// Loop of the background snapshot task: [`decide_snapshot`] under the lock, [`snapshot_self_name`] and `collect`
+/// outside it, [`store_snapshot`] under the lock, then [`wait_tick`]. The task ends when the generation changes
+/// (`detach`/a new `attach` overtakes it).
 pub(super) async fn snapshot_task(
     ctl_shared: Arc<NodeCtlShared>,
     task_gen: u64,
@@ -23,42 +20,66 @@ pub(super) async fn snapshot_task(
     let mut is_first_tick = true;
     let mut doc_cache = snapshot::DocCache::default();
     loop {
-        let (should_collect, name) = {
-            let st = ctl_shared
-                .ctl_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            if st.snapshot_gen != task_gen {
-                return;
-            }
-            let page_idle = st.last_read.elapsed() > Duration::from_secs(5);
-            (
-                is_first_tick || !page_idle,
-                st.effective_settings.net.node_name.clone(),
-            )
+        let Some((should_collect, name)) = decide_snapshot(&ctl_shared, task_gen, is_first_tick)
+        else {
+            return;
         };
         if should_collect {
             let self_name = snapshot_self_name(name.as_deref(), &node.name_at_start);
-            let mut collected =
+            let collected =
                 snapshot::collect(&node, Some(self_name.as_str()), &mut doc_cache).await;
-            let mut st = ctl_shared
-                .ctl_state
-                .lock()
-                .unwrap_or_else(|e| e.into_inner());
-            if st.snapshot_gen == task_gen {
-                if collected.partial {
-                    if let Some(prev) = &st.cache {
-                        collected.domains = prev.domains.clone();
-                    }
-                }
-                st.cache = Some(collected);
-            }
+            store_snapshot(&ctl_shared, task_gen, collected);
         }
         is_first_tick = false;
-        tokio::select! {
-            _ = tokio::time::sleep(Duration::from_secs(1)) => {}
-            _ = ctl_shared.kick.notified() => {}
-        }
+        wait_tick(&ctl_shared).await;
+    }
+}
+
+/// Under the lock: `None` if the generation changed; otherwise whether to collect (first tick or the page was read
+/// within the last 5 s) and the effective node name.
+fn decide_snapshot(
+    ctl_shared: &NodeCtlShared,
+    task_gen: u64,
+    is_first_tick: bool,
+) -> Option<(bool, Option<String>)> {
+    let st = ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if st.snapshot_gen != task_gen {
+        return None;
+    }
+    let page_idle = st.last_read.elapsed() > Duration::from_secs(5);
+    Some((
+        is_first_tick || !page_idle,
+        st.effective_settings.net.node_name.clone(),
+    ))
+}
+
+/// A partial collection keeps the domain list of the previous one, if there is one.
+fn with_previous_domains(mut collected: Collected, previous: Option<&Collected>) -> Collected {
+    if let (true, Some(prev)) = (collected.partial, previous) {
+        collected.domains = prev.domains.clone();
+    }
+    collected
+}
+
+/// Under the lock: puts the result into `cache` only if the generation has not changed.
+fn store_snapshot(ctl_shared: &NodeCtlShared, task_gen: u64, collected: Collected) {
+    let mut st = ctl_shared
+        .ctl_state
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if st.snapshot_gen == task_gen {
+        st.cache = Some(with_previous_domains(collected, st.cache.as_ref()));
+    }
+}
+
+/// Waits one second or until `kick`.
+async fn wait_tick(ctl_shared: &NodeCtlShared) {
+    tokio::select! {
+        _ = tokio::time::sleep(Duration::from_secs(1)) => {}
+        _ = ctl_shared.kick.notified() => {}
     }
 }
 

@@ -129,6 +129,25 @@ fn domain_state<'a>(
         })
 }
 
+impl DomainState {
+    /// Counts a run of equal verdicts (capped at `MAX_BACKOFF_EXPONENT`); a different verdict restarts it.
+    fn remember_verdict(&mut self, verdict: CheckVerdict) {
+        if self.last_verdict == Some(verdict) {
+            self.same_verdict_streak = (self.same_verdict_streak + 1).min(MAX_BACKOFF_EXPONENT);
+        } else {
+            self.same_verdict_streak = 0;
+        }
+        self.last_verdict = Some(verdict);
+    }
+}
+
+impl Schedule {
+    /// The base interval doubled `streak` times, capped at `max`.
+    pub(super) fn backoff_interval(&self, streak: u32) -> Duration {
+        (self.base_interval() * (1 << streak)).min(self.max)
+    }
+}
+
 impl Checks {
     /// Whether it is time to check the domain; also creates the state for a new domain.
     pub(super) async fn due(&self, domain: &str) -> bool {
@@ -146,14 +165,8 @@ impl Checks {
                 last_verdict: None,
                 same_verdict_streak: 0,
             });
-        if entry.last_verdict == Some(verdict) {
-            entry.same_verdict_streak = (entry.same_verdict_streak + 1).min(MAX_BACKOFF_EXPONENT);
-        } else {
-            entry.same_verdict_streak = 0;
-        }
-        entry.last_verdict = Some(verdict);
-        let factor = 1u32 << entry.same_verdict_streak;
-        let interval = (self.schedule.base_interval() * factor).min(self.schedule.max);
+        entry.remember_verdict(verdict);
+        let interval = self.schedule.backoff_interval(entry.same_verdict_streak);
         entry.next_at =
             Instant::now() + interval + offset_for(self.shared_replica.me(), domain, interval);
     }
