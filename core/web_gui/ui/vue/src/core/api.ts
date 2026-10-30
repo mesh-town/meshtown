@@ -101,14 +101,17 @@ function notifyTokenRejected(d: ApiDeps, sentToken: string): void {
   if (d.busTarget && d.getToken() === sentToken) notifyChanged(d.busTarget, "token");
 }
 
+// Builds the error for a non-token refusal from the response body.
+function httpError(status: number, body: ApiErrorBodyLoose | null): ApiError {
+  const code = (body && body.error) || "http_" + status;
+  return new ApiError(status, code, (body && body.message) || API_ERROR_TEXT.http(status), body);
+}
+
 async function failure(d: ApiDeps, res: Response, sentToken: string): Promise<ApiError> {
   const body = await readJson(res);
-  if (res.status === 401) {
-    notifyTokenRejected(d, sentToken);
-    return new ApiError(401, "bad_token", API_ERROR_TEXT.bad_token, body);
-  }
-  const code = (body && body.error) || "http_" + res.status;
-  return new ApiError(res.status, code, (body && body.message) || API_ERROR_TEXT.http(res.status), body);
+  if (res.status !== 401) return httpError(res.status, body);
+  notifyTokenRejected(d, sentToken);
+  return new ApiError(401, "bad_token", API_ERROR_TEXT.bad_token, body);
 }
 
 export async function api<T = unknown>(method: string, path: string, body?: unknown, deps: Partial<ApiDeps> = defaultApiDeps): Promise<T> {

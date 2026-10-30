@@ -71,13 +71,14 @@ export function createPoller(store: Store, conn: Conn, deps: ShellDeps = default
     timer = deps.setTimer(pollOnce, delay);
   }
 
+  // A request is in flight: drop the pending timer and retry right after it ends if asked for now.
+  function holdForCurrentPoll(delay: number): void {
+    clearPollTimer();
+    if (!blocked()) pollAgainAfterCurrent = pollAgainAfterCurrent || delay === 0;
+  }
+
   function schedule(delay: number): void {
-    if (inFlight) {
-      deps.clearTimer(timer);
-      timer = null;
-      if (!blocked()) pollAgainAfterCurrent = pollAgainAfterCurrent || delay === 0;
-      return;
-    }
+    if (inFlight) return holdForCurrentPoll(delay);
     restartTimer(delay);
   }
 
