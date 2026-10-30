@@ -37,8 +37,13 @@ What Mesh Town does not do in the 0.3.x line, in detail. The short list is in [R
 - **A refusal is final.** The node moves to the next exit in the list only when the current one cannot be reached;
   if an exit answers with a refusal, the client gets it.
 - **A direct connection may not open on some mobile networks.** Behind home routers and most NATs the nodes connect
-  directly; some mobile operators block that, and then the node reaches the others from that network only through a
-  member with a public address that relays the connection.
+  directly; some mobile operators block that, and then the node reaches the others from that network only through
+  another member that relays the connection.
+- **Relay needs a member that can serve it.** Any member can serve as a relay except one behind a NAT that gives every
+  connection a different external port (a "random" NAT); phones count too. If no member of a network qualifies, a
+  failed direct connection has no fallback. A relay reached only by its key, without an address (behind a NAT with
+  stable ports), can take a long time to connect: a dial by key may time out and be retried.
+- **A public member that moves behind a NAT keeps advertising its old address** until the node is restarted.
 - **No traffic accounting or speed limits** per member, and no limit on simultaneous connections.
 - **One hop only.** Client → your node → a member → the site; chains of two or more members are not supported.
 - **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by

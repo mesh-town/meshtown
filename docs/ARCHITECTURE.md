@@ -5,8 +5,8 @@
 A node with a given network key finds other nodes with the same key through a record in the public DHT
 (HyperDHT), checks with a secret that they know the same key (handshake), and keeps a connection with them over
 the `hyper` transport: an adapter to the townjump library, which does NAT hole punching. When a direct connection
-does not come up, the dial falls back to a relay run by another member of the same network that has a public address; such a
-relay pairs only members of its own network (the member advertises its relay key and public address as the record `relay/v1` in the network's replica, the address in the tail after the 32-byte key, which older readers ignore; a relay is advertised only after it has checked that its address is reachable from outside, and is closed and retried later if that does not happen; setting `net.relay`, `network`
+does not come up, the dial falls back to a relay run by another member of the same network; such a
+relay pairs only members of its own network (a member serves as a relay unless it is behind a NAT that gives each connection a different external port; the NAT type is read from the transport library's reachability report. The member advertises its relay key as the record `relay/v1` in the network's replica: a member with a public address writes 38 bytes, the key followed by the address, and a member behind a NAT with stable ports writes the bare 32-byte key and is dialled by key through the DHT with hole punching. Older readers ignore the tail. Candidates with an address are tried first. A relay that is unfit is closed and tried again after 600 s. A public member that later moves behind a NAT keeps its old address in the record until restart. Setting `net.relay`, `network`
 by default, `off` disables both calling and serving). The receiving side sees that the session is relayed (not by whom) and reports `relay`. The nodes share a topic
 (membership by flooding) and a replica of signed records (domain list, check results, port publications). Once per
 interval a volume probe (16 KiB / 256 KiB / 1 MiB) runs over a connection to find out whether the transport passes
@@ -341,7 +341,7 @@ place for that: `connect_tcp` in `core/site_checks/reachability/probe.rs`.
 ## Limitations
 
 - One DHT record holds up to 16 member keys (after that the oldest are pushed out).
-- Relay needs a member with a public address: it starts about twenty minutes after that node starts, and a network of nodes that are all behind NAT has none.
+- Relay needs a member that can serve it: any member except one behind a NAT with random port mapping. It starts shortly after the node starts, once the node knows its NAT type; a network where every node is behind a random NAT has no relay.
 - Node names are not unique; an invite is single-use and valid for a day, and whoever presents it first joins, so send it to one person in a private message.
 - Without a settings file (`--no-config`), the domain list lives in memory and is lost when the whole
   network restarts.
