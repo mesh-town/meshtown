@@ -22,6 +22,7 @@ mod entry;
 mod network;
 mod preload;
 mod proxy_wiring;
+mod relay_advert;
 pub(in crate::node) mod relay_candidates;
 mod serving;
 mod stack;

@@ -8,7 +8,7 @@ use tokio::task::JoinHandle;
 use crate::config::config_file::RelayMode;
 use crate::members::access::view::AccessView;
 use crate::members::membership::Members;
-use crate::node::relay_advert::{advertise_relay, retract_relay};
+use super::relay_advert::{advertise_relay, retract_relay};
 use crate::node::start::relay_candidates::relay_source;
 use crate::transport::net::Replica;
 use crate::transport::net_hyper::{HyperTransport, RelayAdmit};
