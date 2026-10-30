@@ -19,7 +19,9 @@ use crate::proxy::domains::DomainList;
 use crate::transport::net::{NetInfo, Replica, Transport};
 
 use super::board::{announce_country, own_country_record};
+use super::country::Country;
 use super::fetch::lookup_country;
+use super::sources::Source;
 
 #[cfg(test)]
 #[path = "task_tests.rs"]
@@ -118,32 +120,39 @@ async fn wait_out_fresh_own_country(replica: &dyn Replica) {
     tokio::time::sleep(wait).await;
 }
 
-/// One round: asks the sources, on success writes the country, waits `COUNTRY_RECHECK_AFTER`/`FAIL_RETRY` by
-/// the outcome. Write errors go only to the log, the country stays found.
+/// One round: checks the country, then waits by the outcome.
 async fn run_one_check(r: &dyn Replica) {
+    let outcome = check_country(r).await;
+    tokio::time::sleep(pause_after_outcome(outcome)).await;
+}
+
+/// Asks the sources; on success writes the country. Errors go only to the log.
+async fn check_country(r: &dyn Replica) -> Outcome {
     match lookup_country().await {
-        Ok((country, source)) => {
-            let outcome = match announce_country(r, country).await {
-                Ok(()) => {
-                    say(
-                        "geo",
-                        format!("country {} from {}", country.as_str(), source.spec().host),
-                    );
-                    Outcome::Found
-                }
-                Err(e) => {
-                    say(
-                        "geo",
-                        format!("country {} not recorded: {e:#}", country.as_str()),
-                    );
-                    Outcome::Failed
-                }
-            };
-            tokio::time::sleep(pause_after_outcome(outcome)).await;
-        }
+        Ok((country, source)) => announce_found_country(r, country, source).await,
         Err(reasons) => {
             say("geo", format!("country not determined: {reasons}"));
-            tokio::time::sleep(pause_after_outcome(Outcome::Failed)).await;
+            Outcome::Failed
+        }
+    }
+}
+
+/// Writes the found country; a write error goes only to the log, the round counts as failed.
+async fn announce_found_country(r: &dyn Replica, country: Country, source: Source) -> Outcome {
+    match announce_country(r, country).await {
+        Ok(()) => {
+            say(
+                "geo",
+                format!("country {} from {}", country.as_str(), source.spec().host),
+            );
+            Outcome::Found
+        }
+        Err(e) => {
+            say(
+                "geo",
+                format!("country {} not recorded: {e:#}", country.as_str()),
+            );
+            Outcome::Failed
         }
     }
 }

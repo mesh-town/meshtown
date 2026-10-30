@@ -90,3 +90,27 @@ mod net_absent_decision {
 fn info_with(net_seen: Option<bool>) -> NetInfo {
     NetInfo { net_seen }
 }
+
+#[tokio::test]
+async fn found_country_is_announced() {
+    use crate::transport::net::mem::MemSyncNet;
+    use crate::transport::net::sync_backend::{SyncCtx, REPLICA_NET};
+    use crate::transport::net::NodeSecret;
+    // given: an in-memory replica and a country
+    let ctx = SyncCtx {
+        secret: NodeSecret::from_bytes(&[3; 32]),
+        network_seed: [9; 32],
+        store_dir: None,
+    };
+    let rep = MemSyncNet::new()
+        .backend(ctx)
+        .replica_mem(REPLICA_NET)
+        .unwrap();
+    let country = Country::parse("DE").unwrap();
+    // when: the found country is announced
+    let outcome = announce_found_country(rep.as_ref(), country, Source::CfTrace).await;
+    // then: the round is a success and the same country is recorded
+    assert!(matches!(outcome, Outcome::Found));
+    let (stored, _) = own_country_record(rep.as_ref()).await.unwrap().unwrap();
+    assert_eq!(stored.as_str(), "DE");
+}

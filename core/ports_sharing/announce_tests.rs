@@ -174,6 +174,33 @@ mod cycle_over_a_document {
     }
 
     #[tokio::test]
+    async fn unlisted_record_stays_when_already_cleaned() {
+        // given: the document holds our TCP 53 that the table does not list
+        let rig = setup();
+        rig.doc.publish(&p(53, "a")).await.unwrap();
+        // when: the one-time cleaning already happened
+        let mut cleaned = true;
+        remove_unlisted_once(&rig.doc, &[], &mut cleaned)
+            .await
+            .unwrap();
+        // then: the record stays and the flag is kept
+        assert_eq!(rig.doc.own_ports().await.unwrap(), [(Proto::Tcp, 53)]);
+        assert!(cleaned);
+    }
+
+    #[tokio::test]
+    async fn unlisted_record_is_removed_on_first_cycle() {
+        let rig = setup();
+        rig.doc.publish(&p(53, "a")).await.unwrap();
+        let mut cleaned = false;
+        remove_unlisted_once(&rig.doc, &[], &mut cleaned)
+            .await
+            .unwrap();
+        assert!(rig.doc.own_ports().await.unwrap().is_empty());
+        assert!(cleaned);
+    }
+
+    #[tokio::test]
     async fn udp_dropped_from_the_table_disappears_from_the_document() {
         // given: a cycle announced TCP 53 and UDP 53
         let rig = setup();
