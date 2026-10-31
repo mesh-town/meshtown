@@ -162,6 +162,77 @@ mod get_of_an_added_slot {
     }
 }
 
+mod restart_pending_after_a_restart {
+    use super::*;
+
+    /// A page that never reads `/api/state`: a restart moves the baseline on the next config request,
+    /// and a later write is measured against the new baseline.
+    #[tokio::test]
+    async fn restart_pending_follows_boot_without_state_read() {
+        // given: the file says localnet, the node started with localhost
+        let node = SnapNode::new(Default::default());
+        set_boot(&node, "aaaaaaaa");
+        let f = setup_main_only(&node);
+        given_proxy_access(&f, ListenAccess::Localnet, ListenAccess::Localhost);
+        let (_, body) = f.when_get().await;
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+        // when: the node restarts and the config is read without a state read
+        set_boot(&node, "bbbbbbbb");
+        let (_, body) = f.when_get().await;
+        // then: the restart took the file as the new baseline
+        assert_eq!(body["restart_pending"], json!([]));
+        // and: narrowing the access again is pending against it
+        let (status, body) = f
+            .when_put("main", json!({"socks": {"access": "localhost"}}))
+            .await;
+        assert_eq!(status, StatusCode::OK, "body: {body}");
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+    }
+
+    #[tokio::test]
+    async fn put_after_restart_measures_against_new_baseline() {
+        // given: the node's first lap is known and a wider proxy access waits for a restart
+        let node = SnapNode::new(Default::default());
+        set_boot(&node, "aaaaaaaa");
+        let f = setup_main_only(&node);
+        given_proxy_access(&f, ListenAccess::Localnet, ListenAccess::Localhost);
+        let (_, body) = f.when_get().await;
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+        // when: the node restarts and the next request is a write, not a read
+        set_boot(&node, "bbbbbbbb");
+        let (status, body) = f
+            .when_put("main", json!({"socks": {"access": "localhost"}}))
+            .await;
+        // then: the write is measured against the file the new lap started with
+        assert_eq!(status, StatusCode::OK, "body: {body}");
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+    }
+
+    #[tokio::test]
+    async fn baseline_seeded_at_first_config_request() {
+        // given: a slot nobody has asked anything yet
+        let node = SnapNode::new(Default::default());
+        set_boot(&node, "cccccccc");
+        let f = setup_main_only(&node);
+        assert_eq!(f.last_boot_id(), None);
+        // when
+        let _ = f.when_get().await;
+        // then
+        assert_eq!(f.last_boot_id().as_deref(), Some("cccccccc"));
+    }
+
+    fn set_boot(node: &SnapNode, id: &str) {
+        node.snapshot.lock().unwrap().boot_id = id.to_string();
+    }
+
+    fn given_proxy_access(f: &Fixture, file: ListenAccess, boot: ListenAccess) {
+        let main = f.host.main_slot();
+        let mut cfg = main.config.lock().unwrap();
+        cfg.file_settings.process.socks_access = file;
+        cfg.boot_file_settings.process.socks_access = boot;
+    }
+}
+
 fn other_than(mode: ListenAccess) -> ListenAccess {
     match mode {
         ListenAccess::Localhost => ListenAccess::Localnet,
@@ -186,6 +257,16 @@ impl Fixture {
         };
         let body = json!({"rev": self.rev_of(slot), "config": config}).to_string();
         send(&self.router, Method::PUT, &path, &body).await
+    }
+
+    async fn when_get(&self) -> (StatusCode, Value) {
+        send(&self.router, Method::GET, "/api/config", "").await
+    }
+
+    fn last_boot_id(&self) -> Option<String> {
+        let main = self.host.main_slot();
+        let id = main.config.lock().unwrap().last_boot_id.clone();
+        id
     }
 
     fn rev_of(&self, slot: &str) -> u64 {
@@ -256,7 +337,32 @@ fn setup() -> Fixture {
     }
 }
 
+/// Only the primary slot, over a node the test can change.
+fn setup_main_only(node: &Arc<SnapNode>) -> Fixture {
+    static COUNTER: portable_atomic::AtomicU64 = portable_atomic::AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("routes-config-boot-{}-{n}", std::process::id()));
+    let main = file_slot_on("main", &dir.join("main"), None, node.clone());
+    let host = FakeHost::new(vec![main]);
+    let (router, app) = test_app(host.clone());
+    Fixture {
+        router,
+        app,
+        host,
+        dir,
+    }
+}
+
 fn file_slot(id: &str, dir: &std::path::Path, key: Option<&str>) -> crate::web_gui::SlotHandle {
+    file_slot_on(id, dir, key, SnapNode::new(Default::default()))
+}
+
+fn file_slot_on(
+    id: &str,
+    dir: &std::path::Path,
+    key: Option<&str>,
+    node: Arc<SnapNode>,
+) -> crate::web_gui::SlotHandle {
     std::fs::create_dir_all(dir).unwrap();
     let source = ConfigSource::File {
         path: dir.join("config.json"),
@@ -266,5 +372,5 @@ fn file_slot(id: &str, dir: &std::path::Path, key: Option<&str>) -> crate::web_g
     let run = config_file::prepare(&source, &CliOverrides::default(), true, 0).unwrap();
     let mut state = ConfigState::from_run(&run);
     state.current_network_key = key.map(str::to_string);
-    slot_handle(id, SnapNode::new(Default::default()), state)
+    slot_handle(id, node, state)
 }

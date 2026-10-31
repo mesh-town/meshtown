@@ -91,6 +91,27 @@ mod primary_slot_without_a_key {
         }
     }
 
+    mod node_started_again_since_the_page_last_looked {
+        use super::*;
+
+        #[tokio::test]
+        async fn restart_is_refused_because_the_new_lap_took_the_file() {
+            // given: the file names a new port, but the node has started again since the baseline was taken
+            let f = setup(Opts {
+                socks_port_changed: true,
+                node_started_again: true,
+                ..Opts::default()
+            })
+            .await;
+            // when
+            let (status, body) = f.when_restart("/api/actions/restart").await;
+            // then: nothing waits for a restart any more, so the proxy stays on its port
+            assert_eq!(status, StatusCode::CONFLICT, "body: {body}");
+            assert_eq!(body["error"], "busy");
+            assert_eq!(f.front_port(), Some(f.old_port), "port of the front");
+        }
+    }
+
     mod socks_port_pinned_by_a_flag {
         use super::*;
 
@@ -187,6 +208,8 @@ struct Opts {
     port_pinned_by_flag: bool,
     /// Another program holds the new port.
     new_port_held: bool,
+    /// The node has started again since the settings baseline of the primary slot was taken.
+    node_started_again: bool,
 }
 
 struct Fixture {
@@ -229,6 +252,9 @@ async fn setup(opts: Opts) -> Fixture {
     let main = keyless_slot("main", opts.socks_port_changed, ports);
     if opts.port_pinned_by_flag {
         main.config.lock().unwrap().cli_override_paths = vec!["socks.port"];
+    }
+    if opts.node_started_again {
+        main.config.lock().unwrap().last_boot_id = Some("the-previous-lap".to_string());
     }
     let added = keyless_slot("ab2c3d", opts.added_slot_socks_port_changed, ports);
     let host = FakeHost::new(vec![main, added]);

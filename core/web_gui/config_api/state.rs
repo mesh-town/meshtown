@@ -160,6 +160,16 @@ impl ConfigState {
         self.last_boot_id = Some(boot_id.to_string());
     }
 
+    /// Compares the baseline with the node's current `boot_id` before any answer that carries `restart_pending`.
+    pub(crate) fn sync_with_node(&mut self, node: &dyn crate::web_gui::NodeControl) {
+        self.sync_boot_baseline(&node.snapshot().boot_id);
+    }
+
+    /// Records the `boot_id` the node started with, so a restart before the first request is still noticed.
+    pub(crate) fn seed_boot_id(&mut self, boot_id: &str) {
+        self.last_boot_id.get_or_insert_with(|| boot_id.to_string());
+    }
+
     pub(crate) fn config_get_body(&self) -> Value {
         serde_json::json!({
             "rev": self.file_report.rev,

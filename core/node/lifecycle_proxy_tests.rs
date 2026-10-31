@@ -117,6 +117,24 @@ mod process_proxy {
             fx.then_target_is(None);
             node.shutdown().await;
         }
+
+        /// given a node up, when the next start fails on a busy proxy port, then the lap still gets a new
+        /// `boot_id`, so a page waiting for the restart sees it end.
+        #[tokio::test]
+        async fn failed_proxy_bind_renews_boot_stamp() {
+            let fx = setup(57).await;
+            let node = fx.when_cycle_starts(fx.port, 1).await;
+            let foreign = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let busy = foreign.local_addr().unwrap().port();
+            let before = fx.ctl.snapshot().boot_id;
+
+            let err = fx.when_cycle_start_fails(busy, 2).await;
+            fall_back_to_waiting(&fx.ctl, &err);
+
+            let snap = fx.ctl.snapshot();
+            assert_ne!(snap.boot_id, before, "the failed lap keeps the old stamp");
+            node.shutdown().await;
+        }
     }
 }
 
@@ -181,8 +199,8 @@ impl Cycle {
     /// The start of a cycle the way `run_cycles` does it: the process proxy is brought to the settings
     /// the cycle comes up with, then the node boots.
     async fn start_cycle(&self, socks_port: u16, mark: u8) -> Result<RunningNode> {
-        apply_proxy(&settings_on(socks_port), &self.ctl).await?;
-        let started = boot_cycle(&self.node_config(mark), &self.ctl, false).await?;
+        let cfg = self.node_config(mark);
+        let started = start_cycle(&cfg, &settings_on(socks_port), &self.ctl, false).await?;
         Ok(started.expect("no stop was requested"))
     }
 

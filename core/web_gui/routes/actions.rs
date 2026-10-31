@@ -104,7 +104,8 @@ async fn restart_without_network(
 
 /// The process settings to apply when `socks.*` waits for a restart and no launch flag owns it.
 fn pending_socks_process(slot: &SlotHandle) -> Option<ProcessSettings> {
-    let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    cfg.sync_with_node(&*slot.node);
     let pending = cfg.pending_restart_paths();
     let waits = pending.iter().any(|p| p.starts_with("socks."));
     let flagged = cfg

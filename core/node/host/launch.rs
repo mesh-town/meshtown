@@ -8,7 +8,7 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::say;
 use crate::node::{run_network, NodeConfig};
-use crate::web_gui::{ConfigState, HostError, SlotHandle};
+use crate::web_gui::{ConfigState, HostError, NodeControl, SlotHandle};
 
 /// What one slot starts with. `start` is the node config of a slot that has its key; without it the node
 /// waits for the first key from the page.
@@ -51,10 +51,12 @@ impl HostSlots {
             None => NodeCtl::new_without_network(&run.effective_settings),
         };
         self.seat(&id, &ctl, sources.clone());
+        let mut config = ConfigState::from_run(&run);
+        config.seed_boot_id(&ctl.snapshot().boot_id);
         let handle = SlotHandle {
             id: id.clone(),
             node: ctl.clone(),
-            config: Arc::new(Mutex::new(ConfigState::from_run(&run))),
+            config: Arc::new(Mutex::new(config)),
         };
         // Set before the task runs: a join started right after the slot is added reads these.
         ctl.set_test_net(relaunch.test_net.clone());
