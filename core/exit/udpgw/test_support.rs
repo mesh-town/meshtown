@@ -10,6 +10,7 @@ use crate::proxy::domains::DomainList;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 use crate::transport::net::facade::test_support::pid;
+use crate::transport::net::{BoxRecv, BoxSend};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicBool;
@@ -111,4 +112,18 @@ pub(super) fn start(cfg: ExitConfig, limits: Limits) -> (Client, JoinHandle<()>)
     ));
     let (from, to) = split(client_end);
     (Client { to, from }, task)
+}
+
+/// A real exit-side gateway on one end of an in-memory stream; the other end is returned as a pair.
+pub(super) fn start_streams(cfg: ExitConfig) -> (BoxSend, BoxRecv, JoinHandle<()>) {
+    let (client_end, server_end) = tokio::io::duplex(1 << 20);
+    let (server_read, server_write) = split(server_end);
+    let task = crate::node::output::spawn(super::session::serve(
+        cfg,
+        pid(1),
+        Box::new(server_write),
+        Box::new(server_read),
+    ));
+    let (from, to) = split(client_end);
+    (Box::new(to), Box::new(from), task)
 }

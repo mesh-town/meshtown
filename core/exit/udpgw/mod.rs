@@ -7,13 +7,16 @@
 //! Frames carrying none of the known flags are answered with an error frame; the stream stays open.
 //!
 //! Files: `codec` — frame parsing and building (pure, no networking); `session` — the per-stream
-//! loop with one UDP socket per `conn_id`.
+//! loop with one UDP socket per `conn_id`; `mux` — the client side that shares a few streams between
+//! many local gateway connections.
 //! The frame layout follows the tun2proxy udpgw protocol (MIT), see `THIRD_PARTY_NOTICES.md`.
 
 pub(crate) mod codec;
 #[cfg(test)]
 #[path = "golden_tests.rs"]
 mod golden_tests;
+#[cfg_attr(not(test), allow(dead_code))]
+mod mux;
 mod session;
 #[cfg(test)]
 mod test_support;
