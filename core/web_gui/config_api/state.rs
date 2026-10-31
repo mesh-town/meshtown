@@ -163,6 +163,7 @@ impl ConfigState {
     /// Compares the baseline with the node's current `boot_id` before any answer that carries `restart_pending`.
     pub(crate) fn sync_with_node(&mut self, node: &dyn crate::web_gui::NodeControl) {
         self.sync_boot_baseline(&node.snapshot().boot_id);
+        self.sync_proxy_baseline(node);
     }
 
     /// Records the `boot_id` the node started with, so a restart before the first request is still noticed.

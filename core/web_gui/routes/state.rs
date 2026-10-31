@@ -57,6 +57,7 @@ fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Val
     let (config_rev, identity, identity_reason, network, restart_pending) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
         cfg.sync_boot_baseline(&snap.boot_id);
+        cfg.sync_proxy_baseline(&*slot.node);
         let (identity, identity_reason) = cfg.identity_kind_and_reason();
         (
             cfg.file_report.rev,

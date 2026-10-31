@@ -89,6 +89,10 @@ impl NodeControl for NodeCtl {
         invite_wait::start(self, head, peers, save)
     }
 
+    fn applied_proxy(&self) -> Option<crate::proxy::ProxyFace> {
+        self.proxy_face().map(|face| face.borrow().clone())
+    }
+
     fn members(&self) -> MemberFuture {
         self.members_impl()
     }

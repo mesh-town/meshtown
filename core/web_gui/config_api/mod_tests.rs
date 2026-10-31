@@ -282,3 +282,7 @@ mod exit_iface_get_tests;
 #[cfg(test)]
 #[path = "boot_baseline_tests.rs"]
 mod boot_baseline_tests;
+
+#[cfg(test)]
+#[path = "proxy_baseline_tests.rs"]
+mod proxy_baseline_tests;

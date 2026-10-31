@@ -39,6 +39,29 @@ mod without_a_seat {
     }
 }
 
+mod applied_proxy {
+    use super::*;
+    use crate::web_gui::NodeControl;
+
+    #[tokio::test]
+    async fn applied_proxy_is_the_front_face() {
+        let fx = setup().await;
+        fx.ctl.set_proxy_seat(NetSlotId::main(), fx.seat.clone());
+
+        let face = fx.ctl.applied_proxy().expect("a seat gives a face");
+
+        assert_eq!(face.addr, fx.front.addr());
+        assert!(face.addr.is_some(), "the fixture front listens");
+    }
+
+    #[tokio::test]
+    async fn applied_proxy_without_a_seat_is_none() {
+        let ctl = NodeCtl::new(&Settings::default());
+
+        assert!(ctl.applied_proxy().is_none());
+    }
+}
+
 mod set_proxy_seat {
     use super::*;
 

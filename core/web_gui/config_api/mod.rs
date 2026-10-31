@@ -6,11 +6,12 @@
 //! `put_merge.rs` — steps 6–8 (patch merge, check of unavailable fields, parsing of settings);
 //! `put_write.rs` — steps 9–10 (writing to disk and the response), also `stale_outcome`; `put_name.rs` —
 //! normalization of `node.name` inside the merge (step 6); `save_key.rs` — `ConfigState::save_network_key`;
-//! `rewrite.rs` — writing the settings of a slot on the page's own initiative; `slot_overlay.rs` — the process block of an added slot;
+//! `proxy_baseline.rs` — the `socks.*` baseline taken from the listener; `rewrite.rs` — writing the settings of a slot on the page's own initiative; `slot_overlay.rs` — the process block of an added slot;
 //! `settings_access.rs` — the write through the slot's `SettingsFile`.
 
 mod autostart;
 mod network_block;
+mod proxy_baseline;
 mod put;
 mod put_merge;
 mod put_name;

@@ -180,6 +180,7 @@ pub(crate) struct SnapNode {
     pub(crate) joins: AtomicUsize,
     pub(crate) restarts: AtomicUsize,
     pub(crate) stops: AtomicUsize,
+    pub(crate) proxy: Mutex<Option<crate::proxy::ProxyFace>>,
 }
 
 impl SnapNode {
@@ -195,7 +196,13 @@ impl SnapNode {
             joins: AtomicUsize::new(0),
             restarts: AtomicUsize::new(0),
             stops: AtomicUsize::new(0),
+            proxy: Mutex::new(None),
         })
+    }
+
+    /// What `applied_proxy` reports from now on (`None` by default).
+    pub(crate) fn set_applied_proxy(&self, face: Option<crate::proxy::ProxyFace>) {
+        *self.proxy.lock().unwrap() = face;
     }
 
     pub(crate) fn restarts(&self) -> usize {
@@ -281,6 +288,9 @@ impl NodeControl for SnapNode {
     }
     fn invite_join(&self) -> Option<InviteJoinView> {
         self.invite_join.lock().unwrap().clone()
+    }
+    fn applied_proxy(&self) -> Option<crate::proxy::ProxyFace> {
+        self.proxy.lock().unwrap().clone()
     }
     fn members(&self) -> MemberFuture {
         self.members_reply()

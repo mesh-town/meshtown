@@ -37,6 +37,11 @@ impl Applied {
     }
 }
 
+/// The change takes the network-wide access back to this machine only.
+fn narrows(old: &Applied, new: &Applied) -> bool {
+    old.access == ListenAccess::Localnet && new.access == ListenAccess::Localhost
+}
+
 /// A running accept task and the settings it was started with.
 struct Live {
     applied: Applied,
@@ -107,7 +112,8 @@ impl ProxyFront {
     }
 
     /// Brings the listener to the settings: nothing if they are the same; another port is taken before the old one is
-    /// closed (on failure the old one keeps working); the same port is closed first, and on failure there is no listener.
+    /// closed (on failure the old one keeps working, unless the change narrows access: then it is closed too, so nothing
+    /// stays open wider than asked); the same port is closed first, and on failure there is no listener.
     pub async fn apply(&self, settings: &ProcessSettings) -> Result<()> {
         let mut live = self.0.live.lock().await;
         let applied = Applied::of(settings);
@@ -138,10 +144,7 @@ impl ProxyFront {
         let bound = bind_proxy_listener(applied.port, applied.access).await;
         let listener = match bound {
             Ok(listener) => listener,
-            Err(e) => {
-                *live = Some(old);
-                return Err(e);
-            }
+            Err(e) => return self.replace_failed(live, old, &applied, e).await,
         };
         self.stop(old.task).await;
         let task = self.accept(listener, &applied);
@@ -150,6 +153,23 @@ impl ProxyFront {
             task: Some(task),
         });
         Ok(())
+    }
+
+    /// The new port is not taken: the old listener stays, unless access is narrowed — then it is closed.
+    async fn replace_failed(
+        &self,
+        live: &mut Option<Live>,
+        old: Live,
+        applied: &Applied,
+        error: anyhow::Error,
+    ) -> Result<()> {
+        if !narrows(&old.applied, applied) {
+            *live = Some(old);
+            return Err(error);
+        }
+        self.stop(old.task).await;
+        self.0.face.send_replace(ProxyFace::OFF);
+        Err(error)
     }
 
     /// Starts from nothing; a failure leaves no listener.
