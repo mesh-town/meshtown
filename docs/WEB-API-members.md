@@ -58,4 +58,5 @@ Refusals are 409 with `error` set to the code: `self_target` (own id), `not_memb
   `unblock` of a node that is not blocked is `changed:false`.
 
 `exclude`, `unexclude` and `admit` need an administrator (409 `not_admin`);
-`block` and `unblock` do not. A node id in a request is 64 hex digits (a placeholder: 64 times `a`).
+`block` and `unblock` do not. Excluding the creator of the network or taking the role from it is refused
+with 409 `creator`: the creator always stays an administrator. A node id in a request is 64 hex digits (a placeholder: 64 times `a`).

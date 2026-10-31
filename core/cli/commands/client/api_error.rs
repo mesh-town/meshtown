@@ -64,7 +64,7 @@ pub(crate) fn refusal_advice(code: &str) -> Option<String> {
     let prog = program_name();
     let text = match code {
         "not_admin" => "Ask an administrator of this network.".to_string(),
-        "self_target" => format!("Pick another member from `{prog} member list`."),
+        "self_target" | "creator" => format!("Pick another member from `{prog} member list`."),
         "not_member" | "left" => format!("Run `{prog} member list` to see who is in the network."),
         "not_pending" => {
             format!("Waiting members have the status `pending` in `{prog} member list`.")

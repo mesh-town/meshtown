@@ -91,7 +91,7 @@ async fn refresh(a: &RunningNode) {
 
 fn status_of(a: &RunningNode, who: &RunningNode) -> String {
     let v = a.members.access().verdicts().expect("published");
-    let reply = members_reply(&v, &a.members, &a.members.access().refusals(), None);
+    let reply = members_reply(&v, &a.members, "", &a.members.access().refusals(), None);
     reply
         .members
         .iter()

@@ -41,6 +41,8 @@ pub enum ActionRefusal {
     NotPending,
     /// The action needs an administrator and this node is not one.
     NotAdmin,
+    /// The creator of the network stays an administrator for good: neither excluded nor demoted.
+    Creator,
     /// The only administrator may neither leave nor give the role up.
     LastAdmin,
     /// The network has been deleted.

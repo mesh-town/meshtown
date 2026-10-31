@@ -128,3 +128,29 @@ mod fields {
         );
     }
 }
+
+mod own_name {
+    use super::*;
+
+    #[test]
+    fn self_row_carries_own_name() {
+        // given: the own node has no name among the announced ones
+        let w = world(&[], &[]);
+        // when: the reply is built with the name the node runs under
+        let reply = members_reply(&w.verdicts(), &w.members, "alpha", &w.refusals, None);
+        // then: the own row has it
+        let own = reply.members.iter().find(|r| r.is_self).expect("own row");
+        assert_eq!(own.name.as_deref(), Some("alpha"));
+    }
+
+    #[test]
+    fn self_row_without_name_is_null() {
+        // given: no name anywhere
+        let w = world(&[], &[]);
+        // when: the node name is empty
+        let reply = members_reply(&w.verdicts(), &w.members, "", &w.refusals, None);
+        // then: the own row has none
+        let own = reply.members.iter().find(|r| r.is_self).expect("own row");
+        assert_eq!(own.name, None);
+    }
+}

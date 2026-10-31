@@ -34,7 +34,7 @@ fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
 }
 
 fn reply(v: &Verdicts, refusals: &[(PeerId, Refusal)]) -> crate::web_gui::MembersReply {
-    members_reply(v, &Members::default(), refusals, None)
+    members_reply(v, &Members::default(), "", refusals, None)
 }
 
 fn row_of(r: &crate::web_gui::MembersReply, p: PeerId) -> MemberRow {

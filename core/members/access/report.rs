@@ -91,9 +91,18 @@ fn refusal_of(refusals: &[(PeerId, Refusal)], p: &PeerId) -> Option<RefusalInfo>
     })
 }
 
+/// The name of a row: for the own row it is the name this node runs under, for the others the one they announced.
+fn name_of(members: &Members, v: &Verdicts, own_name: &str, p: PeerId) -> Option<String> {
+    match (p == v.me, own_name.is_empty()) {
+        (true, false) => Some(own_name.to_string()),
+        _ => members.name_of(p),
+    }
+}
+
 fn row(
     v: &Verdicts,
     members: &Members,
+    own_name: &str,
     refusals: &[(PeerId, Refusal)],
     online: &BTreeSet<PeerId>,
     p: PeerId,
@@ -101,7 +110,7 @@ fn row(
     MemberRow {
         id: short_peer_id(&p),
         id_full: p.to_string(),
-        name: members.name_of(p),
+        name: name_of(members, v, own_name, p),
         is_self: p == v.me,
         online: p == v.me || online.contains(&p),
         admin: v.ledger.is_admin(&p),
@@ -161,13 +170,14 @@ fn excluded_by_refusals(rows: &[MemberRow]) -> bool {
 pub fn members_reply(
     v: &Verdicts,
     members: &Members,
+    own_name: &str,
     refusals: &[(PeerId, Refusal)],
     changed: Option<bool>,
 ) -> MembersReply {
     let online: BTreeSet<PeerId> = members.ids().into_iter().collect();
     let mut rows: Vec<MemberRow> = all_ids(v, members, refusals)
         .into_iter()
-        .map(|p| row(v, members, refusals, &online, p))
+        .map(|p| row(v, members, own_name, refusals, &online, p))
         .collect();
     rows.sort_by_key(order_key);
     let me_admission = me_admission_of(v, refusals);

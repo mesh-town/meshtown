@@ -142,7 +142,7 @@ impl World {
     }
 
     fn reply(&self) -> crate::web_gui::MembersReply {
-        members_reply(&self.verdicts(), &self.members, &self.refusals, None)
+        members_reply(&self.verdicts(), &self.members, "", &self.refusals, None)
     }
 
     fn row(&self, peer: PeerId) -> MemberRow {

@@ -125,11 +125,11 @@ mod totals {
         // when / then
         assert_eq!(w.reply().changed, None);
         assert_eq!(
-            members_reply(&w.verdicts(), &w.members, &[], Some(false)).changed,
+            members_reply(&w.verdicts(), &w.members, "", &[], Some(false)).changed,
             Some(false)
         );
         assert_eq!(
-            members_reply(&w.verdicts(), &w.members, &[], Some(true)).changed,
+            members_reply(&w.verdicts(), &w.members, "", &[], Some(true)).changed,
             Some(true)
         );
     }
