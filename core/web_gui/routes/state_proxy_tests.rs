@@ -59,7 +59,9 @@ async fn added_slot_state_never_lists_socks_as_pending() {
     assert_eq!(status, StatusCode::OK, "body: {body}");
     let pending = body["restart_pending"].as_array().unwrap();
     assert!(
-        pending.iter().all(|p| !p.as_str().unwrap().starts_with("socks.")),
+        pending
+            .iter()
+            .all(|p| !p.as_str().unwrap().starts_with("socks.")),
         "pending: {pending:?}"
     );
 }

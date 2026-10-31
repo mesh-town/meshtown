@@ -92,17 +92,23 @@ fn proxy_other_refusal_still_advises_a_restart() {
 
 #[test]
 fn restart_pending_enabled_means_restart() {
-    assert!(proxy_restart_needed(&json!({"restart_pending": ["socks.enabled"]})));
+    assert!(proxy_restart_needed(
+        &json!({"restart_pending": ["socks.enabled"]})
+    ));
 }
 
 #[test]
 fn restart_pending_access_still_means_restart() {
-    assert!(proxy_restart_needed(&json!({"restart_pending": ["socks.access"]})));
+    assert!(proxy_restart_needed(
+        &json!({"restart_pending": ["socks.access"]})
+    ));
 }
 
 #[test]
 fn restart_pending_port_only_is_unchanged() {
-    assert!(!proxy_restart_needed(&json!({"restart_pending": ["socks.port"]})));
+    assert!(!proxy_restart_needed(
+        &json!({"restart_pending": ["socks.port"]})
+    ));
 }
 
 #[test]
