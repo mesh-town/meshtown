@@ -49,7 +49,7 @@ pub(crate) fn parse_peer_line(line: &str) -> Result<PeerAddr, String> {
         addr.hints.push(AddrHint::Ip(sock));
         return Ok(addr);
     }
-    if addr_part.starts_with("http://") || addr_part.starts_with("https://") {
+    if has_http_scheme(addr_part) {
         let url = crate::http_url::normalize(addr_part).map_err(|_| {
             "couldn't parse the address: an ip:port or a relay url is needed".to_string()
         })?;
@@ -57,6 +57,14 @@ pub(crate) fn parse_peer_line(line: &str) -> Result<PeerAddr, String> {
         return Ok(addr);
     }
     Err("couldn't parse the address: an ip:port or a relay url is needed".to_string())
+}
+
+/// Whether `text` starts with `http://` or `https://`, ignoring ASCII case.
+fn has_http_scheme(text: &str) -> bool {
+    ["http://", "https://"].iter().any(|scheme| {
+        text.get(..scheme.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(scheme))
+    })
 }
 
 #[cfg(test)]

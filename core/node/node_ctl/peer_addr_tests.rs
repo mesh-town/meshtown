@@ -130,3 +130,28 @@ fn peer_lines_of_unsorted_hand_made_addr_equals_literal() {
         ]
     );
 }
+
+fn relay_url_of(addr: &PeerAddr) -> String {
+    match addr.hints.as_slice() {
+        [AddrHint::Relay(RelayRef::Url(url))] => url.to_string(),
+        other => panic!("expected one relay url hint, got {other:?}"),
+    }
+}
+
+#[test]
+fn uppercase_relay_scheme_is_accepted() {
+    let id = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
+    let upper = parse_peer_line(&format!("{id}@HTTPS://Relay.Example.com")).unwrap();
+    assert_eq!(upper.id, id);
+    assert!(relay_url_of(&upper).starts_with("https://relay.example.com"));
+    let mixed = parse_peer_line(&format!("{id}@HtTp://relay.example.com:8080")).unwrap();
+    let url = relay_url_of(&mixed);
+    assert!(url.starts_with("http://relay.example.com:8080"), "{url}");
+}
+
+#[test]
+fn non_http_scheme_stays_rejected() {
+    let id = NodeSecret::from_bytes(&[7u8; 32]).peer_id();
+    assert!(parse_peer_line(&format!("{id}@FTP://relay.example.com")).is_err());
+    assert!(parse_peer_line(&format!("{id}@ééééé")).is_err());
+}

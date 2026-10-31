@@ -16,7 +16,8 @@ use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{log_page, log_summary, say, set_log_capacity, with_net};
 use crate::proxy::{BindError, ProxyFront, ProxySeat};
 use crate::transport::net::NodeSecret;
-use crate::web_gui::{ConfigState, HostControl, WebStartError};
+use crate::web_gui::probe;
+use crate::web_gui::{ConfigState, HostControl, WebOptions, WebStartError, TOKEN_FILE_NAME};
 
 /// Log capacity in tests: larger than the default (2000), so other lines are not cut.
 const TEST_RING: u64 = 2001;
@@ -732,6 +733,7 @@ fn run_config_in(port: u16, dir: &std::path::Path) -> RunConfig {
 /// Starts a node page on `run` in the background; it keeps running until the returned sender fires.
 async fn start_background_node(run: RunConfig) -> tokio::sync::oneshot::Sender<()> {
     let port = run.effective_settings.process.web_port;
+    let token_dir = WebOptions::for_run(&run).token_dir;
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let ctl = ctl_of(&run);
     crate::node::output::spawn(async move {
@@ -742,12 +744,25 @@ async fn start_background_node(run: RunConfig) -> tokio::sync::oneshot::Sender<(
         .await;
     });
     for _ in 0..100 {
-        if port_open(port).await {
-            break;
+        if node_ready(port, &token_dir).await {
+            return stop;
         }
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
-    stop
+    panic!("the background node did not start answering on port {port} in time");
+}
+
+/// Whether the node on `port` accepts the stored page token; without a token directory, whether the port is open.
+async fn node_ready(port: u16, token_dir: &Option<PathBuf>) -> bool {
+    let Some(dir) = token_dir else {
+        return port_open(port).await;
+    };
+    let text = std::fs::read_to_string(dir.join(TOKEN_FILE_NAME)).unwrap_or_default();
+    let token = text.trim().to_string();
+    if token.is_empty() {
+        return false;
+    }
+    super::probe_blocking(move || probe::node_accepts_token(port, &token)).await
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
