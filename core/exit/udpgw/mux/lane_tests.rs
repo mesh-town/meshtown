@@ -188,6 +188,7 @@ mod forwarding {
         let (_lane, mut conn, mut far) = raw_lane();
         conn.put(&flagged(0x04, 9)).await;
         assert!(far.silent().await);
+        assert!(conn.silent().await);
     }
 
     #[tokio::test]
@@ -247,6 +248,13 @@ mod leaks {
         closed.sort_unstable();
         assert_eq!(closed, shared);
         assert_eq!(lock(&lane.table).len(), 0);
+        timeout(WAIT, async {
+            while lane.locals() > 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("local removed");
     }
 
     #[tokio::test(start_paused = true)]
@@ -260,10 +268,29 @@ mod leaks {
         assert_eq!((closed.kind(), closed.conn_id()), (Kind::Close, old));
         assert_eq!(far.next().await.kind(), Kind::Data);
     }
+
+    #[tokio::test(start_paused = true)]
+    async fn idle_binding_used_again_keeps_its_id() {
+        let (_lane, mut conn, mut far) = raw_lane();
+        conn.put(&v4_data(1, b"x")).await;
+        let old = far.next().await.conn_id();
+        tokio::time::advance(SESSION_IDLE + Duration::from_secs(1)).await;
+        conn.put(&v4_data(1, b"y")).await;
+        let next = far.next().await;
+        assert_eq!((next.kind(), next.conn_id()), (Kind::Data, old));
+    }
 }
 
 mod death {
     use super::*;
+
+    #[tokio::test]
+    async fn local_registered_on_a_dead_lane_sees_the_end() {
+        let (lane, _conn, far) = raw_lane();
+        drop(far);
+        timeout(WAIT, lane.ended()).await.expect("lane ended");
+        Conn::of(lane.register()).sees_the_end().await;
+    }
 
     #[tokio::test]
     async fn lane_eof_ends_every_local() {
@@ -312,11 +339,22 @@ mod replies {
 
     #[tokio::test]
     async fn exit_error_frame_reaches_its_local_with_the_local_id() {
-        let (_lane, mut conn, mut far) = raw_lane();
+        let (lane, mut conn, mut far) = raw_lane();
         conn.put(&v4_data(5, b"x")).await;
         let shared = far.next().await.conn_id();
         far.put(&flagged(0x20, shared)).await;
         assert_eq!(conn.raw().await.into_bytes(), flagged(0x20, 5));
+        assert_eq!(lock(&lane.table).len(), 1);
+    }
+
+    #[tokio::test]
+    async fn exit_close_reaches_its_local_and_frees_the_binding() {
+        let (lane, mut conn, mut far) = raw_lane();
+        conn.put(&v4_data(5, b"x")).await;
+        let shared = far.next().await.conn_id();
+        far.put(&flagged(0x04, shared)).await;
+        assert_eq!(conn.raw().await.into_bytes(), flagged(0x04, 5));
+        assert_eq!(lock(&lane.table).len(), 0);
     }
 
     #[tokio::test]
@@ -346,10 +384,15 @@ mod replies {
         a.put(&v4_data(1, b"x")).await;
         b.put(&v4_data(1, b"y")).await;
         let (shared_a, shared_b) = (far.next().await.conn_id(), far.next().await.conn_id());
-        for _ in 0..(LOCAL_QUEUE * 3) {
-            far.put(&flagged(0x20, shared_a)).await;
-        }
-        far.put(&flagged(0x20, shared_b)).await;
+        // More than the pipe to `a` plus its queue can hold, and `a` never reads.
+        timeout(WAIT, async {
+            for _ in 0..200 {
+                far.put(&v4_data(shared_a, &[0u8; 1024])).await;
+            }
+            far.put(&flagged(0x20, shared_b)).await;
+        })
+        .await
+        .expect("exit side not held");
         assert_eq!(b.raw().await.into_bytes(), flagged(0x20, 1));
     }
 }
