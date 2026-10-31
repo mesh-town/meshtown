@@ -124,9 +124,11 @@ fn concurrent_admits_keep_the_share() {
     let limits = ExitLimits::fixed(10);
     let now = Instant::now();
 
-    // when: each thread asks fifty times
+    // when: each thread asks fifty times, both starting together
+    let start = std::sync::Barrier::new(2);
     let slots: Vec<StreamSlot> = std::thread::scope(|s| {
         let work = || {
+            start.wait();
             take(&limits, 1, 50, now)
                 .into_iter()
                 .flatten()

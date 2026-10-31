@@ -165,6 +165,22 @@ mod rss {
         assert_eq!((rss_kib, ceiling_kib), (2000, 1000));
         assert_eq!(limits.live(), 0);
     }
+
+    #[test]
+    fn memory_refusal_keeps_the_member_a_contender() {
+        // given: a cap of ten and memory over the ceiling
+        let limits = ExitLimits::with_rss(10, 1000, || 2000);
+        let now = Instant::now();
+
+        // when: member 2 asks
+        let answer = limits.try_admit(pid(2), now);
+
+        // then: refused by memory, no place kept, and the member is a contender for the window only
+        assert!(matches!(answer, Err(Busy::Memory { .. })));
+        assert_eq!(limits.live(), 0);
+        assert_eq!(limits.share_len(now), 1);
+        assert_eq!(limits.share_len(now + Duration::from_secs(11)), 0);
+    }
 }
 
 mod log {
