@@ -50,7 +50,10 @@ the network fields to the slot's file, and answers 409 `busy` while the slot has
   `not_available` code. `autostart.enabled` is not in the list either: it takes effect at once, when the
   login entry is created or removed.
 - `restart_pending` — fields that are already saved but not yet applied (the node has not been restarted).
-  By them the page keeps a bar "takes effect after the node restarts".
+  By them the page keeps a bar "takes effect after the node restarts". For the `socks.*` fields the file is
+  compared with the listener the node really runs, so they stay listed after a restart that could not apply them
+  (for example, the new port was busy). If that restart narrowed `socks.access` from `localnet` to `localhost`,
+  the proxy listener is closed rather than left open wider than the file allows.
 - `cli_overrides` — fields overridden by the flags the node is currently started with (for example,
   `["socks.port"]`). The command line is stronger than the file **per field**, not per document: the other
   fields of the file stay in force.
