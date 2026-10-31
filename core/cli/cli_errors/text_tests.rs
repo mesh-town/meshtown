@@ -36,8 +36,8 @@ mod bad_flag_message {
     #[test]
     fn extra_word_without_dash_is_called_extra_word() {
         assert_eq!(
-            flag_text(&["config-path", "extra"], Some("config-path")),
-            "Error: unexpected argument \"extra\". See all options: meshtown config-path --help"
+            flag_text(&["config", "path", "extra"], Some("config")),
+            "Error: unexpected argument \"extra\". See all options: meshtown config --help"
         );
     }
 

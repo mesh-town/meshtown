@@ -145,7 +145,7 @@ pub(crate) fn add_net_slot(
 }
 
 /// Saves `nets/<id>/config.json` with the key under the slot's own secret and seeds the slot with the invite's
-/// peer addresses and the site list (the main network's plus the ones typed with `--domain`). The main file is
+/// peer addresses and the site list (the main network's plus the ones typed with `--site`). The main file is
 /// not written. `Err` when nothing was saved; a failed seed is only a line in the log.
 pub(crate) fn save_prepared_slot(
     main: &RunConfig,

@@ -33,35 +33,16 @@ fn unknown_text_lists_commands() {
     assert_eq!(
         names,
         [
-            "tray",
-            "run",
-            "join",
-            "status",
-            "stop",
-            "invite",
-            "leave",
-            "access",
-            "network",
-            "config-path",
-            "password",
-            "open"
+            "tray", "run", "join", "status", "stop", "invite", "leave", "access", "config",
+            "network", "password", "open"
         ]
     );
     #[cfg(not(feature = "gui"))]
     assert_eq!(
         names,
         [
-            "run",
-            "join",
-            "status",
-            "stop",
-            "invite",
-            "leave",
-            "access",
-            "network",
-            "config-path",
-            "password",
-            "open"
+            "run", "join", "status", "stop", "invite", "leave", "access", "config", "network",
+            "password", "open"
         ]
     );
     assert_eq!(
@@ -93,7 +74,7 @@ mod classify_kind {
         #[test]
         fn in_config_path_is_bad_flag() {
             assert_eq!(
-                classify(&parse_err(&["config-path", "--bogus"])),
+                classify(&parse_err(&["config", "path", "--bogus"])),
                 ParseFail::BadFlag
             );
         }
@@ -179,10 +160,7 @@ mod typed_command_word {
 
     #[test]
     fn finds_config_path() {
-        assert_eq!(
-            typed(&["meshtown", "config-path"]),
-            Some("config-path".to_string())
-        );
+        assert_eq!(typed(&["meshtown", "config"]), Some("config".to_string()));
     }
 
     #[test]
@@ -216,7 +194,7 @@ mod typed_command_word {
 
     #[test]
     fn hidden_command_is_not_found() {
-        let visible = strings(&["run", "config-path"]);
+        let visible = strings(&["run", "config"]);
         assert_eq!(typed_command(&os(&["meshtown", "network"]), &visible), None);
     }
 
@@ -238,7 +216,7 @@ fn strings(names: &[&str]) -> Vec<String> {
 
 /// The subcommand `typed_command` found among the three visible ones.
 fn typed(args: &[&str]) -> Option<String> {
-    let visible = strings(&["run", "network", "config-path", "password", "access"]);
+    let visible = strings(&["run", "network", "config", "password", "access"]);
     typed_command(&os(args), &visible)
 }
 

@@ -55,6 +55,11 @@ impl FieldSet {
         self.field_path
     }
 
+    /// The checked value, as typed.
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
     /// Whether the field lives only in the file (a running node cannot take it).
     pub fn is_file_only(&self) -> bool {
         field_by_path(self.field_path).is_some_and(|f| f.mode == Mode::FileOnly)

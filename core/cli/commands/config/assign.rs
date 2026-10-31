@@ -18,8 +18,6 @@ pub(crate) fn value_of(raw: &str) -> Value {
 }
 
 /// The inverse of `value_of`: a string that does not read as JSON is printed as it is, everything else as JSON.
-// used by `config get`
-#[allow(dead_code)]
 pub(crate) fn shown(v: &Value) -> String {
     match v {
         Value::String(s) if serde_json::from_str::<Value>(s).is_err() => s.clone(),

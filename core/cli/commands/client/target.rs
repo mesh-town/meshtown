@@ -20,7 +20,7 @@ pub(crate) struct Target {
 }
 
 impl Target {
-    /// The settings file is the same as for `config-path`; the port is `--web-port`, otherwise `web.port` from the file, otherwise the default.
+    /// The settings file is the same as for `config path`; the port is `--web-port`, otherwise `web.port` from the file, otherwise the default.
     pub(crate) fn resolve(
         config: Option<PathBuf>,
         web_port: Option<u16>,

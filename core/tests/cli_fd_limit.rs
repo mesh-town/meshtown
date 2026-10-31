@@ -65,7 +65,7 @@ fn key_only_raw_stdout_is_one_line() {
 
 #[test]
 fn config_path_has_no_limit_line() {
-    let out = stdout_of(&["config-path"]);
+    let out = stdout_of(&["config", "path"]);
     assert!(!out.contains("open files limit"), "stdout: {out}");
 }
 

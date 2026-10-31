@@ -14,12 +14,12 @@ pub struct CliOverrides {
     pub socks_enabled: Option<bool>,        // --socks / --no-socks
     pub socks_port: Option<u16>,            // --socks-port
     pub socks_access: Option<ListenAccess>, // --socks-access
-    pub checks_enabled: Option<bool>,       // --checks / --no-checks
-    pub check_interval_sec: Option<u64>,    // --check-interval
-    pub doh_server: Option<SocketAddr>,     // --check-doh
-    pub provider_dns: Option<SocketAddr>,   // --provider-dns
-    pub probe_interval_sec: Option<u64>,    // --probe-interval
-    pub probe_full_cycle: Option<bool>,     // --probe-full-cycle
+    pub checks_enabled: Option<bool>,       // checks.enabled
+    pub check_interval_sec: Option<u64>,    // checks.interval_sec
+    pub doh_server: Option<SocketAddr>,     // checks.doh_server
+    pub provider_dns: Option<SocketAddr>,   // checks.provider_dns
+    pub probe_interval_sec: Option<u64>,    // probe.interval_sec
+    pub probe_full_cycle: Option<bool>,     // probe.full_cycle
     pub web_port: Option<u16>,              // --web-port
     /// `--set <path>=<value>`, applied after the typed flags in order: the last one for a path wins.
     pub set_fields: Vec<FieldSet>,

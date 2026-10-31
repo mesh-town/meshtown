@@ -1,11 +1,12 @@
-//! The `config-path` command: prints the path to the settings file and starts nothing.
+//! `config path`: prints the path to the settings file and starts nothing.
 
+use crate::cli::args::Globals;
 use crate::config::config_file::{self, ConfigSource};
 
-/// The `config-path` command: prints the path to the config file and starts nothing.
-pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<()> {
+pub(super) fn run(g: &Globals) -> anyhow::Result<()> {
+    g.allow("config path", &[])?;
     match config_file::resolve_config_source(
-        config.as_deref(),
+        g.config.as_deref(),
         &config_file::current_env().as_path_env(),
     ) {
         ConfigSource::File { path, .. } => {
@@ -15,7 +16,7 @@ pub(crate) fn config_path(config: Option<std::path::PathBuf>) -> anyhow::Result<
         ConfigSource::Nowhere(why) => {
             anyhow::bail!("no place for the settings file: {why}")
         }
-        // `config-path` doesn't know `--no-config`, so we can't get here; we don't go on silently.
+        // `config path` has no `--no-config`, so this is not reached; it does not go on silently.
         ConfigSource::Disabled => {
             anyhow::bail!("no place for the settings file: the settings file is disabled")
         }

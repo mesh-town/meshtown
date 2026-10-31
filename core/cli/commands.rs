@@ -15,7 +15,7 @@ pub(crate) mod access;
 mod browser;
 // group: config
 mod client;
-mod config;
+pub(crate) mod config;
 pub(crate) mod invite;
 pub(crate) mod join;
 mod join_offline;
@@ -34,7 +34,6 @@ mod run_nokey;
 mod run_set;
 pub(crate) mod status;
 pub(crate) mod stop;
-pub(crate) use config::config_path;
 pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;
 pub(crate) use leave::LeaveArgs;

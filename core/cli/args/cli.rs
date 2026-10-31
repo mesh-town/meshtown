@@ -103,14 +103,14 @@ pub(crate) enum CliCommand {
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown access [COMMAND]")]
     Access(crate::cli::commands::access::AccessArgs),
     // group: config
+    /// Show and change the settings, in the running Mesh Town or in the settings file
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config <COMMAND>")]
+    Config(crate::cli::commands::config::ConfigArgs),
     // group: member
     // group: network
     /// List, create, show, inspect and delete the networks of this computer
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown network <COMMAND>")]
     Network(crate::cli::commands::network::NetworkArgs),
-    /// Print the path to the settings file
-    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config-path [--config <PATH>]")]
-    ConfigPath,
     /// Reset the Mesh Town page password and print a one-time sign-in link
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown password reset [--config <PATH>] [--web-port <PORT>]")]
     Password {

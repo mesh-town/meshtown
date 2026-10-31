@@ -102,7 +102,7 @@ pub(super) fn prepare_file(
     }
 }
 
-/// No file: create it with defaults (and flags, if `--save-config`).
+/// No file: create it with defaults (and flags, if `save_config`).
 fn prepare_absent(
     path: &Path,
     cli: &CliOverrides,
@@ -149,7 +149,7 @@ fn prepare_absent(
 
 /// The file exists but is unreadable or did not parse. `state` says which of the two: `Invalid`/`Unreadable`
 /// (the "what happened" text is derived from it — both lead to the same behavior).
-/// `--save-config` tries to move it aside and write a clean one.
+/// `save_config` tries to move it aside and write a clean one.
 fn prepare_broken(
     path: &Path,
     reason: String,
@@ -210,7 +210,7 @@ fn broken_reason_text(state: FileState, message: &str) -> String {
     }
 }
 
-/// `--save-config` with a corrupted file: set the old one aside and write a clean file
+/// `save_config` with a corrupted file: set the old one aside and write a clean file
 /// with defaults and the applied flags.
 fn replace_broken_file(
     path: &Path,

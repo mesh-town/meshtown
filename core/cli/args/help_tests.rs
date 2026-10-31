@@ -25,7 +25,7 @@ fn sub_help(name: &str) -> String {
 }
 
 fn sub_names() -> Vec<&'static str> {
-    let mut v = vec!["run", "network", "config-path", "password", "access"];
+    let mut v = vec!["run", "network", "config", "password", "access"];
     if cfg!(feature = "gui") {
         v.push("tray");
     }
@@ -42,7 +42,7 @@ fn top_help_speaks_english() {
             "Global options:",
             "Run Mesh Town in this window, without an icon",
             "List, create, show, inspect and delete the networks",
-            "Print the path to the settings file",
+            "Show and change the settings",
             "Reset the Mesh Town page password",
             "Show who can reach the Mesh Town page and proxy",
             "Show help (for one command: meshtown run --help)",
@@ -96,7 +96,7 @@ fn groups_in_order() {
         "  open ",
         "  password ",
         "  access ",
-        "  config-path ",
+        "  config ",
     ];
     let pos: Vec<usize> = names
         .iter()

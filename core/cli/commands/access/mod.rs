@@ -9,7 +9,7 @@
 mod cmd;
 mod ifaces;
 mod mode;
-mod settings_io;
+pub(crate) mod settings_io;
 mod show;
 
 pub(crate) use cmd::{parse_access, AccessArgs, AccessCmd};
