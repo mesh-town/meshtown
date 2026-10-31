@@ -2,9 +2,10 @@
 //! When the stream dies for any reason, every local connection of the lane is closed with it.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+use portable_atomic::AtomicU64;
 use tokio::io::{split, AsyncWriteExt};
 use tokio::sync::{mpsc, watch, Notify};
 use tokio::task::AbortHandle;
