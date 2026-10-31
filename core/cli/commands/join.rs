@@ -230,7 +230,7 @@ async fn join_live(node: &Node, args: &JoinArgs, text: &JoinText) -> anyhow::Res
     Ok(())
 }
 
-/// The node ended the join with a refusal or a cancellation while the command was waiting.
+/// The node ended the join with a final refusal while the command was waiting.
 #[derive(Debug)]
 struct JoinRefused(String);
 
@@ -247,6 +247,10 @@ impl std::error::Error for JoinRefused {}
 pub(super) enum PollStep {
     Wait,
     Joined,
+    /// The members refused the invite for good.
+    Refused(String),
+    /// The join is gone and the slot does not hold the network. A join that has just succeeded can look like
+    /// this for a moment, so the slot is left alone.
     Fail(String),
 }
 
@@ -255,7 +259,7 @@ pub(super) enum PollStep {
 pub(super) fn poll_step(state: &Value, nets: &Value, slot: &str, invite_net: &str) -> PollStep {
     let join = &state["node"]["invite_join"];
     match join["state"].as_str() {
-        Some("refused") => PollStep::Fail(refusal_text(join)),
+        Some("refused") => PollStep::Refused(refusal_text(join)),
         Some(_) => PollStep::Wait,
         None if slot_holds(nets, slot, invite_net) => PollStep::Joined,
         None => PollStep::Fail("the join was cancelled (another join or a stop)".to_string()),
@@ -290,7 +294,8 @@ async fn wait_joined(node: &Node, slot: &str, net: &str, timeout: u64) -> anyhow
         let nets = node.call("GET", "/api/nets", None)?;
         match poll_step(&state, &nets, slot, net) {
             PollStep::Joined => return Ok(()),
-            PollStep::Fail(why) => return Err(anyhow::Error::new(JoinRefused(why))),
+            PollStep::Refused(why) => return Err(anyhow::Error::new(JoinRefused(why))),
+            PollStep::Fail(why) => anyhow::bail!("{why}"),
             PollStep::Wait => {}
         }
         let waited = started.elapsed().as_secs();

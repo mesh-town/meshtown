@@ -157,6 +157,16 @@ static WAITING_FOREVER: [fixtures::Canned; 5] = [
     ("GET", "/api/net/zz9/state", 200, WAITING_STATE),
 ];
 
+/// The join state is gone and the slot holds no network yet: what a join looks like for a moment before the
+/// key is saved, and also what a cancelled join looks like.
+static VANISHED_WHILE_WAITING: [fixtures::Canned; 5] = [
+    ("GET", "/api/nets", 200, FULL_MAIN),
+    PRESENT,
+    NEW_SLOT,
+    WAITING_IN_SLOT,
+    ("GET", "/api/net/zz9/state", 200, r#"{"node":{}}"#),
+];
+
 static REFUSED_ON_MAIN: [fixtures::Canned; 3] = [
     ("GET", "/api/nets", 200, r#"{"nets":[]}"#),
     WAITING_ON_MAIN,
@@ -185,6 +195,20 @@ fn refused_while_waiting_drops_new_slot() {
         stderr(&out)
     );
     assert!(page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn vanished_join_keeps_slot() {
+    // given: a new slot accepted the invite, then its join state disappears before the network shows up
+    let dir = scratch_dir("wait-vanished");
+    let page = StubPage::start(&dir, &VANISHED_WHILE_WAITING);
+    // when
+    let out = join_invite_on(&page, &dir, &[]);
+    // then: the command fails, but the slot stays: the join may just have succeeded
+    assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
+    assert!(stderr(&out).contains("cancelled"), "{}", stderr(&out));
+    assert!(!page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
     let _ = std::fs::remove_dir_all(&dir);
 }
 

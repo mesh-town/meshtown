@@ -86,6 +86,20 @@ async fn a_new_slot_has_its_own_secret_no_file_and_waits_for_a_key() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn every_slot_config_knows_the_boot_id_it_started_with() {
+    // given: the main slot and a slot added at run time
+    let fx = busy_map();
+    let added = fx.slots.add_slot().unwrap();
+    // then: a restart before the first config request is noticed, because the id it began with is known
+    for id in [NetSlotId::main(), added.id.clone()] {
+        let handle = fx.slots.slot(&id).expect("the slot is in the map");
+        let known = handle.config.lock().unwrap().last_boot_id.clone();
+        assert_eq!(known, Some(handle.node.snapshot().boot_id), "slot {id}");
+    }
+    fx.slots.stop_all();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn adding_again_hands_back_the_empty_slot() {
     let fx = busy_map();
     let first = fx.slots.add_slot().unwrap();

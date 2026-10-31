@@ -33,7 +33,7 @@ fn poll_refused_fails_with_message() {
     let state = state_with(json!({"state": "refused", "message": "the invite is spent"}));
     // when / then
     let step = poll_step(&state, &json!({"nets": []}), "main", NET);
-    assert_eq!(step, PollStep::Fail("the invite is spent".to_string()));
+    assert_eq!(step, PollStep::Refused("the invite is spent".to_string()));
 }
 
 #[test]

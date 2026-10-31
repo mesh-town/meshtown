@@ -16,7 +16,7 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, NET_NAME};
 use crate::proxy::ProxySeat;
-use crate::web_gui::{ConfigState, HostError, SlotHandle};
+use crate::web_gui::{ConfigState, HostError, NodeControl, SlotHandle};
 
 /// One slot of the host.
 pub(super) struct Slot {
@@ -64,8 +64,10 @@ pub(crate) struct HostSlots {
 }
 
 impl HostSlots {
-    /// A map holding the `main` slot made of `ctl` and its config state.
-    pub(crate) fn with_main(ctl: Arc<NodeCtl>, config: ConfigState) -> Arc<HostSlots> {
+    /// A map holding the `main` slot made of `ctl` and its config state, which knows the `boot_id` the node
+    /// started with.
+    pub(crate) fn with_main(ctl: Arc<NodeCtl>, mut config: ConfigState) -> Arc<HostSlots> {
+        config.seed_boot_id(&ctl.snapshot().boot_id);
         let handle = SlotHandle {
             id: NetSlotId::main(),
             node: ctl.clone(),

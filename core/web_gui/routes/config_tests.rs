@@ -190,6 +190,25 @@ mod restart_pending_after_a_restart {
     }
 
     #[tokio::test]
+    async fn put_after_restart_measures_against_new_baseline() {
+        // given: the node's first lap is known and a wider proxy access waits for a restart
+        let node = SnapNode::new(Default::default());
+        set_boot(&node, "aaaaaaaa");
+        let f = setup_main_only(&node);
+        given_proxy_access(&f, ListenAccess::Localnet, ListenAccess::Localhost);
+        let (_, body) = f.when_get().await;
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+        // when: the node restarts and the next request is a write, not a read
+        set_boot(&node, "bbbbbbbb");
+        let (status, body) = f
+            .when_put("main", json!({"socks": {"access": "localhost"}}))
+            .await;
+        // then: the write is measured against the file the new lap started with
+        assert_eq!(status, StatusCode::OK, "body: {body}");
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+    }
+
+    #[tokio::test]
     async fn baseline_seeded_at_first_config_request() {
         // given: a slot nobody has asked anything yet
         let node = SnapNode::new(Default::default());

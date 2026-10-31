@@ -278,3 +278,7 @@ mod exit_iface_put_tests;
 #[cfg(test)]
 #[path = "exit_iface_get_tests.rs"]
 mod exit_iface_get_tests;
+
+#[cfg(test)]
+#[path = "boot_baseline_tests.rs"]
+mod boot_baseline_tests;

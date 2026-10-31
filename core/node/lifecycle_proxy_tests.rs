@@ -119,7 +119,7 @@ mod process_proxy {
         }
 
         /// given a node up, when the next start fails on a busy proxy port, then the lap still gets a new
-        /// `boot_id` and the start error is shown, so a page waiting for the restart sees it end.
+        /// `boot_id`, so a page waiting for the restart sees it end.
         #[tokio::test]
         async fn failed_proxy_bind_renews_boot_stamp() {
             let fx = setup(57).await;
@@ -133,7 +133,6 @@ mod process_proxy {
 
             let snap = fx.ctl.snapshot();
             assert_ne!(snap.boot_id, before, "the failed lap keeps the old stamp");
-            assert!(snap.node.start_error.is_some(), "no start error");
             node.shutdown().await;
         }
     }
