@@ -47,6 +47,19 @@ async fn admit_route_maps_codes() {
 }
 
 #[tokio::test]
+async fn admit_of_a_member_answers_nothing_changed() {
+    // given: the node answers with an unchanged list
+    let mut reply = sample_reply();
+    reply.changed = Some(false);
+    let fx = setup(Answer::List(reply));
+    // when
+    let (status, body) = fx.post("/api/members/admit", &id_body()).await;
+    // then: 200 and `changed: false`
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["changed"], json!(false));
+}
+
+#[tokio::test]
 async fn admit_routes_accept_only_post() {
     // given / when / then: a GET is a wrong method, not a 404
     let fx = setup(Answer::List(sample_reply()));
