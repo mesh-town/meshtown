@@ -121,6 +121,7 @@ async fn execute(
         // group: access
         CliCommand::Access(args) => crate::cli::commands::access::run(args, g).await,
         // group: config
+        CliCommand::Config(args) => crate::cli::commands::config::run(args, g).await,
         // group: member
         // group: network
         CliCommand::Network(args) => crate::cli::commands::network::run(args, g).await,
@@ -128,10 +129,6 @@ async fn execute(
             action: crate::cli::args::PasswordAction::Reset,
         } => crate::cli::commands::password::run_password_command(g).await,
         CliCommand::Open { print } => crate::cli::commands::open::run_open_command(print, g).await,
-        CliCommand::ConfigPath => {
-            g.allow("config-path", &[])?;
-            crate::cli::commands::config_path(g.config.clone())
-        }
         #[cfg(feature = "gui")]
         CliCommand::Tray(args) => {
             g.allow("tray", &[])?;

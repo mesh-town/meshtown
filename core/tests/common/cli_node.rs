@@ -24,7 +24,7 @@ pub struct CliNode {
 }
 
 impl CliNode {
-    /// Starts `run --config <dir>/config.json --web-port 0 --no-checks --no-socks` plus `extra`; returns once the
+    /// Starts `run --config <dir>/config.json --web-port 0 --set checks.enabled=false --no-socks` plus `extra`; returns once the
     /// page address is printed.
     pub fn start(extra: &[&str]) -> CliNode {
         CliNode::start_in(scratch_dir("node"), extra)
@@ -41,7 +41,13 @@ impl CliNode {
         let mut child = isolated(Command::new(env!("CARGO_BIN_EXE_meshtown")), &dir)
             .args(["run", "--config"])
             .arg(dir.join("config.json"))
-            .args(["--web-port", "0", "--no-checks", "--no-socks"])
+            .args([
+                "--web-port",
+                "0",
+                "--set",
+                "checks.enabled=false",
+                "--no-socks",
+            ])
             .args(extra)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

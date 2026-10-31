@@ -48,7 +48,11 @@ fn waiting_join_holds_the_page_port() {
         std::thread::sleep(Duration::from_millis(100));
     }
     // when: a node is started on the same port
-    let mut node = spawn_cli(&["run", "--no-checks", "--no-socks"], &other, port);
+    let mut node = spawn_cli(
+        &["run", "--set", "checks.enabled=false", "--no-socks"],
+        &other,
+        port,
+    );
     let started = Instant::now();
     let exit = loop {
         if let Some(status) = node.try_wait().expect("wait") {

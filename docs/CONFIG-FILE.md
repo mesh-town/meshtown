@@ -48,7 +48,7 @@ Notes:
   the other state files land there as well.
 - If the directory does not exist, the node creates it together with the file (`mkdir -p`, mode `0700` on Unix).
 - The path the node chose is printed at startup as the first line (`config: <path> (read)`)
-  and given to the page in `config.file.path` (section 5). The subcommand `meshtown config-path` prints
+  and given to the page in `config.file.path` (section 5). The subcommand `meshtown config path` prints
   the same path and starts nothing — so that a person can find the file without bringing the node up.
 
 ### 1.1 What is in the state directory
@@ -98,19 +98,15 @@ force.
 - **There are no environment variables for each setting.** There are exactly two, and both are about paths and the key:
   `MESHTOWN_CONFIG` and `MESHTOWN_KEY` (`core/config/config_file/overrides.rs`). We do not introduce a third layer of priorities per
   field: it cannot be shown on the page in an understandable way. `MESHTOWN_KEY` counts as
-  set explicitly, on a par with a flag: it overrides the key from the file and is written to the file at
-  `--save-config`.
-- **`--save-config`** — write to the file what was typed on the command line (the owner: "let's add
-  `--save-config` for command-line parameters — then we rewrite the config
-  where they were passed on the command line"). It works at startup, before the network comes up: the node takes the file,
-  applies the typed flags to it, writes by the rules of section 6 and continues in the usual
-  way. Only the typed fields are written, the others in the file are not touched. After that the
-  `cli_overrides` list is empty — the flag and the file say the same thing, there is nothing to warn the page about.
-  This is the only way to save settings without the web page: on a node without a screen it may not
-  have been enabled.
+  set explicitly, on a par with a flag: it overrides the key from the file; `meshtown join <key>` is the way to store a key.
+- **`config set <path> <value>`** and **`run --set <path>=<value>`** — the two ways to change a stored field from
+  the command line. `config set` writes one field: through the running node (`PUT /api/config`, the same checks
+  and rules as the page) or, when no node runs, straight into the file by the rules of section 6. `run --set` changes
+  the field for this run only; the file is not touched and the path is listed in `cli_overrides`. Both take
+  any stored field except `network.key` and the read-only ones; the value is checked by the same reader that reads
+  the file, so the bounds are the file's. `config get [<path>]` shows the values.
 - **`--no-config`** — work on defaults and flags, neither read nor write the file. Needed for
-  tests and for working out "is the config to blame or not". Incompatible with `--save-config`: together they are an error
-  at argument parsing, not a silent preference of one over the other.
+  tests and for working out "is the config to blame or not".
 
 ---
 
@@ -120,7 +116,7 @@ The source of fields is the table `config_file::fields::FIELDS` (`core/config/co
 a row per path, the `Mode` (live, restart with or without a prompt, edit only, read only,
 file only) and the value kind. From it come the lists `read_only` and `restart_fields`, the live paths,
 the known section keys, file parsing, file output and the settings' `Debug`; the row order is the order of
-keys in the written file. The column "Read in the node" below is where the node reads the value from (`NodeConfig.settings`, type `NetSettings`; SOCKS and memory thresholds — `NodeConfig.socks`, `NodeConfig.memory`).
+keys in the written file. Any stored field except `network.key` and the read-only ones can be given as `--set <path>=<value>` for one run, and saved with `config set`. The column "Read in the node" below is where the node reads the value from (`NodeConfig.settings`, type `NetSettings`; SOCKS and memory thresholds — `NodeConfig.socks`, `NodeConfig.memory`).
 
 | Config path | Flag | Default | Read in the node |
 |---|---|---|---|
@@ -134,13 +130,13 @@ keys in the written file. The column "Read in the node" below is where the node 
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
 | `socks.strict` | no flag | `false` | `process.socks_strict`; when `false`, the auto-config (PAC) file ends the route of ordinary sites with `DIRECT`, so they open directly while the node is not running; when `true` they stay closed. Takes effect at once |
 | `proxy.net` | no flag | `main` | which network's exit the local proxy uses |
-| `checks.enabled` | `--checks` / `--no-checks` | `true` | `settings.checks_enabled` (`core/config/config_file/net_settings.rs`) |
-| `checks.interval_sec` | `--check-interval` | 900 | `settings.check_interval()` (`core/config/config_file/net_settings.rs`) |
-| `checks.doh_server` | `--check-doh` | `1.1.1.1:443` | `settings.doh_server` (`core/config/config_file/net_settings.rs`) |
-| `checks.provider_dns` | `--provider-dns` | `null` | `settings.provider_dns` (`core/config/config_file/net_settings.rs`) |
+| `checks.enabled` | — | `true` | `settings.checks_enabled` (`core/config/config_file/net_settings.rs`) |
+| `checks.interval_sec` | — | 900 | `settings.check_interval()` (`core/config/config_file/net_settings.rs`) |
+| `checks.doh_server` | — | `1.1.1.1:443` | `settings.doh_server` (`core/config/config_file/net_settings.rs`) |
+| `checks.provider_dns` | — | `null` | `settings.provider_dns` (`core/config/config_file/net_settings.rs`) |
 | `checks.geo_markers` | no flag (file only) | `[]` | the domain check, see the section below |
-| `probe.interval_sec` | `--probe-interval` | 300 | `settings.probe_interval()` (`core/config/config_file/net_settings.rs`) |
-| `probe.full_cycle` | `--probe-full-cycle` | `false` | 1 MiB in the probe round to all peers; without the flag — only to the chosen exit (`route.exits`) |
+| `probe.interval_sec` | — | 300 | `settings.probe_interval()` (`core/config/config_file/net_settings.rs`) |
+| `probe.full_cycle` | — | `false` | 1 MiB in the probe round to all peers; when `false` — only to the chosen exit (`route.exits`) |
 | `route.exits` | no flag | `[]` | `settings.route_exits` (`core/config/config_file/net_settings.rs`) |
 | `ports.published` | no flag | `[]` (items `{port, proto, name, for}`, `proto` `"tcp"` by default, written only for UDP) | `settings.ports_published` (`core/config/config_file/net_settings.rs`) |
 | `ports.opened` | no flag | `[]` (items `{node, port, proto, local}`, `proto` as above) | `settings.ports_opened` (`core/config/config_file/net_settings.rs`) |
@@ -179,9 +175,9 @@ instead of falling back to the regular network, so nothing leaks. On Linux kerne
 
 What is **not** stored in the file even though a flag exists:
 
-- `--domain` — the domain is added to the **node's own list**; it lives in the file `replica/domains.bin` (not in the config) and
+- `--site` — the domain is added to the **node's own list**; it lives in the file `replica/domains.bin` (not in the config) and
   is not passed to other members.
-- `--block-domain` — a debug flag (`blocked_domains` in `node/config.rs`), not counted as a setting.
+- `--block-site` — a debug flag (`blocked_domains` in `node/config.rs`), not counted as a setting.
 - `--invite` — a one-time join, not state.
 
 Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
@@ -300,10 +296,9 @@ Two rules from which this follows:
 **The first start creates a file with defaults, not with flag values**. Otherwise a flag
 typed once for a trial quietly becomes a permanent setting, and there is nothing to remove it with later —
 the person does not know it got written. Flag values are visible on the page as `cli_overrides`, and
-the person decides whether to save them. Whoever needs the opposite starts with `--save-config`
-(section 2): then the typed flags go into the file right away, **and the `cli_overrides` list is empty**, because
-the file and the command line say the same thing. In that case the page does not show the
-"set by a flag at startup" mark — there is nothing to show, and this is not an oversight.
+the person decides whether to save them. Whoever needs the opposite runs `config set <path> <value>`
+(section 2), which writes the field into the file; once the file says the same as the flag, the page shows no
+"set by a flag at startup" mark for it.
 
 ### 5.1 What is added to the `GET`/`PUT /api/config` replies
 
@@ -330,8 +325,7 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
 ```
 
 - `cli_overrides` — fields typed as flags and **not** written to the file. The page writes under them
-  "set by a flag at startup, takes effect after a restart without the flag"; it allows editing. After
-  a start with `--save-config` the list is empty. The network key gets into it on a par with the rest: a node brought up
+  "set by a flag at startup, takes effect after a restart without the flag"; it allows editing. The network key gets into it on a par with the rest: a node brought up
   with `--key` or `MESHTOWN_KEY` shows the label and mask of the effective key, not of the one in the file.
 - `file.state` — `ok` | `created` | `unreadable` | `invalid`; `message` — in English, from the node.
 - `file.writable: false` — the directory is read-only (a router image, a flash drive with writing disabled).
@@ -347,7 +341,7 @@ The node writes the file in four cases:
 
 1. a successful `PUT /api/config`;
 2. the first start when there is no file — with **defaults**, without flag values;
-3. a start with `--save-config` — the file plus the typed flags (section 2);
+3. `config set` when no node runs — the one field (section 2);
 4. `POST /api/network/join` and `/create` — they change `network.key`, which lives in
    this same file, and so they raise `rev` on a par with saving settings.
 
@@ -393,7 +387,7 @@ the settings of a running node is the page.
 | page token | the `web-token` file next to it | the page reads and rewrites the config as a whole, and the token must not be given to it; it is changed by the "New token" button, not by a setting |
 | node secret | in the **envelope** of the same file, next to `config` (section 4) | identity, not a setting: it is not given to the page and does not get into a backup, otherwise a copy would multiply one identity onto two machines |
 | domain list | the node's own document (`replica/`), without reconciliation | the node's personal list, not a config field |
-| `blocked_domains` | only the flag `--block-domain` | debugging |
+| `blocked_domains` | only the flag `--block-site` | debugging |
 
 **The network key is stored in the config** (there is no separate
 `network-key` file). It is taken the same way as settings: `--key` or `MESHTOWN_KEY` is stronger than the file

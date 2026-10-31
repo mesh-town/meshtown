@@ -63,8 +63,7 @@ sudo apt install ./meshtown_amd64.deb
 Later updates come with `sudo apt update && sudo apt upgrade`. The package installs the service `meshtown` but leaves it
 stopped; to run the node in the background, `sudo systemctl enable --now meshtown` (settings:
 `/etc/meshtown/config.json`). To join an existing network first, run
-`sudo MESHTOWN_KEY=<key> meshtown run --config /etc/meshtown/config.json --save-config`, stop it with Ctrl+C, then enable
-the service. On a desktop with the tray, do not enable the service: two nodes on one machine share their ports.
+`sudo meshtown join <key>`, then enable the service. On a desktop with the tray, do not enable the service: two nodes on one machine share their ports.
 `sudo apt remove meshtown` (or `apt purge`) removes the package; `/etc/meshtown/` with the network key stays.
 The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edits made by hand are overwritten when the package is updated.
 

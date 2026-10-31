@@ -65,7 +65,7 @@ fn key_only_raw_stdout_is_one_line() {
 
 #[test]
 fn config_path_has_no_limit_line() {
-    let out = stdout_of(&["config-path"]);
+    let out = stdout_of(&["config", "path"]);
     assert!(!out.contains("open files limit"), "stdout: {out}");
 }
 
@@ -90,7 +90,13 @@ fn spawn_run(extra: &[&str]) -> (Reaper, std::sync::mpsc::Receiver<String>) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
     cmd.arg("run")
         .args(extra)
-        .args(["--web-port", "0", "--no-checks", "--no-socks"])
+        .args([
+            "--web-port",
+            "0",
+            "--set",
+            "checks.enabled=false",
+            "--no-socks",
+        ])
         .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
         .env_remove("MESHTOWN_KEY")
         .env_remove("MESHTOWN_INVITE")
@@ -158,7 +164,7 @@ fn run_reports_open_files_limit() {
     let key = managed_key_text();
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_meshtown"));
     cmd.args(["run", "--no-config", "--key", &key, "--web-port", "0"])
-        .args(["--no-checks", "--no-socks"])
+        .args(["--set", "checks.enabled=false", "--no-socks"])
         .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
         .env_remove("MESHTOWN_KEY")
         .env_remove("MESHTOWN_INVITE")

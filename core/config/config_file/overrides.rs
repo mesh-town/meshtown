@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 
+use super::field_set::FieldSet;
 use super::settings::{ListenAccess, Settings};
 
 /// What was typed on the command line. `Some` — the flag was given, `None` — it was not.
@@ -13,13 +14,15 @@ pub struct CliOverrides {
     pub socks_enabled: Option<bool>,        // --socks / --no-socks
     pub socks_port: Option<u16>,            // --socks-port
     pub socks_access: Option<ListenAccess>, // --socks-access
-    pub checks_enabled: Option<bool>,       // --checks / --no-checks
-    pub check_interval_sec: Option<u64>,    // --check-interval
-    pub doh_server: Option<SocketAddr>,     // --check-doh
-    pub provider_dns: Option<SocketAddr>,   // --provider-dns
-    pub probe_interval_sec: Option<u64>,    // --probe-interval
-    pub probe_full_cycle: Option<bool>,     // --probe-full-cycle
+    pub checks_enabled: Option<bool>,       // checks.enabled
+    pub check_interval_sec: Option<u64>,    // checks.interval_sec
+    pub doh_server: Option<SocketAddr>,     // checks.doh_server
+    pub provider_dns: Option<SocketAddr>,   // checks.provider_dns
+    pub probe_interval_sec: Option<u64>,    // probe.interval_sec
+    pub probe_full_cycle: Option<bool>,     // probe.full_cycle
     pub web_port: Option<u16>,              // --web-port
+    /// `--set <path>=<value>`, applied after the typed flags in order: the last one for a path wins.
+    pub set_fields: Vec<FieldSet>,
 }
 
 impl std::fmt::Debug for CliOverrides {
@@ -40,6 +43,14 @@ impl std::fmt::Debug for CliOverrides {
             .field("probe_interval_sec", &self.probe_interval_sec)
             .field("probe_full_cycle", &self.probe_full_cycle)
             .field("web_port", &self.web_port)
+            .field(
+                "set_fields",
+                &self
+                    .set_fields
+                    .iter()
+                    .map(FieldSet::path)
+                    .collect::<Vec<_>>(),
+            )
             .finish()
     }
 }
@@ -56,12 +67,14 @@ impl CliOverrides {
     /// Puts what was typed on top of `s`. Returns the paths of the overridden fields in the order of the docs/CONFIG-FILE.md table,
     /// section 3: "network.key",
     /// "exit.enabled", "socks.enabled", "socks.port", "socks.access", "checks.enabled", "checks.interval_sec",
-    /// "checks.doh_server", "checks.provider_dns", "probe.interval_sec", "web.port".
+    /// "checks.doh_server", "checks.provider_dns", "probe.interval_sec", "web.port";
+    /// the paths of `--set` follow, in the order given.
     /// A path goes into the list if the flag was given, even when the value matches the file.
     pub fn apply(&self, s: &mut Settings) -> Vec<&'static str> {
         let mut overridden_paths = Vec::new();
         self.apply_network(s, &mut overridden_paths);
         self.apply_service(s, &mut overridden_paths);
+        self.apply_set_fields(s, &mut overridden_paths);
         overridden_paths
     }
 
@@ -70,6 +83,16 @@ impl CliOverrides {
         if let Some(v) = &self.network_key {
             s.net.network_key = Some(v.clone());
             overridden_paths.push("network.key");
+        }
+    }
+
+    /// `--set` on top of the typed flags; a path already in the list is not added twice.
+    fn apply_set_fields(&self, s: &mut Settings, overridden_paths: &mut Vec<&'static str>) {
+        for set in &self.set_fields {
+            set.apply_to(s);
+            if !overridden_paths.contains(&set.path()) {
+                overridden_paths.push(set.path());
+            }
         }
     }
 

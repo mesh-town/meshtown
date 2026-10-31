@@ -25,7 +25,7 @@ fn sub_help(name: &str) -> String {
 }
 
 fn sub_names() -> Vec<&'static str> {
-    let mut v = vec!["run", "network", "config-path", "password", "access"];
+    let mut v = vec!["run", "network", "config", "password", "access"];
     if cfg!(feature = "gui") {
         v.push("tray");
     }
@@ -42,7 +42,7 @@ fn top_help_speaks_english() {
             "Global options:",
             "Run Mesh Town in this window, without an icon",
             "List, create, show, inspect and delete the networks",
-            "Print the path to the settings file",
+            "Show and change the settings",
             "Reset the Mesh Town page password",
             "Show who can reach the Mesh Town page and proxy",
             "Show help (for one command: meshtown run --help)",
@@ -96,7 +96,7 @@ fn groups_in_order() {
         "  open ",
         "  password ",
         "  access ",
-        "  config-path ",
+        "  config ",
     ];
     let pos: Vec<usize> = names
         .iter()
@@ -160,7 +160,8 @@ fn sub_help_speaks_english() {
 }
 
 /// Value names allowed in the help: from the dictionary (`<KEY>`, `<SECONDS>`…).
-const LABELS: [&str; 10] = [
+const LABELS: [&str; 11] = [
+    "PATH=VALUE",
     "TEXT",
     "KEY",
     "PATH",
@@ -190,6 +191,9 @@ fn run_help_words() {
         "can be set with the MESHTOWN_KEY variable",
         "can be set with the MESHTOWN_INVITE variable",
         "can be set with the MESHTOWN_CONFIG variable",
+        "--set <PATH=VALUE>",
+        "quote strings that look like JSON",
+        "--site <SITE>",
     ] {
         assert!(help.contains(want), "no \"{want}\":\n{help}");
     }
@@ -198,12 +202,20 @@ fn run_help_words() {
         "{help}"
     );
     assert!(!help.contains("[env:"), "{help}");
+    for gone in [
+        "--probe-interval",
+        "--save-config",
+        "--domain",
+        "--no-checks",
+    ] {
+        assert!(!help.contains(gone), "{gone}:\n{help}");
+    }
     assert!(
         !help.contains("--relay-only") && !help.contains("--no-relay"),
         "{help}"
     );
     assert_eq!(unknown_labels(&help), Vec::<&str>::new(), "{help}");
-    // The flag names are `--domain`, `--config`; the descriptions say "site" and "settings file".
+    // The flag names are `--set`, `--config`; the descriptions say "site" and "settings file".
     let prose: Vec<&str> = help
         .lines()
         .filter_map(|l| l.trim_start().split_once("  ").map(|(_, d)| d))

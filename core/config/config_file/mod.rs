@@ -16,6 +16,7 @@
 //! relocation; `overrides` — command-line flags over the file; `run` — `prepare()`, assembling
 //! everything together for node start.
 
+mod field_set;
 pub(crate) mod fields;
 mod iface_filter;
 mod net_file;
@@ -41,6 +42,7 @@ mod time;
 pub(crate) mod test_support;
 
 pub use crate::node::machine_memory::NODE_MEMORY_WARN_MIB_DEFAULT;
+pub use field_set::{FieldSet, SetRefusal};
 pub use iface_filter::IfaceFilter;
 pub use net_file::{
     load_net_file, parse_net_text, render_net_file, save_net_file, LoadedNetFile, ParsedNetFile,

@@ -43,7 +43,7 @@ pub struct CheckConfig {
     pub user_agent: String,
     /// The provider's resolver for the spoofing sign; `None` — the sign is not collected.
     pub provider_dns: Option<SocketAddr>,
-    /// Domains marked with the `--block-domain` flag: the check doesn't run for them but at once
+    /// Domains marked with the `--block-site` flag: the check doesn't run for them but at once
     /// returns the "blocked by network" class. This lets a route through a member be
     /// checked where nothing is actually blocked.
     pub blocked_domains: Arc<HashSet<String>>,

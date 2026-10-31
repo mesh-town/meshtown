@@ -83,3 +83,31 @@ mod adding_a_key_network {
         let _ = std::fs::remove_dir_all(&dir);
     }
 }
+
+#[test]
+fn set_flags_reach_overrides() {
+    use clap::FromArgMatches;
+    let all = [
+        "meshtown",
+        "run",
+        "--set",
+        "probe.interval_sec=20",
+        "--set",
+        "checks.enabled=false",
+    ];
+    let m = crate::cli::args::Cli::command()
+        .try_get_matches_from(all)
+        .unwrap();
+    let sub = m.subcommand_matches("run").unwrap();
+    let crate::cli::args::CliCommand::Run(args) =
+        crate::cli::args::Cli::from_arg_matches(&m).unwrap().command
+    else {
+        panic!("expected run");
+    };
+    let overrides = build_overrides(sub, &args).unwrap();
+    let mut s = config_file::Settings::default();
+    let paths = overrides.apply(&mut s);
+    assert_eq!(paths, vec!["probe.interval_sec", "checks.enabled"]);
+    assert_eq!(s.net.probe_interval_sec, 20);
+    assert!(!s.net.checks_enabled);
+}

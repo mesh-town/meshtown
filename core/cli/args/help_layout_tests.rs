@@ -156,13 +156,13 @@ mod run_help {
     }
 }
 
-/// `config-path --help`: `--config` is a global option, the same text as in `run`.
+/// `config path --help`: `--config` is a global option, the same text as in `run`.
 mod config_path_help {
     use super::*;
 
     #[test]
     fn config_line_has_contract_text() {
-        let line = line_of(&sub_help("config-path"), "--config");
+        let line = line_of(&sub_help("config"), "--config");
         assert!(ends_with_text(&line, RUN_CONFIG), "{line}");
     }
 }
@@ -172,32 +172,15 @@ mod config_path_help {
 #[cfg(feature = "gui")]
 fn sub_names() -> Vec<&'static str> {
     vec![
-        "tray",
-        "run",
-        "join",
-        "status",
-        "stop",
-        "invite",
-        "leave",
-        "network",
-        "config-path",
-        "password",
-        "access",
+        "tray", "run", "join", "status", "stop", "invite", "leave", "network", "config",
+        "password", "access",
     ]
 }
 
 #[cfg(not(feature = "gui"))]
 fn sub_names() -> Vec<&'static str> {
     vec![
-        "run",
-        "join",
-        "status",
-        "stop",
-        "invite",
-        "leave",
-        "network",
-        "config-path",
-        "password",
+        "run", "join", "status", "stop", "invite", "leave", "network", "config", "password",
         "access",
     ]
 }

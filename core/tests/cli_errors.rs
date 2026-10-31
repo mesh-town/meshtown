@@ -44,7 +44,8 @@ fn busy_socks_port_names_flag_and_port() {
         &key,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--socks-port",
         &port,
     ]);
@@ -93,10 +94,10 @@ mod bad_parameter {
 
         #[test]
         fn in_config_path_points_to_its_help() {
-            let out = mesh(&["config-path", "--bogus-flag"]);
+            let out = mesh(&["config", "path", "--bogus-flag"]);
             assert_refused_with(
                 &out,
-                "Error: unknown option \"--bogus-flag\". See all options: meshtown config-path --help",
+                "Error: unknown option \"--bogus-flag\". See all options: meshtown config --help",
             );
         }
     }
@@ -137,7 +138,7 @@ mod help_word {
 
     #[test]
     fn config_path_prints_what_its_help_flag_prints() {
-        assert_same_help(&["help", "config-path"], &["config-path", "--help"]);
+        assert_same_help(&["help", "config"], &["config", "--help"]);
     }
 
     // On macOS `tray --help` with a non-terminal stderr goes to `meshtown-tray.log` (`app/console/macos.rs`,
@@ -206,7 +207,8 @@ fn a_version_3_invite_exits_with_the_outdated_text() {
         &invite,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--no-socks",
     ]);
     // then
@@ -227,7 +229,8 @@ fn no_config_with_an_old_key_exits_with_the_outdated_text() {
         &key,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--no-socks",
     ]);
     // then

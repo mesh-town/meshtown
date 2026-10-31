@@ -104,11 +104,13 @@ What the flags and the subcommand do:
 - First run with no file: the node creates it (in the standard place or at `--config`) with **defaults and a new node
   secret**, not with the flags you typed. Flags describe this run, not permanent settings. A restart takes the secret
   from the file, so the node identifier stays the same.
-- `--save-config` writes the flags you typed to the file (only them; other fields are left alone) and keeps running.
-  A `--key` of another network is not a flag to save: it is added as a separate network (see the invite section).
+- `--set <path>=<value>` (repeatable) sets any stored field for this run only, such as `--set probe.interval_sec=20`;
+  the value is JSON (`20`, `true`, `null`) or a plain string. The file is not changed. To store a value, run
+  `meshtown config set <path> <value>`; `meshtown config get [<path>]` shows the values, from the running node or
+  from the file. A `--key` of another network is added as a separate network (see the invite section).
 - `--no-config` neither reads nor writes the file and works on defaults and flags. It cannot be combined with
-  `--save-config` or `--config`.
-- `meshtown config-path` prints the path to the settings file and runs nothing. At a normal start the path is also the
+  `--config`.
+- `meshtown config path` prints the path to the settings file and runs nothing. At a normal start the path is also the
   first line of the log: `config: <path> (…)`.
 
 The file is secret because it holds the network key and the node secret. The node creates it with mode `0600`, and the
@@ -161,7 +163,7 @@ The new node joins without waiting for a DHT lookup:
 - If none of the members named in the string is online, the node logs "waiting for network members" and keeps
   retrying, for up to a day. While it waits, the page and the tray are not up; join from the page if you need the
   interface at once.
-- The node writes the received key to the settings file itself, even without `--save-config` (only `network.key`
+- The node writes the received key to the settings file itself, on its own (only `network.key`
   changes), so after a restart it joins the network without an invite. With `--no-config` there is no file: the node
   warns that the key is not saved and **does not print it**. It works until a restart, and then you need a new invite.
 - With `--key` of the same network the invite is not spent; with a key of another network it is an error.
@@ -173,7 +175,7 @@ The new node joins without waiting for a DHT lookup:
   file keeps its key. A key of a network that is already saved is simply used. One node holds up to 8 networks;
   past that the run is refused before it goes to the network, and the invite is not spent.
 - A network added this way runs with the launch flags of the main network, except `--key`.
-  It starts with the sites of the main network's list and the ones typed with `--domain`;
+  It starts with the sites of the main network's list and the ones typed with `--site`;
   an added network joined by an invite also remembers the peer addresses from the invite, so it finds them at start.
 - The same join is available on the node page, in the "Invite from a network member" field. The answer comes at once,
   and "waiting for members" is shown under the field. That field accepts both a plain key and an invite, told apart by
@@ -236,10 +238,10 @@ Every node has its own domain list. It is kept only on this node and is not pass
 site checks (with the site name) still reach all members; this is how the member columns on the "Site checks" tab
 work.
 
-Add a domain at start with `--domain` (it can be repeated):
+Add a domain at start with `--site` (it can be repeated):
 
 ```sh
-meshtown run --domain example.com --domain example.org
+meshtown run --site example.com --site example.org
 ```
 
 On a running node, commands are read from stdin, one per line:
@@ -285,7 +287,7 @@ is set only in the settings (`exit.interface`, see [CONFIG-FILE.md](CONFIG-FILE.
 
 `--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
 local network too); on a running node change it with `meshtown access proxy localhost|localnet`, which restarts the
-proxy. `--probe-full-cycle` is a testing flag: it tests speed with 1 MiB to all members, not only the
+proxy. `--set probe.full_cycle=true` is a testing option: it tests speed with 1 MiB to all members, not only the
 chosen exit.
 
 `meshtown access ifaces NAME...` sets which networks (interfaces) the node accepts connections from, for the proxy and the
@@ -298,7 +300,7 @@ page). With `--if-unset` it writes only when the file has neither field yet, whi
 `proxy localhost`, `ifaces auto`); `--json` prints the same four values in the shape of the `config` document.
 `meshtown access page localhost|localnet` and `meshtown access proxy localhost|localnet` change the first two.
 
-`--block-domain SITE` (repeatable) only feeds the site checks (below): it makes the node treat the domain as blocked
+`--block-site SITE` (repeatable) only feeds the site checks (below): it makes the node treat the domain as blocked
 without checking it. It does not affect the path choice.
 
 Console commands:
@@ -323,14 +325,14 @@ check example.com
 checks
 ```
 
-The system resolver is not used. The address of the DoH server is given as a number (`--check-doh`, `1.1.1.1:443` by
+The system resolver is not used. The address of the DoH server is given as a number (`checks.doh_server`, `1.1.1.1:443` by
 default), and the domain address is taken from its answer. An address from the fake-IP pool (`198.18.0.0/15`) is
 rejected by the check and no connection is opened.
 
-`--provider-dns 192.168.1.1:53` adds a comparison with your provider's resolver: if the answers differ, the class is
+`--set checks.provider_dns=192.168.1.1:53` adds a comparison with your provider's resolver: if the answers differ, the class is
 `blocked: address spoofed`. Addresses from the provider's answer are used for nothing else.
 
-`--no-checks` leaves only the domain list.
+`--set checks.enabled=false` leaves only the domain list.
 
 ## Published ports
 
@@ -467,7 +469,7 @@ Every line is `+<seconds>s [tag] text`. The tags:
 | `[probe]` | the speed probe to a member: size, path, outcome |
 | `[docs]` | the shared network document (checks, exit flag, country, program version): syncing with members, writing the node's own name |
 | `[geo]` | detecting the node's own country (postponed when there is no network, or failed) |
-| `[domains]` | local edits of the list (the `--domain` flag, console) and the output of `domains list` |
+| `[domains]` | local edits of the list (the `--site` flag, console) and the output of `domains list` |
 | `[check]` | the result of checking one domain, the node's own or a neighbor's; errors of the `check` command |
 | `[checks]` | a summary of checks, the schedule state, problems reading the domain list or results |
 | `[console]` | errors parsing stdin commands; stdin closed (commands unavailable) |

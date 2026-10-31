@@ -36,8 +36,8 @@ mod bad_flag_message {
     #[test]
     fn extra_word_without_dash_is_called_extra_word() {
         assert_eq!(
-            flag_text(&["config-path", "extra"], Some("config-path")),
-            "Error: unexpected argument \"extra\". See all options: meshtown config-path --help"
+            flag_text(&["config", "path", "extra"], Some("config")),
+            "Error: unexpected argument \"extra\". See all options: meshtown config --help"
         );
     }
 
@@ -79,22 +79,6 @@ mod bad_value_message {
     }
 
     #[test]
-    fn probe_interval_names_its_range() {
-        assert_eq!(
-            value_text(&["run", "--probe-interval", "3"], Some("run")),
-            "Error: invalid value \"3\" for --probe-interval: use a number from 5 to 86400. See all options: meshtown run --help"
-        );
-    }
-
-    #[test]
-    fn check_interval_names_its_range() {
-        assert_eq!(
-            value_text(&["run", "--check-interval", "10"], Some("run")),
-            "Error: invalid value \"10\" for --check-interval: use a number from 30 to 86400. See all options: meshtown run --help"
-        );
-    }
-
-    #[test]
     fn word_instead_of_number_asks_for_integer() {
         assert_eq!(
             value_text(&["run", "--socks-port", "abc"], Some("run")),
@@ -111,10 +95,10 @@ mod bad_value_message {
     }
 
     #[test]
-    fn address_gets_no_colon_and_no_reason() {
+    fn custom_parser_reason_follows_colon() {
         assert_eq!(
-            value_text(&["run", "--check-doh", "notanaddr"], Some("run")),
-            "Error: invalid value \"notanaddr\" for --check-doh. See all options: meshtown run --help"
+            value_text(&["run", "--socks-access", "bogus"], Some("run")),
+            "Error: invalid value \"bogus\" for --socks-access: allowed: localhost, localnet. See all options: meshtown run --help"
         );
     }
 
@@ -155,9 +139,8 @@ mod no_english {
             flag_text(&["run", "--bogus-flag"], Some("run")),
             flag_text(&["--bogus"], None),
             value_text(&["run", "--socks-port", "80"], Some("run")),
-            value_text(&["run", "--probe-interval", "3"], Some("run")),
             value_text(&["run", "--socks-port", "abc"], Some("run")),
-            value_text(&["run", "--check-doh", "notanaddr"], Some("run")),
+            value_text(&["run", "--socks-access", "bogus"], Some("run")),
         ];
         for text in &texts {
             for bad in [

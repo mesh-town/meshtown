@@ -115,7 +115,8 @@ export function buildNodeArgs(key: string, configPath: string, port: number, pla
     configPath,
     '--web-port',
     String(port),
-    '--no-checks',
+    '--set',
+    'checks.enabled=false',
     ...plan.socksTail,
   ];
 }

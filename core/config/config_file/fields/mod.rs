@@ -13,7 +13,7 @@ mod table;
 mod value;
 
 pub(crate) use doc::{debug_settings, ConfigDoc, NetDoc};
-pub(crate) use row::Block;
+pub(crate) use row::{Block, Field, Mode};
 pub(crate) use select::{
     editable_paths, field_by_path, known_keys, live_paths, read_only_paths, restart_paths, rows_of,
     section_names, section_names_of,

@@ -25,7 +25,7 @@ pub struct NodeConfig {
     pub geoip: bool,
     /// The published state of the proxy listener when it lives outside the node; `None` — the node's own.
     pub proxy_face: Option<tokio::sync::watch::Receiver<crate::proxy::ProxyFace>>,
-    /// Domains the node treats as blocked on its side (the `--block-domain` flag).
+    /// Domains the node treats as blocked on its side (the `--block-site` flag).
     pub blocked_domains: Vec<String>,
     /// Substitute domain addresses for the exit: tests only, always empty in the node.
     pub exit_hosts: HashMap<String, SocketAddr>,

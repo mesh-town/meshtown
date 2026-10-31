@@ -20,7 +20,7 @@ async fn blocked_domain_is_network_blocked_without_network() {
     .unwrap();
     let record = check_domain(&cfg, &resolver, "blocked.test").await.unwrap();
     assert_eq!(record.verdict, CheckVerdict::NetworkBlocked);
-    assert_eq!(record.reason, "domain is marked --block-domain");
+    assert_eq!(record.reason, "domain is marked --block-site");
     assert_eq!(record.dns_ms, 0);
 }
 

@@ -15,7 +15,7 @@ pub(crate) mod access;
 mod browser;
 // group: config
 mod client;
-mod config;
+pub(crate) mod config;
 pub(crate) mod invite;
 pub(crate) mod join;
 mod join_offline;
@@ -31,9 +31,9 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
+mod run_set;
 pub(crate) mod status;
 pub(crate) mod stop;
-pub(crate) use config::config_path;
 pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;
 pub(crate) use leave::LeaveArgs;
@@ -46,7 +46,7 @@ pub(crate) use stop::StopArgs;
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {
-    let overrides = build_overrides(m, &args);
+    let overrides = build_overrides(m, &args)?;
     if args.no_config && is_flag_typed(m, "config") {
         anyhow::bail!("--no-config and --config together make no sense: remove one of the flags");
     }
@@ -58,7 +58,6 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
     let start = StartInput {
-        save_config: args.save_config,
         domains: &args.initial_domains,
     };
     let (run, overrides, invited) = prepare_run(&start, overrides, invited, &source, now).await?;
@@ -94,18 +93,14 @@ async fn launch_prepared(
     }
 }
 
-/// What preparing a run needs from the command line: whether to save the flags, and the domains typed.
+/// What preparing a run needs from the command line: the domains typed.
 struct StartInput<'a> {
-    save_config: bool,
     domains: &'a [String],
 }
 
 impl StartInput<'static> {
-    /// `join` without a node: the flags are not saved and there are no typed domains.
-    const JOIN: StartInput<'static> = StartInput {
-        save_config: false,
-        domains: &[],
-    };
+    /// `join` without a node: there are no typed domains.
+    const JOIN: StartInput<'static> = StartInput { domains: &[] };
 }
 
 /// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
@@ -124,7 +119,7 @@ async fn prepare_run(
     let cli_key = overrides.network_key.clone();
     let key_net = plan_cli_key(source, cli_key.as_deref())?;
     let overrides = overrides_for_main(&overrides, &key_net);
-    let mut run = config_file::prepare(source, &overrides, start.save_config, now)?;
+    let mut run = config_file::prepare(source, &overrides, false, now)?;
     let typed = start.domains;
     let invited =
         run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, typed, now).await?;
@@ -174,8 +169,8 @@ fn say_unreadable(key: &str) {
 
 /// Collects the `run` subcommand flags into `CliOverrides`: what the person didn't type stays `None`
 /// (then the config file or the default decides), the `--x/--no-x` pairs are handled by `toggle_from_flag_pair`.
-fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
-    CliOverrides {
+fn build_overrides(m: &ArgMatches, args: &RunArgs) -> anyhow::Result<CliOverrides> {
+    Ok(CliOverrides {
         network_key: args.key.clone().filter(|_| {
             matches!(
                 m.value_source("key"),
@@ -188,20 +183,10 @@ fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
         socks_access: args
             .socks_access
             .filter(|_| is_flag_typed(m, "socks_access")),
-        checks_enabled: toggle_from_flag_pair(args.checks, args.no_checks),
-        check_interval_sec: args
-            .check_interval
-            .filter(|_| is_flag_typed(m, "check_interval")),
-        doh_server: args.check_doh.filter(|_| is_flag_typed(m, "check_doh")),
-        provider_dns: args
-            .provider_dns
-            .filter(|_| is_flag_typed(m, "provider_dns")),
-        probe_interval_sec: args
-            .probe_interval
-            .filter(|_| is_flag_typed(m, "probe_interval")),
-        probe_full_cycle: args.probe_full_cycle.then_some(true),
         web_port: args.web_port.filter(|_| is_flag_typed(m, "web_port")),
-    }
+        set_fields: run_set::set_fields(&args.set)?,
+        ..CliOverrides::default()
+    })
 }
 
 /// The source of the config file: disabled (`--no-config`) or the usual lookup by path/default.

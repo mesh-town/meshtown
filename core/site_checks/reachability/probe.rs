@@ -30,7 +30,7 @@ pub async fn check_domain(
     domain: &str,
 ) -> Result<CheckRecord> {
     let mut steps = Steps::default();
-    // The domain is marked --block-domain: we don't touch the network at all, the class is preset.
+    // The domain is marked --block-site: we don't touch the network at all, the class is preset.
     if config.blocked_domains.contains(domain) {
         return Ok(blocked_record(&mut steps));
     }
@@ -114,12 +114,12 @@ fn adaptive_limits(limits: HttpLimits, tcp_ms: u16) -> HttpLimits {
     HttpLimits { read, ..limits }
 }
 
-/// A short exit for a domain marked `--block-domain`: we don't touch the network at all.
+/// A short exit for a domain marked `--block-site`: we don't touch the network at all.
 fn blocked_record(steps: &mut Steps) -> CheckRecord {
     steps.dns_ok = true;
     steps.tcp = TcpStep::Refused;
     let mut record = build_record(steps, 0, 0, 0, 0);
-    record.reason = "domain is marked --block-domain".to_string();
+    record.reason = "domain is marked --block-site".to_string();
     record
 }
 
