@@ -47,12 +47,28 @@ pub(super) struct Fx {
     accepts: Arc<std::sync::atomic::AtomicUsize>,
     _stacks: (NetStack, NetStack),
     held: Option<crate::exit::limits::StreamSlot>,
+    net: Arc<MemNet>,
+    exit_hint: crate::transport::net::PeerAddr,
 }
 
 impl Fx {
     /// Keeps a place of the exit's limiter taken until the fixture is dropped.
     pub(super) fn hold(&mut self, slot: crate::exit::limits::StreamSlot) {
         self.held = Some(slot);
+    }
+
+    /// A second member (node `n`) with its own connection to the exit; `_stack` keeps it alive.
+    pub(super) async fn second_member(&self, n: u8) -> (Arc<dyn PeerConn>, NetStack) {
+        self.cfg.members.add_verified_conn(pid(n));
+        let stack = NetStackBuilder::new(secret(n))
+            .transport(Spy::on(&self.net, &secret(n)).shared())
+            .build()
+            .expect("second member built");
+        stack.add_hints(self.exit_hint.clone());
+        let conn = within("connect", stack.connect(pid(2), EXIT))
+            .await
+            .expect("second connection");
+        (conn, stack)
     }
 
     /// A request: the whole frame, the reply is the first two bytes (up to `STEP`).
@@ -145,7 +161,8 @@ pub(super) async fn setup(opts: Opts) -> Fx {
         .transport(Spy::on(&net, &secret(1)).shared())
         .build()
         .expect("client built");
-    client.add_hints(server.invite_addrs()[0].clone());
+    let exit_hint = server.invite_addrs()[0].clone();
+    client.add_hints(exit_hint.clone());
     let conn = within("connect", client.connect(pid(2), EXIT))
         .await
         .expect("connection");
@@ -156,6 +173,8 @@ pub(super) async fn setup(opts: Opts) -> Fx {
         accepts,
         _stacks: (client, server),
         held: None,
+        net,
+        exit_hint,
     }
 }
 
@@ -234,7 +253,7 @@ pub(super) fn request(domain: &str, port: u16) -> Vec<u8> {
 }
 
 /// Two reply bytes (up to `STEP`).
-async fn read_reply(recv: &mut BoxRecv) -> [u8; 2] {
+pub(super) async fn read_reply(recv: &mut BoxRecv) -> [u8; 2] {
     let mut reply = [0u8; 2];
     within("exit reply", recv.read_exact(&mut reply))
         .await

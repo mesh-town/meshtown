@@ -1,6 +1,7 @@
 //! Tests of the live-stream counter: the cap, the slot guard, the memory refusal and the refusal log pacing.
 
 use super::*;
+use crate::transport::net::facade::test_support::pid;
 use std::time::Duration;
 
 mod admit {
@@ -12,7 +13,9 @@ mod admit {
         let limits = ExitLimits::fixed(3);
 
         // when: four streams ask for a place
-        let answers: Vec<_> = (0..4).map(|_| limits.try_admit()).collect();
+        let answers: Vec<_> = (0..4)
+            .map(|_| limits.try_admit(pid(1), Instant::now()))
+            .collect();
 
         // then: three are admitted, the fourth is refused with the counts, and three stay live
         assert!(
@@ -33,7 +36,9 @@ mod admit {
         limits.configure(0, 2, 0);
 
         // when: three streams ask for a place
-        let answers: Vec<_> = (0..3).map(|_| limits.try_admit()).collect();
+        let answers: Vec<_> = (0..3)
+            .map(|_| limits.try_admit(pid(1), Instant::now()))
+            .collect();
 
         // then: two are admitted, the third is refused
         assert!(answers[0].is_ok() && answers[1].is_ok(), "two admitted");
@@ -48,7 +53,7 @@ mod admit {
 
         // when: it is configured with the ceiling 1000 KiB and the automatic cap 5
         limits.configure(0, 5, 1000);
-        let answer = limits.try_admit();
+        let answer = limits.try_admit(pid(1), Instant::now());
 
         // then: the memory refuses the stream and the cap follows the automatic value
         assert!(
@@ -66,14 +71,19 @@ mod live {
     fn raising_the_limit_admits_again() {
         // given: a cap of 1 and its only place taken
         let limits = ExitLimits::fixed(1);
-        let _held = limits.try_admit().expect("the first place");
-        assert!(limits.try_admit().is_err(), "full");
+        let _held = limits
+            .try_admit(pid(1), Instant::now())
+            .expect("the first place");
+        assert!(limits.try_admit(pid(1), Instant::now()).is_err(), "full");
 
         // when: the cap is raised to 2
         limits.set_max_streams(2);
 
         // then: a new stream is admitted
-        assert!(limits.try_admit().is_ok(), "admitted after raising");
+        assert!(
+            limits.try_admit(pid(1), Instant::now()).is_ok(),
+            "admitted after raising"
+        );
     }
 
     #[test]
@@ -98,7 +108,7 @@ mod slot {
     fn dropping_a_slot_frees_it() {
         // given: a cap of 1 and its place taken
         let limits = ExitLimits::fixed(1);
-        let held = limits.try_admit().expect("the place");
+        let held = limits.try_admit(pid(1), Instant::now()).expect("the place");
         assert_eq!(limits.live(), 1);
 
         // when: the slot is dropped
@@ -106,14 +116,17 @@ mod slot {
 
         // then: no live streams and a new one fits
         assert_eq!(limits.live(), 0);
-        assert!(limits.try_admit().is_ok(), "the place is free again");
+        assert!(
+            limits.try_admit(pid(1), Instant::now()).is_ok(),
+            "the place is free again"
+        );
     }
 
     #[tokio::test]
     async fn aborted_task_frees_its_slot() {
         // given: a task that holds a slot and never ends
         let limits = ExitLimits::fixed(1);
-        let held = limits.try_admit().expect("the place");
+        let held = limits.try_admit(pid(1), Instant::now()).expect("the place");
         let task = crate::transport::net::task_label::spawn(async move {
             let _slot = held;
             std::future::pending::<()>().await;
@@ -139,7 +152,7 @@ mod rss {
         let limits = ExitLimits::with_rss(10, 1000, || 2000);
 
         // when: a stream asks for a place
-        let answer = limits.try_admit();
+        let answer = limits.try_admit(pid(1), Instant::now());
 
         // then: refused by memory with both numbers, and no place stays taken
         let Err(Busy::Memory {
@@ -186,6 +199,12 @@ mod busy_text {
         }
         .line();
         assert_eq!(text, "busy: 20 streams open, limit 20");
+    }
+
+    #[test]
+    fn share_line_names_held_and_share() {
+        let text = Busy::Share { held: 8, share: 8 }.line();
+        assert_eq!(text, "busy: member holds 8 streams, share 8");
     }
 
     #[test]

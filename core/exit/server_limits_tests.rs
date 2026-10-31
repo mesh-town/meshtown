@@ -5,7 +5,7 @@ use super::*;
 use crate::exit::frame::{EXIT_CODE_BAD_REQUEST, EXIT_CODE_OK};
 use crate::exit::windowed_copy::stub::pattern;
 use crate::exit::{ExitLimits, UDPGW_HOST, UDPGW_PORT};
-use crate::transport::net::facade::test_support::within;
+use crate::transport::net::facade::test_support::{pid, within};
 use crate::transport::net::StreamPair;
 use std::time::Duration;
 
@@ -161,6 +161,30 @@ mod limits {
         }
     }
 
+    #[tokio::test]
+    async fn second_member_opens_a_stream_while_first_holds_its_share() {
+        // given: a cap of 5 and member 1 holding four streams, the most it may take alone
+        let fx = setup_with(5, Site::Silent).await;
+        let mut held = Vec::new();
+        for _ in 0..4 {
+            held.push(fx.ask(&request("site.test", 80)).await);
+        }
+
+        // when: member 1 asks for a fifth stream and member 2 asks for its first
+        let (_fifth, refused) = fx.ask_raw(&request("site.test", 80)).await;
+        let (conn, _stack) = fx.second_member(3).await;
+        let mut pair = within("open", conn.open()).await.expect("stream opened");
+        pair.send
+            .write_all(&request("site.test", 80))
+            .await
+            .expect("frame sent");
+        let opened = read_reply(&mut pair.recv).await;
+
+        // then: member 1 is refused and member 2 gets the place
+        assert_eq!(refused, BUSY);
+        assert_eq!(opened, OPENED);
+    }
+
     mod live {
         use super::*;
 
@@ -249,7 +273,11 @@ fn full_opts() -> Opts {
 /// An exit whose only place is taken by someone else (the slot is held by the returned fixture's limiter).
 async fn setup_full(opts: Opts) -> Fx {
     let mut fx = setup(opts).await;
-    let slot = fx.cfg.limits.try_admit().expect("the only place");
+    let slot = fx
+        .cfg
+        .limits
+        .try_admit(pid(9), std::time::Instant::now())
+        .expect("the only place");
     fx.hold(slot);
     fx
 }
