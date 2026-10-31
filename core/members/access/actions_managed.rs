@@ -44,9 +44,9 @@ fn power_gate(me: PeerId, root: PeerId, v: &Verdicts, act: &MemberAction) -> Ref
         return Err(ActionRefusal::NotAdmin);
     }
     match act {
-        MemberAction::Exclude(p, _) if *p == root => Err(ActionRefusal::NotAdmin),
+        MemberAction::Exclude(p, _) if *p == root => Err(ActionRefusal::Creator),
         MemberAction::Grant(p) if !v.ledger.is_member(p) => Err(ActionRefusal::NotMember),
-        MemberAction::Revoke(p) if *p == root => Err(ActionRefusal::NotAdmin),
+        MemberAction::Revoke(p) if *p == root => Err(ActionRefusal::Creator),
         MemberAction::Revoke(p) if !v.ledger.is_member(p) => Err(ActionRefusal::NotMember),
         MemberAction::Revoke(p) if *p == me && is_last_admin(me, v) => {
             Err(ActionRefusal::LastAdmin)

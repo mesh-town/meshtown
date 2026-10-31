@@ -135,6 +135,7 @@ export async function leaveNet(api: ApiFn, slot: string): Promise<LeaveReply> {
 // Codes of a managed network: whole sentences, no prefix.
 const SENTENCES: Record<string, string> = {
   not_admin: "Only admins can do this.",
+  creator: "The creator of this network always stays an administrator.",
   last_admin: "You're the only admin: make another member an admin or delete the network.",
 };
 

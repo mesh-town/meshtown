@@ -199,7 +199,7 @@ remove a member, make another member an administrator or delete the network. Eve
 uses the network as usual.
 
 The creator of a network is its first administrator and the *root*: the root keeps the role for good and cannot be made a
-regular member. Right after creation the creator is the only administrator, and the page advises making a second member
+regular member (excluding it or taking the role away is refused with `creator`). Right after creation the creator is the only administrator, and the page advises making a second member
 an administrator, so that the network can still be managed if the creator's computer is lost. A key or an invite of the
 older format is refused with a message that it comes from an older version.
 

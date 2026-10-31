@@ -235,7 +235,7 @@ fn row_of(world: &World, peer: PeerId) -> MemberRow {
         .view
         .verdicts()
         .expect("the view must be published");
-    members_reply(&verdicts, &world.access.members, &[], None)
+    members_reply(&verdicts, &world.access.members, "", &[], None)
         .members
         .into_iter()
         .find(|r| r.id_full == peer.to_string())

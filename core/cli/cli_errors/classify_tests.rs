@@ -34,7 +34,7 @@ fn unknown_text_lists_commands() {
         names,
         [
             "tray", "run", "join", "status", "stop", "invite", "leave", "access", "config",
-            "network", "password", "open"
+            "member", "network", "password", "open"
         ]
     );
     #[cfg(not(feature = "gui"))]

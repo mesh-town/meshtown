@@ -81,6 +81,18 @@ fn refusals_map_to_codes() {
     assert_eq!(code_of(ActionRefusal::NotMember), "not_member");
     assert_eq!(code_of(ActionRefusal::Left), "left");
     assert_eq!(code_of(ActionRefusal::NotPending), "not_pending");
+    assert_eq!(code_of(ActionRefusal::Creator), "creator");
+}
+
+#[test]
+fn creator_refusal_names_the_creator() {
+    match refusal_error(ActionRefusal::Creator) {
+        MemberError::Refused { message, .. } => assert_eq!(
+            message,
+            "the creator of this network always stays an administrator"
+        ),
+        other => panic!("not a refusal: {other:?}"),
+    }
 }
 
 #[test]

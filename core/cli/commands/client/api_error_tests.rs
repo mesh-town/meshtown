@@ -26,6 +26,7 @@ fn refusal_advice_names_next_step() {
     for code in [
         "not_admin",
         "self_target",
+        "creator",
         "last_admin",
         "network_deleted",
         "too_many_nets",
@@ -36,6 +37,9 @@ fn refusal_advice_names_next_step() {
             "{code}: {advice}"
         );
     }
+    assert!(refusal_advice("creator")
+        .unwrap_or_default()
+        .contains("member list"));
     assert!(refusal_advice("last_admin")
         .unwrap_or_default()
         .contains("member admin"));

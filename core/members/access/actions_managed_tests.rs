@@ -150,7 +150,36 @@ mod the_root {
         let world = setup(Seat::Admin);
         // when / then
         let result = world.apply(MemberAction::Revoke(world.root)).await;
-        assert_eq!(result, Err(ActionRefusal::NotAdmin));
+        assert_eq!(result, Err(ActionRefusal::Creator));
+    }
+
+    #[tokio::test]
+    async fn exclude_creator_is_creator_refusal() {
+        // given: I am an administrator, the root is another one
+        let world = setup(Seat::Admin);
+        // when / then
+        let result = world.apply(MemberAction::Exclude(world.root, None)).await;
+        assert_eq!(result, Err(ActionRefusal::Creator));
+    }
+
+    #[tokio::test]
+    async fn revoke_creator_is_creator_refusal() {
+        // given: the creator is the only administrator and asks for its own takeback
+        let world = setup(Seat::Root);
+        // when / then
+        let result = world.apply(MemberAction::Revoke(world.root)).await;
+        assert_eq!(result, Err(ActionRefusal::Creator));
+    }
+
+    #[tokio::test]
+    async fn non_admin_still_gets_not_admin_first() {
+        // given: I am a plain member
+        let world = setup(Seat::Member);
+        // when / then: even against the creator the missing role is named first
+        let excluded = world.apply(MemberAction::Exclude(world.root, None)).await;
+        let revoked = world.apply(MemberAction::Revoke(world.root)).await;
+        assert_eq!(excluded, Err(ActionRefusal::NotAdmin));
+        assert_eq!(revoked, Err(ActionRefusal::NotAdmin));
     }
 }
 

@@ -226,7 +226,7 @@ fn status_of(a: &RunningNode, who: &RunningNode) -> String {
     let Some(v) = a.members.access().verdicts() else {
         return String::new();
     };
-    let reply = members_reply(&v, &a.members, &a.members.access().refusals(), None);
+    let reply = members_reply(&v, &a.members, "", &a.members.access().refusals(), None);
     reply
         .members
         .iter()

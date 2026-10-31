@@ -146,8 +146,29 @@ mod with_a_node {
         let id = own_id(&node);
         let o = settled(&node, &["member", "admin", &id, "--revoke"]);
         assert_eq!(code(&o), Some(1), "stderr: {}", err(&o));
-        assert!(err(&o).contains("only admins can do this"), "{}", err(&o));
-        assert!(err(&o).contains("Ask an administrator"), "{}", err(&o));
+        assert!(
+            err(&o).contains("the creator of this network"),
+            "{}",
+            err(&o)
+        );
+        assert!(err(&o).contains("member list"), "{}", err(&o));
+    }
+
+    /// The own row carries the name the node runs under, so the name works as a member reference.
+    #[test]
+    fn own_name_resolves_to_self() {
+        let node = CliNode::start(&["--set", "node.name=alpha"]);
+        let made = node.cli(&["network", "create", "ourgame"]);
+        assert_eq!(code(&made), Some(0), "stderr: {}", err(&made));
+        let o = settled(&node, &["member", "admit", "alpha"]);
+        assert_eq!(code(&o), Some(1), "stderr: {}", err(&o));
+        assert!(err(&o).contains("your own computer"), "{}", err(&o));
+        let listed = settled(&node, &["member", "list"]);
+        assert!(
+            out(&listed).contains("alpha (this computer)"),
+            "{}",
+            out(&listed)
+        );
     }
 
     #[test]

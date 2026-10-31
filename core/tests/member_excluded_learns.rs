@@ -47,7 +47,13 @@ async fn a_node_excluded_while_off_learns_it_from_refusals() {
         let Some(v) = back.members.access().verdicts() else {
             return false;
         };
-        let reply = members_reply(&v, &back.members, &back.members.access().refusals(), None);
+        let reply = members_reply(
+            &v,
+            &back.members,
+            "",
+            &back.members.access().refusals(),
+            None,
+        );
         reply.me_excluded && !reply.me_pending
     };
     assert!(

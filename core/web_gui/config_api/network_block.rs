@@ -44,7 +44,7 @@ impl NetRoles {
 
     /// The roles of a live node from the published verdicts.
     pub fn of(root: &PeerId, v: &Verdicts, members: &Members) -> NetRoles {
-        let mut reply = members_reply(v, members, &[], None);
+        let mut reply = members_reply(v, members, "", &[], None);
         reply.set_root(root);
         NetRoles::from_reply(&reply)
     }

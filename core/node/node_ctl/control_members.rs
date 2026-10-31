@@ -97,6 +97,10 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
             refused("not_pending", "This member isn't waiting for confirmation")
         }
         ActionRefusal::NotAdmin => refused("not_admin", "only admins can do this in this network"),
+        ActionRefusal::Creator => refused(
+            "creator",
+            "the creator of this network always stays an administrator",
+        ),
         ActionRefusal::LastAdmin => refused(
             "last_admin",
             "you are the only admin: make another member an admin or delete the network",
@@ -113,7 +117,13 @@ async fn run_action(node: &RunningNode, act: MemberAction) -> Result<MembersRepl
 
 async fn reply_of(node: &RunningNode, changed: Option<bool>) -> Result<MembersReply, MemberError> {
     let v = verdicts_of(node).await?;
-    let mut reply = members_reply(&v, &node.members, &node.access.view.refusals(), changed);
+    let mut reply = members_reply(
+        &v,
+        &node.members,
+        &node.current_name(),
+        &node.access.view.refusals(),
+        changed,
+    );
     stamp_last_seen(&mut reply, &seen_ages(node, unix_now()).await);
     Ok(reply)
 }

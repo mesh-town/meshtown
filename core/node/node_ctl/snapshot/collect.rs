@@ -239,6 +239,7 @@ fn reply_now(node: &RunningNode) -> Option<MembersReply> {
     Some(members_reply(
         &v,
         &node.members,
+        &node.current_name(),
         &node.access.view.refusals(),
         None,
     ))

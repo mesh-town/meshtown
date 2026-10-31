@@ -233,7 +233,7 @@ In a network (`{base} as in section 1.12, `WEB-API-members.md`):
 - `POST {base}/network/delete` with `{"confirm":true}` (without it 422 `invalid`) closes the network for everybody; the members leave
   it, this node too. Reply as for `members/leave`.
 - Further 409 refusals: `not_admin` (the action needs an administrator, this includes `network/invite`: 409 `{"error":"not_admin","message":…}`),
-  `last_admin` (the only administrator cannot give up the role), `network_deleted` (the network was closed).
+  `creator` (the creator of the network cannot be excluded or lose the role), `last_admin` (the only administrator cannot give up the role), `network_deleted` (the network was closed).
 
 ### The `node.invite_join` field and single-use invites
 
