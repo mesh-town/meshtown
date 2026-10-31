@@ -7,6 +7,10 @@
 # Environment:
 #   LINUX_CHECK_DIR — persistent cache directory (target, target-tray, cargo registry and git);
 #                     default $BUILD_ROOT/linux-check. A warm directory makes a pass seconds, not minutes.
+#   LINUX_CHECK_MAX_GB — cache size limit, default 50. Cargo never drops artifacts of older source states, so the
+#                     directory only grows; under the lock, before the container starts, a directory over the limit
+#                     loses the cheapest-to-rebuild parts first (incremental data, then compiled artifacts, then
+#                     everything but the lock), one stderr line per step.
 #   LINUX_CHECK_IMAGE — Rust image, default rust:1.98-bookworm.
 # One pass at a time per cache directory: two containers building into one target directory remove each
 # other's artifacts. A second pass waits for the lock `$DIR/.lock`; a lock whose process is gone is taken over.
@@ -33,11 +37,24 @@ done
 echo $$ >"$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
 trap 'exit 130' INT TERM
+MAX_GB="${LINUX_CHECK_MAX_GB:-50}"
+size_gb() { du -sk "$DIR" | awk '{ printf "%d", ($1 + 1048575) / 1048576 }'; }
+# Remove the given paths (relative to $DIR) if the cache is still over the limit.
+shrink() {
+  what="$1"; shift
+  gb="$(size_gb)"
+  [ "$gb" -gt "$MAX_GB" ] || return 0
+  echo "linux-check: cache $gb GB over $MAX_GB GB, removed $what" >&2
+  for p in "$@"; do rm -rf "$DIR"/$p; done
+}
+shrink "incremental data" 'target*/debug/incremental'
+shrink "compiled artifacts" 'target*/debug/deps' 'target*/debug/examples' 'target*/debug/.fingerprint' 'target*/debug/build'
+shrink "everything but the lock" 'target' 'target-tray' 'cargo-registry' 'cargo-git'
 "$CONTAINER" run --rm --platform "linux/$ARCH" --memory 8g --cpus 4 \
   -v "$ROOT:/src:ro" -w /src \
   -v "$DIR/cargo-registry:/usr/local/cargo/registry" -v "$DIR/cargo-git:/usr/local/cargo/git" \
   -v "$DIR/target:/target" -v "$DIR/target-tray:/target-tray" \
-  -e CARGO_TERM_COLOR=never "$IMAGE" sh -c '
+  -e CARGO_TERM_COLOR=never -e CARGO_INCREMENTAL=0 "$IMAGE" sh -c '
     set -e
     CARGO_TARGET_DIR=/target cargo build --locked --all-targets -p meshtown-core --no-default-features --features net-hyper
     CARGO_TARGET_DIR=/target-tray cargo build --locked --all-targets -p meshtown-linux
