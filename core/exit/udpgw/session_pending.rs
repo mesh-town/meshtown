@@ -204,3 +204,7 @@ async fn lookup(resolver: &Resolver, name: &str, port: u16) -> Option<(SocketAdd
     }
     Some((udp_address(resolver, name, port).await?, false))
 }
+
+#[cfg(test)]
+#[path = "session_pending_tests.rs"]
+mod tests;
