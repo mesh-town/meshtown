@@ -55,4 +55,5 @@ pub use pool::{ask_exit_to_connect, PeerConnPool, StreamBusy, OPEN_STREAM_TIMEOU
 pub use server::{exit_service, ExitConfig};
 pub use splice::{splice, HALF_CLOSE_GRACE};
 pub use traffic::{Direction, ExitTraffic, PeerRate};
+pub(crate) use udpgw::attach as attach_gateway;
 pub(crate) use udpgw::codec as udpgw_codec;

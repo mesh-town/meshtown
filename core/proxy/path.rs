@@ -243,3 +243,6 @@ mod gateway_tests;
 #[cfg(test)]
 #[path = "path_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "path_udpgw_tests.rs"]
+mod udpgw_tests;

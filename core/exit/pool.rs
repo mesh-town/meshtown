@@ -73,6 +73,8 @@ pub struct PeerConnPool {
     gateway: GatewayMemo,
     /// Paces the client's "exit is busy" log lines.
     busy_lines: Arc<LineRate>,
+    /// Shared UDP gateway streams to the exits.
+    pub(in crate::exit) udpgw: super::udpgw::UdpgwMux,
 }
 
 /// Guard of the waiting counter: +1 on creation, −1 on `Drop` (success, error, deadline, dropped future).
@@ -110,6 +112,7 @@ impl PeerConnPool {
             traffic: None,
             gateway: GatewayMemo::default(),
             busy_lines: Arc::default(),
+            udpgw: super::udpgw::UdpgwMux::default(),
         }
     }
 
