@@ -3,6 +3,7 @@
 //! carry on through the old path.
 
 use super::*;
+use crate::exit::udpgw::codec::Target;
 use crate::exit::udpgw::test_support::{cfg_with, spawn_echo, start, Client};
 use crate::iface_bind::test_support::{loopback_name, MISSING_IFACE};
 use crate::iface_bind::{check, BindError, OutIface};
@@ -166,6 +167,9 @@ async fn gateway_via(iface: Option<&str>) -> (Gateway, mpsc::Receiver<Vec<u8>>) 
         sessions: HashMap::new(),
         allowed: HashSet::new(),
         refused: HashSet::new(),
+        pending: HashMap::new(),
+        results: mpsc::channel(1).0,
+        next_lookup: 0,
     };
     (gateway, queue)
 }
