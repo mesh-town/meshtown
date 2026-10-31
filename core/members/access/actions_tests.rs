@@ -25,6 +25,9 @@ use crate::transport::net::{
 #[path = "actions_block_tests.rs"]
 mod block_and_self_target;
 
+#[path = "actions_admit_tests.rs"]
+mod admit;
+
 #[path = "actions_leave_tests.rs"]
 mod leave_and_failure;
 

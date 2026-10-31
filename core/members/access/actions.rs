@@ -112,8 +112,8 @@ fn exclude_known(v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
 }
 
 fn admit_pending(v: &Verdicts, p: &PeerId) -> Result<(), ActionRefusal> {
-    let waits = v.ledger.admissions.contains_key(p) || returns(v, p);
-    refuse_if(!waits, ActionRefusal::NotPending)
+    let known = v.ledger.admissions.contains_key(p) || returns(v, p) || v.ledger.is_member(p);
+    refuse_if(!known, ActionRefusal::NotPending)
 }
 
 /// Writes the record of the action; `true` — something changed.
@@ -132,7 +132,7 @@ async fn write_record(a: &Access, v: &Verdicts, act: &MemberAction) -> NetResult
     match act {
         Exclude(p, note) => exclude(a, v, p, note.as_deref()).await,
         Unexclude(p) => record::withdraw(&*a.shared, AclKind::Exclude, *p).await,
-        Admit(p) => admit(a, p).await,
+        Admit(p) => admit(a, v, p).await,
         Block(p) => record::ensure(&*a.own, &value(AclKind::Block, *p)).await,
         Unblock(p) => record::withdraw(&*a.own, AclKind::Block, *p).await,
         Leave => exclude(a, v, &a.me, None).await,
@@ -152,7 +152,11 @@ async fn exclude(a: &Access, v: &Verdicts, p: &PeerId, note: Option<&str>) -> Ne
     record::ensure(&*a.shared, &record).await
 }
 
-async fn admit(a: &Access, p: &PeerId) -> NetResult<bool> {
+/// Lets in a waiting or excluded node; nothing to do for one that is already a member.
+async fn admit(a: &Access, v: &Verdicts, p: &PeerId) -> NetResult<bool> {
+    if v.ledger.is_member(p) {
+        return Ok(false);
+    }
     let record = value(AclKind::Admit, *p);
     record::rewrite(&*a.shared, &record).await.map(|_| true)
 }

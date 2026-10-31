@@ -50,8 +50,8 @@ Refusals are 409 with `error` set to the code: `self_target` (own id), `not_memb
 - `unexclude` — withdraws this node's own `exclude` entry in the shared document; other members' entries stay. It is
   `changed:false` when there is nothing to withdraw; there is no "nothing to withdraw" refusal. The page calls it
   "Withdraw proposal".
-- `admit` — an administrator lets in a node that waits to join; it is also how an administrator returns an excluded node. Refused with `not_pending` if the
-  node does not wait for admission. The page calls it "Confirm…".
+- `admit` — an administrator lets in a node that waits to join; it is also how an administrator returns an excluded node. Admitting a node that is already
+  a member is 200 with `changed: false`; `not_pending` is only for a node that neither waits nor is a member. The page calls it "Confirm…".
 - `block` and `unblock` — a **local** block: the entry is written only to this node's own replica, never to the shared
   document, so the node stays in the network and keeps working with the other members. No administrator role is
   needed. `blocked_by_me` in the row shows it. The page calls them "Block on this computer…" and "Unblock".
