@@ -5,7 +5,13 @@ use peeroxide_dht::holepuncher::Holepuncher;
 use peeroxide_dht::hyperdht::{spawn, HyperDhtConfig, HyperDhtError, HyperDhtHandle, ServerEvent};
 use peeroxide_dht::rpc::DhtConfig;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::{Semaphore, SemaphorePermit};
 use tokio::task::JoinHandle;
+
+/// Clusters on a LAN address that may live at once in one test process: with more of them, dials between their
+/// nodes run past the test timeouts. Loopback clusters are not limited.
+const LAN_CLUSTERS_AT_ONCE: usize = 2;
+static LAN_CLUSTERS: Semaphore = Semaphore::const_new(LAN_CLUSTERS_AT_ONCE);
 
 /// One node of the cluster; the fields keep it alive while `Cluster` is alive.
 struct Node {
@@ -19,6 +25,20 @@ struct Node {
 pub struct Cluster {
     bootstrap: Vec<String>,
     _nodes: Vec<Node>,
+    _lan_slot: Option<SemaphorePermit<'static>>,
+}
+
+/// A place among the LAN clusters, held until the cluster is dropped; `None` for loopback.
+async fn lan_slot(host: &str) -> Option<SemaphorePermit<'static>> {
+    if host.starts_with("127.") {
+        return None;
+    }
+    Some(
+        LAN_CLUSTERS
+            .acquire()
+            .await
+            .expect("the semaphore is never closed"),
+    )
 }
 
 impl Cluster {
@@ -57,6 +77,7 @@ pub async fn cluster(size: usize) -> Cluster {
 /// Starts `size` nodes (at least one) on `host`. All nodes of a test share one address: a UDP socket
 /// bound to a LAN address cannot send to loopback on some systems, and the other way round.
 pub async fn cluster_on(host: &str, size: usize) -> Cluster {
+    let lan_slot = lan_slot(host).await;
     let (first, port) = spawn_node(host, vec![]).await;
     let bootstrap = vec![format!("{host}:{port}")];
     let mut nodes = vec![first];
@@ -66,6 +87,7 @@ pub async fn cluster_on(host: &str, size: usize) -> Cluster {
     Cluster {
         bootstrap,
         _nodes: nodes,
+        _lan_slot: lan_slot,
     }
 }
 
