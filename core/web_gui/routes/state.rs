@@ -161,3 +161,7 @@ mod tests;
 #[cfg(test)]
 #[path = "state_extras_tests.rs"]
 mod extras_tests;
+
+#[cfg(test)]
+#[path = "state_proxy_tests.rs"]
+mod proxy_tests;

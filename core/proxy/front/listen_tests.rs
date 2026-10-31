@@ -541,6 +541,23 @@ mod apply {
             assert!(w.front.addr().is_some(), "the address is gone");
             assert_echoes(&mut w.connect().await).await;
         }
+
+        #[tokio::test]
+        async fn widening_to_a_busy_port_keeps_the_old_listener() {
+            // given: a `localhost` front and another program on the address a `localnet` listener would take
+            let w = setup(Opts::to(Aim::Direct)).await;
+            let foreign = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+            let wanted = ProcessSettings {
+                socks_access: ListenAccess::Localnet,
+                ..settings(foreign.local_addr().unwrap().port())
+            };
+            // when
+            let err = w.front.apply(&wanted).await.expect_err("P2 is busy");
+            // then: widening is not narrowing, the old listener stays
+            assert!(err.downcast_ref::<BindError>().is_some(), "a BindError");
+            assert!(w.front.addr().is_some(), "the address is gone");
+            assert_echoes(&mut w.connect().await).await;
+        }
     }
 
     mod same_port_other_access {

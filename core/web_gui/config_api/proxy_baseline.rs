@@ -7,19 +7,22 @@ use super::state::ConfigState;
 
 impl ConfigState {
     /// Moves the `socks.*` baseline to what the process proxy listens on now, so that `restart_pending` for them
-    /// means "the file against the real listener". Launch flags on `socks.*` keep the launch baseline.
+    /// means "the file against the real listener". Launch flags on `socks.*` keep the launch baseline, and an
+    /// added slot keeps the primary slot's block it was given: it cannot restart the process proxy.
     pub(crate) fn sync_proxy_baseline(&mut self, node: &dyn NodeControl) {
+        if self.process_overlaid || self.launch_flag_on_socks() {
+            return;
+        }
         let Some(face) = node.applied_proxy() else {
             return;
         };
-        if self
-            .cli_override_paths
+        self.follow_face(&face);
+    }
+
+    fn launch_flag_on_socks(&self) -> bool {
+        self.cli_override_paths
             .iter()
             .any(|p| p.starts_with("socks."))
-        {
-            return;
-        }
-        self.follow_face(&face);
     }
 
     fn follow_face(&mut self, face: &ProxyFace) {

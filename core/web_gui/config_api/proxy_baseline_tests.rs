@@ -88,3 +88,36 @@ fn launch_flag_keeps_the_launch_baseline() {
     );
     cleanup(&dir);
 }
+
+#[test]
+fn ifaces_pending_follows_the_listener() {
+    // given: the file filters the interfaces while the listener has the default filter
+    let dir = temp_dir();
+    let mut state = new_state(&dir);
+    let file = &mut state.file_settings.process;
+    file.socks_access = ListenAccess::Localnet;
+    file.socks_port = LISTENER_PORT;
+    file.socks_ifaces = IfaceFilter::Only(vec!["br-lan".to_string()]);
+    state.boot_file_settings.process = file.clone();
+    let node = node_with(listening(ListenAccess::Localnet), "aaaaaaaa");
+    // when
+    state.sync_with_node(&*node);
+    // then
+    assert_eq!(state.pending_restart_paths(), vec!["socks.ifaces"]);
+    cleanup(&dir);
+}
+
+#[test]
+fn overlaid_slot_ignores_the_listener() {
+    // given: an added slot shows the primary slot's block, which differs from the listener
+    let dir = temp_dir();
+    let mut state = state_against_listener(&dir);
+    let primary = state.file_settings.process.clone();
+    state.overlay_process(&primary);
+    let node = node_with(listening(ListenAccess::Localnet), "aaaaaaaa");
+    // when
+    state.sync_with_node(&*node);
+    // then: the process block never counts as a pending restart there
+    assert_eq!(state.pending_restart_paths(), Vec::<&str>::new());
+    cleanup(&dir);
+}
