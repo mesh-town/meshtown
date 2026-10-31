@@ -1,4 +1,5 @@
 use super::*;
+use crate::exit::udpgw::codec::Target;
 use crate::exit::udpgw::test_support::{cfg_with, spawn_echo, start, Client, WAIT};
 use tokio::time::timeout;
 

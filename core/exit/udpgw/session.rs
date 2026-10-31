@@ -1,7 +1,7 @@
 //! The per-stream loop of the UDP gateway: one UDP socket per `conn_id`, replies go back as frames.
 
 use std::collections::{HashMap, HashSet};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -11,8 +11,7 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::{sleep_until, Instant};
 
-use super::codec::{encode, read_frame, Frame, Target, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
-use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
+use super::codec::{encode, read_frame, Frame, FLAG_CLOSE, FLAG_DATA, FLAG_KEEPALIVE};
 use crate::exit::server::ExitConfig;
 use crate::iface_bind::{bind_udp, check};
 use crate::node::output::{say, short_peer_id};
@@ -24,6 +23,8 @@ const SESSION_IDLE: Duration = Duration::from_secs(60);
 const MAX_SESSIONS: usize = 256;
 /// Replies waiting for the stream writer.
 const REPLY_QUEUE: usize = 64;
+/// Frames read off the stream and not yet handled.
+const FRAME_QUEUE: usize = 64;
 
 #[derive(Clone, Copy)]
 pub(super) struct Limits {
@@ -40,8 +41,16 @@ struct Session {
     sock: Arc<UdpSocket>,
     last: Arc<Mutex<Instant>>,
     task: JoinHandle<()>,
+    /// The name the last datagram of a lookup went to, so that its next frames skip the lookup.
+    named: Option<Named>,
     /// The interface the socket was opened with; a different current value reopens the session.
     iface: Option<Arc<str>>,
+}
+
+struct Named {
+    name: String,
+    port: u16,
+    addr: SocketAddr,
 }
 
 impl Drop for Session {
@@ -66,6 +75,11 @@ struct Gateway {
     allowed: HashSet<SocketAddr>,
     /// Connections already reported as refused (one log line per session).
     refused: HashSet<u16>,
+    /// `conn_id`s whose name is being looked up, with the frames waiting behind it.
+    pending: HashMap<u16, Pending>,
+    /// Ends of lookups come back here.
+    results: mpsc::Sender<Resolved>,
+    next_lookup: u64,
 }
 
 /// Serves the gateway on the stream until it closes; all sockets close with it.
@@ -77,10 +91,13 @@ pub(super) async fn run(
     cfg: ExitConfig,
     peer: PeerId,
     send: BoxSend,
-    mut recv: BoxRecv,
+    recv: BoxRecv,
     limits: Limits,
 ) {
     let (replies, queue) = mpsc::channel(REPLY_QUEUE);
+    let (results, mut ended) = mpsc::channel(MAX_RESOLVING);
+    let (sender, mut frames) = mpsc::channel(FRAME_QUEUE);
+    let reader = crate::node::output::spawn(read_frames(recv, sender));
     let writer = crate::node::output::spawn(write_replies(send, queue));
     let mut gateway = Gateway {
         cfg,
@@ -90,11 +107,30 @@ pub(super) async fn run(
         sessions: HashMap::new(),
         allowed: HashSet::new(),
         refused: HashSet::new(),
+        pending: HashMap::new(),
+        results,
+        next_lookup: 0,
     };
-    while let Ok(frame) = read_frame(&mut recv).await {
-        gateway.handle(frame).await;
+    loop {
+        tokio::select! {
+            frame = frames.recv() => match frame {
+                Some(frame) => gateway.handle(frame).await,
+                None => break,
+            },
+            Some(done) = ended.recv() => gateway.resolved(done).await,
+        }
     }
+    reader.abort();
     writer.abort();
+}
+
+/// Reads frames off the stream until it closes or breaks; the loop above never waits on a half-read frame.
+async fn read_frames(mut recv: BoxRecv, frames: mpsc::Sender<Frame>) {
+    while let Ok(frame) = read_frame(&mut recv).await {
+        if frames.send(frame).await.is_err() {
+            return;
+        }
+    }
 }
 
 async fn write_replies<W: AsyncWrite + Unpin>(mut send: W, mut queue: mpsc::Receiver<Vec<u8>>) {
@@ -112,6 +148,7 @@ impl Gateway {
         }
         if frame.flags & FLAG_CLOSE != 0 {
             self.sessions.remove(&frame.conn_id);
+            self.pending.remove(&frame.conn_id);
             return;
         }
         if frame.flags & FLAG_DATA != 0 {
@@ -123,50 +160,6 @@ impl Gateway {
     async fn reply(&self, frame: &Frame) {
         let Some(bytes) = encode(frame) else { return };
         let _ = self.replies.send(bytes).await;
-    }
-
-    async fn datagram(&mut self, frame: Frame) {
-        let Some(target) = frame.target else { return };
-        let Some(dest) = self.destination(frame.conn_id, &target).await else {
-            return;
-        };
-        let Some(session) = self.session(frame.conn_id, dest) else {
-            return;
-        };
-        session.touch();
-        let _ = session.sock.send_to(&frame.data, dest).await;
-    }
-
-    /// The address to send to, or `None` if it is closed to the exit or does not resolve.
-    async fn destination(&mut self, conn_id: u16, target: &Target) -> Option<SocketAddr> {
-        let (addr, trusted) = self.resolve(target).await?;
-        if trusted || self.allowed.contains(&addr) {
-            return Some(addr);
-        }
-        if is_forbidden(addr.ip()) || is_own_address(addr.ip()) {
-            self.report_refused(conn_id);
-            return None;
-        }
-        self.allowed.insert(addr);
-        Some(addr)
-    }
-
-    /// The address and whether it comes from the test table (it bypasses the address guard).
-    async fn resolve(&self, target: &Target) -> Option<(SocketAddr, bool)> {
-        match target {
-            Target::Ip(addr) => Some((*addr, false)),
-            Target::Domain(name, port) => self.resolve_name(name, *port).await,
-        }
-    }
-
-    async fn resolve_name(&self, name: &str, port: u16) -> Option<(SocketAddr, bool)> {
-        if let Some(addr) = self.cfg.host_overrides.get(name) {
-            return Some((*addr, true));
-        }
-        if let Ok(ip) = name.parse::<IpAddr>() {
-            return Some((SocketAddr::new(ip, port), false));
-        }
-        Some((udp_address(&self.cfg.resolver, name, port).await?, false))
     }
 
     fn report_refused(&mut self, conn_id: u16) {
@@ -248,6 +241,7 @@ fn open_session(
         sock,
         last,
         task,
+        named: None,
         iface,
     })
 }
@@ -281,9 +275,16 @@ async fn pump_replies(
     }
 }
 
+#[path = "session_pending.rs"]
+mod pending;
+use pending::{Pending, Resolved, MAX_RESOLVING};
+
 #[cfg(test)]
 #[path = "iface_tests.rs"]
 mod iface_tests;
+#[cfg(test)]
+#[path = "session_resolve_tests.rs"]
+mod resolve_tests;
 #[cfg(test)]
 #[path = "session_tests.rs"]
 mod tests;
