@@ -136,6 +136,34 @@ mod process_proxy {
             node.shutdown().await;
         }
     }
+
+    mod narrowing_onto_a_busy_port {
+        use super::*;
+
+        /// given a front that serves the local network, when the next start asks for `localhost` on a busy port,
+        /// then the start fails, the front has no listener and the failure is recorded.
+        #[tokio::test]
+        async fn failed_narrowing_leaves_no_wide_listener() {
+            let fx = setup(58).await;
+            let wide = crate::config::config_file::ProcessSettings {
+                socks_access: crate::config::config_file::ListenAccess::Localnet,
+                ..process_on(fx.port)
+            };
+            fx.front.apply(&wide).await.unwrap();
+            let foreign = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let busy = foreign.local_addr().unwrap().port();
+
+            let err = fx.when_cycle_start_fails(busy, 2).await;
+            fall_back_to_waiting(&fx.ctl, &err);
+
+            assert_eq!(fx.front.addr(), None, "a wide listener is left");
+            assert!(can_bind(fx.port), "the old port is still held");
+            assert!(
+                fx.ctl.start_error().is_some(),
+                "the failure is not recorded"
+            );
+        }
+    }
 }
 
 /// A process listener on a free port, a seat for the `main` slot over it and a controller that publishes there.

@@ -502,6 +502,64 @@ mod apply {
         }
     }
 
+    mod busy_port_other_access {
+        use super::*;
+
+        /// A front widened to `localnet` on P1, then `next` applied on a port another program holds.
+        async fn refused(next: ListenAccess) -> (World, anyhow::Error) {
+            let w = setup(Opts::to(Aim::Direct)).await;
+            w.front.apply(&localnet_settings(w.port)).await.unwrap();
+            // the other program holds the very address the new listener would take
+            let taken = match next {
+                ListenAccess::Localhost => "127.0.0.1:0",
+                ListenAccess::Localnet => "0.0.0.0:0",
+            };
+            let foreign = std::net::TcpListener::bind(taken).unwrap();
+            let busy = foreign.local_addr().unwrap().port();
+            let wanted = ProcessSettings {
+                socks_access: next,
+                ..settings(busy)
+            };
+            let err = w.front.apply(&wanted).await.expect_err("P2 is busy");
+            std::mem::forget(foreign);
+            (w, err)
+        }
+
+        #[tokio::test]
+        async fn narrowing_to_a_busy_port_leaves_no_listener() {
+            let (w, err) = refused(ListenAccess::Localhost).await;
+
+            assert!(err.downcast_ref::<BindError>().is_some(), "a BindError");
+            assert_eq!(w.front.addr(), None);
+            assert!(can_bind(w.port), "the wide listener is still open");
+        }
+
+        #[tokio::test]
+        async fn same_access_to_a_busy_port_keeps_the_old_listener() {
+            let (w, _err) = refused(ListenAccess::Localnet).await;
+
+            assert!(w.front.addr().is_some(), "the address is gone");
+            assert_echoes(&mut w.connect().await).await;
+        }
+
+        #[tokio::test]
+        async fn widening_to_a_busy_port_keeps_the_old_listener() {
+            // given: a `localhost` front and another program on the address a `localnet` listener would take
+            let w = setup(Opts::to(Aim::Direct)).await;
+            let foreign = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+            let wanted = ProcessSettings {
+                socks_access: ListenAccess::Localnet,
+                ..settings(foreign.local_addr().unwrap().port())
+            };
+            // when
+            let err = w.front.apply(&wanted).await.expect_err("P2 is busy");
+            // then: widening is not narrowing, the old listener stays
+            assert!(err.downcast_ref::<BindError>().is_some(), "a BindError");
+            assert!(w.front.addr().is_some(), "the address is gone");
+            assert_echoes(&mut w.connect().await).await;
+        }
+    }
+
     mod same_port_other_access {
         use super::*;
 

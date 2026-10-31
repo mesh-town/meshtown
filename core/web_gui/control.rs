@@ -111,6 +111,10 @@ pub trait NodeControl: Send + Sync {
     fn net_roles(&self) -> Option<NetRoles> {
         None
     }
+    /// What the process proxy listener serves right now; `None` — this node cannot tell.
+    fn applied_proxy(&self) -> Option<crate::proxy::ProxyFace> {
+        None
+    }
     /// A member action (exclude, unexclude, block, unblock, leave); the reply is the list after it.
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {
         let _ = act;

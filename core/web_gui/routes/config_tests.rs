@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 use crate::config::config_file::{self, CliOverrides, ConfigSource, ListenAccess, PathRule};
 use crate::members::network_key::test_net;
 use crate::ports_sharing::{Opened, Proto};
+use crate::proxy::ProxyFace;
 use crate::transport::net::NodeSecret;
 use crate::web_gui::test_host::{send, slot_handle, test_app, FakeHost, SnapNode};
 use crate::web_gui::{App, ConfigState, HostControl};
@@ -219,6 +220,40 @@ mod restart_pending_after_a_restart {
         let _ = f.when_get().await;
         // then
         assert_eq!(f.last_boot_id().as_deref(), Some("cccccccc"));
+    }
+
+    #[tokio::test]
+    async fn restart_pending_stays_after_a_lap_that_failed_on_the_proxy() {
+        // given: the file says localhost while the listener still serves localnet
+        let node = SnapNode::new(Default::default());
+        set_boot(&node, "aaaaaaaa");
+        let f = setup_main_only(&node);
+        given_proxy_access(&f, ListenAccess::Localhost, ListenAccess::Localhost);
+        let port = f
+            .host
+            .main_slot()
+            .config
+            .lock()
+            .unwrap()
+            .file_settings
+            .process
+            .socks_port;
+        node.set_applied_proxy(Some(ProxyFace {
+            addr: Some(([127, 0, 0, 1], port).into()),
+            access: ListenAccess::Localnet,
+            ifaces: Default::default(),
+        }));
+        // when: the node starts another lap
+        set_boot(&node, "bbbbbbbb");
+        let (_, body) = f.when_get().await;
+        // then: the file is still pending against the listener
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
+        // and: writing the same value does not clear it
+        let (status, body) = f
+            .when_put("main", json!({"socks": {"access": "localhost"}}))
+            .await;
+        assert_eq!(status, StatusCode::OK, "body: {body}");
+        assert_eq!(body["restart_pending"], json!(["socks.access"]));
     }
 
     fn set_boot(node: &SnapNode, id: &str) {
