@@ -31,6 +31,7 @@ mod run_invite_addnet;
 mod run_invite_seed;
 mod run_key;
 mod run_nokey;
+mod run_set;
 pub(crate) mod status;
 pub(crate) mod stop;
 pub(crate) use config::config_path;
@@ -46,7 +47,7 @@ pub(crate) use stop::StopArgs;
 
 /// The `run` command: collects the flags into `CliOverrides`, prepares the config file and starts the node.
 pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::Result<()> {
-    let overrides = build_overrides(m, &args);
+    let overrides = build_overrides(m, &args)?;
     if args.no_config && is_flag_typed(m, "config") {
         anyhow::bail!("--no-config and --config together make no sense: remove one of the flags");
     }
@@ -58,7 +59,7 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
     let start = StartInput {
-        save_config: args.save_config,
+        save_config: false,
         domains: &args.initial_domains,
     };
     let (run, overrides, invited) = prepare_run(&start, overrides, invited, &source, now).await?;
@@ -174,8 +175,8 @@ fn say_unreadable(key: &str) {
 
 /// Collects the `run` subcommand flags into `CliOverrides`: what the person didn't type stays `None`
 /// (then the config file or the default decides), the `--x/--no-x` pairs are handled by `toggle_from_flag_pair`.
-fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
-    CliOverrides {
+fn build_overrides(m: &ArgMatches, args: &RunArgs) -> anyhow::Result<CliOverrides> {
+    Ok(CliOverrides {
         network_key: args.key.clone().filter(|_| {
             matches!(
                 m.value_source("key"),
@@ -188,20 +189,10 @@ fn build_overrides(m: &ArgMatches, args: &RunArgs) -> CliOverrides {
         socks_access: args
             .socks_access
             .filter(|_| is_flag_typed(m, "socks_access")),
-        checks_enabled: toggle_from_flag_pair(args.checks, args.no_checks),
-        check_interval_sec: args
-            .check_interval
-            .filter(|_| is_flag_typed(m, "check_interval")),
-        doh_server: args.check_doh.filter(|_| is_flag_typed(m, "check_doh")),
-        provider_dns: args
-            .provider_dns
-            .filter(|_| is_flag_typed(m, "provider_dns")),
-        probe_interval_sec: args
-            .probe_interval
-            .filter(|_| is_flag_typed(m, "probe_interval")),
-        probe_full_cycle: args.probe_full_cycle.then_some(true),
         web_port: args.web_port.filter(|_| is_flag_typed(m, "web_port")),
-    }
+        set_fields: run_set::set_fields(&args.set)?,
+        ..CliOverrides::default()
+    })
 }
 
 /// The source of the config file: disabled (`--no-config`) or the usual lookup by path/default.

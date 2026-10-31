@@ -111,7 +111,7 @@ fn os(argv: &[&str]) -> Vec<OsString> {
 #[test]
 fn socks_without_flags_follows_settings() {
     assert_eq!(proxy_plan_for(1080, true, &[]), Ok(1080));
-    let other = os(&["--key", "K", "--no-checks"]);
+    let other = os(&["--key", "K", "--set", "checks.enabled=false"]);
     assert_eq!(proxy_plan_for(1090, true, &other), Ok(1090));
     assert_eq!(
         proxy_plan_for(1080, false, &[]),
@@ -133,7 +133,14 @@ fn socks_port_flag_beats_settings_port() {
         proxy_plan_for(1080, true, &os(&["--socks-port=1082"])),
         Ok(1082)
     );
-    let mixed = os(&["--key", "K", "--socks-port", "1083", "--no-checks"]);
+    let mixed = os(&[
+        "--key",
+        "K",
+        "--socks-port",
+        "1083",
+        "--set",
+        "checks.enabled=false",
+    ]);
     assert_eq!(proxy_plan_for(1080, true, &mixed), Ok(1083));
 }
 

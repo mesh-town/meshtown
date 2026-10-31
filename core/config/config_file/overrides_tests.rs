@@ -63,6 +63,7 @@ fn override_paths_are_in_table() {
         probe_interval_sec: Some(60),
         probe_full_cycle: Some(true),
         web_port: Some(2001),
+        set_fields: vec![],
     };
     let paths = cli.apply(&mut Settings::default());
     assert_eq!(paths.len(), 12);
@@ -143,5 +144,72 @@ fn every_flag() -> CliOverrides {
         probe_interval_sec: Some(60),
         probe_full_cycle: Some(true),
         web_port: Some(2001),
+        set_fields: vec![],
     }
+}
+
+fn set(path: &str, v: serde_json::Value) -> crate::config::config_file::FieldSet {
+    crate::config::config_file::FieldSet::check(path, v).unwrap()
+}
+
+#[test]
+fn set_beats_typed_flag() {
+    let mut s = Settings::default();
+    let cli = CliOverrides {
+        socks_port: Some(2000),
+        set_fields: vec![set("socks.port", serde_json::json!(3000))],
+        ..CliOverrides::default()
+    };
+    let paths = cli.apply(&mut s);
+    assert_eq!(s.process.socks_port, 3000);
+    assert_eq!(paths, vec!["socks.port"]);
+}
+
+#[test]
+fn repeated_set_last_wins() {
+    let mut s = Settings::default();
+    let cli = CliOverrides {
+        set_fields: vec![
+            set("probe.interval_sec", serde_json::json!(20)),
+            set("probe.interval_sec", serde_json::json!(40)),
+        ],
+        ..CliOverrides::default()
+    };
+    let paths = cli.apply(&mut s);
+    assert_eq!(s.net.probe_interval_sec, 40);
+    assert_eq!(paths, vec!["probe.interval_sec"]);
+}
+
+#[test]
+fn set_paths_follow_typed_paths() {
+    let mut s = Settings::default();
+    let cli = CliOverrides {
+        exit_enabled: Some(true),
+        set_fields: vec![set("probe.full_cycle", serde_json::json!(true))],
+        ..CliOverrides::default()
+    };
+    assert_eq!(cli.apply(&mut s), vec!["exit.enabled", "probe.full_cycle"]);
+}
+
+#[test]
+fn added_slot_keeps_set_fields() {
+    let cli = CliOverrides {
+        network_key: Some("k".into()),
+        set_fields: vec![set("checks.enabled", serde_json::json!(false))],
+        ..CliOverrides::default()
+    };
+    let slot = cli.for_added_slot();
+    assert_eq!(slot.network_key, None);
+    assert_eq!(slot.set_fields.len(), 1);
+}
+
+#[test]
+fn debug_hides_set_values() {
+    let cli = CliOverrides {
+        set_fields: vec![set("node.name", serde_json::json!("secret-name"))],
+        ..CliOverrides::default()
+    };
+    let text = format!("{cli:?}");
+    assert!(text.contains("node.name"), "{text}");
+    assert!(!text.contains("secret-name"), "{text}");
 }

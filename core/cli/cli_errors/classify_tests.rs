@@ -126,7 +126,7 @@ mod classify_kind {
 
         #[test]
         fn unparsable_address_is_bad_value() {
-            let err = parse_err(&["run", "--check-doh", "notanaddr"]);
+            let err = parse_err(&["run", "--socks-access", "bogus"]);
             assert_eq!(classify(&err), ParseFail::BadValue);
         }
 
@@ -148,12 +148,6 @@ mod classify_kind {
                 classify(&parse_err(&["run", "--help"])),
                 ParseFail::LeaveToClap
             );
-        }
-
-        #[test]
-        fn conflicting_flags_get_error_form() {
-            let err = parse_err(&["run", "--no-config", "--save-config"]);
-            assert_eq!(classify(&err), ParseFail::Other);
         }
 
         #[test]

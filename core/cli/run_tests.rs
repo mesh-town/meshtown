@@ -6,15 +6,7 @@ use clap::{ArgMatches, FromArgMatches};
 use crate::cli::args::{is_flag_typed, toggle_from_flag_pair, Cli, CliCommand};
 
 /// The identifiers `run` checks through `is_flag_typed`.
-const TYPED_IDS: [&str; 7] = [
-    "socks_port",
-    "check_interval",
-    "check_doh",
-    "provider_dns",
-    "probe_interval",
-    "config",
-    "web_port",
-];
+const TYPED_IDS: [&str; 3] = ["socks_port", "config", "web_port"];
 
 /// Parses `meshtown run <args>`; returns the matches of the `run` subcommand.
 fn run_matches(args: &[&str]) -> Result<ArgMatches, clap::Error> {
@@ -75,9 +67,32 @@ fn web_port_flag_detected() {
 }
 
 #[test]
-fn no_config_conflicts_save_config() {
-    let e = run_matches(&["--no-config", "--save-config"]).expect_err("there must be a conflict");
-    assert_eq!(e.kind(), ErrorKind::ArgumentConflict);
+fn site_flags_parse() {
+    let m = run_matches(&[
+        "--site",
+        "a.com",
+        "--site",
+        "b.com",
+        "--block-site",
+        "c.com",
+    ])
+    .expect("parse");
+    let sites = |id: &str| {
+        m.get_many::<String>(id)
+            .unwrap()
+            .cloned()
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(sites("initial_domains"), ["a.com", "b.com"]);
+    assert_eq!(sites("blocked_domains"), ["c.com"]);
+    assert!(run_matches(&["--domain", "a.com"]).is_err());
+}
+
+#[test]
+fn set_is_repeatable() {
+    let m = run_matches(&["--set", "a.b=1", "--set", "c.d=2"]).expect("parse");
+    let got: Vec<_> = m.get_many::<String>("set").unwrap().cloned().collect();
+    assert_eq!(got, ["a.b=1", "c.d=2"]);
 }
 
 #[test]

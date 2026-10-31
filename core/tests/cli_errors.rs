@@ -44,7 +44,8 @@ fn busy_socks_port_names_flag_and_port() {
         &key,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--socks-port",
         &port,
     ]);
@@ -206,7 +207,8 @@ fn a_version_3_invite_exits_with_the_outdated_text() {
         &invite,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--no-socks",
     ]);
     // then
@@ -227,7 +229,8 @@ fn no_config_with_an_old_key_exits_with_the_outdated_text() {
         &key,
         "--web-port",
         "0",
-        "--no-checks",
+        "--set",
+        "checks.enabled=false",
         "--no-socks",
     ]);
     // then

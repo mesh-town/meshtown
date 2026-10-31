@@ -47,7 +47,8 @@ impl Proc {
                 &key,
                 "--web-port",
                 "0",
-                "--no-checks",
+                "--set",
+                "checks.enabled=false",
                 "--no-socks",
             ])
             .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")

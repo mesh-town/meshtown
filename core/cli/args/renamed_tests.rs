@@ -51,3 +51,23 @@ fn replaced_name_no_longer_parses_and_has_a_hint() {
     );
     assert!(hint(&["meshtown", "network", "create"]).is_none());
 }
+
+#[test]
+fn removed_run_flags_name_the_new_form() {
+    for (old, new) in [
+        ("--probe-interval", "run --set probe.interval_sec=<SECONDS>"),
+        ("--probe-full-cycle", "run --set probe.full_cycle=true"),
+        (
+            "--check-interval",
+            "run --set checks.interval_sec=<SECONDS>",
+        ),
+        ("--check-doh", "run --set checks.doh_server=<URL>"),
+        ("--provider-dns", "run --set checks.provider_dns=<ADDR>"),
+        ("--checks", "run --set checks.enabled=true"),
+        ("--no-checks", "run --set checks.enabled=false"),
+        ("--save-config", "config set <PATH> <VALUE>"),
+        ("--block-domain", "run --block-site"),
+    ] {
+        assert_eq!(hint(&["meshtown", "run", old]), Some(new), "{old}");
+    }
+}
