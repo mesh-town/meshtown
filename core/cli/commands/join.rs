@@ -98,15 +98,15 @@ fn is_not_running(e: &anyhow::Error) -> bool {
 /// Whether the connection to the page port was reset, closed or answered by something that is not a node:
 /// another `join` holds the port and has just let go of it.
 fn is_dropped_link(e: &anyhow::Error) -> bool {
-    let text = format!("{e:#}").to_lowercase();
-    [
-        "reset by peer",
-        "broken pipe",
-        "connection aborted",
-        "did not reply over http",
-    ]
-    .iter()
-    .any(|sign| text.contains(sign))
+    use std::io::ErrorKind::{BrokenPipe, ConnectionAborted, ConnectionReset, UnexpectedEof};
+    e.chain().any(|cause| {
+        let io_kind = cause.downcast_ref::<std::io::Error>().map(|io| io.kind());
+        let dropped = matches!(
+            io_kind,
+            Some(ConnectionReset | BrokenPipe | ConnectionAborted | UnexpectedEof)
+        );
+        dropped || cause.is::<crate::web_gui::probe::NotNodeReply>()
+    })
 }
 
 /// The error of a busy page port: the same words as when `join` cannot hold the port itself.

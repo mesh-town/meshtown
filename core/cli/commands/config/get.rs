@@ -57,12 +57,19 @@ fn value_at<'a>(reply: &'a Value, field: &Field) -> Option<&'a Value> {
     reply["config"].get(field.section())?.get(field.key())
 }
 
-fn note_override(reply: &Value, field: Option<&Field>) {
+/// The stderr note for a field the running node got from its start-up arguments.
+pub(super) fn override_note(reply: &Value, field: Option<&Field>) -> Option<String> {
     let list = reply["cli_overrides"].as_array();
     let typed =
         |f: &Field| list.is_some_and(|l| l.iter().any(|p| p.as_str() == Some(f.field_path)));
-    if field.is_some_and(typed) {
-        eprintln!("this run uses a value set at startup");
+    field
+        .filter(|f| typed(f))
+        .map(|_| "this run uses a value set at startup".to_string())
+}
+
+fn note_override(reply: &Value, field: Option<&Field>) {
+    if let Some(note) = override_note(reply, field) {
+        eprintln!("{note}");
     }
 }
 

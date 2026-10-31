@@ -60,9 +60,16 @@ fn with_reason(id_full: &str, reason: Option<&str>) -> Value {
     }
 }
 
-/// The line for stderr after an action that went through; `changed: false` says nothing was needed.
+/// The line for stderr after an action that went through; `changed: false` says it was already so.
 pub(crate) fn outcome(cmd: &MemberCmd, label: &str, changed: bool) -> String {
-    let done = match cmd {
+    match changed {
+        true => done_text(cmd, label),
+        false => format!("Nothing changed: {}", already_text(cmd, label)),
+    }
+}
+
+fn done_text(cmd: &MemberCmd, label: &str) -> String {
+    match cmd {
         MemberCmd::List => String::new(),
         MemberCmd::Admit { .. } => format!("Admitted {label}."),
         MemberCmd::Exclude { .. } => format!("Removed {label} from the network."),
@@ -71,10 +78,20 @@ pub(crate) fn outcome(cmd: &MemberCmd, label: &str, changed: bool) -> String {
         MemberCmd::Unblock { .. } => format!("Unblocked {label}."),
         MemberCmd::Admin { revoke: false, .. } => format!("{label} is now an administrator."),
         MemberCmd::Admin { revoke: true, .. } => format!("{label} is no longer an administrator."),
-    };
-    match changed {
-        true => done,
-        false => format!("Nothing changed: {done}"),
+    }
+}
+
+/// Why an action had nothing to do: the state it wanted was there already.
+fn already_text(cmd: &MemberCmd, label: &str) -> String {
+    match cmd {
+        MemberCmd::List => String::new(),
+        MemberCmd::Admit { .. } => format!("{label} is already admitted."),
+        MemberCmd::Exclude { .. } => format!("{label} is already removed from the network."),
+        MemberCmd::Unexclude { .. } => format!("{label} is not removed."),
+        MemberCmd::Block { .. } => format!("{label} is already blocked."),
+        MemberCmd::Unblock { .. } => format!("{label} is not blocked."),
+        MemberCmd::Admin { revoke: false, .. } => format!("{label} is already an administrator."),
+        MemberCmd::Admin { revoke: true, .. } => format!("{label} is not an administrator."),
     }
 }
 

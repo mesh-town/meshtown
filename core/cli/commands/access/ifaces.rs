@@ -7,7 +7,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use super::settings_io::{edit_file, route, Route};
+use super::settings_io::{edit_file, restart_needed, route, Route};
 use crate::cli::args::Globals;
 use crate::cli::exit::UsageError;
 use crate::config::config_file::{self, IfaceFilter};
@@ -127,28 +127,33 @@ fn write(g: &Globals, path: &Path, filter: &IfaceFilter) -> anyhow::Result<()> {
     }
 }
 
-/// Whether the reply of the write says the interface list waits for a restart.
-pub(super) fn restart_needed(reply: &Value) -> bool {
-    let pending = reply["restart_pending"].as_array();
-    pending.is_some_and(|list| {
-        list.iter()
-            .any(|p| matches!(p.as_str(), Some("socks.ifaces" | "web.ifaces")))
-    })
-}
-
 fn saved_text(reply: &Value, filter: &IfaceFilter) -> String {
-    match restart_needed(reply) {
-        true => format!(
-            "Interface list saved: {} (the proxy picks it up after {NET_NAME} restarts).",
-            describe(filter)
-        ),
-        false => format!("Interface list saved: {}.", describe(filter)),
+    let what = describe(filter);
+    match restart_tail(reply) {
+        Some(tail) => format!("Interface list saved: {what} ({tail} after {NET_NAME} restarts)."),
+        None => format!("Interface list saved: {what}."),
     }
 }
 
+/// Who picks the list up only after a restart, from the fields the reply lists; none when nothing waits.
+fn restart_tail(reply: &Value) -> Option<&'static str> {
+    let page = restart_needed(reply, &["web.ifaces"]);
+    let proxy = restart_needed(reply, &["socks.ifaces"]);
+    match (page, proxy) {
+        (false, false) => None,
+        (true, false) => Some("the page picks it up"),
+        (false, true) => Some("the proxy picks it up"),
+        (true, true) => Some("the page and the proxy pick it up"),
+    }
+}
+
+/// The filter in words: `automatic`, `all interfaces` or `only en0, wlan0`.
 fn describe(filter: &IfaceFilter) -> String {
-    let (label, names) = filter.parts();
-    format!("{label} {}", Value::from(names))
+    match filter {
+        IfaceFilter::Auto => "automatic".to_string(),
+        IfaceFilter::Any => "all interfaces".to_string(),
+        IfaceFilter::Only(names) => format!("only {}", names.join(", ")),
+    }
 }
 
 /// The node is not running: reads the file, changes the fields, writes with a revision check. If there is no file, it does not create one.

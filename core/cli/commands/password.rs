@@ -25,7 +25,7 @@ fn reset(t: &Target) -> Result<(), String> {
         }
         Ok((code, body)) => Err(refusal(t, code, &body)),
         Err(LinkError::NotRunning) => remove_offline(t),
-        Err(LinkError::Other(e)) => Err(e),
+        Err(other) => Err(format!("{:#}", other.into_error())),
     }
 }
 

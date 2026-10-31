@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 
-use super::settings_io::{edit_file, route, Route};
+use super::settings_io::{edit_file, restart_needed, route, Route};
 use crate::cli::args::Globals;
 use crate::cli::commands::client::{ApiError, Node};
 use crate::config::config_file::{ListenAccess, Settings};
@@ -36,12 +36,6 @@ const PROXY: Field = Field {
 /// The settings patch that touches only this field.
 pub(super) fn patch(field: &Field, mode: ListenAccess) -> Value {
     json!({ field.section: { "access": mode.as_str() } })
-}
-
-/// Whether the reply of the write says the field waits for a restart.
-pub(super) fn restart_needed(reply: &Value, field: &Field) -> bool {
-    let pending = reply["restart_pending"].as_array();
-    pending.is_some_and(|list| list.iter().any(|p| p.as_str() == Some(field.path)))
 }
 
 pub(super) fn page(mode: ListenAccess, g: &Globals) -> anyhow::Result<()> {
@@ -86,7 +80,7 @@ fn page_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
 fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
     let name = mode.as_str();
     let reply = node.put_config(&patch(&PROXY, mode))?;
-    if !restart_needed(&reply, &PROXY) {
+    if !restart_needed(&reply, &[PROXY.path]) {
         eprintln!("proxy access: {name} (unchanged).");
         return Ok(());
     }
@@ -100,8 +94,13 @@ fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
             why.trim_end_matches('.')
         );
     }
-    eprintln!("proxy access: {name} (proxy restarted).");
+    eprintln!("{}", proxy_restart_text(name));
     Ok(())
+}
+
+/// The restart is asked for, not finished: the node answers before the proxy comes back.
+fn proxy_restart_text(name: &str) -> String {
+    format!("proxy access: {name} (proxy restarting).")
 }
 
 #[cfg(test)]

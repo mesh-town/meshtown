@@ -16,6 +16,8 @@ pub(crate) struct ApiError {
     // the settings commands read the whole refusal body
     #[allow(dead_code)]
     pub body: Value,
+    /// Whether the settings file was named explicitly; a refused sign-in then points at that file.
+    config_given: bool,
 }
 
 impl ApiError {
@@ -28,13 +30,23 @@ impl ApiError {
             code: text("error"),
             message: text("message"),
             body,
+            config_given: false,
         }
+    }
+
+    /// Tells the advice for a refused sign-in whether `--config` was already passed.
+    pub(crate) fn with_config_given(mut self, given: bool) -> ApiError {
+        self.config_given = given;
+        self
     }
 
     /// What to do next, from the code of the reply or, for a refused sign-in, from the status.
     fn advice(&self) -> Option<String> {
         match (refusal_advice(&self.code), self.status) {
             (Some(advice), _) => Some(advice),
+            (None, 401) if self.config_given => Some(format!(
+                "Check that --config points at the settings of the running {NET_NAME}."
+            )),
             (None, 401) => {
                 Some("Run it as the user that runs Mesh Town, or pass --config.".to_string())
             }

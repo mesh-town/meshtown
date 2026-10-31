@@ -13,21 +13,6 @@ fn patch_touches_only_its_field() {
     );
 }
 
-#[test]
-fn restart_needed_only_when_pending_names_field() {
-    let yes = json!({"restart_pending": ["socks.access"]});
-    assert!(restart_needed(&yes, &PROXY));
-    let no = [
-        json!({"restart_pending": []}),
-        json!({}),
-        json!({"restart_pending": "socks.access"}),
-        json!({"restart_pending": ["web.access"]}),
-    ];
-    for reply in no {
-        assert!(!restart_needed(&reply, &PROXY), "{reply}");
-    }
-}
-
 fn scratch_file(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("mode_tests-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -69,4 +54,10 @@ fn same_mode_twice_is_ok() {
     offline(&path, &PROXY, ListenAccess::Localnet).unwrap();
     assert_eq!(read(&path).process.socks_access, ListenAccess::Localnet);
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}
+
+#[test]
+fn proxy_access_says_restarting() {
+    let text = proxy_restart_text("localnet");
+    assert_eq!(text, "proxy access: localnet (proxy restarting).");
 }

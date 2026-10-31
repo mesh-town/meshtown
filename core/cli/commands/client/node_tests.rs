@@ -16,6 +16,7 @@ fn node(nets: Value, explicit_net: bool) -> Node {
             path: "/nowhere/config.json".into(),
             dir: "/nowhere".into(),
             port: 1,
+            config_given: false,
         },
         base: "/api".into(),
         nets,

@@ -139,3 +139,11 @@ fn edit_file_gives_up_when_the_file_keeps_changing() {
     assert_eq!(p.settings.net.node_name.as_deref(), Some("other2"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn restart_needed_only_when_pending_names_a_field() {
+    let reply = serde_json::json!({"restart_pending": ["web.ifaces"]});
+    assert!(restart_needed(&reply, &["socks.ifaces", "web.ifaces"]));
+    assert!(!restart_needed(&reply, &["socks.access"]));
+    assert!(!restart_needed(&serde_json::json!({}), &["web.ifaces"]));
+}

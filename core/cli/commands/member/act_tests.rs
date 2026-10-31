@@ -82,8 +82,43 @@ fn outcome_per_action_and_unchanged() {
         outcome(&admin(true), "pc", true),
         "pc is no longer an administrator."
     );
+}
+
+fn unchanged(cmd: &MemberCmd) -> String {
+    outcome(cmd, "pc", false)
+}
+
+#[test]
+fn outcome_unchanged_says_already_admitted_or_removed() {
+    let admit = MemberCmd::Admit { member: "a".into() };
     assert_eq!(
-        outcome(&x("a"), "pc", false),
-        "Nothing changed: Admitted pc."
+        unchanged(&admit),
+        "Nothing changed: pc is already admitted."
+    );
+    assert_eq!(
+        unchanged(&exclude(None)),
+        "Nothing changed: pc is already removed from the network."
+    );
+    let un = MemberCmd::Unexclude { member: "a".into() };
+    assert_eq!(unchanged(&un), "Nothing changed: pc is not removed.");
+}
+
+#[test]
+fn outcome_unchanged_says_already_blocked_or_not() {
+    let b = MemberCmd::Block { member: "a".into() };
+    assert_eq!(unchanged(&b), "Nothing changed: pc is already blocked.");
+    let ub = MemberCmd::Unblock { member: "a".into() };
+    assert_eq!(unchanged(&ub), "Nothing changed: pc is not blocked.");
+}
+
+#[test]
+fn outcome_unchanged_says_already_administrator_or_not() {
+    assert_eq!(
+        unchanged(&admin(false)),
+        "Nothing changed: pc is already an administrator."
+    );
+    assert_eq!(
+        unchanged(&admin(true)),
+        "Nothing changed: pc is not an administrator."
     );
 }

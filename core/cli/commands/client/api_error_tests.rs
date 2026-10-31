@@ -57,3 +57,14 @@ fn unauthorized_tells_who_to_run_as() {
     let e = ApiError::from_reply(401, r#"{"message":"unauthorized"}"#);
     assert!(e.to_string().contains("--config"), "{e}");
 }
+
+#[test]
+fn advice_401_with_config_given() {
+    let e = ApiError::from_reply(401, r#"{"message":"unauthorized"}"#).with_config_given(true);
+    let text = e.to_string();
+    assert!(
+        text.contains("points at the settings of the running Mesh Town"),
+        "{text}"
+    );
+    assert!(!text.contains("or pass --config"), "{text}");
+}

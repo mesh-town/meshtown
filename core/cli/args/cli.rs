@@ -4,8 +4,8 @@
 
 use super::globals::Globals;
 use super::help::{
-    has_tray, rename_commands, root_help, sub_help_flag, with_program_name, HELP, HELP_HINT,
-    HELP_ORDER,
+    has_tray, hide_refused_yes, rename_commands, root_help, sub_help_flag, with_program_name, HELP,
+    HELP_HINT, HELP_ORDER,
 };
 use crate::cli::program_name::program_name;
 use clap::parser::ValueSource;
@@ -55,7 +55,9 @@ impl Cli {
             })
             .mut_arg("version", |a| a.display_order(HELP_ORDER + 1));
         let cmd = rename_commands(cmd, program_name());
-        let cmd = with_help_flags(cmd);
+        let mut cmd = with_help_flags(cmd);
+        cmd.build();
+        let cmd = hide_refused_yes(cmd);
         let text = root_help(&cmd, has_tray());
         cmd.override_help(text)
     }

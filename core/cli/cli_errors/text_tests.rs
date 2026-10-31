@@ -37,7 +37,7 @@ mod bad_flag_message {
     fn extra_word_without_dash_is_called_extra_word() {
         assert_eq!(
             flag_text(&["config", "path", "extra"], Some("config")),
-            "Error: unexpected argument \"extra\". See all options: meshtown config --help"
+            "Error: unexpected argument \"extra\". See all options: meshtown config path --help"
         );
     }
 
@@ -182,4 +182,29 @@ mod other_form {
         assert!(!text.contains("error:"), "{text}");
         assert!(text.contains("See all options: "), "{text}");
     }
+}
+
+#[test]
+fn see_all_options_names_deepest_subcommand() {
+    assert_eq!(
+        flag_text(&["config", "path", "--bogus"], Some("config")),
+        "Error: unknown option \"--bogus\". See all options: meshtown config path --help"
+    );
+    assert_eq!(
+        flag_text(&["member", "admit", "--bogus"], Some("member")),
+        "Error: unknown option \"--bogus\". See all options: meshtown member admit --help"
+    );
+    assert_eq!(
+        flag_text(&["--bogus"], None),
+        "Error: unknown option \"--bogus\". See all options: meshtown --help"
+    );
+}
+
+#[test]
+fn missing_member_hints_action_help() {
+    let text = other_text(&parse_err(&["member", "admit"]), Some("member"));
+    assert!(
+        text.ends_with("See all options: meshtown member admit --help"),
+        "{text}"
+    );
 }

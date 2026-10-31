@@ -179,6 +179,36 @@ fn rename_texts(cmd: clap::Command, name: &str) -> clap::Command {
     after.into_iter().fold(cmd, |c, a| c.after_help(a))
 }
 
+/// The commands that act on `--yes`; every other command refuses it, so its help does not list it.
+const TAKES_YES: &[&[&str]] = &[&["leave"], &["network", "delete"]];
+
+/// Hides the global `--yes` in the help of every command that refuses it. The command must be built, so that
+/// the global option has already reached the subcommands.
+pub(super) fn hide_refused_yes(cmd: clap::Command) -> clap::Command {
+    hide_yes_below(cmd, &[])
+}
+
+fn hide_yes_below(cmd: clap::Command, path: &[String]) -> clap::Command {
+    let names: Vec<String> = cmd
+        .get_subcommands()
+        .map(|c| c.get_name().to_string())
+        .filter(|n| n != "help")
+        .collect();
+    names.iter().fold(cmd, |cmd, name| {
+        let here: Vec<String> = path.iter().cloned().chain([name.clone()]).collect();
+        cmd.mut_subcommand(name, |sub| hide_yes_below(hide_yes_here(sub, &here), &here))
+    })
+}
+
+fn hide_yes_here(sub: clap::Command, here: &[String]) -> clap::Command {
+    let takes = TAKES_YES.iter().any(|p| p.iter().eq(here.iter()));
+    let has = sub.get_arguments().any(|a| a.get_id() == "yes");
+    match (takes, has) {
+        (false, true) => sub.mut_arg("yes", |a| a.hide(true)),
+        _ => sub,
+    }
+}
+
 /// The `-h, --help` line of a subcommand: its own, so it doesn't inherit the top level description.
 pub(super) fn sub_help_flag() -> Arg {
     Arg::new("help")

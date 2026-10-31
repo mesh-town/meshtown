@@ -183,17 +183,42 @@ fn offline_without_file_creates_nothing() {
 #[test]
 fn live_save_mentions_restart_only_when_pending() {
     let filter = IfaceFilter::Only(names(&["br-lan"]));
-    let pending = json!({"restart_pending": ["web.ifaces"]});
-    assert!(restart_needed(&pending));
-    assert!(saved_text(&pending, &filter).contains("restarts"));
+    let both = json!({"restart_pending": ["socks.ifaces", "web.ifaces"]});
+    assert!(saved_text(&both, &filter).contains("restarts"));
     for none in [
         json!({"restart_pending": []}),
         json!({}),
         json!({"restart_pending": ["web.access"]}),
     ] {
-        assert!(!restart_needed(&none), "{none}");
         let text = saved_text(&none, &filter);
         assert!(!text.contains("restart"), "{text}");
         assert!(text.starts_with("Interface list saved: "), "{text}");
     }
+}
+
+#[test]
+fn ifaces_tail_without_proxy() {
+    let filter = IfaceFilter::Only(names(&["br-lan"]));
+    let page_only = json!({"restart_pending": ["web.ifaces"]});
+    let text = saved_text(&page_only, &filter);
+    assert!(text.contains("restarts"), "{text}");
+    assert!(!text.contains("proxy"), "{text}");
+    let proxy_only = json!({"restart_pending": ["socks.ifaces"]});
+    assert!(saved_text(&proxy_only, &filter).contains("the proxy picks it up"));
+}
+
+#[test]
+fn describe_automatic() {
+    assert_eq!(describe(&IfaceFilter::Auto), "automatic");
+}
+
+#[test]
+fn describe_all_interfaces() {
+    assert_eq!(describe(&IfaceFilter::Any), "all interfaces");
+}
+
+#[test]
+fn describe_list_of_names() {
+    let only = IfaceFilter::Only(names(&["en0", "wlan0"]));
+    assert_eq!(describe(&only), "only en0, wlan0");
 }

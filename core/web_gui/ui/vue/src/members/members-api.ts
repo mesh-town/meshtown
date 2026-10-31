@@ -145,7 +145,7 @@ const REASONS: Record<string, string> = {
   left: "this computer has left the network",
   busy: NET_NAME + " is starting",
   invalid: "the member id is not valid",
-  not_pending: "this member isn't waiting for confirmation",
+  not_pending: "this member isn't waiting for admission",
   internal: NET_NAME + " couldn't write the member list",
 };
 

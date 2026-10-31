@@ -28,7 +28,7 @@ async fn admit_route_maps_codes() {
     assert_eq!(fx.seen(), vec![format!("admit:{}", target())]);
     let refused = setup(Answer::Refused {
         code: "not_pending",
-        message: "This member isn't waiting for confirmation",
+        message: "This member isn't waiting for admission",
     });
     assert_eq!(
         line(refused.post("/api/members/admit", &id_body()).await),

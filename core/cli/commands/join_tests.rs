@@ -149,8 +149,27 @@ async fn a_port_that_drops_the_connection_gives_the_busy_advice() {
 }
 
 #[test]
-fn only_a_dropped_link_counts_as_busy() {
-    let reset = anyhow::anyhow!("connection to Mesh Town: Connection reset by peer (os error 54)");
-    assert!(is_dropped_link(&reset));
+fn dropped_link_by_error_kind() {
+    use std::io::{Error, ErrorKind};
+    for kind in [
+        ErrorKind::ConnectionReset,
+        ErrorKind::BrokenPipe,
+        ErrorKind::ConnectionAborted,
+        ErrorKind::UnexpectedEof,
+    ] {
+        let e = anyhow::Error::new(Error::from(kind)).context("connection to Mesh Town");
+        assert!(is_dropped_link(&e), "{kind:?}");
+    }
+    let timed_out = anyhow::Error::new(Error::from(ErrorKind::TimedOut));
+    assert!(!is_dropped_link(&timed_out));
+    assert!(!is_dropped_link(&anyhow::anyhow!(
+        "connection reset by peer"
+    )));
     assert!(!is_dropped_link(&anyhow::anyhow!("no such network")));
+}
+
+#[test]
+fn dropped_link_when_peer_is_not_a_node() {
+    let e = crate::web_gui::probe::LinkError::NotNode.into_error();
+    assert!(is_dropped_link(&e));
 }

@@ -50,3 +50,23 @@ fn network_key_and_unknown_paths_are_refused() {
     let e = pick("probe.interval").unwrap_err();
     assert!(e.downcast_ref::<UsageError>().is_some(), "{e}");
 }
+
+#[test]
+fn override_note_names_a_field_set_at_startup() {
+    let field = field_by_path("probe.interval_sec").unwrap();
+    let reply = json!({"cli_overrides": ["probe.interval_sec"]});
+    assert_eq!(
+        override_note(&reply, Some(field)).as_deref(),
+        Some("this run uses a value set at startup")
+    );
+}
+
+#[test]
+fn override_note_is_silent_otherwise() {
+    let field = field_by_path("probe.interval_sec").unwrap();
+    let other = json!({"cli_overrides": ["web.port"]});
+    assert_eq!(override_note(&other, Some(field)), None);
+    assert_eq!(override_note(&json!({}), Some(field)), None);
+    let listed = json!({"cli_overrides": ["probe.interval_sec"]});
+    assert_eq!(override_note(&listed, None), None);
+}

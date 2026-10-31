@@ -72,7 +72,7 @@ describe("admit", () => {
 
   it("a refusal has a human reason", () => {
     const err = (code) => new ApiError(409, code, code);
-    assert.equal(memberErrorText(err("not_pending")), "Couldn't update the member list: this member isn't waiting for confirmation");
+    assert.equal(memberErrorText(err("not_pending")), "Couldn't update the member list: this member isn't waiting for admission");
   });
 });
 

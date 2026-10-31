@@ -87,20 +87,22 @@ fn request(
 ) -> anyhow::Result<Value> {
     let text = body.map(Value::to_string);
     match target.call(method, path, text.as_deref()) {
-        Ok((status, reply)) => reply_value(status, &reply),
+        Ok((status, reply)) => reply_value(status, &reply, target.config_given),
         Err(LinkError::NotRunning) => Err(anyhow::Error::new(NotRunning { port: target.port })),
-        Err(LinkError::Other(why)) => Err(anyhow::Error::msg(why)),
+        Err(other) => Err(other.into_error()),
     }
 }
 
 /// A 2xx reply as JSON (an empty body is `Null`); anything else as an `ApiError`.
-fn reply_value(status: u16, reply: &str) -> anyhow::Result<Value> {
+fn reply_value(status: u16, reply: &str, config_given: bool) -> anyhow::Result<Value> {
     match (status / 100, reply.trim().is_empty()) {
         (2, true) => Ok(Value::Null),
         (2, false) => {
             serde_json::from_str(reply).map_err(|e| anyhow::anyhow!("the reply is not JSON: {e}"))
         }
-        _ => Err(anyhow::Error::new(ApiError::from_reply(status, reply))),
+        _ => Err(anyhow::Error::new(
+            ApiError::from_reply(status, reply).with_config_given(config_given),
+        )),
     }
 }
 
