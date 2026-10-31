@@ -4,10 +4,13 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
+use super::super::failure::Failure;
 use super::super::test_support::{exit_pair, exit_pair_with_stack, HoldOpen, OK};
 use super::*;
 use crate::exit::test_support::Scripted;
-use crate::exit::{ExitBusy, PeerConnPool, EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_PROTOCOL_VERSION};
+use crate::exit::{
+    ExitBusy, PeerConnPool, StreamBusy, EXIT_CODE_ADDRESS_FORBIDDEN, EXIT_PROTOCOL_VERSION,
+};
 use crate::transport::net::facade::test_support::within;
 use crate::transport::net::NetStack;
 use crate::transport::net::ServiceHandler;
@@ -161,6 +164,35 @@ mod opening {
 
         assert_eq!((rig.lanes(), hits(&exit)), (1, 2));
     }
+
+    #[tokio::test]
+    async fn refused_extra_stream_pauses_and_keeps_the_open_one() {
+        let exit = Arc::new(HoldOpen::new(OK, Duration::ZERO).then(REFUSED));
+        let rig = rig(exit.clone()).await;
+
+        let mut held = Vec::new();
+        for _ in 0..8 {
+            held.push(rig.attach_ok().await);
+            sleep(Duration::from_millis(30)).await;
+        }
+
+        assert_eq!((rig.lanes(), hits(&exit)), (1, 2));
+    }
+
+    #[tokio::test]
+    async fn many_locals_open_exactly_three_streams() {
+        let exit = Arc::new(HoldOpen::new(OK, Duration::ZERO));
+        let rig = rig(exit.clone()).await;
+
+        let mut held = Vec::new();
+        for _ in 0..20 {
+            held.push(rig.attach_ok().await);
+            sleep(Duration::from_millis(30)).await;
+        }
+        sleep(Duration::from_millis(100)).await;
+
+        assert_eq!((rig.lanes(), hits(&exit)), (LANES_PER_EXIT, LANES_PER_EXIT));
+    }
 }
 
 mod refusals {
@@ -212,6 +244,40 @@ mod refusals {
     }
 
     #[tokio::test]
+    async fn connection_after_a_failed_open_asks_again() {
+        let exit = Arc::new(HoldOpen::new(BUSY, Duration::ZERO).then(OK));
+        let rig = rig(exit.clone()).await;
+
+        assert!(is_busy(&rig.attach().await));
+        let _held = rig.attach_ok().await;
+
+        assert_eq!((hits(&exit), rig.lanes()), (2, 1));
+    }
+
+    #[test]
+    fn failure_hands_waiters_the_same_error() {
+        let stream_busy = StreamBusy {
+            peer: "p".into(),
+            secs: 10,
+            open_bi_waiter_count: 2,
+        };
+        let err = Failure::of(&anyhow::Error::from(stream_busy))
+            .answer()
+            .err()
+            .expect("an error");
+        let got = err.downcast_ref::<StreamBusy>().expect("a stream busy");
+        assert_eq!((got.secs, got.open_bi_waiter_count), (10, 2));
+
+        let err = Failure::of(&anyhow::anyhow!("boom"))
+            .answer()
+            .err()
+            .expect("an error");
+        assert!(format!("{err:#}").contains("boom"));
+        assert!(err.downcast_ref::<ExitBusy>().is_none());
+        assert!(err.downcast_ref::<StreamBusy>().is_none());
+    }
+
+    #[tokio::test]
     async fn stream_that_ends_right_after_ok_still_gives_a_pair() {
         let rig = rig(Arc::new(Scripted::new(OK))).await;
 
@@ -257,6 +323,18 @@ mod leaving {
         let _local = rig.attach_ok().await;
 
         sleep(Duration::from_millis(500)).await;
+
+        assert_eq!(rig.lanes(), 1);
+    }
+
+    #[tokio::test]
+    async fn retire_keeps_a_lane_that_got_a_local() {
+        let exit = Arc::new(HoldOpen::new(OK, Duration::ZERO));
+        let rig = rig(exit.clone()).await;
+        let _local = rig.attach_ok().await;
+        let lane = lock(&rig.pool.udpgw.peers)[&rig.peer].lanes[0].clone();
+
+        assert!(!rig.pool.udpgw.retire(rig.peer, &lane));
 
         assert_eq!(rig.lanes(), 1);
     }
