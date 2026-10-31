@@ -15,12 +15,13 @@ pub(crate) mod codec;
 #[cfg(test)]
 #[path = "golden_tests.rs"]
 mod golden_tests;
-#[cfg_attr(not(test), allow(dead_code))]
 mod mux;
 mod session;
 #[cfg(test)]
 mod test_support;
 
+pub(crate) use mux::attach;
+pub(super) use mux::UdpgwMux;
 pub(super) use session::serve;
 
 /// The conventional target host that selects the UDP gateway. A class E address: it never

@@ -3,7 +3,7 @@
 
 use crate::exit::{self, PeerConnPool};
 use crate::node::output::{say, short_peer_id};
-use crate::transport::net::PeerId;
+use crate::transport::net::{BoxRecv, BoxSend, PeerId};
 
 use super::super::outcome::ProxyOutcome;
 use super::super::serve::ProxyConfig;
@@ -37,6 +37,7 @@ impl Misses {
 /// The route through one of the chosen exits: tries the candidates in order, moving to the
 /// next one on a transport error and, for the UDP gateway target, on a refusal of the gateway; any other
 /// exit reply code is final. When every candidate refused the gateway, the last such refusal is returned.
+/// An ordinary target gets a stream per request; the UDP gateway target gets a connection on a shared stream.
 pub(super) async fn open_through_exits(
     cfg: &ProxyConfig,
     candidates: &[PeerId],
@@ -78,16 +79,15 @@ async fn try_exit(
         misses.no_gateway = Some(remembered_gateway_refusal(peer, route_label));
         return Attempt::Next;
     }
-    let (send, recv, code) =
-        match exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await {
-            Ok(answer) => answer,
-            Err(e) => {
-                misses.busy |= is_busy(&e);
-                misses.unanswered = true;
-                note_failed_attempt(&cfg.pool, &peer, &e);
-                return Attempt::Next;
-            }
-        };
+    let (send, recv, code) = match ask(cfg, peer, (target_text, port, gateway)).await {
+        Ok(answer) => answer,
+        Err(e) => {
+            misses.busy |= is_busy(&e);
+            misses.unanswered = true;
+            note_failed_attempt(&cfg.pool, &peer, &e);
+            return Attempt::Next;
+        }
+    };
     if code == exit::EXIT_CODE_OK {
         return Attempt::Opened(ExitLink {
             route_label,
@@ -106,6 +106,19 @@ async fn try_exit(
     }
     misses.no_gateway = Some(OpenRefused::no_gateway(outcome));
     Attempt::Next
+}
+
+/// Asks `peer` for a stream to the target: the UDP gateway target rides a shared stream of the exit, any
+/// other target gets a stream of its own.
+async fn ask(
+    cfg: &ProxyConfig,
+    peer: PeerId,
+    (target_text, port, gateway): (&str, u16, bool),
+) -> anyhow::Result<(BoxSend, BoxRecv, u8)> {
+    if gateway {
+        return exit::attach_gateway(&cfg.stack, &cfg.pool, peer).await;
+    }
+    exit::ask_exit_to_connect(&cfg.stack, &cfg.pool, peer, target_text, port).await
 }
 
 /// The refusal for the UDP gateway target on an exit that already refused it: the exit is not asked again.

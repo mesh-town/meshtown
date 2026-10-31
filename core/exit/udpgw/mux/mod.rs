@@ -5,10 +5,19 @@
 //! `conn_id` bytes are rewritten.
 //!
 //! Files: `frame` — raw frame reading and `conn_id` rewriting; `ids` — the pure table that maps local
-//! ids to shared ids; `lane` — one shared stream with its writer and reader tasks; `local` — the
-//! loop serving one local connection.
+//! ids to shared ids; `lane` — one shared stream with its writer and reader tasks; `lanes` — the lanes
+//! of each exit, opened and closed on demand; `failure` — a failed first open, repeated to the
+//! connections that waited for it; `local` — the loop serving one local connection.
 
+mod failure;
 mod frame;
 mod ids;
 mod lane;
+mod lanes;
 mod local;
+
+#[cfg(test)]
+mod test_support;
+
+pub(crate) use lanes::attach;
+pub use lanes::UdpgwMux;
