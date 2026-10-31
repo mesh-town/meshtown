@@ -177,14 +177,17 @@ async fn run_cycles(
     }
 }
 
-/// The proxy to the settings, then the boot: an error of either ends the cycle as a failed start.
+/// The proxy to the settings, then the boot: an error of either ends the cycle as a failed start. A cycle that
+/// fails on the proxy still gets its own `boot_id`, so a page watching for a restart sees the lap end.
 async fn start_cycle(
     cfg: &NodeConfig,
     settings: &Settings,
     ctl: &NodeCtl,
     first_cycle: bool,
 ) -> Result<Option<RunningNode>> {
-    apply_proxy(settings, ctl).await?;
+    apply_proxy(settings, ctl)
+        .await
+        .inspect_err(|_| ctl.renew_boot_stamp())?;
     boot_cycle(cfg, ctl, first_cycle).await
 }
 

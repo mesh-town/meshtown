@@ -35,7 +35,8 @@ pub(super) async fn config_get_handler(
     SlotParam(slot): SlotParam,
 ) -> Response {
     overlay_from_main(&app, &slot);
-    let cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+    cfg.sync_with_node(&*slot.node);
     (StatusCode::OK, axum::Json(cfg.config_get_body())).into_response()
 }
 
@@ -84,6 +85,7 @@ pub(super) async fn config_put_handler(
     overlay_from_main(&app, &slot);
     let (resp, pick) = {
         let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
+        cfg.sync_with_node(&*slot.node);
         let (resp, pick) = cfg.put_keeping(&bytes, &*slot.node, conn.map(|Extension(c)| c), &taken);
         if resp.status() == StatusCode::OK && slot.id.carries_process() {
             app.shared.set_access(cfg.file_settings.process.web_access);

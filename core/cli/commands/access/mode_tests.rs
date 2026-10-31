@@ -61,3 +61,31 @@ fn proxy_access_says_restarting() {
     let text = proxy_restart_text("localnet");
     assert_eq!(text, "proxy access: localnet (proxy restarting).");
 }
+
+fn refused_with(message: &str) -> anyhow::Error {
+    let body = json!({"error": "busy", "message": message}).to_string();
+    anyhow::Error::new(ApiError::from_reply(409, &body))
+}
+
+#[test]
+fn proxy_busy_restarting_says_try_again() {
+    let e = restart_refused(&refused_with("Mesh Town is starting"));
+    let text = e.to_string();
+    assert_eq!(
+        text,
+        "Mesh Town is restarting; run the command again in a moment."
+    );
+    assert!(!text.contains("Restart Mesh Town"), "{text}");
+}
+
+#[test]
+fn proxy_other_refusal_still_advises_a_restart() {
+    let text = restart_refused(&refused_with("Mesh Town is stopping.")).to_string();
+    assert!(
+        text.starts_with(
+            "the setting is saved but the proxy was not restarted: Mesh Town is stopping."
+        ),
+        "{text}"
+    );
+    assert!(text.ends_with("Restart Mesh Town to apply it."), "{text}");
+}

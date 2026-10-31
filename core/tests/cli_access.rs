@@ -134,7 +134,8 @@ fn restart_when_ready(node: &CliNode) -> std::process::Output {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
     loop {
         let o = node.cli(&["access", "proxy", "localnet"]);
-        if !err(&o).contains("is starting") || std::time::Instant::now() > deadline {
+        let busy = err(&o).contains("run the command again");
+        if !busy || std::time::Instant::now() > deadline {
             return o;
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
@@ -184,6 +185,50 @@ fn proxy_live_restarts_real_node() {
         "{}",
         out(&shown)
     );
+}
+
+/// An address of this machine other than loopback, if it has one.
+fn lan_address() -> Option<std::net::IpAddr> {
+    let probe = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
+    probe.connect("192.0.2.1:9").ok()?;
+    let ip = probe.local_addr().ok()?.ip();
+    (!ip.is_loopback() && !ip.is_unspecified()).then_some(ip)
+}
+
+#[test]
+fn proxy_narrowed_again_without_reading_the_page() {
+    // given: a proxy on localhost, widened to localnet by one command
+    let port = free_port();
+    let config = format!(
+        r#"{{"config":{{"version":1,"web":{{"access":"localhost"}},"network":{{"key":"{}"}}}}}}"#,
+        good_key()
+    );
+    let node = CliNode::start_with_config(&config, &["--socks", "--socks-port", &port.to_string()]);
+    let widened = restart_when_ready(&node);
+    assert_eq!(widened.status.code(), Some(0), "stderr: {}", err(&widened));
+    std::thread::sleep(std::time::Duration::from_secs(8));
+    // when: it is narrowed again, nothing has read the state of the node in between
+    let narrowed = node.cli(&["access", "proxy", "localhost"]);
+    // then: the proxy is restarted, not left as "unchanged", and the wide address is closed
+    assert_eq!(
+        narrowed.status.code(),
+        Some(0),
+        "stderr: {}",
+        err(&narrowed)
+    );
+    assert!(
+        err(&narrowed).contains("proxy restarting"),
+        "stderr: {}",
+        err(&narrowed)
+    );
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    if let Some(ip) = lan_address() {
+        let reach = std::net::TcpStream::connect_timeout(
+            &std::net::SocketAddr::new(ip, port),
+            std::time::Duration::from_secs(2),
+        );
+        assert!(reach.is_err(), "the proxy still listens on {ip}");
+    }
 }
 
 #[test]

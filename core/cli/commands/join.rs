@@ -187,6 +187,15 @@ fn drop_slot(node: &Node, slot: &str) {
     let _ = node.call("POST", &path, Some(&json!({ "confirm": true })));
 }
 
+/// A join that ended in a refusal while waiting leaves the slot made for it empty: remove it, unless it is the
+/// main tab, which was there before. A timeout keeps the slot, the join goes on in the background.
+fn drop_slot_if_refused(node: &Node, slot: &str, waited: &anyhow::Result<()>) {
+    let refused = waited.as_ref().err().is_some_and(|e| e.is::<JoinRefused>());
+    if refused && slot != "main" {
+        drop_slot(node, slot);
+    }
+}
+
 fn new_slot(node: &Node) -> anyhow::Result<String> {
     let reply = node.call("POST", "/api/nets", Some(&json!({})))?;
     let slot = reply["slot"].as_str();
@@ -211,13 +220,27 @@ async fn join_live(node: &Node, args: &JoinArgs, text: &JoinText) -> anyhow::Res
         (JoinText::Invite(inv), Some(true)) => {
             let slot = reply["slot"].as_str().unwrap_or("main").to_string();
             let net = data_encoding::HEXLOWER.encode(&inv.head.network_id);
-            wait_joined(node, &slot, &net, args.timeout).await?;
+            let waited = wait_joined(node, &slot, &net, args.timeout).await;
+            drop_slot_if_refused(node, &slot, &waited);
+            waited?;
         }
         _ => eprintln!("Joined; Mesh Town reconnects to the new network."),
     }
     println!("{label}");
     Ok(())
 }
+
+/// The node ended the join with a refusal or a cancellation while the command was waiting.
+#[derive(Debug)]
+struct JoinRefused(String);
+
+impl std::fmt::Display for JoinRefused {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::error::Error for JoinRefused {}
 
 /// What the join state says about the invite.
 #[derive(Debug, PartialEq, Eq)]
@@ -267,7 +290,7 @@ async fn wait_joined(node: &Node, slot: &str, net: &str, timeout: u64) -> anyhow
         let nets = node.call("GET", "/api/nets", None)?;
         match poll_step(&state, &nets, slot, net) {
             PollStep::Joined => return Ok(()),
-            PollStep::Fail(why) => anyhow::bail!("{why}"),
+            PollStep::Fail(why) => return Err(anyhow::Error::new(JoinRefused(why))),
             PollStep::Wait => {}
         }
         let waited = started.elapsed().as_secs();

@@ -85,17 +85,26 @@ fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
         return Ok(());
     }
     if let Err(e) = node.call("POST", &node.net_path("actions/restart"), None) {
-        let why = match e.downcast_ref::<ApiError>() {
-            Some(refused) if !refused.message.is_empty() => refused.message.clone(),
-            _ => e.to_string(),
-        };
-        anyhow::bail!(
-            "the setting is saved but the proxy was not restarted: {}. Restart {NET_NAME} to apply it.",
-            why.trim_end_matches('.')
-        );
+        return Err(restart_refused(&e));
     }
     eprintln!("{}", proxy_restart_text(name));
     Ok(())
+}
+
+/// The error for a refused restart request. A node that is already restarting answers "starting": the command
+/// can simply be run again, restarting by hand is no help.
+fn restart_refused(e: &anyhow::Error) -> anyhow::Error {
+    let why = match e.downcast_ref::<ApiError>() {
+        Some(refused) if !refused.message.is_empty() => refused.message.clone(),
+        _ => e.to_string(),
+    };
+    let why = why.trim_end_matches('.');
+    if why == format!("{NET_NAME} is starting") {
+        return anyhow::anyhow!("{NET_NAME} is restarting; run the command again in a moment.");
+    }
+    anyhow::anyhow!(
+        "the setting is saved but the proxy was not restarted: {why}. Restart {NET_NAME} to apply it."
+    )
 }
 
 /// The restart is asked for, not finished: the node answers before the proxy comes back.

@@ -17,7 +17,9 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, say};
 use crate::proxy::{ProxyFront, ProxySeat};
-use crate::web_gui::{now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::web_gui::{
+    now_unix, ConfigState, NodeControl, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN,
+};
 use entry_errors::{entry_error, refuse_second_node, same_settings_node_error};
 
 /// The role of the node page in a launch: what to do if it didn't start.
@@ -77,7 +79,8 @@ impl Host {
                 return Err(e);
             }
         };
-        let config = ConfigState::from_run(&run_config);
+        let mut config = ConfigState::from_run(&run_config);
+        config.seed_boot_id(&ctl.snapshot().boot_id);
         let host = HostSlots::with_main(ctl.clone(), config);
         host.set_proxy_seat(seat);
         host.seat(&NetSlotId::main(), &ctl, services.sources());

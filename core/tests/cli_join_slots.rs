@@ -7,7 +7,7 @@ mod cli_node;
 mod fixtures;
 
 use cli_node::{cli_in, scratch_dir, stderr, stdout, CliNode};
-use fixtures::{key_with_label, stale_invite, StubPage};
+use fixtures::{key_with_label, stale_invite, unanswered_invite, StubPage};
 use serde_json::Value;
 
 fn slots(node: &CliNode) -> Vec<Value> {
@@ -115,6 +115,105 @@ fn slot_made_for_a_refused_join_is_removed() {
     // then: the command fails with the refusal and the slot was removed
     assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
     assert!(page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+const PRESENT: (&str, &str, u16, &str) = (
+    "POST",
+    "/api/network/join",
+    409,
+    r#"{"error":"network_present"}"#,
+);
+const NEW_SLOT: (&str, &str, u16, &str) = ("POST", "/api/nets", 200, r#"{"slot":"zz9"}"#);
+const WAITING_IN_SLOT: (&str, &str, u16, &str) = (
+    "POST",
+    "/api/net/zz9/network/join",
+    200,
+    r#"{"waiting":true,"slot":"zz9"}"#,
+);
+const WAITING_ON_MAIN: (&str, &str, u16, &str) = (
+    "POST",
+    "/api/network/join",
+    200,
+    r#"{"waiting":true,"slot":"main"}"#,
+);
+const REFUSED_STATE: &str =
+    r#"{"node":{"invite_join":{"state":"refused","message":"the invite was used"}}}"#;
+const WAITING_STATE: &str = r#"{"node":{"invite_join":{"state":"waiting","message":"waiting"}}}"#;
+
+static REFUSED_WHILE_WAITING: [fixtures::Canned; 5] = [
+    ("GET", "/api/nets", 200, FULL_MAIN),
+    PRESENT,
+    NEW_SLOT,
+    WAITING_IN_SLOT,
+    ("GET", "/api/net/zz9/state", 200, REFUSED_STATE),
+];
+
+static WAITING_FOREVER: [fixtures::Canned; 5] = [
+    ("GET", "/api/nets", 200, FULL_MAIN),
+    PRESENT,
+    NEW_SLOT,
+    WAITING_IN_SLOT,
+    ("GET", "/api/net/zz9/state", 200, WAITING_STATE),
+];
+
+static REFUSED_ON_MAIN: [fixtures::Canned; 3] = [
+    ("GET", "/api/nets", 200, r#"{"nets":[]}"#),
+    WAITING_ON_MAIN,
+    ("GET", "/api/net/main/state", 200, REFUSED_STATE),
+];
+
+fn join_invite_on(page: &StubPage, dir: &std::path::Path, extra: &[&str]) -> std::process::Output {
+    let invite = unanswered_invite(&key_with_label("room-two", 6));
+    let mut args = vec!["join", invite.as_str()];
+    args.extend_from_slice(extra);
+    cli_in(&args, dir, page.port)
+}
+
+#[test]
+fn refused_while_waiting_drops_new_slot() {
+    // given: a new slot accepts the invite, then the node reports the join refused
+    let dir = scratch_dir("wait-refused");
+    let page = StubPage::start(&dir, &REFUSED_WHILE_WAITING);
+    // when
+    let out = join_invite_on(&page, &dir, &[]);
+    // then: the command fails with the refusal and the slot it made was removed
+    assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
+    assert!(
+        stderr(&out).contains("the invite was used"),
+        "{}",
+        stderr(&out)
+    );
+    assert!(page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn timeout_while_waiting_keeps_slot() {
+    // given: a new slot accepted the invite and the join is still going on
+    let dir = scratch_dir("wait-timeout");
+    let page = StubPage::start(&dir, &WAITING_FOREVER);
+    // when: the wait runs out
+    let out = join_invite_on(&page, &dir, &["--timeout", "1"]);
+    // then: the join goes on in the background, so the slot stays
+    assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
+    assert!(stderr(&out).contains("still joining"), "{}", stderr(&out));
+    assert!(!page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn refused_on_main_tab_drops_nothing() {
+    // given: the main tab takes the invite, then the node reports the join refused
+    let dir = scratch_dir("wait-main");
+    let page = StubPage::start(&dir, &REFUSED_ON_MAIN);
+    // when
+    let out = join_invite_on(&page, &dir, &[]);
+    // then: the command fails and no slot was made or removed
+    assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
+    let seen = page.requests.lock().unwrap().clone();
+    assert!(!seen.iter().any(|r| r.contains("leave")), "{seen:?}");
+    assert!(!seen.iter().any(|r| r == "POST /api/nets"), "{seen:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
