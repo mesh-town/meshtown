@@ -82,17 +82,26 @@ fn live(node: &Node, set: &FieldSet, json: bool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn report(reply: &Value, path: &str) {
+/// The stderr notes after a save: what only takes effect later, and what this run overrides.
+pub(super) fn restart_notes(reply: &Value, path: &str) -> Vec<String> {
     let listed = |key: &str| {
         reply[key]
             .as_array()
             .is_some_and(|l| l.iter().any(|p| p.as_str() == Some(path)))
     };
+    let mut notes = Vec::new();
     if listed("restart_pending") {
-        eprintln!("applies after {NET_NAME} restarts");
+        notes.push(format!("applies after {NET_NAME} restarts"));
     }
     if listed("cli_overrides") {
-        eprintln!("this run keeps the value set at startup");
+        notes.push("this run keeps the value set at startup".to_string());
+    }
+    notes
+}
+
+fn report(reply: &Value, path: &str) {
+    for note in restart_notes(reply, path) {
+        eprintln!("{note}");
     }
 }
 

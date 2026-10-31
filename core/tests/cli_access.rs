@@ -176,7 +176,7 @@ fn proxy_live_restarts_real_node() {
     assert!(err(&same).contains("unchanged"), "stderr: {}", err(&same));
     let o = restart_when_ready(&node);
     assert_eq!(o.status.code(), Some(0), "stderr: {}", err(&o));
-    assert!(err(&o).contains("proxy restarted"), "stderr: {}", err(&o));
+    assert!(err(&o).contains("proxy restarting"), "stderr: {}", err(&o));
     let shown = node.cli(&["access"]);
     assert_eq!(shown.status.code(), Some(0), "stderr: {}", err(&shown));
     assert!(

@@ -8,6 +8,7 @@ fn node(base: &str) -> Node {
         path: "c.json".into(),
         dir: ".".into(),
         port: 1,
+        config_given: false,
     };
     Node {
         target,

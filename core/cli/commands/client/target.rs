@@ -17,6 +17,8 @@ pub(crate) struct Target {
     pub(crate) path: PathBuf,
     pub(crate) dir: PathBuf,
     pub(crate) port: u16,
+    /// Whether the settings file was named with `--config` or `MESHTOWN_CONFIG`.
+    pub(crate) config_given: bool,
 }
 
 impl Target {
@@ -25,6 +27,7 @@ impl Target {
         config: Option<PathBuf>,
         web_port: Option<u16>,
     ) -> Result<Target, String> {
+        let config_given = config.is_some();
         let env = config_file::current_env();
         let source = config_file::resolve_config_source(config.as_deref(), &env.as_path_env());
         let path = match source {
@@ -41,7 +44,12 @@ impl Target {
             _ => PathBuf::from("."),
         };
         let port = web_port.unwrap_or_else(|| file_port(&path));
-        Ok(Target { path, dir, port })
+        Ok(Target {
+            path,
+            dir,
+            port,
+            config_given,
+        })
     }
 
     /// The permanent token from `web-token`; if there is no file, it is empty (the node will refuse, not us).

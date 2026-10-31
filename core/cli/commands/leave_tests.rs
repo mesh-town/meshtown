@@ -12,6 +12,7 @@ fn node(base: &str, explicit_net: bool) -> Node {
         path: "c.json".into(),
         dir: ".".into(),
         port: 1,
+        config_given: false,
     };
     Node {
         target,

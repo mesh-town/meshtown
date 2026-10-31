@@ -72,7 +72,7 @@ fn open(t: &Target, print_only: bool) -> anyhow::Result<()> {
         }
         Ok((code, body)) => Err(anyhow::Error::msg(refusal(t, code, &body))),
         Err(LinkError::NotRunning) => Err(anyhow::Error::new(NotRunning { port: t.port })),
-        Err(LinkError::Other(e)) => Err(anyhow::Error::msg(e)),
+        Err(other) => Err(other.into_error()),
     }
 }
 

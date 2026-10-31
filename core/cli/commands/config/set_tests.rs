@@ -109,3 +109,25 @@ fn read_only_from_get_refused() {
     )
     .is_none());
 }
+
+#[test]
+fn restart_note_for_pending_field() {
+    let reply = json!({"restart_pending": ["web.port"]});
+    let notes = restart_notes(&reply, "web.port");
+    assert_eq!(notes, vec![format!("applies after {NET_NAME} restarts")]);
+}
+
+#[test]
+fn restart_note_for_startup_override() {
+    let reply = json!({"cli_overrides": ["web.port"], "restart_pending": ["web.port"]});
+    let notes = restart_notes(&reply, "web.port");
+    assert_eq!(notes.len(), 2, "{notes:?}");
+    assert_eq!(notes[1], "this run keeps the value set at startup");
+}
+
+#[test]
+fn restart_note_is_empty_for_other_fields() {
+    let reply = json!({"restart_pending": ["web.port"], "cli_overrides": ["web.port"]});
+    assert!(restart_notes(&reply, "probe.interval_sec").is_empty());
+    assert!(restart_notes(&json!({}), "web.port").is_empty());
+}

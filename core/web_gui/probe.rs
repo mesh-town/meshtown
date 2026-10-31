@@ -15,8 +15,33 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 pub enum LinkError {
     /// The connection was refused: no node is listening on this port.
     NotRunning,
-    /// Any other failure; the text is in English.
-    Other(String),
+    /// The socket failed; the error is kept so callers can tell a reset from a timeout.
+    Io(std::io::Error),
+    /// Something answered, but not with HTTP: it is not a node.
+    NotNode,
+}
+
+/// Marks an error chain whose peer answered something that is not HTTP.
+#[derive(Debug)]
+pub struct NotNodeReply;
+
+impl std::fmt::Display for NotNodeReply {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{NET_NAME} did not reply over HTTP")
+    }
+}
+
+impl std::error::Error for NotNodeReply {}
+
+impl LinkError {
+    /// The failure as an error value; the socket error stays in the chain, the text is in English.
+    pub fn into_error(self) -> anyhow::Error {
+        match self {
+            LinkError::NotRunning => anyhow::anyhow!("{NET_NAME} is not running"),
+            LinkError::Io(e) => anyhow::Error::new(e).context(format!("connection to {NET_NAME}")),
+            LinkError::NotNode => anyhow::Error::new(NotNodeReply),
+        }
+    }
 }
 
 /// Whether a Mesh Town node answers on `127.0.0.1:<port>`: the open `GET /api/auth/status` (no token needed)
@@ -75,7 +100,7 @@ fn connect_error(e: std::io::Error) -> LinkError {
 }
 
 fn link_error_from_io(e: std::io::Error) -> LinkError {
-    LinkError::Other(format!("connection to {NET_NAME}: {e}"))
+    LinkError::Io(e)
 }
 
 fn request_text(port: u16, token: &str, method: &str, path: &str, body: Option<&str>) -> String {
@@ -102,9 +127,7 @@ fn parse_response(raw: &[u8]) -> Result<(u16, String), LinkError> {
         .and_then(|c| c.parse::<u16>().ok());
     match code {
         Some(code) => Ok((code, body.to_string())),
-        None => Err(LinkError::Other(format!(
-            "{NET_NAME} did not reply over HTTP"
-        ))),
+        None => Err(LinkError::NotNode),
     }
 }
 

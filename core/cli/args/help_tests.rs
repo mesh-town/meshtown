@@ -315,3 +315,38 @@ fn root_help_lists_global_options() {
         assert!(block.contains(flag), "no {flag}:\n{help}");
     }
 }
+
+/// The help of a nested command as the program prints it.
+fn nested_help(path: &[&str]) -> String {
+    let mut args = vec!["meshtown"];
+    args.extend_from_slice(path);
+    args.push("--help");
+    let err = Cli::command()
+        .try_get_matches_from(args)
+        .expect_err("--help ends parsing");
+    err.render().to_string()
+}
+
+#[test]
+fn member_help_hides_refused_globals() {
+    for action in [
+        "list",
+        "admit",
+        "exclude",
+        "unexclude",
+        "block",
+        "unblock",
+        "admin",
+    ] {
+        let help = nested_help(&["member", action]);
+        assert!(!help.contains("--yes"), "member {action}:\n{help}");
+        assert!(help.contains("--net"), "member {action}:\n{help}");
+    }
+    assert!(!sub_help("status").contains("--yes"));
+}
+
+#[test]
+fn help_keeps_yes_where_it_is_taken() {
+    assert!(sub_help("leave").contains("--yes"));
+    assert!(nested_help(&["network", "delete"]).contains("--yes"));
+}

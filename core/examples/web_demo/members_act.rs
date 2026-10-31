@@ -11,7 +11,7 @@ impl DemoMembers {
         if !matches!(e.standing, Standing::Pending) {
             return Err(refused(
                 "not_pending",
-                "This member isn't waiting for confirmation",
+                "This member isn't waiting for admission",
             ));
         }
         e.standing = Standing::Member;

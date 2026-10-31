@@ -15,17 +15,30 @@ pub(crate) fn unknown_command_text(name: &str, commands: &[String]) -> String {
     )
 }
 
-/// The tail of the error text: where to look for the list of options.
-fn tail_text(command: Option<&str>) -> String {
-    match command {
-        Some(name) => format!(
-            "See all options: {} {name} --help",
-            crate::cli::program_name::program_name()
-        ),
-        None => format!(
-            "See all options: {} --help",
-            crate::cli::program_name::program_name()
-        ),
+/// The command path clap names in its usage line, without the program: `config path`, `member admit`.
+/// Words stop at the first option or argument placeholder.
+fn deepest_command(err: &clap::Error) -> Option<String> {
+    let usage = match err.get(ContextKind::Usage) {
+        Some(ContextValue::StyledStr(text)) => text.to_string(),
+        _ => return None,
+    };
+    let line = usage.lines().next()?;
+    let line = line.trim().strip_prefix("Usage:")?;
+    let path: Vec<&str> = line
+        .split_whitespace()
+        .skip(1)
+        .take_while(|w| !w.starts_with(['[', '<', '-']))
+        .collect();
+    Some(path.join(" ")).filter(|p| !p.is_empty())
+}
+
+/// The tail of the error text: where to look for the list of options. It names the deepest subcommand the
+/// refusal happened in; `command` (the first word typed) is the fallback.
+fn tail_text(err: &clap::Error, command: Option<&str>) -> String {
+    let program = crate::cli::program_name::program_name();
+    match deepest_command(err).as_deref().or(command) {
+        Some(name) => format!("See all options: {program} {name} --help"),
+        None => format!("See all options: {program} --help"),
     }
 }
 
@@ -71,7 +84,7 @@ fn suggestion_text(err: &clap::Error) -> String {
 pub(crate) fn bad_flag_text(err: &clap::Error, command: Option<&str>) -> String {
     let arg = flag_name(err);
     let hint = suggestion_text(err);
-    let tail = tail_text(command);
+    let tail = tail_text(err, command);
     if arg.starts_with('-') {
         return format!("{PREFIX}: unknown option \"{arg}\". {hint}{tail}");
     }
@@ -80,7 +93,7 @@ pub(crate) fn bad_flag_text(err: &clap::Error, command: Option<&str>) -> String 
 
 /// The text about a wrong option value or an option without a value.
 pub(crate) fn bad_value_text(err: &clap::Error, command: Option<&str>) -> String {
-    let (flag, tail) = (flag_name(err), tail_text(command));
+    let (flag, tail) = (flag_name(err), tail_text(err, command));
     let value = context_text(err, ContextKind::InvalidValue);
     if err.kind() == ErrorKind::InvalidValue && value.is_empty() {
         return format!("{PREFIX}: {flag} needs a value. {tail}");
@@ -129,7 +142,11 @@ fn clap_sentence(err: &clap::Error) -> String {
 
 /// The text for any other refusal of parsing: a missing argument, a conflict, no command.
 pub(crate) fn other_text(err: &clap::Error, command: Option<&str>) -> String {
-    format!("{PREFIX}: {} {}", clap_sentence(err), tail_text(command))
+    format!(
+        "{PREFIX}: {} {}",
+        clap_sentence(err),
+        tail_text(err, command)
+    )
 }
 
 #[cfg(test)]

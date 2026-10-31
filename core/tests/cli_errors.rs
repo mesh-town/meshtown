@@ -97,7 +97,7 @@ mod bad_parameter {
             let out = mesh(&["config", "path", "--bogus-flag"]);
             assert_refused_with(
                 &out,
-                "Error: unknown option \"--bogus-flag\". See all options: meshtown config --help",
+                "Error: unknown option \"--bogus-flag\". See all options: meshtown config path --help",
             );
         }
     }

@@ -94,7 +94,7 @@ pub(super) fn refusal_error(r: ActionRefusal) -> MemberError {
         ActionRefusal::NotMember => refused("not_member", "this member is not in the list"),
         ActionRefusal::Left => refused("left", "this member has left the network"),
         ActionRefusal::NotPending => {
-            refused("not_pending", "This member isn't waiting for confirmation")
+            refused("not_pending", "This member isn't waiting for admission")
         }
         ActionRefusal::NotAdmin => refused("not_admin", "only admins can do this in this network"),
         ActionRefusal::Creator => refused(

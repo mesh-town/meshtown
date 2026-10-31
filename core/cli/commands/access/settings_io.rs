@@ -11,6 +11,15 @@ use crate::config::config_file::{
 };
 use crate::node::output::NET_NAME;
 
+/// Whether the reply of a settings write lists one of the `names` among the fields that wait for a restart.
+pub(super) fn restart_needed(reply: &serde_json::Value, names: &[&str]) -> bool {
+    let pending = reply["restart_pending"].as_array();
+    pending.is_some_and(|list| {
+        list.iter()
+            .any(|p| p.as_str().is_some_and(|name| names.contains(&name)))
+    })
+}
+
 /// The settings file that `--config` or the standard place names; none is an error with the reason.
 pub(crate) fn settings_path(g: &Globals) -> anyhow::Result<PathBuf> {
     let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;

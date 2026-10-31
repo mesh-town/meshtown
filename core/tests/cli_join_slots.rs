@@ -7,7 +7,7 @@ mod cli_node;
 mod fixtures;
 
 use cli_node::{cli_in, scratch_dir, stderr, stdout, CliNode};
-use fixtures::{key_with_label, StubPage};
+use fixtures::{key_with_label, stale_invite, StubPage};
 use serde_json::Value;
 
 fn slots(node: &CliNode) -> Vec<Value> {
@@ -116,4 +116,34 @@ fn slot_made_for_a_refused_join_is_removed() {
     assert_eq!(out.status.code(), Some(1), "{}", stderr(&out));
     assert!(page.seen(LEAVE), "{:?}", page.requests.lock().unwrap());
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The names in the node's directory, sorted.
+fn dir_names(node: &CliNode) -> Vec<String> {
+    let entries = std::fs::read_dir(&node.dir).expect("node dir");
+    let mut names: Vec<String> = entries
+        .map(|e| e.expect("entry").file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn join_refused_removes_slot() {
+    // given: a node with one network and a snapshot of its directory and settings
+    let node = CliNode::start(&[]);
+    join_ok(&node, &key_with_label("room-one", 5));
+    let (names, config) = (
+        dir_names(&node),
+        std::fs::read_to_string(node.dir.join("config.json")).expect("settings"),
+    );
+    // when: an invite the node refuses is joined
+    let invite = stale_invite(&key_with_label("room-two", 6));
+    let out = node.cli(&["join", &invite]);
+    // then: it fails, and neither a slot nor a network was left behind
+    assert_ne!(out.status.code(), Some(0), "{}", stderr(&out));
+    assert_eq!(slots(&node).len(), 1);
+    assert_eq!(dir_names(&node), names);
+    let after = std::fs::read_to_string(node.dir.join("config.json")).expect("settings");
+    assert_eq!(after, config);
 }

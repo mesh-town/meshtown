@@ -20,7 +20,7 @@ fn response_gives_code_and_body() {
 #[test]
 fn garbage_is_other_error() {
     match parse_response(b"hello") {
-        Err(LinkError::Other(text)) => assert_eq!(text, "Mesh Town did not reply over HTTP"),
+        Err(LinkError::NotNode) => {}
         other => panic!("{other:?}"),
     }
 }

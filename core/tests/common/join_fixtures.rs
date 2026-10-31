@@ -22,13 +22,22 @@ pub fn key_with_label(label: &str, seed: u8) -> String {
 /// A fresh invite to the network of `key`, issued by a node that is not there: it parses and passes the age
 /// check, and no member ever answers it.
 pub fn unanswered_invite(key: &str) -> String {
+    invite_made_at(key, unix_now())
+}
+
+/// An invite that parses but is long expired: a node refuses it.
+pub fn stale_invite(key: &str) -> String {
+    invite_made_at(key, 1_000)
+}
+
+fn invite_made_at(key: &str, made_unix: u64) -> String {
     let issuer = NodeSecret::from_bytes(&[2u8; 32]).peer_id();
     let parsed = parse_user_input(key).expect("a key");
     let head = InviteHead {
         secret: InviteSecret::generate().expect("secret"),
         network_id: parsed.key.subkeys().network_id,
         label: parsed.label,
-        made_unix: unix_now(),
+        made_unix,
         root: NodeSecret::from_bytes(&[1u8; 32]).peer_id(),
     };
     build_keyed(&head, &PeerAddr::new(issuer), &[], &PrimaryIps::NONE).expect("invite text")
