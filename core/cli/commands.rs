@@ -58,7 +58,6 @@ pub(crate) async fn run_node_command(args: RunArgs, m: &ArgMatches) -> anyhow::R
     let source = resolve_source(args.no_config, args.config.as_deref());
     let now = now_unix();
     let start = StartInput {
-        save_config: false,
         domains: &args.initial_domains,
     };
     let (run, overrides, invited) = prepare_run(&start, overrides, invited, &source, now).await?;
@@ -94,18 +93,14 @@ async fn launch_prepared(
     }
 }
 
-/// What preparing a run needs from the command line: whether to save the flags, and the domains typed.
+/// What preparing a run needs from the command line: the domains typed.
 struct StartInput<'a> {
-    save_config: bool,
     domains: &'a [String],
 }
 
 impl StartInput<'static> {
-    /// `join` without a node: the flags are not saved and there are no typed domains.
-    const JOIN: StartInput<'static> = StartInput {
-        save_config: false,
-        domains: &[],
-    };
+    /// `join` without a node: there are no typed domains.
+    const JOIN: StartInput<'static> = StartInput { domains: &[] };
 }
 
 /// Prepares the main run: the settings file, the invite and `--key` of another network (each becomes a slot).
@@ -124,7 +119,7 @@ async fn prepare_run(
     let cli_key = overrides.network_key.clone();
     let key_net = plan_cli_key(source, cli_key.as_deref())?;
     let overrides = overrides_for_main(&overrides, &key_net);
-    let mut run = config_file::prepare(source, &overrides, start.save_config, now)?;
+    let mut run = config_file::prepare(source, &overrides, false, now)?;
     let typed = start.domains;
     let invited =
         run_invite::settle_invite(invited, cli_key.as_deref(), &mut run, typed, now).await?;

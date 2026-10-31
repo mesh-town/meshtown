@@ -11,11 +11,11 @@ fn outcome_line_keeps_the_agreed_shape() {
     );
     let refused = ProxyOutcome::refused(
         "no route",
-        "domain is marked --block-domain, no member with access",
+        "domain is marked --block-site, no member with access",
     );
     assert_eq!(
         outcome_line("example.com:443", &refused, 2),
-        "example.com:443 no route: refused: domain is marked --block-domain, \
+        "example.com:443 no route: refused: domain is marked --block-site, \
          no member with access, received 0 bytes, sent 0 bytes, 2 ms"
     );
 }

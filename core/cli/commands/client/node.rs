@@ -71,8 +71,6 @@ impl Node {
     }
 
     /// Changes settings: reads the revision, writes `patch`; a stale revision is retried once.
-    // used by the settings commands
-    #[allow(dead_code)]
     pub(crate) fn put_config(&self, patch: &Value) -> anyhow::Result<Value> {
         let mut call =
             |method: &str, path: &str, body: Option<&Value>| self.call(method, path, body);

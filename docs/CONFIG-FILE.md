@@ -106,7 +106,7 @@ force.
   any stored field except `network.key` and the read-only ones; the value is checked by the same reader that reads
   the file, so the bounds are the file's. `config get [<path>]` shows the values.
 - **`--no-config`** — work on defaults and flags, neither read nor write the file. Needed for
-  tests and for working out "is the config to blame or not". 
+  tests and for working out "is the config to blame or not".
 
 ---
 

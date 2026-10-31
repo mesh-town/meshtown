@@ -119,7 +119,7 @@ fn blocked_record(steps: &mut Steps) -> CheckRecord {
     steps.dns_ok = true;
     steps.tcp = TcpStep::Refused;
     let mut record = build_record(steps, 0, 0, 0, 0);
-    record.reason = "domain is marked --block-domain".to_string();
+    record.reason = "domain is marked --block-site".to_string();
     record
 }
 

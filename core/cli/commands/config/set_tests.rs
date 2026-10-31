@@ -36,7 +36,10 @@ fn offline_writes_field_and_bumps_rev() {
     let mut expected = before;
     field("probe.interval_sec", "20").apply_to(&mut expected);
     assert_eq!(p.settings, expected);
-    assert!(matches!(p.secret, config_file::SecretRead::Valid(_)));
+    let config_file::SecretRead::Valid(kept) = &p.secret else {
+        panic!("the key was lost")
+    };
+    assert_eq!(kept.to_bytes(), secret.to_bytes());
     let _ = std::fs::remove_dir_all(&dir);
 }
 
