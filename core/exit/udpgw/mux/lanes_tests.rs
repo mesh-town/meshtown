@@ -37,7 +37,7 @@ impl Rig {
     }
 
     async fn attach_ok(&self) -> (BoxSend, BoxRecv) {
-        let (send, recv, code) = self.attach().await.ok().expect("attached");
+        let (send, recv, code) = self.attach().await.expect("attached");
         assert_eq!(code, EXIT_CODE_OK);
         (send, recv)
     }
@@ -206,7 +206,7 @@ mod refusals {
     async fn gateway_refusal_returns_the_code_without_a_stream() {
         let rig = rig(Arc::new(Scripted::new(REFUSED))).await;
 
-        let (_, _, code) = rig.attach().await.ok().expect("an answer");
+        let (_, _, code) = rig.attach().await.expect("an answer");
 
         assert_eq!((code, rig.lanes()), (EXIT_CODE_ADDRESS_FORBIDDEN, 0));
     }
@@ -278,7 +278,7 @@ mod leaving {
     async fn exit_node_stop_ends_locals() {
         let exit = Arc::new(HoldOpen::new(OK, Duration::ZERO));
         let (stack, pool, peer, server) = exit_pair_with_stack(exit.clone()).await;
-        let (_send, mut recv, _) = attach(&stack, &pool, peer).await.ok().expect("attached");
+        let (_send, mut recv, _) = attach(&stack, &pool, peer).await.expect("attached");
 
         server.close().await;
 
