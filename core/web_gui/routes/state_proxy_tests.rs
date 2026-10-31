@@ -33,6 +33,47 @@ async fn state_restart_pending_follows_the_proxy_listener() {
     assert_eq!(pending(&router).await, json!([]));
 }
 
+/// A node with a main slot whose proxy face differs from its file, and an added slot with its own file.
+fn main_and_added() -> (axum::Router, Arc<SnapNode>) {
+    let main_node = SnapNode::new(Default::default());
+    let mut main_cfg = config_with_key(None);
+    main_cfg.file_settings.process.socks_access = ListenAccess::Localhost;
+    main_cfg.boot_file_settings.process = main_cfg.file_settings.process.clone();
+    let port = main_cfg.file_settings.process.socks_port;
+    main_node.set_applied_proxy(Some(face(port, ListenAccess::Localhost)));
+    let added_node = SnapNode::new(Default::default());
+    added_node.set_applied_proxy(Some(face(port, ListenAccess::Localnet)));
+    let main = slot_handle("main", main_node, main_cfg);
+    let added = slot_handle("ab2c3d", added_node.clone(), config_with_key(Some("k")));
+    let router = test_app(FakeHost::new(vec![main, added])).0;
+    (router, added_node)
+}
+
+#[tokio::test]
+async fn added_slot_state_never_lists_socks_as_pending() {
+    // given: the proxy face differs from the primary file; the added slot's config was never read
+    let (router, _) = main_and_added();
+    // when: its state is asked first
+    let (status, body) = send(&router, Method::GET, "/api/net/ab2c3d/state", "").await;
+    // then: no socks path is pending
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    let pending = body["restart_pending"].as_array().unwrap();
+    assert!(
+        pending
+            .iter()
+            .all(|p| !p.as_str().unwrap().starts_with("socks.")),
+        "pending: {pending:?}"
+    );
+}
+
+#[tokio::test]
+async fn overview_lists_no_restart_slot_for_the_overlaid_process_block() {
+    let (router, _) = main_and_added();
+    let (status, body) = send(&router, Method::GET, "/api/overview", "").await;
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    assert_eq!(body["restart_slots"], json!([]));
+}
+
 async fn pending(router: &axum::Router) -> Value {
     let (status, body) = send(router, Method::GET, "/api/state", "").await;
     assert_eq!(status, StatusCode::OK, "body: {body}");

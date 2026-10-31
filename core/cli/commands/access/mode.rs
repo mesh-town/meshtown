@@ -80,7 +80,7 @@ fn page_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
 fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
     let name = mode.as_str();
     let reply = node.put_config(&patch(&PROXY, mode))?;
-    if !restart_needed(&reply, &[PROXY.path]) {
+    if !proxy_restart_needed(&reply) {
         eprintln!("proxy access: {name} (unchanged).");
         return Ok(());
     }
@@ -89,6 +89,12 @@ fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
     }
     eprintln!("{}", proxy_restart_text(name));
     Ok(())
+}
+
+/// The proxy restarts for a changed access, or for a listener that is switched off and still waits to come up.
+/// The port alone does not count: this command does not change it.
+fn proxy_restart_needed(reply: &Value) -> bool {
+    restart_needed(reply, &[PROXY.path, "socks.enabled"])
 }
 
 /// The error for a refused restart request. A node that is already restarting answers "starting": the command

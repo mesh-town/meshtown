@@ -35,6 +35,7 @@ mod page_encoding;
 mod pages;
 mod peers;
 mod pending_invites;
+mod process_overlay;
 pub(crate) mod slot_param;
 mod state;
 mod state_host;

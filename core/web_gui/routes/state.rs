@@ -7,6 +7,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::{json, Value};
 
+use super::process_overlay::overlay_from_main;
 use super::slot_param::SlotParam;
 use super::state_host::{apply_host, apply_notices, apply_slot};
 use super::state_net::{apply_net, net_state};
@@ -51,6 +52,7 @@ pub(crate) fn slot_state_value(app: &App, slot: &SlotHandle) -> Value {
 }
 
 fn state_of(app: &App, slot: &SlotHandle, conn: Option<&ConnInfo>) -> Option<Value> {
+    overlay_from_main(app, slot);
     let snap = slot.node.snapshot();
     let roles = slot.node.net_roles();
     let mut value = serde_json::to_value(&snap).ok()?;

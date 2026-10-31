@@ -14,21 +14,8 @@ use crate::web_gui::HostError;
 use crate::web_gui::{App, SlotHandle};
 
 use super::nets::host_error_response;
+use super::process_overlay::overlay_from_main;
 use super::slot_param::SlotParam;
-
-/// For an added slot: its config state shows the primary slot's process block.
-fn overlay_from_main(app: &App, slot: &SlotHandle) {
-    if slot.id.carries_process() {
-        return;
-    }
-    let process = {
-        let main = app.host.main_slot();
-        let cfg = main.config.lock().unwrap_or_else(|e| e.into_inner());
-        cfg.file_settings.process.clone()
-    };
-    let mut cfg = slot.config.lock().unwrap_or_else(|e| e.into_inner());
-    cfg.overlay_process(&process);
-}
 
 pub(super) async fn config_get_handler(
     State(app): State<Arc<App>>,
