@@ -7,14 +7,17 @@ use std::time::Instant;
 
 use super::line_rate::LineRate;
 use super::rss::RssGate;
+use super::share::Share;
 use super::window::StreamWindow;
 use crate::node::machine_memory::MemoryDefaults;
+use crate::transport::net::PeerId;
 
 /// Why a new stream is refused.
 #[derive(Debug)]
 pub(crate) enum Busy {
     Streams { live: u64, limit: u64 },
     Memory { rss_kib: u64, ceiling_kib: u64 },
+    Share { held: u64, share: u64 },
 }
 
 impl Busy {
@@ -22,6 +25,9 @@ impl Busy {
         match self {
             Busy::Streams { live, limit } => {
                 format!("busy: {live} streams open, limit {limit}")
+            }
+            Busy::Share { held, share } => {
+                format!("busy: member holds {held} streams, share {share}")
             }
             Busy::Memory {
                 rss_kib,
@@ -42,6 +48,7 @@ struct Inner {
     rss: RssGate,
     lines: LineRate,
     window: StreamWindow,
+    share: Share,
 }
 
 /// Live exit streams of the process and the rules for admitting a new one.
@@ -50,7 +57,7 @@ pub struct ExitLimits(Arc<Inner>);
 
 /// A held place among the live streams; dropping it frees the place.
 #[derive(Debug)]
-pub(crate) struct StreamSlot(ExitLimits);
+pub(crate) struct StreamSlot(ExitLimits, PeerId);
 
 impl std::fmt::Debug for ExitLimits {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -64,6 +71,7 @@ impl std::fmt::Debug for ExitLimits {
 impl Drop for StreamSlot {
     fn drop(&mut self) {
         self.0 .0.live.fetch_sub(1, Ordering::Relaxed);
+        self.0 .0.share.release(&self.1);
     }
 }
 
@@ -76,6 +84,7 @@ impl ExitLimits {
             rss,
             lines: LineRate::default(),
             window: StreamWindow::default(),
+            share: Share::default(),
         }))
     }
 
@@ -122,16 +131,22 @@ impl ExitLimits {
         self.0.window.bytes()
     }
 
-    /// Takes a place for a new stream: the cap first, then the process memory.
-    pub(crate) fn try_admit(&self) -> Result<StreamSlot, Busy> {
+    /// Takes a place for a new stream: the member's share, the cap, then the process memory.
+    pub(crate) fn try_admit(&self, peer: PeerId, now: Instant) -> Result<StreamSlot, Busy> {
         let limit = self.max_streams();
-        self.take_place(limit)?;
-        let slot = StreamSlot(self.clone());
+        self.0
+            .share
+            .admit(peer, now, limit, || self.take_place(limit))?;
+        let slot = StreamSlot(self.clone(), peer);
         match self.0.rss.over(Instant::now()) {
-            Some((rss_kib, ceiling_kib)) => Err(Busy::Memory {
-                rss_kib,
-                ceiling_kib,
-            }),
+            Some((rss_kib, ceiling_kib)) => {
+                drop(slot);
+                self.0.share.note_refused(peer, now);
+                Err(Busy::Memory {
+                    rss_kib,
+                    ceiling_kib,
+                })
+            }
             None => Ok(slot),
         }
     }
@@ -164,6 +179,10 @@ impl ExitLimits {
 
     pub(crate) fn live(&self) -> u64 {
         self.0.live.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn share_len(&self, now: Instant) -> usize {
+        self.0.share.len(now)
     }
 
     pub(crate) fn unlimited() -> Self {

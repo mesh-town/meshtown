@@ -182,7 +182,7 @@ async fn serve_exit_stream(
         return Ok(());
     };
     // The slot lives until the end of this future, including when the task is aborted.
-    let _slot = match cfg.limits.try_admit() {
+    let _slot = match cfg.limits.try_admit(peer, std::time::Instant::now()) {
         Ok(slot) => slot,
         Err(busy) => return refuse_busy(&mut send, &peer, &cfg.limits, busy).await,
     };
