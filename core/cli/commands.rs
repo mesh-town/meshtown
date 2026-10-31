@@ -21,6 +21,7 @@ pub(crate) mod join;
 mod join_offline;
 pub(crate) mod leave;
 // group: member
+pub(crate) mod member;
 // group: network
 pub(crate) mod network;
 pub(crate) mod open;

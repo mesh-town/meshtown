@@ -4,4 +4,4 @@ pub(crate) mod dto;
 mod leave;
 mod routes;
 
-pub(crate) use routes::{members_value, register_members};
+pub(crate) use routes::{members_value, register_members, MAX_REASON_CHARS};
