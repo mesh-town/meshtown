@@ -25,7 +25,7 @@ mod host_name;
 mod http;
 mod invite_qr;
 mod listener;
-mod members;
+pub(crate) mod members;
 mod net_brief;
 pub mod net_name;
 mod options;

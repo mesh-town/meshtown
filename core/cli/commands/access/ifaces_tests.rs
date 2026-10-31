@@ -179,3 +179,21 @@ fn offline_without_file_creates_nothing() {
     assert!(!t.exists());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn live_save_mentions_restart_only_when_pending() {
+    let filter = IfaceFilter::Only(names(&["br-lan"]));
+    let pending = json!({"restart_pending": ["web.ifaces"]});
+    assert!(restart_needed(&pending));
+    assert!(saved_text(&pending, &filter).contains("restarts"));
+    for none in [
+        json!({"restart_pending": []}),
+        json!({}),
+        json!({"restart_pending": ["web.access"]}),
+    ] {
+        assert!(!restart_needed(&none), "{none}");
+        let text = saved_text(&none, &filter);
+        assert!(!text.contains("restart"), "{text}");
+        assert!(text.starts_with("Interface list saved: "), "{text}");
+    }
+}

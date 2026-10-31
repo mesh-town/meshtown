@@ -123,6 +123,7 @@ async fn execute(
         // group: config
         CliCommand::Config(args) => crate::cli::commands::config::run(args, g).await,
         // group: member
+        CliCommand::Member(args) => crate::cli::commands::member::run(args, g).await,
         // group: network
         CliCommand::Network(args) => crate::cli::commands::network::run(args, g).await,
         CliCommand::Password {

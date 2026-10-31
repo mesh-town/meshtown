@@ -107,6 +107,9 @@ pub(crate) enum CliCommand {
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown config <COMMAND>")]
     Config(crate::cli::commands::config::ConfigArgs),
     // group: member
+    /// List the members of the network and admit, remove, block or make administrators
+    #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown member <COMMAND>")]
+    Member(crate::cli::commands::member::MemberArgs),
     // group: network
     /// List, create, show, inspect and delete the networks of this computer
     #[command(help_template = HELP, next_help_heading = "Options", override_usage = "meshtown network <COMMAND>")]

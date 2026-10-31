@@ -119,13 +119,30 @@ fn write(g: &Globals, path: &Path, filter: &IfaceFilter) -> anyhow::Result<()> {
         Route::File(_) => offline(path, filter),
         Route::Live(node) => {
             let names = filter.parts().1;
-            node.put_config(&json!({"socks": {"ifaces": names}, "web": {"ifaces": names}}))?;
-            eprintln!(
-                "Interface list saved: {} (the proxy picks it up after {NET_NAME} restarts).",
-                describe(filter)
-            );
+            let reply =
+                node.put_config(&json!({"socks": {"ifaces": names}, "web": {"ifaces": names}}))?;
+            eprintln!("{}", saved_text(&reply, filter));
             Ok(())
         }
+    }
+}
+
+/// Whether the reply of the write says the interface list waits for a restart.
+pub(super) fn restart_needed(reply: &Value) -> bool {
+    let pending = reply["restart_pending"].as_array();
+    pending.is_some_and(|list| {
+        list.iter()
+            .any(|p| matches!(p.as_str(), Some("socks.ifaces" | "web.ifaces")))
+    })
+}
+
+fn saved_text(reply: &Value, filter: &IfaceFilter) -> String {
+    match restart_needed(reply) {
+        true => format!(
+            "Interface list saved: {} (the proxy picks it up after {NET_NAME} restarts).",
+            describe(filter)
+        ),
+        false => format!("Interface list saved: {}.", describe(filter)),
     }
 }
 

@@ -100,7 +100,7 @@ async fn id_action(
 }
 
 /// Longest reason of an exclusion, in characters.
-const MAX_REASON_CHARS: usize = 80;
+pub(crate) const MAX_REASON_CHARS: usize = 80;
 
 /// The optional `reason`: absent or `null` is none; a blank string is none; a non-string, a long one or
 /// one with a control character (a line break included, also at the ends) is a `bad_request`.

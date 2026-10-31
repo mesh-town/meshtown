@@ -20,6 +20,7 @@ meshtown network list                 # the networks of this computer (--json fo
 meshtown network key [--raw]          # the key of the network (--raw: the machine form mesh2-… of the same network)
 meshtown network inspect "<key or invite>"   # what a key or an invite is, without joining
 meshtown network delete --yes [--net NETWORK]   # delete the network for everyone (administrators only)
+meshtown member list                  # the members of the network; admit, exclude, unexclude, block, unblock, admin: see Members
 meshtown join "<invite or key>" [--timeout SECONDS]   # join a network on the running node, or write it into the settings file
 meshtown access ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
 MESHTOWN_KEY="<key from network create --key-only or from an administrator>" \
@@ -231,6 +232,52 @@ itself when it learns about it.
 **What a regular member sees.** The network name, the line `Managed network · Admins: …`, the `Admin` badge on rows,
 and a greyed `Remove from network (admins only)`. A member can still leave the network and block a node on this
 computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.3, 1.11 and, in [WEB-API-members.md](WEB-API-members.md), 1.12).
+
+## Members
+
+`meshtown member` works with the members of a network on the running node, the same list and actions as the page.
+
+```sh
+meshtown member list                          # who is in the network
+meshtown member admit <member>                # let in a member who waits for admission
+meshtown member exclude <member> [--reason TEXT]   # remove a member from the network for everyone
+meshtown member unexclude <member>            # withdraw the removal
+meshtown member block <member>                # refuse connections with a member, on this computer only
+meshtown member unblock <member>
+meshtown member admin <member> [--revoke]     # make a member an administrator, or take the role away
+```
+
+`member list` prints one row per member; the name is the last column, so `awk '{print $1}'` gives the ids:
+
+| Column | Meaning |
+|---|---|
+| `ID` | The first ten digits of the member's id |
+| `STATUS` | `member`, `pending` (waits for admission), `unlisted` or `excluded` |
+| `ONLINE` | `yes` when the member is connected now |
+| `ADMIN` | `yes` for an administrator |
+| `BLOCKED` | `yes` when this computer blocked the member |
+| `NAME` | The name of the node, or `-`; this computer's row ends with `(this computer)` |
+
+The head is always printed. A summary and, for an administrator, a hint about waiting members go to stderr. `--json`
+prints the node's reply instead of the table.
+
+**`<member>`** is a name (letter case is ignored) or the start of an id from `member list`, at least four hex digits.
+A name wins over an id start. When several members match, nothing is done: the command lists the candidates and exits
+with code 1, and you repeat it with a longer start of the id. An id that is not in the list is refused.
+
+`admit`, `exclude`, `unexclude` and `admin` need the administrator role of the network. `block` and `unblock` don't:
+a block is kept on this computer only. A refusal prints what the node said and what to do next, for example when you
+pick your own computer or try to take the role from the only administrator. Repeating an action that is already done
+changes nothing and exits with code 0 (`Nothing changed: …`). `--reason` is up to 80 characters without control
+characters. `--net <network>` picks the network when the computer has several. Exit codes: 0 done, 1 refused by the
+node or no such member, 2 wrong command line, 3 no node running.
+
+Admit the member who waits, on a node with its own settings file:
+
+```sh
+meshtown member list --config /etc/meshtown/config.json
+meshtown member admit laptop --config /etc/meshtown/config.json
+```
 
 ## Domain list
 
