@@ -62,7 +62,17 @@ pub(super) fn open_log(dir: &Path, name: &str) -> std::io::Result<std::fs::File>
     std::fs::create_dir_all(dir)?;
     let path = dir.join(name);
     rotate_old_log(&path);
-    std::fs::File::create(path)
+    create_private(&path)
+}
+
+/// Creates (truncates) the file readable by its owner only on Unix; elsewhere a plain create.
+#[cfg(any(test, windows, target_os = "macos"))]
+fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    options.open(path)
 }
 
 /// Moves an existing log to `<path>.1` (an old `.1` is replaced; a failure is ignored).
@@ -71,8 +81,17 @@ fn rotate_old_log(path: &Path) {
     if path.exists() {
         let mut old = path.as_os_str().to_owned();
         old.push(".1");
-        let _ = std::fs::rename(path, old);
+        let _ = std::fs::rename(path, &old);
+        #[cfg(unix)]
+        make_private(Path::new(&old));
     }
+}
+
+/// Restricts a rotated log to its owner; a failure is ignored like the rename.
+#[cfg(all(unix, any(test, windows, target_os = "macos")))]
+fn make_private(path: &Path) {
+    use std::os::unix::fs::PermissionsExt;
+    let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
 }
 
 /// The node log `meshtown.log` (the same rotation in the standard config directory) that the
