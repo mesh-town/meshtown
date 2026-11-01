@@ -27,9 +27,9 @@ unpacked body otherwise (including when the header is absent); both answers carr
 The listing of the `core/web_gui/ui/` directory is not served at any address: the handler knows exactly 10
 paths from the table (`PAGES`), and any other one (including the directory itself) gets a 404 `not_found`.
 
-Size of the embedded files: `bundle/app.js` ~169 KB, `css/*.css` ~18 KB, `index.html` under 1 KB —
-about 188 KB in total (188,041 bytes). The static ceiling is 300,000 bytes; when
-it is exceeded, the e2e check `static-limits.spec.ts` warns.
+Size of the embedded files: `bundle/app.js` ~357 KB, `css/*.css` ~42 KB, `index.html` under 1 KB —
+about 400 KB in total (about 134 KB gzipped, which is how a browser receives them). The static ceiling is
+450,000 bytes; when it is exceeded, the page-source check `static-limits.test.mjs` warns.
 
 ### 3.1 Where the listener sits in the entry point
 
