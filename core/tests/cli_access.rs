@@ -131,9 +131,15 @@ fn bogus_mode_is_code_2() {
 
 /// The page answers before the network is up; the restart is refused with "is starting" until then.
 fn restart_when_ready(node: &CliNode) -> std::process::Output {
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(20);
+    access_proxy_when_ready(node, "localnet")
+}
+
+/// `access proxy <value>`, repeated while the node asks to run the command again.
+/// Joining the DHT takes seconds, longer when the bootstrap node does not answer.
+fn access_proxy_when_ready(node: &CliNode, value: &str) -> std::process::Output {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
     loop {
-        let o = node.cli(&["access", "proxy", "localnet"]);
+        let o = node.cli(&["access", "proxy", value]);
         let busy = err(&o).contains("run the command again");
         if !busy || std::time::Instant::now() > deadline {
             return o;
@@ -195,6 +201,22 @@ fn lan_address() -> Option<std::net::IpAddr> {
     (!ip.is_loopback() && !ip.is_unspecified()).then_some(ip)
 }
 
+/// Waits until the proxy answers on the address of this machine other than loopback (up to 30 s).
+fn wait_until_widened(port: u16) {
+    let Some(ip) = lan_address() else {
+        return std::thread::sleep(std::time::Duration::from_secs(8));
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let addr = std::net::SocketAddr::new(ip, port);
+    while std::time::Instant::now() < deadline {
+        let open = std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(1));
+        if open.is_ok() {
+            return;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+}
+
 #[test]
 fn proxy_narrowed_again_without_reading_the_page() {
     // given: a proxy on localhost, widened to localnet by one command
@@ -206,9 +228,9 @@ fn proxy_narrowed_again_without_reading_the_page() {
     let node = CliNode::start_with_config(&config, &["--socks", "--socks-port", &port.to_string()]);
     let widened = restart_when_ready(&node);
     assert_eq!(widened.status.code(), Some(0), "stderr: {}", err(&widened));
-    std::thread::sleep(std::time::Duration::from_secs(8));
+    wait_until_widened(port);
     // when: it is narrowed again, nothing has read the state of the node in between
-    let narrowed = node.cli(&["access", "proxy", "localhost"]);
+    let narrowed = access_proxy_when_ready(&node, "localhost");
     // then: the proxy is restarted, not left as "unchanged", and the wide address is closed
     assert_eq!(
         narrowed.status.code(),

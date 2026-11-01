@@ -1833,7 +1833,7 @@ dependencies = [
 [[package]]
 name = "libudx"
 version = "1.7.3"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "libc",
  "portable-atomic",
@@ -2579,7 +2579,7 @@ checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 [[package]]
 name = "peeroxide-dht"
 version = "1.7.3"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "blake2",
  "chacha20 0.9.1",
@@ -3676,8 +3676,8 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "townjump-dht"
-version = "0.1.2"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "thiserror 2.0.20",
  "tokio",
@@ -3686,20 +3686,22 @@ dependencies = [
 
 [[package]]
 name = "townjump-dht-peeroxide"
-version = "0.1.2"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "libudx",
  "peeroxide-dht",
  "tokio",
  "townjump-dht",
  "townjump-keys",
+ "townjump-lan",
+ "tracing",
 ]
 
 [[package]]
 name = "townjump-keys"
-version = "0.1.2"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -3708,17 +3710,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "townjump-lan"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
+dependencies = [
+ "getrandom 0.3.4",
+ "if-addrs",
+ "socket2",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "townjump-logger"
-version = "0.1.2"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "tokio",
 ]
 
 [[package]]
 name = "townjump-pipe"
-version = "0.1.2"
-source = "git+https://github.com/mesh-town/townjump?rev=66c8cb0ab007a2fd6debcf550f6ee1fe40741cee#66c8cb0ab007a2fd6debcf550f6ee1fe40741cee"
+version = "0.1.7"
+source = "git+https://github.com/mesh-town/townjump?rev=a72527780b3f8682e301eb19c039c0a90fdebcc3#a72527780b3f8682e301eb19c039c0a90fdebcc3"
 dependencies = [
  "portable-atomic",
  "tokio",

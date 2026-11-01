@@ -19,12 +19,20 @@ pub(super) fn factory_for(
     factory
 }
 
+/// The factory before the saved table is added. LAN discovery stays off until it is a product
+/// decision; its path ignores the dial options (relay, hole punch).
 fn base_factory(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
-    match bootstrap {
+    let mut factory = match bootstrap {
         Some(list) => PeeroxideFactory {
             bootstrap: Some(list),
             ..Default::default()
         },
         None => PeeroxideFactory::from_env(),
-    }
+    };
+    factory.lan_discovery = false;
+    factory
 }
+
+#[cfg(test)]
+#[path = "factory_tests.rs"]
+mod tests;
