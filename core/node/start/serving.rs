@@ -136,7 +136,11 @@ fn setup_ports(
         crate::node::output::spawn(run_announce(ports_doc.clone(), net.ports.clone()))
             .abort_handle(),
     );
-    let opener = Opener::new(net.stack.clone(), net.members.clone());
+    let opener = Opener::new_counted(
+        net.stack.clone(),
+        net.members.clone(),
+        net.exit_traffic.clone(),
+    );
     opener.reconcile_listeners(cfg.settings.ports_opened.clone());
     (ports_doc, opener)
 }

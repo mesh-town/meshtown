@@ -103,7 +103,11 @@ fn served_builder(
         .serve(svc::EXIT, crate::exit::exit_service(exit_cfg))
         .serve(
             svc::PORT,
-            crate::ports_sharing::port_service(wired.members.clone(), serve.ports.clone()),
+            crate::ports_sharing::port_service_counted(
+                wired.members.clone(),
+                serve.ports.clone(),
+                serve.exit_traffic.clone(),
+            ),
         )
         .serve(
             svc::INVITE,

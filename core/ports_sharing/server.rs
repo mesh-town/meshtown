@@ -27,7 +27,7 @@ use super::frame::{
 use super::table::{LocalState, PublishedPortsTable};
 use super::types::{Audience, Proto};
 use super::udp::{serve_udp_stream, UdpSession, MAX_UDP_SESSIONS_SERVED, SERVE_IDLE};
-use crate::exit::{splice, KeyedLineRate};
+use crate::exit::{splice, Direction, ExitTraffic, KeyedLineRate};
 use crate::members::membership::Members;
 use crate::node::output::say;
 use crate::node::tcp_tune::disable_nagle;
@@ -46,15 +46,27 @@ pub struct PortServer {
     pub udp_sessions: Arc<Semaphore>,
     /// Pacing of the "UDP port opened" log line per member and port.
     pub(crate) udp_lines: Arc<KeyedLineRate<(PeerId, u16)>>,
+    /// Where the bytes of incoming connections are counted as "through us".
+    pub(crate) traffic: ExitTraffic,
 }
 
 /// Ports handler for `NetStack`.
 pub fn port_service(members: Members, table: PublishedPortsTable) -> Arc<dyn ServiceHandler> {
+    port_service_counted(members, table, ExitTraffic::default())
+}
+
+/// Like `port_service`, but incoming connections are counted in `traffic`.
+pub fn port_service_counted(
+    members: Members,
+    table: PublishedPortsTable,
+    traffic: ExitTraffic,
+) -> Arc<dyn ServiceHandler> {
     Arc::new(PortServer {
         members,
         table,
         udp_sessions: Arc::new(Semaphore::new(MAX_UDP_SESSIONS_SERVED)),
         udp_lines: Arc::default(),
+        traffic,
     })
 }
 
@@ -67,6 +79,7 @@ impl ServiceHandler for PortServer {
 /// Accepts the connection's streams; any `accept` error is a quiet end of the loop.
 async fn serve_conn(server: PortServer, conn: Arc<dyn PeerConn>) {
     let peer = conn.peer();
+    server.traffic.watch(conn.clone(), Direction::ThroughUs);
     while let Ok(pair) = conn.accept().await {
         spawn_stream(&server, peer, pair);
     }
@@ -278,3 +291,7 @@ mod stream_tests;
 #[cfg(test)]
 #[path = "server_udp_tests.rs"]
 mod udp_tests;
+
+#[cfg(test)]
+#[path = "server_traffic_tests.rs"]
+mod traffic_tests;

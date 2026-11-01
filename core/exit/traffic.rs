@@ -5,10 +5,12 @@
 //! returns the sum of samples over `WINDOW` divided by its length — bytes/s per peer and direction.
 //! Direction is the connection's side: `ThroughPeer` — our outgoing EXIT connections (we go
 //! through the peer), `ThroughUs` — incoming ones (the peer goes through us).
-//! What it doesn't do: it doesn't count ports (`PORT`), volume probes, sync, or direct exit; doesn't print
+//! `PORT` connections (port forwarding) are watched the same way and add up with the exit ones.
+//! What it doesn't do: it doesn't count volume probes, sync, or direct exit; doesn't print
 //! lines; doesn't know the roles of the badge ring.
 //! Links: `ExitService::handle` calls `watch(.., ThroughUs)`, `PeerConnPool::connect` —
-//! `watch(.., ThroughPeer)`; read by `node_ctl::snapshot::collect` through `rates_at`.
+//! `watch(.., ThroughPeer)`; `PortServer` calls `watch(.., ThroughUs)` and `Opener` pools
+//! `watch(.., ThroughPeer)` for `PORT`; read by `node_ctl::snapshot::collect` through `rates_at`.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};

@@ -15,6 +15,7 @@ fn server() -> PortServer {
         table: PublishedPortsTable::new(vec![]),
         udp_sessions: Arc::new(Semaphore::new(1)),
         udp_lines: Arc::default(),
+        traffic: Default::default(),
     }
 }
 
