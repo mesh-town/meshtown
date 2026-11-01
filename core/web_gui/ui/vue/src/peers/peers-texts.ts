@@ -14,7 +14,7 @@ export function peersOfflineSeenText(seen: string): string {
 
 export const PEERS_ONLINE = "online";
 export const PEERS_DIRECT = "direct";
-export const PEERS_RELAY = "via relay server";
+export const PEERS_RELAY = "through another member";
 
 export function peersRttText(ms: number): string {
   return ms + " ms";

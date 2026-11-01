@@ -279,6 +279,26 @@ meshtown member list --config /etc/meshtown/config.json
 meshtown member admit laptop --config /etc/meshtown/config.json
 ```
 
+## When a direct connection fails (relay)
+
+Nodes connect to each other directly, getting through their routers (NAT hole punching). When that does not
+work — some mobile operators and a few routers prevent it — the node reaches the other member through a third
+member of the same network, which relays the connection. Nothing has to be set up: relaying is on by default.
+
+- **Who relays.** Any member of the network except one behind a NAT that gives every connection a different
+  external port (a "random" NAT; some mobile operators do that). No public address is needed. A member starts
+  relaying once it has learned its own NAT type, not immediately after start.
+- **Who may use it.** Only members of the same network; your node relays only for them.
+- **What the relaying member sees.** The traffic is encrypted end to end. The relaying member sees which members
+  it connects, when and how much they send, not the content.
+- **What the page shows.** In the member list and next to an exit, the path reads `direct` or
+  `through another member`. The relayed side does not learn which member relays.
+- **Turning it off.** `"net": { "relay": "off" }` in the settings file (see [CONFIG-FILE.md](CONFIG-FILE.md),
+  section 8.3) stops both using and serving a relay; it takes effect after the node restarts.
+- **When it does not help.** If every member is behind a random NAT, a failed direct connection has no fallback.
+  A relay without a public address is reached by its key through the DHT and can take a while to connect.
+  See [LIMITATIONS.md](LIMITATIONS.md).
+
 ## Domain list
 
 Every node has its own domain list. It is kept only on this node and is not passed to other members. The results of

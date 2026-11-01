@@ -122,8 +122,8 @@ describe("exitMetaText", () => {
     assert.equal(exitMetaText({ online: true, rttMs: 30, path: "direct" }), "online · direct · 30 ms");
   });
 
-  it("via relay server — \"online · via relay server · 30 ms\"", () => {
-    assert.equal(exitMetaText({ online: true, rttMs: 30, path: "relay" }), "online · via relay server · 30 ms");
+  it("through another member — \"online · through another member · 30 ms\"", () => {
+    assert.equal(exitMetaText({ online: true, rttMs: 30, path: "relay" }), "online · through another member · 30 ms");
   });
 
   it("no latency — \"online\"; the words \"relay\" and \"offline\" are absent", () => {

@@ -52,7 +52,7 @@ fn relay_connect_line(
     let via = match relay {
         RelayRef::Peer(id) => format!("relay of {}", label(*id)),
         RelayRef::Url(url) => format!("relay of {url}"),
-        RelayRef::Unnamed => "a relay server".to_string(),
+        RelayRef::Unnamed => "another member".to_string(),
     };
     Some(format!("connected to {who} via {via}"))
 }

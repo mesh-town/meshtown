@@ -100,11 +100,11 @@ describe("statePanel", () => {
   });
 
   describe("an exit is chosen", () => {
-    it("green, the member is named by the active exit, without an id; online · via relay server · 30 ms", () => {
+    it("green, the member is named by the active exit, without an id; online · through another member · 30 ms", () => {
       const p = statePanel(exitSnap({ path: "relay", rtt_ms: 30 }));
       assert.equal(p.level, "green");
       assert.equal(p.main, "In the browser, sites open via peer-one");
-      assert.equal(p.sub, "online · via relay server · 30 ms");
+      assert.equal(p.sub, "online · through another member · 30 ms");
     });
 
     it("path direct — \"direct\" in the tail", () => {
