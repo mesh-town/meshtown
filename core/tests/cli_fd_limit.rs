@@ -153,10 +153,8 @@ fn version_flag_stdout_is_one_line() {
     assert!(!out.contains("open files limit"), "stdout: {out}");
     let lines: Vec<&str> = out.lines().filter(|l| !l.trim().is_empty()).collect();
     assert_eq!(lines.len(), 1, "stdout: {out}");
-    assert_eq!(
-        lines[0].trim(),
-        format!("meshtown {}", env!("CARGO_PKG_VERSION"))
-    );
+    let prefix = format!("meshtown {}", env!("CARGO_PKG_VERSION"));
+    assert!(lines[0].trim().starts_with(&prefix), "stdout: {out}");
 }
 
 #[test]

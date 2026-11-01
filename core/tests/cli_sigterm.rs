@@ -42,9 +42,15 @@ struct Proc {
 
 impl Proc {
     fn start() -> Proc {
+        Proc::start_with(&["--no-config", "--web-port", "0"])
+    }
+
+    /// Starts `run` with the given settings-file and page-port arguments after the common ones.
+    fn start_with(place: &[&str]) -> Proc {
         let key = managed_key_text();
         let mut child = Command::new(env!("CARGO_BIN_EXE_meshtown"))
-            .args(["run", "--no-config", "--key", &key, "--web-port", "0"])
+            .args(["run", "--key", &key])
+            .args(place)
             .args(["--set", "checks.enabled=false", "--no-socks"])
             .env("TOWNJUMP_BOOTSTRAP", "127.0.0.1:9")
             .env_remove("MESHTOWN_KEY")
@@ -202,6 +208,40 @@ fn sigterm_during_start_exits_quickly_with_zero_and_message() {
         "the process waited for the start to end: {:#?}",
         node.seen
     );
+}
+
+#[test]
+fn sigterm_right_after_the_first_line_exits_with_zero() {
+    // given: a settings directory with a token and a silent foreign listener on the page port, so the start
+    // spends about a second probing that port before the host takes over
+    let silent = std::net::TcpListener::bind("127.0.0.1:0").expect("port");
+    let port = silent.local_addr().unwrap().port().to_string();
+    let dir = std::env::temp_dir().join(format!("mesh-sigterm-early-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("directory");
+    std::fs::write(dir.join("web-token"), "probe-token\n").expect("token");
+    let config = dir.join("config.json");
+    let mut node = Proc::start_with(&["--config", config.to_str().unwrap(), "--web-port", &port]);
+    assert!(
+        node.wait_line("meshtown ", START_LIMIT),
+        "no first line: {:#?}",
+        node.seen
+    );
+
+    // when: SIGTERM comes right after the first line
+    node.sigterm();
+    let exit = node.wait_exit(START_STOP_LIMIT);
+    node.drain();
+
+    // then: a clean exit with the stop line
+    let (code, _) = exit.unwrap_or_else(|| panic!("did not exit; output: {:#?}", node.seen));
+    assert_eq!(code, 0, "exit code; output: {:#?}", node.seen);
+    assert!(
+        node.has_line("received stop signal"),
+        "no stop line: {:#?}",
+        node.seen
+    );
+    drop(silent);
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 /// A Managed network key of a fresh base, created by an arbitrary node.

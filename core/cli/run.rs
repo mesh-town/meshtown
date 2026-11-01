@@ -106,9 +106,11 @@ async fn execute(
     #[cfg(not(feature = "gui"))]
     let _ = tray;
     let g = &cli.globals;
+    divert_diagnostics(&cli.command);
     match cli.command {
         CliCommand::Run(args) => {
             g.allow("run", &[])?;
+            crate::node::host::signal::install_early_stop_signal();
             report_run_start(fd_note);
             let m = matches.subcommand_matches("run").expect("run subcommand");
             crate::cli::commands::run_node_command(args.with_globals(g), m).await
@@ -136,6 +138,20 @@ async fn execute(
             crate::node::fd_limit::report(fd_note);
             crate::gui::tray::app::tray_role::run_tray(args, g, require_tray(tray)?)
         }
+    }
+}
+
+/// The stdout of every command except `run` and `tray` is data, so the lines the shared code prints through
+/// `say` (such as the directory-mode warning) go to stderr for them.
+fn divert_diagnostics(command: &CliCommand) {
+    let keeps_stdout = match command {
+        CliCommand::Run(_) => true,
+        #[cfg(feature = "gui")]
+        CliCommand::Tray(_) => true,
+        _ => false,
+    };
+    if !keeps_stdout {
+        crate::node::output::log_to_stderr();
     }
 }
 

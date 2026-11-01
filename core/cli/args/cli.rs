@@ -14,7 +14,7 @@ use clap::{ArgAction, ArgMatches, CommandFactory, Parser, Subcommand};
 #[derive(Parser)]
 #[command(
     name = "meshtown",
-    version,
+    version = env!("MESHTOWN_BUILD_VERSION"),
     about = "Reach the services on your devices from anywhere — a private peer-to-peer network with no port forwarding, no central server and no accounts.",
     help_template = HELP,
     override_usage = "meshtown [COMMAND]",
