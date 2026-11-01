@@ -25,6 +25,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Page: a relayed neighbour is labelled `through another member` instead of `via relay server`; the node log says
+  `another member` instead of `a relay server`.
 - The Homebrew tap is renamed to `mesh-town/homebrew-macos`: install with `brew install mesh-town/macos/meshtown`.
   An existing `mesh-town/meshtown` tap keeps updating through the GitHub redirect.
 

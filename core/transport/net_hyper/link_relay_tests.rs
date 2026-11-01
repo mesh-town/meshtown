@@ -55,7 +55,7 @@ mod route_text {
         // when
         let text = route_text(Some(RelayRef::Unnamed));
         // then
-        assert_eq!(text, "relayed via a relay server");
+        assert_eq!(text, "relayed via another member");
     }
 }
 

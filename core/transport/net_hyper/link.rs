@@ -142,7 +142,7 @@ fn route_text(relay: Option<RelayRef>) -> String {
         None => "direct UDX".to_string(),
         Some(RelayRef::Peer(id)) => format!("relayed via member {}", id.fmt_short()),
         Some(RelayRef::Url(url)) => format!("relayed via {url}"),
-        Some(RelayRef::Unnamed) => "relayed via a relay server".to_string(),
+        Some(RelayRef::Unnamed) => "relayed via another member".to_string(),
     }
 }
 

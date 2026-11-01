@@ -53,7 +53,7 @@ describe("peerMetaText", () => {
 
   it("online — path and latency", () => {
     assert.equal(peerMetaText(ONE, STATE), "online · direct · 30 ms");
-    assert.equal(peerMetaText({ ...ONE, path: "relay", rtt_ms: null }, STATE), "online · via relay server");
+    assert.equal(peerMetaText({ ...ONE, path: "relay", rtt_ms: null }, STATE), "online · through another member");
   });
 
   it("offline — \"last seen N min ago\", without a timestamp — just \"offline\"", () => {

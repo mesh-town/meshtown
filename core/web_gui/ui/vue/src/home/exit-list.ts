@@ -56,7 +56,7 @@ function countryName(code: string): string {
   }
 }
 
-// On the right, small: connection, path (direct / via relay server), latency.
+// On the right, small: connection, path (direct / through another member), latency.
 export function exitMetaText(item: Pick<ExitCandidate, "online" | "path" | "rttMs" | "blocked" | "notExit">): string {
   if (item.blocked) return forDevice(BADGE_BLOCKED);
   if (!item.online) return HOME_LINK_OFFLINE;

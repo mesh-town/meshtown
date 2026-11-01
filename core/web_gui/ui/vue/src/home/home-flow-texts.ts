@@ -9,7 +9,7 @@ export const HOME_LINK_ONLINE = "online";
 export const HOME_LINK_OFFLINE = "offline";
 export const HOME_EXIT_NOT_OFFERED = "not an exit";
 export const HOME_LINK_DIRECT = "direct";
-export const HOME_LINK_RELAY = "via relay server";
+export const HOME_LINK_RELAY = "through another member";
 export const rttMsText = (ms: number): string => ms + " ms";
 
 // browser-setup.ts

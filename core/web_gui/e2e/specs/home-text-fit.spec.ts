@@ -110,7 +110,7 @@ test(
 
     await test.step('375: the name and caption rectangles do not overlap, the caption is below the name', async () => {
       await app.resize(NARROW);
-      await expect(page.locator('#exit-list .exit-meta').first()).toContainText('via relay server');
+      await expect(page.locator('#exit-list .exit-meta').first()).toContainText('through another member');
       const { label, meta } = await rects();
       expect.soft(overlap(label, meta), `the name ${JSON.stringify(label)} and the caption ${JSON.stringify(meta)} overlap`).toBe(false);
       expect.soft(meta.y, 'the caption is below the name').toBeGreaterThanOrEqual(label.y + label.height - 1);

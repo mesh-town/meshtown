@@ -150,7 +150,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Documentation
 
-- [docs/USAGE.md](docs/USAGE.md) — running the node, the settings file, invites, proxy and exit, the node page, the log.
+- [docs/USAGE.md](docs/USAGE.md) — running the node, the settings file, invites, proxy and exit, relay, the node page, the log.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, protocols, data flow.
 - [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md) — the settings file.
 - [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md),

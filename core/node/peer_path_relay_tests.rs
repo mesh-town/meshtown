@@ -36,7 +36,7 @@ fn relayed_by_unnamed_relay_says_relay_server() {
     // then
     let line = line.expect("a relayed path has a line");
     assert!(
-        line.starts_with("connected to alice via ") && line.ends_with("a relay server"),
+        line.starts_with("connected to alice via ") && line.ends_with("another member"),
         "line is {line:?}"
     );
 }

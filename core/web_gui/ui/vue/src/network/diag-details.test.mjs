@@ -6,7 +6,7 @@ import { NET_NAME } from "../common/words.ts";
 import { transportRows, aboutLines, eventRows, peerAddrResultText } from "./diag-details.ts";
 
 describe("transportRows", () => {
-  it("four rows, no \"relay server\" row", () => {
+  it("four rows, no \"relay\" row", () => {
     const rows = transportRows(transport());
     assert.deepEqual(
       rows.map((r) => r.label),
