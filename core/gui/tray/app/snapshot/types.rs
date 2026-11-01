@@ -122,6 +122,9 @@ pub struct TrayPeer {
     /// Bytes/s of the peer's traffic through our exit.
     #[serde(deserialize_with = "lenient::opt_u64")]
     pub through_us_bps: Option<u64>,
+    /// The path to the peer: `"direct"` or `"relay"`; a missing or unknown key gives `None`.
+    #[serde(deserialize_with = "lenient::opt_string")]
+    pub path: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Deserialize)]

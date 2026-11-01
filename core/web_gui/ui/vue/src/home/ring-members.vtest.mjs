@@ -18,6 +18,21 @@ describe("ringMembers", () => {
     });
   });
 
+  describe("exit through another member", () => {
+    it("relayed flag only for the via member", () => {
+      const peers = [peer("ex", { path: "relay" }), peer("on", { path: "relay" }), peer("cl", { path: "relay" })];
+      const m = ringMembers(snap({ peers, exits: [exit("ex", { active: true })], clients: ["cl_full"] }));
+      expect(Object.fromEntries(m.map((x) => [x.label, x.relayed]))).toEqual({ ex: true, on: false, cl: false });
+    });
+
+    it("a direct or unknown path to the exit is not relayed", () => {
+      const m = ringMembers(snap({ peers: [peer("ex", { path: "direct" })], exits: [exit("ex", { active: true })] }));
+      expect(m[0].relayed).toBe(false);
+      const n = ringMembers(snap({ peers: [peer("ex", { path: null })], exits: [exit("ex", { active: true })] }));
+      expect(n[0].relayed).toBe(false);
+    });
+  });
+
   describe("roles without an exit", () => {
     it("the own node does not get into the ring", () => {
       const m = ringMembers(snap({ peers: [peer("me", { self: true }), peer("aa")] }));
@@ -80,12 +95,12 @@ describe("ringMembers", () => {
       const exits = [exit("zz", { active: true, name: "Exit-Z" })];
       const m = ringMembers(snap({ peers: [peer("aa")], exits }));
       expect(m).toHaveLength(2);
-      expect(m.filter((x) => x.role === "via")).toEqual([{ role: "via", label: "Exit-Z", idFull: "zz_full" }]);
+      expect(m.filter((x) => x.role === "via")).toEqual([{ role: "via", label: "Exit-Z", idFull: "zz_full", relayed: false }]);
     });
 
     it("without a name the label is the exit's short id", () => {
       const m = ringMembers(snap({ peers: [], exits: [exit("zz", { active: true })] }));
-      expect(m).toEqual([{ role: "via", label: "zz", idFull: "zz_full" }]);
+      expect(m).toEqual([{ role: "via", label: "zz", idFull: "zz_full", relayed: false }]);
     });
   });
 

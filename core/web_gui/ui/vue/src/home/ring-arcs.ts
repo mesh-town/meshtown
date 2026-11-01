@@ -62,6 +62,13 @@ function byRoles(members: RingMember[], r: number, keep: number): RingArc[] {
   return layout(groups.map((g, i) => ({ role: g.role, members: g.list, lengthPx: lengths[i] })), r);
 }
 
+/** The `stroke-dasharray` of an arc drawn dashed (the path goes through another member), or null: solid. */
+export function arcDash(arc: RingArc, narrow: boolean): string | null {
+  if (!arc.members.every((m) => m.relayed)) return null;
+  if (arc.lengthPx < (narrow ? RING.minDashArcNarrowPx : RING.minDashArcWidePx)) return null;
+  return narrow ? RING.dashNarrow : RING.dashWide;
+}
+
 interface ArcOpts {
   minArcPx?: number;
   keepRolePx?: number;

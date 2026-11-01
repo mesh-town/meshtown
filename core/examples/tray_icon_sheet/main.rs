@@ -81,6 +81,28 @@ fn online(n: usize) -> Case {
     }
 }
 
+/// The exit reached through another member: dashed in a ring that is wide enough.
+fn relay_cases() -> Vec<Case> {
+    let mixed = [
+        (RingRole::ExitViaRelay, 1),
+        (RingRole::ExitClient, 1),
+        (RingRole::Online, 2),
+        (RingRole::Offline, 1),
+    ];
+    let small = [(RingRole::ExitViaRelay, 1), (RingRole::Online, 2)];
+    [
+        ("exit-via-relay", &mixed[..]),
+        ("exit-via-relay-only", &small[..]),
+    ]
+    .into_iter()
+    .map(|(slug, parts)| Case {
+        slug,
+        ring: ring_of(parts),
+        lit: None,
+    })
+    .collect()
+}
+
 /// All cases in sheet order.
 fn cases() -> Vec<Case> {
     let mut all: Vec<Case> = [2, 3, 5, 8, 9, 16, 17].into_iter().map(online).collect();
@@ -99,6 +121,7 @@ fn cases() -> Vec<Case> {
         ]),
         lit: None,
     });
+    all.extend(relay_cases());
     all.push(Case {
         slug: "six-all-grey",
         ring: ring_of(&[(RingRole::Offline, 6)]),

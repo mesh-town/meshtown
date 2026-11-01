@@ -10,9 +10,10 @@ const COLORS: [TrayColor; 4] = [
     TrayColor::GreenOutline,
 ];
 
-const ALL_ROLES: [RingRole; 5] = [
+const ALL_ROLES: [RingRole; 6] = [
     RingRole::ExitDown,
     RingRole::ActiveExit,
+    RingRole::ExitViaRelay,
     RingRole::ExitClient,
     RingRole::Online,
     RingRole::Offline,
@@ -66,11 +67,59 @@ mod role_colours {
     }
 
     #[test]
-    fn five_roles_have_distinct_colours() {
-        let colours: Vec<[u8; 3]> = ALL_ROLES.iter().map(|&role| role_rgb(role)).collect();
+    fn roles_have_distinct_colours_apart_from_the_dashed_exit() {
+        let colours: Vec<[u8; 3]> = ALL_ROLES
+            .iter()
+            .filter(|&&role| role != RingRole::ExitViaRelay)
+            .map(|&role| role_rgb(role))
+            .collect();
         for (i, a) in colours.iter().enumerate() {
             assert!(colours[i + 1..].iter().all(|b| a != b), "{colours:?}");
         }
+    }
+}
+
+mod relay_roles {
+    use super::*;
+
+    const EXIT: &str = "e1";
+
+    fn role(id: &str, online: bool, down: &[&str], relayed: bool) -> RingRole {
+        classify_peer_role(Some(id), online, (Some(EXIT), down), &[], relayed)
+    }
+
+    #[test]
+    fn via_relay_exit_gets_its_own_role() {
+        assert_eq!(role(EXIT, true, &[], true), RingRole::ExitViaRelay);
+        assert_eq!(role(EXIT, true, &[], false), RingRole::ActiveExit);
+        let tail = RingRole::ExitViaRelay;
+        assert_eq!(role_rgb(tail), role_rgb(RingRole::ActiveExit));
+        assert_eq!(RING_ROLES[RingRole::ActiveExit as usize + 1], tail);
+    }
+
+    #[test]
+    fn relay_never_beats_red_or_grey() {
+        assert_eq!(role(EXIT, true, &[EXIT], true), RingRole::ExitDown);
+        assert_eq!(role(EXIT, false, &[], true), RingRole::Offline);
+    }
+
+    #[test]
+    fn non_exit_peer_with_relay_stays_online() {
+        assert_eq!(role("p2", true, &[], true), RingRole::Online);
+    }
+
+    #[test]
+    fn path_comes_from_the_snapshot_peer() {
+        let peer = |path: Option<&str>| TrayPeer {
+            id_full: Some(EXIT.into()),
+            online: true,
+            path: path.map(String::from),
+            ..TrayPeer::default()
+        };
+        let role_of = |path| peer_role(&peer(path), Some(EXIT), &[], &[]);
+        assert_eq!(role_of(Some("relay")), Some(RingRole::ExitViaRelay));
+        assert_eq!(role_of(Some("direct")), Some(RingRole::ActiveExit));
+        assert_eq!(role_of(None), Some(RingRole::ActiveExit));
     }
 }
 
@@ -84,6 +133,7 @@ mod ring_counts {
             RingRole::Online,
             RingRole::ExitClient,
             RingRole::ActiveExit,
+            RingRole::ExitViaRelay,
             RingRole::ExitDown,
         ]);
         assert_eq!(roles_of(ring), ALL_ROLES);
@@ -108,7 +158,7 @@ mod ring_counts {
         let ring = ring_of(&roles);
         assert_eq!(ring.len(), 40);
         let counts = ALL_ROLES.map(|role| ring.count(role));
-        assert_eq!(counts, [1, 1, 3, 20, 15]);
+        assert_eq!(counts, [1, 1, 0, 3, 20, 15]);
     }
 
     #[test]

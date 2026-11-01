@@ -22,9 +22,9 @@ describe("ringView", () => {
 
   it("legend — by roles with members", () => {
     expect(ringView(snap(), "green").legend).toEqual([
-      { role: "via", text: "Your exit: Exit" },
-      { role: "online", text: "Also online: 1" },
-      { role: "offline", text: "Offline: 1" },
+      { role: "via", text: "Your exit: Exit", relayed: false },
+      { role: "online", text: "Also online: 1", relayed: false },
+      { role: "offline", text: "Offline: 1", relayed: false },
     ]);
   });
 

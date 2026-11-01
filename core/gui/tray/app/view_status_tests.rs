@@ -176,6 +176,15 @@ mod status_line {
     }
 
     #[test]
+    fn running_green_via_exit_through_another_member() {
+        let route = RouteLine::ViaRelay("Alex".to_string());
+        assert_eq!(
+            node_status_menu_line(running_green(), &route),
+            "In the browser, sites open via Alex (reached through another member)"
+        );
+    }
+
+    #[test]
     fn running_green_single_exit_unavailable() {
         let route = RouteLine::Unavailable(Some("Alex".to_string()));
         assert_eq!(

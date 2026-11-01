@@ -22,6 +22,30 @@ describe("RingMark", () => {
     });
   });
 
+  describe("exit through another member", () => {
+    const via = { role: "via", label: "nas", idFull: "n", relayed: true };
+
+    it("dasharray 6 3 wide, 4 2 narrow", () => {
+      const wide = mountRing([via, ...many({ online: 1 })]).get("path.ring-via");
+      expect(wide.classes()).toContain("ring-relayed");
+      expect(wide.attributes("stroke-dasharray")).toBe("6 3");
+      const narrow = mountRing([via, ...many({ online: 1 })], { size: 64, thickness: 8 }).get("path.ring-via");
+      expect(narrow.attributes("stroke-dasharray")).toBe("4 2");
+    });
+
+    it("short arc has no relayed class", () => {
+      const w = mountRing([via, ...many({ online: 30 })], { size: 64, thickness: 8 });
+      const arc = w.get("path.ring-via");
+      expect(arc.classes()).not.toContain("ring-relayed");
+      expect(arc.attributes("stroke-dasharray")).toBeUndefined();
+    });
+
+    it("a direct exit has no dash", () => {
+      const w = mountRing([{ ...via, relayed: false }, ...many({ online: 1 })]);
+      expect(w.get("path.ring-via").attributes("stroke-dasharray")).toBeUndefined();
+    });
+  });
+
   describe("arcs", () => {
     it("three members — three paths", () => {
       expect(mountRing(many({ online: 3 })).findAll("path")).toHaveLength(3);

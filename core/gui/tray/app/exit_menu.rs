@@ -15,9 +15,7 @@ use crate::web_gui::RouteMode;
 use crate::gui::tray::app::nets_menu::{ExitGroup, NetMenu};
 use crate::gui::tray::app::overview::Notice;
 use crate::gui::tray::app::proxy_state::{ProxyOff, ProxyState};
-use crate::gui::tray::app::snapshot::{
-    TrayChosenExit, TrayMembers, TrayPeer, TrayRoute, TraySnapshot,
-};
+use crate::gui::tray::app::snapshot::{TrayChosenExit, TrayMembers, TrayPeer, TraySnapshot};
 use crate::gui::tray::app::tray_texts::{peer_offline_text, peer_unnamed_text, EMPTY_HINT};
 use crate::gui::tray::app::view::RouteLine;
 
@@ -110,7 +108,7 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
     ExitMenu {
         enabled: !snap.members.me_excluded,
         items: exit_items(snap, own_id),
-        route: route_line(&snap.route),
+        route: route_line(snap),
         proxy: ProxyState::of_snapshot(&snap.socks),
         serves_exit: snap.exit.enabled,
         members: snap.members,
@@ -136,13 +134,14 @@ fn exit_items(snap: &TraySnapshot, own_id: &str) -> Vec<ExitItem> {
 
 /// `route.state`/`route.exits[]` of the snapshot → `RouteLine`. No `route` at all (an old snapshot) —
 /// like an empty choice: `Direct`.
-fn route_line(route: &TrayRoute) -> RouteLine {
+fn route_line(snap: &TraySnapshot) -> RouteLine {
+    let route = &snap.route;
     let exits = route.exits.as_slice();
     match route.state {
         RouteMode::Exit => exits
             .iter()
             .find(|e| e.active)
-            .map(|e| RouteLine::Via(exit_route_label(e)))
+            .map(|e| via_line(snap, e))
             .unwrap_or(RouteLine::Direct),
         RouteMode::Unavailable if exits.len() == 1 => {
             RouteLine::Unavailable(Some(exit_route_label(&exits[0])))
@@ -150,6 +149,19 @@ fn route_line(route: &TrayRoute) -> RouteLine {
         RouteMode::Unavailable => RouteLine::Unavailable(None),
         RouteMode::Direct => RouteLine::Direct,
     }
+}
+
+/// The exit is online and chosen: `ViaRelay` when the snapshot says our path to it is `relay`.
+fn via_line(snap: &TraySnapshot, exit: &TrayChosenExit) -> RouteLine {
+    let name = exit_route_label(exit);
+    let peers = snap.peers.as_deref().unwrap_or_default();
+    let relayed = peers.iter().any(|p| {
+        p.id_full.is_some() && p.id_full == exit.id_full && p.path.as_deref() == Some("relay")
+    });
+    if relayed {
+        return RouteLine::ViaRelay(name);
+    }
+    RouteLine::Via(name)
 }
 
 /// The label of the chosen exit in the first menu line — the same as the submenu item's, but without

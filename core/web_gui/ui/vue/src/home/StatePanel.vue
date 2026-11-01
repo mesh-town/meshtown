@@ -20,7 +20,7 @@ defineEmits<{ (e: "pick-other"): void; (e: "direct"): void }>();
       <div class="state-main" id="route-state">{{ panel.main }}</div>
       <div v-if="panel.sub" class="state-sub">{{ panel.sub }}</div>
       <ul v-if="ring && ring.legend.length" class="ring-legend">
-        <li v-for="item in ring.legend" :key="item.role" :class="'ring-legend-' + item.role">{{ item.text }}</li>
+        <li v-for="item in ring.legend" :key="item.role" :class="['ring-legend-' + item.role, { 'ring-legend-relayed': item.relayed }]">{{ item.text }}</li>
       </ul>
       <div v-if="panel.actions.length" class="btn-row">
         <button v-if="panel.actions.includes('pick-other')" type="button" class="btn" @click="$emit('pick-other')">{{ HOME_PANEL_PICK_OTHER }}</button>

@@ -48,14 +48,14 @@ describe("ringLegend", () => {
 
   it("texts of all roles verbatim", () => {
     const m = [
-      { role: "via", label: "Dad-PC", idFull: "v" },
+      { role: "via", label: "Dad-PC", idFull: "v", relayed: false },
       ...members({ client: 5, online: 28, offline: 6 }),
     ];
     expect(ringLegend(m)).toEqual([
-      { role: "via", text: "Your exit: Dad-PC" },
-      { role: "client", text: "Opening sites through you: 5" },
-      { role: "online", text: "Also online: 28" },
-      { role: "offline", text: "Offline: 6" },
+      { role: "via", text: "Your exit: Dad-PC", relayed: false },
+      { role: "client", text: "Opening sites through you: 5", relayed: false },
+      { role: "online", text: "Also online: 28", relayed: false },
+      { role: "offline", text: "Offline: 6", relayed: false },
     ]);
   });
 
@@ -118,3 +118,16 @@ function members(counts) {
     Array.from({ length: n }, (_, i) => ({ role, label: `${role}-${i}`, idFull: `${role}-${i}_full` })),
   );
 }
+
+describe("exit through another member", () => {
+  const via = { role: "via", label: "nas", idFull: "n", relayed: true };
+
+  it("the legend says it verbatim and marks the dot", () => {
+    expect(ringLegend([via])).toEqual([{ role: "via", text: "Your exit: nas — through another member", relayed: true }]);
+  });
+
+  it("the arc title says it verbatim", () => {
+    const arc = { role: "via", members: [via], startRad: 0, endRad: 1, lengthPx: 50 };
+    expect(arcTitle(arc)).toBe("nas — your exit, online through another member");
+  });
+});

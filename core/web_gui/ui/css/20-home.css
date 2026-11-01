@@ -26,6 +26,7 @@
   .ring-arc{stroke:var(--grey);}
   .ring-arc.ring-via{stroke:var(--ring-via);} .ring-arc.ring-client{stroke:var(--ring-client);}
   .ring-arc.ring-online{stroke:var(--ring-online);} .ring-arc.ring-offline{stroke:var(--ring-offline);}
+  .ring-arc.ring-relayed{stroke-linecap:butt;}
   .ring-empty{stroke:var(--border);stroke-width:2;stroke-dasharray:4 4;}
   .ring-center-main,.ring-center-sub{position:absolute;left:0;right:0;text-align:center;line-height:1.1;}
   .ring-center-main{top:50%;transform:translateY(-50%);font-size:20px;font-weight:700;color:var(--ring-center,var(--fg));}
@@ -39,6 +40,7 @@
   .ring-legend li::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--grey);}
   .ring-legend-via::before{background:var(--ring-via)!important;} .ring-legend-client::before{background:var(--ring-client)!important;}
   .ring-legend-online::before{background:var(--ring-online)!important;} .ring-legend-offline::before{background:var(--ring-offline)!important;}
+  .ring-legend li.ring-legend-relayed::before{box-sizing:border-box;border:2px solid var(--ring-via);background:transparent!important;}
   @media (max-width: 599px){
     .state-panel.with-ring{gap:12px;align-items:flex-start;}
     /* Narrow ring: the longest count wraps by words; 8px with line-height 1 keeps even a three-line wrap in a wide fallback font (DejaVu, Courier) inside the inner circle. */
