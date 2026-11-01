@@ -101,7 +101,9 @@ impl RoundMemory {
             return None;
         }
         self.empty_rounds += 1;
-        (self.empty_rounds % EMPTY_ROUNDS_LINE_EVERY == 0).then_some(self.empty_rounds)
+        self.empty_rounds
+            .is_multiple_of(EMPTY_ROUNDS_LINE_EVERY)
+            .then_some(self.empty_rounds)
     }
 }
 
