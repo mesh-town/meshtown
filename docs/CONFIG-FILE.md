@@ -347,14 +347,15 @@ The node writes the file in four cases:
 
 Other actions (`/api/actions/*`) do not touch the file.
 
-The write order, in full:
+The write order, in full. Steps 1–5 run under an exclusive lock on an empty `config.json.lock` next to the
+file, held by the writing process; the lock file is safe to delete.
 
 1. **Re-read the file from disk.** If `rev` on disk differs from the revision in memory, the file
    was edited behind Mesh Town's back: 409 `stale_rev` with the document **from disk**, nothing written. The page already
    knows this state (a second tab), no separate handling is needed.
 2. Build the new document: the accepted fields, none of the node-computed ones is saved
    (section 4), `rev` + 1, `saved_at` — now.
-3. Write to a temporary file `config.json.tmp-<pid>` **in the same directory** (a rename across a
+3. Write to a temporary file `config.json.tmp-<pid>-<n>` **in the same directory** (a rename across a
    file system boundary is not atomic), `fsync` the file.
 4. On Unix — mode `0600` before the rename, not after. On Windows permissions are inherited from the directory and
    not set separately.

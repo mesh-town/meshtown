@@ -147,6 +147,7 @@ fn save_leaves_no_tmp() {
         .expect("directory")
         .filter_map(|e| e.ok())
         .map(|e| e.file_name().to_string_lossy().into_owned())
+        .filter(|n| n != "config.json.lock")
         .collect();
     let _ = std::fs::remove_dir_all(&dir);
     assert_eq!(names, vec![FILE_NAME.to_string()]);

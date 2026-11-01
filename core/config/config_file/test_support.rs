@@ -178,6 +178,7 @@ pub(super) fn names_in(dir: &Path) -> Vec<String> {
         .map(|rd| {
             rd.filter_map(|e| e.ok())
                 .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n != "config.json.lock")
                 .collect()
         })
         .unwrap_or_default();
