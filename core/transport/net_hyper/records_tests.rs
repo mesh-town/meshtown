@@ -154,3 +154,21 @@ async fn two_nodes_find_each_other_through_record() {
     run_a.abort();
     run_b.abort();
 }
+
+#[tokio::test]
+async fn table_size_positive_after_bootstrap() {
+    let p = pair().await;
+    // a round trip through the cluster teaches the node its neighbours
+    let _ = timeout(WITHIN, p.a.get(&key(9))).await.expect("get hung");
+    let mut n = None;
+    for _ in 0..50 {
+        n = timeout(WITHIN, p.a.table_size())
+            .await
+            .expect("table_size hung");
+        if n.is_some_and(|n| n >= 1) {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert!(n.is_some_and(|n| n >= 1), "table size: {n:?}");
+}

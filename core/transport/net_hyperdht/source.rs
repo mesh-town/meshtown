@@ -21,12 +21,15 @@ use crate::transport::net_mainline::record::Roster;
 /// How many "write and verify by reading" rounds a one-off publish makes.
 const PUBLISH_TRIES: u32 = 3;
 
-/// Round outcome for the node: the record was read (and how many members it has), our own record was updated.
+/// Round outcome for the node: the record was read (and how many members it has, `others` of them not us), our own
+/// record was updated; `table` is the DHT routing table size, `None` when the store could not tell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DhtRoundOutcome {
     pub read: bool,
     pub members: usize,
+    pub others: usize,
     pub published: bool,
+    pub table: Option<usize>,
 }
 
 /// Round outcome handler (node telemetry and log).
@@ -147,7 +150,8 @@ impl HyperDhtDiscovery {
         while !out.is_closed() {
             let res = tokio::time::timeout(self.pace.call_limit, self.round()).await;
             let res = res.unwrap_or(Err(NetError::Timeout));
-            if let Some(ids) = self.account(res, &mut tally, &mut failures) {
+            let table = self.table_size().await;
+            if let Some(ids) = self.account(res, table, &mut tally, &mut failures) {
                 let new = ids
                     .iter()
                     .filter(|i| !known.contains(*i))
@@ -164,25 +168,40 @@ impl HyperDhtDiscovery {
         }
     }
 
+    /// Routing table size from the store; a store that cannot tell or a slow answer — `None`.
+    async fn table_size(&self) -> Option<usize> {
+        let asked = tokio::time::timeout(self.pace.call_limit, self.store.table_size()).await;
+        asked.ok().flatten()
+    }
+
     /// Counts the round outcome in the log and the error counter; returns the other keys of the round (an error — `None`).
     fn account(
         &self,
         res: NetResult<Roster>,
+        table: Option<usize>,
         tally: &mut Tally,
         failures: &mut u32,
     ) -> Option<Vec<PeerId>> {
-        self.count_round(&res, tally, failures);
+        self.count_round(&res, table, tally, failures);
         res.ok().map(|r| self.others_of(&r))
     }
 
-    fn count_round(&self, res: &NetResult<Roster>, tally: &mut Tally, failures: &mut u32) {
+    fn count_round(
+        &self,
+        res: &NetResult<Roster>,
+        table: Option<usize>,
+        tally: &mut Tally,
+        failures: &mut u32,
+    ) {
         let now = Instant::now();
         match res {
             Ok(r) => {
                 self.notify(DhtRoundOutcome {
                     read: self.me.is_some() || !r.entries.is_empty(),
                     members: r.entries.len(),
+                    others: self.others_of(r).len(),
                     published: self.me.is_some(),
+                    table,
                 });
                 *failures = 0;
                 tally.record_round_ok(r.entries.len(), now);
@@ -191,7 +210,9 @@ impl HyperDhtDiscovery {
                 self.notify(DhtRoundOutcome {
                     read: false,
                     members: 0,
+                    others: 0,
                     published: false,
+                    table,
                 });
                 *failures += 1;
                 tally.record_round_failure(e, now);

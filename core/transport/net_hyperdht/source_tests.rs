@@ -254,7 +254,9 @@ async fn reader_reports_read_with_member_count() {
         DhtRoundOutcome {
             read: true,
             members: 2,
-            published: false
+            others: 2,
+            published: false,
+            table: None,
         }
     );
 }
@@ -280,7 +282,9 @@ async fn get_error_reports_not_read() {
         DhtRoundOutcome {
             read: false,
             members: 0,
-            published: false
+            others: 0,
+            published: false,
+            table: None,
         }
     );
 }
@@ -302,7 +306,9 @@ async fn publisher_reports_published() {
         DhtRoundOutcome {
             read: true,
             members: 1,
-            published: true
+            others: 0,
+            published: true,
+            table: None,
         }
     );
 }

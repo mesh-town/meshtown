@@ -33,4 +33,9 @@ pub struct Record {
 pub trait RecordStore: Send + Sync {
     fn get(&self, key: &RecordKey) -> BoxFuture<'_, NetResult<Option<Record>>>;
     fn put(&self, key: &RecordKey, value: Vec<u8>, seq: u64) -> BoxFuture<'_, NetResult<()>>;
+
+    /// Number of nodes in the DHT routing table; `None` — the store cannot tell (or the node is closed).
+    fn table_size(&self) -> BoxFuture<'_, Option<usize>> {
+        Box::pin(async { None })
+    }
 }

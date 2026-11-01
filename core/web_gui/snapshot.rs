@@ -141,6 +141,9 @@ pub struct RecordInfo {
     pub ttl_sec: u64,
     /// Seconds since the entry was last read from HyperDHT; `None` — never read.
     pub read_sec: Option<u64>,
+    /// Members in the last roster read from HyperDHT, including this node; absent until the first read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub members: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

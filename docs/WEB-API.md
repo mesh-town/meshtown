@@ -179,7 +179,7 @@ all fields are required; `null` is allowed where marked):
     "nat": "address-restricted cone",
     "listen_udp": ["192.168.1.14:47821", "[::]:47821"],
     "dht": { "joined": true, "nodes": 8, "last_publish_sec": 137 },
-    "record": { "published": true, "ttl_sec": 900 },
+    "record": { "published": true, "ttl_sec": 900, "read_sec": 14, "members": 3 },
     "self_addresses": [
       "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@192.168.1.14:47821",
       "0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@77.88.21.3:47821",
@@ -341,6 +341,8 @@ Exact enum values:
   (how the page can show this machine's own path). The values are the same three as for `peers[].path`, so that the page parses them
   with one function.
 - `transport.relay.serving`: `true` while this node's own relay carries a pair of other members (a session is open, or a pairing was completed since the previous check, about every 30 seconds); `false` otherwise and when there is no relay. It is a flag, not a count. An older node omits the key: read it as `false`.
+- `transport.dht.nodes`: the number of nodes in the DHT routing table, read once per directory round; `0` means the table is empty. If a round cannot read it, the previous value stays.
+- `transport.record.members`: the number of keys in the last roster read from the DHT, this node included. The key is absent until the first read.
 - `node.version` — the binary version string; shown in the header caption next to the address.
   `node.id_full` — the full node identifier; shown only as a tooltip (`title`)
   on the own row in "Networks", it is not in the page text.

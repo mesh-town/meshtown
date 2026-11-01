@@ -37,7 +37,9 @@ mod successful_round {
             vec![DhtRoundOutcome {
                 read: true,
                 members: 3,
-                published: true
+                others: 2,
+                published: true,
+                table: None,
             }]
         );
     }
@@ -83,7 +85,9 @@ mod failed_round {
             vec![DhtRoundOutcome {
                 read: false,
                 members: 0,
-                published: false
+                others: 0,
+                published: false,
+                table: None,
             }]
         );
     }
@@ -104,13 +108,13 @@ impl Fixture {
             entries,
         };
         self.source
-            .account(Ok(roster), &mut self.tally, &mut self.failures)
+            .account(Ok(roster), None, &mut self.tally, &mut self.failures)
     }
 
     fn when_account_timeout(&mut self) -> Option<Vec<PeerId>> {
         let res = Err(NetError::Timeout);
         self.source
-            .account(res, &mut self.tally, &mut self.failures)
+            .account(res, None, &mut self.tally, &mut self.failures)
     }
 
     fn outcomes(&self) -> Vec<DhtRoundOutcome> {
