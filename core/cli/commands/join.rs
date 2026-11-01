@@ -11,6 +11,7 @@ use super::join_offline::{busy_text, run_offline, JoinText};
 use crate::cli::args::Globals;
 use crate::cli::exit::{NotRunning, UsageError};
 use crate::cli::program_name::program_name;
+use crate::config::config_file::FileLock;
 
 /// Arguments of `join`.
 #[derive(clap::Args)]
@@ -203,7 +204,22 @@ fn new_slot(node: &Node) -> anyhow::Result<String> {
         .ok_or_else(|| anyhow::anyhow!("the reply has no network slot"))
 }
 
+/// How long a key join waits for another `join` of a key on the same node to finish.
+const KEY_LOCK_WAIT: Duration = Duration::from_secs(20);
+
+/// A key join checks, asks and prints under a lock next to the node's files, so several `join` commands with one key
+/// join it once and the rest say "already". An invite waits for members for long and takes no lock. When the lock
+/// cannot be had (timeout, no file locks, an error), the join goes on without it.
+fn key_lock(node: &Node, text: &JoinText) -> Option<FileLock> {
+    let JoinText::Key(_) = text else {
+        return None;
+    };
+    let path = node.target.dir.join("join.lock");
+    FileLock::exclusive(&path, KEY_LOCK_WAIT).ok().flatten()
+}
+
 async fn join_live(node: &Node, args: &JoinArgs, text: &JoinText) -> anyhow::Result<()> {
+    let _lock = key_lock(node, text);
     if already_joined(node, text)? {
         eprintln!("already in this network");
         return Ok(());
