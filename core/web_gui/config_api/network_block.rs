@@ -26,6 +26,8 @@ pub struct NetRoles {
     pub abilities: Abilities,
     /// Who removed this node from the network, when an administrator did: full id and name.
     pub excluded_by: Option<(String, String)>,
+    /// The note given with that removal, when there is one.
+    pub excluded_reason: Option<String>,
 }
 
 impl NetRoles {
@@ -39,6 +41,7 @@ impl NetRoles {
             admins: vec![root.to_string()],
             abilities: abilities_of(me_admin, 1),
             excluded_by: None,
+            excluded_reason: None,
         }
     }
 
@@ -57,6 +60,7 @@ impl NetRoles {
             admins: r.admins.clone(),
             abilities: abilities_of(r.me_admin, r.admins.len()),
             excluded_by: excluded_by(r),
+            excluded_reason: excluded_reason(r),
         }
     }
 
@@ -87,6 +91,7 @@ impl NetRoles {
             ("can_delete_network", json!(a.can_delete_network)),
             ("can_leave", json!(a.can_leave)),
             ("excluded_by", self.excluded_by_value()),
+            ("excluded_reason", json!(self.excluded_reason)),
         ]
     }
 }
@@ -102,6 +107,13 @@ fn excluded_by(r: &MembersReply) -> Option<(String, String)> {
         None => by.chars().take(8).collect(),
     };
     Some((by.clone(), name))
+}
+
+/// The note of the removal of this node, when an administrator removed it and gave one.
+fn excluded_reason(r: &MembersReply) -> Option<String> {
+    let mine = r.members.iter().find(|m| m.is_self)?;
+    let gone = mine.excluded.as_ref().filter(|e| e.how == "removed")?;
+    gone.reason.clone().flatten()
 }
 
 impl ConfigState {
@@ -140,7 +152,7 @@ impl ConfigState {
 
 #[cfg(test)]
 #[path = "network_block_support_tests.rs"]
-mod block_support;
+pub(crate) mod block_support;
 
 #[cfg(test)]
 #[path = "network_block_tests.rs"]

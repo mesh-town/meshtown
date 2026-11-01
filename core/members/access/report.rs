@@ -61,6 +61,11 @@ fn me_admission_of(v: &Verdicts, refusals: &[(PeerId, Refusal)]) -> Option<Admis
     admission_of(v, &v.me).filter(|_| refused_as_unlisted(refusals))
 }
 
+/// The note of a removal is shown to the administrators and to the removed node itself.
+fn shows_reason(v: &Verdicts, p: &PeerId) -> bool {
+    v.ledger.is_admin(&v.me) || *p == v.me
+}
+
 fn excluded_of(v: &Verdicts, p: &PeerId) -> Option<ExcludedInfo> {
     let e = v.ledger.excluded.get(p)?;
     let how = match e.how {
@@ -71,6 +76,7 @@ fn excluded_of(v: &Verdicts, p: &PeerId) -> Option<ExcludedInfo> {
         how,
         at_unix: e.at_micros / 1_000_000,
         by: e.by.to_string(),
+        reason: shows_reason(v, p).then(|| e.reason.clone()),
     })
 }
 

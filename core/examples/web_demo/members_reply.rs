@@ -67,6 +67,7 @@ fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
             how: x.how,
             at_unix: AT_UNIX,
             by: resolve(&x.by, me),
+            reason: None,
         }),
         _ => None,
     }

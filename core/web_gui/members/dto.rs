@@ -71,6 +71,9 @@ pub struct ExcludedInfo {
     pub how: &'static str,
     pub at_unix: u64,
     pub by: String,
+    /// The note given with the removal. Outer `None`: not shown to this viewer, no key; `Some(None)`: none given, `null`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<Option<String>>,
 }
 
 #[derive(Clone, Debug, Serialize)]

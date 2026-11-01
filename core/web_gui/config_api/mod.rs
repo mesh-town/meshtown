@@ -23,6 +23,8 @@ mod slot_overlay;
 mod state;
 mod support;
 
+#[cfg(test)]
+pub(crate) use network_block::block_support;
 pub use network_block::NetRoles;
 pub(crate) use put_write::ProxyPick;
 pub use state::ConfigState;

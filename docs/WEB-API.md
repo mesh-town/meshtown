@@ -168,7 +168,8 @@ all fields are required; `null` is allowed where marked):
     "me_role": "admin",
     "admins": ["0652…"],
     "can_invite": true, "can_remove": true, "can_set_admins": true, "can_delete_network": true, "can_leave": true,
-    "excluded_by": null
+    "excluded_by": null,
+    "excluded_reason": null
   },
   "members": { "count": 3, "gossip_neighbors": 2, "me_excluded": false, "admission_refused": false, "closed": false },
   "socks": { "enabled": true, "listen": "127.0.0.1:1080", "strict": false },
@@ -361,6 +362,8 @@ Exact enum values:
     `false` except `can_leave`. The page shows no control whose flag is off.
   - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator excluded this node (`name` is the known
     member name, else the short id); `null` otherwise, and after the node left on its own.
+  - `excluded_reason`: the note given with that removal (a string), or `null` when none was given, when the node is not
+    excluded by an administrator, or after it left on its own.
 - `peers[].role` — `"admin"` or `"member"`; present only in a Managed network.
 - `peers[].id_full` — the full identifier of **each** node, not only the own one (unlike
   `node.id_full` above): it is needed as a `route.exits` value when choosing exits on the page and in
@@ -525,6 +528,7 @@ does not exist is 404 `unknown_net`.
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded (by the member list, or every reachable member refuses it as excluded); its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
 | `me_admin`, `can_invite` | whether this node is an administrator, whether it may invite. A broken slot: `false, false`; a slot without a key: `false, true` |
+| `excluded_by`, `excluded_reason` | the name (or short id) of the administrator who removed this computer and the note given with it; `null` when none, and always `null` for a computer that left on its own |
 | `admission_refused` | `true` when this computer is kept out: it is not excluded, removed or pending, no other member is online, and at least one member refused it (`last_refusal.side == "them"`, reason not `unlisted`). No delay: the page waits before showing it. The same value is `state.members.admission_refused`. `false` for a broken slot |
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters

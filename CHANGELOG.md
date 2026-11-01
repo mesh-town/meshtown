@@ -7,6 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Member list JSON: `excluded.reason`, the note given when a member was removed; administrators and the removed member see it.
 - Page and tray menu: a line `Relaying for other members` while this node relays between other members.
 - Ring: the path to the exit through another member is drawn dashed (tray icon and Home page), and the tray menu line says so.
 - Tray: at start, a start-at-login entry that leads to another copy of the program is rewritten to the running one.

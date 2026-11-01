@@ -28,7 +28,9 @@ A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `on
 `admin` is `true` for an administrator of the network.
 
 `excluded` (set when `status` is `excluded`) has `how` (`removed` or `left`), `at_unix` and `by`: the 64-digit id of the member whose
-record excluded the node; for a node that left, the node itself.
+record excluded the node; for a node that left, the node itself. `reason` is the note given with the removal: administrators
+see it on every excluded row, and the removed member sees it on its own row; for everyone else the key is absent. `null` means
+no reason was given (always the case for a node that left).
 
 - `status` is one of `member`, `pending`, `unlisted`, `excluded`; rows are ordered in that way after the
   own row.
