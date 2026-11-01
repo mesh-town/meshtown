@@ -9,6 +9,8 @@ export interface RingMember {
   role: RingRole;
   label: string;
   idFull: string | null;
+  /** The path to the member goes through another member (`path === "relay"`); only the exit we use and online members are marked. */
+  relayed: boolean;
 }
 
 type Snapshot = Partial<NodeState> | null;
@@ -23,6 +25,11 @@ function activeExit(state: Partial<NodeState>): ChosenExit | null {
   return exits.find((e) => e.active) || exits[0] || null;
 }
 
+function memberOf(peer: PeerInfo, viaId: string | null, clients: string[]): RingMember {
+  const role = roleOf(peer, viaId, clients);
+  return { role, label: labelOf(peer), idFull: peer.id_full, relayed: (role === "via" || role === "online") && peer.path === "relay" };
+}
+
 function roleOf(peer: PeerInfo, viaId: string | null, clients: string[]): RingRole {
   if (!peer.online) return "offline";
   if (viaId !== null && peer.id_full === viaId) return "via";
@@ -31,11 +38,24 @@ function roleOf(peer: PeerInfo, viaId: string | null, clients: string[]): RingRo
 }
 
 const rank = (m: RingMember): number => ROLE_ORDER.indexOf(m.role);
-const byRoleThenLabel = (a: RingMember, b: RingMember): number => rank(a) - rank(b) || compareLabels(a.label, b.label);
+const byRoleThenLabel = (a: RingMember, b: RingMember): number =>
+  rank(a) - rank(b) || Number(!!a.relayed) - Number(!!b.relayed) || compareLabels(a.label, b.label);
+
+export interface RoleGroup {
+  role: RingRole;
+  relayed: boolean;
+  list: RingMember[];
+}
+
+/** Members folded by role; within a role, those reached directly come before those reached through another member. */
+export function roleGroups(members: RingMember[]): RoleGroup[] {
+  return ROLE_ORDER.flatMap((role) => [false, true].map((relayed) => ({ role, relayed, list: members.filter((m) => m.role === role && !!m.relayed === relayed) })))
+    .filter((g) => g.list.length > 0);
+}
 
 function missingVia(exit: ChosenExit | null, peers: PeerInfo[]): RingMember[] {
   if (exit === null || peers.some((p) => p.id_full === exit.id_full)) return [];
-  return [{ role: "via", label: labelOf(exit), idFull: exit.id_full }];
+  return [{ role: "via", label: labelOf(exit), idFull: exit.id_full, relayed: false }];
 }
 
 export function ringMembers(state: Snapshot): RingMember[] {
@@ -44,6 +64,6 @@ export function ringMembers(state: Snapshot): RingMember[] {
   const exit = activeExit(state);
   const viaId = exit ? exit.id_full : null;
   const clients = state.exit?.clients || [];
-  const found: RingMember[] = peers.map((p) => ({ role: roleOf(p, viaId, clients), label: labelOf(p), idFull: p.id_full }));
+  const found: RingMember[] = peers.map((p) => memberOf(p, viaId, clients));
   return [...found, ...missingVia(exit, peers)].sort(byRoleThenLabel);
 }

@@ -113,7 +113,11 @@ pub(crate) fn route_direct_text() -> String {
     "In the browser, sites open directly".to_owned()
 }
 /// One exit is selected and it is online.
-pub(crate) fn route_via_text(name: &str) -> String {
+/// `relayed`: our path to the exit goes through another member.
+pub(crate) fn route_via_text(name: &str, relayed: bool) -> String {
+    if relayed {
+        return format!("In the browser, sites open via {name} (reached through another member)");
+    }
     format!("In the browser, sites open via {name}")
 }
 /// The selected exit is offline; `mark` is the sign before the name.

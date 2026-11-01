@@ -1,14 +1,17 @@
 <script setup lang="ts">
 // The member ring: SVG arcs by role, text in the center. Doesn't compute roles — receives ready members.
 import { computed } from "vue";
-import { ringArcs } from "./ring-arcs.ts";
+import { arcDash, ringArcs } from "./ring-arcs.ts";
 import type { RingArc } from "./ring-arcs.ts";
 import type { RingMember } from "./ring-members.ts";
+import { RING } from "./ring-config.ts";
 import { arcTitle, ringLenBucket } from "./ring-text.ts";
 
 const props = defineProps<{ members: RingMember[]; size: number; thickness: number; center?: { main: string; sub: string } | null }>();
 
 const arcs = computed(() => ringArcs(props.members, props.size, props.thickness));
+const narrow = computed(() => props.size <= RING.sizeNarrowPx);
+const dashOf = (arc: RingArc): string | null => arcDash(arc, narrow.value);
 const hasVia = computed(() => props.members.some((m) => m.role === "via"));
 const mid = computed(() => props.size / 2);
 const radius = computed(() => (props.size - props.thickness) / 2);
@@ -30,7 +33,7 @@ function pathOf(arc: RingArc): string {
   <div class="ring-mark" :class="lenClass">
     <svg :viewBox="`0 0 ${size} ${size}`" :width="size" :height="size" aria-hidden="true">
       <circle v-if="arcs.length === 0" class="ring-empty" :cx="mid" :cy="mid" :r="radius" fill="none" />
-      <path v-for="(arc, i) in arcs" :key="i" :class="['ring-arc', 'ring-' + arc.role]" :d="pathOf(arc)" :stroke-width="thickness" fill="none">
+      <path v-for="(arc, i) in arcs" :key="i" :class="['ring-arc', 'ring-' + arc.role, { 'ring-relayed': dashOf(arc) }]" :d="pathOf(arc)" :stroke-width="thickness" :stroke-dasharray="dashOf(arc) ?? undefined" fill="none">
         <title>{{ arcTitle(arc, hasVia) }}</title>
       </path>
     </svg>

@@ -100,9 +100,13 @@ export const HOME_RING_NO_NET = "no network";
 export const ringViaGroupText = (n: number): string => `Exits: ${n}`;
 export const ringClientGroupText = (n: number): string => `Opening sites through you: ${n}`;
 export const ringOnlineGroupText = (n: number, alsoOnline = false): string => `${alsoOnline ? "Also online" : "Online"}: ${n}`;
+export const ringOnlineRelayedGroupText = (n: number): string => `Online through another member: ${n}`;
 export const ringOfflineGroupText = (n: number): string => `Offline: ${n}`;
-export const ringViaLegendText = (label: string): string => `Your exit: ${label}`;
+export const ringViaLegendText = (label: string, relayed = false): string =>
+  `Your exit: ${label}${relayed ? " — through another member" : ""}`;
 export const HOME_RING_SINGLE_VIA = "your exit, online";
+export const HOME_RING_SINGLE_ONLINE_RELAYED = "online through another member";
+export const HOME_RING_SINGLE_VIA_RELAYED = "your exit, online through another member";
 export const HOME_RING_SINGLE_CLIENT = "opens sites through you";
 
 // use-join.ts

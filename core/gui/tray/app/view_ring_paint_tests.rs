@@ -480,3 +480,7 @@ mod lit_sector {
             .collect()
     }
 }
+
+#[cfg(test)]
+#[path = "view_ring_relay_paint_tests.rs"]
+mod relay_paint_tests;

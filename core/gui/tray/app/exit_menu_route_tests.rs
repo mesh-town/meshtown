@@ -43,6 +43,29 @@ mod route {
     }
 
     #[test]
+    fn exit_active_through_relay_is_via_relay() {
+        let state = |path: &str| {
+            json!({
+                "node": { "status": "online", "id_full": "me00" },
+                "route": {
+                    "state": "exit",
+                    "exits": [{ "id": "aa11", "id_full": "aa11full", "name": "Sedge",
+                        "online": true, "exit": true, "active": true }]
+                },
+                "peers": [{ "id": "aa11", "id_full": "aa11full", "online": true, "path": path }]
+            })
+        };
+        assert_eq!(
+            exit_menu_from_json(&state("relay")).route,
+            RouteLine::ViaRelay("Sedge".to_string())
+        );
+        assert_eq!(
+            exit_menu_from_json(&state("direct")).route,
+            RouteLine::Via("Sedge".to_string())
+        );
+    }
+
+    #[test]
     fn exit_active_without_name_is_via_member_id() {
         let state = json!({
             "node": { "status": "online", "id_full": "me00" },

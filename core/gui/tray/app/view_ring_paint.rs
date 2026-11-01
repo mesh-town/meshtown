@@ -61,6 +61,13 @@ const OUTLINE_SLOT: usize = RING_ROLE_COUNT + 1;
 /// The number of colour slots: every role, the highlight and its outline.
 const SLOT_COUNT: usize = RING_ROLE_COUNT + 2;
 
+/// Dashed sectors (`RingRole::is_dashed`): a stroke of about 4 px and a transparent gap of 2 px along the middle of
+/// the ring. The sector starts and ends with a stroke (the stroke length is stretched a little to fit), and an arc
+/// shorter than `MIN_DASH_ARC_PX` stays solid.
+const DASH_GAP_PX: f64 = 2.0;
+const DASH_PERIOD_PX: f64 = 6.0;
+const MIN_DASH_ARC_PX: f64 = 12.0;
+
 /// The outline width at the full icon size (px); it scales with the icon.
 const OUTLINE_PX_AT_FULL: f64 = 0.75;
 
@@ -95,6 +102,7 @@ struct Shape<'a> {
     center_px: f64,
     outer_radius_px: f64,
     inner_radius_px: f64,
+    mid_radius_px: f64,
     sector_angle_rad: f64,
     /// 0 means no gaps.
     half_gap_px: f64,
@@ -116,6 +124,7 @@ impl<'a> Shape<'a> {
             center_px: f64::from(side_px) / 2.0,
             outer_radius_px,
             inner_radius_px: outer_radius_px - f64::from(spec.thickness_px),
+            mid_radius_px: mid,
             sector_angle_rad,
             half_gap_px: half_gap_px(spec.gap_px, sector_count, sector_angle_rad * mid),
             outline_px: (f64::from(side_px) / f64::from(FULL_SIDE_PX) * OUTLINE_PX_AT_FULL)
@@ -147,7 +156,8 @@ impl<'a> Shape<'a> {
         let theta = px.atan2(-py).rem_euclid(TAU);
         let k = ((theta / self.sector_angle_rad).floor() as usize).min(self.sector_count - 1);
         let in_ring = (self.inner_radius_px..=self.outer_radius_px).contains(&r);
-        (in_ring && !self.in_gap(k, theta, r)).then(|| self.slot_with_outline(k, theta, r))
+        let hole = self.in_gap(k, theta, r) || self.in_dash_gap(k, theta);
+        (in_ring && !hole).then(|| self.slot_with_outline(k, theta, r))
     }
 
     /// The slot of sector `k`; a point of the highlighted sector near any of its edges takes the outline slot.
@@ -186,6 +196,18 @@ impl<'a> Shape<'a> {
         let (edge, nearest) = self.nearest_edge(k, theta);
         let near_line = nearest < FRAC_PI_2 && r * nearest.sin() < self.half_gap_px;
         near_line && self.joins_same_role(edge)
+    }
+
+    /// A point of a dashed sector `k` lies in a transparent gap between strokes.
+    fn in_dash_gap(&self, k: usize, theta: f64) -> bool {
+        let arc = self.sector_angle_rad * self.mid_radius_px;
+        if !self.ring.role_at(k).is_dashed() || arc < MIN_DASH_ARC_PX {
+            return false;
+        }
+        let strokes = ((arc + DASH_GAP_PX) / DASH_PERIOD_PX).round().max(1.0);
+        let stroke = (arc - DASH_GAP_PX * (strokes - 1.0)) / strokes;
+        let along = (theta - k as f64 * self.sector_angle_rad) * self.mid_radius_px;
+        along % (stroke + DASH_GAP_PX) >= stroke
     }
 
     /// The nearer border of sector `k` (the number of the sector it starts; the

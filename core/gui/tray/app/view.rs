@@ -190,6 +190,8 @@ pub enum RouteLine {
     Direct,
     /// Exactly one exit selected and it is online: the name or (with no name) the short `id`.
     Via(String),
+    /// Like `Via`, and our path to the exit goes through another member (`peers[].path == "relay"`).
+    ViaRelay(String),
     /// The selected exit (or exits) is offline right now. `Some(name)` means exactly one is selected;
     /// `None` means several are selected and none is online.
     Unavailable(Option<String>),
@@ -220,7 +222,8 @@ fn outside_network(view: View) -> bool {
 fn route_line_text(route: &RouteLine) -> String {
     match route {
         RouteLine::Direct => route_direct_text(),
-        RouteLine::Via(name) => route_via_text(name),
+        RouteLine::Via(name) => route_via_text(name, false),
+        RouteLine::ViaRelay(name) => route_via_text(name, true),
         RouteLine::Unavailable(Some(name)) => route_exit_offline_text(OFFLINE_EXIT_MARK, name),
         RouteLine::Unavailable(None) => ROUTE_ALL_OFFLINE_TEXT.to_string(),
     }

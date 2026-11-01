@@ -131,6 +131,9 @@ fn nest(menu: &mut ExitMenu, vis: &[SlotView], main: &SlotView) {
 fn via_in_net(route: RouteLine, main: &SlotView) -> RouteLine {
     match (route, &main.label) {
         (RouteLine::Via(name), Some(label)) => RouteLine::Via(format!("{name} ({label})")),
+        (RouteLine::ViaRelay(name), Some(label)) => {
+            RouteLine::ViaRelay(format!("{name} ({label})"))
+        }
         (route, _) => route,
     }
 }

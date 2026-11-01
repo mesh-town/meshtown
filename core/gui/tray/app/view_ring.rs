@@ -2,7 +2,7 @@
 //!
 //! What it does: from the node snapshot selection (`TraySnapshot`, `GET /api/state`, `docs/WEB-API.md` §1.3) it computes a `Ring` — how many
 //! members are in each role (all but the node itself, with no limit). Roles run clockwise from
-//! 12 o'clock: the selected exit is unavailable (red), the exit we go through (blue), exiting
+//! 12 o'clock: the selected exit is unavailable (red), the exit we go through (blue; dashed when reached through another member), exiting
 //! through us (violet), online (green), offline (grey); identical neighbours
 //! merge into one arc. The raster is drawn by `view_ring_paint`. Sectors are shown with any icon
 //! color if the ring is not empty; an empty ring means a solid icon (`ring_to_draw` gives `None`).
@@ -24,6 +24,9 @@ pub enum RingRole {
     ExitDown,
     /// The exit our sites go through.
     ActiveExit,
+    /// The exit our sites go through, reached through another member (`path == "relay"`): the
+    /// colour of `ActiveExit`, drawn dashed.
+    ExitViaRelay,
     /// A member that goes out to the network through us.
     ExitClient,
     /// Online.
@@ -36,13 +39,14 @@ pub enum RingRole {
 pub(super) const RING_ROLES: [RingRole; RING_ROLE_COUNT] = [
     RingRole::ExitDown,
     RingRole::ActiveExit,
+    RingRole::ExitViaRelay,
     RingRole::ExitClient,
     RingRole::Online,
     RingRole::Offline,
 ];
 
 /// The number of roles — the length of `RING_ROLES` and `Ring::counts`.
-pub(super) const RING_ROLE_COUNT: usize = 5;
+pub(super) const RING_ROLE_COUNT: usize = 6;
 
 /// The sector color of a role — the only `match` on `RingRole` in the code.
 pub(super) fn role_rgb(role: RingRole) -> [u8; 3] {
@@ -51,10 +55,17 @@ pub(super) fn role_rgb(role: RingRole) -> [u8; 3] {
         RingRole::ExitDown => [225, 60, 50],
         // Light blue: on a dark menu row the contrast is about 6:1 (it was about 3.6:1), on a light one about 2:1 — no paler than
         // the green neighbour (1.8:1); from violet ΔE is about 38.
-        RingRole::ActiveExit => [90, 170, 255],
+        RingRole::ActiveExit | RingRole::ExitViaRelay => [90, 170, 255],
         RingRole::ExitClient => [175, 75, 205],
         RingRole::Online => [60, 200, 90],
         RingRole::Offline => [140, 140, 140],
+    }
+}
+
+impl RingRole {
+    /// The sector is drawn as a dashed line (the path goes through another member).
+    pub(super) fn is_dashed(self) -> bool {
+        self == RingRole::ExitViaRelay
     }
 }
 
@@ -188,17 +199,25 @@ fn peer_role(
         return None;
     }
     let id = peer.id_full.as_deref();
-    Some(classify_peer_role(id, peer.online, (via, down), clients))
+    let relayed = peer.path.as_deref() == Some("relay");
+    Some(classify_peer_role(
+        id,
+        peer.online,
+        (via, down),
+        clients,
+        relayed,
+    ))
 }
 
 /// Order of checks: an unavailable selected exit (red beats grey), connection ("offline" is
-/// grey even for an exit and a client), exit (blue beats violet), exit client, otherwise online.
+/// grey even for an exit and a client), exit (blue beats violet; dashed when `relayed`), exit client, otherwise online.
 /// `exits` is `(active_exit_id, down_exit_ids)`: the active exit and the unavailable selected ones.
 fn classify_peer_role(
     id: Option<&str>,
     online: bool,
     exits: (Option<&str>, &[&str]),
     exit_client_ids: &[String],
+    relayed: bool,
 ) -> RingRole {
     let (active_exit_id, down_exit_ids) = exits;
     if id.is_some_and(|id| down_exit_ids.contains(&id)) {
@@ -208,12 +227,20 @@ fn classify_peer_role(
         return RingRole::Offline;
     }
     if id.is_some() && id == active_exit_id {
-        return RingRole::ActiveExit;
+        return exit_role(relayed);
     }
     if id.is_some_and(|id| exit_client_ids.iter().any(|c| c == id)) {
         return RingRole::ExitClient;
     }
     RingRole::Online
+}
+
+/// The role of the active exit: dashed when our path to it goes through another member.
+fn exit_role(relayed: bool) -> RingRole {
+    if relayed {
+        return RingRole::ExitViaRelay;
+    }
+    RingRole::ActiveExit
 }
 
 /// Sectors are needed when the ring has members, with any icon color; otherwise `None` and the icon

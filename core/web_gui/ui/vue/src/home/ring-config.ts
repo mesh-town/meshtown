@@ -9,6 +9,11 @@ export const RING = {
   thickWidePx: 14,
   sizeNarrowPx: 64,
   thickNarrowPx: 8,
+  // The exit reached through another member: dashes `stroke dash, gap`; an arc shorter than the minimum stays solid.
+  dashWide: "6 3",
+  dashNarrow: "4 2",
+  minDashArcWidePx: 18,
+  minDashArcNarrowPx: 12,
 } as const;
 
 /** Role order clockwise from 12 o'clock: as in the tray icon. */
