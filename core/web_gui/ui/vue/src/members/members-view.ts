@@ -47,14 +47,12 @@ export function shortDate(unix: unknown, timeZone?: string): string {
   return pick("day") + " " + pick("month");
 }
 
-const joinNames = (list: string[]): string => list.join(" and ");
-
 // "{x} · removed on 19 Oct · by {a}" / "{x} · left the network on 19 Oct"; no admin known — no "by" part.
 export function excludedRowLine(m: MemberRow, names: Record<string, string>, timeZone?: string): string {
   const who = m.name && m.name.trim() ? m.name : m.id;
   const ex = m.excluded;
   const date = ex ? shortDate(ex.at_unix, timeZone) : "";
   if (ex && ex.how === "left") return who + " · left the network on " + date;
-  const by = ex ? joinNames(ex.voters.map((v) => names[v] || v.slice(0, 8))) : "";
+  const by = ex && ex.by ? names[ex.by] || ex.by.slice(0, 8) : "";
   return who + " · removed on " + date + (by ? " · by " + by : "");
 }

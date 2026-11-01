@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::members::access::authority::{Power, PowerIn};
 use crate::members::access::record::Via;
-use crate::members::access::tally::{tally, Exclusion, How, Ledger, TallyInput};
+use crate::members::access::tally::{tally, Exclusion, Ledger, TallyInput};
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::members::membership::Members;
 use crate::members::network_key::format_managed_key;
@@ -17,35 +17,45 @@ use crate::web_gui::test_host::{config_with_key, send, slot_handle, test_app, Fa
 use crate::web_gui::{ActionError, LogPage, NetRoles, NodeControl, NodeSnapshot, PeerInfo};
 
 /// The node that created a Managed network.
-pub(super) const ROOT: u8 = 1;
+pub(crate) const ROOT: u8 = 1;
 /// The three nodes of every test network.
-pub(super) const NODES: [u8; 3] = [1, 2, 3];
+pub(crate) const NODES: [u8; 3] = [1, 2, 3];
 
 /// How this node left the member list.
 #[derive(Clone, Copy)]
-pub(super) enum Removal {
+pub(crate) enum Removal {
     Votes { by: u8 },
     Left,
 }
 
 /// The network as one node of it sees it.
-pub(super) struct Net {
+pub(crate) struct Net {
     me: u8,
     admins: Vec<u8>,
     removal: Option<Removal>,
+    reason: Option<String>,
 }
 
 impl Net {
     /// `admins` lists the administrators, the creator included.
-    pub(super) fn new(me: u8, admins: &[u8]) -> Net {
+    pub(crate) fn new(me: u8, admins: &[u8]) -> Net {
         Net {
             me,
             admins: admins.to_vec(),
             removal: None,
+            reason: None,
         }
     }
 
-    pub(super) fn removed(self, removal: Removal) -> Net {
+    /// The note of the exclusion record (set on whatever way the node was removed).
+    pub(crate) fn reason(self, text: &str) -> Net {
+        Net {
+            reason: Some(text.to_string()),
+            ..self
+        }
+    }
+
+    pub(crate) fn removed(self, removal: Removal) -> Net {
         Net {
             removal: Some(removal),
             ..self
@@ -53,25 +63,29 @@ impl Net {
     }
 }
 
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     router: axum::Router,
 }
 
 /// One slot `main` that works with a network, over a node that reports `net`.
-pub(super) fn setup(net: Net) -> Fixture {
+pub(crate) fn setup(net: Net) -> Fixture {
+    Fixture {
+        router: test_app(FakeHost::new(vec![main_slot(net)])).0,
+    }
+}
+
+/// The slot `main` itself.
+pub(crate) fn main_slot(net: Net) -> crate::web_gui::SlotHandle {
     let config = config_with_key(Some(&key_text()));
     let node = RolesNode {
         inner: SnapNode::new(snapshot_of(&net)),
         roles: roles_of(&net),
     };
-    let main = slot_handle("main", Arc::new(node), config);
-    Fixture {
-        router: test_app(FakeHost::new(vec![main])).0,
-    }
+    slot_handle("main", Arc::new(node), config)
 }
 
 impl Fixture {
-    pub(super) async fn when_state(&self) -> Value {
+    pub(crate) async fn when_state(&self) -> Value {
         let (status, body) = send(&self.router, Method::GET, "/api/state", "").await;
         assert_eq!(status, StatusCode::OK, "{body}");
         body
@@ -120,22 +134,18 @@ fn roles_of(net: &Net) -> NetRoles {
 fn ledger_of(net: &Net) -> Ledger {
     let mut ledger = managed_ledger(&net.admins);
     if let Some(removal) = net.removal {
-        ledger
-            .excluded
-            .insert(peer(net.me), exclusion(net.me, removal));
+        let mut gone = exclusion(net.me, removal);
+        gone.reason = net.reason.clone();
+        ledger.excluded.insert(peer(net.me), gone);
     }
     ledger
 }
 
 fn exclusion(me: u8, removal: Removal) -> Exclusion {
-    let (how, voter) = match removal {
-        Removal::Votes { by } => (How::Votes, by),
-        Removal::Left => (How::Left, me),
-    };
-    Exclusion {
-        how,
-        at_micros: 1_792_400_000_000_000,
-        voters: vec![peer(voter)],
+    let at = 1_792_400_000_000_000;
+    match removal {
+        Removal::Votes { by } => Exclusion::removed(peer(by), at),
+        Removal::Left => Exclusion::left(peer(me), at),
     }
 }
 
@@ -152,6 +162,7 @@ fn managed_ledger(admins: &[u8]) -> Ledger {
         root: peer(ROOT),
         votes: vec![],
         powers,
+        notes: std::collections::BTreeMap::new(),
     })
 }
 
@@ -218,10 +229,10 @@ fn peer(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()
 }
 
-pub(super) fn id_full(n: u8) -> String {
+pub(crate) fn id_full(n: u8) -> String {
     peer(n).to_string()
 }
 
-pub(super) fn name(n: u8) -> String {
+pub(crate) fn name(n: u8) -> String {
     format!("node-{n}")
 }

@@ -54,7 +54,7 @@ mod order {
         // given: I have left; a is listed
         let a = pid(2);
         let mut w = world(&[a], &[]);
-        w.exclude(pid(1), How::Left, vec![pid(1)]);
+        w.exclude(pid(1), How::Left, pid(1));
         // when / then: my row is the first one and the reply says so
         let reply = w.reply();
         assert!(reply.me_excluded);
@@ -68,28 +68,113 @@ mod fields {
 
     #[test]
     fn excluded_row_fields_match_contract() {
-        // given: c was excluded by the votes of a and b
+        // given: c was excluded by a
         let (a, b, c) = (pid(2), pid(3), pid(4));
         let mut w = world(&[a, b], &[c]);
-        w.exclude(c, How::Votes, vec![a, b]);
+        w.exclude(c, How::Votes, a);
         // when
         let row = w.row(c);
         // then: the exclusion carries the contract fields
         let info = row.excluded.expect("exclusion info");
         assert_eq!((info.how, info.at_unix), ("removed", AT_UNIX));
-        assert_eq!(info.voters, vec![a.to_string(), b.to_string()]);
+        assert_eq!(info.by, a.to_string());
         assert_eq!(row.status, "excluded");
     }
 
     #[test]
-    fn left_node_is_excluded_with_himself_as_voter() {
+    fn excluded_info_keys_are_the_contract() {
+        // given: c was excluded by the administrator a
+        let (a, c) = (pid(2), pid(4));
+        let mut w = world(&[a], &[c]);
+        w.exclude(c, How::Votes, a);
+        w.ledger.admins.insert(pid(1));
+        // when
+        let json = serde_json::to_value(w.row(c).excluded.expect("exclusion info")).unwrap();
+        // then: exactly how, at_unix, by and reason (I am an administrator); `by` is the full id of the author
+        let mut keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["at_unix", "by", "how", "reason"]);
+        assert_eq!(json["by"], a.to_string());
+        assert_eq!(a.to_string().len(), 64);
+    }
+
+    /// The row of `c`, excluded by `a` with `reason`, as an administrator (`me`) or an ordinary member sees it.
+    fn excluded_json(admin: bool, how: How, reason: Option<&str>) -> serde_json::Value {
+        let (a, c) = (pid(2), pid(4));
+        let mut w = world(&[a], &[c]);
+        w.exclude(c, how, a);
+        w.ledger.excluded.get_mut(&c).unwrap().reason = reason.map(str::to_string);
+        if admin {
+            w.ledger.admins.insert(pid(1));
+        }
+        serde_json::to_value(w.row(c).excluded.expect("exclusion info")).unwrap()
+    }
+
+    #[test]
+    fn removed_row_shows_reason_and_null_without_it() {
+        // given / when: an administrator looks at a removal with a note and one without
+        let with = excluded_json(true, How::Votes, Some("spam"));
+        let without = excluded_json(true, How::Votes, None);
+        // then: the note, or `null` with the key present
+        assert_eq!(with["reason"], "spam");
+        assert!(
+            without.as_object().unwrap().contains_key("reason"),
+            "{without}"
+        );
+        assert!(without["reason"].is_null(), "{without}");
+    }
+
+    #[test]
+    fn non_admin_gets_no_reason_key() {
+        // given / when: an ordinary member looks at a removal with a note
+        let json = excluded_json(false, How::Votes, Some("spam"));
+        // then: there is no key at all, not `null`
+        assert!(!json.as_object().unwrap().contains_key("reason"), "{json}");
+    }
+
+    #[test]
+    fn excluded_self_gets_own_reason() {
+        // given: I am not an administrator and was removed by a with a note; another excluded node has one too
+        let (a, other) = (pid(2), pid(4));
+        let mut w = world(&[a], &[other]);
+        w.ledger.admitted.insert(pid(1));
+        w.exclude(pid(1), How::Votes, a);
+        w.ledger.excluded.get_mut(&pid(1)).unwrap().reason = Some("spam".into());
+        w.ledger.excluded.get_mut(&other).unwrap().reason = Some("rude".into());
+        // when
+        let mine = serde_json::to_value(w.row(pid(1)).excluded.unwrap()).unwrap();
+        let theirs = serde_json::to_value(w.row(other).excluded.unwrap()).unwrap();
+        // then: my own row has the note, the other row has no key
+        assert_eq!(mine["reason"], "spam");
+        assert!(
+            !theirs.as_object().unwrap().contains_key("reason"),
+            "{theirs}"
+        );
+    }
+
+    #[test]
+    fn left_node_row_has_null_reason() {
+        // given / when: an administrator looks at a node that left
+        let json = excluded_json(true, How::Left, None);
+        // then: the key is there and is `null`
+        assert!(json["reason"].is_null(), "{json}");
+        assert!(json.as_object().unwrap().contains_key("reason"), "{json}");
+    }
+
+    #[test]
+    fn left_node_is_excluded_by_himself() {
         // given: a has left
         let a = pid(2);
         let mut w = world(&[a], &[]);
-        w.exclude(a, How::Left, vec![a]);
+        w.exclude(a, How::Left, a);
         // when / then
         let info = w.row(a).excluded.expect("exclusion info");
-        assert_eq!((info.how, info.voters), ("left", vec![a.to_string()]));
+        assert_eq!((info.how, info.by), ("left", a.to_string()));
     }
 
     #[test]

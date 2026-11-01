@@ -83,6 +83,42 @@ fn garbage_counts_as_ignored() {
     assert_eq!(admit_rows(&input), [(a, b)]);
 }
 
+#[test]
+fn exclude_record_note_reaches_the_tally_input() {
+    // given: A's exclusion record of B carries a note
+    let (me, a, b) = (pid(1), pid(2), pid(3));
+    let vote = AclValue {
+        kind: AclKind::Exclude,
+        note: "spam".to_string(),
+        ..admit_of(b)
+    };
+    let entries = [entry(a, exclude_key(&b), encode(&vote), 200)];
+    // when: the input is built
+    let (input, _) = tally_input(root(), me, &entries);
+    // then: the note is kept under (author, subject)
+    assert_eq!(input.notes.get(&(a, b)).map(String::as_str), Some("spam"));
+}
+
+#[test]
+fn withdrawn_exclude_leaves_no_note() {
+    // given: A withdrew the exclusion record of X; B's live record of X carries a note
+    let (me, a, b, x) = (pid(1), pid(2), pid(3), pid(7));
+    let vote = AclValue {
+        kind: AclKind::Exclude,
+        note: "other".to_string(),
+        ..admit_of(x)
+    };
+    let entries = [
+        entry(a, exclude_key(&x), vec![], 300),
+        entry(b, exclude_key(&x), encode(&vote), 310),
+    ];
+    // when: the input is built
+    let (input, _) = tally_input(root(), me, &entries);
+    // then: no note under (A, X); B's note is kept
+    assert_eq!(input.notes.get(&(a, x)), None);
+    assert_eq!(input.notes.get(&(b, x)).map(String::as_str), Some("other"));
+}
+
 mod powers {
     use super::*;
     use crate::members::access::record::{grant_key, revoke_key, Via, CLOSE_KEY};

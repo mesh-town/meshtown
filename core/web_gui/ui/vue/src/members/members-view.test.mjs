@@ -87,7 +87,7 @@ describe("isMeExcluded", () => {
 
 describe("excludedVariant", () => {
   it("my own row says I left: left", () => {
-    const reply = membersReply({ rows: [selfRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [ME] }) })] });
+    const reply = membersReply({ rows: [selfRow({ status: "excluded", excluded: excludedInfo({ how: "left", by: ME }) })] });
     assert.equal(excludedVariant(reply, ME), "left");
   });
 
@@ -143,38 +143,33 @@ describe("excludedRowLine", () => {
   const names = { [SELF_FULL]: "finch-unwary", [PEER_FULL]: "peer-one" };
 
   describe("removed by an admin", () => {
-    it("lists the date and both voters", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and peer-one");
+    it("lists the date and the admin", () => {
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", by: SELF_FULL }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary");
     });
 
     it("a nameless member is shown by its short id", () => {
-      const row = peerTwoRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "cccc3333 · removed on 19 Oct · by finch-unwary and peer-one");
+      const row = peerTwoRow({ status: "excluded", excluded: excludedInfo({ how: "removed", by: PEER_FULL }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "cccc3333 · removed on 19 Oct · by peer-one");
     });
 
-    it("a single voter: no \"and\"", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [PEER_FULL] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by peer-one");
-    });
-
-    // NOTE: a voter that is in neither the peers nor the list — the first 8 characters of the id are the likely fallback.
-    it("a voter nobody knows is shown by the start of its id", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [SELF_FULL, "e".repeat(64)] }) });
-      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by finch-unwary and eeeeeeee");
+    // NOTE: an admin that is in neither the peers nor the list — the first 8 characters of the id are the likely fallback.
+    it("an admin nobody knows is shown by the start of its id", () => {
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", by: "e".repeat(64) }) });
+      assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct · by eeeeeeee");
     });
   });
 
   describe("no admin is known", () => {
     it("drops the \"by\" part", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", voters: [] }) });
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "removed", by: null }) });
       assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · removed on 19 Oct");
     });
   });
 
   describe("left on their own", () => {
     it("says that the member left the network", () => {
-      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [EXTRA_FULL] }) });
+      const row = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", by: EXTRA_FULL }) });
       assert.equal(excludedRowLine(row, names, "UTC"), "old-laptop · left the network on 19 Oct");
     });
   });

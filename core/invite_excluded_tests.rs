@@ -83,10 +83,9 @@ fn ledger_of(me: PeerId, standing: Standing) -> Ledger {
 }
 
 fn exclude(ledger: &mut Ledger, who: PeerId, how: How) {
-    let exclusion = Exclusion {
-        how,
-        at_micros: 10,
-        voters: vec![neighbour()],
+    let exclusion = match how {
+        How::Votes => Exclusion::removed(neighbour(), 10),
+        How::Left => Exclusion::left(neighbour(), 10),
     };
     ledger.excluded.insert(who, exclusion);
 }

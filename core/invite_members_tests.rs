@@ -12,7 +12,7 @@ fn id(n: u8) -> PeerId {
 
 #[tokio::test]
 async fn make_names_listed_members_without_a_connection() {
-    use crate::members::access::tally::{Exclusion, How, Ledger};
+    use crate::members::access::tally::{Exclusion, Ledger};
     use crate::members::access::view::Verdicts;
     use std::collections::{BTreeMap, BTreeSet};
     // given: a node with no connections, whose list admits B and C and has excluded D
@@ -21,11 +21,7 @@ async fn make_names_listed_members_without_a_connection() {
     );
     let node = crate::node::start_node(cfg).await.unwrap();
     let src = node.invite_source();
-    let excluded = Exclusion {
-        how: How::Votes,
-        at_micros: 10,
-        voters: Vec::new(),
-    };
+    let excluded = Exclusion::removed(id(2), 10);
     let mut ledger = Ledger::empty();
     ledger.admitted = [node.id, id(2), id(3), id(4)].into_iter().collect();
     ledger.excluded = BTreeMap::from([(id(4), excluded)]);

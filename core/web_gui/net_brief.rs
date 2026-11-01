@@ -29,6 +29,10 @@ pub struct NetBrief {
     pub can_invite: bool,
     /// This computer is kept out of the network (`state.members.admission_refused`).
     pub admission_refused: bool,
+    /// The name (or short id) of the administrator who removed this node; `null` for a node that left.
+    pub excluded_by: Option<String>,
+    /// The note given with that removal.
+    pub excluded_reason: Option<String>,
 }
 
 fn word<T: Serialize>(value: &T) -> String {
@@ -91,6 +95,8 @@ pub(crate) fn brief_of(slot: &SlotHandle, chosen: &NetSlotId) -> NetBrief {
         me_admin: text_of(&block, "me_role").as_deref() == Some("admin"),
         can_invite: flag_of(&block, "can_invite", true),
         admission_refused: snap.members.admission_refused,
+        excluded_by: block.get("excluded_by").and_then(|by| text_of(by, "name")),
+        excluded_reason: text_of(&block, "excluded_reason"),
     }
 }
 
@@ -114,6 +120,8 @@ pub(crate) fn broken_brief(id: &NetSlotId) -> NetBrief {
         me_admin: false,
         can_invite: false,
         admission_refused: false,
+        excluded_by: None,
+        excluded_reason: None,
     }
 }
 
@@ -132,3 +140,7 @@ pub(crate) fn briefs(host: &dyn HostControl) -> Vec<NetBrief> {
 #[cfg(test)]
 #[path = "net_brief_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "net_brief_excluded_tests.rs"]
+mod excluded_tests;

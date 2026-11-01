@@ -1,6 +1,8 @@
 //! Builds the tally input from the entries of the shared list. Pure functions; the record format
 //! itself is in `record.rs`.
 
+use std::collections::BTreeMap;
+
 use crate::transport::net::{PeerId, ReplicaEntry};
 
 use super::authority::{power_of, PowerIn};
@@ -16,6 +18,7 @@ pub fn tally_input(root: PeerId, me: PeerId, entries: &[ReplicaEntry]) -> (Tally
         root,
         votes: Vec::new(),
         powers: Vec::new(),
+        notes: BTreeMap::new(),
     };
     let mut ignored = 0;
     for e in entries {
@@ -61,6 +64,7 @@ fn absorb(input: &mut TallyInput, e: &ReplicaEntry) -> usize {
                 subject: value.subject,
                 ts_micros,
             });
+            input.notes.insert((author, value.subject), value.note);
             0
         }
         Parsed::Withdrawn { author, key } if key == exclude_key(&author) => {

@@ -4,7 +4,7 @@
 //! other helpers are there.
 
 use super::*;
-use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::tally::{Exclusion, Ledger};
 use crate::members::access::view::{AccessView, Deny, Verdicts, ACCESS_CLOSE_CODE};
 use crate::transport::net::contract::{pid, SEED_C};
 use crate::transport::net::mem::conn::MemConn;
@@ -305,11 +305,7 @@ fn view_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> AccessView {
 
 /// Verdicts of `me`: `listed` are admitted, `excluded` are admitted and then excluded by votes; no votes, no blocks.
 fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts {
-    let by_votes = || Exclusion {
-        how: How::Votes,
-        at_micros: 10,
-        voters: Vec::new(),
-    };
+    let by_votes = || Exclusion::removed(me, 10);
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),

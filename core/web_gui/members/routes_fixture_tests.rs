@@ -287,7 +287,8 @@ pub(super) fn sample_reply() -> MembersReply {
     let gone = ExcludedInfo {
         how: "removed",
         at_unix: 1_792_400_000,
-        voters: vec![me.clone(), router],
+        by: router.clone(),
+        reason: Some(Some("spam".to_string())),
     };
     MembersReply {
         me,
@@ -341,9 +342,27 @@ pub(super) fn golden() -> Value {
              "last_seen_sec": null, "last_refusal": null, "admission": {"label": "router"}},
             {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false, "admin": false,
              "status": "excluded",
-             "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "voters": [me, router]},
+             "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "by": router, "reason": "spam"},
              "blocked_by_me": false, "denied_by_me": "excluded", "last_seen_sec": null,
              "last_refusal": {"side": "me", "reason": "excluded", "at_unix": 1_792_400_100u64}, "admission": null}
         ]
     })
+}
+
+#[test]
+fn an_unshown_reason_has_no_key_and_an_empty_one_is_null() {
+    // given: the exclusion of the example with the three states of `reason`
+    let info = |reason| ExcludedInfo {
+        how: "removed",
+        at_unix: 1,
+        by: full("e5f6a7b8"),
+        reason,
+    };
+    // when
+    let hidden = serde_json::to_value(info(None)).unwrap();
+    let empty = serde_json::to_value(info(Some(None))).unwrap();
+    // then: not shown is no key; shown but not given is `null`
+    assert!(hidden.get("reason").is_none(), "{hidden}");
+    assert_eq!(empty["reason"], Value::Null);
+    assert!(empty.as_object().unwrap().contains_key("reason"), "{empty}");
 }

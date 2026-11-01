@@ -29,6 +29,8 @@ pub struct TallyInput {
     pub votes: Vec<VoteIn>,
     /// Records of power: admissions, grants, revocations and the closing of the network.
     pub powers: Vec<PowerIn>,
+    /// The raw `note` of the exclusion record of (author, subject); cleaned when the ledger is built.
+    pub notes: BTreeMap<(PeerId, PeerId), String>,
 }
 
 /// How a node was excluded.
@@ -38,12 +40,37 @@ pub enum How {
     Left,
 }
 
-/// An exclusion: when and by whom, voters in time order.
+/// An exclusion: when and by whom.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Exclusion {
     pub how: How,
     pub at_micros: u64,
-    pub voters: Vec<PeerId>,
+    /// The member whose record excluded the node; for a node that left, the node itself.
+    pub by: PeerId,
+    /// The cleaned note of the excluding record; `None` for a node that left or when none was given.
+    pub reason: Option<String>,
+}
+
+impl Exclusion {
+    /// A node excluded by the member `by`.
+    pub fn removed(by: PeerId, at_micros: u64) -> Self {
+        Self {
+            how: How::Votes,
+            at_micros,
+            by,
+            reason: None,
+        }
+    }
+
+    /// A node that left on its own.
+    pub fn left(who: PeerId, at_micros: u64) -> Self {
+        Self {
+            how: How::Left,
+            at_micros,
+            by: who,
+            reason: None,
+        }
+    }
 }
 
 /// A newcomer an administrator asked for who is not a member yet.

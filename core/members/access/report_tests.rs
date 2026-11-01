@@ -107,18 +107,18 @@ fn world(listed: &[PeerId], excluded: &[PeerId]) -> World {
     };
     excluded
         .iter()
-        .for_each(|p| w.exclude(*p, How::Votes, vec![pid(2)]));
+        .for_each(|p| w.exclude(*p, How::Votes, pid(2)));
     w
 }
 
 impl World {
-    fn exclude(&mut self, peer: PeerId, how: How, voters: Vec<PeerId>) {
+    fn exclude(&mut self, peer: PeerId, how: How, by: PeerId) {
+        let at = AT_UNIX * 1_000_000 + 5;
         self.ledger.excluded.insert(
             peer,
-            Exclusion {
-                how,
-                at_micros: AT_UNIX * 1_000_000 + 5,
-                voters,
+            match how {
+                How::Votes => Exclusion::removed(by, at),
+                How::Left => Exclusion::left(by, at),
             },
         );
     }

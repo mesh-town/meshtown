@@ -75,3 +75,59 @@ fn shown_nets_keeps_only_the_chosen_slot() {
     assert_eq!(shown_nets(&overview, Some("k3j2h4")).len(), 1);
     assert_eq!(shown_nets(&overview, None).len(), 2);
 }
+
+fn excluded_net(extra: Value) -> Value {
+    let mut net = json!({"id": "main", "label": "home", "id_hex": "aa", "status": "excluded",
+                         "peers_online": 0, "peers_total": 2, "me_excluded": true});
+    for (k, v) in extra.as_object().unwrap() {
+        net[k] = v.clone();
+    }
+    net
+}
+
+fn excluded_lines(net: Value) -> Vec<String> {
+    let nets = [net, two_nets().remove(1)];
+    status_lines(&nets)
+}
+
+#[test]
+fn excluded_net_prints_reason_line() {
+    let lines = excluded_lines(excluded_net(
+        json!({"excluded_by": "anna", "excluded_reason": "spam"}),
+    ));
+    assert_eq!(lines.len(), 3, "{lines:?}");
+    assert_eq!(lines[1], "Excluded: spam");
+    assert!(lines[2].starts_with("work\t"), "{lines:?}");
+}
+
+#[test]
+fn excluded_net_without_reason_says_not_given() {
+    let lines = excluded_lines(excluded_net(
+        json!({"excluded_by": "anna", "excluded_reason": null}),
+    ));
+    assert_eq!(lines[1], "Excluded: no reason given");
+}
+
+#[test]
+fn old_node_without_the_key_prints_nothing_extra() {
+    let lines = excluded_lines(excluded_net(json!({})));
+    assert_eq!(lines.len(), 2, "{lines:?}");
+}
+
+#[test]
+fn esc_in_reason_does_not_reach_the_terminal() {
+    let lines = excluded_lines(excluded_net(
+        json!({"excluded_by": "anna", "excluded_reason": "\u{1b}]0;x\u{7}"}),
+    ));
+    let all = lines.join("\n");
+    assert!(!all.contains('\u{1b}') && !all.contains('\u{7}'), "{all:?}");
+    assert!(lines[1].starts_with("Excluded: "), "{lines:?}");
+}
+
+#[test]
+fn left_node_prints_no_excluded_line() {
+    let lines = excluded_lines(excluded_net(
+        json!({"excluded_by": null, "excluded_reason": null}),
+    ));
+    assert_eq!(lines.len(), 2, "{lines:?}");
+}

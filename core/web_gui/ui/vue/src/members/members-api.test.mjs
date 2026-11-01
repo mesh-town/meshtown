@@ -6,7 +6,7 @@
  *      A full valid reply parses to a structurally equal object (no keys are added; `changed` is kept only if boolean).
  *      Missing optional fields get safe values: top level `me` "", `me_excluded` false,
  *      `counts` an object of numbers; row `name` null, `self` false, `online` false, `blocked_by_me` false,
- *      `excluded` null, `denied_by_me` null, `last_refusal` null, `id` a string; excluded `voters` [].
+ *      `excluded` null, `denied_by_me` null, `last_refusal` null, `id` a string; excluded `by` null.
  *      A row that is not an object, has no string `id_full`, or has an unknown `status` is skipped (the rest stays).
  *      Extra (unknown) fields never break parsing.
  *  - `getMembers(api)`: `api("GET", "/api/members")` -> `parseMembers(reply)` (garbage -> `null`); an api rejection is NOT caught.
@@ -102,11 +102,39 @@ describe("parseMembers", () => {
       assert.equal(row.last_refusal, null);
     });
 
-    it("excluded without `voters`: empty list", () => {
+    it("excluded without `by`: null", () => {
       const excluded = { how: "left", at_unix: AT_UNIX };
       const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0];
-      assert.deepEqual(plain(row.excluded.voters), []);
+      assert.equal(row.excluded.by, null);
       assert.equal(row.excluded.how, "left");
+    });
+
+    it("excluded with a string by keeps it", () => {
+      const byOf = (by) => {
+        const excluded = { how: "removed", at_unix: AT_UNIX, by };
+        return parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0].excluded.by;
+      };
+      assert.equal(byOf(EXTRA_FULL), EXTRA_FULL);
+      assert.equal(byOf(""), null);
+      assert.equal(byOf(5), null);
+    });
+
+    it("excluded reason: string, null, or absent → undefined", () => {
+      const reasonOf = (extra) => {
+        const excluded = { how: "removed", at_unix: AT_UNIX, ...extra };
+        return parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0].excluded.reason;
+      };
+      assert.equal(reasonOf({ reason: "spam" }), "spam");
+      assert.equal(reasonOf({ reason: null }), null);
+      assert.equal(reasonOf({}), undefined);
+      assert.equal(reasonOf({ reason: 5 }), undefined);
+    });
+
+    it("excluded with only old `voters`: no admin", () => {
+      const excluded = { how: "removed", at_unix: AT_UNIX, voters: [EXTRA_FULL] };
+      const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0];
+      assert.equal(row.excluded.by, null);
+      assert.equal("voters" in row.excluded, false);
     });
   });
 

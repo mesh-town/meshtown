@@ -176,11 +176,7 @@ fn ids() -> (PeerId, PeerId) {
 
 /// Verdicts of `me`: `listed` are admitted, `excluded` are admitted and then excluded by votes; no votes, no blocks.
 fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts {
-    let by_votes = || Exclusion {
-        how: How::Votes,
-        at_micros: 10,
-        voters: Vec::new(),
-    };
+    let by_votes = || Exclusion::removed(me, 10);
     let ledger = Ledger {
         admitted: [&[me][..], listed, excluded].concat().into_iter().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),

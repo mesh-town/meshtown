@@ -54,6 +54,7 @@ pub(super) fn input_of(members: &[PeerId]) -> TallyInput {
         root: me(),
         votes: Vec::new(),
         powers: members.iter().filter(|m| **m != me()).map(admit).collect(),
+        notes: std::collections::BTreeMap::new(),
     }
 }
 

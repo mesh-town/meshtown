@@ -8,6 +8,7 @@ use super::client::{print_json, Node};
 use crate::cli::args::{Global, Globals};
 use crate::cli::exit::NotRunning;
 use crate::cli::program_name::program_name;
+use crate::members::access::reason_text::reason_text;
 
 /// Arguments of `status`.
 #[derive(clap::Args)]
@@ -70,8 +71,21 @@ fn shown_nets(overview: &Value, slot: Option<&str>) -> Vec<Value> {
 }
 
 /// One tab-separated line per network: the label, the status, the peers online, then `exit` and `proxy` when set.
+/// A network an administrator removed this computer from has an `Excluded:` line under it.
 pub(super) fn status_lines(nets: &[Value]) -> Vec<String> {
-    nets.iter().map(status_line).collect()
+    let lines = |n| std::iter::once(status_line(n)).chain(excluded_line(n));
+    nets.iter().flat_map(lines).collect()
+}
+
+/// `Excluded: <reason>` when `excluded_by` is a string (an administrator removed the computer); nothing for a
+/// computer that left, one dropped by the failures of its peers, or a node that does not send the key.
+fn excluded_line(net: &Value) -> Option<String> {
+    net["excluded_by"].as_str()?;
+    let reason = net["excluded_reason"].as_str().and_then(reason_text);
+    Some(format!(
+        "Excluded: {}",
+        reason.as_deref().unwrap_or("no reason given")
+    ))
 }
 
 fn status_line(net: &Value) -> String {

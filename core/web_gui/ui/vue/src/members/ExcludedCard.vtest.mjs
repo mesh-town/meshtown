@@ -55,6 +55,41 @@ describe("ExcludedCard", () => {
     });
   });
 
+  describe("the reason", () => {
+    const reason = () => wrapper.find("#excluded-reason");
+
+    it("shows the reason for a removed computer", () => {
+      setup({ variant: "banned", reason: "spam" });
+      expect(reason().text()).toBe("Reason: spam");
+    });
+
+    it("says no reason given for null", () => {
+      setup({ variant: "banned", reason: null });
+      expect(reason().text()).toBe("No reason given.");
+    });
+
+    it("no reason line when the node does not send one", () => {
+      setup({ variant: "banned" });
+      expect(reason().exists()).toBe(false);
+    });
+
+    it("no reason line for a computer that left", () => {
+      setup({ variant: "left", reason: "spam" });
+      expect(reason().exists()).toBe(false);
+      wrapper.unmount();
+      setup({ variant: "left", reason: null });
+      expect(reason().exists()).toBe(false);
+    });
+
+    it("reason with <b> and <script> is text, not markup", () => {
+      const text = "<b>bold</b><script>alert(1)</script>";
+      setup({ variant: "banned", reason: text });
+      expect(reason().findAll("b, script")).toHaveLength(0);
+      expect(reason().text()).toBe("Reason: " + text);
+      expect(reason().element.querySelector("*")).toBeNull();
+    });
+  });
+
   describe("the button", () => {
     it.each(["banned", "left"])("%s: \"Join with another invite\" is the primary button and emits join", async (variant) => {
       setup({ variant });
@@ -74,6 +109,6 @@ describe("ExcludedCard", () => {
   });
 });
 
-function setup({ variant, net = "demo-network", formOpen }) {
-  wrapper = mount(ExcludedCard, { props: { variant, net, formOpen }, attachTo: document.body });
+function setup({ variant, net = "demo-network", formOpen, reason }) {
+  wrapper = mount(ExcludedCard, { props: { variant, net, formOpen, reason }, attachTo: document.body });
 }

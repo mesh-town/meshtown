@@ -47,7 +47,7 @@ describe("ExitCard warning about the chosen exit", () => {
 
   describe("the exit left the network on its own", () => {
     it("the alert says it left, and it is not offered", () => {
-      const left = removed({ denied_by_me: "left", excluded: excludedInfo({ how: "left", voters: [] }) });
+      const left = removed({ denied_by_me: "left", excluded: excludedInfo({ how: "left", by: null }) });
       const { wrapper } = mountExit({ chosen: [PEER_FULL], members: members({ one: left }) });
       expect(wrapper.get("#exit-warning").text()).toBe("peer-one left the network. Choose another exit below.");
       expect(choiceIds(wrapper)).toEqual([PEER2_FULL]);

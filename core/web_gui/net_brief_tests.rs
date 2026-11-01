@@ -290,6 +290,8 @@ fn the_json_keeps_the_field_order() {
         "me_admin",
         "can_invite",
         "admission_refused",
+        "excluded_by",
+        "excluded_reason",
     ];
     let at: Vec<usize> = keys
         .iter()

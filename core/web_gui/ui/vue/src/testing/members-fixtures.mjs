@@ -32,7 +32,7 @@ export const staleRow = (name, lastSeenSec) => {
   return memberRow({ id: id_full.slice(0, 8).toLowerCase(), id_full, name, online: false, last_seen_sec: lastSeenSec });
 };
 
-export const excludedInfo = (over = {}) => ({ how: "removed", at_unix: AT_UNIX, voters: [SELF_FULL, PEER_FULL], ...over });
+export const excludedInfo = (over = {}) => ({ how: "removed", at_unix: AT_UNIX, by: SELF_FULL, ...over });
 
 // The whole reply; `counts` are computed from `rows` unless overridden.
 export function membersReply({ rows = [selfRow(), peerOneRow(), peerTwoRow()], ...over } = {}) {

@@ -3,11 +3,44 @@
 use serde_json::Value;
 
 use crate::cli::program_name::program_name;
+use crate::members::access::reason_text::reason_text;
 
-/// The table rows of the `members` array of `GET members`: `ID STATUS ONLINE ADMIN BLOCKED NAME`.
-pub(crate) fn rows(members: &Value) -> Vec<Vec<String>> {
-    let list = members.as_array().map_or(&[][..], Vec::as_slice);
-    list.iter().map(row).collect()
+/// Whether the table has the `REASON` column: for an administrator and for the removed computer itself.
+fn has_reason(reply: &Value) -> bool {
+    ["me_admin", "me_excluded"]
+        .iter()
+        .any(|key| reply[*key].as_bool() == Some(true))
+}
+
+/// The table head: `ID STATUS ONLINE ADMIN BLOCKED NAME`, then `REASON` when the reply carries it.
+pub(crate) fn head(reply: &Value) -> Vec<&'static str> {
+    let mut head = vec!["ID", "STATUS", "ONLINE", "ADMIN", "BLOCKED", "NAME"];
+    head.extend(has_reason(reply).then_some("REASON"));
+    head
+}
+
+/// The table rows of a `GET members` reply, with the columns of `head`.
+pub(crate) fn rows(reply: &Value) -> Vec<Vec<String>> {
+    let list = reply["members"].as_array().map_or(&[][..], Vec::as_slice);
+    let reason = has_reason(reply);
+    let with = |m| {
+        let mut cells = row(m);
+        cells.extend(reason.then(|| reason_cell(m)));
+        cells
+    };
+    list.iter().map(with).collect()
+}
+
+/// The reason of a removed member; `(not given)` without one, `-` for anyone else.
+fn reason_cell(m: &Value) -> String {
+    let excluded = &m["excluded"];
+    match (excluded["how"].as_str(), excluded.get("reason")) {
+        (Some("removed"), Some(Value::Null)) => "(not given)".to_string(),
+        (Some("removed"), Some(Value::String(text))) => {
+            reason_text(text).unwrap_or_else(|| "(not given)".to_string())
+        }
+        _ => "-".to_string(),
+    }
 }
 
 fn row(m: &Value) -> Vec<String> {

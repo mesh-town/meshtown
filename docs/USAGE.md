@@ -257,6 +257,7 @@ meshtown member admin <member> [--revoke]     # make a member an administrator, 
 | `ADMIN` | `yes` for an administrator |
 | `BLOCKED` | `yes` when this computer blocked the member |
 | `NAME` | The name of the node, or `-`; this computer's row ends with `(this computer)` |
+| `REASON` | Only for an administrator and for a removed computer: the reason an administrator gave when removing the member, `(not given)` when there is none, `-` for everyone else |
 
 The head is always printed. A summary and, for an administrator, a hint about waiting members go to stderr. `--json`
 prints the node's reply instead of the table.
@@ -269,7 +270,8 @@ with code 1, and you repeat it with a longer start of the id. An id that is not 
 a block is kept on this computer only. A refusal prints what the node said and what to do next, for example when you
 pick your own computer or try to take the role from the only administrator. Repeating an action that is already done
 changes nothing and exits with code 0 (`Nothing changed: …`). `--reason` is up to 80 characters without control
-characters. `--net <network>` picks the network when the computer has several. Exit codes: 0 done, 1 refused by the
+characters; the removed member and administrators see it, other members do not. On a computer an administrator removed,
+`status` prints `Excluded: <reason>` under the line of the network (`Excluded: no reason given` without one). `--net <network>` picks the network when the computer has several. Exit codes: 0 done, 1 refused by the
 node or no such member, 2 wrong command line, 3 no node running.
 
 Admit the member who waits, on a node with its own settings file:

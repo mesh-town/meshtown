@@ -10,7 +10,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use crate::transport::net::PeerId;
 
-use super::super::tally::{Admission, Ledger, TallyInput};
+use super::super::reason_text::reason_text;
+use super::super::tally::{Admission, Exclusion, How, Ledger, TallyInput};
 use super::events::{events, Act, Event, EventKey};
 use super::roles::Replay;
 
@@ -33,7 +34,7 @@ pub fn tally(input: &TallyInput) -> Ledger {
             "the pinned exclusions stopped growing late"
         );
     };
-    ledger(root, input.me, &replay, &all)
+    ledger(root, input.me, &replay, &all, &input.notes)
 }
 
 /// Who `me` lets into its own view while it is not a member itself: the nodes it admitted.
@@ -57,12 +58,41 @@ fn requests(root: PeerId, replay: &Replay, all: &[Event]) -> BTreeMap<PeerId, Ad
         .collect()
 }
 
-fn ledger(root: PeerId, me: PeerId, replay: &Replay, all: &[Event]) -> Ledger {
+/// The exclusions with the cleaned note of the record that excluded the node; a node that left has none.
+fn with_reasons(
+    excluded: &BTreeMap<PeerId, Exclusion>,
+    notes: &BTreeMap<(PeerId, PeerId), String>,
+) -> BTreeMap<PeerId, Exclusion> {
+    let reason = |subject: &PeerId, e: &Exclusion| {
+        let note = notes.get(&(e.by, *subject));
+        note.filter(|_| e.how == How::Votes)
+            .and_then(|n| reason_text(n))
+    };
+    let fill = |(s, e): (&PeerId, &Exclusion)| {
+        let reason = reason(s, e);
+        (
+            *s,
+            Exclusion {
+                reason,
+                ..e.clone()
+            },
+        )
+    };
+    excluded.iter().map(fill).collect()
+}
+
+fn ledger(
+    root: PeerId,
+    me: PeerId,
+    replay: &Replay,
+    all: &[Event],
+    notes: &BTreeMap<(PeerId, PeerId), String>,
+) -> Ledger {
     let mut admitted = replay.admitted.clone();
     admitted.extend(own_admits(me, replay, all));
     Ledger {
         admitted,
-        excluded: replay.excluded.clone(),
+        excluded: with_reasons(&replay.excluded, notes),
         admissions: requests(root, replay, all),
         admins: replay.admins.clone(),
         closed: replay.closed.clone(),
@@ -72,3 +102,7 @@ fn ledger(root: PeerId, me: PeerId, replay: &Replay, all: &[Event]) -> Ledger {
 #[cfg(test)]
 #[path = "closure_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "closure_reason_tests.rs"]
+mod reason_tests;

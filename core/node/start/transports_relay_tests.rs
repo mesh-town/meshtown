@@ -3,7 +3,7 @@
 //! decides whether a candidate source is set and whether the own advert stays.
 
 use super::*;
-use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::tally::{Exclusion, Ledger};
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::node::node_state::own_value;
 use crate::node::start::relay_candidates::relay_source;
@@ -245,11 +245,7 @@ fn verdicts_of(admitted: &[PeerId], excluded: &[PeerId]) -> Verdicts {
     let mut ledger = Ledger::empty();
     ledger.admitted = admitted.iter().copied().chain([peer(A)]).collect();
     for id in excluded {
-        let gone = Exclusion {
-            how: How::Votes,
-            at_micros: 1,
-            voters: vec![],
-        };
+        let gone = Exclusion::removed(peer(A), 1);
         ledger.excluded.insert(*id, gone);
     }
     Verdicts {

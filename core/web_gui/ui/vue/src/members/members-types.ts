@@ -12,7 +12,10 @@ export interface AdmissionInfo {
 export interface ExcludedInfo {
   how: "removed" | "left";
   at_unix: number;
-  voters: string[];
+  /** The member whose record excluded the node (the node itself after a leave); `null` when the node does not say. */
+  by: string | null;
+  /** The note given with the removal: text, `null` when none was given, absent when the node does not say. */
+  reason?: string | null;
 }
 
 export interface RefusalInfo {

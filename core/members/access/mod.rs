@@ -12,6 +12,7 @@ pub mod boot;
 mod boot_plan;
 mod deny;
 mod managed;
+pub mod reason_text;
 mod reasons;
 pub mod record;
 mod record_input;
