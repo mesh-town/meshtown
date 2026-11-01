@@ -98,3 +98,25 @@ async fn close_while_binding_releases() {
     assert!(!udp_taken(local), "the aborted task took the port");
     assert!(fx.opener.bind_states().is_empty());
 }
+
+#[tokio::test]
+async fn busy_udp_port_fails_within_the_rebind_window() {
+    // given: another socket holds the local port for good
+    let (_holder, local) = held_udp_port();
+    let fx = setup(Peer::Silent, false).await;
+
+    // when: the entry is opened and we wait for the bind to give up
+    let started = std::time::Instant::now();
+    fx.opener
+        .reconcile_listeners(vec![entry(Proto::Udp, 53, local)]);
+    while !matches!(fx.state(Proto::Udp, local), OpenState::BindFailed(_)) {
+        assert!(
+            started.elapsed() < Duration::from_millis(1500),
+            "no bind failure within 1.5 s"
+        );
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+
+    // then: the failure came from the core within the window (the time is printed for measuring)
+    println!("bind_failed after {:?}", started.elapsed());
+}

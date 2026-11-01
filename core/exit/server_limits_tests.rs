@@ -306,3 +306,19 @@ async fn wait_live(fx: &Fx, n: u64, limit: Duration) {
         fx.cfg.limits.live()
     );
 }
+
+mod busy_text {
+    use super::*;
+
+    #[test]
+    fn busy_line_text_has_no_tail_when_nothing_was_held() {
+        let text = busy_line_text(&pid(1), "busy: 1 streams open, limit 1", 0);
+        assert!(text.ends_with(": busy: 1 streams open, limit 1"), "{text}");
+    }
+
+    #[test]
+    fn busy_line_text_names_the_count() {
+        let text = busy_line_text(&pid(1), "busy: 1 streams open, limit 1", 3);
+        assert!(text.ends_with("limit 1 (+3 refused, not logged)"), "{text}");
+    }
+}

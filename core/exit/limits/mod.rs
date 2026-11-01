@@ -18,5 +18,5 @@ pub(crate) use gate::Busy;
 pub use gate::ExitLimits;
 #[cfg(test)]
 pub(crate) use gate::StreamSlot;
-pub(crate) use line_rate::LineRate;
+pub(crate) use line_rate::{KeyedLineRate, LineRate};
 pub(crate) use rss::rss_ceiling_kib;

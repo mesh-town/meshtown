@@ -27,7 +27,7 @@ use super::frame::{
 use super::table::{LocalState, PublishedPortsTable};
 use super::types::{Audience, Proto};
 use super::udp::{serve_udp_stream, UdpSession, MAX_UDP_SESSIONS_SERVED, SERVE_IDLE};
-use crate::exit::splice;
+use crate::exit::{splice, KeyedLineRate};
 use crate::members::membership::Members;
 use crate::node::output::say;
 use crate::node::tcp_tune::disable_nagle;
@@ -44,6 +44,8 @@ pub struct PortServer {
     pub table: PublishedPortsTable,
     /// Slots of simultaneously served UDP sessions (`MAX_UDP_SESSIONS_SERVED`).
     pub udp_sessions: Arc<Semaphore>,
+    /// Pacing of the "UDP port opened" log line per member and port.
+    pub(crate) udp_lines: Arc<KeyedLineRate<(PeerId, u16)>>,
 }
 
 /// Ports handler for `NetStack`.
@@ -52,6 +54,7 @@ pub fn port_service(members: Members, table: PublishedPortsTable) -> Arc<dyn Ser
         members,
         table,
         udp_sessions: Arc::new(Semaphore::new(MAX_UDP_SESSIONS_SERVED)),
+        udp_lines: Arc::default(),
     })
 }
 
@@ -252,17 +255,17 @@ async fn serve_udp(
         return refuse(&mut send, &peer, &server.members, &why, PORT_CODE_BUSY).await;
     };
     send_reply_code(&mut send, PORT_CODE_OK).await?;
-    say(
-        "port",
-        format!(
-            "{}: port {port}/udp opened",
-            server.members.peer_label(peer)
-        ),
-    );
+    if let Some(line) = udp_opened_line(server, peer, port, std::time::Instant::now()) {
+        say("port", line);
+    }
     let session = UdpSession::new(send, recv, SERVE_IDLE, Some(permit));
     serve_udp_stream(session, port).await;
     Ok(())
 }
+
+#[path = "server_log.rs"]
+mod server_log;
+use server_log::udp_opened_line;
 
 #[cfg(test)]
 #[path = "server_tests.rs"]
