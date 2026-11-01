@@ -189,9 +189,22 @@ async fn serve_exit_stream(
     if udpgw::is_gateway_target(&target_host, port) {
         return serve_gateway(cfg, peer, conn, send, recv).await;
     }
-    // 3. Address and connection: the test table, otherwise a literal or the own resolver over HTTPS (IPv4 first,
-    // then IPv6); closed networks are refused (`address_guard`). Neither domain nor port is checked (those rules
-    // were removed).
+    serve_tcp_target(cfg, peer, conn, send, recv, target_host, port).await
+}
+
+/// Connects to the target and shuttles bytes. The caller's slot stays held until this returns.
+///
+/// Address and connection: the test table, otherwise a literal or the own resolver over HTTPS (IPv4 first,
+/// then IPv6); closed networks are refused (`address_guard`). Neither domain nor port is checked.
+async fn serve_tcp_target(
+    cfg: ExitConfig,
+    peer: PeerId,
+    conn: ConnRef,
+    mut send: BoxSend,
+    recv: BoxRecv,
+    target_host: String,
+    port: u16,
+) -> Result<()> {
     let tcp = match open_target(&cfg, &target_host, port).await {
         Ok(tcp) => tcp,
         Err(refusal) => return refuse(&mut send, &peer, refusal).await,
