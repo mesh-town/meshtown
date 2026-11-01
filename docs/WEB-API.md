@@ -175,7 +175,7 @@ all fields are required; `null` is allowed where marked):
   "exit": { "enabled": true, "domains": 7, "clients": ["9f3a…"], "interface": null },
   "transport": {
     "self_path": "direct",
-    "relay": { "connected": true, "url": "relay.example.net" },
+    "relay": { "connected": true, "url": "relay.example.net", "serving": false },
     "nat": "address-restricted cone",
     "listen_udp": ["192.168.1.14:47821", "[::]:47821"],
     "dht": { "joined": true, "nodes": 8, "last_publish_sec": 137 },
@@ -340,6 +340,7 @@ Exact enum values:
 - `transport.self_path`: `"direct"`, `"relay"`, `null` — how this machine currently reaches the network
   (how the page can show this machine's own path). The values are the same three as for `peers[].path`, so that the page parses them
   with one function.
+- `transport.relay.serving`: `true` while this node's own relay carries a pair of other members (a session is open, or a pairing was completed since the previous check, about every 30 seconds); `false` otherwise and when there is no relay. It is a flag, not a count. An older node omits the key: read it as `false`.
 - `node.version` — the binary version string; shown in the header caption next to the address.
   `node.id_full` — the full node identifier; shown only as a tooltip (`title`)
   on the own row in "Networks", it is not in the page text.

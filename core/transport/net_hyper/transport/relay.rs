@@ -117,6 +117,14 @@ impl HyperTransport {
         keys
     }
 
+    /// Whether this node's relay carries a pair of other members right now; `false` while it serves none.
+    pub fn relay_serving(&self) -> watch::Receiver<bool> {
+        match self.host_slot().as_ref() {
+            Some(host) => host.serving(),
+            None => watch::channel(false).1,
+        }
+    }
+
     pub(super) fn host_slot(&self) -> MutexGuard<'_, Option<RelayHost>> {
         self.relay_host.lock().unwrap_or_else(|e| e.into_inner())
     }

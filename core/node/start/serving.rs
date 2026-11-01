@@ -42,6 +42,8 @@ pub(super) struct Serving {
     pub(super) ports_doc: PortsDoc,
     pub(super) doc_changes: Arc<DocChanges>,
     pub(super) opener: Opener,
+    /// Whether this node's relay carries a pair of other members; `false` without a relay.
+    pub(super) relay_serving: tokio::sync::watch::Receiver<bool>,
 }
 
 /// Background announcements in the network document: the program version and the node name (publisher and watcher).
@@ -55,9 +57,14 @@ fn spawn_announcements(boot: &mut Boot, domain_list: &DomainList, net: &Net) {
 }
 
 /// Wires relay through members on the `hyper` transport, if there is one; the advert task joins the node's tasks.
-fn wire_relay_in(cfg: &NodeConfig, boot: &mut Boot, net: &Net, domain_list: &DomainList) {
+fn wire_relay_in(
+    cfg: &NodeConfig,
+    boot: &mut Boot,
+    net: &Net,
+    domain_list: &DomainList,
+) -> tokio::sync::watch::Receiver<bool> {
     let Some(hyper) = boot.hyper.clone() else {
-        return;
+        return tokio::sync::watch::channel(false).1;
     };
     let task = wire_relay(
         &hyper,
@@ -66,6 +73,7 @@ fn wire_relay_in(cfg: &NodeConfig, boot: &mut Boot, net: &Net, domain_list: &Dom
         domain_list.shared_replica(),
     );
     boot.background_abort_handles.push(task.abort_handle());
+    hyper.relay_serving()
 }
 
 /// The node's country poll goes through the first transport (the list is non-empty after `check_transport_names`).
@@ -87,7 +95,7 @@ pub(super) async fn setup_serving(
     let (domain_list, doc_changes, access) =
         open_domain_list(net, access, &mut boot.background_abort_handles).await?;
     spawn_announcements(boot, &domain_list, net);
-    wire_relay_in(cfg, boot, net, &domain_list);
+    let relay_serving = wire_relay_in(cfg, boot, net, &domain_list);
     spawn_country_check(cfg, boot, &domain_list);
 
     let checks = setup_checks(cfg, net, &domain_list, &mut boot.background_abort_handles).await?;
@@ -112,6 +120,7 @@ pub(super) async fn setup_serving(
         ports_doc,
         doc_changes,
         opener,
+        relay_serving,
     })
 }
 

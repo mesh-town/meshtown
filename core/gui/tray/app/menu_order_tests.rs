@@ -15,28 +15,39 @@ mod top_ids {
 
     #[test]
     fn without_notes_the_status_and_open_come_first() {
-        assert_eq!(top_ids(&[], false), ["status", "open"]);
+        assert_eq!(top_ids(&[], false, false), ["status", "open"]);
+    }
+
+    #[test]
+    fn relaying_line_comes_right_under_the_status() {
+        assert_eq!(
+            top_ids(&[4], true, true),
+            ["status", "relaying", "open", "notice:4", "admit"]
+        );
     }
 
     #[test]
     fn request_comes_right_after_open() {
-        assert_eq!(top_ids(&[], true), ["status", "open", "admit"]);
+        assert_eq!(top_ids(&[], true, false), ["status", "open", "admit"]);
     }
 
     #[test]
     fn deleted_network_note_is_between_open_and_request() {
-        assert_eq!(top_ids(&[4], true), ["status", "open", "notice:4", "admit"]);
+        assert_eq!(
+            top_ids(&[4], true, false),
+            ["status", "open", "notice:4", "admit"]
+        );
     }
 
     #[test]
     fn note_alone_follows_open() {
-        assert_eq!(top_ids(&[4], false), ["status", "open", "notice:4"]);
+        assert_eq!(top_ids(&[4], false, false), ["status", "open", "notice:4"]);
     }
 
     #[test]
     fn several_notes_keep_their_order() {
         assert_eq!(
-            top_ids(&[4, 9], true),
+            top_ids(&[4, 9], true, false),
             ["status", "open", "notice:4", "notice:9", "admit"]
         );
     }

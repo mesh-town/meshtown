@@ -43,6 +43,26 @@ pub struct TraySnapshot {
     pub peers: Option<Vec<TrayPeer>>,
     #[serde(deserialize_with = "lenient::object_or_default")]
     pub members: TrayMembers,
+    #[serde(deserialize_with = "lenient::object_or_default")]
+    pub transport: TrayTransport,
+}
+
+/// The `transport` object: only the relay part is read.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(default)]
+pub struct TrayTransport {
+    #[serde(deserialize_with = "lenient::object_or_default")]
+    pub relay: TrayRelay,
+}
+
+/// The `transport.relay` object.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Deserialize)]
+#[serde(default)]
+pub struct TrayRelay {
+    /// `transport.relay.serving`: this node's relay carries a pair of other members; a node that does not
+    /// report it gives `false`.
+    #[serde(deserialize_with = "lenient::bool_or_false")]
+    pub serving: bool,
 }
 
 /// The membership facts the tray shows: requests to join and our own exclusion.

@@ -169,3 +169,18 @@ fn members_missing_or_foreign_types_give_defaults() {
     let s = snap(json!({"members": {"admitting": -1}}));
     assert_eq!(s.members.admitting, 0);
 }
+
+#[test]
+fn relay_serving_is_read_and_defaults_to_false() {
+    let on = snap(json!({"transport": {"relay": {"serving": true}}}));
+    assert!(on.transport.relay.serving);
+    for body in [
+        json!({}),
+        json!({"transport": {}}),
+        json!({"transport": {"relay": {"connected": true}}}),
+        json!({"transport": {"relay": {"serving": "yes"}}}),
+        json!({"transport": 5}),
+    ] {
+        assert!(!snap(body).transport.relay.serving);
+    }
+}

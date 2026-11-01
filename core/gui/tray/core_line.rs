@@ -10,6 +10,7 @@ use crate::gui::tray::app::nets_texts::{
 use crate::gui::tray::app::start_note::{start_note_hint, StartNote};
 use crate::gui::tray::app::tray_actions;
 use crate::gui::tray::app::tray_actions::{invite_item_text, InviteReach};
+use crate::gui::tray::app::tray_texts::relaying_item_text;
 use crate::gui::tray::app::view::{
     node_item_text, page_enabled, page_text, start_enabled, stop_enabled, NodeState,
 };
@@ -147,6 +148,7 @@ impl Core {
         let status_text = self.menu_first_line();
         let tooltip = members_note::tooltip_text(&status_text, self.members) + &self.offline_tail();
         let admit_text = self.admit_item_text();
+        let relaying_text = relaying_item_text(self.relaying);
         let proxy_text = proxy_item_text(&self.proxy);
         let open_text =
             start_note_hint(self.shown_start_note()).unwrap_or_else(|| page_text(self.view));
@@ -163,6 +165,7 @@ impl Core {
         ui.node_item
             .set_enabled(start_enabled(self.view.node) || stop_enabled(self.view.node));
         ui.proxy_item.set_text(&proxy_text);
+        ui.relaying.apply(relaying_text);
         let note_ids = ui.extras.note_ids();
         ui.admit.apply(admit_text.as_deref(), &note_ids);
     }

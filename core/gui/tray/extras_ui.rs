@@ -44,11 +44,15 @@ impl ExtrasUi {
             let _ = self.menu.remove(&item);
         }
         let ids: Vec<u64> = notices.iter().map(|n| n.id).collect();
-        let places = top_ids(&ids, false);
+        let relaying = super::relaying_item::shown(&self.menu);
+        let places = top_ids(&ids, false, relaying);
         for (note, id) in notices.iter().zip(&ids) {
             let at = places.iter().position(|p| *p == notice_id(*id));
             let item = MenuItem::with_id(notice_id(*id), net_deleted_text(&note.label), true, None);
-            match self.menu.insert(&item, at.unwrap_or(2)) {
+            match self
+                .menu
+                .insert(&item, at.unwrap_or(2 + usize::from(relaying)))
+            {
                 Ok(()) => self.notes.push((note.clone(), item)),
                 Err(e) => super::log_tray(&format!("deleted network note: {e}")),
             }

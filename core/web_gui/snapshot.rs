@@ -124,6 +124,8 @@ impl PathKindView {
 pub struct RelayInfo {
     pub connected: bool,
     pub url: Option<String>,
+    /// The node's relay carries a pair of other members right now.
+    pub serving: bool,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

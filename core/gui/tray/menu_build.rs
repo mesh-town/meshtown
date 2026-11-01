@@ -177,6 +177,7 @@ pub(super) struct TrayUi {
     pub(super) shown_icon_key: IconPicture,
     pub(super) exit_submenu: super::exit_menu::ExitUi,
     pub(super) actions: ActionsUi,
+    pub(super) relaying: super::relaying_item::RelayingUi,
     pub(super) admit: super::admit_item::AdmitUi,
     pub(super) nets: super::nets_ui::NetsUi,
     pub(super) extras: super::extras_ui::ExtrasUi,

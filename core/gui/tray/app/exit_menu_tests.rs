@@ -208,3 +208,20 @@ mod disabled_exit_menu {
         assert_eq!(menu.proxy, ProxyState::On("127.0.0.1:1080".to_string()));
     }
 }
+
+#[test]
+fn serving_line_is_shown_only_while_relaying() {
+    use crate::gui::tray::app::tray_texts::relaying_item_text;
+    let line = |serving: serde_json::Value| {
+        let state = json!({
+            "node": { "status": "online", "id_full": "me00" },
+            "transport": { "relay": { "serving": serving } }
+        });
+        relaying_item_text(exit_menu_from_json(&state).relaying)
+    };
+    assert_eq!(line(json!(true)), Some("Relaying for other members"));
+    assert_eq!(line(json!(false)), None);
+    // an old node without the field
+    let old = json!({ "node": { "status": "online", "id_full": "me00" } });
+    assert_eq!(relaying_item_text(exit_menu_from_json(&old).relaying), None);
+}
