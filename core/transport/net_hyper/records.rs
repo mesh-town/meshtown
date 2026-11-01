@@ -40,6 +40,10 @@ impl RecordStore for HyperRecords {
             Ok(())
         })
     }
+
+    fn table_size(&self) -> BoxFuture<'_, Option<usize>> {
+        Box::pin(async move { self.node.to_array(None).await.ok().map(|t| t.len()) })
+    }
 }
 
 #[cfg(test)]

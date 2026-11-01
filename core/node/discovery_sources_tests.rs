@@ -297,7 +297,9 @@ mod node_list {
         h(DhtRoundOutcome {
             read: true,
             members: 3,
+            others: 2,
             published: true,
+            table: None,
         });
         let v = tel.view();
         // then: read, publish and join are marked
@@ -306,12 +308,16 @@ mod node_list {
         h(DhtRoundOutcome {
             read: true,
             members: 3,
+            others: 2,
             published: true,
+            table: None,
         });
         h(DhtRoundOutcome {
             read: true,
             members: 4,
+            others: 3,
             published: true,
+            table: None,
         });
         let lines = crate::node::output::log_page(0, 10_000).lines;
         let n = |m: &str| {
@@ -330,9 +336,80 @@ mod node_list {
         seen_handler(tel.clone())(DhtRoundOutcome {
             read: false,
             members: 0,
+            others: 0,
             published: false,
+            table: None,
         });
         let v = tel.view();
         assert!(v.dht_read.is_none() && !v.dht_joined);
+    }
+
+    fn outcome(others: usize, table: Option<usize>) -> DhtRoundOutcome {
+        DhtRoundOutcome {
+            read: true,
+            members: others + 1,
+            others,
+            published: true,
+            table,
+        }
+    }
+
+    #[test]
+    fn dht_nodes_follows_table_size() {
+        let tel = Telemetry::new();
+        seen_handler(tel.clone())(outcome(0, Some(7)));
+        assert_eq!(tel.view().dht_nodes, 7);
+    }
+
+    #[test]
+    fn dht_nodes_keeps_last_on_none() {
+        let tel = Telemetry::new();
+        let h = seen_handler(tel.clone());
+        h(outcome(0, Some(7)));
+        h(outcome(0, None));
+        assert_eq!(tel.view().dht_nodes, 7);
+    }
+
+    #[test]
+    fn members_count_in_snapshot() {
+        let tel = Telemetry::new();
+        assert!(
+            tel.view().dht_read.is_none(),
+            "no field before the first read"
+        );
+        seen_handler(tel.clone())(outcome(6, Some(1)));
+        assert_eq!(tel.view().dht_read.map(|r| r.1), Some(7));
+    }
+
+    #[tokio::test]
+    async fn island_line_every_ten_rounds() {
+        let _g = lock().await;
+        let tel = Telemetry::new();
+        let h = seen_handler(tel);
+        let after = last_seq();
+        let count = |after| {
+            lines("hyperdht", after)
+                .iter()
+                .filter(|t| t.starts_with("no DHT nodes and no other members for"))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        for _ in 0..25 {
+            h(outcome(0, Some(0)));
+        }
+        let got = count(after);
+        assert_eq!(
+            got,
+            [
+                "no DHT nodes and no other members for 10 rounds",
+                "no DHT nodes and no other members for 20 rounds"
+            ]
+        );
+        // the table fills: the streak resets and 10 more rounds with the kept size stay silent
+        h(outcome(0, Some(3)));
+        for _ in 0..10 {
+            h(outcome(0, None));
+        }
+        assert_eq!(count(after).len(), 2);
     }
 }
