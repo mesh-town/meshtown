@@ -36,7 +36,7 @@ mod denied_by_me_codes {
     fn after_leaving_everyone_is_denied_and_my_row_is_not() {
         // given: I have left
         let mut w = world(&[pid(2)], &[]);
-        w.exclude(pid(1), How::Left, vec![pid(1)]);
+        w.exclude(pid(1), How::Left, pid(1));
         // when / then
         assert_eq!(w.row(pid(2)).denied_by_me, Some("left"));
         assert_eq!(w.row(pid(1)).denied_by_me, None, "my own row");

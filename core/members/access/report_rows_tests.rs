@@ -54,7 +54,7 @@ mod order {
         // given: I have left; a is listed
         let a = pid(2);
         let mut w = world(&[a], &[]);
-        w.exclude(pid(1), How::Left, vec![pid(1)]);
+        w.exclude(pid(1), How::Left, pid(1));
         // when / then: my row is the first one and the reply says so
         let reply = w.reply();
         assert!(reply.me_excluded);
@@ -68,28 +68,49 @@ mod fields {
 
     #[test]
     fn excluded_row_fields_match_contract() {
-        // given: c was excluded by the votes of a and b
+        // given: c was excluded by a
         let (a, b, c) = (pid(2), pid(3), pid(4));
         let mut w = world(&[a, b], &[c]);
-        w.exclude(c, How::Votes, vec![a, b]);
+        w.exclude(c, How::Votes, a);
         // when
         let row = w.row(c);
         // then: the exclusion carries the contract fields
         let info = row.excluded.expect("exclusion info");
         assert_eq!((info.how, info.at_unix), ("removed", AT_UNIX));
-        assert_eq!(info.voters, vec![a.to_string(), b.to_string()]);
+        assert_eq!(info.by, a.to_string());
         assert_eq!(row.status, "excluded");
     }
 
     #[test]
-    fn left_node_is_excluded_with_himself_as_voter() {
+    fn excluded_info_keys_are_the_contract() {
+        // given: c was excluded by the administrator a
+        let (a, c) = (pid(2), pid(4));
+        let mut w = world(&[a], &[c]);
+        w.exclude(c, How::Votes, a);
+        // when
+        let json = serde_json::to_value(w.row(c).excluded.expect("exclusion info")).unwrap();
+        // then: exactly how, at_unix and by; `by` is the full id of the author
+        let mut keys: Vec<&str> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        keys.sort_unstable();
+        assert_eq!(keys, ["at_unix", "by", "how"]);
+        assert_eq!(json["by"], a.to_string());
+        assert_eq!(a.to_string().len(), 64);
+    }
+
+    #[test]
+    fn left_node_is_excluded_by_himself() {
         // given: a has left
         let a = pid(2);
         let mut w = world(&[a], &[]);
-        w.exclude(a, How::Left, vec![a]);
+        w.exclude(a, How::Left, a);
         // when / then
         let info = w.row(a).excluded.expect("exclusion info");
-        assert_eq!((info.how, info.voters), ("left", vec![a.to_string()]));
+        assert_eq!((info.how, info.by), ("left", a.to_string()));
     }
 
     #[test]

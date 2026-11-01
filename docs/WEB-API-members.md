@@ -27,6 +27,9 @@ A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `on
 
 `admin` is `true` for an administrator of the network.
 
+`excluded` (set when `status` is `excluded`) has `how` (`removed` or `left`), `at_unix` and `by`: the 64-digit id of the member whose
+record excluded the node; for a node that left, the node itself.
+
 - `status` is one of `member`, `pending`, `unlisted`, `excluded`; rows are ordered in that way after the
   own row.
 - `denied_by_me` is `null` or why this node refuses the row: `left`, `excluded`, `blocked`, `removed`, `unlisted`.

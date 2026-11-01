@@ -42,10 +42,6 @@ fn status_of(v: &Verdicts, p: &PeerId) -> &'static str {
     }
 }
 
-fn full(ids: &[PeerId]) -> Vec<String> {
-    ids.iter().map(|p| p.to_string()).collect()
-}
-
 fn admission_of(v: &Verdicts, p: &PeerId) -> Option<AdmissionInfo> {
     let a = v.ledger.admissions.get(p)?;
     Some(AdmissionInfo {
@@ -74,7 +70,7 @@ fn excluded_of(v: &Verdicts, p: &PeerId) -> Option<ExcludedInfo> {
     Some(ExcludedInfo {
         how,
         at_unix: e.at_micros / 1_000_000,
-        voters: full(&e.voters),
+        by: e.by.to_string(),
     })
 }
 

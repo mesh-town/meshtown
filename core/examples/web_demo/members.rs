@@ -13,8 +13,8 @@ const LOST_MSG: &str = "this computer is no longer in the network";
 
 pub(crate) struct Exit {
     pub(crate) how: &'static str,
-    /// Who removed the member: the administrators that did, or the member itself when it left.
-    pub(crate) voters: Vec<String>,
+    /// Who removed the member, or the member itself when it left.
+    pub(crate) by: String,
 }
 
 pub(crate) enum Standing {
@@ -147,7 +147,7 @@ impl DemoMembers {
         let roles = Roles::new(opts.managed, &ids);
         let gone = Exit {
             how: "removed",
-            voters: vec![roles.root.clone()],
+            by: roles.root.clone(),
         };
         push_outsiders(&mut entries, gone, opts.members_pending);
         let mut members = DemoMembers {
@@ -158,7 +158,7 @@ impl DemoMembers {
         if opts.me_excluded {
             members.remove_me(Exit {
                 how: "removed",
-                voters: ids.into_iter().take(1).collect(),
+                by: ids.into_iter().next().unwrap_or_default(),
             });
         }
         members

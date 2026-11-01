@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::transport::net::PeerId;
 
 use super::super::record::Via;
-use super::super::tally::{Closed, Exclusion, How};
+use super::super::tally::{Closed, Exclusion};
 use super::events::{Act, Event, EventKey};
 
 /// The state after a pass.
@@ -114,11 +114,7 @@ impl Replay {
         }
         self.members.remove(&e.subject);
         self.admins.remove(&e.subject);
-        let how = Exclusion {
-            how: How::Votes,
-            at_micros: e.ts,
-            voters: vec![e.author],
-        };
+        let how = Exclusion::removed(e.author, e.ts);
         self.excluded.insert(e.subject, how);
         self.counted.insert(e.key());
     }
@@ -128,11 +124,7 @@ impl Replay {
         self.members.remove(&e.subject);
         self.admins.remove(&e.subject);
         if self.admitted.contains(&e.subject) {
-            let gone = Exclusion {
-                how: How::Left,
-                at_micros: e.ts,
-                voters: vec![e.subject],
-            };
+            let gone = Exclusion::left(e.subject, e.ts);
             self.excluded.entry(e.subject).or_insert(gone);
         }
     }

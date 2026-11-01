@@ -45,7 +45,7 @@ describe("partitionRows", () => {
     });
 
     it("an excluded member that is not among the peers is still in excluded", () => {
-      const gone = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", voters: [EXTRA_FULL] }) });
+      const gone = extraRow({ status: "excluded", excluded: excludedInfo({ how: "left", by: EXTRA_FULL }) });
       const parts = partitionRows([peer(SELF_FULL, { self: true })], membersReply({ rows: [selfRow(), gone] }));
       assert.deepEqual(ids(parts.active), [SELF_FULL]);
       assert.deepEqual(parts.excluded, [gone]);

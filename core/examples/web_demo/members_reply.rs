@@ -66,7 +66,7 @@ fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
         Standing::Excluded(x) => Some(ExcludedInfo {
             how: x.how,
             at_unix: AT_UNIX,
-            voters: resolve_all(&x.voters, me),
+            by: resolve(&x.by, me),
         }),
         _ => None,
     }

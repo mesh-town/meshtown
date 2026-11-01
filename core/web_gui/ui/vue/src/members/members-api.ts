@@ -28,7 +28,7 @@ function parseAdmission(v: unknown): AdmissionInfo | null {
 
 function parseExcluded(v: unknown): ExcludedInfo | null {
   if (!isObj(v)) return null;
-  return { how: v.how === "left" ? "left" : "removed", at_unix: num(v.at_unix, 0), voters: ids(v.voters) };
+  return { how: v.how === "left" ? "left" : "removed", at_unix: num(v.at_unix, 0), by: typeof v.by === "string" && v.by ? v.by : null };
 }
 
 function parseRefusal(v: unknown): RefusalInfo | null {

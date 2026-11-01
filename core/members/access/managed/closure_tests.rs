@@ -103,7 +103,7 @@ mod excluded_admin {
         // then: X is out, Z is a plain member (the role it got from X is void)
         assert!(!ledger.is_member(&x));
         assert!(ledger.is_member(&z) && !ledger.is_admin(&z));
-        assert_eq!(ledger.excluded[&x].voters, vec![z]);
+        assert_eq!(ledger.excluded[&x].by, z);
     }
 
     #[test]
@@ -209,7 +209,7 @@ mod ledger_fields {
         assert_eq!(ledger.admins, BTreeSet::from([pid(ROOT), pid(A)]));
         let exclusion = &ledger.excluded[&pid(X)];
         assert_eq!(exclusion.how, How::Votes);
-        assert_eq!(exclusion.voters, vec![pid(A)]);
+        assert_eq!(exclusion.by, pid(A));
         assert_eq!(ledger.excluded.len(), 1);
         assert!(ledger.closed.is_none());
         // then: a request is a record of an admin that did not count; one admin answers it

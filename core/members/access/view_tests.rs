@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use crate::members::access::tally::{Exclusion, How, Ledger};
+use crate::members::access::tally::{Exclusion, Ledger};
 use crate::members::access::view::{AccessView, Deny, Side, Verdicts, ACCESS_CLOSE_CODE};
 use crate::transport::net::contract::{must_finish, pid};
 use crate::transport::net::PeerId;
@@ -242,14 +242,10 @@ fn denied(rows: Vec<(PeerId, Deny)>) -> BTreeMap<PeerId, Deny> {
 
 /// A ledger where `listed` are admitted and `out` are admitted and excluded by votes.
 fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
-    let by_votes = || Exclusion {
-        how: How::Votes,
-        at_micros: 10,
-        voters: Vec::new(),
-    };
+    let by_votes = |p: &PeerId| Exclusion::removed(*p, 10);
     Ledger {
         admitted: listed.iter().chain(out).copied().collect(),
-        excluded: out.iter().map(|p| (*p, by_votes())).collect(),
+        excluded: out.iter().map(|p| (*p, by_votes(p))).collect(),
         admissions: BTreeMap::new(),
         admins: Default::default(),
         closed: None,
@@ -260,11 +256,7 @@ fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
 fn ledger_left(listed: &[PeerId], out: &[PeerId], left: PeerId) -> Ledger {
     let mut l = ledger(listed, out);
     l.admitted.insert(left);
-    let how = Exclusion {
-        how: How::Left,
-        at_micros: 10,
-        voters: vec![left],
-    };
+    let how = Exclusion::left(left, 10);
     l.excluded.insert(left, how);
     l
 }

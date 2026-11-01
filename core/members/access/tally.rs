@@ -38,12 +38,33 @@ pub enum How {
     Left,
 }
 
-/// An exclusion: when and by whom, voters in time order.
+/// An exclusion: when and by whom.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Exclusion {
     pub how: How,
     pub at_micros: u64,
-    pub voters: Vec<PeerId>,
+    /// The member whose record excluded the node; for a node that left, the node itself.
+    pub by: PeerId,
+}
+
+impl Exclusion {
+    /// A node excluded by the member `by`.
+    pub fn removed(by: PeerId, at_micros: u64) -> Self {
+        Self {
+            how: How::Votes,
+            at_micros,
+            by,
+        }
+    }
+
+    /// A node that left on its own.
+    pub fn left(who: PeerId, at_micros: u64) -> Self {
+        Self {
+            how: How::Left,
+            at_micros,
+            by: who,
+        }
+    }
 }
 
 /// A newcomer an administrator asked for who is not a member yet.

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use super::*;
 use crate::invite::store::{issue_record, IssueVerdict, Ledger};
 use crate::members::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
-use crate::members::access::tally::{Exclusion, How, Ledger as Votes};
+use crate::members::access::tally::{Exclusion, Ledger as Votes};
 use crate::members::access::view::Verdicts;
 use crate::transport::net::mem::{MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
@@ -185,11 +185,7 @@ fn server_id() -> PeerId {
 
 /// A ledger where `admitted` are admitted and `excluded` are excluded by votes.
 fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
-    let by_votes = || Exclusion {
-        how: How::Votes,
-        at_micros: 10,
-        voters: Vec::new(),
-    };
+    let by_votes = || Exclusion::removed(server_id(), 10);
     Votes {
         admitted: admitted.iter().copied().collect(),
         excluded: excluded.iter().map(|p| (*p, by_votes())).collect(),

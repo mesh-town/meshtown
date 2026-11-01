@@ -23,8 +23,27 @@ mod excluding {
         assert!(!r.members.contains(&pid(X)));
         let exclusion = &r.excluded[&pid(X)];
         assert_eq!(exclusion.how, How::Votes);
-        assert_eq!(exclusion.voters, vec![pid(A)]);
+        assert_eq!(exclusion.by, pid(A));
         assert_eq!(exclusion.at_micros, 40_000_000);
+    }
+
+    #[test]
+    fn second_admins_exclude_does_not_change_by() {
+        // given: A and B are admins; A excludes X, later B excludes X too
+        let mut scene = setup();
+        scene
+            .admit(10, pid(ROOT), pid(A))
+            .grant(20, pid(ROOT), pid(A))
+            .admit(10, pid(ROOT), pid(B))
+            .grant(20, pid(ROOT), pid(B))
+            .admit(10, pid(ROOT), pid(X))
+            .exclude(40, pid(A), pid(X))
+            .exclude(50, pid(B), pid(X));
+        // when
+        let r = replay(&scene);
+        // then: the first record decides, and its author stays
+        assert_eq!(r.excluded[&pid(X)].by, pid(A));
+        assert_eq!(r.excluded[&pid(X)].at_micros, 40_000_000);
     }
 
     #[test]

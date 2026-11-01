@@ -22,7 +22,7 @@ impl DemoMembers {
         let done = !self.me_excluded;
         self.remove_me(Exit {
             how: "left",
-            voters: vec![ME.to_string()],
+            by: ME.to_string(),
         });
         done
     }
@@ -49,7 +49,7 @@ impl DemoMembers {
         }
         e.standing = Standing::Excluded(Exit {
             how: "removed",
-            voters: vec![ME.to_string()],
+            by: ME.to_string(),
         });
         Ok(true)
     }
@@ -60,7 +60,7 @@ impl DemoMembers {
         let Standing::Excluded(exit) = &e.standing else {
             return false;
         };
-        let mine = exit.how == "removed" && exit.voters.iter().any(|v| v == ME);
+        let mine = exit.how == "removed" && exit.by == ME;
         if mine {
             e.standing = Standing::Member;
         }

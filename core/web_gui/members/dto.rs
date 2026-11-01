@@ -70,7 +70,7 @@ pub struct AdmissionInfo {
 pub struct ExcludedInfo {
     pub how: &'static str,
     pub at_unix: u64,
-    pub voters: Vec<String>,
+    pub by: String,
 }
 
 #[derive(Clone, Debug, Serialize)]

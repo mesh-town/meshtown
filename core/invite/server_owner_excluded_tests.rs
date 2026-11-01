@@ -5,7 +5,7 @@
 
 use super::support::*;
 use super::*;
-use crate::members::access::tally::{tally, Exclusion, How, Ledger as Votes};
+use crate::members::access::tally::{tally, Exclusion, Ledger as Votes};
 use crate::transport::net::facade::test_support::{pid, secret};
 
 mod owner_code_of_the_verdict {
@@ -39,14 +39,7 @@ mod owner_code_of_the_verdict {
 /// A ledger of a network where the server is a member that the others excluded.
 fn excluded_server_ledger(members: &[PeerId]) -> Votes {
     let mut ledger = tally(&input_of(members));
-    ledger.excluded.insert(
-        me(),
-        Exclusion {
-            how: How::Votes,
-            at_micros: 10,
-            voters: vec![pid(3)],
-        },
-    );
+    ledger.excluded.insert(me(), Exclusion::removed(pid(3), 10));
     ledger
 }
 

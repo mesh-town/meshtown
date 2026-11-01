@@ -134,7 +134,7 @@ describe("this computer left on its own (the node still reports the network)", (
 
 describe("somebody else left the network", () => {
   it("is in the group \"No longer in the network\" with the line \"left the network\"", async () => {
-    const gone = peerOneRow({ status: "excluded", online: false, denied_by_me: "excluded", excluded: excludedInfo({ how: "left", voters: [] }) });
+    const gone = peerOneRow({ status: "excluded", online: false, denied_by_me: "excluded", excluded: excludedInfo({ how: "left", by: null }) });
     const page = await openMembersPage({ members: membersReply({ rows: [selfRow(), gone, peerTwoNamed()] }) });
     expect(page.listCodes()).toEqual([ME.code, "cccc3333"]);
     expect(page.summaryOf("#excluded-list")).toBe("No longer in the network (1)");
@@ -221,11 +221,11 @@ async function leave(page) {
   await page.waitPolls(1);
 }
 
-const mineExcluded = (how, voters) =>
-  selfRow({ status: "excluded", online: false, denied_by_me: how === "left" ? "left" : "excluded", excluded: excludedInfo({ how, voters }) });
+const mineExcluded = (how, by) =>
+  selfRow({ status: "excluded", online: false, denied_by_me: how === "left" ? "left" : "excluded", excluded: excludedInfo({ how, by }) });
 
-const excludedMe = () => membersReply({ rows: [mineExcluded("removed", [PEER_FULL, PEER2_FULL]), peerOneRow(), peerTwoNamed()], me_excluded: true });
-const leftMe = () => membersReply({ rows: [mineExcluded("left", []), peerOneRow(), peerTwoNamed()], me_excluded: true });
+const excludedMe = () => membersReply({ rows: [mineExcluded("removed", PEER_FULL), peerOneRow(), peerTwoNamed()], me_excluded: true });
+const leftMe = () => membersReply({ rows: [mineExcluded("left", null), peerOneRow(), peerTwoNamed()], me_excluded: true });
 
 
 // Two networks: A is `main` ("friends"), B is `k7q2xa` ("my devices", its other member is old-laptop). `exit`: the chosen exit.

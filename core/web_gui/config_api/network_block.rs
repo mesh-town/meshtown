@@ -92,11 +92,11 @@ impl NetRoles {
 }
 
 /// The author of the exclusion of this node, when an administrator excluded it (a leave has no author):
-/// the first voter of the record, with the name the list knows for it or else its short id.
+/// the author of the record, with the name the list knows for it or else its short id.
 fn excluded_by(r: &MembersReply) -> Option<(String, String)> {
     let mine = r.members.iter().find(|m| m.is_self)?;
     let gone = mine.excluded.as_ref().filter(|e| e.how == "removed")?;
-    let by = gone.voters.first()?;
+    let by = &gone.by;
     let name = match r.members.iter().find(|m| &m.id_full == by) {
         Some(row) => row.name.clone().unwrap_or_else(|| row.id.clone()),
         None => by.chars().take(8).collect(),

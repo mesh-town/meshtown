@@ -8,7 +8,7 @@ use serde_json::Value;
 
 use crate::members::access::authority::{Power, PowerIn};
 use crate::members::access::record::Via;
-use crate::members::access::tally::{tally, Exclusion, How, Ledger, TallyInput};
+use crate::members::access::tally::{tally, Exclusion, Ledger, TallyInput};
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::members::membership::Members;
 use crate::members::network_key::format_managed_key;
@@ -128,14 +128,10 @@ fn ledger_of(net: &Net) -> Ledger {
 }
 
 fn exclusion(me: u8, removal: Removal) -> Exclusion {
-    let (how, voter) = match removal {
-        Removal::Votes { by } => (How::Votes, by),
-        Removal::Left => (How::Left, me),
-    };
-    Exclusion {
-        how,
-        at_micros: 1_792_400_000_000_000,
-        voters: vec![peer(voter)],
+    let at = 1_792_400_000_000_000;
+    match removal {
+        Removal::Votes { by } => Exclusion::removed(peer(by), at),
+        Removal::Left => Exclusion::left(peer(me), at),
     }
 }
 

@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 
 use super::*;
-use crate::members::access::tally::{Admission, How, Ledger};
+use crate::members::access::tally::{Admission, Ledger};
 use crate::transport::net::contract::pid;
 
 const AT_UNIX: u64 = 1_792_400_000;
@@ -159,11 +159,7 @@ fn pending_sorts_after_members() {
     let mut ledger = (*v.ledger).clone();
     ledger.excluded.insert(
         pid(7),
-        crate::members::access::tally::Exclusion {
-            how: How::Votes,
-            at_micros: 1,
-            voters: vec![a],
-        },
+        crate::members::access::tally::Exclusion::removed(a, 1),
     );
     v.ledger = Arc::new(ledger);
     let refusals = vec![(

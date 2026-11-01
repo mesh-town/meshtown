@@ -27,6 +27,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Member list JSON: `excluded.voters` (an array) is replaced by `excluded.by` (a string); pages and scripts from older versions show no admin for removed members until updated.
 - Page: a relayed neighbour is labelled `through another member` instead of `via relay server`; the node log says
   `another member` instead of `a relay server`.
 - The Homebrew tap is renamed to `mesh-town/homebrew-macos`: install with `brew install mesh-town/macos/meshtown`.

@@ -287,7 +287,7 @@ pub(super) fn sample_reply() -> MembersReply {
     let gone = ExcludedInfo {
         how: "removed",
         at_unix: 1_792_400_000,
-        voters: vec![me.clone(), router],
+        by: router.clone(),
     };
     MembersReply {
         me,
@@ -341,7 +341,7 @@ pub(super) fn golden() -> Value {
              "last_seen_sec": null, "last_refusal": null, "admission": {"label": "router"}},
             {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false, "admin": false,
              "status": "excluded",
-             "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "voters": [me, router]},
+             "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "by": router},
              "blocked_by_me": false, "denied_by_me": "excluded", "last_seen_sec": null,
              "last_refusal": {"side": "me", "reason": "excluded", "at_unix": 1_792_400_100u64}, "admission": null}
         ]

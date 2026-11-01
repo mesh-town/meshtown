@@ -6,7 +6,7 @@
  *      A full valid reply parses to a structurally equal object (no keys are added; `changed` is kept only if boolean).
  *      Missing optional fields get safe values: top level `me` "", `me_excluded` false,
  *      `counts` an object of numbers; row `name` null, `self` false, `online` false, `blocked_by_me` false,
- *      `excluded` null, `denied_by_me` null, `last_refusal` null, `id` a string; excluded `voters` [].
+ *      `excluded` null, `denied_by_me` null, `last_refusal` null, `id` a string; excluded `by` null.
  *      A row that is not an object, has no string `id_full`, or has an unknown `status` is skipped (the rest stays).
  *      Extra (unknown) fields never break parsing.
  *  - `getMembers(api)`: `api("GET", "/api/members")` -> `parseMembers(reply)` (garbage -> `null`); an api rejection is NOT caught.
@@ -102,11 +102,18 @@ describe("parseMembers", () => {
       assert.equal(row.last_refusal, null);
     });
 
-    it("excluded without `voters`: empty list", () => {
+    it("excluded without `by`: null", () => {
       const excluded = { how: "left", at_unix: AT_UNIX };
       const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0];
-      assert.deepEqual(plain(row.excluded.voters), []);
+      assert.equal(row.excluded.by, null);
       assert.equal(row.excluded.how, "left");
+    });
+
+    it("excluded with only old `voters`: no admin", () => {
+      const excluded = { how: "removed", at_unix: AT_UNIX, voters: [EXTRA_FULL] };
+      const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0];
+      assert.equal(row.excluded.by, null);
+      assert.equal("voters" in row.excluded, false);
     });
   });
 
