@@ -191,16 +191,40 @@ mod log {
         // given: the first refusal
         let limits = ExitLimits::fixed(1);
         let start = Instant::now();
-        let first = limits.busy_line_due(start);
+        let peer = pid(1);
+        let first = limits.busy_line_due(peer, start);
 
         // when: a second one comes in the same second, a third ten seconds later
-        let second = limits.busy_line_due(start + Duration::from_secs(1));
-        let third = limits.busy_line_due(start + Duration::from_secs(10));
+        let second = limits.busy_line_due(peer, start + Duration::from_secs(1));
+        let third = limits.busy_line_due(peer, start + Duration::from_secs(10));
 
         // then: the first gets a line, the second waits, the third reports the one it counted
         assert_eq!(first, Some(0));
         assert_eq!(second, None);
         assert_eq!(third, Some(1));
+    }
+
+    #[test]
+    fn busy_line_tail_counts_only_that_member() {
+        // given: member A refused once
+        let limits = ExitLimits::fixed(1);
+        let (a, b) = (pid(1), pid(2));
+        let t0 = Instant::now();
+        assert_eq!(limits.busy_line_due(a, t0), Some(0));
+
+        // when: A is refused three more times, then B once
+        let held: Vec<_> = (0..3)
+            .map(|_| limits.busy_line_due(a, t0 + Duration::from_secs(1)))
+            .collect();
+        let others = limits.busy_line_due(b, t0 + Duration::from_secs(2));
+
+        // then: B gets its own first line; A's next line carries only A's three
+        assert_eq!(held, [None, None, None]);
+        assert_eq!(others, Some(0));
+        assert_eq!(
+            limits.busy_line_due(a, t0 + Duration::from_secs(10)),
+            Some(3)
+        );
     }
 }
 

@@ -223,15 +223,8 @@ async fn refuse_busy(
     limits: &ExitLimits,
     busy: Busy,
 ) -> Result<()> {
-    if let Some(refused) = limits.busy_line_due(std::time::Instant::now()) {
-        let held = match refused {
-            0 => String::new(),
-            n => format!(" (+{n} refused, not logged)"),
-        };
-        say(
-            "exit",
-            format!("{}: {}{held}", short_peer_id(peer), busy.line()),
-        );
+    if let Some(held) = limits.busy_line_due(*peer, std::time::Instant::now()) {
+        say("exit", busy_line_text(peer, &busy.line(), held));
     }
     send.write_all(&EXIT_BUSY_REPLY)
         .await
@@ -239,6 +232,15 @@ async fn refuse_busy(
     send.shutdown()
         .await
         .map_err(|e| anyhow!("exit reply wasn't finished: {e}"))
+}
+
+/// The refusal log line; the tail names the refusals of this member held back since its last line.
+fn busy_line_text(peer: &PeerId, reason: &str, held: u64) -> String {
+    let tail = match held {
+        0 => String::new(),
+        n => format!(" (+{n} refused, not logged)"),
+    };
+    format!("{}: {reason}{tail}", short_peer_id(peer))
 }
 
 async fn write_exit_reply(send: &mut BoxSend, code: u8) -> Result<()> {

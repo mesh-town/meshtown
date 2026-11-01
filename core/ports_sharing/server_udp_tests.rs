@@ -282,6 +282,7 @@ async fn setup(opts: Opts) -> Fixture {
             members,
             table: table.clone(),
             udp_sessions: p.clone(),
+            udp_lines: Arc::default(),
         }),
     };
     let net = MemNet::new();

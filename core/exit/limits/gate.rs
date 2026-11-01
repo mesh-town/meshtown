@@ -5,7 +5,7 @@ use std::sync::atomic::Ordering;
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use super::line_rate::LineRate;
+use super::line_rate::KeyedLineRate;
 use super::rss::RssGate;
 use super::share::Share;
 use super::window::StreamWindow;
@@ -46,7 +46,7 @@ struct Inner {
     limit: AtomicU64,
     auto: AtomicU64,
     rss: RssGate,
-    lines: LineRate,
+    lines: KeyedLineRate<PeerId>,
     window: StreamWindow,
     share: Share,
 }
@@ -82,7 +82,7 @@ impl ExitLimits {
             limit: AtomicU64::new(limit),
             auto: AtomicU64::new(limit),
             rss,
-            lines: LineRate::default(),
+            lines: KeyedLineRate::default(),
             window: StreamWindow::default(),
             share: Share::default(),
         }))
@@ -163,10 +163,10 @@ impl ExitLimits {
             .map_err(|live| Busy::Streams { live, limit })
     }
 
-    /// `Some(refusals held back since the last line)` when a log line is due, else `None`
-    /// (the refusal is counted for the next line).
-    pub(crate) fn busy_line_due(&self, now: Instant) -> Option<u64> {
-        self.0.lines.due(now)
+    /// `Some(refusals of this member held back since its last line)` when a log line is due, else `None`
+    /// (the refusal is counted for the next line of this member).
+    pub(crate) fn busy_line_due(&self, peer: PeerId, now: Instant) -> Option<u64> {
+        self.0.lines.due(peer, now)
     }
 }
 
