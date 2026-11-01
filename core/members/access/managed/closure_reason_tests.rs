@@ -80,8 +80,7 @@ fn note_with_esc_is_cleaned_in_the_ledger() {
 }
 
 #[test]
-fn withdrawn_first_exclude_hands_reason_to_the_next() {
-    // A's record is withdrawn, so only B's is in the input
+fn second_admins_note_is_the_reason_when_only_it_is_present() {
     let mut scene = scene();
     scene.exclude_with_note(11, pid(B), pid(X), "other");
     let ledger = scene.ledger();

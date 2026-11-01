@@ -99,6 +99,26 @@ fn exclude_record_note_reaches_the_tally_input() {
     assert_eq!(input.notes.get(&(a, b)).map(String::as_str), Some("spam"));
 }
 
+#[test]
+fn withdrawn_exclude_leaves_no_note() {
+    // given: A withdrew the exclusion record of X; B's live record of X carries a note
+    let (me, a, b, x) = (pid(1), pid(2), pid(3), pid(7));
+    let vote = AclValue {
+        kind: AclKind::Exclude,
+        note: "other".to_string(),
+        ..admit_of(x)
+    };
+    let entries = [
+        entry(a, exclude_key(&x), vec![], 300),
+        entry(b, exclude_key(&x), encode(&vote), 310),
+    ];
+    // when: the input is built
+    let (input, _) = tally_input(root(), me, &entries);
+    // then: no note under (A, X); B's note is kept
+    assert_eq!(input.notes.get(&(a, x)), None);
+    assert_eq!(input.notes.get(&(b, x)).map(String::as_str), Some("other"));
+}
+
 mod powers {
     use super::*;
     use crate::members::access::record::{grant_key, revoke_key, Via, CLOSE_KEY};

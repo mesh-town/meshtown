@@ -136,6 +136,17 @@ fn reason_column_not_given() {
 }
 
 #[test]
+fn reason_column_blank_reason_reads_not_given() {
+    for reason in ["   ", ""] {
+        let r = row_with_reason(
+            admin(),
+            json!({"excluded": {"how": "removed", "reason": reason}}),
+        );
+        assert_eq!(r[6], "(not given)");
+    }
+}
+
+#[test]
 fn esc_in_reason_is_cleaned_in_the_table() {
     let r = row_with_reason(
         admin(),

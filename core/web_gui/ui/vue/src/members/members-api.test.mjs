@@ -109,6 +109,16 @@ describe("parseMembers", () => {
       assert.equal(row.excluded.how, "left");
     });
 
+    it("excluded with a string by keeps it", () => {
+      const byOf = (by) => {
+        const excluded = { how: "removed", at_unix: AT_UNIX, by };
+        return parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0].excluded.by;
+      };
+      assert.equal(byOf(EXTRA_FULL), EXTRA_FULL);
+      assert.equal(byOf(""), null);
+      assert.equal(byOf(5), null);
+    });
+
     it("excluded reason: string, null, or absent → undefined", () => {
       const reasonOf = (extra) => {
         const excluded = { how: "removed", at_unix: AT_UNIX, ...extra };
