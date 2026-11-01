@@ -61,6 +61,7 @@ impl NodeCtl {
             snap.node.id = output::short_peer_id(&n.id);
             snap.node.id_full = n.id.to_string();
             snapshot::overlay_members(&mut snap, n);
+            snapshot::overlay_exit_interface(&mut snap, n);
         } else if let Some(face) = self.proxy_face() {
             snap.socks = snapshot::socks_of_face(&face.borrow());
         }
@@ -169,3 +170,7 @@ impl NodeCtl {
 #[cfg(test)]
 #[path = "control_node_status_tests.rs"]
 mod status_tests;
+
+#[cfg(test)]
+#[path = "control_node_iface_tests.rs"]
+mod iface_tests;
