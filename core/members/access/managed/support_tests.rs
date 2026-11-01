@@ -3,6 +3,8 @@
 // assumed: this file is declared in `managed/mod.rs` as
 // `#[cfg(test)] #[path = "support_tests.rs"] mod support;`.
 
+use std::collections::BTreeMap;
+
 use crate::members::access::authority::{Power, PowerIn};
 use crate::members::access::record::Via;
 use crate::members::access::tally::{tally, Ledger, TallyInput, VoteIn};
@@ -17,6 +19,7 @@ pub(super) struct Scene {
     me: PeerId,
     powers: Vec<PowerIn>,
     votes: Vec<VoteIn>,
+    notes: BTreeMap<(PeerId, PeerId), String>,
 }
 
 impl Scene {
@@ -27,6 +30,7 @@ impl Scene {
             me: root,
             powers: vec![],
             votes: vec![],
+            notes: BTreeMap::new(),
         }
     }
 
@@ -83,6 +87,18 @@ impl Scene {
         self
     }
 
+    /// `voter` excludes `subject` and writes `note` in the record.
+    pub(super) fn exclude_with_note(
+        &mut self,
+        at: u64,
+        voter: PeerId,
+        subject: PeerId,
+        note: &str,
+    ) -> &mut Scene {
+        self.notes.insert((voter, subject), note.to_string());
+        self.exclude(at, voter, subject)
+    }
+
     /// `who` leaves: a vote against itself.
     pub(super) fn leave(&mut self, at: u64, who: PeerId) -> &mut Scene {
         self.exclude(at, who, who)
@@ -111,6 +127,7 @@ impl Scene {
             root: self.root,
             votes: self.votes.clone(),
             powers: self.powers.clone(),
+            notes: self.notes.clone(),
         }
     }
 

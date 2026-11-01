@@ -98,6 +98,7 @@ fn managed_ledger(root: PeerId, admins: &[PeerId], members: &[PeerId]) -> Ledger
         powers: everyone
             .map(|p| power(root, Power::Admit(Via::Invite), *p, 1))
             .collect(),
+        notes: std::collections::BTreeMap::new(),
     };
     input
         .powers

@@ -148,6 +148,7 @@ fn managed_ledger(admins: &[u8]) -> Ledger {
         root: peer(ROOT),
         votes: vec![],
         powers,
+        notes: std::collections::BTreeMap::new(),
     })
 }
 
