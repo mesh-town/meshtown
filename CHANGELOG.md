@@ -7,6 +7,8 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `status` shows `Excluded: <reason>` on a computer an administrator removed; `member list` shows administrators and
+  the removed computer a `REASON` column.
 - Member list JSON: `excluded.reason`, the note given when a member was removed; administrators and the removed member see it.
 - Page and tray menu: a line `Relaying for other members` while this node relays between other members.
 - Ring: the path to the exit through another member is drawn dashed (tray icon and Home page), and the tray menu line says so.

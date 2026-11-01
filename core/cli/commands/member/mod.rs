@@ -11,12 +11,10 @@ mod list;
 mod resolve;
 
 pub(crate) use cmd::MemberArgs;
-pub(crate) use list::{hints, rows};
+pub(crate) use list::{head, hints, rows};
 
 use crate::cli::args::{Global, Globals};
 use crate::cli::commands::client::{print_json, print_table, Node};
-
-const HEAD: [&str; 6] = ["ID", "STATUS", "ONLINE", "ADMIN", "BLOCKED", "NAME"];
 
 pub(crate) async fn run(args: MemberArgs, g: &Globals) -> anyhow::Result<()> {
     let command = format!("member {}", args.cmd.verb());
@@ -39,6 +37,6 @@ fn show(reply: &serde_json::Value, g: &Globals) -> anyhow::Result<()> {
 }
 
 fn print_list(reply: &serde_json::Value) {
-    print_table(&HEAD, &rows(&reply["members"]));
+    print_table(&head(reply), &rows(reply));
     hints(reply).iter().for_each(|h| eprintln!("{h}"));
 }

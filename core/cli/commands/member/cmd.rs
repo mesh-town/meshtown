@@ -25,7 +25,7 @@ pub(crate) enum MemberCmd {
         /// The member: the name (any letter case), or the start of the id from `member list` (at least 4 digits).
         #[arg(value_name = "MEMBER", help_heading = "Options")]
         member: String,
-        /// Why the member is removed, up to 80 characters; the removed member sees it.
+        /// Why the member is removed, up to 80 characters; the removed member and administrators see it.
         #[arg(long, value_name = "TEXT")]
         reason: Option<String>,
     },

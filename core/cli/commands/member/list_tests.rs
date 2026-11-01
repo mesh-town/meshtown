@@ -10,7 +10,26 @@ fn row_of(extra: Value) -> Vec<String> {
     for (k, v) in extra.as_object().unwrap() {
         m[k] = v.clone();
     }
-    rows(&json!([m])).remove(0)
+    rows(&json!({"members": [m]})).remove(0)
+}
+
+fn row_with_reason(me: Value, extra: Value) -> Vec<String> {
+    let mut m = json!({
+        "id": "aaaa111122", "name": "laptop", "self": false,
+        "status": "excluded", "online": false, "admin": false, "blocked_by_me": false,
+    });
+    for (k, v) in extra.as_object().unwrap() {
+        m[k] = v.clone();
+    }
+    let mut reply = json!({"members": [m]});
+    for (k, v) in me.as_object().unwrap() {
+        reply[k] = v.clone();
+    }
+    rows(&reply).remove(0)
+}
+
+fn admin() -> Value {
+    json!({"me_admin": true, "me_excluded": false})
 }
 
 #[test]
@@ -53,7 +72,7 @@ fn flags_yes_no() {
 
 #[test]
 fn empty_gives_no_rows() {
-    assert!(rows(&json!([])).is_empty());
+    assert!(rows(&json!({"members": []})).is_empty());
     assert!(rows(&Value::Null).is_empty());
 }
 
@@ -87,4 +106,80 @@ fn hints_for_pending_and_excluded_self() {
     assert_eq!(lines[0], "2 members (2 online)");
     assert!(lines[1].contains("waits for an administrator"), "{lines:?}");
     assert!(lines[2].contains("removed this computer"), "{lines:?}");
+}
+
+#[test]
+fn reason_column_for_removed_member() {
+    let r = row_with_reason(
+        admin(),
+        json!({"excluded": {"how": "removed", "reason": "spam"}}),
+    );
+    assert_eq!(r.len(), 7);
+    assert_eq!(r[6], "spam");
+    let reply = json!({"me_admin": true, "members": []});
+    assert_eq!(head(&reply).last(), Some(&"REASON"));
+}
+
+#[test]
+fn reason_column_dash_for_others() {
+    let r = row_with_reason(admin(), json!({"status": "member"}));
+    assert_eq!(r[6], "-");
+}
+
+#[test]
+fn reason_column_not_given() {
+    let r = row_with_reason(
+        admin(),
+        json!({"excluded": {"how": "removed", "reason": null}}),
+    );
+    assert_eq!(r[6], "(not given)");
+}
+
+#[test]
+fn esc_in_reason_is_cleaned_in_the_table() {
+    let r = row_with_reason(
+        admin(),
+        json!({"excluded": {"how": "removed", "reason": "\u{1b}]0;x\u{7}\u{202e}"}}),
+    );
+    assert!(
+        !r[6].contains('\u{1b}') && !r[6].contains('\u{7}'),
+        "{:?}",
+        r[6]
+    );
+    assert!(!r[6].contains('\u{202e}'), "{:?}", r[6]);
+}
+
+#[test]
+fn excluded_self_sees_the_column() {
+    let me = json!({"me_admin": false, "me_excluded": true});
+    let r = row_with_reason(
+        me.clone(),
+        json!({"self": true, "excluded": {"how": "removed", "reason": "spam"}}),
+    );
+    assert_eq!(r[6], "spam");
+    assert_eq!(head(&me).len(), 7);
+}
+
+#[test]
+fn reason_column_dash_for_a_left_member() {
+    let r = row_with_reason(admin(), json!({"excluded": {"how": "left"}}));
+    assert_eq!(r[6], "-");
+    let r = row_with_reason(
+        admin(),
+        json!({"excluded": {"how": "left", "reason": "stale"}}),
+    );
+    assert_eq!(r[6], "-");
+    let r = row_with_reason(admin(), json!({"excluded": {"how": "removed"}}));
+    assert_eq!(r[6], "-");
+}
+
+#[test]
+fn no_reason_column_for_a_plain_member() {
+    let me = json!({"me_admin": false, "me_excluded": false});
+    let r = row_with_reason(me.clone(), json!({"status": "member"}));
+    assert_eq!(r.len(), 6);
+    assert_eq!(
+        head(&me),
+        ["ID", "STATUS", "ONLINE", "ADMIN", "BLOCKED", "NAME"]
+    );
 }
