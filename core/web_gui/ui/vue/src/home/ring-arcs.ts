@@ -1,7 +1,8 @@
 /* Ring geometry: arc angles from 12 o'clock clockwise. The "per member" or "arcs by role" mode. */
 
-import { RING, ROLE_ORDER } from "./ring-config.ts";
+import { RING } from "./ring-config.ts";
 import type { RingRole } from "./ring-config.ts";
+import { roleGroups } from "./ring-members.ts";
 import type { RingMember } from "./ring-members.ts";
 
 export interface RingArc {
@@ -55,7 +56,7 @@ function roleLengths(counts: number[], roles: RingRole[], free: number, keep: nu
 }
 
 function byRoles(members: RingMember[], r: number, keep: number): RingArc[] {
-  const groups = ROLE_ORDER.map((role) => ({ role, list: members.filter((m) => m.role === role) })).filter((g) => g.list.length > 0);
+  const groups = roleGroups(members);
   if (groups.length === 1) return whole(groups[0].role, groups[0].list, r);
   const free = TAU * r - RING.gapPx * groups.length;
   const lengths = roleLengths(groups.map((g) => g.list.length), groups.map((g) => g.role), free, keep);

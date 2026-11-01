@@ -19,10 +19,10 @@ describe("ringMembers", () => {
   });
 
   describe("exit through another member", () => {
-    it("relayed flag only for the via member", () => {
-      const peers = [peer("ex", { path: "relay" }), peer("on", { path: "relay" }), peer("cl", { path: "relay" })];
+    it("relayed flag only for the via member (and online ones, below)", () => {
+      const peers = [peer("ex", { path: "relay" }), peer("off", { online: false, path: "relay" }), peer("cl", { path: "relay" })];
       const m = ringMembers(snap({ peers, exits: [exit("ex", { active: true })], clients: ["cl_full"] }));
-      expect(Object.fromEntries(m.map((x) => [x.label, x.relayed]))).toEqual({ ex: true, on: false, cl: false });
+      expect(Object.fromEntries(m.map((x) => [x.label, x.relayed]))).toEqual({ ex: true, off: false, cl: false });
     });
 
     it("a direct or unknown path to the exit is not relayed", () => {
@@ -30,6 +30,13 @@ describe("ringMembers", () => {
       expect(m[0].relayed).toBe(false);
       const n = ringMembers(snap({ peers: [peer("ex", { path: null })], exits: [exit("ex", { active: true })] }));
       expect(n[0].relayed).toBe(false);
+    });
+  });
+
+  describe("online members through another member", () => {
+    it("online with path relay is marked and sorts after the direct ones", () => {
+      const m = ringMembers(snap({ peers: [peer("aa", { path: "relay" }), peer("zz", { path: "direct" }), peer("bb", { online: false, path: "relay" })] }));
+      expect(m.map((x) => [x.label, x.role, x.relayed])).toEqual([["zz", "online", false], ["aa", "online", true], ["bb", "offline", false]]);
     });
   });
 

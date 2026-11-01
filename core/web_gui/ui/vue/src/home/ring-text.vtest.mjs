@@ -131,3 +131,20 @@ describe("exit through another member", () => {
     expect(arcTitle(arc)).toBe("nas — your exit, online through another member");
   });
 });
+
+describe("online members through another member", () => {
+  const on = (label, relayed) => ({ role: "online", label, idFull: label, relayed });
+
+  it("the legend splits them off without \"Also\"", () => {
+    expect(ringLegend([on("a", false), on("b", true), on("c", true)])).toEqual([
+      { role: "online", text: "Online: 1", relayed: false },
+      { role: "online", text: "Online through another member: 2", relayed: true },
+    ]);
+  });
+
+  it("the title of a single arc and of a group", () => {
+    const arc = (members) => ({ role: "online", members, startRad: 0, endRad: 1, lengthPx: 50 });
+    expect(arcTitle(arc([on("nas", true)]))).toBe("nas — online through another member");
+    expect(arcTitle(arc([on("a", true), on("b", true)]), true)).toBe("Online through another member: 2");
+  });
+});

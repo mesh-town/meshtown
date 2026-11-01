@@ -40,6 +40,18 @@ describe("RingMark", () => {
       expect(arc.attributes("stroke-dasharray")).toBeUndefined();
     });
 
+    it("an online member through another member is dashed too", () => {
+      const on = { role: "online", label: "a", idFull: "a", relayed: true };
+      expect(mountRing([on, ...many({ online: 1 })]).get("path.ring-online").attributes("stroke-dasharray")).toBe("6 3");
+    });
+
+    it("folded by roles, direct and relayed online members are two arcs", () => {
+      const relayed = Array.from({ length: 10 }, (_, i) => ({ role: "online", label: `r${i}`, idFull: `r${i}`, relayed: true }));
+      const w = mountRing([...many({ online: 30 }), ...relayed]);
+      expect(w.findAll("path.ring-online")).toHaveLength(2);
+      expect(w.findAll("path.ring-relayed")).toHaveLength(1);
+    });
+
     it("a direct exit has no dash", () => {
       const w = mountRing([{ ...via, relayed: false }, ...many({ online: 1 })]);
       expect(w.get("path.ring-via").attributes("stroke-dasharray")).toBeUndefined();
