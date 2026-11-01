@@ -10,6 +10,12 @@
 
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
+#[path = "common/web_listener_http.rs"]
+mod http_common;
+#[path = "common/web_listener_stream.rs"]
+mod stream_common;
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -18,9 +24,15 @@ use std::time::{Duration, Instant};
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::Value;
 
-use common::{
-    cleanup, http, parse_response, raw, read_one_response, run_config, scratch, start_web,
-};
+use common::{cleanup, parse_response, run_config, scratch, start_web};
+use http_common::http;
+use stream_common::read_one_response;
+
+/// Opens a `TcpStream`, writes `bytes`, reads to the end of the stream (or to a total timeout of 5 s).
+/// Tolerant of write errors: the server may break the connection in the middle of a write.
+fn raw(port: u16, bytes: &[u8]) -> Vec<u8> {
+    common::raw_within(port, bytes, Duration::from_secs(5))
+}
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn body_limits_and_bad_json() {
@@ -83,8 +95,8 @@ async fn chunked_refused() {
     assert_eq!(resp.status, 400);
     let v: Value = serde_json::from_slice(&resp.body).expect("json");
     assert_eq!(v.get("error").and_then(Value::as_str), Some("bad_request"));
-    let conn = resp
-        .headers
+    let headers = resp.headers();
+    let conn = headers
         .get("connection")
         .map(String::as_str)
         .unwrap_or_default();
@@ -187,7 +199,7 @@ async fn keep_alive_and_close() {
     let resp3 = read_one_response(&mut stream);
     assert_eq!(resp3.status, 200);
     assert_eq!(
-        resp3.headers.get("connection").map(String::as_str),
+        resp3.headers().get("connection").map(String::as_str),
         Some("close")
     );
 
@@ -299,7 +311,7 @@ async fn head_has_no_body() {
     );
     assert_eq!(resp.status, 200);
     let len: u64 = resp
-        .headers
+        .headers()
         .get("content-length")
         .and_then(|v| v.parse().ok())
         .expect("content-length must be present");
@@ -313,22 +325,22 @@ async fn head_has_no_body() {
 /// No caching, no content sniffing and no cross-origin access on a response.
 fn assert_hardened_headers(resp: &common::Resp) {
     assert_eq!(
-        resp.headers.get("cache-control").map(String::as_str),
+        resp.headers().get("cache-control").map(String::as_str),
         Some("no-store")
     );
     assert_eq!(
-        resp.headers
+        resp.headers()
             .get("x-content-type-options")
             .map(String::as_str),
         Some("nosniff")
     );
-    assert!(!resp.headers.contains_key("access-control-allow-origin"));
+    assert!(!resp.headers().contains_key("access-control-allow-origin"));
 }
 
 /// The root page: HTML, hardened headers and a content policy that allows only the inline icon.
 fn assert_html_page(resp: &common::Resp) {
     let ct = resp
-        .headers
+        .headers()
         .get("content-type")
         .cloned()
         .unwrap_or_default();
@@ -338,7 +350,7 @@ fn assert_html_page(resp: &common::Resp) {
     );
     assert_hardened_headers(resp);
     let csp = resp
-        .headers
+        .headers()
         .get("content-security-policy")
         .cloned()
         .unwrap_or_default();
@@ -370,7 +382,7 @@ async fn static_and_headers() {
     );
     assert_eq!(resp_state.status, 200);
     assert_hardened_headers(&resp_state);
-    assert!(resp_state.headers.contains_key("content-security-policy"));
+    assert!(resp_state.headers().contains_key("content-security-policy"));
 
     let resp_missing = http(port, "GET", "/favicon.ico", &[], &[]);
     assert_eq!(resp_missing.status, 404);
@@ -385,11 +397,8 @@ async fn static_and_headers() {
     assert_eq!(resp_bad_method.status, 405);
     let v: Value = serde_json::from_slice(&resp_bad_method.body).unwrap();
     assert_eq!(v.get("error").and_then(Value::as_str), Some("bad_method"));
-    let allow = resp_bad_method
-        .headers
-        .get("allow")
-        .map(String::as_str)
-        .unwrap_or_default();
+    let headers = resp_bad_method.headers();
+    let allow = headers.get("allow").map(String::as_str).unwrap_or_default();
     assert_eq!(allow, "GET,HEAD");
 
     handle.shutdown(DEFAULT_DRAIN).await;

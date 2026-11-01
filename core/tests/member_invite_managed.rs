@@ -18,17 +18,20 @@ use meshtown_core::transport::net_mainline::unix_now;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/invite_deal.rs"]
+mod invite_deal;
 #[path = "common/managed_net.rs"]
 mod managed;
 #[path = "common/invite_mesh.rs"]
 mod mesh;
 
 use common::{addr_of, wait_until};
+use invite_deal::deal;
 use managed::{
     redeem_as, start_joined, wait_both_members, wait_can_invite, wait_verdict_among, ManagedNet,
     VIEW_LIMIT,
 };
-use mesh::{deal, source_of};
+use mesh::source_of;
 
 /// The permanent key seeds of the newcomers.
 const FIRST_SEED: u8 = 5;

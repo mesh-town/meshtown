@@ -10,7 +10,7 @@
 
 use std::f64::consts::{FRAC_PI_2, TAU};
 
-use super::view_ring::{role_rgb, Ring, RING_ROLES, RING_ROLE_COUNT};
+use super::view_ring_types::{role_rgb, Ring, RING_ROLES, RING_ROLE_COUNT};
 
 /// Subsampling along each pixel axis (8×8 points).
 const SUBSAMPLES: u32 = 8;

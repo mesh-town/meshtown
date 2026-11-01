@@ -66,3 +66,5 @@ pub(crate) mod view_picture;
 pub(crate) mod view_ring;
 #[cfg(feature = "gui")]
 pub(crate) mod view_ring_paint;
+#[cfg(feature = "gui")]
+pub(crate) mod view_ring_types;

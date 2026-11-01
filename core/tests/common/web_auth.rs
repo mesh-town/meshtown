@@ -35,7 +35,8 @@ pub(crate) fn body_json(resp: &Resp) -> Value {
 
 /// A `name=value` pair from `Set-Cookie` — the same one that is sent back in `Cookie`.
 fn cookie_pair(resp: &Resp) -> Option<String> {
-    let line = resp.headers.get("set-cookie")?;
+    let headers = resp.headers();
+    let line = headers.get("set-cookie")?;
     let pair = line.split(';').next()?.trim();
     let value = pair.split_once('=')?.1;
     (!value.is_empty()).then(|| pair.to_string())

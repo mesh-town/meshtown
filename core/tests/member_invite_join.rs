@@ -13,13 +13,15 @@ use meshtown_core::transport::net::NodeSecret;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/invite_deal.rs"]
+mod invite_deal;
 #[path = "common/managed_net.rs"]
 mod managed;
 #[path = "common/invite_mesh.rs"]
 mod mesh;
 use common::{quick_opts, redeem_via, wait_until, ENTRY_LIMIT_SECS, OWNER_SEED};
+use invite_deal::deal;
 use managed::{start_joined, wait_can_invite, ManagedNet};
-use mesh::deal;
 
 /// The seed of the permanent key of the node that has no invitation.
 const OUTSIDER_SEED: u8 = 6;

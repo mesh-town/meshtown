@@ -3,11 +3,16 @@
 
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
+#[path = "common/web_listener_http.rs"]
+mod http_common;
 
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::Value;
 
-use common::{cleanup, http, run_config, scratch, start_web};
+use common::{cleanup, run_config, scratch, start_web};
+use http_common::http;
 
 const GZIP: [(&str, &str); 1] = [("Accept-Encoding", "gzip")];
 
@@ -25,7 +30,7 @@ async fn static_page_gzip_keeps_hardened_headers() {
 
     let resp = http(port, "GET", "/bundle/app.js", &GZIP, &[]);
     assert_eq!(resp.status, 200);
-    let h = &resp.headers;
+    let h = &resp.headers();
     assert_eq!(h.get("content-encoding").map(String::as_str), Some("gzip"));
     assert_eq!(&resp.body[..2], &[0x1f, 0x8b], "gzip magic");
     assert_eq!(h.get("cache-control").map(String::as_str), Some("no-store"));
@@ -53,11 +58,11 @@ async fn static_page_head_keeps_gzip_length() {
     let resp = http(port, "HEAD", "/bundle/app.js", &GZIP, &[]);
     assert_eq!(resp.status, 200);
     assert_eq!(
-        resp.headers.get("content-encoding").map(String::as_str),
+        resp.headers().get("content-encoding").map(String::as_str),
         Some("gzip")
     );
     let len: u64 = resp
-        .headers
+        .headers()
         .get("content-length")
         .and_then(|v| v.parse().ok())
         .expect("content-length must be present");
@@ -87,7 +92,7 @@ async fn static_page_wrong_method_and_gz_path() {
     assert_eq!(patched.status, 405);
     let v: Value = serde_json::from_slice(&patched.body).expect("json");
     assert_eq!(v.get("error").and_then(Value::as_str), Some("bad_method"));
-    assert!(!patched.headers.contains_key("content-encoding"));
+    assert!(!patched.headers().contains_key("content-encoding"));
 
     let gz_path = http(port, "GET", "/bundle/app.js.gz", &GZIP, &[]);
     assert_eq!(gz_path.status, 404);

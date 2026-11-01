@@ -20,6 +20,10 @@ use tokio::time::sleep;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/invite_group.rs"]
+mod group;
+#[path = "common/invite_deal.rs"]
+mod invite_deal;
 #[path = "common/managed_net.rs"]
 mod managed;
 #[path = "common/invite_mesh.rs"]
@@ -28,8 +32,9 @@ use common::{
     addr_of, fresh_head, quick_opts, record_issue, redeem_via, short_opts, wait_verdict,
     ENTRY_LIMIT_SECS,
 };
+use group::mesh;
+use invite_deal::deal;
 use managed::ManagedNet;
-use mesh::{deal, mesh};
 
 /// Rounds in the two-newcomer test: the race doesn't show up in every round.
 const ROUNDS: u32 = 3;

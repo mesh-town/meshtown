@@ -8,6 +8,8 @@
 //! `docs/WEB-API.md`; the harness is `core/tests/common/web_listener.rs` (`#[path]`, shared with
 //! `core/tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_config_api.rs`).
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
 
@@ -23,7 +25,8 @@ use meshtown_core::transport::net_mainline::unix_now;
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
-use common::{api, cleanup, run_config, scratch, start_web};
+use api_common::api;
+use common::{cleanup, run_config, scratch, start_web};
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn network_invite_route_default_not_found() {

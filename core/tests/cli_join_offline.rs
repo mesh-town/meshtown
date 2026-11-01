@@ -5,13 +5,16 @@
 mod cli_node;
 #[path = "common/join_fixtures.rs"]
 mod fixtures;
+#[path = "common/join_invites.rs"]
+mod invites;
 
 use std::io::Read;
 use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use cli_node::{cli_in, free_port, scratch_dir, spawn_cli, stderr, stdout, CliNode};
-use fixtures::{key_with_label, unanswered_invite};
+use fixtures::key_with_label;
+use invites::unanswered_invite;
 use serde_json::Value;
 
 #[test]
