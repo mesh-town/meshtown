@@ -4,9 +4,10 @@
 //! caller is `prepare`).
 
 use crate::transport::net::NodeSecret;
+use portable_atomic::AtomicU64;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
