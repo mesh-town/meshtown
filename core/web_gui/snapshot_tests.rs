@@ -10,6 +10,7 @@
 //! The `members.me_excluded` key was added by hand — a new field,
 //! the old keys were not touched.
 //! The `members.closed` key was added by hand in the same way.
+//! The `transport.record.members` key (present only after the first read) was added by hand in the same way.
 //! The `exit.interface` key (and its `name`, `state`) was added by hand in the same way.
 
 use super::*;
@@ -201,6 +202,7 @@ const FILLED_KEYS: &[&str] = &[
     "transport.nat",
     "transport.record",
     "transport.record.published",
+    "transport.record.members",
     "transport.record.read_sec",
     "transport.record.ttl_sec",
     "transport.relay",
@@ -244,6 +246,15 @@ fn relay_serving_is_in_state_json() {
     assert_eq!(to_json(&snapshot)["transport"]["relay"]["serving"], false);
     snapshot.transport.relay.serving = true;
     assert_eq!(to_json(&snapshot)["transport"]["relay"]["serving"], true);
+}
+
+#[test]
+fn state_json_has_dht_nodes_and_record_members() {
+    let json = to_json(&filled_snapshot());
+    assert_eq!(json["transport"]["dht"]["nodes"], 1);
+    assert_eq!(json["transport"]["record"]["members"], 3);
+    let unread = to_json(&NodeSnapshot::default());
+    assert!(unread["transport"]["record"].get("members").is_none());
 }
 
 #[test]
@@ -389,6 +400,7 @@ fn filled_transport() -> TransportInfo {
         },
         record: RecordInfo {
             read_sec: Some(1),
+            members: Some(3),
             ..Default::default()
         },
         self_addresses: vec![text("192.0.2.1:1")],

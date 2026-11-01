@@ -193,6 +193,7 @@ fn build_transport(i: &Inputs<'_>) -> TransportInfo {
             published: i.telemetry.record_published,
             ttl_sec: ENTRY_TTL_SECS,
             read_sec: i.telemetry.dht_read.map(|(t, _)| secs_ago(t)),
+            members: i.telemetry.dht_read.map(|(_, m)| m as u64),
         },
         self_addresses: super::super::peer_lines(&i.addr),
     }

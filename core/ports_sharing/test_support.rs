@@ -99,3 +99,20 @@ pub(crate) async fn tcp_echo() -> u16 {
     });
     port
 }
+
+/// Speeds of `peer` in `traffic` once any appears (within a few ticks); the default when none does.
+pub(crate) async fn rate_of(
+    traffic: &crate::exit::ExitTraffic,
+    peer: crate::transport::net::PeerId,
+) -> crate::exit::PeerRate {
+    let seen = tokio::time::timeout(std::time::Duration::from_secs(4), async {
+        loop {
+            match traffic.rates_at(std::time::Instant::now()).get(&peer) {
+                Some(r) if r.through_peer_bps + r.through_us_bps > 0 => return *r,
+                _ => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
+            }
+        }
+    })
+    .await;
+    seen.unwrap_or_default()
+}

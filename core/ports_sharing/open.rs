@@ -17,7 +17,7 @@ use tokio::task::AbortHandle;
 
 use super::dial::PortReach;
 use super::types::Opened;
-use crate::exit::PeerConnPool;
+use crate::exit::{ExitTraffic, PeerConnPool};
 use crate::members::membership::Members;
 use crate::node::output::say;
 
@@ -90,6 +90,8 @@ struct Shared {
     stack: NetStack,
     members: Members,
     handle: Handle,
+    /// Where the bytes of our dials are counted (the node's registry, or a private one).
+    traffic: ExitTraffic,
     inner: Mutex<Inner>,
 }
 
@@ -107,10 +109,16 @@ pub struct Opener(Arc<Shared>);
 impl Opener {
     /// An empty `Opener`; takes `Handle::current()`, panics outside a runtime.
     pub fn new(stack: NetStack, members: Members) -> Opener {
+        Opener::new_counted(stack, members, ExitTraffic::default())
+    }
+
+    /// Like `new`, but the bytes of the dials go into `traffic` as "through the peer".
+    pub fn new_counted(stack: NetStack, members: Members, traffic: ExitTraffic) -> Opener {
         Opener(Arc::new(Shared {
             stack,
             members,
             handle: Handle::current(),
+            traffic,
             inner: Mutex::new(Inner::default()),
         }))
     }
@@ -157,7 +165,7 @@ impl Opener {
         let pool = inner
             .pools
             .entry(o.node)
-            .or_insert_with(|| PeerConnPool::new(PORT))
+            .or_insert_with(|| PeerConnPool::new(PORT).with_traffic(self.0.traffic.clone()))
             .clone();
         let state: State = Arc::new(Mutex::new(OpenState::Listening));
         let reach: Reach = Arc::new(Mutex::new(None));
@@ -272,3 +280,7 @@ mod udp_binding_tests;
 #[cfg(test)]
 #[path = "open_reach_tests.rs"]
 mod reach_tests;
+
+#[cfg(test)]
+#[path = "open_traffic_tests.rs"]
+mod traffic_tests;

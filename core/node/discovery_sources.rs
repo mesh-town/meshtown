@@ -73,16 +73,51 @@ fn hyperdht_source(
     ))
 }
 
-/// Handler of a `hyperdht` round result: telemetry (read, publish, directory join) and a log line
-/// `[hyperdht] record read from DHT: peers N` — on the first success and when N changes.
+/// Rounds in a row without DHT nodes and other members after which the line is written (and every such number again).
+const EMPTY_ROUNDS_LINE_EVERY: u32 = 10;
+
+/// What the handler remembers between rounds.
+#[derive(Default)]
+struct RoundMemory {
+    members: Option<usize>,
+    table: u64,
+    empty_rounds: u32,
+}
+
+impl RoundMemory {
+    /// The table size of the round (`None` keeps the previous value).
+    fn table_of(&mut self, s: &DhtRoundOutcome) -> u64 {
+        if let Some(n) = s.table {
+            self.table = n as u64;
+        }
+        self.table
+    }
+
+    /// Counts a round that is joined, has no other members and no DHT nodes; returns the streak length
+    /// when the line is due.
+    fn empty_streak_due(&mut self, s: &DhtRoundOutcome, joined: bool) -> Option<u32> {
+        if !(joined && s.others == 0 && self.table == 0) {
+            self.empty_rounds = 0;
+            return None;
+        }
+        self.empty_rounds += 1;
+        self.empty_rounds
+            .is_multiple_of(EMPTY_ROUNDS_LINE_EVERY)
+            .then_some(self.empty_rounds)
+    }
+}
+
+/// Handler of a `hyperdht` round result: telemetry (read, publish, directory join, routing table size) and log
+/// lines: `[hyperdht] record read from DHT: peers N` — on the first success and when N changes, and
+/// `[hyperdht] no DHT nodes and no other members for N rounds` — every 10th round of such a streak.
 pub(crate) fn seen_handler(tel: Arc<Telemetry>) -> RoundOutcomeFn {
-    let last: Mutex<Option<usize>> = Mutex::new(None);
+    let memory = Mutex::new(RoundMemory::default());
     Arc::new(move |s: DhtRoundOutcome| {
+        let mut mem = memory.lock().unwrap_or_else(|e| e.into_inner());
         if s.read {
             tel.set_dht_read(s.members);
-            let mut prev = last.lock().unwrap_or_else(|e| e.into_inner());
-            if *prev != Some(s.members) {
-                *prev = Some(s.members);
+            if mem.members != Some(s.members) {
+                mem.members = Some(s.members);
                 say(
                     "hyperdht",
                     format!("record read from DHT: peers {}", s.members),
@@ -92,7 +127,15 @@ pub(crate) fn seen_handler(tel: Arc<Telemetry>) -> RoundOutcomeFn {
         if s.published {
             tel.note_publish();
         }
-        tel.set_dht_joined_and_size(s.read || s.published, 0);
+        let joined = s.read || s.published;
+        let nodes = mem.table_of(&s);
+        tel.set_dht_joined_and_size(joined, nodes);
+        if let Some(n) = mem.empty_streak_due(&s, joined) {
+            say(
+                "hyperdht",
+                format!("no DHT nodes and no other members for {n} rounds"),
+            );
+        }
     })
 }
 
