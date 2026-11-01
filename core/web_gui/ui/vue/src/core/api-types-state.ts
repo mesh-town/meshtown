@@ -119,6 +119,7 @@ export interface NetworkInfo {
   can_delete_network?: boolean;
   can_leave?: boolean;
   excluded_by?: string | { id: string; name: string };
+  excluded_reason?: string | null;
 }
 
 type NetRole = "admin" | "member";

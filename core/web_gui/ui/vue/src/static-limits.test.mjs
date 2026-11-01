@@ -67,6 +67,10 @@ describe("14-static-limits: size of embedded files, innerHTML and window", () =>
     assert.deepEqual(strayLines((line) => line.includes("innerHTML")), [], "innerHTML in vue/src");
   });
 
+  it("14-static-limits: no v-html in the vue/src sources", () => {
+    assert.deepEqual(strayLines((line) => line.includes("v-html")), [], "v-html in vue/src");
+  });
+
   it("14-static-limits: no window/globalThis in the vue/src sources without exceptions", () => {
     const stray = strayLines((line) => line.includes("window.") || line.includes("globalThis."));
     assert.deepEqual(stray, [], "accesses to window/globalThis in vue/src");

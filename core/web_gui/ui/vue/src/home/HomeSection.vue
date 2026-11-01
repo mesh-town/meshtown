@@ -28,14 +28,14 @@ const home = useHome(store);
 provide(HOME_KEY, home);
 const { activeTab, panel, ring, order, multi, chips } = home;
 // A computer that is out of the network: the card and the way back (an invite) instead of the usual cards.
-const { excluded, variant, net } = useExcluded(store);
+const { excluded, variant, net, reason } = useExcluded(store);
 </script>
 
 <template>
   <div id="home-root">
     <div v-if="store.state === null" class="card"><p class="hint">{{ HOME_LOADING }}</p></div>
     <template v-else-if="excluded">
-      <ExcludedCard form-open :variant="variant" :net="net" />
+      <ExcludedCard form-open :variant="variant" :net="net" :reason="reason" />
       <div class="card"><JoinCard /></div>
     </template>
     <template v-else>

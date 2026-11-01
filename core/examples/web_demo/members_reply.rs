@@ -8,7 +8,7 @@ use meshtown_core::web_gui::{
 use meshtown_core::web_gui::ActionError;
 
 use crate::managed::own_id_as_me;
-use crate::members::{DemoMembers, Entry, Standing, ME};
+use crate::members::{DemoMembers, Entry, Exit, Standing, ME};
 use crate::node::{DemoNode, DemoState};
 
 const AT_UNIX: u64 = 1_792_400_000;
@@ -61,13 +61,18 @@ fn last_seen(e: &Entry) -> Option<u64> {
     e.online.then_some(0)
 }
 
-fn excluded_of(e: &Entry, me: &str) -> Option<ExcludedInfo> {
+/// The node's rule: the note is shown to an administrator and in the removed node's own row; otherwise there is no key.
+fn reason_slot(m: &DemoMembers, e: &Entry, x: &Exit) -> Option<Option<String>> {
+    (m.is_admin(ME) || e.id_full == ME).then(|| x.reason.clone())
+}
+
+fn excluded_of(m: &DemoMembers, e: &Entry, me: &str) -> Option<ExcludedInfo> {
     match &e.standing {
         Standing::Excluded(x) => Some(ExcludedInfo {
             how: x.how,
             at_unix: AT_UNIX,
             by: resolve(&x.by, me),
-            reason: None,
+            reason: reason_slot(m, e, x),
         }),
         _ => None,
     }
@@ -87,7 +92,7 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         online: e.online,
         admin: m.is_admin(&e.id_full),
         status: status_of(e),
-        excluded: excluded_of(e, me),
+        excluded: excluded_of(m, e, me),
         blocked_by_me: e.blocked,
         denied_by_me: denied_by_me(m, e),
         last_seen_sec: last_seen(e),

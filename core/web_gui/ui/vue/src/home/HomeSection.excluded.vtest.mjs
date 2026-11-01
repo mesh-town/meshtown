@@ -44,10 +44,15 @@ describe("a banned computer on Home", () => {
     expect(title).not.toContain("banned");
   });
 
+  it("passes `excluded_reason` to the card", async () => {
+    const { wrapper } = await mountPage(managedExcludedNode({ excluded_reason: "spam" }), { hash: "home" });
+    await settle();
+    expect(wrapper.get("#excluded-reason").text()).toBe("Reason: spam");
+  });
 });
 
-function managedExcludedNode() {
-  const state = managedState({ meRole: "member", admins: [ANNA_FULL], network: { label: NET_NAME } });
+function managedExcludedNode(network = {}) {
+  const state = managedState({ meRole: "member", admins: [ANNA_FULL], network: { label: NET_NAME, ...network } });
   state.members = { count: 1, gossip_neighbors: 0, me_excluded: true };
   const members = managedMembers(state);
   members.me_excluded = true;

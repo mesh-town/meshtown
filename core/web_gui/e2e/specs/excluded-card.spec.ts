@@ -5,7 +5,7 @@ const MIN_GAP = 12;
 
 // The vertical space between the paragraph of the card and the button or link below it.
 async function gapBelowText(card: Locator): Promise<number> {
-  const text = await card.locator('p').boundingBox();
+  const text = await card.locator('p').last().boundingBox();
   const action = await card.locator('.btn').boundingBox();
   if (!text || !action) throw new Error('the card has no paragraph or no action');
   return action.y - (text.y + text.height);
@@ -22,6 +22,11 @@ test.describe('excluded card spacing', () => {
     expect(await gapBelowText(card)).toBeGreaterThanOrEqual(MIN_GAP);
   });
 
+  test('excluded-card-reason: the card shows the reason the node reports', async ({ app, page }) => {
+    await app.tabs.open('peers');
+    await expect(page.locator('#members-removed-card #excluded-reason')).toHaveText('Reason: Out of the project');
+  });
+
   test.describe('in the app', () => {
     test.use({ userAgent: 'Mozilla/5.0 (Linux; Android 14) MeshTownApp/Android' });
 
@@ -31,7 +36,7 @@ test.describe('excluded card spacing', () => {
       await expect(card.getByRole('button', { name: 'Join with another invite' })).toBeVisible();
       await expect(card.getByRole('link')).toHaveCount(0);
       await expect(card.getByRole('heading')).toContainText('This phone');
-      await expect(card.locator('p')).toContainText('this phone');
+      await expect(card.locator('p').first()).toContainText('this phone');
       expect(await gapBelowText(card)).toBeGreaterThanOrEqual(MIN_GAP);
     });
   });

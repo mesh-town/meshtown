@@ -168,7 +168,7 @@ async function exitVia(idFull: string): Promise<void> {
     <AddNetCard v-if="addOnly" />
     <p v-else-if="brokenHere" class="hint" id="peers-broken-net">{{ peersBrokenNet() }}</p>
     <template v-else-if="excluded">
-      <ExcludedCard members :variant="variant" :net="net" :by="excludedBy" :form-open="rejoinOpen" @join="openRejoin" />
+      <ExcludedCard members :variant="variant" :net="net" :by="excludedBy" :reason="state?.network?.excluded_reason" :form-open="rejoinOpen" @join="openRejoin" />
       <RejoinForm v-if="rejoinOpen" ref="rejoin" :key="slot" :slot="slot" :net="net" :variant="variant" :refused="rejoinRefused" @attempt="refusalGate.dismiss" />
       <p v-else-if="rejoinRefused" class="field-error-text" id="rejoin-refused" role="alert"><strong>{{ REFUSED_LEAD(quotedNet(net)) }}</strong> {{ rejoinRefused }}</p>
     </template>
