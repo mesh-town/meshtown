@@ -11,8 +11,8 @@ mod types;
 // The whole public set of selection types; `TrayNode`/`TrayOwnExit` are read only through the snapshot fields.
 #[allow(unused_imports)]
 pub use types::{
-    TrayChosenExit, TrayMembers, TrayNode, TrayNodeStatus, TrayOwnExit, TrayPeer, TrayRoute,
-    TraySnapshot, TraySocks,
+    TrayChosenExit, TrayMembers, TrayNode, TrayNodeStatus, TrayOwnExit, TrayPeer, TrayRelay,
+    TrayRoute, TraySnapshot, TraySocks, TrayTransport,
 };
 
 #[cfg(test)]

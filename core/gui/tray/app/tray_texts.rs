@@ -91,6 +91,12 @@ pub(crate) const ADMIT_ITEM_TEXT: &str = "A node is waiting to join — open Mem
 pub(crate) const ADMIT_TOOLTIP_TAIL: &str = " · a node is waiting to join";
 /// The tail of the icon hint while this computer waits for members to confirm it.
 pub(crate) const PENDING_TOOLTIP_TAIL: &str = " · waiting for members to confirm this computer";
+/// The inactive menu line shown while this node relays between other members.
+pub(crate) const RELAYING_ITEM_TEXT: &str = "Relaying for other members";
+/// The text of the relaying line; `None` — the line is absent.
+pub(crate) fn relaying_item_text(relaying: bool) -> Option<&'static str> {
+    relaying.then_some(RELAYING_ITEM_TEXT)
+}
 /// The node is starting.
 pub(crate) fn status_starting_text() -> String {
     format!("{NET_NAME} is starting…")

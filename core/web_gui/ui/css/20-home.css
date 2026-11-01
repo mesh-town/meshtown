@@ -40,6 +40,7 @@
   .ring-legend li::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--grey);}
   .ring-legend-via::before{background:var(--ring-via)!important;} .ring-legend-client::before{background:var(--ring-client)!important;}
   .ring-legend-online::before{background:var(--ring-online)!important;} .ring-legend-offline::before{background:var(--ring-offline)!important;}
+  .ring-legend li.ring-legend-relaying::before{content:none;display:none;}
   .ring-legend li.ring-legend-relayed::before{box-sizing:border-box;border:2px solid var(--grey);background:transparent!important;}
   .ring-legend-via.ring-legend-relayed::before{border-color:var(--ring-via)!important;} .ring-legend-online.ring-legend-relayed::before{border-color:var(--ring-online)!important;}
   @media (max-width: 599px){

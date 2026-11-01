@@ -34,7 +34,10 @@ impl AdmitUi {
 
     fn show(&mut self, text: &str, notice_ids: &[u64]) {
         let item = MenuItem::with_id(MENU_ADMIT, text, true, None);
-        match self.menu.insert(&item, admit_position(notice_ids)) {
+        match self.menu.insert(
+            &item,
+            admit_position(notice_ids, super::relaying_item::shown(&self.menu)),
+        ) {
             Ok(()) => self.item = Some(item),
             Err(e) => super::log_tray(&format!("admit item: {e}")),
         }

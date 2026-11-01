@@ -119,3 +119,21 @@ function ringOf() {
     ],
   };
 }
+
+describe("StatePanel > relaying line", () => {
+  const ringWith = (relaying) => ({
+    members: [{ role: "online", label: "aa", idFull: "aa_full" }],
+    center: { main: "1 of 1", sub: "online" },
+    legend: [{ role: "online", text: "Online: 1" }],
+    relaying,
+  });
+
+  it("relaying line shown only when serving", () => {
+    const on = mountWithRing({}, ringWith(true));
+    const items = on.findAll(".ring-legend li").map((li) => li.text());
+    expect(items).toEqual(["Online: 1", "Relaying for other members"]);
+    expect(on.get(".ring-legend-relaying").classes()).not.toContain("ring-legend-online");
+    const off = mountWithRing({}, ringWith(false));
+    expect(off.findAll(".ring-legend li").map((li) => li.text())).toEqual(["Online: 1"]);
+  });
+});

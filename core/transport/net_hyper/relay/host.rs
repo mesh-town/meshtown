@@ -4,7 +4,7 @@
 
 use crate::transport::net::stream::BoxFuture;
 use crate::transport::net::task_label;
-use crate::transport::net_hyper::relay::served::{Offer, ServedRelay};
+use crate::transport::net_hyper::relay::served::{Offer, RelayLoad, ServedRelay};
 use crate::transport::net_hyper::relay::RelayAdvert;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -53,6 +53,8 @@ pub(crate) struct HostState {
     since: Option<Instant>,
     /// No new relay starts before this moment.
     retry_at: Option<Instant>,
+    /// Pairings matched as of the previous tick.
+    matched: u64,
 }
 
 impl HostState {
@@ -89,6 +91,19 @@ impl HostState {
         self.since = Some(now);
     }
 
+    /// Whether the relay carries a foreign pair: a session is open, or a pairing was matched since the previous
+    /// reading. `None` (no relay) is never serving. A pair that came and went between two ticks still counts
+    /// for the whole period of the next one.
+    pub(crate) fn serving(&mut self, load: Option<RelayLoad>) -> bool {
+        let Some(load) = load else {
+            self.matched = 0;
+            return false;
+        };
+        let grew = load.pairings_matched > self.matched;
+        self.matched = load.pairings_matched;
+        load.sessions_active > 0 || grew
+    }
+
     pub(crate) fn stopped(&mut self, now: Instant) {
         *self = Self {
             retry_at: Some(now + RELAY_RETRY),
@@ -100,6 +115,7 @@ impl HostState {
 /// The running host: the announced relay and the stop switch.
 pub(crate) struct RelayHost {
     keys: watch::Receiver<Option<RelayAdvert>>,
+    serving: watch::Receiver<bool>,
     stop: watch::Sender<bool>,
     task: JoinHandle<()>,
 }
@@ -108,6 +124,12 @@ impl RelayHost {
     /// The announced relay (key and, when it has one, address): `Some` while announced, `None` otherwise.
     pub(crate) fn keys(&self) -> watch::Receiver<Option<RelayAdvert>> {
         self.keys.clone()
+    }
+
+    /// Whether this relay carries a pair of other members right now (refreshed once per tick, so a sighting
+    /// holds for a whole `RELAY_MODE_POLL`); `false` while there is no relay.
+    pub(crate) fn serving(&self) -> watch::Receiver<bool> {
+        self.serving.clone()
     }
 
     /// Stops the host and its relay; gives up on the task after `HOST_CLOSE_WAIT`.
@@ -130,21 +152,29 @@ pub(crate) fn spawn_host<R: ServedRelay>(
     poll: Duration,
 ) -> RelayHost {
     let (keys_tx, keys) = watch::channel(None);
+    let (serving_tx, serving) = watch::channel(false);
     let (stop, stop_rx) = watch::channel(false);
     let host = Host {
         mode,
         start,
         keys: keys_tx,
+        serving: serving_tx,
         stop: stop_rx,
     };
     let task = task_label::spawn(host.run(poll));
-    RelayHost { keys, stop, task }
+    RelayHost {
+        keys,
+        serving,
+        stop,
+        task,
+    }
 }
 
 struct Host<R: ServedRelay> {
     mode: Arc<dyn Fn() -> NodeMode + Send + Sync>,
     start: StartRelay<R>,
     keys: watch::Sender<Option<RelayAdvert>>,
+    serving: watch::Sender<bool>,
     stop: watch::Receiver<bool>,
 }
 
@@ -160,6 +190,7 @@ impl<R: ServedRelay> Host<R> {
         }
         // Only a change is signalled: a key channel that holds `None` already ends with the sender.
         self.keys.send_if_modified(|key| key.take().is_some());
+        self.serving.send_replace(false);
         close_relay(relay).await;
     }
 
@@ -177,6 +208,13 @@ impl<R: ServedRelay> Host<R> {
             step = state.step(wanted, offer(relay).await, Instant::now());
         }
         self.apply(state, relay, step).await;
+        let serving = state.serving(relay.as_ref().map(R::load));
+        self.serving.send_if_modified(|now| {
+            *now != serving && {
+                *now = serving;
+                true
+            }
+        });
     }
 
     /// Starts the relay unless stopped meanwhile; a failed start is retried at the next tick.
@@ -244,6 +282,10 @@ mod tests;
 #[cfg(test)]
 #[path = "host_reach_tests.rs"]
 mod reach_tests;
+
+#[cfg(test)]
+#[path = "host_serving_tests.rs"]
+mod serving_tests;
 
 #[cfg(test)]
 #[path = "host_nat_tests.rs"]

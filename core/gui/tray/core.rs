@@ -101,6 +101,8 @@ pub struct Core {
     start_note: StartNote,
     serves_exit: bool,
     members: crate::gui::tray::app::snapshot::TrayMembers,
+    /// This node relays between other members: the line under the status line.
+    relaying: bool,
     spin: Spin,
     /// The network the flat menu works with; `None` is the main one.
     flat_slot: Option<String>,
@@ -128,6 +130,7 @@ impl Core {
             &mut actions,
         )?;
 
+        let relaying = super::relaying_item::RelayingUi::new(menu.clone());
         let admit = super::admit_item::AdmitUi::new(menu.clone());
         let nets = super::nets_ui::NetsUi::new(menu.clone());
         let extras = super::extras_ui::ExtrasUi::new(menu.clone());
@@ -153,6 +156,7 @@ impl Core {
             frames: FrameCache::new(),
             exit_submenu: exit,
             actions,
+            relaying,
             admit,
             nets,
             extras,
@@ -250,6 +254,7 @@ impl Core {
         self.proxy = menu.proxy.clone();
         self.serves_exit = menu.serves_exit;
         self.members = menu.members;
+        self.relaying = menu.relaying;
         self.flat_slot = menu.slot.clone();
         self.facts = menu_facts(&menu);
         self.offline_nets = menu
@@ -307,6 +312,7 @@ pub(crate) fn channel(
         start_note: StartNote::Idle,
         serves_exit: false,
         members: Default::default(),
+        relaying: false,
         spin: Spin::new(),
         flat_slot: None,
         facts: MenuFacts::default(),

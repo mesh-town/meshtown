@@ -164,6 +164,7 @@ pub(crate) async fn collect(
         exit_on: node.exit_on.load(Ordering::Relaxed),
         exit_iface: exit_iface_of(node),
         exit_clients: node.exit_clients.active_peers_at(Instant::now()),
+        relay_serving: *node.relay_serving.borrow(),
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
         exits,
         countries: country_texts(countries),

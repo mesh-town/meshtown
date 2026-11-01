@@ -176,6 +176,8 @@ export interface TransportInfo {
 interface RelayInfo {
   connected: boolean;
   url: string | null;
+  /** This node's relay carries a pair of other members right now; no key — an older node, read as false. */
+  serving?: boolean;
 }
 
 export interface DhtInfo {

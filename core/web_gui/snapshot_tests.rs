@@ -80,6 +80,7 @@ const DEFAULT_KEYS: &[&str] = &[
     "transport.record.ttl_sec",
     "transport.relay",
     "transport.relay.connected",
+    "transport.relay.serving",
     "transport.relay.url",
     "transport.self_addresses",
     "transport.self_path",
@@ -204,6 +205,7 @@ const FILLED_KEYS: &[&str] = &[
     "transport.record.ttl_sec",
     "transport.relay",
     "transport.relay.connected",
+    "transport.relay.serving",
     "transport.relay.url",
     "transport.self_addresses",
     "transport.self_path",
@@ -231,6 +233,17 @@ fn api_state_keys_of_filled_snapshot() {
 
     // then
     assert_same_keys(&keys, FILLED_KEYS);
+}
+
+#[test]
+fn relay_serving_is_in_state_json() {
+    // given: the flag set both ways
+    let mut snapshot = NodeSnapshot::default();
+
+    // when / then
+    assert_eq!(to_json(&snapshot)["transport"]["relay"]["serving"], false);
+    snapshot.transport.relay.serving = true;
+    assert_eq!(to_json(&snapshot)["transport"]["relay"]["serving"], true);
 }
 
 #[test]
@@ -366,6 +379,7 @@ fn filled_transport() -> TransportInfo {
         relay: RelayInfo {
             connected: true,
             url: Some(text("https://relay.example")),
+            serving: true,
         },
         listen_udp: vec![text("0.0.0.0:1")],
         dht: DhtInfo {

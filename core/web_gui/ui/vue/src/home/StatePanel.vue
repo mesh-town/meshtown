@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The "how sites open right now" panel: the text and buttons come from `panel` (`statePanel`).
 import { HOME_PANEL_ARIA, HOME_PANEL_DIRECT, HOME_PANEL_PICK_OTHER } from "./home-card-texts.ts";
+import { HOME_RING_RELAYING } from "./home-flow-texts.ts";
 import type { StatePanelView } from "./home-view.ts";
 import RingMark from "./RingMark.vue";
 import { useRingSize } from "./ring-view.ts";
@@ -19,8 +20,9 @@ defineEmits<{ (e: "pick-other"): void; (e: "direct"): void }>();
     <div>
       <div class="state-main" id="route-state">{{ panel.main }}</div>
       <div v-if="panel.sub" class="state-sub">{{ panel.sub }}</div>
-      <ul v-if="ring && ring.legend.length" class="ring-legend">
+      <ul v-if="ring && (ring.legend.length || ring.relaying)" class="ring-legend">
         <li v-for="item in ring.legend" :key="item.role + item.relayed" :class="['ring-legend-' + item.role, { 'ring-legend-relayed': item.relayed }]">{{ item.text }}</li>
+        <li v-if="ring.relaying" class="ring-legend-relaying">{{ HOME_RING_RELAYING }}</li>
       </ul>
       <div v-if="panel.actions.length" class="btn-row">
         <button v-if="panel.actions.includes('pick-other')" type="button" class="btn" @click="$emit('pick-other')">{{ HOME_PANEL_PICK_OTHER }}</button>

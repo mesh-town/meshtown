@@ -53,6 +53,8 @@ pub struct RunningNode {
     pub exit_resolver: Arc<Resolver>,
     /// The registry of exit clients: who is going online through this node right now; read by `collect`.
     pub exit_clients: Clients,
+    /// Whether this node's relay carries a pair of other members right now; read by `collect`.
+    pub relay_serving: watch::Receiver<bool>,
     /// The registry of exit traffic speed per peer; read by `collect`.
     pub exit_traffic: ExitTraffic,
     /// Path choice (direct or via the selected exit) — the same one the SOCKS5 server uses.

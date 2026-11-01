@@ -31,6 +31,8 @@ pub struct ExitMenu {
     pub serves_exit: bool,
     /// `members` of the snapshot: the requests to join and our own exclusion (`members_note`).
     pub members: TrayMembers,
+    /// `transport.relay.serving`: this node relays between other members (a line under the status line).
+    pub relaying: bool,
     /// The network the flat menu shows; `None` — the main network (or no network at all).
     pub slot: Option<String>,
     /// A submenu per network; filled only when two or more networks are shown.
@@ -87,6 +89,7 @@ pub fn disabled_exit_menu(proxy: ProxyState) -> ExitMenu {
         proxy,
         serves_exit: false,
         members: TrayMembers::default(),
+        relaying: false,
         slot: None,
         nets: Vec::new(),
         groups: Vec::new(),
@@ -112,6 +115,7 @@ pub fn exit_menu_from_snapshot(snap: &TraySnapshot) -> ExitMenu {
         proxy: ProxyState::of_snapshot(&snap.socks),
         serves_exit: snap.exit.enabled,
         members: snap.members,
+        relaying: snap.transport.relay.serving,
         slot: None,
         nets: Vec::new(),
         groups: Vec::new(),

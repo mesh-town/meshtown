@@ -52,6 +52,8 @@ pub(super) struct Inputs<'a> {
     pub exit_iface: Option<(String, crate::iface_bind::IfaceState)>,
     /// Raw list of exit clients from the `exit::Clients` registry: unordered, may include non-members.
     pub exit_clients: Vec<PeerId>,
+    /// Whether the node's relay carries a pair of other members.
+    pub relay_serving: bool,
     /// Exit traffic rate per peer, bytes/s (`exit::ExitTraffic::rates_at`).
     pub exit_rates: HashMap<PeerId, PeerRate>,
     pub exits: HashMap<PeerId, bool>,
@@ -173,6 +175,7 @@ fn build_transport(i: &Inputs<'_>) -> TransportInfo {
         relay: RelayInfo {
             connected: false,
             url: None,
+            serving: i.relay_serving,
         },
         nat: String::new(),
         listen_udp: Vec::new(),

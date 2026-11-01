@@ -7,6 +7,7 @@ and the project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Page and tray menu: a line `Relaying for other members` while this node relays between other members.
 - Ring: the path to the exit through another member is drawn dashed (tray icon and Home page), and the tray menu line says so.
 - Tray: at start, a start-at-login entry that leads to another copy of the program is rewritten to the running one.
 - Exit: a per-stream cap on data not yet acknowledged by the client (`exit.stream_window_kib`; 128 KiB on machines with up to

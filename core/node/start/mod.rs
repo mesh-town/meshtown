@@ -84,6 +84,7 @@ fn assemble_running(
         exit_iface: net.exit_iface,
         exit_resolver: net.exit_resolver,
         exit_clients: net.exit_clients,
+        relay_serving: serving.relay_serving,
         exit_traffic: net.exit_traffic,
         route: serving.route,
         name_at_start: boot.name,

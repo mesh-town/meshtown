@@ -104,6 +104,7 @@ export const ringOnlineRelayedGroupText = (n: number): string => `Online through
 export const ringOfflineGroupText = (n: number): string => `Offline: ${n}`;
 export const ringViaLegendText = (label: string, relayed = false): string =>
   `Your exit: ${label}${relayed ? " — through another member" : ""}`;
+export const HOME_RING_RELAYING = "Relaying for other members";
 export const HOME_RING_SINGLE_VIA = "your exit, online";
 export const HOME_RING_SINGLE_ONLINE_RELAYED = "online through another member";
 export const HOME_RING_SINGLE_VIA_RELAYED = "your exit, online through another member";

@@ -13,12 +13,14 @@ export interface RingView {
   members: RingMember[];
   center: RingCenter;
   legend: RingLegendItem[];
+  /** This node relays between other members: a legend line without a dot. */
+  relaying: boolean;
 }
 
 export function ringView(state: Partial<NodeState> | null, level: PanelLevel): RingView | null {
   if (state === null) return null;
   const members = ringMembers(state);
-  return { members, center: ringCenter(members, level), legend: ringLegend(members) };
+  return { members, center: ringCenter(members, level), legend: ringLegend(members), relaying: state.transport?.relay?.serving === true };
 }
 
 const NARROW_QUERY = "(max-width: 599px)";

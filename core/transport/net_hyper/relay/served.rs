@@ -42,12 +42,23 @@ fn serve(key: [u8; 32], address: Option<SocketAddrV4>) -> Offer {
     Offer::Serve(RelayAdvert { key, address })
 }
 
+/// What a relay is carrying for other members: read once per host tick.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct RelayLoad {
+    /// Sessions open right now.
+    pub sessions_active: i64,
+    /// Pairings completed in total since the relay started.
+    pub pairings_matched: u64,
+}
+
 /// A running relay node as the host sees it.
 pub(crate) trait ServedRelay: Send + Sync + 'static {
     /// The key of the relay node.
     fn key(&self) -> [u8; 32];
     /// What the relay can be announced as now.
     fn offer(&self) -> impl Future<Output = Offer> + Send;
+    /// What the relay carries now.
+    fn load(&self) -> RelayLoad;
     /// Closes the relay node.
     fn close(self) -> impl Future<Output = ()> + Send;
 }
@@ -67,6 +78,14 @@ impl ServedRelay for PeeroxideRelay {
             );
         }
         offer_of_reading(self.key(), reading)
+    }
+
+    fn load(&self) -> RelayLoad {
+        let stats = self.stats();
+        RelayLoad {
+            sessions_active: stats.sessions_active,
+            pairings_matched: stats.pairings_matched,
+        }
     }
 
     async fn close(self) {

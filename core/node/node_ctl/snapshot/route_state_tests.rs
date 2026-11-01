@@ -40,6 +40,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         exit_on: false,
         exit_iface: None,
         exit_clients: Vec::new(),
+        relay_serving: false,
         exit_rates: HashMap::new(),
         exits: serving,
         countries: HashMap::new(),

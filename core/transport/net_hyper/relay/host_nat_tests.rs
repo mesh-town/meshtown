@@ -3,7 +3,7 @@
 //! checked directly; the spawned host runs on a stand-in relay whose NAT kind the test changes.
 
 use super::*;
-use crate::transport::net_hyper::relay::served::{offer_of, Offer, ServedRelay};
+use crate::transport::net_hyper::relay::served::{offer_of, Offer, RelayLoad, ServedRelay};
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
@@ -173,6 +173,10 @@ impl ServedRelay for FakeRelay {
     async fn offer(&self) -> Offer {
         let (kind, address) = *self.nat.lock().unwrap();
         offer_of(self.key(), kind, address)
+    }
+
+    fn load(&self) -> RelayLoad {
+        RelayLoad::default()
     }
 
     async fn close(self) {
