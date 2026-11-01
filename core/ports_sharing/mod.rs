@@ -36,7 +36,7 @@ pub use record::{
     decode_port_record, encode_port_record, port_from_key, port_key, port_prefix, PortRecord,
     PORT_RECORD_VERSION,
 };
-pub use server::port_service;
+pub use server::{port_service, port_service_counted};
 pub use store::{PortView, PortsDoc};
 pub use table::{LocalState, PublishedPortsTable};
 pub use types::{Audience, Opened, Proto, Published, MAX_NAME_CHARS, MAX_PORT_LIST_ENTRIES};
