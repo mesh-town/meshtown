@@ -11,6 +11,8 @@
 //! `core/tests/web_listener_lifecycle.rs`, `_protocol.rs`, `_network.rs`,
 //! `_config_validation.rs`).
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
 
@@ -19,7 +21,8 @@ use meshtown_core::members::network_key::parse_user_input;
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
-use common::{api, cleanup, run_config, scratch, start_web, TestNode};
+use api_common::api;
+use common::{cleanup, run_config, scratch, start_web, TestNode};
 
 /// The config file in `dir` holds exactly `key`, in full.
 fn assert_file_holds_key(dir: &std::path::Path, key: &str) {

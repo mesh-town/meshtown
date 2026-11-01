@@ -9,8 +9,12 @@
 //! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
 //! `core/tests/web_listener_protocol.rs`, `_config_api.rs`, `_network.rs`).
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_stream.rs"]
+mod stream_common;
 
 use std::io::Write;
 use std::net::TcpStream;
@@ -21,7 +25,9 @@ use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource};
 use meshtown_core::web_gui::{self, WebOptions, WebStartError, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 use serde_json::{json, Value};
 
-use common::{api, cleanup, host_of, read_one_response, run_config, scratch, start_web, TestNode};
+use api_common::api;
+use common::{cleanup, host_of, run_config, scratch, start_web, TestNode};
+use stream_common::read_one_response;
 
 /// Reads the `web-token` file: permissions 0600 (unix), 52 characters from an alphabet without `i,l,o,u`, matching
 /// `handle.shared.token()`. Returns the token from the file.

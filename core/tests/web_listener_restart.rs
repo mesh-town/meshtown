@@ -4,13 +4,19 @@
 //! `tests/web_listener_*.rs`). What it doesn't do: it doesn't edit `core/web/*.rs` — it only calls their
 //! public interface. It never prints the token.
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_http.rs"]
+mod http_common;
 
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::{json, Value};
 
-use common::{api, cleanup, http, run_config, scratch, start_web};
+use api_common::api;
+use common::{cleanup, run_config, scratch, start_web};
+use http_common::http;
 
 const RESTART: &str = "/api/actions/restart";
 

@@ -10,6 +10,8 @@ use std::path::PathBuf;
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/invite_deal.rs"]
+mod invite_deal;
 #[path = "common/managed_net.rs"]
 mod managed;
 #[path = "common/invite_mesh.rs"]
@@ -17,8 +19,8 @@ mod mesh;
 use common::{
     addr_of, quick_opts, redeem_via, short_opts, wait_until, ENTRY_LIMIT_SECS, OWNER_SEED,
 };
+use invite_deal::deal;
 use managed::{wait_can_invite, ManagedNet};
-use mesh::deal;
 
 /// The ceiling of one wait for a membership change.
 const LIMIT: std::time::Duration = std::time::Duration::from_secs(20);

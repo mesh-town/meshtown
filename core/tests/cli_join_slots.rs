@@ -5,10 +5,21 @@
 mod cli_node;
 #[path = "common/join_fixtures.rs"]
 mod fixtures;
+#[path = "common/join_invites.rs"]
+mod invites;
+#[path = "common/join_stub.rs"]
+mod stub;
 
 use cli_node::{cli_in, scratch_dir, stderr, stdout, CliNode};
-use fixtures::{key_with_label, stale_invite, unanswered_invite, StubPage};
+use fixtures::key_with_label;
+use invites::{invite_made_at, unanswered_invite};
 use serde_json::Value;
+use stub::{Canned, StubPage};
+
+/// An invite that parses but is long expired: a node refuses it.
+fn stale_invite(key: &str) -> String {
+    invite_made_at(key, 1_000)
+}
 
 fn slots(node: &CliNode) -> Vec<Value> {
     let out = node.cli(&["status", "--json"]);
@@ -51,7 +62,7 @@ fn repeated_key_of_the_second_slot_adds_no_slot() {
 /// A page whose main tab is taken by another network and whose new slot `zz9` refuses the join.
 const FULL_MAIN: &str = r#"{"nets":[{"id":"main","id_hex":"ffffffff"}]}"#;
 
-static ALREADY_IN_SLOT: [fixtures::Canned; 4] = [
+static ALREADY_IN_SLOT: [Canned; 4] = [
     ("GET", "/api/nets", 200, FULL_MAIN),
     (
         "POST",
@@ -68,7 +79,7 @@ static ALREADY_IN_SLOT: [fixtures::Canned; 4] = [
     ),
 ];
 
-static REFUSED_IN_SLOT: [fixtures::Canned; 4] = [
+static REFUSED_IN_SLOT: [Canned; 4] = [
     ("GET", "/api/nets", 200, FULL_MAIN),
     (
         "POST",
@@ -141,7 +152,7 @@ const REFUSED_STATE: &str =
     r#"{"node":{"invite_join":{"state":"refused","message":"the invite was used"}}}"#;
 const WAITING_STATE: &str = r#"{"node":{"invite_join":{"state":"waiting","message":"waiting"}}}"#;
 
-static REFUSED_WHILE_WAITING: [fixtures::Canned; 5] = [
+static REFUSED_WHILE_WAITING: [Canned; 5] = [
     ("GET", "/api/nets", 200, FULL_MAIN),
     PRESENT,
     NEW_SLOT,
@@ -149,7 +160,7 @@ static REFUSED_WHILE_WAITING: [fixtures::Canned; 5] = [
     ("GET", "/api/net/zz9/state", 200, REFUSED_STATE),
 ];
 
-static WAITING_FOREVER: [fixtures::Canned; 5] = [
+static WAITING_FOREVER: [Canned; 5] = [
     ("GET", "/api/nets", 200, FULL_MAIN),
     PRESENT,
     NEW_SLOT,
@@ -159,7 +170,7 @@ static WAITING_FOREVER: [fixtures::Canned; 5] = [
 
 /// The join state is gone and the slot holds no network yet: what a join looks like for a moment before the
 /// key is saved, and also what a cancelled join looks like.
-static VANISHED_WHILE_WAITING: [fixtures::Canned; 5] = [
+static VANISHED_WHILE_WAITING: [Canned; 5] = [
     ("GET", "/api/nets", 200, FULL_MAIN),
     PRESENT,
     NEW_SLOT,
@@ -167,7 +178,7 @@ static VANISHED_WHILE_WAITING: [fixtures::Canned; 5] = [
     ("GET", "/api/net/zz9/state", 200, r#"{"node":{}}"#),
 ];
 
-static REFUSED_ON_MAIN: [fixtures::Canned; 3] = [
+static REFUSED_ON_MAIN: [Canned; 3] = [
     ("GET", "/api/nets", 200, r#"{"nets":[]}"#),
     WAITING_ON_MAIN,
     ("GET", "/api/net/main/state", 200, REFUSED_STATE),

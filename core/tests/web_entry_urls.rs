@@ -1,12 +1,15 @@
 //! Entry URLs of the node page: without a password the URL carries a temporary token, not the permanent one.
 //! Tokens are never printed and don't get into `assert!` texts.
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
 
 use meshtown_core::web_gui::{DEFAULT_DRAIN, TOKEN_FILE_NAME};
 
-use common::{api, cleanup, run_config, scratch, start_web};
+use api_common::api;
+use common::{cleanup, run_config, scratch, start_web};
 
 mod entry_urls {
     use super::*;

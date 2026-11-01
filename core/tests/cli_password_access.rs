@@ -8,6 +8,8 @@ mod auth_common;
 mod cli_node;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
 
 use std::path::{Path, PathBuf};
 

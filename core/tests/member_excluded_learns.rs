@@ -8,16 +8,18 @@ use meshtown_core::members::access::view::{Deny, Side};
 
 #[path = "common/invite_nodes.rs"]
 mod common;
+#[path = "common/invite_deal.rs"]
+mod invite_deal;
 #[path = "common/managed_net.rs"]
 mod managed;
 #[path = "common/invite_mesh.rs"]
 mod mesh;
 
 use common::wait_until;
+use invite_deal::deal;
 use managed::{
     redeem_as, start_joined, wait_both_members, wait_can_invite, ManagedNet, VIEW_LIMIT,
 };
-use mesh::deal;
 
 const SEED: u8 = 5;
 

@@ -1,11 +1,10 @@
 //! Shared scaffolding of the `tests/web_listener_*.rs` scenarios: bringing up the listener (modules 01–04) on port 0
 //! (`start_web`) with the fake node `TestNode` (it lives in `test_node.rs` and is re-exported from here), a raw
-//! HTTP client (`http`/`api`) and response parsing (`Resp`). Each scenario includes it as
-//! `#[path = "common/web_listener.rs"] mod common;`. Each scenario uses only part of this
-//! module — the rest is not dead code of the project but functions for a neighbouring file.
-#![allow(dead_code)] // each test crate takes its own subset
+//! HTTP client (`http_within`) and response parsing (`Resp`). Each scenario includes it as
+//! `#[path = "common/web_listener.rs"] mod common;`. What only some scenarios need lives in leaf files next to it
+//! (`web_listener_http.rs`, `web_listener_api.rs`, `web_listener_headers.rs`, `web_listener_stream.rs`), which a scenario
+//! includes as its own modules and which take this base through `super::common`.
 
-use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
@@ -14,7 +13,6 @@ use std::time::{Duration, Instant};
 
 use meshtown_core::config::config_file::{self, CliOverrides, ConfigSource, PathRule, RunConfig};
 use meshtown_core::web_gui::{self, WebHandle, WebOptions, DEFAULT_DRAIN};
-use serde_json::Value;
 
 #[path = "test_node.rs"]
 mod test_node;
@@ -87,15 +85,25 @@ pub(crate) async fn start_web(dir: &Path, run: &RunConfig) -> (WebHandle, Arc<Te
     (handle, node)
 }
 
-/// A parsed response: status, headers in lower case, body.
+/// A parsed response: status, the raw head (status line and headers), body.
 pub(crate) struct Resp {
     pub(crate) status: u16,
-    pub(crate) headers: HashMap<String, String>,
+    pub(crate) head: Vec<u8>,
     pub(crate) body: Vec<u8>,
 }
 
+impl std::fmt::Debug for Resp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Resp")
+            .field("status", &self.status)
+            .field("head", &String::from_utf8_lossy(&self.head))
+            .field("body_len", &self.body.len())
+            .finish()
+    }
+}
+
 /// The index of the byte right after `\r\n\r\n`, if there is one.
-fn find_header_end(bytes: &[u8]) -> Option<usize> {
+pub(crate) fn find_header_end(bytes: &[u8]) -> Option<usize> {
     bytes
         .windows(4)
         .position(|w| w == b"\r\n\r\n")
@@ -104,32 +112,17 @@ fn find_header_end(bytes: &[u8]) -> Option<usize> {
 
 pub(crate) fn parse_response(raw_bytes: &[u8]) -> Resp {
     let end = find_header_end(raw_bytes).unwrap_or(raw_bytes.len());
-    let head = String::from_utf8_lossy(&raw_bytes[..end]);
-    let mut lines = head.split("\r\n");
-    let status_line = lines.next().unwrap_or("");
-    let status = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
+    let head = &raw_bytes[..end];
+    let status = String::from_utf8_lossy(head)
+        .split("\r\n")
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1)?.parse().ok())
         .unwrap_or(0);
-    let mut headers = HashMap::new();
-    for line in lines {
-        if let Some((k, v)) = line.split_once(':') {
-            headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
-        }
-    }
-    let body = raw_bytes[end..].to_vec();
     Resp {
         status,
-        headers,
-        body,
+        head: head.to_vec(),
+        body: raw_bytes[end..].to_vec(),
     }
-}
-
-/// Opens a `TcpStream`, writes `bytes`, reads to the end of the stream (or to a total timeout of 5 s).
-/// Tolerant of write errors: the server may break the connection in the middle of a write.
-pub(crate) fn raw(port: u16, bytes: &[u8]) -> Vec<u8> {
-    raw_within(port, bytes, Duration::from_secs(5))
 }
 
 /// `raw` with an explicit timeout: requests with a password hash under load don't fit in 5 s.
@@ -162,57 +155,6 @@ pub(crate) fn raw_within(port: u16, bytes: &[u8], limit: Duration) -> Vec<u8> {
         }
     }
     out
-}
-
-/// Reads exactly one HTTP response from an already open stream (by `Content-Length`) without closing it —
-/// needed where the connection lives longer than one request. A missing `Content-Length` in the headers
-/// (not our case there, but just in case) is treated as the end of the headers with no body.
-pub(crate) fn read_one_response(stream: &mut TcpStream) -> Resp {
-    let mut buf = Vec::new();
-    let mut chunk = [0u8; 1024];
-    loop {
-        let n = stream.read(&mut chunk).expect("read_one_response: read");
-        if n == 0 {
-            break;
-        }
-        buf.extend_from_slice(&chunk[..n]);
-        if let Some(end) = find_header_end(&buf) {
-            let head = String::from_utf8_lossy(&buf[..end]).to_lowercase();
-            let content_length = head
-                .lines()
-                .find_map(|l| l.strip_prefix("content-length:"))
-                .and_then(|v| v.trim().parse::<usize>().ok());
-            match content_length {
-                Some(len) => {
-                    if buf.len() >= end + len {
-                        break;
-                    }
-                }
-                None => break,
-            }
-        }
-    }
-    parse_response(&buf)
-}
-
-/// Headers with an empty value ("Host", "") / ("Origin", "") are a signal to "not send this
-/// header at all", suppressing the auto-add (used to really omit
-/// `Origin`, rather than substitute its value).
-pub(crate) fn http(
-    port: u16,
-    method: &str,
-    path: &str,
-    extra_headers: &[(&str, &str)],
-    body: &[u8],
-) -> Resp {
-    http_within(
-        port,
-        method,
-        path,
-        extra_headers,
-        body,
-        Duration::from_secs(5),
-    )
 }
 
 pub(crate) fn http_within(
@@ -254,32 +196,6 @@ pub(crate) fn http_within(
     bytes.extend_from_slice(body);
     let raw_bytes = raw_within(port, &bytes, limit);
     parse_response(&raw_bytes)
-}
-
-/// A wrapper over `http` for the JSON API: the token in `X-Meshtown-Token`, the body and the response are JSON (an empty response body
-/// → `Value::Null`).
-pub(crate) fn api(
-    port: u16,
-    token: &str,
-    method: &str,
-    path: &str,
-    json: Option<Value>,
-) -> (u16, Value) {
-    let body = json
-        .as_ref()
-        .map(|v| serde_json::to_vec(v).expect("api: serializing the body"))
-        .unwrap_or_default();
-    let mut headers: Vec<(&str, &str)> = vec![("X-Meshtown-Token", token)];
-    if !body.is_empty() {
-        headers.push(("Content-Type", "application/json"));
-    }
-    let resp = http(port, method, path, &headers, &body);
-    let value = if resp.body.is_empty() {
-        Value::Null
-    } else {
-        serde_json::from_slice(&resp.body).unwrap_or(Value::Null)
-    };
-    (resp.status, value)
 }
 
 /// A host with one `main` slot around `node`, with the config state of `run`.

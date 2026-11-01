@@ -1,9 +1,6 @@
 //! Test doubles for the multi-slot page: a host that records the calls it gets, a node with a set
 //! snapshot, and a router fixture over them.
 
-// The route tests of other files pick what they need from this shared kit.
-#![allow(dead_code)]
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 

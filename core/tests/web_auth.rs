@@ -1,18 +1,23 @@
 //! Signing in to the node page: the `/api/auth/*` endpoints through a real listener on loopback.
 //! Tokens don't get into `assert!` texts.
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_auth.rs"]
 mod auth_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
 
 use std::path::PathBuf;
 
 use meshtown_core::web_gui::{WebHandle, DEFAULT_DRAIN};
 use serde_json::json;
 
+use api_common::api;
 use auth_common::*;
-use common::{api, cleanup, run_config, scratch, start_web};
+use common::{cleanup, run_config, scratch, start_web};
 
 struct Rig {
     dir: PathBuf,
@@ -95,7 +100,7 @@ rig_test!(foreign_token_string_is_refused, false, |r| {
     assert_eq!(resp.status, 401);
     assert_eq!(body_json(&resp)["error"], "bad_token");
     assert!(
-        !resp.headers.contains_key("set-cookie"),
+        !resp.headers().contains_key("set-cookie"),
         "no session for a refused token"
     );
 });
@@ -133,7 +138,7 @@ rig_test!(sixth_failure_is_429_with_retry_after, true, |r| {
         "even the correct password isn't checked during a block"
     );
     assert!(cookie.is_none());
-    let wait: u64 = sixth.headers["retry-after"]
+    let wait: u64 = sixth.headers()["retry-after"]
         .parse()
         .expect("Retry-After is a number");
     assert!(wait > 0);
@@ -171,7 +176,7 @@ rig_test!(session_cookie_opens_api_and_logout_closes, false, |r| {
     assert_eq!(state_status(&r, &cookie), 200);
     let out = with_cookie(r.port, &cookie, "POST", "/api/auth/logout", Some(json!({})));
     assert_eq!(out.status, 200);
-    assert!(out.headers["set-cookie"].contains("Max-Age=0"));
+    assert!(out.headers()["set-cookie"].contains("Max-Age=0"));
     assert_eq!(state_status(&r, &cookie), 401);
 });
 

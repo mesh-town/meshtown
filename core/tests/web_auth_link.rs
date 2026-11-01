@@ -5,6 +5,8 @@
 mod auth_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
 
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 

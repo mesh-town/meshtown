@@ -9,14 +9,22 @@
 //! `docs/WEB-API.md`; scaffolding in `core/tests/common/web_listener.rs` (`#[path]`, shared with
 //! `core/tests/web_listener_config_api.rs`, `_lifecycle.rs`, `_protocol.rs`, `_network.rs`).
 
+#[path = "common/web_listener_api.rs"]
+mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_headers.rs"]
+mod headers_common;
+#[path = "common/web_listener_http.rs"]
+mod http_common;
 
 use meshtown_core::config::config_file::{self, LoadedConfigFile, RunConfig};
 use meshtown_core::web_gui::{InviteJoinState, InviteJoinView, DEFAULT_DRAIN};
 use serde_json::{json, Value};
 
-use common::{api, cleanup, http, run_config, scratch, start_web};
+use api_common::api;
+use common::{cleanup, run_config, scratch, start_web};
+use http_common::http;
 
 /// `PUT /api/config` with an invalid `socks.port` → 422 `invalid` with the field `socks.port` in `fields`;
 /// checks that `rev` didn't change after the refusal.
@@ -255,7 +263,7 @@ fn assert_log_download(port: u16, token: &str) {
     );
     assert_eq!(resp_dl.status, 200);
     let cd = resp_dl
-        .headers
+        .headers()
         .get("content-disposition")
         .cloned()
         .unwrap_or_default();

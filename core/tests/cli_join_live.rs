@@ -7,11 +7,14 @@
 mod cli_node;
 #[path = "common/join_fixtures.rs"]
 mod fixtures;
+#[path = "common/join_invites.rs"]
+mod invites;
 
 use std::time::Duration;
 
 use cli_node::{stderr, stdout, CliNode};
-use fixtures::{key_with_label, unanswered_invite};
+use fixtures::key_with_label;
+use invites::unanswered_invite;
 use serde_json::Value;
 
 /// The slots the node reports, from `status --json`.

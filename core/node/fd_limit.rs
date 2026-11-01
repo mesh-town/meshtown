@@ -5,17 +5,17 @@
 //! What it does not do: it does not change the hard limit; a `setrlimit` failure is not a startup error, only a log line.
 
 // `CAP` and `target_for` are pure logic for all OSes (the `fd_limit_tests.rs` tests run on Windows too), but only
-// `mod unix` calls them: on non-unix they are dead, so `cfg_attr(not(unix), allow(dead_code))` stays.
+// `mod unix` calls them, so outside unix they exist for the tests only.
 /// Target cap: on macOS above `OPEN_MAX` `setrlimit` answers `EINVAL` even with `hard = RLIM_INFINITY`.
 #[cfg(target_os = "macos")]
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(any(unix, test))]
 const CAP: u64 = 10240;
 #[cfg(not(target_os = "macos"))]
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(any(unix, test))]
 const CAP: u64 = 65536;
 
 /// New soft limit for `(soft, hard)`, or `None` if there is nothing to raise.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(any(unix, test))]
 fn target_for(soft: u64, hard: u64, cap: u64) -> Option<u64> {
     let target = hard.min(cap);
     (soft < target).then_some(target)
