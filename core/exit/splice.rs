@@ -3,20 +3,20 @@
 
 use std::time::Duration;
 
+use super::splice_progress::{wait_second_half, Counted, Progress};
 use super::windowed_copy::copy_windowed;
 use crate::transport::net::{BoxRecv, BoxSend};
 use tokio::net::TcpStream;
-use tokio::time::timeout;
 
-/// How long to wait for the other side after the first one has closed.
+/// How long the other side may stay idle after the first one has closed (a busy one is not cut).
 pub const HALF_CLOSE_GRACE: Duration = Duration::from_secs(60);
 
-/// Grace period for a stream with no bytes on the first side to close (browser pre-connections: 0/0 bytes):
+/// Idle period for a stream with no bytes on the first side to close (browser pre-connections: 0/0 bytes):
 /// there is no one to give data to on the other side. It starts only after one side's FIN.
 pub const HALF_CLOSE_GRACE_SILENT: Duration = Duration::from_secs(5);
 
 /// The wait for the other side: 0 bytes on the first closed side — `HALF_CLOSE_GRACE_SILENT`, otherwise `HALF_CLOSE_GRACE`.
-fn half_close_grace_after(first_bytes: u64) -> Duration {
+pub(super) fn half_close_grace_after(first_bytes: u64) -> Duration {
     match first_bytes {
         0 => HALF_CLOSE_GRACE_SILENT,
         _ => HALF_CLOSE_GRACE,
@@ -58,7 +58,7 @@ pub async fn splice(send: BoxSend, recv: BoxRecv, tcp: TcpStream) -> (u64, u64) 
 /// `splice` with a cap on the bytes written into the QUIC stream before waiting for them to be
 /// acknowledged: `window` is that cap in bytes; 0 — no cap.
 pub(crate) async fn splice_windowed(
-    mut send: BoxSend,
+    send: BoxSend,
     mut recv: BoxRecv,
     tcp: TcpStream,
     window: usize,
@@ -66,7 +66,10 @@ pub(crate) async fn splice_windowed(
     // The trait is needed for shutdown on the TCP half and on the sending half of the stream.
     use tokio::io::AsyncWriteExt;
 
-    let (mut tcp_read, mut tcp_write) = tcp.into_split();
+    let (mut tcp_read, tcp_write) = tcp.into_split();
+    let (to_tcp, to_quic) = (Progress::default(), Progress::default());
+    let mut tcp_write = Counted::new(tcp_write, to_tcp.clone());
+    let mut send = Counted::new(send, to_quic.clone());
     let mut quic_to_tcp_task = crate::node::output::spawn(async move {
         let n = tokio::io::copy(&mut recv, &mut tcp_write)
             .await
@@ -88,21 +91,15 @@ pub(crate) async fn splice_windowed(
     tokio::select! {
         first = &mut quic_to_tcp_task => {
             let quic_to_tcp_bytes = first.unwrap_or(0);
-            let tcp_to_quic_bytes = timeout(half_close_grace_after(quic_to_tcp_bytes), &mut tcp_to_quic_task)
-                .await
-                .ok()
-                .and_then(|joined| joined.ok())
-                .unwrap_or(0);
+            let tcp_to_quic_bytes =
+                wait_second_half(&mut tcp_to_quic_task, &to_quic, quic_to_tcp_bytes).await;
             tcp_to_quic_task.abort();
             (quic_to_tcp_bytes, tcp_to_quic_bytes)
         }
         first = &mut tcp_to_quic_task => {
             let tcp_to_quic_bytes = first.unwrap_or(0);
-            let quic_to_tcp_bytes = timeout(half_close_grace_after(tcp_to_quic_bytes), &mut quic_to_tcp_task)
-                .await
-                .ok()
-                .and_then(|joined| joined.ok())
-                .unwrap_or(0);
+            let quic_to_tcp_bytes =
+                wait_second_half(&mut quic_to_tcp_task, &to_tcp, tcp_to_quic_bytes).await;
             quic_to_tcp_task.abort();
             (quic_to_tcp_bytes, tcp_to_quic_bytes)
         }

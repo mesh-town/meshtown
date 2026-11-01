@@ -187,6 +187,35 @@ mod before_the_head {
     }
 
     #[tokio::test]
+    async fn http_head_dribbled_byte_by_byte_inside_the_deadline_is_served() {
+        let echo = echo_server().await;
+        let (mut client, _task) = start(Some(direct_config().await), Duration::from_secs(2)).await;
+        let head = format!("CONNECT 127.0.0.1:{echo} HTTP/1.1\r\nHost: 127.0.0.1:{echo}\r\n\r\n");
+        for byte in head.as_bytes() {
+            client.write_all(&[*byte]).await.unwrap();
+            sleep(Duration::from_millis(5)).await;
+        }
+        let mut answer = Vec::new();
+        while !answer.ends_with(b"\r\n\r\n") {
+            let mut byte = [0u8; 1];
+            timeout(OUTER * 3, client.read_exact(&mut byte))
+                .await
+                .expect("no reply")
+                .unwrap();
+            answer.push(byte[0]);
+        }
+        assert!(answer.starts_with(b"HTTP/1.1 200"), "reply: {answer:?}");
+
+        client.write_all(b"ping").await.unwrap();
+        let mut back = [0u8; 4];
+        timeout(OUTER, client.read_exact(&mut back))
+            .await
+            .expect("no echo")
+            .unwrap();
+        assert_eq!(&back, b"ping");
+    }
+
+    #[tokio::test]
     async fn socks_partial_greeting_is_closed_at_the_deadline() {
         let (mut client, _task) = start(None, DEADLINE).await;
         client.write_all(&[5]).await.unwrap();

@@ -31,6 +31,7 @@ mod pool;
 mod report;
 mod server;
 mod splice;
+mod splice_progress;
 mod stream_tasks;
 #[cfg(test)]
 pub(crate) mod test_support;

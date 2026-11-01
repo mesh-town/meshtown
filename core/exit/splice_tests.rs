@@ -152,6 +152,9 @@ mod dropped_future {
 #[path = "splice_window_tests.rs"]
 mod window;
 
+#[path = "splice_grace_tests.rs"]
+mod grace;
+
 /// Wire ends of `splice`: what the client and the site see, and the task itself.
 struct Wires {
     /// The client writes here — this is `splice`'s `recv`.
