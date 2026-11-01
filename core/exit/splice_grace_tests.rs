@@ -165,3 +165,44 @@ async fn trickle_after_a_silent_first_side_is_not_cut() {
         .expect("splice ended");
     assert_eq!(counts.expect("no panic"), (0, 10_000));
 }
+
+#[tokio::test(start_paused = true)]
+async fn upload_after_the_site_closed_is_cut_only_once_it_stalls() {
+    // given: the site answered and closed its side; the client never closes its own
+    let mut w = setup().await;
+    w.site.write_all(b"hi").await.expect("site write");
+    w.site.shutdown().await.expect("site close");
+
+    // when: the client uploads a chunk every 20 s for 200 s, the site reads each one
+    let mut buf = vec![0u8; CHUNK.len()];
+    let mut received = 0;
+    for i in 0..10 {
+        tokio::time::sleep(CHUNK_EVERY).await;
+        w.client_out
+            .write_all(CHUNK)
+            .await
+            .unwrap_or_else(|e| panic!("client write {i}: {e}"));
+        let mut got = 0;
+        for _ in 0..500 {
+            if got == CHUNK.len() {
+                break;
+            }
+            pump().await;
+            if let Ok(n) = w.site.try_read(&mut buf[got..]) {
+                got += n;
+            }
+        }
+        assert_eq!(got, CHUNK.len(), "the upload was cut at chunk {i}");
+        received += got;
+    }
+    assert_eq!(received, 10 * CHUNK.len());
+
+    // then: after the last chunk splice waits out the grace, and is cut within two graces
+    let early = HALF_CLOSE_GRACE - Duration::from_secs(1);
+    let still = tokio::time::timeout(early, &mut w.task).await;
+    assert!(still.is_err(), "cut before the grace expired");
+    let late = HALF_CLOSE_GRACE + Duration::from_secs(2);
+    let ended = tokio::time::timeout(late, &mut w.task).await;
+    let counts = ended.expect("the stalled upload must be cut");
+    assert_eq!(counts.expect("no panic"), (0, 2));
+}

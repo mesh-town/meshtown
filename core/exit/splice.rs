@@ -46,11 +46,12 @@ impl Drop for AbortBothOnDrop {
 ///
 /// Returns a pair of numbers for the proxy's summary line: how many bytes came
 /// from the QUIC stream into TCP (for the requester, "received from the site") and how many went from TCP
-/// into the QUIC stream ("sent to the site"). Both numbers come from what
-/// `tokio::io::copy` returned; there are no separate counters. A direction that was cut by `abort`
-/// after `HALF_CLOSE_GRACE` expired yields no number and counts as zero — in the log this shows
-/// as "0 bytes" for the unfinished direction. Dropping the `splice()` future itself removes
-/// both subtasks through `AbortBothOnDrop`. No cap on the bytes toward the QUIC stream.
+/// into the QUIC stream ("sent to the site"). The numbers are what `tokio::io::copy` returned. A direction
+/// cut by `abort` yields no number and counts as zero — in the log this shows as "0 bytes" for the
+/// unfinished direction. The cut comes `HALF_CLOSE_GRACE` after the second half last made progress
+/// (not after the first half closed); the `Counted` wrappers only tell whether bytes moved. Dropping
+/// the `splice()` future itself removes both subtasks through `AbortBothOnDrop`. No cap on the bytes
+/// toward the QUIC stream.
 pub async fn splice(send: BoxSend, recv: BoxRecv, tcp: TcpStream) -> (u64, u64) {
     splice_windowed(send, recv, tcp, 0).await
 }
