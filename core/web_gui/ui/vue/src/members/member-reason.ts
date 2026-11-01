@@ -1,4 +1,4 @@
-/* The optional reason a member gives when proposing a ban; the other members see it. */
+/* The optional reason a member gives when proposing a ban; administrators and the removed member see it. */
 
 export const REASON_MAX = 80;
 

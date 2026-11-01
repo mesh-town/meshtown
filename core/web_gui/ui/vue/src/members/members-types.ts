@@ -14,6 +14,8 @@ export interface ExcludedInfo {
   at_unix: number;
   /** The member whose record excluded the node (the node itself after a leave); `null` when the node does not say. */
   by: string | null;
+  /** The note given with the removal: text, `null` when none was given, absent when the node does not say. */
+  reason?: string | null;
 }
 
 export interface RefusalInfo {

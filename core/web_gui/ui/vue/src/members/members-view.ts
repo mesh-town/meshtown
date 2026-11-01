@@ -47,7 +47,6 @@ export function shortDate(unix: unknown, timeZone?: string): string {
   return pick("day") + " " + pick("month");
 }
 
-
 // "{x} · removed on 19 Oct · by {a}" / "{x} · left the network on 19 Oct"; no admin known — no "by" part.
 export function excludedRowLine(m: MemberRow, names: Record<string, string>, timeZone?: string): string {
   const who = m.name && m.name.trim() ? m.name : m.id;

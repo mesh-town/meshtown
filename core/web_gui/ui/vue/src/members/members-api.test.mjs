@@ -109,6 +109,17 @@ describe("parseMembers", () => {
       assert.equal(row.excluded.how, "left");
     });
 
+    it("excluded reason: string, null, or absent → undefined", () => {
+      const reasonOf = (extra) => {
+        const excluded = { how: "removed", at_unix: AT_UNIX, ...extra };
+        return parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0].excluded.reason;
+      };
+      assert.equal(reasonOf({ reason: "spam" }), "spam");
+      assert.equal(reasonOf({ reason: null }), null);
+      assert.equal(reasonOf({}), undefined);
+      assert.equal(reasonOf({ reason: 5 }), undefined);
+    });
+
     it("excluded with only old `voters`: no admin", () => {
       const excluded = { how: "removed", at_unix: AT_UNIX, voters: [EXTRA_FULL] };
       const row = parseMembers({ members: [{ id_full: EXTRA_FULL, status: "excluded", excluded }] }).members[0];

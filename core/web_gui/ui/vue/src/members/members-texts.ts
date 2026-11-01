@@ -60,6 +60,9 @@ const EXCLUDED_TITLES = {
   left: "You left the network",
   banned: "This computer was removed from the network",
 };
+export const EXCLUDED_REASON_LABEL = "Reason: ";
+export const EXCLUDED_NO_REASON = "No reason given.";
+
 export function excludedTitle(variant: "banned" | "left", net?: string | null): string {
   return forDevice(EXCLUDED_TITLES[variant]) + quotedNet(net);
 }

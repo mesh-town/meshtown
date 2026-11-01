@@ -23,6 +23,7 @@ impl DemoMembers {
         self.remove_me(Exit {
             how: "left",
             by: ME.to_string(),
+            reason: None,
         });
         done
     }
@@ -39,7 +40,11 @@ impl DemoMembers {
     }
 
     /// Excludes a listed member at once.
-    pub(crate) fn exclude(&mut self, i: usize) -> Result<bool, MemberError> {
+    pub(crate) fn exclude(
+        &mut self,
+        i: usize,
+        reason: Option<String>,
+    ) -> Result<bool, MemberError> {
         let e = &mut self.entries[i];
         if matches!(e.standing, Standing::Unlisted) {
             return Err(refused("not_member", "this member is not in the list"));
@@ -50,6 +55,7 @@ impl DemoMembers {
         e.standing = Standing::Excluded(Exit {
             how: "removed",
             by: ME.to_string(),
+            reason,
         });
         Ok(true)
     }

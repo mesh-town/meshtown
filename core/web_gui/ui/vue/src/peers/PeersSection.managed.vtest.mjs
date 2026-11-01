@@ -128,6 +128,11 @@ describe("a computer excluded by an admin", () => {
     expect(page.pageText()).toContain("An admin (b1b1b1b1) removed this computer");
   });
 
+  it("passes `excluded_reason` to the card", async () => {
+    const page = await open(excludedNode({ excluded_by: "b1b1b1b1", excluded_reason: "spam" }));
+    expect(page.pageText()).toContain("Reason: spam");
+  });
+
   it("without excluded_by keeps the old text", async () => {
     const page = await open(excludedNode({}));
     expect(page.pageText()).not.toContain("An admin (");

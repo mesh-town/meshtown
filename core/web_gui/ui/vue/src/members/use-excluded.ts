@@ -11,6 +11,8 @@ interface ExcludedView {
   excluded: ComputedRef<boolean>;
   variant: ComputedRef<ExcludedVariant>;
   net: ComputedRef<string>;
+  /** The removal note: text, `null` when none was given, `undefined` when the node does not say. */
+  reason: ComputedRef<string | null | undefined>;
 }
 
 export function useExcluded(store: Store): ExcludedView {
@@ -18,5 +20,6 @@ export function useExcluded(store: Store): ExcludedView {
     excluded: computed(() => isMeExcluded(store.state, store.members)),
     variant: computed(() => excludedVariant(store.members, meId(store.state))),
     net: computed(() => (store.state && store.state.network && store.state.network.label) || ""),
+    reason: computed(() => (store.state && store.state.network ? store.state.network.excluded_reason : undefined)),
   };
 }
