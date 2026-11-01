@@ -197,6 +197,7 @@ const BODY_TEXT: &str = r#"{
     "full_tunnel.reason"
   ],
   "restart_fields": [
+    "net.relay",
     "socks.enabled",
     "socks.port",
     "socks.access",

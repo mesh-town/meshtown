@@ -44,7 +44,7 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("net.transports", FileOnly, &NetNames { names_in_choice: |n| &mut n.transports, allowed: net_names::transports }),
     row!("net.discovery", FileOnly, &NetNames { names_in_choice: |n| &mut n.discovery, allowed: net_names::discovery }),
     row!("net.sync", FileOnly, &NetSync),
-    row!("net.relay", FileOnly, &NetRelay),
+    row!("net.relay", RestartShown, &NetRelay),
     row!("exit.enabled", Live, slot!(net.exit_enabled, BoolKind)),
     row!("exit.max_streams", Live, slot!(process.exit_max_streams, Int { min: 0, max: 100_000 })),
     row!("exit.stream_window_kib", Live, slot!(process.exit_stream_window_kib, Int { min: 0, max: 65_536 })),

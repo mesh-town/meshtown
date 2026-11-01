@@ -75,6 +75,7 @@ fn invalid_rest_cases() -> Vec<InvalidCase> {
         case("ports.published", json!(5), PUBLISHED),
         case("ports.opened", json!(5), OPENED),
         case("log.ring_lines", json!(1), "an integer 200…20000"),
+        case("net.relay", json!("x"), "off or network"),
         case("exit.max_streams", json!(100_001), "an integer 0…100000"),
         case(
             "exit.stream_window_kib",
@@ -138,6 +139,7 @@ mod get_body_lists {
             "full_tunnel.reason",
         ];
         let restart_fields = [
+            "net.relay",
             "socks.enabled",
             "socks.port",
             "socks.access",
@@ -233,6 +235,7 @@ mod internal_lists {
             "ports.published",
             "ports.opened",
             "log.ring_lines",
+            "net.relay",
             "exit.max_streams",
             "exit.stream_window_kib",
             "exit.interface",
@@ -240,6 +243,7 @@ mod internal_lists {
             "full_tunnel.enabled",
         ];
         let restart_paths = [
+            "net.relay",
             "socks.enabled",
             "socks.port",
             "socks.access",
