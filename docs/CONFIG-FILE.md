@@ -464,7 +464,7 @@ An optional section: what the node uses to talk over the network. No section or 
   peers), stored as files in the `replica/` directory.
 - `relay` — relaying inside the network: `"network"` (default) lets the node reach a member through another member of
   the same network, and lets it serve as such a relay, which pairs only members of its own network (every node serves unless it is behind a NAT with random port mapping; it is advertised with its address when public and by key alone when behind a NAT with stable ports); `"off"` does neither. Changed by
-  restarting the node.
+  restarting the node; saved through the settings API, the field is listed as waiting for a restart.
 - An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning
   and the default for the whole field; the node starts. An unknown key in `net` goes to the log, as everywhere.
 - There is no command-line flag; the page neither shows nor edits the section; `PUT /api/config` stores

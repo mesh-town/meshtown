@@ -369,3 +369,11 @@ mod blocks {
         assert_eq!(total, FIELDS.len());
     }
 }
+
+#[test]
+fn net_relay_is_a_restart_field() {
+    // given: the relay mode is read once, at the start of the node
+    let row = FIELDS.iter().find(|f| f.field_path == "net.relay").unwrap();
+    // then: the page may save it and shows that a restart is due
+    assert_eq!(row.mode, Mode::RestartShown);
+}

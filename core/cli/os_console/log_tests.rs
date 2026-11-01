@@ -105,3 +105,43 @@ fn read_tail_missing_file_is_none() {
     let path = std::env::temp_dir().join("mesh-tail-no-such-file.log");
     assert_eq!(read_tail(&path, 8192), None);
 }
+
+#[cfg(unix)]
+fn mode_of(path: &Path) -> u32 {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+}
+
+#[cfg(unix)]
+fn fresh_dir(tag: &str) -> std::path::PathBuf {
+    let dir = std::env::temp_dir().join(format!("mesh-log-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    dir
+}
+
+#[cfg(unix)]
+#[test]
+fn open_log_creates_private_file() {
+    let dir = fresh_dir("private");
+    let _file = open_log(&dir, "meshtown.log").unwrap();
+
+    assert_eq!(mode_of(&dir.join("meshtown.log")), 0o600);
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[cfg(unix)]
+#[test]
+fn rotated_log_becomes_private() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = fresh_dir("rotated");
+    std::fs::create_dir_all(&dir).unwrap();
+    let old = dir.join("meshtown.log");
+    std::fs::write(&old, "old line\n").unwrap();
+    std::fs::set_permissions(&old, std::fs::Permissions::from_mode(0o644)).unwrap();
+
+    let _file = open_log(&dir, "meshtown.log").unwrap();
+
+    assert_eq!(mode_of(&dir.join("meshtown.log")), 0o600);
+    assert_eq!(mode_of(&dir.join("meshtown.log.1")), 0o600);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

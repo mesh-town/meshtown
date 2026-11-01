@@ -113,12 +113,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             enabled: i.exit_on,
             domains: i.domain_names.len() as u64,
             clients: exit_clients(&i),
-            interface: i.exit_iface.as_ref().map(|(name, state)| {
-                crate::iface_bind::ExitIfaceInfo {
-                    name: name.clone(),
-                    state: *state,
-                }
-            }),
+            interface: i.exit_iface.as_ref().map(exit_iface_info),
         },
         transport,
         peers,
@@ -131,6 +126,16 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
         snap,
         domains: i.domain_names,
         partial: false,
+    }
+}
+
+/// The page form of an exit interface with its live state.
+pub(super) fn exit_iface_info(
+    pair: &(String, crate::iface_bind::IfaceState),
+) -> crate::iface_bind::ExitIfaceInfo {
+    crate::iface_bind::ExitIfaceInfo {
+        name: pair.0.clone(),
+        state: pair.1,
     }
 }
 

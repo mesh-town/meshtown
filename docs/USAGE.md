@@ -294,7 +294,7 @@ member of the same network, which relays the connection. Nothing has to be set u
 - **What the page shows.** In the member list and next to an exit, the path reads `direct` or
   `through another member`. The relayed side does not learn which member relays.
 - **Turning it off.** `"net": { "relay": "off" }` in the settings file (see [CONFIG-FILE.md](CONFIG-FILE.md),
-  section 8.3) stops both using and serving a relay; it takes effect after the node restarts.
+  section 8.3) stops both using and serving a relay; it takes effect after the node restarts (saved through the settings page or API, the field waits for a restart).
 - **When it does not help.** If every member is behind a random NAT, a failed direct connection has no fallback.
   A relay without a public address is reached by its key through the DHT and can take a while to connect.
   See [LIMITATIONS.md](LIMITATIONS.md).

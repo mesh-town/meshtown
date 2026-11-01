@@ -146,8 +146,14 @@ function onSaved(form: SettingsForm, store: Store, deps: SettingsDeps, sent: Rec
   return "saved";
 }
 
+// The OS refused a value that is fine as text: the switch goes back to what the config holds, the error stays.
+function dropRefused(form: SettingsForm, paths: string[]): void {
+  form.draft = Object.fromEntries(Object.entries(form.draft).filter(([path]) => !paths.includes(path)));
+}
+
 function onInvalid(form: SettingsForm, error: ApiErrorLike): SaveOutcome {
   const fields = (error.body && error.body.fields) || [];
+  if (error.code === "not_available") dropRefused(form, fields.map((f) => f.path));
   form.errors = Object.fromEntries(fields.map((f) => [f.path, f.message]));
   form.expertOpen = form.expertOpen || fields.some((f) => EXPERT_FIELDS.some((e) => e.path === f.path));
   say(form, SETTINGS_FIELD_ERRORS_MESSAGE, "field-error-text");

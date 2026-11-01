@@ -273,6 +273,16 @@ pub(in crate::node::node_ctl) fn overlay_members(snap: &mut NodeSnapshot, node: 
     };
 }
 
+/// Rewrites the exit interface of a snapshot from the live node: it can change between two collections.
+pub(in crate::node::node_ctl) fn overlay_exit_interface(
+    snap: &mut NodeSnapshot,
+    node: &RunningNode,
+) {
+    snap.exit.interface = exit_iface_of(node)
+        .as_ref()
+        .map(super::build::exit_iface_info);
+}
+
 #[cfg(test)]
 #[path = "collect_tests.rs"]
 mod tests;

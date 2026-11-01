@@ -24,7 +24,7 @@ the network fields to the slot's file, and answers 409 `busy` while the slot has
     "full_tunnel.available", "full_tunnel.reason"
   ],
   "restart_fields": [
-    "socks.enabled", "socks.port",
+    "net.relay", "socks.enabled", "socks.port",
     "checks.doh_server", "checks.provider_dns"
   ],
   "restart_pending": [],
@@ -46,6 +46,7 @@ the network fields to the slot's file, and answers 409 `busy` while the slot has
   By this list the page writes a warning **before** saving, not after. `web.port` is not in this
   list, although it would require a restart: it is in `read_only`, not changed from the page at all,
   and a row in `restart_fields` would be dead. It will appear there when the field becomes editable.
+  `net.relay` is in the list: a save through the API writes it to the file, and the node reads it at start only.
   For the same reason `full_tunnel.enabled` is not in the list — turning it on is rejected with the
   `not_available` code. `autostart.enabled` is not in the list either: it takes effect at once, when the
   login entry is created or removed.
