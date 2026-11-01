@@ -4,9 +4,17 @@
 //! caller is `prepare`).
 
 use crate::transport::net::NodeSecret;
+use portable_atomic::AtomicU64;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
+use std::time::Duration;
 
+static TMP_SEQ: AtomicU64 = AtomicU64::new(0);
+const TMP_ATTEMPTS: usize = 8;
+const LOCK_WAIT: Duration = Duration::from_secs(10);
+
+use super::file_lock::FileLock;
 use super::parse::{load_config_file, LoadedConfigFile};
 use super::render::render_config_file;
 use super::settings::Settings;
@@ -73,8 +81,23 @@ pub(crate) fn create_private_dir(dir: &Path) -> std::io::Result<()> {
 /// `pub(crate)`: also called by `peers_cache::save` and `peer_names::PeerNames::save`, which are
 /// outside this module.
 pub(crate) fn write_tmp_and_rename(tmp: &Path, path: &Path, text: &str) -> std::io::Result<()> {
+    write_tmp_then_rename(tmp, path, text, false)
+}
+
+/// `exclusive`: the temporary file must be new (`create_new`), so two writers never share one.
+fn write_tmp_then_rename(
+    tmp: &Path,
+    path: &Path,
+    text: &str,
+    exclusive: bool,
+) -> std::io::Result<()> {
     let mut opts = std::fs::OpenOptions::new();
-    opts.write(true).create(true).truncate(true);
+    opts.write(true);
+    if exclusive {
+        opts.create_new(true);
+    } else {
+        opts.create(true).truncate(true);
+    }
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
@@ -169,6 +192,8 @@ pub fn save_with_floor(
         return Err(SaveError::Io(readonly_refusal_text(path)));
     }
 
+    // One writer at a time, across threads and processes: re-read the revision, write and rename under one lock.
+    let _lock = lock_for_write(path)?;
     let new_rev = compute_new_rev(expected_rev, rev_floor, path)?;
 
     let text = render_config_file(new_rev, now_unix, secret, s);
@@ -176,20 +201,36 @@ pub fn save_with_floor(
     Ok(new_rev)
 }
 
+/// Takes the write lock next to the file (`config.json.lock`), creating the directory if needed.
+fn lock_for_write(path: &Path) -> Result<Option<FileLock>, SaveError> {
+    let dir = file_dir(path);
+    let lock_path = dir.join(format!("{FILE_NAME}.lock"));
+    let locked = ensure_dir(&dir).and_then(|()| FileLock::exclusive(&lock_path, LOCK_WAIT));
+    locked.map_err(|e| {
+        let why = match e.kind() {
+            std::io::ErrorKind::TimedOut => "another process is writing the settings file",
+            _ => "couldn't write",
+        };
+        SaveError::Io(format!("{why} {}: {e}", path.display()))
+    })
+}
+
+fn file_dir(path: &Path) -> PathBuf {
+    match path.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => PathBuf::from("."),
+    }
+}
+
 /// The shared write: make sure the directory exists, write a temporary file next to the target, rename it over
 /// the target, `fsync` the directory. On a failed write the temporary file is removed; a failed directory
 /// `fsync` is only a log line, because the rename has already happened.
 pub(super) fn write_atomically(path: &Path, text: &str) -> Result<(), SaveError> {
-    let dir = match path.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
-        _ => PathBuf::from("."),
-    };
-    let tmp = dir.join(format!("{FILE_NAME}.tmp-{}", std::process::id()));
+    let dir = file_dir(path);
 
     // Steps 2–4; on error the temporary file is removed and the revision does not grow.
-    let written = ensure_dir(&dir).and_then(|()| write_tmp_and_rename(&tmp, path, text));
+    let written = ensure_dir(&dir).and_then(|()| write_fresh_tmp(&dir, path, text));
     if let Err(e) = written {
-        let _ = std::fs::remove_file(&tmp);
         return Err(SaveError::Io(format!(
             "couldn't write {}: {e}",
             path.display()
@@ -213,6 +254,25 @@ pub(super) fn write_atomically(path: &Path, text: &str) -> Result<(), SaveError>
     Ok(())
 }
 
+/// Writes through a new `config.json.tmp-<pid>-<seq>`; a name left by an earlier process
+/// (`AlreadyExists`) is skipped. On failure the temporary file is removed.
+fn write_fresh_tmp(dir: &Path, path: &Path, text: &str) -> std::io::Result<()> {
+    let mut last = None;
+    for _ in 0..TMP_ATTEMPTS {
+        let seq = TMP_SEQ.fetch_add(1, Ordering::Relaxed);
+        let tmp = dir.join(format!("{FILE_NAME}.tmp-{}-{seq}", std::process::id()));
+        match write_tmp_then_rename(&tmp, path, text, true) {
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+            Err(e) => {
+                let _ = std::fs::remove_file(&tmp);
+                return Err(e);
+            }
+            Ok(()) => return Ok(()),
+        }
+    }
+    Err(last.expect("at least one attempt"))
+}
+
 /// Renames an unreadable file to `config.json.bad-<stamp_utc>` next to it.
 /// Returns the new path.
 pub fn set_aside_bad(path: &Path, now_unix: u64) -> Result<PathBuf, String> {
@@ -230,3 +290,7 @@ pub fn set_aside_bad(path: &Path, now_unix: u64) -> Result<PathBuf, String> {
 #[cfg(test)]
 #[path = "save_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "save_concurrent_tests.rs"]
+mod concurrent_tests;
