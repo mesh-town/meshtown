@@ -12,7 +12,7 @@ import java.io.FileReader;
 
 /** Foreground service that owns the node process and keeps the status notification fresh. */
 public class NodeService extends Service {
-    static final String ACTION_BOOT = "app.meshtown.BOOT";
+    static final String ACTION_RESTORE = "app.meshtown.RESTORE";
     static final String ACTION_CONNECT = "app.meshtown.CONNECT";
     static final String ACTION_DISCONNECT = "app.meshtown.DISCONNECT";
     static final String ACTION_QUIT = "app.meshtown.QUIT";
@@ -82,7 +82,7 @@ public class NodeService extends Service {
     }
 
     private void handle(String action) {
-        if (ACTION_BOOT.equals(action)) {
+        if (ACTION_RESTORE.equals(action)) {
             restore.arm(Prefs.vpnWanted(this) && VpnService.prepare(this) == null,
                     SystemClock.elapsedRealtime());
         } else if (ACTION_CONNECT.equals(action)) {

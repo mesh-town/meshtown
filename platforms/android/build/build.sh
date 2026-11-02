@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Builds the node, the tun2proxy bridge and the APK; copies the APK to dist/android/.
-# Signing: with MESHTOWN_ANDROID_KEYSTORE, MESHTOWN_ANDROID_KEYSTORE_PASS and MESHTOWN_ANDROID_KEY_ALIAS set (and
-# optionally MESHTOWN_ANDROID_KEY_PASS) a release APK is built and signed with that key; otherwise the debug APK.
+# Signing: with a release key (MESHTOWN_ANDROID_KEYSTORE, _KEYSTORE_PASS, _KEY_ALIAS, optionally _KEY_PASS) the APK is release-signed; otherwise it is debug-signed.
 # Needs: cargo-ndk, rustup target aarch64-linux-android, Android SDK + NDK, JDK 17+, git.
 set -euo pipefail
 
@@ -59,10 +58,11 @@ check_no_home "$JNI/libtun2proxy.so"
 
 echo "== apk"
 if [ -n "${MESHTOWN_ANDROID_KEYSTORE:-}" ] && [ -n "${MESHTOWN_ANDROID_KEYSTORE_PASS:-}" ] && [ -n "${MESHTOWN_ANDROID_KEY_ALIAS:-}" ]; then
-  TASK=assembleRelease; OUT="$GUI/app/build/outputs/apk/release/app-release.apk"
+  TASK=assembleRelease; OUT="$GUI/app/build/outputs/apk/release/app-release.apk"; NAME="meshtown-$VERSION.apk"
 else
-  TASK=assembleDebug; OUT="$GUI/app/build/outputs/apk/debug/app-debug.apk"
+  TASK=assembleDebug; OUT="$GUI/app/build/outputs/apk/debug/app-debug.apk"; NAME="meshtown-$VERSION-debug.apk"
+  echo "warning: no release key — debug-signed APK, Play Protect blocks it; not for distribution" >&2
 fi
 (cd "$GUI" && ./gradlew --no-daemon -q -PnodeVersion="$VERSION" "$TASK")
-cp "$OUT" "$DIST/meshtown-$VERSION.apk"
-echo "built $DIST/meshtown-$VERSION.apk"
+cp "$OUT" "$DIST/$NAME"
+echo "built $DIST/$NAME"
