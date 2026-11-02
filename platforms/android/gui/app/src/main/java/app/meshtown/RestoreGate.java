@@ -1,7 +1,7 @@
 package app.meshtown;
 
 /**
- * Decides when to raise the VPN after a boot that wants it: once the first path probe has passed, or
+ * Decides when to raise the VPN after an app update that wants it: once the first path probe has passed, or
  * after {@link #WAIT_MS} regardless, so a bad path never leaves traffic outside the VPN for good.
  *
  * <p>States: IDLE (nothing to do), WAITING (armed, tunnel not raised yet), STARTED (the start was
