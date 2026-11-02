@@ -101,7 +101,7 @@ impl Host {
         let host = HostSlots::with_main(ctl.clone(), config);
         host.set_proxy_seat(seat);
         if let Some(inv) = admit {
-            tokio::spawn(watch_admission(host.main_slot(), inv, ADMIT_TICK));
+            crate::node::output::spawn(watch_admission(host.main_slot(), inv, ADMIT_TICK));
         }
         host.seat(&NetSlotId::main(), &ctl, services.sources());
         let on_signal = host.clone();
