@@ -132,7 +132,7 @@ pub(crate) async fn settle_invite(
         InviteStep::KeepKey => {
             say(
                 "invite",
-                "this network's key is already known; the invite was not spent",
+                "this network's key is already known; the invite is used only if the members turn this computer away",
             );
             Ok(inv.map(InviteUse::Kept))
         }

@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 mod entry_errors;
 
+use super::admit_watch::{watch_admission, ADMIT_TICK};
 use super::process::{heap_dump_dir, ProcessServices};
 use super::saved_slots::{has_saved_slots, multi_net_for};
 use super::signal::spawn_stop_signal;
@@ -17,7 +18,9 @@ use crate::node::guard_sources::GuardSources;
 use crate::node::node_ctl::{NodeCtl, Relaunch};
 use crate::node::output::{self, say};
 use crate::proxy::{ProxyFront, ProxySeat};
-use crate::web_gui::{now_unix, ConfigState, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN};
+use crate::web_gui::{
+    now_unix, ConfigState, HostControl, WebHandle, WebOptions, WebStartError, DEFAULT_DRAIN,
+};
 use entry_errors::{entry_error, refuse_second_node, same_settings_node_error};
 
 /// The role of the node page in a launch: what to do if it didn't start.
@@ -85,7 +88,6 @@ impl Host {
         B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
         F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
-        let _ = &admit;
         refuse_second_node(&run_config).await?;
         let services = start_process_services(&run_config);
         let (front, seat) = match Host::seat_proxy(&run_config).await {
@@ -98,6 +100,9 @@ impl Host {
         let config = ConfigState::from_run(&run_config);
         let host = HostSlots::with_main(ctl.clone(), config);
         host.set_proxy_seat(seat);
+        if let Some(inv) = admit {
+            tokio::spawn(watch_admission(host.main_slot(), inv, ADMIT_TICK));
+        }
         host.seat(&NetSlotId::main(), &ctl, services.sources());
         let on_signal = host.clone();
         let signal_task = spawn_stop_signal(move || on_signal.stop_all_on_signal());

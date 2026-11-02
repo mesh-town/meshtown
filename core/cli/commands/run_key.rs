@@ -84,10 +84,11 @@ async fn serve_node(
     cfg: crate::node::NodeConfig,
     run: RunConfig,
     relaunch: crate::node::node_ctl::Relaunch,
+    admit: Option<crate::invite::ParsedInvite>,
 ) -> anyhow::Result<()> {
     let ctl = crate::node::node_ctl::NodeCtl::new(&run.effective_settings);
     let saved = Some(relaunch.clone());
-    Host::run_with_saved_slots(run, ctl, PageRole::Optional, saved, |run, ctl| {
+    Host::run_watching_invite(run, ctl, PageRole::Optional, saved, admit, |run, ctl| {
         crate::node::run_network(Some(cfg), run, ctl, relaunch)
     })
     .await
@@ -109,6 +110,10 @@ pub(super) async fn run_with_key(
         return run_without_key(overrides, run, initial_domains, blocked_domains).await;
     };
     log_key_ready(started, parsed.from_words, parsed.label.as_deref());
+    let admit = invited
+        .as_ref()
+        .filter(|u| u.kept())
+        .map(|u| u.clone().into_parsed());
     let (relaunch, cfg) = launch_parts(
         &run,
         overrides,
@@ -117,7 +122,7 @@ pub(super) async fn run_with_key(
         parsed,
         invited,
     );
-    serve_node(cfg, run, relaunch).await
+    serve_node(cfg, run, relaunch, admit).await
 }
 
 #[cfg(test)]

@@ -2,6 +2,7 @@
 //! - `run` — the assembly point "services → page → body → page shutdown";
 //! - `process` — the process services: the memory guard;
 //! - `add_slot` — adding a network at run time;
+//! - `admit_watch` — spending a held invite when the members turn the node away;
 //! - `closed_watch` — leaving a network that an administrator closed;
 //! - `control` — the page's view of the slot map (`HostControl`);
 //! - `launch` — starting one network slot;
@@ -14,6 +15,7 @@
 //! - `test_keys` — key texts for the tests.
 
 mod add_slot;
+mod admit_watch;
 mod closed_watch;
 mod control;
 mod launch;
