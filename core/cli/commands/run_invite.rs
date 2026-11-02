@@ -34,6 +34,33 @@ pub(crate) enum InviteStep {
     AddNet(ParsedInvite),
 }
 
+/// What this run did with the invite before the node started.
+#[derive(Clone, Debug)]
+pub(crate) enum InviteUse {
+    /// The invite was spent to get the network key.
+    Redeemed(ParsedInvite),
+    /// The key was already there: the invite is kept for later.
+    Kept(ParsedInvite),
+}
+
+impl InviteUse {
+    /// The invite the node should watch its own admission with, spending it if the members turn it away;
+    /// `None` when the invite is already spent.
+    pub(crate) fn to_watch(&self) -> Option<ParsedInvite> {
+        match self {
+            InviteUse::Kept(p) => Some(p.clone()),
+            InviteUse::Redeemed(_) => None,
+        }
+    }
+
+    /// The invite itself, whatever was done with it.
+    pub(crate) fn into_parsed(self) -> ParsedInvite {
+        match self {
+            InviteUse::Redeemed(p) | InviteUse::Kept(p) => p,
+        }
+    }
+}
+
 const TEXT_WAITING: &str =
     "Waiting for network members: as soon as anyone from the invite is online, \
 this computer will join the network.";
@@ -84,15 +111,15 @@ fn require_cli_key_matches_invite(inv: &ParsedInvite, key: &str) -> anyhow::Resu
 }
 
 /// Everything about the invite in `run`: the decision, joining or the "key already known" mark, the log notes.
-/// Returns the parsed string: the label and the members' addresses for the first join are taken from it;
-/// `None` when the invite went to another network slot, which the main network has no use for.
+/// Returns what was done with the parsed string (the label and the members' addresses for the first join are taken
+/// from it); `None` when there is no invite or it went to another network slot, which the main network has no use for.
 pub(crate) async fn settle_invite(
     inv: Option<ParsedInvite>,
     cli_key: Option<&str>,
     run: &mut RunConfig,
     typed_domains: &[String],
     now: u64,
-) -> anyhow::Result<Option<ParsedInvite>> {
+) -> anyhow::Result<Option<InviteUse>> {
     let file_key = run.file_settings.net.network_key.clone();
     let slot_keys = run
         .file_report
@@ -105,18 +132,23 @@ pub(crate) async fn settle_invite(
         say("invite", note);
     }
     match step {
-        InviteStep::None => {}
-        InviteStep::KeepKey => say(
-            "invite",
-            "this network's key is already known; the invite was not spent",
-        ),
-        InviteStep::Redeem(p) => redeem_for_run(&p, run, now).await?,
+        InviteStep::None => Ok(None),
+        InviteStep::KeepKey => {
+            say(
+                "invite",
+                "this network's key is already known; the invite is used only if the members turn this computer away",
+            );
+            Ok(inv.map(InviteUse::Kept))
+        }
+        InviteStep::Redeem(p) => {
+            redeem_for_run(&p, run, now).await?;
+            Ok(Some(InviteUse::Redeemed(p)))
+        }
         InviteStep::AddNet(p) => {
             add_redeemed_net(&p, run, typed_domains, now).await?;
-            return Ok(None);
+            Ok(None)
         }
     }
-    Ok(inv)
 }
 
 /// Joins by the invite and keeps the network as a slot; a failed save is a warning, the run goes on without it.

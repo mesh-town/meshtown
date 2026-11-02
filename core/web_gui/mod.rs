@@ -38,6 +38,7 @@ pub(crate) mod test_host;
 mod token;
 
 pub use auth::password_file::{remove_password_file, take_password_file, PASSWORD_FILE_NAME};
+pub(crate) use config_api::save_key_of;
 #[doc(hidden)]
 pub use config_api::{ConfigState, NetRoles};
 pub use control::{

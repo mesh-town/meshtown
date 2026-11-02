@@ -356,3 +356,6 @@ mod persisting_the_key;
 
 #[path = "run_invite_rekey_tests.rs"]
 mod rekeying;
+
+#[path = "run_invite_use_tests.rs"]
+mod invite_use;

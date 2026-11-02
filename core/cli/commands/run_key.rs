@@ -7,6 +7,7 @@ use crate::node::host::{Host, PageRole};
 use crate::node::output::{say, NET_NAME};
 use crate::node::IdentityState;
 
+use super::run_invite::InviteUse;
 use super::run_nokey::run_without_key;
 
 /// Parses the main network key. `Ok(None)` — the key does not parse but there is a settings file, so the node
@@ -63,13 +64,13 @@ pub(super) fn launch_parts(
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
     parsed: NetworkKeyInput,
-    invited: Option<crate::invite::ParsedInvite>,
+    invited: Option<InviteUse>,
 ) -> (crate::node::node_ctl::Relaunch, crate::node::NodeConfig) {
     let relaunch = build_relaunch(run, overrides, initial_domains, blocked_domains);
     let label = parsed.label.clone();
     let mut cfg = relaunch.node_config(&run.effective_settings, parsed);
     cfg.identity = IdentityState::from_report(&run.file_report);
-    let (invite_label, invite_peers) = match invited {
+    let (invite_label, invite_peers) = match invited.map(InviteUse::into_parsed) {
         Some(inv) => (inv.head.label, inv.peers),
         None => (None, Vec::new()),
     };
@@ -83,10 +84,11 @@ async fn serve_node(
     cfg: crate::node::NodeConfig,
     run: RunConfig,
     relaunch: crate::node::node_ctl::Relaunch,
+    admit: Option<crate::invite::ParsedInvite>,
 ) -> anyhow::Result<()> {
     let ctl = crate::node::node_ctl::NodeCtl::new(&run.effective_settings);
     let saved = Some(relaunch.clone());
-    Host::run_with_saved_slots(run, ctl, PageRole::Optional, saved, |run, ctl| {
+    Host::run_watching_invite(run, ctl, PageRole::Optional, saved, admit, |run, ctl| {
         crate::node::run_network(Some(cfg), run, ctl, relaunch)
     })
     .await
@@ -100,7 +102,7 @@ pub(super) async fn run_with_key(
     mut run: RunConfig,
     initial_domains: Vec<String>,
     blocked_domains: Vec<String>,
-    invited: Option<crate::invite::ParsedInvite>,
+    invited: Option<InviteUse>,
 ) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
     let Some(parsed) = main_key(&key_text, &run)? else {
@@ -108,6 +110,7 @@ pub(super) async fn run_with_key(
         return run_without_key(overrides, run, initial_domains, blocked_domains).await;
     };
     log_key_ready(started, parsed.from_words, parsed.label.as_deref());
+    let admit = invited.as_ref().and_then(InviteUse::to_watch);
     let (relaunch, cfg) = launch_parts(
         &run,
         overrides,
@@ -116,7 +119,7 @@ pub(super) async fn run_with_key(
         parsed,
         invited,
     );
-    serve_node(cfg, run, relaunch).await
+    serve_node(cfg, run, relaunch, admit).await
 }
 
 #[cfg(test)]

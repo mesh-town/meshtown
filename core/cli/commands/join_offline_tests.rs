@@ -94,6 +94,22 @@ async fn key_of_same_network_is_already() {
 }
 
 #[tokio::test]
+async fn an_invite_for_the_network_in_the_file_is_already_and_writes_nothing() {
+    // given: the file holds the key of the invite's network
+    let dir = Dir::new("invite-same");
+    join_offline(&dir.source(), JoinText::Key(key_of(9)), 100)
+        .await
+        .unwrap();
+    let before = std::fs::read(dir.file()).unwrap();
+    // when: the invite for that network, no node running
+    let text = JoinText::Invite(invite_made_at(150));
+    let joined = join_offline(&dir.source(), text, 200).await.unwrap();
+    // then: nothing is spent and the file is the same
+    assert!(joined.already);
+    assert_eq!(std::fs::read(dir.file()).unwrap(), before);
+}
+
+#[tokio::test]
 async fn offline_key_for_other_network_adds_slot() {
     // given: the file holds network A
     let dir = Dir::new("other");
