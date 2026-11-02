@@ -110,10 +110,7 @@ pub(super) async fn run_with_key(
         return run_without_key(overrides, run, initial_domains, blocked_domains).await;
     };
     log_key_ready(started, parsed.from_words, parsed.label.as_deref());
-    let admit = invited
-        .as_ref()
-        .filter(|u| u.kept())
-        .map(|u| u.clone().into_parsed());
+    let admit = invited.as_ref().and_then(InviteUse::to_watch);
     let (relaunch, cfg) = launch_parts(
         &run,
         overrides,

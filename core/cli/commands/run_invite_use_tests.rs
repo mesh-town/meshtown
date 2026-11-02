@@ -6,12 +6,15 @@ use super::*;
 
 #[test]
 fn a_kept_invite_is_watched() {
-    assert!(InviteUse::Kept(invite_of_net_a()).kept());
+    let inv = invite_of_net_a();
+    let watched = InviteUse::Kept(inv.clone()).to_watch().expect("watched");
+    assert_eq!(watched.head.secret, inv.head.secret);
+    assert_eq!(watched.peers, inv.peers);
 }
 
 #[test]
 fn a_redeemed_invite_is_not_watched() {
-    assert!(!InviteUse::Redeemed(invite_of_net_a()).kept());
+    assert!(InviteUse::Redeemed(invite_of_net_a()).to_watch().is_none());
 }
 
 #[tokio::test]

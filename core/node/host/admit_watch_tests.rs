@@ -350,6 +350,20 @@ async fn an_unlisted_node_hands_the_invite_to_the_node_once() {
 }
 
 #[tokio::test]
+async fn an_excluded_node_hands_the_invite_to_the_node_once() {
+    let node = QueueNode::new(
+        vec![Some(reply(true, vec![row(true, "excluded", None)]))],
+        Ok(()),
+    );
+    let inv = fresh();
+    watch(&node, Some(&key_text()), inv.clone()).await;
+    let joins = node.joins.lock().unwrap();
+    assert_eq!(joins.len(), 1);
+    assert_eq!(joins[0].0.secret, inv.head.secret);
+    assert_eq!(joins[0].1, inv.peers);
+}
+
+#[tokio::test]
 async fn a_refused_join_ends_the_watch_quietly() {
     let refused = Err(ActionError::Busy("no".to_string()));
     let node = QueueNode::new(vec![Some(unlisted_reply())], refused);

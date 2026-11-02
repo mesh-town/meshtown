@@ -44,9 +44,13 @@ pub(crate) enum InviteUse {
 }
 
 impl InviteUse {
-    /// Whether the node should watch its own admission and spend the invite if the members turn it away.
-    pub(crate) fn kept(&self) -> bool {
-        matches!(self, InviteUse::Kept(_))
+    /// The invite the node should watch its own admission with, spending it if the members turn it away;
+    /// `None` when the invite is already spent.
+    pub(crate) fn to_watch(&self) -> Option<ParsedInvite> {
+        match self {
+            InviteUse::Kept(p) => Some(p.clone()),
+            InviteUse::Redeemed(_) => None,
+        }
     }
 
     /// The invite itself, whatever was done with it.
