@@ -9,6 +9,7 @@ use axum::extract::State;
 use axum::response::Response;
 
 use crate::config::config_file::NetSlotId;
+use crate::node::host::standing_of;
 use crate::web_gui::net_brief::{briefs, NetBrief};
 use crate::web_gui::{App, HostControl, NodeStatus, SlotHandle};
 
@@ -25,7 +26,7 @@ pub(super) enum Place {
         slot: NetSlotId,
         label: Option<String>,
     },
-    /// The node was removed from or excluded from the network in `slot`; the invite brings it back.
+    /// The node was removed, excluded, or turned away as not listed in the network in `slot`; the invite brings it back.
     Return(NetSlotId),
     /// A new network and the primary slot has none.
     Main,
@@ -54,8 +55,9 @@ impl Place {
     }
 }
 
-/// Where the invite to the network `id_hex` goes. A slot whose members cannot be read counts as "here"
-/// unless it is excluded or has no running network: an invite is not spent on a network the node works with.
+/// Where the invite to the network `id_hex` goes. A slot goes back to ("return") when the node is excluded,
+/// has no running network, or is turned away as not listed; otherwise, including a slot whose members cannot
+/// be read, it counts as "here": an invite is not spent on a network the node works with.
 pub(super) async fn place_of(host: &dyn HostControl, id_hex: &str) -> Place {
     let found = briefs(host)
         .into_iter()
@@ -77,13 +79,15 @@ async fn place_of_known(host: &dyn HostControl, brief: NetBrief) -> Place {
     }
 }
 
-/// The node was removed from the list, or answers nothing while offline: the slot kept its key but the node has no network (it just left).
+/// The slot kept its key but the node does not work with the network: it was removed from the list, or
+/// answers nothing while offline (it just left), or it is no member and a neighbour turned it away as not
+/// listed (it holds the key without an admission).
 async fn needs_return(host: &dyn HostControl, slot: &NetSlotId) -> bool {
     let Some(handle) = host.slot(slot) else {
         return false;
     };
     match handle.node.members().await {
-        Ok(_) => false,
+        Ok(reply) => standing_of(&reply).unlisted,
         Err(_) => handle.node.snapshot().node.status == NodeStatus::Offline,
     }
 }
