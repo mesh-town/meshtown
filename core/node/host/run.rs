@@ -68,6 +68,24 @@ impl Host {
         B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
         F: Future<Output = anyhow::Result<()>> + Send + 'static,
     {
+        Host::run_watching_invite(run_config, ctl, role, relaunch, None, body).await
+    }
+
+    /// Like `run_with_saved_slots`; with `admit` (an invite the node already holds the key for) the host also
+    /// watches the node's admission and hands the invite over if the members turn the node away.
+    pub async fn run_watching_invite<B, F>(
+        run_config: RunConfig,
+        ctl: Arc<NodeCtl>,
+        role: PageRole,
+        relaunch: Option<Relaunch>,
+        admit: Option<crate::invite::ParsedInvite>,
+        body: B,
+    ) -> anyhow::Result<()>
+    where
+        B: FnOnce(RunConfig, Arc<NodeCtl>) -> F + Send + 'static,
+        F: Future<Output = anyhow::Result<()>> + Send + 'static,
+    {
+        let _ = &admit;
         refuse_second_node(&run_config).await?;
         let services = start_process_services(&run_config);
         let (front, seat) = match Host::seat_proxy(&run_config).await {

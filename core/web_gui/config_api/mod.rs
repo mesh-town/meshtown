@@ -27,6 +27,7 @@ mod support;
 pub(crate) use network_block::block_support;
 pub use network_block::NetRoles;
 pub(crate) use put_write::ProxyPick;
+pub(crate) use save_key::save_key_of;
 pub use state::ConfigState;
 
 #[cfg(test)]

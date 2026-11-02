@@ -39,6 +39,7 @@ mod token;
 
 pub use auth::password_file::{remove_password_file, take_password_file, PASSWORD_FILE_NAME};
 #[doc(hidden)]
+pub(crate) use config_api::save_key_of;
 pub use config_api::{ConfigState, NetRoles};
 pub use control::{
     ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,

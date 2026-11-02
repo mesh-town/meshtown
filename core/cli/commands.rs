@@ -39,6 +39,7 @@ pub(crate) use invite::InviteArgs;
 pub(crate) use join::JoinArgs;
 pub(crate) use leave::LeaveArgs;
 pub(crate) use run_args::RunArgs;
+use run_invite::InviteUse;
 use run_invite_addnet::{add_net_slot, plan_cli_key, KeyNet};
 use run_key::run_with_key;
 use run_nokey::run_without_key;
@@ -70,7 +71,7 @@ async fn launch_prepared(
     args: RunArgs,
     overrides: CliOverrides,
     run: config_file::RunConfig,
-    invited: Option<crate::invite::ParsedInvite>,
+    invited: Option<InviteUse>,
 ) -> anyhow::Result<()> {
     match run.effective_settings.net.network_key.clone() {
         Some(key_text) => {
@@ -112,11 +113,7 @@ async fn prepare_run(
     invited: Option<crate::invite::ParsedInvite>,
     source: &ConfigSource,
     now: u64,
-) -> anyhow::Result<(
-    config_file::RunConfig,
-    CliOverrides,
-    Option<crate::invite::ParsedInvite>,
-)> {
+) -> anyhow::Result<(config_file::RunConfig, CliOverrides, Option<InviteUse>)> {
     let cli_key = overrides.network_key.clone();
     let key_net = plan_cli_key(source, cli_key.as_deref())?;
     let overrides = overrides_for_main(&overrides, &key_net);

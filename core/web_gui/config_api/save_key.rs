@@ -1,6 +1,8 @@
 //! `ConfigState::save_network_key` — changing the network key from the page: without a settings file it lives until the
 //! end of the run, with a file it is written to disk the same way as `put` (see `put.rs`).
 
+use std::sync::{Arc, Mutex};
+
 use axum::response::Response;
 
 use crate::transport::net::NodeSecret;
@@ -10,6 +12,7 @@ use crate::node::output::NET_NAME;
 
 use super::settings_access::write_loaded;
 use super::state::ConfigState;
+use crate::web_gui::SaveKey;
 
 impl ConfigState {
     /// Takes a new node key: the next write of the settings file stores it.
@@ -158,6 +161,18 @@ fn clear_route_exits(settings: &mut Settings) {
         ),
     );
     settings.net.route_exits.clear();
+}
+
+/// The closure that stores a received network key, and a new node key if the join changed it.
+pub(crate) fn save_key_of(config: Arc<Mutex<ConfigState>>, keep_ports: bool) -> SaveKey {
+    Box::new(move |key, new_owner| {
+        let mut cfg = config.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(secret) = new_owner {
+            cfg.adopt_secret(secret.clone());
+        }
+        cfg.save_network_key(key, keep_ports)
+            .map_err(|_| "settings file not written".to_string())
+    })
 }
 
 #[cfg(test)]
