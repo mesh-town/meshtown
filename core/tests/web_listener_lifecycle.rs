@@ -13,6 +13,8 @@
 mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
 #[path = "common/web_listener_stream.rs"]
 mod stream_common;
 

@@ -10,6 +10,8 @@
 mod common;
 #[path = "common/socks_udp.rs"]
 mod udp;
+#[path = "common/socks_udp_limit.rs"]
+mod udp_limit;
 
 use std::net::{IpAddr, SocketAddr};
 use std::time::Duration;
@@ -22,7 +24,8 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use common::{echo_site, front_for, pair_with, wait_exit_route};
-use udp::{spawn_udp_echo, UDP_LIMIT};
+use udp::spawn_udp_echo;
+use udp_limit::UDP_LIMIT;
 
 /// The name the exit maps to the UDP echo server.
 const UDP_NAME: &str = "udp.test";

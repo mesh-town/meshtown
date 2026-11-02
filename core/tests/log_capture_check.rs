@@ -4,6 +4,8 @@
 
 #[path = "common/log_capture.rs"]
 mod log_capture;
+#[path = "common/log_capture_counts.rs"]
+mod log_capture_counts;
 
 use tracing::Level;
 
@@ -23,9 +25,9 @@ fn layer_counts_warn_and_error_after_mark_and_ignores_info() {
     tracing::warn!(target: "check", "second warning");
 
     // then: info is not counted, warn counts two, no errors since the mark, the old error is not visible
-    assert_eq!(log_capture::warns_since(mark), 2);
-    assert_eq!(log_capture::count_since(mark, Level::INFO), 1);
-    assert_eq!(log_capture::count_since(mark, Level::ERROR), 0);
+    assert_eq!(log_capture_counts::warns_since(mark), 2);
+    assert_eq!(log_capture_counts::count_since(mark, Level::INFO), 1);
+    assert_eq!(log_capture_counts::count_since(mark, Level::ERROR), 0);
     let seen = log_capture::since(mark);
     assert_eq!(seen.len(), 3);
     assert_eq!(seen[1].message, "first warning");

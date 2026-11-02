@@ -2,11 +2,11 @@
 //!
 //! What it does: adds `Resp::headers` (names in lower case) on top of the base response.
 //! What it does not do: it does not send anything.
-//! Links: included as a sibling of `common` by the scenarios that read headers; takes `Resp` through `super::common`.
+//! Links: included as a sibling of `common` by the scenarios that read headers; takes `Resp` through `super::resp_common`.
 
 use std::collections::HashMap;
 
-use super::common::Resp;
+use super::resp_common::Resp;
 
 impl Resp {
     /// The response headers, names in lower case.

@@ -1,17 +1,29 @@
 //! Self-check of the `core/tests/lossy_link/` proxy: the pure `Direction` model without sockets (determinism, burst statistics, the queue).
 //!
-//! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC stack here — the congestion
+//! The loss-burst counter is `core/tests/common/lossy_link_gaps.rs`. There is no QUIC stack here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
-#[path = "common/lossy_link.rs"]
-mod common;
-mod lossy_link;
+#[path = "common/lossy_link_gaps.rs"]
+mod gaps;
+#[path = "lossy_link/model.rs"]
+mod model;
 
 use std::time::{Duration, Instant};
 
-use common::{gaps, model_cfg};
-use lossy_link::model::{Direction, Verdict};
-use lossy_link::LossModel;
+use gaps::gaps;
+use model::{Direction, LossModel, PathShape, Verdict};
+
+/// A shape without delay, loss or speed limit, adjusted by `edit`.
+fn model_cfg(edit: impl FnOnce(&mut PathShape)) -> PathShape {
+    let mut cfg = PathShape {
+        one_way_delay: Duration::ZERO,
+        loss: LossModel::None,
+        rate_mbit: None,
+        queue: Duration::from_millis(100),
+    };
+    edit(&mut cfg);
+    cfg
+}
 
 #[test]
 fn model_is_deterministic_per_seed() {

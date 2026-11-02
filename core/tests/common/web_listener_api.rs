@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::common::http_within;
+use super::resp_common::http_within;
 
 /// A wrapper over `http` for the JSON API: the token in `X-Meshtown-Token`, the body and the response are JSON (an empty response body
 /// → `Value::Null`).

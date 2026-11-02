@@ -4,15 +4,20 @@
 //! checks that datagrams to this address reach the process at all (the macOS firewall decides by the
 //! Mach-O UUID of the binary, for an unknown binary the packet vanishes silently); `wait_blocked` waits
 //! until the `block_addr` sink (a separate task) has counted what it ate.
-//! What it does not do: the address interception itself — that is in `shadow.rs`.
+//! `LossyLink::block_addr` itself and its silent sink live here too. What it does not do: the address interception
+//! itself — that is in `shadow.rs`.
+//! Included on macOS only, as `#[path = "lossy_link/lan.rs"] mod lan;` next to `mod shadow;` and `mod lossy_link;`.
 
+use std::io;
 use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use tokio::net::UdpSocket;
 use tokio::time::{sleep, timeout};
 
-use super::LossyLink;
+use super::lossy_link::LossyLink;
+use super::shadow;
 
 /// How long the delivery probe sends one datagram every `PROBE_STEP`.
 const PROBE_TOTAL: Duration = Duration::from_secs(2);
@@ -66,4 +71,25 @@ pub async fn wait_blocked(link: &LossyLink, want: u64) -> u64 {
         sleep(POLL_STEP).await;
     }
     link.stats().blocked
+}
+
+impl LossyLink {
+    /// Takes `addr` (`SO_REUSEADDR`, see `shadow.rs`) and silently eats everything that arrived
+    /// on it: this is how an address is closed on which someone else's socket listens on `0.0.0.0`.
+    pub fn block_addr(&mut self, addr: SocketAddr) -> io::Result<()> {
+        let sock = UdpSocket::from_std(shadow::bind_shared(addr)?)?;
+        self.tasks.push(meshtown_core::node::output::spawn(sink(
+            sock,
+            self.sink.clone(),
+        )));
+        Ok(())
+    }
+}
+
+/// The silent sink: reads `sock` and discards everything, counting what arrived.
+async fn sink(sock: UdpSocket, counters: Arc<super::lossy_link::stats::Counters>) {
+    let mut buf = vec![0u8; 65536];
+    while sock.recv_from(&mut buf).await.is_ok() {
+        counters.received();
+    }
 }

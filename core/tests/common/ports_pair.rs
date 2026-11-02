@@ -2,7 +2,6 @@
 //! opens, free-port pickers, waiting, document and listener state readers, a UDP round trip.
 //! Plugged in as `#[path = "common/ports_pair.rs"] mod ports_pair;` next to
 //! `#[path = "common/socks_pair.rs"] mod common;` (the pair handshake lives there).
-#![allow(dead_code)]
 
 use std::time::Duration;
 

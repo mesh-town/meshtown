@@ -7,11 +7,16 @@ mod auth_common;
 mod common;
 #[path = "common/web_listener_headers.rs"]
 mod headers_common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
+#[path = "common/web_auth_session.rs"]
+mod session_common;
 
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 
 use auth_common::*;
 use common::{cleanup, run_config, scratch, start_web};
+use session_common::*;
 
 async fn check(tag: &str, password: bool) {
     let dir = scratch(tag);

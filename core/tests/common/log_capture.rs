@@ -10,9 +10,7 @@
 //! `mark()` cuts off only the old ones by time, but not other parallel tests. `nextest` runs
 //! each test in its own process, so nothing mixes there. It is plugged in with the line
 //! `#[path = "common/log_capture.rs"] mod log_capture;`. The file has no test of its own — the layer is
-//! checked by `core/tests/log_capture_check.rs`.
-
-#![allow(dead_code)]
+//! checked by `core/tests/log_capture_check.rs`. The per-level counters live in `log_capture_counts.rs`.
 
 use std::fmt::Debug;
 use std::sync::{Mutex, OnceLock};
@@ -85,21 +83,12 @@ pub(crate) fn since(mark: Mark) -> Vec<Captured> {
     EVENTS.lock().unwrap()[mark.0..].to_vec()
 }
 
-/// How many events of level `level` have appeared since the mark.
-pub(crate) fn count_since(mark: Mark, level: Level) -> usize {
-    since(mark).iter().filter(|e| e.level == level).count()
-}
-
-/// How many `WARN`s since the mark.
-pub(crate) fn warns_since(mark: Mark) -> usize {
-    count_since(mark, Level::WARN)
-}
-
 /// Fails if at least one `ERROR` has appeared since the mark; the message holds all such events.
 pub(crate) fn assert_no_errors_since(mark: Mark) {
-    let errors: Vec<_> = since(mark)
+    let errors: Vec<String> = since(mark)
         .into_iter()
         .filter(|e| e.level == Level::ERROR)
+        .map(|e| format!("{}: {}", e.target, e.message))
         .collect();
     assert!(
         errors.is_empty(),

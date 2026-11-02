@@ -9,6 +9,10 @@ mod auth_common;
 mod common;
 #[path = "common/web_listener_headers.rs"]
 mod headers_common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
+#[path = "common/web_auth_session.rs"]
+mod session_common;
 
 use std::path::PathBuf;
 
@@ -18,6 +22,15 @@ use serde_json::json;
 use api_common::api;
 use auth_common::*;
 use common::{cleanup, run_config, scratch, start_web};
+use session_common::*;
+
+/// A temporary token from the entry URL (`…/?token=T`).
+fn temp_token(url: &str) -> String {
+    url.split_once("?token=")
+        .expect("no token in the URL")
+        .1
+        .to_string()
+}
 
 struct Rig {
     dir: PathBuf,

@@ -6,17 +6,15 @@
 //! What it does not do: system-level emulation (`tc`/`dnctl` do not work on macOS without sudo); the measurement on top of the
 //! proxy is `tests/congestion_lossy.rs`, its self-check is `tests/lossy_link_{forwarding,shape,model}.rs`.
 //! Files: `model.rs` — decisions, `pipe.rs` — the receive and delivery tasks, `stats.rs` — counters,
-//! `shadow.rs` — binding a socket to an address held by someone else's `0.0.0.0` (`block_addr`), `lan.rs` —
-//! helpers for the `block_addr` test (the LAN address, a delivery probe, waiting for the sink counter).
-#![allow(dead_code)] // each test crate takes its own subset of the proxy
+//! `shadow.rs` — binding a socket to an address held by someone else's `0.0.0.0`, `lan.rs` — `block_addr` and
+//! the helpers for its test (the LAN address, a delivery probe, waiting for the sink counter). `model.rs` is
+//! included alone by the crate that checks only the model; `lan.rs` and `shadow.rs` only by the crate with the
+//! `block_addr` test, each beside this module.
 
-pub mod lan;
 pub mod model;
 mod pipe;
-mod shadow;
 pub mod stats;
 
-use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, AtomicUsize};
 use std::sync::Arc;
@@ -28,7 +26,7 @@ use tokio::task::JoinHandle;
 
 pub use model::LossModel;
 
-use model::Direction;
+use model::{Direction, PathShape};
 use pipe::{Client, Knobs, Peer, Target};
 use stats::{Counters, LinkStats};
 
@@ -48,6 +46,16 @@ pub struct LinkConfig {
 }
 
 impl LinkConfig {
+    /// The settings that shape one direction.
+    fn shape(&self) -> PathShape {
+        PathShape {
+            one_way_delay: self.one_way_delay,
+            loss: self.loss,
+            rate_mbit: self.rate_mbit,
+            queue: self.queue,
+        }
+    }
+
     /// A transparent channel: no delay, loss or speed limit.
     pub fn plain(target: SocketAddr) -> LinkConfig {
         LinkConfig {
@@ -66,10 +74,10 @@ pub struct LossyLink {
     front: SocketAddr,
     c2s: Arc<Counters>,
     s2c: Arc<Counters>,
-    sink: Arc<Counters>,
+    pub(crate) sink: Arc<Counters>,
     trap_c2s: Arc<AtomicUsize>,
     loss_c2s: Arc<AtomicU32>,
-    tasks: Vec<JoinHandle<()>>,
+    pub(crate) tasks: Vec<JoinHandle<()>>,
 }
 
 impl LossyLink {
@@ -110,18 +118,6 @@ impl LossyLink {
         self.front
     }
 
-    /// Takes `addr` (`SO_REUSEADDR`, see `shadow.rs`) and silently eats everything that arrived
-    /// on it: this is how an address is closed on which someone else's socket listens on `0.0.0.0`.
-    pub fn block_addr(&mut self, addr: SocketAddr) -> io::Result<()> {
-        let sock = UdpSocket::from_std(shadow::bind_shared(addr)?)?;
-        self.tasks
-            .push(meshtown_core::node::output::spawn(pipe::sink(
-                sock,
-                self.sink.clone(),
-            )));
-        Ok(())
-    }
-
     pub fn stats(&self) -> LinkStats {
         let blocked = self.sink.snapshot().received;
         LinkStats {
@@ -142,7 +138,7 @@ impl LossyLink {
     ) {
         let (rx, from, tx, to) = ends;
         let (queue_tx, queue_rx) = unbounded_channel();
-        let dir = Direction::new(cfg, seed);
+        let dir = Direction::new(&cfg.shape(), seed);
         self.tasks
             .push(meshtown_core::node::output::spawn(pipe::ingest(
                 rx,

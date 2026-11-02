@@ -5,6 +5,8 @@
 mod api_common;
 #[path = "common/web_listener.rs"]
 mod common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
 
 use meshtown_core::web_gui::{DEFAULT_DRAIN, TOKEN_FILE_NAME};
 
