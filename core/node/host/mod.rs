@@ -31,6 +31,7 @@ mod slots;
 pub(crate) mod test_keys;
 
 pub use crate::config::config_file::NetSlotId;
+pub(crate) use admit_watch::standing_of;
 pub use notices::Notice;
 pub use process::ProcessServices;
 pub use run::{Host, PageRole};
