@@ -3,7 +3,6 @@
 //! What it does: provides a "raw" initiator (calls a node, gives its name, returns the name from the tail of
 //! the reply) and a "raw" responder (accepts calls, puts the initiator's tail into a channel). The labels and the name
 //! frame are the same `handshake` functions as in a real node. Included via `#[path]`.
-#![allow(dead_code)] // each test crate takes its own subset
 
 use std::sync::Arc;
 

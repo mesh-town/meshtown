@@ -5,12 +5,18 @@
 
 #[path = "common/lossy_link.rs"]
 mod common;
+#[path = "common/lossy_link_gaps.rs"]
+mod gaps;
 mod lossy_link;
+#[path = "common/lossy_link_timed.rs"]
+mod timed;
 
 use std::time::Duration;
 
-use common::{collect, gaps, packet, rig, spawn_collect, Arrival};
+use common::{packet, rig};
+use gaps::gaps;
 use lossy_link::LossModel;
+use timed::{collect, spawn_collect, Arrival};
 use tokio::time::sleep;
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]

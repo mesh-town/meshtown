@@ -3,19 +3,26 @@
 //! The shared harness is `core/tests/common/lossy_link.rs`. There is no QUIC stack here — the congestion
 //! measurement lives in `tests/congestion_lossy.rs`.
 
+#[path = "common/lossy_link_collect.rs"]
+mod collected;
 #[path = "common/lossy_link.rs"]
 mod common;
+#[cfg(target_os = "macos")]
+#[path = "lossy_link/lan.rs"]
+mod lan;
 mod lossy_link;
+#[cfg(target_os = "macos")]
+#[path = "lossy_link/shadow.rs"]
+mod shadow;
 
 #[cfg(target_os = "macos")]
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use collected::collect;
+use common::{packet, rig};
 #[cfg(target_os = "macos")]
-use common::collect_raw;
-use common::{collect, packet, rig};
-#[cfg(target_os = "macos")]
-use lossy_link::lan::{lan_delivery_works, local_lan_ip, wait_blocked};
+use lan::{lan_delivery_works, local_lan_ip, wait_blocked};
 #[cfg(target_os = "macos")]
 use lossy_link::{LinkConfig, LossyLink};
 use tokio::net::UdpSocket;
@@ -75,6 +82,18 @@ async fn dropping_link_frees_front_port() {
     UdpSocket::bind(front)
         .await
         .expect("the front port must be released");
+}
+
+/// Everything that arrives on the socket within 300 ms of silence, datagram by datagram.
+#[cfg(target_os = "macos")]
+async fn collect_raw(sock: &UdpSocket, buf: &mut [u8]) -> Vec<Vec<u8>> {
+    let mut got = Vec::new();
+    while let Ok(Ok((n, _))) =
+        tokio::time::timeout(Duration::from_millis(300), sock.recv_from(buf)).await
+    {
+        got.push(buf[..n].to_vec());
+    }
+    got
 }
 
 /// This is how the proxy closes the bypass in the measurement: the server listens on `0.0.0.0:P`, the client knocks on

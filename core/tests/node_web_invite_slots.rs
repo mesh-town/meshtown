@@ -8,6 +8,8 @@
 mod common;
 #[path = "common/nets_host.rs"]
 mod nets_host;
+#[path = "common/nets_host_empty.rs"]
+mod nets_host_empty;
 
 use std::time::Duration;
 
@@ -15,7 +17,8 @@ use meshtown_core::members::network_key::NetworkKey;
 use serde_json::json;
 
 use common::{api, boot_consulting_list, teardown, wait_ready, Booted};
-use nets_host::{boot_host, boot_host_empty, HostNode};
+use nets_host::{boot_host, HostNode};
+use nets_host_empty::boot_host_empty;
 
 const JOIN: &str = "/api/network/join";
 

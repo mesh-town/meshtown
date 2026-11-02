@@ -14,6 +14,8 @@ mod common;
 mod headers_common;
 #[path = "common/web_listener_http.rs"]
 mod http_common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
 #[path = "common/web_listener_stream.rs"]
 mod stream_common;
 
@@ -24,14 +26,15 @@ use std::time::{Duration, Instant};
 use meshtown_core::web_gui::DEFAULT_DRAIN;
 use serde_json::Value;
 
-use common::{cleanup, parse_response, run_config, scratch, start_web};
+use common::{cleanup, run_config, scratch, start_web};
 use http_common::http;
+use resp_common::{parse_response, raw_within, Resp};
 use stream_common::read_one_response;
 
 /// Opens a `TcpStream`, writes `bytes`, reads to the end of the stream (or to a total timeout of 5 s).
 /// Tolerant of write errors: the server may break the connection in the middle of a write.
 fn raw(port: u16, bytes: &[u8]) -> Vec<u8> {
-    common::raw_within(port, bytes, Duration::from_secs(5))
+    raw_within(port, bytes, Duration::from_secs(5))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -323,7 +326,7 @@ async fn head_has_no_body() {
 }
 
 /// No caching, no content sniffing and no cross-origin access on a response.
-fn assert_hardened_headers(resp: &common::Resp) {
+fn assert_hardened_headers(resp: &Resp) {
     assert_eq!(
         resp.headers().get("cache-control").map(String::as_str),
         Some("no-store")
@@ -338,7 +341,7 @@ fn assert_hardened_headers(resp: &common::Resp) {
 }
 
 /// The root page: HTML, hardened headers and a content policy that allows only the inline icon.
-fn assert_html_page(resp: &common::Resp) {
+fn assert_html_page(resp: &Resp) {
     let ct = resp
         .headers()
         .get("content-type")

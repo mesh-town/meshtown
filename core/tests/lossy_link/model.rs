@@ -2,14 +2,12 @@
 //!
 //! What it does: from a packet's arrival time and size decides whether it is lost by the model, dropped by the queue or
 //! delivered at a given moment. What it does not have: sockets, tasks and counters — they are in `pipe.rs` and
-//! `stats.rs`; the configuration itself is in `mod.rs`.
+//! `stats.rs`; the configuration of the whole proxy is in `mod.rs`.
 
 use std::time::{Duration, Instant};
 
 use rand::{RngExt, SeedableRng};
 use rand_pcg::Pcg32;
-
-use super::LinkConfig;
 
 /// The loss model; applied to both directions equally.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -25,6 +23,23 @@ pub enum LossModel {
         mean_loss: f64,
         mean_burst: f64,
     },
+}
+
+impl From<f64> for LossModel {
+    /// Independent losses with probability `p`.
+    fn from(p: f64) -> Self {
+        LossModel::Random { p }
+    }
+}
+
+impl From<[f64; 2]> for LossModel {
+    /// Gilbert–Elliott losses from `[mean_loss, mean_burst]`.
+    fn from([mean_loss, mean_burst]: [f64; 2]) -> Self {
+        LossModel::Burst {
+            mean_loss,
+            mean_burst,
+        }
+    }
 }
 
 impl LossModel {
@@ -49,6 +64,18 @@ fn burst_step(bad: &mut bool, rng: &mut Pcg32, mean_loss: f64, mean_burst: f64) 
     let switch = rng.random_bool(if *bad { to_good } else { to_bad });
     *bad ^= switch;
     *bad
+}
+
+/// The part of the proxy settings that shapes one direction.
+#[derive(Debug, Clone)]
+pub struct PathShape {
+    /// One-way delay (after the queue).
+    pub one_way_delay: Duration,
+    pub loss: LossModel,
+    /// The bottleneck speed, Mbit/s; `None` — no limit.
+    pub rate_mbit: Option<f64>,
+    /// The longest wait in the bottleneck queue; longer — a drop.
+    pub queue: Duration,
 }
 
 /// What to do with a packet.
@@ -86,13 +113,13 @@ impl Bottleneck {
 pub struct Direction {
     loss: LossModel,
     bad: bool,
-    rng: Pcg32,
+    pub(super) rng: Pcg32,
     bottleneck: Bottleneck,
     delay: Duration,
 }
 
 impl Direction {
-    pub fn new(cfg: &LinkConfig, seed: u64) -> Direction {
+    pub fn new(cfg: &PathShape, seed: u64) -> Direction {
         Direction {
             loss: cfg.loss,
             bad: false,
@@ -104,11 +131,6 @@ impl Direction {
             },
             delay: cfg.one_way_delay,
         }
-    }
-
-    /// A random loss on top of the model: `milli` is thousandths of a percent; 0 does not touch the generator.
-    pub fn extra_lost(&mut self, milli: u32) -> bool {
-        milli > 0 && self.rng.random_bool(f64::from(milli) / 100_000.0)
     }
 
     pub fn admit(&mut self, now: Instant, size: usize) -> Verdict {

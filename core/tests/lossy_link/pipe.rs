@@ -14,6 +14,8 @@ use tokio::net::UdpSocket;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep_until;
 
+use rand::RngExt;
+
 use super::model::{Direction, Verdict};
 use super::stats::Counters;
 
@@ -130,10 +132,9 @@ pub async fn deliver(
     }
 }
 
-/// The silent sink: reads `sock` and discards everything, counting what arrived.
-pub async fn sink(sock: UdpSocket, counters: Arc<Counters>) {
-    let mut buf = vec![0u8; 65536];
-    while sock.recv_from(&mut buf).await.is_ok() {
-        counters.received();
+impl Direction {
+    /// A random loss on top of the model: `milli` is thousandths of a percent; 0 does not touch the generator.
+    pub fn extra_lost(&mut self, milli: u32) -> bool {
+        milli > 0 && self.rng.random_bool(f64::from(milli) / 100_000.0)
     }
 }

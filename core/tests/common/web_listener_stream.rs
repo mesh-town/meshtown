@@ -1,13 +1,13 @@
 //! One response off an open stream, for the scenarios whose connection outlives a request.
 //!
 //! What it does: `read_one_response` reads by `Content-Length` and leaves the stream open.
-//! What it does not do: it does not open connections (see `web_listener.rs`, which it takes `Resp` and the parser from).
+//! What it does not do: it does not open connections (see `web_listener_resp.rs`, which it takes `Resp` and the parser from).
 //! Links: included as a sibling of `common` by the scenarios that need it; takes the base through `super::common`.
 
 use std::io::Read;
 use std::net::TcpStream;
 
-use super::common::{find_header_end, parse_response, Resp};
+use super::resp_common::{find_header_end, parse_response, Resp};
 
 /// Reads exactly one HTTP response from an already open stream (by `Content-Length`) without closing it —
 /// needed where the connection lives longer than one request. A missing `Content-Length` in the headers

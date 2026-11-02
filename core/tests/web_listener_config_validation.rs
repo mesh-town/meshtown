@@ -17,6 +17,8 @@ mod common;
 mod headers_common;
 #[path = "common/web_listener_http.rs"]
 mod http_common;
+#[path = "common/web_listener_resp.rs"]
+mod resp_common;
 
 use meshtown_core::config::config_file::{self, LoadedConfigFile, RunConfig};
 use meshtown_core::web_gui::{InviteJoinState, InviteJoinView, DEFAULT_DRAIN};
