@@ -16,7 +16,7 @@ use super::store::{
     decide, issue_key, issue_record, used_key, IssueRecord, IssueVerdict, Ledger, ISSUE_PREFIX,
     USED_PREFIX,
 };
-use super::store_admins::{admin_verdict, issuer_of, made_of};
+use super::store_admins::{admin_verdict, by_admin, issuer_of, made_of};
 use super::INVITE_TTL_SECS;
 use crate::transport::net::{live, NetError, PeerId, ReplicaEntry};
 
@@ -77,6 +77,15 @@ fn issuers_own(issued: &[ReplicaEntry]) -> Option<(PeerId, &ReplicaEntry)> {
     })
 }
 
+/// The records the shown fields come from: in a Managed network only the admins' ones, as in the verdict.
+fn counted_records(
+    issued: &[ReplicaEntry],
+    admins: Option<&BTreeSet<PeerId>>,
+) -> Vec<ReplicaEntry> {
+    let counts = |e: &&ReplicaEntry| admins.is_none_or(|a| by_admin(e, a));
+    issued.iter().filter(counts).cloned().collect()
+}
+
 fn open_row(
     hash: &str,
     issued: &[ReplicaEntry],
@@ -87,12 +96,13 @@ fn open_row(
     if verdict_of(issued, used, admins, now_unix) != IssueVerdict::Grant {
         return None;
     }
-    let note = issue_note(issued);
+    let counted = counted_records(issued, admins);
+    let note = issue_note(&counted);
     Some(OpenInvite {
         hash: hash.to_string(),
         for_whom: Some(note).filter(|n| !n.is_empty()),
-        made_unix: newest_fresh(issued, now_unix)?,
-        issuer: issuers_own(issued).map(|(issuer, _)| issuer),
+        made_unix: newest_fresh(&counted, now_unix)?,
+        issuer: issuers_own(&counted).map(|(issuer, _)| issuer),
     })
 }
 

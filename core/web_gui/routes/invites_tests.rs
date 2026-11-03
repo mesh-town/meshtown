@@ -203,6 +203,27 @@ async fn blank_label_means_none() {
 }
 
 #[tokio::test]
+async fn non_string_label_is_400() {
+    // given
+    let fx = setup(Answer::List(sample()));
+    // when
+    let got = label(&fx, json!({"hash": HASH, "for": 5})).await;
+    // then
+    assert_eq!(line(got), "400 bad_request");
+    assert!(fx.seen.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn uppercase_hash_reaches_the_node_lowercase() {
+    // given
+    let fx = setup(Answer::List(sample()));
+    // when
+    label(&fx, json!({"hash": HASH.to_uppercase(), "for": "x"})).await;
+    // then
+    assert_eq!(fx.seen.lock().unwrap()[0].0, HASH);
+}
+
+#[tokio::test]
 async fn long_label_is_422() {
     // given
     let fx = setup(Answer::List(sample()));

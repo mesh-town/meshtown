@@ -126,6 +126,27 @@ mod open_list {
     }
 }
 
+mod managed_fields {
+    use super::*;
+
+    #[test]
+    fn managed_fields_come_from_admin_records() {
+        // given: a plain member writes a newer record of its own under the admin's hash
+        let issued = [
+            issue_by(pid(5), H1, NOW - 1, Some("Spoof"), Some(pid(5))),
+            issue_by(pid(2), H1, NOW - 100, Some("Anna"), Some(pid(2))),
+        ];
+        let admins = BTreeSet::from([pid(2)]);
+        // when
+        let rows = open_of(&issued, &[], Some(&admins), NOW);
+        // then: note, time and issuer are the admin's
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].for_whom.as_deref(), Some("Anna"));
+        assert_eq!(rows[0].made_unix, NOW - 100);
+        assert_eq!(rows[0].issuer, Some(pid(2)));
+    }
+}
+
 mod relabel {
     use super::*;
 
@@ -204,6 +225,34 @@ mod relabel {
         let before = rig.own_record(H1).await;
         // when
         let got = rig.ledger.relabel(H1, Some("New"), NOW, rig.admins()).await;
+        // then
+        assert_eq!(got.unwrap(), Relabel::NotFound);
+        assert_eq!(rig.own_record(H1).await.value, before.value);
+    }
+
+    #[tokio::test]
+    async fn own_made_unix_kept_when_copy_is_newer() {
+        // given: our record is older than a holder's copy
+        let rig = setup().await;
+        rig.given_own(H1, NOW - 100, Some("Old"));
+        rig.given(issue_by(pid(3), H1, NOW - 10, None, Some(rig.me)));
+        // when
+        let got = rig.ledger.relabel(H1, Some("Ann"), NOW, rig.admins()).await;
+        // then: the lifetime is not extended
+        assert_eq!(got.unwrap(), Relabel::Done);
+        let rec: IssueRecord = postcard::from_bytes(&rig.own_record(H1).await.value).unwrap();
+        assert_eq!(rec.made_unix, NOW - 100);
+    }
+
+    #[tokio::test]
+    async fn own_expired_with_fresh_copy_is_not_found() {
+        // given: our record is expired, a holder's copy is fresh
+        let rig = setup().await;
+        rig.given_own(H1, NOW - INVITE_TTL_SECS, Some("Old"));
+        rig.given(issue_by(pid(3), H1, NOW - 10, None, Some(rig.me)));
+        let before = rig.own_record(H1).await;
+        // when
+        let got = rig.ledger.relabel(H1, Some("Ann"), NOW, rig.admins()).await;
         // then
         assert_eq!(got.unwrap(), Relabel::NotFound);
         assert_eq!(rig.own_record(H1).await.value, before.value);
