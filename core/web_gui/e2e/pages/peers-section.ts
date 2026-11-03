@@ -77,13 +77,13 @@ export class PeersSection {
 
   private async expectOlderRow(row: Locator, ownVersion: string): Promise<void> {
     const title = `This member has Mesh Town 0.0.9, you have ${ownVersion}. Ask them to update Mesh Town.`;
-    await expect.soft(row.locator('.peer-version'), 'peer-one: version').toHaveText('0.0.9');
+    await expect.soft(row.locator('.peer-version:not(.peer-invited-as)'), 'peer-one: version').toHaveText('0.0.9');
     await expect.soft(row.locator('.peer-older'), 'peer-one: mark').toHaveText('older version');
     await expect.soft(row.locator('.peer-older'), 'peer-one: mark hint').toHaveAttribute('title', title);
   }
 
   private async expectNoVersionRow(row: Locator): Promise<void> {
-    await expect.soft(row.locator('.peer-version'), 'peer-two: no version').toHaveCount(0);
+    await expect.soft(row.locator('.peer-version:not(.peer-invited-as)'), 'peer-two: no version').toHaveCount(0);
     await expect.soft(row.locator('.peer-older'), 'peer-two: no mark').toHaveCount(0);
     await expect.soft(row, 'peer-two: no "null" in the row').not.toContainText('null');
   }

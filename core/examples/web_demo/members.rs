@@ -36,6 +36,8 @@ pub(crate) struct Entry {
     pub(crate) blocked: bool,
     /// For whom the invitation of a pending node was made.
     pub(crate) label: Option<String>,
+    /// The note the member was invited under; shown to administrators only.
+    pub(crate) invited_as: Option<String>,
 }
 
 pub(crate) struct DemoMembers {
@@ -65,6 +67,7 @@ pub(crate) fn entry(
         standing,
         blocked: false,
         label: None,
+        invited_as: None,
     }
 }
 
@@ -145,6 +148,9 @@ impl DemoMembers {
                 Standing::Member,
             )
         }));
+        if let Some(first) = entries.get_mut(1) {
+            first.invited_as = Some("Pete, phone".to_string());
+        }
         let ids: Vec<String> = entries.iter().skip(1).map(|e| e.id_full.clone()).collect();
         let roles = Roles::new(opts.managed, &ids);
         let gone = Exit {

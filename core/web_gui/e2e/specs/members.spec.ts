@@ -183,3 +183,48 @@ test.describe('--members-pending', () => {
     });
   });
 });
+
+test.describe('Pending invites', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the open invites of the demo node are seeded; skipped before the target starts');
+
+  test('89-pending-invites: my invite is editable, the other one is read-only; a new label survives a reload', async ({ app, page }) => {
+    const members = new MembersSection(page);
+    await app.tabs.open('peers');
+
+    await test.step('both invites are listed; only mine has a field', async () => {
+      await expect(members.invites).toBeVisible();
+      await expect(members.inviteRows()).toHaveCount(2);
+      await expect(members.inviteField()).toHaveCount(1);
+      await expect(members.inviteField()).toHaveValue('Anna, laptop');
+      await expect(members.inviteRows().nth(1)).toContainText('peer-one');
+    });
+
+    await test.step('the admin who made it renames it to "Ann"; after a reload the row says "Ann"', async () => {
+      await members.inviteField().fill('Ann');
+      await members.invites.getByRole('button', { name: W.invitesSave }).click();
+      await expect(members.inviteField()).toHaveValue('Ann');
+      await page.reload();
+      await app.tabs.open('peers');
+      await expect(members.inviteField()).toHaveValue('Ann');
+    });
+
+    await test.step('the member list tells how an invited member was invited', async () => {
+      await expect(members.row(ONE)).toContainText(W.invitedAsPete);
+    });
+  });
+});
+
+test.describe('Pending invites: ordinary member', () => {
+  test.skip(({ targetKind }) => targetKind === 'node', 'the roles are a flag of the demo node; skipped before the target starts');
+  test.use({ targetFlags: { extraArgs: ['--role', 'member', '--members-pending'] } });
+
+  test('90-pending-invites-member: no section, no "Invited as" on the waiting row, no "invited as" in the list', async ({ app, page }) => {
+    const members = new MembersSection(page);
+    await app.tabs.open('peers');
+
+    await expect(members.pendingRow(ANNA)).toBeVisible();
+    await expect(members.invites).toHaveCount(0);
+    await expect(members.pendingRow(ANNA)).not.toContainText('Invited as');
+    await expect(members.list).not.toContainText('invited as');
+  });
+});
