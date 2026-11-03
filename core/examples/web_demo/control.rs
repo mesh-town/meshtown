@@ -5,11 +5,12 @@ use meshtown_core::transport::net::PeerAddr;
 
 use meshtown_core::config::config_file::Settings;
 use meshtown_core::web_gui::{
-    ActionError, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl, NodeSnapshot,
-    NodeStatus, SaveKey,
+    ActionError, InvitesFuture, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl,
+    NodeSnapshot, NodeStatus, PendingInvite, SaveKey,
 };
 
 use crate::invites::{enter, invite_for, key_of_node};
+use crate::members::ME;
 use crate::node::{DemoDomain, DemoNode};
 use crate::rng::{gen_hex8, xorshift64};
 use crate::snapshot::demo_snapshot;
@@ -198,6 +199,28 @@ impl NodeControl for DemoNode {
         save: SaveKey,
     ) -> Result<(), ActionError> {
         enter(self, &head, save)
+    }
+
+    fn invite_pending(&self, for_whom: Option<&str>) -> Result<PendingInvite, ActionError> {
+        let text = self.invite()?;
+        let mut st = self.state.lock().unwrap();
+        if st.members.is_admin(ME) {
+            st.invites.issue(for_whom);
+        }
+        Ok(PendingInvite::ready(text))
+    }
+
+    fn open_invites(&self) -> InvitesFuture {
+        let st = self.state.lock().unwrap();
+        let reply = st.invites.list(st.members.is_admin(ME));
+        Box::pin(async move { reply })
+    }
+
+    fn relabel_invite(&self, hash: String, for_whom: Option<String>) -> InvitesFuture {
+        let mut st = self.state.lock().unwrap();
+        let admin = st.members.is_admin(ME);
+        let reply = st.invites.relabel(admin, &hash, for_whom.as_deref());
+        Box::pin(async move { reply })
     }
 
     fn stop(&self) {

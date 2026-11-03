@@ -10,6 +10,7 @@ use meshtown_core::config::config_file::Settings;
 use meshtown_core::node::output;
 use meshtown_core::web_gui::{DhtInfo, LogRing, NodeStatus, PathKindView, VerdictKind};
 
+use crate::invites_open::OpenInvites;
 use crate::managed::DemoRole;
 use crate::members::DemoMembers;
 use crate::rng::gen_hex8;
@@ -39,6 +40,7 @@ pub(crate) struct DemoState {
     pub(crate) peers: Vec<DemoPeer>,
     pub(crate) domains: Vec<DemoDomain>,
     pub(crate) members: DemoMembers,
+    pub(crate) invites: OpenInvites,
     pub(crate) admission_refused: bool,
     pub(crate) settings: Settings,
     pub(crate) starting_until: Option<f64>,
@@ -179,6 +181,7 @@ impl DemoNode {
                 peers,
                 domains,
                 members,
+                invites: OpenInvites::seeded(),
                 admission_refused: net_opts.admission_refused,
                 settings,
                 starting_until: None,

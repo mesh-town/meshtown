@@ -8,8 +8,7 @@ import MemberMenu from "../members/MemberMenu.vue";
 import { ACTION_UNBLOCK, unblockAria } from "../members/members-texts.ts";
 import type { MemberRow, MembersReply } from "../members/members-types.ts";
 import { managedFacts, menuItems, rowDecor } from "../members/members-view.ts";
-import { invitedAsText } from "./peers-texts.ts";
-import { PEERS_ADMIN_BADGE, PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
+import { invitedAsText, PEERS_ADMIN_BADGE, PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
 import { countryCell, olderMark, olderTitle, peerAction, peerMetaText, versionText } from "./peers-view.ts";
 
 const props = defineProps<{ peer: PeerInfo; state: NodeState; chosen: string[]; member?: MemberRow | null; me?: string; multi?: boolean; list?: MembersReply | null }>();

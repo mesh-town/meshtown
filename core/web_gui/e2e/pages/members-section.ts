@@ -12,6 +12,7 @@ export class MembersSection {
   readonly leftCard: Locator;
   readonly pendingList: Locator;
   readonly status: Locator;
+  readonly invites: Locator;
 
   constructor(private readonly page: Page) {
     // no anchor: the member list has no accessible name
@@ -23,6 +24,7 @@ export class MembersSection {
     this.excludedCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.excludedTitle }) });
     this.leftCard = page.getByRole('status').filter({ has: page.getByRole('heading', { name: W.leftTitle }) });
     this.pendingList = page.locator('#members-pending-list');
+    this.invites = page.getByRole('region', { name: W.invitesTitle });
     // no anchor: the text a waiting computer sees about itself
     this.status = page.getByRole('status').filter({ hasText: /\S/ });
   }
@@ -35,6 +37,16 @@ export class MembersSection {
   /** The row of a node that waits for confirmations, by name. */
   pendingRow(name: string): Locator {
     return this.pendingList.getByRole('listitem').filter({ has: this.page.getByText(name, { exact: true }) });
+  }
+
+  /** The rows of the "Pending invites" section. */
+  inviteRows(): Locator {
+    return this.invites.getByRole('listitem');
+  }
+
+  /** The label field of my invite in the "Pending invites" section. */
+  inviteField(): Locator {
+    return this.invites.getByRole('textbox', { name: W.invitesLabelAria });
   }
 
   /** The action button of the open confirmation dialog. */

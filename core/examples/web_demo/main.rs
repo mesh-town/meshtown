@@ -20,6 +20,7 @@ mod config;
 mod control;
 mod host;
 mod invites;
+mod invites_open;
 mod managed;
 mod members;
 mod members_act;

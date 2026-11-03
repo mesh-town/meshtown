@@ -50,9 +50,10 @@ fn denied_by_me(m: &DemoMembers, e: &Entry) -> Option<&'static str> {
     }
 }
 
-fn admission_of(e: &Entry) -> Option<AdmissionInfo> {
+/// The note of a waiting node is for administrators only; an ordinary viewer gets the bare request.
+fn admission_of(m: &DemoMembers, e: &Entry) -> Option<AdmissionInfo> {
     matches!(e.standing, Standing::Pending).then(|| AdmissionInfo {
-        label: e.label.clone(),
+        label: e.label.clone().filter(|_| m.is_admin(ME)),
     })
 }
 
@@ -97,8 +98,8 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         denied_by_me: denied_by_me(m, e),
         last_seen_sec: last_seen(e),
         last_refusal: None,
-        admission: admission_of(e),
-        invited_as: None,
+        admission: admission_of(m, e),
+        invited_as: e.invited_as.clone().filter(|_| m.is_admin(ME)),
     }
 }
 
