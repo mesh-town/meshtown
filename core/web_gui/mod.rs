@@ -42,8 +42,8 @@ pub(crate) use config_api::save_key_of;
 #[doc(hidden)]
 pub use config_api::{ConfigState, NetRoles};
 pub use control::{
-    ActionError, InviteJoinState, InviteJoinView, MemberActionReq, MemberError, MemberFuture,
-    NodeControl, PendingInvite, SaveKey, WebStartError,
+    ActionError, InviteJoinState, InviteJoinView, InvitesFuture, MemberActionReq, MemberError,
+    MemberFuture, NodeControl, PendingInvite, SaveKey, WebStartError,
 };
 pub use host_control::{
     single_slot_host, single_slot_host_with_front, AddedSlot, HostControl, HostError, Notice,
@@ -51,6 +51,7 @@ pub use host_control::{
 };
 pub use listener::start_web_page;
 pub use members::dto::{AdmissionInfo, Counts, ExcludedInfo, MemberRow, MembersReply, RefusalInfo};
+pub use members::invites_dto::{InviteRow, InvitesReply};
 pub use options::{WebHandle, WebOptions, WebShared, DEFAULT_DRAIN, TOKEN_FILE_NAME};
 pub use ring::LogRing;
 pub use snapshot::*;

@@ -23,7 +23,10 @@ only by the prefix, no body carries a network. An unknown slot is 404 `unknown_n
 | `admins`, `me_admin`, `root` | the full ids of the administrators in ascending order; whether this node is one; the creator of the network |
 
 A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `online`, `status`, `excluded`,
-`blocked_by_me`, `denied_by_me`, `last_seen_sec`, `last_refusal`, `admission`, `admin`.
+`blocked_by_me`, `denied_by_me`, `last_seen_sec`, `last_refusal`, `admission`, `admin`, `invited_as`.
+
+`invited_as` is the note the inviting admin gave the invite the node came in by ("for whom"), or `null`. `admission.label`,
+`me_admission.label` and `invited_as` are shown only to a viewer who is an administrator; for everyone else they are `null`.
 
 `admin` is `true` for an administrator of the network.
 
@@ -65,3 +68,27 @@ Refusals are 409 with `error` set to the code: `self_target` (own id), `not_memb
 `exclude`, `unexclude` and `admit` need an administrator (409 `not_admin`);
 `block` and `unblock` do not. Excluding the creator of the network or taking the role from it is refused
 with 409 `creator`: the creator always stays an administrator. A node id in a request is 64 hex digits (a placeholder: 64 times `a`).
+
+### 1.13 Open invites: `GET {base}/network/invites` and `POST {base}/network/invites/label`
+
+Both are for administrators only: any other viewer gets 409 `not_admin`. `{base}` is as in 1.12.
+
+**`GET {base}/network/invites`** — 200 `{"invites":[…]}`: the invites that can still be redeemed (issued, not redeemed,
+not expired), newest first. A row:
+
+| Field | Meaning |
+|---|---|
+| `hash` | the hash of the invite secret, 64 hex digits; names the invite in the edit below |
+| `for_whom` | the note "for whom" the invite was made, or `null` |
+| `made_unix`, `expires_unix` | when the invite was made and when it stops working |
+| `issuer`, `issuer_name` | the administrator who made it (full id and known name), or `null` |
+| `mine` | this node made the invite |
+
+**`POST {base}/network/invites/label`** — body `{"hash":"<64 hex digits>","for":"<text>"}`. Rewrites the note of an invite
+this node made; an empty or missing `for` clears it. The note is trimmed, at most 64 characters, without control
+characters. The reply is 200 with the list after the edit. Only the administrator who made the invite may edit it.
+
+Errors: 400 `bad_request` (the body is not an object, `hash` is missing or not 64 hex digits, `for` is not a string);
+422 `invalid` (the note is too long or has control characters); 409 `not_admin`, 409 `not_issuer` (the invite was made
+by another administrator), 409 `busy` (no running network); 404 `not_found` (the invite was redeemed or has expired);
+405 for other methods.

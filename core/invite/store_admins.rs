@@ -50,7 +50,7 @@ pub(super) fn issuer_of(value: &[u8]) -> Option<PeerId> {
 }
 
 /// Whether an issue record counts in a Managed network: an admin wrote it on behalf of an admin.
-fn by_admin(entry: &ReplicaEntry, admins: &BTreeSet<PeerId>) -> bool {
+pub(super) fn by_admin(entry: &ReplicaEntry, admins: &BTreeSet<PeerId>) -> bool {
     admins.contains(&entry.author)
         && issuer_of(&entry.value).is_some_and(|issuer| admins.contains(&issuer))
 }

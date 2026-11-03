@@ -8,7 +8,7 @@
 //! `attach`/`detach`/`next_command`/`stop_on_os_signal`/`replace_effective_settings`; `web::NodeControl` —
 //! the only entry from outside the module.
 //! Files: `boot_stamp.rs` — the cycle stamp (`boot_id`, `uptime_sec`); `guard_link.rs` — the link to the process memory guard; `proxy_link.rs` — the link to the process proxy; `closed_feed.rs` — the slot's "network closed" channel; `state.rs` — the phase, commands, `NodeCtl` and the lifecycle (`attach`/`detach`); `gates.rs` — the phase gates for page requests;
-//! `control.rs` — the page actions (`impl web_gui::NodeControl`); `invite_wait.rs` — waiting for
+//! `control.rs` — the page actions (`impl web_gui::NodeControl`); `control_invites.rs` — the open-invite list and note edit; `invite_wait.rs` — waiting for
 //! a sign-in by invite; `task.rs` — the background snapshot collection;
 //! `live_paths.rs` — which settings paths take effect without a restart; `relaunch.rs` — rebuilding
 //! `NodeConfig` when the network changes; `restart.rs` — restart and the fall back to waiting after a failed start; `peer_addr.rs` — member address strings and their parsing;
@@ -18,6 +18,7 @@ mod boot_stamp;
 mod closed_feed;
 mod control;
 mod control_domains;
+mod control_invites;
 mod control_members;
 mod control_node;
 mod gates;

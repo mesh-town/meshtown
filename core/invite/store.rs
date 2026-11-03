@@ -133,18 +133,18 @@ fn claim_key(hash: &str) -> Vec<u8> {
     format!("{CLAIM_PREFIX}{hash}").into_bytes()
 }
 
-fn issue_key(hash: &str) -> Vec<u8> {
+pub(super) fn issue_key(hash: &str) -> Vec<u8> {
     format!("{ISSUE_PREFIX}{hash}").into_bytes()
 }
 
-fn used_key(hash: &str) -> Vec<u8> {
+pub(super) fn used_key(hash: &str) -> Vec<u8> {
     format!("{USED_PREFIX}{hash}").into_bytes()
 }
 
 /// Access to the invite records of the network's shared document.
 #[derive(Clone)]
 pub struct Ledger {
-    replica: Arc<dyn Replica>,
+    pub(super) replica: Arc<dyn Replica>,
 }
 
 impl Ledger {
@@ -260,7 +260,7 @@ impl Ledger {
     }
 
     /// Live records exactly under this key.
-    async fn exact(&self, key: Vec<u8>) -> Result<Vec<ReplicaEntry>> {
+    pub(super) async fn exact(&self, key: Vec<u8>) -> Result<Vec<ReplicaEntry>> {
         let all = self
             .replica
             .scan(&key)

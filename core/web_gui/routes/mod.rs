@@ -25,6 +25,7 @@ pub(crate) mod helpers;
 mod inspect;
 #[cfg(test)]
 pub(crate) mod invite_fixture;
+mod invites;
 mod join_target;
 mod log;
 pub(crate) mod nets;
@@ -105,6 +106,7 @@ pub(crate) fn register_net_routes(router: Router<Arc<App>>, base: &str) -> Route
     let router = register_domains(router, base);
     let router = register_actions(router, base);
     let router = register_network(router, base);
+    let router = invites::register_invites(router, base);
     crate::web_gui::members::register_members(router, base)
 }
 
