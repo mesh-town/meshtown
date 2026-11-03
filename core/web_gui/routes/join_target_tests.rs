@@ -160,6 +160,7 @@ fn row(
             at_unix: 1,
         }),
         admission: None,
+        invited_as: None,
     }
 }
 

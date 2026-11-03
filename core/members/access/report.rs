@@ -42,11 +42,18 @@ fn status_of(v: &Verdicts, p: &PeerId) -> &'static str {
     }
 }
 
+/// The note of an invitation is for the administrators only: the others see the request without it.
 fn admission_of(v: &Verdicts, p: &PeerId) -> Option<AdmissionInfo> {
     let a = v.ledger.admissions.get(p)?;
     Some(AdmissionInfo {
-        label: a.label.clone(),
+        label: a.label.clone().filter(|_| v.ledger.is_admin(&v.me)),
     })
+}
+
+/// What the administrators wrote when they invited this node; hidden from everyone else.
+fn invited_as_of(v: &Verdicts, p: &PeerId) -> Option<String> {
+    let note = v.ledger.invited_as.get(p)?;
+    v.ledger.is_admin(&v.me).then(|| note.clone())
 }
 
 /// True when another node turned this one away as not admitted.
@@ -123,6 +130,7 @@ fn row(
         last_seen_sec: None,
         last_refusal: refusal_of(refusals, &p),
         admission: admission_of(v, &p).filter(|_| p != v.me),
+        invited_as: invited_as_of(v, &p),
     }
 }
 
