@@ -249,6 +249,7 @@ fn ledger(listed: &[PeerId], out: &[PeerId]) -> Ledger {
         admissions: BTreeMap::new(),
         admins: Default::default(),
         closed: None,
+        invited_as: Default::default(),
     }
 }
 

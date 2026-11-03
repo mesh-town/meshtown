@@ -183,6 +183,7 @@ fn verdicts_with(me: PeerId, listed: &[PeerId], excluded: &[PeerId]) -> Verdicts
         admissions: BTreeMap::new(),
         admins: Default::default(),
         closed: None,
+        invited_as: Default::default(),
     };
     Verdicts {
         me,

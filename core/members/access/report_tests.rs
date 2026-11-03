@@ -93,6 +93,7 @@ fn world(listed: &[PeerId], excluded: &[PeerId]) -> World {
         admissions: BTreeMap::new(),
         admins: Default::default(),
         closed: None,
+        invited_as: Default::default(),
     };
     let verdicts = Verdicts {
         me,

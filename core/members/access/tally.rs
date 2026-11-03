@@ -98,6 +98,8 @@ pub struct Ledger {
     pub admins: BTreeSet<PeerId>,
     /// Set when an administrator closed the network.
     pub closed: Option<Closed>,
+    /// The shown "invited as" note of each subject admitted by an invite; filled by `label_invited`.
+    pub invited_as: BTreeMap<PeerId, String>,
 }
 
 impl Ledger {
@@ -109,6 +111,7 @@ impl Ledger {
             admissions: BTreeMap::new(),
             admins: BTreeSet::new(),
             closed: None,
+            invited_as: BTreeMap::new(),
         }
     }
 

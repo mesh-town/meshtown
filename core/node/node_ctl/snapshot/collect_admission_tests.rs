@@ -110,6 +110,7 @@ fn list_of_one(me: PeerId) -> Verdicts {
             admissions: BTreeMap::new(),
             admins: Default::default(),
             closed: None,
+            invited_as: Default::default(),
         }),
         blocks: BTreeSet::new(),
     }
