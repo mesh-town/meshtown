@@ -247,9 +247,9 @@ describe("InviteCard: only you in the network", () => {
 describe("InviteCard: the form and the hint", () => {
   const HINT = "The invite is copied when you click the button. It works once, for 24 hours — send it to one person in a private message.";
 
-  it("the label of the field is \"For whom (optional, members will see it)\"", () => {
+  it("the label of the field is \"For whom (optional, only admins see it)\"", () => {
     const { wrapper } = mountInvite();
-    expect(wrapper.get('label[for="invite-for-input"]').text()).toBe("For whom (optional, members will see it)");
+    expect(wrapper.get('label[for="invite-for-input"]').text()).toBe("For whom (optional, only admins see it)");
   });
 
   it("the field is full-width: it keeps .input and has .input-wide", () => {

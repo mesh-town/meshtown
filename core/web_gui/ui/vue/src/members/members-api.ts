@@ -56,6 +56,7 @@ function parseRow(v: unknown): MemberRow | null {
     admission: parseAdmission(v.admission),
     last_seen_sec: typeof v.last_seen_sec === "number" && Number.isFinite(v.last_seen_sec) ? v.last_seen_sec : null,
     ...(typeof v.admin === "boolean" ? { admin: v.admin } : {}),
+    ...("invited_as" in v ? { invited_as: typeof v.invited_as === "string" && v.invited_as.trim() ? v.invited_as : null } : {}),
   };
 }
 

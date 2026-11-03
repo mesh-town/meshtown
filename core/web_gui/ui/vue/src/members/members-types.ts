@@ -38,6 +38,8 @@ export interface MemberRow {
   admission: AdmissionInfo | null;
   last_seen_sec: number | null; // seconds since the node was last online; null — never seen
   admin?: boolean;
+  /** The label an admin gave the invite this member came in with; `null` when none or the viewer is not an admin. */
+  invited_as?: string | null;
 }
 
 export interface MemberCounts {

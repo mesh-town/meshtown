@@ -36,6 +36,8 @@ const BUILTIN = {
   // A node of an older version has no member list: the page asks anyway and must live with the 404.
   // A test that wants the list sets `node.routes["GET /api/members"]` (and the `POST /api/members/<action>` routes).
   "GET /api/members": () => reply(404, { error: "not_found" }),
+  // No open invites unless a test sets `node.routes["GET /api/network/invites"]` (the admin section asks on every page).
+  "GET /api/network/invites": () => reply(200, { invites: [] }),
   "GET /api/overview": (node) => overviewReply(node, OPS),
   "GET /api/nets": (node) => netsReply(node),
   "POST /api/nets": (node) => addNet(node),

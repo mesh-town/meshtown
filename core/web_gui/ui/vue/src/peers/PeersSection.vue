@@ -19,6 +19,7 @@ import { chosenOf } from "../home/exit-groups.ts";
 import { chosenExitIds } from "../common/exits.ts";
 import ConfirmDialog from "../members/ConfirmDialog.vue";
 import ExcludedCard from "../members/ExcludedCard.vue";
+import PendingInvites from "../members/PendingInvites.vue";
 import PendingList from "../members/PendingList.vue";
 import ExcludedList from "../members/ExcludedList.vue";
 import UnlistedList from "../members/UnlistedList.vue";
@@ -195,6 +196,7 @@ async function exitVia(idFull: string): Promise<void> {
             <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
           </div>
           <PendingList :rows="parts.pending" :me="me" @pick="pick" />
+          <PendingInvites :slot="slot" :me-admin="!!menuCtx.meAdmin" :refresh-key="members?.counts.pending" />
           <ExcludedList :lines="excludedLines" />
           <UnlistedList :rows="parts.unlisted" @pick="pick" />
         </template>

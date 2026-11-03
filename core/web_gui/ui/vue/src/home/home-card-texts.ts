@@ -41,7 +41,7 @@ export const findOkText = (domain: string): string => domain + " opens via:";
 export const HOME_INVITE_TITLE = "Network invite";
 export const HOME_INVITE_BTN = "Invite a member";
 export const HOME_INVITE_HINT = "The invite is copied when you click the button. It works once, for 24 hours — send it to one person in a private message.";
-export const HOME_INVITE_FOR_LABEL = "For whom (optional, members will see it)";
+export const HOME_INVITE_FOR_LABEL = "For whom (optional, only admins see it)";
 export const HOME_INVITE_VALUE_ARIA = "Invite to send";
 
 // JoinCard

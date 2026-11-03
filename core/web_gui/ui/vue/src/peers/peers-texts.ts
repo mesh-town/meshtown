@@ -118,3 +118,11 @@ export const NET_SUB_MEMBERS = "Members";
 export const NET_SUB_SERVICES = "Shared services (ports)";
 export const NET_SUB_DEVICE = "Device settings";
 export const NET_SUBS_LABEL = "Network sections";
+
+// The small note after a member's name: how an admin labelled the invite this member came in with.
+// Nothing when there is no label or it only repeats the name.
+export function invitedAsText(name: string, label: string | null | undefined): string {
+  const clean = (label ?? "").trim();
+  if (!clean || clean === name) return "";
+  return `(invited as "${clean}")`;
+}
