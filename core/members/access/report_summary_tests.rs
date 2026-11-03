@@ -20,6 +20,7 @@ fn row(id: PeerId, status: &'static str) -> MemberRow {
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
+        invited_as: None,
     }
 }
 

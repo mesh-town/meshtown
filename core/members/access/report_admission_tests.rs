@@ -16,14 +16,14 @@ fn request(label: Option<&str>) -> Admission {
     }
 }
 
-/// Me and `members` are admitted; `asks` are requests that wait.
-fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
+/// Me and `members` are admitted; `asks` are requests that wait; `admins` are the administrators.
+fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>, admins: &[PeerId]) -> Verdicts {
     let admitted: BTreeSet<PeerId> = [&[pid(1)][..], members].concat().into_iter().collect();
     let ledger = Ledger {
         admitted,
         excluded: BTreeMap::new(),
         admissions: asks.into_iter().collect(),
-        admins: Default::default(),
+        admins: admins.iter().copied().collect(),
         closed: None,
         invited_as: Default::default(),
     };
@@ -61,7 +61,7 @@ fn unlisted_by_them() -> Vec<(PeerId, Refusal)> {
 fn pending_row_carries_admission_and_label() {
     // given: a request of x with a note on the invitation
     let (a, x) = (pid(2), pid(9));
-    let v = verdicts(&[a], vec![(x, request(Some("Anna's laptop")))]);
+    let v = verdicts(&[a], vec![(x, request(Some("Anna's laptop")))], &[pid(1)]);
     // when: the reply is built
     let row = row_of(&reply(&v, &[]), x);
     // then: the row is pending
@@ -73,7 +73,7 @@ fn pending_row_carries_admission_and_label() {
 #[test]
 fn me_pending_needs_a_refusal_from_them() {
     // given: my own request is on the list
-    let v = verdicts(&[], vec![(pid(1), request(None))]);
+    let v = verdicts(&[], vec![(pid(1), request(None))], &[]);
     // when: nobody has turned me away yet
     let quiet = reply(&v, &[]);
     // then: I am not shown as waiting
@@ -99,7 +99,7 @@ fn me_pending_needs_a_refusal_from_them() {
 #[test]
 fn founder_is_not_pending() {
     // given: me alone, my own request on the list, and a refusal of mine against another node
-    let v = verdicts(&[], vec![(pid(1), request(None))]);
+    let v = verdicts(&[], vec![(pid(1), request(None))], &[]);
     let mine = vec![(
         pid(2),
         Refusal {
@@ -120,7 +120,7 @@ fn founder_is_not_pending() {
 fn counts_pending_apart_from_unlisted() {
     // given: one request and one node known only from a refusal
     let (x, ghost) = (pid(9), pid(8));
-    let v = verdicts(&[pid(2)], vec![(x, request(None))]);
+    let v = verdicts(&[pid(2)], vec![(x, request(None))], &[]);
     let refusals = vec![(
         ghost,
         Refusal {
@@ -145,6 +145,7 @@ fn vote_summary_counts_admitting_and_me_pending() {
             (y, request(None)),
             (pid(1), request(None)),
         ],
+        &[],
     );
     // when
     let s = vote_summary(&reply(&v, &unlisted_by_them()));
@@ -156,7 +157,7 @@ fn vote_summary_counts_admitting_and_me_pending() {
 fn pending_sorts_after_members() {
     // given: a member, a request, an unlisted node and an excluded one
     let (a, x, ghost) = (pid(2), pid(9), pid(8));
-    let mut v = verdicts(&[a], vec![(x, request(None))]);
+    let mut v = verdicts(&[a], vec![(x, request(None))], &[]);
     let mut ledger = (*v.ledger).clone();
     ledger.excluded.insert(
         pid(7),
@@ -181,4 +182,57 @@ fn pending_sorts_after_members() {
         order,
         ["member", "member", "pending", "unlisted", "excluded"]
     );
+}
+
+/// `verdicts` with a note of the administrators about `p`.
+fn with_note(mut v: Verdicts, p: PeerId, note: &str) -> Verdicts {
+    let mut ledger = (*v.ledger).clone();
+    ledger.invited_as.insert(p, note.to_string());
+    v.ledger = Arc::new(ledger);
+    v
+}
+
+#[test]
+fn admin_sees_invited_as_of_a_member() {
+    // given: a member with a note of the administrators, and me an administrator
+    let a = pid(2);
+    let v = with_note(verdicts(&[a], vec![], &[pid(1)]), a, "Anna");
+    // when: the report is built
+    let r = reply(&v, &[]);
+    // then: the note is on the row of the member
+    assert_eq!(row_of(&r, a).invited_as.as_deref(), Some("Anna"));
+    assert_eq!(row_of(&r, pid(1)).invited_as, None);
+}
+
+#[test]
+fn member_sees_no_label_of_a_pending_row() {
+    // given: a request with a note, and me a plain member
+    let x = pid(9);
+    let v = verdicts(&[pid(2)], vec![(x, request(Some("Anna")))], &[]);
+    // when: the report is built
+    let row = row_of(&reply(&v, &[]), x);
+    // then: the request is shown, the note is not
+    assert_eq!(row.status, "pending");
+    assert_eq!(row.admission.expect("the request is shown").label, None);
+}
+
+#[test]
+fn member_sees_no_invited_as() {
+    // given: a member with a note, and me a plain member
+    let a = pid(2);
+    let v = with_note(verdicts(&[a], vec![], &[pid(2)]), a, "Anna");
+    // when: the report is built
+    let r = reply(&v, &[]);
+    // then: no row carries a note
+    assert!(r.members.iter().all(|row| row.invited_as.is_none()));
+}
+
+#[test]
+fn me_admission_has_no_label_for_a_non_admin() {
+    // given: my own request with a note, turned away by the others, and I am no administrator
+    let v = verdicts(&[], vec![(pid(1), request(Some("Anna")))], &[]);
+    // when: the report is built
+    let r = reply(&v, &unlisted_by_them());
+    // then: my request is shown without the note
+    assert_eq!(r.me_admission.expect("my request is shown").label, None);
 }

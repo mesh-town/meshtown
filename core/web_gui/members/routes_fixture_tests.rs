@@ -269,6 +269,7 @@ fn row(prefix: &str, name: Option<&str>, status: &'static str) -> MemberRow {
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
+        invited_as: None,
     }
 }
 
@@ -336,15 +337,15 @@ pub(super) fn golden() -> Value {
         "members": [
             {"id": "a1b2c3d4", "id_full": me, "name": "laptop", "self": true, "online": true, "admin": false,
              "status": "member", "excluded": null,
-             "blocked_by_me": false, "denied_by_me": null, "last_seen_sec": null, "last_refusal": null, "admission": null},
+             "blocked_by_me": false, "denied_by_me": null, "last_seen_sec": null, "last_refusal": null, "admission": null, "invited_as": null},
             {"id": "e5f6a7b8", "id_full": router, "name": "router", "self": false, "online": true, "admin": false,
              "status": "pending", "excluded": null, "blocked_by_me": false, "denied_by_me": null,
-             "last_seen_sec": null, "last_refusal": null, "admission": {"label": "router"}},
+             "last_seen_sec": null, "last_refusal": null, "admission": {"label": "router"}, "invited_as": null},
             {"id": "c9d0e1f2", "id_full": full("c9d0e1f2"), "name": null, "self": false, "online": false, "admin": false,
              "status": "excluded",
              "excluded": {"how": "removed", "at_unix": 1_792_400_000u64, "by": router, "reason": "spam"},
              "blocked_by_me": false, "denied_by_me": "excluded", "last_seen_sec": null,
-             "last_refusal": {"side": "me", "reason": "excluded", "at_unix": 1_792_400_100u64}, "admission": null}
+             "last_refusal": {"side": "me", "reason": "excluded", "at_unix": 1_792_400_100u64}, "admission": null, "invited_as": null}
         ]
     })
 }

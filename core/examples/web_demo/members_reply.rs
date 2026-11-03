@@ -98,6 +98,7 @@ fn row(m: &DemoMembers, e: &Entry, me: &str, me_short: &str) -> MemberRow {
         last_seen_sec: last_seen(e),
         last_refusal: None,
         admission: admission_of(e),
+        invited_as: None,
     }
 }
 

@@ -102,3 +102,15 @@ fn a_plain_reply_has_null_admission_fields() {
     assert_eq!(json["me_admission"], json!(null));
     assert_eq!(json["members"][0]["admission"], json!(null));
 }
+
+#[test]
+fn members_json_has_invited_as_field() {
+    // given: a reply with a note on one row and none on the other
+    let mut reply = sample_reply();
+    reply.members[1].invited_as = Some("Anna".into());
+    // when
+    let json = serde_json::to_value(&reply).unwrap();
+    // then: the key holds the note, or null
+    assert_eq!(json["members"][1]["invited_as"], json!("Anna"));
+    assert_eq!(json["members"][0]["invited_as"], json!(null));
+}

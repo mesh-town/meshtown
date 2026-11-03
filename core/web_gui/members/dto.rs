@@ -57,6 +57,8 @@ pub struct MemberRow {
     pub last_seen_sec: Option<u64>,
     pub last_refusal: Option<RefusalInfo>,
     pub admission: Option<AdmissionInfo>,
+    /// The note the administrators made when inviting this node; `null` when none or the viewer is not an administrator.
+    pub invited_as: Option<String>,
 }
 
 /// A request for the list that waits for an administrator.

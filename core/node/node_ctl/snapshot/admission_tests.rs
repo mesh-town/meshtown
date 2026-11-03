@@ -164,6 +164,7 @@ fn other(seed: u8, online: bool) -> MemberRow {
         last_seen_sec: None,
         last_refusal: None,
         admission: None,
+        invited_as: None,
     }
 }
 
