@@ -8,6 +8,7 @@ import MemberMenu from "../members/MemberMenu.vue";
 import { ACTION_UNBLOCK, unblockAria } from "../members/members-texts.ts";
 import type { MemberRow, MembersReply } from "../members/members-types.ts";
 import { managedFacts, menuItems, rowDecor } from "../members/members-view.ts";
+import { invitedAsText } from "./peers-texts.ts";
 import { PEERS_ADMIN_BADGE, PEERS_CHOSEN_DOWN, PEERS_CHOSEN_OK, PEERS_EDIT, PEERS_OLDER, PEERS_REFUSED, PEERS_YOU_PREFIX } from "./peers-texts.ts";
 import { countryCell, olderMark, olderTitle, peerAction, peerMetaText, versionText } from "./peers-view.ts";
 
@@ -27,13 +28,14 @@ const action = computed(() => peerAction(props.peer, props.chosen, !!(props.memb
 const meta = computed(() => peerMetaText(props.peer, props.state));
 const name = computed(() => peerName(props.peer));
 const isAdmin = computed(() => props.peer.role === "admin" || props.member?.admin === true);
+const invitedAs = computed(() => invitedAsText(name.value, props.member?.invited_as));
 const rowTitle = computed(() => (props.peer.self && props.state.node.id_full) || undefined);
 </script>
 
 <template>
   <li class="peer-row" :class="{ 'peer-self': peer.self }" :title="rowTitle">
     <span class="dot" :class="peer.online || peer.self ? 'dot-green' : 'dot-grey'" aria-hidden="true"></span>
-    <span class="peer-who"><span class="peer-name">{{ peer.self ? PEERS_YOU_PREFIX : "" }}{{ name }}</span><span v-if="isAdmin" class="peer-badge badge-admin">{{ PEERS_ADMIN_BADGE }}</span><span v-if="decor.badge" class="peer-badge" :class="'badge-' + decor.badge.tone">{{ decor.badge.text }}</span> <span v-if="countryCell(peer)" class="peer-country">{{ countryCell(peer) }}</span> <span v-if="versionText(peer)" class="peer-version">{{ versionText(peer) }}</span> <span v-if="olderMark(peer, state)" class="peer-older" :title="olderTitle(peer, state)">{{ PEERS_OLDER }}</span><br><span class="peer-code mono">{{ peer.id }}</span></span>
+    <span class="peer-who"><span class="peer-name">{{ peer.self ? PEERS_YOU_PREFIX : "" }}{{ name }}</span><span v-if="isAdmin" class="peer-badge badge-admin">{{ PEERS_ADMIN_BADGE }}</span><span v-if="decor.badge" class="peer-badge" :class="'badge-' + decor.badge.tone">{{ decor.badge.text }}</span> <span v-if="countryCell(peer)" class="peer-country">{{ countryCell(peer) }}</span> <span v-if="versionText(peer)" class="peer-version">{{ versionText(peer) }}</span> <span v-if="olderMark(peer, state)" class="peer-older" :title="olderTitle(peer, state)">{{ PEERS_OLDER }}</span><span v-if="invitedAs" class="peer-version peer-invited-as">{{ invitedAs }}</span><br><span class="peer-code mono">{{ peer.id }}</span></span>
     <span class="peer-meta">{{ meta }}<span v-for="line in decor.lines" :key="line" class="peer-line">{{ line }}</span></span>
     <span class="peer-action">
       <a v-if="action.kind === 'self'" :href="multi ? '#' : '#home'" class="peer-note" @click="onRename">{{ PEERS_EDIT }}</a>

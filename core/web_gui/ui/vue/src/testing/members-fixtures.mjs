@@ -11,7 +11,7 @@ export const AT_UNIX = 1792400000; // 2026-10-19, UTC
 export const memberRow = (over = {}) => ({
   id: "xxxx0000", id_full: EXTRA_FULL, name: null, self: false, online: true, status: "member",
   excluded: null, blocked_by_me: false, denied_by_me: null, last_refusal: null, admission: null,
-  last_seen_sec: 0, ...over,
+  last_seen_sec: 0, invited_as: null, ...over,
 });
 
 export const selfRow = (over = {}) => memberRow({ id: "aaaa1111", id_full: SELF_FULL, name: "finch-unwary", self: true, ...over });
@@ -61,3 +61,10 @@ export const withMembersSummary = (state, summary = {}) => ({
   ...state,
   members: { count: state.peers.length, gossip_neighbors: 0, me_excluded: false, ...(state.members || {}), ...summary },
 });
+
+// An open invite as `GET network/invites` lists it; `mine` = made by this computer.
+export const openInvite = (over = {}) => ({
+  hash: "a".repeat(64), for_whom: "Anna", made_unix: AT_UNIX, expires_unix: AT_UNIX + 86400,
+  issuer: SELF_FULL, issuer_name: "finch-unwary", mine: true, ...over,
+});
+export const invitesReply = (invites = [openInvite()]) => ({ invites });
