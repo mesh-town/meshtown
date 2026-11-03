@@ -11,13 +11,15 @@ use windows_sys::Win32::Networking::WinSock::{
 mod bind_socket {
     use super::*;
 
-    // given an IPv4 socket, when bound to loopback, then IP_UNICAST_IF holds the index in network order
+    // given an IPv4 socket, when bound to loopback, then IP_UNICAST_IF reads back the index in host order:
+    // the option is set in network order, and Windows converts it (a value stored unconverted would read back
+    // as `index.to_be()`)
     #[test]
     fn unicast_if_reads_back() {
         let sock = Socket::new(Domain::IPV4, Type::STREAM, None).unwrap();
         bind_socket(&sock, &loopback_name(), false).expect("bind to loopback");
         let raw = read_option(&sock, IPPROTO_IP, IP_UNICAST_IF);
-        assert_eq!(raw, loopback_index().to_be());
+        assert_eq!(raw, loopback_index());
     }
 
     // given an IPv6 socket, when bound to loopback, then IPV6_UNICAST_IF holds the index in host order

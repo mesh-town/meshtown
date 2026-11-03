@@ -4,14 +4,12 @@
 //! Why: an app launched from Finder starts with a limit of 256, while NAT punching of the RANDOM class opens up to 256 UDP sockets.
 //! What it does not do: it does not change the hard limit; a `setrlimit` failure is not a startup error, only a log line.
 
-// `CAP` and `target_for` are pure logic for all OSes (the `fd_limit_tests.rs` tests run on Windows too), but only
-// `mod unix` calls them, so outside unix they exist for the tests only.
+// `target_for` is pure logic for all OSes (the `fd_limit_tests.rs` tests run on Windows too), but only `mod unix`
+// calls it, so outside unix it exists for the tests only. `CAP` is unix-only: the tests pass their own caps.
 /// Target cap: on macOS above `OPEN_MAX` `setrlimit` answers `EINVAL` even with `hard = RLIM_INFINITY`.
 #[cfg(target_os = "macos")]
-#[cfg(any(unix, test))]
 const CAP: u64 = 10240;
-#[cfg(not(target_os = "macos"))]
-#[cfg(any(unix, test))]
+#[cfg(all(unix, not(target_os = "macos")))]
 const CAP: u64 = 65536;
 
 /// New soft limit for `(soft, hard)`, or `None` if there is nothing to raise.
