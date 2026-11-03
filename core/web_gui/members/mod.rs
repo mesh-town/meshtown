@@ -1,6 +1,7 @@
 //! Member-list API: DTOs of the reply and the handlers of `/api/members*`.
 
 pub(crate) mod dto;
+pub(crate) mod invites_dto;
 mod leave;
 mod routes;
 

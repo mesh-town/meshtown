@@ -8,8 +8,8 @@ use crate::config::config_file::Settings;
 use crate::invite::InviteHead;
 use crate::node::output::{self, say};
 use crate::web_gui::{
-    ActionError, InviteJoinView, LogPage, MemberActionReq, MemberFuture, NetRoles, NodeControl,
-    NodeSnapshot, PendingInvite, SaveKey,
+    ActionError, InviteJoinView, InvitesFuture, LogPage, MemberActionReq, MemberFuture, NetRoles,
+    NodeControl, NodeSnapshot, PendingInvite, SaveKey,
 };
 
 use super::invite_wait;
@@ -99,6 +99,14 @@ impl NodeControl for NodeCtl {
 
     fn member_action(&self, act: MemberActionReq) -> MemberFuture {
         self.member_action_impl(act)
+    }
+
+    fn open_invites(&self) -> InvitesFuture {
+        self.open_invites_impl()
+    }
+
+    fn relabel_invite(&self, hash: String, for_whom: Option<String>) -> InvitesFuture {
+        self.relabel_invite_impl(hash, for_whom)
     }
 
     fn net_roles(&self) -> Option<NetRoles> {

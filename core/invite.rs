@@ -29,6 +29,7 @@ pub mod hold_wire;
 mod issued;
 mod issuer;
 mod known;
+pub mod open;
 mod parse;
 pub mod proof;
 pub mod redeem;
