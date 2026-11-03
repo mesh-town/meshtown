@@ -25,6 +25,7 @@ fn verdicts(members: &[PeerId], asks: Vec<(PeerId, Admission)>) -> Verdicts {
         admissions: asks.into_iter().collect(),
         admins: Default::default(),
         closed: None,
+        invited_as: Default::default(),
     };
     Verdicts {
         me: pid(1),

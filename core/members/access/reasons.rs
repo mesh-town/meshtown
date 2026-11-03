@@ -4,53 +4,50 @@
 //! by an admitted author and keeps it only if it is non-blank, within the limit and free of control characters.
 //! What it doesn't do: no tally and no replica reads; the entries come from the caller's scan.
 
+use std::collections::BTreeMap;
+
 use crate::transport::net::{PeerId, ReplicaEntry};
 
-use super::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, MAX_NOTE_CHARS};
+use super::record::{parse_entry, AclKind, AclValue, Parsed, Via, MAX_NOTE_CHARS};
 use super::tally::Ledger;
 
-/// Fills `Admission.label` of each request: the newest shown note among the admit records of admitted authors.
-pub(super) fn label_admissions(ledger: &mut Ledger, entries: &[ReplicaEntry]) {
-    let admitted = &ledger.admitted;
-    let labels: Vec<(PeerId, Option<String>)> = ledger
-        .admissions
-        .keys()
-        .map(|subject| (*subject, label_of(subject, admitted, entries)))
-        .collect();
-    for (subject, label) in labels {
-        if let Some(a) = ledger.admissions.get_mut(&subject) {
-            a.label = label;
+/// Fills `Ledger.invited_as` for every subject with a shown invite note, and `Admission.label` of each request
+/// from it: the newest shown note among the invite-admit records of admitted authors.
+pub(super) fn label_invited(ledger: &mut Ledger, entries: &[ReplicaEntry]) {
+    let mut newest: BTreeMap<PeerId, (u64, String)> = BTreeMap::new();
+    for entry in entries
+        .iter()
+        .filter(|e| ledger.admitted.contains(&e.author))
+    {
+        if let Some((subject, made, note)) = invite_note(entry) {
+            if newest.get(&subject).is_none_or(|(m, _)| made > *m) {
+                newest.insert(subject, (made, note));
+            }
         }
+    }
+    ledger.invited_as = newest
+        .into_iter()
+        .filter_map(|(subject, (_, note))| Some((subject, shown(note)?)))
+        .collect();
+    for (subject, request) in ledger.admissions.iter_mut() {
+        request.label = ledger.invited_as.get(subject).cloned();
     }
 }
 
-fn label_of(
-    subject: &PeerId,
-    admitted: &std::collections::BTreeSet<PeerId>,
-    entries: &[ReplicaEntry],
-) -> Option<String> {
-    let key = admit_key(subject);
-    let notes = entries
-        .iter()
-        .filter(|e| e.key == key && admitted.contains(&e.author))
-        .filter_map(admit_note);
-    let newest = notes.max_by_key(|(made, _)| *made)?;
-    shown(newest.1)
-}
-
-/// `(made_unix, note)` of a readable admit record with a non-blank note.
-fn admit_note(entry: &ReplicaEntry) -> Option<(u64, String)> {
+/// `(subject, made_unix, note)` of a readable invite-admit record with a non-blank note.
+fn invite_note(entry: &ReplicaEntry) -> Option<(PeerId, u64, String)> {
     match parse_entry(entry) {
         Parsed::Record {
             value:
                 AclValue {
                     kind: AclKind::Admit,
+                    via: Via::Invite,
+                    subject,
                     made_unix,
                     note,
-                    ..
                 },
             ..
-        } if !note.trim().is_empty() => Some((made_unix, note)),
+        } if !note.trim().is_empty() => Some((subject, made_unix, note)),
         _ => None,
     }
 }

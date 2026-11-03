@@ -96,6 +96,7 @@ fn verdicts_of_one(me: PeerId, closed: Option<Closed>) -> Verdicts {
             admissions: BTreeMap::new(),
             admins: Default::default(),
             closed,
+            invited_as: Default::default(),
         }),
         blocks: BTreeSet::new(),
     }

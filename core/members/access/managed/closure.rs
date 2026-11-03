@@ -96,6 +96,7 @@ fn ledger(
         admissions: requests(root, replay, all),
         admins: replay.admins.clone(),
         closed: replay.closed.clone(),
+        invited_as: BTreeMap::new(),
     }
 }
 

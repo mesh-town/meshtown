@@ -155,6 +155,7 @@ fn admins_view(admins: &[PeerId]) -> AccessView {
         admissions: Default::default(),
         admins: admins.iter().copied().collect(),
         closed: None,
+        invited_as: Default::default(),
     };
     let verdicts = Verdicts {
         me: pid(2),

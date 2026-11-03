@@ -192,6 +192,7 @@ fn ledger_of(admitted: &[PeerId], excluded: &[PeerId]) -> Votes {
         admissions: Default::default(),
         admins: BTreeSet::from([server_id()]),
         closed: None,
+        invited_as: Default::default(),
     }
 }
 

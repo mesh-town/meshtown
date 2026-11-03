@@ -16,7 +16,7 @@ use crate::proxy::domains::DomainList;
 use crate::transport::net::{NetResult, PeerId, Replica, ReplicaEntry};
 use crate::transport::net_mainline::unix_now;
 
-use super::reasons::label_admissions;
+use super::reasons::label_invited;
 use super::record::{self, tally_input, AclKind, AclValue, Via, ACL_PREFIX, BLOCK_PREFIX};
 use super::subjects::live_subjects;
 use super::tally::{tally, Closed};
@@ -101,7 +101,7 @@ impl Access {
         self.log_ignored(ignored);
         let blocks = live_subjects(&scan.blocks, self.me, AclKind::Block);
         let mut ledger = tally(&input);
-        label_admissions(&mut ledger, &scan.acl);
+        label_invited(&mut ledger, &scan.acl);
         let closed = ledger.closed.clone();
         let verdicts = Verdicts {
             me: self.me,

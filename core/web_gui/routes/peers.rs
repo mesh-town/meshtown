@@ -64,16 +64,26 @@ pub(super) async fn network_key_handler(SlotParam(slot): SlotParam) -> Response 
 /// The optional `for` note of an invite: trimmed; blank or absent is none; too long or with a control character
 /// is invalid.
 fn invite_label(uri: &Uri) -> Result<Option<String>, ActionError> {
-    let Some(raw) = query_param(uri, "for") else {
-        return Ok(None);
-    };
-    let text = raw.trim();
+    match query_param(uri, "for") {
+        Some(raw) => check_label(&raw),
+        None => Ok(None),
+    }
+}
+
+/// Control characters and the Unicode line and paragraph separators, which `char::is_control` lets through.
+fn is_line_break_or_control(c: char) -> bool {
+    c.is_control() || matches!(c, '\u{2028}' | '\u{2029}')
+}
+
+/// A "for whom" note checked: trimmed; blank is none; too long or with a control character is invalid.
+pub(super) fn check_label(text: &str) -> Result<Option<String>, ActionError> {
+    let text = text.trim();
     if text.chars().count() > FOR_WHOM_MAX_CHARS {
         return Err(ActionError::Invalid(format!(
             "for: at most {FOR_WHOM_MAX_CHARS} characters"
         )));
     }
-    if text.chars().any(char::is_control) {
+    if text.chars().any(is_line_break_or_control) {
         return Err(ActionError::Invalid(
             "for: must not contain control characters".to_string(),
         ));
@@ -102,3 +112,7 @@ pub(super) async fn network_invite_handler(SlotParam(slot): SlotParam, uri: Uri)
 #[cfg(test)]
 #[path = "peers_invite_tests.rs"]
 mod invite_tests;
+
+#[cfg(test)]
+#[path = "peers_label_tests.rs"]
+mod label_tests;
