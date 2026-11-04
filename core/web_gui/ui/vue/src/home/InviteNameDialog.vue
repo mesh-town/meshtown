@@ -43,7 +43,7 @@ function confirm(): void {
   emit("confirm", name.value);
 }
 
-watch(() => [props.slot, stateOf(store, props.slot)?.network?.id_hex], close);
+watch([() => props.slot, () => stateOf(store, props.slot)?.network?.id_hex], close);
 defineExpose({ open });
 </script>
 
