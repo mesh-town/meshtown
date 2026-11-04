@@ -24,10 +24,9 @@ describe("InviteCard quiet", () => {
     expect(button.classes()).toContain("btn-primary");
   });
 
-  it("quiet changes only the button: the card and the field are still there", () => {
+  it("quiet leaves the card visible", () => {
     const { wrapper } = mountCard({ quiet: true });
     expect(wrapper.find("#home-invite").exists()).toBe(true);
-    expect(wrapper.find("#invite-for-input").exists()).toBe(true);
   });
 });
 

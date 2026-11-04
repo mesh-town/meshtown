@@ -3,12 +3,11 @@
 // the admin who made the invite edits it in place, for the others it is read-only.
 import { ref, watch } from "vue";
 import { api } from "../core/api.ts";
-import { agoText } from "../common/words.ts";
 import { getInvites, inviteErrorText, relabelInvite } from "./invites-api.ts";
 import type { OpenInvite } from "./invites-api.ts";
-import { INVITES_EMPTY, INVITES_NO_NAME, INVITES_SAVE, INVITES_TITLE, invitedBy, issuedAgo, labelAria } from "./invites-texts.ts";
+import { INVITES_EMPTY, INVITES_NO_NAME, INVITES_SAVE, INVITES_TITLE, invitedBy, issuedAt, labelAria } from "./invites-texts.ts";
 
-const props = defineProps<{ slot: string; meAdmin: boolean; refreshKey?: string | number }>();
+const props = defineProps<{ slot: string; meAdmin: boolean; refreshKey?: string | number; issueRevision?: number }>();
 
 const invites = ref<OpenInvite[]>([]);
 const drafts = ref<Record<string, string>>({});
@@ -17,16 +16,18 @@ const loaded = ref(false);
 
 const draftOf = (i: OpenInvite): string => drafts.value[i.hash] ?? i.for_whom ?? "";
 const dirty = (i: OpenInvite): boolean => draftOf(i).trim() !== (i.for_whom ?? "");
-const ago = (i: OpenInvite): string => issuedAgo(agoText(Math.max(0, Math.floor(Date.now() / 1000) - i.made_unix)));
+let loadRevision = 0;
 
 async function load(): Promise<void> {
+  const revision = ++loadRevision;
   if (!props.meAdmin) return;
   try {
-    invites.value = (await getInvites(api, props.slot)) ?? [];
+    const reply = await getInvites(api, props.slot);
+    if (revision === loadRevision) invites.value = reply ?? [];
   } catch {
-    // The list is a courtesy: a failed read keeps the last one.
+    // Keep the last list if the read fails.
   }
-  loaded.value = true;
+  if (revision === loadRevision) loaded.value = true;
 }
 
 async function save(i: OpenInvite): Promise<void> {
@@ -39,7 +40,7 @@ async function save(i: OpenInvite): Promise<void> {
   }
 }
 
-watch(() => [props.slot, props.meAdmin, props.refreshKey], load, { immediate: true });
+watch(() => [props.slot, props.meAdmin, props.refreshKey, props.issueRevision], load, { immediate: true });
 </script>
 
 <template>
@@ -56,7 +57,10 @@ watch(() => [props.slot, props.meAdmin, props.refreshKey], load, { immediate: tr
           <span v-else class="peer-name" :class="{ 'invite-unnamed': !i.for_whom }">{{ i.for_whom ?? INVITES_NO_NAME }}</span>
           <span v-if="errors[i.hash]" class="field-error-text" role="alert">{{ errors[i.hash] }}</span>
         </span>
-        <span class="peer-meta"><span class="peer-line">{{ ago(i) }}</span><span class="peer-line">{{ invitedBy(i.mine, i.issuer_name) }}</span></span>
+        <span class="peer-meta">
+          <time class="peer-line" :datetime="new Date(i.made_unix * 1000).toISOString()">{{ issuedAt(i.made_unix) }}</time>
+          <span class="peer-line">{{ invitedBy(i.mine, i.issuer_name) }}</span>
+        </span>
       </li>
     </ul>
   </section>

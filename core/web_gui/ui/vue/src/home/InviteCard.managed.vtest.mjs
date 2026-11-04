@@ -1,9 +1,10 @@
 /* The invite card on Home (`#home-invite`) in a Managed network: a member who is not an admin gets the plaque
  * `Only admins can invite people to "<net>". Ask <a> or <b> to send an invite.` (`#peers-invite-note`) instead of the button
- * and the "For whom" field; an admin keeps both. */
+ * an admin can open the invite dialog. */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ANNA_FULL, BOB_FULL, managedNode } from "../testing/managed-fixtures.mjs";
+import { INVITE_NAME, openInviteDialog } from "../testing/invite-dialog.mjs";
 import { mountPage, unmountPage } from "../testing/page.mjs";
 
 beforeEach(() => localStorage.clear());
@@ -23,16 +24,17 @@ describe("a member who is not an admin", () => {
 
   it("has no For whom field", async () => {
     const card = await open(managedNode({ meRole: "member", admins: [ANNA_FULL] }));
-    expect(card.root().find("#invite-for-input").exists()).toBe(false);
+    expect(card.root().find(INVITE_NAME).exists()).toBe(false);
     expect(card.root().text()).not.toContain("For whom");
   });
 });
 
 describe("an admin", () => {
-  it("keeps the button and the For whom field", async () => {
+  it("can open the name dialog", async () => {
     const card = await open(managedNode({ meRole: "admin" }));
     expect(card.button().exists()).toBe(true);
-    expect(card.root().find("#invite-for-input").exists()).toBe(true);
+    const dialog = await openInviteDialog(card.root());
+    expect(dialog.get(INVITE_NAME).element.value).not.toBe("");
     expect(card.root().find("#peers-invite-note").exists()).toBe(false);
   });
 });

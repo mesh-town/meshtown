@@ -2,6 +2,7 @@
  * home-proxy-join 31): the page with the real `api.js`, poller and store. Visibility is checked by the
  * `hidden`/`style`/`open` attributes: happy-dom doesn't compute styles. */
 
+import { openInviteDialog, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { demoConfig, demoState } from "../testing/demo-node.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
@@ -106,7 +107,7 @@ describe("the invite is visible only in the card", () => {
     const node = makeNode({ routes: { "GET /api/network/invite": { invite: SECRET } } });
     const { wrapper } = await mountPage(node);
 
-    await wrapper.get("#netkey-invite-btn").trigger("click");
+    await submitInviteDialog(await openInviteDialog(wrapper));
     await settle();
     const value = wrapper.get('[aria-label="Invite to send"]');
     expect(shown(value.element)).toBe(true);

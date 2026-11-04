@@ -5,6 +5,7 @@
  * `/api/overview`, `/api/nets` and `/api/net/<slot>/…` — in `fake-node-slots.mjs` (option `slots`; `legacy: true` — a node without them).
  * Writing a config that needs a restart (`socks.ifaces`, `socks.access`) and `web.ifaces` — in `fake-node-config.mjs`. */
 
+import { SUGGESTED_NAME } from "./invite-dialog.mjs";
 import { configMeta, putConfig, restartNode } from "./fake-node-config.mjs";
 import { addNet, makeSlots, netsReply, overviewReply, primaryLeave, slotRequest } from "./fake-node-slots.mjs";
 
@@ -36,6 +37,7 @@ const BUILTIN = {
   // A node of an older version has no member list: the page asks anyway and must live with the 404.
   // A test that wants the list sets `node.routes["GET /api/members"]` (and the `POST /api/members/<action>` routes).
   "GET /api/members": () => reply(404, { error: "not_found" }),
+  "GET /api/network/invite-name": () => reply(200, { name: SUGGESTED_NAME }),
   // No open invites unless a test sets `node.routes["GET /api/network/invites"]` (the admin section asks on every page).
   "GET /api/network/invites": () => reply(200, { invites: [] }),
   "GET /api/overview": (node) => overviewReply(node, OPS),

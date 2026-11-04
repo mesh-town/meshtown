@@ -19,6 +19,7 @@ interface StoreState {
   settingsDirty: boolean;
   absence: Absence | null;
   members: MembersReply | null; // the leading slot's member list; null — no list (old node, no network, not asked yet)
+  inviteRevisions: Record<string, number>;
   slots: Record<string, SlotSlice>; // every slot of the last overview, hidden ones too
   nets: NetBrief[];
   restartSlots: string[]; // slots with changes that need a restart
@@ -44,6 +45,7 @@ export function createStore(): Store {
     settingsDirty: false, // there are unsaved edits in "Settings"
     absence: null,
     members: null,
+    inviteRevisions: {},
     slots: {},
     nets: [],
     restartSlots: [],

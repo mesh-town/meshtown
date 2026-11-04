@@ -91,6 +91,17 @@ pub(super) fn check_label(text: &str) -> Result<Option<String>, ActionError> {
     Ok(Some(text.to_string()).filter(|s| !s.is_empty()))
 }
 
+pub(super) async fn invite_name_handler() -> Response {
+    match crate::members::words::random_node_name() {
+        Ok(name) => axum::Json(json!({"name": name})).into_response(),
+        Err(_) => json_err(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "name_unavailable",
+            "Could not suggest an invite name",
+        ),
+    }
+}
+
 pub(super) async fn network_invite_handler(SlotParam(slot): SlotParam, uri: Uri) -> Response {
     let label = match invite_label(&uri) {
         Ok(label) => label,

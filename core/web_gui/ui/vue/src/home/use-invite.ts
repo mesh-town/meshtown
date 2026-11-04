@@ -3,7 +3,7 @@
  * the `ref` itself without `.value` is not rendered (the `NetKeyCard` error). */
 
 import { computed, onUnmounted, ref, watch } from "vue";
-import type { ComputedRef, Ref } from "vue";
+import type { ComputedRef } from "vue";
 import { stateOf } from "../core/slots.ts";
 import type { Store } from "../core/store.ts";
 import { createInviteState, qrImageSrc, requestInvite, resetInviteIfNetChanged } from "./invite-actions.ts";
@@ -17,15 +17,13 @@ interface InviteView {
   busy: ComputedRef<boolean>;
   status: ComputedRef<string>;
   warning: ComputedRef<string>;
-  forWhom: Ref<string>; // the optional "for whom" label sent with the request
-  request: () => Promise<InviteResult>;
+  request: (forWhom: string) => Promise<InviteResult>;
 }
 
 const netIdOf = (store: Store, slot: string): string | null => stateOf(store, slot)?.network?.id_hex || null;
 
 export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"> = defaultHomeDeps, slot: () => string = () => store.lead): InviteView {
   const inv = ref<InviteState>(createInviteState());
-  const forWhom = ref("");
 
   watch(() => netIdOf(store, slot()), (netId) => resetInviteIfNetChanged(inv.value, netId), { immediate: true });
   onUnmounted(() => resetInviteIfNetChanged(inv.value, null));
@@ -36,7 +34,6 @@ export function useInvite(store: Store, deps: Pick<HomeDeps, "api" | "clipboard"
     busy: computed(() => inv.value.busy),
     status: computed(() => inv.value.status),
     warning: computed(() => inv.value.warning),
-    forWhom,
-    request: () => requestInvite(inv.value, store, deps, forWhom.value, slot()),
+    request: (forWhom) => requestInvite(inv.value, store, deps, forWhom, slot()),
   };
 }

@@ -52,6 +52,7 @@ async function showInvite(inv: InviteState, store: Store, slot: string, netId: s
     inv.status = STALE;
     return "stale";
   }
+  store.inviteRevisions[slot] = (store.inviteRevisions[slot] ?? 0) + 1;
   inv.text = res.invite;
   inv.qr = typeof res.qr === "string" ? res.qr : "";
   inv.warning = reachWarning(res.reach);

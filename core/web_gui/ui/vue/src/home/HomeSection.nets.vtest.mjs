@@ -1,6 +1,7 @@
 /* "Home" on a node with two networks (A = `main` "friends", B "my devices"): one row (a link to the network tab) per network with the member count, the exit line and the red exit warnings that name the network; no ring, no invite, no "This computer".
  * With one network the page keeps its former look and requests. The whole page runs on a fake node. */
 
+import { openInviteDialog, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import { afterEach, describe, expect, it } from "vitest";
 import { demoConfig, demoState } from "../testing/demo-node.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
@@ -235,7 +236,7 @@ describe("Home with one network", () => {
   describe("the only visible network is the second slot (the main one holds no key)", () => {
     it("the invite is requested in that slot", async () => {
       const { wrapper, node } = await setupSecondOnly();
-      await wrapper.get("#netkey-invite-btn").trigger("click");
+      await submitInviteDialog(await openInviteDialog(wrapper));
       await settle();
       const asked = node.calls.filter((c) => c.method === "GET" && c.path.endsWith("/network/invite"));
       expect(asked.map((c) => c.path)).toEqual(["/api/net/" + NET_B + "/network/invite"]);
