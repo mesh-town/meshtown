@@ -165,6 +165,10 @@ fn register_peers(router: Router<Arc<App>>, base: &str) -> Router<Arc<App>> {
             get(peers::network_key_handler).fallback(bad_method),
         )
         .route(
+            &format!("{base}/network/invite-name"),
+            get(peers::invite_name_handler).fallback(bad_method),
+        )
+        .route(
             &format!("{base}/network/invite"),
             get(peers::network_invite_handler).fallback(bad_method),
         )

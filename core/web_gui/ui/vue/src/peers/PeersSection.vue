@@ -196,7 +196,7 @@ async function exitVia(idFull: string): Promise<void> {
             <p class="field-status" :class="status.cls" id="peers-exit-status" role="status" :hidden="!status.text">{{ status.text }}</p>
           </div>
           <PendingList :rows="parts.pending" :me="me" @pick="pick" />
-          <PendingInvites :slot="slot" :me-admin="!!menuCtx.meAdmin" :refresh-key="members?.counts.pending" />
+          <PendingInvites :slot="slot" :me-admin="!!menuCtx.meAdmin" :refresh-key="members?.counts.pending" :issue-revision="store.inviteRevisions[slot]" />
           <ExcludedList :lines="excludedLines" />
           <UnlistedList :rows="parts.unlisted" @pick="pick" />
         </template>

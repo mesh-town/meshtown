@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { api } from "../core/api.ts";
 import { baseState, mountSection } from "../testing/section.mjs";
+import { INVITE_NAME, openInviteDialog, SUGGESTED_NAME, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import InviteCard from "./InviteCard.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
@@ -16,22 +17,23 @@ const WARN_ISSUER_ONLY = "Only this computer can let them in — don't turn it o
 const WARN_ISSUER_AND_ONE = "Better not to turn this computer off until the new member joins.";
 let mounted;
 
-beforeEach(() => api.mockResolvedValue({ invite: SECRET }));
+beforeEach(() => { api.mockReset().mockResolvedValue({ invite: SECRET }); });
 afterEach(() => mounted.wrapper.unmount());
 
 describe("InviteCard", () => {
-  it("click — GET /api/network/invite, the string in \"Invite to send\"", async () => {
+  it("submits the suggested name and shows the invite", async () => {
     const { wrapper } = mountInvite();
-    await wrapper.get("#netkey-invite-btn").trigger("click");
-    await flushPromises();
-    expect(api).toHaveBeenCalledWith("GET", "/api/network/invite");
+    const dialog = await openDialog(wrapper);
+    expect(dialog.get(INVITE_NAME).element.value).toBe(SUGGESTED_NAME);
+    expect(api).not.toHaveBeenCalledWith("GET", "/api/network/invite?for=" + SUGGESTED_NAME);
+    await submitInviteDialog(dialog);
+    expect(api).toHaveBeenCalledWith("GET", "/api/network/invite?for=" + SUGGESTED_NAME);
     expect(wrapper.get(VALUE).text()).toBe(SECRET);
   });
 
   it("id_hex changes — the string is empty", async () => {
     const { wrapper, store } = mountInvite();
-    await wrapper.get("#netkey-invite-btn").trigger("click");
-    await flushPromises();
+    await click(wrapper);
     store.state = baseState({ network: { id_hex: "net-bbbb", label: "other" } });
     await flushPromises();
     expect(wrapper.get(VALUE).text()).toBe("");
@@ -61,8 +63,7 @@ describe("InviteCard", () => {
 
   it("the invite string never ends up in title attributes or in storage", async () => {
     const { wrapper } = mountInvite();
-    await wrapper.get("#netkey-invite-btn").trigger("click");
-    await flushPromises();
+    await click(wrapper);
     expect(wrapper.html().split(SECRET).length - 1, "only in the <code> text").toBe(1);
     expect(JSON.stringify({ ...localStorage })).not.toContain("SECRETSECRET");
     expect(JSON.stringify({ ...sessionStorage })).not.toContain("SECRETSECRET");
@@ -171,35 +172,42 @@ function mountInvite(state = baseState({ network: { id_hex: "net-aaaa", label: "
   return (mounted = mountSection(InviteCard, { state }));
 }
 
+async function openDialog(wrapper) {
+  api.mockResolvedValueOnce({ name: SUGGESTED_NAME });
+  return openInviteDialog(wrapper);
+}
+
 async function click(wrapper) {
-  await wrapper.get("#netkey-invite-btn").trigger("click");
-  await flushPromises();
+  await submitInviteDialog(await openDialog(wrapper));
 }
 
 // Mounting, the node's reply (`reply`: an object or an Error) and a click on "Invite a member". A refusal is for one call:
 // the `beforeEach` above returns the mock itself, and vitest calls it as a finalizer (on a refusal the test would fail).
 async function clickInvite(reply) {
   const view = mountInvite();
+  const dialog = await openDialog(view.wrapper);
   if (reply instanceof Error) api.mockRejectedValueOnce(reply);
   else api.mockResolvedValue(reply);
-  await click(view.wrapper);
+  await submitInviteDialog(dialog);
   return view;
 }
 
 describe("InviteCard: for whom", () => {
   it("the label goes to the request as ?for= (trimmed, encoded)", async () => {
     const { wrapper } = mountInvite();
-    await wrapper.get("#invite-for-input").setValue("  Anna's laptop ");
-    await click(wrapper);
+    const dialog = await openDialog(wrapper);
+    await dialog.get(INVITE_NAME).setValue("  Anna's laptop ");
+    await submitInviteDialog(dialog);
     expect(api).toHaveBeenCalledWith("GET", "/api/network/invite?for=Anna's%20laptop");
   });
 
-  it("a blank label means no parameter; the field is limited to 64 characters", async () => {
+  it("cancels without issuing an invite", async () => {
     const { wrapper } = mountInvite();
-    await wrapper.get("#invite-for-input").setValue("   ");
-    await click(wrapper);
-    expect(api).toHaveBeenLastCalledWith("GET", "/api/network/invite");
-    expect(wrapper.get("#invite-for-input").attributes("maxlength")).toBe("64");
+    const dialog = await openDialog(wrapper);
+    expect(dialog.get(INVITE_NAME).attributes("maxlength")).toBe("64");
+    await dialog.get('button[type="button"]').trigger("click");
+    expect(wrapper.find("dialog[open]").exists()).toBe(false);
+    expect(api.mock.calls).toEqual([["GET", "/api/network/invite-name"]]);
   });
 });
 
@@ -245,24 +253,7 @@ describe("InviteCard: only you in the network", () => {
 });
 
 describe("InviteCard: the form and the hint", () => {
-  const HINT = "The invite is copied when you click the button. It works once, for 24 hours — send it to one person in a private message.";
-
-  it("the label of the field is \"For whom (optional, only admins see it)\"", () => {
-    const { wrapper } = mountInvite();
-    expect(wrapper.get('label[for="invite-for-input"]').text()).toBe("For whom (optional, only admins see it)");
-  });
-
-  it("the field is full-width: it keeps .input and has .input-wide", () => {
-    const { wrapper } = mountInvite();
-    expect(wrapper.get("#invite-for-input").classes()).toEqual(expect.arrayContaining(["input", "input-wide"]));
-  });
-
-  it("the \"Invite a member\" button comes after the field", () => {
-    const { wrapper } = mountInvite();
-    const field = wrapper.get("#invite-for-input").element;
-    const button = wrapper.get("#netkey-invite-btn").element;
-    expect(field.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING, "the button follows the field").toBeTruthy();
-  });
+  const HINT = "The invite is copied after you confirm the name. It works once, for 24 hours — send it to one person in a private message.";
 
   it("the hint is two sentences: when the invite is copied, and how long it lives", () => {
     const { wrapper } = mountInvite();

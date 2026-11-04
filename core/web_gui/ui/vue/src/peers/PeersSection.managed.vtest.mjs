@@ -4,10 +4,11 @@
  * Network "work" is the single one unless a test says two; names: this computer "finch-unwary", admins "anna" and (when listed) "bob". */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { INVITE_NAME, openInviteDialog, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import { visibleText } from "../testing/dom.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { ANNA_FULL, BOB_FULL, ID_HEX, ME_FULL, NET_NAME, managedMembers, managedNode, managedState, nodeConfig, serveManaged } from "../testing/managed-fixtures.mjs";
-import { excludedInfo, memberRow } from "../testing/members-fixtures.mjs";
+import { excludedInfo, invitesReply, memberRow, openInvite } from "../testing/members-fixtures.mjs";
 import { NET_B, twoNets } from "../testing/overview-fixtures.mjs";
 import { mountPage, settle, unmountPage } from "../testing/page.mjs";
 
@@ -70,6 +71,25 @@ describe("the invitation", () => {
       const page = await open(managedNode({ meRole: "admin" }));
       expect(page.inviteButton().exists()).toBe(true);
       expect(page.wrapper.find("#peers-invite-note").exists()).toBe(false);
+    });
+
+    it("shows a newly issued invite immediately with its name and timestamp", async () => {
+      const node = managedNode({ meRole: "admin" });
+      const invite = openInvite({ for_whom: "Guest laptop" });
+      node.routes["GET /api/network/invite"] = () => {
+        node.routes["GET /api/network/invites"] = invitesReply([invite]);
+        return { invite: "mesh-invite2-example" };
+      };
+      const { wrapper } = await open(node);
+      expect(wrapper.get("#pending-invites-empty").text()).toBe("No open invites");
+      const dialog = await openInviteDialog(wrapper, "#peers-invite-btn");
+      await dialog.get(INVITE_NAME).setValue(invite.for_whom);
+      await submitInviteDialog(dialog);
+      await settle();
+
+      const row = wrapper.get(`[data-invite="${invite.hash}"]`);
+      expect(row.get("input").element.value).toBe(invite.for_whom);
+      expect(row.get("time").attributes("datetime")).toBe(new Date(invite.made_unix * 1000).toISOString());
     });
   });
 });

@@ -27,6 +27,7 @@ describe("applySnapshot", () => {
         settingsDirty: false,
         absence: null,
         members: null,
+        inviteRevisions: {},
         slots: {},
         nets: [],
         restartSlots: [],

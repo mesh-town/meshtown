@@ -6,6 +6,7 @@
  * actions of the current tab go to its own slot address. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { openInviteDialog, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import { visibleText } from "../testing/dom.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { EXTRA_FULL, actionReply, excludedInfo, memberRow, membersReply, pendingRow, peerOneRow, peerTwoRow, selfRow } from "../testing/members-fixtures.mjs";
@@ -405,7 +406,10 @@ function pageOf(node, wrapper, store) {
     clipboardWorks: () => Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => {} }, configurable: true }),
     clipboardRefuses: () => Object.defineProperty(navigator, "clipboard", { value: { writeText: async () => { throw new Error("denied"); } }, configurable: true }),
     after: async (ms) => { await vi.advanceTimersByTimeAsync(ms); await settle(); },
-    whenInviteClicked: () => click(wrapper.get("#peers-tabhead button")),
+    whenInviteClicked: async () => {
+      await submitInviteDialog(await openInviteDialog(wrapper, "#peers-invite-btn"));
+      await settle();
+    },
     whenHintAcknowledged: () => click(section().findAll("button").find((b) => b.text().trim() === "OK")),
     async whenTabClicked(name) {
       const tab = tabNamed(name);

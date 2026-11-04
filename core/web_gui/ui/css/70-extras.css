@@ -52,3 +52,12 @@
 .alert{color:var(--red);font-size:14px;margin:0 0 8px;}
 #settings-leave-row{margin-top:20px;padding-top:14px;border-top:1px solid var(--border);}#stop-node-btn{margin-top:16px;}
 .member-dialog #confirm-body p + p{margin-top:8px;}
+.invite-name-dialog label{display:block;margin-bottom:4px;}
+.invite-row .peer-meta{min-width:0;overflow-wrap:anywhere;}
+.invite-row .peer-who{overflow-wrap:anywhere;}
+.invite-edit{display:flex;flex-wrap:wrap;gap:6px;}
+.invite-edit .input{flex:1;min-width:0;max-width:100%;box-sizing:border-box;}
+@media (max-width:720px){
+  .invite-row .peer-who{flex-basis:100%;}
+  .invite-row .peer-meta{padding-left:0;}
+}

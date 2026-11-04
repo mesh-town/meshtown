@@ -53,11 +53,14 @@ test('15-invite: invite: GET /api/network/invite and the button put it on the cl
     };
   });
   await net.inviteButton.click();
+  const dialog = page.locator('dialog[open]');
+  await expect(dialog.locator('[name="invite-name"]')).toHaveValue(/^[a-z]+-[a-z]+$/);
+  await dialog.locator('button[type="submit"]').click();
   await expect.poll(() => net.clipboard(), { timeout: 6000 }).not.toBeNull();
   const clip = await net.clipboard();
   const seen = await page.evaluate(() => (window as unknown as { __inv: string[] }).__inv);
 
-  await test.step('a network exists: clicking #netkey-invite-btn puts the invite on the clipboard', async () => {
+  await test.step('a network exists: confirming the invite puts it on the clipboard', async () => {
     expect.soft(clip?.startsWith(INVITE_PREFIX)).toBe(true);
     expect.soft(clip !== null && seen.includes(clip), 'the clipboard matches the reply the page received').toBe(true);
   });
@@ -82,6 +85,9 @@ test('15-invite-qr: the invite comes with its QR picture', async ({ app, api, pa
   });
 
   await net.inviteButton.click();
+  const dialog = page.locator('dialog[open]');
+  await expect(dialog.locator('[name="invite-name"]')).toHaveValue(/^[a-z]+-[a-z]+$/);
+  await dialog.locator('button[type="submit"]').click();
 
   await test.step('the picture appears, it is an inline SVG that the browser decoded', async () => {
     await expect(qr).toBeVisible({ timeout: START_TIMEOUT_MS });

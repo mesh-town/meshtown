@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { ApiError, api } from "../core/api.ts";
 import { baseState, mountSection } from "../testing/section.mjs";
+import { INVITE_NAME, openInviteDialog, SUGGESTED_NAME, submitInviteDialog } from "../testing/invite-dialog.mjs";
 import InviteCard from "./InviteCard.vue";
 import { HOME_INVITE_QR_ALT, HOME_INVITE_QR_TOO_LONG } from "./invite-qr-texts.ts";
 
@@ -76,8 +77,9 @@ describe("invite QR", () => {
   describe("the node refuses (409 busy)", () => {
     it("shows neither picture nor note", async () => {
       const view = mountInvite();
+      const dialog = await openDialog(view.wrapper);
       api.mockRejectedValueOnce(new ApiError(409, "busy"));
-      await click(view.wrapper);
+      await submitInviteDialog(dialog);
       expect(view.wrapper.find(PICTURE).exists(), "picture").toBe(false);
       expect(view.wrapper.find(NOTE).exists(), "note").toBe(false);
       expect(view.wrapper.get(VALUE).text()).toBe("");
@@ -88,8 +90,9 @@ describe("invite QR", () => {
     it("asks with the label and shows the picture", async () => {
       const view = mountInvite();
       api.mockResolvedValue({ invite: INVITE, qr: SVG });
-      await view.wrapper.get("#invite-for-input").setValue("Anna");
-      await click(view.wrapper);
+      const dialog = await openDialog(view.wrapper);
+      await dialog.get(INVITE_NAME).setValue("Anna");
+      await submitInviteDialog(dialog);
       expect(api).toHaveBeenCalledWith("GET", "/api/network/invite?for=Anna");
       expect(decodedSrc(view.wrapper.get(PICTURE))).toBe(SVG);
     });
@@ -132,8 +135,9 @@ describe("invite QR", () => {
 
     it("a refusal after an issued invite leaves the string with its own picture", async () => {
       const view = await clickInvite({ invite: INVITE, qr: SVG });
+      const dialog = await openDialog(view.wrapper);
       api.mockRejectedValueOnce(new ApiError(409, "busy"));
-      await click(view.wrapper);
+      await submitInviteDialog(dialog);
       expect(view.wrapper.get(VALUE).text()).toBe(INVITE);
       expect(decodedSrc(view.wrapper.get(PICTURE))).toBe(SVG);
     });
@@ -174,9 +178,13 @@ function mountInvite(state = baseState({ network: { id_hex: "net-aaaa", label: "
   return (mounted = mountSection(InviteCard, { state }));
 }
 
+async function openDialog(wrapper) {
+  api.mockResolvedValueOnce({ name: SUGGESTED_NAME });
+  return openInviteDialog(wrapper);
+}
+
 async function click(wrapper) {
-  await wrapper.get("#netkey-invite-btn").trigger("click");
-  await flushPromises();
+  await submitInviteDialog(await openDialog(wrapper));
 }
 
 // Mounting, the node's reply to the first click and the click itself.
