@@ -193,6 +193,28 @@ async function clickInvite(reply) {
 }
 
 describe("InviteCard: for whom", () => {
+  it("keeps the dialog and the draft through a snapshot refresh of the same network", async () => {
+    const { wrapper, store } = mountInvite();
+    const dialog = await openDialog(wrapper);
+    await dialog.get(INVITE_NAME).setValue("New member");
+    store.state = { ...store.state, network: { ...store.state.network } };
+    await flushPromises();
+
+    expect(wrapper.get("dialog[open]").get(INVITE_NAME).element.value).toBe("New member");
+    await submitInviteDialog(dialog);
+    expect(api).toHaveBeenCalledWith("GET", "/api/network/invite?for=New%20member");
+  });
+
+  it("closes the dialog when the network changes", async () => {
+    const { wrapper, store } = mountInvite();
+    await openDialog(wrapper);
+    store.state = baseState({ network: { id_hex: "net-bbbb", label: "other" } });
+    await flushPromises();
+
+    expect(wrapper.find("dialog[open]").exists()).toBe(false);
+    expect(api.mock.calls).toEqual([["GET", "/api/network/invite-name"]]);
+  });
+
   it("the label goes to the request as ?for= (trimmed, encoded)", async () => {
     const { wrapper } = mountInvite();
     const dialog = await openDialog(wrapper);
