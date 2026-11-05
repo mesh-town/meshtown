@@ -224,7 +224,7 @@ key into the config and raise `rev`.
 | Address | Body | Response | What it does |
 |---|---|---|---|
 | `POST /api/actions/find-exit` | `{"domain":"example.org"}` | 202 `{"domain":"example.org","added":true}` | The "Site won't open" scenario from "Home": adds the domain to this node's list and puts it into an out-of-turn check on this node. One address, because it is one user intention. |
-| `POST /api/actions/check-domain` | `{"domain":"x.com"}` | 202 `{"domain":"x.com"}` | An out-of-turn check of a single domain. In the snapshot the domain gets `checking: true`, then an updated record. The `⟳` button in the domain row (section 4.5). 409 `busy` if the domain already has `checking: true`. |
+| `POST /api/actions/check-domain` | `{"domain":"x.com"}` | 202 `{"domain":"x.com"}` | An out-of-turn single-domain check. In the snapshot the domain gets `checking: true`, then an updated record. The `⟳` button in the domain row (section 4.5). 409 `busy` if the domain already has `checking: true`. |
 | `POST /api/actions/check-all` | empty | 202 `{"queued":7}` | The "Check all" button. |
 | `POST /api/domains` | `{"domain":"figma.com"}` | 200 `{"domain":"figma.com"}` | Add a domain to this node's list (not passed on to other members). 422 `invalid` — the name did not parse. |
 | `DELETE /api/domains?name=figma.com` | — | 200 `{"domain":"figma.com"}` | The cross in the domain row. The name is in the parameter, not in the path: a domain contains dots and would otherwise need escaping. |
@@ -290,7 +290,7 @@ label (`null` if none) and the network identifier.
 
 - Nothing is joined or written. An invite is only parsed, never redeemed (not spent).
 - An unreadable key or invite is 422 `invalid_key`, as for `join`.
-- A key of the older format (`mesh1-…` or three words with a group) and an invite of the older format are
+- An older-format key (`mesh1-…` or three words with a group) and an older-format invite are
   refused the same way, with "This network key is from an older Mesh Town and no longer works. Ask a network admin for a new invite." or "This invite is from an older Mesh Town. Ask a network admin for a new one.".
 
 ### Invites
@@ -398,7 +398,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
 | `socks.strict` | boolean | `false` | — | no (applies at once) | `core/proxy/pac.rs` | "Settings" → "Strict mode" |
 | `socks.port` | integer | 1080 | 1024…65535; a busy port — 422 | **yes** | `core/node/config.rs`, `core/cli/commands.rs` | "Settings" → "Proxy port (SOCKS5 and HTTP)"; the port belongs to the process (one proxy listener for all networks), not to a slot |
-| `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config an id of a network that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
+| `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config a network id that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
 | `checks.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` (the `--set checks.enabled=false` option) | "Settings", the "Check sites from the list" row — next to the interval |
 | `checks.interval_sec` | integer | 900 | 30…86400; list on the page: 300, 900, 1800, 3600, 21600 | no | `core/cli/commands.rs` | "Settings" → "How often to check sites" |
 | `checks.doh_server` | string `address:port` | `"1.1.1.1:443"` | parsed as `SocketAddr` | **yes** | `core/cli/commands.rs`, `core/node/config.rs` | not shown |
@@ -413,7 +413,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `log.ring_lines` | integer | 2000 | 200…20000 | no | — (2,000 lines) | caption under the log window, no input field |
 | `node.memory_warn_mib` | integer | 400 | 0…1048576, MiB; `0` = off; `400` means "by machine memory" (24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise), so an explicit 400 on a machine with ≤512 MiB also counts as automatic; on such machines the exit also refuses new streams near this value, above 512 MiB with the default 400 it refuses only by the stream limit | file only | `core/node/host/process.rs` | not shown |
 | `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the current user's login entry), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied at once) | — | "Settings", the switch |
-| `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the gray look of the switch |
+| `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the switch's gray look |
 | `autostart.reason` | string | "" when available, otherwise "only in the desktop app with the tray icon" or "could not read the login entry: <error>" | read-only | — | — | caption under the switch |
 | `full_tunnel.enabled` | boolean | `false` | as for `autostart.enabled` | — (cannot be enabled) | — | "Settings", the switch is gray |
 | `full_tunnel.available` | boolean | `false` | read-only | — | — | gray look |

@@ -20,7 +20,7 @@ only by the prefix, no body carries a network. An unknown slot is 404 `unknown_n
 | `counts` | `{"members","excluded","unlisted","pending"}` |
 | `members` | the rows, see below |
 | `changed` | only in replies to actions: whether the action changed anything |
-| `admins`, `me_admin`, `root` | the full ids of the administrators in ascending order; whether this node is one; the network creator |
+| `admins`, `me_admin`, `root` | the full admin ids in ascending order; whether this node is one; the network creator |
 
 A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `online`, `status`, `excluded`,
 `blocked_by_me`, `denied_by_me`, `last_seen_sec`, `last_refusal`, `admission`, `admin`, `invited_as`.
@@ -63,7 +63,7 @@ A write failure is 500 `internal`.
 
 **What each action means.** Body and reply are as above; only the effect differs.
 
-- `exclude` — the decision of an administrator to remove the node (details in
+- `exclude` — an admin decision to remove the node (details in
   "Managed networks: members and deletion" in `WEB-API-config.md`). The page calls it "Remove from network…".
 - `unexclude` — withdraws this node's own `exclude` entry in the shared document; other members' entries stay. It is
   `changed:false` when there is nothing to withdraw; there is no "nothing to withdraw" refusal. The page calls it
@@ -95,7 +95,7 @@ not expired), newest first. A row:
 | `issuer`, `issuer_name` | the administrator who made it (full id and known name), or `null` |
 | `mine` | this node made the invite |
 
-**`POST {base}/network/invites/label`** — body `{"hash":"<64 hex digits>","for":"<text>"}`. Rewrites the note of an invite
+**`POST {base}/network/invites/label`** — body `{"hash":"<64 hex digits>","for":"<text>"}`. Rewrites an invite's note
 this node made; an empty or missing `for` clears it. The note is trimmed, at most 64 characters, without control
 characters. The reply is 200 with the list after the edit. Only the administrator who made the invite may edit it.
 
