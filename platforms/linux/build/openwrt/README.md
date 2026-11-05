@@ -100,7 +100,7 @@ overrides the address built into the script.
 # Manual install
 
 The `init.d-meshtown` script is a procd service: the node starts when the router boots, restarts after a crash, and logs
-to `logread`. It is built for OpenWrt 24.10 (aarch64). **Not yet tested on a physical router.**
+to `logread`. It is built for OpenWrt 24.10 (aarch64).
 
 Requirements and conventions:
 
