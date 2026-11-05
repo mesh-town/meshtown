@@ -177,6 +177,7 @@ mod node_list {
     use crate::members::network_key::NetworkKey;
     use crate::node::config::NodeConfig;
     use crate::node::telemetry::Telemetry;
+    use crate::transport::net_hyperdht::mem::MemRecords;
     use crate::transport::net_mainline::record::RosterEntry;
     use crate::transport::peers_cache::PeersCache;
 
@@ -284,6 +285,28 @@ mod node_list {
         let got = env.names(&filled_cache());
         // then: "hyperdht" is skipped, the rest are in place
         assert_eq!(got, ["invite"]);
+    }
+
+    #[tokio::test]
+    async fn hyperdht_source_reads_the_boot_neighbor_count() {
+        // given: "hyperdht" is in the discovery list, the hyper records exist, and a shared neighbor counter
+        let mut env = setup().await;
+        env.cfg.settings.net_choice.discovery = order(&["hyperdht"]);
+        let neighbors = Arc::new(AtomicUsize::new(0));
+        let records: Arc<dyn RecordStore> = Arc::new(MemRecords::new());
+        let before = Arc::strong_count(&neighbors);
+        // when: the node builds the sources
+        let sources = node_sources(
+            &env.cfg,
+            &PeersCache::load(None, "net", 1000),
+            pid(1),
+            &env.subkeys,
+            (&Telemetry::new(), &neighbors),
+            Some(records),
+        );
+        // then: the source is built and holds a clone of the very same counter
+        assert_eq!(sources.len(), 1);
+        assert_eq!(Arc::strong_count(&neighbors), before + 1);
     }
 
     #[tokio::test]

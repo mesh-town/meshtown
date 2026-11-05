@@ -11,7 +11,7 @@ mod store;
 mod tally;
 
 #[cfg(test)]
-mod mem;
+pub(crate) mod mem;
 
 pub use keys::RosterKeys;
 pub use pace::Pace;

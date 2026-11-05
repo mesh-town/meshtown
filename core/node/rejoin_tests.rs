@@ -83,7 +83,7 @@ mod after_two_repeats {
 
     #[test]
     fn reset_restores_first_delay() {
-        // given: two retries (at 30 and 90 s), the pause grew to 300 s, the next deadline is 390 s
+        // given: `mark_rejoined` at 30 s and at 90 s, so the pause grew to 300 s and the next deadline is 390 s
         let t0 = Instant::now();
         let mut rejoin = Rejoin::new(t0);
         rejoin.mark_rejoined(at(t0, 30));
@@ -162,17 +162,17 @@ mod tick_when_join_fails {
         f.when_tick(30, 0).await;
         let after_error = f.then_joins().len();
         f.when_tick(149, 0).await;
-        let at_89 = f.then_joins().len();
+        let at_149 = f.then_joins().len();
         f.when_tick(150, 0).await;
-        let at_90 = f.then_joins().len();
+        let at_150 = f.then_joins().len();
 
         // then: there was one attempt, the next retry is no earlier than t0 + 150 s, and it is there at 150 s
         assert_eq!(after_error, 1, "the invite at 30 s must be sent");
         assert_eq!(
-            at_89, 1,
+            at_149, 1,
             "after an error the deadline shifts: no retry until 150 s"
         );
-        assert_eq!(at_90, 2, "the retry must happen at 150 s");
+        assert_eq!(at_150, 2, "the retry must happen at 150 s");
     }
 }
 

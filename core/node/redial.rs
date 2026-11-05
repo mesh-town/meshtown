@@ -22,8 +22,6 @@ pub(super) const REDIAL_CAP: Duration = Duration::from_secs(60);
 pub(super) const REDIAL_LONG: Duration = Duration::from_secs(600);
 /// How many consecutive failures get the ordinary pause; after that — `REDIAL_LONG`.
 pub(super) const REDIAL_LONG_AFTER: u32 = 4;
-/// The attempt number at which an `unlisted` refusal stops counting: its pause never reaches `REDIAL_LONG`.
-pub(super) const REDIAL_UNLISTED_MAX_ATTEMPT: u32 = 8;
 
 /// How many doubling steps still need counting: after that the pause hits `REDIAL_CAP` anyway,
 /// and `1u64 << MAX_SHIFT` doesn't overflow for any `attempt`.
@@ -42,7 +40,7 @@ pub(super) fn redial_pause(attempt: u32, rnd: u32) -> Duration {
 /// The doubling pause of attempt `attempt` up to `REDIAL_CAP`, never the long one: used for an `unlisted`
 /// refusal, where the admission record may arrive at any moment.
 fn unlisted_pause(attempt: u32, rnd: u32) -> Duration {
-    ladder_pause(attempt.min(REDIAL_UNLISTED_MAX_ATTEMPT), rnd)
+    ladder_pause(attempt, rnd)
 }
 
 fn ladder_pause(attempt: u32, rnd: u32) -> Duration {

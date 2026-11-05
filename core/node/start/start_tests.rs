@@ -197,6 +197,33 @@ mod discovery_wiring {
     }
 }
 
+/// The neighbor counter of the boot bundle is the one the entry points hand to the running node.
+mod neighbor_count_wiring {
+    use super::*;
+    use std::sync::Arc;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn entry_points_share_the_boot_neighbor_count() {
+        // given: the phases of `start_node` run by hand, so the boot bundle stays in reach
+        let cfg = NodeConfig::for_loopback_test(NetworkKey::generate().unwrap());
+        let mut boot = boot_endpoint(&cfg).await.unwrap();
+        let (net, inbound) = spawn_network(&cfg, &boot).await.unwrap();
+        // when: the entry points are wired
+        let (_serving, entry_points) = wire_up(&cfg, &mut boot, &net, inbound).await.unwrap();
+        // then: both hold the same counter
+        let shared = Arc::ptr_eq(
+            &entry_points.gossip_neighbor_count,
+            &boot.gossip_neighbor_count,
+        );
+        net.stack.close().await;
+        boot.background_abort_handles.iter().for_each(|h| h.abort());
+        assert!(
+            shared,
+            "the entry points must reuse the boot neighbor count"
+        );
+    }
+}
+
 /// The stack close seam on an error in the phases after the network (`close_on_err`).
 mod close_on_err_seam {
     use super::*;
