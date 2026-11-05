@@ -1,6 +1,6 @@
 //! What a session knows about its path: round-trip time on both sides, and the address that goes to the cache.
 
-use crate::transport::net::addr::PeerAddr;
+use crate::transport::net::addr::{AddrHint, PeerAddr};
 use crate::transport::net::contract::transport_cases::{echo_mismatches, spawn_echo};
 use crate::transport::net::contract::STEP;
 use crate::transport::net::transport::Transport;
@@ -128,6 +128,35 @@ mod cache {
         first.close().await;
         // when: the restarted node reads the cache and still has a dead DHT
         let second = isolated(2).await;
+        for addr in PeersCache::load(Some(&file), NETWORK, NOW).addrs() {
+            second.add_hints(&addr);
+        }
+        let res = connect_within(&second, &PeerAddr::new(s.me()), FIVE_SECONDS).await;
+        // then
+        assert!(res.is_ok(), "the cached address was not dialed");
+    }
+
+    #[tokio::test]
+    async fn key_dialed_address_survives_restart_with_dead_dht() {
+        // given: N dials S by key (no address), the session gives an address that goes to the cache file
+        let cl = cluster(3).await;
+        let (s, n) = (serving(&cl, 1).await, serving(&cl, 2).await);
+        let file = scratch("key-dialed").join("peers-cache.json");
+        let conn = connect_within(&n, &PeerAddr::new(s.me()), Duration::from_secs(15))
+            .await
+            .expect("connection by key");
+        let hint = conn.link().hint();
+        assert!(
+            matches!(hint, Some(AddrHint::Ip(_))),
+            "a dial by key gives no address: {hint:?}"
+        );
+        let mut cache = PeersCache::load(Some(&file), NETWORK, NOW);
+        let entry = entry_for(None, s.me(), hint.as_ref(), NOW);
+        assert!(cache.remember(entry, NOW), "the address must be cached");
+        cache.save().expect("cache saved");
+        n.close().await;
+        // when: a node with a dead DHT reads the cache
+        let second = isolated(3).await;
         for addr in PeersCache::load(Some(&file), NETWORK, NOW).addrs() {
             second.add_hints(&addr);
         }

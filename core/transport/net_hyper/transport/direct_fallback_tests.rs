@@ -6,7 +6,7 @@ use crate::transport::net::addr::{AddrHint, PeerAddr};
 use crate::transport::net::transport::Transport;
 use crate::transport::net_hyper::test_cluster::cluster;
 use crate::transport::net_hyper::test_direct::{
-    becomes, connect_within, dead_addr, serving, silent_socket,
+    becomes, connect_within, dead_addr, direct_addr, ip_of, serving, silent_socket,
 };
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -25,10 +25,14 @@ mod dead_address {
         let res = connect_within(&n, &dead_addr(s.me()), Duration::from_secs(15)).await;
         // then
         let conn = res.unwrap_or_else(|e| panic!("dial by key failed: {e}"));
+        let dead = ip_of(&dead_addr(s.me()));
+        let reached = ip_of(&direct_addr(&s).await);
+        let remote = conn.link().remote;
+        assert_ne!(remote, Some(dead), "the dead address was not reached");
         assert_eq!(
-            conn.link().remote,
-            None,
-            "a dial by key has no dialed address"
+            remote,
+            Some(reached),
+            "a direct dial by key reports the address it reached"
         );
     }
 }
@@ -50,7 +54,17 @@ mod foreign_socket {
         let res = connect_within(&n, &hinted, FIVE_SECONDS).await;
         // then
         let conn = res.unwrap_or_else(|e| panic!("dial by key failed: {e}"));
-        assert_eq!(conn.link().remote, None);
+        let remote = conn.link().remote;
+        assert_ne!(
+            remote,
+            Some(SocketAddr::V4(at)),
+            "the silent socket was not reached"
+        );
+        assert_eq!(
+            remote,
+            Some(ip_of(&direct_addr(&s).await)),
+            "a direct dial by key reports the address it reached"
+        );
     }
 }
 
@@ -66,7 +80,11 @@ mod no_hints {
         let res = connect_within(&n, &PeerAddr::new(s.me()), Duration::from_secs(15)).await;
         // then
         let conn = res.unwrap_or_else(|e| panic!("dial by key failed: {e}"));
-        assert_eq!(conn.link().remote, None);
+        assert_eq!(
+            conn.link().remote,
+            Some(ip_of(&direct_addr(&s).await)),
+            "a direct dial by key reports the address it reached"
+        );
         assert_eq!(
             n.proven_addr(s.me()),
             None,

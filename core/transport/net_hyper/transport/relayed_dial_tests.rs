@@ -83,6 +83,23 @@ mod direct_path_is_broken {
     }
 
     #[tokio::test]
+    async fn relayed_session_keeps_no_address() {
+        // given: only the relay of a member can carry the link
+        let fx = setup(Source::Members(1)).await;
+        fx.break_direct(&[]);
+        // when
+        let conn = fx.dial().await.expect("connection through the relay");
+        // then: the reported address is the relay's, so none goes to the hints or the cache
+        let path = conn.link().path;
+        assert!(relayed_via(&path, fx.members[0]), "path is {path:?}");
+        assert_eq!(
+            conn.link().remote,
+            None,
+            "a relayed session kept an address"
+        );
+    }
+
+    #[tokio::test]
     async fn vetoed_punch_still_links_through_the_relay() {
         // given: hole punching is vetoed, so only the relay can carry the link
         let fx = setup(Source::Members(1)).await;

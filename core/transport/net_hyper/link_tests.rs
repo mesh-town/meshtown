@@ -242,3 +242,40 @@ fn relayed_facts(member: PeerId, rtt: RttProbe) -> PathFacts {
         relay_path: None,
     }
 }
+
+mod dialable {
+    use super::*;
+    use std::net::SocketAddrV4;
+
+    fn via() -> SocketAddrV4 {
+        "198.51.100.7:4000".parse().unwrap()
+    }
+
+    #[test]
+    fn dialable_prefers_the_dialed_address() {
+        // given: a direct dial and a different address reported by the library
+        let reported = Some(addr());
+        // when
+        let remote = dialable_remote(Some(via()), reported, false);
+        // then
+        assert_eq!(remote, Some(SocketAddr::V4(via())));
+    }
+
+    #[test]
+    fn dialable_takes_remote_addr_of_a_key_dial() {
+        // given: no dialed address, the session never ran through a relay
+        // when
+        let remote = dialable_remote(None, Some(addr()), false);
+        // then
+        assert_eq!(remote, Some(addr()));
+    }
+
+    #[test]
+    fn dialable_drops_the_relay_address() {
+        // given: the session ran through a relay (even if its path is direct by now)
+        // when
+        let remote = dialable_remote(None, Some(addr()), true);
+        // then
+        assert_eq!(remote, None);
+    }
+}
