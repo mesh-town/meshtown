@@ -13,18 +13,21 @@ create in someone else's service.
 Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik routers.
 
 **Contents:** [Who it is for](#who-it-is-for) · [Why it fits](#why-it-fits) · [How it differs](#how-it-differs) ·
-[Not for you if](#not-for-you-if) · [Exit node](#also-use-a-member-as-an-exit-node) · [Quick start](#quick-start) ·
+[Not for you if](#not-for-you-if) · [Several networks](#several-networks-who-sees-what) · [Exit node](#also-use-a-member-as-an-exit-node) · [Quick start](#quick-start) ·
 [Install](#install) · [Safety](#safety) · [Limitations](#limitations) · [Building](#building) ·
 [Documentation](#documentation)
 
 ## Who it is for
 
 - **Homelab enthusiasts** — a Raspberry Pi, a NAS or Home Assistant at home, behind a router you can't or don't want
-  to open to the internet.
-- **Sysadmins** — a few machines at a client's office or at your relatives', each behind its own NAT, that you reach
-  over SSH or RDP without setting up routing at every site.
+  to open to the internet. Keep them in a network of your own, and share a single port with the family in another.
+- **Self-hosters with friends** — a media library, a file share or a game server at home that a few friends
+  should reach. Put the server and the friends in a network of their own; your other devices are not in it, so
+  they do not exist for your friends. Each friend runs Mesh Town too.
+- **Sysadmins** — a few machines at a client's office or at your relatives', each behind its own NAT. One network per
+  client: you are an admin in each, the clients never see each other, and a lost laptop is removed in one click.
 - **Small teams** — a dev database, an internal web tool or a build machine shared with colleagues, without a cloud
-  service in the middle or a server someone has to look after.
+  service in the middle. A second admin keeps the network alive when the creator is away.
 
 ## Why it fits
 
@@ -41,12 +44,13 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik router
 - **No root or administrator rights to run.** No virtual network adapter, no kernel driver, no change to the system
   routes: the node is an ordinary program, and its proxy listens on a port above 1024. Only installing a system
   package (`apt`, the Windows installer) asks for rights once; on Android the app asks for the usual VPN permission.
-- **You choose who sees what.** A port is shared with all members or with selected ones.
+- **You choose who sees what.** A node can be in several networks — "my devices", "family", "the team" — and a
+  device exists only for the members of the networks it is in. Within a network, each port is shared with all
+  members or with selected ones. Admins invite, remove members and make other admins.
 - **Web interfaces open by a link.** With the browser using the node's proxy, a router, NAS or home automation panel
   is at `http://<device-name>.meshtown`, no IP addresses to remember.
 - **A member can be your exit node.** Point a browser or a program at the local SOCKS5/HTTP proxy, and its
   traffic goes out to the internet through a trusted member's connection — see [below](#also-use-a-member-as-an-exit-node).
-- **Several networks on one node**, for example "my devices" and "the team".
 
 ## How it differs
 
@@ -66,6 +70,24 @@ What you give up: Mesh Town connects TCP and UDP program ports, not whole IP net
 - you need it on an iPhone or iPad without a router or a computer running it on the same Wi‑Fi;
 - you want anonymity: the members you invite are trusted, and an exit sees which hosts you connect to through it.
 
+## Several networks: who sees what
+
+A node holds up to 8 networks at once; add one with **Add a network** on the page or `meshtown network create`. In
+each network the node has its own identity and name, its own member list, shared ports and relay; members of one
+network learn nothing about another — not the devices, not their names, not the ports.
+
+- `home-lab`: the NAS, the home server and your laptop. Nobody else is in it.
+- `family`: the same NAS, sharing one port — the photo library. The SSH port stays in `home-lab`.
+- `friends`: the home server shares the media library on port 8096 and the game server's port; the friends'
+  laptops are in `friends` only, and they see the server and those two ports — not the NAS, not SSH.
+- `contractor`: your office PC and the contractor's laptop, one shared port. When the job ends, an admin removes the
+  laptop; the key does not change, and your other networks never knew the contractor existed.
+
+Whoever creates a network is its first admin. Only admins invite (single-use invites, valid for a day), remove a
+member, make another member an admin or delete the network for everyone; make a second admin soon. Everyone else
+sees the member list and uses the network. What is shared between a node's networks: the local proxy and its exit
+choice. What is not: everything above.
+
 ## Also: use a member as an exit node
 
 A member can let the others send traffic out through its internet connection. Point a browser or a program at the
@@ -82,7 +104,7 @@ go out the same way.
    (`Mesh Town page: http://127.0.0.1:7777/?token=…`). Set a password when asked.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
    `meshtown join mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
-4. **Invite a member** on the page gives a single-use string for the next device or person.
+4. **Invite a member** on the page gives a single-use string for the next device or person. Invite from the tab of the network the person belongs to; only an admin can.
 5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using
    the proxy from step 6, a shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
 6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
@@ -115,6 +137,8 @@ needs a confirmation. Gatekeeper, console-only Linux builds, router details, ver
 
 - **Members are trusted.** A member can use your shared ports and, if you are an exit, your connection. Invite only
   people you trust; a network admin removes a lost device, the network key does not need to change.
+- **A network is a boundary.** A member of one of your networks sees nothing of the others. For a device only you
+  should reach, use a network nobody else is in.
 - **Keep the network key and `config.json` private.** The key alone does not let a node in, but it reveals the
   network's records in the DHT. Pass it through `MESHTOWN_KEY` or the settings file, not the command line.
 - **An exit lends your IP address** and sees which hosts members connect to. Turn it off with `--no-exit` or on the
@@ -150,7 +174,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Documentation
 
-- [docs/USAGE.md](docs/USAGE.md) — running the node, the settings file, invites, proxy and exit, relay, the node page, the log.
+- [docs/USAGE.md](docs/USAGE.md) — running the node, the settings file, invites, several networks, proxy and exit, relay, the node page, the log.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — modules, protocols, data flow.
 - [docs/CONFIG-FILE.md](docs/CONFIG-FILE.md) — the settings file.
 - [docs/WEB-API.md](docs/WEB-API.md), [docs/WEB-API-config.md](docs/WEB-API-config.md),

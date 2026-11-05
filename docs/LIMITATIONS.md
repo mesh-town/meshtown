@@ -45,6 +45,9 @@ What Mesh Town does not do in the 0.3.x line, in detail. The short list is in [R
   stable ports), can take a long time to connect: a dial by key may time out and be retried.
 - **A public member that moves behind a NAT keeps advertising its old address** until the node is restarted.
 - **No traffic accounting or speed limits** per member, and no limit on simultaneous connections.
+- **Access is by network and by port.** There are no finer rules: a member of a network sees its whole member list,
+  and a shared port is open to all members or to a list of nodes. There is no audit log of who opened what; the
+  node's own log (`[port]`, `[exit]`) is local.
 - **One hop only.** Client → your node → a member → the site; chains of two or more members are not supported.
 - **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by
   path, headers or content.

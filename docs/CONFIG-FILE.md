@@ -499,7 +499,7 @@ folder without `config.json`. The node reads `nets/` at startup, only when the m
 - **Command-line flags** that belong to a network (`--key`, `--exit` and the like) apply to the main network only;
   the flags that belong to the process (SOCKS, the page port) are shared by all slots.
 - **One proxy entrance per process.** The SOCKS/HTTP entrance is shared by all networks, so `socks.*` apply to the
-  whole process; `proxy.net` picks which network's exit it uses.
+  whole process; `proxy.net` picks which network's exit it uses (see "Several networks on one node" in USAGE.md).
 - **A slot that cannot start** gets a log line `net slot <id> not started: <reason>`; its folder is never
   deleted or rewritten for that. The reasons: the file is missing, unreadable or invalid, its version is newer
   than this build knows, it has no `network.key`, it holds the same network as a running slot, or the
