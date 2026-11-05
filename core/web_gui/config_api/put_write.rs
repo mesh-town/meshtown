@@ -111,6 +111,7 @@ fn finish_successful_write(
             "read_only": state.read_only_list(),
             "restart_fields": fields::restart_paths(),
             "restart_pending": state.pending_restart_paths(),
+            "proxy_off": state.proxy_off_by_flag,
             "changed": changed,
             "cli_overrides": state.cli_override_paths,
             "file": state.file_block(),

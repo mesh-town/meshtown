@@ -178,7 +178,7 @@ fn proxy_live_restarts_real_node() {
         good_key()
     );
     let node = CliNode::start_with_config(&config, &["--socks", "--socks-port", &port]);
-    let same = node.cli(&["access", "proxy", "localhost"]);
+    let same = access_proxy_when_ready(&node, "localhost");
     assert_eq!(same.status.code(), Some(0), "stderr: {}", err(&same));
     assert!(err(&same).contains("unchanged"), "stderr: {}", err(&same));
     let o = restart_when_ready(&node);

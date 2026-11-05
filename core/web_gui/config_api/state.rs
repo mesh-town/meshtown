@@ -28,6 +28,7 @@ pub struct ConfigState {
     pub last_boot_id: Option<String>, // boot_id from the node's last snapshot
     pub(crate) autostart: Option<&'static dyn AutostartBackend>, // login entry backend; None — the build has none
     pub(super) process_overlaid: bool, // an added slot: the process block is the primary slot's, not editable here
+    pub(super) proxy_off_by_flag: bool, // the node was started with `--no-socks`: `socks.*` cannot wait for a restart
 }
 
 impl ConfigState {
@@ -43,6 +44,8 @@ impl ConfigState {
             last_boot_id: None,
             autostart: crate::autostart::installed(),
             process_overlaid: false,
+            proxy_off_by_flag: run_config.cli_override_paths.contains(&"socks.enabled")
+                && !run_config.effective_settings.process.socks_enabled,
         }
     }
 
@@ -147,6 +150,7 @@ impl ConfigState {
         fields::editable_paths()
             .into_iter()
             .filter(|&p| restart_paths.contains(&p) || self.cli_override_paths.contains(&p))
+            .filter(|&p| !(self.proxy_off_by_flag && p.starts_with("socks.")))
             .filter(|&p| get_path(&cur, p) != get_path(&boot, p))
             .collect()
     }
@@ -178,6 +182,7 @@ impl ConfigState {
             "read_only": self.read_only_list(),
             "restart_fields": fields::restart_paths(),
             "restart_pending": self.pending_restart_paths(),
+            "proxy_off": self.proxy_off_by_flag,
             "cli_overrides": self.cli_override_paths,
             "file": self.file_block(),
         })

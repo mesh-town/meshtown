@@ -20,6 +20,29 @@ pub(super) fn restart_needed(reply: &serde_json::Value, names: &[&str]) -> bool 
     })
 }
 
+/// Whether the reply says the node runs without the proxy because it was started with `--no-socks`.
+pub(super) fn proxy_off(reply: &serde_json::Value) -> bool {
+    reply["proxy_off"].as_bool().unwrap_or(false)
+}
+
+/// The sentence for a proxy setting saved on a node that runs without the proxy.
+pub(super) const PROXY_OFF_NOTE: &str =
+    "the proxy is off on this node; the setting applies when the node is started with the proxy";
+
+/// The advice while the node is starting or stopping: the write may not be visible to its restart check yet.
+pub(super) fn run_again() -> anyhow::Error {
+    anyhow::anyhow!("{NET_NAME} is restarting; run the command again in a moment.")
+}
+
+/// Fails with the advice to run the command again while the node is starting or stopping.
+pub(super) fn refuse_while_restarting(node: &Node) -> anyhow::Result<()> {
+    let state = node.call("GET", &node.net_path("state"), None)?;
+    match state["node"]["status"].as_str() {
+        Some("starting" | "stopping") => Err(run_again()),
+        _ => Ok(()),
+    }
+}
+
 /// The settings file that `--config` or the standard place names; none is an error with the reason.
 pub(crate) fn settings_path(g: &Globals) -> anyhow::Result<PathBuf> {
     let target = Target::resolve(g.config.clone(), g.web_port).map_err(anyhow::Error::msg)?;

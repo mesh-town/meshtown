@@ -31,6 +31,7 @@ For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
     "checks.doh_server", "checks.provider_dns"
   ],
   "restart_pending": [],
+  "proxy_off": false,
   "cli_overrides": ["socks.port"],
   "file": {
     "path": "/Users/example/Library/Application Support/meshtown/config.json",
@@ -59,6 +60,9 @@ For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
     restart that could not apply them (for example, the new port was busy).
   - If that restart narrowed `socks.access` from `localnet` to `localhost`, the proxy listener is closed rather
     than left open wider than the file allows.
+- `proxy_off` — `true` when the node was started with `--no-socks` and runs without the proxy. A saved `socks.*`
+  field then waits for a start with the proxy, not for a restart, so such fields are not in `restart_pending`.
+  Always `false` for an added network slot.
 - `cli_overrides` — fields overridden by the flags the node was started with (for example, `["socks.port"]`).
   The command line wins over the file **per field**, not per document: the other file fields stay in force.
 
@@ -117,6 +121,7 @@ Success, 200:
   "read_only": ["…"],
   "restart_fields": ["…"],
   "restart_pending": ["socks.port"],
+  "proxy_off": false,
   "changed": ["socks.port", "checks.interval_sec"],
   "cli_overrides": ["socks.port"],
   "file": {
@@ -131,6 +136,7 @@ Success, 200:
 
 - `changed` — the fields the node actually changed (after ignoring `read_only`).
 - `restart_pending` — the changed fields that await a restart. An empty list means everything applied at once.
+- `proxy_off` — the same flag as in `GET /api/config` (section 1.6).
 - The response always contains the full document. The page redraws the form from it and never assumes its
   value has "already applied".
 - `cli_overrides` and `file` — same fields and meaning as in `GET /api/config` (section 1.6): the fields

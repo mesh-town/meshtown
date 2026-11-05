@@ -7,7 +7,9 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use super::settings_io::{edit_file, restart_needed, route, Route};
+use super::settings_io::{
+    edit_file, proxy_off, refuse_while_restarting, restart_needed, route, Route, PROXY_OFF_NOTE,
+};
 use crate::cli::args::Globals;
 use crate::cli::exit::UsageError;
 use crate::config::config_file::{self, IfaceFilter};
@@ -121,7 +123,11 @@ fn write(g: &Globals, path: &Path, filter: &IfaceFilter) -> anyhow::Result<()> {
             let names = filter.parts().1;
             let reply =
                 node.put_config(&json!({"socks": {"ifaces": names}, "web": {"ifaces": names}}))?;
-            eprintln!("{}", saved_text(&reply, filter));
+            let text = saved_text(&reply, filter);
+            if !proxy_off(&reply) && restart_tail(&reply).is_none() {
+                refuse_while_restarting(&node)?;
+            }
+            eprintln!("{text}");
             Ok(())
         }
     }
@@ -129,6 +135,9 @@ fn write(g: &Globals, path: &Path, filter: &IfaceFilter) -> anyhow::Result<()> {
 
 fn saved_text(reply: &Value, filter: &IfaceFilter) -> String {
     let what = describe(filter);
+    if proxy_off(reply) {
+        return format!("Interface list saved: {what} ({PROXY_OFF_NOTE}).");
+    }
     match restart_tail(reply) {
         Some(tail) => format!("Interface list saved: {what} ({tail} after {NET_NAME} restarts)."),
         None => format!("Interface list saved: {what}."),
