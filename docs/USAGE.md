@@ -45,7 +45,7 @@ command fails. Exit codes: 0 joined (or already in the network), 1 refused, expi
 
 ### The network key
 
-`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group-<creator>` or a machine key `mesh2-…`. A key of the older format (`mesh1-…`, or three words with a group) is no longer accepted; ask a network admin for a new invite. If neither
+`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group-<creator>` or a machine key `mesh2-…`. An older-format key (`mesh1-…`, or three words with a group) is no longer accepted; ask a network admin for a new invite. If neither
 is given, the node reads the `network.key` field of the [settings file](#settings-file). If there is no key there
 either, `--no-config` makes this an error right away; otherwise the node starts anyway and waits for you to join a
 network from the page (see [First run without a key](#first-run-without-a-key)).
@@ -168,13 +168,13 @@ The new node joins without waiting for a DHT lookup:
   warns that the key is not saved and **does not print it**. It works until a restart, and then you need a new invite.
 - With `--key` of the same network the invite is not spent; with a key of another network it is an error.
 - If the settings file already holds a key of another network, the invite is spent and the received key is saved as a
-  separate network beside the main one (`nets/<id>/config.json` in the folder of the settings file). The main
+  separate network beside the main one (`nets/<id>/config.json` in the settings file folder). The main
   network, its key and its file stay as they were, and the node starts both. An invite of a network the node already
   has is not spent.
 - The same goes for `--key` of another network without an invite: the network is added beside the main one and the
   file keeps its key. A key of a network that is already saved is used. One node holds up to 8 networks;
   past that the run is refused before it goes to the network, and the invite is not spent.
-- A network added this way runs with the launch flags of the main network, except `--key`.
+- A network added this way runs with the main network's launch flags, except `--key`.
   It starts with the sites of the main network's list and the ones typed with `--site`;
   an added network joined by an invite also remembers the peer addresses from the invite, so it finds them at start.
 - The same join is available on the node page, in the "Invite from a network member" field. The answer comes at once,
@@ -218,7 +218,7 @@ this computer; `--raw` prints the machine form. `network list` shows the slots, 
 a note naming the admins, and the tray item is disabled. An invite that was not made by an admin is
 refused when it is redeemed.
 
-**Admins.** In the member list an admin opens the `⋯` menu of a row and picks `Make admin` or
+**Admins.** In the member list an admin opens a row's `⋯` menu and picks `Make admin` or
 `Make regular member`. An admin can give up their own role (`Give up admin rights`) unless they are the only
 one; the last admin cannot leave or give up the role, and is offered to make another member an admin
 or to delete the network. Make a second admin soon.
@@ -267,7 +267,7 @@ prints the node's reply instead of the table.
 A name wins over an id start. When several members match, nothing is done: the command lists the candidates and exits
 with code 1, and you repeat it with a longer start of the id. An id that is not in the list is refused.
 
-`admit`, `exclude`, `unexclude` and `admin` need the admin role of the network. `block` and `unblock` don't:
+`admit`, `exclude`, `unexclude` and `admin` need the network's admin role. `block` and `unblock` don't:
 a block is kept on this computer only. A refusal prints what the node said and what to do next, for example when you
 pick your own computer or try to take the role from the only admin. Repeating an action that is already done
 changes nothing and exits with code 0 (`Nothing changed: …`). `--reason` is up to 80 characters without control
@@ -389,7 +389,7 @@ exit on | exit off — turn working as an exit on or off
 
 ## Site checks
 
-The node checks every domain of the list by itself and publishes the result to all members. A check goes in steps:
+The node checks every listed domain by itself and publishes the result to all members. A check goes in steps:
 DNS (its own, over HTTPS), TCP, TLS with the real server name, HTTP. The result is one of these classes: `opens`,
 `blocked: address spoofed`, `blocked by ISP`, `blocked for this country`, `blocked as a bot`, `site is down`.
 
@@ -434,9 +434,9 @@ members" or "Selected members", then press "Publish port".
   "Open on this computer".
 
 A port is TCP or UDP; choose the protocol when you publish. For a UDP port the node starts a UDP listener on
-`127.0.0.1:<number>` instead, and the row has no browser address. The status of a UDP publication is always "not
+`127.0.0.1:<number>` instead, and the row has no browser address. A UDP publication's status is always "not
 checked". If the publishing node is too old to serve UDP, the row says so after the first attempt.
-A TCP and a UDP port of the same number are two separate publications. Limits and behavior of UDP ports: [Limitations](LIMITATIONS.md).
+A TCP and a UDP port of the same number are two separate publications. UDP port limits and behavior: [Limitations](LIMITATIONS.md).
 
 The same data lives in the settings file, per network:
 
@@ -444,7 +444,7 @@ The same data lives in the settings file, per network:
 - `ports.opened` is a list of `{node, port, proto, local}`;
 - `proto` is `"tcp"` (the default when absent) or `"udp"`;
 - both lists hold up to 64 entries; `(proto, port)` is unique in `ports.published`, `(proto, local)` is unique in
-  `ports.opened` and across all networks of the node.
+  `ports.opened` and across all the node's networks.
 
 Opening a `local` port that another network of the node already uses is refused with 422 and the text
 `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP). Example: publish a DNS server
@@ -474,7 +474,7 @@ The "Networks" tab has one tab per network and "+" to add a network. A network's
 - "Device settings": your name in this network, offering an exit to its members, leaving or deleting the network.
 
 The address is `#peers/<network>/<section>` (`members`, `services`, `device`; without the last part, Members opens).
-The old `#ports` address opens Shared services of the main network. The mobile app shows only "Members" and
+The old `#ports` address opens the main network's Shared services. The mobile app shows only "Members" and
 "Device settings".
 
 The page is a Vue application. Its sources are in `core/web_gui/ui/vue`; the built result is one file,
@@ -507,7 +507,7 @@ it), but does not print it; at start it prints a link with a temporary token ins
   service (`journalctl`, `logread`): whoever can read it in the first 10 minutes can set the password before the
   owner. On a shared machine, set the password at once.
 - **Access** (`web.access`) decides who can open the page. `localhost` means only this computer; `localnet` (the
-  default) also admits devices of the local network (private addresses `10/8`, `172.16/12`, `192.168/16`,
+  default) also admits local network devices (private addresses `10/8`, `172.16/12`, `192.168/16`,
   `169.254/16`). This is only about access to the node settings, not to the Mesh Town network or its traffic. Change
   it on the page or with `meshtown access page localhost|localnet [--config PATH] [--web-port N]`. Narrowing applies at
   once, widening after a restart.
@@ -534,7 +534,7 @@ The demo node (`core/examples/web_demo/`) is a light way to try the page without
     make web-demo
     # http://127.0.0.1:7777/?token=dev
 
-The full browser battery (Playwright, including an invite, joining with it and the "exit" flag of a foreign peer in
+The full browser battery (Playwright, including an invite, joining with it and the foreign peer's "exit" flag in
 the node table):
 
     make web-check                            # all cases
@@ -561,15 +561,15 @@ Every line is `+<seconds>s [tag] text`. The tags:
 | `[probe]` | the speed probe to a member: size, path, outcome |
 | `[docs]` | the shared network document (checks, exit flag, country, program version): syncing with members, writing the node's own name |
 | `[geo]` | detecting the node's own country (postponed when there is no network, or failed) |
-| `[domains]` | local edits of the list (the `--site` flag, console) and the output of `domains list` |
-| `[check]` | the result of checking one domain, the node's own or a neighbor's; errors of the `check` command |
+| `[domains]` | local list edits (the `--site` flag, console) and the output of `domains list` |
+| `[check]` | the result of checking one domain, the node's own or a neighbor's; `check` command errors |
 | `[checks]` | a summary of checks, the schedule state, problems reading the domain list or results |
 | `[console]` | errors parsing stdin commands; stdin closed (commands unavailable) |
-| `[socks]` | the SOCKS5 server: listen address, connection errors, and the result of each served request (path, outcome, bytes both ways, time) |
-| `[http]` | the HTTP side of the proxy (and the PAC file it serves): request results and rejected requests |
+| `[socks]` | the SOCKS5 server: listen address, connection errors, and each served request's result (path, outcome, bytes both ways, time) |
+| `[http]` | the proxy's HTTP side (and the PAC file it serves): request results and rejected requests |
 | `[route]` | the chosen path for a domain: itself, a member, or a refusal with a reason |
 | `[exit]` | working as an exit: whose requests were accepted and how they ended |
-| `[get]` | the result of the `get` command |
+| `[get]` | the `get` command result |
 | `[port]` | port forwarding between members (`ports.published` and opened local ports): opened, closed, failed, UDP sessions |
 | `[guard]` | the memory and stall watchdog: a periodic summary, a heap profile, a stall or exit report |
 | `[tray]` | the tray app: node start and stop, errors |
