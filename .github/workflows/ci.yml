@@ -25,6 +25,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     # A hung test must not hold a runner for the default six hours.
     timeout-minutes: 60
+    # Hosted macOS runners are often unavailable and the job then never starts: that must not turn the whole run red.
+    # A macOS job that does start and fails is still visible in the run; Linux and Windows stay blocking.
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     strategy:
       fail-fast: false
       matrix:
