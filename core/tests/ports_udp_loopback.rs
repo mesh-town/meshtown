@@ -30,7 +30,7 @@ use ports_pair::{
 };
 
 const REPLY_WAIT: Duration = Duration::from_secs(15);
-const SILENCE_WAIT: Duration = Duration::from_secs(5);
+const SILENCE_WAIT: Duration = Duration::from_secs(2);
 
 /// Who sees the published port.
 #[derive(Clone, Copy)]

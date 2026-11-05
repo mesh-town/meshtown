@@ -234,6 +234,17 @@ impl Fixture {
         let done = tokio::time::timeout(limit, respond(&self.res.conn, &self.res.ctx)).await;
         done.expect("respond did not return in time")
     }
+
+    /// Like `when_responding_alone`, with the handshake term set to `term`.
+    async fn when_responding_alone_with_term(
+        &self,
+        term: Duration,
+        limit: Duration,
+    ) -> anyhow::Result<()> {
+        let responding = respond_within(&self.res.conn, &self.res.ctx, term);
+        let done = tokio::time::timeout(limit, responding).await;
+        done.expect("respond did not return in time")
+    }
 }
 
 impl Side {

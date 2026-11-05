@@ -58,11 +58,19 @@ async fn mem_tail_at_limit_keeps_name() {
 
 #[tokio::test]
 async fn mem_silent_initiator_times_out_408() {
-    // The project's `tokio` has no `test-util` (no `time::pause`, so no `start_paused`) — the test runs in real time, ~10 s; it fits in nextest (slow 15 s).
+    // The project's `tokio` has no `test-util` (no `time::pause`, so no `start_paused`) — the test runs in real time with the handshake term set to 1 s.
     // given: A opened a connection and is silent, no stream
     let fx = setup(Opts::default()).await;
-    // when: B responds and waits for the handshake for 10 s
-    let responded = fx.when_responding_alone(Duration::from_secs(20)).await;
+    // when: B responds and waits for the handshake for 1 s
+    let term = Duration::from_secs(1);
+    let started = std::time::Instant::now();
+    let responded = fx
+        .when_responding_alone_with_term(term, Duration::from_secs(20))
+        .await;
+    assert!(
+        started.elapsed() < Duration::from_secs(3),
+        "the term is 1 s"
+    );
     // then: Err, B closed the connection with code 408 and the reason timeout
     assert!(
         responded.is_err(),

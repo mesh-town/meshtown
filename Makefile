@@ -1,4 +1,4 @@
-.PHONY: help dist-urls build build_macos build_macos_app_dev build_linux build_windows build_all test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test fmt-check clippy clippy-full core-check features-check linux-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
+.PHONY: help dist-urls build build_macos build_macos_app_dev build_linux build_windows build_all deps-guard test test-cargo test-one test-py test-dist test-js test-page test-vue test-changed android-test fmt-check clippy clippy-full core-check features-check linux-check net-boundary boundary check web-build web-bundle-check web-demo web-check web-check-node web-check-nobuild web-check-node-nobuild web-check-lint web-typecheck web-deps battery
 
 # One cargo build per host at a time — make -j does not break that.
 .NOTPARALLEL:
@@ -217,7 +217,13 @@ web-bundle-check: $(VUE_DEPS)
 	@cmp $(BUNDLE_TMP)/app.js $(BUNDLE)/app.js || { echo "bundle/app.js is stale: make web-build"; exit 1; }
 	@test "$$(ls $(BUNDLE))" = app.js || { echo "$(BUNDLE) must contain exactly app.js"; exit 1; }
 
-test-changed:
+# Warning only: a debug/deps with many files slows every network test (the macOS firewall scans each test binary);
+# a fresh CARGO_TARGET_DIR cures it.
+DEPS_MAX ?= 20000
+deps-guard:
+	@n=$$(ls $(TARGET_DIR)/debug/deps 2>/dev/null | wc -l | tr -d ' '); if [ "$$n" -gt $(DEPS_MAX) ]; then echo "warning: $(TARGET_DIR)/debug/deps has $$n files (> $(DEPS_MAX)): network tests may fail with NoRoute; use a fresh CARGO_TARGET_DIR" >&2; fi
+
+test-changed: deps-guard
 	CARGO_TARGET_DIR=$(TARGET_DIR) $(DYN_ENV) python3 scripts/changed_tests/changed_tests.py --base $(BASE) $(if $(DRY),--dry-run)
 
 # JVM unit tests of the Android shell (no emulator, NDK or Rust needed; needs the Android SDK and JDK 17+).
@@ -253,7 +259,7 @@ linux-check:
 	@if [ -n "$(SKIP_LINUX_CHECK)" ]; then echo "linux-check: skipped"; else scripts/checks/linux_check.sh; fi
 
 # -k: a red target does not abort the rest — the battery shows all red ones in one go.
-check:
+check: deps-guard
 	$(MAKE) -k test test-py test-dist dist-urls test-js web-typecheck web-bundle-check fmt-check clippy-full core-check features-check linux-check net-boundary boundary
 
 # Network core boundary: core/transport/net has no foreign network crates and no paths outside the core;

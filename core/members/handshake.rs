@@ -197,6 +197,15 @@ fn announce_up(conn: &Arc<dyn PeerConn>, ctx: &MemberContext, tail: &[u8]) {
 
 /// Answers a handshake started by the peer (the mirror of `initiate`).
 pub async fn respond(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()> {
+    respond_within(conn, ctx, HANDSHAKE_TIMEOUT).await
+}
+
+/// `respond` with the handshake term as a parameter (tests shorten it).
+pub(crate) async fn respond_within(
+    conn: &Arc<dyn PeerConn>,
+    ctx: &MemberContext,
+    term: Duration,
+) -> Result<()> {
     let peer = conn.peer();
     let exchange = async {
         admit_peer(conn, ctx).await?;
@@ -221,10 +230,10 @@ pub async fn respond(conn: &Arc<dyn PeerConn>, ctx: &MemberContext) -> Result<()
             .unwrap_or_default();
         anyhow::Ok((send, tail))
     };
-    let (mut send, tail) = match timeout(HANDSHAKE_TIMEOUT, exchange).await {
+    let (mut send, tail) = match timeout(term, exchange).await {
         Err(_) => {
             conn.close(408, b"timeout");
-            bail!("handshake did not finish within 10 s")
+            bail!("handshake did not finish within {term:?}")
         }
         Ok(r) => r?,
     };

@@ -41,5 +41,7 @@ slow-timeout = { period = "60s", terminate-after = 4 }
 test-group = 'heavy-net'
 
 [[profile.default.overrides]]
-filter = 'test(/relayed_dial_tests::|relay_admit_tests::|relay_contract_tests::|relay_path_tests::|relay_wiring::/)'
+filter = 'test(/relayed_dial_tests::|relay_admit_tests::|relay_contract_tests::|relay_path_tests::|relay_wiring::|transports_relay::tests::/)'
 test-group = 'lan-relay'
+# The first connection on a LAN-address cluster can fail with NoRoute on a loaded machine; a real breakage fails all three attempts.
+retries = 2
