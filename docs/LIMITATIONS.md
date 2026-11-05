@@ -5,7 +5,7 @@ What Mesh Town does not do in the 0.3.x line, in detail. The short list is in [R
 - **No TUN and no capture of all system traffic.** Mesh Town gives a local SOCKS5/HTTP proxy and published TCP and UDP ports;
   a program must be able to use a proxy itself (`socks5h://`, a browser setting) or connect to `127.0.0.1:<port>`.
 - **Published ports are TCP or UDP**, and only for programs listening on the publishing computer itself (UDP: on
-  `127.0.0.1` only). A UDP port is also opened only on `127.0.0.1` of the opening computer.
+  `127.0.0.1` only). The opening computer also opens a UDP port on its own `127.0.0.1` only.
 - **Published UDP ports ride on reliable streams, with limits.**
   - Datagrams travel over a reliable stream, not as raw datagrams: they arrive in order and are not lost on the way,
     but a stalled link delays everything behind it. A datagram larger than 2048 bytes is truncated.

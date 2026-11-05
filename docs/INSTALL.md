@@ -44,8 +44,9 @@ always the latest build.
 
 On Debian and Ubuntu, prefer the apt package: it updates with the system ([Debian, Ubuntu (apt)](#debian-ubuntu-apt)).
 Console-only Linux builds are `meshtown-cli-linux-x86_64.tar.gz` and `meshtown-cli-linux-aarch64.tar.gz` in the same
-folder. The folder of each system keeps the four latest versions too, with `SHA256SUMS` and notes. The Windows binary
-is not signed; SmartScreen may warn on the first launch.
+folder. Each system's folder also keeps the four latest versions, with `SHA256SUMS` and notes.
+
+The Windows binary is not signed; SmartScreen may warn on the first launch.
 
 The same names on every system: `meshtown` is the build with the tray icon, `meshtown-cli` is the node in a terminal
 until Ctrl+C. They share their settings, so do not run both at once.
@@ -61,17 +62,20 @@ sudo apt install ./meshtown_amd64.deb
 ```
 
 Later updates come with `sudo apt update && sudo apt upgrade`. The package installs the service `meshtown` but leaves it
-stopped; to run the node in the background, `sudo systemctl enable --now meshtown` (settings:
-`/etc/meshtown/config.json`). To join an existing network first, take a single-use invite from a member and run it once:
+stopped. Settings are in `/etc/meshtown/config.json`.
+
+To join an existing network, take a single-use invite from a member and run this once:
 
 ```sh
 sudo meshtown run --config /etc/meshtown/config.json --invite mesh-invite2-…
 ```
 
-Stop it with Ctrl+C once it reports joining, then start the service with `sudo systemctl enable --now meshtown`. On a
-desktop with the tray, do not enable the service: two nodes on one machine share their ports.
+Stop it with Ctrl+C once it reports joining, then run the node in the background:
+`sudo systemctl enable --now meshtown`. On a desktop with the tray, do not enable the service: two nodes on one machine
+share their ports.
+
 `sudo apt remove meshtown` (or `apt purge`) removes the package; `/etc/meshtown/` with the network key stays.
-The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edits made by hand are overwritten when the package is updated.
+The package owns `/etc/apt/sources.list.d/meshtown.sources`: a package update overwrites hand edits.
 
 ## Routers
 
@@ -81,7 +85,7 @@ The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edit
   wget -O- https://mesh-town.github.io/meshtown-openwrt/install.sh | sh
   ```
 
-  The script finds the package manager of the router itself, adds the signed package feed and installs the package
+  The script finds the router's package manager itself, adds the signed package feed and installs the package
   `meshtown`; the service starts on boot. Architectures: 64-bit ARM, 32-bit ARM Cortex and x86_64; MIPS, ARMv5/v6 and
   32-bit x86 routers are not covered yet.
 
@@ -137,7 +141,7 @@ Or with a network key: `meshtown join <key>` ([USAGE.md](USAGE.md) covers both).
 
 ## Other devices through the proxy
 
-Phones, tablets and other computers can reach the network through a node's proxy by using its automatic proxy
+Phones, tablets and other computers can reach the network through a node's proxy. Enter its automatic proxy
 configuration (PAC) address in their Wi-Fi or network settings:
 
 - On the desktop that runs the node: `http://127.0.0.1:1080/proxy.pac`.
