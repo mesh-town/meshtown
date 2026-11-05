@@ -29,16 +29,27 @@ same script.
 
 ## Debian package
 
-`build/debian/deb.py` builds `meshtown_<version>_<arch>.deb` (amd64, arm64) from the static release binary with the
-Python standard library: the binary, a systemd unit that stays disabled until `systemctl enable`, and the apt source
-and key of the repository (`keys/meshtown.gpg`). `build/debian/apt_repo.py update` adds packages to an apt repository
-tree, prunes old versions, rebuilds the indexes with by-hash files and signs them with `gpg`.
-`scripts/release/dist/build_debs.sh <assets> <out> <version>` builds both packages from the release archives, and
-`scripts/release/dist/publish.sh` publishes them to `linux/debian/` of the distribution repository, served at
-`https://mesh-town.github.io/meshtown-dist/linux/debian`. Tests: `make test-py` (the ones that need `dpkg-deb`,
-`apt-get` or `gpgv` are skipped where these tools are missing).
+`build/debian/deb.py` builds `meshtown_<version>_<arch>.deb` (amd64, arm64) from the static release binary, using
+only the Python standard library. The package holds:
 
-## What is used outside this directory
+- the binary;
+- a systemd unit that stays disabled until `systemctl enable`;
+- the repository's apt source and key (`keys/meshtown.gpg`).
 
-Only `core/` (the path dependency in `Cargo.toml`), `scripts/release/lib.sh`, `scripts/release/dist/` and the workspace root, from
-which `cargo` runs. `make boundary` checks this.
+Related scripts:
+
+- `build/debian/apt_repo.py update` adds packages to an apt repository tree, prunes old versions, rebuilds the
+  indexes with by-hash files and signs them with `gpg`.
+- `scripts/release/dist/build_debs.sh <assets> <out> <version>` builds both packages from the release archives.
+- `scripts/release/dist/publish.sh` publishes them to `linux/debian/` in the distribution repository, served at
+  `https://mesh-town.github.io/meshtown-dist/linux/debian`.
+
+Tests: `make test-py`. Tests that need `dpkg-deb`, `apt-get` or `gpgv` are skipped where these tools are missing.
+
+## External dependencies
+
+`make boundary` checks that this directory uses only:
+
+- `core/` (the path dependency in `Cargo.toml`);
+- `scripts/release/lib.sh` and `scripts/release/dist/`;
+- the workspace root, from which `cargo` runs.
