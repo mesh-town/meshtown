@@ -4,6 +4,7 @@
 //! signature to one connection, so a frame seen by a third party cannot be replayed from another transport.
 //! The admit write goes to an in-memory replica; the full server path is in `server_owner_frame_tests.rs`.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use bytes::Bytes;
@@ -11,12 +12,13 @@ use data_encoding::HEXLOWER;
 
 use super::{admit_owner, issue_note, owner_message, owner_proven, sign_owner, CTX_INVITE_OWNER};
 use crate::invite::store::{issue_record, IssueRecord, Ledger};
+use crate::invite::store_admins::issue_value;
 use crate::invite::wire::OwnerRequest;
 use crate::invite::InviteSecret;
 use crate::members::access::record::{admit_key, parse_entry, AclKind, AclValue, Parsed, Via};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::contract::{pid, secret};
-use crate::transport::net::mem::{MemSync, MemSyncNet};
+use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
 use crate::transport::net::{NodeSecret, PeerId, Replica, ReplicaEntry};
 
@@ -204,7 +206,7 @@ mod admit_write {
         let node = setup().await;
         node.when_issued(&invite(1), Some("Masha")).await;
         // when: the owner is admitted for this invite
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW, None)
             .await
             .unwrap();
         // then: the node's own record admits the owner by invite, with the name as the note
@@ -223,7 +225,7 @@ mod admit_write {
         // given: a node that has no record for this invite
         let node = setup().await;
         // when
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW, None)
             .await
             .unwrap();
         // then
@@ -237,7 +239,7 @@ mod admit_write {
         let node = setup().await;
         node.when_issued(&invite(1), None).await;
         // when: the holder admits the owner
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW, None)
             .await
             .unwrap();
         // then: the record is an invite vote with an empty note
@@ -249,11 +251,19 @@ mod admit_write {
     async fn admit_owner_twice_keeps_one_record() {
         // given: an owner already admitted (a retry after a failed mark)
         let node = setup().await;
-        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW)
+        admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW, None)
             .await
             .unwrap();
         // when: the same admit is written again, later
-        let again = admit_owner(&node.list, &invite(1).hash_hex(), pid(7), None, NOW + 3).await;
+        let again = admit_owner(
+            &node.list,
+            &invite(1).hash_hex(),
+            pid(7),
+            None,
+            NOW + 3,
+            None,
+        )
+        .await;
         // then: no error and still one live record under the key
         assert!(again.is_ok(), "{again:?}");
         assert_eq!(node.live_admits().await, 1);
@@ -293,11 +303,24 @@ fn issue_entry(author: PeerId, made_unix: u64, for_whom: Option<&str>) -> Replic
     }
 }
 
+/// A live v2 `invite/<hash>` entry written by `author` on behalf of `issuer`.
+fn v2_entry(author: PeerId, issuer: PeerId, made_unix: u64, for_whom: &str) -> ReplicaEntry {
+    let mut e = issue_entry(author, made_unix, Some(for_whom));
+    let rec = IssueRecord {
+        v: 1,
+        made_unix,
+        for_whom: Some(for_whom.to_string()),
+    };
+    e.value = Bytes::from(issue_value(&rec, Some(issuer)).unwrap());
+    e
+}
+
 /// A node with its in-memory shared replica and a domain list over it.
 struct Node {
     list: DomainList,
     me: PeerId,
     shared: Arc<dyn Replica>,
+    mem: Arc<MemReplica>,
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
 
@@ -309,13 +332,15 @@ async fn setup() -> Node {
         network_seed: [9; 32],
         store_dir: None,
     });
-    let shared: Arc<dyn Replica> = backend.replica_mem(REPLICA_NET).unwrap();
+    let mem = backend.replica_mem(REPLICA_NET).unwrap();
+    let shared: Arc<dyn Replica> = mem.clone();
     let own: Arc<dyn Replica> = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let list = DomainList::open(shared.clone(), own).await.unwrap();
     Node {
         list,
         me: me.peer_id(),
         shared,
+        mem,
         _keep: (net, backend),
     }
 }
@@ -348,64 +373,5 @@ impl Node {
     }
 }
 
-mod after_an_exclusion {
-    use super::*;
-
-    /// The admit time of `pid(7)` after admitting it twice: first at `NOW`, then with `after` at `later`.
-    async fn second_admit_time(after: Option<u64>, later: u64) -> u64 {
-        let node = setup().await;
-        let hash = invite(1).hash_hex();
-        admit_owner(&node.list, &hash, pid(7), None, NOW)
-            .await
-            .unwrap();
-        admit_owner(&node.list, &hash, pid(7), after, later)
-            .await
-            .unwrap();
-        assert_eq!(node.live_admits().await, 1);
-        node.admit_of(pid(7))
-            .await
-            .expect("no admit record")
-            .made_unix
-    }
-
-    #[tokio::test]
-    async fn writes_a_second_after_it() {
-        // given: an owner excluded at NOW + 500 while the clock is still behind it
-        // when: it comes back by an invite
-        let made = second_admit_time(Some(NOW + 500), NOW + 10).await;
-        // then: the new record is one second later than the exclusion
-        assert_eq!(made, NOW + 501);
-    }
-
-    #[tokio::test]
-    async fn rewrites_an_older_admit() {
-        // given: an owner admitted at NOW and excluded at NOW + 5
-        // when: it comes back well after the exclusion
-        let made = second_admit_time(Some(NOW + 5), NOW + 100).await;
-        // then: the old record is replaced by one made at the clock
-        assert_eq!(made, NOW + 100);
-    }
-
-    #[tokio::test]
-    async fn keeps_now_when_now_is_later() {
-        // given: a node with no admit of the owner and an exclusion older than the clock
-        let node = setup().await;
-        // when: the owner is admitted with the exclusion time
-        admit_owner(
-            &node.list,
-            &invite(1).hash_hex(),
-            pid(7),
-            Some(NOW + 5),
-            NOW + 100,
-        )
-        .await
-        .unwrap();
-        // then: the record carries the current time
-        let made = node
-            .admit_of(pid(7))
-            .await
-            .expect("no admit record")
-            .made_unix;
-        assert_eq!(made, NOW + 100);
-    }
-}
+#[path = "proof_admit_tests.rs"]
+mod admit_more;

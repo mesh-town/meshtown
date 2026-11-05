@@ -161,7 +161,7 @@ impl InviteServer {
             return (RedeemCode::Busy, None);
         }
         let after = self.excluded_secs(&owner);
-        if let Err(e) = admit_owner(list, hash, owner, after, now_unix).await {
+        if let Err(e) = admit_owner(list, hash, owner, after, now_unix, admins.as_ref()).await {
             say("invite", format!("couldn't write the member record: {e:#}"));
             return (RedeemCode::Internal, None);
         }
@@ -193,3 +193,7 @@ mod support;
 #[cfg(test)]
 #[path = "server_owner_excluded_tests.rs"]
 mod excluded_tests;
+
+#[cfg(test)]
+#[path = "server_owner_note_tests.rs"]
+mod note_tests;
