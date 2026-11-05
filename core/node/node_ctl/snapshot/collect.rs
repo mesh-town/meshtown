@@ -40,6 +40,8 @@ pub(crate) struct Collected {
     pub snap: NodeSnapshot,
     pub domains: Vec<String>,
     pub partial: bool,
+    /// When the collection finished; `snapshot_age_ms` of the page is measured from it.
+    pub collected_at: tokio::time::Instant,
 }
 
 /// Reads a document under `READ_TIMEOUT`: an error or timeout gives `empty` and `false`.

@@ -45,6 +45,9 @@ Exact enum values and field notes, by group.
   stop. More in `WEB-API-config.md`, section "The `node.invite_join` field and single-use invites".
 - `boot_id` — random 8 hexadecimal characters, new on every process start. A changed `boot_id` means the node
   restarted: the page clears the log and rereads the config.
+- `snapshot_age_ms` — how old the collected state behind this answer is, in milliseconds; `0` before the first
+  collection. The node collects only while the page reads, so after an idle pause the first answer waits up to 2 s
+  for a fresh collection and, failing that, comes with the old one and its age.
 - `now` — seconds since node start with one decimal place, the same scale as the log lines
   (`core/node/output.rs`).
 

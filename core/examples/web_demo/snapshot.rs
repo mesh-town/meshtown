@@ -234,6 +234,7 @@ fn build_node_snapshot(
 ) -> NodeSnapshot {
     NodeSnapshot {
         boot_id: st.boot_id.clone(),
+        snapshot_age_ms: 0,
         now: st.t,
         node: build_node_runtime(st),
         members: build_members_info(st),

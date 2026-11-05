@@ -39,6 +39,7 @@ mod pending_invites;
 mod process_overlay;
 pub(crate) mod slot_param;
 mod state;
+mod state_fresh;
 mod state_host;
 mod state_net;
 mod token_rotate;
