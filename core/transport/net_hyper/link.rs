@@ -27,10 +27,12 @@ pub struct PathFacts {
 }
 
 impl PathFacts {
-    /// Outgoing session: `via` is the address a direct dial used (`None` for a dial by key).
+    /// Outgoing session: `via` is the address a direct dial used (`None` for a dial by key). For a dial by key
+    /// the address the library reports is kept, unless the session ever ran through a relay.
     pub fn dialed(conn: &DhtConnection, via: Option<SocketAddrV4>) -> PathFacts {
+        let relayed = conn.relay_path().is_some();
         PathFacts {
-            remote: via.map(SocketAddr::V4),
+            remote: dialable_remote(via, conn.remote_addr(), relayed),
             rtt: conn.rtt_probe(),
             relay: relay_label(None, conn.is_relayed()),
             relay_path: conn.relay_path(),
@@ -56,6 +58,20 @@ impl PathFacts {
             Some(RelayPath::Direct) => None,
             _ => self.relay.clone(),
         }
+    }
+}
+
+/// The address of an outgoing session worth remembering: the one a direct dial used, else the address the
+/// library reports for the peer; a session that ran through a relay reports the relay's address, so none.
+pub fn dialable_remote(
+    via: Option<SocketAddrV4>,
+    reported: Option<SocketAddr>,
+    was_relayed: bool,
+) -> Option<SocketAddr> {
+    match (via, was_relayed) {
+        (Some(v), _) => Some(SocketAddr::V4(v)),
+        (None, true) => None,
+        (None, false) => reported,
     }
 }
 

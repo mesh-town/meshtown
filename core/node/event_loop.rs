@@ -59,7 +59,7 @@ async fn invite_and_sync(peer: PeerId, swarm: &dyn Membership, domains: &DomainL
 /// Collects and, if changed, writes to disk the address cache of a confirmed member
 /// (`MemberEvent::Up`).
 fn remember_peer_and_save(cache: &mut PeersCache, peer: PeerId, selected: Option<AddrHint>) {
-    // The stack doesn't hand out known addresses: `hyper` has no hints, and the cache rejects an entry without addresses.
+    // An entry without addresses (an incoming session, a relayed one) is rejected by the cache.
     let entry = peers_cache::entry_for(None, peer, selected.as_ref(), net_mainline::unix_now());
     if cache.remember(entry, net_mainline::unix_now()) {
         save_cache(cache);
