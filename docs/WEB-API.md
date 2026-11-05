@@ -159,6 +159,7 @@ Example (the values are made up, but all fields are required; `null` is allowed 
 ```json
 {
   "boot_id": "b3f1c2a9",
+  "snapshot_age_ms": 420,
   "now": 1861.4,
   "config_rev": 7,
   "node": {
