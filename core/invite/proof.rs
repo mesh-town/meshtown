@@ -1,17 +1,19 @@
 //! Proof that the newcomer owns the permanent node key, and the admission record written for it.
 //!
 //! What it does: builds and checks the signature over the invite hash, the one-time transport id and the
-//! owner id; takes the "for whom" label from the issue records; writes the `admit` record of the owner.
+//! owner id; takes the "for whom" label from the issue records (in a managed network only from the records of admins); writes the `admit` record of the owner.
 //! What it doesn't do: no network and no frames (`invite::wire`), no decision whether to let the owner in
 //! (`access::view`).
 //! Links: signed by `invite::redeem`, checked and written by `invite::server`.
 
 use super::store::{IssueRecord, FOR_WHOM_MAX_CHARS, ISSUE_PREFIX};
+use super::store_admins::by_admin;
 use super::wire::OwnerRequest;
 use super::InviteSecret;
 use crate::members::access::record::{put, rewrite, AclKind, AclValue, Via};
 use crate::proxy::domains::DomainList;
 use crate::transport::net::{live, NetError, NodeSecret, PeerId, ReplicaEntry};
+use std::collections::BTreeSet;
 
 /// Domain separation of the owner proof; a changed byte here is a changed protocol.
 pub const CTX_INVITE_OWNER: &[u8] = b"meshtown invite owner proof v1\0";
@@ -55,18 +57,23 @@ pub fn issue_note(entries: &[ReplicaEntry]) -> String {
 
 /// Writes the owner's `admit` record (via the invite) into the shared document, with the invite's label.
 /// With `after` (the exclusion a returning owner outdates) the record is stamped later than it and overwrites
-/// an older one.
+/// an older one. With `admins` (a managed network) only the issue records written by admins give the label.
 pub async fn admit_owner(
     list: &DomainList,
     hash: &str,
     owner: PeerId,
     after: Option<u64>,
     now_unix: u64,
+    admins: Option<&BTreeSet<PeerId>>,
 ) -> anyhow::Result<()> {
     let shared = list.shared_replica();
     let key = format!("{ISSUE_PREFIX}{hash}").into_bytes();
     let found = shared.scan(&key).await.map_err(NetError::into_anyhow)?;
-    let issued: Vec<ReplicaEntry> = live(found).into_iter().filter(|e| e.key == key).collect();
+    let issued: Vec<ReplicaEntry> = live(found)
+        .into_iter()
+        .filter(|e| e.key == key)
+        .filter(|e| admins.is_none_or(|a| by_admin(e, a)))
+        .collect();
     let value = AclValue {
         kind: AclKind::Admit,
         subject: owner,

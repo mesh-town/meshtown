@@ -17,7 +17,7 @@ use crate::members::access::record::Via;
 use crate::members::access::tally::{Ledger as Votes, TallyInput};
 use crate::members::access::view::{AccessView, Verdicts};
 use crate::transport::net::facade::test_support::{pid, secret};
-use crate::transport::net::mem::{MemSync, MemSyncNet};
+use crate::transport::net::mem::{MemReplica, MemSync, MemSyncNet};
 use crate::transport::net::sync_backend::{SyncCtx, REPLICA_DOMAINS, REPLICA_NET};
 use crate::transport::net::{live, NodeSecret, Replica};
 
@@ -85,12 +85,24 @@ pub(super) fn assert_refused(reply: Option<RedeemReply>, want: RedeemCode) {
 /// The server over a filled list with one issued invite.
 pub(super) struct Node {
     server: InviteServer,
-    shared: Arc<dyn Replica>,
+    pub(super) shared: Arc<dyn Replica>,
+    pub(super) mem: Arc<MemReplica>,
     list: DomainList,
     _keep: (Arc<MemSyncNet>, Arc<MemSync>),
 }
 
 pub(super) async fn setup_node(access: AccessView) -> Node {
+    let node = setup_managed_node(access).await;
+    let record = issue_record(now(), Some("Masha"));
+    Ledger::of(&node.list)
+        .issue(&issued().hash_hex(), &record)
+        .await
+        .unwrap();
+    node
+}
+
+/// The server over a filled list with no issue record yet; tests add the records they need.
+pub(super) async fn setup_managed_node(access: AccessView) -> Node {
     let net = MemSyncNet::new();
     let ctx = SyncCtx {
         secret: secret(2),
@@ -98,14 +110,10 @@ pub(super) async fn setup_node(access: AccessView) -> Node {
         store_dir: None,
     };
     let backend = net.backend(ctx);
-    let shared: Arc<dyn Replica> = backend.replica_mem(REPLICA_NET).unwrap();
+    let mem = backend.replica_mem(REPLICA_NET).unwrap();
+    let shared: Arc<dyn Replica> = mem.clone();
     let own: Arc<dyn Replica> = backend.replica_mem(REPLICA_DOMAINS).unwrap();
     let list = DomainList::open(shared.clone(), own).await.unwrap();
-    let record = issue_record(now(), Some("Masha"));
-    Ledger::of(&list)
-        .issue(&issued().hash_hex(), &record)
-        .await
-        .unwrap();
     let cell = Arc::new(OnceLock::new());
     drop(cell.set(list.clone()));
     let key = NetworkKey::from_bytes(KEY);
@@ -113,6 +121,7 @@ pub(super) async fn setup_node(access: AccessView) -> Node {
     Node {
         server,
         shared,
+        mem,
         list,
         _keep: (net, backend),
     }
