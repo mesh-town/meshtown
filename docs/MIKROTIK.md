@@ -194,4 +194,4 @@ version is out.
 - Memory and disk use depend on the model; slow flash storage makes the first unpacking slow.
 - The image supports ARM64, 32-bit ARM (ARMv7) and x86_64. A model with a MIPS CPU cannot run containers; use a
   computer or another router in the same network instead (for OpenWrt and Keenetic see [INSTALL.md](INSTALL.md#routers)).
-- General limits of the program: [LIMITATIONS.md](LIMITATIONS.md).
+- General program limits: [LIMITATIONS.md](LIMITATIONS.md).

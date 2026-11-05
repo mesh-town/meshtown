@@ -14,7 +14,7 @@ cargo build --release --locked --no-default-features --features net-hyper   # no
 
 | Command | Target | Result in `dist/` |
 |---|---|---|
-| `make build` | the OS of this computer | native build |
+| `make build` | this computer's OS | native build |
 | `make build_macos` / `make build_macos_app` | macOS, command line / `.app` with a tray (arm64) | `macos-arm64/MeshTown-<version>.app` |
 | `make build_linux`, `make build_windows` | Linux or Windows x86_64, cross-built in a container | `meshtown-<os>-{cli,gui}-<version>` |
 | `make build_all` | all three in turn | — |

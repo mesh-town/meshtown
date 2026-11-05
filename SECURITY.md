@@ -22,7 +22,7 @@ are agreed with the reporter.
 - An invite is single-use and expires after a day. Hand the string over in person.
 - The settings file (`config.json`) holds the network key and the node secret; the node creates it with mode `0600`
   in a `0700` directory. Do not share or commit it.
-- The node page is served over plain HTTP. In the default `localnet` mode devices of the local network can reach it, and
+- The node page is served over plain HTTP. In the default `localnet` mode local network devices can reach it, and
   the password, token and cookie travel unencrypted; on an untrusted network use `meshtown access localhost`. Do not
   publish the page port through `ports.published`: such connections arrive from `127.0.0.1` and bypass the access mode.
 - The exit refuses private, loopback, link-local, CGNAT and multicast addresses, but an exit still sees which hosts a

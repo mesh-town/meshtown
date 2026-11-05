@@ -65,7 +65,7 @@ pages/     page objects by page section — locators and actions, selectors only
   app-shell.ts        the whole page: loading, window size, section widths and edges, card objects
   tabs-bar.ts         the tab strip
   top-panel.ts        the top strip: logo, network name, status line
-  glossary.ts         dictionary of page texts, member label
+  glossary.ts         page text dictionary, member label
   join-card.ts        the join card (JS moves it between Home and "Settings → Network")
   home/               Home: section (panel, card frames, first screen), net-card (network,
                       invite, members), nets-block (network choice), exit-card ("Exit via…"), name-card
@@ -84,7 +84,7 @@ specs/     specs: a file per section or feature; the test name carries the case 
    `vue/src/static-limits.test.mjs` (vitest, node project). Only what cannot be checked without a browser goes here.
 1. Take the next free number: `rg -o "^test\('[0-9]+-" specs` shows the taken ones. The test name is
    `N-slug: what is checked`; the spec is `specs/<section>.spec.ts` (a new file if the section does not exist).
-2. Selectors live only in the page object of their section (`pages/`), never in the spec; name a method
+2. Selectors live only in the their section's page object (`pages/`), never in the spec; name a method
    after the action or the property ("restart button is visible"), not after the markup.
 3. Locators must survive a markup change. Anchors, in order of preference:
    1. `getByRole` with a name;
