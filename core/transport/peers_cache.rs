@@ -1,6 +1,6 @@
 //! Cache of the last working addresses of network members, on disk.
 //!
-//! What it does: keeps in `peers-cache.json` next to the settings file the addresses of members with whom
+//! What it does: keeps in `peers-cache-<network id>.json` next to the settings file the addresses of members with whom
 //! there has already been a working connection (`MemberEvent::Up`/`Down`), and hands them out at node start so as not to
 //! wait for the DHT.
 //! What it doesn't do: does not read or write the DHT, does not check that the stored addresses are alive — a member
@@ -21,8 +21,13 @@ use crate::config::config_file::write_tmp_and_rename;
 use crate::node::output::say;
 use crate::transport::net_mainline::record::{entry_to_addr, RosterEntry};
 
-/// File name of the cache; the file is kept next to the settings file.
+/// Base file name of the cache; the file of a network is `peers-cache-<first 16 chars of the network id>.json`
+/// in the same directory (see `network_cache_path`).
 pub const PEERS_CACHE_FILE_NAME: &str = "peers-cache.json";
+/// Prefix shared by every cache file name, the base one and the per-network ones.
+pub const PEERS_CACHE_NAME_PREFIX: &str = "peers-cache";
+/// How many chars of the network id go into the file name.
+const NETWORK_ID_NAME_CHARS: usize = 16;
 /// Ceiling on the number of members in the cache — leaves room, together with the invite addresses,
 /// in the capacity of the `found_tx` channel.
 pub const MAX_PEERS: usize = 32;
@@ -51,6 +56,13 @@ struct CacheFile {
     peers: Vec<RosterEntry>,
 }
 
+/// Cache file of one network: the base path's directory, `peers-cache-<first 16 chars of network_id>.json`.
+pub fn network_cache_path(base: &Path, network_id: &str) -> PathBuf {
+    let short: String = network_id.chars().take(NETWORK_ID_NAME_CHARS).collect();
+    base.with_file_name(format!("{PEERS_CACHE_NAME_PREFIX}-{short}.json"))
+}
+
+/// Base path of the cache beside `config` (the file name of a network is derived from it by `load`).
 /// `config` has no parent directory — `None`.
 pub fn peers_cache_path_beside(config: &Path) -> Option<PathBuf> {
     config.parent().map(|dir| dir.join(PEERS_CACHE_FILE_NAME))
@@ -133,10 +145,13 @@ pub fn entry_for(
 }
 
 impl PeersCache {
-    /// Reads the cache from disk; never fails. `path = None` or no file — an empty cache silently;
+    /// Reads the cache from disk; never fails. `path` is the base (`…/peers-cache.json`): the file read and
+    /// later written by `save` is the one of `network_id` in the same directory. `path = None` or no file — an empty cache silently;
     /// a read/parse error, a foreign version or a foreign network — an empty cache and a log line.
     /// Drops records older than `TTL_SECS`, keeps the `MAX_PEERS` freshest.
     pub fn load(path: Option<&Path>, network_id: &str, now_unix: u64) -> PeersCache {
+        let path = path.map(|base| network_cache_path(base, network_id));
+        let path = path.as_deref();
         let mut peers = match path {
             Some(path) => read_valid(path, network_id).unwrap_or_else(|e| {
                 say("cache", format!("cache {} not used: {e}", path.display()));
@@ -253,7 +268,7 @@ impl PeersCache {
             .map_err(|e| format!("cache {} not serialized: {e}", path.display()))?;
         let dir = path.parent().unwrap_or_else(|| Path::new("."));
         let tmp = dir.join(format!(
-            "{PEERS_CACHE_FILE_NAME}.tmp-{}",
+            "{PEERS_CACHE_NAME_PREFIX}.tmp-{}",
             std::process::id()
         ));
         write_tmp_and_rename(&tmp, path, &text)

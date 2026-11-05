@@ -6,14 +6,28 @@ use std::path::{Path, PathBuf};
 use super::layout::{net_slot_path, nets_dir, LEFT_PREFIX};
 use super::slot_id::NetSlotId;
 use crate::config::config_file::{stamp_utc, FILE_NAME};
+use crate::transport::peers_cache::PEERS_CACHE_NAME_PREFIX;
 
 /// Caches that sit beside the main file and move with it.
-const MAIN_CACHES: [&str; 4] = [
-    "peers-cache.json",
-    "peer-names.json",
-    "docs-store",
-    "replica",
-];
+const MAIN_CACHES: [&str; 3] = ["peer-names.json", "docs-store", "replica"];
+
+/// `peers-cache.json` and the per-network `peers-cache-<id>.json`.
+fn is_peers_cache(name: &str) -> bool {
+    name.starts_with(PEERS_CACHE_NAME_PREFIX) && name.ends_with(".json")
+}
+
+/// Names of the files beside the main file to move: the fixed caches that exist and every peers cache file.
+fn cache_names(beside: &Path) -> Vec<String> {
+    let mut names: Vec<String> = MAIN_CACHES
+        .iter()
+        .filter(|n| beside.join(n).exists())
+        .map(|n| n.to_string())
+        .collect();
+    let listed = std::fs::read_dir(beside).into_iter().flatten().flatten();
+    let peers = listed.filter_map(|e| e.file_name().into_string().ok());
+    names.extend(peers.filter(|n| is_peers_cache(n)));
+    names
+}
 
 /// `nets/left-<id>-<stamp>`.
 fn left_dir(main: &Path, id: &str, now_unix: u64) -> PathBuf {
@@ -82,12 +96,9 @@ fn move_caches(main: &Path, target: &Path) -> Result<(), String> {
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    for name in MAIN_CACHES {
-        let from = beside.join(name);
-        if !from.exists() {
-            continue;
-        }
-        std::fs::rename(&from, target.join(name)).map_err(|e| {
+    for name in cache_names(beside) {
+        let from = beside.join(&name);
+        std::fs::rename(&from, target.join(&name)).map_err(|e| {
             format!(
                 "couldn't move {name} to {}: {e}; the rest stays in place",
                 target.display()
@@ -106,3 +117,7 @@ pub fn set_aside_main(main: &Path, now_unix: u64) -> Result<PathBuf, String> {
     move_caches(main, &target)?;
     Ok(target)
 }
+
+#[cfg(test)]
+#[path = "aside_tests.rs"]
+mod tests;
