@@ -18,6 +18,7 @@ use super::target::{literal_address, v4_answer, v6_answer, NameAnswer, AAAA_LOOK
 use crate::exit::frame::EXIT_TCP_CONNECT_TIMEOUT;
 use crate::exit::server::ExitConfig;
 use crate::iface_bind::{check, connect_tcp};
+use crate::proxy::mesh::host::is_mesh_name;
 
 /// How long the connection phase takes in all and how long one attempt may take unless it is the last one.
 #[derive(Clone, Copy)]
@@ -66,7 +67,8 @@ pub(in crate::exit) async fn open_target(
     .await
 }
 
-/// The same with the connection made by `connect`. The test table `host_overrides` is used as is; an IP literal
+/// The same with the connection made by `connect`. A mesh name (`*.meshtown`) is refused first, before any lookup.
+/// The test table `host_overrides` is used as is; an IP literal
 /// goes through the filter (the client sends the address in the request frame as a name) and the own-address
 /// check; otherwise the resolver cache, on a miss DoH, and the same filter on every address of the answer.
 pub(in crate::exit) async fn open_target_with<S, C, F>(
@@ -80,6 +82,9 @@ where
     C: Fn(SocketAddr) -> F,
     F: Future<Output = io::Result<S>>,
 {
+    if is_mesh_name(target_host) {
+        return Err(Refusal::mesh_name(target_host));
+    }
     if let Some(addr) = cfg.host_overrides.get(target_host) {
         return open_one(cfg, target_host, *addr, budget, &connect).await;
     }

@@ -11,6 +11,7 @@ use tokio::task::JoinHandle;
 use super::{Gateway, Named};
 use crate::exit::outbound::{is_forbidden, is_own_address, udp_address};
 use crate::exit::udpgw::codec::{Frame, Target};
+use crate::proxy::mesh::host::is_mesh_name;
 use crate::site_checks::doh::Resolver;
 
 /// Frames of one `conn_id` kept while its name is looked up (the first one included); more are dropped.
@@ -198,6 +199,10 @@ async fn look_up(
 }
 
 async fn lookup(resolver: &Resolver, name: &str, port: u16) -> Option<(SocketAddr, bool)> {
+    // A mesh name (`*.meshtown`) never reaches the resolver.
+    if is_mesh_name(name) {
+        return None;
+    }
     #[cfg(test)]
     if let Some(answer) = super::resolve_tests::answer(name).await {
         return answer;

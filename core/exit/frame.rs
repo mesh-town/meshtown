@@ -30,7 +30,7 @@ pub const EXIT_CODE_REFUSED: u8 = 5;
 /// The request could not be parsed.
 pub const EXIT_CODE_BAD_REQUEST: u8 = 6;
 /// The address is closed to exit: private network, loopback, link-local, multicast, service, or
-/// the member's own address. Old clients print "unknown reply
+/// the member's own address, or a mesh name (`*.meshtown`). Old clients print "unknown reply
 /// code" for it and still treat it as a refusal.
 pub const EXIT_CODE_ADDRESS_FORBIDDEN: u8 = 7;
 /// The exit is set to send its connections through an interface that is missing, down or cannot be

@@ -1,7 +1,7 @@
 //! Mesh host addresses for the proxy.
 
 pub(super) mod catalog;
-pub(super) mod host;
+pub(crate) mod host;
 pub(super) mod open;
 pub(super) mod open_page;
 pub(super) mod page;

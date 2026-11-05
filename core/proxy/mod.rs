@@ -33,7 +33,7 @@ mod http;
 #[cfg(feature = "net-hyper")]
 mod http_head;
 #[cfg(feature = "net-hyper")]
-mod mesh;
+pub(crate) mod mesh;
 #[cfg(feature = "net-hyper")]
 mod outcome;
 #[cfg(feature = "net-hyper")]

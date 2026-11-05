@@ -20,17 +20,24 @@ impl MeshHost {
         let Target::Domain(domain) = target else {
             return None;
         };
-        let host = domain.trim_end_matches('.');
-        if host == MESH_SUFFIX {
-            return Some(MeshHost {
-                label: String::new(),
-            });
-        }
-        let label = host.strip_suffix(&format!(".{MESH_SUFFIX}"))?;
-        Some(MeshHost {
+        mesh_label(domain).map(|label| MeshHost {
             label: label.to_string(),
         })
     }
+}
+
+/// The part of a host before the last `.meshtown` label (empty for the bare suffix); `None` for any other host.
+pub(crate) fn mesh_label(host: &str) -> Option<&str> {
+    let host = host.trim_end_matches('.');
+    if host == MESH_SUFFIX {
+        return Some("");
+    }
+    host.strip_suffix(MESH_SUFFIX)?.strip_suffix('.')
+}
+
+/// Whether the host's last label is `meshtown`.
+pub(crate) fn is_mesh_name(host: &str) -> bool {
+    mesh_label(host).is_some()
 }
 
 /// Link to a device address: port 80 is left out, port 443 selects `https`.
