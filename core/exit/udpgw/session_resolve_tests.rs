@@ -206,6 +206,18 @@ async fn resolved_address_closed_to_exit_drops_its_queue() {
 }
 
 #[tokio::test]
+async fn mesh_name_drops_its_queue_without_lookup() {
+    let (mut client, _task, echo) = fixture().await;
+    let mesh = script("nas.meshtown", true, Some(echo));
+    client.send(&to_name(1, "nas.meshtown", b"a")).await;
+    client.send(&to_name(1, "nas.meshtown", b"b")).await;
+    client.send(&to_name(2, "echo.test", b"c")).await;
+    assert_eq!(client.next().await, Frame::data(2, echo, b"c".to_vec()));
+    assert!(client.silent().await);
+    assert_eq!(mesh.calls.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
 async fn lookups_over_the_cap_drop_new_names() {
     let (mut client, _task, echo) = fixture().await;
     let _busy: Vec<_> = (1..=MAX_RESOLVING as u16)
