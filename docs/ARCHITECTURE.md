@@ -65,7 +65,7 @@ Paths are from the repository root; a path ending in `/` is a directory.
 | `core/members/network_key.rs` | network key from a label and a random part (normalization, SHA-256), derived subkeys; recognizes an older-format key and refuses it |
 | `core/members/network_key/managed.rs` | the key that carries the network creator's node id, its text forms |
 | `core/members/access/authority.rs` | a node's standing |
-| `core/members/access/managed/` | the tally of an administered network: roles, exclusions, network closing |
+| `core/members/access/managed/` | an administered network's tally: roles, exclusions, network closing |
 | `core/members/access/abilities.rs` | what this node may do in its network (flags for the page and the tray) |
 | `core/members/words.rs`, `core/members/wordlist/` | EFF word list, word pool, the random part of the key and its validation |
 | `core/members/handshake.rs` | handshake with the network secret |
@@ -82,7 +82,7 @@ Paths are from the repository root; a path ending in `/` is a directory.
 | `core/ports_sharing/` | publishing own TCP ports and opening other members' ports: `meshtown/port/1`, `port/tcp/` records |
 | `core/site_checks/` | reachability checks: `http_min.rs` (minimal HTTP/1.1 client), `doh/` (own resolver), `reachability/`, `checks/` (records in the replica, schedule), `geoip/` |
 | `core/autostart/` | start at login: the entry that launches the tray app, registered by the platform crate |
-| `core/http_url/` | small URL front end: relay address normalization and the host of a typed domain |
+| `core/http_url/` | small URL front end: relay address normalization and a typed domain's host |
 | `core/iface_bind/` | binding outgoing sockets to a named network interface |
 | `core/config/config_file/` | settings file: reading, writing, merging with flags, node secret |
 | `core/invite/` | invite string: building, parsing, issuing and redeeming |
@@ -163,7 +163,7 @@ The main loop (`run_node_loop`, `core/node/event_loop.rs`):
 Stopping: one signal task per process (`core/node/host/signal.rs`) waits for Ctrl-C or SIGTERM, prints a line
 about it and stops every network slot of the host; each node closes its network stack and prints "stopped".
 
-The process host (`core/node/host/`) keeps a map of network slots. Each slot holds the node controller, the page's
+The process host (`core/node/host/`) keeps a network slot map. Each slot holds the node controller, the page's
 config state and the task running the node cycle. The page and the signal reach the nodes only through that map.
 
 Shared records (site check results, port publications, the domain list) live in a replica of signed entries
@@ -244,11 +244,11 @@ administrator, so that the network can still be managed if the creator's compute
 - One administrator decides on removing a node.
 - The root stays an administrator for good.
 
-The roles live in the network's signed record as records of power (`Grant`, `Revoke`, `Close`) next to the
+The roles live in the network's signed record as power records (`Grant`, `Revoke`, `Close`) next to the
 admissions.
 
 - The tally (`core/members/access/managed/`) replays them in order. A record counts when its author is an
-  administrator at that moment, and an exclusion voids the earlier records of the excluded node.
+  administrator at that moment, and an exclusion voids the excluded node's earlier records.
 - The last administrator cannot step down (`last_admin`).
 - `Close` is written by an administrator and ends the network for everybody: members that see it leave by
   themselves.
@@ -382,10 +382,10 @@ The publisher's check order: permission (whether the requester is a member) → 
 
 An outsider who does not know the network key sees in the DHT only the public signing key, the salt and the record
 ciphertext. From them they cannot get the record key, the handshake key, or the topic identifier
-(`blake3::derive_key` is irreversible, and the contexts of all subkeys differ).
+(`blake3::derive_key` is irreversible, and all subkeys' contexts differ).
 
 - They cannot forge a record without the signing key.
-- They cannot pass the handshake without the handshake key. The tags are bound to the fresh nonces of both sides and
+- They cannot pass the handshake without the handshake key. The tags are bound to both sides' fresh nonces and
   to both node identifiers from TLS, so replaying an intercepted exchange is useless.
 
 ### Outsider with a node identifier
@@ -412,7 +412,7 @@ Anyone who knows the network key can write and read the shared records, so write
 
 - The replica service answers only after the handshake on the network secret, and the replica identifier is derived
   from the network key.
-- Any member can remove any domain; the writing nodes' timestamps decide the order of edits.
+- Any member can remove any domain; the writing nodes' timestamps decide the edit order.
 - A record value has no domain, no addresses and no node identifier. The domain is in the record key, and keys are
   handed out only to members that pass the handshake.
 - A check record that reached an outsider would say only "some domain at some node in such-and-such class".
@@ -441,7 +441,7 @@ When TUN appears, the outgoing socket will have to be marked to bypass the tunne
 - Without a settings file (`--no-config`), the domain list lives in memory and is lost when the whole network
   restarts.
 - The record author is the node key. With a key from the settings file the author is the same across runs; with
-  `--no-config` it is new on every run, and records of past runs stay under the old authors.
+  `--no-config` it is new on every run, and past runs' records stay under the old authors.
 - There are no limits on the number of domains or records.
 - Deleted domains stay in the document as empty records (tombstones) and are not cleaned up.
 - Out of scope: TUN, a relay run by a non-member.

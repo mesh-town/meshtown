@@ -49,11 +49,11 @@ Notes:
 ```
 <state directory>/
   config.json                    settings, network key and node secret, mode 0600 — this document
-  web-token                      permanent token of the web page, mode 0600 (`core/web_gui`); read by the tray and scripts
-  web-password                   hash of the page password, mode 0600; no file — no password (section 8.2)
-  peers-cache.json               last working addresses of network members, mode 0600; auxiliary, can be deleted
+  web-token                      permanent web page token, mode 0600 (`core/web_gui`); read by the tray and scripts
+  web-password                   the page's password hash, mode 0600; no file — no password (section 8.2)
+  peers-cache.json               last working network members' addresses, mode 0600; auxiliary, can be deleted
   dht-nodes.txt                  DHT nodes this node knew, read at start next to the bootstrap nodes, written every few minutes and on stop, mode 0600; auxiliary, can be deleted; one file per network slot
-  peer-names.json                last known names of network members, mode 0600; auxiliary, can be deleted
+  peer-names.json                last known network members' names, mode 0600; auxiliary, can be deleted
   config.json.bad-<date-time>    an unreadable config, set aside before being overwritten
 ```
 
@@ -170,7 +170,7 @@ Code: `core/iface_bind/`, `core/exit/outbound/dial.rs`.
   `checks.geo_markers` and the default (an empty list) stays.
 - Example: `"checks": { "geo_markers": ["not offered in your area", "service unavailable here"] }`.
 - Why: stub pages differ by site and language, and the built-in list covers only common English wording. This key
-  lets a node owner add the wording of the sites that matter to them.
+  lets a node owner add the sites' wording that matter to them.
 
 Not stored in the file even though a flag exists:
 
@@ -215,7 +215,7 @@ An old `transport.mode` key is still accepted and ignored. The log shows `deprec
 - **The node secret sits in the envelope, next to `config`, not inside it.** `config` as a whole goes to the page
   in `GET /api/config` and may become a backup file, and the secret must reach neither. Restoring a backup on a
   second machine would create two nodes with one identity, and the network could not tell them apart. One rule
-  replaces a list of exceptions: **the page sees only `config`, the node reads the whole file**.
+  replaces an exception list: **the page sees only `config`, the node reads the whole file**.
 - **One network, one file, one identity.** A node identity is tied to its network. The network key and the secret
   sit together in one file, so two networks on one machine never share an identifier; a second network is a
   second config file (`--config`).
@@ -313,7 +313,7 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
 
 - `cli_overrides` lists fields typed as flags and **not** written to the file. The page marks them "set by a flag
   at startup, takes effect after a restart without the flag" and allows editing. The network key is listed like the
-  rest: a node started with `--key` or `MESHTOWN_KEY` shows the label and mask of the effective key, not the file's.
+  rest: a node started with `--key` or `MESHTOWN_KEY` shows the the effective key's label and mask, not the file's.
 - `file.state` is `ok` | `created` | `unreadable` | `invalid`; `message` is English text from the node.
 - `file.writable: false` means the directory is read-only (a router image, a write-protected flash drive). The page
   shows the settings and disables "Save" **before** it is pressed, not after a refusal.
@@ -469,7 +469,7 @@ build default.
   `{"config": {…, "net": {"sync": "mem"}}}`. At the top level the node skips it with the line "unknown fields … net"
   and does not change the choice.
 - **Written only as differences from the build default.** A field equal to the default is not written, and if all
-  four are equal there is no section. A future change of the default must not be frozen by a written value. This
+  four are equal there is no section. A future default change must not be frozen by a written value. This
   is an exception to the rule in section 8 that the next write completes the file. An old binary loses the `net`
   section on write (section 8, unknown field).
 
