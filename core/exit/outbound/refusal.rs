@@ -31,6 +31,14 @@ impl Refusal {
         }
     }
 
+    /// A `*.meshtown` name belongs to the member's own mesh: it is never opened through an exit or sent to DNS.
+    pub(super) fn mesh_name(target_host: &str) -> Refusal {
+        Refusal {
+            code: EXIT_CODE_ADDRESS_FORBIDDEN,
+            line: format!("{target_host} — mesh name, not opened through an exit"),
+        }
+    }
+
     /// No connection opened: the log line has the last address tried and how many attempts there were.
     pub(super) fn connect_failed(target_host: &str, last: SocketAddr, tried: usize) -> Refusal {
         Refusal {
