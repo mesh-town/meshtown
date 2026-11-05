@@ -7,12 +7,16 @@ Part 3 of 4. Continuation — section "3. How it gets into the binary". Part 1 (
 
 ## 3. How it gets into the binary
 
-The 10 embedded files live in `core/web_gui/ui/`, next to the server in `core/web_gui/`: `index.html` (only
-the `#app` root and links to the styles and the script), 8 stylesheets `css/NN-*.css` and one built page
-script `bundle/app.js` (the Vue shell; sources are in `core/web_gui/ui/vue/src/`, built with `make web-build`).
-Each file is one `include_str!` in the node source (for example,
-`include_str!("../../web_gui/ui/index.html")` in `core/web_gui/routes/pages.rs`), one HTTP route
-and one entry in the shared "path → content type" table (`PAGES` in the same file):
+The 10 embedded files live in `core/web_gui/ui/`, next to the server in `core/web_gui/`:
+
+- `index.html`: only the `#app` root and links to the styles and the script;
+- 8 stylesheets `css/NN-*.css`;
+- one built page script `bundle/app.js` (the Vue shell; sources are in `core/web_gui/ui/vue/src/`, built with
+  `make web-build`).
+
+Each file is one `include_str!` in the node source (for example, `include_str!("../../web_gui/ui/index.html")`
+in `core/web_gui/routes/pages.rs`), one HTTP route and one entry in the shared "path → content type" table
+(`PAGES` in the same file):
 
 | `include_str!` | Route | Content type (table 1.2) |
 |---|---|---|
@@ -21,77 +25,93 @@ and one entry in the shared "path → content type" table (`PAGES` in the same f
 | `include_str!("../../web_gui/ui/bundle/app.js")` | `GET /bundle/app.js` | `text/javascript; charset=utf-8` |
 
 At build time `core/build.rs` compresses these files with gzip; the binary holds only the compressed bodies.
-A page is answered with `Content-Encoding: gzip` when the request's `Accept-Encoding` allows gzip, and with the
+The node answers a page with `Content-Encoding: gzip` when the request's `Accept-Encoding` allows gzip, and with the
 unpacked body otherwise (including when the header is absent); both answers carry `Vary: Accept-Encoding`.
 
-The listing of the `core/web_gui/ui/` directory is not served at any address: the handler knows exactly 10
-paths from the table (`PAGES`), and any other one (including the directory itself) gets a 404 `not_found`.
+The `core/web_gui/ui/` directory listing is not served. The handler knows exactly 10 paths from `PAGES`, and
+any other path (including the directory itself) gets a 404 `not_found`.
 
-Size of the embedded files: `bundle/app.js` ~357 KB, `css/*.css` ~42 KB, `index.html` under 1 KB —
-about 400 KB in total (about 134 KB gzipped, which is how a browser receives them). The static ceiling is
-450,000 bytes; when it is exceeded, the page-source check `static-limits.test.mjs` warns.
+Embedded file sizes: `bundle/app.js` ~357 KB, `css/*.css` ~42 KB, `index.html` under 1 KB. In total about 400 KB
+(about 134 KB gzipped, which is how a browser receives them). The static ceiling is 450,000 bytes; when it is
+exceeded, the page-source check `static-limits.test.mjs` warns.
 
 ### 3.1 Where the listener sits in the entry point
 
-The process entry is `cli::run::start` (`core/cli/run.rs`), an async function under `#[tokio::main]`; the `meshtown`
-binary (`core/cli/main.rs`) only calls it. A platform binary (`platforms/<os>/cli/`) passes its tray backend
-(`core/gui/tray/`, `platforms/<os>/gui/lib.rs`) to the same entry, so with a tray the page listener runs on that
-runtime too. The listener is a task of the runtime and does not own the main thread.
+The process entry is `cli::run::start` (`core/cli/run.rs`), an async function under `#[tokio::main]`. The
+`meshtown` binary (`core/cli/main.rs`) only calls it. A platform binary (`platforms/<os>/cli/`) passes its tray
+backend (`core/gui/tray/`, `platforms/<os>/gui/lib.rs`) to the same entry, so with a tray the page listener runs
+on that runtime too. The listener is a runtime task and does not own the main thread.
 
-**What it runs on.** axum 0.8 on top of hyper (a manual accept loop on
-`hyper::server::conn::http1::Builder` — `axum::serve` has no hooks for the header size limit) plus
-tower/tower-http, rather than an own listener without a web framework. The module is `core/web_gui/mod.rs` and `core/web_gui/`, next to
-`core/site_checks/http_min.rs` (that one is a client; this is the only HTTP server in the tree).
+**What it runs on.** axum 0.8 on top of hyper, plus tower/tower-http, rather than an own listener without a web
+framework. The accept loop is manual, on `hyper::server::conn::http1::Builder`: `axum::serve` has no hooks for the
+header size limit. The module is `core/web_gui/mod.rs` and `core/web_gui/`, next to `core/site_checks/http_min.rs`
+(that one is a client; this is the only HTTP server in the tree).
 
-What the server must do: a single limit on the head size — one shared `max_buf_size` = 24 KiB for the
-request line and headers together (overflow means a 431 response with an empty body from hyper and the connection
-is closed); a body of up to 256 KiB (the config document is never larger); `chunked` on input
-is not supported and is rejected with 400; keep-alive — the page polls the state every 2 s and the log
-every 1 s, and opening a connection for every poll is expensive; `Connection: close` if the
-client asks for it.
+The server must provide:
 
-Dependencies: `axum` (`default-features=false`, `features=["tokio","http1","json","query"]`) with its own `axum-core`,
-`matchit`, `mime`, `serde_path_to_error`, `serde_urlencoded`; directly also `hyper`, `hyper-util`, `tower`,
-`tower-http` and `http-body-util`, with the minimal feature sets listed in `core/Cargo.toml`. `serde_json` serializes
-the documents. `tokio` (`net`, `io-util`), `ring` (the source of randomness for the token), `data-encoding` (the
-token encoding) and `serde` with `derive` are shared with the rest of the node.
+- A single limit on the head size: one shared `max_buf_size` = 24 KiB for the request line and headers together.
+  Overflow means a 431 response with an empty body from hyper, and the connection is closed.
+- A body of up to 256 KiB (the config document is never larger).
+- `chunked` on input is not supported and is rejected with 400.
+- Keep-alive: the page polls the state every 2 s and the log every 1 s, and opening a connection for every
+  poll is expensive.
+- `Connection: close` if the client asks for it.
 
-**Port.** Owned by the node. The value is `web.port` (default 7777, read-only, section 2, `WEB-API-config.md`); the command-line
-flag takes precedence over the file. Binding depends on the access mode `web.access` (section 1.1, `WEB-API.md`): `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0` with a filter by the peer address; no IPv6.
-If the port is busy, the node **does not crash**: it writes a line to the log and keeps running without the page. The actual
-port the listener came up on is kept in the shared process state; the tray and the startup output
-take it from there, not from the config. With `web.enabled: false` the listener is not started at all.
+**Dependencies.**
+
+- `axum` (`default-features=false`, `features=["tokio","http1","json","query"]`) with its own `axum-core`,
+  `matchit`, `mime`, `serde_path_to_error`, `serde_urlencoded`.
+- Directly also `hyper`, `hyper-util`, `tower`, `tower-http` and `http-body-util`, with the minimal feature sets
+  listed in `core/Cargo.toml`.
+- `serde_json` serializes the documents.
+- `tokio` (`net`, `io-util`), `ring` (the source of randomness for the token), `data-encoding` (the token
+  encoding) and `serde` with `derive` are shared with the rest of the node.
+
+**Port.** Owned by the node. The value is `web.port` (default 7777, read-only, section 2 in
+`WEB-API-config.md`); the command-line flag takes precedence over the file.
+
+- Binding depends on the access mode `web.access` (section 1.1 in `WEB-API.md`): `localhost` binds `127.0.0.1`;
+  `localnet` (default) binds `0.0.0.0` with a filter by the peer address. No IPv6.
+- If the port is busy, the node **does not crash**: it writes a line to the log and keeps running without the page.
+- The port the listener actually came up on is kept in the shared process state. The tray and the startup output
+  take it from there, not from the config.
+- With `web.enabled: false` the listener is not started at all.
 
 **Token.** Generated by the node: 32 bytes from `ring::rand::SystemRandom`, exposed as Crockford base32 via
-`data-encoding`, compared in constant time. The token does not go into the config file, but it **is written to disk** — as a separate file `web-token` next to the
-config, with permissions 0600 (`CONFIG-FILE.md`). Why not "memory only": when the node
-runs as a service, its stdout goes to the log, and printing the address with the token at startup would mean a secret
-in the log. The file survives a restart — open tabs keep working after it.
+`data-encoding`, compared in constant time.
 
-The token is generated on first start and on rotation. The write is atomic (a temporary file next to it and
-a rename), so that a reader never sees half a line.
+- The token is not in the config file, but it **is written to disk** as a separate file `web-token` next to the
+  config, with permissions 0600 (`CONFIG-FILE.md`).
+- Why not "memory only": when the node runs as a service, its stdout goes to the log, and printing the address
+  with the token at startup would put a secret in the log.
+- The file survives a restart, so open tabs keep working.
+- The token is generated on first start and on rotation. The write is atomic (a temporary file next to it and a
+  rename), so a reader never sees half a line.
 
-Who gets it: the tray and scripts read the `web-token` file (the permanent token stays for them,
-they do not need a password); a person without the tray signs in with a link carrying a **temporary** token or with a password. The
-stdout and the log **never print the permanent token**. The temporary token is separate: the same
-form (52 characters), lives 10 minutes, single-use, in memory only, accepted only by the exchange endpoint
-`POST /api/auth/token` (`WEB-API.md`, 1.10), not by a header. The node prints it at startup
-in the line "Mesh Town page: <addresses> — sign-in link…" while no password is set (when a password is set,
-the address is printed without a token), and `meshtown password reset` issues it. A node without a network key
-prints the same single address.
+Who gets it:
 
-`POST /api/token/rotate` (section 1.8, `WEB-API-config.md`) is not needed by the tray, and the page does not count on the tray for it: it
-exists for a person sitting at the page. Rotation rewrites both the `web-token` file and the
-shared process state, so the "Open" item in the tray builds the link at the moment of the click and does not
-remember a string when the menu is created.
+- The tray and scripts read the `web-token` file. The permanent token stays for them; they need no password.
+- A person without the tray signs in with a link carrying a **temporary** token, or with a password.
+- The stdout and the log **never print the permanent token**.
+- The temporary token has the same form (52 characters), lives 10 minutes, is single-use, in memory only, and is
+  accepted only by the exchange endpoint `POST /api/auth/token` (`WEB-API.md`, 1.10), not by a header.
+- The node prints it at startup in the line "Mesh Town page: <addresses> — sign-in link…" while no password is
+  set. When a password is set, the address is printed without a token. `meshtown password reset` issues it.
+- A node without a network key prints the same single address.
+
+`POST /api/token/rotate` (section 1.8 in `WEB-API-config.md`) is not needed by the tray, and the page does not
+count on the tray for it: it exists for a person sitting at the page. Rotation rewrites both the `web-token` file
+and the shared process state, so the tray's "Open" item builds the link at click time and does not remember a
+string from when the menu was created.
 
 **Shutdown.** The server does not own the main thread. `WebHandle::shutdown(deadline)` (`core/web_gui/listener.rs`)
 raises a stop signal (a `watch` channel) and waits for the listener task. On the signal the listener stops
 accepting new connections, lets started requests finish within its drain time, and closes. The process host (`core/node/host/run.rs`) calls it after the network slots stop; the deadline is the
 drain time, so loopback connections do not delay the exit.
 
-The server has no special "I am shutting down" response and does not need one: connections are simply dropped, and the page
-survives that on its own — the poll catches the network error and shows "Mesh Town is not responding" (section 1.3, `WEB-API.md`).
+The server has no special "I am shutting down" response and does not need one. Connections are dropped, and the
+page survives that: the poll catches the network error and shows "Mesh Town is not responding" (section 1.3 in
+`WEB-API.md`).
 
 ### 3.2 What the web listener takes from the config module
 
@@ -105,13 +125,12 @@ is fixed and covers most of sections 1.6–1.7 (`WEB-API-config.md`). The mappin
 | `rev` in `GET`/`PUT /api/config` | `FileReport.rev` |
 | `node.identity` (section 1.3, `WEB-API.md`) | `FileReport.persistent_identity` |
 | `node.identity_reason: "declined"` | `FileReport.identity_declined` — set **only** by the `--no-config` flag |
-| `node.identity_reason: "file_preserved"` | `FileReport.overwrite_refused` — the file parsed, but overwriting would lose the person's data and a backup could not be made; the original is left on purpose |
+| `node.identity_reason: "file_preserved"` | `FileReport.overwrite_refused` — the file parsed, but overwriting would lose the user's data and a backup could not be made; the original is left on purpose |
 | `node.identity_reason: "file_problem"` | the identity was not saved, and neither `identity_declined` nor `overwrite_refused` is set |
 | 409 `stale_rev` with the updated document | `save_config_file(path, Some(rev), …)` → `SaveError::StaleRev(rev from disk)` |
 | 500 `config_write_failed`, text in `file.message` | `SaveError::Io(text)` |
 
-This shows why there are exactly as many reasons as there are: each one maps to a separate field of
-`FileReport`, and none splits any finer. The check order is `identity_declined`, then
+Each reason maps to a separate `FileReport` field, and none splits finer. The check order is `identity_declined`, then
 `overwrite_refused`, then everything else; it matters because with `--no-config` the file is not touched
 at all and the second field means nothing in that case. In words, the trouble is explained by `file.message` and
 `file.field_errors`, not by the reason code (section 1.3, `WEB-API.md`).
@@ -119,14 +138,18 @@ at all and the second field means nothing in that case. In words, the trouble is
 If `FileReport` gets a fourth flag, the contract is extended **in agreement**: the page
 branches on these values and will not silently digest a new one.
 
-The config module does not count two things as the web listener's, and both fall on the listener.
+Two things are not the config module's, and both fall on the listener.
 
-**`file.writable`** — the listener probes the directory itself on every request, see section 1.6 (`WEB-API-config.md`).
+**`file.writable`.** The listener probes the directory itself on every request; see section 1.6 in
+`WEB-API-config.md`.
 
-**The document in a 409 response.** `SaveError::StaleRev` carries only a number — the revision from disk, not its
-content. The fresh document that the response must return in full (section 1.7, `WEB-API-config.md`) is fetched by the listener
-with a separate call `config_file::load_config_file(path)`, expecting `LoadedConfigFile::Parsed`. Hence a case that has to be
-handled rather than considered impossible: between the revision refusal and this read the file may have been corrupted
-or deleted, and `load_config_file` returns something other than `Parsed`. Then there is nothing to put in the 409 — it is a 500 `config_write_failed`
-with the cause in `file.message`; the page will show a file problem rather than a revision conflict, and the person's edits
-stay in the form.
+**The document in a 409 response.** `SaveError::StaleRev` carries only a number, the revision from disk, not its
+content. The listener fetches the fresh document that the response must return in full (section 1.7 in
+`WEB-API-config.md`) with a separate call, `config_file::load_config_file(path)`, expecting
+`LoadedConfigFile::Parsed`.
+
+- This case must be handled, not treated as impossible: between the revision refusal and this read the file may
+  have been corrupted or deleted, and `load_config_file` returns something other than `Parsed`.
+- Then there is nothing to put in the 409, so the answer is a 500 `config_write_failed` with the cause in
+  `file.message`.
+- The page shows a file problem rather than a revision conflict, and the user's edits stay in the form.

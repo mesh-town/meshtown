@@ -14,28 +14,26 @@ tray type `meshtown-cli` instead, for example `meshtown-cli run …`. The hints 
 way it was started.
 
 ```sh
-meshtown network create our gaming room   # new network on the running node; this node is its administrator (a second one goes to a new slot)
-meshtown network create --key-only [--raw] [LABEL]...   # only print a key, no running node: the settings file gives the administrator
-meshtown network list                 # the networks of this computer (--json for the node's reply)
-meshtown network key [--raw]          # the key of the network (--raw: the machine form mesh2-… of the same network)
+meshtown network create our gaming room   # new network on the running node; this node is its admin (a second one goes to a new slot)
+meshtown network create --key-only [--raw] [LABEL]...   # only print a key, no running node: the settings file gives the admin
+meshtown network list                 # this computer's networks (--json for the node's reply)
+meshtown network key [--raw]          # the network key (--raw: the machine form mesh2-… of the same network)
 meshtown network inspect "<key or invite>"   # what a key or an invite is, without joining
-meshtown network delete --yes [--net NETWORK]   # delete the network for everyone (administrators only)
-meshtown member list                  # the members of the network; admit, exclude, unexclude, block, unblock, admin: see Members
+meshtown network delete --yes [--net NETWORK]   # delete the network for everyone (admins only)
+meshtown member list                  # the network members; admit, exclude, unexclude, block, unblock, admin: see Members
 meshtown join "<invite or key>" [--timeout SECONDS]   # join a network on the running node, or write it into the settings file
 meshtown access ifaces NAME... [--if-unset]  # which networks the node accepts connections from (see below)
-MESHTOWN_KEY="<key from network create --key-only or from an administrator>" \
-  meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--save-config] \
-  [--probe-interval SECONDS] [--probe-full-cycle] [--domain SITE]... \
-  [--check-interval SECONDS] [--check-doh ADDR:PORT] [--provider-dns ADDR:PORT] [--checks] [--no-checks] \
-  [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] [--block-domain SITE]... \
-  [--web-port N]
+MESHTOWN_KEY="<key from network create --key-only or from an admin>" \
+  meshtown run [--key KEY] [--invite TEXT] [--config PATH] [--no-config] [--set PATH=VALUE]... [--site SITE]... \
+  [--socks-port N] [--socks-access localhost|localnet] [--socks] [--no-socks] [--exit] [--no-exit] \
+  [--block-site SITE]... [--web-port N]
 ```
 
 ### Joining from the terminal
 
 `meshtown join "<invite or key>"` joins a network without opening the page. It finds a running node on the page port
 (`--web-port`, otherwise `web.port` of the settings file, otherwise 7777) and asks it to join; with an invite it waits
-up to `--timeout` seconds (1 to 3600, default 120) for a member to answer. The label of the network is printed on
+up to `--timeout` seconds (1 to 3600, default 120) for a member to answer. The network label is printed on
 stdout; progress and hints go to stderr. If this computer is already in another network, the new one is added as a
 separate network; if it is already in this one, the command says so and changes nothing.
 
@@ -47,7 +45,7 @@ command fails. Exit codes: 0 joined (or already in the network), 1 refused, expi
 
 ### The network key
 
-`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group-<creator>` or a machine key `mesh2-…`. A key of the older format (`mesh1-…`, or three words with a group) is no longer accepted; ask a network administrator for a new invite. If neither
+`--key` or `MESHTOWN_KEY` accepts a key of the form `label--word-word-group-<creator>` or a machine key `mesh2-…`. An older-format key (`mesh1-…`, or three words with a group) is no longer accepted; ask a network admin for a new invite. If neither
 is given, the node reads the `network.key` field of the [settings file](#settings-file). If there is no key there
 either, `--no-config` makes this an error right away; otherwise the node starts anyway and waits for you to join a
 network from the page (see [First run without a key](#first-run-without-a-key)).
@@ -74,8 +72,8 @@ these files. For the macOS package itself see [platforms/macos/build/README.md](
 ## Start at login
 
 The "Start at login" switch on the Settings page of the node page makes the tray start when you sign in. It is
-available in the tray builds (the macOS `.app`, the `gui` builds for Linux and Windows). The switch creates or
-removes a per-user entry, which you can also remove by hand:
+available in the tray builds (the macOS `.app`, the `gui` builds for Linux and Windows). Saving the switch creates
+or removes a per-user entry, which you can also remove by hand:
 
 - macOS: `~/Library/LaunchAgents/<label>.plist` (a LaunchAgent);
 - Linux: `~/.config/autostart/meshtown.desktop` (or under `$XDG_CONFIG_HOME`);
@@ -86,8 +84,7 @@ flash briefly at sign-in.
 
 ## Settings file
 
-The node settings live in `config.json`: the network key, the node secret (the permanent node identifier is derived
-from it) and the run parameters. Each field is taken in the order "default → file → flag", **per field, not per
+The node settings live in `config.json`: the network key, the node secret (the permanent node ID is derived from it) and the run parameters. Each field is taken in the order "default → file → flag", **per field, not per
 file**: `--socks-port 1081` changes only the SOCKS5 port and everything else comes from the file. A flag applies to
 one run and does not change the file.
 
@@ -152,9 +149,11 @@ the file. Names are not unique, so two nodes may end up with the same one.
 characters). The node prints a `mesh-invite2-…` string several hundred characters long. It is **single-use and valid
 for a day**. The string does not contain the network key. It holds a one-time secret, the network label and the
 addresses of up to five members; the new node receives the key from a member once that member has verified the secret.
-Whoever presents the string first joins, and a second attempt is refused with "another node has already joined with
-this invite". An unused string stops being valid after a day and is removed from the shared network document (nodes
-clean up their entries once an hour and at start). Hand the string over in person anyway.
+Whoever presents the string first joins; a second attempt is refused with "another node has already joined with
+this invite".
+
+An unused string stops being valid after a day and is removed from the shared network document (nodes clean up their
+entries once an hour and at start). Hand the string over in person anyway.
 
 The new node joins without waiting for a DHT lookup:
 
@@ -169,18 +168,17 @@ The new node joins without waiting for a DHT lookup:
   warns that the key is not saved and **does not print it**. It works until a restart, and then you need a new invite.
 - With `--key` of the same network the invite is not spent; with a key of another network it is an error.
 - If the settings file already holds a key of another network, the invite is spent and the received key is saved as a
-  separate network beside the main one (`nets/<id>/config.json` in the folder of the settings file). The main
+  separate network beside the main one (`nets/<id>/config.json` in the settings file folder). The main
   network, its key and its file stay as they were, and the node starts both. An invite of a network the node already
   has is not spent.
 - The same goes for `--key` of another network without an invite: the network is added beside the main one and the
-  file keeps its key. A key of a network that is already saved is simply used. One node holds up to 8 networks;
+  file keeps its key. A key of a network that is already saved is used. One node holds up to 8 networks;
   past that the run is refused before it goes to the network, and the invite is not spent.
-- A network added this way runs with the launch flags of the main network, except `--key`.
+- A network added this way runs with the main network's launch flags, except `--key`.
   It starts with the sites of the main network's list and the ones typed with `--site`;
   an added network joined by an invite also remembers the peer addresses from the invite, so it finds them at start.
 - The same join is available on the node page, in the "Invite from a network member" field. The answer comes at once,
-  and "waiting for members" is shown under the field. That field accepts both a plain key and an invite, told apart by
-  the prefix.
+  and "waiting for members" is shown under the field. The field accepts a key or an invite, told apart by the prefix.
 - One confirmation from a network member admits a new node. Nodes of an older version wait for a second
   confirmation and refuse such a node with `not admitted` until they are updated.
 
@@ -194,38 +192,41 @@ On the page, the "Invite a member" button on "Home" puts the same string on the 
 
 ## Managed networks
 
-A network is administered: administrators decide who is in and who is out. Only an administrator can invite a person,
-remove a member, make another member an administrator or delete the network. Everyone else sees the list of members and
+A network is administered: admins decide who is in and who is out. Only an admin can invite a person,
+remove a member, make another member an admin or delete the network. Everyone else sees the member list and
 uses the network as usual.
 
-The creator of a network is its first administrator and the *root*: the root keeps the role for good and cannot be made a
-regular member (excluding it or taking the role away is refused with `creator`). Right after creation the creator is the only administrator, and the page advises making a second member
-an administrator, so that the network can still be managed if the creator's computer is lost. A key or an invite of the
-older format is refused with a message that it comes from an older version.
+The network creator is its first admin and the *root*. The root keeps the role for good and cannot be made a regular
+member (excluding it or taking the role away is refused with `creator`).
+
+Right after creation the creator is the only admin. The page advises making a second member an admin, so that the
+network can still be managed if the creator's computer is lost.
+
+A key or an invite in the older format is refused with a message that it comes from an older version.
 
 **Create.** On the page, "Add a network" (or "Join or create a network" when there is none) asks for a name and creates
 the network. The tray menu has the item `Add a network…`, which opens the same form.
 
 **Command line.** `meshtown network create <label>` creates a network on the running node and prints its key; when the
 node already has one, the new network goes to a second slot (`--net <slot>` names a slot explicitly). `network create
---key-only` needs no node: it creates the settings file when there is none and prints a key whose first administrator is
+--key-only` needs no node: it creates the settings file when there is none and prints a key whose first admin is
 this computer; `--raw` prints the machine form. `network list` shows the slots, `network key` prints the saved key
 (`--raw` for the machine form of the same network), `network inspect` explains a key or an invite, and `network delete
 --yes` deletes a network for everyone.
 
-**Invite.** Only an administrator can issue an invite; for anyone else the button is replaced by
-a note naming the administrators, and the tray item is disabled. An invite that was not made by an administrator is
+**Invite.** Only an admin can issue an invite; for anyone else the button is replaced by
+a note naming the admins, and the tray item is disabled. An invite that was not made by an admin is
 refused when it is redeemed.
 
-**Administrators.** In the member list an administrator opens the `⋯` menu of a row and picks `Make admin` or
-`Make regular member`. An administrator can give up their own role (`Give up admin rights`) unless they are the only
-one; the last administrator cannot leave or give up the role, and is offered to make another member an administrator
-or to delete the network. Make a second administrator soon.
+**Admins.** In the member list an admin opens a row's `⋯` menu and picks `Make admin` or
+`Make regular member`. An admin can give up their own role (`Give up admin rights`) unless they are the only
+one; the last admin cannot leave or give up the role, and is offered to make another member an admin
+or to delete the network. Make a second admin soon.
 
-**Remove.** An administrator picks `Remove from network…` for a member. One administrator's decision is enough; the removed node is disconnected from all members and needs a new invite to come back. The removed node
-sees which administrator removed it.
+**Remove.** An admin picks `Remove from network…` for a member. One admin's decision is enough. The removed node is disconnected from all members and needs a new invite to come back.
+It sees which admin removed it.
 
-**Delete for everyone.** `Delete network for everyone…` (the administrator's own row) asks to type the network name.
+**Delete for everyone.** `Delete network for everyone…` (the admin's own row) asks to type the network name.
 All members leave the network, this computer too; it cannot be undone. A member that was offline leaves the network by
 itself when it learns about it.
 
@@ -235,7 +236,7 @@ computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.
 
 ## Members
 
-`meshtown member` works with the members of a network on the running node, the same list and actions as the page.
+`meshtown member` works with a network's members on the running node, with the same list and actions as the page.
 
 ```sh
 meshtown member list                          # who is in the network
@@ -244,34 +245,35 @@ meshtown member exclude <member> [--reason TEXT]   # remove a member from the ne
 meshtown member unexclude <member>            # withdraw the removal
 meshtown member block <member>                # refuse connections with a member, on this computer only
 meshtown member unblock <member>
-meshtown member admin <member> [--revoke]     # make a member an administrator, or take the role away
+meshtown member admin <member> [--revoke]     # make a member an admin, or take the role away
 ```
 
 `member list` prints one row per member; the name is the last column, so `awk '{print $1}'` gives the ids:
 
 | Column | Meaning |
 |---|---|
-| `ID` | The first ten digits of the member's id |
+| `ID` | The first ten digits of the member's ID |
 | `STATUS` | `member`, `pending` (waits for admission), `unlisted` or `excluded` |
 | `ONLINE` | `yes` when the member is connected now |
-| `ADMIN` | `yes` for an administrator |
+| `ADMIN` | `yes` for an admin |
 | `BLOCKED` | `yes` when this computer blocked the member |
-| `NAME` | The name of the node, or `-`; this computer's row ends with `(this computer)` |
-| `REASON` | Only for an administrator and for a removed computer: the reason an administrator gave when removing the member, `(not given)` when there is none, `-` for everyone else |
+| `NAME` | The node's name, or `-`; this computer's row ends with `(this computer)` |
+| `REASON` | Only for an admin and for a removed computer: the reason an admin gave when removing the member, `(not given)` when there is none, `-` for everyone else |
 
-The head is always printed. A summary and, for an administrator, a hint about waiting members go to stderr. `--json`
+The head is always printed. A summary and, for an admin, a hint about waiting members go to stderr. `--json`
 prints the node's reply instead of the table.
 
 **`<member>`** is a name (letter case is ignored) or the start of an id from `member list`, at least four hex digits.
 A name wins over an id start. When several members match, nothing is done: the command lists the candidates and exits
 with code 1, and you repeat it with a longer start of the id. An id that is not in the list is refused.
 
-`admit`, `exclude`, `unexclude` and `admin` need the administrator role of the network. `block` and `unblock` don't:
+`admit`, `exclude`, `unexclude` and `admin` need the network's admin role. `block` and `unblock` don't:
 a block is kept on this computer only. A refusal prints what the node said and what to do next, for example when you
-pick your own computer or try to take the role from the only administrator. Repeating an action that is already done
+pick your own computer or try to take the role from the only admin. Repeating an action that is already done
 changes nothing and exits with code 0 (`Nothing changed: …`). `--reason` is up to 80 characters without control
-characters; the removed member and administrators see it, other members do not. On a computer an administrator removed,
-`status` prints `Excluded: <reason>` under the line of the network (`Excluded: no reason given` without one). `--net <network>` picks the network when the computer has several. Exit codes: 0 done, 1 refused by the
+characters; the removed member and admins see it, other members do not. On a computer an admin removed,
+`status` prints `Excluded: <reason>` under the network line (`Excluded: no reason given` without one).
+`--net <network>` picks the network when the computer has several. Exit codes: 0 done, 1 refused by the
 node or no such member, 2 wrong command line, 3 no node running.
 
 Admit the member who waits, on a node with its own settings file:
@@ -340,26 +342,30 @@ curl -x http://127.0.0.1:1080 https://example.com/
 `socks5h` (with the `h`) is recommended: the node then resolves the name itself. Without it `curl` resolves the name
 with the system resolver and hands the node a ready address. Either way the path is chosen by the same rule.
 
-**Path choice.** If the list of selected exits is empty, the node connects by itself. The list is the settings field
-`route.exits`, an array of node identifiers in priority order. If it is not empty, the node tries the candidates in
-list order (never itself; only members that are online and work as an exit). It moves on to the next only if the
-stream to the chosen one did not open; any response code received from an exit is final. If the list is not empty and
-no candidate fits, the program gets a refusal with code 4 ("host unreachable"). The list is edited through
-`PUT /api/config` (`config.route.exits`) and applies without a restart; the node page and the tray change it the same
-way. There is no automatic choice by country or operator.
+**Path choice.** The exit list is the settings field `route.exits`, an array of node IDs in priority order.
+
+- If the list is empty, the node connects by itself.
+- Otherwise the node tries the candidates in list order (never itself; only members that are online and work as an
+  exit). It moves on to the next only if the stream to the chosen one did not open; any response code received from
+  an exit is final.
+- If no candidate fits, the program gets a refusal with code 4 ("host unreachable").
+
+Edit the list through `PUT /api/config` (`config.route.exits`); it applies without a restart. The node page and the
+tray change it the same way. There is no automatic choice by country or operator.
 
 **Working as an exit.** Independently of its own `route.exits`, a node serves other members as an exit. It accepts a
 request only from someone who has passed the handshake, and serves any domain on any port if the address is public.
-Private, loopback, link-local, CGNAT and multicast addresses and the member's own address are refused (code 7). Turn
-the exit off with `--no-exit`, with `exit off` in the console, or on the node page. The interface exit traffic leaves through
-is set only in the settings (`exit.interface`, see [CONFIG-FILE.md](CONFIG-FILE.md)).
+Private, loopback, link-local, CGNAT and multicast addresses and the member's own address are refused (code 7).
+
+Turn the exit off with `--no-exit`, with `exit off` in the console, or on the node page. The interface that exit
+traffic leaves through is set only in the settings (`exit.interface`, see [CONFIG-FILE.md](CONFIG-FILE.md)).
 
 `--socks-access` sets who can reach the proxy: `localhost` (this computer only, the default) or `localnet` (the
 local network too); on a running node change it with `meshtown access proxy localhost|localnet`, which restarts the
 proxy. `--set probe.full_cycle=true` is a testing option: it tests speed with 1 MiB to all members, not only the
 chosen exit.
 
-`meshtown access ifaces NAME...` sets which networks (interfaces) the node accepts connections from, for the proxy and the
+`meshtown access ifaces NAME...` sets which interfaces the node accepts connections from, for the proxy and the
 page at once (`socks.ifaces` and `web.ifaces`). `NAME` is an interface name such as `br-lan`, the single word
 `auto` (automatic) or `*` (no restriction). If the node is running, the command applies the change through
 `PUT /api/config`; otherwise it writes the settings file (`--config PATH`; `--web-port N` names the running node's
@@ -383,7 +389,7 @@ exit on | exit off — turn working as an exit on or off
 
 ## Site checks
 
-The node checks every domain of the list by itself and publishes the result to all members. A check goes in steps:
+The node checks every listed domain by itself and publishes the result to all members. A check goes in steps:
 DNS (its own, over HTTPS), TCP, TLS with the real server name, HTTP. The result is one of these classes: `opens`,
 `blocked: address spoofed`, `blocked by ISP`, `blocked for this country`, `blocked as a bot`, `site is down`.
 
@@ -394,42 +400,53 @@ check example.com
 checks
 ```
 
-The system resolver is not used. The address of the DoH server is given as a number (`checks.doh_server`, `1.1.1.1:443` by
+The system resolver is not used. The DoH server address is given as a number (`checks.doh_server`, `1.1.1.1:443` by
 default), and the domain address is taken from its answer. An address from the fake-IP pool (`198.18.0.0/15`) is
 rejected by the check and no connection is opened.
 
 `--set checks.provider_dns=192.168.1.1:53` adds a comparison with your provider's resolver: if the answers differ, the class is
-`blocked: address spoofed`. Addresses from the provider's answer are used for nothing else.
+`blocked: address spoofed`. The provider's answers are used for nothing else.
 
 `--set checks.enabled=false` leaves only the domain list.
 
 ## Published ports
 
 A member can publish a port of a program that runs on this computer and listens on `127.0.0.1`: a web page, an SSH
-server, a file share. All members of the network, or only the members you select, see the port and can open it. It is
-not shown to anyone else and does not open for them.
+server, a file share. All members of the network, or only the members you select, see the port and can open it.
+No one else sees it or can open it.
 
-Everything is in the "Shared services (ports)" section of a network's tab on the "Networks" page, in two cards, and
-concerns that network only. In "My published ports" you enter a port (1 to
-65535), an optional name (up to 64 characters) and "Shared with": "All members" or "Selected members", then press
-"Publish port". Each row shows a status: "responding", "not responding" (nothing listens on the port) or "not checked yet".
-"Edit" changes the name and the audience, "Unpublish" removes the publication.
+Everything is in the "Shared services (ports)" section of a network's tab on the "Networks" page, in two cards. It
+concerns that network only.
 
-"Ports shared with you" lists the ports other members of this network published to you. Click an address to open it in a browser set up
-to use Mesh Town; type addresses with `http://`. For other programs press "Open on this computer": the node starts a
-TCP listener on `127.0.0.1:<number>`, by default the member's port plus 2000 (80 becomes 2080); you can type another
-number. "Close" stops the listener. If the number is busy, the row says to choose another number. Browsers refuse some
-ports on principle; such a row is marked "not for the browser" and can only be used through "Open on this computer".
+In "My published ports" enter a port (1 to 65535), an optional name (up to 64 characters) and "Shared with": "All
+members" or "Selected members", then press "Publish port".
+
+- Each row shows a status: "responding", "not responding" (nothing listens on the port) or "not checked yet".
+- "Edit" changes the name and the audience; "Unpublish" removes the publication.
+
+"Ports shared with you" lists the ports other members of this network published to you.
+
+- Click an address to open it in a browser set up to use Mesh Town; type addresses with `http://`.
+- For other programs press "Open on this computer". The node starts a TCP listener on `127.0.0.1:<number>`, by
+  default the member's port plus 2000 (80 becomes 2080); you can type another number. "Close" stops the listener.
+- If the number is busy, the row says to choose another number.
+- Browsers refuse some ports on principle; such a row is marked "not for the browser" and can only be used through
+  "Open on this computer".
 
 A port is TCP or UDP; choose the protocol when you publish. For a UDP port the node starts a UDP listener on
-`127.0.0.1:<number>` instead, and the row has no browser address. The status of a UDP publication is always "not
-checked". If the publishing node is too old to serve UDP, the row says so after the first attempt. A TCP and a UDP
-port of the same number are two separate publications. Limits and behavior of UDP ports: [Limitations](LIMITATIONS.md).
+`127.0.0.1:<number>` instead, and the row has no browser address. A UDP publication's status is always "not
+checked". If the publishing node is too old to serve UDP, the row says so after the first attempt.
+A TCP and a UDP port of the same number are two separate publications. UDP port limits and behavior: [Limitations](LIMITATIONS.md).
 
-The same data lives in the settings file, per network: `ports.published` is a list of `{port, proto, name, for}`, where `for`
-is `"all"` or a list of full node ids, and `ports.opened` is a list of `{node, port, proto, local}`. `proto` is
-`"tcp"` (the default when absent) or `"udp"`. Both lists hold up to 64 entries; `(proto, port)` is unique in
-`ports.published`, `(proto, local)` is unique in `ports.opened` and across all networks of the node. Opening a `local` port that another network of the node already uses is refused with 422 and the text
+The same data lives in the settings file, per network:
+
+- `ports.published` is a list of `{port, proto, name, for}`, where `for` is `"all"` or a list of full node ids;
+- `ports.opened` is a list of `{node, port, proto, local}`;
+- `proto` is `"tcp"` (the default when absent) or `"udp"`;
+- both lists hold up to 64 entries; `(proto, port)` is unique in `ports.published`, `(proto, local)` is unique in
+  `ports.opened` and across all the node's networks.
+
+Opening a `local` port that another network of the node already uses is refused with 422 and the text
 `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP). Example: publish a DNS server
 listening on `127.0.0.1:53`, and open it on another member as `127.0.0.1:2053`:
 
@@ -445,25 +462,31 @@ On the other member, `dig @127.0.0.1 -p 2053 example.com` then goes through the 
 
 ## Node page
 
-The node page has a "Home" tab with the essentials for a simple setup (state, joining a network, exit choice, proxy
-hint, node name, permission to be an exit for other members) and five more tabs: "Networks", "Site checks",
+The node page has a "Home" tab with the essentials (state, joining a network, exit choice, proxy hint, node name,
+permission to be an exit for other members) and five more tabs: "Networks", "Site checks",
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
 the tabs become a horizontal strip.
 
-The "Networks" tab has one tab per network and "+" to add a network. Inside a network's tab there are three sections:
-"Members" (the member list, invitations and requests), "Shared services (ports)" (publishing and opening ports, see
-[Published ports](#published-ports)) and "Device settings" (your name in this network, offering an exit to its members,
-leaving or deleting the network). The address is `#peers/<network>/<section>` (`members`, `services`, `device`; without
-the last part, Members opens); the old `#ports` address opens Shared services of the main network. In the mobile app only
-"Members" and "Device settings" are shown.
+The "Networks" tab has one tab per network and "+" to add a network. A network's tab has three sections:
 
-The page is a Vue application. Its sources are in `core/web_gui/ui/vue`, and the built result is one file, `core/web_gui/ui/bundle/app.js`,
-which is committed to the repository (rebuilt by `make web-build`, checked by `make web-bundle-check`), so `cargo
-build` does not need Node. The listener is built into the binary (`core/web_gui/mod.rs`, HTTP/1.1 on axum) and starts with the
-node. The port is `--web-port N` (default 7777, the settings field `web.port`). To turn the page off entirely, set
-`web.enabled: false` in the file; there is no flag for this. The node keeps a permanent access token in the `web-token`
-file next to the settings file (the tray and scripts read it), but does not print it; at start it prints a link with a
-temporary token instead.
+- "Members": the member list, invitations and requests;
+- "Shared services (ports)": publishing and opening ports, see [Published ports](#published-ports);
+- "Device settings": your name in this network, offering an exit to its members, leaving or deleting the network.
+
+The address is `#peers/<network>/<section>` (`members`, `services`, `device`; without the last part, Members opens).
+The old `#ports` address opens the main network's Shared services. The mobile app shows only "Members" and
+"Device settings".
+
+The page is a Vue application. Its sources are in `core/web_gui/ui/vue`; the built result is one file,
+`core/web_gui/ui/bundle/app.js`, committed to the repository (rebuilt by `make web-build`, checked by
+`make web-bundle-check`), so `cargo build` does not need Node.
+
+The listener is built into the binary (`core/web_gui/mod.rs`, HTTP/1.1 on axum) and starts with the node. The port is
+`--web-port N` (default 7777, the settings field `web.port`). To turn the page off, set `web.enabled: false` in the
+file; there is no flag for this.
+
+The node keeps a permanent access token in the `web-token` file next to the settings file (the tray and scripts read
+it), but does not print it; at start it prints a link with a temporary token instead.
 
 ### Signing in, access and password reset
 
@@ -484,7 +507,7 @@ temporary token instead.
   service (`journalctl`, `logread`): whoever can read it in the first 10 minutes can set the password before the
   owner. On a shared machine, set the password at once.
 - **Access** (`web.access`) decides who can open the page. `localhost` means only this computer; `localnet` (the
-  default) also admits devices of the local network (private addresses `10/8`, `172.16/12`, `192.168/16`,
+  default) also admits local network devices (private addresses `10/8`, `172.16/12`, `192.168/16`,
   `169.254/16`). This is only about access to the node settings, not to the Mesh Town network or its traffic. Change
   it on the page or with `meshtown access page localhost|localnet [--config PATH] [--web-port N]`. Narrowing applies at
   once, widening after a restart.
@@ -511,7 +534,7 @@ The demo node (`core/examples/web_demo/`) is a light way to try the page without
     make web-demo
     # http://127.0.0.1:7777/?token=dev
 
-The full browser battery (Playwright, including an invite, joining with it and the "exit" flag of a foreign peer in
+The full browser battery (Playwright, including an invite, joining with it and the foreign peer's "exit" flag in
 the node table):
 
     make web-check                            # all cases
@@ -538,15 +561,15 @@ Every line is `+<seconds>s [tag] text`. The tags:
 | `[probe]` | the speed probe to a member: size, path, outcome |
 | `[docs]` | the shared network document (checks, exit flag, country, program version): syncing with members, writing the node's own name |
 | `[geo]` | detecting the node's own country (postponed when there is no network, or failed) |
-| `[domains]` | local edits of the list (the `--site` flag, console) and the output of `domains list` |
-| `[check]` | the result of checking one domain, the node's own or a neighbor's; errors of the `check` command |
+| `[domains]` | local list edits (the `--site` flag, console) and the output of `domains list` |
+| `[check]` | the result of checking one domain, the node's own or a neighbor's; `check` command errors |
 | `[checks]` | a summary of checks, the schedule state, problems reading the domain list or results |
 | `[console]` | errors parsing stdin commands; stdin closed (commands unavailable) |
-| `[socks]` | the SOCKS5 server: listen address, connection errors, and the result of each served request (path, outcome, bytes both ways, time) |
-| `[http]` | the HTTP side of the proxy (and the PAC file it serves): request results and rejected requests |
+| `[socks]` | the SOCKS5 server: listen address, connection errors, and each served request's result (path, outcome, bytes both ways, time) |
+| `[http]` | the proxy's HTTP side (and the PAC file it serves): request results and rejected requests |
 | `[route]` | the chosen path for a domain: itself, a member, or a refusal with a reason |
 | `[exit]` | working as an exit: whose requests were accepted and how they ended |
-| `[get]` | the result of the `get` command |
+| `[get]` | the `get` command result |
 | `[port]` | port forwarding between members (`ports.published` and opened local ports): opened, closed, failed, UDP sessions |
 | `[guard]` | the memory and stall watchdog: a periodic summary, a heap profile, a stall or exit report |
 | `[tray]` | the tray app: node start and stop, errors |

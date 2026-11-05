@@ -20,54 +20,65 @@ only by the prefix, no body carries a network. An unknown slot is 404 `unknown_n
 | `counts` | `{"members","excluded","unlisted","pending"}` |
 | `members` | the rows, see below |
 | `changed` | only in replies to actions: whether the action changed anything |
-| `admins`, `me_admin`, `root` | the full ids of the administrators in ascending order; whether this node is one; the creator of the network |
+| `admins`, `me_admin`, `root` | the full admin ids in ascending order; whether this node is one; the network creator |
 
 A row of `members`: `id` (short), `id_full` (64 hex digits), `name`, `self`, `online`, `status`, `excluded`,
 `blocked_by_me`, `denied_by_me`, `last_seen_sec`, `last_refusal`, `admission`, `admin`, `invited_as`.
 
-`invited_as` is the note the inviting admin gave the invite the node came in by ("for whom"), or `null`. `admission.label`,
-`me_admission.label` and `invited_as` are shown only to a viewer who is an administrator; for everyone else they are `null`.
-
-`admin` is `true` for an administrator of the network.
-
-`excluded` (set when `status` is `excluded`) has `how` (`removed` or `left`), `at_unix` and `by`: the 64-digit id of the member whose
-record excluded the node; for a node that left, the node itself. `reason` is the note given with the removal: administrators
-see it on every excluded row, and the removed member sees it on its own row; for everyone else the key is absent. `null` means
-no reason was given (always the case for a node that left).
-
-- `status` is one of `member`, `pending`, `unlisted`, `excluded`; rows are ordered in that way after the
-  own row.
+- `status` is one of `member`, `pending`, `unlisted`, `excluded`; rows are ordered in that way after the own row.
+- `admin` is `true` for a network admin.
+- `invited_as` is the note the inviting admin gave the invite the node came in by ("for whom"), or `null`.
+  `admission.label`, `me_admission.label` and `invited_as` are shown only to a viewer who is an administrator;
+  for everyone else they are `null`.
+- `excluded` (set when `status` is `excluded`) has:
+  - `how`: `removed` or `left`;
+  - `at_unix`;
+  - `by`: the 64-digit id of the member whose record excluded the node (the node itself, if it left);
+  - `reason`: the note given with the removal. Administrators see it on every excluded row, and the removed
+    member sees it on its own row; for everyone else the key is absent. `null` means no reason was given
+    (always the case for a node that left).
 - `denied_by_me` is `null` or why this node refuses the row: `left`, `excluded`, `blocked`, `removed`, `unlisted`.
 - `last_seen_sec` is the number of seconds since the last sign of life of the node (a connection, telemetry, the
-  address cache or a write in the shared document); 0 for a node connected now, `null` when there is no sign at all.
+  address cache or a write in the shared document); 0 for a node connected now, `null` when there is no sign.
 
-**Actions.** All are `POST {base}/members/<name>` with `<name>` one of `exclude`, `unexclude`, `admit`,
-`block`, `unblock`, `leave`, `admin`. `exclude`, `unexclude`, `admit`, `block` and `unblock` take the body `{"id":"<64 hex digits>"}` (`exclude` also an optional `reason`); a missing `id` is 400 `bad_request`, a
-malformed one 422 `invalid`. `leave` takes the body `{"confirm":true}` (without it 400 `bad_request`). The reply is 200 with the member list after the action, with
-`changed`.
+**Actions.** All are `POST {base}/members/<name>` with `<name>` one of `exclude`, `unexclude`, `admit`, `block`,
+`unblock`, `leave`, `admin`.
 
-Refusals are 409 with `error` set to the code: `self_target` (own id), `not_member` (the id is not in the list),
-`left` (this node left the network; a node the others removed from the list gets the same refusal for every action except `leave`, `unexclude` and `unblock`), `not_pending`. A write failure is 500 `internal`.
+- `exclude`, `unexclude`, `admit`, `block` and `unblock` take the body `{"id":"<64 hex digits>"}` (`exclude` also
+  takes an optional `reason`). A missing `id` is 400 `bad_request`; a malformed one is 422 `invalid`.
+- `leave` takes the body `{"confirm":true}` (without it 400 `bad_request`).
+- The reply is 200 with the member list after the action, with `changed`.
+
+Refusals are 409 with `error` set to the code:
+
+- `self_target`: own id.
+- `not_member`: the id is not in the list.
+- `left`: this node left the network. A node the others removed from the list gets the same refusal for every
+  action except `leave`, `unexclude` and `unblock`.
+- `not_pending`.
+
+A write failure is 500 `internal`.
 
 `members/admin`, `network/delete` and the administrator refusals are described in "Managed networks: members and deletion" in `WEB-API-config.md`.
 
-**What each action means.** The reply and the body are the ones described above; only the effect differs.
+**What each action means.** Body and reply are as above; only the effect differs.
 
-- `exclude` — the decision of an administrator to remove the node (details in
+- `exclude` — an admin decision to remove the node (details in
   "Managed networks: members and deletion" in `WEB-API-config.md`). The page calls it "Remove from network…".
 - `unexclude` — withdraws this node's own `exclude` entry in the shared document; other members' entries stay. It is
   `changed:false` when there is nothing to withdraw; there is no "nothing to withdraw" refusal. The page calls it
   "Withdraw proposal".
-- `admit` — an administrator lets in a node that waits to join; it is also how an administrator returns an excluded node. Admitting a node that is already
-  a member is 200 with `changed: false`; `not_pending` is only for a node that neither waits nor is a member. The page calls it "Confirm…".
-- `block` and `unblock` — a **local** block: the entry is written only to this node's own replica, never to the shared
-  document, so the node stays in the network and keeps working with the other members. No administrator role is
-  needed. `blocked_by_me` in the row shows it. The page calls them "Block on this computer…" and "Unblock".
-  `unblock` of a node that is not blocked is `changed:false`.
+- `admit` — an administrator lets in a node that waits to join; it is also how an administrator returns an
+  excluded node. Admitting a node that is already a member is 200 with `changed: false`; `not_pending` is only
+  for a node that neither waits nor is a member. The page calls it "Confirm…".
+- `block` and `unblock` — a **local** block: the entry is written only to this node's own replica, never to the
+  shared document, so the node stays in the network and keeps working with the other members. No administrator
+  role is needed. `blocked_by_me` in the row shows it. The page calls them "Block on this computer…" and
+  "Unblock". `unblock` of a node that is not blocked is `changed:false`.
 
 `exclude`, `unexclude` and `admit` need an administrator (409 `not_admin`);
-`block` and `unblock` do not. Excluding the creator of the network or taking the role from it is refused
-with 409 `creator`: the creator always stays an administrator. A node id in a request is 64 hex digits (a placeholder: 64 times `a`).
+`block` and `unblock` do not. Excluding the network creator or taking the role from it is refused with
+409 `creator`: the creator always stays an administrator. A node id in a request is 64 hex digits.
 
 ### 1.13 Open invites: `GET {base}/network/invites` and `POST {base}/network/invites/label`
 
@@ -84,11 +95,15 @@ not expired), newest first. A row:
 | `issuer`, `issuer_name` | the administrator who made it (full id and known name), or `null` |
 | `mine` | this node made the invite |
 
-**`POST {base}/network/invites/label`** — body `{"hash":"<64 hex digits>","for":"<text>"}`. Rewrites the note of an invite
+**`POST {base}/network/invites/label`** — body `{"hash":"<64 hex digits>","for":"<text>"}`. Rewrites an invite's note
 this node made; an empty or missing `for` clears it. The note is trimmed, at most 64 characters, without control
 characters. The reply is 200 with the list after the edit. Only the administrator who made the invite may edit it.
 
-Errors: 400 `bad_request` (the body is not an object, `hash` is missing or not 64 hex digits, `for` is not a string);
-422 `invalid` (the note is too long or has control characters); 409 `not_admin`, 409 `not_issuer` (the invite was made
-by another administrator), 409 `busy` (no running network); 404 `not_found` (the invite was redeemed or has expired);
-405 for other methods.
+Errors:
+
+- 400 `bad_request`: the body is not an object, `hash` is missing or not 64 hex digits, or `for` is not a string.
+- 422 `invalid`: the note is too long or has control characters.
+- 409 `not_admin`; 409 `not_issuer` (the invite was made by another administrator); 409 `busy` (no running
+  network).
+- 404 `not_found`: the invite was redeemed or has expired.
+- 405 for other methods.

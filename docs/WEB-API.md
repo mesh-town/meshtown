@@ -1,95 +1,106 @@
 # HTTP API contract and config schema for the node
 
-This document describes the HTTP API of the node's web page and the schema of its config — the canonical source;
-the contract is edited here directly.
-The demo node of the page (`core/examples/web_demo/`, the `make web-check` suite — Playwright, `core/web_gui/e2e/`) and
-the frontend (`core/web_gui/ui/vue/src/`) must match this document character for character: field names,
-error codes, enum values.
+This document is the canonical contract for the node page's HTTP API and for the config schema. The contract is edited
+here directly.
 
-How the `config` document (section 2, `WEB-API-config.md`) is laid out on disk — where the file lives, how it survives a crash of the
-process and how config versions migrate — is described separately, in `CONFIG-FILE.md`.
-There is one schema for both documents; they must not diverge.
+The demo node (`core/examples/web_demo/`, tested by the `make web-check` suite — Playwright, `core/web_gui/e2e/`) and
+the frontend (`core/web_gui/ui/vue/src/`) must match this document character for character: field names, error codes
+and enum values.
 
-**The file is split into parts (600-line limit); the content was moved verbatim.**
-Parts:
-- This file — 1. HTTP API contract: 1.1 General rules; 1.2 Static files; 1.3 `GET /api/state`; 1.4 `GET /api/log`; 1.5 `GET /api/log/download`; 1.10 Sign-in: `/api/auth/*`; 1.11 Networks; 1.12 Members (heading and a pointer).
-- `WEB-API-config.md` — 1.6 `GET /api/config`; 1.7 `PUT /api/config`; 1.8 Actions; 1.9 Backup (not done now); 2. Config schema.
+The `config` document (section 2, `WEB-API-config.md`) is stored on disk as described in `CONFIG-FILE.md`: where the
+file lives, how it survives a process crash and how config versions migrate. There is one schema for both documents;
+they must not diverge.
+
+The document is split into parts:
+
+- This file — 1. HTTP API contract: 1.1 General rules; 1.2 Static files; 1.3 `GET /api/state` (example); 1.4 `GET /api/log`;
+  1.5 `GET /api/log/download`; 1.10 Sign-in: `/api/auth/*`; 1.11 Networks; 1.12 Members (heading and a pointer).
+- `WEB-API-config.md` — 1.6 `GET /api/config`; 1.7 `PUT /api/config`; 1.8 Actions; 1.9 Backup (not done now);
+  2. Config schema.
+- `WEB-API-state.md` — 1.3 field notes: exact enum values for each snapshot group.
 - `WEB-API-members.md` — 1.12 Members: the member list and the member actions.
-- `WEB-API-embedding.md` — 3. How it gets into the binary (3.1 Where the listener sits in the entry point; 3.2 What the web listener takes from the config module).
+- `WEB-API-embedding.md` — 3. How it gets into the binary (3.1 Where the listener sits in the entry point;
+  3.2 What the web listener takes from the config module).
 
 ## 1. HTTP API contract
 
-Written into `WEB-API.md` verbatim as below. The node, the demo node and the frontend
-must match it character for character: field names, error codes, enum values.
-
 ### 1.1 General rules
 
-- Listen on a literal IPv4 address according to the access mode `web.access` (section 2 in `WEB-API-config.md`):
-  `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0`; default port 7777. Not
-  `localhost` by name, not `::1`: the page does not listen on IPv6. The mode only affects access to the
-  node settings page, not the network or traffic.
-- A node can work with several networks at once. The routes of one network exist under two addresses:
+- **Listening address.** The node listens on a literal IPv4 address chosen by the access mode `web.access`
+  (section 2 in `WEB-API-config.md`):
+  `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0`. The default port is 7777.
+  It does not listen on `localhost` by name or on `::1`: the page does not listen on IPv6.
+  The mode only affects access to the node settings page, not the network or traffic.
+- **Several networks.** A node can work with several networks at once. One network's routes exist under two
+  addresses:
   `/api/<route>` is the primary network, `/api/net/{slot}/<route>` is the network with the id `{slot}`
-  (`main` for the primary one); both are served by the same handler. An id that names no network is
+  (`main` for the primary one). The same handler serves both. An id that names no network gives
   404 `unknown_net`. Process routes (the log, sign-in, `actions/stop`, `token/rotate`, `/api/nets`,
   `/api/overview`) have no prefix. Details in 1.11.
-- All responses are `Content-Type: application/json; charset=utf-8`, except static files and
+- **Content type.** All responses are `Content-Type: application/json; charset=utf-8`, except static files and
   the log download.
-- Headers on every response:
+- **Headers on every response:**
   `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`,
   `Content-Security-Policy: default-src 'none'; style-src 'self'; script-src 'self'; connect-src 'self' https://api.github.com; img-src data:; form-action 'none'; base-uri 'none'; frame-ancestors 'none'`.
   No response has an `Access-Control-Allow-Origin` header.
-- Checks on every request, in this order:
-  1. **Peer address** (who connected). `localhost` admits only `127.0.0.0/8`; `localnet` also
+- **Checks on every request, in this order:**
+  1. **Peer address** (who connected). `localhost` admits only `127.0.0.0/8`. `localnet` also admits
      `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` and `169.254.0.0/16`. The shared ISP address range
      `100.64.0.0/10` and public addresses are not admitted in any mode. The node closes a rejected
-     connection immediately without reading the request; if the mode was narrowed while the connection
+     connection immediately without reading the request. If the mode was narrowed while the connection
      was open, the next request on it gets 403 `bad_peer`.
-  2. **`Host`** must be exactly one value — the IPv4 literal of the local address of the socket the
-     connection was accepted on, with `:<port>` (or without the port if it is 80): `127.0.0.1:7777`
-     when opened from this machine, `192.168.1.5:7777` when opened from the network. Otherwise — 403 `bad_host`.
-     Names, including `http://localhost:7777`, are rejected here (DNS rebinding protection), and this is
-     the expected behavior. The one exception: when the client address is loopback (`127.0.0.0/8`, `::1`),
+  2. **`Host`** must be exactly one value: the IPv4 literal of the local address of the socket that
+     accepted the connection, with `:<port>` (without the port if it is 80). Examples: `127.0.0.1:7777`
+     when opened from this machine, `192.168.1.5:7777` when opened from the network. Otherwise the answer is
+     403 `bad_host`.
+     Names, including `http://localhost:7777`, are rejected here (DNS rebinding protection). This is expected.
+     One exception: when the client address is loopback (`127.0.0.0/8`, `::1`),
      `Host` may instead be `<label>.meshtown` or `<label>.meshtown:<port>` (one label of `a-z`, `0-9`, `-`,
-     1–63 characters, letter case ignored; port 1–65535) — this is how a page published by a node opens
+     1–63 characters, letter case ignored; port 1–65535). This is how a page published by a node opens
      through the mesh proxy. From any other client such a name is still `bad_host`. A request with an
      absolute-form target (`GET http://… HTTP/1.1`) is also `bad_host`.
-  3. **`Origin`** — for all methods except `GET` and `HEAD`, it is required and must be exactly
-     `http://<Host>` (the same `Host` as in item 2, including an accepted `.meshtown` name). Otherwise — 403 `bad_origin`. For `GET`/`HEAD`
-     a missing `Origin` is allowed (a plain navigation by address), and a present one is checked the same way.
-     The session now lives in a cookie, so `Origin` also protects against a request from a foreign page: it is
-     required not only on `POST`/`PUT`/`DELETE` but on any state-changing method.
-  4. **Credentials.** In order: a valid session cookie (see 1.10), otherwise the persistent token
-     — the `X-Meshtown-Token` header or the `?token=` parameter in the address (compared byte by byte in constant
+  3. **`Origin`.** For all methods except `GET` and `HEAD` it is required and must be exactly
+     `http://<Host>` (the same `Host` as in item 2, including an accepted `.meshtown` name). Otherwise the answer is
+     403 `bad_origin`. For `GET`/`HEAD` a missing `Origin` is allowed (a plain navigation by address); a present one
+     is checked the same way.
+     The session lives in a cookie, so `Origin` also protects against a request from a foreign page. It is
+     required on any state-changing method, not only on `POST`/`PUT`/`DELETE`.
+  4. **Credentials.** In order: a valid session cookie (see 1.10), otherwise the persistent token —
+     the `X-Meshtown-Token` header or the `?token=` parameter in the address (compared byte by byte in constant
      time). A temporary token does not work here: only `POST /api/auth/token` accepts it.
-     If nothing matched — 401 `bad_token`. Credentials are required on **all `/api/*` addresses**,
-     except `GET /api/auth/status`, `POST /api/auth/token` and `POST /api/auth/login`; static
-     page files do not need them. Why this and not "everywhere": the browser requests `<link href="css/…">` and the tag
-     `<script src="bundle/app.js">` by itself, a header cannot be attached to them, and there is no way to append
-     `?token=` to the static `index.html`; requiring them on `/` is also impossible — after
-     `history.replaceState` the address bar no longer has the token, and a plain refresh of the page with F5
-     would give 401 instead of the page. What is served is a constant built into the binary: there is no node
-     state, key or token in the static files, so reading them from a foreign page is useless. All
-     data and all commands live behind credentials on `/api/*`. Checks 1–3 apply to everything,
-     static files included.
-- Session cookie: `mesh_<first 10 characters of the node public key>=<id>; Path=/; HttpOnly;
-  SameSite=Strict; Max-Age=604800` (7 days from sign-in, not extended), without `Secure` — the page
-  is served over HTTP. The name with the node key is needed so that two nodes on one host do not overwrite each other's
-  sessions (a cookie does not distinguish ports). The session id is 32 random bytes in the same text form as the
-  token; the session table lives in process memory, a node restart signs everyone out.
-- **An honest limit.** The page is served over HTTP without TLS: on a local network the password, token and cookie
-  travel in clear text, and whoever listens to the network can intercept them. The `localhost` mode does not expose them to the network
-  at all. Limitation: the port of the page itself, published to the
-  network via `ports.published`, reaches the page from the address `127.0.0.1` (the node itself connects to the
-  local port) and bypasses the access mode; a network member can then guess the password, sharing the attempt counter
-  with the owner on `127.0.0.1`. Do not publish the page port. On a router the `localnet` mode
-  listens on all interfaces, and the peer filter accepts private addresses: if the ISP's WAN address is
-  private (`10/8`, `172.16/12`), only the WAN firewall keeps strangers out (in
-  OpenWrt, incoming connections on WAN are dropped by default).
-- The error body is always `{"error":"<code>","message":"<in English>"}`, plus the fields specified for
+     If nothing matched, the answer is 401 `bad_token`.
+
+     Credentials are required on **all `/api/*` addresses**, except `GET /api/auth/status`,
+     `POST /api/auth/token` and `POST /api/auth/login`. Static page files do not need them. Reasons:
+     - The browser requests `<link href="css/…">` and `<script src="bundle/app.js">` by itself, so a header cannot
+       be attached, and `?token=` cannot be appended to the static `index.html`.
+     - Requiring credentials on `/` is also impossible: after `history.replaceState` the address bar no longer has
+       the token, and a plain refresh with F5 would give 401 instead of the page.
+     - The static files are a constant built into the binary. They contain no node state, key or token, so
+       reading them from a foreign page is useless.
+
+     All data and all commands sit behind credentials on `/api/*`. Checks 1–3 apply to everything, static files
+     included.
+- **Session cookie:** `mesh_<first 10 characters of the node public key>=<id>; Path=/; HttpOnly;
+  SameSite=Strict; Max-Age=604800` (7 days from sign-in, not extended), without `Secure` because the page
+  is served over HTTP.
+  - The node key in the name keeps two nodes on one host from overwriting each other's
+    sessions (a cookie does not distinguish ports).
+  - The session id is 32 random bytes in the same text form as the token.
+  - The session table lives in process memory, so a node restart signs everyone out.
+- **Plain HTTP limits.** The page is served over HTTP without TLS. On a local network the password, token and
+  cookie travel in clear text, and anyone listening to the network can intercept them. The `localhost` mode does not
+  expose them to the network.
+  - A page port published to the network via `ports.published` reaches the page from the address `127.0.0.1` (the
+    node itself connects to the local port) and bypasses the access mode. A network member can then guess the
+    password, sharing the attempt counter with the owner on `127.0.0.1`. Do not publish the page port.
+  - On a router the `localnet` mode listens on all interfaces, and the peer filter accepts private addresses. If the
+    ISP's WAN address is private (`10/8`, `172.16/12`), only the WAN firewall keeps strangers out (OpenWrt drops
+    incoming WAN connections by default).
+- **Error body.** Always `{"error":"<code>","message":"<in English>"}`, plus the fields specified for
   the particular code.
 
-The full list of codes:
+The full code list:
 
 | HTTP | `error` | When |
 |---|---|---|
@@ -127,19 +138,23 @@ The full list of codes:
 | GET | `/bundle/app.js` (built Vue, committed, `make web-build`) | `text/javascript; charset=utf-8` |
 
 These addresses do not require credentials (rationale in 1.1); the peer address, `Host` and `Origin` are checked.
-No directory listing is served, any other path is 404 `not_found`. `/favicon.ico` falls under the same
-404; so that the browser does not request it at all and does not litter the console, the `<head>` has
+No directory listing is served; any other path is 404 `not_found`, including `/favicon.ico`.
+
+So that the browser does not request `/favicon.ico` and litter the console, the `<head>` has
 `<link rel="icon" href="data:,">`, and the page replaces it with a ring icon `data:image/svg+xml,…`.
-That is why the CSP allows `img-src data:` — exactly for the tab icon; `data:` images do not execute
+That is why the CSP allows `img-src data:`, exactly for the tab icon. `data:` images do not execute
 code, and `default-src 'none'` stays.
 
 ### 1.3 `GET /api/state` — state snapshot
 
-Served in full on every request, there are no partial responses. The address `/api/net/{slot}/state`
-answers for one network; besides the fields below every state carries `api` (the version of the
-multi-network replies, `2`), `slot` (the id of the network the state describes) and `nets` (the brief of
-every network of the node, see 1.11). Example (the values are made up, but
-all fields are required; `null` is allowed where marked):
+The state is served in full on every request; there are no partial responses. The address
+`/api/net/{slot}/state` answers for one network. Besides the fields below, every state carries:
+
+- `api` — the multi-network reply version (`2`);
+- `slot` — the id of the described network;
+- `nets` — every node network's brief (see 1.11).
+
+Example (the values are made up, but all fields are required; `null` is allowed where marked):
 
 ```json
 {
@@ -269,151 +284,23 @@ all fields are required; `null` is allowed where marked):
 }
 ```
 
-Exact enum values:
-
-- `node.status`: `"starting"`, `"online"`, `"offline"`, `"stopping"`. `"offline"` also covers a node
-  started without a network key and waiting for a network (`network: null`, below).
-- `node.start_error`: a string with the reason when the last start (a join or a restart) failed and the process
-  went back to waiting for a network (`status` is `"offline"`); `null` otherwise. A new start clears it.
-- `members.closed`: `true` when an administrator has closed the network to new members (read from the access ledger; `false` while the node is not attached to a network).
-- `node.identity`: `"persistent"` — the node saved its identity and after a restart will remain the same
-  network member; `"temporary"` — it did not save it, and after a restart other members will see this computer as a new member.
-  With `"temporary"`, `node.identity_reason` is filled in, otherwise it is `null`. There are three values:
-
-  - `"declined"` — the identity is not saved by explicit instruction (the node was started with `--no-config`);
-  - `"file_preserved"` — the file on disk is **intact and deliberately left untouched**: overwriting would have lost
-    the person's data, and making a `config.json.bad-<label>` copy failed, so the node preferred to
-    leave the original as is. The file may contain the network key;
-  - `"file_problem"` — other file troubles. The value is broad and covers a whole set of cases:
-    nowhere to write, the file is unreadable or corrupt, no place for the file at all. For a person this is all
-    the same — "identity not saved because of the file" — and there is no need to tell them apart by one word.
-
-  **`file_preserved` is separated from `file_problem` not for precision but for what the person should do.**
-  For `file_problem` the usual advice is "delete or fix the file". Here that advice is destructive:
-  the file is intact, and it may hold the only copy of the network key. So the page shows
-  a separate text — the file is not broken, do not delete it — rather than the generic wording about trouble with the file.
-
-  **The page takes the wording of the reason not from this word but from the `file` block** (`message` and
-  `field_errors`, section 1.6, `WEB-API-config.md`): the reason is written there in plain language and specifically. `identity_reason`
-  answers a single question — whether the person decided this themselves or it is a failure they do not
-  know about. The first is reported calmly, the second needs attention.
-
-  The source of the flag is the config layer's `FileReport` (`identity_declined` and `overwrite_refused` next
-  to `persistent_identity`, `CONFIG-FILE.md`). The page gets all three values
-  as **structured fields, not by parsing the text** of `message`: the text is written for a person and
-  changes freely, and a behavior branch must not depend on it.
-- `peers[].name` — the node name (`config.node.name`, section 2, `WEB-API-config.md`): its own or one changed by the person,
-  including non-Latin scripts. **The field is optional**: the name may be absent or empty —
-  then the page shows `id`. The own name is always there, while others' names arrive through the shared network
-  document and are matched with peers not instantly, so for the first minutes after joining the network some
-  members will have no names; the page must cope with that. The page shows the name in "Networks"
-  instead of the bare `id`; the tooltip (`title`) with the full `id_full` stays only on the own row,
-  as described below.
-- `peers[].path`: `"direct"`, `"relay"`, `null` (no path or it is ourselves).
-- `peers[].exit`: on the own row `true`/`false` — whether exit is enabled on this node. On other rows
-  `true`/`false` — as announced by the node itself (the `node/exit/` key in the shared network document), `null` — the node
-  is not in the network or there is no flag (a build without it, the announcement has not arrived yet). The page shows "—"
-  where the value is `null`.
-- `peers[].through_peer_bps` — integer, bytes/s: our traffic through this peer as an exit (outgoing
-  EXIT connections to it; sent + received over a sliding 10 s, divided by 10). Not counted:
-  direct exit, port forwarding (`PORT`), volume probes and sync. Always present; the own row and no data — `0`.
-  An old node does not send the field — the reader treats its absence as `0`.
-- `peers[].through_us_bps` — the same for this peer's traffic through our exit (incoming
-  EXIT connections from it). The window, composition and defaults are the same as for `through_peer_bps`.
-- `peers[].version` — the Mesh Town program version of the member, a string like `0.1.0` (digits, letters,
-  `.`, `-`, `+`, up to 32 characters). The own row is the version of this build, like `node.version`. Other nodes
-  announce it with the `node/version/` key in the shared network document at startup, if the recorded one
-  differs; `null` — the member has not announced it (a build before this field, the record has not arrived yet) or
-  announced an invalid one. It is shown for an offline member too — the last announced. Comparing
-  versions is the page's concern.
-- `exit.interface` — `null` when exit traffic uses the regular routing table, otherwise `{"name": "wg0", "state": …}`, where
-  `state` is `up`, `down`, `missing` (no such interface on this machine) or `unsupported` (this system cannot bind
-  to an interface). Anything but `up` means exit connections are refused (reply code 8).
-- `exit.clients` — full ids (`id_full`) of members who are currently going to the internet through this
-  node: there is an open exit stream or it closed less than 30 s ago; network members only, in
-  ascending order, `[]` — no clients or exit is off. A client that dropped without closing the
-  connection (a powered-off node, a network break) disappears not at once but after 32–35 s ;
-  the node removes it from network members on connection loss,
-  and the list shows only members, so the 30-second QUIC wait
-  is not added on top of the window. A client stopped by a signal disappears within a second. A client
-  that left and came back sooner than 30 s is visible in the list again until the end of the window, even if
-  there is no more traffic.
-- `transport.self_path`: `"direct"`, `"relay"`, `null` — how this machine currently reaches the network
-  (how the page can show this machine's own path). The values are the same three as for `peers[].path`, so that the page parses them
-  with one function.
-- `transport.relay.serving`: `true` while this node's own relay carries a pair of other members (a session is open, or a pairing was completed since the previous check, about every 30 seconds); `false` otherwise and when there is no relay. It is a flag, not a count. An older node omits the key: read it as `false`.
-- `transport.dht.nodes`: the number of nodes in the DHT routing table, read once per directory round; `0` means the table is empty. If a round cannot read it, the previous value stays.
-- `transport.record.members`: the number of keys in the last roster read from the DHT, this node included. The key is absent until the first read.
-- `node.version` — the binary version string; shown in the header caption next to the address.
-  `node.id_full` — the full node identifier; shown only as a tooltip (`title`)
-  on the own row in "Networks", it is not in the page text.
-- `node.invite_join` — `null` or `{"state": "waiting"|"refused", "message", "label", "expires_unix"}`:
-  progress of joining by a single-use invite (`POST /api/network/join` with a `mesh-invite2-…` string).
-  `waiting` — the node is looking for members from the string, `refused` — a final refusal with the text `message`;
-  it disappears when the node has joined the network, and on a new join, network creation or stop. More in
-  `WEB-API-config.md`, section "The `node.invite_join` field and single-use invites".
-- `network` — `null` when the node has no readable key. Besides `label`, `masked` and `id_hex` it says who runs the
-  network and what this node may do in it:
-  - `root`: the full id of the creator of the network (an administrator who cannot lose the role).
-  - `me_role`: `"admin"` or `"member"`.
-  - `admins`: full ids of the administrators in ascending order.
-  - `can_invite`, `can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`: the actions open to this node. The first four
-    are `true` for an administrator only. A node that has no member list yet gets the flags from the key alone: everything is
-    `false` except `can_leave`. The page shows no control whose flag is off.
-  - `excluded_by`: `{"id": "<id_full>", "name": "…"}` when an administrator excluded this node (`name` is the known
-    member name, else the short id); `null` otherwise, and after the node left on its own.
-  - `excluded_reason`: the note given with that removal (a string), or `null` when none was given, when the node is not
-    excluded by an administrator, or after it left on its own.
-- `peers[].role` — `"admin"` or `"member"`; present only in a Managed network.
-- `peers[].id_full` — the full identifier of **each** node, not only the own one (unlike
-  `node.id_full` above): it is needed as a `route.exits` value when choosing exits on the page and in
-  the tray (the checkbox puts `p.id_full` into the list), not only for the tooltip. In the page text it is not shown on
-  other rows — only the own row gets a `title`.
-- `domains[].checks[<id>].verdict`: `"ok"`, `"dns_mismatch"`, `"network_blocked"`,
-  `"site_geoblock"`, `"antibot"`, `"down"` — exactly six values from
-  `core/site_checks/reachability/verdict.rs`. `null` instead of an object — there is no record from this member.
-  The connection path no longer depends on these checks — there is no `domains[].route` in the snapshot at all.
-- `route.state`: `"direct"` (`route.exits` is empty — the node goes out itself), `"exit"` (the list is not empty and
-  there is at least one suitable candidate — connections go through the first one in the list), `"unavailable"`
-  (the list is not empty, there are no suitable candidates — the node refuses all new connections). The selection
-  rule is the same `route::choose_route` function as
-  in the proxy.
-- `route.exits[]` — the whole `route.exits` list in config order (not only the currently selected
-  candidate), with the current status of each node: `id`/`id_full` — identifier, `name` — the same
-  value as `peers[].name` for this id (`null` if it has not arrived yet), `online` — whether it is online,
-  `exit` — whether its "works as an exit" flag is on (`null` — unknown), `active` — whether this
-  node is currently the first suitable candidate (`true` for at most one list element), `removed` — present
-  and `true` when the network's member list holds an exclusion of this node (it is no longer in the network;
-  such an exit is also `online: false`).
-- `ports.published[]` — own publications; `proto`: `"tcp"` or `"udp"`; `local`: `"unknown"` (not checked), `"ok"` (the port responds),
-  `"refused"` (does not respond); for UDP it is always `"unknown"`. `ports.network[]` — ports of other nodes: entries with
-  the scope "all" and a readable value while the author is in the network (`online` — the same flag as in
-  `peers[]`), plus everything opened here (`opened`: `state` `"binding"` (a UDP socket is still being taken), `"listening"` or `"bind_failed"`,
-  `error` — the bind error text, only with `bind_failed`; `last_error` — the outcome of the last failed attempt to
-  reach the publishing node: `null` (none yet, or the last attempt succeeded), `"offline"`, `"not_opened"`,
-  `"no_service"`, `"timed_out"`, `"failed"` or `"unsupported"` — the node does not support UDP ports; for UDP the
-  attempt is made when a new sender's first datagram arrives). A row is identified by `(node, proto, port)`: TCP 53
-  and UDP 53 of one node are two rows. `proto` is `"tcp"` or `"udp"` in every row. `published: false` — the port is open here, but there is no valid record
-  for everyone; `node` — the full identifier; `web_url` — always `null` for UDP; otherwise the link to the port at the member's mesh address (`http://<name>.meshtown`, with `:port` unless the port is 80, `https://` for 443), `null` when the port is not shared with this node (`published: false`) or no proxy answers mesh addresses. Own publications are not in `network`.
-- `log.tail` — exactly the last 6 lines, for the "Recent events" card on "Home".
-- `boot_id` — random 8 hexadecimal characters, new on every process start.
-  A change of `boot_id` means the node restarted: the page clears the log and rereads the config.
-- `now` — seconds since node start with one decimal place, the same scale as the log lines
-  (`core/node/output.rs:22`).
-- `network` — `null` on the very first run, while there is no network yet: the person has not created one and has not joined
-  any. Page behavior in this case: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network itself.
+Field notes and exact enum values for every snapshot group (node, network, peers, exit and route,
+transport, ports, log) are in `WEB-API-state.md`.
 
 What each interface element takes from this snapshot is in the table in section 4.
 
 ### 1.4 `GET /api/log` — log
 
-Parameters: `after` (integer, optional), `limit` (1…2000, default 500) and `net` (a network id, optional: only the
-lines written for that network, process-wide lines are left out; `main` selects the main network). There are no more
-parameters — in particular, no `tag`, see below.
+Parameters:
 
-Filtering by tag and substring search are **done by the page, not the node**: the whole buffer is already on the page,
-and filtering on the node would mean that changing a chip requires downloading the log again and
-the `after` cursor stops being continuous. The `tag` parameter is not introduced into the contract at all.
+- `after` — integer, optional;
+- `limit` — 1…2000, default 500;
+- `net` — a network id, optional: only the lines written for that network (process-wide lines are left out);
+  `main` selects the main network.
+
+There are no other parameters, in particular no `tag`. The page, not the node, filters by tag and searches by
+substring: the whole buffer is already on the page. Filtering on the node would force a log download whenever a chip
+changes and would break the `after` cursor's continuity.
 
 ```json
 {
@@ -431,27 +318,32 @@ the `after` cursor stops being continuous. The `tag` parameter is not introduced
 - `lines` are sorted by ascending `seq`, with no gaps inside the response.
 - `gap: true` — the requested `after` is older than `first_seq`, some lines have already been evicted from the ring;
   the page clears the window and draws what arrived.
-- `text` is a ready-made string **without** the timestamp and tag: the page assembles them by the format
-  `core/node/output.rs:22`, that is `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`.
-  This way the node does not spend bytes repeating what is already in the fields.
+- `text` is a ready-made string **without** the timestamp and tag. The page assembles them in the format of
+  `core/node/output.rs`: `"+" + t.toFixed(1).padStart(7) + "s [" + tag + "] " + text`. This keeps the node from
+  repeating what is already in the fields.
 - `net` (string) is present on a line only while more than one network runs and the line belongs to one of them;
-  otherwise the line has exactly the four fields above. With several networks the page shows it as `[<net>] ` before `text`.
+  otherwise the line has exactly the four fields above. With several networks the page shows it as `[<net>] `
+  before `text`.
 
 ### 1.5 `GET /api/log/download` — log download
 
-Returns the whole buffer as `text/plain; charset=utf-8` with lines in the exact node format
-(`+  141.3s [socks] …`), the header
-`Content-Disposition: attachment; filename="meshtown-<boot_id>.log"`. While more than one network runs, the lines that
-belong to a network have `[<id>] ` before the text (`+  141.3s [socks] [ab2c3d] …`); other lines are unchanged.
-Credentials are accepted as everywhere (1.1); the session cookie goes along by itself on a plain navigation, the persistent token — via the `?token=` parameter, because the download is a plain navigation without headers.
+Returns the whole buffer as `text/plain; charset=utf-8`, with lines in the exact node format
+(`+  141.3s [socks] …`) and the header `Content-Disposition: attachment; filename="meshtown-<boot_id>.log"`.
+While more than one network runs, lines that belong to a network have `[<id>] ` before the text
+(`+  141.3s [socks] [ab2c3d] …`); other lines are unchanged.
 
+Credentials are accepted as everywhere (1.1). The download is a plain navigation without headers, so the session
+cookie goes along by itself and the persistent token goes in the `?token=` parameter.
 
 ### 1.10 Signing in to the page: `/api/auth/*`
 
-All endpoints pass the 1.1 checks (peer, `Host`, `Origin`); state-changing methods — with `Origin`. Errors are
-in the usual form `{"error","message"}`. The `via` field says how the session was opened: `"token"` — the persistent
-token (the tray and scripts read it from the `web-token` file), `"temp"` — a temporary token from the node
-output, `"password"` — a password; `null` — the request has no credentials.
+All endpoints pass the 1.1 checks (peer, `Host`, `Origin`); state-changing methods need `Origin`. Errors have
+the usual form `{"error","message"}`. The `via` field says how the session was opened:
+
+- `"token"` — the persistent token (the tray and scripts read it from the `web-token` file);
+- `"temp"` — a temporary token from the node output;
+- `"password"` — a password;
+- `null` — the request has no credentials.
 
 | Method, path | Credentials | Body | Response | Errors |
 |---|---|---|---|---|
@@ -466,70 +358,91 @@ output, `"password"` — a password; `null` — the request has no credentials.
 What it means:
 
 - **`status`** — the page uses it to decide what to show: the sign-in screen, the first-password screen or
-  the shell. `access` is the mode from settings, `listening` is the address the process listens on right now;
-  they diverge until the widened mode (`localhost` → `localnet`) takes effect (after a
-  node restart): narrowing takes effect at once, widening only after a restart. An unreadable
-  password file counts as "no password" (`password_set:false`), sign-in only by token.
-- **`token`** — exchanging a token for a cookie. Accepts a temporary token (single-use: spent by the very first
-  presentation, lives 10 minutes, no more than 8 alive at once, in process memory, 52 characters) or a
-  persistent one. A temporary token works only here, not as a header or `?token=` on other
-  addresses. When opening an address with `?token=`, the page calls this endpoint itself and removes the token from the
-  address.
-- **`login`** — password check; the comparison (PBKDF2-HMAC-SHA256, 600,000 iterations) runs on a background
-  thread one at a time, so as not to occupy the node's worker threads. The password is read from the file on
-  every sign-in (format — `CONFIG-FILE.md`, section 8.2): `password reset` on a running node
-  takes effect at once.
-- **`password`** — set or change the password; the old one is not asked for (the session has already proven
-  ownership). A change invalidates all other sessions and all live temporary tokens. Length is counted in characters.
-- **`reset`** — the same as `meshtown password reset`: deletes the password file, invalidates all sessions and all
-  previously issued live temporary tokens, then issues a new one (after the reset only it works) and returns sign-in addresses with it (with `localnet` — two: `127.0.0.1` and
-  the address on the local network, if found). Only with the persistent token in the header: a cookie and `?token=`
-  do not work. The attempt limiter does not count this endpoint.
-- **`link`** — the same as `meshtown open`: returns sign-in addresses without changing the password, sessions or
-  earlier temporary tokens. With no password set the addresses carry a new temporary token; with a password set they
-  have no token (`password_set:true`). Only with the persistent token in the header.
-- **`logout`** — closes the request's session and erases the cookie; without a session — just erases the cookie.
+  the shell.
+  - `access` is the mode from settings; `listening` is the address the process listens on right now.
+  - They diverge until a widened mode (`localhost` → `localnet`) takes effect after a node restart. Narrowing takes
+    effect at once.
+  - An unreadable password file counts as "no password" (`password_set:false`); sign-in is then by token only.
+- **`token`** — exchanges a token for a cookie. It accepts a temporary token or the persistent one.
+  - A temporary token is single-use (spent by the first presentation), lives 10 minutes, is kept in process
+    memory, has 52 characters, and no more than 8 are alive at once.
+  - A temporary token works only here, not as a header or `?token=` on other addresses.
+  - When opening an address with `?token=`, the page calls this endpoint itself and removes the token from the
+    address.
+- **`login`** — checks the password. The comparison (PBKDF2-HMAC-SHA256, 600,000 iterations) runs on a background
+  thread, one at a time, so it does not occupy the node's worker threads. The password is read from the file on
+  every sign-in (format — `CONFIG-FILE.md`, section 8.2), so `password reset` on a running node takes effect at
+  once.
+- **`password`** — sets or changes the password without asking for the old one (the session has already proven
+  ownership). A change invalidates all other sessions and all live temporary tokens. Length is counted in
+  characters.
+- **`reset`** — the same as `meshtown password reset`. It deletes the password file, invalidates all sessions and
+  all previously issued live temporary tokens, then issues a new temporary token (after the reset only it works).
+  It returns sign-in addresses with that token: with `localnet`, two — `127.0.0.1` and the local network address,
+  if found. Only the persistent token in the header works; a cookie and `?token=` do not. The attempt limiter does
+  not count this endpoint.
+- **`link`** — the same as `meshtown open`. It returns sign-in addresses without changing the password, sessions or
+  earlier temporary tokens. With no password set the addresses carry a new temporary token; with a password set
+  they have no token (`password_set:true`). Only the persistent token in the header works.
+- **`logout`** — closes the request's session and erases the cookie; without a session it only erases the cookie.
 - `POST /api/token/rotate` (1.8 in `WEB-API-config.md`) invalidates all sessions except the request's own session.
 
-**Attempt limiter** — by peer IP, separately for each address: 5 failures in 15 minutes block the
-address for 60 seconds, each next failure after the block ends doubles the period, ceiling 15 minutes.
-While an address is blocked, `token` and `login` answer 429 with `Retry-After` (seconds, at least 1), do not
-check the password and it does not count as a failure; success resets the counter. A failed token exchange is
-also a failure. There is no global counter, otherwise anyone on the network could lock out the owner. The table holds up to 1024 addresses.
+**Attempt limiter** — by peer IP, separately for each address:
 
-**Sessions:** no more than 64 at once (on overflow the oldest is evicted), lifetime 7 days from
-sign-in without extension. The persistent token, `X-Meshtown-Token` and `?token=` work for the tray, e2e and scripts
-as before. There is no CSRF token: for a state-changing method `Origin` is required and checked against `Host`, the cookie is
-`SameSite=Strict; HttpOnly`, a foreign site can neither send the cookie nor forge `Origin`.
+- 5 failures in 15 minutes block the address for 60 seconds. Each next failure after the block ends doubles the
+  period, up to 15 minutes.
+- While an address is blocked, `token` and `login` answer 429 with `Retry-After` (seconds, at least 1). They do not
+  check the password, and the attempt does not count as a failure.
+- Success resets the counter. A failed token exchange is also a failure.
+- There is no global counter; otherwise anyone on the network could lock out the owner.
+- The table holds up to 1024 addresses.
+
+**Sessions:**
+
+- No more than 64 at once (on overflow the oldest is evicted); lifetime 7 days from sign-in, not extended.
+- The persistent token, `X-Meshtown-Token` and `?token=` work for the tray, e2e and scripts.
+- There is no CSRF token. A state-changing method requires `Origin`, checked against `Host`, and the cookie is
+  `SameSite=Strict; HttpOnly`, so a foreign site can neither send the cookie nor forge `Origin`.
 
 ### 1.11 Networks: `/api/net/{slot}`, `/api/nets`, `/api/overview`
 
 A network slot is one network the node works with. Its id is six characters `[a-z2-7]`; the primary
 network is `main`. A slot may be empty: it waits for a key (see `network/join` and `network/create`).
 
-**Route classes.** The network routes (`state`, `config`, `peer-addresses`, `network/key`,
-`network/invite`, `network/join`, `network/create`, `domains`, `actions/find-exit`, `actions/check-domain`,
-`actions/check-all`, `actions/restart`, `network/inspect`, `network/delete`, `members` and `members/{exclude,unexclude,admit,block,unblock,leave,admin}`)
-exist twice: under `/api` for the primary network and under `/api/net/{slot}` for any network. All other
-routes are process routes and exist once, without a prefix. `/api/net/{slot}/log` does not exist (404
-`not_found`): the log is one for the process, filter it with `?net=`. The address of a slot that was left or
+**Route classes.** The network routes exist twice: under `/api` for the primary network and under
+`/api/net/{slot}` for any network. They are `state`, `config`, `peer-addresses`, `network/key`, `network/invite`,
+`network/join`, `network/create`, `domains`, `actions/find-exit`, `actions/check-domain`, `actions/check-all`,
+`actions/restart`, `network/inspect`, `network/delete`, `members` and
+`members/{exclude,unexclude,admit,block,unblock,leave,admin}`.
+
+All other routes are process routes and exist once, without a prefix. `/api/net/{slot}/log` does not exist (404
+`not_found`): the log is one for the process; filter it with `?net=`. The address of a slot that was left or
 does not exist is 404 `unknown_net`.
 
-**`NetBrief`** — the short form of one network, used in `nets`:
+**`NetBrief`** — one network's short form, used in `nets`:
 
 | Field | Meaning |
 |---|---|
 | `id` | the slot id |
 | `label`, `id_hex` | the network label and its identifier; `null` for an empty or broken slot |
-| `status` | the node status of the slot, or `broken` |
-| `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot — the one named by `proxy.net` of the primary config (`main` by default), whose network the local proxy (SOCKS, HTTP, PAC, system proxy) goes through; `false` for the others and for broken slots. If `proxy.net` names a network that is not loaded, `proxy` is `false` everywhere and the proxy refuses connections. A slot that is the proxy slot but not `online` makes the proxy refuse until it is up. The answer to a `PUT` that changes `route.exits` (non-empty) of a slot, or `proxy.net` of the primary config, is sent after the proxy has been switched; if the switch fails the answer is still 200 and the summary shows the truth, so take it from `proxy`, not from the `PUT` answer |
+| `status` | the slot's node status, or `broken` |
+| `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot (see below) and `false` for the others and for broken slots |
 | `route_state`, `exits` | how traffic is routed and the exits in use; `route_state` is `direct`, `exit`, `unavailable` or `removed` (no exit can be used and every exit in `route.exits` is removed from the network) |
 | `members_admitting` | the number of nodes waiting to be admitted |
 | `joining`, `me_excluded`, `me_pending` | an invite is being redeemed; this node is excluded (by the member list, or every reachable member refuses it as excluded); its admission waits |
 | `peers_online`, `peers_total` | peers online and all known peers |
-| `me_admin`, `can_invite` | whether this node is an administrator, whether it may invite. A broken slot: `false, false`; a slot without a key: `false, true` |
-| `excluded_by`, `excluded_reason` | the name (or short id) of the administrator who removed this computer and the note given with it; `null` when none, and always `null` for a computer that left on its own |
+| `me_admin`, `can_invite` | whether this node is an admin, whether it may invite. A broken slot: `false, false`; a slot without a key: `false, true` |
+| `excluded_by`, `excluded_reason` | the name (or short id) of the admin who removed this computer and the note given with it; `null` when none, and always `null` for a computer that left on its own |
 | `admission_refused` | `true` when this computer is kept out: it is not excluded, removed or pending, no other member is online, and at least one member refused it (`last_refusal.side == "them"`, reason not `unlisted`). No delay: the page waits before showing it. The same value is `state.members.admission_refused`. `false` for a broken slot |
+
+**The `proxy` flag.** It marks the slot named by `proxy.net` of the primary config (`main` by default). The local
+proxy (SOCKS, HTTP, PAC, system proxy) goes through that slot's network.
+
+- If `proxy.net` names a network that is not loaded, `proxy` is `false` everywhere and the proxy refuses connections.
+- If the proxy slot is not `online`, the proxy refuses connections until it is up.
+- A `PUT` that changes a slot's non-empty `route.exits`, or `proxy.net` of the primary config, is answered after the
+  proxy has been switched. If the switch fails, the answer is still 200. Take the truth from `proxy`, not from the
+  `PUT` answer.
 
 A broken slot (its files could not be used) has no node: `status` is `broken`, flags are `false`, counters
 are 0, `label` and `id_hex` are `null`. Its only action is `POST /api/net/{slot}/members/leave`; every other
@@ -540,28 +453,28 @@ the order the node started them, broken slots last.
 
 **`POST /api/nets`** — adds an empty slot that waits for a key. The body is a JSON object (`{}`). 201
 `{"slot":"<id>","nets":[…]}` for a new slot; 200 with the same body when an empty slot already waited
-(it is handed back, none is added; a slot that redeems an invite is not empty: a new one is added). 409 `too_many_nets` with `limit` (8) at the limit; 409 `busy` when the
-node cannot add networks (it is stopping, or it runs without a settings file).
+(it is handed back, none is added; a slot that redeems an invite is not empty: a new one is added).
+409 `too_many_nets` with `limit` (8) at the limit; 409 `busy` when the node cannot add networks (it is stopping, or
+it runs without a settings file).
 
 **`GET /api/overview`** — 200 `{"api":2,"nets":[…],"slots":[…],"restart_slots":[…]}`. Each element of
 `slots` is `{"slot":"<id>","state":{…},"members":{…}}` with what `/api/net/{slot}/state` and
-`/api/net/{slot}/members` would answer; `members` is `null` where that route answers an error (no network),
-and both are `null` for a broken slot. `restart_slots` lists the slots whose state has settings waiting for a
-restart.
+`/api/net/{slot}/members` would answer. `members` is `null` where that route answers an error (no network), and
+both are `null` for a broken slot. `restart_slots` lists the slots with settings waiting for a restart.
 
 **Leave network: `POST /api/net/{slot}/members/leave`** (also `/api/members/leave` for the primary
 network). The body is `{"confirm":true}`, otherwise 400 `bad_request`. The node first records its own
 leaving in the network (if it has one), then the slot is taken out:
 
-- An added slot disappears at once (its address is then 404 `unknown_net`); the node stops it in the
+- An added slot disappears at once (its address is then 404 `unknown_net`). The node stops it in the
   background and moves its folder aside to `nets/left-<id>-<time>/`. When a neighbour was online, the node
   waits a few seconds before stopping so the record reaches it.
-- The primary network stays as an empty slot with a new node identity; its key and the publications are
-  dropped from the settings file, its files are moved to `nets/left-main-<time>/`. The page needs no
-  restart; after a process restart the cookie of the page is renamed, so sign in again.
+- The primary network stays as an empty slot with a new node identity. Its key and publications are
+  dropped from the settings file, and its files are moved to `nets/left-main-<time>/`. The page needs no
+  restart. After a process restart the page cookie is renamed, so sign in again.
 - 200 `{"left":bool,"announced":bool,"nets":[…]}` plus the member list fields of the other `members/*`
   replies (`me`, `members`, `counts`, …; with no members and zero counts when the slot had no network or is
-  broken). `left` — the record was written (false when the node was
+  broken). `left` — the record was written (`false` when the node was
   already excluded or the slot had no network); `announced` — a neighbour was online while the record was
   written. If the node refuses to write the record (409 `busy`, 500 `internal`), the slot is not touched.
 - 409 `busy` for the primary network when its key comes from `--key` or `MESHTOWN_KEY`: restart without it.
@@ -569,11 +482,12 @@ leaving in the network (if it has one), then the slot is taken out:
 
 **`POST …/network/join` and `…/network/create`** act on the slot of the address. A slot that already works
 with a network refuses a different one: 409 `network_present` (`this tab already has a network: leave it
-first, or add a network`), nothing is written and an invite is not spent; `create` always refuses such a
-slot, `join` of the slot's own network is accepted as before. A network that another slot already works
-with is 409 `net_already_added` with the field `slot` — the id of that slot. `keep_ports` is accepted
-and has no effect on a slot without a network.
+first, or add a network`). Nothing is written and an invite is not spent. `create` always refuses such a
+slot; `join` of the slot's own network is accepted.
+
+A network that another slot already works with gives 409 `net_already_added` with the field `slot` — the id of
+that slot. `keep_ports` is accepted and has no effect on a slot without a network.
 
 ### 1.12 Members: `GET {base}/members` and the member actions
 
-The text of this section is in `WEB-API-members.md` (the member list, the member actions, their refusals).
+This section is in `WEB-API-members.md`: the member list, the member actions and their refusals.

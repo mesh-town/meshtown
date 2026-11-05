@@ -8,11 +8,14 @@ Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6�
 
 ### 1.6 `GET /api/config` — config
 
-For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`) the process fields (`exit.max_streams`, `exit.stream_window_kib`, `socks.*`,
-`web.*`, `log.*`, `node.memory_*`, `autostart.*`, `full_tunnel.*`) show the primary network's values and are
-listed in `read_only`; `cli_overrides` lists the
-network fields set by launch flags (every flag except `--key` applies to added networks too). A `PUT` leaves them as they are without an error, writes only
-the network fields to the slot's file, and answers 409 `busy` while the slot has no network.
+For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
+
+- The process fields (`exit.max_streams`, `exit.stream_window_kib`, `socks.*`, `web.*`, `log.*`, `node.memory_*`,
+  `autostart.*`, `full_tunnel.*`) show the primary network's values and are listed in `read_only`.
+- `cli_overrides` lists the network fields set by launch flags (every flag except `--key` applies to added
+  networks too).
+- A `PUT` leaves the process fields as they are, without an error, and writes only the network fields to the
+  slot's file. It answers 409 `busy` while the slot has no network.
 
 ```json
 {
@@ -39,60 +42,63 @@ the network fields to the slot's file, and answers 409 `busy` while the slot has
 }
 ```
 
-- `read_only` — fields that the node ignores on save. The order in `read_only`, `restart_fields`,
-  `changed` and `restart_pending` is the field order in the file (rows of the `config_file::fields::FIELDS` table), the composition is as before. `web.enabled` was added for the same
-  reason as the others: the page does not turn itself off, otherwise there would be nothing to turn it back on with.
-- `restart_fields` — fields whose change takes effect only after the node restarts.
-  By this list the page writes a warning **before** saving, not after. `web.port` is not in this
-  list, although it would require a restart: it is in `read_only`, not changed from the page at all,
-  and a row in `restart_fields` would be dead. It will appear there when the field becomes editable.
-  `net.relay` is in the list: a save through the API writes it to the file, and the node reads it at start only.
-  For the same reason `full_tunnel.enabled` is not in the list — turning it on is rejected with the
-  `not_available` code. `autostart.enabled` is not in the list either: it takes effect at once, when the
-  login entry is created or removed.
-- `restart_pending` — fields that are already saved but not yet applied (the node has not been restarted).
-  By them the page keeps a bar "takes effect after the node restarts". For the `socks.*` fields the file is
-  compared with the listener the node really runs, so they stay listed after a restart that could not apply them
-  (for example, the new port was busy). If that restart narrowed `socks.access` from `localnet` to `localhost`,
-  the proxy listener is closed rather than left open wider than the file allows.
-- `cli_overrides` — fields overridden by the flags the node is currently started with (for example,
-  `["socks.port"]`). The command line is stronger than the file **per field**, not per document: the other
-  fields of the file stay in force.
+- `read_only` — fields the node ignores on save. The order in `read_only`, `restart_fields`, `changed` and
+  `restart_pending` follows the file's field order (rows of the `config_file::fields::FIELDS` table).
+  `web.enabled` is read-only because the page cannot turn itself off: nothing would be left to turn it back on.
+- `restart_fields` — fields whose change takes effect only after a node restart. The page warns about them
+  **before** saving, not after.
+  - `web.port` is not listed. It would need a restart, but it is in `read_only` and cannot be changed from the
+    page, so a row would be dead. It will appear when the field becomes editable.
+  - `net.relay` is listed: a save through the API writes it to the file, and the node reads it only at start.
+  - `full_tunnel.enabled` is not listed: turning it on is rejected with the `not_available` code.
+  - `autostart.enabled` is not listed: the save itself creates or removes the login entry, so no restart is needed.
+    Flipping the switch on the page changes nothing until the user presses Save.
+- `restart_pending` — fields that are saved but not yet applied (the node has not restarted). The page shows a
+  bar "takes effect after the node restarts" for them.
+  - For `socks.*` fields the file is compared with the listener the node actually runs. They stay listed after a
+    restart that could not apply them (for example, the new port was busy).
+  - If that restart narrowed `socks.access` from `localnet` to `localhost`, the proxy listener is closed rather
+    than left open wider than the file allows.
+- `cli_overrides` — fields overridden by the flags the node was started with (for example, `["socks.port"]`).
+  The command line wins over the file **per field**, not per document: the other file fields stay in force.
 
-  **The `config` document always carries the value from the file, not the effective one.** Flags are not
-  mixed into it. The reason is that saving goes with the whole document (section 1.7): mix a
-  flag value in here, and the very first save of any other setting would silently write the flag into the file
-  over whatever was there. The effective (flag-set) value is taken by the page from the state
-  snapshot (section 1.3, `WEB-API.md`, for example `socks.listen`) and shown next to the field.
+  **The `config` document always carries the file value, not the effective one.** Flags are not mixed in.
+  Saving sends the whole document (section 1.7), so a mixed-in flag value would be silently written into the file
+  on the first save of any other setting. The page takes the effective value from the state snapshot
+  (section 1.3 in `WEB-API.md`, for example `socks.listen`) and shows it next to the field.
 
-  So a field from `cli_overrides` is edited and saved like a normal one, and the page labels
-  under it "set when the node was started — not changed here, will apply after a restart without the flag" and shows what
-  is in effect now. Saving is **allowed**: silently accepting an edit that affects nothing on
-  this run is not acceptable, but forbidding it is not either — the person configures the node for the future, and
-  the saved value goes into the file and works from the next run without the flag.
+  A field from `cli_overrides` is edited and saved like any other. The page labels it "set when the node was
+  started — not changed here, will apply after a restart without the flag" and shows the value in effect now.
+  Saving is **allowed**: silently accepting an edit that changes nothing on this run is not acceptable, but
+  forbidding it is not either. The user configures the node for the future, and the saved value works from the
+  next run without the flag.
 
-  One exception — `network.key`, if the node is started with the key flag or an environment variable:
-  `network.label` and `network.masked` in the document show the effective (flag-passed) key,
-  not the one in the file. This is safe exactly because both fields are in `read_only` — the node ignores them
-  on save, and they will not travel back into the file.
-- `file` — the state of the settings file on disk (`CONFIG-FILE.md`, section 5.1): `path` —
-  where the node writes and reads; `state` — one of `ok`, `created`, `unreadable`, `invalid`;
-  `writable` — whether the directory can be written to at all; `message` — the reason in plain language, from the node;
-  `field_errors` — fields that did not survive reading the file, of the form
-  `[{"path": "socks.port", "message": "file has 80, port is in use; default 1080 used"}]`.
-  Page behavior: with `writable: false` (router image, flash drive) the "Save" button is disabled
-  **before** pressing; with `state: "unreadable"` or `"invalid"` — a bar "an unreadable
-  config is on disk, saving will replace it, a copy will go to `config.json.bad-<date>`"; `field_errors`
-  are shown as a bar above the form and disappear after the first successful save.
+  One exception: `network.key`, when the node starts with the key flag or an environment variable.
+  `network.label` and `network.masked` then show the effective (flag-passed) key, not the file key. This is safe
+  because both fields are in `read_only`: the node ignores them on save, so they never travel back into the file.
+- `file` — the settings file state on disk (`CONFIG-FILE.md`, section 5.1):
 
-  **`writable` is computed by the web listener itself, not by the config module.** The latter answers the question "is the
-  "read-only" bit set on the file itself" and does not look at the directory at all — yet saving fails also
-  when the file can be written but the directory cannot (writing goes through a temporary file next to the target, see
-  `CONFIG-FILE.md`). So `writable` in the response is the result of a directory probe
-  that the web listener makes on every `GET`/`PUT /api/config` request: the probe is cheap, while the
-  implied "the directory does not change" is wrong on removable media and in a router image exactly
-  in the cases the field exists for. If the directory probe passed but the "read-only" bit
-  is set on the file — `writable: false`: there is still nowhere to write.
+  | Field | Meaning |
+  |---|---|
+  | `path` | where the node reads and writes |
+  | `state` | one of `ok`, `created`, `unreadable`, `invalid` |
+  | `writable` | whether the directory can be written to at all |
+  | `message` | the reason in plain language, from the node |
+  | `field_errors` | fields that did not survive reading the file, as `[{"path": "socks.port", "message": "file has 80, port is in use; default 1080 used"}]` |
+
+  Page behavior:
+  - With `writable: false` (router image, flash drive) the "Save" button is disabled **before** pressing.
+  - With `state: "unreadable"` or `"invalid"` the page shows a bar: "an unreadable config is on disk, saving will
+    replace it, a copy will go to `config.json.bad-<date>`".
+  - `field_errors` appear as a bar above the form and disappear after the first successful save.
+
+  **`writable` is computed by the web listener, not by the config module.** The config module only answers
+  whether the "read-only" bit is set on the file. It does not look at the directory, yet saving also fails when
+  the file is writable but the directory is not (writing goes through a temporary file next to the target, see
+  `CONFIG-FILE.md`). So `writable` is the result of a directory probe that the web listener makes on every
+  `GET`/`PUT /api/config` request. The probe is cheap, and assuming the directory never changes is wrong on
+  removable media and in router images, exactly where the field matters. If the directory probe passed but the
+  "read-only" bit is set on the file, `writable` is `false`: there is still nowhere to write.
 
 ### 1.7 `PUT /api/config` — saving the whole config
 
@@ -123,16 +129,15 @@ Success, 200:
 }
 ```
 
-- `changed` — which fields the node actually changed (after ignoring `read_only`).
-- `restart_pending` — which of the changed ones await a restart. An empty list means everything was applied at once.
-- The response always contains the full document: the page redraws the form from it and never
-  assumes that its value has "already applied".
-- `cli_overrides` and `file` — the same fields with the same meaning as in `GET /api/config` (section 1.6):
-  which fields are currently overridden by launch flags, and the state of the file on disk after the write.
-  Saving a field from `cli_overrides` is allowed: the value goes into the file and works from the next
-  run without the flag, the effective (flag-set) result of this run does not change. In the response
-  such a field is returned as **what is now in the file** (just saved), not as the
-  effective value — see section 1.6, the document is always about the file.
+- `changed` — the fields the node actually changed (after ignoring `read_only`).
+- `restart_pending` — the changed fields that await a restart. An empty list means everything applied at once.
+- The response always contains the full document. The page redraws the form from it and never assumes its
+  value has "already applied".
+- `cli_overrides` and `file` — same fields and meaning as in `GET /api/config` (section 1.6): the fields
+  currently overridden by launch flags, and the file state after the write.
+- Saving a field from `cli_overrides` is allowed: the value goes into the file and works from the next run
+  without the flag; the effective result of this run does not change. The response returns such a field as
+  **what is now in the file**, not the effective value (section 1.6: the document is always about the file).
 
 Stale revision, 409:
 
@@ -146,11 +151,12 @@ Stale revision, 409:
 ```
 
 Nothing is saved. The page shows a bar "The settings changed while you were editing" and a button
-"Reload (your changes will be lost)": on press the form is redrawn from the sent
-document, and the user's edits are lost **explicitly**, with their consent. There is no silent merge —
-there is nothing to merge a partly changed document with, without field markup. The cost of a mistake here is not zero
-(the person may have filled in the form again), so the button states the consequence, not just the action:
-a bare "Reload" does not say what will be lost.
+"Reload (your changes will be lost)".
+
+- On press, the form is redrawn from the sent document. The user's edits are lost **explicitly**, with consent.
+- There is no silent merge: without field markup there is nothing to merge a partly changed document with.
+- The button states the consequence, not just the action. The user may have filled in the form again, and a bare
+  "Reload" does not say what will be lost.
 
 Rejection by content, 422 — **the whole document** is validated at once, **all** errors are returned:
 
@@ -167,20 +173,25 @@ Rejection by content, 422 — **the whole document** is validated at once, **all
 ```
 
 A `ports.opened` list that adds a `local` already opened in another network of this node is refused with 422 and
-the text `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP, counted by `(proto, local)`) (`<name>` is the network's label, or `Network` and the
-first four characters of its id when it has none). Only a `local` that is new in the list counts: a conflict already
-written in the file does not block saving other fields.
+the text `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP, counted by
+`(proto, local)`). `<name>` is the network's label, or `Network` and the first four characters of its id when it
+has none. Only a `local` that is new in the list counts: a conflict already in the file does not block saving
+other fields.
 
-The order of errors in `fields` is the field order in the file. The error text for an editable field is the `put_text`
-of the table row, if it is set (for `ports.published`, `ports.opened`),
-otherwise the expected value of the form: `node.name` — "a string of at most 64 characters, non-empty after trimming
-whitespace", `exit.interface` — "an interface name (1–64 bytes, no control characters) or null — any network", `web.access` — "localhost or
-localnet", `autostart.enabled` with a wrong type — "true or false", `full_tunnel.enabled` with a wrong type — "false (enabling is not available in
-this build)". For non-editable paths — the raw file parse message; `version` — "only version 1
-is supported", a path without a dot — "an object was expected".
+The errors in `fields` follow the file's field order. The error text is:
 
-The revision does not grow, the node config does not change in any field. The page colors the fields from `fields` and
-writes `message` under them — the texts come from the node and are not composed on the page.
+- for an editable field, the `put_text` of the table row if set (`ports.published`, `ports.opened`), otherwise
+  the expected value of the form:
+  - `node.name` — "a string of at most 64 characters, non-empty after trimming whitespace"
+  - `exit.interface` — "an interface name (1–64 bytes, no control characters) or null — any network"
+  - `web.access` — "localhost or localnet"
+  - `autostart.enabled` with a wrong type — "true or false"
+  - `full_tunnel.enabled` with a wrong type — "false (enabling is not available in this build)"
+- for non-editable paths, the raw file parse message; `version` — "only version 1 is supported"; a path without
+  a dot — "an object was expected".
+
+The revision does not grow and no node config field changes. The page colors the fields from `fields` and
+writes `message` under them. The texts come from the node; the page does not compose them.
 
 Enabling something unavailable, 422 `not_available`:
 
@@ -198,46 +209,127 @@ nothing is saved.
 
 ### 1.8 Actions
 
-All actions are `POST`, the body is JSON (or empty), the response is JSON. Actions do not touch the config and do not
-change `rev`, except those explicitly marked — `POST /api/network/join` and `POST /api/network/create`
-write a new network key into the config and raise `rev`.
-Network actions also exist under `/api/net/{slot}/…` and act on that network. `network/join` and
-`network/create` answer 409 `network_present` when the slot already works with another network, and
-`network/join` answers 409 `net_already_added` (with `slot`) when another slot has the network; see 1.11 in
-`WEB-API.md`. Joining a Managed network by an invite that was not made by an administrator is refused after the answer: `node.invite_join` becomes
-`{"state":"refused","message":…}` (there is no HTTP code for it). `network/inspect`, `network/delete` and the member action `members/admin` also exist under `/api/net/{slot}/…`.
+All actions are `POST`, the body is JSON (or empty), the response is JSON. Actions do not touch the config and
+do not change `rev`, except `POST /api/network/join` and `POST /api/network/create`: they write a new network
+key into the config and raise `rev`.
+
+- Network actions also exist under `/api/net/{slot}/…` and act on that network.
+- `network/join` and `network/create` answer 409 `network_present` when the slot already works with another
+  network.
+- `network/join` answers 409 `net_already_added` (with `slot`) when another slot has the network; see 1.11 in
+  `WEB-API.md`.
+- Joining a Managed network by an invite that was not made by an administrator is refused after the answer:
+  `node.invite_join` becomes `{"state":"refused","message":…}` (there is no HTTP code for it).
+- `network/inspect`, `network/delete` and the member action `members/admin` also exist under `/api/net/{slot}/…`.
 
 | Address | Body | Response | What it does |
 |---|---|---|---|
 | `POST /api/actions/find-exit` | `{"domain":"example.org"}` | 202 `{"domain":"example.org","added":true}` | The "Site won't open" scenario from "Home": adds the domain to this node's list and puts it into an out-of-turn check on this node. One address, because it is one user intention. |
-| `POST /api/actions/check-domain` | `{"domain":"x.com"}` | 202 `{"domain":"x.com"}` | An out-of-turn check of one domain. In the snapshot the domain gets `checking: true`, then an updated record. The `⟳` button in the domain row (section 4.5). 409 `busy` if the domain already has `checking: true`. |
+| `POST /api/actions/check-domain` | `{"domain":"x.com"}` | 202 `{"domain":"x.com"}` | An out-of-turn single-domain check. In the snapshot the domain gets `checking: true`, then an updated record. The `⟳` button in the domain row (section 4.5). 409 `busy` if the domain already has `checking: true`. |
 | `POST /api/actions/check-all` | empty | 202 `{"queued":7}` | The "Check all" button. |
 | `POST /api/domains` | `{"domain":"figma.com"}` | 200 `{"domain":"figma.com"}` | Add a domain to this node's list (not passed on to other members). 422 `invalid` — the name did not parse. |
 | `DELETE /api/domains?name=figma.com` | — | 200 `{"domain":"figma.com"}` | The cross in the domain row. The name is in the parameter, not in the path: a domain contains dots and would otherwise need escaping. |
 | `GET /api/peer-addresses` | — | 200 `{"lines":["0652d7aa9d65bf148c912a43439090e6ac2728847144459589ae452497167056@192.168.1.14:47821", "…"]}` | The same as `transport.self_addresses`, as a separate address — so that the "Copy" button does not depend on the moment of polling. |
 | `POST /api/peer-addresses` | `{"text":"9caa709ad9588475e74ad3f896feb1937bf3a5d64b101af7358f6cf2ee799d96@77.88.21.3:47821\n…"}` | 200 `{"added":2,"rejected":[{"line":"junk","message":"no @ separator"}]}` | Manual address exchange under strict NAT. Parsing is line by line, empty lines are skipped, partial success is not an error. |
-| `POST /api/network/join` | `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya"}` | 202 `{"label":"our-gaming-room","restart":true}`; for an invite — 202 `{"label":…,"restart":false,"waiting":true}` | Joining someone else's network. Accepted: the human-readable key form, the machine form `mesh2-<base32>` and a single-use invite `mesh-invite2-…` from `GET /api/network/invite`. **A key or `mesh2-`:** the node restarts, the connection to the current network is lost — the page warns before sending; the config changes (the new key goes into the file), `rev` is raised; 422 `invalid_key` with the `word` field if it tripped on a word, without `word` — if the error is in the tail. **An invite:** the string has no network key, only a single-use secret, a label and addresses of up to five members. The response comes at once, 202 with `"restart": false` and `"waiting": true` (the label is `label`, `null` if there is none); there is no restart. Then the node itself looks for members from the string and presents the secret over the `meshtown/invite/1` protocol until it gets the key or gets a final refusal; progress is visible in `/api/state` in the `node.invite_join` field (below). Once it gets the key, the node writes it to the settings file (honoring `keep_ports`) and joins the network without restarting the process; if the file was not written, the node joins anyway and the reason goes to the log. The addresses from the string apply only to this join and are not written to the config. A new `join` call, network creation and node stop cancel the wait. 422 `invalid_key` **without** the `word` field, with `message` as ready text for a person: an old-format string `mesh-invite1-…` ("This invite is of the old format (mesh-invite1-): it contained the network key, and such invites are no longer accepted. Ask a network member for a new invite from the updated program."), an invite of the previous format ("This invite is of an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program."), a string older than a day ("This invite was issued more than a day ago and is no longer valid. Ask a network member for a new one."), a corrupted string. A spent invite, one unknown to the members or a foreign one is answered not with 422 but with the `refused` state in `node.invite_join`. The optional body field `keep_ports` (JSON bool): `true` — the `ports.published` publications stay and work in the new network; no field, not a bool and `false` — the publications are turned off, `ports.opened` stays. |
-| `POST /api/network/create` | `{"label":"our gaming room"}` | 200 `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya","label":"our-gaming-room","restart":true}` | Creating your own network. The network is always a Managed one: its key carries the creator's node id (`label--word-word-group-<52 characters>`), the creator is its first administrator, and the page advises making a second member an administrator. The full key comes in this response; after that it is given out only by `GET /api/network/key` and the invite `GET /api/network/invite`, and it is not shown on screen a second time. The config changes (the new key goes into the file), `rev` is raised. The `keep_ports` body field is as for `join`: by default the port publications are turned off. A sent `kind` field is ignored. |
-| `POST /api/network/inspect` | `{"key":"<key or mesh-invite2-… string>"}` | 200 `{"label":"our-gaming-room","id_hex":"9c1e…"}` | Tells what a pasted key or invite is before joining: the label (`null` if none) and the network identifier. Nothing is joined or written, and an invite is only parsed, never redeemed (it is not spent). An unreadable key or invite is 422 `invalid_key`, as for `join`; a key of the older format (`mesh1-…` or three words with a group) and an invite of the older format are refused the same way with the text "This network key is from an older Mesh Town and no longer works. Ask a network admin for a new invite." or "This invite is from an older Mesh Town. Ask a network admin for a new one.". |
+| `POST /api/network/join` | `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya"}` | 202 `{"label":"our-gaming-room","restart":true}`; for an invite — 202 `{"label":…,"restart":false,"waiting":true}` | Joining someone else's network by a key or an invite; see "Join, create, inspect" below. |
+| `POST /api/network/create` | `{"label":"our gaming room"}` | 200 `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya","label":"our-gaming-room","restart":true}` | Creating your own network; see "Join, create, inspect" below. |
+| `POST /api/network/inspect` | `{"key":"<key or mesh-invite2-… string>"}` | 200 `{"label":"our-gaming-room","id_hex":"9c1e…"}` | Tells what a pasted key or invite is before joining; see "Join, create, inspect" below. |
 | `POST /api/network/delete` | `{"confirm":true}` | 200, the member list as for `members/leave` | Deleting a network for everyone, by an administrator. Without `confirm: true` — 422 `invalid`. 409 `not_admin`, `network_deleted`. See "Managed networks: members and deletion" below. |
-| `GET /api/network/invite` | — | 200 `{"invite":"mesh-invite2-…","qr":"<svg …>…</svg>"}` | For the "Invite a member" button: each call issues a **new single-use** invite, valid for a day (`INVITE_TTL_SECS = 86_400`, `core/invite/head.rs`). The string has no network key: it holds a 32-byte one-time secret, 4 bytes of the network identifier (the newcomer uses them to check that the key came from that network), the issue time, the label and the addresses of this node and up to 4 other members (`MAX_INVITE_PEERS = 5`). The node writes only the secret's hash into the shared network document; the issue is recorded first, then the string is returned. The `qr` field is the same string drawn as a QR code, an SVG document (error correction level L, QR version 25 or smaller); it is `null` when the string is too long for that. Still hand the string to the member in person: whoever presents it first is the one who gets in. 409 `busy` while the node is not in the network (first run, a restart after a network change). |
-| `GET /api/network/key` | — | 200 `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya"}` | The page calls it only on the "Show" button of the network key (the key lives in page memory until the network changes); to share the network use an invite (`GET /api/network/invite`). Returns the whole key — for embedding and debugging. |
-| `POST /api/token/rotate` | empty | 200 `{"token":"…","url":"http://127.0.0.1:7777/?token=…"}` | A new persistent token (the tray and scripts read it from the `web-token` file). The old one stops working immediately; the page rewrites its own `sessionStorage` itself. It also invalidates all cookie sessions, **except the request's own session**: a session opened by exchanging a leaked token would otherwise outlive the revocation. |
+| `GET /api/network/invite` | — | 200 `{"invite":"mesh-invite2-…","qr":"<svg …>…</svg>"}` | The "Invite a member" button: issues a **new single-use** invite on every call; see "Invites" below. |
+| `GET /api/network/key` | — | 200 `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya"}` | The page calls it only on the network key's "Show" button (the key lives in page memory until the network changes); to share the network use an invite (`GET /api/network/invite`). Returns the whole key — for embedding and debugging. |
+| `POST /api/token/rotate` | empty | 200 `{"token":"…","url":"http://127.0.0.1:7777/?token=…"}` | A new persistent token (the tray and scripts read it from the `web-token` file). The old one stops working at once, and the page rewrites its own `sessionStorage`. It also invalidates all cookie sessions **except the request's own**: a session opened by exchanging a leaked token would otherwise outlive the revocation. |
 | `POST /api/actions/stop` | empty | 202 `{"stopping":true}` | Stopping the node. After the response the node shuts down; the page goes to the "Mesh Town is stopped" state and stops polling. |
-| `POST /api/actions/restart` | empty | 202 `{"restart":true}` | Restarting the node in the same process: the settings file is reread, CLI flags stay. 409 `busy` when the node is not running (offline, starting, stopping). For the primary network without a key (no network yet) the restart applies the pending `socks.*` settings to the process-wide proxy and answers 202 `{"restart":true}`; it is refused with 409 `busy` when no `socks.*` field is pending, when a launch flag sets one, or when the proxy cannot be rebound (the text says why). |
+| `POST /api/actions/restart` | empty | 202 `{"restart":true}` | Restarts the node in the same process: the settings file is reread, CLI flags stay. 409 `busy` when the node is not running (offline, starting, stopping). Without a network key (no network yet) the restart applies the pending `socks.*` settings to the process-wide proxy and answers 202 `{"restart":true}`. It is refused with 409 `busy` when no `socks.*` field is pending, when a launch flag sets one, or when the proxy cannot be rebound (the text says why). |
+
+### Join, create, inspect
+
+**`POST /api/network/join`** joins someone else's network. Body `{"key":"<key>"}`, with an optional `keep_ports`.
+Accepted: the human-readable key form, the machine form `mesh2-<base32>`, and a single-use invite
+`mesh-invite2-…` from `GET /api/network/invite`.
+
+- **A key or `mesh2-`:**
+  - Response 202 `{"label":"our-gaming-room","restart":true}`.
+  - The node restarts and the connection to the current network is lost, so the page warns before sending.
+  - The config changes (the new key goes into the file) and `rev` is raised.
+  - 422 `invalid_key` with the `word` field if it tripped on a word; without `word` if the error is in the tail.
+- **An invite:** the string has no network key, only a single-use secret, a label and the addresses of up to
+  five members.
+  - Response at once: 202 `{"label":…,"restart":false,"waiting":true}` (`label` is `null` if there is none).
+    There is no restart.
+  - The node then looks for the members from the string and presents the secret over the `meshtown/invite/1`
+    protocol until it gets the key or a final refusal. Progress is visible in the `node.invite_join` field of
+    `/api/state` (below).
+  - Once it gets the key, the node writes it to the settings file (honoring `keep_ports`) and joins without
+    restarting the process. If the file was not written, the node joins anyway and the reason goes to the log.
+  - The addresses from the string apply only to this join and are not written to the config.
+  - A new `join` call, network creation and node stop cancel the wait.
+  - 422 `invalid_key` **without** `word`, with `message` as ready text for a person:
+    - an old-format string `mesh-invite1-…`: "This invite is of the old format (mesh-invite1-): it contained the network key, and such invites are no longer accepted. Ask a network member for a new invite from the updated program."
+    - an invite of the previous format: "This invite is of an older format: such invites are no longer accepted. Ask a network member for a new invite — from the updated program."
+    - a string older than a day: "This invite was issued more than a day ago and is no longer valid. Ask a network member for a new one."
+    - a corrupted string.
+  - A spent invite, one unknown to the members, or a foreign one gets no 422; the `refused` state appears in
+    `node.invite_join`.
+- `keep_ports` (optional JSON bool): `true` keeps the `ports.published` publications working in the new network.
+  No field, a non-bool, or `false` turns the publications off; `ports.opened` stays.
+
+**`POST /api/network/create`** creates your own network. Body `{"label":"our gaming room"}`.
+
+- Response 200 `{"key":"our-gaming-room--aliens-congested-4dd5mwxvn77e6pptnnw01-glbdthzco34lodbfmhh6knwjvto4c7fqz6irhnyn367juokngaya","label":"our-gaming-room","restart":true}`.
+- The network is always a Managed one. Its key carries the creator's node id
+  (`label--word-word-group-<52 characters>`), the creator is its first administrator, and the page advises
+  making a second member an administrator.
+- The full key comes in this response. After that only `GET /api/network/key` and the invite
+  `GET /api/network/invite` give it out, and the page does not show it a second time.
+- The config changes (the new key goes into the file) and `rev` is raised.
+- `keep_ports` works as for `join`: by default the port publications are turned off.
+- A sent `kind` field is ignored.
+
+**`POST /api/network/inspect`** tells what a pasted key or invite is before joining. Body
+`{"key":"<key or mesh-invite2-… string>"}`, response 200 `{"label":"our-gaming-room","id_hex":"9c1e…"}`: the
+label (`null` if none) and the network identifier.
+
+- Nothing is joined or written. An invite is only parsed, never redeemed (not spent).
+- An unreadable key or invite is 422 `invalid_key`, as for `join`.
+- An older-format key (`mesh1-…` or three words with a group) and an older-format invite are
+  refused the same way, with "This network key is from an older Mesh Town and no longer works. Ask a network admin for a new invite." or "This invite is from an older Mesh Town. Ask a network admin for a new one.".
+
+### Invites
+
+`GET /api/network/invite` returns `{"invite":"mesh-invite2-…","qr":"<svg …>…</svg>"}`.
+
+- Each call issues a **new single-use** invite, valid for a day (`INVITE_TTL_SECS = 86_400`,
+  `core/invite/head.rs`).
+- The string has no network key. It holds:
+  - a 32-byte one-time secret;
+  - 4 bytes of the network identifier (the newcomer checks that the key came from that network);
+  - the issue time and the label;
+  - the addresses of this node and up to 4 other members (`MAX_INVITE_PEERS = 5`).
+- The node writes only the secret's hash into the shared network document. The issue is recorded first, then
+  the string is returned.
+- `qr` is the same string as a QR code, an SVG document (error correction level L, QR version 25 or smaller). It
+  is `null` when the string is too long for that.
+- Hand the string to the member in person: whoever presents it first gets in.
+- 409 `busy` while the node is not in the network (first run, a restart after a network change).
+
 
 ### Managed networks: members and deletion
 
-In a network (`{base} as in section 1.12, `WEB-API-members.md`):
+In a network (`{base}` as in section 1.12, `WEB-API-members.md`):
 
-- `POST {base}/members/admin` with `{"id":"<64 hex digits>","admin":true|false}` makes the node an administrator or a regular
-  member (only an administrator may; the creator cannot lose the role). A missing id is 400 `bad_request`, a missing or non-boolean
-  `admin` is 400 `bad_request`, a malformed id is 422 `invalid`. The reply is the member list with `changed`.
+- `POST {base}/members/admin` with `{"id":"<64 hex digits>","admin":true|false}` makes the node an administrator
+  or a regular member. Only an administrator may; the creator cannot lose the role.
+  - A missing id, or a missing or non-boolean `admin`, is 400 `bad_request`; a malformed id is 422 `invalid`.
+  - The reply is the member list with `changed`.
 - `exclude` is one administrator's decision.
-- `POST {base}/network/delete` with `{"confirm":true}` (without it 422 `invalid`) closes the network for everybody; the members leave
-  it, this node too. Reply as for `members/leave`.
-- Further 409 refusals: `not_admin` (the action needs an administrator, this includes `network/invite`: 409 `{"error":"not_admin","message":…}`),
-  `creator` (the creator of the network cannot be excluded or lose the role), `last_admin` (the only administrator cannot give up the role), `network_deleted` (the network was closed).
+- `POST {base}/network/delete` with `{"confirm":true}` (without it 422 `invalid`) closes the network for
+  everybody; the members leave it, this node too. Reply as for `members/leave`.
+- Further 409 refusals:
+  - `not_admin`: the action needs an administrator. This includes `network/invite`:
+    409 `{"error":"not_admin","message":…}`.
+  - `creator`: the network creator cannot be excluded or lose the role.
+  - `last_admin`: the only administrator cannot give up the role.
+  - `network_deleted`: the network was closed.
 
 ### The `node.invite_join` field and single-use invites
 
@@ -253,13 +345,17 @@ In `GET /api/state`, in the `node` section, the `invite_join` field is `null` (n
 The field disappears (`null`) when the node got the key and joined the network, and also on a new `join`, network creation
 or node stop. A refusal stays visible until a new join replaces it.
 
-**A known limit.** An invite is spent by a mark in the shared network document, and the document is replicated between
-members in tens of milliseconds. If two members get a presentation of the same string within this window,
-both may hand out the key: two nodes will join with one string. The harm is limited — the network key is the same, and
-two people joining with one string equals one extra member; rereading the marks does not close the window. Two
-simultaneous presentations to the same member do not cause a race: it answers with the key to only one.
-If the spent mark is written but the key did not arrive (response timeout 5 s, connection break), the invite is spent
-without a join: the newcomer will see `Internal`, then `Used` (the text "another node has already joined").
+**A known limit.** An invite is spent by a mark in the shared network document, which replicates between members
+in tens of milliseconds.
+
+- If two members get a presentation of the same string within this window, both may hand out the key, and two
+  nodes join with one string.
+- The harm is limited: the network key is the same, and two people joining with one string equal one extra
+  member. Rereading the marks does not close the window.
+- Two simultaneous presentations to the same member do not race: it answers with the key to only one.
+- If the spent mark is written but the key did not arrive (response timeout 5 s, connection break), the invite
+  is spent without a join. The newcomer sees `Internal`, then `Used` (the text "another node has already
+  joined").
 
 What is left open in the contract: what to do with fields that require a restart on `import`.
 
@@ -303,30 +399,29 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `socks.enabled` | boolean | `true` | — | **yes** (the port is taken at startup, `ARCHITECTURE.md`, "How the node works", item 1) | `core/node/config.rs`, `core/cli/commands.rs` (the `--no-socks` flag) | "Settings", the "Browser proxy" row — next to the port; "Home" → the "Browser proxy" card |
 | `socks.strict` | boolean | `false` | — | no (applies at once) | `core/proxy/pac.rs` | "Settings" → "Strict mode" |
 | `socks.port` | integer | 1080 | 1024…65535; a busy port — 422 | **yes** | `core/node/config.rs`, `core/cli/commands.rs` | "Settings" → "Proxy port (SOCKS5 and HTTP)"; the port belongs to the process (one proxy listener for all networks), not to a slot |
-| `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config an id of a network that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
+| `proxy.net` | string: `main` or a network id | `"main"` | 6 characters a-z, 2-7 or `main`, otherwise 422; in the primary config a network id that is not on the node — 404 `unknown_net`, the file is untouched | no (the proxy switches to the named network's exit at once) | `core/proxy/front/`, `core/web_gui/routes/config.rs` | not shown |
 | `checks.enabled` | boolean | `true` | — | no | `core/node/config.rs`, `core/cli/commands.rs` (the `--set checks.enabled=false` option) | "Settings", the "Check sites from the list" row — next to the interval |
 | `checks.interval_sec` | integer | 900 | 30…86400; list on the page: 300, 900, 1800, 3600, 21600 | no | `core/cli/commands.rs` | "Settings" → "How often to check sites" |
 | `checks.doh_server` | string `address:port` | `"1.1.1.1:443"` | parsed as `SocketAddr` | **yes** | `core/cli/commands.rs`, `core/node/config.rs` | not shown |
 | `checks.provider_dns` | string `address:port` or `null` | `null` | the same or `null` | **yes** | `core/cli/commands.rs`, `core/node/config.rs` | not shown |
 | `probe.interval_sec` | integer | 300 | 5…86400; list on the page: 60, 300, 600, 1800, 3600 | no | `core/cli/commands.rs`, `core/node/config.rs` | "Settings" → "How often to check connection speed" |
-| `route.exits` | list of strings (full node ids) | `[]` | no repeats, up to 64 entries; order = priority; an unparsed id/repeat/overflow — 422 `invalid` | no (on the fly — `RouteCtx::set_chosen_exits`, without reconnects) | `core/proxy/route.rs`, `core/node/config.rs` | "Nodes" — a checkbox/order of the selected exits in the member list |
+| `route.exits` | list of strings (full node ids) | `[]` | no repeats, up to 64 entries; order = priority; an unparsed id/repeat/overflow — 422 `invalid` | no (on the fly — `RouteCtx::set_chosen_exits`, without reconnects) | `core/proxy/route.rs`, `core/node/config.rs` | "Nodes" — a checkbox and order of the selected exits in the member list |
 | `ports.published` | list of objects `{port, proto, name, for}`: `port` 1…65535, `proto` `"tcp"` (default; written to the file only for UDP) or `"udp"`, `name` a string up to 64 characters (none — empty), `for` — `"all"` or a list of full node ids (up to 64) | `[]` | `for` is required (missing or another value is not "all" but a refusal); no repeated `(proto, port)`, up to 64 entries; any corruption makes the whole list invalid: 422 `invalid` on PUT (text: `a list of publications {port, proto, name, for} without repeated (proto, port), up to 64, proto is "tcp" (default) or "udp", for is "all" or a list of ids`), `[]` and a line in `field_errors` when reading the file | no (on the fly — the node's publication table, without reconnects) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — own publications |
-| `ports.opened` | list of objects `{node, port, proto, local}`: `proto` as above; the full node id, its port, the listener's local port (1…65535) | `[]` | no repeats of `(node, proto, port)` and `(proto, local)`, up to 64 entries; a new `local` already opened in another network of this node — 422 `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP) (a conflict already in the file does not block other fields); any corruption makes the whole list invalid, as above (text: `a list of {node, port, proto, local} without repeats of (node, proto, port) and (proto, local), up to 64, proto is "tcp" (default) or "udp"`) | no (on the fly — the listeners of opened ports) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — other members' ports opened here |
+| `ports.opened` | list of objects `{node, port, proto, local}`: `proto` as above; the full node id, its port, the listener's local port (1…65535) | `[]` | no repeats of `(node, proto, port)` and `(proto, local)`, up to 64 entries; a new `local` already opened in another network of this node — 422 `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP) (a conflict already in the file does not block other fields); any corruption makes the whole list invalid, as above (text: `a list of {node, port, proto, local} without repeats of (node, proto, port) and (proto, local), up to 64, proto is "tcp" (default) or "udp"`) | no (on the fly — the opened-port listeners) | `core/ports_sharing/`, `core/node/config.rs` | "Ports" — other members' ports opened here |
 | `web.enabled` | boolean | `true` | read-only (in `read_only`): the page does not turn itself off, otherwise there would be nothing to turn it back on with | — | web listener | not shown |
 | `web.access` | string `"localhost"` or `"localnet"` | `"localnet"` | an unknown value — 422 `invalid`; **not** in `restart_fields`: narrowing (`localnet` → `localhost`) takes effect at once (the node stops admitting peers from the network), widening with a socket on `127.0.0.1` takes effect after the process restarts, and the divergence is visible in `GET /api/auth/status` (`access` ≠ `listening`, `WEB-API.md` 1.10). The "Restart" button (a network restart) does not reopen the page listener | — | `core/web_gui/auth/access.rs` | "Settings" → "Who can access the settings page" (explanation: this is only about access to the node settings, not to the network or traffic) |
 | `web.port` | integer | 7777 | 1024…65535; read-only (in `read_only`, which is why it is not in `restart_fields`) | — | — | page header, no input field |
 | `log.ring_lines` | integer | 2000 | 200…20000 | no | — (2,000 lines) | caption under the log window, no input field |
 | `node.memory_warn_mib` | integer | 400 | 0…1048576, MiB; `0` = off; `400` means "by machine memory" (24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise), so an explicit 400 on a machine with ≤512 MiB also counts as automatic; on such machines the exit also refuses new streams near this value, above 512 MiB with the default 400 it refuses only by the stream limit | file only | `core/node/host/process.rs` | not shown |
-| `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the login entry of the current user), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied at once) | — | "Settings", the switch |
-| `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the gray look of the switch |
+| `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the current user's login entry), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied by the save) | — | "Settings", the switch |
+| `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the switch's gray look |
 | `autostart.reason` | string | "" when available, otherwise "only in the desktop app with the tray icon" or "could not read the login entry: <error>" | read-only | — | — | caption under the switch |
 | `full_tunnel.enabled` | boolean | `false` | as for `autostart.enabled` | — (cannot be enabled) | — | "Settings", the switch is gray |
 | `full_tunnel.available` | boolean | `false` | read-only | — | — | gray look |
 | `full_tunnel.reason` | string | "will appear together with TUN" | read-only | — | the same | caption |
 
-`full_tunnel.enabled` is stored in the file (a setting that a person may set in advance), while
-`full_tunnel.available`, `full_tunnel.reason`, `autostart.available`, `autostart.reason` are not: the node fills
-them itself on every start.
+`full_tunnel.enabled` is stored in the file (a user may set it in advance). `full_tunnel.available`,
+`full_tunnel.reason`, `autostart.available` and `autostart.reason` are not: the node fills them on every start.
 
 `autostart.enabled` is stored in the file only as a mirror of the last choice made on the page. The file does not
 manage the login entry: the node never creates or removes it from the file value, only on a save from the page. The
@@ -337,8 +432,7 @@ source of truth is the system, so the value shown always comes from there. The e
 - Linux: `$XDG_CONFIG_HOME/autostart/meshtown.desktop` (`~/.config/autostart/meshtown.desktop` by default);
 - Windows: the value `Mesh Town` under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`.
 
-What is **not** in the config and why: the page token, the network key, the node's
-domain list, `blocked_domains` (`core/node/config.rs` — a debug flag, there is no place for it on the page).
+Not in the config: the page token, the network key, the node's domain list, and `blocked_domains` (`core/node/config.rs` — a debug flag, there is no place for it on the page).
 
 ---
 

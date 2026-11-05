@@ -33,7 +33,7 @@ material.
 
 - Upstream: https://github.com/zxing/zxing
 - License: Apache-2.0
-- Built into the Android app (decoding a photo of a QR code).
+- Built into the Android app (decoding a QR code photo).
 
 ## Rust dependencies
 

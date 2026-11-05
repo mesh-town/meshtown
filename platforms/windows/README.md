@@ -25,7 +25,10 @@ Run from the repository root as `make windows-<target>`, or `make -C platforms/w
 `meshtown-windows-cli-<version>.exe`). The root targets `make build_windows_cli` and `make build_windows_gui` call the
 same script.
 
-## What is used outside this directory
+## External dependencies
 
-Only `core/` (the path dependency in `Cargo.toml`), `scripts/release/lib.sh`, `scripts/release/dist/` and the workspace root, from
-which `cargo` runs. `make boundary` checks this.
+`make boundary` checks that this directory uses only:
+
+- `core/` (the path dependency in `Cargo.toml`);
+- `scripts/release/lib.sh` and `scripts/release/dist/`;
+- the workspace root, from which `cargo` runs.

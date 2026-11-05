@@ -12,8 +12,8 @@ All commands are RouterOS 7 console commands (WinBox terminal or SSH).
   version, write `mounts=` in the `/container/add` command.
 - **A model with an ARM, ARM64 or x86 CPU** and the `container` package installed. MIPS models (mipsbe, mmips, smips)
   and PPC cannot run containers. The hEX Refresh (EN7562CT) only runs 32-bit ARMv5 images, so it does not fit.
-- **About 30 MB of disk** for the image and the node data. Use an external USB drive or disk when you have one: the
-  internal flash of small models is tight, and a fast disk makes the unpacking much quicker.
+- **About 30 MB of disk** for the image and the node data. Use an external USB drive or disk when you have one: small
+  models' internal flash is tight, and a fast disk makes the unpacking much quicker.
 - **Memory.** The node needs memory for its network tables; check `/container/print` memory use after the start. To keep
   the node from taking more than you can spare, set a limit with `memory-high=` on the container.
 - **A DNS server** in `/ip/dns` (or `dns=` on the container); RouterOS 7.24 and newer refuse to start a container
@@ -68,8 +68,8 @@ final drop rule:
 ## Storage
 
 The node keeps its identity, the network key and the settings in `/data`. Give it a directory on a disk, so it
-survives removing and re-creating the container. The source is a directory, not a file. Replace `disk1` with the name
-of your disk (`/disk/print`):
+survives removing and re-creating the container. The source is a directory, not a file. Replace `disk1` with your disk's
+name (`/disk/print`):
 
 ```
 /container/mounts/add list=meshtown src=disk1/meshtown-data dst=/data
@@ -130,7 +130,7 @@ invite or create a new one.
 
 ## Page and proxy
 
-**The page** is at `http://172.17.0.2:7777`, and only there. The computers of your LAN reach this address through the
+**The page** is at `http://172.17.0.2:7777`, and only there. Computers on your LAN reach this address through the
 router, which has the `containers` subnet. Do not forward the page to the router's own address with a `dst-nat`
 rule: the node checks which address a browser used to open the page and refuses any other one with a "403" error.
 This check protects the page from malicious websites, so it cannot be switched off.
@@ -143,7 +143,7 @@ address:
 /ip/firewall/nat/add chain=dstnat action=dst-nat protocol=tcp dst-address=192.168.88.1 dst-port=1080 to-addresses=172.17.0.2 to-ports=1080
 ```
 
-The image starts the node with `--socks-access localnet`, which lets the computers of your LAN use the proxy. If you
+The image starts the node with `--socks-access localnet`, which lets computers on your LAN use the proxy. If you
 set your own `cmd=` on the container, repeat the flag: `cmd="run --socks-access localnet"`.
 
 Programs that use the proxy (a browser setting, `socks5h://172.17.0.2:1080`) reach the other members by their names,
@@ -155,7 +155,7 @@ is required.
 
 ## Network key and invite
 
-To join a network without the page, put the key or the invite in the environment of the container:
+To join a network without the page, put the key or the invite in the container's environment:
 
 ```
 /container/envs/add list=meshtown-env key=MESHTOWN_KEY value="<your network key>"
@@ -163,8 +163,8 @@ To join a network without the page, put the key or the invite in the environment
 ```
 
 `MESHTOWN_INVITE` works the same way for an invite. The key forms are described in [USAGE.md](USAGE.md#the-network-key).
-Environment values are visible to anyone who can read the router configuration, so prefer the page for a key that
-you want to keep private.
+Anyone who can read the router configuration sees environment values, so use the page for a key you want to keep
+private.
 
 ## Update
 
@@ -194,4 +194,4 @@ version is out.
 - Memory and disk use depend on the model; slow flash storage makes the first unpacking slow.
 - The image supports ARM64, 32-bit ARM (ARMv7) and x86_64. A model with a MIPS CPU cannot run containers; use a
   computer or another router in the same network instead (for OpenWrt and Keenetic see [INSTALL.md](INSTALL.md#routers)).
-- General limits of the program: [LIMITATIONS.md](LIMITATIONS.md).
+- General program limits: [LIMITATIONS.md](LIMITATIONS.md).

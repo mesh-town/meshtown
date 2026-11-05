@@ -1,6 +1,8 @@
 # Container image builder
 
-Builds the `ghcr.io/mesh-town/meshtown` image from the static Linux release archives, with Python 3 standard library only.
+Builds the `ghcr.io/mesh-town/meshtown` image from the static Linux release archives, with the Python 3 standard library only.
+
+## Usage
 
 ```
 python3 build_image.py --fetched DIR --version X.Y.Z --out DIR [--tar-format docker|oci]
@@ -11,7 +13,9 @@ python3 build_image.py --fetched DIR --version X.Y.Z --out DIR [--tar-format doc
 optional: a missing optional archive prints a `::warning::` and the platform is skipped. Every binary must be a
 static ELF of the architecture its triple names.
 
-Output in `--out`, which must not exist or must be empty:
+## Output
+
+`--out` must not exist or must be empty. It receives:
 
 - `oci/` is an OCI image layout: one image index (ref `<version>`) and one manifest per platform
   (ref `<version>-arm64`, `<version>-arm`, `<version>-amd64`). Push it with
@@ -24,9 +28,22 @@ Output in `--out`, which must not exist or must be empty:
 
 Exit codes: 0 built, 1 refused (an `::error::` line is printed), 2 bad invocation.
 
+## Image
+
 The image has one layer: `/usr/bin/meshtown` and an empty `/data` volume. Layers and tars are deterministic (fixed
 owner, zero timestamps, fixed member order, gzip without a name), so two builds with the same zlib are byte-identical.
 
-Modules: `image_spec.py` (constants, image config), `oci.py` (layer, blobs, layout), `archive.py` (per-platform tars),
-`build_image.py` (command line). Tests: `python3 -m unittest discover -s . -t .`; set
-`MESHTOWN_IMAGE_REQUIRE_SKOPEO=1` to fail instead of skip when `skopeo` is missing.
+## Modules
+
+- `image_spec.py` — constants, image config.
+- `oci.py` — layer, blobs, layout.
+- `archive.py` — per-platform tars.
+- `build_image.py` — command line.
+
+## Tests
+
+```
+python3 -m unittest discover -s . -t .
+```
+
+Set `MESHTOWN_IMAGE_REQUIRE_SKOPEO=1` to fail instead of skip when `skopeo` is missing.
