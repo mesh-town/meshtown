@@ -98,7 +98,7 @@ mod peer_not_idle {
 
     #[test]
     fn long_wait_is_not_shortened() {
-        // given: an id that failed nine times in a row and waits the long pause
+        // given: an id that failed five times in a row and waits the long pause
         let now = Instant::now();
         let (mut redial, failed_at) = in_the_long_pause(now);
         let deadline = failed_at + REDIAL_LONG;
@@ -216,8 +216,8 @@ fn idle_with_address() -> (Redial, PeerAddr) {
     (redial, a)
 }
 
-/// A `Redial` where the id failed nine times in a row (rnd 0), every earlier pause was waited out, and the
-/// ninth failure at the returned instant started the long pause.
+/// A `Redial` where the id failed five times in a row (rnd 0), every earlier pause was waited out, and the
+/// fifth failure at the returned instant started the long pause.
 fn in_the_long_pause(now: Instant) -> (Redial, Instant) {
     let mut redial = Redial::default();
     let a = addr(1, 4001);
@@ -230,7 +230,7 @@ fn in_the_long_pause(now: Instant) -> (Redial, Instant) {
         if attempt == REDIAL_LONG_AFTER + 1 {
             assert_eq!(
                 pause, REDIAL_LONG,
-                "the ninth failure starts the long pause"
+                "the fifth failure starts the long pause"
             );
             break;
         }

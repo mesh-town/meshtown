@@ -4,8 +4,9 @@
 //! `publish` writes once with a read-back check. What it does not know: how the store (`RecordStore`) works.
 
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::mpsc;
 
@@ -40,6 +41,7 @@ pub struct HyperDhtDiscovery {
     keys: RosterKeys,
     me: Option<PeerId>,
     pace: Pace,
+    neighbors: Arc<AtomicUsize>,
     round_outcome: Option<RoundOutcomeFn>,
 }
 
@@ -51,12 +53,19 @@ impl HyperDhtDiscovery {
             keys,
             me,
             pace: Pace::production(),
+            neighbors: Arc::new(AtomicUsize::new(0)),
             round_outcome: None,
         }
     }
 
     pub fn with_pace(mut self, pace: Pace) -> Self {
         self.pace = pace;
+        self
+    }
+
+    /// The live count of gossip neighbors: while it is above zero, the rounds are paced slower.
+    pub fn with_neighbors(mut self, neighbors: Arc<AtomicUsize>) -> Self {
+        self.neighbors = neighbors;
         self
     }
 
@@ -163,9 +172,16 @@ impl HyperDhtDiscovery {
                 known = ids.into_iter().collect();
             }
             tally.log_summary_if_due(Instant::now());
-            tokio::time::sleep(self.pace.pause(round, failures, self.spread(round))).await;
+            tokio::time::sleep(self.next_pause(round, failures)).await;
             round = round.wrapping_add(1);
         }
+    }
+
+    /// The pause before the next round; reads the neighbor count afresh each time.
+    fn next_pause(&self, round: u32, failures: u32) -> Duration {
+        let has_neighbor = self.neighbors.load(Ordering::Relaxed) > 0;
+        self.pace
+            .pause(round, failures, self.spread(round), has_neighbor)
     }
 
     /// Routing table size from the store; a store that cannot tell or a slow answer — `None`.
@@ -253,9 +269,11 @@ pub fn node_source(
     subkeys: &SubKeys,
     me: PeerId,
     store: Arc<dyn RecordStore>,
+    neighbors: Arc<AtomicUsize>,
     round_outcome: Option<RoundOutcomeFn>,
 ) -> Arc<dyn Discovery> {
-    let source = HyperDhtDiscovery::new(store, RosterKeys::from_subkeys(subkeys), Some(me));
+    let source = HyperDhtDiscovery::new(store, RosterKeys::from_subkeys(subkeys), Some(me))
+        .with_neighbors(neighbors);
     Arc::new(match round_outcome {
         Some(f) => source.with_round_outcome(f),
         None => source,

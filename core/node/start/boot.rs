@@ -2,6 +2,7 @@
 //! listen addresses to the log. `Boot` is the intermediate state carried onward through the
 //! start phases by the other files of `node/start/`.
 
+use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
 
 use crate::transport::net::{NodeSecret, PeerId, Transport};
@@ -38,6 +39,8 @@ pub(super) struct Boot {
     pub(super) reply_secret: NetworkKey,
     pub(super) network_label: Option<String>,
     pub(super) telemetry: Arc<Telemetry>,
+    /// The live count of gossip neighbors: written by the swarm event task, read by the discovery pacing and the main loop.
+    pub(super) gossip_neighbor_count: Arc<AtomicUsize>,
 }
 
 /// The secret, transports, the node name and identity; the banner and listen addresses to the log.
@@ -65,6 +68,7 @@ pub(super) async fn boot_endpoint(cfg: &NodeConfig) -> Result<Boot> {
         reply_secret: cfg.reply_secret.clone(),
         network_label: cfg.network_label.clone(),
         telemetry,
+        gossip_neighbor_count: Arc::new(AtomicUsize::new(0)),
     })
 }
 

@@ -105,6 +105,7 @@ fn quick_pace() -> Pace {
         fast_rounds: 1_000_000,
         fast: 300 * MS,
         steady: (300 * MS, 400 * MS),
+        steady_with_neighbor: (300 * MS, 400 * MS),
         error_first: 100 * MS,
         error_max: 400 * MS,
         call_limit: 10 * WITHIN,

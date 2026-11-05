@@ -193,10 +193,17 @@ mod node_list {
     }
 
     fn names(cfg: &NodeConfig, cache: &PeersCache, subkeys: &SubKeys) -> Vec<&'static str> {
-        node_sources(cfg, cache, pid(1), subkeys, &Telemetry::new(), None)
-            .iter()
-            .map(|d| d.name())
-            .collect()
+        node_sources(
+            cfg,
+            cache,
+            pid(1),
+            subkeys,
+            (&Telemetry::new(), &Arc::new(AtomicUsize::new(0))),
+            None,
+        )
+        .iter()
+        .map(|d| d.name())
+        .collect()
     }
 
     /// A node config with a non-empty invite and everything `node_sources` needs; the discovery order is the build default.

@@ -39,7 +39,7 @@ pub(super) fn load_sources(cfg: &NodeConfig, boot: &Boot) -> (PeersCache, Vec<Ar
         &cache,
         boot.id,
         &boot.subkeys,
-        &boot.telemetry,
+        (&boot.telemetry, &boot.gossip_neighbor_count),
         hyper_records(boot),
     );
     (cache, sources)

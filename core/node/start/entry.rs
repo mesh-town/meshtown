@@ -28,7 +28,7 @@ pub(super) async fn wire_entry_points(
     serving: &Serving,
     inbound: Inbound,
 ) -> Result<EntryPoints> {
-    let gossip_neighbor_count = Arc::new(AtomicUsize::new(0));
+    let gossip_neighbor_count = boot.gossip_neighbor_count.clone();
     let swarm = subscribe_gossip_topic(
         net,
         &boot.subkeys,
