@@ -35,7 +35,7 @@ final class StatusNotifier {
         if (vpnOn) {
             b.addAction(action("Disconnect", NodeService.ACTION_DISCONNECT));
         } else if (canConnect) {
-            b.addAction(action("Connect", NodeService.ACTION_CONNECT));
+            b.addAction(action(NodeService.connectIntent.pending() ? "Cancel" : "Connect", NodeService.ACTION_CONNECT));
         }
         b.addAction(action("Quit", NodeService.ACTION_QUIT));
         return b.build();

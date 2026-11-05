@@ -146,6 +146,11 @@ final class StatusText {
 
     /** The line above the Connect button. */
     static Line strip(NodeState s, boolean canConnect, boolean vpnOn, boolean pathReady) {
+        return strip(s, canConnect, vpnOn, pathReady, false);
+    }
+
+    /** The line above the Connect button, with a Connect press waiting for the search to end. */
+    static Line strip(NodeState s, boolean canConnect, boolean vpnOn, boolean pathReady, boolean pending) {
         if (s.excluded) {
             return new Line(NodeState.EXCLUDED_TEXT, 0);
         }
@@ -154,6 +159,9 @@ final class StatusText {
         }
         if (vpnOn) {
             return phase(s, pathReady).line(s);
+        }
+        if (pending) {
+            return new Line("Will connect when other members are found", 0);
         }
         return new Line(canConnect ? "Ready. Tap Connect to open sites through Mesh Town"
                 : "Looking for other members…", 0);
