@@ -29,7 +29,7 @@ Exact enum values and field notes, by group.
   advice is "delete or fix the file". Here that advice is destructive: the file is intact and may hold the only copy
   of the network key. So the page shows a separate text — the file is not broken, do not delete it.
 
-  The page takes the wording of the reason not from this value but from the `file` block (`message` and
+  The page takes the reason wording not from this value but from the `file` block (`message` and
   `field_errors`, section 1.6, `WEB-API-config.md`), where the reason is written in plain language.
   `identity_reason` answers one question: did the user decide this, or is it a failure they do not know about? The
   first is reported calmly, the second needs attention.
@@ -39,7 +39,7 @@ Exact enum values and field notes, by group.
   parsing the text** of `message`: the text is written for a person and changes freely, and behavior must not
   depend on it.
 - `node.invite_join` — `null` or `{"state": "waiting"|"refused", "message", "label", "expires_unix"}`:
-  progress of joining by a single-use invite (`POST /api/network/join` with a `mesh-invite2-…` string).
+  join progress with a single-use invite (`POST /api/network/join` with a `mesh-invite2-…` string).
   `waiting` — the node is looking for members named in the string; `refused` — a final refusal with the text
   `message`. The field disappears when the node has joined the network, and on a new join, network creation or
   stop. More in `WEB-API-config.md`, section "The `node.invite_join` field and single-use invites".
@@ -58,7 +58,7 @@ Exact enum values and field notes, by group.
   Otherwise, besides `label`, `masked` and `id_hex`, it says who runs the network and what this node may do in it:
   - `root`: the full id of the network creator (an admin who cannot lose the role).
   - `me_role`: `"admin"` or `"member"`.
-  - `admins`: full ids of the admins in ascending order.
+  - `admins`: full admin ids in ascending order.
   - `can_invite`, `can_remove`, `can_set_admins`, `can_delete_network`, `can_leave`: the actions open to this node.
     The first four are `true` for an admin only. A node with no member list yet gets the flags from the key alone:
     all `false` except `can_leave`. The page shows no control whose flag is off.
@@ -91,7 +91,7 @@ Exact enum values and field notes, by group.
 - `peers[].through_us_bps` — the same for this peer's traffic through our exit (incoming EXIT connections from it).
   The window, composition and defaults are the same as for `through_peer_bps`.
 - `peers[].version` — the member's Mesh Town program version, a string like `0.1.0` (digits, letters,
-  `.`, `-`, `+`, up to 32 characters). The own row has the version of this build, like `node.version`. Other nodes
+  `.`, `-`, `+`, up to 32 characters). The own row has this build's version, like `node.version`. Other nodes
   announce it with the `node/version/` key in the shared network document at startup, if the recorded one differs.
   `null` — the member has not announced it (a build before this field, or the record has not arrived) or announced
   an invalid one. An offline member shows the last announced version. Comparing versions is the page's concern.
@@ -115,13 +115,13 @@ Exact enum values and field notes, by group.
   empty and has no suitable candidates — the node refuses all new connections). The selection rule is the same
   `route::choose_route` function as in the proxy.
 - `route.exits[]` — the whole `route.exits` list in config order (not only the selected candidate), with the current
-  status of each node:
+  each node's status:
   - `id`/`id_full` — identifier;
   - `name` — the same value as `peers[].name` for this id (`null` if it has not arrived yet);
   - `online` — whether it is online;
   - `exit` — whether its "works as an exit" flag is on (`null` — unknown);
   - `active` — whether this node is currently the first suitable candidate (`true` for at most one element);
-  - `removed` — present and `true` when the network's member list holds an exclusion of this node (it is no longer
+  - `removed` — present and `true` when the network's member list holds this node's exclusion (it is no longer
     in the network; such an exit is also `online: false`).
 - `domains[].checks[<id>].verdict`: `"ok"`, `"dns_mismatch"`, `"network_blocked"`, `"site_geoblock"`, `"antibot"`,
   `"down"` — exactly six values from `core/site_checks/reachability/verdict.rs`. `null` instead of an object — there
@@ -144,7 +144,7 @@ Exact enum values and field notes, by group.
 
 - `ports.published[]` — own publications. `proto`: `"tcp"` or `"udp"`. `local`: `"unknown"` (not checked), `"ok"`
   (the port responds), `"refused"` (does not respond); for UDP it is always `"unknown"`.
-- `ports.network[]` — ports of other nodes: entries with the scope "all" and a readable value while the author is in
+- `ports.network[]` — other nodes' ports: entries with the scope "all" and a readable value while the author is in
   the network, plus everything opened here. Own publications are not in `network`. A row is identified by
   `(node, proto, port)`: TCP 53 and UDP 53 of one node are two rows. Fields:
   - `proto` — `"tcp"` or `"udp"` in every row.
@@ -153,7 +153,7 @@ Exact enum values and field notes, by group.
   - `published: false` — the port is open here, but there is no valid record for everyone.
   - `opened` — `state` is `"binding"` (a UDP socket is still being taken), `"listening"` or `"bind_failed"`;
     `error` is the bind error text, only with `bind_failed`.
-  - `last_error` — the outcome of the last failed attempt to reach the publishing node: `null` (none yet, or the
+  - `last_error` — the last failed attempt's outcome to reach the publishing node: `null` (none yet, or the
     last attempt succeeded), `"offline"`, `"not_opened"`, `"no_service"`, `"timed_out"`, `"failed"` or
     `"unsupported"` (the node does not support UDP ports). For UDP the attempt is made when a new sender's first
     datagram arrives.

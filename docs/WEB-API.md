@@ -31,7 +31,7 @@ The document is split into parts:
   `localhost` — `127.0.0.1`, `localnet` (default) — `0.0.0.0`. The default port is 7777.
   It does not listen on `localhost` by name or on `::1`: the page does not listen on IPv6.
   The mode only affects access to the node settings page, not the network or traffic.
-- **Several networks.** A node can work with several networks at once. The routes of one network exist under two
+- **Several networks.** A node can work with several networks at once. One network's routes exist under two
   addresses:
   `/api/<route>` is the primary network, `/api/net/{slot}/<route>` is the network with the id `{slot}`
   (`main` for the primary one). The same handler serves both. An id that names no network gives
@@ -88,7 +88,7 @@ The document is split into parts:
     sessions (a cookie does not distinguish ports).
   - The session id is 32 random bytes in the same text form as the token.
   - The session table lives in process memory, so a node restart signs everyone out.
-- **Limits of plain HTTP.** The page is served over HTTP without TLS. On a local network the password, token and
+- **Plain HTTP limits.** The page is served over HTTP without TLS. On a local network the password, token and
   cookie travel in clear text, and anyone listening to the network can intercept them. The `localhost` mode does not
   expose them to the network.
   - A page port published to the network via `ports.published` reaches the page from the address `127.0.0.1` (the
@@ -100,7 +100,7 @@ The document is split into parts:
 - **Error body.** Always `{"error":"<code>","message":"<in English>"}`, plus the fields specified for
   the particular code.
 
-The full list of codes:
+The full code list:
 
 | HTTP | `error` | When |
 |---|---|---|
@@ -151,8 +151,8 @@ The state is served in full on every request; there are no partial responses. Th
 `/api/net/{slot}/state` answers for one network. Besides the fields below, every state carries:
 
 - `api` — the multi-network reply version (`2`);
-- `slot` — the id of the network it describes;
-- `nets` — the brief of every node network (see 1.11).
+- `slot` — the id of the described network;
+- `nets` — every node network's brief (see 1.11).
 
 Example (the values are made up, but all fields are required; `null` is allowed where marked):
 
@@ -284,7 +284,7 @@ Example (the values are made up, but all fields are required; `null` is allowed 
 }
 ```
 
-Field notes and exact enum values for every group of the snapshot (node, network, peers, exit and route,
+Field notes and exact enum values for every snapshot group (node, network, peers, exit and route,
 transport, ports, log) are in `WEB-API-state.md`.
 
 What each interface element takes from this snapshot is in the table in section 4.
@@ -300,7 +300,7 @@ Parameters:
 
 There are no other parameters, in particular no `tag`. The page, not the node, filters by tag and searches by
 substring: the whole buffer is already on the page. Filtering on the node would force a log download whenever a chip
-changes and would break the continuity of the `after` cursor.
+changes and would break the `after` cursor's continuity.
 
 ```json
 {
@@ -419,13 +419,13 @@ All other routes are process routes and exist once, without a prefix. `/api/net/
 `not_found`): the log is one for the process; filter it with `?net=`. The address of a slot that was left or
 does not exist is 404 `unknown_net`.
 
-**`NetBrief`** — the short form of one network, used in `nets`:
+**`NetBrief`** — one network's short form, used in `nets`:
 
 | Field | Meaning |
 |---|---|
 | `id` | the slot id |
 | `label`, `id_hex` | the network label and its identifier; `null` for an empty or broken slot |
-| `status` | the node status of the slot, or `broken` |
+| `status` | the slot's node status, or `broken` |
 | `exit_enabled`, `proxy` | the slot offers an exit; `proxy` is `true` for exactly one live slot (see below) and `false` for the others and for broken slots |
 | `route_state`, `exits` | how traffic is routed and the exits in use; `route_state` is `direct`, `exit`, `unavailable` or `removed` (no exit can be used and every exit in `route.exits` is removed from the network) |
 | `members_admitting` | the number of nodes waiting to be admitted |

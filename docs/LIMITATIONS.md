@@ -9,14 +9,14 @@ What Mesh Town does not do in the 0.3.x line, in detail. The short list is in [R
 - **Published UDP ports ride on reliable streams, with limits.**
   - Datagrams travel over a reliable stream, not as raw datagrams: they arrive in order and are not lost on the way,
     but a stalled link delays everything behind it. A datagram larger than 2048 bytes is truncated.
-  - Every new source address of a local sender opens a new connection to the publishing node; its first datagram
+  - Every new source address from a local sender opens a new connection to the publishing node; its first datagram
     waits for that connection (up to 10 s). A program that changes its source port on every request (a DNS client)
     holds a session for 30 s per request, so an opened port takes about 128 such requests per 30 s.
   - A session with no traffic for 30 s is closed.
   - An opened UDP port serves up to 128 senders at once and a publishing node up to 256 UDP sessions; datagrams above
     the limit are dropped.
   - A UDP port cannot be checked on the publishing side: its status stays "not checked".
-  - A node of an older version does not see UDP publications and cannot open them: the row reports that the node does
+  - An older-version node does not see UDP publications and cannot open them: the row reports that the node does
     not support UDP. After a downgrade to such a version, UDP entries in the settings file are read as TCP, and a
     TCP and a UDP entry with the same port number make the whole list invalid.
   - UDP through an exit is a separate feature (see `UDP ASSOCIATE` below).
@@ -49,5 +49,5 @@ What Mesh Town does not do in the 0.3.x line, in detail. The short list is in [R
 - **No HTTP inspection inside the tunnel.** The node moves bytes and does not look into them, so there is no filter by
   path, headers or content.
 
-Releases of the 0.3.x line are a working network node, not a hardened product. See [SECURITY.md](../SECURITY.md) for the
+0.3.x releases are a working network node, not a hardened product. See [SECURITY.md](../SECURITY.md) for the
 scope and how to report a problem.
