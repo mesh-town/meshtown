@@ -172,7 +172,7 @@ The new node joins without waiting for a DHT lookup:
   network, its key and its file stay as they were, and the node starts both. An invite of a network the node already
   has is not spent.
 - The same goes for `--key` of another network without an invite: the network is added beside the main one and the
-  file keeps its key. A key of a network that is already saved is used. One node holds up to 8 networks;
+  file keeps its key. A key of a network that is already saved is used. One node holds up to 8 networks (see "Several networks on one node");
   past that the run is refused before it goes to the network, and the invite is not spent.
 - A network added this way runs with the main network's launch flags, except `--key`.
   It starts with the sites of the main network's list and the ones typed with `--site`;
@@ -233,6 +233,40 @@ itself when it learns about it.
 **What a regular member sees.** The network name, the line `Managed network · Admins: …`, the `Admin` badge on rows,
 and a greyed `Remove from network (admins only)`. A member can still leave the network and block a node on this
 computer. The HTTP shape of all this is in [WEB-API.md](WEB-API.md) (sections 1.3, 1.11 and, in [WEB-API-members.md](WEB-API-members.md), 1.12).
+
+## Several networks on one node
+
+A node can be in up to 8 networks at once. Use it to keep devices apart: a network for your own devices, one for
+the family or friends, one per client or contractor. A member of one network learns nothing about another.
+
+**Add a network.** On the page, "+" on the "Networks" tab: "Create" asks for a name, "Join" takes an invite. The
+tray has `Add a network…`. In a terminal: `meshtown network create <label>` (this computer becomes its admin) or
+`meshtown join "<invite>"`. Each added network lives in `nets/<id>/config.json` next to the main settings file and
+starts with the main network's launch flags except `--key`. The phone app joins a second network the same way; it
+does not share ports.
+
+**Separate in each network:** the node's identity and name (set the name in the network's "Device settings"), the
+member list and admins, invites, shared ports ("Shared services (ports)" concerns one network), whether this node
+offers an exit to the network's members, and relay: a node relays only for members of the same network and uses
+only them as relays.
+
+**Shared by all networks:** the local proxy on `127.0.0.1:1080` and its exit choice (`proxy.net` names the network
+whose exit list it uses), the node page and the tray. Through the proxy, `http://<device-name>.meshtown` finds
+devices in every network this node is in, so a port a device shared with you in any of them opens the same way;
+programs on your local network that use this proxy (`socks.access localnet`) see the same names. A local port
+number can be opened only once across all networks.
+
+**Invite into the right network.** "Invite a member" and `invite` act on the network whose tab is open (`--net
+<network>` in the terminal). An invite names its network, and a node that joins by an invite is admitted at once.
+A node that joined with the network key instead waits as `pending` until a member confirms it on the page or with
+`meshtown member admit <member>`.
+
+**Leave or remove.** A member leaves one network without touching the others ("Device settings" → "Leave"). An
+admin removes a member from one network only; the member keeps its other networks.
+
+Example — a contractor and one server: create `contractor` on the office PC, invite the contractor's laptop,
+publish port 8080 to "All members" of `contractor`. The laptop sees the office PC and that port, nothing from
+`home-lab`. When the job ends, remove the laptop or delete `contractor` for everyone.
 
 ## Members
 
@@ -444,7 +478,7 @@ The same data lives in the settings file, per network:
 - `ports.opened` is a list of `{node, port, proto, local}`;
 - `proto` is `"tcp"` (the default when absent) or `"udp"`;
 - both lists hold up to 64 entries; `(proto, port)` is unique in `ports.published`, `(proto, local)` is unique in
-  `ports.opened` and across all the node's networks.
+  `ports.opened` and across all the node's networks (see "Several networks on one node").
 
 Opening a `local` port that another network of the node already uses is refused with 422 and the text
 `local port L is already opened in network "<name>"` (`local UDP port L …` for UDP). Example: publish a DNS server
@@ -467,7 +501,7 @@ permission to be an exit for other members) and five more tabs: "Networks", "Sit
 "Diagnostics", "Log" and "Settings". The address changes by hash (`#peers`, `#settings`, and so on); on a narrow screen
 the tabs become a horizontal strip.
 
-The "Networks" tab has one tab per network and "+" to add a network. A network's tab has three sections:
+The "Networks" tab has one tab per network and "+" to add a network (see "Several networks on one node"). A network's tab has three sections:
 
 - "Members": the member list, invitations and requests;
 - "Shared services (ports)": publishing and opening ports, see [Published ports](#published-ports);
