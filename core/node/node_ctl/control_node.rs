@@ -13,8 +13,18 @@ use super::live_paths::{
     apply_log_capacity, apply_pac_strict, apply_pending_handles, copy_live_paths,
 };
 use super::peer_addr::parse_peer_line;
-use super::snapshot;
+use super::snapshot::{self, Collected};
 use super::state::{NodeCtl, Phase};
+
+/// The cached snapshot with its age; an empty default when nothing was collected yet.
+fn cached_snapshot(cache: Option<&Collected>) -> NodeSnapshot {
+    let Some(c) = cache else {
+        return NodeSnapshot::default();
+    };
+    let mut snap = c.snap.clone();
+    snap.snapshot_age_ms = c.collected_at.elapsed().as_millis() as u64;
+    snap
+}
 
 impl NodeCtl {
     /// `boot_id` of the slot's current lap.
@@ -35,11 +45,7 @@ impl NodeCtl {
                 .lock()
                 .unwrap_or_else(|e| e.into_inner());
             let fixed = snapshot::phase_status(&st.phase, st.cache.is_some());
-            let snap = st
-                .cache
-                .as_ref()
-                .map(|c| c.snap.clone())
-                .unwrap_or_default();
+            let snap = cached_snapshot(st.cache.as_ref());
             let node = st.node.clone();
             let stale = st.last_read.elapsed() > Duration::from_secs(5);
             st.last_read = Instant::now();

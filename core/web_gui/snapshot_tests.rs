@@ -24,6 +24,7 @@ const DICT_PATHS: &[&str] = &["domains[].checks"];
 /// Key paths of an empty snapshot: arrays are empty, `Option` is `null`.
 const DEFAULT_KEYS: &[&str] = &[
     "boot_id",
+    "snapshot_age_ms",
     "domains",
     "exit",
     "exit.clients",
@@ -90,6 +91,7 @@ const DEFAULT_KEYS: &[&str] = &[
 /// Key paths of a filled snapshot: every `Option` = `Some`, every `Vec` has one element.
 const FILLED_KEYS: &[&str] = &[
     "boot_id",
+    "snapshot_age_ms",
     "domains",
     "domains[].checking",
     "domains[].checks",

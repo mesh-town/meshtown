@@ -9,6 +9,7 @@ use serde_json::{json, Value};
 
 use super::process_overlay::overlay_from_main;
 use super::slot_param::SlotParam;
+use super::state_fresh::wait_for_fresh_snapshot;
 use super::state_host::{apply_host, apply_notices, apply_slot};
 use super::state_net::{apply_net, net_state};
 use crate::node::output::NET_NAME;
@@ -32,6 +33,7 @@ pub(super) async fn state_handler(
     conn: Option<Extension<ConnInfo>>,
 ) -> Response {
     let conn = conn.map(|Extension(c)| c);
+    wait_for_fresh_snapshot(&slot).await;
     let Some(mut value) = state_of(&app, &slot, conn.as_ref()) else {
         return json_err(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -167,3 +169,7 @@ mod extras_tests;
 #[cfg(test)]
 #[path = "state_proxy_tests.rs"]
 mod proxy_tests;
+
+#[cfg(test)]
+#[path = "state_fresh_tests.rs"]
+mod fresh_tests;

@@ -3,6 +3,8 @@
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct NodeSnapshot {
     pub boot_id: String,
+    /// Age of the cached collection this snapshot is built on, in milliseconds; 0 when nothing was collected yet.
+    pub snapshot_age_ms: u64,
     pub now: f64,
     pub node: NodeRuntime,
     pub members: MembersInfo,

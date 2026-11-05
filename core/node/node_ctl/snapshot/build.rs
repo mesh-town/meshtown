@@ -126,6 +126,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
         snap,
         domains: i.domain_names,
         partial: false,
+        collected_at: tokio::time::Instant::now(),
     }
 }
 
