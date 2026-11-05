@@ -51,7 +51,8 @@ For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
     page, so a row would be dead. It will appear when the field becomes editable.
   - `net.relay` is listed: a save through the API writes it to the file, and the node reads it only at start.
   - `full_tunnel.enabled` is not listed: turning it on is rejected with the `not_available` code.
-  - `autostart.enabled` is not listed: it takes effect at once, when the login entry is created or removed.
+  - `autostart.enabled` is not listed: the save itself creates or removes the login entry, so no restart is needed.
+    Flipping the switch on the page changes nothing until the user presses Save.
 - `restart_pending` — fields that are saved but not yet applied (the node has not restarted). The page shows a
   bar "takes effect after the node restarts" for them.
   - For `socks.*` fields the file is compared with the listener the node actually runs. They stay listed after a
@@ -412,7 +413,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `web.port` | integer | 7777 | 1024…65535; read-only (in `read_only`, which is why it is not in `restart_fields`) | — | — | page header, no input field |
 | `log.ring_lines` | integer | 2000 | 200…20000 | no | — (2,000 lines) | caption under the log window, no input field |
 | `node.memory_warn_mib` | integer | 400 | 0…1048576, MiB; `0` = off; `400` means "by machine memory" (24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise), so an explicit 400 on a machine with ≤512 MiB also counts as automatic; on such machines the exit also refuses new streams near this value, above 512 MiB with the default 400 it refuses only by the stream limit | file only | `core/node/host/process.rs` | not shown |
-| `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the current user's login entry), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied at once) | — | "Settings", the switch |
+| `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the current user's login entry), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied by the save) | — | "Settings", the switch |
 | `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the switch's gray look |
 | `autostart.reason` | string | "" when available, otherwise "only in the desktop app with the tray icon" or "could not read the login entry: <error>" | read-only | — | — | caption under the switch |
 | `full_tunnel.enabled` | boolean | `false` | as for `autostart.enabled` | — (cannot be enabled) | — | "Settings", the switch is gray |

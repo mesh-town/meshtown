@@ -72,8 +72,8 @@ these files. For the macOS package itself see [platforms/macos/build/README.md](
 ## Start at login
 
 The "Start at login" switch on the Settings page of the node page makes the tray start when you sign in. It is
-available in the tray builds (the macOS `.app`, the `gui` builds for Linux and Windows). The switch creates or
-removes a per-user entry, which you can also remove by hand:
+available in the tray builds (the macOS `.app`, the `gui` builds for Linux and Windows). Saving the switch creates
+or removes a per-user entry, which you can also remove by hand:
 
 - macOS: `~/Library/LaunchAgents/<label>.plist` (a LaunchAgent);
 - Linux: `~/.config/autostart/meshtown.desktop` (or under `$XDG_CONFIG_HOME`);
