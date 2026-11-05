@@ -21,6 +21,7 @@ impl ConfigState {
         self.cli_override_paths
             .retain(|p| !field_by_path(p).is_some_and(|f| f.block() == Block::Process));
         self.process_overlaid = true;
+        self.proxy_off_by_flag = false;
     }
 
     /// The paths a response lists as read-only: the table's, plus the process block for an added slot.

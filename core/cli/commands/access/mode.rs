@@ -3,7 +3,10 @@
 
 use serde_json::{json, Value};
 
-use super::settings_io::{edit_file, restart_needed, route, Route};
+use super::settings_io::{
+    edit_file, proxy_off, refuse_while_restarting, restart_needed, route, run_again, Route,
+    PROXY_OFF_NOTE,
+};
 use crate::cli::args::Globals;
 use crate::cli::commands::client::{ApiError, Node};
 use crate::config::config_file::{ListenAccess, Settings};
@@ -80,7 +83,12 @@ fn page_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
 fn proxy_live(node: &Node, mode: ListenAccess) -> anyhow::Result<()> {
     let name = mode.as_str();
     let reply = node.put_config(&patch(&PROXY, mode))?;
+    if proxy_off(&reply) {
+        eprintln!("proxy access: {name} (saved; {PROXY_OFF_NOTE}).");
+        return Ok(());
+    }
     if !proxy_restart_needed(&reply) {
+        refuse_while_restarting(node)?;
         eprintln!("proxy access: {name} (unchanged).");
         return Ok(());
     }
@@ -106,7 +114,7 @@ fn restart_refused(e: &anyhow::Error) -> anyhow::Error {
     };
     let why = why.trim_end_matches('.');
     if why == format!("{NET_NAME} is starting") {
-        return anyhow::anyhow!("{NET_NAME} is restarting; run the command again in a moment.");
+        return run_again();
     }
     anyhow::anyhow!(
         "the setting is saved but the proxy was not restarted: {why}. Restart {NET_NAME} to apply it."
