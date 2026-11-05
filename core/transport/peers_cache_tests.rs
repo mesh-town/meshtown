@@ -79,8 +79,9 @@ fn entry_for_without_known_uses_only_selected() {
 #[test]
 fn save_then_load_roundtrip_same_network() {
     let dir = scratch("roundtrip");
-    let file = dir.join(PEERS_CACHE_FILE_NAME);
-    let mut cache = PeersCache::load(Some(&file), "net", 1000);
+    let base = dir.join(PEERS_CACHE_FILE_NAME);
+    let file = network_cache_path(&base, "net");
+    let mut cache = PeersCache::load(Some(&base), "net", 1000);
     let e1 = entry_for(
         None,
         endpoint_id(1),
@@ -97,7 +98,7 @@ fn save_then_load_roundtrip_same_network() {
     assert!(cache.remember(e2, 1000));
     cache.save().expect("save must succeed");
 
-    let loaded = PeersCache::load(Some(&file), "net", 1000);
+    let loaded = PeersCache::load(Some(&base), "net", 1000);
     let addrs = loaded.addrs();
     let mut ids: Vec<[u8; 32]> = addrs.iter().map(|a| *a.id.as_bytes()).collect();
     ids.sort();
@@ -142,6 +143,36 @@ fn save_without_directory_returns_error_with_path_not_panic() {
         err.contains("no-such-directory") || err.contains(&file.display().to_string()),
         "the error text must contain the path: {err}"
     );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn two_networks_beside_one_file_keep_their_own_caches() {
+    let dir = scratch("two-networks");
+    let base = dir.join(PEERS_CACHE_FILE_NAME);
+    let (id_a, id_b) = ("a".repeat(64), "b".repeat(64));
+    for (net, n) in [(&id_a, 1), (&id_b, 2)] {
+        let mut cache = PeersCache::load(Some(&base), net, 1000);
+        let entry = entry_for(
+            None,
+            endpoint_id(n),
+            Some(&AddrHint::Ip(sock_addr(n))),
+            1000,
+        );
+        assert!(cache.remember(entry, 1000));
+        cache.save().expect("save");
+    }
+    let a = PeersCache::load(Some(&base), &id_a, 1000);
+    let b = PeersCache::load(Some(&base), &id_b, 1000);
+    assert_eq!(a.len(), 1);
+    assert_eq!(b.len(), 1);
+    assert!(a.seen().contains_key(&endpoint_id(1)));
+    assert!(b.seen().contains_key(&endpoint_id(2)));
+    assert_ne!(
+        network_cache_path(&base, &id_a),
+        network_cache_path(&base, &id_b)
+    );
+    assert!(!base.exists(), "the base name is not written");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
