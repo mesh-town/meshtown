@@ -15,7 +15,7 @@ fn main() {
     let out = out_dir.join("ui");
     let ui = manifest.join("web_gui/ui");
     println!("cargo:rerun-if-changed=build.rs");
-    emit_build_version(&manifest);
+    emit_build_version(&git_dir(&manifest));
     println!("cargo:rerun-if-changed=web_gui/ui/index.html");
     println!("cargo:rerun-if-changed=web_gui/ui/css");
     println!("cargo:rerun-if-changed=web_gui/ui/bundle");
@@ -30,16 +30,26 @@ fn main() {
     }
 }
 
-/// Sets `MESHTOWN_BUILD_VERSION` to `<package version> (<short commit hash>)`; without git, a repository or a
-/// working command it is the package version alone and the build goes on.
-fn emit_build_version(manifest: &Path) {
+/// The directory to ask git in: the parent of the real (symlinks resolved) `build.rs`, falling back to
+/// `manifest`. A build tree made of links (a farm whose `core/` is a plain directory with a linked `build.rs`)
+/// has no repository of its own, and git would climb to an unrelated one above it.
+fn git_dir(manifest: &Path) -> PathBuf {
+    let real = fs::canonicalize(manifest.join("build.rs")).ok();
+    real.and_then(|p| p.parent().map(Path::to_path_buf))
+        .unwrap_or_else(|| manifest.to_path_buf())
+}
+
+/// Sets `MESHTOWN_BUILD_VERSION` to `<package version> (<short commit hash>)`, the hash being that of the
+/// repository holding the real `build.rs` (`dir`); without git, a repository or a working command it is the
+/// package version alone and the build goes on.
+fn emit_build_version(dir: &Path) {
     let version = std::env::var("CARGO_PKG_VERSION").expect("CARGO_PKG_VERSION");
-    let text = match git_output(manifest, &["rev-parse", "--short", "HEAD"]) {
+    let text = match git_output(dir, &["rev-parse", "--short", "HEAD"]) {
         Some(hash) => format!("{version} ({hash})"),
         None => version,
     };
     println!("cargo:rustc-env=MESHTOWN_BUILD_VERSION={text}");
-    watch_head(manifest);
+    watch_head(dir);
 }
 
 /// Re-runs the build when the checked-out commit changes: the `HEAD` file and the ref it points to. Only
