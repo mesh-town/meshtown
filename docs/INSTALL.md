@@ -62,8 +62,14 @@ sudo apt install ./meshtown_amd64.deb
 
 Later updates come with `sudo apt update && sudo apt upgrade`. The package installs the service `meshtown` but leaves it
 stopped; to run the node in the background, `sudo systemctl enable --now meshtown` (settings:
-`/etc/meshtown/config.json`). To join an existing network first, run
-`sudo meshtown join <key>`, then enable the service. On a desktop with the tray, do not enable the service: two nodes on one machine share their ports.
+`/etc/meshtown/config.json`). To join an existing network first, take a single-use invite from a member and run it once:
+
+```sh
+sudo meshtown run --config /etc/meshtown/config.json --invite mesh-invite2-…
+```
+
+Stop it with Ctrl+C once it reports joining, then start the service with `sudo systemctl enable --now meshtown`. On a
+desktop with the tray, do not enable the service: two nodes on one machine share their ports.
 `sudo apt remove meshtown` (or `apt purge`) removes the package; `/etc/meshtown/` with the network key stays.
 The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edits made by hand are overwritten when the package is updated.
 
@@ -84,6 +90,15 @@ The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edit
   - OpenWrt 24.10 (`opkg`): `opkg update && opkg upgrade meshtown`
   - OpenWrt 25.12 (`apk`): `apk update && apk upgrade meshtown`
 
+  To join a network, ask a member for a single-use invite and run this once while the service is stopped:
+
+  ```sh
+  /etc/init.d/meshtown stop
+  meshtown run --config /etc/meshtown/config.json --invite mesh-invite2-…
+  ```
+
+  Stop it with Ctrl+C once it reports joining, then start the service; the network is saved in the settings file.
+
   Manual installation and details: [platforms/linux/build/openwrt/README.md](../platforms/linux/build/openwrt/README.md).
 
 - **Keenetic** (router with Entware installed; MIPS and aarch64 models). Over SSH on the router:
@@ -96,9 +111,41 @@ The file `/etc/apt/sources.list.d/meshtown.sources` belongs to the package: edit
   `/opt/etc/init.d/S99meshtown` starts on boot. To update: `opkg update && opkg upgrade meshtown`. Not tested on a live
   KeeneticOS router yet.
 
+  To join a network, ask a member for a single-use invite and run this once while the service is stopped:
+
+  ```sh
+  /opt/etc/init.d/S99meshtown stop
+  meshtown run --config /opt/etc/meshtown/config.json --invite mesh-invite2-…
+  ```
+
+  Stop it with Ctrl+C once it reports joining, then start the service; the network is saved in the settings file.
+
 - **MikroTik** (RouterOS 7.21 or newer, ARM, ARM64 or x86 model with the `container` package). The node runs as a
   container from the image `ghcr.io/mesh-town/meshtown`; the commands for the network, the storage and the first start
   are in [MIKROTIK.md](MIKROTIK.md). MIPS models cannot run containers.
+
+## Joining a network
+
+On a desktop, press **Join with an invite** on the node page and paste the string, or in a terminal:
+
+```sh
+meshtown run --invite mesh-invite2-…
+```
+
+Or with a network key: `meshtown join <key>` ([USAGE.md](USAGE.md) covers both). Servers and routers join with
+`--config`, as described in their sections above.
+
+## Other devices through the proxy
+
+Phones, tablets and other computers can reach the network through a node's proxy by using its automatic proxy
+configuration (PAC) address in their Wi-Fi or network settings:
+
+- On the desktop that runs the node: `http://127.0.0.1:1080/proxy.pac`.
+- On a router: `http://<router address>:1080/proxy.pac`, for example `http://192.168.1.1:1080/proxy.pac`. First open the
+  proxy for the home network: set `"socks": {"access": "localnet"}` in the settings file and restart the service.
+
+The proxy has no password: any device on the home network can use it, and so can guest Wi-Fi unless it is separated. Do
+not open port 1080 on the WAN side.
 
 ## Release archives
 
