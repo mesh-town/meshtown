@@ -12,9 +12,12 @@ so later versions arrive with `apt upgrade`.
 
 Use `meshtown_arm64.deb` on arm64. Then `sudo apt update && sudo apt upgrade` keeps it current.
 
-The service `meshtown` is installed but not enabled; on a server start it with `sudo systemctl enable --now meshtown`
-(settings: `/etc/meshtown/config.json`). On a desktop with the tray icon do not enable it: two nodes on one machine share
-their ports. `apt purge` keeps `/etc/meshtown/`.
+The service `meshtown` is installed but not enabled.
+On a server, start it with `sudo systemctl enable --now meshtown` (settings: `/etc/meshtown/config.json`).
+
+On a desktop with the tray icon, do not enable it: two nodes on one machine share their ports.
+
+`apt purge` keeps `/etc/meshtown/`.
 
 Check a download against `SHA256SUMS` (`sha256sum -c SHA256SUMS --ignore-missing`) before installing it.
 

@@ -15,8 +15,9 @@ macOS, Windows, Linux, Android and OpenWrt or Keenetic routers. Website:
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Package feed of [Mesh Town]({code}) for Keenetic routers with [Entware](https://entware.net). CI builds it from the
-releases of `github.com/mesh-town/meshtown-dist`; the feed holds only the latest version. The packages are not signed
-(Entware does not check signatures).
+releases of `github.com/mesh-town/meshtown-dist`. The feed holds only the latest version.
+
+The packages are not signed (Entware does not check signatures).
 
 Not tested on a live KeeneticOS router yet: the package is checked on Entware under emulation only.
 
@@ -34,7 +35,7 @@ On the router, over SSH:
 
     wget -O- {base}/install.sh | sh
 
-The https address needs a `wget` with TLS. If this command fails with an https or SSL error, install it first and
+The https address needs a `wget` with TLS. If the command fails with an https or SSL error, install it first and
 run the command again:
 
     opkg update && opkg install ca-certificates wget-ssl && opkg remove wget-nossl
@@ -53,8 +54,9 @@ The script itself does the same when the package feed cannot be fetched over htt
 
 ## Use
 
-The service `/opt/etc/init.d/S99meshtown` starts at boot. The node page opens at `http://<router address>:7777/` from
-the home network (`br0`). Restart: `/opt/etc/init.d/S99meshtown restart`.
+The service `/opt/etc/init.d/S99meshtown` starts at boot. Restart it with `/opt/etc/init.d/S99meshtown restart`.
+
+The node page opens at `http://<router address>:7777/` from the home network (`br0`).
 
 Entware has no process supervisor: if the node crashes, it stays stopped until the next start or reboot.
 

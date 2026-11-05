@@ -14,7 +14,7 @@ macOS, Windows, Linux, Android and OpenWrt or Keenetic routers. Website:
 [mesh-town/meshtown](https://github.com/mesh-town/meshtown).
 
 Signed package feed of [Mesh Town]({code}) for OpenWrt. CI builds it from the releases of
-`github.com/mesh-town/meshtown-dist`; the feed holds only the latest version.
+`github.com/mesh-town/meshtown-dist`. The feed holds only the latest version.
 
 ## Install
 
@@ -26,8 +26,8 @@ The script reads the router architecture, adds the feed and its key, and install
 
 Architectures: {labels}.
 
-The commands below differ by OpenWrt version: 24.10 uses `opkg`, 25.12 uses `apk`. Check yours with
-`grep DISTRIB_RELEASE /etc/openwrt_release` and follow only the matching section.
+The manual commands differ by OpenWrt version: 24.10 uses `opkg`, 25.12 uses `apk`. Check yours with
+`grep DISTRIB_RELEASE /etc/openwrt_release` and follow the matching section.
 
 ## OpenWrt 24.10 (opkg)
 
@@ -66,8 +66,9 @@ After removal the node state in `/etc/meshtown/` stays on the router.
 
 ## Keys
 
-The public keys are `meshtown-usign.pub` and `meshtown-apk.pem` in this feed; the same files are kept in
-[platforms/linux/build/openwrt/keys]({code}/tree/main/platforms/linux/build/openwrt/keys) of the code repository, compare them before trusting the feed.
+The public keys are `meshtown-usign.pub` and `meshtown-apk.pem` in this feed. The same files are in
+[platforms/linux/build/openwrt/keys]({code}/tree/main/platforms/linux/build/openwrt/keys) of the code repository.
+Compare them before trusting the feed.
 
 ## More
 

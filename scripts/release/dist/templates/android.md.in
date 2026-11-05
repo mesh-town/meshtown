@@ -2,12 +2,13 @@
 
 Signed Android build of [Mesh Town](https://github.com/mesh-town/meshtown). `meshtown.apk` is the latest version
 (@VERSION@ at the last publication).
+
 Earlier versions are attached to the [releases](https://github.com/mesh-town/meshtown-dist/releases) of this repository.
 
 ## Install
 
 1. Download `meshtown.apk` on the phone.
-2. Allow installation from unknown sources for the app you opened it with (the system asks on the first install).
+2. Allow installation from unknown sources for the app that opens the file. The system asks on the first install.
 3. Open the file and confirm the installation.
 
 Check the download against `SHA256SUMS` before installing.
