@@ -6,9 +6,7 @@ import android.net.VpnService;
 import android.os.SystemClock;
 import android.os.IBinder;
 import android.util.Log;
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 
 /** Foreground service that owns the node process and keeps the status notification fresh. */
 public class NodeService extends Service {
@@ -26,6 +24,8 @@ public class NodeService extends Service {
     static volatile boolean quitRequested;
     /** Whether Connect is offered (see {@link ConnectGate}); read by the activity and the tile. */
     static volatile boolean canConnect;
+    /** A Connect press waiting for the search to end; shared with the activity and the tile. */
+    static final ConnectIntent connectIntent = new ConnectIntent();
     /** Whether a connection through the chosen path was opened (see {@link PathGate}); read by the activity and the tile. */
     static volatile boolean pathReady;
     /** Whether the activity is on screen; a hidden app with the tunnel off and no restore pending polls the node rarely. */
@@ -43,7 +43,7 @@ public class NodeService extends Service {
     private Thread poller;
     private volatile boolean stopping;
     private final RestoreGate restore = new RestoreGate();
-    private boolean exitWasLost;
+    private final ExitAlert exitAlert = new ExitAlert();
     private final ConnectGate gate = new ConnectGate();
     private final PathGate path = new PathGate();
     private String shown = "";
@@ -86,10 +86,19 @@ public class NodeService extends Service {
             restore.arm(Prefs.vpnWanted(this) && VpnService.prepare(this) == null,
                     SystemClock.elapsedRealtime());
         } else if (ACTION_CONNECT.equals(action)) {
-            connectFromNotification();
+            connectFromAction();
         } else if (ACTION_DISCONNECT.equals(action)) {
             stopTunnel(true);
         }
+    }
+
+    /** The notification and tile action: starts the tunnel, or waits for the search / cancels the wait. */
+    private void connectFromAction() {
+        if (!canConnect && !TunnelService.running) {
+            connectIntent.press();
+            return;
+        }
+        connectFromNotification();
     }
 
     private void connectFromNotification() {
@@ -123,6 +132,7 @@ public class NodeService extends Service {
         path.observe(state, false);
         pathReady = false;
         canConnect = false;
+        connectIntent.cancel();
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
     }
@@ -149,7 +159,7 @@ public class NodeService extends Service {
             ProcessBuilder pb = new ProcessBuilder(bin.getPath(), "run", "--config", new File(dir, "config.json").getPath());
             pb.directory(dir);
             pb.environment().put("HOME", dir.getPath());
-            String rustLog = readRustLog(dir);
+            String rustLog = RustLog.read(dir, getExternalFilesDir(null));
             if (rustLog != null) {
                 pb.environment().put("RUST_LOG", rustLog);
             }
@@ -158,28 +168,6 @@ public class NodeService extends Service {
             node = pb.start();
         } catch (Exception e) {
             Log.e(TAG, "node start failed", e);
-        }
-    }
-
-    /** Log filter from a `rust-log` file: the app's private dir first, then the external files dir. */
-    private String readRustLog(File dir) {
-        String value = readFirstLine(new File(dir, "rust-log"));
-        if (value != null) {
-            return value;
-        }
-        File external = getExternalFilesDir(null);
-        return external == null ? null : readFirstLine(new File(external, "rust-log"));
-    }
-
-    private static String readFirstLine(File f) {
-        if (!f.isFile()) {
-            return null;
-        }
-        try (BufferedReader r = new BufferedReader(new FileReader(f))) {
-            String line = r.readLine();
-            return line == null || line.trim().isEmpty() ? null : line.trim();
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -227,10 +215,12 @@ public class NodeService extends Service {
         state = s;
         long now = SystemClock.elapsedRealtime();
         canConnect = gate.update(s, now);
+        boolean startPending = connectIntent.update(s, canConnect);
         if (s.reachable && Prefs.namePending(this)) {
             applyPhoneName();
         }
         boolean vpnOn = TunnelService.running;
+        startPendingConnect(startPending, vpnOn);
         path.observe(s, vpnOn || restore.holding());
         publishPath();
         if (restore.update(Prefs.vpnWanted(this), s, vpnOn, path.ready(), now)) {
@@ -239,7 +229,16 @@ public class NodeService extends Service {
         }
         startProbe();
         announceExit(s, vpnOn);
-        show(StatusText.notice(s, vpnOn, pathReady), vpnOn, canConnect);
+        show(StatusText.notice(s, vpnOn, pathReady), vpnOn, s.inNetwork);
+    }
+
+    private void startPendingConnect(boolean start, boolean vpnOn) {
+        if (vpnOn) {
+            connectIntent.cancel();
+        } else if (start) {
+            Log.i(TAG, "pending connect: starting tunnel");
+            connectFromNotification();
+        }
     }
 
     private void publishPath() {
@@ -271,17 +270,16 @@ public class NodeService extends Service {
 
     /** One alert on the online -> offline transition of the chosen exit, not on every poll. */
     private void announceExit(NodeState s, boolean vpnOn) {
-        boolean lost = vpnOn && s.exitLost();
-        if (lost && !exitWasLost) {
+        ExitAlert.Action action = exitAlert.update(s, vpnOn);
+        if (action == ExitAlert.Action.ALERT) {
             notifier.alertExitLost(StatusText.exitOffline(s));
-        } else if (!lost && exitWasLost) {
+        } else if (action == ExitAlert.Action.CLEAR) {
             notifier.clearAlert();
         }
-        exitWasLost = lost;
     }
 
     private void show(StatusText.Notice text, boolean vpnOn, boolean canConnect) {
-        String key = text.title + "|" + text.text + vpnOn + canConnect;
+        String key = text.title + "|" + text.text + vpnOn + canConnect + connectIntent.pending();
         if (key.equals(shown)) {
             return;
         }

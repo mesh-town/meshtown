@@ -220,11 +220,12 @@ public class MainActivity extends Activity {
         }
         NodeState s = NodeService.state;
         boolean on = TunnelService.running;
-        button.setText(on ? "Disconnect" : "Connect");
-        boolean enabled = on || NodeService.canConnect;
+        boolean pending = NodeService.connectIntent.pending();
+        button.setText(on ? "Disconnect" : pending ? "Cancel" : "Connect");
+        boolean enabled = on || s.inNetwork;
         button.setEnabled(enabled);
         tintButton(on, enabled);
-        showStrip(StatusText.strip(s, NodeService.canConnect, on, NodeService.pathReady));
+        showStrip(StatusText.strip(s, NodeService.canConnect, on, NodeService.pathReady, pending));
         if (!s.reachable) {
             loaded = false;
             showSplash(Splash.message(SystemClock.elapsedRealtime() - waitingSince));
@@ -269,6 +270,12 @@ public class MainActivity extends Activity {
             startService(new Intent(this, TunnelService.class).setAction(TunnelService.ACTION_STOP));
             return;
         }
+        if (NodeService.connectIntent.pending()) {
+            NodeService.connectIntent.cancel();
+            button.removeCallbacks(refresh);
+            refresh();
+            return;
+        }
         // A refusal does not block Connect: the answer, either way, continues into the VPN step.
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
@@ -283,6 +290,17 @@ public class MainActivity extends Activity {
         if (req == REQ_NOTIFY) {
             connect();
         }
+    }
+
+    /** Starts the tunnel now, or remembers the press until the search for members ends. */
+    private void startOrWait() {
+        if (!NodeService.canConnect) {
+            NodeService.connectIntent.press();
+            NodeService.wake();
+            return;
+        }
+        Prefs.setVpnWanted(this, true);
+        startService(new Intent(this, TunnelService.class));
     }
 
     private void connect() {
@@ -301,8 +319,7 @@ public class MainActivity extends Activity {
             return;
         }
         if (req == REQ_VPN && result == RESULT_OK) {
-            Prefs.setVpnWanted(this, true);
-            startService(new Intent(this, TunnelService.class));
+            startOrWait();
             BatteryPrompt.askOnce(this);
         }
     }

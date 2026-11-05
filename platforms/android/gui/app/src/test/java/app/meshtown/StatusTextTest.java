@@ -195,4 +195,10 @@ public class StatusTextTest {
         assertEquals("Leave network and reset\u2026", StatusText.resetMenuTitle(s));
         assertEquals("Leave the network \"probe\"?", StatusText.resetTitle(s));
     }
+
+    @Test
+    public void pending_connect_says_it_will_connect_when_members_are_found() {
+        line("Will connect when other members are found", 0, StatusText.strip(DIRECT, false, false, false, true));
+        line("Join or create a network first", 0, StatusText.strip(OUT, false, false, false, true));
+    }
 }

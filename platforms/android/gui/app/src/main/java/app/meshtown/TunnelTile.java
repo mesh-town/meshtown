@@ -46,16 +46,12 @@ public class TunnelTile extends TileService {
         if (on) {
             draw(false);
             startForegroundService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_DISCONNECT));
-        } else if (canConnect()) {
-            draw(true);
+        } else if (VpnService.prepare(this) == null && NodeService.state.inNetwork) {
+            draw(NodeService.canConnect);
             startForegroundService(new Intent(this, NodeService.class).setAction(NodeService.ACTION_CONNECT));
         } else {
             openApp();
         }
-    }
-
-    private boolean canConnect() {
-        return NodeService.canConnect && VpnService.prepare(this) == null;
     }
 
     /** Draws the given state; a tap draws the expected one at once, the service's refresh corrects it. */
