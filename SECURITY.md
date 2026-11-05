@@ -6,19 +6,20 @@ Only the latest released 0.3.x version receives security fixes.
 
 ## Reporting a vulnerability
 
-Please do not open a public issue for a security problem. Use GitHub private vulnerability reporting for this
-repository (the "Security" tab, "Report a vulnerability") with a description,
-the affected version and steps to reproduce. You should get an answer within a week; the fix and the disclosure date
+Do not open a public issue for a security problem. Use GitHub private vulnerability reporting for this repository
+(the "Security" tab, "Report a vulnerability") with a description, the affected version and steps to reproduce. You should get an answer within a week; the fix and the disclosure date
 are agreed with the reporter.
 
 ## Scope notes
 
-- A Mesh Town network key lets its holder find the network's records in the DHT, see who its members are and pass
-  the handshake, but not join: a node gets in only when an administrator admits it to the member list (an invite does that at
-  once). A member can use the ports published to it and, if you are an exit, your connection; a node that should no
-  longer be in the network is removed by an administrator, and the key does not need to change. Keep keys secret and pass them through `MESHTOWN_KEY` or the settings file rather than the command line, where
-  other users of the computer can see them. An invite is single-use and expires after a day, but the string should
-  still be handed over in person.
+- A network key lets its holder find the network's records in the DHT, see who its members are and pass the
+  handshake, but not join. A node gets in only when a network admin admits it to the member list (an invite does
+  that at once).
+- A member can use the ports published to it and, if you are an exit, your connection. A network admin removes a node
+  that should no longer be in the network; the key does not need to change.
+- Keep keys secret. Pass them through `MESHTOWN_KEY` or the settings file, not the command line, where other users
+  of the computer can see them.
+- An invite is single-use and expires after a day. Hand the string over in person.
 - The settings file (`config.json`) holds the network key and the node secret; the node creates it with mode `0600`
   in a `0700` directory. Do not share or commit it.
 - The node page is served over plain HTTP. In the default `localnet` mode devices of the local network can reach it, and

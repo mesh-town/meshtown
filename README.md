@@ -42,8 +42,8 @@ Runs on macOS, Windows, Linux, Android, and OpenWrt, Keenetic or MikroTik router
   routes: the node is an ordinary program, and its proxy listens on a port above 1024. Only installing a system
   package (`apt`, the Windows installer) asks for rights once; on Android the app asks for the usual VPN permission.
 - **You choose who sees what.** A port is shared with all members or with selected ones.
-- **Web interfaces open by a link.** With the browser using the node's proxy, the panel of a router, a NAS or a home
-  automation box is at `http://<device-name>.meshtown`, no IP addresses to remember.
+- **Web interfaces open by a link.** With the browser using the node's proxy, a router, NAS or home automation panel
+  is at `http://<device-name>.meshtown`, no IP addresses to remember.
 - **A member can be your exit node.** Point a browser or a program at the local SOCKS5/HTTP proxy, and its
   traffic goes out to the internet through a trusted member's connection — see [below](#also-use-a-member-as-an-exit-node).
 - **Several networks on one node**, for example "my devices" and "the team".
@@ -83,8 +83,8 @@ go out the same way.
 3. Press **Create a new network**, or **Join with an invite** if a member gave you one (in a terminal:
    `meshtown join mesh-invite2-…`). A node can be in several networks: **Add a network** on the page.
 4. **Invite a member** on the page gives a single-use string for the next device or person.
-5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using the proxy from step 6, a
-   shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
+5. Share a port in the network's **Shared services (ports)** tab, or open one a member shared. With the browser using
+   the proxy from step 6, a shared web interface is at `http://<device-name>.meshtown`; the tab shows the link.
 6. To go out through a member, point a browser or a program at `127.0.0.1:1080` (`socks5h://` so the node resolves
    names): `curl -x socks5h://127.0.0.1:1080 https://example.com/`. Instead of typing the address, a browser can take
    the node's auto-config file, `http://127.0.0.1:1080/proxy.pac` (the setup assistant on the page asks whether to set
@@ -114,7 +114,7 @@ needs a confirmation. Gatekeeper, console-only Linux builds, router details, ver
 ## Safety
 
 - **Members are trusted.** A member can use your shared ports and, if you are an exit, your connection. Invite only
-  people you trust; an administrator removes a lost device, the network key does not need to change.
+  people you trust; a network admin removes a lost device, the network key does not need to change.
 - **Keep the network key and `config.json` private.** The key alone does not let a node in, but it reveals the
   network's records in the DHT. Pass it through `MESHTOWN_KEY` or the settings file, not the command line.
 - **An exit lends your IP address** and sees which hosts members connect to. Turn it off with `--no-exit` or on the
@@ -145,7 +145,7 @@ cargo build --release --locked -p meshtown-<os>                                 
 cargo build --release --locked --no-default-features --features net-hyper     # no tray, for servers
 ```
 
-`make` prints the project commands; `make check` runs the tests and `clippy` as in CI. Release packages, containers
+`make` prints the project command list; `make check` runs the tests and `clippy` as in CI. Release packages, containers
 and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 
 ## Documentation
@@ -162,7 +162,7 @@ and the macOS bundle: [docs/BUILDING.md](docs/BUILDING.md).
 
 The DHT and transport come from [townjump](https://github.com/mesh-town/townjump), a Rust port of
 [Holesail](https://github.com/holesail/holesail). The word list in network keys is the EFF Large Wordlist for
-Passphrases (CC BY 3.0 US, the words are embedded in compressed form with the dice numbers dropped, see `core/members/wordlist/NOTICE.md`). The page is built with
-[Vue](https://vuejs.org/). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Passphrases (CC BY 3.0 US; the words are embedded in compressed form without the dice numbers, see
+`core/members/wordlist/NOTICE.md`). The page is built with [Vue](https://vuejs.org/). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 AGPL-3.0-only, see [LICENSE](LICENSE).
