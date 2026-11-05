@@ -19,7 +19,7 @@ fn router_with(age_ms: u64) -> (axum::Router, Arc<SnapNode>) {
 async fn state_waits_for_a_fresh_snapshot_after_idle() {
     // given: the snapshot is 6 s old and a collection lands 300 ms later
     let (router, node) = router_with(6_000);
-    tokio::spawn(async move {
+    crate::node::output::spawn(async move {
         tokio::time::sleep(Duration::from_millis(300)).await;
         node.snapshot.lock().unwrap().snapshot_age_ms = 0;
     });
