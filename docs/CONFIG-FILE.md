@@ -1,22 +1,19 @@
 # Node settings file on disk
 
-This document describes the second half of the node's settings: **where the file lives, how it is read at startup,
-which is stronger — the file or the command line — and how the node rewrites the file** when settings are changed
-from the page. The first half — the document's composition, field types and how it travels between the page and the
-node — is in `WEB-API.md`, section 2 "Config schema" and sections 1.6–1.7.
+This document covers where the file lives, how the node reads it at startup, whether the file or the command line
+wins, and how the node rewrites the file when settings change from the page. The document's composition, field types
+and transport between the page and the node are in `WEB-API.md`, section 2 "Config schema" and sections 1.6–1.7.
 
-**One schema for both documents.** The file on disk stores the same `config` document that the page
-gets from `GET /api/config` and sends in `PUT /api/config`. The node converts nothing:
-read the file — got `config`, wrote `config` — got the file. There must be no divergence between this
-document and `WEB-API.md`; schema fields are edited in `WEB-API.md`, the file's rules here.
+**One schema for both documents.** The file stores the same `config` document that the page gets from
+`GET /api/config` and sends in `PUT /api/config`. The node converts nothing: it reads the file as `config` and
+writes `config` as the file. Schema fields are edited in `WEB-API.md`; the file's rules are here.
 
 ---
 
 ## 1. Where the file lives
 
-The order:
-**first next to the binary, then in the host's standard location; a new config is created in
-the standard location.** The first rule that applies wins:
+The node looks next to the binary first, then in the host's standard location. It creates a new config in the
+standard location. The first rule that applies wins:
 
 | № | Rule | Path |
 |---|---|---|
@@ -32,24 +29,20 @@ the standard location.** The first rule that applies wins:
 Notes:
 
 - **Entware routers** (for example Keenetic) keep the root file system read-only and install programs
-  under `/opt`. A root process whose binary is in `/opt/bin` therefore uses `/opt/etc/meshtown/` instead of `/etc/meshtown/`,
-  so a command typed in a shell finds the same settings as the service.
-- **A file next to the binary is the portable mode** (a flash drive, a directory on a router,
-  "downloaded, ran, left nothing in the system"). It is looked up first, so a portable copy
-  is always stronger than one installed in the system.
-- **A new config is created only in the standard location** (rule 4), even if the binary's directory
-  is writable: the binary may sit in `/usr/bin` or in `Program Files`, and the node
-  must not litter there. A portable file is set up by a person — they put `config.json` next to the program (or
-  copied it from another machine), and the node picks it up on the next start. The exception is an explicit
-  `--config`: the file is both looked up and created at that path.
-
-- **The state directory is the directory that holds `config.json`.** There is no separate setting for "where
-  the state is": if you gave `--config`, you gave the directory too; if you put the config next to the binary,
-  the other state files land there as well.
-- If the directory does not exist, the node creates it together with the file (`mkdir -p`, mode `0700` on Unix).
-- The path the node chose is printed at startup as the first line (`config: <path> (read)`)
-  and given to the page in `config.file.path` (section 5). The subcommand `meshtown config path` prints
-  the same path and starts nothing — so that a person can find the file without bringing the node up.
+  under `/opt`. A root process whose binary is in `/opt/bin` therefore uses `/opt/etc/meshtown/`, not
+  `/etc/meshtown/`, so a command typed in a shell finds the same settings as the service.
+- **A file next to the binary is portable mode** (a flash drive, a directory on a router). It is looked up first,
+  so a portable copy always wins over one installed in the system.
+- **A new config is created only in the standard location** (rule 4), even if the binary's directory is
+  writable: the binary may sit in `/usr/bin` or `Program Files`, and the node must not litter there.
+  To set up a portable file, put `config.json` next to the program (or copy it from another machine); the node
+  picks it up on the next start. An explicit `--config` is the exception: the file is looked up and created at
+  that path.
+- **The state directory is the directory that holds `config.json`.** There is no separate setting for it. With
+  `--config` you choose the directory too; with a config next to the binary, the other state files land there.
+- If the directory does not exist, the node creates it with the file (`mkdir -p`, mode `0700` on Unix).
+- The node prints the chosen path as the first startup line (`config: <path> (read)`) and gives it to the page
+  in `config.file.path` (section 5). `meshtown config path` prints the same path and starts nothing.
 
 ### 1.1 What is in the state directory
 
@@ -64,68 +57,70 @@ Notes:
   config.json.bad-<date-time>    an unreadable config, set aside before being overwritten
 ```
 
-- **`config.json` is a secret file.** Inside it are both the network key and the node secret,
-  so mode `0600` and directory `0700` are not a wish but a requirement: the file gives access to
-  the whole network and lets someone impersonate this node.
-- **There is no separate node identity file any more.** The secret lives in the shared
-  file; the earlier per-network `node-<network
-  tag>.key` files are not used. The secret's place in the file is
-  section 4.
-- **The page token** is a separate file, not a config field: the page reads and rewrites the
-  config as a whole, and the token must not be given to it, and the "New token" button changes it
-  bypassing the settings. The file is created by the web server.
+- **`config.json` is a secret file.** It holds the network key and the node secret, so mode `0600` and
+  directory `0700` are required: the file gives access to the whole network and lets someone impersonate this node.
+- **There is no separate node identity file.** The secret lives in `config.json` (section 4); the old per-network
+  `node-<network tag>.key` files are not used.
+- **The page token** is a separate file, not a config field. The page reads and rewrites the config as a whole and
+  must not receive the token; the "New token" button changes it bypassing the settings. The web server creates
+  the file.
 
 ---
 
 ## 2. Priorities: the command line is stronger than the file
 
-The value of each field is taken by the rule **default → file → command line**, per field, not
-per document: `--socks-port 1081` overrides only `socks.port`, the other fields of the file stay in
-force.
+The node takes each field by the rule **default → file → command line**, per field, not per document:
+`--socks-port 1081` overrides only `socks.port`; the other file fields stay in force.
 
-- **"Set on the command line" literally means "the flag was typed by a person"**, not "the flag has a
-  value". Today half the flags have `default_value_t` (`core/cli/args.rs`),
-  and what was typed cannot be told from the default. When the file is connected, all such
-  flags become `Option<T>` without `default_value_t`, and the defaults move to one place — the table in section 3.
-  The "was the flag typed" check is `ArgMatches::value_source(..) == Some(ValueSource::CommandLine)`.
-- **The file does not change because of this.** A flag acts on the current run; the disk keeps what it kept.
-  Restarted without the flag — the value from the file works.
-- **The page knows about this.** Fields overridden by the command line are given by the node as the list
-  `cli_overrides` (section 5): the page shows the effective value, writes under the field "set
-  by a flag at startup" and **allows saving** — the saved value goes to the file and takes effect on the
-  next start without the flag. Silently accepting an edit that affects nothing is not allowed;
-  forbidding it is not either: a person configures the node for the future.
-- **There are no environment variables for each setting.** There are exactly two, and both are about paths and the key:
-  `MESHTOWN_CONFIG` and `MESHTOWN_KEY` (`core/config/config_file/overrides.rs`). We do not introduce a third layer of priorities per
-  field: it cannot be shown on the page in an understandable way. `MESHTOWN_KEY` counts as
-  set explicitly, on a par with a flag: it overrides the key from the file; `meshtown join <key>` is the way to store a key.
-- **`config set <path> <value>`** and **`run --set <path>=<value>`** — the two ways to change a stored field from
-  the command line. `config set` writes one field: through the running node (`PUT /api/config`, the same checks
-  and rules as the page) or, when no node runs, straight into the file by the rules of section 6. `run --set` changes
-  the field for this run only; the file is not touched and the path is listed in `cli_overrides`. Both take
-  any stored field except `network.key` and the read-only ones; the value is checked by the same reader that reads
-  the file, so the bounds are the file's. `config get [<path>]` shows the values.
-- **`--no-config`** — work on defaults and flags, neither read nor write the file. Needed for
-  tests and for working out "is the config to blame or not".
+- **"Set on the command line" means a person typed the flag**, not that the flag has a value. Today half the flags
+  have `default_value_t` (`core/cli/args.rs`), so a typed value cannot be told from the default. With the file
+  connected, all such flags become `Option<T>` without `default_value_t`, and the defaults move to one place: the
+  table in section 3. The check is `ArgMatches::value_source(..) == Some(ValueSource::CommandLine)`.
+- **A flag does not change the file.** It acts on the current run only. After a restart without the flag, the file
+  value applies.
+- **The page shows overrides.** The node lists fields overridden by the command line in `cli_overrides`
+  (section 5). The page shows the effective value, marks the field "set by a flag at startup" and **allows
+  saving**: the saved value goes to the file and takes effect on the next start without the flag. The page neither
+  silently accepts an edit that does nothing nor forbids it, because a person may configure the node for the future.
+- **Only two environment variables exist**, both about paths and the key: `MESHTOWN_CONFIG` and `MESHTOWN_KEY`
+  (`core/config/config_file/overrides.rs`). There is no per-field layer: the page cannot show it clearly.
+  `MESHTOWN_KEY` counts as set explicitly, like a flag, and overrides the file key. `meshtown join <key>` stores a key.
+- **`config set <path> <value>`** and **`run --set <path>=<value>`** change a stored field from the command line.
+  - `config set` writes one field through the running node (`PUT /api/config`, same checks and rules as the page)
+    or, when no node runs, straight into the file by the rules of section 6.
+  - `run --set` changes the field for this run only; the file is untouched and the path is listed in `cli_overrides`.
+  - Both take any stored field except `network.key` and the read-only ones. The file reader checks the value, so the
+    bounds are the file's.
+  - `config get [<path>]` shows the values.
+- **`--no-config`** works on defaults and flags and neither reads nor writes the file. Use it for tests and to find
+  out whether the config causes a problem.
 
 ---
 
 ## 3. Config field ↔ command-line flag
 
-The source of fields is the table `config_file::fields::FIELDS` (`core/config/config_file/fields/table.rs`):
-a row per path, the `Mode` (live, restart with or without a prompt, edit only, read only,
-file only) and the value kind. From it come the lists `read_only` and `restart_fields`, the live paths,
-the known section keys, file parsing, file output and the settings' `Debug`; the row order is the order of
-keys in the written file. Any stored field except `network.key` and the read-only ones can be given as `--set <path>=<value>` for one run, and saved with `config set`. The column "Read in the node" below is where the node reads the value from (`NodeConfig.settings`, type `NetSettings`; SOCKS and memory thresholds — `NodeConfig.socks`, `NodeConfig.memory`).
+The fields come from the table `config_file::fields::FIELDS` (`core/config/config_file/fields/table.rs`). It has a
+row per path, with the `Mode` (live, restart with or without a prompt, edit only, read only, file only) and the
+value kind. From it come:
+
+- the lists `read_only` and `restart_fields`, and the live paths;
+- the known section keys;
+- file parsing and file output, and the settings' `Debug`.
+
+The row order is the key order in the written file. Any stored field except `network.key` and the read-only ones
+can be given as `--set <path>=<value>` for one run, and saved with `config set`.
+
+The column "Read in the node" shows where the node reads the value: `NodeConfig.settings` (type `NetSettings`),
+or `NodeConfig.socks` and `NodeConfig.memory` for SOCKS and memory thresholds.
 
 | Config path | Flag | Default | Read in the node |
 |---|---|---|---|
 | `network.key` | `--key`, `MESHTOWN_KEY` | — | `network_key` (`node/config.rs`) |
 | `exit.enabled` | `--exit` / `--no-exit` | `true` (`false` on Android) | `settings.exit_enabled` (`core/config/config_file/net_settings.rs`) |
-| `exit.max_streams` | no flag | `0` (by machine memory: 20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise) | `process.exit_max_streams` (`core/config/config_file/process_settings.rs`); the ceiling on open exit streams for the whole process, 0…100000. Beyond it a new stream is refused as busy and clients try another exit; no single member may hold more than four fifths of it, and when several members contend each is held to an equal part. Takes effect at once; open streams are not cut |
+| `exit.max_streams` | no flag | `0` (by machine memory: 20 on ≤128 MiB, 50 on ≤512 MiB, 200 otherwise) | `process.exit_max_streams` (`core/config/config_file/process_settings.rs`); the open-stream ceiling for the whole process, 0…100000. Beyond it a new stream is refused as busy and clients try another exit. No single member may hold more than four fifths of it; when several members contend, each gets an equal part. Takes effect at once; open streams are not cut |
 | `exit.stream_window_kib` | no flag | `0` (by machine memory: 128 on ≤128 MiB, off otherwise) | `process.exit_stream_window_kib` (`core/config/config_file/process_settings.rs`); KiB of site-to-client data an exit stream may have unacknowledged, 0…65536; non-zero values below 64 count as 64. Smaller values save router memory (above about 4096 the window no longer saves any) and cap one download at about window ÷ round-trip time. Takes effect for new streams; open streams keep theirs |
-| `exit.interface` | no flag | `null` (any network) | `settings.exit_interface` (`core/config/config_file/net_settings.rs`); the name of the interface exit connections are bound to, 1–64 bytes, see "Exit through another VPN" below. Takes effect at once; open connections keep their path |
-| `node.memory_warn_mib` | no flag | `400` (by machine memory: 24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise) | `process.node_memory_warn_mib`; memory guard summary threshold, MiB, `0` = off. The default `400` means "by machine memory", so an explicit 400 on a machine with ≤512 MiB also counts as automatic. On such machines the exit also refuses new streams near this value; above 512 MiB with the default 400 it refuses only by the stream limit |
+| `exit.interface` | no flag | `null` (any network) | `settings.exit_interface` (`core/config/config_file/net_settings.rs`); the interface name exit connections are bound to, 1–64 bytes, see "Exit through another VPN" below. Takes effect at once; open connections keep their path |
+| `node.memory_warn_mib` | no flag | `400` (by machine memory: 24 on ≤128 MiB, 64 on ≤512 MiB, 400 otherwise) | `process.node_memory_warn_mib`; memory guard threshold, MiB, `0` = off. The default `400` means "by machine memory", so an explicit 400 on a machine with ≤512 MiB also counts as automatic. On such machines the exit also refuses new streams near this value; above 512 MiB with the default 400 it refuses only by the stream limit |
 | `socks.enabled` | `--socks` / `--no-socks` | `true` | `cfg.socks.enabled` (`node/config.rs`) |
 | `socks.port` | `--socks-port` | 1080 | `cfg.socks.port` (`node/config.rs`) |
 | `socks.strict` | no flag | `false` | `process.socks_strict`; when `false`, the auto-config (PAC) file ends the route of ordinary sites with `DIRECT`, so they open directly while the node is not running; when `true` they stay closed. Takes effect at once |
@@ -147,17 +142,21 @@ keys in the written file. Any stored field except `network.key` and the read-onl
 | `node.name` | no flag | a name from a pair of pool words (`words.rs`) | node identity |
 | `net.transports`, `net.discovery`, `net.sync`, `net.relay` | no flag | `["hyper"]`, `["invite","cache","hyperdht"]`, `"mesh"`, `"network"` | section 8.3 |
 
-`network.key` is the only file field that is not in the page document (section 4). There is never a default key:
-with no flag and no line in the file, the node comes up without a network.
+`network.key` is the only file field that is not in the page document (section 4). There is no default key: with
+no flag and no line in the file, the node comes up without a network.
 
 ### Exit through another VPN
 
-`exit.interface` makes the node send what it opens for other members only through the named interface, for example
-another VPN (`"wg0"`, `"utun4"`). The binding covers the TCP connections to sites, the UDP sessions and the exit's own DNS
-queries. It does not cover the links between nodes, the site checks and the direct local proxy: they use the regular
-routing table. If the interface is missing, down or cannot be bound, the exit refuses the connection (reply code 8)
-instead of falling back to the regular network, so nothing leaks. On Linux kernels before 5.7 the binding needs the
-`CAP_NET_RAW` capability. Code: `core/iface_bind/`, `core/exit/outbound/dial.rs`.
+`exit.interface` makes the node send what it opens for other members only through the named interface, for
+example another VPN (`"wg0"`, `"utun4"`).
+
+- The binding covers TCP connections to sites, UDP sessions and the exit's own DNS queries.
+- It does not cover links between nodes, site checks and the direct local proxy: they use the regular routing table.
+- If the interface is missing, down or cannot be bound, the exit refuses the connection (reply code 8) instead of
+  falling back to the regular network, so nothing leaks.
+- On Linux kernels before 5.7 the binding needs the `CAP_NET_RAW` capability.
+
+Code: `core/iface_bind/`, `core/exit/outbound/dial.rs`.
 
 ### `checks.geo_markers`
 
@@ -170,21 +169,20 @@ instead of falling back to the regular network, so nothing leaks. On Linux kerne
   repeats are dropped. A longer list, a longer phrase or a non-string item rejects the whole key: the error names
   `checks.geo_markers` and the default (an empty list) stays.
 - Example: `"checks": { "geo_markers": ["not offered in your area", "service unavailable here"] }`.
-- Why: stub pages differ by site and language; the built-in list covers only common English wording, and this key
-  lets each node owner teach the check the wording of the sites that matter to them.
+- Why: stub pages differ by site and language, and the built-in list covers only common English wording. This key
+  lets a node owner add the wording of the sites that matter to them.
 
-What is **not** stored in the file even though a flag exists:
+Not stored in the file even though a flag exists:
 
-- `--site` — the domain is added to the **node's own list**; it lives in the file `replica/domains.bin` (not in the config) and
-  is not passed to other members.
-- `--block-site` — a debug flag (`blocked_domains` in `node/config.rs`), not counted as a setting.
-- `--invite` — a one-time join, not state.
+- `--site` adds the domain to the **node's own list**, which lives in `replica/domains.bin` (not in the config)
+  and is not passed to other members.
+- `--block-site` is a debug flag (`blocked_domains` in `node/config.rs`), not a setting.
+- `--invite` is a one-time join, not state.
 
-Paired flags (`--socks` next to `--no-socks` and so on) exist precisely because of the file: without
-a positive form it is impossible to start once with SOCKS on when it is off in the file; the last flag
-of a pair wins.
+Paired flags (`--socks` and `--no-socks`, and so on) exist because of the file: without a positive form, one run
+could not turn SOCKS on when the file turns it off. The last flag of a pair wins.
 
-An old `transport.mode` key in the file is still accepted and ignored: the log shows `deprecated fields ignored and dropped on the next write: transport.mode`, and the key disappears at the next write of the file.
+An old `transport.mode` key is still accepted and ignored. The log shows `deprecated fields ignored and dropped on the next write: transport.mode`, and the key disappears at the next write.
 
 ---
 
@@ -212,52 +210,44 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
 }
 ```
 
-- **`config` is the body of `PUT /api/config` plus one field: `network.key`.** Apart from the key,
-  the match is complete, field for field, with no conversion in either direction.
-- **The node secret sits in the envelope, next to `config`, not inside it** (it lives
-  in the shared file). The reason is not neatness: `config` as a whole goes to the page in `GET`
-  `/api/config` and will become the backup file too, and the node secret must get into neither
-  place — restoring a backup on a second machine would give a person two nodes with one identity, and the
-  network would stop telling them apart. A separate envelope key removes this with one rule instead of a
-  list of exceptions: **the page sees only `config`, the node reads the whole file**.
-- **One network — one file — one identity.** A node identity is tied to its network, so a file per network
-  keeps two networks on one machine from getting the same identifier; in a shared file this comes out by itself:
-  the network key and the secret sit together, and a second network is a second config file (`--config`).
-- **The node name is a setting, not identity**, so it is inside `config`: a person
-  may change it, including to non-Latin letters. The node comes up with a name itself on first start,
-  after that it lives in the file like any other setting. The page document has no `node.name` field
-  today — adding it changes the page API.
-- **`network.key` lives only in the file.** The network key sits in the config, but is never given to the page:
-  it is not in `GET /api/config`, it is ignored in `PUT /api/config`, the page sees
-  `network.label` and `network.masked`, and gets the whole key only on pressing "Copy"
-  (`GET /api/network/key`). Otherwise the key would sit in every `/api/config` reply — that
-  is, in the tab's history and in any debug dump. It is changed by two actions,
-  `POST /api/network/join` and `/create`, and they **raise `rev`**, because they write this same file.
-- **Because of the key, the whole file is secret.** Mode `0600`, directory `0700`, and a backup, when
-  one appears, will need a warning on download: the file gives access to the whole network. Today
-  the settings export goes through the API and contains no key — so a copy restores the settings
-  but not the network.
-- **`version` is one, inside `config`** (as in `WEB-API.md`, section 2). The envelope has no second
-  version: two version numbers in one file always diverge.
-- **`rev`** is the config revision, the same as in `GET /api/config`. It lives in the file, not in the node's
-  memory: otherwise a restart would reset the counter, and a tab opened before the restart would overwrite
-  others' edits without getting `stale_rev`. It grows by 1 on every successful write.
-- **`saved_at`** — UTC, ISO-8601, for humans only; the node does not parse it.
-- **"Read only" is about the page, not about the file.** Fields the node computes itself are not stored:
-  `network.label` and `network.masked` (from the network key), `autostart.available`,
-  `autostart.reason` (filled by the node: build and system state), `full_tunnel.available`,
-  `full_tunnel.reason` (build flags). On write
-  they are not saved, on read they are silently ignored — "read
-  only" is no reason to reject a document.
-- **`web.enabled` is an exception: in `read_only`, but stored in the file.** The page does not change it
-  (having turned itself off, it could not turn itself back on), yet it remains a setting: it is switched by
-  editing the file by hand while the node is stopped — it has no flag. Dropping it
-  on write is not allowed — a node without a screen on a router is configured exactly this way.
-- **`full_tunnel.enabled` is in the file** (a setting, not a build flag), but while `available: false`
-  enabling is rejected with the code `not_available`, and only `false` gets into the file.
-- **`autostart.enabled` is in the file and accepts `true`.** It stores the last choice made on the page; the file
-  value alone never creates or removes the login entry. Only a save from the page does that, and the value shown on
-  the page is read from the system.
+- **`config` is the body of `PUT /api/config` plus one field: `network.key`.** Apart from the key, the match is
+  complete, field for field, with no conversion in either direction.
+- **The node secret sits in the envelope, next to `config`, not inside it.** `config` as a whole goes to the page
+  in `GET /api/config` and may become a backup file, and the secret must reach neither. Restoring a backup on a
+  second machine would create two nodes with one identity, and the network could not tell them apart. One rule
+  replaces a list of exceptions: **the page sees only `config`, the node reads the whole file**.
+- **One network, one file, one identity.** A node identity is tied to its network. The network key and the secret
+  sit together in one file, so two networks on one machine never share an identifier; a second network is a
+  second config file (`--config`).
+- **The node name is a setting, not identity**, so it is inside `config`. A person may change it, including to
+  non-Latin letters. The node picks a name on first start; after that it lives in the file like any other
+  setting. The page document has no `node.name` field today; adding it changes the page API.
+- **`network.key` lives only in the file.** The page never receives it: it is not in `GET /api/config`, it is
+  ignored in `PUT /api/config`, and the page sees `network.label` and `network.masked`. The page gets the whole key
+  only on "Copy" (`GET /api/network/key`); otherwise the key would sit in every `/api/config` reply, in tab
+  history and in debug dumps. Two actions change it, `POST /api/network/join` and `/create`; they write this file,
+  so they **raise `rev`**.
+- **The whole file is secret because of the key.** Mode `0600`, directory `0700`; a future backup download will need
+  a warning. The settings export goes through the API and contains no key, so a copy restores the settings but not
+  the network.
+- **`version` is one, inside `config`** (as in `WEB-API.md`, section 2). The envelope has no second version: two
+  version numbers in one file always diverge.
+- **`rev`** is the config revision, the same as in `GET /api/config`. It lives in the file, not in memory:
+  otherwise a restart would reset the counter, and a tab opened before the restart could overwrite others' edits
+  without getting `stale_rev`. It grows by 1 on every successful write.
+- **`saved_at`** is UTC, ISO-8601, for humans only; the node does not parse it.
+- **"Read only" is about the page, not the file.** The node computes these fields and does not store them:
+  `network.label` and `network.masked` (from the network key), `autostart.available` and `autostart.reason`
+  (build and system state), `full_tunnel.available` and `full_tunnel.reason` (build flags). On write they are not
+  saved; on read they are silently ignored, so "read only" never rejects a document.
+- **`web.enabled` is in `read_only` but stored in the file.** The page does not change it (a page that turned
+  itself off could not turn itself back on), yet it is a setting. It has no flag: edit the file by hand while the
+  node is stopped. Dropping it on write is not allowed: a node without a screen on a router is configured this way.
+- **`full_tunnel.enabled` is in the file** (a setting, not a build flag). While `available: false`, enabling is
+  rejected with the code `not_available`, and only `false` gets into the file.
+- **`autostart.enabled` is in the file and accepts `true`.** It stores the last choice made on the page. The file
+  value alone never creates or removes the login entry; only a save from the page does. The page shows the value
+  read from the system.
 
 ---
 
@@ -274,31 +264,28 @@ An old `transport.mode` key in the file is still accepted and ignored: the log s
 
 Two rules from which this follows:
 
-- **A damaged file does not stop the node from coming up.** The node serves the page itself; if it fell over because of
-  the config, there would be nothing to fix the settings with. So a read error is a warning in the log and a
-  line on the page, not a refusal to start.
-- **One bad field does not cancel the whole file.** Rejecting the whole document at once is the rule for
-  `PUT /api/config`, where the page sent the document and someone can fix it. The file may have been edited
-  by hand or survived a version rollback; losing all settings over one field is not acceptable.
+- **A damaged file does not stop the node.** The node serves the page itself; if a bad config stopped it, nothing
+  could fix the settings. A read error is a log warning and a line on the page, not a refusal to start.
+- **One bad field does not cancel the whole file.** Rejecting the whole document is the rule for
+  `PUT /api/config`, where the page sent the document and someone can fix it. The file may have been edited by hand
+  or survived a version rollback, and losing all settings over one field is not acceptable.
 
 **The node identity is read from the same file in the same pass.** The secret sits in the envelope
 (`identity.secret`, section 4), so no separate read is needed. Three cases:
 
-- **there is no secret in the file** (first start, or the file was created by an old version) — the node generates it,
-  puts it into the file on the very first write and lives with it from then on;
-- **the secret did not parse** (not base64, wrong length) — the field is considered damaged by the general
-  rule of the table: the node takes a new secret, and a line about it goes to `field_errors`. The machine's
-  identity changes in the process, and the page must say so in words, not with an icon: for the network
-  this is a different node;
-- **the file cannot be written** (a read-only router) — the node **works** with a temporary identity,
-  new on every start, and says so in the log and on the page. Refusing to start is not allowed — on a router the node would then simply not come up.
+- **No secret in the file** (first start, or a file from an old version): the node generates one, writes it on the
+  first write and keeps it from then on.
+- **The secret did not parse** (not base64, wrong length): the general table rule applies. The node takes a new
+  secret and adds a line to `field_errors`. The machine's identity changes, so the page must say so in words, not
+  with an icon: for the network this is a different node.
+- **The file cannot be written** (a read-only router): the node **works** with a temporary identity, new on every
+  start, and says so in the log and on the page. It must not refuse to start, or a router node would not come up.
 
-**The first start creates a file with defaults, not with flag values**. Otherwise a flag
-typed once for a trial quietly becomes a permanent setting, and there is nothing to remove it with later —
-the person does not know it got written. Flag values are visible on the page as `cli_overrides`, and
-the person decides whether to save them. Whoever needs the opposite runs `config set <path> <value>`
-(section 2), which writes the field into the file; once the file says the same as the flag, the page shows no
-"set by a flag at startup" mark for it.
+**The first start creates a file with defaults, not flag values.** Otherwise a flag typed once for a trial would
+quietly become a permanent setting, and the person would not know it was written. The page shows flag values as
+`cli_overrides`, and the person decides whether to save them. To store a flag value, run
+`config set <path> <value>` (section 2). Once the file matches the flag, the page shows no "set by a flag at
+startup" mark for that field.
 
 ### 5.1 What is added to the `GET`/`PUT /api/config` replies
 
@@ -324,14 +311,14 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
 }
 ```
 
-- `cli_overrides` — fields typed as flags and **not** written to the file. The page writes under them
-  "set by a flag at startup, takes effect after a restart without the flag"; it allows editing. The network key gets into it on a par with the rest: a node brought up
-  with `--key` or `MESHTOWN_KEY` shows the label and mask of the effective key, not of the one in the file.
-- `file.state` — `ok` | `created` | `unreadable` | `invalid`; `message` — in English, from the node.
-- `file.writable: false` — the directory is read-only (a router image, a flash drive with writing disabled).
-  The page shows the settings but disables the "Save" button **before** it is pressed, not after a refusal.
-- `field_errors` — fields that did not survive reading the file; the page shows them once
-  in a strip above the form and clears it after the first successful save.
+- `cli_overrides` lists fields typed as flags and **not** written to the file. The page marks them "set by a flag
+  at startup, takes effect after a restart without the flag" and allows editing. The network key is listed like the
+  rest: a node started with `--key` or `MESHTOWN_KEY` shows the label and mask of the effective key, not the file's.
+- `file.state` is `ok` | `created` | `unreadable` | `invalid`; `message` is English text from the node.
+- `file.writable: false` means the directory is read-only (a router image, a write-protected flash drive). The page
+  shows the settings and disables "Save" **before** it is pressed, not after a refusal.
+- `field_errors` lists fields that did not survive reading the file. The page shows them once in a strip above the
+  form and clears it after the first successful save.
 
 ---
 
@@ -340,43 +327,40 @@ Two fields on top of what is already described in `WEB-API.md`, sections 1.6–1
 The node writes the file in four cases:
 
 1. a successful `PUT /api/config`;
-2. the first start when there is no file — with **defaults**, without flag values;
-3. `config set` when no node runs — the one field (section 2);
-4. `POST /api/network/join` and `/create` — they change `network.key`, which lives in
-   this same file, and so they raise `rev` on a par with saving settings.
+2. the first start when there is no file, with **defaults** and no flag values;
+3. `config set` when no node runs: the one field (section 2);
+4. `POST /api/network/join` and `/create`: they change `network.key`, which lives in this file, so they raise
+   `rev` like a settings save.
 
 Other actions (`/api/actions/*`) do not touch the file.
 
-The write order, in full. Steps 1–5 run under an exclusive lock on an empty `config.json.lock` next to the
-file, held by the writing process; the lock file is safe to delete.
+The write order: steps 1–5 run under an exclusive lock on an empty `config.json.lock` next to the file, held by
+the writing process. The lock file is safe to delete.
 
-1. **Re-read the file from disk.** If `rev` on disk differs from the revision in memory, the file
-   was edited behind Mesh Town's back: 409 `stale_rev` with the document **from disk**, nothing written. The page already
-   knows this state (a second tab), no separate handling is needed.
-2. Build the new document: the accepted fields, none of the node-computed ones is saved
-   (section 4), `rev` + 1, `saved_at` — now.
-3. Write to a temporary file `config.json.tmp-<pid>-<n>` **in the same directory** (a rename across a
-   file system boundary is not atomic), `fsync` the file.
-4. On Unix — mode `0600` before the rename, not after. On Windows permissions are inherited from the directory and
-   not set separately.
-5. Rename over `config.json` (on Windows — `ReplaceFileW`), then `fsync` the directory: without
-   it on ext4 the rename may not survive a power loss, and a node on a router lives with exactly
-   that scenario.
-6. Only after a successful rename — apply the settings in memory and reply 200.
+1. **Re-read the file from disk.** If `rev` on disk differs from the revision in memory, the file was edited
+   behind the node's back: reply 409 `stale_rev` with the document **from disk**; nothing is written. The page
+   already handles this state (a second tab).
+2. Build the new document from the accepted fields. Node-computed fields are not saved (section 4). Set
+   `rev` + 1 and `saved_at` to now.
+3. Write a temporary file `config.json.tmp-<pid>-<n>` **in the same directory** (a rename across a file system
+   boundary is not atomic) and `fsync` it.
+4. On Unix, set mode `0600` before the rename, not after. On Windows, permissions are inherited from the directory
+   and not set separately.
+5. Rename over `config.json` (on Windows, `ReplaceFileW`), then `fsync` the directory. Without that, on ext4 the
+   rename may not survive a power loss, which a router node must expect.
+6. Only after a successful rename, apply the settings in memory and reply 200.
 
-**If the write failed — nothing is applied.** Reply 500 `config_write_failed` with the path and
-the reason, `rev` does not grow. Applying without saving would be worse: the node would work differently from what
-its own file says, and a restart would silently roll the settings back.
+**If the write fails, nothing is applied.** The node replies 500 `config_write_failed` with the path and the
+reason, and `rev` does not grow. Applying without saving would be worse: the node would differ from its own file,
+and a restart would silently roll the settings back.
 
-**A damaged file is set aside before being overwritten.** Suppose the node came up with `state: invalid` or
-`unreadable` and the person pressed "Save" — the node first renames what is there to
+**A damaged file is set aside before being overwritten.** If the node came up with `state: invalid` or
+`unreadable` and the person presses "Save", the node first renames the existing file to
 `config.json.bad-<date-time>`, then writes the new one. The page warns about this before sending.
 
-**Manual edit while the node is alive.** The file belongs to the node while the node runs: a hand edit
-takes effect on the next start, and if the page manages to save earlier — it is lost. The `rev` check
-catches only a manual edit that changed `rev`; a person is not obliged to edit it by hand,
-and this is accepted as a tolerable loss, not a protected case. The regular way to change
-the settings of a running node is the page.
+**Manual edit while the node runs.** The file belongs to the node while it runs. A hand edit takes effect on the
+next start, and a page save made earlier overwrites it. The `rev` check catches only a hand edit that changed
+`rev`. This loss is accepted, not protected. The regular way to change a running node's settings is the page.
 
 ---
 
@@ -384,99 +368,110 @@ the settings of a running node is the page.
 
 | What | Where it lives | Why not here |
 |---|---|---|
-| page password | the `web-password` file next to it (section 8.2) | the page reads and rewrites the config as a whole and serves it via `GET /api/config`, and the password hash must not be served; a config backup must not carry it away either |
-| page token | the `web-token` file next to it | the page reads and rewrites the config as a whole, and the token must not be given to it; it is changed by the "New token" button, not by a setting |
-| node secret | in the **envelope** of the same file, next to `config` (section 4) | identity, not a setting: it is not given to the page and does not get into a backup, otherwise a copy would multiply one identity onto two machines |
+| page password | the `web-password` file next to it (section 8.2) | the page serves the config via `GET /api/config`, and the password hash must not be served or carried away in a backup |
+| page token | the `web-token` file next to it | the page rewrites the config as a whole and must not receive the token; the "New token" button changes it, not a setting |
+| node secret | in the **envelope** of the same file, next to `config` (section 4) | identity, not a setting: it is not given to the page or a backup, or a copy would put one identity on two machines |
 | domain list | the node's own document (`replica/`), without reconciliation | the node's personal list, not a config field |
 | `blocked_domains` | only the flag `--block-site` | debugging |
 
-**The network key is stored in the config** (there is no separate
-`network-key` file). It is taken the same way as settings: `--key` or `MESHTOWN_KEY` is stronger than the file
-(`core/config/config_file/overrides.rs`). If there is neither, and the file has no key, the node comes up without a network and
-shows the page: on "Home" the panel "You haven't joined a Mesh Town network yet" with the buttons "Join with an invite" and "Create a new network"; the node does not create a network by itself.
+**The network key is stored in the config**; there is no separate `network-key` file. `--key` or `MESHTOWN_KEY`
+overrides the file (`core/config/config_file/overrides.rs`). With neither, and no key in the file, the node comes
+up without a network and does not create one. On "Home" the page shows the panel "You haven't joined a Mesh Town
+network yet" with the buttons "Join with an invite" and "Create a new network".
 
-The settings export goes through the API, where there is no key, so a copy restores the settings but not
-the network.
+The settings export has no key, so a copy restores the settings but not the network.
 
 ---
 
 ## 8. Versions and unknown fields
 
 - `config.version` is exactly 1 today.
-- **A field of a known version that is not in the file** → the default from the table of section 3 is taken, the file
-  is completed on the next write. This is how a node update works: the new node reads the old file.
-- **An unknown field inside a known version** → ignored, one line in the log, and **on the
-  next write it disappears**: the node writes only the fields it knows. So rolling back to
-  an old binary version after the new one has run loses the settings it added — this is accepted
-  deliberately, we will not store junk for the sake of rollback.
-- **`version` greater than the known one** → the file is not read and **not overwritten** until an explicit
-  save from the page (section 5). That way a version rollback does not silently eat the settings.
+- **A known-version field missing from the file** gets the default from the table in section 3, and the next write
+  completes the file. This is how a node update reads an old file.
+- **An unknown field inside a known version** is ignored with one log line and **disappears on the next write**:
+  the node writes only the fields it knows. Rolling back to an old binary after a newer one has run therefore
+  loses the settings the newer one added. This is deliberate: the file keeps no unknown fields for rollback.
+- **`version` greater than the known one**: the file is not read and **not overwritten** until an explicit save
+  from the page (section 5), so a version rollback does not silently eat the settings.
 - A version bump that changes a field's meaning is a separate migration: read the old version, write the new one,
   set the previous file aside as `config.json.v<old>-<date>`. There are no such migrations now.
 
 ### 8.1 The `web.access` field
 
-`web.access` is the string `"localhost"` or `"localnet"`, optional. No field — `localnet`; this is an
-example of the rule "a field of a known version that is not in the file" above: `config.version` does not grow,
-there is no migration, the file is completed on the nearest write. Any other value (a typo, not a string) is a field
-error: the value is replaced with the default, the error goes to `field_errors`. The field's meaning is who may
-open the node's settings page: `localhost` — only this machine, `localnet` — also devices on the
-local network (private addresses `10/8`, `172.16/12`, `192.168/16`, `169.254/16`). It is not about the Mesh Town
-network and not about traffic. It is changed from the page (`PUT /api/config`) or by the command
-`meshtown access page localhost|localnet`; on a stopped node the command writes the field to the file itself.
+`web.access` is the optional string `"localhost"` or `"localnet"`. It sets who may open the node's settings page:
+
+- `localhost`: only this machine.
+- `localnet`: also devices on the local network (private addresses `10/8`, `172.16/12`, `192.168/16`,
+  `169.254/16`).
+
+It is not about the Mesh Town network or traffic.
+
+- A missing field means `localnet`. This follows the rule above for missing known-version fields: `config.version`
+  does not grow, there is no migration, and the nearest write completes the file.
+- Any other value (a typo, not a string) is a field error: the default replaces it and the error goes to
+  `field_errors`.
+- Change it from the page (`PUT /api/config`) or with `meshtown access page localhost|localnet`. On a stopped
+  node the command writes the file itself.
 
 ### 8.2 The `web-password` file
 
-It sits in the state directory next to `web-token`, not in `config.json`. Mode `0600` (on Windows
-the permission check is not done), written via a temporary file `.web-password.tmp-<pid>` and a rename.
-One line of JSON:
+The file sits in the state directory next to `web-token`, not in `config.json`. Its mode is `0600` (Windows does
+not check permissions). The node writes it through a temporary file `.web-password.tmp-<pid>` and a rename.
+It holds one line of JSON:
 
 ```json
 {"version":1,"alg":"pbkdf2-sha256","iterations":600000,"salt":"<base64, 16 bytes>","hash":"<base64, 32 bytes>","set_at":1790000000}
 ```
 
-- `version` — 1 today; `alg` — `pbkdf2-sha256` (PBKDF2-HMAC-SHA256: a strong function from the
-  `ring` crypto library, which the project already has); `iterations` — the number of hash repetitions;
-  `salt` — a random salt, `hash` — the result; `set_at` — when the password was set, Unix seconds.
-- The password itself is not stored in the file, and the node does not keep it in memory either: the file is re-read on every
-  sign-in and every state request, so `meshtown password reset` takes effect on a running node
-  at once, and on a stopped one simply deletes the file.
-- **No file — no password**: sign-in only by token, the first sign-in via a link with a temporary token
+- `version` is 1 today. `alg` is `pbkdf2-sha256` (PBKDF2-HMAC-SHA256 from the `ring` crypto library, which the
+  project already uses). `iterations` is the hash repetition count, `salt` a random salt, `hash` the result, and
+  `set_at` the time the password was set, in Unix seconds.
+- The file does not store the password, and the node does not keep it in memory. The node re-reads the file on every
+  sign-in and state request, so `meshtown password reset` takes effect on a running node at once; on a stopped node
+  it deletes the file.
+- **No file means no password**: sign-in is by token only, and the first sign-in through a temporary-token link
   requires setting a password.
-- **An unreadable file** (not JSON of the format, `version` not 1, unknown `alg`, the number of iterations outside
-  the allowed range — zero or more than 10,000,000, salt or hash of the wrong size, file larger than 4 KiB, permissions
-  wider than `0600`) counts as the same "no password": sign-in only by token, and once per run a line
-  is written to the log: "password file is unreadable (reason): sign-in by token only". The node does not delete the file;
-  a new password overwrites it.
-- A successful sign-in with `iterations` below the current constant (600,000) rehashes the password and
-  rewrites the file; a rewrite error goes to the log, and the sign-in still succeeds.
-- Password length is 8–256 characters; the bound is on write and is not checked on read.
+- **An unreadable file** counts as "no password" too: sign-in is by token only, and once per run the log gets
+  "password file is unreadable (reason): sign-in by token only". The node does not delete the file; a new password
+  overwrites it. A file is unreadable when it has any of these:
+  - not JSON of this format, `version` other than 1, or an unknown `alg`;
+  - `iterations` outside the allowed range (zero or more than 10,000,000);
+  - a salt or hash of the wrong size;
+  - a size over 4 KiB, or permissions wider than `0600`.
+- A successful sign-in with `iterations` below the current constant (600,000) rehashes the password and rewrites the
+  file. A rewrite error goes to the log, and the sign-in still succeeds.
+- Password length is 8–256 characters. The bound applies on write, not on read.
 
 ### 8.3 The `net` section (choice of network stack)
 
-An optional section: what the node uses to talk over the network. No section or field — the build default.
+An optional section that sets what the node uses to talk over the network. A missing section or field means the
+build default.
 
-- `transports` — transports (ways of delivering packets between nodes); a non-empty list without repeats.
-  Allowed: `["hyper"]` (default); `"mem"` — tests only, unavailable from `config.json`.
-- `discovery` — peer discovery (where we learn the addresses of other nodes); a non-empty list without repeats of
-  `invite`, `cache`, `hyperdht`. Default `["invite","cache","hyperdht"]`.
-- `sync` — replica sync (how the node exchanges the network's shared state); the string `"mesh"` (default):
-  its own topic membership (flooding over the node's connections) and its own records (signed by the author, reconciled with
+- `transports`: ways of delivering packets between nodes; a non-empty list without repeats. Allowed:
+  `["hyper"]` (default). `"mem"` is for tests only and unavailable from `config.json`.
+- `discovery`: how the node learns other nodes' addresses; a non-empty list without repeats of `invite`, `cache`,
+  `hyperdht`. Default `["invite","cache","hyperdht"]`.
+- `sync`: how the node exchanges the network's shared state. The string `"mesh"` (default) means the node's own
+  topic membership (flooding over its connections) and its own records (signed by the author, reconciled with
   peers), stored as files in the `replica/` directory.
-- `relay` — relaying inside the network: `"network"` (default) lets the node reach a member through another member of
-  the same network, and lets it serve as such a relay, which pairs only members of its own network (every node serves unless it is behind a NAT with random port mapping; it is advertised with its address when public and by key alone when behind a NAT with stable ports); `"off"` does neither. Changed by
-  restarting the node; saved through the settings API, the field is listed as waiting for a restart.
-- An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning
-  and the default for the whole field; the node starts. An unknown key in `net` goes to the log, as everywhere.
-- There is no command-line flag; the page neither shows nor edits the section; `PUT /api/config` stores
-  it and rejects a wrong value like any field error. It is changed by restarting the node.
-- **Where the section sits.** Like the other settings sections, `net` is inside the file's `"config"` field, for example
-  `{"config": {…, "net": {"sync": "mem"}}}`. At the top level of the file the node skips it with the line "unknown
-  fields … net" and does not change the choice.
-- **Written only as differences from the build default:** a field equal to the default is not written, and if all four
-  are equal there is no section either. The reason: a future change of the default must not be frozen by a written
-  value. This is an exception to the rule of section 8 "the file is completed on the next write".
-  An old binary loses the `net` section on write (section 8, unknown field).
+- `relay`: relaying inside the network.
+  - `"network"` (default) lets the node reach a member through another member of the same network and serve as
+    such a relay. A relay pairs only members of its own network.
+  - Every node serves unless it is behind a NAT with random port mapping. A public node is advertised with its
+    address; a node behind a NAT with stable ports, by key alone.
+  - `"off"` does neither.
+  - A change needs a node restart; saved through the settings API, the field is listed as waiting for a restart.
+- An error in a field (type, empty list, repeat, unknown or not built-in name) is a warning, and the whole field
+  takes the default; the node starts. An unknown key in `net` goes to the log, as everywhere.
+- There is no command-line flag, and the page neither shows nor edits the section. `PUT /api/config` stores it and
+  rejects a wrong value like any field error. A restart applies changes.
+- **Where the section sits.** Like the other sections, `net` is inside the file's `"config"` field, for example
+  `{"config": {…, "net": {"sync": "mem"}}}`. At the top level the node skips it with the line "unknown fields … net"
+  and does not change the choice.
+- **Written only as differences from the build default.** A field equal to the default is not written, and if all
+  four are equal there is no section. A future change of the default must not be frozen by a written value. This
+  is an exception to the rule in section 8 that the next write completes the file. An old binary loses the `net`
+  section on write (section 8, unknown field).
 
 ## 9. Network slot files
 
@@ -509,8 +504,8 @@ folder without `config.json`. The node reads `nets/` at startup, only when the m
   deleted or rewritten for that. The reasons: the file is missing, unreadable or invalid, its version is newer
   than this build knows, it has no `network.key`, it holds the same network as a running slot, or the
   limit of 8 networks per process is reached (the main network always counts).
-- **Left networks.** A network that was left is not deleted: its folder is renamed to
+- **Left networks.** The node does not delete a network that was left. It renames the folder to
   `nets/left-<id>-<UTC time>/` (for the main network, `nets/left-main-<UTC time>/` with a copy of its
-  `config.json` and its cache files). Folders named `left-*` are never started or reused as ids.
+  `config.json` and cache files). Folders named `left-*` are never started or reused as ids.
 - **Rolling back to an older version.** An older build does not look into `nets/` at all: it runs the main
   network as before and leaves the slot files untouched. After the upgrade the slots start again.
