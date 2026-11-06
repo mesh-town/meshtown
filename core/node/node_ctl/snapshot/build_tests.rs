@@ -243,6 +243,66 @@ fn build_domain_checks_prefers_result_through_exit() {
     assert_eq!(info.verdict, verdict_kind(CheckVerdict::Down));
 }
 
+// A result through an exit belongs to its own domain only.
+#[test]
+fn build_domain_checks_exit_result_stays_in_its_domain() {
+    let (my_id, friend_id) = (pair(1), pair(2));
+    let mut inputs = base(my_id);
+    inputs.members = [friend_id].into_iter().collect();
+    inputs.domain_names = vec!["a.com".to_string(), "b.com".to_string()];
+    inputs.check_views = vec![
+        view(
+            "a.com",
+            friend_id,
+            10,
+            Some(record_at(CheckVerdict::Ok, 10)),
+        ),
+        view(
+            "b.com",
+            friend_id,
+            10,
+            Some(record_at(CheckVerdict::Ok, 10)),
+        ),
+    ];
+    let via = record_at(CheckVerdict::Down, 900);
+    inputs.exit_checks = HashMap::from([(("a.com".to_string(), friend_id), via)]);
+
+    let collected = build(inputs);
+    let key = output::short_peer_id(&friend_id);
+    let verdict = |d: usize| {
+        let info = collected.snap.domains[d]
+            .checks
+            .get(&key)
+            .cloned()
+            .flatten();
+        info.expect("the column has a result").verdict
+    };
+    assert_eq!(verdict(0), verdict_kind(CheckVerdict::Down));
+    assert_eq!(verdict(1), verdict_kind(CheckVerdict::Ok));
+}
+
+// The member's own record wins when it is newer than the result through its exit.
+#[test]
+fn build_domain_checks_own_record_wins_when_newer() {
+    let (my_id, friend_id) = (pair(1), pair(2));
+    let mut inputs = base(my_id);
+    inputs.members = [friend_id].into_iter().collect();
+    inputs.domain_names = vec!["example.com".to_string()];
+    let own = record_at(CheckVerdict::Ok, 900);
+    inputs.check_views = vec![view("example.com", friend_id, 900, Some(own))];
+    let via = record_at(CheckVerdict::Down, 10);
+    inputs.exit_checks = HashMap::from([(("example.com".to_string(), friend_id), via)]);
+
+    let collected = build(inputs);
+    let info = collected.snap.domains[0]
+        .checks
+        .get(&output::short_peer_id(&friend_id))
+        .cloned()
+        .flatten()
+        .expect("the column has a result");
+    assert_eq!(info.verdict, verdict_kind(CheckVerdict::Ok));
+}
+
 // 6. checked/stale: fresh record → stale:false; record older than 7200 s → true; an author present only
 //    in records shows up in peers with online:false.
 #[test]

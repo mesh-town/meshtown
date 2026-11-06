@@ -19,7 +19,9 @@ use std::time::Duration;
 use meshtown_core::exit::PeerConnPool;
 use meshtown_core::node::node_state;
 use meshtown_core::node::RunningNode;
-use meshtown_core::site_checks::reachability::{check_domain_via_exit, CheckConfig, CheckVerdict};
+use meshtown_core::site_checks::reachability::{
+    check_domain_via_exit, classify, CheckConfig, CheckVerdict, Steps, TcpStep,
+};
 use meshtown_core::transport::net::PeerId;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -154,4 +156,57 @@ async fn check_via_exits_keeps_result_per_exit() {
     assert_eq!(stored, 1);
     let results = a.checks.exit_results();
     assert!(results.contains_key(&(DOMAIN.to_string(), b.id)));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn check_via_exit_connect_failed_gives_tcp_timeout() {
+    // given: the site address is a closed port, so B's exit cannot connect
+    let closed = {
+        let l = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        l.local_addr().unwrap()
+    };
+    let (a, b) = pair(closed, true).await;
+    wait_exit_flag(&a, b.id, true).await;
+
+    // when
+    let pool = PeerConnPool::default();
+    let record = check_domain_via_exit(&CheckConfig::default(), &a.stack, &pool, b.id, DOMAIN)
+        .await
+        .expect("the exit answered with a code that is a result");
+
+    // then: a TCP timeout step, no TLS step
+    let steps = Steps {
+        dns_ok: true,
+        tcp: TcpStep::Timeout,
+        ..Steps::default()
+    };
+    assert_eq!(record.tls_ms, 0);
+    assert_eq!(record.status, 0);
+    assert_eq!((record.verdict, record.reason), classify(&steps));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn block_site_flag_does_not_apply_through_exit() {
+    // given: as in the first test, but the domain is blocked for this node
+    let (a, b) = pair(tls_site().await, true).await;
+    wait_exit_flag(&a, b.id, true).await;
+    let config = CheckConfig {
+        extra_roots: Arc::from(vec![cert_der()]),
+        blocked_domains: Arc::new([DOMAIN.to_string()].into_iter().collect()),
+        ..CheckConfig::default()
+    };
+
+    // when
+    let pool = PeerConnPool::default();
+    let record = check_domain_via_exit(&config, &a.stack, &pool, b.id, DOMAIN)
+        .await
+        .expect("the exit must answer");
+
+    // then: the exit's network sees the site, so the verdict is ok
+    assert_eq!(
+        record.verdict,
+        CheckVerdict::Ok,
+        "reason: {}",
+        record.reason
+    );
 }

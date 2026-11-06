@@ -13,7 +13,7 @@ use crate::exit::{
 use crate::transport::net::{NetStack, PeerId};
 
 use super::config::CheckConfig;
-use super::probe::{blocked_record, build_record, saturating_millis_u16};
+use super::probe::{build_record, saturating_millis_u16};
 use super::probe_stream::finish_stream;
 use super::record::CheckRecord;
 use super::steps::{Steps, TcpStep};
@@ -22,7 +22,8 @@ use super::steps::{Steps, TcpStep};
 const EXIT_SLACK: Duration = Duration::from_secs(4);
 
 /// Checks `domain` (port 443) through the exit of `peer`. An error means there is nothing to record: the
-/// exit is unreachable, busy, refused, or answered with a code that says nothing about the site.
+/// exit is unreachable, busy, refused, or answered with a code that says nothing about the site. The
+/// node's own `blocked_domains` do not apply: the request goes out through the exit's network.
 pub async fn check_domain_via_exit(
     config: &CheckConfig,
     stack: &NetStack,
@@ -30,9 +31,6 @@ pub async fn check_domain_via_exit(
     peer: PeerId,
     domain: &str,
 ) -> Result<CheckRecord> {
-    if config.blocked_domains.contains(domain) {
-        return Ok(blocked_record(&mut Steps::default()));
-    }
     let started = Instant::now();
     let ask = ask_exit_to_connect(stack, pool, peer, domain, 443);
     let (send, recv, code) = timeout(config.limits.connect + EXIT_SLACK, ask)
