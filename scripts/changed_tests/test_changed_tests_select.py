@@ -115,6 +115,37 @@ class SelectLibModules(unittest.TestCase):
 
         self.assertTrue(sel.full)
 
+    def _same_selection(self, a, b):
+        self.assertEqual(
+            {k: v for k, v in vars(a).items() if k != "reasons"},
+            {k: v for k, v in vars(b).items() if k != "reasons"},
+        )
+
+    def test_engine_module_path_maps_like_core(self):
+        src = _sources(tests={"net_loop": "use meshtown_core::transport::net;\n"})
+
+        sel = changed_tests.select(["core/engine/transport/net/x.rs"], src)
+
+        self._same_selection(sel, changed_tests.select(["core/transport/net/x.rs"], src))
+        self.assertEqual(sel.lib_modules, {"transport::net"})
+        self.assertEqual(sel.integration, {"net_loop"})
+
+    def test_engine_root_files_like_core(self):
+        names = ("Cargo.toml", "build.rs", "lib.rs")
+        src = _sources()
+        src.texts = {f"core/{n}": "" for n in names} | {f"core/engine/{n}": "" for n in names}
+        for name in names:
+            with self.subTest(name=name):
+                sel = changed_tests.select([f"core/engine/{name}"], src)
+                self._same_selection(sel, changed_tests.select([f"core/{name}"], src))
+        self.assertTrue(changed_tests.select(["core/engine/lib.rs"], src).full)
+        self.assertTrue(changed_tests.select(["core/engine/Cargo.toml"], src).features_check)
+
+    def test_engine_node_piece_maps_to_node_module(self):
+        sel = changed_tests.select(["core/engine/node/output.rs"], _sources())
+
+        self.assertEqual(sel.lib_modules, {"node::output"})
+
 
 class SelectIntegrationTests(unittest.TestCase):
     """select() — direct and indirect (via common/) integration tests."""

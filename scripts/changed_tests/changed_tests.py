@@ -27,6 +27,8 @@ NON_MODULE_TOPS = {"tests", "examples", "Cargo.toml"}
 # Subdirectories of `core/web_gui/` that are not Rust modules (web UI sources and browser tests).
 WEB_GUI_DATA_DIRS = {"ui", "e2e"}
 BIN_MAIN = f"{CORE}/cli/main.rs"
+# The lower crate lives in `core/engine/`; its files select the same tests as their twins in `core/`.
+ENGINE_PREFIX = f"{CORE}/engine/"
 STEP_COMMENT_RE = re.compile(r"//.*")
 COMMON_PATH_RE = re.compile(r'#\[path\s*=\s*"common/([^"]+\.rs)"\]')
 
@@ -174,6 +176,12 @@ class Selection:
     integration: set[str] = field(default_factory=set)
     reasons: list[str] = field(default_factory=list)
 
+def _canonical(path: str) -> str:
+    """`core/engine/<rest>` → `core/<rest>`; any other path is returned as is."""
+    if path.startswith(ENGINE_PREFIX):
+        return f"{CORE}/{path[len(ENGINE_PREFIX) :]}"
+    return path
+
 def _module_of(path: str) -> str | None:
     """`core/<group>/<module>/…` → `<group>::<module>`; `core/<group>/mod.rs` → `<group>`; `core/<name>.rs`
     → `<name>`. `None` — not a Rust module (data, tests directory, web UI sources)."""
@@ -294,7 +302,7 @@ def _wants_linux_check(path: str, src: Sources) -> bool:
     return path.endswith(".rs") and LINUX_CFG_RE.search(_text_of(path, src)) is not None
 
 def _wants_features_check(path: str, src: Sources) -> bool:
-    if path == f"{CORE}/Cargo.toml":
+    if _canonical(path) == f"{CORE}/Cargo.toml":
         return True
     return path.endswith(".rs") and FEATURE_CFG_RE.search(_text_of(path, src)) is not None
 
@@ -311,7 +319,7 @@ def _select_checks(path: str, src: Sources, sel: Selection) -> None:
 def select(paths: list[str], src: Sources) -> Selection:
     sel = Selection()
     for path in paths:
-        what = _select_one(path, src, sel)
+        what = _select_one(_canonical(path), src, sel)
         sel.reasons.append(f"{path} → {what}")
         _select_checks(path, src, sel)
     return sel
