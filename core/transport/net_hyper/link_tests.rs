@@ -150,6 +150,7 @@ fn facts(remote: Option<SocketAddr>, rtt: RttProbe) -> PathFacts {
         rtt: Some(rtt),
         relay: None,
         relay_path: None,
+        stream_id: None,
     }
 }
 
@@ -240,6 +241,7 @@ fn relayed_facts(member: PeerId, rtt: RttProbe) -> PathFacts {
         rtt: Some(rtt),
         relay: Some(RelayRef::Peer(member)),
         relay_path: None,
+        stream_id: None,
     }
 }
 

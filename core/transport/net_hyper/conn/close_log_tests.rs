@@ -28,3 +28,17 @@ fn close_line_survives_non_utf8_reason() {
     let line = close_line(&peer(), 1, Side::Peer, 2, &[0xFF, b'a']);
     assert!(line.ends_with("code 2: \u{FFFD}a"), "{line}");
 }
+
+#[test]
+fn control_stream_line_names_the_stream_id() {
+    let id = peer();
+    let head = id.to_string()[..8].to_string();
+    let line = control_stream_line(&id, 0xAB, Some(7));
+    assert_eq!(line, format!("session {head} #ab control stream id 7"));
+}
+
+#[test]
+fn control_stream_line_without_id_says_unknown() {
+    let line = control_stream_line(&peer(), 1, None);
+    assert!(line.ends_with("control stream id unknown"), "{line}");
+}

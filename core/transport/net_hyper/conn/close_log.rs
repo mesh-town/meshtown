@@ -40,6 +40,18 @@ pub(crate) fn say_close(peer: &PeerId, session: u64, side: Side, code: u32, reas
     say("hyper", close_line(peer, session, side, code, reason));
 }
 
+/// Builds the line that ties a session to the id of its control stream.
+pub(crate) fn control_stream_line(peer: &PeerId, session: u64, stream_id: Option<u32>) -> String {
+    let head = &peer.to_string()[..8];
+    let id = stream_id.map_or("unknown".to_string(), |id| id.to_string());
+    format!("session {head} #{session:x} control stream id {id}")
+}
+
+/// Writes the control stream line to the log.
+pub(crate) fn say_control_stream(peer: &PeerId, session: u64, stream_id: Option<u32>) {
+    say("hyper", control_stream_line(peer, session, stream_id));
+}
+
 #[cfg(test)]
 #[path = "close_log_tests.rs"]
 mod tests;

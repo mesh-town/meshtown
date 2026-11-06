@@ -24,6 +24,8 @@ pub struct PathFacts {
     pub relay: Option<RelayRef>,
     /// The relay path of the connection, if it runs through a relay; turns `Direct` when the data moves off the relay.
     pub relay_path: Option<watch::Receiver<RelayPath>>,
+    /// The local id of the control stream of the connection, when the library reports one.
+    pub stream_id: Option<u32>,
 }
 
 impl PathFacts {
@@ -36,6 +38,7 @@ impl PathFacts {
             rtt: conn.rtt_probe(),
             relay: relay_label(None, conn.is_relayed()),
             relay_path: conn.relay_path(),
+            stream_id: conn.local_stream_id(),
         }
     }
 
@@ -47,6 +50,7 @@ impl PathFacts {
             rtt: conn.rtt_probe(),
             relay: relay_label(None, conn.is_relayed()),
             relay_path: conn.relay_path(),
+            stream_id: conn.local_stream_id(),
         }
     }
 }

@@ -163,6 +163,7 @@ impl Drop for HyperConn {
 impl HyperConn {
     /// Records the path facts of the session (the first call wins).
     pub(crate) fn note_path(&self, facts: PathFacts) {
+        close_log::say_control_stream(&self.core.peer, self.core.session, facts.stream_id);
         self.core.meter.note_path(facts);
     }
 
