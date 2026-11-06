@@ -2,14 +2,13 @@
 //! once, and the results kept in memory (`Checks::exit_results`). A result is not published to the shared
 //! document and not written to disk: an offline exit keeps its last result until this node restarts.
 
-use std::collections::HashMap;
-
-use tokio::task::JoinSet;
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex};
 
 use crate::node::node_state;
 use crate::node::output::{say, short_peer_id};
 use crate::site_checks::reachability::{self, CheckRecord};
-use crate::transport::net::task_label::spawn_in;
+use crate::transport::net::task_label::spawn;
 use crate::transport::net::PeerId;
 
 use super::describe::describe_steps;
@@ -18,6 +17,39 @@ use super::target::{exit_targets, Target};
 
 /// Results through exits: (domain, exit's id) → the latest record.
 pub(super) type ExitResults = HashMap<(String, PeerId), CheckRecord>;
+
+/// The (domain, exit) pairs whose check through the exit is running now: a pair is not started twice.
+#[derive(Default)]
+pub(super) struct PairsInProgress(Mutex<HashSet<(String, PeerId)>>);
+
+/// Holds a pair in `PairsInProgress`; dropping it (end, panic or abort of the task) frees the pair.
+pub(super) struct PairGuard {
+    pairs: Arc<PairsInProgress>,
+    key: (String, PeerId),
+}
+
+impl PairsInProgress {
+    /// Takes the pair; `None` means its previous check has not finished yet.
+    pub(super) fn try_begin(self: &Arc<Self>, domain: &str, peer: PeerId) -> Option<PairGuard> {
+        let key = (domain.to_string(), peer);
+        let fresh = self
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(key.clone());
+        fresh.then(|| PairGuard {
+            pairs: Arc::clone(self),
+            key,
+        })
+    }
+}
+
+impl Drop for PairGuard {
+    fn drop(&mut self) {
+        let mut set = self.pairs.0.lock().unwrap_or_else(|e| e.into_inner());
+        set.remove(&self.key);
+    }
+}
 
 impl Checks {
     /// Members to check through right now: exit flag on (from the shared document), online, not this node.
@@ -74,24 +106,31 @@ impl Checks {
         results.insert((domain.to_string(), peer), record);
     }
 
-    /// Checks the domain through every current exit at once; returns how many results were stored.
-    pub async fn check_via_exits(&self, domain: &str) -> usize {
-        let peers = self.current_exit_targets().await;
-        self.check_via_peers(domain, peers).await
+    /// Starts a background check of the domain through one exit and does not wait for it; `false` means
+    /// the pair is already being checked.
+    pub(super) fn spawn_via_exit(&self, domain: &str, peer: PeerId) -> bool {
+        let Some(guard) = self.pairs_in_progress.try_begin(domain, peer) else {
+            return false;
+        };
+        let (checks, domain) = (self.clone(), domain.to_string());
+        spawn(async move {
+            let _guard = guard;
+            checks.check_one_via_exit(&domain, peer).await;
+        });
+        true
     }
 
-    async fn check_via_peers(&self, domain: &str, peers: Vec<PeerId>) -> usize {
-        let mut set = JoinSet::new();
-        for peer in peers {
-            let (checks, domain) = (self.clone(), domain.to_string());
-            spawn_in(&mut set, async move {
-                checks.check_one_via_exit(&domain, peer).await
-            });
-        }
-        let mut stored = 0;
-        while let Some(done) = set.join_next().await {
-            stored += usize::from(done.unwrap_or(false));
-        }
-        stored
+    /// Starts checks of the domain through every current exit in the background; returns how many were
+    /// started (a pair whose previous check is still running is skipped). Results appear in `exit_results`.
+    pub async fn check_via_exits(&self, domain: &str) -> usize {
+        let peers = self.current_exit_targets().await;
+        peers
+            .into_iter()
+            .filter(|peer| self.spawn_via_exit(domain, *peer))
+            .count()
     }
 }
+
+#[cfg(test)]
+#[path = "exits_tests.rs"]
+mod tests;

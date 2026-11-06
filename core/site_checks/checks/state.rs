@@ -16,7 +16,7 @@ use crate::proxy::domains::DomainList;
 use crate::site_checks::reachability::CheckConfig;
 use crate::transport::net::{NetStack, PeerId, Replica};
 
-use super::exits::ExitResults;
+use super::exits::{ExitResults, PairsInProgress};
 use super::schedule::{DomainStates, InProgress, Schedule};
 
 /// The shared resolver: created once, shared between tasks.
@@ -40,6 +40,7 @@ pub struct Checks {
     pub(super) stack: NetStack,
     pub(super) pool: PeerConnPool,
     pub(super) exit_results: Arc<std::sync::Mutex<ExitResults>>,
+    pub(super) pairs_in_progress: Arc<PairsInProgress>,
     enabled: Arc<AtomicBool>,
     in_progress: Arc<InProgress>,
 }
@@ -68,6 +69,7 @@ impl Checks {
             stack,
             pool,
             exit_results: Arc::default(),
+            pairs_in_progress: Arc::default(),
             enabled: Arc::new(AtomicBool::new(enabled)),
             in_progress: Arc::new(InProgress::default()),
         }

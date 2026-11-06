@@ -136,10 +136,10 @@ async fn check_via_non_exit_peer_is_skipped() {
     wait_exit_flag(&a, b.id, false).await;
 
     // when: A checks the domain through all current exits
-    let stored = a.checks.check_via_exits(DOMAIN).await;
+    let started = a.checks.check_via_exits(DOMAIN).await;
 
     // then: nothing was asked of B and no result exists
-    assert_eq!(stored, 0);
+    assert_eq!(started, 0);
     assert!(a.checks.exit_results().is_empty());
 }
 
@@ -149,11 +149,16 @@ async fn check_via_exits_keeps_result_per_exit() {
     let (a, b) = pair(tls_site().await, true).await;
     wait_exit_flag(&a, b.id, true).await;
 
-    // when
-    let stored = a.checks.check_via_exits(DOMAIN).await;
+    // when: the check starts in the background
+    let started = a.checks.check_via_exits(DOMAIN).await;
+    assert_eq!(started, 1);
+    let deadline = Instant::now() + FLAG_WITHIN;
+    while a.checks.exit_results().is_empty() {
+        assert!(Instant::now() < deadline, "no result through B");
+        sleep(Duration::from_millis(50)).await;
+    }
 
     // then: a result under (domain, B)
-    assert_eq!(stored, 1);
     let results = a.checks.exit_results();
     assert!(results.contains_key(&(DOMAIN.to_string(), b.id)));
 }
@@ -208,5 +213,30 @@ async fn block_site_flag_does_not_apply_through_exit() {
         CheckVerdict::Ok,
         "reason: {}",
         record.reason
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn slow_exit_does_not_hold_domain_busy() {
+    // given: B's exit leads to a server that accepts the connection and stays silent
+    let (a, b) = pair(common::silent_site().await, true).await;
+    wait_exit_flag(&a, b.id, true).await;
+
+    // when: the check through B starts in the background
+    let started = a.checks.check_via_exits(DOMAIN).await;
+
+    // then: the domain is not marked busy, and a second start of the same pair is refused
+    assert_eq!(started, 1);
+    assert!(a.checks.try_begin_check(DOMAIN));
+    a.checks.end_check(DOMAIN);
+    assert_eq!(a.checks.check_via_exits(DOMAIN).await, 0);
+
+    // and: `check_now` does not wait for the exit
+    let begun = Instant::now();
+    let _ = a.checks.check_now(DOMAIN).await;
+    assert!(
+        begun.elapsed() < Duration::from_secs(8),
+        "check_now waited for the exit: {:?}",
+        begun.elapsed()
     );
 }

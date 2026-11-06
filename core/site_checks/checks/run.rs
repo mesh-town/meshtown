@@ -4,11 +4,8 @@
 
 use std::time::Duration;
 
-use tokio::task::JoinSet;
-
 use crate::node::output::say;
 use crate::site_checks::reachability;
-use crate::transport::net::task_label::spawn_in;
 use crate::transport::net::PeerId;
 
 use super::describe::describe_steps;
@@ -49,21 +46,22 @@ async fn due_targets(checks: &Checks, domain: &str, exits: &[PeerId]) -> Vec<Tar
     due
 }
 
-/// Runs the due targets of one domain at the same time and waits for all of them.
+/// Starts the due exits' checks in the background (not waited for, so a slow exit holds neither the loop
+/// nor the domain's "being checked" mark), then checks directly, if due, under the mark.
 async fn run_targets(checks: &Checks, domain: &str, targets: Vec<Target>) {
-    let mut set = JoinSet::new();
+    let mut direct = false;
     for target in targets {
-        let (checks, domain) = (checks.clone(), domain.to_string());
-        spawn_in(&mut set, async move {
-            match target {
-                Target::Direct => check_one(&checks, &domain).await,
-                Target::Exit(peer) => {
-                    checks.check_one_via_exit(&domain, peer).await;
-                }
+        match target {
+            Target::Exit(peer) => {
+                checks.spawn_via_exit(domain, peer);
             }
-        });
+            Target::Direct => direct = true,
+        }
     }
-    while set.join_next().await.is_some() {}
+    if direct && checks.try_begin_check(domain) {
+        check_one(checks, domain).await;
+        checks.end_check(domain);
+    }
 }
 
 /// The schedule loop: always started; once every ten seconds it checks whether checks are
@@ -99,11 +97,10 @@ pub async fn run_checks(checks: Checks) {
         let exits = checks.current_exit_targets().await;
         for domain in domains {
             let due = due_targets(&checks, &domain, &exits).await;
-            if due.is_empty() || !checks.try_begin_check(&domain) {
+            if due.is_empty() {
                 continue;
             }
             run_targets(&checks, &domain, due).await;
-            checks.end_check(&domain);
         }
         checks.print_new_foreign().await;
     }
