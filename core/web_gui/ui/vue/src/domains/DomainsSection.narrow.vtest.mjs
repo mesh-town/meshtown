@@ -36,12 +36,12 @@ describe("site checks", () => {
         expect(buttonTexts(card)).toEqual(expect.arrayContaining(["Check again", "Remove"]));
       });
 
-      it("rows: \"For you\" first, then one row per member by name", () => {
+      it("rows: \"For you\" first, then one row per exit member by name", () => {
         const card = cards(mountNarrow().wrapper)[0];
         const text = card.text();
         expect(text).toContain("For you");
         expect(text).toContain("peer-one");
-        expect(text).toContain("member cccc3333");
+        expect(text).not.toContain("member cccc3333");
         expect(text.indexOf("For you")).toBeLessThan(text.indexOf("peer-one"));
       });
 

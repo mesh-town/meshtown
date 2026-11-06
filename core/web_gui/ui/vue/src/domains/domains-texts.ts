@@ -48,8 +48,9 @@ export const DOMAINS_TABLE_LABEL = "Site checks";
 export const DOMAINS_COL_SITE = "Site";
 export const DOMAINS_COL_YOU = "For you";
 export const DOMAINS_EMPTY = "No sites yet — enter an address above and click \"Add\"";
-export const DOMAINS_HINT_INTRO = "Each member checks sites from their own internet connection, without";
-export const DOMAINS_HINT_REST = "A green mark in a member's column means the site will open through them. The \"For you\" column shows whether the site opens for you as usual.";
+export const DOMAINS_HINT_INTRO = "This computer checks each site itself and through every online member who shares their internet (exit on).";
+export const DOMAINS_NO_EXIT = "No member shares their internet yet \u2014 sites are checked only from your connection.";
+export const DOMAINS_HINT_REST = "A green mark in a member's column means the site opens through them; \"For you\" \u2014 whether it opens for you as usual.";
 export const DOMAINS_HINT_LOCAL = "The site list is stored only on this computer: other members can't see or change it.";
 export const DOMAINS_HINT_LOCAL_NETS = "The site list is stored only on this computer: members of your networks can\u2019t see or change it.";
 

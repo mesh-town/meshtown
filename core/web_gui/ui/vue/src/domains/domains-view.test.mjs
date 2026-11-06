@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import {
   LEGEND, VERDICT_TEXT, VERDICT_BADGE, addFailedText, checkAllLabel, checkColumns, checkTitle, columnHead, domainExitPeer, emptyColspan,
   columnGroups, tableColspan, domainCells,
-  exitCell, otherPeers, rowsBusy, verdictView,
+  exitCell, otherPeers, siteNets, rowsBusy, verdictView,
 } from "./domains-view.ts";
 
 const me = { id: "me", id_full: "me-full", name: "me", self: true };
@@ -66,6 +66,11 @@ describe("verdictView — mark labels", () => {
 });
 
 describe("table columns", () => {
+  it("siteNets keeps only exit members", () => {
+    const store = { state: { node: { id: "me" }, peers: [me, { ...good("p1"), exit: true }, { ...good("p2"), exit: false }, { ...good("p3"), online: false, exit: undefined }] }, lead: "main", nets: [] };
+    assert.deepEqual(siteNets(store)[0].peers.map((p) => p.id), ["p1"]);
+  });
+
   it("otherPeers — members without yourself, in snapshot order", () => {
     assert.deepEqual(otherPeers({ peers: [me, good("p1"), good("p2")] }).map((p) => p.id), ["p1", "p2"]);
     assert.deepEqual(otherPeers(null), []);

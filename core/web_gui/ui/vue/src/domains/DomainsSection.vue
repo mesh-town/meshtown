@@ -8,13 +8,12 @@ import type { Store } from "../core/store.ts";
 import NoNetwork from "../common/NoNetwork.vue";
 import { chosenExitIds } from "../common/exits.ts";
 import { chosenOf } from "../home/exit-groups.ts";
-import { NET_NAME } from "../common/words.ts";
 import { useNarrow } from "../common/use-narrow.ts";
 import DomainCards from "./DomainCards.vue";
 import DomainRow from "./DomainRow.vue";
 import {
   DOMAINS_ADD, DOMAINS_ADDRESS_LABEL, DOMAINS_ADDRESS_PLACEHOLDER, DOMAINS_COL_SITE, DOMAINS_COL_YOU, DOMAINS_EMPTY,
-  DOMAINS_HINT_INTRO, DOMAINS_HINT_LOCAL, DOMAINS_HINT_LOCAL_NETS, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
+  DOMAINS_HINT_INTRO, DOMAINS_NO_EXIT, DOMAINS_HINT_LOCAL, DOMAINS_HINT_LOCAL_NETS, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
 } from "./domains-texts.ts";
 import { LEGEND, checkAllLabel, columnGroups, columnHead, mergedDomains, proxySlot, rowsBusy, siteNets, tableColspan } from "./domains-view.ts";
 import { useDomainActions } from "./use-domain-actions.ts";
@@ -28,6 +27,7 @@ const exitStatus = ref<ExitSaveStatus>({ text: "", cls: "" });
 
 const narrow = useNarrow();
 const nets = computed(() => siteNets(store));
+const noExit = computed(() => nets.value.length > 0 && nets.value.every((n) => n.peers.length === 0));
 const groups = computed(() => columnGroups(nets.value));
 const domains = computed(() => mergedDomains(nets.value, store));
 const proxy = computed(() => proxySlot(nets.value, store.nets));
@@ -84,7 +84,8 @@ async function exitVia(idFull: string): Promise<void> {
         </table>
       </div>
       <p class="field-status" :class="exitStatus.cls" id="domains-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
-      <p class="hint">{{ DOMAINS_HINT_INTRO }} {{ NET_NAME }}. {{ DOMAINS_HINT_REST }}</p>
+      <p class="hint">{{ DOMAINS_HINT_INTRO }} {{ DOMAINS_HINT_REST }}</p>
+      <p class="hint" id="domains-no-exit" v-if="noExit">{{ DOMAINS_NO_EXIT }}</p>
       <ul class="hint" id="domains-legend">
         <li v-for="e in LEGEND" :key="e.text"><span class="badge" :class="e.cls">{{ e.text }}</span> — {{ e.note }}</li>
       </ul>

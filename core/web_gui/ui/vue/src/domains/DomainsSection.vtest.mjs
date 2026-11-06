@@ -33,6 +33,17 @@ describe("DomainsSection", () => {
     expect(rows[1].text()).toContain("fresh.test");
   });
 
+  it("shows no-exit hint when nobody shares internet", () => {
+    const base = baseState({ domains: DOMAINS });
+    const withExit = (exit) => {
+      mounted = mountSection(DomainsSection, { state: { ...base, peers: base.peers.map((p) => (p.self ? p : { ...p, exit })) } });
+      return mounted.wrapper.find("#domains-no-exit").exists();
+    };
+    expect(withExit(false)).toBe(true);
+    mounted.wrapper.unmount();
+    expect(withExit(true)).toBe(false);
+  });
+
   it("sites are blocked for you but open for a member — the \"Exit via …\" button", () => {
     const { wrapper } = mountDomains();
     expect(wrapper.get("tbody").text()).toContain("Exit via peer-one");

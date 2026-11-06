@@ -186,7 +186,7 @@ export function siteNets(store: Store): SiteNet[] {
   const nets: SiteNet[] = [];
   for (const slot of slots) {
     const state = netState(store, slot);
-    if (state) nets.push({ slot, label: netName(store.nets, slot), selfId: state.node.id, peers: otherPeers(state) });
+    if (state) nets.push({ slot, label: netName(store.nets, slot), selfId: state.node.id, peers: otherPeers(state).filter((p) => p.exit === true) });
   }
   return nets;
 }
