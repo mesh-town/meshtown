@@ -6,7 +6,7 @@
 //! What it does not do: it does not listen on public addresses (`admit` closes foreign ones), does not authenticate the client, does not intercept
 //! system traffic (that is TUN, a separate stage), does not parse what is inside the tunnel.
 //! Links: frames — `crate::proxy::socks5`, path choice — `crate::proxy::route`, exit — `crate::exit`,
-//! addresses — `crate::site_checks::doh`; started from `crate::node::start_node`.
+//! addresses — `crate::site_checks::doh`; started by the node on start.
 //!
 //! Files: `front` — the one process-wide listener (`ProxyFront`), its published state (`ProxyFace`) and the choice of the serving network (`ProxySeat`); `admit` — client admission by address; `serve` — the listening socket and SOCKS5 serving; `assoc` — UDP ASSOCIATE; `path` — the shared path (direct or through
 //! a member); `http` and `http_head` — the HTTP face and head parsing; `pac` and `pac.js` — the proxy autoconfiguration file; `outcome` — the serving outcome for the log line; `get` — the `get` command
@@ -19,29 +19,29 @@ pub mod route;
 pub mod socks5;
 
 #[cfg(feature = "net-hyper")]
-mod admit;
+pub(crate) mod admit;
 #[cfg(feature = "net-hyper")]
-mod assoc;
+pub(crate) mod assoc;
 #[cfg(feature = "net-hyper")]
-mod console;
+pub(crate) mod console;
 #[cfg(feature = "net-hyper")]
-mod front;
+pub(crate) mod front;
 #[cfg(feature = "net-hyper")]
-mod get;
+pub(crate) mod get;
 #[cfg(feature = "net-hyper")]
-mod http;
+pub(crate) mod http;
 #[cfg(feature = "net-hyper")]
-mod http_head;
+pub(crate) mod http_head;
 #[cfg(feature = "net-hyper")]
 pub(crate) mod mesh;
 #[cfg(feature = "net-hyper")]
-mod outcome;
+pub(crate) mod outcome;
 #[cfg(feature = "net-hyper")]
-mod pac;
+pub(crate) mod pac;
 #[cfg(feature = "net-hyper")]
-mod path;
+pub(crate) mod path;
 #[cfg(feature = "net-hyper")]
-mod serve;
+pub(crate) mod serve;
 
 #[cfg(feature = "net-hyper")]
 pub use admit::Admission;

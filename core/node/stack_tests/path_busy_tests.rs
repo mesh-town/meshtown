@@ -8,9 +8,13 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::*;
+use crate::exit;
 use crate::exit::test_support::Scripted;
 use crate::exit::{PeerConnPool, EXIT_CODE_OK, EXIT_PROTOCOL_VERSION};
+use crate::node::output::short_peer_id;
+use crate::proxy::path::*;
+use crate::proxy::route::RouteCtx;
+use crate::proxy::serve::ProxyConfig;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 use crate::transport::net::facade::test_support::{pid, secret, within, Spy};
@@ -20,7 +24,8 @@ use crate::transport::net::{
     BoxFuture, LinkInfo, NetInfo, NetResult, NetStack, NetStackBuilder, PeerAddr, PeerConn,
     RelayRef, ServiceHandler, ServiceId, StreamPair, Transport,
 };
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 
 const BUSY_TEXT: &str = "refused: exit is busy (stream limit)";
 
@@ -172,7 +177,7 @@ async fn config(stuck: &[u8]) -> ProxyConfig {
 }
 
 /// Like `config`, with the handler `exit` makes for each of the exits 2 and 3.
-pub(in crate::proxy) async fn config_with(
+pub(crate) async fn config_with(
     stuck: &[u8],
     exit: impl Fn() -> Arc<dyn ServiceHandler>,
 ) -> ProxyConfig {
@@ -331,7 +336,7 @@ impl ServiceHandler for AlwaysOk {
 }
 
 mod busy_line {
-    use super::super::exits::busy_line;
+    use crate::proxy::path::exits::busy_line;
 
     #[test]
     fn names_the_exit_once_and_shows_held_back_replies() {

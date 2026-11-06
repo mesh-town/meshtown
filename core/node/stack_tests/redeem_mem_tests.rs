@@ -1,10 +1,10 @@
-//! Joining by an invite over the temporary `mem` transport (`node::bind_ephemeral`): dialing by key,
-//! a vanished peer, closing the slot on exit. The server is the `Responder` stub from `closes_transport`.
+//! Joining by an invite over the temporary `mem` transport (`bind_ephemeral`): dialing by key,
+//! a vanished peer, closing the slot on exit. The server is the `Responder` stub from `invite::test_responder`.
 
-use super::super::{redeem, RedeemError};
-use super::closes_transport::{head, ignore, key_frame, opts, own_key, owner, Responder};
+use crate::invite::redeem::{redeem, RedeemError};
 use crate::invite::server::InviteServer;
 use crate::invite::store::{issue_record, Ledger};
+use crate::invite::test_responder::{head, ignore, key_frame, opts, own_key, owner, Responder};
 use crate::invite::wire::{encode_invite_reply, RedeemCode, REQUEST_LEN};
 use crate::members::access::record::admit_key;
 use crate::members::access::tally::Ledger as Votes;

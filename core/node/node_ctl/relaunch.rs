@@ -32,7 +32,7 @@ pub struct Relaunch {
 
 impl Relaunch {
     pub fn node_config(&self, s: &Settings, key: NetworkKeyInput) -> NodeConfig {
-        let mut cfg = s.node_config(key, self.secret.clone());
+        let mut cfg = NodeConfig::from_settings(s, key, self.secret.clone());
         cfg.initial_domains = self.initial_domains.clone();
         cfg.blocked_domains = self.blocked_domains.clone();
         let beside = self.file.as_ref().map(|f| f.path());

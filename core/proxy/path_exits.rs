@@ -38,7 +38,7 @@ impl Misses {
 /// next one on a transport error and, for the UDP gateway target, on a refusal of the gateway; any other
 /// exit reply code is final. When every candidate refused the gateway, the last such refusal is returned.
 /// An ordinary target gets a stream per request; the UDP gateway target gets a connection on a shared stream.
-pub(super) async fn open_through_exits(
+pub(crate) async fn open_through_exits(
     cfg: &ProxyConfig,
     candidates: &[PeerId],
     target_text: &str,
@@ -146,7 +146,7 @@ fn note_failed_attempt(pool: &PeerConnPool, peer: &PeerId, e: &anyhow::Error) {
 }
 
 /// The client's line about an exit's "busy" reply; `held` further replies were not logged since the last line.
-pub(super) fn busy_line(id: &str, held: u64) -> String {
+pub(crate) fn busy_line(id: &str, held: u64) -> String {
     let tail = match held {
         0 => String::new(),
         n => format!(" (+{n} more, not logged)"),
@@ -161,7 +161,7 @@ fn is_busy(e: &anyhow::Error) -> bool {
 
 /// The refusal reason when no exit answered: `any_exit_stream_busy` — at least one exit is busy: the `open_bi`
 /// deadline or the exit's short reply; otherwise the exits did not answer at all.
-pub(super) fn no_answer_reason(any_exit_stream_busy: bool) -> &'static str {
+pub(crate) fn no_answer_reason(any_exit_stream_busy: bool) -> &'static str {
     if any_exit_stream_busy {
         return "exit is busy (stream limit)";
     }

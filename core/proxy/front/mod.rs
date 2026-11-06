@@ -4,14 +4,14 @@
 //! the outside (`ProxyFace`) and its journal lines; `seat` — which network's configuration is the target
 //! (`ProxySeat`); `nets` — the directory of the running networks' configurations.
 
-mod face;
-mod listen;
-mod nets;
-mod seat;
+pub(crate) mod face;
+pub(crate) mod listen;
+pub(crate) mod nets;
+pub(crate) mod seat;
 
 pub use face::ProxyFace;
 pub use listen::ProxyFront;
 pub use nets::MeshAddress;
-pub(super) use nets::NetDirectory;
+pub(crate) use nets::NetDirectory;
 pub(crate) use nets::NetEntry;
 pub use seat::ProxySeat;

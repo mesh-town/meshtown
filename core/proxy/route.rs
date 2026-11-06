@@ -173,7 +173,3 @@ impl RouteCtx {
         Ok(choose_route(&chosen, self.me, &online, &serving))
     }
 }
-
-#[cfg(test)]
-#[path = "route_tests.rs"]
-mod tests;

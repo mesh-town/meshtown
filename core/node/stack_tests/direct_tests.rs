@@ -11,11 +11,14 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout};
 
-use super::super::relay::{relay, RelayLimits};
-use super::super::stats::RelayStats;
-use super::*;
+use crate::proxy::assoc::direct::*;
+use crate::proxy::assoc::relay::{relay, RelayLimits};
+use crate::proxy::assoc::stats::RelayStats;
+
 use crate::exit::PeerConnPool;
 use crate::proxy::route::RouteCtx;
+use crate::proxy::serve::ProxyConfig;
+use crate::proxy::socks5::Target;
 use crate::proxy::socks5::{encode_udp_request, parse_udp_datagram};
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;

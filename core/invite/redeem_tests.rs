@@ -397,5 +397,3 @@ fn id(seed: u8) -> PeerId {
 mod closes_transport;
 #[path = "redeem_round_tests.rs"]
 mod managed_round;
-#[path = "redeem_mem_tests.rs"]
-mod mem_endpoint;

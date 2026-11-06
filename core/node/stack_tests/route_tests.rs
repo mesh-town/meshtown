@@ -1,8 +1,10 @@
 //! Tests for choosing an exit for a domain (`route.rs`): the pure function `choose_route` and the live list
 //! `RouteCtx.chosen_exits`.
 
-use super::*;
-use crate::transport::net::{NodeSecret, PeerId};
+use crate::proxy::route::*;
+use crate::transport::net::NodeSecret;
+use crate::transport::net::PeerId;
+use std::collections::{HashMap, HashSet};
 use std::time::Duration;
 
 /// A member made from one secret key.

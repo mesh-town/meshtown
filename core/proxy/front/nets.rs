@@ -103,7 +103,3 @@ impl NetDirectory {
         entries
     }
 }
-
-#[cfg(test)]
-#[path = "nets_tests.rs"]
-mod tests;

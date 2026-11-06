@@ -157,7 +157,7 @@ pub(crate) async fn serve_front(
 /// Tells the protocol apart by the first byte without taking it from the stream: `0x05` is SOCKS5,
 /// otherwise HTTP; a connection closed without a single byte is a quiet exit. It prints the error with the
 /// protocol label. A client that sends no byte before `deadline` is closed silently.
-async fn dispatch(
+pub(crate) async fn dispatch(
     stream: TcpStream,
     cfg: Option<ProxyConfig>,
     nets: NetDirectory,
@@ -195,11 +195,3 @@ mod socks;
 #[cfg(test)]
 #[path = "serve_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "serve_access_tests.rs"]
-mod access_tests;
-
-#[cfg(test)]
-#[path = "serve_head_tests.rs"]
-mod head_tests;

@@ -129,7 +129,3 @@ pub async fn execute_proxy_command(console: &ProxyConsole, cmd: ProxyCommand) {
         }
     }
 }
-
-#[cfg(test)]
-#[path = "console_tests.rs"]
-mod tests;

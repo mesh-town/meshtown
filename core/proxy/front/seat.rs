@@ -82,7 +82,3 @@ impl ProxySeat {
         front.set_target(front.nets().get(changed));
     }
 }
-
-#[cfg(test)]
-#[path = "seat_tests.rs"]
-mod tests;

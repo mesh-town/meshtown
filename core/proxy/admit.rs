@@ -17,7 +17,7 @@ const DENY_LOG_CAP: usize = 256;
 
 /// Whether to admit the client from address `ip` in mode `mode`: loopback — always; `localnet` — also
 /// private ranges; public and CGNAT — no.
-pub(super) fn is_proxy_client_allowed(mode: ListenAccess, ip: IpAddr) -> bool {
+pub(crate) fn is_proxy_client_allowed(mode: ListenAccess, ip: IpAddr) -> bool {
     is_client_allowed(mode, ip)
 }
 
@@ -29,7 +29,7 @@ pub struct Admission {
 }
 
 /// Verdict on an accepted connection: the client `client_addr`, the accepting address `local` (if the OS named it).
-pub(super) fn admit_conn(
+pub(crate) fn admit_conn(
     adm: &Admission,
     view: &IfaceView,
     client_addr: SocketAddr,
@@ -45,7 +45,7 @@ pub(super) fn admit_conn(
 }
 
 /// Refusal log line: address, interface, reason and how to change it.
-pub(super) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admission) -> String {
+pub(crate) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admission) -> String {
     let iface = v.iface.as_deref().unwrap_or("unknown");
     let (_, _, why) = v.why.meta();
     let list = match adm.ifaces.to_state() {
@@ -60,7 +60,7 @@ pub(super) fn iface_deny_text(client_addr: SocketAddr, v: &Verdict, adm: &Admiss
 
 /// Refusal log: one line for the first refusal of an address per period.
 #[derive(Default)]
-pub(super) struct DenyLog(HashMap<IpAddr, Instant>);
+pub(crate) struct DenyLog(HashMap<IpAddr, Instant>);
 
 impl DenyLog {
     /// `true` — it is time to write about a refusal for this address (the first in the period), and it remembers it.

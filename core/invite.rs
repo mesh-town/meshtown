@@ -268,9 +268,5 @@ mod noroute_tests;
 mod golden_tests;
 
 #[cfg(test)]
-#[path = "invite_members_tests.rs"]
-mod members_tests;
-
-#[cfg(test)]
 #[path = "invite_holders_format_tests.rs"]
 mod holders_format_tests;

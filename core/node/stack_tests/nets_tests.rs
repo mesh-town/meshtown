@@ -3,14 +3,17 @@
 
 use std::sync::Arc;
 
-use super::*;
+use crate::config::config_file::NetSlotId;
 use crate::config::config_file::ProcessSettings;
 use crate::exit::PeerConnPool;
 use crate::node::RunningNode;
+use crate::proxy::front::nets::*;
 use crate::proxy::front::ProxyFront;
+use crate::proxy::ProxyConfig;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
-use crate::transport::net::{NodeSecret, PeerId};
+use crate::transport::net::NodeSecret;
+use crate::transport::net::PeerId;
 
 const A_TAG: u8 = 2;
 const B_TAG: u8 = 3;

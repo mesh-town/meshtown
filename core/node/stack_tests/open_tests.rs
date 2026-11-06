@@ -162,7 +162,7 @@ mod pac_script {
     #[test]
     fn routes_the_same_suffix_as_the_proxy_answers() {
         // given
-        let pac = include_str!("../pac.js");
+        let pac = include_str!("../../proxy/pac.js");
 
         // when
         let suffix = format!(".{MESH_SUFFIX}");
