@@ -62,7 +62,7 @@ describe("domains you column legend", () => {
 
     const legend = wrapper.get("#domains-legend");
     expect(shown(legend.element)).toBe(true);
-    expect(legend.findAll("li")).toHaveLength(7);
+    expect(legend.findAll("li")).toHaveLength(8);
 
     expect(recheckButton(wrapper)).toBeTruthy();
     expect(firstRow(wrapper).findAll("td")[1].text()).toBe("—");

@@ -127,14 +127,18 @@ describe("\"Check all\"", () => {
 });
 
 describe("LEGEND — badge = VERDICT_TEXT verbatim", () => {
-  it("a line per verdict plus \"not checked yet\"; the class is the same as the table badge's", () => {
+  it("a line per verdict, \"doesn't open from here\" before \"site is down\", plus \"not checked yet\"", () => {
     const keys = Object.keys(VERDICT_TEXT);
-    assert.equal(LEGEND.length, keys.length + 1);
+    assert.equal(LEGEND.length, keys.length + 2);
+    const plain = LEGEND.filter((l) => l.text !== "doesn't open from here");
     keys.forEach((k, i) => {
-      assert.equal(LEGEND[i].text, VERDICT_TEXT[k]);
-      assert.equal(LEGEND[i].cls, VERDICT_BADGE[k]);
+      assert.equal(plain[i].text, VERDICT_TEXT[k]);
+      assert.equal(plain[i].cls, VERDICT_BADGE[k]);
     });
-    const last = LEGEND[keys.length];
+    const hereAt = LEGEND.findIndex((l) => l.text === "doesn't open from here");
+    assert.equal(LEGEND[hereAt].cls, VERDICT_BADGE.network_blocked);
+    assert.equal(LEGEND[hereAt + 1].text, VERDICT_TEXT.down);
+    const last = LEGEND[LEGEND.length - 1];
     assert.deepEqual([last.text, last.cls, last.note], ["—", "badge-none", "not checked yet"]);
   });
 });
@@ -167,5 +171,28 @@ describe("a network without members", () => {
     const nets = [empty("main"), empty("b")];
     assert.equal(tableColspan(columnGroups(nets)), 5);
     assert.deepEqual(domainCells(merged, nets).map((c) => c.kind), ["you", "empty", "empty"]);
+  });
+});
+
+describe("you cell: doesn't open from here", () => {
+  const net = (slot, peers) => ({ slot, label: slot, selfId: "me", peers });
+  const row = (slot, checks) => ({ name: "a.org", checking: false, byNet: { [slot]: { name: "a.org", checks } } });
+  const peers = [{ id: "p1", name: "p1" }];
+  const youMark = (m, nets) => domainCells(m, nets)[0].mark;
+
+  it("you down and a member ok shows doesn't open from here", () => {
+    const m = youMark(row("main", { me: { verdict: "down" }, p1: ok }), [net("main", peers)]);
+    assert.equal(m.text, "doesn't open from here");
+    assert.equal(m.cls, VERDICT_BADGE.network_blocked);
+    assert.ok(m.title.startsWith("The site answers other members but not you"));
+  });
+  it("you down and no member ok stays site is down", () => {
+    const m = youMark(row("main", { me: { verdict: "down" }, p1: { verdict: "down" } }), [net("main", peers)]);
+    assert.equal(m.text, VERDICT_TEXT.down);
+    assert.equal(m.cls, VERDICT_BADGE.down);
+  });
+  it("you ok is unchanged when members are down", () => {
+    const m = youMark(row("main", { me: ok, p1: { verdict: "down" } }), [net("main", peers)]);
+    assert.equal(m.text, VERDICT_TEXT.ok);
   });
 });

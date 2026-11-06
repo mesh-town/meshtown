@@ -24,6 +24,9 @@ export const DOMAINS_NOTE_NETWORK_BLOCKED = "the ISP doesn't let you reach the s
 export const DOMAINS_NOTE_SITE_GEOBLOCK = "the site itself is closed to the member's country";
 export const DOMAINS_NOTE_ANTIBOT = "may open in a browser after an \"I'm not a robot\" check";
 export const DOMAINS_NOTE_DOWN = "the site is not responding";
+export const DOMAINS_VERDICT_HERE = "doesn't open from here";
+export const DOMAINS_NOTE_HERE = "the site opens for a member but not for you";
+export const DOMAINS_TITLE_HERE = "The site answers other members but not you: your provider or the site itself blocks your connection.";
 
 export const DOMAINS_PEER_FALLBACK = "member";
 export const DOMAINS_CHECKING_ALL = "Checking…";
