@@ -9,7 +9,7 @@ use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
-use townjump_dht::RttProbe;
+use townjump_dht::{DhtConnection, RttProbe};
 
 #[test]
 fn fresh_meter_reports_unknown_path() {
@@ -280,4 +280,19 @@ mod dialable {
         // then
         assert_eq!(remote, None);
     }
+}
+
+fn conn_with_stream_id(id: Option<u32>) -> DhtConnection {
+    let (side, _other) = duplex(64);
+    DhtConnection::new([7; 32], Box::new(side)).with_local_stream_id(id)
+}
+
+#[test]
+fn path_facts_carry_the_local_stream_id() {
+    let known = conn_with_stream_id(Some(42));
+    assert_eq!(PathFacts::dialed(&known, None).stream_id, Some(42));
+    assert_eq!(PathFacts::accepted(&known).stream_id, Some(42));
+    let unknown = conn_with_stream_id(None);
+    assert_eq!(PathFacts::dialed(&unknown, None).stream_id, None);
+    assert_eq!(PathFacts::accepted(&unknown).stream_id, None);
 }
