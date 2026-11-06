@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::transport::net::{NetError, REPLICA_DOMAINS, REPLICA_NET};
 use anyhow::Result;
 
+use crate::exit::PeerConnPool;
 use crate::invite::store::Ledger;
 use crate::members::access::runtime::Access;
 use crate::node::node_name;
@@ -230,6 +231,11 @@ fn new_checks(cfg: &NodeConfig, net: &Net, domain_list: &DomainList) -> Checks {
         net.check_cfg.clone(),
         schedule,
         cfg.settings.checks_enabled,
+        (
+            net.stack.clone(),
+            PeerConnPool::default().with_traffic(net.exit_traffic.clone()),
+            net.members.clone(),
+        ),
     )
 }
 

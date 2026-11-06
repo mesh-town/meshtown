@@ -49,6 +49,8 @@ pub struct CheckConfig {
     pub blocked_domains: Arc<HashSet<String>>,
     /// Extra phrases of the region stub from the settings file, already lowercase.
     pub geo_markers: Arc<[String]>,
+    /// Extra trusted root certificates (DER) next to the built-in ones; empty in normal operation.
+    pub extra_roots: Arc<[Vec<u8>]>,
 }
 
 impl Default for CheckConfig {
@@ -62,6 +64,7 @@ impl Default for CheckConfig {
             provider_dns: None,
             blocked_domains: Arc::new(HashSet::new()),
             geo_markers: Arc::from(Vec::new()),
+            extra_roots: Arc::from(Vec::new()),
         }
     }
 }

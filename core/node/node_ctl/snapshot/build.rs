@@ -66,6 +66,9 @@ pub(super) struct Inputs<'a> {
     pub domain_names: Vec<String>,
     pub check_views: Vec<CheckView>,
     pub in_progress: HashSet<String>,
+    /// Results of this node's checks through members' exits: (domain, exit's id) → record. They take the
+    /// place of the exit member's own `chk/` record in that member's column.
+    pub exit_checks: HashMap<(String, PeerId), CheckRecord>,
     pub telemetry: TelemetryView,
     pub addr: PeerAddr,
     pub now_unix: u64,
@@ -232,6 +235,12 @@ fn build_domains(i: &Inputs<'_>, peers: &[PeerInfo]) -> Vec<DomainInfo> {
             };
             let value = v.record.as_ref().map(|r| check_info(r, i.now_unix));
             checks.insert(key, value);
+        }
+        for ((d, peer), record) in &i.exit_checks {
+            if d == name {
+                let info = Some(check_info(record, i.now_unix));
+                checks.insert(output::short_peer_id(peer), info);
+            }
         }
         for p in peers {
             checks.entry(p.id.clone()).or_insert(None);

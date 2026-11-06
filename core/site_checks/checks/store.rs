@@ -15,13 +15,20 @@ use super::keys::{domain_from_check_key, only_listed, CheckView, CHECK_PREFIX};
 use super::state::Checks;
 
 impl Checks {
-    /// Checks a domain right now and publishes the result.
+    /// Checks a domain right now, directly and through every current exit at once; publishes the direct result.
     pub async fn check_now(&self, domain: &str) -> Result<CheckRecord> {
         let domain = crate::proxy::domains::normalize_domain(domain)?;
-        let record =
-            reachability::check_domain(&self.check_config, &self.resolver, &domain).await?;
+        let (direct, _) = tokio::join!(
+            self.check_direct_now(&domain),
+            self.check_via_exits(&domain)
+        );
+        direct
+    }
+
+    async fn check_direct_now(&self, domain: &str) -> Result<CheckRecord> {
+        let record = reachability::check_domain(&self.check_config, &self.resolver, domain).await?;
         say("check", format!("{domain}: {}", describe_steps(&record)));
-        self.publish(&domain, &record).await?;
+        self.publish(domain, &record).await?;
         Ok(record)
     }
 

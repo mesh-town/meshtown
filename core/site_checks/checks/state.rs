@@ -2,7 +2,7 @@
 //! handles (turn on/off, change the interval, mark a domain "being checked now").
 //! For publishing and reading the document's results, see `store.rs`; for the schedule, `schedule.rs`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -10,11 +10,14 @@ use std::time::Duration;
 
 use tokio::sync::Mutex;
 
+use crate::exit::PeerConnPool;
+use crate::members::membership::Members;
 use crate::proxy::domains::DomainList;
 use crate::site_checks::reachability::CheckConfig;
-use crate::transport::net::{PeerId, Replica};
+use crate::transport::net::{NetStack, PeerId, Replica};
 
-use super::schedule::{DomainState, InProgress, Schedule};
+use super::exits::ExitResults;
+use super::schedule::{DomainStates, InProgress, Schedule};
 
 /// The shared resolver: created once, shared between tasks.
 mod doh_resolver {
@@ -31,29 +34,40 @@ pub struct Checks {
     pub(super) check_config: Arc<CheckConfig>,
     pub(super) schedule: Schedule,
     pub(super) resolver: doh_resolver::Shared,
-    pub(super) domain_states: Arc<Mutex<HashMap<String, DomainState>>>,
+    pub(super) domain_states: Arc<Mutex<DomainStates>>,
     pub(super) printed_check_keys: Arc<Mutex<HashSet<(PeerId, String, u64)>>>,
+    pub(super) members: Members,
+    pub(super) stack: NetStack,
+    pub(super) pool: PeerConnPool,
+    pub(super) exit_results: Arc<std::sync::Mutex<ExitResults>>,
     enabled: Arc<AtomicBool>,
     in_progress: Arc<InProgress>,
 }
 
 impl Checks {
-    /// Assembles the checks on top of an opened domain list.
+    /// Assembles the checks on top of an opened domain list; `exit_access` is what checks through members' exits
+    /// need: the network stack, a connection pool for the exit service and the list of online members.
     pub fn new(
         domain_list: DomainList,
         resolver: Arc<crate::site_checks::doh::Resolver>,
         check_config: CheckConfig,
         schedule: Schedule,
         enabled: bool,
+        exit_access: (NetStack, PeerConnPool, Members),
     ) -> Checks {
+        let (stack, pool, members) = exit_access;
         Checks {
             shared_replica: domain_list.shared_replica(),
             domain_list,
             check_config: Arc::new(check_config),
             schedule,
             resolver,
-            domain_states: Arc::new(Mutex::new(HashMap::new())),
+            domain_states: Arc::new(Mutex::new(DomainStates::default())),
             printed_check_keys: Arc::new(Mutex::new(HashSet::new())),
+            members,
+            stack,
+            pool,
+            exit_results: Arc::default(),
             enabled: Arc::new(AtomicBool::new(enabled)),
             in_progress: Arc::new(InProgress::default()),
         }

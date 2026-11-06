@@ -87,6 +87,34 @@ mod backoff_interval {
     }
 }
 
+#[test]
+fn direct_and_exit_targets_are_scheduled_separately() {
+    let (me, exit) = (peer(1), peer(2));
+    let schedule = Schedule::default();
+    let mut states = DomainStates::default();
+    let t0 = Instant::now();
+    // given: both pairs exist and a minute later both are due
+    let later = t0 + FIRST_DELAY + FIRST_SPREAD;
+    assert!(!states.is_due("example.com", Target::Direct, t0, me));
+    assert!(!states.is_due("example.com", Target::Exit(exit), t0, me));
+    // when: the direct check finishes and is rescheduled
+    let at = (&schedule, me);
+    states.record(("example.com", Target::Direct), CheckVerdict::Ok, later, at);
+    // then: direct is not due for a base interval, the exit pair is still due
+    assert!(!states.is_due("example.com", Target::Direct, later, me));
+    assert!(states.is_due("example.com", Target::Exit(exit), later, me));
+    // and a result through the exit leaves the direct due time alone
+    states.record(
+        ("example.com", Target::Exit(exit)),
+        CheckVerdict::Down,
+        later,
+        at,
+    );
+    assert!(!states.is_due("example.com", Target::Exit(exit), later, me));
+    let after = later + schedule.base_interval() * 2;
+    assert!(states.is_due("example.com", Target::Direct, after, me));
+}
+
 fn peer(seed: u8) -> PeerId {
     NodeSecret::from_bytes(&[seed; 32]).peer_id()
 }

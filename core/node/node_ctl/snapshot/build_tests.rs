@@ -66,6 +66,7 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         domain_names: Vec::new(),
         check_views: Vec::new(),
         in_progress: HashSet::new(),
+        exit_checks: HashMap::new(),
         telemetry: TelemetryView::default(),
         addr: PeerAddr::new(id),
         now_unix: 1_000,
@@ -218,6 +219,28 @@ fn build_domain_checks_keyed_by_peer_short_id() {
         .unwrap();
     assert!(matches!(other.checks.get(&my_key), Some(None)));
     assert!(matches!(other.checks.get(&friend_key), Some(None)));
+}
+
+// A result through a member's exit takes the place of the member's own record in its column.
+#[test]
+fn build_domain_checks_prefers_result_through_exit() {
+    let (my_id, friend_id) = (pair(1), pair(2));
+    let mut inputs = base(my_id);
+    inputs.members = [friend_id].into_iter().collect();
+    inputs.domain_names = vec!["example.com".to_string()];
+    let own = record_at(CheckVerdict::Ok, 10);
+    inputs.check_views = vec![view("example.com", friend_id, 10, Some(own))];
+    let via = record_at(CheckVerdict::Down, 900);
+    inputs.exit_checks = HashMap::from([(("example.com".to_string(), friend_id), via)]);
+
+    let collected = build(inputs);
+    let info = collected.snap.domains[0]
+        .checks
+        .get(&output::short_peer_id(&friend_id))
+        .cloned()
+        .flatten()
+        .expect("the column has a result");
+    assert_eq!(info.verdict, verdict_kind(CheckVerdict::Down));
 }
 
 // 6. checked/stale: fresh record → stale:false; record older than 7200 s → true; an author present only

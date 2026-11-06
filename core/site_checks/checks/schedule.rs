@@ -1,6 +1,7 @@
 //! The check schedule: a base interval that doubles for an unchanged result (`Schedule`,
 //! `DomainState`), the "being checked right now" mark (`InProgress`) and the decision of who is due
-//! (`Checks::due`/`schedule_after_verdict`/`postpone`, called from `run.rs`).
+//! (`Checks::due`/`schedule_after_verdict`/`postpone`, called from `run.rs`). The schedule is kept per pair
+//! (domain, `Target`): a result "directly" does not move the due time "through the exit of P".
 
 use portable_atomic::AtomicU64;
 use std::collections::{HashMap, HashSet};
@@ -11,8 +12,10 @@ use std::time::Duration;
 use tokio::time::Instant;
 
 use crate::site_checks::reachability::CheckVerdict;
+use crate::transport::net::PeerId;
 
 use super::state::Checks;
+use super::target::Target;
 
 /// How long after a domain appears it is first checked.
 pub const FIRST_DELAY: Duration = Duration::from_secs(5);
@@ -113,20 +116,56 @@ fn first_check_delay(author: crate::transport::net::PeerId, domain: &str) -> Dur
     FIRST_DELAY + offset_for(author, domain, FIRST_SPREAD)
 }
 
-/// The state of a domain; a new domain gets its first check scheduled after the first-check delay.
-fn domain_state<'a>(
-    states: &'a mut HashMap<String, DomainState>,
-    domain: &str,
-    now: Instant,
-    me: crate::transport::net::PeerId,
-) -> &'a mut DomainState {
-    states
-        .entry(domain.to_string())
-        .or_insert_with(|| DomainState {
-            next_at: now + first_check_delay(me, domain),
-            last_verdict: None,
-            same_verdict_streak: 0,
-        })
+/// The schedule states of all (domain, target) pairs.
+#[derive(Debug, Default)]
+pub(super) struct DomainStates(HashMap<(String, Target), DomainState>);
+
+impl DomainStates {
+    /// Whether the pair is due at `now`; a new pair gets its first check scheduled after the first-check delay.
+    pub(super) fn is_due(
+        &mut self,
+        domain: &str,
+        target: Target,
+        now: Instant,
+        me: PeerId,
+    ) -> bool {
+        let state = self
+            .0
+            .entry((domain.to_string(), target))
+            .or_insert_with(|| DomainState {
+                next_at: now + first_check_delay(me, domain),
+                last_verdict: None,
+                same_verdict_streak: 0,
+            });
+        state.next_at <= now
+    }
+
+    /// Remembers the verdict of the pair and schedules the next check after the backed-off interval.
+    pub(super) fn record(
+        &mut self,
+        (domain, target): (&str, Target),
+        verdict: CheckVerdict,
+        now: Instant,
+        (schedule, me): (&Schedule, PeerId),
+    ) {
+        let entry = self
+            .0
+            .entry((domain.to_string(), target))
+            .or_insert_with(|| DomainState {
+                next_at: now,
+                last_verdict: None,
+                same_verdict_streak: 0,
+            });
+        entry.remember_verdict(verdict);
+        let interval = schedule.backoff_interval(entry.same_verdict_streak);
+        entry.next_at = now + interval + offset_for(me, domain, interval);
+    }
+
+    fn postpone(&mut self, domain: &str, target: Target, until: Instant) {
+        if let Some(entry) = self.0.get_mut(&(domain.to_string(), target)) {
+            entry.next_at = until;
+        }
+    }
 }
 
 impl DomainState {
@@ -149,34 +188,35 @@ impl Schedule {
 }
 
 impl Checks {
-    /// Whether it is time to check the domain; also creates the state for a new domain.
-    pub(super) async fn due(&self, domain: &str) -> bool {
-        let now = Instant::now();
-        let mut state = self.domain_states.lock().await;
-        domain_state(&mut state, domain, now, self.shared_replica.me()).next_at <= now
+    /// Whether it is time to check the domain through the target; also creates the state for a new pair.
+    pub(super) async fn due(&self, domain: &str, target: Target) -> bool {
+        let mut states = self.domain_states.lock().await;
+        states.is_due(domain, target, Instant::now(), self.shared_replica.me())
     }
 
-    pub(super) async fn schedule_after_verdict(&self, domain: &str, verdict: CheckVerdict) {
-        let mut state = self.domain_states.lock().await;
-        let entry = state
-            .entry(domain.to_string())
-            .or_insert_with(|| DomainState {
-                next_at: Instant::now(),
-                last_verdict: None,
-                same_verdict_streak: 0,
-            });
-        entry.remember_verdict(verdict);
-        let interval = self.schedule.backoff_interval(entry.same_verdict_streak);
-        entry.next_at =
-            Instant::now() + interval + offset_for(self.shared_replica.me(), domain, interval);
+    pub(super) async fn schedule_after_verdict(
+        &self,
+        domain: &str,
+        target: Target,
+        verdict: CheckVerdict,
+    ) {
+        let mut states = self.domain_states.lock().await;
+        let me = self.shared_replica.me();
+        states.record(
+            (domain, target),
+            verdict,
+            Instant::now(),
+            (&self.schedule, me),
+        );
     }
 
-    /// Postpones the domain by one base interval, remembering nothing.
-    pub(super) async fn postpone(&self, domain: &str) {
-        let mut state = self.domain_states.lock().await;
-        if let Some(entry) = state.get_mut(domain) {
-            entry.next_at = Instant::now() + self.schedule.base_interval();
-        }
+    /// Postpones the pair by one base interval, remembering nothing.
+    pub(super) async fn postpone(&self, domain: &str, target: Target) {
+        let until = Instant::now() + self.schedule.base_interval();
+        self.domain_states
+            .lock()
+            .await
+            .postpone(domain, target, until);
     }
 }
 
