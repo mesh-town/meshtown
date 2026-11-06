@@ -19,6 +19,10 @@ pub(super) fn factory_for(
     factory
 }
 
+/// Cap on the receive window of every stream of the node, in bytes: how much unread data a peer may
+/// have in flight towards us on one stream.
+const RECV_WINDOW_MAX: u32 = 256 * 1024;
+
 /// The factory before the saved table is added. LAN discovery stays off until it is a product
 /// decision; its path ignores the dial options (relay, hole punch).
 fn base_factory(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
@@ -30,6 +34,10 @@ fn base_factory(bootstrap: Option<Vec<String>>) -> PeeroxideFactory {
         None => PeeroxideFactory::from_env(),
     };
     factory.lan_discovery = false;
+    factory.stream_limits = townjump_dht::StreamLimits {
+        recv_window_max: Some(RECV_WINDOW_MAX),
+        ..Default::default()
+    };
     factory
 }
 
