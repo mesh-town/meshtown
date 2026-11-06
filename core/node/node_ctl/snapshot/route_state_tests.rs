@@ -51,6 +51,7 @@ fn inputs(id: PeerId, online: HashSet<PeerId>, serving: HashMap<PeerId, bool>) -
         domain_names: Vec::new(),
         check_views: Vec::new(),
         in_progress: HashSet::new(),
+        exit_checks: HashMap::new(),
         telemetry: TelemetryView::default(),
         addr: PeerAddr::new(id),
         now_unix: 1_000,

@@ -66,6 +66,9 @@ pub(super) struct Inputs<'a> {
     pub domain_names: Vec<String>,
     pub check_views: Vec<CheckView>,
     pub in_progress: HashSet<String>,
+    /// Results of this node's checks through members' exits: (domain, exit's id) → record. They take the
+    /// place of the exit member's own `chk/` record in that member's column.
+    pub exit_checks: HashMap<(String, PeerId), CheckRecord>,
     pub telemetry: TelemetryView,
     pub addr: PeerAddr,
     pub now_unix: u64,
@@ -233,6 +236,12 @@ fn build_domains(i: &Inputs<'_>, peers: &[PeerInfo]) -> Vec<DomainInfo> {
             let value = v.record.as_ref().map(|r| check_info(r, i.now_unix));
             checks.insert(key, value);
         }
+        for ((d, peer), record) in &i.exit_checks {
+            let key = output::short_peer_id(peer);
+            if d == name && !own_is_newer(&checks, &key, record, i.now_unix) {
+                checks.insert(key, Some(check_info(record, i.now_unix)));
+            }
+        }
         for p in peers {
             checks.entry(p.id.clone()).or_insert(None);
         }
@@ -244,6 +253,18 @@ fn build_domains(i: &Inputs<'_>, peers: &[PeerInfo]) -> Vec<DomainInfo> {
         });
     }
     out
+}
+
+/// True if the member's own record in the column is newer than the result through its exit (an exit
+/// switched off leaves an old result behind; the member's fresh own record must win then).
+fn own_is_newer(
+    checks: &BTreeMap<String, Option<CheckInfo>>,
+    key: &str,
+    via: &CheckRecord,
+    now_unix: u64,
+) -> bool {
+    let via_age = check_info(via, now_unix).age_sec;
+    matches!(checks.get(key), Some(Some(own)) if own.age_sec < via_age)
 }
 
 /// Moves `CheckRecord` into `CheckInfo`: widens `u16`/`u32` to `u64`, converts the time into an age

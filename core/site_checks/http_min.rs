@@ -76,8 +76,18 @@ impl HttpResponse {
 /// TLS client config for checks: `ring` provider, `webpki-roots` roots, http/1.1 only.
 /// The provider is passed explicitly and the process-wide provider is left alone.
 pub fn tls_client_config() -> Result<ClientConfig> {
+    tls_client_config_with_roots(&[])
+}
+
+/// Like `tls_client_config`, plus extra trusted root certificates (DER) next to the built-in ones.
+pub fn tls_client_config_with_roots(extra_roots: &[Vec<u8>]) -> Result<ClientConfig> {
     let mut roots = RootCertStore::empty();
     roots.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
+    for der in extra_roots {
+        roots
+            .add(rustls::pki_types::CertificateDer::from(der.clone()))
+            .context("extra root certificate not accepted")?;
+    }
     let provider = Arc::new(rustls::crypto::ring::default_provider());
     let mut cfg = ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()

@@ -148,7 +148,6 @@ pub(crate) async fn collect(
         port_views,
         doc_seen,
     } = parts;
-    let program_versions = with_own_version(node, program_versions);
 
     let face = node.proxy_face.borrow().clone();
     let inputs = Inputs {
@@ -170,11 +169,12 @@ pub(crate) async fn collect(
         exit_rates: node.exit_traffic.rates_at(Instant::now()),
         exits,
         countries: country_texts(countries),
-        program_versions,
+        program_versions: with_own_version(node, program_versions),
         chosen_exits: node.route.chosen_exits(),
         domain_names: list,
         check_views: views,
         in_progress: node.checks.domains_in_progress(),
+        exit_checks: node.checks.exit_results(),
         telemetry: node.telemetry.view(),
         addr: crate::invite::own_addr(&node.stack, node.id),
         now_unix,
