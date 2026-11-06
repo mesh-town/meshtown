@@ -15,7 +15,7 @@ use super::outcome::ProxyOutcome;
 use super::serve::ProxyConfig;
 
 /// An open connection to the target and the route label for the summary line.
-pub(super) struct OpenedUpstream {
+pub(crate) struct OpenedUpstream {
     /// The route in words: `direct` or `exit <short>`.
     pub route_label: String,
     upstream: Upstream,
@@ -47,7 +47,7 @@ impl OpenedUpstream {
 }
 
 /// A refusal: the ready outcome and a flag "the direct connection did not open within `DIRECT_TCP_CONNECT_TIMEOUT`".
-pub(super) struct OpenRefused {
+pub(crate) struct OpenRefused {
     pub outcome: ProxyOutcome,
     pub timed_out: bool,
     /// The exit has no UDP gateway (refused the gateway target with code 7, or is remembered as such).
@@ -119,7 +119,7 @@ pub(super) async fn open_chosen_route(
 
 /// Writes `prefix` upstream and relays bytes in both directions until the transfer ends (or until the
 /// exit is removed from `route.exits`).
-pub(super) async fn relay_bytes(
+pub(crate) async fn relay_bytes(
     opened: OpenedUpstream,
     route: &RouteCtx,
     client: TcpStream,
@@ -222,27 +222,14 @@ async fn splice_while_chosen(
 }
 
 #[path = "path_direct.rs"]
-mod direct;
+pub(crate) mod direct;
 #[path = "path_exits.rs"]
-mod exits;
+pub(crate) mod exits;
 #[path = "path_udp.rs"]
-mod udp;
-pub(in crate::proxy) use direct::address_of;
+pub(crate) mod udp;
+pub(crate) use direct::address_of;
 use direct::open_direct_tcp;
 #[cfg(test)]
-use exits::no_answer_reason;
-use exits::open_through_exits;
-pub(super) use udp::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};
-
-#[cfg(test)]
-#[path = "path_busy_tests.rs"]
-pub(in crate::proxy) mod busy_tests;
-#[cfg(test)]
-#[path = "path_gateway_tests.rs"]
-mod gateway_tests;
-#[cfg(test)]
-#[path = "path_tests.rs"]
-mod tests;
-#[cfg(test)]
-#[path = "path_udpgw_tests.rs"]
-mod udpgw_tests;
+pub(crate) use exits::no_answer_reason;
+pub(crate) use exits::open_through_exits;
+pub(crate) use udp::{open_udp_route, ExitLink, UdpRefusal, UdpRoute};

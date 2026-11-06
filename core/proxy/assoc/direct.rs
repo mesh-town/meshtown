@@ -24,17 +24,17 @@ struct Sockets {
     v6: Option<UdpSocket>,
 }
 
-pub(super) struct DirectTx {
+pub(crate) struct DirectTx {
     cfg: ProxyConfig,
     sockets: Arc<Sockets>,
 }
 
-pub(super) struct DirectRx {
+pub(crate) struct DirectRx {
     sockets: Arc<Sockets>,
 }
 
 /// Opens the sockets; fails only if the IPv4 one cannot be bound.
-pub(super) fn open_direct(cfg: &ProxyConfig) -> io::Result<(DirectTx, DirectRx)> {
+pub(crate) fn open_direct(cfg: &ProxyConfig) -> io::Result<(DirectTx, DirectRx)> {
     let v4 = bind(IpAddr::V4(Ipv4Addr::UNSPECIFIED))?;
     let v6 = bind(IpAddr::V6(Ipv6Addr::UNSPECIFIED)).ok();
     let sockets = Arc::new(Sockets { v4, v6 });
@@ -127,7 +127,3 @@ fn is_peer_error(e: &io::Error) -> bool {
         io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionRefused
     )
 }
-
-#[cfg(test)]
-#[path = "direct_tests.rs"]
-mod tests;

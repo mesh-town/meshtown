@@ -1,11 +1,13 @@
 //! Tests for `ProxySeat`: which network's proxy configuration the single local proxy entry points at. A target
 //! is told apart by its list of chosen exits: every test config carries a different one-peer list.
 
-use super::*;
+use crate::config::config_file::NetSlotId;
+use crate::proxy::front::seat::*;
+use crate::proxy::ProxyConfig;
 
 use std::sync::Arc;
 
-use crate::config::config_file::{NetSlotId, ProcessSettings};
+use crate::config::config_file::ProcessSettings;
 use crate::exit::PeerConnPool;
 use crate::node::RunningNode;
 use crate::proxy::front::{ProxyFace, ProxyFront};

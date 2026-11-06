@@ -4,11 +4,14 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use super::busy_tests::config_with;
-use super::*;
+use super::path_busy_tests::config_with;
+use crate::exit;
+use crate::proxy::path::*;
+use crate::proxy::serve::ProxyConfig;
 use crate::transport::net::facade::test_support::{pid, within};
 use crate::transport::net::{BoxFuture, PeerConn, ServiceHandler, StreamPair};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 
 /// An exit that answers every request with OK and keeps the streams open; `hits` counts the requests.
 #[derive(Default)]

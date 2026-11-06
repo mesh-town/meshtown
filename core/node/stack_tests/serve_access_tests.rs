@@ -2,8 +2,10 @@
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::*;
 use crate::config::config_file::IfaceFilter;
+use crate::config::config_file::ListenAccess;
+use crate::proxy::serve::*;
+use tokio::net::TcpStream;
 
 #[tokio::test]
 async fn localnet_binds_all_interfaces() {

@@ -30,7 +30,7 @@ pub(super) fn zero_secret_b64() -> String {
     data_encoding::BASE64.encode(&[0u8; 32])
 }
 
-pub(super) fn test_secret() -> NodeSecret {
+pub(crate) fn test_secret() -> NodeSecret {
     NodeSecret::from_bytes(&[7u8; 32])
 }
 

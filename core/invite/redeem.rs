@@ -107,7 +107,7 @@ pub async fn redeem(
 }
 
 /// Owns the transport: the result of the rounds is kept, `close` comes before the return, with no `?` between them.
-async fn redeem_with(
+pub(crate) async fn redeem_with(
     t: Arc<dyn Transport>,
     head: &InviteHead,
     peers: &[PeerAddr],

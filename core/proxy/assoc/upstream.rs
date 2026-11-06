@@ -12,7 +12,7 @@ use tokio::io::AsyncWriteExt;
 use super::bridge::{from_gateway_frame, to_gateway_frame};
 
 /// What happened to a datagram handed to the upstream.
-pub(super) enum Delivery {
+pub(crate) enum Delivery {
     Sent,
     /// Does not fit the frame of the gateway.
     Oversize,
@@ -21,13 +21,13 @@ pub(super) enum Delivery {
 }
 
 /// The upstream is closed: the association ends.
-pub(super) struct Closed;
+pub(crate) struct Closed;
 
-pub(super) trait UpstreamTx: Send {
+pub(crate) trait UpstreamTx: Send {
     fn send(&mut self, packet: UdpPacket) -> impl Future<Output = Result<Delivery, Closed>> + Send;
 }
 
-pub(super) trait UpstreamRx: Send {
+pub(crate) trait UpstreamRx: Send {
     /// The next reply with its source; `None` — the upstream is closed.
     fn recv(&mut self) -> impl Future<Output = Option<(SocketAddr, Vec<u8>)>> + Send;
 }

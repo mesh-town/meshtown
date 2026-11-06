@@ -1,6 +1,10 @@
 //! Tests of the proxy console (`console.rs`): line parsing, and the route and address commands over the process listener.
 
-use super::*;
+use crate::proxy::console::*;
+use crate::proxy::route::RouteCtx;
+use std::net::SocketAddr;
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use crate::config::config_file::ProcessSettings;
 use crate::exit::PeerConnPool;

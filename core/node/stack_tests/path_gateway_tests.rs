@@ -3,11 +3,15 @@
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use super::busy_tests::config_with;
-use super::*;
+use super::path_busy_tests::config_with;
+use crate::exit;
 use crate::exit::test_support::Scripted;
+use crate::node::output::short_peer_id;
+use crate::proxy::path::*;
+use crate::proxy::serve::ProxyConfig;
 use crate::transport::net::facade::test_support::{pid, within};
 use crate::transport::net::ServiceHandler;
+use anyhow::Result;
 
 const FORBIDDEN: &[u8] = &[
     exit::EXIT_PROTOCOL_VERSION,

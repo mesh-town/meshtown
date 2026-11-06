@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 
 use crate::transport::net::{AddrHint, NodeSecret, PeerId};
 
-use super::*;
+use crate::invite::*;
 
 fn id(n: u8) -> PeerId {
     NodeSecret::from_bytes(&[n; 32]).peer_id()

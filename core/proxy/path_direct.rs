@@ -18,7 +18,7 @@ use super::{OpenRefused, OpenedUpstream, Upstream};
 
 /// The target address for the direct route: an IP address as is, a domain via the test table, then the own resolver
 /// over HTTPS (with a cache: a repeated name goes without contacting DoH).
-pub(in crate::proxy) async fn address_of(
+pub(crate) async fn address_of(
     cfg: &ProxyConfig,
     target: &Target,
     port: u16,
@@ -51,7 +51,7 @@ fn forget_address(cfg: &ProxyConfig, target: &Target) {
 }
 
 /// The direct route: the target address and a connection with the `DIRECT_TCP_CONNECT_TIMEOUT` timeout.
-pub(super) async fn open_direct_tcp(
+pub(crate) async fn open_direct_tcp(
     cfg: &ProxyConfig,
     target: &Target,
     port: u16,

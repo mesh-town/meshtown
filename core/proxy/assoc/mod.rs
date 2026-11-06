@@ -6,11 +6,11 @@
 //! datagram ↔ udpgw frame conversion.
 
 mod bridge;
-mod direct;
-mod relay;
+pub(crate) mod direct;
+pub(crate) mod relay;
 mod serve;
-mod stats;
-mod upstream;
+pub(crate) mod stats;
+pub(crate) mod upstream;
 
 pub(in crate::proxy) use serve::serve_associate;
 pub use serve::udp_slots;

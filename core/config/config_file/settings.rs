@@ -1,8 +1,6 @@
 //! The whole `config` document (`Settings` = process and network blocks), `ListenAccess`.
 //! Not here: JSON parsing (`parse.rs`/`parse_fields.rs`) and writing (`render.rs`).
 
-use crate::transport::net::NodeSecret;
-
 use super::net_settings::NetSettings;
 use super::process_settings::ProcessSettings;
 
@@ -44,20 +42,6 @@ pub struct Settings {
 impl std::fmt::Debug for Settings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::fields::debug_settings(self, f)
-    }
-}
-
-impl Settings {
-    /// Turns the effective settings into node settings: the network block, identity and SOCKS
-    /// from the process block. The production start path goes only through this function.
-    pub fn node_config(
-        &self,
-        key: crate::members::network_key::NetworkKeyInput,
-        node_secret: NodeSecret,
-    ) -> crate::node::NodeConfig {
-        let mut cfg = crate::node::NodeConfig::for_cli(key, &self.net);
-        cfg.identity_secret = Some(node_secret);
-        cfg
     }
 }
 

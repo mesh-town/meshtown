@@ -243,7 +243,3 @@ impl ProxyFront {
         let _ = handle.await;
     }
 }
-
-#[cfg(test)]
-#[path = "listen_tests.rs"]
-mod tests;

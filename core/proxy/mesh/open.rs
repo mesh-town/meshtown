@@ -14,7 +14,7 @@ use super::open_page::{ambiguous, not_found, Ask};
 
 /// Opens a connection to the target: a `.meshtown` host is answered by the node itself and never reaches
 /// route choice, an exit or DNS; any other target goes through `open_chosen_route`.
-pub(in crate::proxy) async fn open_target(
+pub(crate) async fn open_target(
     cfg: &ProxyConfig,
     nets: &NetDirectory,
     target: &Target,
@@ -86,7 +86,3 @@ async fn refused(ask: &Ask<'_>, reach: PortReach) -> OpenedUpstream {
         PortReach::TimedOut => ask.no_service(true).await,
     }
 }
-
-#[cfg(test)]
-#[path = "open_tests.rs"]
-mod tests;

@@ -73,6 +73,8 @@ mod redial;
 mod rejoin;
 #[cfg(feature = "net-hyper")]
 mod running;
+#[cfg(all(test, feature = "net-hyper"))]
+mod stack_tests;
 #[cfg(feature = "net-hyper")]
 #[cfg(feature = "net-hyper")]
 mod start;

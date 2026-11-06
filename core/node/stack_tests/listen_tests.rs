@@ -11,16 +11,17 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::time::timeout;
 
-use super::*;
 use crate::config::config_file::{IfaceFilter, ListenAccess, ProcessSettings};
 use crate::exit::PeerConnPool;
 use crate::members::network_key::NetworkKey;
 use crate::node::{start_node, NodeConfig, RunningNode};
+use crate::proxy::front::listen::*;
 use crate::proxy::socks5::{
     encode_socks5_request, encode_udp_associate_request, Target, REP_GENERAL, REP_HOST_UNREACHABLE,
     REP_OK,
 };
-use crate::proxy::{udp_slots, BindError, ProxyConfig};
+use crate::proxy::ProxyConfig;
+use crate::proxy::{udp_slots, BindError};
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 

@@ -6,8 +6,13 @@ use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
-use super::*;
 use crate::exit::PeerConnPool;
+use crate::proxy::path::direct::address_of;
+use crate::proxy::path::direct::open_direct_tcp;
+use crate::proxy::path::*;
+use crate::proxy::route::RouteCtx;
+use crate::proxy::serve::ProxyConfig;
+use crate::proxy::socks5::Target;
 use crate::site_checks::doh::Resolver;
 use crate::site_checks::http_min::HttpLimits;
 

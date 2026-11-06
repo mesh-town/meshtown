@@ -6,7 +6,7 @@ use std::time::Instant;
 
 /// What a relay did: bytes of payload each way and the datagrams it dropped, by reason.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(super) struct RelayStats {
+pub(crate) struct RelayStats {
     pub up_bytes: u64,
     pub down_bytes: u64,
     pub foreign: u64,

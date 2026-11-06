@@ -9,9 +9,11 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 use tokio::time::{sleep, timeout, Instant};
 
-use super::*;
+use super::path_busy_tests::config_with;
 use crate::exit::test_support::Scripted;
-use crate::proxy::path::busy_tests::config_with;
+use crate::proxy::front::NetDirectory;
+use crate::proxy::serve::*;
+use crate::proxy::socks5;
 
 const DEADLINE: Duration = Duration::from_millis(200);
 /// The outer limit of a "closed at the deadline" test: five deadlines.

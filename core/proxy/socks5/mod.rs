@@ -14,7 +14,7 @@
 
 mod client;
 mod frame;
-mod udp;
+pub(crate) mod udp;
 mod wire;
 
 pub use client::client_connect;

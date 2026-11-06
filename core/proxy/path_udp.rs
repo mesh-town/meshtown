@@ -11,7 +11,7 @@ use super::super::serve::ProxyConfig;
 use super::{open_through_exits, OpenRefused};
 
 /// An open stream to the UDP gateway of an exit.
-pub(in crate::proxy) struct ExitLink {
+pub(crate) struct ExitLink {
     pub route_label: String,
     pub peer: PeerId,
     pub send: BoxSend,
@@ -19,19 +19,19 @@ pub(in crate::proxy) struct ExitLink {
 }
 
 /// Why no UDP route opened: the ready outcome, and whether the exits have no UDP gateway (SOCKS reply 7, else 1).
-pub(in crate::proxy) struct UdpRefusal {
+pub(crate) struct UdpRefusal {
     pub outcome: ProxyOutcome,
     pub no_udp: bool,
 }
 
 /// Where the datagrams of an association go.
-pub(in crate::proxy) enum UdpRoute {
+pub(crate) enum UdpRoute {
     Exit(ExitLink),
     Direct,
 }
 
 /// Chooses the route of a UDP association. It writes the `route` line.
-pub(in crate::proxy) async fn open_udp_route(cfg: &ProxyConfig) -> Result<UdpRoute, UdpRefusal> {
+pub(crate) async fn open_udp_route(cfg: &ProxyConfig) -> Result<UdpRoute, UdpRefusal> {
     let route = match cfg.route.choose_now().await {
         Ok(route) => route,
         Err(e) => {
@@ -64,7 +64,7 @@ pub(in crate::proxy) async fn open_udp_route(cfg: &ProxyConfig) -> Result<UdpRou
 }
 
 /// Opens the gateway stream through the first candidate that has a UDP gateway.
-pub(super) async fn open_exit_link(
+pub(crate) async fn open_exit_link(
     cfg: &ProxyConfig,
     candidates: &[PeerId],
 ) -> Result<ExitLink, UdpRefusal> {

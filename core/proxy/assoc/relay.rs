@@ -15,15 +15,15 @@ use super::stats::{RelayStats, Shared};
 use super::upstream::{Closed, Delivery, UpstreamRx, UpstreamTx};
 
 /// The UDP datagram buffer: the largest datagram there can be.
-pub(super) const RECV_BUFFER: usize = 65_535;
+pub(crate) const RECV_BUFFER: usize = 65_535;
 
-pub(super) struct RelayLimits {
+pub(crate) struct RelayLimits {
     /// How long an association may carry no datagram in either direction.
     pub idle: Duration,
 }
 
 /// Runs the association to its end and returns what it did. The control connection is closed on return.
-pub(super) async fn relay(
+pub(crate) async fn relay(
     control: TcpStream,
     udp: UdpSocket,
     client_ip: IpAddr,

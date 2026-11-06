@@ -1,11 +1,10 @@
 //! Tests of closing the transport in `redeem_with` (`redeem.rs`): on any exit — exactly one `close`.
 //!
 //! The client is a `Spy` over `mem` (counts `close` and `connect`), the server is the `Responder` stub from `invite::test_responder`.
-//! Closing the temporary `mem` is `ephemeral_mem_is_closed_on_exit`.
 //!
 //! assumption: `redeem_with(t: Arc<dyn Transport>, head, peers: &[PeerAddr], opts, progress)` and
 //! `ask(t: &dyn Transport, addr: &PeerAddr, s: &InviteSecret) -> Option<RedeemReply>` are private
-//! functions of `redeem.rs`; `bind_ephemeral` is in `node::start`;
+//! functions of `redeem.rs`;
 //! the node seed in `Responder::start` matches the key of the transport passed to it.
 
 use super::super::{ask, redeem_with, RedeemError, RedeemOpts};
@@ -112,32 +111,6 @@ async fn asked_conn_is_closed() {
     // then: the reply is received, the connection on the server side is closed by the client (code 0, reason "done")
     assert!(matches!(reply, Some(RedeemReply::Key(_))), "{reply:?}");
     rig.then_server_conn_closed_by_client().await;
-}
-
-#[tokio::test]
-async fn ephemeral_mem_is_closed_on_exit() {
-    // given: a temporary `mem` transport, the invite's deadline has already passed, no addresses
-    let net = MemNet::new();
-    let t = crate::node::bind_ephemeral(Some(&net))
-        .await
-        .expect("the temporary transport came up");
-    let me = t.me();
-    let expired = RedeemOpts {
-        deadline_unix: unix_now().saturating_sub(10),
-        ..opts()
-    };
-    // when
-    let got = within(
-        "redeem_with",
-        redeem_with(t, &head(), &[], &expired, &ignore, &owner()),
-    )
-    .await;
-    // then: Expired, the slot is closed by redeem_with itself
-    assert!(matches!(got, Err(RedeemError::Expired)), "{got:?}");
-    assert!(
-        net.addr_of(me).is_none(),
-        "the slot was not closed on the exit of redeem_with"
-    );
 }
 
 /// The spy client A, the stub server B and the invite head of the network `own_key()`.

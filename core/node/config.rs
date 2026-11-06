@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::config::config_file::NetSettings;
+use crate::config::config_file::{NetSettings, Settings};
 use crate::transport::net::{NodeSecret, PeerAddr, PeerId};
 
 use crate::members::network_key::{NetworkKey, NetworkKeyInput};
@@ -65,8 +65,20 @@ pub struct NodeConfig {
 }
 
 impl NodeConfig {
+    /// Turns the effective settings into node settings: the network block, identity and SOCKS
+    /// from the process block. The production start path goes only through this function.
+    pub fn from_settings(
+        s: &Settings,
+        key: NetworkKeyInput,
+        node_secret: NodeSecret,
+    ) -> NodeConfig {
+        let mut cfg = NodeConfig::for_cli(key, &s.net);
+        cfg.identity_secret = Some(node_secret);
+        cfg
+    }
+
     /// Node settings for the CLI: `settings` are cloned, the rest are the live node's defaults.
-    /// The live path goes through `Settings::node_config`, here SOCKS is off.
+    /// The live path goes through `NodeConfig::from_settings`, here SOCKS is off.
     pub fn for_cli(key: NetworkKeyInput, settings: &NetSettings) -> NodeConfig {
         let reply = NetworkKey::from_bytes(key.reply_secret());
         let mut cfg = assemble(key.key.clone(), key.root, reply, settings);

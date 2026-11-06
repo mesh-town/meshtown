@@ -281,12 +281,6 @@ mod same_network_cases;
 #[path = "invite_key_text_tests.rs"]
 mod key_text_cases;
 
-#[path = "invite_excluded_tests.rs"]
-mod excluded_node_cases;
-
-#[path = "invite_closed_tests.rs"]
-mod closed_stack_cases;
-
 const HOUR: u64 = 3_600;
 
 fn a_secret() -> InviteSecret {
