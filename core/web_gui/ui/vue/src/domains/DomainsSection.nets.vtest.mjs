@@ -207,7 +207,9 @@ function options({ onlyA, selfInA }) {
   const opts = twoNets();
   const [a, b] = [opts.state, opts.slots[1].state];
   const self = b.peers.find((p) => p.self);
-  b.peers = [self, { id: PEER_B1, id_full: "D".repeat(64), name: "phone", country: null, version: "0.1.0", online: true, path: "direct", rtt_ms: 20, exit: false }];
+  b.peers = [self, { id: PEER_B1, id_full: "D".repeat(64), name: "phone", country: null, version: "0.1.0", online: true, path: "direct", rtt_ms: 20, exit: true }];
+  const a2 = a.peers.find((p) => p.id === PEER_A2);
+  if (a2) Object.assign(a2, { online: true, exit: true });
   a.domains = [{ name: "example.org", checks: { [SELF_ID]: selfInA, [PEER_A1]: check("ok"), [PEER_A2]: check("down") } }];
   b.domains = [{ name: "example.org", checks: { [SELF_ID]: check("ok"), [PEER_B1]: check("antibot") } }];
   if (onlyA) a.domains.push({ name: "only-a.org", checks: { [PEER_A1]: check("ok") } });
