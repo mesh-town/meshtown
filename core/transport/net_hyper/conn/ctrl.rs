@@ -5,7 +5,7 @@ use super::{wait_until_closed, HyperSessionState, CODE_SILENT, DEAD_AFTER, PING_
 use crate::transport::net_hyper::wire::{read_ctrl, write_ctrl, Ctrl};
 use std::io;
 use std::sync::Arc;
-use tokio::io::{AsyncWriteExt, ReadHalf, WriteHalf};
+use tokio::io::{AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
 use tokio::time::{interval_at, timeout, Instant};
 use townjump_dht::Duplex;
@@ -96,11 +96,14 @@ async fn write_next(
     !last
 }
 
-async fn write_one(w: &mut WriteHalf<CtrlStream>, frame: &Ctrl) -> io::Result<()> {
-    let done = timeout(DEAD_AFTER, async {
-        write_ctrl(w, frame).await?;
-        w.flush().await
-    });
-    done.await
+/// Writes one frame without `flush`: flush waits for the peer to acknowledge everything written, not for the
+/// send, and the frame is already queued by the transport. The final `shutdown` drains the tail.
+async fn write_one<W: AsyncWrite + Unpin>(w: &mut W, frame: &Ctrl) -> io::Result<()> {
+    timeout(DEAD_AFTER, write_ctrl(w, frame))
+        .await
         .unwrap_or_else(|_| Err(io::ErrorKind::TimedOut.into()))
 }
+
+#[cfg(test)]
+#[path = "ctrl_tests.rs"]
+mod tests;
