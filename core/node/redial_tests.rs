@@ -194,9 +194,9 @@ mod redial_pause_fn {
     use super::*;
 
     #[test]
-    fn grows_from_5s_doubling_up_to_cap() {
-        // given: rnd 0 — no addition / when: attempts 1, 2, 5, 8 / then: 5, 10, 60, 60 s
-        let expected = [(1u32, 5u64), (2, 10), (5, 60), (8, 60)];
+    fn grows_from_5s_doubling_up_to_fourth_attempt() {
+        // given: rnd 0 — no addition / when: attempts 1 to 4 / then: 5, 10, 20, 40 s
+        let expected = [(1u32, 5u64), (2, 10), (3, 20), (4, 40)];
         for (attempt, secs) in expected {
             assert_eq!(
                 redial_pause(attempt, 0),
@@ -208,17 +208,40 @@ mod redial_pause_fn {
 
     #[test]
     fn extra_from_rnd_does_not_exceed_a_quarter() {
-        // given: rnd u32::MAX — the maximum addition / when: attempts 1 and 6
-        // then: no more than base + a quarter (6.25 s and 75 s), no less than the base itself (5 s and 60 s)
+        // given: rnd u32::MAX — the maximum addition / when: attempts 1 and 4
+        // then: no more than base + a quarter (6.25 s and 50 s), no less than the base itself (5 s and 40 s)
         let cases = [
             (1u32, Duration::from_secs(5), Duration::from_millis(6250)),
-            (6u32, Duration::from_secs(60), Duration::from_secs(75)),
+            (4u32, Duration::from_secs(40), Duration::from_secs(50)),
         ];
         for (attempt, min, max) in cases {
             let pause = redial_pause(attempt, u32::MAX);
             assert!(
                 pause >= min && pause <= max,
                 "attempt {attempt} with the maximum rnd must be in {min:?}..={max:?}, got {pause:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn pause_goes_long_after_fourth_attempt() {
+        // given / when: attempts 1 to 4 and then 5, 6, 50 with rnd 0 and the maximum rnd
+        // then: the ladder 5, 10, 20, 40 s (+ up to a quarter), from attempt 5 on 600 s (+ up to a quarter)
+        for (attempt, secs) in [
+            (1u32, 5u64),
+            (2, 10),
+            (3, 20),
+            (4, 40),
+            (5, 600),
+            (6, 600),
+            (50, 600),
+        ] {
+            let base = Duration::from_secs(secs);
+            assert_eq!(redial_pause(attempt, 0), base, "attempt {attempt}");
+            let top = redial_pause(attempt, u32::MAX);
+            assert!(
+                top >= base && top <= base + base / 4,
+                "attempt {attempt}: {top:?}"
             );
         }
     }

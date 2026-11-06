@@ -2,6 +2,7 @@
 //! (addresses from `peers-cache.json`). They hand out the list once and wait for the receiver to close.
 //! `node_sources` builds the node's list of sources from the config (no I/O).
 
+use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Mutex};
 
 use tokio::sync::mpsc;
@@ -22,10 +23,11 @@ pub(crate) fn node_sources(
     cache: &PeersCache,
     me: PeerId,
     subkeys: &SubKeys,
-    tel: &Arc<Telemetry>,
+    (tel, neighbors): (&Arc<Telemetry>, &Arc<AtomicUsize>),
     records: Option<Arc<dyn RecordStore>>,
 ) -> Vec<Arc<dyn Discovery>> {
-    let from = |name: &String| source_named(name, cfg, cache, me, (subkeys, tel), &records);
+    let from =
+        |name: &String| source_named(name, cfg, cache, me, (subkeys, tel, neighbors), &records);
     cfg.settings
         .net_choice
         .discovery
@@ -40,7 +42,7 @@ fn source_named(
     cfg: &NodeConfig,
     cache: &PeersCache,
     me: PeerId,
-    (subkeys, tel): (&SubKeys, &Arc<Telemetry>),
+    (subkeys, tel, neighbors): (&SubKeys, &Arc<Telemetry>, &Arc<AtomicUsize>),
     records: &Option<Arc<dyn RecordStore>>,
 ) -> Option<Arc<dyn Discovery>> {
     match name {
@@ -48,7 +50,7 @@ fn source_named(
             Some(Arc::new(InviteSource::new(cfg.initial_peers.clone(), me)))
         }
         "cache" if !cache.is_empty() => Some(Arc::new(PeersCacheSource::new(cache.addrs(), me))),
-        "hyperdht" => hyperdht_source(subkeys, me, records, tel),
+        "hyperdht" => hyperdht_source(subkeys, me, records, (tel, neighbors)),
         _ => None,
     }
 }
@@ -59,7 +61,7 @@ fn hyperdht_source(
     subkeys: &SubKeys,
     me: PeerId,
     records: &Option<Arc<dyn RecordStore>>,
-    tel: &Arc<Telemetry>,
+    (tel, neighbors): (&Arc<Telemetry>, &Arc<AtomicUsize>),
 ) -> Option<Arc<dyn Discovery>> {
     let Some(store) = records else {
         say("hyperdht", "hyperdht without the hyper transport — skipped");
@@ -69,6 +71,7 @@ fn hyperdht_source(
         subkeys,
         me,
         store.clone(),
+        neighbors.clone(),
         Some(seen_handler(tel.clone())),
     ))
 }

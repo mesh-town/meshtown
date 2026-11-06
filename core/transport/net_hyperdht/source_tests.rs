@@ -22,6 +22,7 @@ fn test_pace() -> Pace {
         fast_rounds: 1_000_000,
         fast: 30 * MS,
         steady: (30 * MS, 40 * MS),
+        steady_with_neighbor: (30 * MS, 40 * MS),
         error_first: 10 * MS,
         error_max: 40 * MS,
         call_limit: 300 * MS,
@@ -218,7 +219,13 @@ async fn publish_ignores_hints() {
 #[test]
 fn node_source_publishes() {
     let sub = NetworkKey::from_bytes([0x55; 32]).subkeys();
-    let s = node_source(&sub, pid(SEED_A), Arc::new(MemRecords::new()), None);
+    let s = node_source(
+        &sub,
+        pid(SEED_A),
+        Arc::new(MemRecords::new()),
+        Arc::new(AtomicUsize::new(0)),
+        None,
+    );
     assert!(s.publishes());
     assert_eq!(s.name(), "hyperdht");
 }
@@ -315,3 +322,60 @@ async fn publisher_reports_published() {
 
 #[path = "source_account_tests.rs"]
 mod account;
+
+/// A store that counts reads.
+struct ReadCounting {
+    inner: MemRecords,
+    gets: AtomicUsize,
+}
+
+impl RecordStore for ReadCounting {
+    fn get(&self, key: &RecordKey) -> BoxFuture<'_, NetResult<Option<Record>>> {
+        self.gets.fetch_add(1, Ordering::SeqCst);
+        self.inner.get(key)
+    }
+
+    fn put(&self, key: &RecordKey, value: Vec<u8>, seq: u64) -> BoxFuture<'_, NetResult<()>> {
+        self.inner.put(key, value, seq)
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn rounds_slow_down_while_neighbor_lives() {
+    let store = Arc::new(ReadCounting {
+        inner: MemRecords::new(),
+        gets: AtomicUsize::new(0),
+    });
+    let neighbors = Arc::new(AtomicUsize::new(1));
+    let pace = Pace {
+        fast_rounds: 1,
+        fast: 10 * MS,
+        steady: (100 * MS, 100 * MS),
+        steady_with_neighbor: (1000 * MS, 1000 * MS),
+        ..test_pace()
+    };
+    let source = Arc::new(
+        HyperDhtDiscovery::new(store.clone(), keys(), None)
+            .with_pace(pace)
+            .with_neighbors(neighbors.clone()),
+    );
+    let (tx, _rx) = tokio::sync::mpsc::channel(8);
+    let task = crate::transport::net::task_label::spawn(async move { source.run_rounds(tx).await });
+    let gets = || store.gets.load(Ordering::SeqCst);
+
+    tokio::time::sleep(500 * MS).await;
+    assert_eq!(
+        gets(),
+        2,
+        "with a neighbor only the fast round and one steady round ran"
+    );
+
+    neighbors.store(0, Ordering::Relaxed);
+    tokio::time::sleep(650 * MS).await;
+    assert_eq!(
+        gets(),
+        4,
+        "without a neighbor the steady pause is the short one"
+    );
+    task.abort();
+}

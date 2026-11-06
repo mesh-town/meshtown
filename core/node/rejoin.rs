@@ -1,7 +1,7 @@
 //! Re-invites members into the gossip topic while the topic has no peers but members exist.
 //!
 //! What it does: on a node tick, decides whether it is time to call the members into the topic again (`join`); the pause
-//! doubles from 30 s up to 5 min, and the appearance of peers resets it to 30 s.
+//! quadruples from 30 s up to 5 min (30, 120, 300 s), and the appearance of peers resets it to 30 s.
 //! What it doesn't do: it owns neither the timer nor the clock — time comes in as an argument; it knows the topic and network
 //! only through `Membership`.
 //! Links: `event_loop::run_node_loop` calls `rejoin_if_alone` on the `broadcast_tick` tick.
@@ -39,9 +39,9 @@ impl Rejoin {
         neighbor_count == 0 && member_count > 0 && now >= self.next_at
     }
 
-    /// A retry was made: the pause doubles (up to the ceiling), the deadline is `now` + the pause.
+    /// A retry was made: the pause quadruples (up to the ceiling), the deadline is `now` + the pause.
     pub(super) fn mark_rejoined(&mut self, now: Instant) {
-        self.pause = (self.pause * 2).min(REJOIN_MAX);
+        self.pause = (self.pause * 4).min(REJOIN_MAX);
         self.next_at = now + self.pause;
     }
 

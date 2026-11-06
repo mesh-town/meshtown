@@ -2,7 +2,7 @@
 //! of consecutive failures and the time of the next attempt — separately for each id.
 //!
 //! What it does: for each discovered address decides whether to dial now; on a failure and on
-//! a disconnect computes the pause before the next attempt (doubles up to a cap, with a
+//! a disconnect computes the pause before the next attempt (doubles up to a cap, then a long pause, with a
 //! random addition).
 //! What it doesn't do: doesn't dial a connection and knows nothing about the transport/`Members` — that is `dial.rs`;
 //! takes time as an argument, doesn't read the clock itself.
@@ -21,7 +21,7 @@ pub(super) const REDIAL_CAP: Duration = Duration::from_secs(60);
 /// Pause after a series of failures (from attempt `REDIAL_LONG_AFTER + 1`): a long-dead peer is knocked on rarely.
 pub(super) const REDIAL_LONG: Duration = Duration::from_secs(600);
 /// How many consecutive failures get the ordinary pause; after that — `REDIAL_LONG`.
-pub(super) const REDIAL_LONG_AFTER: u32 = 8;
+pub(super) const REDIAL_LONG_AFTER: u32 = 4;
 
 /// How many doubling steps still need counting: after that the pause hits `REDIAL_CAP` anyway,
 /// and `1u64 << MAX_SHIFT` doesn't overflow for any `attempt`.
@@ -31,15 +31,28 @@ const MAX_SHIFT: u32 = 6;
 /// `REDIAL_CAP` (from attempt `REDIAL_LONG_AFTER + 1` — `REDIAL_LONG`), plus a random addition of no
 /// more than a quarter of the pause (`rnd` is a fraction of `u32::MAX`).
 pub(super) fn redial_pause(attempt: u32, rnd: u32) -> Duration {
-    let capped_ms = if attempt > REDIAL_LONG_AFTER {
-        REDIAL_LONG.as_millis() as u64
-    } else {
-        let shift = attempt.saturating_sub(1).min(MAX_SHIFT);
-        let base_ms = (REDIAL_FIRST.as_millis() as u64).saturating_mul(1u64 << shift);
-        base_ms.min(REDIAL_CAP.as_millis() as u64)
-    };
-    let extra_ms = capped_ms / 4 * u64::from(rnd) / u64::from(u32::MAX);
-    Duration::from_millis(capped_ms + extra_ms)
+    if attempt > REDIAL_LONG_AFTER {
+        return with_extra(REDIAL_LONG.as_millis() as u64, rnd);
+    }
+    ladder_pause(attempt, rnd)
+}
+
+/// The doubling pause of attempt `attempt` up to `REDIAL_CAP`, never the long one: used for an `unlisted`
+/// refusal, where the admission record may arrive at any moment.
+fn unlisted_pause(attempt: u32, rnd: u32) -> Duration {
+    ladder_pause(attempt, rnd)
+}
+
+fn ladder_pause(attempt: u32, rnd: u32) -> Duration {
+    let shift = attempt.saturating_sub(1).min(MAX_SHIFT);
+    let base_ms = (REDIAL_FIRST.as_millis() as u64).saturating_mul(1u64 << shift);
+    with_extra(base_ms.min(REDIAL_CAP.as_millis() as u64), rnd)
+}
+
+/// `base_ms` plus a random addition of no more than a quarter of it.
+fn with_extra(base_ms: u64, rnd: u32) -> Duration {
+    let extra_ms = base_ms / 4 * u64::from(rnd) / u64::from(u32::MAX);
+    Duration::from_millis(base_ms + extra_ms)
 }
 
 /// A loud line — on the first three attempts and on powers of two, quieter after that.
@@ -134,14 +147,11 @@ impl Redial {
         let peer = self.peers.entry(id).or_default();
         peer.attempts += 1;
         let attempt = peer.attempts;
-        let pause = redial_pause(
-            if unlisted {
-                attempt.min(REDIAL_LONG_AFTER)
-            } else {
-                attempt
-            },
-            rnd,
-        );
+        let pause = if unlisted {
+            unlisted_pause(attempt, rnd)
+        } else {
+            redial_pause(attempt, rnd)
+        };
         peer.state = State::Waiting(now + pause);
         (attempt, pause)
     }

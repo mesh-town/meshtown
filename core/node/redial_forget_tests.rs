@@ -1,5 +1,5 @@
 //! Tests of forgetting members cut by the prune (`Redial::forget`) and the long pause after a series of failures
-//! (`redial_pause` from attempt 9). Synchronous, time is `Instant::now()` plus manual shifts.
+//! (`redial_pause` from attempt 5). Synchronous, time is `Instant::now()` plus manual shifts.
 
 use std::time::Duration;
 
@@ -16,14 +16,14 @@ mod pause {
     use super::*;
 
     #[test]
-    fn attempt_8_still_capped_at_75_s() {
-        assert_eq!(redial_pause(8, 0), Duration::from_secs(60));
-        assert_eq!(redial_pause(8, u32::MAX), Duration::from_secs(75));
+    fn attempt_4_still_on_the_ladder() {
+        assert_eq!(redial_pause(4, 0), Duration::from_secs(40));
+        assert_eq!(redial_pause(4, u32::MAX), Duration::from_secs(50));
     }
 
     #[test]
-    fn long_pause_from_attempt_9() {
-        for attempt in [9, 10, 50, u32::MAX] {
+    fn long_pause_from_attempt_5() {
+        for attempt in [5, 9, 10, 50, u32::MAX] {
             assert_eq!(
                 redial_pause(attempt, 0),
                 Duration::from_secs(600),
@@ -40,7 +40,7 @@ mod pause {
     #[test]
     fn down_restarts_series_with_short_pause() {
         let mut redial = Redial::default();
-        let (_, long) = (0..9)
+        let (_, long) = (0..5)
             .map(|_| redial.failed(id(1), Instant::now(), 0, false))
             .last()
             .unwrap();

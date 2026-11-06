@@ -55,7 +55,7 @@ mod alone_for_twenty_minutes {
     use super::*;
 
     #[test]
-    fn backoff_doubles_to_five_minutes() {
+    fn backoff_quadruples_to_five_minutes() {
         // given: a schedule at t0, 0 peers, 2 members
         let t0 = Instant::now();
         let mut rejoin = Rejoin::new(t0);
@@ -69,10 +69,10 @@ mod alone_for_twenty_minutes {
             }
         }
 
-        // then: the pause is 30, 60, 120, 240, then the 300 s ceiling
+        // then: the pause is 30, 120, then the 300 s ceiling
         assert_eq!(
             moments,
-            vec![30, 90, 210, 450, 750, 1050],
+            vec![30, 150, 450, 750, 1050],
             "retry moments since start, s"
         );
     }
@@ -83,7 +83,7 @@ mod after_two_repeats {
 
     #[test]
     fn reset_restores_first_delay() {
-        // given: two retries (at 30 and 90 s), the pause grew to 120 s, the next deadline is 210 s
+        // given: `mark_rejoined` at 30 s and at 90 s, so the pause grew to 300 s and the next deadline is 390 s
         let t0 = Instant::now();
         let mut rejoin = Rejoin::new(t0);
         rejoin.mark_rejoined(at(t0, 30));
@@ -93,7 +93,7 @@ mod after_two_repeats {
         let reset_at = at(t0, 100);
         rejoin.reset_pause(reset_at);
 
-        // then: the deadline is 30 s after the reset (130 s), not 210 s
+        // then: the deadline is 30 s after the reset (130 s), not 390 s
         assert!(
             !rejoin.is_due(reset_at + Duration::from_secs(29), 0, 2),
             "retry must not be due until 30 s after the reset"
@@ -158,21 +158,21 @@ mod tick_when_join_fails {
         // given: members a and b, 0 peers, `join` answers with an error
         let mut f = setup(Opts { join_fails: true });
 
-        // when: a tick at t0 + 30 s (returns without panic), then at 89 and 90 s
+        // when: a tick at t0 + 30 s (returns without panic), then at 149 and 150 s
         f.when_tick(30, 0).await;
         let after_error = f.then_joins().len();
-        f.when_tick(89, 0).await;
-        let at_89 = f.then_joins().len();
-        f.when_tick(90, 0).await;
-        let at_90 = f.then_joins().len();
+        f.when_tick(149, 0).await;
+        let at_149 = f.then_joins().len();
+        f.when_tick(150, 0).await;
+        let at_150 = f.then_joins().len();
 
-        // then: there was one attempt, the next retry is no earlier than t0 + 90 s, and it is there at 90 s
+        // then: there was one attempt, the next retry is no earlier than t0 + 150 s, and it is there at 150 s
         assert_eq!(after_error, 1, "the invite at 30 s must be sent");
         assert_eq!(
-            at_89, 1,
-            "after an error the deadline shifts: no retry until 90 s"
+            at_149, 1,
+            "after an error the deadline shifts: no retry until 150 s"
         );
-        assert_eq!(at_90, 2, "the retry must happen at 90 s");
+        assert_eq!(at_150, 2, "the retry must happen at 150 s");
     }
 }
 
