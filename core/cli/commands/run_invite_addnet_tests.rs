@@ -306,7 +306,7 @@ mod reading_the_site_list {
 mod seeding_a_slot {
     use super::*;
     use crate::transport::net::{AddrHint, NodeSecret, PeerAddr};
-    use crate::transport::peers_cache::{peers_cache_path_beside, PeersCache};
+    use crate::transport::peers_cache::{network_cache_path, peers_cache_path_beside, PeersCache};
     use std::net::SocketAddr;
 
     fn invite_peers() -> Vec<PeerAddr> {
@@ -338,7 +338,8 @@ mod seeding_a_slot {
         let peers = invite_peers();
         let id = add_net_slot(&run, &key_b(), &[], &peers, 5).expect("add");
         let cache_path = peers_cache_path_beside(&net_slot_path(&dir.file(), &id).unwrap());
-        assert!(cache_path.as_ref().unwrap().exists());
+        let cache_file = network_cache_path(cache_path.as_ref().unwrap(), &network_id_of(&key_b()));
+        assert!(cache_file.exists());
         let cache = PeersCache::load(cache_path.as_deref(), &network_id_of(&key_b()), 5);
         let seen = cache.seen();
         assert!(peers.iter().all(|p| seen.contains_key(&p.id)));
@@ -375,9 +376,10 @@ mod seeding_a_slot {
         let peers = invite_peers();
         let id = add_net_slot(&run, &key_b(), &[], &peers, 5).expect("add");
         let slot_file = net_slot_path(&dir.file(), &id).unwrap();
-        let cache_path = peers_cache_path_beside(&slot_file).unwrap();
-        std::fs::remove_file(&cache_path).unwrap();
-        std::fs::create_dir(&cache_path).unwrap();
+        let base = peers_cache_path_beside(&slot_file).unwrap();
+        let cache_file = network_cache_path(&base, &network_id_of(&key_b()));
+        std::fs::remove_file(&cache_file).unwrap();
+        std::fs::create_dir(&cache_file).unwrap();
         assert!(seed_peers_cache(&slot_file, &network_id_of(&key_b()), &peers, 6).is_err());
         assert_eq!(slot_key(&slot_file), Some(key_b()));
     }
