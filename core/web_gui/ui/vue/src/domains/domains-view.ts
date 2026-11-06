@@ -7,6 +7,7 @@ import {
   DOMAINS_CHECKING_ALL, DOMAINS_CHECK_ALL, DOMAINS_CHECK_ALL_CONFLICT, DOMAINS_NOTE_ANTIBOT, DOMAINS_NOTE_DNS_MISMATCH,
   DOMAINS_NOTE_DOWN, DOMAINS_NOTE_NETWORK_BLOCKED, DOMAINS_NOTE_OK, DOMAINS_NOTE_SITE_GEOBLOCK, DOMAINS_NOT_CHECKED,
   DOMAINS_PEER_FALLBACK, DOMAINS_UNKNOWN, DOMAINS_VERDICT_ANTIBOT, DOMAINS_VERDICT_DNS_MISMATCH, DOMAINS_VERDICT_DOWN,
+  DOMAINS_NOTE_HERE, DOMAINS_TITLE_HERE, DOMAINS_VERDICT_HERE,
   DOMAINS_VERDICT_NETWORK_BLOCKED, DOMAINS_VERDICT_OK, DOMAINS_VERDICT_SITE_GEOBLOCK, domainsCheckedAgoText, domainsUnknownCodeText,
 } from "./domains-texts.ts";
 import type { CheckInfo, DomainInfo, NodeState, PeerInfo, Verdict } from "../core/api-types.ts";
@@ -63,11 +64,12 @@ export const LEGEND: Array<{ cls: string; text: string; note: string }> = ([
   { verdict: "network_blocked", note: DOMAINS_NOTE_NETWORK_BLOCKED },
   { verdict: "site_geoblock", note: DOMAINS_NOTE_SITE_GEOBLOCK },
   { verdict: "antibot", note: DOMAINS_NOTE_ANTIBOT },
+  { verdict: "here", note: DOMAINS_NOTE_HERE },
   { verdict: "down", note: DOMAINS_NOTE_DOWN },
   { verdict: null, note: DOMAINS_NOT_CHECKED },
-] as Array<{ verdict: Verdict | null; note: string }>).map((e) => ({
-  cls: (e.verdict && VERDICT_BADGE[e.verdict]) || "badge-none",
-  text: (e.verdict && VERDICT_TEXT[e.verdict]) || NONE_TEXT,
+] as Array<{ verdict: Verdict | "here" | null; note: string }>).map((e) => ({
+  cls: (e.verdict === "here" ? VERDICT_BADGE.network_blocked : e.verdict && VERDICT_BADGE[e.verdict]) || "badge-none",
+  text: (e.verdict === "here" ? DOMAINS_VERDICT_HERE : e.verdict && VERDICT_TEXT[e.verdict]) || NONE_TEXT,
   note: e.note,
 }));
 
@@ -217,11 +219,19 @@ export function proxySlot(nets: SiteNet[], briefs: NetBrief[]): string {
   return (held || nets[0])?.slot ?? "main";
 }
 
+const HERE_MARK: VerdictView = { cls: VERDICT_BADGE.network_blocked, text: DOMAINS_VERDICT_HERE, title: DOMAINS_TITLE_HERE };
+
+// Some member (not you) of any network has "ok" for the site.
+function memberOk(d: MergedDomain, nets: SiteNet[]): boolean {
+  return nets.some((n) => n.peers.some((p) => d.byNet[n.slot]?.checks?.[p.id]?.verdict === "ok"));
+}
+
 // "For you" does not depend on the network: the first network that has a verdict for you.
 function youCell(d: MergedDomain, nets: SiteNet[]): DomainCell {
   const net = nets.find((n) => d.byNet[n.slot]?.checks?.[n.selfId] != null);
   const check = net ? d.byNet[net.slot].checks[net.selfId] : undefined;
-  return { key: "you", kind: "you", slot: net?.slot ?? "", peer: null, tail: "", checked: check !== undefined, mark: verdictView(check) };
+  const mark = check?.verdict === "down" && memberOk(d, nets) ? HERE_MARK : verdictView(check);
+  return { key: "you", kind: "you", slot: net?.slot ?? "", peer: null, tail: "", checked: check !== undefined, mark };
 }
 
 const NO_ROW_MARK: VerdictView = { cls: "badge-none", text: NONE_TEXT, title: "" };

@@ -138,7 +138,7 @@ describe("site checks", () => {
         expect(wrapper.find("#domain-add-input").exists()).toBe(true);
         expect(wrapper.find("#domain-add-btn").exists()).toBe(true);
         expect(wrapper.find("#domains-check-all-btn").exists()).toBe(true);
-        expect(wrapper.get("#domains-legend").findAll("li")).toHaveLength(7);
+        expect(wrapper.get("#domains-legend").findAll("li")).toHaveLength(8);
       });
     });
   });

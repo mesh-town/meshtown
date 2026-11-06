@@ -38,10 +38,10 @@ describe("DomainsSection", () => {
     expect(wrapper.get("tbody").text()).toContain("Exit via peer-one");
   });
 
-  it("legend — a list: badge = verdict text, seven items", () => {
+  it("legend — a list: badge = verdict text, eight items", () => {
     const { wrapper } = mountDomains();
     const items = wrapper.get("#domains-legend").findAll("li");
-    expect(items).toHaveLength(7);
+    expect(items).toHaveLength(8);
     expect(items[0].get(".badge").text()).toBe("opens");
     expect(items[2].text()).toContain("the ISP doesn't let you reach the site");
   });
