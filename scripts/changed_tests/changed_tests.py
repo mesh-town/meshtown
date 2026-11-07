@@ -325,7 +325,8 @@ def select(paths: list[str], src: Sources) -> Selection:
     return sel
 
 def _rust_parts(sel: Selection) -> list[str]:
-    parts = [f"(kind(lib) & test(/^{m}::/))" for m in sel.lib_modules]
+    # `(_tests)?`: a parent `mod.rs` may declare `x_tests.rs` as the sibling module `x_tests`, not `x::tests`.
+    parts = [f"(kind(lib) & test(/^{m}(_tests)?::/))" for m in sel.lib_modules]
     if sel.whole_bin:
         parts.append("kind(bin)")
     parts += [f"binary({x})" for x in sel.integration]
