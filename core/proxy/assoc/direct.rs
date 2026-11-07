@@ -5,11 +5,12 @@
 
 use std::future::pending;
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, UdpSocket as StdUdpSocket};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use tokio::net::UdpSocket;
 
+use crate::iface_bind::bind_udp_at;
 use crate::proxy::socks5::{Target, UdpPacket};
 use crate::site_checks::doh::is_fake_ip;
 
@@ -35,8 +36,9 @@ pub(crate) struct DirectRx {
 
 /// Opens the sockets; fails only if the IPv4 one cannot be bound.
 pub(crate) fn open_direct(cfg: &ProxyConfig) -> io::Result<(DirectTx, DirectRx)> {
-    let v4 = bind(IpAddr::V4(Ipv4Addr::UNSPECIFIED))?;
-    let v6 = bind(IpAddr::V6(Ipv6Addr::UNSPECIFIED)).ok();
+    let iface = cfg.direct_iface.current();
+    let v4 = bind(IpAddr::V4(Ipv4Addr::UNSPECIFIED), iface.as_deref())?;
+    let v6 = bind(IpAddr::V6(Ipv6Addr::UNSPECIFIED), iface.as_deref()).ok();
     let sockets = Arc::new(Sockets { v4, v6 });
     Ok((
         DirectTx {
@@ -47,8 +49,8 @@ pub(crate) fn open_direct(cfg: &ProxyConfig) -> io::Result<(DirectTx, DirectRx)>
     ))
 }
 
-fn bind(ip: IpAddr) -> io::Result<UdpSocket> {
-    let std_socket = StdUdpSocket::bind((ip, 0))?;
+fn bind(ip: IpAddr, iface: Option<&str>) -> io::Result<UdpSocket> {
+    let std_socket = bind_udp_at(SocketAddr::new(ip, 0), iface)?;
     std_socket.set_nonblocking(true)?;
     UdpSocket::from_std(std_socket)
 }

@@ -217,6 +217,7 @@ impl Fixture {
         )
         .expect("resolver with a stub address");
         ProxyConfig {
+            direct_iface: Default::default(),
             route: route_of(&self.node, path),
             stack: self.node.stack.clone(),
             pool: PeerConnPool::default(),

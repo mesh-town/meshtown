@@ -17,6 +17,7 @@ pub(super) fn proxy_config_of(route: &RouteCtx, net: &Net) -> ProxyConfig {
         resolver: net.resolver.clone(),
         host_overrides: net.exit_hosts.clone(),
         udp_slots: proxy::udp_slots(),
+        direct_iface: net.direct_iface.clone(),
     }
 }
 
