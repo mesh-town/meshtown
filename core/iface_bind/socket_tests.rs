@@ -223,3 +223,12 @@ fn echo(client: &UdpSocket, server: &UdpSocket, addr: SocketAddr) -> Vec<u8> {
     let (n, _) = client.recv_from(&mut buf).expect("client got no reply");
     buf[..n].to_vec()
 }
+
+#[test]
+fn bind_udp_at_keeps_port() {
+    let probe = UdpSocket::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+    let local = probe.local_addr().unwrap();
+    drop(probe);
+    let sock = bind_udp_at(local, None).unwrap();
+    assert_eq!(sock.local_addr().unwrap(), local);
+}

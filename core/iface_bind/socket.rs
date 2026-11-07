@@ -73,12 +73,17 @@ pub async fn connect_tcp(addr: SocketAddr, iface: Option<Arc<str>>) -> io::Resul
 /// Creates a UDP socket for talking to `dest`; with an interface name it is bound to it.
 /// The caller sets the non-blocking mode.
 pub fn bind_udp(dest: SocketAddr, iface: Option<&str>) -> io::Result<std::net::UdpSocket> {
-    let local = unspecified(dest.is_ipv6());
+    bind_udp_at(unspecified(dest.is_ipv6()), iface)
+}
+
+/// Creates a UDP socket bound to the local address `local`; with an interface name it is also
+/// bound to that interface. The caller sets the non-blocking mode.
+pub fn bind_udp_at(local: SocketAddr, iface: Option<&str>) -> io::Result<std::net::UdpSocket> {
     let Some(name) = iface else {
         return std::net::UdpSocket::bind(local);
     };
-    let sock = Socket::new(domain_of(&dest), Type::DGRAM, Some(Protocol::UDP))?;
-    os::bind_socket(&sock, name, dest.is_ipv6()).map_err(|e| bound_error(name, e))?;
+    let sock = Socket::new(domain_of(&local), Type::DGRAM, Some(Protocol::UDP))?;
+    os::bind_socket(&sock, name, local.is_ipv6()).map_err(|e| bound_error(name, e))?;
     sock.bind(&local.into())?;
     Ok(sock.into())
 }
