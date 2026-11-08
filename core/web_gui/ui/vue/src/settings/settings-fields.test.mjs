@@ -65,10 +65,15 @@ describe("fields", () => {
       const expert = EXPERT_FIELDS.map((f) => f.path);
       for (const p of expert) assert.equal(main.has(p), false, p + " in both lists");
       for (const p of ["checks.doh_server", "checks.provider_dns",
-        "probe.interval_sec", "log.ring_lines", "full_tunnel.enabled"]) {
+        "probe.interval_sec", "log.ring_lines"]) {
         assert.ok(expert.includes(p), p + " not in \"For specialists\"");
       }
     });
+  });
+
+  it("has no full_tunnel.enabled field", () => {
+    const all = [...MAIN_FIELDS, ...EXPERT_FIELDS].map((f) => f.path);
+    assert.equal(all.includes("full_tunnel.enabled"), false);
   });
 
   it("does not carry the retired transport fields", () => {

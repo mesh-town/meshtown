@@ -111,7 +111,7 @@ interface InvalidError extends ApiErrorBody {
   fields: FieldError[];
 }
 
-/** 422 `not_available`: turning on autostart or full tunnel — docs/WEB-API-config.md §1.7. */
+/** 422 `not_available`: turning on autostart — docs/WEB-API-config.md §1.7. */
 interface NotAvailableError extends ApiErrorBody {
   error: "not_available";
   fields: FieldError[];

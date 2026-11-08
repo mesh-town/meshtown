@@ -24,7 +24,7 @@ fn put_socks_port_out_of_range_is_invalid() {
 }
 
 #[test]
-fn put_autostart_enabled_is_not_available() {
+fn autostart_without_backend_is_still_not_available() {
     let dir = temp_dir();
     let mut state = new_state(&dir);
     let node = StubNode::new();
@@ -42,23 +42,31 @@ fn put_autostart_enabled_is_not_available() {
     cleanup(&dir);
 }
 
-#[test]
-fn put_full_tunnel_enabled_is_not_available() {
+/// Puts `config` on a fresh state; returns the status and the body.
+fn put_on_fresh_state(config: serde_json::Value) -> (StatusCode, serde_json::Value) {
     let dir = temp_dir();
     let mut state = new_state(&dir);
     let node = StubNode::new();
     let rev = state.file_report.rev;
-    let body = put_body(rev, serde_json::json!({"full_tunnel": {"enabled": true}}));
-    let resp = state.put(&body, &node);
-    let (status, v) = body_json(resp);
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert_eq!(v["error"], "not_available");
-    // The text does not mention TUN or a module number.
-    assert_eq!(
-        v["message"], "coming in a later version",
-        "the refusal text must not mention the TUN module, {v:?}"
-    );
+    let resp = state.put(&put_body(rev, config), &node);
+    let out = body_json(resp);
     cleanup(&dir);
+    out
+}
+
+#[test]
+fn put_with_full_tunnel_is_treated_as_any_unknown_key() {
+    // given: a retired key and a never-existing key at the same level
+    let (old_status, old_body) =
+        put_on_fresh_state(serde_json::json!({"full_tunnel": {"enabled": true}}));
+    let (other_status, other_body) =
+        put_on_fresh_state(serde_json::json!({"zzz_unknown": {"enabled": true}}));
+    // then: the outcome is the same and it is not `not_available`
+    assert_eq!(old_status, other_status);
+    assert_eq!(old_status, StatusCode::OK, "{old_body:?}");
+    assert_eq!(old_body["error"], other_body["error"]);
+    assert_eq!(old_body["changed"], other_body["changed"]);
+    assert_ne!(old_body["error"], "not_available", "{old_body:?}");
 }
 
 #[test]

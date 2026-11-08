@@ -16,7 +16,7 @@ mod all_changed_net {
         // when: rendered
         let sections = config_sections(&render(&net));
         // then: none of the process-only sections is written
-        for process_only in ["socks", "web", "log", "autostart", "full_tunnel"] {
+        for process_only in ["socks", "web", "log", "autostart"] {
             assert!(
                 !sections.contains(&process_only.to_string()),
                 "section {process_only} is in the slot file: {sections:?}"

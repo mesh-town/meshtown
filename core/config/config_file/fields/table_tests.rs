@@ -8,8 +8,8 @@ use std::collections::BTreeSet;
 fn paths_unique() {
     // given: the whole table
     let set: BTreeSet<&str> = FIELDS.iter().map(|f| f.field_path).collect();
-    // then: 41 rows, no repeats
-    assert_eq!(FIELDS.len(), 41);
+    // then: 38 rows, no repeats
+    assert_eq!(FIELDS.len(), 38);
     assert_eq!(set.len(), FIELDS.len(), "a path is repeated");
 }
 
@@ -29,7 +29,7 @@ fn sections_contiguous() {
             seen.push(f.section());
         }
     }
-    assert_eq!(seen.len(), 14);
+    assert_eq!(seen.len(), 13);
 }
 
 #[test]
@@ -52,8 +52,6 @@ fn computed_rows_read_only() {
         "network.masked",
         "autostart.available",
         "autostart.reason",
-        "full_tunnel.available",
-        "full_tunnel.reason",
     ];
     for path in computed {
         // then: the row exists and its mode is ReadOnly
@@ -105,9 +103,8 @@ fn all_changed_differs_in_every_row() {
 
 #[test]
 fn render_read_roundtrip() {
-    // given: `all_changed()` with `full_tunnel` turned off (parsing rejects `true`)
-    let mut s = crate::config::config_file::test_support::all_changed();
-    s.process.full_tunnel_enabled = false;
+    // given: `all_changed()`
+    let s = crate::config::config_file::test_support::all_changed();
     // when: render and parse
     let secret = crate::transport::net::NodeSecret::from_bytes(&[7; 32]);
     let text = crate::config::config_file::render_config_file(1, 0, &secret, &s);
@@ -234,16 +231,16 @@ mod proxy_net_row {
     }
 
     #[test]
-    fn adds_one_stored_row_to_the_six_computed_ones() {
+    fn adds_one_stored_row_to_the_four_computed_ones() {
         // given: the whole table
         // when: rows stored in `Settings` are counted (computed rows are not)
         let stored = FIELDS
             .iter()
             .filter(|f| f.value.is_stored_in_settings())
             .count();
-        // then: 35 stored paths, 6 computed, 41 rows in all
-        assert_eq!(stored, 35, "stored rows");
-        assert_eq!(FIELDS.len() - stored, 6, "computed rows");
+        // then: 34 stored paths, 4 computed, 38 rows in all
+        assert_eq!(stored, 34, "stored rows");
+        assert_eq!(FIELDS.len() - stored, 4, "computed rows");
     }
 }
 
@@ -289,7 +286,7 @@ mod blocks {
             // given: the sections of the `Net` block
             let sections = section_names_of(Block::Net);
             // then: none of the process-only sections is among them
-            for process_only in ["socks", "web", "log", "autostart", "full_tunnel"] {
+            for process_only in ["socks", "web", "log", "autostart"] {
                 assert!(
                     !sections.contains(&process_only),
                     "section {process_only} leaked into the net block: {sections:?}"
@@ -350,7 +347,6 @@ mod blocks {
                 ("network.label", Block::Net),
                 ("network.masked", Block::Net),
                 ("autostart.available", Block::Process),
-                ("full_tunnel.reason", Block::Process),
             ];
             for (path, want) in cases {
                 // then: the row names its block

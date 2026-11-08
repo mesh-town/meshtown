@@ -357,7 +357,6 @@ function ctx({ config, meta, state = null, draft = {}, errors = {} }) {
       web: { enabled: true, port: 7777 },
       socks: { enabled: true, port: 1080 },
       autostart: { available: true, reason: "", enabled: false },
-      full_tunnel: { available: true, reason: "", enabled: false },
     },
     meta: meta || meta_(),
     state,

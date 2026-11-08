@@ -81,25 +81,6 @@ fn number_in<T: TryFrom<u64> + PartialOrd>(v: &Value, min: &T, max: &T) -> Optio
         .filter(|n| n >= min && n <= max)
 }
 
-/// `full_tunnel.enabled`: cannot be turned on (`true`) for now.
-pub(crate) struct OffOnly;
-
-impl Kind<bool> for OffOnly {
-    fn to_json(&self, v: &bool) -> Option<Value> {
-        Some(Value::from(*v))
-    }
-
-    fn parse(&self, v: &Value) -> Option<bool> {
-        (v.as_bool() == Some(false)).then_some(false)
-    }
-    fn expected(&self) -> String {
-        "false (enabling is unavailable in this build)".to_string()
-    }
-    fn default_text(&self, d: &bool) -> String {
-        d.to_string()
-    }
-}
-
 /// An `address:port` string.
 pub(crate) struct Addr;
 

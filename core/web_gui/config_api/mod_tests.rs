@@ -145,6 +145,17 @@ fn document_without_key() {
 }
 
 #[test]
+fn state_has_no_full_tunnel_section() {
+    let dir = temp_dir();
+    let state = new_state(&dir);
+    let doc = state.page_config_document();
+    assert!(doc.get("full_tunnel").is_none(), "{doc:?}");
+    assert!(doc["autostart"].get("available").is_some());
+    assert!(doc["autostart"].get("reason").is_some());
+    cleanup(&dir);
+}
+
+#[test]
 fn document_with_key_masks_tail_and_hides_it() {
     let dir = temp_dir();
     let mut state = new_state(&dir);

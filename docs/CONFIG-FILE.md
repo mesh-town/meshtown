@@ -238,13 +238,11 @@ An old `transport.mode` key is still accepted and ignored. The log shows `deprec
 - **`saved_at`** is UTC, ISO-8601, for humans only; the node does not parse it.
 - **"Read only" is about the page, not the file.** The node computes these fields and does not store them:
   `network.label` and `network.masked` (from the network key), `autostart.available` and `autostart.reason`
-  (build and system state), `full_tunnel.available` and `full_tunnel.reason` (build flags). On write they are not
+  (build and system state). On write they are not
   saved; on read they are silently ignored, so "read only" never rejects a document.
 - **`web.enabled` is in `read_only` but stored in the file.** The page does not change it (a page that turned
   itself off could not turn itself back on), yet it is a setting. It has no flag: edit the file by hand while the
   node is stopped. Dropping it on write is not allowed: a node without a screen on a router is configured this way.
-- **`full_tunnel.enabled` is in the file** (a setting, not a build flag). While `available: false`, enabling is
-  rejected with the code `not_available`, and only `false` gets into the file.
 - **`autostart.enabled` is in the file and accepts `true`.** It stores the last choice made on the page. The file
   value alone never creates or removes the login entry; only a save from the page does. The page shows the value
   read from the system.
@@ -493,8 +491,7 @@ folder without `config.json`. The node reads `nets/` at startup, only when the m
 - **Only network settings.** `config` holds the network rows (network key, node name, transport, exit, routes,
   ports, checks, domains and the like) and nothing else. Every slot has its own identity secret and its own
   files beside it (peer cache, peer names, replica).
-- **Process keys are ignored.** `exit.max_streams`, `exit.stream_window_kib`, `socks.*`, `proxy.*`, `web.*`, `log.*`, `node.memory_*`, `autostart.*` and
-  `full_tunnel.*` always come from the main file. If such keys are found in a slot file (for example a copy of
+- **Process keys are ignored.** `exit.max_streams`, `exit.stream_window_kib`, `socks.*`, `proxy.*`, `web.*`, `log.*`, `node.memory_*` and `autostart.*` always come from the main file. If such keys are found in a slot file (for example a copy of
   the main file) they are not an error: one log line names them, and they disappear on the next write.
 - **Command-line flags** that belong to a network (`--key`, `--exit` and the like) apply to the main network only;
   the flags that belong to the process (SOCKS, the page port) are shared by all slots.

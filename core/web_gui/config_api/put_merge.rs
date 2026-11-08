@@ -9,10 +9,10 @@ use crate::config::config_file::{self, fields, ParsedConfigFile, Settings};
 
 use super::autostart::autostart_view;
 use super::state::ConfigState;
-use super::support::{field_entry, get_path, json_response, FULL_TUNNEL_REASON};
+use super::support::{field_entry, get_path, json_response};
 
 /// Step 6: the request patch is laid over the current document; read-only sections (`network`, `web`,
-/// the service fields `autostart`/`full_tunnel`) are returned to the values from the file — whatever the client
+/// the service fields `autostart`) are returned to the values from the file — whatever the client
 /// sent there; `node.name` is normalized separately (`put_name::normalize_node_name`):
 /// `null` is removed, a string empty after `trim` becomes a random name.
 pub(super) fn merge_with_config(state: &ConfigState, config_in: &Value) -> Value {
@@ -37,11 +37,9 @@ pub(super) fn merge_with_config(state: &ConfigState, config_in: &Value) -> Value
             "ifaces": ifaces,
         }),
     );
-    for section in ["autostart", "full_tunnel"] {
-        if let Some(sec) = mobj.get_mut(section).and_then(Value::as_object_mut) {
-            sec.remove("available");
-            sec.remove("reason");
-        }
+    if let Some(sec) = mobj.get_mut("autostart").and_then(Value::as_object_mut) {
+        sec.remove("available");
+        sec.remove("reason");
     }
     super::put_name::normalize_node_name(&mut merged);
     merged
@@ -63,7 +61,7 @@ fn merged_web_ifaces(mobj: &serde_json::Map<String, Value>, state: &ConfigState)
     }
 }
 
-/// Step 7: `autostart.enabled` without a backend and `full_tunnel.enabled` are unavailable in this build.
+/// Step 7: `autostart.enabled` without a backend is unavailable in this build.
 pub(super) fn reject_unavailable_fields(
     state: &ConfigState,
     merged: &Value,
@@ -75,12 +73,6 @@ pub(super) fn reject_unavailable_fields(
         && !autostart_view(state.autostart).available
     {
         blocked.push(("autostart.enabled", autostart_view(state.autostart).reason));
-    }
-    if get_path(merged, "full_tunnel.enabled")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-    {
-        blocked.push(("full_tunnel.enabled", FULL_TUNNEL_REASON.to_string()));
     }
     if blocked.is_empty() {
         return Ok(());

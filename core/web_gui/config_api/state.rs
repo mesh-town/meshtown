@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::config::config_file::{self, fields, FileReport, RunConfig, Settings, SettingsFile};
 
 use super::autostart::{autostart_view, fill_autostart};
-use super::support::{field_entry, get_path, json_response, FULL_TUNNEL_REASON};
+use super::support::{field_entry, get_path, json_response};
 
 pub struct ConfigState {
     pub file: Option<Arc<dyn SettingsFile>>, // settings file; None — the node runs without a file
@@ -67,7 +67,7 @@ impl ConfigState {
     }
 
     /// Adds the fields only the page shows: `network`, an explicit `node.name`, and the unavailable
-    /// `autostart` / `full_tunnel` sections.
+    /// `autostart` section.
     fn add_page_fields(&self, doc: &mut Value) {
         let Some(obj) = doc.as_object_mut() else {
             return;
@@ -83,13 +83,6 @@ impl ConfigState {
         }
         if let Some(sec) = obj.get_mut("autostart").and_then(Value::as_object_mut) {
             fill_autostart(sec, &autostart_view(self.autostart));
-        }
-        if let Some(sec) = obj.get_mut("full_tunnel").and_then(Value::as_object_mut) {
-            sec.insert("available".to_string(), Value::Bool(false));
-            sec.insert(
-                "reason".to_string(),
-                Value::String(FULL_TUNNEL_REASON.to_string()),
-            );
         }
     }
 

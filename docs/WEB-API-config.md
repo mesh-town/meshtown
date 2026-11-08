@@ -11,7 +11,7 @@ Part 2 of 4. A continuation of section "1. HTTP API contract" (subsections 1.6�
 For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
 
 - The process fields (`exit.max_streams`, `exit.stream_window_kib`, `socks.*`, `web.*`, `log.*`, `node.memory_*`,
-  `autostart.*`, `full_tunnel.*`) show the primary network's values and are listed in `read_only`.
+  `autostart.*`) show the primary network's values and are listed in `read_only`.
 - `cli_overrides` lists the network fields set by launch flags (every flag except `--key` applies to added
   networks too).
 - A `PUT` leaves the process fields as they are, without an error, and writes only the network fields to the
@@ -23,8 +23,7 @@ For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
   "config": { "…": "see section 2" },
   "read_only": [
     "network.label", "network.masked", "web.port", "web.enabled",
-    "autostart.available", "autostart.reason",
-    "full_tunnel.available", "full_tunnel.reason"
+    "autostart.available", "autostart.reason"
   ],
   "restart_fields": [
     "net.relay", "socks.enabled", "socks.port",
@@ -51,7 +50,6 @@ For an added network (`/api/net/{slot}/config`, see 1.11 in `WEB-API.md`):
   - `web.port` is not listed. It would need a restart, but it is in `read_only` and cannot be changed from the
     page, so a row would be dead. It will appear when the field becomes editable.
   - `net.relay` is listed: a save through the API writes it to the file, and the node reads it only at start.
-  - `full_tunnel.enabled` is not listed: turning it on is rejected with the `not_available` code.
   - `autostart.enabled` is not listed: the save itself creates or removes the login entry, so no restart is needed.
     Flipping the switch on the page changes nothing until the user presses Save.
 - `restart_pending` — fields that are saved but not yet applied (the node has not restarted). The page shows a
@@ -192,7 +190,6 @@ The errors in `fields` follow the file's field order. The error text is:
   - `exit.interface` — "an interface name (1–64 bytes, no control characters) or null — any network"
   - `web.access` — "localhost or localnet"
   - `autostart.enabled` with a wrong type — "true or false"
-  - `full_tunnel.enabled` with a wrong type — "false (enabling is not available in this build)"
 - for non-editable paths, the raw file parse message; `version` — "only version 1 is supported"; a path without
   a dot — "an object was expected".
 
@@ -386,9 +383,7 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
   "ports":     { "published": [], "opened": [] },
   "web":       { "enabled": true, "port": 7777, "access": "localnet" },
   "log":       { "ring_lines": 2000 },
-  "autostart": { "enabled": false, "available": true, "reason": "" },
-  "full_tunnel": { "enabled": false, "available": false,
-                 "reason": "will appear together with TUN" }
+  "autostart": { "enabled": false, "available": true, "reason": "" }
 }
 ```
 
@@ -422,12 +417,8 @@ The whole `config` document. Units are seconds and bytes, with no human strings.
 | `autostart.enabled` | boolean | `false` | `true` turns on start at login (creates the current user's login entry), `false` removes it; the value shown is read from the system. `true` with `available: false` → 422 `not_available`; if the system refuses → 422 `not_available` with the text in `fields[].message` | no (applied by the save) | — | "Settings", the switch |
 | `autostart.available` | boolean | `false` | read-only | — | — | `false` without the tray build or when the login entry cannot be read; controls the switch's gray look |
 | `autostart.reason` | string | "" when available, otherwise "only in the desktop app with the tray icon" or "could not read the login entry: <error>" | read-only | — | — | caption under the switch |
-| `full_tunnel.enabled` | boolean | `false` | as for `autostart.enabled` | — (cannot be enabled) | — | "Settings", the switch is gray |
-| `full_tunnel.available` | boolean | `false` | read-only | — | — | gray look |
-| `full_tunnel.reason` | string | "will appear together with TUN" | read-only | — | the same | caption |
 
-`full_tunnel.enabled` is stored in the file (a user may set it in advance). `full_tunnel.available`,
-`full_tunnel.reason`, `autostart.available` and `autostart.reason` are not: the node fills them on every start.
+`autostart.available` and `autostart.reason` are not stored: the node fills them on every start.
 
 `autostart.enabled` is stored in the file only as a mirror of the last choice made on the page. The file does not
 manage the login entry: the node never creates or removes it from the file value, only on a save from the page. The

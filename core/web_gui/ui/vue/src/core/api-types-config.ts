@@ -25,7 +25,6 @@ export interface ConfigDocument {
   web: { enabled: boolean; port: number; access: "localhost" | "localnet"; ifaces: string[] }; // access and ifaces are editable, port and enabled are read-only
   log: { ring_lines: number };
   autostart: UnavailableFeature;
-  full_tunnel: UnavailableFeature;
 }
 
 /** `config.network`: without the key — empty strings, the whole key is never in the document. */
@@ -50,7 +49,7 @@ export interface OpenedPortConfig {
   local: number;
 }
 
-/** `autostart`/`full_tunnel`: `available` and `reason` are inserted by the node, they are not in the file. */
+/** `autostart`: `available` and `reason` are inserted by the node, they are not in the file. */
 export interface UnavailableFeature {
   enabled: boolean;
   available: boolean;

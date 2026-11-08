@@ -10,7 +10,7 @@ import {
   SETTINGS_EVERY_5_MIN, SETTINGS_EVERY_6_HOURS, SETTINGS_EVERY_HOUR, SETTINGS_EVERY_MINUTE,
   SETTINGS_PLACEHOLDER_NOT_SET, SETTINGS_SOCKS_LOCALHOST, SETTINGS_SOCKS_LOCALNET,
   SETTINGS_TITLE_AUTOSTART, SETTINGS_TITLE_CHECKS_ENABLED, SETTINGS_TITLE_CHECKS_INTERVAL, SETTINGS_TITLE_DOH_SERVER,
-  SETTINGS_TITLE_FULL_TUNNEL, SETTINGS_TITLE_LOG_RING, SETTINGS_TITLE_PROBE_INTERVAL, SETTINGS_TITLE_PROVIDER_DNS,
+  SETTINGS_TITLE_LOG_RING, SETTINGS_TITLE_PROBE_INTERVAL, SETTINGS_TITLE_PROVIDER_DNS,
   SETTINGS_TITLE_SOCKS_ACCESS, SETTINGS_TITLE_SOCKS_ENABLED, SETTINGS_TITLE_SOCKS_PORT, SETTINGS_TITLE_SOCKS_STRICT, SETTINGS_TITLE_WEB_ACCESS,
   SETTINGS_TITLE_WEB_ENABLED, SETTINGS_TITLE_WEB_PORT, SETTINGS_WEB_LOCALHOST, SETTINGS_WEB_LOCALNET, settingsFileValueText,
 } from "./settings-texts.ts";
@@ -65,7 +65,7 @@ export const WEB_ACCESS_OPTIONS: readonly SelectOption[] = [
 ];
 
 // The field is disabled while the platform can't do it: the reason comes from the config itself.
-function availability(section: "autostart" | "full_tunnel"): (config: ConfigDocument | null | undefined) => FieldLock {
+function availability(section: "autostart"): (config: ConfigDocument | null | undefined) => FieldLock {
   return (config) => {
     const node: Partial<UnavailableFeature> = (config && config[section]) || {};
     return { disabled: !node.available, reason: node.reason };
@@ -121,7 +121,6 @@ export const EXPERT_FIELDS: readonly Field[] = [
     title: SETTINGS_TITLE_LOG_RING,
     desc: SETTINGS_DESC_LOG_RING,
   },
-  { path: "full_tunnel.enabled", kind: "toggle", title: SETTINGS_TITLE_FULL_TUNNEL, disabledBy: availability("full_tunnel") },
 ];
 
 export const PAGE_FIELDS: readonly Field[] = [
