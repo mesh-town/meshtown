@@ -9,6 +9,7 @@ import {
 import type { MergedDomain, SiteNet } from "./domains-view.ts";
 import { exitPath, siteSummary, viaHead } from "./domains-summary.ts";
 import SiteMembers from "./SiteMembers.vue";
+import SiteOthers from "./SiteOthers.vue";
 import SiteResult from "./SiteResult.vue";
 
 const props = withDefaults(
@@ -33,7 +34,7 @@ const disabled = computed(() => props.busy || props.domain.checking);
     <div class="mono domain-card-name">{{ domain.name }}</div>
     <div class="domain-card-result">{{ head }}: <SiteResult :sum="sum" /></div>
     <div v-if="showOthers" class="domain-card-others">
-      <span class="hint">{{ sum.others }}</span>
+      <SiteOthers :others="sum.others" :open="open" @toggle="open = !open" />
       <button v-if="sum.button" type="button" class="btn btn-sm" :title="domainsAllSitesViaText(sum.button.name)" @click="emit('exit-via', sum.button.idFull)">{{ exitViaText(sum.button.name) }}</button>
     </div>
     <div class="domain-card-foot">

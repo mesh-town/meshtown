@@ -33,6 +33,7 @@
     .domain-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0;}
     .domain-card-name{min-width:0;font-weight:700;overflow-wrap:anywhere;}
     .domain-card-result{margin-top:2px;overflow-wrap:anywhere;}
+    .domain-card-others .site-more{display:inline-block;padding:4px 2px;}
     .domain-card-others{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:4px;}
     .domain-card-foot{display:flex;flex-wrap:wrap;gap:0 8px;margin:4px -6px 0;}
     .btn-x.btn-text{font-size:13px;color:var(--accent);padding:4px 6px;white-space:nowrap;text-decoration:underline;}

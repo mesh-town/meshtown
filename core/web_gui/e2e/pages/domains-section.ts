@@ -12,7 +12,7 @@ export class DomainsSection {
   readonly checkAllButton: Locator;
   /**
    * The "Recheck" button of the table's first row. Its accessible name is "Recheck <site>"
-   * (`aria-label`, the visible content is "⟳"); there are several rows with such a button, and `first()`
+   * (`aria-label`, the visible content is an svg glyph); there are several rows with such a button, and `first()`
    * is deliberate: it takes a sample.
    */
   readonly rowRecheckButton: Locator;

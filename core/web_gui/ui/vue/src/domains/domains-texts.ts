@@ -54,12 +54,22 @@ export function domainsViaHeadText(name: string): string {
   return "Via " + name;
 }
 
-export function domainsOpensViaText(name: string, more: number): string {
-  return "opens via " + name + (more > 0 ? " and " + more + " more" : "");
+/** The "Other exits" line in two parts: plain text (`lead`) and the clickable counter (`more`, may be empty). */
+export interface OthersText {
+  lead: string;
+  more: string;
 }
 
-export function domainsAlsoViaText(n: number): string {
-  return n > 0 ? "also via " + n + " more" : "\u2014";
+export function domainsMoreText(n: number): string {
+  return n + " more";
+}
+
+export function domainsOpensViaText(name: string, more: number): OthersText {
+  return more > 0 ? { lead: "opens via " + name + " and", more: domainsMoreText(more) } : { lead: "opens via " + name, more: "" };
+}
+
+export function domainsAlsoViaText(n: number): OthersText {
+  return n > 0 ? { lead: "also via", more: domainsMoreText(n) } : { lead: "\u2014", more: "" };
 }
 
 export const DOMAINS_ALT_NONE = "no other exit opens it";
