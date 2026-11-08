@@ -28,7 +28,6 @@ export const DOMAINS_VERDICT_HERE = "doesn't open from here";
 export const DOMAINS_NOTE_HERE = "the site opens for a member but not for you";
 export const DOMAINS_TITLE_HERE = "The site answers other members but not you: your provider or the site itself blocks your connection.";
 
-export const DOMAINS_PEER_FALLBACK = "member";
 export const DOMAINS_CHECKING_ALL = "Checking…";
 export const DOMAINS_CHECK_ALL = "Check all";
 export const DOMAINS_CHECK_ALL_CONFLICT = "A check is already running — the results will appear in the table.";
@@ -47,6 +46,29 @@ export const DOMAINS_ADD = "Add";
 export const DOMAINS_TABLE_LABEL = "Site checks";
 export const DOMAINS_COL_SITE = "Site";
 export const DOMAINS_COL_YOU = "For you";
+export const DOMAINS_COL_YOU_SUB = "no exit chosen";
+export const DOMAINS_COL_VIA_SUB = "your exit";
+export const DOMAINS_COL_OTHERS = "Other exits";
+
+export function domainsViaHeadText(name: string): string {
+  return "Via " + name;
+}
+
+export function domainsOpensViaText(name: string, more: number): string {
+  return "opens via " + name + (more > 0 ? " and " + more + " more" : "");
+}
+
+export function domainsAlsoViaText(n: number): string {
+  return n > 0 ? "also via " + n + " more" : "\u2014";
+}
+
+export const DOMAINS_ALT_NONE = "no other exit opens it";
+export const DOMAINS_ALT_UNCHECKED = "other exits not checked yet";
+export const DOMAINS_EXIT_OFFLINE = "your exit is offline";
+export const DOMAINS_EXIT_NOT_SHARING = "your exit stopped sharing internet";
+export const DOMAINS_DETAILS = "Details";
+export const DOMAINS_DETAILS_HIDE = "Hide";
+export const DOMAINS_ROW_DIRECT = "This computer, directly";
 export const DOMAINS_EMPTY = "No sites yet — enter an address above and click \"Add\"";
 export const DOMAINS_HINT_INTRO = "This computer checks each site itself and through every online member who shares their internet (exit on).";
 export const DOMAINS_NO_EXIT = "No member shares their internet yet \u2014 sites are checked only from your connection.";
@@ -55,7 +77,6 @@ export const DOMAINS_HINT_LOCAL = "The site list is stored only on this computer
 export const DOMAINS_HINT_LOCAL_NETS = "The site list is stored only on this computer: members of your networks can\u2019t see or change it.";
 
 export const DOMAINS_CHECKING_ROW = "checking…";
-export const DOMAINS_CHOSEN_PREFIX = "✓ Your exit:";
 export const DOMAINS_RECHECK = "Check again";
 export const DOMAINS_REMOVE = "Remove";
 export const DOMAINS_YOUR_EXIT = "✓ Your exit";

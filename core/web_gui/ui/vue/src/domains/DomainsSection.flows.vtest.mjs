@@ -55,22 +55,20 @@ describe("domains you column legend", () => {
     const wrapper = await openDomains(node);
     const heads = wrapper.findAll("#domains-head-row th").map((h) => h.text());
     expect(heads[0]).toBe("Site");
-    expect(heads[1]).toBe("For you");
-    const peerHead = wrapper.findAll("#domains-head-row th")[2];
-    expect(peerHead.find("br").exists()).toBe(true);
-    expect(peerHead.get(".peer-code").text()).toBe(peerHead.attributes("title"));
+    expect(heads[1]).toBe("For youno exit chosen");
+    expect(heads[2]).toBe("Other exits");
 
     const legend = wrapper.get("#domains-legend");
     expect(shown(legend.element)).toBe(true);
     expect(legend.findAll("li")).toHaveLength(8);
 
     expect(recheckButton(wrapper)).toBeTruthy();
-    expect(firstRow(wrapper).findAll("td")[1].text()).toBe("—");
+    expect(firstRow(wrapper).findAll("td")[1].text()).toContain("not checked yet");
     await checkAllButton(wrapper).trigger("click");
     await polls(node, 1);
     expect(node.count("POST", "/api/actions/check-all")).toBe(1);
     expect(checkAllButton(wrapper).text()).toBe("Check all");
-    expect(firstRow(wrapper).findAll("td")[1].text()).not.toBe("—");
+    expect(firstRow(wrapper).findAll("td")[1].text()).not.toContain("not checked yet");
   });
 });
 
@@ -83,7 +81,6 @@ describe("domains open via peer", () => {
 
     await button.trigger("click");
     await settle();
-    expect(firstRow(wrapper).text()).toContain("✓ Your exit:");
     expect(node.config.route.exits).toEqual([DEMO_PEER_ONE.id_full]);
   });
 });

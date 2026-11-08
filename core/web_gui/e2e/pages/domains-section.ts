@@ -5,7 +5,7 @@ import { lastState } from './ready';
 
 /** The "Site checks" section: the header of the domain table. */
 export class DomainsSection {
-  /** Returns the header cells of the active (visible) tab: "Site", "For you", one column per member (without a name — "member <id>"), and an empty one for actions. */
+  /** Returns the header cells of the active (visible) tab: "Site", the browser path ("Via <name>" / "For you" with a second line), "Other exits" (only when some member shares internet), and an empty one for actions. */
   readonly headers: Locator;
 
   /** The regular "Check all" page button — the size reference. */
@@ -63,10 +63,14 @@ export class DomainsSection {
    * from `AppShell.open`; a separate request could diverge from it — the demo node is live).
    */
   expectedHeaders(): string[] {
-    const peers = lastState(this.page).peers ?? [];
-    // A member column header is the name (without a name — "member") and the id on the line below.
-    const labels = peers.filter((p) => !p.self).map((p) => `${p.name?.trim() || 'member'} ${p.id}`);
-    return [GLOSSARY.siteColumn, GLOSSARY.youColumn, ...labels, ''];
+    const state = lastState(this.page);
+    const exits = state.route?.exits ?? [];
+    const shown = exits.find((e) => e.active) ?? exits[0];
+    // The name of a chosen exit without a name is "member <id>", as in the status line.
+    const name = shown ? shown.name?.trim() || `member ${shown.id}` : '';
+    const path = shown ? `Via ${name} ${GLOSSARY.viaColumnSub}` : `${GLOSSARY.youColumn} ${GLOSSARY.youColumnSub}`;
+    const others = (state.peers ?? []).some((p) => !p.self && p.exit === true) ? [GLOSSARY.othersColumn] : [];
+    return [GLOSSARY.siteColumn, path, ...others, ''];
   }
 
   /** The table header matched the page snapshot: polling until the next response catches up with the rendering. */

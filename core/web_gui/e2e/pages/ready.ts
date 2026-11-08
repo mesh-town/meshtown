@@ -3,7 +3,8 @@ import { expect, type Page } from '@playwright/test';
 const READY_TIMEOUT_MS = 10000;
 
 interface StateBody {
-  peers?: { id?: string; name?: string; self?: boolean }[];
+  peers?: { id?: string; name?: string; self?: boolean; exit?: boolean | null }[];
+  route?: { exits?: { id?: string; name?: string | null; active?: boolean }[] };
 }
 
 const lastBodies = new WeakMap<Page, StateBody>();

@@ -63,9 +63,9 @@ describe("DomainsSection exit button with two networks", () => {
     expect(puts(node)[0].body.config.route.exits).toEqual([FULL_A]);
   });
 
-  it("the exit chosen in B is marked on the Sites row while A leads", async () => {
+  it("the exit chosen in B heads the Sites column while A leads", async () => {
     const { wrapper } = await setup({ proxy: NET_B, exitsB: [FULL_B] });
-    expect(wrapper.get("#domains-tbody").text()).toContain("✓ Your exit");
+    expect(wrapper.get("#domains-head-row").text()).toContain("Via phone");
     expect(exitButton(wrapper)).toBeUndefined();
   });
 
