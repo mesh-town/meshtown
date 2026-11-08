@@ -46,6 +46,16 @@ export function exitPath(nets: SiteNet[], proxy: string, exits: ChosenExit[]): E
   return pathOf(exits[0], peers, exits[0].online === false ? "offline" : "not-sharing");
 }
 
+/** The name of the member behind `idFull`, as the buttons show it; the proxy network is searched first. */
+export function exitMemberName(nets: SiteNet[], proxy: string, idFull: string): string {
+  const ordered = [...nets.filter((n) => n.slot === proxy), ...nets.filter((n) => n.slot !== proxy)];
+  for (const net of ordered) {
+    const peer = net.peers.find((p) => p.id_full === idFull);
+    if (peer) return peerLabel(peer, true, net.peers);
+  }
+  return idFull;
+}
+
 /** The header of the first column: `Via NAME` + `your exit`, or `For you` + `no exit chosen`. */
 export function viaHead(path: ExitPath): { text: string; sub: string } {
   if (path.state === "direct") return { text: DOMAINS_COL_YOU, sub: DOMAINS_COL_YOU_SUB };

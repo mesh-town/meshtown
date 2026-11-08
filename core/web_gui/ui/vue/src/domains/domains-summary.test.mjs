@@ -30,7 +30,7 @@ describe("siteSummary", () => {
   it("active exit blocked, an alternative in the proxy network — a button on it", () => {
     const s = siteSummary(site({ main: { me: bad(), aa: bad(), bb: ok() } }), [net("main", [a, b])], "main", [via(a)]);
     assert.equal(s.kind, "blocked");
-    assert.equal(s.mark.text, "blocked by ISP");
+    assert.equal(s.mark.text, "blocked by provider");
     assert.equal(s.others, "opens via exit-bb");
     assert.deepEqual(s.button, { idFull: "bb-full", name: "exit-bb" });
   });

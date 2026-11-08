@@ -39,7 +39,7 @@ describe("domains hint own list", () => {
     const text = wrapper.get("#sec-domains").text().trim();
     expect(text.length).toBeGreaterThan(0);
     expect(text.includes("shared")).toBe(false);
-    expect(text.includes("only on this computer")).toBe(true);
+    expect(text.includes("stays on this computer")).toBe(true);
   });
 });
 
@@ -62,6 +62,7 @@ describe("domains you column legend", () => {
     const legend = wrapper.get("#domains-legend");
     expect(shown(legend.element)).toBe(true);
     expect(legend.findAll("li")).toHaveLength(8);
+    expect(legend.attributes("open")).toBeUndefined();
 
     expect(recheckButton(wrapper)).toBeTruthy();
     expect(firstRow(wrapper).findAll("td")[1].text()).toContain("not checked yet");
@@ -83,6 +84,28 @@ describe("domains open via peer", () => {
     await button.trigger("click");
     await settle();
     expect(node.config.route.exits).toEqual([DEMO_PEER_ONE.id_full]);
+    expect(wrapper.get("#domains-exit-status").text()).toBe("Done \u2014 sites now open via " + DEMO_PEER_ONE.name + ".");
+  });
+
+  it("the server refuses — the error text, no \"Done\"", async () => {
+    const node = makeNode(openViaState(), { "PUT /api/config": () => ({ status: 422, body: { error: "invalid", message: "Not allowed" } }) });
+    const wrapper = await openDomains(node);
+    const button = firstRow(wrapper).findAll("button").find((b) => /^Exit via /.test(b.text()));
+    await button.trigger("click");
+    await settle();
+    const text = wrapper.get("#domains-exit-status").text();
+    expect(text).not.toContain("Done");
+    expect(text.length).toBeGreaterThan(0);
+  });
+
+  it("\"Use as exit\" in Details gives the same status", async () => {
+    const node = makeNode(openViaState());
+    const wrapper = await openDomains(node);
+    await firstRow(wrapper).findAll("button").find((b) => b.text() === "Details").trigger("click");
+    const use = wrapper.get(".site-members").findAll("button").find((b) => b.text() === "Use as exit");
+    await use.trigger("click");
+    await settle();
+    expect(wrapper.get("#domains-exit-status").text()).toBe("Done \u2014 sites now open via " + DEMO_PEER_ONE.name + ".");
   });
 });
 

@@ -61,13 +61,13 @@ describe("DomainsSection with two networks", () => {
       const rows = wrapper.findAll(".site-member").map((r) => r.text().replace(/\s+/g, " "));
       expect(rows).toHaveLength(4);
       expect(rows[0]).toContain("This computer, directly");
-      expect(rows[0]).toContain("blocked by ISP");
+      expect(rows[0]).toContain("blocked by provider");
       expect(rows[1]).toContain("(friends)");
       expect(rows[1]).toContain("opens");
       expect(rows[2]).toContain("(friends)");
       expect(rows[2]).toContain("site is down");
       expect(rows[3]).toContain("(my devices)");
-      expect(rows[3]).toContain("blocked as a bot");
+      expect(rows[3]).toContain("robot check");
     });
 
     it("takes \"For you\" from the first network where the site has a mark", async () => {
@@ -87,9 +87,9 @@ describe("DomainsSection with two networks", () => {
   });
 
   describe("the footer", () => {
-    it("says the list is stored only on this computer and members of the networks can't see it", async () => {
+    it("says the list stays on this computer and other members can't see it", async () => {
       const { wrapper } = await setup();
-      expect(wrapper.get("#sec-domains").text()).toContain("The site list is stored only on this computer: members of your networks");
+      expect(wrapper.get("#sec-domains").text()).toContain("The site list stays on this computer; other members can't see it.");
     });
   });
 
@@ -199,7 +199,7 @@ describe("DomainsSection with one network", () => {
     expect(node.calls.filter((c) => c.method === "POST" && c.path.endsWith("/domains")).map((c) => c.path)).toEqual([DOMAINS_A]);
     expect(node.calls.some((c) => c.path.startsWith("/api/net/")), "no request to a network address").toBe(false);
     expect(wrapper.get("#domains-head-row").text()).not.toContain("friends");
-    expect(wrapper.get("#sec-domains").text()).toContain("other members can't see or change it");
+    expect(wrapper.get("#sec-domains").text()).toContain("other members can't see it");
   });
 });
 
