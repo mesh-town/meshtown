@@ -9,6 +9,8 @@ import {
 import type { MergedDomain, SiteNet } from "./domains-view.ts";
 import { exitPath, siteSummary } from "./domains-summary.ts";
 import SiteMembers from "./SiteMembers.vue";
+import SiteIcon from "./SiteIcon.vue";
+import SiteOthers from "./SiteOthers.vue";
 import SiteResult from "./SiteResult.vue";
 
 const props = withDefaults(
@@ -43,13 +45,13 @@ const cols = computed(() => (props.showOthers ? 4 : 3));
       <SiteResult :sum="sum" />
     </td>
     <td v-if="showOthers" class="domain-others">
-      <span class="hint">{{ sum.others }}</span>
+      <SiteOthers :others="sum.others" :open="open" @toggle="open = !open" />
       <button v-if="sum.button" type="button" class="btn btn-sm" :title="domainsAllSitesViaText(sum.button.name)" @click="emit('exit-via', sum.button.idFull)">{{ exitViaText(sum.button.name) }}</button>
     </td>
     <td class="domain-actions">
       <button type="button" class="btn-x btn-text" :aria-expanded="open" @click="open = !open">{{ open ? DOMAINS_DETAILS_HIDE : DOMAINS_DETAILS }}</button>
-      <button type="button" class="btn-x" :title="DOMAINS_RECHECK" :aria-label="domainsRecheckLabelText(domain.name)" :disabled="disabled" @click="emit('recheck', domain.name)">⟳</button>
-      <button type="button" class="btn-x" :title="DOMAINS_REMOVE" :aria-label="domainsRemoveLabelText(domain.name)" :disabled="disabled" @click="emit('remove', domain.name)">×</button>
+      <button type="button" class="btn-x" :title="DOMAINS_RECHECK" :aria-label="domainsRecheckLabelText(domain.name)" :disabled="disabled" @click="emit('recheck', domain.name)"><SiteIcon kind="recheck" /></button>
+      <button type="button" class="btn-x" :title="DOMAINS_REMOVE" :aria-label="domainsRemoveLabelText(domain.name)" :disabled="disabled" @click="emit('remove', domain.name)"><SiteIcon kind="remove" /></button>
     </td>
   </tr>
   <tr v-if="error" class="domain-error">

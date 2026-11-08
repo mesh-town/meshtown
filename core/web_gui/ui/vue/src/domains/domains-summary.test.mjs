@@ -23,7 +23,7 @@ describe("siteSummary", () => {
     assert.equal(s.kind, "opens");
     assert.equal(s.mark.text, "opens");
     assert.equal(s.age, "2 min ago");
-    assert.equal(s.others, "also via 2 more");
+    assert.deepEqual(s.others, { lead: "also via", more: "2 more" });
     assert.equal(s.button, null);
   });
 
@@ -31,14 +31,14 @@ describe("siteSummary", () => {
     const s = siteSummary(site({ main: { me: bad(), aa: bad(), bb: ok() } }), [net("main", [a, b])], "main", [via(a)]);
     assert.equal(s.kind, "blocked");
     assert.equal(s.mark.text, "blocked by provider");
-    assert.equal(s.others, "opens via exit-bb");
+    assert.deepEqual(s.others, { lead: "opens via exit-bb", more: "" });
     assert.deepEqual(s.button, { idFull: "bb-full", name: "exit-bb" });
   });
 
   it("an alternative only in another network — text without a button", () => {
     const nets = [net("main", [a]), net("work", [b])];
     const s = siteSummary(site({ main: { me: bad(), aa: bad() }, work: { me: bad(), bb: ok() } }), nets, "main", [via(a)]);
-    assert.equal(s.others, "opens via exit-bb");
+    assert.deepEqual(s.others, { lead: "opens via exit-bb", more: "" });
     assert.equal(s.button, null);
   });
 
@@ -48,7 +48,7 @@ describe("siteSummary", () => {
     assert.equal(exitPath(nets, "main", exits).id, "bb");
     const s = siteSummary(site({ main: { me: bad(), bb: ok(), cc: ok() } }), nets, "main", exits);
     assert.equal(s.kind, "opens");
-    assert.equal(s.others, "also via 1 more");
+    assert.deepEqual(s.others, { lead: "also via", more: "1 more" });
     assert.equal(viaHead(exitPath(nets, "main", exits)).text, "Via exit-bb");
   });
 
@@ -85,7 +85,22 @@ describe("siteSummary", () => {
     const y = peer("yy", { name: "twin" });
     const nets = [net("main", [a, x]), net("work", [y])];
     const s = siteSummary(site({ main: { me: bad(), aa: bad(), xx: ok() }, work: { me: bad(), yy: ok() } }), nets, "main", [via(a)]);
-    assert.equal(s.others, "opens via twin and 1 more");
+    assert.deepEqual(s.others, { lead: "opens via twin and", more: "1 more" });
     assert.equal(s.button.idFull, "xx-full");
+  });
+
+  it("the counter is a separate part: three alternatives, open or blocked", () => {
+    const d = (me) => site({ main: { me: bad(), aa: me, bb: ok(), cc: ok(), dd: ok() } });
+    const nets = [net("main", [a, b, c, peer("dd")])];
+    assert.deepEqual(siteSummary(d(ok()), nets, "main", [via(a)]).others, { lead: "also via", more: "3 more" });
+    assert.deepEqual(siteSummary(d(bad()), nets, "main", [via(a)]).others, { lead: "opens via exit-bb and", more: "2 more" });
+  });
+
+  it("no alternatives or not checked yet — the whole text in lead, no counter", () => {
+    const none = siteSummary(site({ main: { me: bad(), aa: bad() } }), [net("main", [a])], "main", [via(a)]);
+    assert.equal(none.others.more, "");
+    assert.equal(none.others.lead, "no other exit opens it");
+    const fresh = siteSummary(site({}), [net("main", [a])], "main", [via(a)]);
+    assert.equal(fresh.others.more, "");
   });
 });

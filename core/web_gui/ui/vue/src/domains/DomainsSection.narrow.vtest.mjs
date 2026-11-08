@@ -29,6 +29,15 @@ const DOMAINS = [
 ];
 let mounted;
 
+// peer-one is the active exit and opens example.org, three more exits open it too: "also via 3 more".
+const extraPeer = (n) => ({ id: n.repeat(8), id_full: n.toUpperCase().repeat(64), name: "extra-" + n, country: null, version: null, online: true, path: "direct", rtt_ms: 30, exit: true });
+const manyState = () => {
+  const extra = ["d", "e", "f"].map(extraPeer);
+  const checks = Object.fromEntries([["aaaa1111", { verdict: "network_blocked" }], ["bbbb2222", { verdict: "ok" }], ...extra.map((p) => [p.id, { verdict: "ok" }])]);
+  const base = baseState({ domains: [{ name: "example.org", checks }], route: { exits: [{ id: "bbbb2222", id_full: PEER_FULL, name: "peer-one", online: true, exit: true, country: null, active: true }] } });
+  return { ...base, peers: [...base.peers, ...extra] };
+};
+
 afterEach(() => mounted.wrapper.unmount());
 
 describe("site checks", () => {
@@ -61,6 +70,28 @@ describe("site checks", () => {
         const card = cards(mountNarrow().wrapper)[1];
         expect(card.text()).toContain("not checked yet");
         expect(card.findAll(".badge-ok, .badge-cut")).toHaveLength(0);
+      });
+    });
+
+    describe("the \"N more\" counter", () => {
+      it("\"3 more\" opens and closes the same member list as Details", async () => {
+        const card = cards(mountNarrow({ state: manyState() }).wrapper)[0];
+        const more = buttonByText(card, "3 more");
+        const details = buttonByText(card, "Details");
+        expect(card.get(".domain-card-others").text()).toContain("also via 3 more");
+        expect(more.attributes("aria-expanded")).toBe("false");
+        await more.trigger("click");
+        expect(card.find(".site-members").exists()).toBe(true);
+        expect(more.attributes("aria-expanded")).toBe("true");
+        expect(details.attributes("aria-expanded")).toBe("true");
+        expect(details.text()).toBe("Hide");
+        await more.trigger("click");
+        expect(card.find(".site-members").exists()).toBe(false);
+      });
+
+      it("no counter — no such button", () => {
+        const card = cards(mountNarrow({ state: blockedViaState() }).wrapper)[0];
+        expect(card.find(".site-more").exists()).toBe(false);
       });
     });
 
@@ -177,13 +208,13 @@ describe("site checks", () => {
       expect(wrapper.find("div.domain-cards").exists()).toBe(false);
     });
 
-    it("the row buttons keep ⟳ and × with the hints \"Check again\" and \"Remove\" and the old accessible names", () => {
+    it("the row buttons keep their svg glyphs with the hints \"Check again\" and \"Remove\" and the old accessible names", () => {
       const { wrapper } = mountNarrow({}, false);
       const recheck = wrapper.get('table button[aria-label="Recheck example.org"]');
-      expect(recheck.text()).toBe("⟳");
+      expect(recheck.get("svg").attributes("aria-hidden")).toBe("true");
       expect(recheck.attributes("title")).toBe("Check again");
       const remove = wrapper.get('table button[aria-label="Remove example.org"]');
-      expect(remove.text()).toBe("×");
+      expect(remove.get("svg").attributes("aria-hidden")).toBe("true");
       expect(remove.attributes("title")).toBe("Remove");
     });
   });

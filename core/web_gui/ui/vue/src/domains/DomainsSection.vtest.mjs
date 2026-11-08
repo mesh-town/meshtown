@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushPromises } from "@vue/test-utils";
 import { ApiError, api } from "../core/api.ts";
-import { baseState, mountSection } from "../testing/section.mjs";
+import { PEER_FULL, baseState, mountSection } from "../testing/section.mjs";
 import DomainsSection from "./DomainsSection.vue";
 
 vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }));
@@ -12,6 +12,15 @@ const DOMAINS = [
 ];
 let mounted;
 const mountDomains = (domains = DOMAINS) => (mounted = mountSection(DomainsSection, { state: baseState({ domains }) }));
+
+// peer-one is the active exit and opens example.org, three more exits open it too: "also via 3 more".
+const extraPeer = (n) => ({ id: n.repeat(8), id_full: n.toUpperCase().repeat(64), name: "extra-" + n, country: null, version: null, online: true, path: "direct", rtt_ms: 30, exit: true });
+const manyState = () => {
+  const extra = ["d", "e", "f"].map(extraPeer);
+  const checks = Object.fromEntries([["aaaa1111", { verdict: "network_blocked" }], ["bbbb2222", { verdict: "ok" }], ...extra.map((p) => [p.id, { verdict: "ok" }])]);
+  const base = baseState({ domains: [{ name: "example.org", checks }], route: { exits: [{ id: "bbbb2222", id_full: PEER_FULL, name: "peer-one", online: true, exit: true, country: null, active: true }] } });
+  return { ...base, peers: [...base.peers, ...extra] };
+};
 
 afterEach(() => mounted.wrapper.unmount());
 
@@ -62,6 +71,38 @@ describe("DomainsSection", () => {
     expect(text).toContain("peer-one");
     await btn.trigger("click");
     expect(wrapper.find(".site-members").exists()).toBe(false);
+  });
+
+  it("\"3 more\" opens and closes the same member list as Details", async () => {
+    mounted = mountSection(DomainsSection, { state: manyState() });
+    const { wrapper } = mounted;
+    const more = wrapper.findAll("tbody button").find((b) => b.text() === "3 more");
+    const details = wrapper.findAll("tbody button").find((b) => b.text() === "Details");
+    expect(wrapper.get(".domain-others").text()).toContain("also via 3 more");
+    expect(more.attributes("aria-expanded")).toBe("false");
+    await more.trigger("click");
+    expect(wrapper.find(".site-members").exists()).toBe(true);
+    expect(more.attributes("aria-expanded")).toBe("true");
+    expect(details.attributes("aria-expanded")).toBe("true");
+    expect(details.text()).toBe("Hide");
+    await more.trigger("click");
+    expect(wrapper.find(".site-members").exists()).toBe(false);
+    expect(details.text()).toBe("Details");
+  });
+
+  it("no counter — no button in the \"Other exits\" cell", () => {
+    const { wrapper } = mountDomains();
+    expect(wrapper.get(".domain-others").text()).toContain("opens via peer-one");
+    expect(wrapper.find(".domain-others .site-more").exists()).toBe(false);
+  });
+
+  it("recheck and remove glyphs are svg inside the buttons, labels unchanged", () => {
+    const { wrapper } = mountDomains();
+    const recheck = wrapper.get('tbody button[aria-label="Recheck example.org"]');
+    const remove = wrapper.get('tbody button[aria-label="Remove example.org"]');
+    expect(recheck.find("svg").exists()).toBe(true);
+    expect(remove.find("svg").exists()).toBe(true);
+    expect(recheck.text()).toBe("");
   });
 
   it("header: Site | For you (no exit chosen) | Other exits | actions", () => {

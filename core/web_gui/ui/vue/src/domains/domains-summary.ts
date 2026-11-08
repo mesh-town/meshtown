@@ -8,6 +8,7 @@ import {
   domainsAlsoViaText, domainsOpensViaText, domainsViaHeadText,
 } from "./domains-texts.ts";
 import { directMark, ownCheck, verdictView } from "./domains-view.ts";
+import type { OthersText } from "./domains-texts.ts";
 import type { MergedDomain, SiteNet } from "./domains-view.ts";
 
 export type SummaryKind = "opens" | "blocked" | "unknown" | "checking" | "exit-offline" | "exit-not-sharing";
@@ -26,7 +27,7 @@ export interface SiteSummary {
   mark: ReturnType<typeof verdictView> | null;
   age: string;
   /** The line for the "Other exits" column. */
-  others: string;
+  others: OthersText;
   /** The member for the "Exit via …" button; only in the proxy network and only when the site does not open now. */
   button: { idFull: string; name: string } | null;
 }
@@ -96,11 +97,11 @@ function kindOf(d: MergedDomain, path: ExitPath, check: ReturnType<typeof checkO
   return check.verdict === "ok" ? "opens" : "blocked";
 }
 
-function othersText(kind: SummaryKind, alts: Alt[], unchecked: boolean): string {
+function othersText(kind: SummaryKind, alts: Alt[], unchecked: boolean): OthersText {
   if (kind === "opens") return domainsAlsoViaText(alts.length);
   if (kind === "checking") return domainsAlsoViaText(0);
   if (alts.length > 0) return domainsOpensViaText(alts[0].name, alts.length - 1);
-  return unchecked ? DOMAINS_ALT_UNCHECKED : DOMAINS_ALT_NONE;
+  return { lead: unchecked ? DOMAINS_ALT_UNCHECKED : DOMAINS_ALT_NONE, more: "" };
 }
 
 export function siteSummary(d: MergedDomain, nets: SiteNet[], proxy: string, exits: ChosenExit[]): SiteSummary {
