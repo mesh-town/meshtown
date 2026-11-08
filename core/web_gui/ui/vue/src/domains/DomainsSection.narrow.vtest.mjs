@@ -12,6 +12,17 @@ vi.mock("../core/api.ts", async (orig) => ({ ...(await orig()), api: vi.fn() }))
 vi.mock("../core/exit-via.ts", () => ({ saveExitIn: vi.fn(async () => ({ text: "Saved", cls: "saved" })) }));
 
 // example.org: blocked for you, opens at peer-one (an online exit) — the "Use as exit" case; fresh.test: never checked.
+const PEER2_EXIT_FULL = "D".repeat(64);
+const PEER2 = { id: "dddd4444", id_full: PEER2_EXIT_FULL, name: "peer-two", country: null, version: null, online: true, path: "direct", rtt_ms: 30, exit: true };
+const ACTIVE = { id: "bbbb2222", id_full: PEER_FULL, name: "peer-one", online: true, exit: true, country: null, active: true };
+// peer-one is the active exit and opens example.org.
+const viaState = () => baseState({ domains: DOMAINS, route: { exits: [ACTIVE] } });
+// peer-one is the active exit and blocked for example.org, peer-two opens it.
+const blockedViaState = () => {
+  const domains = [{ name: "example.org", checks: { aaaa1111: { verdict: "network_blocked", age_sec: 5 }, bbbb2222: { verdict: "network_blocked", age_sec: 5 }, dddd4444: { verdict: "ok" } } }, DOMAINS[1]];
+  const base = baseState({ domains, route: { exits: [ACTIVE] } });
+  return { ...base, peers: [...base.peers, PEER2] };
+};
 const DOMAINS = [
   { name: "example.org", checks: { aaaa1111: { verdict: "network_blocked", reason: "TCP: reset", age_sec: 5 }, bbbb2222: { verdict: "ok" } } },
   { name: "fresh.test", checks: {} },
@@ -30,28 +41,20 @@ describe("site checks", () => {
         expect(wrapper.get("div.domain-cards").findAll("div.domain-card")).toHaveLength(2);
       });
 
-      it("the card head has the site name and the \"Check again\" and \"Remove\" text buttons", () => {
+      it("the card has the site name and the \"Details\", \"Check again\" and \"Remove\" text buttons", () => {
         const card = cards(mountNarrow().wrapper)[0];
         expect(card.get(".mono").text()).toContain("example.org");
-        expect(buttonTexts(card)).toEqual(expect.arrayContaining(["Check again", "Remove"]));
+        expect(buttonTexts(card).slice(-3)).toEqual(["Details", "Check again", "Remove"]);
       });
 
-      it("rows: \"For you\" first, then one row per exit member by name", () => {
-        const card = cards(mountNarrow().wrapper)[0];
-        const text = card.text();
-        expect(text).toContain("For you");
-        expect(text).toContain("peer-one");
-        expect(text).not.toContain("member cccc3333");
-        expect(text.indexOf("For you")).toBeLessThan(text.indexOf("peer-one"));
+      it("the result line names the exit: \"Via peer-one: opens · …\"", () => {
+        const card = cards(mountNarrow({ state: viaState() }).wrapper)[0];
+        expect(card.get(".domain-card-result").text()).toBe("Via peer-one: opens");
       });
 
-      it("verdict marks are badges with the table's classes and hints", () => {
+      it("without an exit the result line is \"For you: …\" with the own check", () => {
         const card = cards(mountNarrow().wrapper)[0];
-        const badges = card.findAll(".badge");
-        const blocked = badges.find((b) => b.text() === "blocked by ISP");
-        expect(blocked.classes()).toContain("badge-cut");
-        expect(blocked.attributes("title")).toBe("TCP: reset · checked just now");
-        expect(badges.find((b) => b.text() === "opens").classes()).toContain("badge-ok");
+        expect(card.get(".domain-card-result").text()).toBe("For you: blocked by ISP · just now");
       });
 
       it("a site that was not checked says \"not checked yet\"", () => {
@@ -61,33 +64,57 @@ describe("site checks", () => {
       });
     });
 
-    describe("blocked for you, opens at a member", () => {
-      it("that member's row has a \"Use as exit\" button with the explanation as its hint", () => {
+    describe("details", () => {
+      it("\"Details\" opens the member rows and flips aria-expanded", async () => {
         const card = cards(mountNarrow().wrapper)[0];
-        const use = card.findAll("button").filter((b) => b.text() === "Use as exit");
+        const btn = buttonByText(card, "Details");
+        expect(btn.attributes("aria-expanded")).toBe("false");
+        expect(card.find(".site-members").exists()).toBe(false);
+        await btn.trigger("click");
+        expect(btn.attributes("aria-expanded")).toBe("true");
+        expect(btn.text()).toBe("Hide");
+        const text = card.get(".site-members").text();
+        expect(text).toContain("This computer, directly");
+        expect(text).toContain("peer-one");
+        expect(text).not.toContain("member cccc3333");
+        expect(text.indexOf("This computer")).toBeLessThan(text.indexOf("peer-one"));
+      });
+    });
+
+    describe("blocked at your exit, opens at another member", () => {
+      it("the card has an \"Exit via peer-two\" button with the explanation as its hint", () => {
+        const card = cards(mountNarrow({ state: blockedViaState() }).wrapper)[0];
+        const use = card.findAll("button").filter((b) => b.text() === "Exit via peer-two");
         expect(use).toHaveLength(1);
-        expect(use[0].attributes("title")).toBe("All sites will go through peer-one");
-        expect(use[0].element.closest("div").textContent).toContain("peer-one");
+        expect(use[0].attributes("title")).toBe("All sites will go through peer-two");
+        expect(card.get(".domain-card-others").text()).toContain("opens via peer-two");
       });
 
       it("the other site has no such button", () => {
-        const card = cards(mountNarrow().wrapper)[1];
-        expect(buttonTexts(card)).not.toContain("Use as exit");
+        const card = cards(mountNarrow({ state: blockedViaState() }).wrapper)[1];
+        expect(buttonTexts(card).filter((t) => t.startsWith("Exit via"))).toEqual([]);
+      });
+
+      it("nobody shares internet — no alternatives line", () => {
+        const state = baseState({ domains: DOMAINS, peers: baseState().peers.map((p) => ({ ...p, exit: false })) });
+        const card = cards(mountNarrow({ state }).wrapper)[0];
+        expect(card.find(".domain-card-others").exists()).toBe(false);
       });
 
       it("a click makes this member the only exit", async () => {
-        const { wrapper, store } = mountNarrow();
-        await cards(wrapper)[0].findAll("button").find((b) => b.text() === "Use as exit").trigger("click");
+        const { wrapper, store } = mountNarrow({ state: blockedViaState() });
+        await buttonByText(cards(wrapper)[0], "Exit via peer-two").trigger("click");
         await flushPromises();
-        expect(saveExitIn).toHaveBeenCalledWith(store, "main", PEER_FULL);
+        expect(saveExitIn).toHaveBeenCalledWith(store, "main", PEER2_EXIT_FULL);
         expect(wrapper.get("#domains-exit-status").text()).toBe("Saved");
       });
 
-      it("the member is already the exit — \"✓ Your exit\" instead of the button", () => {
-        const { wrapper } = mountNarrow({ config: baseConfig({ route: { exits: [PEER_FULL] } }) });
+      it("the member rows in the details say \"Use as exit\" and \"✓ Your exit\"", async () => {
+        const { wrapper } = mountNarrow({ state: blockedViaState() });
         const card = cards(wrapper)[0];
-        expect(card.text()).toContain("✓ Your exit");
-        expect(buttonTexts(card)).not.toContain("Use as exit");
+        await buttonByText(card, "Details").trigger("click");
+        expect(buttonTexts(card)).toContain("Use as exit");
+        expect(card.get(".site-members").text()).toContain("✓ Your exit");
       });
     });
 
@@ -172,10 +199,10 @@ describe("site checks", () => {
   });
 });
 
-function mountNarrow({ domains = DOMAINS, config } = {}, narrow = true) {
+function mountNarrow({ domains = DOMAINS, config, state } = {}, narrow = true) {
   const media = stubNarrow(narrow);
   api.mockResolvedValue({});
-  mounted = mountSection(DomainsSection, { state: baseState({ domains }), ...(config ? { config } : {}) });
+  mounted = mountSection(DomainsSection, { state: state || baseState({ domains }), ...(config ? { config } : {}) });
   return { ...mounted, media };
 }
 

@@ -5,9 +5,9 @@ import { agoText } from "../common/words.ts";
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
-  LEGEND, VERDICT_TEXT, VERDICT_BADGE, addFailedText, checkAllLabel, checkColumns, checkTitle, domainExitPeer, emptyColspan,
+  LEGEND, VERDICT_TEXT, VERDICT_BADGE, addFailedText, checkAllLabel, checkTitle,
   domainCells,
-  exitCell, otherPeers, siteNets, rowsBusy, verdictView,
+  otherPeers, siteNets, rowsBusy, verdictView,
 } from "./domains-view.ts";
 
 const me = { id: "me", id_full: "me-full", name: "me", self: true };
@@ -74,48 +74,6 @@ describe("table columns", () => {
   it("otherPeers — members without yourself, in snapshot order", () => {
     assert.deepEqual(otherPeers({ peers: [me, good("p1"), good("p2")] }).map((p) => p.id), ["p1", "p2"]);
     assert.deepEqual(otherPeers(null), []);
-  });
-  it("checkColumns — first you, then the members", () => {
-    const state = { node: { id: "me" } };
-    assert.deepEqual(checkColumns(state, [good("p1"), good("p2")]), ["me", "p1", "p2"]);
-  });
-  it("empty list: colspan = members + 3", () => {
-    assert.equal(emptyColspan([good("p1")]), 4);
-    assert.equal(emptyColspan([]), 3);
-  });
-});
-
-describe("exitCell — the \"Exit via …\" button", () => {
-  it("blocked for you, ok for the member, exit, online — a button", () => {
-    const cell = exitCell(dom({ me: bad, p1: ok }), [good("p1")], "me", []);
-    assert.equal(cell.kind, "button");
-    assert.equal(cell.peer.id_full, "p1-full");
-  });
-  it("no button: ok for you / no own record / member offline / exit not true / blocked for the member too", () => {
-    const cases = [
-      [good("p1"), { me: ok, p1: ok }],
-      [good("p1"), { p1: ok }],
-      [good("p1", { online: false }), { me: bad, p1: ok }],
-      [good("p1", { exit: false }), { me: bad, p1: ok }],
-      [good("p1"), { me: bad, p1: bad }],
-    ];
-    for (const [peer, checks] of cases) {
-      assert.equal(exitCell(dom(checks), [peer], "me", []).kind, "none", JSON.stringify(checks));
-    }
-  });
-  it("two suitable — the first in snapshot order is taken", () => {
-    const d = dom({ me: bad, p1: ok, p2: ok });
-    assert.equal(domainExitPeer(d, [good("p1"), good("p2")], "me").id, "p1");
-  });
-  it("already chosen — a \"✓\" mark, not a button", () => {
-    const cell = exitCell(dom({ me: bad, p1: ok }), [good("p1")], "me", ["p1-full"]);
-    assert.equal(cell.kind, "chosen");
-  });
-  it("another exit is chosen — the button stays", () => {
-    assert.equal(exitCell(dom({ me: bad, p1: ok }), [good("p1")], "me", ["zz-full"]).kind, "button");
-  });
-  it("the domain has no checks — no button", () => {
-    assert.equal(exitCell({ name: "a.org" }, [good("p1")], "me", []).kind, "none");
   });
 });
 

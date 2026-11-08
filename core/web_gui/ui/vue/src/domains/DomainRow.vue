@@ -3,12 +3,13 @@ import { computed, ref } from "vue";
 import { exitViaText } from "../common/words.ts";
 import type { ChosenExit } from "../core/api-types.ts";
 import {
-  DOMAINS_CHECKING_ROW, DOMAINS_DETAILS, DOMAINS_DETAILS_HIDE, DOMAINS_EXIT_NOT_SHARING, DOMAINS_EXIT_OFFLINE, DOMAINS_NOT_CHECKED,
+  DOMAINS_DETAILS, DOMAINS_DETAILS_HIDE,
   DOMAINS_RECHECK, DOMAINS_REMOVE, domainsAllSitesViaText, domainsRecheckLabelText, domainsRemoveLabelText,
 } from "./domains-texts.ts";
 import type { MergedDomain, SiteNet } from "./domains-view.ts";
 import { exitPath, siteSummary } from "./domains-summary.ts";
 import SiteMembers from "./SiteMembers.vue";
+import SiteResult from "./SiteResult.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -39,14 +40,7 @@ const cols = computed(() => (props.showOthers ? 4 : 3));
   <tr class="domain-row">
     <td class="mono">{{ domain.name }}</td>
     <td class="domain-result">
-      <span v-if="sum.kind === 'checking'" class="hint">{{ DOMAINS_CHECKING_ROW }}</span>
-      <span v-else-if="sum.kind === 'exit-offline'" class="badge badge-down">{{ DOMAINS_EXIT_OFFLINE }}</span>
-      <span v-else-if="sum.kind === 'exit-not-sharing'" class="badge badge-down">{{ DOMAINS_EXIT_NOT_SHARING }}</span>
-      <template v-else-if="sum.mark">
-        <span class="badge" :class="sum.mark.cls" :title="sum.mark.title">{{ sum.mark.text }}</span>
-        <span v-if="sum.kind === 'unknown'" class="hint"> {{ DOMAINS_NOT_CHECKED }}</span>
-        <span v-else-if="sum.age" class="hint"> · {{ sum.age }}</span>
-      </template>
+      <SiteResult :sum="sum" />
     </td>
     <td v-if="showOthers" class="domain-others">
       <span class="hint">{{ sum.others }}</span>

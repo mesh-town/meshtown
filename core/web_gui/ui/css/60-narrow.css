@@ -31,11 +31,13 @@
     .tab-menu-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600;}
     .domain-cards{display:flex;flex-direction:column;gap:10px;margin:10px 0;min-width:0;}
     .domain-card{border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:0;}
-    .domain-card-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
-    .domain-card-name{flex:1 1 auto;min-width:0;font-weight:700;overflow-wrap:anywhere;}
+    .domain-card-name{min-width:0;font-weight:700;overflow-wrap:anywhere;}
+    .domain-card-result{margin-top:2px;overflow-wrap:anywhere;}
+    .domain-card-others{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-top:4px;}
+    .domain-card-foot{display:flex;flex-wrap:wrap;gap:0 8px;margin:4px -6px 0;}
     .btn-x.btn-text{font-size:13px;color:var(--accent);padding:4px 6px;white-space:nowrap;text-decoration:underline;}
-    .domain-card-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:4px 0;}
-    .domain-card-who{flex:0 0 96px;color:var(--fg-muted);font-size:13px;}
+    .domain-card .site-members{padding-left:0;margin-top:6px;border-top:1px solid var(--border);padding-top:6px;}
+    .domain-card .site-member-who{flex:1 0 100%;}
     .domain-card .peer-chosen{color:var(--green);font-size:13px;}
     /* A table with `.stack`: each row becomes a block, each cell says its column (`data-label`). */
     table.stack{min-width:0;width:100%;}

@@ -23,7 +23,6 @@ interface VerdictView {
   title: string;
 }
 
-type ExitCell = { kind: "none" } | { kind: "chosen" | "button"; peer: PeerInfo };
 
 const isVerdict = (v: string): v is Verdict => Object.hasOwn(VERDICT_TEXT, v);
 
@@ -91,43 +90,12 @@ export function otherPeers(state: NodeState | null | undefined): PeerInfo[] {
   return ((state && state.peers) || []).filter((p) => !p.self);
 }
 
-// Columns of mark cells: first you, then the members in snapshot order.
-export function checkColumns(state: NodeState, others: PeerInfo[]): string[] {
-  return [state.node.id].concat(others.map((p) => p.id));
-}
-
-// The site is blocked for you (a record exists and is not ok), and opens at a member who is an exit and online;
-// the first in snapshot order.
-export function domainExitPeer(d: DomainInfo, others: PeerInfo[], selfId: string): PeerInfo | null {
-  const checks = d.checks || {};
-  const own = checks[selfId];
-  if (!own || own.verdict === "ok") return null;
-  return (
-    others.find((p) => {
-      const c = checks[p.id];
-      return p.exit === true && p.online && c && c.verdict === "ok";
-    }) || null
-  );
-}
-
-// What to show in the actions cell: nothing / the mark of the chosen one / the "Exit via …" button.
-export function exitCell(d: DomainInfo, others: PeerInfo[], selfId: string, chosen: string[]): ExitCell {
-  const peer = domainExitPeer(d, others, selfId);
-  if (!peer) return { kind: "none" };
-  return { kind: chosen[0] === peer.id_full ? "chosen" : "button", peer };
-}
-
 export function rowsBusy(domains: Array<{ checking?: boolean }> | null | undefined): boolean {
   return (domains || []).some((d) => d.checking === true);
 }
 
 export function checkAllLabel(disabled: boolean): string {
   return disabled ? DOMAINS_CHECKING_ALL : DOMAINS_CHECK_ALL;
-}
-
-// Columns in the table: site, "For you", members, actions.
-export function emptyColspan(others: PeerInfo[]): number {
-  return others.length + 3;
 }
 
 export const CHECK_ALL_CONFLICT = DOMAINS_CHECK_ALL_CONFLICT;
@@ -241,12 +209,6 @@ function netCells(d: MergedDomain, net: SiteNet, tail: string, multi: boolean): 
 export function domainCells(d: MergedDomain, nets: SiteNet[]): DomainCell[] {
   const tail = (n: SiteNet) => (nets.length >= 2 ? n.label : "");
   return [youCell(d, nets), ...nets.flatMap((n) => netCells(d, n, tail(n), nets.length >= 2))];
-}
-
-export function domainExit(d: MergedDomain, nets: SiteNet[], proxy: string, chosen: string[]): ExitCell {
-  const row = d.byNet[proxy];
-  const net = nets.find((n) => n.slot === proxy);
-  return row && net ? exitCell(row, net.peers, net.selfId, chosen) : { kind: "none" };
 }
 
 /** The exits of the network that carries the proxy, as the status line reads them. */
