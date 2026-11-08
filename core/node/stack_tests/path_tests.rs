@@ -31,6 +31,7 @@ async fn config(hosts: HashMap<String, SocketAddr>) -> ProxyConfig {
     )
     .expect("resolver with a stub address");
     ProxyConfig {
+        direct_iface: Default::default(),
         route: RouteCtx::new(node.members.clone(), node.domains.clone(), node.id, vec![]),
         stack: node.stack.clone(),
         pool: PeerConnPool::default(),
@@ -91,6 +92,23 @@ mod direct {
 
         assert!(refused.is_err(), "loopback port 1 is not listening");
         assert!(cfg.resolver.cached_for_tests(DOMAIN).is_none());
+    }
+
+    /// given an empty direct interface handle and a listening loopback server, when a direct connection opens, then it
+    /// connects as before.
+    #[tokio::test]
+    async fn direct_path_empty_iface_connects_plain() {
+        let server = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+            .await
+            .unwrap();
+        let addr = server.local_addr().unwrap();
+        let cfg = config(HashMap::from([(DOMAIN.to_string(), addr)])).await;
+        assert!(cfg.direct_iface.current().is_none());
+
+        let opened = open_direct_tcp(&cfg, &domain(), addr.port(), "test").await;
+
+        assert!(opened.is_ok(), "empty handle must connect plainly");
+        assert!(server.accept().await.is_ok());
     }
 }
 

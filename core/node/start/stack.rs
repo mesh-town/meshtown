@@ -34,6 +34,8 @@ pub(super) struct Built {
     pub(super) exit_iface: OutIface,
     /// The exit's own resolver: bound to `exit_iface`, with its own cache.
     pub(super) exit_resolver: Arc<Resolver>,
+    /// The interface the proxy's direct routes are bound to; empty — the system routing table.
+    pub(super) direct_iface: OutIface,
     pub(super) domain_list_cell: Arc<OnceLock<DomainList>>,
     pub(super) stack: NetStack,
 }
@@ -58,6 +60,7 @@ pub(super) fn build_stack(
     if let Some(name) = cfg.settings.exit_interface.as_deref() {
         say("exit", format!("exit interface: {name}"));
     }
+    let direct_iface = OutIface::default();
     let exit_resolver = Arc::new(serve.resolver.bound_copy(exit_iface.clone()));
     let exit_cfg = ExitConfig {
         enabled: exit_on.clone(),
@@ -77,6 +80,7 @@ pub(super) fn build_stack(
         exit_announce_wakeup,
         exit_iface,
         exit_resolver,
+        direct_iface,
         domain_list_cell,
         stack,
     })

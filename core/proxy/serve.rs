@@ -11,6 +11,7 @@ use tokio::net::{TcpListener, TcpStream};
 
 use crate::config::config_file::ListenAccess;
 use crate::exit::PeerConnPool;
+use crate::iface_bind::OutIface;
 use crate::node::output::{say, NET_NAME};
 use crate::node::tcp_tune::disable_nagle;
 use crate::proxy::route::RouteCtx;
@@ -45,6 +46,8 @@ pub struct ProxyConfig {
     pub host_overrides: Arc<HashMap<String, SocketAddr>>,
     /// Free places for UDP associations on this node (`udp_slots()`).
     pub udp_slots: Arc<tokio::sync::Semaphore>,
+    /// The interface direct routes (TCP and UDP) are bound to; empty — the system routing table.
+    pub direct_iface: OutIface,
 }
 
 /// Why the proxy port could not be taken: the port, the kind of error and the OS text. It is printed for a human:

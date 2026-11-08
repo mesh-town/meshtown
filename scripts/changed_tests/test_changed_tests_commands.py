@@ -40,10 +40,19 @@ class Commands(unittest.TestCase):
                     "--test",
                     "identity_restart",
                     "-E",
-                    "(kind(lib) & test(/^members::words::/)) | binary(identity_restart)",
+                    "(kind(lib) & test(/^members::words(_tests)?::/)) | binary(identity_restart)",
                 ]
             ],
         )
+
+    def test_lib_filter_matches_sibling_tests_module(self):
+        sel = changed_tests.Selection(lib_modules={"net::client"})
+        (part,) = changed_tests._rust_parts(sel)
+        regex = part.split("test(/")[1].split("/)")[0]
+        for name in ("net::client::tests::a", "net::client_tests::a"):
+            with self.subTest(name=name):
+                self.assertRegex(name, regex)
+        self.assertNotRegex("net::client_other::a", regex)
 
     def test_whole_bin_only_runs_bin_target_without_lib_filter(self):
         sel = changed_tests.Selection(

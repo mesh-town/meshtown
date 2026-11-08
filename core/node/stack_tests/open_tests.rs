@@ -235,6 +235,7 @@ async fn mesh_config(hosts: HashMap<String, SocketAddr>) -> ProxyConfig {
     )
     .expect("resolver with a stub address");
     ProxyConfig {
+        direct_iface: Default::default(),
         route: RouteCtx::new(node.members.clone(), node.domains.clone(), node.id, vec![]),
         stack: node.stack.clone(),
         pool: PeerConnPool::default(),

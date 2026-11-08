@@ -26,5 +26,5 @@ mod types;
 #[cfg(test)]
 pub(crate) mod test_support;
 
-pub use socket::{bind_udp, check, connect_tcp, state_of};
+pub use socket::{bind_udp, bind_udp_at, check, connect_tcp, state_of};
 pub use types::{BindError, ExitIfaceInfo, IfaceState, OutIface};

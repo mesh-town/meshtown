@@ -236,6 +236,7 @@ impl Fixture {
         )
         .expect("resolver with a stub address");
         ProxyConfig {
+            direct_iface: Default::default(),
             route: RouteCtx::new(
                 self.node.members.clone(),
                 self.node.domains.clone(),

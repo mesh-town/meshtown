@@ -21,6 +21,9 @@ fn lines(tag: &str, after: u64) -> Vec<String> {
     page.lines
         .into_iter()
         .filter(|l| l.tag == tag)
+        // The invite server's tests write to the tag "invite" at the same time; the source's lines begin
+        // with "address".
+        .filter(|l| tag != "invite" || l.text.starts_with("address"))
         .map(|l| l.text)
         .collect()
 }

@@ -4,9 +4,9 @@
 use std::net::SocketAddr;
 
 use anyhow::{anyhow, Context, Result};
-use tokio::net::TcpStream;
 use tokio::time::timeout;
 
+use crate::iface_bind::connect_tcp;
 use crate::node::output::say;
 use crate::node::tcp_tune::disable_nagle;
 use crate::site_checks::doh;
@@ -77,7 +77,12 @@ async fn connect_direct(
     addr: SocketAddr,
     tag: &'static str,
 ) -> Result<OpenedUpstream, OpenRefused> {
-    match timeout(DIRECT_TCP_CONNECT_TIMEOUT, TcpStream::connect(addr)).await {
+    match timeout(
+        DIRECT_TCP_CONNECT_TIMEOUT,
+        connect_tcp(addr, cfg.direct_iface.current()),
+    )
+    .await
+    {
         Ok(Ok(tcp)) => {
             disable_nagle(&tcp);
             Ok(OpenedUpstream {

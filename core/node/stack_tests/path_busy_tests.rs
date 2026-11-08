@@ -199,6 +199,7 @@ pub(crate) async fn config_with(
     )
     .expect("resolver with a stub address");
     ProxyConfig {
+        direct_iface: Default::default(),
         route: RouteCtx::new(node.members.clone(), node.domains.clone(), node.id, vec![]),
         stack: client,
         pool: PeerConnPool::default().with_open_timeout(Duration::from_millis(100)),

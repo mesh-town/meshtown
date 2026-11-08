@@ -877,6 +877,7 @@ fn config_of(node: &RunningNode, overrides: &Arc<HashMap<String, SocketAddr>>) -
         "meshtown-test".to_string(),
     );
     ProxyConfig {
+        direct_iface: Default::default(),
         route: node.route.clone(),
         stack: node.stack.clone(),
         pool: PeerConnPool::default(),

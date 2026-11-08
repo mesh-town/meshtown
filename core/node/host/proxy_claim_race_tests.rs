@@ -451,6 +451,7 @@ fn proxy_config(node: &RunningNode, exits: &[u8]) -> ProxyConfig {
     )
     .expect("resolver with a stub address");
     ProxyConfig {
+        direct_iface: Default::default(),
         route: RouteCtx::new(
             node.members.clone(),
             node.domains.clone(),
