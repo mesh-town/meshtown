@@ -1,10 +1,10 @@
 // Texts of the "Site checks" section: marks, hints, table captions and the add form.
 
 export const DOMAINS_VERDICT_OK = "opens";
-export const DOMAINS_VERDICT_DNS_MISMATCH = "blocked: address spoofed";
-export const DOMAINS_VERDICT_NETWORK_BLOCKED = "blocked by ISP";
+export const DOMAINS_VERDICT_DNS_MISMATCH = "blocked by provider (wrong address)";
+export const DOMAINS_VERDICT_NETWORK_BLOCKED = "blocked by provider";
 export const DOMAINS_VERDICT_SITE_GEOBLOCK = "blocked for this country";
-export const DOMAINS_VERDICT_ANTIBOT = "blocked as a bot";
+export const DOMAINS_VERDICT_ANTIBOT = "robot check";
 export const DOMAINS_VERDICT_DOWN = "site is down";
 
 export const DOMAINS_NOT_CHECKED = "not checked yet";
@@ -18,11 +18,11 @@ export function domainsUnknownCodeText(verdict: string): string {
   return "check code: " + verdict;
 }
 
-export const DOMAINS_NOTE_OK = "the site will open through this member";
-export const DOMAINS_NOTE_DNS_MISMATCH = "the ISP substitutes a wrong site address";
-export const DOMAINS_NOTE_NETWORK_BLOCKED = "the ISP doesn't let you reach the site";
+export const DOMAINS_NOTE_OK = "the site opens through this exit";
+export const DOMAINS_NOTE_DNS_MISMATCH = "your internet provider answers with a wrong address for the site";
+export const DOMAINS_NOTE_NETWORK_BLOCKED = "your internet provider doesn't let the connection through";
 export const DOMAINS_NOTE_SITE_GEOBLOCK = "the site itself is closed to the member's country";
-export const DOMAINS_NOTE_ANTIBOT = "may open in a browser after an \"I'm not a robot\" check";
+export const DOMAINS_NOTE_ANTIBOT = "the site asks to prove you're not a robot; usually opens in the browser";
 export const DOMAINS_NOTE_DOWN = "the site is not responding";
 export const DOMAINS_VERDICT_HERE = "doesn't open from here";
 export const DOMAINS_NOTE_HERE = "the site opens for a member but not for you";
@@ -66,21 +66,24 @@ export const DOMAINS_ALT_NONE = "no other exit opens it";
 export const DOMAINS_ALT_UNCHECKED = "other exits not checked yet";
 export const DOMAINS_EXIT_OFFLINE = "your exit is offline";
 export const DOMAINS_EXIT_NOT_SHARING = "your exit stopped sharing internet";
+export const DOMAINS_LEGEND_TITLE = "What the marks mean";
 export const DOMAINS_DETAILS = "Details";
 export const DOMAINS_DETAILS_HIDE = "Hide";
 export const DOMAINS_ROW_DIRECT = "This computer, directly";
 export const DOMAINS_EMPTY = "No sites yet — enter an address above and click \"Add\"";
-export const DOMAINS_HINT_INTRO = "This computer checks each site itself and through every online member who shares their internet (exit on).";
+export const DOMAINS_HINT_INTRO = "Checks run on their own every few minutes: from this computer and through every member who shares their internet.";
 export const DOMAINS_NO_EXIT = "No member shares their internet yet \u2014 sites are checked only from your connection.";
-export const DOMAINS_HINT_REST = "A green mark in a member's column means the site opens through them; \"For you\" \u2014 whether it opens for you as usual.";
-export const DOMAINS_HINT_LOCAL = "The site list is stored only on this computer: other members can't see or change it.";
-export const DOMAINS_HINT_LOCAL_NETS = "The site list is stored only on this computer: members of your networks can\u2019t see or change it.";
+export const DOMAINS_HINT_LOCAL = "The site list stays on this computer; other members can't see it.";
 
 export const DOMAINS_CHECKING_ROW = "checking…";
 export const DOMAINS_RECHECK = "Check again";
 export const DOMAINS_REMOVE = "Remove";
 export const DOMAINS_YOUR_EXIT = "✓ Your exit";
 export const DOMAINS_NOT_CHECKED_CARD = "— not checked yet";
+
+export function domainsExitSavedText(name: string): string {
+  return "Done \u2014 sites now open via " + name + ".";
+}
 
 export function domainsAllSitesViaText(via: string): string {
   return "All sites will go through " + via;

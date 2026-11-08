@@ -54,7 +54,7 @@ describe("site checks", () => {
 
       it("without an exit the result line is \"For you: …\" with the own check", () => {
         const card = cards(mountNarrow().wrapper)[0];
-        expect(card.get(".domain-card-result").text()).toBe("For you: blocked by ISP · just now");
+        expect(card.get(".domain-card-result").text()).toBe("For you: blocked by provider · just now");
       });
 
       it("a site that was not checked says \"not checked yet\"", () => {
@@ -106,7 +106,7 @@ describe("site checks", () => {
         await buttonByText(cards(wrapper)[0], "Exit via peer-two").trigger("click");
         await flushPromises();
         expect(saveExitIn).toHaveBeenCalledWith(store, "main", PEER2_EXIT_FULL);
-        expect(wrapper.get("#domains-exit-status").text()).toBe("Saved");
+        expect(wrapper.get("#domains-exit-status").text()).toBe("Done \u2014 sites now open via peer-two.");
       });
 
       it("the member rows in the details say \"Use as exit\" and \"✓ Your exit\"", async () => {

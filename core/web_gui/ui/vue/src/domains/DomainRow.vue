@@ -50,8 +50,10 @@ const cols = computed(() => (props.showOthers ? 4 : 3));
       <button type="button" class="btn-x btn-text" :aria-expanded="open" @click="open = !open">{{ open ? DOMAINS_DETAILS_HIDE : DOMAINS_DETAILS }}</button>
       <button type="button" class="btn-x" :title="DOMAINS_RECHECK" :aria-label="domainsRecheckLabelText(domain.name)" :disabled="disabled" @click="emit('recheck', domain.name)">⟳</button>
       <button type="button" class="btn-x" :title="DOMAINS_REMOVE" :aria-label="domainsRemoveLabelText(domain.name)" :disabled="disabled" @click="emit('remove', domain.name)">×</button>
-      <div v-if="error" class="field-error-text" role="status">{{ error }}</div>
     </td>
+  </tr>
+  <tr v-if="error" class="domain-error">
+    <td :colspan="cols"><div class="field-error-text" role="status">{{ error }}</div></td>
   </tr>
   <tr v-if="open" class="domain-details">
     <td :colspan="cols"><SiteMembers :domain="domain" :nets="nets" :proxy="proxy" :current="current" @exit-via="emit('exit-via', $event)" /></td>

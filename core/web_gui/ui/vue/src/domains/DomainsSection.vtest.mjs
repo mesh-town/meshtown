@@ -28,7 +28,7 @@ describe("DomainsSection", () => {
     const rows = table.findAll("tbody tr");
     expect(rows).toHaveLength(2);
     expect(rows[0].text()).toContain("example.org");
-    expect(rows[0].text()).toContain("blocked by ISP");
+    expect(rows[0].text()).toContain("blocked by provider");
     expect(rows[0].text()).toContain("opens via peer-one");
     expect(rows[1].text()).toContain("fresh.test");
   });
@@ -82,12 +82,43 @@ describe("DomainsSection", () => {
     expect(mounted.wrapper.text()).not.toContain("Other exits");
   });
 
+  it("legend — closed details below the list; no jargon anywhere in the tab", () => {
+    const { wrapper } = mountDomains();
+    const legend = wrapper.get("details#domains-legend");
+    expect(legend.attributes("open")).toBeUndefined();
+    expect(legend.get("summary").text()).toBe("What the marks mean");
+    expect(legend.findAll(".badge")).toHaveLength(8);
+    const text = wrapper.text();
+    for (const word of ["ISP", "spoofed", "bot", "column"]) expect(text).not.toMatch(new RegExp("\\b" + word + "\\b"));
+  });
+
+  it("order: form, hint, no-exit note, status, list, legend", () => {
+    const base = baseState({ domains: DOMAINS });
+    mounted = mountSection(DomainsSection, { state: { ...base, peers: base.peers.map((p) => (p.self ? p : { ...p, exit: false })) } });
+    const html = mounted.wrapper.html();
+    const at = (s) => html.indexOf(s);
+    const order = ["domain-add-btn", 'id="domains-hint"', 'id="domains-no-exit"', 'id="domains-check-all-status"', 'id="domains-exit-status"', 'id="domains-tbody"', 'id="domains-legend"'].map(at);
+    expect(order.every((n) => n >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("wide: an action error is its own row under the site, not in the actions cell", async () => {
+    api.mockRejectedValue(new ApiError(500, "boom", "Server said no"));
+    const { wrapper } = mountDomains();
+    await wrapper.findAll("tbody button").find((b) => /^Recheck /.test(b.attributes("aria-label") || "")).trigger("click");
+    await flushPromises();
+    const row = wrapper.get("tr.domain-error");
+    expect(row.get("td").attributes("colspan")).toBeTruthy();
+    expect(row.text()).toContain("Couldn't recheck example.org");
+    expect(wrapper.find(".domain-actions .field-error-text").exists()).toBe(false);
+  });
+
   it("legend — a list: badge = verdict text, eight items", () => {
     const { wrapper } = mountDomains();
     const items = wrapper.get("#domains-legend").findAll("li");
     expect(items).toHaveLength(8);
     expect(items[0].get(".badge").text()).toBe("opens");
-    expect(items[2].text()).toContain("the ISP doesn't let you reach the site");
+    expect(items[2].text()).toContain("your internet provider doesn't let the connection through");
   });
 
   it("empty table — the hint \"No sites yet …\"", () => {

@@ -10,10 +10,11 @@ import DomainCards from "./DomainCards.vue";
 import DomainRow from "./DomainRow.vue";
 import {
   DOMAINS_ADD, DOMAINS_ADDRESS_LABEL, DOMAINS_ADDRESS_PLACEHOLDER, DOMAINS_COL_SITE, DOMAINS_COL_OTHERS, DOMAINS_EMPTY,
-  DOMAINS_HINT_INTRO, DOMAINS_NO_EXIT, DOMAINS_HINT_LOCAL, DOMAINS_HINT_LOCAL_NETS, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
+  DOMAINS_HINT_INTRO, DOMAINS_NO_EXIT, DOMAINS_HINT_LOCAL, DOMAINS_LEGEND_TITLE, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
+  domainsExitSavedText,
 } from "./domains-texts.ts";
 import { LEGEND, checkAllLabel, mergedDomains, proxySlot, routeExits, rowsBusy, siteNets } from "./domains-view.ts";
-import { exitPath, viaHead } from "./domains-summary.ts";
+import { exitMemberName, exitPath, viaHead } from "./domains-summary.ts";
 import { useDomainActions } from "./use-domain-actions.ts";
 
 const injected = inject(STORE_KEY);
@@ -38,7 +39,8 @@ async function add(): Promise<void> {
 
 // The "Exit via …" button makes the member the only exit.
 async function exitVia(idFull: string): Promise<void> {
-  exitStatus.value = await saveExitIn(store, proxy.value, idFull);
+  const res = await saveExitIn(store, proxy.value, idFull);
+  exitStatus.value = res.cls === "saved" ? { text: domainsExitSavedText(exitMemberName(nets.value, proxy.value, idFull)), cls: res.cls } : res;
 }
 </script>
 
@@ -54,7 +56,10 @@ async function exitVia(idFull: string): Promise<void> {
         <button type="button" class="btn" id="domains-check-all-btn" :disabled="checkAllOff" @click="actions.checkAll">{{ checkAllLabel(checkAllOff) }}</button>
       </div>
       <p class="field-error-text" id="domain-add-error" role="alert" :hidden="!actions.ui.addError">{{ actions.ui.addError }}</p>
+      <p class="hint" id="domains-hint">{{ DOMAINS_HINT_INTRO }} {{ DOMAINS_HINT_LOCAL }}</p>
+      <p class="hint" id="domains-no-exit" v-if="noExit">{{ DOMAINS_NO_EXIT }}</p>
       <p class="field-status" id="domains-check-all-status" role="status" :hidden="!actions.ui.checkAllStatus">{{ actions.ui.checkAllStatus }}</p>
+      <p class="field-status" :class="exitStatus.cls" id="domains-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
       <DomainCards v-if="narrow" :domains="domains" :nets="nets" :proxy="proxy" :exits="exits" :show-others="!noExit" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
       <div v-else class="table-scroll">
         <table class="data domains-table" :aria-label="DOMAINS_TABLE_LABEL">
@@ -72,13 +77,12 @@ async function exitVia(idFull: string): Promise<void> {
           </tbody>
         </table>
       </div>
-      <p class="field-status" :class="exitStatus.cls" id="domains-exit-status" role="status" :hidden="!exitStatus.text">{{ exitStatus.text }}</p>
-      <p class="hint">{{ DOMAINS_HINT_INTRO }} {{ DOMAINS_HINT_REST }}</p>
-      <p class="hint" id="domains-no-exit" v-if="noExit">{{ DOMAINS_NO_EXIT }}</p>
-      <ul class="hint" id="domains-legend">
-        <li v-for="e in LEGEND" :key="e.text"><span class="badge" :class="e.cls">{{ e.text }}</span> — {{ e.note }}</li>
-      </ul>
-      <p class="hint">{{ nets.length >= 2 ? DOMAINS_HINT_LOCAL_NETS : DOMAINS_HINT_LOCAL }}</p>
+      <details id="domains-legend" class="hint">
+        <summary>{{ DOMAINS_LEGEND_TITLE }}</summary>
+        <ul>
+          <li v-for="e in LEGEND" :key="e.text"><span class="badge" :class="e.cls">{{ e.text }}</span> — {{ e.note }}</li>
+        </ul>
+      </details>
     </div>
   </template>
 </template>

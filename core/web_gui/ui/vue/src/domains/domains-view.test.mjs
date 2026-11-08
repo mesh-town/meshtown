@@ -42,9 +42,9 @@ describe("verdictView — mark labels", () => {
       cls: "badge-ok", text: "opens", title: "checked just now",
     });
   });
-  it("network_blocked — \"blocked by ISP\"", () => {
+  it("network_blocked — \"blocked by provider\"", () => {
     const v = verdictView({ verdict: "network_blocked" });
-    assert.equal(v.text, "blocked by ISP");
+    assert.equal(v.text, "blocked by provider");
     assert.equal(v.cls, "badge-cut");
   });
   it("no record — \"—\" and a grey class", () => {
