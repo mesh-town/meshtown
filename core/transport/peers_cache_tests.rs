@@ -80,7 +80,6 @@ fn entry_for_without_known_uses_only_selected() {
 fn save_then_load_roundtrip_same_network() {
     let dir = scratch("roundtrip");
     let base = dir.join(PEERS_CACHE_FILE_NAME);
-    let file = network_cache_path(&base, "net");
     let mut cache = PeersCache::load(Some(&base), "net", 1000);
     let e1 = entry_for(
         None,
@@ -120,6 +119,7 @@ fn save_then_load_roundtrip_same_network() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        let file = network_cache_path(&base, "net");
         let mode = std::fs::metadata(&file)
             .expect("file metadata")
             .permissions()
