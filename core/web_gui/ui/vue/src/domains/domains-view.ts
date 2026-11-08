@@ -6,11 +6,11 @@ import {
   DOMAINS_ACTION_ADD, DOMAINS_ACTION_CHECK_ALL, DOMAINS_ACTION_RECHECK, DOMAINS_ACTION_REMOVE, DOMAINS_ADD_HINT,
   DOMAINS_CHECKING_ALL, DOMAINS_CHECK_ALL, DOMAINS_CHECK_ALL_CONFLICT, DOMAINS_NOTE_ANTIBOT, DOMAINS_NOTE_DNS_MISMATCH,
   DOMAINS_NOTE_DOWN, DOMAINS_NOTE_NETWORK_BLOCKED, DOMAINS_NOTE_OK, DOMAINS_NOTE_SITE_GEOBLOCK, DOMAINS_NOT_CHECKED,
-  DOMAINS_PEER_FALLBACK, DOMAINS_UNKNOWN, DOMAINS_VERDICT_ANTIBOT, DOMAINS_VERDICT_DNS_MISMATCH, DOMAINS_VERDICT_DOWN,
+  DOMAINS_UNKNOWN, DOMAINS_VERDICT_ANTIBOT, DOMAINS_VERDICT_DNS_MISMATCH, DOMAINS_VERDICT_DOWN,
   DOMAINS_NOTE_HERE, DOMAINS_TITLE_HERE, DOMAINS_VERDICT_HERE,
   DOMAINS_VERDICT_NETWORK_BLOCKED, DOMAINS_VERDICT_OK, DOMAINS_VERDICT_SITE_GEOBLOCK, domainsCheckedAgoText, domainsUnknownCodeText,
 } from "./domains-texts.ts";
-import type { CheckInfo, DomainInfo, NodeState, PeerInfo, Verdict } from "../core/api-types.ts";
+import type { CheckInfo, ChosenExit, DomainInfo, NodeState, PeerInfo, Verdict } from "../core/api-types.ts";
 import type { NetBrief } from "../core/api-types-overview.ts";
 import { isMulti, netName, slotState } from "../core/slots.ts";
 import { targetSlots } from "../core/save-config.ts";
@@ -91,11 +91,6 @@ export function otherPeers(state: NodeState | null | undefined): PeerInfo[] {
   return ((state && state.peers) || []).filter((p) => !p.self);
 }
 
-// Header of a member column: the name on top, the id on the line below (the column is narrower); without a name — "member".
-export function columnHead(p: PeerInfo): { name: string; id: string } {
-  return { name: (p.name && p.name.trim()) || DOMAINS_PEER_FALLBACK, id: p.id };
-}
-
 // Columns of mark cells: first you, then the members in snapshot order.
 export function checkColumns(state: NodeState, others: PeerInfo[]): string[] {
   return [state.node.id].concat(others.map((p) => p.id));
@@ -158,13 +153,6 @@ export interface MergedDomain {
   byNet: Record<string, DomainInfo>;
 }
 
-interface ColumnGroup {
-  slot: string;
-  label: string;
-  peers: PeerInfo[];
-  span: number;
-}
-
 /** A mark cell of a row: yours, a member's, or the placeholder of a network without members. */
 interface DomainCell {
   key: string;
@@ -173,11 +161,12 @@ interface DomainCell {
   peer: PeerInfo | null;
   tail: string;
   checked: boolean;
+  check: CheckInfo | null | undefined;
   mark: VerdictView;
 }
 
 // One network: the leading slot's state is `store.state`; several: each slot's own state.
-function netState(store: Store, slot: string): NodeState | null {
+export function netState(store: Store, slot: string): NodeState | null {
   return isMulti(store) ? slotState(store, slot) : store.state;
 }
 
@@ -204,15 +193,6 @@ export function mergedDomains(nets: SiteNet[], store: Store): MergedDomain[] {
   return [...merged.values()];
 }
 
-export function columnGroups(nets: SiteNet[]): ColumnGroup[] {
-  return nets.map((n) => ({ slot: n.slot, label: n.label, peers: n.peers, span: nets.length >= 2 ? Math.max(1, n.peers.length) : n.peers.length }));
-}
-
-// Columns in the table: site, "For you", the groups, actions.
-export function tableColspan(groups: ColumnGroup[]): number {
-  return 3 + groups.reduce((sum, g) => sum + g.span, 0);
-}
-
 // The slot whose exit the "Exit via …" button sets: the one that carries the proxy, otherwise the first.
 export function proxySlot(nets: SiteNet[], briefs: NetBrief[]): string {
   const held = nets.find((n) => briefs.some((b) => b.id === n.slot && b.proxy));
@@ -227,11 +207,20 @@ function memberOk(d: MergedDomain, nets: SiteNet[]): boolean {
 }
 
 // "For you" does not depend on the network: the first network that has a verdict for you.
-function youCell(d: MergedDomain, nets: SiteNet[]): DomainCell {
+export function ownCheck(d: MergedDomain, nets: SiteNet[]): { slot: string; check: CheckInfo | undefined } {
   const net = nets.find((n) => d.byNet[n.slot]?.checks?.[n.selfId] != null);
-  const check = net ? d.byNet[net.slot].checks[net.selfId] : undefined;
-  const mark = check?.verdict === "down" && memberOk(d, nets) ? HERE_MARK : verdictView(check);
-  return { key: "you", kind: "you", slot: net?.slot ?? "", peer: null, tail: "", checked: check !== undefined, mark };
+  return { slot: net?.slot ?? "", check: net ? d.byNet[net.slot].checks[net.selfId] ?? undefined : undefined };
+}
+
+// The direct check with the "doesn't open from here" rule: down for you while some member opens it.
+export function directMark(d: MergedDomain, nets: SiteNet[]): VerdictView {
+  const { check } = ownCheck(d, nets);
+  return check?.verdict === "down" && memberOk(d, nets) ? HERE_MARK : verdictView(check);
+}
+
+function youCell(d: MergedDomain, nets: SiteNet[]): DomainCell {
+  const { slot, check } = ownCheck(d, nets);
+  return { key: "you", kind: "you", slot, peer: null, tail: "", checked: check !== undefined, check, mark: directMark(d, nets) };
 }
 
 const NO_ROW_MARK: VerdictView = { cls: "badge-none", text: NONE_TEXT, title: "" };
@@ -239,12 +228,12 @@ const NO_ROW_MARK: VerdictView = { cls: "badge-none", text: NONE_TEXT, title: ""
 function netCells(d: MergedDomain, net: SiteNet, tail: string, multi: boolean): DomainCell[] {
   const row = d.byNet[net.slot];
   if (net.peers.length === 0 && !multi) return [];
-  if (net.peers.length === 0) return [{ key: net.slot, kind: "empty", slot: net.slot, peer: null, tail, checked: true, mark: NO_ROW_MARK }];
+  if (net.peers.length === 0) return [{ key: net.slot, kind: "empty", slot: net.slot, peer: null, tail, checked: true, check: undefined, mark: NO_ROW_MARK }];
   return net.peers.map((peer) => {
     const check = row ? (row.checks || {})[peer.id] : undefined;
     return {
       key: net.slot + ":" + peer.id, kind: "peer", slot: net.slot, peer, tail,
-      checked: !row || check !== undefined, mark: row ? verdictView(check) : NO_ROW_MARK,
+      checked: !row || check !== undefined, check, mark: row ? verdictView(check) : NO_ROW_MARK,
     };
   });
 }
@@ -258,4 +247,9 @@ export function domainExit(d: MergedDomain, nets: SiteNet[], proxy: string, chos
   const row = d.byNet[proxy];
   const net = nets.find((n) => n.slot === proxy);
   return row && net ? exitCell(row, net.peers, net.selfId, chosen) : { kind: "none" };
+}
+
+/** The exits of the network that carries the proxy, as the status line reads them. */
+export function routeExits(store: Store, slot: string): ChosenExit[] {
+  return netState(store, slot)?.route?.exits || [];
 }

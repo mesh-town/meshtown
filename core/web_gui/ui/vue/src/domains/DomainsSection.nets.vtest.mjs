@@ -35,26 +35,31 @@ describe("DomainsSection with two networks", () => {
       expect(rows[0].text()).toContain("example.org");
     });
 
-    it("has member columns grouped by network under a header with the network names", async () => {
+    it("has one header row: Site, For you, Other exits — no column per member or per network", async () => {
       const { wrapper } = await setup();
-      const heads = wrapper.findAll("thead th");
-      const groupA = heads.find((th) => th.text().includes("friends"));
-      const groupB = heads.find((th) => th.text().includes("my devices"));
-      expect(groupA, "header of network A").toBeTruthy();
-      expect(groupB, "header of network B").toBeTruthy();
-      expect(groupA.attributes("colspan"), "two members in A").toBe("2");
-      const at = (group) => heads.findIndex((th) => th.element === group.element);
-      expect(at(groupA) < at(groupB), "A before B").toBe(true);
+      const heads = wrapper.findAll("thead th").map((th) => th.text());
+      expect(heads.slice(0, 3)).toEqual(["Site", "For youno exit chosen", "Other exits"]);
+      expect(wrapper.find("#domains-groups-row").exists()).toBe(false);
     });
 
-    it("shows the marks of the members of A, then of B, after the \"For you\" mark", async () => {
+    it("Details lists this computer, then the members of A, then of B, with the network in brackets", async () => {
       const { wrapper } = await setup();
-      expect(cells(wrapper, "example.org").slice(0, 5)).toEqual(["example.org", "blocked by ISP", "opens", "site is down", "blocked as a bot"]);
+      await wrapper.findAll("#domains-tbody button").find((b) => b.text() === "Details").trigger("click");
+      const rows = wrapper.findAll(".site-member").map((r) => r.text().replace(/\s+/g, " "));
+      expect(rows).toHaveLength(4);
+      expect(rows[0]).toContain("This computer, directly");
+      expect(rows[0]).toContain("blocked by ISP");
+      expect(rows[1]).toContain("(friends)");
+      expect(rows[1]).toContain("opens");
+      expect(rows[2]).toContain("(friends)");
+      expect(rows[2]).toContain("site is down");
+      expect(rows[3]).toContain("(my devices)");
+      expect(rows[3]).toContain("blocked as a bot");
     });
 
     it("takes \"For you\" from the first network where the site has a mark", async () => {
       const { wrapper } = await setup({ selfInA: null });
-      expect(cells(wrapper, "example.org")[1]).toBe("opens");
+      expect(cells(wrapper, "example.org")[1]).toMatch(/^opens\b/);
     });
   });
 
@@ -63,8 +68,8 @@ describe("DomainsSection with two networks", () => {
       const { wrapper } = await setup({ onlyA: true });
       const row = cells(wrapper, "only-a.org");
       expect(row[0]).toBe("only-a.org");
-      expect(row[2]).toBe("opens");
-      expect(row[4], "member of B").toBe("—");
+      expect(row[1], "no own check").toContain("not checked yet");
+      expect(row[2]).toContain("opens via");
     });
   });
 

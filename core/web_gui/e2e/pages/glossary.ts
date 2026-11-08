@@ -7,6 +7,12 @@ export const GLOSSARY = {
   siteColumn: 'Site',
   /** Heading of the "For you" column in the domain table. */
   youColumn: 'For you',
+  /** Second line of the first column without a chosen exit. */
+  youColumnSub: 'no exit chosen',
+  /** Second line of the first column with a chosen exit (the first line is `Via <name>`). */
+  viaColumnSub: 'your exit',
+  /** Heading of the column with the other exits that open the site. */
+  othersColumn: 'Other exits',
   /** Label of the first radio button of the exit list (exit is off). */
   directChoice: `Directly, without an exit`,
   /** Button of a member row: use this member as the exit (for an exit chosen by name — `: <name>`). Same idea as the tray submenu "Exit via {name}", but where the name is already shown, the button says "Use as exit". */

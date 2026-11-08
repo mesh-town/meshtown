@@ -29,7 +29,7 @@ describe("DomainsSection", () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].text()).toContain("example.org");
     expect(rows[0].text()).toContain("blocked by ISP");
-    expect(rows[0].text()).toContain("opens");
+    expect(rows[0].text()).toContain("opens via peer-one");
     expect(rows[1].text()).toContain("fresh.test");
   });
 
@@ -47,6 +47,39 @@ describe("DomainsSection", () => {
   it("sites are blocked for you but open for a member — the \"Exit via …\" button", () => {
     const { wrapper } = mountDomains();
     expect(wrapper.get("tbody").text()).toContain("Exit via peer-one");
+  });
+
+  it("Details opens the member rows and flips aria-expanded", async () => {
+    const { wrapper } = mountDomains();
+    const btn = wrapper.findAll("tbody button").find((b) => b.text() === "Details");
+    expect(btn.attributes("aria-expanded")).toBe("false");
+    expect(wrapper.find(".site-members").exists()).toBe(false);
+    await btn.trigger("click");
+    expect(btn.attributes("aria-expanded")).toBe("true");
+    expect(btn.text()).toBe("Hide");
+    const text = wrapper.get(".site-members").text();
+    expect(text).toContain("This computer, directly");
+    expect(text).toContain("peer-one");
+    await btn.trigger("click");
+    expect(wrapper.find(".site-members").exists()).toBe(false);
+  });
+
+  it("header: Site | For you (no exit chosen) | Other exits | actions", () => {
+    const { wrapper } = mountDomains();
+    const heads = wrapper.findAll('th').map((h) => h.text());
+    expect(heads.slice(0, 3)).toEqual(["Site", "For youno exit chosen", "Other exits"]);
+  });
+
+  it("empty list — no column headers", () => {
+    const { wrapper } = mountDomains([]);
+    expect(wrapper.findAll("th")).toHaveLength(0);
+    expect(wrapper.find("#domains-groups-row").exists()).toBe(false);
+  });
+
+  it("nobody shares internet — no \"Other exits\" column", () => {
+    const base = baseState({ domains: DOMAINS });
+    mounted = mountSection(DomainsSection, { state: { ...base, peers: base.peers.map((p) => (p.self ? p : { ...p, exit: false })) } });
+    expect(mounted.wrapper.text()).not.toContain("Other exits");
   });
 
   it("legend — a list: badge = verdict text, eight items", () => {

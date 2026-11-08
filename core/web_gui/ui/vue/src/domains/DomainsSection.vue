@@ -12,10 +12,11 @@ import { useNarrow } from "../common/use-narrow.ts";
 import DomainCards from "./DomainCards.vue";
 import DomainRow from "./DomainRow.vue";
 import {
-  DOMAINS_ADD, DOMAINS_ADDRESS_LABEL, DOMAINS_ADDRESS_PLACEHOLDER, DOMAINS_COL_SITE, DOMAINS_COL_YOU, DOMAINS_EMPTY,
+  DOMAINS_ADD, DOMAINS_ADDRESS_LABEL, DOMAINS_ADDRESS_PLACEHOLDER, DOMAINS_COL_SITE, DOMAINS_COL_OTHERS, DOMAINS_EMPTY,
   DOMAINS_HINT_INTRO, DOMAINS_NO_EXIT, DOMAINS_HINT_LOCAL, DOMAINS_HINT_LOCAL_NETS, DOMAINS_HINT_REST, DOMAINS_LOADING, DOMAINS_NO_STORE, DOMAINS_TABLE_LABEL,
 } from "./domains-texts.ts";
-import { LEGEND, checkAllLabel, columnGroups, columnHead, mergedDomains, proxySlot, rowsBusy, siteNets, tableColspan } from "./domains-view.ts";
+import { LEGEND, checkAllLabel, mergedDomains, proxySlot, routeExits, rowsBusy, siteNets } from "./domains-view.ts";
+import { exitPath, viaHead } from "./domains-summary.ts";
 import { useDomainActions } from "./use-domain-actions.ts";
 
 const injected = inject(STORE_KEY);
@@ -28,10 +29,11 @@ const exitStatus = ref<ExitSaveStatus>({ text: "", cls: "" });
 const narrow = useNarrow();
 const nets = computed(() => siteNets(store));
 const noExit = computed(() => nets.value.length > 0 && nets.value.every((n) => n.peers.length === 0));
-const groups = computed(() => columnGroups(nets.value));
 const domains = computed(() => mergedDomains(nets.value, store));
 const proxy = computed(() => proxySlot(nets.value, store.nets));
 const chosen = computed(() => (isMulti(store) ? chosenOf(store, proxy.value, chosenExitIds(store)) : chosenExitIds(store)));
+const exits = computed(() => routeExits(store, proxy.value));
+const head = computed(() => viaHead(exitPath(nets.value, proxy.value, exits.value)));
 const checkAllOff = computed(() => actions.ui.checkAllBusy || rowsBusy(domains.value));
 
 async function add(): Promise<void> {
@@ -60,26 +62,17 @@ async function exitVia(idFull: string): Promise<void> {
       <DomainCards v-if="narrow" :domains="domains" :nets="nets" :proxy="proxy" :chosen="chosen" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
       <div v-else class="table-scroll">
         <table class="data domains-table" :aria-label="DOMAINS_TABLE_LABEL">
-          <thead>
-            <tr v-if="nets.length >= 2" id="domains-groups-row">
-              <th></th>
-              <th></th>
-              <th v-for="g in groups" :key="g.slot" :colspan="g.span" class="col-net">{{ g.label }}</th>
-              <th></th>
-            </tr>
+          <thead v-if="domains.length > 0">
             <tr id="domains-head-row">
               <th>{{ DOMAINS_COL_SITE }}</th>
-              <th>{{ DOMAINS_COL_YOU }}</th>
-              <template v-for="g in groups" :key="g.slot">
-                <th v-for="p in g.peers" :key="p.id" class="col-peer" :title="p.id">{{ columnHead(p).name }}<br><span class="peer-code mono">{{ columnHead(p).id }}</span></th>
-                <th v-if="g.peers.length === 0 && nets.length >= 2" class="col-peer">—</th>
-              </template>
+              <th>{{ head.text }}<br><span class="hint">{{ head.sub }}</span></th>
+              <th v-if="!noExit">{{ DOMAINS_COL_OTHERS }}</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="domains-tbody">
-            <tr v-if="domains.length === 0"><td :colspan="tableColspan(groups)" class="hint">{{ DOMAINS_EMPTY }}</td></tr>
-            <DomainRow v-for="d in domains" :key="d.name" :domain="d" :nets="nets" :proxy="proxy" :chosen="chosen" :busy="!!actions.ui.busy[d.name]" :error="actions.ui.errors[d.name] || ''" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
+            <tr v-if="domains.length === 0"><td :colspan="noExit ? 3 : 4" class="hint">{{ DOMAINS_EMPTY }}</td></tr>
+            <DomainRow v-for="d in domains" :key="d.name" :domain="d" :nets="nets" :proxy="proxy" :exits="exits" :show-others="!noExit" :busy="!!actions.ui.busy[d.name]" :error="actions.ui.errors[d.name] || ''" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
           </tbody>
         </table>
       </div>
