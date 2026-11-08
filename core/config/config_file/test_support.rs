@@ -54,7 +54,6 @@ pub(super) fn sample_settings() -> Settings {
             web_access: super::ListenAccess::Localnet,
             log_ring_lines: 500,
             autostart_enabled: false,
-            full_tunnel_enabled: false,
         },
         net: NetSettings {
             node_name: Some("ginger-pool".to_string()),
@@ -127,7 +126,6 @@ pub(crate) fn all_changed() -> Settings {
             web_access: super::ListenAccess::Localhost,
             log_ring_lines: 500,
             autostart_enabled: true,
-            full_tunnel_enabled: true,
         },
         net: NetSettings {
             node_name: Some("台所 \"1\"".to_string()),

@@ -7,7 +7,7 @@ use super::slot_store::NetSlotId;
 use crate::node::machine_memory::NODE_MEMORY_WARN_MIB_DEFAULT;
 
 /// The fields of the `config` document that the running node does not read: SOCKS, the page, the log,
-/// the memory guard, the pass-through `autostart`/`full_tunnel`. Defaults live only in `Default`.
+/// the memory guard, the pass-through `autostart`. Defaults live only in `Default`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ProcessSettings {
     pub socks_enabled: bool,         // socks.enabled
@@ -22,7 +22,6 @@ pub struct ProcessSettings {
     pub web_ifaces: IfaceFilter, // web.ifaces — over which networks the page may be opened
     pub log_ring_lines: u64, // log.ring_lines    — pass-through
     pub autostart_enabled: bool, // autostart.enabled — last choice from the page; the login entry in the system is the source of truth
-    pub full_tunnel_enabled: bool, // full_tunnel.enabled — pass-through, always false
     pub node_memory_warn_mib: u64, // node.memory_warn_mib — memory guard summary threshold, MiB; 0 — off
     pub node_memory_exit_mib: u64, // node.memory_exit_mib — memory guard exit threshold, MiB; 0 — off
     pub exit_max_streams: u64, // exit.max_streams — open exit streams per process; 0 = by machine memory
@@ -45,7 +44,6 @@ impl Default for ProcessSettings {
             web_ifaces: IfaceFilter::Auto,
             log_ring_lines: 2000,
             autostart_enabled: false,
-            full_tunnel_enabled: false,
             node_memory_warn_mib: NODE_MEMORY_WARN_MIB_DEFAULT,
             node_memory_exit_mib: 900,
             exit_max_streams: 0,

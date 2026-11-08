@@ -36,7 +36,6 @@ fn defaults_match_config_file_md() {
         "exit.stream_window_kib defaults to 0 (by machine memory)"
     );
     assert!(!s.process.autostart_enabled);
-    assert!(!s.process.full_tunnel_enabled);
 }
 
 #[test]

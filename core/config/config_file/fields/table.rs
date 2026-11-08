@@ -1,4 +1,4 @@
-//! The `FIELDS` table: 34 stored paths and 6 computed ones (mode `ReadOnly`, no field in `Settings`).
+//! The `FIELDS` table: 34 stored paths and 4 computed ones (mode `ReadOnly`, no field in `Settings`).
 //! Row order is the file output order (`render.rs`); computed rows sit in their own section.
 
 use crate::node::net_names;
@@ -8,7 +8,7 @@ use super::kinds_ifaces::{ExitIface, IfaceNames};
 use super::kinds_list::{NetNames, NetSync, OpenedList, PeerList, PublishedList};
 use super::kinds_relay::NetRelay;
 use super::kinds_scalar::{
-    Addr, BoolKind, Choice, Int, MemoryExit, NetKey, NodeName, OffOnly, OptAddr, Port,
+    Addr, BoolKind, Choice, Int, MemoryExit, NetKey, NodeName, OptAddr, Port,
 };
 use super::kinds_text::{SlotRef, TextList};
 use super::row::{row, Block, Field, Mode};
@@ -73,9 +73,6 @@ pub(crate) static FIELDS: &[Field] = &[
     row!("autostart.enabled", EditOnly, slot!(process.autostart_enabled, BoolKind)),
     row!("autostart.available", ReadOnly, &Computed(Block::Process)),
     row!("autostart.reason", ReadOnly, &Computed(Block::Process)),
-    row!("full_tunnel.enabled", EditOnly, slot!(process.full_tunnel_enabled, OffOnly)),
-    row!("full_tunnel.available", ReadOnly, &Computed(Block::Process)),
-    row!("full_tunnel.reason", ReadOnly, &Computed(Block::Process)),
 ];
 
 #[cfg(test)]

@@ -87,9 +87,6 @@ const INPUT: &str = r#"{
     },
     "autostart": {
       "enabled": false
-    },
-    "full_tunnel": {
-      "enabled": false
     }
   }
 }
@@ -113,11 +110,6 @@ const BODY_TEXT: &str = r#"{
       "enabled": false,
       "max_streams": 0,
       "stream_window_kib": 0
-    },
-    "full_tunnel": {
-      "available": false,
-      "enabled": false,
-      "reason": "coming in a later version"
     },
     "log": {
       "ring_lines": 500
@@ -192,9 +184,7 @@ const BODY_TEXT: &str = r#"{
     "web.enabled",
     "web.port",
     "autostart.available",
-    "autostart.reason",
-    "full_tunnel.available",
-    "full_tunnel.reason"
+    "autostart.reason"
   ],
   "restart_fields": [
     "net.relay",

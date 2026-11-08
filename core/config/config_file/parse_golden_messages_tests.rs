@@ -10,12 +10,12 @@ mod every_stored_field_bad {
 
     #[test]
     fn parse_messages_golden() {
-        // given: a file where all 28 stored paths are wrong (type, bound, a 65-character name,
+        // given: a file where all 27 stored paths are wrong (type, bound, a 65-character name,
         // a `socks.port` value longer than 40 characters)
         let config = all_bad_config();
         // when: parse_text; then: the (path, message) pairs in path order equal the literal
         let actual = messages_of(config);
-        assert_eq!(actual.len(), 28, "one error per path: {actual:?}");
+        assert_eq!(actual.len(), 27, "one error per path: {actual:?}");
         assert_eq!(actual, expected_messages());
     }
 }
@@ -95,7 +95,7 @@ mod unknown_keys {
 
     #[test]
     fn parse_unknown_keys_golden() {
-        // given: one extra key in each of the 15 sections, an extra section and 6 computed keys
+        // given: one extra key in each of the 13 sections, an extra section and 4 computed keys
         let config = with_extras(json!({}));
         // when: parse_text
         let parsed = parse_text(&file_with(config)).expect("the file parses");
@@ -128,7 +128,7 @@ fn messages_of(config: Value) -> Vec<(String, String)> {
     list
 }
 
-/// A config where all 28 stored paths are wrong.
+/// A config where all 27 stored paths are wrong.
 fn all_bad_config() -> Value {
     let long_value = "9".repeat(50);
     json!({
@@ -143,7 +143,6 @@ fn all_bad_config() -> Value {
         "web": { "enabled": "x", "port": 80, "access": "public" },
         "log": { "ring_lines": 1 },
         "autostart": { "enabled": "x" },
-        "full_tunnel": { "enabled": "x" },
         "net": { "transports": [], "discovery": ["zzz"], "sync": "nope", "relay": "nope" }
     })
 }
@@ -152,8 +151,8 @@ fn e(path: &str, message: &str) -> (String, String) {
     (path.to_string(), message.to_string())
 }
 
-/// An empty config plus a `zzz` key in each of the 15 sections, the `extra_section` section and 6
-/// keys computed by the node (`network.label|masked`, `autostart|full_tunnel.available|reason`).
+/// An empty config plus a `zzz` key in each of the 13 sections, the `extra_section` section and 4
+/// keys computed by the node (`network.label|masked`, `autostart.available|reason`).
 fn with_extras(base: Value) -> Value {
     let mut config = base;
     for section in crate::config::config_file::fields::section_names() {
@@ -162,10 +161,8 @@ fn with_extras(base: Value) -> Value {
     config["extra_section"] = json!({ "a": 1 });
     config["network"]["label"] = json!("x");
     config["network"]["masked"] = json!("x");
-    for section in ["autostart", "full_tunnel"] {
-        config[section]["available"] = json!(false);
-        config[section]["reason"] = json!("x");
-    }
+    config["autostart"]["available"] = json!(false);
+    config["autostart"]["reason"] = json!("x");
     config
 }
 
@@ -190,7 +187,6 @@ fn expected_messages() -> Vec<(String, String)> {
         e("exit.enabled", r#"file has "x", expected true or false; using default true"#),
         e("exit.max_streams", r#"file has 100001, expected an integer 0…100000; using default 0"#),
         e("exit.stream_window_kib", r#"file has 65537, expected an integer 0…65536; using default 0"#),
-        e("full_tunnel.enabled", r#"file has "x", expected false (enabling is unavailable in this build); using default false"#),
         e("log.ring_lines", r#"file has 1, expected an integer 200…20000; using default 2000"#),
         e(
             "net.discovery",

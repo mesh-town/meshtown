@@ -86,9 +86,6 @@ const DEFAULTS_TEXT: &str = r#"{
     },
     "autostart": {
       "enabled": false
-    },
-    "full_tunnel": {
-      "enabled": false
     }
   }
 }
@@ -190,9 +187,6 @@ const ALL_CHANGED_TEXT: &str = r#"{
       "ring_lines": 500
     },
     "autostart": {
-      "enabled": true
-    },
-    "full_tunnel": {
       "enabled": true
     }
   }

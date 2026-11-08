@@ -80,7 +80,6 @@ export const SETTINGS_TITLE_PROBE_INTERVAL = "How often to check connection spee
 export const SETTINGS_DESC_PROBE_INTERVAL = "Checks whether a large data chunk gets through " + NET_NAME + ": 16 KiB, 256 KiB, 1 MiB.";
 export const SETTINGS_TITLE_LOG_RING = "Log size";
 export const SETTINGS_DESC_LOG_RING = "How many lines " + NET_NAME + " keeps in memory (from 200 to 20,000).";
-export const SETTINGS_TITLE_FULL_TUNNEL = "All traffic through " + NET_NAME;
 export const SETTINGS_TITLE_WEB_ENABLED = NET_NAME + " web page";
 export const SETTINGS_TITLE_WEB_PORT = "Web page port";
 export const SETTINGS_TITLE_WEB_ACCESS = "Who can access the settings page";

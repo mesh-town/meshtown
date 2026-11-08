@@ -14,7 +14,6 @@ const OPENED: &str =
 const IFACES: &str =
     "a list of interface names without repeats ([] — automatic, [\"*\"] — no limits)";
 const FLAG: &str = "true or false";
-const OFF: &str = "false (enabling is unavailable in this build)";
 
 type InvalidCase = (&'static str, Value, String);
 
@@ -88,7 +87,6 @@ fn invalid_rest_cases() -> Vec<InvalidCase> {
             "an interface name (1–64 bytes, no control characters) or null — any network",
         ),
         case("autostart.enabled", json!("x"), FLAG),
-        case("full_tunnel.enabled", json!("x"), OFF),
     ]
 }
 
@@ -127,7 +125,7 @@ mod get_body_lists {
         let dir = temp_dir();
         let body = new_state(&dir).config_get_body();
         cleanup(&dir);
-        // then: read_only (8) and restart_fields (7) as sets equal the literals
+        // then: read_only (6) and restart_fields (7) as sets equal the literals
         let read_only = [
             "network.label",
             "network.masked",
@@ -135,8 +133,6 @@ mod get_body_lists {
             "web.enabled",
             "autostart.available",
             "autostart.reason",
-            "full_tunnel.available",
-            "full_tunnel.reason",
         ];
         let restart_fields = [
             "net.relay",
@@ -157,7 +153,7 @@ mod put_all_editable_at_once {
 
     #[test]
     fn put_changed_and_pending_golden() {
-        // given: valid non-default values for 16 paths (without autostart and full_tunnel)
+        // given: valid non-default values for 16 paths (without autostart)
         let id = NodeSecret::from_bytes(&[1u8; 32]).peer_id().to_string();
         let patch = json!({
             "node": { "name": "Kitchen" },
@@ -240,7 +236,6 @@ mod internal_lists {
             "exit.stream_window_kib",
             "exit.interface",
             "autostart.enabled",
-            "full_tunnel.enabled",
         ];
         let restart_paths = [
             "net.relay",

@@ -110,20 +110,6 @@ fn port_bounds() {
 }
 
 #[test]
-fn off_only_rejects_true() {
-    // given: full_tunnel.enabled; false passes, true is an error, default false
-    assert!(
-        !assert_ok("full_tunnel", "enabled", json!(false))
-            .process
-            .full_tunnel_enabled
-    );
-    let (s, errs) = read("full_tunnel", "enabled", json!(true));
-    assert!(!s.process.full_tunnel_enabled);
-    let want = "file has true, expected false (enabling is unavailable in this build); using default false";
-    assert_eq!(errs[0].1, want);
-}
-
-#[test]
 fn addr_and_opt_addr() {
     let doh = crate::site_checks::doh::DEFAULT_DOH;
     let s = assert_ok("checks", "doh_server", json!("1.2.3.4:53"));

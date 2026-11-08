@@ -155,8 +155,7 @@ fn unknown_fields_listed() {
 fn computed_fields_ignored_silently() {
     let text = r#"{"config": {"version":1,
         "network": {"label": "our-gaming-room", "masked": "our--••••"},
-        "autostart": {"enabled": false, "available": false, "reason": "later"},
-        "full_tunnel": {"available": false, "reason": "later"}}}"#;
+        "autostart": {"enabled": false, "available": false, "reason": "later"}}}"#;
     let p = parse_text(text).expect("parse");
     assert_eq!(p.field_errors, vec![]);
     assert!(
@@ -164,6 +163,33 @@ fn computed_fields_ignored_silently() {
         "unknown fields: {:?}",
         p.unknown_paths
     );
+}
+
+#[test]
+fn old_file_with_full_tunnel_loads_and_drops_it() {
+    for enabled in ["true", "false"] {
+        // given: an old file with the retired `full_tunnel` section and a changed `socks.port`
+        let text = format!(
+            r#"{{"config": {{"version":1, "socks": {{"port": 1234}},
+            "full_tunnel": {{"enabled": {enabled}}}}}}}"#
+        );
+        // when: parsed
+        let p = parse_text(&text).expect("parse");
+        // then: no errors, other values intact, the path is reported as unknown
+        assert_eq!(p.field_errors, vec![]);
+        assert_eq!(p.settings.process.socks_port, 1234);
+        assert!(
+            p.unknown_paths
+                .iter()
+                .any(|u| u.starts_with("config.full_tunnel")),
+            "unknown fields: {:?}",
+            p.unknown_paths
+        );
+        // and: the rendered file has no such block
+        let secret = crate::transport::net::NodeSecret::from_bytes(&[7; 32]);
+        let out = crate::config::config_file::render_config_file(1, 0, &secret, &p.settings);
+        assert!(!out.contains("full_tunnel"), "{out}");
+    }
 }
 
 #[test]

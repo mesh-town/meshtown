@@ -8,14 +8,14 @@ fn read_only_follows_table_order() {
     // given: the table
     // when: the read-only selection
     let got = read_only_paths();
-    // then: table order, 8 paths
+    // then: table order, 6 paths
     let want: Vec<&str> = FIELDS
         .iter()
         .filter(|f| got.contains(&f.field_path))
         .map(|f| f.field_path)
         .collect();
     assert_eq!(got, want);
-    assert_eq!(got.len(), 8);
+    assert_eq!(got.len(), 6);
 }
 
 #[test]
