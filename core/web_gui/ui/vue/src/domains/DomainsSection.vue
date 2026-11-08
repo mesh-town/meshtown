@@ -2,12 +2,9 @@
 import { computed, inject, ref } from "vue";
 import { saveExitIn } from "../core/exit-via.ts";
 import type { ExitSaveStatus } from "../core/exit-via.ts";
-import { isMulti } from "../core/slots.ts";
 import { STORE_KEY } from "../core/store.ts";
 import type { Store } from "../core/store.ts";
 import NoNetwork from "../common/NoNetwork.vue";
-import { chosenExitIds } from "../common/exits.ts";
-import { chosenOf } from "../home/exit-groups.ts";
 import { useNarrow } from "../common/use-narrow.ts";
 import DomainCards from "./DomainCards.vue";
 import DomainRow from "./DomainRow.vue";
@@ -31,7 +28,6 @@ const nets = computed(() => siteNets(store));
 const noExit = computed(() => nets.value.length > 0 && nets.value.every((n) => n.peers.length === 0));
 const domains = computed(() => mergedDomains(nets.value, store));
 const proxy = computed(() => proxySlot(nets.value, store.nets));
-const chosen = computed(() => (isMulti(store) ? chosenOf(store, proxy.value, chosenExitIds(store)) : chosenExitIds(store)));
 const exits = computed(() => routeExits(store, proxy.value));
 const head = computed(() => viaHead(exitPath(nets.value, proxy.value, exits.value)));
 const checkAllOff = computed(() => actions.ui.checkAllBusy || rowsBusy(domains.value));
@@ -59,7 +55,7 @@ async function exitVia(idFull: string): Promise<void> {
       </div>
       <p class="field-error-text" id="domain-add-error" role="alert" :hidden="!actions.ui.addError">{{ actions.ui.addError }}</p>
       <p class="field-status" id="domains-check-all-status" role="status" :hidden="!actions.ui.checkAllStatus">{{ actions.ui.checkAllStatus }}</p>
-      <DomainCards v-if="narrow" :domains="domains" :nets="nets" :proxy="proxy" :chosen="chosen" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
+      <DomainCards v-if="narrow" :domains="domains" :nets="nets" :proxy="proxy" :exits="exits" :show-others="!noExit" :busy="actions.ui.busy" :errors="actions.ui.errors" @recheck="actions.recheck" @remove="actions.remove" @exit-via="exitVia" />
       <div v-else class="table-scroll">
         <table class="data domains-table" :aria-label="DOMAINS_TABLE_LABEL">
           <thead v-if="domains.length > 0">

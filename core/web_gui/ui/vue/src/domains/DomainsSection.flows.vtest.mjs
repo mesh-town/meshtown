@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { demoConfig, demoState, DEMO_PEER_ONE } from "../testing/demo-node.mjs";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.mjs";
+import { stubNarrow } from "../testing/narrow-media.mjs";
 import { shown } from "../testing/dom.mjs";
 
 const SELF_ID = "aaaa1111";
@@ -79,6 +80,18 @@ describe("domains open via peer", () => {
     const button = firstRow(wrapper).findAll("button").find((b) => /^Exit via /.test(b.text()));
     expect(shown(button.element)).toBe(true);
 
+    await button.trigger("click");
+    await settle();
+    expect(node.config.route.exits).toEqual([DEMO_PEER_ONE.id_full]);
+  });
+});
+
+describe("domains open via peer on a narrow screen", () => {
+  it("the \"Exit via …\" button on the card makes the member the exit, as in the table", async () => {
+    stubNarrow(true);
+    const node = makeNode(openViaState());
+    const wrapper = await openDomains(node);
+    const button = wrapper.get("div.domain-card").findAll("button").find((b) => /^Exit via /.test(b.text()));
     await button.trigger("click");
     await settle();
     expect(node.config.route.exits).toEqual([DEMO_PEER_ONE.id_full]);

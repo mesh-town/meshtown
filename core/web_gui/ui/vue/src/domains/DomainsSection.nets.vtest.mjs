@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createFakeNode } from "../testing/fake-node.mjs";
 import { mountPage, openTab, polls, settle, unmountPage } from "../testing/page.mjs";
 import { NET_A, NET_B, twoNets } from "../testing/overview-fixtures.mjs";
+import { stubNarrow } from "../testing/narrow-media.mjs";
 import { demoConfig, demoState } from "../testing/demo-node.mjs";
 import { CHECK_ALL_CONFLICT } from "./domains-view.ts";
 
@@ -27,6 +28,18 @@ const check = (verdict) => ({ verdict, reason: verdict, age_sec: 5 });
 afterEach(unmountPage);
 
 describe("DomainsSection with two networks", () => {
+  describe("on a narrow screen", () => {
+    it("a member's name and its network are separate elements in the details", async () => {
+      stubNarrow(true);
+      const { wrapper } = await setup();
+      const card = wrapper.get("div.domain-card");
+      await card.findAll("button").find((b) => b.text() === "Details").trigger("click");
+      const who = card.findAll(".site-member-who").find((w) => w.text().includes("phone"));
+      expect(who.get(".hint").text()).toMatch(/^\(.+\)$/);
+      expect(who.get(".hint").text()).not.toContain("phone");
+    });
+  });
+
   describe("a site in both networks", () => {
     it("is one row, not one per network", async () => {
       const { wrapper } = await setup();
