@@ -189,4 +189,4 @@ The DHT and transport come from [townjump](https://github.com/mesh-town/townjump
 Passphrases (CC BY 3.0 US; the words are embedded in compressed form without the dice numbers, see
 `core/members/wordlist/NOTICE.md`). The page is built with [Vue](https://vuejs.org/). Full list: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
-AGPL-3.0-only, see [LICENSE](LICENSE).
+AGPL-3.0-only, see [LICENSE](LICENSE). Contributions are accepted under Apache-2.0, see [CONTRIBUTING.md](CONTRIBUTING.md).
