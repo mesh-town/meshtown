@@ -4,7 +4,7 @@ defineProps<{ kind: "recheck" | "remove" }>();
 </script>
 
 <template>
-  <svg class="site-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <svg class="site-icon" width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <template v-if="kind === 'recheck'">
       <path d="M15 9a6 6 0 1 1-1.8-4.3" />
       <path d="M15 2.5v3.2h-3.2" />
