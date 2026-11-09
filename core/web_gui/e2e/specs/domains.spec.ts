@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures/index';
 import { DomainsSection } from '../pages/domains-section';
 
@@ -43,5 +44,74 @@ test('72-domains-narrow-360: 360×800: the "Site address" field is not squeezed,
   for (const remove of await domains.cardRemoveButtons.all()) {
     const right = await domains.rightEdge(remove);
     expect.soft(right, `a "Remove" button goes beyond the window: right edge ${right}`).toBeLessThanOrEqual(360);
+  }
+});
+
+interface OverviewSlot {
+  state?: { peers?: { id?: string }[]; domains?: { checks?: Record<string, unknown> }[] } | null;
+}
+
+// The demo starts with no checks; every member gets an "ok" verdict for every site, so a row shows "also via N more".
+async function everySiteOpensEverywhere(page: Page): Promise<void> {
+  const ok = { verdict: 'ok', reason: '', dns_ms: 10, tcp_ms: 10, tls_ms: 10, http_ms: 10, status: 200, bytes: 100, stalled: false, age_sec: 5 };
+  await page.route('**/api/overview', async (route) => {
+    const res = await route.fetch();
+    const body = (await res.json()) as { slots?: OverviewSlot[] };
+    for (const slot of body.slots ?? []) {
+      const peers = slot.state?.peers ?? [];
+      for (const domain of slot.state?.domains ?? []) {
+        domain.checks = Object.fromEntries(peers.map((p) => [p.id ?? '', ok]));
+      }
+    }
+    await route.fulfill({ response: res, json: body });
+  });
+}
+
+const CENTER_SPREAD_MAX = 2;
+// The height of the "Recheck"/"Remove" buttons before the glyphs shrank to 16 px (an 18 px glyph, padding and border).
+const BUTTON_HEIGHT = 34;
+
+test('133-domains-row-vertical-center: 1280: in a site row the name, the result mark, "N more", "Details", "Recheck" and "Remove" share one vertical center', async ({
+  app,
+  page,
+}) => {
+  await everySiteOpensEverywhere(page);
+  await app.resize({ width: 1280, height: 800 });
+  await app.tabs.open('domains');
+  const row = page.locator('tr.domain-row').filter({ has: page.locator('.site-more') }).first();
+  await expect(row, 'no site row with an "N more" button').toBeVisible({ timeout: 10000 });
+
+  const parts: Record<string, ReturnType<typeof row.locator>> = {
+    name: row.locator('td.mono'),
+    mark: row.locator('.badge').first(),
+    more: row.locator('.site-more'),
+    details: row.locator('td.domain-actions .btn-text'),
+    recheck: row.getByRole('button', { name: /^Recheck / }),
+    remove: row.getByRole('button', { name: /^Remove / }),
+  };
+  const centers: Record<string, number> = {};
+  for (const [key, loc] of Object.entries(parts)) {
+    centers[key] = await loc.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2;
+    });
+  }
+  const values = Object.values(centers);
+  const spread = Math.max(...values) - Math.min(...values);
+  expect.soft(spread, `vertical centers diverge: ${JSON.stringify(centers)}`).toBeLessThanOrEqual(CENTER_SPREAD_MAX);
+});
+
+test('134-domains-row-icons-16: 1280: the glyphs of the row buttons are 16×16 and the buttons keep their height', async ({ app, page }) => {
+  await app.resize({ width: 1280, height: 800 });
+  await app.tabs.open('domains');
+  const row = page.locator('tr.domain-row').first();
+  await expect(row, 'no site row').toBeVisible({ timeout: 10000 });
+
+  for (const name of [/^Recheck /, /^Remove /]) {
+    const button = row.getByRole('button', { name });
+    const box = await button.boundingBox();
+    expect.soft(Math.abs((box?.height ?? 0) - BUTTON_HEIGHT), `${name}: button height ${box?.height}`).toBeLessThanOrEqual(0.5);
+    const svg = await button.locator('svg').boundingBox();
+    expect.soft([svg?.width, svg?.height], `${name}: glyph size`).toEqual([16, 16]);
   }
 });
