@@ -92,8 +92,8 @@ choice. What is not: everything above.
 
 A member can let the others send traffic out through its internet connection. Point a browser or a program at the
 local proxy `127.0.0.1:1080` (SOCKS5 and HTTP on one port) and its connections leave from that member's address — for
-example, to reach a service that accepts connections only from your office or home IP. A member decides whether to be
-an exit and serves only members of its network. SOCKS5 carries UDP too (`UDP ASSOCIATE`), so QUIC and voice calls can
+example, to reach a service that accepts connections only from your office or home IP. Any member can act as an exit
+node, serving only members of its network. SOCKS5 carries UDP too (`UDP ASSOCIATE`), so QUIC and voice calls can
 go out the same way.
 
 ## Quick start
