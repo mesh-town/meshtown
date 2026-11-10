@@ -15,7 +15,7 @@
 .saved{color:var(--green);font-size:12px;}
 
 .mini-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;margin-left:6px;vertical-align:middle;white-space:nowrap;}
-.mini-badge-restart{background:var(--grey-bg);color:var(--grey);}
+.mini-badge-restart{background:var(--grey-bg);color:var(--fg-muted);}
 .cli-note{color:var(--orange);}
 .hint-warn{color:var(--orange);}
 .readonly-note{color:var(--fg-muted);font-style:italic;}

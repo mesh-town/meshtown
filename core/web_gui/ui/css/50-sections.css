@@ -24,7 +24,7 @@
   table.data td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
 
   .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;}
-  .badge-ok{background:var(--green-bg);color:var(--green);}
+  .badge-ok{background:var(--green-bg);color:var(--badge-ok-fg);}
   .badge-cut{background:var(--red-bg);color:var(--red);}
   .badge-dns{background:var(--red-bg);color:var(--red);}
   .badge-geo{background:var(--orange-bg);color:var(--orange);}
