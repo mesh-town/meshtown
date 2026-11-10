@@ -930,7 +930,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1833,7 +1833,7 @@ dependencies = [
 [[package]]
 name = "libudx"
 version = "1.7.3"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "libc",
  "portable-atomic",
@@ -2579,7 +2579,7 @@ checksum = "2ee67f1008b1ba2321834326597b8e186293b049a023cdef258527550b9935b4"
 [[package]]
 name = "peeroxide-dht"
 version = "1.7.3"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "blake2",
  "chacha20 0.9.1",
@@ -2982,7 +2982,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3383,7 +3383,7 @@ dependencies = [
  "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -3676,8 +3676,8 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "townjump-dht"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "thiserror 2.0.20",
  "tokio",
@@ -3686,8 +3686,8 @@ dependencies = [
 
 [[package]]
 name = "townjump-dht-peeroxide"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "libudx",
  "peeroxide-dht",
@@ -3700,8 +3700,8 @@ dependencies = [
 
 [[package]]
 name = "townjump-keys"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -3711,8 +3711,8 @@ dependencies = [
 
 [[package]]
 name = "townjump-lan"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "getrandom 0.3.4",
  "if-addrs",
@@ -3723,16 +3723,16 @@ dependencies = [
 
 [[package]]
 name = "townjump-logger"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "tokio",
 ]
 
 [[package]]
 name = "townjump-pipe"
-version = "0.1.19"
-source = "git+https://github.com/mesh-town/townjump?rev=46d0b778dad6e244abbc256524f5a1464af6b657#46d0b778dad6e244abbc256524f5a1464af6b657"
+version = "0.1.21"
+source = "git+https://github.com/mesh-town/townjump?rev=e9093228b9c773b14cd9ff24a732d83e6350ff44#e9093228b9c773b14cd9ff24a732d83e6350ff44"
 dependencies = [
  "portable-atomic",
  "tokio",
@@ -4058,7 +4058,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
