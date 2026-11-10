@@ -24,7 +24,7 @@ describe("TabsNav on a narrow screen", () => {
     it("shows Home, Networks, Sites, Settings and the \"More ▾\" button", () => {
       const { nav } = setup({ active: "home" });
       expect(tabLabels(nav)).toEqual(["Home", "Networks", "Sites", "Settings"]);
-      expect(moreButton(nav).text()).toBe("More ▾");
+      expect(moreButton(nav).text().replace(/\u00a0/g, " ")).toBe("More ▾");
     });
 
     it("keeps the request counter on Networks", () => {
@@ -85,7 +85,7 @@ describe("TabsNav on a narrow screen", () => {
   describe("the active section is under \"More\"", () => {
     it("the button is active and named after the section, ordinary tabs are not active", () => {
       const { nav } = setup({ active: "log" });
-      expect(moreButton(nav).text()).toBe("Log ▾");
+      expect(moreButton(nav).text().replace(/\u00a0/g, " ")).toBe("Log ▾");
       expect(moreButton(nav).classes()).toContain("active");
       for (const t of nav.findAll("[role=tab]").filter((t) => !t.text().includes("▾"))) {
         expect(t.classes(), t.text()).not.toContain("active");
@@ -94,14 +94,14 @@ describe("TabsNav on a narrow screen", () => {
     });
 
     it("another menu section gives its own name", () => {
-      expect(moreButton(setup({ active: "network" }).nav).text()).toBe("Diagnostics ▾");
+      expect(moreButton(setup({ active: "network" }).nav).text().replace(/\u00a0/g, " ")).toBe("Diagnostics ▾");
     });
   });
 
   describe("the active section is an ordinary tab", () => {
     it("the button stays \"More ▾\" and is not active; the tab is", () => {
       const { nav } = setup({ active: "domains" });
-      expect(moreButton(nav).text()).toBe("More ▾");
+      expect(moreButton(nav).text().replace(/\u00a0/g, " ")).toBe("More ▾");
       expect(moreButton(nav).classes()).not.toContain("active");
       expect(nav.get("#tab-domains").classes()).toContain("active");
     });

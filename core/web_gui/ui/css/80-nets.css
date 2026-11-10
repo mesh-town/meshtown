@@ -6,7 +6,7 @@
 .net-row{display:flex;align-items:flex-start;gap:10px;padding:9px 6px;border-top:1px solid var(--grey-bg);cursor:pointer;flex-wrap:wrap;min-width:0}
 .net-row.locked{cursor:help}
 .net-row.locked input{opacity:.45;cursor:not-allowed}
-.net-row input{margin:3px 0 0;width:16px;height:16px;accent-color:var(--accent);flex:none}
+.net-row input{margin:3px 0 0;width:16px;height:16px;flex:none}
 .net-main{flex:1 1 170px;min-width:0}
 .net-name{display:block;font-size:14px;font-weight:600;overflow-wrap:anywhere}
 .net-note{display:block;font-size:12px;color:var(--fg-muted);overflow-wrap:anywhere}
@@ -56,3 +56,15 @@
 .kcard:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
 .kind-warn{color:var(--fg)}
 @media (max-width:600px){.kinds{grid-template-columns:1fr}}
+
+/* Publish port form: the protocol select keeps its own width, the name field takes a row of its own on a phone. */
+#port-add-proto{flex:0 0 auto;min-width:76px;}
+@media (max-width:480px){#port-add-name{flex:1 1 100%;}}
+.opencell .input{padding:4px 8px;font-size:12.5px;line-height:18px;}
+/* Device settings: even spacing between blocks. */
+#you-block .field-label:not(:first-of-type){margin-top:14px;}
+#you-block .toggle-inline{margin-top:14px;}
+#you-block .home-exit-toggle{display:flex;}
+.you-leave-hint{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
+/* "Delete network for everyone": filled red, so it stands apart from "Leave network". */
+#you-delete-net-btn,#you-delete-net-btn:hover{background:var(--red);border-color:var(--red);color:var(--bg-elev);}

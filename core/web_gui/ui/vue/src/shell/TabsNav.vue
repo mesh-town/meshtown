@@ -19,7 +19,7 @@ const menuOpen = ref(false);
 
 const split = computed(() => (narrow.value ? splitTabs(views) : { main: views, more: [] }));
 const activeMore = computed(() => split.value.more.find((v) => v.id === props.active));
-const moreLabel = computed(() => (activeMore.value ? activeMore.value.tab : SHELL_TAB_MORE) + " \u25BE");
+const moreLabel = computed(() => (activeMore.value ? activeMore.value.tab : SHELL_TAB_MORE));
 
 function reveal() {
   const tab = nav.value && nav.value.querySelector<HTMLElement>(".tab.active");
@@ -53,7 +53,7 @@ const marked = (id: string): boolean => id === "settings" && props.dirty;
       :title="marked(v.id) ? SHELL_TAB_UNSAVED : undefined"
     >{{ viewTab(v, narrow) }}<span v-if="v.id === 'peers' && votes > 0" class="chip" :aria-label="chipLabel(votes)" :title="CHIP_TITLE">{{ votes }}</span></a>
     <div v-if="split.more.length > 0" ref="moreBox" class="tab-more">
-      <button type="button" class="tab tab-more-btn" :class="{ active: !!activeMore }" aria-haspopup="menu" :aria-expanded="menuOpen ? 'true' : 'false'" @click="menuOpen = !menuOpen">{{ moreLabel }}</button>
+      <button type="button" class="tab tab-more-btn" :class="{ active: !!activeMore }" aria-haspopup="menu" :aria-expanded="menuOpen ? 'true' : 'false'" @click="menuOpen = !menuOpen"><span class="tab-more-text">{{ moreLabel }}</span><span aria-hidden="true">&nbsp;▾</span></button>
       <div v-if="menuOpen" class="tab-menu" role="menu">
         <a v-for="v in split.more" :id="'tab-' + v.id" :key="v.id" class="tab-menu-item" :class="{ active: active === v.id }" :href="'#' + v.id" role="menuitem" @click="menuOpen = false">{{ v.tab }}</a>
       </div>

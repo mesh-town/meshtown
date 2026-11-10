@@ -31,7 +31,7 @@ export class TabsBar {
 
   constructor(private readonly page: Page) {
     this.root = page.locator('nav#tabs');
-    this.moreButton = this.root.getByText(/▾$/).first();
+    this.moreButton = this.root.locator('button.tab-more-btn');
     this.menu = page.getByRole('menu');
     this.menuItems = this.menu.getByRole('menuitem');
   }

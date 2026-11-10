@@ -7,6 +7,8 @@
   .diag-icon.bad{color:var(--red);}
   .diag-icon.none{color:var(--grey);}
   .event-row{display:flex;align-items:baseline;gap:8px;padding:3px 0;font-size:13px;}
+  .event-row .badge{flex:0 0 5.5em;padding:0;color:var(--fg-muted);}
+  .event-row .mono{flex:none;}
   table.kv-table{width:100%;border-collapse:collapse;font-size:13px;}
   table.kv-table th{text-align:left;font-weight:400;color:var(--fg-muted);white-space:nowrap;padding:5px 14px 5px 0;vertical-align:top;}
   table.kv-table td{padding:5px 0;}
@@ -24,13 +26,13 @@
   table.data td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
 
   .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;}
-  .badge-ok{background:var(--green-bg);color:var(--green);}
+  .badge-ok{background:var(--green-bg);color:var(--badge-ok-fg);}
   .badge-cut{background:var(--red-bg);color:var(--red);}
   .badge-dns{background:var(--red-bg);color:var(--red);}
   .badge-geo{background:var(--orange-bg);color:var(--orange);}
   .badge-bot{background:var(--orange-bg);color:var(--orange);}
   .badge-down{background:var(--greyred-bg);color:var(--greyred-fg);}
-  .badge-none{background:var(--grey-bg);color:var(--grey);}
+  .badge-none{background:var(--grey-bg);color:var(--fg-muted);}
 
   .row-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
   .row-inline .input{flex:1;min-width:180px;}
@@ -73,6 +75,7 @@
   .chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
 
   .log-toolbar{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;margin-bottom:10px;}
+  .log-toolbar .btn-sm{padding:7px 14px;font-size:13px;line-height:20px;}
   .log-search{min-width:180px;flex:1;}
 
   .log-window{
@@ -110,7 +113,7 @@
   .setting-title{font-weight:600;font-size:13.5px;}
   .setting-desc{color:var(--fg-muted);font-size:12.5px;margin-top:3px;}
   .setting-control{flex-shrink:0;display:flex;align-items:center;gap:8px;}
-  .setting-control select,.setting-control .input{min-width:150px;}
+  .setting-control select,.setting-control .input{width:180px;}
 
 
 /* Network members: badges, the row menu, the vote banner, the removed list, the out-of-network card. */
@@ -120,7 +123,7 @@
 .peer-line{display:block;margin-top:2px;font-size:13px;color:var(--fg-muted);}
 @media (max-width:480px){.peer-row .peer-action{order:4;flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;gap:6px;padding-left:20px;text-align:left;}}
 .member-menu{position:relative;display:inline-block;}
-.member-menu-btn{min-width:32px;min-height:32px;border:1px solid var(--control-border);border-radius:6px;background:var(--bg-elev);color:var(--fg);cursor:pointer;}
+.member-menu-btn{min-width:28px;min-height:28px;border:1px solid var(--control-border);border-radius:6px;background:var(--bg-elev);color:var(--fg);cursor:pointer;}
 .menu{position:absolute;right:0;top:100%;z-index:20;min-width:200px;margin:4px 0 0;padding:4px;list-style:none;border:1px solid var(--border);border-radius:8px;background:var(--bg-elev);box-shadow:0 6px 18px rgba(0,0,0,.18);}
 .mi{display:block;width:100%;padding:8px 10px;border:0;border-radius:6px;background:none;color:var(--fg);text-align:left;cursor:pointer;font:inherit;}
 .mi:hover,.mi:focus-visible{background:var(--accent-soft);}

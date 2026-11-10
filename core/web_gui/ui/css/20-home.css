@@ -1,11 +1,12 @@
-  .home-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-bottom:16px;align-items:start;}
+  .home-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:16px;align-items:start;}
   @media (min-width:900px){
     .home-grid{grid-template-columns:1fr 1fr;}
   }
   /* "Home" (Vue): the wide card and the row of small cards span the full grid width. */
   .card-full{grid-column:1 / -1;}
-  .mini-row{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start;}
+  .mini-row{grid-column:1 / -1;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start;}
   .mini-row > .card{margin-bottom:0;}
+  .home-grid > .card{margin-bottom:0;}
   /* "Network invite" on a wide screen: the name field and the button share one row, the member counter sits in the title row. */
   @media (min-width:600px){
     #home-invite{display:grid;grid-template-columns:1fr auto;column-gap:8px;align-items:center;}
@@ -125,3 +126,5 @@
   .home-net-row:focus-visible{background:var(--grey-bg);outline:2px solid var(--accent);outline-offset:-2px;}
   .home-net-row-chevron{margin-left:auto;flex:none;font-size:18px;line-height:1;}
   .home-net-row .net-row-title,.home-net-row .net-row-summary{overflow-wrap:anywhere;}
+  #scope-q,#browser-label{display:block;margin-top:14px;font-size:13px;}
+  .exit-group-title,#tp-table-title{font-size:13.5px;font-weight:600;margin:12px 0 2px;padding-left:10px;}
