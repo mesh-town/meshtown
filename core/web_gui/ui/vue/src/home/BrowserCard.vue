@@ -40,7 +40,7 @@ const LAN_LEAD = { legacy: HOME_LAN_LEAD_SINGLE, single: HOME_LAN_LEAD_SINGLE, h
       <template v-else>{{ proxy.intro }}</template>
     </p>
     <template v-if="proxy.on">
-      <p id="pac-row"><TermText :text="PAC_ADDR_LABEL" /> <code class="mono" id="pac-url-text">{{ proxy.pacUrl }}</code> <button type="button" class="btn btn-sm" :id="COPY.pac[0]" :aria-label="copyAriaLabel('pac', form.browser.copied)" @click="h.copy('pac')">{{ form.browser.copied === "pac" ? HOME_COPIED : COPY.pac[1] }}</button></p>
+      <p id="pac-row"><span><TermText :text="PAC_ADDR_LABEL" /></span> <code class="mono" id="pac-url-text">{{ proxy.pacUrl }}</code> <button type="button" class="btn btn-sm" :id="COPY.pac[0]" :aria-label="copyAriaLabel('pac', form.browser.copied)" @click="h.copy('pac')">{{ form.browser.copied === "pac" ? HOME_COPIED : COPY.pac[1] }}</button></p>
       <p class="hint" id="pac-copy-note" :hidden="form.browser.noteKind !== 'pac' || !form.browser.note">{{ form.browser.note }}</p>
       <p class="hint" id="pac-why">{{ PAC_WHY }}</p>
       <p v-if="!form.exitChoice && !router" class="hint" id="pac-no-exit">{{ PAC_NO_EXIT_NOTE }}</p>
