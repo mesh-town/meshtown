@@ -66,3 +66,5 @@
 #you-block .toggle-inline{margin-top:14px;}
 #you-block .home-exit-toggle{display:flex;}
 .you-leave-hint{margin-top:16px;padding-top:12px;border-top:1px solid var(--border);}
+/* "Delete network for everyone": filled red, so it stands apart from "Leave network". */
+#you-delete-net-btn,#you-delete-net-btn:hover{background:var(--red);border-color:var(--red);color:var(--bg-elev);}

@@ -24,7 +24,7 @@
 .invite-qr{display:block;width:100%;max-width:280px;height:auto;margin-top:10px;}
 .lines-input{width:220px;height:64px;font-size:12.5px;}
 .file-errors-list{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--fg-muted);}
-.setting-control input.input[type="text"]{width:200px;}
+.setting-control input.input[type="text"]{width:180px;}
 
 .identity-strip{text-align:center;font-size:12.5px;padding:6px 10px;}
 .identity-strip-declined{background:var(--grey-bg);color:var(--fg-muted);}
