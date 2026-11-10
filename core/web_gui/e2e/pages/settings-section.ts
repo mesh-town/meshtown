@@ -122,11 +122,11 @@ export class SettingsSection {
     return this.tab.evaluate((el) => getComputedStyle(el, '::after').content);
   }
 
-  /** Colors of the grey badge, as given by a probe with the same `--grey-bg`/`--grey` tokens. */
+  /** Colors of the grey badge, as given by a probe with the same `--grey-bg`/`--fg-muted` tokens. */
   async greyTokens(): Promise<{ bg: string; fg: string }> {
     return this.root.evaluate(() => {
       const probe = document.createElement('span');
-      probe.style.cssText = 'background:var(--grey-bg);color:var(--grey);position:absolute;visibility:hidden;';
+      probe.style.cssText = 'background:var(--grey-bg);color:var(--fg-muted);position:absolute;visibility:hidden;';
       document.body.appendChild(probe);
       const style = getComputedStyle(probe);
       const tokens = { bg: style.backgroundColor, fg: style.color };
