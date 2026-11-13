@@ -1,6 +1,7 @@
 //! `NodeSnapshot` — the whole node as one value for the page (JSON) — and nested structs.
 
 pub use super::snapshot_exit::{ChosenExit, ExitInfo, RouteMode, RouteState};
+pub use super::snapshot_load::{ExitLoadInfo, ExitLoadMember, TurnedAway};
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct NodeSnapshot {
@@ -161,6 +162,9 @@ pub struct PeerInfo {
     pub through_peer_bps: u64,
     /// This peer's traffic through our exit, bytes/s over 10 s; own row and no data — 0.
     pub through_us_bps: u64,
+    /// Why the member says its exit is overloaded (`limit`, `share`, `memory`, `other`); `null` — it does not
+    /// or the record is not counted. The own row reads the live state.
+    pub overloaded: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]

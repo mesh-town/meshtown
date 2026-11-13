@@ -12,6 +12,7 @@
 //! The `members.closed` key was added by hand in the same way.
 //! The `transport.record.members` key (present only after the first read) was added by hand in the same way.
 //! The `exit.interface` key (and its `name`, `state`) was added by hand in the same way.
+//! The overload keys (`exit.load…`, `peers[].overloaded`, `route.exits[].{overloaded,turned_away,busy}`) were added by hand too.
 
 use super::*;
 use crate::ports_sharing::{PortReach, Proto};
@@ -31,6 +32,7 @@ const DEFAULT_KEYS: &[&str] = &[
     "exit.domains",
     "exit.enabled",
     "exit.interface",
+    "exit.load",
     "log",
     "log.first_seq",
     "log.last_seq",
@@ -114,6 +116,18 @@ const FILLED_KEYS: &[&str] = &[
     "exit.interface",
     "exit.interface.name",
     "exit.interface.state",
+    "exit.load",
+    "exit.load.admitted",
+    "exit.load.elsewhere_refused",
+    "exit.load.limit",
+    "exit.load.limit_auto",
+    "exit.load.members",
+    "exit.load.members[].admitted",
+    "exit.load.members[].id_full",
+    "exit.load.members[].refused",
+    "exit.load.overloaded",
+    "exit.load.refused",
+    "exit.load.streams",
     "log",
     "log.first_seq",
     "log.last_seq",
@@ -155,6 +169,7 @@ const FILLED_KEYS: &[&str] = &[
     "peers[].self",
     "peers[].stale",
     "peers[].through_peer_bps",
+    "peers[].overloaded",
     "peers[].through_us_bps",
     "peers[].version",
     "ports",
@@ -180,6 +195,11 @@ const FILLED_KEYS: &[&str] = &[
     "route",
     "route.exits",
     "route.exits[].active",
+    "route.exits[].busy",
+    "route.exits[].overloaded",
+    "route.exits[].turned_away",
+    "route.exits[].turned_away.attempts",
+    "route.exits[].turned_away.refused",
     "route.exits[].country",
     "route.exits[].exit",
     "route.exits[].id",
@@ -364,6 +384,11 @@ fn filled_snapshot() -> NodeSnapshot {
             ..Default::default()
         },
         exit: ExitInfo {
+            load: Some(ExitLoadInfo {
+                overloaded: Some(text("limit")),
+                members: vec![ExitLoadMember::default()],
+                ..Default::default()
+            }),
             enabled: true,
             domains: 1,
             clients: vec![text("client")],
@@ -418,6 +443,7 @@ fn filled_peer() -> PeerInfo {
         exit: Some(true),
         country: Some(text("RU")),
         program_version: Some(text("0.1.0")),
+        overloaded: Some(text("share")),
         ..Default::default()
     }
 }
@@ -434,6 +460,8 @@ fn filled_route() -> RouteState {
         name: Some(text("exit")),
         exit: Some(true),
         country: Some(text("RU")),
+        overloaded: Some(text("other")),
+        turned_away: Some(TurnedAway::default()),
         ..Default::default()
     };
     RouteState {

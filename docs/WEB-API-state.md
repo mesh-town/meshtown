@@ -93,6 +93,13 @@ Exact enum values and field notes, by group.
   node does not send the field; the reader treats its absence as `0`.
 - `peers[].through_us_bps` — the same for this peer's traffic through our exit (incoming EXIT connections from it).
   The window, composition and defaults are the same as for `through_peer_bps`.
+- `peers[].overloaded` — `null`, or the reason the member's exit says it is overloaded: `"limit"` (the cap on all
+  streams), `"share"` (one member reached its share), `"memory"` (the process memory guard), `"other"` (a word from a
+  newer version). The record (`node/exit-load/` in the shared network document) counts only while its author is online
+  with the exit flag on and its time lies within 25 minutes of this node's clock, in either direction; the age is
+  judged when the snapshot is built, not when the document is read. The own row comes from the live state of this
+  process, not from the document, and only while the exit of this network is on. An old node does not send the field;
+  the reader treats its absence as `null`.
 - `peers[].version` — the member's Mesh Town program version, a string like `0.1.0` (digits, letters,
   `.`, `-`, `+`, up to 32 characters). The own row has this build's version, like `node.version`. Other nodes
   announce it with the `node/version/` key in the shared network document at startup, if the recorded one differs.
@@ -104,6 +111,12 @@ Exact enum values and field notes, by group.
 - `exit.interface` — `null` when exit traffic uses the regular routing table, otherwise `{"name": "wg0", "state": …}`,
   where `state` is `up`, `down`, `missing` (no such interface on this machine) or `unsupported` (this system cannot
   bind to an interface). Anything but `up` means exit connections are refused (reply code 8).
+- `exit.load` — `null` while the exit of this network is off, otherwise the exit's own load:
+  `streams` (open now), `limit` (the cap in force), `limit_auto` (the cap by machine memory, what the setting 0 gives),
+  `overloaded` (the reason as in `peers[].overloaded`, while the overload lasts, else `null`), `admitted` and
+  `refused` (streams over the last 10 minutes, the whole process), `members` (`[{id_full, admitted, refused}]`:
+  members of this network with refusals over 10 minutes, most refused first, at most 20) and `elsewhere_refused`
+  (`refused` minus the refusals listed for this network's members; 0 with one network).
 - `exit.clients` — full ids (`id_full`) of members who currently reach the internet through this node: there is an
   open exit stream, or it closed less than 30 s ago. Network members only, in ascending order; `[]` — no clients or
   exit is off.
@@ -124,6 +137,11 @@ Exact enum values and field notes, by group.
   - `online` — whether it is online;
   - `exit` — whether its "works as an exit" flag is on (`null` — unknown);
   - `active` — whether this node is currently the first suitable candidate (`true` for at most one element);
+  - `overloaded` — as `peers[].overloaded` for this exit (the own node: the live state);
+  - `turned_away` — `null`, or `{"refused": N, "attempts": M}`: this node's own connections to the exit over the last
+    2 minutes, while the exit keeps refusing them (at least 5 refusals and 20 % of the attempts; ends after 2 quiet
+    minutes). Never set for the own node;
+  - `busy` — `overloaded != null || turned_away != null`: one truth for the page and the tray;
   - `removed` — present and `true` when the network's member list holds this node's exclusion (it is no longer
     in the network; such an exit is also `online: false`).
 - `domains[].checks[<id>].verdict`: `"ok"`, `"dns_mismatch"`, `"network_blocked"`, `"site_geoblock"`, `"antibot"`,

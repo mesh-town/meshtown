@@ -57,6 +57,9 @@ fn demo_route_state(st: &DemoState, peers: &[PeerInfo]) -> RouteState {
                 country: peer.and_then(|p| p.country.clone()),
                 active: active == Some(id),
                 removed: false,
+                overloaded: None,
+                turned_away: None,
+                busy: false,
             }
         })
         .collect();
@@ -82,6 +85,7 @@ fn demo_self_peer_info(st: &DemoState) -> PeerInfo {
         last_seen_sec: 0,
         through_peer_bps: 0,
         through_us_bps: 0,
+        overloaded: None,
     }
 }
 
@@ -102,6 +106,7 @@ fn build_demo_peer_infos(st: &DemoState) -> Vec<PeerInfo> {
         last_seen_sec: 1,
         through_peer_bps: 0,
         through_us_bps: 0,
+        overloaded: None,
     });
     std::iter::once(demo_self_peer_info(st))
         .chain(others)
@@ -196,6 +201,7 @@ fn build_exit_info(st: &DemoState) -> ExitInfo {
         enabled: st.settings.net.exit_enabled,
         domains: st.domains.len() as u64,
         clients: Vec::new(),
+        load: None,
         interface: st
             .settings
             .net

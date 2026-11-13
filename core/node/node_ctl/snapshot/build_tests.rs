@@ -73,6 +73,7 @@ pub(super) fn base(id: PeerId) -> Inputs<'static> {
         now_instant: Instant::now(),
         cached_seen: HashMap::new(),
         doc_seen: HashMap::new(),
+        load: Default::default(),
     }
 }
 

@@ -34,6 +34,7 @@ mod ring;
 mod routes;
 mod snapshot;
 mod snapshot_exit;
+mod snapshot_load;
 #[cfg(test)]
 pub(crate) mod test_host;
 mod token;

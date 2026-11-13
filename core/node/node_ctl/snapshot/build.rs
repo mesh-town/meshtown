@@ -22,6 +22,7 @@ use crate::web_gui::{
 
 use super::collect::Collected;
 use super::exit_info::{exit_clients, exit_iface_info};
+use super::exit_load::{exit_load_info, LoadInputs};
 use super::peers::build_peers;
 #[cfg(test)]
 use super::process::link_status;
@@ -79,6 +80,8 @@ pub(super) struct Inputs<'a> {
     /// Time of the author's last write in the shared document (unix seconds, per node); a liveness
     /// flag for filtering out departed members, adds no rows to `peers[]`.
     pub doc_seen: HashMap<PeerId, u64>,
+    /// Exit overload: others' records, the own live load, the client's local signs.
+    pub load: LoadInputs,
 }
 
 /// Pure assembly of the snapshot from already-read data — no network and no `.await`.
@@ -117,6 +120,7 @@ pub(super) fn build(i: Inputs<'_>) -> Collected {
             domains: i.domain_names.len() as u64,
             clients: exit_clients(&i),
             interface: i.exit_iface.as_ref().map(exit_iface_info),
+            load: exit_load_info(&i),
         },
         transport,
         peers,
@@ -277,6 +281,9 @@ mod cache_tests;
 #[cfg(test)]
 #[path = "build_country_tests.rs"]
 mod country_tests;
+#[cfg(test)]
+#[path = "exit_load_tests.rs"]
+mod exit_load_tests;
 #[cfg(test)]
 #[path = "build_exit_tests.rs"]
 mod exit_tests;

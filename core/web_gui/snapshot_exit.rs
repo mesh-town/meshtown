@@ -10,6 +10,8 @@ pub struct ExitInfo {
     pub clients: Vec<String>,
     /// The interface exit connections are bound to and its state; `null` — the system routing table.
     pub interface: Option<crate::iface_bind::ExitIfaceInfo>,
+    /// The exit's own load; `null` while the exit of this network is off.
+    pub load: Option<super::snapshot_load::ExitLoadInfo>,
 }
 
 /// Routing decision for the snapshot: the same selection function the proxy uses
@@ -39,6 +41,12 @@ pub struct ChosenExit {
     pub exit: Option<bool>,
     pub country: Option<String>,
     pub active: bool,
+    /// Why the exit says it is overloaded (`limit`, `share`, `memory`, `other`), while its record is counted.
+    pub overloaded: Option<String>,
+    /// This client's own refusals from the exit over the last two minutes, while they last.
+    pub turned_away: Option<super::snapshot_load::TurnedAway>,
+    /// `overloaded` or `turned_away` is set: one truth for the page and the tray.
+    pub busy: bool,
     /// The node has an exclusion record in the network's verdicts (never set for the own node).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub removed: bool,
