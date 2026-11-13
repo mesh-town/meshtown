@@ -7,6 +7,8 @@ mod admission;
 mod build;
 mod collect;
 mod doc_cache;
+mod doc_parts;
+mod exit_info;
 mod peers;
 mod ports;
 mod process;

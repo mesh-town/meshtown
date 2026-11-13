@@ -11,7 +11,7 @@ use crate::ports_sharing::PortView;
 use crate::site_checks::checks::CheckView;
 use crate::site_checks::geoip::Country;
 
-use super::collect::read_doc_parts;
+use super::doc_parts::read_doc_parts;
 
 /// Changes made by others to the document are read no more often than this.
 pub(super) const REMOTE_MIN_AGE: Duration = Duration::from_secs(10);
